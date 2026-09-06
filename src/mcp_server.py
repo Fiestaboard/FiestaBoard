@@ -327,18 +327,61 @@ def _build_mcp_server() -> Any:
         return _serialize(plugins)
 
     @_tool
-    def list_registry_plugins() -> list[dict[str, Any]] | dict[str, Any]:
-        """List all plugins available to install from the FiestaBoard registry.
+    def list_registry_plugins(
+        page: int = 1,
+        page_size: int = 20,
+        fields: list[str] | None = None,
+    ) -> dict[str, Any]:
+        """List plugins available to install from the FiestaBoard registry (paginated).
 
-        Returns a list. Each entry includes:
-        - id: use this as plugin_id when calling install_plugin()
-        - name, description, category
-        - installed: true if already installed
+        Each entry includes id (use it as plugin_id for install_plugin()),
+        name, description, category, plugin_type, and installed. The
+        board-preview fields (teaser, previews) are omitted by default —
+        they are large literal board grids; opt in via fields when you
+        actually need to show what a plugin looks like on a board.
+
+        Args:
+            page: 1-based page number (default 1).
+            page_size: Entries per page, 1-100 (default 20).
+            fields: Optional exact projection — each entry then carries only
+                    these fields plus id (e.g. ["name", "previews"]).
+
+        Returns: {plugins: [...], total, page, page_size, total_pages}.
         """
         from .plugins import get_plugin_registry
 
-        registry = get_plugin_registry()
-        return _serialize(registry.get_registry_entries())
+        if page < 1:
+            raise ToolError("page must be >= 1")
+        if not 1 <= page_size <= 100:
+            raise ToolError("page_size must be between 1 and 100")
+
+        entries = _serialize(get_plugin_registry().get_registry_entries())
+
+        if fields is not None:
+            known = {key for entry in entries for key in entry}
+            unknown = sorted(set(fields) - known)
+            if entries and unknown:
+                raise ToolError(f"Unknown fields: {', '.join(unknown)}. Valid fields: {', '.join(sorted(known))}")
+            keep = set(fields) | {"id"}
+
+            def project(entry: dict[str, Any]) -> dict[str, Any]:
+                return {k: v for k, v in entry.items() if k in keep}
+
+        else:
+            # Default projection: everything except the fat preview grids
+            # (#1765 audit finding 4 — they made this response ~33KB).
+            def project(entry: dict[str, Any]) -> dict[str, Any]:
+                return {k: v for k, v in entry.items() if k not in ("teaser", "previews")}
+
+        total = len(entries)
+        start = (page - 1) * page_size
+        return {
+            "plugins": [project(e) for e in entries[start : start + page_size]],
+            "total": total,
+            "page": page,
+            "page_size": page_size,
+            "total_pages": max(1, -(-total // page_size)),
+        }
 
     @_tool
     async def install_plugin(plugin_id: str, auto_enable: bool = True) -> dict[str, Any]:

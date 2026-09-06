@@ -429,15 +429,95 @@ class TestListInstalledPlugins:
         assert "db unavailable" not in message, "raw exception text must not cross the MCP boundary"
 
 
+@pytest.fixture
+def fat_registry():
+    """A registry whose entries carry realistic (large) board-preview blobs.
+
+    #1765 audit finding 4: list_registry_plugins shipped every entry's
+    teaser + previews grids unpaginated (~33KB). The fixture makes the
+    fat fields big enough that leaking them back is unmissable.
+    """
+    from src.plugins.registry import PluginRegistry
+
+    registry = create_autospec(PluginRegistry, instance=True)
+    registry.get_registry_entries.return_value = [
+        {
+            "id": f"plugin_{i:02d}",
+            "name": f"Plugin {i:02d}",
+            "description": "A registry plugin",
+            "category": "utility",
+            "plugin_type": "data",
+            "installed": i == 0,
+            "teaser": "TEASER ROW",
+            "previews": [{"shape": "flagship", "rows": ["X" * 22] * 6 * 8}],
+        }
+        for i in range(30)
+    ]
+    return registry
+
+
 class TestListRegistryPlugins:
+    """Pagination + projection (#1765): the old contract returned every
+    entry with its preview grids in one unpaginated list. Deliberately
+    replaced — the response now pages and drops the fat fields by default;
+    test_returns_registry_entries used to pin the bare list shape."""
+
     def test_returns_registry_entries(self, mcp, mock_registry):
         with patch("src.plugins.get_plugin_registry", return_value=mock_registry):
             result = _call_tool(mcp, "list_registry_plugins")
-        data = result
+        data = result["plugins"]
         assert len(data) == 2
         ids = {d["id"] for d in data}
         assert "openweather" in ids
         assert "stocks" in ids
+        assert result["total"] == 2
+
+    def test_default_response_omits_the_preview_grids(self, mcp, fat_registry):
+        with patch("src.plugins.get_plugin_registry", return_value=fat_registry):
+            result = _call_tool(mcp, "list_registry_plugins")
+        assert result["plugins"], "expected a page of entries"
+        for entry in result["plugins"]:
+            assert "previews" not in entry
+            assert "teaser" not in entry
+            assert entry["id"]
+
+    def test_default_response_stays_small(self, mcp, fat_registry):
+        import json as _json
+
+        with patch("src.plugins.get_plugin_registry", return_value=fat_registry):
+            result = _call_tool(mcp, "list_registry_plugins")
+        size = len(_json.dumps(result))
+        assert size < 8_000, f"default registry listing is {size} bytes — the preview grids are leaking back"
+
+    def test_pages_slice_and_report_totals(self, mcp, fat_registry):
+        with patch("src.plugins.get_plugin_registry", return_value=fat_registry):
+            page1 = _call_tool(mcp, "list_registry_plugins", page=1, page_size=20)
+            page2 = _call_tool(mcp, "list_registry_plugins", page=2, page_size=20)
+        assert page1["total"] == 30
+        assert page1["total_pages"] == 2
+        assert (page1["page"], page2["page"]) == (1, 2)
+        assert len(page1["plugins"]) == 20
+        assert len(page2["plugins"]) == 10
+        ids1 = {e["id"] for e in page1["plugins"]}
+        ids2 = {e["id"] for e in page2["plugins"]}
+        assert not ids1 & ids2, "page 2 repeated entries from page 1"
+
+    def test_fields_opt_in_returns_the_previews(self, mcp, fat_registry):
+        with patch("src.plugins.get_plugin_registry", return_value=fat_registry):
+            result = _call_tool(mcp, "list_registry_plugins", page_size=2, fields=["name", "previews"])
+        entry = result["plugins"][0]
+        assert set(entry) == {"id", "name", "previews"}
+        assert entry["previews"], "opting into previews returned nothing"
+
+    def test_unknown_field_is_an_error(self, mcp, fat_registry):
+        with patch("src.plugins.get_plugin_registry", return_value=fat_registry):
+            message = _call_tool_expect_error(mcp, "list_registry_plugins", fields=["not_a_field"])
+        assert "not_a_field" in message
+
+    def test_page_below_one_is_an_error(self, mcp, fat_registry):
+        with patch("src.plugins.get_plugin_registry", return_value=fat_registry):
+            message = _call_tool_expect_error(mcp, "list_registry_plugins", page=0)
+        assert "page" in message
 
 
 @pytest.fixture
