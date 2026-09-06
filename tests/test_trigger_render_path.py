@@ -94,9 +94,9 @@ class _FakeRegistry:
 
 
 @pytest.fixture
-def trigger_service():
+def trigger_service(tmp_path):
     """Fresh, isolated TriggerService for each test."""
-    return TriggerService()
+    return TriggerService(dismissals_file=tmp_path / "trigger_dismissals.json")
 
 
 @pytest.fixture
