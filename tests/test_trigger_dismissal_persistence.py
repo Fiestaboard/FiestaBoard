@@ -175,3 +175,63 @@ def test_suppression_lapse_honors_time_service_without_datetime_seam(monkeypatch
     clock.advance(61)
     svc.activate_trigger("stub_plugin", _result(duration=60))
     assert svc.get_active_trigger() is not None
+
+
+def test_engine_prune_during_dismissal_save_neither_raises_nor_loses_the_write(monkeypatch, tmp_path):
+    """#1871 review: _save_dismissals built its snapshot of _suppressed_until
+    OUTSIDE the lock and outside the try — an engine-tick prune
+    (clear_expired) mutating the dict mid-comprehension raised RuntimeError
+    INTO the API caller, aborting the user's page change with a 500.
+
+    Event-sequenced repro: the snapshot's first item spawns the engine's
+    prune on another thread and gives it a beat to run. Unserialized, the
+    prune deletes a lapsed entry from the dict the snapshot is iterating
+    (RuntimeError escapes dismiss_trigger); serialized under the state lock,
+    the prune waits, the dismissal persists, and the prune lands after.
+    """
+    import threading
+
+    clock = FakeClock(T0)
+    install_fake_time_service(monkeypatch, clock)
+    store = tmp_path / "trigger_dismissals.json"
+    svc = TriggerService(dismissals_file=store)
+
+    # A lapsed suppression for the engine's prune to collect (inserted first,
+    # so the snapshot yields it before the hook fires)...
+    svc._suppressed_until["aa-lapsed"] = T0 - timedelta(seconds=1)
+    # ...and the trigger the user is dismissing.
+    svc.activate_trigger("stub_plugin", _result("zz-dismissed"))
+
+    prune_threads: list = []
+
+    class RacingSuppressions(dict):
+        """items() whose first snapshot fires a concurrent engine prune."""
+
+        fired = False
+
+        def items(self):
+            iterator = iter(dict.items(self))
+
+            def gen():
+                if not RacingSuppressions.fired and len(self) > 1:
+                    RacingSuppressions.fired = True
+                    yield next(iterator)
+                    prune = threading.Thread(target=svc.clear_expired)
+                    prune.start()
+                    prune_threads.append(prune)
+                    prune.join(timeout=0.2)  # unserialized: completes (mutating us); locked: still waiting
+                yield from iterator
+
+            return gen()
+
+    svc._suppressed_until = RacingSuppressions(svc._suppressed_until)
+
+    assert svc.dismiss_trigger("zz-dismissed", suppress=True) is True
+
+    for prune in prune_threads:
+        prune.join(timeout=5)
+        assert not prune.is_alive()
+
+    data = json.loads(store.read_text(encoding="utf-8"))
+    assert "zz-dismissed" in data["dismissals"], "the user's dismissal must be persisted, not lost to the race"
+    assert "aa-lapsed" not in svc._suppressed_until  # the prune still landed
