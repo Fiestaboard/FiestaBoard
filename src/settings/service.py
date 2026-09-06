@@ -9,6 +9,7 @@ import json
 import logging
 import os
 import shutil
+import threading
 from collections.abc import Callable
 from dataclasses import asdict, dataclass, field
 from datetime import UTC, datetime
@@ -782,6 +783,12 @@ class SettingsService:
             self._needs_migration_save = False
 
         logger.info(f"SettingsService initialized (file: {self.settings_file})")
+
+    @property
+    def lock(self) -> threading.RLock:
+        """The kernel store's lock, for out-of-band writers of settings.json
+        (the backup restore, #1860) to serialise against normal saves."""
+        return self._store.lock
 
     @_locked
     def _run_migrations(self) -> None:

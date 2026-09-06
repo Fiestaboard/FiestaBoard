@@ -6,6 +6,7 @@ Includes schema versioning and automatic migration on startup.
 
 import json
 import logging
+import threading
 from collections.abc import Callable
 from datetime import UTC, datetime
 
@@ -119,6 +120,12 @@ class ScheduleStorage:
         self._load()
 
         logger.info(f"ScheduleStorage initialized (file: {self.storage_file}, schedules: {len(self._schedules)})")
+
+    @property
+    def lock(self) -> threading.RLock:
+        """The kernel store's lock, for out-of-band writers of this file
+        (the backup restore, #1860) to serialise against normal saves."""
+        return self._store.lock
 
     def _load(self) -> None:
         """Load schedules from storage file, running migrations if needed."""

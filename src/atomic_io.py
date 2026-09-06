@@ -11,31 +11,45 @@ server alongside a CLI script or the MQTT bridge. With one fixed
 ``<file>.tmp`` name, the process that renames second finds its source already
 renamed away and ``os.replace`` fails with ``ENOENT``, taking the save (and, in
 tests, an unrelated request) down with it. Scoping the staging name to the
-process removes that collision while keeping staging file and target siblings,
-so the rename stays a same-filesystem rename.
+process — plus a per-process monotonic counter — removes that collision while
+keeping staging file and target siblings, so the rename stays a
+same-filesystem rename.
 
-Within one process the staging name is shared by every thread, so writers must
-also serialise their saves. The stores built on
-:class:`src.storage.json_store.JsonStore` do this with the store's ``RLock``;
-stores with their own locking (``ConfigManager``) hold that lock across the
-write. This module itself is lock-free — it provides the atomic write, not the
-serialisation.
+The counter matters within one process too: two threads writing the same
+target (a settings PUT racing a backup restore, #1860) each get their own
+staging file, so neither can truncate or adopt the other's half-written temp.
+Unique staging names make the *rename* safe, not the *data*: last rename still
+wins, so writers that must not lose each other's updates still serialise their
+saves. The stores built on :class:`src.storage.json_store.JsonStore` do this
+with the store's ``RLock``; stores with their own locking (``ConfigManager``)
+hold that lock across the write. This module itself is lock-free — it provides
+the atomic write, not the serialisation.
 """
 
 import contextlib
+import itertools
 import json
 import os
 import stat
 from pathlib import Path
 from typing import Any, TextIO
 
+#: Per-process monotonic counter folded into every staging name so that no two
+#: calls — even from different threads staging the same target — ever share a
+#: staging file (#1860).
+_staging_counter = itertools.count()
+
 
 def staging_path(target: Path) -> Path:
-    """Return the process-scoped staging path to write before renaming onto *target*.
+    """Return a unique staging path to write before renaming onto *target*.
 
-    ``data/pages.json`` becomes ``data/pages.json.<pid>.tmp``.
+    ``data/pages.json`` becomes ``data/pages.json.<pid>.<n>.tmp`` where
+    ``<n>`` is a per-process monotonic counter. Every call returns a fresh
+    path: unique across processes (the pid) and across calls within one
+    process (the counter), so concurrent writers can never open, truncate,
+    or rename each other's staging file.
     """
-    return target.with_suffix(f"{target.suffix}.{os.getpid()}.tmp")
+    return target.with_suffix(f"{target.suffix}.{os.getpid()}.{next(_staging_counter)}.tmp")
 
 
 def _open_staging(tmp_path: Path, private: bool) -> TextIO:

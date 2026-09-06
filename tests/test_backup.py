@@ -480,3 +480,84 @@ def test_import_endpoint_does_not_leak_plugin_install_errors(client_with_data_di
     assert "SECRET_INTERNAL_XYZ" not in response.text
     body = response.json()
     assert body["plugins"]["failed"] and body["plugins"]["failed"][0]["plugin_id"] == "weather"
+
+
+# ── restore vs. concurrent store writes (#1860) ─────────────────────────────
+
+
+def test_restore_survives_a_concurrent_settings_save(monkeypatch):
+    """A restore and an in-flight settings save must both land coherently.
+
+    Repro from review of #1860: a settings PUT is paused inside ``json.dump``
+    (holding the settings store's lock) while a restore rewrites
+    ``settings.json``. With both writers staging at the same
+    ``<file>.<pid>.tmp`` name and the restore taking no store lock, the
+    restore's rename adopts the paused writer's inode; the resumed save then
+    scribbles over the restored file in place and its own final rename dies
+    with FileNotFoundError — a corrupted or silently reverted restore.
+    """
+    import threading
+
+    from src.paths import get_data_dir
+    from src.settings.service import get_settings_service
+
+    data_dir = get_data_dir()
+    settings_file = data_dir / "settings.json"
+    svc = get_settings_service()  # the live singleton — owns the settings lock
+
+    restore_payload = {
+        "transitions": {"strategy": "column"},
+        "padding_so_the_restore_is_longer_than_the_settings_dump": "x" * 512,
+    }
+    backup = {
+        BACKUP_FILE_MARKER: True,
+        "schema_version": BACKUP_SCHEMA_VERSION,
+        "data": {"settings": restore_payload},
+    }
+
+    real_dump = json.dump
+    settings_ident: list[int] = []
+    paused_in_dump = threading.Event()
+    resume_dump = threading.Event()
+    errors: list[BaseException] = []
+
+    def pausing_dump(obj, fh, **kwargs):
+        if settings_ident and threading.get_ident() == settings_ident[0]:
+            paused_in_dump.set()
+            assert resume_dump.wait(15), "orchestration stalled: dump never resumed"
+        return real_dump(obj, fh, **kwargs)
+
+    monkeypatch.setattr("src.atomic_io.json.dump", pausing_dump)
+
+    def settings_save():
+        settings_ident.append(threading.get_ident())
+        try:
+            svc._atomic_write_json({"display": {"reduce_motion": True}})
+        except BaseException as exc:
+            errors.append(exc)
+
+    def run_restore():
+        try:
+            with patch("src.backup.service._reload_services", return_value=[]):
+                BackupService(data_dir=data_dir).import_from_dict(backup, reinstall_plugins=False)
+        except BaseException as exc:
+            errors.append(exc)
+
+    saver = threading.Thread(target=settings_save)
+    saver.start()
+    assert paused_in_dump.wait(15), "settings save never reached json.dump"
+
+    restorer = threading.Thread(target=run_restore)
+    restorer.start()
+    # Post-fix the restore blocks on the settings store lock, so this join
+    # times out; pre-fix it sails through and clobbers the paused writer.
+    restorer.join(timeout=1.5)
+
+    resume_dump.set()
+    saver.join(timeout=15)
+    restorer.join(timeout=15)
+    assert not saver.is_alive() and not restorer.is_alive(), "writer threads wedged"
+
+    assert errors == [], f"a writer blew up: {errors!r}"
+    on_disk = json.loads(settings_file.read_text())  # corrupt pre-fix
+    assert on_disk == restore_payload, "restore was silently reverted by the concurrent save"

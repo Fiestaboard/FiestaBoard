@@ -140,6 +140,15 @@ class JsonStore:
         fresh ``{}`` when the file is missing) → ``fn(data)`` → save.
 
         ``fn`` mutates the data in place; its return value is passed through.
+
+        Assumes this store instance is the only writer of its file: once
+        ``self._data`` is populated it is trusted as-is — the file is never
+        re-read, so changes written by another JsonStore instance or another
+        process are silently overwritten. The missing-file path starts from a
+        bare ``{}`` without running migrations (``load()`` on an existing
+        file is where migrations happen). Use the process-wide singleton
+        store for a given file, and single-process deployment, for this to
+        hold.
         """
         with self._lock:
             data = self._data

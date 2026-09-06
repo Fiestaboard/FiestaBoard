@@ -8,6 +8,7 @@ legacy ``data/carousels.json`` file (carousel: prefixed IDs, flat
 
 import json
 import logging
+import threading
 from collections.abc import Callable
 from datetime import datetime
 
@@ -154,6 +155,12 @@ class CollectionStorage:
         self._collections[collection.id] = collection
 
     # --- load / save -----------------------------------------------------
+
+    @property
+    def lock(self) -> threading.RLock:
+        """The kernel store's lock, for out-of-band writers of this file
+        (the backup restore, #1860) to serialise against normal saves."""
+        return self._store.lock
 
     def _load(self) -> None:
         # First-run path: import legacy carousels.json if present.

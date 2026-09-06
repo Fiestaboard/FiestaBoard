@@ -7,6 +7,7 @@ that fail validation on load.
 
 import json
 import logging
+import threading
 from collections.abc import Callable
 from datetime import UTC, datetime
 
@@ -122,6 +123,12 @@ class PanelStorage:
         self._load()
 
         logger.info(f"PanelStorage initialized (file: {self.storage_file}, panels: {len(self._panels)})")
+
+    @property
+    def lock(self) -> threading.RLock:
+        """The kernel store's lock, for out-of-band writers of this file
+        (the backup restore, #1860) to serialise against normal saves."""
+        return self._store.lock
 
     def _load(self) -> None:
         """Load panels from storage file, running migrations if needed."""

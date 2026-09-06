@@ -1045,6 +1045,13 @@ class ConfigManager:
         logger.info("Configuration reloaded from file")
 
     @property
+    def lock(self) -> threading.RLock:
+        """The manager's file lock, for callers that write ``config.json``
+        out-of-band (the backup restore) and must not interleave with a
+        concurrent ``_save_internal`` (#1860)."""
+        return self._file_lock
+
+    @property
     def version_changed_on_load(self) -> bool:
         """True if this process loaded an existing config from an older app version.
 

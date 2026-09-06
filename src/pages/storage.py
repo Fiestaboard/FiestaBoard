@@ -7,6 +7,7 @@ Includes schema versioning and automatic migration on startup.
 import json
 import logging
 import re
+import threading
 from collections.abc import Callable
 from datetime import UTC, datetime
 
@@ -245,6 +246,12 @@ class PageStorage:
         self._load()
 
         logger.info(f"PageStorage initialized (file: {self.storage_file}, pages: {len(self._pages)})")
+
+    @property
+    def lock(self) -> threading.RLock:
+        """The kernel store's lock, for out-of-band writers of this file
+        (the backup restore, #1860) to serialise against normal saves."""
+        return self._store.lock
 
     def _load(self) -> None:
         """Load pages from storage file, running migrations if needed."""
