@@ -84,6 +84,7 @@
     "ollama",
     "organise",
     "pylint",
+    "Pydantic",
     "pytest",
     "QLOCKTWO",
     "rescan",
