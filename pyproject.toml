@@ -170,6 +170,8 @@ ignore = [
 # api_server's lint-ignore set so the extraction stays a pure move; the
 # convention cleanup happens with #1766.
 "src/pages/routes.py" = ["PTH", "SIM", "RET", "PIE", "RUF010", "RUF013", "RUF059", "RUF100"]
+"src/system/routes.py" = ["PTH", "SIM", "RET", "PIE", "RUF010", "RUF013", "RUF059", "RUF100"]
+"src/system/update_service.py" = ["PTH", "SIM", "RET", "PIE", "RUF010", "RUF013", "RUF059", "RUF100"]
 "src/schedules/routes.py" = ["PTH", "SIM", "RET", "PIE", "RUF010", "RUF013", "RUF059", "RUF100"]
 "src/collections/routes.py" = ["PTH", "SIM", "RET", "PIE", "RUF010", "RUF013", "RUF059", "RUF100"]
 # CodeQL-sensitive files: see the matching [tool.ruff.format].exclude entry
