@@ -121,7 +121,9 @@ PLUGIN_RENAME_ADJUSTERS: dict[str, Any] = {
 #   * Unparseable numeric/JSON values are ignored with a warning.
 #   * The overlay only augments plugins that already have a stored config
 #     entry — it never conjures a config for an uninstalled plugin.
-#   * Instance keys (``weather:sf``) share their base plugin's overrides.
+#   * The overlay applies ONLY to the base plugin id. Named instances
+#     (``weather:sf``) never inherit it — a base env var would otherwise
+#     override the per-instance settings that make the instance distinct.
 #
 # Board-connection and general env vars (BOARD_*, TIMEZONE, ...) are a
 # separate mechanism and keep their seed-once-into-config.json behavior in
@@ -1466,13 +1468,16 @@ class ConfigManager:
         """Current env-var overrides for one plugin (issue #1761).
 
         Computed from ``os.environ`` on every call so that unsetting a
-        variable immediately reverts reads to the stored value. Instance
-        keys (``weather:sf``) resolve to their base plugin id.
+        variable immediately reverts reads to the stored value. Named
+        instances (``weather:sf``) never receive overrides: the env vars are
+        named for the base plugin, and inheriting them would clobber the
+        very settings that distinguish an instance (#1864 review).
         """
-        base_id = plugin_id.split(":", 1)[0]
+        if ":" in plugin_id:
+            return {}
         overrides: dict[str, Any] = {}
         for env_var, (target_id, key, parse) in ENV_PLUGIN_OVERRIDES.items():
-            if target_id != base_id:
+            if target_id != plugin_id:
                 continue
             raw = os.getenv(env_var, "").strip()
             if not raw:
