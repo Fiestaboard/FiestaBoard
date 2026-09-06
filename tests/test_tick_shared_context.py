@@ -21,7 +21,7 @@ from unittest.mock import MagicMock
 import pytest
 
 import src.config as config_module
-from src.collections.models import Collection, VariableModeConfig
+from src.collections.models import Collection, VariableModeConfig, VariableRule
 from src.collections.service import CollectionService
 from src.collections.storage import CollectionStorage
 from src.config import Config
@@ -31,6 +31,7 @@ from src.pages.service import PageService
 from src.pages.storage import PageStorage
 from src.templates.engine import TemplateEngine
 from tests.engine_harness import SilenceOffConfigManager, make_board, silence_feature
+from tests.helpers import decode_board_rows
 
 TRANSITIONS = SimpleNamespace(strategy="instant", step_interval_ms=0, step_size=1)
 
@@ -41,11 +42,14 @@ class CountingRegistry:
     def __init__(self):
         self.build_calls = 0
         self.boards_seen = []
+        # Board-sensitive payload hook: tests that need a plugin whose data
+        # differs between board=None and board-aware builds override this.
+        self.payload = lambda board: {}
 
     def build_template_context(self, board=None):
         self.build_calls += 1
         self.boards_seen.append(board)
-        return {}
+        return self.payload(board)
 
     def build_template_contexts_for(self, boards):
         return {key: self.build_template_context(b) for key, b in boards.items()}
@@ -174,8 +178,13 @@ class TestSharedContextPerTick:
         assert clients["b-2"].render.call_count == 1
         assert registry.build_calls == 2
 
-    def test_variable_collection_resolution_shares_the_render_context(self, wire, registry, tmp_path):
-        """A variable-mode collection no longer builds its own second context."""
+    def test_variable_collection_without_rules_builds_no_extra_context(self, wire, registry, tmp_path):
+        """A rule-less variable collection resolves to its default with zero fan-out.
+
+        (Rule evaluation itself uses a dedicated shared board=None build —
+        see TestVariableRuleContextSemantics — so with no rules the only
+        context this tick builds is the render's.)
+        """
         collection = Collection(
             name="var",
             page_ids=["p-var"],
@@ -192,7 +201,67 @@ class TestSharedContextPerTick:
         service.check_and_send_active_page()
 
         assert clients["b-1"].render.call_count == 1
-        assert registry.build_calls == 1  # resolution + render share one fan-out
+        assert registry.build_calls == 1  # only the render's context; resolution built none
+
+
+def _board_sensitive_payload(board):
+    """A stub plugin whose data differs between board=None and board-aware builds."""
+    return {"stub": {"which": "AGNOSTIC" if board is None else "BOARD"}}
+
+
+def _variable_collection(tmp_path, rules, default_page_id):
+    collection = Collection(
+        name="var",
+        page_ids=[default_page_id] + [r.page_id for r in rules],
+        selection_mode="variable",
+        variable=VariableModeConfig(rules=rules, default_page_id=default_page_id),
+    )
+    collections = CollectionService(storage=CollectionStorage(storage_file=str(tmp_path / "collections.json")))
+    collections.storage.create(collection)
+    return collection, collections
+
+
+class TestVariableRuleContextSemantics:
+    """Variable-mode rule evaluation must stay board-agnostic (pre-#1752 semantics).
+
+    Board-aware plugins can return different data per geometry, so a rule fed
+    a board-aware render context could select a different page per board.
+    Rule evaluation therefore gets a dedicated shared ``board=None`` build,
+    never the render's board-aware context.
+    """
+
+    def test_variable_rules_see_board_agnostic_plugin_data(self, wire, registry, tmp_path):
+        """A rule over a board-sensitive plugin evaluates against board=None data."""
+        registry.payload = _board_sensitive_payload
+        rule = VariableRule(expression='stub.which = "AGNOSTIC"', page_id="p-agnostic")
+        collection, collections = _variable_collection(tmp_path, [rule], default_page_id="p-board")
+
+        boards = [make_board("b-1")]
+        pages = [_template_page("p-agnostic", "PICKED AGNOSTIC"), _template_page("p-board", "PICKED BOARD")]
+        service, clients = wire(boards, {"b-1": collection.id}, pages, collections=collections)
+
+        service.check_and_send_active_page()
+
+        assert clients["b-1"].render.call_count == 1  # non-vacuity: something rendered
+        rows = decode_board_rows(clients["b-1"].render.call_args[0][0])
+        assert any("AGNOSTIC" in row for row in rows), f"rule saw board-aware data; rendered rows: {rows}"
+
+    def test_one_board_agnostic_build_per_tick_regardless_of_board_count(self, wire, registry, tmp_path):
+        """N boards resolving variable collections share ONE board=None build per tick."""
+        registry.payload = _board_sensitive_payload
+        rule = VariableRule(expression='stub.which = "AGNOSTIC"', page_id="p-agnostic")
+        collection, collections = _variable_collection(tmp_path, [rule], default_page_id="p-board")
+
+        boards = [make_board("b-1"), make_board("b-2")]
+        pages = [_template_page("p-agnostic", "PICKED AGNOSTIC"), _template_page("p-board", "PICKED BOARD")]
+        service, clients = wire(boards, {"b-1": collection.id, "b-2": collection.id}, pages, collections=collections)
+
+        service.check_and_send_active_page()
+
+        assert clients["b-1"].render.call_count == 1
+        assert clients["b-2"].render.call_count == 1
+        assert registry.boards_seen.count(None) == 1  # one board-agnostic build, shared
+        assert registry.build_calls == 2  # + one flagship render context, shared
 
 
 # ---------------------------------------------------------------------------

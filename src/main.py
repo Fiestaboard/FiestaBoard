@@ -798,25 +798,43 @@ class DisplayService:
             logger.debug("Could not resolve board dict for %s: %s", board_id, e)
         return None
 
-    @staticmethod
-    def _shared_context_factory(page_service, contexts: dict[str, dict] | None, board: dict | None):
-        """A lazy provider of the pass-wide shared context for one board's size.
+    # Key of the board-agnostic (board=None) context in the per-tick shared
+    # contexts dict. Size keys never start with "__", so this cannot collide.
+    _BOARD_AGNOSTIC_CONTEXT_KEY = "__board_agnostic__"
 
-        Returns None (callers fall back to building their own context — the
-        pre-#1752 behavior) when there is no pass-wide cache or the board's
-        geometry cannot be resolved. The returned zero-arg callable defers the
-        plugin fan-out until a consumer actually needs the context.
+    @classmethod
+    def _shared_context_factory(cls, contexts: dict[str, dict] | None):
+        """A lazy provider of the pass-wide BOARD-AGNOSTIC plugin context.
+
+        Variable-mode collection rules must evaluate against the same data on
+        every board — pre-#1752, ``resolve_page_id`` built its context with
+        ``build_template_context(board=None)``. Board-aware plugins can return
+        different data per geometry, so feeding rules a board-aware render
+        context could select a different page per board. Rule evaluation
+        therefore gets a dedicated ``board=None`` slot in the per-tick cache:
+        built at most once per tick, shared across all boards. Render contexts
+        stay board-aware and are unaffected.
+
+        Returns None (callers fall back to building their own board-agnostic
+        context — the pre-#1752 behavior) when there is no pass-wide cache.
+        The returned zero-arg callable defers the plugin fan-out until a
+        consumer actually needs the context.
         """
-        if contexts is None or not isinstance(board, dict):
+        if contexts is None:
             return None
 
         def factory() -> dict | None:
-            return page_service.shared_context_for(
-                contexts,
-                board.get("device_type") or DEFAULT_DEVICE_TYPE,
-                board.get("notes_wide") or 1,
-                board.get("notes_tall") or 1,
-            )
+            context = contexts.get(cls._BOARD_AGNOSTIC_CONTEXT_KEY)
+            if context is None:
+                try:
+                    from src.plugins.registry import get_plugin_registry
+
+                    context = get_plugin_registry().build_template_context()
+                except Exception as e:
+                    logger.error(f"Failed to build shared board-agnostic context: {e}")
+                    return None
+                contexts[cls._BOARD_AGNOSTIC_CONTEXT_KEY] = context
+            return context
 
         return factory
 
@@ -1093,13 +1111,12 @@ class DisplayService:
                 collection_service = get_collection_service()
                 if is_collection_id(active_page_id):
                     # Variable-mode collections evaluate rules against the
-                    # plugin context; hand them the pass-wide shared one
-                    # (issue #1752) so resolution and render share a single
-                    # fan-out. The factory is lazy: time/random-mode
-                    # collections never build a context at all.
-                    context_factory = self._shared_context_factory(
-                        page_service, contexts, board if board is not None else self._board_dict_for(board_id)
-                    )
+                    # BOARD-AGNOSTIC plugin context (board=None, the pre-#1752
+                    # semantics — board-aware data could pick a different page
+                    # per board); the pass-wide cache builds it at most once
+                    # per tick (issue #1752). The factory is lazy: time/
+                    # random-mode collections never build a context at all.
+                    context_factory = self._shared_context_factory(contexts)
                     resolved = collection_service.resolve_page_id(active_page_id, context_factory=context_factory)
                     if not resolved:
                         logger.warning(f"Collection not found or empty: {active_page_id}")

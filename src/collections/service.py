@@ -106,9 +106,10 @@ class CollectionService:
         - For ``variable`` mode, walks ``variable.rules`` in order and returns
           the first ``page_id`` whose expression evaluates truthy. If
           ``context`` is None, ``context_factory`` (when given) supplies it —
-          the display loop passes its per-tick shared context this way
-          (issue #1752) so resolution and render share one plugin fan-out;
-          otherwise it is built lazily from the plugin registry.
+          the display loop passes its per-tick shared BOARD-AGNOSTIC context
+          this way (issue #1752) so every board's resolution shares one
+          ``board=None`` plugin fan-out per tick; otherwise it is built
+          lazily from the plugin registry (also board-agnostic).
         - For ``random`` mode, returns the shuffle-bag page for the current
           duration window (deterministic, stateless, no back-to-back repeats).
 
@@ -192,6 +193,11 @@ class CollectionService:
         if collection.variable is None:
             # Should be caught by validation; defend anyway.
             return collection.page_ids[0]
+
+        if not collection.variable.rules:
+            # No rules to evaluate — the default always wins; skip the
+            # plugin fan-out a context build would cost.
+            return collection.variable.default_page_id
 
         ctx = context
         if ctx is None and context_factory is not None:
