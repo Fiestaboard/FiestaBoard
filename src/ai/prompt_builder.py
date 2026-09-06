@@ -15,6 +15,7 @@ from dataclasses import dataclass, field
 from typing import Any, Literal
 
 from src.devices import DeviceType, get_dimensions
+from src.ops.teaching import dimensions_phrase
 from src.templates.expressions import function_signatures
 
 # Which caller is building the prompt. The shared core (device limits,
@@ -434,7 +435,7 @@ def build_prompt(
     )
 
     layout_rules = (
-        f"DEVICE: {device_type} ({cols} columns x {rows} rows).\n"
+        f"DEVICE: {device_type} ({dimensions_phrase(device_type)}).\n"
         f"- Output exactly {rows} entries in `template` (use empty\n"
         f"  strings to leave a row blank).\n"
         f"- Each line's rendered width must be <= {cols} columns. If a\n"
