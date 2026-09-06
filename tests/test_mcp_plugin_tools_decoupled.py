@@ -86,9 +86,16 @@ with (
     assert call("disable_plugin", plugin_id="stocks")["status"] == "success"
     assert call("configure_plugin", plugin_id="stocks", config={"api_key": "k"})["status"] == "success"
     assert call("uninstall_plugin", plugin_id="stocks")["status"] == "success"
-    # No source for the plugin: the guarded update path answers with an
-    # error result — the point is that it did so without api_server.
-    assert call("update_plugin", plugin_id="stocks")["status"] == "error"
+    # No source for the plugin: the guarded update path refuses. #1765 made
+    # tool failures raise ToolError (protocol isError) instead of returning
+    # an error envelope — the point here is that it refused without
+    # api_server, whatever the error surface.
+    from mcp.server.mcpserver.exceptions import ToolError
+    try:
+        call("update_plugin", plugin_id="stocks")
+        raise AssertionError("update_plugin with no source must fail")
+    except ToolError:
+        pass
 
 # Not vacuous: the tools really drove the collaborators.
 registry.install_from_registry.assert_called_once_with("stocks")

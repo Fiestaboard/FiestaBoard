@@ -283,8 +283,13 @@ def test_parity_update_plugin_rejects_builtins_identically(tmp_path, mcp):
         assert result["status"] == "error"
 
     def mcp_steps(env):
-        result = mcp_call(mcp, "update_plugin", plugin_id=PLUGIN_ID)
-        assert result["status"] == "error"
+        # #1765: the MCP surface converts the executor's error envelope into
+        # a raised ToolError (protocol isError). The *state* parity below is
+        # unchanged — both grammars refuse and touch nothing.
+        from mcp.server.mcpserver.exceptions import ToolError
+
+        with pytest.raises(ToolError):
+            mcp_call(mcp, "update_plugin", plugin_id=PLUGIN_ID)
 
     assert_parity(tmp_path, chat_steps, mcp_steps, with_plugins=True)
 

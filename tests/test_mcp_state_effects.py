@@ -331,6 +331,22 @@ def call(mcp: Any, tool_name: str, /, **kwargs: Any) -> Any:
     return result
 
 
+def call_expect_error(mcp: Any, tool_name: str, /, **kwargs: Any) -> str:
+    """Invoke a tool whose failure is the point; return its error message.
+
+    #1765 contract reversal: failures used to be *successful* results whose
+    payload said ``{"status": "error"}``; a failing tool now raises
+    ToolError (protocol ``isError`` on the wire — pinned end-to-end by
+    tests/test_mcp_server.py::TestProtocolIsError). Every error-path test
+    below asserts on the raised message instead of the old envelope.
+    """
+    from mcp.server.mcpserver.exceptions import ToolError
+
+    with pytest.raises(ToolError) as excinfo:
+        call(mcp, tool_name, **kwargs)
+    return str(excinfo.value)
+
+
 def assert_ok(result: Any, what: str) -> Any:
     """Fail with the tool's own error string rather than a shape mismatch.
 
@@ -473,8 +489,8 @@ def test_update_page_with_no_fields_is_reported_not_silently_ignored(mcp, servic
         call(mcp, "create_page", name="Untouched", template_lines=FLAGSHIP_TEMPLATE, device_type="flagship"),
         "create_page",
     )
-    result = call(mcp, "update_page", page_id=created["page_id"])
-    assert isinstance(result, dict) and result.get("error"), "a no-op update should say so, not report success"
+    message = call_expect_error(mcp, "update_page", page_id=created["page_id"])
+    assert "Nothing to update" in message, "a no-op update should say so, not report success"
 
 
 def test_delete_page_removes_it_from_list_pages(mcp, services):
@@ -795,12 +811,9 @@ def test_configure_plugin_merges_with_the_existing_stored_config(mcp, plugins):
 
 def test_configure_plugin_reports_validation_errors_instead_of_success(mcp, plugins):
     """``registry.set_plugin_config()`` returns errors; the tool discarded them."""
-    result = call(mcp, "configure_plugin", plugin_id=PLUGIN_ID, config={"station_id": ""})
+    message = call_expect_error(mcp, "configure_plugin", plugin_id=PLUGIN_ID, config={"station_id": ""})
 
-    assert result.get("status") == "error", "an invalid config was reported as a successful update"
-    assert "station_id" in str(result.get("error", "")), (
-        f"the plugin's own validation message was not surfaced: {result}"
-    )
+    assert "station_id" in message, f"the plugin's own validation message was not surfaced: {message}"
 
 
 def test_configure_plugin_does_not_overwrite_a_good_config_with_a_rejected_one(mcp, plugins):
@@ -809,15 +822,14 @@ def test_configure_plugin_does_not_overwrite_a_good_config_with_a_rejected_one(m
         "configure_plugin",
     )
 
-    call(mcp, "configure_plugin", plugin_id=PLUGIN_ID, config={"station_id": ""})
+    call_expect_error(mcp, "configure_plugin", plugin_id=PLUGIN_ID, config={"station_id": ""})
 
     stored = stored_plugin_config(plugins["config_path"], PLUGIN_ID)
     assert stored["station_id"] == "9447427", "a rejected config was persisted over a valid one"
 
 
 def test_configure_plugin_reports_an_error_for_an_unknown_plugin(mcp, plugins):
-    result = call(mcp, "configure_plugin", plugin_id="not_a_plugin", config={"station_id": "1"})
-    assert result.get("status") == "error"
+    call_expect_error(mcp, "configure_plugin", plugin_id="not_a_plugin", config={"station_id": "1"})
     assert stored_plugin_config(plugins["config_path"], "not_a_plugin") is None
 
 
@@ -840,13 +852,11 @@ def test_disable_plugin_persists_enabled_false(mcp, plugins):
 
 def test_enable_plugin_reports_an_error_for_an_unknown_plugin(mcp, plugins):
     """``registry.enable_plugin()`` returns False here; the tool ignored it."""
-    result = call(mcp, "enable_plugin", plugin_id="not_a_plugin")
-    assert result.get("status") == "error", "enabling a plugin that does not exist reported success"
+    call_expect_error(mcp, "enable_plugin", plugin_id="not_a_plugin")
 
 
 def test_disable_plugin_reports_an_error_for_an_unknown_plugin(mcp, plugins):
-    result = call(mcp, "disable_plugin", plugin_id="not_a_plugin")
-    assert result.get("status") == "error", "disabling a plugin that does not exist reported success"
+    call_expect_error(mcp, "disable_plugin", plugin_id="not_a_plugin")
 
 
 def test_enable_plugin_does_not_disturb_the_stored_settings(mcp, plugins):
@@ -939,13 +949,13 @@ def test_plugin_configured_over_mcp_survives_a_container_recreate(mcp, plugins):
 
 
 def test_delete_schedule_reports_an_error_for_an_unknown_id(mcp, services):
-    result = call(mcp, "delete_schedule", schedule_id="no-such-schedule")
-    assert result.get("status") == "error", f"deleting a schedule that does not exist reported success: {result}"
+    message = call_expect_error(mcp, "delete_schedule", schedule_id="no-such-schedule")
+    assert "not found" in message, f"deleting a schedule that does not exist reported success: {message}"
 
 
 def test_delete_collection_reports_an_error_for_an_unknown_id(mcp, services):
-    result = call(mcp, "delete_collection", collection_id="no-such-collection")
-    assert result.get("status") == "error", f"deleting a collection that does not exist reported success: {result}"
+    message = call_expect_error(mcp, "delete_collection", collection_id="no-such-collection")
+    assert "not found" in message, f"deleting a collection that does not exist reported success: {message}"
 
 
 # ---------------------------------------------------------------------------
@@ -1095,12 +1105,9 @@ def test_update_plugin_fetches_the_new_version_from_the_remote(mcp, updatable_pl
 
 def test_update_plugin_refuses_a_builtin_plugin(mcp, updatable_plugins):
     """``POST /plugins/{id}/update`` 400s here; the MCP tool reloaded it."""
-    result = call(mcp, "update_plugin", plugin_id=BUILTIN_PLUGIN_ID)
+    message = call_expect_error(mcp, "update_plugin", plugin_id=BUILTIN_PLUGIN_ID)
 
-    assert result.get("status") == "error", f"a built-in plugin was reported as updated: {result}"
-    assert "built-in" in str(result.get("error", "")).lower(), (
-        f"the rejection did not say why a built-in cannot be updated: {result}"
-    )
+    assert "built-in" in message.lower(), f"the rejection did not say why a built-in cannot be updated: {message}"
 
 
 def test_update_plugin_refuses_a_plugin_that_is_not_a_git_checkout(mcp, updatable_plugins):
@@ -1109,17 +1116,13 @@ def test_update_plugin_refuses_a_plugin_that_is_not_a_git_checkout(mcp, updatabl
     Without the REST path's ``.git`` check the tool reports success for a
     directory it has no way to update.
     """
-    result = call(mcp, "update_plugin", plugin_id=PLUGIN_ID)
+    message = call_expect_error(mcp, "update_plugin", plugin_id=PLUGIN_ID)
 
-    assert result.get("status") == "error", f"a plugin with no git checkout was reported as updated: {result}"
-    assert "git" in str(result.get("error", "")).lower(), (
-        f"the rejection did not name the missing git checkout: {result}"
-    )
+    assert "git" in message.lower(), f"the rejection did not name the missing git checkout: {message}"
 
 
 def test_update_plugin_reports_an_error_for_an_unknown_plugin(mcp, updatable_plugins):
-    result = call(mcp, "update_plugin", plugin_id="not_a_plugin")
-    assert result.get("status") == "error", f"updating a plugin that does not exist reported success: {result}"
+    call_expect_error(mcp, "update_plugin", plugin_id="not_a_plugin")
 
 
 # ---------------------------------------------------------------------------
@@ -1205,10 +1208,9 @@ def test_set_schedule_mode_without_board_id_keeps_targeting_the_primary_board(mc
 
 
 def test_set_schedule_mode_reports_an_unknown_board(mcp, services, two_boards):
-    result = call(mcp, "set_schedule_mode", enabled=True, board_id="no-such-board")
+    message = call_expect_error(mcp, "set_schedule_mode", enabled=True, board_id="no-such-board")
 
-    assert result.get("status") == "error", f"an unknown board_id was reported as success: {result}"
-    assert "no-such-board" in str(result.get("error", ""))
+    assert "no-such-board" in message
     assert two_boards.is_schedule_enabled("board-main") is False
     assert two_boards.is_schedule_enabled("board-note") is False
 
@@ -1373,10 +1375,9 @@ def test_send_message_to_a_paused_board_is_blocked_without_touching_it(mcp, serv
 
 
 def test_send_message_reports_an_unknown_board(mcp, services, engine):
-    result = call(mcp, "send_message", text="HI", board_id="no-such-board")
+    message = call_expect_error(mcp, "send_message", text="HI", board_id="no-such-board")
 
-    assert result.get("status") == "error"
-    assert "no-such-board" in str(result.get("error", ""))
+    assert "no-such-board" in message
     assert engine.vb_client.rendered == []
 
 
@@ -1430,9 +1431,8 @@ def test_get_active_page_resolves_a_collection_to_its_member(mcp, services, two_
 
 
 def test_get_active_page_reports_an_unknown_board(mcp, services, two_boards):
-    result = call(mcp, "get_active_page", board_id="no-such-board")
-    assert result.get("status") == "error"
-    assert "no-such-board" in str(result.get("error", ""))
+    message = call_expect_error(mcp, "get_active_page", board_id="no-such-board")
+    assert "no-such-board" in message
 
 
 # -- get_board_content ------------------------------------------------------
@@ -1500,9 +1500,8 @@ def test_preview_saved_page_reports_board_fit(mcp, services, two_boards, monkeyp
 
 
 def test_preview_saved_page_unknown_page_is_an_error(mcp, services):
-    result = call(mcp, "preview_saved_page", page_id="no-such-page")
-    assert result.get("status") == "error"
-    assert "no-such-page" in str(result.get("error", ""))
+    message = call_expect_error(mcp, "preview_saved_page", page_id="no-such-page")
+    assert "no-such-page" in message
 
 
 # -- validate_template ------------------------------------------------------
@@ -1523,5 +1522,5 @@ def test_validate_template_reports_a_broken_formula_with_position(mcp, services)
 
 
 def test_validate_template_rejects_an_unknown_device_type(mcp, services):
-    result = call(mcp, "validate_template", template="HI", device_type="jumbotron")
-    assert result.get("status") == "error"
+    message = call_expect_error(mcp, "validate_template", template="HI", device_type="jumbotron")
+    assert "jumbotron" in message
