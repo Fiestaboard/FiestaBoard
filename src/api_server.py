@@ -3833,14 +3833,6 @@ async def get_board_config():
     return {"config": masked, "api_modes": ["local", "cloud"]}
 
 
-# Deprecated backward compatibility endpoint - redirects to /config/board
-async def get_board_config_compat(response: Response):
-    """Deprecated: Use /config/board instead."""
-    response.headers["Deprecation"] = "true"
-    response.headers["Link"] = '</config/board>; rel="successor-version"'
-    return await get_board_config()
-
-
 @app.put("/config/board")
 async def update_board_config(request: dict):
     """
@@ -3871,14 +3863,6 @@ async def update_board_config(request: dict):
     masked = config_manager._mask_sensitive(updated)
 
     return {"status": "success", "config": masked}
-
-
-# Deprecated backward compatibility endpoint - redirects to /config/board
-async def update_board_config_compat(request: dict, response: Response):
-    """Deprecated: Use /config/board instead."""
-    response.headers["Deprecation"] = "true"
-    response.headers["Link"] = '</config/board>; rel="successor-version"'
-    return await update_board_config(request)
 
 
 @app.delete("/config/board")
