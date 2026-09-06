@@ -31,6 +31,7 @@ from pathlib import Path
 from types import SimpleNamespace
 from typing import Any
 from unittest.mock import Mock, patch
+from urllib.parse import urlparse
 
 import pytest
 from fastapi.testclient import TestClient
@@ -98,6 +99,21 @@ COLLECTIONS_ROUTES = {
 
 # The /plugins family issue #1757 moves. Deliberately excluded, other domains:
 # /transitions/plugins (transitions), /settings/plugins (settings), /triggers.
+# The system-update family issue #1758 moves: update check / status / apply /
+# rollback / auto-toggle, the sidecar-proxied restart + shutdown actions, and
+# the version endpoint. Deliberately excluded, other domains: /system/wifi/*
+# (network), /hdmi/* (kiosk), /debug/system-info (debug).
+SYSTEM_ROUTES = {
+    ("GET", "/version"),
+    ("GET", "/system/update-check"),
+    ("GET", "/system/update/status"),
+    ("POST", "/system/update"),
+    ("POST", "/system/update/rollback"),
+    ("POST", "/system/update/auto"),
+    ("POST", "/system/restart"),
+    ("POST", "/system/shutdown"),
+}
+
 PLUGINS_ROUTES = {
     ("GET", "/plugins"),
     ("GET", "/plugins/variables/all"),
@@ -969,3 +985,212 @@ def test_plugins_response_shapes():
         rec.hit("updates_apply_none", "POST", "/plugins/updates/apply")
 
     _assert_matches_golden("plugins", rec, PLUGINS_ROUTES)
+
+
+# ---------------------------------------------------------------------------
+# System-update domain (#1758)
+#
+# These routes reach the network in three ways — Docker Hub / GitHub Releases
+# version checks, the fiestaupdater sidecar HTTP API, and the BackupService's
+# on-disk export — so the scenario stubs every one of them deterministically:
+# ``src.api_server.requests`` get/post are replaced per hit (the same seam the
+# rest of the suite patches), the state-file and snapshot-dir test seams
+# (``SYSTEM_UPDATE_STATE_FILE`` / ``SETTINGS_SNAPSHOT_DIR``) point at tmp
+# paths, and ``src.backup.service.get_backup_service`` returns a canned
+# document. Identical stubs re-drive identical shapes on re-record, and the
+# golden then proves the extracted router still resolves every one of those
+# seams through ``src.api_server`` at call time.
+# ---------------------------------------------------------------------------
+
+
+_GOLDEN_DIGEST = "sha256:" + "ab12" * 16
+_GOLDEN_IMAGE = "fiestaboard/fiestaboard:8.0.0"
+
+_GOLDEN_BACKUP_DOC = {
+    "fiestaboard_backup": True,
+    "schema_version": 1,
+    "app_version": "7.0.0",
+    "data": {"config": {"plugins": {"weather": {"enabled": True, "api_key": "test_key"}}}},
+}
+
+
+class _GoldenBackupService:
+    """BackupService stand-in: canned export, canned restore result."""
+
+    def export_to_json(self) -> str:
+        return json.dumps(_GOLDEN_BACKUP_DOC, indent=2)
+
+    def import_from_json(self, raw: str, reinstall_plugins: bool = True) -> dict[str, Any]:
+        return {
+            "restored_files": ["settings.json"],
+            "skipped_files": [],
+            "pre_restore_backup_suffix": ".pre-restore-golden",
+            "reload_errors": [],
+        }
+
+
+def _updater_get(url: str, **_kwargs: Any) -> Mock:
+    """Fake ``requests.get`` for a healthy fiestaupdater sidecar."""
+    if url.endswith("/healthz"):
+        return Mock(status_code=200)
+    if url.endswith("/last-update"):
+        resp = Mock(status_code=200)
+        resp.json.return_value = {
+            "status": "success",
+            "action": "update",
+            "error": None,
+            "previous_digest": _GOLDEN_DIGEST,
+            "completed_at": "2026-01-02T03:04:05Z",
+        }
+        return resp
+    if url.endswith("/version"):
+        resp = Mock(status_code=200)
+        resp.json.return_value = {"digest": _GOLDEN_DIGEST, "image": _GOLDEN_IMAGE}
+        return resp
+    return Mock(status_code=404)  # pragma: no cover - no other URLs are hit
+
+
+def _version_sources_get(url: str, **_kwargs: Any) -> Mock:
+    """Fake ``requests.get`` for the Docker Hub + GitHub version sources."""
+    resp = Mock(status_code=200)
+    resp.raise_for_status = Mock()
+    if urlparse(url).netloc == "hub.docker.com":
+        resp.json.return_value = {"results": [{"name": "99.0.0"}, {"name": "latest"}]}
+    else:
+        resp.json.return_value = {"tag_name": "v98.0.0"}
+    return resp
+
+
+def test_system_response_shapes(tmp_path, monkeypatch):
+    client = TestClient(app)
+    rec = Recorder(client)
+
+    state_file = tmp_path / "state.json"
+    snap_dir = tmp_path / "update-backups"
+    monkeypatch.setattr("src.api_server.SYSTEM_UPDATE_STATE_FILE", state_file)
+    monkeypatch.setattr("src.api_server.SETTINGS_SNAPSHOT_DIR", snap_dir)
+    # Deterministic environment: docker profile, not managed externally, no
+    # sidecar token until a hit opts in, dev build.
+    for var in ("FIESTAUPDATER_TOKEN", "SUPERVISOR_TOKEN", "FIESTABOARD_MANAGED_EXTERNALLY", "VERSION", "PRODUCTION"):
+        monkeypatch.delenv(var, raising=False)
+    monkeypatch.setenv("FIESTABOARD_PROFILE", "docker")
+    monkeypatch.setattr("src.backup.service.get_backup_service", _GoldenBackupService)
+
+    # -- /version -----------------------------------------------------------
+    with patch("src.api_server._detect_hardware_model", return_value="Raspberry Pi 5 Model B Rev 1.0"):
+        rec.hit("version_ok", "GET", "/version")
+
+    # -- /system/update-check ----------------------------------------------
+    # Docker Hub reports 99.0.0, GitHub 98.0.0: newest-of-both-sources wins.
+    with patch("src.api_server.requests.get", side_effect=_version_sources_get):
+        rec.hit("update_check_ok", "GET", "/system/update-check")
+    with patch("src.api_server.requests.get", side_effect=Exception("network down")):
+        rec.hit("update_check_sources_down", "GET", "/system/update-check")
+
+    # -- /system/update/status ---------------------------------------------
+    rec.hit("update_status_no_token", "GET", "/system/update/status")
+
+    # Full status: sidecar reachable, bookkeeping populated, one snapshot on
+    # disk whose enabled plugin is missing from the (stubbed-empty) live
+    # config, so the post-upgrade regression hint is exercised too.
+    monkeypatch.setenv("FIESTAUPDATER_TOKEN", "golden-token")
+    state_file.write_text(
+        json.dumps(
+            {
+                "last_check": "2026-01-01T00:00:00+00:00",
+                "last_update": "2026-01-02T00:00:00+00:00",
+                "auto_update_interval": "weekly",
+                "auto_update_enabled": True,
+            }
+        )
+    )
+    snap_dir.mkdir(parents=True)
+    planted = snap_dir / "pre-update-20260101T000000.000Z.json"
+    planted_doc = dict(_GOLDEN_BACKUP_DOC)
+    planted_doc["_fiestaupdater"] = {"previous_digest": _GOLDEN_DIGEST, "previous_image": _GOLDEN_IMAGE}
+    planted.write_text(json.dumps(planted_doc))
+
+    empty_cm = Mock()
+    empty_cm.get_all_plugin_configs.return_value = {}
+    with (
+        patch("src.api_server.requests.get", side_effect=_updater_get),
+        patch("src.api_server.get_config_manager", return_value=empty_cm),
+    ):
+        rec.hit("update_status_full", "GET", "/system/update/status")
+
+    # -- POST /system/update ------------------------------------------------
+    monkeypatch.delenv("FIESTAUPDATER_TOKEN", raising=False)
+    rec.hit("update_apply_no_token", "POST", "/system/update")
+
+    monkeypatch.setenv("FIESTAUPDATER_TOKEN", "golden-token")
+    import requests as _requests
+
+    with patch(
+        "src.api_server.requests.post",
+        side_effect=_requests.exceptions.ConnectionError("sidecar down"),
+    ):
+        rec.hit("update_apply_sidecar_down", "POST", "/system/update")
+
+    ok_post = Mock(status_code=202)
+    ok_post.json.return_value = {"previous_digest": _GOLDEN_DIGEST}
+    with (
+        patch("src.api_server.requests.get", side_effect=_updater_get),
+        patch("src.api_server.requests.post", return_value=ok_post),
+    ):
+        rec.hit("update_apply_ok", "POST", "/system/update")
+
+    # -- POST /system/update/rollback ---------------------------------------
+    rec.hit(
+        "rollback_neither_flag",
+        "POST",
+        "/system/update/rollback",
+        json_body={"restore_settings": False, "restore_image": False},
+    )
+    rec.hit(
+        "rollback_unknown_snapshot",
+        "POST",
+        "/system/update/rollback",
+        json_body={"snapshot": "pre-update-19990101T000000.000Z.json", "restore_image": False},
+    )
+    rec.hit(
+        "rollback_settings_only",
+        "POST",
+        "/system/update/rollback",
+        json_body={"snapshot": planted.name, "restore_image": False},
+    )
+    with patch("src.api_server.requests.post", return_value=Mock(status_code=202)):
+        rec.hit(
+            "rollback_full",
+            "POST",
+            "/system/update/rollback",
+            json_body={"snapshot": planted.name},
+        )
+    # A snapshot without recorded image metadata: image rollback degrades to a
+    # warning instead of calling the sidecar.
+    bare = snap_dir / "pre-update-20260102T000000.000Z.json"
+    bare.write_text(json.dumps(_GOLDEN_BACKUP_DOC))
+    rec.hit(
+        "rollback_no_image_metadata",
+        "POST",
+        "/system/update/rollback",
+        json_body={"snapshot": bare.name, "restore_settings": False},
+    )
+
+    # -- POST /system/update/auto -------------------------------------------
+    rec.hit("auto_set_interval", "POST", "/system/update/auto", json_body={"interval": "monthly"})
+    rec.hit("auto_legacy_enabled", "POST", "/system/update/auto", json_body={"enabled": True})
+    rec.hit("auto_invalid_interval", "POST", "/system/update/auto", json_body={"interval": "hourly"})
+    rec.hit("auto_empty_body", "POST", "/system/update/auto", json_body={})
+
+    # -- POST /system/restart and /system/shutdown --------------------------
+    monkeypatch.delenv("FIESTAUPDATER_TOKEN", raising=False)
+    rec.hit("restart_no_token", "POST", "/system/restart")
+    rec.hit("shutdown_no_token", "POST", "/system/shutdown")
+
+    monkeypatch.setenv("FIESTAUPDATER_TOKEN", "golden-token")
+    action_ok = Mock(status_code=202, text="")
+    with patch("src.api_server.requests.post", return_value=action_ok):
+        rec.hit("restart_ok", "POST", "/system/restart")
+        rec.hit("shutdown_ok", "POST", "/system/shutdown")
+
+    _assert_matches_golden("system", rec, SYSTEM_ROUTES)
