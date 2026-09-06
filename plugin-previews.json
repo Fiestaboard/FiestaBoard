@@ -273,6 +273,30 @@
         }
       ]
     },
+    "generative_dashboard": {
+      "teaser": "NIGHT WALK 58F",
+      "previews": [
+        {
+          "device_type": "flagship",
+          "rows": [
+            "   {blue}{blue} NIGHT WALK {blue}{blue}",
+            "CLEAR AND BRISK IN SF",
+            "NOW   58F{green} LIKE   53F{green}",
+            "WI 9.6MPH{green} FOG  CLEAR{green}",
+            "HUMID 88%{green} AQI     53{yellow}",
+            "MOON  31%  VIS  6.2MI"
+          ]
+        },
+        {
+          "device_type": "note",
+          "rows": [
+            " {blue} NIGHT WALK {blue}",
+            "NOW        58F{green}",
+            "AQI         53{yellow}"
+          ]
+        }
+      ]
+    },
     "generic_data": {
       "teaser": "3 FEEDS ACTIVE",
       "previews": [
