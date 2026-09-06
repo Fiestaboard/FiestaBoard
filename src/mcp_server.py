@@ -52,54 +52,18 @@ from typing import Annotated, Any
 
 from pydantic import Field
 
+# Mutating tools dispatch into the shared operation layer (#1764); the
+# result envelopes live there too, so executors and the read-only tools
+# that remain here return identical shapes. Every tool returns structured
+# data (dict/list) rather than a json.dumps()'d string — FastMCP
+# serializes the return value into tool output automatically, so clients
+# get real JSON instead of a JSON string that has to be parsed again.
+from .ops import executors as ops_executors
+from .ops import teaching as ops_teaching
+from .ops.results import err as _err
+from .ops.results import serialize as _serialize
+
 logger = logging.getLogger(__name__)
-
-
-# ---------------------------------------------------------------------------
-# Response helpers — every tool returns structured data (dict/list) rather
-# than a json.dumps()'d string. FastMCP serializes the return value into
-# tool output automatically, so clients get real JSON instead of a JSON
-# string that has to be parsed again.
-# ---------------------------------------------------------------------------
-
-
-def _ok(message: str, **fields: Any) -> dict[str, Any]:
-    """Standard success envelope for mutation tools."""
-    return {"status": "success", "message": message, **fields}
-
-
-def _err(error: str) -> dict[str, Any]:
-    """Standard error envelope. Tools never raise — they return this instead."""
-    return {"status": "error", "error": error}
-
-
-def _serialize(obj: Any) -> Any:
-    """Convert Pydantic models / dataclasses / datetimes to JSON-compatible primitives.
-
-    Used when a tool returns Pydantic models (pages, schedules, carousels)
-    or dataclasses (settings objects). Plain dicts/lists pass through.
-    Falls back to ``__dict__`` for other ad-hoc objects (e.g. SimpleNamespace).
-    """
-    import dataclasses
-    from datetime import date, datetime, time
-
-    if obj is None or isinstance(obj, str | int | float | bool):
-        return obj
-    if hasattr(obj, "model_dump"):
-        return obj.model_dump(mode="json")
-    if dataclasses.is_dataclass(obj) and not isinstance(obj, type):
-        return {k: _serialize(v) for k, v in dataclasses.asdict(obj).items()}
-    if isinstance(obj, list):
-        return [_serialize(x) for x in obj]
-    if isinstance(obj, tuple):
-        return [_serialize(x) for x in obj]
-    if isinstance(obj, dict):
-        return {k: _serialize(v) for k, v in obj.items()}
-    if isinstance(obj, datetime | date | time):
-        return obj.isoformat()
-    if hasattr(obj, "__dict__"):
-        return {k: _serialize(v) for k, v in vars(obj).items() if not k.startswith("_")}
-    return str(obj)
 
 
 # ---------------------------------------------------------------------------
@@ -153,28 +117,14 @@ def _build_mcp_server() -> Any:
             "  • get_plugin_data(plugin_id) — see the LIVE values a plugin is\n"
             "    currently exposing. Use this when a page renders '???' or wrong\n"
             "    values; it tells you whether the plugin or the template is at fault.\n\n"
-            "DEVICE DIMENSIONS (template_lines length must match exactly)\n"
-            "  • flagship: 22 columns × 6 rows\n"
-            "  • note:     15 columns × 3 rows\n"
-            "  Content longer than the board width is TRUNCATED at render time —\n"
-            "  prefer concise variable names, the |wrap filter, or {{= LEFT(...)}}\n"
-            "  over letting the engine silently cut text off.\n\n"
-            "TEMPLATE SYNTAX\n"
-            "  • Variables:  {{plugin_id.variable_name}}  e.g. {{weather.temperature}}\n"
-            "  • Colors:     {{red}} {{orange}} {{yellow}} {{green}} {{blue}}\n"
-            "                {{violet}} {{purple}} {{white}} {{black}}\n"
-            "                Numeric equivalents 63–71 also work ({{63}} = red).\n"
-            "                Each color token renders as ONE solid tile (not a\n"
-            "                style for following text). Place the token where you\n"
-            "                want the dot/indicator to appear.\n"
-            "  • Filters:    {{var|upper}} {{var|lower}} {{var|pad:5}} {{var|wrap}}\n"
-            "                |wrap lets a long value flow into the empty lines\n"
-            "                immediately below it — leave blank lines beneath a\n"
-            "                wrapped line for overflow.\n"
-            "  • Formulas:   {{= EXPRESSION }} for Excel-like logic.\n"
-            "                Functions include: IF, AND, OR, NOT, UPPER, LOWER,\n"
-            "                LEFT, RIGHT, LEN, ROUND, FLOOR, CEIL, MIN, MAX, COLOR.\n"
-            '                Example: {{= IF(weather.temp_f > 80, "HOT", "OK")}}\n\n'
+            # Board-dimensions and template-syntax teaching is GENERATED from
+            # the defining modules (#1764) — the previous hardcoded copy had
+            # rotted (nonexistent |upper/|lower filters, a 63–71 color range,
+            # a frozen 15-function formula roster).
+            + ops_teaching.device_dimensions_block()
+            + "\n\n"
+            + ops_teaching.template_syntax_block()
+            + "\n\n"
             "SAFETY RULES (please follow strictly)\n"
             "  • NEVER guess API keys, tokens, or credentials. If a plugin needs\n"
             "    one, ask the user to provide it before calling configure_plugin().\n"
@@ -198,8 +148,9 @@ def _build_mcp_server() -> Any:
     # -----------------------------------------------------------------------
     # Plugin tools
     #
-    # The mutating ones delegate to ``PluginService`` (#1757) — the same
-    # orchestration the REST handlers use — rather than driving
+    # The mutating ones dispatch into the operation layer (#1764) —
+    # ``src.ops.executors`` — which delegates to ``PluginService`` (#1757),
+    # the same orchestration the REST handlers use, rather than driving
     # ``PluginRegistry`` directly. Enabling or configuring a plugin is two
     # writes, not one: the registry holds the live state, ConfigManager holds
     # ``config.json``. #1588 is what going straight to the registry costs —
@@ -208,31 +159,6 @@ def _build_mcp_server() -> Any:
     # to disk. Going through the service (not ``api_server``'s handlers) is
     # what keeps mcp_server importable without api_server.
     # -----------------------------------------------------------------------
-
-    def _plugin_service() -> Any:
-        """The shared plugin-orchestration service (never api_server).
-
-        Mirrors the REST layer's 503 guard: when the plugin subsystem cannot
-        import, tools report the clean "Plugin system is not available."
-        domain error instead of a raw ImportError (#1865 review).
-        """
-        try:
-            from .plugins.service import PluginService
-        except ImportError as exc:
-            raise RuntimeError("Plugin system is not available.") from exc
-
-        return PluginService()
-
-    def _rest_detail(exc: Any) -> str:
-        """Flatten an HTTPException detail into a single message.
-
-        The plugin-config endpoint raises ``detail={"errors": [...]}``; the
-        rest raise a plain string.
-        """
-        detail = getattr(exc, "detail", exc)
-        if isinstance(detail, dict) and detail.get("errors"):
-            return "; ".join(str(e) for e in detail["errors"])
-        return str(detail)
 
     @mcp.tool()
     def list_installed_plugins() -> list[dict[str, Any]] | dict[str, Any]:
@@ -290,22 +216,7 @@ def _build_mcp_server() -> Any:
         After installing, use configure_plugin() to set API keys and other settings.
         Use get_template_variables() to discover the variables the plugin exposes.
         """
-        from fastapi import HTTPException
-
-        try:
-            await _plugin_service().install_from_registry(plugin_id)
-        except HTTPException as exc:
-            return _err(f"Error installing plugin '{plugin_id}': {_rest_detail(exc)}")
-        except Exception as exc:
-            return _err(f"Error installing plugin '{plugin_id}': {exc}")
-
-        if auto_enable:
-            enabled = await enable_plugin(plugin_id)
-            if enabled.get("status") == "error":
-                return _err(f"Plugin '{plugin_id}' was installed but could not be enabled: {enabled['error']}")
-
-        state = "installed and enabled" if auto_enable else "installed (disabled)"
-        return _ok(f"Plugin '{plugin_id}' {state} successfully.", plugin_id=plugin_id, enabled=auto_enable)
+        return await ops_executors.install_plugin(plugin_id, auto_enable=auto_enable)
 
     @mcp.tool()
     async def enable_plugin(plugin_id: str) -> dict[str, Any]:
@@ -317,16 +228,7 @@ def _build_mcp_server() -> Any:
         Args:
             plugin_id: The plugin identifier (from list_installed_plugins()).
         """
-        from fastapi import HTTPException
-
-        try:
-            _plugin_service().enable_plugin(plugin_id)
-        except HTTPException as exc:
-            return _err(f"Error enabling plugin '{plugin_id}': {_rest_detail(exc)}")
-        except Exception as exc:
-            return _err(f"Error enabling plugin '{plugin_id}': {exc}")
-
-        return _ok(f"Plugin '{plugin_id}' enabled successfully.", plugin_id=plugin_id)
+        return ops_executors.enable_plugin(plugin_id)
 
     @mcp.tool()
     async def disable_plugin(plugin_id: str) -> dict[str, Any]:
@@ -337,16 +239,7 @@ def _build_mcp_server() -> Any:
         Args:
             plugin_id: The plugin identifier (from list_installed_plugins()).
         """
-        from fastapi import HTTPException
-
-        try:
-            _plugin_service().disable_plugin(plugin_id)
-        except HTTPException as exc:
-            return _err(f"Error disabling plugin '{plugin_id}': {_rest_detail(exc)}")
-        except Exception as exc:
-            return _err(f"Error disabling plugin '{plugin_id}': {exc}")
-
-        return _ok(f"Plugin '{plugin_id}' disabled successfully.", plugin_id=plugin_id)
+        return ops_executors.disable_plugin(plugin_id)
 
     @mcp.tool()
     async def uninstall_plugin(plugin_id: str) -> dict[str, Any]:
@@ -359,16 +252,7 @@ def _build_mcp_server() -> Any:
         Args:
             plugin_id: The plugin identifier (from list_installed_plugins()).
         """
-        from fastapi import HTTPException
-
-        try:
-            _plugin_service().uninstall(plugin_id)
-        except HTTPException as exc:
-            return _err(f"Error uninstalling plugin '{plugin_id}': {_rest_detail(exc)}")
-        except Exception as exc:
-            return _err(f"Error uninstalling plugin '{plugin_id}': {exc}")
-
-        return _ok(f"Plugin '{plugin_id}' uninstalled successfully.", plugin_id=plugin_id)
+        return ops_executors.uninstall_plugin(plugin_id)
 
     @mcp.tool()
     async def configure_plugin(plugin_id: str, config: dict[str, Any]) -> dict[str, Any]:
@@ -389,27 +273,7 @@ def _build_mcp_server() -> Any:
             config: Dictionary of configuration key-value pairs to update.
                     Only include keys you want to change.
         """
-        from fastapi import HTTPException
-
-        from .config_manager import get_config_manager
-
-        try:
-            # Raw stored config, WITHOUT the env-var overlay — this merge is
-            # persisted, and merging the overlay in would write env secrets
-            # into config.json (issue #1761).
-            existing = get_config_manager().get_plugin_config(plugin_id, include_env_overrides=False) or {}
-            merged = {**existing, **config}
-            masked = _plugin_service().update_plugin_config(plugin_id, merged)
-        except HTTPException as exc:
-            return _err(f"Error configuring plugin '{plugin_id}': {_rest_detail(exc)}")
-        except Exception as exc:
-            return _err(f"Error configuring plugin '{plugin_id}': {exc}")
-
-        return _ok(
-            f"Configuration updated for '{plugin_id}'.",
-            plugin_id=plugin_id,
-            config=_serialize(masked),
-        )
+        return ops_executors.configure_plugin(plugin_id, config)
 
     @mcp.tool()
     async def update_plugin(plugin_id: str) -> dict[str, Any]:
@@ -420,25 +284,9 @@ def _build_mcp_server() -> Any:
         Args:
             plugin_id: The plugin identifier (from list_installed_plugins()).
         """
-        from fastapi import HTTPException
-
-        # #1741: this used to call ``registry.reload_plugin()`` and nothing
-        # else — re-importing the code already on disk and reporting
-        # "updated successfully" without ever fetching anything, for any
-        # id at all. It also skipped every guard the update path applies
-        # (built-in rejection, realpath containment of the plugin's
-        # local_path inside the external plugins directory, and the .git
-        # check) before it lets a path near ``git``. Same lesson as #1588:
-        # go through PluginService.apply_update — the shared, guarded
-        # path — do not re-derive its checks here.
-        try:
-            await _plugin_service().apply_update(plugin_id)
-        except HTTPException as exc:
-            return _err(f"Error updating plugin '{plugin_id}': {_rest_detail(exc)}")
-        except Exception as exc:
-            return _err(f"Error updating plugin '{plugin_id}': {exc}")
-
-        return _ok(f"Plugin '{plugin_id}' updated successfully.", plugin_id=plugin_id)
+        # #1741 lives on in the executor: updates go through
+        # PluginService.apply_update — the shared, guarded path.
+        return await ops_executors.update_plugin(plugin_id)
 
     @mcp.tool()
     def get_template_variables() -> dict[str, Any]:
@@ -561,26 +409,12 @@ def _build_mcp_server() -> Any:
             ["{{white}}{{= UPPER(weather.city)}}", "{{yellow}}{{weather.temperature}}°F",
              "{{weather.condition}}", "", "{{date_time.time_12h}}", "{{date_time.date_short}}"]
         """
-        try:
-            from .pages.models import PageCreate
-            from .pages.service import get_page_service
-
-            svc = get_page_service()
-            data = PageCreate(
-                name=name,
-                type="template",
-                device_type=device_type,  # type: ignore[arg-type]
-                template=template_lines,
-                duration_seconds=duration_seconds,
-            )
-            page = svc.create_page(data)
-            return _ok(
-                f"Page '{name}' created with id '{page.id}'.",
-                page_id=page.id,
-                name=page.name,
-            )
-        except Exception as exc:
-            return _err(f"Error creating page: {exc}")
+        return ops_executors.create_page(
+            name=name,
+            template_lines=template_lines,
+            device_type=device_type,
+            duration_seconds=duration_seconds,
+        )
 
     @mcp.tool()
     def update_page(
@@ -597,34 +431,12 @@ def _build_mcp_server() -> Any:
             template_lines: New template content (optional). Replaces all lines.
             duration_seconds: New time-mode duration in seconds (optional).
         """
-        try:
-            from .pages.models import PageUpdate
-            from .pages.service import get_page_service
-
-            svc = get_page_service()
-            # Only pass fields the caller actually supplied. PageService.update_page
-            # merges with model_dump(exclude_unset=True), and "unset" means *not
-            # passed to the constructor* — an explicit None counts as set. Passing
-            # name/template/duration unconditionally therefore sent template=None on
-            # every partial update, wiping the template and failing validation with
-            # "Template page requires template content". Renaming a page or changing
-            # its duration over MCP was impossible.
-            fields: dict[str, Any] = {}
-            if name is not None:
-                fields["name"] = name
-            if template_lines is not None:
-                fields["template"] = template_lines
-            if duration_seconds is not None:
-                fields["duration_seconds"] = duration_seconds
-            if not fields:
-                return _err("Nothing to update: pass at least one of name, template_lines, duration_seconds.")
-
-            page = svc.update_page(page_id, PageUpdate(**fields))
-            if page is None:
-                return _err(f"Page '{page_id}' not found.")
-            return _ok(f"Page '{page_id}' updated.", page_id=page.id, name=page.name)
-        except Exception as exc:
-            return _err(f"Error updating page '{page_id}': {exc}")
+        return ops_executors.update_page(
+            page_id,
+            name=name,
+            template_lines=template_lines,
+            duration_seconds=duration_seconds,
+        )
 
     @mcp.tool()
     def delete_page(page_id: str) -> dict[str, Any]:
@@ -636,28 +448,7 @@ def _build_mcp_server() -> Any:
         Args:
             page_id: The page identifier (from list_pages()).
         """
-        try:
-            from .pages.service import get_page_service
-
-            svc = get_page_service()
-            result = svc.delete_page(page_id)
-            # DeleteResult exposes `deleted`, not `success`, and has no
-            # `message`. Reading `result.success` raised AttributeError, which
-            # this tool caught and returned as an error string — so delete_page
-            # never deleted anything over MCP. Same drift as #1559/#1561: the
-            # REST handler was updated (api_server.py uses result.deleted) and
-            # this call site was left behind.
-            if not result.deleted:
-                return _err(f"Page '{page_id}' was not deleted (it may not exist).")
-            return _ok(
-                f"Page '{page_id}' deleted successfully.",
-                page_id=page_id,
-                default_page_created=result.default_page_created,
-                new_page_id=result.new_page_id,
-                active_page_updated=result.active_page_updated,
-            )
-        except Exception as exc:
-            return _err(f"Error deleting page '{page_id}': {exc}")
+        return ops_executors.delete_page(page_id)
 
     @mcp.tool()
     def render_page_preview(
@@ -747,25 +538,13 @@ def _build_mcp_server() -> Any:
                       (runs until the next schedule or end of day). Default: None.
             enabled: Whether this schedule is active. Default: True.
         """
-        try:
-            from .schedules.models import ScheduleCreate
-            from .schedules.service import get_schedule_service
-
-            svc = get_schedule_service()
-            data = ScheduleCreate(
-                page_id=page_id,
-                start_time=start_time,
-                end_time=end_time,
-                day_pattern=day_pattern,  # type: ignore[arg-type]
-                enabled=enabled,
-            )
-            entry = svc.create_schedule(data)
-            return _ok(
-                f"Schedule created: page '{page_id}' from {start_time} on {day_pattern} days.",
-                schedule_id=entry.id,
-            )
-        except Exception as exc:
-            return _err(f"Error creating schedule: {exc}")
+        return ops_executors.create_schedule(
+            page_id=page_id,
+            start_time=start_time,
+            day_pattern=day_pattern,
+            end_time=end_time,
+            enabled=enabled,
+        )
 
     @mcp.tool()
     def update_schedule(
@@ -784,28 +563,18 @@ def _build_mcp_server() -> Any:
             schedule_id: The schedule identifier (from list_schedules()).
             page_id: New page to display (optional).
             start_time: New start time in HH:MM format (optional).
-            end_time: New end time in HH:MM format, or None to make open-ended (optional).
+            end_time: New end time in HH:MM format (optional; omitted = unchanged).
             day_pattern: New day pattern: 'all', 'weekdays', 'weekends', 'custom' (optional).
             enabled: Enable or disable this schedule entry (optional).
         """
-        try:
-            from .schedules.models import ScheduleUpdate
-            from .schedules.service import get_schedule_service
-
-            svc = get_schedule_service()
-            data = ScheduleUpdate(
-                page_id=page_id,
-                start_time=start_time,
-                end_time=end_time,
-                day_pattern=day_pattern,  # type: ignore[arg-type]
-                enabled=enabled,
-            )
-            entry = svc.update_schedule(schedule_id, data)
-            if entry is None:
-                return _err(f"Schedule '{schedule_id}' not found.")
-            return _ok(f"Schedule '{schedule_id}' updated.", schedule_id=entry.id)
-        except Exception as exc:
-            return _err(f"Error updating schedule '{schedule_id}': {exc}")
+        return ops_executors.update_schedule(
+            schedule_id,
+            page_id=page_id,
+            start_time=start_time,
+            end_time=end_time,
+            day_pattern=day_pattern,
+            enabled=enabled,
+        )
 
     @mcp.tool()
     def delete_schedule(schedule_id: str) -> dict[str, Any]:
@@ -814,19 +583,7 @@ def _build_mcp_server() -> Any:
         Args:
             schedule_id: The schedule identifier (from list_schedules()).
         """
-        try:
-            from .schedules.service import get_schedule_service
-
-            svc = get_schedule_service()
-            # #1742: delete_schedule() returns False when the id does not
-            # exist. Discarding it made every delete look successful, so a
-            # typo'd id read back as "deleted" — DELETE /schedules/{id} 404s
-            # in the same case. Same drift delete_page was fixed for.
-            if not svc.delete_schedule(schedule_id):
-                return _err(f"Schedule '{schedule_id}' not found.")
-            return _ok(f"Schedule '{schedule_id}' deleted successfully.", schedule_id=schedule_id)
-        except Exception as exc:
-            return _err(f"Error deleting schedule '{schedule_id}': {exc}")
+        return ops_executors.delete_schedule(schedule_id)
 
     # -----------------------------------------------------------------------
     # Collection tools
@@ -881,43 +638,15 @@ def _build_mcp_server() -> Any:
             poll_seconds: For variable mode — how often to re-evaluate rules
                 (default 10). Range: 2–600.
         """
-        try:
-            from .collections.models import (
-                CollectionCreate,
-                TimeModeConfig,
-                VariableModeConfig,
-                VariableRule,
-            )
-            from .collections.service import get_collection_service
-
-            svc = get_collection_service()
-
-            time_cfg = TimeModeConfig(interval_seconds=interval_seconds)
-            variable_cfg: VariableModeConfig | None = None
-            if selection_mode == "variable":
-                if not default_page_id:
-                    return _err("variable mode requires default_page_id")
-                variable_cfg = VariableModeConfig(
-                    rules=[VariableRule(**r) for r in (rules or [])],
-                    default_page_id=default_page_id,
-                    poll_seconds=poll_seconds,
-                )
-
-            data = CollectionCreate(
-                name=name,
-                page_ids=page_ids,
-                selection_mode=selection_mode,  # type: ignore[arg-type]
-                time=time_cfg,
-                variable=variable_cfg,
-            )
-            collection = svc.create_collection(data)
-            return _ok(
-                f"Collection '{name}' created with {len(page_ids)} pages in {selection_mode} mode.",
-                collection_id=collection.id,
-                name=collection.name,
-            )
-        except Exception as exc:
-            return _err(f"Error creating collection: {exc}")
+        return ops_executors.create_collection(
+            name=name,
+            page_ids=page_ids,
+            selection_mode=selection_mode,
+            interval_seconds=interval_seconds,
+            rules=rules,
+            default_page_id=default_page_id,
+            poll_seconds=poll_seconds,
+        )
 
     @mcp.tool()
     def update_collection(
@@ -946,43 +675,16 @@ def _build_mcp_server() -> Any:
             default_page_id: New fallback page (variable mode).
             poll_seconds: New re-evaluation cadence (variable mode).
         """
-        try:
-            from .collections.models import (
-                CollectionUpdate,
-                TimeModeConfig,
-                VariableModeConfig,
-                VariableRule,
-            )
-            from .collections.service import get_collection_service
-
-            svc = get_collection_service()
-
-            time_cfg: TimeModeConfig | None = (
-                TimeModeConfig(interval_seconds=interval_seconds) if interval_seconds is not None else None
-            )
-            variable_cfg: VariableModeConfig | None = None
-            if rules is not None or default_page_id is not None or poll_seconds is not None:
-                if not default_page_id:
-                    return _err("variable mode update requires default_page_id")
-                variable_cfg = VariableModeConfig(
-                    rules=[VariableRule(**r) for r in (rules or [])],
-                    default_page_id=default_page_id,
-                    poll_seconds=poll_seconds if poll_seconds is not None else 10,
-                )
-
-            data = CollectionUpdate(
-                name=name,
-                page_ids=page_ids,
-                selection_mode=selection_mode,  # type: ignore[arg-type]
-                time=time_cfg,
-                variable=variable_cfg,
-            )
-            collection = svc.update_collection(collection_id, data)
-            if collection is None:
-                return _err(f"Collection '{collection_id}' not found.")
-            return _ok(f"Collection '{collection_id}' updated.", collection_id=collection.id)
-        except Exception as exc:
-            return _err(f"Error updating collection '{collection_id}': {exc}")
+        return ops_executors.update_collection(
+            collection_id,
+            name=name,
+            page_ids=page_ids,
+            selection_mode=selection_mode,
+            interval_seconds=interval_seconds,
+            rules=rules,
+            default_page_id=default_page_id,
+            poll_seconds=poll_seconds,
+        )
 
     @mcp.tool()
     def delete_collection(collection_id: str) -> dict[str, Any]:
@@ -991,19 +693,7 @@ def _build_mcp_server() -> Any:
         Args:
             collection_id: The collection identifier (from list_collections()).
         """
-        try:
-            from .collections.service import get_collection_service
-
-            svc = get_collection_service()
-            # #1742: same as delete_schedule above — the boolean was dropped.
-            if not svc.delete_collection(collection_id):
-                return _err(f"Collection '{collection_id}' not found.")
-            return _ok(
-                f"Collection '{collection_id}' deleted successfully.",
-                collection_id=collection_id,
-            )
-        except Exception as exc:
-            return _err(f"Error deleting collection '{collection_id}': {exc}")
+        return ops_executors.delete_collection(collection_id)
 
     # -----------------------------------------------------------------------
     # System tools
@@ -1071,34 +761,11 @@ def _build_mcp_server() -> Any:
         Args:
             page_id: The page or collection ID to display (from list_pages() or list_collections()).
         """
-        # Delegate to the REST handler rather than reimplementing it. Selecting
-        # a page is more than a settings write: it validates the ref, enforces
-        # page<->board size compatibility, dismisses active plugin triggers so
-        # the choice sticks (#856), and renders to the board. Issue #1559 was
-        # this tool going its own way and calling a method that never existed.
-        from fastapi import HTTPException
-
-        from .api_server import set_active_page as _rest_set_active_page
-
-        try:
-            response = await _rest_set_active_page({"page_id": page_id})
-        except HTTPException as exc:
-            return _err(f"Error setting active page: {exc.detail}")
-        except Exception as exc:
-            return _err(f"Error setting active page: {exc}")
-
-        message = f"Active page set to '{page_id}'."
-        if response.get("paused"):
-            message += " The board is paused, so it will appear when you resume it."
-        elif not response.get("sent_to_board"):
-            message += " It will appear on the board on the next display refresh."
-        return _ok(
-            message,
-            page_id=page_id,
-            sent_to_board=bool(response.get("sent_to_board")),
-            paused=bool(response.get("paused")),
-            warnings=response.get("warnings", []),
-        )
+        # The executor delegates to the REST handler rather than
+        # reimplementing it (#1559): selecting a page validates the ref,
+        # enforces page<->board size compatibility, dismisses active plugin
+        # triggers (#856), and renders to the board.
+        return await ops_executors.set_active_page(page_id)
 
     @mcp.tool()
     def set_schedule_mode(enabled: bool) -> dict[str, Any]:
@@ -1110,17 +777,7 @@ def _build_mcp_server() -> Any:
         Args:
             enabled: True to enable schedule-based display, False to disable.
         """
-        try:
-            # Schedule mode is a settings flag (per-board since #1244), not
-            # something ScheduleService owns — same mixup as issue #1559.
-            from .settings.service import get_settings_service
-
-            svc = get_settings_service()
-            svc.set_schedule_enabled(enabled)
-            state = "enabled" if enabled else "disabled"
-            return _ok(f"Schedule mode {state}.", enabled=enabled)
-        except Exception as exc:
-            return _err(f"Error setting schedule mode: {exc}")
+        return ops_executors.set_schedule_mode(enabled)
 
     # -----------------------------------------------------------------------
     # MCP Resources
@@ -1283,8 +940,8 @@ def _build_mcp_server() -> Any:
             "3. Call get_template_variables() to find the right variable references\n"
             "4. Create a well-designed page with create_page() using those variables\n"
             "5. Offer to schedule the page if appropriate\n\n"
-            "Flagship display is 22×6 characters. Use colour tokens like {{yellow}}, "
-            "{{white}}, {{green}} to make it visually clear."
+            f"{ops_teaching.dimensions_summary_sentence()} Use colour tokens like "
+            "{{yellow}}, {{white}}, {{green}} to make it visually clear."
         )
 
     @mcp.prompt()
