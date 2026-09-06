@@ -1303,6 +1303,11 @@ class DisplayService:
         feature set (locked epic decision); silence is resolved and delivered
         per board (issue #1788). All state reads/writes go through ``rt``.
 
+        The pass runs a fixed sequence of stages: silence evaluation, the
+        pause short-circuit, the output-target short-circuit, the TRIGGER
+        INPUT stage (#1850 — see the stage comment below), the temporary
+        override, then schedule/manual page resolution and the send.
+
         ``contexts`` is the pass-wide shared template-context cache (issue
         #1752): one dict per ``check_and_send_active_page`` pass, keyed by
         board size, so N boards of one size cost one plugin fan-out per tick.
@@ -1419,7 +1424,20 @@ class DisplayService:
                 # unchanged, skipping send" leaves the indicator stuck.
                 rt.last_active_page_content = None
 
-            # --- Triggers (PRIMARY only; suppressed during silence) ---
+            # --- Stage: trigger input (PRIMARY only; suppressed during silence) ---
+            # Triggers are a first-class engine input (#1850, per the #1767
+            # decision: the plugin contract — supports_triggers /
+            # check_triggers() / trigger_page_id — is unchanged because live
+            # plugins depend on it). The stage evaluates every enabled
+            # trigger-capable plugin through the REAL TriggerService and,
+            # when one is active, overrides this board's page for the tick.
+            #
+            # Data freshness: check_triggers() implementations read their
+            # plugin's own cached fetch data. The engine fetch already unions
+            # trigger-capable plugins into every tick's fetch set (#1751) and
+            # the pass-wide shared context (#1752) reuses that same fetch, so
+            # this stage performs no plugin fetch of its own and consumes
+            # nothing from ``contexts``.
             if is_primary and not silence_mode_active:
                 trigger_content = self._check_trigger_override()
                 if trigger_content is not None:
@@ -2122,7 +2140,15 @@ class DisplayService:
         )
 
     def _check_trigger_override(self) -> str | None:
-        """Check all trigger-capable plugins and return content if a trigger is active.
+        """The trigger-input stage: evaluate trigger plugins, return override content.
+
+        Evaluates ``check_triggers()`` for every enabled trigger-capable
+        plugin via the TriggerService and resolves the highest-priority
+        active trigger to board content (the plugin's configured
+        trigger_page_id rendered with the trigger's data, else its built-in
+        formatted display). ``check_triggers()`` reads the plugin's own
+        cached fetch data — kept fresh because #1751 unions trigger plugins
+        into every engine fetch — so this stage itself fetches nothing.
 
         Returns:
             Formatted text content from the highest-priority active trigger,

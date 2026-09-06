@@ -67,8 +67,16 @@ def _make_manifest(
 
 
 @pytest.fixture(autouse=True)
-def _reset_singleton():
-    """Each test runs with a clean TriggerService singleton."""
+def _reset_singleton(monkeypatch, tmp_path):
+    """Each test runs with a clean TriggerService singleton.
+
+    The dismissal store (#1850) is pointed at a temp dir so singleton-based
+    suppress-dismiss tests never touch the repo's real ``data/`` state.
+    """
+    monkeypatch.setattr(
+        "src.triggers.service._default_dismissals_file",
+        lambda: tmp_path / "trigger_dismissals.json",
+    )
     reset_trigger_service()
     yield
     reset_trigger_service()
@@ -311,8 +319,8 @@ class TestTriggerPriority:
         assert trigger.priority == 80
         assert int(trigger.priority) == 80
 
-    def test_higher_priority_wins_in_trigger_service(self):
-        svc = TriggerService()
+    def test_higher_priority_wins_in_trigger_service(self, tmp_path):
+        svc = TriggerService(dismissals_file=tmp_path / "trigger_dismissals.json")
         svc.activate_trigger(
             "p1",
             TriggerResult(

@@ -23,9 +23,9 @@ on wall-clock time and the goldens stop being deterministic:
 3. ``src.collections.service.time`` — collection slice math.
 4. ``schedule.datetime`` — the schedule library's job-due decisions.
 
-Scenarios that exercise the REAL ``TriggerService`` patch a fifth seam,
-``src.triggers.service.datetime``, because trigger activation/expiry math
-calls ``datetime.now()`` at module scope.
+(Scenarios exercising the REAL ``TriggerService`` used to patch a fifth
+seam, ``src.triggers.service.datetime``; since #1850 the service reads the
+TimeService, so seam 1 covers trigger activation/expiry math too.)
 
 What the goldens pin is ONLY the send sequence — the (simulated time, board,
 frame) triples handed to each board client. The run loop may evaluate
@@ -315,27 +315,6 @@ class StubPluginRegistry:
         return self.trigger_plugins.get(plugin_id)
 
 
-def fake_trigger_datetime(clock: FakeClock):
-    """Stand-in for ``datetime`` as ``src.triggers.service`` sees it.
-
-    ``TriggerService`` stamps/compares activation with naive
-    ``datetime.now()`` at module scope; this pins those calls to the fake
-    clock so trigger expiry is simulated-time math, not wall-clock math.
-    (``ActiveTrigger``'s ``default_factory`` captured the real ``datetime.now``
-    at import time, but ``activate_trigger`` always passes ``activated_at``
-    explicitly, so the module-attribute patch covers every live call site.)
-    """
-
-    class _Datetime:
-        @staticmethod
-        def now(tz=None):
-            if tz is None:
-                return clock.utc.replace(tzinfo=None)
-            return clock.utc.astimezone(tz)
-
-    return _Datetime
-
-
 # --------------------------------------------------------------------------
 # Scenario runner
 # --------------------------------------------------------------------------
@@ -437,9 +416,10 @@ def run_engine_scenario(
     ``trigger_registry_factory`` chooses the trigger seam: ``None`` stubs
     ``_check_trigger_override`` out entirely (the model suites' default);
     a factory (called with the scenario's clock) instead builds a
-    ``StubPluginRegistry`` and patches ``get_plugin_registry`` plus the
-    trigger clock so the REAL ``TriggerService`` runs. Callers using triggers
-    must reset the trigger-service singleton around the test.
+    ``StubPluginRegistry`` and patches ``get_plugin_registry`` so the REAL
+    ``TriggerService`` runs (its clock is the TimeService — seam 1 — since
+    #1850). Callers using triggers must reset the trigger-service singleton
+    around the test.
 
     ``fail_when`` maps board id -> predicate for injected render failures.
 
@@ -488,7 +468,6 @@ def run_engine_scenario(
     else:
         trigger_registry = trigger_registry_factory(clock)
         monkeypatch.setattr("src.plugins.registry.get_plugin_registry", lambda: trigger_registry)
-        monkeypatch.setattr("src.triggers.service.datetime", fake_trigger_datetime(clock))
 
     service.run()
     # One final settle: the loop exits from inside its last sleep, so any
