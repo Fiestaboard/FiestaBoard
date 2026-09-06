@@ -16,6 +16,7 @@ from pathlib import Path
 from typing import Literal, Optional
 
 from src.atomic_io import staging_path
+from src.paths import get_data_dir
 
 logger = logging.getLogger(__name__)
 
@@ -729,11 +730,8 @@ class SettingsService:
             settings_file: Path to settings JSON file. Defaults to data/settings.json
         """
         if settings_file is None:
-            # Default to data directory in project root
-            project_root = Path(__file__).parent.parent.parent
-            data_dir = project_root / "data"
-            data_dir.mkdir(exist_ok=True)
-            self.settings_file = data_dir / "settings.json"
+            # Default to the central data directory (src/paths.py seam)
+            self.settings_file = get_data_dir() / "settings.json"
         else:
             self.settings_file = Path(settings_file)
 

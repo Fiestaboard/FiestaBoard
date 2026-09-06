@@ -34,6 +34,7 @@ from pathlib import Path
 from typing import Any
 
 from src.atomic_io import staging_path
+from src.paths import get_data_dir
 
 logger = logging.getLogger(__name__)
 
@@ -344,8 +345,8 @@ def _now_ms() -> int:
 
 
 def _default_auth_file() -> Path:
-    # Mirror src/config_manager.py path resolution.
-    return Path(__file__).resolve().parent.parent.parent / "data" / "auth.json"
+    # Central data-dir seam (src/paths.py); honors FIESTABOARD_DATA_DIR.
+    return get_data_dir() / "auth.json"
 
 
 class AuthService:

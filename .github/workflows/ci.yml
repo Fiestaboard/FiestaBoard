@@ -211,6 +211,14 @@ jobs:
         # ruff format replaces black; same output, one tool.
         ruff format --check src/ plugins/ tests/ scripts/
     
+    - name: Snapshot data/ before tests
+      run: |
+        # Isolation guard (#1762): the suite must never write the checkout's
+        # data/ directory — every test runs against a tmp_path via the
+        # FIESTABOARD_DATA_DIR seam. Checksum whatever exists now; the step
+        # after the tests re-checksums and diffs.
+        find data -type f 2>/dev/null | sort | xargs -r shasum > /tmp/data-before.txt || true
+
     - name: Run platform tests with coverage
       run: |
         # Exclude integration tests (network-dependent, run in a separate step).
@@ -227,6 +235,18 @@ jobs:
       env:
         BOARD_READ_WRITE_KEY: test_key
         WEATHER_API_KEY: test_key
+
+    - name: Verify tests did not write data/
+      run: |
+        # Isolation guard (#1762), second half: any new, changed, or deleted
+        # file under data/ means a test escaped the FIESTABOARD_DATA_DIR seam.
+        # A plain step (not `if: always()`) on purpose — if the tests failed,
+        # that failure is the signal; this guard only needs to gate green runs.
+        find data -type f 2>/dev/null | sort | xargs -r shasum > /tmp/data-after.txt || true
+        if ! diff -u /tmp/data-before.txt /tmp/data-after.txt; then
+          echo "::error::Platform tests wrote to the repo data/ directory (#1762 isolation regression)"
+          exit 1
+        fi
 
     - name: Write coverage summary
       if: always()

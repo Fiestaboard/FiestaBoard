@@ -91,14 +91,6 @@ def _make_v1_config(**overrides):
     return config
 
 
-@pytest.fixture(autouse=True)
-def _clean_singleton():
-    """Ensure each test gets a fresh ConfigManager."""
-    _reset_singleton()
-    yield
-    _reset_singleton()
-
-
 @pytest.fixture()
 def v1_config_path(tmp_path):
     """Write a v1 config to a temp file and return the path."""

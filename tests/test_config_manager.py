@@ -35,34 +35,11 @@ def reset_singleton(tmp_path, monkeypatch):
     monkeypatch.delenv("BOARD_HOST", raising=False)
     monkeypatch.delenv("FB_HOST", raising=False)
 
-    ConfigManager._instance = None
-    ConfigManager._lock = threading.Lock()
-
-    # Pre-seed ConfigManager singleton with an empty tmp config so that
-    # SettingsService._apply_global_connection() doesn't migrate the real
-    # global config from data/config.json into the fresh settings instance.
-    empty_config_path = tmp_path / "_empty_config.json"
-    empty_config_path.write_text('{"board": {}, "features": {}, "general": {}}')
-    ConfigManager(config_path=str(empty_config_path))
-
-    # Reset SettingsService singleton and point it at an empty tmp settings
-    # file so validate() doesn't pick up a real configured board from data/
-    # (e.g. when tests run inside a populated dev container).
-    import src.settings.service as settings_service_module
-
-    settings_service_module._settings_service = settings_service_module.SettingsService(
-        settings_file=str(tmp_path / "settings.json")
-    )
-
-    # Now clear the ConfigManager singleton so each test can pin its own
-    # config_path via ConfigManager(config_path=...).
-    ConfigManager._instance = None
-    ConfigManager._lock = threading.Lock()
-
+    # Singleton + SettingsService isolation is handled by conftest's autouse
+    # ``_isolated_data_dir`` fixture (#1762): every default path resolves into
+    # this test's tmp dir and all singletons are dropped on both sides, so the
+    # old pre-seeding against the developer's real ``data/`` is gone.
     yield tmp_path
-
-    ConfigManager._instance = None
-    settings_service_module._settings_service = None
 
 
 # --- __init__ and _load_or_create ---
