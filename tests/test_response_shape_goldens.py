@@ -1054,7 +1054,7 @@ def _version_sources_get(url: str, **_kwargs: Any) -> Mock:
     """Fake ``requests.get`` for the Docker Hub + GitHub version sources."""
     resp = Mock(status_code=200)
     resp.raise_for_status = Mock()
-    if "hub.docker.com" in urlparse(url).netloc:
+    if urlparse(url).netloc == "hub.docker.com":
         resp.json.return_value = {"results": [{"name": "99.0.0"}, {"name": "latest"}]}
     else:
         resp.json.return_value = {"tag_name": "v98.0.0"}
