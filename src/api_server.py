@@ -3309,8 +3309,12 @@ async def refresh_display(board_id: str | None = None, payload: dict | None = Bo
         if board_id is None:
             # Every board is driven here, so a failing secondary must surface
             # too — the wrapper aggregates across the whole pass (issue #1791).
-            sent, error = _send_with_status(
-                service, "check_and_send_active_page_with_status", "check_and_send_active_page"
+            # The pass is board network I/O, so it runs in a worker thread to
+            # keep the event loop free (#1826); _send_with_status moves as one
+            # call because its failure reason lives in a thread-local that is
+            # set and read inside the same sync call.
+            sent, error = await asyncio.to_thread(
+                _send_with_status, service, "check_and_send_active_page_with_status", "check_and_send_active_page"
             )
             if error:
                 raise HTTPException(status_code=500, detail=f"Failed to refresh display: {error}")
@@ -3328,7 +3332,10 @@ async def refresh_display(board_id: str | None = None, payload: dict | None = Bo
         if rt is None:
             raise HTTPException(status_code=503, detail=f"Board client not initialized: {board_id}")
         is_primary = board_id == get_settings_service().get_primary_board_id()
-        sent, error = _send_with_status(
+        # Board network I/O — off the event loop (#1826); _send_with_status
+        # moves as one call (thread-local failure reason, see above).
+        sent, error = await asyncio.to_thread(
+            _send_with_status,
             service,
             "check_and_send_for_board_with_status",
             "check_and_send_for_board",
@@ -6316,83 +6323,97 @@ async def set_active_page(request: dict):
             raise HTTPException(status_code=400, detail=compat.error)
         compat_warnings = compat.warnings
 
-    # Dismiss any active plugin triggers so the user's explicit page change
-    # actually sticks. Without this, a plugin re-emitting the same trigger
-    # every display loop tick (e.g. calendar_sub during a countdown window)
-    # would silently overwrite the user's selection. See issue #856.
-    if PLUGIN_SYSTEM_AVAILABLE:
-        from .triggers.service import get_trigger_service
+    # Everything from the trigger dismissal through the board send blocks:
+    # disk writes, a plugin-fan-out render, then the board network call plus
+    # an up-to-seconds transition animation. It runs as one worker-thread
+    # unit so the event loop keeps serving requests (#1826). The settings
+    # write itself is not internally locked yet — per-store locking is
+    # Track A2's job (#1848).
+    def _work() -> tuple[bool, bool, str | None]:
+        # Dismiss any active plugin triggers so the user's explicit page change
+        # actually sticks. Without this, a plugin re-emitting the same trigger
+        # every display loop tick (e.g. calendar_sub during a countdown window)
+        # would silently overwrite the user's selection. See issue #856.
+        if PLUGIN_SYSTEM_AVAILABLE:
+            from .triggers.service import get_trigger_service
 
-        get_trigger_service().dismiss_active_for_user_override()
+            get_trigger_service().dismiss_active_for_user_override()
 
-    # Set the active page (stores the collection ID or page ID as-is).
-    # An explicit board_id targets that board's slot; omitted keeps the
-    # legacy primary-board call (issue #1244).
-    if board_id is not None:
-        settings_service.set_active_page_id(page_id, board_id=board_id)
-    else:
-        settings_service.set_active_page_id(page_id)
-
-    # Resolve the client for the immediate send: explicit board_id routes to
-    # that board's client, omitted keeps the legacy primary-client path.
-    send_client = None
-    if service:
-        send_client = service.get_board_client(board_id) if board_id is not None else service.vb_client
-
-    # Immediately send to board if a page is set. The page selection is
-    # persisted either way; a failed render/send is a partial failure that
-    # must be reported, not silently swallowed (issue #1791).
-    sent_to_board = False
-    paused = False
-    send_error: str | None = None
-    if render_page_id and page and send_client and settings_service.should_send_to_board():
-        # Skip immediate send when the board is paused (issue #970). The
-        # active-page selection is still persisted so it takes effect when
-        # the user later resumes the board.
-        if _board_is_paused(board_id):
-            logger.info("Board is paused - skipping immediate active-page send")
-            paused = True
+        # Set the active page (stores the collection ID or page ID as-is).
+        # An explicit board_id targets that board's slot; omitted keeps the
+        # legacy primary-board call (issue #1244).
+        if board_id is not None:
+            settings_service.set_active_page_id(page_id, board_id=board_id)
         else:
-            result = page_service.preview_page(render_page_id, force_refresh=True)
-            if result and result.available:
-                system_transition = settings_service.get_transition_settings()
-                strategy = page.transition_strategy if page.transition_strategy else system_transition.strategy
-                interval_ms = (
-                    page.transition_interval_ms
-                    if page.transition_interval_ms is not None
-                    else system_transition.step_interval_ms
-                )
-                step_size = (
-                    page.transition_step_size if page.transition_step_size is not None else system_transition.step_size
-                )
+            settings_service.set_active_page_id(page_id)
 
-                # Size the grid to the explicit target board when given
-                # (issue #1244); otherwise keep the page's device type.
-                if board is not None:
-                    dims = _board_dims(board)
-                else:
-                    dims = resolve_dimensions(page.device_type, page.notes_wide, page.notes_tall)
-                board_array = text_to_board_array(result.formatted, rows=dims.rows, cols=dims.cols)
-                success, was_sent = send_client.render(
-                    board_array,
-                    strategy=strategy,
-                    step_interval_ms=interval_ms,
-                    step_size=step_size,
-                    device_type=(board.get("device_type") if board is not None else page.device_type),
-                )
-                sent_to_board = was_sent
-                if not success:
-                    send_error = f"Failed to send page to board: {page_id}"
-                    logger.warning(f"Failed to send active page to board: {page_id}")
-                elif was_sent and (board_id is None or board_id == settings_service.get_primary_board_id()):
-                    # Adaptive post-send refresh polls the primary board only.
-                    service.request_board_refresh()
+        # Resolve the client for the immediate send: explicit board_id routes to
+        # that board's client, omitted keeps the legacy primary-client path.
+        send_client = None
+        if service:
+            send_client = service.get_board_client(board_id) if board_id is not None else service.vb_client
+
+        # Immediately send to board if a page is set. The page selection is
+        # persisted either way; a failed render/send is a partial failure that
+        # must be reported, not silently swallowed (issue #1791).
+        sent_to_board = False
+        paused = False
+        send_error: str | None = None
+        if render_page_id and page and send_client and settings_service.should_send_to_board():
+            # Skip immediate send when the board is paused (issue #970). The
+            # active-page selection is still persisted so it takes effect when
+            # the user later resumes the board.
+            if _board_is_paused(board_id):
+                logger.info("Board is paused - skipping immediate active-page send")
+                paused = True
             else:
-                # A network/plugin failure surfaces here as an unavailable
-                # render — report it instead of skipping silently (#1791).
-                render_error = getattr(result, "error", None) if result else None
-                send_error = render_error or f"Failed to render page: {render_page_id}"
-                logger.warning(f"Active page set but render unavailable, not sent: {render_page_id}")
+                result = page_service.preview_page(render_page_id, force_refresh=True)
+                if result and result.available:
+                    system_transition = settings_service.get_transition_settings()
+                    strategy = page.transition_strategy if page.transition_strategy else system_transition.strategy
+                    interval_ms = (
+                        page.transition_interval_ms
+                        if page.transition_interval_ms is not None
+                        else system_transition.step_interval_ms
+                    )
+                    step_size = (
+                        page.transition_step_size
+                        if page.transition_step_size is not None
+                        else system_transition.step_size
+                    )
+
+                    # Size the grid to the explicit target board when given
+                    # (issue #1244); otherwise keep the page's device type.
+                    if board is not None:
+                        dims = _board_dims(board)
+                    else:
+                        dims = resolve_dimensions(page.device_type, page.notes_wide, page.notes_tall)
+                    board_array = text_to_board_array(result.formatted, rows=dims.rows, cols=dims.cols)
+                    # render() serializes concurrent senders via the client's
+                    # per-board _send_lock, so worker threads can't interleave.
+                    success, was_sent = send_client.render(
+                        board_array,
+                        strategy=strategy,
+                        step_interval_ms=interval_ms,
+                        step_size=step_size,
+                        device_type=(board.get("device_type") if board is not None else page.device_type),
+                    )
+                    sent_to_board = was_sent
+                    if not success:
+                        send_error = f"Failed to send page to board: {page_id}"
+                        logger.warning(f"Failed to send active page to board: {page_id}")
+                    elif was_sent and (board_id is None or board_id == settings_service.get_primary_board_id()):
+                        # Adaptive post-send refresh polls the primary board only.
+                        service.request_board_refresh()
+                else:
+                    # A network/plugin failure surfaces here as an unavailable
+                    # render — report it instead of skipping silently (#1791).
+                    render_error = getattr(result, "error", None) if result else None
+                    send_error = render_error or f"Failed to render page: {render_page_id}"
+                    logger.warning(f"Active page set but render unavailable, not sent: {render_page_id}")
+        return sent_to_board, paused, send_error
+
+    sent_to_board, paused, send_error = await asyncio.to_thread(_work)
 
     # status stays "success" (the page selection itself was persisted); a
     # render/send problem is reported via error + sent_to_board=False, the
@@ -8169,8 +8190,9 @@ async def get_current_display():
         response["template"] = page.template
         response["line_metadata"] = [m.model_dump() for m in page.line_metadata] if page.line_metadata else None
     else:
-        # For single/composite pages, return the rendered output as template lines
-        result = page_service.preview_page(active_page_id, force_refresh=True)
+        # For single/composite pages, return the rendered output as template
+        # lines. The forced render fans out to plugins — off the loop (#1826).
+        result = await asyncio.to_thread(page_service.preview_page, active_page_id, force_refresh=True)
         if result and result.available:
             response["template"] = result.formatted.split("\n")
             response["line_metadata"] = None
@@ -8379,7 +8401,11 @@ async def preview_page(
     if page_id == active_page_id:
         force_refresh = True
 
-    result = page_service.preview_page(page_id, force_refresh=force_refresh)
+    # Rendering fans out to plugins (network I/O) — off the event loop (#1826).
+    # The preview cache write inside is a single dict item assignment, safe
+    # under concurrent worker threads on CPython; store-level locking is
+    # Track A2's job (#1848).
+    result = await asyncio.to_thread(page_service.preview_page, page_id, force_refresh=force_refresh)
 
     if result is None:
         raise HTTPException(status_code=404, detail=f"Page not found: {page_id}")
@@ -8423,8 +8449,13 @@ async def preview_pages_batch(request: dict):
     active_page_id = settings_service.get_active_page_id()
     results = {}
 
-    # Use batch preview to build template context once for all pages
-    batch_results = page_service.preview_pages_batch(
+    # Use batch preview to build template context once for all pages. One
+    # worker-thread call for the whole batch — the internal context sharing
+    # per board size must be preserved, so the pages are NOT parallelized;
+    # the point is only that N renders' worth of plugin fan-out stops
+    # seizing the event loop (#1826).
+    batch_results = await asyncio.to_thread(
+        page_service.preview_pages_batch,
         page_ids,
         force_refresh=force_refresh,
         active_page_id=active_page_id,
@@ -8535,99 +8566,109 @@ async def send_page(
             raise HTTPException(status_code=503, detail="Service not initialized")
         board_client = service.vb_client
 
-    # Get the page for transition settings
-    page = page_service.get_page(page_id)
-    if not page:
-        raise HTTPException(status_code=404, detail=f"Page not found: {page_id}")
+    # The page lookup, forced fresh render (plugin fan-out), and board send
+    # (network call plus an up-to-seconds transition animation) all block, so
+    # they run as one worker-thread unit and the event loop keeps serving
+    # requests (#1826). HTTPExceptions raised inside propagate through the
+    # await unchanged.
+    def _work() -> dict | JSONResponse:
+        # Get the page for transition settings
+        page = page_service.get_page(page_id)
+        if not page:
+            raise HTTPException(status_code=404, detail=f"Page not found: {page_id}")
 
-    # Render the page - always force fresh render when sending to board
-    result = page_service.preview_page(page_id, force_refresh=True)
+        # Render the page - always force fresh render when sending to board
+        result = page_service.preview_page(page_id, force_refresh=True)
 
-    if result is None:
-        raise HTTPException(status_code=404, detail=f"Page not found: {page_id}")
+        if result is None:
+            raise HTTPException(status_code=404, detail=f"Page not found: {page_id}")
 
-    if not result.available:
-        raise HTTPException(status_code=503, detail=result.error or "Page rendering failed")
+        if not result.available:
+            raise HTTPException(status_code=503, detail=result.error or "Page rendering failed")
 
-    # Determine target
-    if target is None:
-        send_to_board = settings_service.should_send_to_board()
-    else:
-        send_to_board = target in ["board", "both"]
-
-    sent_to_board = False
-    paused = False
-    if send_to_board:
-        # CRITICAL: Block ALL manual sends during silence mode to prevent
-        # wake-ups — for the board this send targets (issue #1788).
-        if _silence_active(board_id):
-            logger.info("Silence mode is active - blocking manual page send to prevent wake-up")
-            sent_to_board = False
-            # Don't raise error, just skip sending
-        elif _board_is_paused(board_id):
-            # Block when the target (or first) board is paused (issue #970).
-            logger.info("Board is paused - blocking manual page send")
-            paused = True
+        # Determine target
+        if target is None:
+            send_to_board = settings_service.should_send_to_board()
         else:
-            # Use page-level transitions if set, otherwise fall back to system defaults
-            system_transition = settings_service.get_transition_settings()
-            strategy = page.transition_strategy if page.transition_strategy else system_transition.strategy
-            interval_ms = (
-                page.transition_interval_ms
-                if page.transition_interval_ms is not None
-                else system_transition.step_interval_ms
-            )
-            step_size = (
-                page.transition_step_size if page.transition_step_size is not None else system_transition.step_size
-            )
+            send_to_board = target in ["board", "both"]
 
-            # Size the grid to the explicit target board when given (issue
-            # #1244); otherwise keep sizing to the page's device type.
-            if board is not None:
-                dims = _board_dims(board)
+        sent_to_board = False
+        paused = False
+        if send_to_board:
+            # CRITICAL: Block ALL manual sends during silence mode to prevent
+            # wake-ups — for the board this send targets (issue #1788).
+            if _silence_active(board_id):
+                logger.info("Silence mode is active - blocking manual page send to prevent wake-up")
+                sent_to_board = False
+                # Don't raise error, just skip sending
+            elif _board_is_paused(board_id):
+                # Block when the target (or first) board is paused (issue #970).
+                logger.info("Board is paused - blocking manual page send")
+                paused = True
             else:
-                dims = resolve_dimensions(page.device_type, page.notes_wide, page.notes_tall)
-            board_array = text_to_board_array(result.formatted, rows=dims.rows, cols=dims.cols)
-            success, was_sent = board_client.render(
-                board_array,
-                strategy=strategy,
-                step_interval_ms=interval_ms,
-                step_size=step_size,
-                device_type=(board.get("device_type") if board is not None else page.device_type),
-            )
-            sent_to_board = was_sent
-            if not success:
-                # Board offline / unreachable — degrade gracefully with a
-                # structured error instead of a bare 500 detail string so
-                # callers can distinguish "board unreachable" from a server
-                # fault. Must not be 502/503/504: nginx intercepts those on
-                # /api/ and replaces the body with its startup placeholder.
-                logger.error(f"Failed to send page {page_id} to board (offline or unreachable)")
-                return JSONResponse(
-                    status_code=500,
-                    content={
-                        "status": "error",
-                        "detail": "Failed to send to board",
-                        "page_id": page_id,
-                        "sent_to_board": False,
-                        "paused": False,
-                        "target": target or settings_service.get_output_settings().target,
-                        "board_id": board_id,
-                    },
+                # Use page-level transitions if set, otherwise fall back to system defaults
+                system_transition = settings_service.get_transition_settings()
+                strategy = page.transition_strategy if page.transition_strategy else system_transition.strategy
+                interval_ms = (
+                    page.transition_interval_ms
+                    if page.transition_interval_ms is not None
+                    else system_transition.step_interval_ms
                 )
-            if was_sent and (board_id is None or board_id == settings_service.get_primary_board_id()):
-                # Adaptive post-send refresh polls the primary board only.
-                service.request_board_refresh()
+                step_size = (
+                    page.transition_step_size if page.transition_step_size is not None else system_transition.step_size
+                )
 
-    return {
-        "status": "success",
-        "page_id": page_id,
-        "message": result.formatted,
-        "sent_to_board": sent_to_board,
-        "paused": paused,
-        "target": target or settings_service.get_output_settings().target,
-        "board_id": board_id,
-    }
+                # Size the grid to the explicit target board when given (issue
+                # #1244); otherwise keep sizing to the page's device type.
+                if board is not None:
+                    dims = _board_dims(board)
+                else:
+                    dims = resolve_dimensions(page.device_type, page.notes_wide, page.notes_tall)
+                board_array = text_to_board_array(result.formatted, rows=dims.rows, cols=dims.cols)
+                # render() serializes concurrent senders via the client's
+                # per-board _send_lock, so worker threads can't interleave.
+                success, was_sent = board_client.render(
+                    board_array,
+                    strategy=strategy,
+                    step_interval_ms=interval_ms,
+                    step_size=step_size,
+                    device_type=(board.get("device_type") if board is not None else page.device_type),
+                )
+                sent_to_board = was_sent
+                if not success:
+                    # Board offline / unreachable — degrade gracefully with a
+                    # structured error instead of a bare 500 detail string so
+                    # callers can distinguish "board unreachable" from a server
+                    # fault. Must not be 502/503/504: nginx intercepts those on
+                    # /api/ and replaces the body with its startup placeholder.
+                    logger.error(f"Failed to send page {page_id} to board (offline or unreachable)")
+                    return JSONResponse(
+                        status_code=500,
+                        content={
+                            "status": "error",
+                            "detail": "Failed to send to board",
+                            "page_id": page_id,
+                            "sent_to_board": False,
+                            "paused": False,
+                            "target": target or settings_service.get_output_settings().target,
+                            "board_id": board_id,
+                        },
+                    )
+                if was_sent and (board_id is None or board_id == settings_service.get_primary_board_id()):
+                    # Adaptive post-send refresh polls the primary board only.
+                    service.request_board_refresh()
+
+        return {
+            "status": "success",
+            "page_id": page_id,
+            "message": result.formatted,
+            "sent_to_board": sent_to_board,
+            "paused": paused,
+            "target": target or settings_service.get_output_settings().target,
+            "board_id": board_id,
+        }
+
+    return await asyncio.to_thread(_work)
 
 
 # =============================================================================
@@ -9333,24 +9374,30 @@ async def force_refresh():
     if not service:
         raise HTTPException(status_code=503, detail="Service not initialized")
 
-    # Clear caches to force send even if content unchanged — every board,
-    # not just the primary (secondary boards have their own clients).
-    if service.vb_client:
-        service.vb_client.clear_cache()
-    for client in service.board_clients.values():
-        client.clear_cache()
-    # The board clients are only half of it: the display loop skips at its
-    # own per-runtime content-dedupe guard, so clearing the client caches
-    # alone left "Resend to board" doing nothing (issue #1794).
-    try:
-        service.invalidate_all_board_content()
-    except Exception as e:
-        logger.debug(f"Board content invalidation failed: {e}")
+    # The cache clearing plus a full forced send pass is all blocking work,
+    # so it runs in one worker thread and the event loop keeps serving
+    # requests (#1826); _send_with_status moves as one call because its
+    # failure reason lives in a thread-local set and read inside the same
+    # sync call.
+    def _work() -> tuple[bool, str | None]:
+        # Clear caches to force send even if content unchanged — every board,
+        # not just the primary (secondary boards have their own clients).
+        if service.vb_client:
+            service.vb_client.clear_cache()
+        for client in service.board_clients.values():
+            client.clear_cache()
+        # The board clients are only half of it: the display loop skips at its
+        # own per-runtime content-dedupe guard, so clearing the client caches
+        # alone left "Resend to board" doing nothing (issue #1794).
+        try:
+            service.invalidate_all_board_content()
+        except Exception as e:
+            logger.debug(f"Board content invalidation failed: {e}")
+
+        return _send_with_status(service, "check_and_send_active_page_with_status", "check_and_send_active_page")
 
     try:
-        sent, error = _send_with_status(
-            service, "check_and_send_active_page_with_status", "check_and_send_active_page"
-        )
+        sent, error = await asyncio.to_thread(_work)
         if error:
             raise HTTPException(status_code=500, detail=f"Failed to force refresh: {error}")
         return {

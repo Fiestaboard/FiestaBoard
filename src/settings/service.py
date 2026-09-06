@@ -9,6 +9,7 @@ import json
 import logging
 import os
 import shutil
+import threading
 from collections.abc import Callable
 from dataclasses import asdict, dataclass, field
 from datetime import UTC, datetime
@@ -737,6 +738,14 @@ class SettingsService:
         else:
             self.settings_file = Path(settings_file)
 
+        # Serializes the mutate+save pair in the per-board setters
+        # (set_active_page_id / set_schedule_enabled). Since #1826 those run
+        # on worker threads, so two concurrent PUTs can race _save_to_file's
+        # asdict() walk against a by_board mutation (RuntimeError + lost
+        # write). Stopgap until #1848 gives SettingsService real
+        # thread-safety across every mutator.
+        self._per_board_write_lock = threading.Lock()
+
         # Run ordered schema migrations on the raw settings file BEFORE any
         # subsystem reads, so every _load_* sees fully migrated values. This
         # includes the legacy carousel:->collection: rewrite (folded into the
@@ -1135,21 +1144,25 @@ class SettingsService:
         Returns:
             Updated ActivePageSettings
         """
-        primary_id = self.get_primary_board_id()
-        bid = board_id if board_id is not None else primary_id
+        # Mutate+save under the stopgap lock (#1848 is the real fix): two
+        # worker-thread PUTs would otherwise race the asdict() walk in
+        # _save_to_file against the by_board mutation below.
+        with self._per_board_write_lock:
+            primary_id = self.get_primary_board_id()
+            bid = board_id if board_id is not None else primary_id
 
-        if bid is not None:
-            if page_id:
-                self._active_page.by_board[bid] = page_id
-            else:
-                self._active_page.by_board.pop(bid, None)
+            if bid is not None:
+                if page_id:
+                    self._active_page.by_board[bid] = page_id
+                else:
+                    self._active_page.by_board.pop(bid, None)
 
-        # Keep the legacy primary mirror in sync (also covers the no-boards case
-        # where bid is None and we only have the mirror to write to).
-        if board_id is None or bid is None or bid == primary_id:
-            self._active_page.page_id = page_id
+            # Keep the legacy primary mirror in sync (also covers the no-boards
+            # case where bid is None and we only have the mirror to write to).
+            if board_id is None or bid is None or bid == primary_id:
+                self._active_page.page_id = page_id
 
-        self._save_to_file()
+            self._save_to_file()
         logger.info(f"Active page for board {bid!r} set to: {page_id}")
         return self._active_page
 
@@ -1511,26 +1524,29 @@ class SettingsService:
         board also updates the deprecated ``schedule.enabled`` mirror for one
         release.
         """
-        primary_id = self.get_primary_board_id()
-        bid = board_id if board_id is not None else primary_id
+        # Same stopgap lock as set_active_page_id (#1848 is the real fix):
+        # the boards-list mutation must not race _save_to_file's asdict walk.
+        with self._per_board_write_lock:
+            primary_id = self.get_primary_board_id()
+            bid = board_id if board_id is not None else primary_id
 
-        if bid is not None:
-            for b in self._board.boards:
-                if b.get("id") == bid:
-                    b["schedule_enabled"] = enabled
-                    if bid == primary_id:
-                        self._schedule.enabled = enabled
-                    self._save_to_file()
-                    logger.info(f"Schedule mode for board {bid}: {'enabled' if enabled else 'disabled'}")
-                    return self._schedule
-            logger.warning(f"Board {bid} not found for set_schedule_enabled")
+            if bid is not None:
+                for b in self._board.boards:
+                    if b.get("id") == bid:
+                        b["schedule_enabled"] = enabled
+                        if bid == primary_id:
+                            self._schedule.enabled = enabled
+                        self._save_to_file()
+                        logger.info(f"Schedule mode for board {bid}: {'enabled' if enabled else 'disabled'}")
+                        return self._schedule
+                logger.warning(f"Board {bid} not found for set_schedule_enabled")
+                return self._schedule
+
+            # No boards configured: write the deprecated global mirror only.
+            self._schedule.enabled = enabled
+            self._save_to_file()
+            logger.info(f"Schedule mode (global, no boards): {'enabled' if enabled else 'disabled'}")
             return self._schedule
-
-        # No boards configured: write the deprecated global mirror only.
-        self._schedule.enabled = enabled
-        self._save_to_file()
-        logger.info(f"Schedule mode (global, no boards): {'enabled' if enabled else 'disabled'}")
-        return self._schedule
 
     def get_mqtt_settings(self) -> "MQTTSettings":
         """Return current MQTT integration settings."""

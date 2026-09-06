@@ -348,3 +348,54 @@ class TestPerBoardScheduleEnabled:
         result = svc.set_schedule_enabled(True)
         assert result.enabled is True
         assert svc.is_schedule_enabled() is True
+
+
+def test_concurrent_set_active_page_serializes_mutate_and_save(settings_file, mock_config):
+    """#1826 review: set_active_page PUTs now run on worker threads, so two
+    concurrent calls can race ``_save_to_file``'s asdict() walk against a
+    ``by_board`` mutation (RuntimeError + lost write).  The mutate+save pair
+    must be serialized (stopgap lock until the real fix in #1848)."""
+    import threading
+
+    svc = SettingsService(settings_file=settings_file)
+
+    first_save = threading.Event()
+    entered = threading.Event()
+    release = threading.Event()
+    done_second = threading.Event()
+    real_save = svc._save_to_file
+
+    def _paused_save():
+        # Pause only the FIRST save so the probe below can tell whether the
+        # second setter waited for it (locked) or barged past it (racy).
+        if not first_save.is_set():
+            first_save.set()
+            entered.set()
+            assert release.wait(timeout=10)
+        real_save()
+
+    with patch.object(svc, "_save_to_file", side_effect=_paused_save):
+        t1 = threading.Thread(target=lambda: svc.set_active_page_id("page-a", board_id="board-1"), daemon=True)
+        t1.start()
+        assert entered.wait(timeout=5)
+
+        def _second():
+            svc.set_active_page_id("page-b", board_id="board-2")
+            done_second.set()
+
+        t2 = threading.Thread(target=_second, daemon=True)
+        t2.start()
+        # While the first setter is still inside its save, the second must
+        # block — otherwise its by_board mutation races the asdict walk.
+        assert not done_second.wait(timeout=0.3), (
+            "second set_active_page completed while the first was still saving — mutate+save is not serialized"
+        )
+
+        release.set()
+        t1.join(timeout=5)
+        t2.join(timeout=5)
+        assert done_second.is_set()
+
+    # Neither write may be lost.
+    assert svc.get_active_page_id("board-1") == "page-a"
+    assert svc.get_active_page_id("board-2") == "page-b"
