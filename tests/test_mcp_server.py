@@ -17,6 +17,7 @@ Strategy
 
 from __future__ import annotations
 
+import tempfile
 from types import SimpleNamespace
 from typing import Any
 from unittest.mock import MagicMock, create_autospec, patch
@@ -1302,8 +1303,6 @@ class TestProtocolIsError:
     @pytest.fixture(scope="class")
     @classmethod
     def rpc(cls):
-        from fastapi.testclient import TestClient
-
         from src.api_server import app
 
         # conftest's autouse auth-off env fixture is function-scoped and runs
@@ -1311,6 +1310,18 @@ class TestProtocolIsError:
         # class-time initialize handshake with 409 "Setup required".
         mp = pytest.MonkeyPatch()
         mp.setenv("FIESTABOARD_AUTH_ENABLED", "false")
+        # Same ordering hazard for the #1762 data-dir seam: the lifespan
+        # startup below constructs ConfigManager/services before the
+        # function-scoped ``_isolated_data_dir`` fixture sets the env, so
+        # without this the class handshake writes the developer's real
+        # ``data/`` (caught by the CI checksum guard).
+        with tempfile.TemporaryDirectory() as class_data_dir:
+            mp.setenv("FIESTABOARD_DATA_DIR", class_data_dir)
+            yield from cls._run_rpc_client(app, mp)
+
+    @classmethod
+    def _run_rpc_client(cls, app, mp):
+        from fastapi.testclient import TestClient
 
         with TestClient(app) as client:
             init = client.post(
