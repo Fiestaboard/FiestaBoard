@@ -238,6 +238,21 @@ class BoardInstance:
             return bool(self.cloud_key)
         return bool(self.local_api_key and self.host)
 
+    @property
+    def has_connection_attempt(self) -> bool:
+        """True when the user has entered ANY connection detail for this board.
+
+        Deliberately weaker than :attr:`is_connection_configured`: a board
+        with a host but no key (or a note array missing its token) is
+        *misconfigured*, not *unconfigured*. First-run detection must use
+        this, not the strict check — a misconfigured board should surface
+        as a per-board error (#1813), never flip a working install back
+        into the setup wizard (#1760).
+        """
+        if self.api_mode == "virtual":
+            return True
+        return bool(self.host or self.local_api_key or self.cloud_key or self.note_array_token or self.tiles)
+
     def configured_tiles(self) -> list[dict]:
         """Return tiles that are in-range for the current W×H, enabled, and credentialed.
 

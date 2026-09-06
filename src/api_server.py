@@ -3768,9 +3768,7 @@ async def send_welcome_message():
         logger.error(f"Failed to create board client: {e}")
         raise HTTPException(status_code=503, detail=f"Board not configured: {str(e)}") from e
     if board_client is None:
-        raise HTTPException(
-            status_code=503, detail="Board not configured: no board with a usable connection"
-        )
+        raise HTTPException(status_code=503, detail="Board not configured: no board with a usable connection")
     board_client.skip_unchanged = False  # Always send the welcome message
 
     try:
@@ -4034,6 +4032,7 @@ async def validate_config():
     # first-run. Board-related validation errors/missing_fields from the
     # legacy config are dropped in that case.
     has_configured_board_instance = False
+    has_connection_attempt = False
     try:
         from .devices import BoardInstance
 
@@ -4043,11 +4042,23 @@ async def validate_config():
                 instance = BoardInstance.from_dict(b)
             except Exception:  # pragma: no cover - defensive
                 continue
+            if instance.has_connection_attempt:
+                has_connection_attempt = True
             if instance.is_connection_configured:
                 has_configured_board_instance = True
                 break
     except Exception:  # pragma: no cover - defensive
         logger.exception("Failed to inspect multi-board settings during validate_config")
+
+    # A board with SOME connection detail but not a working set is
+    # *misconfigured*, not first-run: it must surface as a per-board error
+    # (#1813), never bounce an existing install back into the setup wizard.
+    # Before #1760 the legacy config.json copy masked this case; with
+    # settings as the single credential source the distinction is load-
+    # bearing (a token-less note array replacing the only board used to
+    # keep the wizard away purely via the stale legacy copy).
+    if has_connection_attempt and not has_configured_board_instance:
+        is_first_run = False
 
     if has_configured_board_instance:
         is_first_run = False

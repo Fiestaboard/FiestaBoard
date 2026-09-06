@@ -423,3 +423,70 @@ class TestConfigBoardShim:
         assert response.status_code == 200
         on_disk = _settings_on_disk(diverged)
         assert on_disk["board"]["boards"][0]["local_api_key"] == LIVE_KEY
+
+
+class TestFirstRunDetectionAfterUnification:
+    """First-run must mean *never configured*, not *misconfigured* (#1760).
+
+    Before the unification, ``configureBoard()``-style writes through
+    ``PUT /config/board`` left credentials in config.json forever, so the
+    wizard gate never re-armed. With settings as the single source, a board
+    whose credentials are incomplete (e.g. a note array missing its token)
+    must surface as a per-board error — not flip the install back into the
+    setup wizard.
+    """
+
+    def test_incomplete_note_array_is_not_first_run(self, client):
+        client.put(
+            "/settings/board",
+            json={
+                "boards": [
+                    {
+                        "name": "My Board",
+                        "device_type": "note_array",
+                        "notes_wide": 4,
+                        "notes_tall": 1,
+                        "enabled": True,
+                        "api_mode": "local",
+                        "host": "localhost",
+                        "local_api_key": "test-key",
+                    }
+                ]
+            },
+        )
+        result = client.get("/config/validate").json()
+        assert result["is_first_run"] is False
+
+    def test_partial_host_only_board_is_not_first_run(self, client):
+        client.put(
+            "/settings/board",
+            json={
+                "boards": [{"name": "My Board", "device_type": "flagship", "api_mode": "local", "host": "192.0.2.9"}]
+            },
+        )
+        result = client.get("/config/validate").json()
+        assert result["is_first_run"] is False
+
+    def test_truly_blank_board_still_first_run(self, client):
+        client.put(
+            "/settings/board",
+            json={
+                "boards": [
+                    {
+                        "name": "My Board",
+                        "device_type": "flagship",
+                        "api_mode": "local",
+                        "host": "",
+                        "local_api_key": "",
+                    }
+                ]
+            },
+        )
+        result = client.get("/config/validate").json()
+        assert result["is_first_run"] is True
+
+    def test_wizard_reset_still_first_run(self, client):
+        client.put("/config/board", json={"host": "192.0.2.9", "local_api_key": "test-key"})
+        assert client.get("/config/validate").json()["is_first_run"] is False
+        client.delete("/config/board")
+        assert client.get("/config/validate").json()["is_first_run"] is True
