@@ -909,6 +909,15 @@ async def lifespan(app: FastAPI):
     except Exception:
         logger.debug("Failed to stop mDNS during shutdown", exc_info=True)
 
+    # Stop the shared plugin-fetch pool (issue #1751). wait=False: a wedged
+    # plugin fetch must not stall process shutdown.
+    try:
+        from .plugins.registry import shutdown_plugin_fetch_executor
+
+        shutdown_plugin_fetch_executor()
+    except Exception:
+        logger.debug("Failed to stop plugin-fetch executor during shutdown", exc_info=True)
+
 
 # Create FastAPI app
 app = FastAPI(

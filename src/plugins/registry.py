@@ -10,6 +10,8 @@ The PluginRegistry is the central point for:
 
 import logging
 import re
+import threading
+from collections.abc import Collection
 from concurrent.futures import ThreadPoolExecutor
 from concurrent.futures import wait as futures_wait
 from dataclasses import replace
@@ -49,6 +51,43 @@ _INSTANCE_LABEL_RE = re.compile(r"^[a-zA-Z0-9_-]{1,40}$")
 # rendering without it. A board that is a little stale beats a board that never
 # updates because one data source is wedged.
 CONTEXT_BUILD_TIMEOUT_SECONDS = 15
+
+# One persistent, bounded pool serves every plugin fetch (issue #1751). The
+# previous design built a fresh ThreadPoolExecutor per render and abandoned it
+# with shutdown(wait=False), which leaked one live thread per tick for every
+# hung plugin. With a shared pool a wedged fetch OCCUPIES a worker until it
+# returns (bounded occupancy) instead of leaking a thread (unbounded growth).
+# The pool is module-level and independent of registry instances so tests
+# that reset the registry singleton never accumulate pools.
+PLUGIN_FETCH_MAX_WORKERS = 8
+
+_fetch_executor: ThreadPoolExecutor | None = None
+_fetch_executor_lock = threading.Lock()
+
+
+def _get_fetch_executor() -> ThreadPoolExecutor:
+    """Lazily create (once) the shared plugin-fetch pool."""
+    global _fetch_executor
+    with _fetch_executor_lock:
+        if _fetch_executor is None:
+            _fetch_executor = ThreadPoolExecutor(
+                max_workers=PLUGIN_FETCH_MAX_WORKERS, thread_name_prefix="plugin-fetch"
+            )
+        return _fetch_executor
+
+
+def shutdown_plugin_fetch_executor() -> None:
+    """Shut down the shared plugin-fetch pool (process teardown only).
+
+    Safe to call repeatedly; a later fetch lazily creates a fresh pool.
+    ``wait=False`` so a wedged plugin cannot stall shutdown; its worker
+    thread dies with the process.
+    """
+    global _fetch_executor
+    with _fetch_executor_lock:
+        if _fetch_executor is not None:
+            _fetch_executor.shutdown(wait=False, cancel_futures=True)
+            _fetch_executor = None
 
 
 def _config_in_use(plugin_id: str, stored_configs: dict[str, dict[str, Any]]) -> bool:
@@ -1533,66 +1572,85 @@ class PluginRegistry:
             if self._enabled.get(pid, False) and plugin.supports_triggers
         }
 
-    def build_template_context(self, board: BoardContext | None = None) -> dict[str, Any]:
+    def build_template_context(
+        self, board: BoardContext | None = None, plugin_ids: Collection[str] | None = None
+    ) -> dict[str, Any]:
         """Build context dictionary for template rendering.
 
-        Fetches data from all enabled plugins in parallel so that slow or
-        unresponsive external data sources do not block each other.
+        Fetches plugin data in parallel so that slow or unresponsive external
+        data sources do not block each other.
 
         Args:
             board: Board being rendered on, forwarded to every plugin so
                 board-aware plugins can adapt their data. ``None`` keeps the
                 board-agnostic behavior.
+            plugin_ids: When given, fetch only these plugins (intersected
+                with the enabled set) PLUS every enabled trigger-capable
+                plugin — their ``check_triggers`` path may rely on the
+                freshly cached data a fetch produces, so a filtered engine
+                tick must never starve them (issue #1751). ``None`` keeps
+                the fetch-everything behavior.
 
         Returns:
             Dictionary mapping plugin_id to plugin data
         """
         context: dict[str, Any] = {}
-        enabled = list(self.enabled_plugins)
+        enabled = self.enabled_plugins
 
-        if not enabled:
+        if plugin_ids is None:
+            to_fetch = list(enabled)
+        else:
+            # Demand-driven fetch (issue #1751): only the plugins a template
+            # actually references... plus trigger plugins, unconditionally.
+            requested = {str(pid).lower() for pid in plugin_ids}
+            triggers = set(self.trigger_plugins)
+            to_fetch = [pid for pid in enabled if pid.lower() in requested or pid in triggers]
+
+        if not to_fetch:
             return context
 
-        # Fetch every plugin concurrently; cap the pool to avoid spawning an
-        # unbounded number of threads when many plugins are enabled.
-        max_workers = min(len(enabled), 8)
-        executor = ThreadPoolExecutor(max_workers=max_workers, thread_name_prefix="plugin-fetch")
-        try:
-            futures = {executor.submit(self.fetch_plugin_data, plugin_id, board): plugin_id for plugin_id in enabled}
-            done, not_done = futures_wait(futures, timeout=CONTEXT_BUILD_TIMEOUT_SECONDS)
+        # One persistent bounded pool for every render (issue #1751); see the
+        # module-level notes on PLUGIN_FETCH_MAX_WORKERS. The timeout below
+        # still solely bounds how long a render waits — never how long a
+        # plugin runs: an abandoned fetch finishes harmlessly on its worker
+        # (nothing reads its result, and PluginBase caches it for the next
+        # tick), occupying that worker until it returns. cancel() drops the
+        # not_done futures that never started, so a saturated pool's backlog
+        # cannot grow without bound; running fetches ignore cancel().
+        executor = _get_fetch_executor()
+        futures = {executor.submit(self.fetch_plugin_data, plugin_id, board): plugin_id for plugin_id in to_fetch}
+        done, not_done = futures_wait(futures, timeout=CONTEXT_BUILD_TIMEOUT_SECONDS)
 
-            if not_done:
-                slow_ids = [futures[f] for f in not_done]
+        if not_done:
+            slow_ids = [futures[f] for f in not_done]
+            logger.warning(
+                f"{len(not_done)} plugin(s) did not complete within the "
+                f"context-build timeout and will be skipped: {slow_ids}"
+            )
+            never_started = [futures[f] for f in not_done if f.cancel()]
+            if never_started:
                 logger.warning(
-                    f"{len(not_done)} plugin(s) did not complete within the "
-                    f"context-build timeout and will be skipped: {slow_ids}"
+                    f"plugin-fetch pool saturated: {len(never_started)} fetch(es) never started "
+                    f"({never_started}) — all {PLUGIN_FETCH_MAX_WORKERS} workers are occupied by "
+                    f"slow or wedged plugin fetches"
                 )
 
-            for future in done:
-                plugin_id = futures[future]
-                try:
-                    result = future.result()
-                    if result.available and result.data:
-                        context[plugin_id] = result.data
-                except Exception:
-                    logger.exception(f"Plugin {plugin_id} raised an error during context build")
-        finally:
-            # Deliberately not a `with` block. ThreadPoolExecutor.__exit__ calls
-            # shutdown(wait=True), which would block here until the slowest
-            # plugin returned -- so the timeout above would decide only whether
-            # a result is *used*, never how long the render takes. A plugin
-            # wedged on a 60s network call would stall every board render for
-            # the full 60s and then have its answer thrown away.
-            #
-            # wait=False lets an abandoned fetch finish on its own thread
-            # (harmlessly -- nothing reads its result, and PluginBase caches it
-            # for the next tick); cancel_futures drops the ones that never
-            # started.
-            executor.shutdown(wait=False, cancel_futures=True)
+        for future in done:
+            plugin_id = futures[future]
+            try:
+                result = future.result()
+                if result.available and result.data:
+                    context[plugin_id] = result.data
+            except Exception:
+                logger.exception(f"Plugin {plugin_id} raised an error during context build")
 
         return context
 
-    def build_template_contexts_for(self, boards: dict[str, BoardContext]) -> dict[str, dict[str, Any]]:
+    def build_template_contexts_for(
+        self,
+        boards: dict[str, BoardContext],
+        plugin_ids: dict[str, Collection[str] | None] | None = None,
+    ) -> dict[str, dict[str, Any]]:
         """Build one template context per distinct board.
 
         Used by batch rendering (e.g. the page-grid preview) where pages
@@ -1603,12 +1661,17 @@ class PluginRegistry:
         Args:
             boards: Mapping of a key (typically ``device_type``) to the
                 :class:`BoardContext` to build a context for.
+            plugin_ids: Optional per-key fetch filters (issue #1751): the
+                value for a key is forwarded to
+                :meth:`build_template_context`, so ``None`` (or a missing
+                key) keeps fetch-all for that board.
 
         Returns:
             Mapping of the same keys to their rendered ``{plugin_id: data}``
             context dictionaries.
         """
-        return {key: self.build_template_context(board) for key, board in boards.items()}
+        filters = plugin_ids or {}
+        return {key: self.build_template_context(board, plugin_ids=filters.get(key)) for key, board in boards.items()}
 
 
 def get_plugin_registry() -> PluginRegistry:
