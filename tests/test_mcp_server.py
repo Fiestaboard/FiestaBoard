@@ -1297,8 +1297,11 @@ class TestProtocolIsError:
     # class-scoped: the app lifespan starts the MCP StreamableHTTP session
     # manager, whose .run() is once-per-instance — a second lifespan startup
     # in the same process raises. One client serves every test in the class.
+    # @classmethod per pytest's class-scoped-fixture-as-instance-method
+    # deprecation.
     @pytest.fixture(scope="class")
-    def rpc(self):
+    @classmethod
+    def rpc(cls):
         from fastapi.testclient import TestClient
 
         from src.api_server import app
@@ -1322,10 +1325,10 @@ class TestProtocolIsError:
                         "clientInfo": {"name": "pytest", "version": "0"},
                     },
                 },
-                headers=self.HEADERS,
+                headers=cls.HEADERS,
             )
             assert init.status_code == 200, init.text
-            headers = dict(self.HEADERS)
+            headers = dict(cls.HEADERS)
             sid = init.headers.get("mcp-session-id")
             if sid:
                 headers["mcp-session-id"] = sid
