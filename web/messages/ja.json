@@ -2088,7 +2088,11 @@
     "claudeWebDescription": "<label>claude.ai web (Connectors):</label> セルフホストの FiestaBoard ではサポートされていません。Connectors のフローには公開 HTTPS の URL と OAuth 2.1 の動的クライアント登録が必要ですが、LAN 上のホストはどちらも提供できません。代わりに Desktop または Code をご利用ください。",
     "savedItButton": "保存しました",
     "toastTokenRevoked": "MCP トークンを失効しました",
-    "toastCopyFailed": "クリップボードにコピーできませんでした"
+    "toastCopyFailed": "クリップボードにコピーできませんでした",
+    "lockedDescription": "このインストールではログインが無効になっているため、現在の MCP トークン自体がトークン管理の資格情報になります。ローテーションや失効を行うには、下に入力してロックを解除してください。",
+    "lockedTokenLabel": "現在の MCP トークン",
+    "unlockButton": "ロック解除",
+    "unlockFailedToast": "そのトークンは設定済みの MCP トークンと一致しません。"
   },
   "fiestaPanels": {
     "title": "FiestaPanel",

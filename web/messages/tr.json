@@ -2088,7 +2088,11 @@
     "claudeWebDescription": "<label>claude.ai web (Connectors):</label> kendi barındırdığınız FiestaBoard için desteklenmez. Connectors akışı herkese açık bir HTTPS adresi ve OAuth 2.1 dinamik istemci kaydı gerektirir; bir LAN sunucusu bunların ikisini de sağlayamaz. Bunun yerine Desktop veya Code kullanın.",
     "savedItButton": "Kaydettim",
     "toastTokenRevoked": "MCP token'ı iptal edildi",
-    "toastCopyFailed": "Kopyalanamadı"
+    "toastCopyFailed": "Kopyalanamadı",
+    "lockedDescription": "Bu kurulumda oturum açma kapalı olduğundan, token yönetiminin kimlik bilgisi mevcut MCP token'ının kendisidir. Yenileme ve iptal işlemlerinin kilidini açmak için aşağıya girin.",
+    "lockedTokenLabel": "Mevcut MCP token'ı",
+    "unlockButton": "Kilidi aç",
+    "unlockFailedToast": "Bu token, yapılandırılmış MCP token'ıyla eşleşmiyor."
   },
   "fiestaPanels": {
     "title": "FiestaPanel",

@@ -115,15 +115,23 @@ stay open.
 as before.
 :::
 
-On an install where you chose *Continue without login*, prefer
-`FIESTABOARD_MCP_TOKEN` over a token generated on the Settings page. Token
-management is part of the API (`POST` / `DELETE /auth/mcp-token`), and with
-the login disabled there is no session for those routes to check — so
-anyone who can reach the port can rotate or revoke a Settings-stored token
-and re-open `/api/mcp/`. A Settings-stored token protects against accidents
-there, not against an attacker who can already reach FiestaBoard. While
-`FIESTABOARD_MCP_TOKEN` is set, both routes refuse with `409` and the token
-cannot be changed over the network.
+On an install where you chose *Continue without login* there is no session
+for the token-management routes (`GET` / `POST` / `DELETE
+/auth/mcp-token`) to check, so possession of the current token stands in
+for one: once a token exists, managing it requires sending that token as an
+`Authorization: Bearer` header, and requests without it get a `401`. Only
+the first mint is open — until a token exists the whole API is open anyway,
+so gating it would protect nothing. (Earlier releases left these routes
+fully open on such installs, so anyone who could reach the port could
+rotate or revoke a Settings-stored token — fixed in
+Fiestaboard/FiestaBoard#1825.) The gate protects against casual or
+accidental mint-and-read and revocation, but it is not a boundary against
+an attacker who can already reach the port: with the login disabled by
+preference, that attacker can re-enable it (`POST /auth/preference`),
+register the first admin (`POST /auth/setup`), and manage the token with
+that session. `FIESTABOARD_MCP_TOKEN` is the option that actually holds:
+while it is set, both mutating routes refuse with `409` and the token
+cannot be changed over the network at all.
 
 ## Cross-origin browser access (CORS)
 

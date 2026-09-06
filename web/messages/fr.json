@@ -2088,7 +2088,11 @@
     "claudeWebDescription": "<label>claude.ai web (Connectors) :</label> non pris en charge pour un FiestaBoard auto-hébergé. Le flux Connectors exige une URL HTTPS publique et l'enregistrement dynamique de clients OAuth 2.1, or un hôte du LAN ne peut fournir ni l'un ni l'autre. Utilisez plutôt Desktop ou Code.",
     "savedItButton": "Je l'ai enregistré",
     "toastTokenRevoked": "Jeton MCP révoqué",
-    "toastCopyFailed": "Impossible de copier dans le presse-papiers"
+    "toastCopyFailed": "Impossible de copier dans le presse-papiers",
+    "lockedDescription": "La connexion est désactivée sur cette installation : le jeton MCP actuel sert donc lui-même d'identifiant pour gérer les jetons. Saisissez-le ci-dessous pour débloquer le renouvellement ou la révocation.",
+    "lockedTokenLabel": "Jeton MCP actuel",
+    "unlockButton": "Déverrouiller",
+    "unlockFailedToast": "Ce jeton ne correspond pas au jeton MCP configuré."
   },
   "fiestaPanels": {
     "title": "FiestaPanel",

@@ -52,22 +52,30 @@ client config — it replaces `<YOUR_TOKEN>` in the examples below.
 > configured, nothing changes: `/api/mcp/` follows whatever the auth mode
 > says.
 
-> **With the login disabled, pin the token with the env var.** The paragraph
-> above is about the `/api/mcp/` data path only. The *token management*
-> routes are not gated the same way: `_require_admin` in
-> `src/auth/routes.py` deliberately returns an `"anonymous"` sentinel when
-> `auth_mode()` is `disabled`, so that **Settings → Integrations** doesn't
-> bounce off a 401 into a login-redirect loop. The consequence is that on an
-> install with the login off, an unauthenticated caller who can reach the
-> port can `POST /auth/mcp-token` to mint a valid token, or
-> `DELETE /auth/mcp-token` to revoke the stored one and re-open `/api/mcp/`
-> outright. A token stored from the Settings page is therefore a guard
-> against accidental clients on such an install, **not** a boundary against
-> an attacker who can already reach FiestaBoard. Setting
-> `FIESTABOARD_MCP_TOKEN` is the configuration that holds: while it is set,
-> both management routes refuse with `409`, so the token cannot be rotated
-> or revoked over the network. Enabling the browser login also closes it.
-> Tracked in Fiestaboard/FiestaBoard#1825.
+> **With the login disabled, the token guards its own management.** The
+> paragraph above is about the `/api/mcp/` data path. The *token
+> management* routes (`GET` / `POST` / `DELETE /auth/mcp-token`) have no
+> session to check when the login is off, so they check possession
+> instead: once a token is configured, managing it requires presenting the
+> current token as an `Authorization: Bearer` header, and anonymous
+> requests get a 401. Only the first mint stays open, by design — until a
+> token exists the whole REST surface is open, so gating it would protect
+> nothing, and it keeps **Settings → Integrations** rendering without a
+> login-redirect loop. (Earlier releases left these routes fully anonymous
+> on such installs, so anyone who could reach the port could mint or
+> revoke the token — fixed in Fiestaboard/FiestaBoard#1825.)
+> Even so, the possession gate is **not a boundary against an attacker
+> who can already reach the port**: on an install where the login is
+> merely *disabled by preference*, the preference itself is part of the
+> open API, so such an attacker can `POST /auth/preference` to enable the
+> login, register the first admin via `POST /auth/setup`, and manage the
+> token with that session. Treat the gate as protection against casual or
+> accidental mint-and-read and revocation.
+> `FIESTABOARD_MCP_TOKEN` is the configuration that actually holds: while
+> it is set, the mutating routes refuse with `409` even for a caller
+> presenting the token, so it cannot be rotated or revoked over the
+> network at all. Enabling the browser login gates management behind the
+> admin session as usual.
 
 ## Why local hosting makes this awkward
 

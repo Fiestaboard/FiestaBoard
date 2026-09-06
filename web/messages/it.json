@@ -2088,7 +2088,11 @@
     "claudeWebDescription": "<label>claude.ai web (Connectors):</label> non supportato per un FiestaBoard self-hosted. Il flusso Connectors richiede un URL HTTPS pubblico e la registrazione dinamica dei client OAuth 2.1, e un host sulla LAN non può fornire né l'uno né l'altro. Usa invece Desktop o Code.",
     "savedItButton": "L'ho salvato",
     "toastTokenRevoked": "Token MCP revocato",
-    "toastCopyFailed": "Impossibile copiare negli appunti"
+    "toastCopyFailed": "Impossibile copiare negli appunti",
+    "lockedDescription": "L'accesso è disattivato su questa installazione, quindi il token MCP attuale è esso stesso la credenziale per gestire i token. Inseriscilo qui sotto per sbloccare rotazione e revoca.",
+    "lockedTokenLabel": "Token MCP attuale",
+    "unlockButton": "Sblocca",
+    "unlockFailedToast": "Quel token non corrisponde al token MCP configurato."
   },
   "fiestaPanels": {
     "title": "FiestaPanel",

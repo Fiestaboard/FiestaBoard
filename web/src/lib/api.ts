@@ -1700,8 +1700,27 @@ function loginRedirectTarget(): string {
   return encodeURIComponent(stripBasePath(window.location.pathname) + window.location.search);
 }
 
-async function fetchApi<T>(path: string, options?: RequestInit & { timeoutMs?: number }): Promise<T> {
-  const { timeoutMs = DEFAULT_TIMEOUT_MS, ...fetchOptions } = options ?? {};
+/**
+ * Error thrown by fetchApi for non-2xx responses. Carries the HTTP
+ * status so callers can branch on it — e.g. a 401 from /auth/mcp-token
+ * on an auth-disabled install means "management is locked behind the
+ * current token" (#1825), not "not signed in".
+ */
+export class ApiError extends Error {
+  readonly status: number;
+
+  constructor(message: string, status: number) {
+    super(message);
+    this.name = "ApiError";
+    this.status = status;
+  }
+}
+
+async function fetchApi<T>(
+  path: string,
+  options?: RequestInit & { timeoutMs?: number; skipAuthRedirect?: boolean },
+): Promise<T> {
+  const { timeoutMs = DEFAULT_TIMEOUT_MS, skipAuthRedirect = false, ...fetchOptions } = options ?? {};
   const timeoutSignal = AbortSignal.timeout(timeoutMs);
   const signal = fetchOptions.signal ? AbortSignal.any([fetchOptions.signal, timeoutSignal]) : timeoutSignal;
 
@@ -1724,7 +1743,9 @@ async function fetchApi<T>(path: string, options?: RequestInit & { timeoutMs?: n
     throw err;
   }
   if (!res.ok) {
-    redirectToLoginIfNeeded(res);
+    if (!skipAuthRedirect) {
+      redirectToLoginIfNeeded(res);
+    }
     let detail = `API error: ${res.status} ${res.statusText}`;
     try {
       const body = await res.json();
@@ -1734,7 +1755,7 @@ async function fetchApi<T>(path: string, options?: RequestInit & { timeoutMs?: n
     } catch {
       // ignore JSON parse errors; use status text fallback
     }
-    throw new Error(detail);
+    throw new ApiError(detail, res.status);
   }
   return res.json();
 }
@@ -2735,16 +2756,35 @@ export const api = {
   // pasting a one-time-shown token into their connector config instead
   // of editing FIESTABOARD_MCP_TOKEN in .env. See src/auth/routes.py.
 
-  getMcpTokenStatus: () => fetchApi<McpTokenStatus>("/auth/mcp-token"),
+  // On auth-disabled installs the backend gates these routes behind the
+  // *current* token once one exists (#1825): a 401 here means "locked",
+  // not "not signed in", so all three skip the login redirect and accept
+  // an optional bearer to pass through as `Authorization`.
+
+  getMcpTokenStatus: (currentToken?: string) =>
+    fetchApi<McpTokenStatus>("/auth/mcp-token", {
+      skipAuthRedirect: true,
+      headers: currentToken ? { Authorization: `Bearer ${currentToken}` } : undefined,
+    }),
 
   /**
    * Generate a fresh token, persist it server-side, and return the
    * plaintext value ONCE. The caller is responsible for showing it to
    * the user immediately — it can't be read back after this response.
    */
-  rotateMcpToken: () => fetchApi<{ token: string }>("/auth/mcp-token", { method: "POST" }),
+  rotateMcpToken: (currentToken?: string) =>
+    fetchApi<{ token: string }>("/auth/mcp-token", {
+      method: "POST",
+      skipAuthRedirect: true,
+      headers: currentToken ? { Authorization: `Bearer ${currentToken}` } : undefined,
+    }),
 
-  clearMcpToken: () => fetchApi<{ status: string }>("/auth/mcp-token", { method: "DELETE" }),
+  clearMcpToken: (currentToken?: string) =>
+    fetchApi<{ status: string }>("/auth/mcp-token", {
+      method: "DELETE",
+      skipAuthRedirect: true,
+      headers: currentToken ? { Authorization: `Bearer ${currentToken}` } : undefined,
+    }),
 
   // ── WiFi (FiestaPi only) ────────────────────────────────────────────────
   getWifiCapability: () => fetchApi<WifiCapability>("/network/wifi/capability"),

@@ -2088,7 +2088,11 @@
     "claudeWebDescription": "<label>claude.ai web (Connectors):</label> wordt niet ondersteund voor een zelf gehoste FiestaBoard. De Connectors-flow vereist een publieke HTTPS-URL en dynamische OAuth 2.1-clientregistratie, en geen van beide kan een host in het LAN bieden. Gebruik in plaats daarvan Desktop of Code.",
     "savedItButton": "Ik heb het opgeslagen",
     "toastTokenRevoked": "MCP-token ingetrokken",
-    "toastCopyFailed": "Kopiëren naar klembord mislukt"
+    "toastCopyFailed": "Kopiëren naar klembord mislukt",
+    "lockedDescription": "Inloggen is uitgeschakeld op deze installatie, dus het huidige MCP-token is zelf het bewijs om tokens te beheren. Voer het hieronder in om roteren en intrekken te ontgrendelen.",
+    "lockedTokenLabel": "Huidig MCP-token",
+    "unlockButton": "Ontgrendelen",
+    "unlockFailedToast": "Dat token komt niet overeen met het geconfigureerde MCP-token."
   },
   "fiestaPanels": {
     "title": "FiestaPanel",

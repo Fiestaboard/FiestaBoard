@@ -2088,7 +2088,11 @@
     "claudeWebDescription": "<label>claude.ai 网页版（Connectors）：</label>自托管的 FiestaBoard 不支持。Connectors 流程需要公网 HTTPS URL 和 OAuth 2.1 动态客户端注册，而 LAN 主机两者都无法提供。请改用 Desktop 或 Code。",
     "savedItButton": "我已保存",
     "toastTokenRevoked": "MCP 令牌已吊销",
-    "toastCopyFailed": "无法复制到剪贴板"
+    "toastCopyFailed": "无法复制到剪贴板",
+    "lockedDescription": "此安装已关闭登录，因此当前 MCP 令牌本身就是管理令牌的凭据。在下方输入它即可解锁轮换和吊销操作。",
+    "lockedTokenLabel": "当前 MCP 令牌",
+    "unlockButton": "解锁",
+    "unlockFailedToast": "该令牌与已配置的 MCP 令牌不匹配。"
   },
   "fiestaPanels": {
     "title": "FiestaPanel",
