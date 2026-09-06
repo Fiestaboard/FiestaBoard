@@ -363,9 +363,15 @@ class Config:
         (``plugins.*``), not the retired legacy ``features.*`` blocks. The
         key set is unchanged so existing consumers keep working; the
         ``*_enabled`` flags now report plugin enablement.
+
+        Since #1760 the board connection fields report the primary settings
+        board — the connection the runtime actually uses — not the vestigial
+        config.json board block.
         """
         cm = cls._get_cm()
         weather = cm.get_plugin_config("weather") or {}
+        board = cls._primary_settings_board()
+        board_api_mode = (board.get("api_mode") or "local").lower() if board else "local"
         return {
             "weather_provider": weather.get("provider", "weatherapi"),
             "weather_location": weather.get("location", ""),
@@ -383,15 +389,32 @@ class Config:
             "baywheels_enabled": cm.is_plugin_enabled("lyft_bike_share"),
             "traffic_enabled": cm.is_plugin_enabled("traffic"),
             "stocks_enabled": cm.is_plugin_enabled("stocks"),
-            # Board config
-            "board_api_mode": cls.BOARD_API_MODE,
-            "board_host": cls.BOARD_HOST if cls.BOARD_API_MODE.lower() == "local" else "cloud",
-            "board_key_set": bool(cls.get_board_api_key()),
+            # Board config (from the primary settings board, issue #1760)
+            "board_api_mode": board_api_mode,
+            "board_host": (board.get("host") or "") if board_api_mode == "local" else "cloud",
+            "board_key_set": bool(board.get("cloud_key") if board_api_mode == "cloud" else board.get("local_api_key")),
             "weather_key_set": bool(weather.get("api_key")),
             # Transition settings (only available in Local API mode)
-            "transition_strategy": cls.BOARD_TRANSITION_STRATEGY if cls.BOARD_API_MODE.lower() == "local" else None,
-            "transition_interval_ms": cls.BOARD_TRANSITION_INTERVAL_MS
-            if cls.BOARD_API_MODE.lower() == "local"
-            else None,
-            "transition_step_size": cls.BOARD_TRANSITION_STEP_SIZE if cls.BOARD_API_MODE.lower() == "local" else None,
+            "transition_strategy": cls.BOARD_TRANSITION_STRATEGY if board_api_mode == "local" else None,
+            "transition_interval_ms": cls.BOARD_TRANSITION_INTERVAL_MS if board_api_mode == "local" else None,
+            "transition_step_size": cls.BOARD_TRANSITION_STEP_SIZE if board_api_mode == "local" else None,
         }
+
+    @staticmethod
+    def _primary_settings_board() -> dict:
+        """Connection fields of the primary settings board (issue #1760).
+
+        Board credentials are unified on settings.json; summaries must report
+        the connection the runtime actually uses, not the vestigial
+        config.json board block. Returns {} when the settings service is
+        unavailable (early startup, broken store).
+        """
+        try:
+            from .settings.service import get_settings_service
+
+            boards = get_settings_service().get_board_settings().boards or []
+            if boards and isinstance(boards[0], dict):
+                return boards[0]
+        except Exception:  # pragma: no cover - defensive
+            pass
+        return {}

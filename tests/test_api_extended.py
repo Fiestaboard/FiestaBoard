@@ -394,11 +394,14 @@ class TestConfigEndpoints:
         assert "api_modes" in data
 
     def test_update_board_config(self, client, mock_config_manager, mock_service):
+        """PUT /config/board is a shim over settings (issue #1760): it writes
+        the settings boards store and never the config.json board block."""
         response = client.put("/config/board", json={"api_mode": "local", "host": "10.0.0.1"})
         assert response.status_code == 200
         data = response.json()
         assert data["status"] == "success"
-        mock_config_manager.set_board.assert_called_once()
+        assert data["config"]["host"] == "10.0.0.1"
+        mock_config_manager.set_board.assert_not_called()
 
     def test_validate_config_valid(self, client, mock_config_manager):
         response = client.get("/config/validate")

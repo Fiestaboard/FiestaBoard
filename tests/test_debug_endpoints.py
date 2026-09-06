@@ -531,8 +531,11 @@ class TestConnectionInfoSource:
         assert response.status_code == 200
         assert response.json()["board_configured"] is False
 
-    def test_system_info_falls_back_to_legacy_config_without_boards(self, client):
-        """No boards[] entries → legacy Config keeps working (pre-boards installs)."""
+    def test_system_info_without_boards_never_reads_legacy_config(self, client):
+        """No boards[] entries → unconfigured. Board credentials are unified
+        on settings.json (issue #1760): the migration imports pre-boards
+        installs at boot, so at runtime the legacy config.json values must
+        never be reported as the live connection."""
         with (
             patch("src.api_server.get_settings_service", return_value=self._ss_with_board(None)),
             patch("src.api_server._get_board_client", return_value=None),
@@ -546,8 +549,8 @@ class TestConnectionInfoSource:
         assert response.status_code == 200
         data = response.json()
         assert data["connection_mode"] == "local"
-        assert data["board_ip"] == "192.168.1.50"
-        assert data["board_configured"] is True
+        assert data["board_ip"] == ""
+        assert data["board_configured"] is False
 
     def test_debug_info_board_text_uses_boards_store(self, client, mock_board_client):
         """The on-board debug text reports the boards[] mode/host, not legacy Config."""
