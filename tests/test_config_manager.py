@@ -133,9 +133,11 @@ def test_merges_loaded_config_with_defaults_adds_missing_keys(tmp_path):
     board = cm.get_board()
     assert board["host"] == "192.168.1.1"
     assert "local_api_key" in board
+    # #1761: legacy feature blocks are no longer seeded from defaults, but a
+    # stored legacy block is preserved verbatim (the migration reads it).
     weather = cm.get_feature("weather")
     assert weather["enabled"] is True
-    assert "api_key" in weather
+    assert "api_key" not in weather
 
 
 # --- _deep_copy ---
@@ -377,21 +379,6 @@ def test_apply_env_overrides_invalid_int_value(monkeypatch, tmp_path):
     assert board.get("transition_interval_ms") is None
 
 
-def test_apply_env_overrides_invalid_float_value(monkeypatch, tmp_path):
-    """Handles invalid float env var values."""
-    monkeypatch.setenv("SURF_LATITUDE", "not_a_float")
-    config_path = tmp_path / "config.json"
-    config_data = {
-        "board": {},
-        "features": {"surf": {"latitude": None}},
-        "general": {},
-    }
-    config_path.write_text(json.dumps(config_data))
-    cm = ConfigManager(config_path=str(config_path))
-    surf = cm.get_feature("surf")
-    assert surf.get("latitude") != "not_a_float"
-
-
 # --- get_all and get_all_masked ---
 
 
@@ -500,23 +487,25 @@ def test_set_board_ignores_fields_not_in_default(tmp_path):
 
 
 def test_get_feature_returns_feature_config(tmp_path):
-    """get_feature returns feature config."""
+    """get_feature returns the silence_schedule system feature config."""
     config_path = tmp_path / "config.json"
     cm = ConfigManager(config_path=str(config_path))
-    weather = cm.get_feature("weather")
-    assert weather is not None
-    assert "enabled" in weather
-    assert "api_key" in weather
+    silence = cm.get_feature("silence_schedule")
+    assert silence is not None
+    assert "enabled" in silence
+    assert "start_time" in silence
 
 
 def test_get_feature_returns_default_if_not_in_config(tmp_path):
-    """get_feature returns default if feature not in config but in defaults."""
+    """get_feature falls back to defaults only for the silence_schedule feature."""
     config_path = tmp_path / "config.json"
     config_path.write_text(json.dumps({"board": {}, "features": {}, "general": {}}))
     cm = ConfigManager(config_path=str(config_path))
-    weather = cm.get_feature("weather")
-    assert weather is not None
-    assert weather["provider"] == "weatherapi"
+    silence = cm.get_feature("silence_schedule")
+    assert silence is not None
+    assert silence["mode"] == "freeze"
+    # Retired legacy feature blocks have no defaults anymore (#1761).
+    assert not cm.get_feature("weather")
 
 
 def test_get_feature_returns_none_for_unknown_feature(tmp_path):
@@ -530,14 +519,15 @@ def test_set_feature_updates_only_provided_fields(tmp_path):
     """set_feature updates only provided fields."""
     config_path = tmp_path / "config.json"
     cm = ConfigManager(config_path=str(config_path))
-    cm.set_feature("weather", {"enabled": True, "location": "Boston, MA"})
-    weather = cm.get_feature("weather")
-    assert weather["enabled"] is True
-    assert weather["location"] == "Boston, MA"
+    cm.set_feature("silence_schedule", {"enabled": True, "indicator_text": "SHUSH"})
+    silence = cm.get_feature("silence_schedule")
+    assert silence["enabled"] is True
+    assert silence["indicator_text"] == "SHUSH"
+    assert silence["mode"] == "freeze"  # untouched field keeps its default
 
 
-def test_set_feature_preserves_masked_sensitive_fields(tmp_path):
-    """set_feature preserves masked *** sensitive fields."""
+def test_set_feature_rejects_retired_legacy_features(tmp_path):
+    """set_feature refuses writes to retired legacy feature blocks (#1761)."""
     config_path = tmp_path / "config.json"
     config_data = {
         "board": {},
@@ -546,7 +536,7 @@ def test_set_feature_preserves_masked_sensitive_fields(tmp_path):
     }
     config_path.write_text(json.dumps(config_data))
     cm = ConfigManager(config_path=str(config_path))
-    cm.set_feature("weather", {"api_key": "***"})
+    assert cm.set_feature("weather", {"api_key": "new-key"}) is False
     full = cm.get_all()
     assert full["features"]["weather"]["api_key"] == "real-weather-key"
 
@@ -580,44 +570,20 @@ def test_set_general_updates_fields_preserves_masked(tmp_path):
     assert cm.get_general()["timezone"] == "Europe/Paris"
 
 
-# --- is_feature_enabled ---
-
-
-def test_is_feature_enabled_true(tmp_path):
-    """is_feature_enabled returns True when enabled."""
-    config_path = tmp_path / "config.json"
-    cm = ConfigManager(config_path=str(config_path))
-    cm.set_feature("weather", {"enabled": True})
-    assert cm.is_feature_enabled("weather") is True
-
-
-def test_is_feature_enabled_false(tmp_path):
-    """is_feature_enabled returns False when disabled."""
-    config_path = tmp_path / "config.json"
-    cm = ConfigManager(config_path=str(config_path))
-    cm.set_feature("weather", {"enabled": False})
-    assert cm.is_feature_enabled("weather") is False
-
-
-# --- get_feature_list ---
-
-
-def test_get_feature_list_returns_feature_names(tmp_path):
-    """get_feature_list returns list of feature names."""
-    config_path = tmp_path / "config.json"
-    cm = ConfigManager(config_path=str(config_path))
-    features = cm.get_feature_list()
-    assert "weather" in features
-    assert "date_time" in features
-    assert "guest_wifi" in features
-
-
 # --- get_color_rules ---
 
 
 def test_get_color_rules_returns_rules_for_feature_field(tmp_path):
-    """get_color_rules returns rules for feature/field."""
+    """get_color_rules still reads legacy color_rules stored in the config file."""
     config_path = tmp_path / "config.json"
+    config_data = {
+        "board": {},
+        "features": {
+            "weather": {"color_rules": {"temp": [{"condition": ">=", "value": 90, "color": "red"}]}},
+        },
+        "general": {},
+    }
+    config_path.write_text(json.dumps(config_data))
     cm = ConfigManager(config_path=str(config_path))
     rules = cm.get_color_rules("weather", "temp")
     assert isinstance(rules, list)
@@ -748,56 +714,6 @@ def test_validate_local_config_fails_when_multi_board_also_empty(tmp_path, monke
     assert any("host" in e for e in errors)
 
 
-def test_validate_enabled_weather_without_api_key(tmp_path):
-    """Enabled weather without api_key."""
-    config_path = tmp_path / "config.json"
-    config_data = {
-        "board": {"api_mode": "local", "local_api_key": "k", "host": "h"},
-        "features": {"weather": {"enabled": True, "api_key": ""}},
-        "general": {},
-    }
-    config_path.write_text(json.dumps(config_data))
-    cm = ConfigManager(config_path=str(config_path))
-    valid, errors = cm.validate()
-    assert valid is False
-    assert any("Weather" in e for e in errors)
-
-
-def test_validate_enabled_home_assistant_without_base_url_or_token(tmp_path):
-    """Enabled home_assistant without base_url or access_token."""
-    config_path = tmp_path / "config.json"
-    config_data = {
-        "board": {"api_mode": "local", "local_api_key": "k", "host": "h"},
-        "features": {
-            "home_assistant": {"enabled": True, "base_url": "", "access_token": ""},
-        },
-        "general": {},
-    }
-    config_path.write_text(json.dumps(config_data))
-    cm = ConfigManager(config_path=str(config_path))
-    valid, errors = cm.validate()
-    assert valid is False
-    assert any("base_url" in e or "access_token" in e for e in errors)
-
-
-def test_validate_enabled_guest_wifi_without_ssid_or_password(monkeypatch, tmp_path):
-    """Enabled guest_wifi without ssid or password."""
-    # Clear env vars that might fill in ssid/password (e.g. in Docker)
-    for key in ("GUEST_WIFI_SSID", "GUEST_WIFI_PASSWORD"):
-        monkeypatch.delenv(key, raising=False)
-    config_path = tmp_path / "config.json"
-    config_data = {
-        "board": {"api_mode": "local", "local_api_key": "k", "host": "h"},
-        "features": {"guest_wifi": {"enabled": True, "ssid": "", "password": ""}},
-        "general": {},
-    }
-    config_path.write_text(json.dumps(config_data))
-    cm = ConfigManager(config_path=str(config_path))
-    valid, errors = cm.validate()
-    assert valid is False
-    assert any("SSID" in e or "password" in e for e in errors)
-
-
 # --- Plugin config methods ---
 
 
@@ -875,23 +791,6 @@ def test_get_enabled_plugins(tmp_path):
     enabled = cm.get_enabled_plugins()
     assert "weather" in enabled
     assert "stocks" not in enabled
-
-
-def test_migrate_feature_to_plugin(tmp_path):
-    """migrate_feature_to_plugin copies feature to plugin."""
-    config_path = tmp_path / "config.json"
-    config_data = {
-        "board": {},
-        "features": {"weather": {"enabled": True, "api_key": "key", "location": "SF"}},
-        "general": {},
-    }
-    config_path.write_text(json.dumps(config_data))
-    cm = ConfigManager(config_path=str(config_path))
-    result = cm.migrate_feature_to_plugin("weather", "weather")
-    assert result is True
-    plugin_cfg = cm.get_plugin_config("weather")
-    assert plugin_cfg["enabled"] is True
-    assert plugin_cfg["api_key"] == "key"
 
 
 # --- reload ---

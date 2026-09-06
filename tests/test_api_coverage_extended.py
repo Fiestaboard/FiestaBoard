@@ -241,13 +241,22 @@ class TestMuniStops:
         api_response = Mock()
         api_response.raise_for_status.return_value = None
         api_response.text = '{"Contents":{"dataObjects":{"ScheduledStopPoint":[{"id":"SF_1234","Name":"Market & 3rd","Location":{"Latitude":"37.79","Longitude":"-122.40"}}]}}}'
-        with patch("src.config.Config.MUNI_API_KEY", "test_key_123"), patch("requests.get", return_value=api_response):
+        with (
+            patch(
+                "src.config_manager.ConfigManager.get_plugin_config",
+                lambda self, pid, **kw: {"api_key": "test_key_123"} if pid == "muni" else None,
+            ),
+            patch("requests.get", return_value=api_response),
+        ):
             resp = client.get("/muni/stops")
         assert resp.status_code == 200
         assert resp.json()["total"] == 1
 
     def test_list_muni_stops_no_api_key(self, client):
-        with patch("src.config.Config.MUNI_API_KEY", ""):
+        with patch(
+            "src.config_manager.ConfigManager.get_plugin_config",
+            lambda self, pid, **kw: None,
+        ):
             resp = client.get("/muni/stops")
         # May be 400 or 500 depending on how the exception propagates
         assert resp.status_code in (400, 500)
@@ -258,7 +267,10 @@ class TestMuniStops:
         api_response.raise_for_status.return_value = None
         api_response.text = '{"Contents":{"dataObjects":{"ScheduledStopPoint":[{"id":"SF_5678","Name":"Powell","Location":{"Latitude":"37.78","Longitude":"-122.41"}}]}}}'
         with (
-            patch("src.config.Config.MUNI_API_KEY", "test_key_123"),
+            patch(
+                "src.config_manager.ConfigManager.get_plugin_config",
+                lambda self, pid, **kw: {"api_key": "test_key_123"} if pid == "muni" else None,
+            ),
             patch("requests.get", return_value=api_response) as mock_get,
         ):
             resp1 = client.get("/muni/stops")
@@ -376,7 +388,10 @@ class TestTrafficEndpoints:
         mock_ts = Mock()
         mock_ts.fetch_traffic_data.return_value = {"static_duration": 600, "static_duration_minutes": 10}
         with (
-            patch("src.config.Config.GOOGLE_ROUTES_API_KEY", "test_key"),
+            patch(
+                "src.config_manager.ConfigManager.get_plugin_config",
+                lambda self, pid, **kw: {"api_key": "test_key"} if pid == "traffic" else None,
+            ),
             patch("src.utils.traffic.TrafficSource", return_value=mock_ts),
         ):
             resp = client.post(
@@ -395,7 +410,10 @@ class TestTrafficEndpoints:
         assert resp.status_code == 400
 
     def test_validate_route_no_api_key(self, client):
-        with patch("src.config.Config.GOOGLE_ROUTES_API_KEY", None):
+        with patch(
+            "src.config_manager.ConfigManager.get_plugin_config",
+            lambda self, pid, **kw: None,
+        ):
             resp = client.post("/traffic/routes/validate", json={"origin": "a", "destination": "b"})
             assert resp.status_code in (200, 400)
 
@@ -403,7 +421,10 @@ class TestTrafficEndpoints:
         mock_ts = Mock()
         mock_ts.fetch_traffic_data.return_value = None
         with (
-            patch("src.config.Config.GOOGLE_ROUTES_API_KEY", "test_key"),
+            patch(
+                "src.config_manager.ConfigManager.get_plugin_config",
+                lambda self, pid, **kw: {"api_key": "test_key"} if pid == "traffic" else None,
+            ),
             patch("src.utils.traffic.TrafficSource", return_value=mock_ts),
         ):
             resp = client.post("/traffic/routes/validate", json={"origin": "a", "destination": "b"})
@@ -412,7 +433,10 @@ class TestTrafficEndpoints:
 
     def test_validate_route_exception(self, client):
         with (
-            patch("src.config.Config.GOOGLE_ROUTES_API_KEY", "test_key"),
+            patch(
+                "src.config_manager.ConfigManager.get_plugin_config",
+                lambda self, pid, **kw: {"api_key": "test_key"} if pid == "traffic" else None,
+            ),
             patch("src.utils.traffic.TrafficSource", side_effect=Exception("boom")),
         ):
             resp = client.post("/traffic/routes/validate", json={"origin": "a", "destination": "b"})

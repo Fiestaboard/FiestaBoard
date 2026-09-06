@@ -388,7 +388,10 @@ def _build_mcp_server() -> Any:
         from .config_manager import get_config_manager
 
         try:
-            existing = get_config_manager().get_plugin_config(plugin_id) or {}
+            # Raw stored config, WITHOUT the env-var overlay — this merge is
+            # persisted, and merging the overlay in would write env secrets
+            # into config.json (issue #1761).
+            existing = get_config_manager().get_plugin_config(plugin_id, include_env_overrides=False) or {}
             merged = {**existing, **config}
             response = await _rest_update_plugin_config(plugin_id, PluginConfigRequest(config=merged))
         except HTTPException as exc:

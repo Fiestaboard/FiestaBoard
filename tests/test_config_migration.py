@@ -18,6 +18,20 @@ from src.config_manager import (
 )
 
 
+@pytest.fixture(autouse=True)
+def _no_env_plugin_overrides(monkeypatch):
+    """Neutralize the #1761 read-time env overlay for migration assertions.
+
+    CI exports WEATHER_API_KEY=test_key for the platform job; with the
+    overlay active, get_plugin_config would (correctly) return the env
+    value while these tests assert the migration's *persisted* output.
+    """
+    from src.config_manager import ENV_PLUGIN_OVERRIDES
+
+    for env_var in ENV_PLUGIN_OVERRIDES:
+        monkeypatch.delenv(env_var, raising=False)
+
+
 def _reset_singleton():
     """Reset the ConfigManager singleton so a fresh instance can be created."""
     ConfigManager._instance = None

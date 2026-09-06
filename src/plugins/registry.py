@@ -299,8 +299,13 @@ class PluginRegistry:
             from src.config_manager import get_config_manager
 
             config_manager = get_config_manager()
-            # Get all plugin configs
-            stored_configs = config_manager.get_all_plugin_configs()
+            # STORED configs, without the env-var overlay: this dict feeds
+            # persistence paths (the mixed-case instance-key migration in
+            # _restore_instances writes entries back via set_plugin_config),
+            # and reading the overlay here wrote env secrets into
+            # config.json (#1864 review). The overlay is applied per plugin
+            # below, only when seeding the LIVE config objects.
+            stored_configs = config_manager.get_all_plugin_configs(include_env_overrides=False)
         except Exception:
             # Not cosmetic: with no stored configs every plugin is marked
             # disabled below and _restore_instances creates no named instances
@@ -321,10 +326,14 @@ class PluginRegistry:
 
                 self._enabled[plugin_id] = is_enabled
 
-                # Apply stored config to the plugin
+                # Apply stored config to the plugin. LIVE config gets the
+                # env-var overlay (never-persisted read-time overrides,
+                # #1761); stored_configs itself stays env-free because it
+                # also feeds persistence paths.
                 if plugin_config:
-                    self._configs[plugin_id] = plugin_config
-                    plugin.config = plugin_config
+                    live_config = self._overlaid(plugin_id, plugin_config)
+                    self._configs[plugin_id] = live_config
+                    plugin.config = live_config
                     plugin.enabled = is_enabled
 
                 if is_enabled:
@@ -344,6 +353,27 @@ class PluginRegistry:
 
         enabled_count = sum(1 for e in self._enabled.values() if e)
         logger.info(f"Initialized {len(self._plugins)} plugins ({enabled_count} enabled)")
+
+    @staticmethod
+    def _overlaid(plugin_id: str, stored_config: dict[str, Any]) -> dict[str, Any]:
+        """Return a copy of *stored_config* with the current env-var overlay.
+
+        Used only when seeding LIVE plugin config objects — never on a dict
+        that may be persisted. Returns the stored config unchanged when no
+        override applies or the config manager is unavailable.
+        """
+        try:
+            from src.config_manager import ConfigManager
+
+            overrides = ConfigManager.get_plugin_env_overrides(plugin_id)
+        except Exception:  # pragma: no cover - defensive
+            logger.debug("Could not compute env overlay for '%s'", plugin_id, exc_info=True)
+            return stored_config
+        if not overrides:
+            return stored_config
+        live = dict(stored_config)
+        live.update(overrides)
+        return live
 
     def _restore_instances(self, stored_configs: dict[str, dict[str, Any]]) -> None:
         """Restore plugin instances from stored configuration.
@@ -623,7 +653,7 @@ class PluginRegistry:
             # no config applied.  Restore the full stored config and enabled state.
             plugin = self._plugins.get(plugin_id)
             if plugin:
-                cfg = stored_configs[plugin_id]
+                cfg = self._overlaid(plugin_id, stored_configs[plugin_id])
                 is_enabled = cfg.get("enabled", False)
                 self._enabled[plugin_id] = is_enabled
                 self._configs[plugin_id] = cfg

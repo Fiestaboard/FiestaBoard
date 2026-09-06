@@ -35,6 +35,7 @@ def mock_config_manager():
         cm.set_general.return_value = True
         cm.get_feature.return_value = {"enabled": False, "start_time": "20:00+00:00", "end_time": "07:00+00:00"}
         cm.get_plugin_config.return_value = {"enabled": True}
+        cm.get_plugin_env_overrides.return_value = {}
         cm.set_plugin_config.return_value = None
         cm.enable_plugin.return_value = None
         cm.disable_plugin.return_value = None

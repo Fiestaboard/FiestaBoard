@@ -5211,10 +5211,9 @@ async def list_all_muni_stops():
     try:
         # Fetch stops from 511.org
         # Note: 511.org requires an API key for most endpoints
-        # We'll use the configured MUNI API key
-        from src.config import Config
-
-        api_key = Config.MUNI_API_KEY
+        # We'll use the API key configured on the muni plugin
+        muni_config = get_config_manager().get_plugin_config("muni") or {}
+        api_key = muni_config.get("api_key", "")
 
         if not api_key:
             raise HTTPException(status_code=400, detail="MUNI API key not configured")
@@ -5504,11 +5503,11 @@ async def search_stock_symbols(
         [{"symbol": "GOOG", "name": "Alphabet Inc."}, ...]
     """
     try:
-        from src.config import Config
         from src.utils.stocks import StocksSource
 
-        # Get Finnhub API key if configured
-        finnhub_api_key = Config.FINNHUB_API_KEY if Config.FINNHUB_API_KEY else None
+        # Get Finnhub API key if configured on the stocks plugin
+        stocks_config = get_config_manager().get_plugin_config("stocks") or {}
+        finnhub_api_key = stocks_config.get("finnhub_api_key") or None
 
         results = StocksSource.search_symbols(query=query, limit=limit, finnhub_api_key=finnhub_api_key)
 
@@ -5615,7 +5614,6 @@ async def validate_traffic_route(request: dict):
     Returns:
         Validation result with distance and duration estimates
     """
-    from src.config import Config
     from src.utils.traffic import TrafficSource
 
     origin = request.get("origin")
@@ -5625,8 +5623,9 @@ async def validate_traffic_route(request: dict):
     if not origin or not destination:
         raise HTTPException(status_code=400, detail="origin and destination required")
 
-    # Get API key from config
-    api_key = getattr(Config, "GOOGLE_ROUTES_API_KEY", None)
+    # Get API key from the traffic plugin config
+    traffic_config = get_config_manager().get_plugin_config("traffic") or {}
+    api_key = traffic_config.get("api_key") or None
     if not api_key:
         raise HTTPException(status_code=400, detail="Google Routes API key not configured")
 
@@ -9598,9 +9597,14 @@ async def get_plugin(plugin_id: str):
     if not manifest:
         raise HTTPException(status_code=404, detail=f"Plugin not found: {plugin_id}")
 
-    # Get configuration
+    # STORED configuration, without the env-var overlay: this response feeds
+    # the settings form, and any value baked in here comes straight back in
+    # the next save — serving the overlay would freeze env values into
+    # config.json (#1864 review). Which keys are currently env-controlled is
+    # reported separately in env_overridden_keys.
     config_manager = get_config_manager()
-    plugin_config = config_manager.get_plugin_config(plugin_id)
+    plugin_config = config_manager.get_plugin_config(plugin_id, include_env_overrides=False)
+    env_overridden_keys = sorted(config_manager.get_plugin_env_overrides(plugin_id)) if plugin_config else []
 
     # Check for demo page (use flagship as the representative for backwards compat)
     has_demo = manifest.demo is not None
@@ -9630,6 +9634,9 @@ async def get_plugin(plugin_id: str):
         "plugin_type": manifest.plugin_type,
         "enabled": registry.is_enabled(plugin_id),
         "config": config_manager._mask_sensitive(plugin_config) if plugin_config else {},
+        # Config keys whose live value currently comes from an env var (the
+        # values themselves are deliberately NOT in "config").
+        "env_overridden_keys": env_overridden_keys,
         "settings_schema": manifest.settings_schema,
         "variables": manifest.raw.get("variables", {}),
         "max_lengths": manifest.max_lengths,
@@ -9697,7 +9704,10 @@ async def update_plugin_config(plugin_id: str, request: PluginConfigRequest):
     # well, whose validate_config()/on_config_change() would otherwise run
     # against three asterisks (issue #1743).
     config_manager = get_config_manager()
-    stored_config = config_manager.get_plugin_config(plugin_id) or {}
+    # Raw stored config, WITHOUT the env-var overlay: this value feeds the
+    # un-mask + persist path, and restoring "***" from the overlay would
+    # silently write an env secret into config.json (issue #1761).
+    stored_config = config_manager.get_plugin_config(plugin_id, include_env_overrides=False) or {}
     config = unmask_sensitive_values(request.config, stored_config)
 
     # Validate configuration against manifest schema
@@ -9708,6 +9718,23 @@ async def update_plugin_config(plugin_id: str, request: PluginConfigRequest):
 
     # Save to config file
     config_manager.set_plugin_config(plugin_id, config)
+
+    # Re-seed the LIVE registry config from the overlaid read. Persisting
+    # env-free is correct, but the validation call above also installed that
+    # env-free dict as the live config — killing a working env-supplied
+    # credential until restart (#1864 review). Named instances never have an
+    # overlay, so this is a no-op for them.
+    live_config = config_manager.get_plugin_config(plugin_id)
+    if live_config is not None and live_config != config:
+        reseed_errors = registry.set_plugin_config(plugin_id, live_config)
+        if reseed_errors:
+            # The stored config validated; only the env overlay can be at
+            # fault. Keep the env-free live config rather than failing the
+            # save the user just made.
+            logger.warning(
+                f"Env overlay for '{plugin_id}' failed validation after save: {reseed_errors} "
+                "— live config runs without the overlay until restart"
+            )
 
     # Reset services to pick up new config
     reset_display_service()
