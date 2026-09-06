@@ -116,7 +116,19 @@ def mock_config_manager():
     from src.config_manager import ConfigManager
 
     cm = create_autospec(ConfigManager, instance=True)
-    cm.get_plugin_config.return_value = {"api_key": "secret123", "units": "imperial"}
+    # Stateful like the real thing: after a save, reads return the persisted
+    # config. The config-save handler re-reads after persisting (to re-seed
+    # live config with the env overlay, #1864); a fixed return_value would
+    # feed it a stale pre-save dict no real ConfigManager ever returns.
+    stored = {"api_key": "secret123", "units": "imperial"}
+
+    def _set_plugin_config(plugin_id, config):
+        stored.clear()
+        stored.update(config)
+        return True
+
+    cm.get_plugin_config.side_effect = lambda plugin_id, include_env_overrides=True: dict(stored)
+    cm.set_plugin_config.side_effect = _set_plugin_config
     cm._mask_sensitive.return_value = {"api_key": "***", "units": "imperial"}
     return cm
 
