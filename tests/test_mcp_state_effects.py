@@ -544,6 +544,78 @@ def test_update_schedule_changes_the_stored_start_time(mcp, services):
     assert stored["start_time"] == "09:30", "update_schedule reported success but start_time did not change"
 
 
+def test_update_schedule_preserves_end_time_on_partial_update(mcp, services):
+    """Wipe-protection: a partial update that does not mention end_time must
+    leave a stored end_time untouched (the #1764 exclude_unset contract)."""
+    page_id = _make_page(mcp)
+    created = assert_ok(
+        call(mcp, "create_schedule", page_id=page_id, start_time="08:00", end_time="17:00", day_pattern="all"),
+        "create_schedule",
+    )
+    schedule_id = created["schedule_id"]
+
+    assert_ok(call(mcp, "update_schedule", schedule_id=schedule_id, start_time="09:30"), "update_schedule")
+
+    after = assert_ok(call(mcp, "list_schedules"), "list_schedules")
+    stored = next(s for s in after if s["id"] == schedule_id)
+    assert stored["end_time"] == "17:00", "a partial update wiped end_time"
+
+
+def test_update_schedule_clear_end_time_makes_the_entry_open_ended(mcp, services):
+    """Intentional clear: clear_end_time=True must null a stored end_time.
+
+    The wipe-protection above means an explicit end_time=None is
+    indistinguishable from "unchanged" — the tool silently no-oped with
+    success and there was NO way to make a bounded entry open-ended again
+    (#1873/#1874 review). The explicit flag is the escape hatch.
+    """
+    page_id = _make_page(mcp)
+    created = assert_ok(
+        call(mcp, "create_schedule", page_id=page_id, start_time="08:00", end_time="17:00", day_pattern="all"),
+        "create_schedule",
+    )
+    schedule_id = created["schedule_id"]
+
+    assert_ok(
+        call(mcp, "update_schedule", schedule_id=schedule_id, clear_end_time=True),
+        "update_schedule",
+    )
+
+    after = assert_ok(call(mcp, "list_schedules"), "list_schedules")
+    stored = next(s for s in after if s["id"] == schedule_id)
+    assert stored.get("end_time") is None, "clear_end_time=True did not clear the stored end_time"
+
+
+def test_update_schedule_clear_custom_days_drops_the_stale_day_list(mcp, services):
+    """clear_custom_days: switching a custom entry back to an every-day
+    pattern can drop the stale day list in the same call."""
+    from src.ops import executors as ops_executors
+
+    page_id = _make_page(mcp)
+    # custom_days exists only on the canonical op / chat grammar (the MCP
+    # create tool never sends it), so create through the op layer directly.
+    created = assert_ok(
+        ops_executors.create_schedule(
+            page_id=page_id,
+            start_time="08:00",
+            day_pattern="custom",
+            custom_days=["monday", "friday"],
+        ),
+        "create_schedule",
+    )
+    schedule_id = created["schedule_id"]
+
+    assert_ok(
+        call(mcp, "update_schedule", schedule_id=schedule_id, day_pattern="all", clear_custom_days=True),
+        "update_schedule",
+    )
+
+    after = assert_ok(call(mcp, "list_schedules"), "list_schedules")
+    stored = next(s for s in after if s["id"] == schedule_id)
+    assert stored["day_pattern"] == "all"
+    assert not stored.get("custom_days"), "clear_custom_days=True left the stale custom day list behind"
+
+
 def test_delete_schedule_removes_it(mcp, services):
     page_id = _make_page(mcp)
     created = assert_ok(
@@ -657,6 +729,34 @@ def test_configure_plugin_returns_the_config_it_saved(mcp, plugins):
         "configure_plugin",
     )
     assert result["config"].get("station_id") == "9447427"
+
+
+def test_configure_plugin_never_persists_env_overlay_values(mcp, plugins, monkeypatch):
+    """The merge base must be the STORED config, not the env-overlaid read.
+
+    configure_plugin merges the caller's keys over the existing config and
+    persists the result. Merging over the overlaid read bakes every live
+    env override — the api_key itself included, unmasked — into config.json
+    on any unrelated MCP save (#1874/#1865 review, regression of the #1864
+    env-free-persistence contract).
+    """
+    from src.config_manager import ENV_PLUGIN_OVERRIDES
+
+    assert_ok(
+        call(mcp, "configure_plugin", plugin_id=PLUGIN_ID, config={"station_id": "9447427"}),
+        "configure_plugin",
+    )
+    monkeypatch.setitem(ENV_PLUGIN_OVERRIDES, "HARNESS_TIDE_API_KEY", (PLUGIN_ID, "api_key", str))
+    monkeypatch.setenv("HARNESS_TIDE_API_KEY", "test_env_secret_zz99")
+
+    assert_ok(
+        call(mcp, "configure_plugin", plugin_id=PLUGIN_ID, config={"station_id": "9447430"}),
+        "configure_plugin",
+    )
+
+    stored = stored_plugin_config(plugins["config_path"], PLUGIN_ID)
+    assert stored["station_id"] == "9447430"
+    assert stored.get("api_key", "") == "", "MCP configure persisted an env secret into config.json"
 
 
 def test_configure_plugin_masks_sensitive_values_in_its_response(mcp, plugins):
