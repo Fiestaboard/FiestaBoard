@@ -65,6 +65,14 @@ ADHOC_PAGE_ID = "__adhoc__"
 # the 120s cap and the executing job is budgeted at that full cap.)
 SEND_WAIT_TIMEOUT = 240.0
 
+# Backoff schedule for re-attempting boards that failed to initialize
+# (issue #1827). First retry ~60s after the failure, doubling per failed
+# attempt up to a 15-minute cap. The poll thread's cadence (the board-read
+# interval) is the timing granularity, so attempts land on the first poll
+# iteration at or after each deadline.
+BOARD_RETRY_INITIAL_BACKOFF = 60.0
+BOARD_RETRY_MAX_BACKOFF = 900.0
+
 
 def _board_size_key(board: dict) -> str:
     """Canonical size key ("flagship:6x22", "note_array:6x30", ...) for a board dict."""
@@ -181,6 +189,22 @@ class DisplayService:
         # Board state polling (background thread reads actual board state).
         self._poll_thread: threading.Thread | None = None
 
+        # Guards every copy-and-replace of ``self.runtimes`` /
+        # ``board_init_errors``: the rebuild path (API threads) and the poll
+        # thread's failed-board recovery pass (#1827) both perform
+        # read-modify-write swaps, and without a common critical section one
+        # side's update could be lost. Readers (the tick thread, /status) stay
+        # lock-free: the dicts are only ever replaced atomically, never
+        # mutated in place while shared.
+        self._runtimes_lock = threading.RLock()
+
+        # Per-board retry schedule for boards stuck in ``board_init_errors``
+        # (#1827): board_id -> {"backoff": current delay s, "next_attempt":
+        # time.monotonic() deadline}. Seeded by the poll thread's first
+        # recovery pass after a failure; cleared wholesale on every
+        # ``_build_board_clients`` (a full rebuild restarts the schedule).
+        self._board_retry_state: dict[str, dict[str, float]] = {}
+
         # Per-thread capture of send failures for the pass currently running
         # on THIS thread. ``rt.last_send_error`` is shared state that the
         # engine thread rewrites on its own cadence, so an API endpoint that
@@ -220,14 +244,26 @@ class DisplayService:
         return bid if bid else self._PRIMARY_FALLBACK_KEY
 
     def _ensure_primary_runtime(self) -> BoardRuntime:
-        """Return the primary runtime, creating an empty one if needed."""
+        """Return the primary runtime, creating an empty one if needed.
+
+        The placeholder insert runs under ``_runtimes_lock`` with a
+        double-checked read (#1870 review): unlocked, the insert raced the
+        recovery pass's copy-swap of ``self.runtimes`` — the placeholder
+        could land in the pre-swap dict (and be lost), or land after the
+        swap and clobber the freshly recovered runtime whose init error was
+        already cleared, silently re-stranding the board. The common case
+        (runtime already exists) stays lock-free.
+        """
         rt = self._primary_runtime()
         if rt is None:
             key = self._resolve_primary_key()
-            rt = self.runtimes.get(key)
+            rt = self.runtimes.get(key)  # unlocked fast path
             if rt is None:
-                rt = BoardRuntime(client=None, board_id=key)
-                self.runtimes[key] = rt
+                with self._runtimes_lock:
+                    rt = self.runtimes.get(key)  # double-check under the lock
+                    if rt is None:
+                        rt = BoardRuntime(client=None, board_id=key)
+                        self.runtimes[key] = rt
             self._primary_board_id = key
         return rt
 
@@ -679,89 +715,98 @@ class DisplayService:
                 from an API request must NOT block on board I/O (an
                 unreachable board would stall the request), so it skips it.
         """
-        settings_service = get_settings_service()
-        boards = settings_service.get_board_settings().boards or []
+        # Serialized with the poll thread's failed-board recovery pass
+        # (#1827): both mutate ``self.runtimes``/``board_init_errors`` via
+        # copy-and-replace, and interleaved rebuild/retry writes would lose
+        # one side's update without a common critical section.
+        with self._runtimes_lock:
+            settings_service = get_settings_service()
+            boards = settings_service.get_board_settings().boards or []
 
-        new_runtimes: dict[str, BoardRuntime] = {}
-        init_errors: dict[str, str] = {}
-        for board in boards:
-            if not isinstance(board, dict):
-                continue
-            bid = board.get("id")
-            if not bid:
-                continue
-            sig = self._config_signature(board)
-            existing = self.runtimes.get(bid)
-            if existing is not None and existing.config_signature == sig and existing.client is not None:
-                # Unchanged connection: keep the runtime so its caches survive.
-                new_runtimes[bid] = existing
-                continue
-            try:
-                client = board_client_from_board_dict(board)
-            except Exception as e:
-                # One board's bad config must never abort the loop for the
-                # rest of the fleet (issue #1749).
-                init_errors[bid] = str(e) or e.__class__.__name__
-                logger.error(f"Board {bid}: could not build client ({e}) - skipping this board")
-                continue
-            if client is None:
-                init_errors[bid] = "Board is not fully configured (missing host, API key, or token)"
-                logger.error(f"Board {bid}: {init_errors[bid]} - skipping this board")
-                continue
-            self._attach_transition_runner(client)
-            rt = BoardRuntime(client=client, board_id=bid)
-            rt.config_signature = sig
-            new_runtimes[bid] = rt
-
-        # Runtimes not carried over are dead: stop their send workers so a
-        # queued job for a removed/reconfigured board is failed rather than
-        # delivered to a stale connection. Bounded join — a wedged send must
-        # not stall a rebuild (the runtime-epoch guard in _dispatch_send
-        # already keeps its late bookkeeping from touching live state).
-        for old_id, old_rt in self.runtimes.items():
-            if new_runtimes.get(old_id) is old_rt:
-                continue
-            if old_rt.send_worker is not None:
-                old_rt.send_worker.stop(timeout=1.0)
-
-        self.runtimes = new_runtimes
-        self.board_init_errors = init_errors
-
-        primary_id = boards[0].get("id") if (boards and isinstance(boards[0], dict)) else None
-        if primary_id and primary_id in new_runtimes:
-            self._primary_board_id = primary_id
-        elif new_runtimes:
-            # The primary is misconfigured but other boards came up. Keep the
-            # primary id pointing at the configured primary (its clientless
-            # runtime is created lazily by ``_ensure_primary_runtime``) rather
-            # than dropping into the legacy Config fallback, which would raise
-            # on an install with no legacy credential and take every board
-            # down with it (issue #1749).
-            self._primary_board_id = primary_id
-            logger.error(
-                f"Primary board {primary_id or '(unidentified)'} is unavailable "
-                f"({init_errors.get(primary_id, 'no usable connection')}); "
-                f"continuing with {len(new_runtimes)} other board(s)"
-            )
-        else:
-            # Legacy single-board Config path: no usable settings.boards entry.
-            # Its own failure is recorded rather than raised so callers see an
-            # empty fleet instead of an exception out of the whole build.
-            try:
-                use_cloud = Config.BOARD_API_MODE.lower() == "cloud"
-                client = BoardClient(
-                    api_key=Config.get_board_api_key(),
-                    host=Config.BOARD_HOST if not use_cloud else None,
-                    use_cloud=use_cloud,
-                    skip_unchanged=True,
-                )
+            new_runtimes: dict[str, BoardRuntime] = {}
+            init_errors: dict[str, str] = {}
+            for board in boards:
+                if not isinstance(board, dict):
+                    continue
+                bid = board.get("id")
+                if not bid:
+                    continue
+                sig = self._config_signature(board)
+                existing = self.runtimes.get(bid)
+                if existing is not None and existing.config_signature == sig and existing.client is not None:
+                    # Unchanged connection: keep the runtime so its caches survive.
+                    new_runtimes[bid] = existing
+                    continue
+                try:
+                    client = board_client_from_board_dict(board)
+                except Exception as e:
+                    # One board's bad config must never abort the loop for the
+                    # rest of the fleet (issue #1749).
+                    init_errors[bid] = str(e) or e.__class__.__name__
+                    logger.error(f"Board {bid}: could not build client ({e}) - skipping this board")
+                    continue
+                if client is None:
+                    init_errors[bid] = "Board is not fully configured (missing host, API key, or token)"
+                    logger.error(f"Board {bid}: {init_errors[bid]} - skipping this board")
+                    continue
                 self._attach_transition_runner(client)
-                key = self._PRIMARY_FALLBACK_KEY
-                self.runtimes[key] = BoardRuntime(client=client, board_id=key)
-                self._primary_board_id = key
-            except Exception as e:
+                rt = BoardRuntime(client=client, board_id=bid)
+                rt.config_signature = sig
+                new_runtimes[bid] = rt
+
+            # Runtimes not carried over are dead: stop their send workers so a
+            # queued job for a removed/reconfigured board is failed rather than
+            # delivered to a stale connection. Bounded join — a wedged send must
+            # not stall a rebuild (the runtime-epoch guard in _dispatch_send
+            # already keeps its late bookkeeping from touching live state).
+            for old_id, old_rt in self.runtimes.items():
+                if new_runtimes.get(old_id) is old_rt:
+                    continue
+                if old_rt.send_worker is not None:
+                    old_rt.send_worker.stop(timeout=1.0)
+
+            self.runtimes = new_runtimes
+            self.board_init_errors = init_errors
+            # Every failure recorded here is fresh (a full build re-attempted
+            # every board), so the poll thread's recovery pass restarts each
+            # failed board's backoff from the initial delay (#1827).
+            self._board_retry_state.clear()
+
+            primary_id = boards[0].get("id") if (boards and isinstance(boards[0], dict)) else None
+            if primary_id and primary_id in new_runtimes:
                 self._primary_board_id = primary_id
-                logger.error(f"No board connection available: legacy config client could not be built ({e})")
+            elif new_runtimes:
+                # The primary is misconfigured but other boards came up. Keep the
+                # primary id pointing at the configured primary (its clientless
+                # runtime is created lazily by ``_ensure_primary_runtime``) rather
+                # than dropping into the legacy Config fallback, which would raise
+                # on an install with no legacy credential and take every board
+                # down with it (issue #1749).
+                self._primary_board_id = primary_id
+                logger.error(
+                    f"Primary board {primary_id or '(unidentified)'} is unavailable "
+                    f"({init_errors.get(primary_id, 'no usable connection')}); "
+                    f"continuing with {len(new_runtimes)} other board(s)"
+                )
+            else:
+                # Legacy single-board Config path: no usable settings.boards entry.
+                # Its own failure is recorded rather than raised so callers see an
+                # empty fleet instead of an exception out of the whole build.
+                try:
+                    use_cloud = Config.BOARD_API_MODE.lower() == "cloud"
+                    client = BoardClient(
+                        api_key=Config.get_board_api_key(),
+                        host=Config.BOARD_HOST if not use_cloud else None,
+                        use_cloud=use_cloud,
+                        skip_unchanged=True,
+                    )
+                    self._attach_transition_runner(client)
+                    key = self._PRIMARY_FALLBACK_KEY
+                    self.runtimes[key] = BoardRuntime(client=client, board_id=key)
+                    self._primary_board_id = key
+                except Exception as e:
+                    self._primary_board_id = primary_id
+                    logger.error(f"No board connection available: legacy config client could not be built ({e})")
 
         if sync_cache:
             rt = self._primary_runtime()
@@ -873,9 +918,19 @@ class DisplayService:
         Polling stays primary-only (single board-read thread — a thread per
         board would break the single-threaded send invariant the note-array
         >=15s throttle relies on). The cache lives on the primary runtime.
+
+        This thread also hosts the failed-board recovery pass (#1827):
+        ``initialize()`` is already idempotent w.r.t. this thread, so
+        piggybacking the low-frequency retry here avoids a second background
+        thread. The pass is a cheap no-op while ``board_init_errors`` is
+        empty.
         """
         while self.running:
             interval = self._get_board_read_interval()
+            try:
+                self._retry_failed_board_inits()
+            except Exception as e:  # a retry bug must never kill board polling
+                logger.error(f"Failed-board recovery pass crashed: {e}")
             try:
                 rt = self._primary_runtime()
                 if rt is not None and rt.client is not None:
@@ -887,6 +942,104 @@ class DisplayService:
             except Exception as e:
                 logger.debug(f"Board state poll failed: {e}")
             time.sleep(interval)
+
+    def _retry_failed_board_inits(self) -> None:
+        """Low-frequency recovery pass for boards stuck in ``board_init_errors`` (#1827).
+
+        Runs on the board-poll thread. Re-attempts ONLY the failed boards —
+        never a full ``rebuild_board_clients()``, so healthy boards' runtimes
+        (and caches) are untouched — with per-board exponential backoff:
+        first retry ``BOARD_RETRY_INITIAL_BACKOFF`` seconds after the
+        failure, doubling per failed attempt to the
+        ``BOARD_RETRY_MAX_BACKOFF`` cap.
+
+        Log discipline: every attempt logs at debug; error-level lines are
+        emitted only while the backoff step is still increasing (the first
+        few attempts), so a permanently misconfigured board settles into one
+        debug line per 15 minutes instead of an error per poll iteration.
+        """
+        if not self.board_init_errors and not self._board_retry_state:
+            return
+        now = time.monotonic()
+        with self._runtimes_lock:
+            # Boards no longer failed (fixed via rebuild, or removed) drop
+            # their schedule; ``_build_board_clients`` also clears wholesale.
+            for board_id in list(self._board_retry_state):
+                if board_id not in self.board_init_errors:
+                    del self._board_retry_state[board_id]
+            for board_id in sorted(self.board_init_errors):
+                state = self._board_retry_state.get(board_id)
+                if state is None:
+                    # First sighting of this failure: the failed build already
+                    # logged at error, so just schedule the first retry.
+                    self._board_retry_state[board_id] = {
+                        "backoff": BOARD_RETRY_INITIAL_BACKOFF,
+                        "next_attempt": now + BOARD_RETRY_INITIAL_BACKOFF,
+                    }
+                    continue
+                if now < state["next_attempt"]:
+                    continue
+                self._attempt_board_init_recovery(board_id, state, now)
+
+    def _attempt_board_init_recovery(self, board_id: str, state: dict[str, float], now: float) -> bool:
+        """One retry for one failed board. Caller holds ``_runtimes_lock``.
+
+        On success the new runtime is swapped in exactly the way
+        ``_build_board_clients`` swaps: an atomic replace of ``self.runtimes``
+        (copy, insert, reassign) so the tick thread — which reads the dict
+        lock-free — sees either the old mapping or the new one, never a
+        half-mutated dict; a replaced runtime's send worker (a clientless
+        primary placeholder from ``_ensure_primary_runtime`` can hold one) is
+        stopped with the same bounded join, and the runtime-epoch guard in
+        ``_dispatch_send`` keeps any of its late bookkeeping off live state.
+        Other boards' runtimes are never touched, so their in-flight sends
+        proceed undisturbed.
+
+        Returns True when the board recovered.
+        """
+        board = self._board_dict_for(board_id)
+        if board is None:
+            # The board is no longer configured; its failure record is stale.
+            self.board_init_errors.pop(board_id, None)
+            self._board_retry_state.pop(board_id, None)
+            logger.debug("Board %s: no longer configured - dropping init-retry state", board_id)
+            return False
+
+        logger.debug("Board %s: retrying client init (current backoff %.0fs)", board_id, state["backoff"])
+        error: str | None = None
+        client = None
+        try:
+            client = board_client_from_board_dict(board)
+        except Exception as e:
+            error = str(e) or e.__class__.__name__
+        if client is None and error is None:
+            error = "Board is not fully configured (missing host, API key, or token)"
+
+        if error is not None:
+            self.board_init_errors[board_id] = error
+            previous = state["backoff"]
+            state["backoff"] = min(previous * 2, BOARD_RETRY_MAX_BACKOFF)
+            state["next_attempt"] = now + state["backoff"]
+            message = "Board %s: init retry failed (%s); next attempt in %.0fs"
+            if state["backoff"] > previous:
+                logger.error(message, board_id, error, state["backoff"])
+            else:
+                logger.debug(message, board_id, error, state["backoff"])
+            return False
+
+        self._attach_transition_runner(client)
+        rt = BoardRuntime(client=client, board_id=board_id)
+        rt.config_signature = self._config_signature(board)
+        runtimes = dict(self.runtimes)
+        old_rt = runtimes.get(board_id)
+        runtimes[board_id] = rt
+        self.runtimes = runtimes
+        if old_rt is not None and old_rt.send_worker is not None:
+            old_rt.send_worker.stop(timeout=1.0)
+        self.board_init_errors.pop(board_id, None)
+        self._board_retry_state.pop(board_id, None)
+        logger.info("Board %s: recovered - client initialized on retry; the board rejoins the fleet", board_id)
+        return True
 
     def request_board_refresh(
         self,
