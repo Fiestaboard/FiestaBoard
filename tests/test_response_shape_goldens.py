@@ -1,7 +1,8 @@
-"""Response-shape golden tests for the pages / schedules / collections domains.
+"""Response-shape golden tests for the pages / schedules / collections domains,
+extended to the plugins domain for issue #1757.
 
-Issue #1756 moves these three route families out of ``src/api_server.py`` into
-per-domain routers. The move must be behavior-preserving, and the classic way
+Issue #1756 moves the first three route families out of ``src/api_server.py``
+into per-domain routers; #1757 does the same for the ``/plugins`` family. The move must be behavior-preserving, and the classic way
 such a refactor goes wrong is subtle: a handler keeps its path but changes a
 status code, drops a response key, or stops seeing a monkeypatched helper.
 
@@ -27,6 +28,7 @@ from __future__ import annotations
 import json
 import os
 from pathlib import Path
+from types import SimpleNamespace
 from typing import Any
 from unittest.mock import Mock, patch
 
@@ -92,6 +94,36 @@ COLLECTIONS_ROUTES = {
     ("GET", "/collections/{collection_id}"),
     ("PUT", "/collections/{collection_id}"),
     ("DELETE", "/collections/{collection_id}"),
+}
+
+# The /plugins family issue #1757 moves. Deliberately excluded, other domains:
+# /transitions/plugins (transitions), /settings/plugins (settings), /triggers.
+PLUGINS_ROUTES = {
+    ("GET", "/plugins"),
+    ("GET", "/plugins/variables/all"),
+    ("GET", "/plugins/errors"),
+    ("GET", "/plugins/registry"),
+    ("GET", "/plugins/updates"),
+    ("GET", "/plugins/{plugin_id}"),
+    ("GET", "/plugins/{plugin_id}/manifest"),
+    ("PUT", "/plugins/{plugin_id}/config"),
+    ("POST", "/plugins/{plugin_id}/enable"),
+    ("POST", "/plugins/{plugin_id}/disable"),
+    ("GET", "/plugins/{plugin_id}/data"),
+    ("GET", "/plugins/{plugin_id}/variables"),
+    ("POST", "/plugins/{plugin_id}/options/{options_id}"),
+    ("GET", "/plugins/{plugin_id}/demo-page"),
+    ("POST", "/plugins/{plugin_id}/demo-page"),
+    ("GET", "/plugins/{plugin_id}/instances"),
+    ("POST", "/plugins/{plugin_id}/instances"),
+    ("DELETE", "/plugins/{plugin_id}/instances/{instance_label}"),
+    ("POST", "/plugins/{plugin_id}/receive"),
+    ("POST", "/plugins/registry/{plugin_id}/install"),
+    ("POST", "/plugins/install"),
+    ("DELETE", "/plugins/{plugin_id}/uninstall"),
+    ("POST", "/plugins/updates/check"),
+    ("POST", "/plugins/{plugin_id}/update"),
+    ("POST", "/plugins/updates/apply"),
 }
 
 
@@ -506,3 +538,429 @@ def test_collections_response_shapes():
     )
 
     _assert_matches_golden("collections", rec, COLLECTIONS_ROUTES)
+
+
+# ---------------------------------------------------------------------------
+# Plugins domain (#1757)
+#
+# The plugin routes reach network (git clones, upstream APIs) and the live
+# registry, so this scenario patches the same seams the rest of the API suite
+# patches — ``src.api_server.get_plugin_registry`` / ``get_config_manager`` /
+# ``reset_display_service`` / ``reset_template_engine`` /
+# ``PLUGIN_SYSTEM_AVAILABLE`` — with deterministic stubs. The recorded shapes
+# are of the stub-driven responses; identical stubs re-drive identical shapes
+# on re-record, and the golden then proves the extracted router still resolves
+# every one of those seams through ``src.api_server`` at call time.
+# ---------------------------------------------------------------------------
+
+
+_ALPHA_SETTINGS_SCHEMA: dict[str, Any] = {
+    "type": "object",
+    "properties": {
+        "api_key": {"type": "string", "title": "API Key"},
+        "location": {"type": "string", "title": "Location"},
+        "symbols": {
+            "type": "array",
+            "ui:widget": "remote-options",
+            "ui:options": {"options_id": "symbols"},
+        },
+    },
+    "required": ["api_key"],
+}
+
+
+class _GoldenManifest:
+    """Just enough manifest surface for the plugin routes."""
+
+    def __init__(self, plugin_id: str, demo: dict[str, Any] | None) -> None:
+        self.name = plugin_id.title()
+        self.version = "1.0.0"
+        self.description = f"Golden fixture plugin '{plugin_id}'."
+        self.author = "FiestaBoard Tests"
+        self.icon = "puzzle"
+        self.category = "utility"
+        self.plugin_type = "data"
+        self.settings_schema = _ALPHA_SETTINGS_SCHEMA
+        self.raw = {
+            "variables": {"value": {"description": "A value", "example": "X"}},
+            "color_rules_schema": {},
+        }
+        self.max_lengths = {"value": 10}
+        self.env_vars = []
+        self.documentation = None
+        self.demo = demo
+
+
+class _GoldenPlugin:
+    """A live-plugin stand-in for the receive endpoint."""
+
+    def __init__(self, supports_receive: bool) -> None:
+        self._supports_receive = supports_receive
+
+    def receive_payload(self, body: Any, headers: Any, raw_body: bytes | None = None) -> None:
+        if not self._supports_receive:
+            raise NotImplementedError("receive is not supported")
+
+
+class _GoldenRegistry:
+    """Deterministic registry stub covering the whole /plugins route family."""
+
+    def __init__(self) -> None:
+        from src.plugins.base import Option, OptionsResult
+
+        self.plugins = {"alpha": _GoldenPlugin(True), "norecv": _GoldenPlugin(False)}
+        self.manifests = {
+            "alpha": _GoldenManifest("alpha", demo={"flagship": {"template": ["DEMO"]}}),
+            "norecv": _GoldenManifest("norecv", demo=None),
+        }
+        self.enabled = {"alpha": True, "norecv": True}
+        self.enable_ok = True
+        self.config_errors: list[str] = []
+        self.fetch_result: Any = SimpleNamespace(
+            available=True, data={"value": "X"}, formatted_lines=["LINE"], error=None
+        )
+        self.update_status = {"ext_plugin": True}
+        self.sources = {"alpha": SimpleNamespace(source_type="builtin", local_path=None)}
+        self.options_result = OptionsResult(options=[Option(value="AAPL", label="Apple")])
+
+    # -- read surface -------------------------------------------------------
+    def list_plugins(self) -> list[dict[str, Any]]:
+        return [
+            {
+                "id": "alpha",
+                "name": "Alpha",
+                "version": "1.0.0",
+                "description": "Golden fixture plugin 'alpha'.",
+                "enabled": True,
+                "base_plugin_id": None,
+                "instance_label": None,
+            },
+            {
+                "id": "ext_plugin",
+                "name": "Ext Plugin",
+                "version": "0.1.0",
+                "description": "Golden fixture external plugin.",
+                "enabled": False,
+                "base_plugin_id": None,
+                "instance_label": None,
+            },
+        ]
+
+    def get_all_variables(self) -> dict[str, Any]:
+        return {"alpha": {"value": {"description": "A value", "example": "X"}}}
+
+    def get_all_max_lengths(self) -> dict[str, Any]:
+        return {"alpha": {"value": 10}}
+
+    def get_load_errors(self) -> dict[str, Any]:
+        return {"broken_plugin": ["ImportError: golden fixture"]}
+
+    def get_registry_entries(self) -> list[dict[str, Any]]:
+        return [{"id": "beta", "name": "Beta", "installed": False, "repository": "fiestaboard-plugin--beta"}]
+
+    def get_update_status(self) -> dict[str, bool]:
+        return dict(self.update_status)
+
+    def get_update_blocked_reasons(self) -> dict[str, str]:
+        return {"blocked_plugin": "the incoming manifest needs a newer FiestaBoard core"}
+
+    def get_manifest(self, plugin_id: str) -> Any:
+        return self.manifests.get(plugin_id)
+
+    def get_plugin(self, plugin_id: str) -> Any:
+        return self.plugins.get(plugin_id)
+
+    def get_plugin_config(self, plugin_id: str) -> dict[str, Any] | None:
+        return {"api_key": "test_key_123"} if plugin_id == "alpha" else None
+
+    def is_enabled(self, plugin_id: str) -> bool:
+        return self.enabled.get(plugin_id, False)
+
+    def fetch_plugin_data(self, plugin_id: str) -> Any:
+        return self.fetch_result
+
+    def get_plugin_options(self, plugin_id: str, options_id: str, request: Any, draft_config: Any = None) -> Any:
+        return self.options_result
+
+    # -- instances ----------------------------------------------------------
+    def parse_instance_key(self, plugin_id: str) -> tuple[str, str | None]:
+        base, _, label = plugin_id.partition(":")
+        return base, (label or None)
+
+    def make_instance_key(self, base_id: str, label: str) -> str:
+        return f"{base_id}:{label}"
+
+    def list_instances(self, base_id: str) -> list[dict[str, Any]]:
+        return [{"label": "work", "enabled": False}] if base_id == "alpha" else []
+
+    def create_instance(self, base_id: str, label: str) -> list[str]:
+        return [] if label != "bad label" else ["Invalid instance label"]
+
+    def delete_instance(self, base_id: str, label: str) -> list[str]:
+        return []
+
+    def apply_stored_config(self, compound_key: str, stored: dict[str, Any]) -> list[str]:
+        return []
+
+    # -- mutation surface ---------------------------------------------------
+    def set_plugin_config(self, plugin_id: str, config: dict[str, Any]) -> list[str]:
+        return list(self.config_errors)
+
+    def enable_plugin(self, plugin_id: str) -> bool:
+        return self.enable_ok
+
+    def disable_plugin(self, plugin_id: str) -> bool:
+        return True
+
+    # -- install / update surface -------------------------------------------
+    def install_from_registry(self, plugin_id: str) -> list[str]:
+        return [] if plugin_id == "beta" else [f"Plugin '{plugin_id}' not found in the registry"]
+
+    def install_from_git(self, repository: str, plugin_id: str | None = None, branch: str = "") -> list[str]:
+        return []
+
+    def uninstall_external_plugin(self, plugin_id: str) -> list[str]:
+        return [] if plugin_id == "ext_plugin" else [f"Plugin '{plugin_id}' is a built-in plugin"]
+
+    def check_for_updates(self) -> dict[str, bool]:
+        return {"ext_plugin": True, "quiet_plugin": False}
+
+    def get_plugin_source(self, plugin_id: str) -> Any:
+        return self.sources.get(plugin_id)
+
+
+class _GoldenConfigManager:
+    """ConfigManager stub with the same masking contract as the real one."""
+
+    SENSITIVE = {"api_key"}
+
+    def __init__(self) -> None:
+        self.configs: dict[str, dict[str, Any]] = {
+            "alpha": {"enabled": True, "api_key": "test_key_123", "location": "New York, NY"},
+        }
+
+    def get_plugin_config(self, plugin_id: str) -> dict[str, Any] | None:
+        config = self.configs.get(plugin_id)
+        return dict(config) if config else None
+
+    def set_plugin_config(self, plugin_id: str, config: dict[str, Any]) -> None:
+        self.configs[plugin_id] = dict(config)
+
+    def enable_plugin(self, plugin_id: str) -> None:
+        self.configs.setdefault(plugin_id, {})["enabled"] = True
+
+    def disable_plugin(self, plugin_id: str) -> None:
+        self.configs.setdefault(plugin_id, {})["enabled"] = False
+
+    def delete_plugin_config(self, plugin_id: str) -> None:
+        self.configs.pop(plugin_id, None)
+
+    def mark_plugin_removed(self, plugin_id: str) -> None:
+        pass
+
+    def clear_plugin_removed(self, plugin_id: str) -> None:
+        pass
+
+    def _mask_sensitive(self, obj: Any, path: str = "") -> Any:
+        if isinstance(obj, dict):
+            return {
+                key: ("***" if key in self.SENSITIVE and isinstance(value, str) else self._mask_sensitive(value))
+                for key, value in obj.items()
+            }
+        return obj
+
+
+def test_plugins_response_shapes():
+    client = TestClient(app)
+    rec = Recorder(client)
+
+    registry = _GoldenRegistry()
+    config_manager = _GoldenConfigManager()
+    page_service = SimpleNamespace(
+        get_demo_page=lambda plugin_id, device_type=None: None,
+        create_demo_page=lambda plugin_id, schema: (
+            SimpleNamespace(model_dump=lambda: {"id": "demo-page-1", "name": "Alpha Demo", "type": "template"}),
+            False,
+        ),
+    )
+
+    with (
+        patch("src.api_server.PLUGIN_SYSTEM_AVAILABLE", True),
+        patch("src.api_server.get_plugin_registry", new=lambda: registry),
+        patch("src.api_server.get_config_manager", new=lambda: config_manager),
+        patch("src.api_server.reset_display_service", new=Mock()),
+        patch("src.api_server.reset_template_engine", new=Mock()),
+        patch("src.api_server.get_page_service", new=lambda: page_service),
+        # Process-global options caches: isolate the scenario from other tests.
+        patch("src.api_server._PLUGIN_OPTIONS_CACHE", new={}),
+        patch("src.api_server._plugin_options_last_refresh", new={}),
+    ):
+        with patch("src.api_server.PLUGIN_SYSTEM_AVAILABLE", False):
+            rec.hit("plugin_system_unavailable", "GET", "/plugins")
+
+        rec.hit("list_plugins", "GET", "/plugins")
+        rec.hit("all_variables", "GET", "/plugins/variables/all")
+        rec.hit("plugin_errors", "GET", "/plugins/errors")
+        rec.hit("registry_list", "GET", "/plugins/registry")
+        rec.hit("updates_status", "GET", "/plugins/updates")
+
+        rec.hit("get_plugin_ok", "GET", "/plugins/{plugin_id}", path_params={"plugin_id": "alpha"})
+        rec.hit("get_plugin_missing", "GET", "/plugins/{plugin_id}", path_params={"plugin_id": "missing"})
+        rec.hit("get_manifest_ok", "GET", "/plugins/{plugin_id}/manifest", path_params={"plugin_id": "alpha"})
+        rec.hit("get_manifest_missing", "GET", "/plugins/{plugin_id}/manifest", path_params={"plugin_id": "missing"})
+
+        # Config update: the masked-secret round trip ("***" posted back must
+        # not clobber the stored credential) plus validation + missing errors.
+        rec.hit(
+            "update_config_ok",
+            "PUT",
+            "/plugins/{plugin_id}/config",
+            path_params={"plugin_id": "alpha"},
+            json_body={"config": {"api_key": "***", "location": "London, UK", "refresh_seconds": 300}},
+        )
+        registry.config_errors = ["api_key: does not match the schema"]
+        rec.hit(
+            "update_config_invalid",
+            "PUT",
+            "/plugins/{plugin_id}/config",
+            path_params={"plugin_id": "alpha"},
+            json_body={"config": {"api_key": 5}},
+        )
+        registry.config_errors = []
+        rec.hit(
+            "update_config_missing",
+            "PUT",
+            "/plugins/{plugin_id}/config",
+            path_params={"plugin_id": "missing"},
+            json_body={"config": {}},
+        )
+
+        rec.hit("enable_ok", "POST", "/plugins/{plugin_id}/enable", path_params={"plugin_id": "alpha"})
+        rec.hit("enable_missing", "POST", "/plugins/{plugin_id}/enable", path_params={"plugin_id": "missing"})
+        registry.enable_ok = False
+        rec.hit("enable_failed", "POST", "/plugins/{plugin_id}/enable", path_params={"plugin_id": "alpha"})
+        registry.enable_ok = True
+        rec.hit("disable_ok", "POST", "/plugins/{plugin_id}/disable", path_params={"plugin_id": "alpha"})
+
+        rec.hit("get_data_ok", "GET", "/plugins/{plugin_id}/data", path_params={"plugin_id": "alpha"})
+        registry.fetch_result = SimpleNamespace(available=False, data=None, formatted_lines=None, error="not configured")
+        rec.hit("get_data_unavailable", "GET", "/plugins/{plugin_id}/data", path_params={"plugin_id": "alpha"})
+        registry.enabled["alpha"] = False
+        rec.hit("get_data_disabled", "GET", "/plugins/{plugin_id}/data", path_params={"plugin_id": "alpha"})
+        registry.enabled["alpha"] = True
+
+        rec.hit("get_variables_ok", "GET", "/plugins/{plugin_id}/variables", path_params={"plugin_id": "alpha"})
+
+        rec.hit(
+            "options_ok",
+            "POST",
+            "/plugins/{plugin_id}/options/{options_id}",
+            path_params={"plugin_id": "alpha", "options_id": "symbols"},
+            json_body={"query": "AAP"},
+        )
+        rec.hit(
+            "options_undeclared",
+            "POST",
+            "/plugins/{plugin_id}/options/{options_id}",
+            path_params={"plugin_id": "alpha", "options_id": "not_declared"},
+            json_body={},
+        )
+
+        rec.hit("demo_get", "GET", "/plugins/{plugin_id}/demo-page", path_params={"plugin_id": "alpha"})
+        rec.hit("demo_get_no_demo", "GET", "/plugins/{plugin_id}/demo-page", path_params={"plugin_id": "norecv"})
+        rec.hit(
+            "demo_create",
+            "POST",
+            "/plugins/{plugin_id}/demo-page",
+            path_params={"plugin_id": "alpha"},
+            params={"device_type": "flagship"},
+        )
+        rec.hit(
+            "demo_create_no_demo",
+            "POST",
+            "/plugins/{plugin_id}/demo-page",
+            path_params={"plugin_id": "norecv"},
+            params={"device_type": "flagship"},
+        )
+
+        rec.hit("instances_list", "GET", "/plugins/{plugin_id}/instances", path_params={"plugin_id": "alpha"})
+        rec.hit(
+            "instance_create",
+            "POST",
+            "/plugins/{plugin_id}/instances",
+            path_params={"plugin_id": "alpha"},
+            json_body={"label": "work2"},
+        )
+        rec.hit(
+            "instance_create_invalid",
+            "POST",
+            "/plugins/{plugin_id}/instances",
+            path_params={"plugin_id": "alpha"},
+            json_body={"label": "bad label"},
+        )
+        rec.hit(
+            "instance_delete",
+            "DELETE",
+            "/plugins/{plugin_id}/instances/{instance_label}",
+            path_params={"plugin_id": "alpha", "instance_label": "work2"},
+        )
+
+        rec.hit(
+            "receive_ok",
+            "POST",
+            "/plugins/{plugin_id}/receive",
+            path_params={"plugin_id": "alpha"},
+            json_body={"event": "golden"},
+        )
+        rec.hit(
+            "receive_not_supported",
+            "POST",
+            "/plugins/{plugin_id}/receive",
+            path_params={"plugin_id": "norecv"},
+            json_body={"event": "golden"},
+        )
+
+        rec.hit(
+            "registry_install_ok",
+            "POST",
+            "/plugins/registry/{plugin_id}/install",
+            path_params={"plugin_id": "beta"},
+        )
+        rec.hit(
+            "registry_install_error",
+            "POST",
+            "/plugins/registry/{plugin_id}/install",
+            path_params={"plugin_id": "nope"},
+        )
+
+        rec.hit(
+            "install_git_ok",
+            "POST",
+            "/plugins/install",
+            json_body={"repository": "https://github.com/example/fiestaboard-plugin--goldenext.git"},
+        )
+        rec.hit(
+            "install_git_bad_branch",
+            "POST",
+            "/plugins/install",
+            json_body={
+                "repository": "https://github.com/example/fiestaboard-plugin--goldenext.git",
+                "branch": "bad branch",
+            },
+        )
+
+        rec.hit("uninstall_ok", "DELETE", "/plugins/{plugin_id}/uninstall", path_params={"plugin_id": "ext_plugin"})
+        rec.hit("uninstall_error", "DELETE", "/plugins/{plugin_id}/uninstall", path_params={"plugin_id": "alpha"})
+
+        rec.hit("updates_check", "POST", "/plugins/updates/check")
+        rec.hit(
+            "update_plugin_missing_source",
+            "POST",
+            "/plugins/{plugin_id}/update",
+            path_params={"plugin_id": "missing"},
+        )
+        rec.hit("update_plugin_builtin", "POST", "/plugins/{plugin_id}/update", path_params={"plugin_id": "alpha"})
+        registry.update_status = {}
+        rec.hit("updates_apply_none", "POST", "/plugins/updates/apply")
+
+    _assert_matches_golden("plugins", rec, PLUGINS_ROUTES)
