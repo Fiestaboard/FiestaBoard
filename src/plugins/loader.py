@@ -649,11 +649,12 @@ class PluginLoader:
             Reloaded plugin instance, or None if failed
         """
         with self._lock:
-            # Unload if loaded
+            # Unload if loaded.  cleanup() is plugin-authored and unbounded,
+            # so it is retired to a daemon thread instead of running under
+            # the shared registry/loader lock (#1854).
             if plugin_id in self._loaded_plugins:
-                old_plugin, _ = self._loaded_plugins[plugin_id]
-                old_plugin.cleanup()
-                del self._loaded_plugins[plugin_id]
+                old_plugin, _ = self._loaded_plugins.pop(plugin_id)
+                self._retire_instance(plugin_id, old_plugin)
 
                 # Remove from sys.modules to force reimport
                 module_name = f"plugins.{plugin_id}"
@@ -676,9 +677,9 @@ class PluginLoader:
             if plugin_id not in self._loaded_plugins:
                 return False
 
-            plugin, _ = self._loaded_plugins[plugin_id]
-            plugin.cleanup()
-            del self._loaded_plugins[plugin_id]
+            # Plugin-authored cleanup() off the shared lock (#1854).
+            plugin, _ = self._loaded_plugins.pop(plugin_id)
+            self._retire_instance(plugin_id, plugin)
 
             # Remove from sys.modules
             module_name = f"plugins.{plugin_id}"

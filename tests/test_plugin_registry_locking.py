@@ -225,3 +225,162 @@ def test_clear_update_status_removes_cached_flag(registry):
     assert registry.get_update_status() == {}
     # Clearing an id with no cached status is a no-op, not an error.
     registry.clear_update_status("missing")
+
+
+# ── #1854 review follow-ups ──────────────────────────────────────────────────
+#
+# Bounded-time concurrency probes.  Each test drives a deterministic
+# interleaving with Events; the only timing involved is a generous upper
+# bound on operations that must not block.
+
+
+def _call_on_thread(fn):
+    """Run *fn* on a daemon thread; return (thread, done_event, results)."""
+    done = threading.Event()
+    result: list = []
+
+    def _run():
+        result.append(fn())
+        done.set()
+
+    t = threading.Thread(target=_run, daemon=True)
+    t.start()
+    return t, done, result
+
+
+def test_blocking_instance_cleanup_does_not_stall_readers(registry):
+    """delete_instance must not run plugin-authored cleanup() under the
+    registry lock: a wedged cleanup (e.g. HA MQTT loop_stop joining a network
+    thread) would otherwise stall every render and plugin listing."""
+    cleanup_entered = threading.Event()
+    cleanup_release = threading.Event()
+
+    stub = _plugin_stub("wedge")
+
+    def _wedged_cleanup():
+        cleanup_entered.set()
+        assert cleanup_release.wait(timeout=30)
+
+    stub.cleanup.side_effect = _wedged_cleanup
+
+    key = registry.make_instance_key("wedge", "inst")
+    registry._plugins["wedge"] = _plugin_stub("wedge")
+    registry._plugins[key] = stub
+    registry._enabled[key] = True
+    registry._configs[key] = {}
+
+    try:
+        _del_thread, del_done, _ = _call_on_thread(lambda: registry.delete_instance("wedge", "inst"))
+        assert cleanup_entered.wait(timeout=5), "cleanup() was never invoked"
+
+        _read_thread, read_done, read_result = _call_on_thread(registry.list_plugins)
+        assert read_done.wait(timeout=2), (
+            "list_plugins blocked behind a wedged plugin cleanup — cleanup ran under the registry lock"
+        )
+        assert isinstance(read_result[0], list)
+    finally:
+        cleanup_release.set()
+    assert del_done.wait(timeout=5)
+
+
+def test_uninstall_directory_removal_holds_the_plugin_dir_lock(registry, mock_loader, tmp_path):
+    """uninstall must take the same per-directory lock as clone_or_update_repo
+    so an overlapping update + uninstall of one plugin serialize instead of
+    racing rmtree against git."""
+    source = MagicMock()
+    source.source_type = "external"
+    source.local_path = str(tmp_path / "victim")
+    mock_loader.get_source.return_value = source
+
+    remove_called = threading.Event()
+
+    with (
+        patch("src.plugins.registry.remove_external_plugin") as remove_mock,
+        patch("src.config_manager.get_config_manager", return_value=MagicMock()),
+    ):
+        remove_mock.side_effect = lambda path: (remove_called.set(), True)[1]
+
+        # Simulate an in-flight update of the same plugin holding its lock.
+        dir_lock = sources._dir_lock("victim")
+        dir_lock.acquire()
+        try:
+            _t, done, result = _call_on_thread(lambda: registry.uninstall_external_plugin("victim"))
+            assert not remove_called.wait(timeout=0.3), (
+                "remove_external_plugin ran while another thread held the plugin's directory lock"
+            )
+        finally:
+            dir_lock.release()
+
+        assert done.wait(timeout=5)
+        assert remove_called.is_set()
+        assert result[0] == []
+
+
+def test_registry_lock_blocks_readers_while_a_mutator_holds_it(registry):
+    """Mutual exclusion, proven end-to-end: a mutator paused inside the lock
+    (validate_config runs under it) blocks list_plugins until it releases."""
+    entered = threading.Event()
+    release = threading.Event()
+
+    stub = _plugin_stub("gate")
+
+    def _paused_validate(config):
+        entered.set()
+        assert release.wait(timeout=30)
+        return []
+
+    stub.validate_config.side_effect = _paused_validate
+    stub._validate_refresh_seconds.return_value = []
+    registry._plugins["gate"] = stub
+
+    _writer, writer_done, _ = _call_on_thread(lambda: registry.set_plugin_config("gate", {"a": 1}))
+    assert entered.wait(timeout=5)
+
+    _reader, reader_done, _ = _call_on_thread(registry.list_plugins)
+    assert not reader_done.wait(timeout=0.3), (
+        "list_plugins completed while a mutator held the registry lock — no mutual exclusion"
+    )
+
+    release.set()
+    assert writer_done.wait(timeout=5)
+    assert reader_done.wait(timeout=5)
+
+
+@pytest.mark.parametrize(
+    "reader_name",
+    ["get_plugin", "get_transition_plugin", "get_manifest", "is_enabled", "get_plugin_config"],
+)
+def test_point_readers_cannot_observe_the_reload_window(registry, mock_loader, reader_name):
+    """The point readers must take the registry lock: during reload_plugin the
+    id is briefly absent from _plugins/_manifests, and an unlocked reader
+    could observe that window (the documented invariant forbids it)."""
+    in_window = threading.Event()
+    release = threading.Event()
+
+    new_plugin = _plugin_stub("rw")
+    manifest = MagicMock()
+    manifest.id = "rw"
+    registry._plugins["rw"] = _plugin_stub("rw")
+    registry._manifests["rw"] = manifest
+    registry._enabled["rw"] = False
+
+    def _paused_reload(plugin_id):
+        in_window.set()
+        assert release.wait(timeout=30)
+        return new_plugin
+
+    mock_loader.reload_plugin.side_effect = _paused_reload
+    mock_loader.get_manifest.return_value = manifest
+
+    _writer, writer_done, _ = _call_on_thread(lambda: registry.reload_plugin("rw"))
+    assert in_window.wait(timeout=5)
+
+    reader_fn = getattr(registry, reader_name)
+    _reader, reader_done, reader_result = _call_on_thread(lambda: reader_fn("rw"))
+    assert not reader_done.wait(timeout=0.3), f"{reader_name} returned mid-reload — it does not take the registry lock"
+
+    release.set()
+    assert writer_done.wait(timeout=5)
+    assert reader_done.wait(timeout=5)
+    if reader_name == "get_plugin":
+        assert reader_result[0] is new_plugin
