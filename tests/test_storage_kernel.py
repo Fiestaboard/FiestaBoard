@@ -379,3 +379,25 @@ class TestConcurrentWriters:
         reloaded = PageStorage(storage_file=str(tmp_path / "pages.json"))
         assert reloaded.get("p1").name == "First Updated"
         assert reloaded.get("p2").name == "Second Updated"
+
+    def test_schedules_two_threads_updating_disjoint_schedules_both_survive(self, tmp_path, monkeypatch):
+        from src.schedules.models import ScheduleEntry
+        from src.schedules.storage import ScheduleStorage
+
+        storage = ScheduleStorage(storage_file=str(tmp_path / "schedules.json"))
+        for sid in ("s1", "s2"):
+            storage.create(
+                ScheduleEntry(id=sid, page_id="p1", start_time="08:00", end_time="10:00", day_pattern="all")
+            )
+
+        _force_write_overlap(monkeypatch)
+        errors = _run_pair(
+            lambda: storage.update("s1", {"start_time": "09:00"}),
+            lambda: storage.update("s2", {"start_time": "11:00"}),
+        )
+        monkeypatch.undo()
+
+        assert errors == []
+        reloaded = ScheduleStorage(storage_file=str(tmp_path / "schedules.json"))
+        assert reloaded.get("s1").start_time == "09:00"
+        assert reloaded.get("s2").start_time == "11:00"
