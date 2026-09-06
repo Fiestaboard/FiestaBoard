@@ -205,6 +205,108 @@ class TestLegacyCredentialMigration:
         first = svc.get_board_settings().boards[0]
         assert first["cloud_key"] == "test_key"
 
+    def test_devices_era_settings_still_import_legacy_credentials(self, data_dir):
+        """Devices-era fixture: a raw ``board`` dict with ``devices`` and NO
+        ``boards`` list — a shape ``BoardSettings.from_dict`` still parses.
+
+        This shape used to slip between the migration gate (which needed a
+        raw ``boards[0]``) and the first-boot seed (which needs ``board``
+        absent): schema stamped v3 with the credentials stranded in
+        config.json forever — dark board, and no wizard to recover with. The
+        migration must run the legacy import against the POST-PARSE board
+        list (#1866 review).
+        """
+        from src.settings.service import CURRENT_SETTINGS_SCHEMA_VERSION
+
+        _write_config(data_dir, local_api_key=STALE_KEY, host=STALE_HOST)
+        payload = {
+            "schema_version": 2,
+            "board": {"board_type": "black", "devices": ["flagship"]},
+        }
+        (data_dir / "settings.json").write_text(json.dumps(payload))
+
+        svc = _new_settings_service()
+
+        first = svc.get_board_settings().boards[0]
+        assert first["local_api_key"] == STALE_KEY, "devices-era install stranded its credentials in config.json"
+        assert first["host"] == STALE_HOST
+
+        on_disk = _settings_on_disk(data_dir)
+        assert on_disk["schema_version"] == CURRENT_SETTINGS_SCHEMA_VERSION
+        assert on_disk["board"]["boards"][0]["local_api_key"] == STALE_KEY
+
+    def test_virtual_primary_is_never_clobbered_by_stale_credentials(self, data_dir):
+        """A FiestaPanel primary (api_mode="virtual") carries no credential
+        fields by nature — that is configured, not credential-less. The
+        migration must not import stale physical credentials over it
+        (flipping api_mode and creating a ghost client); mirror
+        ``BoardInstance.has_connection_attempt``, which counts virtual as a
+        connection attempt (#1866 review).
+        """
+        _write_config(data_dir, local_api_key=STALE_KEY, host=STALE_HOST, api_mode="local")
+        _write_settings(data_dir, [_board(api_mode="virtual")], schema_version=2)
+
+        svc = _new_settings_service()
+
+        first = svc.get_board_settings().boards[0]
+        assert first["api_mode"] == "virtual", "stale physical credentials flipped a virtual primary"
+        assert first.get("local_api_key", "") == ""
+        assert first.get("host", "") == ""
+
+    def test_transient_config_read_failure_aborts_migration_for_retry(self, data_dir):
+        """A transient failure reading config.json must not stamp the new
+        schema version with nothing imported. The migration run aborts —
+        schema_version stays pre-migration, nothing half-stamped — and the
+        next (healthy) boot completes the import (#1866 review).
+        """
+        _write_config(data_dir, local_api_key=STALE_KEY, host=STALE_HOST)
+        _write_settings(data_dir, [_board()], schema_version=2)
+
+        with patch(
+            "src.config_manager.get_config_manager",
+            side_effect=RuntimeError("transient config read failure"),
+        ):
+            _new_settings_service()
+
+        assert _settings_on_disk(data_dir)["schema_version"] == 2, (
+            "migration stamped the new schema version despite the failed legacy read"
+        )
+
+        svc = _new_settings_service()
+        assert svc.get_board_settings().boards[0]["local_api_key"] == STALE_KEY
+        from src.settings.service import CURRENT_SETTINGS_SCHEMA_VERSION
+
+        assert _settings_on_disk(data_dir)["schema_version"] == CURRENT_SETTINGS_SCHEMA_VERSION
+
+    def test_token_only_install_does_not_seed_a_flagship_board(self, data_dir):
+        """BOARD_NOTE_ARRAY_TOKEN-only fresh install: a note-array token can
+        never drive the default flagship board. Seeding it anyway satisfied
+        has_connection_attempt — wizard suppressed, no client possible.
+        Nothing imports, so the wizard appears (pre-#1760 behavior)
+        (#1866 review).
+        """
+        from src.devices import BoardInstance
+
+        _write_config(data_dir, note_array_token="test_na_token")
+
+        svc = _new_settings_service()
+
+        first = svc.get_board_settings().boards[0]
+        assert first.get("note_array_token", "") == "", "a note-array token was seeded onto a flagship board"
+        assert not BoardInstance.from_dict(first).has_connection_attempt, (
+            "token-only seed suppressed the setup wizard with no buildable client"
+        )
+
+    def test_token_still_imports_into_a_note_array_primary(self, data_dir):
+        """The counterpart guard: when the primary IS a note array, the legacy
+        token imports exactly as before."""
+        _write_config(data_dir, note_array_token="test_na_token")
+        _write_settings(data_dir, [_board(device_type="note_array")], schema_version=2)
+
+        svc = _new_settings_service()
+
+        assert svc.get_board_settings().boards[0]["note_array_token"] == "test_na_token"
+
     def test_migrated_credentials_drive_client_construction(self, data_dir):
         """Upgrade acceptance: after the migration, the board runtime is built
         from the migrated settings credentials (under the board's own id, not
