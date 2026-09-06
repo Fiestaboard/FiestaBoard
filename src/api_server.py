@@ -54,6 +54,7 @@ from .pages.service import (  # noqa: E402
 from .pages.share import decode_page, encode_page  # noqa: E402
 from .panels.models import PanelCreate, PanelUpdate  # noqa: E402
 from .panels.service import get_panel_service  # noqa: E402
+from .paths import get_data_dir  # noqa: E402
 from .schedules.models import ScheduleCreate, ScheduleUpdate  # noqa: E402
 from .schedules.service import get_schedule_service  # noqa: E402
 from .settings.service import VALID_OUTPUT_TARGETS, VALID_STRATEGIES, get_settings_service  # noqa: E402
@@ -1949,7 +1950,20 @@ def _is_newer_version(latest: str, current: str) -> bool:
 # Path to the small JSON file that persists the auto-update toggle and
 # bookkeeping (last check, last update).  Kept separate from settings.json
 # because this state is system-level, not display-level.
-SYSTEM_UPDATE_STATE_FILE = Path("data/.system-update.json")
+#
+# ``SYSTEM_UPDATE_STATE_FILE`` is a *test seam*: production leaves it ``None``
+# and ``_system_update_state_file()`` resolves lazily through
+# ``src.paths.get_data_dir()`` (honoring ``FIESTABOARD_DATA_DIR``, #1762).
+# Tests that need a specific file keep monkeypatching the module attribute.
+SYSTEM_UPDATE_STATE_FILE: Path | None = None
+
+
+def _system_update_state_file() -> Path:
+    """Resolve the system-update state file path at call time."""
+    if SYSTEM_UPDATE_STATE_FILE is not None:
+        return Path(SYSTEM_UPDATE_STATE_FILE)
+    return get_data_dir() / ".system-update.json"
+
 
 # Serialises the read-modify-write of the state file.  Three writers share it —
 # the hourly auto-update loop, ``POST /system/update`` and
@@ -1962,14 +1976,15 @@ _SYSTEM_UPDATE_STATE_LOCK = threading.RLock()
 def _system_update_state_load() -> dict[str, Any]:
     """Read the system-update state file.  Returns a fresh dict on any error."""
     with _SYSTEM_UPDATE_STATE_LOCK:
+        state_file = _system_update_state_file()
         try:
-            if SYSTEM_UPDATE_STATE_FILE.exists():
-                with SYSTEM_UPDATE_STATE_FILE.open("r", encoding="utf-8") as f:
+            if state_file.exists():
+                with state_file.open("r", encoding="utf-8") as f:
                     data = json.load(f)
                     if isinstance(data, dict):
                         return data
         except Exception as e:
-            logger.debug(f"Failed to read {SYSTEM_UPDATE_STATE_FILE}: {e}")
+            logger.debug(f"Failed to read {state_file}: {e}")
         return {}
 
 
@@ -1981,10 +1996,11 @@ def _system_update_state_save(state: dict[str, Any]) -> None:
     which silently resets the auto-update toggle to its default (#1745).
     """
     with _SYSTEM_UPDATE_STATE_LOCK:
+        state_file = _system_update_state_file()
         try:
-            write_json_atomic(SYSTEM_UPDATE_STATE_FILE, state)
+            write_json_atomic(state_file, state)
         except Exception as e:
-            logger.warning(f"Failed to write {SYSTEM_UPDATE_STATE_FILE}: {e}")
+            logger.warning(f"Failed to write {state_file}: {e}")
 
 
 def _system_update_state_update(**changes: Any) -> dict[str, Any]:
@@ -2191,7 +2207,19 @@ def _updater_last_update() -> dict[str, Any]:
 # document (the same format the BackupService uses for hand-rolled backups)
 # named ``pre-update-<timestamp>.json``.  Kept under data/ so they survive
 # container recreates via the ``./data:/app/data`` bind mount.
-SETTINGS_SNAPSHOT_DIR = Path("data/update-backups")
+#
+# ``SETTINGS_SNAPSHOT_DIR`` is a *test seam*: production leaves it ``None``
+# and ``_settings_snapshot_dir()`` resolves lazily through
+# ``src.paths.get_data_dir()`` (honoring ``FIESTABOARD_DATA_DIR``, #1762).
+SETTINGS_SNAPSHOT_DIR: Path | None = None
+
+
+def _settings_snapshot_dir() -> Path:
+    """Resolve the settings-snapshot directory at call time."""
+    if SETTINGS_SNAPSHOT_DIR is not None:
+        return Path(SETTINGS_SNAPSHOT_DIR)
+    return get_data_dir() / "update-backups"
+
 
 # How many pre-update snapshots to retain.  Older ones are pruned after each
 # successful snapshot.  Five mirrors the user's ".json.bak" rotation request.
@@ -2261,13 +2289,14 @@ def _take_settings_snapshot(
             )
 
     try:
-        SETTINGS_SNAPSHOT_DIR.mkdir(parents=True, exist_ok=True)
+        snapshot_dir = _settings_snapshot_dir()
+        snapshot_dir.mkdir(parents=True, exist_ok=True)
         # Millisecond precision so multiple snapshots within the same
         # second (e.g. tests, or a user retrying immediately) don't
         # collide on filename and silently overwrite each other.
         now = datetime.now(UTC)
         ts = now.strftime("%Y%m%dT%H%M%S") + f".{now.microsecond // 1000:03d}Z"
-        target = SETTINGS_SNAPSHOT_DIR / f"pre-update-{ts}.json"
+        target = snapshot_dir / f"pre-update-{ts}.json"
         # Belt-and-braces against same-millisecond collisions: bump the
         # millisecond field forward until we find a free name.  1000 is
         # the natural upper bound (one full second of ms slots); we treat
@@ -2278,7 +2307,7 @@ def _take_settings_snapshot(
                 break
             ms = (now.microsecond // 1000 + bump) % _MAX_MS_SLOTS
             ts = now.strftime("%Y%m%dT%H%M%S") + f".{ms:03d}Z"
-            target = SETTINGS_SNAPSHOT_DIR / f"pre-update-{ts}.json"
+            target = snapshot_dir / f"pre-update-{ts}.json"
         else:  # pragma: no cover - effectively unreachable
             logger.warning("Could not find a free snapshot filename")
             return None
@@ -2334,11 +2363,12 @@ def _list_settings_snapshots() -> list[dict[str, Any]]:
     Each entry includes the recorded ``previous_digest`` / ``previous_image``
     so the UI can label snapshots with the version they will roll back to.
     """
-    if not SETTINGS_SNAPSHOT_DIR.exists():
+    snapshot_dir = _settings_snapshot_dir()
+    if not snapshot_dir.exists():
         return []
     out: list[dict[str, Any]] = []
     try:
-        entries = sorted(SETTINGS_SNAPSHOT_DIR.iterdir(), reverse=True)
+        entries = sorted(snapshot_dir.iterdir(), reverse=True)
     except OSError:
         return []
     for entry in entries:
@@ -2542,7 +2572,7 @@ def _prune_settings_snapshots() -> None:
     if len(snapshots) <= SETTINGS_SNAPSHOT_RETENTION:
         return
     for stale in snapshots[SETTINGS_SNAPSHOT_RETENTION:]:
-        path = SETTINGS_SNAPSHOT_DIR / stale["name"]
+        path = _settings_snapshot_dir() / stale["name"]
         try:
             path.unlink()
         except OSError:
@@ -2565,8 +2595,9 @@ def _resolve_snapshot_name(name: str | None) -> Path | None:
         name = snaps[0]["name"]
     if not _SETTINGS_SNAPSHOT_NAME_RE.fullmatch(name):
         return None
-    candidate = (SETTINGS_SNAPSHOT_DIR / name).resolve()
-    base = SETTINGS_SNAPSHOT_DIR.resolve()
+    snapshot_dir = _settings_snapshot_dir()
+    candidate = (snapshot_dir / name).resolve()
+    base = snapshot_dir.resolve()
     try:
         candidate.relative_to(base)
     except ValueError:
@@ -7878,8 +7909,7 @@ async def update_panel(panel_id: str, data: PanelUpdate):
     incompatible_references: list[dict] | None = None
     updates = data.model_dump(exclude_unset=True)
     screen_changed = any(
-        updates.get(field) is not None
-        for field in ("screen_diagonal_inches", "screen_aspect_w", "screen_aspect_h")
+        updates.get(field) is not None for field in ("screen_diagonal_inches", "screen_aspect_w", "screen_aspect_h")
     )
     if screen_changed:
         settings_service = get_settings_service()
@@ -9346,9 +9376,7 @@ async def force_refresh():
         logger.debug(f"Board content invalidation failed: {e}")
 
     try:
-        sent, error = _send_with_status(
-            service, "check_and_send_active_page_with_status", "check_and_send_active_page"
-        )
+        sent, error = _send_with_status(service, "check_and_send_active_page_with_status", "check_and_send_active_page")
         if error:
             raise HTTPException(status_code=500, detail=f"Failed to force refresh: {error}")
         return {

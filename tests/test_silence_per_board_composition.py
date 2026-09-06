@@ -52,12 +52,10 @@ def _write_config(path: Path, silence: dict) -> None:
 @pytest.fixture
 def real_config(tmp_path: Path):
     """A real ConfigManager singleton backed by a legacy (pre-#1788) config."""
-    ConfigManager._instance = None
+    # Singleton reset on both sides by conftest's ``_isolated_data_dir`` (#1762).
     path = tmp_path / "config.json"
     _write_config(path, dict(LEGACY_INSTALL_WIDE))
-    manager = ConfigManager(config_path=str(path))
-    yield manager
-    ConfigManager._instance = None
+    yield ConfigManager(config_path=str(path))
 
 
 def _boards(*boards):

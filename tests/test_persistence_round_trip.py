@@ -17,16 +17,16 @@ Two things are deliberate:
   migrations on load; seeding a file by hand would bypass exactly the code the
   restart is supposed to exercise.
 
-Data isolation (see #1762): the app has no single data-directory seam. Each
-store resolves its own path from ``Path(__file__)`` at construction time, so
-``isolated_data_dir`` has to rebind every store's constructor to keep the
-suite off the developer's real ``data/`` directory. That fixture is the
-workaround, not the fix.
+Data isolation (#1762): every store's default path now resolves through
+``src.paths.get_data_dir()``, which honors ``FIESTABOARD_DATA_DIR`` — set to a
+throwaway tmp dir by the autouse ``_isolated_data_dir`` fixture in
+``tests/conftest.py``. ``isolated_data_dir`` below is a thin alias for it, and
+``_restart`` only needs to drop the singletons: the next construction lands in
+the same isolated dir via the seam, with no constructor rebinding.
 """
 
 from __future__ import annotations
 
-import functools
 import json
 import uuid
 from pathlib import Path
@@ -34,104 +34,19 @@ from pathlib import Path
 import pytest
 from fastapi.testclient import TestClient
 
-from src.config_manager import ConfigManager
-
 # ── isolation ───────────────────────────────────────────────────────────────
-
-#: Module path + attribute name of every service singleton that caches
-#: on-disk state. This is the same list ``src.backup.service._reload_services``
-#: drops after a restore — i.e. the app's own definition of "re-read from disk".
-_SINGLETONS: tuple[tuple[str, str], ...] = (
-    ("src.settings.service", "_settings_service"),
-    ("src.pages.service", "_page_service"),
-    ("src.collections.service", "_collection_service"),
-    ("src.schedules.service", "_schedule_service"),
-    ("src.panels.service", "_panel_service"),
-    ("src.backup.service", "_backup_service"),
-)
-
-
-def _drop_singletons() -> None:
-    """Forget every cached service instance, as a process restart would."""
-    import importlib
-
-    ConfigManager._instance = None  # type: ignore[attr-defined]
-    for module_path, attr in _SINGLETONS:
-        setattr(importlib.import_module(module_path), attr, None)
-
-
-def _bind_backup_service(data_dir: Path) -> None:
-    """Rebuild the backup singleton against *data_dir*."""
-    import src.backup.service as backup_module
-
-    backup_module._backup_service = backup_module.BackupService(data_dir=data_dir)
-
-
-def _bind_config_manager(data_dir: Path) -> None:
-    """Rebuild the ConfigManager singleton against *data_dir*.
-
-    ``ConfigManager`` cannot be redirected the way the storage classes are,
-    by rebinding ``src.config_manager.ConfigManager`` to a pre-bound
-    constructor: ``_apply_env_overrides`` reaches the *class* through that
-    same module global (``ConfigManager._is_placeholder``, config_manager.py),
-    and a constructor stand-in carries no class attributes. That path only
-    runs when a board env var is set — which CI does (``BOARD_READ_WRITE_KEY``)
-    and a bare local shell does not — so the rebind raised ``AttributeError``
-    on CI only.
-
-    Constructing the singleton directly is also the more faithful restart:
-    it is what ``_bind_backup_service`` already does, and it re-reads
-    ``config.json`` off disk exactly as a fresh process would.
-    """
-    ConfigManager._instance = None  # type: ignore[attr-defined]
-    ConfigManager(config_path=str(data_dir / "config.json"))
 
 
 @pytest.fixture
-def isolated_data_dir(tmp_path, monkeypatch):
-    """Point every on-disk store at *tmp_path* and hand back that path.
+def isolated_data_dir(_isolated_data_dir: Path) -> Path:
+    """The throwaway data dir every default store path resolves into.
 
-    Rebinds the class each singleton factory instantiates, so the *next*
-    construction — including the ones that happen after a simulated restart —
-    lands in the temp directory rather than the repo's ``data/``.
+    Alias for conftest's autouse ``_isolated_data_dir`` (#1762): the env seam
+    plus the singleton drops it performs are the whole isolation story now.
+    Kept as a named fixture so these tests read as "this one asserts against
+    the data dir" rather than depending on an autouse underscore fixture.
     """
-    from src.collections.storage import CollectionStorage
-    from src.pages.storage import PageStorage
-    from src.panels.storage import PanelStorage
-    from src.schedules.storage import ScheduleStorage
-    from src.settings.service import SettingsService
-
-    data_dir = tmp_path / "data"
-    data_dir.mkdir()
-
-    bindings = (
-        ("src.settings.service.SettingsService", SettingsService, {"settings_file": str(data_dir / "settings.json")}),
-        ("src.pages.service.PageStorage", PageStorage, {"storage_file": str(data_dir / "pages.json")}),
-        (
-            "src.schedules.service.ScheduleStorage",
-            ScheduleStorage,
-            {"storage_file": str(data_dir / "schedules.json")},
-        ),
-        (
-            "src.collections.service.CollectionStorage",
-            CollectionStorage,
-            {"storage_file": str(data_dir / "collections.json")},
-        ),
-        ("src.panels.service.PanelStorage", PanelStorage, {"storage_file": str(data_dir / "panels.json")}),
-    )
-    for target, cls, kwargs in bindings:
-        monkeypatch.setattr(target, functools.partial(cls, **kwargs))
-
-    _drop_singletons()
-    # BackupService and ConfigManager take their path up front, so the
-    # *instance* is bound rather than the class; _drop_singletons has to run
-    # first or it clears them.
-    _bind_backup_service(data_dir)
-    _bind_config_manager(data_dir)
-    try:
-        yield data_dir
-    finally:
-        _drop_singletons()
+    return _isolated_data_dir
 
 
 @pytest.fixture
@@ -147,13 +62,13 @@ def _restart(data_dir: Path) -> TestClient:
 
     Route handlers resolve their services per request through the singleton
     getters, so dropping the singletons is precisely what a container restart
-    does: the next request rebuilds each store by parsing the JSON files.
+    does: the next request rebuilds each store by parsing the JSON files —
+    which the ``FIESTABOARD_DATA_DIR`` seam keeps pointed at *data_dir*.
     """
     from src.api_server import app
+    from tests.conftest import _drop_all_singletons
 
-    _drop_singletons()
-    _bind_backup_service(data_dir)
-    _bind_config_manager(data_dir)
+    _drop_all_singletons()
     return TestClient(app)
 
 
@@ -420,31 +335,21 @@ def test_backup_import_restores_every_data_file_byte_for_byte(client, isolated_d
 
     after = {name: json.loads((isolated_data_dir / name).read_text()) for name in DATA_FILES}
 
-    # `config.json` legitimately gains one key the export did not carry, and
-    # only that one. #1817 made the restore path call
-    # `PluginRegistry.initialize(force=True)` (`_reload_services`) so restored
-    # plugin configs reach the live plugin objects. That reload runs the v2->v3
-    # plugin migration, which stamps `plugin_migrations.v2_completed` to record
-    # that it has now run for *this* config.
-    #
-    # This is derived state about the installation, not user data, and
-    # re-deriving it is what makes a v2-era backup restore correctly onto a v3
-    # instance: the migration is what re-installs plugin configs whose code was
-    # extracted out of the app, and the flag is what stops it resurrecting a
-    # deliberately-uninstalled plugin on the next boot (#937/#948/#1102/#1301).
-    # `_reload_services` reloads ConfigManager from disk *before* the registry
-    # reload, so the migration reads what the backup wrote rather than a stale
-    # in-memory copy — pinned by
-    # `test_backup_import_is_not_clobbered_by_the_pre_restore_config_manager`.
-    #
-    # So the contract is "restore loses nothing and alters nothing", not
-    # "restore reproduces the file byte for byte". Asserted as exactly that,
-    # which is stricter than ignoring the key: nothing else may be added, the
-    # added value must be the completed flag, and every exported byte must
-    # still come back unchanged.
+    # The v2->v3 plugin migration stamps `plugin_migrations.v2_completed` the
+    # first time the plugin registry is built against a config (#1817 routes
+    # the restore path through `PluginRegistry.initialize(force=True)` in
+    # `_reload_services` for exactly that reason — pinned by
+    # `test_backup_import_is_not_clobbered_by_the_pre_restore_config_manager`).
+    # Under per-test isolation (#1762) each test builds its registry fresh, so
+    # the flag lands in config.json during this test's own setup — *before*
+    # the export. The exported document therefore already carries it, and the
+    # restore + reload re-derives the identical value: the round trip is a
+    # byte-for-byte no-op, with nothing added at all.
+    assert before["config.json"].get("plugin_migrations") == {"v2_completed": True}, (
+        "expected the v2 plugin migration to have stamped this test's config during setup"
+    )
     added = set(after["config.json"]) - set(before["config.json"])
-    assert added == {"plugin_migrations"}, f"restore added unexpected config.json keys: {sorted(added)}"
-    assert after["config.json"].pop("plugin_migrations") == {"v2_completed": True}
+    assert added == set(), f"restore added unexpected config.json keys: {sorted(added)}"
     assert after == before
 
 

@@ -30,6 +30,8 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
+from src.paths import get_data_dir
+
 #: Strict allowlist for repository URLs read from a backup file.  We only
 #: clone HTTPS URLs that contain a conservative set of characters; anything
 #: Strict allowlist for plugin ids read from a backup file.  Mirrors the
@@ -70,8 +72,7 @@ class BackupService:
 
     def __init__(self, data_dir: Path | None = None) -> None:
         if data_dir is None:
-            project_root = Path(__file__).resolve().parent.parent.parent
-            data_dir = project_root / "data"
+            data_dir = get_data_dir()
         self.data_dir = Path(data_dir)
         self._lock = threading.Lock()
 

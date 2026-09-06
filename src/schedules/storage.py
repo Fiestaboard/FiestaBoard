@@ -13,6 +13,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 
 from src.atomic_io import staging_path
+from src.paths import get_data_dir
 
 from .models import DEFAULT_BOARD_ID, ScheduleEntry
 
@@ -101,10 +102,7 @@ class ScheduleStorage:
             storage_file: Path to JSON storage file. Defaults to data/schedules.json
         """
         if storage_file is None:
-            project_root = Path(__file__).parent.parent.parent
-            data_dir = project_root / "data"
-            data_dir.mkdir(exist_ok=True)
-            self.storage_file = data_dir / "schedules.json"
+            self.storage_file = get_data_dir() / "schedules.json"
         else:
             self.storage_file = Path(storage_file)
 
