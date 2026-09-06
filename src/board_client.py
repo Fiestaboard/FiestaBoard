@@ -529,79 +529,88 @@ class BoardClient(TransitionRenderMixin):
             step_interval_ms = None
             step_size = None
 
-        self._last_send_throttled = False
+        # The whole check-send-write section runs under the per-board send
+        # lock. render() holds the same (re-entrant) lock around its sends,
+        # but the /debug/blank, /debug/fill and /debug/info handlers call
+        # send_characters directly — and since #1826 moved handlers onto
+        # worker threads, those calls run concurrently with renders. Without
+        # the lock they interleave: crossed _last_characters writes and a
+        # double-posted note-array throttle window.
+        with self._send_lock:
+            self._last_send_throttled = False
 
-        # Rate-limit note-array sends to >= NOTE_ARRAY_MIN_SEND_INTERVAL seconds.
-        # Read the clock once and reuse it for the success-path timestamp below.
-        # The check+update below is not locked: FiestaBoard's send paths run on a
-        # single-threaded main loop, so the TOCTOU window is unreachable in
-        # practice. If sends ever become concurrent, guard this with a per-token lock.
-        now = self._time_func() if self._is_note_array else None
-        if self._is_note_array:
-            last = _note_array_last_send.get(self._note_array_token)
-            if last is not None:
-                elapsed = now - last
-                if elapsed < NOTE_ARRAY_MIN_SEND_INTERVAL:
-                    logger.warning(
-                        "Note-array send throttled: %.1fs since last send (min %.0fs); skipping.",
-                        elapsed,
-                        NOTE_ARRAY_MIN_SEND_INTERVAL,
-                    )
-                    self._last_send_throttled = True
-                    return (True, False)
-
-        # Check if characters have changed (client-side caching)
-        if self.skip_unchanged and not force and self._last_characters == characters:
-            logger.debug("Character array unchanged, skipping send")
-            return (True, False)
-
-        # Build payload - format differs by API type
-        if self._is_note_array:
-            # Note-array Cloud API: POST {"characters": grid} to cloud.vestaboard.com
-            payload = {"characters": characters}
-        elif self.use_cloud:
-            # RW Cloud API: sends the array directly (no wrapper)
-            payload = characters
-        else:
-            # Local API: {"characters": [...]} with optional transitions
-            payload = {"characters": characters}
-            if strategy is not None:
-                payload["strategy"] = strategy
-            if step_interval_ms is not None:
-                payload["step_interval_ms"] = step_interval_ms
-            if step_size is not None:
-                payload["step_size"] = step_size
-
-        try:
+            # Rate-limit note-array sends to >= NOTE_ARRAY_MIN_SEND_INTERVAL seconds.
+            # Read the clock once and reuse it for the success-path timestamp below.
+            # Sends run on worker threads since #1826, so the check+update pair
+            # relies on the surrounding _send_lock to close the TOCTOU window
+            # (per client; two clients sharing one note-array token still race
+            # the module-level map, which is acceptable for a rate limit).
+            now = self._time_func() if self._is_note_array else None
             if self._is_note_array:
-                url = self.CLOUD_NOTE_ARRAY_API_URL
-                hdrs = self._note_array_headers
+                last = _note_array_last_send.get(self._note_array_token)
+                if last is not None:
+                    elapsed = now - last
+                    if elapsed < NOTE_ARRAY_MIN_SEND_INTERVAL:
+                        logger.warning(
+                            "Note-array send throttled: %.1fs since last send (min %.0fs); skipping.",
+                            elapsed,
+                            NOTE_ARRAY_MIN_SEND_INTERVAL,
+                        )
+                        self._last_send_throttled = True
+                        return (True, False)
+
+            # Check if characters have changed (client-side caching)
+            if self.skip_unchanged and not force and self._last_characters == characters:
+                logger.debug("Character array unchanged, skipping send")
+                return (True, False)
+
+            # Build payload - format differs by API type
+            if self._is_note_array:
+                # Note-array Cloud API: POST {"characters": grid} to cloud.vestaboard.com
+                payload = {"characters": characters}
+            elif self.use_cloud:
+                # RW Cloud API: sends the array directly (no wrapper)
+                payload = characters
             else:
-                url = self.base_url
-                hdrs = self.headers
-            response = requests.post(url, headers=hdrs, json=payload, timeout=10)
-            response.raise_for_status()
+                # Local API: {"characters": [...]} with optional transitions
+                payload = {"characters": characters}
+                if strategy is not None:
+                    payload["strategy"] = strategy
+                if step_interval_ms is not None:
+                    payload["step_interval_ms"] = step_interval_ms
+                if step_size is not None:
+                    payload["step_size"] = step_size
 
-            self._last_characters = [row[:] for row in characters]
-            self._last_text = None
+            try:
+                if self._is_note_array:
+                    url = self.CLOUD_NOTE_ARRAY_API_URL
+                    hdrs = self._note_array_headers
+                else:
+                    url = self.base_url
+                    hdrs = self.headers
+                response = requests.post(url, headers=hdrs, json=payload, timeout=10)
+                response.raise_for_status()
 
-            if self._is_note_array:
-                _note_array_last_send[self._note_array_token] = now
+                self._last_characters = [row[:] for row in characters]
+                self._last_text = None
 
-            transition_info = ""
-            if strategy:
-                transition_info = f" with {strategy} transition"
-                if step_interval_ms:
-                    transition_info += f" ({step_interval_ms}ms interval)"
+                if self._is_note_array:
+                    _note_array_last_send[self._note_array_token] = now
 
-            logger.info(f"Character array sent successfully to board{transition_info}")
-            return (True, True)
+                transition_info = ""
+                if strategy:
+                    transition_info = f" with {strategy} transition"
+                    if step_interval_ms:
+                        transition_info += f" ({step_interval_ms}ms interval)"
 
-        except requests.exceptions.RequestException as e:
-            logger.error(f"Failed to send character array to board: {e}")
-            if hasattr(e, "response") and e.response is not None:
-                logger.error(f"Response: {e.response.text}")
-            return (False, False)
+                logger.info(f"Character array sent successfully to board{transition_info}")
+                return (True, True)
+
+            except requests.exceptions.RequestException as e:
+                logger.error(f"Failed to send character array to board: {e}")
+                if hasattr(e, "response") and e.response is not None:
+                    logger.error(f"Response: {e.response.text}")
+                return (False, False)
 
     def read_current_message(self, sync_cache: bool = False) -> list[list[int]] | None:
         """

@@ -293,3 +293,60 @@ def test_concurrent_renders_on_one_client_serialize():
 
     assert calls == [1, 1, 1, 1]
     assert overlaps == [], overlaps
+
+
+def test_concurrent_direct_send_characters_and_render_serialize():
+    """Threads calling ``send_characters`` directly must serialize with each
+    other and with concurrent ``render`` calls on the same client.
+
+    The /debug/blank, /debug/fill and /debug/info handlers call
+    ``vb_client.send_characters`` without going through ``render``; post-#1826
+    they run on worker threads, so an unlocked ``send_characters`` would
+    interleave its check-send-write section with a render's — crossed
+    ``_last_characters`` writes and a double-posted note-array throttle
+    window.  ``send_characters`` therefore takes ``_send_lock`` itself
+    (re-entrant, so render → send_characters nesting stays safe).
+    """
+    from src.board_client import BoardClient
+
+    client = BoardClient.__new__(BoardClient)
+    client._init_transition_state()
+    client._is_note_array = False
+    client.use_cloud = False
+    client.skip_unchanged = True
+    client.base_url = "http://board.invalid/local-api/message"
+    client.headers = {}
+    client._last_characters = None
+    client._last_text = None
+
+    active = threading.Semaphore(1)
+    overlaps: list[str] = []
+    posts: list[int] = []
+
+    def _instrumented_post(*_args, **_kwargs):
+        if not active.acquire(blocking=False):
+            overlaps.append("board send ran concurrently")
+        try:
+            posts.append(1)
+            time.sleep(0.05)
+        finally:
+            active.release()
+        response = Mock()
+        response.raise_for_status = Mock()
+        return response
+
+    grid = [[0] * 22 for _ in range(6)]
+    with patch("src.board_client.requests.post", side_effect=_instrumented_post):
+        threads = [
+            threading.Thread(target=client.send_characters, args=(grid,), kwargs={"force": True}),
+            threading.Thread(target=client.render, args=(grid,), kwargs={"force": True}),
+            threading.Thread(target=client.send_characters, args=(grid,), kwargs={"force": True}),
+            threading.Thread(target=client.render, args=(grid,), kwargs={"force": True}),
+        ]
+        for t in threads:
+            t.start()
+        for t in threads:
+            t.join()
+
+    assert len(posts) == 4
+    assert overlaps == [], overlaps

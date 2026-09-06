@@ -179,7 +179,10 @@ class TriggerService:
         else:
             logger.info("Trigger dismissed: %s", trigger_id)
 
-        del self._active_triggers[trigger_id]
+        # pop, not del: a concurrent double-dismiss (two clients, or a
+        # dismiss racing clear_expired) must not KeyError and 500 the
+        # page-change path.
+        self._active_triggers.pop(trigger_id, None)
         return True
 
     def dismiss_active_for_user_override(self) -> int:
@@ -203,9 +206,11 @@ class TriggerService:
 
     def clear_expired(self) -> None:
         """Remove all triggers that have exceeded their duration."""
+        # pop, not del: the iteration snapshots above can go stale under a
+        # concurrent dismiss, and removal must stay idempotent.
         expired = [tid for tid, t in self._active_triggers.items() if t.is_expired()]
         for tid in expired:
-            del self._active_triggers[tid]
+            self._active_triggers.pop(tid, None)
             logger.debug("Trigger expired and removed: %s", tid)
 
         # Garbage-collect lapsed suppression entries so the dict doesn't
@@ -213,7 +218,7 @@ class TriggerService:
         now = datetime.now()
         lapsed = [tid for tid, until in self._suppressed_until.items() if now >= until]
         for tid in lapsed:
-            del self._suppressed_until[tid]
+            self._suppressed_until.pop(tid, None)
 
     def clear_all(self) -> None:
         """Remove all active triggers."""
