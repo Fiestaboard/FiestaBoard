@@ -31,6 +31,22 @@ frame) triples handed to each board client. The run loop may evaluate
 schedule job, the 1 Hz silence probe, and the collection gate); that internal
 cadence is an implementation detail the redesign is free to change, so it is
 never encoded here.
+
+What the goldens do NOT pin — downstream PRs must not cite this corpus as
+coverage for any of the following, because no scenario exercises them:
+
+- Plugin fetch machinery. Scenario pages are static text (or stub plugins
+  wired far above the fetch layer), so ``build_template_context``,
+  ``shared_context_for``, ``extract_template_plugin_ids``, and cache
+  widening never run under these goldens. Refactors there need their own
+  fail-first tests.
+- Variable-mode collections. Collection scenarios use time-slice rotation
+  only; rule evaluation over plugin variables is entirely unexercised.
+- Silence ``mode: "page"``. Silence scenarios cover blank-mode windows
+  only; the silence-page render path is not in the corpus.
+- The silence cache. The stub config managers here carry no
+  ``config_generation`` attribute, so the generation-keyed silence cache is
+  bypassed on every probe and its invalidation behavior is unpinned.
 """
 
 from __future__ import annotations
