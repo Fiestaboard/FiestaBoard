@@ -135,6 +135,15 @@ class PluginRegistry:
         # Auto-discovery cache: maps plugin_id -> discovered variable names
         self._discovered_vars: dict[str, list[str]] = {}
 
+        # In-flight fetch registry (issue #1862 review): maps
+        # (plugin_id, board key) -> the pending Future for that fetch.
+        # While a fetch is pending, later context builds JOIN it within
+        # their own wait budget instead of submitting a duplicate, so a
+        # wedged plugin occupies at most ONE shared-pool worker per board
+        # key instead of one more per tick until the pool starves.
+        self._inflight_fetches: dict[tuple, Any] = {}
+        self._inflight_lock = threading.Lock()
+
         # Set once initialize() has loaded the plugin set. Guards against a
         # repeat call rebuilding every live plugin (issue #1753).
         self._initialized = False
@@ -1572,8 +1581,25 @@ class PluginRegistry:
             if self._enabled.get(pid, False) and plugin.supports_triggers
         }
 
+    def _clear_inflight_entry(self, key: tuple):
+        """A done-callback that removes *key* from the in-flight registry.
+
+        Identity-guarded: only the future currently registered under the key
+        removes itself, so a fresh fetch registered after (e.g.) a cancelled
+        one is never clobbered by the old future's late callback.
+        """
+
+        def _done(future) -> None:
+            with self._inflight_lock:
+                if self._inflight_fetches.get(key) is future:
+                    del self._inflight_fetches[key]
+
+        return _done
+
     def build_template_context(
-        self, board: BoardContext | None = None, plugin_ids: Collection[str] | None = None
+        self,
+        board: BoardContext | None = None,
+        plugin_ids: Collection[str] | None = None,
     ) -> dict[str, Any]:
         """Build context dictionary for template rendering.
 
@@ -1618,7 +1644,30 @@ class PluginRegistry:
         # not_done futures that never started, so a saturated pool's backlog
         # cannot grow without bound; running fetches ignore cancel().
         executor = _get_fetch_executor()
-        futures = {executor.submit(self.fetch_plugin_data, plugin_id, board): plugin_id for plugin_id in to_fetch}
+        # In-flight dedupe (#1862 review): a fetch still pending from an
+        # earlier build (same plugin, same board key) is JOINED — awaited
+        # within this build's own wait budget — never resubmitted. Without
+        # this, a wedged plugin gains one duplicate worker per tick until
+        # the shared pool starves and every plugin's data dies board-wide.
+        # A done future means the previous fetch finished; submit a fresh
+        # one (fetch_plugin_data's own caching decides how fresh the data
+        # actually is, exactly as before).
+        board_key = None if board is None else (board.device_type, board.rows, board.cols)
+        futures: dict[Any, str] = {}
+        submitted: list[tuple[tuple, Any]] = []
+        with self._inflight_lock:
+            for plugin_id in to_fetch:
+                key = (plugin_id, board_key)
+                future = self._inflight_fetches.get(key)
+                if future is None or future.done():
+                    future = executor.submit(self.fetch_plugin_data, plugin_id, board)
+                    self._inflight_fetches[key] = future
+                    submitted.append((key, future))
+                futures[future] = plugin_id
+        # Register cleanup callbacks OUTSIDE the lock: an already-completed
+        # future runs its callback inline, which itself takes the lock.
+        for key, future in submitted:
+            future.add_done_callback(self._clear_inflight_entry(key))
         done, not_done = futures_wait(futures, timeout=CONTEXT_BUILD_TIMEOUT_SECONDS)
 
         if not_done:

@@ -209,3 +209,55 @@ class TestPersistentBoundedExecutor:
             release.set()
 
         assert "saturated" in caplog.text
+
+
+@pytest.fixture
+def fresh_pool():
+    """A private shared-pool lifetime for occupancy-counting tests."""
+    registry_module.shutdown_plugin_fetch_executor()
+    yield
+    registry_module.shutdown_plugin_fetch_executor()
+
+
+class TestInFlightFetchDedupe:
+    def test_wedged_plugin_occupies_one_worker_and_never_starves_healthy_plugins(
+        self, registry, monkeypatch, fresh_pool
+    ):
+        """12 ticks with one wedged plugin: its pending fetch is JOINED, not
+        resubmitted — so it occupies exactly ONE pool worker, and the healthy
+        plugin's data is present in the context on every tick.
+
+        (Pre-dedupe, every tick submitted a duplicate wedged fetch; by ~tick 8
+        all 8 shared workers were occupied and the healthy plugin's fetch
+        could no longer start, killing ALL plugin data board-wide.)
+        """
+        monkeypatch.setattr(registry_module, "CONTEXT_BUILD_TIMEOUT_SECONDS", 0.1)
+        release = threading.Event()
+        workers_entered: list[str] = []
+
+        def hang(board=None):
+            workers_entered.append(threading.current_thread().name)
+            release.wait(timeout=30)
+            return PluginResult(available=False, error="released")
+
+        _install_plugin(registry, "wedged", get_data=hang)
+        healthy = _install_plugin(registry, "healthy")
+
+        try:
+            for tick in range(12):
+                context = registry.build_template_context()
+                assert context.get("healthy") == {"value": "HEALTHY"}, (
+                    f"healthy plugin dropped from the context at tick {tick} "
+                    f"(wedged fetch occupies {len(workers_entered)} workers)"
+                )
+        finally:
+            release.set()
+
+        # The healthy plugin really was re-fetched every tick (dedupe joins
+        # only PENDING fetches; completed ones are re-submitted as before).
+        assert healthy.get_data.call_count == 12
+        assert len(workers_entered) == 1, (
+            f"wedged fetch occupied {len(workers_entered)} pool workers across 12 ticks; "
+            "in-flight dedupe should hold it to exactly one"
+        )
+
