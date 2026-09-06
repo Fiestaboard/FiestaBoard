@@ -384,11 +384,9 @@ def update_schedule(
             fields["enabled"] = enabled
         if custom_days is not None:
             fields["custom_days"] = custom_days
-        if not fields:
-            return err(
-                "Nothing to update: pass at least one of page_id, start_time, "
-                "end_time, day_pattern, custom_days, enabled."
-            )
+        # No empty-fields guard: an empty ScheduleUpdate is a no-op merge, and
+        # the pre-#1764 tool always called the service — the "not found" reply
+        # for an unknown id (pinned by tests/test_mcp_server.py) depends on it.
 
         entry = svc.update_schedule(schedule_id, ScheduleUpdate(**fields))
         if entry is None:
