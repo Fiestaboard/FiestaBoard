@@ -285,26 +285,35 @@ def delete_page(page_id: str) -> dict[str, Any]:
         return err(f"Error deleting page '{page_id}': {exc}")
 
 
-async def set_active_page(page_id: str) -> dict[str, Any]:
+async def set_active_page(page_id: str, board_id: str | None = None) -> dict[str, Any]:
     """Set which page is currently shown on the display.
 
     Delegates to the REST handler rather than reimplementing it: selecting
     a page validates the ref, enforces page<->board size compatibility,
     dismisses active plugin triggers (#856), and renders to the board.
     Issue #1559 was a reimplementation going its own way.
+
+    ``board_id`` targets that board's active-page slot (#1765); omitted is
+    the legacy primary-board call, exactly as before — the REST handler
+    already speaks per-board (#1244), so the parameter simply flows through.
     """
     from fastapi import HTTPException
 
     from src.api_server import set_active_page as _rest_set_active_page
 
+    body: dict[str, Any] = {"page_id": page_id}
+    if board_id is not None:
+        body["board_id"] = board_id
     try:
-        response = await _rest_set_active_page({"page_id": page_id})
+        response = await _rest_set_active_page(body)
     except HTTPException as exc:
         return err(f"Error setting active page: {exc.detail}")
     except Exception as exc:
         return err(f"Error setting active page: {exc}")
 
     message = f"Active page set to '{page_id}'."
+    if board_id is not None:
+        message = f"Active page set to '{page_id}' on board '{board_id}'."
     if response.get("paused"):
         message += " The board is paused, so it will appear when you resume it."
     elif not response.get("sent_to_board"):
@@ -312,10 +321,129 @@ async def set_active_page(page_id: str) -> dict[str, Any]:
     return ok(
         message,
         page_id=page_id,
+        board_id=board_id,
         sent_to_board=bool(response.get("sent_to_board")),
         paused=bool(response.get("paused")),
         warnings=response.get("warnings", []),
     )
+
+
+def send_message(text: str, board_id: str | None = None) -> dict[str, Any]:
+    """Send an ad-hoc text message straight to a board (issue #1765).
+
+    Mirrors ``POST /send-message`` gate for gate — silence (#1788), pause
+    (#970), out-of-band bookkeeping and MQTT state push (#1794/#1831),
+    adaptive refresh — through the same service seams, and shares the
+    wrap/convert/render core (:mod:`src.displays.messages`) with the REST
+    handler so the two surfaces render identically. On top of the REST
+    behavior it can target a secondary board via ``board_id``.
+
+    Silence and pause come back as ``status: "blocked"`` results, not
+    errors — they are deliberate policy, and the model should relay them
+    rather than retry.
+    """
+    try:
+        # get_service is the DisplayService singleton accessor — api_server
+        # owns it, but this is the same seam get_system_status and
+        # set_active_page already use; no REST handler is called.
+        from src.api_server import get_service
+        from src.config import Config
+        from src.devices import resolve_dimensions
+        from src.displays.messages import render_message
+        from src.settings.service import get_settings_service
+
+        service = get_service()
+        if not service:
+            return err("Display service not initialized.")
+
+        settings_service = get_settings_service()
+        primary_id = settings_service.get_primary_board_id()
+        board: dict[str, Any] | None = None
+        if board_id is not None:
+            boards = settings_service.get_board_settings().boards or []
+            board = next((b for b in boards if isinstance(b, dict) and b.get("id") == board_id), None)
+            if board is None:
+                return err(f"Board not found: {board_id}")
+
+        # Silence gate (#1788): resolve the *target* board's window; omitted
+        # board_id resolves the primary, exactly like the REST handler.
+        if Config.is_silence_mode_active(board_id if board_id is not None else primary_id):
+            return {
+                "status": "blocked",
+                "message": "Manual sends blocked during silence mode to prevent wake-ups",
+                "silence_mode": True,
+                "board_id": board_id,
+            }
+
+        # Pause gate (#970): a paused board is left untouched.
+        if settings_service.is_paused(board_id=board_id) is True:
+            return {
+                "status": "blocked",
+                "message": "Board is paused — sends are blocked until it is resumed.",
+                "paused": True,
+                "board_id": board_id,
+            }
+
+        client = service.get_board_client(board_id) if board_id is not None else service.vb_client
+        if not client:
+            return err(
+                f"Board client not initialized: {board_id}" if board_id is not None else "Board client not initialized."
+            )
+
+        # Size the grid to the target board (the REST handler's active-first-
+        # board sizing when board_id is omitted).
+        if board is None:
+            board_settings = settings_service.get_board_settings()
+            board = board_settings.boards[0] if board_settings.boards else {}
+        dims = resolve_dimensions(
+            board.get("device_type") or "flagship",
+            board.get("notes_wide") or 1,
+            board.get("notes_tall") or 1,
+        )
+
+        transition = settings_service.get_transition_settings()
+        success, was_sent = render_message(
+            client,
+            text,
+            rows=dims.rows,
+            cols=dims.cols,
+            strategy=transition.strategy,
+            step_interval_ms=transition.step_interval_ms,
+            step_size=transition.step_size,
+        )
+        if not success:
+            return err("Failed to send message to the board.")
+        if not was_sent:
+            return ok("Message unchanged, no update needed.", skipped=True, board_id=board_id)
+
+        # Out-of-band bookkeeping (#1794/#1831): the board now shows content
+        # the display loop didn't put there. The dedupe cache is deliberately
+        # left alone so the message survives the next engine tick.
+        try:
+            service.mark_showing_out_of_band(board_id)
+        except Exception as exc:
+            logger.debug("Out-of-band mark after MCP send failed: %s", exc)
+        try:
+            from src.mqtt import get_mqtt_client
+
+            mqtt_client = get_mqtt_client()
+            publisher = getattr(mqtt_client, "_state_publisher", None) if mqtt_client else None
+            if publisher is not None:
+                publisher.mark_display_updated()
+                publisher.gather_and_publish()
+        except Exception as exc:
+            logger.debug("MQTT state publish after MCP send failed: %s", exc)
+        # Adaptive post-send refresh is primary-only (board-state polling
+        # tracks only the primary board — issue #1243).
+        if board_id is None or board_id == primary_id:
+            try:
+                service.request_board_refresh()
+            except Exception as exc:
+                logger.debug("Board refresh after MCP send failed: %s", exc)
+
+        return ok("Message sent successfully.", board_id=board_id)
+    except Exception as exc:
+        return err(f"Error sending message: {exc}")
 
 
 # ---------------------------------------------------------------------------
@@ -435,19 +563,31 @@ def delete_schedule(schedule_id: str) -> dict[str, Any]:
         return err(f"Error deleting schedule '{schedule_id}': {exc}")
 
 
-def set_schedule_mode(enabled: bool) -> dict[str, Any]:
+def set_schedule_mode(enabled: bool, board_id: str | None = None) -> dict[str, Any]:
     """Enable or disable schedule-based display.
 
     Schedule mode is a settings flag (per-board since #1244), not
     something ScheduleService owns — same mixup as issue #1559.
+
+    ``board_id`` targets that board's flag (#1765); omitted keeps the
+    legacy primary-board call. An unknown board is an error here because
+    ``SettingsService.set_schedule_enabled`` logs-and-no-ops on one, which
+    over MCP would read as success while changing nothing.
     """
     try:
         from src.settings.service import get_settings_service
 
         svc = get_settings_service()
-        svc.set_schedule_enabled(enabled)
+        if board_id is not None:
+            boards = svc.get_board_settings().boards or []
+            if not any(isinstance(b, dict) and b.get("id") == board_id for b in boards):
+                return err(f"Board not found: {board_id}")
+            svc.set_schedule_enabled(enabled, board_id=board_id)
+        else:
+            svc.set_schedule_enabled(enabled)
         state = "enabled" if enabled else "disabled"
-        return ok(f"Schedule mode {state}.", enabled=enabled)
+        target = f" for board '{board_id}'" if board_id is not None else ""
+        return ok(f"Schedule mode {state}{target}.", enabled=enabled, board_id=board_id)
     except Exception as exc:
         return err(f"Error setting schedule mode: {exc}")
 

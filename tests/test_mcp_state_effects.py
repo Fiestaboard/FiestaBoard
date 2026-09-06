@@ -87,13 +87,18 @@ COVERED = {
     "configure_plugin",
     "get_plugin_data",
     "update_plugin",
+    "set_active_page",
+    "set_schedule_mode",
+    "get_active_page",
+    "get_board_content",
+    "send_message",
+    "preview_saved_page",
+    "validate_template",
 }
 
 #: Tools not yet covered here, each with the reason. Not an exemption list.
 UNCOVERED = {
     "list_registry_plugins": "hits the network-backed registry; needs a fixture",
-    "set_active_page": "delegates to the REST handler; needs board render wiring",
-    "set_schedule_mode": "routes through SettingsService; needs settings wiring",
 }
 
 
@@ -169,7 +174,13 @@ def _manifest(plugin_id: str, version: str = "1.0.0") -> dict[str, Any]:
                     "type": "string",
                     "max_length": 5,
                     "example": "06:12",
-                }
+                },
+                "board_cols": {
+                    "description": "Column count of the board being rendered on",
+                    "type": "string",
+                    "max_length": 8,
+                    "example": "22",
+                },
             }
         },
     }
@@ -194,7 +205,11 @@ class HarnessPlugin(PluginBase):
         return []
 
     def fetch_data(self) -> PluginResult:
-        return PluginResult(available=True, data={{"next_high": "06:12"}})
+        # board_cols makes render fidelity observable: a render that builds
+        # its plugin context WITHOUT a BoardContext sees "no-board" here.
+        board = getattr(self, "board", None)
+        cols = str(board.cols) if board is not None else "no-board"
+        return PluginResult(available=True, data={{"next_high": "06:12", "board_cols": cols}})
 '''
 
 
@@ -324,6 +339,22 @@ def call(mcp: Any, tool_name: str, /, **kwargs: Any) -> Any:
     if asyncio.iscoroutine(result):
         result = asyncio.run(result)
     return result
+
+
+def call_expect_error(mcp: Any, tool_name: str, /, **kwargs: Any) -> str:
+    """Invoke a tool whose failure is the point; return its error message.
+
+    #1765 contract reversal: failures used to be *successful* results whose
+    payload said ``{"status": "error"}``; a failing tool now raises
+    ToolError (protocol ``isError`` on the wire — pinned end-to-end by
+    tests/test_mcp_server.py::TestProtocolIsError). Every error-path test
+    below asserts on the raised message instead of the old envelope.
+    """
+    from mcp.server.mcpserver.exceptions import ToolError
+
+    with pytest.raises(ToolError) as excinfo:
+        call(mcp, tool_name, **kwargs)
+    return str(excinfo.value)
 
 
 def assert_ok(result: Any, what: str) -> Any:
@@ -468,8 +499,8 @@ def test_update_page_with_no_fields_is_reported_not_silently_ignored(mcp, servic
         call(mcp, "create_page", name="Untouched", template_lines=FLAGSHIP_TEMPLATE, device_type="flagship"),
         "create_page",
     )
-    result = call(mcp, "update_page", page_id=created["page_id"])
-    assert isinstance(result, dict) and result.get("error"), "a no-op update should say so, not report success"
+    message = call_expect_error(mcp, "update_page", page_id=created["page_id"])
+    assert "Nothing to update" in message, "a no-op update should say so, not report success"
 
 
 def test_delete_page_removes_it_from_list_pages(mcp, services):
@@ -790,12 +821,9 @@ def test_configure_plugin_merges_with_the_existing_stored_config(mcp, plugins):
 
 def test_configure_plugin_reports_validation_errors_instead_of_success(mcp, plugins):
     """``registry.set_plugin_config()`` returns errors; the tool discarded them."""
-    result = call(mcp, "configure_plugin", plugin_id=PLUGIN_ID, config={"station_id": ""})
+    message = call_expect_error(mcp, "configure_plugin", plugin_id=PLUGIN_ID, config={"station_id": ""})
 
-    assert result.get("status") == "error", "an invalid config was reported as a successful update"
-    assert "station_id" in str(result.get("error", "")), (
-        f"the plugin's own validation message was not surfaced: {result}"
-    )
+    assert "station_id" in message, f"the plugin's own validation message was not surfaced: {message}"
 
 
 def test_configure_plugin_does_not_overwrite_a_good_config_with_a_rejected_one(mcp, plugins):
@@ -804,15 +832,14 @@ def test_configure_plugin_does_not_overwrite_a_good_config_with_a_rejected_one(m
         "configure_plugin",
     )
 
-    call(mcp, "configure_plugin", plugin_id=PLUGIN_ID, config={"station_id": ""})
+    call_expect_error(mcp, "configure_plugin", plugin_id=PLUGIN_ID, config={"station_id": ""})
 
     stored = stored_plugin_config(plugins["config_path"], PLUGIN_ID)
     assert stored["station_id"] == "9447427", "a rejected config was persisted over a valid one"
 
 
 def test_configure_plugin_reports_an_error_for_an_unknown_plugin(mcp, plugins):
-    result = call(mcp, "configure_plugin", plugin_id="not_a_plugin", config={"station_id": "1"})
-    assert result.get("status") == "error"
+    call_expect_error(mcp, "configure_plugin", plugin_id="not_a_plugin", config={"station_id": "1"})
     assert stored_plugin_config(plugins["config_path"], "not_a_plugin") is None
 
 
@@ -835,13 +862,11 @@ def test_disable_plugin_persists_enabled_false(mcp, plugins):
 
 def test_enable_plugin_reports_an_error_for_an_unknown_plugin(mcp, plugins):
     """``registry.enable_plugin()`` returns False here; the tool ignored it."""
-    result = call(mcp, "enable_plugin", plugin_id="not_a_plugin")
-    assert result.get("status") == "error", "enabling a plugin that does not exist reported success"
+    call_expect_error(mcp, "enable_plugin", plugin_id="not_a_plugin")
 
 
 def test_disable_plugin_reports_an_error_for_an_unknown_plugin(mcp, plugins):
-    result = call(mcp, "disable_plugin", plugin_id="not_a_plugin")
-    assert result.get("status") == "error", "disabling a plugin that does not exist reported success"
+    call_expect_error(mcp, "disable_plugin", plugin_id="not_a_plugin")
 
 
 def test_enable_plugin_does_not_disturb_the_stored_settings(mcp, plugins):
@@ -934,13 +959,13 @@ def test_plugin_configured_over_mcp_survives_a_container_recreate(mcp, plugins):
 
 
 def test_delete_schedule_reports_an_error_for_an_unknown_id(mcp, services):
-    result = call(mcp, "delete_schedule", schedule_id="no-such-schedule")
-    assert result.get("status") == "error", f"deleting a schedule that does not exist reported success: {result}"
+    message = call_expect_error(mcp, "delete_schedule", schedule_id="no-such-schedule")
+    assert "not found" in message, f"deleting a schedule that does not exist reported success: {message}"
 
 
 def test_delete_collection_reports_an_error_for_an_unknown_id(mcp, services):
-    result = call(mcp, "delete_collection", collection_id="no-such-collection")
-    assert result.get("status") == "error", f"deleting a collection that does not exist reported success: {result}"
+    message = call_expect_error(mcp, "delete_collection", collection_id="no-such-collection")
+    assert "not found" in message, f"deleting a collection that does not exist reported success: {message}"
 
 
 # ---------------------------------------------------------------------------
@@ -1090,12 +1115,9 @@ def test_update_plugin_fetches_the_new_version_from_the_remote(mcp, updatable_pl
 
 def test_update_plugin_refuses_a_builtin_plugin(mcp, updatable_plugins):
     """``POST /plugins/{id}/update`` 400s here; the MCP tool reloaded it."""
-    result = call(mcp, "update_plugin", plugin_id=BUILTIN_PLUGIN_ID)
+    message = call_expect_error(mcp, "update_plugin", plugin_id=BUILTIN_PLUGIN_ID)
 
-    assert result.get("status") == "error", f"a built-in plugin was reported as updated: {result}"
-    assert "built-in" in str(result.get("error", "")).lower(), (
-        f"the rejection did not say why a built-in cannot be updated: {result}"
-    )
+    assert "built-in" in message.lower(), f"the rejection did not say why a built-in cannot be updated: {message}"
 
 
 def test_update_plugin_refuses_a_plugin_that_is_not_a_git_checkout(mcp, updatable_plugins):
@@ -1104,14 +1126,496 @@ def test_update_plugin_refuses_a_plugin_that_is_not_a_git_checkout(mcp, updatabl
     Without the REST path's ``.git`` check the tool reports success for a
     directory it has no way to update.
     """
-    result = call(mcp, "update_plugin", plugin_id=PLUGIN_ID)
+    message = call_expect_error(mcp, "update_plugin", plugin_id=PLUGIN_ID)
 
-    assert result.get("status") == "error", f"a plugin with no git checkout was reported as updated: {result}"
-    assert "git" in str(result.get("error", "")).lower(), (
-        f"the rejection did not name the missing git checkout: {result}"
-    )
+    assert "git" in message.lower(), f"the rejection did not name the missing git checkout: {message}"
 
 
 def test_update_plugin_reports_an_error_for_an_unknown_plugin(mcp, updatable_plugins):
-    result = call(mcp, "update_plugin", plugin_id="not_a_plugin")
-    assert result.get("status") == "error", f"updating a plugin that does not exist reported success: {result}"
+    call_expect_error(mcp, "update_plugin", plugin_id="not_a_plugin")
+
+
+# ---------------------------------------------------------------------------
+# Multi-board — issue #1765
+#
+# On a multi-board install, set_active_page and set_schedule_mode silently
+# targeted only the primary board while reporting success. These tests run a
+# real SettingsService over two configured boards and read the per-board
+# state back after each call.
+# ---------------------------------------------------------------------------
+
+NOTE_TEMPLATE = ["HI", "", ""]
+
+
+@pytest.fixture
+def two_boards(services, tmp_path, monkeypatch):
+    """A real SettingsService over tmp storage with two configured boards."""
+    import src.settings.service as settings_module
+
+    svc = settings_module.SettingsService(settings_file=str(tmp_path / "settings.json"))
+    svc.set_boards(
+        [
+            {"id": "board-main", "name": "Living Room", "device_type": "flagship"},
+            {"id": "board-note", "name": "Kitchen", "device_type": "note"},
+        ]
+    )
+    monkeypatch.setattr(settings_module, "_settings_service", svc)
+    # No display engine in this harness: selection must persist even when the
+    # immediate board send is skipped.
+    monkeypatch.setattr("src.api_server.get_service", lambda: None)
+    return svc
+
+
+def test_set_active_page_with_board_id_changes_only_that_board(mcp, services, two_boards):
+    main_page = assert_ok(
+        call(mcp, "create_page", name="Main", template_lines=FLAGSHIP_TEMPLATE, device_type="flagship"),
+        "create_page",
+    )
+    note_page = assert_ok(
+        call(mcp, "create_page", name="Note", template_lines=NOTE_TEMPLATE, device_type="note"),
+        "create_page",
+    )
+
+    assert_ok(call(mcp, "set_active_page", page_id=main_page["page_id"]), "set_active_page (primary)")
+    assert_ok(
+        call(mcp, "set_active_page", page_id=note_page["page_id"], board_id="board-note"),
+        "set_active_page (board-note)",
+    )
+
+    assert two_boards.get_active_page_id(board_id="board-note") == note_page["page_id"]
+    assert two_boards.get_active_page_id() == main_page["page_id"], (
+        "targeting board-note must leave the primary board's active page untouched"
+    )
+
+
+def test_set_active_page_without_board_id_keeps_targeting_the_primary_board(mcp, services, two_boards):
+    """Backward compatibility: omitting board_id is the legacy primary-board call."""
+    page = assert_ok(
+        call(mcp, "create_page", name="Legacy", template_lines=FLAGSHIP_TEMPLATE, device_type="flagship"),
+        "create_page",
+    )
+
+    assert_ok(call(mcp, "set_active_page", page_id=page["page_id"]), "set_active_page")
+
+    assert two_boards.get_active_page_id() == page["page_id"]
+    assert two_boards.get_active_page_id(board_id="board-note") is None
+
+
+def test_set_schedule_mode_with_board_id_changes_only_that_board(mcp, services, two_boards):
+    assert_ok(call(mcp, "set_schedule_mode", enabled=True, board_id="board-note"), "set_schedule_mode")
+
+    assert two_boards.is_schedule_enabled("board-note") is True
+    assert two_boards.is_schedule_enabled("board-main") is False, (
+        "targeting board-note must leave the primary board's schedule mode untouched"
+    )
+
+
+def test_set_schedule_mode_without_board_id_keeps_targeting_the_primary_board(mcp, services, two_boards):
+    assert_ok(call(mcp, "set_schedule_mode", enabled=True), "set_schedule_mode")
+
+    assert two_boards.is_schedule_enabled("board-main") is True
+    assert two_boards.is_schedule_enabled("board-note") is False
+
+
+def test_set_schedule_mode_reports_an_unknown_board(mcp, services, two_boards):
+    message = call_expect_error(mcp, "set_schedule_mode", enabled=True, board_id="no-such-board")
+
+    assert "no-such-board" in message
+    assert two_boards.is_schedule_enabled("board-main") is False
+    assert two_boards.is_schedule_enabled("board-note") is False
+
+
+def test_get_settings_summary_reports_boards_schedule_and_active_page(mcp, services, two_boards):
+    """The troubleshoot prompt walks schedule + active page; the boards list is
+    what lets a model target board 2 and pick correct dimensions (#1765)."""
+    page = assert_ok(
+        call(mcp, "create_page", name="Summary", template_lines=FLAGSHIP_TEMPLATE, device_type="flagship"),
+        "create_page",
+    )
+    assert_ok(call(mcp, "set_active_page", page_id=page["page_id"]), "set_active_page")
+    two_boards.set_schedule_enabled(True, board_id="board-note")
+
+    result = assert_ok(call(mcp, "get_settings_summary"), "get_settings_summary")
+
+    assert result.get("active_page_id") == page["page_id"]
+    assert result.get("schedule", {}).get("enabled") is False, "schedule reflects the primary board"
+
+    boards = {b["id"]: b for b in result.get("boards", [])}
+    assert set(boards) == {"board-main", "board-note"}
+
+    main = boards["board-main"]
+    assert main["name"] == "Living Room"
+    assert main["device_type"] == "flagship"
+    assert (main["rows"], main["cols"]) == (6, 22)
+    assert main["primary"] is True
+    assert main["active_page_id"] == page["page_id"]
+    assert "error" in main, "the #1813 per-board init error surface is part of the contract"
+
+    note = boards["board-note"]
+    assert note["device_type"] == "note"
+    assert (note["rows"], note["cols"]) == (3, 15)
+    assert note["primary"] is False
+    assert note["schedule_enabled"] is True
+    assert note["paused"] is False and note["enabled"] is True
+
+
+def test_get_settings_summary_boards_never_leak_credentials(mcp, services, two_boards):
+    two_boards.set_boards(
+        [
+            {
+                "id": "board-main",
+                "name": "Living Room",
+                "device_type": "flagship",
+                "host": "192.168.0.99",
+                "local_api_key": "test_secret_key",
+            },
+            {"id": "board-note", "name": "Kitchen", "device_type": "note"},
+        ]
+    )
+
+    result = assert_ok(call(mcp, "get_settings_summary"), "get_settings_summary")
+
+    flat = json.dumps(result.get("boards", []))
+    assert "test_secret_key" not in flat, "a board API key leaked through get_settings_summary"
+    assert "192.168.0.99" not in flat, "a board host leaked through get_settings_summary"
+
+
+# ---------------------------------------------------------------------------
+# Read-back and action tools — issue #1765
+#
+# The MCP surface was write-only: nothing reported the resolved active page,
+# the board's current content, or a saved page's rendered output, and there
+# was no ad-hoc send. The display engine is faked with a minimal object (not
+# a MagicMock) so a tool calling a method that does not exist raises.
+# ---------------------------------------------------------------------------
+
+
+class _FakeClient:
+    def __init__(self):
+        self.rendered: list[list[list[int]]] = []
+        self._last_characters = None
+
+    def render(self, board_array, **kwargs):
+        self.rendered.append(board_array)
+        self._last_characters = board_array
+        return (True, True)
+
+
+class _FakeRuntime:
+    def __init__(self, client):
+        self.client = client
+        self.polled_characters = None
+        self.polled_at = None
+
+
+class _FakeEngine:
+    """Just the DisplayService surface the board tools are allowed to touch."""
+
+    def __init__(self, board_ids):
+        self.runtimes = {bid: _FakeRuntime(_FakeClient()) for bid in board_ids}
+        self._primary_id = board_ids[0]
+        self.out_of_band: list = []
+        self.refreshes = 0
+        self._polled_characters = None
+        self._polled_at = None
+
+    @property
+    def vb_client(self):
+        return self.runtimes[self._primary_id].client
+
+    def get_board_client(self, board_id):
+        rt = self.runtimes.get(board_id)
+        return rt.client if rt else None
+
+    def get_runtime(self, board_id):
+        return self.runtimes.get(board_id)
+
+    def mark_showing_out_of_band(self, board_id=None):
+        self.out_of_band.append(board_id)
+
+    def request_board_refresh(self):
+        self.refreshes += 1
+
+
+@pytest.fixture
+def engine(two_boards, monkeypatch):
+    fake = _FakeEngine(["board-main", "board-note"])
+    monkeypatch.setattr("src.api_server.get_service", lambda: fake)
+    return fake
+
+
+# -- send_message -----------------------------------------------------------
+
+
+def test_send_message_renders_to_the_primary_board_client(mcp, services, engine):
+    result = assert_ok(call(mcp, "send_message", text="HELLO"), "send_message")
+
+    assert result["status"] == "success"
+    grids = engine.vb_client.rendered
+    assert len(grids) == 1, "send_message did not render exactly once"
+    assert (len(grids[0]), len(grids[0][0])) == (6, 22), "primary flagship grid must be 6x22"
+    assert engine.runtimes["board-note"].client.rendered == [], "the other board was touched"
+
+
+def test_send_message_with_board_id_targets_that_board_at_its_own_size(mcp, services, engine):
+    assert_ok(call(mcp, "send_message", text="HI", board_id="board-note"), "send_message")
+
+    grids = engine.runtimes["board-note"].client.rendered
+    assert len(grids) == 1
+    assert (len(grids[0]), len(grids[0][0])) == (3, 15), "note board grid must be 3x15, not flagship 6x22"
+    assert engine.vb_client.rendered == [], "the primary board was touched"
+
+
+def test_send_message_marks_the_write_out_of_band(mcp, services, engine):
+    """Issue #1794/#1831: an ad-hoc send bypasses the display loop and the
+    state publisher must know the board no longer shows the configured page."""
+    assert_ok(call(mcp, "send_message", text="HELLO"), "send_message")
+
+    assert engine.out_of_band == [None], "primary send must be marked out-of-band"
+
+
+def test_send_message_to_a_paused_board_is_blocked_without_touching_it(mcp, services, engine, two_boards):
+    two_boards.set_paused(True, board_id="board-note")
+
+    result = call(mcp, "send_message", text="HI", board_id="board-note")
+
+    assert result.get("status") == "blocked", f"a paused board accepted a send: {result}"
+    assert result.get("paused") is True
+    assert engine.runtimes["board-note"].client.rendered == []
+
+
+def test_send_message_reports_an_unknown_board(mcp, services, engine):
+    message = call_expect_error(mcp, "send_message", text="HI", board_id="no-such-board")
+
+    assert "no-such-board" in message
+    assert engine.vb_client.rendered == []
+
+
+# -- get_active_page --------------------------------------------------------
+
+
+def test_get_active_page_reads_back_the_selection_per_board(mcp, services, two_boards, monkeypatch):
+    monkeypatch.setattr("src.api_server.get_service", lambda: None)
+    main_page = assert_ok(
+        call(mcp, "create_page", name="Main", template_lines=FLAGSHIP_TEMPLATE, device_type="flagship"),
+        "create_page",
+    )
+    note_page = assert_ok(
+        call(mcp, "create_page", name="Note", template_lines=NOTE_TEMPLATE, device_type="note"),
+        "create_page",
+    )
+    assert_ok(call(mcp, "set_active_page", page_id=main_page["page_id"]), "set_active_page")
+    assert_ok(
+        call(mcp, "set_active_page", page_id=note_page["page_id"], board_id="board-note"),
+        "set_active_page",
+    )
+
+    primary = assert_ok(call(mcp, "get_active_page"), "get_active_page")
+    assert primary["active_ref"] == main_page["page_id"]
+    assert primary["resolved_page_id"] == main_page["page_id"]
+    assert primary["source"] == "manual"
+    assert primary["page"]["name"] == "Main"
+
+    note = assert_ok(call(mcp, "get_active_page", board_id="board-note"), "get_active_page")
+    assert note["active_ref"] == note_page["page_id"]
+    assert note["page"]["device_type"] == "note"
+
+
+def test_get_active_page_resolves_a_collection_to_its_member(mcp, services, two_boards, monkeypatch):
+    monkeypatch.setattr("src.api_server.get_service", lambda: None)
+    page = assert_ok(
+        call(mcp, "create_page", name="Member", template_lines=FLAGSHIP_TEMPLATE, device_type="flagship"),
+        "create_page",
+    )
+    coll = assert_ok(
+        call(mcp, "create_collection", name="Loop", page_ids=[page["page_id"]]),
+        "create_collection",
+    )
+    assert_ok(call(mcp, "set_active_page", page_id=coll["collection_id"]), "set_active_page")
+
+    result = assert_ok(call(mcp, "get_active_page"), "get_active_page")
+
+    assert result["active_ref"] == coll["collection_id"]
+    assert result["resolved_page_id"] == page["page_id"]
+    assert result["page"]["name"] == "Member"
+
+
+def test_get_active_page_reports_an_unknown_board(mcp, services, two_boards):
+    message = call_expect_error(mcp, "get_active_page", board_id="no-such-board")
+    assert "no-such-board" in message
+
+
+# -- get_board_content ------------------------------------------------------
+
+
+def test_get_board_content_reads_the_primary_poll_cache(mcp, services, engine):
+    grid = [[1] * 22 for _ in range(6)]
+    engine._polled_characters = grid
+
+    result = assert_ok(call(mcp, "get_board_content"), "get_board_content")
+
+    assert result["characters"] == grid
+    assert result["source"] == "polled"
+    assert (result["rows"], result["cols"]) == (6, 22)
+    assert result["message"].splitlines()[0] == "A" * 22
+
+
+def test_get_board_content_reads_a_secondary_boards_runtime_cache(mcp, services, engine):
+    """After a send to board-note, its content is readable without a live poll."""
+    assert_ok(call(mcp, "send_message", text="HI", board_id="board-note"), "send_message")
+
+    result = assert_ok(call(mcp, "get_board_content", board_id="board-note"), "get_board_content")
+
+    assert result["source"] == "last_sent"
+    assert (result["rows"], result["cols"]) == (3, 15)
+    assert result["characters"] == engine.runtimes["board-note"].client._last_characters
+
+
+def test_get_board_content_is_null_when_nothing_was_ever_sent(mcp, services, engine):
+    result = assert_ok(call(mcp, "get_board_content", board_id="board-note"), "get_board_content")
+    assert result["characters"] is None
+    assert result["message"] is None
+
+
+def test_get_board_content_serves_the_primary_by_its_own_id_when_sentinel_keyed(mcp, services, two_boards, monkeypatch):
+    """Legacy installs key the primary runtime under the __primary__ sentinel,
+    not its settings board id. Asking for the primary by its OWN id then
+    missed every cache and returned nulls, while omitting board_id worked —
+    mirror the mark_showing_out_of_band fallback and route the primary's id
+    to the primary path (#1874 review).
+    """
+    fake = _FakeEngine(["__primary__", "board-note"])
+    grid = [[1] * 22 for _ in range(6)]
+    fake._polled_characters = grid
+    monkeypatch.setattr("src.api_server.get_service", lambda: fake)
+
+    result = assert_ok(call(mcp, "get_board_content", board_id="board-main"), "get_board_content")
+
+    assert result["characters"] == grid, "the primary's own id missed the sentinel-keyed cache"
+    assert result["source"] == "polled"
+    assert result["board_id"] == "board-main"
+
+
+# -- preview_saved_page -----------------------------------------------------
+
+
+def test_preview_saved_page_renders_the_stored_page(mcp, services):
+    created = assert_ok(
+        call(mcp, "create_page", name="Stored", template_lines=FLAGSHIP_TEMPLATE, device_type="flagship"),
+        "create_page",
+    )
+
+    result = assert_ok(call(mcp, "preview_saved_page", page_id=created["page_id"]), "preview_saved_page")
+
+    assert result["name"] == "Stored"
+    assert len(result["rows"]) == 6, "a flagship page must render 6 rows"
+    assert result["rows"][0].strip() == "HELLO"
+    assert "line_metadata" in result
+
+
+def test_preview_saved_page_reports_board_fit(mcp, services, two_boards, monkeypatch):
+    monkeypatch.setattr("src.api_server.get_service", lambda: None)
+    created = assert_ok(
+        call(mcp, "create_page", name="Flag", template_lines=FLAGSHIP_TEMPLATE, device_type="flagship"),
+        "create_page",
+    )
+
+    result = assert_ok(
+        call(mcp, "preview_saved_page", page_id=created["page_id"], board_id="board-note"),
+        "preview_saved_page",
+    )
+
+    assert result["fits_board"] is False, "a flagship page does not fit a note board"
+
+
+def test_preview_saved_page_reports_an_unknown_board(mcp, services, two_boards):
+    """fits_board: true for a board that does not exist is an answer about
+    nothing. Same roster existence check as the sibling board tools —
+    ToolError "Board not found" (#1874 review)."""
+    created = assert_ok(
+        call(mcp, "create_page", name="Flag", template_lines=FLAGSHIP_TEMPLATE, device_type="flagship"),
+        "create_page",
+    )
+
+    message = call_expect_error(mcp, "preview_saved_page", page_id=created["page_id"], board_id="no-such-board")
+
+    assert "no-such-board" in message
+
+
+def test_preview_saved_page_unknown_page_is_an_error(mcp, services):
+    message = call_expect_error(mcp, "preview_saved_page", page_id="no-such-page")
+    assert "no-such-page" in message
+
+
+# -- validate_template ------------------------------------------------------
+
+
+def test_validate_template_accepts_a_clean_template(mcp, services):
+    result = assert_ok(call(mcp, "validate_template", template=["HELLO", ""]), "validate_template")
+    assert result["valid"] is True
+    assert result["errors"] == []
+
+
+def test_validate_template_reports_a_broken_formula_with_position(mcp, services):
+    result = call(mcp, "validate_template", template="{{= 1 + @ }}")
+
+    assert result["valid"] is False
+    assert result["errors"], "a broken formula produced no errors"
+    assert all({"line", "column", "message"} <= set(e) for e in result["errors"])
+
+
+def test_validate_template_rejects_an_unknown_device_type(mcp, services):
+    message = call_expect_error(mcp, "validate_template", template="HI", device_type="jumbotron")
+    assert "jumbotron" in message
+
+
+# ---------------------------------------------------------------------------
+# render_page_preview fidelity — issue #1765
+#
+# The ad-hoc preview built its plugin context with NO BoardContext and took
+# no line_metadata, so board-aware plugins previewed wrong and alignment/
+# wrap could not be previewed at all — unlike the saved-page render path.
+# ---------------------------------------------------------------------------
+
+
+def _enable_harness_plugin(mcp):
+    assert_ok(
+        call(mcp, "configure_plugin", plugin_id=PLUGIN_ID, config={"station_id": "9447427"}),
+        "configure_plugin",
+    )
+    assert_ok(call(mcp, "enable_plugin", plugin_id=PLUGIN_ID), "enable_plugin")
+
+
+def test_render_page_preview_gives_plugins_the_real_board_context(mcp, plugins):
+    _enable_harness_plugin(mcp)
+
+    result = assert_ok(
+        call(
+            mcp,
+            "render_page_preview",
+            template_lines=["{{" + PLUGIN_ID + ".board_cols}}", "", ""],
+            device_type="note",
+        ),
+        "render_page_preview",
+    )
+
+    first_row = result["rendered"].split("\n")[0]
+    assert "15" in first_row, f"a note render must hand plugins a 15-column BoardContext; the plugin saw: {first_row!r}"
+    assert PLUGIN_ID in result["context_plugins"]
+
+
+def test_render_page_preview_applies_line_metadata(mcp, services):
+    result = assert_ok(
+        call(
+            mcp,
+            "render_page_preview",
+            template_lines=["HI", "", "", "", "", ""],
+            device_type="flagship",
+            line_metadata=[{"alignment": "center"}],
+        ),
+        "render_page_preview",
+    )
+
+    first_row = result["rendered"].split("\n")[0]
+    assert first_row.strip() == "HI"
+    assert first_row.index("HI") > 0, "center alignment from line_metadata was not applied"

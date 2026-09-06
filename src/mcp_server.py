@@ -47,6 +47,8 @@ including why claude.ai web Connectors can't reach a LAN host.
 
 from __future__ import annotations
 
+import functools
+import inspect
 import logging
 from typing import Annotated, Any
 
@@ -60,7 +62,6 @@ from pydantic import Field
 # get real JSON instead of a JSON string that has to be parsed again.
 from .ops import executors as ops_executors
 from .ops import teaching as ops_teaching
-from .ops.results import err as _err
 from .ops.results import serialize as _serialize
 
 logger = logging.getLogger(__name__)
@@ -73,15 +74,117 @@ logger = logging.getLogger(__name__)
 
 try:
     from mcp.server import MCPServer  # type: ignore[import-untyped]
+    from mcp.server.mcpserver.exceptions import ToolError  # type: ignore[import-untyped]
 
     _MCP_AVAILABLE = True
 except ImportError:  # pragma: no cover
     _MCP_AVAILABLE = False
     MCPServer = None  # type: ignore[assignment,misc]
+    ToolError = None  # type: ignore[assignment,misc]
     logger.warning(
         "mcp package not installed — FiestaBoard MCP server is disabled. "
         "Add `mcp>=2.0.0` to requirements.txt and rebuild the container."
     )
+
+
+def _boards_summary(settings_service: Any) -> list[dict[str, Any]]:
+    """Per-board roster for ``get_settings_summary`` (#1765).
+
+    An explicit field projection, never the raw board dicts — those carry
+    credentials (host, API keys, note-array tokens) that must not cross the
+    MCP boundary even masked. ``error`` is the #1813 per-board init failure,
+    read defensively off the engine service when one exists.
+    """
+    from .devices import resolve_dimensions
+
+    init_errors: dict[str, str] = {}
+    try:
+        # peek, never create: a read-only summary must not boot the engine.
+        from .api_server import peek_service
+
+        engine = peek_service()
+        maybe = getattr(engine, "board_init_errors", None)
+        if isinstance(maybe, dict):
+            init_errors = maybe
+    except Exception as exc:  # pragma: no cover - defensive
+        logger.debug("get_settings_summary: could not read board init errors: %s", exc)
+
+    boards_out: list[dict[str, Any]] = []
+    try:
+        boards = settings_service.get_board_settings().boards or []
+        primary_id = settings_service.get_primary_board_id()
+    except Exception as exc:
+        logger.debug("get_settings_summary: could not read boards list: %s", exc)
+        return boards_out
+
+    for board in boards:
+        if not isinstance(board, dict) or not board.get("id"):
+            continue
+        bid = board["id"]
+        rows = cols = None
+        try:
+            dims = resolve_dimensions(
+                board.get("device_type") or "flagship",
+                board.get("notes_wide") or 1,
+                board.get("notes_tall") or 1,
+            )
+            rows, cols = dims.rows, dims.cols
+        except Exception as exc:
+            logger.debug("get_settings_summary: could not resolve dims for board %s: %s", bid, exc)
+        try:
+            active_page_id = settings_service.get_active_page_id(board_id=bid)
+        except Exception:
+            active_page_id = None
+        if not isinstance(active_page_id, str):
+            active_page_id = None
+        error = init_errors.get(bid)
+        boards_out.append(
+            {
+                "id": bid,
+                "name": board.get("name", ""),
+                "device_type": board.get("device_type", "flagship"),
+                "rows": rows,
+                "cols": cols,
+                "notes_wide": board.get("notes_wide", 1),
+                "notes_tall": board.get("notes_tall", 1),
+                "primary": bid == primary_id,
+                "enabled": bool(board.get("enabled", True)),
+                "paused": bool(board.get("paused", False)),
+                "schedule_enabled": bool(board.get("schedule_enabled", False)),
+                "active_page_id": active_page_id,
+                "error": error if isinstance(error, str) else None,
+            }
+        )
+    return boards_out
+
+
+def _tool_failure(tool_name: str, exc: Exception) -> Exception:
+    """Map an unexpected exception to a concise protocol error (#1765).
+
+    The full traceback goes to the server log; the wire gets a one-line
+    message naming the tool and the exception class but no internal detail
+    — raw exception text routinely carries paths, config values, and other
+    things an MCP client has no business seeing.
+    """
+    logger.exception("MCP tool %s failed", tool_name)
+    return ToolError(f"{tool_name} failed unexpectedly ({type(exc).__name__}); details are in the server log.")
+
+
+def _raise_error_envelope(result: Any) -> Any:
+    """Turn an executor ``{"status": "error"}`` envelope into a ToolError.
+
+    The ops executors never raise (their envelope contract predates #1765
+    and the chat grammar still consumes it); at the MCP boundary the
+    envelope becomes a raised ToolError so the framework answers with
+    ``CallToolResult(isError=True)`` carrying the executor's own
+    domain-worded message. Success and policy-"blocked" payloads pass
+    through unchanged.
+    """
+    if isinstance(result, dict) and result.get("status") == "error":
+        message = str(result.get("error") or "The operation failed.")
+        logger.info("MCP tool error: %s", message)
+        raise ToolError(message)
+    return result
 
 
 def _build_mcp_server() -> Any:
@@ -117,6 +220,12 @@ def _build_mcp_server() -> Any:
             "  • get_plugin_data(plugin_id) — see the LIVE values a plugin is\n"
             "    currently exposing. Use this when a page renders '???' or wrong\n"
             "    values; it tells you whether the plugin or the template is at fault.\n\n"
+            "MULTI-BOARD\n"
+            "  An install can drive several boards. get_settings_summary() returns\n"
+            "  a boards list (id, name, device_type, rows/cols, active page, error).\n"
+            "  Board-targeting tools take an optional board_id — omitted always\n"
+            "  means the primary board. When working against a specific board, use\n"
+            "  ITS device_type and dimensions, not the primary's.\n\n"
             # Board-dimensions and template-syntax teaching is GENERATED from
             # the defining modules (#1764) — the previous hardcoded copy had
             # rotted (nonexistent |upper/|lower filters, a 63–71 color range,
@@ -145,6 +254,38 @@ def _build_mcp_server() -> Any:
         ),
     )
 
+    # Every tool registers through this wrapper: the #1765 error contract in
+    # one place. Executor error envelopes become raised ToolErrors (protocol
+    # isError=True with the domain message); unexpected exceptions are logged
+    # server-side with their traceback and mapped to a concise message. A
+    # ToolError raised by a tool body passes through untouched.
+    def _tool(fn: Any) -> Any:
+        if inspect.iscoroutinefunction(fn):
+
+            @functools.wraps(fn)
+            async def wrapper(*args: Any, **kwargs: Any) -> Any:
+                try:
+                    result = await fn(*args, **kwargs)
+                except ToolError:
+                    raise
+                except Exception as exc:
+                    raise _tool_failure(fn.__name__, exc) from exc
+                return _raise_error_envelope(result)
+
+        else:
+
+            @functools.wraps(fn)
+            def wrapper(*args: Any, **kwargs: Any) -> Any:
+                try:
+                    result = fn(*args, **kwargs)
+                except ToolError:
+                    raise
+                except Exception as exc:
+                    raise _tool_failure(fn.__name__, exc) from exc
+                return _raise_error_envelope(result)
+
+        return mcp.tool()(wrapper)
+
     # -----------------------------------------------------------------------
     # Plugin tools
     #
@@ -160,7 +301,7 @@ def _build_mcp_server() -> Any:
     # what keeps mcp_server importable without api_server.
     # -----------------------------------------------------------------------
 
-    @mcp.tool()
+    @_tool
     def list_installed_plugins() -> list[dict[str, Any]] | dict[str, Any]:
         """List all installed FiestaBoard plugins with their status and config schema.
 
@@ -173,39 +314,76 @@ def _build_mcp_server() -> Any:
         - settings_schema: JSON Schema describing configurable fields
         - config: current configuration (sensitive values masked as '***')
         """
-        try:
-            from .config_manager import get_config_manager
-            from .plugins import get_plugin_registry
+        from .config_manager import get_config_manager
+        from .plugins import get_plugin_registry
 
-            registry = get_plugin_registry()
-            cm = get_config_manager()
-            plugins = registry.list_plugins()
-            for p in plugins:
-                cfg = cm.get_plugin_config(p["id"])
-                p["config"] = cm._mask_sensitive(cfg) if cfg else {}
-                p["configured"] = bool(cfg)
-            return _serialize(plugins)
-        except Exception as exc:
-            return _err(str(exc))
+        registry = get_plugin_registry()
+        cm = get_config_manager()
+        plugins = registry.list_plugins()
+        for p in plugins:
+            cfg = cm.get_plugin_config(p["id"])
+            p["config"] = cm._mask_sensitive(cfg) if cfg else {}
+            p["configured"] = bool(cfg)
+        return _serialize(plugins)
 
-    @mcp.tool()
-    def list_registry_plugins() -> list[dict[str, Any]] | dict[str, Any]:
-        """List all plugins available to install from the FiestaBoard registry.
+    @_tool
+    def list_registry_plugins(
+        page: int = 1,
+        page_size: int = 20,
+        fields: list[str] | None = None,
+    ) -> dict[str, Any]:
+        """List plugins available to install from the FiestaBoard registry (paginated).
 
-        Returns a list. Each entry includes:
-        - id: use this as plugin_id when calling install_plugin()
-        - name, description, category
-        - installed: true if already installed
+        Each entry includes id (use it as plugin_id for install_plugin()),
+        name, description, category, plugin_type, and installed. The
+        board-preview fields (teaser, previews) are omitted by default —
+        they are large literal board grids; opt in via fields when you
+        actually need to show what a plugin looks like on a board.
+
+        Args:
+            page: 1-based page number (default 1).
+            page_size: Entries per page, 1-100 (default 20).
+            fields: Optional exact projection — each entry then carries only
+                    these fields plus id (e.g. ["name", "previews"]).
+
+        Returns: {plugins: [...], total, page, page_size, total_pages}.
         """
-        try:
-            from .plugins import get_plugin_registry
+        from .plugins import get_plugin_registry
 
-            registry = get_plugin_registry()
-            return _serialize(registry.get_registry_entries())
-        except Exception as exc:
-            return _err(str(exc))
+        if page < 1:
+            raise ToolError("page must be >= 1")
+        if not 1 <= page_size <= 100:
+            raise ToolError("page_size must be between 1 and 100")
 
-    @mcp.tool()
+        entries = _serialize(get_plugin_registry().get_registry_entries())
+
+        if fields is not None:
+            known = {key for entry in entries for key in entry}
+            unknown = sorted(set(fields) - known)
+            if entries and unknown:
+                raise ToolError(f"Unknown fields: {', '.join(unknown)}. Valid fields: {', '.join(sorted(known))}")
+            keep = set(fields) | {"id"}
+
+            def project(entry: dict[str, Any]) -> dict[str, Any]:
+                return {k: v for k, v in entry.items() if k in keep}
+
+        else:
+            # Default projection: everything except the fat preview grids
+            # (#1765 audit finding 4 — they made this response ~33KB).
+            def project(entry: dict[str, Any]) -> dict[str, Any]:
+                return {k: v for k, v in entry.items() if k not in ("teaser", "previews")}
+
+        total = len(entries)
+        start = (page - 1) * page_size
+        return {
+            "plugins": [project(e) for e in entries[start : start + page_size]],
+            "total": total,
+            "page": page,
+            "page_size": page_size,
+            "total_pages": max(1, -(-total // page_size)),
+        }
+
+    @_tool
     async def install_plugin(plugin_id: str, auto_enable: bool = True) -> dict[str, Any]:
         """Install a plugin from the official FiestaBoard registry and optionally enable it.
 
@@ -218,7 +396,7 @@ def _build_mcp_server() -> Any:
         """
         return await ops_executors.install_plugin(plugin_id, auto_enable=auto_enable)
 
-    @mcp.tool()
+    @_tool
     async def enable_plugin(plugin_id: str) -> dict[str, Any]:
         """Enable an installed but currently-disabled plugin.
 
@@ -230,7 +408,7 @@ def _build_mcp_server() -> Any:
         """
         return ops_executors.enable_plugin(plugin_id)
 
-    @mcp.tool()
+    @_tool
     async def disable_plugin(plugin_id: str) -> dict[str, Any]:
         """Disable an installed plugin without uninstalling it.
 
@@ -241,7 +419,7 @@ def _build_mcp_server() -> Any:
         """
         return ops_executors.disable_plugin(plugin_id)
 
-    @mcp.tool()
+    @_tool
     async def uninstall_plugin(plugin_id: str) -> dict[str, Any]:
         """Permanently remove an installed plugin.
 
@@ -254,7 +432,7 @@ def _build_mcp_server() -> Any:
         """
         return ops_executors.uninstall_plugin(plugin_id)
 
-    @mcp.tool()
+    @_tool
     async def configure_plugin(plugin_id: str, config: dict[str, Any]) -> dict[str, Any]:
         """Update configuration settings for an installed plugin.
 
@@ -275,7 +453,7 @@ def _build_mcp_server() -> Any:
         """
         return ops_executors.configure_plugin(plugin_id, config)
 
-    @mcp.tool()
+    @_tool
     async def update_plugin(plugin_id: str) -> dict[str, Any]:
         """Update an installed plugin to its latest version from its git remote.
 
@@ -288,7 +466,7 @@ def _build_mcp_server() -> Any:
         # PluginService.apply_update — the shared, guarded path.
         return await ops_executors.update_plugin(plugin_id)
 
-    @mcp.tool()
+    @_tool
     def get_template_variables() -> dict[str, Any]:
         """Get all template variables available from enabled plugins.
 
@@ -297,18 +475,15 @@ def _build_mcp_server() -> Any:
 
         Example: {{weather.temperature}}, {{stocks.price}}, {{date_time.time_12h}}
         """
-        try:
-            from .plugins import get_plugin_registry
+        from .plugins import get_plugin_registry
 
-            registry = get_plugin_registry()
-            # #1739: get_all_variables() returns {plugin: [name, ...]}, not the
-            # nested metadata this tool documents. GET /templates/variables
-            # already uses the *_with_metadata variant; this call site drifted.
-            return _serialize(registry.get_all_variables_with_metadata())
-        except Exception as exc:
-            return _err(str(exc))
+        registry = get_plugin_registry()
+        # #1739: get_all_variables() returns {plugin: [name, ...]}, not the
+        # nested metadata this tool documents. GET /templates/variables
+        # already uses the *_with_metadata variant; this call site drifted.
+        return _serialize(registry.get_all_variables_with_metadata())
 
-    @mcp.tool()
+    @_tool
     def get_plugin_data(plugin_id: str) -> dict[str, Any]:
         """Fetch the CURRENT live values a plugin is exposing to template variables.
 
@@ -324,24 +499,21 @@ def _build_mcp_server() -> Any:
         'error' explains why; no exception is raised. Cached values may be
         returned if the plugin's refresh interval hasn't elapsed.
         """
-        try:
-            from .plugins import get_plugin_registry
+        from .plugins import get_plugin_registry
 
-            registry = get_plugin_registry()
-            result = registry.fetch_plugin_data(plugin_id)
-            return {
-                "available": result.available,
-                "data": _serialize(result.data),
-                "error": result.error,
-            }
-        except Exception as exc:
-            return _err(str(exc))
+        registry = get_plugin_registry()
+        result = registry.fetch_plugin_data(plugin_id)
+        return {
+            "available": result.available,
+            "data": _serialize(result.data),
+            "error": result.error,
+        }
 
     # -----------------------------------------------------------------------
     # Page tools
     # -----------------------------------------------------------------------
 
-    @mcp.tool()
+    @_tool
     def list_pages() -> list[dict[str, Any]] | dict[str, Any]:
         """List all display pages on this FiestaBoard.
 
@@ -352,15 +524,12 @@ def _build_mcp_server() -> Any:
         - device_type: 'flagship' or 'note'
         - duration_seconds: how long to show the page in time-mode collections
         """
-        try:
-            from .pages.service import get_page_service
+        from .pages.service import get_page_service
 
-            svc = get_page_service()
-            return _serialize(svc.list_pages())
-        except Exception as exc:
-            return _err(str(exc))
+        svc = get_page_service()
+        return _serialize(svc.list_pages())
 
-    @mcp.tool()
+    @_tool
     def get_page(page_id: str) -> dict[str, Any]:
         """Get full details of a specific page including its template content.
 
@@ -371,18 +540,15 @@ def _build_mcp_server() -> Any:
         line can contain {{plugin.variable}} references and {{color}} tokens
         like {{red}}, {{green}}, {{white}} etc.
         """
-        try:
-            from .pages.service import get_page_service
+        from .pages.service import get_page_service
 
-            svc = get_page_service()
-            page = svc.get_page(page_id)
-            if page is None:
-                return _err(f"Page '{page_id}' not found.")
-            return _serialize(page)
-        except Exception as exc:
-            return _err(str(exc))
+        svc = get_page_service()
+        page = svc.get_page(page_id)
+        if page is None:
+            raise ToolError(f"Page '{page_id}' not found.")
+        return _serialize(page)
 
-    @mcp.tool()
+    @_tool
     def create_page(
         name: str,
         template_lines: list[str],
@@ -416,7 +582,7 @@ def _build_mcp_server() -> Any:
             duration_seconds=duration_seconds,
         )
 
-    @mcp.tool()
+    @_tool
     def update_page(
         page_id: str,
         name: str | None = None,
@@ -438,7 +604,7 @@ def _build_mcp_server() -> Any:
             duration_seconds=duration_seconds,
         )
 
-    @mcp.tool()
+    @_tool
     def delete_page(page_id: str) -> dict[str, Any]:
         """Delete a page permanently.
 
@@ -450,10 +616,11 @@ def _build_mcp_server() -> Any:
         """
         return ops_executors.delete_page(page_id)
 
-    @mcp.tool()
+    @_tool
     def render_page_preview(
         template_lines: list[str],
         device_type: str = "flagship",
+        line_metadata: list[dict[str, Any]] | None = None,
     ) -> dict[str, Any]:
         """Render a template to see how it will look BEFORE saving it as a page.
 
@@ -466,6 +633,10 @@ def _build_mcp_server() -> Any:
             template_lines: Template strings to render (one per row). Extra
                             rows are dropped; missing rows are filled with blanks.
             device_type: 'flagship' (22×6) or 'note' (15×3).
+            line_metadata: Optional per-line dicts with "alignment"
+                           ('left'/'center'/'right') and "wrap" (bool) — the
+                           same metadata saved pages carry. Include it to
+                           preview alignment and wrap faithfully.
 
         Returns:
             {
@@ -477,29 +648,129 @@ def _build_mcp_server() -> Any:
         plugin that's disabled/unconfigured. Lines longer than the board width
         will appear truncated in the output, matching real-device behavior.
         """
-        try:
-            from .templates.engine import get_template_engine
+        from .devices import DEFAULT_DEVICE_TYPE, BoardContext, resolve_dimensions
+        from .templates.engine import get_template_engine
 
-            engine = get_template_engine()
-            context = engine._build_context()
-            rendered = engine.render_lines(
-                template_lines,
-                context=context,
-                device_type=device_type,
-            )
-            return {
-                "rendered": rendered,
-                "device_type": device_type,
-                "context_plugins": sorted(context.keys()),
-            }
+        engine = get_template_engine()
+        # Build the plugin context around the real BoardContext — the same
+        # construction render_lines performs internally and the saved-page
+        # render path (PageService._render_template) relies on — so
+        # board-aware plugins see the true geometry. The pre-#1765 call
+        # passed no board at all, and every plugin previewed board-blind.
+        # Unknown device types fall back to the default, matching
+        # render_lines' own never-crash fallback.
+        render_device_type = device_type or DEFAULT_DEVICE_TYPE
+        try:
+            dims = resolve_dimensions(render_device_type)
+        except ValueError:
+            render_device_type = DEFAULT_DEVICE_TYPE
+            dims = resolve_dimensions(render_device_type)
+        context = engine._build_context(BoardContext(render_device_type, rows=dims.rows, cols=dims.cols))
+        rendered = engine.render_lines(
+            template_lines,
+            context=context,
+            line_metadata=line_metadata,
+            device_type=device_type,
+        )
+        return {
+            "rendered": rendered,
+            "device_type": device_type,
+            "context_plugins": sorted(context.keys()),
+        }
+
+    @_tool
+    def preview_saved_page(page_id: str, board_id: str | None = None) -> dict[str, Any]:
+        """Render a SAVED page exactly as the display engine would send it.
+
+        Complements render_page_preview(), which renders unsaved template
+        lines: use this one to verify an existing page — with its stored
+        line_metadata (alignment, wrap) applied — before set_active_page().
+        Read-only; nothing is sent to the board.
+
+        Args:
+            page_id: The page identifier (from list_pages()).
+            board_id: Optional board to check the page against (from the boards
+                      list in get_settings_summary()). Adds fits_board and
+                      board_warnings to the response; rendering itself always
+                      uses the page's own device geometry.
+
+        Returns: {page_id, name, device_type, rendered, rows, line_metadata,
+        and — when board_id is given — fits_board, board_warnings}.
+        """
+        from .pages.service import check_ref_board_compatibility, get_page_service
+
+        svc = get_page_service()
+        page = svc.get_page(page_id)
+        if page is None:
+            raise ToolError(f"Page '{page_id}' not found.")
+        result = svc.preview_page(page_id, force_refresh=True)
+        if result is None:
+            raise ToolError(f"Page '{page_id}' not found.")
+        if not result.available:
+            raise ToolError(result.error or "Page rendering failed.")
+
+        out: dict[str, Any] = {
+            "page_id": page_id,
+            "name": page.name,
+            "device_type": page.device_type,
+            "rendered": result.formatted,
+            "rows": result.formatted.split("\n"),
+            "line_metadata": ([m.model_dump() for m in page.line_metadata] if page.line_metadata else None),
+        }
+        if board_id is not None:
+            # Same roster existence check as the sibling board tools:
+            # compatibility against a board that does not exist would come
+            # back fits_board: true (unresolvable boards pass, by design of
+            # the compat helper) — an answer about nothing (#1874 review).
+            from .settings.service import get_settings_service
+
+            known = get_settings_service().get_board_settings().boards or []
+            if not any(isinstance(b, dict) and b.get("id") == board_id for b in known):
+                raise ToolError(f"Board not found: {board_id}")
+            compat = check_ref_board_compatibility(page_id, board_id)
+            out["board_id"] = board_id
+            out["fits_board"] = compat.ok
+            out["board_warnings"] = compat.warnings
+            if not compat.ok:
+                out["board_error"] = compat.error
+        return out
+
+    @_tool
+    def validate_template(template: list[str] | str, device_type: str = "flagship") -> dict[str, Any]:
+        """Check template syntax without rendering, saving, or touching the board.
+
+        Catches malformed {{...}} references, unknown plugins/variables,
+        formula errors ({{= ... }}), and unknown filters — cheaper than
+        render_page_preview() when you only need a syntax verdict.
+
+        Args:
+            template: Template string or list of template lines.
+            device_type: Which board type's width to validate against —
+                         'flagship' (22 cols), 'note' (15 cols).
+
+        Returns: {valid: bool, errors: [{line, column, message}], device_type}.
+        """
+        from .devices import resolve_dimensions
+        from .templates.engine import get_template_engine
+
+        try:
+            cols = resolve_dimensions(device_type).cols
         except Exception as exc:
-            return _err(str(exc))
+            raise ToolError(f"Unknown device_type: {device_type}") from exc
+
+        text = "\n".join(template) if isinstance(template, list) else template
+        errors = get_template_engine().validate_template(text, cols=cols)
+        return {
+            "valid": len(errors) == 0,
+            "errors": [{"line": e.line, "column": e.column, "message": e.message} for e in errors],
+            "device_type": device_type,
+        }
 
     # -----------------------------------------------------------------------
     # Schedule tools
     # -----------------------------------------------------------------------
 
-    @mcp.tool()
+    @_tool
     def list_schedules() -> list[dict[str, Any]] | dict[str, Any]:
         """List all scheduled time slots for page display.
 
@@ -510,15 +781,12 @@ def _build_mcp_server() -> Any:
         - day_pattern: 'all', 'weekdays', 'weekends', or 'custom'
         - enabled: whether the schedule entry is active
         """
-        try:
-            from .schedules.service import get_schedule_service
+        from .schedules.service import get_schedule_service
 
-            svc = get_schedule_service()
-            return _serialize(svc.list_schedules())
-        except Exception as exc:
-            return _err(str(exc))
+        svc = get_schedule_service()
+        return _serialize(svc.list_schedules())
 
-    @mcp.tool()
+    @_tool
     def create_schedule(
         page_id: str,
         start_time: str,
@@ -546,7 +814,7 @@ def _build_mcp_server() -> Any:
             enabled=enabled,
         )
 
-    @mcp.tool()
+    @_tool
     def update_schedule(
         schedule_id: str,
         page_id: str | None = None,
@@ -585,7 +853,7 @@ def _build_mcp_server() -> Any:
             clear_custom_days=clear_custom_days,
         )
 
-    @mcp.tool()
+    @_tool
     def delete_schedule(schedule_id: str) -> dict[str, Any]:
         """Delete a schedule entry permanently.
 
@@ -598,7 +866,7 @@ def _build_mcp_server() -> Any:
     # Collection tools
     # -----------------------------------------------------------------------
 
-    @mcp.tool()
+    @_tool
     def list_collections() -> list[dict[str, Any]] | dict[str, Any]:
         """List all collections (ordered page groups with a selection mode).
 
@@ -608,15 +876,12 @@ def _build_mcp_server() -> Any:
         - selection_mode: "time" (rotate on interval) or "variable" (pick by rule)
         - time / variable: mode-specific config block
         """
-        try:
-            from .collections.service import get_collection_service
+        from .collections.service import get_collection_service
 
-            svc = get_collection_service()
-            return _serialize(svc.list_collections())
-        except Exception as exc:
-            return _err(str(exc))
+        svc = get_collection_service()
+        return _serialize(svc.list_collections())
 
-    @mcp.tool()
+    @_tool
     def create_collection(
         name: str,
         page_ids: list[str],
@@ -657,7 +922,7 @@ def _build_mcp_server() -> Any:
             poll_seconds=poll_seconds,
         )
 
-    @mcp.tool()
+    @_tool
     def update_collection(
         collection_id: str,
         name: str | None = None,
@@ -695,7 +960,7 @@ def _build_mcp_server() -> Any:
             poll_seconds=poll_seconds,
         )
 
-    @mcp.tool()
+    @_tool
     def delete_collection(collection_id: str) -> dict[str, Any]:
         """Delete a collection permanently.
 
@@ -708,85 +973,266 @@ def _build_mcp_server() -> Any:
     # System tools
     # -----------------------------------------------------------------------
 
-    @mcp.tool()
+    @_tool
     def get_system_status() -> dict[str, Any]:
         """Get the current status of the FiestaBoard system.
 
         Returns version, whether the display service is running, plugin system
         status, and the number of installed/enabled plugins.
         """
-        try:
-            from .api_server import __version__, _service_running, get_service
-            from .plugins import get_plugin_registry
+        from .api_server import __version__, _service_running, get_service
+        from .plugins import get_plugin_registry
 
-            registry = get_plugin_registry()
-            plugins = registry.list_plugins()
-            service = get_service()
-            return {
-                "version": __version__,
-                "service_running": _service_running and service is not None,
-                "plugin_system_available": True,
-                "plugins_installed": len(plugins),
-                "plugins_enabled": sum(1 for p in plugins if p.get("enabled")),
-            }
-        except Exception as exc:
-            return _err(str(exc))
+        registry = get_plugin_registry()
+        plugins = registry.list_plugins()
+        service = get_service()
+        return {
+            "version": __version__,
+            "service_running": _service_running and service is not None,
+            "plugin_system_available": True,
+            "plugins_installed": len(plugins),
+            "plugins_enabled": sum(1 for p in plugins if p.get("enabled")),
+        }
 
-    @mcp.tool()
+    @_tool
     def get_settings_summary() -> dict[str, Any]:
         """Get a summary of current FiestaBoard settings (non-sensitive fields only).
 
-        Returns display, output, location, and schedule settings.
+        Returns display, location, and output settings, plus:
+        - schedule: {enabled} — whether schedule mode drives the primary board
+        - active_page_id: the primary board's manually-selected page (or null)
+        - boards: one entry per configured board with id, name, device_type,
+          rows/cols, notes_wide/notes_tall, primary, enabled, paused,
+          schedule_enabled, active_page_id, and error (why the board failed to
+          initialize, or null). Use a board's id as the board_id argument to
+          board-targeting tools, and its rows/cols to size templates for it.
+
         AI provider credentials and board API keys are intentionally excluded.
         """
+        from .settings.service import get_settings_service
+
+        svc = get_settings_service()
+        summary: dict[str, Any] = {}
+        for key, fetch in (
+            ("display", svc.get_display_settings),
+            ("location", svc.get_location_settings),
+            ("output", svc.get_output_settings),
+        ):
+            try:
+                summary[key] = _serialize(fetch())
+            except Exception as exc:
+                logger.debug(
+                    "get_settings_summary: could not fetch %s settings: %s",
+                    key,
+                    exc,
+                )
+
+        # Schedule mode + active page (#1765): the troubleshoot prompt
+        # walks both, and until now no tool returned them.
         try:
-            from .settings.service import get_settings_service
-
-            svc = get_settings_service()
-            summary: dict[str, Any] = {}
-            for key, fetch in (
-                ("display", svc.get_display_settings),
-                ("location", svc.get_location_settings),
-                ("output", svc.get_output_settings),
-            ):
-                try:
-                    summary[key] = _serialize(fetch())
-                except Exception as exc:
-                    logger.debug(
-                        "get_settings_summary: could not fetch %s settings: %s",
-                        key,
-                        exc,
-                    )
-            return summary
+            summary["schedule"] = {"enabled": bool(svc.is_schedule_enabled())}
+            summary["active_page_id"] = svc.get_active_page_id()
         except Exception as exc:
-            return _err(str(exc))
+            logger.debug("get_settings_summary: could not fetch schedule/active page: %s", exc)
 
-    @mcp.tool()
-    async def set_active_page(page_id: str) -> dict[str, Any]:
+        summary["boards"] = _boards_summary(svc)
+        return summary
+
+    @_tool
+    async def set_active_page(page_id: str, board_id: str | None = None) -> dict[str, Any]:
         """Set which page is currently shown on the FiestaBoard display.
 
         This immediately changes what's visible on the board.
 
         Args:
             page_id: The page or collection ID to display (from list_pages() or list_collections()).
+            board_id: Board to target on a multi-board install (from the boards
+                      list in get_settings_summary()). Omitted = the primary board.
         """
         # The executor delegates to the REST handler rather than
         # reimplementing it (#1559): selecting a page validates the ref,
         # enforces page<->board size compatibility, dismisses active plugin
         # triggers (#856), and renders to the board.
-        return await ops_executors.set_active_page(page_id)
+        return await ops_executors.set_active_page(page_id, board_id=board_id)
 
-    @mcp.tool()
-    def set_schedule_mode(enabled: bool) -> dict[str, Any]:
+    @_tool
+    def set_schedule_mode(enabled: bool, board_id: str | None = None) -> dict[str, Any]:
         """Enable or disable schedule mode.
 
         When enabled, FiestaBoard automatically switches pages according to
         the schedule you've configured. When disabled, it shows a fixed page.
+        Schedule mode is per-board on a multi-board install.
 
         Args:
             enabled: True to enable schedule-based display, False to disable.
+            board_id: Board to target on a multi-board install (from the boards
+                      list in get_settings_summary()). Omitted = the primary board.
         """
-        return ops_executors.set_schedule_mode(enabled)
+        return ops_executors.set_schedule_mode(enabled, board_id=board_id)
+
+    @_tool
+    def get_active_page(board_id: str | None = None) -> dict[str, Any]:
+        """What a board is CONFIGURED to show right now, fully resolved.
+
+        Resolves schedule mode (when enabled for the board) and collections
+        down to the concrete page. Distinct from get_board_content(), which
+        reports what was last physically sent to the flaps.
+
+        Args:
+            board_id: Board to inspect on a multi-board install (from the boards
+                      list in get_settings_summary()). Omitted = the primary board.
+
+        Returns: {board_id, schedule_enabled, source ('schedule' or 'manual'),
+        active_ref (the stored page/collection id), resolved_page_id (after
+        collection resolution), page (summary of the resolved page, or null)}.
+        """
+        from .collections.models import is_collection_id
+        from .settings.service import get_settings_service
+
+        svc = get_settings_service()
+        if board_id is not None:
+            boards = svc.get_board_settings().boards or []
+            if not any(isinstance(b, dict) and b.get("id") == board_id for b in boards):
+                raise ToolError(f"Board not found: {board_id}")
+
+        # Mirrors GET /pages/current-display: schedule mode owns the
+        # answer when enabled; otherwise the manual per-board selection.
+        schedule_enabled = bool(svc.is_schedule_enabled(board_id))
+        if schedule_enabled:
+            from .schedules.service import get_schedule_service
+            from .time_service import get_time_service
+
+            now = get_time_service().get_current_time()
+            active_ref = get_schedule_service().get_active_page_id(
+                now.time(), now.strftime("%A").lower(), board_id=board_id
+            )
+            source = "schedule"
+        else:
+            active_ref = svc.get_active_page_id(board_id)
+            source = "manual"
+
+        resolved_page_id = active_ref
+        if active_ref and is_collection_id(active_ref):
+            from .collections.service import get_collection_service
+
+            resolved_page_id = get_collection_service().resolve_page_id(active_ref)
+
+        page_summary = None
+        if resolved_page_id:
+            from .pages.service import get_page_service
+
+            page = get_page_service().get_page(resolved_page_id)
+            if page is not None:
+                page_summary = {
+                    "id": page.id,
+                    "name": page.name,
+                    "type": page.type,
+                    "device_type": page.device_type,
+                }
+        return {
+            "board_id": board_id,
+            "schedule_enabled": schedule_enabled,
+            "source": source,
+            "active_ref": active_ref,
+            "resolved_page_id": resolved_page_id,
+            "page": page_summary,
+        }
+
+    @_tool
+    def get_board_content(board_id: str | None = None) -> dict[str, Any]:
+        """What is currently ON a board — the last known flap content. Read-only.
+
+        Served from FiestaBoard's own caches (background poll / last-sent
+        content); never writes to the board and never triggers a live read.
+        Use it to check whether the board matches what get_active_page() says
+        it should be showing. characters and message are null when nothing
+        has been observed or sent yet.
+
+        Args:
+            board_id: Board to read on a multi-board install (from the boards
+                      list in get_settings_summary()). Omitted = the primary
+                      board. Secondary boards are served from their runtime
+                      cache — board-state polling is primary-only.
+
+        Returns: {characters (2-D grid of flap codes or null), message
+        (formatted string or null), rows, cols, source ('polled' or
+        'last_sent' or null), board_id}.
+        """
+        # get_service is the DisplayService singleton accessor — the same
+        # seam get_system_status uses; no REST handler is called.
+        from .api_server import _characters_to_message, get_service
+
+        service = get_service()
+        if not service:
+            raise ToolError("Display service not initialized.")
+
+        characters = None
+        source = None
+        if board_id is None:
+            characters = service._polled_characters
+            source = "polled" if characters is not None else None
+            if characters is None and service.vb_client is not None:
+                characters = getattr(service.vb_client, "_last_characters", None)
+                source = "last_sent" if characters is not None else None
+        else:
+            from .settings.service import get_settings_service
+
+            settings = get_settings_service()
+            boards = settings.get_board_settings().boards or []
+            if not any(isinstance(b, dict) and b.get("id") == board_id for b in boards):
+                raise ToolError(f"Board not found: {board_id}")
+            rt = service.get_runtime(board_id)
+            if rt is None:
+                # Legacy installs may key the primary runtime under the
+                # fallback sentinel rather than its settings board id — route
+                # the primary's own id to the primary caches (mirrors
+                # DisplayService.mark_showing_out_of_band, #1874 review).
+                try:
+                    primary_id = settings.get_primary_board_id()
+                except Exception:
+                    primary_id = None
+                if board_id == primary_id:
+                    characters = service._polled_characters
+                    source = "polled" if characters is not None else None
+                    if characters is None and service.vb_client is not None:
+                        characters = getattr(service.vb_client, "_last_characters", None)
+                        source = "last_sent" if characters is not None else None
+            if rt is not None:
+                characters = rt.polled_characters
+                source = "polled" if characters is not None else None
+                if characters is None and rt.client is not None:
+                    characters = getattr(rt.client, "_last_characters", None)
+                    source = "last_sent" if characters is not None else None
+
+        if characters is None:
+            return {"characters": None, "message": None, "rows": 0, "cols": 0, "source": None, "board_id": board_id}
+        return {
+            "characters": _serialize(characters),
+            "message": _characters_to_message(characters),
+            "rows": len(characters),
+            "cols": len(characters[0]) if characters else 0,
+            "source": source,
+            "board_id": board_id,
+        }
+
+    @_tool
+    def send_message(text: str, board_id: str | None = None) -> dict[str, Any]:
+        """Send a one-off text message directly to a board.
+
+        The text is word-wrapped to the board's width; real newlines are
+        honored; single-brace color markers like {red} or {63} render as one
+        colored tile each. This bypasses pages entirely — the message stays
+        up until the active page next changes or the display refreshes.
+
+        A paused board or active silence mode returns status "blocked"
+        (deliberate policy — relay it to the user, don't retry).
+
+        Args:
+            text: The message text to display.
+            board_id: Board to target on a multi-board install (from the boards
+                      list in get_settings_summary()). Omitted = the primary board.
+        """
+        return ops_executors.send_message(text, board_id=board_id)
 
     # -----------------------------------------------------------------------
     # MCP Resources

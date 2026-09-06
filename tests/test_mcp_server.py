@@ -17,6 +17,7 @@ Strategy
 
 from __future__ import annotations
 
+import tempfile
 from types import SimpleNamespace
 from typing import Any
 from unittest.mock import MagicMock, create_autospec, patch
@@ -54,6 +55,23 @@ def _call_tool(mcp_instance: Any, tool_name: str, **kwargs: Any) -> Any:
         # there is no current loop rather than creating one implicitly.
         result = asyncio.run(result)
     return result
+
+
+def _call_tool_expect_error(mcp_instance: Any, tool_name: str, /, **kwargs: Any) -> str:
+    """Call a tool whose failure is the point; return its error message.
+
+    #1765 contract reversal: failures used to come back as *successful*
+    results containing ``{"status": "error", "error": "..."}`` — invisible
+    to MCP clients' error handling. A failing tool now raises ToolError,
+    which the framework converts to ``CallToolResult(isError=True)`` (see
+    TestProtocolIsError for the wire-level proof). Tests that previously
+    asserted on the envelope assert on the raised message instead.
+    """
+    from mcp.server.mcpserver.exceptions import ToolError
+
+    with pytest.raises(ToolError) as excinfo:
+        _call_tool(mcp_instance, tool_name, **kwargs)
+    return str(excinfo.value)
 
 
 # ---------------------------------------------------------------------------
@@ -355,6 +373,12 @@ EXPECTED_TOOLS = {
     "get_settings_summary",
     "set_active_page",
     "set_schedule_mode",
+    # Read-back / action tools (#1765)
+    "get_active_page",
+    "get_board_content",
+    "send_message",
+    "preview_saved_page",
+    "validate_template",
 }
 
 
@@ -399,22 +423,102 @@ class TestListInstalledPlugins:
         assert "config" in data[0]
 
     def test_error_handling(self, mcp):
-        """Returns JSON error object when service call fails."""
+        """A failing service call is a protocol error, with no internal detail (#1765)."""
         with patch("src.plugins.get_plugin_registry", side_effect=RuntimeError("db unavailable")):
-            result = _call_tool(mcp, "list_installed_plugins")
-        data = result
-        assert "error" in data
+            message = _call_tool_expect_error(mcp, "list_installed_plugins")
+        assert "list_installed_plugins" in message
+        assert "db unavailable" not in message, "raw exception text must not cross the MCP boundary"
+
+
+@pytest.fixture
+def fat_registry():
+    """A registry whose entries carry realistic (large) board-preview blobs.
+
+    #1765 audit finding 4: list_registry_plugins shipped every entry's
+    teaser + previews grids unpaginated (~33KB). The fixture makes the
+    fat fields big enough that leaking them back is unmissable.
+    """
+    from src.plugins.registry import PluginRegistry
+
+    registry = create_autospec(PluginRegistry, instance=True)
+    registry.get_registry_entries.return_value = [
+        {
+            "id": f"plugin_{i:02d}",
+            "name": f"Plugin {i:02d}",
+            "description": "A registry plugin",
+            "category": "utility",
+            "plugin_type": "data",
+            "installed": i == 0,
+            "teaser": "TEASER ROW",
+            "previews": [{"shape": "flagship", "rows": ["X" * 22] * 6 * 8}],
+        }
+        for i in range(30)
+    ]
+    return registry
 
 
 class TestListRegistryPlugins:
+    """Pagination + projection (#1765): the old contract returned every
+    entry with its preview grids in one unpaginated list. Deliberately
+    replaced — the response now pages and drops the fat fields by default;
+    test_returns_registry_entries used to pin the bare list shape."""
+
     def test_returns_registry_entries(self, mcp, mock_registry):
         with patch("src.plugins.get_plugin_registry", return_value=mock_registry):
             result = _call_tool(mcp, "list_registry_plugins")
-        data = result
+        data = result["plugins"]
         assert len(data) == 2
         ids = {d["id"] for d in data}
         assert "openweather" in ids
         assert "stocks" in ids
+        assert result["total"] == 2
+
+    def test_default_response_omits_the_preview_grids(self, mcp, fat_registry):
+        with patch("src.plugins.get_plugin_registry", return_value=fat_registry):
+            result = _call_tool(mcp, "list_registry_plugins")
+        assert result["plugins"], "expected a page of entries"
+        for entry in result["plugins"]:
+            assert "previews" not in entry
+            assert "teaser" not in entry
+            assert entry["id"]
+
+    def test_default_response_stays_small(self, mcp, fat_registry):
+        import json as _json
+
+        with patch("src.plugins.get_plugin_registry", return_value=fat_registry):
+            result = _call_tool(mcp, "list_registry_plugins")
+        size = len(_json.dumps(result))
+        assert size < 8_000, f"default registry listing is {size} bytes — the preview grids are leaking back"
+
+    def test_pages_slice_and_report_totals(self, mcp, fat_registry):
+        with patch("src.plugins.get_plugin_registry", return_value=fat_registry):
+            page1 = _call_tool(mcp, "list_registry_plugins", page=1, page_size=20)
+            page2 = _call_tool(mcp, "list_registry_plugins", page=2, page_size=20)
+        assert page1["total"] == 30
+        assert page1["total_pages"] == 2
+        assert (page1["page"], page2["page"]) == (1, 2)
+        assert len(page1["plugins"]) == 20
+        assert len(page2["plugins"]) == 10
+        ids1 = {e["id"] for e in page1["plugins"]}
+        ids2 = {e["id"] for e in page2["plugins"]}
+        assert not ids1 & ids2, "page 2 repeated entries from page 1"
+
+    def test_fields_opt_in_returns_the_previews(self, mcp, fat_registry):
+        with patch("src.plugins.get_plugin_registry", return_value=fat_registry):
+            result = _call_tool(mcp, "list_registry_plugins", page_size=2, fields=["name", "previews"])
+        entry = result["plugins"][0]
+        assert set(entry) == {"id", "name", "previews"}
+        assert entry["previews"], "opting into previews returned nothing"
+
+    def test_unknown_field_is_an_error(self, mcp, fat_registry):
+        with patch("src.plugins.get_plugin_registry", return_value=fat_registry):
+            message = _call_tool_expect_error(mcp, "list_registry_plugins", fields=["not_a_field"])
+        assert "not_a_field" in message
+
+    def test_page_below_one_is_an_error(self, mcp, fat_registry):
+        with patch("src.plugins.get_plugin_registry", return_value=fat_registry):
+            message = _call_tool_expect_error(mcp, "list_registry_plugins", page=0)
+        assert "page" in message
 
 
 @pytest.fixture
@@ -457,17 +561,15 @@ class TestInstallPlugin:
     def test_install_error(self, mcp, plugin_services):
         registry, _ = plugin_services
         registry.install_from_registry.return_value = ["Plugin 'unknown' not found in the registry"]
-        result = _call_tool(mcp, "install_plugin", plugin_id="unknown")
-        assert result["status"] == "error"
-        assert "not found in the registry" in result["error"]
+        message = _call_tool_expect_error(mcp, "install_plugin", plugin_id="unknown")
+        assert "not found in the registry" in message
 
     def test_install_reports_a_failed_enable(self, mcp, plugin_services):
         """Installed-but-not-enabled must not be reported as fully successful."""
         registry, _ = plugin_services
         registry.get_plugin.return_value = None
-        result = _call_tool(mcp, "install_plugin", plugin_id="stocks")
-        assert result["status"] == "error"
-        assert "installed but could not be enabled" in result["error"]
+        message = _call_tool_expect_error(mcp, "install_plugin", plugin_id="stocks")
+        assert "installed but could not be enabled" in message
 
 
 class TestEnablePlugin:
@@ -482,15 +584,13 @@ class TestEnablePlugin:
     def test_enable_unknown_plugin_is_an_error(self, mcp, plugin_services):
         registry, config_manager = plugin_services
         registry.get_plugin.return_value = None
-        result = _call_tool(mcp, "enable_plugin", plugin_id="nope")
-        assert result["status"] == "error"
+        _call_tool_expect_error(mcp, "enable_plugin", plugin_id="nope")
         config_manager.enable_plugin.assert_not_called()
 
     def test_enable_error(self, mcp, plugin_services):
         registry, _ = plugin_services
         registry.enable_plugin.side_effect = KeyError("openweather not found")
-        result = _call_tool(mcp, "enable_plugin", plugin_id="openweather")
-        assert result["status"] == "error"
+        _call_tool_expect_error(mcp, "enable_plugin", plugin_id="openweather")
 
 
 class TestDisablePlugin:
@@ -504,8 +604,7 @@ class TestDisablePlugin:
     def test_disable_unknown_plugin_is_an_error(self, mcp, plugin_services):
         registry, config_manager = plugin_services
         registry.get_plugin.return_value = None
-        result = _call_tool(mcp, "disable_plugin", plugin_id="nope")
-        assert result["status"] == "error"
+        _call_tool_expect_error(mcp, "disable_plugin", plugin_id="nope")
         config_manager.disable_plugin.assert_not_called()
 
 
@@ -520,9 +619,8 @@ class TestUninstallPlugin:
     def test_uninstall_builtin_is_an_error(self, mcp, plugin_services):
         registry, _ = plugin_services
         registry.uninstall_external_plugin.return_value = ["Cannot uninstall a built-in plugin"]
-        result = _call_tool(mcp, "uninstall_plugin", plugin_id="date_time")
-        assert result["status"] == "error"
-        assert "built-in" in result["error"]
+        message = _call_tool_expect_error(mcp, "uninstall_plugin", plugin_id="date_time")
+        assert "built-in" in message
 
 
 class TestConfigurePlugin:
@@ -557,26 +655,25 @@ class TestConfigurePlugin:
     def test_validation_errors_are_reported_not_swallowed(self, mcp, plugin_services):
         registry, config_manager = plugin_services
         registry.set_plugin_config.return_value = ["station_id is required"]
-        result = _call_tool(
+        message = _call_tool_expect_error(
             mcp,
             "configure_plugin",
             plugin_id="openweather",
             config={"station_id": ""},
         )
-        assert result["status"] == "error"
-        assert "station_id is required" in result["error"]
+        assert "station_id is required" in message
         config_manager.set_plugin_config.assert_not_called()
 
     def test_configure_error(self, mcp, plugin_services):
         _, config_manager = plugin_services
         config_manager.get_plugin_config.side_effect = KeyError("plugin not found")
-        result = _call_tool(
+        message = _call_tool_expect_error(
             mcp,
             "configure_plugin",
             plugin_id="nonexistent",
             config={"api_key": "x"},
         )
-        assert result["status"] == "error"
+        assert "Error configuring plugin" in message
 
 
 class TestGetTemplateVariables:
@@ -636,9 +733,9 @@ class TestListPages:
         mock_svc = MagicMock()
         mock_svc.list_pages.side_effect = RuntimeError("service down")
         with patch("src.pages.service.get_page_service", return_value=mock_svc):
-            result = _call_tool(mcp, "list_pages")
-        data = result
-        assert "error" in data
+            message = _call_tool_expect_error(mcp, "list_pages")
+        assert "list_pages" in message
+        assert "service down" not in message, "raw exception text must not cross the MCP boundary"
 
 
 class TestGetPage:
@@ -653,10 +750,8 @@ class TestGetPage:
         mock_svc = MagicMock()
         mock_svc.get_page.return_value = None
         with patch("src.pages.service.get_page_service", return_value=mock_svc):
-            result = _call_tool(mcp, "get_page", page_id="missing")
-        data = result
-        assert "error" in data
-        assert "not found" in data["error"]
+            message = _call_tool_expect_error(mcp, "get_page", page_id="missing")
+        assert "not found" in message
 
 
 class TestCreatePage:
@@ -676,13 +771,13 @@ class TestCreatePage:
         mock_svc = MagicMock()
         mock_svc.create_page.side_effect = ValueError("invalid template")
         with patch("src.pages.service.get_page_service", return_value=mock_svc):
-            result = _call_tool(
+            message = _call_tool_expect_error(
                 mcp,
                 "create_page",
                 name="Bad Page",
                 template_lines=["only one line"],
             )
-        assert result["status"] == "error"
+        assert "Error creating page" in message
 
 
 class TestUpdatePage:
@@ -696,9 +791,8 @@ class TestUpdatePage:
         mock_svc = MagicMock()
         mock_svc.update_page.return_value = None
         with patch("src.pages.service.get_page_service", return_value=mock_svc):
-            result = _call_tool(mcp, "update_page", page_id="missing")
-        data = result
-        assert "error" in data
+            message = _call_tool_expect_error(mcp, "update_page", page_id="missing", name="x")
+        assert "not found" in message
 
 
 class TestDeletePage:
@@ -722,9 +816,8 @@ class TestDeletePage:
         mock_svc = create_autospec(PageService, instance=True)
         mock_svc.delete_page.return_value = DeleteResult(deleted=False)
         with patch("src.pages.service.get_page_service", return_value=mock_svc):
-            result = _call_tool(mcp, "delete_page", page_id="page-001")
-        assert result["status"] == "error"
-        assert "not deleted" in result["error"]
+            message = _call_tool_expect_error(mcp, "delete_page", page_id="page-001")
+        assert "not deleted" in message
 
     def test_delete_reports_default_page_creation(self, mcp):
         """Deleting the last page creates a default one; the client is told."""
@@ -798,13 +891,13 @@ class TestCreateSchedule:
         mock_svc = MagicMock()
         mock_svc.create_schedule.side_effect = ValueError("invalid time format")
         with patch("src.schedules.service.get_schedule_service", return_value=mock_svc):
-            result = _call_tool(
+            message = _call_tool_expect_error(
                 mcp,
                 "create_schedule",
                 page_id="page-001",
                 start_time="not-a-time",
             )
-        assert result["status"] == "error"
+        assert "Error creating schedule" in message
 
 
 class TestUpdateSchedule:
@@ -818,8 +911,8 @@ class TestUpdateSchedule:
         mock_svc = MagicMock()
         mock_svc.update_schedule.return_value = None
         with patch("src.schedules.service.get_schedule_service", return_value=mock_svc):
-            result = _call_tool(mcp, "update_schedule", schedule_id="missing")
-        assert "not found" in result["error"]
+            message = _call_tool_expect_error(mcp, "update_schedule", schedule_id="missing")
+        assert "not found" in message
 
 
 class TestDeleteSchedule:
@@ -869,8 +962,8 @@ class TestUpdateCollection:
         mock_svc = MagicMock()
         mock_svc.update_collection.return_value = None
         with patch("src.collections.service.get_collection_service", return_value=mock_svc):
-            result = _call_tool(mcp, "update_collection", collection_id="missing")
-        assert "not found" in result["error"]
+            message = _call_tool_expect_error(mcp, "update_collection", collection_id="missing")
+        assert "not found" in message
 
 
 class TestDeleteCollection:
@@ -951,10 +1044,9 @@ class TestSetActivePage:
     def test_unknown_page_reports_error_and_persists_nothing(self, mcp, api_stack):
         api_stack["pages"].get_page.return_value = None
 
-        result = _call_tool(mcp, "set_active_page", page_id="no-such-page")
+        message = _call_tool_expect_error(mcp, "set_active_page", page_id="no-such-page")
 
-        assert result["status"] == "error"
-        assert "no-such-page" in result["error"]
+        assert "no-such-page" in message
         api_stack["settings"].set_active_page_id.assert_not_called()
 
 
@@ -1089,7 +1181,15 @@ class TestMCPPrompts:
 
 
 class TestToolErrorResilience:
-    """All tools should catch exceptions and return a structured response."""
+    """Every tool maps a total service failure to a clean protocol error.
+
+    #1765 contract reversal: tools used to catch everything and return a
+    successful ``{"status": "error"}`` payload; now they raise ToolError so
+    the framework sets ``CallToolResult.isError``. What this class still
+    guards is the failure *shape*: no tool may leak an unhandled non-MCP
+    exception, a traceback, or (for the tools whose errors are mapped, not
+    domain-worded) the raw internal exception text.
+    """
 
     @pytest.mark.parametrize(
         "tool_name,kwargs",
@@ -1124,8 +1224,16 @@ class TestToolErrorResilience:
             ("set_schedule_mode", {"enabled": True}),
         ],
     )
-    def test_tool_does_not_raise(self, mcp, tool_name: str, kwargs: dict):
-        """Each tool returns a dict/list (not raises) even when all services fail."""
+    def test_tool_fails_as_a_protocol_error_without_a_traceback(self, mcp, tool_name: str, kwargs: dict):
+        """Each tool raises ToolError (never a bare exception) when all services fail.
+
+        Pre-#1765 this test pinned the opposite: "returns a dict, never
+        raises". That contract hid every failure from MCP clients behind
+        isError=false. Reversed deliberately; the wire-level counterpart is
+        TestProtocolIsError.
+        """
+        from mcp.server.mcpserver.exceptions import ToolError
+
         with (
             patch("src.plugins.get_plugin_registry", side_effect=RuntimeError("boom")),
             patch("src.pages.service.get_page_service", side_effect=RuntimeError("boom")),
@@ -1135,13 +1243,16 @@ class TestToolErrorResilience:
             patch("src.config_manager.get_config_manager", side_effect=RuntimeError("boom")),
             patch("src.api_server.get_service", side_effect=RuntimeError("boom")),
         ):
-            result = _call_tool(mcp, tool_name, **kwargs)
-        assert result is not None
-        # Every tool returns a dict (success/error envelope, get_plugin_data
-        # shape, system_status, etc.) or list (list_* tools that succeed
-        # despite our boom — e.g., get_settings_summary swallows per-field
-        # errors and returns {}). Either way it must be a structured value,
-        # never a raw exception.
+            try:
+                result = _call_tool(mcp, tool_name, **kwargs)
+            except ToolError as exc:
+                message = str(exc)
+                assert "Traceback" not in message
+                assert message.strip(), "a protocol error must carry a usable message"
+                return
+        # A tool that still succeeds under the boom (get_settings_summary
+        # swallows per-field failures, get_plugin_data reports availability
+        # as data) must return a structured value, never a bare exception.
         assert isinstance(result, dict | list)
 
 
@@ -1157,8 +1268,161 @@ class TestPluginSystemUnavailable:
 
         monkeypatch.setitem(sys.modules, "src.plugins.service", None)
 
-        result = _call_tool(mcp, "enable_plugin", plugin_id="openweather")
+        # On this branch tool failures surface as protocol errors (ToolError
+        # with the envelope's message), not {"status": "error"} payloads.
+        message = _call_tool_expect_error(mcp, "enable_plugin", plugin_id="openweather")
 
-        assert result["status"] == "error"
-        assert "Plugin system is not available" in result["error"]
-        assert "No module named" not in result["error"]
+        assert "Plugin system is not available" in message
+        assert "No module named" not in message
+
+
+# ---------------------------------------------------------------------------
+# Protocol errors — issue #1765
+# ---------------------------------------------------------------------------
+
+
+class TestProtocolIsError:
+    """MCP tool failures must set the protocol error flag (issue #1765).
+
+    Before this contract every failure came back as a *successful* tool
+    result whose payload happened to contain ``{"status": "error", ...}`` —
+    invisible to an MCP client's error handling — and unexpected exceptions
+    were stringified onto the wire verbatim.
+
+    These tests go through the real JSON-RPC endpoint (TestClient against
+    the mounted streamable-http app at ``/api/mcp/`` — the app carries
+    ``root_path="/api"``, so ``/mcp/`` 404s by design) so the assertion is
+    on the actual ``CallToolResult.isError`` bit, not an internal helper.
+    """
+
+    HEADERS = {"Accept": "application/json, text/event-stream", "Content-Type": "application/json"}
+
+    # class-scoped: the app lifespan starts the MCP StreamableHTTP session
+    # manager, whose .run() is once-per-instance — a second lifespan startup
+    # in the same process raises. One client serves every test in the class.
+    # @classmethod per pytest's class-scoped-fixture-as-instance-method
+    # deprecation.
+    @pytest.fixture(scope="class")
+    @classmethod
+    def rpc(cls):
+        from src.api_server import app
+
+        # conftest's autouse auth-off env fixture is function-scoped and runs
+        # AFTER class-scoped setup, so the middleware would still gate the
+        # class-time initialize handshake with 409 "Setup required".
+        mp = pytest.MonkeyPatch()
+        mp.setenv("FIESTABOARD_AUTH_ENABLED", "false")
+        # Same ordering hazard for the #1762 data-dir seam: the lifespan
+        # startup below constructs ConfigManager/services before the
+        # function-scoped ``_isolated_data_dir`` fixture sets the env, so
+        # without this the class handshake writes the developer's real
+        # ``data/`` (caught by the CI checksum guard).
+        with tempfile.TemporaryDirectory() as class_data_dir:
+            mp.setenv("FIESTABOARD_DATA_DIR", class_data_dir)
+            yield from cls._run_rpc_client(app, mp)
+
+    @classmethod
+    def _run_rpc_client(cls, app, mp):
+        from fastapi.testclient import TestClient
+
+        with TestClient(app) as client:
+            init = client.post(
+                "/api/mcp/",
+                json={
+                    "jsonrpc": "2.0",
+                    "id": 1,
+                    "method": "initialize",
+                    "params": {
+                        "protocolVersion": "2025-06-18",
+                        "capabilities": {},
+                        "clientInfo": {"name": "pytest", "version": "0"},
+                    },
+                },
+                headers=cls.HEADERS,
+            )
+            assert init.status_code == 200, init.text
+            headers = dict(cls.HEADERS)
+            sid = init.headers.get("mcp-session-id")
+            if sid:
+                headers["mcp-session-id"] = sid
+
+            def call(name: str, arguments: dict):
+                res = client.post(
+                    "/api/mcp/",
+                    json={
+                        "jsonrpc": "2.0",
+                        "id": 2,
+                        "method": "tools/call",
+                        "params": {"name": name, "arguments": arguments},
+                    },
+                    headers=headers,
+                )
+                assert res.status_code == 200, res.text
+                body = res.json()
+                assert "error" not in body, (
+                    f"a tool failure must be a CallToolResult (isError), not a JSON-RPC error: {body}"
+                )
+                return body["result"]
+
+            try:
+                yield call
+            finally:
+                mp.undo()
+
+    @staticmethod
+    def _text(result: dict) -> str:
+        return " ".join(c.get("text", "") for c in result.get("content", []))
+
+    def test_domain_failure_sets_is_error_with_the_domain_message(self, rpc):
+        mock_svc = MagicMock()
+        mock_svc.get_page.return_value = None
+        with patch("src.pages.service.get_page_service", return_value=mock_svc):
+            result = rpc("get_page", {"page_id": "missing"})
+
+        assert result.get("isError") is True, f"error flag not set: {result}"
+        text = self._text(result)
+        assert "Page 'missing' not found." in text
+        assert "Traceback" not in text
+
+    def test_executor_failure_sets_is_error(self, rpc):
+        mock_svc = MagicMock()
+        mock_svc.update_schedule.return_value = None
+        with patch("src.schedules.service.get_schedule_service", return_value=mock_svc):
+            result = rpc("update_schedule", {"schedule_id": "missing"})
+
+        assert result.get("isError") is True, f"error flag not set: {result}"
+        assert "not found" in self._text(result)
+
+    def test_unexpected_exception_is_concise_and_not_leaked(self, rpc):
+        with patch("src.pages.service.get_page_service", side_effect=RuntimeError("secret internal xyzzy")):
+            result = rpc("list_pages", {})
+
+        assert result.get("isError") is True, f"error flag not set: {result}"
+        text = self._text(result)
+        assert "xyzzy" not in text, f"internal exception detail leaked to the MCP client: {text}"
+        assert "Traceback" not in text
+        assert "list_pages" in text, f"the failing tool is not named: {text}"
+
+    def test_success_is_not_flagged_as_error(self, rpc, mock_page_service):
+        with patch("src.pages.service.get_page_service", return_value=mock_page_service):
+            result = rpc("list_pages", {})
+        assert not result.get("isError"), f"a successful call was flagged as an error: {result}"
+
+    def test_blocked_send_is_a_result_not_an_error(self, rpc):
+        """Silence/pause blocks are policy, not failures — the model should
+        relay them, so they stay ordinary results the payload explains."""
+        from src.settings.service import SettingsService
+
+        settings = create_autospec(SettingsService, instance=True)
+        settings.get_primary_board_id.return_value = "b1"
+        settings.get_board_settings.return_value = SimpleNamespace(boards=[{"id": "b1", "device_type": "flagship"}])
+        settings.is_paused.return_value = True
+        with (
+            patch("src.api_server.get_service", return_value=MagicMock()),
+            patch("src.settings.service.get_settings_service", return_value=settings),
+            patch("src.config.Config.is_silence_mode_active", return_value=False),
+        ):
+            result = rpc("send_message", {"text": "HI"})
+
+        assert not result.get("isError"), f"a policy block was flagged as a protocol error: {result}"
+        assert result["structuredContent"]["status"] == "blocked"
