@@ -581,7 +581,7 @@ class MQTTSettings:
 # pre-migration file is written to ``settings.json.v{N}_backup`` before the
 # first migration runs.
 
-CURRENT_SETTINGS_SCHEMA_VERSION = 2
+CURRENT_SETTINGS_SCHEMA_VERSION = 3
 
 _LEGACY_CAROUSEL_PREFIX = "carousel:"
 _COLLECTION_PREFIX = "collection:"
@@ -709,9 +709,134 @@ def _migrate_v1_to_v2(data: dict) -> int:
     return 1
 
 
+# Board-connection fields copied from the legacy config.json board block into
+# a credential-less settings board (v2 -> v3 migration and first-boot seed).
+_LEGACY_CONNECTION_FIELDS = ("api_mode", "host", "local_api_key", "cloud_key", "note_array_token")
+
+
+def _board_dict_has_credentials(board: dict) -> bool:
+    """True when a raw board dict already carries any connection credential.
+
+    Credentials are the local API key, the cloud read/write key, the
+    note-array token, or configured local-array tiles. A virtual board
+    (FiestaPanel) counts too: carrying no credential fields is its nature,
+    not an unconfigured state — mirroring
+    ``BoardInstance.has_connection_attempt`` — so stale physical credentials
+    never flip its ``api_mode`` (#1866 review). A board matching any of
+    these is a *maintained* copy and must never be overwritten by the legacy
+    config.json block (issue #1760 precedence rule).
+    """
+    if board.get("api_mode") == "virtual":
+        return True
+    if board.get("local_api_key") or board.get("cloud_key") or board.get("note_array_token"):
+        return True
+    tiles = board.get("tiles")
+    return isinstance(tiles, list) and len(tiles) > 0
+
+
+def _read_legacy_board_connection() -> dict | None:
+    """Read the legacy ``config.json -> board.*`` connection block.
+
+    Returns a dict of :data:`_LEGACY_CONNECTION_FIELDS`, or None when the
+    legacy block carries no credential worth importing. A *failure* to read
+    it propagates instead of masquerading as "no credentials": swallowing it
+    let a transient config read failure stamp the new schema version with
+    nothing imported (#1866 review). The migration runner aborts the run so
+    schema_version stays pre-migration and the import retries next boot.
+    This is the ONLY remaining read of board credentials from config.json;
+    everything at runtime goes through the settings store (issue #1760).
+    """
+    from src.config_manager import get_config_manager
+
+    legacy = get_config_manager().get_board()
+    if not (legacy.get("local_api_key") or legacy.get("cloud_key") or legacy.get("note_array_token")):
+        return None
+    return {
+        "api_mode": legacy.get("api_mode", "local") or "local",
+        "host": legacy.get("host", "") or "",
+        "local_api_key": legacy.get("local_api_key", "") or "",
+        "cloud_key": legacy.get("cloud_key", "") or "",
+        "note_array_token": legacy.get("note_array_token", "") or "",
+    }
+
+
+def _connection_fields_for_board(legacy: dict, board: dict) -> dict | None:
+    """Restrict an imported legacy connection to fields the target board can use.
+
+    A note-array token only ever drives a note-array board. Importing it onto
+    a flagship/note primary satisfied ``has_connection_attempt`` — the setup
+    wizard never appeared — while no client could ever be built from it
+    (#1866 review). For non-array targets the token is dropped; if no real
+    credential remains, nothing imports and the wizard shows as it did
+    pre-#1760.
+    """
+    from src.devices import is_note_array
+
+    if is_note_array(board.get("device_type", "flagship")):
+        return legacy
+    fields = dict(legacy)
+    fields["note_array_token"] = ""
+    if not (fields.get("local_api_key") or fields.get("cloud_key")):
+        return None
+    return fields
+
+
+def _migrate_v2_to_v3(data: dict) -> int:
+    """Migration 2 -> 3 (idempotent; operates on the raw settings dict).
+
+    Unify board credentials on settings.json (issue #1760): import the legacy
+    ``config.json -> board.*`` connection block into the primary settings
+    board — once, gated on schema_version, replacing the old copy-on-every-boot
+    seam that kept resurrecting stale config.json keys (#948/#1102).
+
+    Precedence: settings is the maintained copy. Only a credential-less
+    primary board inherits from config.json; a board that already carries any
+    credential (local key, cloud key, note-array token, or local-array tiles)
+    is left untouched. config.json itself is not modified — its board block
+    stays on disk as a rollback copy for older versions but is no longer read
+    at runtime.
+
+    Returns 1 when the primary board inherited the legacy connection,
+    0 otherwise.
+    """
+    board = data.get("board")
+    if not isinstance(board, dict):
+        return 0
+    boards = board.get("boards")
+    materialize = False
+    if not isinstance(boards, list) or not boards or not isinstance(boards[0], dict):
+        # Devices-era file: a raw ``board`` dict without a ``boards`` list
+        # (e.g. {"board_type": "black", "devices": ["flagship"]}) — a shape
+        # BoardSettings.from_dict still parses. Gating only on a raw
+        # boards[0] let these installs slip between the migration and the
+        # first-boot seed: schema stamped v3 with the credentials stranded
+        # in config.json (#1866 review). Run the import against the
+        # POST-PARSE board list instead, and materialize it on import.
+        parsed = BoardSettings.from_dict(board)
+        boards = [b for b in parsed.boards if isinstance(b, dict)]
+        if not boards:
+            return 0
+        materialize = True
+    first = boards[0]
+    if _board_dict_has_credentials(first):
+        return 0
+    legacy = _read_legacy_board_connection()
+    if legacy is None:
+        return 0
+    importable = _connection_fields_for_board(legacy, first)
+    if importable is None:
+        return 0
+    first.update(importable)
+    if materialize:
+        board["boards"] = boards
+    logger.info("Imported legacy config.json board connection into the primary settings board")
+    return 1
+
+
 MIGRATIONS: list[tuple[int, Callable[[dict], int]]] = [
     (1, _migrate_v0_to_v1),
     (2, _migrate_v1_to_v2),
+    (3, _migrate_v2_to_v3),
 ]
 
 
@@ -778,9 +903,9 @@ class SettingsService:
         self._plugins = self._load_plugin_settings()
         self._temporary_override: TemporaryOverride | None = self._load_temporary_override()
 
-        if getattr(self, "_needs_migration_save", False):
+        if getattr(self, "_needs_seed_save", False):
             self._save_to_file()
-            self._needs_migration_save = False
+            self._needs_seed_save = False
 
         logger.info(f"SettingsService initialized (file: {self.settings_file})")
 
@@ -830,12 +955,25 @@ class SettingsService:
             except OSError as e:
                 logger.warning(f"Could not create settings backup: {e}")
 
-        for target_version, migrate_fn in MIGRATIONS:
-            if current_version >= target_version:
-                continue
-            count = migrate_fn(data)
-            logger.info(f"Settings schema migration v{current_version}->v{target_version}: {count} change(s) applied")
-            current_version = target_version
+        try:
+            for target_version, migrate_fn in MIGRATIONS:
+                if current_version >= target_version:
+                    continue
+                count = migrate_fn(data)
+                logger.info(
+                    f"Settings schema migration v{current_version}->v{target_version}: {count} change(s) applied"
+                )
+                current_version = target_version
+        except Exception:
+            # Abort the whole run without saving: schema_version on disk stays
+            # pre-migration (no half-stamp — nothing mutated reaches disk) and
+            # every pending migration re-runs on the next boot. Migrations are
+            # idempotent by contract, so the retry is safe (#1866 review).
+            logger.exception(
+                f"Settings schema migration to v{CURRENT_SETTINGS_SCHEMA_VERSION} failed — "
+                "leaving schema_version unstamped; will retry next boot"
+            )
+            return
 
         data["schema_version"] = CURRENT_SETTINGS_SCHEMA_VERSION
 
@@ -935,47 +1073,51 @@ class SettingsService:
     def _load_board_settings(self) -> BoardSettings:
         """Load board settings from file.
 
-        If the first board has no connection settings, migrate them from
-        the global board config (config.json) so existing setups keep working.
-        Migration is deferred -- _migrate_global_connection sets a flag,
-        and the actual save happens after all settings are fully initialized.
+        Existing files: the schema migrations (run before any ``_load_*``)
+        already imported the legacy config.json connection where appropriate,
+        so the section is used as-is — a maintained board is never re-seeded
+        from config.json (issue #1760).
+
+        First boot only (no board section on disk yet): the freshly created
+        default board inherits the legacy ``config.json -> board.*``
+        connection, which is where env vars like ``BOARD_READ_WRITE_KEY``
+        seed credentials. The seed is persisted after init via
+        ``_needs_seed_save``.
         """
         file_data = self._load_from_file()
         if "board" in file_data:
-            settings = BoardSettings.from_dict(file_data["board"])
-        else:
-            settings = BoardSettings()
+            return BoardSettings.from_dict(file_data["board"])
 
-        self._needs_migration_save = self._apply_global_connection(settings)
+        settings = BoardSettings()
+        self._needs_seed_save = self._seed_connection_from_legacy_config(settings)
         return settings
 
-    def _apply_global_connection(self, settings: BoardSettings) -> bool:
-        """Copy global board connection config into board instances that lack one.
+    @staticmethod
+    def _seed_connection_from_legacy_config(settings: BoardSettings) -> bool:
+        """First-boot seed: copy the legacy config.json connection into the
+        default board when it carries no credential of its own.
 
         Returns True if settings were modified and need saving.
         """
         if not settings.boards:
             return False
-
         first = settings.boards[0]
-        if first.get("local_api_key") or first.get("cloud_key"):
+        if _board_dict_has_credentials(first):
             return False
-
         try:
-            from src.config_manager import get_config_manager
-
-            global_cfg = get_config_manager().get_board()
+            legacy = _read_legacy_board_connection()
         except Exception:
+            # First boot has no schema-version retry lever; skip the seed and
+            # leave the board section unsaved so the next boot tries again.
+            logger.warning("Could not read legacy board connection for first-boot seed", exc_info=True)
             return False
-
-        if not global_cfg.get("local_api_key") and not global_cfg.get("cloud_key"):
+        if legacy is None:
             return False
-
-        first["api_mode"] = global_cfg.get("api_mode", "local")
-        first["host"] = global_cfg.get("host", "")
-        first["local_api_key"] = global_cfg.get("local_api_key", "")
-        first["cloud_key"] = global_cfg.get("cloud_key", "")
-        logger.info("Migrated global board connection to first board instance")
+        importable = _connection_fields_for_board(legacy, first)
+        if importable is None:
+            return False
+        first.update(importable)
+        logger.info("Seeded first-boot board connection from legacy config.json")
         return True
 
     def _load_schedule_settings(self) -> ScheduleSettings:

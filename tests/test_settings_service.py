@@ -587,9 +587,17 @@ class TestSettingsServiceLoadFromFile:
 
 
 class TestSettingsServiceMigration:
-    """Test _apply_global_connection migration."""
+    """Legacy config.json board connection import (schema migration v2 -> v3).
 
-    def test_apply_global_connection_migrates_when_first_board_empty(self, settings_file, mock_config):
+    Issue #1760: the copy-on-every-boot ``_apply_global_connection`` seam was
+    replaced by a one-time, schema-versioned migration (plus a first-boot
+    seed when no board section exists yet). These tests exercise the
+    migration path: pre-versioned settings files with a credential-less
+    board. tests/test_board_credentials_unification.py covers version
+    gating, precedence, and the divergence contract.
+    """
+
+    def test_migration_imports_legacy_connection_when_first_board_empty(self, settings_file, mock_config):
         Path(settings_file).write_text(
             json.dumps(
                 {
@@ -611,7 +619,7 @@ class TestSettingsServiceMigration:
             svc = SettingsService(settings_file=settings_file)
         assert svc._board.boards[0]["local_api_key"] == "migrated-key"
 
-    def test_apply_global_connection_skips_when_board_has_keys(self, settings_file, mock_config):
+    def test_migration_skips_when_board_has_keys(self, settings_file, mock_config):
         Path(settings_file).write_text(
             json.dumps(
                 {
@@ -625,7 +633,7 @@ class TestSettingsServiceMigration:
             SettingsService(settings_file=settings_file)
             mock_get.assert_not_called()
 
-    def test_apply_global_connection_skips_when_global_empty(self, settings_file, mock_config):
+    def test_migration_skips_when_legacy_config_empty(self, settings_file, mock_config):
         Path(settings_file).write_text(json.dumps({"board": {"boards": [{"name": "B", "device_type": "flagship"}]}}))
         mock_cm = MagicMock()
         mock_cm.get_board.return_value = {"local_api_key": "", "cloud_key": ""}
@@ -633,7 +641,7 @@ class TestSettingsServiceMigration:
             svc = SettingsService(settings_file=settings_file)
         assert svc._board.boards[0].get("local_api_key", "") == ""
 
-    def test_apply_global_connection_handles_exception(self, settings_file, mock_config):
+    def test_migration_handles_config_manager_exception(self, settings_file, mock_config):
         Path(settings_file).write_text(json.dumps({"board": {"boards": [{"name": "B", "device_type": "flagship"}]}}))
         with patch("src.config_manager.get_config_manager", side_effect=Exception("err")):
             svc = SettingsService(settings_file=settings_file)
