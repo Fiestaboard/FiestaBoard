@@ -572,6 +572,91 @@ def _build_mcp_server() -> Any:
         except Exception as exc:
             return _err(str(exc))
 
+    @mcp.tool()
+    def preview_saved_page(page_id: str, board_id: str | None = None) -> dict[str, Any]:
+        """Render a SAVED page exactly as the display engine would send it.
+
+        Complements render_page_preview(), which renders unsaved template
+        lines: use this one to verify an existing page — with its stored
+        line_metadata (alignment, wrap) applied — before set_active_page().
+        Read-only; nothing is sent to the board.
+
+        Args:
+            page_id: The page identifier (from list_pages()).
+            board_id: Optional board to check the page against (from the boards
+                      list in get_settings_summary()). Adds fits_board and
+                      board_warnings to the response; rendering itself always
+                      uses the page's own device geometry.
+
+        Returns: {page_id, name, device_type, rendered, rows, line_metadata,
+        and — when board_id is given — fits_board, board_warnings}.
+        """
+        try:
+            from .pages.service import check_ref_board_compatibility, get_page_service
+
+            svc = get_page_service()
+            page = svc.get_page(page_id)
+            if page is None:
+                return _err(f"Page '{page_id}' not found.")
+            result = svc.preview_page(page_id, force_refresh=True)
+            if result is None:
+                return _err(f"Page '{page_id}' not found.")
+            if not result.available:
+                return _err(result.error or "Page rendering failed.")
+
+            out: dict[str, Any] = {
+                "page_id": page_id,
+                "name": page.name,
+                "device_type": page.device_type,
+                "rendered": result.formatted,
+                "rows": result.formatted.split("\n"),
+                "line_metadata": ([m.model_dump() for m in page.line_metadata] if page.line_metadata else None),
+            }
+            if board_id is not None:
+                compat = check_ref_board_compatibility(page_id, board_id)
+                out["board_id"] = board_id
+                out["fits_board"] = compat.ok
+                out["board_warnings"] = compat.warnings
+                if not compat.ok:
+                    out["board_error"] = compat.error
+            return out
+        except Exception as exc:
+            return _err(str(exc))
+
+    @mcp.tool()
+    def validate_template(template: list[str] | str, device_type: str = "flagship") -> dict[str, Any]:
+        """Check template syntax without rendering, saving, or touching the board.
+
+        Catches malformed {{...}} references, unknown plugins/variables,
+        formula errors ({{= ... }}), and unknown filters — cheaper than
+        render_page_preview() when you only need a syntax verdict.
+
+        Args:
+            template: Template string or list of template lines.
+            device_type: Which board type's width to validate against —
+                         'flagship' (22 cols), 'note' (15 cols).
+
+        Returns: {valid: bool, errors: [{line, column, message}], device_type}.
+        """
+        try:
+            from .devices import resolve_dimensions
+            from .templates.engine import get_template_engine
+
+            try:
+                cols = resolve_dimensions(device_type).cols
+            except Exception:
+                return _err(f"Unknown device_type: {device_type}")
+
+            text = "\n".join(template) if isinstance(template, list) else template
+            errors = get_template_engine().validate_template(text, cols=cols)
+            return {
+                "valid": len(errors) == 0,
+                "errors": [{"line": e.line, "column": e.column, "message": e.message} for e in errors],
+                "device_type": device_type,
+            }
+        except Exception as exc:
+            return _err(str(exc))
+
     # -----------------------------------------------------------------------
     # Schedule tools
     # -----------------------------------------------------------------------
@@ -887,6 +972,160 @@ def _build_mcp_server() -> Any:
                       list in get_settings_summary()). Omitted = the primary board.
         """
         return ops_executors.set_schedule_mode(enabled, board_id=board_id)
+
+    @mcp.tool()
+    def get_active_page(board_id: str | None = None) -> dict[str, Any]:
+        """What a board is CONFIGURED to show right now, fully resolved.
+
+        Resolves schedule mode (when enabled for the board) and collections
+        down to the concrete page. Distinct from get_board_content(), which
+        reports what was last physically sent to the flaps.
+
+        Args:
+            board_id: Board to inspect on a multi-board install (from the boards
+                      list in get_settings_summary()). Omitted = the primary board.
+
+        Returns: {board_id, schedule_enabled, source ('schedule' or 'manual'),
+        active_ref (the stored page/collection id), resolved_page_id (after
+        collection resolution), page (summary of the resolved page, or null)}.
+        """
+        try:
+            from .collections.models import is_collection_id
+            from .settings.service import get_settings_service
+
+            svc = get_settings_service()
+            if board_id is not None:
+                boards = svc.get_board_settings().boards or []
+                if not any(isinstance(b, dict) and b.get("id") == board_id for b in boards):
+                    return _err(f"Board not found: {board_id}")
+
+            # Mirrors GET /pages/current-display: schedule mode owns the
+            # answer when enabled; otherwise the manual per-board selection.
+            schedule_enabled = bool(svc.is_schedule_enabled(board_id))
+            if schedule_enabled:
+                from .schedules.service import get_schedule_service
+                from .time_service import get_time_service
+
+                now = get_time_service().get_current_time()
+                active_ref = get_schedule_service().get_active_page_id(
+                    now.time(), now.strftime("%A").lower(), board_id=board_id
+                )
+                source = "schedule"
+            else:
+                active_ref = svc.get_active_page_id(board_id)
+                source = "manual"
+
+            resolved_page_id = active_ref
+            if active_ref and is_collection_id(active_ref):
+                from .collections.service import get_collection_service
+
+                resolved_page_id = get_collection_service().resolve_page_id(active_ref)
+
+            page_summary = None
+            if resolved_page_id:
+                from .pages.service import get_page_service
+
+                page = get_page_service().get_page(resolved_page_id)
+                if page is not None:
+                    page_summary = {
+                        "id": page.id,
+                        "name": page.name,
+                        "type": page.type,
+                        "device_type": page.device_type,
+                    }
+            return {
+                "board_id": board_id,
+                "schedule_enabled": schedule_enabled,
+                "source": source,
+                "active_ref": active_ref,
+                "resolved_page_id": resolved_page_id,
+                "page": page_summary,
+            }
+        except Exception as exc:
+            return _err(str(exc))
+
+    @mcp.tool()
+    def get_board_content(board_id: str | None = None) -> dict[str, Any]:
+        """What is currently ON a board — the last known flap content. Read-only.
+
+        Served from FiestaBoard's own caches (background poll / last-sent
+        content); never writes to the board and never triggers a live read.
+        Use it to check whether the board matches what get_active_page() says
+        it should be showing. characters and message are null when nothing
+        has been observed or sent yet.
+
+        Args:
+            board_id: Board to read on a multi-board install (from the boards
+                      list in get_settings_summary()). Omitted = the primary
+                      board. Secondary boards are served from their runtime
+                      cache — board-state polling is primary-only.
+
+        Returns: {characters (2-D grid of flap codes or null), message
+        (formatted string or null), rows, cols, source ('polled' or
+        'last_sent' or null), board_id}.
+        """
+        try:
+            # get_service is the DisplayService singleton accessor — the same
+            # seam get_system_status uses; no REST handler is called.
+            from .api_server import _characters_to_message, get_service
+
+            service = get_service()
+            if not service:
+                return _err("Display service not initialized.")
+
+            characters = None
+            source = None
+            if board_id is None:
+                characters = service._polled_characters
+                source = "polled" if characters is not None else None
+                if characters is None and service.vb_client is not None:
+                    characters = getattr(service.vb_client, "_last_characters", None)
+                    source = "last_sent" if characters is not None else None
+            else:
+                from .settings.service import get_settings_service
+
+                boards = get_settings_service().get_board_settings().boards or []
+                if not any(isinstance(b, dict) and b.get("id") == board_id for b in boards):
+                    return _err(f"Board not found: {board_id}")
+                rt = service.get_runtime(board_id)
+                if rt is not None:
+                    characters = rt.polled_characters
+                    source = "polled" if characters is not None else None
+                    if characters is None and rt.client is not None:
+                        characters = getattr(rt.client, "_last_characters", None)
+                        source = "last_sent" if characters is not None else None
+
+            if characters is None:
+                return {"characters": None, "message": None, "rows": 0, "cols": 0, "source": None, "board_id": board_id}
+            return {
+                "characters": _serialize(characters),
+                "message": _characters_to_message(characters),
+                "rows": len(characters),
+                "cols": len(characters[0]) if characters else 0,
+                "source": source,
+                "board_id": board_id,
+            }
+        except Exception as exc:
+            return _err(str(exc))
+
+    @mcp.tool()
+    def send_message(text: str, board_id: str | None = None) -> dict[str, Any]:
+        """Send a one-off text message directly to a board.
+
+        The text is word-wrapped to the board's width; real newlines are
+        honored; single-brace color markers like {red} or {63} render as one
+        colored tile each. This bypasses pages entirely — the message stays
+        up until the active page next changes or the display refreshes.
+
+        A paused board or active silence mode returns status "blocked"
+        (deliberate policy — relay it to the user, don't retry).
+
+        Args:
+            text: The message text to display.
+            board_id: Board to target on a multi-board install (from the boards
+                      list in get_settings_summary()). Omitted = the primary board.
+        """
+        return ops_executors.send_message(text, board_id=board_id)
 
     # -----------------------------------------------------------------------
     # MCP Resources

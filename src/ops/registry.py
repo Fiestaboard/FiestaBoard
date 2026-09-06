@@ -139,6 +139,10 @@ OPERATIONS: tuple[Operation, ...] = (
         adapt_chat_args=lambda a: {"schedule_id": a.schedule_id},
     ),
     Operation(name="set_schedule_mode", executor=executors.set_schedule_mode, mcp_tool="set_schedule_mode"),
+    # -- board messages ---------------------------------------------------
+    # MCP-only server op (#1765): the ad-hoc send the REST surface has as
+    # POST /send-message. The chat grammar has no spelling for it today.
+    Operation(name="send_message", executor=executors.send_message, mcp_tool="send_message"),
     # -- collections ------------------------------------------------------
     Operation(
         name="create_collection",

@@ -89,6 +89,11 @@ COVERED = {
     "update_plugin",
     "set_active_page",
     "set_schedule_mode",
+    "get_active_page",
+    "get_board_content",
+    "send_message",
+    "preview_saved_page",
+    "validate_template",
 }
 
 #: Tools not yet covered here, each with the reason. Not an exemption list.
@@ -1261,3 +1266,262 @@ def test_get_settings_summary_boards_never_leak_credentials(mcp, services, two_b
     flat = json.dumps(result.get("boards", []))
     assert "test_secret_key" not in flat, "a board API key leaked through get_settings_summary"
     assert "192.168.0.99" not in flat, "a board host leaked through get_settings_summary"
+
+
+# ---------------------------------------------------------------------------
+# Read-back and action tools — issue #1765
+#
+# The MCP surface was write-only: nothing reported the resolved active page,
+# the board's current content, or a saved page's rendered output, and there
+# was no ad-hoc send. The display engine is faked with a minimal object (not
+# a MagicMock) so a tool calling a method that does not exist raises.
+# ---------------------------------------------------------------------------
+
+
+class _FakeClient:
+    def __init__(self):
+        self.rendered: list[list[list[int]]] = []
+        self._last_characters = None
+
+    def render(self, board_array, **kwargs):
+        self.rendered.append(board_array)
+        self._last_characters = board_array
+        return (True, True)
+
+
+class _FakeRuntime:
+    def __init__(self, client):
+        self.client = client
+        self.polled_characters = None
+        self.polled_at = None
+
+
+class _FakeEngine:
+    """Just the DisplayService surface the board tools are allowed to touch."""
+
+    def __init__(self, board_ids):
+        self.runtimes = {bid: _FakeRuntime(_FakeClient()) for bid in board_ids}
+        self._primary_id = board_ids[0]
+        self.out_of_band: list = []
+        self.refreshes = 0
+        self._polled_characters = None
+        self._polled_at = None
+
+    @property
+    def vb_client(self):
+        return self.runtimes[self._primary_id].client
+
+    def get_board_client(self, board_id):
+        rt = self.runtimes.get(board_id)
+        return rt.client if rt else None
+
+    def get_runtime(self, board_id):
+        return self.runtimes.get(board_id)
+
+    def mark_showing_out_of_band(self, board_id=None):
+        self.out_of_band.append(board_id)
+
+    def request_board_refresh(self):
+        self.refreshes += 1
+
+
+@pytest.fixture
+def engine(two_boards, monkeypatch):
+    fake = _FakeEngine(["board-main", "board-note"])
+    monkeypatch.setattr("src.api_server.get_service", lambda: fake)
+    return fake
+
+
+# -- send_message -----------------------------------------------------------
+
+
+def test_send_message_renders_to_the_primary_board_client(mcp, services, engine):
+    result = assert_ok(call(mcp, "send_message", text="HELLO"), "send_message")
+
+    assert result["status"] == "success"
+    grids = engine.vb_client.rendered
+    assert len(grids) == 1, "send_message did not render exactly once"
+    assert (len(grids[0]), len(grids[0][0])) == (6, 22), "primary flagship grid must be 6x22"
+    assert engine.runtimes["board-note"].client.rendered == [], "the other board was touched"
+
+
+def test_send_message_with_board_id_targets_that_board_at_its_own_size(mcp, services, engine):
+    assert_ok(call(mcp, "send_message", text="HI", board_id="board-note"), "send_message")
+
+    grids = engine.runtimes["board-note"].client.rendered
+    assert len(grids) == 1
+    assert (len(grids[0]), len(grids[0][0])) == (3, 15), "note board grid must be 3x15, not flagship 6x22"
+    assert engine.vb_client.rendered == [], "the primary board was touched"
+
+
+def test_send_message_marks_the_write_out_of_band(mcp, services, engine):
+    """Issue #1794/#1831: an ad-hoc send bypasses the display loop and the
+    state publisher must know the board no longer shows the configured page."""
+    assert_ok(call(mcp, "send_message", text="HELLO"), "send_message")
+
+    assert engine.out_of_band == [None], "primary send must be marked out-of-band"
+
+
+def test_send_message_to_a_paused_board_is_blocked_without_touching_it(mcp, services, engine, two_boards):
+    two_boards.set_paused(True, board_id="board-note")
+
+    result = call(mcp, "send_message", text="HI", board_id="board-note")
+
+    assert result.get("status") == "blocked", f"a paused board accepted a send: {result}"
+    assert result.get("paused") is True
+    assert engine.runtimes["board-note"].client.rendered == []
+
+
+def test_send_message_reports_an_unknown_board(mcp, services, engine):
+    result = call(mcp, "send_message", text="HI", board_id="no-such-board")
+
+    assert result.get("status") == "error"
+    assert "no-such-board" in str(result.get("error", ""))
+    assert engine.vb_client.rendered == []
+
+
+# -- get_active_page --------------------------------------------------------
+
+
+def test_get_active_page_reads_back_the_selection_per_board(mcp, services, two_boards, monkeypatch):
+    monkeypatch.setattr("src.api_server.get_service", lambda: None)
+    main_page = assert_ok(
+        call(mcp, "create_page", name="Main", template_lines=FLAGSHIP_TEMPLATE, device_type="flagship"),
+        "create_page",
+    )
+    note_page = assert_ok(
+        call(mcp, "create_page", name="Note", template_lines=NOTE_TEMPLATE, device_type="note"),
+        "create_page",
+    )
+    assert_ok(call(mcp, "set_active_page", page_id=main_page["page_id"]), "set_active_page")
+    assert_ok(
+        call(mcp, "set_active_page", page_id=note_page["page_id"], board_id="board-note"),
+        "set_active_page",
+    )
+
+    primary = assert_ok(call(mcp, "get_active_page"), "get_active_page")
+    assert primary["active_ref"] == main_page["page_id"]
+    assert primary["resolved_page_id"] == main_page["page_id"]
+    assert primary["source"] == "manual"
+    assert primary["page"]["name"] == "Main"
+
+    note = assert_ok(call(mcp, "get_active_page", board_id="board-note"), "get_active_page")
+    assert note["active_ref"] == note_page["page_id"]
+    assert note["page"]["device_type"] == "note"
+
+
+def test_get_active_page_resolves_a_collection_to_its_member(mcp, services, two_boards, monkeypatch):
+    monkeypatch.setattr("src.api_server.get_service", lambda: None)
+    page = assert_ok(
+        call(mcp, "create_page", name="Member", template_lines=FLAGSHIP_TEMPLATE, device_type="flagship"),
+        "create_page",
+    )
+    coll = assert_ok(
+        call(mcp, "create_collection", name="Loop", page_ids=[page["page_id"]]),
+        "create_collection",
+    )
+    assert_ok(call(mcp, "set_active_page", page_id=coll["collection_id"]), "set_active_page")
+
+    result = assert_ok(call(mcp, "get_active_page"), "get_active_page")
+
+    assert result["active_ref"] == coll["collection_id"]
+    assert result["resolved_page_id"] == page["page_id"]
+    assert result["page"]["name"] == "Member"
+
+
+def test_get_active_page_reports_an_unknown_board(mcp, services, two_boards):
+    result = call(mcp, "get_active_page", board_id="no-such-board")
+    assert result.get("status") == "error"
+    assert "no-such-board" in str(result.get("error", ""))
+
+
+# -- get_board_content ------------------------------------------------------
+
+
+def test_get_board_content_reads_the_primary_poll_cache(mcp, services, engine):
+    grid = [[1] * 22 for _ in range(6)]
+    engine._polled_characters = grid
+
+    result = assert_ok(call(mcp, "get_board_content"), "get_board_content")
+
+    assert result["characters"] == grid
+    assert result["source"] == "polled"
+    assert (result["rows"], result["cols"]) == (6, 22)
+    assert result["message"].splitlines()[0] == "A" * 22
+
+
+def test_get_board_content_reads_a_secondary_boards_runtime_cache(mcp, services, engine):
+    """After a send to board-note, its content is readable without a live poll."""
+    assert_ok(call(mcp, "send_message", text="HI", board_id="board-note"), "send_message")
+
+    result = assert_ok(call(mcp, "get_board_content", board_id="board-note"), "get_board_content")
+
+    assert result["source"] == "last_sent"
+    assert (result["rows"], result["cols"]) == (3, 15)
+    assert result["characters"] == engine.runtimes["board-note"].client._last_characters
+
+
+def test_get_board_content_is_null_when_nothing_was_ever_sent(mcp, services, engine):
+    result = assert_ok(call(mcp, "get_board_content", board_id="board-note"), "get_board_content")
+    assert result["characters"] is None
+    assert result["message"] is None
+
+
+# -- preview_saved_page -----------------------------------------------------
+
+
+def test_preview_saved_page_renders_the_stored_page(mcp, services):
+    created = assert_ok(
+        call(mcp, "create_page", name="Stored", template_lines=FLAGSHIP_TEMPLATE, device_type="flagship"),
+        "create_page",
+    )
+
+    result = assert_ok(call(mcp, "preview_saved_page", page_id=created["page_id"]), "preview_saved_page")
+
+    assert result["name"] == "Stored"
+    assert len(result["rows"]) == 6, "a flagship page must render 6 rows"
+    assert result["rows"][0].strip() == "HELLO"
+    assert "line_metadata" in result
+
+
+def test_preview_saved_page_reports_board_fit(mcp, services, two_boards, monkeypatch):
+    monkeypatch.setattr("src.api_server.get_service", lambda: None)
+    created = assert_ok(
+        call(mcp, "create_page", name="Flag", template_lines=FLAGSHIP_TEMPLATE, device_type="flagship"),
+        "create_page",
+    )
+
+    result = assert_ok(
+        call(mcp, "preview_saved_page", page_id=created["page_id"], board_id="board-note"),
+        "preview_saved_page",
+    )
+
+    assert result["fits_board"] is False, "a flagship page does not fit a note board"
+
+
+def test_preview_saved_page_unknown_page_is_an_error(mcp, services):
+    result = call(mcp, "preview_saved_page", page_id="no-such-page")
+    assert result.get("status") == "error"
+    assert "no-such-page" in str(result.get("error", ""))
+
+
+# -- validate_template ------------------------------------------------------
+
+
+def test_validate_template_accepts_a_clean_template(mcp, services):
+    result = assert_ok(call(mcp, "validate_template", template=["HELLO", ""]), "validate_template")
+    assert result["valid"] is True
+    assert result["errors"] == []
+
+
+def test_validate_template_reports_a_broken_formula_with_position(mcp, services):
+    result = call(mcp, "validate_template", template="{{= 1 + @ }}")
+
+    assert result["valid"] is False
+    assert result["errors"], "a broken formula produced no errors"
+    assert all({"line", "column", "message"} <= set(e) for e in result["errors"])
+
+
+def test_validate_template_rejects_an_unknown_device_type(mcp, services):
+    result = call(mcp, "validate_template", template="HI", device_type="jumbotron")
+    assert result.get("status") == "error"

@@ -63,7 +63,7 @@ from .schedules.service import get_schedule_service  # noqa: E402, F401
 from .settings.service import VALID_OUTPUT_TARGETS, VALID_STRATEGIES, get_settings_service  # noqa: E402
 from .templates.engine import get_template_engine, reset_template_engine  # noqa: E402, F401
 from .templates.expressions import function_signatures  # noqa: E402
-from .text_to_board import text_to_board_array, wrap_message_text  # noqa: E402
+from .text_to_board import text_to_board_array  # noqa: E402
 from .time_service import reset_time_service  # noqa: E402
 from .virtual_board_client import release_virtual_board_state  # noqa: E402
 
@@ -2476,16 +2476,17 @@ async def send_message(request: MessageRequest):
             notes_wide = primary_board.get("notes_wide", 1)
             notes_tall = primary_board.get("notes_tall", 1)
         dims = resolve_dimensions(device_type, notes_wide, notes_tall)
-        # Word-wrap to the board width (in tiles) and honor real newlines
-        # (issue #1793), then convert to a board array for proper
-        # character/color support. Backslashes are left alone: a JSON body
-        # can carry a real newline, so rewriting "\n" here would only corrupt
-        # legitimate text like C:\new.
-        wrapped = wrap_message_text(request.text, rows=dims.rows, cols=dims.cols)
-        board_array = text_to_board_array(wrapped, rows=dims.rows, cols=dims.cols)
+        # Word-wrap/convert/render is the shared message core (#1765): the
+        # MCP send_message executor calls the same function, so the two
+        # surfaces cannot render a message differently. See
+        # src/displays/messages.py for the #1793 newline/backslash notes.
+        from .displays.messages import render_message
 
-        success, was_sent = service.vb_client.render(
-            board_array,
+        success, was_sent = render_message(
+            service.vb_client,
+            request.text,
+            rows=dims.rows,
+            cols=dims.cols,
             strategy=transition.strategy,
             step_interval_ms=transition.step_interval_ms,
             step_size=transition.step_size,
