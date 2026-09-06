@@ -1,0 +1,41 @@
+{
+  "scenario": "trigger_override_lifecycle",
+  "sends": [
+    {
+      "t": "2026-07-15T09:00:00+00:00",
+      "board": "board-1",
+      "rows": [
+        "HELLO HOME            ",
+        "                      ",
+        "                      ",
+        "                      ",
+        "                      ",
+        "                      "
+      ]
+    },
+    {
+      "t": "2026-07-15T09:00:20+00:00",
+      "board": "board-1",
+      "rows": [
+        "DOOR OPEN             ",
+        "                      ",
+        "                      ",
+        "                      ",
+        "                      ",
+        "                      "
+      ]
+    },
+    {
+      "t": "2026-07-15T09:00:50+00:00",
+      "board": "board-1",
+      "rows": [
+        "HELLO HOME            ",
+        "                      ",
+        "                      ",
+        "                      ",
+        "                      ",
+        "                      "
+      ]
+    }
+  ]
+}
