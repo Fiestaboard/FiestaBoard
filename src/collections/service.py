@@ -12,6 +12,7 @@ blank the board.
 import logging
 import math
 import time
+from collections.abc import Callable
 from datetime import datetime
 from typing import Any
 
@@ -96,6 +97,7 @@ class CollectionService:
         ref_id: str,
         now_unix: float | None = None,
         context: dict[str, Any] | None = None,
+        context_factory: Callable[[], dict[str, Any] | None] | None = None,
     ) -> str | None:
         """If *ref_id* is a collection, return the page that should be shown.
 
@@ -103,7 +105,10 @@ class CollectionService:
         - For ``time`` mode, falls back to deterministic time-slice cycling.
         - For ``variable`` mode, walks ``variable.rules`` in order and returns
           the first ``page_id`` whose expression evaluates truthy. If
-          ``context`` is None, it is built lazily from the plugin registry.
+          ``context`` is None, ``context_factory`` (when given) supplies it —
+          the display loop passes its per-tick shared context this way
+          (issue #1752) so resolution and render share one plugin fan-out;
+          otherwise it is built lazily from the plugin registry.
         - For ``random`` mode, returns the shuffle-bag page for the current
           duration window (deterministic, stateless, no back-to-back repeats).
 
@@ -121,7 +126,7 @@ class CollectionService:
             return collection.current_page_id_time(ts)
 
         if collection.selection_mode == "variable":
-            return self._resolve_variable(collection, context)
+            return self._resolve_variable(collection, context, context_factory)
 
         if collection.selection_mode == "random":
             ts = now_unix if now_unix is not None else time.time()
@@ -180,6 +185,7 @@ class CollectionService:
         self,
         collection: Collection,
         context: dict[str, Any] | None,
+        context_factory: Callable[[], dict[str, Any] | None] | None = None,
     ) -> str | None:
         from src.templates.expressions import evaluate  # local import
 
@@ -187,7 +193,12 @@ class CollectionService:
             # Should be caught by validation; defend anyway.
             return collection.page_ids[0]
 
-        ctx = context if context is not None else self._build_variable_context()
+        ctx = context
+        if ctx is None and context_factory is not None:
+            # Per-tick shared context from the display loop (issue #1752).
+            ctx = context_factory()
+        if ctx is None:
+            ctx = self._build_variable_context()
 
         for idx, rule in enumerate(collection.variable.rules):
             try:

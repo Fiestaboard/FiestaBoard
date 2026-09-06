@@ -100,6 +100,21 @@ class Config:
     # Valid transition strategies
     VALID_TRANSITION_STRATEGIES = ["column", "reverse-column", "edges-to-center", "row", "diagonal", "random"]
 
+    # Parsed silence-window cache (issue #1752). The 1 Hz silence boundary
+    # probe in the display loop calls silence_config_for()/is_silence_mode_active()
+    # once per board per second; before this cache each call took the config
+    # manager's file lock and deep-copied the feature dict. Entries are keyed
+    # by board_id and hold (config_manager, generation, resolved) — the ``is``
+    # check on the manager plus the generation match make a cache hit valid
+    # only for the exact manager instance and write-state it was built from.
+    # Config managers without a ``config_generation`` (test doubles) bypass
+    # the cache entirely, keeping the always-fresh behavior.
+    _silence_cache: dict = {}
+    # (config_manager, generation) after the silence migrations last ran —
+    # they are idempotent no-ops once applied, so re-run them only when the
+    # config has actually been written since (see is_silence_mode_active).
+    _silence_migrations_ran: tuple | None = None
+
     @classmethod
     def _get_cm(cls):
         """Get the config manager instance."""
@@ -605,8 +620,28 @@ class Config:
         Returns:
             A normalized dict with exactly the seven silence keys. Never
             contains ``by_board``.
+
+        The parsed result is cached per board and invalidated by the config
+        manager's write generation (issue #1752), so the display loop's 1 Hz
+        boundary probe stops taking the config lock and deep-copying the
+        feature dict every second. Callers get a fresh shallow copy — all
+        seven values are scalars — so mutating a result never corrupts the
+        cache.
         """
-        return resolve_silence_schedule(cls._get_feature("silence_schedule"), board_id)
+        cm = cls._get_cm()
+        generation = getattr(cm, "config_generation", None)
+        if generation is None:
+            # Config-manager doubles without a write generation cannot signal
+            # invalidation — keep the always-fresh pre-cache behavior.
+            return resolve_silence_schedule(cls._get_feature("silence_schedule"), board_id)
+
+        cached = cls._silence_cache.get(board_id)
+        if cached is not None and cached[0] is cm and cached[1] == generation:
+            return dict(cached[2])
+
+        resolved = resolve_silence_schedule(cls._get_feature("silence_schedule"), board_id)
+        cls._silence_cache[board_id] = (cm, generation, resolved)
+        return dict(resolved)
 
     @classproperty
     def SILENCE_SCHEDULE_ENABLED(cls) -> bool:
@@ -669,10 +704,24 @@ class Config:
 
             config_manager = get_config_manager()
             # Seed per-board overrides first (issue #1788) so the UTC migration
-            # below converts them in the same pass. Both are cheap no-ops once
-            # they have run.
-            config_manager.migrate_silence_schedule_to_per_board()
-            config_manager.migrate_silence_schedule_to_utc()
+            # below converts them in the same pass. Both are idempotent no-ops
+            # once they have run — but each no-op still takes the config file
+            # lock, and this method backs the display loop's 1 Hz boundary
+            # probe. Gate them on the write generation (issue #1752): re-run
+            # only when the config has been saved since they last ran (or for
+            # generation-less test doubles, every call, as before).
+            generation = getattr(config_manager, "config_generation", None)
+            ran = cls._silence_migrations_ran
+            if generation is None or ran is None or ran[0] is not config_manager or ran[1] != generation:
+                config_manager.migrate_silence_schedule_to_per_board()
+                config_manager.migrate_silence_schedule_to_utc()
+                if generation is not None:
+                    # Record the POST-migration generation: a migration that
+                    # rewrote the window saved config and bumped it.
+                    cls._silence_migrations_ran = (
+                        config_manager,
+                        getattr(config_manager, "config_generation", generation),
+                    )
 
             # Re-resolve: the migration may have rewritten the window in place.
             silence = cls.silence_config_for(board_id)

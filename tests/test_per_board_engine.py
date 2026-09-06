@@ -107,7 +107,7 @@ def _page_service(specs):
             return None
         return _page(pid, spec.get("device_type", "flagship"), spec.get("notes_wide", 1), spec.get("notes_tall", 1))
 
-    def _preview(pid, force_refresh=False):
+    def _preview(pid, force_refresh=False, **_kwargs):
         spec = specs.get(pid)
         if spec is None:
             return SimpleNamespace(available=False, formatted="", error="missing")
@@ -697,7 +697,7 @@ class TestSendFailureTracking:
         boards = [_board("b1", "One")]
         svc, _clients = _service_with_runtimes(boards)
         pages = _page_service({"pA": {"content": "ALPHA"}})
-        pages.preview_page.side_effect = lambda pid, force_refresh=False: SimpleNamespace(
+        pages.preview_page.side_effect = lambda pid, force_refresh=False, **_kwargs: SimpleNamespace(
             available=False, formatted="", error="plugin data unavailable"
         )
         schedule = _schedule_service({"b1": "pA"})
@@ -761,7 +761,7 @@ class TestSendStatusReporting:
         svc, _clients = _service_with_runtimes(boards)
         pages = _page_service({"pA": {"content": "ALPHA"}, "pB": {"content": "BETA"}})
 
-        def _preview(pid, force_refresh=False):
+        def _preview(pid, force_refresh=False, **_kwargs):
             if pid == "pB":
                 return SimpleNamespace(available=False, formatted="", error="secondary board render failed")
             return SimpleNamespace(available=True, formatted="ALPHA", error=None)
@@ -778,7 +778,7 @@ class TestSendStatusReporting:
         boards = [_board("b1", "One")]
         svc, _clients = _service_with_runtimes(boards)
         pages = _page_service({"pA": {"content": "ALPHA"}})
-        pages.preview_page.side_effect = lambda pid, force_refresh=False: SimpleNamespace(
+        pages.preview_page.side_effect = lambda pid, force_refresh=False, **_kwargs: SimpleNamespace(
             available=False, formatted="", error="plugin data unavailable"
         )
         schedule = _schedule_service({"b1": "pA"})
@@ -835,7 +835,7 @@ class TestSendStatusReporting:
         )
         settings = _settings_service(boards, override=override)
         pages = _page_service({"pA": {"content": "ALPHA"}})
-        pages.render_page.side_effect = lambda page: SimpleNamespace(
+        pages.render_page.side_effect = lambda page, **_kwargs: SimpleNamespace(
             available=False, formatted="", error="one-off render failed"
         )
         schedule = _schedule_service({"b1": "pA"})

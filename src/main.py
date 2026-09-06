@@ -798,6 +798,28 @@ class DisplayService:
             logger.debug("Could not resolve board dict for %s: %s", board_id, e)
         return None
 
+    @staticmethod
+    def _shared_context_factory(page_service, contexts: dict[str, dict] | None, board: dict | None):
+        """A lazy provider of the pass-wide shared context for one board's size.
+
+        Returns None (callers fall back to building their own context — the
+        pre-#1752 behavior) when there is no pass-wide cache or the board's
+        geometry cannot be resolved. The returned zero-arg callable defers the
+        plugin fan-out until a consumer actually needs the context.
+        """
+        if contexts is None or not isinstance(board, dict):
+            return None
+
+        def factory() -> dict | None:
+            return page_service.shared_context_for(
+                contexts,
+                board.get("device_type") or DEFAULT_DEVICE_TYPE,
+                board.get("notes_wide") or 1,
+                board.get("notes_tall") or 1,
+            )
+
+        return factory
+
     # ------------------------------------------------------------------ #
     # Per-board display engine (single tick loop)
     # ------------------------------------------------------------------ #
@@ -816,17 +838,23 @@ class DisplayService:
         """
         primary_id = self._get_first_board_id()
         rt = self._ensure_primary_runtime()
-        sent = self.check_and_send_for_board(primary_id, rt, is_primary=True)
+        # One shared template-context cache per pass (issue #1752): the first
+        # render of a board size pays the full plugin fan-out, every other
+        # consumer in the same pass — other boards of that size, variable-mode
+        # collection resolution — reuses it. Keyed by size_key; filled lazily.
+        contexts: dict[str, dict] = {}
+        sent = self.check_and_send_for_board(primary_id, rt, is_primary=True, contexts=contexts)
         try:
-            self._drive_secondary_boards()
+            self._drive_secondary_boards(contexts)
         except Exception as e:  # secondaries must never break the primary loop
             logger.error(f"Error updating secondary boards: {e}")
         return sent
 
-    def _drive_secondary_boards(self) -> None:
+    def _drive_secondary_boards(self, contexts: dict[str, dict] | None = None) -> None:
         """Drive every board after the first through the unified per-board path.
 
         Each board raising is isolated so one failure never blocks the others.
+        ``contexts`` is the pass-wide shared template-context cache (#1752).
         """
         settings_service = get_settings_service()
         boards = settings_service.get_board_settings().boards or []
@@ -845,13 +873,19 @@ class DisplayService:
             if not board.get("enabled", True):
                 continue
             try:
-                self.check_and_send_for_board(board_id, rt, is_primary=False, board=board)
+                self.check_and_send_for_board(board_id, rt, is_primary=False, board=board, contexts=contexts)
             except Exception as e:  # partial-failure isolation
                 self._record_send_error(rt, board_id, str(e) or e.__class__.__name__)
                 logger.error(f"Board {board_id}: update failed: {e}")
 
     def check_and_send_for_board(
-        self, board_id, rt: BoardRuntime, *, is_primary: bool, board: dict | None = None
+        self,
+        board_id,
+        rt: BoardRuntime,
+        *,
+        is_primary: bool,
+        board: dict | None = None,
+        contexts: dict[str, dict] | None = None,
     ) -> bool:
         """Resolve and send one board's active page. Unified per-board path.
 
@@ -860,6 +894,12 @@ class DisplayService:
         active page. Triggers and temporary overrides are the PRIMARY board's
         feature set (locked epic decision); silence is resolved and delivered
         per board (issue #1788). All state reads/writes go through ``rt``.
+
+        ``contexts`` is the pass-wide shared template-context cache (issue
+        #1752): one dict per ``check_and_send_active_page`` pass, keyed by
+        board size, so N boards of one size cost one plugin fan-out per tick.
+        ``None`` (direct callers: MQTT, /refresh) keeps the build-per-render
+        behavior.
 
         Returns:
             True if content was sent to this board, False otherwise.
@@ -1041,7 +1081,7 @@ class DisplayService:
                 # One-off override: render the in-memory page directly. There is
                 # no stored page to look up and no preview cache to bypass.
                 page = inline_page
-                result = page_service.render_page(inline_page)
+                result = page_service.render_page(inline_page, contexts=contexts)
                 if not result or not result.available:
                     render_error = getattr(result, "error", None) if result else None
                     self._record_send_error(rt, board_id, render_error or "Failed to render one-off override content")
@@ -1052,7 +1092,15 @@ class DisplayService:
                 # which underlying page should be shown right now.
                 collection_service = get_collection_service()
                 if is_collection_id(active_page_id):
-                    resolved = collection_service.resolve_page_id(active_page_id)
+                    # Variable-mode collections evaluate rules against the
+                    # plugin context; hand them the pass-wide shared one
+                    # (issue #1752) so resolution and render share a single
+                    # fan-out. The factory is lazy: time/random-mode
+                    # collections never build a context at all.
+                    context_factory = self._shared_context_factory(
+                        page_service, contexts, board if board is not None else self._board_dict_for(board_id)
+                    )
+                    resolved = collection_service.resolve_page_id(active_page_id, context_factory=context_factory)
                     if not resolved:
                         logger.warning(f"Collection not found or empty: {active_page_id}")
                         return False
@@ -1066,7 +1114,7 @@ class DisplayService:
 
                 # Render with fresh data — force_refresh bypasses the preview cache
                 # so template variables (weather, time, stocks, etc.) are current.
-                result = page_service.preview_page(active_page_id, force_refresh=True)
+                result = page_service.preview_page(active_page_id, force_refresh=True, contexts=contexts)
                 if not result or not result.available:
                     render_error = getattr(result, "error", None) if result else None
                     self._record_send_error(
@@ -1097,6 +1145,7 @@ class DisplayService:
                         silence_nw,
                         silence_nt,
                         board=board if board is not None else self._board_dict_for(board_id),
+                        contexts=contexts,
                     )
                 return self._send_silence_indicator(
                     silence_dt, rt, silence_nw, silence_nt, silence_config=silence_config
@@ -1471,6 +1520,7 @@ class DisplayService:
         notes_tall: int = 1,
         *,
         board: dict | None = None,
+        contexts: dict[str, dict] | None = None,
     ) -> bool:
         """Render the target board's silence page once and freeze it there.
 
@@ -1529,7 +1579,7 @@ class DisplayService:
 
         logger.info(f"⏸️  Entering silence mode (page) - displaying {page.id}")
 
-        result = page_service.preview_page(page.id, force_refresh=True)
+        result = page_service.preview_page(page.id, force_refresh=True, contexts=contexts)
         if not result or not result.available:
             logger.warning("Silence page %s could not be rendered - falling back to indicator", page.id)
             return self._send_silence_indicator(device_type, rt, notes_wide, notes_tall, silence_config)

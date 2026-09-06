@@ -259,10 +259,12 @@ def make_page_service(specs: dict) -> MagicMock:
 
     svc = MagicMock()
     svc.get_page.side_effect = _page
-    svc.preview_page.side_effect = lambda pid, force_refresh=False: SimpleNamespace(
+    # ``context``/``contexts`` mirror the real PageService signature (#1752);
+    # the stubs render fixed content, so the shared per-tick context is unused.
+    svc.preview_page.side_effect = lambda pid, force_refresh=False, context=None, contexts=None: SimpleNamespace(
         available=pid in specs, formatted=_content(pid) if pid in specs else "", error=None
     )
-    svc.render_page.side_effect = lambda page, context=None: SimpleNamespace(
+    svc.render_page.side_effect = lambda page, context=None, contexts=None: SimpleNamespace(
         available=True,
         formatted="\n".join(page.template) if getattr(page, "template", None) else "",
         error=None,
