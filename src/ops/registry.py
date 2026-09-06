@@ -270,7 +270,7 @@ async def execute(name: str, args: dict[str, Any]) -> dict[str, Any]:
     assert op.executor is not None
 
     if op.chat_name is not None and name == op.chat_name:
-        from src.ai.chat_ops import parse_tool_call
+        from .grammar import parse_tool_call
 
         validated = parse_tool_call({"op": name, "args": args})
         assert op.adapt_chat_args is not None, f"chat-named op {name!r} has no args adapter"
