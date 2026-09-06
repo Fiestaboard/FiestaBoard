@@ -178,10 +178,3 @@ The corresponding API endpoints are also available:
 
 Stop the container, delete `data/auth.json`, and restart. The next visit
 to the UI will walk you through the first-run picker again.
-
-## Secret encryption at rest
-
-Independent of the login feature, FiestaBoard supports encrypting
-sensitive values (API keys, board keys, plugin credentials) before
-writing them to `data/config.json`. See
-[Secret encryption](./secret-encryption.md) for details.
