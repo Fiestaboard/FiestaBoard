@@ -2137,7 +2137,7 @@ async def _auto_apply_plugin_updates(registry: Any, plugin_ids: list) -> None:
             failed.append(plugin_id)
             continue
 
-        registry._update_status.pop(plugin_id, None)
+        registry.clear_update_status(plugin_id)
         updated.append(plugin_id)
 
     if updated:
@@ -5727,7 +5727,9 @@ async def list_transition_plugins():
 
     registry = get_plugin_registry()
     out = []
-    for plugin_id, plugin in registry._plugins.items():  # noqa: SLF001 - registry is in-process
+    # registry.plugins copies under the registry lock, so a concurrent
+    # install/uninstall can't mutate the dict mid-iteration (#1828).
+    for plugin_id, plugin in registry.plugins.items():
         if not isinstance(plugin, TransitionPluginBase):
             continue
         manifest = registry.get_manifest(plugin_id)
@@ -10751,7 +10753,7 @@ async def update_plugin(plugin_id: str):
         detail = "; ".join(errors) if errors else "Plugin failed to reload after update."
         raise HTTPException(status_code=500, detail=detail)
 
-    registry._update_status.pop(plugin_id, None)
+    registry.clear_update_status(plugin_id)
 
     return {
         "status": "success",
@@ -10823,7 +10825,7 @@ async def apply_all_plugin_updates():
             failed[plugin_id] = "; ".join(errors) if errors else "Reload failed."
             continue
 
-        registry._update_status.pop(plugin_id, None)
+        registry.clear_update_status(plugin_id)
         updated.append(plugin_id)
         logger.info("Bulk update: applied update for plugin '%s'", plugin_id)
 

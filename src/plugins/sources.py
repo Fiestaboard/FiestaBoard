@@ -17,6 +17,7 @@ import os
 import re
 import shutil
 import subprocess
+import threading
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -57,6 +58,24 @@ _ALLOWED_SCHEMES = ("https://",)
 
 # Where the plugin code lives inside a cloned repo (root by default)
 _PLUGIN_SUBDIR = ""
+
+# One lock per plugin directory (#1828): two concurrent clone_or_update_repo
+# calls for the same plugin would run ``git fetch``/``git reset --hard`` in the
+# same working tree at once and trip over each other's index.lock.  Keyed by
+# plugin id so operations on *different* plugins still run in parallel.
+_repo_dir_locks: dict[str, threading.Lock] = {}
+_repo_dir_locks_guard = threading.Lock()
+
+
+def _dir_lock(plugin_id: str) -> threading.Lock:
+    """Return the lock serializing git operations in *plugin_id*'s directory."""
+    with _repo_dir_locks_guard:
+        lock = _repo_dir_locks.get(plugin_id)
+        if lock is None:
+            lock = threading.Lock()
+            _repo_dir_locks[plugin_id] = lock
+        return lock
+
 
 # ── data classes ─────────────────────────────────────────────────────────────
 
@@ -376,11 +395,73 @@ def clone_or_update_repo(
     if _candidate == _ext_root:
         return False, "Refusing to install plugin at root directory"
 
-    # ── Update path (no URL required) ─────────────────────────────────────────
-    if os.path.isdir(os.path.join(_candidate, ".git")):
+    # Everything that touches the plugin's directory — the install/update
+    # branch decision included — runs under its per-directory lock (#1828), so
+    # concurrent operations on the same plugin serialize instead of corrupting
+    # the working tree.  Operations on other plugins take other locks.
+    with _dir_lock(plugin_id):
+        # ── Update path (no URL required) ─────────────────────────────────────
+        if os.path.isdir(os.path.join(_candidate, ".git")):
+            try:
+                subprocess.run(
+                    ["git", "fetch", "--depth=1", "origin", "HEAD"],
+                    cwd=_candidate,
+                    check=True,
+                    capture_output=True,
+                    text=True,
+                    timeout=120,
+                    env=env,
+                )
+                subprocess.run(
+                    ["git", "reset", "--hard", "FETCH_HEAD"],
+                    cwd=_candidate,
+                    check=True,
+                    capture_output=True,
+                    text=True,
+                    timeout=30,
+                    env=env,
+                )
+                logger.info("Updated existing plugin clone at %s", _candidate)
+                return True, ""
+            except subprocess.SubprocessError as exc:
+                stderr = (getattr(exc, "stderr", None) or "").strip()
+                msg = f"git fetch/reset failed: {stderr}" if stderr else f"git fetch/reset failed: {exc}"
+                return False, msg
+
+        # ── Fresh install — validate URL and optional branch ──────────────────
+        ok, err = _validate_git_url(repo_url)
+        if not ok:
+            return False, err
+
+        if branch:
+            ok, err = _validate_git_ref(branch)
+            if not ok:
+                return False, err
+
+        # ── git init + write remote URL to config + git fetch ─────────────────
+        # Writing repo_url to .git/config (a normal file write) avoids passing a
+        # user-controlled value as a subprocess argument (py/command-line-injection).
+        os.makedirs(_candidate, exist_ok=True)
         try:
             subprocess.run(
-                ["git", "fetch", "--depth=1", "origin", "HEAD"],
+                ["git", "init", "--quiet"],
+                cwd=_candidate,
+                check=True,
+                capture_output=True,
+                text=True,
+                timeout=30,
+                env=env,
+            )
+            _git_config_path = os.path.join(_candidate, ".git", "config")
+            with open(_git_config_path, "a") as _cfg:
+                _cfg.write(f'[remote "origin"]\n\turl = {repo_url}\n\tfetch = +refs/heads/*:refs/remotes/origin/*\n')
+            _fetch_cmd = ["git", "fetch", "--depth=1", "origin"]
+            if branch:
+                _fetch_cmd.append(branch)
+            else:
+                _fetch_cmd.append("HEAD")
+            subprocess.run(
+                _fetch_cmd,
                 cwd=_candidate,
                 check=True,
                 capture_output=True,
@@ -397,73 +478,16 @@ def clone_or_update_repo(
                 timeout=30,
                 env=env,
             )
-            logger.info("Updated existing plugin clone at %s", _candidate)
+            logger.info("Installed external plugin repository to %s", _candidate)
             return True, ""
         except subprocess.SubprocessError as exc:
+            shutil.rmtree(_candidate, ignore_errors=True)
             stderr = (getattr(exc, "stderr", None) or "").strip()
-            msg = f"git fetch/reset failed: {stderr}" if stderr else f"git fetch/reset failed: {exc}"
+            msg = f"git clone failed: {stderr}" if stderr else f"git clone failed: {exc}"
             return False, msg
-
-    # ── Fresh install — validate URL and optional branch ──────────────────────
-    ok, err = _validate_git_url(repo_url)
-    if not ok:
-        return False, err
-
-    if branch:
-        ok, err = _validate_git_ref(branch)
-        if not ok:
-            return False, err
-
-    # ── git init + write remote URL to config + git fetch ─────────────────────
-    # Writing repo_url to .git/config (a normal file write) avoids passing a
-    # user-controlled value as a subprocess argument (py/command-line-injection).
-    os.makedirs(_candidate, exist_ok=True)
-    try:
-        subprocess.run(
-            ["git", "init", "--quiet"],
-            cwd=_candidate,
-            check=True,
-            capture_output=True,
-            text=True,
-            timeout=30,
-            env=env,
-        )
-        _git_config_path = os.path.join(_candidate, ".git", "config")
-        with open(_git_config_path, "a") as _cfg:
-            _cfg.write(f'[remote "origin"]\n\turl = {repo_url}\n\tfetch = +refs/heads/*:refs/remotes/origin/*\n')
-        _fetch_cmd = ["git", "fetch", "--depth=1", "origin"]
-        if branch:
-            _fetch_cmd.append(branch)
-        else:
-            _fetch_cmd.append("HEAD")
-        subprocess.run(
-            _fetch_cmd,
-            cwd=_candidate,
-            check=True,
-            capture_output=True,
-            text=True,
-            timeout=120,
-            env=env,
-        )
-        subprocess.run(
-            ["git", "reset", "--hard", "FETCH_HEAD"],
-            cwd=_candidate,
-            check=True,
-            capture_output=True,
-            text=True,
-            timeout=30,
-            env=env,
-        )
-        logger.info("Installed external plugin repository to %s", _candidate)
-        return True, ""
-    except subprocess.SubprocessError as exc:
-        shutil.rmtree(_candidate, ignore_errors=True)
-        stderr = (getattr(exc, "stderr", None) or "").strip()
-        msg = f"git clone failed: {stderr}" if stderr else f"git clone failed: {exc}"
-        return False, msg
-    except OSError as exc:
-        shutil.rmtree(_candidate, ignore_errors=True)
-        return False, f"git clone failed (I/O error): {exc}"
+        except OSError as exc:
+            shutil.rmtree(_candidate, ignore_errors=True)
+            return False, f"git clone failed (I/O error): {exc}"
 
 
 def get_remote_head_sha(dest_dir: Path) -> str | None:
