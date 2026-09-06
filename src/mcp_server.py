@@ -210,8 +210,16 @@ def _build_mcp_server() -> Any:
     # -----------------------------------------------------------------------
 
     def _plugin_service() -> Any:
-        """The shared plugin-orchestration service (never api_server)."""
-        from .plugins.service import PluginService
+        """The shared plugin-orchestration service (never api_server).
+
+        Mirrors the REST layer's 503 guard: when the plugin subsystem cannot
+        import, tools report the clean "Plugin system is not available."
+        domain error instead of a raw ImportError (#1865 review).
+        """
+        try:
+            from .plugins.service import PluginService
+        except ImportError as exc:
+            raise RuntimeError("Plugin system is not available.") from exc
 
         return PluginService()
 

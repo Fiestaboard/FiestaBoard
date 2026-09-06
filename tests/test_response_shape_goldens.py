@@ -739,9 +739,12 @@ class _GoldenConfigManager:
             "alpha": {"enabled": True, "api_key": "test_key_123", "location": "New York, NY"},
         }
 
-    def get_plugin_config(self, plugin_id: str) -> dict[str, Any] | None:
+    def get_plugin_config(self, plugin_id: str, include_env_overrides: bool = True) -> dict[str, Any] | None:
         config = self.configs.get(plugin_id)
         return dict(config) if config else None
+
+    def get_plugin_env_overrides(self, plugin_id: str) -> dict[str, Any]:
+        return {}
 
     def set_plugin_config(self, plugin_id: str, config: dict[str, Any]) -> None:
         self.configs[plugin_id] = dict(config)
