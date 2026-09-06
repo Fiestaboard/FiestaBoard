@@ -401,3 +401,23 @@ class TestConcurrentWriters:
         reloaded = ScheduleStorage(storage_file=str(tmp_path / "schedules.json"))
         assert reloaded.get("s1").start_time == "09:00"
         assert reloaded.get("s2").start_time == "11:00"
+
+    def test_collections_two_threads_updating_disjoint_collections_both_survive(self, tmp_path, monkeypatch):
+        from src.collections.models import Collection
+        from src.collections.storage import CollectionStorage
+
+        storage = CollectionStorage(storage_file=str(tmp_path / "collections.json"))
+        for cid in ("collection:c1", "collection:c2"):
+            storage.create(Collection(id=cid, name=cid[-2:], page_ids=["p1"]))
+
+        _force_write_overlap(monkeypatch)
+        errors = _run_pair(
+            lambda: storage.update("collection:c1", {"name": "First Updated"}),
+            lambda: storage.update("collection:c2", {"name": "Second Updated"}),
+        )
+        monkeypatch.undo()
+
+        assert errors == []
+        reloaded = CollectionStorage(storage_file=str(tmp_path / "collections.json"))
+        assert reloaded.get("collection:c1").name == "First Updated"
+        assert reloaded.get("collection:c2").name == "Second Updated"

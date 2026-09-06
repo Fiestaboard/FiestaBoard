@@ -6,16 +6,12 @@ legacy ``data/carousels.json`` file (carousel: prefixed IDs, flat
 ``interval_seconds``) into the new collection format on first run.
 """
 
-import contextlib
 import json
 import logging
-import shutil
 from collections.abc import Callable
 from datetime import datetime
-from pathlib import Path
 
-from src.atomic_io import staging_path
-from src.paths import get_data_dir
+from src.storage.json_store import JsonStore
 
 from .models import COLLECTION_ID_PREFIX, Collection
 
@@ -63,14 +59,22 @@ def import_legacy_carousels(raw_carousels: list[dict]) -> list[dict]:
 MIGRATIONS: list[tuple[int, Callable[[list[dict]], int]]] = []
 
 
+def _adapt_migration(fn: Callable[[list[dict]], int]) -> Callable[[dict], int]:
+    """Adapt a records-list migration to the kernel's whole-document signature."""
+    return lambda data: fn(data.get("collections", []))
+
+
 class CollectionStorage:
     """JSON file-based storage for collections."""
 
     def __init__(self, storage_file: str | None = None):
-        if storage_file is None:
-            self.storage_file = get_data_dir() / "collections.json"
-        else:
-            self.storage_file = Path(storage_file)
+        self._store = JsonStore(
+            "collections.json" if storage_file is None else storage_file,
+            current_schema_version=CURRENT_SCHEMA_VERSION,
+            migrations=[(version, _adapt_migration(fn)) for version, fn in MIGRATIONS],
+            label="Collections",
+        )
+        self.storage_file = self._store.path
 
         self._collections: dict[str, Collection] = {}
         # Raw entries (post-migration) that failed Pydantic validation on load.
@@ -81,40 +85,6 @@ class CollectionStorage:
         self._load()
 
         logger.info(f"CollectionStorage initialized (file: {self.storage_file}, collections: {len(self._collections)})")
-
-    # --- migrations ------------------------------------------------------
-
-    def _run_migrations(self, data: dict) -> bool:
-        """Run any pending schema migrations on raw JSON data.
-
-        Returns True if any migrations were applied (caller should resave).
-        """
-        current_version = data.get("schema_version", 0)
-        if current_version >= CURRENT_SCHEMA_VERSION:
-            return False
-
-        records = data.get("collections", [])
-
-        if self.storage_file.exists():
-            backup_path = self.storage_file.with_suffix(f".json.v{current_version}_backup")
-            if not backup_path.exists():
-                try:
-                    shutil.copy2(self.storage_file, backup_path)
-                    logger.info(f"Created pre-migration backup at {backup_path}")
-                except Exception as e:
-                    logger.warning(f"Could not create backup: {e}")
-
-        for target_version, migrate_fn in MIGRATIONS:
-            if current_version >= target_version:
-                continue
-            count = migrate_fn(records)
-            logger.info(
-                f"Collections schema migration v{current_version}->v{target_version}: {count} record(s) processed"
-            )
-            current_version = target_version
-
-        data["schema_version"] = CURRENT_SCHEMA_VERSION
-        return True
 
     def _import_legacy_carousels_if_needed(self) -> bool:
         """If no collections file exists but a legacy carousels.json does,
@@ -191,21 +161,20 @@ class CollectionStorage:
             self._save()
             return
 
-        if not self.storage_file.exists():
-            self._collections = {}
-            self._failed_entries = []
-            return
-
         try:
-            with open(self.storage_file) as f:  # noqa: PTH123
-                data = json.load(f)
+            data = self._store.load()
         except (OSError, json.JSONDecodeError) as e:
             logger.warning(f"Failed to load collections file: {e}")
             self._collections = {}
             self._failed_entries = []
             return
 
-        needs_save = self._run_migrations(data)
+        if data is None:
+            self._collections = {}
+            self._failed_entries = []
+            return
+
+        needs_save = self._store.migrated
 
         self._collections = {}
         self._failed_entries = []
@@ -238,12 +207,7 @@ class CollectionStorage:
             logger.info("Saved migrated collections to storage")
 
     def _save(self) -> None:
-        """Save collections to storage file.
-
-        Writes to a sibling ``<file>.tmp`` and ``os.replace``s it into place so
-        a mid-write crash (OOM, SIGKILL, power loss) never leaves a truncated
-        file that would wipe in-memory state on reload (see #1304).
-        """
+        """Save collections to storage file atomically via the storage kernel."""
         try:
             records = []
             for c in self._collections.values():
@@ -263,17 +227,7 @@ class CollectionStorage:
                 "collections": records,
             }
 
-            tmp_path = staging_path(self.storage_file)
-            try:
-                with open(tmp_path, "w") as f:  # noqa: PTH123
-                    json.dump(data, f, indent=2)
-                tmp_path.replace(self.storage_file)
-            except BaseException:
-                # Clean up the partial tmp file on any failure so we don't leak
-                # it; the original storage file stays untouched.
-                with contextlib.suppress(OSError):
-                    tmp_path.unlink(missing_ok=True)
-                raise
+            self._store.save(data)
 
             logger.debug(f"Saved {len(self._collections)} collections to storage")
         except OSError as e:
@@ -291,17 +245,22 @@ class CollectionStorage:
         return self._collections.get(collection_id)
 
     def create(self, collection: Collection) -> Collection:
-        if collection.id in self._collections:
-            raise ValueError(f"Collection with ID {collection.id} already exists")
-        errors = collection.validate_config()
-        if errors:
-            raise ValueError(f"Invalid collection configuration: {errors}")
-        self._collections[collection.id] = collection
-        self._save()
+        with self._store.lock:
+            if collection.id in self._collections:
+                raise ValueError(f"Collection with ID {collection.id} already exists")
+            errors = collection.validate_config()
+            if errors:
+                raise ValueError(f"Invalid collection configuration: {errors}")
+            self._collections[collection.id] = collection
+            self._save()
         logger.info(f"Created collection: {collection.id} ({collection.name})")
         return collection
 
     def update(self, collection_id: str, updates: dict) -> Collection | None:
+        with self._store.lock:
+            return self._update_locked(collection_id, updates)
+
+    def _update_locked(self, collection_id: str, updates: dict) -> Collection | None:
         if collection_id not in self._collections:
             return None
 
@@ -324,10 +283,11 @@ class CollectionStorage:
         return updated
 
     def delete(self, collection_id: str) -> bool:
-        if collection_id not in self._collections:
-            return False
-        del self._collections[collection_id]
-        self._save()
+        with self._store.lock:
+            if collection_id not in self._collections:
+                return False
+            del self._collections[collection_id]
+            self._save()
         logger.info(f"Deleted collection: {collection_id}")
         return True
 
