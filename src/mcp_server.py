@@ -554,6 +554,8 @@ def _build_mcp_server() -> Any:
         end_time: str | None = None,
         day_pattern: str | None = None,
         enabled: bool | None = None,
+        clear_end_time: bool = False,
+        clear_custom_days: bool = False,
     ) -> dict[str, Any]:
         """Update an existing schedule entry.
 
@@ -566,6 +568,11 @@ def _build_mcp_server() -> Any:
             end_time: New end time in HH:MM format (optional; omitted = unchanged).
             day_pattern: New day pattern: 'all', 'weekdays', 'weekends', 'custom' (optional).
             enabled: Enable or disable this schedule entry (optional).
+            clear_end_time: Set True to remove the end time, making the entry
+                open-ended. Needed because omitting end_time means
+                "unchanged" — an explicit null cannot express the clear.
+            clear_custom_days: Set True to drop a stored custom day list
+                (e.g. when changing day_pattern away from 'custom').
         """
         return ops_executors.update_schedule(
             schedule_id,
@@ -574,6 +581,8 @@ def _build_mcp_server() -> Any:
             end_time=end_time,
             day_pattern=day_pattern,
             enabled=enabled,
+            clear_end_time=clear_end_time,
+            clear_custom_days=clear_custom_days,
         )
 
     @mcp.tool()

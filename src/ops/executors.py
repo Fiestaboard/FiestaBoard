@@ -47,8 +47,16 @@ logger = logging.getLogger(__name__)
 
 
 def _plugin_service() -> Any:
-    """The shared plugin-orchestration service (never api_server)."""
-    from src.plugins.service import PluginService
+    """The shared plugin-orchestration service (never api_server).
+
+    Mirrors the REST layer's 503 guard: when the plugin subsystem cannot
+    import, tools report the clean "Plugin system is not available."
+    domain error instead of a raw ImportError (#1865 review).
+    """
+    try:
+        from src.plugins.service import PluginService
+    except ImportError as exc:
+        raise RuntimeError("Plugin system is not available.") from exc
 
     return PluginService()
 
@@ -145,7 +153,10 @@ def configure_plugin(plugin_id: str, config: dict[str, Any]) -> dict[str, Any]:
     from src.config_manager import get_config_manager
 
     try:
-        existing = get_config_manager().get_plugin_config(plugin_id) or {}
+        # Raw STORED config, WITHOUT the env-var overlay — this merge is
+        # persisted, and merging the overlay in would write env secrets
+        # into config.json (issue #1761 / #1864 review).
+        existing = get_config_manager().get_plugin_config(plugin_id, include_env_overrides=False) or {}
         merged = {**existing, **config}
         masked = _plugin_service().update_plugin_config(plugin_id, merged)
     except HTTPException as exc:
@@ -356,6 +367,8 @@ def update_schedule(
     day_pattern: str | None = None,
     enabled: bool | None = None,
     custom_days: list[str] | None = None,
+    clear_end_time: bool = False,
+    clear_custom_days: bool = False,
 ) -> dict[str, Any]:
     """Update an existing schedule entry. Only supplied fields change.
 
@@ -365,6 +378,14 @@ def update_schedule(
     ``end_time`` (making the entry open-ended) on every partial update;
     the #1764 parity suite caught it, and it is the same defect
     ``update_page`` was fixed for.
+
+    The wipe-protection makes ``end_time=None`` mean "unchanged", which
+    leaves no way to make a bounded entry open-ended again — the explicit
+    ``clear_end_time=True`` flag is that escape hatch (#1873/#1874 review).
+    ``clear_custom_days=True`` is the symmetric flag for dropping a stale
+    custom day list when switching ``day_pattern`` away from ``custom``.
+    REST is unaffected: its PATCH body distinguishes absent from null
+    natively.
     """
     try:
         from src.schedules.models import ScheduleUpdate
@@ -378,12 +399,16 @@ def update_schedule(
             fields["start_time"] = start_time
         if end_time is not None:
             fields["end_time"] = end_time
+        if clear_end_time:
+            fields["end_time"] = None
         if day_pattern is not None:
             fields["day_pattern"] = day_pattern
         if enabled is not None:
             fields["enabled"] = enabled
         if custom_days is not None:
             fields["custom_days"] = custom_days
+        if clear_custom_days:
+            fields["custom_days"] = None
         # No empty-fields guard: an empty ScheduleUpdate is a no-op merge, and
         # the pre-#1764 tool always called the service — the "not found" reply
         # for an unknown id (pinned by tests/test_mcp_server.py) depends on it.

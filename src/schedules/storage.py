@@ -295,6 +295,10 @@ class ScheduleStorage:
         # Fields that are allowed to be set to None explicitly
         nullable_fields = {
             "end_time",
+            # A stale custom day list must be clearable when day_pattern
+            # moves away from "custom" (#1873/#1874 review); validate_config
+            # still rejects clearing it while the pattern stays "custom".
+            "custom_days",
             "annual_date",
             "annual_end_date",
             "one_off_date",
