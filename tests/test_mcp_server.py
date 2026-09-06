@@ -1143,3 +1143,22 @@ class TestToolErrorResilience:
         # errors and returns {}). Either way it must be a structured value,
         # never a raw exception.
         assert isinstance(result, dict | list)
+
+
+class TestPluginSystemUnavailable:
+    def test_plugin_tools_report_plugin_system_unavailable(self, mcp, monkeypatch):
+        """When the plugin subsystem cannot import, the mutating plugin tools
+        must return the clean "Plugin system is not available." domain error
+        the REST layer's 503 used to provide — not a raw ImportError
+        ("No module named ...") that reads like an MCP server bug
+        (#1865 review).
+        """
+        import sys
+
+        monkeypatch.setitem(sys.modules, "src.plugins.service", None)
+
+        result = _call_tool(mcp, "enable_plugin", plugin_id="openweather")
+
+        assert result["status"] == "error"
+        assert "Plugin system is not available" in result["error"]
+        assert "No module named" not in result["error"]
