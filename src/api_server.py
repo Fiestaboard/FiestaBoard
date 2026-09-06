@@ -3558,6 +3558,42 @@ async def get_board_current_message(force: bool = False, board_id: str | None = 
     }
 
 
+def _throttled_send_response(board_client) -> JSONResponse | None:
+    """A 429 for an out-of-band write dropped by the client-side send floor.
+
+    #1868 review: cloud boards (and note arrays) enforce a minimum interval
+    between sends (#1754); a send inside the window returns ``(True, False)``
+    with ``last_send_throttled`` set — the content was DROPPED, not
+    delivered, and unlike the engine tick (which retries next pass) the
+    manual out-of-band endpoints (/send-message, /send-welcome-message,
+    /debug/blank, /debug/fill, /debug/info) never retry. Answering
+    "success/unchanged" would silently swallow the user's write, so they
+    answer 429 with a Retry-After hint computed from the floor.
+
+    Returns None when the last send was not throttled (the ``is True`` guard
+    also keeps Mock clients in tests, whose attributes are truthy, on the
+    legacy path unless they opt in).
+    """
+    if getattr(board_client, "last_send_throttled", False) is not True:
+        return None
+    try:
+        floor_ms = int(getattr(board_client, "min_send_interval_ms", 0))
+    except (TypeError, ValueError):
+        floor_ms = 0
+    retry_after = max(1, -(-floor_ms // 1000)) if floor_ms else 15
+    return JSONResponse(
+        status_code=429,
+        content={
+            "status": "throttled",
+            "message": (
+                f"Send skipped: the board accepts at most one message every {retry_after}s. Retry shortly."
+            ),
+            "retry_after_seconds": retry_after,
+        },
+        headers={"Retry-After": str(retry_after)},
+    )
+
+
 @app.post("/send-message")
 async def send_message(request: MessageRequest):
     """Send a custom message to the board."""
@@ -3626,6 +3662,11 @@ async def send_message(request: MessageRequest):
                 service.request_board_refresh()
                 return {"status": "success", "message": "Message sent successfully"}
             else:
+                # A not-sent "success" can also mean the send floor dropped
+                # the write entirely (#1868 review) — that is not "unchanged".
+                throttled = _throttled_send_response(service.vb_client)
+                if throttled is not None:
+                    return throttled
                 return {"status": "success", "message": "Message unchanged, no update needed", "skipped": True}
         else:
             raise HTTPException(status_code=500, detail="Failed to send message")
@@ -3806,6 +3847,10 @@ async def send_welcome_message():
                 logger.info("Welcome message sent to board")
                 return {"status": "success", "message": "Welcome message sent to your board!"}
             else:
+                # Dropped by the send floor, not unchanged (#1868 review).
+                throttled = _throttled_send_response(board_client)
+                if throttled is not None:
+                    return throttled
                 return {"status": "success", "message": "Welcome message unchanged", "skipped": True}
         else:
             raise HTTPException(status_code=500, detail="Failed to send welcome message")
@@ -7510,6 +7555,11 @@ async def debug_blank_board():
         success, was_sent = client.send_characters(blank_array, force=True)
 
         if success:
+            if not was_sent:
+                # Dropped by the send floor, not delivered (#1868 review).
+                throttled = _throttled_send_response(client)
+                if throttled is not None:
+                    return throttled
             _note_out_of_band_write()
             return {"status": "success", "message": "Board blanked successfully"}
         else:
@@ -7555,6 +7605,11 @@ async def debug_fill_board(request: dict):
         success, was_sent = client.send_characters(fill_array, force=True)
 
         if success:
+            if not was_sent:
+                # Dropped by the send floor, not delivered (#1868 review).
+                throttled = _throttled_send_response(client)
+                if throttled is not None:
+                    return throttled
             _note_out_of_band_write()
             return {"status": "success", "message": f"Board filled with character {character_code}"}
         else:
@@ -7625,6 +7680,11 @@ V{version[:7]} {timestamp}"""
         success, was_sent = client.send_characters(board_array, force=True)
 
         if success:
+            if not was_sent:
+                # Dropped by the send floor, not delivered (#1868 review).
+                throttled = _throttled_send_response(client)
+                if throttled is not None:
+                    return throttled
             _note_out_of_band_write()
             return {"status": "success", "message": "Debug info sent to board", "debug_info": debug_text}
         else:
