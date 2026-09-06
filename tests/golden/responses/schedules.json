@@ -1,0 +1,400 @@
+{
+  "_comment": "Golden response shapes for the schedules domain (issue #1756). Do not hand-edit: regenerate with `RECORD_RESPONSE_GOLDEN=1 pytest tests/test_response_shape_goldens.py` and review the diff.",
+  "records": [
+    {
+      "label": "list_schedules_empty",
+      "method": "GET",
+      "path_template": "/schedules",
+      "status": 200,
+      "shape": {
+        "default_page_id": "null",
+        "enabled": "bool",
+        "schedules": [],
+        "total": "int"
+      }
+    },
+    {
+      "label": "create_schedule_ok",
+      "method": "POST",
+      "path_template": "/schedules",
+      "status": 200,
+      "shape": {
+        "annual_date": "null",
+        "annual_end_date": "null",
+        "board_id": "str",
+        "created_at": "str",
+        "custom_days": "null",
+        "day_pattern": "str",
+        "enabled": "bool",
+        "end_sun_offset": "int",
+        "end_time": "str",
+        "end_type": "str",
+        "id": "str",
+        "one_off_date": "null",
+        "one_off_end_date": "null",
+        "page_id": "str",
+        "recurrence_type": "str",
+        "resolved_end_time": "str",
+        "resolved_start_time": "str",
+        "start_sun_offset": "int",
+        "start_time": "str",
+        "start_type": "str",
+        "updated_at": "null"
+      }
+    },
+    {
+      "label": "create_schedule_invalid",
+      "method": "POST",
+      "path_template": "/schedules",
+      "status": 422,
+      "shape": {
+        "detail": [
+          {
+            "input": {
+              "start_time": "str"
+            },
+            "loc": [
+              "str",
+              "str"
+            ],
+            "msg": "str",
+            "type": "str"
+          }
+        ]
+      }
+    },
+    {
+      "label": "list_schedules",
+      "method": "GET",
+      "path_template": "/schedules",
+      "status": 200,
+      "shape": {
+        "default_page_id": "null",
+        "enabled": "bool",
+        "schedules": [
+          {
+            "annual_date": "null",
+            "annual_end_date": "null",
+            "board_id": "str",
+            "created_at": "str",
+            "custom_days": "null",
+            "day_pattern": "str",
+            "enabled": "bool",
+            "end_sun_offset": "int",
+            "end_time": "str",
+            "end_type": "str",
+            "id": "str",
+            "one_off_date": "null",
+            "one_off_end_date": "null",
+            "page_id": "str",
+            "recurrence_type": "str",
+            "resolved_end_time": "str",
+            "resolved_start_time": "str",
+            "start_sun_offset": "int",
+            "start_time": "str",
+            "start_type": "str",
+            "updated_at": "null"
+          }
+        ],
+        "total": "int"
+      }
+    },
+    {
+      "label": "list_schedules_all_boards",
+      "method": "GET",
+      "path_template": "/schedules",
+      "status": 200,
+      "shape": {
+        "default_page_id": "null",
+        "enabled": "bool",
+        "schedules": [
+          {
+            "annual_date": "null",
+            "annual_end_date": "null",
+            "board_id": "str",
+            "created_at": "str",
+            "custom_days": "null",
+            "day_pattern": "str",
+            "enabled": "bool",
+            "end_sun_offset": "int",
+            "end_time": "str",
+            "end_type": "str",
+            "id": "str",
+            "one_off_date": "null",
+            "one_off_end_date": "null",
+            "page_id": "str",
+            "recurrence_type": "str",
+            "resolved_end_time": "str",
+            "resolved_start_time": "str",
+            "start_sun_offset": "int",
+            "start_time": "str",
+            "start_type": "str",
+            "updated_at": "null"
+          }
+        ],
+        "total": "int"
+      }
+    },
+    {
+      "label": "active_page_disabled",
+      "method": "GET",
+      "path_template": "/schedules/active/page",
+      "status": 200,
+      "shape": {
+        "page_id": "null",
+        "resolved_next_check_seconds": "null",
+        "resolved_page_id": "null",
+        "schedule_enabled": "bool",
+        "source": "str",
+        "temporary_override": {
+          "active": "bool",
+          "device_type": "null",
+          "expires_at": "null",
+          "line_metadata": "null",
+          "notes_tall": "null",
+          "notes_wide": "null",
+          "page_id": "null",
+          "remaining_seconds": "null",
+          "revert_mode": "null",
+          "revert_page_id": "null",
+          "template": "null"
+        }
+      }
+    },
+    {
+      "label": "set_enabled_ok",
+      "method": "PUT",
+      "path_template": "/schedules/enabled",
+      "status": 200,
+      "shape": {
+        "enabled": "bool",
+        "message": "str",
+        "status": "str"
+      }
+    },
+    {
+      "label": "active_page_enabled",
+      "method": "GET",
+      "path_template": "/schedules/active/page",
+      "status": 200,
+      "shape": {
+        "current_day": "str",
+        "current_time": "str",
+        "default_page_id": "null",
+        "page_id": "str",
+        "resolved_next_check_seconds": "null",
+        "resolved_page_id": "str",
+        "schedule_enabled": "bool",
+        "source": "str",
+        "temporary_override": {
+          "active": "bool",
+          "device_type": "null",
+          "expires_at": "null",
+          "line_metadata": "null",
+          "notes_tall": "null",
+          "notes_wide": "null",
+          "page_id": "null",
+          "remaining_seconds": "null",
+          "revert_mode": "null",
+          "revert_page_id": "null",
+          "template": "null"
+        }
+      }
+    },
+    {
+      "label": "get_enabled",
+      "method": "GET",
+      "path_template": "/schedules/enabled",
+      "status": 200,
+      "shape": {
+        "enabled": "bool"
+      }
+    },
+    {
+      "label": "set_enabled_invalid",
+      "method": "PUT",
+      "path_template": "/schedules/enabled",
+      "status": 400,
+      "shape": {
+        "detail": "str"
+      }
+    },
+    {
+      "label": "set_enabled_missing",
+      "method": "PUT",
+      "path_template": "/schedules/enabled",
+      "status": 400,
+      "shape": {
+        "detail": "str"
+      }
+    },
+    {
+      "label": "validate_no_body",
+      "method": "POST",
+      "path_template": "/schedules/validate",
+      "status": 200,
+      "shape": {
+        "gaps": [],
+        "overlaps": [],
+        "valid": "bool"
+      }
+    },
+    {
+      "label": "validate_with_board",
+      "method": "POST",
+      "path_template": "/schedules/validate",
+      "status": 200,
+      "shape": {
+        "gaps": [
+          {
+            "days": [
+              "str",
+              "str",
+              "str",
+              "str",
+              "str",
+              "str",
+              "str"
+            ],
+            "end_time": "str",
+            "start_time": "str"
+          }
+        ],
+        "overlaps": [],
+        "valid": "bool"
+      }
+    },
+    {
+      "label": "get_default_page",
+      "method": "GET",
+      "path_template": "/schedules/default-page",
+      "status": 200,
+      "shape": {
+        "default_page_id": "null"
+      }
+    },
+    {
+      "label": "set_default_page_ok",
+      "method": "PUT",
+      "path_template": "/schedules/default-page",
+      "status": 200,
+      "shape": {
+        "default_page_id": "str",
+        "status": "str"
+      }
+    },
+    {
+      "label": "set_default_page_missing_param",
+      "method": "PUT",
+      "path_template": "/schedules/default-page",
+      "status": 400,
+      "shape": {
+        "detail": "str"
+      }
+    },
+    {
+      "label": "set_default_page_unknown_page",
+      "method": "PUT",
+      "path_template": "/schedules/default-page",
+      "status": 404,
+      "shape": {
+        "detail": "str"
+      }
+    },
+    {
+      "label": "get_schedule_ok",
+      "method": "GET",
+      "path_template": "/schedules/{schedule_id}",
+      "status": 200,
+      "shape": {
+        "annual_date": "null",
+        "annual_end_date": "null",
+        "board_id": "str",
+        "created_at": "str",
+        "custom_days": "null",
+        "day_pattern": "str",
+        "enabled": "bool",
+        "end_sun_offset": "int",
+        "end_time": "str",
+        "end_type": "str",
+        "id": "str",
+        "one_off_date": "null",
+        "one_off_end_date": "null",
+        "page_id": "str",
+        "recurrence_type": "str",
+        "resolved_end_time": "str",
+        "resolved_start_time": "str",
+        "start_sun_offset": "int",
+        "start_time": "str",
+        "start_type": "str",
+        "updated_at": "null"
+      }
+    },
+    {
+      "label": "get_schedule_missing",
+      "method": "GET",
+      "path_template": "/schedules/{schedule_id}",
+      "status": 404,
+      "shape": {
+        "detail": "str"
+      }
+    },
+    {
+      "label": "update_schedule_ok",
+      "method": "PUT",
+      "path_template": "/schedules/{schedule_id}",
+      "status": 200,
+      "shape": {
+        "annual_date": "null",
+        "annual_end_date": "null",
+        "board_id": "str",
+        "created_at": "str",
+        "custom_days": "null",
+        "day_pattern": "str",
+        "enabled": "bool",
+        "end_sun_offset": "int",
+        "end_time": "str",
+        "end_type": "str",
+        "id": "str",
+        "one_off_date": "null",
+        "one_off_end_date": "null",
+        "page_id": "str",
+        "recurrence_type": "str",
+        "resolved_end_time": "str",
+        "resolved_start_time": "str",
+        "start_sun_offset": "int",
+        "start_time": "str",
+        "start_type": "str",
+        "updated_at": "str"
+      }
+    },
+    {
+      "label": "update_schedule_missing",
+      "method": "PUT",
+      "path_template": "/schedules/{schedule_id}",
+      "status": 404,
+      "shape": {
+        "detail": "str"
+      }
+    },
+    {
+      "label": "delete_schedule_ok",
+      "method": "DELETE",
+      "path_template": "/schedules/{schedule_id}",
+      "status": 200,
+      "shape": {
+        "message": "str",
+        "status": "str"
+      }
+    },
+    {
+      "label": "delete_schedule_missing",
+      "method": "DELETE",
+      "path_template": "/schedules/{schedule_id}",
+      "status": 404,
+      "shape": {
+        "detail": "str"
+      }
+    }
+  ]
+}
