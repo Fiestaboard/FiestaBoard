@@ -441,3 +441,51 @@ class TestConcurrentWriters:
         reloaded = PanelStorage(storage_file=str(tmp_path / "panels.json"))
         assert reloaded.get("panel-1").name == "First Updated"
         assert reloaded.get("panel-2").name == "Second Updated"
+
+    def test_settings_two_concurrent_puts_to_different_sections_both_survive(self, tmp_path, monkeypatch):
+        """The #1848 headline bug: SettingsService rewrites ALL sections from
+        memory on every mutation with no lock, so a PUT whose save is paused
+        mid-serialisation gets lapped by a second PUT — the slow writer then
+        finishes onto the already-renamed inode and overwrites the fast
+        writer's section with its own stale snapshot (its rename dies ENOENT,
+        which ``_save_to_file`` swallows, so nobody even notices). The
+        interleaving is forced deterministically: writer A blocks inside
+        ``json.dump`` until writer B's whole PUT has completed (with a
+        timeout so the post-fix lock, which makes B wait for A, cannot
+        deadlock). Written before the fix — the pre-fix failure is recorded
+        verbatim in .fail-first-1848.txt."""
+        from src.settings.service import SettingsService
+
+        path = tmp_path / "settings.json"
+        svc = SettingsService(settings_file=str(path))
+        svc._save_to_file()
+
+        a_in_dump = threading.Event()
+        b_done = threading.Event()
+        real_dump = json.dump
+        first_call = threading.Event()
+
+        def sequenced_dump(obj, fh, *args, **kwargs):
+            if not first_call.is_set():
+                first_call.set()
+                a_in_dump.set()
+                b_done.wait(timeout=0.5)  # times out post-fix (B waits on the lock)
+            return real_dump(obj, fh, *args, **kwargs)
+
+        monkeypatch.setattr(json, "dump", sequenced_dump)
+
+        def writer_a():
+            svc.update_display_settings({"reduce_motion": True})
+
+        def writer_b():
+            a_in_dump.wait(timeout=1.0)
+            svc.update_location_settings({"latitude": 40.7128, "longitude": -74.0060})
+            b_done.set()
+
+        errors = _run_pair(writer_a, writer_b)
+        monkeypatch.undo()
+
+        assert errors == []
+        on_disk = json.loads(path.read_text())
+        assert on_disk["display"]["reduce_motion"] is True, "display PUT lost"
+        assert on_disk["location"]["latitude"] == 40.7128, "location PUT lost"

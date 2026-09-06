@@ -4,7 +4,7 @@ This service allows runtime modification of settings like transition
 animations and output targets, which can be controlled from the UI.
 """
 
-import contextlib
+import functools
 import json
 import logging
 import os
@@ -12,11 +12,9 @@ import shutil
 from collections.abc import Callable
 from dataclasses import asdict, dataclass, field
 from datetime import UTC, datetime
-from pathlib import Path
 from typing import Literal, Optional
 
-from src.atomic_io import staging_path
-from src.paths import get_data_dir
+from src.storage.json_store import JsonStore
 
 logger = logging.getLogger(__name__)
 
@@ -716,6 +714,24 @@ MIGRATIONS: list[tuple[int, Callable[[dict], int]]] = [
 ]
 
 
+def _locked(method):
+    """Run *method* under the settings store lock.
+
+    Every mutating method is a read-modify-write over the shared in-memory
+    sections followed by a full-file save; without one lock around the whole
+    thing, two concurrent PUTs race the save and one silently overwrites the
+    other's section with a stale snapshot (#1848). The lock is the JsonStore's
+    RLock, so nested ``_save_to_file`` calls re-enter cleanly.
+    """
+
+    @functools.wraps(method)
+    def wrapper(self, *args, **kwargs):
+        with self._store.lock:
+            return method(self, *args, **kwargs)
+
+    return wrapper
+
+
 class SettingsService:
     """Service for managing runtime settings.
 
@@ -729,11 +745,17 @@ class SettingsService:
         Args:
             settings_file: Path to settings JSON file. Defaults to data/settings.json
         """
-        if settings_file is None:
-            # Default to the central data directory (src/paths.py seam)
-            self.settings_file = get_data_dir() / "settings.json"
-        else:
-            self.settings_file = Path(settings_file)
+        # The storage kernel owns the lock and the atomic write. Migrations
+        # stay domain-run in _run_migrations below (they must execute before
+        # any _load_* reads sections, and settings' error semantics — swallow
+        # unreadable files, skip non-dict payloads — predate the kernel), so
+        # no migrations are handed to the store.
+        self._store = JsonStore(
+            "settings.json" if settings_file is None else settings_file,
+            current_schema_version=CURRENT_SETTINGS_SCHEMA_VERSION,
+            label="Settings",
+        )
+        self.settings_file = self._store.path
 
         # Run ordered schema migrations on the raw settings file BEFORE any
         # subsystem reads, so every _load_* sees fully migrated values. This
@@ -761,6 +783,7 @@ class SettingsService:
 
         logger.info(f"SettingsService initialized (file: {self.settings_file})")
 
+    @_locked
     def _run_migrations(self) -> None:
         """Run pending settings schema migrations on the raw settings file.
 
@@ -816,22 +839,13 @@ class SettingsService:
             logger.warning(f"Could not write migrated settings: {e}")
 
     def _atomic_write_json(self, data: dict) -> None:
-        """Write *data* to ``settings_file`` atomically (tmp + os.replace).
+        """Write *data* to ``settings_file`` atomically via the storage kernel.
 
         A mid-write crash (OOM, SIGKILL, power loss) never truncates the real
-        file — it stays untouched until the temp file is fully written and
-        renamed over it (see #1304). Uses builtins.open on the tmp path so
-        existing tests can patch builtins.open to inject write errors.
+        file — it stays untouched until the staged file is fully written and
+        renamed over it (see #1304).
         """
-        tmp_path = staging_path(self.settings_file)
-        try:
-            with open(tmp_path, "w") as f:  # noqa: PTH123
-                json.dump(data, f, indent=2)
-            tmp_path.replace(self.settings_file)
-        except BaseException:
-            with contextlib.suppress(OSError):
-                tmp_path.unlink(missing_ok=True)
-            raise
+        self._store.save(data)
 
     def _load_from_file(self) -> dict:
         """Load settings from JSON file."""
@@ -845,6 +859,7 @@ class SettingsService:
                 logger.warning(f"Failed to load settings file: {e}")
         return {}
 
+    @_locked
     def _save_to_file(self) -> None:
         """Save current settings to JSON file."""
         try:
@@ -1026,6 +1041,7 @@ class SettingsService:
         """Get current transition settings."""
         return self._transition
 
+    @_locked
     def update_transition_settings(
         self, strategy: str | None = ..., step_interval_ms: int | None = ..., step_size: int | None = ...
     ) -> TransitionSettings:
@@ -1071,6 +1087,7 @@ class SettingsService:
         """Get current output settings."""
         return self._output
 
+    @_locked
     def set_output_target(self, target: OutputTarget) -> OutputSettings:
         """Set the output target.
 
@@ -1120,6 +1137,7 @@ class SettingsService:
             return self._active_page.page_id
         return None
 
+    @_locked
     def set_active_page_id(self, page_id: str | None, board_id: str | None = None) -> ActivePageSettings:
         """Set the active (manual) page ID for a board.
 
@@ -1168,6 +1186,7 @@ class SettingsService:
         """
         return self._polling.interval_seconds
 
+    @_locked
     def set_polling_interval(self, interval_seconds: int) -> PollingSettings:
         """Set the polling interval.
 
@@ -1185,6 +1204,7 @@ class SettingsService:
         logger.info(f"Polling interval set to: {interval_seconds} seconds")
         return self._polling
 
+    @_locked
     def set_board_read_intervals(
         self,
         local_seconds: int | None = None,
@@ -1241,6 +1261,7 @@ class SettingsService:
             return bid if bid else None
         return None
 
+    @_locked
     def set_board_type(self, board_type: Literal["black", "white"] | None) -> BoardSettings:
         """Set the board type for UI rendering.
 
@@ -1258,6 +1279,7 @@ class SettingsService:
         logger.info(f"Board type set to: {board_type}")
         return self._board
 
+    @_locked
     def set_devices(self, devices: list[str]) -> BoardSettings:
         """Set the configured device types (backward-compatible).
 
@@ -1307,6 +1329,7 @@ class SettingsService:
         logger.info(f"Configured devices set to: {valid_devices}")
         return self._board
 
+    @_locked
     def set_boards(self, boards: list[dict]) -> BoardSettings:
         """Set the configured board instances.
 
@@ -1370,6 +1393,7 @@ class SettingsService:
         logger.info(f"Configured boards set to: {[b.get('name') for b in validated]}")
         return self._board
 
+    @_locked
     def add_board(self, board: dict) -> BoardSettings:
         """Add a new board instance.
 
@@ -1399,6 +1423,7 @@ class SettingsService:
             n += 1
         return f"My Board {n}"
 
+    @_locked
     def remove_board(self, board_id: str) -> BoardSettings:
         """Remove a board instance by ID.
 
@@ -1453,6 +1478,7 @@ class SettingsService:
             return bool(self._board.boards[0].get("paused", False))
         return False
 
+    @_locked
     def set_paused(self, paused: bool, board_id: str | None = None) -> bool:
         """Pause or resume a board (or the first board when board_id is None).
 
@@ -1502,6 +1528,7 @@ class SettingsService:
         # No boards configured: fall back to the deprecated global mirror.
         return self._schedule.enabled
 
+    @_locked
     def set_schedule_enabled(self, enabled: bool, board_id: str | None = None) -> ScheduleSettings:
         """Enable or disable schedule mode for a board.
 
@@ -1534,6 +1561,7 @@ class SettingsService:
         """Return current MQTT integration settings."""
         return self._mqtt
 
+    @_locked
     def set_mqtt_settings(self, updates: dict) -> "MQTTSettings":
         """Persist MQTT settings and return updated object.
 
@@ -1560,6 +1588,7 @@ class SettingsService:
         """Return current web UI display settings."""
         return self._display
 
+    @_locked
     def update_display_settings(self, updates: dict) -> "DisplaySettings":
         """Update display settings and persist.
 
@@ -1581,6 +1610,7 @@ class SettingsService:
         """Return current location settings for sun-based schedules."""
         return self._location
 
+    @_locked
     def update_location_settings(self, updates: dict) -> "LocationSettings":
         """Update location settings and persist.
 
@@ -1600,6 +1630,7 @@ class SettingsService:
         """Return current beta-feature settings."""
         return self._beta
 
+    @_locked
     def update_beta_settings(self, updates: dict) -> "BetaSettings":
         """Update beta-feature settings and persist.
 
@@ -1620,6 +1651,7 @@ class SettingsService:
         """Return current plugin system settings."""
         return self._plugins
 
+    @_locked
     def update_plugin_settings(self, updates: dict) -> "PluginSettings":
         """Update plugin settings and persist. Only keys present in *updates* are changed."""
         if "auto_update" in updates:
@@ -1629,6 +1661,7 @@ class SettingsService:
         return self._plugins
 
     # Temporary override
+    @_locked
     def get_temporary_override(self) -> TemporaryOverride | None:
         """Return the active temporary override, or None if absent or expired.
 
@@ -1643,6 +1676,7 @@ class SettingsService:
             return None
         return self._temporary_override
 
+    @_locked
     def consume_temporary_override(self) -> TemporaryOverride | None:
         """Return the current temporary override (live or expired) and clear it if expired.
 
@@ -1659,6 +1693,7 @@ class SettingsService:
             self._save_to_file()
         return raw
 
+    @_locked
     def set_temporary_override(self, override: TemporaryOverride) -> TemporaryOverride:
         """Persist a new temporary override, replacing any existing one."""
         self._temporary_override = override
@@ -1671,6 +1706,7 @@ class SettingsService:
         )
         return override
 
+    @_locked
     def clear_temporary_override(self) -> None:
         """Remove the temporary override without applying any revert logic."""
         if self._temporary_override is not None:
