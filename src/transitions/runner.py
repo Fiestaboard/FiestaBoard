@@ -18,9 +18,11 @@ with the target grid and a cancellation event.  The runner:
    so the board lands on the exact target.
 
 The runner is intentionally synchronous -- it runs on the caller's thread
-holding the board's send lock.  Long transitions therefore block the
-caller; this is by design so rotation / triggers / manual sends serialize
-naturally.  Callers that need fire-and-forget should spawn a thread.
+holding the board's send lock, so all of one board's sends (rotation,
+triggers, manual API writes) still serialize per board.  Since issue #1755
+the engine's caller is the board's dedicated send worker rather than the
+shared tick thread, so a long transition blocks only its own board's queue
+-- never the other boards, the silence detector, or collection rotation.
 """
 
 from __future__ import annotations

@@ -20,6 +20,7 @@ from .devices import (
     resolve_dimensions,
     size_key,
 )
+from .displays.send_worker import BoardSendWorker, SendJob
 from .pages.models import LineMetadata, Page
 from .pages.service import get_page_service
 from .schedules.service import get_schedule_service
@@ -39,6 +40,13 @@ logger = logging.getLogger(__name__)
 # needs to differ from every real page id so the display loop's
 # "content unchanged" dedupe treats a one-off as its own page (issue #1787).
 ADHOC_PAGE_ID = "__adhoc__"
+
+# How long a wait-mode send (``wait=True`` — the API/MQTT/*_with_status paths)
+# blocks for its board's job to finish. Sized above the longest transition a
+# page can configure (~120s) so a caller that would previously have blocked on
+# the inline render for the whole animation still sees its real outcome, while
+# a genuinely wedged send can no longer hang an API request forever.
+SEND_WAIT_TIMEOUT = 150.0
 
 
 def _board_size_key(board: dict) -> str:
@@ -109,6 +117,13 @@ class BoardRuntime:
         # Adaptive post-send refresh thread + its cancel event.
         self.refresh_thread: threading.Thread | None = None
         self.refresh_cancel: threading.Event | None = None
+
+        # Per-board send worker (issue #1755): the engine tick enqueues the
+        # finished send here instead of calling ``client.render`` inline, so
+        # one board's long transition never stalls the other boards or the
+        # run loop. Created lazily on the first send; stopped when the
+        # runtime is dropped or replaced by ``_build_board_clients``.
+        self.send_worker: BoardSendWorker | None = None
 
         # Collection cadence gate for the run loop: monotonic-ish epoch time
         # of the next collection-boundary check for this board. 0.0 means
@@ -279,10 +294,25 @@ class DisplayService:
 
     def _record_send_error(self, rt: BoardRuntime, board_id, message: str) -> None:
         """Record a send failure on the runtime and in this thread's capture."""
+        self._record_send_error_to(rt, board_id, message, self._error_sink())
+
+    @staticmethod
+    def _record_send_error_to(rt: BoardRuntime, board_id, message: str, sink: list | None) -> None:
+        """Record a send failure on the runtime and into an explicit capture list.
+
+        Post-send bookkeeping runs on the board's send-worker thread (#1755),
+        where the thread-local capture belongs to the worker, not to the
+        caller whose pass produced the failure. Send paths therefore snapshot
+        the calling thread's capture list (``_error_sink``) when they build
+        the completion callback and pass it here explicitly.
+        """
         rt.last_send_error = message
-        errors = getattr(self._send_capture, "errors", None)
-        if errors is not None:
-            errors.append((board_id, message))
+        if sink is not None:
+            sink.append((board_id, message))
+
+    def _error_sink(self) -> list | None:
+        """The calling thread's active send-error capture list, if any."""
+        return getattr(self._send_capture, "errors", None)
 
     @contextmanager
     def _capture_send_errors(self):
@@ -331,6 +361,131 @@ class DisplayService:
                 failed_board_id, message = errors[0]
                 reason = message if failed_board_id == primary_id else f"board {failed_board_id}: {message}"
         return sent, reason
+
+    # ------------------------------------------------------------------ #
+    # Per-board send workers (issue #1755)
+    # ------------------------------------------------------------------ #
+
+    @staticmethod
+    def _worker_for(rt: BoardRuntime) -> BoardSendWorker:
+        """The runtime's send worker, created (or replaced) on demand."""
+        worker = rt.send_worker
+        if worker is None or worker.stopped:
+            worker = BoardSendWorker(str(rt.board_id))
+            rt.send_worker = worker
+        return worker
+
+    @staticmethod
+    def _send_in_flight(rt: BoardRuntime, key: tuple) -> bool:
+        """True when this exact send is already queued or executing.
+
+        The engine's dedupe caches are updated by post-send bookkeeping,
+        which now runs on the worker thread — so during a long transition the
+        tick would re-enqueue the same frame every pass (and, worse, replay
+        the transition when it lands). This is the in-flight half of the
+        dedupe; only the engine's fire-and-forget passes consult it, so a
+        user-initiated ``wait=True`` send still preempts and re-sends exactly
+        as an inline ``render()`` call did.
+        """
+        worker = rt.send_worker
+        return worker is not None and key in worker.active_keys()
+
+    def wait_until_idle(self, timeout: float = 5.0, board_ids=None) -> bool:
+        """Block (real time) until the boards' send queues are drained.
+
+        ``board_ids`` limits the wait to those boards; ``None`` means every
+        runtime. Returns False if any watched queue was still busy at the
+        deadline. Useful for orderly shutdown and for deterministic tests.
+        """
+        ok = True
+        for bid, rt in list(self.runtimes.items()):
+            if board_ids is not None and bid not in board_ids:
+                continue
+            worker = rt.send_worker
+            if worker is None:
+                continue
+            if not worker.wait_idle(timeout):
+                ok = False
+        return ok
+
+    def _dispatch_send(
+        self,
+        rt: BoardRuntime,
+        board_id,
+        *,
+        key: tuple,
+        send,
+        on_complete,
+        wait: bool,
+        sink: list | None,
+    ) -> bool:
+        """Queue one board send on the runtime's worker (issue #1755).
+
+        ``send`` is a zero-arg closure performing the ``client.render`` call;
+        ``on_complete(success, was_sent, exc)`` is the site's post-send
+        bookkeeping, byte-for-byte the code that used to run inline after
+        ``render`` returned, and yields the value the site used to return.
+
+        ``wait=True`` (API/MQTT/``*_with_status``/direct callers — the
+        default everywhere) blocks for the job's outcome, bounded by
+        ``SEND_WAIT_TIMEOUT``, so those paths behave exactly as when the
+        render was inline. ``wait=False`` is the engine tick's fire-and-forget
+        mode: the tick returns immediately and one board's transition can no
+        longer stall the fleet. A job replaced by a newer one (latest-wins)
+        resolves its waiters with the replacement's outcome.
+
+        Preemption stays immediate: a plain ``render()`` call sets the
+        client's ``_cancel_transition`` event before taking the send lock, so
+        the enqueue mirrors that here — otherwise an in-flight transition
+        would only learn about the newer frame when the worker dequeued it.
+        """
+        cancel = getattr(rt.client, "_cancel_transition", None)
+        if isinstance(cancel, threading.Event):
+            cancel.set()
+
+        def run_job() -> bool:
+            exc = None
+            success = was_sent = False
+            try:
+                success, was_sent = send()
+            except Exception as e:
+                exc = e
+            # Runtime-epoch guard: a rebuild may have replaced this board's
+            # runtime while the send was in flight. The stale runtime's
+            # bookkeeping must not run (its caches are dead state, and
+            # request_board_refresh would poke the new runtime).
+            if self.runtimes.get(rt.board_id) is not rt:
+                logger.debug("Board %s: runtime replaced mid-send; dropping post-send bookkeeping", board_id)
+                return False
+            try:
+                return on_complete(success, was_sent, exc)
+            except Exception as e:  # bookkeeping must never kill the worker
+                logger.error(f"Board {board_id}: post-send bookkeeping failed: {e}")
+                return False
+
+        job = self._worker_for(rt).submit(SendJob(key=key, run=run_job))
+        if not wait:
+            # Engine tick: the send is in motion; "content changed and is
+            # being delivered" is this path's success signal. run() ignores
+            # the value.
+            return True
+        if not job.wait(SEND_WAIT_TIMEOUT):
+            message = f"Timed out after {SEND_WAIT_TIMEOUT:.0f}s waiting for the board send to finish"
+            self._record_send_error_to(rt, board_id, message, sink)
+            logger.error(f"Board {board_id}: {message}")
+            return False
+        return job.return_value
+
+    def _send_exception_fallout(self, rt: BoardRuntime, board_id, exc: Exception, sink: list | None) -> bool:
+        """The worker-side equivalent of ``check_and_send_for_board``'s except-clause.
+
+        When the render ran inline, an exception escaped into that handler;
+        off-thread it cannot, so completion callbacks funnel it here to keep
+        the recorded reason and log line identical.
+        """
+        self._record_send_error_to(rt, board_id, str(exc) or exc.__class__.__name__, sink)
+        logger.error(f"Error checking active page for board {board_id}: {exc}")
+        return False
 
     # -- State shims aliasing the primary runtime (read + write). --------- #
 
@@ -493,6 +648,17 @@ class DisplayService:
             rt = BoardRuntime(client=client, board_id=bid)
             rt.config_signature = sig
             new_runtimes[bid] = rt
+
+        # Runtimes not carried over are dead: stop their send workers so a
+        # queued job for a removed/reconfigured board is failed rather than
+        # delivered to a stale connection. Bounded join — a wedged send must
+        # not stall a rebuild (the runtime-epoch guard in _dispatch_send
+        # already keeps its late bookkeeping from touching live state).
+        for old_id, old_rt in self.runtimes.items():
+            if new_runtimes.get(old_id) is old_rt:
+                continue
+            if old_rt.send_worker is not None:
+                old_rt.send_worker.stop(timeout=1.0)
 
         self.runtimes = new_runtimes
         self.board_init_errors = init_errors
@@ -842,7 +1008,7 @@ class DisplayService:
     # Per-board display engine (single tick loop)
     # ------------------------------------------------------------------ #
 
-    def check_and_send_active_page(self) -> bool:
+    def check_and_send_active_page(self, *, wait: bool = True) -> bool:
         """Drive every configured board from its schedule/active page.
 
         Back-compat entry point (retained for /refresh, /force-refresh, MQTT,
@@ -851,8 +1017,14 @@ class DisplayService:
         per-board active page) and then each secondary board through the same
         unified per-board path. Every board keeps its own state on its runtime.
 
+        ``wait=True`` (the default — every external caller) blocks until each
+        board's send has actually finished, exactly as when the render ran
+        inline. The engine's run loop passes ``wait=False`` so its tick only
+        *enqueues* sends on the per-board workers (issue #1755).
+
         Returns:
-            True if content was sent to the PRIMARY board, False otherwise.
+            True if content was sent to the PRIMARY board (``wait=False``:
+            enqueued for it), False otherwise.
         """
         primary_id = self._get_first_board_id()
         rt = self._ensure_primary_runtime()
@@ -861,14 +1033,14 @@ class DisplayService:
         # consumer in the same pass — other boards of that size, variable-mode
         # collection resolution — reuses it. Keyed by size_key; filled lazily.
         contexts: dict[str, dict] = {}
-        sent = self.check_and_send_for_board(primary_id, rt, is_primary=True, contexts=contexts)
+        sent = self.check_and_send_for_board(primary_id, rt, is_primary=True, contexts=contexts, wait=wait)
         try:
-            self._drive_secondary_boards(contexts)
+            self._drive_secondary_boards(contexts, wait=wait)
         except Exception as e:  # secondaries must never break the primary loop
             logger.error(f"Error updating secondary boards: {e}")
         return sent
 
-    def _drive_secondary_boards(self, contexts: dict[str, dict] | None = None) -> None:
+    def _drive_secondary_boards(self, contexts: dict[str, dict] | None = None, *, wait: bool = True) -> None:
         """Drive every board after the first through the unified per-board path.
 
         Each board raising is isolated so one failure never blocks the others.
@@ -891,7 +1063,7 @@ class DisplayService:
             if not board.get("enabled", True):
                 continue
             try:
-                self.check_and_send_for_board(board_id, rt, is_primary=False, board=board, contexts=contexts)
+                self.check_and_send_for_board(board_id, rt, is_primary=False, board=board, contexts=contexts, wait=wait)
             except Exception as e:  # partial-failure isolation
                 self._record_send_error(rt, board_id, str(e) or e.__class__.__name__)
                 logger.error(f"Board {board_id}: update failed: {e}")
@@ -904,6 +1076,7 @@ class DisplayService:
         is_primary: bool,
         board: dict | None = None,
         contexts: dict[str, dict] | None = None,
+        wait: bool = True,
     ) -> bool:
         """Resolve and send one board's active page. Unified per-board path.
 
@@ -919,8 +1092,16 @@ class DisplayService:
         ``None`` (direct callers: MQTT, /refresh) keeps the build-per-render
         behavior.
 
+        Everything up to the render is computed on the calling thread exactly
+        as before; only the final ``client.render`` (and its post-send
+        bookkeeping) runs on the board's send worker (issue #1755).
+        ``wait=True`` — the default, used by every API/MQTT/test caller —
+        blocks for that job's outcome; the engine tick passes ``wait=False``
+        and returns as soon as the send is enqueued.
+
         Returns:
-            True if content was sent to this board, False otherwise.
+            True if content was sent to this board (``wait=False``: enqueued),
+            False otherwise.
         """
         try:
             # Each pass starts clean: a benign skip must not leave a stale
@@ -1025,7 +1206,7 @@ class DisplayService:
             if is_primary and not silence_mode_active:
                 trigger_content = self._check_trigger_override()
                 if trigger_content is not None:
-                    return self._send_trigger_content(trigger_content, rt)
+                    return self._send_trigger_content(trigger_content, rt, wait=wait)
 
             # --- Temporary override (PRIMARY only; global consume-once store) ---
             # Issue #949: an explicit user override wins over the silence
@@ -1055,7 +1236,7 @@ class DisplayService:
                         # board until the window ends.
                         logger.info(f"Temporary override expired, applying revert: {override.revert_mode}")
                         if override.revert_mode == "blank":
-                            return self._send_blank_board(rt)
+                            return self._send_blank_board(rt, wait=wait)
                         if override.revert_mode == "page" and override.revert_page_id:
                             settings_service.set_active_page_id(override.revert_page_id, board_id=board_id)
                         # "schedule" (and fallback): clear cache so next tick rerenders.
@@ -1163,9 +1344,10 @@ class DisplayService:
                         silence_nt,
                         board=board if board is not None else self._board_dict_for(board_id),
                         contexts=contexts,
+                        wait=wait,
                     )
                 return self._send_silence_indicator(
-                    silence_dt, rt, silence_nw, silence_nt, silence_config=silence_config
+                    silence_dt, rt, silence_nw, silence_nt, silence_config=silence_config, wait=wait
                 )
 
             # --- Send-time geometry validation (issue #1748) ---
@@ -1200,6 +1382,16 @@ class DisplayService:
             if current_content == rt.last_active_page_content and active_page_id == rt.last_active_page_id:
                 logger.debug("Board %s: content unchanged, skipping send", board_id or "(default)")
                 return False
+            # In-flight half of the dedupe (issue #1755): the cache above is
+            # only written when the worker finishes the send, so while a long
+            # transition is playing the engine tick would otherwise re-enqueue
+            # this same frame every pass — and replay the transition each time
+            # it landed. Engine passes only; a wait=True caller (refresh,
+            # force-refresh) must still preempt and re-send like today.
+            send_key = ("page", active_page_id, current_content)
+            if not wait and self._send_in_flight(rt, send_key):
+                logger.debug("Board %s: this send is already in flight, skipping re-enqueue", board_id or "(default)")
+                return False
             logger.info(f"Board {board_id}: active page content changed, sending: {active_page_id}")
 
             if not rt.client:
@@ -1224,49 +1416,64 @@ class DisplayService:
             dims = resolve_dimensions(page.device_type, page.notes_wide, page.notes_tall)
             board_array = text_to_board_array(current_content, rows=dims.rows, cols=dims.cols)
 
-            success, was_sent = rt.client.render(
-                board_array,
-                strategy=strategy,
-                step_interval_ms=interval_ms,
-                step_size=step_size,
-                device_type=page.device_type,
-            )
+            client = rt.client
+            device_type = page.device_type
+            sink = self._error_sink()
 
-            if success:
-                # A note-array send dropped by NOTE_ARRAY_MIN_SEND_INTERVAL
-                # reports success with was_sent=False, exactly like an
-                # unchanged-content skip — but the content never reached the
-                # board. Caching it here would strand the board on the
-                # previous frame permanently, because no later tick
-                # re-attempts unchanged content (issue #1794). Keep the
-                # silence latch (#1817) either way, then leave the dedupe
-                # cache clear so the next tick retries.
-                rt.last_silence_mode_active = silence_mode_active
-                if getattr(rt.client, "last_send_throttled", False) is True:
-                    logger.warning(
-                        "Board %s: send throttled and did not reach the board; "
-                        "leaving dedupe cache clear so the next tick retries",
-                        board_id,
-                    )
-                    return False
-                rt.last_active_page_content = current_content
-                rt.last_active_page_id = active_page_id
-                # The engine just painted the page over whatever was on the
-                # board, so any out-of-band content is gone (issue #1831).
-                rt.showing_out_of_band = False
-                if was_sent:
-                    logger.info(f"Board {board_id}: active page sent: {active_page_id}")
-                    # Board-state adaptive refresh is primary-only (see
-                    # _board_poll_loop). Secondary boards don't feed the
-                    # board-read cache the Active Display UI shows.
-                    if is_primary:
-                        self.request_board_refresh()
-                else:
-                    logger.debug("Active page unchanged at board level")
-                return was_sent
-            self._record_send_error(rt, board_id, f"Failed to send active page to board: {active_page_id}")
-            logger.error(f"Board {board_id}: failed to send active page: {active_page_id}")
-            return False
+            def _after_page_send(success: bool, was_sent: bool, exc: Exception | None) -> bool:
+                if exc is not None:
+                    return self._send_exception_fallout(rt, board_id, exc, sink)
+                if success:
+                    # A note-array send dropped by NOTE_ARRAY_MIN_SEND_INTERVAL
+                    # reports success with was_sent=False, exactly like an
+                    # unchanged-content skip — but the content never reached the
+                    # board. Caching it here would strand the board on the
+                    # previous frame permanently, because no later tick
+                    # re-attempts unchanged content (issue #1794). Keep the
+                    # silence latch (#1817) either way, then leave the dedupe
+                    # cache clear so the next tick retries.
+                    rt.last_silence_mode_active = silence_mode_active
+                    if getattr(client, "last_send_throttled", False) is True:
+                        logger.warning(
+                            "Board %s: send throttled and did not reach the board; "
+                            "leaving dedupe cache clear so the next tick retries",
+                            board_id,
+                        )
+                        return False
+                    rt.last_active_page_content = current_content
+                    rt.last_active_page_id = active_page_id
+                    # The engine just painted the page over whatever was on the
+                    # board, so any out-of-band content is gone (issue #1831).
+                    rt.showing_out_of_band = False
+                    if was_sent:
+                        logger.info(f"Board {board_id}: active page sent: {active_page_id}")
+                        # Board-state adaptive refresh is primary-only (see
+                        # _board_poll_loop). Secondary boards don't feed the
+                        # board-read cache the Active Display UI shows.
+                        if is_primary:
+                            self.request_board_refresh()
+                    else:
+                        logger.debug("Active page unchanged at board level")
+                    return was_sent
+                self._record_send_error_to(rt, board_id, f"Failed to send active page to board: {active_page_id}", sink)
+                logger.error(f"Board {board_id}: failed to send active page: {active_page_id}")
+                return False
+
+            return self._dispatch_send(
+                rt,
+                board_id,
+                key=send_key,
+                send=lambda: client.render(
+                    board_array,
+                    strategy=strategy,
+                    step_interval_ms=interval_ms,
+                    step_size=step_size,
+                    device_type=device_type,
+                ),
+                on_complete=_after_page_send,
+                wait=wait,
+                sink=sink,
+            )
 
         except Exception as e:
             self._record_send_error(rt, board_id, str(e) or e.__class__.__name__)
@@ -1304,7 +1511,7 @@ class DisplayService:
             notes_tall=override.notes_tall or 1,
         )
 
-    def _send_blank_board(self, rt: BoardRuntime | None = None) -> bool:
+    def _send_blank_board(self, rt: BoardRuntime | None = None, *, wait: bool = True) -> bool:
         """Send a fully blank board when a temporary override expires with revert_mode='blank'."""
         rt = rt if rt is not None else self._ensure_primary_runtime()
         if rt is None or rt.client is None:
@@ -1318,26 +1525,40 @@ class DisplayService:
         settings_service = get_settings_service()
         system_transition = settings_service.get_transition_settings()
 
-        success, was_sent = rt.client.render(
-            board_array,
-            strategy=system_transition.strategy,
-            step_interval_ms=system_transition.step_interval_ms,
-            step_size=system_transition.step_size,
-            device_type=device_type,
-        )
+        client = rt.client
+        sink = self._error_sink()
 
-        if success:
-            rt.last_active_page_content = None
-            rt.last_active_page_id = None
-            # Engine-owned write: the board no longer shows out-of-band
-            # content (issue #1831).
-            rt.showing_out_of_band = False
-            logger.info("Temporary override expired (blank) - board cleared")
-            if was_sent:
-                self.request_board_refresh()
-        else:
-            logger.error("Failed to send blank board after temporary override expiry")
-        return success
+        def _after_blank_send(success: bool, was_sent: bool, exc: Exception | None) -> bool:
+            if exc is not None:
+                return self._send_exception_fallout(rt, rt.board_id, exc, sink)
+            if success:
+                rt.last_active_page_content = None
+                rt.last_active_page_id = None
+                # Engine-owned write: the board no longer shows out-of-band
+                # content (issue #1831).
+                rt.showing_out_of_band = False
+                logger.info("Temporary override expired (blank) - board cleared")
+                if was_sent:
+                    self.request_board_refresh()
+            else:
+                logger.error("Failed to send blank board after temporary override expiry")
+            return success
+
+        return self._dispatch_send(
+            rt,
+            rt.board_id,
+            key=("blank",),
+            send=lambda: client.render(
+                board_array,
+                strategy=system_transition.strategy,
+                step_interval_ms=system_transition.step_interval_ms,
+                step_size=system_transition.step_size,
+                device_type=device_type,
+            ),
+            on_complete=_after_blank_send,
+            wait=wait,
+            sink=sink,
+        )
 
     # ------------------------------------------------------------------ #
     # Silence-mode helpers
@@ -1489,11 +1710,21 @@ class DisplayService:
         notes_wide: int = 1,
         notes_tall: int = 1,
         silence_config: dict | None = None,
+        *,
+        wait: bool = True,
     ) -> bool:
         """Send a clean indicator-only board sized for the device."""
         rt = rt if rt is not None else self._ensure_primary_runtime()
         if rt is None or rt.client is None:
             logger.warning("Board client not initialized")
+            return False
+
+        # ``snoozing_message_sent`` latches only when the worker completes
+        # the send, so an engine pass during a slow indicator delivery must
+        # not enqueue it again (issue #1755). Engine passes only — a direct
+        # wait=True caller re-sends exactly as the inline render did.
+        if not wait and self._send_in_flight(rt, ("silence",)):
+            logger.debug("Board %s: silence send already in flight, skipping re-enqueue", rt.board_id)
             return False
 
         # Every caller now resolves the TARGET BOARD's geometry via
@@ -1507,26 +1738,40 @@ class DisplayService:
         system_transition = settings_service.get_transition_settings()
         board_array = self._build_silence_indicator_array(device_type, notes_wide, notes_tall, silence_config)
 
-        success, was_sent = rt.client.render(
-            board_array,
-            strategy=system_transition.strategy,
-            step_interval_ms=system_transition.step_interval_ms,
-            step_size=system_transition.step_size,
-            device_type=device_type,
+        client = rt.client
+        sink = self._error_sink()
+
+        def _after_indicator_send(success: bool, was_sent: bool, exc: Exception | None) -> bool:
+            if exc is not None:
+                return self._send_exception_fallout(rt, rt.board_id, exc, sink)
+            if success:
+                rt.last_active_page_content = "snoozing"
+                rt.last_active_page_id = "__silence__"
+                # Engine-owned write (issue #1831).
+                rt.showing_out_of_band = False
+                rt.last_silence_mode_active = True
+                rt.snoozing_message_sent = True
+                logger.info("🔇 Silence mode active - further updates blocked until silence ends")
+                return was_sent
+
+            logger.error("Failed to send silence indicator to board")
+            return False
+
+        return self._dispatch_send(
+            rt,
+            rt.board_id,
+            key=("silence",),
+            send=lambda: client.render(
+                board_array,
+                strategy=system_transition.strategy,
+                step_interval_ms=system_transition.step_interval_ms,
+                step_size=system_transition.step_size,
+                device_type=device_type,
+            ),
+            on_complete=_after_indicator_send,
+            wait=wait,
+            sink=sink,
         )
-
-        if success:
-            rt.last_active_page_content = "snoozing"
-            rt.last_active_page_id = "__silence__"
-            # Engine-owned write (issue #1831).
-            rt.showing_out_of_band = False
-            rt.last_silence_mode_active = True
-            rt.snoozing_message_sent = True
-            logger.info("🔇 Silence mode active - further updates blocked until silence ends")
-            return was_sent
-
-        logger.error("Failed to send silence indicator to board")
-        return False
 
     def _send_silence_page(
         self,
@@ -1538,6 +1783,7 @@ class DisplayService:
         *,
         board: dict | None = None,
         contexts: dict[str, dict] | None = None,
+        wait: bool = True,
     ) -> bool:
         """Render the target board's silence page once and freeze it there.
 
@@ -1558,6 +1804,13 @@ class DisplayService:
         rt = rt if rt is not None else self._ensure_primary_runtime()
         if rt is None or rt.client is None:
             logger.warning("Board client not initialized")
+            return False
+
+        # Same in-flight guard as the indicator (issue #1755): the snoozing
+        # latch is written by the worker, so an engine pass during a slow
+        # silence delivery must not enqueue the page again.
+        if not wait and self._send_in_flight(rt, ("silence",)):
+            logger.debug("Board %s: silence send already in flight, skipping re-enqueue", rt.board_id)
             return False
 
         if silence_config is None:
@@ -1614,26 +1867,42 @@ class DisplayService:
         dims = resolve_dimensions(device_type, notes_wide, notes_tall)
         board_array = text_to_board_array(result.formatted, rows=dims.rows, cols=dims.cols)
 
-        success, was_sent = rt.client.render(
-            board_array,
-            strategy=strategy,
-            step_interval_ms=interval_ms,
-            step_size=step_size,
-            device_type=device_type,
+        client = rt.client
+        sink = self._error_sink()
+        formatted = result.formatted
+        page_ref = page.id
+
+        def _after_silence_page_send(success: bool, was_sent: bool, exc: Exception | None) -> bool:
+            if exc is not None:
+                return self._send_exception_fallout(rt, rt.board_id, exc, sink)
+            if success:
+                rt.last_active_page_content = formatted
+                rt.last_active_page_id = f"__silence_page__:{page_ref}"
+                # Engine-owned write (issue #1831).
+                rt.showing_out_of_band = False
+                rt.last_silence_mode_active = True
+                rt.snoozing_message_sent = True
+                logger.info("🔇 Silence page sent - further updates blocked until silence ends")
+                return was_sent
+
+            logger.error("Failed to send silence page to board")
+            return False
+
+        return self._dispatch_send(
+            rt,
+            rt.board_id,
+            key=("silence",),
+            send=lambda: client.render(
+                board_array,
+                strategy=strategy,
+                step_interval_ms=interval_ms,
+                step_size=step_size,
+                device_type=device_type,
+            ),
+            on_complete=_after_silence_page_send,
+            wait=wait,
+            sink=sink,
         )
-
-        if success:
-            rt.last_active_page_content = result.formatted
-            rt.last_active_page_id = f"__silence_page__:{page.id}"
-            # Engine-owned write (issue #1831).
-            rt.showing_out_of_band = False
-            rt.last_silence_mode_active = True
-            rt.snoozing_message_sent = True
-            logger.info("🔇 Silence page sent - further updates blocked until silence ends")
-            return was_sent
-
-        logger.error("Failed to send silence page to board")
-        return False
 
     def _check_trigger_override(self) -> str | None:
         """Check all trigger-capable plugins and return content if a trigger is active.
@@ -1682,7 +1951,7 @@ class DisplayService:
             logger.error(f"Error checking triggers: {e}")
             return None
 
-    def _send_trigger_content(self, content: str, rt: BoardRuntime | None = None) -> bool:
+    def _send_trigger_content(self, content: str, rt: BoardRuntime | None = None, *, wait: bool = True) -> bool:
         """Send trigger content to the board (primary board).
 
         Returns True if the content was sent successfully.
@@ -1696,6 +1965,13 @@ class DisplayService:
             logger.debug("Trigger content unchanged, skipping send")
             return False
 
+        # In-flight half of the dedupe above (issue #1755): the cache is only
+        # written when the worker finishes, so engine passes must not enqueue
+        # the same trigger frame again while it is still being delivered.
+        if not wait and self._send_in_flight(rt, ("trigger", content)):
+            logger.debug("Trigger content already in flight, skipping re-enqueue")
+            return False
+
         logger.info("Sending triggered message to board")
         settings_service = get_settings_service()
         system_transition = settings_service.get_transition_settings()
@@ -1704,24 +1980,38 @@ class DisplayService:
         dims = get_dimensions(device_type)
         board_array = text_to_board_array(content, rows=dims.rows, cols=dims.cols)
 
-        success, was_sent = rt.client.render(
-            board_array,
-            strategy=system_transition.strategy,
-            step_interval_ms=system_transition.step_interval_ms,
-            step_size=system_transition.step_size,
-            device_type=device_type,
-        )
+        client = rt.client
+        sink = self._error_sink()
 
-        if success:
-            rt.last_active_page_content = content
-            rt.last_active_page_id = "__trigger__"
-            # Engine-owned write (issue #1831).
-            rt.showing_out_of_band = False
-            if was_sent:
-                logger.info("Triggered message sent to board")
-            return was_sent
-        logger.error("Failed to send triggered message to board")
-        return False
+        def _after_trigger_send(success: bool, was_sent: bool, exc: Exception | None) -> bool:
+            if exc is not None:
+                return self._send_exception_fallout(rt, rt.board_id, exc, sink)
+            if success:
+                rt.last_active_page_content = content
+                rt.last_active_page_id = "__trigger__"
+                # Engine-owned write (issue #1831).
+                rt.showing_out_of_band = False
+                if was_sent:
+                    logger.info("Triggered message sent to board")
+                return was_sent
+            logger.error("Failed to send triggered message to board")
+            return False
+
+        return self._dispatch_send(
+            rt,
+            rt.board_id,
+            key=("trigger", content),
+            send=lambda: client.render(
+                board_array,
+                strategy=system_transition.strategy,
+                step_interval_ms=system_transition.step_interval_ms,
+                step_size=system_transition.step_size,
+                device_type=device_type,
+            ),
+            on_complete=_after_trigger_send,
+            wait=wait,
+            sink=sink,
+        )
 
     def _get_active_ref_id(self) -> str | None:
         """Return the raw active-page/collection reference (before collection resolution)."""
@@ -1749,11 +2039,18 @@ class DisplayService:
         settings_service = get_settings_service()
         polling_interval = settings_service.get_polling_interval()
 
-        schedule.every(polling_interval).seconds.do(self.check_and_send_active_page)
+        # Engine passes are fire-and-forget (issue #1755): the tick only
+        # enqueues each board's send on its worker, so one board's long
+        # transition cannot stall the other boards, the 1 Hz silence
+        # detector, or collection rotation.
+        def engine_pass() -> bool:
+            return self.check_and_send_active_page(wait=False)
+
+        schedule.every(polling_interval).seconds.do(engine_pass)
         logger.info(f"Active page polling scheduled every {polling_interval} seconds")
 
         logger.info("Sending initial active page...")
-        self.check_and_send_active_page()
+        engine_pass()
 
         logger.info("Service started, waiting for scheduled updates...")
         try:
@@ -1768,7 +2065,7 @@ class DisplayService:
                 # catch the transition within ~1s. Windows are per board
                 # (issue #1788), so ANY board flipping forces the update.
                 if self._silence_state_changed():
-                    self.check_and_send_active_page()
+                    engine_pass()
 
                 # When a collection is active, poll at its mode-specific cadence:
                 # time-mode aligns with the next page boundary; variable-mode uses
@@ -1782,7 +2079,7 @@ class DisplayService:
                         collection_service = get_collection_service()
                         secs = collection_service.seconds_until_next_check(ref_id, now)
                         if secs is not None:
-                            self.check_and_send_active_page()
+                            engine_pass()
                             primary_rt.next_collection_check = now + max(1, secs)
                         else:
                             primary_rt.next_collection_check = now + polling_interval

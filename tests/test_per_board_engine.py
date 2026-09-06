@@ -156,9 +156,13 @@ def _drive(
     silence_mode="indicator",
     silence_page_id=None,
     with_status=False,
+    wait=True,
+    trigger_content=None,
 ):
     """Run one full pass. ``with_status`` uses the wrapper the API endpoints
-    call, returning ``(sent, failure reason)`` instead of just ``sent``."""
+    call, returning ``(sent, failure reason)`` instead of just ``sent``.
+    ``wait=False`` is the engine tick's fire-and-forget mode (issue #1755);
+    ``trigger_content`` makes the pass see an active trigger override."""
     settings = settings if settings is not None else _settings_service(boards)
     pages = pages if pages is not None else _page_service({})
     schedule = schedule if schedule is not None else _schedule_service({})
@@ -169,7 +173,7 @@ def _drive(
         patch("src.main.get_collection_service", return_value=MagicMock()),
         patch("src.time_service.get_time_service", return_value=_time_service()),
         patch("src.main.Config") as cfg,
-        patch.object(svc, "_check_trigger_override", return_value=None),
+        patch.object(svc, "_check_trigger_override", return_value=trigger_content),
         patch.object(svc, "request_board_refresh"),
     ):
         cfg.is_silence_mode_active.return_value = silence
@@ -193,7 +197,7 @@ def _drive(
         }
         if with_status:
             return svc.check_and_send_active_page_with_status()
-        return svc.check_and_send_active_page()
+        return svc.check_and_send_active_page(wait=wait)
 
 
 class TestPerBoardRouting:
@@ -396,6 +400,137 @@ class TestPerBoardSilenceDelivery:
         # Exactly one send per board (the entering-silence indicator).
         assert clients["b1"].render.call_count == 1
         assert clients["b2"].render.call_count == 1
+
+
+class TestEngineTickInFlightDedupe:
+    """The engine's fire-and-forget passes (issue #1755) must not re-enqueue a
+    send that is still queued or executing on the board's worker.
+
+    The dedupe caches are written by post-send bookkeeping, which runs when
+    the worker finishes — so during a long transition every engine pass sees
+    a "stale" cache. Without the in-flight guard each pass would enqueue the
+    same frame again and the transition would replay forever once it landed.
+    """
+
+    @staticmethod
+    def _blocked_client(clients, board_id):
+        """Make one board's mock render block until released; returns (started, release)."""
+        started = threading.Event()
+        release = threading.Event()
+
+        def blocking_render(*_a, **_k):
+            started.set()
+            assert release.wait(timeout=10)
+            return True, True
+
+        clients[board_id].render.side_effect = blocking_render
+        return started, release
+
+    def test_engine_pass_does_not_reenqueue_the_page_send_in_flight(self):
+        boards = [_board("b1", "Primary", schedule_enabled=False)]
+        svc, clients = _service_with_runtimes(boards)
+        started, release = self._blocked_client(clients, "b1")
+        settings = _settings_service(boards, schedule_off=("b1",), manual={"b1": "page-1"})
+        pages = _page_service({"page-1": {"content": "HELLO"}})
+        try:
+            _drive(svc, boards, settings=settings, pages=pages, wait=False)
+            assert started.wait(timeout=5)
+            _drive(svc, boards, settings=settings, pages=pages, wait=False)
+        finally:
+            release.set()
+        assert svc.wait_until_idle(timeout=5)
+        assert clients["b1"].render.call_count == 1
+
+    def test_engine_pass_does_not_reenqueue_the_silence_send_in_flight(self):
+        boards = [_board("b1", "Primary", schedule_enabled=False)]
+        svc, clients = _service_with_runtimes(boards)
+        started, release = self._blocked_client(clients, "b1")
+        settings = _settings_service(boards, schedule_off=("b1",), manual={"b1": "page-1"})
+        pages = _page_service({"page-1": {"content": "HELLO"}})
+        try:
+            _drive(svc, boards, settings=settings, pages=pages, silence=True, wait=False)
+            assert started.wait(timeout=5)
+            _drive(svc, boards, settings=settings, pages=pages, silence=True, wait=False)
+        finally:
+            release.set()
+        assert svc.wait_until_idle(timeout=5)
+        assert clients["b1"].render.call_count == 1
+
+    def test_engine_pass_does_not_reenqueue_the_trigger_send_in_flight(self):
+        boards = [_board("b1", "Primary", schedule_enabled=False)]
+        svc, clients = _service_with_runtimes(boards)
+        started, release = self._blocked_client(clients, "b1")
+        settings = _settings_service(boards, schedule_off=("b1",), manual={"b1": "page-1"})
+        pages = _page_service({"page-1": {"content": "HELLO"}})
+        try:
+            _drive(svc, boards, settings=settings, pages=pages, trigger_content="DOOR OPEN", wait=False)
+            assert started.wait(timeout=5)
+            _drive(svc, boards, settings=settings, pages=pages, trigger_content="DOOR OPEN", wait=False)
+        finally:
+            release.set()
+        assert svc.wait_until_idle(timeout=5)
+        assert clients["b1"].render.call_count == 1
+
+    def test_enqueue_signals_the_clients_cancel_event_immediately(self):
+        """Enqueuing a newer frame preempts a running transition at once.
+
+        A plain render() call sets the client's ``_cancel_transition`` event
+        before taking the send lock; with the queue in between, the dispatch
+        must mirror that at ENQUEUE time — otherwise an in-flight transition
+        would only learn about the newer frame when the worker dequeued it.
+        """
+        boards = [_board("b1", "Primary", schedule_enabled=False)]
+        svc, clients = _service_with_runtimes(boards)
+        started, release = self._blocked_client(clients, "b1")
+        cancel = threading.Event()
+        clients["b1"]._cancel_transition = cancel
+        settings = _settings_service(boards, schedule_off=("b1",), manual={"b1": "page-1"})
+        pages = _page_service({"page-1": {"content": "HELLO"}, "page-2": {"content": "WORLD"}})
+        try:
+            _drive(svc, boards, settings=settings, pages=pages, wait=False)
+            assert started.wait(timeout=5)
+            cancel.clear()  # the first enqueue set it; arm for the observation
+            settings2 = _settings_service(boards, schedule_off=("b1",), manual={"b1": "page-2"})
+            _drive(svc, boards, settings=settings2, pages=pages, wait=False)
+            assert cancel.is_set(), "the newer frame's enqueue must signal the running transition"
+        finally:
+            release.set()
+        assert svc.wait_until_idle(timeout=5)
+
+    def test_wait_mode_still_resends_content_that_is_in_flight(self):
+        """A wait=True caller (refresh/force-refresh) skips only on the cache
+        dedupe, never on the in-flight guard — while the same frame is still
+        being delivered it queues its own send and waits, exactly as an
+        inline render() call would have blocked on the send lock."""
+        import time as real_time
+
+        boards = [_board("b1", "Primary", schedule_enabled=False)]
+        svc, clients = _service_with_runtimes(boards)
+        started, release = self._blocked_client(clients, "b1")
+        settings = _settings_service(boards, schedule_off=("b1",), manual={"b1": "page-1"})
+        pages = _page_service({"page-1": {"content": "HELLO"}})
+        _drive(svc, boards, settings=settings, pages=pages, wait=False)
+        assert started.wait(timeout=5)
+
+        results: list = []
+        caller = threading.Thread(
+            target=lambda: results.append(_drive(svc, boards, settings=settings, pages=pages, wait=True))
+        )
+        caller.start()
+        try:
+            # The wait=True pass must have QUEUED a second send (same content,
+            # first still executing) rather than skipped on the in-flight key.
+            worker = svc.runtimes["b1"].send_worker
+            deadline = real_time.monotonic() + 5
+            while worker._pending is None and real_time.monotonic() < deadline:
+                real_time.sleep(0.005)
+            assert worker._pending is not None, "wait=True should have queued its own send, not skipped"
+        finally:
+            release.set()
+            caller.join(timeout=5)
+        assert svc.wait_until_idle(timeout=5)
+        assert results == [True]
+        assert clients["b1"].render.call_count == 2
 
 
 class TestSeams:

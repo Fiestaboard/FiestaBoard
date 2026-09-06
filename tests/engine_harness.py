@@ -9,8 +9,10 @@ The clock/service plumbing here is deliberately duplicated-and-extended from
 ``tests/test_display_loop_timing.py`` (``RecordingBoardClient``,
 ``SilenceOffConfigManager``, the service factories, ``LoopHarness``) rather
 than refactoring that file — it is the proven model for driving the real
-``run()`` loop through simulated seconds, and this PR must not touch existing
-suites. Once the redesign lands, the two can be unified.
+``run()`` loop through simulated seconds. Since #1755 both harnesses also
+settle the per-board send workers (``DisplayService.wait_until_idle``) before
+each simulated-time advance; see ``LoopHarness._settle``. The two can still
+be unified once the redesign is complete.
 
 Four clock seams MUST always be patched together, or part of the engine runs
 on wall-clock time and the goldens stop being deterministic:
@@ -346,19 +348,55 @@ class LoopHarness:
     clock and, once past ``run_until`` (inclusive — work scheduled for that
     exact instant still runs), flips ``service.running`` so the loop exits on
     its own terms. ``max_ticks`` guards against a loop that stops sleeping.
+
+    Since #1755 board sends run on per-board worker threads while the fake
+    clock only moves here, so each sleep first waits for the send queues to
+    drain (``_settle``). That keeps every render's recorded sim-time equal to
+    the tick that enqueued it — the property that makes the goldens
+    deterministic. ``idle_boards`` restricts the wait to a subset of boards
+    for scenarios that deliberately block one board's worker (scenario 10);
+    ``before_settle`` is an optional hook a scenario can use to synchronize
+    with a worker thread before time moves.
     """
 
-    def __init__(self, service: DisplayService, clock: FakeClock, run_until: datetime, max_ticks: int = 5000):
+    def __init__(
+        self,
+        service: DisplayService,
+        clock: FakeClock,
+        run_until: datetime,
+        max_ticks: int = 5000,
+        idle_boards: list[str] | None = None,
+        before_settle: Callable[[], None] | None = None,
+    ):
         self.service = service
         self.clock = clock
         self.run_until = run_until
         self.max_ticks = max_ticks
         self.ticks = 0
+        self.idle_boards = idle_boards
+        self.before_settle = before_settle
+
+    def _settle(self) -> None:
+        """Wait (real time) for in-flight sends before simulated time moves.
+
+        The ``hasattr`` guard is only for the pre-#1755 engine, which sends
+        inline on the tick thread and so is always idle here by construction —
+        it lets the scenario-10 acceptance test run (and fail honestly)
+        against that engine.
+        """
+        if self.before_settle is not None:
+            self.before_settle()
+        wait = getattr(self.service, "wait_until_idle", None)
+        if wait is None:
+            return
+        if not wait(timeout=10.0, board_ids=self.idle_boards):
+            raise AssertionError("send workers did not go idle within 10s; the goldens would be nondeterministic")
 
     def _on_sleep(self, seconds: float) -> None:
         self.ticks += 1
         if self.ticks > self.max_ticks:
             raise AssertionError(f"run() slept {self.ticks} times without reaching {self.run_until}")
+        self._settle()
         self.clock.advance(seconds)
         if self.clock.utc > self.run_until:
             self.service.running = False
@@ -370,7 +408,7 @@ class ScenarioResult:
 
     sends: list[dict]
     service: DisplayService
-    clients: dict[str, GoldenRecordingClient] = field(default_factory=dict)
+    clients: dict[str, object] = field(default_factory=dict)
 
 
 def run_engine_scenario(
@@ -386,6 +424,9 @@ def run_engine_scenario(
     config_manager=None,
     trigger_registry_factory: Callable[[FakeClock], StubPluginRegistry] | None = None,
     fail_when: dict[str, Callable[[datetime], bool]] | None = None,
+    client_factories: dict[str, Callable] | None = None,
+    idle_boards: list[str] | None = None,
+    before_settle: Callable[[], None] | None = None,
 ) -> ScenarioResult:
     """Run the REAL ``DisplayService.run()`` over ``[start, run_until]``.
 
@@ -401,18 +442,27 @@ def run_engine_scenario(
     must reset the trigger-service singleton around the test.
 
     ``fail_when`` maps board id -> predicate for injected render failures.
+
+    ``client_factories`` maps board id -> ``factory(clock, board_id, sink)``
+    building a custom stand-in client for that board (scenario 10's blocking
+    client); other boards get the default ``GoldenRecordingClient``.
+    ``idle_boards`` / ``before_settle`` are forwarded to :class:`LoopHarness`.
     """
     clock = FakeClock(start)
     service = DisplayService()
     sink: list[dict] = []
-    clients: dict[str, GoldenRecordingClient] = {}
+    clients: dict[str, object] = {}
     for board in boards:
         board_id = board["id"]
-        clients[board_id] = GoldenRecordingClient(clock, board_id, sink, fail_when=(fail_when or {}).get(board_id))
+        factory = (client_factories or {}).get(board_id)
+        if factory is not None:
+            clients[board_id] = factory(clock, board_id, sink)
+        else:
+            clients[board_id] = GoldenRecordingClient(clock, board_id, sink, fail_when=(fail_when or {}).get(board_id))
         service.runtimes[board_id] = BoardRuntime(client=clients[board_id], board_id=board_id)
     service._primary_board_id = boards[0]["id"]
 
-    harness = LoopHarness(service, clock, run_until)
+    harness = LoopHarness(service, clock, run_until, idle_boards=idle_boards, before_settle=before_settle)
     fake_time = FakeTimeModule(clock, on_sleep=harness._on_sleep)
     cm = config_manager if config_manager is not None else SilenceOffConfigManager()
 
@@ -441,5 +491,9 @@ def run_engine_scenario(
         monkeypatch.setattr("src.triggers.service.datetime", fake_trigger_datetime(clock))
 
     service.run()
+    # One final settle: the loop exits from inside its last sleep, so any
+    # sends of the final iteration are already drained, but this keeps the
+    # invariant explicit (and covers a scenario that stops the loop early).
+    harness._settle()
 
     return ScenarioResult(sends=sink, service=service, clients=clients)
