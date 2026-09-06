@@ -64,8 +64,15 @@ client config — it replaces `<YOUR_TOKEN>` in the examples below.
 > login-redirect loop. (Earlier releases left these routes fully anonymous
 > on such installs, so anyone who could reach the port could mint or
 > revoke the token — fixed in Fiestaboard/FiestaBoard#1825.)
-> `FIESTABOARD_MCP_TOKEN` is still the strongest configuration: while it
-> is set, the mutating routes refuse with `409` even for a caller
+> Even so, the possession gate is **not a boundary against an attacker
+> who can already reach the port**: on an install where the login is
+> merely *disabled by preference*, the preference itself is part of the
+> open API, so such an attacker can `POST /auth/preference` to enable the
+> login, register the first admin via `POST /auth/setup`, and manage the
+> token with that session. Treat the gate as protection against casual or
+> accidental mint-and-read and revocation.
+> `FIESTABOARD_MCP_TOKEN` is the configuration that actually holds: while
+> it is set, the mutating routes refuse with `409` even for a caller
 > presenting the token, so it cannot be rotated or revoked over the
 > network at all. Enabling the browser login gates management behind the
 > admin session as usual.

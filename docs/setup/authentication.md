@@ -124,9 +124,14 @@ the first mint is open — until a token exists the whole API is open anyway,
 so gating it would protect nothing. (Earlier releases left these routes
 fully open on such installs, so anyone who could reach the port could
 rotate or revoke a Settings-stored token — fixed in
-Fiestaboard/FiestaBoard#1825.) `FIESTABOARD_MCP_TOKEN` is still the
-strongest option: while it is set, both mutating routes refuse with `409`
-and the token cannot be changed over the network at all.
+Fiestaboard/FiestaBoard#1825.) The gate protects against casual or
+accidental mint-and-read and revocation, but it is not a boundary against
+an attacker who can already reach the port: with the login disabled by
+preference, that attacker can re-enable it (`POST /auth/preference`),
+register the first admin (`POST /auth/setup`), and manage the token with
+that session. `FIESTABOARD_MCP_TOKEN` is the option that actually holds:
+while it is set, both mutating routes refuse with `409` and the token
+cannot be changed over the network at all.
 
 ## Cross-origin browser access (CORS)
 
