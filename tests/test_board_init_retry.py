@@ -248,3 +248,51 @@ def test_retry_drops_board_removed_from_settings(monkeypatch):
 
     assert "board-2" not in service.board_init_errors, "a deconfigured board must not report an init error"
     assert "board-2" not in service._board_retry_state
+
+
+class TestEnsurePrimaryRuntimeLockRace:
+    """#1870 review: _ensure_primary_runtime inserted its clientless
+    placeholder into ``self.runtimes`` OUTSIDE ``_runtimes_lock``,
+    contradicting the lock's copy-and-replace invariant. Interleaved with a
+    recovery copy-swap, either the insert was lost (it landed in the pre-swap
+    dict) or — worse — the placeholder landed AFTER the swap and clobbered
+    the freshly recovered runtime, whose init error was already cleared:
+    the board was silently re-stranded with /status showing it healthy."""
+
+    def test_placeholder_insert_cannot_clobber_a_concurrent_recovery_swap(self, monkeypatch):
+        from src.main import BoardRuntime
+
+        service = DisplayService()
+        service._primary_board_id = None
+        monkeypatch.setattr(
+            "src.main.get_settings_service",
+            lambda: SimpleNamespace(get_primary_board_id=lambda: "b-1"),
+        )
+
+        recovered = BoardRuntime(client=object(), board_id="b-1")
+
+        class RacingRuntimes(dict):
+            """Fires a deterministic recovery copy-swap inside the unlocked
+            read window: the first miss for "b-1" atomically replaces
+            service.runtimes with a dict holding the recovered runtime —
+            exactly what _attempt_board_init_recovery does concurrently."""
+
+            fired = False
+
+            def get(self, key, default=None):
+                result = dict.get(self, key, default)
+                if not RacingRuntimes.fired and key == "b-1" and result is None:
+                    RacingRuntimes.fired = True
+                    swapped = dict(service.runtimes)
+                    swapped["b-1"] = recovered
+                    service.runtimes = swapped
+                return result
+
+        service.runtimes = RacingRuntimes()
+
+        rt = service._ensure_primary_runtime()
+
+        assert service.runtimes["b-1"] is recovered, (
+            "the clientless placeholder clobbered the freshly recovered runtime"
+        )
+        assert rt is recovered

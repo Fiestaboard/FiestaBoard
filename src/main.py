@@ -244,14 +244,26 @@ class DisplayService:
         return bid if bid else self._PRIMARY_FALLBACK_KEY
 
     def _ensure_primary_runtime(self) -> BoardRuntime:
-        """Return the primary runtime, creating an empty one if needed."""
+        """Return the primary runtime, creating an empty one if needed.
+
+        The placeholder insert runs under ``_runtimes_lock`` with a
+        double-checked read (#1870 review): unlocked, the insert raced the
+        recovery pass's copy-swap of ``self.runtimes`` — the placeholder
+        could land in the pre-swap dict (and be lost), or land after the
+        swap and clobber the freshly recovered runtime whose init error was
+        already cleared, silently re-stranding the board. The common case
+        (runtime already exists) stays lock-free.
+        """
         rt = self._primary_runtime()
         if rt is None:
             key = self._resolve_primary_key()
-            rt = self.runtimes.get(key)
+            rt = self.runtimes.get(key)  # unlocked fast path
             if rt is None:
-                rt = BoardRuntime(client=None, board_id=key)
-                self.runtimes[key] = rt
+                with self._runtimes_lock:
+                    rt = self.runtimes.get(key)  # double-check under the lock
+                    if rt is None:
+                        rt = BoardRuntime(client=None, board_id=key)
+                        self.runtimes[key] = rt
             self._primary_board_id = key
         return rt
 
