@@ -52,6 +52,9 @@ EXPECTED_CANONICAL = {
     "update_plugin",
     "update_setting",
     "trigger_system_update",
+    # MCP-only server op since #1765 — the REST POST /send-message
+    # equivalent; the chat grammar has no spelling for it today.
+    "send_message",
     # client-side chat ops, registered so the registry is the whole grammar
     "apply_patch",
     "suggest_variables",
