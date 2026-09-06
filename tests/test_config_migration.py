@@ -32,7 +32,6 @@ def _no_env_plugin_overrides(monkeypatch):
         monkeypatch.delenv(env_var, raising=False)
 
 
-
 def _reset_singleton():
     """Reset the ConfigManager singleton so a fresh instance can be created."""
     ConfigManager._instance = None
