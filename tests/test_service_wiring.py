@@ -43,6 +43,11 @@ import pytest
 SCANNED_MODULES = [
     "src/mcp_server.py",
     "src/mqtt/commands.py",
+    # #1764: the mutating MCP tool bodies moved into the shared operation
+    # layer, which is now the surface that resolves service singletons by
+    # lazy import and swallows exceptions into an error envelope — exactly
+    # the failure mode this scan exists to catch.
+    "src/ops/executors.py",
 ]
 
 # A scan that resolves nothing passes vacuously. If the import or call style in
@@ -54,10 +59,14 @@ MIN_RESOLVED_CALLS = {
     # one fewer directly-resolvable service call in this module. Dropped
     # 34 -> 33 in #1741 for the same reason: update_plugin no longer calls
     # registry.reload_plugin() itself, it awaits the REST handler so the
-    # built-in / realpath-containment / .git guards run. Lower this only
-    # alongside a change that genuinely removes a direct service call.
-    "src/mcp_server.py": 33,
+    # built-in / realpath-containment / .git guards run. Dropped 33 -> 22 in
+    # #1764: the mutating tool bodies (11 direct service calls) moved to
+    # src/ops/executors.py, which is scanned with its own floor below, so
+    # the total across both modules is unchanged. Lower this only alongside
+    # a change that genuinely removes a direct service call.
+    "src/mcp_server.py": 22,
     "src/mqtt/commands.py": 15,
+    "src/ops/executors.py": 11,
 }
 
 
