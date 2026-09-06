@@ -2088,7 +2088,11 @@
     "claudeWebDescription": "<label>claude.ai 웹 (Connectors):</label> 자체 호스팅 FiestaBoard에서는 지원되지 않습니다. Connectors 방식은 공개 HTTPS URL과 OAuth 2.1 동적 클라이언트 등록을 요구하는데, LAN 호스트는 둘 다 제공할 수 없습니다. 대신 Desktop이나 Code를 사용하세요.",
     "savedItButton": "저장했습니다",
     "toastTokenRevoked": "MCP 토큰이 해지되었습니다",
-    "toastCopyFailed": "클립보드에 복사하지 못했습니다"
+    "toastCopyFailed": "클립보드에 복사하지 못했습니다",
+    "lockedDescription": "이 설치에서는 로그인이 꺼져 있어 현재 MCP 토큰 자체가 토큰 관리를 위한 자격 증명입니다. 교체와 해지를 잠금 해제하려면 아래에 입력하세요.",
+    "lockedTokenLabel": "현재 MCP 토큰",
+    "unlockButton": "잠금 해제",
+    "unlockFailedToast": "해당 토큰이 설정된 MCP 토큰과 일치하지 않습니다."
   },
   "fiestaPanels": {
     "title": "FiestaPanel",

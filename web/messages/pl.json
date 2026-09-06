@@ -2088,7 +2088,11 @@
     "claudeWebDescription": "<label>claude.ai web (Connectors):</label> nieobsługiwane w samodzielnie hostowanym FiestaBoard. Przepływ Connectors wymaga publicznego adresu HTTPS i dynamicznej rejestracji klienta OAuth 2.1, a host w sieci LAN nie zapewnia żadnej z tych rzeczy. Użyj zamiast tego Desktop lub Code.",
     "savedItButton": "Zapisane",
     "toastTokenRevoked": "Token MCP odwołany",
-    "toastCopyFailed": "Nie udało się skopiować do schowka"
+    "toastCopyFailed": "Nie udało się skopiować do schowka",
+    "lockedDescription": "Logowanie jest wyłączone w tej instalacji, więc bieżący token MCP sam w sobie jest poświadczeniem do zarządzania tokenami. Wpisz go poniżej, aby odblokować wymianę i odwoływanie.",
+    "lockedTokenLabel": "Bieżący token MCP",
+    "unlockButton": "Odblokuj",
+    "unlockFailedToast": "Ten token nie zgadza się ze skonfigurowanym tokenem MCP."
   },
   "fiestaPanels": {
     "title": "FiestaPanel",
