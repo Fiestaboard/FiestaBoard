@@ -513,6 +513,10 @@ export function DisplaySettings() {
     mutationFn: (boardId: string) => api.removeBoard(boardId),
     onSuccess: () => {
       invalidate();
+      // The per-board init errors ride the 15s ["status"] poll — refetch it
+      // now so deleting a failed board doesn't leave a ghost error banner
+      // until the next poll tick (#1829 review).
+      queryClient.invalidateQueries({ queryKey: ["status"] });
       toast.success(t("boardRemoved"));
     },
     onError: (error: Error) => {
