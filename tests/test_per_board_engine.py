@@ -14,6 +14,7 @@ each other's caches. Covers:
   - the note-array send routes through its own client at its own size
 """
 
+import contextlib
 import threading
 from datetime import datetime
 from types import SimpleNamespace
@@ -1165,9 +1166,7 @@ class TestAdoptedWaiterFailureReason:
         outcome = {}
 
         def api_caller():
-            outcome["sent"], outcome["reason"] = svc.check_and_send_for_board_with_status(
-                "b-1", rt, is_primary=True
-            )
+            outcome["sent"], outcome["reason"] = svc.check_and_send_for_board_with_status("b-1", rt, is_primary=True)
 
         with (
             patch("src.main.get_settings_service", return_value=settings),
@@ -1199,3 +1198,74 @@ class TestAdoptedWaiterFailureReason:
         assert not caller.is_alive()
         assert outcome["sent"] is False
         assert outcome["reason"] == "Failed to send active page to board: p-b"
+
+
+class TestWorkerForRuntimeFreshness:
+    """#1867 review: _worker_for resurrected workers for STALE runtimes and
+    its lazy create was unsynchronized (two first-send threads, two workers)."""
+
+    def test_dispatch_on_a_stale_runtime_is_refused_and_never_touches_the_old_client(self):
+        boards = [_board("b-1", "Primary")]
+        svc, clients = _service_with_runtimes(boards)
+        stale_rt = svc.runtimes["b-1"]
+        stale_client = clients["b-1"]
+
+        # A rebuild swaps in a fresh runtime; some caller still holds the old one.
+        fresh_client = MagicMock()
+        fresh_client.render.return_value = (True, True)
+        fresh_client.is_virtual = False
+        svc.runtimes["b-1"] = BoardRuntime(client=fresh_client, board_id="b-1")
+
+        settings = _settings_service(boards, schedule_off=("b-1",), manual={"b-1": "p-a"})
+        pages = _page_service({"p-a": {"content": "AAA"}})
+        with (
+            patch("src.main.get_settings_service", return_value=settings),
+            patch("src.main.get_page_service", return_value=pages),
+            patch("src.main.get_schedule_service", return_value=_schedule_service({})),
+            patch("src.main.get_collection_service", return_value=MagicMock()),
+            patch("src.time_service.get_time_service", return_value=_time_service()),
+            patch("src.main.Config") as cfg,
+            patch.object(svc, "_check_trigger_override", return_value=None),
+            patch.object(svc, "request_board_refresh"),
+        ):
+            cfg.is_silence_mode_active.return_value = False
+            sent, reason = svc.check_and_send_for_board_with_status("b-1", stale_rt, is_primary=True)
+
+        assert stale_client.render.call_count == 0, (
+            "a dispatch through a stale runtime must never execute against the old client/credentials"
+        )
+        assert sent is False
+        assert reason, "refusing a stale-runtime dispatch must carry a clear failure reason"
+        assert fresh_client.render.call_count == 0  # refused, not silently rerouted
+
+    def test_concurrent_first_sends_share_one_worker(self):
+        from src.displays import send_worker as send_worker_module
+
+        boards = [_board("b-1", "Primary")]
+        svc, _clients = _service_with_runtimes(boards)
+        rt = svc.runtimes["b-1"]
+
+        barrier = threading.Barrier(2)
+
+        class GatedWorker(send_worker_module.BoardSendWorker):
+            """Holds construction until both racers arrive (or 0.5s passes),
+            making the unsynchronized check-then-create interleaving
+            deterministic: pre-lock, both threads pass the None-check before
+            either assigns rt.send_worker."""
+
+            def __init__(self, name):
+                with contextlib.suppress(threading.BrokenBarrierError):
+                    barrier.wait(timeout=0.5)
+                super().__init__(name)
+
+        results: list = []
+        with patch("src.main.BoardSendWorker", GatedWorker):
+            threads = [threading.Thread(target=lambda: results.append(svc._worker_for(rt))) for _ in range(2)]
+            for t in threads:
+                t.start()
+            for t in threads:
+                t.join(timeout=5)
+
+        assert len(results) == 2
+        assert results[0] is results[1], "two concurrent first sends must share ONE worker"
+        assert rt.send_worker is results[0]

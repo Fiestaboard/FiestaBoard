@@ -173,6 +173,10 @@ class DisplayService:
         # failures its own call produced.
         self._send_capture = threading.local()
 
+        # Serializes send-worker lookup/creation (#1867 review): without it,
+        # two first-send threads could each create a worker for one runtime.
+        self._workers_lock = threading.Lock()
+
     # ------------------------------------------------------------------ #
     # Primary-runtime resolution + back-compat property shims
     # ------------------------------------------------------------------ #
@@ -374,14 +378,24 @@ class DisplayService:
     # Per-board send workers (issue #1755)
     # ------------------------------------------------------------------ #
 
-    @staticmethod
-    def _worker_for(rt: BoardRuntime) -> BoardSendWorker:
-        """The runtime's send worker, created (or replaced) on demand."""
-        worker = rt.send_worker
-        if worker is None or worker.stopped:
-            worker = BoardSendWorker(str(rt.board_id))
-            rt.send_worker = worker
-        return worker
+    def _worker_for(self, rt: BoardRuntime) -> BoardSendWorker | None:
+        """The runtime's send worker, created (or replaced) on demand.
+
+        Returns None for a STALE runtime — one no longer registered under its
+        board id (#1867 review): a caller that resolved ``rt`` before a
+        rebuild must not dispatch through it after the swap, or the send
+        executes against the old client/credentials (and would resurrect the
+        old runtime's stopped worker). Lookup/create runs under
+        ``_workers_lock`` so two concurrent first sends share one worker.
+        """
+        with self._workers_lock:
+            if self.runtimes.get(rt.board_id) is not rt:
+                return None
+            worker = rt.send_worker
+            if worker is None or worker.stopped:
+                worker = BoardSendWorker(str(rt.board_id))
+                rt.send_worker = worker
+            return worker
 
     @staticmethod
     def _send_in_flight(rt: BoardRuntime, key: tuple) -> bool:
@@ -480,8 +494,23 @@ class DisplayService:
                 job.fail_reason = job_errors[0][1]
             return ret
 
+        worker = self._worker_for(rt)
+        if worker is None:
+            # Stale runtime (#1867 review): the board was rebuilt after the
+            # caller resolved ``rt``. Refuse rather than send through the old
+            # client/credentials; the current runtime's own pass delivers the
+            # content. Bookkeeping goes to the caller's sink only — the stale
+            # runtime's state is dead, but a with_status caller still needs
+            # the reason.
+            message = "Board runtime was replaced before the send could be queued; retry"
+            rt.last_send_error = message
+            if sink is not None:
+                sink.append((board_id, message))
+            logger.warning(f"Board {board_id}: {message}")
+            return False
+
         job = SendJob(key=key, run=run_job, sink=sink, board_id=board_id)
-        self._worker_for(rt).submit(job)
+        worker.submit(job)
         if not wait:
             # Engine tick: the send is in motion; "content changed and is
             # being delivered" is this path's success signal. run() ignores
