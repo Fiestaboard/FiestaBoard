@@ -61,7 +61,18 @@ registry.set_plugin_config.return_value = []
 registry.get_plugin_source.return_value = None  # update tool: clean 404 path
 
 config_manager = MagicMock()
-config_manager.get_plugin_config.return_value = {"api_key": "test_key_123"}
+# Stateful: reads reflect the last persisted config, like the real
+# ConfigManager. The service re-reads after persisting (env-overlay re-seed,
+# #1864); a fixed return_value fakes a phantom diff and a second
+# registry.set_plugin_config call.
+_stored = {"api_key": "test_key_123"}
+
+def _persist_config(pid, cfg):
+    _stored.clear()
+    _stored.update(cfg)
+
+config_manager.get_plugin_config.side_effect = lambda pid, include_env_overrides=True: dict(_stored)
+config_manager.set_plugin_config.side_effect = _persist_config
 config_manager._mask_sensitive.return_value = {"api_key": "***"}
 
 with (
