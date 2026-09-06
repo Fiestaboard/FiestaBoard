@@ -36,7 +36,7 @@ from .auth import is_auth_enabled  # noqa: E402
 from .auth.middleware import AuthMiddleware  # noqa: E402
 from .auth.routes import router as auth_router  # noqa: E402
 from .board_client import board_client_from_board_dict  # noqa: E402
-from .collections.models import CollectionCreate, CollectionUpdate, is_collection_id  # noqa: E402
+from .collections.models import is_collection_id  # noqa: E402
 from .collections.service import get_collection_service  # noqa: E402
 from .config import Config  # noqa: E402
 from .config_manager import get_config_manager, unmask_sensitive_values  # noqa: E402
@@ -8187,124 +8187,14 @@ from .schedules.routes import router as schedules_router  # noqa: E402
 
 app.include_router(schedules_router)
 
+
 # =============================================================================
-# Collection Endpoints
+# Collection Endpoints — moved to src/collections/routes.py (issue #1756)
 # =============================================================================
 
+from .collections.routes import router as collections_router  # noqa: E402
 
-def _validate_collection_payload(
-    data,
-    page_service,
-    *,
-    require_pages: bool = True,
-) -> None:
-    """Shared validation for create / update.
-
-    Confirms every page_id (membership and rule targets) resolves to a real
-    page, and statically validates variable-mode rule expressions against the
-    known plugin sources before we let them hit storage.
-    """
-    page_ids = getattr(data, "page_ids", None)
-    if page_ids is None and require_pages:
-        return  # let Pydantic surface the missing field
-    if page_ids is not None:
-        for pid in page_ids:
-            if not page_service.get_page(pid):
-                raise HTTPException(status_code=400, detail=f"Page not found: {pid}")
-
-    variable = getattr(data, "variable", None)
-    if variable is None:
-        return
-
-    if page_ids is not None:
-        if variable.default_page_id not in page_ids:
-            raise HTTPException(
-                status_code=400,
-                detail="default_page_id must be one of page_ids",
-            )
-        for idx, rule in enumerate(variable.rules):
-            if rule.page_id not in page_ids:
-                raise HTTPException(
-                    status_code=400,
-                    detail=f"Variable rule {idx} page_id not in page_ids",
-                )
-
-    from .templates.expressions import validate_expression
-
-    template_engine = get_template_engine()
-    known_sources = template_engine._get_all_known_sources()
-    for idx, rule in enumerate(variable.rules):
-        issues = validate_expression(rule.expression, known_sources=known_sources)
-        if issues:
-            first = issues[0]
-            raise HTTPException(
-                status_code=400,
-                detail=(f"Variable rule {idx} expression invalid: {first.code} {first.message}"),
-            )
-
-
-@app.get("/collections")
-async def list_collections():
-    """List all collections."""
-    collection_service = get_collection_service()
-    collections = collection_service.list_collections()
-    return {
-        "collections": [c.model_dump() for c in collections],
-        "total": len(collections),
-    }
-
-
-@app.post("/collections")
-async def create_collection(data: CollectionCreate):
-    """Create a new collection."""
-    collection_service = get_collection_service()
-    page_service = get_page_service()
-
-    _validate_collection_payload(data, page_service)
-
-    try:
-        collection = collection_service.create_collection(data)
-        return {"status": "success", "collection": collection.model_dump()}
-    except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e)) from e
-
-
-@app.get("/collections/{collection_id}")
-async def get_collection(collection_id: str):
-    """Get a collection by ID."""
-    collection_service = get_collection_service()
-    collection = collection_service.get_collection(collection_id)
-    if not collection:
-        raise HTTPException(status_code=404, detail=f"Collection not found: {collection_id}")
-    return collection.model_dump()
-
-
-@app.put("/collections/{collection_id}")
-async def update_collection(collection_id: str, data: CollectionUpdate):
-    """Update an existing collection."""
-    collection_service = get_collection_service()
-    page_service = get_page_service()
-
-    _validate_collection_payload(data, page_service, require_pages=False)
-
-    try:
-        collection = collection_service.update_collection(collection_id, data)
-        if not collection:
-            raise HTTPException(status_code=404, detail=f"Collection not found: {collection_id}")
-        return {"status": "success", "collection": collection.model_dump()}
-    except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e)) from e
-
-
-@app.delete("/collections/{collection_id}")
-async def delete_collection(collection_id: str):
-    """Delete a collection."""
-    collection_service = get_collection_service()
-    deleted = collection_service.delete_collection(collection_id)
-    if not deleted:
-        raise HTTPException(status_code=404, detail=f"Collection not found: {collection_id}")
-    return {"status": "success", "message": f"Collection {collection_id} deleted"}
-
+app.include_router(collections_router)
 
 # =============================================================================
 # Template Endpoints
