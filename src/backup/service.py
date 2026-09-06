@@ -30,6 +30,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
+from src.atomic_io import write_json_atomic
 from src.paths import get_data_dir
 
 #: Strict allowlist for repository URLs read from a backup file.  We only
@@ -224,9 +225,11 @@ class BackupService:
         """Write *payload* to *path*, preserving any existing file.
 
         The old file (if any) is moved to ``<path>.pre-restore-<timestamp>``
-        before the new content is written.  Writes are atomic via
-        ``os.replace`` so a crash mid-restore can never leave a partially
-        written JSON file in place.
+        before the new content is written.  Writes go through
+        :func:`src.atomic_io.write_json_atomic` (process-scoped staging file +
+        ``os.replace``) so a crash mid-restore can never leave a partially
+        written JSON file in place and a concurrent process can never collide
+        on the staging name.
         """
         path.parent.mkdir(parents=True, exist_ok=True)
         if path.exists():
@@ -237,10 +240,7 @@ class BackupService:
             except OSError as exc:
                 logger.warning("Could not write pre-restore backup %s: %s", backup_path, exc)
 
-        tmp_path = path.with_suffix(path.suffix + ".tmp")
-        with tmp_path.open("w", encoding="utf-8") as fh:
-            json.dump(payload, fh, indent=2)
-        tmp_path.replace(path)
+        write_json_atomic(path, payload)
 
     @staticmethod
     def _validate_backup(backup: Any) -> None:
