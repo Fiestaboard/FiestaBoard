@@ -18,6 +18,7 @@ Three sections:
    blow up on the shared process-scoped staging file.
 """
 
+import contextlib
 import json
 import shutil
 import stat
@@ -313,3 +314,68 @@ class TestGoldenOnDiskFormat:
         path, golden = _pin(tmp_path, "settings.json")
         SettingsService(settings_file=str(path))._save_to_file()
         assert path.read_bytes() == golden
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# 3. Concurrent writers
+# ═══════════════════════════════════════════════════════════════════════════
+
+
+def _force_write_overlap(monkeypatch):
+    """Patch ``json.dump`` so two concurrent saves are forced to overlap.
+
+    Both writers rendezvous on a barrier inside the serialisation step; with
+    no store lock they then race the shared PID-scoped staging file (second
+    ``os.replace`` dies ENOENT, or one write lands on the already-renamed
+    inode). With the store lock the second writer never reaches ``json.dump``
+    until the first is done, the barrier times out, and both proceed serially.
+    """
+    barrier = threading.Barrier(2, timeout=0.3)
+    real_dump = json.dump
+
+    def overlapping_dump(obj, fh, *args, **kwargs):
+        with contextlib.suppress(threading.BrokenBarrierError):
+            barrier.wait()
+        return real_dump(obj, fh, *args, **kwargs)
+
+    monkeypatch.setattr(json, "dump", overlapping_dump)
+
+
+def _run_pair(fn_a, fn_b):
+    """Run two callables on two threads; return the exceptions they raised."""
+    errors = []
+
+    def wrap(fn):
+        try:
+            fn()
+        except Exception as exc:
+            errors.append(exc)
+
+    threads = [threading.Thread(target=wrap, args=(f,)) for f in (fn_a, fn_b)]
+    for t in threads:
+        t.start()
+    for t in threads:
+        t.join()
+    return errors
+
+
+class TestConcurrentWriters:
+    def test_pages_two_threads_updating_disjoint_pages_both_survive(self, tmp_path, monkeypatch):
+        from src.pages.models import Page
+        from src.pages.storage import PageStorage
+
+        storage = PageStorage(storage_file=str(tmp_path / "pages.json"))
+        for pid in ("p1", "p2"):
+            storage.create(Page(id=pid, name=pid.upper(), type="template", template=["x", "", "", "", "", ""]))
+
+        _force_write_overlap(monkeypatch)
+        errors = _run_pair(
+            lambda: storage.update("p1", {"name": "First Updated"}),
+            lambda: storage.update("p2", {"name": "Second Updated"}),
+        )
+        monkeypatch.undo()
+
+        assert errors == []
+        reloaded = PageStorage(storage_file=str(tmp_path / "pages.json"))
+        assert reloaded.get("p1").name == "First Updated"
+        assert reloaded.get("p2").name == "Second Updated"

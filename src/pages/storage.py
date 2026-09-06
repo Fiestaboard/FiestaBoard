@@ -4,17 +4,13 @@ Provides simple persistence for page configurations that survives restarts.
 Includes schema versioning and automatic migration on startup.
 """
 
-import contextlib
 import json
 import logging
 import re
-import shutil
 from collections.abc import Callable
 from datetime import UTC, datetime
-from pathlib import Path
 
-from src.atomic_io import staging_path
-from src.paths import get_data_dir
+from src.storage.json_store import JsonStore
 from src.text_utils import extract_alignment_from_line as _extract_alignment_from_line
 
 from .models import Page
@@ -207,6 +203,15 @@ MIGRATIONS: list[tuple[int, Callable[[list[dict]], int]]] = [
 ]
 
 
+def _adapt_migration(fn: Callable[[list[dict]], int]) -> Callable[[dict], int]:
+    """Adapt a pages-list migration to the kernel's whole-document signature.
+
+    The kernel hands migrations the raw top-level dict; pages migrations
+    operate on the wrapped ``pages`` list, exactly as before.
+    """
+    return lambda data: fn(data.get("pages", []))
+
+
 class PageStorage:
     """JSON file-based storage for pages.
 
@@ -220,10 +225,13 @@ class PageStorage:
         Args:
             storage_file: Path to JSON storage file. Defaults to data/pages.json
         """
-        if storage_file is None:
-            self.storage_file = get_data_dir() / "pages.json"
-        else:
-            self.storage_file = Path(storage_file)
+        self._store = JsonStore(
+            "pages.json" if storage_file is None else storage_file,
+            current_schema_version=CURRENT_SCHEMA_VERSION,
+            migrations=[(version, _adapt_migration(fn)) for version, fn in MIGRATIONS],
+            label="Pages",
+        )
+        self.storage_file = self._store.path
 
         # In-memory cache
         self._pages: dict[str, Page] = {}
@@ -238,50 +246,16 @@ class PageStorage:
 
         logger.info(f"PageStorage initialized (file: {self.storage_file}, pages: {len(self._pages)})")
 
-    def _run_migrations(self, data: dict) -> bool:
-        """Run any pending schema migrations on raw JSON data.
-
-        Returns True if any migrations were applied (caller should resave).
-        """
-        current_version = data.get("schema_version", 0)
-
-        if current_version >= CURRENT_SCHEMA_VERSION:
-            return False
-
-        pages_list = data.get("pages", [])
-
-        # Back up before first migration
-        if self.storage_file.exists():
-            backup_path = self.storage_file.with_suffix(f".json.v{current_version}_backup")
-            if not backup_path.exists():
-                try:
-                    shutil.copy2(self.storage_file, backup_path)
-                    logger.info(f"Created pre-migration backup at {backup_path}")
-                except Exception as e:
-                    logger.warning(f"Could not create backup: {e}")
-
-        for target_version, migrate_fn in MIGRATIONS:
-            if current_version >= target_version:
-                continue
-            count = migrate_fn(pages_list)
-            logger.info(f"Pages schema migration v{current_version}->v{target_version}: {count} page(s) processed")
-            current_version = target_version
-
-        data["schema_version"] = CURRENT_SCHEMA_VERSION
-        return True
-
     def _load(self) -> None:
         """Load pages from storage file, running migrations if needed."""
-        if not self.storage_file.exists():
-            self._pages = {}
-            self._failed_entries = []
-            return
-
         try:
-            with self.storage_file.open() as f:
-                data = json.load(f)
+            data = self._store.load()
+            if data is None:
+                self._pages = {}
+                self._failed_entries = []
+                return
 
-            needs_save = self._run_migrations(data)
+            needs_save = self._store.migrated
 
             self._pages = {}
             self._failed_entries = []
@@ -326,12 +300,7 @@ class PageStorage:
             self._failed_entries = []
 
     def _save(self) -> None:
-        """Save pages to storage file.
-
-        Writes to a sibling ``<file>.tmp`` and ``os.replace``s it into place
-        so a mid-write crash (OOM, SIGKILL, power loss) never leaves a
-        truncated file that would wipe in-memory state on reload (see #1304).
-        """
+        """Save pages to storage file atomically via the storage kernel."""
         try:
             pages_out: list[dict] = []
             for page in self._pages.values():
@@ -355,17 +324,7 @@ class PageStorage:
             # Datetimes are already coerced to ISO strings while building
             # pages_out above (covers both parsed pages and preserved
             # _failed_entries), so write data straight out — atomically.
-            tmp_path = staging_path(self.storage_file)
-            try:
-                with tmp_path.open("w") as f:
-                    json.dump(data, f, indent=2)
-                tmp_path.replace(self.storage_file)
-            except BaseException:
-                # Clean up the partial tmp file on any failure so we don't
-                # leak it; the original storage file stays untouched.
-                with contextlib.suppress(OSError):
-                    tmp_path.unlink(missing_ok=True)
-                raise
+            self._store.save(data)
 
             logger.debug(f"Saved {len(self._pages)} pages to storage")
 
@@ -406,16 +365,17 @@ class PageStorage:
         Raises:
             ValueError: If page with same ID already exists
         """
-        if page.id in self._pages:
-            raise ValueError(f"Page with ID {page.id} already exists")
+        with self._store.lock:
+            if page.id in self._pages:
+                raise ValueError(f"Page with ID {page.id} already exists")
 
-        # Validate
-        errors = page.validate_config()
-        if errors:
-            raise ValueError(f"Invalid page configuration: {errors}")
+            # Validate
+            errors = page.validate_config()
+            if errors:
+                raise ValueError(f"Invalid page configuration: {errors}")
 
-        self._pages[page.id] = page
-        self._save()
+            self._pages[page.id] = page
+            self._save()
 
         logger.info(f"Created page: {page.id} ({page.name})")
         return page
@@ -430,6 +390,10 @@ class PageStorage:
         Returns:
             Updated page if found, None otherwise
         """
+        with self._store.lock:
+            return self._update_locked(page_id, updates)
+
+    def _update_locked(self, page_id: str, updates: dict) -> Page | None:
         if page_id not in self._pages:
             return None
 
@@ -482,11 +446,12 @@ class PageStorage:
         Returns:
             True if deleted, False if not found
         """
-        if page_id not in self._pages:
-            return False
+        with self._store.lock:
+            if page_id not in self._pages:
+                return False
 
-        del self._pages[page_id]
-        self._save()
+            del self._pages[page_id]
+            self._save()
 
         logger.info(f"Deleted page: {page_id}")
         return True
