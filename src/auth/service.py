@@ -19,7 +19,6 @@ Design notes
 from __future__ import annotations
 
 import base64
-import contextlib
 import hashlib
 import hmac
 import json
@@ -33,7 +32,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
-from src.atomic_io import staging_path
+from src.atomic_io import write_json_atomic
 from src.paths import get_data_dir
 
 logger = logging.getLogger(__name__)
@@ -402,27 +401,10 @@ class AuthService:
         # (``"enabled"`` / ``"disabled"``). Absent => undecided.
 
     def _save(self) -> None:
-        self._path.parent.mkdir(parents=True, exist_ok=True)
-        tmp = staging_path(self._path)
-        # Restrictive perms on the temp file before fdopen writes to it.
-        fd = os.open(
-            str(tmp),
-            os.O_WRONLY | os.O_CREAT | os.O_TRUNC,
-            stat.S_IRUSR | stat.S_IWUSR,
-        )
-        try:
-            with os.fdopen(fd, "w", encoding="utf-8") as fh:
-                json.dump(self._data, fh, indent=2)
-                fh.flush()
-                os.fsync(fh.fileno())
-            Path(tmp).replace(self._path)
-        except Exception:
-            # Cleanup of a cleanup failure — nothing useful we can do;
-            # the original exception below is the one that matters and
-            # we don't want to mask it.
-            with contextlib.suppress(OSError):
-                tmp.unlink(missing_ok=True)
-            raise
+        # private=True keeps the credential store owner-only (0600) from the
+        # moment the staging file is created; the kernel helper also fsyncs
+        # and cleans up the staging file on any failure.
+        write_json_atomic(self._path, self._data, private=True)
 
     # -- queries -----------------------------------------------------------
 

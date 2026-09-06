@@ -386,9 +386,7 @@ class TestConcurrentWriters:
 
         storage = ScheduleStorage(storage_file=str(tmp_path / "schedules.json"))
         for sid in ("s1", "s2"):
-            storage.create(
-                ScheduleEntry(id=sid, page_id="p1", start_time="08:00", end_time="10:00", day_pattern="all")
-            )
+            storage.create(ScheduleEntry(id=sid, page_id="p1", start_time="08:00", end_time="10:00", day_pattern="all"))
 
         _force_write_overlap(monkeypatch)
         errors = _run_pair(
