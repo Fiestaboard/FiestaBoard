@@ -296,8 +296,7 @@ class DisplayService:
         """Record a send failure on the runtime and in this thread's capture."""
         self._record_send_error_to(rt, board_id, message, self._error_sink())
 
-    @staticmethod
-    def _record_send_error_to(rt: BoardRuntime, board_id, message: str, sink: list | None) -> None:
+    def _record_send_error_to(self, rt: BoardRuntime, board_id, message: str, sink: list | None) -> None:
         """Record a send failure on the runtime and into an explicit capture list.
 
         Post-send bookkeeping runs on the board's send-worker thread (#1755),
@@ -305,10 +304,19 @@ class DisplayService:
         caller whose pass produced the failure. Send paths therefore snapshot
         the calling thread's capture list (``_error_sink``) when they build
         the completion callback and pass it here explicitly.
+
+        The calling THREAD's own active capture (when distinct from ``sink``)
+        is mirrored too: ``_dispatch_send`` runs each job under a job-scoped
+        capture on the worker thread, which is how a job learns the failure
+        reason its bookkeeping recorded so it can hand that reason to the
+        waiters of jobs it superseded (#1867 review).
         """
         rt.last_send_error = message
         if sink is not None:
             sink.append((board_id, message))
+        local = self._error_sink()
+        if local is not None and local is not sink:
+            local.append((board_id, message))
 
     def _error_sink(self) -> list | None:
         """The calling thread's active send-error capture list, if any."""
@@ -444,26 +452,36 @@ class DisplayService:
             cancel.set()
 
         def run_job() -> bool:
-            exc = None
-            success = was_sent = False
-            try:
-                success, was_sent = send()
-            except Exception as e:
-                exc = e
-            # Runtime-epoch guard: a rebuild may have replaced this board's
-            # runtime while the send was in flight. The stale runtime's
-            # bookkeeping must not run (its caches are dead state, and
-            # request_board_refresh would poke the new runtime).
-            if self.runtimes.get(rt.board_id) is not rt:
-                logger.debug("Board %s: runtime replaced mid-send; dropping post-send bookkeeping", board_id)
-                return False
-            try:
-                return on_complete(success, was_sent, exc)
-            except Exception as e:  # bookkeeping must never kill the worker
-                logger.error(f"Board {board_id}: post-send bookkeeping failed: {e}")
-                return False
+            # Job-scoped capture (#1867 review): any failure the bookkeeping
+            # below records lands in ``job_errors`` (via the thread-local
+            # mirror in _record_send_error_to), so this job can carry the
+            # reason to the waiters of any jobs it superseded — their
+            # submitters captured different sinks than this job's.
+            with self._capture_send_errors() as job_errors:
+                exc = None
+                success = was_sent = False
+                try:
+                    success, was_sent = send()
+                except Exception as e:
+                    exc = e
+                # Runtime-epoch guard: a rebuild may have replaced this board's
+                # runtime while the send was in flight. The stale runtime's
+                # bookkeeping must not run (its caches are dead state, and
+                # request_board_refresh would poke the new runtime).
+                if self.runtimes.get(rt.board_id) is not rt:
+                    logger.debug("Board %s: runtime replaced mid-send; dropping post-send bookkeeping", board_id)
+                    return False
+                try:
+                    ret = on_complete(success, was_sent, exc)
+                except Exception as e:  # bookkeeping must never kill the worker
+                    logger.error(f"Board {board_id}: post-send bookkeeping failed: {e}")
+                    ret = False
+            if job_errors:
+                job.fail_reason = job_errors[0][1]
+            return ret
 
-        job = self._worker_for(rt).submit(SendJob(key=key, run=run_job))
+        job = SendJob(key=key, run=run_job, sink=sink, board_id=board_id)
+        self._worker_for(rt).submit(job)
         if not wait:
             # Engine tick: the send is in motion; "content changed and is
             # being delivered" is this path's success signal. run() ignores

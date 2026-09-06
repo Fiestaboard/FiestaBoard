@@ -119,3 +119,54 @@ def test_job_whose_run_raises_still_resolves_false():
     ok = worker.submit(make_job(("good",), result=True))
     assert ok.wait(timeout=5)
     assert ok.return_value is True
+
+
+def test_replacement_failure_reason_reaches_the_adopted_jobs_sink():
+    """An adopted waiter's sink receives the replacement's failure reason.
+
+    (#1867 review: the adopted job inherited only the boolean; its submitter's
+    error capture stayed empty, so API callers saw sent:false, reason:None.)
+    """
+    worker = BoardSendWorker("b1")
+    gate = threading.Event()
+    started = threading.Event()
+    worker.submit(make_job(("busy",), gate=gate, started=started))
+    assert started.wait(timeout=5)
+
+    sink: list = []
+    adopted = SendJob(key=("old",), run=lambda: True, sink=sink, board_id="b1")
+    worker.submit(adopted)
+
+    def failing_run() -> bool:
+        # What the engine's job-scoped bookkeeping does on failure (#1867).
+        replacement.fail_reason = "hardware said no"
+        return False
+
+    replacement = SendJob(key=("new",), run=failing_run)
+    worker.submit(replacement)
+    gate.set()
+
+    assert adopted.wait(timeout=5)
+    assert adopted.return_value is False
+    assert adopted.fail_reason == "hardware said no"
+    assert sink == [("b1", "hardware said no")]
+
+
+def test_stop_delivers_a_failure_reason_to_the_pending_jobs_sink():
+    """A pending job failed by stop() carries a reason into its sink."""
+    worker = BoardSendWorker("b1")
+    gate = threading.Event()
+    started = threading.Event()
+    worker.submit(make_job(("busy",), gate=gate, started=started))
+    assert started.wait(timeout=5)
+
+    sink: list = []
+    pending = SendJob(key=("pending",), run=lambda: True, sink=sink, board_id="b1")
+    worker.submit(pending)
+    worker.stop(timeout=0.1)
+    gate.set()
+
+    assert pending.wait(timeout=5)
+    assert pending.return_value is False
+    assert pending.fail_reason, "a job failed by stop() must carry a reason"
+    assert sink == [("b1", pending.fail_reason)]

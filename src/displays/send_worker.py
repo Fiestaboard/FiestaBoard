@@ -46,12 +46,31 @@ class SendJob:
     path would have returned inline; it must not raise. ``key`` identifies
     the send semantically (page id + content, "silence", ...) so the engine
     tick can tell "this exact send is already in flight" from "new content".
+
+    ``sink``/``board_id`` (optional) are the submitter's send-error capture
+    list and the board it belongs to (#1867 review): when a job resolves
+    unsuccessfully WITH a reason it did not record itself — it was superseded
+    and adopted, or failed by ``stop()`` before running — the reason is
+    appended to that sink as ``(board_id, reason)`` so a ``wait=True`` caller
+    (the ``*_with_status`` API paths) still learns WHY its send failed.
+    The executing job's own bookkeeping writes its sink directly; it records
+    the message in ``fail_reason`` so ``_finish`` can hand it to every
+    adopted job's sink without double-writing its own.
     """
 
-    def __init__(self, key: tuple, run: Callable[[], bool]):
+    def __init__(
+        self,
+        key: tuple,
+        run: Callable[[], bool],
+        sink: list | None = None,
+        board_id=None,
+    ):
         self.key = key
         self._run = run
+        self.sink = sink
+        self.board_id = board_id
         self.return_value = False
+        self.fail_reason: str | None = None
         self._done = threading.Event()
         # Jobs this one replaced in the pending slot; they resolve with this
         # job's outcome (see BoardSendWorker.submit).
@@ -65,11 +84,19 @@ class SendJob:
         finally:
             self._finish(value)
 
-    def _finish(self, value: bool) -> None:
+    def _finish(self, value: bool, reason: str | None = None) -> None:
+        # A reason handed in from outside (adoption, stop()) is one this
+        # job's own bookkeeping did NOT already write to its sink; deliver
+        # it. A job that recorded its own failure (fail_reason already set
+        # by its run callable) must not double-write its sink.
+        if reason is not None and self.fail_reason is None:
+            self.fail_reason = reason
+            if self.sink is not None:
+                self.sink.append((self.board_id, reason))
         self.return_value = value
         self._done.set()
         for job in self._absorbed:
-            job._finish(value)
+            job._finish(value, self.fail_reason)
         self._absorbed = []
 
     def adopt(self, superseded: SendJob) -> None:
@@ -103,7 +130,7 @@ class BoardSendWorker:
         """Enqueue ``job``, replacing any still-pending one (latest-wins)."""
         with self._cond:
             if self._stopped:
-                job._finish(False)
+                job._finish(False, reason="Board send worker is stopped; the send was not queued")
                 return job
             if self._pending is not None:
                 job.adopt(self._pending)
@@ -151,7 +178,7 @@ class BoardSendWorker:
             thread = self._thread
             self._cond.notify_all()
         if pending is not None:
-            pending._finish(False)
+            pending._finish(False, reason="Board send worker stopped before this send ran")
         if thread is not None and thread.is_alive():
             thread.join(timeout)
 
@@ -164,7 +191,7 @@ class BoardSendWorker:
                     self._draining = False
                     self._cond.notify_all()
                     if job is not None:
-                        job._finish(False)
+                        job._finish(False, reason="Board send worker stopped before this send ran")
                     return
                 self._current = job
             try:

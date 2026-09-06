@@ -1123,3 +1123,79 @@ class TestOutOfBandContentFlag:
         _drive(svc, boards, pages=pages, schedule=schedule)
 
         assert svc.is_showing_out_of_band("b1") is True
+
+
+class TestAdoptedWaiterFailureReason:
+    """A superseded wait=True job must inherit the replacement's failure REASON.
+
+    #1867 review (reviewer reproduced): the adopted waiter inherited the
+    replacement's boolean but the replacement's error went to ITS submitter's
+    sink (the engine's None), so /refresh answered 200 with sent:false,
+    reason:None on a real hardware failure.
+    """
+
+    def test_adopted_wait_caller_gets_the_replacements_failure_reason(self):
+        import time as _time
+
+        from src.displays.send_worker import SendJob
+
+        boards = [_board("b-1", "Primary")]
+        svc, clients = _service_with_runtimes(boards)
+        rt = svc.runtimes["b-1"]
+        client = clients["b-1"]
+
+        active = {"b-1": "p-a"}
+        settings = _settings_service(boards, schedule_off=("b-1",))
+        settings.get_active_page_id.side_effect = lambda board_id=None: active.get(board_id)
+        pages = _page_service({"p-a": {"content": "AAA"}, "p-b": {"content": "BBB"}})
+
+        # Wedge the worker so the API caller's job parks in the pending slot.
+        gate = threading.Event()
+        started = threading.Event()
+
+        def blocker() -> bool:
+            started.set()
+            gate.wait(timeout=10)
+            return True
+
+        worker = svc._worker_for(rt)
+        worker.submit(SendJob(key=("blocker",), run=blocker))
+        assert started.wait(timeout=5)
+
+        outcome = {}
+
+        def api_caller():
+            outcome["sent"], outcome["reason"] = svc.check_and_send_for_board_with_status(
+                "b-1", rt, is_primary=True
+            )
+
+        with (
+            patch("src.main.get_settings_service", return_value=settings),
+            patch("src.main.get_page_service", return_value=pages),
+            patch("src.main.get_schedule_service", return_value=_schedule_service({})),
+            patch("src.main.get_collection_service", return_value=MagicMock()),
+            patch("src.time_service.get_time_service", return_value=_time_service()),
+            patch("src.main.Config") as cfg,
+            patch.object(svc, "_check_trigger_override", return_value=None),
+            patch.object(svc, "request_board_refresh"),
+        ):
+            cfg.is_silence_mode_active.return_value = False
+            caller = threading.Thread(target=api_caller)
+            caller.start()
+            deadline = _time.monotonic() + 5
+            while len(worker.active_keys()) < 2:  # blocker + the caller's parked job
+                assert _time.monotonic() < deadline, "API caller's job never reached the pending slot"
+                _time.sleep(0.005)
+
+            # Engine tick supersedes the parked job with NEW content whose
+            # send fails at the hardware.
+            active["b-1"] = "p-b"
+            client.render.return_value = (False, False)
+            svc.check_and_send_for_board("b-1", rt, is_primary=True, wait=False)
+
+            gate.set()
+            caller.join(timeout=10)
+
+        assert not caller.is_alive()
+        assert outcome["sent"] is False
+        assert outcome["reason"] == "Failed to send active page to board: p-b"
