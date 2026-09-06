@@ -266,6 +266,14 @@ class TransitionRunner:
         min_interval_ms = int(caps.get("min_interval_ms", 50))
         max_frames = int(caps.get("max_frames", 500))
         max_runtime_s = int(caps.get("max_runtime_seconds", 120))
+        # interruptible:false means this transition IGNORES the cancel event —
+        # including the one the engine sets at ENQUEUE time to preempt an
+        # in-flight send with a newer frame (#1755). Such a transition runs to
+        # its runtime cap no matter what is queued behind it, which is why
+        # max_runtime_seconds is manifest-clamped to 120s for non-interruptible
+        # transitions and the engine's SEND_WAIT_TIMEOUT budgets that full cap
+        # for the executing job (#1868). Interruptible transitions may run
+        # long (quiet_library: 1800s) precisely because they honor the cancel.
         respect_cancel = bool(caps.get("interruptible", True))
         # Throttled clients (cloud note arrays) silently skip sends inside
         # their minimum interval; pace frames so each one actually lands.

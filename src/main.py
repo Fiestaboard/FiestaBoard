@@ -42,11 +42,28 @@ logger = logging.getLogger(__name__)
 ADHOC_PAGE_ID = "__adhoc__"
 
 # How long a wait-mode send (``wait=True`` — the API/MQTT/*_with_status paths)
-# blocks for its board's job to finish. Sized above the longest transition a
-# page can configure (~120s) so a caller that would previously have blocked on
-# the inline render for the whole animation still sees its real outcome, while
-# a genuinely wedged send can no longer hang an API request forever.
-SEND_WAIT_TIMEOUT = 150.0
+# blocks for its board's job to finish, so a caller that would previously have
+# blocked on the inline render still sees its real outcome, while a genuinely
+# wedged send can no longer hang an API request forever.
+#
+# Worst-case arithmetic (#1868 review) — cloud boards pace frames at 15s
+# (CLOUD_MIN_SEND_INTERVAL), so the budget must cover a full transition ahead
+# of us in the queue PLUS our own send:
+#
+#   currently executing job:  120s transition cap (manifest-clamped for
+#                             interruptible:false; interruptible transitions
+#                             are cancelled at enqueue and wind down sooner)
+#                            + 15s pacing before its final snap-to-target
+#                            + 2 x (5s connect + 10s read) + 0.5s retry backoff
+#                           ~= 166s
+#   our own send:             15s pacing + 2 x (5 + 10) + 0.5   ~= 46s  (worst)
+#   total                    ~= 212s  ->  240s leaves headroom.
+#
+# (150s was not enough: a 120s transition plus one paced cloud send already
+# exceeds it. interruptible:false transitions defeat enqueue-time preemption
+# entirely — see src/transitions/runner.py — which is why they are clamped to
+# the 120s cap and the executing job is budgeted at that full cap.)
+SEND_WAIT_TIMEOUT = 240.0
 
 
 def _board_size_key(board: dict) -> str:
