@@ -843,7 +843,9 @@ def test_plugins_response_shapes():
         rec.hit("disable_ok", "POST", "/plugins/{plugin_id}/disable", path_params={"plugin_id": "alpha"})
 
         rec.hit("get_data_ok", "GET", "/plugins/{plugin_id}/data", path_params={"plugin_id": "alpha"})
-        registry.fetch_result = SimpleNamespace(available=False, data=None, formatted_lines=None, error="not configured")
+        registry.fetch_result = SimpleNamespace(
+            available=False, data=None, formatted_lines=None, error="not configured"
+        )
         rec.hit("get_data_unavailable", "GET", "/plugins/{plugin_id}/data", path_params={"plugin_id": "alpha"})
         registry.enabled["alpha"] = False
         rec.hit("get_data_disabled", "GET", "/plugins/{plugin_id}/data", path_params={"plugin_id": "alpha"})
