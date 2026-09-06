@@ -9711,6 +9711,23 @@ async def update_plugin_config(plugin_id: str, request: PluginConfigRequest):
     # Save to config file
     config_manager.set_plugin_config(plugin_id, config)
 
+    # Re-seed the LIVE registry config from the overlaid read. Persisting
+    # env-free is correct, but the validation call above also installed that
+    # env-free dict as the live config — killing a working env-supplied
+    # credential until restart (#1864 review). Named instances never have an
+    # overlay, so this is a no-op for them.
+    live_config = config_manager.get_plugin_config(plugin_id)
+    if live_config is not None and live_config != config:
+        reseed_errors = registry.set_plugin_config(plugin_id, live_config)
+        if reseed_errors:
+            # The stored config validated; only the env overlay can be at
+            # fault. Keep the env-free live config rather than failing the
+            # save the user just made.
+            logger.warning(
+                f"Env overlay for '{plugin_id}' failed validation after save: {reseed_errors} "
+                "— live config runs without the overlay until restart"
+            )
+
     # Reset services to pick up new config
     reset_display_service()
     reset_template_engine()
