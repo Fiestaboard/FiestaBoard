@@ -216,9 +216,14 @@ async def get_plugin(plugin_id: str):
     if not manifest:
         raise HTTPException(status_code=404, detail=f"Plugin not found: {plugin_id}")
 
-    # Get configuration
+    # STORED configuration, without the env-var overlay: this response feeds
+    # the settings form, and any value baked in here comes straight back in
+    # the next save — serving the overlay would freeze env values into
+    # config.json (#1864 review). Which keys are currently env-controlled is
+    # reported separately in env_overridden_keys.
     config_manager = get_config_manager()
-    plugin_config = config_manager.get_plugin_config(plugin_id)
+    plugin_config = config_manager.get_plugin_config(plugin_id, include_env_overrides=False)
+    env_overridden_keys = sorted(config_manager.get_plugin_env_overrides(plugin_id)) if plugin_config else []
 
     # Check for demo page (use flagship as the representative for backwards compat)
     has_demo = manifest.demo is not None
@@ -248,6 +253,9 @@ async def get_plugin(plugin_id: str):
         "plugin_type": manifest.plugin_type,
         "enabled": registry.is_enabled(plugin_id),
         "config": _plugin_service().mask_config(plugin_config),
+        # Config keys whose live value currently comes from an env var (the
+        # values themselves are deliberately NOT in "config").
+        "env_overridden_keys": env_overridden_keys,
         "settings_schema": manifest.settings_schema,
         "variables": manifest.raw.get("variables", {}),
         "max_lengths": manifest.max_lengths,

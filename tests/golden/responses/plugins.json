@@ -134,6 +134,7 @@
         "description": "str",
         "documentation": "null",
         "enabled": "bool",
+        "env_overridden_keys": [],
         "env_vars": [],
         "has_demo": "bool",
         "icon": "str",

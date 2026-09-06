@@ -664,6 +664,25 @@ class TestEnvOverlayRoundTrip:
         stored = _stored_config(plugin_env["config_path"], HEALTHY)
         assert ENV_SECRET not in json.dumps(stored)
 
+    def test_masked_roundtrip_with_env_var_persists_stored_secret(self, client, plugin_env, stub_env_secret):
+        """VALUE-level pin on the unmask path (#1865 review, HIGH).
+
+        A client that echoes "***" back must be unmasked against the STORED
+        secret. Unmasking against the overlaid read resolves "***" to the
+        ENV secret and persists it — an env credential written to
+        config.json by an ordinary settings save.
+        """
+        cm = ConfigManager()
+        cm.set_plugin_config(HEALTHY, {"enabled": True, "api_key": "stored_base_key"})
+
+        response = client.put(f"/plugins/{HEALTHY}/config", json={"config": {"api_key": MASK, "label": "Desk"}})
+        assert response.status_code == 200, response.text
+
+        stored = _stored_config(plugin_env["config_path"], HEALTHY)
+        assert stored["api_key"] == "stored_base_key", "the masked round-trip persisted the ENV secret"
+        # The live plugin keeps running on the env override.
+        assert plugin_env["registry"].get_plugin_config(HEALTHY)["api_key"] == ENV_SECRET
+
     def test_get_plugin_serves_stored_config_not_the_overlay(self, client, plugin_env, monkeypatch):
         """The settings form must see STORED values, not env-effective ones.
 
