@@ -30,11 +30,13 @@ import {
 } from "@fiestaboard/ui";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { AlertTriangle, Bot, Check, Copy, KeyRound, Loader2, Lock, RefreshCw, Trash2 } from "lucide-react";
-import { type ReactNode, useMemo, useRef, useState } from "react";
+import { type ReactNode, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 
 import { useTranslations } from "@/i18n/translations";
 import { api, ApiError } from "@/lib/api";
+import { appUrl, stripBasePath } from "@/lib/base-path";
+import { isPanelPath } from "@/lib/chromeless";
 
 /** Env var that pins the MCP token when set — never translated. */
 const MCP_TOKEN_ENV_VAR = "FIESTABOARD_MCP_TOKEN";
@@ -128,6 +130,21 @@ export function McpSettings() {
 
   const isLocked = authStatus?.mode === "disabled" && isLockedError(statusError);
 
+  // The token calls skip fetchApi's automatic login redirect because a
+  // 401 means "locked" on auth-disabled installs. When auth is ENABLED,
+  // though, a 401 here is a plain expired session — without this the
+  // component would sit on a skeleton forever. Mirror the shared
+  // redirect helper in @/lib/api (same guards, same redirect target).
+  const sessionExpired = authStatus !== undefined && authStatus.mode !== "disabled" && isLockedError(statusError);
+  useEffect(() => {
+    if (!sessionExpired) return;
+    if (typeof window === "undefined") return;
+    if (stripBasePath(window.location.pathname).startsWith("/login")) return;
+    if (isPanelPath(window.location.pathname)) return;
+    const target = encodeURIComponent(stripBasePath(window.location.pathname) + window.location.search);
+    window.location.assign(appUrl(`/login?redirect=${target}`));
+  }, [sessionExpired]);
+
   const unlockMutation = useMutation({
     mutationFn: (token: string) => api.getMcpTokenStatus(token),
     onSuccess: (data, token) => {
@@ -145,11 +162,13 @@ export function McpSettings() {
     onSuccess: ({ token }) => {
       setRevealedToken(token);
       setConfirmingRotate(false);
-      // In the locked flow the old bearer just became invalid — hold the
-      // new token so management (and the refetch below) keeps working.
-      if (heldTokenRef.current !== null) {
-        heldTokenRef.current = token;
-      }
+      // Hold the fresh token unconditionally. In the locked flow the old
+      // bearer just became invalid; on a FIRST mint (auth disabled, no
+      // token yet, nothing held) the status refetch below would 401 and
+      // flip into the locked view — unmounting the reveal dialog before
+      // the user can copy the token. When session auth is doing the work
+      // the extra bearer is simply ignored by the backend.
+      heldTokenRef.current = token;
       queryClient.invalidateQueries({ queryKey: ["mcp-token-status"] });
     },
     onError: (err: Error) => {
