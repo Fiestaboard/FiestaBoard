@@ -41,8 +41,21 @@ def _service(recorder: _Recorder, *, config_errors: list[str] | None = None) -> 
     registry.delete_instance.return_value = []
 
     config_manager = Mock()
-    config_manager.get_plugin_config.return_value = {"api_key": "test_key_123"}
-    config_manager.set_plugin_config.side_effect = lambda pid, cfg: recorder.steps.append("persist")
+    # Stateful like the real thing: reads reflect the last persisted config,
+    # per plugin id, and an unknown id reads back None. The service re-reads
+    # after persisting (to re-seed live config with the env overlay, #1864);
+    # a fixed return_value would feed it a stale pre-save dict no real
+    # ConfigManager ever returns and fake a phantom overlay diff.
+    stored_configs: dict[str, dict] = {"alpha": {"api_key": "test_key_123"}}
+
+    def _persist_config(pid, cfg):
+        recorder.steps.append("persist")
+        stored_configs[pid] = dict(cfg)
+
+    config_manager.get_plugin_config.side_effect = lambda pid, include_env_overrides=True: (
+        dict(stored_configs[pid]) if pid in stored_configs else None
+    )
+    config_manager.set_plugin_config.side_effect = _persist_config
     config_manager.enable_plugin.side_effect = lambda pid: recorder.steps.append("persist")
     config_manager.disable_plugin.side_effect = lambda pid: recorder.steps.append("persist")
     config_manager.delete_plugin_config.side_effect = lambda pid: recorder.steps.append("persist")
@@ -66,7 +79,8 @@ def test_update_plugin_config_runs_validate_persist_reset_in_order():
     masked = svc.update_plugin_config("alpha", {"api_key": "new_key", "location": "NYC"})
 
     assert rec.steps == ["validate", *ORCHESTRATION_TAIL]
-    assert masked == {"api_key": "***"}
+    # The response echoes the full config that was just saved, masked.
+    assert masked == {"api_key": "***", "location": "***"}
 
 
 def test_update_plugin_config_validation_failure_neither_persists_nor_resets():
