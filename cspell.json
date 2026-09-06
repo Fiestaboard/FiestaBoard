@@ -83,6 +83,7 @@
     "OLED",
     "ollama",
     "organise",
+    "pydantic",
     "pylint",
     "pytest",
     "QLOCKTWO",
