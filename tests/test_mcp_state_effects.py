@@ -1567,9 +1567,7 @@ def test_render_page_preview_gives_plugins_the_real_board_context(mcp, plugins):
     )
 
     first_row = result["rendered"].split("\n")[0]
-    assert "15" in first_row, (
-        f"a note render must hand plugins a 15-column BoardContext; the plugin saw: {first_row!r}"
-    )
+    assert "15" in first_row, f"a note render must hand plugins a 15-column BoardContext; the plugin saw: {first_row!r}"
     assert PLUGIN_ID in result["context_plugins"]
 
 
