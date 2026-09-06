@@ -620,6 +620,7 @@ def _build_mcp_server() -> Any:
     def render_page_preview(
         template_lines: list[str],
         device_type: str = "flagship",
+        line_metadata: list[dict[str, Any]] | None = None,
     ) -> dict[str, Any]:
         """Render a template to see how it will look BEFORE saving it as a page.
 
@@ -632,6 +633,10 @@ def _build_mcp_server() -> Any:
             template_lines: Template strings to render (one per row). Extra
                             rows are dropped; missing rows are filled with blanks.
             device_type: 'flagship' (22×6) or 'note' (15×3).
+            line_metadata: Optional per-line dicts with "alignment"
+                           ('left'/'center'/'right') and "wrap" (bool) — the
+                           same metadata saved pages carry. Include it to
+                           preview alignment and wrap faithfully.
 
         Returns:
             {
@@ -643,13 +648,28 @@ def _build_mcp_server() -> Any:
         plugin that's disabled/unconfigured. Lines longer than the board width
         will appear truncated in the output, matching real-device behavior.
         """
+        from .devices import DEFAULT_DEVICE_TYPE, BoardContext, resolve_dimensions
         from .templates.engine import get_template_engine
 
         engine = get_template_engine()
-        context = engine._build_context()
+        # Build the plugin context around the real BoardContext — the same
+        # construction render_lines performs internally and the saved-page
+        # render path (PageService._render_template) relies on — so
+        # board-aware plugins see the true geometry. The pre-#1765 call
+        # passed no board at all, and every plugin previewed board-blind.
+        # Unknown device types fall back to the default, matching
+        # render_lines' own never-crash fallback.
+        render_device_type = device_type or DEFAULT_DEVICE_TYPE
+        try:
+            dims = resolve_dimensions(render_device_type)
+        except ValueError:
+            render_device_type = DEFAULT_DEVICE_TYPE
+            dims = resolve_dimensions(render_device_type)
+        context = engine._build_context(BoardContext(render_device_type, rows=dims.rows, cols=dims.cols))
         rendered = engine.render_lines(
             template_lines,
             context=context,
+            line_metadata=line_metadata,
             device_type=device_type,
         )
         return {

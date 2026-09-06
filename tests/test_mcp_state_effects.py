@@ -174,7 +174,13 @@ def _manifest(plugin_id: str, version: str = "1.0.0") -> dict[str, Any]:
                     "type": "string",
                     "max_length": 5,
                     "example": "06:12",
-                }
+                },
+                "board_cols": {
+                    "description": "Column count of the board being rendered on",
+                    "type": "string",
+                    "max_length": 8,
+                    "example": "22",
+                },
             }
         },
     }
@@ -199,7 +205,11 @@ class HarnessPlugin(PluginBase):
         return []
 
     def fetch_data(self) -> PluginResult:
-        return PluginResult(available=True, data={{"next_high": "06:12"}})
+        # board_cols makes render fidelity observable: a render that builds
+        # its plugin context WITHOUT a BoardContext sees "no-board" here.
+        board = getattr(self, "board", None)
+        cols = str(board.cols) if board is not None else "no-board"
+        return PluginResult(available=True, data={{"next_high": "06:12", "board_cols": cols}})
 '''
 
 
@@ -1524,3 +1534,57 @@ def test_validate_template_reports_a_broken_formula_with_position(mcp, services)
 def test_validate_template_rejects_an_unknown_device_type(mcp, services):
     message = call_expect_error(mcp, "validate_template", template="HI", device_type="jumbotron")
     assert "jumbotron" in message
+
+
+# ---------------------------------------------------------------------------
+# render_page_preview fidelity — issue #1765
+#
+# The ad-hoc preview built its plugin context with NO BoardContext and took
+# no line_metadata, so board-aware plugins previewed wrong and alignment/
+# wrap could not be previewed at all — unlike the saved-page render path.
+# ---------------------------------------------------------------------------
+
+
+def _enable_harness_plugin(mcp):
+    assert_ok(
+        call(mcp, "configure_plugin", plugin_id=PLUGIN_ID, config={"station_id": "9447427"}),
+        "configure_plugin",
+    )
+    assert_ok(call(mcp, "enable_plugin", plugin_id=PLUGIN_ID), "enable_plugin")
+
+
+def test_render_page_preview_gives_plugins_the_real_board_context(mcp, plugins):
+    _enable_harness_plugin(mcp)
+
+    result = assert_ok(
+        call(
+            mcp,
+            "render_page_preview",
+            template_lines=["{{" + PLUGIN_ID + ".board_cols}}", "", ""],
+            device_type="note",
+        ),
+        "render_page_preview",
+    )
+
+    first_row = result["rendered"].split("\n")[0]
+    assert "15" in first_row, (
+        f"a note render must hand plugins a 15-column BoardContext; the plugin saw: {first_row!r}"
+    )
+    assert PLUGIN_ID in result["context_plugins"]
+
+
+def test_render_page_preview_applies_line_metadata(mcp, services):
+    result = assert_ok(
+        call(
+            mcp,
+            "render_page_preview",
+            template_lines=["HI", "", "", "", "", ""],
+            device_type="flagship",
+            line_metadata=[{"alignment": "center"}],
+        ),
+        "render_page_preview",
+    )
+
+    first_row = result["rendered"].split("\n")[0]
+    assert first_row.strip() == "HI"
+    assert first_row.index("HI") > 0, "center alignment from line_metadata was not applied"
