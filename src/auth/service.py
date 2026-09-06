@@ -290,8 +290,8 @@ def verify_password(password: str, stored: str) -> bool:
 def _signing_key(auth_file: Path) -> bytes:
     """Per-install signing key, kept alongside the auth store.
 
-    We deliberately don't reuse the secret-encryption key from
-    :mod:`src.security.secrets` so that compromising one doesn't trivially
+    Deliberately a dedicated key for session signing only — never shared
+    with any other secret store — so that compromising one doesn't trivially
     let an attacker mint sessions, and vice-versa.
     """
     key_path = auth_file.parent / ".session_key"
