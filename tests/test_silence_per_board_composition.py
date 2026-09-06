@@ -175,6 +175,7 @@ class TestBoardRemovalPrunesOverrides:
     def test_remove_board_prunes_its_silence_override(self, real_config, tmp_path):
         """Removing a board deletes its ``by_board`` entry (issue #1788 review)."""
         from src.settings.service import SettingsService
+        from src.storage.json_store import JsonStore
 
         real_config.set_silence_schedule_for_board(
             "board-1", {"enabled": True, "start_time": "01:00+00:00", "end_time": "02:00+00:00"}
@@ -186,6 +187,9 @@ class TestBoardRemovalPrunesOverrides:
         service = SettingsService.__new__(SettingsService)
         service._board = Mock(boards=[dict(BOARD_1), dict(BOARD_2)])
         service._save_to_file = Mock()
+        # #1848: every mutator runs under the storage-kernel lock, so a
+        # __new__-constructed service needs the store the lock lives on.
+        service._store = JsonStore(tmp_path / "settings.json")
 
         service.remove_board("board-2")
 

@@ -5,16 +5,13 @@ migrations, atomic writes via a staging file, and preservation of entries
 that fail validation on load.
 """
 
-import contextlib
 import json
 import logging
-import shutil
+import threading
 from collections.abc import Callable
 from datetime import UTC, datetime
-from pathlib import Path
 
-from src.atomic_io import staging_path
-from src.paths import get_data_dir
+from src.storage.json_store import JsonStore
 
 from .models import Panel
 
@@ -95,6 +92,11 @@ MIGRATIONS: list[tuple[int, Callable[[list[dict]], int]]] = [
 ]
 
 
+def _adapt_migration(fn: Callable[[list[dict]], int]) -> Callable[[dict], int]:
+    """Adapt a panels-list migration to the kernel's whole-document signature."""
+    return lambda data: fn(data.get("panels", []))
+
+
 class PanelStorage:
     """JSON file-based storage for panels. Thread-safe for basic operations."""
 
@@ -104,10 +106,13 @@ class PanelStorage:
         Args:
             storage_file: Path to JSON storage file. Defaults to data/panels.json
         """
-        if storage_file is None:
-            self.storage_file = get_data_dir() / "panels.json"
-        else:
-            self.storage_file = Path(storage_file)
+        self._store = JsonStore(
+            "panels.json" if storage_file is None else storage_file,
+            current_schema_version=CURRENT_SCHEMA_VERSION,
+            migrations=[(version, _adapt_migration(fn)) for version, fn in MIGRATIONS],
+            label="Panels",
+        )
+        self.storage_file = self._store.path
 
         self._panels: dict[str, Panel] = {}
         # Raw entries (post-migration) that failed Pydantic validation on load.
@@ -119,50 +124,22 @@ class PanelStorage:
 
         logger.info(f"PanelStorage initialized (file: {self.storage_file}, panels: {len(self._panels)})")
 
-    def _run_migrations(self, data: dict) -> bool:
-        """Run any pending schema migrations on raw JSON data.
-
-        Returns True if any migrations were applied (caller should resave).
-        """
-        current_version = data.get("schema_version", 0)
-
-        if current_version >= CURRENT_SCHEMA_VERSION:
-            return False
-
-        panels_list = data.get("panels", [])
-
-        # Back up before first migration
-        if self.storage_file.exists():
-            backup_path = self.storage_file.with_suffix(f".json.v{current_version}_backup")
-            if not backup_path.exists():
-                try:
-                    shutil.copy2(self.storage_file, backup_path)
-                    logger.info(f"Created pre-migration backup at {backup_path}")
-                except Exception as e:
-                    logger.warning(f"Could not create backup: {e}")
-
-        for target_version, migrate_fn in MIGRATIONS:
-            if current_version >= target_version:
-                continue
-            count = migrate_fn(panels_list)
-            logger.info(f"Panels schema migration v{current_version}->v{target_version}: {count} panel(s) processed")
-            current_version = target_version
-
-        data["schema_version"] = CURRENT_SCHEMA_VERSION
-        return True
+    @property
+    def lock(self) -> threading.RLock:
+        """The kernel store's lock, for out-of-band writers of this file
+        (the backup restore, #1860) to serialise against normal saves."""
+        return self._store.lock
 
     def _load(self) -> None:
         """Load panels from storage file, running migrations if needed."""
-        if not self.storage_file.exists():
-            self._panels = {}
-            self._failed_entries = []
-            return
-
         try:
-            with self.storage_file.open() as f:
-                data = json.load(f)
+            data = self._store.load()
+            if data is None:
+                self._panels = {}
+                self._failed_entries = []
+                return
 
-            needs_save = self._run_migrations(data)
+            needs_save = self._store.migrated
 
             self._panels = {}
             self._failed_entries = []
@@ -204,7 +181,7 @@ class PanelStorage:
             self._failed_entries = []
 
     def _save(self) -> None:
-        """Save panels to storage file atomically (staging file + replace)."""
+        """Save panels to storage file atomically via the storage kernel."""
         try:
             panels_out: list[dict] = []
             for panel in self._panels.values():
@@ -223,15 +200,7 @@ class PanelStorage:
                 "panels": panels_out,
             }
 
-            tmp_path = staging_path(self.storage_file)
-            try:
-                with tmp_path.open("w") as f:
-                    json.dump(data, f, indent=2)
-                tmp_path.replace(self.storage_file)
-            except BaseException:
-                with contextlib.suppress(OSError):
-                    tmp_path.unlink(missing_ok=True)
-                raise
+            self._store.save(data)
 
             logger.debug(f"Saved {len(self._panels)} panels to storage")
 
@@ -286,14 +255,15 @@ class PanelStorage:
         Raises:
             ValueError: If a panel with the same ID already exists.
         """
-        if panel.id in self._panels:
-            raise ValueError(f"Panel with ID {panel.id} already exists")
+        with self._store.lock:
+            if panel.id in self._panels:
+                raise ValueError(f"Panel with ID {panel.id} already exists")
 
-        if panel.short_code <= 0:
-            panel = panel.model_copy(update={"short_code": self._next_short_code()})
+            if panel.short_code <= 0:
+                panel = panel.model_copy(update={"short_code": self._next_short_code()})
 
-        self._panels[panel.id] = panel
-        self._save()
+            self._panels[panel.id] = panel
+            self._save()
 
         logger.info(f"Created panel: {panel.id} ({panel.name})")
         return panel
@@ -303,30 +273,32 @@ class PanelStorage:
 
         Returns the updated panel, or None when the id is unknown.
         """
-        if panel_id not in self._panels:
-            return None
+        with self._store.lock:
+            if panel_id not in self._panels:
+                return None
 
-        panel_dict = self._panels[panel_id].model_dump()
-        for key, value in updates.items():
-            if key in panel_dict and value is not None:
-                panel_dict[key] = value
+            panel_dict = self._panels[panel_id].model_dump()
+            for key, value in updates.items():
+                if key in panel_dict and value is not None:
+                    panel_dict[key] = value
 
-        panel_dict["updated_at"] = datetime.now(UTC)
+            panel_dict["updated_at"] = datetime.now(UTC)
 
-        updated_panel = Panel(**panel_dict)
-        self._panels[panel_id] = updated_panel
-        self._save()
+            updated_panel = Panel(**panel_dict)
+            self._panels[panel_id] = updated_panel
+            self._save()
 
         logger.info(f"Updated panel: {panel_id}")
         return updated_panel
 
     def delete(self, panel_id: str) -> bool:
         """Delete a panel. Returns True if it existed."""
-        if panel_id not in self._panels:
-            return False
+        with self._store.lock:
+            if panel_id not in self._panels:
+                return False
 
-        del self._panels[panel_id]
-        self._save()
+            del self._panels[panel_id]
+            self._save()
 
         logger.info(f"Deleted panel: {panel_id}")
         return True

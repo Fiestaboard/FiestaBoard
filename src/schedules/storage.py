@@ -4,16 +4,13 @@ Provides simple persistence for schedule configurations that survives restarts.
 Includes schema versioning and automatic migration on startup.
 """
 
-import contextlib
 import json
 import logging
-import shutil
+import threading
 from collections.abc import Callable
 from datetime import UTC, datetime
-from pathlib import Path
 
-from src.atomic_io import staging_path
-from src.paths import get_data_dir
+from src.storage.json_store import JsonStore
 
 from .models import DEFAULT_BOARD_ID, ScheduleEntry
 
@@ -101,10 +98,13 @@ class ScheduleStorage:
         Args:
             storage_file: Path to JSON storage file. Defaults to data/schedules.json
         """
-        if storage_file is None:
-            self.storage_file = get_data_dir() / "schedules.json"
-        else:
-            self.storage_file = Path(storage_file)
+        self._store = JsonStore(
+            "schedules.json" if storage_file is None else storage_file,
+            current_schema_version=CURRENT_SCHEMA_VERSION,
+            migrations=MIGRATIONS,
+            label="Schedules",
+        )
+        self.storage_file = self._store.path
 
         # In-memory cache
         self._schedules: dict[str, ScheduleEntry] = {}
@@ -121,51 +121,24 @@ class ScheduleStorage:
 
         logger.info(f"ScheduleStorage initialized (file: {self.storage_file}, schedules: {len(self._schedules)})")
 
-    def _run_migrations(self, data: dict) -> bool:
-        """Run any pending schema migrations on raw JSON data.
-
-        Returns True if any migrations were applied (caller should resave).
-        """
-        current_version = data.get("schema_version", 0)
-
-        if current_version >= CURRENT_SCHEMA_VERSION:
-            return False
-
-        if self.storage_file.exists():
-            backup_path = self.storage_file.with_suffix(f".json.v{current_version}_backup")
-            if not backup_path.exists():
-                try:
-                    shutil.copy2(self.storage_file, backup_path)
-                    logger.info(f"Created pre-migration backup at {backup_path}")
-                except Exception as e:
-                    logger.warning(f"Could not create backup: {e}")
-
-        for target_version, migrate_fn in MIGRATIONS:
-            if current_version >= target_version:
-                continue
-            count = migrate_fn(data)
-            logger.info(f"Schedules schema migration v{current_version}->v{target_version}: {count} change(s) applied")
-            current_version = target_version
-
-        data["schema_version"] = CURRENT_SCHEMA_VERSION
-        return True
+    @property
+    def lock(self) -> threading.RLock:
+        """The kernel store's lock, for out-of-band writers of this file
+        (the backup restore, #1860) to serialise against normal saves."""
+        return self._store.lock
 
     def _load(self) -> None:
         """Load schedules from storage file, running migrations if needed."""
-        if not self.storage_file.exists():
-            self._schedules = {}
-            self._default_page_id = None
-            self._default_page_by_board = {}
-            self._failed_entries = []
-            return
-
         try:
-            # Use builtins.open (not Path.open) so existing tests can
-            # patch builtins.open to inject I/O errors.
-            with open(self.storage_file) as f:  # noqa: PTH123
-                data = json.load(f)
+            data = self._store.load()
+            if data is None:
+                self._schedules = {}
+                self._default_page_id = None
+                self._default_page_by_board = {}
+                self._failed_entries = []
+                return
 
-            needs_save = self._run_migrations(data)
+            needs_save = self._store.migrated
 
             self._schedules = {}
             self._failed_entries = []
@@ -217,12 +190,7 @@ class ScheduleStorage:
             self._failed_entries = []
 
     def _save(self) -> None:
-        """Save schedules to storage file.
-
-        Writes to a sibling ``<file>.tmp`` and ``os.replace``s it into place
-        so a mid-write crash (OOM, SIGKILL, power loss) never leaves a
-        truncated file that would wipe in-memory state on reload (see #1304).
-        """
+        """Save schedules to storage file atomically via the storage kernel."""
         try:
             schedules_out: list[dict] = []
             for schedule in self._schedules.values():
@@ -248,19 +216,7 @@ class ScheduleStorage:
             # Datetimes are already coerced to ISO strings while building
             # schedules_out above (covers both parsed schedules and preserved
             # _failed_entries), so write data straight out — atomically.
-            tmp_path = staging_path(self.storage_file)
-            try:
-                # Use builtins.open (not Path.open) on the tmp path so existing
-                # tests can patch builtins.open to inject I/O errors.
-                with open(tmp_path, "w") as f:  # noqa: PTH123
-                    json.dump(data, f, indent=2)
-                tmp_path.replace(self.storage_file)
-            except BaseException:
-                # Clean up the partial tmp file on any failure so we don't
-                # leak it; the original storage file stays untouched.
-                with contextlib.suppress(OSError):
-                    tmp_path.unlink(missing_ok=True)
-                raise
+            self._store.save(data)
 
             logger.debug(f"Saved {len(self._schedules)} schedules to storage")
 
@@ -302,15 +258,16 @@ class ScheduleStorage:
 
     def create(self, schedule: ScheduleEntry) -> ScheduleEntry:
         """Create a new schedule entry."""
-        if schedule.id in self._schedules:
-            raise ValueError(f"Schedule with ID {schedule.id} already exists")
-        if not schedule.board_id:
-            schedule.board_id = DEFAULT_BOARD_ID
-        errors = schedule.validate_config()
-        if errors:
-            raise ValueError(f"Invalid schedule configuration: {errors}")
-        self._schedules[schedule.id] = schedule
-        self._save()
+        with self._store.lock:
+            if schedule.id in self._schedules:
+                raise ValueError(f"Schedule with ID {schedule.id} already exists")
+            if not schedule.board_id:
+                schedule.board_id = DEFAULT_BOARD_ID
+            errors = schedule.validate_config()
+            if errors:
+                raise ValueError(f"Invalid schedule configuration: {errors}")
+            self._schedules[schedule.id] = schedule
+            self._save()
         logger.info(f"Created schedule: {schedule.id} (board_id={schedule.board_id})")
         return schedule
 
@@ -324,6 +281,10 @@ class ScheduleStorage:
         Returns:
             Updated schedule if found, None otherwise
         """
+        with self._store.lock:
+            return self._update_locked(schedule_id, updates)
+
+    def _update_locked(self, schedule_id: str, updates: dict) -> ScheduleEntry | None:
         if schedule_id not in self._schedules:
             return None
 
@@ -369,11 +330,12 @@ class ScheduleStorage:
         Returns:
             True if deleted, False if not found
         """
-        if schedule_id not in self._schedules:
-            return False
+        with self._store.lock:
+            if schedule_id not in self._schedules:
+                return False
 
-        del self._schedules[schedule_id]
-        self._save()
+            del self._schedules[schedule_id]
+            self._save()
 
         logger.info(f"Deleted schedule: {schedule_id}")
         return True
@@ -403,13 +365,14 @@ class ScheduleStorage:
     def set_default_page_id(self, page_id: str | None, board_id: str | None = None) -> None:
         """Set the default page ID for schedule gaps for the given board."""
         bid = board_id or DEFAULT_BOARD_ID
-        if bid == DEFAULT_BOARD_ID:
-            self._default_page_id = page_id
-        if page_id:
-            self._default_page_by_board[bid] = page_id
-        else:
-            self._default_page_by_board.pop(bid, None)
+        with self._store.lock:
             if bid == DEFAULT_BOARD_ID:
-                self._default_page_id = None
-        self._save()
+                self._default_page_id = page_id
+            if page_id:
+                self._default_page_by_board[bid] = page_id
+            else:
+                self._default_page_by_board.pop(bid, None)
+                if bid == DEFAULT_BOARD_ID:
+                    self._default_page_id = None
+            self._save()
         logger.info(f"Set default page ID for board {bid!r} to: {page_id}")

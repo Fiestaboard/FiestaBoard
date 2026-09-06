@@ -31,7 +31,7 @@ from pydantic import BaseModel, Field
 load_dotenv()
 
 from . import __version__  # noqa: E402
-from .atomic_io import write_json_atomic  # noqa: E402
+from .atomic_io import write_json_atomic, write_text_atomic  # noqa: E402
 from .auth import is_auth_enabled  # noqa: E402
 from .auth.middleware import AuthMiddleware  # noqa: E402
 from .auth.routes import router as auth_router  # noqa: E402
@@ -2311,11 +2311,10 @@ def _take_settings_snapshot(
         else:  # pragma: no cover - effectively unreachable
             logger.warning("Could not find a free snapshot filename")
             return None
-        # Use a temp file + atomic rename so a crash mid-write can't leave a
-        # truncated snapshot in place.
-        tmp = target.with_suffix(target.suffix + ".tmp")
-        tmp.write_text(document, encoding="utf-8")
-        tmp.replace(target)
+        # Atomic staged write (process-scoped staging name) so a crash
+        # mid-write can't leave a truncated snapshot, and a concurrent
+        # process can't collide on a fixed .tmp name.
+        write_text_atomic(target, document)
     except OSError:
         logger.exception("Failed to write pre-update settings snapshot")
         return None

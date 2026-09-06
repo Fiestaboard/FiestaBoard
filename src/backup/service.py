@@ -21,6 +21,7 @@ sources rather than being shipped inside the user's backup file.
 
 from __future__ import annotations
 
+import contextlib
 import json
 import logging
 import re
@@ -30,6 +31,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
+from src.atomic_io import write_json_atomic
 from src.paths import get_data_dir
 
 #: Strict allowlist for repository URLs read from a backup file.  We only
@@ -160,13 +162,15 @@ class BackupService:
                     # first-run import migrates it into collections.json.
                     legacy = data_section.get("carousels")
                     if legacy is not None:
+                        # No live store owns carousels.json — plain write.
                         self._write_json_with_backup(self.data_dir / "carousels.json", legacy, timestamp)
                         restored.append("carousels.json (legacy)")
                         continue
                 if payload is None:
                     skipped.append(filename)
                     continue
-                self._write_json_with_backup(self.data_dir / filename, payload, timestamp)
+                with self._owning_lock(filename):
+                    self._write_json_with_backup(self.data_dir / filename, payload, timestamp)
                 restored.append(filename)
 
         plugin_results: dict[str, Any] = {
@@ -220,13 +224,64 @@ class BackupService:
             return None
 
     @staticmethod
+    def _owning_lock(filename: str) -> contextlib.AbstractContextManager:
+        """Return the lock of the live singleton that normally writes *filename*.
+
+        A restore rewrites files that JsonStore-backed services (settings,
+        pages, collections, schedules, panels) and the ConfigManager also
+        write from other threads. Even with per-call staging names a
+        concurrent save could still interleave with the restore (last rename
+        wins mid-restore), so each file is written under its owner's lock
+        (#1860).
+
+        Lock ordering: the restore loop takes exactly ONE of these locks at a
+        time — acquire, write the one file, release, move on — and never
+        nests them, so it cannot deadlock against writers that each hold only
+        their own lock.
+
+        Falls back to a no-op context when the owning subsystem cannot be
+        loaded (a restore must still succeed in a minimal environment).
+        """
+        try:
+            if filename == "config.json":
+                from src.config_manager import get_config_manager
+
+                return get_config_manager().lock
+            if filename == "settings.json":
+                from src.settings.service import get_settings_service
+
+                return get_settings_service().lock
+            if filename == "pages.json":
+                from src.pages.service import get_page_service
+
+                return get_page_service().storage.lock
+            if filename == "collections.json":
+                from src.collections.service import get_collection_service
+
+                return get_collection_service().storage.lock
+            if filename == "schedules.json":
+                from src.schedules.service import get_schedule_service
+
+                return get_schedule_service().storage.lock
+            if filename == "panels.json":
+                from src.panels.service import get_panel_service
+
+                return get_panel_service().storage.lock
+        except Exception as exc:  # pragma: no cover - defensive
+            logger.warning("No owning lock for %s during restore: %s", filename, exc)
+        return contextlib.nullcontext()
+
+    @staticmethod
     def _write_json_with_backup(path: Path, payload: Any, timestamp: str) -> None:
         """Write *payload* to *path*, preserving any existing file.
 
         The old file (if any) is moved to ``<path>.pre-restore-<timestamp>``
-        before the new content is written.  Writes are atomic via
-        ``os.replace`` so a crash mid-restore can never leave a partially
-        written JSON file in place.
+        before the new content is written.  Writes go through
+        :func:`src.atomic_io.write_json_atomic` (unique per-call staging file
+        + ``os.replace``) so a crash mid-restore can never leave a partially
+        written JSON file in place and no concurrent writer can collide on
+        the staging name. Callers restoring a file owned by a live store must
+        additionally hold that store's lock (see :meth:`_owning_lock`).
         """
         path.parent.mkdir(parents=True, exist_ok=True)
         if path.exists():
@@ -237,10 +292,7 @@ class BackupService:
             except OSError as exc:
                 logger.warning("Could not write pre-restore backup %s: %s", backup_path, exc)
 
-        tmp_path = path.with_suffix(path.suffix + ".tmp")
-        with tmp_path.open("w", encoding="utf-8") as fh:
-            json.dump(payload, fh, indent=2)
-        tmp_path.replace(path)
+        write_json_atomic(path, payload)
 
     @staticmethod
     def _validate_backup(backup: Any) -> None:

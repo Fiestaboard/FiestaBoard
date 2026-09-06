@@ -8,7 +8,6 @@ Supports:
 - Plugin system (config.plugins.*) for data source integrations
 """
 
-import contextlib
 import json
 import logging
 import os
@@ -20,7 +19,7 @@ from typing import Any, Optional
 from src.paths import get_data_dir
 
 # Import TimeService for migration
-from .atomic_io import staging_path
+from .atomic_io import write_json_atomic
 from .time_service import get_time_service
 
 logger = logging.getLogger(__name__)
@@ -658,9 +657,7 @@ class ConfigManager:
                 ts = now.strftime("%Y%m%dT%H%M%S") + f".{ms:03d}Z"
                 target = snapshot_dir / f"pre-update-{ts}.json"
 
-            tmp = target.with_suffix(target.suffix + ".tmp")
-            tmp.write_text(json.dumps(doc, indent=2), encoding="utf-8")
-            tmp.replace(target)
+            write_json_atomic(target, doc)
 
             logger.info(
                 "Version change detected (%s -> %s); pre-init snapshot written to %s",
@@ -843,23 +840,13 @@ class ConfigManager:
     def _save_internal(self) -> None:
         """Internal save without acquiring lock (called from locked context).
 
-        Writes to a process-scoped sibling staging file and ``os.replace``s it
-        into place so a mid-write crash (OOM, SIGKILL, power loss) never leaves
-        a truncated config file (see #1304). See :mod:`src.atomic_io` for why
-        the staging name has to be per-process.
+        Writes go through :func:`src.atomic_io.write_json_atomic` (process-
+        scoped staging file + ``os.replace``) so a mid-write crash (OOM,
+        SIGKILL, power loss) never leaves a truncated config file (see #1304)
+        and concurrent processes never collide on a fixed staging name.
         """
         try:
-            tmp_path = staging_path(self._config_path)
-            try:
-                with tmp_path.open("w") as f:
-                    json.dump(self._config, f, indent=2)
-                tmp_path.replace(self._config_path)
-            except BaseException:
-                # Clean up the partial tmp file on any failure so we don't leak
-                # it; the original config file stays untouched.
-                with contextlib.suppress(OSError):
-                    tmp_path.unlink(missing_ok=True)
-                raise
+            write_json_atomic(self._config_path, self._config)
             logger.debug(f"Saved config to {self._config_path}")
         except OSError as e:
             logger.error(f"Failed to save config: {e}")
@@ -1056,6 +1043,13 @@ class ConfigManager:
         self._load_or_create()
         self._apply_env_overrides()
         logger.info("Configuration reloaded from file")
+
+    @property
+    def lock(self) -> threading.RLock:
+        """The manager's file lock, for callers that write ``config.json``
+        out-of-band (the backup restore) and must not interleave with a
+        concurrent ``_save_internal`` (#1860)."""
+        return self._file_lock
 
     @property
     def version_changed_on_load(self) -> bool:
