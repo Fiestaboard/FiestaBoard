@@ -28,6 +28,7 @@ from __future__ import annotations
 
 import json
 import os
+import threading
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from unittest.mock import MagicMock
@@ -51,6 +52,7 @@ from tests.engine_harness import (
     run_engine_scenario,
     silence_feature,
 )
+from tests.helpers import decode_board_rows
 
 GOLDEN_DIR = Path(__file__).parent / "golden" / "engine"
 RECORD = os.environ.get("RECORD_ENGINE_GOLDEN") == "1"
@@ -222,9 +224,19 @@ def test_two_boards_independent_pages(monkeypatch):
     """Pins: how the CURRENT engine drives a secondary board under run().
 
     Two runtimes with per-board active pages, both always-changing so every
-    drive pass is visible. The golden IS the discovery: it records the
-    secondary's actual cadence and its ordering relative to the primary
-    within each pass (primary first, then secondaries).
+    drive pass is visible. The golden records the secondary's cadence and,
+    per board, everything the old engine pinned.
+
+    Cross-board interleaving *within one simulated instant* is the ONE
+    property #1755 deliberately un-pins: each board's send now runs on its
+    own worker thread, so which board's render lands first inside a pass is
+    OS scheduling, not engine behavior. The observed sends are therefore
+    normalized by (instant, board) before the byte-for-byte comparison —
+    which leaves the committed golden unchanged, because the old engine's
+    primary-then-secondary order coincides with that normalization. Each
+    board's own subsequence is still asserted against the golden UNSORTED,
+    so the normalization can only ever reorder across boards, never hide a
+    within-board divergence.
     """
     boards = [make_board("board-1", name="Primary"), make_board("board-2", name="Secondary")]
     result = run_engine_scenario(
@@ -239,7 +251,17 @@ def test_two_boards_independent_pages(monkeypatch):
         ),
         pages=make_page_service({"page-p": counting_page("PRIMARY"), "page-s": counting_page("SECOND")}),
     )
-    check_golden("two_boards_independent_pages", result.sends)
+
+    golden_path = GOLDEN_DIR / "two_boards_independent_pages.json"
+    if not RECORD:
+        golden_sends = json.loads(golden_path.read_text())["sends"]
+        for board_id in ("board-1", "board-2"):
+            observed = [s for s in result.sends if s["board"] == board_id]
+            expected = [s for s in golden_sends if s["board"] == board_id]
+            assert observed == expected, f"{board_id}'s send subsequence diverged from the golden"
+
+    normalized = sorted(result.sends, key=lambda s: (s["t"], s["board"]))
+    check_golden("two_boards_independent_pages", normalized)
 
 
 def test_trigger_override_lifecycle(monkeypatch):
@@ -310,6 +332,105 @@ def test_board_send_failure(monkeypatch):
     assert all(ok for _t, ok in client.attempts[1:]), "every later attempt should have succeeded"
     rt = result.service.runtimes["board-1"]
     assert rt.last_send_error is None, "the successful retry must clear the recorded send error"
+
+
+class BlockingBoardClient:
+    """Board-1 stand-in whose render blocks on a real Event — a long transition.
+
+    Models a 120s plugin transition: ``render`` does not return until
+    ``release`` is set (bounded at 30s real so a regression can never hang the
+    suite). ``calls`` records ``(sim-time ISO, decoded rows)`` at render entry
+    so the test can pin what reached the board. Deliberately writes nothing to
+    the shared golden sink: the instant this board's worker unblocks is real
+    time, not simulated time, so its records would be nondeterministic.
+    """
+
+    def __init__(self, clock: FakeClock, *, started: threading.Event, release: threading.Event):
+        self.clock = clock
+        self.started = started
+        self.release = release
+        self.calls: list[tuple[str, list[str]]] = []
+        self._last_characters = None
+        self.use_cloud = False
+
+    def render(self, board_array, **_kwargs):
+        self.calls.append((self.clock.utc.isoformat(), decode_board_rows(board_array)))
+        self.started.set()
+        if not self.release.wait(timeout=30):
+            return False, False
+        self._last_characters = [row[:] for row in board_array]
+        return True, True
+
+    def read_current_message(self, sync_cache: bool = False):
+        return None
+
+    def clear_cache(self):
+        self._last_characters = None
+
+
+def test_slow_transition_no_cross_board_stall(monkeypatch):
+    """Pins the #1755 acceptance behavior: one board stuck in a long
+    transition must not stall the other boards' cadence.
+
+    Board 1's client blocks inside ``render`` on a real Event. Board 2 must
+    keep its 15s cadence for the whole simulated minute — the golden pins
+    board 2's full send sequence, produced while board 1 is still blocked.
+    A watchdog releases the block after 3 real seconds so the pre-#1755
+    engine — which runs the send inline on the tick thread and therefore
+    freezes the entire loop until the "transition" ends — completes the run
+    and fails the assertions instead of hanging the suite.
+    """
+    started = threading.Event()
+    release = threading.Event()
+    holder: dict[str, BlockingBoardClient] = {}
+
+    def blocking_factory(clock: FakeClock, board_id: str, sink: list) -> BlockingBoardClient:
+        holder["client"] = BlockingBoardClient(clock, started=started, release=release)
+        return holder["client"]
+
+    def before_settle() -> None:
+        # Deterministic sync: the t=0 job must be *executing* (not merely
+        # queued) before simulated time moves, so later frames land in the
+        # pending slot and latest-wins is what's under test.
+        started.wait(timeout=5)
+
+    boards = [make_board("board-1", name="Primary"), make_board("board-2", name="Secondary")]
+    watchdog = threading.Timer(3.0, release.set)
+    watchdog.start()
+    try:
+        result = run_engine_scenario(
+            monkeypatch,
+            start=T0,
+            run_until=T0 + timedelta(seconds=60),
+            boards=boards,
+            settings=make_settings_service(
+                boards=boards,
+                polling_interval=15,
+                active_page_ids={"board-1": "page-slow", "board-2": "page-fast"},
+            ),
+            pages=make_page_service({"page-slow": counting_page("SLOW"), "page-fast": counting_page("FAST")}),
+            client_factories={"board-1": blocking_factory},
+            idle_boards=["board-2"],
+            before_settle=before_settle,
+        )
+        blocked = holder["client"]
+        assert not release.is_set(), (
+            "board-1's long transition finished before run() completed: the tick thread "
+            "sat inside the send, so every other board was driven by a stalled loop "
+            "(pre-#1755 behavior)"
+        )
+        # Board 2's cadence, recorded entirely while board 1 was blocked.
+        check_golden("slow_transition_no_cross_board_stall", result.sends)
+        assert {s["board"] for s in result.sends} == {"board-2"}
+    finally:
+        release.set()
+        watchdog.cancel()
+
+    # Latest-wins drain: frames 2..5 were enqueued while frame 1 was blocked;
+    # after release the worker sends only the newest of them.
+    assert result.service.wait_until_idle(timeout=10.0, board_ids=["board-1"])
+    assert [rows[0].rstrip() for _t, rows in blocked.calls] == ["SLOW 1", "SLOW 5"]
+    assert blocked.calls[0][0] == T0.isoformat()
 
 
 def test_temporary_override_inline(monkeypatch):
