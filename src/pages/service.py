@@ -419,7 +419,11 @@ class PageService:
                 return context
 
             board = board_context_for(device_type, notes_wide, notes_tall)
-            context.update(registry.build_template_context(board, plugin_ids=missing))
+            # Widening fetches EXACTLY the missing ids: the first build for
+            # this size already fetched the trigger plugins (they are in
+            # ``fetched``), so re-unioning them here would fetch each trigger
+            # plugin once per widening consumer (#1862 review).
+            context.update(registry.build_template_context(board, plugin_ids=missing, include_trigger_plugins=False))
             if plugin_ids is None:
                 contexts.pop(coverage_key, None)  # widened to full coverage
             else:

@@ -261,3 +261,26 @@ class TestInFlightFetchDedupe:
             "in-flight dedupe should hold it to exactly one"
         )
 
+
+class TestTriggerFetchedOncePerTick:
+    def test_trigger_plugin_fetched_once_across_three_consumers_in_one_tick(self, registry, page_service):
+        """Cache widening fetches exactly the missing ids: the trigger plugin
+        rides along on the FIRST build of a size only, not on every widening."""
+        _install_plugin(registry, "alpha")
+        _install_plugin(registry, "beta")
+        _install_plugin(registry, "gamma")
+        _install_plugin(registry, "trig", supports_triggers=True)
+
+        contexts: dict[str, dict] = {}
+        first = page_service.render_page(_template_page("p-1", ["{{alpha.value}}"]), contexts=contexts)
+        second = page_service.render_page(_template_page("p-2", ["{{beta.value}}"]), contexts=contexts)
+        third = page_service.render_page(_template_page("p-3", ["{{gamma.value}}"]), contexts=contexts)
+
+        # Non-vacuity: all three renders resolved their variable, and the
+        # trigger plugin's data is in the shared context.
+        assert first.available and "ALPHA" in first.formatted
+        assert second.available and "BETA" in second.formatted
+        assert third.available and "GAMMA" in third.formatted
+        assert contexts[next(k for k in contexts if not k.startswith("\x00"))].get("trig") == {"value": "TRIG"}
+
+        assert _fetched_ids(registry) == {"alpha": 1, "beta": 1, "gamma": 1, "trig": 1}

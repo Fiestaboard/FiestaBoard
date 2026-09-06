@@ -1600,6 +1600,7 @@ class PluginRegistry:
         self,
         board: BoardContext | None = None,
         plugin_ids: Collection[str] | None = None,
+        include_trigger_plugins: bool = True,
     ) -> dict[str, Any]:
         """Build context dictionary for template rendering.
 
@@ -1616,6 +1617,12 @@ class PluginRegistry:
                 freshly cached data a fetch produces, so a filtered engine
                 tick must never starve them (issue #1751). ``None`` keeps
                 the fetch-everything behavior.
+            include_trigger_plugins: Set False by cache-WIDENING callers
+                (``PageService.shared_context_for``) whose per-tick shared
+                context already holds the trigger plugins from its first
+                build — otherwise every widening would re-fetch them, up to
+                N times per tick (#1862 review). Only meaningful when
+                ``plugin_ids`` is given.
 
         Returns:
             Dictionary mapping plugin_id to plugin data
@@ -1629,7 +1636,7 @@ class PluginRegistry:
             # Demand-driven fetch (issue #1751): only the plugins a template
             # actually references... plus trigger plugins, unconditionally.
             requested = {str(pid).lower() for pid in plugin_ids}
-            triggers = set(self.trigger_plugins)
+            triggers = set(self.trigger_plugins) if include_trigger_plugins else set()
             to_fetch = [pid for pid in enabled if pid.lower() in requested or pid in triggers]
 
         if not to_fetch:
