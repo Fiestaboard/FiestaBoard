@@ -1,0 +1,660 @@
+{
+  "_comment": "Golden response shapes for the pages domain (issue #1756). Do not hand-edit: regenerate with `RECORD_RESPONSE_GOLDEN=1 pytest tests/test_response_shape_goldens.py` and review the diff.",
+  "records": [
+    {
+      "label": "list_pages",
+      "method": "GET",
+      "path_template": "/pages",
+      "status": 200,
+      "shape": {
+        "pages": [
+          {
+            "created_at": "str",
+            "demo_plugin_id": "null",
+            "device_type": "str",
+            "display_type": "null",
+            "duration_seconds": "int",
+            "id": "str",
+            "line_metadata": "null",
+            "name": "str",
+            "notes_tall": "int",
+            "notes_wide": "int",
+            "rows": "null",
+            "template": [
+              "str",
+              "str",
+              "str",
+              "str",
+              "str",
+              "str"
+            ],
+            "transition_interval_ms": "null",
+            "transition_step_size": "null",
+            "transition_strategy": "null",
+            "type": "str",
+            "updated_at": "null"
+          },
+          {
+            "created_at": "str",
+            "demo_plugin_id": "null",
+            "device_type": "str",
+            "display_type": "null",
+            "duration_seconds": "int",
+            "id": "str",
+            "line_metadata": "null",
+            "name": "str",
+            "notes_tall": "int",
+            "notes_wide": "int",
+            "rows": "null",
+            "template": [
+              "str",
+              "str",
+              "str",
+              "str",
+              "str",
+              "str"
+            ],
+            "transition_interval_ms": "null",
+            "transition_step_size": "null",
+            "transition_strategy": "null",
+            "type": "str",
+            "updated_at": "null"
+          }
+        ],
+        "total": "int"
+      }
+    },
+    {
+      "label": "create_page_ok",
+      "method": "POST",
+      "path_template": "/pages",
+      "status": 200,
+      "shape": {
+        "page": {
+          "created_at": "str",
+          "demo_plugin_id": "null",
+          "device_type": "str",
+          "display_type": "null",
+          "duration_seconds": "int",
+          "id": "str",
+          "line_metadata": "null",
+          "name": "str",
+          "notes_tall": "int",
+          "notes_wide": "int",
+          "rows": "null",
+          "template": [
+            "str",
+            "str",
+            "str",
+            "str",
+            "str",
+            "str"
+          ],
+          "transition_interval_ms": "null",
+          "transition_step_size": "null",
+          "transition_strategy": "null",
+          "type": "str",
+          "updated_at": "null"
+        },
+        "status": "str"
+      }
+    },
+    {
+      "label": "create_page_invalid",
+      "method": "POST",
+      "path_template": "/pages",
+      "status": 422,
+      "shape": {
+        "detail": [
+          {
+            "input": {
+              "type": "str"
+            },
+            "loc": [
+              "str",
+              "str"
+            ],
+            "msg": "str",
+            "type": "str"
+          }
+        ]
+      }
+    },
+    {
+      "label": "get_page_ok",
+      "method": "GET",
+      "path_template": "/pages/{page_id}",
+      "status": 200,
+      "shape": {
+        "created_at": "str",
+        "demo_plugin_id": "null",
+        "device_type": "str",
+        "display_type": "null",
+        "duration_seconds": "int",
+        "id": "str",
+        "line_metadata": "null",
+        "name": "str",
+        "notes_tall": "int",
+        "notes_wide": "int",
+        "rows": "null",
+        "template": [
+          "str",
+          "str",
+          "str",
+          "str",
+          "str",
+          "str"
+        ],
+        "transition_interval_ms": "null",
+        "transition_step_size": "null",
+        "transition_strategy": "null",
+        "type": "str",
+        "updated_at": "null"
+      }
+    },
+    {
+      "label": "get_page_missing",
+      "method": "GET",
+      "path_template": "/pages/{page_id}",
+      "status": 404,
+      "shape": {
+        "detail": "str"
+      }
+    },
+    {
+      "label": "update_page_ok",
+      "method": "PUT",
+      "path_template": "/pages/{page_id}",
+      "status": 200,
+      "shape": {
+        "page": {
+          "created_at": "str",
+          "demo_plugin_id": "null",
+          "device_type": "str",
+          "display_type": "null",
+          "duration_seconds": "int",
+          "id": "str",
+          "line_metadata": "null",
+          "name": "str",
+          "notes_tall": "int",
+          "notes_wide": "int",
+          "rows": "null",
+          "template": [
+            "str",
+            "str",
+            "str",
+            "str",
+            "str",
+            "str"
+          ],
+          "transition_interval_ms": "null",
+          "transition_step_size": "null",
+          "transition_strategy": "null",
+          "type": "str",
+          "updated_at": "str"
+        },
+        "status": "str"
+      }
+    },
+    {
+      "label": "update_page_missing",
+      "method": "PUT",
+      "path_template": "/pages/{page_id}",
+      "status": 404,
+      "shape": {
+        "detail": "str"
+      }
+    },
+    {
+      "label": "delete_page_ok",
+      "method": "DELETE",
+      "path_template": "/pages/{page_id}",
+      "status": 200,
+      "shape": {
+        "active_page_updated": "bool",
+        "default_page_created": "bool",
+        "message": "str",
+        "status": "str"
+      }
+    },
+    {
+      "label": "delete_page_missing",
+      "method": "DELETE",
+      "path_template": "/pages/{page_id}",
+      "status": 404,
+      "shape": {
+        "detail": "str"
+      }
+    },
+    {
+      "label": "share_page_ok",
+      "method": "GET",
+      "path_template": "/pages/{page_id}/share",
+      "status": 200,
+      "shape": {
+        "share_string": "str"
+      }
+    },
+    {
+      "label": "share_page_missing",
+      "method": "GET",
+      "path_template": "/pages/{page_id}/share",
+      "status": 404,
+      "shape": {
+        "detail": "str"
+      }
+    },
+    {
+      "label": "import_preview_ok",
+      "method": "POST",
+      "path_template": "/pages/import/preview",
+      "status": 200,
+      "shape": {
+        "device_type": "str",
+        "display_type": "null",
+        "duration_seconds": "int",
+        "line_metadata": "null",
+        "name": "str",
+        "rows": "null",
+        "template": [
+          "str",
+          "str",
+          "str",
+          "str",
+          "str",
+          "str"
+        ],
+        "transition_interval_ms": "null",
+        "transition_step_size": "null",
+        "transition_strategy": "null",
+        "type": "str"
+      }
+    },
+    {
+      "label": "import_preview_invalid",
+      "method": "POST",
+      "path_template": "/pages/import/preview",
+      "status": 422,
+      "shape": {
+        "detail": "str"
+      }
+    },
+    {
+      "label": "import_ok",
+      "method": "POST",
+      "path_template": "/pages/import",
+      "status": 200,
+      "shape": {
+        "page": {
+          "created_at": "str",
+          "demo_plugin_id": "null",
+          "device_type": "str",
+          "display_type": "null",
+          "duration_seconds": "int",
+          "id": "str",
+          "line_metadata": "null",
+          "name": "str",
+          "notes_tall": "int",
+          "notes_wide": "int",
+          "rows": "null",
+          "template": [
+            "str",
+            "str",
+            "str",
+            "str",
+            "str",
+            "str"
+          ],
+          "transition_interval_ms": "null",
+          "transition_step_size": "null",
+          "transition_strategy": "null",
+          "type": "str",
+          "updated_at": "null"
+        },
+        "status": "str"
+      }
+    },
+    {
+      "label": "staff_picks_list",
+      "method": "GET",
+      "path_template": "/staff-picks",
+      "status": 200,
+      "shape": [
+        {
+          "description": "str",
+          "device_type": "str",
+          "featured_at": "str",
+          "id": "str",
+          "image": "str",
+          "name": "str",
+          "required_plugins": [
+            {
+              "id": "str",
+              "name": "str"
+            },
+            {
+              "id": "str",
+              "name": "str"
+            }
+          ],
+          "tags": [
+            "str"
+          ]
+        },
+        {
+          "description": "str",
+          "device_type": "str",
+          "featured_at": "str",
+          "id": "str",
+          "image": "str",
+          "name": "str",
+          "required_plugins": [
+            {
+              "id": "str",
+              "name": "str"
+            }
+          ],
+          "tags": [
+            "str"
+          ]
+        },
+        {
+          "description": "str",
+          "device_type": "str",
+          "featured_at": "str",
+          "id": "str",
+          "image": "str",
+          "name": "str",
+          "required_plugins": [
+            {
+              "id": "str",
+              "name": "str"
+            }
+          ],
+          "tags": [
+            "str"
+          ]
+        },
+        {
+          "description": "str",
+          "device_type": "str",
+          "featured_at": "str",
+          "id": "str",
+          "image": "str",
+          "name": "str",
+          "required_plugins": [
+            {
+              "id": "str",
+              "name": "str"
+            }
+          ],
+          "tags": [
+            "str"
+          ]
+        },
+        {
+          "description": "str",
+          "device_type": "str",
+          "featured_at": "str",
+          "id": "str",
+          "image": "str",
+          "name": "str",
+          "required_plugins": [
+            {
+              "id": "str",
+              "name": "str"
+            },
+            {
+              "id": "str",
+              "name": "str"
+            },
+            {
+              "id": "str",
+              "name": "str"
+            },
+            {
+              "id": "str",
+              "name": "str"
+            }
+          ],
+          "tags": [
+            "str"
+          ]
+        },
+        {
+          "description": "str",
+          "device_type": "str",
+          "featured_at": "str",
+          "id": "str",
+          "image": "str",
+          "name": "str",
+          "required_plugins": [
+            {
+              "id": "str",
+              "name": "str"
+            },
+            {
+              "id": "str",
+              "name": "str"
+            }
+          ],
+          "tags": [
+            "str"
+          ]
+        }
+      ]
+    },
+    {
+      "label": "staff_pick_share_ok",
+      "method": "GET",
+      "path_template": "/staff-picks/{pick_id}/share",
+      "status": 200,
+      "shape": {
+        "share_string": "str"
+      }
+    },
+    {
+      "label": "staff_pick_share_missing",
+      "method": "GET",
+      "path_template": "/staff-picks/{pick_id}/share",
+      "status": 404,
+      "shape": {
+        "detail": "str"
+      }
+    },
+    {
+      "label": "preview_page_ok",
+      "method": "POST",
+      "path_template": "/pages/{page_id}/preview",
+      "status": 200,
+      "shape": {
+        "display_type": "str",
+        "lines": [
+          "str",
+          "str",
+          "str",
+          "str",
+          "str",
+          "str"
+        ],
+        "message": "str",
+        "page_id": "str",
+        "raw": {
+          "page_id": "str",
+          "template": [
+            "str",
+            "str",
+            "str",
+            "str",
+            "str",
+            "str"
+          ]
+        }
+      }
+    },
+    {
+      "label": "preview_page_missing",
+      "method": "POST",
+      "path_template": "/pages/{page_id}/preview",
+      "status": 404,
+      "shape": {
+        "detail": "str"
+      }
+    },
+    {
+      "label": "preview_batch_mixed",
+      "method": "POST",
+      "path_template": "/pages/preview/batch",
+      "status": 200,
+      "shape": {
+        "previews": {
+          "<missing_id>": {
+            "available": "bool",
+            "error": "str"
+          },
+          "<page_id>": {
+            "available": "bool",
+            "display_type": "str",
+            "lines": [
+              "str",
+              "str",
+              "str",
+              "str",
+              "str",
+              "str"
+            ],
+            "message": "str",
+            "page_id": "str",
+            "raw": {
+              "page_id": "str",
+              "template": [
+                "str",
+                "str",
+                "str",
+                "str",
+                "str",
+                "str"
+              ]
+            }
+          }
+        },
+        "successful": "int",
+        "total": "int"
+      }
+    },
+    {
+      "label": "preview_batch_invalid",
+      "method": "POST",
+      "path_template": "/pages/preview/batch",
+      "status": 400,
+      "shape": {
+        "detail": "str"
+      }
+    },
+    {
+      "label": "cache_stats",
+      "method": "GET",
+      "path_template": "/pages/cache/stats",
+      "status": 200,
+      "shape": {
+        "cache_size": "int",
+        "cached_pages": [
+          "str"
+        ],
+        "ttl_seconds": "int"
+      }
+    },
+    {
+      "label": "cache_clear_all",
+      "method": "POST",
+      "path_template": "/pages/cache/clear",
+      "status": 200,
+      "shape": {
+        "message": "str",
+        "status": "str"
+      }
+    },
+    {
+      "label": "cache_clear_one",
+      "method": "POST",
+      "path_template": "/pages/cache/clear",
+      "status": 200,
+      "shape": {
+        "message": "str",
+        "status": "str"
+      }
+    },
+    {
+      "label": "current_display_no_active",
+      "method": "GET",
+      "path_template": "/pages/current-display",
+      "status": 404,
+      "shape": {
+        "detail": "str"
+      }
+    },
+    {
+      "label": "current_display_ok",
+      "method": "GET",
+      "path_template": "/pages/current-display",
+      "status": 200,
+      "shape": {
+        "device_type": "str",
+        "line_metadata": "null",
+        "page_id": "str",
+        "page_name": "str",
+        "page_type": "str",
+        "template": [
+          "str",
+          "str",
+          "str",
+          "str",
+          "str",
+          "str"
+        ]
+      }
+    },
+    {
+      "label": "send_page_no_service",
+      "method": "POST",
+      "path_template": "/pages/{page_id}/send",
+      "status": 503,
+      "shape": {
+        "detail": "str"
+      }
+    },
+    {
+      "label": "send_page_bad_target",
+      "method": "POST",
+      "path_template": "/pages/{page_id}/send",
+      "status": 400,
+      "shape": {
+        "detail": "str"
+      }
+    },
+    {
+      "label": "send_page_missing",
+      "method": "POST",
+      "path_template": "/pages/{page_id}/send",
+      "status": 404,
+      "shape": {
+        "detail": "str"
+      }
+    },
+    {
+      "label": "send_page_ui_ok",
+      "method": "POST",
+      "path_template": "/pages/{page_id}/send",
+      "status": 200,
+      "shape": {
+        "board_id": "null",
+        "message": "str",
+        "page_id": "str",
+        "paused": "bool",
+        "sent_to_board": "bool",
+        "status": "str",
+        "target": "str"
+      }
+    }
+  ]
+}

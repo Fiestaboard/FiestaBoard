@@ -1,0 +1,190 @@
+{
+  "_comment": "Golden response shapes for the collections domain (issue #1756). Do not hand-edit: regenerate with `RECORD_RESPONSE_GOLDEN=1 pytest tests/test_response_shape_goldens.py` and review the diff.",
+  "records": [
+    {
+      "label": "list_collections_empty",
+      "method": "GET",
+      "path_template": "/collections",
+      "status": 200,
+      "shape": {
+        "collections": [],
+        "total": "int"
+      }
+    },
+    {
+      "label": "create_collection_ok",
+      "method": "POST",
+      "path_template": "/collections",
+      "status": 200,
+      "shape": {
+        "collection": {
+          "created_at": "str",
+          "id": "str",
+          "name": "str",
+          "page_ids": [
+            "str",
+            "str"
+          ],
+          "random": "null",
+          "selection_mode": "str",
+          "time": {
+            "interval_seconds": "int"
+          },
+          "updated_at": "null",
+          "variable": "null"
+        },
+        "status": "str"
+      }
+    },
+    {
+      "label": "create_collection_unknown_page",
+      "method": "POST",
+      "path_template": "/collections",
+      "status": 400,
+      "shape": {
+        "detail": "str"
+      }
+    },
+    {
+      "label": "create_collection_invalid",
+      "method": "POST",
+      "path_template": "/collections",
+      "status": 422,
+      "shape": {
+        "detail": [
+          {
+            "input": {
+              "name": "str"
+            },
+            "loc": [
+              "str",
+              "str"
+            ],
+            "msg": "str",
+            "type": "str"
+          }
+        ]
+      }
+    },
+    {
+      "label": "list_collections",
+      "method": "GET",
+      "path_template": "/collections",
+      "status": 200,
+      "shape": {
+        "collections": [
+          {
+            "created_at": "str",
+            "id": "str",
+            "name": "str",
+            "page_ids": [
+              "str",
+              "str"
+            ],
+            "random": "null",
+            "selection_mode": "str",
+            "time": {
+              "interval_seconds": "int"
+            },
+            "updated_at": "null",
+            "variable": "null"
+          }
+        ],
+        "total": "int"
+      }
+    },
+    {
+      "label": "get_collection_ok",
+      "method": "GET",
+      "path_template": "/collections/{collection_id}",
+      "status": 200,
+      "shape": {
+        "created_at": "str",
+        "id": "str",
+        "name": "str",
+        "page_ids": [
+          "str",
+          "str"
+        ],
+        "random": "null",
+        "selection_mode": "str",
+        "time": {
+          "interval_seconds": "int"
+        },
+        "updated_at": "null",
+        "variable": "null"
+      }
+    },
+    {
+      "label": "get_collection_missing",
+      "method": "GET",
+      "path_template": "/collections/{collection_id}",
+      "status": 404,
+      "shape": {
+        "detail": "str"
+      }
+    },
+    {
+      "label": "update_collection_ok",
+      "method": "PUT",
+      "path_template": "/collections/{collection_id}",
+      "status": 200,
+      "shape": {
+        "collection": {
+          "created_at": "str",
+          "id": "str",
+          "name": "str",
+          "page_ids": [
+            "str",
+            "str"
+          ],
+          "random": "null",
+          "selection_mode": "str",
+          "time": {
+            "interval_seconds": "int"
+          },
+          "updated_at": "str",
+          "variable": "null"
+        },
+        "status": "str"
+      }
+    },
+    {
+      "label": "update_collection_unknown_page",
+      "method": "PUT",
+      "path_template": "/collections/{collection_id}",
+      "status": 400,
+      "shape": {
+        "detail": "str"
+      }
+    },
+    {
+      "label": "update_collection_missing",
+      "method": "PUT",
+      "path_template": "/collections/{collection_id}",
+      "status": 404,
+      "shape": {
+        "detail": "str"
+      }
+    },
+    {
+      "label": "delete_collection_ok",
+      "method": "DELETE",
+      "path_template": "/collections/{collection_id}",
+      "status": 200,
+      "shape": {
+        "message": "str",
+        "status": "str"
+      }
+    },
+    {
+      "label": "delete_collection_missing",
+      "method": "DELETE",
+      "path_template": "/collections/{collection_id}",
+      "status": 404,
+      "shape": {
+        "detail": "str"
+      }
+    }
+  ]
+}
