@@ -1477,6 +1477,25 @@ def test_get_board_content_is_null_when_nothing_was_ever_sent(mcp, services, eng
     assert result["message"] is None
 
 
+def test_get_board_content_serves_the_primary_by_its_own_id_when_sentinel_keyed(mcp, services, two_boards, monkeypatch):
+    """Legacy installs key the primary runtime under the __primary__ sentinel,
+    not its settings board id. Asking for the primary by its OWN id then
+    missed every cache and returned nulls, while omitting board_id worked —
+    mirror the mark_showing_out_of_band fallback and route the primary's id
+    to the primary path (#1874 review).
+    """
+    fake = _FakeEngine(["__primary__", "board-note"])
+    grid = [[1] * 22 for _ in range(6)]
+    fake._polled_characters = grid
+    monkeypatch.setattr("src.api_server.get_service", lambda: fake)
+
+    result = assert_ok(call(mcp, "get_board_content", board_id="board-main"), "get_board_content")
+
+    assert result["characters"] == grid, "the primary's own id missed the sentinel-keyed cache"
+    assert result["source"] == "polled"
+    assert result["board_id"] == "board-main"
+
+
 # -- preview_saved_page -----------------------------------------------------
 
 
@@ -1507,6 +1526,20 @@ def test_preview_saved_page_reports_board_fit(mcp, services, two_boards, monkeyp
     )
 
     assert result["fits_board"] is False, "a flagship page does not fit a note board"
+
+
+def test_preview_saved_page_reports_an_unknown_board(mcp, services, two_boards):
+    """fits_board: true for a board that does not exist is an answer about
+    nothing. Same roster existence check as the sibling board tools —
+    ToolError "Board not found" (#1874 review)."""
+    created = assert_ok(
+        call(mcp, "create_page", name="Flag", template_lines=FLAGSHIP_TEMPLATE, device_type="flagship"),
+        "create_page",
+    )
+
+    message = call_expect_error(mcp, "preview_saved_page", page_id=created["page_id"], board_id="no-such-board")
+
+    assert "no-such-board" in message
 
 
 def test_preview_saved_page_unknown_page_is_an_error(mcp, services):
