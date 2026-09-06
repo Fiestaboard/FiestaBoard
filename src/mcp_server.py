@@ -718,6 +718,15 @@ def _build_mcp_server() -> Any:
             "line_metadata": ([m.model_dump() for m in page.line_metadata] if page.line_metadata else None),
         }
         if board_id is not None:
+            # Same roster existence check as the sibling board tools:
+            # compatibility against a board that does not exist would come
+            # back fits_board: true (unresolvable boards pass, by design of
+            # the compat helper) — an answer about nothing (#1874 review).
+            from .settings.service import get_settings_service
+
+            known = get_settings_service().get_board_settings().boards or []
+            if not any(isinstance(b, dict) and b.get("id") == board_id for b in known):
+                raise ToolError(f"Board not found: {board_id}")
             compat = check_ref_board_compatibility(page_id, board_id)
             out["board_id"] = board_id
             out["fits_board"] = compat.ok
@@ -1168,10 +1177,26 @@ def _build_mcp_server() -> Any:
         else:
             from .settings.service import get_settings_service
 
-            boards = get_settings_service().get_board_settings().boards or []
+            settings = get_settings_service()
+            boards = settings.get_board_settings().boards or []
             if not any(isinstance(b, dict) and b.get("id") == board_id for b in boards):
                 raise ToolError(f"Board not found: {board_id}")
             rt = service.get_runtime(board_id)
+            if rt is None:
+                # Legacy installs may key the primary runtime under the
+                # fallback sentinel rather than its settings board id — route
+                # the primary's own id to the primary caches (mirrors
+                # DisplayService.mark_showing_out_of_band, #1874 review).
+                try:
+                    primary_id = settings.get_primary_board_id()
+                except Exception:
+                    primary_id = None
+                if board_id == primary_id:
+                    characters = service._polled_characters
+                    source = "polled" if characters is not None else None
+                    if characters is None and service.vb_client is not None:
+                        characters = getattr(service.vb_client, "_last_characters", None)
+                        source = "last_sent" if characters is not None else None
             if rt is not None:
                 characters = rt.polled_characters
                 source = "polled" if characters is not None else None

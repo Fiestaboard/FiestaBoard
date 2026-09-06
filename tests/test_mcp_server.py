@@ -1268,11 +1268,13 @@ class TestPluginSystemUnavailable:
 
         monkeypatch.setitem(sys.modules, "src.plugins.service", None)
 
-        result = _call_tool(mcp, "enable_plugin", plugin_id="openweather")
+        # On this branch tool failures surface as protocol errors (ToolError
+        # with the envelope's message), not {"status": "error"} payloads.
+        message = _call_tool_expect_error(mcp, "enable_plugin", plugin_id="openweather")
 
-        assert result["status"] == "error"
-        assert "Plugin system is not available" in result["error"]
-        assert "No module named" not in result["error"]
+        assert "Plugin system is not available" in message
+        assert "No module named" not in message
+
 
 # ---------------------------------------------------------------------------
 # Protocol errors — issue #1765
