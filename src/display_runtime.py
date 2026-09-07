@@ -20,14 +20,21 @@ nothing but "get the service and rebuild its clients", so keeping it in
 ``api_server`` forced every router that mutates the boards list to import the
 app module for one line.
 
-Deliberately still in ``api_server``: the background-thread lifecycle — the
-``_service_running`` flag, ``run_service_background``, ``start_service`` and
-``stop_service``. That is server lifecycle rather than an accessor; the flag
-is written by the start/stop endpoints, read at 22 sites and patched at ~46
-test sites, and moving it is the display/board-control slice's job.
-:func:`is_service_running` reads the flag through a probe ``api_server``
-registers at import — one source of truth, reachable without importing the
-module that owns it.
+Deliberately still in ``api_server``: the background-thread *state* — the
+``_service_running`` flag, the thread handle, ``_shutting_down`` and
+``run_service_background``. That is server lifecycle rather than an accessor;
+the flag is read at 22 sites and patched at ~30 test sites, all of them
+``patch("src.api_server._service_running", ...)``, and relocating a module
+global cannot keep those patches live (``mock.patch`` sets the attribute on
+the module you name, and a module cannot expose a mutable global as a
+property).
+
+So the state stays where it is and this module owns the *seam*.
+:func:`is_service_running` reads the flag through a probe, and
+:func:`spawn_display_loop` / :func:`halt_display_loop` write it through a pair
+of controls — both registered by ``api_server`` at import. One flag, one
+owner, and a converted router that never has to import the module that owns
+it. Moving the state itself is a follow-up, tracked separately.
 """
 
 from __future__ import annotations
@@ -76,6 +83,38 @@ def mark_service_started() -> None:
     """Start the uptime clock (called when the display loop thread starts)."""
     global _service_start_time
     _service_start_time = time.time()
+
+
+#: Installed by ``src.api_server`` at import time, next to the state they
+#: mutate. ``spawn`` clears the shutdown flag and starts the loop thread;
+#: ``halt`` sets the shutdown flag, tells a running service to stop, and
+#: clears the running flag. Neither decides anything — the ``POST /start`` and
+#: ``POST /stop`` handlers in :mod:`src.service_api.routes` own the policy.
+_loop_spawn: Callable[[], None] | None = None
+_loop_halt: Callable[[], None] | None = None
+
+
+def set_loop_controls(spawn: Callable[[], None], halt: Callable[[], None]) -> None:
+    """Register the writers for the ``api_server`` background-loop state."""
+    global _loop_spawn, _loop_halt
+    _loop_spawn = spawn
+    _loop_halt = halt
+
+
+def spawn_display_loop() -> None:
+    """Start the background display loop thread."""
+    if _loop_spawn is None:  # pragma: no cover - api_server registers at import
+        logger.warning("No display-loop controls registered; cannot start the loop")
+        return
+    _loop_spawn()
+
+
+def halt_display_loop() -> None:
+    """Stop the background display loop and suppress its auto-restart."""
+    if _loop_halt is None:  # pragma: no cover - api_server registers at import
+        logger.warning("No display-loop controls registered; cannot stop the loop")
+        return
+    _loop_halt()
 
 
 def get_service() -> DisplayService | None:

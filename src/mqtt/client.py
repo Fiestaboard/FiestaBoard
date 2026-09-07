@@ -150,6 +150,16 @@ class MQTTClient:
         except Exception as e:
             logger.exception("Error handling MQTT message: %s", e)
 
+    def publish_discovery(self) -> None:
+        """Re-publish every HA discovery message (retained).
+
+        The public face of :meth:`_publish_discovery`, added in Phase 2 Task 8:
+        ``POST /mqtt/republish-discovery`` used to reach through the private
+        name, which ``docs/internal/reference/API_CONVENTIONS.md`` bans —
+        "routes never touch another object's ``_private`` members".
+        """
+        self._publish_discovery()
+
     def _publish_discovery(self) -> None:
         """Publish all HA discovery messages (retained)."""
         try:
