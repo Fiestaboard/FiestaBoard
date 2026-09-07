@@ -60,5 +60,10 @@ class DateTimeSource:
 
 
 def get_datetime_source() -> DateTimeSource:
-    """Get configured datetime source instance."""
-    return DateTimeSource(timezone=Config.TIMEZONE)
+    """Get configured datetime source instance.
+
+    Uses the general (install-wide) timezone — the same source the date_time
+    plugin reads. The legacy ``features.date_time.timezone`` branch was
+    retired in #1761.
+    """
+    return DateTimeSource(timezone=Config.GENERAL_TIMEZONE or "America/Los_Angeles")

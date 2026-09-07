@@ -77,7 +77,8 @@ def services(tmp_path, monkeypatch):
     schedules = ScheduleService(ScheduleStorage(str(tmp_path / "schedules.json")))
     collections = CollectionService(CollectionStorage(str(tmp_path / "collections.json")))
 
-    ConfigManager._instance = None  # type: ignore[attr-defined]
+    # conftest's autouse ``_isolated_data_dir`` (#1762) dropped the singleton
+    # already; constructing installs this one, and conftest drops it again.
     config = ConfigManager(config_path=str(tmp_path / "config.json"))
 
     monkeypatch.setattr("src.pages.service._page_service", pages)
@@ -86,8 +87,6 @@ def services(tmp_path, monkeypatch):
     monkeypatch.setattr("src.config_manager.ConfigManager._instance", config, raising=False)
 
     yield {"pages": pages, "schedules": schedules, "collections": collections, "config": config}
-
-    ConfigManager._instance = None  # type: ignore[attr-defined]
 
 
 def _run(value: Any) -> Any:

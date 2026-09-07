@@ -120,8 +120,7 @@ class DisplayService:
     """Main service for displaying information on the board."""
 
     # Runtime key for the primary board when no board id is available
-    # (legacy single-board Config installs, or tests that set ``vb_client``
-    # directly without a boards list).
+    # (tests that set ``vb_client`` directly without a boards list).
     _PRIMARY_FALLBACK_KEY = "__primary__"
 
     def __init__(self):
@@ -433,7 +432,7 @@ class DisplayService:
         )
 
     def _build_board_clients(self, sync_cache: bool = True):
-        """Build one runtime per configured board (settings.boards) or fall back to Config.
+        """Build one runtime per configured board (settings.boards).
 
         Populates ``self.runtimes`` (board_id -> BoardRuntime for every board
         with a usable connection) and ``self._primary_board_id`` (the first
@@ -450,9 +449,9 @@ class DisplayService:
         Per-board failure isolation (issue #1749): each board's client build
         is independent, so one bad board — the primary included — is skipped
         with its reason recorded in ``self.board_init_errors`` while every
-        other board still comes up. The legacy Config fallback only runs when
-        *no* configured board produced a client, so a misconfigured primary
-        can no longer drag the whole fleet through it.
+        other board still comes up. Board credentials are unified on
+        settings.boards (issue #1760): the legacy config.json copy is never
+        read here, so no client is ever built from stale credentials.
 
         Args:
             sync_cache: read the primary board's current message to seed the
@@ -514,24 +513,14 @@ class DisplayService:
                 f"continuing with {len(new_runtimes)} other board(s)"
             )
         else:
-            # Legacy single-board Config path: no usable settings.boards entry.
-            # Its own failure is recorded rather than raised so callers see an
-            # empty fleet instead of an exception out of the whole build.
-            try:
-                use_cloud = Config.BOARD_API_MODE.lower() == "cloud"
-                client = BoardClient(
-                    api_key=Config.get_board_api_key(),
-                    host=Config.BOARD_HOST if not use_cloud else None,
-                    use_cloud=use_cloud,
-                    skip_unchanged=True,
-                )
-                self._attach_transition_runner(client)
-                key = self._PRIMARY_FALLBACK_KEY
-                self.runtimes[key] = BoardRuntime(client=client, board_id=key)
-                self._primary_board_id = key
-            except Exception as e:
-                self._primary_board_id = primary_id
-                logger.error(f"No board connection available: legacy config client could not be built ({e})")
+            # No board produced a client. Board credentials are unified on
+            # settings.boards (issue #1760): the legacy config.json copy is
+            # never read here anymore, so a credential-less settings board
+            # means the install is genuinely unconfigured — building a ghost
+            # client from a stale config.json key silently drove the wrong
+            # credentials (the #948/#1102 family).
+            self._primary_board_id = primary_id
+            logger.error("No board connection available: no configured board produced a client")
 
         if sync_cache:
             rt = self._primary_runtime()
@@ -561,8 +550,8 @@ class DisplayService:
     def rebuild_board_clients(self) -> bool:
         """Rebuild runtimes from current config (diff-based, keyed by board id).
 
-        Prefers settings.boards (one runtime per board with a connection);
-        falls back to Config for the primary. Unchanged boards keep their
+        Builds from settings.boards (one runtime per board with a
+        connection). Unchanged boards keep their
         runtime + caches; removed/disabled boards are pruned. Must be called
         after any boards-list mutation, otherwise sends keep targeting the old
         connections (issue: content delivered to a removed board).
@@ -728,7 +717,7 @@ class DisplayService:
             logger.error("Configuration validation failed")
             return False
 
-        # Initialize board runtimes from settings.boards (all boards) or Config
+        # Initialize board runtimes from settings.boards (all boards)
         try:
             self._build_board_clients()
             # Gate on the FLEET, not on the primary board (issue #1749): a

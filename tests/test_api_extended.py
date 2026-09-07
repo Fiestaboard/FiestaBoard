@@ -35,6 +35,7 @@ def mock_config_manager():
         cm.set_general.return_value = True
         cm.get_feature.return_value = {"enabled": False, "start_time": "20:00+00:00", "end_time": "07:00+00:00"}
         cm.get_plugin_config.return_value = {"enabled": True}
+        cm.get_plugin_env_overrides.return_value = {}
         cm.set_plugin_config.return_value = None
         cm.enable_plugin.return_value = None
         cm.disable_plugin.return_value = None
@@ -393,11 +394,14 @@ class TestConfigEndpoints:
         assert "api_modes" in data
 
     def test_update_board_config(self, client, mock_config_manager, mock_service):
+        """PUT /config/board is a shim over settings (issue #1760): it writes
+        the settings boards store and never the config.json board block."""
         response = client.put("/config/board", json={"api_mode": "local", "host": "10.0.0.1"})
         assert response.status_code == 200
         data = response.json()
         assert data["status"] == "success"
-        mock_config_manager.set_board.assert_called_once()
+        assert data["config"]["host"] == "10.0.0.1"
+        mock_config_manager.set_board.assert_not_called()
 
     def test_validate_config_valid(self, client, mock_config_manager):
         response = client.get("/config/validate")

@@ -4,8 +4,6 @@ import logging
 
 import requests
 
-from src.config import Config
-
 logger = logging.getLogger(__name__)
 
 
@@ -136,28 +134,16 @@ class HomeAssistantSource:
 def get_home_assistant_source() -> HomeAssistantSource | None:
     """Get configured Home Assistant source instance.
 
-    Uses features config (Config) when present; falls back to plugin config
-    so the entity picker works when the user configured HA only via Integrations.
+    Reads the ``plugins.home_assistant`` config (the legacy ``features.*``
+    branch was retired in #1761).
     """
-    base_url = Config.HOME_ASSISTANT_BASE_URL or ""
-    access_token = Config.HOME_ASSISTANT_ACCESS_TOKEN or ""
-    enabled = Config.HOME_ASSISTANT_ENABLED
-    timeout = Config.HOME_ASSISTANT_TIMEOUT
+    from src.config_manager import get_config_manager
 
-    # Fall back to plugin config when features are empty (e.g. user only set plugin in UI)
-    if (not base_url or not access_token) or not enabled:
-        try:
-            from src.config_manager import get_config_manager
-
-            cm = get_config_manager()
-            plugin_cfg = cm.get_plugin_config("home_assistant") or {}
-            if plugin_cfg.get("enabled") and plugin_cfg.get("base_url") and plugin_cfg.get("access_token"):
-                base_url = plugin_cfg.get("base_url", "")
-                access_token = plugin_cfg.get("access_token", "")
-                timeout = plugin_cfg.get("timeout", 5)
-                enabled = True
-        except Exception as e:
-            logger.debug("Could not load home_assistant plugin config for fallback: %s", e)
+    plugin_cfg = get_config_manager().get_plugin_config("home_assistant") or {}
+    base_url = plugin_cfg.get("base_url") or ""
+    access_token = plugin_cfg.get("access_token") or ""
+    timeout = plugin_cfg.get("timeout", 5)
+    enabled = bool(plugin_cfg.get("enabled"))
 
     if not enabled:
         return None

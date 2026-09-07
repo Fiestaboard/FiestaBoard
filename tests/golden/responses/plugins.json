@@ -1,0 +1,603 @@
+{
+  "_comment": "Golden response shapes for the plugins domain (issue #1756). Do not hand-edit: regenerate with `RECORD_RESPONSE_GOLDEN=1 pytest tests/test_response_shape_goldens.py` and review the diff.",
+  "records": [
+    {
+      "label": "plugin_system_unavailable",
+      "method": "GET",
+      "path_template": "/plugins",
+      "status": 503,
+      "shape": {
+        "detail": "str"
+      }
+    },
+    {
+      "label": "list_plugins",
+      "method": "GET",
+      "path_template": "/plugins",
+      "status": 200,
+      "shape": {
+        "enabled_count": "int",
+        "plugin_system_enabled": "bool",
+        "plugins": [
+          {
+            "base_plugin_id": "null",
+            "config": {
+              "api_key": "str",
+              "enabled": "bool",
+              "location": "str"
+            },
+            "configured": "bool",
+            "description": "str",
+            "enabled": "bool",
+            "id": "str",
+            "instance_label": "null",
+            "name": "str",
+            "version": "str"
+          },
+          {
+            "base_plugin_id": "null",
+            "config": {},
+            "configured": "bool",
+            "description": "str",
+            "enabled": "bool",
+            "id": "str",
+            "instance_label": "null",
+            "name": "str",
+            "version": "str"
+          }
+        ],
+        "total": "int"
+      }
+    },
+    {
+      "label": "all_variables",
+      "method": "GET",
+      "path_template": "/plugins/variables/all",
+      "status": 200,
+      "shape": {
+        "max_lengths": {
+          "alpha": {
+            "value": "int"
+          }
+        },
+        "plugin_system_enabled": "bool",
+        "variables": {
+          "alpha": {
+            "value": {
+              "description": "str",
+              "example": "str"
+            }
+          }
+        }
+      }
+    },
+    {
+      "label": "plugin_errors",
+      "method": "GET",
+      "path_template": "/plugins/errors",
+      "status": 200,
+      "shape": {
+        "errors": {
+          "broken_plugin": [
+            "str"
+          ]
+        },
+        "plugin_system_enabled": "bool"
+      }
+    },
+    {
+      "label": "registry_list",
+      "method": "GET",
+      "path_template": "/plugins/registry",
+      "status": 200,
+      "shape": {
+        "entries": [
+          {
+            "id": "str",
+            "installed": "bool",
+            "name": "str",
+            "repository": "str"
+          }
+        ],
+        "plugin_system_enabled": "bool"
+      }
+    },
+    {
+      "label": "updates_status",
+      "method": "GET",
+      "path_template": "/plugins/updates",
+      "status": 200,
+      "shape": {
+        "blocked": {
+          "blocked_plugin": "str"
+        },
+        "updates": {
+          "ext_plugin": "bool"
+        }
+      }
+    },
+    {
+      "label": "get_plugin_ok",
+      "method": "GET",
+      "path_template": "/plugins/{plugin_id}",
+      "status": 200,
+      "shape": {
+        "author": "str",
+        "base_plugin_id": "str",
+        "category": "str",
+        "config": {
+          "api_key": "str",
+          "enabled": "bool",
+          "location": "str"
+        },
+        "demo_page_id": "null",
+        "description": "str",
+        "documentation": "null",
+        "enabled": "bool",
+        "env_overridden_keys": [],
+        "env_vars": [],
+        "has_demo": "bool",
+        "icon": "str",
+        "id": "str",
+        "instance_label": "null",
+        "instances": [
+          {
+            "enabled": "bool",
+            "label": "str"
+          }
+        ],
+        "max_lengths": {
+          "value": "int"
+        },
+        "name": "str",
+        "plugin_type": "str",
+        "settings_schema": {
+          "properties": {
+            "api_key": {
+              "title": "str",
+              "type": "str"
+            },
+            "location": {
+              "title": "str",
+              "type": "str"
+            },
+            "symbols": {
+              "type": "str",
+              "ui:options": {
+                "options_id": "str"
+              },
+              "ui:widget": "str"
+            }
+          },
+          "required": [
+            "str"
+          ],
+          "type": "str"
+        },
+        "variables": {
+          "value": {
+            "description": "str",
+            "example": "str"
+          }
+        },
+        "version": "str"
+      }
+    },
+    {
+      "label": "get_plugin_missing",
+      "method": "GET",
+      "path_template": "/plugins/{plugin_id}",
+      "status": 404,
+      "shape": {
+        "detail": "str"
+      }
+    },
+    {
+      "label": "get_manifest_ok",
+      "method": "GET",
+      "path_template": "/plugins/{plugin_id}/manifest",
+      "status": 200,
+      "shape": {
+        "color_rules_schema": {},
+        "variables": {
+          "value": {
+            "description": "str",
+            "example": "str"
+          }
+        }
+      }
+    },
+    {
+      "label": "get_manifest_missing",
+      "method": "GET",
+      "path_template": "/plugins/{plugin_id}/manifest",
+      "status": 404,
+      "shape": {
+        "detail": "str"
+      }
+    },
+    {
+      "label": "update_config_ok",
+      "method": "PUT",
+      "path_template": "/plugins/{plugin_id}/config",
+      "status": 200,
+      "shape": {
+        "config": {
+          "api_key": "str",
+          "location": "str",
+          "refresh_seconds": "int"
+        },
+        "plugin_id": "str",
+        "status": "str"
+      }
+    },
+    {
+      "label": "update_config_invalid",
+      "method": "PUT",
+      "path_template": "/plugins/{plugin_id}/config",
+      "status": 400,
+      "shape": {
+        "detail": {
+          "errors": [
+            "str"
+          ]
+        }
+      }
+    },
+    {
+      "label": "update_config_missing",
+      "method": "PUT",
+      "path_template": "/plugins/{plugin_id}/config",
+      "status": 404,
+      "shape": {
+        "detail": "str"
+      }
+    },
+    {
+      "label": "enable_ok",
+      "method": "POST",
+      "path_template": "/plugins/{plugin_id}/enable",
+      "status": 200,
+      "shape": {
+        "enabled": "bool",
+        "plugin_id": "str",
+        "status": "str"
+      }
+    },
+    {
+      "label": "enable_missing",
+      "method": "POST",
+      "path_template": "/plugins/{plugin_id}/enable",
+      "status": 404,
+      "shape": {
+        "detail": "str"
+      }
+    },
+    {
+      "label": "enable_failed",
+      "method": "POST",
+      "path_template": "/plugins/{plugin_id}/enable",
+      "status": 400,
+      "shape": {
+        "detail": "str"
+      }
+    },
+    {
+      "label": "disable_ok",
+      "method": "POST",
+      "path_template": "/plugins/{plugin_id}/disable",
+      "status": 200,
+      "shape": {
+        "enabled": "bool",
+        "plugin_id": "str",
+        "status": "str"
+      }
+    },
+    {
+      "label": "get_data_ok",
+      "method": "GET",
+      "path_template": "/plugins/{plugin_id}/data",
+      "status": 200,
+      "shape": {
+        "available": "bool",
+        "data": {
+          "value": "str"
+        },
+        "error": "null",
+        "formatted_lines": [
+          "str"
+        ],
+        "plugin_id": "str"
+      }
+    },
+    {
+      "label": "get_data_unavailable",
+      "method": "GET",
+      "path_template": "/plugins/{plugin_id}/data",
+      "status": 503,
+      "shape": {
+        "detail": "str"
+      }
+    },
+    {
+      "label": "get_data_disabled",
+      "method": "GET",
+      "path_template": "/plugins/{plugin_id}/data",
+      "status": 400,
+      "shape": {
+        "detail": "str"
+      }
+    },
+    {
+      "label": "get_variables_ok",
+      "method": "GET",
+      "path_template": "/plugins/{plugin_id}/variables",
+      "status": 200,
+      "shape": {
+        "color_rules_schema": {},
+        "max_lengths": {
+          "value": "int"
+        },
+        "plugin_id": "str",
+        "variables": {
+          "value": {
+            "description": "str",
+            "example": "str"
+          }
+        }
+      }
+    },
+    {
+      "label": "options_ok",
+      "method": "POST",
+      "path_template": "/plugins/{plugin_id}/options/{options_id}",
+      "status": 200,
+      "shape": {
+        "cache_seconds": "int",
+        "cached": "bool",
+        "cursor": "null",
+        "error": "null",
+        "has_more": "bool",
+        "options": [
+          {
+            "description": "null",
+            "disabled": "bool",
+            "group": "null",
+            "label": "str",
+            "meta": "null",
+            "preview": "null",
+            "value": "str"
+          }
+        ],
+        "options_id": "str",
+        "plugin_id": "str",
+        "stale": "bool",
+        "total": "null"
+      }
+    },
+    {
+      "label": "options_undeclared",
+      "method": "POST",
+      "path_template": "/plugins/{plugin_id}/options/{options_id}",
+      "status": 400,
+      "shape": {
+        "detail": "str"
+      }
+    },
+    {
+      "label": "demo_get",
+      "method": "GET",
+      "path_template": "/plugins/{plugin_id}/demo-page",
+      "status": 200,
+      "shape": {
+        "exists": "bool",
+        "has_demo_template": "bool",
+        "page_id": "null"
+      }
+    },
+    {
+      "label": "demo_get_no_demo",
+      "method": "GET",
+      "path_template": "/plugins/{plugin_id}/demo-page",
+      "status": 200,
+      "shape": {
+        "exists": "bool",
+        "has_demo_template": "bool",
+        "page_id": "null"
+      }
+    },
+    {
+      "label": "demo_create",
+      "method": "POST",
+      "path_template": "/plugins/{plugin_id}/demo-page",
+      "status": 200,
+      "shape": {
+        "page": {
+          "id": "str",
+          "name": "str",
+          "type": "str"
+        },
+        "status": "str"
+      }
+    },
+    {
+      "label": "demo_create_no_demo",
+      "method": "POST",
+      "path_template": "/plugins/{plugin_id}/demo-page",
+      "status": 400,
+      "shape": {
+        "detail": "str"
+      }
+    },
+    {
+      "label": "instances_list",
+      "method": "GET",
+      "path_template": "/plugins/{plugin_id}/instances",
+      "status": 200,
+      "shape": {
+        "instances": [
+          {
+            "enabled": "bool",
+            "label": "str"
+          }
+        ],
+        "plugin_id": "str",
+        "total": "int"
+      }
+    },
+    {
+      "label": "instance_create",
+      "method": "POST",
+      "path_template": "/plugins/{plugin_id}/instances",
+      "status": 200,
+      "shape": {
+        "instance_key": "str",
+        "instance_label": "str",
+        "message": "str",
+        "plugin_id": "str",
+        "status": "str"
+      }
+    },
+    {
+      "label": "instance_create_invalid",
+      "method": "POST",
+      "path_template": "/plugins/{plugin_id}/instances",
+      "status": 400,
+      "shape": {
+        "detail": "str"
+      }
+    },
+    {
+      "label": "instance_delete",
+      "method": "DELETE",
+      "path_template": "/plugins/{plugin_id}/instances/{instance_label}",
+      "status": 200,
+      "shape": {
+        "instance_key": "str",
+        "instance_label": "str",
+        "message": "str",
+        "plugin_id": "str",
+        "status": "str"
+      }
+    },
+    {
+      "label": "receive_ok",
+      "method": "POST",
+      "path_template": "/plugins/{plugin_id}/receive",
+      "status": 200,
+      "shape": {
+        "status": "str"
+      }
+    },
+    {
+      "label": "receive_not_supported",
+      "method": "POST",
+      "path_template": "/plugins/{plugin_id}/receive",
+      "status": 405,
+      "shape": {
+        "detail": "str"
+      }
+    },
+    {
+      "label": "registry_install_ok",
+      "method": "POST",
+      "path_template": "/plugins/registry/{plugin_id}/install",
+      "status": 200,
+      "shape": {
+        "message": "str",
+        "plugin_id": "str",
+        "status": "str"
+      }
+    },
+    {
+      "label": "registry_install_error",
+      "method": "POST",
+      "path_template": "/plugins/registry/{plugin_id}/install",
+      "status": 400,
+      "shape": {
+        "detail": "str"
+      }
+    },
+    {
+      "label": "install_git_ok",
+      "method": "POST",
+      "path_template": "/plugins/install",
+      "status": 200,
+      "shape": {
+        "message": "str",
+        "plugin_id": "str",
+        "status": "str"
+      }
+    },
+    {
+      "label": "install_git_bad_branch",
+      "method": "POST",
+      "path_template": "/plugins/install",
+      "status": 400,
+      "shape": {
+        "detail": "str"
+      }
+    },
+    {
+      "label": "uninstall_ok",
+      "method": "DELETE",
+      "path_template": "/plugins/{plugin_id}/uninstall",
+      "status": 200,
+      "shape": {
+        "message": "str",
+        "plugin_id": "str",
+        "status": "str"
+      }
+    },
+    {
+      "label": "uninstall_error",
+      "method": "DELETE",
+      "path_template": "/plugins/{plugin_id}/uninstall",
+      "status": 400,
+      "shape": {
+        "detail": "str"
+      }
+    },
+    {
+      "label": "updates_check",
+      "method": "POST",
+      "path_template": "/plugins/updates/check",
+      "status": 200,
+      "shape": {
+        "checked": "int",
+        "updates_available": [
+          "str"
+        ]
+      }
+    },
+    {
+      "label": "update_plugin_missing_source",
+      "method": "POST",
+      "path_template": "/plugins/{plugin_id}/update",
+      "status": 404,
+      "shape": {
+        "detail": "str"
+      }
+    },
+    {
+      "label": "update_plugin_builtin",
+      "method": "POST",
+      "path_template": "/plugins/{plugin_id}/update",
+      "status": 400,
+      "shape": {
+        "detail": "str"
+      }
+    },
+    {
+      "label": "updates_apply_none",
+      "method": "POST",
+      "path_template": "/plugins/updates/apply",
+      "status": 200,
+      "shape": {
+        "failed": {},
+        "message": "str",
+        "updated": []
+      }
+    }
+  ]
+}

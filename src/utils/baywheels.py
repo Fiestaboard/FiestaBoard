@@ -11,8 +11,6 @@ import time
 
 import requests
 
-from src.config import Config
-
 logger = logging.getLogger(__name__)
 
 # Bay Wheels GBFS endpoints
@@ -362,19 +360,3 @@ class BayWheelsSource:
         if electric_bikes > 5:
             return "green"
         return "yellow"
-
-
-def get_baywheels_source() -> BayWheelsSource | None:
-    """Get configured Bay Wheels source instance."""
-    if not Config.BAYWHEELS_ENABLED:
-        logger.debug("Bay Wheels integration not enabled")
-        return None
-
-    # Get station IDs (supports both single and multiple)
-    station_ids = Config.BAYWHEELS_STATION_IDS
-
-    if not station_ids:
-        logger.warning("Bay Wheels station IDs not configured")
-        return None
-
-    return BayWheelsSource(station_ids=station_ids)

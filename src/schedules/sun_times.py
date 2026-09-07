@@ -31,7 +31,7 @@ def get_effective_timezone() -> str:
     try:
         from src.config import Config
 
-        return Config.GENERAL_TIMEZONE or Config.TIMEZONE or "UTC"
+        return Config.GENERAL_TIMEZONE or "UTC"
     except Exception:
         logger.debug("Could not read timezone from Config, using UTC", exc_info=True)
         return "UTC"

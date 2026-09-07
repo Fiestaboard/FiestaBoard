@@ -20,8 +20,11 @@ from src.config_manager import ConfigManager
 
 @pytest.fixture(autouse=True)
 def reset_config_singleton(tmp_path, monkeypatch):
-    """Force a fresh ConfigManager backed by a tmp file for every test."""
-    ConfigManager._instance = None  # type: ignore[attr-defined]
+    """Fresh ConfigManager backed by a tmp file for every test.
+
+    The conftest autouse ``_isolated_data_dir`` fixture (#1762) already
+    dropped the singleton; this only pins the path and the api_server lookup.
+    """
     config_path = tmp_path / "config.json"
     cm = ConfigManager(config_path=str(config_path))
     monkeypatch.setattr("src.api_server.get_config_manager", lambda: cm)
@@ -29,7 +32,6 @@ def reset_config_singleton(tmp_path, monkeypatch):
     # 1-second min interval. We use monkeypatch to keep things isolated.
     monkeypatch.setattr("src.api_server._ai_generate_last_call", 0.0)
     yield cm
-    ConfigManager._instance = None  # type: ignore[attr-defined]
 
 
 @pytest.fixture

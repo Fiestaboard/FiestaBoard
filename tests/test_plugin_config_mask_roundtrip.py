@@ -40,10 +40,8 @@ def mask_env(tmp_path):
     assertions are about what actually gets persisted, not about a mock's
     call log.
     """
-    saved_instance = ConfigManager._instance
-    ConfigManager._instance = None
-    ConfigManager._lock = threading.Lock()
-
+    # conftest's autouse ``_isolated_data_dir`` (#1762) dropped the singleton
+    # (and refreshed the lock) before this fixture, and drops it again after.
     config_path = tmp_path / "config.json"
     config_path.write_text(json.dumps({"board": {}, "features": {}, "general": {}, "plugins": {}}))
     cm = ConfigManager(config_path=str(config_path))
@@ -70,14 +68,15 @@ def mask_env(tmp_path):
 
     with (
         patch("src.api_server.get_plugin_registry", return_value=registry),
+        # The MCP configure_plugin tool goes through PluginService, which
+        # resolves the registry from its canonical home (#1757) — patch both
+        # lookup points, as tests/test_mcp_server.py's plugin_services does.
+        patch("src.plugins.get_plugin_registry", return_value=registry),
         patch("src.api_server.PLUGIN_SYSTEM_AVAILABLE", True),
         patch("src.api_server.reset_display_service"),
         patch("src.api_server.reset_template_engine"),
     ):
         yield applied, cm
-
-    ConfigManager._instance = saved_instance
-    ConfigManager._lock = threading.Lock()
 
 
 def _masked_body(cm: ConfigManager, plugin_id: str, **overrides) -> dict:

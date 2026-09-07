@@ -22,7 +22,7 @@ import requests
 from dotenv import load_dotenv
 from fastapi import BackgroundTasks, Body, FastAPI, HTTPException, Query, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse, StreamingResponse
+from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 
 # Load environment variables from .env file before importing modules that may
@@ -31,35 +31,39 @@ from pydantic import BaseModel, Field
 load_dotenv()
 
 from . import __version__  # noqa: E402
-from .atomic_io import write_json_atomic  # noqa: E402
 from .auth import is_auth_enabled  # noqa: E402
 from .auth.middleware import AuthMiddleware  # noqa: E402
 from .auth.routes import router as auth_router  # noqa: E402
 from .board_client import board_client_from_board_dict  # noqa: E402
-from .collections.models import CollectionCreate, CollectionUpdate, is_collection_id  # noqa: E402
+from .collections.models import is_collection_id  # noqa: E402
 from .collections.service import get_collection_service  # noqa: E402
 from .config import Config  # noqa: E402
-from .config_manager import get_config_manager, unmask_sensitive_values  # noqa: E402
+
+# Patch seams (issues #1756/#1757): no handler left in this module calls
+# unmask_sensitive_values / reset_display_service / reset_template_engine, but
+# the extracted routers resolve them through `src.api_server` at call time so
+# tests that patch `src.api_server.<name>` keep working.
+from .config_manager import get_config_manager, unmask_sensitive_values  # noqa: E402, F401
 from .devices import classify_dimensions, resolve_dimensions  # noqa: E402
-from .displays.service import get_display_service, reset_display_service  # noqa: E402
+from .displays.service import get_display_service, reset_display_service  # noqa: E402, F401
 from .main import DisplayService  # noqa: E402
 from .network.wifi import WiFiError, get_wifi_service  # noqa: E402
-from .pages.models import PageCreate, PageUpdate  # noqa: E402
 from .pages.service import (  # noqa: E402
     check_ref_board_compatibility,
     find_incompatible_board_references,
-    find_incompatible_references,
     get_page_service,
 )
-from .pages.share import decode_page, encode_page  # noqa: E402
 from .panels.models import PanelCreate, PanelUpdate  # noqa: E402
 from .panels.service import get_panel_service  # noqa: E402
-from .schedules.models import ScheduleCreate, ScheduleUpdate  # noqa: E402
-from .schedules.service import get_schedule_service  # noqa: E402
+
+# Patch seam (issue #1756): no handler left in this module calls it, but the
+# extracted routers resolve it through `src.api_server` at call time so
+# tests that patch `src.api_server.get_schedule_service` keep working.
+from .schedules.service import get_schedule_service  # noqa: E402, F401
 from .settings.service import VALID_OUTPUT_TARGETS, VALID_STRATEGIES, get_settings_service  # noqa: E402
-from .templates.engine import get_template_engine, reset_template_engine  # noqa: E402
+from .templates.engine import get_template_engine, reset_template_engine  # noqa: E402, F401
 from .templates.expressions import function_signatures  # noqa: E402
-from .text_to_board import text_to_board_array, wrap_message_text  # noqa: E402
+from .text_to_board import text_to_board_array  # noqa: E402
 from .time_service import reset_time_service  # noqa: E402
 from .virtual_board_client import release_virtual_board_state  # noqa: E402
 
@@ -186,27 +190,6 @@ def _is_host_allowed(host: str, allowed_hosts: list[str]) -> bool:
 
 
 # Hostnames are restricted to RFC 1123 labels (letters, digits, hyphens) and
-_PLUGIN_ID_RE = re.compile(r"^[a-z0-9_]+$")
-
-
-def _sanitize_optional_plugin_id(plugin_id: str | None) -> str | None:
-    """Validate optional plugin id from user input.
-
-    Accepts ``None`` (meaning "derive from repo name"), otherwise enforces
-    lowercase letters, digits, and underscores only.
-    """
-    if plugin_id is None:
-        return None
-    if not isinstance(plugin_id, str) or not plugin_id:
-        raise HTTPException(status_code=400, detail="plugin_id must be a non-empty string")
-    if not _PLUGIN_ID_RE.fullmatch(plugin_id):
-        raise HTTPException(
-            status_code=400,
-            detail="plugin_id may contain only lowercase letters, digits, and underscores",
-        )
-    return plugin_id
-
-
 # IPv4 dotted-quad notation.  This rejects exotic forms (URL-encoded chars,
 # ``user:pass@host``, schemes embedded in the host, etc.) before we ever try
 # to connect to a board over HTTP.
@@ -482,135 +465,20 @@ class HealthResponse(BaseModel):
     version: str
 
 
-class VersionResponse(BaseModel):
-    """Response model for version information."""
-
-    package_version: str
-    build_version: str
-    is_dev: bool
-    hardware_model: str | None = None
-
-
-class UpdateCheckResponse(BaseModel):
-    """Response model for update check."""
-
-    current_version: str
-    latest_version: str | None
-    update_available: bool
-    package_url: str
-    error: str | None = None
-    is_production: bool
-
-
-class UpdateStatusResponse(BaseModel):
-    """Response model for system update status (sidecar availability + auto-update flag)."""
-
-    updater_available: bool
-    auto_update_enabled: bool  # derived: True when interval != "manual"
-    auto_update_interval: str  # "daily" | "weekly" | "monthly" | "manual"
-    # True when an external supervisor (the Home Assistant add-on) owns
-    # updates.  The UI hides every update notification and the periodic
-    # check loop is skipped when this is set.  See ``_managed_externally``.
-    managed_externally: bool
-    profile: str  # "docker" | "pi"  (where this install is running)
-    sidecar_url: str
-    last_check: str | None = None
-    last_update: str | None = None
-    # ── Rollback bookkeeping (5.1) ──────────────────────────────────────
-    # ``last_update_status`` reflects the most recent /update or /rollback
-    # attempt as reported by the sidecar's GET /last-update endpoint:
-    #   * ``in_progress``     – pull/recreate is currently running
-    #   * ``success``         – /update completed; new image is in place
-    #   * ``rolled_back``     – /rollback completed; previous digest restored
-    #   * ``rollback_failed`` – /rollback errored out (typically retag failure)
-    #   * ``failed``          – /update pull failed before we could recreate
-    #   * ``none``            – no attempt has been made yet
-    last_update_status: str | None = None
-    last_update_action: str | None = None  # "update" | "rollback"
-    last_update_error: str | None = None
-    last_update_previous_digest: str | None = None
-    last_update_completed_at: str | None = None
-    # Most recent settings snapshots taken before each /system/update call.
-    # Each entry includes ``previous_digest`` and ``previous_image`` so the
-    # UI can offer "revert to the version that was running on <date>".
-    settings_snapshots: list[dict[str, Any]] = []
-    # If the most recent snapshot has materially more enabled plugins than
-    # the live config, surface a recovery hint so users hit by issue #948
-    # can roll back with one click instead of discovering the snapshot on
-    # their own. ``None`` when there's no detectable regression.
-    post_upgrade_regression: dict[str, Any] | None = None
-
-
-class UpdateApplyResponse(BaseModel):
-    """Response model for triggering an update."""
-
-    status: str  # "queued" | "manual"
-    mode: str  # "sidecar" | "manual"
-    previous_digest: str | None = None
-    hint: str | None = None
-    # Metadata about the pre-update settings snapshot we just took.  None
-    # when the snapshot could not be produced (still safe to update — the
-    # user can still roll back the image alone via /system/update/rollback).
-    settings_snapshot: dict[str, Any] | None = None
-
-
-class RollbackRequest(BaseModel):
-    """Request body for ``POST /system/update/rollback``.
-
-    The user picks a snapshot to roll back to; the API restores the
-    settings from that snapshot and asks the sidecar to retag the
-    snapshot's recorded ``previous_digest`` / ``previous_image`` back
-    onto the running container.
-
-    * ``snapshot`` — optional snapshot filename.  When omitted, the most
-      recent snapshot is used.  Must match the strict
-      ``pre-update-YYYYMMDDTHHMMSS[.fff]Z.json`` shape produced by the API.
-    * ``restore_settings`` — when False, only the image is rolled back
-      (settings are left untouched).  Defaults to True.
-    * ``restore_image`` — when False, only the settings are rolled back
-      (image is left untouched).  Defaults to True.
-    """
-
-    snapshot: str | None = None
-    restore_settings: bool = True
-    restore_image: bool = True
-
-
-class RollbackResponse(BaseModel):
-    """Response model for the user-initiated rollback endpoint."""
-
-    status: str  # "success" | "queued" | "partial"
-    snapshot: str | None = None
-    image_rollback: dict[str, Any] | None = None  # {target_digest, target_image, queued} or None
-    settings_rollback: dict[str, Any] | None = None  # output of BackupService.import_from_json
-    warnings: list[str] = []
-
-
-class AutoUpdateRequest(BaseModel):
-    """Request model for setting the auto-update preference.
-
-    Accepts either ``interval`` (preferred) — one of ``daily``, ``weekly``,
-    ``monthly``, ``manual`` — or the legacy ``enabled`` boolean, where True
-    is mapped to the install's default interval and False is mapped to
-    ``manual``.  At least one of the two must be provided.
-    """
-
-    enabled: bool | None = None
-    interval: str | None = None
-
-
-class AutoUpdateResponse(BaseModel):
-    """Response model for auto-update toggle."""
-
-    enabled: bool  # derived: True when interval != "manual"
-    interval: str  # "daily" | "weekly" | "monthly" | "manual"
-
-
-class SystemActionResponse(BaseModel):
-    """Response model for restart / shutdown system actions."""
-
-    status: str  # "queued"
-    action: str  # "restart" | "shutdown"
+# System-update request/response models — moved to src/system/models.py
+# (issue #1758). Re-imported so src.api_server.<Model> references keep
+# resolving.
+from .system.models import (  # noqa: E402, F401
+    AutoUpdateRequest,
+    AutoUpdateResponse,
+    RollbackRequest,
+    RollbackResponse,
+    SystemActionResponse,
+    UpdateApplyResponse,
+    UpdateCheckResponse,
+    UpdateStatusResponse,
+    VersionResponse,
+)
 
 
 # ── WiFi / NetworkManager models ─────────────────────────────────────────────
@@ -844,20 +712,14 @@ async def lifespan(app: FastAPI):
             async def _system_update_check_loop():
                 # Tick once an hour.  Even on the longest interval (monthly) this
                 # is plenty granular and keeps the work the loop does tiny.
+                # The tick body lives in src/system/update_service.py
+                # (issue #1758); only the loop shell stays in the lifespan.
                 tick_seconds = 3600
                 # Initial delay so we don't pile onto startup work.
                 await _asyncio.sleep(60)
                 while True:
                     try:
-                        state = _system_update_state_load()
-                        interval_name = _resolve_auto_update_interval(state)
-                        period_days = AUTO_UPDATE_INTERVALS.get(interval_name, 0)
-                        if period_days > 0 and _is_update_check_due(state, period_days):
-                            logger.info(
-                                "Auto-update check (interval=%s): checking for new version",
-                                interval_name,
-                            )
-                            await _perform_update_check()
+                        await run_system_update_check_if_due()
                     except Exception as exc:
                         logger.warning("System update check error: %s", exc)
                     await _asyncio.sleep(tick_seconds)
@@ -1711,381 +1573,80 @@ def _collect_plugin_demos() -> list[dict[str, Any]]:
     return demos
 
 
-def _detect_hardware_model() -> str | None:
-    """Return the host hardware model string, or None if undetectable.
-
-    Reads ``/proc/device-tree/model``, which on Raspberry Pi devices contains a
-    null-terminated string such as ``"Raspberry Pi 5 Model B Rev 1.0"``. The
-    file is absent on most non-Pi hosts (generic Docker, macOS, etc.), so the
-    UI suppresses the row when this returns None.
-    """
-    try:
-        with open("/proc/device-tree/model", "rb") as f:
-            raw = f.read(256)
-    except (FileNotFoundError, PermissionError, OSError):
-        return None
-    model = raw.decode("utf-8", errors="replace").rstrip("\x00").strip()
-    return model or None
-
-
-@app.get("/version", response_model=VersionResponse)
-async def version():
-    """Get version information.
-
-    Returns both the package version (from __version__) and the build version
-    (from VERSION environment variable). In production builds, these should match.
-    """
-    build_version = os.getenv("VERSION", "dev")
-    production = os.getenv("PRODUCTION", "false").lower() == "true"
-    return VersionResponse(
-        package_version=__version__,
-        build_version=build_version,
-        is_dev=build_version == "dev" and not production,
-        hardware_model=_detect_hardware_model(),
-    )
-
-
 # =============================================================================
-# System Management Endpoints
-# =============================================================================
-
-GITHUB_RELEASES_URL = "https://github.com/Fiestaboard/FiestaBoard/releases"
-GITHUB_PACKAGE_URL = f"{GITHUB_RELEASES_URL}/latest"
-GITHUB_RELEASES_API = "https://api.github.com/repos/Fiestaboard/FiestaBoard/releases/latest"
-DOCKERHUB_TAGS_URL = "https://hub.docker.com/v2/repositories/fiestaboard/fiestaboard/tags"
-
-
-def _release_notes_url(version: str | None) -> str:
-    """Build the release-notes URL for a specific version.
-
-    Pinning to ``/releases/tag/v{version}`` guarantees the link goes to the
-    same release we surfaced in the banner — ``/releases/latest`` redirects
-    to whichever release GitHub currently has flagged Latest, which can lag
-    behind the Docker Hub tag we detected (or trail a newer GitHub release
-    that hasn't been flipped yet).
-    """
-    if not version:
-        return GITHUB_PACKAGE_URL
-    return f"{GITHUB_RELEASES_URL}/tag/v{version}"
-
-
-def _check_dockerhub_for_latest() -> str | None:
-    """Check Docker Hub for the latest version tag.
-
-    Queries the Docker Hub API for available tags. No authentication required
-    for public repositories. Filters tags to find the highest semver version.
-
-    Returns the latest version string, or None if the check fails.
-    """
-    try:
-        # Query Docker Hub tags endpoint
-        resp = requests.get(DOCKERHUB_TAGS_URL, timeout=4)
-        resp.raise_for_status()
-        data = resp.json()
-
-        # Extract tag names from results
-        results = data.get("results", [])
-        tags = [result.get("name") for result in results if result.get("name")]
-
-        # Filter to semver-style tags and find the highest version
-        version_tags = []
-        for tag in tags:
-            parts = tag.split(".")
-            if len(parts) >= 2 and all(p.isdigit() for p in parts):
-                version_tags.append(tuple(int(p) for p in parts))
-
-        if not version_tags:
-            return None
-
-        best = max(version_tags)
-        return ".".join(str(p) for p in best)
-    except Exception as e:
-        logger.debug(f"Docker Hub version check failed: {e}")
-        return None
-
-
-def _check_github_releases_for_latest() -> str | None:
-    """Check GitHub Releases API for the latest version.
-
-    Returns the latest version string, or None if the check fails.
-    """
-    try:
-        resp = requests.get(
-            GITHUB_RELEASES_API,
-            headers={"Accept": "application/vnd.github.v3+json"},
-            timeout=4,
-        )
-        resp.raise_for_status()
-        tag_name = resp.json().get("tag_name", "")
-        return tag_name.lstrip("v") if tag_name else None
-    except Exception as e:
-        logger.debug(f"GitHub releases check failed: {e}")
-        return None
-
-
-def _parse_version(v: str) -> tuple[int, ...]:
-    """Parse a numeric ``a.b.c`` version string into a comparable tuple.
-
-    Raises ``ValueError`` for anything that is not purely dot-separated
-    integers (e.g. a stray ``v`` prefix or an ``-rc`` suffix).
-    """
-    parts = v.split(".")
-    if not parts or not all(p.isdigit() for p in parts):
-        raise ValueError(f"Invalid version: {v}")
-    return tuple(int(x) for x in parts)
-
-
-def _pick_latest_version(*candidates: str | None) -> str | None:
-    """Return the newest parseable version among the given candidates.
-
-    Update availability is sourced from more than one place (Docker Hub tags
-    and the GitHub Releases API). Those sources can disagree or lag — Docker
-    Hub's tag-listing metadata sometimes trails a release that GitHub already
-    publishes. Taking the highest version any source reports (rather than
-    preferring one source and only falling back when it is empty) surfaces a
-    real release as soon as either source sees it. Empty or unparseable
-    candidates are ignored.
-    """
-    best_parsed: tuple[int, ...] | None = None
-    best_str: str | None = None
-    for candidate in candidates:
-        if not candidate:
-            continue
-        try:
-            parsed = _parse_version(candidate)
-        except (ValueError, AttributeError):
-            continue
-        if best_parsed is None or parsed > best_parsed:
-            best_parsed = parsed
-            best_str = candidate
-    return best_str
-
-
-@app.get("/system/update-check", response_model=UpdateCheckResponse)
-async def system_update_check():
-    """Check if a newer version of FiestaBoard is available.
-
-    Checks both Docker Hub and the GitHub Releases API and reports the newest
-    version either source lists (neither is preferred over the other, so a
-    lagging source cannot hide a release the other already sees). No
-    authentication is required because the package and repository are public.
-
-    Returns the current version, latest version, and whether an update is available.
-    """
-    return await _perform_update_check()
-
-
-async def _perform_update_check() -> "UpdateCheckResponse":
-    """Run the actual update check against Docker Hub / GitHub Releases.
-
-    Extracted from the HTTP handler so the background scheduler (auto-update
-    interval) can reuse it without going through the network stack.  Records
-    ``last_check`` in the system update state file on every successful query.
-    Both source checks run in parallel to halve worst-case latency.
-    """
-    is_production = os.getenv("PRODUCTION", "false").lower() == "true"
-
-    try:
-        # Run both source checks in parallel and take the newest version either
-        # reports. Trusting one source and only falling back when it is empty
-        # lets a lagging source (e.g. Docker Hub tag metadata that has not yet
-        # registered a freshly published release) mask a real update the other
-        # source already sees.
-        dh_version, gh_version = await asyncio.gather(
-            asyncio.to_thread(_check_dockerhub_for_latest),
-            asyncio.to_thread(_check_github_releases_for_latest),
-        )
-        latest_version = _pick_latest_version(dh_version, gh_version)
-
-        if latest_version:
-            update_available = _is_newer_version(latest_version, __version__)
-            try:
-                _system_update_state_update(last_check=datetime.now(UTC).isoformat())
-            except Exception as e:
-                logger.debug("Could not persist update-check result (non-fatal): %s", e, exc_info=True)
-            return UpdateCheckResponse(
-                current_version=__version__,
-                latest_version=latest_version,
-                update_available=update_available,
-                package_url=_release_notes_url(latest_version),
-                is_production=is_production,
-            )
-
-        raise RuntimeError("Both Docker Hub and GitHub Releases checks failed")
-    except Exception as e:
-        logger.warning(f"Failed to check for updates: {e}")
-        return UpdateCheckResponse(
-            current_version=__version__,
-            latest_version=None,
-            update_available=False,
-            package_url=GITHUB_PACKAGE_URL,
-            error=f"Could not check for updates: {e}",
-            is_production=is_production,
-        )
-
-
-def _is_newer_version(latest: str, current: str) -> bool:
-    """Compare two semver-style version strings.
-
-    Returns True if latest is strictly newer than current.
-    Handles version strings with varying component counts (e.g. "2.0" vs "2.0.1").
-    """
-    try:
-        return _parse_version(latest) > _parse_version(current)
-    except (ValueError, AttributeError):
-        return False
-
-
-# =============================================================================
-# In-place self-update via the FiestaUpdater sidecar
+# System Management Endpoints — moved to src/system/ (issue #1758)
 # =============================================================================
 #
-# The companion `fiestaupdater` container exposes a tiny authenticated HTTP API
-# on the internal compose network.  We never talk to the Docker socket from
-# this process; we only proxy a single user-initiated request through.  See
-# fiestaupdater/README.md for the security model.
-# =============================================================================
+# The system-update subsystem (Docker Hub / GitHub version comparison, the
+# fiestaupdater sidecar client, pre-update settings snapshots, and the
+# .system-update.json state machine) lives in src/system/update_service.py;
+# its route handlers (/version, /system/update-check, /system/update/*,
+# /system/restart, /system/shutdown) live in src/system/routes.py and are
+# included below, next to the helpers they resolve through this module.
+#
+# Every moved helper is re-imported here so the test-suite's
+# patch("src.api_server.<name>") targets keep working; the extracted handlers
+# import these names back through src.api_server at call time (the
+# #1756/#1757 pattern). The two path-override constants stay *defined* on
+# this module (below) and the service reads them back through it at call
+# time, so patching them here still steers the service.
 
-# Path to the small JSON file that persists the auto-update toggle and
-# bookkeeping (last check, last update).  Kept separate from settings.json
-# because this state is system-level, not display-level.
-SYSTEM_UPDATE_STATE_FILE = Path("data/.system-update.json")
+from .system.update_service import (  # noqa: E402, F401
+    _DIGEST_RE,
+    _IMAGE_REF_RE,
+    _SETTINGS_SNAPSHOT_NAME_RE,
+    AUTO_UPDATE_INTERVALS,
+    DOCKERHUB_TAGS_URL,
+    GITHUB_PACKAGE_URL,
+    GITHUB_RELEASES_API,
+    GITHUB_RELEASES_URL,
+    SETTINGS_SNAPSHOT_RETENTION,
+    _auto_update_default_interval,
+    _check_dockerhub_for_latest,
+    _check_github_releases_for_latest,
+    _detect_hardware_model,
+    _fiestaboard_profile,
+    _handle_updater_response,
+    _is_newer_version,
+    _is_update_check_due,
+    _list_settings_snapshots,
+    _managed_externally,
+    _parse_version,
+    _perform_update_check,
+    _pick_latest_version,
+    _prune_settings_snapshots,
+    _read_snapshot_metadata,
+    _release_notes_url,
+    _require_updater_token,
+    _resolve_auto_update_interval,
+    _resolve_snapshot_name,
+    _settings_snapshot_dir,
+    _system_update_state_file,
+    _system_update_state_load,
+    _system_update_state_save,
+    _system_update_state_update,
+    _take_settings_snapshot,
+    _updater_last_update,
+    _updater_post,
+    _updater_probe,
+    _updater_token,
+    _updater_url,
+    _updater_version,
+    run_system_update_check_if_due,
+)
 
-# Serialises the read-modify-write of the state file.  Three writers share it —
-# the hourly auto-update loop, ``POST /system/update`` and
-# ``POST /system/update/auto`` — and each does load -> mutate -> save.  Without
-# this lock a writer's read goes stale and the other writer's field is lost
-# (#1745).  Re-entrant so a guarded update can call load/save directly.
-_SYSTEM_UPDATE_STATE_LOCK = threading.RLock()
+# ``SYSTEM_UPDATE_STATE_FILE`` is a *test seam*: production leaves it ``None``
+# and ``_system_update_state_file()`` (now in src/system/update_service.py)
+# resolves lazily through ``src.paths.get_data_dir()`` (honoring
+# ``FIESTABOARD_DATA_DIR``, #1762). Tests that need a specific file keep
+# monkeypatching this module attribute; the service reads it back through
+# this module at call time.
+SYSTEM_UPDATE_STATE_FILE: Path | None = None
 
-
-def _system_update_state_load() -> dict[str, Any]:
-    """Read the system-update state file.  Returns a fresh dict on any error."""
-    with _SYSTEM_UPDATE_STATE_LOCK:
-        try:
-            if SYSTEM_UPDATE_STATE_FILE.exists():
-                with SYSTEM_UPDATE_STATE_FILE.open("r", encoding="utf-8") as f:
-                    data = json.load(f)
-                    if isinstance(data, dict):
-                        return data
-        except Exception as e:
-            logger.debug(f"Failed to read {SYSTEM_UPDATE_STATE_FILE}: {e}")
-        return {}
-
-
-def _system_update_state_save(state: dict[str, Any]) -> None:
-    """Persist the system-update state file atomically.
-
-    A truncating ``open("w")`` here used to leave a half-written file behind on
-    a crash; the loader swallows the resulting JSON error and returns ``{}``,
-    which silently resets the auto-update toggle to its default (#1745).
-    """
-    with _SYSTEM_UPDATE_STATE_LOCK:
-        try:
-            write_json_atomic(SYSTEM_UPDATE_STATE_FILE, state)
-        except Exception as e:
-            logger.warning(f"Failed to write {SYSTEM_UPDATE_STATE_FILE}: {e}")
-
-
-def _system_update_state_update(**changes: Any) -> dict[str, Any]:
-    """Merge *changes* into the state file as one locked read-modify-write."""
-    with _SYSTEM_UPDATE_STATE_LOCK:
-        state = _system_update_state_load()
-        state.update(changes)
-        _system_update_state_save(state)
-        return state
-
-
-def _is_update_check_due(state: dict[str, Any], period_days: int) -> bool:
-    """Return True if ``last_check`` is older than ``period_days`` (or missing).
-
-    Used by the background scheduler to decide whether to call
-    ``_perform_update_check`` on a given tick.  Period of 0 always returns
-    False (manual mode).
-    """
-    if period_days <= 0:
-        return False
-    raw = state.get("last_check")
-    if not raw:
-        return True
-    try:
-        last = datetime.fromisoformat(raw)
-        if last.tzinfo is None:
-            last = last.replace(tzinfo=UTC)
-    except (ValueError, TypeError):
-        return True
-    elapsed = datetime.now(UTC) - last
-    return elapsed.total_seconds() >= period_days * 86400
-
-
-def _fiestaboard_profile() -> str:
-    """Return the install profile: "pi" if running on the FiestaPi flashable
-    image, else "docker".  Determined by a build-time env var baked in by the
-    pi-gen recipe.
-    """
-    return os.getenv("FIESTABOARD_PROFILE", "docker").strip().lower() or "docker"
-
-
-def _managed_externally() -> bool:
-    """True when FiestaBoard's lifecycle is owned by an external supervisor
-    that ships its own update mechanism — currently the Home Assistant add-on.
-
-    Under HA, add-on updates come from the Supervisor's add-on store;
-    FiestaBoard cannot update itself and the Supervisor already surfaces its
-    own "update available" notice.  Ours would be a duplicate pointing the
-    user at an action they can't take, so the UI hides every update
-    notification and the periodic Docker Hub poll is skipped when this is set.
-
-    Detection signals (any one flips it on):
-      * ``FIESTABOARD_MANAGED_EXTERNALLY`` — explicit opt-in the add-on shim
-        can set unambiguously (accepts true/1/yes; false/0/no forces off).
-      * ``SUPERVISOR_TOKEN`` — injected by HA Supervisor into every add-on
-        container.  Present whether the UI is reached through Ingress or the
-        add-on's directly-published port, so it also covers direct access.
-    """
-    explicit = os.getenv("FIESTABOARD_MANAGED_EXTERNALLY", "").strip().lower()
-    if explicit in ("true", "1", "yes"):
-        return True
-    if explicit in ("false", "0", "no"):
-        return False
-    return bool(os.getenv("SUPERVISOR_TOKEN", "").strip())
-
-
-# Valid values for ``auto_update_interval``, mapped to their period in days.
-# ``manual`` (0) disables the periodic check entirely; the user can still hit
-# the Refresh button on Settings → System to trigger an on-demand check.
-AUTO_UPDATE_INTERVALS: dict[str, int] = {
-    "daily": 1,
-    "weekly": 7,
-    "monthly": 30,
-    "manual": 0,
-}
-
-
-def _auto_update_default_interval() -> str:
-    """Default interval when the user hasn't set one.
-
-    Pi installs default to ``daily`` (matching the prior auto-update-on
-    behavior); Docker installs default to ``weekly`` so users get nudged
-    about updates without having to remember to check Settings.
-    """
-    return "daily" if _fiestaboard_profile() == "pi" else "weekly"
-
-
-def _resolve_auto_update_interval(state: dict[str, Any]) -> str:
-    """Read the configured interval from state, falling back to legacy bool.
-
-    Order of precedence:
-      1. ``auto_update_interval`` if set to a valid value
-      2. legacy ``auto_update_enabled`` bool: True → default interval, False → "manual"
-      3. profile-aware default
-    """
-    raw = state.get("auto_update_interval")
-    if isinstance(raw, str) and raw in AUTO_UPDATE_INTERVALS:
-        return raw
-    if "auto_update_enabled" in state:
-        return _auto_update_default_interval() if bool(state["auto_update_enabled"]) else "manual"
-    return _auto_update_default_interval()
+# ``SETTINGS_SNAPSHOT_DIR`` is the matching *test seam* for the pre-update
+# settings-snapshot directory (default: ``<data>/update-backups``), read back
+# through this module by ``_settings_snapshot_dir()`` in the service.
+SETTINGS_SNAPSHOT_DIR: Path | None = None
 
 
 async def _auto_apply_plugin_updates(registry: Any, plugin_ids: list) -> None:
@@ -2146,222 +1707,13 @@ async def _auto_apply_plugin_updates(registry: Any, plugin_ids: list) -> None:
         logger.warning("Auto-update failed for plugins: %s", ", ".join(failed))
 
 
-def _updater_url() -> str:
-    """Base URL of the fiestaupdater sidecar on the compose network."""
-    return os.getenv("FIESTAUPDATER_URL", "http://fiestaupdater:8765").rstrip("/")
-
-
-def _updater_token() -> str:
-    """Shared bearer token for the sidecar."""
-    return os.getenv("FIESTAUPDATER_TOKEN", "")
-
-
-def _updater_probe() -> bool:
-    """Return True when the sidecar's /healthz responds 200.  Short timeout
-    because this is called on every status query from the UI."""
-    try:
-        resp = requests.get(f"{_updater_url()}/healthz", timeout=2)
-        return resp.status_code == 200
-    except Exception:
-        return False
-
-
-def _updater_last_update() -> dict[str, Any]:
-    """Return the sidecar's view of the most recent /update attempt.
-
-    The sidecar persists this in ``/var/lib/fiestaupdater/last-update.json``
-    and exposes it (no auth, read-only) via ``GET /last-update``.  Returns
-    an empty dict on any error so callers can ``data.get(...)`` without
-    extra branching.
-    """
-    try:
-        resp = requests.get(f"{_updater_url()}/last-update", timeout=3)
-        if resp.status_code == 200:
-            body = resp.json()
-            if isinstance(body, dict):
-                return body
-    except Exception as e:
-        logger.debug("fiestaupdater /last-update fetch failed: %s", e)
-    return {}
-
-
-# ── Settings snapshots (used by the rollback flow) ──────────────────────────
-
-# Where pre-update settings snapshots live.  Each snapshot is a single JSON
-# document (the same format the BackupService uses for hand-rolled backups)
-# named ``pre-update-<timestamp>.json``.  Kept under data/ so they survive
-# container recreates via the ``./data:/app/data`` bind mount.
-SETTINGS_SNAPSHOT_DIR = Path("data/update-backups")
-
-# How many pre-update snapshots to retain.  Older ones are pruned after each
-# successful snapshot.  Five mirrors the user's ".json.bak" rotation request.
-SETTINGS_SNAPSHOT_RETENTION = 5
-
-#: Strict allow-list for snapshot filenames coming in from the API.  We only
-#: accept the exact ``pre-update-YYYYMMDDTHHMMSS[.fff]Z.json`` shape we
-#: produce (sub-second component optional for back-compat), so the restore
-#: endpoint cannot be coaxed into reading arbitrary files.
-_SETTINGS_SNAPSHOT_NAME_RE = re.compile(r"^pre-update-\d{8}T\d{6}(?:\.\d{3})?Z\.json$")
-
-
-def _take_settings_snapshot(
-    previous_digest: str | None = None,
-    previous_image: str | None = None,
-) -> dict[str, Any] | None:
-    """Snapshot ``data/*.json`` to ``data/update-backups/pre-update-<ts>.json``.
-
-    Uses :class:`~src.backup.service.BackupService` so the snapshot is the
-    same self-contained document the user could hand-restore later.  Returns
-    a small metadata dict (``{"name", "path", "created_at", "bytes",
-    "previous_digest", "previous_image"}``) or ``None`` if a backup could
-    not be produced — the update is allowed to proceed even when
-    snapshotting fails, since the user can still roll the image back via
-    the sidecar's /rollback alone.
-
-    Args:
-        previous_digest: image digest of the running container at the
-            moment the snapshot is taken.  Stored inside the snapshot
-            JSON so a future /system/update/rollback knows which image
-            to revert to alongside the settings.
-        previous_image: image reference (``repo:tag``) of the running
-            container at the moment the snapshot is taken.
-    """
-    try:
-        from .backup.service import get_backup_service
-
-        service = get_backup_service()
-        document = service.export_to_json()
-    except Exception:
-        logger.exception("Failed to build pre-update settings snapshot")
-        return None
-
-    # Embed the pre-update image identity so a later rollback can pair the
-    # restored settings with the matching image without us having to keep
-    # a separate index file in sync.  We splice it into the existing JSON
-    # document under a ``_fiestaupdater`` key so we don't collide with any
-    # existing field that BackupService might add.
-    if previous_digest or previous_image:
-        try:
-            doc = json.loads(document)
-            if isinstance(doc, dict):
-                # Store ``None`` (not "") for missing values so the
-                # round-trip through ``_read_snapshot_metadata`` is
-                # symmetric — that helper normalises empty strings to
-                # ``None`` when reading, so we may as well write ``None``
-                # in the first place.
-                doc["_fiestaupdater"] = {
-                    "previous_digest": previous_digest or None,
-                    "previous_image": previous_image or None,
-                }
-                document = json.dumps(doc, indent=2)
-        except (ValueError, TypeError):
-            logger.warning(
-                "Could not annotate snapshot with previous image metadata; "
-                "rollback will fall back to the sidecar's last-update record."
-            )
-
-    try:
-        SETTINGS_SNAPSHOT_DIR.mkdir(parents=True, exist_ok=True)
-        # Millisecond precision so multiple snapshots within the same
-        # second (e.g. tests, or a user retrying immediately) don't
-        # collide on filename and silently overwrite each other.
-        now = datetime.now(UTC)
-        ts = now.strftime("%Y%m%dT%H%M%S") + f".{now.microsecond // 1000:03d}Z"
-        target = SETTINGS_SNAPSHOT_DIR / f"pre-update-{ts}.json"
-        # Belt-and-braces against same-millisecond collisions: bump the
-        # millisecond field forward until we find a free name.  1000 is
-        # the natural upper bound (one full second of ms slots); we treat
-        # exhaustion as a fatal-but-non-fatal "snapshot unavailable".
-        _MAX_MS_SLOTS = 1000
-        for bump in range(1, _MAX_MS_SLOTS + 1):
-            if not target.exists():
-                break
-            ms = (now.microsecond // 1000 + bump) % _MAX_MS_SLOTS
-            ts = now.strftime("%Y%m%dT%H%M%S") + f".{ms:03d}Z"
-            target = SETTINGS_SNAPSHOT_DIR / f"pre-update-{ts}.json"
-        else:  # pragma: no cover - effectively unreachable
-            logger.warning("Could not find a free snapshot filename")
-            return None
-        # Use a temp file + atomic rename so a crash mid-write can't leave a
-        # truncated snapshot in place.
-        tmp = target.with_suffix(target.suffix + ".tmp")
-        tmp.write_text(document, encoding="utf-8")
-        tmp.replace(target)
-    except OSError:
-        logger.exception("Failed to write pre-update settings snapshot")
-        return None
-
-    _prune_settings_snapshots()
-    try:
-        size = target.stat().st_size
-    except OSError:
-        size = 0
-    return {
-        "name": target.name,
-        "path": str(target),
-        # Use the same wall-clock value that's encoded in the filename so
-        # the metadata returned to callers matches the on-disk artifact.
-        "created_at": now.isoformat(),
-        "bytes": size,
-        "previous_digest": previous_digest or None,
-        "previous_image": previous_image or None,
-    }
-
-
-def _read_snapshot_metadata(path: Path) -> dict[str, str | None]:
-    """Return ``{previous_digest, previous_image}`` recorded inside a snapshot.
-
-    Snapshots produced before this metadata was added (or that failed to
-    annotate cleanly) return ``{"previous_digest": None, "previous_image": None}``.
-    """
-    try:
-        raw = path.read_text(encoding="utf-8")
-        doc = json.loads(raw)
-    except (OSError, ValueError, TypeError):
-        return {"previous_digest": None, "previous_image": None}
-    meta = doc.get("_fiestaupdater") if isinstance(doc, dict) else None
-    if not isinstance(meta, dict):
-        return {"previous_digest": None, "previous_image": None}
-    return {
-        "previous_digest": meta.get("previous_digest") or None,
-        "previous_image": meta.get("previous_image") or None,
-    }
-
-
-def _list_settings_snapshots() -> list[dict[str, Any]]:
-    """Return metadata for every snapshot currently on disk, newest first.
-
-    Each entry includes the recorded ``previous_digest`` / ``previous_image``
-    so the UI can label snapshots with the version they will roll back to.
-    """
-    if not SETTINGS_SNAPSHOT_DIR.exists():
-        return []
-    out: list[dict[str, Any]] = []
-    try:
-        entries = sorted(SETTINGS_SNAPSHOT_DIR.iterdir(), reverse=True)
-    except OSError:
-        return []
-    for entry in entries:
-        if not entry.is_file():
-            continue
-        if not _SETTINGS_SNAPSHOT_NAME_RE.fullmatch(entry.name):
-            continue
-        try:
-            stat = entry.stat()
-        except OSError:
-            continue
-        meta = _read_snapshot_metadata(entry)
-        out.append(
-            {
-                "name": entry.name,
-                "bytes": stat.st_size,
-                "created_at": datetime.fromtimestamp(stat.st_mtime, tz=UTC).isoformat(),
-                "previous_digest": meta["previous_digest"],
-                "previous_image": meta["previous_image"],
-            }
-        )
-    return out
-
+# ── Post-upgrade regression detection / auto-restore (boot-time) ───────────
+# These stay in api_server: they run from the lifespan (before services read
+# config) and the suite drives them as ``api_server.<name>`` while
+# monkeypatching ``api_server._resolve_snapshot_name`` /
+# ``api_server.get_config_manager`` — module-local references keep those
+# patches live. They call the snapshot helpers through this module's
+# re-imported bindings.
 
 # Config fields we know are user-set and safe to auto-restore from a snapshot.
 _RESTORABLE_GENERAL_FIELDS = ("timezone", "instance_name")
@@ -2536,475 +1888,9 @@ def _detect_post_upgrade_regression() -> dict[str, Any] | None:
     }
 
 
-def _prune_settings_snapshots() -> None:
-    """Delete all but the ``SETTINGS_SNAPSHOT_RETENTION`` newest snapshots."""
-    snapshots = _list_settings_snapshots()
-    if len(snapshots) <= SETTINGS_SNAPSHOT_RETENTION:
-        return
-    for stale in snapshots[SETTINGS_SNAPSHOT_RETENTION:]:
-        path = SETTINGS_SNAPSHOT_DIR / stale["name"]
-        try:
-            path.unlink()
-        except OSError:
-            logger.warning("Could not prune old settings snapshot %s", path)
+from .system.routes import router as system_router  # noqa: E402
 
-
-def _resolve_snapshot_name(name: str | None) -> Path | None:
-    """Return the absolute path of the named snapshot, or the newest one
-    if *name* is None.  Returns ``None`` when no valid snapshot exists.
-
-    The resolved path is constrained to ``SETTINGS_SNAPSHOT_DIR`` and the
-    filename must match :data:`_SETTINGS_SNAPSHOT_NAME_RE`, so a caller
-    cannot pass ``../../etc/passwd`` or any other path outside the
-    snapshot directory.
-    """
-    if name is None:
-        snaps = _list_settings_snapshots()
-        if not snaps:
-            return None
-        name = snaps[0]["name"]
-    if not _SETTINGS_SNAPSHOT_NAME_RE.fullmatch(name):
-        return None
-    candidate = (SETTINGS_SNAPSHOT_DIR / name).resolve()
-    base = SETTINGS_SNAPSHOT_DIR.resolve()
-    try:
-        candidate.relative_to(base)
-    except ValueError:
-        return None
-    if not candidate.is_file():
-        return None
-    return candidate
-
-
-@app.get("/system/update/status", response_model=UpdateStatusResponse)
-async def system_update_status():
-    """Report whether the FiestaUpdater sidecar is reachable and whether the
-    user has opted in to scheduled auto-updates.
-
-    The UI uses this to decide between showing the in-app "Update Now" button
-    or fallback "manual update" instructions.
-
-    Also reports the outcome of the most recent /system/update or
-    /system/update/rollback attempt, plus the list of available settings
-    snapshots, so the UI can offer "revert to the version that was
-    running on <date>" without polling the sidecar separately.
-    """
-    state = _system_update_state_load()
-    has_token = bool(_updater_token())
-    available = await asyncio.to_thread(_updater_probe) if has_token else False
-    # Only consult the sidecar's last-update record when it is reachable.
-    last = await asyncio.to_thread(_updater_last_update) if available else {}
-    interval = _resolve_auto_update_interval(state)
-    snapshots = await asyncio.to_thread(_list_settings_snapshots)
-    regression = await asyncio.to_thread(_detect_post_upgrade_regression)
-    return UpdateStatusResponse(
-        updater_available=available,
-        auto_update_enabled=interval != "manual",
-        auto_update_interval=interval,
-        managed_externally=_managed_externally(),
-        profile=_fiestaboard_profile(),
-        sidecar_url=_updater_url(),
-        last_check=state.get("last_check"),
-        last_update=state.get("last_update"),
-        last_update_status=last.get("status"),
-        last_update_action=last.get("action"),
-        last_update_error=last.get("error"),
-        last_update_previous_digest=last.get("previous_digest"),
-        last_update_completed_at=last.get("completed_at"),
-        settings_snapshots=snapshots,
-        post_upgrade_regression=regression,
-    )
-
-
-def _updater_version() -> dict[str, Any]:
-    """Return the sidecar's view of the running container's image+digest.
-
-    Used by /system/update to label the pre-update snapshot with the exact
-    image we're rolling back *from*, so a later /system/update/rollback
-    can pair the restored settings with the matching image.  Returns an
-    empty dict on any failure — the snapshot is still useful without it,
-    just less informative for the UI.
-    """
-    try:
-        resp = requests.get(f"{_updater_url()}/version", timeout=3)
-        if resp.status_code == 200:
-            body = resp.json()
-            if isinstance(body, dict):
-                return body
-    except Exception as e:
-        logger.debug("fiestaupdater /version fetch failed: %s", e)
-    return {}
-
-
-@app.post("/system/update", response_model=UpdateApplyResponse)
-async def system_update_apply():
-    """Trigger an in-place update via the fiestaupdater sidecar.
-
-    The request returns 202 from the sidecar almost immediately; the actual
-    container recreation happens shortly after, which will kill this process.
-    Clients should expect their HTTP connection to drop and should poll
-    `/health` to detect when the new version is up.
-
-    If the sidecar is not running (user hasn't opted in), returns 503 with a
-    `manual` mode response so the UI can fall back to instructions.
-    """
-    if not _updater_token():
-        raise HTTPException(
-            status_code=503,
-            detail={
-                "status": "manual",
-                "mode": "manual",
-                "hint": "FIESTAUPDATER_TOKEN is not set. Add COMPOSE_PROFILES=fiestaupdater to your .env and run 'docker compose up -d' to enable in-app updates.",
-            },
-        )
-
-    # Snapshot the current settings *before* we trigger the update so the
-    # user can later choose to roll configuration back to this exact
-    # moment via /system/update/rollback.  We tag the snapshot with the
-    # currently-running image's digest + reference (looked up via the
-    # sidecar's /version endpoint) so rollback knows which image to pair
-    # with the restored settings.  A snapshot failure is non-fatal: the
-    # user can still manually roll the image back via the sidecar.
-    version = await asyncio.to_thread(_updater_version)
-    snapshot = await asyncio.to_thread(
-        _take_settings_snapshot,
-        version.get("digest"),
-        version.get("image"),
-    )
-
-    url = f"{_updater_url()}/update"
-    headers = {"Authorization": f"Bearer {_updater_token()}"}
-
-    def _post():
-        return requests.post(url, headers=headers, timeout=(5, 30))
-
-    try:
-        resp = await asyncio.to_thread(_post)
-    except requests.exceptions.ConnectionError:
-        raise HTTPException(
-            status_code=503,
-            detail={
-                "status": "manual",
-                "mode": "manual",
-                "hint": "Could not reach the fiestaupdater sidecar. Run 'docker compose pull && docker compose up -d' from your install directory to update manually.",
-            },
-        ) from None
-    except Exception as e:
-        logger.warning(f"fiestaupdater update call failed: {e}")
-        raise HTTPException(status_code=502, detail={"status": "error", "error": str(e)}) from e
-
-    if resp.status_code == 401:
-        raise HTTPException(
-            status_code=500,
-            detail={
-                "status": "error",
-                "error": "fiestaupdater rejected our token; check FIESTAUPDATER_TOKEN matches in both services",
-            },
-        )
-    if resp.status_code >= 400:
-        raise HTTPException(
-            status_code=502,
-            detail={"status": "error", "error": f"fiestaupdater returned {resp.status_code}: {resp.text[:200]}"},
-        )
-
-    # Record bookkeeping so the UI can show "last update".
-    body = {}
-    try:
-        body = resp.json()
-    except ValueError as e:
-        # fiestaupdater may return a non-JSON body (e.g. plain-text on error); fall back to empty dict.
-        logger.debug("fiestaupdater response is not JSON, using empty body (non-fatal): %s", e)
-    _system_update_state_update(last_update=datetime.now(UTC).isoformat())
-
-    return UpdateApplyResponse(
-        status="queued",
-        mode="sidecar",
-        previous_digest=body.get("previous_digest"),
-        settings_snapshot=snapshot,
-    )
-
-
-# ── Strict shape constraints for /rollback's image+digest fields ────────────
-# These mirror the patterns enforced inside the sidecar's handler.sh and
-# act as a defense-in-depth check on the API side: if a digest looks
-# valid but the image reference doesn't (or vice versa), we refuse to
-# call the sidecar at all.
-_DIGEST_RE = re.compile(r"^sha256:[a-f0-9]{64}$")
-_IMAGE_REF_RE = re.compile(r"^[a-z0-9][a-z0-9._/-]{0,199}(:[a-zA-Z0-9._-]{1,128})?$")
-
-
-@app.post("/system/update/rollback", response_model=RollbackResponse)
-async def system_update_rollback(req: RollbackRequest):
-    """Roll the running instance back to a previous version.
-
-    The user selects a snapshot — the most recent by default — and we:
-
-    1. Look up the snapshot's recorded ``previous_digest`` /
-       ``previous_image`` (captured the moment the snapshot was taken).
-    2. (When ``restore_settings=True``, the default) restore configuration
-       from the snapshot via :class:`~src.backup.service.BackupService`.
-    3. (When ``restore_image=True``, the default) ask the sidecar's
-       ``POST /rollback`` to retag that digest back onto the original
-       image reference and force-recreate the container.
-
-    Settings are restored *before* the image flip so that when the
-    container comes back up on the previous image, it reads the matching
-    configuration.
-
-    Raises:
-        404 when no matching snapshot exists.
-        400 when the snapshot is unreadable, both ``restore_*`` flags
-            are False, or the snapshot has no recorded image to roll
-            back to (and the user asked us to roll the image back).
-        503 when the sidecar is needed but unreachable.
-    """
-    if not req.restore_settings and not req.restore_image:
-        raise HTTPException(
-            status_code=400,
-            detail={
-                "status": "error",
-                "error": "At least one of restore_settings, restore_image must be true.",
-            },
-        )
-
-    path = await asyncio.to_thread(_resolve_snapshot_name, req.snapshot)
-    if path is None:
-        raise HTTPException(
-            status_code=404,
-            detail={
-                "status": "not_found",
-                "error": "No matching settings snapshot was found.",
-            },
-        )
-
-    snapshot_meta = await asyncio.to_thread(_read_snapshot_metadata, path)
-
-    warnings: list[str] = []
-    settings_result: dict[str, Any] | None = None
-    image_result: dict[str, Any] | None = None
-
-    # ── Settings rollback ───────────────────────────────────────────────
-    if req.restore_settings:
-        try:
-            raw = await asyncio.to_thread(path.read_text, "utf-8")
-        except OSError as e:
-            logger.warning("Could not read snapshot %s: %s", path, e)
-            raise HTTPException(
-                status_code=400,
-                detail={"status": "error", "error": f"Could not read snapshot: {e}"},
-            ) from e
-        try:
-            from .backup.service import BackupError, get_backup_service
-        except Exception as e:  # pragma: no cover - import error is exceptional
-            logger.exception("BackupService unavailable")
-            raise HTTPException(status_code=500, detail={"status": "error", "error": str(e)}) from e
-
-        service = get_backup_service()
-        try:
-            # Don't reinstall plugins from a settings-only snapshot: the user is
-            # rolling back configuration, not reshaping their plugin set.
-            result = await asyncio.to_thread(service.import_from_json, raw, reinstall_plugins=False)
-        except BackupError as e:
-            raise HTTPException(
-                status_code=400,
-                detail={"status": "error", "error": str(e)},
-            ) from e
-        settings_result = {
-            "restored_from": path.name,
-            "restored_files": result.get("restored_files", []),
-            "skipped_files": result.get("skipped_files", []),
-            "pre_restore_backup_suffix": result.get("pre_restore_backup_suffix", ""),
-            "reload_errors": result.get("reload_errors", []),
-        }
-
-    # ── Image rollback ──────────────────────────────────────────────────
-    if req.restore_image:
-        digest = snapshot_meta.get("previous_digest")
-        image_ref = snapshot_meta.get("previous_image")
-        if not digest or not image_ref:
-            # Old snapshot taken before we started annotating.  We can't
-            # safely guess the digest, so report partial success rather
-            # than guessing.
-            warnings.append("Snapshot does not record a previous image digest; image was not rolled back.")
-        elif not _DIGEST_RE.fullmatch(digest) or not _IMAGE_REF_RE.fullmatch(image_ref):
-            warnings.append("Snapshot's recorded image identity is malformed; image was not rolled back.")
-        elif not _updater_token():
-            warnings.append(
-                "FIESTAUPDATER_TOKEN is not set; image rollback is unavailable. "
-                "Settings have been restored but the image is unchanged."
-            )
-        else:
-            url = f"{_updater_url()}/rollback"
-            headers = {
-                "Authorization": f"Bearer {_updater_token()}",
-                "Content-Type": "application/json",
-            }
-            payload = {"digest": digest, "image": image_ref}
-
-            def _post():
-                return requests.post(url, headers=headers, json=payload, timeout=(5, 30))
-
-            try:
-                resp = await asyncio.to_thread(_post)
-            except requests.exceptions.ConnectionError:
-                raise HTTPException(
-                    status_code=503,
-                    detail={
-                        "status": "manual",
-                        "error": "Could not reach the fiestaupdater sidecar; image rollback unavailable.",
-                    },
-                ) from None
-            except Exception as e:
-                logger.warning("fiestaupdater rollback call failed: %s", e)
-                raise HTTPException(status_code=502, detail={"status": "error", "error": str(e)}) from e
-
-            if resp.status_code == 401:
-                raise HTTPException(
-                    status_code=500,
-                    detail={"status": "error", "error": "fiestaupdater rejected our token"},
-                )
-            if resp.status_code >= 400:
-                raise HTTPException(
-                    status_code=502,
-                    detail={
-                        "status": "error",
-                        "error": f"fiestaupdater returned {resp.status_code}: {resp.text[:200]}",
-                    },
-                )
-
-            image_result = {
-                "target_digest": digest,
-                "target_image": image_ref,
-                "queued": True,
-            }
-
-    overall = "success" if not warnings else "partial"
-    return RollbackResponse(
-        status=overall,
-        snapshot=path.name,
-        image_rollback=image_result,
-        settings_rollback=settings_result,
-        warnings=warnings,
-    )
-
-
-@app.post("/system/update/auto", response_model=AutoUpdateResponse)
-async def system_update_set_auto(req: AutoUpdateRequest):
-    """Set the auto-update preference.
-
-    Accepts either ``interval`` (preferred) — one of ``daily``, ``weekly``,
-    ``monthly``, ``manual`` — or the legacy ``enabled`` boolean.  Legacy
-    booleans map to: True → install default interval (``daily`` on Pi,
-    ``weekly`` on Docker) and False → ``manual``.
-
-    The background scheduler (started in the API lifespan) reads this value
-    on each tick, so changes take effect within the next polling window
-    without requiring a restart.
-    """
-    if req.interval is not None:
-        if req.interval not in AUTO_UPDATE_INTERVALS:
-            raise HTTPException(
-                status_code=422,
-                detail=(f"Invalid interval {req.interval!r}; must be one of: {sorted(AUTO_UPDATE_INTERVALS.keys())}"),
-            )
-        interval = req.interval
-    elif req.enabled is not None:
-        interval = _auto_update_default_interval() if req.enabled else "manual"
-    else:
-        raise HTTPException(
-            status_code=422,
-            detail="Request must include either 'interval' or 'enabled'.",
-        )
-
-    _system_update_state_update(
-        auto_update_interval=interval,
-        # Keep the legacy bool in sync so older clients reading the file see a
-        # consistent picture.
-        auto_update_enabled=interval != "manual",
-    )
-    return AutoUpdateResponse(enabled=interval != "manual", interval=interval)
-
-
-def _updater_post(path: str) -> requests.Response:
-    """POST to the fiestaupdater sidecar and return the response.
-    Raises on network-level failures; callers handle HTTP errors.
-    """
-    url = f"{_updater_url()}/{path.lstrip('/')}"
-    headers = {"Authorization": f"Bearer {_updater_token()}"}
-    return requests.post(url, headers=headers, timeout=(5, 30))
-
-
-def _require_updater_token():
-    """Raise 503 if FIESTAUPDATER_TOKEN is not configured."""
-    if not _updater_token():
-        raise HTTPException(
-            status_code=503,
-            detail={
-                "status": "unavailable",
-                "hint": "FIESTAUPDATER_TOKEN is not set. Add COMPOSE_PROFILES=fiestaupdater to your .env and run 'docker compose up -d' to enable sidecar features.",
-            },
-        )
-
-
-def _handle_updater_response(resp: requests.Response, action: str) -> SystemActionResponse:
-    """Translate a sidecar HTTP response into a SystemActionResponse or raise."""
-    if resp.status_code == 401:
-        raise HTTPException(
-            status_code=500,
-            detail={
-                "status": "error",
-                "error": "fiestaupdater rejected our token; check FIESTAUPDATER_TOKEN matches in both services",
-            },
-        )
-    if resp.status_code >= 400:
-        raise HTTPException(
-            status_code=502,
-            detail={"status": "error", "error": f"fiestaupdater returned {resp.status_code}: {resp.text[:200]}"},
-        )
-    return SystemActionResponse(status="queued", action=action)
-
-
-@app.post("/system/restart", response_model=SystemActionResponse)
-async def system_restart():
-    """Restart the FiestaBoard container via the fiestaupdater sidecar.
-
-    The connection will drop while the container restarts (~5 s).
-    Clients should poll /health until it comes back.
-    """
-    _require_updater_token()
-    try:
-        resp = await asyncio.to_thread(_updater_post, "/restart")
-    except requests.exceptions.ConnectionError:
-        raise HTTPException(
-            status_code=503,
-            detail={"status": "unavailable", "hint": "Could not reach the fiestaupdater sidecar."},
-        ) from None
-    except Exception as e:
-        logger.warning("fiestaupdater restart call failed: %s", e)
-        raise HTTPException(status_code=502, detail={"status": "error", "error": str(e)}) from e
-    return _handle_updater_response(resp, "restart")
-
-
-@app.post("/system/shutdown", response_model=SystemActionResponse)
-async def system_shutdown():
-    """Shut down the host machine via the fiestaupdater sidecar.
-
-    The sidecar stops all compose services, then powers off the host.
-    Requires the fiestaupdater container to have the SYS_BOOT capability
-    (cap_add: [SYS_BOOT] in docker-compose.yml).
-    """
-    _require_updater_token()
-    try:
-        resp = await asyncio.to_thread(_updater_post, "/shutdown")
-    except requests.exceptions.ConnectionError:
-        raise HTTPException(
-            status_code=503,
-            detail={"status": "unavailable", "hint": "Could not reach the fiestaupdater sidecar."},
-        ) from None
-    except Exception as e:
-        logger.warning("fiestaupdater shutdown call failed: %s", e)
-        raise HTTPException(status_code=502, detail={"status": "error", "error": str(e)}) from e
-    return _handle_updater_response(resp, "shutdown")
+app.include_router(system_router)
 
 
 # ── WiFi management (FiestaPi only) ──────────────────────────────────────────
@@ -3597,16 +2483,17 @@ async def send_message(request: MessageRequest):
             notes_wide = primary_board.get("notes_wide", 1)
             notes_tall = primary_board.get("notes_tall", 1)
         dims = resolve_dimensions(device_type, notes_wide, notes_tall)
-        # Word-wrap to the board width (in tiles) and honor real newlines
-        # (issue #1793), then convert to a board array for proper
-        # character/color support. Backslashes are left alone: a JSON body
-        # can carry a real newline, so rewriting "\n" here would only corrupt
-        # legitimate text like C:\new.
-        wrapped = wrap_message_text(request.text, rows=dims.rows, cols=dims.cols)
-        board_array = text_to_board_array(wrapped, rows=dims.rows, cols=dims.cols)
+        # Word-wrap/convert/render is the shared message core (#1765): the
+        # MCP send_message executor calls the same function, so the two
+        # surfaces cannot render a message differently. See
+        # src/displays/messages.py for the #1793 newline/backslash notes.
+        from .displays.messages import render_message
 
-        success, was_sent = service.vb_client.render(
-            board_array,
+        success, was_sent = render_message(
+            service.vb_client,
+            request.text,
+            rows=dims.rows,
+            cols=dims.cols,
             strategy=transition.strategy,
             step_interval_ms=transition.step_interval_ms,
             step_size=transition.step_size,
@@ -3721,11 +2608,9 @@ async def send_welcome_message():
     Used by the setup wizard to confirm the board is working.
     Sends "HIYA FROM FIESTABOARD" with colorful borders.
 
-    Note: This creates a fresh BoardClient with current config values
-    to ensure any recent config changes (e.g., from the setup wizard) are used.
+    Note: This creates a fresh board client from the settings boards store
+    so any recent credential changes (setup wizard or Settings) are used.
     """
-    from .board_client import BoardClient
-
     # Check silence mode for the board this actually writes to (the primary
     # board — the wizard has no board picker).
     if _silence_active():
@@ -3737,19 +2622,18 @@ async def send_welcome_message():
         logger.info("Board is paused - blocking welcome message")
         return _paused_response()
 
-    # Create a fresh board client with current config values
-    # This ensures any config changes from the setup wizard are used
+    # Create a fresh board client from the primary settings board so recent
+    # credential edits are always used. Board credentials are unified on
+    # settings.json (issue #1760): the legacy config.json copy is never read.
+    board = _primary_board_entry()
     try:
-        use_cloud = Config.BOARD_API_MODE.lower() == "cloud"
-        board_client = BoardClient(
-            api_key=Config.get_board_api_key(),
-            host=Config.BOARD_HOST if not use_cloud else None,
-            use_cloud=use_cloud,
-            skip_unchanged=False,  # Always send the welcome message
-        )
+        board_client = board_client_from_board_dict(board) if board is not None else None
     except ValueError as e:
         logger.error(f"Failed to create board client: {e}")
         raise HTTPException(status_code=503, detail=f"Board not configured: {str(e)}") from e
+    if board_client is None:
+        raise HTTPException(status_code=503, detail="Board not configured: no board with a usable connection")
+    board_client.skip_unchanged = False  # Always send the welcome message
 
     try:
         # Use custom welcome message if set, otherwise use the default
@@ -3830,20 +2714,64 @@ async def get_full_config():
     return config_manager.get_all_masked()
 
 
-@app.get("/config/board")
-async def get_board_config():
-    """Get board connection configuration (keys masked)."""
-    config_manager = get_config_manager()
-    board_config = config_manager.get_board()
-    masked = config_manager._mask_sensitive(board_config)
+# Deprecated /config/board shim (issue #1760): board credentials are unified
+# on the settings boards store. These endpoints keep their legacy wire shapes
+# during deprecation but read from and write through the settings service —
+# the config.json board block is left on disk untouched as a rollback copy
+# for older versions and is never read at runtime.
+_CONFIG_BOARD_SUCCESSOR_LINK = '</settings/board>; rel="successor-version"'
+_LEGACY_BOARD_CONNECTION_FIELDS = ("api_mode", "local_api_key", "cloud_key", "note_array_token", "host")
+_LEGACY_BOARD_SENSITIVE_FIELDS = ("local_api_key", "cloud_key", "note_array_token")
 
-    return {"config": masked, "api_modes": ["local", "cloud"]}
 
+def _legacy_board_config_view() -> dict:
+    """Project the primary settings board into the legacy config.json board
+    shape (the recorded ``GET/PUT /config/board`` wire contract).
 
-@app.put("/config/board")
-async def update_board_config(request: dict):
+    Transition fields come from the settings transitions section — the copy
+    the runtime actually uses.
     """
-    Update board configuration.
+    board = _primary_board_entry() or {}
+    transitions = get_settings_service().get_transition_settings()
+    return {
+        "api_mode": board.get("api_mode") or "local",
+        "local_api_key": board.get("local_api_key") or "",
+        "cloud_key": board.get("cloud_key") or "",
+        "note_array_token": board.get("note_array_token") or "",
+        "host": board.get("host") or "",
+        "transition_strategy": transitions.strategy,
+        "transition_interval_ms": transitions.step_interval_ms,
+        "transition_step_size": transitions.step_size,
+    }
+
+
+def _mask_legacy_board_view(view: dict) -> dict:
+    """Mask non-empty sensitive fields with '***' (legacy masking contract)."""
+    return {key: ("***" if key in _LEGACY_BOARD_SENSITIVE_FIELDS and value else value) for key, value in view.items()}
+
+
+# Deprecated: use GET /settings/board instead
+@app.get("/config/board")
+async def get_board_config(response: Response):
+    """Deprecated: use GET /settings/board instead (issue #1760).
+
+    Get board connection configuration (keys masked). Served from the
+    settings boards store — the single source of truth for board credentials.
+    """
+    response.headers["Deprecation"] = "true"
+    response.headers["Link"] = _CONFIG_BOARD_SUCCESSOR_LINK
+
+    return {"config": _mask_legacy_board_view(_legacy_board_config_view()), "api_modes": ["local", "cloud"]}
+
+
+# Deprecated: use PUT /settings/board instead
+@app.put("/config/board")
+async def update_board_config(request: dict, response: Response):
+    """Deprecated: use PUT /settings/board instead (issue #1760).
+
+    Update board connection configuration. Writes go to the primary board in
+    the settings boards store ONLY — the legacy config.json board block is no
+    longer written (it stays on disk as a rollback copy for older versions).
 
     Example body:
     {
@@ -3852,24 +2780,27 @@ async def update_board_config(request: dict):
         "host": "192.168.1.100"
     }
     """
-    config_manager = get_config_manager()
+    response.headers["Deprecation"] = "true"
+    response.headers["Link"] = _CONFIG_BOARD_SUCCESSOR_LINK
 
-    # Update board config
-    config_manager.set_board(request)
+    settings_service = get_settings_service()
+    boards = [dict(b) for b in (settings_service.get_board_settings().boards or []) if isinstance(b, dict)]
+    if not boards:
+        from .devices import BoardInstance
 
-    # Reload config in the Config class
-    Config.reload()
+        boards = [BoardInstance(name="My Board", device_type="flagship", board_color="black").to_dict()]
 
-    # Reinitialize the board client with new config
-    service = get_service()
-    if service:
-        service.reinitialize_board_client()
+    updates = {key: request[key] for key in _LEGACY_BOARD_CONNECTION_FIELDS if key in request}
+    boards[0].update(updates)
+    try:
+        settings_service.set_boards(boards)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e)) from e
 
-    # Get updated config (masked)
-    updated = config_manager.get_board()
-    masked = config_manager._mask_sensitive(updated)
+    # Reinitialize the board clients with the new connection
+    _reinitialize_board_clients()
 
-    return {"status": "success", "config": masked}
+    return {"status": "success", "config": _mask_legacy_board_view(_legacy_board_config_view())}
 
 
 @app.delete("/config/board")
@@ -3965,6 +2896,7 @@ async def validate_config():
     # first-run. Board-related validation errors/missing_fields from the
     # legacy config are dropped in that case.
     has_configured_board_instance = False
+    has_connection_attempt = False
     try:
         from .devices import BoardInstance
 
@@ -3974,11 +2906,23 @@ async def validate_config():
                 instance = BoardInstance.from_dict(b)
             except Exception:  # pragma: no cover - defensive
                 continue
+            if instance.has_connection_attempt:
+                has_connection_attempt = True
             if instance.is_connection_configured:
                 has_configured_board_instance = True
                 break
     except Exception:  # pragma: no cover - defensive
         logger.exception("Failed to inspect multi-board settings during validate_config")
+
+    # A board with SOME connection detail but not a working set is
+    # *misconfigured*, not first-run: it must surface as a per-board error
+    # (#1813), never bounce an existing install back into the setup wizard.
+    # Before #1760 the legacy config.json copy masked this case; with
+    # settings as the single credential source the distinction is load-
+    # bearing (a token-less note array replacing the only board used to
+    # keep the wizard away purely via the stale legacy copy).
+    if has_connection_attempt and not has_configured_board_instance:
+        is_first_run = False
 
     if has_configured_board_instance:
         is_first_run = False
@@ -5188,10 +4132,9 @@ async def list_all_muni_stops():
     try:
         # Fetch stops from 511.org
         # Note: 511.org requires an API key for most endpoints
-        # We'll use the configured MUNI API key
-        from src.config import Config
-
-        api_key = Config.MUNI_API_KEY
+        # We'll use the API key configured on the muni plugin
+        muni_config = get_config_manager().get_plugin_config("muni") or {}
+        api_key = muni_config.get("api_key", "")
 
         if not api_key:
             raise HTTPException(status_code=400, detail="MUNI API key not configured")
@@ -5481,11 +4424,11 @@ async def search_stock_symbols(
         [{"symbol": "GOOG", "name": "Alphabet Inc."}, ...]
     """
     try:
-        from src.config import Config
         from src.utils.stocks import StocksSource
 
-        # Get Finnhub API key if configured
-        finnhub_api_key = Config.FINNHUB_API_KEY if Config.FINNHUB_API_KEY else None
+        # Get Finnhub API key if configured on the stocks plugin
+        stocks_config = get_config_manager().get_plugin_config("stocks") or {}
+        finnhub_api_key = stocks_config.get("finnhub_api_key") or None
 
         results = StocksSource.search_symbols(query=query, limit=limit, finnhub_api_key=finnhub_api_key)
 
@@ -5592,7 +4535,6 @@ async def validate_traffic_route(request: dict):
     Returns:
         Validation result with distance and duration estimates
     """
-    from src.config import Config
     from src.utils.traffic import TrafficSource
 
     origin = request.get("origin")
@@ -5602,8 +4544,9 @@ async def validate_traffic_route(request: dict):
     if not origin or not destination:
         raise HTTPException(status_code=400, detail="origin and destination required")
 
-    # Get API key from config
-    api_key = getattr(Config, "GOOGLE_ROUTES_API_KEY", None)
+    # Get API key from the traffic plugin config
+    traffic_config = get_config_manager().get_plugin_config("traffic") or {}
+    api_key = traffic_config.get("api_key") or None
     if not api_key:
         raise HTTPException(status_code=400, detail="Google Routes API key not configured")
 
@@ -7372,9 +6315,9 @@ def _primary_connection_info() -> tuple[str, str]:
 
     Reads the boards[] store — the source the live clients are built from
     and what Settings → Boards displays — then falls back to the live
-    primary client, and only then to legacy ``Config`` (config.json), which
-    only the setup wizard writes and therefore goes stale as soon as the
-    board is edited in Settings (issue #1791).
+    primary client. The legacy config.json copy is never consulted: board
+    credentials are unified on settings.json (issue #1760), so with no
+    boards entry and no live client the install is simply unconfigured.
     """
     board = _primary_board_entry()
     if board is not None:
@@ -7390,7 +6333,7 @@ def _primary_connection_info() -> tuple[str, str]:
         host = getattr(client, "host", "")
         return mode, host if isinstance(host, str) else ""
 
-    return (Config.BOARD_API_MODE or "local").lower(), Config.BOARD_HOST or ""
+    return "local", ""
 
 
 def _get_first_board_dims():
@@ -7726,9 +6669,9 @@ async def debug_get_system_info():
     client = _get_board_client()
     cache_status = client.get_cache_status() if client else None
 
-    # Check if board is configured: for a boards[] entry the client factory is
-    # the authority on "has a usable connection"; legacy Config installs keep
-    # the old credential check.
+    # Check if board is configured: the client factory is the authority on
+    # "has a usable connection". No boards[] entry means unconfigured — the
+    # legacy config.json copy is never consulted (issue #1760).
     board = _primary_board_entry()
     if board is not None:
         try:
@@ -7737,13 +6680,7 @@ async def debug_get_system_info():
             logger.debug("Could not evaluate board connection config: %s", exc)
             board_configured = False
     else:
-        board_configured = bool(
-            board_ip
-            and (
-                (connection_mode == "local" and Config.BOARD_LOCAL_API_KEY)
-                or (connection_mode == "cloud" and Config.BOARD_READ_WRITE_KEY)
-            )
-        )
+        board_configured = False
 
     return {
         "board_ip": board_ip,
@@ -7767,22 +6704,15 @@ async def debug_network_diagnostics():
     """
     from .network_diagnostics import run_full_diagnostics
 
-    # Diagnose the connection the send path actually uses: the boards[] store
-    # first, legacy Config (wizard-era config.json) only when no board is
-    # configured there (issue #1791).
-    board = _primary_board_entry()
-    if board is not None:
-        board_host = board.get("host") or None
-        board_port = board.get("port") or 7000
-        board_api_key = board.get("local_api_key") or None
-        use_cloud = (board.get("api_mode") or "local").lower() == "cloud"
-        cloud_key = board.get("cloud_key") or None
-    else:
-        board_host = Config.BOARD_HOST or None
-        board_port = 7000
-        board_api_key = Config.BOARD_LOCAL_API_KEY or None
-        use_cloud = (Config.BOARD_API_MODE or "local").lower() == "cloud"
-        cloud_key = Config.BOARD_READ_WRITE_KEY or None
+    # Diagnose the connection the send path actually uses: the boards[]
+    # store. The legacy config.json copy is never consulted (issue #1760) —
+    # with no boards entry the diagnostics run without board credentials.
+    board = _primary_board_entry() or {}
+    board_host = board.get("host") or None
+    board_port = board.get("port") or 7000
+    board_api_key = board.get("local_api_key") or None
+    use_cloud = (board.get("api_mode") or "local").lower() == "cloud"
+    cloud_key = board.get("cloud_key") or None
 
     try:
         results = run_full_diagnostics(
@@ -7901,8 +6831,7 @@ async def update_panel(panel_id: str, data: PanelUpdate):
     incompatible_references: list[dict] | None = None
     updates = data.model_dump(exclude_unset=True)
     screen_changed = any(
-        updates.get(field) is not None
-        for field in ("screen_diagonal_inches", "screen_aspect_w", "screen_aspect_h")
+        updates.get(field) is not None for field in ("screen_diagonal_inches", "screen_aspect_w", "screen_aspect_h")
     )
     if screen_changed:
         settings_service = get_settings_service()
@@ -8123,951 +7052,29 @@ async def set_hdmi_kiosk(request: dict):
 
 
 # =============================================================================
-# Pages Endpoints
+# Pages Endpoints — moved to src/pages/routes.py (issue #1756)
 # =============================================================================
 
+from .pages.routes import router as pages_router  # noqa: E402
 
-@app.get("/pages")
-async def list_pages():
-    """List all saved pages."""
-    page_service = get_page_service()
-    pages = page_service.list_pages()
+app.include_router(pages_router)
 
-    return {"pages": [p.model_dump() for p in pages], "total": len(pages)}
+# =============================================================================
+# Schedule Endpoints — moved to src/schedules/routes.py (issue #1756)
+# =============================================================================
 
+from .schedules.routes import router as schedules_router  # noqa: E402
 
-@app.get("/pages/current-display")
-async def get_current_display():
-    """Get the template content of the currently active board display.
-
-    Resolves collections and schedule mode to find the actual page being shown.
-    For template pages, returns the raw template and line metadata so the
-    caller can use it as a starting point for a new page.  For other page
-    types, returns the rendered output lines.
-
-    Returns 404 when no active page can be determined.
-    """
-    settings_service = get_settings_service()
-    page_service = get_page_service()
-    collection_service = get_collection_service()
-
-    # Determine the active page ID (schedule-aware)
-    if settings_service.is_schedule_enabled():
-        from .time_service import get_time_service
-
-        time_service = get_time_service()
-        now = time_service.get_current_time()
-        current_time = now.time()
-        current_day = now.strftime("%A").lower()
-        schedule_service = get_schedule_service()
-        active_page_id = schedule_service.get_active_page_id(current_time, current_day)
-    else:
-        active_page_id = settings_service.get_active_page_id()
-
-    if not active_page_id:
-        raise HTTPException(status_code=404, detail="No active page set")
-
-    # Resolve collection to underlying page
-    if is_collection_id(active_page_id):
-        resolved = collection_service.resolve_page_id(active_page_id)
-        if not resolved:
-            raise HTTPException(status_code=404, detail="Collection could not be resolved")
-        active_page_id = resolved
-
-    page = page_service.get_page(active_page_id)
-    if not page:
-        raise HTTPException(status_code=404, detail="Active page not found")
-
-    response: dict = {
-        "page_id": page.id,
-        "page_name": page.name,
-        "page_type": page.type,
-        "device_type": page.device_type,
-    }
-
-    if page.type == "template" and page.template:
-        # Return raw template so variables like {{weather.temp}} are preserved
-        response["template"] = page.template
-        response["line_metadata"] = [m.model_dump() for m in page.line_metadata] if page.line_metadata else None
-    else:
-        # For single/composite pages, return the rendered output as template
-        # lines. The forced render fans out to plugins — off the loop (#1826).
-        result = await asyncio.to_thread(page_service.preview_page, active_page_id, force_refresh=True)
-        if result and result.available:
-            response["template"] = result.formatted.split("\n")
-            response["line_metadata"] = None
-        else:
-            response["template"] = []
-            response["line_metadata"] = None
-
-    return response
-
-
-@app.post("/pages")
-async def create_page(page_data: PageCreate):
-    """
-    Create a new page.
-
-    Page types:
-    - single: Display a single source (set display_type)
-    - composite: Combine rows from multiple sources (set rows)
-    - template: Custom templated content (set template)
-    """
-    _reject_plugin_strategy_when_beta_off(page_data.transition_strategy)
-    page_service = get_page_service()
-
-    try:
-        page = page_service.create_page(page_data)
-        return {"status": "success", "page": page.model_dump()}
-    except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e)) from e
-
-
-@app.get("/pages/{page_id}")
-async def get_page(page_id: str):
-    """Get a page by ID."""
-    page_service = get_page_service()
-    page = page_service.get_page(page_id)
-
-    if not page:
-        raise HTTPException(status_code=404, detail=f"Page not found: {page_id}")
-
-    return page.model_dump()
-
-
-@app.put("/pages/{page_id}")
-async def update_page(page_id: str, page_data: PageUpdate):
-    """Update an existing page.
-
-    When the update changes the page's size (device/size retarget, issue
-    #1250), the response includes ``incompatible_references``: schedule
-    entries and per-board active pages that now point this page at a board
-    it no longer fits. Warn-only — no reference is mutated or removed.
-    """
-    from .devices import size_key
-
-    _reject_plugin_strategy_when_beta_off(page_data.transition_strategy)
-    page_service = get_page_service()
-    existing = page_service.get_page(page_id)
-
-    try:
-        page = page_service.update_page(page_id, page_data)
-        if not page:
-            raise HTTPException(status_code=404, detail=f"Page not found: {page_id}")
-
-        response = {"status": "success", "page": page.model_dump()}
-        if existing is not None:
-            old_size = size_key(existing.device_type, existing.notes_wide, existing.notes_tall)
-            new_size = size_key(page.device_type, page.notes_wide, page.notes_tall)
-            if old_size != new_size:
-                response["incompatible_references"] = find_incompatible_references(page)
-        return response
-    except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e)) from e
-
-
-@app.delete("/pages/{page_id}")
-async def delete_page(page_id: str):
-    """Delete a page.
-
-    If this is the last page, a default welcome page is automatically created
-    to ensure there is always at least one page.
-
-    If the deleted page was the active display page, the active page will be
-    updated to another valid page automatically.
-    """
-    page_service = get_page_service()
-
-    result = page_service.delete_page(page_id)
-
-    if not result.deleted:
-        raise HTTPException(status_code=404, detail=f"Page not found: {page_id}")
-
-    response = {
-        "status": "success",
-        "message": f"Page {page_id} deleted",
-        "default_page_created": result.default_page_created,
-        "active_page_updated": result.active_page_updated,
-    }
-
-    if result.default_page_created:
-        response["message"] = f"Page {page_id} deleted. A default welcome page was created."
-        response["new_page_id"] = result.new_page_id
-
-    if result.active_page_updated:
-        response["new_active_page_id"] = result.new_active_page_id
-
-    return response
-
-
-@app.get("/pages/{page_id}/share")
-async def get_page_share_string(page_id: str):
-    """Return a portable share string for an existing page."""
-    page_service = get_page_service()
-    page = page_service.get_page(page_id)
-    if not page:
-        raise HTTPException(status_code=404, detail=f"Page not found: {page_id}")
-    return {"share_string": encode_page(page)}
-
-
-class PageImportRequest(BaseModel):
-    share_string: str
-
-
-@app.post("/pages/import/preview")
-async def preview_page_import(body: PageImportRequest):
-    """Decode a share string and return the page data without persisting it."""
-    try:
-        page_data = decode_page(body.share_string)
-    except ValueError as e:
-        raise HTTPException(status_code=422, detail=str(e)) from e
-    return page_data
-
-
-@app.post("/pages/import")
-async def import_page(body: PageImportRequest):
-    """Create a new page from a share string."""
-    try:
-        page_data = decode_page(body.share_string)
-    except ValueError as e:
-        raise HTTPException(status_code=422, detail=str(e)) from e
-
-    page_service = get_page_service()
-    try:
-        page_create = PageCreate(**{k: v for k, v in page_data.items() if k in PageCreate.model_fields})
-        _reject_plugin_strategy_when_beta_off(page_create.transition_strategy)
-        page = page_service.create_page(page_create)
-        return {"status": "success", "page": page.model_dump()}
-    except HTTPException:
-        raise
-    except Exception as e:
-        raise HTTPException(status_code=422, detail=str(e)) from e
-
-
-# ---------------------------------------------------------------------------
-# Staff Picks
-# ---------------------------------------------------------------------------
-
-_STAFF_PICKS_PATH = Path(__file__).parent.parent / "staff-picks" / "picks.json"
-
-
-def _load_staff_picks() -> list:
-    try:
-        with open(_STAFF_PICKS_PATH) as f:
-            return json.load(f)
-    except FileNotFoundError:
-        return []
-
-
-@app.get("/staff-picks")
-async def list_staff_picks():
-    """Return all staff picks (without share strings)."""
-    picks = _load_staff_picks()
-    return [{k: v for k, v in pick.items() if k != "share_string"} for pick in picks]
-
-
-@app.get("/staff-picks/{pick_id}/share")
-async def get_staff_pick_share(pick_id: str):
-    """Return the share string for a specific staff pick."""
-    picks = _load_staff_picks()
-    pick = next((p for p in picks if p["id"] == pick_id), None)
-    if not pick:
-        raise HTTPException(status_code=404, detail=f"Staff pick not found: {pick_id}")
-    return {"share_string": pick["share_string"]}
-
-
-@app.post("/pages/{page_id}/preview")
-async def preview_page(
-    page_id: str, force_refresh: bool = Query(default=False, description="Force fresh render, bypass cache")
-):
-    """
-    Preview a page's rendered output.
-
-    Uses cached preview by default for fast responses. Set force_refresh=true
-    to always render fresh (useful when editing or displaying active page).
-
-    Args:
-        page_id: The page ID to preview
-        force_refresh: If true, bypass cache and always render fresh
-
-    Returns:
-        The formatted text that would be displayed.
-    """
-    page_service = get_page_service()
-    settings_service = get_settings_service()
-
-    # Always force refresh for the active page to ensure it's up-to-date
-    active_page_id = settings_service.get_active_page_id()
-    if page_id == active_page_id:
-        force_refresh = True
-
-    # Rendering fans out to plugins (network I/O) — off the event loop (#1826).
-    # The preview cache write inside is a single dict item assignment, safe
-    # under concurrent worker threads on CPython; store-level locking is
-    # Track A2's job (#1848).
-    result = await asyncio.to_thread(page_service.preview_page, page_id, force_refresh=force_refresh)
-
-    if result is None:
-        raise HTTPException(status_code=404, detail=f"Page not found: {page_id}")
-
-    if not result.available:
-        raise HTTPException(status_code=503, detail=result.error or "Page rendering failed")
-
-    return {
-        "page_id": page_id,
-        "message": result.formatted,
-        "lines": result.formatted.split("\n"),
-        "display_type": result.display_type,
-        "raw": result.raw,
-    }
-
-
-@app.post("/pages/preview/batch")
-async def preview_pages_batch(request: dict):
-    """
-    Preview multiple pages in a single request.
-
-    Request body:
-        {
-            "page_ids": ["page1", "page2", ...],
-            "force_refresh": false  // Optional, defaults to false
-        }
-
-    Returns a dict mapping page_id to preview data (or error).
-    Uses cached previews by default for fast responses.
-    Active page is always rendered fresh regardless of force_refresh setting.
-    Template context (plugin data) is built once and shared across all page renders.
-    """
-    page_ids = request.get("page_ids", [])
-    force_refresh = request.get("force_refresh", False)
-
-    if not isinstance(page_ids, list):
-        raise HTTPException(status_code=400, detail="page_ids must be a list")
-
-    page_service = get_page_service()
-    settings_service = get_settings_service()
-    active_page_id = settings_service.get_active_page_id()
-    results = {}
-
-    # Use batch preview to build template context once for all pages. One
-    # worker-thread call for the whole batch — the internal context sharing
-    # per board size must be preserved, so the pages are NOT parallelized;
-    # the point is only that N renders' worth of plugin fan-out stops
-    # seizing the event loop (#1826).
-    batch_results = await asyncio.to_thread(
-        page_service.preview_pages_batch,
-        page_ids,
-        force_refresh=force_refresh,
-        active_page_id=active_page_id,
-    )
-
-    for page_id in page_ids:
-        result = batch_results.get(page_id)
-        if result is None:
-            results[page_id] = {"error": "Page not found", "available": False}
-        elif not result.available:
-            results[page_id] = {"error": result.error or "Page rendering failed", "available": False}
-        else:
-            results[page_id] = {
-                "page_id": page_id,
-                "message": result.formatted,
-                "lines": result.formatted.split("\n"),
-                "display_type": result.display_type,
-                "raw": result.raw,
-                "available": True,
-            }
-
-    return {
-        "previews": results,
-        "total": len(page_ids),
-        "successful": sum(1 for r in results.values() if r.get("available", False)),
-    }
-
-
-@app.get("/pages/cache/stats")
-async def get_page_cache_stats():
-    """
-    Get preview cache statistics.
-
-    Returns information about the preview cache including size,
-    cached page IDs, and TTL configuration.
-    """
-    page_service = get_page_service()
-    return page_service.get_cache_stats()
-
-
-@app.post("/pages/cache/clear")
-async def clear_page_cache(request: dict = None):
-    """
-    Clear preview cache.
-
-    Request body (optional):
-        {
-            "page_id": "page123"  // Clear specific page, omit to clear all
-        }
-
-    Clears the preview cache, forcing fresh renders on next preview.
-    Useful for testing or when data sources have been updated.
-    """
-    page_service = get_page_service()
-
-    page_id = None
-    if request:
-        page_id = request.get("page_id")
-
-    page_service._invalidate_cache(page_id)
-
-    if page_id:
-        return {"status": "success", "message": f"Cache cleared for page {page_id}"}
-    else:
-        return {"status": "success", "message": "All preview caches cleared"}
-
-
-@app.post("/pages/{page_id}/send")
-async def send_page(
-    page_id: str, target: str | None = None, board_id: str | None = None, payload: dict | None = Body(None)
-):
-    """
-    Send a page to the configured target.
-
-    Args:
-        page_id: The page ID
-        target: Override output target (ui, board, both) — query param,
-            or ``{"target": ...}`` in the JSON body
-        board_id: Optional board to send to (query param, or
-            ``{"board_id": ...}`` in the JSON body). Omitted → primary
-            board, legacy behavior (issue #1244).
-    """
-    if target is None and payload:
-        target = payload.get("target")
-    if board_id is None and payload:
-        board_id = payload.get("board_id")
-    if target is not None and target not in VALID_OUTPUT_TARGETS:
-        raise HTTPException(status_code=400, detail=f"Invalid target: {target}. Valid targets: {VALID_OUTPUT_TARGETS}")
-
-    page_service = get_page_service()
-    settings_service = get_settings_service()
-    service = get_service()
-
-    # Resolve the target board's client: explicit board_id routes to that
-    # board's client; omitted keeps the legacy primary-client path.
-    board = None
-    if board_id is not None:
-        if not service:
-            raise HTTPException(status_code=503, detail="Service not initialized")
-        board = _find_board(board_id)
-        if board is None:
-            raise HTTPException(status_code=404, detail=f"Board not found: {board_id}")
-        board_client = service.get_board_client(board_id)
-        if board_client is None:
-            raise HTTPException(status_code=503, detail=f"Board client not initialized: {board_id}")
-    else:
-        if not service or not service.vb_client:
-            raise HTTPException(status_code=503, detail="Service not initialized")
-        board_client = service.vb_client
-
-    # The page lookup, forced fresh render (plugin fan-out), and board send
-    # (network call plus an up-to-seconds transition animation) all block, so
-    # they run as one worker-thread unit and the event loop keeps serving
-    # requests (#1826). HTTPExceptions raised inside propagate through the
-    # await unchanged.
-    def _work() -> dict | JSONResponse:
-        # Get the page for transition settings
-        page = page_service.get_page(page_id)
-        if not page:
-            raise HTTPException(status_code=404, detail=f"Page not found: {page_id}")
-
-        # Render the page - always force fresh render when sending to board
-        result = page_service.preview_page(page_id, force_refresh=True)
-
-        if result is None:
-            raise HTTPException(status_code=404, detail=f"Page not found: {page_id}")
-
-        if not result.available:
-            raise HTTPException(status_code=503, detail=result.error or "Page rendering failed")
-
-        # Determine target
-        if target is None:
-            send_to_board = settings_service.should_send_to_board()
-        else:
-            send_to_board = target in ["board", "both"]
-
-        sent_to_board = False
-        paused = False
-        if send_to_board:
-            # CRITICAL: Block ALL manual sends during silence mode to prevent
-            # wake-ups — for the board this send targets (issue #1788).
-            if _silence_active(board_id):
-                logger.info("Silence mode is active - blocking manual page send to prevent wake-up")
-                sent_to_board = False
-                # Don't raise error, just skip sending
-            elif _board_is_paused(board_id):
-                # Block when the target (or first) board is paused (issue #970).
-                logger.info("Board is paused - blocking manual page send")
-                paused = True
-            else:
-                # Use page-level transitions if set, otherwise fall back to system defaults
-                system_transition = settings_service.get_transition_settings()
-                strategy = page.transition_strategy if page.transition_strategy else system_transition.strategy
-                interval_ms = (
-                    page.transition_interval_ms
-                    if page.transition_interval_ms is not None
-                    else system_transition.step_interval_ms
-                )
-                step_size = (
-                    page.transition_step_size if page.transition_step_size is not None else system_transition.step_size
-                )
-
-                # Size the grid to the explicit target board when given (issue
-                # #1244); otherwise keep sizing to the page's device type.
-                if board is not None:
-                    dims = _board_dims(board)
-                else:
-                    dims = resolve_dimensions(page.device_type, page.notes_wide, page.notes_tall)
-                board_array = text_to_board_array(result.formatted, rows=dims.rows, cols=dims.cols)
-                # render() serializes concurrent senders via the client's
-                # per-board _send_lock, so worker threads can't interleave.
-                success, was_sent = board_client.render(
-                    board_array,
-                    strategy=strategy,
-                    step_interval_ms=interval_ms,
-                    step_size=step_size,
-                    device_type=(board.get("device_type") if board is not None else page.device_type),
-                )
-                sent_to_board = was_sent
-                if not success:
-                    # Board offline / unreachable — degrade gracefully with a
-                    # structured error instead of a bare 500 detail string so
-                    # callers can distinguish "board unreachable" from a server
-                    # fault. Must not be 502/503/504: nginx intercepts those on
-                    # /api/ and replaces the body with its startup placeholder.
-                    logger.error(f"Failed to send page {page_id} to board (offline or unreachable)")
-                    return JSONResponse(
-                        status_code=500,
-                        content={
-                            "status": "error",
-                            "detail": "Failed to send to board",
-                            "page_id": page_id,
-                            "sent_to_board": False,
-                            "paused": False,
-                            "target": target or settings_service.get_output_settings().target,
-                            "board_id": board_id,
-                        },
-                    )
-                if was_sent and (board_id is None or board_id == settings_service.get_primary_board_id()):
-                    # Adaptive post-send refresh polls the primary board only.
-                    service.request_board_refresh()
-
-        return {
-            "status": "success",
-            "page_id": page_id,
-            "message": result.formatted,
-            "sent_to_board": sent_to_board,
-            "paused": paused,
-            "target": target or settings_service.get_output_settings().target,
-            "board_id": board_id,
-        }
-
-    return await asyncio.to_thread(_work)
+app.include_router(schedules_router)
 
 
 # =============================================================================
-# Schedule Endpoints
+# Collection Endpoints — moved to src/collections/routes.py (issue #1756)
 # =============================================================================
 
+from .collections.routes import router as collections_router  # noqa: E402
 
-def _enrich_schedule_with_sun_times(schedule_dict: dict) -> dict:
-    """Add resolved_start_time / resolved_end_time to a schedule dict.
-
-    For fixed-type schedules the resolved times equal the stored times.
-    For sun-based schedules (sunrise/sunset) the times are computed
-    dynamically for today using the configured location.
-    """
-    start_type = schedule_dict.get("start_type", "fixed")
-    end_type = schedule_dict.get("end_type", "fixed")
-
-    if start_type == "fixed" and end_type == "fixed":
-        schedule_dict["resolved_start_time"] = schedule_dict["start_time"]
-        schedule_dict["resolved_end_time"] = schedule_dict.get("end_time")
-        return schedule_dict
-
-    from .schedules.sun_times import (
-        get_effective_timezone,
-        get_today_in_timezone,
-        resolve_schedule_sun_times,
-    )
-
-    settings = get_settings_service()
-    loc = settings.get_location_settings()
-    timezone_str = get_effective_timezone()
-
-    resolved_start, resolved_end = resolve_schedule_sun_times(
-        start_type=start_type,
-        start_sun_offset=schedule_dict.get("start_sun_offset", 0),
-        start_time_fallback=schedule_dict["start_time"],
-        end_type=end_type,
-        end_sun_offset=schedule_dict.get("end_sun_offset", 0),
-        end_time_fallback=schedule_dict.get("end_time"),
-        latitude=loc.latitude,
-        longitude=loc.longitude,
-        target_date=get_today_in_timezone(timezone_str),
-        timezone_str=timezone_str,
-    )
-    schedule_dict["resolved_start_time"] = resolved_start
-    schedule_dict["resolved_end_time"] = resolved_end
-    return schedule_dict
-
-
-@app.get("/schedules")
-async def list_schedules(board_id: str | None = None):
-    """List schedule entries, optionally for one board (query: board_id=).
-
-    Use board_id=* to get ALL schedules across all boards (useful for cleanup/admin).
-    """
-    schedule_service = get_schedule_service()
-    settings_service = get_settings_service()
-    schedules = schedule_service.list_schedules(board_id=board_id)
-
-    # When listing all boards (board_id="*"), default_page_id and enabled don't make sense
-    if board_id == "*":
-        return {
-            "schedules": [_enrich_schedule_with_sun_times(s.model_dump()) for s in schedules],
-            "total": len(schedules),
-            "default_page_id": None,
-            "enabled": False,
-        }
-
-    return {
-        "schedules": [_enrich_schedule_with_sun_times(s.model_dump()) for s in schedules],
-        "total": len(schedules),
-        "default_page_id": schedule_service.get_default_page(board_id=board_id),
-        "enabled": settings_service.is_schedule_enabled(board_id=board_id),
-    }
-
-
-def _with_compat_warnings(response: dict, schedule) -> dict:
-    """Attach non-fatal page<->board size warnings to a schedule response.
-
-    Collections may mix page sizes; the write is allowed when at least one
-    member fits the board, and the members that don't fit are surfaced as a
-    ``warnings`` list (issue #1245). The key is omitted when there is nothing
-    to warn about.
-    """
-    compat = check_ref_board_compatibility(schedule.page_id, schedule.board_id)
-    if compat.ok and compat.warnings:
-        response["warnings"] = compat.warnings
-    return response
-
-
-@app.post("/schedules")
-async def create_schedule(schedule_data: ScheduleCreate):
-    """Create a new schedule entry.
-
-    Args:
-        schedule_data: Schedule configuration
-
-    Returns:
-        Created schedule entry
-    """
-    schedule_service = get_schedule_service()
-
-    try:
-        schedule = schedule_service.create_schedule(schedule_data)
-        response = _enrich_schedule_with_sun_times(schedule.model_dump())
-        return _with_compat_warnings(response, schedule)
-    except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e)) from e
-
-
-# Specific routes must come BEFORE parameterized routes
-# to avoid /schedules/{schedule_id} matching everything
-
-
-@app.get("/schedules/active/page")
-async def get_active_schedule(board_id: str | None = None):
-    """Get the currently active page based on schedule (optional query: board_id=)."""
-    schedule_service = get_schedule_service()
-    settings_service = get_settings_service()
-
-    # Include temporary override status so the frontend can show the countdown badge
-    # without a separate API call.
-    override = settings_service.get_temporary_override()
-    temporary_override_payload = _temporary_override_payload(override)
-
-    if not settings_service.is_schedule_enabled(board_id=board_id):
-        manual_page_id = settings_service.get_active_page_id()
-        return {
-            "page_id": manual_page_id,
-            "resolved_page_id": _resolve_active_page_id(manual_page_id),
-            "resolved_next_check_seconds": _resolve_next_check_seconds(manual_page_id),
-            "source": "manual",
-            "schedule_enabled": False,
-            "temporary_override": temporary_override_payload,
-        }
-    from .time_service import get_time_service
-
-    time_service = get_time_service()
-    now = time_service.get_current_time()
-    current_time = now.time()
-    current_day = now.strftime("%A").lower()
-    page_id = schedule_service.get_active_page_id(current_time, current_day, board_id=board_id)
-    return {
-        "page_id": page_id,
-        "resolved_page_id": _resolve_active_page_id(page_id),
-        "resolved_next_check_seconds": _resolve_next_check_seconds(page_id),
-        "source": "schedule" if page_id else "none",
-        "schedule_enabled": True,
-        "current_time": now.strftime("%H:%M"),
-        "current_day": current_day,
-        "default_page_id": schedule_service.get_default_page(board_id=board_id),
-        "temporary_override": temporary_override_payload,
-    }
-
-
-@app.post("/schedules/validate")
-async def validate_schedules(request: dict | None = Body(None)):
-    """Validate schedules for overlaps and gaps. Body optional: {"board_id": "..."}."""
-    schedule_service = get_schedule_service()
-    board_id = request.get("board_id") if request else None
-    result = schedule_service.validate_schedules(board_id=board_id)
-    return result.model_dump()
-
-
-@app.get("/schedules/default-page")
-async def get_default_page(board_id: str | None = None):
-    """Get the default page ID for schedule gaps (optional query: board_id=)."""
-    schedule_service = get_schedule_service()
-    return {"default_page_id": schedule_service.get_default_page(board_id=board_id)}
-
-
-@app.put("/schedules/default-page")
-async def set_default_page(request: dict):
-    """Set the default page ID for schedule gaps. Body: page_id, optional board_id."""
-    if "page_id" not in request:
-        raise HTTPException(status_code=400, detail="page_id parameter required")
-    page_id = request["page_id"]
-    board_id = request.get("board_id")
-    if page_id is not None:
-        if is_collection_id(page_id):
-            collection_service = get_collection_service()
-            if not collection_service.get_collection(page_id):
-                raise HTTPException(status_code=404, detail=f"Collection not found: {page_id}")
-        else:
-            page_service = get_page_service()
-            if not page_service.get_page(page_id):
-                raise HTTPException(status_code=404, detail=f"Page not found: {page_id}")
-    schedule_service = get_schedule_service()
-    schedule_service.set_default_page(page_id, board_id=board_id)
-    return {"status": "success", "default_page_id": page_id}
-
-
-@app.get("/schedules/enabled")
-async def get_schedule_enabled(board_id: str | None = None):
-    """Check if schedule mode is enabled (optional query: board_id=)."""
-    settings_service = get_settings_service()
-    return {"enabled": settings_service.is_schedule_enabled(board_id=board_id)}
-
-
-@app.put("/schedules/enabled")
-async def set_schedule_enabled(request: dict):
-    """Enable or disable schedule mode. Body: enabled, optional board_id."""
-    if "enabled" not in request:
-        raise HTTPException(status_code=400, detail="enabled parameter required")
-    enabled = request["enabled"]
-    if not isinstance(enabled, bool):
-        raise HTTPException(status_code=400, detail="enabled must be boolean")
-    board_id = request.get("board_id")
-    settings_service = get_settings_service()
-    settings_service.set_schedule_enabled(enabled, board_id=board_id)
-    return {
-        "status": "success",
-        "enabled": enabled,
-        "message": f"Schedule mode {'enabled' if enabled else 'disabled'}",
-    }
-
-
-# Parameterized routes come LAST to avoid matching specific paths
-
-
-@app.get("/schedules/{schedule_id}")
-async def get_schedule(schedule_id: str):
-    """Get a schedule entry by ID.
-
-    Args:
-        schedule_id: Schedule ID
-
-    Returns:
-        Schedule entry
-    """
-    schedule_service = get_schedule_service()
-    schedule = schedule_service.get_schedule(schedule_id)
-
-    if not schedule:
-        raise HTTPException(status_code=404, detail=f"Schedule not found: {schedule_id}")
-
-    return _enrich_schedule_with_sun_times(schedule.model_dump())
-
-
-@app.put("/schedules/{schedule_id}")
-async def update_schedule(schedule_id: str, schedule_data: ScheduleUpdate):
-    """Update an existing schedule entry.
-
-    Args:
-        schedule_id: Schedule ID
-        schedule_data: Fields to update
-
-    Returns:
-        Updated schedule entry
-    """
-    schedule_service = get_schedule_service()
-
-    try:
-        schedule = schedule_service.update_schedule(schedule_id, schedule_data)
-        if not schedule:
-            raise HTTPException(status_code=404, detail=f"Schedule not found: {schedule_id}")
-        response = _enrich_schedule_with_sun_times(schedule.model_dump())
-        return _with_compat_warnings(response, schedule)
-    except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e)) from e
-
-
-@app.delete("/schedules/{schedule_id}")
-async def delete_schedule(schedule_id: str):
-    """Delete a schedule entry.
-
-    Args:
-        schedule_id: Schedule ID
-
-    Returns:
-        Success status
-    """
-    schedule_service = get_schedule_service()
-
-    deleted = schedule_service.delete_schedule(schedule_id)
-    if not deleted:
-        raise HTTPException(status_code=404, detail=f"Schedule not found: {schedule_id}")
-
-    return {"status": "success", "message": f"Schedule {schedule_id} deleted"}
-
-
-# =============================================================================
-# Collection Endpoints
-# =============================================================================
-
-
-def _validate_collection_payload(
-    data,
-    page_service,
-    *,
-    require_pages: bool = True,
-) -> None:
-    """Shared validation for create / update.
-
-    Confirms every page_id (membership and rule targets) resolves to a real
-    page, and statically validates variable-mode rule expressions against the
-    known plugin sources before we let them hit storage.
-    """
-    page_ids = getattr(data, "page_ids", None)
-    if page_ids is None and require_pages:
-        return  # let Pydantic surface the missing field
-    if page_ids is not None:
-        for pid in page_ids:
-            if not page_service.get_page(pid):
-                raise HTTPException(status_code=400, detail=f"Page not found: {pid}")
-
-    variable = getattr(data, "variable", None)
-    if variable is None:
-        return
-
-    if page_ids is not None:
-        if variable.default_page_id not in page_ids:
-            raise HTTPException(
-                status_code=400,
-                detail="default_page_id must be one of page_ids",
-            )
-        for idx, rule in enumerate(variable.rules):
-            if rule.page_id not in page_ids:
-                raise HTTPException(
-                    status_code=400,
-                    detail=f"Variable rule {idx} page_id not in page_ids",
-                )
-
-    from .templates.expressions import validate_expression
-
-    template_engine = get_template_engine()
-    known_sources = template_engine._get_all_known_sources()
-    for idx, rule in enumerate(variable.rules):
-        issues = validate_expression(rule.expression, known_sources=known_sources)
-        if issues:
-            first = issues[0]
-            raise HTTPException(
-                status_code=400,
-                detail=(f"Variable rule {idx} expression invalid: {first.code} {first.message}"),
-            )
-
-
-@app.get("/collections")
-async def list_collections():
-    """List all collections."""
-    collection_service = get_collection_service()
-    collections = collection_service.list_collections()
-    return {
-        "collections": [c.model_dump() for c in collections],
-        "total": len(collections),
-    }
-
-
-@app.post("/collections")
-async def create_collection(data: CollectionCreate):
-    """Create a new collection."""
-    collection_service = get_collection_service()
-    page_service = get_page_service()
-
-    _validate_collection_payload(data, page_service)
-
-    try:
-        collection = collection_service.create_collection(data)
-        return {"status": "success", "collection": collection.model_dump()}
-    except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e)) from e
-
-
-@app.get("/collections/{collection_id}")
-async def get_collection(collection_id: str):
-    """Get a collection by ID."""
-    collection_service = get_collection_service()
-    collection = collection_service.get_collection(collection_id)
-    if not collection:
-        raise HTTPException(status_code=404, detail=f"Collection not found: {collection_id}")
-    return collection.model_dump()
-
-
-@app.put("/collections/{collection_id}")
-async def update_collection(collection_id: str, data: CollectionUpdate):
-    """Update an existing collection."""
-    collection_service = get_collection_service()
-    page_service = get_page_service()
-
-    _validate_collection_payload(data, page_service, require_pages=False)
-
-    try:
-        collection = collection_service.update_collection(collection_id, data)
-        if not collection:
-            raise HTTPException(status_code=404, detail=f"Collection not found: {collection_id}")
-        return {"status": "success", "collection": collection.model_dump()}
-    except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e)) from e
-
-
-@app.delete("/collections/{collection_id}")
-async def delete_collection(collection_id: str):
-    """Delete a collection."""
-    collection_service = get_collection_service()
-    deleted = collection_service.delete_collection(collection_id)
-    if not deleted:
-        raise HTTPException(status_code=404, detail=f"Collection not found: {collection_id}")
-    return {"status": "success", "message": f"Collection {collection_id} deleted"}
-
+app.include_router(collections_router)
 
 # =============================================================================
 # Template Endpoints
@@ -9478,399 +7485,6 @@ except ImportError:
     get_plugin_registry = None
 
 
-class PluginConfigRequest(BaseModel):
-    """Request body for plugin configuration updates."""
-
-    config: dict[str, Any]
-
-
-class PluginEnableRequest(BaseModel):
-    """Request body for enabling/disabling a plugin."""
-
-    enabled: bool
-
-
-@app.get("/plugins")
-async def list_plugins():
-    """
-    List all available plugins.
-
-    Returns plugins with their status, metadata, and whether they're enabled.
-    """
-    if not PLUGIN_SYSTEM_AVAILABLE:
-        raise HTTPException(status_code=503, detail="Plugin system is not available.")
-
-    registry = get_plugin_registry()
-    plugins = registry.list_plugins()
-
-    # Add configuration status (masked)
-    config_manager = get_config_manager()
-    for plugin in plugins:
-        plugin_config = config_manager.get_plugin_config(plugin["id"])
-        if plugin_config:
-            plugin["configured"] = True
-            # Add masked config
-            plugin["config"] = config_manager._mask_sensitive(plugin_config)
-        else:
-            plugin["configured"] = False
-            plugin["config"] = {}
-
-    return {
-        "plugins": plugins,
-        "plugin_system_enabled": True,
-        "total": len(plugins),
-        "enabled_count": sum(1 for p in plugins if p.get("enabled", False)),
-    }
-
-
-@app.get("/plugins/variables/all")
-async def get_all_plugin_variables():
-    """
-    Get all template variables from enabled plugins.
-
-    Returns a combined view of all variables for the template editor.
-    """
-    if not PLUGIN_SYSTEM_AVAILABLE:
-        # Fall back to legacy variables
-        template_engine = get_template_engine()
-        return {
-            "variables": template_engine.get_available_variables(),
-            "max_lengths": template_engine.get_variable_max_lengths(),
-            "plugin_system_enabled": False,
-        }
-
-    registry = get_plugin_registry()
-
-    return {
-        "variables": registry.get_all_variables(),
-        "max_lengths": registry.get_all_max_lengths(),
-        "plugin_system_enabled": True,
-    }
-
-
-@app.get("/plugins/errors")
-async def get_plugin_errors():
-    """
-    Get any plugin load errors.
-
-    Returns errors from plugins that failed to load.
-    """
-    if not PLUGIN_SYSTEM_AVAILABLE:
-        return {"errors": {}, "plugin_system_enabled": False}
-
-    registry = get_plugin_registry()
-
-    return {"errors": registry.get_load_errors(), "plugin_system_enabled": True}
-
-
-@app.get("/plugins/registry")
-async def list_registry_plugins():
-    """
-    List all plugins available in the curated plugin registry.
-
-    Returns registry entries with their installation status.
-    """
-    if not PLUGIN_SYSTEM_AVAILABLE:
-        raise HTTPException(status_code=503, detail="Plugin system is not available.")
-
-    registry = get_plugin_registry()
-
-    return {
-        "entries": registry.get_registry_entries(),
-        "plugin_system_enabled": True,
-    }
-
-
-@app.get("/plugins/updates")
-async def get_plugin_updates():
-    """
-    Return cached update availability for all installed external plugins.
-
-    Results are refreshed by a background task every 6 hours.  Call
-    ``POST /plugins/updates/check`` to trigger an immediate check.
-
-    ``blocked`` maps plugin ids to the reason an upstream commit was *not*
-    offered — currently only "the incoming manifest needs a newer FiestaBoard
-    core".  Those plugins appear in ``updates`` as ``False``; the reason is
-    what lets the UI say so rather than looking stuck.
-    """
-    if not PLUGIN_SYSTEM_AVAILABLE:
-        raise HTTPException(status_code=503, detail="Plugin system is not available.")
-
-    registry = get_plugin_registry()
-    return {
-        "updates": registry.get_update_status(),
-        "blocked": registry.get_update_blocked_reasons(),
-    }
-
-
-@app.get("/plugins/{plugin_id}")
-async def get_plugin(plugin_id: str):
-    """
-    Get details for a specific plugin.
-
-    Returns the plugin's manifest, configuration, and status.
-    """
-    if not PLUGIN_SYSTEM_AVAILABLE:
-        raise HTTPException(status_code=503, detail="Plugin system is not available.")
-
-    registry = get_plugin_registry()
-    manifest = registry.get_manifest(plugin_id)
-
-    if not manifest:
-        raise HTTPException(status_code=404, detail=f"Plugin not found: {plugin_id}")
-
-    # Get configuration
-    config_manager = get_config_manager()
-    plugin_config = config_manager.get_plugin_config(plugin_id)
-
-    # Check for demo page (use flagship as the representative for backwards compat)
-    has_demo = manifest.demo is not None
-    demo_page_id = None
-    if has_demo:
-        page_service = get_page_service()
-        demo_page = page_service.get_demo_page(plugin_id, device_type="flagship") or page_service.get_demo_page(
-            plugin_id
-        )
-        if demo_page:
-            demo_page_id = demo_page.id
-
-    # Instance information
-    base_id, instance_label = registry.parse_instance_key(plugin_id)
-    instances = registry.list_instances(base_id) if not instance_label else []
-
-    return {
-        "id": plugin_id,
-        "name": manifest.name,
-        "version": manifest.version,
-        "description": manifest.description,
-        "author": manifest.author,
-        "icon": manifest.icon,
-        "category": manifest.category,
-        # "data" or "transition" -- the UI hides the enable toggle for
-        # transition plugins, which run whenever selected regardless of it.
-        "plugin_type": manifest.plugin_type,
-        "enabled": registry.is_enabled(plugin_id),
-        "config": config_manager._mask_sensitive(plugin_config) if plugin_config else {},
-        "settings_schema": manifest.settings_schema,
-        "variables": manifest.raw.get("variables", {}),
-        "max_lengths": manifest.max_lengths,
-        "env_vars": manifest.env_vars,
-        "documentation": manifest.documentation,
-        "has_demo": has_demo,
-        "demo_page_id": demo_page_id,
-        "instance_label": instance_label,
-        "base_plugin_id": base_id,
-        "instances": instances,
-    }
-
-
-@app.get("/plugins/{plugin_id}/manifest")
-async def get_plugin_manifest(plugin_id: str):
-    """
-    Get the full manifest for a plugin.
-
-    Returns the raw manifest data for UI rendering.
-    """
-    if not PLUGIN_SYSTEM_AVAILABLE:
-        raise HTTPException(status_code=503, detail="Plugin system is not available.")
-
-    registry = get_plugin_registry()
-    manifest = registry.get_manifest(plugin_id)
-
-    if not manifest:
-        raise HTTPException(status_code=404, detail=f"Plugin not found: {plugin_id}")
-
-    return manifest.raw
-
-
-@app.put("/plugins/{plugin_id}/config")
-async def update_plugin_config(plugin_id: str, request: PluginConfigRequest):
-    """
-    Update configuration for a plugin.
-
-    Args:
-        plugin_id: Plugin identifier
-        request: Configuration to apply
-
-    Example body:
-    {
-        "config": {
-            "api_key": "your-api-key",
-            "location": "San Francisco, CA",
-            "refresh_seconds": 300
-        }
-    }
-    """
-    if not PLUGIN_SYSTEM_AVAILABLE:
-        raise HTTPException(status_code=503, detail="Plugin system is not available.")
-
-    registry = get_plugin_registry()
-
-    # Check if plugin exists
-    if not registry.get_plugin(plugin_id):
-        raise HTTPException(status_code=404, detail=f"Plugin not found: {plugin_id}")
-
-    # Resolve the "***" placeholders before anything sees the payload. Config
-    # goes out masked, so any client that echoes back what it read — the
-    # settings form, or an MCP client working from list_installed_plugins() —
-    # posts the sentinel where the secret used to be. Un-masking here rather
-    # than only inside ConfigManager keeps the mask out of the live plugin as
-    # well, whose validate_config()/on_config_change() would otherwise run
-    # against three asterisks (issue #1743).
-    config_manager = get_config_manager()
-    stored_config = config_manager.get_plugin_config(plugin_id) or {}
-    config = unmask_sensitive_values(request.config, stored_config)
-
-    # Validate configuration against manifest schema
-    errors = registry.set_plugin_config(plugin_id, config)
-    if errors:
-        logger.error(f"Plugin '{plugin_id}' config validation failed: {errors}")
-        raise HTTPException(status_code=400, detail={"errors": errors})
-
-    # Save to config file
-    config_manager.set_plugin_config(plugin_id, config)
-
-    # Reset services to pick up new config
-    reset_display_service()
-    reset_template_engine()
-
-    logger.info(f"Plugin '{plugin_id}' configuration updated")
-
-    # Return masked config
-    updated = config_manager.get_plugin_config(plugin_id)
-
-    return {
-        "status": "success",
-        "plugin_id": plugin_id,
-        "config": config_manager._mask_sensitive(updated) if updated else {},
-    }
-
-
-@app.post("/plugins/{plugin_id}/enable")
-async def enable_plugin(plugin_id: str):
-    """
-    Enable a plugin.
-
-    Enables the plugin in both the registry and persists to config.
-    """
-    if not PLUGIN_SYSTEM_AVAILABLE:
-        raise HTTPException(status_code=503, detail="Plugin system is not available.")
-
-    registry = get_plugin_registry()
-
-    if not registry.get_plugin(plugin_id):
-        raise HTTPException(status_code=404, detail=f"Plugin not found: {plugin_id}")
-
-    # Enable in registry
-    success = registry.enable_plugin(plugin_id)
-    if not success:
-        raise HTTPException(status_code=400, detail=f"Failed to enable plugin: {plugin_id}")
-
-    # Persist to config
-    config_manager = get_config_manager()
-    config_manager.enable_plugin(plugin_id)
-
-    # Reset services
-    reset_display_service()
-    reset_template_engine()
-
-    logger.info(f"Plugin '{plugin_id}' enabled")
-
-    return {"status": "success", "plugin_id": plugin_id, "enabled": True}
-
-
-@app.post("/plugins/{plugin_id}/disable")
-async def disable_plugin(plugin_id: str):
-    """
-    Disable a plugin.
-
-    Disables the plugin in both the registry and persists to config.
-    """
-    if not PLUGIN_SYSTEM_AVAILABLE:
-        raise HTTPException(status_code=503, detail="Plugin system is not available.")
-
-    registry = get_plugin_registry()
-
-    if not registry.get_plugin(plugin_id):
-        raise HTTPException(status_code=404, detail=f"Plugin not found: {plugin_id}")
-
-    # Disable in registry
-    success = registry.disable_plugin(plugin_id)
-    if not success:
-        raise HTTPException(status_code=400, detail=f"Failed to disable plugin: {plugin_id}")
-
-    # Persist to config
-    config_manager = get_config_manager()
-    config_manager.disable_plugin(plugin_id)
-
-    # Reset services
-    reset_display_service()
-    reset_template_engine()
-
-    logger.info(f"Plugin '{plugin_id}' disabled")
-
-    return {"status": "success", "plugin_id": plugin_id, "enabled": False}
-
-
-@app.get("/plugins/{plugin_id}/data")
-async def get_plugin_data(plugin_id: str):
-    """
-    Fetch current data from a plugin.
-
-    Returns the plugin's latest data, formatted output, and status.
-    """
-    if not PLUGIN_SYSTEM_AVAILABLE:
-        raise HTTPException(status_code=503, detail="Plugin system is not available.")
-
-    registry = get_plugin_registry()
-
-    if not registry.get_plugin(plugin_id):
-        raise HTTPException(status_code=404, detail=f"Plugin not found: {plugin_id}")
-
-    if not registry.is_enabled(plugin_id):
-        raise HTTPException(status_code=400, detail=f"Plugin not enabled: {plugin_id}")
-
-    result = registry.fetch_plugin_data(plugin_id)
-
-    # Return 503 when plugin data is unavailable (e.g. not configured, auth failure)
-    # so monitoring (Grafana) and request log show it as an error for triage
-    if not result.available:
-        raise HTTPException(status_code=503, detail=result.error or "Plugin data not available")
-
-    return {
-        "plugin_id": plugin_id,
-        "available": result.available,
-        "data": result.data,
-        "formatted_lines": result.formatted_lines,
-        "error": result.error,
-    }
-
-
-@app.get("/plugins/{plugin_id}/variables")
-async def get_plugin_variables(plugin_id: str):
-    """
-    Get template variables exposed by a plugin.
-
-    Returns the variables schema for use in the template editor.
-    """
-    if not PLUGIN_SYSTEM_AVAILABLE:
-        raise HTTPException(status_code=503, detail="Plugin system is not available.")
-
-    registry = get_plugin_registry()
-    manifest = registry.get_manifest(plugin_id)
-
-    if not manifest:
-        raise HTTPException(status_code=404, detail=f"Plugin not found: {plugin_id}")
-
-    return {
-        "plugin_id": plugin_id,
-        "variables": manifest.raw.get("variables", {}),
-        "max_lengths": manifest.max_lengths,
-        "color_rules_schema": manifest.raw.get("color_rules_schema", {}),
-    }
-
-
 # ── Plugin remote options ────────────────────────────────────────────────────
 
 # Hard ceiling on how many options core will hand to the browser, whatever the
@@ -9934,22 +7548,6 @@ async def _bounded_options_call(work: Any, timeout: float) -> Any:
     return await asyncio.wait_for(asyncio.shield(task), timeout)
 
 
-class PluginOptionsRequestBody(BaseModel):
-    """Body for ``POST /plugins/{plugin_id}/options/{options_id}``.
-
-    POST rather than GET on purpose: ``parent`` holds arbitrary JSON, and
-    ``draft_config`` carries credentials that must never reach a URL, an
-    access log, or browser history.
-    """
-
-    parent: dict[str, Any] = Field(default_factory=dict)
-    query: str = ""
-    limit: int = 200
-    cursor: str | None = None
-    refresh: bool = False
-    draft_config: dict[str, Any] = Field(default_factory=dict)
-
-
 # Answers are cached per (plugin instance, provider, effective config, query)
 # so that typing in a search box does not hammer an upstream API. Bounded so a
 # long-lived process cannot accumulate one entry per keystroke forever.
@@ -9974,7 +7572,7 @@ def _plugin_options_cache_key(
     plugin_id: str,
     options_id: str,
     config_digest: str,
-    body: "PluginOptionsRequestBody",
+    body: Any,  # PluginOptionsRequestBody (moved to src/plugins/routes.py); duck-typed here
     limit: int,
 ) -> str:
     """Build the cache key for one options question.
@@ -10147,741 +7745,13 @@ def _fit_options_payload(payload: dict[str, Any]) -> dict[str, Any]:
     return payload
 
 
-@app.post("/plugins/{plugin_id}/options/{options_id}")
-async def get_plugin_options_endpoint(plugin_id: str, options_id: str, body: PluginOptionsRequestBody):
-    """Browse a plugin's upstream catalog to populate one settings field."""
-    from .plugins.base import OptionsRequest, OptionsUnavailable
+# =============================================================================
+# Plugin Endpoints — moved to src/plugins/routes.py (issue #1757)
+# =============================================================================
 
-    if not PLUGIN_SYSTEM_AVAILABLE:
-        raise HTTPException(status_code=503, detail="Plugin system is not available.")
+from .plugins.routes import router as plugins_router  # noqa: E402
 
-    registry = get_plugin_registry()
-
-    if registry.get_plugin(plugin_id) is None:
-        raise HTTPException(status_code=404, detail=f"Plugin not found: {plugin_id}")
-
-    manifest = registry.get_manifest(plugin_id)
-    if options_id not in _declared_options_ids(manifest):
-        raise HTTPException(
-            status_code=400,
-            detail=f"Plugin '{plugin_id}' does not declare options provider '{options_id}'",
-        )
-
-    limit = max(1, min(body.limit, PLUGIN_OPTIONS_MAX_RETURNED))
-    request = OptionsRequest(
-        options_id=options_id,
-        parent=body.parent,
-        query=body.query,
-        limit=limit,
-        cursor=body.cursor,
-    )
-
-    cache_seconds = _options_cache_seconds(manifest, options_id)
-
-    def _envelope(**overrides: Any) -> dict[str, Any]:
-        payload: dict[str, Any] = {
-            "plugin_id": plugin_id,
-            "options_id": options_id,
-            "options": [],
-            "has_more": False,
-            "cursor": None,
-            "total": None,
-            "error": None,
-            "cached": False,
-            "stale": False,
-            "cache_seconds": cache_seconds,
-        }
-        payload.update(overrides)
-        return payload
-
-    stored_config = dict(registry.get_plugin_config(plugin_id) or {})
-    # The form posts back "***" wherever a sensitive field used to be, so the
-    # draft has to be un-masked against what is stored or the plugin gets three
-    # asterisks as its API key and every lookup fails mid-setup.
-    draft_config = unmask_sensitive_values(body.draft_config, stored_config) if body.draft_config else None
-    if draft_config:
-        # Key names only, never values: a settings dialog is exactly where
-        # credentials leak into logs.
-        logger.debug(
-            "Options request for '%s/%s' carries draft config keys: %s",
-            plugin_id,
-            options_id,
-            sorted(draft_config),
-        )
-
-    effective_config = {**stored_config, **(draft_config or {})}
-    cache_key = _plugin_options_cache_key(plugin_id, options_id, _config_fingerprint(effective_config), body, limit)
-
-    if body.refresh:
-        _plugin_options_refresh_throttle(cache_key)
-    elif cache_seconds > 0:
-        entry = _plugin_options_cache_get(cache_key)
-        if entry is not None and (time.monotonic() - entry[0]) < cache_seconds:
-            return {**entry[1], "cached": True, "stale": False}
-
-    try:
-        # Never call the plugin inline: get_options() makes network calls, and
-        # blocking the event loop here would stall every other request in the
-        # process. (GET /plugins/{id}/data still does this; do not copy it.)
-        result = await _bounded_options_call(
-            lambda: registry.get_plugin_options(plugin_id, options_id, request, draft_config=draft_config),
-            PLUGIN_OPTIONS_TIMEOUT_SECONDS,
-        )
-    except TimeoutError as e:
-        logger.warning("Options provider '%s' timed out for plugin '%s'", options_id, plugin_id)
-        stale = _stale_options_payload(cache_key, reason=f"Options provider '{options_id}' timed out")
-        if stale is not None:
-            return stale
-        raise HTTPException(
-            status_code=504,
-            detail=f"Options provider '{options_id}' timed out",
-        ) from e
-    except NotImplementedError as e:
-        # The manifest promised a provider the class never implemented, or the
-        # plugin is a transition. 501 lets the widget degrade to a plain input.
-        raise HTTPException(status_code=501, detail=str(e)) from e
-    except KeyError as e:
-        # The registry could not build a sandbox: the plugin was uninstalled
-        # while its settings dialog was open. Still "no such plugin".
-        raise HTTPException(status_code=404, detail=f"Plugin not found: {plugin_id}") from e
-    except OptionsUnavailable as e:
-        # Deliberately a 200. "No API key yet" is the *expected* state while
-        # the user is still filling the form in; the widget shows the reason
-        # inline next to the field instead of a failed-request toast.
-        return _envelope(error=str(e))
-    except Exception as e:
-        # The traceback (with the plugin's raw error text) is already in the
-        # server log; the client gets a static message so plugin exceptions
-        # cannot leak keys/URLs/paths (CodeQL py/stack-trace-exposure).
-        logger.exception("Options provider '%s' failed for plugin '%s'", options_id, plugin_id)
-        stale = _stale_options_payload(cache_key, reason="Options provider failed")
-        if stale is not None:
-            return stale
-        raise HTTPException(status_code=502, detail="Options provider failed") from e
-
-    options, truncated = _serialise_options(result.options, limit, plugin_id, options_id)
-    payload = _fit_options_payload(
-        _envelope(
-            options=options,
-            has_more=bool(result.has_more) or truncated,
-            cursor=_truncate(result.cursor, PLUGIN_OPTIONS_MAX_CURSOR_CHARS),
-            total=result.total,
-            error=result.error,
-        )
-    )
-
-    if cache_seconds > 0:
-        _plugin_options_cache_put(cache_key, payload)
-
-    return payload
-
-
-# ── Plugin Demo Pages ────────────────────────────────────────────────────────
-
-
-def _resolve_demo_device_type(demo: dict) -> str:
-    """Pick the demo device_type that matches the configured board.
-
-    Walks the user's configured boards in order and returns the first
-    device_type that the plugin actually ships a demo for. Falls back to
-    any device_type the plugin supports, then to "flagship" as a last
-    resort. See issue #942.
-    """
-    configured: list[str] = []
-    try:
-        board_settings = get_settings_service().get_board_settings()
-        for board in getattr(board_settings, "boards", []) or []:
-            dt = board.get("device_type") if isinstance(board, dict) else None
-            if dt and dt not in configured:
-                configured.append(dt)
-    except Exception:  # noqa: BLE001 — settings access must never break demo creation
-        logger.debug("Could not resolve configured device_type; using plugin default", exc_info=True)
-
-    for dt in configured:
-        if dt in demo:
-            return dt
-    if demo:
-        return next(iter(demo))
-    return "flagship"
-
-
-@app.get("/plugins/{plugin_id}/demo-page")
-async def get_plugin_demo_page(plugin_id: str, device_type: str = "flagship"):
-    """
-    Check whether a demo page exists for this plugin and device type.
-
-    Returns ``exists: true`` and the page id when one is found.
-    """
-    if not PLUGIN_SYSTEM_AVAILABLE:
-        raise HTTPException(status_code=503, detail="Plugin system is not available.")
-
-    registry = get_plugin_registry()
-    manifest = registry.get_manifest(plugin_id)
-    if not manifest:
-        raise HTTPException(status_code=404, detail=f"Plugin not found: {plugin_id}")
-
-    if manifest.demo is None:
-        return {"exists": False, "page_id": None, "has_demo_template": False}
-
-    has_demo_template = device_type in manifest.demo
-    page_service = get_page_service()
-    demo_page = page_service.get_demo_page(plugin_id, device_type=device_type)
-    return {
-        "exists": demo_page is not None,
-        "page_id": demo_page.id if demo_page else None,
-        "has_demo_template": has_demo_template,
-    }
-
-
-@app.post("/plugins/{plugin_id}/demo-page")
-async def create_plugin_demo_page(plugin_id: str, device_type: str | None = None):
-    """
-    Create (or recreate) the demo page for a plugin and device type.
-
-    When *device_type* is omitted, it is resolved from the configured board
-    settings (the first device type listed under Settings → Hardware), so a
-    Note board does not silently get a Flagship-sized demo page (issue #942).
-    If the plugin does not ship a demo template for the configured device,
-    we fall back to any device type it does support.
-
-    The demo page is a singleton per plugin + device type -- calling this endpoint
-    when a demo page already exists for that device type will delete the old one
-    and create a fresh copy.
-    """
-    if not PLUGIN_SYSTEM_AVAILABLE:
-        raise HTTPException(status_code=503, detail="Plugin system is not available.")
-
-    registry = get_plugin_registry()
-    manifest = registry.get_manifest(plugin_id)
-    if not manifest:
-        raise HTTPException(status_code=404, detail=f"Plugin not found: {plugin_id}")
-
-    if manifest.demo is None:
-        raise HTTPException(
-            status_code=400,
-            detail=f"Plugin '{plugin_id}' does not include a demo page template.",
-        )
-
-    resolved_device_type = device_type or _resolve_demo_device_type(manifest.demo)
-
-    demo_schema = manifest.demo.get(resolved_device_type)
-    if demo_schema is None:
-        raise HTTPException(
-            status_code=400,
-            detail=f"Plugin '{plugin_id}' has no demo template for device type '{resolved_device_type}'.",
-        )
-
-    # Check that required settings are configured
-    settings_schema = manifest.settings_schema
-    required_fields = settings_schema.get("required", [])
-    if required_fields:
-        config_manager = get_config_manager()
-        plugin_config = config_manager.get_plugin_config(plugin_id) or {}
-        missing = [f for f in required_fields if f != "enabled" and not plugin_config.get(f)]
-        if missing:
-            raise HTTPException(
-                status_code=400,
-                detail=f"Required settings not configured: {', '.join(missing)}. "
-                f"Configure them first before creating a demo page.",
-            )
-
-    page_service = get_page_service()
-    page, recreated = page_service.create_demo_page(plugin_id, demo_schema)
-
-    return {
-        "status": "recreated" if recreated else "created",
-        "page": page.model_dump(),
-    }
-
-
-# ── Plugin Instances ────────────────────────────────────────────────────────
-
-
-class PluginInstanceCreateRequest(BaseModel):
-    """Request body for creating a new plugin instance."""
-
-    label: str
-
-
-@app.get("/plugins/{plugin_id}/instances")
-async def list_plugin_instances(plugin_id: str):
-    """
-    List all instances of a plugin.
-
-    Returns the instances (excluding the base) for the given plugin.
-    """
-    if not PLUGIN_SYSTEM_AVAILABLE:
-        raise HTTPException(status_code=503, detail="Plugin system is not available.")
-
-    registry = get_plugin_registry()
-
-    # Resolve base plugin id (strip instance label if present)
-    base_id, _ = registry.parse_instance_key(plugin_id)
-
-    if not registry.get_plugin(base_id):
-        raise HTTPException(status_code=404, detail=f"Plugin not found: {base_id}")
-
-    instances = registry.list_instances(base_id)
-
-    return {
-        "plugin_id": base_id,
-        "instances": instances,
-        "total": len(instances),
-    }
-
-
-@app.post("/plugins/{plugin_id}/instances")
-async def create_plugin_instance(plugin_id: str, request: PluginInstanceCreateRequest):
-    """
-    Create a new instance of a plugin.
-
-    The new instance starts disabled with an empty configuration.
-    It can be configured and enabled independently via the standard
-    plugin config/enable endpoints using the compound key
-    ``{plugin_id}:{label}``.
-    """
-    if not PLUGIN_SYSTEM_AVAILABLE:
-        raise HTTPException(status_code=503, detail="Plugin system is not available.")
-
-    registry = get_plugin_registry()
-
-    # Resolve base plugin id
-    base_id, _ = registry.parse_instance_key(plugin_id)
-
-    if not registry.get_plugin(base_id):
-        raise HTTPException(status_code=404, detail=f"Plugin not found: {base_id}")
-
-    errors = registry.create_instance(base_id, request.label)
-    if errors:
-        raise HTTPException(status_code=400, detail="; ".join(errors))
-
-    compound_key = registry.make_instance_key(base_id, request.label)
-
-    config_manager = get_config_manager()
-    # The registry can come up without its named instances — an unreadable
-    # config.json, or a base plugin that failed to load, both leave the stored
-    # entries untouched but drop the live instances. The UI then shows nothing
-    # and the user re-adds the label by hand. Blindly persisting an empty
-    # config here used to overwrite their saved settings with
-    # `{"enabled": false}`, so the plugin fell back to manifest defaults.
-    # Adopt whatever is still on disk instead.
-    stored = config_manager.get_plugin_config(compound_key)
-    if stored:
-        errors = registry.apply_stored_config(compound_key, stored)
-        if errors:
-            logger.warning(
-                "Adopted stored config for re-created instance '%s' despite validation errors: %s",
-                compound_key,
-                errors,
-            )
-        if stored.get("enabled"):
-            registry.enable_plugin(compound_key)
-        logger.info("Re-created instance '%s' adopted its existing stored config", compound_key)
-    else:
-        # Persist empty config so the instance survives restarts
-        config_manager.set_plugin_config(compound_key, {"enabled": False})
-    # Re-creating an instance is an explicit user action — drop any
-    # deliberate-removal tombstone left by a prior delete (#1394).
-    config_manager.clear_plugin_removed(compound_key)
-
-    # Reset services so the new instance is available to templates immediately
-    reset_display_service()
-    reset_template_engine()
-
-    logger.info(f"Created plugin instance: {compound_key}")
-
-    # Report the normalized label — that is the instance the registry holds and
-    # the one `{{plugin:label.field}}` template references must use.
-    _, instance_label = registry.parse_instance_key(compound_key)
-
-    return {
-        "status": "success",
-        "plugin_id": base_id,
-        "instance_label": instance_label,
-        "instance_key": compound_key,
-        "message": f"Instance '{instance_label}' created for plugin '{base_id}'.",
-    }
-
-
-@app.delete("/plugins/{plugin_id}/instances/{instance_label}")
-async def delete_plugin_instance(plugin_id: str, instance_label: str):
-    """
-    Delete a plugin instance.
-
-    Removes the instance from the registry and its persisted configuration.
-    """
-    if not PLUGIN_SYSTEM_AVAILABLE:
-        raise HTTPException(status_code=503, detail="Plugin system is not available.")
-
-    registry = get_plugin_registry()
-
-    # Resolve base plugin id
-    base_id, _ = registry.parse_instance_key(plugin_id)
-
-    errors = registry.delete_instance(base_id, instance_label)
-    if errors:
-        raise HTTPException(status_code=400, detail="; ".join(errors))
-
-    compound_key = registry.make_instance_key(base_id, instance_label)
-
-    # Remove persisted config and tombstone the compound key so a
-    # post-upgrade auto-restore cannot resurrect the deleted instance (#1394).
-    config_manager = get_config_manager()
-    config_manager.delete_plugin_config(compound_key)
-    config_manager.mark_plugin_removed(compound_key)
-
-    # Reset services
-    reset_display_service()
-    reset_template_engine()
-
-    logger.info(f"Deleted plugin instance: {compound_key}")
-
-    return {
-        "status": "success",
-        "plugin_id": base_id,
-        "instance_label": instance_label,
-        "instance_key": compound_key,
-        "message": f"Instance '{instance_label}' of plugin '{base_id}' deleted.",
-    }
-
-
-@app.post("/plugins/{plugin_id}/receive")
-async def receive_plugin_payload(plugin_id: str, request: Request):
-    """
-    Push a JSON payload to a plugin.
-
-    Allows external systems (CI pipelines, automations, etc.) to push data to
-    plugins that support incoming webhooks.  The plugin's ``receive_payload``
-    method is called with the parsed body, the raw request headers, and the
-    raw body bytes (for HMAC verification).
-
-    Returns 404 when the plugin is not found, 400 when it is not enabled or
-    the body is not valid JSON, 403 when the plugin rejects the request due to
-    a signature mismatch, and 405 when the plugin does not support receive.
-    """
-    if not PLUGIN_SYSTEM_AVAILABLE:
-        raise HTTPException(status_code=503, detail="Plugin system is not available.")
-
-    registry = get_plugin_registry()
-    plugin = registry.get_plugin(plugin_id)
-    if not plugin:
-        raise HTTPException(status_code=404, detail=f"Plugin not found: {plugin_id}")
-    if not registry.is_enabled(plugin_id):
-        raise HTTPException(status_code=400, detail=f"Plugin not enabled: {plugin_id}")
-
-    raw_body = await request.body()
-    try:
-        body = json.loads(raw_body)
-    except Exception:
-        raise HTTPException(status_code=400, detail="Request body must be valid JSON") from None
-
-    headers = dict(request.headers)
-
-    try:
-        plugin.receive_payload(body, headers, raw_body=raw_body)
-    except NotImplementedError:
-        raise HTTPException(
-            status_code=405,
-            detail=f"Plugin '{plugin_id}' does not support receive",
-        ) from None
-    except PermissionError as exc:
-        raise HTTPException(status_code=403, detail=str(exc)) from exc
-    except ValueError as exc:
-        raise HTTPException(status_code=400, detail=str(exc)) from exc
-
-    return {"status": "ok"}
-
-
-# ── External Plugin Management ──────────────────────────────────────────────
-
-
-class ExternalPluginInstallRequest(BaseModel):
-    """Request body for installing an external plugin."""
-
-    repository: str
-    plugin_id: str | None = None
-    branch: str = ""
-
-
-@app.post("/plugins/registry/{plugin_id}/install")
-async def install_registry_plugin(plugin_id: str):
-    """
-    Install a plugin from the curated registry by its id.
-
-    The install shells out to ``git`` (up to 120 s) and then imports the
-    plugin package, so it runs in a worker thread — inline it would seize the
-    event loop and freeze every other request for the whole clone (#1750).
-    """
-    if not PLUGIN_SYSTEM_AVAILABLE:
-        raise HTTPException(status_code=503, detail="Plugin system is not available.")
-
-    registry = get_plugin_registry()
-    errors = await asyncio.to_thread(registry.install_from_registry, plugin_id)
-
-    if errors:
-        raise HTTPException(status_code=400, detail="; ".join(errors))
-
-    return {
-        "status": "success",
-        "plugin_id": plugin_id,
-        "message": f"Plugin '{plugin_id}' installed from registry.",
-    }
-
-
-@app.post("/plugins/install")
-async def install_external_plugin(request: ExternalPluginInstallRequest):
-    """
-    Install a plugin from a public git repository URL.
-
-    The repository does not need to follow the ``fiestaboard-plugin--``
-    naming convention (that requirement only applies to registry plugins).
-
-    The clone runs in a worker thread so a slow or unreachable remote cannot
-    block the event loop (#1750).
-    """
-    if not PLUGIN_SYSTEM_AVAILABLE:
-        raise HTTPException(status_code=503, detail="Plugin system is not available.")
-
-    safe_branch = request.branch or ""
-    if safe_branch:
-        from .plugins.sources import _validate_git_ref
-
-        _ok, _err = _validate_git_ref(safe_branch)
-        if not _ok:
-            raise HTTPException(status_code=400, detail=_err)
-
-    safe_plugin_id = _sanitize_optional_plugin_id(request.plugin_id)
-
-    registry = get_plugin_registry()
-    errors = await asyncio.to_thread(
-        registry.install_from_git,
-        request.repository,
-        plugin_id=safe_plugin_id,
-        branch=safe_branch,
-    )
-
-    if errors:
-        raise HTTPException(status_code=400, detail="; ".join(errors))
-
-    # Derive the final plugin id
-    pid = safe_plugin_id
-    if pid is None:
-        from .plugins.sources import plugin_id_from_repo_name, repo_name_from_url
-
-        pid = plugin_id_from_repo_name(repo_name_from_url(request.repository))
-
-    return {
-        "status": "success",
-        "plugin_id": pid,
-        "message": f"Plugin '{pid}' installed from {request.repository}.",
-    }
-
-
-@app.delete("/plugins/{plugin_id}/uninstall")
-async def uninstall_external_plugin(plugin_id: str):
-    """
-    Uninstall an external (non-built-in) plugin.
-
-    Built-in plugins shipped with FiestaBoard cannot be uninstalled.
-    """
-    if not PLUGIN_SYSTEM_AVAILABLE:
-        raise HTTPException(status_code=503, detail="Plugin system is not available.")
-
-    registry = get_plugin_registry()
-
-    # Collect instance compound keys before uninstall so we can purge their configs
-    instance_keys = [
-        p["id"] for p in registry.list_plugins() if p.get("base_plugin_id") == plugin_id and p.get("instance_label")
-    ]
-
-    errors = registry.uninstall_external_plugin(plugin_id)
-
-    if errors:
-        raise HTTPException(status_code=400, detail="; ".join(errors))
-
-    # Purge persisted configs for both the base plugin and every named instance.
-    # The base-id delete is critical: without it the v2→v3 auto-migration would
-    # see the leftover entry as orphaned on the next boot and silently reinstall
-    # the plugin the user just deleted (issue #937).
-    config_manager = get_config_manager()
-    for compound_key in instance_keys:
-        config_manager.delete_plugin_config(compound_key)
-    config_manager.delete_plugin_config(plugin_id)
-
-    return {
-        "status": "success",
-        "plugin_id": plugin_id,
-        "message": f"Plugin '{plugin_id}' has been uninstalled.",
-    }
-
-
-@app.post("/plugins/updates/check")
-async def trigger_plugin_update_check():
-    """
-    Trigger an immediate update check for all external plugins.
-
-    Runs ``git ls-remote`` against each external plugin's origin in a thread
-    pool so the event loop is not blocked.
-    """
-    if not PLUGIN_SYSTEM_AVAILABLE:
-        raise HTTPException(status_code=503, detail="Plugin system is not available.")
-
-    registry = get_plugin_registry()
-    loop = asyncio.get_event_loop()
-    results = await loop.run_in_executor(None, registry.check_for_updates)
-    plugins_with_updates = [pid for pid, has_update in results.items() if has_update]
-    return {
-        "checked": len(results),
-        "updates_available": plugins_with_updates,
-    }
-
-
-@app.post("/plugins/{plugin_id}/update")
-async def update_plugin(plugin_id: str):
-    """
-    Fetch the latest commits for an external plugin from its remote and reload it.
-
-    Built-in plugins cannot be updated via this endpoint.
-    """
-    if not PLUGIN_SYSTEM_AVAILABLE:
-        raise HTTPException(status_code=503, detail="Plugin system is not available.")
-
-    registry = get_plugin_registry()
-    source = registry.get_plugin_source(plugin_id)
-
-    if source is None:
-        raise HTTPException(status_code=404, detail=f"Plugin '{plugin_id}' not found.")
-
-    if source.source_type == "builtin":
-        raise HTTPException(
-            status_code=400,
-            detail=f"Plugin '{plugin_id}' is a built-in plugin and cannot be updated this way.",
-        )
-
-    if not source.local_path:
-        raise HTTPException(
-            status_code=400,
-            detail=f"Plugin '{plugin_id}' has no local path for updating.",
-        )
-
-    import os as _os
-
-    from .plugins.sources import clone_or_update_repo, get_external_plugins_dir
-
-    # Verify the plugin's local_path is within the external plugins directory
-    # before updating, as a defence-in-depth check.
-    _ext_dir = get_external_plugins_dir()
-    _ext_root = _os.path.realpath(str(_ext_dir))
-    _real_local = _os.path.realpath(str(source.local_path))
-    try:
-        _common = _os.path.commonpath([_ext_root, _real_local])
-    except ValueError:
-        raise HTTPException(status_code=400, detail="Invalid plugin path.") from None
-    if _common != _ext_root or _real_local == _ext_root:
-        raise HTTPException(status_code=400, detail="Invalid plugin path.")
-
-    if not (_real_local and (Path(_real_local) / ".git").is_dir()):
-        raise HTTPException(
-            status_code=400,
-            detail=f"Plugin '{plugin_id}' is not a git repository.",
-        )
-
-    # Pass the validated plugin_id — clone_or_update_repo resolves the path
-    # internally so no user-controlled Path flows into subprocess sinks.
-    # Both the git fetch and the module reimport go to a worker thread so the
-    # event loop keeps serving other requests during the update (#1750).
-    ok, err = await asyncio.to_thread(clone_or_update_repo, "", plugin_id, external_dir=_ext_dir)
-    if not ok:
-        raise HTTPException(status_code=500, detail=f"Update failed: {err}")
-
-    reloaded = await asyncio.to_thread(registry.reload_plugin, plugin_id)
-    if reloaded is None:
-        errors = registry.get_load_errors().get(plugin_id, [])
-        detail = "; ".join(errors) if errors else "Plugin failed to reload after update."
-        raise HTTPException(status_code=500, detail=detail)
-
-    registry.clear_update_status(plugin_id)
-
-    return {
-        "status": "success",
-        "plugin_id": plugin_id,
-        "message": f"Plugin '{plugin_id}' has been updated and reloaded.",
-    }
-
-
-@app.post("/plugins/updates/apply")
-async def apply_all_plugin_updates():
-    """
-    Fetch and reload all external plugins that have a pending update.
-
-    Uses the cached update status from the last check — call
-    ``POST /plugins/updates/check`` first if you want a fresh scan before
-    applying.  Returns 200 even when some plugins fail so the caller can
-    inspect partial results.
-    """
-    if not PLUGIN_SYSTEM_AVAILABLE:
-        raise HTTPException(status_code=503, detail="Plugin system is not available.")
-
-    registry = get_plugin_registry()
-    pending = [pid for pid, has_update in registry.get_update_status().items() if has_update]
-
-    if not pending:
-        return {"updated": [], "failed": {}, "message": "No updates available."}
-
-    import os as _os
-    from pathlib import Path as _Path
-
-    from .plugins.sources import clone_or_update_repo, get_external_plugins_dir
-
-    updated: list = []
-    failed: dict = {}
-    _ext_dir = get_external_plugins_dir()
-    _ext_root = _os.path.realpath(str(_ext_dir))
-
-    for plugin_id in pending:
-        source = registry.get_plugin_source(plugin_id)
-        if source is None or not source.local_path:
-            failed[plugin_id] = "Plugin source not found."
-            continue
-
-        _real_local = _os.path.realpath(str(_Path(source.local_path)))
-        try:
-            _common = _os.path.commonpath([_ext_root, _real_local])
-        except ValueError:
-            failed[plugin_id] = "Invalid plugin path."
-            continue
-        if _common != _ext_root or _real_local == _ext_root:
-            failed[plugin_id] = "Invalid plugin path."
-            continue
-        if not (_Path(_real_local) / ".git").is_dir():
-            failed[plugin_id] = "Plugin is not a git repository."
-            continue
-
-        # Pass the validated plugin_id — clone_or_update_repo resolves the path
-        # internally so no user-controlled Path flows into subprocess sinks.
-        # A bulk update is N sequential git fetches; keeping them on the loop
-        # would freeze the API for the sum of all of them (#1750).
-        ok, err = await asyncio.to_thread(clone_or_update_repo, "", plugin_id, external_dir=_ext_dir)
-        if not ok:
-            failed[plugin_id] = f"git fetch failed: {err}"
-            continue
-
-        reloaded = await asyncio.to_thread(registry.reload_plugin, plugin_id)
-        if reloaded is None:
-            errors = registry.get_load_errors().get(plugin_id, [])
-            failed[plugin_id] = "; ".join(errors) if errors else "Reload failed."
-            continue
-
-        registry.clear_update_status(plugin_id)
-        updated.append(plugin_id)
-        logger.info("Bulk update: applied update for plugin '%s'", plugin_id)
-
-    return {
-        "updated": updated,
-        "failed": failed,
-        "message": f"Updated {len(updated)} plugin(s); {len(failed)} failed.",
-    }
-
+app.include_router(plugins_router)
 
 # =============================================================================
 # Triggers — Event-based plugin messages

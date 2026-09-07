@@ -1,1 +1,1 @@
-"""System management module for Docker container control and mDNS discovery."""
+"""System management: self-update service + routes, HTTPS certs, mDNS discovery."""

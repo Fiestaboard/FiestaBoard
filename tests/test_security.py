@@ -82,6 +82,7 @@ def mock_plugin_with_sensitive_config():
         raw_config = {"api_key": "super-secret-key-abc123", "location": "New York"}
         masked_config = {"api_key": "***", "location": "New York"}
         cm.get_plugin_config.return_value = raw_config
+        cm.get_plugin_env_overrides.return_value = {}
         cm._mask_sensitive.return_value = masked_config
 
         mock_get.return_value = reg
