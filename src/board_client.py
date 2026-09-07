@@ -81,10 +81,30 @@ NOTE_ARRAY_MIN_SEND_INTERVAL: float = 15.0
 CLOUD_MIN_SEND_INTERVAL: float = 15.0
 
 # Connection-level send retry policy: retry once after a short backoff, but
-# only for errors where the board never answered (connect failures, timeouts).
+# only for errors where the board never ACCEPTED the connection.
 # HTTP 4xx/5xx responses ARE the board answering and are never retried.
 SEND_MAX_ATTEMPTS: int = 2
 SEND_RETRY_BACKOFF_SECONDS: float = 0.5
+
+
+def _is_retryable_send_error(exc: BaseException) -> bool:
+    """True when the board never accepted the connection, so a retry is worth it.
+
+    A refused or reset connection, or a DNS failure, means the board is not
+    listening: the retry is cheap (the failure is immediate) and often wins —
+    a board mid-reboot, a transient LAN blip. ``ConnectTimeout`` subclasses
+    ``ConnectionError`` as well as ``Timeout`` and lands on this side for the
+    same reason: no connection was established.
+
+    A ``ReadTimeout`` is the opposite case. The board took the request and then
+    went quiet, so it is wedged, and the second attempt pays the identical read
+    timeout against the identical wedged board. #1754 retried both classes
+    alike; the Phase 2 audit measured what that costs — a send to a wedged
+    board went from 10.01s to 20.53s, doubling the stall for nothing while the
+    per-board send worker (and any waiter on it) blocked.
+    """
+    return isinstance(exc, requests.exceptions.ConnectionError)
+
 
 # (connect, read) timeouts per API type. LAN connects should fail fast (an
 # unreachable board otherwise burns the full timeout per attempt in the
@@ -531,14 +551,16 @@ class BoardClient(TransitionRenderMixin):
     def _post_with_retry(self, url: str, headers: dict[str, str], payload: Any) -> requests.Response:
         """POST with a single connection-level retry after a short backoff.
 
-        Retries (once) ONLY errors where the board never answered --
-        ``requests.exceptions.ConnectionError`` and timeouts.  An HTTP error
-        response is the board answering: it is returned to the caller (whose
-        ``raise_for_status`` surfaces it) and never retried.  The backoff
-        waits on the active cancel event rather than sleeping, so a
-        preempting render() / newer send job abandons the retry promptly.
-        Worst case: SEND_MAX_ATTEMPTS * (connect + read timeout) + backoff,
-        well under the send worker's wait bound.
+        Retries (once) ONLY errors where the board never ACCEPTED the
+        connection -- see :func:`_is_retryable_send_error`. A ``ReadTimeout``
+        is raised by a board that answered and then went quiet, and is not
+        retried: the second attempt would pay the same read timeout again.
+        An HTTP error response is the board answering: it is returned to the
+        caller (whose ``raise_for_status`` surfaces it) and never retried.
+        The backoff waits on the active cancel event rather than sleeping, so
+        a preempting render() / newer send job abandons the retry promptly.
+        Worst case: SEND_MAX_ATTEMPTS * connect timeout + read timeout +
+        backoff, well under the send worker's wait bound.
         """
         last_exc: requests.exceptions.RequestException | None = None
         for attempt in range(1, SEND_MAX_ATTEMPTS + 1):
@@ -546,7 +568,7 @@ class BoardClient(TransitionRenderMixin):
                 return requests.post(url, headers=headers, json=payload, timeout=self._request_timeout)
             except (requests.exceptions.ConnectionError, requests.exceptions.Timeout) as exc:
                 last_exc = exc
-                if attempt >= SEND_MAX_ATTEMPTS:
+                if attempt >= SEND_MAX_ATTEMPTS or not _is_retryable_send_error(exc):
                     break
                 logger.debug(
                     "Send attempt %d/%d failed with connection-level error (%s); retrying in %.1fs",

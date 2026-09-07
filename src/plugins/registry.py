@@ -11,6 +11,7 @@ The PluginRegistry is the central point for:
 import logging
 import re
 import threading
+import time
 from collections.abc import Collection
 from concurrent.futures import ThreadPoolExecutor
 from concurrent.futures import wait as futures_wait
@@ -62,8 +63,48 @@ CONTEXT_BUILD_TIMEOUT_SECONDS = 15
 # that reset the registry singleton never accumulate pools.
 PLUGIN_FETCH_MAX_WORKERS = 8
 
+# Per-plugin fetch circuit breaker (issue #1884).
+#
+# The bounded pool above cannot leak threads, but it introduced a new failure
+# mode the audit measured: once PLUGIN_FETCH_MAX_WORKERS *distinct* referenced
+# plugins wedge, every worker is occupied forever and healthy plugins are
+# starved off the board permanently (8 wedged + 4 healthy: the healthy four
+# went from being served every tick to 4 fetches total and absent from the
+# final context). No API can kill a thread stuck in plugin code, so bounding
+# occupancy alone cannot be the whole answer.
+#
+# The breaker: a fetch that actually STARTED and is still running when the
+# context-build timeout expires records one consecutive timeout against its
+# plugin. After PLUGIN_FETCH_BREAKER_THRESHOLD of them the plugin is
+# quarantined for PLUGIN_FETCH_BREAKER_COOLDOWN_SECONDS — neither submitted
+# nor waited on. That has two effects: the plugin stops consuming pool
+# workers, and every render stops paying CONTEXT_BUILD_TIMEOUT_SECONDS (15s
+# in production) for a data source that is never going to answer.
+#
+# A fetch that never STARTED is not counted: it is a symptom of saturation
+# caused by other plugins, and penalising it would quarantine exactly the
+# healthy plugins the breaker exists to protect.
+PLUGIN_FETCH_BREAKER_THRESHOLD = 3
+PLUGIN_FETCH_BREAKER_COOLDOWN_SECONDS = 300.0
+
+# Reserved capacity, the other half of #1884. Quarantining a plugin stops the
+# *next* fetch; the one already running keeps its worker until the plugin
+# returns, which for a truly wedged data source is never. Those workers are
+# written off, and once half the pool has been written off the shared pool is
+# rotated: a fresh pool takes over and the old one keeps its stuck threads
+# until the process exits. So healthy plugins always have at least
+# PLUGIN_FETCH_MAX_WORKERS - PLUGIN_FETCH_LOST_WORKER_LIMIT workers available,
+# no matter how many data sources are wedged.
+#
+# Total stuck threads stay bounded: the in-flight dedupe holds each plugin to
+# one fetch per board key, and the breaker stops resubmitting it, so the
+# ceiling is the number of distinct wedged (plugin, board) pairs — never a
+# per-tick growth rate, which is what #1751 was about.
+PLUGIN_FETCH_LOST_WORKER_LIMIT = PLUGIN_FETCH_MAX_WORKERS // 2
+
 _fetch_executor: ThreadPoolExecutor | None = None
 _fetch_executor_lock = threading.Lock()
+_fetch_workers_lost = 0
 
 
 def _get_fetch_executor() -> ThreadPoolExecutor:
@@ -77,6 +118,39 @@ def _get_fetch_executor() -> ThreadPoolExecutor:
         return _fetch_executor
 
 
+def _write_off_fetch_workers(count: int) -> None:
+    """Account *count* pool workers as permanently lost to wedged fetches.
+
+    Rotates the shared pool once the written-off total reaches
+    PLUGIN_FETCH_LOST_WORKER_LIMIT. The count is applied in one batch (not one
+    call per worker) so a tick that quarantines eight plugins rotates once,
+    rather than rotating and then immediately discarding the fresh pool.
+
+    ``wait=False`` and no ``cancel_futures``: nothing is queued on the retired
+    pool — build_template_context cancels every future that had not started
+    before it gave up — so only genuinely running (wedged) fetches are left
+    behind, and they die with the process.
+    """
+    global _fetch_executor, _fetch_workers_lost
+    if count <= 0:
+        return
+    with _fetch_executor_lock:
+        _fetch_workers_lost += count
+        if _fetch_workers_lost < PLUGIN_FETCH_LOST_WORKER_LIMIT:
+            return
+        logger.warning(
+            "plugin-fetch pool rotated: %d of %d workers are permanently occupied by wedged "
+            "plugin fetches; a fresh pool restores capacity for healthy plugins",
+            _fetch_workers_lost,
+            PLUGIN_FETCH_MAX_WORKERS,
+        )
+        retired = _fetch_executor
+        _fetch_executor = None
+        _fetch_workers_lost = 0
+    if retired is not None:
+        retired.shutdown(wait=False)
+
+
 def shutdown_plugin_fetch_executor() -> None:
     """Shut down the shared plugin-fetch pool (process teardown only).
 
@@ -84,11 +158,12 @@ def shutdown_plugin_fetch_executor() -> None:
     ``wait=False`` so a wedged plugin cannot stall shutdown; its worker
     thread dies with the process.
     """
-    global _fetch_executor
+    global _fetch_executor, _fetch_workers_lost
     with _fetch_executor_lock:
         if _fetch_executor is not None:
             _fetch_executor.shutdown(wait=False, cancel_futures=True)
             _fetch_executor = None
+        _fetch_workers_lost = 0
 
 
 def _config_in_use(plugin_id: str, stored_configs: dict[str, dict[str, Any]]) -> bool:
@@ -153,6 +228,15 @@ class PluginRegistry:
         # key instead of one more per tick until the pool starves.
         self._inflight_fetches: dict[tuple, Any] = {}
         self._inflight_lock = threading.Lock()
+
+        # Per-plugin fetch circuit breaker (issue #1884), guarded by
+        # _inflight_lock alongside the in-flight registry it works with.
+        # _fetch_timeouts counts CONSECUTIVE context-build timeouts on
+        # fetches that actually started; _fetch_breaker_until holds the
+        # monotonic deadline until which a quarantined plugin is neither
+        # submitted nor waited on.
+        self._fetch_timeouts: dict[str, int] = {}
+        self._fetch_breaker_until: dict[str, float] = {}
 
         # Set once initialize() has loaded the plugin set. Guards against a
         # repeat call rebuilding every live plugin (issue #1753).
@@ -1810,6 +1894,25 @@ class PluginRegistry:
         if not to_fetch:
             return context
 
+        # Circuit-breaker gate (issue #1884): a quarantined plugin is dropped
+        # from this build entirely — not submitted, and crucially not WAITED
+        # on. Skipping the wait is what removes the per-render
+        # CONTEXT_BUILD_TIMEOUT_SECONDS stall a single wedged referenced
+        # plugin used to impose on every tick.
+        now = time.monotonic()
+        with self._inflight_lock:
+            quarantined = [pid for pid in to_fetch if self._fetch_breaker_until.get(pid, 0.0) > now]
+            if quarantined:
+                to_fetch = [pid for pid in to_fetch if self._fetch_breaker_until.get(pid, 0.0) <= now]
+        if quarantined:
+            logger.debug(
+                "Skipping %d quarantined plugin(s) this render (fetch circuit breaker open): %s",
+                len(quarantined),
+                quarantined,
+            )
+        if not to_fetch:
+            return context
+
         # One persistent bounded pool for every render (issue #1751); see the
         # module-level notes on PLUGIN_FETCH_MAX_WORKERS. The timeout below
         # still solely bounds how long a render waits — never how long a
@@ -1858,6 +1961,20 @@ class PluginRegistry:
                     f"({never_started}) — all {PLUGIN_FETCH_MAX_WORKERS} workers are occupied by "
                     f"slow or wedged plugin fetches"
                 )
+            # cancel() above already flipped the never-started futures to
+            # CANCELLED, so what is left is the set that genuinely started and
+            # is still running — the only set the breaker may hold against a
+            # plugin (issue #1884).
+            self._record_fetch_timeouts([f for f in not_done if not f.cancelled()], futures)
+
+        if done:
+            # A fetch that completed — with data, without data, or with an
+            # error — is answering, so its consecutive-timeout streak ends and
+            # any quarantine is lifted.
+            with self._inflight_lock:
+                for future in done:
+                    self._fetch_timeouts.pop(futures[future], None)
+                    self._fetch_breaker_until.pop(futures[future], None)
 
         for future in done:
             plugin_id = futures[future]
@@ -1869,6 +1986,63 @@ class PluginRegistry:
                 logger.exception(f"Plugin {plugin_id} raised an error during context build")
 
         return context
+
+    def _record_fetch_timeouts(self, running: list, futures: dict) -> None:
+        """Charge one consecutive timeout to each plugin in *running*.
+
+        Opens the circuit breaker for any plugin that reaches
+        PLUGIN_FETCH_BREAKER_THRESHOLD, and writes off the pool worker its
+        still-running fetch has taken hostage (once per future — a probe after
+        the cooldown re-opens the breaker on the SAME future and must not be
+        counted twice).
+        """
+        if not running:
+            return
+        opened: list[str] = []
+        lost = 0
+        deadline = time.monotonic() + PLUGIN_FETCH_BREAKER_COOLDOWN_SECONDS
+        with self._inflight_lock:
+            for future in running:
+                plugin_id = futures[future]
+                count = self._fetch_timeouts.get(plugin_id, 0) + 1
+                self._fetch_timeouts[plugin_id] = count
+                if count < PLUGIN_FETCH_BREAKER_THRESHOLD:
+                    continue
+                self._fetch_breaker_until[plugin_id] = deadline
+                opened.append(plugin_id)
+                if not getattr(future, "_fb_worker_written_off", False):
+                    future._fb_worker_written_off = True
+                    lost += 1
+        _write_off_fetch_workers(lost)
+        if opened:
+            logger.warning(
+                "plugin-fetch circuit breaker OPEN for %s after %d consecutive context-build "
+                "timeouts; skipping them for %.0fs so renders stop waiting on them",
+                sorted(set(opened)),
+                PLUGIN_FETCH_BREAKER_THRESHOLD,
+                PLUGIN_FETCH_BREAKER_COOLDOWN_SECONDS,
+            )
+
+    def get_fetch_breaker_status(self) -> dict[str, dict[str, Any]]:
+        """Report which plugins the fetch circuit breaker is holding back.
+
+        Maps plugin_id -> ``{"consecutive_timeouts": int, "quarantined": bool,
+        "cooldown_remaining_seconds": float}`` for every plugin with a live
+        timeout streak. Empty when every data source is answering.
+        """
+        now = time.monotonic()
+        with self._inflight_lock:
+            timeouts = dict(self._fetch_timeouts)
+            until = dict(self._fetch_breaker_until)
+        status: dict[str, dict[str, Any]] = {}
+        for plugin_id, count in timeouts.items():
+            remaining = max(0.0, until.get(plugin_id, 0.0) - now)
+            status[plugin_id] = {
+                "consecutive_timeouts": count,
+                "quarantined": remaining > 0.0,
+                "cooldown_remaining_seconds": round(remaining, 1),
+            }
+        return status
 
     def build_template_contexts_for(
         self,
