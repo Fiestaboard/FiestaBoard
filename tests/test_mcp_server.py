@@ -1384,6 +1384,34 @@ class TestProtocolIsError:
         assert "Page 'missing' not found." in text
         assert "Traceback" not in text
 
+    def test_error_result_is_text_only_behind_the_documented_prefix(self, rpc):
+        """Pin the failure-path wire shape documented for MCP clients.
+
+        The pre-#1765 error was ``isError: false`` plus
+        ``structuredContent {"status": "error", "error": ...}``. The new one
+        drops the structured field and carries the executor's own message in
+        ``content[0].text`` behind a fixed prefix, which is what
+        ``docs/internal/setup/MCP_CLIENTS.md`` tells a migrating client to
+        read. Both halves are pinned here so a change in the shape — ours or
+        an mcp SDK upgrade's — fails a test instead of quietly making the
+        migration note wrong.
+        """
+        mock_svc = MagicMock()
+        mock_svc.get_page.return_value = None
+        with patch("src.pages.service.get_page_service", return_value=mock_svc):
+            result = rpc("get_page", {"page_id": "missing"})
+
+        assert result.get("isError") is True, f"error flag not set: {result}"
+        assert "structuredContent" not in result, (
+            f"the error path is documented as text-only; a structured payload reappeared: {result}"
+        )
+        assert [c.get("type") for c in result["content"]] == ["text"], (
+            f"error content is documented as a single text block: {result}"
+        )
+        assert result["content"][0]["text"] == "Error executing tool get_page: Page 'missing' not found.", (
+            f"the documented prefix or the domain message changed: {result}"
+        )
+
     def test_executor_failure_sets_is_error(self, rpc):
         mock_svc = MagicMock()
         mock_svc.update_schedule.return_value = None

@@ -770,6 +770,48 @@ Three rules follow:
   beyond the standard library plus the platform's own dependencies will be
   missing at runtime. Vendor it or do without.
 
+### What a plugin may import from the platform
+
+Self-containment applies to imports as well as to files. The supported
+plugin-facing surface is small and deliberately so — everything else in
+`src/` is platform internals that get renamed, moved, and deleted without
+notice, and without a deprecation window.
+
+| Module | What it gives you |
+|---|---|
+| `src.plugins.base` | `PluginBase`, `TransitionPluginBase`, `PluginResult`, `TriggerResult`, `PluginInfo`, `Option`, `OptionsRequest`, `OptionsResult`, `OptionsUnavailable`, `normalise` |
+| `src.plugins.testing` | `PluginTestCase`, `create_mock_response`, and the other test helpers — tests only |
+| `src.plugins.manifest` | Manifest validation helpers (`validate_manifest`, `validate_settings_schema_ui`, `collect_options_ids`) |
+| `src.board_chars` | `BoardChars` — the character-code table |
+| `src.triggers` | `TriggerPriority` |
+| `src.config` | `Config`, for the handful of global settings a plugin legitimately reads (e.g. `Config.GENERAL_TIMEZONE`) |
+| `src.devices` | `BoardContext` — the board shape passed to `self.board` |
+
+Anything not in that table — `src.utils.*`, `src.formatters.*`,
+`src.api_server`, `src.templates.*`, `src.pages.*`, the service singletons —
+is **not** a plugin API. Importing it works right up until it doesn't.
+
+**This includes your tests.** A plugin extracted out of the FiestaBoard repo
+usually leaves its data-source logic behind in `src/utils/`, and its tests
+keep importing the platform copy instead of the code the plugin actually
+ships. That is a suite testing a module its own users never load, and it
+breaks the day the platform deletes the leftover. The Phase 2 config cleanup
+removed `src/utils/{air_fog,muni,star_trek_quotes,surf,weather}.py`,
+`MessageFormatter.format_muni`, and the `get_*_source()` factories in
+`src/utils/{baywheels,traffic,stocks}.py`, and six plugin repos' suites went
+red on the import — every one of them in `tests/`, none in production code
+(see [#1879](https://github.com/Fiestaboard/FiestaBoard/issues/1879)).
+
+Two rules follow:
+
+- **Test the code you ship.** Import and patch `plugins.<your_id>`, not the
+  platform module your logic used to live in. `@patch('src.utils.surf.requests.get')`
+  should be `@patch('plugins.surf.requests.get')`.
+- **Pin the platform in CI.** A plugin repo's workflow checks out
+  `Fiestaboard/FiestaBoard` with no `ref:`, so it floats on the platform's
+  default branch and breaks the moment a platform PR merges, with no signal
+  beforehand. Pin a `ref:` to a released tag and bump it on purpose.
+
 ### How this is enforced
 
 | when | what happens |

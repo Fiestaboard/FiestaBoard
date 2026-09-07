@@ -194,6 +194,117 @@ HTTPS reverse proxy *and* implementing an OAuth authorization server.
 That's well out of scope for a home LED display. **Use Claude Desktop
 or Claude Code instead.**
 
+## Upgrading an existing MCP client
+
+The MCP server's wire contract changed in this release. Client *config* is
+unaffected — same transport, same URL, same bearer token — so Claude Desktop
+and Claude Code keep working with no edit. If you wrote your own client, or
+you script against `/api/mcp/` directly, four behaviors are different.
+
+### 1. Tool failures now set the protocol `isError` flag
+
+Every failure used to be a *successful* `CallToolResult` whose payload
+happened to say `{"status": "error", ...}`. A client that treated any
+non-exception result as success never noticed a failure at all.
+
+Now every tool registers through one wrapper, so any executor error envelope
+or unexpected exception comes back as `isError: true`. Check that flag first.
+
+Two things deliberately stay ordinary results:
+
+- **Success** still carries `structuredContent` and `isError: false`.
+- **Policy blocks** — a send suppressed by silence mode or pause — are
+  `isError: false` with `structuredContent.status == "blocked"`. They are
+  policy for the model to relay, not failures. Do not treat them as errors.
+
+### 2. `structuredContent` is absent on the failure path
+
+The old error result carried the machine-readable envelope:
+
+```json
+{
+  "content": [
+    {"type": "text", "text": "{\n  \"status\": \"error\",\n  \"error\": \"Page 'missing' not found.\"\n}"}
+  ],
+  "isError": false,
+  "structuredContent": {"status": "error", "error": "Page 'missing' not found."}
+}
+```
+
+The new one carries text only:
+
+```json
+{
+  "content": [
+    {"type": "text", "text": "Error executing tool get_page: Page 'missing' not found."}
+  ],
+  "isError": true
+}
+```
+
+Anything reading `structuredContent` on the error path now gets nothing.
+
+**No information was lost, only relocated.** The text after the
+`Error executing tool <name>:` prefix (and the space after it) is the same
+string the old `structuredContent.error` field held — the executors' error envelopes are
+still the source, they are just raised as a protocol error at the MCP
+boundary rather than returned as a payload. Read `isError`, then
+`content[0].text`, and strip the prefix if you were parsing the old field.
+
+Unexpected exceptions are no longer stringified onto the wire. They are
+logged server-side with their traceback and reduced to:
+
+```text
+<tool> failed unexpectedly (<ExceptionClass>); details are in the server log.
+```
+
+That is intentional — raw exception text routinely carried filesystem paths
+and config values. Look in the container log for the detail.
+
+### 3. `list_registry_plugins` is paginated
+
+It used to return a top-level JSON array of every registry entry. It now
+returns an object:
+
+```json
+{"plugins": [], "total": 54, "page": 1, "page_size": 20, "total_pages": 3}
+```
+
+(`plugins` elided — it holds the 20 entries of this page.)
+
+A client iterating the old array breaks outright; one that ignores pagination
+silently sees a fraction of the marketplace. Pass `page` (1-based) and
+`page_size` (1-100, default 20) and walk to `total_pages`. Out-of-range
+values are errors, not clamps.
+
+### 4. `teaser` and `previews` are omitted by default
+
+Every registry entry carries `teaser` and `previews` — literal split-flap
+board rows used to show what a plugin looks like on a board. They dominate
+the payload, so the default projection drops them. Measured against the
+54-entry registry: the old full-list response serializes to ~38 KB, the new
+default page to ~7.7 KB, a ~80% cut.
+
+A client that rendered board previews straight from this response goes blank
+until it opts back in, by naming the fields it wants:
+
+```json
+{
+  "name": "list_registry_plugins",
+  "arguments": {"page": 1, "fields": ["name", "teaser", "previews"]}
+}
+```
+
+`fields` is an **exact projection, not an additive opt-in**: each entry then
+carries only the fields you name, plus `id`, which is always included. Naming
+a field no entry has is an error that lists the valid ones.
+
+### Also new: five tools
+
+`get_active_page`, `get_board_content`, `preview_saved_page`,
+`send_message`, and `validate_template` were added in the same release.
+Nothing was removed or renamed.
+
 ## Troubleshooting
 
 **"Some MCP servers could not be loaded… skipped: fiestaboard"** — your
