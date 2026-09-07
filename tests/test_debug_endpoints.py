@@ -478,7 +478,17 @@ class TestGetFirstBoardDims:
 class TestConnectionInfoSource:
     """/debug/system-info and /debug/info must report the connection mode and
     board IP the live send path actually uses — the boards[] store — not the
-    wizard-era legacy config.json values (issue #1791)."""
+    wizard-era legacy config.json values (issue #1791).
+
+    The "not the legacy config.json" half of that claim is asserted by
+    :func:`test_debug_connection_modules_never_bind_the_legacy_config` below,
+    not here. These tests used to establish the contrast with a
+    ``patch("src.api_server.Config")`` and a set of deliberately-wrong legacy
+    values, but neither ``src/debug/routes.py`` nor ``src/display_runtime.py``
+    imports ``Config`` — the stub was inert, and replacing every legacy value
+    with garbage kept all four green. The structural test fails if either
+    module regains a ``Config`` binding, which is the thing the name promises.
+    """
 
     @staticmethod
     def _ss_with_board(board, send_to_board=False):
@@ -504,10 +514,7 @@ class TestConnectionInfoSource:
             patch("src.display_runtime.get_settings_service", return_value=ss),
             patch("src.api_server.get_settings_service", return_value=ss),
             patch("src.board_guards.get_settings_service", return_value=ss),
-            patch("src.api_server.Config") as mock_config,
         ):
-            mock_config.BOARD_API_MODE = "local"
-            mock_config.BOARD_HOST = "192.168.1.99"
             response = client.get("/debug/system-info")
         assert response.status_code == 200
         data = response.json()
@@ -523,12 +530,7 @@ class TestConnectionInfoSource:
             patch("src.display_runtime.get_settings_service", return_value=ss),
             patch("src.api_server.get_settings_service", return_value=ss),
             patch("src.board_guards.get_settings_service", return_value=ss),
-            patch("src.api_server.Config") as mock_config,
         ):
-            mock_config.BOARD_API_MODE = "local"
-            mock_config.BOARD_HOST = "192.168.1.99"
-            mock_config.BOARD_LOCAL_API_KEY = "legacy-key"
-            mock_config.BOARD_READ_WRITE_KEY = ""
             response = client.get("/debug/system-info")
         assert response.status_code == 200
         assert response.json()["board_configured"] is False
@@ -545,12 +547,7 @@ class TestConnectionInfoSource:
             patch("src.board_guards.get_settings_service", return_value=ss),
             patch("src.display_runtime._get_board_client", return_value=None),
             patch("src.api_server._get_board_client", return_value=None),
-            patch("src.api_server.Config") as mock_config,
         ):
-            mock_config.BOARD_API_MODE = "local"
-            mock_config.BOARD_HOST = "192.168.1.50"
-            mock_config.BOARD_LOCAL_API_KEY = "legacy-key"
-            mock_config.BOARD_READ_WRITE_KEY = ""
             response = client.get("/debug/system-info")
         assert response.status_code == 200
         data = response.json()
@@ -572,10 +569,7 @@ class TestConnectionInfoSource:
             patch("src.display_runtime.get_settings_service", return_value=ss),
             patch("src.api_server.get_settings_service", return_value=ss),
             patch("src.board_guards.get_settings_service", return_value=ss),
-            patch("src.api_server.Config") as mock_config,
         ):
-            mock_config.BOARD_API_MODE = "local"
-            mock_config.BOARD_HOST = "192.168.1.99"
             response = client.post("/debug/info")
         assert response.status_code == 200
         debug_info = response.json()["debug_info"]
@@ -698,3 +692,34 @@ class TestDebugWritesReportOutOfBand:
         ):
             response = client.post("/debug/blank")
         assert response.status_code == 200
+
+
+def test_debug_connection_modules_never_bind_the_legacy_config():
+    """The negative half of TestConnectionInfoSource, asserted structurally.
+
+    "Reports the boards[] store, **not** the legacy config.json" is a claim
+    about what the debug modules *cannot* read. A ``patch(...Config)`` cannot
+    show that — it only proves the stub was never called, which a stub on the
+    wrong module also does. This asserts the absence directly: if
+    ``src/debug/routes.py`` or ``src/display_runtime.py`` ever imports or
+    references ``Config`` again, the legacy values are back in the read path
+    and this fails.
+    """
+    import ast
+    import inspect
+    from pathlib import Path
+
+    import src.debug.routes as debug_routes
+    import src.display_runtime as display_runtime
+
+    for module in (debug_routes, display_runtime):
+        assert not hasattr(module, "Config"), f"{module.__name__} binds Config; the legacy read path is back"
+        source = Path(inspect.getsourcefile(module)).read_text(encoding="utf-8")
+        referenced = {
+            node.id for node in ast.walk(ast.parse(source)) if isinstance(node, ast.Name) and node.id == "Config"
+        } | {
+            node.attr
+            for node in ast.walk(ast.parse(source))
+            if isinstance(node, ast.Attribute) and node.attr == "Config"
+        }
+        assert referenced == set(), f"{module.__name__} references Config; the legacy read path is back"

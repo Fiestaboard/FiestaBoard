@@ -302,23 +302,66 @@ class TestSendWelcomeMessage:
             assert response.status_code == 200
             assert response.json()["status"] == "blocked"
 
-    def test_welcome_board_not_configured(self, client):
-        """Welcome fails when board client cannot be created."""
+    @staticmethod
+    def _settings_with_boards(boards):
+        ss = Mock()
+        board_settings = Mock()
+        board_settings.boards = boards
+        ss.get_board_settings.return_value = board_settings
+        return ss
+
+    def test_welcome_board_client_build_failure(self, client):
+        """A configured board whose client cannot be built → 503 naming it.
+
+        Was ``test_welcome_board_not_configured`` and vacuous: with an empty
+        boards store the handler never reaches
+        ``board_client_from_board_dict``, so it answered 503 from the "no board
+        with a usable connection" branch and passed with **both** patches
+        deleted. A board is configured here so the ``ValueError`` branch is the
+        one under test, and the detail is asserted so the two 503s are told
+        apart.
+        """
+        ss = self._settings_with_boards(
+            [
+                {
+                    "id": "b1",
+                    "device_type": "flagship",
+                    "api_mode": "local",
+                    "host": "192.168.1.100",
+                    "local_api_key": "test_key_12345",
+                }
+            ]
+        )
         with (
-            patch("src.api_server.Config") as mock_config,
+            patch("src.board_guards.Config") as mock_config,
+            patch("src.board_guards.get_settings_service", return_value=ss),
             patch("src.board_client.BoardClient", side_effect=ValueError("no key")),
         ):
             mock_config.is_silence_mode_active.return_value = False
-            mock_config.BOARD_API_MODE = "local"
-            mock_config.get_board_api_key.return_value = "test_key_12345"
-            mock_config.BOARD_HOST = "192.168.1.100"
             response = client.post("/send-welcome-message")
-            assert response.status_code == 503
+        assert response.status_code == 503
+        assert response.json()["detail"] == "Board not configured: no key"
+
+    def test_welcome_with_no_boards_reports_no_usable_connection(self, client):
+        """The empty-store branch is a different 503 from the build failure."""
+        ss = self._settings_with_boards([])
+        with (
+            patch("src.board_guards.Config") as mock_config,
+            patch("src.board_guards.get_settings_service", return_value=ss),
+        ):
+            mock_config.is_silence_mode_active.return_value = False
+            response = client.post("/send-welcome-message")
+        assert response.status_code == 503
+        assert response.json()["detail"] == "Board not configured: no board with a usable connection"
 
     def test_welcome_success(self, client):
         """Welcome message sent successfully."""
         with (
-            patch("src.api_server.Config") as mock_config,
+            # /send-welcome-message reads the silence verdict through
+            # _silence_active -> src.board_guards.Config since Phase 2 slice 3.
+            # src.api_server.Config steered nothing: with it, flipping every
+            # stub below to True left all eight tests green.
+            patch("src.board_guards.Config") as mock_config,
             patch("src.board_client.BoardClient") as MockBoardClient,
             patch("src.api_server.text_to_board_array") as mock_ttba,
             patch("src.api_server.get_settings_service") as mock_ss,
@@ -327,9 +370,6 @@ class TestSendWelcomeMessage:
             patch("src.board_guards.get_settings_service") as guards_ss,
         ):
             mock_config.is_silence_mode_active.return_value = False
-            mock_config.BOARD_API_MODE = "local"
-            mock_config.get_board_api_key.return_value = "test_key_12345"
-            mock_config.BOARD_HOST = "192.168.1.100"
 
             board_client = Mock()
             board_client.send_characters.return_value = (True, True)
@@ -365,7 +405,11 @@ class TestSendWelcomeMessage:
     def test_welcome_send_failure(self, client):
         """Welcome message fails to send."""
         with (
-            patch("src.api_server.Config") as mock_config,
+            # /send-welcome-message reads the silence verdict through
+            # _silence_active -> src.board_guards.Config since Phase 2 slice 3.
+            # src.api_server.Config steered nothing: with it, flipping every
+            # stub below to True left all eight tests green.
+            patch("src.board_guards.Config") as mock_config,
             patch("src.board_client.BoardClient") as MockBoardClient,
             patch("src.api_server.text_to_board_array") as mock_ttba,
             patch("src.api_server.get_settings_service") as mock_ss,
@@ -374,9 +418,6 @@ class TestSendWelcomeMessage:
             patch("src.board_guards.get_settings_service") as guards_ss,
         ):
             mock_config.is_silence_mode_active.return_value = False
-            mock_config.BOARD_API_MODE = "local"
-            mock_config.get_board_api_key.return_value = "test_key_12345"
-            mock_config.BOARD_HOST = "192.168.1.100"
 
             board_client = Mock()
             board_client.send_characters.return_value = (False, False)
@@ -411,7 +452,11 @@ class TestSendWelcomeMessage:
     def test_welcome_unchanged(self, client):
         """Welcome message unchanged (was_sent=False, success=True)."""
         with (
-            patch("src.api_server.Config") as mock_config,
+            # /send-welcome-message reads the silence verdict through
+            # _silence_active -> src.board_guards.Config since Phase 2 slice 3.
+            # src.api_server.Config steered nothing: with it, flipping every
+            # stub below to True left all eight tests green.
+            patch("src.board_guards.Config") as mock_config,
             patch("src.board_client.BoardClient") as MockBoardClient,
             patch("src.api_server.text_to_board_array") as mock_ttba,
             patch("src.api_server.get_settings_service") as mock_ss,
@@ -420,9 +465,6 @@ class TestSendWelcomeMessage:
             patch("src.board_guards.get_settings_service") as guards_ss,
         ):
             mock_config.is_silence_mode_active.return_value = False
-            mock_config.BOARD_API_MODE = "cloud"
-            mock_config.get_board_api_key.return_value = "test_cloud_key"
-            mock_config.BOARD_HOST = "192.168.1.100"
 
             board_client = Mock()
             board_client.send_characters.return_value = (True, False)
@@ -459,7 +501,11 @@ class TestSendWelcomeMessage:
     def test_welcome_uses_note_template_for_note_board(self, client):
         """When the configured board is a Note, render the 3x15 template."""
         with (
-            patch("src.api_server.Config") as mock_config,
+            # /send-welcome-message reads the silence verdict through
+            # _silence_active -> src.board_guards.Config since Phase 2 slice 3.
+            # src.api_server.Config steered nothing: with it, flipping every
+            # stub below to True left all eight tests green.
+            patch("src.board_guards.Config") as mock_config,
             patch("src.board_client.BoardClient") as MockBoardClient,
             patch("src.api_server.text_to_board_array") as mock_ttba,
             patch("src.api_server.get_settings_service") as mock_ss,
@@ -468,9 +514,6 @@ class TestSendWelcomeMessage:
             patch("src.board_guards.get_settings_service") as guards_ss,
         ):
             mock_config.is_silence_mode_active.return_value = False
-            mock_config.BOARD_API_MODE = "local"
-            mock_config.get_board_api_key.return_value = "test_key_12345"
-            mock_config.BOARD_HOST = "192.168.1.100"
 
             board_client = Mock()
             board_client.send_characters.return_value = (True, True)
@@ -520,7 +563,11 @@ class TestSendWelcomeMessage:
     def test_welcome_uses_flagship_template_for_flagship_board(self, client):
         """When the configured board is a Flagship, render the 6x22 template."""
         with (
-            patch("src.api_server.Config") as mock_config,
+            # /send-welcome-message reads the silence verdict through
+            # _silence_active -> src.board_guards.Config since Phase 2 slice 3.
+            # src.api_server.Config steered nothing: with it, flipping every
+            # stub below to True left all eight tests green.
+            patch("src.board_guards.Config") as mock_config,
             patch("src.board_client.BoardClient") as MockBoardClient,
             patch("src.api_server.text_to_board_array") as mock_ttba,
             patch("src.api_server.get_settings_service") as mock_ss,
@@ -529,9 +576,6 @@ class TestSendWelcomeMessage:
             patch("src.board_guards.get_settings_service") as guards_ss,
         ):
             mock_config.is_silence_mode_active.return_value = False
-            mock_config.BOARD_API_MODE = "local"
-            mock_config.get_board_api_key.return_value = "test_key_12345"
-            mock_config.BOARD_HOST = "192.168.1.100"
 
             board_client = Mock()
             board_client.send_characters.return_value = (True, True)
@@ -573,7 +617,11 @@ class TestSendWelcomeMessage:
     def test_welcome_uses_note_array_template(self, client):
         """note_array 2-wide board: text_to_board_array called with rows=3, cols=30."""
         with (
-            patch("src.api_server.Config") as mock_config,
+            # /send-welcome-message reads the silence verdict through
+            # _silence_active -> src.board_guards.Config since Phase 2 slice 3.
+            # src.api_server.Config steered nothing: with it, flipping every
+            # stub below to True left all eight tests green.
+            patch("src.board_guards.Config") as mock_config,
             patch("src.board_client.BoardClient") as MockBoardClient,
             patch("src.api_server.text_to_board_array") as mock_ttba,
             patch("src.api_server.get_settings_service") as mock_ss,
@@ -582,9 +630,6 @@ class TestSendWelcomeMessage:
             patch("src.board_guards.get_settings_service") as guards_ss,
         ):
             mock_config.is_silence_mode_active.return_value = False
-            mock_config.BOARD_API_MODE = "local"
-            mock_config.get_board_api_key.return_value = "test_key_12345"
-            mock_config.BOARD_HOST = "192.168.1.100"
 
             board_client = Mock()
             board_client.render.return_value = (True, True)
@@ -624,7 +669,11 @@ class TestSendWelcomeMessage:
     def test_welcome_note_array_2tall(self, client):
         """note_array 2-tall board: text_to_board_array called with rows=6, cols=15."""
         with (
-            patch("src.api_server.Config") as mock_config,
+            # /send-welcome-message reads the silence verdict through
+            # _silence_active -> src.board_guards.Config since Phase 2 slice 3.
+            # src.api_server.Config steered nothing: with it, flipping every
+            # stub below to True left all eight tests green.
+            patch("src.board_guards.Config") as mock_config,
             patch("src.board_client.BoardClient") as MockBoardClient,
             patch("src.api_server.text_to_board_array") as mock_ttba,
             patch("src.api_server.get_settings_service") as mock_ss,
@@ -633,9 +682,6 @@ class TestSendWelcomeMessage:
             patch("src.board_guards.get_settings_service") as guards_ss,
         ):
             mock_config.is_silence_mode_active.return_value = False
-            mock_config.BOARD_API_MODE = "local"
-            mock_config.get_board_api_key.return_value = "test_key_12345"
-            mock_config.BOARD_HOST = "192.168.1.100"
 
             board_client = Mock()
             board_client.render.return_value = (True, True)
@@ -1461,23 +1507,37 @@ class TestSendPage:
     """Tests for POST /pages/{page_id}/send."""
 
     def test_send_page_no_service(self, client):
-        """No service → 503."""
+        """No display service → 503.
+
+        The stubs must be on ``src.pages.routes``: the handler moved there in
+        Phase 2 slice 3 and binds its collaborators at import time. Stubbing
+        ``src.api_server.get_service`` steered nothing — the handler built a
+        *real* ``DisplayService`` (with ``vb_client=None``, and cached in
+        ``src.display_runtime._service`` for every later test in the worker)
+        and the 503 came from that. Swapping the stub for a healthy ``Mock()``
+        still gave 503.
+        """
         with (
-            patch("src.api_server.get_page_service"),
-            patch("src.api_server.get_settings_service"),
-            patch("src.api_server.get_service", return_value=None),
+            patch("src.pages.routes.get_page_service"),
+            patch("src.pages.routes.get_settings_service"),
+            patch("src.pages.routes.get_service", return_value=None),
         ):
             response = client.post("/pages/page1/send")
-            assert response.status_code == 503
+        assert response.status_code == 503
 
     def test_send_page_not_found(self, client, mock_service, mock_settings_service):
-        """Page not found → 404."""
-        with patch("src.api_server.get_page_service") as mock_ps:
+        """Page not found → 404.
+
+        Stubbed on the pages router, which is what the handler reads. With the
+        ``src.api_server`` target the verdict came from the real (empty) page
+        store, so making the page *exist* still gave 404.
+        """
+        with patch("src.pages.routes.get_page_service") as mock_ps:
             ps = Mock()
             ps.get_page.return_value = None
             mock_ps.return_value = ps
             response = client.post("/pages/nonexistent/send")
-            assert response.status_code == 404
+        assert response.status_code == 404
 
     def test_send_page_render_none(self, client, mock_service, mock_settings_service, mock_page_service):
         """Preview returns None → 404."""
@@ -1504,9 +1564,15 @@ class TestSendPage:
         """Send page to board successfully."""
         mock_settings_service.should_send_to_board.return_value = True
         with (
-            patch("src.api_server.Config") as mock_config,
-            patch("src.api_server.resolve_dimensions") as mock_dims,
-            patch("src.api_server.text_to_board_array") as mock_ttba,
+            # POST /pages/{page_id}/send lives in src/pages/routes.py since
+            # Phase 2 slice 3: the silence verdict is read through
+            # src.board_guards.Config, and the grid is built with the
+            # resolve_dimensions / text_to_board_array this router binds. The
+            # src.api_server.* names steer nothing here — with them, inverting
+            # every stub below left all ten tests green.
+            patch("src.board_guards.Config") as mock_config,
+            patch("src.pages.routes.resolve_dimensions") as mock_dims,
+            patch("src.pages.routes.text_to_board_array") as mock_ttba,
         ):
             mock_config.is_silence_mode_active.return_value = False
             mock_dims.return_value = Mock(rows=6, cols=22)
@@ -1533,9 +1599,15 @@ class TestSendPage:
         mock_service.vb_client.send_characters.return_value = (False, False)
         mock_service.vb_client.render.return_value = (False, False)
         with (
-            patch("src.api_server.Config") as mock_config,
-            patch("src.api_server.resolve_dimensions") as mock_dims,
-            patch("src.api_server.text_to_board_array") as mock_ttba,
+            # POST /pages/{page_id}/send lives in src/pages/routes.py since
+            # Phase 2 slice 3: the silence verdict is read through
+            # src.board_guards.Config, and the grid is built with the
+            # resolve_dimensions / text_to_board_array this router binds. The
+            # src.api_server.* names steer nothing here — with them, inverting
+            # every stub below left all ten tests green.
+            patch("src.board_guards.Config") as mock_config,
+            patch("src.pages.routes.resolve_dimensions") as mock_dims,
+            patch("src.pages.routes.text_to_board_array") as mock_ttba,
         ):
             mock_config.is_silence_mode_active.return_value = False
             mock_dims.return_value = Mock(rows=6, cols=22)
@@ -1551,9 +1623,15 @@ class TestSendPage:
     def test_send_page_target_board(self, client, mock_service, mock_settings_service, mock_page_service):
         """Explicit target=board sends to board."""
         with (
-            patch("src.api_server.Config") as mock_config,
-            patch("src.api_server.resolve_dimensions") as mock_dims,
-            patch("src.api_server.text_to_board_array") as mock_ttba,
+            # POST /pages/{page_id}/send lives in src/pages/routes.py since
+            # Phase 2 slice 3: the silence verdict is read through
+            # src.board_guards.Config, and the grid is built with the
+            # resolve_dimensions / text_to_board_array this router binds. The
+            # src.api_server.* names steer nothing here — with them, inverting
+            # every stub below left all ten tests green.
+            patch("src.board_guards.Config") as mock_config,
+            patch("src.pages.routes.resolve_dimensions") as mock_dims,
+            patch("src.pages.routes.text_to_board_array") as mock_ttba,
         ):
             mock_config.is_silence_mode_active.return_value = False
             mock_dims.return_value = Mock(rows=6, cols=22)
@@ -1975,33 +2053,57 @@ class TestTriggerPluginUpdateCheck:
 class TestStocksSearch:
     """Tests for GET /stocks/search."""
 
-    def test_search_success(self, client):
-        """Search stock symbols successfully."""
-        with patch("src.utils.stocks.StocksSource") as MockStocks, patch("src.api_server.Config") as mock_config:
-            mock_config.FINNHUB_API_KEY = "test_finnhub_key"
+    @staticmethod
+    def _config_manager_with_stocks(plugin_config):
+        """Stub the source the handler actually reads the Finnhub key from.
+
+        ``Config.FINNHUB_API_KEY`` does not exist anywhere in ``src/``; these
+        tests used to stub it and both of them therefore exercised the same
+        ``finnhub_api_key=None`` branch. The key is a **stocks plugin
+        setting**, read via ``get_config_manager().get_plugin_config("stocks")``.
+        """
+        cm = Mock()
+        cm.get_plugin_config.return_value = plugin_config
+        return cm
+
+    def test_search_passes_the_configured_finnhub_key_through(self, client):
+        """A key on the stocks plugin reaches StocksSource.search_symbols."""
+        cm = self._config_manager_with_stocks({"finnhub_api_key": "test_finnhub_key"})
+        with (
+            patch("src.utils.stocks.StocksSource") as MockStocks,
+            patch("src.api_server.get_config_manager", return_value=cm),
+        ):
             MockStocks.search_symbols.return_value = [{"symbol": "GOOG", "name": "Alphabet Inc."}]
             response = client.get("/stocks/search?query=GOOG")
-            assert response.status_code == 200
-            data = response.json()
-            assert data["count"] == 1
-            assert data["symbols"][0]["symbol"] == "GOOG"
+        assert response.status_code == 200
+        data = response.json()
+        assert data["count"] == 1
+        assert data["symbols"][0]["symbol"] == "GOOG"
+        MockStocks.search_symbols.assert_called_once_with(query="GOOG", limit=10, finnhub_api_key="test_finnhub_key")
 
-    def test_search_no_api_key(self, client):
-        """Search without API key uses fallback."""
-        with patch("src.utils.stocks.StocksSource") as MockStocks, patch("src.api_server.Config") as mock_config:
-            mock_config.FINNHUB_API_KEY = None
+    def test_search_without_a_finnhub_key_falls_back_to_the_curated_list(self, client):
+        """No key on the stocks plugin → the source is called with None."""
+        cm = self._config_manager_with_stocks({})
+        with (
+            patch("src.utils.stocks.StocksSource") as MockStocks,
+            patch("src.api_server.get_config_manager", return_value=cm),
+        ):
             MockStocks.search_symbols.return_value = []
             response = client.get("/stocks/search?query=XYZ&limit=5")
-            assert response.status_code == 200
-            assert response.json()["count"] == 0
+        assert response.status_code == 200
+        assert response.json()["count"] == 0
+        MockStocks.search_symbols.assert_called_once_with(query="XYZ", limit=5, finnhub_api_key=None)
 
     def test_search_exception(self, client):
         """Exception during search → 500."""
-        with patch("src.utils.stocks.StocksSource") as MockStocks, patch("src.api_server.Config") as mock_config:
-            mock_config.FINNHUB_API_KEY = None
+        cm = self._config_manager_with_stocks({})
+        with (
+            patch("src.utils.stocks.StocksSource") as MockStocks,
+            patch("src.api_server.get_config_manager", return_value=cm),
+        ):
             MockStocks.search_symbols.side_effect = RuntimeError("API down")
             response = client.get("/stocks/search?query=GOOG")
-            assert response.status_code == 500
+        assert response.status_code == 500
 
 
 class TestStocksValidate:

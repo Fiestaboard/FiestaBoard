@@ -178,18 +178,64 @@ class TestServiceLevelDefenceInDepth:
 class TestReadsDeliberatelyFallBack:
     """Documented asymmetry: reads answer with the safe default rather than
     404, because a board-scoped poll racing a board deletion is normal and
-    a read cannot corrupt anything. Changing this is a decision, not a fix."""
+    a read cannot corrupt anything. Changing this is a decision, not a fix.
+
+    Both HTTP pins below carry a **control**: the same call for the *known*
+    board answers something else. Without it they passed with the ``one_board``
+    fixture and every service patch removed — an empty store answers ``[]`` and
+    ``false`` for every board id, so they could not tell "the read falls back
+    for an unknown board" from "there is nothing in the store".
+    """
+
+    @staticmethod
+    def _schedule_for(board_id):
+        from src.schedules.models import ScheduleEntry
+
+        return ScheduleEntry(
+            id="sched-1",
+            board_id=board_id,
+            page_id="page-1",
+            start_time="09:00",
+            end_time="17:00",
+        )
 
     def test_list_schedules_returns_empty_for_an_unknown_board(self, client, one_board):
+        by_board = {"board-1": [self._schedule_for("board-1")]}
         schedule_service = Mock()
-        schedule_service.list_schedules.return_value = []
-        schedule_service.get_default_page.return_value = None
+        schedule_service.list_schedules.side_effect = lambda board_id=None: by_board.get(board_id, [])
+        schedule_service.get_default_page.side_effect = lambda board_id=None: (
+            "page-1" if board_id == "board-1" else None
+        )
         with patch("src.schedules.routes.get_schedule_service", return_value=schedule_service):
-            response = client.get("/schedules", params={"board_id": "ghost-board"})
-        assert response.status_code == 200
-        assert response.json()["schedules"] == []
+            known = client.get("/schedules", params={"board_id": "board-1"})
+            unknown = client.get("/schedules", params={"board_id": "ghost-board"})
+
+        # Control: the store is not empty, and a board-scoped read can see it.
+        assert known.status_code == 200
+        assert [s["id"] for s in known.json()["schedules"]] == ["sched-1"]
+        # The unknown board falls back to the empty list instead of 404ing.
+        assert unknown.status_code == 200
+        assert unknown.json()["schedules"] == []
 
     def test_get_schedule_enabled_returns_false_for_an_unknown_board(self, client, one_board):
-        response = client.get("/schedules/enabled", params={"board_id": "ghost-board"})
-        assert response.status_code == 200
-        assert response.json()["enabled"] is False
+        one_board.is_schedule_enabled.side_effect = lambda board_id=None: board_id == "board-1"
+
+        known = client.get("/schedules/enabled", params={"board_id": "board-1"})
+        unknown = client.get("/schedules/enabled", params={"board_id": "ghost-board"})
+
+        # Control: the route reports a real per-board verdict, not a constant.
+        assert known.status_code == 200
+        assert known.json()["enabled"] is True
+        # The unknown board falls back to False instead of 404ing.
+        assert unknown.status_code == 200
+        assert unknown.json()["enabled"] is False
+
+    def test_settings_service_answers_false_for_an_unknown_board(self, tmp_path):
+        """The fallback itself, at the layer that decides it — no stubs."""
+        from src.settings.service import SettingsService
+
+        service = SettingsService(str(tmp_path / "settings.json"))
+        service.get_board_settings().boards = [{"id": "board-1", "schedule_enabled": True}]
+
+        assert service.is_schedule_enabled(board_id="board-1") is True
+        assert service.is_schedule_enabled(board_id="ghost-board") is False

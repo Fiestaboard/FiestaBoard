@@ -1281,7 +1281,14 @@ class TestPagesEndpoints:
         assert response.status_code == 404
 
     def test_send_page_no_service(self, client, mock_page_service, mock_settings_service):
-        with patch("src.api_server.get_service", return_value=None):
+        """No display service → 503.
+
+        Stubbed where the handler binds it (``src.pages.routes``). The
+        ``src.api_server`` target steered nothing: a real ``DisplayService``
+        was constructed instead, and a healthy ``Mock()`` in place of ``None``
+        still produced 503.
+        """
+        with patch("src.pages.routes.get_service", return_value=None):
             response = client.post("/pages/page1/send")
         assert response.status_code == 503
 
