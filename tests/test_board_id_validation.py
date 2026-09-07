@@ -41,12 +41,16 @@ def one_board():
     settings.get_board_settings.return_value = board_settings
     settings.get_primary_board_id.return_value = "board-1"
     settings.is_schedule_enabled.return_value = False
-    # Three modules resolve this collaborator after Phase 2 §2.3, and the
-    # board verdict depends on which one the caller holds: the schedules and
-    # pages routers bind it at import time, and `require_board` reads the
-    # boards list through `src.board_guards`. Stub all three so the "unknown
-    # board" verdict and `is_schedule_enabled` are decided by this fixture
-    # whichever path a handler takes.
+    # Three modules resolve this collaborator after Phase 2 §2.3. The board
+    # verdict is decided in exactly one of them: `_require_board` reads the
+    # boards list through `src.board_guards`, for every domain. (That comment
+    # was true of `board_guards` but not of the schedules router, which used to
+    # call a second, parameter-taking `require_board` in `src/boards.py` — so
+    # only the `src.schedules.routes` stub was load-bearing here and the
+    # `src.board_guards` one steered nothing. The two implementations have been
+    # collapsed onto `board_guards`.) The other two stubs still matter for the
+    # reads: `is_schedule_enabled` and the default-page lookup resolve through
+    # the router's own binding.
     with (
         patch("src.api_server.get_settings_service", return_value=settings),
         patch("src.schedules.routes.get_settings_service", return_value=settings),

@@ -9,10 +9,18 @@ Collaborators now resolve from their canonical homes at **module import time**,
 so this module never loads ``src.api_server``
 (``tests/test_schedules_decoupled.py`` asserts that in a fresh interpreter).
 Three of them had no canonical home before this pass and were moved out of the
-app module to get one: ``require_board`` (``src/boards.py``),
+app module to get one: ``_require_board`` (``src/board_guards.py``),
 ``resolve_active_page_id`` / ``resolve_next_check_seconds``
 (``src/collections/service.py``) and ``temporary_override_payload``
 (``src/settings/service.py``).
+
+``_require_board`` briefly lived in a second module, ``src/boards.py``, which
+took the settings service as a parameter while ``src/board_guards.py`` resolved
+it through its own module-level accessor — two seam designs for one identical
+lookup, and the reason a fixture could stub ``src.board_guards`` and steer
+nothing. The parameter form is gone; this router resolves the board verdict
+through ``src.board_guards`` like every other domain, so one stub covers them
+all.
 
 Tests that need to stub a collaborator patch it where this module binds it —
 ``src.schedules.routes.<name>`` — not ``src.api_server.<name>``.
@@ -23,7 +31,7 @@ from __future__ import annotations
 from fastapi import APIRouter, HTTPException
 
 from src.api_errors import errors
-from src.boards import require_board
+from src.board_guards import _require_board
 from src.collections.models import is_collection_id
 from src.collections.service import (
     get_collection_service,
@@ -71,7 +79,7 @@ def _validate_board(board_id: str | None) -> None:
     """
     if not board_id:
         return
-    require_board(board_id, get_settings_service())
+    _require_board(board_id)
 
 
 def _enrich_schedule_with_sun_times(schedule_dict: dict) -> dict:

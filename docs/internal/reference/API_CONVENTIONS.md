@@ -184,15 +184,17 @@ Decided 2026-09 with #1888. The asymmetry is deliberate and it is the
 inconsistency-of-record, so read it before "fixing" either half.
 
 - **Writes 404.** Any handler that persists something scoped to a board
-  calls `require_board(board_id, settings_service)` (`src/boards.py`) — the
-  single place the "unknown board" verdict is made. The settings service is a
-  parameter, not a global inside `boards`, so the lookup resolves through
-  whichever `get_settings_service` the *calling* module binds; `api_server`
-  keeps a thin `_require_board` wrapper that passes its own. Writing state bound to a board that
-  does not exist is invisible until something else trips over it: the four
-  schedule write endpoints used to store a phantom default page, a no-op
-  that reported `{"status": "success"}`, and schedules parented to
-  nonexistent boards.
+  calls `_require_board(board_id)` (`src/board_guards.py`) — the single place
+  the "unknown board" verdict is made. It resolves the settings service
+  through `src.board_guards.get_settings_service`, so **one** stub steers the
+  board verdict for every domain. There was briefly a second implementation,
+  `require_board(board_id, settings_service)` in `src/boards.py`, taking the
+  service as a parameter; two seam designs for one identical lookup meant a
+  fixture could stub `src.board_guards` and steer nothing, so it is gone.
+  Writing state bound to a board that does not exist is invisible until
+  something else trips over it: the four schedule write endpoints used to
+  store a phantom default page, a no-op that reported
+  `{"status": "success"}`, and schedules parented to nonexistent boards.
 - **Reads fall back.** `GET /schedules` answers `[]`, `GET /schedules/enabled`
   answers `false`, `GET /schedules/default-page` answers the global default,
   and their siblings behave the same way. This is not an oversight:

@@ -9,7 +9,8 @@ background tasks, its MCP mount — back in, and the 2026-09 audit counted those
 seams going up 4.2x across Phase 1.
 
 Retiring them needed three names to grow a canonical home first, because they
-had none outside the app module: ``require_board`` (now ``src/boards.py``),
+had none outside the app module: ``_require_board`` (now
+``src/board_guards.py``),
 ``resolve_active_page_id`` / ``resolve_next_check_seconds`` (now
 ``src/collections/service.py``) and ``temporary_override_payload`` (now
 ``src/settings/service.py``).
@@ -90,7 +91,7 @@ with (
     patch("src.schedules.routes.get_page_service", return_value=page_service),
     patch("src.schedules.routes.get_time_service", return_value=time_service),
     patch("src.schedules.routes.check_ref_board_compatibility", return_value=compat),
-    patch("src.schedules.routes.require_board") as require_board,
+    patch("src.schedules.routes._require_board") as require_board,
 ):
     listed = call(routes.list_schedules())
     assert listed.total == 1, listed
