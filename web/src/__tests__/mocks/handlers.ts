@@ -55,12 +55,12 @@ export const mockConfig: ConfigSummary = {
 
 export const mockDisplays: DisplaysResponse = {
   displays: [
-    { type: "weather", available: true, description: "Current weather conditions" },
-    { type: "datetime", available: true, description: "Current date and time" },
-    { type: "weather_datetime", available: true, description: "Combined weather and datetime" },
-    { type: "home_assistant", available: false, description: "Home Assistant status" },
-    { type: "star_trek", available: true, description: "Star Trek quotes" },
-    { type: "guest_wifi", available: false, description: "Guest WiFi credentials" },
+    { type: "weather", available: true, description: "Current weather conditions", source: "plugin" },
+    { type: "datetime", available: true, description: "Current date and time", source: "plugin" },
+    { type: "weather_datetime", available: true, description: "Combined weather and datetime", source: "plugin" },
+    { type: "home_assistant", available: false, description: "Home Assistant status", source: "plugin" },
+    { type: "star_trek", available: true, description: "Star Trek quotes", source: "plugin" },
+    { type: "guest_wifi", available: false, description: "Guest WiFi credentials", source: "plugin" },
   ],
   total: 7,
   available_count: 5,
@@ -413,6 +413,7 @@ export const handlers = [
       display_type: type,
       message: `${type} sent`,
       sent_to_board: true,
+      paused: false,
       target: "board",
     });
   }),
@@ -713,6 +714,7 @@ export const handlers = [
       lines: template ? template.split("\n") : [""],
       line_count: template ? template.split("\n").length : 1,
       sent_to_board: true,
+      paused: false,
       board_id: body.board_id || "default",
     });
   }),

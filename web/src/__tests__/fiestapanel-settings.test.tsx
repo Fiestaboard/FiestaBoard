@@ -55,7 +55,7 @@ describe("FiestaPanelSettings", () => {
     server.use(
       http.post("/api/panels", async ({ request }) => {
         body = await request.json();
-        return HttpResponse.json({ status: "success", panel: PANEL });
+        return HttpResponse.json(PANEL, { status: 201 });
       }),
     );
     const user = userEvent.setup();
@@ -82,7 +82,7 @@ describe("FiestaPanelSettings", () => {
     server.use(
       http.patch("/api/panels/abc123def456", async ({ request }) => {
         body = await request.json();
-        return HttpResponse.json({ status: "success", panel: { ...PANEL, is_display: true } });
+        return HttpResponse.json({ ...PANEL, is_display: true, incompatible_references: null });
       }),
     );
     const user = userEvent.setup();
@@ -120,7 +120,7 @@ describe("FiestaPanelSettings", () => {
     server.use(
       http.delete("/api/panels/abc123def456", () => {
         deleted = true;
-        return HttpResponse.json({ status: "success" });
+        return HttpResponse.json({ id: "abc123def456" });
       }),
     );
     const user = userEvent.setup();

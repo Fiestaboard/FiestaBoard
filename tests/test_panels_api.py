@@ -1,4 +1,12 @@
-"""Tests for the FiestaPanel API endpoints."""
+"""Tests for the FiestaPanel API endpoints.
+
+Phase 2 slice 8 moved the handlers to ``src/panels/routes.py`` and applied the
+API conventions: create answers 201 with the bare panel, update answers the
+bare panel with an always-present ``incompatible_references``, and delete
+answers ``{"id": ...}``. Collaborator stubs patch ``src.panels.routes.<name>``,
+where the router binds them. ``tests/test_panels_contract.py`` pins the same
+contract by value.
+"""
 
 from types import SimpleNamespace
 from unittest.mock import Mock, patch
@@ -21,7 +29,7 @@ def client():
 
 @pytest.fixture
 def mock_panel_service():
-    with patch("src.api_server.get_panel_service") as mock:
+    with patch("src.panels.routes.get_panel_service") as mock:
         service = Mock()
         mock.return_value = service
         yield service
@@ -37,7 +45,7 @@ class TestPanelCrudEndpoints:
     def test_list_panels(self, client, mock_panel_service):
         """GET /panels returns panels with board geometry attached."""
         mock_panel_service.list_panels.return_value = [_panel()]
-        with patch("src.api_server._find_board") as find_board:
+        with patch("src.panels.routes._find_board") as find_board:
             find_board.return_value = {
                 "id": "vboard-1",
                 "device_type": "note_array",
@@ -55,7 +63,7 @@ class TestPanelCrudEndpoints:
     def test_list_panels_reports_orphaned_board(self, client, mock_panel_service):
         """A panel whose virtual board was deleted reports board_missing."""
         mock_panel_service.list_panels.return_value = [_panel()]
-        with patch("src.api_server._find_board", return_value=None):
+        with patch("src.panels.routes._find_board", return_value=None):
             response = client.get("/panels")
         assert response.status_code == 200
         assert response.json()["panels"][0]["board_missing"] is True
@@ -69,7 +77,7 @@ class TestPanelCrudEndpoints:
         mock_panel_service.update_panel.return_value = _panel(name="Bedroom TV")
         response = client.patch("/panels/abc", json={"name": "Bedroom TV"})
         assert response.status_code == 200
-        assert response.json()["panel"]["name"] == "Bedroom TV"
+        assert response.json()["name"] == "Bedroom TV"
 
     def test_delete_unknown_panel_404s(self, client, mock_panel_service):
         mock_panel_service.delete_panel.return_value = None
@@ -81,7 +89,7 @@ class TestPublicPanelEndpoints:
     def test_public_endpoints_resolve_short_codes(self, client, mock_panel_service):
         """/panel/1 (TV-typable short URL) resolves via get_panel_by_ref."""
         mock_panel_service.get_panel_by_ref.return_value = _panel(short_code=1)
-        with patch("src.api_server._find_board", return_value=None):
+        with patch("src.panels.routes._find_board", return_value=None):
             response = client.get("/panel/1")
         assert response.status_code == 200
         mock_panel_service.get_panel_by_ref.assert_called_with("1")
@@ -104,7 +112,7 @@ class TestPublicPanelEndpoints:
             "board_color": "white",
             "api_mode": "virtual",
         }
-        with patch("src.api_server._find_board", return_value=board):
+        with patch("src.panels.routes._find_board", return_value=board):
             response = client.get("/panel/abc123def456")
         assert response.status_code == 200
         data = response.json()
@@ -120,7 +128,7 @@ class TestPublicPanelEndpoints:
 
     def test_get_panel_orphaned_board(self, client, mock_panel_service):
         mock_panel_service.get_panel_by_ref.return_value = _panel()
-        with patch("src.api_server._find_board", return_value=None):
+        with patch("src.panels.routes._find_board", return_value=None):
             response = client.get("/panel/abc123def456")
         assert response.status_code == 200
         data = response.json()
@@ -136,8 +144,8 @@ class TestPublicPanelEndpoints:
         display = Mock()
         display.get_board_client.return_value = vclient
         with (
-            patch("src.api_server._find_board", return_value=board),
-            patch("src.api_server.get_service", return_value=display),
+            patch("src.panels.routes._find_board", return_value=board),
+            patch("src.panels.routes.get_service", return_value=display),
         ):
             response = client.get("/panel/abc123def456/frame")
         assert response.status_code == 200
@@ -154,8 +162,8 @@ class TestPublicPanelEndpoints:
         display = Mock()
         display.get_board_client.return_value = vclient
         with (
-            patch("src.api_server._find_board", return_value=board),
-            patch("src.api_server.get_service", return_value=display),
+            patch("src.panels.routes._find_board", return_value=board),
+            patch("src.panels.routes.get_service", return_value=display),
         ):
             response = client.get("/panel/abc123def456/frame")
         assert response.status_code == 200
@@ -174,8 +182,8 @@ class TestPublicPanelEndpoints:
         display = Mock()
         display.get_board_client.return_value = physical
         with (
-            patch("src.api_server._find_board", return_value=board),
-            patch("src.api_server.get_service", return_value=display),
+            patch("src.panels.routes._find_board", return_value=board),
+            patch("src.panels.routes.get_service", return_value=display),
         ):
             response = client.get("/panel/abc123def456/frame")
         assert response.status_code == 200
@@ -225,16 +233,17 @@ class TestPanelOrchestration:
         real_service = PanelService(storage=PanelStorage(storage_file=str(tmp_path / "p.json")))
         fake_settings = self._fake_settings_service()
         with (
-            patch("src.api_server.get_panel_service", return_value=real_service),
-            patch("src.api_server.get_settings_service", return_value=fake_settings),
-            patch("src.api_server._reinitialize_board_clients") as reinit,
+            patch("src.panels.routes.get_panel_service", return_value=real_service),
+            patch("src.panels.routes.get_settings_service", return_value=fake_settings),
+            patch("src.panels.routes.reinitialize_board_clients") as reinit,
         ):
             response = client.post(
                 "/panels",
                 json={"name": "Hall TV", "screen_diagonal_inches": 65},
             )
-        assert response.status_code == 200
-        panel = response.json()["panel"]
+        # RE-PINNED (Phase 2 slice 8): create answers 201 with the bare panel.
+        assert response.status_code == 201
+        panel = response.json()
         assert len(fake_settings.boards) == 1
         board = fake_settings.boards[0]
         assert board["api_mode"] == "virtual"
@@ -249,11 +258,11 @@ class TestPanelOrchestration:
         real_service = PanelService(storage=PanelStorage(storage_file=str(tmp_path / "p.json")))
         fake_settings = self._fake_settings_service()
         with (
-            patch("src.api_server.get_panel_service", return_value=real_service),
-            patch("src.api_server.get_settings_service", return_value=fake_settings),
-            patch("src.api_server._reinitialize_board_clients"),
+            patch("src.panels.routes.get_panel_service", return_value=real_service),
+            patch("src.panels.routes.get_settings_service", return_value=fake_settings),
+            patch("src.panels.routes.reinitialize_board_clients"),
         ):
-            created = client.post("/panels", json={"name": "Hall TV", "screen_diagonal_inches": 43}).json()["panel"]
+            created = client.post("/panels", json={"name": "Hall TV", "screen_diagonal_inches": 43}).json()
             board = fake_settings.boards[0]
             assert (board["notes_wide"], board["notes_tall"]) == (1, 3)
 
@@ -269,14 +278,14 @@ class TestPanelOrchestration:
         real_service = PanelService(storage=PanelStorage(storage_file=str(tmp_path / "p.json")))
         fake_settings = self._fake_settings_service()
         with (
-            patch("src.api_server.get_panel_service", return_value=real_service),
-            patch("src.api_server.get_settings_service", return_value=fake_settings),
-            patch("src.api_server._reinitialize_board_clients"),
+            patch("src.panels.routes.get_panel_service", return_value=real_service),
+            patch("src.panels.routes.get_settings_service", return_value=fake_settings),
+            patch("src.panels.routes.reinitialize_board_clients"),
         ):
             created = client.post(
                 "/panels",
                 json={"name": "Wide TV", "screen_diagonal_inches": 55, "screen_aspect_w": 21, "screen_aspect_h": 9},
-            ).json()["panel"]
+            ).json()
         assert created["screen_aspect_w"] == 21
         assert created["screen_aspect_h"] == 9
         board = fake_settings.boards[0]
@@ -291,17 +300,17 @@ class TestPanelOrchestration:
         real_service = PanelService(storage=PanelStorage(storage_file=str(tmp_path / "p.json")))
         fake_settings = self._fake_settings_service()
         with (
-            patch("src.api_server.get_panel_service", return_value=real_service),
-            patch("src.api_server.get_settings_service", return_value=fake_settings),
-            patch("src.api_server._reinitialize_board_clients"),
+            patch("src.panels.routes.get_panel_service", return_value=real_service),
+            patch("src.panels.routes.get_settings_service", return_value=fake_settings),
+            patch("src.panels.routes.reinitialize_board_clients"),
         ):
-            created = client.post("/panels", json={"name": "Wide TV", "screen_diagonal_inches": 55}).json()["panel"]
+            created = client.post("/panels", json={"name": "Wide TV", "screen_diagonal_inches": 55}).json()
             board = fake_settings.boards[0]
             assert (board["notes_wide"], board["notes_tall"]) == (1, 4)
 
             response = client.patch(f"/panels/{created['id']}", json={"screen_aspect_w": 21, "screen_aspect_h": 9})
         assert response.status_code == 200
-        assert response.json()["panel"]["screen_aspect_w"] == 21
+        assert response.json()["screen_aspect_w"] == 21
         board = fake_settings.boards[0]
         assert (board["notes_wide"], board["notes_tall"]) == (2, 3)
 
@@ -311,11 +320,11 @@ class TestPanelOrchestration:
             initial_boards=[{"id": "physical-1", "device_type": "flagship", "api_mode": "local"}]
         )
         with (
-            patch("src.api_server.get_panel_service", return_value=real_service),
-            patch("src.api_server.get_settings_service", return_value=fake_settings),
-            patch("src.api_server._reinitialize_board_clients"),
+            patch("src.panels.routes.get_panel_service", return_value=real_service),
+            patch("src.panels.routes.get_settings_service", return_value=fake_settings),
+            patch("src.panels.routes.reinitialize_board_clients"),
         ):
-            created = client.post("/panels", json={"name": "Hall TV", "screen_diagonal_inches": 43}).json()["panel"]
+            created = client.post("/panels", json={"name": "Hall TV", "screen_diagonal_inches": 43}).json()
             assert len(fake_settings.boards) == 2
             response = client.delete(f"/panels/{created['id']}")
         assert response.status_code == 200
@@ -329,11 +338,11 @@ class TestPanelOrchestration:
             initial_boards=[{"id": "physical-1", "device_type": "flagship", "api_mode": "local"}]
         )
         with (
-            patch("src.api_server.get_panel_service", return_value=real_service),
-            patch("src.api_server.get_settings_service", return_value=fake_settings),
-            patch("src.api_server._reinitialize_board_clients"),
+            patch("src.panels.routes.get_panel_service", return_value=real_service),
+            patch("src.panels.routes.get_settings_service", return_value=fake_settings),
+            patch("src.panels.routes.reinitialize_board_clients"),
         ):
-            created = client.post("/panels", json={"name": "Hall TV", "screen_diagonal_inches": 43}).json()["panel"]
+            created = client.post("/panels", json={"name": "Hall TV", "screen_diagonal_inches": 43}).json()
             vclient = VirtualBoardClient(
                 device_type="note_array", board_id=created["board_id"], notes_wide=1, notes_tall=3
             )
@@ -355,11 +364,11 @@ class TestPanelOrchestration:
         real_service = PanelService(storage=PanelStorage(storage_file=str(tmp_path / "p.json")))
         fake_settings = self._fake_settings_service()
         with (
-            patch("src.api_server.get_panel_service", return_value=real_service),
-            patch("src.api_server.get_settings_service", return_value=fake_settings),
-            patch("src.api_server._reinitialize_board_clients"),
+            patch("src.panels.routes.get_panel_service", return_value=real_service),
+            patch("src.panels.routes.get_settings_service", return_value=fake_settings),
+            patch("src.panels.routes.reinitialize_board_clients"),
         ):
-            created = client.post("/panels", json={"name": "Hall TV", "screen_diagonal_inches": 43}).json()["panel"]
+            created = client.post("/panels", json={"name": "Hall TV", "screen_diagonal_inches": 43}).json()
             board_id = created["board_id"]
             # 43" auto-fits a 1x3 note array => 9 rows x 15 cols. Seed a frame
             # at exactly that shape so the send lands (a mismatched seed would
@@ -386,11 +395,11 @@ class TestPanelOrchestration:
         real_service = PanelService(storage=PanelStorage(storage_file=str(tmp_path / "p.json")))
         fake_settings = self._fake_settings_service()
         with (
-            patch("src.api_server.get_panel_service", return_value=real_service),
-            patch("src.api_server.get_settings_service", return_value=fake_settings),
-            patch("src.api_server._reinitialize_board_clients"),
+            patch("src.panels.routes.get_panel_service", return_value=real_service),
+            patch("src.panels.routes.get_settings_service", return_value=fake_settings),
+            patch("src.panels.routes.reinitialize_board_clients"),
         ):
-            created = client.post("/panels", json={"name": "Hall TV", "screen_diagonal_inches": 43}).json()["panel"]
+            created = client.post("/panels", json={"name": "Hall TV", "screen_diagonal_inches": 43}).json()
             assert len(fake_settings.boards) == 1  # the virtual board is the only board
             response = client.delete(f"/panels/{created['id']}")
         assert response.status_code == 200
@@ -407,12 +416,12 @@ class TestPanelOrchestration:
         fake_settings = self._fake_settings_service()
         stale = [{"page_id": "p1", "page_name": "Big Page", "surface": "schedule", "schedule_id": "s1"}]
         with (
-            patch("src.api_server.get_panel_service", return_value=real_service),
-            patch("src.api_server.get_settings_service", return_value=fake_settings),
-            patch("src.api_server._reinitialize_board_clients"),
-            patch("src.api_server.find_incompatible_board_references", return_value=stale) as finder,
+            patch("src.panels.routes.get_panel_service", return_value=real_service),
+            patch("src.panels.routes.get_settings_service", return_value=fake_settings),
+            patch("src.panels.routes.reinitialize_board_clients"),
+            patch("src.panels.routes.find_incompatible_board_references", return_value=stale) as finder,
         ):
-            created = client.post("/panels", json={"name": "Hall TV", "screen_diagonal_inches": 43}).json()["panel"]
+            created = client.post("/panels", json={"name": "Hall TV", "screen_diagonal_inches": 43}).json()
 
             resized = client.patch(f"/panels/{created['id']}", json={"screen_diagonal_inches": 85})
             assert resized.status_code == 200
@@ -422,7 +431,9 @@ class TestPanelOrchestration:
             finder.reset_mock()
             renamed = client.patch(f"/panels/{created['id']}", json={"name": "Lounge TV"})
         assert renamed.status_code == 200
-        assert "incompatible_references" not in renamed.json()
+        # RE-PINNED (Phase 2 slice 8): always present, null when nothing was
+        # re-fit — the key used to be absent, which the client had to special-case.
+        assert renamed.json()["incompatible_references"] is None
         assert not finder.called
 
     def test_remove_board_endpoint_refuses_a_panel_backed_board(self, client, tmp_path):
@@ -433,11 +444,16 @@ class TestPanelOrchestration:
             initial_boards=[{"id": "physical-1", "device_type": "flagship", "api_mode": "local"}]
         )
         with (
+            patch("src.panels.routes.get_panel_service", return_value=real_service),
+            # DELETE /settings/board/{id} is still an api_server handler and
+            # resolves the panel service through its own binding, so the stub
+            # has to cover both until the settings slice lands.
             patch("src.api_server.get_panel_service", return_value=real_service),
+            patch("src.panels.routes.get_settings_service", return_value=fake_settings),
             patch("src.api_server.get_settings_service", return_value=fake_settings),
-            patch("src.api_server._reinitialize_board_clients"),
+            patch("src.panels.routes.reinitialize_board_clients"),
         ):
-            created = client.post("/panels", json={"name": "Hall TV", "screen_diagonal_inches": 43}).json()["panel"]
+            created = client.post("/panels", json={"name": "Hall TV", "screen_diagonal_inches": 43}).json()
 
             response = client.delete(f"/settings/board/{created['board_id']}")
             assert response.status_code == 409
@@ -453,11 +469,11 @@ class TestPanelOrchestration:
         real_service = PanelService(storage=PanelStorage(storage_file=str(tmp_path / "p.json")))
         fake_settings = self._fake_settings_service()
         with (
-            patch("src.api_server.get_panel_service", return_value=real_service),
-            patch("src.api_server.get_settings_service", return_value=fake_settings),
-            patch("src.api_server._reinitialize_board_clients"),
+            patch("src.panels.routes.get_panel_service", return_value=real_service),
+            patch("src.panels.routes.get_settings_service", return_value=fake_settings),
+            patch("src.panels.routes.reinitialize_board_clients"),
         ):
-            created = client.post("/panels", json={"name": "Hall TV", "screen_diagonal_inches": 43}).json()["panel"]
+            created = client.post("/panels", json={"name": "Hall TV", "screen_diagonal_inches": 43}).json()
             fake_settings.boards.clear()  # board deleted out-of-band
             response = client.delete(f"/panels/{created['id']}")
         assert response.status_code == 200

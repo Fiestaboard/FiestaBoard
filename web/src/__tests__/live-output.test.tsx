@@ -118,6 +118,7 @@ describe("Live Output Mode", () => {
       lines: ["test preview"],
       line_count: 1,
       sent_to_board: true,
+      paused: false,
       board_id: "board-1",
     });
     // createPage answers the bare page since the Phase 2 conventions pass.
@@ -319,6 +320,7 @@ describe("Live Output - Board Selector Interaction", () => {
       lines: ["test"],
       line_count: 1,
       sent_to_board: true,
+      paused: false,
       board_id: "board-1",
     });
     vi.mocked(api.getBoardSettings).mockResolvedValue(multiBoardSettings);
@@ -388,6 +390,7 @@ describe("Live Output - Auto-timeout", () => {
       lines: ["test"],
       line_count: 1,
       sent_to_board: true,
+      paused: false,
       board_id: "board-1",
     });
     vi.mocked(api.getBoardSettings).mockResolvedValue(defaultBoardSettings);
@@ -520,6 +523,7 @@ describe("Live Output - Cleanup on unmount", () => {
       lines: ["test"],
       line_count: 1,
       sent_to_board: true,
+      paused: false,
       board_id: "board-1",
     });
     vi.mocked(api.getBoardSettings).mockResolvedValue(defaultBoardSettings);

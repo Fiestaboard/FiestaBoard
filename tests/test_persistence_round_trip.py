@@ -126,8 +126,9 @@ def _create_panel(client: TestClient, name: str = "Kitchen TV") -> dict:
     two whole-store guards below have to write it like every other store.
     """
     response = client.post("/panels", json={"name": name})
-    assert response.status_code == 200, response.text
-    return response.json()["panel"]
+    # RE-PINNED (Phase 2 slice 8): 201 with the bare panel.
+    assert response.status_code == 201, response.text
+    return response.json()
 
 
 # ── restart round-trips ─────────────────────────────────────────────────────

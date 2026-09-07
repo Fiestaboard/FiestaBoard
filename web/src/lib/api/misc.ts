@@ -17,6 +17,8 @@ export interface DisplayInfo {
   type: string;
   available: boolean;
   description: string;
+  /** Always "plugin"; kept for clients that predate the plugin system. */
+  source: string;
 }
 
 export interface DisplaysResponse {
@@ -35,9 +37,20 @@ export interface DisplayResponse {
 
 export interface DisplayRawResponse {
   display_type: string;
-  data: Record<string, unknown>;
+  data: Record<string, unknown> | null;
   available: boolean;
   error: string | null;
+}
+
+/** POST /displays/{type}/send — mirrors src/displays/models.py. */
+export interface DisplaySendResponse {
+  status: string;
+  display_type: string;
+  message: string;
+  sent_to_board: boolean;
+  /** True when the send was skipped because the target board is paused. */
+  paused: boolean;
+  target: string;
 }
 
 export interface DisplayRawBatchResponse {
@@ -112,7 +125,7 @@ export const miscApi = {
     }),
   sendDisplay: (type: string, target?: "ui" | "board" | "both") => {
     const params = target ? `?target=${target}` : "";
-    return fetchApi<ActionResponse>(`/displays/${type}/send${params}`, { method: "POST" });
+    return fetchApi<DisplaySendResponse>(`/displays/${type}/send${params}`, { method: "POST" });
   },
   // Bay Wheels station search endpoints
   listBayWheelsStations: () => fetchApi<{ stations: BayWheelsStation[]; total: number }>("/baywheels/stations"),

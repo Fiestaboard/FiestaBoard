@@ -830,7 +830,7 @@ class TestTemplateAPIEndpoints:
         data = response.json()
         assert data["valid"] is False
 
-    @patch("src.api_server.get_template_engine")
+    @patch("src.templates.routes.get_template_engine")
     def test_render_template(self, mock_get_engine, client):
         """Test POST /templates/render."""
         mock_engine = Mock()

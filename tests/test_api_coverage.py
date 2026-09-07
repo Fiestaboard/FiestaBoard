@@ -50,6 +50,7 @@ def mock_service():
         patch("src.pages.routes.get_service", return_value=service),
         patch("src.config_api.routes.get_service", return_value=service),
         patch("src.display_runtime.get_service", return_value=service),
+        patch("src.displays.routes.get_service", return_value=service),
     ):
         yield service
 
@@ -102,6 +103,7 @@ def mock_settings_service():
         patch("src.pages.routes.get_settings_service") as routes_get,
         patch("src.config_api.routes.get_settings_service") as config_get,
         patch("src.board_guards.get_settings_service") as guards_get,
+        patch("src.displays.routes.get_settings_service") as displays_get,
     ):
         ss = Mock()
         transition = Mock()
@@ -136,6 +138,7 @@ def mock_settings_service():
         routes_get.return_value = ss
         config_get.return_value = ss
         guards_get.return_value = ss
+        displays_get.return_value = ss
         yield ss
 
 
@@ -1348,9 +1351,9 @@ class TestSendDisplay:
     def test_send_display_no_service(self, client):
         """No service returns 503."""
         with (
-            patch("src.api_server.get_display_service"),
-            patch("src.api_server.get_settings_service"),
-            patch("src.api_server.get_service", return_value=None),
+            patch("src.displays.routes.get_display_service"),
+            patch("src.displays.routes.get_settings_service"),
+            patch("src.displays.routes.get_service", return_value=None),
         ):
             response = client.post("/displays/weather/send")
             assert response.status_code == 503
@@ -1360,16 +1363,16 @@ class TestSendDisplay:
         svc = Mock()
         svc.vb_client = None
         with (
-            patch("src.api_server.get_display_service"),
-            patch("src.api_server.get_settings_service"),
-            patch("src.api_server.get_service", return_value=svc),
+            patch("src.displays.routes.get_display_service"),
+            patch("src.displays.routes.get_settings_service"),
+            patch("src.displays.routes.get_service", return_value=svc),
         ):
             response = client.post("/displays/weather/send")
             assert response.status_code == 503
 
     def test_send_display_unknown_type(self, client, mock_service, mock_settings_service):
         """Unknown display type → 400."""
-        with patch("src.api_server.get_display_service") as mock_ds:
+        with patch("src.displays.routes.get_display_service") as mock_ds:
             display_service = Mock()
             result = Mock()
             result.available = False
@@ -1381,7 +1384,7 @@ class TestSendDisplay:
 
     def test_send_display_not_available(self, client, mock_service, mock_settings_service):
         """Display not available → 503."""
-        with patch("src.api_server.get_display_service") as mock_ds:
+        with patch("src.displays.routes.get_display_service") as mock_ds:
             display_service = Mock()
             result = Mock()
             result.available = False
@@ -1395,9 +1398,9 @@ class TestSendDisplay:
         """Send display to board successfully."""
         mock_settings_service.should_send_to_board.return_value = True
         with (
-            patch("src.api_server.get_display_service") as mock_ds,
-            patch("src.api_server.text_to_board_array") as mock_ttba,
-            patch("src.api_server.resolve_dimensions") as mock_dims,
+            patch("src.displays.routes.get_display_service") as mock_ds,
+            patch("src.displays.routes.text_to_board_array") as mock_ttba,
+            patch("src.displays.routes.resolve_dimensions") as mock_dims,
         ):
             display_service = Mock()
             result = Mock()
@@ -1420,9 +1423,9 @@ class TestSendDisplay:
         mock_service.vb_client.send_characters.return_value = (False, False)
         mock_service.vb_client.render.return_value = (False, False)
         with (
-            patch("src.api_server.get_display_service") as mock_ds,
-            patch("src.api_server.text_to_board_array") as mock_ttba,
-            patch("src.api_server.resolve_dimensions") as mock_dims,
+            patch("src.displays.routes.get_display_service") as mock_ds,
+            patch("src.displays.routes.text_to_board_array") as mock_ttba,
+            patch("src.displays.routes.resolve_dimensions") as mock_dims,
         ):
             display_service = Mock()
             result = Mock()
@@ -1440,7 +1443,7 @@ class TestSendDisplay:
 
     def test_send_display_target_override(self, client, mock_service, mock_settings_service):
         """Explicit target=ui skips board send."""
-        with patch("src.api_server.get_display_service") as mock_ds:
+        with patch("src.displays.routes.get_display_service") as mock_ds:
             display_service = Mock()
             result = Mock()
             result.available = True

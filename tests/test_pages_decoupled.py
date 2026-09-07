@@ -10,7 +10,7 @@ tasks, its MCP mount — back in, and the 2026-09 audit counted those seams goin
 up 4.2x across Phase 1.
 
 This test pins the fix the honest way. In a fresh interpreter it imports the
-router, drives **all sixteen** handlers end to end against patched canonical
+router, drives **all fourteen** handlers end to end against patched canonical
 seams (``src.pages.routes.<name>``), asserts the stubs really were driven — so
 a handler that silently no-op'd could not pass — and then asserts
 ``src.api_server`` never entered ``sys.modules``.
@@ -173,32 +173,26 @@ with (
     imported = call(routes.import_page(PageImportRequest(share_string=share_string)))
     assert imported.id == "page:abc", imported
 
-    # 10. GET /staff-picks
-    picks = call(routes.list_staff_picks())
-    assert isinstance(picks, list) and picks, picks
-    assert all("share_string" not in p for p in picks), picks
+    # The two staff-picks handlers moved to src/staff_picks/routes.py in
+    # Phase 2 slice 8; tests/test_small_domains_decoupled.py drives them there.
 
-    # 11. GET /staff-picks/{pick_id}/share
-    pick_share = call(routes.get_staff_pick_share(picks[0]["id"]))
-    assert isinstance(pick_share.share_string, str) and pick_share.share_string, pick_share
-
-    # 12. POST /pages/{page_id}/preview
+    # 10. POST /pages/{page_id}/preview
     preview = call(routes.preview_page("page:abc", force_refresh=True))
     assert preview.lines == ["DECOUPLED", ""], preview
 
-    # 13. POST /pages/preview/batch
+    # 11. POST /pages/preview/batch
     batch = call(routes.preview_pages_batch(PagePreviewBatchRequest(page_ids=["page:abc"])))
     assert batch.total == 1 and batch.successful == 1, batch
 
-    # 14. GET /pages/cache/stats
+    # 12. GET /pages/cache/stats
     stats = call(routes.get_page_cache_stats())
     assert stats.cached_pages == ["page:abc"], stats
 
-    # 15. POST /pages/cache/clear
+    # 13. POST /pages/cache/clear
     cleared = call(routes.clear_page_cache(PageCacheClearRequest(page_id="page:abc")))
     assert cleared.page_id == "page:abc", cleared
 
-    # 16. POST /pages/{page_id}/send — the deepest handler: board lookup, the
+    # 14. POST /pages/{page_id}/send — the deepest handler: board lookup, the
     # silence and pause guards, dimension resolution and the board render.
     sent = call(routes.send_page("page:abc", payload=PageSendRequest(target="board", board_id="board-1")))
     assert sent.sent_to_board is True, sent

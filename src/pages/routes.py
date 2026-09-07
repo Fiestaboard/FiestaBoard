@@ -1,4 +1,4 @@
-"""FastAPI router for the pages, staff-picks and page-send endpoints.
+"""FastAPI router for the pages and page-send endpoints.
 
 Handlers were moved here verbatim from ``src/api_server.py`` (issue #1756);
 Phase 2 slice 3 then applied ``docs/internal/reference/API_CONVENTIONS.md`` to
@@ -8,7 +8,7 @@ seams the move left behind.
 Collaborators now resolve from their canonical homes at **module import
 time**, so this module never loads ``src.api_server``
 (``tests/test_pages_decoupled.py`` asserts that in a fresh interpreter, after
-driving all sixteen handlers). Tests that need to stub a collaborator patch it
+driving all fourteen handlers). Tests that need to stub a collaborator patch it
 where this module binds it — ``src.pages.routes.<name>`` — not
 ``src.api_server.<name>``.
 
@@ -22,9 +22,7 @@ are unchanged.
 from __future__ import annotations
 
 import asyncio
-import json
 import logging
-from pathlib import Path
 
 from fastapi import APIRouter, HTTPException, Query
 from fastapi.responses import JSONResponse
@@ -58,7 +56,6 @@ from .models import (
     PageUpdate,
     PageUpdateResponse,
     ShareStringResponse,
-    StaffPick,
 )
 from .models import Page as PageModel
 from .service import find_incompatible_references, get_page_service
@@ -334,45 +331,6 @@ async def import_page(body: PageImportRequest):
         return page_service.create_page(page_create)
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e)) from e
-
-
-# ---------------------------------------------------------------------------
-# Staff Picks
-# ---------------------------------------------------------------------------
-
-# NOTE: one more .parent than api_server.py had — this file is a level deeper.
-_STAFF_PICKS_PATH = Path(__file__).parent.parent.parent / "staff-picks" / "picks.json"
-
-
-def _load_staff_picks() -> list:
-    try:
-        with open(_STAFF_PICKS_PATH) as f:
-            return json.load(f)
-    except FileNotFoundError:
-        return []
-
-
-# No 4xx of its own: a missing picks.json degrades to []. See the
-# declared_errors exception in tests/conventions_manifest.json.
-@router.get("/staff-picks", response_model=list[StaffPick])
-async def list_staff_picks():
-    """Return all staff picks (without share strings)."""
-    picks = _load_staff_picks()
-    return [{k: v for k, v in pick.items() if k != "share_string"} for pick in picks]
-
-
-@router.get(
-    "/staff-picks/{pick_id}/share",
-    response_model=ShareStringResponse,
-    responses=errors(404),
-)
-async def get_staff_pick_share(pick_id: str):
-    """Return the share string for a specific staff pick."""
-    picks = _load_staff_picks()
-    pick = next((p for p in picks if p["id"] == pick_id), None)
-    if not pick:
-        raise HTTPException(status_code=404, detail=f"Staff pick not found: {pick_id}")
-    return ShareStringResponse(share_string=pick["share_string"])
 
 
 @router.post(

@@ -5,10 +5,16 @@
     "collections",
     "config",
     "debug",
+    "displays",
     "pages",
+    "panels",
     "plugins",
     "schedules",
-    "system"
+    "staff-picks",
+    "system",
+    "templates",
+    "transitions",
+    "triggers"
   ],
   "exceptions": [
     {
@@ -62,6 +68,11 @@
       "reason": "Has no client-error path at all: every collaborator it reads (connection info, uptime, cache status, board-configured probe) is defensive and answers with a fallback rather than raising, so the card renders for an unconfigured install too. Declaring a 4xx would document a failure this route cannot produce."
     },
     {
+      "route": "GET /displays",
+      "rule": "declared_errors",
+      "reason": "No failure path: an instance with no plugins installed answers an empty list with total 0. It reads the in-process plugin registry, which always exists, and reports availability per entry rather than failing on an unavailable one."
+    },
+    {
       "route": "GET /pages",
       "rule": "declared_errors",
       "reason": "Has no failure path of its own: an instance with no pages answers {\"pages\": [], \"total\": 0}. The only 4xx it can produce is the auth middleware's 401, which is applied app-wide and is not this route's contract to declare."
@@ -70,6 +81,11 @@
       "route": "GET /pages/cache/stats",
       "rule": "declared_errors",
       "reason": "Reports in-memory preview-cache occupancy, which always exists — an empty cache is a valid answer, not an error. Nothing it reads can be missing or unauthorized at the route level."
+    },
+    {
+      "route": "GET /panels",
+      "rule": "declared_errors",
+      "reason": "No failure path: an instance with no panels answers an empty list with total 0. It reads panel storage plus the boards list; a panel whose board is gone is reported inline as board_missing rather than failing the request."
     },
     {
       "route": "GET /plugins",
@@ -132,6 +148,26 @@
       "reason": "Read-only report with no failure path: it cannot 404, 400 or 409, so declaring a 4xx would document an error the endpoint never raises. An unreachable sidecar is reported as updater_available=false, not as an error."
     },
     {
+      "route": "GET /templates/formula-functions",
+      "rule": "declared_errors",
+      "reason": "No failure path: the function table is a module-level constant in src/templates/expressions.py with no input and no I/O, so nothing the caller controls can make it fail."
+    },
+    {
+      "route": "GET /templates/variables",
+      "rule": "declared_errors",
+      "reason": "No failure path: it reads the in-process template engine and plugin registry, both of which always exist. An install with no plugins answers empty catalogs alongside the static colour/symbol/filter tables — an empty answer, not an error."
+    },
+    {
+      "route": "GET /triggers",
+      "rule": "declared_errors",
+      "reason": "No failure path: an instance with nothing fired answers an empty list with count 0. It reads in-process trigger state that always exists."
+    },
+    {
+      "route": "GET /triggers/active",
+      "rule": "declared_errors",
+      "reason": "No failure path by design: the dashboard polls this on a timer, so \"nothing is firing\" is an explicit null trigger at 200 rather than a 404 the client would have to treat as normal."
+    },
+    {
       "route": "GET /version",
       "rule": "declared_errors",
       "reason": "Read-only report with no failure path: it cannot 404, 400 or 409, so declaring a 4xx would document an error the endpoint never raises. It reads two env vars and one /proc file, and reports None when the file is absent."
@@ -190,6 +226,11 @@
       "route": "POST /system/update",
       "rule": "declared_errors",
       "reason": "Every failure mode is upstream: the fiestaupdater sidecar is absent (503), rejects our shared token (500) or errors (502). There is no request a client could send that this route answers 4xx to, and all three codes it does raise are declared in responses=."
+    },
+    {
+      "route": "POST /triggers/clear",
+      "rule": "declared_errors",
+      "reason": "No failure path: clearing an empty trigger set is a successful no-op, and there is no id or body that could be wrong."
     }
   ]
 }

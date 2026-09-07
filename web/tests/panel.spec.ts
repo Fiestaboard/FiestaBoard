@@ -19,9 +19,9 @@ async function createPanel(name: string): Promise<CreatedPanel> {
     headers: { "Content-Type": "application/json", ...authHeaders() },
     body: JSON.stringify({ name, screen_diagonal_inches: 43 }),
   });
-  expect(res.ok).toBe(true);
-  const body = (await res.json()) as { panel: CreatedPanel };
-  return body.panel;
+  // 201 with the bare panel since Phase 2 slice 8 (was 200 + { panel }).
+  expect(res.status).toBe(201);
+  return (await res.json()) as CreatedPanel;
 }
 
 async function deletePanel(panelId: string): Promise<void> {
