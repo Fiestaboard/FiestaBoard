@@ -4448,6 +4448,11 @@ from .pages.routes import router as pages_router  # noqa: E402
 
 app.include_router(pages_router)
 
+# Staff picks share the pages surface but are their own domain (Phase 2 slice 8).
+from .staff_picks.routes import router as staff_picks_router  # noqa: E402
+
+app.include_router(staff_picks_router)
+
 # =============================================================================
 # Schedule Endpoints — moved to src/schedules/routes.py (issue #1756)
 # =============================================================================

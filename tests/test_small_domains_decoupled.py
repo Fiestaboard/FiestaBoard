@@ -40,6 +40,7 @@ SLICE_8_ROUTERS = (
     "src/triggers/routes.py",
     "src/transitions/routes.py",
     "src/panels/routes.py",
+    "src/staff_picks/routes.py",
 )
 
 
@@ -389,6 +390,39 @@ print("DECOUPLED")
 
 def test_panels_router_serves_every_route_without_importing_api_server():
     _run(PANELS_SCRIPT)
+
+
+STAFF_PICKS_SCRIPT = r"""
+import asyncio
+import sys
+
+import src.staff_picks.routes as routes
+
+assert "src.api_server" not in sys.modules, "importing the staff-picks router must not import api_server"
+
+# No stubs: the catalog is a checked-in file, which is the point — this drives
+# the handlers against the picks the product actually ships.
+picks = asyncio.run(routes.list_staff_picks())
+assert picks, "the shipped catalog must not be empty"
+assert all("share_string" not in pick for pick in picks), "the listing must not leak share strings"
+
+share = asyncio.run(routes.get_staff_pick_share(picks[0]["id"]))
+assert share.share_string, share
+
+try:
+    asyncio.run(routes.get_staff_pick_share("no-such-pick"))
+except Exception as exc:
+    assert getattr(exc, "status_code", None) == 404, exc
+else:
+    raise AssertionError("an unknown pick must 404")
+
+assert "src.api_server" not in sys.modules, "a staff-picks handler imported src.api_server"
+print("DECOUPLED")
+"""
+
+
+def test_staff_picks_router_serves_every_route_without_importing_api_server():
+    _run(STAFF_PICKS_SCRIPT)
 
 
 @pytest.mark.parametrize("module_path", SLICE_8_ROUTERS)

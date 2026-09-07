@@ -244,6 +244,11 @@ class PageDeleteResponse(BaseModel):
     new_active_page_id: str | None = None
 
 
+# Staff picks moved to src/staff_picks/models.py with their router (Phase 2
+# slice 8); re-exported here so older imports keep resolving.
+from src.staff_picks.models import StaffPick, StaffPickPlugin  # noqa: E402, F401  (re-export)
+
+
 class ShareStringResponse(BaseModel):
     """``GET /pages/{page_id}/share`` and ``GET /staff-picks/{id}/share``."""
 
@@ -275,30 +280,6 @@ class PageImportPreview(BaseModel):
     transition_strategy: str | None = None
     transition_interval_ms: int | None = None
     transition_step_size: int | None = None
-
-
-class StaffPickPlugin(BaseModel):
-    """A plugin a staff pick's template depends on."""
-
-    id: str
-    name: str
-
-
-class StaffPick(BaseModel):
-    """``GET /staff-picks`` entry — the share string is deliberately absent.
-
-    It is served only by ``GET /staff-picks/{pick_id}/share``, so the list
-    stays small and a pick cannot be imported straight out of the listing.
-    """
-
-    id: str
-    name: str
-    description: str = ""
-    device_type: DeviceType = DEFAULT_DEVICE_TYPE
-    tags: list[str] = Field(default_factory=list)
-    image: str | None = None
-    featured_at: str | None = None
-    required_plugins: list[StaffPickPlugin] = Field(default_factory=list)
 
 
 class PagePreviewResponse(BaseModel):
