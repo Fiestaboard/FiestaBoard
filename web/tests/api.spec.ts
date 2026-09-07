@@ -136,7 +136,9 @@ test.describe("API – Pages", () => {
     });
     expect(deleteRes.ok).toBe(true);
     const deleted = await deleteRes.json();
-    expect(deleted.status).toBe("success");
+    // Phase 2 conventions: delete returns the deleted id, not a status
+    // envelope (bare bodies; the HTTP status carries success).
+    expect(deleted.id).toBe(scheduleId);
   });
 });
 
