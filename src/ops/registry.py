@@ -2,11 +2,16 @@
 
 Issue #1764: ``src/ai/chat_ops.py`` and ``src/mcp_server.py`` grew two
 parallel grammars for the same actions (``update_plugin_config`` vs
-``configure_plugin``, ``replace_page`` vs ``create_page``), each with its
-own implementation. This registry maps *both* name sets onto one canonical
-executor per operation (:mod:`src.ops.executors`), so the surfaces cannot
-diverge in behavior. Retiring the duplicate names is #1766-style follow-up
-work; here both grammars stay valid.
+``configure_plugin``), each with its own implementation. This registry maps
+*both* name sets onto one canonical executor per operation
+(:mod:`src.ops.executors`), so the surfaces cannot diverge in behavior.
+Retiring the duplicate names is #1766-style follow-up work; here both
+grammars stay valid.
+
+Phase 2 Task 11 made this load-bearing on the chat side too:
+``POST /ai/operations`` (:mod:`src.ai.routes`) executes chat ops through
+:func:`execute`, so the web drawer no longer re-implements one per REST
+endpoint.
 
 Three kinds of operation live here:
 
@@ -14,9 +19,10 @@ Three kinds of operation live here:
 - single-surface server ops — only one grammar names them today
   (``delete_page`` is MCP-only, ``update_setting`` is chat-only);
 - client-side chat ops — applied inside the web UI with no server-side
-  effect (``apply_patch`` edits the editor's draft, ``navigate_to_page``
-  routes). They are registered so the registry describes the *whole*
-  grammar, but carry no executor.
+  effect (``replace_page`` and ``apply_patch`` edit the editor's draft,
+  ``navigate_to_page`` routes). They are registered so the registry
+  describes the *whole* grammar, but carry no executor;
+  ``POST /ai/operations`` refuses them with a 4xx.
 
 ``execute()`` is the chat-grammar entry point: given a chat op name it
 validates the args against the op's chat schema (the same models
@@ -71,22 +77,6 @@ def _model_fields(args: Any, *names: str) -> dict[str, Any]:
     return out
 
 
-def _adapt_replace_page(args: Any) -> dict[str, Any]:
-    """``replace_page`` materializes a full page definition → create_page.
-
-    The chat surface knows the device from the editor context; server-side
-    execution falls back to the executor's flagship default.
-    """
-    kwargs: dict[str, Any] = {
-        "name": args.name,
-        "template_lines": args.template,
-        "duration_seconds": args.duration_seconds,
-    }
-    if args.line_metadata:
-        kwargs["line_metadata"] = [m.model_dump() for m in args.line_metadata]
-    return kwargs
-
-
 def _adapt_install_plugin(args: Any) -> dict[str, Any]:
     kwargs: dict[str, Any] = {"plugin_id": args.plugin_id, "auto_enable": args.auto_enable}
     if args.initial_config:
@@ -96,13 +86,7 @@ def _adapt_install_plugin(args: Any) -> dict[str, Any]:
 
 OPERATIONS: tuple[Operation, ...] = (
     # -- pages ------------------------------------------------------------
-    Operation(
-        name="create_page",
-        executor=executors.create_page,
-        chat_name="replace_page",
-        mcp_tool="create_page",
-        adapt_chat_args=_adapt_replace_page,
-    ),
+    Operation(name="create_page", executor=executors.create_page, mcp_tool="create_page"),
     Operation(name="update_page", executor=executors.update_page, mcp_tool="update_page"),
     Operation(name="delete_page", executor=executors.delete_page, mcp_tool="delete_page"),
     Operation(name="set_active_page", executor=executors.set_active_page, mcp_tool="set_active_page"),
@@ -223,6 +207,18 @@ OPERATIONS: tuple[Operation, ...] = (
         adapt_chat_args=lambda a: {},
     ),
     # -- client-side chat ops (no server effect) --------------------------
+    # ``replace_page`` is an EDITOR op, not "create a page" (Phase 2 Task 11).
+    # #1764 aliased it onto ``create_page``, but nothing on the chat path ever
+    # called the registry, so the mis-mapping never showed: the browser has
+    # always applied it to the page mounted in the editor, exactly like
+    # ``apply_patch``, and the system prompt teaches it that way — "use when
+    # the user asks for ... a full rewrite" of the page being edited,
+    # "replace_page is destructive", and the global drawer is told to
+    # navigate to the editor first rather than "write template content
+    # remotely". Executing it server-side would create a second page and
+    # leave the open editor untouched. ``create_page`` above keeps the
+    # executor for the MCP tool of that name.
+    Operation(name="replace_page", chat_name="replace_page", client_side=True),
     Operation(name="apply_patch", chat_name="apply_patch", client_side=True),
     Operation(name="suggest_variables", chat_name="suggest_variables", client_side=True),
     Operation(name="navigate_to_page", chat_name="navigate_to_page", client_side=True),

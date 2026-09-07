@@ -54,7 +54,6 @@ from src.collections.service import CollectionService
 from src.collections.storage import CollectionStorage
 from src.config_manager import ConfigManager
 from src.mcp_server import _build_mcp_server
-from src.ops import execute
 from src.pages.models import PageCreate
 from src.pages.service import PageService
 from src.pages.storage import PageStorage
@@ -178,9 +177,38 @@ def snapshot(env: SimpleNamespace) -> dict[str, Any]:
 # ---------------------------------------------------------------------------
 
 
+class ChatOpFailure(AssertionError):
+    """The chat endpoint refused an operation. Carries the HTTP status + detail."""
+
+    def __init__(self, status_code: int, detail: Any) -> None:
+        super().__init__(f"{status_code}: {detail}")
+        self.status_code = status_code
+        self.detail = detail
+
+
 def chat(op: str, args: dict[str, Any]) -> Any:
-    """The chat-grammar path: chat spelling + chat-shaped args through the ops layer."""
-    return asyncio.run(execute(op, args))
+    """The chat-grammar path — over HTTP, exactly as the browser calls it.
+
+    Phase 2 Task 11: this driver used to call ``src.ops.execute`` in
+    process. That could not see the failure mode this suite exists to
+    prevent, because the shipped web client never called the ops layer at
+    all — it ran its own per-op REST dispatcher, and had drifted from the
+    executors in three places (see
+    ``tests/test_chat_op_http_parity.py``). Posting to
+    ``POST /ai/operations`` makes the "chat path" here the same code path
+    the product ships.
+
+    A refused operation raises, mirroring the MCP side's ``ToolError``.
+    """
+    from fastapi.testclient import TestClient
+
+    from src.api_server import app
+
+    response = TestClient(app).post("/ai/operations", json={"op": op, "args": args})
+    if response.status_code != 200:
+        raise ChatOpFailure(response.status_code, response.json().get("detail"))
+    body = response.json()
+    return {"status": "success", "message": body["message"], **body["result"]}
 
 
 def mcp_call(mcp: Any, tool: str, /, **kwargs: Any) -> Any:
@@ -304,8 +332,11 @@ def test_parity_update_plugin_rejects_builtins_identically(tmp_path, mcp):
     leave state untouched — the guarded error path is part of the contract."""
 
     def chat_steps(env):
-        result = chat("update_plugin", {"plugin_id": PLUGIN_ID})
-        assert result["status"] == "error"
+        # Task 11: the endpoint turns the executor's error envelope into a
+        # 400 rather than a 200 carrying {"status": "error"}.
+        with pytest.raises(ChatOpFailure) as refused:
+            chat("update_plugin", {"plugin_id": PLUGIN_ID})
+        assert refused.value.status_code == 400
 
     def mcp_steps(env):
         # #1765: the MCP surface converts the executor's error envelope into
@@ -432,11 +463,39 @@ def test_parity_collection_create_and_update(tmp_path, mcp):
 # ---------------------------------------------------------------------------
 
 
-def test_parity_replace_page_vs_create_page(tmp_path, mcp):
+def test_chat_has_no_server_side_page_creation_spelling(tmp_path, mcp):
+    """Was ``test_parity_replace_page_vs_create_page`` (Phase 2 Task 11).
+
+    That test asserted #1764's alias of ``replace_page`` onto
+    ``create_page``. The alias was wrong: ``replace_page`` rewrites the
+    page mounted in the editor — the system prompt calls it "destructive"
+    and tells the global drawer to navigate to the editor rather than
+    "write template content remotely" — and the shipped browser has always
+    applied it there. The alias survived only because nothing on the chat
+    path ever called the registry, and it "passed" parity only because
+    both paths created a page in an empty store.
+
+    The MCP tool keeps its executor; the chat endpoint refuses the op.
+    """
+
     def chat_steps(env):
-        chat("replace_page", {"name": "Weather", "template": FLAGSHIP_TEMPLATE, "duration_seconds": 120})
+        with pytest.raises(ChatOpFailure) as refused:
+            chat("replace_page", {"name": "Weather", "template": FLAGSHIP_TEMPLATE, "duration_seconds": 120})
+        assert refused.value.status_code == 400
+        assert "browser" in refused.value.detail
 
     def mcp_steps(env):
+        pass  # no MCP counterpart: create_page is a different operation
+
+    # Neither path may persist anything, so parity here is "both stores
+    # untouched" — which is the one case the do-nothing guard must not treat
+    # as vacuous, so it is declared rather than defaulted.
+    assert_parity(tmp_path, chat_steps, mcp_steps, changes_state=False)
+
+
+def test_parity_create_page_is_mcp_only(tmp_path, mcp):
+    """``create_page`` still persists a page through the MCP spelling."""
+    with isolated_env(tmp_path / "mcp_only") as env:
         mcp_call(
             mcp,
             "create_page",
@@ -445,8 +504,7 @@ def test_parity_replace_page_vs_create_page(tmp_path, mcp):
             device_type="flagship",
             duration_seconds=120,
         )
-
-    assert_parity(tmp_path, chat_steps, mcp_steps)
+        assert [p.name for p in env.pages.list_pages()] == ["Weather"]
 
 
 # ---------------------------------------------------------------------------
@@ -462,23 +520,36 @@ def test_snapshot_comparison_detects_a_real_state_difference(tmp_path, mcp):
     do-nothing guard is what reports it. Both halves are exercised: this
     test for the guard, the one below for the comparison itself.
     """
+    ctx: dict[str, str] = {}
 
     with pytest.raises(AssertionError, match="persisted no change at all"):
         assert_parity(
             tmp_path,
-            lambda env: chat("replace_page", {"name": "Chat Page", "template": FLAGSHIP_TEMPLATE}),
+            lambda env: chat(
+                "create_schedule", {"page_id": ctx["page_id"], "start_time": "07:00", "day_pattern": "all"}
+            ),
             lambda env: None,  # the MCP path creates nothing
+            setup=lambda env: ctx.__setitem__("page_id", _make_page(env)),
         )
 
 
 def test_snapshot_comparison_detects_two_paths_that_both_act_but_differ(tmp_path, mcp):
-    """Both paths persist something, so only the comparison can catch it."""
+    """Both paths persist something, so only the comparison can catch it.
+
+    Deliberately not ``replace_page`` — that op is client-side since the ops
+    wiring, so the chat path would refuse rather than persist and the
+    do-nothing guard, not the comparison, would be what fired.
+    """
+    ctx: dict[str, str] = {}
 
     with pytest.raises(AssertionError, match="persisted different state"):
         assert_parity(
             tmp_path,
-            lambda env: chat("replace_page", {"name": "Chat Page", "template": FLAGSHIP_TEMPLATE}),
-            lambda env: mcp_call(mcp, "create_page", name="A Different Name", template_lines=FLAGSHIP_TEMPLATE),
+            lambda env: chat(
+                "create_schedule", {"page_id": ctx["page_id"], "start_time": "07:00", "day_pattern": "all"}
+            ),
+            lambda env: mcp_call(mcp, "create_schedule", page_id=ctx["page_id"], start_time="09:30", day_pattern="all"),
+            setup=lambda env: ctx.__setitem__("page_id", _make_page(env)),
         )
 
 

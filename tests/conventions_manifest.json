@@ -1,6 +1,7 @@
 {
   "_comment": "API conventions ratchet (Phase 2, spec §2). Enforced by tests/test_api_conventions_ratchet.py; rules documented in docs/internal/reference/API_CONVENTIONS.md. Append a domain to converted_domains in the slice PR that converts it — never before. Every exception needs a route that exists, a known rule id, and a reason a reviewer can argue with.",
   "converted_domains": [
+    "ai",
     "collections",
     "pages",
     "schedules",

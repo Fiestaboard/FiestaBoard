@@ -10,6 +10,14 @@
       "kind": "APIRoute"
     },
     {
+      "path": "/ai/operations",
+      "methods": [
+        "POST"
+      ],
+      "name": "execute_operation",
+      "kind": "APIRoute"
+    },
+    {
       "path": "/auth/change-password",
       "methods": [
         "POST"

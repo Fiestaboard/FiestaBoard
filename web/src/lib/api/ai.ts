@@ -53,7 +53,45 @@ export interface AIGenerateResult {
   };
 }
 
+/**
+ * The result of one chat operation executed server-side.
+ *
+ * Mirrors `OperationResponse` in `src/ai/routes.py`. `status` is always
+ * `"success"` — a failed operation is an HTTP error, so `fetchApi` throws
+ * an `ApiError` carrying the executor's message and the caller never sees
+ * a sad 200. `result` carries whatever the executor returned beyond the
+ * envelope (`schedule_id`, `plugin_id`, `collection_id`, ...).
+ */
+export interface AiOperationResult {
+  op: string;
+  status: "success";
+  message: string;
+  result: Record<string, unknown>;
+}
+
 export const aiApi = {
+  /**
+   * Execute one chat-grammar tool call on the server.
+   *
+   * The single seam replacing the drawer's former per-op REST dispatcher
+   * (Phase 2 Task 11). The server validates `args` against the same
+   * pydantic schema that validated the SSE `tool_call` frame, then runs
+   * the one canonical executor the MCP tools also use — which is what
+   * stops the two AI surfaces drifting.
+   *
+   * Client-side ops (`apply_patch`, `replace_page`, `suggest_variables`,
+   * `navigate_to_page`, `navigate_to_schedule`, `update_task_list`) are
+   * refused with a 400: they edit the mounted editor or navigate, and are
+   * applied in the browser.
+   */
+  executeAiOperation: (op: string, args: Record<string, unknown>) =>
+    fetchApi<AiOperationResult>("/ai/operations", {
+      method: "POST",
+      body: JSON.stringify({ op, args }),
+      // Plugin installs clone a git repo; the default 30s is too tight.
+      timeoutMs: 120000,
+    }),
+
   // AI page-generation ("Gen AI" button) settings + endpoints. BYO-LLM:
   // users supply their own OpenAI-compatible endpoint and key. The API
   // key is masked on read; sending "***" preserves the stored value.
