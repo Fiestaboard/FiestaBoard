@@ -22,6 +22,7 @@ Covers three behaviors added in issue #1754:
 """
 
 import threading
+import time
 from unittest.mock import Mock, patch
 
 import pytest
@@ -121,6 +122,46 @@ class TestConnectionRetry:
 
         result = client.send_characters(_flagship_grid(1))
 
+        assert result == (False, False)
+        assert mock_post.call_count == 1
+        cancel.wait.assert_not_called()
+
+    @patch("src.board_client.requests.post")
+    def test_wedged_board_costs_one_read_timeout_of_wall_clock(self, mock_post, client):
+        """The regression the audit measured, pinned in the unit that matters.
+
+        ``test_read_timeout_is_not_retried`` pins the ATTEMPT count. What the
+        Phase 2 audit actually measured on a wedged board was WALL CLOCK —
+        10.01s to 20.53s — and wall clock is what the caller pays: the board's
+        send worker holds its lock for the whole stall, and every ``wait=True``
+        caller queued behind it blocks for the same span.
+
+        The real stall is ``LOCAL_REQUEST_TIMEOUT[1]`` (10s), too slow for a
+        unit test, so the wedged board is modelled at 1/33 scale. The budget is
+        expressed as a MULTIPLE of one stall, which is the invariant that
+        matters and the one that survives a slow CI runner: retrying would cost
+        two stalls plus SEND_RETRY_BACKOFF_SECONDS, i.e. > 2x.
+        """
+        stall = 0.3
+        budget = stall * 1.8  # below 2 stalls + backoff, above one stall + noise
+        cancel = _no_cancel(client)
+
+        def _wedged(*_args, **_kwargs):
+            time.sleep(stall)
+            raise requests.exceptions.ReadTimeout("board accepted and went quiet")
+
+        mock_post.side_effect = _wedged
+
+        started = time.monotonic()
+        result = client.send_characters(_flagship_grid(1))
+        elapsed = time.monotonic() - started
+
+        # Wall clock first: it is the measurement, and asserting the attempt
+        # count ahead of it would hide the number behind a count mismatch.
+        assert elapsed < budget, (
+            f"a send to a wedged board took {elapsed:.2f}s, more than {budget:.2f}s "
+            f"({budget / stall:.1f}x one {stall:.2f}s read timeout) — the read timeout is being retried"
+        )
         assert result == (False, False)
         assert mock_post.call_count == 1
         cancel.wait.assert_not_called()
