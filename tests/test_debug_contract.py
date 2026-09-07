@@ -67,6 +67,10 @@ from fastapi.testclient import TestClient
 # --- Seam targets (see module docstring) -----------------------------------
 BOARD_CLIENT = "src.display_runtime._get_board_client"
 SETTINGS_SERVICE = "src.display_runtime.get_settings_service"
+#: The pause verdict is made in ``src/board_guards.py``, which resolves the
+#: settings service through its own binding — stubbing only the
+#: ``display_runtime`` one leaves a paused board reading as running.
+GUARD_SETTINGS_SERVICE = "src.board_guards.get_settings_service"
 SERVICE = "src.display_runtime.get_service"
 BOARD_ENTRY = "src.display_runtime._primary_board_entry"
 DIAGNOSTICS = "src.network_diagnostics.run_full_diagnostics"
@@ -74,6 +78,23 @@ READ_LOGS = "src.log_store._read_logs_from_files"
 NOTE_OUT_OF_BAND = "src.display_runtime._note_out_of_band_write"
 
 FLAGSHIP_ROWS, FLAGSHIP_COLS = 6, 22
+
+
+def patch_settings(**kwargs):
+    """Stub the settings service everywhere the debug path resolves it."""
+    from contextlib import ExitStack, contextmanager
+
+    service = _settings(**kwargs)
+
+    @contextmanager
+    def _both():
+        with ExitStack() as stack:
+            for target in (SETTINGS_SERVICE, GUARD_SETTINGS_SERVICE):
+                stack.enter_context(patch(target, return_value=service))
+            yield service
+
+    return _both()
+
 
 CACHE_STATUS = {
     "has_cached_text": True,
@@ -118,7 +139,7 @@ def board(client):
     board = _board_client()
     with (
         patch(BOARD_CLIENT, return_value=board),
-        patch(SETTINGS_SERVICE, return_value=_settings()),
+        patch_settings(),
         patch(NOTE_OUT_OF_BAND),
     ):
         yield board
@@ -151,7 +172,7 @@ def test_blank_with_a_ui_only_output_target_reports_success_without_sending(clie
     board = _board_client()
     with (
         patch(BOARD_CLIENT, return_value=board),
-        patch(SETTINGS_SERVICE, return_value=_settings(send_to_board=False)),
+        patch_settings(send_to_board=False),
     ):
         response = client.post("/debug/blank")
 
@@ -164,7 +185,7 @@ def test_blank_on_a_paused_board_is_a_409(client):
     board = _board_client()
     with (
         patch(BOARD_CLIENT, return_value=board),
-        patch(SETTINGS_SERVICE, return_value=_settings(paused=True)),
+        patch_settings(paused=True),
     ):
         response = client.post("/debug/blank")
 
@@ -177,7 +198,7 @@ def test_blank_reports_a_refused_send_as_a_500(client):
     board = _board_client(sent=(False, False))
     with (
         patch(BOARD_CLIENT, return_value=board),
-        patch(SETTINGS_SERVICE, return_value=_settings()),
+        patch_settings(),
     ):
         response = client.post("/debug/blank")
 
@@ -192,7 +213,7 @@ def test_blank_dropped_by_the_send_floor_is_a_429_with_retry_after(client):
     board = _board_client(sent=(True, False), throttled=True)
     with (
         patch(BOARD_CLIENT, return_value=board),
-        patch(SETTINGS_SERVICE, return_value=_settings()),
+        patch_settings(),
         patch(NOTE_OUT_OF_BAND),
     ):
         response = client.post("/debug/blank")
@@ -251,7 +272,7 @@ def test_fill_on_a_paused_board_is_a_409(client):
     board = _board_client()
     with (
         patch(BOARD_CLIENT, return_value=board),
-        patch(SETTINGS_SERVICE, return_value=_settings(paused=True)),
+        patch_settings(paused=True),
     ):
         response = client.post("/debug/fill", json={"character_code": 5})
 
@@ -294,7 +315,7 @@ def test_info_with_a_ui_only_output_target_still_returns_the_card(client):
     board = _board_client()
     with (
         patch(BOARD_CLIENT, return_value=board),
-        patch(SETTINGS_SERVICE, return_value=_settings(send_to_board=False)),
+        patch_settings(send_to_board=False),
     ):
         response = client.post("/debug/info")
 
@@ -311,7 +332,7 @@ def test_info_on_a_paused_board_is_a_409(client):
     board = _board_client()
     with (
         patch(BOARD_CLIENT, return_value=board),
-        patch(SETTINGS_SERVICE, return_value=_settings(paused=True)),
+        patch_settings(paused=True),
     ):
         response = client.post("/debug/info")
 
@@ -347,7 +368,7 @@ def test_test_connection_on_an_unreachable_board_is_a_503(client):
     """#1887: a 200 carrying ``status: "error"`` was indistinguishable from success."""
     with (
         patch(BOARD_CLIENT, return_value=_board_client(connected=False)),
-        patch(SETTINGS_SERVICE, return_value=_settings()),
+        patch_settings(),
     ):
         response = client.post("/debug/test-connection")
 

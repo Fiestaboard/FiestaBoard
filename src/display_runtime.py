@@ -29,6 +29,7 @@ import threading
 import time
 from collections.abc import Callable
 
+from .board_guards import _board_is_paused  # noqa: F401  (re-export: pre-move patch target)
 from .devices import resolve_dimensions
 from .main import DisplayService
 from .settings.service import get_settings_service
@@ -278,23 +279,3 @@ def _get_first_board_dims():
     except Exception as exc:
         logger.debug("Could not resolve board dims (using flagship default): %s", exc)
     return resolve_dimensions("flagship")
-
-
-def _board_is_paused(board_id: str | None = None) -> bool:
-    """Return True when the target board (or default board) is paused.
-
-    Centralizes the per-board pause check used at every API push site
-    (issue #970). When True, callers MUST skip the send so paused boards
-    are left untouched.
-
-    Only treats a strict ``True`` as paused — any non-bool return
-    (including a ``Mock`` from an under-configured test fixture) is
-    coerced to "not paused" so this guard never silently swallows sends
-    in tests that pre-date the pause feature.
-    """
-    try:
-        result = get_settings_service().is_paused(board_id=board_id)
-    except Exception as e:  # pragma: no cover - defensive
-        logger.debug("Pause check failed (treating as not paused): %s", e)
-        return False
-    return result is True

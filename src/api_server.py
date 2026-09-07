@@ -12,7 +12,6 @@ import time
 import uuid
 from contextlib import asynccontextmanager
 from datetime import UTC, datetime
-from pathlib import Path
 from typing import Any
 from urllib.parse import urlparse
 
@@ -72,7 +71,6 @@ from .config import Config  # noqa: E402
 from .config_manager import get_config_manager  # noqa: E402
 from .devices import classify_dimensions, resolve_dimensions  # noqa: E402
 from .display_runtime import (  # noqa: E402
-    _board_is_paused,  # noqa: F401  (re-export: pre-move patch target)
     _format_uptime,  # noqa: F401  (re-export: pre-move patch target)
     _get_board_client,  # noqa: F401  (re-export: pre-move patch target)
     _get_first_board_dims,  # noqa: F401  (re-export: pre-move patch target)
@@ -101,7 +99,6 @@ from .log_store import (  # noqa: E402
     _read_logs_from_files,  # noqa: F401  (re-export: pre-move patch target)
     _setup_file_logging,  # noqa: F401  (re-export: pre-move patch target)
 )
-from .main import DisplayService  # noqa: E402
 from .network.wifi import WiFiError, get_wifi_service  # noqa: E402
 from .pages.service import (  # noqa: E402
     check_ref_board_compatibility,
