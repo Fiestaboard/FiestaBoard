@@ -181,9 +181,11 @@ class TestOutputAPIEndpoints:
     def mock_services(self):
         """Mock the services."""
         with (
-            patch("src.api_server.get_display_service") as mock_display,
+            patch("src.displays.routes.get_display_service") as mock_display,
             patch("src.api_server.get_settings_service") as mock_settings,
+            patch("src.displays.routes.get_settings_service") as mock_settings_routes,
             patch("src.api_server.get_service") as mock_main,
+            patch("src.displays.routes.get_service") as mock_main_routes,
         ):
             # Setup display service mock
             mock_display_svc = Mock()
@@ -197,12 +199,14 @@ class TestOutputAPIEndpoints:
             mock_settings_svc.get_output_settings.return_value = OutputSettings(target="board")
             mock_settings_svc.should_send_to_board.return_value = True
             mock_settings.return_value = mock_settings_svc
+            mock_settings_routes.return_value = mock_settings_svc
 
             # Setup main service mock
             mock_main_svc = Mock()
             mock_main_svc.vb_client = Mock()
             mock_main_svc.vb_client.send_text.return_value = (True, True)
             mock_main.return_value = mock_main_svc
+            mock_main_routes.return_value = mock_main_svc
 
             yield {"display": mock_display_svc, "settings": mock_settings_svc, "main": mock_main_svc}
 

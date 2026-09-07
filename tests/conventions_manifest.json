@@ -5,6 +5,7 @@
     "collections",
     "config",
     "debug",
+    "displays",
     "pages",
     "plugins",
     "schedules",
@@ -60,6 +61,11 @@
       "route": "GET /debug/system-info",
       "rule": "declared_errors",
       "reason": "Has no client-error path at all: every collaborator it reads (connection info, uptime, cache status, board-configured probe) is defensive and answers with a fallback rather than raising, so the card renders for an unconfigured install too. Declaring a 4xx would document a failure this route cannot produce."
+    },
+    {
+      "route": "GET /displays",
+      "rule": "declared_errors",
+      "reason": "No failure path: an instance with no plugins installed answers an empty list with total 0. It reads the in-process plugin registry, which always exists, and reports availability per entry rather than failing on an unavailable one."
     },
     {
       "route": "GET /pages",

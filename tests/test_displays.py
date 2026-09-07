@@ -129,7 +129,9 @@ class TestDisplayAPIEndpoints:
     @pytest.fixture
     def mock_display_service(self):
         """Mock the display service."""
-        with patch("src.api_server.get_display_service") as mock:
+        # Seam retired (Phase 2 slice 8): the handlers live in
+        # src/displays/routes.py and bind get_display_service there.
+        with patch("src.displays.routes.get_display_service") as mock:
             mock_service = Mock()
             mock.return_value = mock_service
             yield mock_service

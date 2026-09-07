@@ -8,9 +8,18 @@ it sits next to.
 Every assertion below is a promise this domain makes to the web client
 (``web/src/lib/api/misc.ts``) and to the plugin-preview batch fetcher.
 
-Recorded against the UNCONVERTED trunk: every assertion below passed before a
-line of this slice's production code changed. The conversion commit re-pins
-only what it deliberately changes, and says so inline.
+Recorded against the UNCONVERTED trunk, then re-pinned by the conventions pass
+in this same PR. What deliberately changed, and nothing else:
+
+* ``POST /displays/raw/batch`` with a non-list ``display_types`` answers
+  **422** (was 400 ``{"detail": "display_types must be a list"}``): the
+  hand-rolled ``isinstance`` check is now a Pydantic ``list[str]`` field, so
+  FastAPI rejects the body before the handler runs. The omitted and empty
+  cases keep their 400 and its exact detail string.
+
+Every other assertion — status codes, error strings, body keys and their
+values, the ``Deprecation``/``Link`` headers — is unchanged from the
+pre-conversion recording. None was weakened.
 """
 
 from __future__ import annotations
@@ -164,9 +173,10 @@ def test_batch_with_an_empty_list_is_the_same_400(client):
 
 
 def test_batch_with_a_non_list_display_types_is_rejected(client):
+    # RE-PINNED: 422 (Pydantic) replaces the hand-rolled 400
+    # {"detail": "display_types must be a list"}. See the module docstring.
     response = client.post("/displays/raw/batch", json={"display_types": "date_time"})
-    assert response.status_code == 400
-    assert response.json()["detail"] == "display_types must be a list"
+    assert response.status_code == 422
 
 
 def test_batch_reports_each_requested_source_with_its_error(client):
@@ -214,3 +224,19 @@ def test_send_without_a_running_service_is_a_503(client):
     response = client.post(f"/displays/{INSTALLED_PLUGIN}/send?target=ui")
     assert response.status_code == 503
     assert response.json()["detail"] == "Service not initialized"
+
+
+def test_batch_does_not_coerce_a_truthy_string_into_enabled_only(client):
+    """``enabled_only`` is a StrictBool, so "yes"/1/"on" are rejected.
+
+    A plain ``bool`` field would have silently *widened* the contract the
+    hand-rolled dict access had: Pydantic's lax mode coerces all three to
+    True, so a client sending ``"enabled_only": "no"`` would have started
+    filtering instead of erroring.
+    """
+    for truthy in ("yes", 1, "on"):
+        response = client.post(
+            "/displays/raw/batch",
+            json={"display_types": [INSTALLED_PLUGIN], "enabled_only": truthy},
+        )
+        assert response.status_code == 422, truthy

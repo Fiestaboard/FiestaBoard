@@ -69,6 +69,7 @@ def mock_settings_service():
         patch("src.schedules.routes.get_settings_service") as routes_get,
         patch("src.config_api.routes.get_settings_service") as config_get,
         patch("src.board_guards.get_settings_service") as guards_get,
+        patch("src.displays.routes.get_settings_service") as displays_get,
     ):
         ss = Mock()
         transition = Mock()
@@ -163,6 +164,7 @@ def mock_settings_service():
         routes_get.return_value = ss
         config_get.return_value = ss
         guards_get.return_value = ss
+        displays_get.return_value = ss
         yield ss
 
 
@@ -264,7 +266,7 @@ def mock_schedule_service():
 @pytest.fixture
 def mock_display_service():
     """Mock the display service."""
-    with patch("src.api_server.get_display_service") as mock_get:
+    with patch("src.displays.routes.get_display_service") as mock_get:
         ds = Mock()
         ds.get_available_displays.return_value = [
             {"type": "weather", "available": True, "description": "Weather", "source": "plugin"},
@@ -351,6 +353,7 @@ def mock_service():
     with (
         patch("src.api_server.get_service") as mock_get,
         patch("src.pages.routes.get_service") as routes_get,
+        patch("src.displays.routes.get_service") as displays_get,
     ):
         svc = Mock()
         svc.vb_client = Mock()
@@ -375,6 +378,7 @@ def mock_service():
         svc._polled_at = None
         mock_get.return_value = svc
         routes_get.return_value = svc
+        displays_get.return_value = svc
         yield svc
 
 
@@ -1838,8 +1842,10 @@ class TestDisplayBatchEndpoints:
         assert response.status_code == 400
 
     def test_displays_raw_batch_not_list(self, client, mock_display_service):
+        # RE-PINNED (Phase 2 slice 8): the typed body makes this a 422 from
+        # Pydantic, replacing the hand-rolled 400.
         response = client.post("/displays/raw/batch", json={"display_types": "weather"})
-        assert response.status_code == 400
+        assert response.status_code == 422
 
     def test_displays_raw_batch_exception_handling(self, client, mock_display_service):
         mock_display_service.get_display.side_effect = Exception("Plugin error")
@@ -1858,7 +1864,7 @@ class TestDisplayBatchEndpoints:
         assert response.status_code == 400
 
     def test_send_display_no_service(self, client, mock_display_service, mock_settings_service):
-        with patch("src.api_server.get_service", return_value=None):
+        with patch("src.displays.routes.get_service", return_value=None):
             response = client.post("/displays/weather/send")
         assert response.status_code == 503
 
