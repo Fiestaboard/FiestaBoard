@@ -487,8 +487,10 @@ def test_chat_has_no_server_side_page_creation_spelling(tmp_path, mcp):
     def mcp_steps(env):
         pass  # no MCP counterpart: create_page is a different operation
 
-    # Neither path may persist anything, so parity here is "both stores empty".
-    assert_parity(tmp_path, chat_steps, mcp_steps)
+    # Neither path may persist anything, so parity here is "both stores
+    # untouched" — which is the one case the do-nothing guard must not treat
+    # as vacuous, so it is declared rather than defaulted.
+    assert_parity(tmp_path, chat_steps, mcp_steps, changes_state=False)
 
 
 def test_parity_create_page_is_mcp_only(tmp_path, mcp):
@@ -546,9 +548,7 @@ def test_snapshot_comparison_detects_two_paths_that_both_act_but_differ(tmp_path
             lambda env: chat(
                 "create_schedule", {"page_id": ctx["page_id"], "start_time": "07:00", "day_pattern": "all"}
             ),
-            lambda env: mcp_call(
-                mcp, "create_schedule", page_id=ctx["page_id"], start_time="09:30", day_pattern="all"
-            ),
+            lambda env: mcp_call(mcp, "create_schedule", page_id=ctx["page_id"], start_time="09:30", day_pattern="all"),
             setup=lambda env: ctx.__setitem__("page_id", _make_page(env)),
         )
 

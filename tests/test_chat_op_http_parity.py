@@ -492,7 +492,30 @@ def test_extra_top_level_keys_are_rejected():
 
 
 def test_parity_harness_can_fail(tmp_path):
-    """Non-vacuity: the snapshot comparison must be able to see a difference."""
+    """Non-vacuity: the harness must be able to see a difference.
+
+    One path here does nothing, so ``assert_parity``'s do-nothing guard is
+    what reports it — that guard runs before the snapshot comparison
+    precisely so "both paths were no-ops" can never read as parity.
+    """
+    ctx: dict[str, str] = {}
+
+    def setup(env):
+        ctx["page_id"] = _make_page(env)
+
+    with pytest.raises(AssertionError, match="persisted no change at all"):
+        assert_parity(
+            tmp_path,
+            lambda env: op(
+                _client(), "create_schedule", {"page_id": ctx["page_id"], "start_time": "07:00", "day_pattern": "all"}
+            ),
+            lambda env: None,
+            setup=setup,
+        )
+
+
+def test_parity_harness_sees_two_acting_paths_that_differ(tmp_path):
+    """And the comparison itself must fire when both paths act but disagree."""
     ctx: dict[str, str] = {}
 
     def setup(env):
@@ -504,7 +527,9 @@ def test_parity_harness_can_fail(tmp_path):
             lambda env: op(
                 _client(), "create_schedule", {"page_id": ctx["page_id"], "start_time": "07:00", "day_pattern": "all"}
             ),
-            lambda env: None,
+            lambda env: op(
+                _client(), "create_schedule", {"page_id": ctx["page_id"], "start_time": "09:30", "day_pattern": "all"}
+            ),
             setup=setup,
         )
 
