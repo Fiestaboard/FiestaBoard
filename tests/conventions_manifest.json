@@ -23,11 +23,6 @@
       "reason": "Reset is unconditional and idempotent: no board id to miss, no state in which it refuses, and its one internal failure path is swallowed and logged on purpose so a broken settings store cannot block the wizard reset. Nothing to declare at any status."
     },
     {
-      "route": "GET /cache-status",
-      "rule": "declared_errors",
-      "reason": "Takes no input and reads no resource id — the only failure is 'the display service is not initialized yet', which is a 503 by API_CONVENTIONS.md (dependency down), not a 4xx."
-    },
-    {
       "route": "GET /collections",
       "rule": "declared_errors",
       "reason": "Listing has no failure path: it returns [] for an empty store and cannot 404 or 400, so declaring a 4xx would document an error the endpoint never raises."
@@ -88,24 +83,9 @@
       "reason": "No failure path: an instance with no panels answers an empty list with total 0. It reads panel storage plus the boards list; a panel whose board is gone is reported inline as board_missing rather than failing the request."
     },
     {
-      "route": "GET /plugins",
-      "rule": "declared_errors",
-      "reason": "The only failure path is the 503 raised by _require_plugin_system() when the plugin package did not import — a dependency outage, not a client error. It is declared in responses=; there is no 4xx to declare because no request to this route can be wrong."
-    },
-    {
       "route": "GET /plugins/errors",
       "rule": "declared_errors",
       "reason": "The endpoint whose job is to report failures cannot itself fail: with the plugin system down it answers plugin_system_enabled=false and empty maps, which is the correct answer, not an error."
-    },
-    {
-      "route": "GET /plugins/registry",
-      "rule": "declared_errors",
-      "reason": "The only failure path is the 503 raised by _require_plugin_system() when the plugin package did not import — a dependency outage, not a client error. It is declared in responses=; there is no 4xx to declare because no request to this route can be wrong."
-    },
-    {
-      "route": "GET /plugins/updates",
-      "rule": "declared_errors",
-      "reason": "The only failure path is the 503 raised by _require_plugin_system() when the plugin package did not import — a dependency outage, not a client error. It is declared in responses=; there is no 4xx to declare because no request to this route can be wrong."
     },
     {
       "route": "GET /plugins/variables/all",
@@ -173,11 +153,6 @@
       "reason": "Read-only report with no failure path: it cannot 404, 400 or 409, so declaring a 4xx would document an error the endpoint never raises. It reads two env vars and one /proc file, and reports None when the file is absent."
     },
     {
-      "route": "POST /clear-cache",
-      "rule": "declared_errors",
-      "reason": "Same as GET /cache-status: no body, no path parameter, and the only failure is the uninitialized display service, which is a 503."
-    },
-    {
       "route": "POST /config/board/enable-local-api",
       "rule": "no_200_on_failure",
       "reason": "Same declared verdict contract as POST /config/board/test (#1887): 'that enablement token is not valid' is the board's answer at 200 through EnableLocalApiResponse. The SSRF and host-validation rejections stayed 400 and the unexpected-exception path stayed 500 when Task 10a fixed this handler."
@@ -188,21 +163,6 @@
       "reason": "Declared probe contract (#1887, Task 10a): the endpoint's job is to report what the board said, so 'your key was rejected' is the requested answer at 200 through BoardTestResponse, not a transport failure. Preconditions the server rejects before probing (missing credential, unsafe host) really are 400, and unanticipated errors really are 500 — tests/test_status_code_correctness.py pins both. Making the upstream verdicts 4xx would tell the wizard the request was malformed when it was not."
     },
     {
-      "route": "POST /force-refresh",
-      "rule": "declared_errors",
-      "reason": "No body and no path parameter, so nothing the caller sends can be wrong. It answers 503 when the display service is not initialized and 500 when the forced send pass reports a failure reason."
-    },
-    {
-      "route": "POST /plugins/updates/apply",
-      "rule": "declared_errors",
-      "reason": "Same 503-only shape as its siblings, plus a deliberate partial-success contract: a bulk update of N plugins reports per-plugin outcomes in `failed` at 200, because collapsing them into one status code would throw away which plugin failed and why."
-    },
-    {
-      "route": "POST /plugins/updates/check",
-      "rule": "declared_errors",
-      "reason": "The only failure path is the 503 raised by _require_plugin_system() when the plugin package did not import — a dependency outage, not a client error. It is declared in responses=; there is no 4xx to declare because no request to this route can be wrong."
-    },
-    {
       "route": "POST /plugins/{plugin_id}/options/{options_id}",
       "rule": "no_200_on_failure",
       "reason": "Three returns inside except blocks, all deliberate. Two serve the last good options with stale=true when the provider times out or throws, so a settings form mid-edit keeps its picker instead of blanking. The third turns OptionsUnavailable (\"no API key yet\") into a 200 with an error hint, because that is the expected state while the user is still filling in the very field the credential goes in — a 4xx there would surface a failed-request toast for a form that is simply incomplete."
@@ -211,21 +171,6 @@
       "route": "POST /schedules/validate",
       "rule": "declared_errors",
       "reason": "No failure path. It is a read of existing schedules with an optional board_id, which falls back to the empty set; an inconsistent schedule set is the 200 verdict this endpoint exists to report, not an error."
-    },
-    {
-      "route": "POST /system/restart",
-      "rule": "declared_errors",
-      "reason": "Every failure mode is upstream: the fiestaupdater sidecar is absent (503), rejects our shared token (500) or errors (502). There is no request a client could send that this route answers 4xx to, and all three codes it does raise are declared in responses=."
-    },
-    {
-      "route": "POST /system/shutdown",
-      "rule": "declared_errors",
-      "reason": "Every failure mode is upstream: the fiestaupdater sidecar is absent (503), rejects our shared token (500) or errors (502). There is no request a client could send that this route answers 4xx to, and all three codes it does raise are declared in responses=."
-    },
-    {
-      "route": "POST /system/update",
-      "rule": "declared_errors",
-      "reason": "Every failure mode is upstream: the fiestaupdater sidecar is absent (503), rejects our shared token (500) or errors (502). There is no request a client could send that this route answers 4xx to, and all three codes it does raise are declared in responses=."
     },
     {
       "route": "POST /triggers/clear",

@@ -58,6 +58,15 @@ mistyped entry fails the build rather than silently excusing nothing: the
 manifest test rejects unknown rule ids, duplicate pairs, routes the app does
 not serve, and exceptions whose domain is not in `converted_domains`.
 
+**Dead exceptions fail the build.** The manifest test re-runs each rule's own
+checker against the route the exception names, and rejects the entry when the
+rule already passes. An exception that excuses nothing is not harmless: it
+exempts that route from the rule *forever*, so a later regression on it goes
+unreported. Widening `declared_errors` from "a 4xx" to "any 4xx or 5xx" left
+eleven of these behind — deleting `responses=` from `GET /cache-status` kept
+the ratchet green until they were removed. When a rule is widened, delete the
+exceptions it obsoletes in the same commit; the validator will name them.
+
 **Where the rules are ambiguous, the ratchet flags.** A `return` inside an
 `except` is reported even when it is deliberate, because a checker that
 guesses is a checker nobody trusts. The cost of a false positive is one
