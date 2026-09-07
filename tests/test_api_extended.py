@@ -2023,7 +2023,9 @@ class TestEnableLocalAPI:
     def test_connection_error(self, client):
         import requests as http_requests
 
-        with patch("src.config_api.routes.requests.post", side_effect=http_requests.exceptions.ConnectionError("refused")):
+        with patch(
+            "src.config_api.routes.requests.post", side_effect=http_requests.exceptions.ConnectionError("refused")
+        ):
             response = client.post(
                 "/config/board/enable-local-api",
                 json={
