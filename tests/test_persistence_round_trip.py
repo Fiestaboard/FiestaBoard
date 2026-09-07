@@ -104,7 +104,7 @@ def _create_schedule(client: TestClient, page_id: str) -> dict:
         "/schedules",
         json={"page_id": page_id, "start_time": "07:30", "end_time": "09:15", "day_pattern": "weekdays"},
     )
-    assert response.status_code == 200, response.text
+    assert response.status_code == 201, response.text  # 201 since the conventions pass
     return response.json()
 
 

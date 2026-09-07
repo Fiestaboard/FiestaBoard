@@ -17,7 +17,7 @@
       "label": "create_schedule_ok",
       "method": "POST",
       "path_template": "/schedules",
-      "status": 200,
+      "status": 201,
       "shape": {
         "annual_date": "null",
         "annual_end_date": "null",
@@ -39,7 +39,8 @@
         "start_sun_offset": "int",
         "start_time": "str",
         "start_type": "str",
-        "updated_at": "null"
+        "updated_at": "null",
+        "warnings": []
       }
     },
     {
@@ -106,7 +107,7 @@
       "status": 200,
       "shape": {
         "default_page_id": "null",
-        "enabled": "bool",
+        "enabled": "null",
         "schedules": [
           {
             "annual_date": "null",
@@ -141,6 +142,9 @@
       "path_template": "/schedules/active/page",
       "status": 200,
       "shape": {
+        "current_day": "null",
+        "current_time": "null",
+        "default_page_id": "null",
         "page_id": "null",
         "resolved_next_check_seconds": "null",
         "resolved_page_id": "null",
@@ -167,9 +171,7 @@
       "path_template": "/schedules/enabled",
       "status": 200,
       "shape": {
-        "enabled": "bool",
-        "message": "str",
-        "status": "str"
+        "enabled": "bool"
       }
     },
     {
@@ -214,18 +216,38 @@
       "label": "set_enabled_invalid",
       "method": "PUT",
       "path_template": "/schedules/enabled",
-      "status": 400,
+      "status": 422,
       "shape": {
-        "detail": "str"
+        "detail": [
+          {
+            "input": "str",
+            "loc": [
+              "str",
+              "str"
+            ],
+            "msg": "str",
+            "type": "str"
+          }
+        ]
       }
     },
     {
       "label": "set_enabled_missing",
       "method": "PUT",
       "path_template": "/schedules/enabled",
-      "status": 400,
+      "status": 422,
       "shape": {
-        "detail": "str"
+        "detail": [
+          {
+            "input": {},
+            "loc": [
+              "str",
+              "str"
+            ],
+            "msg": "str",
+            "type": "str"
+          }
+        ]
       }
     },
     {
@@ -279,17 +301,26 @@
       "path_template": "/schedules/default-page",
       "status": 200,
       "shape": {
-        "default_page_id": "str",
-        "status": "str"
+        "default_page_id": "str"
       }
     },
     {
       "label": "set_default_page_missing_param",
       "method": "PUT",
       "path_template": "/schedules/default-page",
-      "status": 400,
+      "status": 422,
       "shape": {
-        "detail": "str"
+        "detail": [
+          {
+            "input": {},
+            "loc": [
+              "str",
+              "str"
+            ],
+            "msg": "str",
+            "type": "str"
+          }
+        ]
       }
     },
     {
@@ -365,7 +396,8 @@
         "start_sun_offset": "int",
         "start_time": "str",
         "start_type": "str",
-        "updated_at": "str"
+        "updated_at": "str",
+        "warnings": []
       }
     },
     {
@@ -383,8 +415,7 @@
       "path_template": "/schedules/{schedule_id}",
       "status": 200,
       "shape": {
-        "message": "str",
-        "status": "str"
+        "id": "str"
       }
     },
     {

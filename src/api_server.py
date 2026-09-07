@@ -36,8 +36,13 @@ from .auth.middleware import AuthMiddleware  # noqa: E402
 from .auth.routes import router as auth_router  # noqa: E402
 from .board_client import board_client_from_board_dict  # noqa: E402
 from .board_send_executor import run_board_send  # noqa: E402
+from .boards import find_board, require_board  # noqa: E402
 from .collections.models import is_collection_id  # noqa: E402
-from .collections.service import get_collection_service  # noqa: E402
+from .collections.service import (  # noqa: E402
+    get_collection_service,
+    resolve_active_page_id,
+    resolve_next_check_seconds,
+)
 from .config import Config  # noqa: E402
 
 # Patch seams (issues #1756/#1757): no handler left in this module calls
@@ -63,6 +68,7 @@ from .paths import get_data_dir  # noqa: E402
 # tests that patch `src.api_server.get_schedule_service` keep working.
 from .schedules.service import get_schedule_service  # noqa: E402, F401
 from .settings.service import VALID_OUTPUT_TARGETS, VALID_STRATEGIES, get_settings_service  # noqa: E402
+from .settings.service import temporary_override_payload as _temporary_override_payload  # noqa: E402
 from .templates.engine import get_template_engine, reset_template_engine  # noqa: E402, F401
 from .templates.expressions import function_signatures  # noqa: E402
 from .text_to_board import text_to_board_array  # noqa: E402
@@ -5262,40 +5268,18 @@ async def update_output_settings(request: dict):
 
 
 def _resolve_active_page_id(page_id: str | None) -> str | None:
-    """Resolve a collection reference to the page it is currently showing.
+    """This module's binding of :func:`src.collections.service.resolve_active_page_id`.
 
-    When ``page_id`` is a collection ID the Dashboard needs to know which
-    member page the collection's logic is presently rendering on the board so
-    it can name and link to that page (issue #1513). Plain page IDs (and None)
-    are returned unchanged. Never raises — a collection that can't be resolved
-    just yields None.
+    Passes *this* module's ``get_collection_service``, so the resolution goes on
+    resolving through the name the suite stubs when it exercises the handlers
+    that still live here.
     """
-    if not is_collection_id(page_id):
-        return page_id
-    try:
-        return get_collection_service().resolve_page_id(page_id)
-    except Exception:  # pragma: no cover - defensive; resolution is best-effort
-        logger.warning("Failed to resolve collection page for %s", page_id, exc_info=True)
-        return None
+    return resolve_active_page_id(page_id, get_collection_service)
 
 
 def _resolve_next_check_seconds(page_id: str | None) -> int | None:
-    """Seconds until ``page_id``'s collection may switch to a different page.
-
-    A collection can rotate as often as every 5 seconds (2 for variable-mode
-    polling), so a client that caches ``resolved_page_id`` on a fixed timer
-    would name the wrong page for most of the interval. Handing back the
-    collection's own cadence lets the Dashboard re-poll exactly when the page
-    on the board can change (issue #1513). None for plain pages, collections
-    that can't rotate (<2 pages), and any resolution failure.
-    """
-    if not is_collection_id(page_id):
-        return None
-    try:
-        return get_collection_service().seconds_until_next_check(page_id)
-    except Exception:  # pragma: no cover - defensive; resolution is best-effort
-        logger.warning("Failed to compute next check for collection %s", page_id, exc_info=True)
-        return None
+    """This module's binding of :func:`src.collections.service.resolve_next_check_seconds`."""
+    return resolve_next_check_seconds(page_id, get_collection_service)
 
 
 @app.get("/settings/active-page")
@@ -5479,44 +5463,6 @@ async def set_active_page(request: dict):
     if compat_warnings:
         response["warnings"] = compat_warnings
     return response
-
-
-def _temporary_override_payload(override) -> dict:
-    """Serialize a TemporaryOverride (or None) for the API.
-
-    One shape is shared by GET /settings/temporary-override, the POST response
-    and the inline block on GET /schedules/active/page, so the three can never
-    drift. ``remaining_seconds`` is None both when there is no override and
-    when the override is indefinite (issue #1787).
-    """
-    if override is None:
-        return {
-            "active": False,
-            "page_id": None,
-            "expires_at": None,
-            "remaining_seconds": None,
-            "revert_mode": None,
-            "revert_page_id": None,
-            "template": None,
-            "line_metadata": None,
-            "device_type": None,
-            "notes_wide": None,
-            "notes_tall": None,
-        }
-    remaining = override.remaining_seconds()
-    return {
-        "active": True,
-        "page_id": override.page_id,
-        "expires_at": override.expires_at,
-        "remaining_seconds": round(remaining, 1) if remaining is not None else None,
-        "revert_mode": override.revert_mode,
-        "revert_page_id": override.revert_page_id,
-        "template": override.template,
-        "line_metadata": override.line_metadata,
-        "device_type": override.device_type,
-        "notes_wide": override.notes_wide,
-        "notes_tall": override.notes_tall,
-    }
 
 
 @app.get("/settings/temporary-override")
@@ -6468,35 +6414,18 @@ def _get_first_board_dims():
 
 
 def _find_board(board_id: str) -> dict | None:
-    """Return the settings.boards entry for a board id, or None (issue #1244)."""
-    try:
-        boards = get_settings_service().get_board_settings().boards or []
-    except Exception as exc:
-        logger.debug("Could not read boards list: %s", exc)
-        return None
-    for board in boards:
-        if isinstance(board, dict) and board.get("id") == board_id:
-            return board
-    return None
+    """This module's binding of :func:`src.boards.find_board`.
+
+    Kept as a wrapper rather than an import alias so the lookup goes on
+    resolving through *this* module's ``get_settings_service`` — the name the
+    suite stubs when it exercises the handlers that still live here.
+    """
+    return find_board(board_id, get_settings_service())
 
 
 def _require_board(board_id: str) -> dict:
-    """Return the ``settings.boards`` entry for *board_id*, or raise 404.
-
-    The single place the "unknown board" verdict is made. The pattern was
-    open-coded in nine handlers and simply missing from four schedule write
-    endpoints, which persisted state bound to a board that does not exist and
-    reported success (#1888).
-
-    Use this on any path that *writes* something scoped to a board. Board-
-    scoped **reads** deliberately fall back to their safe default instead —
-    see the "board_id validation" note in
-    ``docs/internal/reference/API_CONVENTIONS.md``.
-    """
-    board = _find_board(board_id)
-    if board is None:
-        raise HTTPException(status_code=404, detail=f"Board not found: {board_id}")
-    return board
+    """This module's binding of :func:`src.boards.require_board`. See above."""
+    return require_board(board_id, get_settings_service())
 
 
 def _board_dims(board: dict):

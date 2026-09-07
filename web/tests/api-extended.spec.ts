@@ -229,7 +229,7 @@ test.describe("API – Schedules (extended)", () => {
     });
     expect(res.ok).toBe(true);
     const data = await res.json();
-    expect(data.status).toBe("success");
+    // Phase 2 conventions: unwrapped body, no status envelope.
     expect(data.default_page_id).toBe(pageId);
   });
 

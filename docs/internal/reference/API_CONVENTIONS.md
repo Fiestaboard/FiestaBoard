@@ -88,6 +88,10 @@ manifest entry; the cost of a false negative is a shipped 200-on-failure.
      malformed host, an SSRF-guard refusal) is a real 4xx, and anything
      unanticipated is a 5xx.
 
+  `POST /schedules/validate` is the same shape of thing: an inconsistent set
+  of schedules is the verdict the caller asked for, served 200 as a declared
+  `ScheduleValidationResult`.
+
   Without (1) a generic client cannot tell the verdict from a success, which
   is exactly the masking bug this rule replaced (#1887). `POST
   /debug/test-connection` deliberately does *not* qualify: it has no verdict
@@ -146,8 +150,11 @@ Decided 2026-09 with #1888. The asymmetry is deliberate and it is the
 inconsistency-of-record, so read it before "fixing" either half.
 
 - **Writes 404.** Any handler that persists something scoped to a board
-  calls `_require_board(board_id)` (`src/api_server.py`) — the single place
-  the "unknown board" verdict is made. Writing state bound to a board that
+  calls `require_board(board_id, settings_service)` (`src/boards.py`) — the
+  single place the "unknown board" verdict is made. The settings service is a
+  parameter, not a global inside `boards`, so the lookup resolves through
+  whichever `get_settings_service` the *calling* module binds; `api_server`
+  keeps a thin `_require_board` wrapper that passes its own. Writing state bound to a board that
   does not exist is invisible until something else trips over it: the four
   schedule write endpoints used to store a phantom default page, a no-op
   that reported `{"status": "success"}`, and schedules parented to

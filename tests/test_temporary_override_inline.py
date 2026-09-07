@@ -228,6 +228,9 @@ def client(settings_service):
     with (
         patch("src.api_server.get_settings_service", return_value=settings_service),
         patch("src.settings.service.get_settings_service", return_value=settings_service),
+        # The schedules router binds its collaborators at import time since the
+        # Phase 2 conventions pass, so GET /schedules/active/page reads these.
+        patch("src.schedules.routes.get_settings_service", return_value=settings_service),
         patch("src.api_server.get_page_service", return_value=page_service_mock),
         patch("src.api_server.get_collection_service") as mock_cs,
     ):

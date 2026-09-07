@@ -32,10 +32,18 @@ def settings_service(tmp_settings_file):
 
 @pytest.fixture
 def client(settings_service):
-    """TestClient with the settings service singleton patched."""
-    with patch("src.api_server.get_settings_service", return_value=settings_service):
-        with patch("src.settings.service.get_settings_service", return_value=settings_service):
-            yield TestClient(app)
+    """TestClient with the settings service singleton patched.
+
+    ``src.schedules.routes`` binds ``get_settings_service`` at import time since
+    the Phase 2 conventions pass, so GET /schedules/active/page needs its own
+    stub here rather than inheriting the app module's.
+    """
+    with (
+        patch("src.api_server.get_settings_service", return_value=settings_service),
+        patch("src.settings.service.get_settings_service", return_value=settings_service),
+        patch("src.schedules.routes.get_settings_service", return_value=settings_service),
+    ):
+        yield TestClient(app)
 
 
 @pytest.fixture

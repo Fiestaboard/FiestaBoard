@@ -15,6 +15,8 @@ from dataclasses import asdict, dataclass, field
 from datetime import UTC, datetime
 from typing import Literal, Optional
 
+from pydantic import BaseModel
+
 from src.storage.json_store import JsonStore
 
 logger = logging.getLogger(__name__)
@@ -358,6 +360,70 @@ class TemporaryOverride:
             notes_wide=data.get("notes_wide"),
             notes_tall=data.get("notes_tall"),
         )
+
+
+class TemporaryOverrideStatus(BaseModel):
+    """The wire shape of a :class:`TemporaryOverride`, or of "there isn't one".
+
+    One shape is shared by ``GET``/``POST /settings/temporary-override`` and by
+    the inline block on ``GET /schedules/active/page``, so the three can never
+    drift. Declared as a model (rather than assembled ad hoc) so routers can
+    name it in ``response_model=`` — see
+    ``docs/internal/reference/API_CONVENTIONS.md``.
+
+    ``remaining_seconds`` is None both when there is no override and when the
+    override is indefinite (issue #1787).
+    """
+
+    active: bool
+    page_id: str | None = None
+    expires_at: str | None = None
+    remaining_seconds: float | None = None
+    revert_mode: str | None = None
+    revert_page_id: str | None = None
+    template: list[str] | None = None
+    line_metadata: list[dict] | None = None
+    device_type: str | None = None
+    notes_wide: int | None = None
+    notes_tall: int | None = None
+
+
+def temporary_override_payload(override: "TemporaryOverride | None") -> dict:
+    """Serialize a TemporaryOverride (or None) for the API.
+
+    Lived in ``src/api_server.py`` until Phase 2 §2.3. It reads nothing but the
+    override, so it belongs next to the model it serializes — and the schedules
+    router can now import it instead of reaching into the app module at call
+    time.
+    """
+    if override is None:
+        return {
+            "active": False,
+            "page_id": None,
+            "expires_at": None,
+            "remaining_seconds": None,
+            "revert_mode": None,
+            "revert_page_id": None,
+            "template": None,
+            "line_metadata": None,
+            "device_type": None,
+            "notes_wide": None,
+            "notes_tall": None,
+        }
+    remaining = override.remaining_seconds()
+    return {
+        "active": True,
+        "page_id": override.page_id,
+        "expires_at": override.expires_at,
+        "remaining_seconds": round(remaining, 1) if remaining is not None else None,
+        "revert_mode": override.revert_mode,
+        "revert_page_id": override.revert_page_id,
+        "template": override.template,
+        "line_metadata": override.line_metadata,
+        "device_type": override.device_type,
+        "notes_wide": override.notes_wide,
+        "notes_tall": override.notes_tall,
+    }
 
 
 @dataclass

@@ -205,7 +205,9 @@ test.describe("API – Schedules", () => {
     });
     expect(deleteRes.ok).toBe(true);
     const deleted = await deleteRes.json();
-    expect(deleted.status).toBe("success");
+    // Phase 2 conventions: delete answers with the deleted id, not a status
+    // envelope — the HTTP status already carries success.
+    expect(deleted.id).toBe(scheduleId);
   });
 });
 

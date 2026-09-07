@@ -94,8 +94,10 @@ export interface ScheduleUpdate {
 export interface SchedulesResponse {
   schedules: ScheduleEntry[];
   total: number;
+  // Both per-board fields are null on the cross-board listing
+  // (`board_id=*`), which has no single board to answer for.
   default_page_id: string | null;
-  enabled: boolean;
+  enabled: boolean | null;
 }
 
 export interface Overlap {
@@ -166,10 +168,12 @@ export interface ActiveScheduleResponse {
   resolved_next_check_seconds?: number | null;
   source: "schedule" | "manual" | "none";
   schedule_enabled: boolean;
-  current_time?: string;
-  current_day?: string;
-  default_page_id?: string | null;
-  temporary_override?: TemporaryOverrideStatus;
+  // Always present; null in manual mode, when there is no clock reading to
+  // report and no per-board default to name.
+  current_time: string | null;
+  current_day: string | null;
+  default_page_id: string | null;
+  temporary_override: TemporaryOverrideStatus;
 }
 
 export interface ScheduleEnabledResponse {
@@ -178,6 +182,21 @@ export interface ScheduleEnabledResponse {
 
 export interface DefaultPageResponse {
   default_page_id: string | null;
+}
+
+/**
+ * What POST/PUT /schedules answer with: the schedule, plus the non-fatal
+ * page<->board size mismatches of issue #1245. `warnings` is always present
+ * and empty when there is nothing to report — reads (GET, list) do not carry
+ * it, because compatibility is computed against the payload being written.
+ */
+export interface ScheduleWriteResponse extends ScheduleEntry {
+  warnings: string[];
+}
+
+/** DELETE /schedules/{id} answers with the id it removed. */
+export interface ScheduleDeleteResponse {
+  id: string;
 }
 
 export type SilenceMode = "indicator" | "freeze" | "page";
@@ -219,7 +238,7 @@ export const schedulesApi = {
     fetchApi<SchedulesResponse>(boardId ? `/schedules?board_id=${encodeURIComponent(boardId)}` : "/schedules"),
 
   createSchedule: (data: ScheduleCreate) =>
-    fetchApi<ScheduleEntry>("/schedules", {
+    fetchApi<ScheduleWriteResponse>("/schedules", {
       method: "POST",
       body: JSON.stringify(data),
     }),
@@ -227,13 +246,13 @@ export const schedulesApi = {
   getSchedule: (scheduleId: string) => fetchApi<ScheduleEntry>(`/schedules/${scheduleId}`),
 
   updateSchedule: (scheduleId: string, data: ScheduleUpdate) =>
-    fetchApi<ScheduleEntry>(`/schedules/${scheduleId}`, {
+    fetchApi<ScheduleWriteResponse>(`/schedules/${scheduleId}`, {
       method: "PUT",
       body: JSON.stringify(data),
     }),
 
   deleteSchedule: (scheduleId: string) =>
-    fetchApi<{ status: string; message: string }>(`/schedules/${scheduleId}`, {
+    fetchApi<ScheduleDeleteResponse>(`/schedules/${scheduleId}`, {
       method: "DELETE",
     }),
 
@@ -254,7 +273,7 @@ export const schedulesApi = {
     ),
 
   setDefaultPage: (pageId: string | null, boardId?: string) =>
-    fetchApi<{ status: string; default_page_id: string | null }>("/schedules/default-page", {
+    fetchApi<DefaultPageResponse>("/schedules/default-page", {
       method: "PUT",
       body: JSON.stringify({ page_id: pageId, ...(boardId != null && { board_id: boardId }) }),
     }),
@@ -265,7 +284,7 @@ export const schedulesApi = {
     ),
 
   setScheduleEnabled: (enabled: boolean, boardId?: string) =>
-    fetchApi<{ status: string; enabled: boolean; message: string }>("/schedules/enabled", {
+    fetchApi<ScheduleEnabledResponse>("/schedules/enabled", {
       method: "PUT",
       body: JSON.stringify({ enabled, ...(boardId != null && { board_id: boardId }) }),
     }),

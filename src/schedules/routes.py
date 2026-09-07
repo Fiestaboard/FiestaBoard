@@ -1,19 +1,55 @@
 """FastAPI router for the schedule endpoints.
 
-Handlers moved verbatim from ``src/api_server.py`` (issue #1756, pure move).
-Names that still live in ``api_server`` — the service getters and the
-active-page/override resolvers shared with the settings routes — are imported
-*inside* each handler so they resolve through the api_server module at call
-time. The test-suite patches them as ``src.api_server.<name>``; a
-module-level import would both create an import cycle (api_server imports
-this router) and detach the moved handlers from those patches.
+Handlers were moved here verbatim from ``src/api_server.py`` (issue #1756);
+Phase 2 slice 2 then applied ``docs/internal/reference/API_CONVENTIONS.md`` to
+them and retired the call-time ``from src.api_server import ...`` seams the
+move left behind.
+
+Collaborators now resolve from their canonical homes at **module import time**,
+so this module never loads ``src.api_server``
+(``tests/test_schedules_decoupled.py`` asserts that in a fresh interpreter).
+Three of them had no canonical home before this pass and were moved out of the
+app module to get one: ``require_board`` (``src/boards.py``),
+``resolve_active_page_id`` / ``resolve_next_check_seconds``
+(``src/collections/service.py``) and ``temporary_override_payload``
+(``src/settings/service.py``).
+
+Tests that need to stub a collaborator patch it where this module binds it —
+``src.schedules.routes.<name>`` — not ``src.api_server.<name>``.
 """
 
 from __future__ import annotations
 
-from fastapi import APIRouter, Body, HTTPException
+from fastapi import APIRouter, HTTPException
 
-from .models import ScheduleCreate, ScheduleUpdate
+from src.api_errors import errors
+from src.boards import require_board
+from src.collections.models import is_collection_id
+from src.collections.service import (
+    get_collection_service,
+    resolve_active_page_id,
+    resolve_next_check_seconds,
+)
+from src.pages.service import check_ref_board_compatibility, get_page_service
+from src.settings.service import get_settings_service, temporary_override_payload
+from src.time_service import get_time_service
+
+from .models import (
+    ActiveScheduleResponse,
+    DefaultPageResponse,
+    DefaultPageUpdate,
+    ScheduleCreate,
+    ScheduleDeleteResponse,
+    ScheduleEnabledResponse,
+    ScheduleEnabledUpdate,
+    ScheduleListResponse,
+    ScheduleResponse,
+    ScheduleUpdate,
+    ScheduleValidateRequest,
+    ScheduleValidationResult,
+    ScheduleWriteResponse,
+)
+from .service import get_schedule_service
 
 router = APIRouter(tags=["schedules"])
 
@@ -35,9 +71,7 @@ def _validate_board(board_id: str | None) -> None:
     """
     if not board_id:
         return
-    from src.api_server import _require_board  # patched-in-tests seam — see module docstring (#1756)
-
-    _require_board(board_id)
+    require_board(board_id, get_settings_service())
 
 
 def _enrich_schedule_with_sun_times(schedule_dict: dict) -> dict:
@@ -47,8 +81,6 @@ def _enrich_schedule_with_sun_times(schedule_dict: dict) -> dict:
     For sun-based schedules (sunrise/sunset) the times are computed
     dynamically for today using the configured location.
     """
-    from src.api_server import get_settings_service  # patched-in-tests seam — see module docstring (#1756)
-
     start_type = schedule_dict.get("start_type", "fixed")
     end_type = schedule_dict.get("end_type", "fixed")
 
@@ -84,165 +116,142 @@ def _enrich_schedule_with_sun_times(schedule_dict: dict) -> dict:
     return schedule_dict
 
 
-@router.get("/schedules")
-async def list_schedules(board_id: str | None = None):
-    """List schedule entries, optionally for one board (query: board_id=).
-
-    Use board_id=* to get ALL schedules across all boards (useful for cleanup/admin).
-    """
-    from src.api_server import (  # patched-in-tests seam — see module docstring (#1756)
-        get_schedule_service,
-        get_settings_service,
-    )
-
-    schedule_service = get_schedule_service()
-    settings_service = get_settings_service()
-    schedules = schedule_service.list_schedules(board_id=board_id)
-
-    # When listing all boards (board_id="*"), default_page_id and enabled don't make sense
-    if board_id == "*":
-        return {
-            "schedules": [_enrich_schedule_with_sun_times(s.model_dump()) for s in schedules],
-            "total": len(schedules),
-            "default_page_id": None,
-            "enabled": False,
-        }
-
-    return {
-        "schedules": [_enrich_schedule_with_sun_times(s.model_dump()) for s in schedules],
-        "total": len(schedules),
-        "default_page_id": schedule_service.get_default_page(board_id=board_id),
-        "enabled": settings_service.is_schedule_enabled(board_id=board_id),
-    }
-
-
 def _with_compat_warnings(response: dict, schedule) -> dict:
     """Attach non-fatal page<->board size warnings to a schedule response.
 
     Collections may mix page sizes; the write is allowed when at least one
     member fits the board, and the members that don't fit are surfaced as a
-    ``warnings`` list (issue #1245). The key is omitted when there is nothing
-    to warn about.
+    ``warnings`` list (issue #1245). The list is empty when there is nothing
+    to warn about — the key is always present so a client can tell "no
+    warnings" from "no warnings reported".
     """
-    from src.api_server import check_ref_board_compatibility  # patched-in-tests seam — see module docstring (#1756)
-
     compat = check_ref_board_compatibility(schedule.page_id, schedule.board_id)
-    if compat.ok and compat.warnings:
-        response["warnings"] = compat.warnings
+    response["warnings"] = list(compat.warnings) if (compat.ok and compat.warnings) else []
     return response
 
 
-@router.post("/schedules")
-async def create_schedule(schedule_data: ScheduleCreate):
-    """Create a new schedule entry.
+@router.get("/schedules", response_model=ScheduleListResponse)
+async def list_schedules(board_id: str | None = None):
+    """List schedule entries, optionally for one board (query: board_id=).
 
-    Args:
-        schedule_data: Schedule configuration
-
-    Returns:
-        Created schedule entry
+    Use board_id=* to get ALL schedules across all boards (useful for cleanup/admin).
     """
-    from src.api_server import get_schedule_service  # patched-in-tests seam — see module docstring (#1756)
+    schedule_service = get_schedule_service()
+    settings_service = get_settings_service()
+    schedules = schedule_service.list_schedules(board_id=board_id)
+    entries = [_enrich_schedule_with_sun_times(s.model_dump()) for s in schedules]
 
+    # When listing all boards (board_id="*") the two per-board fields have no
+    # answer, so both are null. `enabled` used to be hardcoded `False`, which a
+    # client cannot tell apart from "schedule mode is off on every board" — it
+    # said `false` even with schedule mode on for the only board. `null` is the
+    # honest "not applicable to this listing", and matches what the same branch
+    # has always answered for `default_page_id`.
+    if board_id == "*":
+        return ScheduleListResponse(schedules=entries, total=len(schedules))
+
+    return ScheduleListResponse(
+        schedules=entries,
+        total=len(schedules),
+        default_page_id=schedule_service.get_default_page(board_id=board_id),
+        enabled=settings_service.is_schedule_enabled(board_id=board_id),
+    )
+
+
+@router.post(
+    "/schedules",
+    response_model=ScheduleWriteResponse,
+    status_code=201,
+    responses=errors(400, 404),
+)
+async def create_schedule(schedule_data: ScheduleCreate):
+    """Create a new schedule entry."""
     _validate_board(schedule_data.board_id)
 
     schedule_service = get_schedule_service()
 
     try:
         schedule = schedule_service.create_schedule(schedule_data)
-        response = _enrich_schedule_with_sun_times(schedule.model_dump())
-        return _with_compat_warnings(response, schedule)
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e)) from e
+    response = _enrich_schedule_with_sun_times(schedule.model_dump())
+    return _with_compat_warnings(response, schedule)
 
 
 # Specific routes must come BEFORE parameterized routes
 # to avoid /schedules/{schedule_id} matching everything
 
 
-@router.get("/schedules/active/page")
+@router.get("/schedules/active/page", response_model=ActiveScheduleResponse)
 async def get_active_schedule(board_id: str | None = None):
     """Get the currently active page based on schedule (optional query: board_id=)."""
-    from src.api_server import (  # patched-in-tests seam — see module docstring (#1756)
-        _resolve_active_page_id,
-        _resolve_next_check_seconds,
-        _temporary_override_payload,
-        get_schedule_service,
-        get_settings_service,
-    )
-
     schedule_service = get_schedule_service()
     settings_service = get_settings_service()
 
     # Include temporary override status so the frontend can show the countdown badge
     # without a separate API call.
     override = settings_service.get_temporary_override()
-    temporary_override_payload = _temporary_override_payload(override)
+    override_payload = temporary_override_payload(override)
 
     if not settings_service.is_schedule_enabled(board_id=board_id):
         manual_page_id = settings_service.get_active_page_id()
-        return {
-            "page_id": manual_page_id,
-            "resolved_page_id": _resolve_active_page_id(manual_page_id),
-            "resolved_next_check_seconds": _resolve_next_check_seconds(manual_page_id),
-            "source": "manual",
-            "schedule_enabled": False,
-            "temporary_override": temporary_override_payload,
-        }
-    from src.time_service import get_time_service
+        return ActiveScheduleResponse(
+            page_id=manual_page_id,
+            resolved_page_id=resolve_active_page_id(manual_page_id, get_collection_service),
+            resolved_next_check_seconds=resolve_next_check_seconds(manual_page_id, get_collection_service),
+            source="manual",
+            schedule_enabled=False,
+            temporary_override=override_payload,
+        )
 
     time_service = get_time_service()
     now = time_service.get_current_time()
     current_time = now.time()
     current_day = now.strftime("%A").lower()
     page_id = schedule_service.get_active_page_id(current_time, current_day, board_id=board_id)
-    return {
-        "page_id": page_id,
-        "resolved_page_id": _resolve_active_page_id(page_id),
-        "resolved_next_check_seconds": _resolve_next_check_seconds(page_id),
-        "source": "schedule" if page_id else "none",
-        "schedule_enabled": True,
-        "current_time": now.strftime("%H:%M"),
-        "current_day": current_day,
-        "default_page_id": schedule_service.get_default_page(board_id=board_id),
-        "temporary_override": temporary_override_payload,
-    }
-
-
-@router.post("/schedules/validate")
-async def validate_schedules(request: dict | None = Body(None)):
-    """Validate schedules for overlaps and gaps. Body optional: {"board_id": "..."}."""
-    from src.api_server import get_schedule_service  # patched-in-tests seam — see module docstring (#1756)
-
-    schedule_service = get_schedule_service()
-    board_id = request.get("board_id") if request else None
-    result = schedule_service.validate_schedules(board_id=board_id)
-    return result.model_dump()
-
-
-@router.get("/schedules/default-page")
-async def get_default_page(board_id: str | None = None):
-    """Get the default page ID for schedule gaps (optional query: board_id=)."""
-    from src.api_server import get_schedule_service  # patched-in-tests seam — see module docstring (#1756)
-
-    schedule_service = get_schedule_service()
-    return {"default_page_id": schedule_service.get_default_page(board_id=board_id)}
-
-
-@router.put("/schedules/default-page")
-async def set_default_page(request: dict):
-    """Set the default page ID for schedule gaps. Body: page_id, optional board_id."""
-    from src.api_server import (  # patched-in-tests seam — see module docstring (#1756)
-        get_collection_service,
-        get_page_service,
-        get_schedule_service,
-        is_collection_id,
+    return ActiveScheduleResponse(
+        page_id=page_id,
+        resolved_page_id=resolve_active_page_id(page_id, get_collection_service),
+        resolved_next_check_seconds=resolve_next_check_seconds(page_id, get_collection_service),
+        source="schedule" if page_id else "none",
+        schedule_enabled=True,
+        current_time=now.strftime("%H:%M"),
+        current_day=current_day,
+        default_page_id=schedule_service.get_default_page(board_id=board_id),
+        temporary_override=override_payload,
     )
 
-    if "page_id" not in request:
-        raise HTTPException(status_code=400, detail="page_id parameter required")
-    page_id = request["page_id"]
-    board_id = request.get("board_id")
+
+@router.post("/schedules/validate", response_model=ScheduleValidationResult)
+async def validate_schedules(request: ScheduleValidateRequest | None = None):
+    """Validate schedules for overlaps and gaps. Body optional: {"board_id": "..."}.
+
+    A ``valid: false`` verdict is a 200: the caller asked "are these schedules
+    consistent?" and got the answer it asked for, in a declared response model
+    — the probe-endpoint case of API_CONVENTIONS.md §status codes, not a
+    failure served as a success.
+    """
+    schedule_service = get_schedule_service()
+    board_id = request.board_id if request else None
+    return schedule_service.validate_schedules(board_id=board_id)
+
+
+@router.get("/schedules/default-page", response_model=DefaultPageResponse)
+async def get_default_page(board_id: str | None = None):
+    """Get the default page ID for schedule gaps (optional query: board_id=)."""
+    schedule_service = get_schedule_service()
+    return DefaultPageResponse(default_page_id=schedule_service.get_default_page(board_id=board_id))
+
+
+@router.put(
+    "/schedules/default-page",
+    response_model=DefaultPageResponse,
+    responses=errors(404),
+)
+async def set_default_page(request: DefaultPageUpdate):
+    """Set the default page ID for schedule gaps. Body: page_id, optional board_id."""
+    page_id = request.page_id
+    board_id = request.board_id
     _validate_board(board_id)
     if page_id is not None:
         if is_collection_id(page_id):
@@ -255,54 +264,39 @@ async def set_default_page(request: dict):
                 raise HTTPException(status_code=404, detail=f"Page not found: {page_id}")
     schedule_service = get_schedule_service()
     schedule_service.set_default_page(page_id, board_id=board_id)
-    return {"status": "success", "default_page_id": page_id}
+    return DefaultPageResponse(default_page_id=page_id)
 
 
-@router.get("/schedules/enabled")
+@router.get("/schedules/enabled", response_model=ScheduleEnabledResponse)
 async def get_schedule_enabled(board_id: str | None = None):
     """Check if schedule mode is enabled (optional query: board_id=)."""
-    from src.api_server import get_settings_service  # patched-in-tests seam — see module docstring (#1756)
-
     settings_service = get_settings_service()
-    return {"enabled": settings_service.is_schedule_enabled(board_id=board_id)}
+    return ScheduleEnabledResponse(enabled=settings_service.is_schedule_enabled(board_id=board_id))
 
 
-@router.put("/schedules/enabled")
-async def set_schedule_enabled(request: dict):
+@router.put(
+    "/schedules/enabled",
+    response_model=ScheduleEnabledResponse,
+    responses=errors(404),
+)
+async def set_schedule_enabled(request: ScheduleEnabledUpdate):
     """Enable or disable schedule mode. Body: enabled, optional board_id."""
-    from src.api_server import get_settings_service  # patched-in-tests seam — see module docstring (#1756)
-
-    if "enabled" not in request:
-        raise HTTPException(status_code=400, detail="enabled parameter required")
-    enabled = request["enabled"]
-    if not isinstance(enabled, bool):
-        raise HTTPException(status_code=400, detail="enabled must be boolean")
-    board_id = request.get("board_id")
-    _validate_board(board_id)
+    _validate_board(request.board_id)
     settings_service = get_settings_service()
-    settings_service.set_schedule_enabled(enabled, board_id=board_id)
-    return {
-        "status": "success",
-        "enabled": enabled,
-        "message": f"Schedule mode {'enabled' if enabled else 'disabled'}",
-    }
+    settings_service.set_schedule_enabled(request.enabled, board_id=request.board_id)
+    return ScheduleEnabledResponse(enabled=request.enabled)
 
 
 # Parameterized routes come LAST to avoid matching specific paths
 
 
-@router.get("/schedules/{schedule_id}")
+@router.get(
+    "/schedules/{schedule_id}",
+    response_model=ScheduleResponse,
+    responses=errors(404),
+)
 async def get_schedule(schedule_id: str):
-    """Get a schedule entry by ID.
-
-    Args:
-        schedule_id: Schedule ID
-
-    Returns:
-        Schedule entry
-    """
-    from src.api_server import get_schedule_service  # patched-in-tests seam — see module docstring (#1756)
-
+    """Get a schedule entry by ID."""
     schedule_service = get_schedule_service()
     schedule = schedule_service.get_schedule(schedule_id)
 
@@ -312,49 +306,38 @@ async def get_schedule(schedule_id: str):
     return _enrich_schedule_with_sun_times(schedule.model_dump())
 
 
-@router.put("/schedules/{schedule_id}")
+@router.put(
+    "/schedules/{schedule_id}",
+    response_model=ScheduleWriteResponse,
+    responses=errors(400, 404),
+)
 async def update_schedule(schedule_id: str, schedule_data: ScheduleUpdate):
-    """Update an existing schedule entry.
-
-    Args:
-        schedule_id: Schedule ID
-        schedule_data: Fields to update
-
-    Returns:
-        Updated schedule entry
-    """
-    from src.api_server import get_schedule_service  # patched-in-tests seam — see module docstring (#1756)
-
+    """Update an existing schedule entry."""
     _validate_board(schedule_data.board_id)
 
     schedule_service = get_schedule_service()
 
     try:
         schedule = schedule_service.update_schedule(schedule_id, schedule_data)
-        if not schedule:
-            raise HTTPException(status_code=404, detail=f"Schedule not found: {schedule_id}")
-        response = _enrich_schedule_with_sun_times(schedule.model_dump())
-        return _with_compat_warnings(response, schedule)
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e)) from e
+    if not schedule:
+        raise HTTPException(status_code=404, detail=f"Schedule not found: {schedule_id}")
+    response = _enrich_schedule_with_sun_times(schedule.model_dump())
+    return _with_compat_warnings(response, schedule)
 
 
-@router.delete("/schedules/{schedule_id}")
+@router.delete(
+    "/schedules/{schedule_id}",
+    response_model=ScheduleDeleteResponse,
+    responses=errors(404),
+)
 async def delete_schedule(schedule_id: str):
-    """Delete a schedule entry.
-
-    Args:
-        schedule_id: Schedule ID
-
-    Returns:
-        Success status
-    """
-    from src.api_server import get_schedule_service  # patched-in-tests seam — see module docstring (#1756)
-
+    """Delete a schedule entry."""
     schedule_service = get_schedule_service()
 
     deleted = schedule_service.delete_schedule(schedule_id)
     if not deleted:
         raise HTTPException(status_code=404, detail=f"Schedule not found: {schedule_id}")
 
-    return {"status": "success", "message": f"Schedule {schedule_id} deleted"}
+    return ScheduleDeleteResponse(id=schedule_id)
