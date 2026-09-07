@@ -37,6 +37,7 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 SLICE_8_ROUTERS = (
     "src/displays/routes.py",
     "src/templates/routes.py",
+    "src/triggers/routes.py",
 )
 
 
@@ -167,6 +168,64 @@ print("DECOUPLED")
 
 def test_templates_router_serves_every_route_without_importing_api_server():
     _run(TEMPLATES_SCRIPT)
+
+
+TRIGGERS_SCRIPT = r"""
+import asyncio
+import sys
+from unittest.mock import MagicMock, patch
+
+import src.triggers.routes as routes
+
+assert "src.api_server" not in sys.modules, "importing the triggers router must not import api_server"
+
+fired = MagicMock()
+fired.to_dict.return_value = {
+    "trigger_id": "doorbell:front",
+    "plugin_id": "doorbell",
+    "message": "AT THE DOOR",
+    "formatted_lines": None,
+    "data": None,
+    "priority": 5,
+    "duration_seconds": 60,
+    "activated_at": "2026-09-06T00:00:00+00:00",
+    "remaining_seconds": 42.0,
+}
+
+trigger_service = MagicMock()
+trigger_service.list_active_triggers.return_value = [fired]
+trigger_service.get_active_trigger.return_value = fired
+trigger_service.dismiss_trigger.return_value = True
+
+registry = MagicMock()
+registry.trigger_plugins = {"doorbell": object()}
+
+with (
+    patch("src.triggers.routes.get_trigger_service", return_value=trigger_service),
+    patch("src.triggers.routes.get_plugin_registry", return_value=registry),
+):
+    listed = asyncio.run(routes.list_triggers())
+    assert listed.count == 1, listed
+    active = asyncio.run(routes.get_active_trigger())
+    assert active.trigger.trigger_id == "doorbell:front", active
+    dismissed = asyncio.run(routes.dismiss_trigger("doorbell:front"))
+    assert dismissed.trigger_id == "doorbell:front", dismissed
+    cleared = asyncio.run(routes.clear_triggers())
+    assert cleared.status == "cleared", cleared
+    checked = asyncio.run(routes.check_triggers())
+    assert checked.plugins_checked == 1, checked
+
+trigger_service.dismiss_trigger.assert_called_once_with("doorbell:front")
+trigger_service.clear_all.assert_called_once()
+trigger_service.check_plugin_triggers.assert_called_once()
+
+assert "src.api_server" not in sys.modules, "a triggers handler imported src.api_server"
+print("DECOUPLED")
+"""
+
+
+def test_triggers_router_serves_every_route_without_importing_api_server():
+    _run(TRIGGERS_SCRIPT)
 
 
 @pytest.mark.parametrize("module_path", SLICE_8_ROUTERS)
