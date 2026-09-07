@@ -3,10 +3,13 @@
 Covers three behaviors added in issue #1754:
 
 1. **Connection-level retry with backoff** — a send that fails because the
-   board never answered (``requests.ConnectionError`` / timeouts) is retried
-   exactly once after a short backoff. HTTP error *responses* (4xx/5xx) are
-   the board answering and are never retried. The backoff waits on the
-   client's cancel event so a preempting render abandons the retry promptly.
+   board never ACCEPTED the connection (``requests.ConnectionError``, which
+   includes ``ConnectTimeout``) is retried exactly once after a short backoff.
+   A ``ReadTimeout`` is not: the board took the request and went quiet, so the
+   second attempt pays the same timeout again (Phase 2 audit: 10.01s → 20.53s
+   on a wedged board). HTTP error *responses* (4xx/5xx) are the board
+   answering and are never retried. The backoff waits on the client's cancel
+   event so a preempting render abandons the retry promptly.
 2. **Universal min-send-interval floor** — per client instance: RW Cloud
    sends are floored at one send per 15s (Vestaboard's documented limit,
    docs/setup/cloud-api.md); note arrays keep their existing 15s floor;
@@ -104,9 +107,30 @@ class TestConnectionRetry:
         cancel.wait.assert_called_once_with(SEND_RETRY_BACKOFF_SECONDS)
 
     @patch("src.board_client.requests.post")
-    def test_read_timeout_is_retried(self, mock_post, client):
+    def test_read_timeout_is_not_retried(self, mock_post, client):
+        """A read timeout means the board ACCEPTED the request and went quiet.
+
+        This test previously asserted the opposite (``test_read_timeout_is_retried``,
+        #1754). That contract was wrong and the Phase 2 audit measured the cost:
+        a send to a wedged board went from 10.01s to 20.53s because the second
+        attempt pays the identical read timeout against the identical wedged
+        board. Retrying is for errors where no connection was established.
+        """
+        cancel = _no_cancel(client)
+        mock_post.side_effect = requests.exceptions.ReadTimeout("wedged")
+
+        result = client.send_characters(_flagship_grid(1))
+
+        assert result == (False, False)
+        assert mock_post.call_count == 1
+        cancel.wait.assert_not_called()
+
+    @patch("src.board_client.requests.post")
+    def test_connect_timeout_is_retried(self, mock_post, client):
+        """No connection was established, so the retry costs nothing extra to be
+        wrong about — ConnectTimeout subclasses ConnectionError deliberately."""
         _no_cancel(client)
-        mock_post.side_effect = [requests.exceptions.ReadTimeout("slow"), _ok_response()]
+        mock_post.side_effect = [requests.exceptions.ConnectTimeout("no route"), _ok_response()]
 
         result = client.send_characters(_flagship_grid(1))
 
