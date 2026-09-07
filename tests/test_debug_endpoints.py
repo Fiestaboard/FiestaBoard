@@ -1,4 +1,11 @@
-"""Tests for debug API endpoints."""
+"""Tests for debug API endpoints.
+
+Re-pinned by the Phase 2 debug slice conventions pass: the responses are bare
+(no ``{"status": "success", ...}`` envelope) and POST /debug/fill validates
+its body through Pydantic, so a bad character_code is FastAPI's 422 rather
+than a hand-rolled 400. Every other assertion here is unchanged; see
+tests/test_debug_contract.py for the full list of deliberate changes.
+"""
 
 from unittest.mock import Mock, patch
 
@@ -64,7 +71,6 @@ class TestDebugBlank:
             response = client.post("/debug/blank")
         assert response.status_code == 200
         data = response.json()
-        assert data["status"] == "success"
         assert "blanked" in data["message"].lower()
 
         # Verify send_characters was called with blank array
@@ -119,7 +125,6 @@ class TestDebugFill:
             response = client.post("/debug/fill", json={"character_code": 63})
         assert response.status_code == 200
         data = response.json()
-        assert data["status"] == "success"
         assert "63" in data["message"]
 
         # Verify send_characters was called with fill array
@@ -128,19 +133,19 @@ class TestDebugFill:
         assert args[0][0] == [[63] * 22 for _ in range(6)]
 
     def test_fill_board_invalid_code(self, client, mock_board_client):
-        """Test filling board with invalid character code."""
+        """Test filling board with invalid character code (422 since the
+        conventions pass: the body is a Pydantic model)."""
         # Code too high
         response = client.post("/debug/fill", json={"character_code": 72})
-        assert response.status_code == 400
-        assert "0-71" in response.json()["detail"]
+        assert response.status_code == 422
 
         # Code negative
         response = client.post("/debug/fill", json={"character_code": -1})
-        assert response.status_code == 400
+        assert response.status_code == 422
 
         # Missing code
         response = client.post("/debug/fill", json={})
-        assert response.status_code == 400
+        assert response.status_code == 422
 
     def test_fill_board_no_client(self, client):
         """Test filling board when client not configured."""
@@ -197,7 +202,6 @@ class TestDebugInfo:
         response = client.post("/debug/info")
         assert response.status_code == 200
         data = response.json()
-        assert data["status"] == "success"
         assert "debug_info" in data
 
         # Verify debug_info contains expected content
@@ -222,7 +226,7 @@ class TestDebugInfo:
         with patch("src.api_server.get_settings_service", return_value=_mock_ss("flagship")):
             response = client.post("/debug/info")
         assert response.status_code == 200
-        assert response.json()["status"] == "success"
+        assert "DEBUG INFO" in response.json()["debug_info"]
 
     def test_info_note_array_sized_to_board(self, client, mock_board_client):
         """Note-array board: /debug/info sends a grid sized to the array (3×30 for 2-wide)."""
@@ -232,7 +236,7 @@ class TestDebugInfo:
         ):
             response = client.post("/debug/info")
         assert response.status_code == 200
-        assert response.json()["status"] == "success"
+        assert "DEBUG INFO" in response.json()["debug_info"]
         sent_grid = mock_board_client.send_characters.call_args[0][0]
         assert len(sent_grid) == 3, "note array (2x1) has 3 rows"
         assert all(len(row) == 30 for row in sent_grid), "note array (2x1) has 30 cols"
@@ -257,7 +261,6 @@ class TestDebugTestConnection:
         response = client.post("/debug/test-connection")
         assert response.status_code == 200
         data = response.json()
-        assert data["status"] == "success"
         assert data["connected"] is True
         assert "latency_ms" in data
         assert isinstance(data["latency_ms"], int)
@@ -285,7 +288,6 @@ class TestDebugClearCache:
         response = client.post("/debug/clear-cache")
         assert response.status_code == 200
         data = response.json()
-        assert data["status"] == "success"
         assert "cache cleared" in data["message"].lower()
 
         # Verify clear_cache was called
@@ -305,11 +307,7 @@ class TestDebugCacheStatus:
         """Test getting cache status."""
         response = client.get("/debug/cache-status")
         assert response.status_code == 200
-        data = response.json()
-        assert data["status"] == "success"
-        assert "cache" in data
-
-        cache = data["cache"]
+        cache = response.json()
         assert "has_cached_text" in cache
         assert "has_cached_characters" in cache
         assert "skip_unchanged_enabled" in cache

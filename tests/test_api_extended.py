@@ -345,7 +345,14 @@ def mock_service():
         svc.vb_client = Mock()
         svc.vb_client.send_characters.return_value = (True, True)
         svc.vb_client.render.return_value = (True, True)
-        svc.vb_client.get_cache_status.return_value = {"has_cached_text": False}
+        # The full CacheStatus shape every real client reports; GET /cache-status
+        # declares a response_model now, so a partial dict is a 500.
+        svc.vb_client.get_cache_status.return_value = {
+            "has_cached_text": False,
+            "has_cached_characters": False,
+            "skip_unchanged_enabled": True,
+            "cached_text_preview": None,
+        }
         svc.vb_client.clear_cache.return_value = None
         svc.vb_client.use_cloud = False
         svc.vb_client._last_characters = None

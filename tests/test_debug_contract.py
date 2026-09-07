@@ -19,6 +19,42 @@ moves handlers out of ``src/api_server.py`` and their collaborators into
 an assertion. If you find yourself editing an ``assert`` to make this file
 pass, stop — that is a contract change and it belongs in the docstring's
 change list with a reason.
+
+Re-pinned by the conventions pass in this same PR. What deliberately changed,
+and nothing else:
+
+* **Bare bodies.** Every ``{"status": "success", ...}`` envelope in the domain
+  is gone. ``/debug/blank``, ``/debug/fill``, ``/debug/clear-cache`` and
+  ``/clear-cache`` answer ``{"message": ...}``; ``/debug/info`` answers
+  ``{"message", "debug_info"}``; ``/debug/test-connection`` drops ``status``
+  and keeps ``connected``/``latency_ms``; ``/debug/cache-status`` and
+  ``/debug/network-diagnostics`` return the cache and the diagnostics
+  themselves rather than wrapping them; ``/force-refresh`` answers
+  ``{"message", "sent"}``.
+* **A paused board is a 409**, not a 200 carrying
+  ``{"status": "blocked", "paused": true}``. Issue #970 made these endpoints
+  skip the send; reporting the skip at 200 meant every client that checks
+  only the status code read "sent". ``POST /debug/info`` no longer returns the
+  card text on that path — ``GET /debug/system-info`` serves the same data
+  and never sends.
+* **A throttled write keeps its 429 but serves the standard error body.**
+  ``{"status": "throttled", "message", "retry_after_seconds"}`` became
+  ``{"detail": ...}``; the ``Retry-After`` header is unchanged and is still
+  where the number belongs.
+* **``POST /debug/fill`` validates through Pydantic**, so a missing, wrongly
+  typed or out-of-range ``character_code`` is FastAPI's 422 instead of a
+  hand-rolled 400. ``StrictInt`` also closes a hole the hand-rolled check
+  left: ``isinstance(True, int)`` is true, so ``{"character_code": true}``
+  used to fill the board with code 1.
+* **The 500 detail stopped stuttering.** A refused send served
+  ``"500: Failed to blank board"``, because the ``raise`` sat inside the
+  handler's own ``try`` and its ``except Exception`` re-raised
+  ``HTTPException(500, str(e))``. It now serves ``"Failed to blank board"``.
+
+Every other value — the grids actually sent, the six lines of the debug card,
+message strings, the diagnostics pass-through, the log page and its filters,
+and the 400/500/503 paths — is unchanged from the pre-conversion recording.
+None was weakened.
 """
 
 from __future__ import annotations
@@ -97,7 +133,7 @@ def test_blank_sends_an_all_space_grid_sized_to_the_board(client, board):
     response = client.post("/debug/blank")
 
     assert response.status_code == 200
-    assert response.json() == {"status": "success", "message": "Board blanked successfully"}
+    assert response.json() == {"message": "Board blanked successfully"}
     grid = board.send_characters.call_args.args[0]
     assert grid == [[0] * FLAGSHIP_COLS for _ in range(FLAGSHIP_ROWS)]
     assert board.send_characters.call_args.kwargs == {"force": True}
@@ -120,14 +156,11 @@ def test_blank_with_a_ui_only_output_target_reports_success_without_sending(clie
         response = client.post("/debug/blank")
 
     assert response.status_code == 200
-    assert response.json() == {
-        "status": "success",
-        "message": "Board blank (output target is UI only)",
-    }
+    assert response.json() == {"message": "Board blank (output target is UI only)"}
     board.send_characters.assert_not_called()
 
 
-def test_blank_on_a_paused_board_does_not_send(client):
+def test_blank_on_a_paused_board_is_a_409(client):
     board = _board_client()
     with (
         patch(BOARD_CLIENT, return_value=board),
@@ -135,13 +168,8 @@ def test_blank_on_a_paused_board_does_not_send(client):
     ):
         response = client.post("/debug/blank")
 
-    assert response.status_code == 200
-    assert response.json() == {
-        "status": "blocked",
-        "message": "Board is paused — sends are blocked until it is resumed.",
-        "paused": True,
-        "board_id": None,
-    }
+    assert response.status_code == 409
+    assert response.json() == {"detail": "Board is paused — sends are blocked until it is resumed."}
     board.send_characters.assert_not_called()
 
 
@@ -154,11 +182,10 @@ def test_blank_reports_a_refused_send_as_a_500(client):
         response = client.post("/debug/blank")
 
     assert response.status_code == 500
-    # Pinned as it is served today, stutter and all: the ``raise`` sits inside
-    # the handler's own ``try``, so the bare ``except Exception`` catches it and
-    # re-raises ``HTTPException(500, str(e))`` — and ``str(HTTPException)`` is
-    # ``"500: <detail>"``. The conversion commit fixes this.
-    assert response.json()["detail"] == "500: Failed to blank board"
+    # Was "500: Failed to blank board" before the conventions pass — the raise
+    # sat inside the handler's own try and its except re-wrapped it. See the
+    # module docstring.
+    assert response.json()["detail"] == "Failed to blank board"
 
 
 def test_blank_dropped_by_the_send_floor_is_a_429_with_retry_after(client):
@@ -183,7 +210,7 @@ def test_fill_sends_a_grid_of_the_requested_character(client, board):
     response = client.post("/debug/fill", json={"character_code": 65})
 
     assert response.status_code == 200
-    assert response.json() == {"status": "success", "message": "Board filled with character 65"}
+    assert response.json() == {"message": "Board filled with character 65"}
     grid = board.send_characters.call_args.args[0]
     assert grid == [[65] * FLAGSHIP_COLS for _ in range(FLAGSHIP_ROWS)]
 
@@ -191,17 +218,17 @@ def test_fill_sends_a_grid_of_the_requested_character(client, board):
 def test_fill_without_a_character_code_is_rejected(client, board):
     response = client.post("/debug/fill", json={})
 
-    assert response.status_code == 400
-    assert response.json()["detail"] == "character_code is required"
+    # 422, not the hand-rolled 400: the body is a Pydantic model now.
+    assert response.status_code == 422
     board.send_characters.assert_not_called()
 
 
-@pytest.mark.parametrize("bad", [-1, 72, "65"])
+@pytest.mark.parametrize("bad", [-1, 72, "65", True, 3.5, None])
 def test_fill_rejects_a_character_code_outside_the_flap_set(client, board, bad):
+    """StrictInt closes the ``isinstance(True, int)`` hole the old check left."""
     response = client.post("/debug/fill", json={"character_code": bad})
 
-    assert response.status_code == 400
-    assert response.json()["detail"] == "character_code must be 0-71"
+    assert response.status_code == 422
     board.send_characters.assert_not_called()
 
 
@@ -220,7 +247,7 @@ def test_fill_without_a_configured_board_is_a_400(client):
     assert response.json()["detail"] == "Board not configured"
 
 
-def test_fill_on_a_paused_board_does_not_send(client):
+def test_fill_on_a_paused_board_is_a_409(client):
     board = _board_client()
     with (
         patch(BOARD_CLIENT, return_value=board),
@@ -228,8 +255,7 @@ def test_fill_on_a_paused_board_does_not_send(client):
     ):
         response = client.post("/debug/fill", json={"character_code": 5})
 
-    assert response.status_code == 200
-    assert response.json()["status"] == "blocked"
+    assert response.status_code == 409
     board.send_characters.assert_not_called()
 
 
@@ -257,7 +283,6 @@ def test_info_sends_the_six_line_debug_card_and_returns_it(client, board):
 
     assert response.status_code == 200
     body = response.json()
-    assert body["status"] == "success"
     assert body["message"] == "Debug info sent to board"
     _assert_debug_text(body["debug_info"])
     grid = board.send_characters.call_args.args[0]
@@ -280,7 +305,9 @@ def test_info_with_a_ui_only_output_target_still_returns_the_card(client):
     board.send_characters.assert_not_called()
 
 
-def test_info_on_a_paused_board_does_not_send(client):
+def test_info_on_a_paused_board_is_a_409(client):
+    """The card text is no longer returned on this path — GET /debug/system-info
+    serves the same data and never sends."""
     board = _board_client()
     with (
         patch(BOARD_CLIENT, return_value=board),
@@ -288,9 +315,8 @@ def test_info_on_a_paused_board_does_not_send(client):
     ):
         response = client.post("/debug/info")
 
-    assert response.status_code == 200
-    assert response.json()["status"] == "blocked"
-    _assert_debug_text(response.json()["debug_info"])
+    assert response.status_code == 409
+    assert response.json() == {"detail": "Board is paused — sends are blocked until it is resumed."}
     board.send_characters.assert_not_called()
 
 
@@ -357,10 +383,7 @@ def test_debug_clear_cache_clears_the_board_clients_cache(client, board):
     response = client.post("/debug/clear-cache")
 
     assert response.status_code == 200
-    assert response.json() == {
-        "status": "success",
-        "message": "Cache cleared - next message will be sent regardless of content",
-    }
+    assert response.json() == {"message": "Cache cleared - next message will be sent regardless of content"}
     board.clear_cache.assert_called_once_with()
 
 
@@ -376,7 +399,7 @@ def test_debug_cache_status_returns_the_clients_cache_fields(client, board):
     response = client.get("/debug/cache-status")
 
     assert response.status_code == 200
-    assert response.json() == {"status": "success", "cache": CACHE_STATUS}
+    assert response.json() == CACHE_STATUS
 
 
 def test_debug_cache_status_without_a_configured_board_is_a_400(client):
@@ -449,7 +472,43 @@ DIAGNOSTIC_RESULT = {
 }
 
 
-def test_network_diagnostics_returns_the_runners_verdict_verbatim(client):
+#: What the client is served for DIAGNOSTIC_RESULT after the conventions pass.
+#: The per-probe keys are now always present: each probe reports a different
+#: subset (DNS has hostname/ip, the port check has host/port, the HTTP checks
+#: have url/status_code), and a key that is sometimes absent and sometimes
+#: present forces every consumer to guess. Absent is now explicit null — the
+#: "sometimes-absent key" fix the slice recipe calls for. No probe's own values
+#: change, and unknown keys still pass through (extra="allow").
+SERVED_DIAGNOSTICS = {
+    "dns": {
+        "ok": True,
+        "hostname": "example.com",
+        "ip": "203.0.113.5",
+        "url": None,
+        "host": None,
+        "port": None,
+        "status_code": None,
+        "latency_ms": None,
+        "error": None,
+    },
+    "internet": {
+        "ok": True,
+        "hostname": None,
+        "ip": None,
+        "url": "https://example.com",
+        "host": None,
+        "port": None,
+        "status_code": 204,
+        "latency_ms": None,
+        "error": None,
+    },
+    "vestaboard": {"ok": False, "mode": "local", "steps": {}, "error": "timed out"},
+    "overall_ok": False,
+    "recommendations": [{"summary": "Check the board", "steps": ["Power cycle it"]}],
+}
+
+
+def test_network_diagnostics_returns_the_runners_verdict(client):
     with (
         patch(BOARD_ENTRY, return_value={"host": "192.0.2.10", "port": 7000}),
         patch(DIAGNOSTICS, return_value=DIAGNOSTIC_RESULT) as run,
@@ -457,7 +516,7 @@ def test_network_diagnostics_returns_the_runners_verdict_verbatim(client):
         response = client.get("/debug/network-diagnostics")
 
     assert response.status_code == 200
-    assert response.json() == {"status": "success", "diagnostics": DIAGNOSTIC_RESULT}
+    assert response.json() == SERVED_DIAGNOSTICS
     assert run.call_args.kwargs["board_host"] == "192.0.2.10"
     assert run.call_args.kwargs["board_port"] == 7000
     assert run.call_args.kwargs["use_cloud"] is False
@@ -510,10 +569,7 @@ def test_clear_cache_clears_the_primary_clients_cache(client):
         response = client.post("/clear-cache")
 
     assert response.status_code == 200
-    assert response.json() == {
-        "status": "success",
-        "message": "Cache cleared - next update will be sent to board",
-    }
+    assert response.json() == {"message": "Cache cleared - next update will be sent to board"}
     service.vb_client.clear_cache.assert_called_once_with()
 
 
@@ -533,11 +589,7 @@ def test_force_refresh_clears_every_cache_and_reports_whether_it_sent(client):
         response = client.post("/force-refresh")
 
     assert response.status_code == 200
-    assert response.json() == {
-        "status": "success",
-        "message": "Display force-refreshed successfully",
-        "sent": True,
-    }
+    assert response.json() == {"message": "Display force-refreshed successfully", "sent": True}
     service.vb_client.clear_cache.assert_called_once_with()
     secondary.clear_cache.assert_called_once_with()
     service.invalidate_all_board_content.assert_called_once_with()
