@@ -21,11 +21,22 @@ import requests
 from fastapi.testclient import TestClient
 
 from src.api_server import app
+from tests.test_route_inventory import build_route_metadata
 
 
 @pytest.fixture
 def client():
     return TestClient(app)
+
+
+def _route_metadata(path: str) -> dict:
+    """One route's metadata, found through the *flattened* route table.
+
+    ``app.routes`` only lists top-level entries; a route served by an included
+    router hangs off an internal node with no ``path`` of its own, so scanning
+    ``app.routes`` directly silently finds nothing once a domain is extracted.
+    """
+    return next(r for r in build_route_metadata() if r["path"] == path)
 
 
 def _local_client_mock():
@@ -104,8 +115,7 @@ class TestBoardTestUpstreamVerdictsStay200:
         assert response.json()["success"] is False
 
     def test_declares_a_response_model(self):
-        route = next(r for r in app.routes if getattr(r, "path", None) == "/config/board/test")
-        assert route.response_model is not None
+        assert _route_metadata("/config/board/test")["response_model"] is not None
 
 
 class TestBoardTestUnexpectedErrors:
@@ -174,8 +184,7 @@ class TestEnableLocalApiUpstreamVerdictsStay200:
         assert response.json()["success"] is False
 
     def test_declares_a_response_model(self):
-        route = next(r for r in app.routes if getattr(r, "path", None) == "/config/board/enable-local-api")
-        assert route.response_model is not None
+        assert _route_metadata("/config/board/enable-local-api")["response_model"] is not None
 
 
 class TestEnableLocalApiUnexpectedErrors:
