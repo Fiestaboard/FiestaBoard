@@ -1111,7 +1111,7 @@ function InstalledPluginRow({
     setIsCreatingDemo(true);
     try {
       const result = await api.createPluginDemoPage(plugin.id);
-      const verb = result.status === "recreated" ? "recreated" : "created";
+      const verb = result.recreated ? "recreated" : "created";
       toast.success(`Demo page ${verb} for ${plugin.name}`);
       queryClient.invalidateQueries({ queryKey: ["plugin", plugin.id] });
       queryClient.invalidateQueries({ queryKey: ["pages"] });

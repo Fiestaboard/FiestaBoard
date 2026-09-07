@@ -21,7 +21,7 @@ export interface RegistryEntry {
    * frame-by-frame board animation). Absent on registry payloads that predate
    * the field — treat missing as "data".
    */
-  plugin_type?: "data" | "transition";
+  plugin_type: "data" | "transition";
   /**
    * One-line board strip for the marketplace card, at most 15 tiles. Empty for
    * plugins that predate the previews contract.
@@ -33,22 +33,28 @@ export interface RegistryEntry {
 
 export interface RegistryListResponse {
   entries: RegistryEntry[];
+  plugin_system_enabled: boolean;
 }
 
 export interface PluginInstallResponse {
-  status: string;
   plugin_id: string;
   message: string;
 }
 
 export interface PluginUninstallResponse {
-  status: string;
   plugin_id: string;
   message: string;
 }
 
 export interface PluginUpdatesResponse {
   updates: Record<string, boolean>;
+  /**
+   * Why an upstream commit was not offered for a plugin — currently only
+   * "the incoming manifest needs a newer FiestaBoard core". Those plugins
+   * appear in `updates` as `false`; this is what lets the UI say why instead
+   * of looking stuck.
+   */
+  blocked: Record<string, string>;
 }
 
 export interface PluginUpdateCheckResponse {
