@@ -229,6 +229,46 @@ def test_generate_returns_the_draft_page_and_the_provider_that_made_it(client, c
     assert all(page[field] is None for field in PAGE_NULL_FIELDS)
 
 
+def test_the_declared_response_model_alters_nothing_the_real_generator_produces(client, cm):
+    """The one thing a `response_model` can silently do is drop a field.
+
+    ``AIGenerateResponse.page`` is a ``PageCreate``, which means FastAPI
+    re-validates and re-serializes the draft the generator built. This runs a
+    real generator output — not a hand-written fixture — through the model
+    and asserts the result is identical: no key dropped, no value changed.
+    Without this, the conversion's only genuine data-loss risk is covered
+    solely by mocked pages that never carried the full field set.
+    """
+    from src.ai.generator import _validate_and_repair
+    from src.ai.page_routes import AIGenerateResponse
+
+    page, warnings = _validate_and_repair(
+        {
+            "name": "Clock",
+            "template": ["{{date_time.time}}", "HELLO", "", "", "", ""],
+            "line_metadata": [{"alignment": "center", "wrap": False}] * 6,
+            "duration_seconds": 120,
+        },
+        "flagship",
+        {},
+    )
+    serialized = AIGenerateResponse.model_validate(
+        {
+            "page": page,
+            "model_used": "test-model",
+            "provider_id": "p1",
+            "warnings": warnings,
+            "usage": {"prompt_tokens": 1},
+        }
+    ).model_dump(mode="json")
+
+    assert serialized["page"] == page
+    assert serialized["warnings"] == warnings
+    # `usage` is a passthrough dict, not a model: a provider that reports only
+    # one counter must not have the other two invented as nulls.
+    assert serialized["usage"] == {"prompt_tokens": 1}
+
+
 def test_generate_forwards_the_prompt_device_and_unmasked_provider_block(client, cm):
     _seed_provider(cm)
     seen: dict[str, Any] = {}
