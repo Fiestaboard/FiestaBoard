@@ -282,14 +282,14 @@ def _request_param_names(func: ast.AST) -> set[str]:
     names: set[str] = set()
     for arg in (*args.posonlyargs, *args.args, *args.kwonlyargs):
         annotation = arg.annotation
-        if isinstance(annotation, ast.Name) and annotation.id == "Request":
-            names.add(arg.arg)
-        elif isinstance(annotation, ast.Attribute) and annotation.attr == "Request":
-            names.add(arg.arg)
-        elif (
-            isinstance(annotation, ast.Constant)
-            and isinstance(annotation.value, str)
-            and annotation.value.split(".")[-1] == "Request"
+        if (
+            (isinstance(annotation, ast.Name) and annotation.id == "Request")
+            or (isinstance(annotation, ast.Attribute) and annotation.attr == "Request")
+            or (
+                isinstance(annotation, ast.Constant)
+                and isinstance(annotation.value, str)
+                and annotation.value.split(".")[-1] == "Request"
+            )
         ):
             names.add(arg.arg)
     return names
