@@ -29,7 +29,10 @@ def client():
 @pytest.fixture
 def silence_store():
     """Config manager backed by a real dict, with per-board write support."""
-    with patch("src.api_server.get_config_manager") as mock_get:
+    with (
+        patch("src.api_server.get_config_manager") as mock_get,
+        patch("src.service_api.routes.get_config_manager", new=mock_get),
+    ):
         cm = Mock()
         store = {
             "enabled": True,

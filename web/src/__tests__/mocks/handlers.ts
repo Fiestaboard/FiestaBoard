@@ -341,11 +341,11 @@ export const handlers = [
   }),
 
   http.post(`${API_BASE}/start`, () => {
-    return HttpResponse.json({ status: "started", message: "Service started successfully" });
+    return HttpResponse.json({ running: true, changed: true, message: "Service started successfully" });
   }),
 
   http.post(`${API_BASE}/stop`, () => {
-    return HttpResponse.json({ status: "stopped", message: "Service stopped successfully" });
+    return HttpResponse.json({ running: false, changed: true, message: "Service stopped successfully" });
   }),
 
   http.post(`${API_BASE}/publish-preview`, () => {

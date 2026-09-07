@@ -5,20 +5,18 @@ import json
 import logging
 import logging.handlers
 import os
-import re
 import threading
 import time
 from contextlib import asynccontextmanager
 from datetime import UTC, datetime
 from typing import Any
-from urllib.parse import urlparse
 
 import requests
 from dotenv import load_dotenv
-from fastapi import BackgroundTasks, Body, FastAPI, HTTPException, Query, Request, Response
+from fastapi import FastAPI, HTTPException, Query, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse, StreamingResponse
-from pydantic import BaseModel, Field
+from fastapi.responses import StreamingResponse
+from pydantic import BaseModel
 
 # Load environment variables from .env file before importing modules that may
 # read them at import time. The intra-package imports below intentionally come
@@ -37,7 +35,10 @@ from . import (  # noqa: E402,F401  (re-export)
 from .auth import is_auth_enabled  # noqa: E402
 from .auth.middleware import AuthMiddleware  # noqa: E402
 from .auth.routes import router as auth_router  # noqa: E402
-from .board_chars import characters_to_message as _characters_to_message  # noqa: E402
+
+# Re-export: src/mcp_server.py imports this name from here, and
+# tests/test_api_extended.py exercises the helper through it.
+from .board_chars import characters_to_message as _characters_to_message  # noqa: E402,F401
 from .board_client import board_client_from_board_dict  # noqa: E402
 
 # Board lookup / send guards and the DisplayService accessor now live in
@@ -49,7 +50,6 @@ from .board_guards import (  # noqa: E402
     _board_dims,
     _board_is_paused,
     _require_board,
-    _silence_active,
 )
 from .board_guards import validate_board_host as _validate_board_host  # noqa: E402
 from .board_guards import (  # noqa: E402
@@ -62,7 +62,6 @@ from .collections.service import (  # noqa: E402
     resolve_active_page_id,
     resolve_next_check_seconds,
 )
-from .config import Config  # noqa: E402
 
 # ``unmask_sensitive_values`` / ``reset_display_service`` /
 # ``reset_template_engine`` used to be imported here purely as patch seams for
@@ -70,6 +69,7 @@ from .config import Config  # noqa: E402
 # canonical homes now (Phase 2 slice 4) and was their last consumer, so the
 # three re-exports are gone rather than left as patch targets that steer
 # nothing.
+from .config import Config  # noqa: E402,F401  (41 tests patch src.api_server.Config.*)
 from .config_manager import get_config_manager  # noqa: E402
 from .devices import classify_dimensions, resolve_dimensions  # noqa: E402
 from .display_runtime import (  # noqa: E402
@@ -102,7 +102,6 @@ from .log_store import (  # noqa: E402
     _read_logs_from_files,  # noqa: F401  (re-export: pre-move patch target)
     _setup_file_logging,  # noqa: F401  (re-export: pre-move patch target)
 )
-from .network.wifi import WiFiError, get_wifi_service  # noqa: E402
 from .pages.service import check_ref_board_compatibility, get_page_service  # noqa: E402
 from .panels.service import get_panel_service  # noqa: E402
 from .paths import get_data_dir  # noqa: E402, F401  (re-export: patch seam)
@@ -119,112 +118,8 @@ _muni_stops_cache_time: float = 0.0
 _muni_stops_cache_lock = threading.Lock()
 
 
-def _validate_request_url(
-    url: str,
-    *,
-    allow_http: bool = True,
-    allow_https: bool = True,
-) -> None:
-    """Validate a user-supplied URL before using it in an HTTP request.
-
-    Blocks credentialed URLs (``user:pass@host``), unsupported schemes and
-    non-public destinations (loopback/private/link-local/etc.) to reduce SSRF
-    risk. Raises :class:`HTTPException` (status 400) when the URL is rejected.
-    """
-    import ipaddress
-    import socket
-    from urllib.parse import urlparse
-
-    if not isinstance(url, str) or not url:
-        raise HTTPException(status_code=400, detail="URL is required")
-    try:
-        parsed = urlparse(url)
-    except ValueError:
-        raise HTTPException(status_code=400, detail="URL could not be parsed") from None
-    allowed = []
-    if allow_http:
-        allowed.append("http")
-    if allow_https:
-        allowed.append("https")
-    if parsed.scheme not in allowed:
-        raise HTTPException(
-            status_code=400,
-            detail=f"URL scheme must be one of: {', '.join(allowed)}",
-        )
-    if not parsed.hostname:
-        raise HTTPException(status_code=400, detail="URL is missing a host")
-    if parsed.username is not None or parsed.password is not None:
-        raise HTTPException(status_code=400, detail="URL must not contain credentials")
-    # Block requests targeting private/loopback/link-local addresses to
-    # prevent SSRF against internal services.
-    _h = parsed.hostname.lower().rstrip(".")
-    if _h in {"localhost", "localhost.localdomain", "ip6-localhost", "ip6-loopback"}:
-        raise HTTPException(
-            status_code=400,
-            detail="URL must not target internal network resources",
-        )
-    try:
-        _addr = ipaddress.ip_address(_h)
-        if _addr.is_private or _addr.is_loopback or _addr.is_link_local or _addr.is_reserved or _addr.is_multicast:
-            raise HTTPException(
-                status_code=400,
-                detail="URL must not target internal network resources",
-            )
-    except ValueError:
-        pass  # Not an IP literal; hostname-based domains are permitted
-
-    host = parsed.hostname.strip().lower()
-    if host == "localhost" or host.endswith(".localhost") or host.endswith(".local"):
-        raise HTTPException(status_code=400, detail="URL host is not allowed")
-
-    def _is_non_public_ip(ip_str: str) -> bool:
-        ip_obj = ipaddress.ip_address(ip_str)
-        return (
-            ip_obj.is_private
-            or ip_obj.is_loopback
-            or ip_obj.is_link_local
-            or ip_obj.is_multicast
-            or ip_obj.is_reserved
-            or ip_obj.is_unspecified
-        )
-
-    try:
-        if _is_non_public_ip(host):
-            raise HTTPException(status_code=400, detail="URL host resolves to a non-public IP")
-    except ValueError:
-        try:
-            infos = socket.getaddrinfo(host, parsed.port or (443 if parsed.scheme == "https" else 80))
-        except socket.gaierror:
-            raise HTTPException(status_code=400, detail="URL host could not be resolved") from None
-
-        for info in infos:
-            resolved_ip = info[4][0]
-            if _is_non_public_ip(resolved_ip):
-                raise HTTPException(status_code=400, detail="URL host resolves to a non-public IP") from None
-
-
-def _get_generic_data_allowed_hosts() -> list[str]:
-    """Return normalized allowlisted hosts for generic-data test fetch.
-
-    Reads comma-separated hostnames from ``GENERIC_DATA_ALLOWED_HOSTS``.
-    Empty value means no hosts are allowed.
-    """
-    raw = os.getenv("GENERIC_DATA_ALLOWED_HOSTS", "")
-    hosts = []
-    for part in raw.split(","):
-        h = part.strip().lower().rstrip(".")
-        if h:
-            hosts.append(h)
-    return hosts
-
-
-def _is_host_allowed(host: str, allowed_hosts: list[str]) -> bool:
-    """Check whether host is exactly allowed or a subdomain of an allowed host."""
-    h = (host or "").strip().lower().rstrip(".")
-    for allowed in allowed_hosts:
-        if h == allowed or h.endswith("." + allowed):
-            return True
-    return False
+# The URL guard and the generic-data host allowlist moved to
+# src/plugin_support/url_guard.py with their one caller (Phase 2, Task 8).
 
 
 # Global service instance
@@ -241,68 +136,10 @@ _shutting_down = False  # Set during app shutdown to suppress auto-restart
 # this module. One flag, one owner, two readers.
 display_runtime.set_running_probe(lambda: _service_running)
 
-class MessageRequest(BaseModel):
-    """Request model for sending a custom message."""
-
-    text: str
-
-
-class StatusResponse(BaseModel):
-    """Response model for service status."""
-
-    running: bool
-    initialized: bool
-    config_summary: dict[str, Any]
-    # Per-board status keyed by board id (issue #1244). Additive: the
-    # top-level fields keep their legacy single-board meaning.
-    boards: dict[str, Any] = Field(default_factory=dict)
-
-
-class HealthResponse(BaseModel):
-    """Response model for health check."""
-
-    status: str
-    service_running: bool
-    version: str
-
-
-# ── WiFi / NetworkManager models ─────────────────────────────────────────────
-class WiFiCapabilityResponse(BaseModel):
-    available: bool
-    reason: str | None = None
-
-
-class WiFiNetworkModel(BaseModel):
-    ssid: str
-    signal: int  # 0..100
-    security: str
-    in_use: bool
-
-
-class SavedNetworkModel(BaseModel):
-    name: str
-    autoconnect: bool
-
-
-class WiFiStatusModel(BaseModel):
-    connected: bool
-    ssid: str | None = None
-    ip_address: str | None = None
-    gateway: str | None = None
-    signal: int | None = None
-    internet_reachable: bool
-
-
-class WiFiConnectRequest(BaseModel):
-    ssid: str
-    password: str | None = None
-    hidden: bool = False
-
-
-class WiFiConnectResponse(BaseModel):
-    status: WiFiStatusModel
-    connectivity_confirmed: bool
-    message: str
+# MessageRequest, StatusResponse and HealthResponse moved with their routes
+# to src/board_api/models.py and src/service_api/models.py (Phase 2, Task 8).
+# Nothing here imports them any more, and leaving a binding behind would
+# advertise a patch target that no longer steers anything.
 
 
 def _run_startup_migrations() -> None:
@@ -759,81 +596,45 @@ def stop_display_service_sync() -> bool:
     return True
 
 
-@app.get("/", response_model=dict[str, str])
-async def root():
-    """Root endpoint with API information."""
-    return {"name": "FiestaBoard Display API", "version": "1.0.0", "status": "running"}
+# ── Display-loop controls for the extracted service router ──────────────────
+#
+# The background-thread state above stays in this module (see the
+# src/display_runtime.py docstring: ~30 test sites patch
+# ``src.api_server._service_running``, and a module global cannot be relocated
+# without breaking every one of them). What moves is the *decision* — which of
+# "already running" / "not initialized" / "failed to start" the caller gets —
+# which now lives in src/service_api/routes.py. These two primitives are the
+# only writes it needs, and they are registered here, next to the state they
+# mutate, exactly as ``set_running_probe`` already registers the read.
 
 
-@app.get("/health", response_model=HealthResponse)
-async def health():
-    """Health check endpoint."""
-    service = get_service()
-    return HealthResponse(status="ok", service_running=_service_running and service is not None, version=__version__)
+def _spawn_display_loop() -> None:
+    """Clear the shutdown flag and start the background loop thread."""
+    global _service_thread, _shutting_down
+    _shutting_down = False
+    _service_thread = threading.Thread(target=run_service_background, daemon=True)
+    _service_thread.start()
 
 
-@app.head("/health", response_model=HealthResponse)
-async def health_head():
-    """Health check endpoint (HEAD).
-
-    Split from `health()` above into its own handler with a distinct name so
-    each HTTP method gets its own APIRoute and its own OpenAPI operationId.
-    A single @app.api_route(methods=["GET", "HEAD"]) produces one APIRoute
-    whose unique_id is derived from `list(route.methods)[0]` — since
-    route.methods is a set, that pick is non-deterministic, and FastAPI emits
-    the same operationId for both the GET and HEAD operations (see #1572).
-    """
-    return await health()
+def _halt_display_loop() -> None:
+    """Suppress auto-restart, tell a running service to stop, clear the flag."""
+    global _service_running, _shutting_down
+    _shutting_down = True
+    running_service = peek_service()
+    if running_service:
+        running_service.running = False
+    _service_running = False
 
 
-@app.get("/mqtt/status")
-async def get_mqtt_status():
-    """Return the current MQTT connection status.
-
-    Useful for UI display and for tests to determine whether the live MQTT
-    client (not just the one-off discovery script) is connected and able to
-    process commands.
-    """
-    try:
-        from .mqtt import get_mqtt_client
-
-        client = get_mqtt_client()
-        if client is None:
-            return {"enabled": False, "connected": False, "running": False}
-        return {
-            "enabled": True,
-            "connected": client.is_connected(),
-            "running": client.is_running(),
-        }
-    except Exception as e:
-        # ``enabled: False`` is a real answer ("MQTT is switched off"), so it
-        # must never double as "we could not tell" — the two were identical
-        # before #1887 and an operator debugging a broken broker saw the
-        # same body as one who had simply not enabled MQTT.
-        logger.error(f"Failed to read MQTT status: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail="Failed to read MQTT status.") from e
+display_runtime.set_loop_controls(_spawn_display_loop, _halt_display_loop)
 
 
-@app.post("/mqtt/republish-discovery")
-async def mqtt_republish_discovery():
-    """Re-publish MQTT discovery messages for all entities.
+# ── MQTT status and discovery — moved to src/mqtt/routes.py (Phase 2,
+# Task 8). ``_apply_mqtt_config`` below stays: it is boot/settings wiring,
+# not an endpoint.
+from .mqtt.routes import router as mqtt_router  # noqa: E402
 
-    Useful when the page list changes after the MQTT client first connected,
-    or to force HA to refresh entity options (e.g. Active Page select options).
-    Returns 503 if MQTT is not connected.
-    """
-    try:
-        from .mqtt import get_mqtt_client
-
-        client = get_mqtt_client()
-        if client is None or not client.is_connected():
-            raise HTTPException(status_code=503, detail="MQTT client not connected")
-        client._publish_discovery()
-        return {"status": "ok", "message": "Discovery messages republished"}
-    except HTTPException:
-        raise
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e)) from e
+app.include_router(mqtt_router)
 
 
 def _apply_mqtt_config(mqtt_cfg) -> None:
@@ -1540,696 +1341,20 @@ from .system.routes import router as system_router  # noqa: E402
 app.include_router(system_router)
 
 
-# ── WiFi management (FiestaPi only) ──────────────────────────────────────────
-def _wifi_unavailable(reason: str | None) -> HTTPException:
-    return HTTPException(
-        status_code=501,
-        detail={
-            "status": "unavailable",
-            "reason": reason or "WiFi management is unavailable on this deployment.",
-        },
-    )
+# ── WiFi management (FiestaPi only) — moved to src/network/routes.py
+# (Phase 2, Task 8). Covers the seven /network/wifi/* routes.
+from .network.routes import router as network_router  # noqa: E402
 
+app.include_router(network_router)
 
-def _wifi_error(exc: WiFiError) -> HTTPException:
-    return HTTPException(
-        status_code=400,
-        detail={"status": "error", "error": str(exc)},
-    )
 
+# ── The out-of-band board surface — moved to src/board_api/routes.py
+# (Phase 2, Task 8). Covers GET /board/current-message, POST /send-message
+# and POST /send-welcome-message; the welcome-card builder moved beside
+# them into src/board_api/welcome.py.
+from .board_api.routes import router as board_router  # noqa: E402
 
-@app.get("/network/wifi/capability", response_model=WiFiCapabilityResponse)
-async def wifi_capability():
-    """Feature probe — does this deployment support WiFi management?
-
-    The UI calls this once on load and hides the Network tab when the
-    answer is False, so generic Docker users never see WiFi controls.
-    """
-    cap = get_wifi_service().capability()
-    return WiFiCapabilityResponse(available=cap.available, reason=cap.reason)
-
-
-@app.get("/network/wifi/status", response_model=WiFiStatusModel)
-async def wifi_status():
-    svc = get_wifi_service()
-    cap = svc.capability()
-    if not cap.available:
-        raise _wifi_unavailable(cap.reason)
-    try:
-        status = await asyncio.to_thread(svc.status)
-    except WiFiError as exc:
-        raise _wifi_error(exc) from exc
-    return WiFiStatusModel(**status.__dict__)
-
-
-@app.post("/network/wifi/scan", response_model=list[WiFiNetworkModel])
-async def wifi_scan():
-    """Trigger a rescan and return de-duplicated networks (strongest signal)."""
-    svc = get_wifi_service()
-    cap = svc.capability()
-    if not cap.available:
-        raise _wifi_unavailable(cap.reason)
-    try:
-        networks = await asyncio.to_thread(svc.scan)
-    except WiFiError as exc:
-        raise _wifi_error(exc) from exc
-    return [WiFiNetworkModel(**n.__dict__) for n in networks]
-
-
-@app.get("/network/wifi/saved", response_model=list[SavedNetworkModel])
-async def wifi_saved():
-    svc = get_wifi_service()
-    cap = svc.capability()
-    if not cap.available:
-        raise _wifi_unavailable(cap.reason)
-    try:
-        saved = await asyncio.to_thread(svc.saved_networks)
-    except WiFiError as exc:
-        raise _wifi_error(exc) from exc
-    return [SavedNetworkModel(**s.__dict__) for s in saved]
-
-
-@app.post("/network/wifi/connect", response_model=WiFiConnectResponse)
-async def wifi_connect(payload: WiFiConnectRequest):
-    """Create/replace a persistent profile and activate it.
-
-    Returns the new status plus a `connectivity_confirmed` flag so the
-    UI can warn the user when the AP associates but the internet probe
-    fails (typical for wrong password / captive portal).
-    """
-    svc = get_wifi_service()
-    cap = svc.capability()
-    if not cap.available:
-        raise _wifi_unavailable(cap.reason)
-    try:
-        result = await svc.connect(ssid=payload.ssid, password=payload.password, hidden=payload.hidden)
-    except WiFiError as exc:
-        raise _wifi_error(exc) from exc
-    return WiFiConnectResponse(
-        status=WiFiStatusModel(**result.status.__dict__),
-        connectivity_confirmed=result.connectivity_confirmed,
-        message=result.message,
-    )
-
-
-@app.post("/network/wifi/disconnect", response_model=WiFiStatusModel)
-async def wifi_disconnect():
-    svc = get_wifi_service()
-    cap = svc.capability()
-    if not cap.available:
-        raise _wifi_unavailable(cap.reason)
-    try:
-        status = await svc.disconnect()
-    except WiFiError as exc:
-        raise _wifi_error(exc) from exc
-    return WiFiStatusModel(**status.__dict__)
-
-
-@app.delete("/network/wifi/saved/{con_name}", response_model=dict[str, str])
-async def wifi_forget(con_name: str):
-    svc = get_wifi_service()
-    cap = svc.capability()
-    if not cap.available:
-        raise _wifi_unavailable(cap.reason)
-    try:
-        await svc.forget(con_name)
-    except WiFiError as exc:
-        raise _wifi_error(exc) from exc
-    return {"status": "ok"}
-
-
-@app.get("/status", response_model=StatusResponse)
-async def get_status():
-    """Get current service status."""
-    service = get_service()
-    if not service:
-        raise HTTPException(status_code=503, detail="Service not initialized")
-
-    settings_service = get_settings_service()
-
-    status = StatusResponse(
-        running=_service_running, initialized=service is not None, config_summary=Config.get_summary()
-    )
-    # Add active page ID to config summary
-    status.config_summary["active_page_id"] = settings_service.get_active_page_id()
-
-    # Per-board status (issue #1244): configured/paused/active page for every
-    # configured board, keyed by board id. Defensive throughout — a partial
-    # boards list must never break the legacy top-level status fields.
-    try:
-        boards = settings_service.get_board_settings().boards or []
-        # Why each board failed to get a client, when it failed (issue #1749).
-        # A board skipped at startup is visible here instead of only in the log.
-        init_errors = getattr(service, "board_init_errors", None)
-        if not isinstance(init_errors, dict):
-            init_errors = {}
-        for board in boards:
-            if not isinstance(board, dict) or not board.get("id"):
-                continue
-            bid = board["id"]
-            try:
-                configured = service.get_board_client(bid) is not None
-            except Exception:
-                configured = False
-            active_page_id = settings_service.get_active_page_id(board_id=bid)
-            if not isinstance(active_page_id, str):
-                active_page_id = None
-            init_error = init_errors.get(bid)
-            if not isinstance(init_error, str):
-                init_error = None
-            status.boards[bid] = {
-                "configured": configured,
-                "paused": _board_is_paused(bid),
-                "active_page_id": active_page_id,
-                "error": init_error,
-            }
-    except Exception as e:
-        logger.debug(f"Per-board status unavailable: {e}")
-    return status
-
-
-@app.post("/start")
-async def start_service(background_tasks: BackgroundTasks):
-    """Start the background service."""
-    global _service_thread, _shutting_down
-
-    if _service_running:
-        return {"status": "already_running", "message": "Service is already running"}
-
-    _shutting_down = False  # Re-enable auto-restart
-
-    service = get_service()
-    if not service:
-        raise HTTPException(status_code=503, detail="Service not initialized")
-
-    # Retry initialization if it failed before
-    # This allows the service to start after configuration is fixed
-    if not service.vb_client:
-        logger.info("Retrying service initialization...")
-        if not service.initialize():
-            raise HTTPException(
-                status_code=503,
-                detail="Service initialization failed - check board configuration (API key, host, etc.)",
-            )
-        logger.info("Service initialization successful on retry")
-
-    # Start service in background thread
-    _service_thread = threading.Thread(target=run_service_background, daemon=True)
-    _service_thread.start()
-
-    # Give it a moment to start
-    await asyncio.sleep(0.5)
-
-    if _service_running:
-        return {"status": "started", "message": "Service started successfully"}
-    else:
-        raise HTTPException(status_code=500, detail="Service failed to start - check logs for details")
-
-
-@app.post("/stop")
-async def stop_service():
-    """Stop the background service."""
-    global _service_running, _shutting_down
-
-    if not _service_running:
-        return {"status": "not_running", "message": "Service is not running"}
-
-    _shutting_down = True  # Prevent auto-restart
-    running_service = peek_service()
-    if running_service:
-        running_service.running = False
-        _service_running = False
-
-    return {"status": "stopped", "message": "Service stopped successfully"}
-
-
-@app.post("/refresh")
-async def refresh_display(board_id: str | None = None, payload: dict | None = Body(None)):
-    """Manually trigger a display refresh.
-
-    Args:
-        board_id: Optional board to refresh (query param, or
-            ``{"board_id": ...}`` in the JSON body). Omitted → legacy
-            behavior: refresh every board, primary first (issue #1244).
-    """
-    if board_id is None and payload:
-        board_id = payload.get("board_id")
-
-    service = get_service()
-    if not service:
-        raise HTTPException(status_code=503, detail="Service not initialized")
-
-    try:
-        if board_id is None:
-            # Every board is driven here, so a failing secondary must surface
-            # too — the wrapper aggregates across the whole pass (issue #1791).
-            # The pass is board network I/O, so it runs in a worker thread to
-            # keep the event loop free (#1826); _send_with_status moves as one
-            # call because its failure reason lives in a thread-local that is
-            # set and read inside the same sync call.
-            sent, error = await run_board_send(
-                _send_with_status, service, "check_and_send_active_page_with_status", "check_and_send_active_page"
-            )
-            if error:
-                raise HTTPException(status_code=500, detail=f"Failed to refresh display: {error}")
-            return {
-                "status": "success",
-                "message": "Display refreshed successfully",
-                "board_id": None,
-                "sent": sent,
-            }
-
-        board = _require_board(board_id)
-        rt = service.get_runtime(board_id)
-        if rt is None:
-            raise HTTPException(status_code=503, detail=f"Board client not initialized: {board_id}")
-        is_primary = board_id == get_settings_service().get_primary_board_id()
-        # Board network I/O — off the event loop (#1826); _send_with_status
-        # moves as one call (thread-local failure reason, see above).
-        sent, error = await run_board_send(
-            _send_with_status,
-            service,
-            "check_and_send_for_board_with_status",
-            "check_and_send_for_board",
-            board_id,
-            rt,
-            is_primary=is_primary,
-            board=board,
-        )
-        if error:
-            raise HTTPException(status_code=500, detail=f"Failed to refresh board {board_id}: {error}")
-        return {
-            "status": "success",
-            "message": f"Board {board_id} refreshed successfully",
-            "board_id": board_id,
-            "sent": sent,
-        }
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"Error refreshing display: {e}")
-        raise HTTPException(status_code=500, detail=f"Failed to refresh display: {str(e)}") from e
-
-
-@app.get("/board/current-message")
-async def get_board_current_message(force: bool = False, board_id: str | None = None):
-    """Return the current state of the physical board.
-
-    Normally serves from the cached result of the background poll thread
-    (updated every 30 s local / 3 min cloud) so callers don't hammer the
-    Vestaboard API.  Pass ?force=true to trigger a live read instead.
-
-    Args:
-        force: Trigger a live board read instead of serving the poll cache.
-            Only honored for the primary board.
-        board_id: Optional board to read (issue #1247). Omitted or the
-            primary board → legacy live-polled behavior. A secondary board is
-            served from its runtime cache (last-sent/polled content) because
-            board-state polling is primary-only by design; ``characters`` /
-            ``message`` are null when nothing has been sent to it yet.
-
-    Returns:
-        characters:          Actual 2-D grid currently on the board
-        message:             Formatted string suitable for BoardDisplay
-        rows / cols:         Grid dimensions
-        expected_characters: What FiestaBoard last sent (None until first send)
-        cached_at:           ISO timestamp of last poll, or null on live read
-        api_mode:            "local" or "cloud"
-        board_id:            Echo of the requested board id (null = primary)
-    """
-    service = get_service()
-    if not service or not service.vb_client:
-        raise HTTPException(status_code=503, detail="Board client not initialized")
-
-    if board_id is not None:
-        board = _require_board(board_id)
-        if board_id != get_settings_service().get_primary_board_id():
-            # Secondary board: serve from its runtime cache. No live read —
-            # the poll thread only tracks the primary board (issue #1243).
-            rt = service.get_runtime(board_id)
-            rt_client = rt.client if rt is not None else None
-            last_sent = getattr(rt_client, "_last_characters", None) if rt_client is not None else None
-            polled = rt.polled_characters if rt is not None else None
-            characters = polled if polled is not None else last_sent
-            cached_at = None
-            if polled is not None and rt is not None and rt.polled_at is not None:
-                cached_at = datetime.fromtimestamp(rt.polled_at, tz=UTC).isoformat()
-            board_api_mode = "cloud" if getattr(rt_client, "use_cloud", False) else "local"
-            if characters is None:
-                # Nothing sent to this board yet — return its geometry so the
-                # UI can degrade gracefully (render the active page instead).
-                dims = _board_dims(board)
-                return {
-                    "characters": None,
-                    "message": None,
-                    "rows": dims.rows,
-                    "cols": dims.cols,
-                    "expected_characters": None,
-                    "cached_at": None,
-                    "api_mode": board_api_mode,
-                    "board_id": board_id,
-                }
-            return {
-                "characters": characters,
-                "message": _characters_to_message(characters),
-                "rows": len(characters),
-                "cols": len(characters[0]) if characters else 0,
-                "expected_characters": last_sent,
-                "cached_at": cached_at,
-                "api_mode": board_api_mode,
-                "board_id": board_id,
-            }
-
-    api_mode = "cloud" if getattr(service.vb_client, "use_cloud", False) else "local"
-    expected_characters = service.vb_client._last_characters
-
-    if force or service._polled_characters is None:
-        # No cached data yet (startup) or caller wants a live read — hit the board directly
-        characters = await asyncio.to_thread(service.vb_client.read_current_message)
-        if characters is None:
-            raise HTTPException(status_code=503, detail="Failed to read current board message")
-        # Prime the cache so subsequent requests are fast
-        service._polled_characters = characters
-        service._polled_at = time.time()
-        cached_at = None
-    else:
-        characters = service._polled_characters
-        cached_at = datetime.fromtimestamp(service._polled_at, tz=UTC).isoformat()
-
-    message = _characters_to_message(characters)
-    rows = len(characters)
-    cols = len(characters[0]) if characters else 0
-
-    return {
-        "characters": characters,
-        "message": message,
-        "rows": rows,
-        "cols": cols,
-        "expected_characters": expected_characters,
-        "cached_at": cached_at,
-        "api_mode": api_mode,
-        "board_id": board_id,
-    }
-
-
-def _throttled_send_response(board_client) -> JSONResponse | None:
-    """A 429 for an out-of-band write dropped by the client-side send floor.
-
-    #1868 review: cloud boards (and note arrays) enforce a minimum interval
-    between sends (#1754); a send inside the window returns ``(True, False)``
-    with ``last_send_throttled`` set — the content was DROPPED, not
-    delivered, and unlike the engine tick (which retries next pass) the
-    manual out-of-band endpoints (/send-message, /send-welcome-message)
-    never retry. Answering "success/unchanged" would silently swallow the
-    user's write, so they answer 429 with a Retry-After hint computed from
-    the floor.
-
-    The /debug/* senders used to share this helper; since their conventions
-    pass they raise ``HTTPException(429, detail=...)`` from
-    ``src/debug/routes.py`` instead, so the whole domain serves the one
-    ``{"detail": ...}`` error contract. Same status, same Retry-After, same
-    arithmetic — this stays until the remaining senders convert.
-
-    Returns None when the last send was not throttled (the ``is True`` guard
-    also keeps Mock clients in tests, whose attributes are truthy, on the
-    legacy path unless they opt in).
-    """
-    if getattr(board_client, "last_send_throttled", False) is not True:
-        return None
-    try:
-        floor_ms = int(getattr(board_client, "min_send_interval_ms", 0))
-    except (TypeError, ValueError):
-        floor_ms = 0
-    retry_after = max(1, -(-floor_ms // 1000)) if floor_ms else 15
-    return JSONResponse(
-        status_code=429,
-        content={
-            "status": "throttled",
-            "message": (
-                f"Send skipped: the board accepts at most one message every {retry_after}s. Retry shortly."
-            ),
-            "retry_after_seconds": retry_after,
-        },
-        headers={"Retry-After": str(retry_after)},
-    )
-
-
-@app.post("/send-message")
-async def send_message(request: MessageRequest):
-    """Send a custom message to the board."""
-    service = get_service()
-    if not service:
-        raise HTTPException(status_code=503, detail="Service not initialized")
-
-    # CRITICAL: Block ALL manual sends during silence mode to prevent wake-ups.
-    # This path drives the primary board's client, so it must resolve the
-    # primary board's window (issue #1788).
-    if _silence_active():
-        logger.info("Silence mode is active - blocking manual message send to prevent wake-up")
-        return {
-            "status": "blocked",
-            "message": "Manual sends blocked during silence mode to prevent wake-ups",
-            "silence_mode": True,
-        }
-
-    # Block all sends when the target board is paused (issue #970).
-    if _board_is_paused():
-        logger.info("Board is paused - blocking manual message send")
-        return _paused_response()
-
-    if not service.vb_client:
-        raise HTTPException(status_code=503, detail="Board client not initialized")
-
-    try:
-        settings_service = get_settings_service()
-        transition = settings_service.get_transition_settings()
-        # Size the grid to the active (first) board so a manual send to a note
-        # array uses its real geometry instead of a default flagship 22×6.
-        board_settings = settings_service.get_board_settings()
-        device_type = "flagship"
-        notes_wide = 1
-        notes_tall = 1
-        if board_settings.boards:
-            primary_board = board_settings.boards[0]
-            device_type = primary_board.get("device_type", "flagship")
-            notes_wide = primary_board.get("notes_wide", 1)
-            notes_tall = primary_board.get("notes_tall", 1)
-        dims = resolve_dimensions(device_type, notes_wide, notes_tall)
-        # Word-wrap/convert/render is the shared message core (#1765): the
-        # MCP send_message executor calls the same function, so the two
-        # surfaces cannot render a message differently. See
-        # src/displays/messages.py for the #1793 newline/backslash notes.
-        from .displays.messages import render_message
-
-        success, was_sent = render_message(
-            service.vb_client,
-            request.text,
-            rows=dims.rows,
-            cols=dims.cols,
-            strategy=transition.strategy,
-            step_interval_ms=transition.step_interval_ms,
-            step_size=transition.step_size,
-        )
-        if success:
-            if was_sent:
-                # Flag the out-of-band write and push fresh MQTT state so HA
-                # reflects the update (issues #1794/#1831). The display
-                # loop's dedupe cache is deliberately left alone:
-                # invalidating it here made the message self-destruct on the
-                # next engine tick (<=15s). Restoring the active page is a
-                # pull — /force-refresh, MQTT Refresh Display, re-selecting
-                # a page, or an actual content change (issue #1794).
-                _note_out_of_band_write()
-                service.request_board_refresh()
-                return {"status": "success", "message": "Message sent successfully"}
-            else:
-                # A not-sent "success" can also mean the send floor dropped
-                # the write entirely (#1868 review) — that is not "unchanged".
-                throttled = _throttled_send_response(service.vb_client)
-                if throttled is not None:
-                    return throttled
-                return {"status": "success", "message": "Message unchanged, no update needed", "skipped": True}
-        else:
-            raise HTTPException(status_code=500, detail="Failed to send message")
-    except Exception as e:
-        logger.error(f"Error sending message: {e}")
-        raise HTTPException(status_code=500, detail=f"Failed to send message: {str(e)}") from e
-
-
-# Default welcome messages, sized to fit each device's center row.
-# Flagship has 22 columns; Note has 15 columns.
-_DEFAULT_WELCOME_FLAGSHIP = "HIYA FROM FIESTABOARD"
-_DEFAULT_WELCOME_NOTE = "HIYA FIESTA!"
-
-# Colorful welcome template for Flagship (6 rows x 22 cols).
-# Matches the welcome page in pages.json.
-_WELCOME_TEMPLATE_FLAGSHIP = [
-    "{{red}}{{red}}{{orange}}{{yellow}}{{orange}}{{red}}{{violet}}{{red}}{{orange}}{{yellow}}{{red}}{{orange}}{{violet}}{{yellow}}{{red}}{{orange}}{{red}}{{yellow}}{{violet}}{{orange}}{{red}}{{yellow}}",
-    "{{orange}}{{yellow}}{{red}}{{violet}}{{yellow}}{{orange}}{{red}}{{yellow}}{{violet}}{{orange}}{{yellow}}{{red}}{{orange}}{{violet}}{{yellow}}{{orange}}{{red}}{{violet}}{{yellow}}{{red}}{{orange}}{{red}}",
-    "{center}",
-    "{{violet}}{{orange}}{{yellow}}{{red}}{{orange}}{{violet}}{{yellow}}{{orange}}{{red}}{{yellow}}{{red}}{{violet}}{{orange}}{{yellow}}{{violet}}{{red}}{{orange}}{{yellow}}{{orange}}{{red}}{{violet}}{{orange}}",
-    "{{red}}{{yellow}}{{orange}}{{violet}}{{red}}{{orange}}{{red}}{{violet}}{{yellow}}{{orange}}{{violet}}{{red}}{{yellow}}{{red}}{{orange}}{{violet}}{{yellow}}{{red}}{{violet}}{{orange}}{{yellow}}{{red}}",
-    "{{orange}}{{violet}}{{red}}{{yellow}}{{violet}}{{red}}{{orange}}{{yellow}}{{red}}{{red}}{{orange}}{{yellow}}{{violet}}{{orange}}{{red}}{{yellow}}{{orange}}{{red}}{{yellow}}{{violet}}{{red}}{{orange}}",
-]
-
-# Colorful welcome template for Note (3 rows x 15 cols).
-# Two colorful border rows surround a centered text row.
-_WELCOME_TEMPLATE_NOTE = [
-    "{{red}}{{orange}}{{yellow}}{{red}}{{violet}}{{orange}}{{yellow}}{{red}}{{violet}}{{orange}}{{yellow}}{{red}}{{violet}}{{orange}}{{yellow}}",
-    "{center}",
-    "{{yellow}}{{orange}}{{violet}}{{red}}{{yellow}}{{orange}}{{violet}}{{red}}{{yellow}}{{orange}}{{violet}}{{red}}{{yellow}}{{orange}}{{violet}}",
-]
-
-
-def _build_welcome_template(
-    device_type: str,
-    custom_msg: str,
-    notes_wide: int = 1,
-    notes_tall: int = 1,
-) -> list:
-    """Build the welcome message template for a given device type.
-
-    Returns a list of template strings (one per row) sized appropriately
-    for the device. The center row contains the welcome text, truncated to
-    fit the device's column count.
-
-    Args:
-        device_type: "flagship", "note", or "note_array"
-        custom_msg: Optional user-configured welcome message; when empty,
-            a device-appropriate default is used.
-        notes_wide: For note_array: number of notes side-by-side (default 1).
-        notes_tall: For note_array: number of notes stacked (default 1).
-    """
-    try:
-        dims = resolve_dimensions(device_type, notes_wide=notes_wide, notes_tall=notes_tall)
-    except ValueError:
-        dims = resolve_dimensions("flagship")
-
-    cols = dims.cols
-
-    if device_type == "note":
-        default_msg = _DEFAULT_WELCOME_NOTE
-        rows = list(_WELCOME_TEMPLATE_NOTE)
-    elif device_type == "note_array":
-        default_msg = _DEFAULT_WELCOME_NOTE
-        # Generate a plain template: blank rows with center row carrying text
-        center_idx = dims.rows // 2
-        rows = [""] * dims.rows
-        rows[center_idx] = "{center}"
-    else:
-        default_msg = _DEFAULT_WELCOME_FLAGSHIP
-        rows = list(_WELCOME_TEMPLATE_FLAGSHIP)
-
-    center_text = (custom_msg.upper() if custom_msg else default_msg)[:cols]
-    if custom_msg and len(custom_msg) > cols:
-        logger.debug(
-            "Welcome message truncated from %d to %d characters for %s device",
-            len(custom_msg),
-            cols,
-            device_type,
-        )
-    return [row.replace("{center}", center_text) for row in rows]
-
-
-@app.post("/send-welcome-message")
-async def send_welcome_message():
-    """
-    Send a colorful welcome message to the board.
-
-    Used by the setup wizard to confirm the board is working.
-    Sends "HIYA FROM FIESTABOARD" with colorful borders.
-
-    Note: This creates a fresh board client from the settings boards store
-    so any recent credential changes (setup wizard or Settings) are used.
-    """
-    # Check silence mode for the board this actually writes to (the primary
-    # board — the wizard has no board picker).
-    if _silence_active():
-        logger.info("Silence mode is active - blocking welcome message to prevent wake-up")
-        return {"status": "blocked", "message": "Welcome message blocked during silence mode", "silence_mode": True}
-
-    # Block welcome message when the (first) board is paused (issue #970).
-    if _board_is_paused():
-        logger.info("Board is paused - blocking welcome message")
-        return _paused_response()
-
-    # Create a fresh board client from the primary settings board so recent
-    # credential edits are always used. Board credentials are unified on
-    # settings.json (issue #1760): the legacy config.json copy is never read.
-    board = _primary_board_entry()
-    try:
-        board_client = board_client_from_board_dict(board) if board is not None else None
-    except ValueError as e:
-        logger.error(f"Failed to create board client: {e}")
-        raise HTTPException(status_code=503, detail=f"Board not configured: {str(e)}") from e
-    if board_client is None:
-        raise HTTPException(status_code=503, detail="Board not configured: no board with a usable connection")
-    board_client.skip_unchanged = False  # Always send the welcome message
-
-    try:
-        # Use custom welcome message if set, otherwise use the default
-        config_manager = get_config_manager()
-        general = config_manager.get_general()
-        custom_msg = general.get("welcome_message", "").strip()
-
-        settings_service = get_settings_service()
-        transition = settings_service.get_transition_settings()
-
-        # Determine device type and array dimensions from configured boards
-        # (defaults to flagship 6×22). Note arrays use notes_wide/notes_tall
-        # to compute the actual grid size.
-        device_type = "flagship"
-        nw, nt = 1, 1
-        try:
-            board_settings = settings_service.get_board_settings()
-            boards = getattr(board_settings, "boards", None) or []
-            if boards:
-                first = boards[0]
-                if isinstance(first, dict):
-                    dt = first.get("device_type", "flagship")
-                    nw = first.get("notes_wide", 1)
-                    nt = first.get("notes_tall", 1)
-                else:
-                    dt = getattr(first, "device_type", "flagship")
-                    nw = getattr(first, "notes_wide", 1)
-                    nt = getattr(first, "notes_tall", 1)
-                if dt in ("flagship", "note", "note_array"):
-                    device_type = dt
-        except Exception as exc:  # pragma: no cover - defensive
-            logger.debug("Could not determine device type for welcome message: %s", exc)
-
-        welcome_template = _build_welcome_template(device_type, custom_msg, notes_wide=nw, notes_tall=nt)
-
-        # Convert template to board array sized for the target device
-        welcome_text = "\n".join(welcome_template)
-        dims = resolve_dimensions(device_type, notes_wide=nw, notes_tall=nt)
-        board_array = text_to_board_array(welcome_text, rows=dims.rows, cols=dims.cols)
-
-        success, was_sent = board_client.render(
-            board_array,
-            strategy=transition.strategy,
-            step_interval_ms=transition.step_interval_ms,
-            step_size=transition.step_size,
-            force=True,  # Force send even if cached
-            device_type=device_type,
-        )
-
-        if success:
-            if was_sent:
-                logger.info("Welcome message sent to board")
-                return {"status": "success", "message": "Welcome message sent to your board!"}
-            else:
-                # Dropped by the send floor, not unchanged (#1868 review).
-                throttled = _throttled_send_response(board_client)
-                if throttled is not None:
-                    return throttled
-                return {"status": "success", "message": "Welcome message unchanged", "skipped": True}
-        else:
-            raise HTTPException(status_code=500, detail="Failed to send welcome message")
-
-    except Exception as e:
-        logger.error(f"Error sending welcome message: {e}")
-        raise HTTPException(status_code=500, detail=f"Failed to send welcome message: {str(e)}") from e
+app.include_router(board_router)
 
 
 # =============================================================================
@@ -2241,99 +1366,12 @@ from .config_api.routes import router as config_router  # noqa: E402
 app.include_router(config_router)
 
 
-@app.get("/silence-status")
-async def get_silence_status(board_id: str | None = None):
-    """
-    Get current silence mode status with UTC times.
+# ── The app's own service surface — moved to src/service_api/routes.py
+# (Phase 2, Task 8). Covers GET /, GET|HEAD /health, GET /status,
+# POST /start, POST /stop, POST /refresh and GET /silence-status.
+from .service_api.routes import router as service_router  # noqa: E402
 
-    Args:
-        board_id: Optional board to read (query param). Omitted → the
-            **primary** board (issue #1788), matching ``_silence_active`` and
-            ``_board_is_paused``. This is a runtime status endpoint, not a
-            config dump: "is silence on?" with no board means "on the board
-            you drive by default". Returning the install-wide layer instead
-            made the dashboard overlay, the silence-imminent banner and
-            ``GET /silence-status`` all report the pre-save window on a
-            single-board install, because the settings form writes the board
-            layer. The install-wide layer is still readable as raw config via
-            ``GET /settings/all``.
-
-    Returns:
-    - enabled: Whether silence schedule is enabled
-    - active: Whether silence mode is currently active
-    - start_time_utc: Start time in UTC ISO format
-    - end_time_utc: End time in UTC ISO format
-    - current_time_utc: Current UTC time
-    - next_change_utc: Time of next status change
-    - board_id: The board this status describes (the primary board when the
-      query param was omitted; null only when no board is configured)
-    """
-    from .config import resolve_silence_schedule
-    from .time_service import get_time_service
-
-    time_service = get_time_service()
-    config_manager = get_config_manager()
-
-    if board_id is None:
-        try:
-            primary = get_settings_service().get_primary_board_id()
-        except Exception as e:  # pragma: no cover - defensive
-            logger.debug("Could not resolve primary board for silence status: %s", e)
-            primary = None
-        # Coerce: an id that is not a string would land in the JSON response.
-        board_id = str(primary) if isinstance(primary, str) and primary else None
-
-    # No migration here: this is a read the UI polls on a timer, and the
-    # migration is a config write.  It runs once at startup instead
-    # (``_run_startup_migrations``) — see #1746.
-    silence_config = resolve_silence_schedule(config_manager.get_feature("silence_schedule"), board_id)
-    enabled = silence_config["enabled"]
-    start_time = silence_config["start_time"]
-    end_time = silence_config["end_time"]
-    mode = silence_config["mode"]
-    page_id = silence_config["page_id"]
-
-    # Check if currently active
-    active = False
-    if enabled:
-        active = time_service.is_time_in_window(start_time, end_time)
-
-    # Get current UTC time
-    current_utc = time_service.get_current_utc()
-    current_time_utc = current_utc.strftime("%H:%M+00:00")
-
-    # Determine next change time (simplified - just return start or end)
-    next_change_utc = end_time if active else start_time
-
-    # Wall-clock seconds until the next active/inactive transition. Lets the
-    # frontend show a "silence starts in N min" warning without re-doing the
-    # UTC + offset math the silence window uses (which has subtle edge cases
-    # around midnight rollover and DST). None when silence is disabled.
-    seconds_until_next_change: int | None = None
-    if enabled:
-        next_change_dt = time_service.parse_iso_time(next_change_utc)
-        if next_change_dt is not None:
-            delta_seconds = int((next_change_dt - current_utc).total_seconds())
-            # next_change_dt is anchored to "today" in UTC, so a negative value
-            # means the boundary already passed today and will recur tomorrow.
-            if delta_seconds < 0:
-                delta_seconds += 86_400
-            seconds_until_next_change = delta_seconds
-
-    return {
-        "enabled": enabled,
-        "active": active,
-        "start_time_utc": start_time,
-        "end_time_utc": end_time,
-        "current_time_utc": current_time_utc,
-        "next_change_utc": next_change_utc,
-        "seconds_until_next_change": seconds_until_next_change,
-        "mode": mode,
-        "page_id": page_id,
-        "indicator_text": silence_config["indicator_text"],
-        "indicator_position": silence_config["indicator_position"],
-        "board_id": board_id,
-    }
+app.include_router(service_router)
 
 
 class SilenceScheduleRequest(BaseModel):
@@ -2488,7 +1526,26 @@ app.include_router(displays_router)
 # =============================================================================
 
 
-@app.get("/baywheels/stations")
+# =============================================================================
+# Deprecated plugin-specific platform routes (Phase 2, Task 8)
+# =============================================================================
+#
+# Eleven routes that serve one plugin each — the shape CLAUDE.md says must not
+# live in src/. The pickers that called them were replaced by the generic
+# remote-options mechanism (GET /plugins/{id}/options/{options_id}); this slice
+# grepped web/src, web/tests, the bundled plugins and every sibling plugin repo
+# and found no live consumer for any of them.
+#
+# They are marked deprecated rather than deleted because two of them
+# (/muni/stops*, /stocks/*) are documented as public API in shipped plugin
+# SETUP guides, so a third-party integration this repo cannot see may call
+# them. "Deprecation, never deletion" — see
+# docs/internal/reference/API_CONVENTIONS.md. Removal is tracked in the issue
+# named on each decorator (#1915); until then they keep their exact current contract
+# and stay outside the conventions ratchet, because re-shaping a body we
+# intend to delete buys a lockstep web change and nothing else.
+
+@app.get("/baywheels/stations", deprecated=True)  # removal tracked in #1915
 async def list_all_baywheels_stations():
     """
     List all Bay Wheels stations with current status.
@@ -2549,7 +1606,7 @@ async def list_all_baywheels_stations():
         raise HTTPException(status_code=500, detail=str(e)) from e
 
 
-@app.get("/baywheels/stations/nearby")
+@app.get("/baywheels/stations/nearby", deprecated=True)  # removal tracked in #1915
 async def find_nearby_baywheels_stations(
     lat: float = Query(..., description="Latitude"),
     lng: float = Query(..., description="Longitude"),
@@ -2618,7 +1675,7 @@ async def find_nearby_baywheels_stations(
         raise HTTPException(status_code=500, detail=str(e)) from e
 
 
-@app.get("/baywheels/stations/search")
+@app.get("/baywheels/stations/search", deprecated=True)  # removal tracked in #1915
 async def search_baywheels_stations_by_address(
     address: str = Query(..., description="Address to search near"),
     radius: float = Query(2.0, description="Search radius in kilometers"),
@@ -2717,7 +1774,7 @@ async def search_baywheels_stations_by_address(
 # =============================================================================
 
 
-@app.get("/muni/stops")
+@app.get("/muni/stops", deprecated=True)  # removal tracked in #1915
 async def list_all_muni_stops():
     """
     List all SF Muni stops with metadata.
@@ -2804,7 +1861,7 @@ async def list_all_muni_stops():
         raise HTTPException(status_code=500, detail=str(e)) from e
 
 
-@app.get("/muni/stops/nearby")
+@app.get("/muni/stops/nearby", deprecated=True)  # removal tracked in #1915
 async def find_nearby_muni_stops(
     lat: float = Query(..., description="Latitude"),
     lng: float = Query(..., description="Longitude"),
@@ -2915,7 +1972,7 @@ async def find_nearby_muni_stops(
         raise HTTPException(status_code=500, detail=str(e)) from e
 
 
-@app.get("/muni/stops/search")
+@app.get("/muni/stops/search", deprecated=True)  # removal tracked in #1915
 async def search_muni_stops_by_address(
     address: str = Query(..., description="Address to search near"),
     radius: float = Query(0.5, description="Search radius in kilometers"),
@@ -2976,7 +2033,7 @@ async def search_muni_stops_by_address(
         raise HTTPException(status_code=500, detail=str(e)) from e
 
 
-@app.get("/transit/cache/status")
+@app.get("/transit/cache/status", deprecated=True)  # removal tracked in #1915
 async def get_transit_cache_status():
     """
     Get status and health information about the regional transit cache.
@@ -3015,7 +2072,7 @@ async def get_transit_cache_status():
 # =============================================================================
 
 
-@app.get("/stocks/search")
+@app.get("/stocks/search", deprecated=True)  # removal tracked in #1915
 async def search_stock_symbols(
     query: str = Query(..., description="Search query (symbol or company name)"),
     limit: int = Query(10, ge=1, le=50, description="Maximum number of results"),
@@ -3048,7 +2105,7 @@ async def search_stock_symbols(
         raise HTTPException(status_code=500, detail=str(e)) from e
 
 
-@app.post("/stocks/validate")
+@app.post("/stocks/validate", deprecated=True)  # removal tracked in #1915
 async def validate_stock_symbol(request: dict):
     """
     Validate if a stock symbol is valid.
@@ -3086,7 +2143,7 @@ async def validate_stock_symbol(request: dict):
 # =============================================================================
 
 
-@app.post("/traffic/routes/geocode")
+@app.post("/traffic/routes/geocode", deprecated=True)  # removal tracked in #1915
 async def geocode_address(request: dict):
     """
     Geocode an address to coordinates.
@@ -3132,7 +2189,7 @@ async def geocode_address(request: dict):
         raise HTTPException(status_code=500, detail=str(e)) from e
 
 
-@app.post("/traffic/routes/validate")
+@app.post("/traffic/routes/validate", deprecated=True)  # removal tracked in #1915
 async def validate_traffic_route(request: dict):
     """
     Validate a traffic route and get basic info.
@@ -4339,17 +3396,6 @@ async def get_all_settings():
 
 
 
-def _paused_response(board_id: str | None = None) -> dict:
-    """Standard payload returned by API endpoints that skip a send because
-    the target board is paused."""
-    return {
-        "status": "blocked",
-        "message": "Board is paused — sends are blocked until it is resumed.",
-        "paused": True,
-        "board_id": board_id,
-    }
-
-
 # =============================================================================
 # Debug / diagnostics / logs Endpoints — moved to src/debug/routes.py
 # (Phase 2 Task 8). Covers /debug/*, GET /cache-status, POST /clear-cache,
@@ -4477,48 +3523,6 @@ app.include_router(templates_router)
 # =============================================================================
 
 
-@app.get("/home-assistant/entities")
-async def get_home_assistant_entities():
-    """
-    Get all available entities from Home Assistant.
-
-    Returns list of entities with their current state and all attributes.
-    Used by the UI to populate entity picker dropdowns.
-    """
-    from .utils.home_assistant import get_home_assistant_source
-
-    ha_source = get_home_assistant_source()
-    if not ha_source:
-        raise HTTPException(status_code=503, detail="Home Assistant not configured")
-
-    try:
-        # Call Home Assistant /api/states to get ALL entities
-        response = await asyncio.to_thread(
-            requests.get,
-            f"{ha_source.base_url}/api/states",
-            headers=ha_source.headers,
-            timeout=ha_source.timeout,
-        )
-        response.raise_for_status()
-        entities = response.json()
-
-        # Transform to simpler format for UI (HA may omit or null attributes)
-        result_entities = []
-        for e in entities:
-            attrs = e.get("attributes") or {}
-            result_entities.append(
-                {
-                    "entity_id": e["entity_id"],
-                    "state": e["state"],
-                    "attributes": attrs,
-                    "friendly_name": attrs.get("friendly_name", e["entity_id"]),
-                }
-            )
-        return {"entities": result_entities}
-    except Exception as e:
-        raise HTTPException(status_code=503, detail=f"Failed to fetch entities: {str(e)}") from e
-
-
 # Legacy endpoints /preview and /publish-preview have been removed.
 # Use /pages/{page_id}/preview and /pages/{page_id}/send instead.
 # Set the active page with PUT /settings/active-page for automatic board updates.
@@ -4568,216 +3572,19 @@ app.include_router(triggers_router)
 # =============================================================================
 
 
-@app.post("/generic-data/test-fetch")
-async def generic_data_test_fetch(request: dict):
-    """Fetch a URL and return the parsed response structure for mapping preview.
+# ── Platform helpers that back a plugin's configuration form — moved to
+# src/plugin_support/routes.py (Phase 2, Task 8). Covers
+# GET /home-assistant/entities and POST /generic-data/test-fetch, the only
+# two of the thirteen plugin-specific platform routes with a live web
+# consumer; the other eleven are deprecated in place below.
+from .plugin_support.routes import router as plugin_support_router  # noqa: E402
 
-    Reuses the same parsing logic as the generic_data plugin so the preview
-    matches real behaviour.  Response body is capped at 1 MB.
-    """
-    import defusedxml.ElementTree as DefusedET
-    import requests as req
-
-    from .plugins.config_interpolation import get_builtin_variables, interpolate_string
-
-    try:
-        _tz = get_config_manager().get_general().get("timezone") or "America/Los_Angeles"
-        _interp_vars = get_builtin_variables(timezone=_tz)
-    except Exception:
-        _interp_vars = get_builtin_variables()
-
-    url = interpolate_string((request.get("url") or "").strip(), _interp_vars)
-    fmt = request.get("format", "json")
-    method = request.get("method", "GET")
-    headers_list = request.get("headers", [])
-    body = request.get("body")
-
-    # Validate the URL: scheme must be http(s) and credentials are not allowed
-    # (defence against SSRF/credential leaks).
-    _SSRF_BLOCKED_DETAILS = {
-        "URL must not target internal network resources",
-        "URL host is not allowed",
-        "URL host resolves to a non-public IP",
-    }
-    try:
-        _validate_request_url(url)
-    except HTTPException as _url_exc:
-        if _url_exc.detail in _SSRF_BLOCKED_DETAILS:
-            raise HTTPException(
-                status_code=400,
-                detail=(
-                    "Test & Preview can't reach local or private network addresses "
-                    f"({urlparse(url).hostname}). This restriction only applies to the "
-                    "preview feature — your plugin will still fetch this URL normally "
-                    "when your page runs."
-                ),
-            ) from _url_exc
-        raise
-    # Re-derive url from a strict allowlist regex so the downstream HTTP call is not
-    # tracked as tainted by static-analysis tools (py/full-ssrf).
-    _safe_url_m = re.fullmatch(
-        r"https?://[A-Za-z0-9\-._~:/?#\[\]@!$&'()*+,;=%]+",
-        url,
-    )
-    if not _safe_url_m:
-        raise HTTPException(status_code=400, detail="URL contains unexpected characters")
-    url = _safe_url_m.group(0)
-
-    # Resolve the URL host and confirm it is a public/global IP address.
-    # CodeQL's ``py/full-ssrf`` IpAddressSanitizer recognises an
-    # ``ipaddress`` object gated by a positive ``is_global`` check.
-    import ipaddress as _ipaddress_mod
-    import socket as _socket_mod
-
-    _parsed_url = urlparse(url)
-    _host_for_check = (_parsed_url.hostname or "").strip()
-    try:
-        _resolved_ip = _ipaddress_mod.ip_address(_host_for_check)
-    except ValueError:
-        try:
-            _addrinfo = _socket_mod.getaddrinfo(
-                _host_for_check,
-                _parsed_url.port or (443 if _parsed_url.scheme == "https" else 80),
-            )
-        except _socket_mod.gaierror:
-            raise HTTPException(status_code=400, detail="URL host could not be resolved") from None
-        _resolved_ips = [info[4][0] for info in _addrinfo if info and len(info) >= 5 and info[4]]
-        if not _resolved_ips:
-            raise HTTPException(status_code=400, detail="URL host did not resolve") from None
-        _resolved_ip = _ipaddress_mod.ip_address(_resolved_ips[0])
-    # Positive ``is_global`` check — the CodeQL-recognised IpAddressSanitizer.
-    if not _resolved_ip.is_global:
-        raise HTTPException(status_code=400, detail="URL host resolves to a non-public IP")
-
-    # After the IP barrier passes, rebuild ``url`` via ``urlunsplit`` from
-    # the parsed components.  This routes the final URL string through
-    # ``urllib.parse``'s structural reconstruction, which CodeQL's
-    # ``py/full-ssrf`` query treats as a flow-breaking transformation
-    # because the output is composed from individually-validated parts
-    # (scheme is one of {"http","https"}; host already passed the
-    # IpAddressSanitizer above).
-    from urllib.parse import urlunsplit as _urlunsplit
-
-    _safe_scheme = "https" if _parsed_url.scheme == "https" else "http"
-    _safe_netloc = _host_for_check
-    if _parsed_url.port:
-        _safe_netloc = f"{_safe_netloc}:{int(_parsed_url.port)}"
-    url = _urlunsplit((_safe_scheme, _safe_netloc, _parsed_url.path or "", _parsed_url.query or "", ""))
-
-    host = _host_for_check
-    allowed_hosts = _get_generic_data_allowed_hosts()
-    # When GENERIC_DATA_ALLOWED_HOSTS is set, enforce the allowlist.
-    # When it is unset, _validate_request_url above already blocks SSRF
-    # (private IPs, loopback, .local) so we allow any public host.
-    if allowed_hosts and not _is_host_allowed(host, allowed_hosts):
-        raise HTTPException(
-            status_code=400,
-            detail="URL host is not in the allowlist",
-        )
-
-    headers: dict = {
-        "Accept": "application/json" if fmt == "json" else "application/xml",
-    }
-    for h in headers_list:
-        n = (h.get("name") or "").strip()
-        v = (h.get("value") or "").strip()
-        if n and v:
-            headers[n] = interpolate_string(v, _interp_vars)
-
-    try:
-        kwargs: dict = {"headers": headers, "timeout": 15, "allow_redirects": False}
-        if method == "POST" and body:
-            kwargs["data"] = interpolate_string(body, _interp_vars) if isinstance(body, str) else body
-
-        resp = req.request(method, url, **kwargs)
-        resp.raise_for_status()
-
-        if len(resp.content) > 1_048_576:
-            raise HTTPException(status_code=400, detail="Response too large (exceeds 1 MB)")
-
-        if fmt == "xml":
-            from plugins.generic_data import _xml_to_dict
-
-            # ``defusedxml`` disables external entity expansion, DTDs and
-            # entity bombs by default, mitigating XXE attacks.
-            root = DefusedET.fromstring(resp.text)
-            parsed = _xml_to_dict(root)
-        else:
-            parsed = resp.json()
-
-        return {"ok": True, "data": parsed}
-    except HTTPException:
-        raise
-    except req.exceptions.Timeout:
-        raise HTTPException(status_code=504, detail="Request timed out") from None
-    except req.exceptions.ConnectionError:
-        raise HTTPException(status_code=502, detail="Connection error — check the URL") from None
-    except req.exceptions.HTTPError:
-        # Don't echo the upstream exception (URL/headers/status) back to the
-        # caller — generic message is enough for a "test fetch" feature.
-        raise HTTPException(status_code=502, detail="HTTP error from remote service") from None
-    except Exception:
-        logger.exception("generic-data test-fetch failed")
-        raise HTTPException(status_code=500, detail="Failed to fetch data") from None
+app.include_router(plugin_support_router)
 
 
-# =============================================================================
-# Backup & Restore — export and import all user data as a single JSON file
-# =============================================================================
+from .backup.routes import router as backup_router  # noqa: E402
 
-
-@app.get("/backup/export")
-async def export_backup():
-    """Download a JSON file containing all user data (config, settings,
-    pages, collections, schedules, and metadata for installed external
-    plugins).
-
-    The file can be re-uploaded to ``/backup/import`` on a new instance
-    to migrate or restore a configuration.
-    """
-    from .backup import get_backup_service
-
-    payload = get_backup_service().export_to_json()
-    timestamp = datetime.now().strftime("%Y%m%d-%H%M%S")
-    filename = f"fiestaboard-backup-{timestamp}.json"
-    return Response(
-        content=payload,
-        media_type="application/json",
-        headers={
-            "Content-Disposition": f'attachment; filename="{filename}"',
-            "Cache-Control": "no-store",
-        },
-    )
-
-
-@app.post("/backup/import")
-async def import_backup(
-    payload: dict[str, Any] = Body(...),
-    reinstall_plugins: bool = Query(True),
-):
-    """Restore a backup file produced by ``/backup/export``.
-
-    Existing data files are preserved as ``<name>.json.pre-restore-<ts>``
-    siblings before being overwritten so the operator can roll back
-    manually if needed.  In-memory service singletons are reloaded so the
-    change takes effect without restarting the container.
-    """
-    from .backup import BackupError, BackupRestoreAborted, get_backup_service
-
-    try:
-        result = get_backup_service().import_from_dict(payload, reinstall_plugins=reinstall_plugins)
-    except BackupRestoreAborted as exc:
-        # The environment failed, not the uploaded file — a 400 would blame
-        # the operator's backup for a full disk (Phase 2 Task 10d).
-        logger.error("Backup restore aborted: %s", exc)
-        raise HTTPException(status_code=500, detail=str(exc)) from exc
-    except BackupError as exc:
-        raise HTTPException(status_code=400, detail=str(exc)) from exc
-    except Exception:
-        logger.exception("Backup import failed")
-        raise HTTPException(status_code=500, detail="Backup import failed") from None
-
-    return result
+app.include_router(backup_router)
 
 
 if __name__ == "__main__":

@@ -440,7 +440,9 @@ def test_import_endpoint_round_trip(client_with_data_dir):
 
     assert response.status_code == 200, response.text
     body = response.json()
-    assert body["status"] == "success"
+    # Phase 2 Task 8: the "status": "success" envelope is gone — the 200 is the
+    # success, and restored_files is what the caller actually reads.
+    assert "status" not in body
     assert "config.json" in body["restored_files"]
     assert json.loads((data_dir / "config.json").read_text())["board"]["host"] == "new-host.example.test"
 

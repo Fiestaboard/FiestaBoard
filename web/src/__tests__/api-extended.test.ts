@@ -30,13 +30,17 @@ describe("API Extended Tests", () => {
   describe("Service control endpoints", () => {
     it("startService sends POST", async () => {
       const result = await api.startService();
-      expect(result.status).toBe("started");
+      // Phase 2 Task 8: the `status: "started"` envelope became a state the
+      // caller can branch on without string-matching.
+      expect(result.running).toBe(true);
+      expect(result.changed).toBe(true);
       expect(result.message).toContain("started");
     });
 
     it("stopService sends POST", async () => {
       const result = await api.stopService();
-      expect(result.status).toBe("stopped");
+      expect(result.running).toBe(false);
+      expect(result.changed).toBe(true);
       expect(result.message).toContain("stopped");
     });
   });
@@ -961,12 +965,22 @@ describe("API Extended Tests", () => {
 
     it("sendWelcomeMessage sends POST", async () => {
       server.use(
-        http.post(`${API_BASE}/send-welcome-message`, () =>
-          HttpResponse.json({ status: "success", message: "Welcome sent" }),
-        ),
+        http.post(`${API_BASE}/send-welcome-message`, () => HttpResponse.json({ message: "Welcome sent", sent: true })),
       );
       const result = await api.sendWelcomeMessage();
-      expect(result.status).toBe("success");
+      expect(result.sent).toBe(true);
+      expect(result.message).toBe("Welcome sent");
+    });
+
+    it("sendWelcomeMessage surfaces a quiet-hours refusal as a 409 ApiError", async () => {
+      // Phase 2 Task 8: a silence window used to answer 200 with
+      // `status: "blocked"`; the wizard now branches on the status code.
+      server.use(
+        http.post(`${API_BASE}/send-welcome-message`, () =>
+          HttpResponse.json({ detail: "Manual sends are blocked during silence mode." }, { status: 409 }),
+        ),
+      );
+      await expect(api.sendWelcomeMessage()).rejects.toMatchObject({ status: 409 });
     });
 
     it("enableLocalApi sends request body", async () => {

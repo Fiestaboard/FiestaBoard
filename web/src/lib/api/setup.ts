@@ -22,11 +22,17 @@ export interface BoardTestResponse {
   troubleshooting?: string[];
 }
 
+/**
+ * `POST /send-welcome-message` (Phase 2 Task 8 conventions pass).
+ *
+ * The `status: "blocked" | "success"` envelope is gone. A silence window or a
+ * paused board is now a 409 that `fetchApi` throws as an `ApiError`, and
+ * `sent: false` means only "the board already showed this" — see
+ * `src/board_api/routes.py`.
+ */
 export interface WelcomeMessageResponse {
-  status: string;
   message: string;
-  skipped?: boolean;
-  silence_mode?: boolean;
+  sent: boolean;
 }
 
 export interface EnableLocalApiRequest {
