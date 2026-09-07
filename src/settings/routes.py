@@ -35,6 +35,12 @@ from typing import Any
 import requests
 from fastapi import APIRouter, HTTPException
 
+from src.board_guards import (
+    validate_board_host as _validate_board_host,
+)
+from src.board_guards import (
+    validate_board_host_is_local_network as _validate_board_host_is_local_network,
+)
 from src.board_send_executor import run_board_send
 from src.devices import classify_dimensions
 
@@ -138,8 +144,6 @@ _board_is_paused = _seam("_board_is_paused")
 _board_dims = _seam("_board_dims")
 _apply_mqtt_config = _seam("_apply_mqtt_config")
 _reinitialize_board_clients = _seam("_reinitialize_board_clients")
-_validate_board_host = _seam("_validate_board_host")
-_validate_board_host_is_local_network = _seam("_validate_board_host_is_local_network")
 
 # Shared with ``src/schedules/routes.py``; cannot move until that domain owns
 # a copy or a common module exists (addendum 3).

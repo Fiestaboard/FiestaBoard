@@ -37,11 +37,13 @@ from .auth.routes import router as auth_router  # noqa: E402
 # Re-export: src/mcp_server.py imports this name from here, and
 # tests/test_api_extended.py exercises the helper through it.
 from .board_chars import characters_to_message as _characters_to_message  # noqa: E402,F401
-from .board_client import (
-    board_client_from_board_dict,  # noqa: E402, F401  (patch seam: the /settings router resolves this
-)
 
-# through `src.api_server` at call time — see src/settings/routes.py)
+# Patch seams (Phase 2, Task 8): api_server has no handler of its own left that
+# calls these, but src/settings/routes.py resolves them through
+# `src.api_server` at call time so the ~200 tests that patch them at that path
+# keep steering the moved /settings handlers.
+from .board_client import board_client_from_board_dict  # noqa: E402, F401  (patch seam)
+
 # Board lookup / send guards and the DisplayService accessor now live in
 # neutral modules so the extracted routers can import them directly instead of
 # reaching back into this one at call time (Phase 2 §2.3). They stay bound as
@@ -52,13 +54,7 @@ from .board_guards import (  # noqa: E402, F401  (patch seams, see above)
     _board_is_paused,
     _require_board,
 )
-from .board_guards import validate_board_host as _validate_board_host  # noqa: E402, F401
-from .board_guards import (  # noqa: E402, F401
-    validate_board_host_is_local_network as _validate_board_host_is_local_network,
-)
-from .collections.models import is_collection_id  # noqa: E402, F401  (patch seam: the /settings router resolves this
-
-# through `src.api_server` at call time — see src/settings/routes.py)
+from .collections.models import is_collection_id  # noqa: E402, F401  (patch seam)
 from .collections.service import (  # noqa: E402
     get_collection_service,
     resolve_active_page_id,
@@ -73,9 +69,7 @@ from .collections.service import (  # noqa: E402
 # nothing.
 from .config import Config  # noqa: E402,F401  (41 tests patch src.api_server.Config.*)
 from .config_manager import get_config_manager  # noqa: E402
-from .devices import resolve_dimensions  # noqa: E402, F401  (patch seam: the /settings router resolves this
-
-# through `src.api_server` at call time — see src/settings/routes.py)
+from .devices import resolve_dimensions  # noqa: E402, F401  (patch seam)
 from .display_runtime import (  # noqa: E402
     _format_uptime,  # noqa: F401  (re-export: pre-move patch target)
     _get_board_client,  # noqa: F401  (re-export: pre-move patch target)
@@ -106,20 +100,14 @@ from .log_store import (  # noqa: E402
     _read_logs_from_files,  # noqa: F401  (re-export: pre-move patch target)
     _setup_file_logging,  # noqa: F401  (re-export: pre-move patch target)
 )
-from .pages.service import (  # noqa: E402, F401  (patch seam: the /settings router resolves this
+from .pages.service import (  # noqa: E402, F401  (patch seam)
     check_ref_board_compatibility,
     get_page_service,
 )
-
-# through `src.api_server` at call time — see src/settings/routes.py)
 from .panels.service import get_panel_service  # noqa: E402, F401  (patch seam, see above)
 from .paths import get_data_dir  # noqa: E402, F401  (re-export: patch seam)
-from .settings.service import get_settings_service  # noqa: E402, F401  (patch seam: the /settings router resolves this
-
-# through `src.api_server` at call time — see src/settings/routes.py)
-from .text_to_board import text_to_board_array  # noqa: E402, F401  (patch seam: the /settings router resolves this
-
-# through `src.api_server` at call time — see src/settings/routes.py)
+from .settings.service import get_settings_service  # noqa: E402, F401  (patch seam)
+from .text_to_board import text_to_board_array  # noqa: E402, F401  (patch seam)
 from .time_service import reset_time_service  # noqa: E402
 
 logger = logging.getLogger(__name__)
