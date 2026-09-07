@@ -629,4 +629,8 @@ async def send_page(
             "board_id": board_id,
         }
 
-    return await asyncio.to_thread(_work)
+    # Board network I/O goes on the dedicated bounded send pool, never the
+    # shared default executor (#1878) — see src/board_send_executor.py.
+    from src.board_send_executor import run_board_send
+
+    return await run_board_send(_work)

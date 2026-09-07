@@ -35,6 +35,7 @@ from .auth import is_auth_enabled  # noqa: E402
 from .auth.middleware import AuthMiddleware  # noqa: E402
 from .auth.routes import router as auth_router  # noqa: E402
 from .board_client import board_client_from_board_dict  # noqa: E402
+from .board_send_executor import run_board_send  # noqa: E402
 from .collections.models import is_collection_id  # noqa: E402
 from .collections.service import get_collection_service  # noqa: E402
 from .config import Config  # noqa: E402
@@ -779,6 +780,15 @@ async def lifespan(app: FastAPI):
         shutdown_plugin_fetch_executor()
     except Exception:
         logger.debug("Failed to stop plugin-fetch executor during shutdown", exc_info=True)
+
+    # Stop the dedicated board-send pool (issue #1878). wait=False for the
+    # same reason: a wedged board must not stall process shutdown.
+    try:
+        from .board_send_executor import shutdown_board_send_executor
+
+        shutdown_board_send_executor()
+    except Exception:
+        logger.debug("Failed to stop board-send executor during shutdown", exc_info=True)
 
 
 # Create FastAPI app
@@ -2208,7 +2218,7 @@ async def refresh_display(board_id: str | None = None, payload: dict | None = Bo
             # keep the event loop free (#1826); _send_with_status moves as one
             # call because its failure reason lives in a thread-local that is
             # set and read inside the same sync call.
-            sent, error = await asyncio.to_thread(
+            sent, error = await run_board_send(
                 _send_with_status, service, "check_and_send_active_page_with_status", "check_and_send_active_page"
             )
             if error:
@@ -2229,7 +2239,7 @@ async def refresh_display(board_id: str | None = None, payload: dict | None = Bo
         is_primary = board_id == get_settings_service().get_primary_board_id()
         # Board network I/O — off the event loop (#1826); _send_with_status
         # moves as one call (thread-local failure reason, see above).
-        sent, error = await asyncio.to_thread(
+        sent, error = await run_board_send(
             _send_with_status,
             service,
             "check_and_send_for_board_with_status",
@@ -5126,7 +5136,7 @@ async def restore_after_transition_test(request: dict | None = None):
         dims = resolve_dimensions(page.device_type, page.notes_wide, page.notes_tall)
     grid = _render_live_page_grid(active_page_id, dims.rows, dims.cols)
 
-    success, was_sent = await asyncio.to_thread(board_client.render, grid, strategy=None, force=True)
+    success, was_sent = await run_board_send(board_client.render, grid, strategy=None, force=True)
     if not success:
         raise HTTPException(status_code=502, detail="Board unreachable - restore failed")
 
@@ -5410,7 +5420,7 @@ async def set_active_page(request: dict):
                     logger.warning(f"Active page set but render unavailable, not sent: {render_page_id}")
         return sent_to_board, paused, send_error
 
-    sent_to_board, paused, send_error = await asyncio.to_thread(_work)
+    sent_to_board, paused, send_error = await run_board_send(_work)
 
     # status stays "success" (the page selection itself was persisted); a
     # render/send problem is reported via error + sent_to_board=False, the
@@ -7390,7 +7400,7 @@ async def render_template_live(request: dict):
                 if isinstance(live_strategy, str) and live_strategy.startswith(TRANSITION_PLUGIN_PREFIX):
                     live_strategy = None
                 try:
-                    success, was_sent = await asyncio.to_thread(
+                    success, was_sent = await run_board_send(
                         client.send_characters,
                         board_array,
                         strategy=live_strategy,
@@ -7473,7 +7483,7 @@ async def force_refresh():
         return _send_with_status(service, "check_and_send_active_page_with_status", "check_and_send_active_page")
 
     try:
-        sent, error = await asyncio.to_thread(_work)
+        sent, error = await run_board_send(_work)
         if error:
             raise HTTPException(status_code=500, detail=f"Failed to force refresh: {error}")
         return {
