@@ -7,6 +7,54 @@ three response shapes, zero 201s, `response_model` on 19 of 179 endpoints,
 ~30 failure responses served as HTTP 200, and both string and dict
 `HTTPException.detail` payloads — these rules exist so that never regrows.
 
+## Enforcement: the conventions ratchet
+
+These rules are a build failure, not a document.
+`tests/test_api_conventions_ratchet.py` checks four of them against the live
+route table on every test run:
+
+| Rule id | What fails the build |
+| --- | --- |
+| `response_model` | A route with no `response_model=` |
+| `no_200_on_failure` | A `return` inside an `except`, or a `{"success": false}` / `{"status": "error"}` / `{"valid": false}` body on a route that answers 2xx |
+| `typed_body` | A request body parameter annotated `dict`, `dict[str, Any]`, or `Any` |
+| `declared_errors` | A route that declares no 4xx in `responses=` |
+
+It is a **ratchet**: it only checks domains listed in
+`tests/conventions_manifest.json`, and that list only grows.
+
+```json
+{
+  "converted_domains": ["collections"],
+  "exceptions": [
+    {
+      "route": "POST /plugins/{plugin_id}/options/{options_id}",
+      "rule": "no_200_on_failure",
+      "reason": "Returns the last good options with an error field while a form is still being filled in; a 4xx would blank the user's in-progress form."
+    }
+  ]
+}
+```
+
+**Opting a domain in.** Append the domain's router tag (the `<domain>` in
+`APIRouter(tags=[<domain>])`) to `converted_domains` — in the same PR that
+converts it, not before. The recommended order is to add it *first*, capture
+the four failures, and put that output in the commit body as the fail-first
+evidence for the conversion.
+
+**Recording an exception.** Add one `{"route", "rule", "reason"}` entry per
+excused route+rule pair. `route` is `"METHOD /path"` exactly as the app
+serves it; `rule` is one of the four ids above; `reason` explains why the
+convention is wrong *here*, in terms a reviewer can argue with. A stale or
+mistyped entry fails the build rather than silently excusing nothing: the
+manifest test rejects unknown rule ids, duplicate pairs, routes the app does
+not serve, and exceptions whose domain is not in `converted_domains`.
+
+**Where the rules are ambiguous, the ratchet flags.** A `return` inside an
+`except` is reported even when it is deliberate, because a checker that
+guesses is a checker nobody trusts. The cost of a false positive is one
+manifest entry; the cost of a false negative is a shipped 200-on-failure.
+
 ## Response shapes
 
 - **Bare bodies.** Return the resource (or list) itself — no `{"status":
@@ -84,3 +132,6 @@ contract through a deprecation window:
    depend on them.
 4. The route-inventory golden (`tests/test_route_inventory.py`) changes only
    with an explanation in the same commit.
+5. Add the domain to `converted_domains` in
+   `tests/conventions_manifest.json` (see *Enforcement* above) so the pass
+   cannot silently unwind later.

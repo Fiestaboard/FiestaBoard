@@ -26,6 +26,7 @@ from __future__ import annotations
 
 import json
 import os
+from collections.abc import Iterator
 from pathlib import Path
 from typing import Any
 
@@ -50,37 +51,76 @@ def _describe(route: Any, prefix: str) -> dict[str, Any]:
     }
 
 
-def _walk(routes: Any, prefix: str = "") -> list[dict[str, Any]]:
-    """Flatten a Starlette/FastAPI route list into inventory records.
+def _iter_routes(routes: Any, prefix: str = "") -> Iterator[tuple[str, Any]]:
+    """Yield ``(accumulated_prefix, route)`` for every leaf route.
 
     Two node types need special handling:
 
     * ``Mount`` wraps a foreign ASGI app (the MCP server). Its internal
-      routes belong to that app, not to us, so the mount point is recorded
+      routes belong to that app, not to us, so the mount point is yielded
       as a single entry and not descended into.
     * FastAPI >= 0.130 wraps ``include_router()`` results in an internal
       ``_IncludedRouter`` node that exposes no ``path``. The real routes
       hang off ``include_context``, so recurse through that with the
       router's prefix applied.
     """
-    collected: list[dict[str, Any]] = []
     for route in routes:
         include_context = getattr(route, "include_context", None)
         if include_context is not None:
-            collected.extend(
-                _walk(
-                    include_context.included_router.routes,
-                    prefix + (include_context.prefix or ""),
-                )
+            yield from _iter_routes(
+                include_context.included_router.routes,
+                prefix + (include_context.prefix or ""),
             )
             continue
-        collected.append(_describe(route, prefix))
-    return collected
+        yield prefix, route
+
+
+def _walk(routes: Any, prefix: str = "") -> list[dict[str, Any]]:
+    """Flatten a Starlette/FastAPI route list into inventory records."""
+    return [_describe(route, route_prefix) for route_prefix, route in _iter_routes(routes, prefix)]
 
 
 def build_route_inventory() -> list[dict[str, Any]]:
-    """Return the app's full route table, sorted deterministically."""
+    """Return the app's full route table, sorted deterministically.
+
+    The records this returns are recorded **verbatim** in
+    ``tests/golden/api_routes.json``. Adding a field here churns the golden
+    for every one of its 200+ entries, so consumers that need richer route
+    metadata use :func:`build_route_metadata` instead.
+    """
     records = _walk(app.routes)
+    return sorted(records, key=lambda r: (r["path"], r["methods"], r["name"] or "", r["kind"]))
+
+
+def build_route_metadata(app_obj: Any = None) -> list[dict[str, Any]]:
+    """Return the route table with the extra fields conventions checks need.
+
+    Superset of :func:`build_route_inventory`'s records, adding ``tags``,
+    ``response_model``, ``status_code``, ``responses``, ``endpoint`` and the
+    live ``route`` object. Kept as a *separate* accessor precisely because
+    ``build_route_inventory`` is golden-recorded: the conventions ratchet
+    (``tests/test_api_conventions_ratchet.py``) can grow the fields it needs
+    without ever touching ``tests/golden/api_routes.json``.
+
+    ``app_obj`` defaults to the real application; tests that need to prove a
+    rule fires pass a purpose-built app instead.
+    """
+    if app_obj is None:
+        app_obj = app
+    records: list[dict[str, Any]] = []
+    for prefix, route in _iter_routes(app_obj.routes):
+        record = _describe(route, prefix)
+        record.update(
+            {
+                "tags": list(getattr(route, "tags", None) or []),
+                "response_model": getattr(route, "response_model", None),
+                "status_code": getattr(route, "status_code", None),
+                "responses": dict(getattr(route, "responses", None) or {}),
+                "endpoint": getattr(route, "endpoint", None),
+                "route": route,
+            }
+        )
+        records.append(record)
     return sorted(records, key=lambda r: (r["path"], r["methods"], r["name"] or "", r["kind"]))
 
 
