@@ -30,8 +30,9 @@ test.describe("Settings – Full Coverage", () => {
       body: JSON.stringify({ timezone: "America/New_York" }),
     });
     expect(putRes.ok).toBe(true);
+    // PUT answers with the saved config, not a status envelope (Phase 2 slice).
     const putData = await putRes.json();
-    expect(putData.status).toBe("success");
+    expect(putData.timezone).toBe("America/New_York");
 
     // Reset to original
     await fetch(`${API_URL}/config/general`, {

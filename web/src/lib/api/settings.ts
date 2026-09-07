@@ -140,8 +140,11 @@ export const settingsApi = {
     }),
   // General configuration
   getGeneralConfig: () => fetchApi<GeneralConfig>("/config/general"),
+  // Answers with the saved config, not a `{status, general}` envelope
+  // (Phase 2 config slice). Neither call site reads the body — both
+  // invalidate the all-settings query — so the change is type-only here.
   updateGeneralConfig: (config: Partial<GeneralConfig>) =>
-    fetchApi<{ status: string; general: GeneralConfig }>("/config/general", {
+    fetchApi<GeneralConfig>("/config/general", {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(config),
