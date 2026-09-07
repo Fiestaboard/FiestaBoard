@@ -98,6 +98,10 @@ async def test_live_preview_burst_does_not_starve_a_real_send():
             with (
                 patch("src.api_server.get_template_engine", return_value=engine),
                 patch("src.api_server.get_settings_service", return_value=settings),
+                # `_require_board` resolves the boards list through
+                # `src.board_guards` since the pages slice moved it there, so
+                # stubbing only `api_server` leaves the lookup 404ing.
+                patch("src.board_guards.get_settings_service", return_value=settings),
                 patch("src.api_server.board_client_from_board_dict", return_value=preview_client),
                 patch("src.api_server._board_is_paused", return_value=False),
                 patch("src.api_server.get_service", return_value=service),
