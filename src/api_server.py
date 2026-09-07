@@ -48,7 +48,7 @@ from .board_guards import (  # noqa: E402
     _require_board,
     _silence_active,
 )
-from .board_send_executor import run_board_send  # noqa: E402
+from .board_send_executor import run_board_preview, run_board_send  # noqa: E402
 from .collections.models import is_collection_id  # noqa: E402
 from .collections.service import (  # noqa: E402
     get_collection_service,
@@ -808,12 +808,14 @@ async def lifespan(app: FastAPI):
     except Exception:
         logger.debug("Failed to stop plugin-fetch executor during shutdown", exc_info=True)
 
-    # Stop the dedicated board-send pool (issue #1878). wait=False for the
-    # same reason: a wedged board must not stall process shutdown.
+    # Stop the dedicated board-send and live-preview pools (issue #1878).
+    # wait=False for the same reason: a wedged board must not stall process
+    # shutdown.
     try:
-        from .board_send_executor import shutdown_board_send_executor
+        from .board_send_executor import shutdown_board_preview_executor, shutdown_board_send_executor
 
         shutdown_board_send_executor()
+        shutdown_board_preview_executor()
     except Exception:
         logger.debug("Failed to stop board-send executor during shutdown", exc_info=True)
 
@@ -7163,7 +7165,10 @@ async def render_template_live(request: dict):
                 if isinstance(live_strategy, str) and live_strategy.startswith(TRANSITION_PLUGIN_PREFIX):
                     live_strategy = None
                 try:
-                    success, was_sent = await run_board_send(
+                    # Live-editor previews get their own bounded pool (#1878):
+                    # rapid-fire keystroke sends must not occupy the workers
+                    # /refresh, /force-refresh and POST /pages/{id}/send need.
+                    success, was_sent = await run_board_preview(
                         client.send_characters,
                         board_array,
                         strategy=live_strategy,

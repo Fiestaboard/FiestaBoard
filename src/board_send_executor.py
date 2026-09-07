@@ -18,6 +18,15 @@ Giving the send endpoints their own bounded pool decouples the two failure
 modes. Send saturation now degrades only sends; the shared pool stays free for
 everything else. The pool is deliberately SMALL: sends are serialized per board
 by the send worker anyway (#1755), so extra threads would only queue deeper.
+
+The same argument then applies one level down. ``POST /templates/render/live``
+is the live template editor's board write, and its own handler calls it
+"rapid-fire" — one board write per keystroke, each of them seconds of blocking
+network I/O. Sharing the send pool with it recreated the original failure mode
+inside the fix: measured here, a ``POST /refresh`` queued 14.80s behind twelve
+concurrent live previews (three waves of the four send workers). Previews
+therefore get a second, smaller pool of their own, so a burst of them degrades
+only previews.
 """
 
 from __future__ import annotations
@@ -35,8 +44,17 @@ from typing import Any, TypeVar
 # being driven at once plus the occasional out-of-band send.
 BOARD_SEND_MAX_WORKERS = 4
 
+# Concurrency ceiling for live-editor previews. Smaller than the send pool on
+# purpose: a preview burst is one human typing, and the value of the pool is
+# the BOUND, not the throughput. It must stay below BOARD_SEND_MAX_WORKERS so
+# that even a preview flood cannot consume send capacity indirectly.
+BOARD_PREVIEW_MAX_WORKERS = 2
+
 _executor: ThreadPoolExecutor | None = None
 _executor_lock = threading.Lock()
+
+_preview_executor: ThreadPoolExecutor | None = None
+_preview_executor_lock = threading.Lock()
 
 T = TypeVar("T")
 
@@ -74,3 +92,35 @@ async def run_board_send(func: Callable[..., T], /, *args: Any, **kwargs: Any) -
     loop = asyncio.get_running_loop()
     ctx = contextvars.copy_context()
     return await loop.run_in_executor(get_board_send_executor(), functools.partial(ctx.run, func, *args, **kwargs))
+
+
+def get_board_preview_executor() -> ThreadPoolExecutor:
+    """Lazily create (once) the shared live-preview pool."""
+    global _preview_executor
+    with _preview_executor_lock:
+        if _preview_executor is None:
+            _preview_executor = ThreadPoolExecutor(
+                max_workers=BOARD_PREVIEW_MAX_WORKERS, thread_name_prefix="board-preview"
+            )
+        return _preview_executor
+
+
+def shutdown_board_preview_executor() -> None:
+    """Shut down the live-preview pool (process teardown and tests only)."""
+    global _preview_executor
+    with _preview_executor_lock:
+        if _preview_executor is not None:
+            _preview_executor.shutdown(wait=False, cancel_futures=True)
+            _preview_executor = None
+
+
+async def run_board_preview(func: Callable[..., T], /, *args: Any, **kwargs: Any) -> T:
+    """``asyncio.to_thread`` for live-editor previews, on their own pool.
+
+    Identical contract to :func:`run_board_send`; only the pool differs, which
+    is the entire point — a rapid-fire burst of previews cannot occupy the
+    workers a real send needs.
+    """
+    loop = asyncio.get_running_loop()
+    ctx = contextvars.copy_context()
+    return await loop.run_in_executor(get_board_preview_executor(), functools.partial(ctx.run, func, *args, **kwargs))
