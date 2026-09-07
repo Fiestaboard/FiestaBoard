@@ -33,6 +33,7 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 SCRIPT = r"""
 import asyncio
 import sys
+from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 
 import src.mcp_server as mcp_server
@@ -58,7 +59,10 @@ registry.install_from_registry.return_value = []
 registry.uninstall_external_plugin.return_value = []
 registry.list_plugins.return_value = []
 registry.set_plugin_config.return_value = []
-registry.get_plugin_source.return_value = None  # update tool: clean 404 path
+# Reassigned per call, because two tools read it for opposite reasons:
+# uninstall needs a source to exist (no source is now a 404, review finding 6)
+# and the update tool wants the clean "no source" refusal.
+registry.get_plugin_source.return_value = SimpleNamespace(source_type="git", local_path=None)
 
 config_manager = MagicMock()
 # Stateful: reads reflect the last persisted config, like the real
@@ -86,6 +90,8 @@ with (
     assert call("disable_plugin", plugin_id="stocks")["status"] == "success"
     assert call("configure_plugin", plugin_id="stocks", config={"api_key": "k"})["status"] == "success"
     assert call("uninstall_plugin", plugin_id="stocks")["status"] == "success"
+
+    registry.get_plugin_source.return_value = None
     # No source for the plugin: the guarded update path refuses. #1765 made
     # tool failures raise ToolError (protocol isError) instead of returning
     # an error envelope — the point here is that it refused without

@@ -287,17 +287,28 @@ class PluginService:
         return base_id, compound_key
 
     def delete_instance(self, plugin_id: str, instance_label: str) -> tuple[str, str]:
-        """Delete a plugin instance; returns ``(base_id, compound_key)``."""
+        """Delete a plugin instance; returns ``(base_id, compound_key)``.
+
+        Raises :class:`PluginNotFound` when the instance does not exist, so
+        ``DELETE /plugins/{id}/instances/{label}`` answers the 404 it declares.
+        The registry reports the missing case as an error *string*, which used
+        to be wrapped in :class:`PluginOperationRejected` and served as a 400 —
+        while the ``create_instance`` on the very same path already raised
+        :class:`PluginNotFound`. See review finding 6.
+        """
         registry = self.registry
 
         # Resolve base plugin id
         base_id, _ = registry.parse_instance_key(plugin_id)
+        compound_key = registry.make_instance_key(base_id, instance_label)
+
+        # Mirrors the registry's own `compound_key not in self._plugins` check.
+        if registry.get_plugin(compound_key) is None:
+            raise PluginNotFound(f"Instance not found: {compound_key}")
 
         errors = registry.delete_instance(base_id, instance_label)
         if errors:
             raise PluginOperationRejected("; ".join(errors))
-
-        compound_key = registry.make_instance_key(base_id, instance_label)
 
         # Remove persisted config and tombstone the compound key so a
         # post-upgrade auto-restore cannot resurrect the deleted instance (#1394).
@@ -360,8 +371,21 @@ class PluginService:
         return pid
 
     def uninstall(self, plugin_id: str) -> None:
-        """Uninstall an external plugin and purge its persisted configs."""
+        """Uninstall an external plugin and purge its persisted configs.
+
+        Raises :class:`PluginNotFound` when the plugin has no source at all, so
+        ``DELETE /plugins/{id}/uninstall`` answers the 404 it declares.
+        Uninstalling a nonexistent plugin used to answer 400 with the literal
+        text "Plugin not found", because the registry reports that case as an
+        error *string*. A built-in is still a 400: it exists, and refusing to
+        remove it is a rule, not a missing resource. See review finding 6.
+        """
         registry = self.registry
+
+        # Mirrors the registry's own `source is None` check, ahead of it so the
+        # verdict is a 404 rather than a rejection.
+        if registry.get_plugin_source(plugin_id) is None:
+            raise PluginNotFound(f"Plugin not found: {plugin_id}")
 
         # Collect instance compound keys before uninstall so we can purge their configs
         instance_keys = [

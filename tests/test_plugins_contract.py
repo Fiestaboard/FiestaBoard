@@ -132,7 +132,10 @@ class _ContractRegistry:
             raw={"variables": {}},
         )
         self.manifests = {"alpha": alpha_manifest, "norecv": no_demo_manifest}
-        self.plugins = {"alpha": Mock(), "norecv": Mock(), "ext_plugin": Mock()}
+        # "alpha:work" is held because list_instances() reports it — a fake
+        # that advertises an instance it does not hold cannot exercise the
+        # instance delete path honestly.
+        self.plugins = {"alpha": Mock(), "norecv": Mock(), "ext_plugin": Mock(), "alpha:work": Mock()}
         self.fetch_result = SimpleNamespace(
             available=True,
             data={"value": 42},
@@ -230,7 +233,8 @@ class _ContractRegistry:
         return [] if label != "bad label" else ["Invalid instance label"]
 
     def delete_instance(self, base_id: str, label: str) -> list[str]:
-        return []
+        key = self.make_instance_key(base_id, label)
+        return [] if key in self.plugins else [f"Instance not found: {key}"]
 
     def apply_stored_config(self, compound_key: str, stored: dict[str, Any]) -> list[str]:
         return []
@@ -913,6 +917,20 @@ class TestInstances:
         assert "alpha:work" not in config_manager.configs
         assert "alpha:work" in config_manager.removed
 
+    def test_deleting_an_instance_that_does_not_exist_is_404(self, client):
+        """DELIBERATE CONTRACT CHANGE (review finding 6, this PR).
+
+        Was **400**, for the same reason as
+        ``TestUninstall::test_uninstalling_a_plugin_that_does_not_exist_is_404``:
+        the registry's "Instance not found" is an error string that became a
+        ``PluginOperationRejected``. The sibling ``POST`` on this same path
+        raises ``PluginNotFound``.
+        """
+        response = client.delete("/plugins/alpha/instances/nosuchlabel")
+
+        assert response.status_code == 404
+        assert response.json()["detail"] == "Instance not found: alpha:nosuchlabel"
+
 
 # ── POST /plugins/{plugin_id}/receive ───────────────────────────────────────
 
@@ -1013,6 +1031,22 @@ class TestUninstall:
 
         assert response.status_code == 400
         assert response.json()["detail"] == "Plugin 'alpha' is a built-in plugin"
+
+    def test_uninstalling_a_plugin_that_does_not_exist_is_404(self, client):
+        """DELIBERATE CONTRACT CHANGE (review finding 6, this PR).
+
+        Was **400** with the literal detail "Plugin not found: ghost": the
+        registry reports the missing case as an error *string*, which
+        ``PluginService`` wrapped in ``PluginOperationRejected`` -> 400. The
+        route declares ``errors(400, 404, 503)``, so the declared 404 was
+        unreachable, and ``POST /plugins/{id}/instances`` already raised
+        ``PluginNotFound`` for exactly this condition — the create/delete
+        asymmetry was the tell.
+        """
+        response = client.delete("/plugins/ghost/uninstall")
+
+        assert response.status_code == 404
+        assert response.json()["detail"] == "Plugin not found: ghost"
 
 
 class TestUpdates:

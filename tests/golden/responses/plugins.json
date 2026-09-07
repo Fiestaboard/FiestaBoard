@@ -519,6 +519,15 @@
       }
     },
     {
+      "label": "instance_delete_missing",
+      "method": "DELETE",
+      "path_template": "/plugins/{plugin_id}/instances/{instance_label}",
+      "status": 404,
+      "shape": {
+        "detail": "str"
+      }
+    },
+    {
       "label": "receive_ok",
       "method": "POST",
       "path_template": "/plugins/{plugin_id}/receive",
@@ -590,6 +599,15 @@
       "method": "DELETE",
       "path_template": "/plugins/{plugin_id}/uninstall",
       "status": 400,
+      "shape": {
+        "detail": "str"
+      }
+    },
+    {
+      "label": "uninstall_missing",
+      "method": "DELETE",
+      "path_template": "/plugins/{plugin_id}/uninstall",
+      "status": 404,
       "shape": {
         "detail": "str"
       }
