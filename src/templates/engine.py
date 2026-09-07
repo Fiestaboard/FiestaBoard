@@ -1464,7 +1464,7 @@ class TemplateEngine:
         lines = template.split("\n")
 
         # Get available sources based on system mode
-        available_sources = self._get_all_known_sources()
+        available_sources = self.get_all_known_sources()
 
         for line_num, line in enumerate(lines, 1):
             # Check for unclosed variable braces
@@ -1517,15 +1517,23 @@ class TemplateEngine:
 
         return errors
 
-    def _get_all_known_sources(self) -> set:
+    def get_all_known_sources(self) -> set:
         """Get all known plugin IDs (for validation).
 
         Includes all plugins, not just enabled ones, so templates
         can be validated even if not all plugins are enabled.
+
+        Public because routers validate payloads against it — reaching into
+        another object's ``_private`` members from a route is exactly what
+        ``docs/internal/reference/API_CONVENTIONS.md`` bans.
         """
         if not self._plugin_registry:
             return set()
         return set(self._plugin_registry.plugins.keys())
+
+    def _get_all_known_sources(self) -> set:
+        """Back-compat alias for :meth:`get_all_known_sources`."""
+        return self.get_all_known_sources()
 
     def _calculate_max_line_length(self, line: str, cols: int = 22) -> int:
         """Calculate maximum possible rendered length of a template line.

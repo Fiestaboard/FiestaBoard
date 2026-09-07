@@ -15,25 +15,22 @@
       "label": "create_collection_ok",
       "method": "POST",
       "path_template": "/collections",
-      "status": 200,
+      "status": 201,
       "shape": {
-        "collection": {
-          "created_at": "str",
-          "id": "str",
-          "name": "str",
-          "page_ids": [
-            "str",
-            "str"
-          ],
-          "random": "null",
-          "selection_mode": "str",
-          "time": {
-            "interval_seconds": "int"
-          },
-          "updated_at": "null",
-          "variable": "null"
+        "created_at": "str",
+        "id": "str",
+        "name": "str",
+        "page_ids": [
+          "str",
+          "str"
+        ],
+        "random": "null",
+        "selection_mode": "str",
+        "time": {
+          "interval_seconds": "int"
         },
-        "status": "str"
+        "updated_at": "null",
+        "variable": "null"
       }
     },
     {
@@ -130,23 +127,20 @@
       "path_template": "/collections/{collection_id}",
       "status": 200,
       "shape": {
-        "collection": {
-          "created_at": "str",
-          "id": "str",
-          "name": "str",
-          "page_ids": [
-            "str",
-            "str"
-          ],
-          "random": "null",
-          "selection_mode": "str",
-          "time": {
-            "interval_seconds": "int"
-          },
-          "updated_at": "str",
-          "variable": "null"
+        "created_at": "str",
+        "id": "str",
+        "name": "str",
+        "page_ids": [
+          "str",
+          "str"
+        ],
+        "random": "null",
+        "selection_mode": "str",
+        "time": {
+          "interval_seconds": "int"
         },
-        "status": "str"
+        "updated_at": "str",
+        "variable": "null"
       }
     },
     {
@@ -173,8 +167,7 @@
       "path_template": "/collections/{collection_id}",
       "status": 200,
       "shape": {
-        "message": "str",
-        "status": "str"
+        "id": "str"
       }
     },
     {

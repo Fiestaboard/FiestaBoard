@@ -226,3 +226,32 @@ class CollectionUpdate(BaseModel):
     time: TimeModeConfig | None = None
     variable: VariableModeConfig | None = None
     random: RandomModeConfig | None = None
+
+
+# --- Response models -----------------------------------------------------
+#
+# Phase 2 conventions (spec §2): every route declares a ``response_model``.
+# Collections have no derived, masked, or computed wire fields, so the stored
+# model *is* the response model — ``CollectionResponse`` is an alias rather
+# than a copy, and the routes name the contract instead of the store.
+
+#: The wire shape of a single collection.
+CollectionResponse = Collection
+
+
+class CollectionListResponse(BaseModel):
+    """Body of ``GET /collections``."""
+
+    collections: list[Collection]
+    total: int
+
+
+class CollectionDeleteResponse(BaseModel):
+    """Body of ``DELETE /collections/{collection_id}``.
+
+    Per ``docs/internal/reference/API_CONVENTIONS.md`` a delete answers 200
+    with the deleted resource id (this domain's choice) — not a
+    ``{"status": "success"}`` envelope.
+    """
+
+    id: str

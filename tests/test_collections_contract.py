@@ -6,11 +6,24 @@ it cannot see a wrong id, a reordered ``page_ids`` list, or an error string that
 stopped naming the missing resource — the class of regression Phase 1's masking
 bug proved shape goldens miss.
 
-Every assertion below is a promise this domain makes to the web client. The
-conversion in this PR is allowed to change the *envelope* (create returns the
-bare resource at 201 instead of ``{"status": "success", "collection": ...}``),
-and those specific lines are re-pinned in the same commit with a comment naming
-the change. Nothing else may move.
+Every assertion below is a promise this domain makes to the web client.
+
+Re-pinned by the conventions pass in this same PR. What deliberately changed,
+and nothing else:
+
+* ``POST /collections`` answers **201** (was 200) with the **bare** collection
+  (was ``{"status": "success", "collection": {...}}``) — conventions doc,
+  "Status codes" and "Bare bodies".
+* ``PUT /collections/{id}`` answers 200 with the **bare** collection (was the
+  same ``status``/``collection`` envelope).
+* ``DELETE /collections/{id}`` answers 200 with ``{"id": <deleted id>}`` (was
+  ``{"status": "success", "message": "Collection <id> deleted"}``) — the
+  conventions doc lets a domain pick "200 with the deleted resource id" or
+  "204 with no body"; collections picks the former.
+
+Every value assertion — ids, ``page_ids`` ordering, list ordering and total,
+error strings, status codes on the failure paths — is unchanged from the
+pre-conversion recording. None was weakened.
 """
 
 from __future__ import annotations
@@ -59,8 +72,8 @@ def _create(client: TestClient, **body) -> dict:
     is a one-line change instead of a sweep.
     """
     response = client.post("/collections", json=body)
-    assert response.status_code == 200, response.text
-    return response.json()["collection"]
+    assert response.status_code == 201, response.text
+    return response.json()
 
 
 # ── create ──────────────────────────────────────────────────────────────────
@@ -71,10 +84,9 @@ def test_create_returns_the_created_collection_with_its_values(client, pages):
 
     response = client.post("/collections", json={"name": "Morning", "page_ids": [page_a, page_b]})
 
-    assert response.status_code == 200, response.text
-    body = response.json()
-    assert body["status"] == "success"
-    collection = body["collection"]
+    # RE-PINNED: 201 + bare resource (was 200 + {"status", "collection"}).
+    assert response.status_code == 201, response.text
+    collection = response.json()
     assert collection["name"] == "Morning"
     assert collection["page_ids"] == [page_a, page_b]
     assert collection["selection_mode"] == "time"
@@ -182,10 +194,9 @@ def test_update_returns_the_updated_collection_and_keeps_its_id(client, pages):
 
     response = client.put(f"/collections/{created['id']}", json={"name": "After", "page_ids": [page_b, page_a]})
 
+    # RE-PINNED: bare resource (was {"status", "collection"}); status stays 200.
     assert response.status_code == 200, response.text
-    body = response.json()
-    assert body["status"] == "success"
-    updated = body["collection"]
+    updated = response.json()
     assert updated["id"] == created["id"]
     assert updated["name"] == "After"
     assert updated["page_ids"] == [page_b, page_a]
@@ -200,7 +211,7 @@ def test_update_leaves_unsent_fields_alone(client, pages):
     response = client.put(f"/collections/{created['id']}", json={"name": "Renamed Only"})
 
     assert response.status_code == 200, response.text
-    updated = response.json()["collection"]
+    updated = response.json()  # RE-PINNED: bare resource
     assert updated["name"] == "Renamed Only"
     assert updated["page_ids"] == [page_a, page_b]
 
@@ -232,10 +243,8 @@ def test_delete_removes_the_collection_and_reports_it(client, pages):
     response = client.delete(f"/collections/{created['id']}")
 
     assert response.status_code == 200, response.text
-    assert response.json() == {
-        "status": "success",
-        "message": f"Collection {created['id']} deleted",
-    }
+    # RE-PINNED: the deleted resource id (was {"status": "success", "message": ...}).
+    assert response.json() == {"id": created["id"]}
     assert client.get(f"/collections/{created['id']}").status_code == 404
     assert client.get("/collections").json() == {"collections": [], "total": 0}
 

@@ -496,7 +496,7 @@ def test_collections_response_shapes():
         "/collections",
         json_body={"name": "Golden Collection", "page_ids": [page_a, page_b]},
     )
-    collection_id = body["collection"]["id"]
+    collection_id = body["id"]  # 201 + bare resource since the conventions pass
     rec.id_map[collection_id] = "<collection_id>"
     rec.hit(
         "create_collection_unknown_page",
