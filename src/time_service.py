@@ -12,6 +12,7 @@ datetime or zoneinfo to ensure consistency and testability.
 """
 
 import logging
+import threading
 from datetime import UTC, datetime
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
@@ -308,19 +309,65 @@ def _get_configured_timezone() -> str:
         return "UTC"
 
 
+#: True on a thread that is currently inside ``get_time_service()``'s
+#: construction step. See that function for why re-entry is reachable.
+_building = threading.local()
+
+#: A plain UTC service handed to callers that re-enter during construction.
+#: It reads no configuration, so it needs no per-test reset.
+_bootstrap: TimeService | None = None
+
+
+def _bootstrap_time_service() -> TimeService:
+    """A UTC ``TimeService`` for callers that re-enter during construction.
+
+    ``TimeService("UTC")`` always resolves, so building this one cannot log
+    and cannot re-enter.
+    """
+    global _bootstrap
+    if _bootstrap is None:
+        _bootstrap = TimeService(default_timezone="UTC")
+    return _bootstrap
+
+
 def get_time_service() -> TimeService:
     """Get or create the time service singleton.
 
     Uses the user-configured timezone from Config.GENERAL_TIMEZONE
     instead of hardcoding a default.
 
+    Construction is re-entrant, and until this guard it recursed until the
+    interpreter died. ``Config.GENERAL_TIMEZONE`` defaults to the empty string
+    when ``general.timezone`` is unset, ``TimeService.__init__`` logs a warning
+    for a timezone it cannot resolve, and the log handler in
+    :mod:`src.log_store` calls *this* function to timestamp every record. With
+    the global still unassigned that warning re-entered construction, warned
+    again, and so on:
+
+        src/log_store.py:82  in emit -> _create_log_entry
+        src/time_service.py       in get_time_service
+        src/time_service.py:50    in __init__ -> logger.warning(...)
+        RecursionError: maximum recursion depth exceeded
+
+    Under pytest that surfaces as an unraisable exception charged to whatever
+    test happened to be running when a background thread logged — observed on
+    CI as ``tests/test_tick_shared_context.py::TestSilenceWindowCache::
+    test_sixty_probes_at_idle_parse_the_window_once - RuntimeError: Failed to
+    process unraisable exception``.
+
     Returns:
         The global TimeService instance
     """
     global _time_service
     if _time_service is None:
-        tz = _get_configured_timezone()
-        _time_service = TimeService(default_timezone=tz)
+        if getattr(_building, "active", False):
+            return _bootstrap_time_service()
+        _building.active = True
+        try:
+            tz = _get_configured_timezone()
+            _time_service = TimeService(default_timezone=tz)
+        finally:
+            _building.active = False
     return _time_service
 
 
