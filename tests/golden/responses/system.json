@@ -245,7 +245,7 @@
       "label": "auto_invalid_interval",
       "method": "POST",
       "path_template": "/system/update/auto",
-      "status": 422,
+      "status": 400,
       "shape": {
         "detail": "str"
       }
@@ -254,7 +254,7 @@
       "label": "auto_empty_body",
       "method": "POST",
       "path_template": "/system/update/auto",
-      "status": 422,
+      "status": 400,
       "shape": {
         "detail": "str"
       }

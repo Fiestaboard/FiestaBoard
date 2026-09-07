@@ -514,7 +514,18 @@ def test_send_to_an_unreachable_board_is_500_not_a_200_success(client, page):
 
     Deliberately NOT 502/503/504: nginx intercepts those on /api/ and swaps
     the body for its startup placeholder, so the caller would lose the
-    structured reason entirely.
+    reason entirely.
+
+    DELIBERATE CONTRACT CHANGE (review finding 5, this PR): the body was a
+    6-key dict (`detail`, `page_id`, `sent_to_board`, `paused`, `target`,
+    `board_id`) returned as a JSONResponse. It is now the domain's single error
+    shape, `{"detail": str}`, raised as an HTTPException. The status and the
+    `detail` string are unchanged, and the route now *declares* the 500 —
+    previously it declared `errors(400, 404, 503)` while returning a 500 on a
+    routine outcome, and the return sat in a nested closure, which the
+    `no_200_on_failure` rule explicitly ignores, so nothing caught it.
+    `web/src/lib/api/core.ts` reads only `detail` off a non-2xx, so no caller
+    loses anything.
     """
     service = Mock()
     service.vb_client.render.return_value = (False, False)
@@ -525,8 +536,7 @@ def test_send_to_an_unreachable_board_is_500_not_a_200_success(client, page):
     assert response.status_code == 500
     body = response.json()
     assert body["detail"] == "Failed to send to board"
-    assert body["sent_to_board"] is False
-    assert body["page_id"] == page["id"]
+    assert set(body) == {"detail"}
 
 
 def test_send_to_an_unknown_board_id_is_404(client, page):

@@ -134,6 +134,20 @@ an object with a `message` string plus named fields — never a bare string in
 one endpoint and a dict in its sibling. No stringified tracebacks in any
 response (CodeQL also enforces this).
 
+**Declare it with `errors()`, never a hand-written dict.** `src/api_errors.py`
+is what attaches `model=ErrorResponse` to each declared code; a domain that
+hand-rolls its `responses=` publishes the codes with *no* body in the OpenAPI
+schema, and its inline descriptions drift from the canonical text. The
+`system` domain did exactly that on four routes — fifteen declarations, none
+with a model — because `errors()` had no 500 entry and raised for it. It has
+one now: a **deliberately raised** 500, not an unhandled error.
+
+**422 belongs to FastAPI.** It is the code FastAPI generates for schema
+validation, and its body is a *list* of errors, not `{"detail": <string>}`. A
+hand-raised semantic rejection of a body that already passed validation is a
+**400** — declaring 422 for it would publish the wrong model for the real
+validation error on the same route.
+
 ## Routers and services
 
 - Every domain lives in `src/<domain>/routes.py` (`APIRouter`, OpenAPI

@@ -934,7 +934,9 @@ async def trigger_plugin_update_check() -> PluginUpdateCheckResponse:
 @router.post(
     "/plugins/{plugin_id}/update",
     response_model=PluginUpdateResponse,
-    responses=errors(400, 404, 503),
+    # 500: `apply_update` raises PluginOperationFailed when git or the reload
+    # fails, and _STATUS_BY_ERROR maps that to 500. It was undeclared.
+    responses=errors(400, 404, 500, 503),
 )
 @plugin_errors_to_http
 async def update_plugin(plugin_id: str) -> PluginUpdateResponse:
