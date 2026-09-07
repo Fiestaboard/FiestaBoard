@@ -1938,7 +1938,7 @@ class TestEnableLocalAPI:
         mock_resp = Mock()
         mock_resp.status_code = 200
         mock_resp.json.return_value = {"apiKey": "generated_api_key_abc"}
-        with patch("src.api_server.requests.post", return_value=mock_resp):
+        with patch("src.config_api.routes.requests.post", return_value=mock_resp):
             response = client.post(
                 "/config/board/enable-local-api",
                 json={
@@ -1955,7 +1955,7 @@ class TestEnableLocalAPI:
         mock_resp = Mock()
         mock_resp.status_code = 200
         mock_resp.json.return_value = {}
-        with patch("src.api_server.requests.post", return_value=mock_resp):
+        with patch("src.config_api.routes.requests.post", return_value=mock_resp):
             response = client.post(
                 "/config/board/enable-local-api",
                 json={
@@ -1970,7 +1970,7 @@ class TestEnableLocalAPI:
         mock_resp = Mock()
         mock_resp.status_code = 401
         mock_resp.text = "Unauthorized"
-        with patch("src.api_server.requests.post", return_value=mock_resp):
+        with patch("src.config_api.routes.requests.post", return_value=mock_resp):
             response = client.post(
                 "/config/board/enable-local-api",
                 json={
@@ -1985,7 +1985,7 @@ class TestEnableLocalAPI:
         mock_resp = Mock()
         mock_resp.status_code = 500
         mock_resp.text = "Internal Server Error"
-        with patch("src.api_server.requests.post", return_value=mock_resp):
+        with patch("src.config_api.routes.requests.post", return_value=mock_resp):
             response = client.post(
                 "/config/board/enable-local-api",
                 json={
@@ -1999,7 +1999,7 @@ class TestEnableLocalAPI:
     def test_connection_error(self, client):
         import requests as http_requests
 
-        with patch("src.api_server.requests.post", side_effect=http_requests.exceptions.ConnectionError("refused")):
+        with patch("src.config_api.routes.requests.post", side_effect=http_requests.exceptions.ConnectionError("refused")):
             response = client.post(
                 "/config/board/enable-local-api",
                 json={
@@ -2013,7 +2013,7 @@ class TestEnableLocalAPI:
     def test_timeout_error(self, client):
         import requests as http_requests
 
-        with patch("src.api_server.requests.post", side_effect=http_requests.exceptions.Timeout("timed out")):
+        with patch("src.config_api.routes.requests.post", side_effect=http_requests.exceptions.Timeout("timed out")):
             response = client.post(
                 "/config/board/enable-local-api",
                 json={
@@ -2025,7 +2025,7 @@ class TestEnableLocalAPI:
         assert response.json()["success"] is False
 
     def test_generic_error(self, client):
-        with patch("src.api_server.requests.post", side_effect=RuntimeError("unexpected")):
+        with patch("src.config_api.routes.requests.post", side_effect=RuntimeError("unexpected")):
             response = client.post(
                 "/config/board/enable-local-api",
                 json={
@@ -2037,7 +2037,7 @@ class TestEnableLocalAPI:
 
     def test_rejects_public_ip(self, client):
         """SSRF guard: a public IP must be rejected before any HTTP request."""
-        with patch("src.api_server.requests.post") as mock_post:
+        with patch("src.config_api.routes.requests.post") as mock_post:
             response = client.post(
                 "/config/board/enable-local-api",
                 json={
@@ -2054,7 +2054,7 @@ class TestEnableLocalAPI:
 
     def test_rejects_aws_metadata_address(self, client):
         """SSRF guard: the AWS instance-metadata IP must be rejected."""
-        with patch("src.api_server.requests.post") as mock_post:
+        with patch("src.config_api.routes.requests.post") as mock_post:
             response = client.post(
                 "/config/board/enable-local-api",
                 json={
@@ -2091,7 +2091,7 @@ class TestTrafficGeocode:
         mock_resp.status_code = 200
         mock_resp.json.return_value = [{"lat": "40.7128", "lon": "-74.0060", "display_name": "NYC"}]
         mock_resp.raise_for_status = Mock()
-        with patch("src.api_server.requests.get", return_value=mock_resp):
+        with patch("src.config_api.routes.requests.get", return_value=mock_resp):
             response = client.post("/traffic/routes/geocode", json={"address": "NYC"})
         assert response.status_code == 200
         data = response.json()
@@ -2106,7 +2106,7 @@ class TestTrafficGeocode:
         mock_resp.status_code = 200
         mock_resp.json.return_value = []
         mock_resp.raise_for_status = Mock()
-        with patch("src.api_server.requests.get", return_value=mock_resp):
+        with patch("src.config_api.routes.requests.get", return_value=mock_resp):
             response = client.post("/traffic/routes/geocode", json={"address": "xyznonexistent"})
         assert response.status_code == 404
 

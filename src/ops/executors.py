@@ -292,7 +292,7 @@ async def set_active_page(page_id: str, board_id: str | None = None) -> dict[str
     """
     from fastapi import HTTPException
 
-    from src.api_server import set_active_page as _rest_set_active_page
+    from src.settings.routes import set_active_page as _rest_set_active_page
 
     body: dict[str, Any] = {"page_id": page_id}
     if board_id is not None:
@@ -731,7 +731,7 @@ async def update_setting(category: str, values: dict[str, Any]) -> dict[str, Any
                 return err("active_page requires values.page_id")
             return await set_active_page(page_id)
 
-        import src.api_server as api
+        import src.settings.routes as api
 
         if category == "display":
             await api.update_display_settings(dict(values))

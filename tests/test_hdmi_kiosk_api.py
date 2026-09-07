@@ -42,7 +42,7 @@ class TestHdmiKioskStatus:
         with (
             patch("src.api_server._fiestaboard_profile", return_value="pi"),
             patch("src.api_server._updater_probe", return_value=True),
-            patch("src.api_server.requests.get", return_value=sidecar) as get,
+            patch("src.settings.routes.requests.get", return_value=sidecar) as get,
         ):
             response = client.get("/settings/hdmi-kiosk")
         assert response.status_code == 200
@@ -57,7 +57,7 @@ class TestHdmiKioskStatus:
         with (
             patch("src.api_server._fiestaboard_profile", return_value="pi"),
             patch("src.api_server._updater_probe", return_value=True),
-            patch("src.api_server.requests.get", return_value=sidecar),
+            patch("src.settings.routes.requests.get", return_value=sidecar),
         ):
             response = client.get("/settings/hdmi-kiosk")
         assert response.status_code == 200
@@ -74,7 +74,7 @@ class TestHdmiKioskToggle:
             patch("src.api_server._fiestaboard_profile", return_value="pi"),
             patch("src.api_server._updater_probe", return_value=True),
             patch("src.api_server._updater_token", return_value="tok-123"),
-            patch("src.api_server.requests.post", return_value=sidecar) as post,
+            patch("src.settings.routes.requests.post", return_value=sidecar) as post,
         ):
             response = client.post("/settings/hdmi-kiosk", json={"enabled": True})
         assert response.status_code == 200
@@ -89,7 +89,7 @@ class TestHdmiKioskToggle:
             patch("src.api_server._fiestaboard_profile", return_value="pi"),
             patch("src.api_server._updater_probe", return_value=True),
             patch("src.api_server._updater_token", return_value="tok-123"),
-            patch("src.api_server.requests.post", return_value=sidecar) as post,
+            patch("src.settings.routes.requests.post", return_value=sidecar) as post,
         ):
             response = client.post("/settings/hdmi-kiosk", json={"enabled": False})
         assert response.status_code == 200
@@ -108,7 +108,7 @@ class TestHdmiKioskToggle:
             patch("src.api_server._fiestaboard_profile", return_value="pi"),
             patch("src.api_server._updater_probe", return_value=True),
             patch("src.api_server._updater_token", return_value="tok-123"),
-            patch("src.api_server.requests.post", return_value=sidecar),
+            patch("src.settings.routes.requests.post", return_value=sidecar),
         ):
             response = client.post("/settings/hdmi-kiosk", json={"enabled": True})
         assert response.status_code == 409
