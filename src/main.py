@@ -63,6 +63,13 @@ ADHOC_PAGE_ID = "__adhoc__"
 # exceeds it. interruptible:false transitions defeat enqueue-time preemption
 # entirely — see src/transitions/runner.py — which is why they are clamped to
 # the 120s cap and the executing job is budgeted at that full cap.)
+#
+# nginx must OUTWAIT this number: nginx.conf / nginx.https.conf /
+# nginx-dev.conf set proxy_read_timeout and proxy_send_timeout to 300s on both
+# /api location blocks. At the stock 60s any send that legitimately ran longer
+# than a minute returned 504 to the browser while this thread kept waiting 4x
+# longer (issue #1886). Raise both together;
+# tests/test_nginx_api_timeouts.py fails the build if they drift apart.
 SEND_WAIT_TIMEOUT = 240.0
 
 # Backoff schedule for re-attempting boards that failed to initialize
