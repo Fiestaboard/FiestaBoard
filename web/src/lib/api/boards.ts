@@ -99,6 +99,15 @@ export interface PanelIncompatibleReference {
   schedule_id: string | null;
 }
 
+/**
+ * PATCH /panels/{id} — the updated panel, plus the warn-only references a
+ * screen-size re-fit invalidated. `incompatible_references` is null when the
+ * screen size did not change (it used to be an absent key).
+ */
+export interface PanelUpdateResult extends Panel {
+  incompatible_references: PanelIncompatibleReference[] | null;
+}
+
 // Public viewer config served by GET /panel/{id} (no auth).
 export interface PanelPublicConfig extends Panel {
   board_color: "black" | "white" | null;
@@ -323,23 +332,23 @@ export const boardsApi = {
     ),
   // ---- FiestaPanel ----
   listPanels: () => fetchApi<{ panels: Panel[]; total: number }>("/panels"),
+  // 201 with the bare panel (Phase 2 slice 8; was 200 + { status, panel }).
   createPanel: (data: PanelCreateRequest) =>
-    fetchApi<{ status: string; panel: Panel }>("/panels", {
+    fetchApi<Panel>("/panels", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(data),
     }),
+  // The bare panel, plus incompatible_references — always present, null unless
+  // a screen-size change re-fit the board's grid.
   updatePanel: (panelId: string, data: PanelUpdateRequest) =>
-    fetchApi<{ status: string; panel: Panel; incompatible_references?: PanelIncompatibleReference[] }>(
-      `/panels/${encodeURIComponent(panelId)}`,
-      {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(data),
-      },
-    ),
+    fetchApi<PanelUpdateResult>(`/panels/${encodeURIComponent(panelId)}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(data),
+    }),
   deletePanel: (panelId: string) =>
-    fetchApi<{ status: string }>(`/panels/${encodeURIComponent(panelId)}`, {
+    fetchApi<{ id: string }>(`/panels/${encodeURIComponent(panelId)}`, {
       method: "DELETE",
     }),
   getHdmiKiosk: () => fetchApi<HdmiKioskStatus>("/settings/hdmi-kiosk"),

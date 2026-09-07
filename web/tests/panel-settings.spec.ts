@@ -44,9 +44,9 @@ async function createPanelViaApi(name: string, inches = 43): Promise<PanelListEn
     headers: { "Content-Type": "application/json", ...authHeaders() },
     body: JSON.stringify({ name, screen_diagonal_inches: inches }),
   });
-  expect(res.ok).toBe(true);
-  const body = (await res.json()) as { panel: PanelListEntry };
-  return body.panel;
+  // 201 with the bare panel since Phase 2 slice 8 (was 200 + { panel }).
+  expect(res.status).toBe(201);
+  return (await res.json()) as PanelListEntry;
 }
 
 async function driveBoard(boardId: string, lines: string[]): Promise<void> {

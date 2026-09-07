@@ -7,6 +7,7 @@
     "debug",
     "displays",
     "pages",
+    "panels",
     "plugins",
     "schedules",
     "system",
@@ -79,6 +80,11 @@
       "route": "GET /pages/cache/stats",
       "rule": "declared_errors",
       "reason": "Reports in-memory preview-cache occupancy, which always exists — an empty cache is a valid answer, not an error. Nothing it reads can be missing or unauthorized at the route level."
+    },
+    {
+      "route": "GET /panels",
+      "rule": "declared_errors",
+      "reason": "No failure path: an instance with no panels answers an empty list with total 0. It reads panel storage plus the boards list; a panel whose board is gone is reported inline as board_missing rather than failing the request."
     },
     {
       "route": "GET /plugins",

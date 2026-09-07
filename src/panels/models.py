@@ -95,3 +95,91 @@ class PanelUpdate(BaseModel):
     is_display: bool | None = None
     backdrop: BackdropStyle | None = None
     auto_dim: AutoDim | None = None
+
+
+# ---------------------------------------------------------------------------
+# API response models (Phase 2 slice 8)
+#
+# Every panel payload the API serves is a Panel plus the geometry of the
+# virtual board behind it, which the TV viewer scales itself from. The board
+# fields are optional-with-null rather than absent so a panel whose board was
+# deleted out from under it (``board_missing: true``) has the same shape as a
+# healthy one — the client branches on the value, never on the key.
+# ---------------------------------------------------------------------------
+
+
+class PanelBoardFields(BaseModel):
+    """Board-derived fields attached to every panel payload."""
+
+    device_type: str | None = None
+    board_missing: bool = False
+    rows: int | None = None
+    cols: int | None = None
+
+
+class PanelResponse(Panel, PanelBoardFields):
+    """A panel plus its board's shape — the app's view of one panel."""
+
+
+class PanelListResponse(BaseModel):
+    """``GET /panels``."""
+
+    panels: list[PanelResponse]
+    total: int
+
+
+class IncompatiblePanelReference(BaseModel):
+    """A page that no longer fits a panel's board after a screen-size re-fit.
+
+    Warn-only, exactly like ``PUT /pages/{id}`` after a size retarget (#1250):
+    the reference is left in place and the caller decides what to do.
+    """
+
+    page_id: str
+    page_name: str
+    surface: str
+    schedule_id: str | None = None
+
+
+class PanelUpdateResponse(PanelResponse):
+    """``PATCH /panels/{panel_id}``.
+
+    ``incompatible_references`` is null unless the screen size changed and the
+    board was re-fit — it was previously an intermittently-present key, which
+    forced the client to distinguish "absent" from "empty".
+    """
+
+    incompatible_references: list[IncompatiblePanelReference] | None = None
+
+
+class PanelDeleteResponse(BaseModel):
+    """``DELETE /panels/{panel_id}`` — the id that is now gone."""
+
+    id: str
+
+
+class PanelPublicResponse(PanelResponse):
+    """``GET /panel/{panel_id}`` — the unauthenticated viewer's config.
+
+    Adds the two presentation facts a TV needs and the app does not: which
+    colour of board it is imitating, and which glyph flap code 62 paints on
+    this hardware.
+    """
+
+    board_color: str | None = None
+    code62_glyph: str | None = None
+
+
+class PanelFrameResponse(BaseModel):
+    """``GET /panel/{panel_id}/frame`` — what the panel's board shows now.
+
+    ``characters`` is null until something has been sent to the board; the
+    geometry is still reported so the viewer can lay itself out and render a
+    blank grid rather than collapsing.
+    """
+
+    characters: list[list[int]] | None = None
+    message: str | None = None
+    rows: int
+    cols: int
+    updated_at: str | None = None

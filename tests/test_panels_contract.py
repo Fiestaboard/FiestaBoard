@@ -12,9 +12,25 @@ it again. The board's geometry is attached to every panel payload, so the
 values below (``rows``/``cols`` for a 55" 16:9 screen, ``board_missing``)
 are the ones the viewer scales itself from.
 
-Recorded against the UNCONVERTED trunk: every assertion below passed before a
-line of this slice's production code changed. The conversion commit re-pins
-only what it deliberately changes, and says so inline.
+Recorded against the UNCONVERTED trunk, then re-pinned by the conventions pass
+in this same PR. What deliberately changed, and nothing else:
+
+* ``POST /panels`` answers **201** (was 200) with the **bare** panel (was
+  ``{"status": "success", "panel": {...}}``).
+* ``PATCH /panels/{id}`` answers 200 with the **bare** panel, and
+  ``incompatible_references`` is now always present — ``null`` when the screen
+  size did not change, a list when it did. It used to be an intermittently
+  present key, which forced the client to tell "absent" from "empty".
+* ``DELETE /panels/{id}`` answers ``{"id": <deleted id>}`` (was
+  ``{"status": "success"}``), matching the collections/pages convention.
+
+The two unauthenticated viewer endpoints — ``GET /panel/{id}`` and
+``GET /panel/{id}/frame`` — are **unchanged**: a TV in a kiosk cannot be
+redeployed in lockstep with the API, so their payloads and their auth
+exemption are held exactly as they were.
+
+Every other assertion is unchanged from the pre-conversion recording. None was
+weakened.
 """
 
 from __future__ import annotations
@@ -32,10 +48,15 @@ def client(_isolated_data_dir):
 
 @pytest.fixture
 def panel(client) -> dict:
-    """One created panel, as the create endpoint reports it."""
+    """One created panel, as the create endpoint reports it.
+
+    The one place that knows the create envelope, so re-pinning it is a
+    one-line change instead of a sweep.
+    """
     response = client.post("/panels", json={"name": "Kitchen TV"})
-    assert response.status_code == 200, response.text
-    return response.json()["panel"]
+    # RE-PINNED: 201 with the bare panel, replacing 200 + {"status", "panel"}.
+    assert response.status_code == 201, response.text
+    return response.json()
 
 
 # ---------------------------------------------------------------------------
@@ -67,11 +88,10 @@ def test_listing_attaches_the_backing_board_geometry_to_each_panel(client, panel
 
 
 def test_creating_a_panel_returns_it_with_an_auto_fit_board(client):
+    # RE-PINNED: see the module docstring.
     response = client.post("/panels", json={"name": "Kitchen TV"})
-    assert response.status_code == 200
-    body = response.json()
-    assert body["status"] == "success"
-    created = body["panel"]
+    assert response.status_code == 201
+    created = response.json()
     assert created["name"] == "Kitchen TV"
     assert created["short_code"] == 1, "the first panel gets the TV-typable /p/1"
     assert created["screen_diagonal_inches"] == 55.0
@@ -110,21 +130,22 @@ def test_updating_an_unknown_panel_is_a_404(client):
 
 
 def test_updating_returns_the_updated_panel(client, panel):
+    # RE-PINNED: bare panel; incompatible_references is null rather than absent.
     response = client.patch(f"/panels/{panel['id']}", json={"name": "Living Room TV"})
     assert response.status_code == 200
     body = response.json()
-    assert body["status"] == "success"
-    assert body["panel"]["name"] == "Living Room TV"
-    assert body["panel"]["id"] == panel["id"]
-    assert "incompatible_references" not in body, "only a screen-size change reports references"
+    assert body["name"] == "Living Room TV"
+    assert body["id"] == panel["id"]
+    assert body["incompatible_references"] is None, "only a screen-size change reports references"
 
 
 def test_a_screen_size_change_refits_the_board_and_reports_references(client, panel):
+    # RE-PINNED: bare panel. The references list itself is unchanged.
     response = client.patch(f"/panels/{panel['id']}", json={"screen_diagonal_inches": 32.0})
     assert response.status_code == 200
     body = response.json()
-    assert body["panel"]["screen_diagonal_inches"] == 32.0
-    assert (body["panel"]["rows"], body["panel"]["cols"]) != (12, 15), "the grid was re-fit"
+    assert body["screen_diagonal_inches"] == 32.0
+    assert (body["rows"], body["cols"]) != (12, 15), "the grid was re-fit"
     assert body["incompatible_references"] == [], "no pages reference this board yet"
 
 
@@ -140,9 +161,10 @@ def test_deleting_an_unknown_panel_is_a_404(client):
 
 
 def test_deleting_removes_the_panel_and_its_virtual_board(client, panel):
+    # RE-PINNED: {"id": <deleted id>} replaces {"status": "success"}.
     response = client.delete(f"/panels/{panel['id']}")
     assert response.status_code == 200
-    assert response.json() == {"status": "success"}
+    assert response.json() == {"id": panel["id"]}
     assert client.get("/panels").json() == {"panels": [], "total": 0}
     board_ids = [b["id"] for b in client.get("/settings/board").json()["boards"]]
     assert panel["board_id"] not in board_ids

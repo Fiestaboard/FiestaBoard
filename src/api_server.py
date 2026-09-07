@@ -1,7 +1,6 @@
 """REST API server for FiestaBoard Display Service."""
 
 import asyncio
-import contextlib
 import json
 import logging
 import logging.handlers
@@ -9,7 +8,6 @@ import os
 import re
 import threading
 import time
-import uuid
 from contextlib import asynccontextmanager
 from datetime import UTC, datetime
 from typing import Any
@@ -39,6 +37,7 @@ from . import (  # noqa: E402,F401  (re-export)
 from .auth import is_auth_enabled  # noqa: E402
 from .auth.middleware import AuthMiddleware  # noqa: E402
 from .auth.routes import router as auth_router  # noqa: E402
+from .board_chars import characters_to_message as _characters_to_message  # noqa: E402
 from .board_client import board_client_from_board_dict  # noqa: E402
 
 # Board lookup / send guards and the DisplayService accessor now live in
@@ -49,7 +48,6 @@ from .board_client import board_client_from_board_dict  # noqa: E402
 from .board_guards import (  # noqa: E402
     _board_dims,
     _board_is_paused,
-    _find_board,
     _require_board,
     _silence_active,
 )
@@ -105,12 +103,7 @@ from .log_store import (  # noqa: E402
     _setup_file_logging,  # noqa: F401  (re-export: pre-move patch target)
 )
 from .network.wifi import WiFiError, get_wifi_service  # noqa: E402
-from .pages.service import (  # noqa: E402
-    check_ref_board_compatibility,
-    find_incompatible_board_references,
-    get_page_service,
-)
-from .panels.models import PanelCreate, PanelUpdate  # noqa: E402
+from .pages.service import check_ref_board_compatibility, get_page_service  # noqa: E402
 from .panels.service import get_panel_service  # noqa: E402
 from .paths import get_data_dir  # noqa: E402, F401  (re-export: patch seam)
 
@@ -124,7 +117,6 @@ from .templates.engine import get_template_engine  # noqa: E402
 from .templates.expressions import function_signatures  # noqa: E402
 from .text_to_board import text_to_board_array  # noqa: E402
 from .time_service import reset_time_service  # noqa: E402
-from .virtual_board_client import release_virtual_board_state  # noqa: E402
 
 logger = logging.getLogger(__name__)
 
@@ -1844,100 +1836,6 @@ async def refresh_display(board_id: str | None = None, payload: dict | None = Bo
     except Exception as e:
         logger.error(f"Error refreshing display: {e}")
         raise HTTPException(status_code=500, detail=f"Failed to refresh display: {str(e)}") from e
-
-
-def _characters_to_message(characters: list) -> str:
-    """Convert a character grid (list[list[int]]) to the message string format.
-
-    Character codes map as follows (matching the Vestaboard spec):
-      0       → space
-      1–26    → A–Z
-      27–35   → 1–9
-      36      → 0
-      37–62   → punctuation / special characters
-      63–71   → color tiles, rendered as {63}…{71}
-
-    Undefined codes (43, 45, 51, 57, 58, 61) are rendered as a space.
-    """
-    # Index-aligned lookup table for codes 0–62
-    _LOOKUP = [
-        " ",  # 0
-        "A",
-        "B",
-        "C",
-        "D",
-        "E",
-        "F",
-        "G",
-        "H",
-        "I",
-        "J",  # 1–10
-        "K",
-        "L",
-        "M",
-        "N",
-        "O",
-        "P",
-        "Q",
-        "R",
-        "S",
-        "T",  # 11–20
-        "U",
-        "V",
-        "W",
-        "X",
-        "Y",
-        "Z",  # 21–26
-        "1",
-        "2",
-        "3",
-        "4",
-        "5",
-        "6",
-        "7",
-        "8",
-        "9",
-        "0",  # 27–36
-        "!",
-        "@",
-        "#",
-        "$",
-        "(",
-        ")",  # 37–42
-        " ",  # 43 – undefined
-        "-",  # 44
-        " ",  # 45 – undefined
-        "+",
-        "&",
-        "=",
-        ";",
-        ":",  # 46–50
-        " ",  # 51 – undefined
-        "'",
-        '"',
-        "%",
-        ",",
-        ".",  # 52–56
-        " ",
-        " ",  # 57–58 – undefined
-        "/",
-        "?",  # 59–60
-        " ",  # 61 – undefined
-        "°",  # 62
-    ]
-
-    lines = []
-    for row in characters:
-        chars = []
-        for code in row:
-            if 63 <= code <= 71:
-                chars.append(f"{{{code}}}")
-            elif 0 <= code < len(_LOOKUP):
-                chars.append(_LOOKUP[code])
-            else:
-                chars.append(" ")
-        lines.append("".join(chars))
-    return "\n".join(lines)
 
 
 @app.get("/board/current-message")
@@ -4471,263 +4369,12 @@ app.include_router(debug_router)
 
 
 # =============================================================================
-# FiestaPanel Endpoints
+# FiestaPanel Endpoints — moved to src/panels/routes.py (Phase 2 slice 8)
 # =============================================================================
-#
-# Two surfaces with different auth:
-#   /panels  (plural)  — CRUD for the app, authenticated like everything else.
-#   /panel/  (singular) — read-only viewer endpoints for TVs, exempted from
-#                         auth via AuthMiddleware(extra_public_paths).
-# A panel's virtual board is co-created on POST and co-deleted on DELETE so
-# "a FiestaPanel" stays one concept for the user.
 
+from .panels.routes import router as panels_router  # noqa: E402
 
-def _panel_not_found_detail(ref: str) -> str:
-    """404 detail for the public viewer: the reserved display ref gets
-    actionable copy (the HDMI kiosk shows it before a panel is designated)."""
-    if ref == "display":
-        return "No display panel selected"
-    return "Panel not found"
-
-
-def _panel_board_fields(board: dict | None) -> dict:
-    """Board-derived fields attached to panel payloads (orphan-aware)."""
-    if board is None:
-        return {"device_type": None, "board_missing": True, "rows": None, "cols": None}
-    dims = _board_dims(board)
-    return {
-        "device_type": board.get("device_type"),
-        "board_missing": False,
-        "rows": dims.rows,
-        "cols": dims.cols,
-    }
-
-
-@app.get("/panels")
-async def list_panels():
-    """List all panels with their virtual board's shape attached."""
-    panel_service = get_panel_service()
-    panels = []
-    for panel in panel_service.list_panels():
-        board = _find_board(panel.board_id)
-        panels.append({**panel.model_dump(mode="json"), **_panel_board_fields(board)})
-    return {"panels": panels, "total": len(panels)}
-
-
-@app.post("/panels")
-async def create_panel(data: PanelCreate):
-    """Create a panel and its backing auto-fit virtual board.
-
-    The board's grid (note-array blocks) is computed from the TV size so
-    each flap renders at real-world scale while filling the screen. The
-    virtual board is added first; if panel creation then fails the board
-    is rolled back so no orphan is left behind.
-    """
-    from .panels.autofit import compute_autofit_grid
-
-    settings_service = get_settings_service()
-    board_id = str(uuid.uuid4())
-    notes_wide, notes_tall = compute_autofit_grid(
-        data.screen_diagonal_inches, data.screen_aspect_w, data.screen_aspect_h
-    )
-    settings_service.add_board(
-        {
-            "id": board_id,
-            "device_type": "note_array",
-            "api_mode": "virtual",
-            "notes_wide": notes_wide,
-            "notes_tall": notes_tall,
-            "name": f"{data.name} (Panel)",
-        }
-    )
-    _reinitialize_board_clients()
-    panel_service = get_panel_service()
-    try:
-        panel = panel_service.create_panel(data, board_id=board_id)
-    except Exception:
-        with contextlib.suppress(Exception):
-            settings_service.remove_board(board_id)
-            _reinitialize_board_clients()
-        raise
-    board = _find_board(board_id)
-    return {
-        "status": "success",
-        "panel": {**panel.model_dump(mode="json"), **_panel_board_fields(board)},
-    }
-
-
-@app.patch("/panels/{panel_id}")
-async def update_panel(panel_id: str, data: PanelUpdate):
-    """Update a panel's display configuration.
-
-    A screen-size change re-fits the virtual board's grid: content keeps
-    flowing at the new dimensions on the next send.
-    """
-    from .panels.autofit import compute_autofit_grid
-
-    panel_service = get_panel_service()
-    panel = panel_service.update_panel(panel_id, data)
-    if panel is None:
-        raise HTTPException(status_code=404, detail="Panel not found")
-
-    incompatible_references: list[dict] | None = None
-    updates = data.model_dump(exclude_unset=True)
-    screen_changed = any(
-        updates.get(field) is not None for field in ("screen_diagonal_inches", "screen_aspect_w", "screen_aspect_h")
-    )
-    if screen_changed:
-        settings_service = get_settings_service()
-        boards = [dict(b) for b in (settings_service.get_board_settings().boards or [])]
-        target = next((b for b in boards if b.get("id") == panel.board_id), None)
-        if target is not None and target.get("api_mode") == "virtual":
-            notes_wide, notes_tall = compute_autofit_grid(
-                panel.screen_diagonal_inches, panel.screen_aspect_w, panel.screen_aspect_h
-            )
-            if (target.get("notes_wide"), target.get("notes_tall")) != (notes_wide, notes_tall) or target.get(
-                "device_type"
-            ) != "note_array":
-                target["device_type"] = "note_array"
-                target["notes_wide"] = notes_wide
-                target["notes_tall"] = notes_tall
-                settings_service.set_boards(boards)
-                # Drop the old-shape frame BEFORE rebuilding the client.
-                # read_current_message already refuses to serve a frame whose
-                # shape no longer matches the board, but `_last_characters` is
-                # read unguarded by /board/current-message (both the secondary
-                # branch and the primary's `expected_characters`), which would
-                # keep rendering the old grid — the exact stale-shape bug this
-                # reshape path exists to prevent. Releasing the shared state
-                # clears `displayed_characters` and `last_characters` together.
-                release_virtual_board_state(panel.board_id)
-                _reinitialize_board_clients()
-                # The grid changed shape: pages authored for the old grid stay
-                # referenced but can no longer render here. Warn-only, exactly
-                # like PUT /pages/{id} after a size retarget (issue #1250).
-                incompatible_references = find_incompatible_board_references(target)
-
-    board = _find_board(panel.board_id)
-    response = {
-        "status": "success",
-        "panel": {**panel.model_dump(mode="json"), **_panel_board_fields(board)},
-    }
-    if incompatible_references is not None:
-        response["incompatible_references"] = incompatible_references
-    return response
-
-
-@app.delete("/panels/{panel_id}")
-async def delete_panel(panel_id: str):
-    """Delete a panel and its virtual board (tolerating an already-gone board).
-
-    When the virtual board is the ONLY board, the last-board rule forbids
-    removing it outright — deleting the panel would otherwise strand an
-    unremovable virtual board as the primary. A fresh default board is
-    swapped in instead (the same state a data reset produces).
-    """
-    panel_service = get_panel_service()
-    panel = panel_service.delete_panel(panel_id)
-    if panel is None:
-        raise HTTPException(status_code=404, detail="Panel not found")
-    settings_service = get_settings_service()
-    try:
-        settings_service.remove_board(panel.board_id)
-    except ValueError:
-        # Either the board is already gone (fine) or it is the last board.
-        boards = settings_service.get_board_settings().boards or []
-        if len(boards) == 1 and boards[0].get("id") == panel.board_id:
-            with contextlib.suppress(Exception):
-                settings_service.set_boards([{"device_type": "flagship"}])
-    release_virtual_board_state(panel.board_id)
-    _reinitialize_board_clients()
-    return {"status": "success"}
-
-
-@app.get("/panel/{panel_id}")
-async def get_panel_public(panel_id: str):
-    """Public viewer config: panel settings + board geometry. No auth."""
-    panel = get_panel_service().get_panel_by_ref(panel_id)
-    if panel is None:
-        raise HTTPException(status_code=404, detail=_panel_not_found_detail(panel_id))
-    out = panel.model_dump(mode="json")
-    board = _find_board(panel.board_id)
-    if board is None:
-        out.update(
-            {
-                "device_type": None,
-                "board_missing": True,
-                "rows": None,
-                "cols": None,
-                "board_color": None,
-                "code62_glyph": None,
-            }
-        )
-        return out
-    from .devices import BoardInstance
-
-    dims = _board_dims(board)
-    instance = BoardInstance.from_dict(board)
-    out.update(
-        {
-            "device_type": board.get("device_type"),
-            "board_missing": False,
-            "rows": dims.rows,
-            "cols": dims.cols,
-            "board_color": board.get("board_color") or "black",
-            "code62_glyph": instance.effective_code62_glyph,
-        }
-    )
-    return out
-
-
-@app.get("/panel/{panel_id}/frame")
-async def get_panel_frame(panel_id: str):
-    """Public viewer frame: the virtual board's current content. No auth.
-
-    Never triggers a live HTTP read — a panel misconfigured onto a physical
-    board serves that board's last-sent cache instead of hammering it at the
-    viewer's 2s poll cadence.
-    """
-    panel = get_panel_service().get_panel_by_ref(panel_id)
-    if panel is None:
-        raise HTTPException(status_code=404, detail=_panel_not_found_detail(panel_id))
-    board = _find_board(panel.board_id)
-    dims = _board_dims(board) if board is not None else resolve_dimensions("flagship")
-
-    service = get_service()
-    client = service.get_board_client(panel.board_id) if service is not None else None
-    if client is None and service is not None:
-        # Primary runtimes may be keyed under a legacy sentinel rather than
-        # the settings board id; fall back to the primary client.
-        with contextlib.suppress(Exception):
-            if panel.board_id == get_settings_service().get_primary_board_id():
-                client = service.vb_client
-
-    characters = None
-    updated_at = None
-    if client is not None:
-        if getattr(client, "is_virtual", False):
-            characters = client.read_current_message()
-        else:
-            characters = getattr(client, "_last_characters", None)
-        ts = getattr(client, "_last_sent_at", None)
-        if ts:
-            updated_at = datetime.fromtimestamp(ts, tz=UTC).isoformat()
-
-    if characters is None:
-        return {
-            "characters": None,
-            "message": None,
-            "rows": dims.rows,
-            "cols": dims.cols,
-            "updated_at": updated_at,
-        }
-    return {
-        "characters": characters,
-        "message": _characters_to_message(characters),
-        "rows": len(characters),
-        "cols": len(characters[0]) if characters else 0,
-        "updated_at": updated_at,
-    }
+app.include_router(panels_router)
 
 
 def _hdmi_kiosk_supported() -> bool:

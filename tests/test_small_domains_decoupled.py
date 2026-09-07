@@ -39,6 +39,7 @@ SLICE_8_ROUTERS = (
     "src/templates/routes.py",
     "src/triggers/routes.py",
     "src/transitions/routes.py",
+    "src/panels/routes.py",
 )
 
 
@@ -326,6 +327,68 @@ print("DECOUPLED")
 
 def test_transitions_router_serves_every_route_without_importing_api_server():
     _run(TRANSITIONS_SCRIPT)
+
+
+PANELS_SCRIPT = r"""
+import asyncio
+import sys
+from types import SimpleNamespace
+from unittest.mock import MagicMock, patch
+
+import src.panels.routes as routes
+from src.panels.models import Panel, PanelCreate, PanelUpdate
+
+assert "src.api_server" not in sys.modules, "importing the panels router must not import api_server"
+
+panel = Panel(name="Kitchen TV", board_id="vboard-1")
+
+panel_service = MagicMock()
+panel_service.list_panels.return_value = [panel]
+panel_service.create_panel.return_value = panel
+panel_service.update_panel.return_value = panel
+panel_service.delete_panel.return_value = panel
+panel_service.get_panel_by_ref.return_value = panel
+
+settings_service = MagicMock()
+settings_service.get_board_settings.return_value = SimpleNamespace(boards=[])
+settings_service.get_primary_board_id.return_value = "vboard-1"
+
+board = {"id": "vboard-1", "device_type": "note_array", "notes_wide": 1, "notes_tall": 1}
+
+with (
+    patch("src.panels.routes.get_panel_service", return_value=panel_service),
+    patch("src.panels.routes.get_settings_service", return_value=settings_service),
+    patch("src.panels.routes.get_service", return_value=None),
+    patch("src.panels.routes.reinitialize_board_clients"),
+    patch("src.panels.routes.release_virtual_board_state"),
+    patch("src.panels.routes._find_board", return_value=board),
+):
+    listed = asyncio.run(routes.list_panels())
+    assert listed.total == 1, listed
+    created = asyncio.run(routes.create_panel(PanelCreate(name="Kitchen TV")))
+    assert created.name == "Kitchen TV", created
+    updated = asyncio.run(routes.update_panel(panel.id, PanelUpdate(name="Kitchen TV")))
+    assert updated.incompatible_references is None, updated
+    public = asyncio.run(routes.get_panel_public(panel.id))
+    assert public.board_color == "black", public
+    frame = asyncio.run(routes.get_panel_frame(panel.id))
+    assert frame.characters is None, frame
+    deleted = asyncio.run(routes.delete_panel(panel.id))
+    assert deleted.id == panel.id, deleted
+
+panel_service.create_panel.assert_called_once()
+panel_service.update_panel.assert_called_once()
+panel_service.delete_panel.assert_called_once_with(panel.id)
+assert panel_service.get_panel_by_ref.call_count == 2
+settings_service.add_board.assert_called_once()
+
+assert "src.api_server" not in sys.modules, "a panels handler imported src.api_server"
+print("DECOUPLED")
+"""
+
+
+def test_panels_router_serves_every_route_without_importing_api_server():
+    _run(PANELS_SCRIPT)
 
 
 @pytest.mark.parametrize("module_path", SLICE_8_ROUTERS)
