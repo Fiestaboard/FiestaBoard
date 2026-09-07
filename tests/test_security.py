@@ -228,7 +228,7 @@ class TestInputValidation:
 
     def test_logs_endpoint_with_valid_level_does_not_crash(self, client):
         """GET /logs with a valid level does not return a 5xx error."""
-        with patch("src.api_server._read_logs_from_files", return_value=([], 0, False)):
+        with patch("src.log_store._read_logs_from_files", return_value=([], 0, False)):
             for level in ["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"]:
                 response = client.get(f"/logs?level={level}")
                 assert response.status_code == 200, f"Level={level} returned {response.status_code}"
@@ -245,7 +245,7 @@ class TestLogEndpointSafety:
     def test_logs_with_large_search_string_does_not_crash(self, client):
         """GET /logs with a very long search string must not return 5xx."""
         large_search = "A" * 5000
-        with patch("src.api_server._read_logs_from_files", return_value=([], 0, False)):
+        with patch("src.log_store._read_logs_from_files", return_value=([], 0, False)):
             response = client.get(f"/logs?search={large_search}")
         assert response.status_code in (200, 400, 422), (
             f"Large search string caused unexpected status: {response.status_code}"
@@ -253,20 +253,20 @@ class TestLogEndpointSafety:
 
     def test_logs_with_empty_search_returns_ok(self, client):
         """GET /logs with an empty search string returns 200."""
-        with patch("src.api_server._read_logs_from_files", return_value=([], 0, False)):
+        with patch("src.log_store._read_logs_from_files", return_value=([], 0, False)):
             response = client.get("/logs?search=")
         assert response.status_code == 200
 
     def test_logs_with_special_chars_in_search(self, client):
         """GET /logs with special characters in search does not crash."""
-        with patch("src.api_server._read_logs_from_files", return_value=([], 0, False)):
+        with patch("src.log_store._read_logs_from_files", return_value=([], 0, False)):
             response = client.get("/logs?search=<script>alert('xss')</script>")
         assert response.status_code in (200, 400, 422)
 
     def test_logs_response_structure(self, client):
         """GET /logs returns the expected response shape."""
         with patch(
-            "src.api_server._read_logs_from_files", return_value=([{"level": "INFO", "message": "test"}], 1, False)
+            "src.log_store._read_logs_from_files", return_value=([{"level": "INFO", "message": "test"}], 1, False)
         ):
             response = client.get("/logs")
         assert response.status_code == 200

@@ -3,6 +3,7 @@
   "converted_domains": [
     "ai",
     "collections",
+    "debug",
     "pages",
     "plugins",
     "schedules",
@@ -10,9 +11,24 @@
   ],
   "exceptions": [
     {
+      "route": "GET /cache-status",
+      "rule": "declared_errors",
+      "reason": "Takes no input and reads no resource id — the only failure is 'the display service is not initialized yet', which is a 503 by API_CONVENTIONS.md (dependency down), not a 4xx."
+    },
+    {
       "route": "GET /collections",
       "rule": "declared_errors",
       "reason": "Listing has no failure path: it returns [] for an empty store and cannot 404 or 400, so declaring a 4xx would document an error the endpoint never raises."
+    },
+    {
+      "route": "GET /debug/network-diagnostics",
+      "rule": "declared_errors",
+      "reason": "The whole point of the endpoint is to report connectivity failures in its 200 body; the caller supplies no input to get wrong. The only failure is the diagnostics runner itself blowing up, which is a 500."
+    },
+    {
+      "route": "GET /debug/system-info",
+      "rule": "declared_errors",
+      "reason": "Has no client-error path at all: every collaborator it reads (connection info, uptime, cache status, board-configured probe) is defensive and answers with a fallback rather than raising, so the card renders for an unconfigured install too. Declaring a 4xx would document a failure this route cannot produce."
     },
     {
       "route": "GET /pages",
@@ -88,6 +104,16 @@
       "route": "GET /version",
       "rule": "declared_errors",
       "reason": "Read-only report with no failure path: it cannot 404, 400 or 409, so declaring a 4xx would document an error the endpoint never raises. It reads two env vars and one /proc file, and reports None when the file is absent."
+    },
+    {
+      "route": "POST /clear-cache",
+      "rule": "declared_errors",
+      "reason": "Same as GET /cache-status: no body, no path parameter, and the only failure is the uninitialized display service, which is a 503."
+    },
+    {
+      "route": "POST /force-refresh",
+      "rule": "declared_errors",
+      "reason": "No body and no path parameter, so nothing the caller sends can be wrong. It answers 503 when the display service is not initialized and 500 when the forced send pass reports a failure reason."
     },
     {
       "route": "POST /plugins/updates/apply",

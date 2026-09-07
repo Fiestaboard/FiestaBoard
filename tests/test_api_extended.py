@@ -345,7 +345,14 @@ def mock_service():
         svc.vb_client = Mock()
         svc.vb_client.send_characters.return_value = (True, True)
         svc.vb_client.render.return_value = (True, True)
-        svc.vb_client.get_cache_status.return_value = {"has_cached_text": False}
+        # The full CacheStatus shape every real client reports; GET /cache-status
+        # declares a response_model now, so a partial dict is a 500.
+        svc.vb_client.get_cache_status.return_value = {
+            "has_cached_text": False,
+            "has_cached_characters": False,
+            "skip_unchanged_enabled": True,
+            "cached_text_preview": None,
+        }
         svc.vb_client.clear_cache.return_value = None
         svc.vb_client.use_cloud = False
         svc.vb_client._last_characters = None
@@ -1556,12 +1563,14 @@ class TestServiceLifecycle:
 
         The singleton moved to ``src/display_runtime.py`` in Phase 2 slice 3
         so the extracted routers can reach it without importing api_server;
-        the state it guards is the same object.
+        ``api_server`` re-exports the accessor, so both spellings are checked
+        and must agree — the state they guard is one object.
         """
-        from src import display_runtime
+        from src import api_server, display_runtime
 
         with patch.object(display_runtime, "_service", None):
             assert display_runtime.peek_service() is None
+            assert api_server.peek_service() is None
 
     def test_send_message_marks_the_board_as_out_of_band(self, client, mock_service, mock_settings_service):
         """Issue #1831: a manual send replaces the page on the board, so the

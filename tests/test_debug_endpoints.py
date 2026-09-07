@@ -1,4 +1,11 @@
-"""Tests for debug API endpoints."""
+"""Tests for debug API endpoints.
+
+Re-pinned by the Phase 2 debug slice conventions pass: the responses are bare
+(no ``{"status": "success", ...}`` envelope) and POST /debug/fill validates
+its body through Pydantic, so a bad character_code is FastAPI's 422 rather
+than a hand-rolled 400. Every other assertion here is unchanged; see
+tests/test_debug_contract.py for the full list of deliberate changes.
+"""
 
 from unittest.mock import Mock, patch
 
@@ -39,7 +46,7 @@ def client():
 @pytest.fixture
 def mock_board_client():
     """Mock board client."""
-    with patch("src.api_server._get_board_client") as mock:
+    with patch("src.display_runtime._get_board_client") as mock:
         client = Mock()
         client.send_characters.return_value = (True, True)
         client.render.return_value = (True, True)
@@ -60,11 +67,10 @@ class TestDebugBlank:
 
     def test_blank_board_success(self, client, mock_board_client):
         """Test blanking the board successfully (flagship → 6×22, env-independent)."""
-        with patch("src.api_server.get_settings_service", return_value=_mock_ss("flagship")):
+        with patch("src.display_runtime.get_settings_service", return_value=_mock_ss("flagship")):
             response = client.post("/debug/blank")
         assert response.status_code == 200
         data = response.json()
-        assert data["status"] == "success"
         assert "blanked" in data["message"].lower()
 
         # Verify send_characters was called with blank array
@@ -75,7 +81,7 @@ class TestDebugBlank:
 
     def test_blank_board_no_client(self, client):
         """Test blanking board when client not configured."""
-        with patch("src.api_server._get_board_client", return_value=None):
+        with patch("src.display_runtime._get_board_client", return_value=None):
             response = client.post("/debug/blank")
             assert response.status_code == 400
             assert "not configured" in response.json()["detail"].lower()
@@ -84,7 +90,7 @@ class TestDebugBlank:
 
     def test_blank_flagship_grid_size(self, client, mock_board_client):
         """Flagship board: blank produces a 6×22 array of zeros."""
-        with patch("src.api_server.get_settings_service", return_value=_mock_ss("flagship")):
+        with patch("src.display_runtime.get_settings_service", return_value=_mock_ss("flagship")):
             response = client.post("/debug/blank")
         assert response.status_code == 200
         args = mock_board_client.send_characters.call_args
@@ -92,7 +98,7 @@ class TestDebugBlank:
 
     def test_blank_note_grid_size(self, client, mock_board_client):
         """Note board: blank produces a 3×15 array of zeros."""
-        with patch("src.api_server.get_settings_service", return_value=_mock_ss("note")):
+        with patch("src.display_runtime.get_settings_service", return_value=_mock_ss("note")):
             response = client.post("/debug/blank")
         assert response.status_code == 200
         args = mock_board_client.send_characters.call_args
@@ -101,7 +107,7 @@ class TestDebugBlank:
     def test_blank_note_array_2x2_grid_size(self, client, mock_board_client):
         """Note-array 2×2: blank produces a 6×30 array of zeros."""
         with patch(
-            "src.api_server.get_settings_service",
+            "src.display_runtime.get_settings_service",
             return_value=_mock_ss("note_array", notes_wide=2, notes_tall=2),
         ):
             response = client.post("/debug/blank")
@@ -115,11 +121,10 @@ class TestDebugFill:
 
     def test_fill_board_success(self, client, mock_board_client):
         """Test filling the board with a character (flagship → 6×22, env-independent)."""
-        with patch("src.api_server.get_settings_service", return_value=_mock_ss("flagship")):
+        with patch("src.display_runtime.get_settings_service", return_value=_mock_ss("flagship")):
             response = client.post("/debug/fill", json={"character_code": 63})
         assert response.status_code == 200
         data = response.json()
-        assert data["status"] == "success"
         assert "63" in data["message"]
 
         # Verify send_characters was called with fill array
@@ -128,23 +133,23 @@ class TestDebugFill:
         assert args[0][0] == [[63] * 22 for _ in range(6)]
 
     def test_fill_board_invalid_code(self, client, mock_board_client):
-        """Test filling board with invalid character code."""
+        """Test filling board with invalid character code (422 since the
+        conventions pass: the body is a Pydantic model)."""
         # Code too high
         response = client.post("/debug/fill", json={"character_code": 72})
-        assert response.status_code == 400
-        assert "0-71" in response.json()["detail"]
+        assert response.status_code == 422
 
         # Code negative
         response = client.post("/debug/fill", json={"character_code": -1})
-        assert response.status_code == 400
+        assert response.status_code == 422
 
         # Missing code
         response = client.post("/debug/fill", json={})
-        assert response.status_code == 400
+        assert response.status_code == 422
 
     def test_fill_board_no_client(self, client):
         """Test filling board when client not configured."""
-        with patch("src.api_server._get_board_client", return_value=None):
+        with patch("src.display_runtime._get_board_client", return_value=None):
             response = client.post("/debug/fill", json={"character_code": 63})
             assert response.status_code == 400
 
@@ -152,7 +157,7 @@ class TestDebugFill:
 
     def test_fill_flagship_grid_size(self, client, mock_board_client):
         """Flagship board: fill produces a 6×22 grid."""
-        with patch("src.api_server.get_settings_service", return_value=_mock_ss("flagship")):
+        with patch("src.display_runtime.get_settings_service", return_value=_mock_ss("flagship")):
             response = client.post("/debug/fill", json={"character_code": 63})
         assert response.status_code == 200
         args = mock_board_client.send_characters.call_args
@@ -160,7 +165,7 @@ class TestDebugFill:
 
     def test_fill_note_grid_size(self, client, mock_board_client):
         """Note board: fill produces a 3×15 grid."""
-        with patch("src.api_server.get_settings_service", return_value=_mock_ss("note")):
+        with patch("src.display_runtime.get_settings_service", return_value=_mock_ss("note")):
             response = client.post("/debug/fill", json={"character_code": 5})
         assert response.status_code == 200
         args = mock_board_client.send_characters.call_args
@@ -169,7 +174,7 @@ class TestDebugFill:
     def test_fill_note_array_2wide_grid_size(self, client, mock_board_client):
         """Note-array 2-wide: fill produces a 3×30 grid."""
         with patch(
-            "src.api_server.get_settings_service",
+            "src.display_runtime.get_settings_service",
             return_value=_mock_ss("note_array", notes_wide=2, notes_tall=1),
         ):
             response = client.post("/debug/fill", json={"character_code": 1})
@@ -180,7 +185,7 @@ class TestDebugFill:
     def test_fill_note_array_2tall_grid_size(self, client, mock_board_client):
         """Note-array 2-tall: fill produces a 6×15 grid."""
         with patch(
-            "src.api_server.get_settings_service",
+            "src.display_runtime.get_settings_service",
             return_value=_mock_ss("note_array", notes_wide=1, notes_tall=2),
         ):
             response = client.post("/debug/fill", json={"character_code": 0})
@@ -197,7 +202,6 @@ class TestDebugInfo:
         response = client.post("/debug/info")
         assert response.status_code == 200
         data = response.json()
-        assert data["status"] == "success"
         assert "debug_info" in data
 
         # Verify debug_info contains expected content
@@ -211,7 +215,7 @@ class TestDebugInfo:
 
     def test_show_debug_info_no_client(self, client):
         """Test showing debug info when client not configured."""
-        with patch("src.api_server._get_board_client", return_value=None):
+        with patch("src.display_runtime._get_board_client", return_value=None):
             response = client.post("/debug/info")
             assert response.status_code == 400
 
@@ -219,27 +223,27 @@ class TestDebugInfo:
 
     def test_info_sends_to_board_flagship(self, client, mock_board_client):
         """Flagship board: /debug/info succeeds without crashing."""
-        with patch("src.api_server.get_settings_service", return_value=_mock_ss("flagship")):
+        with patch("src.display_runtime.get_settings_service", return_value=_mock_ss("flagship")):
             response = client.post("/debug/info")
         assert response.status_code == 200
-        assert response.json()["status"] == "success"
+        assert "DEBUG INFO" in response.json()["debug_info"]
 
     def test_info_note_array_sized_to_board(self, client, mock_board_client):
         """Note-array board: /debug/info sends a grid sized to the array (3×30 for 2-wide)."""
         with patch(
-            "src.api_server.get_settings_service",
+            "src.display_runtime.get_settings_service",
             return_value=_mock_ss("note_array", notes_wide=2, notes_tall=1),
         ):
             response = client.post("/debug/info")
         assert response.status_code == 200
-        assert response.json()["status"] == "success"
+        assert "DEBUG INFO" in response.json()["debug_info"]
         sent_grid = mock_board_client.send_characters.call_args[0][0]
         assert len(sent_grid) == 3, "note array (2x1) has 3 rows"
         assert all(len(row) == 30 for row in sent_grid), "note array (2x1) has 30 cols"
 
     def test_info_flagship_sized_6x22(self, client, mock_board_client):
         """Flagship board: /debug/info still sends a byte-identical 6×22 grid."""
-        with patch("src.api_server.get_settings_service", return_value=_mock_ss("flagship")):
+        with patch("src.display_runtime.get_settings_service", return_value=_mock_ss("flagship")):
             response = client.post("/debug/info")
         assert response.status_code == 200
         sent_grid = mock_board_client.send_characters.call_args[0][0]
@@ -257,7 +261,6 @@ class TestDebugTestConnection:
         response = client.post("/debug/test-connection")
         assert response.status_code == 200
         data = response.json()
-        assert data["status"] == "success"
         assert data["connected"] is True
         assert "latency_ms" in data
         assert isinstance(data["latency_ms"], int)
@@ -272,7 +275,7 @@ class TestDebugTestConnection:
 
     def test_connection_no_client(self, client):
         """Test connection test when client not configured."""
-        with patch("src.api_server._get_board_client", return_value=None):
+        with patch("src.display_runtime._get_board_client", return_value=None):
             response = client.post("/debug/test-connection")
             assert response.status_code == 400
 
@@ -285,7 +288,6 @@ class TestDebugClearCache:
         response = client.post("/debug/clear-cache")
         assert response.status_code == 200
         data = response.json()
-        assert data["status"] == "success"
         assert "cache cleared" in data["message"].lower()
 
         # Verify clear_cache was called
@@ -293,7 +295,7 @@ class TestDebugClearCache:
 
     def test_clear_cache_no_client(self, client):
         """Test clearing cache when client not configured."""
-        with patch("src.api_server._get_board_client", return_value=None):
+        with patch("src.display_runtime._get_board_client", return_value=None):
             response = client.post("/debug/clear-cache")
             assert response.status_code == 400
 
@@ -305,11 +307,7 @@ class TestDebugCacheStatus:
         """Test getting cache status."""
         response = client.get("/debug/cache-status")
         assert response.status_code == 200
-        data = response.json()
-        assert data["status"] == "success"
-        assert "cache" in data
-
-        cache = data["cache"]
+        cache = response.json()
         assert "has_cached_text" in cache
         assert "has_cached_characters" in cache
         assert "skip_unchanged_enabled" in cache
@@ -319,7 +317,7 @@ class TestDebugCacheStatus:
 
     def test_get_cache_status_no_client(self, client):
         """Test getting cache status when client not configured."""
-        with patch("src.api_server._get_board_client", return_value=None):
+        with patch("src.display_runtime._get_board_client", return_value=None):
             response = client.get("/debug/cache-status")
             assert response.status_code == 400
 
@@ -364,7 +362,7 @@ class TestDebugUtilityFunctions:
 
     def test_get_server_ip(self):
         """Test server IP detection."""
-        from src.api_server import _get_server_ip
+        from src.display_runtime import _get_server_ip
 
         ip = _get_server_ip()
         assert isinstance(ip, str)
@@ -373,7 +371,7 @@ class TestDebugUtilityFunctions:
 
     def test_format_uptime(self):
         """Test uptime formatting."""
-        from src.api_server import _format_uptime
+        from src.display_runtime import _format_uptime
 
         # Test None
         assert _format_uptime(None) == "not running"
@@ -392,17 +390,17 @@ class TestDebugUtilityFunctions:
 
     def test_get_service_uptime(self):
         """Test service uptime calculation."""
-        from src.api_server import _get_service_uptime
+        from src.display_runtime import _get_service_uptime
 
         # When service not started
-        with patch("src.api_server._service_start_time", None):
+        with patch("src.display_runtime._service_start_time", None):
             assert _get_service_uptime() is None
 
         # When service started
         import time
 
         start_time = time.time() - 100
-        with patch("src.api_server._service_start_time", start_time):
+        with patch("src.display_runtime._service_start_time", start_time):
             uptime = _get_service_uptime()
             assert uptime is not None
             assert 99 <= uptime <= 101  # Allow small variation
@@ -426,10 +424,10 @@ class TestGetFirstBoardDims:
 
     def test_note_array_dict_board_resolves_to_array_dims(self):
         """A dict note_array board (2 wide × 2 tall) → 6 rows × 30 cols."""
-        from src.api_server import _get_first_board_dims
+        from src.display_runtime import _get_first_board_dims
 
         ss = self._ss_with_boards([{"device_type": "note_array", "notes_wide": 2, "notes_tall": 2}])
-        with patch("src.api_server.get_settings_service", return_value=ss):
+        with patch("src.display_runtime.get_settings_service", return_value=ss):
             dims = _get_first_board_dims()
         assert (dims.rows, dims.cols) == (6, 30)
 
@@ -437,11 +435,11 @@ class TestGetFirstBoardDims:
         """An object-shaped note_array board uses the getattr branch (4 wide × 1 tall → 3×60)."""
         from types import SimpleNamespace
 
-        from src.api_server import _get_first_board_dims
+        from src.display_runtime import _get_first_board_dims
 
         board = SimpleNamespace(device_type="note_array", notes_wide=4, notes_tall=1)
         ss = self._ss_with_boards([board])
-        with patch("src.api_server.get_settings_service", return_value=ss):
+        with patch("src.display_runtime.get_settings_service", return_value=ss):
             dims = _get_first_board_dims()
         assert (dims.rows, dims.cols) == (3, 60)
 
@@ -449,30 +447,30 @@ class TestGetFirstBoardDims:
         """A flagship object board (no notes attrs) falls back to 6×22 via getattr defaults."""
         from types import SimpleNamespace
 
-        from src.api_server import _get_first_board_dims
+        from src.display_runtime import _get_first_board_dims
 
         board = SimpleNamespace(device_type="flagship")
         ss = self._ss_with_boards([board])
-        with patch("src.api_server.get_settings_service", return_value=ss):
+        with patch("src.display_runtime.get_settings_service", return_value=ss):
             dims = _get_first_board_dims()
         assert (dims.rows, dims.cols) == (6, 22)
 
     def test_empty_boards_falls_back_to_flagship(self):
         """No configured boards → flagship 6×22 default."""
-        from src.api_server import _get_first_board_dims
+        from src.display_runtime import _get_first_board_dims
 
         ss = self._ss_with_boards([])
-        with patch("src.api_server.get_settings_service", return_value=ss):
+        with patch("src.display_runtime.get_settings_service", return_value=ss):
             dims = _get_first_board_dims()
         assert (dims.rows, dims.cols) == (6, 22)
 
     def test_settings_error_falls_back_to_flagship(self):
         """If settings can't be read the helper swallows the error and returns flagship dims."""
-        from src.api_server import _get_first_board_dims
+        from src.display_runtime import _get_first_board_dims
 
         ss = Mock()
         ss.get_board_settings.side_effect = RuntimeError("settings unavailable")
-        with patch("src.api_server.get_settings_service", return_value=ss):
+        with patch("src.display_runtime.get_settings_service", return_value=ss):
             dims = _get_first_board_dims()
         assert (dims.rows, dims.cols) == (6, 22)
 
@@ -502,7 +500,7 @@ class TestConnectionInfoSource:
             "device_type": "flagship",
         }
         with (
-            patch("src.api_server.get_settings_service", return_value=self._ss_with_board(board)),
+            patch("src.display_runtime.get_settings_service", return_value=self._ss_with_board(board)),
             patch("src.api_server.Config") as mock_config,
         ):
             mock_config.BOARD_API_MODE = "local"
@@ -518,7 +516,7 @@ class TestConnectionInfoSource:
         """A boards[0] entry without usable credentials reports board_configured False."""
         board = {"id": "b1", "api_mode": "cloud", "host": "", "cloud_key": "", "device_type": "flagship"}
         with (
-            patch("src.api_server.get_settings_service", return_value=self._ss_with_board(board)),
+            patch("src.display_runtime.get_settings_service", return_value=self._ss_with_board(board)),
             patch("src.api_server.Config") as mock_config,
         ):
             mock_config.BOARD_API_MODE = "local"
@@ -535,8 +533,8 @@ class TestConnectionInfoSource:
         installs at boot, so at runtime the legacy config.json values must
         never be reported as the live connection."""
         with (
-            patch("src.api_server.get_settings_service", return_value=self._ss_with_board(None)),
-            patch("src.api_server._get_board_client", return_value=None),
+            patch("src.display_runtime.get_settings_service", return_value=self._ss_with_board(None)),
+            patch("src.display_runtime._get_board_client", return_value=None),
             patch("src.api_server.Config") as mock_config,
         ):
             mock_config.BOARD_API_MODE = "local"
@@ -561,7 +559,7 @@ class TestConnectionInfoSource:
         }
         ss = self._ss_with_board(board, send_to_board=False)
         with (
-            patch("src.api_server.get_settings_service", return_value=ss),
+            patch("src.display_runtime.get_settings_service", return_value=ss),
             patch("src.api_server.Config") as mock_config,
         ):
             mock_config.BOARD_API_MODE = "local"
@@ -588,8 +586,8 @@ class TestDebugOutOfBandWritesSurviveTheDisplayLoop:
     def test_blank_leaves_the_dedupe_state_alone(self, client, mock_board_client):
         service = Mock()
         with (
-            patch("src.api_server.get_settings_service", return_value=self._ss()),
-            patch("src.api_server.peek_service", return_value=service),
+            patch("src.display_runtime.get_settings_service", return_value=self._ss()),
+            patch("src.display_runtime.peek_service", return_value=service),
         ):
             response = client.post("/debug/blank")
         assert response.status_code == 200
@@ -598,8 +596,8 @@ class TestDebugOutOfBandWritesSurviveTheDisplayLoop:
     def test_fill_leaves_the_dedupe_state_alone(self, client, mock_board_client):
         service = Mock()
         with (
-            patch("src.api_server.get_settings_service", return_value=self._ss()),
-            patch("src.api_server.peek_service", return_value=service),
+            patch("src.display_runtime.get_settings_service", return_value=self._ss()),
+            patch("src.display_runtime.peek_service", return_value=service),
         ):
             response = client.post("/debug/fill", json={"character_code": 63})
         assert response.status_code == 200
@@ -608,8 +606,8 @@ class TestDebugOutOfBandWritesSurviveTheDisplayLoop:
     def test_info_leaves_the_dedupe_state_alone(self, client, mock_board_client):
         service = Mock()
         with (
-            patch("src.api_server.get_settings_service", return_value=self._ss()),
-            patch("src.api_server.peek_service", return_value=service),
+            patch("src.display_runtime.get_settings_service", return_value=self._ss()),
+            patch("src.display_runtime.peek_service", return_value=service),
         ):
             response = client.post("/debug/info")
         assert response.status_code == 200
@@ -618,8 +616,8 @@ class TestDebugOutOfBandWritesSurviveTheDisplayLoop:
     def test_blank_without_service_instance_is_safe(self, client, mock_board_client):
         """No display service yet → nothing to invalidate, blank still succeeds."""
         with (
-            patch("src.api_server.get_settings_service", return_value=self._ss()),
-            patch("src.api_server.peek_service", return_value=None),
+            patch("src.display_runtime.get_settings_service", return_value=self._ss()),
+            patch("src.display_runtime.peek_service", return_value=None),
         ):
             response = client.post("/debug/blank")
         assert response.status_code == 200
@@ -633,9 +631,9 @@ class TestDebugWritesReportOutOfBand:
     def test_debug_blank_marks_out_of_band_and_publishes(self, client, mock_board_client):
         service = Mock()
         with (
-            patch("src.api_server.get_settings_service", return_value=_mock_ss("flagship")),
-            patch("src.api_server.peek_service", return_value=service),
-            patch("src.api_server._publish_mqtt_state_update") as publish,
+            patch("src.display_runtime.get_settings_service", return_value=_mock_ss("flagship")),
+            patch("src.display_runtime.peek_service", return_value=service),
+            patch("src.display_runtime._publish_mqtt_state_update") as publish,
         ):
             response = client.post("/debug/blank")
         assert response.status_code == 200
@@ -645,9 +643,9 @@ class TestDebugWritesReportOutOfBand:
     def test_debug_fill_marks_out_of_band_and_publishes(self, client, mock_board_client):
         service = Mock()
         with (
-            patch("src.api_server.get_settings_service", return_value=_mock_ss("flagship")),
-            patch("src.api_server.peek_service", return_value=service),
-            patch("src.api_server._publish_mqtt_state_update") as publish,
+            patch("src.display_runtime.get_settings_service", return_value=_mock_ss("flagship")),
+            patch("src.display_runtime.peek_service", return_value=service),
+            patch("src.display_runtime._publish_mqtt_state_update") as publish,
         ):
             response = client.post("/debug/fill", json={"character_code": 63})
         assert response.status_code == 200
@@ -657,9 +655,9 @@ class TestDebugWritesReportOutOfBand:
     def test_debug_info_marks_out_of_band_and_publishes(self, client, mock_board_client):
         service = Mock()
         with (
-            patch("src.api_server.get_settings_service", return_value=_mock_ss("flagship")),
-            patch("src.api_server.peek_service", return_value=service),
-            patch("src.api_server._publish_mqtt_state_update") as publish,
+            patch("src.display_runtime.get_settings_service", return_value=_mock_ss("flagship")),
+            patch("src.display_runtime.peek_service", return_value=service),
+            patch("src.display_runtime._publish_mqtt_state_update") as publish,
         ):
             response = client.post("/debug/info")
         assert response.status_code == 200
@@ -670,9 +668,9 @@ class TestDebugWritesReportOutOfBand:
         mock_board_client.send_characters.return_value = (False, False)
         service = Mock()
         with (
-            patch("src.api_server.get_settings_service", return_value=_mock_ss("flagship")),
-            patch("src.api_server.peek_service", return_value=service),
-            patch("src.api_server._publish_mqtt_state_update") as publish,
+            patch("src.display_runtime.get_settings_service", return_value=_mock_ss("flagship")),
+            patch("src.display_runtime.peek_service", return_value=service),
+            patch("src.display_runtime._publish_mqtt_state_update") as publish,
         ):
             response = client.post("/debug/blank")
         assert response.status_code == 500
@@ -682,9 +680,9 @@ class TestDebugWritesReportOutOfBand:
     def test_no_display_service_is_safe(self, client, mock_board_client):
         """peek_service returning None must not fail the debug write."""
         with (
-            patch("src.api_server.get_settings_service", return_value=_mock_ss("flagship")),
-            patch("src.api_server.peek_service", return_value=None),
-            patch("src.api_server._publish_mqtt_state_update"),
+            patch("src.display_runtime.get_settings_service", return_value=_mock_ss("flagship")),
+            patch("src.display_runtime.peek_service", return_value=None),
+            patch("src.display_runtime._publish_mqtt_state_update"),
         ):
             response = client.post("/debug/blank")
         assert response.status_code == 200

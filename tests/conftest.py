@@ -125,6 +125,66 @@ def _isolated_data_dir(tmp_path, monkeypatch):
     _drop_all_singletons()
 
 
+#: Collaborators that moved from ``src.api_server`` to ``src.display_runtime``
+#: in the Phase 2 debug slice. ``api_server`` re-exports every one of them, so
+#: both module attributes exist and both are legitimate patch targets.
+_DISPLAY_RUNTIME_SEAMS = (
+    "get_settings_service",
+    "get_service",
+    "peek_service",
+    "_get_board_client",
+    "_board_is_paused",
+    "_primary_board_entry",
+    "_primary_connection_info",
+    "_get_first_board_dims",
+    "_get_server_ip",
+    "_get_service_uptime",
+    "_format_uptime",
+    "_note_out_of_band_write",
+    "_publish_mqtt_state_update",
+    "_send_with_status",
+)
+
+
+@pytest.fixture(autouse=True)
+def _display_runtime_follows_api_server_stubs(monkeypatch):
+    """Stub both targets while the seam retirement is half done.
+
+    Phase 2 moves collaborators out of ``src/api_server.py`` one domain at a
+    time (spec §2.3). Until the last domain converts, two module attributes
+    name the same collaborator: the canonical one in
+    :mod:`src.display_runtime` and the re-export in ``src.api_server`` that
+    ~130 existing ``patch("src.api_server.<name>")`` targets resolve. Patching
+    one rebinds only that module's name, so a test that stubs the api_server
+    side and drives a handler *through* display_runtime would silently get the
+    real collaborator — and, with no board configured, a 503 that looks like a
+    product bug.
+
+    This makes display_runtime read the api_server attribute at call time, so
+    a stub set on either side is honored on both. Patching
+    ``src.display_runtime.<name>`` still wins: it replaces the forwarder.
+
+    Behavior-preserving: in production ``api_server.<name>`` *is*
+    display_runtime's function object, so the forwarder resolves to exactly
+    what it replaced. Delete this fixture when api_server stops re-exporting
+    (the recipe's "shared accessor cannot be deleted until its last consumer
+    converts").
+    """
+    import src.api_server as api_server
+    import src.display_runtime as display_runtime
+
+    def _forward(name):
+        def forwarder(*args, **kwargs):
+            return getattr(api_server, name)(*args, **kwargs)
+
+        forwarder.__name__ = name
+        forwarder.__doc__ = f"Test shim: resolves src.api_server.{name} at call time."
+        return forwarder
+
+    for name in _DISPLAY_RUNTIME_SEAMS:
+        monkeypatch.setattr(display_runtime, name, _forward(name))
+
+
 @pytest.fixture(autouse=True)
 def _disable_auth_for_tests(request, monkeypatch):
     """Disable auth enforcement by default in the test suite.

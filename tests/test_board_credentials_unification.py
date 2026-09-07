@@ -387,7 +387,14 @@ class TestDivergedReadersSeeSettings:
         assert data["connection_mode"] == "local"
 
     def test_network_diagnostics_uses_settings_credentials(self, diverged, client):
-        with patch("src.network_diagnostics.run_full_diagnostics", return_value={}) as diag:
+        verdict = {
+            "dns": {"ok": True},
+            "internet": {"ok": True},
+            "vestaboard": {"ok": True, "mode": "local", "steps": {}},
+            "overall_ok": True,
+            "recommendations": [],
+        }
+        with patch("src.network_diagnostics.run_full_diagnostics", return_value=verdict) as diag:
             response = client.get("/debug/network-diagnostics")
         assert response.status_code == 200
         kwargs = diag.call_args.kwargs

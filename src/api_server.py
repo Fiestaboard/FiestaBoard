@@ -10,10 +10,8 @@ import re
 import threading
 import time
 import uuid
-from collections import deque
 from contextlib import asynccontextmanager
 from datetime import UTC, datetime
-from pathlib import Path
 from typing import Any
 from urllib.parse import urlparse
 
@@ -29,7 +27,15 @@ from pydantic import BaseModel, Field
 # after this call; noqa: E402 suppresses ruff's import-order check.
 load_dotenv()
 
-from . import __version__  # noqa: E402
+# The display-service runtime and the log store live in their own modules
+# (Phase 2 Task 8) so a router can reach them without importing this one.
+# Imported under their pre-move identities: ~130 test patch targets, plus the
+# handlers still declared here, resolve them as ``src.api_server.<name>``.
+from . import (  # noqa: E402,F401  (re-export)
+    __version__,  # noqa: E402
+    display_runtime,
+    log_store,
+)
 from .auth import is_auth_enabled  # noqa: E402
 from .auth.middleware import AuthMiddleware  # noqa: E402
 from .auth.routes import router as auth_router  # noqa: E402
@@ -64,8 +70,35 @@ from .config import Config  # noqa: E402
 # nothing.
 from .config_manager import get_config_manager  # noqa: E402
 from .devices import classify_dimensions, resolve_dimensions  # noqa: E402
-from .display_runtime import get_service, peek_service  # noqa: E402
+from .display_runtime import (  # noqa: E402
+    _format_uptime,  # noqa: F401  (re-export: pre-move patch target)
+    _get_board_client,  # noqa: F401  (re-export: pre-move patch target)
+    _get_first_board_dims,  # noqa: F401  (re-export: pre-move patch target)
+    _get_server_ip,  # noqa: F401  (re-export: pre-move patch target)
+    _get_service_uptime,  # noqa: F401  (re-export: pre-move patch target)
+    _note_out_of_band_write,  # noqa: F401  (re-export: pre-move patch target)
+    _primary_board_entry,  # noqa: F401  (re-export: pre-move patch target)
+    _primary_connection_info,  # noqa: F401  (re-export: pre-move patch target)
+    _publish_mqtt_state_update,  # noqa: F401  (re-export: pre-move patch target)
+    _send_with_status,  # noqa: F401  (re-export: pre-move patch target)
+    get_service,  # noqa: F401  (re-export: pre-move patch target)
+    mark_service_started,  # noqa: F401  (re-export: pre-move patch target)
+    peek_service,  # noqa: F401  (re-export: pre-move patch target)
+)
 from .displays.service import get_display_service, reset_display_service  # noqa: E402, F401
+from .log_store import (  # noqa: E402
+    LOG_BACKUP_COUNT,  # noqa: F401  (re-export: pre-move patch target)
+    LOG_MAX_BYTES,  # noqa: F401  (re-export: pre-move patch target)
+    JSONFileHandler,  # noqa: F401  (re-export: pre-move patch target)
+    LogBufferHandler,  # noqa: F401  (re-export: pre-move patch target)
+    _create_log_entry,  # noqa: F401  (re-export: pre-move patch target)
+    _log_buffer,  # noqa: F401  (re-export: pre-move patch target)
+    _log_dir,  # noqa: F401  (re-export: pre-move patch target)
+    _log_file,  # noqa: F401  (re-export: pre-move patch target)
+    _log_lock,  # noqa: F401  (re-export: pre-move patch target)
+    _read_logs_from_files,  # noqa: F401  (re-export: pre-move patch target)
+    _setup_file_logging,  # noqa: F401  (re-export: pre-move patch target)
+)
 from .network.wifi import WiFiError, get_wifi_service  # noqa: E402
 from .pages.service import (  # noqa: E402
     check_ref_board_compatibility,
@@ -74,7 +107,7 @@ from .pages.service import (  # noqa: E402
 )
 from .panels.models import PanelCreate, PanelUpdate  # noqa: E402
 from .panels.service import get_panel_service  # noqa: E402
-from .paths import get_data_dir  # noqa: E402
+from .paths import get_data_dir  # noqa: E402, F401  (re-export: patch seam)
 
 # Patch seam (issue #1756): no handler left in this module calls it, but the
 # extracted routers resolve it through `src.api_server` at call time so
@@ -89,32 +122,6 @@ from .time_service import reset_time_service  # noqa: E402
 from .virtual_board_client import release_virtual_board_state  # noqa: E402
 
 logger = logging.getLogger(__name__)
-
-# Log file configuration.
-#
-# ``LOG_DIR`` is a *test seam* in the same shape as ``SYSTEM_UPDATE_STATE_FILE``
-# further down: production leaves it ``None`` and ``_log_dir()`` resolves
-# ``<data>/logs`` lazily through ``src.paths.get_data_dir()`` (honoring
-# ``FIESTABOARD_DATA_DIR``, #1762). It was previously the hard-coded container
-# path ``/app/data/logs``, which bypassed the seam entirely and made the test
-# suite write ``data/logs/app.log`` into the checkout on every run (#1881).
-#
-# Resolve at call time, never at import time: import-time resolution is what
-# created this class of bug (#1894).
-LOG_DIR: Path | None = None
-LOG_MAX_BYTES = 5 * 1024 * 1024  # 5MB per file
-LOG_BACKUP_COUNT = 5  # Keep 5 backup files (25MB total max)
-
-
-def _log_dir() -> Path:
-    """Resolve the log directory, honoring the ``LOG_DIR`` test seam."""
-    return LOG_DIR if LOG_DIR is not None else get_data_dir() / "logs"
-
-
-def _log_file() -> Path:
-    """Resolve the current log file (``<data>/logs/app.log``)."""
-    return _log_dir() / "app.log"
-
 
 # Cache state for /muni/stops endpoint
 _muni_stops_cache: dict[str, Any] | None = None
@@ -317,172 +324,13 @@ def _validate_board_host_is_local_network(host: str) -> None:
 # The background-thread lifecycle below is server lifecycle and stays here.
 _service_thread: threading.Thread | None = None
 _service_running = False
-_service_start_time: float | None = None  # Track when service started
 _shutting_down = False  # Set during app shutdown to suppress auto-restart
 
-# In-memory log buffer (last 500 log entries for quick access)
-_log_buffer: deque = deque(maxlen=500)
-_log_lock = threading.Lock()
-
-
-def _create_log_entry(record: logging.LogRecord, formatted_message: str) -> dict[str, Any]:
-    """Create a structured log entry from a log record with UTC timestamp."""
-    from .time_service import get_time_service
-
-    time_service = get_time_service()
-
-    return {
-        "timestamp": time_service.create_utc_timestamp(),
-        "level": record.levelname,
-        "logger": record.name,
-        "message": formatted_message,
-    }
-
-
-class LogBufferHandler(logging.Handler):
-    """Custom logging handler that stores logs in memory for API access."""
-
-    def emit(self, record):
-        try:
-            log_entry = _create_log_entry(record, self.format(record))
-            with _log_lock:
-                _log_buffer.append(log_entry)
-        except Exception:
-            self.handleError(record)
-
-
-class JSONFileHandler(logging.handlers.RotatingFileHandler):
-    """Rotating file handler that writes logs as JSON lines."""
-
-    def emit(self, record):
-        try:
-            log_entry = _create_log_entry(record, self.format(record))
-            # Write as JSON line
-            msg = json.dumps(log_entry) + "\n"
-            stream = self.stream
-            stream.write(msg)
-            self.flush()
-            # Handle rotation
-            if self.shouldRollover(record):
-                self.doRollover()
-        except Exception:
-            self.handleError(record)
-
-    def shouldRollover(self, record):
-        """Check if we should rollover based on file size."""
-        if self.stream is None:
-            self.stream = self._open()
-        if self.maxBytes > 0:
-            self.stream.seek(0, 2)  # Seek to end
-            if self.stream.tell() >= self.maxBytes:
-                return True
-        return False
-
-
-def _setup_file_logging():
-    """Set up file-based logging with rotation."""
-    try:
-        # Create logs directory if it doesn't exist
-        log_file = _log_file()
-        log_file.parent.mkdir(parents=True, exist_ok=True)
-
-        # Create JSON file handler with rotation
-        file_handler = JSONFileHandler(
-            str(log_file), maxBytes=LOG_MAX_BYTES, backupCount=LOG_BACKUP_COUNT, encoding="utf-8"
-        )
-        file_handler.setFormatter(logging.Formatter("%(message)s"))
-        file_handler.setLevel(logging.INFO)
-
-        # Add to root logger
-        logging.getLogger().addHandler(file_handler)
-        logger.info(f"File logging initialized: {log_file}")
-    except Exception as e:
-        logger.warning(f"Failed to set up file logging: {e}")
-
-
-def _read_logs_from_files(
-    limit: int = 100, offset: int = 0, level: str | None = None, search: str | None = None
-) -> tuple[list[dict[str, Any]], int, bool]:
-    """
-    Read logs from log files with filtering and pagination.
-
-    Returns: (logs, total_matching, has_more)
-    """
-    all_logs = []
-
-    # Read from current log file and backups
-    current_log = _log_file()
-    log_files = [current_log]
-    for i in range(1, LOG_BACKUP_COUNT + 1):
-        backup_file = Path(f"{current_log}.{i}")
-        if backup_file.exists():
-            log_files.append(backup_file)
-
-    # Read all log entries from files (newest first)
-    for log_file in log_files:
-        if not log_file.exists():
-            continue
-        try:
-            with open(log_file, encoding="utf-8") as f:
-                lines = f.readlines()
-                for line in reversed(lines):
-                    line = line.strip()
-                    if not line:
-                        continue
-                    try:
-                        entry = json.loads(line)
-                        all_logs.append(entry)
-                    except json.JSONDecodeError:
-                        continue
-        except Exception:
-            continue
-
-    # Also include in-memory buffer (most recent)
-    with _log_lock:
-        memory_logs = list(_log_buffer)
-
-    # Merge: memory logs are most recent, then file logs
-    # Deduplicate by timestamp + message
-    seen = set()
-    merged_logs = []
-
-    for log in reversed(memory_logs):
-        key = (log.get("timestamp"), log.get("message"))
-        if key not in seen:
-            seen.add(key)
-            merged_logs.append(log)
-
-    for log in all_logs:
-        key = (log.get("timestamp"), log.get("message"))
-        if key not in seen:
-            seen.add(key)
-            merged_logs.append(log)
-
-    # Apply filters
-    filtered_logs = merged_logs
-
-    if level:
-        level_upper = level.upper()
-        filtered_logs = [log for log in filtered_logs if log.get("level") == level_upper]
-
-    if search:
-        search_lower = search.lower()
-        filtered_logs = [
-            log
-            for log in filtered_logs
-            if search_lower in log.get("message", "").lower() or search_lower in log.get("logger", "").lower()
-        ]
-
-    total_matching = len(filtered_logs)
-
-    # Apply pagination
-    start = offset
-    end = offset + limit
-    paginated = filtered_logs[start:end]
-    has_more = end < total_matching
-
-    return paginated, total_matching, has_more
-
+# ``_service_running`` is written by the start/stop lifecycle below and read at
+# 22 sites here; src/display_runtime.py reads it through this probe so a
+# converted router can answer "is the display loop running" without importing
+# this module. One flag, one owner, two readers.
+display_runtime.set_running_probe(lambda: _service_running)
 
 class MessageRequest(BaseModel):
     """Request model for sending a custom message."""
@@ -929,47 +777,9 @@ log_buffer_handler.setFormatter(logging.Formatter("%(asctime)s - %(name)s - %(le
 logging.getLogger().addHandler(log_buffer_handler)
 
 
-def _publish_mqtt_state_update() -> None:
-    """Push fresh MQTT state after an out-of-band board write (issue #1794).
-
-    No-op when the MQTT integration isn't wired. Errors are swallowed —
-    MQTT reporting must never fail the board write that triggered it.
-    """
-    try:
-        from .mqtt import get_mqtt_client
-
-        client = get_mqtt_client()
-        publisher = getattr(client, "_state_publisher", None) if client else None
-        if publisher is None:
-            return
-        publisher.mark_display_updated()
-        publisher.gather_and_publish()
-    except Exception as e:
-        logger.debug(f"MQTT state publish after board write failed: {e}")
-
-
-def _note_out_of_band_write() -> None:
-    """Record a successful out-of-band write to the primary board and push
-    fresh MQTT state (issue #1831).
-
-    The write bypassed the display loop and persists (issue #1794), so the
-    board no longer shows the configured page; flagging it lets the state
-    publisher report that instead of the page name. Peek only — with no
-    DisplayService there is nothing to flag, and reporting must never fail
-    the board write that triggered it.
-    """
-    service = peek_service()
-    if service is not None:
-        try:
-            service.mark_showing_out_of_band()
-        except Exception as e:
-            logger.debug(f"Out-of-band mark failed: {e}")
-    _publish_mqtt_state_update()
-
-
 def run_service_background():
     """Run the service in a background thread with auto-restart on failure."""
-    global _service_running, _service_start_time
+    global _service_running
     restart_delay = 2
     max_restart_delay = 60
 
@@ -991,7 +801,7 @@ def run_service_background():
 
         service.running = True
         _service_running = True
-        _service_start_time = time.time()
+        mark_service_started()
         restart_delay = 2  # Reset backoff on successful start
         try:
             logger.info("Starting background display service...")
@@ -1939,41 +1749,6 @@ async def wifi_forget(con_name: str):
     return {"status": "ok"}
 
 
-@app.get("/logs")
-async def get_logs(
-    limit: int = Query(default=50, ge=1, le=500, description="Number of log entries to return"),
-    offset: int = Query(default=0, ge=0, description="Offset for pagination"),
-    level: str | None = Query(default=None, description="Filter by log level (DEBUG, INFO, WARNING, ERROR, CRITICAL)"),
-    search: str | None = Query(default=None, description="Search in log message or logger name"),
-):
-    """Get application logs with pagination, filtering, and search.
-
-    Args:
-        limit: Maximum number of log entries to return (default 50, max 500)
-        offset: Number of entries to skip for pagination
-        level: Filter by log level (DEBUG, INFO, WARNING, ERROR, CRITICAL)
-        search: Search text in log message or logger name
-
-    Returns:
-        List of log entries with pagination info
-    """
-    # Validate level if provided
-    valid_levels = ["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"]
-    if level and level.upper() not in valid_levels:
-        raise HTTPException(status_code=400, detail=f"Invalid log level: {level}. Valid levels: {valid_levels}")
-
-    logs, total, has_more = _read_logs_from_files(limit=limit, offset=offset, level=level, search=search)
-
-    return {
-        "logs": logs,
-        "total": total,
-        "limit": limit,
-        "offset": offset,
-        "has_more": has_more,
-        "filters": {"level": level.upper() if level else None, "search": search},
-    }
-
-
 @app.get("/status", response_model=StatusResponse)
 async def get_status():
     """Get current service status."""
@@ -2077,31 +1852,6 @@ async def stop_service():
         _service_running = False
 
     return {"status": "stopped", "message": "Service stopped successfully"}
-
-
-def _send_with_status(service, method: str, fallback: str, *args, **kwargs) -> tuple[bool, str | None]:
-    """Run a ``check_and_send_*`` pass and return ``(sent, failure reason)``.
-
-    ``check_and_send_*`` swallow exceptions and return a bool that conflates
-    "failed" with benign skips, so endpoints reported silent failures as
-    success (issue #1791). The ``*_with_status`` wrappers capture the reason
-    for *this* call in a thread-local, which is why the reason must come back
-    from the call rather than be read off the runtime afterwards — the engine
-    thread rewrites ``last_send_error`` on its own cadence.
-
-    Falls back to the plain method (and no reason) when the service does not
-    expose the wrapper, so Mock services from older test fixtures still work.
-    Only a non-empty ``str`` counts as a reason, for the same Mock reason
-    (same convention as ``_board_is_paused``).
-    """
-    wrapper = getattr(service, method, None)
-    if callable(wrapper):
-        result = wrapper(*args, **kwargs)
-        if isinstance(result, tuple) and len(result) == 2:
-            sent, error = result
-            return sent is True, (error if isinstance(error, str) and error else None)
-    sent = getattr(service, fallback)(*args, **kwargs)
-    return sent is True, None
 
 
 @app.post("/refresh")
@@ -2374,10 +2124,16 @@ def _throttled_send_response(board_client) -> JSONResponse | None:
     between sends (#1754); a send inside the window returns ``(True, False)``
     with ``last_send_throttled`` set — the content was DROPPED, not
     delivered, and unlike the engine tick (which retries next pass) the
-    manual out-of-band endpoints (/send-message, /send-welcome-message,
-    /debug/blank, /debug/fill, /debug/info) never retry. Answering
-    "success/unchanged" would silently swallow the user's write, so they
-    answer 429 with a Retry-After hint computed from the floor.
+    manual out-of-band endpoints (/send-message, /send-welcome-message)
+    never retry. Answering "success/unchanged" would silently swallow the
+    user's write, so they answer 429 with a Retry-After hint computed from
+    the floor.
+
+    The /debug/* senders used to share this helper; since their conventions
+    pass they raise ``HTTPException(429, detail=...)`` from
+    ``src/debug/routes.py`` instead, so the whole domain serves the one
+    ``{"detail": ...}`` error contract. Same status, same Retry-After, same
+    arithmetic — this stays until the remaining senders convert.
 
     Returns None when the last send was not throttled (the ``is True`` guard
     also keeps Mock clients in tests, whose attributes are truthy, on the
@@ -6143,124 +5899,6 @@ async def get_all_settings():
     }
 
 
-# ==================== Debug Endpoints ====================
-
-
-def _get_server_ip() -> str:
-    """Get the server's IP address."""
-    import socket
-
-    try:
-        # Create a socket to determine the IP
-        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        s.connect(("8.8.8.8", 80))
-        ip = s.getsockname()[0]
-        s.close()
-        return ip
-    except Exception:
-        return "unknown"
-
-
-def _get_service_uptime() -> float | None:
-    """Get service uptime in seconds."""
-    if _service_start_time is None:
-        return None
-    return time.time() - _service_start_time
-
-
-def _format_uptime(seconds: float | None) -> str:
-    """Format uptime seconds as 'Xd Xh Xm'."""
-    if seconds is None:
-        return "not running"
-
-    days = int(seconds // 86400)
-    hours = int((seconds % 86400) // 3600)
-    minutes = int((seconds % 3600) // 60)
-
-    parts = []
-    if days > 0:
-        parts.append(f"{days}d")
-    if hours > 0:
-        parts.append(f"{hours}h")
-    if minutes > 0 or len(parts) == 0:
-        parts.append(f"{minutes}m")
-
-    return " ".join(parts)
-
-
-def _get_board_client():
-    """Get the board client from the service."""
-    service = get_service()
-    if service and service.vb_client:
-        return service.vb_client
-    return None
-
-
-def _primary_board_entry() -> dict | None:
-    """First entry of the settings.boards store, or None when it is empty.
-
-    Safe to call from any endpoint — never raises (mirrors
-    ``_get_first_board_dims``).
-    """
-    try:
-        boards = get_settings_service().get_board_settings().boards or []
-        if isinstance(boards, list) and boards and isinstance(boards[0], dict):
-            return boards[0]
-    except Exception as exc:
-        logger.debug("Could not read boards list: %s", exc)
-    return None
-
-
-def _primary_connection_info() -> tuple[str, str]:
-    """Return ``(connection_mode, board_host)`` for the primary board.
-
-    Reads the boards[] store — the source the live clients are built from
-    and what Settings → Boards displays — then falls back to the live
-    primary client. The legacy config.json copy is never consulted: board
-    credentials are unified on settings.json (issue #1760), so with no
-    boards entry and no live client the install is simply unconfigured.
-    """
-    board = _primary_board_entry()
-    if board is not None:
-        mode = board.get("api_mode") or "local"
-        host = board.get("host") or ""
-        return (mode.lower() if isinstance(mode, str) else "local", host if isinstance(host, str) else "")
-
-    client = _get_board_client()
-    if client is not None:
-        # Strict-True guard so Mock clients from older test fixtures don't
-        # read as cloud (same convention as _board_is_paused).
-        mode = "cloud" if getattr(client, "use_cloud", False) is True else "local"
-        host = getattr(client, "host", "")
-        return mode, host if isinstance(host, str) else ""
-
-    return "local", ""
-
-
-def _get_first_board_dims():
-    """Return resolved dimensions for the first configured board.
-
-    Falls back to flagship 6×22 when the boards list is empty or settings
-    cannot be read. Safe to call from any endpoint — never raises.
-    """
-    try:
-        settings_service = get_settings_service()
-        board_settings = settings_service.get_board_settings()
-        boards = getattr(board_settings, "boards", None) or []
-        if boards:
-            first = boards[0]
-            if isinstance(first, dict):
-                dt = first.get("device_type", "flagship")
-                nw = first.get("notes_wide", 1)
-                nt = first.get("notes_tall", 1)
-            else:
-                dt = getattr(first, "device_type", "flagship")
-                nw = getattr(first, "notes_wide", 1)
-                nt = getattr(first, "notes_tall", 1)
-            return resolve_dimensions(dt, notes_wide=nw, notes_tall=nt)
-    except Exception as exc:
-        logger.debug("Could not resolve board dims (using flagship default): %s", exc)
-    return resolve_dimensions("flagship")
 
 
 def _paused_response(board_id: str | None = None) -> dict:
@@ -6274,308 +5912,15 @@ def _paused_response(board_id: str | None = None) -> dict:
     }
 
 
-@app.post("/debug/blank")
-async def debug_blank_board():
-    """Clear the board by filling with space characters (code 0)."""
-    client = _get_board_client()
-    if not client:
-        raise HTTPException(status_code=400, detail="Board not configured")
+# =============================================================================
+# Debug / diagnostics / logs Endpoints — moved to src/debug/routes.py
+# (Phase 2 Task 8). Covers /debug/*, GET /cache-status, POST /clear-cache,
+# POST /force-refresh and GET /logs.
+# =============================================================================
 
-    settings_service = get_settings_service()
-    if not settings_service.should_send_to_board():
-        return {"status": "success", "message": "Board blank (output target is UI only)"}
+from .debug.routes import router as debug_router  # noqa: E402
 
-    # Block when the (first) board is paused (issue #970).
-    if _board_is_paused():
-        logger.info("Board is paused - blocking debug blank send")
-        return _paused_response()
-
-    dims = _get_first_board_dims()
-    try:
-        # Create an array of spaces (code 0) sized for the active board
-        blank_array = [[0] * dims.cols for _ in range(dims.rows)]
-        success, was_sent = client.send_characters(blank_array, force=True)
-
-        if success:
-            if not was_sent:
-                # Dropped by the send floor, not delivered (#1868 review).
-                throttled = _throttled_send_response(client)
-                if throttled is not None:
-                    return throttled
-            _note_out_of_band_write()
-            return {"status": "success", "message": "Board blanked successfully"}
-        else:
-            raise HTTPException(status_code=500, detail="Failed to blank board")
-    except Exception as e:
-        logger.error(f"Error blanking board: {e}")
-        raise HTTPException(status_code=500, detail=str(e)) from e
-
-
-@app.post("/debug/fill")
-async def debug_fill_board(request: dict):
-    """Fill the board with a single character.
-
-    Body: {"character_code": number} - code must be 0-71
-    """
-    character_code = request.get("character_code")
-    if character_code is None:
-        raise HTTPException(status_code=400, detail="character_code is required")
-
-    if not isinstance(character_code, int) or character_code < 0 or character_code > 71:
-        raise HTTPException(status_code=400, detail="character_code must be 0-71")
-
-    client = _get_board_client()
-    if not client:
-        raise HTTPException(status_code=400, detail="Board not configured")
-
-    settings_service = get_settings_service()
-    if not settings_service.should_send_to_board():
-        return {
-            "status": "success",
-            "message": f"Board filled with character {character_code} (output target is UI only)",
-        }
-
-    # Block when the (first) board is paused (issue #970).
-    if _board_is_paused():
-        logger.info("Board is paused - blocking debug fill send")
-        return _paused_response()
-
-    dims = _get_first_board_dims()
-    try:
-        # Create an array filled with the specified character, sized for the active board
-        fill_array = [[character_code] * dims.cols for _ in range(dims.rows)]
-        success, was_sent = client.send_characters(fill_array, force=True)
-
-        if success:
-            if not was_sent:
-                # Dropped by the send floor, not delivered (#1868 review).
-                throttled = _throttled_send_response(client)
-                if throttled is not None:
-                    return throttled
-            _note_out_of_band_write()
-            return {"status": "success", "message": f"Board filled with character {character_code}"}
-        else:
-            raise HTTPException(status_code=500, detail="Failed to fill board")
-    except Exception as e:
-        logger.error(f"Error filling board: {e}")
-        raise HTTPException(status_code=500, detail=str(e)) from e
-
-
-@app.post("/debug/info")
-async def debug_show_info():
-    """Display debug information on the board."""
-    client = _get_board_client()
-    if not client:
-        raise HTTPException(status_code=400, detail="Board not configured")
-
-    settings_service = get_settings_service()
-    send_to_board = settings_service.should_send_to_board()
-
-    # Gather system info. Mode/IP come from the boards[] store / live client,
-    # not wizard-era config.json (issue #1791).
-    connection_mode, board_ip = _primary_connection_info()
-    board_ip = board_ip or "not set"
-    connection_mode = connection_mode.upper()
-    server_ip = _get_server_ip()
-    uptime = _get_service_uptime()
-    uptime_str = _format_uptime(uptime)
-    version = __version__
-
-    # Get current timestamp
-    from .time_service import get_time_service
-
-    time_service = get_time_service()
-    now = time_service.get_current_time()
-    timestamp = now.strftime("%H:%M")
-
-    # Build debug info text. The per-line slice caps below are flagship-oriented
-    # (~22 col); the final grid is sized to the active board's dimensions when
-    # converted to a board array (see text_to_board_array call). On narrow boards
-    # the converter wraps/truncates to the real width. Per-line polish for exotic
-    # widths is deferred (see #1173).
-    debug_text = f"""DEBUG INFO
-BOARD: {board_ip[:15]}
-SERVER: {server_ip[:14]}
-UP: {uptime_str[:18]}
-{connection_mode[:20]} API
-V{version[:7]} {timestamp}"""
-
-    if not send_to_board:
-        return {
-            "status": "success",
-            "message": "Debug info displayed (output target is UI only)",
-            "debug_info": debug_text,
-        }
-
-    # Block when the (first) board is paused (issue #970).
-    if _board_is_paused():
-        logger.info("Board is paused - blocking debug info send")
-        return {**_paused_response(), "debug_info": debug_text}
-
-    try:
-        # Convert text to board array, sized to the active board's dimensions
-        from .text_to_board import text_to_board_array
-
-        dims = _get_first_board_dims()
-        board_array = text_to_board_array(debug_text, use_color_tiles=False, rows=dims.rows, cols=dims.cols)
-
-        success, was_sent = client.send_characters(board_array, force=True)
-
-        if success:
-            if not was_sent:
-                # Dropped by the send floor, not delivered (#1868 review).
-                throttled = _throttled_send_response(client)
-                if throttled is not None:
-                    return throttled
-            _note_out_of_band_write()
-            return {"status": "success", "message": "Debug info sent to board", "debug_info": debug_text}
-        else:
-            raise HTTPException(status_code=500, detail="Failed to send debug info")
-    except Exception as e:
-        logger.error(f"Error sending debug info: {e}")
-        raise HTTPException(status_code=500, detail=str(e)) from e
-
-
-@app.post("/debug/test-connection")
-async def debug_test_connection():
-    """Test connection to the board."""
-    client = _get_board_client()
-    if not client:
-        raise HTTPException(status_code=400, detail="Board not configured")
-
-    try:
-        start_time = time.time()
-        connected = client.test_connection()
-        latency = round((time.time() - start_time) * 1000)  # ms
-
-        if connected:
-            return {
-                "status": "success",
-                "message": f"Connection successful (latency: {latency}ms)",
-                "connected": True,
-                "latency_ms": latency,
-            }
-        # Unlike /config/board/test this endpoint has no declared verdict
-        # body — no error class, no troubleshooting — so a 200 carrying
-        # ``status: "error"`` was indistinguishable from a success to any
-        # client that only checks the status code (#1887).
-        raise HTTPException(status_code=503, detail="Could not reach the board.")
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"Error testing connection: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail="Connection test failed.") from e
-
-
-@app.post("/debug/clear-cache")
-async def debug_clear_cache():
-    """Clear the board client's message cache."""
-    client = _get_board_client()
-    if not client:
-        raise HTTPException(status_code=400, detail="Board not configured")
-
-    try:
-        client.clear_cache()
-        return {"status": "success", "message": "Cache cleared - next message will be sent regardless of content"}
-    except Exception as e:
-        logger.error(f"Error clearing cache: {e}")
-        raise HTTPException(status_code=500, detail=str(e)) from e
-
-
-@app.get("/debug/cache-status")
-async def debug_get_cache_status():
-    """Get current cache status for debugging."""
-    client = _get_board_client()
-    if not client:
-        raise HTTPException(status_code=400, detail="Board not configured")
-
-    try:
-        cache_status = client.get_cache_status()
-        return {"status": "success", "cache": cache_status}
-    except Exception as e:
-        logger.error(f"Error getting cache status: {e}")
-        raise HTTPException(status_code=500, detail=str(e)) from e
-
-
-@app.get("/debug/system-info")
-async def debug_get_system_info():
-    """Get system information without sending to board."""
-    # Gather all system info. Connection mode and board IP come from the
-    # boards[] store / live client — the values the send path actually uses —
-    # not from wizard-era config.json (issue #1791).
-    connection_mode, board_ip = _primary_connection_info()
-    server_ip = _get_server_ip()
-    uptime_seconds = _get_service_uptime()
-    uptime_formatted = _format_uptime(uptime_seconds)
-    version = __version__
-
-    # Get current timestamp
-    from .time_service import get_time_service
-
-    time_service = get_time_service()
-    timestamp = time_service.create_utc_timestamp()
-
-    # Get cache status if available
-    client = _get_board_client()
-    cache_status = client.get_cache_status() if client else None
-
-    # Check if board is configured: the client factory is the authority on
-    # "has a usable connection". No boards[] entry means unconfigured — the
-    # legacy config.json copy is never consulted (issue #1760).
-    board = _primary_board_entry()
-    if board is not None:
-        try:
-            board_configured = board_client_from_board_dict(board) is not None
-        except Exception as exc:
-            logger.debug("Could not evaluate board connection config: %s", exc)
-            board_configured = False
-    else:
-        board_configured = False
-
-    return {
-        "board_ip": board_ip,
-        "server_ip": server_ip,
-        "uptime_seconds": uptime_seconds,
-        "uptime_formatted": uptime_formatted,
-        "connection_mode": connection_mode,
-        "version": version,
-        "timestamp": timestamp,
-        "cache_status": cache_status,
-        "board_configured": board_configured,
-        "service_running": _service_running,
-    }
-
-
-@app.get("/debug/network-diagnostics")
-async def debug_network_diagnostics():
-    """Run network diagnostics to troubleshoot connectivity issues.
-
-    Checks DNS resolution, internet connectivity, and Vestaboard reachability.
-    """
-    from .network_diagnostics import run_full_diagnostics
-
-    # Diagnose the connection the send path actually uses: the boards[]
-    # store. The legacy config.json copy is never consulted (issue #1760) —
-    # with no boards entry the diagnostics run without board credentials.
-    board = _primary_board_entry() or {}
-    board_host = board.get("host") or None
-    board_port = board.get("port") or 7000
-    board_api_key = board.get("local_api_key") or None
-    use_cloud = (board.get("api_mode") or "local").lower() == "cloud"
-    cloud_key = board.get("cloud_key") or None
-
-    try:
-        results = run_full_diagnostics(
-            board_host=board_host,
-            board_port=board_port,
-            board_api_key=board_api_key,
-            use_cloud=use_cloud,
-            cloud_key=cloud_key,
-        )
-        return {"status": "success", "diagnostics": results}
-    except Exception as e:
-        logger.error(f"Error running network diagnostics: {e}")
-        raise HTTPException(status_code=500, detail="Network diagnostics failed") from e
+app.include_router(debug_router)
 
 
 # =============================================================================
@@ -7189,82 +6534,6 @@ async def render_template_live(request: dict):
         "paused": paused,
         "board_id": target_board.get("id") if target_board else None,
     }
-
-
-@app.get("/cache-status")
-async def get_cache_status():
-    """Get the current client-side cache status for the board client."""
-    service = get_service()
-    if not service or not service.vb_client:
-        raise HTTPException(status_code=503, detail="Service not initialized")
-
-    return service.vb_client.get_cache_status()
-
-
-@app.post("/clear-cache")
-async def clear_cache():
-    """
-    Clear the client-side message cache.
-
-    This forces the next update to be sent to the board,
-    even if the message content hasn't changed.
-    """
-    service = get_service()
-    if not service or not service.vb_client:
-        raise HTTPException(status_code=503, detail="Service not initialized")
-
-    service.vb_client.clear_cache()
-    return {"status": "success", "message": "Cache cleared - next update will be sent to board"}
-
-
-@app.post("/force-refresh")
-async def force_refresh():
-    """
-    Force a display refresh, ignoring the cache.
-
-    Unlike /refresh, this will send to the board even if the message
-    content hasn't changed. Useful when you want to resync the board.
-    """
-    service = get_service()
-    if not service:
-        raise HTTPException(status_code=503, detail="Service not initialized")
-
-    # The cache clearing plus a full forced send pass is all blocking work,
-    # so it runs in one worker thread and the event loop keeps serving
-    # requests (#1826); _send_with_status moves as one call because its
-    # failure reason lives in a thread-local set and read inside the same
-    # sync call.
-    def _work() -> tuple[bool, str | None]:
-        # Clear caches to force send even if content unchanged — every board,
-        # not just the primary (secondary boards have their own clients).
-        if service.vb_client:
-            service.vb_client.clear_cache()
-        for client in service.board_clients.values():
-            client.clear_cache()
-        # The board clients are only half of it: the display loop skips at its
-        # own per-runtime content-dedupe guard, so clearing the client caches
-        # alone left "Resend to board" doing nothing (issue #1794).
-        try:
-            service.invalidate_all_board_content()
-        except Exception as e:
-            logger.debug(f"Board content invalidation failed: {e}")
-
-        return _send_with_status(service, "check_and_send_active_page_with_status", "check_and_send_active_page")
-
-    try:
-        sent, error = await run_board_send(_work)
-        if error:
-            raise HTTPException(status_code=500, detail=f"Failed to force refresh: {error}")
-        return {
-            "status": "success",
-            "message": "Display force-refreshed successfully",
-            "sent": sent,
-        }
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"Error force-refreshing display: {e}")
-        raise HTTPException(status_code=500, detail=f"Failed to force refresh: {str(e)}") from e
 
 
 # =============================================================================

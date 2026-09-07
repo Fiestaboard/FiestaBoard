@@ -224,12 +224,14 @@ export const mockTemplateVariables: TemplateVariables = {
   },
 };
 
+// The shape GET /cache-status actually serves (src/debug/models.py CacheStatus).
+// It previously invented cached/last_message_hash/cache_hits fields the API has
+// never returned.
 export const mockCacheStatus = {
-  cached: true,
-  last_message_hash: "abc123",
-  last_sent_at: "2024-01-01T12:00:00Z",
-  cache_hits: 5,
-  total_sends: 10,
+  has_cached_text: true,
+  has_cached_characters: true,
+  skip_unchanged_enabled: true,
+  cached_text_preview: "HELLO WORLD",
 };
 
 // General config mock
@@ -721,17 +723,11 @@ export const handlers = [
   }),
 
   http.post(`${API_BASE}/clear-cache`, () => {
-    return HttpResponse.json({
-      status: "success",
-      message: "Cache cleared",
-    });
+    return HttpResponse.json({ message: "Cache cleared" });
   }),
 
   http.post(`${API_BASE}/force-refresh`, () => {
-    return HttpResponse.json({
-      status: "success",
-      message: "Display force-refreshed",
-    });
+    return HttpResponse.json({ message: "Display force-refreshed", sent: true });
   }),
 
   // General config endpoints

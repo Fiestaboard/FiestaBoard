@@ -39,7 +39,7 @@ _DESCRIPTIONS: dict[int, str] = {
     405: "The resource exists but does not implement this operation.",
     409: "Conflict — duplicate id, or a resource pinned by the environment.",
     422: "Request body failed validation.",
-    429: "Rate-limited — the same request arrived again too quickly.",
+    429: "Rate-limited — the request arrived inside a minimum interval; see Retry-After.",
     501: "The resource declares this capability but does not implement it.",
     502: "An upstream the server called on your behalf failed.",
     503: "A required dependency is unavailable.",
