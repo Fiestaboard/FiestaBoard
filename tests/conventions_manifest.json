@@ -2,6 +2,7 @@
   "_comment": "API conventions ratchet (Phase 2, spec §2). Enforced by tests/test_api_conventions_ratchet.py; rules documented in docs/internal/reference/API_CONVENTIONS.md. Append a domain to converted_domains in the slice PR that converts it — never before. Every exception needs a route that exists, a known rule id, and a reason a reviewer can argue with.",
   "converted_domains": [
     "collections",
+    "pages",
     "schedules"
   ],
   "exceptions": [
@@ -11,14 +12,24 @@
       "reason": "Listing has no failure path: it returns [] for an empty store and cannot 404 or 400, so declaring a 4xx would document an error the endpoint never raises."
     },
     {
+      "route": "GET /pages",
+      "rule": "declared_errors",
+      "reason": "Has no failure path of its own: an instance with no pages answers {\"pages\": [], \"total\": 0}. The only 4xx it can produce is the auth middleware's 401, which is applied app-wide and is not this route's contract to declare."
+    },
+    {
+      "route": "GET /pages/cache/stats",
+      "rule": "declared_errors",
+      "reason": "Reports in-memory preview-cache occupancy, which always exists — an empty cache is a valid answer, not an error. Nothing it reads can be missing or unauthorized at the route level."
+    },
+    {
       "route": "GET /schedules",
       "rule": "declared_errors",
       "reason": "No failure path. The only argument is board_id, and a board-scoped read deliberately falls back to the empty list instead of 404ing (API_CONVENTIONS.md, 'board_id validation: writes 404, reads fall back'); board_id=* is a documented wildcard, not an id."
     },
     {
-      "route": "GET /schedules/enabled",
+      "route": "GET /schedules/active/page",
       "rule": "declared_errors",
-      "reason": "No failure path. An unknown board_id deliberately answers false rather than 404 — the same read/write asymmetry, decided in #1888 and documented in API_CONVENTIONS.md."
+      "reason": "No failure path. It reports whatever is on the board right now — manual page, scheduled page, or nothing — and every collection resolution failure is caught and reported as null rather than raised, because a dashboard poll must not error out over a collection that cannot resolve."
     },
     {
       "route": "GET /schedules/default-page",
@@ -26,9 +37,14 @@
       "reason": "No failure path. An unknown board_id deliberately answers the global default rather than 404 — the same read/write asymmetry, decided in #1888 and documented in API_CONVENTIONS.md."
     },
     {
-      "route": "GET /schedules/active/page",
+      "route": "GET /schedules/enabled",
       "rule": "declared_errors",
-      "reason": "No failure path. It reports whatever is on the board right now — manual page, scheduled page, or nothing — and every collection resolution failure is caught and reported as null rather than raised, because a dashboard poll must not error out over a collection that cannot resolve."
+      "reason": "No failure path. An unknown board_id deliberately answers false rather than 404 — the same read/write asymmetry, decided in #1888 and documented in API_CONVENTIONS.md."
+    },
+    {
+      "route": "GET /staff-picks",
+      "rule": "declared_errors",
+      "reason": "Reads the bundled staff-picks/picks.json and degrades a missing file to [] on purpose, so a caller can never see a 4xx from it. The per-pick 404 lives on GET /staff-picks/{pick_id}/share, which declares it."
     },
     {
       "route": "POST /schedules/validate",

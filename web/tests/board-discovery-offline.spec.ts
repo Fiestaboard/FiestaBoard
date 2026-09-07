@@ -346,7 +346,8 @@ test.describe("Board Offline — Send Error Handling", () => {
     // Accept any non-crash response (200 with sent_to_board=false or 4xx/5xx with detail)
     expect(res.status).not.toBe(502);
     const data = await res.json();
-    expect(data).toHaveProperty("status");
+    // Either the send result or an error body — never an empty/garbled reply.
+    expect(data.sent_to_board !== undefined || data.detail !== undefined).toBe(true);
   });
 
   test("send-message to offline board returns an error status", async () => {
@@ -415,7 +416,9 @@ test.describe("Board Offline — Send Error Handling", () => {
     });
     expect(res.ok).toBe(true);
     const data = await res.json();
-    expect(data.status).toBe("success");
+    // "status" is gone from the send body since the Phase 2 conventions pass —
+    // the 200 says it. A ui-only send never touches the board.
+    expect(data.sent_to_board).toBe(false);
   });
 });
 

@@ -54,9 +54,11 @@ describe("PageBuilder — saving a new page", () => {
     localStorage.clear();
     server.use(
       http.post(`${API_BASE}/pages`, async () => {
-        return HttpResponse.json({
-          status: "success",
-          page: {
+        // 201 + the bare page since the Phase 2 conventions pass. This test is
+        // the #1586 regression guard: the id the builder invalidates on must be
+        // the one the create response carried.
+        return HttpResponse.json(
+          {
             id: NEW_PAGE_ID,
             name: "Fresh Page",
             type: "template",
@@ -65,7 +67,8 @@ describe("PageBuilder — saving a new page", () => {
             duration_seconds: 300,
             created_at: new Date().toISOString(),
           },
-        });
+          { status: 201 },
+        );
       }),
     );
   });

@@ -77,8 +77,9 @@ describe("PageBuilder", () => {
       duration_seconds: 300,
       created_at: "2024-01-01T00:00:00Z",
     };
-    vi.mocked(api.createPage).mockResolvedValue({ status: "success", page: savedPage });
-    vi.mocked(api.updatePage).mockResolvedValue({ status: "success", page: savedPage });
+    // createPage answers the bare page; updatePage keeps { page, refs }.
+    vi.mocked(api.createPage).mockResolvedValue(savedPage);
+    vi.mocked(api.updatePage).mockResolvedValue({ page: savedPage, incompatible_references: [] });
   });
 
   afterEach(() => {

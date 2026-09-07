@@ -126,8 +126,9 @@ test.describe("API – Pages", () => {
     });
     expect(createRes.ok).toBe(true);
     const created = await createRes.json();
-    expect(created.status).toBe("success");
-    const pageId = created.page.id;
+    // 201 + the bare page since the Phase 2 conventions pass.
+    expect(createRes.status).toBe(201);
+    const pageId = created.id;
     expect(pageId).toBeTruthy();
 
     // Delete
@@ -136,7 +137,8 @@ test.describe("API – Pages", () => {
     });
     expect(deleteRes.ok).toBe(true);
     const deleted = await deleteRes.json();
-    expect(deleted.status).toBe("success");
+    // The envelope's "status" is gone; the deleted id is the contract now.
+    expect(deleted.id).toBe(pageId);
   });
 });
 
@@ -180,7 +182,7 @@ test.describe("API – Schedules", () => {
         }),
       });
       const createdPage = await createPageRes.json();
-      pageId = createdPage.page.id;
+      pageId = createdPage.id;
     }
 
     // Create a schedule

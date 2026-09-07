@@ -41,11 +41,17 @@ def one_board():
     settings.get_board_settings.return_value = board_settings
     settings.get_primary_board_id.return_value = "board-1"
     settings.is_schedule_enabled.return_value = False
-    # The schedules router binds get_settings_service at import time now
-    # (Phase 2 §2.3), and `require_board` reads the boards list through the
-    # accessor its *caller* holds — so stubbing the router's binding is what
-    # decides both the "unknown board" verdict and `is_schedule_enabled`.
-    with patch("src.schedules.routes.get_settings_service", return_value=settings):
+    # Three modules resolve this collaborator after Phase 2 §2.3, and the
+    # board verdict depends on which one the caller holds: the schedules and
+    # pages routers bind it at import time, and `require_board` reads the
+    # boards list through `src.board_guards`. Stub all three so the "unknown
+    # board" verdict and `is_schedule_enabled` are decided by this fixture
+    # whichever path a handler takes.
+    with (
+        patch("src.api_server.get_settings_service", return_value=settings),
+        patch("src.schedules.routes.get_settings_service", return_value=settings),
+        patch("src.board_guards.get_settings_service", return_value=settings),
+    ):
         yield settings
 
 

@@ -72,10 +72,13 @@ class TestApiSendGuards:
         """POST /send-message drives the primary board's client (issue #1788)."""
         service = MagicMock()
         service.vb_client.render.return_value = (True, True)
+        settings = _settings()
         with (
             _board_aware_silence(),
             patch("src.api_server.get_service", return_value=service),
-            patch("src.api_server.get_settings_service", return_value=_settings()),
+            patch("src.api_server.get_settings_service", return_value=settings),
+            # The send guards moved to src/board_guards.py (Phase 2 slice 3).
+            patch("src.board_guards.get_settings_service", return_value=settings),
         ):
             response = client.post("/send-message", json={"text": "HELLO"})
 
@@ -85,9 +88,12 @@ class TestApiSendGuards:
         service.vb_client.render.assert_not_called()
 
     def test_send_welcome_message_respects_the_primary_boards_window(self, client):
+        settings = _settings()
         with (
             _board_aware_silence(),
-            patch("src.api_server.get_settings_service", return_value=_settings()),
+            patch("src.api_server.get_settings_service", return_value=settings),
+            # The send guards moved to src/board_guards.py (Phase 2 slice 3).
+            patch("src.board_guards.get_settings_service", return_value=settings),
             patch("src.board_client.BoardClient") as board_client,
         ):
             board_client.return_value.render.return_value = (True, True)
@@ -102,18 +108,24 @@ class TestApiSendGuards:
         page = MagicMock(transition_strategy=None, transition_interval_ms=None, transition_step_size=None)
         page_service = MagicMock()
         page_service.get_page.return_value = page
-        page_service.preview_page.return_value = MagicMock(available=True, error=None)
+        # ``formatted`` is a real string now that PageSendResponse types the
+        # body — a bare MagicMock no longer serializes.
+        page_service.preview_page.return_value = MagicMock(available=True, error=None, formatted="HELLO")
         service = MagicMock()
         board_client = MagicMock()
         board_client.render.return_value = (True, True)
         service.get_board_client.return_value = board_client
 
+        settings = _settings(primary=LOUD_BOARD)
+        # POST /pages/{id}/send is served by src/pages/routes.py, which since
+        # Phase 2 slice 3 binds its collaborators at import time — so the stubs
+        # go where that module looks them up, not on api_server.
         with (
             _board_aware_silence(),
-            patch("src.api_server.get_page_service", return_value=page_service),
-            patch("src.api_server.get_settings_service", return_value=_settings(primary=LOUD_BOARD)),
-            patch("src.api_server.get_service", return_value=service),
-            patch("src.api_server._find_board", return_value=BOARDS[0]),
+            patch("src.pages.routes.get_page_service", return_value=page_service),
+            patch("src.pages.routes.get_settings_service", return_value=settings),
+            patch("src.pages.routes.get_service", return_value=service),
+            patch("src.pages.routes._require_board", return_value=BOARDS[0]),
         ):
             response = client.post(f"/pages/page-1/send?board_id={SILENCED_BOARD}")
 

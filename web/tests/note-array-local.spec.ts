@@ -69,7 +69,7 @@ async function createArrayPage(name: string, template: string[]): Promise<string
   });
   if (!res.ok) throw new Error(`createArrayPage failed: ${res.status} ${await res.text()}`);
   const data = await res.json();
-  return data.page.id;
+  return data.id;
 }
 
 async function sendPageToBoard(pageId: string): Promise<void> {

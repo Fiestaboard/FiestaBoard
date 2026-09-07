@@ -150,7 +150,6 @@ describe("Page editor board-size switching", () => {
     const user = userEvent.setup();
     vi.mocked(api.getPage).mockResolvedValue(existingFlagshipPage);
     vi.mocked(api.updatePage).mockResolvedValue({
-      status: "success",
       page: { ...existingFlagshipPage, device_type: "note" },
       incompatible_references: [],
     });
@@ -185,7 +184,6 @@ describe("Page editor board-size switching", () => {
     const user = userEvent.setup();
     vi.mocked(api.getPage).mockResolvedValue(existingNotePage);
     vi.mocked(api.updatePage).mockResolvedValue({
-      status: "success",
       page: { ...existingNotePage, device_type: "flagship" },
       incompatible_references: [],
     });
@@ -215,7 +213,6 @@ describe("Page editor board-size switching", () => {
     const onClose = vi.fn();
     vi.mocked(api.getPage).mockResolvedValue(existingFlagshipPage);
     vi.mocked(api.updatePage).mockResolvedValue({
-      status: "success",
       page: { ...existingFlagshipPage, device_type: "note" },
       incompatible_references: [
         { board_id: "board-1", board_name: "Kitchen", surface: "schedule", schedule_id: "sched-1" },

@@ -1,12 +1,22 @@
 """FastAPI router for the pages, staff-picks and page-send endpoints.
 
-Handlers moved verbatim from ``src/api_server.py`` (issue #1756, pure move).
-Names that still live in ``api_server`` — the service getters, the
-board/silence/pause guards, and the utilities the test-suite monkeypatches as
-``src.api_server.<name>`` — are imported *inside* each handler so they resolve
-through the api_server module at call time. A module-level import would both
-create an import cycle (api_server imports this router) and detach the
-handlers from those patches.
+Handlers were moved here verbatim from ``src/api_server.py`` (issue #1756);
+Phase 2 slice 3 then applied ``docs/internal/reference/API_CONVENTIONS.md`` to
+them and retired the thirteen call-time ``from src.api_server import ...``
+seams the move left behind.
+
+Collaborators now resolve from their canonical homes at **module import
+time**, so this module never loads ``src.api_server``
+(``tests/test_pages_decoupled.py`` asserts that in a fresh interpreter, after
+driving all sixteen handlers). Tests that need to stub a collaborator patch it
+where this module binds it — ``src.pages.routes.<name>`` — not
+``src.api_server.<name>``.
+
+Two of those collaborators had no canonical home to move to, so they got one:
+``src/board_guards.py`` (board lookup, pause and silence guards) and
+``src/display_runtime.py`` (the ``DisplayService`` singleton accessor).
+``src.api_server`` imports both, so its own handlers and their patch targets
+are unchanged.
 """
 
 from __future__ import annotations
@@ -16,14 +26,42 @@ import json
 import logging
 from pathlib import Path
 
-from fastapi import APIRouter, Body, HTTPException, Query
+from fastapi import APIRouter, HTTPException, Query
 from fastapi.responses import JSONResponse
-from pydantic import BaseModel
 
-from src.settings.service import VALID_OUTPUT_TARGETS
+from src.api_errors import errors
+from src.board_guards import _board_dims, _board_is_paused, _require_board, _silence_active
+from src.collections.models import is_collection_id
+from src.collections.service import get_collection_service
+from src.devices import resolve_dimensions, size_key
+from src.display_runtime import get_service
+from src.schedules.service import get_schedule_service
+from src.settings.service import VALID_OUTPUT_TARGETS, get_settings_service
+from src.text_to_board import text_to_board_array
 
-from .models import PageCreate, PageUpdate
-from .service import find_incompatible_references
+from .models import (
+    CurrentDisplayResponse,
+    IncompatibleReference,
+    PageCacheClearRequest,
+    PageCacheClearResponse,
+    PageCacheStatsResponse,
+    PageCreate,
+    PageDeleteResponse,
+    PageImportPreview,
+    PageImportRequest,
+    PageListResponse,
+    PagePreviewBatchRequest,
+    PagePreviewBatchResponse,
+    PagePreviewResponse,
+    PageSendRequest,
+    PageSendResponse,
+    PageUpdate,
+    PageUpdateResponse,
+    ShareStringResponse,
+    StaffPick,
+)
+from .models import Page as PageModel
+from .service import find_incompatible_references, get_page_service
 from .share import decode_page, encode_page
 
 logger = logging.getLogger(__name__)
@@ -31,18 +69,52 @@ logger = logging.getLogger(__name__)
 router = APIRouter(tags=["pages"])
 
 
-@router.get("/pages")
+def _reject_plugin_strategy_when_beta_off(strategy: str | None) -> None:
+    """Reject ``plugin:<id>`` strategies when the transition-plugin beta
+    flag is off.
+
+    Applied to page create / update / import so a page can't persist a plugin
+    strategy that the runtime won't actually honor.  Symmetric with the
+    settings-service guard on ``update_transition_settings``.
+
+    Lived in ``src/api_server.py`` until Phase 2 slice 3. Nothing else ever
+    called it — these three handlers are its only callers — so it moved here
+    with the routes rather than staying behind as a call-time seam.
+    """
+    if not isinstance(strategy, str):
+        return
+    from src.settings.service import TRANSITION_PLUGIN_PREFIX  # local: avoid cycle
+
+    if not strategy.startswith(TRANSITION_PLUGIN_PREFIX):
+        return
+    settings_service = get_settings_service()
+    if not settings_service.get_beta_settings().transition_plugins_enabled:
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                "Transition plugins are an experimental beta. Enable them "
+                "in Settings → Beta before assigning a 'plugin:<id>' "
+                "strategy to a page."
+            ),
+        )
+
+
+# No 4xx of its own: an empty instance is an empty list, not an error. See the
+# declared_errors exception in tests/conventions_manifest.json.
+@router.get("/pages", response_model=PageListResponse)
 async def list_pages():
     """List all saved pages."""
-    from src.api_server import get_page_service  # patched-in-tests seam — see module docstring (#1756)
-
     page_service = get_page_service()
     pages = page_service.list_pages()
 
-    return {"pages": [p.model_dump() for p in pages], "total": len(pages)}
+    return PageListResponse(pages=pages, total=len(pages))
 
 
-@router.get("/pages/current-display")
+@router.get(
+    "/pages/current-display",
+    response_model=CurrentDisplayResponse,
+    responses=errors(404),
+)
 async def get_current_display():
     """Get the template content of the currently active board display.
 
@@ -53,14 +125,6 @@ async def get_current_display():
 
     Returns 404 when no active page can be determined.
     """
-    from src.api_server import (  # patched-in-tests seam — see module docstring (#1756)
-        get_collection_service,
-        get_page_service,
-        get_schedule_service,
-        get_settings_service,
-        is_collection_id,
-    )
-
     settings_service = get_settings_service()
     page_service = get_page_service()
     collection_service = get_collection_service()
@@ -92,32 +156,28 @@ async def get_current_display():
     if not page:
         raise HTTPException(status_code=404, detail="Active page not found")
 
-    response: dict = {
-        "page_id": page.id,
-        "page_name": page.name,
-        "page_type": page.type,
-        "device_type": page.device_type,
-    }
-
     if page.type == "template" and page.template:
         # Return raw template so variables like {{weather.temp}} are preserved
-        response["template"] = page.template
-        response["line_metadata"] = [m.model_dump() for m in page.line_metadata] if page.line_metadata else None
+        template = page.template
+        line_metadata = page.line_metadata
     else:
         # For single/composite pages, return the rendered output as template
         # lines. The forced render fans out to plugins — off the loop (#1826).
         result = await asyncio.to_thread(page_service.preview_page, active_page_id, force_refresh=True)
-        if result and result.available:
-            response["template"] = result.formatted.split("\n")
-            response["line_metadata"] = None
-        else:
-            response["template"] = []
-            response["line_metadata"] = None
+        template = result.formatted.split("\n") if result and result.available else []
+        line_metadata = None
 
-    return response
+    return CurrentDisplayResponse(
+        page_id=page.id,
+        page_name=page.name,
+        page_type=page.type,
+        device_type=page.device_type,
+        template=template,
+        line_metadata=line_metadata,
+    )
 
 
-@router.post("/pages")
+@router.post("/pages", response_model=PageModel, status_code=201, responses=errors(400))
 async def create_page(page_data: PageCreate):
     """
     Create a new page.
@@ -127,71 +187,62 @@ async def create_page(page_data: PageCreate):
     - composite: Combine rows from multiple sources (set rows)
     - template: Custom templated content (set template)
     """
-    from src.api_server import (  # patched-in-tests seam — see module docstring (#1756)
-        _reject_plugin_strategy_when_beta_off,
-        get_page_service,
-    )
-
     _reject_plugin_strategy_when_beta_off(page_data.transition_strategy)
     page_service = get_page_service()
 
     try:
-        page = page_service.create_page(page_data)
-        return {"status": "success", "page": page.model_dump()}
+        return page_service.create_page(page_data)
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e)) from e
 
 
-@router.get("/pages/{page_id}")
+@router.get("/pages/{page_id}", response_model=PageModel, responses=errors(404))
 async def get_page(page_id: str):
     """Get a page by ID."""
-    from src.api_server import get_page_service  # patched-in-tests seam — see module docstring (#1756)
-
     page_service = get_page_service()
     page = page_service.get_page(page_id)
 
     if not page:
         raise HTTPException(status_code=404, detail=f"Page not found: {page_id}")
 
-    return page.model_dump()
+    return page
 
 
-@router.put("/pages/{page_id}")
+@router.put(
+    "/pages/{page_id}",
+    response_model=PageUpdateResponse,
+    responses=errors(400, 404),
+)
 async def update_page(page_id: str, page_data: PageUpdate):
     """Update an existing page.
 
     When the update changes the page's size (device/size retarget, issue
-    #1250), the response includes ``incompatible_references``: schedule
-    entries and per-board active pages that now point this page at a board
-    it no longer fits. Warn-only — no reference is mutated or removed.
+    #1250), ``incompatible_references`` lists the schedule entries and
+    per-board active pages that now point this page at a board it no longer
+    fits. Warn-only — no reference is mutated or removed. The list is empty
+    when the size did not change, or when nothing broke.
     """
-    from src.api_server import (  # patched-in-tests seam — see module docstring (#1756)
-        _reject_plugin_strategy_when_beta_off,
-        get_page_service,
-    )
-    from src.devices import size_key
-
     _reject_plugin_strategy_when_beta_off(page_data.transition_strategy)
     page_service = get_page_service()
     existing = page_service.get_page(page_id)
 
     try:
         page = page_service.update_page(page_id, page_data)
-        if not page:
-            raise HTTPException(status_code=404, detail=f"Page not found: {page_id}")
-
-        response = {"status": "success", "page": page.model_dump()}
-        if existing is not None:
-            old_size = size_key(existing.device_type, existing.notes_wide, existing.notes_tall)
-            new_size = size_key(page.device_type, page.notes_wide, page.notes_tall)
-            if old_size != new_size:
-                response["incompatible_references"] = find_incompatible_references(page)
-        return response
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e)) from e
+    if not page:
+        raise HTTPException(status_code=404, detail=f"Page not found: {page_id}")
+
+    incompatible: list[IncompatibleReference] = []
+    if existing is not None:
+        old_size = size_key(existing.device_type, existing.notes_wide, existing.notes_tall)
+        new_size = size_key(page.device_type, page.notes_wide, page.notes_tall)
+        if old_size != new_size:
+            incompatible = [IncompatibleReference(**ref) for ref in find_incompatible_references(page)]
+    return PageUpdateResponse(page=page, incompatible_references=incompatible)
 
 
-@router.delete("/pages/{page_id}")
+@router.delete("/pages/{page_id}", response_model=PageDeleteResponse, responses=errors(404))
 async def delete_page(page_id: str):
     """Delete a page.
 
@@ -201,8 +252,6 @@ async def delete_page(page_id: str):
     If the deleted page was the active display page, the active page will be
     updated to another valid page automatically.
     """
-    from src.api_server import get_page_service  # patched-in-tests seam — see module docstring (#1756)
-
     page_service = get_page_service()
 
     result = page_service.delete_page(page_id)
@@ -210,40 +259,39 @@ async def delete_page(page_id: str):
     if not result.deleted:
         raise HTTPException(status_code=404, detail=f"Page not found: {page_id}")
 
-    response = {
-        "status": "success",
-        "message": f"Page {page_id} deleted",
-        "default_page_created": result.default_page_created,
-        "active_page_updated": result.active_page_updated,
-    }
-
+    message = f"Page {page_id} deleted"
     if result.default_page_created:
-        response["message"] = f"Page {page_id} deleted. A default welcome page was created."
-        response["new_page_id"] = result.new_page_id
+        message = f"Page {page_id} deleted. A default welcome page was created."
 
-    if result.active_page_updated:
-        response["new_active_page_id"] = result.new_active_page_id
+    return PageDeleteResponse(
+        id=page_id,
+        message=message,
+        default_page_created=result.default_page_created,
+        new_page_id=result.new_page_id if result.default_page_created else None,
+        active_page_updated=result.active_page_updated,
+        new_active_page_id=result.new_active_page_id if result.active_page_updated else None,
+    )
 
-    return response
 
-
-@router.get("/pages/{page_id}/share")
+@router.get(
+    "/pages/{page_id}/share",
+    response_model=ShareStringResponse,
+    responses=errors(404),
+)
 async def get_page_share_string(page_id: str):
     """Return a portable share string for an existing page."""
-    from src.api_server import get_page_service  # patched-in-tests seam — see module docstring (#1756)
-
     page_service = get_page_service()
     page = page_service.get_page(page_id)
     if not page:
         raise HTTPException(status_code=404, detail=f"Page not found: {page_id}")
-    return {"share_string": encode_page(page)}
+    return ShareStringResponse(share_string=encode_page(page))
 
 
-class PageImportRequest(BaseModel):
-    share_string: str
-
-
-@router.post("/pages/import/preview")
+@router.post(
+    "/pages/import/preview",
+    response_model=PageImportPreview,
+    responses=errors(422),
+)
 async def preview_page_import(body: PageImportRequest):
     """Decode a share string and return the page data without persisting it."""
     try:
@@ -253,29 +301,39 @@ async def preview_page_import(body: PageImportRequest):
     return page_data
 
 
-@router.post("/pages/import")
+@router.post(
+    "/pages/import",
+    response_model=PageModel,
+    status_code=201,
+    responses=errors(400, 422),
+)
 async def import_page(body: PageImportRequest):
-    """Create a new page from a share string."""
-    from src.api_server import (  # patched-in-tests seam — see module docstring (#1756)
-        _reject_plugin_strategy_when_beta_off,
-        get_page_service,
-    )
+    """Create a new page from a share string.
 
+    A share string the decoder rejects, or one whose contents do not satisfy
+    ``PageCreate``, is the caller's problem: 422. A page that decodes and
+    validates but that the service refuses is a 400. Anything else is a
+    server fault and propagates as a 500 — this handler used to convert
+    *every* unexpected exception to 422, which reported a storage failure or
+    a bug in this process as "your share string is bad" (Phase 2 slice 3).
+    """
     try:
         page_data = decode_page(body.share_string)
     except ValueError as e:
         raise HTTPException(status_code=422, detail=str(e)) from e
 
-    page_service = get_page_service()
     try:
         page_create = PageCreate(**{k: v for k, v in page_data.items() if k in PageCreate.model_fields})
-        _reject_plugin_strategy_when_beta_off(page_create.transition_strategy)
-        page = page_service.create_page(page_create)
-        return {"status": "success", "page": page.model_dump()}
-    except HTTPException:
-        raise
     except Exception as e:
-        raise HTTPException(status_code=422, detail=str(e)) from e
+        raise HTTPException(status_code=422, detail=f"Invalid share string — {e}") from e
+
+    _reject_plugin_strategy_when_beta_off(page_create.transition_strategy)
+
+    page_service = get_page_service()
+    try:
+        return page_service.create_page(page_create)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e)) from e
 
 
 # ---------------------------------------------------------------------------
@@ -294,24 +352,34 @@ def _load_staff_picks() -> list:
         return []
 
 
-@router.get("/staff-picks")
+# No 4xx of its own: a missing picks.json degrades to []. See the
+# declared_errors exception in tests/conventions_manifest.json.
+@router.get("/staff-picks", response_model=list[StaffPick])
 async def list_staff_picks():
     """Return all staff picks (without share strings)."""
     picks = _load_staff_picks()
     return [{k: v for k, v in pick.items() if k != "share_string"} for pick in picks]
 
 
-@router.get("/staff-picks/{pick_id}/share")
+@router.get(
+    "/staff-picks/{pick_id}/share",
+    response_model=ShareStringResponse,
+    responses=errors(404),
+)
 async def get_staff_pick_share(pick_id: str):
     """Return the share string for a specific staff pick."""
     picks = _load_staff_picks()
     pick = next((p for p in picks if p["id"] == pick_id), None)
     if not pick:
         raise HTTPException(status_code=404, detail=f"Staff pick not found: {pick_id}")
-    return {"share_string": pick["share_string"]}
+    return ShareStringResponse(share_string=pick["share_string"])
 
 
-@router.post("/pages/{page_id}/preview")
+@router.post(
+    "/pages/{page_id}/preview",
+    response_model=PagePreviewResponse,
+    responses=errors(404, 503),
+)
 async def preview_page(
     page_id: str, force_refresh: bool = Query(default=False, description="Force fresh render, bypass cache")
 ):
@@ -328,11 +396,6 @@ async def preview_page(
     Returns:
         The formatted text that would be displayed.
     """
-    from src.api_server import (  # patched-in-tests seam — see module docstring (#1756)
-        get_page_service,
-        get_settings_service,
-    )
-
     page_service = get_page_service()
     settings_service = get_settings_service()
 
@@ -353,46 +416,39 @@ async def preview_page(
     if not result.available:
         raise HTTPException(status_code=503, detail=result.error or "Page rendering failed")
 
-    return {
-        "page_id": page_id,
-        "message": result.formatted,
-        "lines": result.formatted.split("\n"),
-        "display_type": result.display_type,
-        "raw": result.raw,
-    }
+    return PagePreviewResponse(
+        page_id=page_id,
+        message=result.formatted,
+        lines=result.formatted.split("\n"),
+        display_type=result.display_type,
+        raw=result.raw,
+    )
 
 
-@router.post("/pages/preview/batch")
-async def preview_pages_batch(request: dict):
+@router.post(
+    "/pages/preview/batch",
+    response_model=PagePreviewBatchResponse,
+    responses=errors(422),
+)
+async def preview_pages_batch(request: PagePreviewBatchRequest):
     """
     Preview multiple pages in a single request.
-
-    Request body:
-        {
-            "page_ids": ["page1", "page2", ...],
-            "force_refresh": false  // Optional, defaults to false
-        }
 
     Returns a dict mapping page_id to preview data (or error).
     Uses cached previews by default for fast responses.
     Active page is always rendered fresh regardless of force_refresh setting.
     Template context (plugin data) is built once and shared across all page renders.
+
+    A per-page render failure is reported inside ``previews`` with
+    ``available: false`` — the request itself still succeeded. Only a
+    malformed body (``page_ids`` that is not a list of strings) is a 422.
     """
-    from src.api_server import (  # patched-in-tests seam — see module docstring (#1756)
-        get_page_service,
-        get_settings_service,
-    )
-
-    page_ids = request.get("page_ids", [])
-    force_refresh = request.get("force_refresh", False)
-
-    if not isinstance(page_ids, list):
-        raise HTTPException(status_code=400, detail="page_ids must be a list")
+    page_ids = request.page_ids
 
     page_service = get_page_service()
     settings_service = get_settings_service()
     active_page_id = settings_service.get_active_page_id()
-    results = {}
+    results: dict = {}
 
     # Use batch preview to build template context once for all pages. One
     # worker-thread call for the whole batch — the internal context sharing
@@ -402,7 +458,7 @@ async def preview_pages_batch(request: dict):
     batch_results = await asyncio.to_thread(
         page_service.preview_pages_batch,
         page_ids,
-        force_refresh=force_refresh,
+        force_refresh=request.force_refresh,
         active_page_id=active_page_id,
     )
 
@@ -422,14 +478,16 @@ async def preview_pages_batch(request: dict):
                 "available": True,
             }
 
-    return {
-        "previews": results,
-        "total": len(page_ids),
-        "successful": sum(1 for r in results.values() if r.get("available", False)),
-    }
+    return PagePreviewBatchResponse(
+        previews=results,
+        total=len(page_ids),
+        successful=sum(1 for r in results.values() if r.get("available", False)),
+    )
 
 
-@router.get("/pages/cache/stats")
+# No 4xx of its own: reports in-memory cache state that always exists. See the
+# declared_errors exception in tests/conventions_manifest.json.
+@router.get("/pages/cache/stats", response_model=PageCacheStatsResponse)
 async def get_page_cache_stats():
     """
     Get preview cache statistics.
@@ -437,14 +495,16 @@ async def get_page_cache_stats():
     Returns information about the preview cache including size,
     cached page IDs, and TTL configuration.
     """
-    from src.api_server import get_page_service  # patched-in-tests seam — see module docstring (#1756)
-
     page_service = get_page_service()
-    return page_service.get_cache_stats()
+    return PageCacheStatsResponse(**page_service.get_cache_stats())
 
 
-@router.post("/pages/cache/clear")
-async def clear_page_cache(request: dict = None):
+@router.post(
+    "/pages/cache/clear",
+    response_model=PageCacheClearResponse,
+    responses=errors(422),
+)
+async def clear_page_cache(request: PageCacheClearRequest | None = None):
     """
     Clear preview cache.
 
@@ -456,25 +516,30 @@ async def clear_page_cache(request: dict = None):
     Clears the preview cache, forcing fresh renders on next preview.
     Useful for testing or when data sources have been updated.
     """
-    from src.api_server import get_page_service  # patched-in-tests seam — see module docstring (#1756)
-
     page_service = get_page_service()
 
-    page_id = None
-    if request:
-        page_id = request.get("page_id")
+    page_id = request.page_id if request else None
 
-    page_service._invalidate_cache(page_id)
+    # Public service method, not `_invalidate_cache` — a route must not reach
+    # into another object's privates (API_CONVENTIONS.md, "Routers and
+    # services").
+    page_service.invalidate_preview_cache(page_id)
 
     if page_id:
-        return {"status": "success", "message": f"Cache cleared for page {page_id}"}
-    else:
-        return {"status": "success", "message": "All preview caches cleared"}
+        return PageCacheClearResponse(message=f"Cache cleared for page {page_id}", page_id=page_id)
+    return PageCacheClearResponse(message="All preview caches cleared")
 
 
-@router.post("/pages/{page_id}/send")
+@router.post(
+    "/pages/{page_id}/send",
+    response_model=PageSendResponse,
+    responses=errors(400, 404, 503),
+)
 async def send_page(
-    page_id: str, target: str | None = None, board_id: str | None = None, payload: dict | None = Body(None)
+    page_id: str,
+    target: str | None = None,
+    board_id: str | None = None,
+    payload: PageSendRequest | None = None,
 ):
     """
     Send a page to the configured target.
@@ -487,22 +552,10 @@ async def send_page(
             ``{"board_id": ...}`` in the JSON body). Omitted → primary
             board, legacy behavior (issue #1244).
     """
-    from src.api_server import (  # patched-in-tests seam — see module docstring (#1756)
-        _board_dims,
-        _board_is_paused,
-        _require_board,
-        _silence_active,
-        get_page_service,
-        get_service,
-        get_settings_service,
-        resolve_dimensions,
-        text_to_board_array,
-    )
-
     if target is None and payload:
-        target = payload.get("target")
+        target = payload.target
     if board_id is None and payload:
-        board_id = payload.get("board_id")
+        board_id = payload.board_id
     if target is not None and target not in VALID_OUTPUT_TARGETS:
         raise HTTPException(status_code=400, detail=f"Invalid target: {target}. Valid targets: {VALID_OUTPUT_TARGETS}")
 
@@ -530,7 +583,7 @@ async def send_page(
     # they run as one worker-thread unit and the event loop keeps serving
     # requests (#1826). HTTPExceptions raised inside propagate through the
     # await unchanged.
-    def _work() -> dict | JSONResponse:
+    def _work() -> PageSendResponse | JSONResponse:
         # Get the page for transition settings
         page = page_service.get_page(page_id)
         if not page:
@@ -604,7 +657,6 @@ async def send_page(
                     return JSONResponse(
                         status_code=500,
                         content={
-                            "status": "error",
                             "detail": "Failed to send to board",
                             "page_id": page_id,
                             "sent_to_board": False,
@@ -617,15 +669,14 @@ async def send_page(
                     # Adaptive post-send refresh polls the primary board only.
                     service.request_board_refresh()
 
-        return {
-            "status": "success",
-            "page_id": page_id,
-            "message": result.formatted,
-            "sent_to_board": sent_to_board,
-            "paused": paused,
-            "target": target or settings_service.get_output_settings().target,
-            "board_id": board_id,
-        }
+        return PageSendResponse(
+            page_id=page_id,
+            message=result.formatted,
+            sent_to_board=sent_to_board,
+            paused=paused,
+            target=target or settings_service.get_output_settings().target,
+            board_id=board_id,
+        )
 
     # Board network I/O goes on the dedicated bounded send pool, never the
     # shared default executor (#1878) — see src/board_send_executor.py.

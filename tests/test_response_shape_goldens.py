@@ -288,8 +288,9 @@ def _seed_page(client: TestClient, name: str, first_line: str) -> str:
             "template": [first_line, "", "", "", "", ""],
         },
     )
-    assert response.status_code == 200, response.text
-    return response.json()["page"]["id"]
+    # 201 + the bare page since the Phase 2 conventions pass on this domain.
+    assert response.status_code == 201, response.text
+    return response.json()["id"]
 
 
 MISSING_ID = "00000000-dead-beef-0000-000000000000"
@@ -378,7 +379,9 @@ def test_pages_response_shapes():
 
     # send: service unavailable, bad target, missing page, and a ui-only
     # success (never touches a board client).
-    with patch("src.api_server.get_service", return_value=None):
+    # POST /pages/{id}/send resolves the DisplayService accessor through
+    # src/pages/routes.py since the Phase 2 conventions pass.
+    with patch("src.pages.routes.get_service", return_value=None):
         rec.hit("send_page_no_service", "POST", "/pages/{page_id}/send", path_params={"page_id": page_id})
     rec.hit(
         "send_page_bad_target",
@@ -389,7 +392,7 @@ def test_pages_response_shapes():
     )
     mock_service = Mock()
     mock_service.vb_client = Mock()
-    with patch("src.api_server.get_service", return_value=mock_service):
+    with patch("src.pages.routes.get_service", return_value=mock_service):
         rec.hit(
             "send_page_missing",
             "POST",

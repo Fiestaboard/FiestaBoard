@@ -95,8 +95,9 @@ def _create_page(client: TestClient, name: str = "Restart Survivor") -> dict:
             "duration_seconds": 42,
         },
     )
-    assert response.status_code == 200, response.text
-    return response.json()["page"]
+    # 201 + the bare page since the Phase 2 conventions pass.
+    assert response.status_code == 201, response.text
+    return response.json()
 
 
 def _create_schedule(client: TestClient, page_id: str) -> dict:

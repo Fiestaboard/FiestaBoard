@@ -63,7 +63,7 @@ test.describe("Pages CRUD", () => {
     });
     expect(createRes.ok).toBe(true);
     const created = await createRes.json();
-    const pageId = created.page.id;
+    const pageId = created.id;
 
     // Navigate to pages
     await page.goto("/pages");
@@ -104,16 +104,16 @@ test.describe("Pages CRUD", () => {
     });
     expect(createRes.ok).toBe(true);
     const created = await createRes.json();
-    expect(created.page.device_type).toBe("flagship");
+    expect(created.device_type).toBe("flagship");
 
     // List endpoint also returns device_type
     const listRes = await fetch(`${API_URL}/pages`);
     const listData = await listRes.json();
-    const found = listData.pages.find((p: { id: string }) => p.id === created.page.id);
+    const found = listData.pages.find((p: { id: string }) => p.id === created.id);
     expect(found).toBeDefined();
     expect(found.device_type).toBe("flagship");
 
-    await fetch(`${API_URL}/pages/${created.page.id}`, { method: "DELETE" });
+    await fetch(`${API_URL}/pages/${created.id}`, { method: "DELETE" });
   });
 
   test("can create a Note page with 3 lines", async () => {
@@ -130,15 +130,15 @@ test.describe("Pages CRUD", () => {
     });
     expect(createRes.ok).toBe(true);
     const created = await createRes.json();
-    expect(created.page.device_type).toBe("note");
-    expect(created.page.template).toHaveLength(3);
+    expect(created.device_type).toBe("note");
+    expect(created.template).toHaveLength(3);
 
     // Verify via GET
-    const getRes = await fetch(`${API_URL}/pages/${created.page.id}`);
+    const getRes = await fetch(`${API_URL}/pages/${created.id}`);
     expect(getRes.ok).toBe(true);
     const getData = await getRes.json();
     expect(getData.device_type).toBe("note");
 
-    await fetch(`${API_URL}/pages/${created.page.id}`, { method: "DELETE" });
+    await fetch(`${API_URL}/pages/${created.id}`, { method: "DELETE" });
   });
 });

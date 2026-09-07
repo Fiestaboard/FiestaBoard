@@ -145,7 +145,12 @@ def client():
 def mock_paused_settings_service():
     """Mock SettingsService with a single board and an in-memory paused
     flag so set_paused/is_paused round-trip realistically."""
-    with patch("src.api_server.get_settings_service") as mock_get:
+    with (
+        patch("src.api_server.get_settings_service") as mock_get,
+        # Board guards moved to src/board_guards.py (Phase 2 slice 3); they
+        # resolve the settings service there, not through api_server.
+        patch("src.board_guards.get_settings_service") as guard_get,
+    ):
         ss = Mock()
         state = {"paused": False}
 
@@ -170,6 +175,7 @@ def mock_paused_settings_service():
         ss.set_paused.side_effect = _set_paused
 
         mock_get.return_value = ss
+        guard_get.return_value = ss
         yield ss
 
 

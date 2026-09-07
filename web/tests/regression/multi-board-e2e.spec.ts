@@ -60,7 +60,7 @@ async function createFlagshipPage(name: string, token: string): Promise<string> 
   });
   if (!res.ok) throw new Error(`createFlagshipPage failed: ${res.status} ${await res.text()}`);
   const data = await res.json();
-  return data.page.id;
+  return data.id;
 }
 
 /** Create a note_array page sized to ARRAY_NOTES_WIDE x ARRAY_NOTES_TALL and return its id. */
@@ -80,7 +80,7 @@ async function createArrayPage(name: string, token: string): Promise<string> {
   });
   if (!res.ok) throw new Error(`createArrayPage failed: ${res.status} ${await res.text()}`);
   const data = await res.json();
-  return data.page.id;
+  return data.id;
 }
 
 /** Configure a Flagship board ("Kitchen") + a Note Array board ("Office"), both manual mode. */

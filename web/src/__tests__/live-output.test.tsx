@@ -120,17 +120,15 @@ describe("Live Output Mode", () => {
       sent_to_board: true,
       board_id: "board-1",
     });
+    // createPage answers the bare page since the Phase 2 conventions pass.
     vi.mocked(api.createPage).mockResolvedValue({
-      status: "success",
-      page: {
-        id: "test-page-id",
-        name: "Test Page",
-        type: "template",
-        device_type: "flagship",
-        template: ["", "", "", "", "", ""],
-        duration_seconds: 300,
-        created_at: new Date().toISOString(),
-      },
+      id: "test-page-id",
+      name: "Test Page",
+      type: "template",
+      device_type: "flagship",
+      template: ["", "", "", "", "", ""],
+      duration_seconds: 300,
+      created_at: new Date().toISOString(),
     });
     vi.mocked(api.getBoardSettings).mockResolvedValue(defaultBoardSettings);
     vi.mocked(api.forceRefresh).mockResolvedValue({
@@ -328,17 +326,15 @@ describe("Live Output - Board Selector Interaction", () => {
       status: "success",
       message: "Display force-refreshed successfully",
     });
+    // createPage answers the bare page since the Phase 2 conventions pass.
     vi.mocked(api.createPage).mockResolvedValue({
-      status: "success",
-      page: {
-        id: "test-page-id",
-        name: "Test Page",
-        type: "template",
-        device_type: "flagship",
-        template: ["", "", "", "", "", ""],
-        duration_seconds: 300,
-        created_at: new Date().toISOString(),
-      },
+      id: "test-page-id",
+      name: "Test Page",
+      type: "template",
+      device_type: "flagship",
+      template: ["", "", "", "", "", ""],
+      duration_seconds: 300,
+      created_at: new Date().toISOString(),
     });
   });
 
@@ -399,17 +395,15 @@ describe("Live Output - Auto-timeout", () => {
       status: "success",
       message: "Display force-refreshed successfully",
     });
+    // createPage answers the bare page since the Phase 2 conventions pass.
     vi.mocked(api.createPage).mockResolvedValue({
-      status: "success",
-      page: {
-        id: "test-page-id",
-        name: "Test Page",
-        type: "template",
-        device_type: "flagship",
-        template: ["", "", "", "", "", ""],
-        duration_seconds: 300,
-        created_at: new Date().toISOString(),
-      },
+      id: "test-page-id",
+      name: "Test Page",
+      type: "template",
+      device_type: "flagship",
+      template: ["", "", "", "", "", ""],
+      duration_seconds: 300,
+      created_at: new Date().toISOString(),
     });
   });
 

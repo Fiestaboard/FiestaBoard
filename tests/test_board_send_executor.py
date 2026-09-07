@@ -49,7 +49,9 @@ def _fresh_send_pool():
 
 
 def _preview_result_mock() -> Mock:
-    return Mock(available=True, formatted="HELLO", display_type="text", raw=None, error=None)
+    # raw is a real dict: DisplayResult declares it dict[str, Any] and
+    # PagePreviewResponse now types it, so a None here was never realistic.
+    return Mock(available=True, formatted="HELLO", display_type="text", raw={}, error=None)
 
 
 @pytest.mark.asyncio
@@ -79,8 +81,11 @@ async def test_concurrent_board_sends_do_not_starve_unrelated_thread_work():
         async with httpx.AsyncClient(transport=transport, base_url="http://testserver") as ac:
             with (
                 patch("src.api_server.get_service", return_value=service),
-                patch("src.api_server.get_page_service", return_value=page_service),
-                patch("src.api_server.get_settings_service", return_value=settings),
+                # The unrelated endpoint below is POST /pages/{id}/preview, served
+                # by src/pages/routes.py, which binds its collaborators at import
+                # time since Phase 2 slice 3.
+                patch("src.pages.routes.get_page_service", return_value=page_service),
+                patch("src.pages.routes.get_settings_service", return_value=settings),
             ):
                 sends = [asyncio.create_task(ac.post("/refresh")) for _ in range(_CONCURRENT_SENDS)]
 

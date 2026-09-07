@@ -80,8 +80,10 @@ def _seed_page(client: TestClient, name: str, first_line: str) -> str:
             "template": [first_line, "", "", "", "", ""],
         },
     )
-    assert response.status_code == 200, response.text
-    return response.json()["page"]["id"]
+    # RE-PINNED (pages slice): POST /pages now returns 201 with the created
+    # page as a bare body, replacing the 200 + {"page": {...}} envelope.
+    assert response.status_code == 201, response.text
+    return response.json()["id"]
 
 
 @pytest.fixture

@@ -68,7 +68,7 @@ test.describe("Note pages – API", () => {
       }),
     });
     expect(res.ok).toBe(true);
-    const { page: created } = await res.json();
+    const created = await res.json();
     expect(created.device_type).toBe("note");
     expect(created.template).toHaveLength(3);
     expect(created.template[0]).toBe("LINE ONE");
@@ -497,7 +497,7 @@ test.describe("Note pages – Alignment", () => {
       }),
     });
     expect(createRes.ok).toBe(true);
-    const { page: created } = await createRes.json();
+    const created = await createRes.json();
 
     // Send it to the mock board
     const sendRes = await fetch(`${API_URL}/pages/${created.id}/send?target=board`, { method: "POST" });
@@ -553,7 +553,7 @@ test.describe("Note pages – Alignment", () => {
       }),
     });
     expect(createRes.ok).toBe(true);
-    const { page: created } = await createRes.json();
+    const created = await createRes.json();
 
     const sendRes = await fetch(`${API_URL}/pages/${created.id}/send?target=board`, { method: "POST" });
     expect(sendRes.ok).toBe(true);

@@ -95,7 +95,9 @@ def _page_mock() -> Mock:
 
 
 def _preview_result_mock() -> Mock:
-    return Mock(available=True, formatted="HELLO", display_type="text", raw=None, error=None)
+    # raw is a real dict: DisplayResult declares it dict[str, Any] and
+    # PagePreviewResponse now types it, so a None here was never realistic.
+    return Mock(available=True, formatted="HELLO", display_type="text", raw={}, error=None)
 
 
 def _transition_settings_mock() -> Mock:
@@ -132,6 +134,10 @@ async def test_a_slow_force_refresh_does_not_block_the_event_loop():
     _assert_loop_stayed_free(health, waited, still_running, "force refresh")
 
 
+# The four /pages handlers below live in src/pages/routes.py, which binds its
+# collaborators at import time since Phase 2 slice 3 — so their stubs go on
+# that module, not on api_server. The api_server-owned handlers in this file
+# (refresh, force-refresh, active-page) keep their existing targets.
 @pytest.mark.asyncio
 async def test_a_slow_page_preview_does_not_block_the_event_loop():
     """POST /pages/{id}/preview renders the page (plugin fan-out) inline."""
@@ -142,8 +148,8 @@ async def test_a_slow_page_preview_does_not_block_the_event_loop():
         settings = Mock()
         settings.get_active_page_id.return_value = None
         with (
-            patch("src.api_server.get_page_service", return_value=page_service),
-            patch("src.api_server.get_settings_service", return_value=settings),
+            patch("src.pages.routes.get_page_service", return_value=page_service),
+            patch("src.pages.routes.get_settings_service", return_value=settings),
         ):
             return await ac.post("/pages/p1/preview")
 
@@ -161,8 +167,8 @@ async def test_a_slow_batch_preview_does_not_block_the_event_loop():
         settings = Mock()
         settings.get_active_page_id.return_value = None
         with (
-            patch("src.api_server.get_page_service", return_value=page_service),
-            patch("src.api_server.get_settings_service", return_value=settings),
+            patch("src.pages.routes.get_page_service", return_value=page_service),
+            patch("src.pages.routes.get_settings_service", return_value=settings),
         ):
             return await ac.post("/pages/preview/batch", json={"page_ids": ["p1", "p2"]})
 
@@ -182,9 +188,9 @@ async def test_a_slow_current_display_lookup_does_not_block_the_event_loop():
         page_service.get_page.return_value = _page_mock()
         page_service.preview_page = _blocking(release, _preview_result_mock())
         with (
-            patch("src.api_server.get_settings_service", return_value=settings),
-            patch("src.api_server.get_page_service", return_value=page_service),
-            patch("src.api_server.get_collection_service", return_value=Mock()),
+            patch("src.pages.routes.get_settings_service", return_value=settings),
+            patch("src.pages.routes.get_page_service", return_value=page_service),
+            patch("src.pages.routes.get_collection_service", return_value=Mock()),
         ):
             return await ac.get("/pages/current-display")
 
@@ -241,11 +247,11 @@ async def test_a_slow_page_send_does_not_block_the_event_loop():
         service.vb_client = Mock()
         service.vb_client.render = _blocking(release, (True, True))
         with (
-            patch("src.api_server.get_settings_service", return_value=settings),
-            patch("src.api_server.get_page_service", return_value=page_service),
-            patch("src.api_server.get_service", return_value=service),
-            patch("src.api_server._silence_active", return_value=False),
-            patch("src.api_server._board_is_paused", return_value=False),
+            patch("src.pages.routes.get_settings_service", return_value=settings),
+            patch("src.pages.routes.get_page_service", return_value=page_service),
+            patch("src.pages.routes.get_service", return_value=service),
+            patch("src.pages.routes._silence_active", return_value=False),
+            patch("src.pages.routes._board_is_paused", return_value=False),
         ):
             return await ac.post("/pages/p1/send?target=board")
 

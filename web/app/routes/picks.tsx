@@ -52,8 +52,8 @@ function PickCard({ pick, enabledPluginIds }: { pick: StaffPick; enabledPluginId
     },
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: queryKeys.pages, refetchType: "active" });
-      toast.success(t("toastImported", { name: data.page.name }));
-      push(`/pages/edit/${data.page.id}`, { transitionType: "slide-up" });
+      toast.success(t("toastImported", { name: data.name }));
+      push(`/pages/edit/${data.id}`, { transitionType: "slide-up" });
     },
     onError: (err: Error) => {
       toast.error(err.message);

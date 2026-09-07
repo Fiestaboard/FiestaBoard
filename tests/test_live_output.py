@@ -135,7 +135,11 @@ class TestRenderTemplateLiveEndpoint:
         settings.get_transition_settings.return_value = transition_settings
         mock_settings.return_value = settings
 
-        with patch("src.api_server.board_client_from_board_dict", return_value=mock_board_client):
+        with (
+            patch("src.api_server.board_client_from_board_dict", return_value=mock_board_client),
+            # _require_board moved to src/board_guards.py (Phase 2 slice 3).
+            patch("src.board_guards.get_settings_service", return_value=settings),
+        ):
             response = client.post(
                 "/templates/render/live",
                 json={
@@ -344,6 +348,8 @@ class TestRenderTemplateLiveEndpoint:
 
         with (
             patch("src.api_server.board_client_from_board_dict", return_value=mock_board_client),
+            # _require_board moved to src/board_guards.py (Phase 2 slice 3).
+            patch("src.board_guards.get_settings_service", return_value=settings),
             patch("src.api_server.text_to_board_array") as mock_t2b,
         ):
             mock_t2b.return_value = [[0] * 15] * 3

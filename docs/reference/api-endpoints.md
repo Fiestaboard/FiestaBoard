@@ -52,6 +52,13 @@ When using the default deployment, prefix all paths with `/api` (e.g. `GET http:
 | `DELETE` | `/pages/{id}` | Delete a page |
 | `POST` | `/pages/{id}/preview` | Preview a page (with variables resolved) |
 
+`POST /pages` answers **201** with the created page itself, and
+`POST /pages/import` does the same. `PUT /pages/{id}` answers
+`{"page": {...}, "incompatible_references": [...]}` — the second key lists
+schedules and active-page references that no longer fit after a device/size
+change, and is empty otherwise. Failures are `{"detail": "<message>"}` with a
+4xx or 5xx status; no endpoint reports an error with HTTP 200.
+
 ### Page Fields
 
 When creating or updating a page, the following fields are available:

@@ -138,7 +138,7 @@ describe("API Extended Tests", () => {
       server.use(
         http.put(`${API_BASE}/pages/:id`, async ({ request }) => {
           capturedBody = await request.json();
-          return HttpResponse.json({ status: "success", page: { ...capturedBody, id: "page-1" } });
+          return HttpResponse.json({ page: { ...capturedBody, id: "page-1" }, incompatible_references: [] });
         }),
       );
 
@@ -148,7 +148,8 @@ describe("API Extended Tests", () => {
 
     it("deletePage sends DELETE", async () => {
       const result = await api.deletePage("page-1");
-      expect(result.status).toBe("success");
+      // The envelope's "status" is gone; the deleted id is the contract now.
+      expect(result.id).toBe("page-1");
     });
 
     it("previewPage sends POST", async () => {
@@ -176,10 +177,10 @@ describe("API Extended Tests", () => {
         http.post(`${API_BASE}/pages/:id/send`, ({ request }) => {
           capturedUrl = request.url;
           return HttpResponse.json({
-            status: "success",
             page_id: "page-1",
             message: "sent",
             sent_to_board: true,
+            paused: false,
             target: "both",
           });
         }),
@@ -1137,10 +1138,10 @@ describe("Per-board boardId params (issue #1244)", () => {
       http.post(`${API_BASE}/pages/:id/send`, ({ request }) => {
         capturedUrl = request.url;
         return HttpResponse.json({
-          status: "success",
           page_id: "page-1",
           message: "sent",
           sent_to_board: true,
+          paused: false,
           target: "board",
         });
       }),

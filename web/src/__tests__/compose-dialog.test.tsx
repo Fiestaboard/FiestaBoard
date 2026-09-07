@@ -138,7 +138,7 @@ describe("ComposePageDialog", () => {
       ),
       http.post(`${API_BASE}/pages`, () => {
         pageCreated = true;
-        return HttpResponse.json({ status: "success", page: { id: "p", name: "x" } });
+        return HttpResponse.json({ id: "p", name: "x" }, { status: 201 });
       }),
     );
 
@@ -157,7 +157,7 @@ describe("ComposePageDialog", () => {
     server.use(
       http.post(`${API_BASE}/pages`, async ({ request }) => {
         capturedPage = (await request.json()) as Record<string, unknown>;
-        return HttpResponse.json({ status: "success", page: { id: "p1", name: "Saved" } });
+        return HttpResponse.json({ id: "p1", name: "Saved" }, { status: 201 });
       }),
       http.post(`${API_BASE}/settings/temporary-override`, () => {
         overrideSent = true;

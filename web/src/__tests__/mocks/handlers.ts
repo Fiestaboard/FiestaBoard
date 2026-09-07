@@ -506,10 +506,8 @@ export const handlers = [
       duration_seconds: body.duration_seconds ?? 300,
       created_at: new Date().toISOString(),
     };
-    return HttpResponse.json({
-      status: "success",
-      page: newPage,
-    });
+    // 201 + the bare page since the Phase 2 conventions pass.
+    return HttpResponse.json(newPage, { status: 201 });
   }),
 
   http.put(`${API_BASE}/pages/:id`, async ({ request, params }) => {
@@ -521,14 +519,18 @@ export const handlers = [
       ...body,
       updated_at: new Date().toISOString(),
     };
-    return HttpResponse.json({
-      status: "success",
-      page: updatedPage,
-    });
+    return HttpResponse.json({ page: updatedPage, incompatible_references: [] });
   }),
 
-  http.delete(`${API_BASE}/pages/:id`, () => {
-    return HttpResponse.json({ status: "success", message: "Page deleted" });
+  http.delete(`${API_BASE}/pages/:id`, ({ params }) => {
+    return HttpResponse.json({
+      id: params.id,
+      message: "Page deleted",
+      default_page_created: false,
+      new_page_id: null,
+      active_page_updated: false,
+      new_active_page_id: null,
+    });
   }),
 
   http.post(`${API_BASE}/pages/:id/preview`, ({ params }) => {
@@ -643,7 +645,7 @@ export const handlers = [
       duration_seconds: 300,
       created_at: new Date().toISOString(),
     };
-    return HttpResponse.json({ status: "success", page: newPage });
+    return HttpResponse.json(newPage, { status: 201 });
   }),
 
   http.post(`${API_BASE}/pages/import/preview`, async ({ request }) => {
@@ -663,10 +665,10 @@ export const handlers = [
   http.post(`${API_BASE}/pages/:id/send`, ({ params }) => {
     const { id } = params;
     return HttpResponse.json({
-      status: "success",
       page_id: id,
       message: "Page sent",
       sent_to_board: true,
+      paused: false,
       target: "board",
     });
   }),

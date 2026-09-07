@@ -674,8 +674,8 @@ test.describe("AI", () => {
         },
       });
       expect(pageRes.ok(), await pageRes.text()).toBe(true);
-      // POST /pages wraps the page: {status, page: {...}}.
-      const pageId = (await pageRes.json()).page.id as string;
+      // POST /pages answers 201 with the bare page.
+      const pageId = (await pageRes.json()).id as string;
       expect(pageId, "page id missing from POST /pages response").toBeTruthy();
 
       const before = await (await request.get(`${API_URL}/schedules`)).json();

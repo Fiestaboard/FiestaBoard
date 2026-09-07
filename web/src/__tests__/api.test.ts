@@ -24,8 +24,8 @@ describe("API Contract Tests", () => {
 
       const result = await api.createPage(page);
 
-      expect(result.status).toBe("success");
-      expect(result.page).toBeDefined();
+      // 201 with the bare page since the Phase 2 conventions pass.
+      expect(result.id).toBeDefined();
       expect(requestStore.lastPageCreate).toEqual(page);
       expect(requestStore.lastPageCreate?.type).toBe("single");
       expect(requestStore.lastPageCreate?.display_type).toBe("weather");
@@ -47,7 +47,7 @@ describe("API Contract Tests", () => {
 
       const result = await api.createPage(page);
 
-      expect(result.status).toBe("success");
+      expect(result.id).toBeDefined();
       expect(requestStore.lastPageCreate).toEqual(page);
       expect(requestStore.lastPageCreate?.type).toBe("composite");
       expect(requestStore.lastPageCreate?.rows).toHaveLength(3);
@@ -69,7 +69,7 @@ describe("API Contract Tests", () => {
 
       const result = await api.createPage(page);
 
-      expect(result.status).toBe("success");
+      expect(result.id).toBeDefined();
       expect(requestStore.lastPageCreate?.type).toBe("template");
       expect(requestStore.lastPageCreate?.template).toHaveLength(6);
       expect(requestStore.lastPageCreate?.template?.[0]).toBe("{{weather.temperature}}");
@@ -103,7 +103,7 @@ describe("API Contract Tests", () => {
     it("sendPage returns send result", async () => {
       const result = await api.sendPage("page-1");
 
-      expect(result.status).toBe("success");
+      // The {"status": "success"} key is gone; the 200 carries that.
       expect(result.page_id).toBe("page-1");
       expect(typeof result.sent_to_board).toBe("boolean");
     });

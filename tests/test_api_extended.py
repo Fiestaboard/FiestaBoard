@@ -46,14 +46,19 @@ def mock_config_manager():
 
 @pytest.fixture
 def mock_settings_service():
-    """Mock the settings service."""
-    # The schedules router binds its collaborators at import time now
-    # (Phase 2 §2.3), so this fixture stubs both places: `src.api_server.<name>`
-    # for the handlers that still live in the app module, and
-    # `src.schedules.routes.<name>` for the eleven that no longer do.
+    """Mock the settings service.
+
+    Every module that resolves this collaborator gets the same stub:
+    ``src.api_server`` for the handlers still in the app module, the
+    ``pages`` and ``schedules`` routers (which bind at import time since
+    Phase 2 §2.3), and ``src.board_guards``, where the board lookup and the
+    pause/silence guards now live. One stub, every resolution path.
+    """
     with (
         patch("src.api_server.get_settings_service") as mock_get,
+        patch("src.pages.routes.get_settings_service") as pages_get,
         patch("src.schedules.routes.get_settings_service") as routes_get,
+        patch("src.board_guards.get_settings_service") as guards_get,
     ):
         ss = Mock()
         transition = Mock()
@@ -144,34 +149,37 @@ def mock_settings_service():
         ss.update_plugin_settings.return_value = plugin_settings
 
         mock_get.return_value = ss
+        pages_get.return_value = ss
         routes_get.return_value = ss
+        guards_get.return_value = ss
         yield ss
 
 
 @pytest.fixture
 def mock_page_service():
-    """Mock the page service."""
-    # The schedules router binds its collaborators at import time now
-    # (Phase 2 §2.3), so this fixture stubs both places: `src.api_server.<name>`
-    # for the handlers that still live in the app module, and
-    # `src.schedules.routes.<name>` for the eleven that no longer do.
+    """Mock the page service.
+
+    Patched on ``src.api_server`` (for the handlers still in that module) and
+    on both routers that bind this collaborator at import time since Phase 2
+    §2.3. One stub, every resolution path.
+    """
     with (
         patch("src.api_server.get_page_service") as mock_get,
+        patch("src.pages.routes.get_page_service") as pages_get,
         patch("src.schedules.routes.get_page_service") as routes_get,
     ):
         ps = Mock()
-        mock_page = Mock()
-        mock_page.model_dump.return_value = {
-            "id": "page1",
-            "name": "Test Page",
-            "type": "template",
-            "template": ["Hello"],
-            "device_type": "flagship",
-        }
-        mock_page.transition_strategy = None
-        mock_page.transition_interval_ms = None
-        mock_page.transition_step_size = None
-        mock_page.device_type = "flagship"
+        # A real Page, not a Mock: the pages routes declare response_model=Page,
+        # so FastAPI validates what the service hands back.
+        from src.pages.models import Page as _Page
+
+        mock_page = _Page(
+            id="page1",
+            name="Test Page",
+            type="template",
+            template=["Hello"],
+            device_type="flagship",
+        )
 
         ps.list_pages.return_value = [mock_page]
         ps.get_page.return_value = mock_page
@@ -197,10 +205,11 @@ def mock_page_service():
         # Batch preview returns a dict mapping page_id to DisplayResult
         ps.preview_pages_batch.return_value = {"page1": preview_result}
 
-        ps.get_cache_stats.return_value = {"size": 0, "cached_pages": [], "ttl_seconds": 30}
-        ps._invalidate_cache.return_value = None
+        ps.get_cache_stats.return_value = {"cache_size": 0, "cached_pages": [], "ttl_seconds": 30}
+        ps.invalidate_preview_cache.return_value = None
 
         mock_get.return_value = ps
+        pages_get.return_value = ps
         routes_get.return_value = ps
         yield ps
 
@@ -320,8 +329,15 @@ def mock_plugin_registry():
 
 @pytest.fixture
 def mock_service():
-    """Mock the global service."""
-    with patch("src.api_server.get_service") as mock_get:
+    """Mock the global service.
+
+    Patched on api_server and on the pages router, which since Phase 2 slice 3
+    imports the accessor from src/display_runtime.py at module import time.
+    """
+    with (
+        patch("src.api_server.get_service") as mock_get,
+        patch("src.pages.routes.get_service") as routes_get,
+    ):
         svc = Mock()
         svc.vb_client = Mock()
         svc.vb_client.send_characters.return_value = (True, True)
@@ -337,6 +353,7 @@ def mock_service():
         svc._polled_characters = None
         svc._polled_at = None
         mock_get.return_value = svc
+        routes_get.return_value = svc
         yield svc
 
 
@@ -1089,8 +1106,9 @@ class TestPagesEndpoints:
                 "template": ["Hello"],
             },
         )
-        assert response.status_code == 200
-        assert response.json()["status"] == "success"
+        # 201 + the bare page since the Phase 2 conventions pass.
+        assert response.status_code == 201
+        assert response.json()["id"] == "page1"
 
     def test_get_page(self, client, mock_page_service):
         response = client.get("/pages/page1")
@@ -1104,7 +1122,9 @@ class TestPagesEndpoints:
     def test_update_page(self, client, mock_page_service):
         response = client.put("/pages/page1", json={"name": "Updated"})
         assert response.status_code == 200
-        assert response.json()["status"] == "success"
+        # The {"status": "success"} key is gone; the page and its retarget
+        # warnings are the whole body now.
+        assert response.json()["page"]["id"] == "page1"
 
     def test_update_page_not_found(self, client, mock_page_service):
         mock_page_service.update_page.return_value = None
@@ -1175,7 +1195,9 @@ class TestPagesEndpoints:
 
     def test_preview_pages_batch_invalid_input(self, client, mock_page_service, mock_settings_service):
         response = client.post("/pages/preview/batch", json={"page_ids": "not_a_list"})
-        assert response.status_code == 400
+        # 422: the body is a typed model since the Phase 2 conventions pass, so
+        # this is FastAPI's standard validation error (was a hand-rolled 400).
+        assert response.status_code == 422
 
     def test_preview_pages_batch_page_not_found(self, client, mock_page_service, mock_settings_service):
         mock_page_service.preview_pages_batch.return_value = {"gone": None}
@@ -1218,7 +1240,9 @@ class TestPagesEndpoints:
         response = client.post("/pages/page1/send")
         assert response.status_code == 200
         data = response.json()
-        assert data["status"] == "success"
+        # The {"status": "success"} key is gone since the Phase 2 conventions
+        # pass — the 200 already said it. The payload is unchanged.
+        assert data["page_id"] == "page1"
 
     def test_send_page_not_found(self, client, mock_page_service, mock_settings_service, mock_service):
         mock_page_service.get_page.return_value = None
@@ -1525,11 +1549,16 @@ class TestServiceLifecycle:
         assert response.json()["status"] == "success"
 
     def test_peek_service_does_not_create_service(self):
-        """peek_service returns the existing instance only — never creates one."""
-        from src import api_server
+        """peek_service returns the existing instance only — never creates one.
 
-        with patch.object(api_server, "_service", None):
-            assert api_server.peek_service() is None
+        The singleton moved to ``src/display_runtime.py`` in Phase 2 slice 3
+        so the extracted routers can reach it without importing api_server;
+        the state it guards is the same object.
+        """
+        from src import display_runtime
+
+        with patch.object(display_runtime, "_service", None):
+            assert display_runtime.peek_service() is None
 
     def test_send_message_marks_the_board_as_out_of_band(self, client, mock_service, mock_settings_service):
         """Issue #1831: a manual send replaces the page on the board, so the
