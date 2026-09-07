@@ -230,7 +230,7 @@ export const schedulesApi = {
       body: JSON.stringify(request),
     }),
   clearTemporaryOverride: () =>
-    fetchApi<{ status: string; revert_mode: string | null }>("/settings/temporary-override", {
+    fetchApi<{ revert_mode: string | null }>("/settings/temporary-override", {
       method: "DELETE",
     }),
   // Schedule endpoints (optional boardId for per-board schedules)
@@ -312,7 +312,7 @@ export const schedulesApi = {
     indicator_position?: string | null;
     board_id?: string;
   }) =>
-    fetchApi<{ status: string; config: Record<string, unknown> }>("/settings/silence-schedule", {
+    fetchApi<{ config: Record<string, unknown>; board_id: string | null }>("/settings/silence-schedule", {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(data),

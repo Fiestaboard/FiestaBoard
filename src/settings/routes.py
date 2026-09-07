@@ -34,7 +34,6 @@ from typing import Any
 
 import requests
 from fastapi import APIRouter, HTTPException, Request
-from pydantic import BaseModel
 
 from src.board_send_executor import run_board_send
 from src.devices import classify_dimensions
@@ -44,6 +43,9 @@ from .models import (
     ERROR_404,
     ERROR_409,
     ERROR_422,
+    ERROR_500,
+    ERROR_502,
+    ActivePageResponse,
     AddBoardRequest,
     BoardIdentifyRequest,
     BoardIdentifyResponse,
@@ -51,6 +53,7 @@ from .models import (
     BoardPauseResponse,
     BoardSettingsResponse,
     BoardSettingsUpdate,
+    ClearTemporaryOverrideResponse,
     DetectBoardSizeResponse,
     DisplaySettingsResponse,
     DisplaySettingsUpdate,
@@ -64,8 +67,14 @@ from .models import (
     PollingSettings,
     PollingSettingsResponse,
     PollingSettingsUpdate,
+    SetActivePageRequest,
+    SetActivePageResponse,
+    SilenceScheduleRequest,
+    SilenceScheduleResponse,
     SunTimesResponse,
     SunTimesWeekResponse,
+    TemporaryOverrideRequest,
+    TemporaryOverrideResponse,
     TransitionSettings,
     TransitionSettingsResponse,
     TransitionSettingsUpdate,
@@ -248,22 +257,11 @@ async def test_ai_provider(request: Request):
     return result
 
 
-class SilenceScheduleRequest(BaseModel):
-    """Request body for updating the silence schedule feature."""
-
-    enabled: bool
-    start_time: str
-    end_time: str
-    mode: str | None = None  # "freeze" (default), "indicator", or "page"
-    page_id: str | None = None  # Page id to display when mode == "page"
-    indicator_text: str | None = None  # Custom text to display when mode == "indicator"
-    indicator_position: str | None = None  # Position: center, top-left, top-right, bottom-left, bottom-right
-    # Board to target (issue #1788). Omitted → the install-wide schedule.
-    # Deliberately in the BODY, not the URL, so the endpoint path is unchanged.
-    board_id: str | None = None
-
-
-@router.put("/settings/silence-schedule")
+@router.put(
+    "/settings/silence-schedule",
+    response_model=SilenceScheduleResponse,
+    responses={**ERROR_400, **ERROR_404, **ERROR_500},
+)
 async def update_silence_schedule(request: SilenceScheduleRequest):
     """
     Update the silence schedule configuration.
@@ -380,7 +378,6 @@ async def update_silence_schedule(request: SilenceScheduleRequest):
         config = config_manager.get_feature("silence_schedule") or updated
 
     return {
-        "status": "success",
         "config": config,
         "board_id": board_id,
     }
@@ -472,7 +469,7 @@ async def update_output_settings(request: OutputSettingsUpdate):
     return output.to_dict()
 
 
-@router.get("/settings/active-page")
+@router.get("/settings/active-page", response_model=ActivePageResponse)
 async def get_active_page(board_id: str | None = None):
     """Get the currently active page ID.
 
@@ -493,8 +490,12 @@ async def get_active_page(board_id: str | None = None):
     }
 
 
-@router.put("/settings/active-page")
-async def set_active_page(request: dict):
+@router.put(
+    "/settings/active-page",
+    response_model=SetActivePageResponse,
+    responses={**ERROR_400, **ERROR_404, **ERROR_502},
+)
+async def set_active_page(request: SetActivePageRequest):
     """
     Set the active page ID.
 
@@ -514,8 +515,8 @@ async def set_active_page(request: dict):
     page_service = get_page_service()
     service = get_service()
 
-    page_id = request.get("page_id")
-    board_id = request.get("board_id")
+    page_id = request.page_id
+    board_id = request.board_id
     board = None
     if board_id is not None:
         board = _require_board(board_id)
@@ -542,7 +543,7 @@ async def set_active_page(request: dict):
     # warnings); plain pages must match the board size exactly.
     compat_warnings: list[str] = []
     if page_id is not None:
-        compat = check_ref_board_compatibility(page_id, request.get("board_id"))
+        compat = check_ref_board_compatibility(page_id, board_id)
         if not compat.ok:
             raise HTTPException(status_code=400, detail=compat.error)
         compat_warnings = compat.warnings
@@ -639,31 +640,34 @@ async def set_active_page(request: dict):
 
     sent_to_board, paused, send_error = await run_board_send(_work)
 
-    # status stays "success" (the page selection itself was persisted); a
-    # render/send problem is reported via error + sent_to_board=False, the
-    # same partial-failure contract page-builder already consumes.
-    response = {
-        "status": "success",
+    # The page selection itself was persisted; a render/send problem is
+    # reported via error + sent_to_board=False, the same partial-failure
+    # contract page-builder already consumes. ``warnings`` is always present
+    # (empty list, not absent) so "no warnings" and "this build does not
+    # report warnings" are distinguishable.
+    return {
         "page_id": page_id,
         "sent_to_board": sent_to_board,
         "paused": paused,
         "board_id": board_id,
         "error": send_error,
+        "warnings": compat_warnings,
     }
-    if compat_warnings:
-        response["warnings"] = compat_warnings
-    return response
 
 
-@router.get("/settings/temporary-override")
+@router.get("/settings/temporary-override", response_model=TemporaryOverrideResponse)
 async def get_temporary_override():
     """Get the current temporary override status."""
     settings_service = get_settings_service()
     return _temporary_override_payload(settings_service.get_temporary_override())
 
 
-@router.post("/settings/temporary-override")
-async def set_temporary_override(request: dict):
+@router.post(
+    "/settings/temporary-override",
+    response_model=TemporaryOverrideResponse,
+    responses={**ERROR_404, **ERROR_422},
+)
+async def set_temporary_override(request: TemporaryOverrideRequest):
     """
     Activate a temporary override, from a saved page or from inline content.
 
@@ -700,8 +704,8 @@ async def set_temporary_override(request: dict):
     settings_service = get_settings_service()
     page_service = get_page_service()
 
-    page_id = request.get("page_id")
-    template = request.get("template")
+    page_id = request.page_id
+    template = request.template
 
     if page_id and template is not None:
         raise HTTPException(status_code=422, detail="Supply either page_id or template, not both")
@@ -720,17 +724,17 @@ async def set_temporary_override(request: dict):
         if not all(isinstance(line, str) for line in template):
             raise HTTPException(status_code=422, detail="template must contain only strings")
 
-        device_type = request.get("device_type") or DEFAULT_DEVICE_TYPE
+        device_type = request.device_type or DEFAULT_DEVICE_TYPE
         if device_type not in DEVICE_TYPES:
             raise HTTPException(status_code=422, detail=f"device_type must be one of {list(DEVICE_TYPES)}")
 
-        line_metadata = request.get("line_metadata")
+        line_metadata = request.line_metadata
         if line_metadata is not None and (
             not isinstance(line_metadata, list) or not all(isinstance(m, dict) for m in line_metadata)
         ):
             raise HTTPException(status_code=422, detail="line_metadata must be a list of objects")
 
-        for key, raw in (("notes_wide", request.get("notes_wide")), ("notes_tall", request.get("notes_tall"))):
+        for key, raw in (("notes_wide", request.notes_wide), ("notes_tall", request.notes_tall)):
             if raw is None:
                 continue
             try:
@@ -760,7 +764,7 @@ async def set_temporary_override(request: dict):
             if not collection_service.get_collection(page_id):
                 raise HTTPException(status_code=404, detail=f"Collection not found: {page_id}")
 
-    duration_minutes = request.get("duration_minutes")
+    duration_minutes = request.duration_minutes
     expires_at = None
     if duration_minutes is not None:
         try:
@@ -774,11 +778,11 @@ async def set_temporary_override(request: dict):
             )
         expires_at = (datetime.now(UTC) + timedelta(minutes=duration_minutes)).isoformat()
 
-    revert_mode = request.get("revert_mode", "schedule")
+    revert_mode = request.revert_mode
     if revert_mode not in VALID_REVERT_MODES:
         raise HTTPException(status_code=422, detail=f"revert_mode must be one of {VALID_REVERT_MODES}")
 
-    revert_page_id = request.get("revert_page_id")
+    revert_page_id = request.revert_page_id
     if revert_mode == "page":
         if not revert_page_id:
             raise HTTPException(status_code=422, detail="revert_page_id is required when revert_mode is 'page'")
@@ -807,7 +811,7 @@ async def set_temporary_override(request: dict):
     return _temporary_override_payload(override)
 
 
-@router.delete("/settings/temporary-override")
+@router.delete("/settings/temporary-override", response_model=ClearTemporaryOverrideResponse)
 async def clear_temporary_override():
     """Cancel the active temporary override and trigger an immediate board refresh."""
     settings_service = get_settings_service()
@@ -824,7 +828,7 @@ async def clear_temporary_override():
     if svc:
         svc._last_active_page_content = None
 
-    return {"status": "cleared", "revert_mode": revert_mode}
+    return {"revert_mode": revert_mode}
 
 
 @router.get("/settings/polling", response_model=PollingSettings)

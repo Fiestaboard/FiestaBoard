@@ -109,9 +109,12 @@ describe("API Extended Tests", () => {
         http.put(`${API_BASE}/settings/active-page`, async ({ request }) => {
           capturedBody = await request.json();
           return HttpResponse.json({
-            status: "success",
             page_id: capturedBody.page_id,
             sent_to_board: true,
+            paused: false,
+            board_id: null,
+            error: null,
+            warnings: [],
           });
         }),
       );
@@ -744,8 +747,8 @@ describe("API Extended Tests", () => {
           capturedPath = new URL(request.url).pathname;
           capturedBody = await request.json();
           return HttpResponse.json({
-            status: "success",
             config: capturedBody,
+            board_id: null,
           });
         }),
       );
@@ -760,7 +763,10 @@ describe("API Extended Tests", () => {
         start_time: "04:00+00:00",
         end_time: "15:00+00:00",
       });
-      expect(result.status).toBe("success");
+      // "status" dropped by the conventions pass (Phase 2, Task 8): the
+      // resolved config and the layer it was written to are the payload.
+      expect(result.config).toEqual(capturedBody);
+      expect(result.board_id).toBeNull();
     });
   });
 

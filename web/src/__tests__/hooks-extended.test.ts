@@ -53,8 +53,9 @@ describe("use-board extended", () => {
       });
 
       await waitFor(() => expect(result.current.isSuccess).toBe(true));
-      expect(result.current.data?.status).toBe("success");
+      // "status" dropped by the conventions pass (Phase 2, Task 8).
       expect(result.current.data?.page_id).toBe("page-1");
+      expect(result.current.data?.warnings).toEqual([]);
     });
 
     it("sends mutation with null to clear", async () => {

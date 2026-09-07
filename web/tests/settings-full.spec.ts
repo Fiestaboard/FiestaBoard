@@ -51,8 +51,9 @@ test.describe("Settings – Full Coverage", () => {
     });
     expect(res.ok).toBe(true);
     const data = await res.json();
-    expect(data.status).toBe("success");
-    expect(data.settings.interval_seconds).toBe(60);
+    // Bare PollingSettings + requires_restart since the conventions pass
+    // (Phase 2, Task 8).
+    expect(data.interval_seconds).toBe(60);
 
     // Verify via GET
     const getRes = await fetch(`${API_URL}/settings/polling`);
@@ -81,7 +82,8 @@ test.describe("Settings – Full Coverage", () => {
       });
       expect(res.ok).toBe(true);
       const data = await res.json();
-      expect(data.settings.target).toBe(target);
+      // Bare OutputSettings since the conventions pass (Phase 2, Task 8).
+      expect(data.target).toBe(target);
     }
 
     // Reset to board
@@ -104,7 +106,8 @@ test.describe("Settings – Full Coverage", () => {
     });
     expect(res.ok).toBe(true);
     const data = await res.json();
-    expect(data.status).toBe("success");
+    // Bare BoardSettings since the conventions pass (Phase 2, Task 8).
+    expect(data.board_type).toBe("white");
 
     // Reset
     await fetch(`${API_URL}/settings/board`, {

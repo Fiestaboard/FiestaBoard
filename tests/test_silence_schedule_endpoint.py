@@ -65,7 +65,7 @@ class TestUpdateSilenceScheduleEndpoint:
 
         assert response.status_code == 200
         data = response.json()
-        assert data["status"] == "success"
+        # "status" dropped by the conventions pass (Phase 2, Task 8).
         assert data["config"]["enabled"] is True
         assert data["config"]["start_time"] == "04:00+00:00"
         assert data["config"]["end_time"] == "15:00+00:00"

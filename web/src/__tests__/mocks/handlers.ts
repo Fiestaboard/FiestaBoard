@@ -454,15 +454,21 @@ export const handlers = [
   http.get(`${API_BASE}/settings/active-page`, () => {
     return HttpResponse.json({
       page_id: "page-1",
+      resolved_page_id: "page-1",
+      resolved_next_check_seconds: null,
+      board_id: null,
     });
   }),
 
   http.put(`${API_BASE}/settings/active-page`, async ({ request }) => {
     const body = (await request.json()) as { page_id: string | null };
     return HttpResponse.json({
-      status: "success",
       page_id: body.page_id,
       sent_to_board: true,
+      paused: false,
+      board_id: null,
+      error: null,
+      warnings: [],
     });
   }),
 
@@ -890,7 +896,6 @@ export const handlers = [
       board_id?: string;
     };
     return HttpResponse.json({
-      status: "success",
       config: body,
       board_id: body.board_id ?? null,
     });

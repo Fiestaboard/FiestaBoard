@@ -635,7 +635,9 @@ class TestSettingsEndpoints:
     def test_set_active_page(self, client, mock_settings_service, mock_page_service):
         response = client.put("/settings/active-page", json={"page_id": "page1"})
         assert response.status_code == 200
-        assert response.json()["status"] == "success"
+        # "status" dropped by the conventions pass (Phase 2, Task 8); the
+        # selection itself is the payload.
+        assert response.json()["page_id"] == "page1"
 
     def test_set_active_page_not_found(self, client, mock_settings_service, mock_page_service):
         mock_page_service.get_page.return_value = None

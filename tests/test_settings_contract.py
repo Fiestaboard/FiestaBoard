@@ -199,13 +199,17 @@ class TestActivePage:
     def test_put_null_clears_the_selection_and_reports_no_send(self, client):
         response = client.put("/settings/active-page", json={"page_id": None})
         assert response.status_code == 200
+        # CHANGED (conventions): "status" dropped, and "warnings" is now
+        # always present — it used to be omitted whenever the list was empty,
+        # so "no warnings" and "this build does not report warnings" were the
+        # same payload.
         assert response.json() == {
-            "status": "success",
             "page_id": None,
             "sent_to_board": False,
             "paused": False,
             "board_id": None,
             "error": None,
+            "warnings": [],
         }
 
     def test_put_404s_for_an_unknown_page_naming_it(self, client):
@@ -285,13 +289,15 @@ class TestTemporaryOverride:
         client.post("/settings/temporary-override", json={"template": ["HI"]})
         response = client.delete("/settings/temporary-override")
         assert response.status_code == 200
-        assert response.json() == {"status": "cleared", "revert_mode": "schedule"}
+        # CHANGED (conventions, bare bodies): "status": "cleared" dropped —
+        # a 200 already says the override was cleared.
+        assert response.json() == {"revert_mode": "schedule"}
         assert client.get("/settings/temporary-override").json()["active"] is False
 
     def test_delete_with_no_active_override_reports_a_null_revert_mode(self, client):
         response = client.delete("/settings/temporary-override")
         assert response.status_code == 200
-        assert response.json() == {"status": "cleared", "revert_mode": None}
+        assert response.json() == {"revert_mode": None}
 
 
 # ---------------------------------------------------------------------------
@@ -691,7 +697,8 @@ class TestSilenceSchedule:
         response = client.put("/settings/silence-schedule", json=self.BASE)
         assert response.status_code == 200
         body = response.json()
-        assert body["status"] == "success"
+        # CHANGED (conventions, bare bodies): "status" dropped; the resolved
+        # config and the layer it was written to are the payload.
         assert body["board_id"] is None
         assert body["config"]["enabled"] is True
         assert body["config"]["start_time"] == "04:00+00:00"
