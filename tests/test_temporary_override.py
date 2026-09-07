@@ -202,13 +202,15 @@ class TestClearTemporaryOverride:
         )
         r = client.delete("/settings/temporary-override")
         assert r.status_code == 200
-        assert r.json()["status"] == "cleared"
+        # "status": "cleared" dropped by the conventions pass (Phase 2,
+        # Task 8); the 200 says it, and the body names what it reverted to.
+        assert r.json() == {"revert_mode": "schedule"}
         assert settings_service.get_temporary_override() is None
 
     def test_clear_when_no_override_is_safe(self, client):
         r = client.delete("/settings/temporary-override")
         assert r.status_code == 200
-        assert r.json()["status"] == "cleared"
+        assert r.json() == {"revert_mode": None}
 
     def test_clear_sets_active_page_for_revert_page_mode(self, client, settings_service):
         expires = (datetime.now(UTC) + timedelta(minutes=10)).isoformat()

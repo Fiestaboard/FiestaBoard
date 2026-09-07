@@ -67,13 +67,12 @@ class TestGetPluginSettings:
     def test_default_auto_update_is_true(self):
         response = client.get("/settings/plugins")
         body = response.json()
-        assert "settings" in body
-        assert body["settings"]["auto_update"] is True
+        assert body["auto_update"] is True
 
     def test_reflects_disabled_state(self):
         get_settings_service().update_plugin_settings({"auto_update": False})
         response = client.get("/settings/plugins")
-        assert response.json()["settings"]["auto_update"] is False
+        assert response.json()["auto_update"] is False
 
 
 # ---------------------------------------------------------------------------
@@ -89,19 +88,18 @@ class TestPutPluginSettings:
         response = client.put("/settings/plugins", json={"auto_update": False})
         assert response.status_code == 200
         body = response.json()
-        assert body["status"] == "success"
-        assert body["settings"]["auto_update"] is False
+        assert body["auto_update"] is False
 
     def test_enable_auto_update(self):
         get_settings_service().update_plugin_settings({"auto_update": False})
         response = client.put("/settings/plugins", json={"auto_update": True})
         assert response.status_code == 200
-        assert response.json()["settings"]["auto_update"] is True
+        assert response.json()["auto_update"] is True
 
     def test_persisted_across_get(self):
         client.put("/settings/plugins", json={"auto_update": False})
         response = client.get("/settings/plugins")
-        assert response.json()["settings"]["auto_update"] is False
+        assert response.json()["auto_update"] is False
 
     def test_empty_body_does_not_error(self):
         response = client.put("/settings/plugins", json={})
@@ -126,7 +124,7 @@ def test_settings_all_plugins_consistent_with_dedicated_endpoint():
     _reset_plugin_settings()
     all_data = client.get("/settings/all").json()
     plugin_data = client.get("/settings/plugins").json()
-    assert all_data["plugins"]["auto_update"] == plugin_data["settings"]["auto_update"]
+    assert all_data["plugins"]["auto_update"] == plugin_data["auto_update"]
 
 
 # ---------------------------------------------------------------------------

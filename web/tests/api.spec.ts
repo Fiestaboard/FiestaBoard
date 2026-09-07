@@ -65,8 +65,8 @@ test.describe("API – Settings", () => {
     });
     expect(res.ok).toBe(true);
     const data = await res.json();
-    expect(data.status).toBe("success");
-    expect(data.settings.target).toBe("ui");
+    // Bare OutputSettings since the conventions pass (Phase 2, Task 8).
+    expect(data.target).toBe("ui");
 
     // Reset to default
     await fetch(`${API()}/settings/output`, {
@@ -84,8 +84,8 @@ test.describe("API – Settings", () => {
     });
     expect(res.ok).toBe(true);
     const data = await res.json();
-    expect(data.status).toBe("success");
-    expect(data.settings.interval_seconds).toBe(15);
+    // Bare PollingSettings + requires_restart since the conventions pass.
+    expect(data.interval_seconds).toBe(15);
   });
 
   test("rejects invalid polling interval", async () => {

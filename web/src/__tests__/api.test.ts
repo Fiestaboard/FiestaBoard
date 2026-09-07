@@ -119,8 +119,8 @@ describe("API Contract Tests", () => {
 
       const result = await api.updateTransitionSettings(settings);
 
-      expect(result.status).toBe("success");
-      expect(result.settings).toBeDefined();
+      // Bare TransitionSettings since the conventions pass (Phase 2, Task 8).
+      expect(result.strategy).toBe("column");
       expect(requestStore.lastTransitionUpdate).toEqual(settings);
     });
 
@@ -133,7 +133,7 @@ describe("API Contract Tests", () => {
 
       const result = await api.updateTransitionSettings(settings);
 
-      expect(result.status).toBe("success");
+      expect(result.strategy).toBeNull();
       expect(requestStore.lastTransitionUpdate?.strategy).toBeNull();
       expect(requestStore.lastTransitionUpdate?.step_interval_ms).toBeNull();
     });
@@ -141,7 +141,8 @@ describe("API Contract Tests", () => {
     it("updateOutputSettings sends target correctly", async () => {
       const result = await api.updateOutputSettings("both");
 
-      expect(result.status).toBe("success");
+      // Bare OutputSettings since the conventions pass (Phase 2, Task 8).
+      expect(result.target).toBe("both");
       expect(requestStore.lastOutputUpdate?.target).toBe("both");
     });
 

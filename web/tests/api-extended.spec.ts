@@ -348,7 +348,8 @@ test.describe("API – Settings (extended)", () => {
     });
     expect(res.ok).toBe(true);
     const data = await res.json();
-    expect(data.status).toBe("success");
+    // Bare TransitionSettings since the conventions pass (Phase 2, Task 8).
+    expect(data.strategy).toBe(target);
 
     // Restore original
     await fetch(`${API()}/settings/transitions`, {
@@ -401,7 +402,8 @@ test.describe("API – Settings (extended)", () => {
     });
     expect(res.ok).toBe(true);
     const data = await res.json();
-    expect(data.status).toBe("success");
+    // Bare BoardSettings since the conventions pass (Phase 2, Task 8).
+    expect(data.board_type).toBe("black");
   });
 
   test("board settings include boards and devices arrays", async () => {
@@ -422,10 +424,10 @@ test.describe("API – Settings (extended)", () => {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ device_type: "note", name: "My Note" }),
     });
-    expect(addRes.ok).toBe(true);
+    // 201 + bare BoardSettings since the conventions pass (Phase 2, Task 8).
+    expect(addRes.status).toBe(201);
     const addData = await addRes.json();
-    expect(addData.status).toBe("success");
-    const noteBoard = addData.settings.boards.find((b: { device_type: string }) => b.device_type === "note");
+    const noteBoard = addData.boards.find((b: { device_type: string }) => b.device_type === "note");
     expect(noteBoard).toBeDefined();
     expect(noteBoard.name).toBe("My Note");
     const boardId = noteBoard.id;
@@ -435,8 +437,7 @@ test.describe("API – Settings (extended)", () => {
     });
     expect(delRes.ok).toBe(true);
     const delData = await delRes.json();
-    expect(delData.status).toBe("success");
-    const stillThere = delData.settings.boards.find((b: { id: string }) => b.id === boardId);
+    const stillThere = delData.boards.find((b: { id: string }) => b.id === boardId);
     expect(stillThere).toBeUndefined();
   });
 
@@ -448,9 +449,8 @@ test.describe("API – Settings (extended)", () => {
     });
     expect(res.ok).toBe(true);
     const data = await res.json();
-    expect(data.status).toBe("success");
-    expect(data.settings.devices).toContain("flagship");
-    expect(data.settings.devices).toContain("note");
+    expect(data.devices).toContain("flagship");
+    expect(data.devices).toContain("note");
 
     // Reset to flagship only
     await fetch(`${API()}/settings/board`, {

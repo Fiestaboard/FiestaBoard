@@ -118,6 +118,9 @@ export interface PanelPublicConfig extends Panel {
 export interface HdmiKioskStatus {
   supported: boolean;
   status: "unsupported" | "unknown" | "in_progress" | "enabled" | "disabled" | "failed";
+  // Always present; null when the platform cannot report one (no sidecar,
+  // not a FiestaPi), so "off" and "unknown" stay distinguishable.
+  enabled: boolean | null;
   action?: string;
   error?: string;
 }
@@ -212,18 +215,18 @@ export interface BoardSettings {
 
 /**
  * Response from POST /settings/board/{id}/detect-size. Mirrors the Python
- * `classify_dimensions()` return shape. For flagship/note only `device_type`,
- * `rows`, `cols` are present; for note arrays the note-grid fields are filled.
- * `matched_preset` is a human-readable preset LABEL (not an id) or null — do
- * not key UI off it; match presets by (notes_wide, notes_tall) instead.
+ * `classify_dimensions()` return shape. The note-grid fields are always
+ * present and null for a flagship or a single Note. `matched_preset` is a
+ * human-readable preset LABEL (not an id) or null — do not key UI off it;
+ * match presets by (notes_wide, notes_tall) instead.
  */
 export interface DetectBoardSizeResponse {
   device_type: DeviceType;
   rows: number;
   cols: number;
-  notes_wide?: number;
-  notes_tall?: number;
-  matched_preset?: string | null;
+  notes_wide: number | null;
+  notes_tall: number | null;
+  matched_preset: string | null;
 }
 
 /**
@@ -243,7 +246,6 @@ export interface BoardIdentifyRequest {
 }
 
 export interface BoardIdentifyResponse {
-  status: string;
   board_id: string;
   results: { row: number; col: number; success: boolean }[];
 }
@@ -306,30 +308,27 @@ export const boardsApi = {
     devices?: DeviceType[];
     boards?: BoardInstance[];
   }) =>
-    fetchApi<{ status: string; settings: BoardSettings }>("/settings/board", {
+    fetchApi<BoardSettings>("/settings/board", {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(updates),
     }),
   addBoard: (board: Partial<BoardInstance> & { device_type: DeviceType }) =>
-    fetchApi<{ status: string; settings: BoardSettings }>("/settings/board/add", {
+    fetchApi<BoardSettings>("/settings/board/add", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(board),
     }),
   removeBoard: (boardId: string) =>
-    fetchApi<{ status: string; settings: BoardSettings }>(`/settings/board/${boardId}`, {
+    fetchApi<BoardSettings>(`/settings/board/${boardId}`, {
       method: "DELETE",
     }),
   setBoardPaused: (boardId: string, paused: boolean) =>
-    fetchApi<{ status: string; board_id: string; paused: boolean; settings: BoardSettings }>(
-      `/settings/board/${boardId}/pause`,
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ paused }),
-      },
-    ),
+    fetchApi<{ board_id: string; paused: boolean; board_settings: BoardSettings }>(`/settings/board/${boardId}/pause`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ paused }),
+    }),
   // ---- FiestaPanel ----
   listPanels: () => fetchApi<{ panels: Panel[]; total: number }>("/panels"),
   // 201 with the bare panel (Phase 2 slice 8; was 200 + { status, panel }).
@@ -353,7 +352,7 @@ export const boardsApi = {
     }),
   getHdmiKiosk: () => fetchApi<HdmiKioskStatus>("/settings/hdmi-kiosk"),
   setHdmiKiosk: (enabled: boolean) =>
-    fetchApi<{ status: string; action?: string }>("/settings/hdmi-kiosk", {
+    fetchApi<{ status: string; action: string | null }>("/settings/hdmi-kiosk", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ enabled }),

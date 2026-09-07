@@ -43,7 +43,17 @@ class TestMQTTSettings:
 
     def test_put_mqtt_settings(self, client):
         mock_settings = Mock()
-        mock_settings.to_dict.return_value = {"enabled": True, "broker_host": "mqtt.example.com"}
+        # The full MQTTSettings.to_dict payload: PUT /settings/mqtt
+        # validates its response against MqttSettingsResponse since the
+        # conventions pass, and this stub carried only two of six fields.
+        mock_settings.to_dict.return_value = {
+            "enabled": True,
+            "broker_host": "mqtt.example.com",
+            "broker_port": 1883,
+            "username": "",
+            "password": "",
+            "external_url": "",
+        }
         mock_svc = Mock()
         mock_svc.set_mqtt_settings.return_value = mock_settings
         with (

@@ -292,13 +292,14 @@ async def set_active_page(page_id: str, board_id: str | None = None) -> dict[str
     """
     from fastapi import HTTPException
 
-    from src.api_server import set_active_page as _rest_set_active_page
+    from src.settings.models import SetActivePageRequest
+    from src.settings.routes import set_active_page as _rest_set_active_page
 
     body: dict[str, Any] = {"page_id": page_id}
     if board_id is not None:
         body["board_id"] = board_id
     try:
-        response = await _rest_set_active_page(body)
+        response = await _rest_set_active_page(SetActivePageRequest(**body))
     except HTTPException as exc:
         return err(f"Error setting active page: {exc.detail}")
     except Exception as exc:
@@ -731,20 +732,25 @@ async def update_setting(category: str, values: dict[str, Any]) -> dict[str, Any
                 return err("active_page requires values.page_id")
             return await set_active_page(page_id)
 
-        import src.api_server as api
+        import src.settings.models as models
+        import src.settings.routes as api
 
+        # The handlers take Pydantic request models since the Phase 2
+        # conventions pass; build the model here rather than handing them a
+        # dict. ValidationError is caught by the generic handler below and
+        # reported to the chat op like any other bad input.
         if category == "display":
-            await api.update_display_settings(dict(values))
+            await api.update_display_settings(models.DisplaySettingsUpdate(**values))
         elif category == "transitions":
-            await api.update_transition_settings(dict(values))
+            await api.update_transition_settings(models.TransitionSettingsUpdate(**values))
         elif category == "output":
-            await api.update_output_settings(dict(values))
+            await api.update_output_settings(models.OutputSettingsUpdate(**values))
         elif category == "polling":
-            await api.update_polling_settings(dict(values))
+            await api.update_polling_settings(models.PollingSettingsUpdate(**values))
         elif category == "location":
-            await api.update_location_settings(dict(values))
+            await api.update_location_settings(models.LocationSettingsUpdate(**values))
         elif category == "silence_schedule":
-            await api.update_silence_schedule(api.SilenceScheduleRequest(**values))
+            await api.update_silence_schedule(models.SilenceScheduleRequest(**values))
         else:
             return err(f"Unknown setting category: {category!r}")
     except HTTPException as exc:

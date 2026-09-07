@@ -89,6 +89,10 @@ def mock_settings_service():
         board_settings.to_dict.return_value = {
             "board_type": "black",
             "boards": [{"id": "b1", "device_type": "flagship"}],
+            # Added with the conventions pass: BoardSettings.to_dict has
+            # always emitted `devices`, and the response_model now validates
+            # it. This stub had drifted.
+            "devices": ["flagship"],
         }
         ss.get_board_settings.return_value = board_settings
 
@@ -139,6 +143,10 @@ def mock_settings_service():
             "reduce_motion": False,
             "board_animations": "on",
             "site_animations": "on",
+            # Added with the conventions pass: DisplaySettings has carried
+            # board_flap_speed since #1550, and the response_model on
+            # GET /settings/all now validates it. This stub had drifted.
+            "board_flap_speed": "standard",
         }
         ss.get_display_settings.return_value = display
 
@@ -150,7 +158,10 @@ def mock_settings_service():
 
         beta = Mock()
         beta.https_enabled = False
-        beta.to_dict.return_value = {"https_enabled": False}
+        # transition_plugins_enabled added with the conventions pass: the
+        # field has existed since the transition-plugin beta, and the
+        # response_model now validates it.
+        beta.to_dict.return_value = {"https_enabled": False, "transition_plugins_enabled": False}
         ss.get_beta_settings.return_value = beta
         ss.update_beta_settings.return_value = beta
 
@@ -557,8 +568,8 @@ class TestSettingsEndpoints:
     def test_update_transition_settings(self, client, mock_settings_service):
         response = client.put("/settings/transitions", json={"strategy": "column"})
         assert response.status_code == 200
-        data = response.json()
-        assert data["status"] == "success"
+        # Bare TransitionSettings since the conventions pass (Phase 2, Task 8).
+        assert response.json()["strategy"] == "column"
 
     def test_update_transition_settings_invalid(self, client, mock_settings_service):
         mock_settings_service.update_transition_settings.side_effect = ValueError("Invalid strategy")
@@ -575,11 +586,16 @@ class TestSettingsEndpoints:
     def test_update_output_settings(self, client, mock_settings_service):
         response = client.put("/settings/output", json={"target": "board"})
         assert response.status_code == 200
-        assert response.json()["status"] == "success"
+        # Bare OutputSettings since the conventions pass (Phase 2, Task 8):
+        # the body is now what the stubbed service returned, which is the
+        # point — the old `status == "success"` assertion passed whatever
+        # the service said.
+        assert response.json()["target"] == mock_settings_service.set_output_target.return_value.target
 
     def test_update_output_settings_missing_target(self, client, mock_settings_service):
         response = client.put("/settings/output", json={})
-        assert response.status_code == 400
+        # 422 since the conventions pass typed the body (Phase 2, Task 8).
+        assert response.status_code == 422
 
     def test_update_output_settings_invalid_target(self, client, mock_settings_service):
         mock_settings_service.set_output_target.side_effect = ValueError("Invalid target")
@@ -626,7 +642,9 @@ class TestSettingsEndpoints:
     def test_set_active_page(self, client, mock_settings_service, mock_page_service):
         response = client.put("/settings/active-page", json={"page_id": "page1"})
         assert response.status_code == 200
-        assert response.json()["status"] == "success"
+        # "status" dropped by the conventions pass (Phase 2, Task 8); the
+        # selection itself is the payload.
+        assert response.json()["page_id"] == "page1"
 
     def test_set_active_page_not_found(self, client, mock_settings_service, mock_page_service):
         mock_page_service.get_page.return_value = None
@@ -687,7 +705,8 @@ class TestSettingsEndpoints:
     def test_update_board_settings_type(self, client, mock_settings_service):
         response = client.put("/settings/board", json={"board_type": "white"})
         assert response.status_code == 200
-        assert response.json()["status"] == "success"
+        # Bare BoardSettings since the conventions pass (Phase 2, Task 8).
+        assert response.json() == mock_settings_service.set_board_type.return_value.to_dict()
 
     def test_update_board_settings_devices(self, client, mock_settings_service):
         response = client.put("/settings/board", json={"devices": ["flagship"]})
@@ -695,7 +714,8 @@ class TestSettingsEndpoints:
 
     def test_update_board_settings_devices_not_list(self, client, mock_settings_service):
         response = client.put("/settings/board", json={"devices": "flagship"})
-        assert response.status_code == 400
+        # 422 since the conventions pass typed the body (Phase 2, Task 8).
+        assert response.status_code == 422
 
     def test_update_board_settings_boards(self, client, mock_settings_service):
         response = client.put("/settings/board", json={"boards": [{"id": "b1", "device_type": "flagship"}]})
@@ -703,7 +723,8 @@ class TestSettingsEndpoints:
 
     def test_update_board_settings_boards_not_list(self, client, mock_settings_service):
         response = client.put("/settings/board", json={"boards": "bad"})
-        assert response.status_code == 400
+        # 422 since the conventions pass typed the body (Phase 2, Task 8).
+        assert response.status_code == 422
 
     def test_update_board_settings_no_param(self, client, mock_settings_service):
         response = client.put("/settings/board", json={"foo": "bar"})
@@ -716,11 +737,13 @@ class TestSettingsEndpoints:
 
     def test_add_board_instance(self, client, mock_settings_service):
         response = client.post("/settings/board/add", json={"device_type": "flagship"})
-        assert response.status_code == 200
+        # 201 since the conventions pass (a create returns the resource).
+        assert response.status_code == 201
 
     def test_add_board_instance_missing_type(self, client, mock_settings_service):
         response = client.post("/settings/board/add", json={})
-        assert response.status_code == 400
+        # 422 since the conventions pass typed the body (Phase 2, Task 8).
+        assert response.status_code == 422
 
     def test_add_board_instance_value_error(self, client, mock_settings_service):
         mock_settings_service.add_board.side_effect = ValueError("Invalid")
@@ -752,6 +775,7 @@ class TestSettingsEndpoints:
             "reduce_motion": False,
             "board_animations": "on",
             "site_animations": "on",
+            "board_flap_speed": "standard",
         }
         assert "status" in data
 
@@ -1938,7 +1962,7 @@ class TestEnableLocalAPI:
         mock_resp = Mock()
         mock_resp.status_code = 200
         mock_resp.json.return_value = {"apiKey": "generated_api_key_abc"}
-        with patch("src.api_server.requests.post", return_value=mock_resp):
+        with patch("src.config_api.routes.requests.post", return_value=mock_resp):
             response = client.post(
                 "/config/board/enable-local-api",
                 json={
@@ -1955,7 +1979,7 @@ class TestEnableLocalAPI:
         mock_resp = Mock()
         mock_resp.status_code = 200
         mock_resp.json.return_value = {}
-        with patch("src.api_server.requests.post", return_value=mock_resp):
+        with patch("src.config_api.routes.requests.post", return_value=mock_resp):
             response = client.post(
                 "/config/board/enable-local-api",
                 json={
@@ -1970,7 +1994,7 @@ class TestEnableLocalAPI:
         mock_resp = Mock()
         mock_resp.status_code = 401
         mock_resp.text = "Unauthorized"
-        with patch("src.api_server.requests.post", return_value=mock_resp):
+        with patch("src.config_api.routes.requests.post", return_value=mock_resp):
             response = client.post(
                 "/config/board/enable-local-api",
                 json={
@@ -1985,7 +2009,7 @@ class TestEnableLocalAPI:
         mock_resp = Mock()
         mock_resp.status_code = 500
         mock_resp.text = "Internal Server Error"
-        with patch("src.api_server.requests.post", return_value=mock_resp):
+        with patch("src.config_api.routes.requests.post", return_value=mock_resp):
             response = client.post(
                 "/config/board/enable-local-api",
                 json={
@@ -1999,7 +2023,9 @@ class TestEnableLocalAPI:
     def test_connection_error(self, client):
         import requests as http_requests
 
-        with patch("src.api_server.requests.post", side_effect=http_requests.exceptions.ConnectionError("refused")):
+        with patch(
+            "src.config_api.routes.requests.post", side_effect=http_requests.exceptions.ConnectionError("refused")
+        ):
             response = client.post(
                 "/config/board/enable-local-api",
                 json={
@@ -2013,7 +2039,7 @@ class TestEnableLocalAPI:
     def test_timeout_error(self, client):
         import requests as http_requests
 
-        with patch("src.api_server.requests.post", side_effect=http_requests.exceptions.Timeout("timed out")):
+        with patch("src.config_api.routes.requests.post", side_effect=http_requests.exceptions.Timeout("timed out")):
             response = client.post(
                 "/config/board/enable-local-api",
                 json={
@@ -2025,7 +2051,7 @@ class TestEnableLocalAPI:
         assert response.json()["success"] is False
 
     def test_generic_error(self, client):
-        with patch("src.api_server.requests.post", side_effect=RuntimeError("unexpected")):
+        with patch("src.config_api.routes.requests.post", side_effect=RuntimeError("unexpected")):
             response = client.post(
                 "/config/board/enable-local-api",
                 json={
@@ -2037,7 +2063,7 @@ class TestEnableLocalAPI:
 
     def test_rejects_public_ip(self, client):
         """SSRF guard: a public IP must be rejected before any HTTP request."""
-        with patch("src.api_server.requests.post") as mock_post:
+        with patch("src.config_api.routes.requests.post") as mock_post:
             response = client.post(
                 "/config/board/enable-local-api",
                 json={
@@ -2054,7 +2080,7 @@ class TestEnableLocalAPI:
 
     def test_rejects_aws_metadata_address(self, client):
         """SSRF guard: the AWS instance-metadata IP must be rejected."""
-        with patch("src.api_server.requests.post") as mock_post:
+        with patch("src.config_api.routes.requests.post") as mock_post:
             response = client.post(
                 "/config/board/enable-local-api",
                 json={
@@ -2091,7 +2117,7 @@ class TestTrafficGeocode:
         mock_resp.status_code = 200
         mock_resp.json.return_value = [{"lat": "40.7128", "lon": "-74.0060", "display_name": "NYC"}]
         mock_resp.raise_for_status = Mock()
-        with patch("src.api_server.requests.get", return_value=mock_resp):
+        with patch("src.config_api.routes.requests.get", return_value=mock_resp):
             response = client.post("/traffic/routes/geocode", json={"address": "NYC"})
         assert response.status_code == 200
         data = response.json()
@@ -2106,7 +2132,7 @@ class TestTrafficGeocode:
         mock_resp.status_code = 200
         mock_resp.json.return_value = []
         mock_resp.raise_for_status = Mock()
-        with patch("src.api_server.requests.get", return_value=mock_resp):
+        with patch("src.config_api.routes.requests.get", return_value=mock_resp):
             response = client.post("/traffic/routes/geocode", json={"address": "xyznonexistent"})
         assert response.status_code == 404
 

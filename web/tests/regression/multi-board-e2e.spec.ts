@@ -116,7 +116,7 @@ async function configureMixedFleet(): Promise<{ kitchenId: string; officeId: str
   });
   if (!res.ok) throw new Error(`configureMixedFleet failed: ${res.status} ${await res.text()}`);
   const data = await res.json();
-  const boards = data.settings?.boards ?? [];
+  const boards = data.boards ?? [];
   if (boards.length < 2) throw new Error("configureMixedFleet: expected 2 boards");
   return { kitchenId: boards[0].id, officeId: boards[1].id };
 }

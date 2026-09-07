@@ -109,9 +109,12 @@ describe("API Extended Tests", () => {
         http.put(`${API_BASE}/settings/active-page`, async ({ request }) => {
           capturedBody = await request.json();
           return HttpResponse.json({
-            status: "success",
             page_id: capturedBody.page_id,
             sent_to_board: true,
+            paused: false,
+            board_id: null,
+            error: null,
+            warnings: [],
           });
         }),
       );
@@ -731,8 +734,9 @@ describe("API Extended Tests", () => {
 
     it("updatePollingSettings sends interval", async () => {
       const result = await api.updatePollingSettings({ interval_seconds: 600 });
-      expect(result.status).toBe("success");
-      expect(result.settings.interval_seconds).toBe(600);
+      // Bare PollingSettings + requires_restart since the conventions pass.
+      expect(result.interval_seconds).toBe(600);
+      expect(result.requires_restart).toBe(false);
     });
 
     it("updateSilenceSchedule PUTs to /settings/silence-schedule", async () => {
@@ -743,8 +747,8 @@ describe("API Extended Tests", () => {
           capturedPath = new URL(request.url).pathname;
           capturedBody = await request.json();
           return HttpResponse.json({
-            status: "success",
             config: capturedBody,
+            board_id: null,
           });
         }),
       );
@@ -759,7 +763,10 @@ describe("API Extended Tests", () => {
         start_time: "04:00+00:00",
         end_time: "15:00+00:00",
       });
-      expect(result.status).toBe("success");
+      // "status" dropped by the conventions pass (Phase 2, Task 8): the
+      // resolved config and the layer it was written to are the payload.
+      expect(result.config).toEqual(capturedBody);
+      expect(result.board_id).toBeNull();
     });
   });
 
@@ -770,18 +777,19 @@ describe("API Extended Tests", () => {
     });
 
     it("updateBoardSettings sends body", async () => {
+      // Bare BoardSettings since the conventions pass (Phase 2, Task 8).
       const result = await api.updateBoardSettings({ board_type: "white" });
-      expect(result.status).toBe("success");
+      expect(result.board_type).toBe("white");
     });
 
     it("addBoard sends board data", async () => {
       const result = await api.addBoard({ device_type: "note", name: "My Note" });
-      expect(result.status).toBe("success");
+      expect(result.boards.map((b) => b.name)).toContain("My Note");
     });
 
     it("removeBoard sends DELETE", async () => {
       const result = await api.removeBoard("board-1");
-      expect(result.status).toBe("success");
+      expect(result.boards).toHaveLength(1);
     });
 
     it("getAllSettings returns combined settings", async () => {
