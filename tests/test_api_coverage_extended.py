@@ -428,8 +428,10 @@ class TestTrafficEndpoints:
             patch("src.utils.traffic.TrafficSource", return_value=mock_ts),
         ):
             resp = client.post("/traffic/routes/validate", json={"origin": "a", "destination": "b"})
-        assert resp.status_code == 200
-        assert resp.json()["valid"] is False
+        # The upstream Routes API produced no verdict; that is a 502, not a
+        # 200 saying the route is invalid (Phase 2 Task 10a, #1887).
+        assert resp.status_code == 502
+        assert "Routes API" in resp.json()["detail"]
 
     def test_validate_route_exception(self, client):
         with (
@@ -440,8 +442,8 @@ class TestTrafficEndpoints:
             patch("src.utils.traffic.TrafficSource", side_effect=Exception("boom")),
         ):
             resp = client.post("/traffic/routes/validate", json={"origin": "a", "destination": "b"})
-        assert resp.status_code == 200
-        assert resp.json()["valid"] is False
+        # An unanticipated error is a 500, not a 200 "valid: false" (#1887).
+        assert resp.status_code == 500
 
 
 # ---------------------------------------------------------------------------

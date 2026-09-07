@@ -27,6 +27,24 @@ three response shapes, zero 201s, `response_model` on 19 of 179 endpoints,
 - **Failures are never 200.** A handler must not answer an error with
   `{"success": false}` and HTTP 200. Client errors are 4xx, server errors
   5xx.
+- **Probe endpoints: one narrow exception.** An endpoint whose declared job
+  is to *report a verdict about something else* — `POST /config/board/test`,
+  `POST /config/board/enable-local-api` — answers 200 when the probe ran, even
+  when the verdict is "the board refused this key". The verdict is the payload
+  the caller asked for, not a transport failure. Three conditions make that
+  legitimate, and all three are required:
+  1. the 200 body is a declared `response_model` (`BoardTestResponse`,
+     `EnableLocalApiResponse`), never an ad-hoc dict;
+  2. the failure originated **upstream** — the board, or the network to it;
+  3. anything the server rejected *before* probing (missing credential,
+     malformed host, an SSRF-guard refusal) is a real 4xx, and anything
+     unanticipated is a 5xx.
+
+  Without (1) a generic client cannot tell the verdict from a success, which
+  is exactly the masking bug this rule replaced (#1887). `POST
+  /debug/test-connection` deliberately does *not* qualify: it has no verdict
+  body — no error class, no troubleshooting steps — so an unreachable board
+  there is a 503 and an unexpected error is a 500.
 - Missing resource → **404**; conflict (duplicate id, env-pinned resource) →
   **409**; feature unavailable / dependency down → **503**.
 

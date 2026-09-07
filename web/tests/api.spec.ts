@@ -283,8 +283,10 @@ test.describe("API – Debug", () => {
     const res = await fetch(`${API()}/debug/test-connection`, {
       method: "POST",
     });
-    // Connection may or may not succeed depending on board config state
-    expect([200, 400]).toContain(res.status);
+    // Connection may or may not succeed depending on board config state.
+    // 503 = board configured but unreachable (#1887 made that a real status
+    // instead of a 200 carrying { status: "error" }).
+    expect([200, 400, 503]).toContain(res.status);
     if (res.ok) {
       const data = await res.json();
       expect(data).toHaveProperty("connected");

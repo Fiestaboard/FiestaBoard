@@ -444,6 +444,7 @@ class TestConfigEndpoints:
 
 class TestBoardConnectionTest:
     def test_test_board_local_missing_key(self, client):
+        """A missing credential is a precondition failure: 400 (#1887)."""
         response = client.post(
             "/config/board/test",
             json={
@@ -451,10 +452,8 @@ class TestBoardConnectionTest:
                 "host": "192.168.1.100",
             },
         )
-        assert response.status_code == 200
-        data = response.json()
-        assert data["success"] is False
-        assert "API key is required" in data["message"]
+        assert response.status_code == 400
+        assert "API key is required" in response.json()["detail"]
 
     def test_test_board_local_missing_host(self, client):
         response = client.post(
@@ -464,10 +463,8 @@ class TestBoardConnectionTest:
                 "local_api_key": "test_key_123",
             },
         )
-        assert response.status_code == 200
-        data = response.json()
-        assert data["success"] is False
-        assert "host" in data["message"].lower()
+        assert response.status_code == 400
+        assert "host" in response.json()["detail"].lower()
 
     def test_test_board_cloud_missing_key(self, client):
         response = client.post(
@@ -476,8 +473,7 @@ class TestBoardConnectionTest:
                 "api_mode": "cloud",
             },
         )
-        assert response.status_code == 200
-        assert response.json()["success"] is False
+        assert response.status_code == 400
 
 
 # ============================================================
@@ -1826,8 +1822,7 @@ class TestEnableLocalAPI:
                 "enablement_token": "test_token_xyz",
             },
         )
-        assert response.status_code == 200
-        assert response.json()["success"] is False
+        assert response.status_code == 400
 
     def test_missing_token(self, client):
         response = client.post(
@@ -1837,8 +1832,7 @@ class TestEnableLocalAPI:
                 "enablement_token": "",
             },
         )
-        assert response.status_code == 200
-        assert response.json()["success"] is False
+        assert response.status_code == 400
 
     def test_success(self, client):
         mock_resp = Mock()
@@ -1939,8 +1933,7 @@ class TestEnableLocalAPI:
                     "enablement_token": "test_token_xyz",
                 },
             )
-        assert response.status_code == 200
-        assert response.json()["success"] is False
+        assert response.status_code == 500
 
     def test_rejects_public_ip(self, client):
         """SSRF guard: a public IP must be rejected before any HTTP request."""
@@ -1952,10 +1945,10 @@ class TestEnableLocalAPI:
                     "enablement_token": "test_token_xyz",
                 },
             )
-        # Returns 200 with success=False (this endpoint reports validation as a body field).
-        assert response.status_code == 200
-        body = response.json()
-        assert body["success"] is False
+        # The SSRF guard's 400 reaches the client as a 400 (#1887); it used
+        # to be downgraded to a 200 body indistinguishable from a board that
+        # simply rejected the token.
+        assert response.status_code == 400
         # No outbound HTTP request should have been issued.
         mock_post.assert_not_called()
 

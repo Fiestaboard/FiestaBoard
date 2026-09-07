@@ -583,9 +583,9 @@ class TestBoardTestGeneralError:
             },
         )
 
-        data = response.json()
-        assert data["success"] is False
-        assert "troubleshooting" in data
+        # An unanticipated failure is not a probe verdict (Phase 2 Task 10a).
+        assert response.status_code == 500
+        assert "unexpected error" not in response.json()["detail"]
 
 
 # ---------------------------------------------------------------------------
