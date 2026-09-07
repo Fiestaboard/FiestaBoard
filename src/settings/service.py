@@ -912,7 +912,16 @@ class SettingsService:
         self._temporary_override: TemporaryOverride | None = self._load_temporary_override()
 
         if getattr(self, "_needs_seed_save", False):
-            self._save_to_file()
+            try:
+                self._save_to_file()
+            except OSError as e:
+                # Boot path, not a request path: refusing to construct the
+                # service would take the whole process down over a seed
+                # write. Running with in-memory defaults and an unwritable
+                # data dir is strictly better, and the next setter call —
+                # which *is* a request — will surface the same OSError to
+                # the caller as a 5xx.
+                logger.error(f"Could not persist seeded settings at startup: {e}")
             self._needs_seed_save = False
 
         logger.info(f"SettingsService initialized (file: {self.settings_file})")
@@ -1014,7 +1023,18 @@ class SettingsService:
 
     @_locked
     def _save_to_file(self) -> None:
-        """Save current settings to JSON file."""
+        """Save current settings to JSON file.
+
+        Write errors **propagate**, matching every other store in the
+        codebase (pages, collections, schedules, panels, config_manager all
+        log and re-raise). This used to log and return, so a full disk or a
+        read-only ``data/`` produced ~20 endpoints that answered HTTP 200
+        having persisted nothing and reverted on the next restart.
+
+        The two callers that must survive a failed write — the boot-time
+        seed save and the override expiry GC — catch ``OSError`` at their
+        own call site, each with a comment saying why.
+        """
         try:
             data = {
                 "schema_version": CURRENT_SETTINGS_SCHEMA_VERSION,
@@ -1035,6 +1055,7 @@ class SettingsService:
             logger.debug("Settings saved to file")
         except OSError as e:
             logger.error(f"Failed to save settings file: {e}")
+            raise
 
     def _load_transition_settings(self) -> TransitionSettings:
         """Load transition settings from file or env."""
@@ -1836,7 +1857,15 @@ class SettingsService:
             return None
         if self._temporary_override.is_expired():
             self._temporary_override = None
-            self._save_to_file()
+            try:
+                self._save_to_file()
+            except OSError as e:
+                # Background GC on a read path (the display loop calls this
+                # every tick). The override is already expired in memory, so
+                # the caller's answer is correct either way; failing the read
+                # would stall the loop over a write that will be retried on
+                # the next expiry.
+                logger.error(f"Could not persist temporary-override expiry: {e}")
             return None
         return self._temporary_override
 
@@ -1854,7 +1883,13 @@ class SettingsService:
             return None
         if raw.is_expired():
             self._temporary_override = None
-            self._save_to_file()
+            try:
+                self._save_to_file()
+            except OSError as e:
+                # Same background-GC reasoning as get_temporary_override:
+                # the display loop must still receive the expired override
+                # so it can apply revert_mode.
+                logger.error(f"Could not persist temporary-override expiry: {e}")
         return raw
 
     @_locked
