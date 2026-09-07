@@ -416,8 +416,9 @@ class TestBoardSettings:
 
     def test_delete_409s_when_a_fiestapanel_still_references_the_board(self, client):
         panel = client.post("/panels", json={"name": "Kitchen"})
-        assert panel.status_code in (200, 201), panel.text
-        board_id = panel.json()["panel"]["board_id"]
+        assert panel.status_code == 201, panel.text
+        # Bare Panel since the panels slice (#1913) unwrapped its envelope.
+        board_id = panel.json()["board_id"]
         response = client.delete(f"/settings/board/{board_id}")
         assert response.status_code == 409
         assert response.json() == {
