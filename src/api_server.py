@@ -55,6 +55,7 @@ from .pages.service import (  # noqa: E402
 )
 from .panels.models import PanelCreate, PanelUpdate  # noqa: E402
 from .panels.service import get_panel_service  # noqa: E402
+from .paths import get_data_dir  # noqa: E402
 
 # Patch seam (issue #1756): no handler left in this module calls it, but the
 # extracted routers resolve it through `src.api_server` at call time so
@@ -69,11 +70,31 @@ from .virtual_board_client import release_virtual_board_state  # noqa: E402
 
 logger = logging.getLogger(__name__)
 
-# Log file configuration
-LOG_DIR = Path("/app/data/logs")
-LOG_FILE = LOG_DIR / "app.log"
+# Log file configuration.
+#
+# ``LOG_DIR`` is a *test seam* in the same shape as ``SYSTEM_UPDATE_STATE_FILE``
+# further down: production leaves it ``None`` and ``_log_dir()`` resolves
+# ``<data>/logs`` lazily through ``src.paths.get_data_dir()`` (honoring
+# ``FIESTABOARD_DATA_DIR``, #1762). It was previously the hard-coded container
+# path ``/app/data/logs``, which bypassed the seam entirely and made the test
+# suite write ``data/logs/app.log`` into the checkout on every run (#1881).
+#
+# Resolve at call time, never at import time: import-time resolution is what
+# created this class of bug (#1894).
+LOG_DIR: Path | None = None
 LOG_MAX_BYTES = 5 * 1024 * 1024  # 5MB per file
 LOG_BACKUP_COUNT = 5  # Keep 5 backup files (25MB total max)
+
+
+def _log_dir() -> Path:
+    """Resolve the log directory, honoring the ``LOG_DIR`` test seam."""
+    return LOG_DIR if LOG_DIR is not None else get_data_dir() / "logs"
+
+
+def _log_file() -> Path:
+    """Resolve the current log file (``<data>/logs/app.log``)."""
+    return _log_dir() / "app.log"
+
 
 # Cache state for /muni/stops endpoint
 _muni_stops_cache: dict[str, Any] | None = None
@@ -341,18 +362,19 @@ def _setup_file_logging():
     """Set up file-based logging with rotation."""
     try:
         # Create logs directory if it doesn't exist
-        LOG_DIR.mkdir(parents=True, exist_ok=True)
+        log_file = _log_file()
+        log_file.parent.mkdir(parents=True, exist_ok=True)
 
         # Create JSON file handler with rotation
         file_handler = JSONFileHandler(
-            str(LOG_FILE), maxBytes=LOG_MAX_BYTES, backupCount=LOG_BACKUP_COUNT, encoding="utf-8"
+            str(log_file), maxBytes=LOG_MAX_BYTES, backupCount=LOG_BACKUP_COUNT, encoding="utf-8"
         )
         file_handler.setFormatter(logging.Formatter("%(message)s"))
         file_handler.setLevel(logging.INFO)
 
         # Add to root logger
         logging.getLogger().addHandler(file_handler)
-        logger.info(f"File logging initialized: {LOG_FILE}")
+        logger.info(f"File logging initialized: {log_file}")
     except Exception as e:
         logger.warning(f"Failed to set up file logging: {e}")
 
@@ -368,9 +390,10 @@ def _read_logs_from_files(
     all_logs = []
 
     # Read from current log file and backups
-    log_files = [LOG_FILE]
+    current_log = _log_file()
+    log_files = [current_log]
     for i in range(1, LOG_BACKUP_COUNT + 1):
-        backup_file = Path(f"{LOG_FILE}.{i}")
+        backup_file = Path(f"{current_log}.{i}")
         if backup_file.exists():
             log_files.append(backup_file)
 

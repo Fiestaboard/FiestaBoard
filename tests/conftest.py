@@ -1,9 +1,59 @@
 # tests/conftest.py
 
+import os
+import shutil
+import tempfile
 import threading
+from pathlib import Path
 from unittest.mock import Mock
 
 import pytest
+
+# Session-wide throwaway data dir, created in ``pytest_configure`` (below) and
+# removed in ``pytest_unconfigure``. Module-level so both hooks see it.
+_SESSION_DATA_ROOT: Path | None = None
+
+
+def pytest_configure(config):
+    """Point ``FIESTABOARD_DATA_DIR`` at a throwaway dir before collection (#1894).
+
+    The autouse ``_isolated_data_dir`` fixture below is *function*-scoped, so
+    it cannot cover the two windows where nothing is active:
+
+    1. **Collection time.** ``src/api_server.py`` resolves the data dir while
+       it is being imported (``is_auth_enabled()`` at module scope builds the
+       auth service, which resolves ``<data>/auth.json``). Four test modules
+       build a ``TestClient(app)`` at module scope, so every xdist worker
+       imports it before the first fixture runs.
+    2. **After a test's teardown.** ``monkeypatch`` restores the variable to
+       whatever it was *before* the test. Background threads a test started
+       (e.g. ``board-state-poll`` in ``src/main.py``) outlive it, and the next
+       thing they log re-enters ``ConfigManager()`` -> ``get_data_dir()``.
+
+    With the variable unset in either window ``get_data_dir()`` falls back to
+    ``<repo>/data`` and the suite writes the checkout — the intermittent
+    ``config.json`` / ``logs/app.log`` leak that fails innocent PRs on CI's
+    "Verify tests did not write data/" step.
+
+    Setting it here, before collection, closes both: the fallback every
+    ``monkeypatch`` teardown restores to is now a temp dir, not the repo. The
+    per-test fixture stays layered on top for per-test isolation.
+
+    The directory is keyed by ``PYTEST_XDIST_WORKER`` (pid when running
+    without xdist) so parallel workers never share one.
+    """
+    global _SESSION_DATA_ROOT
+    worker = os.environ.get("PYTEST_XDIST_WORKER") or f"pid{os.getpid()}"
+    _SESSION_DATA_ROOT = Path(tempfile.mkdtemp(prefix=f"fiestaboard-tests-{worker}-"))
+    os.environ["FIESTABOARD_DATA_DIR"] = str(_SESSION_DATA_ROOT / "data")
+
+
+def pytest_unconfigure(config):
+    """Remove the session data dir created in ``pytest_configure``."""
+    global _SESSION_DATA_ROOT
+    if _SESSION_DATA_ROOT is not None:
+        shutil.rmtree(_SESSION_DATA_ROOT, ignore_errors=True)
+        _SESSION_DATA_ROOT = None
 
 
 def _drop_all_singletons() -> None:
@@ -63,6 +113,11 @@ def _isolated_data_dir(tmp_path, monkeypatch):
     cannot see a store some earlier test built against its own tmp dir;
     after, so no singleton survives holding a path into this test's (now
     deleted) tmp dir.
+
+    This narrows isolation to one test. It does *not* establish it: the
+    session-wide override in ``pytest_configure`` above is what guarantees
+    the variable is never unset, including at collection time and after this
+    fixture's ``monkeypatch`` has been undone (#1894).
     """
     monkeypatch.setenv("FIESTABOARD_DATA_DIR", str(tmp_path / "data"))
     _drop_all_singletons()

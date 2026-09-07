@@ -3,8 +3,8 @@
 This module supports the opt-in **HTTPS (Beta)** setting. When the user
 enables HTTPS we generate a long-lived self-signed certificate that nginx
 serves on port 3000 inside the container. The cert files live under
-``/app/data/certs`` so they persist across container rebuilds via the
-existing ``./data:/app/data`` bind mount.
+``<data>/certs`` (``/app/data/certs`` in the container) so they persist
+across container rebuilds via the existing ``./data:/app/data`` bind mount.
 
 Each FiestaBoard instance generates its own keypair and certificate; we
 never bake a shared private key into the image.
@@ -26,11 +26,10 @@ import subprocess
 import tempfile
 from pathlib import Path
 
+from src.paths import get_data_dir
+
 logger = logging.getLogger(__name__)
 
-# Directory holding the cert + key. Lives under /app/data so the bind
-# mount in docker-compose preserves it across container rebuilds.
-DEFAULT_CERT_DIR = Path("/app/data/certs")
 
 CERT_FILENAME = "fiestaboard.crt"
 KEY_FILENAME = "fiestaboard.key"
@@ -39,16 +38,32 @@ KEY_FILENAME = "fiestaboard.key"
 CERT_VALID_DAYS = 3650
 
 
+def default_cert_dir() -> Path:
+    """Resolve the default cert directory: ``<data>/certs``.
+
+    Goes through ``src.paths.get_data_dir()`` — the one seam every store's
+    default path resolves through — rather than the hard-coded container
+    path ``/app/data/certs`` it used to be. In the container that seam still
+    resolves to ``/app/data``, so the certs keep living on the
+    ``./data:/app/data`` bind mount and survive rebuilds; in tests it
+    resolves to a temp dir instead of the checkout (#1881/#1894).
+
+    Resolved at call time, never at import time: import-time resolution is
+    what created this class of bug.
+    """
+    return get_data_dir() / "certs"
+
+
 def _cert_dir() -> Path:
     """Resolve the cert directory.
 
     Honours the ``FIESTABOARD_CERT_DIR`` env var so tests can use a
-    temporary directory without writing to ``/app/data``.
+    temporary directory without writing to the data dir.
     """
     override = os.environ.get("FIESTABOARD_CERT_DIR")
     if override:
         return Path(override)
-    return DEFAULT_CERT_DIR
+    return default_cert_dir()
 
 
 def cert_paths() -> tuple[Path, Path]:
