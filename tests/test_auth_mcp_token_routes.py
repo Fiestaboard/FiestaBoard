@@ -169,11 +169,22 @@ def test_clear_blocked_when_env_var_pins_the_token(signed_in, client, monkeypatc
     assert r.status_code == 409
 
 
-# --- Auth-disabled mode (issue #857) --------------------------------------
+# --- Auth-disabled mode (issues #857 / #1825) ------------------------------
 #
 # When the install opted out of login, there's no session cookie to send.
-# The mcp-token endpoints must still respond so Settings → Integrations can
-# render. Before the fix these 401s triggered an infinite /login bounce.
+# While no token exists the mcp-token endpoints must still respond so
+# Settings → Integrations can render — before the #857 fix these 401s
+# triggered an infinite /login bounce. But once a token IS configured,
+# managing it requires presenting the current token as a Bearer (#1825):
+# with no session concept, possession of the credential is the credential.
+
+# Obviously-fake token used to seed the store directly in tests.
+FAKE_STORED_TOKEN = "test-stored-mcp-token-000000000000000000"
+
+
+def _store_token():
+    auth_service.get_auth_service().set_stored_mcp_token(FAKE_STORED_TOKEN)
+    return FAKE_STORED_TOKEN
 
 
 def test_status_accessible_when_auth_disabled(client, auth_disabled):
@@ -182,27 +193,93 @@ def test_status_accessible_when_auth_disabled(client, auth_disabled):
     assert r.json() == {"configured": False, "source": "none"}
 
 
-def test_rotate_accessible_when_auth_disabled(client, auth_disabled):
+def test_first_mint_open_when_auth_disabled(client, auth_disabled):
+    # With no token configured the whole REST surface is already open, so
+    # gating the first mint would protect nothing — it stays anonymous.
     r = client.post("/auth/mcp-token")
     assert r.status_code == 201
     token = r.json()["token"]
     assert len(token) >= 32
-    assert client.get("/auth/mcp-token").json() == {
-        "configured": True,
-        "source": "stored",
-    }
     bare = TestClient(app, raise_server_exceptions=False)
     assert bare.get("/mcp/", headers={"Authorization": f"Bearer {token}"}).status_code != 401
+    # The mint is a one-shot: now that a token exists, an anonymous second
+    # POST must be refused (#1825).
+    assert client.post("/auth/mcp-token").status_code == 401
 
 
-def test_clear_accessible_when_auth_disabled(client, auth_disabled):
-    client.post("/auth/mcp-token")
+def test_clear_requires_current_token_when_auth_disabled(client, auth_disabled):
+    # The previous version of this test ("test_clear_accessible_when_auth_
+    # disabled") asserted the opposite: an anonymous DELETE was expected to
+    # revoke a stored token. That encoded the vulnerability itself — anyone
+    # who could reach the port could revoke the token and re-open /mcp/
+    # outright (Fiestaboard/FiestaBoard#1825). Now revocation requires
+    # presenting the current token.
+    token = _store_token()
     r = client.delete("/auth/mcp-token")
-    assert r.status_code == 200
+    assert r.status_code == 401
+    # The token is still stored and still enforced.
+    assert auth_service.mcp_token_source() == "stored"
+    # With the current token, revocation works…
+    r2 = client.delete("/auth/mcp-token", headers={"Authorization": f"Bearer {token}"})
+    assert r2.status_code == 200
+    # …and with no token configured, management is open again.
     assert client.get("/auth/mcp-token").json() == {
         "configured": False,
         "source": "none",
     }
+
+
+def test_status_requires_token_when_auth_disabled_and_token_stored(client, auth_disabled):
+    _store_token()
+    r = client.get("/auth/mcp-token")
+    assert r.status_code == 401
+    assert r.headers.get("WWW-Authenticate", "").startswith("Bearer")
+
+
+def test_rotate_requires_token_when_auth_disabled_and_token_stored(client, auth_disabled):
+    _store_token()
+    r = client.post("/auth/mcp-token")
+    assert r.status_code == 401
+
+
+def test_management_accepts_current_token_when_auth_disabled(client, auth_disabled):
+    old = _store_token()
+    headers = {"Authorization": f"Bearer {old}"}
+    assert client.get("/auth/mcp-token", headers=headers).status_code == 200
+    rotate = client.post("/auth/mcp-token", headers=headers)
+    assert rotate.status_code == 201
+    new = rotate.json()["token"]
+    assert new != old
+    # After rotation the OLD token no longer manages…
+    assert client.get("/auth/mcp-token", headers=headers).status_code == 401
+    # …and the NEW one does.
+    new_headers = {"Authorization": f"Bearer {new}"}
+    assert client.get("/auth/mcp-token", headers=new_headers).status_code == 200
+    assert client.delete("/auth/mcp-token", headers=new_headers).status_code == 200
+
+
+def test_wrong_bearer_rejected_when_auth_disabled(client, auth_disabled):
+    _store_token()
+    r = client.get(
+        "/auth/mcp-token",
+        headers={"Authorization": "Bearer test-not-the-right-token"},
+    )
+    assert r.status_code == 401
+
+
+def test_env_pin_still_wins_when_auth_disabled(client, auth_disabled, monkeypatch):
+    # An env-pinned token counts as "configured": the possession gate
+    # applies first (anonymous callers get 401), and a caller holding the
+    # env token still hits the 409 pin on mutation.
+    monkeypatch.setenv("FIESTABOARD_MCP_TOKEN", "test-pinned-by-ops-token")
+    assert client.post("/auth/mcp-token").status_code == 401
+    headers = {"Authorization": "Bearer test-pinned-by-ops-token"}
+    assert client.post("/auth/mcp-token", headers=headers).status_code == 409
+    assert client.delete("/auth/mcp-token", headers=headers).status_code == 409
+    # Status with the env token still reports the source.
+    r = client.get("/auth/mcp-token", headers=headers)
+    assert r.status_code == 200
+    assert r.json() == {"configured": True, "source": "env"}
 
 
 def test_undecided_mode_still_requires_auth(client, monkeypatch):

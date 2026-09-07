@@ -132,6 +132,9 @@
     "description": "Supervisa la pantalla de tu tablero y la actividad del sistema",
     "noBoardConfigured": "Ningún tablero configurado",
     "noBoardDescription": "Tu tablero aún no está configurado. Conecta tu tablero para comenzar a mostrar contenido.",
+    "boardInitErrorTitle": "{boardName} no está disponible",
+    "boardInitErrorTitleUnnamed": "Un tablero no está disponible",
+    "boardInitErrorOpenSettings": "Abrir configuración del tablero",
     "runSetupWizard": "Ejecutar asistente de configuración",
     "silenceImminentTitle": "Silence starts in {minutes, plural, =0 {less than a minute} one {# minute} other {# minutes}}",
     "silenceImminentDescription": "Switch to “{pageName}” now so you don't have to wait for the schedule to catch up.",
@@ -935,6 +938,11 @@
       "resumeToggle": "Resume sends",
       "badge": "Paused",
       "tooltip": "When paused, FiestaBoard does not push anything to this board — scheduled pages, manual sends, plugin triggers, and MQTT commands are all blocked until you resume."
+    },
+    "initError": {
+      "badge": "No disponible",
+      "title": "Este tablero no se pudo inicializar",
+      "hint": "Corrige los datos de conexión abajo; al guardar se reintenta la conexión."
     },
     "deviceTypeAriaLabel": "Tipo y tamaño del tablero",
     "deviceGroupLabel": "Dispositivos",
@@ -2088,7 +2096,11 @@
     "claudeWebDescription": "<label>claude.ai web (Connectors):</label> no es compatible con un FiestaBoard autoalojado. El flujo de Connectors requiere una URL HTTPS pública y registro dinámico de clientes OAuth 2.1, y un host en la LAN no puede ofrecer ninguna de las dos cosas. Usa Desktop o Code en su lugar.",
     "savedItButton": "Ya lo he guardado",
     "toastTokenRevoked": "Token MCP revocado",
-    "toastCopyFailed": "No se pudo copiar al portapapeles"
+    "toastCopyFailed": "No se pudo copiar al portapapeles",
+    "lockedDescription": "El inicio de sesión está desactivado en esta instalación, así que el propio token MCP actual es la credencial para gestionar tokens. Introdúcelo abajo para desbloquear la rotación o revocación.",
+    "lockedTokenLabel": "Token MCP actual",
+    "unlockButton": "Desbloquear",
+    "unlockFailedToast": "Ese token no coincide con el token MCP configurado."
   },
   "fiestaPanels": {
     "title": "FiestaPanel",

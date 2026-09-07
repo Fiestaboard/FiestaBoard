@@ -132,6 +132,9 @@
     "description": "监控看板显示和系统活动",
     "noBoardConfigured": "未配置看板",
     "noBoardDescription": "您的看板尚未设置。连接看板以开始显示内容。",
+    "boardInitErrorTitle": "{boardName}不可用",
+    "boardInitErrorTitleUnnamed": "有看板不可用",
+    "boardInitErrorOpenSettings": "打开看板设置",
     "runSetupWizard": "运行设置向导",
     "silenceImminentTitle": "Silence starts in {minutes, plural, =0 {less than a minute} one {# minute} other {# minutes}}",
     "silenceImminentDescription": "Switch to “{pageName}” now so you don't have to wait for the schedule to catch up.",
@@ -935,6 +938,11 @@
       "resumeToggle": "Resume sends",
       "badge": "Paused",
       "tooltip": "When paused, FiestaBoard does not push anything to this board — scheduled pages, manual sends, plugin triggers, and MQTT commands are all blocked until you resume."
+    },
+    "initError": {
+      "badge": "不可用",
+      "title": "此看板初始化失败",
+      "hint": "请修正下方的连接信息，保存后将重试连接。"
     },
     "deviceTypeAriaLabel": "板子类型和尺寸",
     "deviceGroupLabel": "设备",
@@ -2088,7 +2096,11 @@
     "claudeWebDescription": "<label>claude.ai 网页版（Connectors）：</label>自托管的 FiestaBoard 不支持。Connectors 流程需要公网 HTTPS URL 和 OAuth 2.1 动态客户端注册，而 LAN 主机两者都无法提供。请改用 Desktop 或 Code。",
     "savedItButton": "我已保存",
     "toastTokenRevoked": "MCP 令牌已吊销",
-    "toastCopyFailed": "无法复制到剪贴板"
+    "toastCopyFailed": "无法复制到剪贴板",
+    "lockedDescription": "此安装已关闭登录，因此当前 MCP 令牌本身就是管理令牌的凭据。在下方输入它即可解锁轮换和吊销操作。",
+    "lockedTokenLabel": "当前 MCP 令牌",
+    "unlockButton": "解锁",
+    "unlockFailedToast": "该令牌与已配置的 MCP 令牌不匹配。"
   },
   "fiestaPanels": {
     "title": "FiestaPanel",

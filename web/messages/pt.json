@@ -132,6 +132,9 @@
     "description": "Monitore a exibição do seu painel e a atividade do sistema",
     "noBoardConfigured": "Nenhum painel configurado",
     "noBoardDescription": "Seu painel ainda não foi configurado. Conecte seu painel para começar a exibir conteúdo.",
+    "boardInitErrorTitle": "{boardName} está indisponível",
+    "boardInitErrorTitleUnnamed": "Um painel está indisponível",
+    "boardInitErrorOpenSettings": "Abrir configurações do painel",
     "runSetupWizard": "Iniciar Assistente de Configuração",
     "silenceImminentTitle": "Silence starts in {minutes, plural, =0 {less than a minute} one {# minute} other {# minutes}}",
     "silenceImminentDescription": "Switch to “{pageName}” now so you don't have to wait for the schedule to catch up.",
@@ -935,6 +938,11 @@
       "resumeToggle": "Resume sends",
       "badge": "Paused",
       "tooltip": "When paused, FiestaBoard does not push anything to this board — scheduled pages, manual sends, plugin triggers, and MQTT commands are all blocked until you resume."
+    },
+    "initError": {
+      "badge": "Indisponível",
+      "title": "Não foi possível inicializar este painel",
+      "hint": "Corrija os dados de conexão abaixo — ao salvar, a conexão será tentada novamente."
     },
     "deviceTypeAriaLabel": "Tipo e tamanho do quadro",
     "deviceGroupLabel": "Dispositivos",
@@ -2088,7 +2096,11 @@
     "claudeWebDescription": "<label>claude.ai web (Connectors):</label> não é suportado num FiestaBoard alojado por si. O fluxo dos Connectors exige um URL HTTPS público e registo dinâmico de clientes OAuth 2.1, e um host na LAN não fornece nenhum dos dois. Use antes o Desktop ou o Code.",
     "savedItButton": "Já o guardei",
     "toastTokenRevoked": "Token MCP revogado",
-    "toastCopyFailed": "Não foi possível copiar para a área de transferência"
+    "toastCopyFailed": "Não foi possível copiar para a área de transferência",
+    "lockedDescription": "O início de sessão está desativado nesta instalação, pelo que o próprio token MCP atual é a credencial para gerir tokens. Introduza-o abaixo para desbloquear a renovação ou revogação.",
+    "lockedTokenLabel": "Token MCP atual",
+    "unlockButton": "Desbloquear",
+    "unlockFailedToast": "Esse token não corresponde ao token MCP configurado."
   },
   "fiestaPanels": {
     "title": "FiestaPanel",

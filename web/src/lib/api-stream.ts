@@ -15,6 +15,7 @@ import type {
   SSEWarningData,
   ToolCall,
 } from "./ai-chat-types";
+import { redirectToLoginIfNeeded } from "./api/core";
 import { apiUrl } from "./base-path";
 
 export interface StreamChatHandlers {
@@ -72,6 +73,10 @@ export async function streamChat(
           }
           return;
         }
+        // Route auth failures through the same 401/409 login-redirect
+        // logic as fetchApi (lib/api/core.ts) — this path used to bypass
+        // it, leaving an expired-session chat stuck on a silent error.
+        redirectToLoginIfNeeded(response);
         // Try to surface the server's JSON error detail.
         let detail: string | null = null;
         try {

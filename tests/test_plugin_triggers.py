@@ -783,3 +783,47 @@ class TestTriggerPageConfig:
         assert page.type != "template"
         fallback = "\n".join(active.formatted_lines)
         assert "HARD CODED" in fallback
+
+
+def test_concurrent_double_dismiss_does_not_raise():
+    """Two threads dismissing the same trigger must not raise KeyError (which
+    would 500 the page-change path).  The rendezvous on logger.info sits in
+    the window between the existence check and the removal, so both threads
+    deterministically pass the check before either removes."""
+    import contextlib
+    import threading
+    from unittest.mock import patch
+
+    from src.triggers.service import TriggerService
+
+    service = TriggerService()
+    service.activate_trigger(
+        "plugin_a",
+        TriggerResult(triggered=True, trigger_id="dup", message="X", priority=1, duration_seconds=60),
+    )
+
+    barrier = threading.Barrier(2)
+    errors: list[BaseException] = []
+    results: list[bool] = []
+
+    def _rendezvous(*_args, **_kwargs):
+        with contextlib.suppress(threading.BrokenBarrierError):
+            barrier.wait(timeout=5)
+
+    def _dismiss():
+        try:
+            results.append(service.dismiss_trigger("dup"))
+        except BaseException as exc:  # the failure under test
+            errors.append(exc)
+
+    with patch("src.triggers.service.logger") as mock_logger:
+        mock_logger.info.side_effect = _rendezvous
+        threads = [threading.Thread(target=_dismiss) for _ in range(2)]
+        for t in threads:
+            t.start()
+        for t in threads:
+            t.join(timeout=5)
+
+    assert errors == [], f"concurrent double-dismiss raised: {errors!r}"
+    assert True in results
+    assert service.get_active_trigger() is None

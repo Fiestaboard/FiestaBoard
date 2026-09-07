@@ -8,6 +8,7 @@ import time
 from fastapi import APIRouter, HTTPException, Request, Response, status
 from pydantic import BaseModel, Field
 
+from .middleware import _bearer_from
 from .service import (
     SESSION_COOKIE_NAME,
     AlreadySetup,
@@ -19,6 +20,7 @@ from .service import (
     generate_mcp_token,
     get_auth_service,
     mcp_token_source,
+    verify_mcp_bearer,
 )
 
 logger = logging.getLogger(__name__)
@@ -372,7 +374,12 @@ async def auth_disable(payload: DisableAuthRequest, request: Request, response: 
 # pre-shared bearer token that external MCP clients (Claude Desktop, Claude
 # Code) use to authenticate. The plaintext token is only returned by
 # ``POST /auth/mcp-token`` and never read back — the UI is responsible for
-# showing it to the user at rotation time.
+# showing it to the user at rotation time. When auth is disabled there is
+# no session; once a token is configured, every management route (status
+# included — it leaks the token's source) requires presenting the *current*
+# token as a Bearer (possession is the credential — #1825). Only the first
+# mint stays open, so Settings → Integrations can still bootstrap a token
+# on an install with the login off.
 
 
 def _require_admin(request: Request) -> str:
@@ -380,12 +387,14 @@ def _require_admin(request: Request) -> str:
 
     When auth is explicitly *disabled* (``FIESTABOARD_AUTH_ENABLED=0`` or the
     persisted preference is ``disabled``) there is no admin concept and no
-    session cookie ever gets issued — return a sentinel so MCP token
-    management remains reachable. Without this the Settings → Integrations
-    page hits a 401, the web client redirects to ``/login``, the login page
-    sees auth is disabled and bounces back, and the user is stuck in an
-    infinite reload loop. ``undecided`` mode (first-run, secure-by-default)
-    still requires a session.
+    session cookie ever gets issued — return a sentinel instead of a 401.
+    Without this the Settings → Integrations page hits a 401, the web client
+    redirects to ``/login``, the login page sees auth is disabled and bounces
+    back, and the user is stuck in an infinite reload loop. The MCP token
+    routes reach this only through :func:`_require_admin_or_mcp_token`, which
+    limits the sentinel to the no-token-configured case — once a token
+    exists, management demands it (#1825). ``undecided`` mode (first-run,
+    secure-by-default) still requires a session.
     """
     if auth_mode() == "disabled":
         return "anonymous"
@@ -397,10 +406,35 @@ def _require_admin(request: Request) -> str:
     return username
 
 
+def _require_admin_or_mcp_token(request: Request) -> str:
+    """Gate for MCP-token management.
+
+    In ``enabled`` / ``undecided`` modes this is :func:`_require_admin`.
+    When auth is disabled there is no session concept, so possession of
+    the *current* token is the credential: if a token is configured
+    (stored or env-pinned), the caller must present it as a Bearer; if
+    none is configured yet, management stays open — with auth disabled the
+    whole REST surface is open, so gating the first mint would protect
+    nothing (#1825).
+    """
+    if auth_mode() != "disabled":
+        return _require_admin(request)
+    if mcp_token_source() == "none":
+        return "anonymous"
+    supplied = _bearer_from(request)
+    if supplied and verify_mcp_bearer(supplied):
+        return "mcp-token-holder"
+    raise HTTPException(
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        detail="MCP token management requires the current token when auth is disabled",
+        headers={"WWW-Authenticate": 'Bearer realm="FiestaBoard MCP token management"'},
+    )
+
+
 @router.get("/mcp-token", response_model=McpTokenStatusResponse)
 async def auth_mcp_token_status(request: Request) -> McpTokenStatusResponse:
     """Report whether an MCP bearer token is configured, and from where."""
-    _require_admin(request)
+    _require_admin_or_mcp_token(request)
     source = mcp_token_source()
     return McpTokenStatusResponse(configured=source != "none", source=source)
 
@@ -417,7 +451,7 @@ async def auth_mcp_token_rotate(request: Request) -> McpTokenRotateResponse:
     in :func:`~src.auth.service.mcp_token` resolution — a UI rotation
     would silently have no effect and confuse the admin.
     """
-    username = _require_admin(request)
+    username = _require_admin_or_mcp_token(request)
     if mcp_token_source() == "env":
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
@@ -440,7 +474,7 @@ async def auth_mcp_token_clear(request: Request) -> SimpleResponse:
     their next request. (If ``FIESTABOARD_MCP_TOKEN`` is set, this only
     clears the stored fallback — the env var continues to be active.)
     """
-    username = _require_admin(request)
+    username = _require_admin_or_mcp_token(request)
     if mcp_token_source() == "env":
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,

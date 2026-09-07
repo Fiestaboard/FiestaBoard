@@ -132,6 +132,9 @@
     "description": "Überwachen Sie die Anzeige Ihres Boards und die Systemaktivität",
     "noBoardConfigured": "Kein Board konfiguriert",
     "noBoardDescription": "Ihr Board ist noch nicht eingerichtet. Verbinden Sie Ihr Board, um Inhalte anzuzeigen.",
+    "boardInitErrorTitle": "{boardName} ist nicht verfügbar",
+    "boardInitErrorTitleUnnamed": "Ein Board ist nicht verfügbar",
+    "boardInitErrorOpenSettings": "Board-Einstellungen öffnen",
     "runSetupWizard": "Einrichtungsassistent starten",
     "silenceImminentTitle": "Silence starts in {minutes, plural, =0 {less than a minute} one {# minute} other {# minutes}}",
     "silenceImminentDescription": "Switch to “{pageName}” now so you don't have to wait for the schedule to catch up.",
@@ -935,6 +938,11 @@
       "resumeToggle": "Resume sends",
       "badge": "Paused",
       "tooltip": "When paused, FiestaBoard does not push anything to this board — scheduled pages, manual sends, plugin triggers, and MQTT commands are all blocked until you resume."
+    },
+    "initError": {
+      "badge": "Nicht verfügbar",
+      "title": "Dieses Board konnte nicht initialisiert werden",
+      "hint": "Korrigieren Sie die Verbindungsdaten unten — beim Speichern wird die Verbindung erneut versucht."
     },
     "deviceTypeAriaLabel": "Boardtyp und Größe",
     "deviceGroupLabel": "Geräte",
@@ -2088,7 +2096,11 @@
     "claudeWebDescription": "<label>claude.ai web (Connectors):</label> wird für selbst gehostete FiestaBoards nicht unterstützt. Der Connectors-Ablauf erfordert eine öffentliche HTTPS-URL und dynamische OAuth-2.1-Client-Registrierung — beides kann ein Host im LAN nicht bereitstellen. Verwenden Sie stattdessen Desktop oder Code.",
     "savedItButton": "Ich habe es gespeichert",
     "toastTokenRevoked": "MCP-Token widerrufen",
-    "toastCopyFailed": "Kopieren in die Zwischenablage fehlgeschlagen"
+    "toastCopyFailed": "Kopieren in die Zwischenablage fehlgeschlagen",
+    "lockedDescription": "Die Anmeldung ist auf dieser Installation deaktiviert, daher dient das aktuelle MCP-Token selbst als Nachweis für die Token-Verwaltung. Geben Sie es unten ein, um Rotieren und Widerrufen freizuschalten.",
+    "lockedTokenLabel": "Aktuelles MCP-Token",
+    "unlockButton": "Entsperren",
+    "unlockFailedToast": "Dieses Token stimmt nicht mit dem konfigurierten MCP-Token überein."
   },
   "fiestaPanels": {
     "title": "FiestaPanel",

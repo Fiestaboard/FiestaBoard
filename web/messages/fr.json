@@ -132,6 +132,9 @@
     "description": "Surveillez l'affichage de votre tableau et l'activité du système",
     "noBoardConfigured": "Aucun tableau configuré",
     "noBoardDescription": "Votre tableau n'est pas encore configuré. Connectez votre tableau pour commencer à afficher du contenu.",
+    "boardInitErrorTitle": "{boardName} est indisponible",
+    "boardInitErrorTitleUnnamed": "Un tableau est indisponible",
+    "boardInitErrorOpenSettings": "Ouvrir les paramètres du tableau",
     "runSetupWizard": "Lancer l'assistant de configuration",
     "silenceImminentTitle": "Silence starts in {minutes, plural, =0 {less than a minute} one {# minute} other {# minutes}}",
     "silenceImminentDescription": "Switch to “{pageName}” now so you don't have to wait for the schedule to catch up.",
@@ -935,6 +938,11 @@
       "resumeToggle": "Resume sends",
       "badge": "Paused",
       "tooltip": "When paused, FiestaBoard does not push anything to this board — scheduled pages, manual sends, plugin triggers, and MQTT commands are all blocked until you resume."
+    },
+    "initError": {
+      "badge": "Indisponible",
+      "title": "Ce tableau n'a pas pu être initialisé",
+      "hint": "Corrigez les informations de connexion ci-dessous — l'enregistrement relance la connexion."
     },
     "deviceTypeAriaLabel": "Type et taille du tableau",
     "deviceGroupLabel": "Appareils",
@@ -2088,7 +2096,11 @@
     "claudeWebDescription": "<label>claude.ai web (Connectors) :</label> non pris en charge pour un FiestaBoard auto-hébergé. Le flux Connectors exige une URL HTTPS publique et l'enregistrement dynamique de clients OAuth 2.1, or un hôte du LAN ne peut fournir ni l'un ni l'autre. Utilisez plutôt Desktop ou Code.",
     "savedItButton": "Je l'ai enregistré",
     "toastTokenRevoked": "Jeton MCP révoqué",
-    "toastCopyFailed": "Impossible de copier dans le presse-papiers"
+    "toastCopyFailed": "Impossible de copier dans le presse-papiers",
+    "lockedDescription": "La connexion est désactivée sur cette installation : le jeton MCP actuel sert donc lui-même d'identifiant pour gérer les jetons. Saisissez-le ci-dessous pour débloquer le renouvellement ou la révocation.",
+    "lockedTokenLabel": "Jeton MCP actuel",
+    "unlockButton": "Déverrouiller",
+    "unlockFailedToast": "Ce jeton ne correspond pas au jeton MCP configuré."
   },
   "fiestaPanels": {
     "title": "FiestaPanel",

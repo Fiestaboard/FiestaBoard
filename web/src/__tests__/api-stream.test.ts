@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { streamChat } from "@/lib/api-stream";
 
@@ -188,6 +188,63 @@ describe("streamChat", () => {
     const onError = vi.fn();
     await streamChat(BASE_BODY, { onError });
     expect(onError).toHaveBeenCalledWith("Server returned 503.");
+  });
+
+  describe("shared auth redirect", () => {
+    // The SSE path must go through the same 401/409 login-redirect logic
+    // as fetchApi (lib/api/core.ts) — a chat opened on an expired session
+    // should land on /login, not silently error in the drawer.
+    let originalLocation: Location;
+    let assignMock: ReturnType<typeof vi.fn>;
+
+    beforeEach(() => {
+      assignMock = vi.fn();
+      originalLocation = window.location;
+      Object.defineProperty(window, "location", {
+        configurable: true,
+        value: { ...originalLocation, pathname: "/", search: "", assign: assignMock },
+      });
+    });
+
+    afterEach(() => {
+      Object.defineProperty(window, "location", {
+        configurable: true,
+        value: originalLocation,
+      });
+    });
+
+    it("routes a 401 response through the shared login redirect", async () => {
+      mockFES.mockImplementation(async (_url: string, opts: any) => {
+        const response = {
+          ok: false,
+          status: 401,
+          headers: { get: () => null },
+          json: async () => ({ detail: "Not authenticated" }),
+        };
+        await opts.onopen?.(response);
+      });
+      const onError = vi.fn();
+      await streamChat(BASE_BODY, { onError });
+      expect(assignMock).toHaveBeenCalledWith(expect.stringMatching(/^\/login\?redirect=/));
+      // The stream error still surfaces so the chat UI can stop cleanly.
+      expect(onError).toHaveBeenCalledWith("Not authenticated");
+    });
+
+    it("does not redirect on a plain 500 error", async () => {
+      mockFES.mockImplementation(async (_url: string, opts: any) => {
+        const response = {
+          ok: false,
+          status: 500,
+          headers: { get: () => null },
+          json: async () => ({ detail: "internal error" }),
+        };
+        await opts.onopen?.(response);
+      });
+      const onError = vi.fn();
+      await streamChat(BASE_BODY, { onError });
+      expect(assignMock).not.toHaveBeenCalled();
+      expect(onError).toHaveBeenCalledWith("internal error");
+    });
   });
 
   it("handles a server error response whose JSON cannot be parsed", async () => {
