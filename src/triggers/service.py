@@ -16,6 +16,7 @@ from pathlib import Path
 from typing import Any
 
 from src.atomic_io import write_json_atomic
+from src.paths import get_data_dir
 from src.plugins.base import PluginBase, TriggerResult
 from src.time_service import get_time_service
 
@@ -26,14 +27,19 @@ DISMISSALS_SCHEMA_VERSION = 1
 
 
 def _default_dismissals_file() -> Path:
-    """Default location of the dismissal store (repo-root ``data/``).
+    """Default location of the dismissal store, via the data-dir seam.
 
-    A module-level seam so tests that exercise the trigger-service
-    *singleton* can point it at a temp directory. See the adapter note in
-    ``TriggerService.__init__`` for the A-track storage-kernel merge.
+    Resolved through :func:`src.paths.get_data_dir` like every other store
+    (#1762), so ``FIESTABOARD_DATA_DIR`` is honored and the test suite never
+    writes ``trigger_dismissals.json`` into the checkout. This used to do its
+    own ``Path(__file__).parent.parent.parent / "data"`` walk, which was the
+    last store still bypassing the seam.
+
+    Still a module-level function (not a constant) so it is read fresh on
+    every call, and so tests that exercise the trigger-service *singleton*
+    can point it at a temp directory.
     """
-    project_root = Path(__file__).parent.parent.parent
-    return project_root / "data" / "trigger_dismissals.json"
+    return get_data_dir() / "trigger_dismissals.json"
 
 
 def _now() -> datetime:
@@ -124,15 +130,8 @@ class TriggerService:
         # Suppressed dismissals persist across restarts (#1850): before this,
         # a reboot brought every dismissed trigger straight back — the one
         # real restart loss in the trigger platform. The store is a minimal
-        # schema-versioned JSON file written atomically (src.atomic_io).
-        #
-        # NOTE for the A-track storage-kernel merge: the file location is
-        # resolved the way this branch's stores do (repo-root ``data/``,
-        # mirroring pages/settings storage). When the kernel lands
-        # (src/storage/json_store.py + src/paths.py), swap this block for
-        # ``get_data_dir() / "trigger_dismissals.json"`` behind a JsonStore —
-        # the payload is already schema-versioned, so that swap is a trivial
-        # adapter change, not a migration.
+        # schema-versioned JSON file written atomically (src.atomic_io) whose
+        # location resolves through the data-dir seam (src.paths).
         if dismissals_file is None:
             dismissals_file = _default_dismissals_file()
         self._dismissals_file = Path(dismissals_file)
@@ -206,24 +205,45 @@ class TriggerService:
                     ", ".join(sorted(self._suppressed_until)),
                 )
             if pruned:
-                # Keep the on-disk store pruned too (best-effort; the next
-                # write-through rewrites it from memory anyway).
-                self._save_dismissals()
+                # Housekeeping only — rewrite the store without the entries
+                # that had already lapsed. best_effort because this runs during
+                # __init__: refusing to construct the service because a purely
+                # cosmetic prune could not be written would take the whole app
+                # down over state that is already correct in memory. Every
+                # write that carries a *user decision* goes through the
+                # raising path below.
+                self._save_dismissals(best_effort=True)
 
-    def _save_dismissals(self) -> None:
+    def _save_dismissals(self, *, best_effort: bool = False) -> None:
         """Write-through of the in-memory suppressions (pruned of lapsed entries).
 
         Only suppressed dismissals are durable: an unsuppressed dismissal
         leaves no state behind today, and persisting one would change that
-        contract. A failed write logs and degrades to in-memory behavior —
-        dismissing a trigger must never raise into the caller.
+        contract.
 
-        Snapshot AND write run under ``_state_lock``, inside the try
-        (#1871 review): unlocked, an engine-tick prune could mutate
-        ``_suppressed_until`` mid-comprehension (RuntimeError into the API
-        caller — a 500 on the user's page change), and two concurrent saves
-        could persist the staler snapshot, dropping a just-written
-        dismissal.
+        **Write failures propagate** (Phase 2 audit). This used to log and
+        continue, which made a failed write a silent partial success: the
+        suppression held in memory but the user's dismissal was gone after
+        the next restart, and nothing anywhere said so. Every caller that
+        persists a *user decision* — ``dismiss_trigger(suppress=True)``,
+        ``dismiss_active_for_user_override``, ``clear_all`` — now surfaces the
+        failure. On the page-change path that is also the consistent answer:
+        the statement right after the dismissal writes ``settings.json`` into
+        the same data directory, so a store write that fails predicts a page
+        change that cannot be persisted either.
+
+        ``best_effort=True`` is the one deliberate exception, used by the
+        startup prune (see ``_load_dismissals``), where the write carries no
+        user decision and the caller genuinely cannot act on the failure.
+
+        In-memory state is always left consistent before the write is
+        attempted, so a raise means "not durable", never "half-applied".
+
+        Snapshot AND write run under ``_state_lock`` (#1871 review):
+        unlocked, an engine-tick prune could mutate ``_suppressed_until``
+        mid-comprehension (RuntimeError into the API caller), and two
+        concurrent saves could persist the staler snapshot, dropping a
+        just-written dismissal.
         """
         try:
             with self._state_lock:
@@ -242,6 +262,8 @@ class TriggerService:
                 write_json_atomic(self._dismissals_file, payload)
         except Exception as e:
             logger.error("Could not persist trigger dismissals to %s: %s", self._dismissals_file, e)
+            if not best_effort:
+                raise
 
     # -- public API --------------------------------------------------------
 
@@ -324,26 +346,33 @@ class TriggerService:
             if active is None:
                 return False
 
-            if suppress:
-                # Suppress for whatever was left of the trigger's natural duration,
-                # not the full duration — once that window passes, the underlying
-                # condition (e.g. "event happening soon") should be gone, and any
-                # new trigger from the plugin is a fresh signal worth honoring.
-                # Written through to the dismissal store so the suppression
-                # survives a restart (#1850); an unsuppressed dismissal stays
-                # transient, exactly as before.
-                self._suppressed_until[trigger_id] = active.activated_at + timedelta(seconds=active.duration_seconds)
-                self._dismissed_at[trigger_id] = _now()
-                self._save_dismissals()
-                logger.info(
-                    "Trigger dismissed + suppressed: %s (until %s)",
-                    trigger_id,
-                    self._suppressed_until[trigger_id].isoformat(),
-                )
-            else:
-                logger.info("Trigger dismissed: %s", trigger_id)
-
+            # Apply the whole in-memory decision FIRST, then persist. A store
+            # write that fails must leave the dismissal fully applied for this
+            # process (only its durability is lost) rather than half-applied
+            # with the trigger still active on the board.
             del self._active_triggers[trigger_id]
+
+            if not suppress:
+                logger.info("Trigger dismissed: %s", trigger_id)
+                return True
+
+            # Suppress for whatever was left of the trigger's natural duration,
+            # not the full duration — once that window passes, the underlying
+            # condition (e.g. "event happening soon") should be gone, and any
+            # new trigger from the plugin is a fresh signal worth honoring.
+            # Written through to the dismissal store so the suppression
+            # survives a restart (#1850); an unsuppressed dismissal stays
+            # transient, exactly as before.
+            self._suppressed_until[trigger_id] = active.activated_at + timedelta(seconds=active.duration_seconds)
+            self._dismissed_at[trigger_id] = _now()
+            logger.info(
+                "Trigger dismissed + suppressed: %s (until %s)",
+                trigger_id,
+                self._suppressed_until[trigger_id].isoformat(),
+            )
+            # Raises if the suppression could not be made durable (see
+            # _save_dismissals); the in-memory decision above stands either way.
+            self._save_dismissals()
             return True
 
     def dismiss_active_for_user_override(self) -> int:

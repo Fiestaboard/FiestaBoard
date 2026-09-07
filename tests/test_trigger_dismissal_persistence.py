@@ -235,3 +235,164 @@ def test_engine_prune_during_dismissal_save_neither_raises_nor_loses_the_write(m
     data = json.loads(store.read_text(encoding="utf-8"))
     assert "zz-dismissed" in data["dismissals"], "the user's dismissal must be persisted, not lost to the race"
     assert "aa-lapsed" not in svc._suppressed_until  # the prune still landed
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# A failed store write surfaces (Phase 2 audit: the fourth swallowing persist
+# path). Phase 2 Task 10 closed three — src/settings/service.py::_save_to_file
+# re-raises, the backup service aborts before overwriting, the SSRF 400 stopped
+# being downgraded to 200 — and this one was introduced alongside them: it
+# logged an error and returned, so a dismissal the user made was reported as
+# successful while being silently non-durable.
+#
+# It is NOT deliberate. The in-memory suppression does hold for the life of the
+# process, so the failure is invisible until a restart brings the dismissed
+# trigger back and overrides the user's page again — which is exactly the bug
+# persistence was added to fix (#1850). Nothing logged an ERROR the user could
+# see, and the API answered 200.
+#
+# The one deliberate exception is kept and pinned below: the startup prune,
+# which carries no user decision.
+# ═══════════════════════════════════════════════════════════════════════════
+
+
+def _break_store_writes(monkeypatch):
+    """Make every dismissal-store write fail the way a full/read-only disk does."""
+    import src.triggers.service as trigger_service_module
+
+    def boom(*args, **kwargs):
+        raise OSError("[Errno 28] No space left on device")
+
+    monkeypatch.setattr(trigger_service_module, "write_json_atomic", boom)
+
+
+def test_a_suppressed_dismissal_that_cannot_be_persisted_surfaces_to_the_caller(monkeypatch, tmp_path):
+    import pytest
+
+    clock = FakeClock(T0)
+    install_fake_time_service(monkeypatch, clock)
+    svc = TriggerService(dismissals_file=tmp_path / "trigger_dismissals.json")
+    svc.activate_trigger("stub_plugin", _result())
+
+    _break_store_writes(monkeypatch)
+
+    with pytest.raises(OSError):
+        svc.dismiss_trigger("door-open", suppress=True)
+
+
+def test_a_failed_store_write_still_leaves_the_dismissal_fully_applied_in_memory(monkeypatch, tmp_path):
+    """A raise must mean "not durable", never "half-applied".
+
+    If the trigger were left in ``_active_triggers`` the board would keep
+    showing the thing the user just dismissed.
+    """
+    import pytest
+
+    clock = FakeClock(T0)
+    install_fake_time_service(monkeypatch, clock)
+    svc = TriggerService(dismissals_file=tmp_path / "trigger_dismissals.json")
+    svc.activate_trigger("stub_plugin", _result())
+
+    _break_store_writes(monkeypatch)
+    with pytest.raises(OSError):
+        svc.dismiss_trigger("door-open", suppress=True)
+
+    assert svc.get_active_trigger() is None, "the dismissed trigger is still on the board"
+    svc.activate_trigger("stub_plugin", _result())  # plugin re-emits
+    assert svc.get_active_trigger() is None, "the suppression was not applied in memory"
+
+
+def test_a_user_override_that_cannot_be_persisted_surfaces_to_the_caller(monkeypatch, tmp_path):
+    """The page-change path (``POST /settings/active-page``).
+
+    Propagating is also the consistent answer here: the statement right after
+    ``dismiss_active_for_user_override()`` writes ``settings.json`` into the
+    same data directory, so a dismissal-store write that fails predicts a page
+    change that cannot be persisted either. Swallowing only moved the error one
+    line later — or, when settings.json happened to be writable, left the user
+    with a page change a restart silently undoes.
+    """
+    import pytest
+
+    clock = FakeClock(T0)
+    install_fake_time_service(monkeypatch, clock)
+    svc = TriggerService(dismissals_file=tmp_path / "trigger_dismissals.json")
+    svc.activate_trigger("stub_plugin", _result())
+
+    _break_store_writes(monkeypatch)
+
+    with pytest.raises(OSError):
+        svc.dismiss_active_for_user_override()
+
+
+def test_clear_all_that_cannot_be_persisted_surfaces_to_the_caller(monkeypatch, tmp_path):
+    import pytest
+
+    clock = FakeClock(T0)
+    install_fake_time_service(monkeypatch, clock)
+    store = tmp_path / "trigger_dismissals.json"
+    svc = TriggerService(dismissals_file=store)
+    svc.activate_trigger("stub_plugin", _result())
+    svc.dismiss_trigger("door-open", suppress=True)
+    assert store.exists()
+
+    _break_store_writes(monkeypatch)
+
+    with pytest.raises(OSError):
+        svc.clear_all()
+
+
+def test_the_startup_prune_is_the_one_deliberate_best_effort_write(monkeypatch, tmp_path):
+    """Documented exception: the prune in ``_load_dismissals``.
+
+    It rewrites the store without entries that had already lapsed — no user
+    decision is being recorded, the in-memory state is already correct, and the
+    caller is ``__init__``. Refusing to construct the service (and so taking
+    the whole app down on boot) over a cosmetic rewrite would be strictly
+    worse. Every write that carries a user decision raises; this one does not.
+    """
+    clock = FakeClock(T0)
+    install_fake_time_service(monkeypatch, clock)
+    store = tmp_path / "trigger_dismissals.json"
+    store.write_text(
+        json.dumps(
+            {
+                "schema_version": 1,
+                "dismissals": {
+                    "lapsed": {
+                        "suppressed_until": (T0 - timedelta(seconds=1)).isoformat(),
+                        "dismissed_at": (T0 - timedelta(hours=2)).isoformat(),
+                    },
+                    "live": {
+                        "suppressed_until": (T0 + timedelta(hours=1)).isoformat(),
+                        "dismissed_at": T0.isoformat(),
+                    },
+                },
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    _break_store_writes(monkeypatch)
+
+    svc = TriggerService(dismissals_file=store)  # must not raise
+
+    assert "live" in svc._suppressed_until
+    assert "lapsed" not in svc._suppressed_until
+
+
+def test_the_default_store_path_honors_the_data_dir_seam(monkeypatch, tmp_path):
+    """#1762: the dismissal store was the last one resolving ``<repo>/data``
+    with its own ``Path(__file__)`` walk, so the suite wrote the checkout."""
+    from pathlib import Path
+
+    import src.triggers.service as trigger_service_module
+    from src.paths import get_data_dir
+
+    repo_root = Path(trigger_service_module.__file__).resolve().parent.parent.parent
+    monkeypatch.setenv("FIESTABOARD_DATA_DIR", str(tmp_path / "isolated-data"))
+
+    resolved = Path(trigger_service_module._default_dismissals_file()).resolve()
+
+    assert not resolved.is_relative_to(repo_root / "data"), f"leaked into the repo data/: {resolved}"
+    assert resolved.is_relative_to(get_data_dir().resolve())
