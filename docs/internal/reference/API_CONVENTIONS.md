@@ -185,6 +185,18 @@ contract through a deprecation window:
 - Only provably unreachable code is deleted outright (#1747-class: no route
   decorator, no dynamic registration, no importer).
 
+**A route with no consumer is still not deleted.** The last slice audited
+thirteen platform routes that serve one plugin each — the shape `CLAUDE.md`
+forbids in `src/` — by grepping `web/src`, `web/tests`, the bundled plugins
+and every sibling plugin repo. Eleven had no caller of any kind, and two of
+those eleven are published as API reference in shipped plugin SETUP guides, so
+an integration this repo cannot see may still call them. They are marked
+`deprecated=True` in the OpenAPI schema and tracked for removal in #1915;
+they are deliberately **not** in `converted_domains`, because re-shaping a
+response body we intend to delete buys a lockstep web change and nothing else.
+"deprecation, never deletion" applies to unused routes too — "nothing in this
+repo calls it" is not the same claim as "nothing calls it".
+
 ## Identifiers
 
 - Resource ids are validated against reserved route words so

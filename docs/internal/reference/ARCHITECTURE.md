@@ -43,6 +43,20 @@ lifespan (start the display service, start MQTT, start the update poller) and
 still holds the handlers for domains that have not been extracted yet. It
 shrinks with every slice. Nothing else should import it — see *Seams* below.
 
+Two kinds of thing legitimately stay in it. The **background-loop state** —
+the `_service_running` flag, the thread handle, `_shutting_down`,
+`run_service_background` — is server lifecycle, and `mock.patch` sets the
+attribute on the module you name, so relocating a module global would kill
+~30 live patch sites for nothing. `src/display_runtime.py` owns the *seam*
+instead: a probe reads the flag, `set_loop_controls` registers the writers,
+and `src/service_api/routes.py` never sees the state. The other is the
+**eleven deprecated plugin-specific routes** (`/baywheels/*`, `/muni/*`,
+`/stocks/*`, `/traffic/*`, `/transit/cache/status`) — routes that serve one
+plugin each, which CLAUDE.md says must not be in `src/` at all. They have no
+consumer, they are `deprecated=True` in the schema, and #1915 tracks removing
+them; extracting a router for code we intend to delete would be motion, not
+progress.
+
 **Routers (`src/<domain>/routes.py`)** are the only place HTTP appears.
 Every route declares `response_model=`, a typed request body, the error
 statuses it can raise, and `201` when it creates something. Those four rules
@@ -177,7 +191,19 @@ follow from that:
    the three above rather than inventing a fourth pattern.
 
 Each converted domain carries a `tests/test_<domain>_decoupled.py` that fails
-if the router regains an `api_server` import.
+if the router regains an `api_server` import (the last six share
+`tests/test_tail_routers_decoupled.py`).
+
+Not every collaborator has a router to move with. Three had to be given a
+home of their own by the last slice: `characters_to_message` went to
+`src/board_chars.py` (three callers in three modules asked the app module for
+a pure formatting function), the welcome card to `src/board_api/welcome.py`,
+and the SSRF URL guard to `src/plugin_support/url_guard.py`. That last one
+moved **byte-for-byte on purpose**: CodeQL's `py/full-ssrf` query recognizes
+the exact shape of its scheme allowlist, `ipaddress` check and `is_global`
+gate, so "tidying" it would delete a security gate rather than a duplication.
+`pyproject.toml` gives every file lifted out of `api_server` that module's
+ruff ignore set for the same reason.
 
 ## Where the tests draw the lines
 
