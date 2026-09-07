@@ -66,11 +66,32 @@ def _drop_all_singletons() -> None:
     build — and fully initialize — a brand-new plugin registry on every
     test): the next ``get_template_engine()`` call builds a fresh engine
     bound to a fresh registry, and only in tests that actually use it.
+
+    **Audited against every module global in ``src/``** (``grep -rn "    global
+    " src/``). The ones deliberately NOT reset here, and why:
+
+    * ``src.api_server._service_running`` / ``_service_thread`` /
+      ``_shutting_down`` — owned by ``tests/test_service_lifecycle.py``, which
+      drives them directly.
+    * ``src.display_runtime._running_probe`` / ``_loop_spawn`` / ``_loop_halt``
+      / ``_service_start_time`` — installed once by ``src.api_server`` at
+      import; not per-test state.
+    * ``src.board_send_executor._executor`` / ``_preview_executor`` and
+      ``src.plugins.registry._fetch_executor`` / ``_fetch_workers_lost`` —
+      idle thread pools that are already self-healing (shut down to ``None``,
+      rebuilt lazily). Their threads hold no config or data-dir state.
+    * ``src.network.wifi._service``, ``src.system.mdns._mdns_service``,
+      ``src.utils.transit_cache._cache_instance``, ``src.time_service._bootstrap``
+      and the ad-hoc response caches (``_ai_generate_last_call``,
+      ``_muni_stops_cache``, ``_station_info_cache``) — no test was observed
+      leaving any of them dirty. ``transit_cache`` does own a background
+      thread; add it here if one ever starts leaking.
     """
     import src.auth.service as auth_service_module
     import src.backup.service as backup_service_module
     import src.collections.service as collection_service_module
     import src.display_runtime as display_runtime
+    import src.mqtt.client as mqtt_client_module
     import src.pages.service as page_service_module
     import src.panels.service as panel_service_module
     import src.schedules.service as schedule_service_module
@@ -111,7 +132,85 @@ def _drop_all_singletons() -> None:
     # singleton; test_service_lifecycle.py drives the background *thread*
     # (`_service_running`, `_service_thread`), which is api_server state and is
     # still left alone.
+    #
+    # Dropping the reference is not enough: `DisplayService.initialize()` starts
+    # a `board-state-poll` thread, and that thread outlives the reference. See
+    # `_stop_display_service` for what it does to the *next* test in the worker.
+    _stop_display_service(display_runtime._service)
     display_runtime._service = None
+
+    # The MQTT client singleton, which owns a `_sync_loop` thread of its own.
+    # Same argument as the display service: `tests/test_mqtt_client.py` leaves
+    # five of them running, and `get_mqtt_client()` answers with a client built
+    # against a previous test's mock broker until something replaces it.
+    _stop_mqtt_client(mqtt_client_module._mqtt_client_instance)
+    mqtt_client_module._mqtt_client_instance = None
+
+
+def _stop_display_service(service) -> None:
+    """Stop the background threads of the ``DisplayService`` being dropped.
+
+    ``DisplayService.initialize()`` starts a daemon ``board-state-poll`` thread
+    whose loop is::
+
+        while self.running:
+            interval = self._get_board_read_interval()   # get_settings_service()
+            ...
+            time.sleep(interval)
+
+    Nulling ``display_runtime._service`` drops the *reference*; the thread keeps
+    running. Every 30s it re-enters ``get_settings_service()``, which — because
+    this fixture has since set ``_settings_service = None`` — CONSTRUCTS A NEW
+    SettingsService and stores it in the process global, and then, through
+    ``SettingsService.__init__`` -> ``_load_transition_settings`` ->
+    ``Config._get_board()``, constructs a new ``ConfigManager`` singleton
+    against the default config path. Both writes land in whatever test happens
+    to be running at that moment, in that worker.
+
+    That is the xdist flake this closes. Two observed shapes:
+
+    * ``tests/test_transitions_contract.py`` — the ``beta_on`` fixture enables
+      ``transition_plugins_enabled`` on the settings singleton, the poll thread
+      replaces the singleton mid-test, and the route's beta gate reads the
+      replacement's default ``False``::
+
+          assert 'Transition plugins are an experimental beta. ...'
+                 == "Transition plugin 'ghost' not loaded or not enabled"
+
+    * ``tests/test_silence_per_board_composition.py`` — ``ConfigManager`` is a
+      ``__new__``-singleton that ignores ``config_path`` once an instance
+      exists, so ``ConfigManager(config_path=tmp/config.json)`` silently binds
+      to the poll thread's default-path instance and the migration finds
+      nothing to seed (``assert 0 == 1``).
+
+    ``running = False`` is the existing stop seam — it is exactly what
+    ``src/main.py``'s SIGTERM handler does — so no production code changes.
+    The thread re-checks it at the top of every iteration and exits without
+    touching another global. Send workers and the adaptive post-send refresh
+    thread get their own cancels; neither is joined, because a per-test join
+    would cost more than the leak.
+    """
+    if service is None:
+        return
+    service.running = False
+    try:
+        runtimes = list(getattr(service, "runtimes", {}).values())
+    except RuntimeError:  # pragma: no cover - dict replaced concurrently
+        return
+    for runtime in runtimes:
+        cancel = getattr(runtime, "refresh_cancel", None)
+        if cancel is not None:
+            cancel.set()
+        worker = getattr(runtime, "send_worker", None)
+        if worker is not None:
+            worker.stop(timeout=0.0)
+
+
+def _stop_mqtt_client(client) -> None:
+    """Stop the ``_sync_loop`` thread of the MQTT client being dropped."""
+    if client is None:
+        return
+    client._running = False
 
 
 @pytest.fixture(autouse=True)
