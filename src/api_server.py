@@ -1319,6 +1319,14 @@ async def test_ai_provider(request: Request):
     return result
 
 
+# Server-side execution of chat operations (Phase 2 Task 11): the web
+# drawer posts validated tool calls here so chat and MCP share one
+# executor per op instead of the browser re-implementing each one.
+from .ai.routes import router as ai_router  # noqa: E402
+
+app.include_router(ai_router)
+
+
 @app.get("/pages/ai/context")
 async def get_ai_context(device_type: str = "flagship"):
     """Return the variable list + exemplars that would be sent to the model.

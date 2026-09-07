@@ -55,7 +55,14 @@ EXPECTED_CANONICAL = {
     # MCP-only server op since #1765 — the REST POST /send-message
     # equivalent; the chat grammar has no spelling for it today.
     "send_message",
-    # client-side chat ops, registered so the registry is the whole grammar
+    # client-side chat ops, registered so the registry is the whole grammar.
+    # ``replace_page`` joined them in Phase 2 Task 11: it edits the page
+    # mounted in the editor (like ``apply_patch``), which is what the system
+    # prompt teaches and what the browser has always done. #1764's alias onto
+    # ``create_page`` was never exercised — nothing on the chat path called
+    # the registry — and executing it server-side would create a second page
+    # while leaving the open editor untouched.
+    "replace_page",
     "apply_patch",
     "suggest_variables",
     "navigate_to_page",
@@ -97,7 +104,20 @@ def test_every_chat_named_executor_op_has_an_args_adapter():
 
 def test_alias_resolution_covers_both_spellings_of_shared_ops():
     assert get_operation("update_plugin_config") is get_operation("configure_plugin")
-    assert get_operation("replace_page") is get_operation("create_page")
+
+
+def test_replace_page_is_an_editor_op_not_an_alias_of_create_page():
+    """Phase 2 Task 11: the two are different operations, not two spellings.
+
+    ``create_page`` (MCP) persists a new page. ``replace_page`` (chat)
+    rewrites the page open in the editor and has no server executor —
+    resolving them to the same object would put "create a duplicate page"
+    behind a prompt that promises "rewrite what I am looking at".
+    """
+    assert get_operation("replace_page") is not get_operation("create_page")
+    assert get_operation("replace_page").client_side is True
+    assert get_operation("create_page").client_side is False
+    assert get_operation("create_page").chat_name is None
 
 
 def test_unknown_operation_name_raises():
@@ -181,18 +201,26 @@ def services(tmp_path, monkeypatch):
 FLAGSHIP_TEMPLATE = ["HELLO", "", "", "", "", ""]
 
 
-def test_execute_replace_page_creates_a_persisted_page(services):
-    result = _run(
-        execute(
-            "replace_page",
-            {"name": "From Chat Grammar", "template": FLAGSHIP_TEMPLATE, "duration_seconds": 120},
-        )
-    )
+def test_execute_replace_page_refuses_and_persists_nothing(services):
+    """Phase 2 Task 11: ``replace_page`` is applied in the editor, not here.
+
+    Was ``test_execute_replace_page_creates_a_persisted_page``, which
+    asserted the #1764 alias onto ``create_page``. That alias contradicted
+    both the system prompt and the shipped browser behavior; executing it
+    server-side would silently create a duplicate page.
+    """
+    with pytest.raises(ClientSideOperationError):
+        _run(execute("replace_page", {"name": "From Chat Grammar", "template": FLAGSHIP_TEMPLATE}))
+    assert services["pages"].list_pages() == []
+
+
+def test_execute_create_page_still_persists_a_page(services):
+    """The MCP spelling keeps its executor."""
+    result = _run(execute("create_page", {"name": "From MCP", "template_lines": FLAGSHIP_TEMPLATE}))
     assert result["status"] == "success"
     stored = services["pages"].get_page(result["page_id"])
     assert stored is not None
-    assert stored.name == "From Chat Grammar"
-    assert stored.duration_seconds == 120
+    assert stored.name == "From MCP"
 
 
 def test_execute_update_schedule_via_chat_name_changes_only_supplied_fields(services):
