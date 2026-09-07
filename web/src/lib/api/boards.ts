@@ -242,6 +242,12 @@ export interface FullConfig {
   general: GeneralConfig;
   plugins: Record<string, Record<string, unknown>>;
   /**
+   * On-disk schema version of `config.json`. Bookkeeping for the ordered
+   * migration runner in `config_manager.py`; `/config/full` echoes the raw
+   * config, so it surfaces here. The UI never reads or writes it.
+   */
+  schema_version?: number;
+  /**
    * Pre-migration key still present in `config.json` on older installs;
    * `/config/full` echoes the raw config, so it can surface here.
    * `ConfigManager.get_board()` falls back to it (see config_manager.py).

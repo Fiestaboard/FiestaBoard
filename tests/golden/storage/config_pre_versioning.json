@@ -1,0 +1,72 @@
+{
+  "board": {
+    "api_mode": "local",
+    "local_api_key": "example_local_key_0000",
+    "cloud_key": "",
+    "note_array_token": "",
+    "host": "192.0.2.10",
+    "transition_strategy": null,
+    "transition_interval_ms": null,
+    "transition_step_size": null
+  },
+  "features": {
+    "silence_schedule": {
+      "enabled": true,
+      "start_time": "22:00",
+      "end_time": "07:00",
+      "mode": "freeze",
+      "indicator_text": "SNOOZING",
+      "indicator_position": "center",
+      "page_id": null
+    },
+    "weather": {
+      "enabled": true,
+      "api_key": "example_weather_key",
+      "provider": "weatherapi",
+      "location": "New York, NY",
+      "refresh_seconds": 300,
+      "color_rules": {
+        "temp": [
+          {"condition": ">=", "value": 90, "color": "red"}
+        ]
+      }
+    },
+    "date_time": {
+      "enabled": true,
+      "timezone": "America/New_York"
+    },
+    "baywheels": {
+      "enabled": true,
+      "station_id": "station-0001",
+      "station_name": "Example Station",
+      "refresh_seconds": 120
+    },
+    "guest_wifi": {
+      "enabled": false,
+      "ssid": "example-ssid",
+      "password": "example-password"
+    }
+  },
+  "general": {
+    "timezone": "America/New_York",
+    "refresh_interval_seconds": 300,
+    "output_target": "board",
+    "instance_name": "Example Install",
+    "time_format": "12h",
+    "date_format": "MM/DD/YYYY",
+    "welcome_message": ""
+  },
+  "ai_providers": {
+    "enabled": false,
+    "providers": [],
+    "default_provider_id": null
+  },
+  "plugins": {
+    "muni": {
+      "enabled": true,
+      "api_key": "example_muni_key",
+      "refresh_seconds": 60
+    }
+  },
+  "app_version_seen": "8.12.0"
+}
