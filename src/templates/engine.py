@@ -37,22 +37,11 @@ from src.devices import DEFAULT_DEVICE_TYPE, BoardContext, resolve_dimensions
 from src.plugins import get_plugin_registry
 from src.text_utils import extract_alignment_from_line
 
+from .colors import COLOR_CODES
+from .colors import is_color_code as _is_color_code
 from .expressions import find_formulas, render_expressions, validate_expression
 
 logger = logging.getLogger(__name__)
-
-# Color name to code mapping
-COLOR_CODES = {
-    "red": 63,
-    "orange": 64,
-    "yellow": 65,
-    "green": 66,
-    "blue": 67,
-    "violet": 68,
-    "purple": 68,  # alias
-    "white": 69,
-    "black": 70,
-}
 
 # Symbol name to character mapping
 SYMBOL_CHARS = {
@@ -69,14 +58,13 @@ SYMBOL_CHARS = {
     "x": "X",
 }
 
-
 # Regex patterns
 # Note: ``[^}{]+`` (rather than ``[^}]+``) prevents overlapping matches and
 # eliminates polynomial backtracking on inputs like ``{{{{{{...``.  Variable
 # expressions never contain ``{`` themselves.
 VAR_PATTERN = re.compile(r"\{\{([^}{]+)\}\}")  # {{source.field}} or {{source.field|filter}}
 COLOR_PATTERN = re.compile(
-    r"\{\{(red|orange|yellow|green|blue|violet|purple|white|black|6[3-9]|7[01])\}\}", re.IGNORECASE
+    r"\{\{(red|orange|yellow|green|blue|violet|purple|white|black|filled|6[3-9]|7[01])\}\}", re.IGNORECASE
 )
 SYMBOL_PATTERN = re.compile(r"\{(sun|star|cloud|rain|snow|storm|fog|partly|heart|check|x)\}", re.IGNORECASE)
 FILL_SPACE_PATTERN = re.compile(r"\{\{fill_space\}\}", re.IGNORECASE)
@@ -245,7 +233,7 @@ class TemplateEngine:
                     # Check if it's a color code (numeric 63-71 or named)
                     if content.isdigit():
                         code = int(content)
-                        if 63 <= code <= 71:
+                        if _is_color_code(code):
                             # Numeric color code like {66}, {70}, or {71}
                             tile_count += 1
                             i = closing_brace + 1
@@ -290,7 +278,7 @@ class TemplateEngine:
                     # Check if it's a color code (numeric 63-71 or named)
                     if content.isdigit():
                         code = int(content)
-                        if 63 <= code <= 71:
+                        if _is_color_code(code):
                             # Numeric color code like {66}, {70}, or {71}
                             result.append(text[i : closing_brace + 1])
                             tile_count += 1
@@ -652,7 +640,7 @@ class TemplateEngine:
                 if closing_brace != -1:
                     content = text[i + 1 : closing_brace]
                     # Check if it's a color code
-                    if content.isdigit() and 63 <= int(content) <= 70:
+                    if content.isdigit() and _is_color_code(int(content)):
                         # It's a numeric color marker
                         tokens.append(text[i : closing_brace + 1])
                         i = closing_brace + 1
@@ -705,7 +693,7 @@ class TemplateEngine:
                 if closing_brace != -1:
                     content = text[i + 1 : closing_brace]
                     # Check if it's a color code
-                    if content.isdigit() and 63 <= int(content) <= 70:
+                    if content.isdigit() and _is_color_code(int(content)):
                         # It's a color marker - add to current word
                         current_word += text[i : closing_brace + 1]
                         i = closing_brace + 1
@@ -882,7 +870,7 @@ class TemplateEngine:
                 color_code_match = re.match(r"^\{(\d+)\}$", value)
                 if color_code_match:
                     code = int(color_code_match.group(1))
-                    if 63 <= code <= 70:
+                    if _is_color_code(code):
                         # Already a valid color code, return as-is
                         return value
                 # If value already starts with a color code (e.g. {66}RISE), do not add

@@ -199,18 +199,43 @@ def mcp():
     return instance
 
 
-def assert_parity(tmp_path, chat_steps, mcp_steps, with_plugins=False, setup=None):
-    """Run both paths against fresh stores and compare persisted state."""
+def assert_parity(tmp_path, chat_steps, mcp_steps, with_plugins=False, setup=None, changes_state=True):
+    """Run both paths against fresh stores and compare persisted state.
+
+    ``chat_state == mcp_state`` alone is not evidence. Now that both
+    spellings resolve to one executor, two paths that each do *nothing*
+    compare equal — so a scenario whose executor silently stopped working
+    would still pass. Every scenario therefore also asserts that the run
+    moved the store off its baseline; the one scenario that must not change
+    state (the guarded ``update_plugin`` refusal) says so with
+    ``changes_state=False`` and is checked for the opposite.
+    """
     with isolated_env(tmp_path / "chat_path", with_plugins=with_plugins) as env:
         if setup:
             setup(env)
+        chat_baseline = snapshot(env)
         chat_steps(env)
         chat_state = snapshot(env)
     with isolated_env(tmp_path / "mcp_path", with_plugins=with_plugins) as env:
         if setup:
             setup(env)
+        mcp_baseline = snapshot(env)
         mcp_steps(env)
         mcp_state = snapshot(env)
+
+    if changes_state:
+        assert chat_state != chat_baseline, (
+            "the chat path persisted no change at all — the parity comparison "
+            "below would pass against an executor that does nothing"
+        )
+        assert mcp_state != mcp_baseline, (
+            "the MCP path persisted no change at all — the parity comparison "
+            "below would pass against an executor that does nothing"
+        )
+    else:
+        assert chat_state == chat_baseline, "this scenario must leave the store untouched"
+        assert mcp_state == mcp_baseline, "this scenario must leave the store untouched"
+
     assert chat_state == mcp_state, "the two grammars persisted different state for the same logical operation"
 
 
@@ -291,7 +316,7 @@ def test_parity_update_plugin_rejects_builtins_identically(tmp_path, mcp):
         with pytest.raises(ToolError):
             mcp_call(mcp, "update_plugin", plugin_id=PLUGIN_ID)
 
-    assert_parity(tmp_path, chat_steps, mcp_steps, with_plugins=True)
+    assert_parity(tmp_path, chat_steps, mcp_steps, with_plugins=True, changes_state=False)
 
 
 # ---------------------------------------------------------------------------
@@ -431,11 +456,39 @@ def test_parity_replace_page_vs_create_page(tmp_path, mcp):
 
 def test_snapshot_comparison_detects_a_real_state_difference(tmp_path, mcp):
     """Prove assert_parity is not comparing air: paths that genuinely
-    persist different state must fail the comparison."""
+    persist different state must fail the comparison.
 
-    with pytest.raises(AssertionError, match="persisted different state"):
+    The two paths here differ *and* one of them does nothing, so the
+    do-nothing guard is what reports it. Both halves are exercised: this
+    test for the guard, the one below for the comparison itself.
+    """
+
+    with pytest.raises(AssertionError, match="persisted no change at all"):
         assert_parity(
             tmp_path,
             lambda env: chat("replace_page", {"name": "Chat Page", "template": FLAGSHIP_TEMPLATE}),
             lambda env: None,  # the MCP path creates nothing
         )
+
+
+def test_snapshot_comparison_detects_two_paths_that_both_act_but_differ(tmp_path, mcp):
+    """Both paths persist something, so only the comparison can catch it."""
+
+    with pytest.raises(AssertionError, match="persisted different state"):
+        assert_parity(
+            tmp_path,
+            lambda env: chat("replace_page", {"name": "Chat Page", "template": FLAGSHIP_TEMPLATE}),
+            lambda env: mcp_call(mcp, "create_page", name="A Different Name", template_lines=FLAGSHIP_TEMPLATE),
+        )
+
+
+def test_a_do_nothing_executor_no_longer_passes_parity(tmp_path, mcp):
+    """The vacuity this guard exists to close.
+
+    Before the baseline check, two paths that both did nothing compared
+    equal and the scenario passed — so an executor that silently stopped
+    persisting anything was invisible to this whole module.
+    """
+
+    with pytest.raises(AssertionError, match="persisted no change at all"):
+        assert_parity(tmp_path, lambda env: None, lambda env: None)

@@ -69,11 +69,17 @@ def test_every_named_color_token_is_taught():
         assert "{{" + name + "}}" in phrase
 
 
-def test_numeric_color_range_matches_the_engine_palette():
-    low, high = teaching.numeric_color_range()
-    assert low == min(COLOR_CODES.values())
-    assert high == max(COLOR_CODES.values())
-    assert f"{low}–{high}" in teaching.template_syntax_block()
+def test_numeric_color_range_is_the_range_the_engine_accepts():
+    """Pinned as literals, not recomputed from ``COLOR_CODES``.
+
+    The old version asserted ``low == min(COLOR_CODES.values())``, which is
+    the implementation restated: it agreed with any palette, including the
+    one that dropped code 71 and taught models to avoid the ``filled`` flap
+    (#1885). The range is a published fact about the hardware, so it is
+    written out here; widening it is a deliberate edit to this line.
+    """
+    assert teaching.numeric_color_range() == (63, 71)
+    assert "63–71" in teaching.template_syntax_block()
 
 
 # ---------------------------------------------------------------------------
@@ -81,10 +87,30 @@ def test_numeric_color_range_matches_the_engine_palette():
 # ---------------------------------------------------------------------------
 
 
-@pytest.mark.parametrize("device_type", sorted(DEVICE_DIMENSIONS))
-def test_dimensions_phrase_matches_device_metadata(device_type):
-    dims = get_dimensions(device_type)
-    assert teaching.dimensions_phrase(device_type) == f"{dims.cols} columns x {dims.rows} rows"
+@pytest.mark.parametrize(
+    ("device_type", "expected"),
+    [
+        ("flagship", "22 columns x 6 rows"),
+        ("note", "15 columns x 3 rows"),
+    ],
+)
+def test_dimensions_phrase_reads_as_the_prompt_expects(device_type, expected):
+    """Pinned as literal sentences, not rebuilt from ``get_dimensions``.
+
+    The old version formatted the expectation with the same f-string the
+    implementation uses, so it could only ever catch a change to that one
+    format string — never a wrong device table, a swapped rows/columns pair
+    read from it, or a device silently resolving to the default.
+    """
+    assert teaching.dimensions_phrase(device_type) == expected
+
+
+def test_dimensions_phrase_covers_every_device_the_platform_ships():
+    """The literals above are a sample; this is the completeness half."""
+    for device_type in DEVICE_DIMENSIONS:
+        dims = get_dimensions(device_type)
+        phrase = teaching.dimensions_phrase(device_type)
+        assert str(dims.cols) in phrase and str(dims.rows) in phrase, phrase
 
 
 def test_device_dimensions_block_lists_every_device():
@@ -106,12 +132,32 @@ def test_dimensions_summary_sentence_covers_every_device():
 # ---------------------------------------------------------------------------
 
 
-def test_formula_roster_is_the_live_registry_not_a_frozen_list():
+def test_formula_roster_names_the_functions_the_engine_evaluates():
+    """Pinned against the *evaluator*, not against ``function_signatures()``.
+
+    ``names == sorted(function_signatures())`` was the implementation
+    restated — it passed for any roster the same call produced, including an
+    empty one. These names are the ones a model is told it may emit, so each
+    is checked to be something the expression evaluator will actually run.
+    """
+    from src.templates.expressions import render_expressions
+
     names = teaching.formula_function_names()
-    assert names == sorted(function_signatures())
-    # The stale hardcoded list had 15 entries; the live registry is larger,
-    # which is exactly why a frozen copy rots.
+    assert {"IF", "LEFT", "RIGHT", "UPPER", "ROUND"} <= set(names), names
+
+    for name in ("IF", "LEFT", "UPPER"):
+        assert name in function_signatures(), f"{name} is taught but not registered"
+
+    # A taught function must evaluate rather than tag an error.
+    assert render_expressions('{{= UPPER("ok")}}', {}) == "OK"
+    assert render_expressions('{{= IF(1 > 0, "Y", "N")}}', {}) == "Y"
+
+
+def test_formula_roster_stays_the_live_registry_rather_than_a_frozen_copy():
+    """The regression #1764 fixed: a hardcoded 15-name list that rotted."""
+    names = teaching.formula_function_names()
     assert len(names) > 15
+    assert set(names) == set(function_signatures())
     block = teaching.template_syntax_block()
     for name in names:
         assert name in block
