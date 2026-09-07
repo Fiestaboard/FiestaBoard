@@ -49,7 +49,6 @@ from .board_guards import (  # noqa: E402
     _silence_active,
 )
 from .board_send_executor import run_board_send  # noqa: E402
-from .boards import find_board, require_board  # noqa: E402
 from .collections.models import is_collection_id  # noqa: E402
 from .collections.service import (  # noqa: E402
     get_collection_service,
