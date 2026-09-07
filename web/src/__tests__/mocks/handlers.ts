@@ -714,6 +714,7 @@ export const handlers = [
       lines: template ? template.split("\n") : [""],
       line_count: template ? template.split("\n").length : 1,
       sent_to_board: true,
+      paused: false,
       board_id: body.board_id || "default",
     });
   }),

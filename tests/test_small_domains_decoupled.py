@@ -34,7 +34,10 @@ import pytest
 REPO_ROOT = Path(__file__).resolve().parents[1]
 
 #: Every router this slice extracted, in the order the PR converts them.
-SLICE_8_ROUTERS = ("src/displays/routes.py",)
+SLICE_8_ROUTERS = (
+    "src/displays/routes.py",
+    "src/templates/routes.py",
+)
 
 
 def _run(script: str) -> None:
@@ -106,6 +109,64 @@ print("DECOUPLED")
 
 def test_displays_router_serves_every_route_without_importing_api_server():
     _run(DISPLAYS_SCRIPT)
+
+
+TEMPLATES_SCRIPT = r"""
+import asyncio
+import sys
+from unittest.mock import MagicMock, patch
+
+import src.templates.routes as routes
+from src.templates.models import (
+    TemplateRenderLiveRequest,
+    TemplateRenderRequest,
+    TemplateValidateRequest,
+)
+
+assert "src.api_server" not in sys.modules, "importing the templates router must not import api_server"
+
+engine = MagicMock()
+engine.get_available_variables.return_value = {"weather": ["temperature"]}
+engine.get_variable_max_lengths.return_value = {"weather.temperature": 3}
+engine.validate_template.return_value = []
+engine.render.return_value = "HELLO"
+engine.render_lines.return_value = "HELLO"
+
+registry = MagicMock()
+registry.get_all_variables_with_metadata.return_value = {}
+registry.get_all_variable_groups.return_value = {}
+
+settings_service = MagicMock()
+settings_service.get_board_settings.return_value = MagicMock(boards=[])
+
+with (
+    patch("src.templates.routes.get_template_engine", return_value=engine),
+    patch("src.templates.routes.get_plugin_registry", return_value=registry),
+    patch("src.templates.routes.get_settings_service", return_value=settings_service),
+):
+    variables = asyncio.run(routes.get_template_variables())
+    assert variables.colors["red"] == 63, variables
+    functions = asyncio.run(routes.get_formula_functions())
+    assert "IF" in functions.functions, functions
+    verdict = asyncio.run(routes.validate_template(TemplateValidateRequest(template="HELLO")))
+    assert verdict.valid is True, verdict
+    rendered = asyncio.run(routes.render_template(TemplateRenderRequest(template="HELLO")))
+    assert rendered.rendered == "HELLO", rendered
+    live = asyncio.run(routes.render_template_live(TemplateRenderLiveRequest(template="HELLO")))
+    assert live.sent_to_board is False, live
+
+engine.get_available_variables.assert_called_once()
+engine.validate_template.assert_called_once_with("HELLO")
+assert engine.render.call_count == 2
+settings_service.get_board_settings.assert_called_once()
+
+assert "src.api_server" not in sys.modules, "a templates handler imported src.api_server"
+print("DECOUPLED")
+"""
+
+
+def test_templates_router_serves_every_route_without_importing_api_server():
+    _run(TEMPLATES_SCRIPT)
 
 
 @pytest.mark.parametrize("module_path", SLICE_8_ROUTERS)

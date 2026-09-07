@@ -9,7 +9,8 @@
     "pages",
     "plugins",
     "schedules",
-    "system"
+    "system",
+    "templates"
   ],
   "exceptions": [
     {
@@ -136,6 +137,16 @@
       "route": "GET /system/update/status",
       "rule": "declared_errors",
       "reason": "Read-only report with no failure path: it cannot 404, 400 or 409, so declaring a 4xx would document an error the endpoint never raises. An unreachable sidecar is reported as updater_available=false, not as an error."
+    },
+    {
+      "route": "GET /templates/formula-functions",
+      "rule": "declared_errors",
+      "reason": "No failure path: the function table is a module-level constant in src/templates/expressions.py with no input and no I/O, so nothing the caller controls can make it fail."
+    },
+    {
+      "route": "GET /templates/variables",
+      "rule": "declared_errors",
+      "reason": "No failure path: it reads the in-process template engine and plugin registry, both of which always exist. An install with no plugins answers empty catalogs alongside the static colour/symbol/filter tables — an empty answer, not an error."
     },
     {
       "route": "GET /version",

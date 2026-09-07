@@ -7,9 +7,19 @@ shape golden cannot see a colour code that changed from 63 to 64, a filter
 that vanished from the advertised list, or a render that stopped padding
 lines to the device width — so these are pinned as values.
 
-Recorded against the UNCONVERTED trunk: every assertion below passed before a
-line of this slice's production code changed. The conversion commit re-pins
-only what it deliberately changes, and says so inline.
+Recorded against the UNCONVERTED trunk, then re-pinned by the conventions pass
+in this same PR. What deliberately changed, and nothing else:
+
+* A body missing ``template`` answers **422** (was 400 ``{"detail": "template
+  parameter required"}``) on ``/templates/validate``, ``/templates/render``
+  and ``/templates/render/live``. The hand-rolled ``if "template" not in
+  request`` check is now a required Pydantic field, so FastAPI rejects the
+  body before the handler runs.
+
+Every other assertion — the advertised colours/symbols/filters, the
+validator's verdicts and messages, the rendered strings and their padding,
+the board-not-found 404, the render-failure 400 — is unchanged from the
+pre-conversion recording. None was weakened.
 """
 
 from __future__ import annotations
@@ -102,9 +112,9 @@ def test_variables_carries_the_plugin_catalogs_even_when_empty(client):
 
 
 def test_validate_without_a_template_is_rejected(client):
-    response = client.post("/templates/validate", json={})
-    assert response.status_code == 400
-    assert response.json()["detail"] == "template parameter required"
+    # RE-PINNED: 422 (Pydantic) replaces the hand-rolled 400
+    # {"detail": "template parameter required"}. See the module docstring.
+    assert client.post("/templates/validate", json={}).status_code == 422
 
 
 def test_validate_accepts_a_plain_template_with_no_errors(client):
@@ -163,9 +173,8 @@ def test_formula_functions_describes_each_function_for_the_picker(client):
 
 
 def test_render_without_a_template_is_rejected(client):
-    response = client.post("/templates/render", json={})
-    assert response.status_code == 400
-    assert response.json()["detail"] == "template parameter required"
+    # RE-PINNED: see the module docstring.
+    assert client.post("/templates/render", json={}).status_code == 422
 
 
 def test_render_of_an_empty_list_short_circuits_to_a_blank_flagship(client):
@@ -204,9 +213,8 @@ def test_render_surfaces_an_engine_failure_as_a_400(client, exploding_engine):
 
 
 def test_render_live_without_a_template_is_rejected(client):
-    response = client.post("/templates/render/live", json={})
-    assert response.status_code == 400
-    assert response.json()["detail"] == "template parameter required"
+    # RE-PINNED: see the module docstring.
+    assert client.post("/templates/render/live", json={}).status_code == 422
 
 
 def test_render_live_404s_an_unknown_board_rather_than_rendering_into_the_void(client):

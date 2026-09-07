@@ -76,6 +76,8 @@ export interface TemplateRenderLiveResponse {
   lines: string[];
   line_count: number;
   sent_to_board: boolean;
+  /** True when the send was skipped because the target board is paused. */
+  paused: boolean;
   board_id: string | null;
 }
 
