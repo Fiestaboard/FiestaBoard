@@ -131,9 +131,9 @@ describe("ImportPageDialog", () => {
     server.use(
       http.post(`${API_BASE}/pages/import`, async ({ request }) => {
         capturedBody = (await request.json()) as Record<string, unknown>;
-        return HttpResponse.json({
-          status: "success",
-          page: {
+        // 201 + the bare page since the Phase 2 conventions pass.
+        return HttpResponse.json(
+          {
             id: "imported-page-1",
             name: "Shared Page",
             type: "template",
@@ -142,7 +142,8 @@ describe("ImportPageDialog", () => {
             duration_seconds: 300,
             created_at: new Date().toISOString(),
           },
-        });
+          { status: 201 },
+        );
       }),
     );
 

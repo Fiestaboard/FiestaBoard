@@ -76,8 +76,8 @@ function captureUpdate(): { body: Record<string, unknown> | null } {
     http.put(`${API_BASE}/pages/page-1`, async ({ request }) => {
       captured.body = (await request.json()) as Record<string, unknown>;
       return HttpResponse.json({
-        status: "success",
         page: { id: "page-1", name: "Weather Page", type: "template", device_type: "flagship" },
+        incompatible_references: [],
       });
     }),
   );

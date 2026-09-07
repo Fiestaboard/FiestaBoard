@@ -35,6 +35,19 @@ from .auth import is_auth_enabled  # noqa: E402
 from .auth.middleware import AuthMiddleware  # noqa: E402
 from .auth.routes import router as auth_router  # noqa: E402
 from .board_client import board_client_from_board_dict  # noqa: E402
+
+# Board lookup / send guards and the DisplayService accessor now live in
+# neutral modules so the extracted routers can import them directly instead of
+# reaching back into this one at call time (Phase 2 §2.3). They stay bound as
+# `src.api_server.<name>` here: this module's own handlers use them, and the
+# suite patches them at that path for those handlers.
+from .board_guards import (  # noqa: E402
+    _board_dims,
+    _board_is_paused,
+    _find_board,
+    _require_board,
+    _silence_active,
+)
 from .board_send_executor import run_board_send  # noqa: E402
 from .boards import find_board, require_board  # noqa: E402
 from .collections.models import is_collection_id  # noqa: E402
@@ -51,8 +64,8 @@ from .config import Config  # noqa: E402
 # tests that patch `src.api_server.<name>` keep working.
 from .config_manager import get_config_manager, unmask_sensitive_values  # noqa: E402, F401
 from .devices import classify_dimensions, resolve_dimensions  # noqa: E402
+from .display_runtime import get_service, peek_service  # noqa: E402
 from .displays.service import get_display_service, reset_display_service  # noqa: E402, F401
-from .main import DisplayService  # noqa: E402
 from .network.wifi import WiFiError, get_wifi_service  # noqa: E402
 from .pages.service import (  # noqa: E402
     check_ref_board_compatibility,
@@ -299,8 +312,9 @@ def _validate_board_host_is_local_network(host: str) -> None:
 
 
 # Global service instance
-_service: DisplayService | None = None
-_service_lock = threading.Lock()
+# The DisplayService singleton itself lives in src/display_runtime.py so the
+# extracted routers can reach it without importing this module (Phase 2 §2.3).
+# The background-thread lifecycle below is server lifecycle and stays here.
 _service_thread: threading.Thread | None = None
 _service_running = False
 _service_start_time: float | None = None  # Track when service started
@@ -778,8 +792,9 @@ async def lifespan(app: FastAPI):
     logger.info("API server shutting down...")
     _shutting_down = True
     _service_running = False
-    if _service:
-        _service.running = False
+    running_service = peek_service()
+    if running_service:
+        running_service.running = False
 
     # Stop MQTT client
     try:
@@ -928,38 +943,6 @@ log_buffer_handler.setFormatter(logging.Formatter("%(asctime)s - %(name)s - %(le
 logging.getLogger().addHandler(log_buffer_handler)
 
 
-def get_service() -> DisplayService | None:
-    """Get or create the service instance."""
-    global _service
-    if _service is None:
-        with _service_lock:
-            if _service is None:
-                try:
-                    _service = DisplayService()
-                    if not _service.initialize():
-                        logger.warning(
-                            "Service initialization failed - service can be started later when configuration is fixed"
-                        )
-                        # Keep the service instance but mark it as uninitialized
-                        # This allows the /start endpoint to retry initialization
-                        return _service
-                except Exception as e:
-                    logger.error(f"Failed to create service: {e}", exc_info=True)
-                    return None
-    return _service
-
-
-def peek_service() -> DisplayService | None:
-    """Return the existing DisplayService instance without creating one.
-
-    For callers that only need to touch state that already exists (e.g.
-    invalidating dedupe caches after an out-of-band board write, issue
-    #1794): when no service exists there is nothing to invalidate, and
-    building one as a side effect would be wrong.
-    """
-    return _service
-
-
 def _publish_mqtt_state_update() -> None:
     """Push fresh MQTT state after an out-of-band board write (issue #1794).
 
@@ -1064,8 +1047,9 @@ def stop_display_service_sync() -> bool:
     if not _service_running:
         return True
     _shutting_down = True
-    if _service:
-        _service.running = False
+    running_service = peek_service()
+    if running_service:
+        running_service.running = False
     _service_running = False
     return True
 
@@ -2196,8 +2180,9 @@ async def stop_service():
         return {"status": "not_running", "message": "Service is not running"}
 
     _shutting_down = True  # Prevent auto-restart
-    if _service:
-        _service.running = False
+    running_service = peek_service()
+    if running_service:
+        running_service.running = False
         _service_running = False
 
     return {"status": "stopped", "message": "Service stopped successfully"}
@@ -4748,32 +4733,6 @@ def _ensure_transition_plugins_beta() -> None:
         )
 
 
-def _reject_plugin_strategy_when_beta_off(strategy: str | None) -> None:
-    """Reject ``plugin:<id>`` strategies when the transition-plugin beta
-    flag is off.
-
-    Applied to page create / update so a page can't persist a plugin
-    strategy that the runtime won't actually honor.  Symmetric with the
-    settings-service guard on ``update_transition_settings``.
-    """
-    if not isinstance(strategy, str):
-        return
-    from .settings.service import TRANSITION_PLUGIN_PREFIX  # local: avoid cycle
-
-    if not strategy.startswith(TRANSITION_PLUGIN_PREFIX):
-        return
-    settings_service = get_settings_service()
-    if not settings_service.get_beta_settings().transition_plugins_enabled:
-        raise HTTPException(
-            status_code=400,
-            detail=(
-                "Transition plugins are an experimental beta. Enable them "
-                "in Settings → Beta before assigning a 'plugin:<id>' "
-                "strategy to a page."
-            ),
-        )
-
-
 @app.get("/transitions/plugins")
 async def list_transition_plugins():
     """List installed transition plugins available for selection.
@@ -6411,79 +6370,6 @@ def _get_first_board_dims():
     except Exception as exc:
         logger.debug("Could not resolve board dims (using flagship default): %s", exc)
     return resolve_dimensions("flagship")
-
-
-def _find_board(board_id: str) -> dict | None:
-    """This module's binding of :func:`src.boards.find_board`.
-
-    Kept as a wrapper rather than an import alias so the lookup goes on
-    resolving through *this* module's ``get_settings_service`` — the name the
-    suite stubs when it exercises the handlers that still live here.
-    """
-    return find_board(board_id, get_settings_service())
-
-
-def _require_board(board_id: str) -> dict:
-    """This module's binding of :func:`src.boards.require_board`. See above."""
-    return require_board(board_id, get_settings_service())
-
-
-def _board_dims(board: dict):
-    """Resolved dimensions for a settings.boards entry (flagship fallback).
-
-    Uses resolve_dimensions — never get_dimensions, which raises for
-    note_array boards. Safe to call from any endpoint — never raises.
-    """
-    try:
-        return resolve_dimensions(
-            board.get("device_type") or "flagship",
-            board.get("notes_wide") or 1,
-            board.get("notes_tall") or 1,
-        )
-    except Exception as exc:
-        logger.debug("Could not resolve board dims (using flagship default): %s", exc)
-        return resolve_dimensions("flagship")
-
-
-def _board_is_paused(board_id: str | None = None) -> bool:
-    """Return True when the target board (or default board) is paused.
-
-    Centralizes the per-board pause check used at every API push site
-    (issue #970). When True, callers MUST skip the send so paused boards
-    are left untouched.
-
-    Only treats a strict ``True`` as paused — any non-bool return
-    (including a ``Mock`` from an under-configured test fixture) is
-    coerced to "not paused" so this guard never silently swallows sends
-    in tests that pre-date the pause feature.
-    """
-    try:
-        result = get_settings_service().is_paused(board_id=board_id)
-    except Exception as e:  # pragma: no cover - defensive
-        logger.debug("Pause check failed (treating as not paused): %s", e)
-        return False
-    return result is True
-
-
-def _silence_active(board_id: str | None = None) -> bool:
-    """Return True when the target board (or the primary board) is silenced.
-
-    Mirrors :func:`_board_is_paused`: silence is per board since issue #1788,
-    so every send guard must resolve the window of the board it is about to
-    touch. ``Config.is_silence_mode_active(None)`` deliberately keeps its
-    legacy install-wide meaning for the ~20 fixtures that call it zero-arg, so
-    the primary board is resolved here instead — without this an override on
-    the bedroom Note was ignored by every manual-send path and a 2am send from
-    the web UI or Home Assistant woke the board up.
-    """
-    resolved = board_id
-    if resolved is None:
-        try:
-            resolved = get_settings_service().get_primary_board_id()
-        except Exception as e:  # pragma: no cover - defensive
-            logger.debug("Could not resolve primary board for silence check: %s", e)
-            resolved = None
-    return Config.is_silence_mode_active(resolved)
 
 
 def _paused_response(board_id: str | None = None) -> dict:

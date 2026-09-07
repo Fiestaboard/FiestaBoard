@@ -762,6 +762,18 @@ class PageService:
         else:
             self._preview_cache.clear()
 
+    def invalidate_preview_cache(self, page_id: str | None = None) -> None:
+        """Public entry point for ``POST /pages/cache/clear``.
+
+        The route used to call ``_invalidate_cache`` directly, which
+        ``docs/internal/reference/API_CONVENTIONS.md`` bans ("Routes never
+        touch another object's ``_private`` members"). The private method
+        stays as the internal write-path hook the mutators call; this is the
+        one the API is allowed to see, so the cache's shape can change without
+        an endpoint changing with it.
+        """
+        self._invalidate_cache(page_id)
+
     def get_cache_stats(self) -> dict[str, any]:
         """Get cache statistics for monitoring.
 

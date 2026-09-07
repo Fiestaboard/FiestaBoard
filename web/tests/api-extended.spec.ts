@@ -84,7 +84,7 @@ test.describe("API – Pages (extended)", () => {
       }),
     });
     const data = await res.json();
-    testPageId = data.page.id;
+    testPageId = data.id;
   });
 
   test.afterAll(async () => {
@@ -109,7 +109,9 @@ test.describe("API – Pages (extended)", () => {
     });
     expect(res.ok).toBe(true);
     const data = await res.json();
-    expect(data.status).toBe("success");
+    // The {"status": "success"} key is gone; the page is the payload.
+    expect(data.page.name).toBe("Updated Page Name");
+    expect(data.incompatible_references).toEqual([]);
   });
 
   test("can preview a page", async () => {
@@ -129,7 +131,8 @@ test.describe("API – Pages (extended)", () => {
     });
     expect(res.ok).toBe(true);
     const data = await res.json();
-    expect(data).toHaveProperty("status");
+    // "status" is gone from the send body since the Phase 2 conventions pass.
+    expect(data).toHaveProperty("sent_to_board");
     expect(data).toHaveProperty("page_id");
   });
 
@@ -166,7 +169,7 @@ test.describe("API – Schedules (extended)", () => {
       }),
     });
     const pData = await pRes.json();
-    pageId = pData.page.id;
+    pageId = pData.id;
 
     const sRes = await fetch(`${API()}/schedules`, {
       method: "POST",
@@ -364,7 +367,7 @@ test.describe("API – Settings (extended)", () => {
       }),
     });
     const pData = await pRes.json();
-    const pageId = pData.page.id;
+    const pageId = pData.id;
 
     const setRes = await fetch(`${API()}/settings/active-page`, {
       method: "PUT",

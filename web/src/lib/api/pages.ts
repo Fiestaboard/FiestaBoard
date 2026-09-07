@@ -5,12 +5,15 @@ import { fetchApi } from "./core";
 import type { DeviceType, LineMetadata, PageType, RowConfig } from "./shared";
 
 export interface PageDeleteResponse {
-  status: string;
+  /** The id of the page that was deleted. */
+  id: string;
   message: string;
   default_page_created: boolean;
-  new_page_id?: string;
+  /** Set (non-null) only when `default_page_created` is true. */
+  new_page_id?: string | null;
   active_page_updated: boolean;
-  new_active_page_id?: string;
+  /** Set (non-null) only when `active_page_updated` is true. */
+  new_active_page_id?: string | null;
 }
 
 // Active page settings
@@ -120,10 +123,9 @@ export interface IncompatibleReference {
 }
 
 export interface PageUpdateResponse {
-  status: string;
   page: Page;
-  /** Present iff the update changed the page's size (may be empty). */
-  incompatible_references?: IncompatibleReference[];
+  /** Always present; empty unless the update changed the page's size. */
+  incompatible_references: IncompatibleReference[];
 }
 
 export interface StaffPickPlugin {
@@ -164,10 +166,11 @@ export interface PagePreviewBatchResponse {
 }
 
 export interface PageSendResponse {
-  status: string;
   page_id: string;
   message: string;
   sent_to_board: boolean;
+  /** True when the send was skipped because the target board is paused. */
+  paused: boolean;
   target: string;
   board_id?: string | null;
 }
@@ -204,8 +207,9 @@ export const pagesApi = {
   getPages: () => fetchApi<PagesResponse>("/pages"),
   getCurrentDisplay: () => fetchApi<CurrentDisplayResponse>("/pages/current-display"),
   getPage: (pageId: string) => fetchApi<Page>(`/pages/${pageId}`),
+  /** 201 with the created page itself — no envelope. */
   createPage: (page: PageCreate) =>
-    fetchApi<{ status: string; page: Page }>("/pages", {
+    fetchApi<Page>("/pages", {
       method: "POST",
       body: JSON.stringify(page),
     }),
@@ -230,8 +234,9 @@ export const pagesApi = {
     return fetchApi<PageSendResponse>(`/pages/${pageId}/send${qs ? `?${qs}` : ""}`, { method: "POST" });
   },
   getPageShareString: (pageId: string) => fetchApi<{ share_string: string }>(`/pages/${pageId}/share`),
+  /** 201 with the created page itself — no envelope, same as createPage. */
   importPage: (shareString: string) =>
-    fetchApi<{ status: string; page: Page }>("/pages/import", {
+    fetchApi<Page>("/pages/import", {
       method: "POST",
       body: JSON.stringify({ share_string: shareString }),
     }),

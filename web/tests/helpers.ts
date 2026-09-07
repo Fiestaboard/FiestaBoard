@@ -380,7 +380,7 @@ export async function createPage(
   });
   if (!res.ok) throw new Error(`createPage failed: ${res.status}`);
   const data = await res.json();
-  return data.page.id;
+  return data.id;
 }
 
 /** Create a Note page (3 lines, 15 cols) and return its ID. */

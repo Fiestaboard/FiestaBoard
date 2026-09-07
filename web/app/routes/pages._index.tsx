@@ -86,9 +86,9 @@ export function ImportPageDialog({ open, onOpenChange }: { open: boolean; onOpen
     mutationFn: () => api.importPage(shareString.trim()),
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: queryKeys.pages, refetchType: "active" });
-      toast.success(t("toastImported", { name: data.page.name }));
+      toast.success(t("toastImported", { name: data.name }));
       onOpenChange(false);
-      push(`/pages/edit/${data.page.id}`, { transitionType: "slide-up" });
+      push(`/pages/edit/${data.id}`, { transitionType: "slide-up" });
     },
     onError: (err: Error) => {
       toast.error(err.message);

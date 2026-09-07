@@ -43,7 +43,7 @@ def sample_page():
 
 class TestListPagesContract:
     def test_returns_200(self, client):
-        with patch("src.api_server.get_page_service") as mock_svc:
+        with patch("src.pages.routes.get_page_service") as mock_svc:
             svc = Mock()
             svc.list_pages.return_value = []
             mock_svc.return_value = svc
@@ -52,7 +52,7 @@ class TestListPagesContract:
         assert resp.status_code == 200
 
     def test_response_has_pages_and_total(self, client):
-        with patch("src.api_server.get_page_service") as mock_svc:
+        with patch("src.pages.routes.get_page_service") as mock_svc:
             svc = Mock()
             svc.list_pages.return_value = []
             mock_svc.return_value = svc
@@ -64,7 +64,7 @@ class TestListPagesContract:
         assert "total" in data
 
     def test_response_validates_against_schema(self, client):
-        with patch("src.api_server.get_page_service") as mock_svc:
+        with patch("src.pages.routes.get_page_service") as mock_svc:
             svc = Mock()
             svc.list_pages.return_value = []
             mock_svc.return_value = svc
@@ -77,7 +77,7 @@ class TestListPagesContract:
         assert parsed.pages == []
 
     def test_pages_list_with_items_validates(self, client, sample_page):
-        with patch("src.api_server.get_page_service") as mock_svc:
+        with patch("src.pages.routes.get_page_service") as mock_svc:
             svc = Mock()
             svc.list_pages.return_value = [sample_page]
             mock_svc.return_value = svc
@@ -92,7 +92,7 @@ class TestListPagesContract:
         assert parsed.pages[0].type == "template"
 
     def test_page_id_is_string(self, client, sample_page):
-        with patch("src.api_server.get_page_service") as mock_svc:
+        with patch("src.pages.routes.get_page_service") as mock_svc:
             svc = Mock()
             svc.list_pages.return_value = [sample_page]
             mock_svc.return_value = svc
@@ -105,7 +105,7 @@ class TestListPagesContract:
 
     def test_total_matches_pages_length(self, client, sample_page):
         page2 = Page(id="test-2", name="Page Two", type="template", template=["X"])
-        with patch("src.api_server.get_page_service") as mock_svc:
+        with patch("src.pages.routes.get_page_service") as mock_svc:
             svc = Mock()
             svc.list_pages.return_value = [sample_page, page2]
             mock_svc.return_value = svc
@@ -123,7 +123,7 @@ class TestListPagesContract:
 
 class TestCreatePageContract:
     def test_returns_200_on_valid_input(self, client, sample_page):
-        with patch("src.api_server.get_page_service") as mock_svc:
+        with patch("src.pages.routes.get_page_service") as mock_svc:
             svc = Mock()
             svc.create_page.return_value = sample_page
             mock_svc.return_value = svc
@@ -133,10 +133,11 @@ class TestCreatePageContract:
                 json={"name": "Contract Test", "type": "template", "template": ["HELLO", "", "", "", "", ""]},
             )
 
-        assert resp.status_code == 200
+        # 201 + the bare page since the Phase 2 conventions pass.
+        assert resp.status_code == 201
 
     def test_response_validates_against_schema(self, client, sample_page):
-        with patch("src.api_server.get_page_service") as mock_svc:
+        with patch("src.pages.routes.get_page_service") as mock_svc:
             svc = Mock()
             svc.create_page.return_value = sample_page
             mock_svc.return_value = svc
@@ -147,11 +148,11 @@ class TestCreatePageContract:
             )
 
         parsed = CreatePageResponse(**resp.json())
-        assert parsed.status == "success"
-        assert parsed.page.id == "test-page-contract-1"
+        assert parsed.id == "test-page-contract-1"
 
-    def test_response_status_is_success(self, client, sample_page):
-        with patch("src.api_server.get_page_service") as mock_svc:
+    def test_response_is_the_created_page_not_an_envelope(self, client, sample_page):
+        """The {"status": "success"} envelope is gone (Phase 2 conventions)."""
+        with patch("src.pages.routes.get_page_service") as mock_svc:
             svc = Mock()
             svc.create_page.return_value = sample_page
             mock_svc.return_value = svc
@@ -161,10 +162,11 @@ class TestCreatePageContract:
                 json={"name": "T", "type": "template", "template": ["X", "", "", "", "", ""]},
             )
 
-        assert resp.json()["status"] == "success"
+        assert "status" not in resp.json()
+        assert resp.json()["name"] == "Contract Test"
 
     def test_returns_400_for_invalid_page(self, client):
-        with patch("src.api_server.get_page_service") as mock_svc:
+        with patch("src.pages.routes.get_page_service") as mock_svc:
             svc = Mock()
             svc.create_page.side_effect = ValueError("Missing required field")
             mock_svc.return_value = svc
@@ -178,7 +180,7 @@ class TestCreatePageContract:
         assert resp.status_code in (400, 422)
 
     def test_created_page_has_required_fields(self, client, sample_page):
-        with patch("src.api_server.get_page_service") as mock_svc:
+        with patch("src.pages.routes.get_page_service") as mock_svc:
             svc = Mock()
             svc.create_page.return_value = sample_page
             mock_svc.return_value = svc
@@ -188,7 +190,7 @@ class TestCreatePageContract:
                 json={"name": "T", "type": "template", "template": ["X", "", "", "", "", ""]},
             )
 
-        page = resp.json()["page"]
+        page = resp.json()
         assert "id" in page
         assert "name" in page
         assert "type" in page
@@ -201,7 +203,7 @@ class TestCreatePageContract:
 
 class TestGetPageContract:
     def test_returns_200_for_existing_page(self, client, sample_page):
-        with patch("src.api_server.get_page_service") as mock_svc:
+        with patch("src.pages.routes.get_page_service") as mock_svc:
             svc = Mock()
             svc.get_page.return_value = sample_page
             mock_svc.return_value = svc
@@ -211,7 +213,7 @@ class TestGetPageContract:
         assert resp.status_code == 200
 
     def test_response_validates_against_schema(self, client, sample_page):
-        with patch("src.api_server.get_page_service") as mock_svc:
+        with patch("src.pages.routes.get_page_service") as mock_svc:
             svc = Mock()
             svc.get_page.return_value = sample_page
             mock_svc.return_value = svc
@@ -223,7 +225,7 @@ class TestGetPageContract:
         assert parsed.id == "test-page-contract-1"
 
     def test_returns_404_for_missing_page(self, client):
-        with patch("src.api_server.get_page_service") as mock_svc:
+        with patch("src.pages.routes.get_page_service") as mock_svc:
             svc = Mock()
             svc.get_page.return_value = None
             mock_svc.return_value = svc
@@ -240,7 +242,7 @@ class TestGetPageContract:
 
 class TestDeletePageContract:
     def test_returns_200_on_delete(self, client, sample_page):
-        with patch("src.api_server.get_page_service") as mock_svc:
+        with patch("src.pages.routes.get_page_service") as mock_svc:
             from src.pages.service import DeleteResult
 
             svc = Mock()
@@ -251,8 +253,8 @@ class TestDeletePageContract:
 
         assert resp.status_code == 200
 
-    def test_response_has_status_field(self, client, sample_page):
-        with patch("src.api_server.get_page_service") as mock_svc:
+    def test_response_reports_the_deleted_id(self, client, sample_page):
+        with patch("src.pages.routes.get_page_service") as mock_svc:
             from src.pages.service import DeleteResult
 
             svc = Mock()
@@ -262,4 +264,5 @@ class TestDeletePageContract:
             resp = client.delete("/pages/test-page-contract-1")
 
         data = resp.json()
-        assert "status" in data
+        # The envelope's "status" is gone; the deleted id is the contract now.
+        assert data["id"] == "test-page-contract-1"

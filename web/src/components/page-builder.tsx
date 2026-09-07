@@ -95,6 +95,7 @@ import type {
   DeviceType,
   LineAlignment,
   LineMetadata,
+  Page,
   PageCreate,
   PageType,
   PageUpdate,
@@ -480,32 +481,35 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
             deviceTypeRef.current === "note_array"
               ? { notes_wide: notesWideRef.current, notes_tall: notesTallRef.current }
               : {};
-          let result: { page: { id: string } };
-          if (pageId) {
-            result = await api.updatePage(pageId, {
-              name: nameRef.current,
-              device_type: deviceTypeRef.current,
-              template: cleanedLines,
-              line_metadata: metadata,
-              ...noteArrayDims,
-            });
-          } else {
-            result = await api.createPage({
-              name: nameRef.current,
-              type: "template" as PageType,
-              device_type: deviceTypeRef.current,
-              template: cleanedLines,
-              line_metadata: metadata,
-              ...noteArrayDims,
-            });
-          }
+          // The two endpoints no longer share a shape: PUT answers
+          // { page, incompatible_references }, POST answers the bare page at
+          // 201. Narrow to the saved page here so everything below reads one
+          // thing.
+          const saved: Page = pageId
+            ? (
+                await api.updatePage(pageId, {
+                  name: nameRef.current,
+                  device_type: deviceTypeRef.current,
+                  template: cleanedLines,
+                  line_metadata: metadata,
+                  ...noteArrayDims,
+                })
+              ).page
+            : await api.createPage({
+                name: nameRef.current,
+                type: "template" as PageType,
+                device_type: deviceTypeRef.current,
+                template: cleanedLines,
+                line_metadata: metadata,
+                ...noteArrayDims,
+              });
           // Invalidate the pages list and this page's preview, but don't close.
           queryClient.invalidateQueries({ queryKey: queryKeys.pages, refetchType: "active" });
           queryClient.invalidateQueries({
-            queryKey: queryKeys.pagePreview(result.page.id),
+            queryKey: queryKeys.pagePreview(saved.id),
             refetchType: "active",
           });
-          return { id: result.page.id };
+          return { id: saved.id };
         } catch {
           return null;
         }
@@ -972,8 +976,11 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
 
   // Save mutation
   const saveMutation = useMutation({
-    // Create and update share the `{ status, page }` envelope; only update can
-    // carry `incompatible_references`, which is optional on the shared type.
+    // Since the Phase 2 conventions pass the two endpoints answer differently:
+    // PUT gives `{ page, incompatible_references }`, POST gives the bare page
+    // at 201. Both are normalized to PageUpdateResponse here so `onSuccess`
+    // reads one shape — a create simply reports no stale references, which is
+    // true: a brand-new page cannot have any.
     mutationFn: async (): Promise<PageUpdateResponse> => {
       const { cleanedLines, metadata } = processLinesWithPrefixes(templateLines, lineAlignments, lineWrapEnabled);
       if (pageId) {
@@ -999,14 +1006,14 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
           transition_strategy: transitionStrategy,
           ...(deviceType === "note_array" ? { notes_wide: notesWide, notes_tall: notesTall } : {}),
         };
-        return api.createPage(payload);
+        const created = await api.createPage(payload);
+        return { page: created, incompatible_references: [] };
       }
     },
     onSuccess: (data) => {
-      // Both POST /pages and PUT /pages/{id} answer with `{ status, page }`,
-      // so the saved id is `data.page.id` — reading `data.id` here was always
-      // undefined and silently skipped every id-keyed cleanup below when
-      // creating a new page (issue #1586).
+      // The saved page is always `data.page` after the normalization in
+      // mutationFn — reading `data.id` here was undefined and silently skipped
+      // every id-keyed cleanup below when creating a new page (issue #1586).
       const targetPageId = pageId || data.page.id;
 
       // Clear draft on successful save
@@ -1045,7 +1052,7 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
       // it no longer fits. Non-blocking — the save already succeeded and
       // nothing is auto-removed.
       const incompatibleRefs = data.incompatible_references;
-      if (incompatibleRefs && incompatibleRefs.length > 0) {
+      if (incompatibleRefs.length > 0) {
         const list = incompatibleRefs
           .map(
             (ref) =>

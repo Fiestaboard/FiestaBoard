@@ -40,7 +40,12 @@ def mock_service():
     service.initialize.return_value = True
     service.reinitialize_board_client.return_value = None
     service.check_and_send_active_page.return_value = None
-    with patch("src.api_server.get_service", return_value=service):
+    # Patched on api_server and on the pages router, which since Phase 2
+    # slice 3 imports the accessor from src/display_runtime.py at import time.
+    with (
+        patch("src.api_server.get_service", return_value=service),
+        patch("src.pages.routes.get_service", return_value=service),
+    ):
         yield service
 
 
@@ -70,8 +75,17 @@ def mock_config_manager():
 
 @pytest.fixture
 def mock_settings_service():
-    """Mock the settings service."""
-    with patch("src.api_server.get_settings_service") as mock_get:
+    """Mock the settings service.
+
+    Patched on api_server, on the pages router (which binds it at import time
+    since Phase 2 slice 3) and on src/board_guards.py (where the board lookup
+    and pause/silence guards now live). One stub, every resolution path.
+    """
+    with (
+        patch("src.api_server.get_settings_service") as mock_get,
+        patch("src.pages.routes.get_settings_service") as routes_get,
+        patch("src.board_guards.get_settings_service") as guards_get,
+    ):
         ss = Mock()
         transition = Mock()
         transition.strategy = "column"
@@ -102,39 +116,57 @@ def mock_settings_service():
         ss.should_send_to_board.return_value = False
         ss.set_active_page_id.return_value = None
         mock_get.return_value = ss
+        routes_get.return_value = ss
+        guards_get.return_value = ss
         yield ss
 
 
 @pytest.fixture
 def mock_page_service():
-    """Mock the page service."""
-    with patch("src.api_server.get_page_service") as mock_get:
+    """Mock the page service.
+
+    Patched on both api_server and the pages router, which binds its
+    collaborators at import time since Phase 2 slice 3.
+    """
+    with (
+        patch("src.api_server.get_page_service") as mock_get,
+        patch("src.pages.routes.get_page_service") as routes_get,
+    ):
         ps = Mock()
         page = Mock()
         page.transition_strategy = None
         page.transition_interval_ms = None
         page.transition_step_size = None
         page.device_type = "flagship"
+        page.notes_wide = 1
+        page.notes_tall = 1
         ps.get_page.return_value = page
 
         preview = Mock()
         preview.available = True
         preview.formatted = "HELLO WORLD"
+        preview.display_type = "page:template"
+        preview.raw = {}
         preview.error = None
         ps.preview_page.return_value = preview
 
         mock_get.return_value = ps
+        routes_get.return_value = ps
         yield ps
 
 
 @pytest.fixture
 def mock_collection_service():
     """Mock the collection service."""
-    with patch("src.api_server.get_collection_service") as mock_get:
+    with (
+        patch("src.api_server.get_collection_service") as mock_get,
+        patch("src.pages.routes.get_collection_service") as routes_get,
+    ):
         cs = Mock()
         cs.get_collection.return_value = None
         cs.resolve_page_id.return_value = None
         mock_get.return_value = cs
+        routes_get.return_value = cs
         yield cs
 
 
@@ -224,7 +256,10 @@ class TestStopService:
     def test_stop_success(self, client):
         """Stopping a running service."""
         service = Mock()
-        with patch("src.api_server._service_running", True), patch("src.api_server._service", service):
+        with (
+            patch("src.api_server._service_running", True),
+            patch("src.api_server.peek_service", return_value=service),
+        ):
             response = client.post("/stop")
             assert response.status_code == 200
             assert response.json()["status"] == "stopped"
@@ -235,7 +270,9 @@ class TestSendWelcomeMessage:
 
     def test_welcome_silence_mode(self, client):
         """Welcome is blocked during silence mode."""
-        with patch("src.api_server.Config") as mock_config:
+        # _silence_active reads Config from src/board_guards.py since Phase 2
+        # slice 3, so the silence verdict is stubbed there.
+        with patch("src.board_guards.Config") as mock_config:
             mock_config.is_silence_mode_active.return_value = True
             response = client.post("/send-welcome-message")
             assert response.status_code == 200
@@ -1429,7 +1466,9 @@ class TestSendPage:
     def test_send_page_silence_mode_blocks(self, client, mock_service, mock_settings_service, mock_page_service):
         """Silence mode blocks board send but does not error."""
         mock_settings_service.should_send_to_board.return_value = True
-        with patch("src.api_server.Config") as mock_config:
+        # _silence_active reads Config from src/board_guards.py since Phase 2
+        # slice 3, so the silence verdict is stubbed there.
+        with patch("src.board_guards.Config") as mock_config:
             mock_config.is_silence_mode_active.return_value = True
             response = client.post("/pages/page1/send")
             assert response.status_code == 200

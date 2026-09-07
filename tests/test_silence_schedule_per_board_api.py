@@ -70,11 +70,16 @@ def silence_store():
 @pytest.fixture
 def boards():
     """Two boards of different sizes registered with the settings service."""
-    with patch("src.api_server.get_settings_service") as mock_get:
+    with (
+        patch("src.api_server.get_settings_service") as mock_get,
+        # _require_board lives in src/board_guards.py since Phase 2 slice 3.
+        patch("src.board_guards.get_settings_service") as guard_get,
+    ):
         svc = Mock()
         svc.get_board_settings.return_value = Mock(boards=[FLAGSHIP, NOTE])
         svc.get_primary_board_id.return_value = FLAGSHIP["id"]
         mock_get.return_value = svc
+        guard_get.return_value = svc
         yield svc
 
 

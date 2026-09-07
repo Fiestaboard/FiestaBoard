@@ -91,7 +91,7 @@ async function createArrayPage(name: string, token: string, notesWide: number, n
   });
   if (!res.ok) throw new Error(`createArrayPage failed: ${res.status} ${await res.text()}`);
   const data = await res.json();
-  return data.page.id;
+  return data.id;
 }
 
 /** Configure the fleet: optionally a flagship (mock port 7000) + one array. */

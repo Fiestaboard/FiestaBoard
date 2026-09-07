@@ -13,6 +13,32 @@ the compose dialog reads the import result, and the dashboard reads the
 send result — unlike collections, whose client discarded every mutation body.
 
 Covers all 16 routes the ``pages`` router serves, success and failure paths.
+
+Re-pinned by the conventions pass in this same PR. What deliberately changed,
+and nothing else:
+
+* ``POST /pages`` answers **201** (was 200) with the **bare** page (was
+  ``{"status": "success", "page": {...}}``) — conventions doc, "Status codes"
+  and "Bare bodies".
+* ``POST /pages/import`` answers **201** with the bare page, same reason. Its
+  catch-all ``except Exception -> 422`` is gone: a share string the decoder or
+  ``PageCreate`` rejects is still 422, a page the service refuses is 400, and
+  an unexpected internal fault is now a 500 instead of being reported to the
+  user as a bad share string.
+* ``PUT /pages/{id}`` drops the ``"status": "success"`` key and always carries
+  ``incompatible_references`` (empty when the size did not change), so the
+  response is one typed shape instead of two.
+* ``DELETE /pages/{id}`` drops ``status`` and gains ``id`` — the conventions
+  doc's "200 with the deleted resource id", the arm collections also picked.
+* ``POST /pages/{id}/send`` drops ``status`` from both the success body and
+  the unreachable-board 500 body; the status code already carries it.
+* ``POST /pages/cache/clear`` drops ``status``.
+* ``POST /pages/preview/batch`` takes a typed body, so a non-list ``page_ids``
+  is FastAPI's standard **422** (was a hand-rolled 400).
+
+Every other value assertion — ids, template line ordering, list totals, error
+strings, ``sent_to_board`` / ``paused``, the 404/503 status codes — is
+unchanged from the pre-conversion recording. None was weakened.
 """
 
 from __future__ import annotations
@@ -39,7 +65,7 @@ def _create(client: TestClient, name: str, first_line: str) -> dict:
     """POST /pages and return the created page as a dict.
 
     The one place that knows the create envelope, so re-pinning the envelope
-    is a one-line change here instead of a sweep through the file.
+    was a one-line change here instead of a sweep through the file.
     """
     response = client.post(
         "/pages",
@@ -50,8 +76,8 @@ def _create(client: TestClient, name: str, first_line: str) -> dict:
             "template": [first_line, "", "", "", "", ""],
         },
     )
-    assert response.status_code == 200, response.text
-    return response.json()["page"]
+    assert response.status_code == 201, response.text
+    return response.json()
 
 
 @pytest.fixture
@@ -74,8 +100,9 @@ def test_create_returns_the_created_page_with_its_values(client):
         },
     )
 
-    assert response.status_code == 200, response.text
-    created = response.json()["page"]
+    # RE-PINNED: 201 + bare resource (was 200 + {"status", "page"}).
+    assert response.status_code == 201, response.text
+    created = response.json()
     assert created["name"] == "Morning Board"
     assert created["type"] == "template"
     assert created["device_type"] == "flagship"
@@ -154,6 +181,8 @@ def test_update_returns_the_updated_page_with_the_new_values(client, page):
     response = client.put(f"/pages/{page['id']}", json={"name": "Renamed", "duration_seconds": 90})
 
     assert response.status_code == 200, response.text
+    # RE-PINNED: the {"status": "success"} key is gone; the page and its
+    # retarget warnings remain.
     updated = response.json()["page"]
     assert updated["id"] == page["id"]
     assert updated["name"] == "Renamed"
@@ -163,10 +192,12 @@ def test_update_returns_the_updated_page_with_the_new_values(client, page):
     assert updated["updated_at"] is not None
 
 
-def test_update_without_a_size_change_omits_incompatible_references(client, page):
+def test_update_without_a_size_change_reports_no_incompatible_references(client, page):
     body = client.put(f"/pages/{page['id']}", json={"name": "Same Size"}).json()
 
-    assert "incompatible_references" not in body
+    # RE-PINNED: the key used to be absent unless the size changed. It is now
+    # always present so the response is one typed shape, and empty here.
+    assert body["incompatible_references"] == []
 
 
 def test_update_that_retargets_the_size_reports_incompatible_references(client, page):
@@ -195,6 +226,8 @@ def test_delete_reports_the_deleted_page_and_removes_it(client, page):
 
     assert response.status_code == 200, response.text
     body = response.json()
+    # RE-PINNED: gained "id" (the deleted resource id) and lost "status".
+    assert body["id"] == other["id"]
     assert body["message"] == f"Page {other['id']} deleted"
     assert body["default_page_created"] is False
     assert body["active_page_updated"] is False
@@ -257,8 +290,9 @@ def test_import_creates_a_new_page_carrying_the_shared_values(client, page):
 
     response = client.post("/pages/import", json={"share_string": share_string})
 
-    assert response.status_code == 200, response.text
-    imported = response.json()["page"]
+    # RE-PINNED: 201 + bare resource, matching POST /pages.
+    assert response.status_code == 201, response.text
+    imported = response.json()
     assert imported["name"] == "Contract Page A"
     assert imported["template"] == FLAGSHIP_TEMPLATE
     # A fresh resource, not the one that was shared.
@@ -339,11 +373,14 @@ def test_preview_batch_reports_each_page_separately(client, page):
     assert bad == {"error": "Page not found", "available": False}
 
 
-def test_preview_batch_rejects_a_non_list_page_ids_with_400(client):
+def test_preview_batch_rejects_a_non_list_page_ids_with_422(client):
     response = client.post("/pages/preview/batch", json={"page_ids": "nope"})
 
-    assert response.status_code == 400
-    assert response.json()["detail"] == "page_ids must be a list"
+    # RE-PINNED: 422 (was a hand-rolled 400 with "page_ids must be a list").
+    # The body is now a typed model, so this is FastAPI's standard validation
+    # error — same rejection, the shape every other typed body already uses.
+    assert response.status_code == 422
+    assert [e["loc"] for e in response.json()["detail"]] == [["body", "page_ids"]]
 
 
 # ── cache ───────────────────────────────────────────────────────────────────
@@ -414,7 +451,7 @@ def test_current_display_returns_the_active_template_page_raw(client, page):
 
 
 def test_send_is_503_when_the_display_service_is_not_initialized(client, page):
-    with patch("src.api_server.get_service", return_value=None):
+    with patch("src.pages.routes.get_service", return_value=None):
         response = client.post(f"/pages/{page['id']}/send")
 
     assert response.status_code == 503
@@ -431,7 +468,7 @@ def test_send_rejects_an_unknown_target_with_400(client, page):
 def test_send_missing_page_is_404_naming_the_id(client):
     service = Mock()
     service.vb_client = Mock()
-    with patch("src.api_server.get_service", return_value=service):
+    with patch("src.pages.routes.get_service", return_value=service):
         response = client.post(f"/pages/{MISSING_ID}/send", json={"target": "ui"})
 
     assert response.status_code == 404
@@ -442,7 +479,7 @@ def test_send_to_ui_renders_the_page_without_touching_the_board(client, page):
     service = Mock()
     service.vb_client = Mock()
 
-    with patch("src.api_server.get_service", return_value=service):
+    with patch("src.pages.routes.get_service", return_value=service):
         response = client.post(f"/pages/{page['id']}/send", json={"target": "ui"})
 
     assert response.status_code == 200, response.text
@@ -460,7 +497,7 @@ def test_send_to_board_renders_through_the_board_client(client, page):
     service = Mock()
     service.vb_client.render.return_value = (True, True)
 
-    with patch("src.api_server.get_service", return_value=service):
+    with patch("src.pages.routes.get_service", return_value=service):
         response = client.post(f"/pages/{page['id']}/send", json={"target": "board"})
 
     assert response.status_code == 200, response.text
@@ -482,7 +519,7 @@ def test_send_to_an_unreachable_board_is_500_not_a_200_success(client, page):
     service = Mock()
     service.vb_client.render.return_value = (False, False)
 
-    with patch("src.api_server.get_service", return_value=service):
+    with patch("src.pages.routes.get_service", return_value=service):
         response = client.post(f"/pages/{page['id']}/send", json={"target": "board"})
 
     assert response.status_code == 500
@@ -496,8 +533,58 @@ def test_send_to_an_unknown_board_id_is_404(client, page):
     service = Mock()
     service.vb_client = Mock()
 
-    with patch("src.api_server.get_service", return_value=service):
+    with patch("src.pages.routes.get_service", return_value=service):
         response = client.post(f"/pages/{page['id']}/send?board_id=board:nope", json={"target": "board"})
 
     assert response.status_code == 404
     assert "board:nope" in response.json()["detail"]
+
+
+# ── POST /pages/import: 422 is for the caller's mistake, not ours ────────────
+
+
+def test_import_reports_an_internal_storage_failure_as_500_not_422(client, page):
+    """A fault inside this process is a server error, not a bad share string.
+
+    The handler used to wrap the whole create in ``except Exception -> 422``,
+    so a storage write that blew up was reported to the user as "Invalid share
+    string" — pointing them at the one thing that was fine. Only the decoder
+    and ``PageCreate`` validation answer 422 now; a ``ValueError`` the service
+    raises is the 400 it always was; everything else propagates.
+    """
+    share_string = client.get(f"/pages/{page['id']}/share").json()["share_string"]
+    service = Mock()
+    service.create_page.side_effect = RuntimeError("disk exploded")
+
+    with patch("src.pages.routes.get_page_service", return_value=service):
+        with pytest.raises(RuntimeError, match="disk exploded"):
+            client.post("/pages/import", json={"share_string": share_string})
+
+
+def test_import_reports_a_rejected_page_as_400(client, page):
+    """A page the service refuses is the caller's error, but not a bad string."""
+    share_string = client.get(f"/pages/{page['id']}/share").json()["share_string"]
+    service = Mock()
+    service.create_page.side_effect = ValueError("Template page requires template content")
+
+    with patch("src.pages.routes.get_page_service", return_value=service):
+        response = client.post("/pages/import", json={"share_string": share_string})
+
+    assert response.status_code == 400
+    assert response.json()["detail"] == "Template page requires template content"
+
+
+def test_import_reports_share_contents_pydantic_rejects_as_422(client):
+    """A well-formed envelope carrying an invalid page is still the caller's."""
+    import base64
+    import json as _json
+
+    from src.pages.share import SHARE_VERSION
+
+    envelope = {"v": SHARE_VERSION, "page": {"name": "", "type": "template"}}
+    share_string = base64.urlsafe_b64encode(_json.dumps(envelope).encode()).decode().rstrip("=")
+
+    response = client.post("/pages/import", json={"share_string": share_string})
+
+    assert response.status_code == 422
+    assert response.json()["detail"].startswith("Invalid share string — ")
