@@ -499,8 +499,11 @@ class TestConnectionInfoSource:
             "cloud_key": "test-rw-key",
             "device_type": "flagship",
         }
+        ss = self._ss_with_board(board)
         with (
-            patch("src.display_runtime.get_settings_service", return_value=self._ss_with_board(board)),
+            patch("src.display_runtime.get_settings_service", return_value=ss),
+            patch("src.api_server.get_settings_service", return_value=ss),
+            patch("src.board_guards.get_settings_service", return_value=ss),
             patch("src.api_server.Config") as mock_config,
         ):
             mock_config.BOARD_API_MODE = "local"
@@ -515,8 +518,11 @@ class TestConnectionInfoSource:
     def test_system_info_unusable_board_entry_not_configured(self, client):
         """A boards[0] entry without usable credentials reports board_configured False."""
         board = {"id": "b1", "api_mode": "cloud", "host": "", "cloud_key": "", "device_type": "flagship"}
+        ss = self._ss_with_board(board)
         with (
-            patch("src.display_runtime.get_settings_service", return_value=self._ss_with_board(board)),
+            patch("src.display_runtime.get_settings_service", return_value=ss),
+            patch("src.api_server.get_settings_service", return_value=ss),
+            patch("src.board_guards.get_settings_service", return_value=ss),
             patch("src.api_server.Config") as mock_config,
         ):
             mock_config.BOARD_API_MODE = "local"
@@ -532,9 +538,13 @@ class TestConnectionInfoSource:
         on settings.json (issue #1760): the migration imports pre-boards
         installs at boot, so at runtime the legacy config.json values must
         never be reported as the live connection."""
+        ss = self._ss_with_board(None)
         with (
-            patch("src.display_runtime.get_settings_service", return_value=self._ss_with_board(None)),
+            patch("src.display_runtime.get_settings_service", return_value=ss),
+            patch("src.api_server.get_settings_service", return_value=ss),
+            patch("src.board_guards.get_settings_service", return_value=ss),
             patch("src.display_runtime._get_board_client", return_value=None),
+            patch("src.api_server._get_board_client", return_value=None),
             patch("src.api_server.Config") as mock_config,
         ):
             mock_config.BOARD_API_MODE = "local"
@@ -560,6 +570,8 @@ class TestConnectionInfoSource:
         ss = self._ss_with_board(board, send_to_board=False)
         with (
             patch("src.display_runtime.get_settings_service", return_value=ss),
+            patch("src.api_server.get_settings_service", return_value=ss),
+            patch("src.board_guards.get_settings_service", return_value=ss),
             patch("src.api_server.Config") as mock_config,
         ):
             mock_config.BOARD_API_MODE = "local"

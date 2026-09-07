@@ -14,12 +14,20 @@ identity it had before the move, so the ~130 existing
 handlers still declared there. A converted router binds from *this* module
 instead, and its tests patch ``src.display_runtime.<name>``.
 
-Deliberately still in ``api_server``: the ``_service_running`` flag and the
-service thread. They are written by the start/stop lifecycle endpoints, read
-at 22 sites and patched at ~46 test sites, and moving them is the
-display/board-control slice's job, not this one. :func:`is_service_running`
-reads the flag through a probe ``api_server`` registers at import — one
-source of truth, reachable without importing the module that owns it.
+
+:func:`reinitialize_board_clients` joined them from the config slice: it is
+nothing but "get the service and rebuild its clients", so keeping it in
+``api_server`` forced every router that mutates the boards list to import the
+app module for one line.
+
+Deliberately still in ``api_server``: the background-thread lifecycle — the
+``_service_running`` flag, ``run_service_background``, ``start_service`` and
+``stop_service``. That is server lifecycle rather than an accessor; the flag
+is written by the start/stop endpoints, read at 22 sites and patched at ~46
+test sites, and moving it is the display/board-control slice's job.
+:func:`is_service_running` reads the flag through a probe ``api_server``
+registers at import — one source of truth, reachable without importing the
+module that owns it.
 """
 
 from __future__ import annotations
@@ -279,3 +287,21 @@ def _get_first_board_dims():
     except Exception as exc:
         logger.debug("Could not resolve board dims (using flagship default): %s", exc)
     return resolve_dimensions("flagship")
+
+
+def reinitialize_board_clients() -> None:
+    """Rebuild board clients after a boards-list mutation.
+
+    Without this, the display service keeps the clients it built at startup
+    and sends keep targeting the OLD connections — e.g. after removing the
+    first board, the promoted board's content was still delivered to the
+    removed board's hardware until restart.
+
+    Lives beside :func:`get_service` because that is the only thing it needs.
+    ``src.api_server._reinitialize_board_clients`` delegates here, so the
+    handlers still patched at that name behave identically; converted routers
+    import this directly.
+    """
+    service = get_service()
+    if service:
+        service.reinitialize_board_client()

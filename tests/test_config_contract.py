@@ -10,11 +10,36 @@ Every assertion below is a promise this domain makes to the web client (the
 setup wizard, Settings → Boards, Settings → General) and to the deprecated
 ``/config/board`` shim's outside callers.
 
-Recorded against the **unconverted** trunk: every assertion below passes before
-the conventions pass touches a line of ``/config``. That is what makes it a
-contract golden rather than a description of whatever the new code happens to
-do. The conventions commit re-pins only what it deliberately changes, and says
-so here.
+Recorded against the **unconverted** trunk first: every assertion below passed
+before the conventions pass touched a line of ``/config``. That is what makes
+it a contract golden rather than a description of whatever the new code happens
+to do.
+
+What the conventions pass deliberately changed, and nothing else:
+
+* ``PUT /config/general`` answers 200 with the **bare** general config (was
+  ``{"status": "success", "general": {...}}``) — conventions doc, "Bare
+  bodies". No web consumer read that body; both call sites invalidate a query
+  instead.
+* ``PUT /config/general`` now rejects a non-numeric ``refresh_interval_seconds``
+  with 422 instead of storing the string. The endpoint took a bare ``dict``
+  body and handed it straight to the store, so ``"soon"`` persisted and then
+  broke every consumer that did arithmetic on it.
+* ``PUT /config/board`` and ``PUT /config/general`` reject a body whose field
+  types are wrong (422) rather than persisting them, now that both take
+  Pydantic models instead of ``dict``.
+
+Deliberately NOT changed:
+
+* ``GET`` / ``PUT`` / ``DELETE /config/board`` keep their legacy wire shapes.
+  They are a *deprecation shim* (issue #1760) whose entire purpose is wire
+  stability for callers that have not migrated to ``/settings/board``;
+  unwrapping their envelopes would break the thing the shim exists to protect.
+* ``GET /config/validate`` keeps ``{"valid": ..., "is_first_run": ...}``. It is
+  a verdict endpoint, not a failure report: ``valid: false`` is the answer the
+  wizard asked for, at 200.
+* ``POST /config/board/test`` and ``POST /config/board/enable-local-api`` keep
+  the declared ``success``-at-200 probe contract Task 10a landed (#1887).
 """
 
 from __future__ import annotations
@@ -27,6 +52,29 @@ from fastapi.testclient import TestClient
 
 LOCAL_KEY = "test_local_key_contract"
 LOCAL_HOST = "192.0.2.50"
+
+
+@pytest.fixture(autouse=True)
+def _no_credential_env(monkeypatch):
+    """Pin these contracts to disk, not to the runner's environment.
+
+    CI exports ``BOARD_READ_WRITE_KEY=test_key`` for the platform job, and the
+    #1761 read-time overlay folds it into the board config. That makes a
+    "fresh install" read as configured — `cloud_key` comes back masked as
+    ``***`` instead of empty and `is_first_run` is False — so these tests pass
+    locally and fail in CI. Same fixture as
+    ``tests/test_config_manager.py::reset_singleton``.
+    """
+    for name in (
+        "BOARD_READ_WRITE_KEY",
+        "FB_READ_WRITE_KEY",
+        "BOARD_LOCAL_API_KEY",
+        "FB_LOCAL_API_KEY",
+        "BOARD_HOST",
+        "FB_HOST",
+        "WEATHER_API_KEY",
+    ):
+        monkeypatch.delenv(name, raising=False)
 
 
 @pytest.fixture
@@ -333,6 +381,38 @@ def test_update_general_config_does_not_rebuild_the_clock_for_an_unrelated_field
 
     client.put("/config/general", json={"instance_name": "No Clock Churn"})
     assert get_time_service() is before
+
+
+def test_update_general_config_answers_with_the_saved_config_not_an_envelope(client):
+    """Deliberate change: was ``{"status": "success", "general": {...}}``."""
+    response = client.put("/config/general", json={"timezone": "Europe/Berlin"})
+
+    assert response.status_code == 200
+    body = response.json()
+    assert "status" not in body
+    assert body["timezone"] == "Europe/Berlin"
+    assert body["instance_name"] == client.get("/config/general").json()["instance_name"]
+
+
+def test_update_general_config_rejects_a_non_numeric_refresh_interval(client):
+    """Deliberate change: the bare-dict body used to persist ``"soon"``."""
+    response = client.put("/config/general", json={"refresh_interval_seconds": "soon"})
+
+    assert response.status_code == 422
+    assert client.get("/config/general").json()["refresh_interval_seconds"] != "soon"
+
+
+def test_update_general_config_still_accepts_a_numeric_string_interval(client):
+    """Tightening the type must not break a caller sending ``"120"``."""
+    assert client.put("/config/general", json={"refresh_interval_seconds": "120"}).status_code == 200
+    assert client.get("/config/general").json()["refresh_interval_seconds"] == 120
+
+
+def test_update_board_config_rejects_a_non_string_host(client):
+    """Deliberate change: the bare-dict body used to persist ``{"host": 1}``."""
+    response = client.put("/config/board", json={"host": 1})
+
+    assert response.status_code == 422
 
 
 def test_update_general_config_reports_a_failed_write_as_a_server_error(client):

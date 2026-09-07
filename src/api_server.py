@@ -52,6 +52,11 @@ from .board_guards import (  # noqa: E402
     _find_board,
     _require_board,
     _silence_active,
+    primary_board_entry,
+)
+from .board_guards import validate_board_host as _validate_board_host  # noqa: E402
+from .board_guards import (  # noqa: E402
+    validate_board_host_is_local_network as _validate_board_host_is_local_network,
 )
 from .board_send_executor import run_board_preview, run_board_send  # noqa: E402
 from .collections.models import is_collection_id  # noqa: E402
@@ -84,6 +89,7 @@ from .display_runtime import (  # noqa: E402
     get_service,  # noqa: F401  (re-export: pre-move patch target)
     mark_service_started,  # noqa: F401  (re-export: pre-move patch target)
     peek_service,  # noqa: F401  (re-export: pre-move patch target)
+    reinitialize_board_clients,  # noqa: F401  (re-export: pre-move patch target)
 )
 from .displays.service import get_display_service, reset_display_service  # noqa: E402, F401
 from .log_store import (  # noqa: E402
@@ -235,87 +241,6 @@ def _is_host_allowed(host: str, allowed_hosts: list[str]) -> bool:
         if h == allowed or h.endswith("." + allowed):
             return True
     return False
-
-
-# Hostnames are restricted to RFC 1123 labels (letters, digits, hyphens) and
-# IPv4 dotted-quad notation.  This rejects exotic forms (URL-encoded chars,
-# ``user:pass@host``, schemes embedded in the host, etc.) before we ever try
-# to connect to a board over HTTP.
-_HOSTNAME_RE = re.compile(
-    r"^(?=.{1,253}$)"
-    r"(?:(?:[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)\.)*"
-    r"(?:[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)$"
-)
-
-
-def _validate_board_host(host: str) -> None:
-    """Validate that ``host`` is a plain IP/hostname (no scheme, port, path).
-
-    Used before constructing URLs that target a Vestaboard on the local
-    network.  Raises :class:`HTTPException` (status 400) when invalid.
-    """
-    if not isinstance(host, str) or not host:
-        raise HTTPException(status_code=400, detail="host is required")
-    # Reject anything that looks like a full URL or contains delimiters that
-    # could redirect the request elsewhere (``@``, ``/``, ``:``, ``?``,
-    # ``#`` or whitespace).
-    if any(c in host for c in "@/:?# \t\r\n\\"):
-        raise HTTPException(
-            status_code=400,
-            detail="host must be a bare IP address or hostname",
-        )
-    # Try IPv4 first, then a hostname pattern.
-    import ipaddress
-
-    try:
-        ipaddress.IPv4Address(host)
-        return
-    except ValueError:
-        pass
-    if not _HOSTNAME_RE.match(host):
-        raise HTTPException(
-            status_code=400,
-            detail="host must be a valid IPv4 address or hostname",
-        )
-
-
-def _validate_board_host_is_local_network(host: str) -> None:
-    """Ensure ``host`` resolves only to private/local IPv4 addresses.
-
-    Prevents SSRF to arbitrary internet hosts while still allowing local
-    network boards.
-    """
-    import ipaddress
-    import socket
-
-    def _is_allowed_ipv4(addr: ipaddress.IPv4Address) -> bool:
-        return addr.is_private or addr.is_loopback or addr.is_link_local
-
-    try:
-        ip = ipaddress.IPv4Address(host)
-        if not _is_allowed_ipv4(ip):
-            raise HTTPException(
-                status_code=400,
-                detail="host must resolve to a local/private IPv4 address",
-            )
-        return
-    except ValueError:
-        pass
-
-    try:
-        addrinfo = socket.getaddrinfo(host, None, family=socket.AF_INET, type=socket.SOCK_STREAM)
-    except socket.gaierror:
-        raise HTTPException(status_code=400, detail="host could not be resolved") from None
-
-    resolved_ips = {ipaddress.IPv4Address(info[4][0]) for info in addrinfo if info and len(info) >= 5 and info[4]}
-    if not resolved_ips:
-        raise HTTPException(status_code=400, detail="host did not resolve to an IPv4 address")
-
-    if not all(_is_allowed_ipv4(ip) for ip in resolved_ips):
-        raise HTTPException(
-            status_code=400,
-            detail="host must resolve only to local/private IPv4 addresses",
-        )
 
 
 # Global service instance
@@ -4605,14 +4530,12 @@ async def update_board_settings(request: dict):
 def _reinitialize_board_clients() -> None:
     """Rebuild board clients after a boards-list mutation.
 
-    Without this, the display service keeps the clients it built at startup
-    and sends keep targeting the OLD connections — e.g. after removing the
-    first board, the promoted board's content was still delivered to the
-    removed board's hardware until restart.
+    Kept as a name here because unconverted domains patch
+    ``src.api_server._reinitialize_board_clients``; the implementation moved to
+    ``src/display_runtime.py`` so routers can reach it without importing this
+    module.
     """
-    service = get_service()
-    if service:
-        service.reinitialize_board_client()
+    reinitialize_board_clients()
 
 
 @app.post("/settings/board/add")

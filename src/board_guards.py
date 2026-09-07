@@ -18,11 +18,20 @@ block sends on an unrelated failure, so both degrade to "not blocked" and log.
 board" verdict is made, and it raises 404. See the "board_id validation" note
 in ``docs/internal/reference/API_CONVENTIONS.md`` for why writes 404 and reads
 fall back.
+
+The config slice added the two **host** guards at the bottom of this file.
+They answer a different question from the lookups above — "is this string a
+host I am willing to open a socket to?" rather than "does this board exist?"
+— but they are the same kind of thing: a verdict a router needs before it
+touches a board, with no dependency on the app object.
 """
 
 from __future__ import annotations
 
+import ipaddress
 import logging
+import re
+import socket
 
 from fastapi import HTTPException
 
@@ -55,6 +64,22 @@ def _find_board(board_id: str) -> dict | None:
     for board in boards:
         if isinstance(board, dict) and board.get("id") == board_id:
             return board
+    return None
+
+
+def primary_board_entry() -> dict | None:
+    """First entry of the settings.boards store, or None when it is empty.
+
+    The *default* board — what an endpoint means when it says "the board" with
+    no id. Safe to call from any endpoint: never raises (mirrors
+    :func:`_find_board`).
+    """
+    try:
+        boards = get_settings_service().get_board_settings().boards or []
+        if isinstance(boards, list) and boards and isinstance(boards[0], dict):
+            return boards[0]
+    except Exception as exc:
+        logger.debug("Could not read boards list: %s", exc)
     return None
 
 
@@ -133,3 +158,87 @@ def _silence_active(board_id: str | None = None) -> bool:
             logger.debug("Could not resolve primary board for silence check: %s", e)
             resolved = None
     return Config.is_silence_mode_active(resolved)
+
+
+# ---------------------------------------------------------------------------
+# Host guards — "is this string a host I will open a socket to?"
+#
+# Moved out of src/api_server.py by the config slice. The SSRF barrier below
+# is CodeQL-recognised (py/full-ssrf); it is reproduced verbatim, not rewritten.
+# ---------------------------------------------------------------------------
+
+# Hostnames are restricted to RFC 1123 labels (letters, digits, hyphens) and
+# IPv4 dotted-quad notation.  This rejects exotic forms (URL-encoded chars,
+# ``user:pass@host``, schemes embedded in the host, etc.) before we ever try
+# to connect to a board over HTTP.
+_HOSTNAME_RE = re.compile(
+    r"^(?=.{1,253}$)"
+    r"(?:(?:[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)\.)*"
+    r"(?:[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)$"
+)
+
+
+def validate_board_host(host: str) -> None:
+    """Validate that ``host`` is a plain IP/hostname (no scheme, port, path).
+
+    Used before constructing URLs that target a Vestaboard on the local
+    network.  Raises :class:`HTTPException` (status 400) when invalid.
+    """
+    if not isinstance(host, str) or not host:
+        raise HTTPException(status_code=400, detail="host is required")
+    # Reject anything that looks like a full URL or contains delimiters that
+    # could redirect the request elsewhere (``@``, ``/``, ``:``, ``?``,
+    # ``#`` or whitespace).
+    if any(c in host for c in "@/:?# \t\r\n\\"):
+        raise HTTPException(
+            status_code=400,
+            detail="host must be a bare IP address or hostname",
+        )
+    # Try IPv4 first, then a hostname pattern.
+    try:
+        ipaddress.IPv4Address(host)
+        return
+    except ValueError:
+        pass
+    if not _HOSTNAME_RE.match(host):
+        raise HTTPException(
+            status_code=400,
+            detail="host must be a valid IPv4 address or hostname",
+        )
+
+
+def validate_board_host_is_local_network(host: str) -> None:
+    """Ensure ``host`` resolves only to private/local IPv4 addresses.
+
+    Prevents SSRF to arbitrary internet hosts while still allowing local
+    network boards.
+    """
+
+    def _is_allowed_ipv4(addr: ipaddress.IPv4Address) -> bool:
+        return addr.is_private or addr.is_loopback or addr.is_link_local
+
+    try:
+        ip = ipaddress.IPv4Address(host)
+        if not _is_allowed_ipv4(ip):
+            raise HTTPException(
+                status_code=400,
+                detail="host must resolve to a local/private IPv4 address",
+            )
+        return
+    except ValueError:
+        pass
+
+    try:
+        addrinfo = socket.getaddrinfo(host, None, family=socket.AF_INET, type=socket.SOCK_STREAM)
+    except socket.gaierror:
+        raise HTTPException(status_code=400, detail="host could not be resolved") from None
+
+    resolved_ips = {ipaddress.IPv4Address(info[4][0]) for info in addrinfo if info and len(info) >= 5 and info[4]}
+    if not resolved_ips:
+        raise HTTPException(status_code=400, detail="host did not resolve to an IPv4 address")
+
+    if not all(_is_allowed_ipv4(ip) for ip in resolved_ips):
+        raise HTTPException(
+            status_code=400,
+            detail="host must resolve only to local/private IPv4 addresses",
+        )

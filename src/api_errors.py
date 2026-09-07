@@ -40,6 +40,7 @@ _DESCRIPTIONS: dict[int, str] = {
     409: "Conflict — duplicate id, or a resource pinned by the environment.",
     422: "Request body failed validation.",
     429: "Rate-limited — the request arrived inside a minimum interval; see Retry-After.",
+    500: "The server could not complete the operation. Deliberately raised, not an unhandled error.",
     501: "The resource declares this capability but does not implement it.",
     502: "An upstream the server called on your behalf failed.",
     503: "A required dependency is unavailable.",

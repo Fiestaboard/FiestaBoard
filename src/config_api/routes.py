@@ -1,16 +1,24 @@
 """FastAPI router for the ``/config`` endpoints.
 
-The eleven handlers below were moved **verbatim** from ``src/api_server.py``
-(Phase 2, Task 8): same paths, same bodies, same wire shapes. The conventions
-pass and the seam retirement follow in their own commits so that this move can
-be reviewed as the no-op it is — ``tests/golden/api_routes.json`` does not
-change by a single byte.
+The eleven handlers here were moved verbatim from ``src/api_server.py``
+(Phase 2, Task 8) and then converted to
+``docs/internal/reference/API_CONVENTIONS.md``: a declared ``response_model``
+on every route, Pydantic request bodies instead of bare ``dict``s, a single
+``{"detail": str}`` error contract, and the 4xx each route can actually raise
+declared in ``responses=``. ``tests/conventions_manifest.json`` lists ``config``
+so a regression fails the build.
 
-Collaborators that have a canonical home are imported here. The four that live
-only in ``src/api_server.py`` (``get_service`` and the board-host guards, plus
-the two shared service accessors other unconverted domains still patch there)
-are still resolved at call time through ``src.api_server``; retiring those is
-the next commit.
+Collaborators resolve from their canonical homes at **module import time**, so
+this module never loads ``src.api_server``
+(``tests/test_config_decoupled.py`` asserts that in a fresh interpreter).
+Tests that need to stub a collaborator patch it where this module binds it —
+``src.config_api.routes.<name>``.
+
+``config`` carries eight checked-in exceptions to the ratchet, all in the
+manifest with reasons: six ``declared_errors`` (this domain is read-heavy —
+six routes are parameterless reads of local state with no failure path) and
+two ``no_200_on_failure`` (the probe endpoints' declared verdict contract,
+#1887).
 """
 
 from __future__ import annotations
@@ -20,16 +28,40 @@ import logging
 
 import requests
 from fastapi import APIRouter, HTTPException, Response
-from pydantic import BaseModel
 
+from src.api_errors import errors
+from src.board_guards import primary_board_entry, validate_board_host, validate_board_host_is_local_network
 from src.config import Config
+from src.config_manager import get_config_manager
+from src.display_runtime import get_service, reinitialize_board_clients
+from src.settings.service import get_settings_service
+from src.time_service import reset_time_service
+
+from .models import (
+    BoardConfigResetResponse,
+    BoardConfigResponse,
+    BoardConfigUpdate,
+    BoardConfigUpdateResponse,
+    BoardScanRequest,
+    BoardScanResponse,
+    BoardTestRequest,
+    BoardTestResponse,
+    ConfigSummaryResponse,
+    ConfigValidationResponse,
+    EnableLocalApiResponse,
+    EnablementTokenRequest,
+    FullConfigResponse,
+    GeneralConfig,
+    GeneralConfigUpdate,
+    LegacyBoardConfig,
+)
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter(tags=["config"])
 
 
-@router.get("/config")
+@router.get("/config", response_model=ConfigSummaryResponse)
 async def get_config():
     """Get current configuration summary (without sensitive keys)."""
     return Config.get_summary()
@@ -40,7 +72,7 @@ async def get_config():
 # =============================================================================
 
 
-@router.get("/config/full")
+@router.get("/config/full", response_model=FullConfigResponse)
 async def get_full_config():
     """
     Get the full configuration with sensitive fields masked.
@@ -48,8 +80,6 @@ async def get_full_config():
     Returns the complete config structure including all features and settings.
     API keys and passwords are masked with '***'.
     """
-    from src.api_server import get_config_manager
-
     config_manager = get_config_manager()
     return config_manager.get_all_masked()
 
@@ -71,9 +101,7 @@ def _legacy_board_config_view() -> dict:
     Transition fields come from the settings transitions section — the copy
     the runtime actually uses.
     """
-    from src.api_server import _primary_board_entry, get_settings_service
-
-    board = _primary_board_entry() or {}
+    board = primary_board_entry() or {}
     transitions = get_settings_service().get_transition_settings()
     return {
         "api_mode": board.get("api_mode") or "local",
@@ -87,13 +115,14 @@ def _legacy_board_config_view() -> dict:
     }
 
 
-def _mask_legacy_board_view(view: dict) -> dict:
+def _mask_legacy_board_view(view: dict) -> LegacyBoardConfig:
     """Mask non-empty sensitive fields with '***' (legacy masking contract)."""
-    return {key: ("***" if key in _LEGACY_BOARD_SENSITIVE_FIELDS and value else value) for key, value in view.items()}
+    masked = {key: ("***" if key in _LEGACY_BOARD_SENSITIVE_FIELDS and value else value) for key, value in view.items()}
+    return LegacyBoardConfig(**masked)
 
 
 # Deprecated: use GET /settings/board instead
-@router.get("/config/board")
+@router.get("/config/board", response_model=BoardConfigResponse)
 async def get_board_config(response: Response):
     """Deprecated: use GET /settings/board instead (issue #1760).
 
@@ -103,12 +132,15 @@ async def get_board_config(response: Response):
     response.headers["Deprecation"] = "true"
     response.headers["Link"] = _CONFIG_BOARD_SUCCESSOR_LINK
 
-    return {"config": _mask_legacy_board_view(_legacy_board_config_view()), "api_modes": ["local", "cloud"]}
+    return BoardConfigResponse(
+        config=_mask_legacy_board_view(_legacy_board_config_view()),
+        api_modes=["local", "cloud"],
+    )
 
 
 # Deprecated: use PUT /settings/board instead
-@router.put("/config/board")
-async def update_board_config(request: dict, response: Response):
+@router.put("/config/board", response_model=BoardConfigUpdateResponse, responses=errors(400, 422))
+async def update_board_config(request: BoardConfigUpdate, response: Response):
     """Deprecated: use PUT /settings/board instead (issue #1760).
 
     Update board connection configuration. Writes go to the primary board in
@@ -125,8 +157,6 @@ async def update_board_config(request: dict, response: Response):
     response.headers["Deprecation"] = "true"
     response.headers["Link"] = _CONFIG_BOARD_SUCCESSOR_LINK
 
-    from src.api_server import _reinitialize_board_clients, get_settings_service
-
     settings_service = get_settings_service()
     boards = [dict(b) for b in (settings_service.get_board_settings().boards or []) if isinstance(b, dict)]
     if not boards:
@@ -134,7 +164,10 @@ async def update_board_config(request: dict, response: Response):
 
         boards = [BoardInstance(name="My Board", device_type="flagship", board_color="black").to_dict()]
 
-    updates = {key: request[key] for key in _LEGACY_BOARD_CONNECTION_FIELDS if key in request}
+    # exclude_unset, not exclude_none: "host only" must leave the stored key
+    # alone, while an explicit ``{"host": null}`` still clears it — the exact
+    # semantics of the ``if key in request`` comprehension this replaced.
+    updates = request.model_dump(exclude_unset=True)
     boards[0].update(updates)
     try:
         settings_service.set_boards(boards)
@@ -142,12 +175,15 @@ async def update_board_config(request: dict, response: Response):
         raise HTTPException(status_code=400, detail=str(e)) from e
 
     # Reinitialize the board clients with the new connection
-    _reinitialize_board_clients()
+    reinitialize_board_clients()
 
-    return {"status": "success", "config": _mask_legacy_board_view(_legacy_board_config_view())}
+    return BoardConfigUpdateResponse(
+        status="success",
+        config=_mask_legacy_board_view(_legacy_board_config_view()),
+    )
 
 
-@router.delete("/config/board")
+@router.delete("/config/board", response_model=BoardConfigResetResponse)
 async def reset_board_config():
     """
     Reset board configuration to defaults (first-run / wizard mode).
@@ -163,8 +199,6 @@ async def reset_board_config():
 
     Primarily used by integration-test helpers to set up wizard test scenarios.
     """
-    from src.api_server import get_config_manager, get_service, get_settings_service
-
     config_manager = get_config_manager()
     config_manager.reset_board_config()
 
@@ -196,10 +230,13 @@ async def reset_board_config():
     if service:
         service.reinitialize_board_client()
 
-    return {"status": "reset", "message": "Board config cleared; backend is in first-run mode"}
+    return BoardConfigResetResponse(
+        status="reset",
+        message="Board config cleared; backend is in first-run mode",
+    )
 
 
-@router.get("/config/validate")
+@router.get("/config/validate", response_model=ConfigValidationResponse)
 async def validate_config():
     """
     Validate the current configuration.
@@ -213,10 +250,8 @@ async def validate_config():
     ensures users who set up a board through Settings (rather than the
     wizard) are not treated as first-run.
     """
-    from src.api_server import get_config_manager, get_settings_service
-
     config_manager = get_config_manager()
-    is_valid, errors = config_manager.validate()
+    is_valid, validation_errors = config_manager.validate()
 
     # Get board config to check first-run state
     board_config = config_manager.get_board()
@@ -276,47 +311,22 @@ async def validate_config():
         is_first_run = False
         missing_fields = [f for f in missing_fields if not f.startswith("board.")]
         board_error_prefixes = ("Board cloud_key", "Board local_api_key", "Board host")
-        errors = [e for e in errors if not e.startswith(board_error_prefixes)]
-        is_valid = len(errors) == 0
+        validation_errors = [e for e in validation_errors if not e.startswith(board_error_prefixes)]
+        is_valid = len(validation_errors) == 0
 
-    return {"valid": is_valid, "is_first_run": is_first_run, "errors": errors, "missing_fields": missing_fields}
-
-
-class BoardTestResponse(BaseModel):
-    """Declared verdict of a board connection probe.
-
-    ``POST /config/board/test`` is a *probe*: reporting "the board refused
-    this key" is the answer the caller asked for, not a transport failure,
-    so an upstream verdict stays HTTP 200 with ``success=False``. That is
-    only legitimate because the shape is declared here — an ad-hoc dict at
-    200 is indistinguishable from a success to any generic client (#1887).
-    Preconditions the server rejects before probing (missing credential,
-    malformed/unsafe host) are 4xx; unanticipated errors are 5xx.
-    """
-
-    success: bool
-    message: str
-    api_mode: str | None = None
-    error: str | None = None
-    troubleshooting: list[str] | None = None
-
-
-class BoardTestRequest(BaseModel):
-    """Request model for testing board connection."""
-
-    api_mode: str = "local"
-    local_api_key: str | None = None
-    cloud_key: str | None = None
-    host: str | None = None
-    # Local API port (default 7000). Local-array tiles can sit on other ports.
-    port: int | None = None
+    return ConfigValidationResponse(
+        valid=is_valid,
+        is_first_run=is_first_run,
+        errors=validation_errors,
+        missing_fields=missing_fields,
+    )
 
 
 @router.post(
     "/config/board/test",
     response_model=BoardTestResponse,
     response_model_exclude_none=True,
-    responses={400: {"description": "Missing credential, or a host the server refuses to probe"}},
+    responses=errors(400, 422, 500),
 )
 async def test_board_connection(request: BoardTestRequest):
     """
@@ -348,7 +358,6 @@ async def test_board_connection(request: BoardTestRequest):
              the host is not one this server will connect to
         500: an unanticipated server-side error
     """
-    from src.api_server import _validate_board_host
     from src.board_client import BoardClient, is_successful_board_read_response
 
     api_mode = request.api_mode.lower()
@@ -371,7 +380,7 @@ async def test_board_connection(request: BoardTestRequest):
         # The host guard is the reason this endpoint cannot be pointed at an
         # arbitrary URL. Its 400 propagates unchanged: swallowing it into a
         # 200 body made a refused request look like a failed probe (#1887).
-        _validate_board_host(host)
+        validate_board_host(host)
 
     try:
         # Create temporary client with provided credentials
@@ -534,38 +543,11 @@ async def test_board_connection(request: BoardTestRequest):
         raise HTTPException(status_code=500, detail="Board connection test failed unexpectedly.") from e
 
 
-class EnableLocalApiResponse(BaseModel):
-    """Declared verdict of a Local API enablement exchange.
-
-    Same contract as :class:`BoardTestResponse` (see its docstring): the
-    board's answer — including "that token is not valid" — is data at 200;
-    preconditions are 4xx; unanticipated errors are 5xx.
-    """
-
-    success: bool
-    message: str
-    api_key: str | None = None
-    error: str | None = None
-
-
-class EnablementTokenRequest(BaseModel):
-    """Request model for exchanging enablement token for API key."""
-
-    host: str
-    enablement_token: str
-
-
-class BoardScanRequest(BaseModel):
-    """Request model for network board scanning."""
-
-    timeout: float | None = 4.0
-
-
 @router.post(
     "/config/board/enable-local-api",
     response_model=EnableLocalApiResponse,
     response_model_exclude_none=True,
-    responses={400: {"description": "Missing field, or a host the server refuses to contact"}},
+    responses=errors(400, 422, 500),
 )
 async def enable_local_api(request: EnablementTokenRequest):
     """
@@ -593,8 +575,6 @@ async def enable_local_api(request: EnablementTokenRequest):
     """
     import requests as http_requests
 
-    from src.api_server import _validate_board_host, _validate_board_host_is_local_network
-
     if not request.host:
         raise HTTPException(status_code=400, detail="Board IP address is required")
 
@@ -606,8 +586,8 @@ async def enable_local_api(request: EnablementTokenRequest):
     # propagate unchanged — downgrading them to a 200 body meant a blocked
     # SSRF attempt and a board that rejected the token were the same
     # response to every client (#1887).
-    _validate_board_host(request.host)
-    _validate_board_host_is_local_network(request.host)
+    validate_board_host(request.host)
+    validate_board_host_is_local_network(request.host)
 
     # Resolve the host to a concrete IPv4 address and ensure it is a private/
     # loopback/link-local address.  Using the ``ipaddress`` module's
@@ -696,7 +676,7 @@ async def enable_local_api(request: EnablementTokenRequest):
         raise HTTPException(status_code=500, detail="Failed to enable local API.") from e
 
 
-@router.post("/config/board/scan")
+@router.post("/config/board/scan", response_model=BoardScanResponse, responses=errors(422))
 async def scan_for_boards(request: BoardScanRequest = BoardScanRequest()):
     """
     Scan the local network for Vestaboard devices.
@@ -717,20 +697,18 @@ async def scan_for_boards(request: BoardScanRequest = BoardScanRequest()):
     timeout = min(max(float(request.timeout or 4.0), 1.0), 15.0)
 
     boards = _scan(timeout=timeout)
-    return {"boards": boards}
+    return BoardScanResponse(boards=boards)
 
 
-@router.get("/config/general")
+@router.get("/config/general", response_model=GeneralConfig)
 async def get_general_config():
     """Get general configuration (timezone, refresh interval, etc.)."""
-    from src.api_server import get_config_manager
-
     config_manager = get_config_manager()
     return config_manager.get_general()
 
 
-@router.put("/config/general")
-async def update_general_config(request: dict):
+@router.put("/config/general", response_model=GeneralConfig, responses=errors(422, 500))
+async def update_general_config(request: GeneralConfigUpdate):
     """
     Update general configuration.
 
@@ -743,29 +721,17 @@ async def update_general_config(request: dict):
     - date_format: "MM/DD/YYYY", "DD/MM/YYYY", or "YYYY-MM-DD"
     - welcome_message: Custom board greeting (empty = use default)
     """
-    from src.api_server import get_config_manager, reset_time_service
-
     config_manager = get_config_manager()
 
     # Get current general config
     general_config = config_manager.get_general()
 
-    # Update with provided values
-    timezone_changed = "timezone" in request and request["timezone"] != general_config.get("timezone")
-    if "timezone" in request:
-        general_config["timezone"] = request["timezone"]
-    if "refresh_interval_seconds" in request:
-        general_config["refresh_interval_seconds"] = request["refresh_interval_seconds"]
-    if "output_target" in request:
-        general_config["output_target"] = request["output_target"]
-    if "instance_name" in request:
-        general_config["instance_name"] = request["instance_name"]
-    if "time_format" in request:
-        general_config["time_format"] = request["time_format"]
-    if "date_format" in request:
-        general_config["date_format"] = request["date_format"]
-    if "welcome_message" in request:
-        general_config["welcome_message"] = request["welcome_message"]
+    # exclude_unset: a caller who did not mention a field must not overwrite
+    # it with the model default. The wizard and the settings page both save
+    # one field at a time.
+    updates = request.model_dump(exclude_unset=True)
+    timezone_changed = "timezone" in updates and updates["timezone"] != general_config.get("timezone")
+    general_config.update(updates)
 
     # Save back
     success = config_manager.set_general(general_config)
@@ -781,4 +747,4 @@ async def update_general_config(request: dict):
     if timezone_changed:
         reset_time_service()
 
-    return {"status": "success", "general": general_config}
+    return GeneralConfig(**general_config)
