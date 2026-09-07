@@ -143,6 +143,17 @@ def test_raw_declares_itself_deprecated_and_points_at_its_successor(client, avai
     assert response.headers["Link"] == f'</plugins/{INSTALLED_PLUGIN}/data>; rel="successor-version"'
 
 
+def test_raw_is_marked_deprecated_in_the_published_schema(client):
+    """The header said "deprecated"; the schema now says it too.
+
+    A generated client reads the schema, not the response headers, so the
+    successor (GET /plugins/{plugin_id}/data) was invisible to it.
+    """
+    schema = client.get("/openapi.json").json()
+    assert schema["paths"]["/displays/{display_type}/raw"]["get"]["deprecated"] is True
+    assert schema["paths"]["/displays/{display_type}"]["get"].get("deprecated") is not True
+
+
 def test_raw_reports_an_unavailable_source_as_503_not_as_an_empty_200(client):
     """Both the unknown type and the disabled plugin are 503 here.
 

@@ -94,8 +94,19 @@ async def get_display(display_type: str):
     )
 
 
-# Deprecated: use /plugins/{plugin_id}/data instead
-@router.get("/displays/{display_type}/raw", response_model=DisplayRawResponse, responses=errors(503))
+# One of the four endpoints that answer "what does this source hold", found by
+# the 2026-09 audit. It was superseded by GET /plugins/{plugin_id}/data, which
+# serves the same raw payload with the plugin system's own error contract, and
+# has advertised that with a Deprecation/Link header pair since then. Marking
+# it deprecated in the OpenAPI schema too costs nothing and makes the intent
+# visible to generated clients; the endpoint keeps answering exactly as before.
+# Removal is tracked separately — do not delete it in this PR.
+@router.get(
+    "/displays/{display_type}/raw",
+    response_model=DisplayRawResponse,
+    responses=errors(503),
+    deprecated=True,
+)
 async def get_display_raw(display_type: str, response: Response):
     """
     Deprecated: Use /plugins/{plugin_id}/data instead.
