@@ -2225,9 +2225,7 @@ async def refresh_display(board_id: str | None = None, payload: dict | None = Bo
                 "sent": sent,
             }
 
-        board = _find_board(board_id)
-        if board is None:
-            raise HTTPException(status_code=404, detail=f"Board not found: {board_id}")
+        board = _require_board(board_id)
         rt = service.get_runtime(board_id)
         if rt is None:
             raise HTTPException(status_code=503, detail=f"Board client not initialized: {board_id}")
@@ -2384,9 +2382,7 @@ async def get_board_current_message(force: bool = False, board_id: str | None = 
         raise HTTPException(status_code=503, detail="Board client not initialized")
 
     if board_id is not None:
-        board = _find_board(board_id)
-        if board is None:
-            raise HTTPException(status_code=404, detail=f"Board not found: {board_id}")
+        board = _require_board(board_id)
         if board_id != get_settings_service().get_primary_board_id():
             # Secondary board: serve from its runtime cache. No live read —
             # the poll thread only tracks the primary board (issue #1243).
@@ -3620,8 +3616,8 @@ async def update_silence_schedule(request: SilenceScheduleRequest):
     config_manager = get_config_manager()
 
     board_id = request.board_id
-    if board_id is not None and _find_board(board_id) is None:
-        raise HTTPException(status_code=404, detail=f"Board not found: {board_id}")
+    if board_id is not None:
+        _require_board(board_id)
 
     # Validate mode and page_id together
     mode = request.mode if request.mode in ("indicator", "freeze", "page") else "freeze"
@@ -4963,9 +4959,7 @@ def _resolve_live_board_client(board_id: str | None) -> tuple[dict | None, Any]:
     if board_id is not None:
         if not service:
             raise HTTPException(status_code=503, detail="Service not initialized")
-        board = _find_board(board_id)
-        if board is None:
-            raise HTTPException(status_code=404, detail=f"Board not found: {board_id}")
+        board = _require_board(board_id)
         client = service.get_board_client(board_id)
         if client is None:
             raise HTTPException(status_code=503, detail=f"Board client not initialized: {board_id}")
@@ -5317,9 +5311,7 @@ async def set_active_page(request: dict):
     board_id = request.get("board_id")
     board = None
     if board_id is not None:
-        board = _find_board(board_id)
-        if board is None:
-            raise HTTPException(status_code=404, detail=f"Board not found: {board_id}")
+        board = _require_board(board_id)
     collection_service = get_collection_service()
 
     # Validate page or collection exists if not clearing
@@ -5823,10 +5815,8 @@ async def set_board_paused(board_id: str, request: dict):
         raise HTTPException(status_code=400, detail="paused is required")
     if not isinstance(request["paused"], bool):
         raise HTTPException(status_code=400, detail="paused must be a boolean")
+    _require_board(board_id)
     settings_service = get_settings_service()
-    boards = settings_service.get_board_settings().boards or []
-    if not any(b.get("id") == board_id for b in boards):
-        raise HTTPException(status_code=404, detail=f"Board {board_id} not found")
     paused = settings_service.set_paused(request["paused"], board_id=board_id)
     return {
         "status": "success",
@@ -6455,6 +6445,25 @@ def _find_board(board_id: str) -> dict | None:
         if isinstance(board, dict) and board.get("id") == board_id:
             return board
     return None
+
+
+def _require_board(board_id: str) -> dict:
+    """Return the ``settings.boards`` entry for *board_id*, or raise 404.
+
+    The single place the "unknown board" verdict is made. The pattern was
+    open-coded in nine handlers and simply missing from four schedule write
+    endpoints, which persisted state bound to a board that does not exist and
+    reported success (#1888).
+
+    Use this on any path that *writes* something scoped to a board. Board-
+    scoped **reads** deliberately fall back to their safe default instead —
+    see the "board_id validation" note in
+    ``docs/internal/reference/API_CONVENTIONS.md``.
+    """
+    board = _find_board(board_id)
+    if board is None:
+        raise HTTPException(status_code=404, detail=f"Board not found: {board_id}")
+    return board
 
 
 def _board_dims(board: dict):
@@ -7384,12 +7393,7 @@ async def render_template_live(request: dict):
 
     target_board = None
     if board_id:
-        for b in boards:
-            if b.get("id") == board_id:
-                target_board = b
-                break
-        if not target_board:
-            raise HTTPException(status_code=404, detail=f"Board not found: {board_id}")
+        target_board = _require_board(board_id)
     elif boards:
         target_board = boards[0]
 

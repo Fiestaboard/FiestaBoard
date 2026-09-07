@@ -357,6 +357,9 @@ def test_concurrent_set_active_page_serializes_mutate_and_save(settings_file, mo
     must be serialized (stopgap lock until the real fix in #1848)."""
     import threading
 
+    # Both boards must exist: since #1888 set_active_page_id rejects an
+    # unknown board_id rather than writing a phantom by_board entry.
+    _write_raw(settings_file, _two_board_raw())
     svc = SettingsService(settings_file=settings_file)
 
     first_save = threading.Event()

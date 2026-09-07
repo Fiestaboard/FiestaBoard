@@ -1328,6 +1328,13 @@ class SettingsService:
 
         Returns:
             Updated ActivePageSettings
+
+        Raises:
+            ValueError: ``board_id`` names a board that does not exist.
+                Defense in depth (#1888): unreachable over HTTP today, but
+                the write is otherwise unconditional, so an unknown id used
+                to add a phantom ``by_board`` entry that nothing ever reads
+                and nothing reports.
         """
         # Mutate+save under the stopgap lock (#1848 is the real fix): two
         # worker-thread PUTs would otherwise race the asdict() walk in
@@ -1335,6 +1342,9 @@ class SettingsService:
         with self._per_board_write_lock:
             primary_id = self.get_primary_board_id()
             bid = board_id if board_id is not None else primary_id
+
+            if board_id and not any(b.get("id") == board_id for b in self._board.boards):
+                raise ValueError(f"Board not found: {board_id}")
 
             if bid is not None:
                 if page_id:
@@ -1675,8 +1685,11 @@ class SettingsService:
                     self._save_to_file()
                     logger.info(f"Board {board_id} {'paused' if paused else 'resumed'}")
                     return paused
-            logger.warning(f"Board {board_id} not found for set_paused")
-            return False
+            # Defense in depth (#1888): unreachable over HTTP today — every
+            # route that gets here validates the board first, or 404s on its
+            # own path parameter — but returning False for an unknown board
+            # is indistinguishable from "resumed successfully".
+            raise ValueError(f"Board not found: {board_id}")
         if self._board.boards:
             self._board.boards[0]["paused"] = paused
             self._save_to_file()

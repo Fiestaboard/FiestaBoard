@@ -490,7 +490,7 @@ async def send_page(
     from src.api_server import (  # patched-in-tests seam — see module docstring (#1756)
         _board_dims,
         _board_is_paused,
-        _find_board,
+        _require_board,
         _silence_active,
         get_page_service,
         get_service,
@@ -516,9 +516,7 @@ async def send_page(
     if board_id is not None:
         if not service:
             raise HTTPException(status_code=503, detail="Service not initialized")
-        board = _find_board(board_id)
-        if board is None:
-            raise HTTPException(status_code=404, detail=f"Board not found: {board_id}")
+        board = _require_board(board_id)
         board_client = service.get_board_client(board_id)
         if board_client is None:
             raise HTTPException(status_code=503, detail=f"Board client not initialized: {board_id}")
