@@ -26,31 +26,49 @@ export interface ConfigSummary {
   [key: string]: boolean | string | number | null | undefined;
 }
 
-// Debug types
-export interface DebugTestResponse {
-  status: string;
+// Debug types. Bare bodies with no `{ status: "success" }` envelope since the
+// Phase 2 debug slice; failures arrive as real status codes and `fetchApi`
+// throws them (a paused board is 409, a throttled write 429, an unreachable
+// board 503).
+export interface DebugActionResponse {
   message: string;
-  connected: boolean;
-  latency_ms: number | null;
 }
 
+export interface DebugInfoResponse {
+  message: string;
+  debug_info: string;
+}
+
+export interface DebugTestResponse {
+  message: string;
+  /** Always true on the 200 path — an unreachable board is a 503. */
+  connected: boolean;
+  latency_ms: number;
+}
+
+/**
+ * One probe in a diagnostics run. Every field is always present: probes report
+ * different subsets (DNS has hostname/ip, the port check host/port, the HTTP
+ * checks url/status_code) and the API now sends an explicit null for the ones
+ * a given probe does not produce, rather than omitting the key.
+ */
 export interface DiagnosticStepResult {
   ok: boolean;
-  hostname?: string;
-  ip?: string | null;
-  url?: string;
-  host?: string;
-  port?: number;
-  status_code?: number | null;
-  latency_ms?: number;
-  error?: string;
+  hostname: string | null;
+  ip: string | null;
+  url: string | null;
+  host: string | null;
+  port: number | null;
+  status_code: number | null;
+  latency_ms: number | null;
+  error: string | null;
 }
 
 export interface VestaboardDiagnostics {
   ok: boolean;
   mode: "local" | "cloud" | null;
   steps: Record<string, DiagnosticStepResult>;
-  error?: string;
+  error: string | null;
 }
 
 export interface DiagnosticRecommendation {
@@ -66,19 +84,15 @@ export interface NetworkDiagnosticsResult {
   recommendations: DiagnosticRecommendation[];
 }
 
-export interface NetworkDiagnosticsResponse {
-  status: string;
-  diagnostics: NetworkDiagnosticsResult;
-}
+/** `GET /debug/network-diagnostics` returns the verdict itself. */
+export type NetworkDiagnosticsResponse = NetworkDiagnosticsResult;
 
-export interface DebugCacheStatus {
-  status: string;
-  cache: {
-    has_cached_text: boolean;
-    has_cached_characters: boolean;
-    skip_unchanged_enabled: boolean;
-    cached_text_preview: string | null;
-  };
+/** The board client's content-dedupe cache, as every client reports it. */
+export interface CacheStatus {
+  has_cached_text: boolean;
+  has_cached_characters: boolean;
+  skip_unchanged_enabled: boolean;
+  cached_text_preview: string | null;
 }
 
 export interface DebugSystemInfo {
@@ -89,12 +103,7 @@ export interface DebugSystemInfo {
   connection_mode: string;
   version: string;
   timestamp: string;
-  cache_status: {
-    has_cached_text: boolean;
-    has_cached_characters: boolean;
-    skip_unchanged_enabled: boolean;
-    cached_text_preview: string | null;
-  } | null;
+  cache_status: CacheStatus | null;
   board_configured: boolean;
   service_running: boolean;
 }
@@ -223,7 +232,7 @@ export const systemApi = {
   startService: () => fetchApi<ActionResponse>("/start", { method: "POST" }),
   stopService: () => fetchApi<ActionResponse>("/stop", { method: "POST" }),
   forceRefresh: () =>
-    fetchApi<{ status: string; message: string }>("/force-refresh", {
+    fetchApi<{ message: string; sent: boolean }>("/force-refresh", {
       method: "POST",
     }),
   // Version endpoint
@@ -253,21 +262,21 @@ export const systemApi = {
 
   shutdownSystem: () => fetchApi<SystemActionResponse>("/system/shutdown", { method: "POST" }),
   // Debug endpoints
-  blankBoard: () => fetchApi<ActionResponse>("/debug/blank", { method: "POST" }),
+  blankBoard: () => fetchApi<DebugActionResponse>("/debug/blank", { method: "POST" }),
 
   fillBoard: (characterCode: number) =>
-    fetchApi<ActionResponse>("/debug/fill", {
+    fetchApi<DebugActionResponse>("/debug/fill", {
       method: "POST",
       body: JSON.stringify({ character_code: characterCode }),
     }),
 
-  showDebugInfo: () => fetchApi<ActionResponse>("/debug/info", { method: "POST" }),
+  showDebugInfo: () => fetchApi<DebugInfoResponse>("/debug/info", { method: "POST" }),
 
   testDebugConnection: () => fetchApi<DebugTestResponse>("/debug/test-connection", { method: "POST" }),
 
-  clearBoardCache: () => fetchApi<ActionResponse>("/debug/clear-cache", { method: "POST" }),
+  clearBoardCache: () => fetchApi<DebugActionResponse>("/debug/clear-cache", { method: "POST" }),
 
-  getBoardCacheStatus: () => fetchApi<DebugCacheStatus>("/debug/cache-status"),
+  getBoardCacheStatus: () => fetchApi<CacheStatus>("/debug/cache-status"),
 
   getDebugSystemInfo: () => fetchApi<DebugSystemInfo>("/debug/system-info"),
 

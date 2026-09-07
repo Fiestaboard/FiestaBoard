@@ -282,6 +282,9 @@ test.describe("API – Displays", () => {
 // Debug Endpoints
 // ---------------------------------------------------------------------------
 
+// Bodies are bare since the Phase 2 debug slice: no { status: "success" }
+// envelope, and refusals are status codes (409 paused, 429 throttled,
+// 503 unreachable) rather than a 200 carrying a word.
 test.describe("API – Debug", () => {
   test("can test board connection", async () => {
     const res = await fetch(`${API()}/debug/test-connection`, {
@@ -293,8 +296,8 @@ test.describe("API – Debug", () => {
     expect([200, 400, 503]).toContain(res.status);
     if (res.ok) {
       const data = await res.json();
-      expect(data).toHaveProperty("connected");
-      expect(data).toHaveProperty("latency_ms");
+      expect(data.connected).toBe(true);
+      expect(typeof data.latency_ms).toBe("number");
     }
   });
 
@@ -309,23 +312,33 @@ test.describe("API – Debug", () => {
 
   test("can blank the board", async () => {
     const res = await fetch(`${API()}/debug/blank`, { method: "POST" });
-    expect(res.ok).toBe(true);
+    // 409 = the board is paused, which is a refusal, not a success.
+    expect([200, 409]).toContain(res.status);
     const data = await res.json();
-    expect(data).toHaveProperty("status");
+    expect(typeof (res.ok ? data.message : data.detail)).toBe("string");
+  });
+
+  test("rejects a character code outside the flap range", async () => {
+    const res = await fetch(`${API()}/debug/fill`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ character_code: 99 }),
+    });
+    expect(res.status).toBe(422);
   });
 
   test("returns cache status", async () => {
     const res = await fetch(`${API()}/debug/cache-status`);
     expect(res.ok).toBe(true);
     const data = await res.json();
-    expect(data).toHaveProperty("status");
-    expect(data).toHaveProperty("cache");
+    expect(data).toHaveProperty("has_cached_text");
+    expect(data).toHaveProperty("skip_unchanged_enabled");
   });
 
   test("can clear message cache", async () => {
     const res = await fetch(`${API()}/debug/clear-cache`, { method: "POST" });
     expect(res.ok).toBe(true);
     const data = await res.json();
-    expect(data).toHaveProperty("status");
+    expect(typeof data.message).toBe("string");
   });
 });

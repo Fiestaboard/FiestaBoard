@@ -71,7 +71,7 @@ function setupHandlers(opts: {
         revert_page_id: null,
       });
     }),
-    http.post(`${API_BASE}/force-refresh`, () => HttpResponse.json({ status: "ok" })),
+    http.post(`${API_BASE}/force-refresh`, () => HttpResponse.json({ message: "Refreshed", sent: true })),
   );
 }
 

@@ -132,8 +132,8 @@ describe("Live Output Mode", () => {
     });
     vi.mocked(api.getBoardSettings).mockResolvedValue(defaultBoardSettings);
     vi.mocked(api.forceRefresh).mockResolvedValue({
-      status: "success",
       message: "Display force-refreshed successfully",
+      sent: true,
     });
   });
 
@@ -323,8 +323,8 @@ describe("Live Output - Board Selector Interaction", () => {
     });
     vi.mocked(api.getBoardSettings).mockResolvedValue(multiBoardSettings);
     vi.mocked(api.forceRefresh).mockResolvedValue({
-      status: "success",
       message: "Display force-refreshed successfully",
+      sent: true,
     });
     // createPage answers the bare page since the Phase 2 conventions pass.
     vi.mocked(api.createPage).mockResolvedValue({
@@ -392,8 +392,8 @@ describe("Live Output - Auto-timeout", () => {
     });
     vi.mocked(api.getBoardSettings).mockResolvedValue(defaultBoardSettings);
     vi.mocked(api.forceRefresh).mockResolvedValue({
-      status: "success",
       message: "Display force-refreshed successfully",
+      sent: true,
     });
     // createPage answers the bare page since the Phase 2 conventions pass.
     vi.mocked(api.createPage).mockResolvedValue({
@@ -524,8 +524,8 @@ describe("Live Output - Cleanup on unmount", () => {
     });
     vi.mocked(api.getBoardSettings).mockResolvedValue(defaultBoardSettings);
     vi.mocked(api.forceRefresh).mockResolvedValue({
-      status: "success",
       message: "Display force-refreshed successfully",
+      sent: true,
     });
   });
 
@@ -560,8 +560,8 @@ describe("Live Output - Cleanup on unmount", () => {
 
   it("calls forceRefresh on unmount when live output was enabled", async () => {
     vi.mocked(api.forceRefresh).mockResolvedValue({
-      status: "success",
       message: "Display force-refreshed successfully",
+      sent: true,
     });
     const user = userEvent.setup();
     const { unmount } = render(<PageBuilder onClose={mockOnClose} onSave={mockOnSave} />, { wrapper: TestWrapper });
@@ -584,8 +584,8 @@ describe("Live Output - Cleanup on unmount", () => {
 
   it("does not call forceRefresh on unmount when live output was not enabled", async () => {
     vi.mocked(api.forceRefresh).mockResolvedValue({
-      status: "success",
       message: "Display force-refreshed successfully",
+      sent: true,
     });
     const { unmount } = render(<PageBuilder onClose={mockOnClose} onSave={mockOnSave} />, { wrapper: TestWrapper });
 

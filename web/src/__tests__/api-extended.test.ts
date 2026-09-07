@@ -265,9 +265,10 @@ describe("API Extended Tests", () => {
       expect(capturedBody).toEqual({ template: ["Test"] });
     });
 
-    it("forceRefresh sends POST", async () => {
+    it("forceRefresh sends POST and reports whether it reached a board", async () => {
       const result = await api.forceRefresh();
-      expect(result.status).toBe("success");
+      expect(result.message).toBe("Display force-refreshed");
+      expect(result.sent).toBe(true);
     });
   });
 
@@ -982,29 +983,25 @@ describe("API Extended Tests", () => {
   describe("Debug endpoints", () => {
     beforeEach(() => {
       server.use(
-        http.post(`${API_BASE}/debug/blank`, () => HttpResponse.json({ status: "success", message: "Board blanked" })),
+        // Bare bodies, no { status: "success" } envelope — Phase 2 debug slice.
+        http.post(`${API_BASE}/debug/blank`, () => HttpResponse.json({ message: "Board blanked" })),
         http.post(`${API_BASE}/debug/fill`, async ({ request }) => {
           const body = (await request.json()) as any;
-          return HttpResponse.json({ status: "success", message: `Filled with ${body.character_code}` });
+          return HttpResponse.json({ message: `Filled with ${body.character_code}` });
         }),
         http.post(`${API_BASE}/debug/info`, () =>
-          HttpResponse.json({ status: "success", message: "Debug info shown" }),
+          HttpResponse.json({ message: "Debug info shown", debug_info: "DEBUG INFO" }),
         ),
         http.post(`${API_BASE}/debug/test-connection`, () =>
-          HttpResponse.json({ status: "success", message: "Connected", connected: true, latency_ms: 5 }),
+          HttpResponse.json({ message: "Connected", connected: true, latency_ms: 5 }),
         ),
-        http.post(`${API_BASE}/debug/clear-cache`, () =>
-          HttpResponse.json({ status: "success", message: "Cache cleared" }),
-        ),
+        http.post(`${API_BASE}/debug/clear-cache`, () => HttpResponse.json({ message: "Cache cleared" })),
         http.get(`${API_BASE}/debug/cache-status`, () =>
           HttpResponse.json({
-            status: "success",
-            cache: {
-              has_cached_text: true,
-              has_cached_characters: false,
-              skip_unchanged_enabled: true,
-              cached_text_preview: "Hello",
-            },
+            has_cached_text: true,
+            has_cached_characters: false,
+            skip_unchanged_enabled: true,
+            cached_text_preview: "Hello",
           }),
         ),
         http.get(`${API_BASE}/debug/system-info`, () =>
@@ -1026,7 +1023,7 @@ describe("API Extended Tests", () => {
 
     it("blankBoard sends POST", async () => {
       const result = await api.blankBoard();
-      expect(result.status).toBe("success");
+      expect(result.message).toBe("Board blanked");
     });
 
     it("fillBoard sends character_code", async () => {
@@ -1036,7 +1033,8 @@ describe("API Extended Tests", () => {
 
     it("showDebugInfo sends POST", async () => {
       const result = await api.showDebugInfo();
-      expect(result.status).toBe("success");
+      expect(result.message).toBe("Debug info shown");
+      expect(result.debug_info).toContain("DEBUG INFO");
     });
 
     it("testDebugConnection returns connection status", async () => {
@@ -1047,12 +1045,13 @@ describe("API Extended Tests", () => {
 
     it("clearBoardCache sends POST", async () => {
       const result = await api.clearBoardCache();
-      expect(result.status).toBe("success");
+      expect(result.message).toBe("Cache cleared");
     });
 
-    it("getBoardCacheStatus returns cache info", async () => {
+    it("getBoardCacheStatus returns the cache fields directly", async () => {
       const result = await api.getBoardCacheStatus();
-      expect(result.cache.has_cached_text).toBe(true);
+      expect(result.has_cached_text).toBe(true);
+      expect(result.cached_text_preview).toBe("Hello");
     });
 
     it("getDebugSystemInfo returns system info", async () => {
@@ -1079,26 +1078,25 @@ describe("API Extended Tests", () => {
   describe("Debug endpoints", () => {
     it("getNetworkDiagnostics returns diagnostics result", async () => {
       server.use(
+        // The verdict itself, not { diagnostics: ... } — Phase 2 debug slice.
         http.get(`${API_BASE}/debug/network-diagnostics`, () =>
           HttpResponse.json({
-            diagnostics: {
-              overall_ok: true,
-              dns: { ok: true, ip: "142.250.80.46", hostname: "google.com" },
-              internet: { ok: true, url: "https://google.com", latency_ms: 42 },
-              vestaboard: {
-                ok: true,
-                mode: "cloud",
-                steps: { cloud_api: { ok: true, latency_ms: 120, status_code: 200 } },
-                error: null,
-              },
-              recommendations: [],
+            overall_ok: true,
+            dns: { ok: true, ip: "142.250.80.46", hostname: "google.com" },
+            internet: { ok: true, url: "https://google.com", latency_ms: 42 },
+            vestaboard: {
+              ok: true,
+              mode: "cloud",
+              steps: { cloud_api: { ok: true, latency_ms: 120, status_code: 200 } },
+              error: null,
             },
+            recommendations: [],
           }),
         ),
       );
       const result = await api.getNetworkDiagnostics();
-      expect(result.diagnostics.overall_ok).toBe(true);
-      expect(result.diagnostics.dns.ok).toBe(true);
+      expect(result.overall_ok).toBe(true);
+      expect(result.dns.ok).toBe(true);
     });
   });
 });
