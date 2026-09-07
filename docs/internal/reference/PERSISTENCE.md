@@ -124,7 +124,8 @@ them becomes real, revisit this section before writing any code:
    there is no lockfile or pidfile in `data/`.
 3. **`pytest <explicit-plugin-path>` inside the running dev container.**
    `pytest` with a path under `plugins/` never loads `tests/conftest.py`
-   (pytest only walks conftests along the rootdir→target ancestry), so
+   (pytest only collects `conftest.py` files along the ancestry from the
+   rootdir down to the target), so
    `FIESTABOARD_DATA_DIR` is unset and `get_data_dir()` falls back to the live
    `/app/data`. `scripts/run_plugin_tests.py` passes explicit test dirs and
    hits the same hole. It is benign *today* only because those tests happen to
