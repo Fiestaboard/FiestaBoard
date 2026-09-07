@@ -4939,17 +4939,54 @@ async def send_display(display_type: str, target: str | None = None):
 
 
 # =============================================================================
+# Deprecated plugin-specific platform routes (issue #1915)
+# =============================================================================
+#
+# The eleven routes below (baywheels, muni, transit cache, stocks, traffic)
+# each serve a single plugin, violating the "no plugin-specific code in src/"
+# rule in CLAUDE.md. They are being retired in favour of per-plugin options
+# providers (GET /plugins/{id}/options/{options_id}).
+#
+# They cannot be deleted outright: the muni and stocks routes are published as
+# public "API Endpoints" in the fiestaboard-plugin--muni and
+# fiestaboard-plugin--stocks SETUP guides, so a third-party integration this
+# repo cannot see may depend on them. Per the deprecation-not-deletion
+# convention, they are marked deprecated with a sunset date here; deletion of
+# the handlers, the src/utils/{baywheels,traffic,stocks,transit_cache}.py code
+# they reach, and the web client wrappers happens after the sunset window and
+# after those sibling repos ship SETUP guides that no longer advertise the
+# routes.
+_PLUGIN_ROUTE_SUNSET = "Wed, 01 Sep 2027 00:00:00 GMT"
+
+
+def _mark_plugin_route_deprecated(response: Response | None) -> None:
+    """Flag a deprecated plugin-specific platform route (issue #1915).
+
+    Sets the RFC 8594 ``Sunset`` header alongside ``Deprecation: true`` so
+    integrations can detect the pending removal programmatically. ``response``
+    is ``None`` only for internal handler-to-handler calls, which do not emit
+    headers to a client.
+    """
+    if response is None:
+        return
+    response.headers["Deprecation"] = "true"
+    response.headers["Sunset"] = _PLUGIN_ROUTE_SUNSET
+
+
+# =============================================================================
 # Bay Wheels Station Search Endpoints
 # =============================================================================
 
 
 @app.get("/baywheels/stations")
-async def list_all_baywheels_stations():
+async def list_all_baywheels_stations(response: Response):
     """
     List all Bay Wheels stations with current status.
 
     Returns all stations from the GBFS feed with their current bike availability.
     """
+    _mark_plugin_route_deprecated(response)
+
     import requests
 
     from src.utils.baywheels import STATION_STATUS_URL, BayWheelsSource
@@ -5006,6 +5043,7 @@ async def list_all_baywheels_stations():
 
 @app.get("/baywheels/stations/nearby")
 async def find_nearby_baywheels_stations(
+    response: Response,
     lat: float = Query(..., description="Latitude"),
     lng: float = Query(..., description="Longitude"),
     radius: float = Query(2.0, description="Search radius in kilometers"),
@@ -5023,6 +5061,8 @@ async def find_nearby_baywheels_stations(
     Returns:
         List of nearby stations sorted by distance
     """
+    _mark_plugin_route_deprecated(response)
+
     import requests
 
     from src.utils.baywheels import STATION_STATUS_URL, BayWheelsSource
@@ -5075,6 +5115,7 @@ async def find_nearby_baywheels_stations(
 
 @app.get("/baywheels/stations/search")
 async def search_baywheels_stations_by_address(
+    response: Response,
     address: str = Query(..., description="Address to search near"),
     radius: float = Query(2.0, description="Search radius in kilometers"),
     limit: int = Query(10, description="Maximum number of results"),
@@ -5092,6 +5133,8 @@ async def search_baywheels_stations_by_address(
     Returns:
         List of nearby stations sorted by distance
     """
+    _mark_plugin_route_deprecated(response)
+
     import requests
 
     from src.utils.baywheels import STATION_STATUS_URL, BayWheelsSource
@@ -5173,12 +5216,14 @@ async def search_baywheels_stations_by_address(
 
 
 @app.get("/muni/stops")
-async def list_all_muni_stops():
+async def list_all_muni_stops(response: Response):
     """
     List all SF Muni stops with metadata.
 
     Returns all stops from the 511.org transit API with cached data (24hr TTL).
     """
+    _mark_plugin_route_deprecated(response)
+
     import time
 
     import requests
@@ -5262,6 +5307,7 @@ async def list_all_muni_stops():
 
 @app.get("/muni/stops/nearby")
 async def find_nearby_muni_stops(
+    response: Response,
     lat: float = Query(..., description="Latitude"),
     lng: float = Query(..., description="Longitude"),
     radius: float = Query(0.5, description="Search radius in kilometers"),
@@ -5279,11 +5325,13 @@ async def find_nearby_muni_stops(
     Returns:
         List of nearby stops sorted by distance with live arrival data
     """
+    _mark_plugin_route_deprecated(response)
+
     import math
 
     try:
         # Get all stops (from cache if available)
-        stops_data = await list_all_muni_stops()
+        stops_data = await list_all_muni_stops(response)
         all_stops = stops_data["stops"]
 
         # Calculate distance to each stop using haversine formula
@@ -5373,6 +5421,7 @@ async def find_nearby_muni_stops(
 
 @app.get("/muni/stops/search")
 async def search_muni_stops_by_address(
+    response: Response,
     address: str = Query(..., description="Address to search near"),
     radius: float = Query(0.5, description="Search radius in kilometers"),
     limit: int = Query(10, description="Maximum number of results"),
@@ -5390,6 +5439,8 @@ async def search_muni_stops_by_address(
     Returns:
         List of nearby stops sorted by distance
     """
+    _mark_plugin_route_deprecated(response)
+
     import requests
 
     try:
@@ -5412,7 +5463,7 @@ async def search_muni_stops_by_address(
         lng = float(location["lon"])
 
         # Find nearby stops
-        stops_data = await find_nearby_muni_stops(lat=lat, lng=lng, radius=radius, limit=limit)
+        stops_data = await find_nearby_muni_stops(response, lat=lat, lng=lng, radius=radius, limit=limit)
 
         return {
             "stops": stops_data["stops"],
@@ -5433,7 +5484,7 @@ async def search_muni_stops_by_address(
 
 
 @app.get("/transit/cache/status")
-async def get_transit_cache_status():
+async def get_transit_cache_status(response: Response):
     """
     Get status and health information about the regional transit cache.
 
@@ -5443,6 +5494,8 @@ async def get_transit_cache_status():
     - Refresh count and error count
     - Whether cache is stale
     """
+    _mark_plugin_route_deprecated(response)
+
     try:
         from src.utils.transit_cache import get_transit_cache
 
@@ -5473,6 +5526,7 @@ async def get_transit_cache_status():
 
 @app.get("/stocks/search")
 async def search_stock_symbols(
+    response: Response,
     query: str = Query(..., description="Search query (symbol or company name)"),
     limit: int = Query(10, ge=1, le=50, description="Maximum number of results"),
 ):
@@ -5489,6 +5543,8 @@ async def search_stock_symbols(
         List of matching symbols with company names:
         [{"symbol": "GOOG", "name": "Alphabet Inc."}, ...]
     """
+    _mark_plugin_route_deprecated(response)
+
     try:
         from src.config import Config
         from src.utils.stocks import StocksSource
@@ -5505,7 +5561,7 @@ async def search_stock_symbols(
 
 
 @app.post("/stocks/validate")
-async def validate_stock_symbol(request: dict):
+async def validate_stock_symbol(request: dict, response: Response):
     """
     Validate if a stock symbol is valid.
 
@@ -5523,6 +5579,8 @@ async def validate_stock_symbol(request: dict):
             "error": str (if invalid)
         }
     """
+    _mark_plugin_route_deprecated(response)
+
     symbol = request.get("symbol")
     if not symbol:
         raise HTTPException(status_code=400, detail="symbol parameter required")
@@ -5543,7 +5601,7 @@ async def validate_stock_symbol(request: dict):
 
 
 @app.post("/traffic/routes/geocode")
-async def geocode_address(request: dict):
+async def geocode_address(request: dict, response: Response):
     """
     Geocode an address to coordinates.
 
@@ -5553,6 +5611,8 @@ async def geocode_address(request: dict):
     Returns:
         lat, lng, and formatted_address
     """
+    _mark_plugin_route_deprecated(response)
+
     import requests
 
     address = request.get("address")
@@ -5589,7 +5649,7 @@ async def geocode_address(request: dict):
 
 
 @app.post("/traffic/routes/validate")
-async def validate_traffic_route(request: dict):
+async def validate_traffic_route(request: dict, response: Response):
     """
     Validate a traffic route and get basic info.
 
@@ -5601,6 +5661,8 @@ async def validate_traffic_route(request: dict):
     Returns:
         Validation result with distance and duration estimates
     """
+    _mark_plugin_route_deprecated(response)
+
     from src.config import Config
     from src.utils.traffic import TrafficSource
 
