@@ -10,7 +10,6 @@ import re
 import threading
 import time
 import uuid
-from collections import deque
 from contextlib import asynccontextmanager
 from datetime import UTC, datetime
 from pathlib import Path
@@ -29,7 +28,15 @@ from pydantic import BaseModel, Field
 # after this call; noqa: E402 suppresses ruff's import-order check.
 load_dotenv()
 
-from . import __version__  # noqa: E402
+# The display-service runtime and the log store live in their own modules
+# (Phase 2 Task 8) so a router can reach them without importing this one.
+# Imported under their pre-move identities: ~130 test patch targets, plus the
+# handlers still declared here, resolve them as ``src.api_server.<name>``.
+from . import (  # noqa: E402,F401  (re-export)
+    __version__,  # noqa: E402
+    display_runtime,
+    log_store,
+)
 from .auth import is_auth_enabled  # noqa: E402
 from .auth.middleware import AuthMiddleware  # noqa: E402
 from .auth.routes import router as auth_router  # noqa: E402
@@ -64,8 +71,37 @@ from .config import Config  # noqa: E402
 # nothing.
 from .config_manager import get_config_manager  # noqa: E402
 from .devices import classify_dimensions, resolve_dimensions  # noqa: E402
-from .display_runtime import get_service, peek_service  # noqa: E402
+from .display_runtime import (  # noqa: E402
+    _board_is_paused,  # noqa: F401  (re-export: pre-move patch target)
+    _format_uptime,  # noqa: F401  (re-export: pre-move patch target)
+    _get_board_client,  # noqa: F401  (re-export: pre-move patch target)
+    _get_first_board_dims,  # noqa: F401  (re-export: pre-move patch target)
+    _get_server_ip,  # noqa: F401  (re-export: pre-move patch target)
+    _get_service_uptime,  # noqa: F401  (re-export: pre-move patch target)
+    _note_out_of_band_write,  # noqa: F401  (re-export: pre-move patch target)
+    _primary_board_entry,  # noqa: F401  (re-export: pre-move patch target)
+    _primary_connection_info,  # noqa: F401  (re-export: pre-move patch target)
+    _publish_mqtt_state_update,  # noqa: F401  (re-export: pre-move patch target)
+    _send_with_status,  # noqa: F401  (re-export: pre-move patch target)
+    get_service,  # noqa: F401  (re-export: pre-move patch target)
+    mark_service_started,  # noqa: F401  (re-export: pre-move patch target)
+    peek_service,  # noqa: F401  (re-export: pre-move patch target)
+)
 from .displays.service import get_display_service, reset_display_service  # noqa: E402, F401
+from .log_store import (  # noqa: E402
+    LOG_BACKUP_COUNT,  # noqa: F401  (re-export: pre-move patch target)
+    LOG_MAX_BYTES,  # noqa: F401  (re-export: pre-move patch target)
+    JSONFileHandler,  # noqa: F401  (re-export: pre-move patch target)
+    LogBufferHandler,  # noqa: F401  (re-export: pre-move patch target)
+    _create_log_entry,  # noqa: F401  (re-export: pre-move patch target)
+    _log_buffer,  # noqa: F401  (re-export: pre-move patch target)
+    _log_dir,  # noqa: F401  (re-export: pre-move patch target)
+    _log_file,  # noqa: F401  (re-export: pre-move patch target)
+    _log_lock,  # noqa: F401  (re-export: pre-move patch target)
+    _read_logs_from_files,  # noqa: F401  (re-export: pre-move patch target)
+    _setup_file_logging,  # noqa: F401  (re-export: pre-move patch target)
+)
+from .main import DisplayService  # noqa: E402
 from .network.wifi import WiFiError, get_wifi_service  # noqa: E402
 from .pages.service import (  # noqa: E402
     check_ref_board_compatibility,
@@ -74,7 +110,7 @@ from .pages.service import (  # noqa: E402
 )
 from .panels.models import PanelCreate, PanelUpdate  # noqa: E402
 from .panels.service import get_panel_service  # noqa: E402
-from .paths import get_data_dir  # noqa: E402
+from .paths import get_data_dir  # noqa: E402, F401  (re-export: patch seam)
 
 # Patch seam (issue #1756): no handler left in this module calls it, but the
 # extracted routers resolve it through `src.api_server` at call time so
@@ -89,32 +125,6 @@ from .time_service import reset_time_service  # noqa: E402
 from .virtual_board_client import release_virtual_board_state  # noqa: E402
 
 logger = logging.getLogger(__name__)
-
-# Log file configuration.
-#
-# ``LOG_DIR`` is a *test seam* in the same shape as ``SYSTEM_UPDATE_STATE_FILE``
-# further down: production leaves it ``None`` and ``_log_dir()`` resolves
-# ``<data>/logs`` lazily through ``src.paths.get_data_dir()`` (honoring
-# ``FIESTABOARD_DATA_DIR``, #1762). It was previously the hard-coded container
-# path ``/app/data/logs``, which bypassed the seam entirely and made the test
-# suite write ``data/logs/app.log`` into the checkout on every run (#1881).
-#
-# Resolve at call time, never at import time: import-time resolution is what
-# created this class of bug (#1894).
-LOG_DIR: Path | None = None
-LOG_MAX_BYTES = 5 * 1024 * 1024  # 5MB per file
-LOG_BACKUP_COUNT = 5  # Keep 5 backup files (25MB total max)
-
-
-def _log_dir() -> Path:
-    """Resolve the log directory, honoring the ``LOG_DIR`` test seam."""
-    return LOG_DIR if LOG_DIR is not None else get_data_dir() / "logs"
-
-
-def _log_file() -> Path:
-    """Resolve the current log file (``<data>/logs/app.log``)."""
-    return _log_dir() / "app.log"
-
 
 # Cache state for /muni/stops endpoint
 _muni_stops_cache: dict[str, Any] | None = None
@@ -317,172 +327,13 @@ def _validate_board_host_is_local_network(host: str) -> None:
 # The background-thread lifecycle below is server lifecycle and stays here.
 _service_thread: threading.Thread | None = None
 _service_running = False
-_service_start_time: float | None = None  # Track when service started
 _shutting_down = False  # Set during app shutdown to suppress auto-restart
 
-# In-memory log buffer (last 500 log entries for quick access)
-_log_buffer: deque = deque(maxlen=500)
-_log_lock = threading.Lock()
-
-
-def _create_log_entry(record: logging.LogRecord, formatted_message: str) -> dict[str, Any]:
-    """Create a structured log entry from a log record with UTC timestamp."""
-    from .time_service import get_time_service
-
-    time_service = get_time_service()
-
-    return {
-        "timestamp": time_service.create_utc_timestamp(),
-        "level": record.levelname,
-        "logger": record.name,
-        "message": formatted_message,
-    }
-
-
-class LogBufferHandler(logging.Handler):
-    """Custom logging handler that stores logs in memory for API access."""
-
-    def emit(self, record):
-        try:
-            log_entry = _create_log_entry(record, self.format(record))
-            with _log_lock:
-                _log_buffer.append(log_entry)
-        except Exception:
-            self.handleError(record)
-
-
-class JSONFileHandler(logging.handlers.RotatingFileHandler):
-    """Rotating file handler that writes logs as JSON lines."""
-
-    def emit(self, record):
-        try:
-            log_entry = _create_log_entry(record, self.format(record))
-            # Write as JSON line
-            msg = json.dumps(log_entry) + "\n"
-            stream = self.stream
-            stream.write(msg)
-            self.flush()
-            # Handle rotation
-            if self.shouldRollover(record):
-                self.doRollover()
-        except Exception:
-            self.handleError(record)
-
-    def shouldRollover(self, record):
-        """Check if we should rollover based on file size."""
-        if self.stream is None:
-            self.stream = self._open()
-        if self.maxBytes > 0:
-            self.stream.seek(0, 2)  # Seek to end
-            if self.stream.tell() >= self.maxBytes:
-                return True
-        return False
-
-
-def _setup_file_logging():
-    """Set up file-based logging with rotation."""
-    try:
-        # Create logs directory if it doesn't exist
-        log_file = _log_file()
-        log_file.parent.mkdir(parents=True, exist_ok=True)
-
-        # Create JSON file handler with rotation
-        file_handler = JSONFileHandler(
-            str(log_file), maxBytes=LOG_MAX_BYTES, backupCount=LOG_BACKUP_COUNT, encoding="utf-8"
-        )
-        file_handler.setFormatter(logging.Formatter("%(message)s"))
-        file_handler.setLevel(logging.INFO)
-
-        # Add to root logger
-        logging.getLogger().addHandler(file_handler)
-        logger.info(f"File logging initialized: {log_file}")
-    except Exception as e:
-        logger.warning(f"Failed to set up file logging: {e}")
-
-
-def _read_logs_from_files(
-    limit: int = 100, offset: int = 0, level: str | None = None, search: str | None = None
-) -> tuple[list[dict[str, Any]], int, bool]:
-    """
-    Read logs from log files with filtering and pagination.
-
-    Returns: (logs, total_matching, has_more)
-    """
-    all_logs = []
-
-    # Read from current log file and backups
-    current_log = _log_file()
-    log_files = [current_log]
-    for i in range(1, LOG_BACKUP_COUNT + 1):
-        backup_file = Path(f"{current_log}.{i}")
-        if backup_file.exists():
-            log_files.append(backup_file)
-
-    # Read all log entries from files (newest first)
-    for log_file in log_files:
-        if not log_file.exists():
-            continue
-        try:
-            with open(log_file, encoding="utf-8") as f:
-                lines = f.readlines()
-                for line in reversed(lines):
-                    line = line.strip()
-                    if not line:
-                        continue
-                    try:
-                        entry = json.loads(line)
-                        all_logs.append(entry)
-                    except json.JSONDecodeError:
-                        continue
-        except Exception:
-            continue
-
-    # Also include in-memory buffer (most recent)
-    with _log_lock:
-        memory_logs = list(_log_buffer)
-
-    # Merge: memory logs are most recent, then file logs
-    # Deduplicate by timestamp + message
-    seen = set()
-    merged_logs = []
-
-    for log in reversed(memory_logs):
-        key = (log.get("timestamp"), log.get("message"))
-        if key not in seen:
-            seen.add(key)
-            merged_logs.append(log)
-
-    for log in all_logs:
-        key = (log.get("timestamp"), log.get("message"))
-        if key not in seen:
-            seen.add(key)
-            merged_logs.append(log)
-
-    # Apply filters
-    filtered_logs = merged_logs
-
-    if level:
-        level_upper = level.upper()
-        filtered_logs = [log for log in filtered_logs if log.get("level") == level_upper]
-
-    if search:
-        search_lower = search.lower()
-        filtered_logs = [
-            log
-            for log in filtered_logs
-            if search_lower in log.get("message", "").lower() or search_lower in log.get("logger", "").lower()
-        ]
-
-    total_matching = len(filtered_logs)
-
-    # Apply pagination
-    start = offset
-    end = offset + limit
-    paginated = filtered_logs[start:end]
-    has_more = end < total_matching
-
-    return paginated, total_matching, has_more
-
+# ``_service_running`` is written by the start/stop lifecycle below and read at
+# 22 sites here; src/display_runtime.py reads it through this probe so a
+# converted router can answer "is the display loop running" without importing
+# this module. One flag, one owner, two readers.
+display_runtime.set_running_probe(lambda: _service_running)
 
 class MessageRequest(BaseModel):
     """Request model for sending a custom message."""
@@ -929,47 +780,9 @@ log_buffer_handler.setFormatter(logging.Formatter("%(asctime)s - %(name)s - %(le
 logging.getLogger().addHandler(log_buffer_handler)
 
 
-def _publish_mqtt_state_update() -> None:
-    """Push fresh MQTT state after an out-of-band board write (issue #1794).
-
-    No-op when the MQTT integration isn't wired. Errors are swallowed —
-    MQTT reporting must never fail the board write that triggered it.
-    """
-    try:
-        from .mqtt import get_mqtt_client
-
-        client = get_mqtt_client()
-        publisher = getattr(client, "_state_publisher", None) if client else None
-        if publisher is None:
-            return
-        publisher.mark_display_updated()
-        publisher.gather_and_publish()
-    except Exception as e:
-        logger.debug(f"MQTT state publish after board write failed: {e}")
-
-
-def _note_out_of_band_write() -> None:
-    """Record a successful out-of-band write to the primary board and push
-    fresh MQTT state (issue #1831).
-
-    The write bypassed the display loop and persists (issue #1794), so the
-    board no longer shows the configured page; flagging it lets the state
-    publisher report that instead of the page name. Peek only — with no
-    DisplayService there is nothing to flag, and reporting must never fail
-    the board write that triggered it.
-    """
-    service = peek_service()
-    if service is not None:
-        try:
-            service.mark_showing_out_of_band()
-        except Exception as e:
-            logger.debug(f"Out-of-band mark failed: {e}")
-    _publish_mqtt_state_update()
-
-
 def run_service_background():
     """Run the service in a background thread with auto-restart on failure."""
-    global _service_running, _service_start_time
+    global _service_running
     restart_delay = 2
     max_restart_delay = 60
 
@@ -991,7 +804,7 @@ def run_service_background():
 
         service.running = True
         _service_running = True
-        _service_start_time = time.time()
+        mark_service_started()
         restart_delay = 2  # Reset backoff on successful start
         try:
             logger.info("Starting background display service...")
@@ -2042,31 +1855,6 @@ async def stop_service():
         _service_running = False
 
     return {"status": "stopped", "message": "Service stopped successfully"}
-
-
-def _send_with_status(service, method: str, fallback: str, *args, **kwargs) -> tuple[bool, str | None]:
-    """Run a ``check_and_send_*`` pass and return ``(sent, failure reason)``.
-
-    ``check_and_send_*`` swallow exceptions and return a bool that conflates
-    "failed" with benign skips, so endpoints reported silent failures as
-    success (issue #1791). The ``*_with_status`` wrappers capture the reason
-    for *this* call in a thread-local, which is why the reason must come back
-    from the call rather than be read off the runtime afterwards — the engine
-    thread rewrites ``last_send_error`` on its own cadence.
-
-    Falls back to the plain method (and no reason) when the service does not
-    expose the wrapper, so Mock services from older test fixtures still work.
-    Only a non-empty ``str`` counts as a reason, for the same Mock reason
-    (same convention as ``_board_is_paused``).
-    """
-    wrapper = getattr(service, method, None)
-    if callable(wrapper):
-        result = wrapper(*args, **kwargs)
-        if isinstance(result, tuple) and len(result) == 2:
-            sent, error = result
-            return sent is True, (error if isinstance(error, str) and error else None)
-    sent = getattr(service, fallback)(*args, **kwargs)
-    return sent is True, None
 
 
 @app.post("/refresh")
@@ -6108,124 +5896,6 @@ async def get_all_settings():
     }
 
 
-# ==================== Debug Endpoints ====================
-
-
-def _get_server_ip() -> str:
-    """Get the server's IP address."""
-    import socket
-
-    try:
-        # Create a socket to determine the IP
-        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        s.connect(("8.8.8.8", 80))
-        ip = s.getsockname()[0]
-        s.close()
-        return ip
-    except Exception:
-        return "unknown"
-
-
-def _get_service_uptime() -> float | None:
-    """Get service uptime in seconds."""
-    if _service_start_time is None:
-        return None
-    return time.time() - _service_start_time
-
-
-def _format_uptime(seconds: float | None) -> str:
-    """Format uptime seconds as 'Xd Xh Xm'."""
-    if seconds is None:
-        return "not running"
-
-    days = int(seconds // 86400)
-    hours = int((seconds % 86400) // 3600)
-    minutes = int((seconds % 3600) // 60)
-
-    parts = []
-    if days > 0:
-        parts.append(f"{days}d")
-    if hours > 0:
-        parts.append(f"{hours}h")
-    if minutes > 0 or len(parts) == 0:
-        parts.append(f"{minutes}m")
-
-    return " ".join(parts)
-
-
-def _get_board_client():
-    """Get the board client from the service."""
-    service = get_service()
-    if service and service.vb_client:
-        return service.vb_client
-    return None
-
-
-def _primary_board_entry() -> dict | None:
-    """First entry of the settings.boards store, or None when it is empty.
-
-    Safe to call from any endpoint — never raises (mirrors
-    ``_get_first_board_dims``).
-    """
-    try:
-        boards = get_settings_service().get_board_settings().boards or []
-        if isinstance(boards, list) and boards and isinstance(boards[0], dict):
-            return boards[0]
-    except Exception as exc:
-        logger.debug("Could not read boards list: %s", exc)
-    return None
-
-
-def _primary_connection_info() -> tuple[str, str]:
-    """Return ``(connection_mode, board_host)`` for the primary board.
-
-    Reads the boards[] store — the source the live clients are built from
-    and what Settings → Boards displays — then falls back to the live
-    primary client. The legacy config.json copy is never consulted: board
-    credentials are unified on settings.json (issue #1760), so with no
-    boards entry and no live client the install is simply unconfigured.
-    """
-    board = _primary_board_entry()
-    if board is not None:
-        mode = board.get("api_mode") or "local"
-        host = board.get("host") or ""
-        return (mode.lower() if isinstance(mode, str) else "local", host if isinstance(host, str) else "")
-
-    client = _get_board_client()
-    if client is not None:
-        # Strict-True guard so Mock clients from older test fixtures don't
-        # read as cloud (same convention as _board_is_paused).
-        mode = "cloud" if getattr(client, "use_cloud", False) is True else "local"
-        host = getattr(client, "host", "")
-        return mode, host if isinstance(host, str) else ""
-
-    return "local", ""
-
-
-def _get_first_board_dims():
-    """Return resolved dimensions for the first configured board.
-
-    Falls back to flagship 6×22 when the boards list is empty or settings
-    cannot be read. Safe to call from any endpoint — never raises.
-    """
-    try:
-        settings_service = get_settings_service()
-        board_settings = settings_service.get_board_settings()
-        boards = getattr(board_settings, "boards", None) or []
-        if boards:
-            first = boards[0]
-            if isinstance(first, dict):
-                dt = first.get("device_type", "flagship")
-                nw = first.get("notes_wide", 1)
-                nt = first.get("notes_tall", 1)
-            else:
-                dt = getattr(first, "device_type", "flagship")
-                nw = getattr(first, "notes_wide", 1)
-                nt = getattr(first, "notes_tall", 1)
-            return resolve_dimensions(dt, notes_wide=nw, notes_tall=nt)
-    except Exception as exc:
-        logger.debug("Could not resolve board dims (using flagship default): %s", exc)
-    return resolve_dimensions("flagship")
 
 
 def _paused_response(board_id: str | None = None) -> dict:

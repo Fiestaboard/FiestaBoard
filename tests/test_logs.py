@@ -63,9 +63,10 @@ def mock_api_server(test_log_dir, sample_log_entries):
     """Create a test client with mocked log directory."""
     # Patch the log directory before importing
     with patch.dict(os.environ, {"PRODUCTION": "true"}):
-        # ``LOG_DIR`` is the test seam; ``_log_file()`` reads it back at call
+        # ``LOG_DIR`` is the test seam (in src.log_store since Phase 2 Task 8);
+        # ``_log_file()`` reads it back at call
         # time, so patching the directory alone redirects both.
-        with patch("src.api_server.LOG_DIR", test_log_dir):
+        with patch("src.log_store.LOG_DIR", test_log_dir):
             # Create log file
             log_file = test_log_dir / "app.log"
             with open(log_file, "w") as f:

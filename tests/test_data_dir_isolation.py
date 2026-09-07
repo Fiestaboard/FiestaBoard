@@ -205,10 +205,10 @@ class TestAbsoluteContainerPathsGoThroughTheSeam:
     """Paths that used to be hard-coded ``/app/data/...`` now follow the seam (#1881)."""
 
     def test_log_dir_follows_the_data_dir_seam(self):
-        from src import api_server
+        from src import api_server, log_store
         from src.paths import get_data_dir
 
-        assert api_server.LOG_DIR is None, "production must leave the LOG_DIR seam unset"
+        assert log_store.LOG_DIR is None, "production must leave the LOG_DIR seam unset"
         assert api_server._log_dir() == get_data_dir() / "logs"
         assert api_server._log_file() == get_data_dir() / "logs" / "app.log"
         assert not api_server._log_dir().resolve().is_relative_to(REPO_ROOT)

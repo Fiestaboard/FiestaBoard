@@ -174,6 +174,10 @@ ignore = [
 "src/system/update_service.py" = ["PTH", "SIM", "RET", "PIE", "RUF010", "RUF013", "RUF059", "RUF100"]
 "src/schedules/routes.py" = ["PTH", "SIM", "RET", "PIE", "RUF010", "RUF013", "RUF059", "RUF100"]
 "src/collections/routes.py" = ["PTH", "SIM", "RET", "PIE", "RUF010", "RUF013", "RUF059", "RUF100"]
+# Same rule for the collaborators lifted out of api_server in Phase 2 Task 8:
+# moved verbatim, so they keep api_server's ignore set.
+"src/log_store.py" = ["PTH", "SIM", "RET", "PIE", "RUF010", "RUF013", "RUF059", "RUF100"]
+"src/display_runtime.py" = ["PTH", "SIM", "RET", "PIE", "RUF010", "RUF013", "RUF059", "RUF100"]
 # CodeQL-sensitive files: see the matching [tool.ruff.format].exclude entry
 # above for the rationale. Any rule fix here would shift line numbers and
 # re-trigger CodeQL's "new alert" false positives on pre-existing findings.

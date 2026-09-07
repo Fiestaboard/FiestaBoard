@@ -256,9 +256,12 @@ class TestStopService:
     def test_stop_success(self, client):
         """Stopping a running service."""
         service = Mock()
+        # Set the singleton itself rather than stubbing the accessor: the
+        # handler and the assertions below must see the same object through
+        # whichever of the two bindings they happen to hold.
         with (
             patch("src.api_server._service_running", True),
-            patch("src.api_server.peek_service", return_value=service),
+            patch("src.display_runtime._service", service),
         ):
             response = client.post("/stop")
             assert response.status_code == 200

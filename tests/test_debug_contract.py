@@ -14,9 +14,9 @@ has something to be measured against.
 Seam targets
 ------------
 Every ``patch()`` target in this file is a module constant below. The slice
-moves handlers out of ``src/api_server.py`` and their collaborators into
-``src/display_runtime.py``; only the constants change when that happens, never
-an assertion. If you find yourself editing an ``assert`` to make this file
+moved the handlers out of ``src/api_server.py`` and their collaborators into
+``src/display_runtime.py`` and ``src/log_store.py``; only the constants
+changed, never an assertion. If you find yourself editing an ``assert`` to make this file
 pass, stop — that is a contract change and it belongs in the docstring's
 change list with a reason.
 
@@ -65,13 +65,13 @@ import pytest
 from fastapi.testclient import TestClient
 
 # --- Seam targets (see module docstring) -----------------------------------
-BOARD_CLIENT = "src.api_server._get_board_client"
-SETTINGS_SERVICE = "src.api_server.get_settings_service"
-SERVICE = "src.api_server.get_service"
-BOARD_ENTRY = "src.api_server._primary_board_entry"
+BOARD_CLIENT = "src.display_runtime._get_board_client"
+SETTINGS_SERVICE = "src.display_runtime.get_settings_service"
+SERVICE = "src.display_runtime.get_service"
+BOARD_ENTRY = "src.display_runtime._primary_board_entry"
 DIAGNOSTICS = "src.network_diagnostics.run_full_diagnostics"
-READ_LOGS = "src.api_server._read_logs_from_files"
-NOTE_OUT_OF_BAND = "src.api_server._note_out_of_band_write"
+READ_LOGS = "src.log_store._read_logs_from_files"
+NOTE_OUT_OF_BAND = "src.display_runtime._note_out_of_band_write"
 
 FLAGSHIP_ROWS, FLAGSHIP_COLS = 6, 22
 

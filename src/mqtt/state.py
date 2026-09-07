@@ -261,7 +261,7 @@ class StatePublisher:
         try:
             import time
 
-            from src.api_server import _service_start_time
+            from src.display_runtime import _service_start_time
 
             if _service_start_time is not None:
                 return str(int(time.time() - _service_start_time))

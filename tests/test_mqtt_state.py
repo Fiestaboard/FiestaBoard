@@ -35,7 +35,7 @@ class TestStatePublisherGather:
 
     @patch("src.config_manager.ConfigManager")
     @patch("src.api_server._get_board_client")
-    @patch("src.api_server._service_start_time", 1000000.0)
+    @patch("src.display_runtime._service_start_time", 1000000.0)
     @patch("src.pages.service.get_page_service")
     @patch("src.settings.service.get_settings_service")
     @patch("src.config.Config")
@@ -70,7 +70,7 @@ class TestStatePublisherGather:
 
     @patch("src.config_manager.ConfigManager")
     @patch("src.api_server._get_board_client")
-    @patch("src.api_server._service_start_time", 1000000.0)
+    @patch("src.display_runtime._service_start_time", 1000000.0)
     @patch("src.pages.service.get_page_service")
     @patch("src.settings.service.get_settings_service")
     @patch("src.config.Config")
@@ -117,7 +117,7 @@ class TestStatePublisherGather:
 
     @patch("src.config_manager.ConfigManager")
     @patch("src.api_server._get_board_client")
-    @patch("src.api_server._service_start_time", 1000000.0)
+    @patch("src.display_runtime._service_start_time", 1000000.0)
     @patch("src.pages.service.get_page_service")
     @patch("src.settings.service.get_settings_service")
     @patch("src.config.Config")
@@ -163,7 +163,7 @@ class TestStatePublisherDiagnostics:
 
     @patch("src.config_manager.ConfigManager")
     @patch("src.api_server._get_board_client")
-    @patch("src.api_server._service_start_time", 1000000.0)
+    @patch("src.display_runtime._service_start_time", 1000000.0)
     @patch("src.pages.service.get_page_service")
     @patch("src.settings.service.get_settings_service")
     @patch("src.config.Config")
@@ -190,7 +190,7 @@ class TestStatePublisherDiagnostics:
 
     @patch("src.config_manager.ConfigManager")
     @patch("src.api_server._get_board_client")
-    @patch("src.api_server._service_start_time", 1000000.0)
+    @patch("src.display_runtime._service_start_time", 1000000.0)
     @patch("src.pages.service.get_page_service")
     @patch("src.settings.service.get_settings_service")
     @patch("src.config.Config")
@@ -223,7 +223,7 @@ class TestStatePublisherDiagnostics:
 
     @patch("src.config_manager.ConfigManager")
     @patch("src.api_server._get_board_client")
-    @patch("src.api_server._service_start_time", 1000000.0)
+    @patch("src.display_runtime._service_start_time", 1000000.0)
     @patch("src.pages.service.get_page_service")
     @patch("src.settings.service.get_settings_service")
     @patch("src.config.Config")
@@ -260,7 +260,7 @@ class TestStatePublisherDiagnostics:
 
     @patch("src.config_manager.ConfigManager")
     @patch("src.api_server._get_board_client")
-    @patch("src.api_server._service_start_time", 1000000.0)
+    @patch("src.display_runtime._service_start_time", 1000000.0)
     @patch("src.pages.service.get_page_service")
     @patch("src.settings.service.get_settings_service")
     @patch("src.config.Config")
@@ -291,7 +291,7 @@ class TestStatePublisherDiagnostics:
 
     @patch("src.config_manager.ConfigManager")
     @patch("src.api_server._get_board_client")
-    @patch("src.api_server._service_start_time", 1000000.0)
+    @patch("src.display_runtime._service_start_time", 1000000.0)
     @patch("src.pages.service.get_page_service")
     @patch("src.settings.service.get_settings_service")
     @patch("src.config.Config")
@@ -328,7 +328,7 @@ class TestStatePublisherTransitions:
 
     @patch("src.config_manager.ConfigManager")
     @patch("src.api_server._get_board_client")
-    @patch("src.api_server._service_start_time", 1000000.0)
+    @patch("src.display_runtime._service_start_time", 1000000.0)
     @patch("src.pages.service.get_page_service")
     @patch("src.settings.service.get_settings_service")
     @patch("src.config.Config")
@@ -508,7 +508,7 @@ class TestStatePublisherOutOfBand:
     @patch("src.api_server.peek_service")
     @patch("src.config_manager.ConfigManager")
     @patch("src.api_server._get_board_client")
-    @patch("src.api_server._service_start_time", 1000000.0)
+    @patch("src.display_runtime._service_start_time", 1000000.0)
     @patch("src.pages.service.get_page_service")
     @patch("src.settings.service.get_settings_service")
     @patch("src.config.Config")
@@ -532,7 +532,7 @@ class TestStatePublisherOutOfBand:
     @patch("src.api_server.peek_service")
     @patch("src.config_manager.ConfigManager")
     @patch("src.api_server._get_board_client")
-    @patch("src.api_server._service_start_time", 1000000.0)
+    @patch("src.display_runtime._service_start_time", 1000000.0)
     @patch("src.pages.service.get_page_service")
     @patch("src.settings.service.get_settings_service")
     @patch("src.config.Config")
@@ -554,7 +554,7 @@ class TestStatePublisherOutOfBand:
     @patch("src.api_server.peek_service")
     @patch("src.config_manager.ConfigManager")
     @patch("src.api_server._get_board_client")
-    @patch("src.api_server._service_start_time", 1000000.0)
+    @patch("src.display_runtime._service_start_time", 1000000.0)
     @patch("src.pages.service.get_page_service")
     @patch("src.settings.service.get_settings_service")
     @patch("src.config.Config")

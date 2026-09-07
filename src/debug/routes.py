@@ -15,13 +15,21 @@ pure move in the previous commit; this module now serves them under
   by the send floor is a **429**, an unreachable board is a **503** — not a
   200 carrying a word like ``"blocked"``.
 
-Names that still live in ``api_server`` — the service getters and the board
-helpers — are reached through the thin call-time proxies below rather than a
-module-level import. That is the ``src/mqtt/commands.py`` pattern the other
-extracted routers use: a module-level import would both create an import
-cycle (``api_server`` imports this router) and detach the handlers from the
-suite's ``patch("src.api_server.<name>")`` targets. They are retired in the
-next commit of this same slice.
+Collaborators resolve from their canonical homes at **module import time**, so
+this module never loads ``src.api_server``
+(``tests/test_debug_decoupled.py`` asserts that in a fresh interpreter). The
+board helpers and the display-service singleton moved to
+:mod:`src.display_runtime`, the log reader to :mod:`src.log_store`, both in
+this same slice — before it they existed only inside the app module, which is
+what forced every extracted router to import it back at call time. Tests that
+need to stub a collaborator patch it in **its own module** —
+``src.display_runtime.<name>`` / ``src.log_store.<name>`` — not
+``src.api_server.<name>``. That differs from the collections reference on
+purpose: several of these helpers call each other
+(``_primary_connection_info`` falls back to ``_get_board_client``), so a
+``from ... import name`` here would leave the router and the module it came
+from looking at two different stubs. The handlers therefore reach them as
+module attributes, and one patch target is the whole truth.
 """
 
 from __future__ import annotations
@@ -31,7 +39,8 @@ import time
 
 from fastapi import APIRouter, HTTPException, Query
 
-from src import __version__
+from src import __version__, log_store
+from src import display_runtime as runtime
 from src.api_errors import errors
 from src.board_client import board_client_from_board_dict
 from src.board_send_executor import run_board_send
@@ -55,109 +64,6 @@ router = APIRouter(tags=["debug"])
 
 
 # ---------------------------------------------------------------------------
-# Call-time seams onto api_server (retired later in this slice)
-# ---------------------------------------------------------------------------
-
-
-def _service_is_running() -> bool:
-    """Call-time seam onto the ``src.api_server._service_running`` flag."""
-    from src import api_server
-
-    return api_server._service_running
-
-
-def _get_board_client(*args, **kwargs):
-    """Call-time seam onto ``src.api_server._get_board_client`` — see module docstring."""
-    from src.api_server import _get_board_client as _impl
-
-    return _impl(*args, **kwargs)
-
-
-def get_settings_service(*args, **kwargs):
-    """Call-time seam onto ``src.api_server.get_settings_service`` — see module docstring."""
-    from src.api_server import get_settings_service as _impl
-
-    return _impl(*args, **kwargs)
-
-
-def get_service(*args, **kwargs):
-    """Call-time seam onto ``src.api_server.get_service`` — see module docstring."""
-    from src.api_server import get_service as _impl
-
-    return _impl(*args, **kwargs)
-
-
-def _board_is_paused(*args, **kwargs):
-    """Call-time seam onto ``src.api_server._board_is_paused`` — see module docstring."""
-    from src.api_server import _board_is_paused as _impl
-
-    return _impl(*args, **kwargs)
-
-
-def _get_first_board_dims(*args, **kwargs):
-    """Call-time seam onto ``src.api_server._get_first_board_dims`` — see module docstring."""
-    from src.api_server import _get_first_board_dims as _impl
-
-    return _impl(*args, **kwargs)
-
-
-def _note_out_of_band_write(*args, **kwargs):
-    """Call-time seam onto ``src.api_server._note_out_of_band_write`` — see module docstring."""
-    from src.api_server import _note_out_of_band_write as _impl
-
-    return _impl(*args, **kwargs)
-
-
-def _primary_connection_info(*args, **kwargs):
-    """Call-time seam onto ``src.api_server._primary_connection_info`` — see module docstring."""
-    from src.api_server import _primary_connection_info as _impl
-
-    return _impl(*args, **kwargs)
-
-
-def _primary_board_entry(*args, **kwargs):
-    """Call-time seam onto ``src.api_server._primary_board_entry`` — see module docstring."""
-    from src.api_server import _primary_board_entry as _impl
-
-    return _impl(*args, **kwargs)
-
-
-def _get_server_ip(*args, **kwargs):
-    """Call-time seam onto ``src.api_server._get_server_ip`` — see module docstring."""
-    from src.api_server import _get_server_ip as _impl
-
-    return _impl(*args, **kwargs)
-
-
-def _get_service_uptime(*args, **kwargs):
-    """Call-time seam onto ``src.api_server._get_service_uptime`` — see module docstring."""
-    from src.api_server import _get_service_uptime as _impl
-
-    return _impl(*args, **kwargs)
-
-
-def _format_uptime(*args, **kwargs):
-    """Call-time seam onto ``src.api_server._format_uptime`` — see module docstring."""
-    from src.api_server import _format_uptime as _impl
-
-    return _impl(*args, **kwargs)
-
-
-def _read_logs_from_files(*args, **kwargs):
-    """Call-time seam onto ``src.api_server._read_logs_from_files`` — see module docstring."""
-    from src.api_server import _read_logs_from_files as _impl
-
-    return _impl(*args, **kwargs)
-
-
-def _send_with_status(*args, **kwargs):
-    """Call-time seam onto ``src.api_server._send_with_status`` — see module docstring."""
-    from src.api_server import _send_with_status as _impl
-
-    return _impl(*args, **kwargs)
-
-
-# ---------------------------------------------------------------------------
 # Shared guards
 #
 # Every out-of-band board write in this domain runs the same four checks in
@@ -172,7 +78,7 @@ PAUSED_DETAIL = "Board is paused — sends are blocked until it is resumed."
 
 def _require_board_client():
     """The primary board client, or a 400 saying there isn't one."""
-    client = _get_board_client()
+    client = runtime._get_board_client()
     if not client:
         raise HTTPException(status_code=400, detail="Board not configured")
     return client
@@ -185,7 +91,7 @@ def _raise_if_paused() -> None:
     a refusal dressed as a success, which any client checking only the status
     code read as "sent".
     """
-    if _board_is_paused():
+    if runtime._board_is_paused():
         logger.info("Board is paused - blocking debug send")
         raise HTTPException(status_code=409, detail=PAUSED_DETAIL)
 
@@ -234,11 +140,11 @@ def _send_out_of_band(client, grid: list[list[int]], *, failure: str) -> None:
         raise HTTPException(status_code=500, detail=failure)
     if not was_sent:
         _raise_if_throttled(client)
-    _note_out_of_band_write()
+    runtime._note_out_of_band_write()
 
 
 def _sends_to_board() -> bool:
-    return bool(get_settings_service().should_send_to_board())
+    return bool(runtime.get_settings_service().should_send_to_board())
 
 
 # ---------------------------------------------------------------------------
@@ -260,7 +166,7 @@ async def debug_blank_board():
 
     _raise_if_paused()
 
-    dims = _get_first_board_dims()
+    dims = runtime._get_first_board_dims()
     _send_out_of_band(
         client,
         [[0] * dims.cols for _ in range(dims.rows)],
@@ -284,7 +190,7 @@ async def debug_fill_board(request: BoardFillRequest):
 
     _raise_if_paused()
 
-    dims = _get_first_board_dims()
+    dims = runtime._get_first_board_dims()
     _send_out_of_band(
         client,
         [[character_code] * dims.cols for _ in range(dims.rows)],
@@ -306,11 +212,11 @@ def _build_debug_text() -> str:
     """
     from src.time_service import get_time_service
 
-    connection_mode, board_ip = _primary_connection_info()
+    connection_mode, board_ip = runtime._primary_connection_info()
     board_ip = board_ip or "not set"
     connection_mode = connection_mode.upper()
-    server_ip = _get_server_ip()
-    uptime_str = _format_uptime(_get_service_uptime())
+    server_ip = runtime._get_server_ip()
+    uptime_str = runtime._format_uptime(runtime._get_service_uptime())
     timestamp = get_time_service().get_current_time().strftime("%H:%M")
 
     return f"""DEBUG INFO
@@ -341,7 +247,7 @@ async def debug_show_info():
 
     from src.text_to_board import text_to_board_array
 
-    dims = _get_first_board_dims()
+    dims = runtime._get_first_board_dims()
     board_array = text_to_board_array(debug_text, use_color_tiles=False, rows=dims.rows, cols=dims.cols)
     _send_out_of_band(client, board_array, failure="Failed to send debug info")
     return DebugInfoResponse(message="Debug info sent to board", debug_info=debug_text)
@@ -424,7 +330,7 @@ async def get_cache_status():
     deprecation shim is API_CONVENTIONS.md's "Deprecation, never deletion"
     work, not this slice's — see the PR.
     """
-    service = get_service()
+    service = runtime.get_service()
     if not service or not service.vb_client:
         raise HTTPException(status_code=503, detail="Service not initialized")
 
@@ -438,7 +344,7 @@ async def clear_cache():
     Forces the next update to be sent to the board even if the message
     content hasn't changed.
     """
-    service = get_service()
+    service = runtime.get_service()
     if not service or not service.vb_client:
         raise HTTPException(status_code=503, detail="Service not initialized")
 
@@ -453,7 +359,7 @@ async def force_refresh():
     Unlike /refresh, this will send to the board even if the message
     content hasn't changed. Useful when you want to resync the board.
     """
-    service = get_service()
+    service = runtime.get_service()
     if not service:
         raise HTTPException(status_code=503, detail="Service not initialized")
 
@@ -477,7 +383,9 @@ async def force_refresh():
         except Exception as e:
             logger.debug(f"Board content invalidation failed: {e}")
 
-        return _send_with_status(service, "check_and_send_active_page_with_status", "check_and_send_active_page")
+        return runtime._send_with_status(
+            service, "check_and_send_active_page_with_status", "check_and_send_active_page"
+        )
 
     try:
         sent, error = await run_board_send(_work)
@@ -505,16 +413,16 @@ async def debug_get_system_info():
     # Connection mode and board IP come from the boards[] store / live client
     # — the values the send path actually uses — not from wizard-era
     # config.json (issue #1791).
-    connection_mode, board_ip = _primary_connection_info()
-    uptime_seconds = _get_service_uptime()
+    connection_mode, board_ip = runtime._primary_connection_info()
+    uptime_seconds = runtime._get_service_uptime()
 
-    client = _get_board_client()
+    client = runtime._get_board_client()
     cache_status = client.get_cache_status() if client else None
 
     # Check if board is configured: the client factory is the authority on
     # "has a usable connection". No boards[] entry means unconfigured — the
     # legacy config.json copy is never consulted (issue #1760).
-    board = _primary_board_entry()
+    board = runtime._primary_board_entry()
     board_configured = False
     if board is not None:
         try:
@@ -524,15 +432,15 @@ async def debug_get_system_info():
 
     return SystemInfoResponse(
         board_ip=board_ip,
-        server_ip=_get_server_ip(),
+        server_ip=runtime._get_server_ip(),
         uptime_seconds=uptime_seconds,
-        uptime_formatted=_format_uptime(uptime_seconds),
+        uptime_formatted=runtime._format_uptime(uptime_seconds),
         connection_mode=connection_mode,
         version=__version__,
         timestamp=get_time_service().create_utc_timestamp(),
         cache_status=cache_status,
         board_configured=board_configured,
-        service_running=_service_is_running(),
+        service_running=runtime.is_service_running(),
     )
 
 
@@ -547,7 +455,7 @@ async def debug_network_diagnostics():
     # Diagnose the connection the send path actually uses: the boards[]
     # store. The legacy config.json copy is never consulted (issue #1760) —
     # with no boards entry the diagnostics run without board credentials.
-    board = _primary_board_entry() or {}
+    board = runtime._primary_board_entry() or {}
     board_host = board.get("host") or None
     board_port = board.get("port") or 7000
     board_api_key = board.get("local_api_key") or None
@@ -588,7 +496,7 @@ async def get_logs(
             detail=f"Invalid log level: {level}. Valid levels: {list(VALID_LOG_LEVELS)}",
         )
 
-    logs, total, has_more = _read_logs_from_files(limit=limit, offset=offset, level=level, search=search)
+    logs, total, has_more = log_store._read_logs_from_files(limit=limit, offset=offset, level=level, search=search)
 
     return LogsResponse(
         logs=logs,

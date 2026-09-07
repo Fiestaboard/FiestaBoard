@@ -1563,12 +1563,14 @@ class TestServiceLifecycle:
 
         The singleton moved to ``src/display_runtime.py`` in Phase 2 slice 3
         so the extracted routers can reach it without importing api_server;
-        the state it guards is the same object.
+        ``api_server`` re-exports the accessor, so both spellings are checked
+        and must agree — the state they guard is one object.
         """
-        from src import display_runtime
+        from src import api_server, display_runtime
 
         with patch.object(display_runtime, "_service", None):
             assert display_runtime.peek_service() is None
+            assert api_server.peek_service() is None
 
     def test_send_message_marks_the_board_as_out_of_band(self, client, mock_service, mock_settings_service):
         """Issue #1831: a manual send replaces the page on the board, so the
