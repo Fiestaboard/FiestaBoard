@@ -1,5 +1,5 @@
 {
-  "_comment": "API conventions ratchet (Phase 2, spec §2). Enforced by tests/test_api_conventions_ratchet.py; rules documented in docs/internal/reference/API_CONVENTIONS.md. Append a domain to converted_domains in the slice PR that converts it — never before. Every exception needs a route that exists, a known rule id, and a reason a reviewer can argue with.",
+  "_comment": "API conventions ratchet (Phase 2, spec \u00a72). Enforced by tests/test_api_conventions_ratchet.py; rules documented in docs/internal/reference/API_CONVENTIONS.md. Append a domain to converted_domains in the slice PR that converts it \u2014 never before. Every exception needs a route that exists, a known rule id, and a reason a reviewer can argue with.",
   "converted_domains": [
     "ai",
     "backup",
@@ -16,6 +16,7 @@
     "plugins",
     "schedules",
     "service",
+    "settings",
     "staff-picks",
     "system",
     "templates",
@@ -31,7 +32,7 @@
     {
       "route": "GET /",
       "rule": "declared_errors",
-      "reason": "Returns three constant strings naming the API. It takes no parameter, reads no state and calls nothing, so there is no failure to declare at any status — the only 500 it could produce is an unhandled bug, which is true of every route and belongs in a log, not the schema."
+      "reason": "Returns three constant strings naming the API. It takes no parameter, reads no state and calls nothing, so there is no failure to declare at any status \u2014 the only 500 it could produce is an unhandled bug, which is true of every route and belongs in a log, not the schema."
     },
     {
       "route": "GET /backup/export",
@@ -41,7 +42,7 @@
     {
       "route": "GET /backup/export",
       "rule": "response_model",
-      "reason": "Serves an opaque file download — a raw Response carrying Content-Disposition and Cache-Control: no-store, whose body is a JSON document whose shape is whatever stores existed at export time. A response_model would either be a lie (dict[str, Any]) or would make FastAPI re-serialize the body and drop the download headers."
+      "reason": "Serves an opaque file download \u2014 a raw Response carrying Content-Disposition and Cache-Control: no-store, whose body is a JSON document whose shape is whatever stores existed at export time. A response_model would either be a lie (dict[str, Any]) or would make FastAPI re-serialize the body and drop the download headers."
     },
     {
       "route": "GET /collections",
@@ -51,12 +52,12 @@
     {
       "route": "GET /config",
       "rule": "declared_errors",
-      "reason": "No failure mode to declare at any status. It takes no path, query or body parameter and reads process-local config that always exists, so it cannot 400, cannot 404, and raises no HTTPException of its own. The rule now accepts a 5xx, but the only 500 this route can produce is an unhandled bug — true of every route, and documenting it would put noise in the schema rather than a contract."
+      "reason": "No failure mode to declare at any status. It takes no path, query or body parameter and reads process-local config that always exists, so it cannot 400, cannot 404, and raises no HTTPException of its own. The rule now accepts a 5xx, but the only 500 this route can produce is an unhandled bug \u2014 true of every route, and documenting it would put noise in the schema rather than a contract."
     },
     {
       "route": "GET /config/board",
       "rule": "declared_errors",
-      "reason": "Parameterless read of the deprecated legacy board view. It projects an empty boards store into defaults rather than failing, so there is no status — 4xx or 5xx — that it deliberately returns."
+      "reason": "Parameterless read of the deprecated legacy board view. It projects an empty boards store into defaults rather than failing, so there is no status \u2014 4xx or 5xx \u2014 that it deliberately returns."
     },
     {
       "route": "GET /config/full",
@@ -96,7 +97,7 @@
     {
       "route": "GET /network/wifi/capability",
       "rule": "declared_errors",
-      "reason": "This is the probe every other /network/wifi route 501s against, and it must answer 200 even — especially — when WiFi is unmanageable: {available: false, reason} is the payload the UI hides the Network tab on. A refusal here would leave the client unable to distinguish 'no WiFi support' from 'this build has no such endpoint'."
+      "reason": "This is the probe every other /network/wifi route 501s against, and it must answer 200 even \u2014 especially \u2014 when WiFi is unmanageable: {available: false, reason} is the payload the UI hides the Network tab on. A refusal here would leave the client unable to distinguish 'no WiFi support' from 'this build has no such endpoint'."
     },
     {
       "route": "GET /pages",
@@ -106,7 +107,7 @@
     {
       "route": "GET /pages/cache/stats",
       "rule": "declared_errors",
-      "reason": "Reports in-memory preview-cache occupancy, which always exists — an empty cache is a valid answer, not an error. Nothing it reads can be missing or unauthorized at the route level."
+      "reason": "Reports in-memory preview-cache occupancy, which always exists \u2014 an empty cache is a valid answer, not an error. Nothing it reads can be missing or unauthorized at the route level."
     },
     {
       "route": "GET /panels",
@@ -131,22 +132,22 @@
     {
       "route": "GET /schedules/active/page",
       "rule": "declared_errors",
-      "reason": "No failure path. It reports whatever is on the board right now — manual page, scheduled page, or nothing — and every collection resolution failure is caught and reported as null rather than raised, because a dashboard poll must not error out over a collection that cannot resolve."
+      "reason": "No failure path. It reports whatever is on the board right now \u2014 manual page, scheduled page, or nothing \u2014 and every collection resolution failure is caught and reported as null rather than raised, because a dashboard poll must not error out over a collection that cannot resolve."
     },
     {
       "route": "GET /schedules/default-page",
       "rule": "declared_errors",
-      "reason": "No failure path. An unknown board_id deliberately answers the global default rather than 404 — the same read/write asymmetry, decided in #1888 and documented in API_CONVENTIONS.md."
+      "reason": "No failure path. An unknown board_id deliberately answers the global default rather than 404 \u2014 the same read/write asymmetry, decided in #1888 and documented in API_CONVENTIONS.md."
     },
     {
       "route": "GET /schedules/enabled",
       "rule": "declared_errors",
-      "reason": "No failure path. An unknown board_id deliberately answers false rather than 404 — the same read/write asymmetry, decided in #1888 and documented in API_CONVENTIONS.md."
+      "reason": "No failure path. An unknown board_id deliberately answers false rather than 404 \u2014 the same read/write asymmetry, decided in #1888 and documented in API_CONVENTIONS.md."
     },
     {
       "route": "GET /silence-status",
       "rule": "declared_errors",
-      "reason": "A read the dashboard polls on a timer. An unknown board_id falls back to the safe answer rather than 404ing, which API_CONVENTIONS.md §board_id validation makes the rule for reads precisely so a tab polling a board another tab just deleted does not raise an error toast. Nothing else it reads can be absent."
+      "reason": "A read the dashboard polls on a timer. An unknown board_id falls back to the safe answer rather than 404ing, which API_CONVENTIONS.md \u00a7board_id validation makes the rule for reads precisely so a tab polling a board another tab just deleted does not raise an error toast. Nothing else it reads can be absent."
     },
     {
       "route": "GET /staff-picks",
@@ -171,7 +172,7 @@
     {
       "route": "GET /templates/variables",
       "rule": "declared_errors",
-      "reason": "No failure path: it reads the in-process template engine and plugin registry, both of which always exist. An install with no plugins answers empty catalogs alongside the static colour/symbol/filter tables — an empty answer, not an error."
+      "reason": "No failure path: it reads the in-process template engine and plugin registry, both of which always exist. An install with no plugins answers empty catalogs alongside the static colour/symbol/filter tables \u2014 an empty answer, not an error."
     },
     {
       "route": "GET /triggers",
@@ -201,12 +202,12 @@
     {
       "route": "POST /config/board/test",
       "rule": "no_200_on_failure",
-      "reason": "Declared probe contract (#1887, Task 10a): the endpoint's job is to report what the board said, so 'your key was rejected' is the requested answer at 200 through BoardTestResponse, not a transport failure. Preconditions the server rejects before probing (missing credential, unsafe host) really are 400, and unanticipated errors really are 500 — tests/test_status_code_correctness.py pins both. Making the upstream verdicts 4xx would tell the wizard the request was malformed when it was not."
+      "reason": "Declared probe contract (#1887, Task 10a): the endpoint's job is to report what the board said, so 'your key was rejected' is the requested answer at 200 through BoardTestResponse, not a transport failure. Preconditions the server rejects before probing (missing credential, unsafe host) really are 400, and unanticipated errors really are 500 \u2014 tests/test_status_code_correctness.py pins both. Making the upstream verdicts 4xx would tell the wizard the request was malformed when it was not."
     },
     {
       "route": "POST /plugins/{plugin_id}/options/{options_id}",
       "rule": "no_200_on_failure",
-      "reason": "Three returns inside except blocks, all deliberate. Two serve the last good options with stale=true when the provider times out or throws, so a settings form mid-edit keeps its picker instead of blanking. The third turns OptionsUnavailable (\"no API key yet\") into a 200 with an error hint, because that is the expected state while the user is still filling in the very field the credential goes in — a 4xx there would surface a failed-request toast for a form that is simply incomplete."
+      "reason": "Three returns inside except blocks, all deliberate. Two serve the last good options with stale=true when the provider times out or throws, so a settings form mid-edit keeps its picker instead of blanking. The third turns OptionsUnavailable (\"no API key yet\") into a 200 with an error hint, because that is the expected state while the user is still filling in the very field the credential goes in \u2014 a 4xx there would surface a failed-request toast for a form that is simply incomplete."
     },
     {
       "route": "POST /schedules/validate",
@@ -216,12 +217,92 @@
     {
       "route": "POST /stop",
       "rule": "declared_errors",
-      "reason": "Idempotent with no failure path: stopping an already-stopped loop is the state the caller asked for, so it answers 200 with changed=false. It touches no resource that can be missing and validates no input — there is nothing it can refuse."
+      "reason": "Idempotent with no failure path: stopping an already-stopped loop is the state the caller asked for, so it answers 200 with changed=false. It touches no resource that can be missing and validates no input \u2014 there is nothing it can refuse."
     },
     {
       "route": "POST /triggers/clear",
       "rule": "declared_errors",
       "reason": "No failure path: clearing an empty trigger set is a successful no-op, and there is no id or body that could be wrong."
+    },
+    {
+      "route": "GET /settings/mqtt",
+      "rule": "declared_errors",
+      "reason": "Read-only, no path or body parameters: it returns the stored MQTT block and has no failure path to declare. Adding an error status would document a failure this endpoint cannot produce."
+    },
+    {
+      "route": "GET /settings/ai",
+      "rule": "declared_errors",
+      "reason": "Read-only, no path or body parameters: it returns the stored AI provider block and has no failure path to declare. Adding an error status would document a failure this endpoint cannot produce."
+    },
+    {
+      "route": "GET /settings/transitions",
+      "rule": "declared_errors",
+      "reason": "Read-only, no path or body parameters: it returns the stored transition settings and has no failure path to declare. Adding an error status would document a failure this endpoint cannot produce."
+    },
+    {
+      "route": "GET /settings/output",
+      "rule": "declared_errors",
+      "reason": "Read-only, no path or body parameters: it returns the stored output target and has no failure path to declare. Adding an error status would document a failure this endpoint cannot produce."
+    },
+    {
+      "route": "GET /settings/polling",
+      "rule": "declared_errors",
+      "reason": "Read-only, no path or body parameters: it returns the stored polling intervals and has no failure path to declare. Adding an error status would document a failure this endpoint cannot produce."
+    },
+    {
+      "route": "GET /settings/board",
+      "rule": "declared_errors",
+      "reason": "Read-only, no path or body parameters: it returns the stored board settings and has no failure path to declare. Adding an error status would document a failure this endpoint cannot produce."
+    },
+    {
+      "route": "GET /settings/display",
+      "rule": "declared_errors",
+      "reason": "Read-only, no path or body parameters: it returns the stored web-UI display preferences and has no failure path to declare. Adding an error status would document a failure this endpoint cannot produce."
+    },
+    {
+      "route": "GET /settings/location",
+      "rule": "declared_errors",
+      "reason": "Read-only, no path or body parameters: it returns the stored location coordinates and has no failure path to declare. Adding an error status would document a failure this endpoint cannot produce."
+    },
+    {
+      "route": "GET /settings/plugins",
+      "rule": "declared_errors",
+      "reason": "Read-only, no path or body parameters: it returns the stored plugin-system settings and has no failure path to declare. Adding an error status would document a failure this endpoint cannot produce."
+    },
+    {
+      "route": "GET /settings/beta",
+      "rule": "declared_errors",
+      "reason": "Read-only, no path or body parameters: it returns the stored beta flags plus their runtime status and has no failure path to declare. Adding an error status would document a failure this endpoint cannot produce."
+    },
+    {
+      "route": "GET /settings/all",
+      "rule": "declared_errors",
+      "reason": "Read-only, no path or body parameters: it returns the stored the whole settings page in one payload and has no failure path to declare. Adding an error status would document a failure this endpoint cannot produce."
+    },
+    {
+      "route": "GET /settings/active-page",
+      "rule": "declared_errors",
+      "reason": "Takes an optional board_id and deliberately falls back rather than 404ing on an unknown one \u2014 the board-scoped-read rule in API_CONVENTIONS.md ('reads fall back', decided with #1888). With the fallback in place there is no error status left to declare, and adding one would document a failure this endpoint is specifically designed not to raise."
+    },
+    {
+      "route": "GET /settings/temporary-override",
+      "rule": "declared_errors",
+      "reason": "Takes no input and always answers: the active override, or every field nulled when there is none. 'No override' is a 200, not a 404 \u2014 the absence is the answer the dashboard polls for."
+    },
+    {
+      "route": "DELETE /settings/temporary-override",
+      "rule": "declared_errors",
+      "reason": "Idempotent cancel with no path or body parameters. Clearing when nothing is active is a success, not a 404 \u2014 the caller's intent (no override) is satisfied either way, and the dashboard's cancel button races the override's own expiry."
+    },
+    {
+      "route": "GET /settings/hdmi-kiosk",
+      "rule": "declared_errors",
+      "reason": "A status read with no input. Every failure mode it has is reported in the 200 body \u2014 'unsupported' off a FiestaPi, 'unknown' when the sidecar is unreachable \u2014 because the caller is asking about the platform, not addressing a resource that can be missing."
+    },
+    {
+      "route": "POST /settings/hdmi-kiosk",
+      "rule": "no_200_on_failure",
+      "reason": "The flagged return is the `except` around `resp.json()`, reached only after the sidecar has already answered 200 or 202 \u2014 the enable was accepted and the work is queued. Returning {'status': 'queued'} there is correct; the sidecar simply sent no JSON body. Every real failure above it is already a 4xx/502. Called out as do-not-touch in the Phase 2 plan's silent-failure enumeration (Task 10a)."
     }
   ]
 }
