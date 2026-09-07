@@ -38,6 +38,7 @@ SLICE_8_ROUTERS = (
     "src/displays/routes.py",
     "src/templates/routes.py",
     "src/triggers/routes.py",
+    "src/transitions/routes.py",
 )
 
 
@@ -226,6 +227,105 @@ print("DECOUPLED")
 
 def test_triggers_router_serves_every_route_without_importing_api_server():
     _run(TRIGGERS_SCRIPT)
+
+
+TRANSITIONS_SCRIPT = r"""
+import asyncio
+import sys
+from types import SimpleNamespace
+from unittest.mock import MagicMock, patch
+
+import src.transitions.routes as routes
+from src.transitions.models import (
+    TransitionLiveTestRequest,
+    TransitionPreviewRequest,
+    TransitionRestoreRequest,
+)
+
+assert "src.api_server" not in sys.modules, "importing the transitions router must not import api_server"
+
+
+class _TwoFrames:
+    config = {}
+    transition_settings = {
+        "interruptible": True,
+        "min_interval_ms": 25,
+        "max_frames": 5,
+        "max_runtime_seconds": 60,
+    }
+
+    def generate_frames(self, from_grid, to_grid, device, config):
+        yield [list(row) for row in from_grid], 50
+        yield to_grid, 0
+
+
+plugin = _TwoFrames()
+manifest = SimpleNamespace(
+    name="Two Frames",
+    description="decoupling fixture",
+    icon="type",
+    version="1.0.0",
+    author="fixture",
+    settings_schema={},
+)
+
+registry = MagicMock()
+registry.plugins = {}
+registry.get_manifest.return_value = manifest
+registry.get_transition_plugin.return_value = plugin
+
+board_client = MagicMock()
+board_client.render.return_value = (True, True)
+service = MagicMock()
+service.vb_client = board_client
+service.get_board_client.return_value = board_client
+
+page = SimpleNamespace(id="p1", device_type="flagship", notes_wide=1, notes_tall=1)
+page_service = MagicMock()
+page_service.get_page.return_value = page
+page_service.preview_page.return_value = SimpleNamespace(available=True, formatted="HELLO", error=None)
+
+settings_service = MagicMock()
+settings_service.get_beta_settings.return_value = SimpleNamespace(transition_plugins_enabled=True)
+settings_service.get_active_page_id.return_value = "p1"
+
+with (
+    patch("src.transitions.routes.get_plugin_registry", return_value=registry),
+    patch("src.transitions.routes.get_settings_service", return_value=settings_service),
+    patch("src.transitions.routes.get_service", return_value=service),
+    patch("src.transitions.routes.get_page_service", return_value=page_service),
+    patch("src.transitions.routes._silence_active", return_value=False),
+    patch("src.transitions.routes._board_is_paused", return_value=False),
+    patch("src.transitions.routes.LIVE_TEST_FROM_HOLD_SECONDS", 0),
+):
+    listed = asyncio.run(routes.list_transition_plugins())
+    assert listed.plugins == [], listed
+
+    preview = asyncio.run(
+        routes.preview_transition(TransitionPreviewRequest(plugin_id="two", to_text="HI"))
+    )
+    assert preview.frame_count == 2, preview
+
+    live = asyncio.run(
+        routes.run_live_transition_test(TransitionLiveTestRequest(plugin_id="two", to_page_id="p1"))
+    )
+    assert live.sent is True, live
+
+    restored = asyncio.run(routes.restore_after_transition_test(TransitionRestoreRequest()))
+    assert restored.page_id == "p1", restored
+
+assert registry.get_transition_plugin.call_count == 2
+assert board_client.render.call_count == 2
+settings_service.get_beta_settings.assert_called()
+page_service.preview_page.assert_called()
+
+assert "src.api_server" not in sys.modules, "a transitions handler imported src.api_server"
+print("DECOUPLED")
+"""
+
+
+def test_transitions_router_serves_every_route_without_importing_api_server():
+    _run(TRANSITIONS_SCRIPT)
 
 
 @pytest.mark.parametrize("module_path", SLICE_8_ROUTERS)

@@ -11,6 +11,7 @@
     "schedules",
     "system",
     "templates",
+    "transitions",
     "triggers"
   ],
   "exceptions": [

@@ -5,6 +5,13 @@ through TestClient, because spinning up TestClient triggers the FastAPI
 lifespan which initializes the plugin registry and the resulting
 sys.modules pollution interferes with other plugin tests that patch
 their own module's datetime.
+
+Phase 2 slice 8 moved these handlers to ``src/transitions/routes.py`` and gave
+them typed request models and typed responses. The direct calls below go
+through the three thin ``_preview`` / ``_live`` / ``_restore`` wrappers so each
+test still reads as a request body, and collaborator stubs patch
+``src.transitions.routes.<name>`` rather than ``src.api_server.<name>``.
+``tests/test_transitions_contract.py`` covers the same endpoints over HTTP.
 """
 
 import asyncio
@@ -14,15 +21,21 @@ from types import SimpleNamespace
 import pytest
 from fastapi import HTTPException
 
-import src.api_server as api_server
-from src.api_server import (
+import src.transitions.routes as transitions_routes
+from src.config import Config
+from src.plugins.base import TransitionPluginBase
+from src.plugins.manifest import PluginManifest
+from src.transitions.models import (
+    TransitionLiveTestRequest,
+    TransitionPreviewRequest,
+    TransitionRestoreRequest,
+)
+from src.transitions.routes import (
     list_transition_plugins,
     preview_transition,
     restore_after_transition_test,
     run_live_transition_test,
 )
-from src.plugins.base import TransitionPluginBase
-from src.plugins.manifest import PluginManifest
 
 # ---------------------------------------------------------------------------
 # Fixtures
@@ -144,6 +157,21 @@ def _run(coro):
     return asyncio.run(coro)
 
 
+def _preview(body):
+    """Call the preview handler with a request body, as HTTP would."""
+    return preview_transition(TransitionPreviewRequest(**body))
+
+
+def _live(body):
+    """Call the live-test handler with a request body, as HTTP would."""
+    return run_live_transition_test(TransitionLiveTestRequest(**body))
+
+
+def _restore(body=None):
+    """Call the restore handler with a request body, as HTTP would."""
+    return restore_after_transition_test(TransitionRestoreRequest(**(body or {})))
+
+
 # ---------------------------------------------------------------------------
 # list_transition_plugins
 # ---------------------------------------------------------------------------
@@ -151,17 +179,17 @@ def _run(coro):
 
 def test_list_transition_plugins_returns_installed(patched_registry):
     data = _run(list_transition_plugins())
-    ids = {p["id"] for p in data["plugins"]}
+    ids = {p.id for p in data.plugins}
     assert {"fake_typewriter", "fake_forever"} <= ids
 
 
 def test_list_transition_plugins_includes_settings_schema(patched_registry):
     data = _run(list_transition_plugins())
-    by_id = {p["id"]: p for p in data["plugins"]}
+    by_id = {p.id: p for p in data.plugins}
     tw = by_id["fake_typewriter"]
-    assert tw["settings_schema"]["properties"]["frame_interval_ms"]["default"] == 100
-    assert tw["transition_settings"]["max_frames"] == 5
-    assert tw["strategy"] == "plugin:fake_typewriter"
+    assert tw.settings_schema["properties"]["frame_interval_ms"]["default"] == 100
+    assert tw.transition_settings.max_frames == 5
+    assert tw.strategy == "plugin:fake_typewriter"
 
 
 def test_list_transition_plugins_includes_disabled(patched_registry):
@@ -169,15 +197,15 @@ def test_list_transition_plugins_includes_disabled(patched_registry):
     enough to be selectable."""
     patched_registry._enabled["fake_typewriter"] = False
     data = _run(list_transition_plugins())
-    ids = {p["id"] for p in data["plugins"]}
+    ids = {p.id for p in data.plugins}
     assert "fake_typewriter" in ids
 
 
 def test_list_transition_plugins_omits_data_plugins(patched_registry):
     """Only TransitionPluginBase subclasses should be listed."""
     data = _run(list_transition_plugins())
-    for entry in data["plugins"]:
-        assert entry["strategy"].startswith("plugin:")
+    for entry in data.plugins:
+        assert entry.strategy.startswith("plugin:")
 
 
 # ---------------------------------------------------------------------------
@@ -187,19 +215,19 @@ def test_list_transition_plugins_omits_data_plugins(patched_registry):
 
 def test_preview_requires_plugin_id(patched_registry):
     with pytest.raises(HTTPException) as exc:
-        _run(preview_transition({"to_text": "HELLO"}))
+        _run(_preview({"to_text": "HELLO"}))
     assert exc.value.status_code == 400
 
 
 def test_preview_unknown_plugin_returns_404(patched_registry):
     with pytest.raises(HTTPException) as exc:
-        _run(preview_transition({"plugin_id": "ghost", "to_text": "HELLO"}))
+        _run(_preview({"plugin_id": "ghost", "to_text": "HELLO"}))
     assert exc.value.status_code == 404
 
 
 def test_preview_returns_frames_with_grid_and_delay(patched_registry):
     data = _run(
-        preview_transition(
+        _preview(
             {
                 "plugin_id": "fake_typewriter",
                 "from_text": "",
@@ -209,21 +237,21 @@ def test_preview_returns_frames_with_grid_and_delay(patched_registry):
             }
         )
     )
-    assert data["plugin_id"] == "fake_typewriter"
-    assert data["device_type"] == "flagship"
-    assert data["frame_count"] == 2
-    for frame in data["frames"]:
-        assert len(frame["grid"]) == 6
-        assert all(len(row) == 22 for row in frame["grid"])
-        assert isinstance(frame["delay_ms"], int)
+    assert data.plugin_id == "fake_typewriter"
+    assert data.device_type == "flagship"
+    assert data.frame_count == 2
+    for frame in data.frames:
+        assert len(frame.grid) == 6
+        assert all(len(row) == 22 for row in frame.grid)
+        assert isinstance(frame.delay_ms, int)
     # Total delay = 50 + max(0, 25) (clamped to min_interval_ms).
-    assert data["total_delay_ms"] == 50 + 25
+    assert data.total_delay_ms == 50 + 25
 
 
 def test_preview_honors_max_frames_cap_and_sets_capped(patched_registry):
     """Forever plugin yields infinitely; preview caps at max_frames=3."""
     data = _run(
-        preview_transition(
+        _preview(
             {
                 "plugin_id": "fake_forever",
                 "from_text": "",
@@ -232,19 +260,19 @@ def test_preview_honors_max_frames_cap_and_sets_capped(patched_registry):
             }
         )
     )
-    assert data["frame_count"] == 3
-    assert data["capped"] is True
+    assert data.frame_count == 3
+    assert data.capped is True
 
 
 def test_preview_rejects_bad_device_type(patched_registry):
     with pytest.raises(HTTPException) as exc:
-        _run(preview_transition({"plugin_id": "fake_typewriter", "to_text": "HI", "device_type": "wat"}))
+        _run(_preview({"plugin_id": "fake_typewriter", "to_text": "HI", "device_type": "wat"}))
     assert exc.value.status_code == 400
 
 
 def test_preview_handles_note_device(patched_registry):
     data = _run(
-        preview_transition(
+        _preview(
             {
                 "plugin_id": "fake_typewriter",
                 "to_text": "HI",
@@ -252,9 +280,9 @@ def test_preview_handles_note_device(patched_registry):
             }
         )
     )
-    for frame in data["frames"]:
-        assert len(frame["grid"]) == 3
-        assert all(len(row) == 15 for row in frame["grid"])
+    for frame in data.frames:
+        assert len(frame.grid) == 3
+        assert all(len(row) == 15 for row in frame.grid)
 
 
 # ---------------------------------------------------------------------------
@@ -275,7 +303,7 @@ def test_endpoints_404_when_beta_disabled(patched_registry):
         assert "beta" in exc.value.detail.lower()
 
         with pytest.raises(HTTPException) as exc:
-            _run(preview_transition({"plugin_id": "fake_typewriter", "to_text": "HI"}))
+            _run(_preview({"plugin_id": "fake_typewriter", "to_text": "HI"}))
         assert exc.value.status_code == 404
     finally:
         settings.update_beta_settings({"transition_plugins_enabled": True})
@@ -338,42 +366,42 @@ def live_env(monkeypatch, patched_registry):
     no silence, no pause, zero from-page hold."""
     board_client = _FakeBoardClient()
     fake_service = SimpleNamespace(vb_client=board_client, get_board_client=lambda board_id: board_client)
-    monkeypatch.setattr(api_server, "get_service", lambda: fake_service)
-    monkeypatch.setattr(api_server, "get_page_service", _FakePageService)
+    monkeypatch.setattr(transitions_routes, "get_service", lambda: fake_service)
+    monkeypatch.setattr(transitions_routes, "get_page_service", _FakePageService)
     # Since issue #1788 the guard resolves the target board, so the stub takes a board_id.
-    monkeypatch.setattr(api_server.Config, "is_silence_mode_active", staticmethod(lambda board_id=None: False))
-    monkeypatch.setattr(api_server, "_board_is_paused", lambda board_id=None: False)
-    monkeypatch.setattr(api_server, "LIVE_TEST_FROM_HOLD_SECONDS", 0)
+    monkeypatch.setattr(Config, "is_silence_mode_active", staticmethod(lambda board_id=None: False))
+    monkeypatch.setattr(transitions_routes, "_board_is_paused", lambda board_id=None: False)
+    monkeypatch.setattr(transitions_routes, "LIVE_TEST_FROM_HOLD_SECONDS", 0)
     return board_client
 
 
 def test_live_requires_plugin_id(live_env):
     with pytest.raises(HTTPException) as exc:
-        _run(run_live_transition_test({"to_page_id": "page-to"}))
+        _run(_live({"to_page_id": "page-to"}))
     assert exc.value.status_code == 400
 
 
 def test_live_requires_to_page_id(live_env):
     with pytest.raises(HTTPException) as exc:
-        _run(run_live_transition_test({"plugin_id": "fake_typewriter"}))
+        _run(_live({"plugin_id": "fake_typewriter"}))
     assert exc.value.status_code == 400
 
 
 def test_live_unknown_plugin_returns_404(live_env):
     with pytest.raises(HTTPException) as exc:
-        _run(run_live_transition_test({"plugin_id": "ghost", "to_page_id": "page-to"}))
+        _run(_live({"plugin_id": "ghost", "to_page_id": "page-to"}))
     assert exc.value.status_code == 404
 
 
 def test_live_unknown_page_returns_404(live_env):
     with pytest.raises(HTTPException) as exc:
-        _run(run_live_transition_test({"plugin_id": "fake_typewriter", "to_page_id": "nope"}))
+        _run(_live({"plugin_id": "fake_typewriter", "to_page_id": "nope"}))
     assert exc.value.status_code == 404
 
 
 def test_live_snaps_from_page_then_runs_plugin(live_env):
     data = _run(
-        run_live_transition_test(
+        _live(
             {
                 "plugin_id": "fake_typewriter",
                 "from_page_id": "page-from",
@@ -382,8 +410,8 @@ def test_live_snaps_from_page_then_runs_plugin(live_env):
             }
         )
     )
-    assert data["status"] == "success"
-    assert data["sent"] is True
+    assert data.status == "success"
+    assert data.sent is True
     # First a forced plain snap to the from-page, then the plugin render.
     assert live_env.calls[0] == ("send", None, True)
     kind, strategy, device_type, config = live_env.calls[1]
@@ -393,22 +421,22 @@ def test_live_snaps_from_page_then_runs_plugin(live_env):
 
 
 def test_live_without_from_page_skips_snap(live_env):
-    data = _run(run_live_transition_test({"plugin_id": "fake_typewriter", "to_page_id": "page-to"}))
-    assert data["status"] == "success"
+    data = _run(_live({"plugin_id": "fake_typewriter", "to_page_id": "page-to"}))
+    assert data.status == "success"
     assert [c[0] for c in live_env.calls] == ["render"]
 
 
 def test_live_blocked_by_silence_mode(live_env, monkeypatch):
-    monkeypatch.setattr(api_server.Config, "is_silence_mode_active", staticmethod(lambda board_id=None: True))
+    monkeypatch.setattr(Config, "is_silence_mode_active", staticmethod(lambda board_id=None: True))
     with pytest.raises(HTTPException) as exc:
-        _run(run_live_transition_test({"plugin_id": "fake_typewriter", "to_page_id": "page-to"}))
+        _run(_live({"plugin_id": "fake_typewriter", "to_page_id": "page-to"}))
     assert exc.value.status_code == 409
 
 
 def test_live_blocked_when_board_paused(live_env, monkeypatch):
-    monkeypatch.setattr(api_server, "_board_is_paused", lambda board_id=None: True)
+    monkeypatch.setattr(transitions_routes, "_board_is_paused", lambda board_id=None: True)
     with pytest.raises(HTTPException) as exc:
-        _run(run_live_transition_test({"plugin_id": "fake_typewriter", "to_page_id": "page-to"}))
+        _run(_live({"plugin_id": "fake_typewriter", "to_page_id": "page-to"}))
     assert exc.value.status_code == 409
 
 
@@ -417,10 +445,10 @@ def test_restore_sends_active_page_plainly(live_env, monkeypatch):
         get_active_page_id=lambda board_id=None: "page-to",
         get_beta_settings=lambda: SimpleNamespace(transition_plugins_enabled=True),
     )
-    monkeypatch.setattr(api_server, "get_settings_service", lambda: fake_settings)
-    data = _run(restore_after_transition_test({}))
-    assert data["status"] == "success"
-    assert data["page_id"] == "page-to"
+    monkeypatch.setattr(transitions_routes, "get_settings_service", lambda: fake_settings)
+    data = _run(_restore({}))
+    assert data.status == "success"
+    assert data.page_id == "page-to"
     # Restore is a plain render (no transition strategy).
     assert live_env.calls == [("render", None, None, None)]
 
@@ -430,9 +458,9 @@ def test_restore_without_active_page_returns_404(live_env, monkeypatch):
         get_active_page_id=lambda board_id=None: None,
         get_beta_settings=lambda: SimpleNamespace(transition_plugins_enabled=True),
     )
-    monkeypatch.setattr(api_server, "get_settings_service", lambda: fake_settings)
+    monkeypatch.setattr(transitions_routes, "get_settings_service", lambda: fake_settings)
     with pytest.raises(HTTPException) as exc:
-        _run(restore_after_transition_test({}))
+        _run(_restore({}))
     assert exc.value.status_code == 404
 
 
@@ -443,11 +471,11 @@ def test_live_endpoints_404_when_beta_disabled(live_env):
     settings.update_beta_settings({"transition_plugins_enabled": False})
     try:
         with pytest.raises(HTTPException) as exc:
-            _run(run_live_transition_test({"plugin_id": "fake_typewriter", "to_page_id": "page-to"}))
+            _run(_live({"plugin_id": "fake_typewriter", "to_page_id": "page-to"}))
         assert exc.value.status_code == 404
 
         with pytest.raises(HTTPException) as exc:
-            _run(restore_after_transition_test({}))
+            _run(_restore({}))
         assert exc.value.status_code == 404
     finally:
         settings.update_beta_settings({"transition_plugins_enabled": True})
