@@ -19,7 +19,8 @@ makes that handler's case fail (``response.headers`` stays empty).
 from __future__ import annotations
 
 import asyncio
-from datetime import datetime, timezone
+import contextlib
+from datetime import UTC, datetime
 from email.utils import parsedate_to_datetime
 from unittest.mock import Mock, patch
 
@@ -41,10 +42,8 @@ def _swallow(coro) -> None:
     The deprecation headers are set before any I/O, so the header assertions
     hold whether the handler returns normally or raises after that point.
     """
-    try:
+    with contextlib.suppress(Exception):
         asyncio.run(coro)
-    except Exception:
-        pass
 
 
 def _no_network():
@@ -145,4 +144,4 @@ def test_sunset_is_a_future_rfc8594_http_date() -> None:
     """The sunset constant parses as an HTTP-date and is in the future."""
     parsed = parsedate_to_datetime(_PLUGIN_ROUTE_SUNSET)
     assert parsed.tzinfo is not None, "Sunset must be an absolute (GMT) HTTP-date"
-    assert parsed > datetime.now(timezone.utc), "Sunset date must be in the future"
+    assert parsed > datetime.now(UTC), "Sunset date must be in the future"
