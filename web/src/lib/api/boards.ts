@@ -127,6 +127,8 @@ export interface BoardConfig {
   api_mode: "local" | "cloud";
   local_api_key: string;
   cloud_key: string;
+  /** Note-array cloud token. Masked as "***" on read, like the other two. */
+  note_array_token: string;
   host: string;
   transition_strategy: string | null;
   transition_interval_ms: number | null;

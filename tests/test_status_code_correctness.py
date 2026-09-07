@@ -21,11 +21,22 @@ import requests
 from fastapi.testclient import TestClient
 
 from src.api_server import app
+from tests.test_route_inventory import build_route_metadata
 
 
 @pytest.fixture
 def client():
     return TestClient(app)
+
+
+def _route_metadata(path: str) -> dict:
+    """One route's metadata, found through the *flattened* route table.
+
+    ``app.routes`` only lists top-level entries; a route served by an included
+    router hangs off an internal node with no ``path`` of its own, so scanning
+    ``app.routes`` directly silently finds nothing once a domain is extracted.
+    """
+    return next(r for r in build_route_metadata() if r["path"] == path)
 
 
 def _local_client_mock():
@@ -63,7 +74,7 @@ class TestBoardTestPreconditions:
         answering 200 made a rejected request indistinguishable from a
         board that merely refused the key.
         """
-        with patch("src.api_server.requests.get") as mock_get:
+        with patch("src.config_api.routes.requests.get") as mock_get:
             response = client.post(
                 "/config/board/test",
                 json={"api_mode": "local", "local_api_key": "key", "host": "evil.example.com/@10.0.0.1"},
@@ -75,7 +86,7 @@ class TestBoardTestPreconditions:
 class TestBoardTestUpstreamVerdictsStay200:
     """The declared contract: an upstream board result is data, not an error."""
 
-    @patch("src.api_server.requests.get")
+    @patch("src.config_api.routes.requests.get")
     @patch("src.board_client.BoardClient")
     def test_board_rejects_key_stays_200_with_typed_body(self, mock_client_cls, mock_get, client):
         mock_client_cls.return_value = _local_client_mock()
@@ -90,7 +101,7 @@ class TestBoardTestUpstreamVerdictsStay200:
         assert body["success"] is False
         assert isinstance(body["troubleshooting"], list)
 
-    @patch("src.api_server.requests.get")
+    @patch("src.config_api.routes.requests.get")
     @patch("src.board_client.BoardClient")
     def test_board_unreachable_stays_200(self, mock_client_cls, mock_get, client):
         mock_client_cls.return_value = _local_client_mock()
@@ -104,12 +115,11 @@ class TestBoardTestUpstreamVerdictsStay200:
         assert response.json()["success"] is False
 
     def test_declares_a_response_model(self):
-        route = next(r for r in app.routes if getattr(r, "path", None) == "/config/board/test")
-        assert route.response_model is not None
+        assert _route_metadata("/config/board/test")["response_model"] is not None
 
 
 class TestBoardTestUnexpectedErrors:
-    @patch("src.api_server.requests.get")
+    @patch("src.config_api.routes.requests.get")
     @patch("src.board_client.BoardClient")
     def test_unexpected_exception_is_500(self, mock_client_cls, mock_get, client):
         mock_client_cls.return_value = _local_client_mock()
@@ -139,7 +149,7 @@ class TestEnableLocalApiPreconditions:
 
     def test_public_ip_is_400_and_issues_no_request(self, client):
         """SSRF guard (#1887): the 400 must reach the client as a 400."""
-        with patch("src.api_server.requests.post") as mock_post:
+        with patch("src.config_api.routes.requests.post") as mock_post:
             response = client.post(
                 "/config/board/enable-local-api",
                 json={"host": "8.8.8.8", "enablement_token": "test_token"},
@@ -151,9 +161,9 @@ class TestEnableLocalApiPreconditions:
         import socket as socket_mod
 
         with (
-            patch("src.api_server._validate_board_host_is_local_network"),
+            patch("src.config_api.routes.validate_board_host_is_local_network"),
             patch("socket.getaddrinfo", side_effect=socket_mod.gaierror("no such host")),
-            patch("src.api_server.requests.post") as mock_post,
+            patch("src.config_api.routes.requests.post") as mock_post,
         ):
             response = client.post(
                 "/config/board/enable-local-api",
@@ -165,7 +175,7 @@ class TestEnableLocalApiPreconditions:
 
 class TestEnableLocalApiUpstreamVerdictsStay200:
     def test_invalid_enablement_token_stays_200(self, client):
-        with patch("src.api_server.requests.post", return_value=Mock(status_code=401)):
+        with patch("src.config_api.routes.requests.post", return_value=Mock(status_code=401)):
             response = client.post(
                 "/config/board/enable-local-api",
                 json={"host": "192.168.1.100", "enablement_token": "bad"},
@@ -174,13 +184,12 @@ class TestEnableLocalApiUpstreamVerdictsStay200:
         assert response.json()["success"] is False
 
     def test_declares_a_response_model(self):
-        route = next(r for r in app.routes if getattr(r, "path", None) == "/config/board/enable-local-api")
-        assert route.response_model is not None
+        assert _route_metadata("/config/board/enable-local-api")["response_model"] is not None
 
 
 class TestEnableLocalApiUnexpectedErrors:
     def test_unexpected_exception_is_500(self, client):
-        with patch("src.api_server.requests.post", side_effect=RuntimeError("unexpected")):
+        with patch("src.config_api.routes.requests.post", side_effect=RuntimeError("unexpected")):
             response = client.post(
                 "/config/board/enable-local-api",
                 json={"host": "192.168.1.100", "enablement_token": "test_token"},

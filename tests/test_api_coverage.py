@@ -40,19 +40,34 @@ def mock_service():
     service.initialize.return_value = True
     service.reinitialize_board_client.return_value = None
     service.check_and_send_active_page.return_value = None
-    # Patched on api_server and on the pages router, which since Phase 2
-    # slice 3 imports the accessor from src/display_runtime.py at import time.
+    # Patched on api_server and on the pages and config routers, which since
+    # Phase 2 §2.3 import the accessor from src/display_runtime.py at import
+    # time. `src.display_runtime` itself is stubbed too: that is where
+    # `reinitialize_board_clients` resolves the service, and DELETE
+    # /config/board asserts the rebuild happened.
     with (
         patch("src.api_server.get_service", return_value=service),
         patch("src.pages.routes.get_service", return_value=service),
+        patch("src.config_api.routes.get_service", return_value=service),
+        patch("src.display_runtime.get_service", return_value=service),
     ):
         yield service
 
 
 @pytest.fixture
 def mock_config_manager():
-    """Mock the config manager."""
-    with patch("src.api_server.get_config_manager") as mock_get:
+    """Mock the config manager.
+
+    Both bindings are stubbed on purpose. ``get_config_manager`` is a *shared*
+    accessor: the converted config router resolves it from
+    ``src.config_manager``, while every unconverted domain still resolves it
+    through ``src.api_server``. Repointing rather than stubbing both would
+    silently stop steering the handlers that have not moved yet.
+    """
+    with (
+        patch("src.api_server.get_config_manager") as mock_get,
+        patch("src.config_api.routes.get_config_manager", new=mock_get),
+    ):
         cm = Mock()
         cm.get_board.return_value = {
             "api_mode": "local",
@@ -78,12 +93,14 @@ def mock_settings_service():
     """Mock the settings service.
 
     Patched on api_server, on the pages router (which binds it at import time
-    since Phase 2 slice 3) and on src/board_guards.py (where the board lookup
-    and pause/silence guards now live). One stub, every resolution path.
+    since Phase 2 slice 3), on the config router (Phase 2 Task 8) and on
+    src/board_guards.py (where the board lookup and pause/silence guards now
+    live). One stub, every resolution path.
     """
     with (
         patch("src.api_server.get_settings_service") as mock_get,
         patch("src.pages.routes.get_settings_service") as routes_get,
+        patch("src.config_api.routes.get_settings_service") as config_get,
         patch("src.board_guards.get_settings_service") as guards_get,
     ):
         ss = Mock()
@@ -117,6 +134,7 @@ def mock_settings_service():
         ss.set_active_page_id.return_value = None
         mock_get.return_value = ss
         routes_get.return_value = ss
+        config_get.return_value = ss
         guards_get.return_value = ss
         yield ss
 
@@ -301,6 +319,9 @@ class TestSendWelcomeMessage:
             patch("src.board_client.BoardClient") as MockBoardClient,
             patch("src.api_server.text_to_board_array") as mock_ttba,
             patch("src.api_server.get_settings_service") as mock_ss,
+            # _primary_board_entry resolves the store through src/board_guards.py
+            # since the config slice, so the welcome handler needs both stubs.
+            patch("src.board_guards.get_settings_service") as guards_ss,
         ):
             mock_config.is_silence_mode_active.return_value = False
             mock_config.BOARD_API_MODE = "local"
@@ -332,6 +353,7 @@ class TestSendWelcomeMessage:
             ]
             ss.get_board_settings.return_value = board_settings
             mock_ss.return_value = ss
+            guards_ss.return_value = ss
 
             response = client.post("/send-welcome-message")
             assert response.status_code == 200
@@ -344,6 +366,9 @@ class TestSendWelcomeMessage:
             patch("src.board_client.BoardClient") as MockBoardClient,
             patch("src.api_server.text_to_board_array") as mock_ttba,
             patch("src.api_server.get_settings_service") as mock_ss,
+            # _primary_board_entry resolves the store through src/board_guards.py
+            # since the config slice, so the welcome handler needs both stubs.
+            patch("src.board_guards.get_settings_service") as guards_ss,
         ):
             mock_config.is_silence_mode_active.return_value = False
             mock_config.BOARD_API_MODE = "local"
@@ -375,6 +400,7 @@ class TestSendWelcomeMessage:
             ]
             ss.get_board_settings.return_value = board_settings
             mock_ss.return_value = ss
+            guards_ss.return_value = ss
 
             response = client.post("/send-welcome-message")
             assert response.status_code == 500
@@ -386,6 +412,9 @@ class TestSendWelcomeMessage:
             patch("src.board_client.BoardClient") as MockBoardClient,
             patch("src.api_server.text_to_board_array") as mock_ttba,
             patch("src.api_server.get_settings_service") as mock_ss,
+            # _primary_board_entry resolves the store through src/board_guards.py
+            # since the config slice, so the welcome handler needs both stubs.
+            patch("src.board_guards.get_settings_service") as guards_ss,
         ):
             mock_config.is_silence_mode_active.return_value = False
             mock_config.BOARD_API_MODE = "cloud"
@@ -416,6 +445,7 @@ class TestSendWelcomeMessage:
             ]
             ss.get_board_settings.return_value = board_settings
             mock_ss.return_value = ss
+            guards_ss.return_value = ss
 
             response = client.post("/send-welcome-message")
             assert response.status_code == 200
@@ -430,6 +460,9 @@ class TestSendWelcomeMessage:
             patch("src.board_client.BoardClient") as MockBoardClient,
             patch("src.api_server.text_to_board_array") as mock_ttba,
             patch("src.api_server.get_settings_service") as mock_ss,
+            # _primary_board_entry resolves the store through src/board_guards.py
+            # since the config slice, so the welcome handler needs both stubs.
+            patch("src.board_guards.get_settings_service") as guards_ss,
         ):
             mock_config.is_silence_mode_active.return_value = False
             mock_config.BOARD_API_MODE = "local"
@@ -460,6 +493,7 @@ class TestSendWelcomeMessage:
             ]
             ss.get_board_settings.return_value = board_settings
             mock_ss.return_value = ss
+            guards_ss.return_value = ss
 
             response = client.post("/send-welcome-message")
             assert response.status_code == 200
@@ -487,6 +521,9 @@ class TestSendWelcomeMessage:
             patch("src.board_client.BoardClient") as MockBoardClient,
             patch("src.api_server.text_to_board_array") as mock_ttba,
             patch("src.api_server.get_settings_service") as mock_ss,
+            # _primary_board_entry resolves the store through src/board_guards.py
+            # since the config slice, so the welcome handler needs both stubs.
+            patch("src.board_guards.get_settings_service") as guards_ss,
         ):
             mock_config.is_silence_mode_active.return_value = False
             mock_config.BOARD_API_MODE = "local"
@@ -517,6 +554,7 @@ class TestSendWelcomeMessage:
             ]
             ss.get_board_settings.return_value = board_settings
             mock_ss.return_value = ss
+            guards_ss.return_value = ss
 
             response = client.post("/send-welcome-message")
             assert response.status_code == 200
@@ -536,6 +574,9 @@ class TestSendWelcomeMessage:
             patch("src.board_client.BoardClient") as MockBoardClient,
             patch("src.api_server.text_to_board_array") as mock_ttba,
             patch("src.api_server.get_settings_service") as mock_ss,
+            # _primary_board_entry resolves the store through src/board_guards.py
+            # since the config slice, so the welcome handler needs both stubs.
+            patch("src.board_guards.get_settings_service") as guards_ss,
         ):
             mock_config.is_silence_mode_active.return_value = False
             mock_config.BOARD_API_MODE = "local"
@@ -566,6 +607,7 @@ class TestSendWelcomeMessage:
             ]
             ss.get_board_settings.return_value = board_settings
             mock_ss.return_value = ss
+            guards_ss.return_value = ss
 
             response = client.post("/send-welcome-message")
             assert response.status_code == 200
@@ -583,6 +625,9 @@ class TestSendWelcomeMessage:
             patch("src.board_client.BoardClient") as MockBoardClient,
             patch("src.api_server.text_to_board_array") as mock_ttba,
             patch("src.api_server.get_settings_service") as mock_ss,
+            # _primary_board_entry resolves the store through src/board_guards.py
+            # since the config slice, so the welcome handler needs both stubs.
+            patch("src.board_guards.get_settings_service") as guards_ss,
         ):
             mock_config.is_silence_mode_active.return_value = False
             mock_config.BOARD_API_MODE = "local"
@@ -613,6 +658,7 @@ class TestSendWelcomeMessage:
             ]
             ss.get_board_settings.return_value = board_settings
             mock_ss.return_value = ss
+            guards_ss.return_value = ss
 
             response = client.post("/send-welcome-message")
             assert response.status_code == 200
@@ -851,10 +897,10 @@ class TestUpdateGeneralConfig:
     """Tests for PUT /config/general."""
 
     def test_update_timezone(self, client, mock_config_manager):
-        """Update timezone."""
+        """Update timezone. The 200 body is the saved config, not an envelope."""
         response = client.put("/config/general", json={"timezone": "America/New_York"})
         assert response.status_code == 200
-        assert response.json()["status"] == "success"
+        assert response.json()["timezone"] == "America/New_York"
 
     def test_update_refresh_interval(self, client, mock_config_manager):
         """Update refresh interval."""
@@ -920,7 +966,8 @@ class TestBoardScan:
 
     def test_scan_default_timeout(self, client):
         """Scan with default timeout."""
-        with patch("src.system.mdns.scan_for_boards", return_value=[{"ip": "192.168.1.50"}]):
+        discovered = [{"ip": "192.168.1.50", "port": 7000, "hostname": "vestaboard.local", "source": "mdns"}]
+        with patch("src.system.mdns.scan_for_boards", return_value=discovered):
             response = client.post("/config/board/scan")
             assert response.status_code == 200
             assert "boards" in response.json()

@@ -20,8 +20,16 @@ def client():
 
 @pytest.fixture
 def mock_config_manager():
-    """Mock the config manager."""
-    with patch("src.api_server.get_config_manager") as mock_get:
+    """Mock the config manager.
+
+    Both bindings are stubbed on purpose: the converted config router resolves
+    ``get_config_manager`` from ``src.config_manager``, every unconverted
+    domain still resolves it through ``src.api_server``.
+    """
+    with (
+        patch("src.api_server.get_config_manager") as mock_get,
+        patch("src.config_api.routes.get_config_manager", new=mock_get),
+    ):
         cm = Mock()
         cm.get_all_masked.return_value = {"board": {}, "general": {}}
         cm.get_board.return_value = {
@@ -50,14 +58,16 @@ def mock_settings_service():
 
     Every module that resolves this collaborator gets the same stub:
     ``src.api_server`` for the handlers still in the app module, the
-    ``pages`` and ``schedules`` routers (which bind at import time since
-    Phase 2 §2.3), and ``src.board_guards``, where the board lookup and the
-    pause/silence guards now live. One stub, every resolution path.
+    ``pages``, ``schedules`` and ``config`` routers (which bind at import
+    time since Phase 2 §2.3), and ``src.board_guards``, where the board
+    lookup and the pause/silence guards now live. One stub, every resolution
+    path.
     """
     with (
         patch("src.api_server.get_settings_service") as mock_get,
         patch("src.pages.routes.get_settings_service") as pages_get,
         patch("src.schedules.routes.get_settings_service") as routes_get,
+        patch("src.config_api.routes.get_settings_service") as config_get,
         patch("src.board_guards.get_settings_service") as guards_get,
     ):
         ss = Mock()
@@ -151,6 +161,7 @@ def mock_settings_service():
         mock_get.return_value = ss
         pages_get.return_value = ss
         routes_get.return_value = ss
+        config_get.return_value = ss
         guards_get.return_value = ss
         yield ss
 
@@ -482,10 +493,10 @@ class TestConfigEndpoints:
         assert "timezone" in data
 
     def test_update_general_config(self, client, mock_config_manager):
+        """The 200 body is the saved general config, not a status envelope."""
         response = client.put("/config/general", json={"timezone": "America/New_York"})
         assert response.status_code == 200
-        data = response.json()
-        assert data["status"] == "success"
+        assert response.json()["timezone"] == "America/New_York"
 
     def test_update_general_config_failure(self, client, mock_config_manager):
         mock_config_manager.set_general.return_value = False

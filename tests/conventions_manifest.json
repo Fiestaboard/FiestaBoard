@@ -3,6 +3,7 @@
   "converted_domains": [
     "ai",
     "collections",
+    "config",
     "debug",
     "pages",
     "plugins",
@@ -10,6 +11,11 @@
     "system"
   ],
   "exceptions": [
+    {
+      "route": "DELETE /config/board",
+      "rule": "declared_errors",
+      "reason": "Reset is unconditional and idempotent: no board id to miss, no state in which it refuses, and its one internal failure path is swallowed and logged on purpose so a broken settings store cannot block the wizard reset. Nothing to declare at any status."
+    },
     {
       "route": "GET /cache-status",
       "rule": "declared_errors",
@@ -19,6 +25,31 @@
       "route": "GET /collections",
       "rule": "declared_errors",
       "reason": "Listing has no failure path: it returns [] for an empty store and cannot 404 or 400, so declaring a 4xx would document an error the endpoint never raises."
+    },
+    {
+      "route": "GET /config",
+      "rule": "declared_errors",
+      "reason": "No failure mode to declare at any status. It takes no path, query or body parameter and reads process-local config that always exists, so it cannot 400, cannot 404, and raises no HTTPException of its own. The rule now accepts a 5xx, but the only 500 this route can produce is an unhandled bug — true of every route, and documenting it would put noise in the schema rather than a contract."
+    },
+    {
+      "route": "GET /config/board",
+      "rule": "declared_errors",
+      "reason": "Parameterless read of the deprecated legacy board view. It projects an empty boards store into defaults rather than failing, so there is no status — 4xx or 5xx — that it deliberately returns."
+    },
+    {
+      "route": "GET /config/full",
+      "rule": "declared_errors",
+      "reason": "Parameterless dump of the masked config document, with no HTTPException raised anywhere in the handler. Nothing the caller sends can be wrong and nothing it reads can be missing. The 5xx the widened rule would accept is only the generic unhandled-error case, which is not this route's contract."
+    },
+    {
+      "route": "GET /config/general",
+      "rule": "declared_errors",
+      "reason": "Parameterless read of the general settings block, which falls back to defaults when absent. No input to validate, nothing to not-find, and no raise in the handler. Its sibling PUT does declare 422 and 500, because it really can return both."
+    },
+    {
+      "route": "GET /config/validate",
+      "rule": "declared_errors",
+      "reason": "A verdict endpoint. 'This install is not configured' is the answer at 200 with valid=false, and the handler raises nothing. There is no caller mistake it rejects and no dependency it reports as unavailable."
     },
     {
       "route": "GET /debug/network-diagnostics",
@@ -109,6 +140,16 @@
       "route": "POST /clear-cache",
       "rule": "declared_errors",
       "reason": "Same as GET /cache-status: no body, no path parameter, and the only failure is the uninitialized display service, which is a 503."
+    },
+    {
+      "route": "POST /config/board/enable-local-api",
+      "rule": "no_200_on_failure",
+      "reason": "Same declared verdict contract as POST /config/board/test (#1887): 'that enablement token is not valid' is the board's answer at 200 through EnableLocalApiResponse. The SSRF and host-validation rejections stayed 400 and the unexpected-exception path stayed 500 when Task 10a fixed this handler."
+    },
+    {
+      "route": "POST /config/board/test",
+      "rule": "no_200_on_failure",
+      "reason": "Declared probe contract (#1887, Task 10a): the endpoint's job is to report what the board said, so 'your key was rejected' is the requested answer at 200 through BoardTestResponse, not a transport failure. Preconditions the server rejects before probing (missing credential, unsafe host) really are 400, and unanticipated errors really are 500 — tests/test_status_code_correctness.py pins both. Making the upstream verdicts 4xx would tell the wizard the request was malformed when it was not."
     },
     {
       "route": "POST /force-refresh",

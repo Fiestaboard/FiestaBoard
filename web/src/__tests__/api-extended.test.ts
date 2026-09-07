@@ -698,16 +698,18 @@ describe("API Extended Tests", () => {
       expect(result.refresh_interval_seconds).toBeDefined();
     });
 
-    it("updateGeneralConfig sends partial config", async () => {
+    it("updateGeneralConfig sends partial config and reads back the saved config", async () => {
       let capturedBody: any;
       server.use(
         http.put(`${API_BASE}/config/general`, async ({ request }) => {
           capturedBody = await request.json();
-          return HttpResponse.json({ status: "success", general: capturedBody });
+          // Bare config, not a `{status, general}` envelope (Phase 2 slice).
+          return HttpResponse.json({ timezone: "UTC", refresh_interval_seconds: 300 });
         }),
       );
-      await api.updateGeneralConfig({ timezone: "UTC" });
+      const result = await api.updateGeneralConfig({ timezone: "UTC" });
       expect(capturedBody).toEqual({ timezone: "UTC" });
+      expect(result.timezone).toBe("UTC");
     });
   });
 
