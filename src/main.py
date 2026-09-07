@@ -1,5 +1,7 @@
 """Main application entry point for FiestaBoard Display Service."""
 
+import hashlib
+import json
 import logging
 import signal
 import threading
@@ -25,6 +27,7 @@ from .pages.models import LineMetadata, Page
 from .pages.service import get_page_service
 from .schedules.service import get_schedule_service
 from .settings.service import get_settings_service
+from .templates.engine import extract_template_plugin_ids
 from .text_to_board import text_to_board_array
 from .triggers.service import get_trigger_service
 
@@ -161,6 +164,22 @@ class BoardRuntime:
         # of the next collection-boundary check for this board. 0.0 means
         # "check immediately". Only the primary runtime is consulted today.
         self.next_collection_check: float = 0.0
+
+        # Render short-circuit memo (issue #1883): the triple
+        # ``(render fingerprint, rendered content, page id)`` from the last
+        # render whose result reached — or was found already equal to — the
+        # dedupe cache above.
+        #
+        # It is deliberately a SINGLE tuple carrying its own validity proof
+        # rather than a standalone fingerprint field. Before the memo is
+        # trusted, ``_drive_board_pass`` re-checks that its content/page-id
+        # halves still equal ``last_active_page_content`` /
+        # ``last_active_page_id``. So every existing site that clears or
+        # overwrites the dedupe cache — invalidate_board_content(), the
+        # silence dispatch, the blank-board send, an out-of-band write, a
+        # throttled send — invalidates this memo for free, and a future one
+        # cannot forget to.
+        self.last_render: tuple[str, str, str] | None = None
 
 
 class DisplayService:
@@ -1263,6 +1282,90 @@ class DisplayService:
 
         return factory
 
+    # Bumped whenever the set of inputs the fingerprint covers changes, so a
+    # memo recorded by an older build can never be mistaken for a match.
+    _RENDER_FINGERPRINT_VERSION = 1
+
+    @staticmethod
+    def _render_fingerprint(page, active_page_id, page_service, contexts, *, override_active: bool) -> str | None:
+        """Hash every input a template render reads, or None if not computable.
+
+        Issue #1883. ``render_page`` for a template page is a pure function of
+        four things:
+
+        * the page itself (template lines, line metadata, device geometry) —
+          covered by ``model_dump_json()``, which also moves whenever
+          ``updated_at`` does;
+        * the template context, i.e. the data of the plugins the template
+          references. The reference set comes from the SAME
+          ``extract_template_plugin_ids`` scan that already decides which
+          plugins get fetched for this render (issue #1751): if that scan
+          under-approximated, the render would already be printing ``???``,
+          so the fingerprint is exactly as sound as the fetch it mirrors;
+        * config-derived render inputs that are not in either — color rules
+          (``ConfigManager.get_color_rules``) and plugin manifests. Those move
+          only through a config save, which bumps ``config_generation``;
+        * which branch of the pass we are on, so a tick that resolves the same
+          page through a temporary override is never confused with one that
+          resolved it normally.
+
+        Returns None — meaning "render, do not short-circuit" — whenever any
+        of that cannot be established: no per-pass context cache (the direct
+        MQTT/API callers), a non-template page, a formula page whose variable
+        owners are not statically knowable, a page object without a Pydantic
+        dump, a config manager with no generation counter, or any exception at
+        all. Every unknown fails toward rendering.
+        """
+        if contexts is None:
+            return None
+        if getattr(page, "type", None) != "template":
+            return None
+        template = getattr(page, "template", None)
+        if not template:
+            return None
+        dump = getattr(page, "model_dump_json", None)
+        if dump is None:
+            return None
+        try:
+            refs = extract_template_plugin_ids(template)
+            if refs is None:
+                return None  # formula page: variable owners not statically known
+
+            from .config_manager import get_config_manager
+
+            generation = getattr(get_config_manager(), "config_generation", None)
+            if generation is None:
+                return None  # cannot see config writes -> cannot skip a render
+
+            context = None
+            if refs:
+                context = page_service.shared_context_for(
+                    contexts,
+                    page.device_type,
+                    page.notes_wide,
+                    page.notes_tall,
+                    plugin_ids=refs,
+                )
+                if not isinstance(context, dict):
+                    return None
+            payload = json.dumps(
+                {
+                    "v": DisplayService._RENDER_FINGERPRINT_VERSION,
+                    "page_id": active_page_id,
+                    "page": dump(),
+                    "override": bool(override_active),
+                    "generation": generation,
+                    "data": {ref: (context or {}).get(ref) for ref in sorted(refs)},
+                },
+                sort_keys=True,
+                default=str,
+                separators=(",", ":"),
+            )
+        except Exception as e:  # never let the optimization break a send
+            logger.debug("Render fingerprint unavailable for %s: %s", active_page_id, e)
+            return None
+        return hashlib.blake2b(payload.encode("utf-8", "replace"), digest_size=16).hexdigest()
+
     # ------------------------------------------------------------------ #
     # Per-board display engine (single tick loop)
     # ------------------------------------------------------------------ #
@@ -1572,6 +1675,11 @@ class DisplayService:
                 logger.debug("Board %s: no active page available", board_id or "(default)")
                 return False
 
+            # The render short-circuit's memo for this pass (issue #1883), or
+            # None when the pass is not eligible. Carried down to the arming
+            # sites below.
+            fingerprint = None
+
             if inline_page is not None:
                 # One-off override: render the in-memory page directly. There is
                 # no stored page to look up and no preview cache to bypass.
@@ -1605,6 +1713,36 @@ class DisplayService:
                 if not page:
                     logger.warning(f"Active page not found: {active_page_id}")
                     return False
+
+                # --- Render short-circuit (issue #1883) ---
+                # #1752 made the FETCH set demand-driven but left the render
+                # itself time-driven: an unchanged tick still rendered the page
+                # and threw the result away at the content dedupe below. When
+                # every input the render reads is byte-identical to the inputs
+                # of the render whose output is sitting in the dedupe cache,
+                # the render can only reproduce that cached content — so the
+                # tick's outcome is already known to be "unchanged, skip".
+                #
+                # The memo carries the content and page id it was recorded
+                # with, and both are re-checked against the live dedupe cache
+                # here. That is what makes every existing cache-clearing site
+                # (invalidate_board_content, the exit-silence clear, a
+                # throttled or failed send that deliberately leaves the cache
+                # empty so the next tick retries) invalidate this too.
+                #
+                # Silence is excluded outright: the silence dispatch lives
+                # BELOW the render, so returning early here would skip it.
+                if not silence_mode_active:
+                    fingerprint = self._render_fingerprint(
+                        page, active_page_id, page_service, contexts, override_active=override_active
+                    )
+                    if (
+                        fingerprint is not None
+                        and rt.last_render == (fingerprint, rt.last_active_page_content, active_page_id)
+                        and rt.last_active_page_id == active_page_id
+                    ):
+                        logger.debug("Board %s: render inputs unchanged, skipping render", board_id or "(default)")
+                        return False
 
                 # Render with fresh data — force_refresh bypasses the preview cache
                 # so template variables (weather, time, stocks, etc.) are current.
@@ -1677,6 +1815,10 @@ class DisplayService:
             current_content = result.formatted
             if current_content == rt.last_active_page_content and active_page_id == rt.last_active_page_id:
                 logger.debug("Board %s: content unchanged, skipping send", board_id or "(default)")
+                # Arm the render short-circuit (issue #1883): this render's
+                # inputs provably produce the content already cached, so a
+                # later tick with the same fingerprint can skip the render.
+                rt.last_render = (fingerprint, current_content, active_page_id) if fingerprint else None
                 return False
             # In-flight half of the dedupe (issue #1755): the cache above is
             # only written when the worker finishes the send, so while a long
@@ -1738,6 +1880,10 @@ class DisplayService:
                         return False
                     rt.last_active_page_content = current_content
                     rt.last_active_page_id = active_page_id
+                    # Same arming as the unchanged-content branch (#1883): the
+                    # content now in the dedupe cache is what these inputs
+                    # render to.
+                    rt.last_render = (fingerprint, current_content, active_page_id) if fingerprint else None
                     # The engine just painted the page over whatever was on the
                     # board, so any out-of-band content is gone (issue #1831).
                     rt.showing_out_of_band = False
