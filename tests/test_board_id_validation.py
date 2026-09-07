@@ -41,7 +41,11 @@ def one_board():
     settings.get_board_settings.return_value = board_settings
     settings.get_primary_board_id.return_value = "board-1"
     settings.is_schedule_enabled.return_value = False
-    with patch("src.api_server.get_settings_service", return_value=settings):
+    # The schedules router binds get_settings_service at import time now
+    # (Phase 2 §2.3), and `require_board` reads the boards list through the
+    # accessor its *caller* holds — so stubbing the router's binding is what
+    # decides both the "unknown board" verdict and `is_schedule_enabled`.
+    with patch("src.schedules.routes.get_settings_service", return_value=settings):
         yield settings
 
 
@@ -51,8 +55,8 @@ class TestScheduleWritesRejectUnknownBoards:
         page_service = Mock()
         page_service.get_page.return_value = Mock(id="page-1")
         with (
-            patch("src.api_server.get_schedule_service", return_value=schedule_service),
-            patch("src.api_server.get_page_service", return_value=page_service),
+            patch("src.schedules.routes.get_schedule_service", return_value=schedule_service),
+            patch("src.schedules.routes.get_page_service", return_value=page_service),
         ):
             response = client.put(
                 "/schedules/default-page",
@@ -69,7 +73,7 @@ class TestScheduleWritesRejectUnknownBoards:
 
     def test_create_schedule_404s_and_persists_nothing(self, client, one_board):
         schedule_service = Mock()
-        with patch("src.api_server.get_schedule_service", return_value=schedule_service):
+        with patch("src.schedules.routes.get_schedule_service", return_value=schedule_service):
             response = client.post(
                 "/schedules",
                 json={
@@ -84,7 +88,7 @@ class TestScheduleWritesRejectUnknownBoards:
 
     def test_update_schedule_404s_and_does_not_reparent(self, client, one_board):
         schedule_service = Mock()
-        with patch("src.api_server.get_schedule_service", return_value=schedule_service):
+        with patch("src.schedules.routes.get_schedule_service", return_value=schedule_service):
             response = client.put("/schedules/sched-1", json={"board_id": "ghost-board"})
         assert response.status_code == 404
         schedule_service.update_schedule.assert_not_called()
@@ -95,7 +99,7 @@ class TestKnownAndOmittedBoardIdsStillWork:
 
     def test_known_board_id_is_accepted(self, client, one_board):
         schedule_service = Mock()
-        with patch("src.api_server.get_schedule_service", return_value=schedule_service):
+        with patch("src.schedules.routes.get_schedule_service", return_value=schedule_service):
             response = client.put("/schedules/enabled", json={"enabled": True, "board_id": "board-1"})
         assert response.status_code == 200
         one_board.set_schedule_enabled.assert_called_once()
@@ -123,14 +127,14 @@ class TestKnownAndOmittedBoardIdsStillWork:
         schedule_service.create_schedule.return_value = created
         compat = Mock(ok=True, warnings=[])
         with (
-            patch("src.api_server.get_schedule_service", return_value=schedule_service),
-            patch("src.api_server.check_ref_board_compatibility", return_value=compat),
+            patch("src.schedules.routes.get_schedule_service", return_value=schedule_service),
+            patch("src.schedules.routes.check_ref_board_compatibility", return_value=compat),
         ):
             response = client.post(
                 "/schedules",
                 json={"page_id": "page-1", "start_time": "09:00", "end_time": "17:00"},
             )
-        assert response.status_code == 200
+        assert response.status_code == 201  # 201 since the conventions pass
 
 
 class TestServiceLevelDefenceInDepth:
@@ -174,7 +178,7 @@ class TestReadsDeliberatelyFallBack:
         schedule_service = Mock()
         schedule_service.list_schedules.return_value = []
         schedule_service.get_default_page.return_value = None
-        with patch("src.api_server.get_schedule_service", return_value=schedule_service):
+        with patch("src.schedules.routes.get_schedule_service", return_value=schedule_service):
             response = client.get("/schedules", params={"board_id": "ghost-board"})
         assert response.status_code == 200
         assert response.json()["schedules"] == []

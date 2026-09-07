@@ -48,6 +48,12 @@ def env(monkeypatch, tmp_path):
     monkeypatch.setattr("src.api_server.get_settings_service", lambda: settings)
     monkeypatch.setattr("src.api_server.get_collection_service", lambda: collection_service)
     monkeypatch.setattr("src.api_server.get_schedule_service", lambda: schedule_service)
+    # The schedules router binds its collaborators at import time now
+    # (Phase 2 §2.3), so the same stubs have to reach that module too.
+    monkeypatch.setattr("src.schedules.routes.get_schedule_service", lambda: schedule_service)
+    monkeypatch.setattr("src.schedules.routes.get_settings_service", lambda: settings)
+    monkeypatch.setattr("src.schedules.routes.get_page_service", lambda: page_service)
+    monkeypatch.setattr("src.schedules.routes.get_collection_service", lambda: collection_service)
     monkeypatch.setattr("src.api_server.get_service", lambda: None)
     monkeypatch.setattr("src.api_server.PLUGIN_SYSTEM_AVAILABLE", False)
 
@@ -151,7 +157,7 @@ class TestScheduleRoutesCompatibility:
 
     def test_create_compatible_accepted(self, client, env):
         response = client.post("/schedules", json=self._payload(env["flagship_page"].id))
-        assert response.status_code == 200
+        assert response.status_code == 201  # 201 since the conventions pass
 
     def test_create_flagship_page_on_note_board_rejected_400(self, client, env):
         """Pin the multi-board e2e scenario: a default (flagship) page scheduled
@@ -170,11 +176,11 @@ class TestScheduleRoutesCompatibility:
     def test_create_note_page_on_note_board_accepted(self, client, env):
         """The compatible variant of the e2e scenario passes."""
         response = client.post("/schedules", json=self._payload(env["note_page"].id, board_id="board-note"))
-        assert response.status_code == 200
+        assert response.status_code == 201
 
     def test_create_collection_mixed_returns_warnings(self, client, env):
         response = client.post("/schedules", json=self._payload(env["mixed_collection"].id))
-        assert response.status_code == 200
+        assert response.status_code == 201
         warnings = response.json().get("warnings", [])
         assert len(warnings) == 1
         assert "Note Page" in warnings[0]

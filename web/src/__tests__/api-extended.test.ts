@@ -331,9 +331,7 @@ describe("API Extended Tests", () => {
           const body = (await request.json()) as any;
           return HttpResponse.json({ id: params.id, ...body });
         }),
-        http.delete(`${API_BASE}/schedules/:id`, () =>
-          HttpResponse.json({ status: "success", message: "Schedule deleted" }),
-        ),
+        http.delete(`${API_BASE}/schedules/:id`, ({ params }) => HttpResponse.json({ id: params.id })),
       );
     });
 
@@ -370,8 +368,9 @@ describe("API Extended Tests", () => {
     });
 
     it("deleteSchedule sends DELETE", async () => {
+      // The delete response is the bare deleted id since the conventions pass.
       const result = await api.deleteSchedule("sched-1");
-      expect(result.status).toBe("success");
+      expect(result.id).toBe("sched-1");
     });
 
     it("getActiveSchedule without boardId", async () => {
@@ -411,7 +410,7 @@ describe("API Extended Tests", () => {
       server.use(
         http.put(`${API_BASE}/schedules/default-page`, async ({ request }) => {
           capturedBody = await request.json();
-          return HttpResponse.json({ status: "success", default_page_id: capturedBody.page_id });
+          return HttpResponse.json({ default_page_id: capturedBody.page_id });
         }),
       );
 
@@ -435,7 +434,7 @@ describe("API Extended Tests", () => {
       server.use(
         http.put(`${API_BASE}/schedules/enabled`, async ({ request }) => {
           capturedBody = await request.json();
-          return HttpResponse.json({ status: "success", enabled: capturedBody.enabled, message: "ok" });
+          return HttpResponse.json({ enabled: capturedBody.enabled });
         }),
       );
 

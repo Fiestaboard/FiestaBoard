@@ -13,6 +13,36 @@ collaborator, so the seam retirement later in this PR cannot make these tests
 vacuously pass).
 
 All eleven routes are covered, including every 4xx body each one can produce.
+
+Re-pinned by the conventions pass in this same PR. What deliberately changed,
+and nothing else:
+
+* ``POST /schedules`` answers **201** (was 200) — conventions doc, "Status
+  codes". The body is unchanged apart from ``warnings`` below.
+* ``DELETE /schedules/{id}`` answers ``{"id": <deleted id>}`` (was
+  ``{"status": "success", "message": "Schedule <id> deleted"}``) — the doc
+  offers "200 with the deleted resource id" or "204 with no body"; this domain
+  picks the former, as collections did.
+* ``PUT /schedules/default-page`` answers the bare
+  ``{"default_page_id": ...}`` (was ``{"status": "success",
+  "default_page_id": ...}``), which is byte-identical to what ``GET`` on the
+  same path answers.
+* ``PUT /schedules/enabled`` answers the bare ``{"enabled": ...}`` (was
+  ``{"status", "enabled", "message"}``), matching its ``GET``.
+* Create/update carry ``warnings`` **always**, empty when clean (the key used
+  to be omitted when there was nothing to warn about).
+* ``GET /schedules/active/page`` always carries ``current_time``,
+  ``current_day`` and ``default_page_id``; they are ``null`` in manual mode
+  (the manual branch used to omit them, so one route served two key sets).
+* The three untyped ``dict`` bodies became Pydantic models, so a missing or
+  wrongly-typed field is FastAPI's standard **422** instead of a hand-rolled
+  400. The *rejection* is unchanged — notably ``{"enabled": "yes"}`` is still
+  refused, via ``StrictBool``, rather than coerced to ``true``.
+
+Every other value assertion — ids, times, resolved times, list ordering and
+total, gap and overlap contents, error strings, and the failure status codes on
+the 404 paths — is byte-identical to the pre-conversion recording. None was
+weakened.
 """
 
 from __future__ import annotations
@@ -66,7 +96,7 @@ def _create(client: TestClient, **body) -> dict:
     a one-line change instead of a sweep.
     """
     response = client.post("/schedules", json=body)
-    assert response.status_code == 200, response.text
+    assert response.status_code == 201, response.text  # RE-PINNED: 201 (was 200)
     return response.json()
 
 
@@ -76,7 +106,8 @@ def _create(client: TestClient, **body) -> dict:
 def test_create_returns_the_created_schedule_with_its_values(client, page_id):
     response = client.post("/schedules", json={"page_id": page_id, "start_time": "09:00", "end_time": "17:00"})
 
-    assert response.status_code == 200, response.text
+    # RE-PINNED: 201 (was 200). The body is unchanged apart from `warnings`.
+    assert response.status_code == 201, response.text
     schedule = response.json()
     assert schedule["page_id"] == page_id
     assert schedule["start_time"] == "09:00"
@@ -91,6 +122,7 @@ def test_create_returns_the_created_schedule_with_its_values(client, page_id):
     assert schedule["start_sun_offset"] == 0
     assert schedule["end_sun_offset"] == 0
     assert schedule["updated_at"] is None
+    assert schedule["warnings"] == []  # RE-PINNED: always present, was omitted when clean
 
 
 def test_create_mints_an_id_and_a_created_at(client, page_id):
@@ -249,7 +281,10 @@ def test_get_returns_the_schedule_by_id(client, page_id):
     response = client.get(f"/schedules/{created['id']}")
 
     assert response.status_code == 200
-    assert response.json() == created
+    # RE-PINNED: the read carries no `warnings`. Page<->board compatibility is
+    # computed on write, against the payload being written; recomputing it on
+    # every read would be a different (and much more expensive) claim.
+    assert response.json() == {k: v for k, v in created.items() if k != "warnings"}
 
 
 def test_get_missing_schedule_404s_naming_the_id(client):
@@ -319,7 +354,8 @@ def test_delete_removes_the_schedule(client, page_id):
     response = client.delete(f"/schedules/{created['id']}")
 
     assert response.status_code == 200
-    assert response.json() == {"status": "success", "message": f"Schedule {created['id']} deleted"}
+    # RE-PINNED: the deleted id (was {"status": "success", "message": ...}).
+    assert response.json() == {"id": created["id"]}
     assert client.get(f"/schedules/{created['id']}").status_code == 404
 
 
@@ -399,7 +435,9 @@ def test_set_default_page_stores_it_and_reads_back(client, page_id):
     response = client.put("/schedules/default-page", json={"page_id": page_id})
 
     assert response.status_code == 200
-    assert response.json() == {"status": "success", "default_page_id": page_id}
+    # RE-PINNED: bare body (was {"status": "success", "default_page_id": ...}),
+    # byte-identical to what GET on the same path answers.
+    assert response.json() == {"default_page_id": page_id}
     assert client.get("/schedules/default-page").json() == {"default_page_id": page_id}
 
 
@@ -409,15 +447,22 @@ def test_set_default_page_to_null_clears_it(client, page_id):
     response = client.put("/schedules/default-page", json={"page_id": None})
 
     assert response.status_code == 200
-    assert response.json() == {"status": "success", "default_page_id": None}
+    assert response.json() == {"default_page_id": None}  # RE-PINNED: bare body
     assert client.get("/schedules/default-page").json() == {"default_page_id": None}
 
 
-def test_set_default_page_without_page_id_400s(client):
+def test_set_default_page_without_page_id_422s(client):
+    """RE-PINNED: 422 (was a hand-rolled 400 "page_id parameter required").
+
+    The body is a Pydantic model now, so a missing required field is FastAPI's
+    standard validation error. The request is still refused, and nothing is
+    written.
+    """
     response = client.put("/schedules/default-page", json={})
 
-    assert response.status_code == 400
-    assert response.json() == {"detail": "page_id parameter required"}
+    assert response.status_code == 422
+    assert response.json()["detail"][0]["loc"] == ["body", "page_id"]
+    assert client.get("/schedules/default-page").json() == {"default_page_id": None}
 
 
 def test_set_default_page_to_an_unknown_page_404s_naming_the_page(client):
@@ -465,7 +510,8 @@ def test_set_schedule_enabled_turns_it_on_and_reads_back(client):
     response = client.put("/schedules/enabled", json={"enabled": True})
 
     assert response.status_code == 200
-    assert response.json() == {"status": "success", "enabled": True, "message": "Schedule mode enabled"}
+    # RE-PINNED: bare body (was {"status", "enabled", "message"}), matching GET.
+    assert response.json() == {"enabled": True}
     assert client.get("/schedules/enabled").json() == {"enabled": True}
 
 
@@ -475,24 +521,32 @@ def test_set_schedule_enabled_turns_it_off_again(client):
     response = client.put("/schedules/enabled", json={"enabled": False})
 
     assert response.status_code == 200
-    assert response.json() == {"status": "success", "enabled": False, "message": "Schedule mode disabled"}
+    assert response.json() == {"enabled": False}  # RE-PINNED: bare body
     assert client.get("/schedules/enabled").json() == {"enabled": False}
 
 
-def test_set_schedule_enabled_without_the_flag_400s(client):
+def test_set_schedule_enabled_without_the_flag_422s(client):
+    """RE-PINNED: 422 (was a hand-rolled 400 "enabled parameter required")."""
     response = client.put("/schedules/enabled", json={})
 
-    assert response.status_code == 400
-    assert response.json() == {"detail": "enabled parameter required"}
+    assert response.status_code == 422
+    assert response.json()["detail"][0]["loc"] == ["body", "enabled"]
+    assert client.get("/schedules/enabled").json() == {"enabled": False}
 
 
 def test_set_schedule_enabled_rejects_a_non_boolean(client):
     """A truthy string must not be coerced into "on" — that would silently turn
-    schedule mode on for a client that sent the wrong type."""
+    schedule mode on for a client that sent the wrong type.
+
+    RE-PINNED: 422 (was a hand-rolled 400 "enabled must be boolean"). The
+    rejection itself is what matters and is unchanged — Pydantic's lax mode
+    *would* have coerced "yes" to True, so the model declares ``StrictBool``.
+    """
     response = client.put("/schedules/enabled", json={"enabled": "yes"})
 
-    assert response.status_code == 400
-    assert response.json() == {"detail": "enabled must be boolean"}
+    assert response.status_code == 422
+    assert response.json()["detail"][0]["loc"] == ["body", "enabled"]
+    assert client.get("/schedules/enabled").json() == {"enabled": False}
 
 
 def test_set_schedule_enabled_for_an_unknown_board_404s_and_writes_nothing(client):
@@ -527,15 +581,20 @@ def test_active_page_reports_the_manual_page_when_schedule_mode_is_off(client, p
     assert body["schedule_enabled"] is False
 
 
-def test_active_page_omits_the_clock_fields_in_manual_mode(client, page_id):
-    """The manual branch answers a different key set from the schedule branch."""
+def test_active_page_nulls_the_clock_fields_in_manual_mode(client, page_id):
+    """RE-PINNED: the three fields are present and null; they used to be absent.
+
+    One route served two key sets, so a client could not tell "manual mode" from
+    "this server does not report the current day". They are declared on
+    ``ActiveScheduleResponse`` now, and null is the manual-mode answer.
+    """
     client.put("/settings/active-page", json={"page_id": page_id})
 
     body = client.get("/schedules/active/page").json()
 
-    assert "current_time" not in body
-    assert "current_day" not in body
-    assert "default_page_id" not in body
+    assert body["current_time"] is None
+    assert body["current_day"] is None
+    assert body["default_page_id"] is None
 
 
 def test_active_page_reports_the_scheduled_page_when_schedule_mode_is_on(client, page_id):

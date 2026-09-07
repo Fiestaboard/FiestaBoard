@@ -1,13 +1,39 @@
 {
-  "_comment": "API conventions ratchet (Phase 2, spec \u00a72). Enforced by tests/test_api_conventions_ratchet.py; rules documented in docs/internal/reference/API_CONVENTIONS.md. Append a domain to converted_domains in the slice PR that converts it \u2014 never before. Every exception needs a route that exists, a known rule id, and a reason a reviewer can argue with.",
+  "_comment": "API conventions ratchet (Phase 2, spec §2). Enforced by tests/test_api_conventions_ratchet.py; rules documented in docs/internal/reference/API_CONVENTIONS.md. Append a domain to converted_domains in the slice PR that converts it — never before. Every exception needs a route that exists, a known rule id, and a reason a reviewer can argue with.",
   "converted_domains": [
-    "collections"
+    "collections",
+    "schedules"
   ],
   "exceptions": [
     {
       "route": "GET /collections",
       "rule": "declared_errors",
       "reason": "Listing has no failure path: it returns [] for an empty store and cannot 404 or 400, so declaring a 4xx would document an error the endpoint never raises."
+    },
+    {
+      "route": "GET /schedules",
+      "rule": "declared_errors",
+      "reason": "No failure path. The only argument is board_id, and a board-scoped read deliberately falls back to the empty list instead of 404ing (API_CONVENTIONS.md, 'board_id validation: writes 404, reads fall back'); board_id=* is a documented wildcard, not an id."
+    },
+    {
+      "route": "GET /schedules/enabled",
+      "rule": "declared_errors",
+      "reason": "No failure path. An unknown board_id deliberately answers false rather than 404 — the same read/write asymmetry, decided in #1888 and documented in API_CONVENTIONS.md."
+    },
+    {
+      "route": "GET /schedules/default-page",
+      "rule": "declared_errors",
+      "reason": "No failure path. An unknown board_id deliberately answers the global default rather than 404 — the same read/write asymmetry, decided in #1888 and documented in API_CONVENTIONS.md."
+    },
+    {
+      "route": "GET /schedules/active/page",
+      "rule": "declared_errors",
+      "reason": "No failure path. It reports whatever is on the board right now — manual page, scheduled page, or nothing — and every collection resolution failure is caught and reported as null rather than raised, because a dashboard poll must not error out over a collection that cannot resolve."
+    },
+    {
+      "route": "POST /schedules/validate",
+      "rule": "declared_errors",
+      "reason": "No failure path. It is a read of existing schedules with an optional board_id, which falls back to the empty set; an inconsistent schedule set is the 200 verdict this endpoint exists to report, not an error."
     }
   ]
 }

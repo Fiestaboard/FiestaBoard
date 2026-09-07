@@ -235,3 +235,52 @@ def reset_collection_service_for_tests() -> None:
     """Clear the cached singleton. Tests that swap storage paths use this."""
     global _collection_service
     _collection_service = None
+
+
+def resolve_active_page_id(page_id: str | None, get_collection_service: Callable[[], Any]) -> str | None:
+    """Resolve a collection reference to the page it is currently showing.
+
+    When ``page_id`` is a collection ID the Dashboard needs to know which
+    member page the collection's logic is presently rendering on the board so
+    it can name and link to that page (issue #1513). Plain page IDs (and None)
+    are returned unchanged. Never raises — a collection that can't be resolved
+    just yields None.
+
+    Lived in ``src/api_server.py`` until Phase 2 §2.3; it reads nothing but
+    collections, so the schedules router can import it from here instead of
+    reaching into the app module at call time.
+
+    The service *accessor* is a parameter, not this module's global: the caller
+    passes its own binding, so the lookup keeps resolving through whichever
+    ``get_collection_service`` the calling module binds (and stays lazy — a
+    plain page id never touches the service at all).
+    """
+    if not is_collection_id(page_id):
+        return page_id
+    try:
+        return get_collection_service().resolve_page_id(page_id)
+    except Exception:  # pragma: no cover - defensive; resolution is best-effort
+        logger.warning("Failed to resolve collection page for %s", page_id, exc_info=True)
+        return None
+
+
+def resolve_next_check_seconds(page_id: str | None, get_collection_service: Callable[[], Any]) -> int | None:
+    """Seconds until ``page_id``'s collection may switch to a different page.
+
+    A collection can rotate as often as every 5 seconds (2 for variable-mode
+    polling), so a client that caches ``resolved_page_id`` on a fixed timer
+    would name the wrong page for most of the interval. Handing back the
+    collection's own cadence lets the Dashboard re-poll exactly when the page
+    on the board can change (issue #1513). None for plain pages, collections
+    that can't rotate (<2 pages), and any resolution failure.
+
+    Takes the service accessor as a parameter for the same reason as
+    :func:`resolve_active_page_id`.
+    """
+    if not is_collection_id(page_id):
+        return None
+    try:
+        return get_collection_service().seconds_until_next_check(page_id)
+    except Exception:  # pragma: no cover - defensive; resolution is best-effort
+        logger.warning("Failed to compute next check for collection %s", page_id, exc_info=True)
+        return None

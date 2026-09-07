@@ -47,7 +47,14 @@ def mock_config_manager():
 @pytest.fixture
 def mock_settings_service():
     """Mock the settings service."""
-    with patch("src.api_server.get_settings_service") as mock_get:
+    # The schedules router binds its collaborators at import time now
+    # (Phase 2 §2.3), so this fixture stubs both places: `src.api_server.<name>`
+    # for the handlers that still live in the app module, and
+    # `src.schedules.routes.<name>` for the eleven that no longer do.
+    with (
+        patch("src.api_server.get_settings_service") as mock_get,
+        patch("src.schedules.routes.get_settings_service") as routes_get,
+    ):
         ss = Mock()
         transition = Mock()
         transition.strategy = "column"
@@ -137,13 +144,21 @@ def mock_settings_service():
         ss.update_plugin_settings.return_value = plugin_settings
 
         mock_get.return_value = ss
+        routes_get.return_value = ss
         yield ss
 
 
 @pytest.fixture
 def mock_page_service():
     """Mock the page service."""
-    with patch("src.api_server.get_page_service") as mock_get:
+    # The schedules router binds its collaborators at import time now
+    # (Phase 2 §2.3), so this fixture stubs both places: `src.api_server.<name>`
+    # for the handlers that still live in the app module, and
+    # `src.schedules.routes.<name>` for the eleven that no longer do.
+    with (
+        patch("src.api_server.get_page_service") as mock_get,
+        patch("src.schedules.routes.get_page_service") as routes_get,
+    ):
         ps = Mock()
         mock_page = Mock()
         mock_page.model_dump.return_value = {
@@ -186,13 +201,21 @@ def mock_page_service():
         ps._invalidate_cache.return_value = None
 
         mock_get.return_value = ps
+        routes_get.return_value = ps
         yield ps
 
 
 @pytest.fixture
 def mock_schedule_service():
     """Mock the schedule service."""
-    with patch("src.api_server.get_schedule_service") as mock_get:
+    # The schedules router binds its collaborators at import time now
+    # (Phase 2 §2.3), so this fixture stubs both places: `src.api_server.<name>`
+    # for the handlers that still live in the app module, and
+    # `src.schedules.routes.<name>` for the eleven that no longer do.
+    with (
+        patch("src.api_server.get_schedule_service") as mock_get,
+        patch("src.schedules.routes.get_schedule_service") as routes_get,
+    ):
         ss = Mock()
         mock_schedule = Mock()
         mock_schedule.model_dump.return_value = {
@@ -209,11 +232,12 @@ def mock_schedule_service():
         ss.delete_schedule.return_value = True
         ss.get_default_page.return_value = "page1"
         ss.get_active_page_id.return_value = "page1"
-        validate_result = Mock()
-        validate_result.model_dump.return_value = {"valid": True, "errors": [], "warnings": []}
-        ss.validate_schedules.return_value = validate_result
+        from src.schedules.models import ScheduleValidationResult
+
+        ss.validate_schedules.return_value = ScheduleValidationResult(valid=True, overlaps=[], gaps=[])
 
         mock_get.return_value = ss
+        routes_get.return_value = ss
         yield ss
 
 
@@ -1276,7 +1300,8 @@ class TestScheduleEndpoints:
         # member page it is currently rendering via resolved_page_id.
         mock_settings_service.is_schedule_enabled.return_value = True
         mock_schedule_service.get_active_page_id.return_value = "collection:abc"
-        with patch("src.api_server.get_collection_service") as mock_get_cs:
+        # The schedules router binds get_collection_service at import time now.
+        with patch("src.schedules.routes.get_collection_service") as mock_get_cs:
             cs = Mock()
             cs.resolve_page_id.return_value = "member-page"
             cs.seconds_until_next_check.return_value = 7
@@ -1303,8 +1328,10 @@ class TestScheduleEndpoints:
         assert response.status_code == 200
 
     def test_set_default_page_missing_param(self, client, mock_schedule_service):
+        # 422 since the conventions pass: the body is a Pydantic model, so a
+        # missing required field is FastAPI's standard validation error.
         response = client.put("/schedules/default-page", json={})
-        assert response.status_code == 400
+        assert response.status_code == 422
 
     def test_set_default_page_not_found(self, client, mock_schedule_service, mock_page_service):
         mock_page_service.get_page.return_value = None
@@ -1326,11 +1353,13 @@ class TestScheduleEndpoints:
 
     def test_set_schedule_enabled_missing_param(self, client, mock_settings_service):
         response = client.put("/schedules/enabled", json={})
-        assert response.status_code == 400
+        assert response.status_code == 422
 
     def test_set_schedule_enabled_not_bool(self, client, mock_settings_service):
+        # StrictBool: "yes" is still refused (Pydantic's lax mode would have
+        # coerced it to True), just as 422 rather than the old hand-rolled 400.
         response = client.put("/schedules/enabled", json={"enabled": "yes"})
-        assert response.status_code == 400
+        assert response.status_code == 422
 
 
 # ============================================================
