@@ -106,11 +106,6 @@ from .network.wifi import WiFiError, get_wifi_service  # noqa: E402
 from .pages.service import check_ref_board_compatibility, get_page_service  # noqa: E402
 from .panels.service import get_panel_service  # noqa: E402
 from .paths import get_data_dir  # noqa: E402, F401  (re-export: patch seam)
-
-# Patch seam (issue #1756): no handler left in this module calls it, but the
-# extracted routers resolve it through `src.api_server` at call time so
-# tests that patch `src.api_server.get_schedule_service` keep working.
-from .schedules.service import get_schedule_service  # noqa: E402, F401
 from .settings.service import VALID_OUTPUT_TARGETS, VALID_STRATEGIES, get_settings_service  # noqa: E402
 from .settings.service import temporary_override_payload as _temporary_override_payload  # noqa: E402
 from .text_to_board import text_to_board_array  # noqa: E402

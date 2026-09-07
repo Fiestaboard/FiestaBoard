@@ -558,7 +558,9 @@ class TestSystemUpdateAutoToggle:
         monkeypatch.setattr("src.system.update_service.SYSTEM_UPDATE_STATE_FILE", state_file)
 
         r = client.post("/system/update/auto", json={"interval": "hourly"})
-        assert r.status_code == 422
+        # 400 since review finding 5: a hand-raised semantic rejection, not
+        # FastAPI schema validation (which still owns 422 on this route).
+        assert r.status_code == 400
 
     def test_empty_body_rejected(self, client, tmp_path, monkeypatch):
         """Must provide either ``interval`` or ``enabled``."""
@@ -566,7 +568,8 @@ class TestSystemUpdateAutoToggle:
         monkeypatch.setattr("src.system.update_service.SYSTEM_UPDATE_STATE_FILE", state_file)
 
         r = client.post("/system/update/auto", json={})
-        assert r.status_code == 422
+        # 400 since review finding 5 — see test_invalid_interval_rejected.
+        assert r.status_code == 400
 
     def test_status_reports_default_interval_when_unset(self, client, tmp_path, monkeypatch):
         """Fresh state file -> default interval based on profile."""

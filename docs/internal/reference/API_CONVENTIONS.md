@@ -58,6 +58,15 @@ mistyped entry fails the build rather than silently excusing nothing: the
 manifest test rejects unknown rule ids, duplicate pairs, routes the app does
 not serve, and exceptions whose domain is not in `converted_domains`.
 
+**Dead exceptions fail the build.** The manifest test re-runs each rule's own
+checker against the route the exception names, and rejects the entry when the
+rule already passes. An exception that excuses nothing is not harmless: it
+exempts that route from the rule *forever*, so a later regression on it goes
+unreported. Widening `declared_errors` from "a 4xx" to "any 4xx or 5xx" left
+eleven of these behind — deleting `responses=` from `GET /cache-status` kept
+the ratchet green until they were removed. When a rule is widened, delete the
+exceptions it obsoletes in the same commit; the validator will name them.
+
 **Where the rules are ambiguous, the ratchet flags.** A `return` inside an
 `except` is reported even when it is deliberate, because a checker that
 guesses is a checker nobody trusts. The cost of a false positive is one
@@ -125,6 +134,20 @@ an object with a `message` string plus named fields — never a bare string in
 one endpoint and a dict in its sibling. No stringified tracebacks in any
 response (CodeQL also enforces this).
 
+**Declare it with `errors()`, never a hand-written dict.** `src/api_errors.py`
+is what attaches `model=ErrorResponse` to each declared code; a domain that
+hand-rolls its `responses=` publishes the codes with *no* body in the OpenAPI
+schema, and its inline descriptions drift from the canonical text. The
+`system` domain did exactly that on four routes — fifteen declarations, none
+with a model — because `errors()` had no 500 entry and raised for it. It has
+one now: a **deliberately raised** 500, not an unhandled error.
+
+**422 belongs to FastAPI.** It is the code FastAPI generates for schema
+validation, and its body is a *list* of errors, not `{"detail": <string>}`. A
+hand-raised semantic rejection of a body that already passed validation is a
+**400** — declaring 422 for it would publish the wrong model for the real
+validation error on the same route.
+
 ## Routers and services
 
 - Every domain lives in `src/<domain>/routes.py` (`APIRouter`, OpenAPI
@@ -175,15 +198,17 @@ Decided 2026-09 with #1888. The asymmetry is deliberate and it is the
 inconsistency-of-record, so read it before "fixing" either half.
 
 - **Writes 404.** Any handler that persists something scoped to a board
-  calls `require_board(board_id, settings_service)` (`src/boards.py`) — the
-  single place the "unknown board" verdict is made. The settings service is a
-  parameter, not a global inside `boards`, so the lookup resolves through
-  whichever `get_settings_service` the *calling* module binds; `api_server`
-  keeps a thin `_require_board` wrapper that passes its own. Writing state bound to a board that
-  does not exist is invisible until something else trips over it: the four
-  schedule write endpoints used to store a phantom default page, a no-op
-  that reported `{"status": "success"}`, and schedules parented to
-  nonexistent boards.
+  calls `_require_board(board_id)` (`src/board_guards.py`) — the single place
+  the "unknown board" verdict is made. It resolves the settings service
+  through `src.board_guards.get_settings_service`, so **one** stub steers the
+  board verdict for every domain. There was briefly a second implementation,
+  `require_board(board_id, settings_service)` in `src/boards.py`, taking the
+  service as a parameter; two seam designs for one identical lookup meant a
+  fixture could stub `src.board_guards` and steer nothing, so it is gone.
+  Writing state bound to a board that does not exist is invisible until
+  something else trips over it: the four schedule write endpoints used to
+  store a phantom default page, a no-op that reported
+  `{"status": "success"}`, and schedules parented to nonexistent boards.
 - **Reads fall back.** `GET /schedules` answers `[]`, `GET /schedules/enabled`
   answers `false`, `GET /schedules/default-page` answers the global default,
   and their siblings behave the same way. This is not an oversight:

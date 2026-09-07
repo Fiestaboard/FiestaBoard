@@ -296,6 +296,16 @@ def check_declared_errors(record: dict[str, Any]) -> list[str]:
     return ["declares no error status in responses="]
 
 
+#: The checker behind each rule id, so the manifest validator can ask "does
+#: this exception still excuse anything?" with the same code the ratchet runs.
+CHECKS: dict[str, typing.Callable[[dict[str, Any]], list[str]]] = {
+    "response_model": check_response_model,
+    "no_200_on_failure": check_no_200_on_failure,
+    "typed_body": check_typed_body,
+    "declared_errors": check_declared_errors,
+}
+
+
 # --------------------------------------------------------------------------
 # The ratchet
 # --------------------------------------------------------------------------
@@ -358,6 +368,14 @@ def validate_manifest(manifest: dict[str, Any], records: list[dict[str, Any]]) -
     back into that state unnoticed. So: unknown keys, unknown rule ids,
     duplicate exceptions, domains that match no route, and exceptions naming a
     route the app does not serve are all build failures.
+
+    So is a **dead exception** — one whose rule already passes on its route.
+    It excuses nothing today and silently exempts that route from the rule
+    forever, so a later regression on it goes unreported. The review that
+    found this counted eleven, all created when ``declared_errors`` was
+    widened from "a 4xx" to "any 4xx or 5xx" and the entries the narrower rule
+    had needed were left behind. Re-running each rule's own checker here is
+    the only thing that keeps that from happening again on the next widening.
     """
     problems: list[str] = []
 
@@ -375,6 +393,7 @@ def validate_manifest(manifest: dict[str, Any], records: list[dict[str, Any]]) -
 
     known_routes = {key for r in records if r["kind"] == "APIRoute" for key in _route_keys(r)}
     route_domain = {key: set(r["tags"] or []) for r in records if r["kind"] == "APIRoute" for key in _route_keys(r)}
+    record_by_key = {key: r for r in records if r["kind"] == "APIRoute" for key in _route_keys(r)}
 
     for domain in domains:
         if not _records_for_domain(records, domain):
@@ -415,6 +434,11 @@ def validate_manifest(manifest: dict[str, Any], records: list[dict[str, Any]]) -
             problems.append(
                 f"{where} excuses {route!r}, which is not in any converted domain — "
                 "dead exceptions rot; delete it or convert its domain"
+            )
+        elif rule in CHECKS and not CHECKS[rule](record_by_key[route]):
+            problems.append(
+                f"{where} excuses {route!r} from {rule!r}, but the rule already passes there — "
+                "a dead exception excuses nothing and exempts the route from the rule forever; delete it"
             )
     return problems
 
@@ -674,3 +698,41 @@ def test_an_exception_outside_every_converted_domain_is_rejected():
     }
     problems = validate_manifest(manifest, _sample_records())
     assert any("not in any converted domain" in p for p in problems), problems
+
+
+def test_a_dead_exception_is_rejected():
+    """An exception whose rule already passes excuses nothing — fail the build.
+
+    The review of the ``next-rebuild`` trunk found eleven of these, created
+    when ``declared_errors`` was widened from "a 4xx" to "any 4xx or 5xx".
+    Each one silently exempted a compliant route from ever being checked
+    again, so deleting the route's ``responses=`` block kept the ratchet
+    green.
+    """
+    manifest = {
+        "converted_domains": ["sample"],
+        "exceptions": [
+            {
+                "route": "GET /sample/compliant",
+                "rule": "declared_errors",
+                "reason": "left behind after the rule was widened to accept a 5xx",
+            }
+        ],
+    }
+    problems = validate_manifest(manifest, _sample_records())
+    assert any("already passes" in p for p in problems), problems
+
+
+def test_a_live_exception_is_not_reported_as_dead():
+    """The liveness check must not reject an exception that still bites."""
+    manifest = {
+        "converted_domains": ["sample"],
+        "exceptions": [
+            {
+                "route": "GET /sample/no-errors",
+                "rule": "declared_errors",
+                "reason": "sample fixture: this route really does declare no error status",
+            }
+        ],
+    }
+    assert validate_manifest(manifest, _sample_records()) == []

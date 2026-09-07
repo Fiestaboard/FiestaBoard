@@ -32,6 +32,7 @@ import requests
 from fastapi import APIRouter, HTTPException
 
 from src import __version__
+from src.api_errors import errors
 
 from . import update_service
 from .models import (
@@ -52,12 +53,15 @@ router = APIRouter(tags=["system"])
 
 #: Declared error responses, reused across the sidecar-backed routes. Every
 #: code here is one these handlers actually raise.
-_SIDECAR_UNAVAILABLE = {503: {"description": "The fiestaupdater sidecar is not configured or not reachable"}}
-_SIDECAR_ERRORS = {
-    500: {"description": "The sidecar rejected our token"},
-    502: {"description": "The sidecar answered with an error"},
-    **_SIDECAR_UNAVAILABLE,
-}
+#:
+#: Built with :func:`src.api_errors.errors` like every other domain. This module
+#: used to hand-write the dict, which cost it the ``model=ErrorResponse`` on all
+#: fifteen of its declarations — so ``/system/*`` errors published no response
+#: body in the OpenAPI schema while every other domain published
+#: ``{"detail": string}`` — and let eleven inline descriptions drift from the
+#: canonical text. It was written that way because ``errors()`` had no 500
+#: entry and raised; it has one now.
+_SIDECAR_ERRORS = errors(500, 502, 503)
 
 
 @router.get("/version", response_model=VersionResponse)
@@ -224,11 +228,7 @@ async def system_update_apply():
 @router.post(
     "/system/update/rollback",
     response_model=RollbackResponse,
-    responses={
-        400: {"description": "Nothing to restore, or the snapshot is unreadable"},
-        404: {"description": "No matching settings snapshot"},
-        **_SIDECAR_ERRORS,
-    },
+    responses=errors(400, 404, 500, 502, 503),
 )
 async def system_update_rollback(req: RollbackRequest):
     """Roll the running instance back to a previous version.
@@ -374,7 +374,13 @@ async def system_update_rollback(req: RollbackRequest):
 @router.post(
     "/system/update/auto",
     response_model=AutoUpdateResponse,
-    responses={422: {"description": "Neither interval nor enabled was supplied, or the interval is unknown"}},
+    # 400, not 422. Both rejections below are hand-raised semantic checks on a
+    # body that already passed schema validation, and they answer the domain's
+    # `{"detail": <string>}`. FastAPI's own 422 — a different body shape,
+    # `{"detail": [ ... ]}` — stays this route's 422, generated as usual.
+    # Declaring `errors(422)` here would have published the wrong model for it,
+    # which is the contradiction review finding 5 named.
+    responses=errors(400),
 )
 async def system_update_set_auto(req: AutoUpdateRequest):
     """Set the auto-update preference.
@@ -391,7 +397,7 @@ async def system_update_set_auto(req: AutoUpdateRequest):
     if req.interval is not None:
         if req.interval not in update_service.AUTO_UPDATE_INTERVALS:
             raise HTTPException(
-                status_code=422,
+                status_code=400,
                 detail=(
                     f"Invalid interval {req.interval!r}; "
                     f"must be one of: {sorted(update_service.AUTO_UPDATE_INTERVALS.keys())}"
@@ -402,7 +408,7 @@ async def system_update_set_auto(req: AutoUpdateRequest):
         interval = update_service._auto_update_default_interval() if req.enabled else "manual"
     else:
         raise HTTPException(
-            status_code=422,
+            status_code=400,
             detail="Request must include either 'interval' or 'enabled'.",
         )
 

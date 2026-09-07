@@ -789,13 +789,20 @@ class TestPluginManagement:
         assert called_keys == {"weather:sf", "weather:nyc", "weather"}
 
     def test_uninstall_failure_preserves_config(self, client):
-        """If the registry uninstall fails, the persisted config must NOT be
-        deleted — otherwise we could lose user settings on a transient failure."""
+        """If the registry refuses the uninstall, the persisted config must NOT
+        be deleted — otherwise we could lose user settings on a transient
+        failure.
+
+        The refusal used to be spelled "Plugin not found: muni", which is the
+        one case that is no longer a 400 (review finding 6). A built-in refusal
+        is the honest 400 here: the plugin exists, removing it is against a
+        rule.
+        """
         mock_registry = Mock()
         mock_registry.list_plugins.return_value = [
             {"id": "muni", "base_plugin_id": "muni", "instance_label": None},
         ]
-        mock_registry.uninstall_external_plugin.return_value = ["Plugin not found: muni"]
+        mock_registry.uninstall_external_plugin.return_value = ["Cannot uninstall a built-in plugin"]
         mock_cm = Mock()
         with (
             patch("src.plugins.routes.PLUGIN_SYSTEM_AVAILABLE", True),
@@ -804,6 +811,24 @@ class TestPluginManagement:
         ):
             resp = client.delete("/plugins/muni/uninstall")
         assert resp.status_code == 400
+        mock_cm.delete_plugin_config.assert_not_called()
+
+    def test_uninstalling_a_plugin_with_no_source_is_404_and_preserves_config(self, client):
+        """DELIBERATE CONTRACT CHANGE (review finding 6): the missing case was
+        a 400 with the literal text "Plugin not found"; the route's declared
+        404 was unreachable."""
+        mock_registry = Mock()
+        mock_registry.get_plugin_source.return_value = None
+        mock_cm = Mock()
+        with (
+            patch("src.plugins.routes.PLUGIN_SYSTEM_AVAILABLE", True),
+            patch("src.plugins.routes.get_plugin_registry", return_value=mock_registry),
+            patch("src.plugins.routes.get_config_manager", return_value=mock_cm),
+        ):
+            resp = client.delete("/plugins/ghost/uninstall")
+        assert resp.status_code == 404
+        assert resp.json()["detail"] == "Plugin not found: ghost"
+        mock_registry.uninstall_external_plugin.assert_not_called()
         mock_cm.delete_plugin_config.assert_not_called()
 
 

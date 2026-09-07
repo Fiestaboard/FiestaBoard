@@ -29,9 +29,19 @@ and nothing else:
   human-readable sentence inside each old dict is preserved verbatim as the
   new detail (the two generic ``str(e)`` bodies gain the "fiestaupdater
   <action> call failed" prefix that was previously only in the log line).
-* Nothing else. Every success body, every status code, the auto-update
-  interval semantics, and the two paths that were already string details
-  (``POST /system/update/auto``'s two 422s) are unchanged.
+* Nothing else in that pass. Every success body, every status code and the
+  auto-update interval semantics were unchanged.
+
+The review of the ``next-rebuild`` trunk then changed **one** status code
+(finding 5): ``POST /system/update/auto``'s two hand-raised rejections moved
+from 422 to 400. They are semantic checks on a body that already passed schema
+validation, and they answer ``{"detail": <string>}``; 422 on this route belongs
+to FastAPI's own validation error, whose body is a different shape
+(``{"detail": [ ... ]}``). With both sharing 422 the route could not declare
+either honestly — the whole ``system`` domain was hand-writing its
+``responses=`` dicts, and therefore publishing no response model at all, to
+work around ``errors()`` not having a 500. It uses ``errors()`` now. The detail
+strings are byte-for-byte unchanged.
 """
 
 from __future__ import annotations
@@ -421,7 +431,8 @@ def test_rollback_image_happy_path_queues_the_recorded_digest(client, snapshot, 
 
 
 # ===========================================================================
-# POST /system/update/auto — the two paths that were already string details
+# POST /system/update/auto — the two hand-raised rejections (400 since
+# review finding 5; they were already string details)
 # ===========================================================================
 
 
@@ -442,17 +453,21 @@ def test_auto_update_legacy_false_maps_to_manual(client, sidecar_seams):
     }
 
 
-def test_auto_update_rejects_an_unknown_interval_with_422(client, sidecar_seams):
+def test_auto_update_rejects_an_unknown_interval_with_400(client, sidecar_seams):
+    """DELIBERATE CONTRACT CHANGE (review finding 5): was 422 — see the module
+    docstring. The detail is unchanged."""
     response = client.post("/system/update/auto", json={"interval": "hourly"})
-    assert response.status_code == 422
+    assert response.status_code == 400
     assert response.json()["detail"] == (
         "Invalid interval 'hourly'; must be one of: ['daily', 'manual', 'monthly', 'weekly']"
     )
 
 
-def test_auto_update_rejects_an_empty_body_with_422(client, sidecar_seams):
+def test_auto_update_rejects_an_empty_body_with_400(client, sidecar_seams):
+    """DELIBERATE CONTRACT CHANGE (review finding 5): was 422 — see the module
+    docstring. The detail is unchanged."""
     response = client.post("/system/update/auto", json={})
-    assert response.status_code == 422
+    assert response.status_code == 400
     assert response.json()["detail"] == "Request must include either 'interval' or 'enabled'."
 
 

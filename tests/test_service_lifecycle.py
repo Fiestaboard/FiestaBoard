@@ -96,9 +96,11 @@ class TestRunServiceBackground:
 
         api._service_running = False
         api._shutting_down = False
-        api._service = None
         api._service_thread = None
-        api._service_start_time = None
+        # `api._service` / `api._service_start_time` moved to
+        # src/display_runtime.py in the debug slice; assigning them here only
+        # created two junk attributes on api_server. The singleton is dropped
+        # for every test by tests/conftest.py::_drop_all_singletons.
 
     def test_catches_base_exception_and_continues(self):
         """BaseException from service.run() must not kill the restart loop."""

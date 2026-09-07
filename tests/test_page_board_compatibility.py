@@ -49,7 +49,6 @@ def env(monkeypatch, tmp_path):
     # Board guards live in src/board_guards.py since Phase 2 slice 3.
     monkeypatch.setattr("src.board_guards.get_settings_service", lambda: settings)
     monkeypatch.setattr("src.api_server.get_collection_service", lambda: collection_service)
-    monkeypatch.setattr("src.api_server.get_schedule_service", lambda: schedule_service)
     # The schedules router binds its collaborators at import time now
     # (Phase 2 §2.3), so the same stubs have to reach that module too.
     monkeypatch.setattr("src.schedules.routes.get_schedule_service", lambda: schedule_service)

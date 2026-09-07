@@ -627,7 +627,13 @@ class _GoldenRegistry:
     def __init__(self) -> None:
         from src.plugins.base import Option, OptionsResult
 
-        self.plugins = {"alpha": _GoldenPlugin(True), "norecv": _GoldenPlugin(False)}
+        # "alpha:work2" is held so the instance-delete success shape is still
+        # recorded: a missing instance is a 404 since review finding 6.
+        self.plugins = {
+            "alpha": _GoldenPlugin(True),
+            "norecv": _GoldenPlugin(False),
+            "alpha:work2": _GoldenPlugin(True),
+        }
         self.manifests = {
             "alpha": _GoldenManifest("alpha", demo={"flagship": {"template": ["DEMO"]}}),
             "norecv": _GoldenManifest("norecv", demo=None),
@@ -639,7 +645,13 @@ class _GoldenRegistry:
             available=True, data={"value": "X"}, formatted_lines=["LINE"], error=None
         )
         self.update_status = {"ext_plugin": True}
-        self.sources = {"alpha": SimpleNamespace(source_type="builtin", local_path=None)}
+        # "ext_plugin" carries a source so the uninstall *success* shape is
+        # still recorded: a plugin with no source at all is a 404 since
+        # review finding 6, and this fake only knew about "alpha".
+        self.sources = {
+            "alpha": SimpleNamespace(source_type="builtin", local_path=None),
+            "ext_plugin": SimpleNamespace(source_type="git", local_path=None),
+        }
         self.options_result = OptionsResult(options=[Option(value="AAPL", label="Apple")])
 
     # -- read surface -------------------------------------------------------
@@ -725,7 +737,8 @@ class _GoldenRegistry:
         return [] if label != "bad label" else ["Invalid instance label"]
 
     def delete_instance(self, base_id: str, label: str) -> list[str]:
-        return []
+        key = self.make_instance_key(base_id, label)
+        return [] if key in self.plugins else [f"Instance not found: {key}"]
 
     def apply_stored_config(self, compound_key: str, stored: dict[str, Any]) -> list[str]:
         return []
@@ -939,6 +952,13 @@ def test_plugins_response_shapes():
         )
 
         rec.hit(
+            "instance_delete_missing",
+            "DELETE",
+            "/plugins/{plugin_id}/instances/{instance_label}",
+            path_params={"plugin_id": "alpha", "instance_label": "nosuchlabel"},
+        )
+
+        rec.hit(
             "receive_ok",
             "POST",
             "/plugins/{plugin_id}/receive",
@@ -984,6 +1004,7 @@ def test_plugins_response_shapes():
 
         rec.hit("uninstall_ok", "DELETE", "/plugins/{plugin_id}/uninstall", path_params={"plugin_id": "ext_plugin"})
         rec.hit("uninstall_error", "DELETE", "/plugins/{plugin_id}/uninstall", path_params={"plugin_id": "alpha"})
+        rec.hit("uninstall_missing", "DELETE", "/plugins/{plugin_id}/uninstall", path_params={"plugin_id": "ghost"})
 
         rec.hit("updates_check", "POST", "/plugins/updates/check")
         rec.hit(

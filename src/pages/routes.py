@@ -25,7 +25,6 @@ import asyncio
 import logging
 
 from fastapi import APIRouter, HTTPException, Query
-from fastapi.responses import JSONResponse
 
 from src.api_errors import errors
 from src.board_guards import _board_dims, _board_is_paused, _require_board, _silence_active
@@ -491,7 +490,7 @@ async def clear_page_cache(request: PageCacheClearRequest | None = None):
 @router.post(
     "/pages/{page_id}/send",
     response_model=PageSendResponse,
-    responses=errors(400, 404, 503),
+    responses=errors(400, 404, 500, 503),
 )
 async def send_page(
     page_id: str,
@@ -541,7 +540,7 @@ async def send_page(
     # they run as one worker-thread unit and the event loop keeps serving
     # requests (#1826). HTTPExceptions raised inside propagate through the
     # await unchanged.
-    def _work() -> PageSendResponse | JSONResponse:
+    def _work() -> PageSendResponse:
         # Get the page for transition settings
         page = page_service.get_page(page_id)
         if not page:
@@ -606,23 +605,19 @@ async def send_page(
                 )
                 sent_to_board = was_sent
                 if not success:
-                    # Board offline / unreachable — degrade gracefully with a
-                    # structured error instead of a bare 500 detail string so
-                    # callers can distinguish "board unreachable" from a server
-                    # fault. Must not be 502/503/504: nginx intercepts those on
-                    # /api/ and replaces the body with its startup placeholder.
+                    # Board offline / unreachable. Deliberately NOT 502/503/504:
+                    # nginx intercepts those on /api/ and replaces the body with
+                    # its startup placeholder, so the caller would lose the
+                    # reason entirely.
+                    #
+                    # It is now the domain's one error shape ({"detail": str}),
+                    # raised rather than returned. It used to be a JSONResponse
+                    # carrying a 6-key body, which (a) is not the shape every
+                    # other pages route promises, and (b) sat in a nested
+                    # closure, which `no_200_on_failure` explicitly ignores — so
+                    # no rule saw a routine 500 that no route declared.
                     logger.error(f"Failed to send page {page_id} to board (offline or unreachable)")
-                    return JSONResponse(
-                        status_code=500,
-                        content={
-                            "detail": "Failed to send to board",
-                            "page_id": page_id,
-                            "sent_to_board": False,
-                            "paused": False,
-                            "target": target or settings_service.get_output_settings().target,
-                            "board_id": board_id,
-                        },
-                    )
+                    raise HTTPException(status_code=500, detail="Failed to send to board")
                 if was_sent and (board_id is None or board_id == settings_service.get_primary_board_id()):
                     # Adaptive post-send refresh polls the primary board only.
                     service.request_board_refresh()
