@@ -24,8 +24,10 @@ The eleven deprecated routes keep serving their exact current contract (see
 ``docs/internal/reference/API_CONVENTIONS.md`` §"Deprecation, never deletion":
 two of them are documented as public API in shipped plugin SETUP guides, so a
 third-party integration we cannot see may call them). They are marked
-``deprecated=True`` in the OpenAPI schema and tracked for removal; that flag is
-pinned below so a later refactor cannot quietly un-deprecate them.
+``deprecated=True`` in the OpenAPI schema and tracked for removal in #1915;
+that flag is pinned below so a later refactor cannot quietly un-deprecate them
+— and neither can it delete them, which would break an integration this repo
+cannot see (two are published as public API in shipped plugin SETUP guides).
 
 This file is the pre-conversion recording of the two converted routes.
 """
@@ -40,6 +42,9 @@ from fastapi.testclient import TestClient
 from src.api_server import app
 
 HA_SOURCE = "src.utils.home_assistant.get_home_assistant_source"
+#: The generic-data host allowlist moved to src/plugin_support/url_guard.py
+#: with its one caller; the router binds it by that name.
+ALLOWED_HOSTS = "src.plugin_support.routes._get_generic_data_allowed_hosts"
 
 
 @pytest.fixture
@@ -126,7 +131,7 @@ def _remote(payload, *, content: bytes = b"{}") -> Mock:
 
 def test_test_fetch_returns_the_parsed_json_document(client):
     with (
-        patch("src.api_server._get_generic_data_allowed_hosts", return_value=["example.com"]),
+        patch(ALLOWED_HOSTS, return_value=["example.com"]),
         patch("requests.request", return_value=_remote({"temp": 21})) as request,
     ):
         resp = client.post("/generic-data/test-fetch", json={"url": "https://example.com/api", "format": "json"})
@@ -143,7 +148,7 @@ def test_test_fetch_refuses_a_private_address_with_a_400_that_explains_itself(cl
 
 
 def test_test_fetch_refuses_a_host_outside_the_allowlist(client):
-    with patch("src.api_server._get_generic_data_allowed_hosts", return_value=["myapi.com"]):
+    with patch(ALLOWED_HOSTS, return_value=["myapi.com"]):
         resp = client.post("/generic-data/test-fetch", json={"url": "https://example.com/api"})
     assert resp.status_code == 400
     assert resp.json()["detail"] == "URL host is not in the allowlist"
@@ -152,7 +157,7 @@ def test_test_fetch_refuses_a_host_outside_the_allowlist(client):
 def test_test_fetch_caps_the_response_body_at_one_megabyte(client):
     oversized = _remote({"x": 1}, content=b"x" * 1_048_577)
     with (
-        patch("src.api_server._get_generic_data_allowed_hosts", return_value=["example.com"]),
+        patch(ALLOWED_HOSTS, return_value=["example.com"]),
         patch("requests.request", return_value=oversized),
     ):
         resp = client.post("/generic-data/test-fetch", json={"url": "https://example.com/api"})
@@ -164,7 +169,7 @@ def test_test_fetch_reports_an_upstream_timeout_as_504(client):
     import requests as req
 
     with (
-        patch("src.api_server._get_generic_data_allowed_hosts", return_value=["example.com"]),
+        patch(ALLOWED_HOSTS, return_value=["example.com"]),
         patch("requests.request", side_effect=req.exceptions.Timeout()),
     ):
         resp = client.post("/generic-data/test-fetch", json={"url": "https://example.com/api"})
@@ -176,7 +181,7 @@ def test_test_fetch_reports_an_upstream_connection_failure_as_502(client):
     import requests as req
 
     with (
-        patch("src.api_server._get_generic_data_allowed_hosts", return_value=["example.com"]),
+        patch(ALLOWED_HOSTS, return_value=["example.com"]),
         patch("requests.request", side_effect=req.exceptions.ConnectionError()),
     ):
         resp = client.post("/generic-data/test-fetch", json={"url": "https://example.com/api"})
@@ -188,7 +193,7 @@ def test_test_fetch_never_echoes_the_upstream_error_back_to_the_caller(client):
     import requests as req
 
     with (
-        patch("src.api_server._get_generic_data_allowed_hosts", return_value=["example.com"]),
+        patch(ALLOWED_HOSTS, return_value=["example.com"]),
         patch("requests.request", side_effect=req.exceptions.HTTPError("403 for https://example.com?key=SECRET")),
     ):
         resp = client.post("/generic-data/test-fetch", json={"url": "https://example.com/api"})
@@ -198,7 +203,7 @@ def test_test_fetch_never_echoes_the_upstream_error_back_to_the_caller(client):
 
 def test_test_fetch_sends_the_interpolated_headers_the_caller_asked_for(client):
     with (
-        patch("src.api_server._get_generic_data_allowed_hosts", return_value=["example.com"]),
+        patch(ALLOWED_HOSTS, return_value=["example.com"]),
         patch("requests.request", return_value=_remote({})) as request,
     ):
         client.post(
@@ -227,9 +232,27 @@ DEPRECATED_ROUTES = {
 }
 
 
-def test_every_plugin_specific_legacy_route_is_still_served():
-    """Deprecation, never deletion — a removed route breaks integrations we cannot see."""
+def _legacy_records():
     from tests.test_route_inventory import build_route_metadata
 
-    served = {(m, r["path"]) for r in build_route_metadata() for m in r["methods"]}
-    assert DEPRECATED_ROUTES <= served, sorted(DEPRECATED_ROUTES - served)
+    return {(m, r["path"]): r for r in build_route_metadata() for m in r["methods"]}
+
+
+def test_every_plugin_specific_legacy_route_is_still_served():
+    """Deprecation, never deletion — a removed route breaks integrations we cannot see."""
+    served = set(_legacy_records())
+    assert served >= DEPRECATED_ROUTES, sorted(DEPRECATED_ROUTES - served)
+
+
+def test_every_plugin_specific_legacy_route_is_marked_deprecated_in_the_schema():
+    """The OpenAPI flag is the only signal a third-party caller ever sees (#1915)."""
+    records = _legacy_records()
+    undeprecated = sorted(key for key in DEPRECATED_ROUTES if not records[key]["route"].deprecated)
+    assert undeprecated == [], undeprecated
+
+
+def test_the_two_converted_routes_are_not_marked_deprecated():
+    """A checker that flags everything is as useless as one that flags nothing."""
+    records = _legacy_records()
+    for key in [("GET", "/home-assistant/entities"), ("POST", "/generic-data/test-fetch")]:
+        assert records[key]["route"].deprecated is not True, key

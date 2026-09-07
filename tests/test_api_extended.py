@@ -1486,19 +1486,20 @@ class TestServiceLifecycle:
         with patch("src.api_server._service_running", True):
             response = client.post("/start")
         assert response.status_code == 200
-        assert response.json()["status"] == "already_running"
+        # Phase 2 Task 8: the status word became {"running", "changed"}.
+        assert response.json() == {"running": True, "changed": False, "message": "Service is already running"}
 
     def test_stop_not_running(self, client):
         with patch("src.api_server._service_running", False):
             response = client.post("/stop")
         assert response.status_code == 200
-        assert response.json()["status"] == "not_running"
+        assert response.json() == {"running": False, "changed": False, "message": "Service is not running"}
 
     def test_stop_running(self, client, mock_service):
         with patch("src.api_server._service_running", True):
             response = client.post("/stop")
         assert response.status_code == 200
-        assert response.json()["status"] == "stopped"
+        assert response.json() == {"running": False, "changed": True, "message": "Service stopped successfully"}
 
     def test_refresh_no_service(self, client):
         with patch("src.api_server.get_service", return_value=None):
@@ -1518,8 +1519,9 @@ class TestServiceLifecycle:
     def test_send_message_silence_mode(self, client, mock_service):
         with patch("src.api_server.Config.is_silence_mode_active", return_value=True):
             response = client.post("/send-message", json={"text": "Hello"})
-        assert response.status_code == 200
-        assert response.json()["silence_mode"] is True
+        # Phase 2 Task 8: a silence-window refusal is a 409, not a word at 200.
+        assert response.status_code == 409
+        assert "silence mode" in response.json()["detail"]
 
     def test_send_message_no_board_client(self, client, mock_service, mock_settings_service):
         mock_service.vb_client = None
@@ -1531,7 +1533,7 @@ class TestServiceLifecycle:
         with patch("src.api_server.Config.is_silence_mode_active", return_value=False):
             response = client.post("/send-message", json={"text": "Hello"})
         assert response.status_code == 200
-        assert response.json()["status"] == "success"
+        assert response.json() == {"message": "Message sent successfully", "sent": True}
 
     def test_send_message_skipped(self, client, mock_service, mock_settings_service):
         mock_service.vb_client.send_characters.return_value = (True, False)
@@ -1539,7 +1541,8 @@ class TestServiceLifecycle:
         with patch("src.api_server.Config.is_silence_mode_active", return_value=False):
             response = client.post("/send-message", json={"text": "Hello"})
         assert response.status_code == 200
-        assert response.json()["skipped"] is True
+        # Phase 2 Task 8: `sent: false` replaces the `skipped` flag.
+        assert response.json()["sent"] is False
 
     def test_send_message_failure(self, client, mock_service, mock_settings_service):
         mock_service.vb_client.send_characters.return_value = (False, False)
@@ -1581,7 +1584,7 @@ class TestServiceLifecycle:
         ):
             response = client.post("/send-message", json={"text": "Hello"})
         assert response.status_code == 200
-        assert response.json()["status"] == "success"
+        assert response.json()["sent"] is True
 
     def test_peek_service_does_not_create_service(self):
         """peek_service returns the existing instance only — never creates one.
@@ -1901,8 +1904,8 @@ class TestWelcomeMessage:
     def test_send_welcome_silence_mode(self, client):
         with patch("src.api_server.Config.is_silence_mode_active", return_value=True):
             response = client.post("/send-welcome-message")
-        assert response.status_code == 200
-        assert response.json()["silence_mode"] is True
+        assert response.status_code == 409
+        assert "silence mode" in response.json()["detail"]
 
 
 # ============================================================

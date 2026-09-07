@@ -23,7 +23,12 @@ def client():
 @pytest.fixture
 def mock_config_manager_for_silence():
     """Mock config manager with a working silence_schedule feature."""
-    with patch("src.api_server.get_config_manager") as mock_get:
+    # Both bindings: PUT /settings/silence-schedule still resolves through
+    # api_server, GET /silence-status resolves through the service router.
+    with (
+        patch("src.api_server.get_config_manager") as mock_get,
+        patch("src.service_api.routes.get_config_manager", new=mock_get),
+    ):
         cm = Mock()
         store = {"enabled": False, "start_time": "04:00+00:00", "end_time": "15:00+00:00"}
 

@@ -14,9 +14,41 @@ routers by what they actually do:
 Pinned as **values**, not shapes. The shape corpus records key sets and type
 names, so it cannot see a version string that stopped being reported, a board
 grid rendered from the wrong cache, a refusal served at 200, or a 500 detail
-that stutters. This file is the pre-conversion recording: every value below is
-what the unmodified trunk serves, including the envelopes the conventions pass
-in this same PR will deliberately replace.
+that stutters.
+
+Recorded against the unmodified trunk first (commit 1 of this PR), then
+re-pinned by the conventions pass. What deliberately changed, and nothing else:
+
+* **A refused send is a status code, not a word at 200.** Both senders
+  answered 200 for three different non-deliveries — ``{"status": "blocked",
+  "silence_mode": true}`` for the silence window, ``{"status": "blocked",
+  "paused": true}`` for a paused board, and a ``{"status": "throttled"}`` body
+  for a write the send floor dropped. They are now **409**, **409** and
+  **429**, matching what ``src/debug/routes.py`` adopted in the debug slice, so
+  the three out-of-band senders in this codebase finally give one answer to
+  "did that work". The 429's ``Retry-After`` header and its arithmetic are
+  unchanged; only its body moved onto the ``{"detail": ...}`` error contract.
+* **Bare bodies.** ``{"status": "success", "message": ...}`` became
+  ``{"message", "sent"}`` on both senders (``sent: false`` now means only
+  "the content was already on the board"); ``POST /start`` / ``POST /stop``
+  answer ``{"running", "changed", "message"}`` instead of the status words
+  ``"already_running"`` / ``"started"`` / ``"not_running"`` / ``"stopped"``;
+  ``POST /refresh`` and ``POST /mqtt/republish-discovery`` drop their
+  ``"status"`` key; ``POST /backup/import`` drops the ``"status": "success"``
+  the service still returns (the response model filters it).
+* **``POST /refresh`` takes a Pydantic body.** ``payload: dict | None`` became
+  ``RefreshRequest | None``. The query parameter still wins over the body.
+* **``POST /backup/import`` takes a Pydantic body.** ``dict[str, Any]`` became
+  ``BackupDocument`` (``extra="allow"``, so an unknown key from a future
+  release still round-trips), which is why a JSON array is now a 422 at the
+  door rather than an ``AttributeError`` inside the restore.
+
+Every other value — ``GET /``, the health probe, the per-board status
+breakdown including the #1749 init errors, the board read and its cache
+selection, the silence window arithmetic, the MQTT flags, the export headers,
+and every 4xx/5xx path — is unchanged from the pre-conversion recording. None
+was weakened. Issue #1912 (three copies of the "what is on the board" cache
+selection) is deliberately untouched.
 """
 
 from __future__ import annotations
@@ -34,10 +66,20 @@ from src.board_client import BoardClient
 # --- Seam targets ----------------------------------------------------------
 # Written as constants so the seam-retirement commit changes these lines and
 # never an assertion.
-SERVICE = "src.api_server.get_service"
-SETTINGS_SERVICE = "src.api_server.get_settings_service"
-BOARD_CLIENT = "src.api_server._get_board_client"
-PAUSED = "src.api_server._board_is_paused"
+SERVICE = "src.display_runtime.get_service"
+SETTINGS_SERVICE = "src.display_runtime.get_settings_service"
+BOARD_CLIENT = "src.display_runtime._get_board_client"
+PAUSED = "src.display_runtime._board_is_paused"
+#: The pause and silence verdicts are made in ``src/board_guards.py``, which
+#: binds its own settings service — stubbing only the display_runtime one
+#: leaves a paused board reading as running.
+GUARD_SETTINGS_SERVICE = "src.board_guards.get_settings_service"
+SILENCE_ACTIVE = "src.board_api.routes._silence_active"
+REQUIRE_BOARD = "src.service_api.routes._require_board"
+BOARD_REQUIRE_BOARD = "src.board_api.routes._require_board"
+PRIMARY_BOARD_ENTRY = "src.display_runtime._primary_board_entry"
+BOARD_CLIENT_FACTORY = "src.board_api.routes.board_client_from_board_dict"
+RUN_BOARD_SEND = "src.service_api.routes.run_board_send"
 
 
 @pytest.fixture
@@ -174,7 +216,8 @@ def test_start_reports_already_running_without_spawning_a_second_thread(client):
     with patch("src.api_server._service_running", True), patch("src.api_server.threading.Thread") as thread:
         resp = client.post("/start")
     assert resp.status_code == 200
-    assert resp.json() == {"status": "already_running", "message": "Service is already running"}
+    # Re-pinned: the status word became a state the caller can branch on.
+    assert resp.json() == {"running": True, "changed": False, "message": "Service is already running"}
     thread.assert_not_called()
 
 
@@ -199,7 +242,7 @@ def test_stop_reports_not_running_when_the_loop_is_already_stopped(client):
     with patch("src.api_server._service_running", False):
         resp = client.post("/stop")
     assert resp.status_code == 200
-    assert resp.json() == {"status": "not_running", "message": "Service is not running"}
+    assert resp.json() == {"running": False, "changed": False, "message": "Service is not running"}
 
 
 def test_stop_clears_the_flag_and_tells_the_service_to_stop(client):
@@ -210,7 +253,7 @@ def test_stop_clears_the_flag_and_tells_the_service_to_stop(client):
     ):
         resp = client.post("/stop")
     assert resp.status_code == 200
-    assert resp.json() == {"status": "stopped", "message": "Service stopped successfully"}
+    assert resp.json() == {"running": False, "changed": True, "message": "Service stopped successfully"}
     assert running.running is False
 
 
@@ -223,16 +266,12 @@ def test_refresh_without_a_board_id_drives_every_board(client):
     service = Mock()
     with (
         patch(SERVICE, return_value=service),
-        patch("src.api_server.run_board_send", return_value=(True, None)) as send,
+        patch(RUN_BOARD_SEND, return_value=(True, None)) as send,
     ):
         resp = client.post("/refresh")
     assert resp.status_code == 200
-    assert resp.json() == {
-        "status": "success",
-        "message": "Display refreshed successfully",
-        "board_id": None,
-        "sent": True,
-    }
+    # Re-pinned: the "status": "success" envelope is gone.
+    assert resp.json() == {"message": "Display refreshed successfully", "board_id": None, "sent": True}
     assert send.await_count == 1
 
 
@@ -240,7 +279,7 @@ def test_refresh_reports_a_failed_pass_as_500_naming_the_reason(client):
     service = Mock()
     with (
         patch(SERVICE, return_value=service),
-        patch("src.api_server.run_board_send", return_value=(False, "board unreachable")),
+        patch(RUN_BOARD_SEND, return_value=(False, "board unreachable")),
     ):
         resp = client.post("/refresh")
     assert resp.status_code == 500
@@ -253,8 +292,8 @@ def test_refresh_takes_the_board_id_from_the_json_body_too(client):
     with (
         patch(SERVICE, return_value=service),
         patch(SETTINGS_SERVICE, return_value=_settings_service()),
-        patch("src.api_server._require_board", return_value={"id": "b1"}),
-        patch("src.api_server.run_board_send", return_value=(True, None)),
+        patch(REQUIRE_BOARD, return_value={"id": "b1"}),
+        patch(RUN_BOARD_SEND, return_value=(True, None)),
     ):
         resp = client.post("/refresh", json={"board_id": "b1"})
     assert resp.status_code == 200
@@ -268,7 +307,7 @@ def test_refresh_is_503_when_the_named_board_has_no_client(client):
     with (
         patch(SERVICE, return_value=service),
         patch(SETTINGS_SERVICE, return_value=_settings_service()),
-        patch("src.api_server._require_board", return_value={"id": "b1"}),
+        patch(REQUIRE_BOARD, return_value={"id": "b1"}),
     ):
         resp = client.post("/refresh?board_id=b1")
     assert resp.status_code == 503
@@ -278,6 +317,22 @@ def test_refresh_is_503_when_the_named_board_has_no_client(client):
 def test_refresh_is_503_when_the_service_could_not_be_created(client):
     with patch(SERVICE, return_value=None):
         assert client.post("/refresh").status_code == 503
+
+
+def test_refresh_reports_a_raising_display_pass_as_500_naming_the_exception(client):
+    """The pass raising is not the same as the pass reporting a failure, and
+    both must be a 500 — a raise reaching FastAPI unhandled would serve the
+    generic body with no reason in it."""
+    service = Mock()
+    with (
+        patch(SERVICE, return_value=service),
+        patch(RUN_BOARD_SEND, side_effect=RuntimeError("Display error")),
+    ):
+        resp = client.post("/refresh")
+    assert resp.status_code == 500
+    # And it does not stutter: the pre-conversion handler's own except caught
+    # its own HTTPException and re-raised str(exc), which reads "500: ...".
+    assert resp.json()["detail"] == "Failed to refresh display: Display error"
 
 
 # ===========================================================================
@@ -414,7 +469,7 @@ def test_current_message_returns_a_secondary_boards_geometry_before_its_first_se
         patch(SERVICE, return_value=service),
         patch(SETTINGS_SERVICE, return_value=ss),
         patch(
-            "src.api_server._require_board",
+            BOARD_REQUIRE_BOARD,
             return_value={"id": "b2", "device_type": "note", "notes_wide": 1, "notes_tall": 1},
         ),
     ):
@@ -459,6 +514,7 @@ def wired(cloud):
         patch(BOARD_CLIENT, return_value=cloud),
         patch("src.api_server.Config.is_silence_mode_active", return_value=False),
         patch(PAUSED, return_value=False),
+        patch(SILENCE_ACTIVE, return_value=False),
         patch("src.board_client.requests.post") as post,
     ):
         post.return_value = _ok_response()
@@ -468,7 +524,8 @@ def wired(cloud):
 def test_send_message_delivers_the_text_and_says_so(client, wired):
     resp = client.post("/send-message", json={"text": "HELLO"})
     assert resp.status_code == 200
-    assert resp.json() == {"status": "success", "message": "Message sent successfully"}
+    # Re-pinned: bare body; `sent` replaces the "status": "success" envelope.
+    assert resp.json() == {"message": "Message sent successfully", "sent": True}
     assert wired.call_count == 1
 
 
@@ -477,7 +534,7 @@ def test_send_message_reports_unchanged_content_as_a_skip_not_a_send(client, wir
     now["t"] += 16.0  # outside the cloud send floor, so this is a true dedupe skip
     resp = client.post("/send-message", json={"text": "HELLO"})
     assert resp.status_code == 200
-    assert resp.json() == {"status": "success", "message": "Message unchanged, no update needed", "skipped": True}
+    assert resp.json() == {"message": "Message unchanged, no update needed", "sent": False}
     assert wired.call_count == 1
 
 
@@ -491,27 +548,20 @@ def test_send_message_reports_a_write_dropped_by_the_send_floor_as_429(client, w
 
 
 def test_send_message_refuses_during_silence_mode(client, wired):
-    with patch("src.api_server._silence_active", return_value=True):
+    with patch(SILENCE_ACTIVE, return_value=True):
         resp = client.post("/send-message", json={"text": "HELLO"})
-    assert resp.status_code == 200
-    assert resp.json() == {
-        "status": "blocked",
-        "message": "Manual sends blocked during silence mode to prevent wake-ups",
-        "silence_mode": True,
-    }
+    # Re-pinned: a refusal is a status code, not a word at 200.
+    assert resp.status_code == 409
+    assert resp.json()["detail"] == "Manual sends are blocked during silence mode to prevent waking the board."
     assert wired.call_count == 0
 
 
 def test_send_message_refuses_when_the_board_is_paused(client, wired):
     with patch(PAUSED, return_value=True):
         resp = client.post("/send-message", json={"text": "HELLO"})
-    assert resp.status_code == 200
-    assert resp.json() == {
-        "status": "blocked",
-        "message": "Board is paused — sends are blocked until it is resumed.",
-        "paused": True,
-        "board_id": None,
-    }
+    # Re-pinned: 409, matching what the debug senders already answer.
+    assert resp.status_code == 409
+    assert resp.json()["detail"] == "Board is paused — sends are blocked until it is resumed."
     assert wired.call_count == 0
 
 
@@ -535,10 +585,11 @@ def test_send_message_rejects_a_body_with_no_text_as_422(client):
 def welcome_wired(cloud):
     with (
         patch(SETTINGS_SERVICE, return_value=_settings_service()),
-        patch("src.api_server._primary_board_entry", return_value={"id": "b1", "device_type": "flagship"}),
-        patch("src.api_server.board_client_from_board_dict", return_value=cloud),
+        patch(PRIMARY_BOARD_ENTRY, return_value={"id": "b1", "device_type": "flagship"}),
+        patch(BOARD_CLIENT_FACTORY, return_value=cloud),
         patch("src.api_server.Config.is_silence_mode_active", return_value=False),
         patch(PAUSED, return_value=False),
+        patch(SILENCE_ACTIVE, return_value=False),
         patch("src.board_client.requests.post") as post,
     ):
         post.return_value = _ok_response()
@@ -548,36 +599,31 @@ def welcome_wired(cloud):
 def test_welcome_message_sends_and_says_so(client, welcome_wired):
     resp = client.post("/send-welcome-message")
     assert resp.status_code == 200
-    assert resp.json() == {"status": "success", "message": "Welcome message sent to your board!"}
+    assert resp.json() == {"message": "Welcome message sent to your board!", "sent": True}
     assert welcome_wired.call_count == 1
 
 
 def test_welcome_message_refuses_during_silence_mode(client, welcome_wired):
-    with patch("src.api_server._silence_active", return_value=True):
+    with patch(SILENCE_ACTIVE, return_value=True):
         resp = client.post("/send-welcome-message")
-    assert resp.status_code == 200
-    assert resp.json() == {
-        "status": "blocked",
-        "message": "Welcome message blocked during silence mode",
-        "silence_mode": True,
-    }
+    assert resp.status_code == 409
+    assert resp.json()["detail"] == "Manual sends are blocked during silence mode to prevent waking the board."
     assert welcome_wired.call_count == 0
 
 
 def test_welcome_message_refuses_when_the_board_is_paused(client, welcome_wired):
     with patch(PAUSED, return_value=True):
         resp = client.post("/send-welcome-message")
-    assert resp.status_code == 200
-    assert resp.json()["status"] == "blocked"
-    assert resp.json()["paused"] is True
+    assert resp.status_code == 409
+    assert resp.json()["detail"] == "Board is paused — sends are blocked until it is resumed."
     assert welcome_wired.call_count == 0
 
 
 def test_welcome_message_is_503_when_no_board_is_configured(client):
     with (
-        patch("src.api_server.Config.is_silence_mode_active", return_value=False),
+        patch(SILENCE_ACTIVE, return_value=False),
         patch(PAUSED, return_value=False),
-        patch("src.api_server._primary_board_entry", return_value=None),
+        patch(PRIMARY_BOARD_ENTRY, return_value=None),
     ):
         resp = client.post("/send-welcome-message")
     assert resp.status_code == 503
@@ -620,8 +666,10 @@ def test_republish_discovery_asks_the_client_to_republish(client):
     with patch("src.mqtt.get_mqtt_client", return_value=mqtt):
         resp = client.post("/mqtt/republish-discovery")
     assert resp.status_code == 200
-    assert resp.json() == {"status": "ok", "message": "Discovery messages republished"}
-    mqtt._publish_discovery.assert_called_once_with()
+    # Re-pinned: bare body, and the route no longer reaches through the
+    # client's private ``_publish_discovery``.
+    assert resp.json() == {"message": "Discovery messages republished"}
+    mqtt.publish_discovery.assert_called_once_with()
 
 
 def test_republish_discovery_is_503_when_mqtt_is_not_connected(client):

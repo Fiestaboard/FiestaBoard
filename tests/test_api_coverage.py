@@ -68,6 +68,8 @@ def mock_config_manager():
     with (
         patch("src.api_server.get_config_manager") as mock_get,
         patch("src.config_api.routes.get_config_manager", new=mock_get),
+        patch("src.service_api.routes.get_config_manager", new=mock_get),
+        patch("src.board_api.routes.get_config_manager", new=mock_get),
     ):
         cm = Mock()
         cm.get_board.return_value = {
@@ -204,7 +206,12 @@ class TestStartService:
         with patch("src.api_server._service_running", True), patch("src.api_server.get_service", return_value=Mock()):
             response = client.post("/start")
             assert response.status_code == 200
-            assert response.json()["status"] == "already_running"
+            # Phase 2 Task 8: the status word became {"running", "changed"}.
+            assert response.json() == {
+                "running": True,
+                "changed": False,
+                "message": "Service is already running",
+            }
 
     def test_start_no_service(self, client):
         """When service cannot be created, return 503."""
@@ -247,7 +254,8 @@ class TestStartService:
             mock_asyncio.sleep = asyncio.sleep
             response = client.post("/start")
             assert response.status_code == 200
-            assert response.json()["status"] == "started"
+            assert response.json()["running"] is True
+            assert response.json()["changed"] is True
 
     def test_start_service_fails_to_start(self, client):
         """Service thread starts but _service_running stays False."""
@@ -272,7 +280,11 @@ class TestStopService:
         with patch("src.api_server._service_running", False):
             response = client.post("/stop")
             assert response.status_code == 200
-            assert response.json()["status"] == "not_running"
+            assert response.json() == {
+                "running": False,
+                "changed": False,
+                "message": "Service is not running",
+            }
 
     def test_stop_success(self, client):
         """Stopping a running service."""
@@ -286,7 +298,8 @@ class TestStopService:
         ):
             response = client.post("/stop")
             assert response.status_code == 200
-            assert response.json()["status"] == "stopped"
+            assert response.json()["running"] is False
+            assert response.json()["changed"] is True
 
 
 class TestSendWelcomeMessage:
@@ -299,8 +312,8 @@ class TestSendWelcomeMessage:
         with patch("src.board_guards.Config") as mock_config:
             mock_config.is_silence_mode_active.return_value = True
             response = client.post("/send-welcome-message")
-            assert response.status_code == 200
-            assert response.json()["status"] == "blocked"
+            # Phase 2 Task 8: a refusal is a status code, not a word at 200.
+            assert response.status_code == 409
 
     @staticmethod
     def _settings_with_boards(boards):
@@ -363,7 +376,7 @@ class TestSendWelcomeMessage:
             # stub below to True left all eight tests green.
             patch("src.board_guards.Config") as mock_config,
             patch("src.board_client.BoardClient") as MockBoardClient,
-            patch("src.api_server.text_to_board_array") as mock_ttba,
+            patch("src.board_api.routes.text_to_board_array") as mock_ttba,
             patch("src.api_server.get_settings_service") as mock_ss,
             # _primary_board_entry resolves the store through src/board_guards.py
             # since the config slice, so the welcome handler needs both stubs.
@@ -400,7 +413,7 @@ class TestSendWelcomeMessage:
 
             response = client.post("/send-welcome-message")
             assert response.status_code == 200
-            assert response.json()["status"] == "success"
+            assert response.json()["sent"] is True
 
     def test_welcome_send_failure(self, client):
         """Welcome message fails to send."""
@@ -411,7 +424,7 @@ class TestSendWelcomeMessage:
             # stub below to True left all eight tests green.
             patch("src.board_guards.Config") as mock_config,
             patch("src.board_client.BoardClient") as MockBoardClient,
-            patch("src.api_server.text_to_board_array") as mock_ttba,
+            patch("src.board_api.routes.text_to_board_array") as mock_ttba,
             patch("src.api_server.get_settings_service") as mock_ss,
             # _primary_board_entry resolves the store through src/board_guards.py
             # since the config slice, so the welcome handler needs both stubs.
@@ -458,7 +471,7 @@ class TestSendWelcomeMessage:
             # stub below to True left all eight tests green.
             patch("src.board_guards.Config") as mock_config,
             patch("src.board_client.BoardClient") as MockBoardClient,
-            patch("src.api_server.text_to_board_array") as mock_ttba,
+            patch("src.board_api.routes.text_to_board_array") as mock_ttba,
             patch("src.api_server.get_settings_service") as mock_ss,
             # _primary_board_entry resolves the store through src/board_guards.py
             # since the config slice, so the welcome handler needs both stubs.
@@ -494,9 +507,8 @@ class TestSendWelcomeMessage:
 
             response = client.post("/send-welcome-message")
             assert response.status_code == 200
-            data = response.json()
-            assert data["status"] == "success"
-            assert data.get("skipped") is True
+            # Phase 2 Task 8: `sent: false` replaces status/skipped.
+            assert response.json()["sent"] is False
 
     def test_welcome_uses_note_template_for_note_board(self, client):
         """When the configured board is a Note, render the 3x15 template."""
@@ -507,7 +519,7 @@ class TestSendWelcomeMessage:
             # stub below to True left all eight tests green.
             patch("src.board_guards.Config") as mock_config,
             patch("src.board_client.BoardClient") as MockBoardClient,
-            patch("src.api_server.text_to_board_array") as mock_ttba,
+            patch("src.board_api.routes.text_to_board_array") as mock_ttba,
             patch("src.api_server.get_settings_service") as mock_ss,
             # _primary_board_entry resolves the store through src/board_guards.py
             # since the config slice, so the welcome handler needs both stubs.
@@ -543,7 +555,7 @@ class TestSendWelcomeMessage:
 
             response = client.post("/send-welcome-message")
             assert response.status_code == 200
-            assert response.json()["status"] == "success"
+            assert response.json()["sent"] is True
 
             # Verify text_to_board_array was called with Note dimensions
             assert mock_ttba.call_count == 1
@@ -569,7 +581,7 @@ class TestSendWelcomeMessage:
             # stub below to True left all eight tests green.
             patch("src.board_guards.Config") as mock_config,
             patch("src.board_client.BoardClient") as MockBoardClient,
-            patch("src.api_server.text_to_board_array") as mock_ttba,
+            patch("src.board_api.routes.text_to_board_array") as mock_ttba,
             patch("src.api_server.get_settings_service") as mock_ss,
             # _primary_board_entry resolves the store through src/board_guards.py
             # since the config slice, so the welcome handler needs both stubs.
@@ -605,7 +617,7 @@ class TestSendWelcomeMessage:
 
             response = client.post("/send-welcome-message")
             assert response.status_code == 200
-            assert response.json()["status"] == "success"
+            assert response.json()["sent"] is True
 
             assert mock_ttba.call_count == 1
             kwargs = mock_ttba.call_args.kwargs
@@ -623,7 +635,7 @@ class TestSendWelcomeMessage:
             # stub below to True left all eight tests green.
             patch("src.board_guards.Config") as mock_config,
             patch("src.board_client.BoardClient") as MockBoardClient,
-            patch("src.api_server.text_to_board_array") as mock_ttba,
+            patch("src.board_api.routes.text_to_board_array") as mock_ttba,
             patch("src.api_server.get_settings_service") as mock_ss,
             # _primary_board_entry resolves the store through src/board_guards.py
             # since the config slice, so the welcome handler needs both stubs.
@@ -659,7 +671,7 @@ class TestSendWelcomeMessage:
 
             response = client.post("/send-welcome-message")
             assert response.status_code == 200
-            assert response.json()["status"] == "success"
+            assert response.json()["sent"] is True
 
             assert mock_ttba.call_count == 1
             kwargs = mock_ttba.call_args.kwargs
@@ -675,7 +687,7 @@ class TestSendWelcomeMessage:
             # stub below to True left all eight tests green.
             patch("src.board_guards.Config") as mock_config,
             patch("src.board_client.BoardClient") as MockBoardClient,
-            patch("src.api_server.text_to_board_array") as mock_ttba,
+            patch("src.board_api.routes.text_to_board_array") as mock_ttba,
             patch("src.api_server.get_settings_service") as mock_ss,
             # _primary_board_entry resolves the store through src/board_guards.py
             # since the config slice, so the welcome handler needs both stubs.
@@ -711,7 +723,7 @@ class TestSendWelcomeMessage:
 
             response = client.post("/send-welcome-message")
             assert response.status_code == 200
-            assert response.json()["status"] == "success"
+            assert response.json()["sent"] is True
 
             assert mock_ttba.call_count == 1
             kwargs = mock_ttba.call_args.kwargs
@@ -723,17 +735,17 @@ class TestBuildWelcomeTemplate:
     """Unit tests for _build_welcome_template helper."""
 
     def test_flagship_default_message(self):
-        from src.api_server import _build_welcome_template
+        from src.board_api.welcome import build_welcome_template
 
-        template = _build_welcome_template("flagship", "")
+        template = build_welcome_template("flagship", "")
         assert len(template) == 6
         # Center row (index 2) carries the default Flagship message
         assert template[2] == "HIYA FROM FIESTABOARD"
 
     def test_note_default_message(self):
-        from src.api_server import _build_welcome_template
+        from src.board_api.welcome import build_welcome_template
 
-        template = _build_welcome_template("note", "")
+        template = build_welcome_template("note", "")
         assert len(template) == 3
         # Center row (index 1) carries the default Note message
         assert template[1] == "HIYA FIESTA!"
@@ -741,40 +753,40 @@ class TestBuildWelcomeTemplate:
         assert len(template[1]) <= 15
 
     def test_note_custom_message_truncated_to_15(self):
-        from src.api_server import _build_welcome_template
+        from src.board_api.welcome import build_welcome_template
 
-        template = _build_welcome_template("note", "this message is way too long for a note")
+        template = build_welcome_template("note", "this message is way too long for a note")
         assert len(template) == 3
         assert template[1] == "THIS MESSAGE IS"
         assert len(template[1]) == 15
 
     def test_flagship_custom_message_truncated_to_22(self):
-        from src.api_server import _build_welcome_template
+        from src.board_api.welcome import build_welcome_template
 
-        template = _build_welcome_template("flagship", "this message is much longer than twenty two cols")
+        template = build_welcome_template("flagship", "this message is much longer than twenty two cols")
         assert len(template) == 6
         assert template[2] == "THIS MESSAGE IS MUCH L"
         assert len(template[2]) == 22
 
     def test_unknown_device_falls_back_to_flagship(self):
-        from src.api_server import _build_welcome_template
+        from src.board_api.welcome import build_welcome_template
 
-        template = _build_welcome_template("unknown", "")
+        template = build_welcome_template("unknown", "")
         assert len(template) == 6
         assert template[2] == "HIYA FROM FIESTABOARD"
 
     def test_note_array_2wide_template_has_3_rows(self):
         """note_array 2-wide (3×30) template has exactly 3 rows."""
-        from src.api_server import _build_welcome_template
+        from src.board_api.welcome import build_welcome_template
 
-        template = _build_welcome_template("note_array", "", notes_wide=2, notes_tall=1)
+        template = build_welcome_template("note_array", "", notes_wide=2, notes_tall=1)
         assert len(template) == 3
 
     def test_note_array_2wide_template_center_fits_cols(self):
         """note_array 2-wide center row contains the custom message and fits ≤30 chars."""
-        from src.api_server import _build_welcome_template
+        from src.board_api.welcome import build_welcome_template
 
-        template = _build_welcome_template("note_array", "HI", notes_wide=2, notes_tall=1)
+        template = build_welcome_template("note_array", "HI", notes_wide=2, notes_tall=1)
         # center row is at index dims.rows // 2 = 1
         center_row = template[1]
         assert center_row == "HI"
@@ -782,16 +794,16 @@ class TestBuildWelcomeTemplate:
 
     def test_note_array_2tall_template_has_6_rows(self):
         """note_array 2-tall (6×15) template has exactly 6 rows."""
-        from src.api_server import _build_welcome_template
+        from src.board_api.welcome import build_welcome_template
 
-        template = _build_welcome_template("note_array", "", notes_wide=1, notes_tall=2)
+        template = build_welcome_template("note_array", "", notes_wide=1, notes_tall=2)
         assert len(template) == 6
 
     def test_note_array_custom_msg_truncated_to_cols(self):
         """note_array 2-wide truncates custom message to 30 chars."""
-        from src.api_server import _build_welcome_template
+        from src.board_api.welcome import build_welcome_template
 
-        template = _build_welcome_template("note_array", "a" * 50, notes_wide=2, notes_tall=1)
+        template = build_welcome_template("note_array", "a" * 50, notes_wide=2, notes_tall=1)
         center_row = template[1]
         assert len(center_row) == 30
 
@@ -1082,8 +1094,8 @@ class TestMQTTRepublishDiscovery:
         with patch("src.mqtt.get_mqtt_client", return_value=mqtt):
             response = client.post("/mqtt/republish-discovery")
             assert response.status_code == 200
-            assert response.json()["status"] == "ok"
-            mqtt._publish_discovery.assert_called_once()
+            assert response.json() == {"message": "Discovery messages republished"}
+            mqtt.publish_discovery.assert_called_once()
 
     def test_republish_not_connected(self, client):
         """MQTT not connected → 503."""
@@ -1103,7 +1115,7 @@ class TestMQTTRepublishDiscovery:
         """Internal error → 500."""
         mqtt = Mock()
         mqtt.is_connected.return_value = True
-        mqtt._publish_discovery.side_effect = RuntimeError("oops")
+        mqtt.publish_discovery.side_effect = RuntimeError("oops")
         with patch("src.mqtt.get_mqtt_client", return_value=mqtt):
             response = client.post("/mqtt/republish-discovery")
             assert response.status_code == 500
@@ -1124,7 +1136,7 @@ class TestSetActivePage:
         mock_settings_service.should_send_to_board.return_value = True
         with (
             patch("src.api_server.resolve_dimensions") as mock_dims,
-            patch("src.api_server.text_to_board_array") as mock_ttba,
+            patch("src.board_api.routes.text_to_board_array") as mock_ttba,
         ):
             mock_dims.return_value = Mock(rows=6, cols=22)
             mock_ttba.return_value = [[0] * 22 for _ in range(6)]
@@ -1161,7 +1173,7 @@ class TestSetActivePage:
         mock_service.vb_client.render.return_value = (False, False)
         with (
             patch("src.api_server.resolve_dimensions") as mock_dims,
-            patch("src.api_server.text_to_board_array") as mock_ttba,
+            patch("src.board_api.routes.text_to_board_array") as mock_ttba,
         ):
             mock_dims.return_value = Mock(rows=6, cols=22)
             mock_ttba.return_value = [[0] * 22 for _ in range(6)]
@@ -1194,7 +1206,7 @@ class TestSetActivePage:
         mock_service.vb_client.render.return_value = (False, False)
         with (
             patch("src.api_server.resolve_dimensions") as mock_dims,
-            patch("src.api_server.text_to_board_array") as mock_ttba,
+            patch("src.board_api.routes.text_to_board_array") as mock_ttba,
         ):
             mock_dims.return_value = Mock(rows=6, cols=22)
             mock_ttba.return_value = [[0] * 22 for _ in range(6)]
@@ -1211,7 +1223,7 @@ class TestSetActivePage:
         mock_settings_service.should_send_to_board.return_value = True
         with (
             patch("src.api_server.resolve_dimensions") as mock_dims,
-            patch("src.api_server.text_to_board_array") as mock_ttba,
+            patch("src.board_api.routes.text_to_board_array") as mock_ttba,
         ):
             mock_dims.return_value = Mock(rows=6, cols=22)
             mock_ttba.return_value = [[0] * 22 for _ in range(6)]
@@ -1256,7 +1268,9 @@ class TestRefreshFailureReporting:
         response = client.post("/refresh")
         assert response.status_code == 200
         data = response.json()
-        assert data["status"] == "success"
+        # Phase 2 Task 8: the "status": "success" envelope is gone; `sent` was
+        # always the field that carried the information.
+        assert "status" not in data
         assert data["sent"] is True
 
     def test_refresh_benign_skip_is_still_success(self, client, mock_service):
@@ -1265,7 +1279,7 @@ class TestRefreshFailureReporting:
         response = client.post("/refresh")
         assert response.status_code == 200
         data = response.json()
-        assert data["status"] == "success"
+        assert "status" not in data
         assert data["sent"] is False
 
     def test_refresh_does_not_read_last_send_error_after_the_call(self, client, mock_service):
@@ -1818,7 +1832,7 @@ class TestDebugInfoErrorPaths:
             patch("src.api_server._format_uptime", return_value="1h"),
             patch("src.api_server.__version__", "1.0.0"),
             patch("src.time_service.get_time_service") as mock_ts,
-            patch("src.api_server.text_to_board_array") as mock_ttba,
+            patch("src.board_api.routes.text_to_board_array") as mock_ttba,
         ):
             bc = Mock()
             bc.send_characters.return_value = (False, False)
@@ -1849,7 +1863,7 @@ class TestDebugInfoErrorPaths:
             patch("src.api_server._format_uptime", return_value="1h"),
             patch("src.api_server.__version__", "1.0.0"),
             patch("src.time_service.get_time_service") as mock_ts,
-            patch("src.api_server.text_to_board_array") as mock_ttba,
+            patch("src.board_api.routes.text_to_board_array") as mock_ttba,
         ):
             bc = Mock()
             bc.send_characters.side_effect = Exception("error")

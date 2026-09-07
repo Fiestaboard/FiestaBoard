@@ -90,7 +90,8 @@ class TestSendMessageThrottled429:
         """Two /send-message posts inside 15s: the second was DROPPED, not 'unchanged'."""
         first = client.post("/send-message", json={"text": "HELLO"})
         assert first.status_code == 200
-        assert first.json()["status"] == "success"
+        # Phase 2 Task 8: bare body — `sent` replaces the status envelope.
+        assert first.json()["sent"] is True
 
         now["t"] += 5.0  # well inside the 15s cloud window
         second = client.post("/send-message", json={"text": "WORLD"})
@@ -138,5 +139,5 @@ class TestUnchangedIsStillNotAnError:
         now["t"] += 16.0  # window over; same content -> unchanged-cache skip
         second = client.post("/send-message", json={"text": "HELLO"})
         assert second.status_code == 200
-        assert second.json().get("skipped") is True
+        assert second.json()["sent"] is False
         assert wired.call_count == 1

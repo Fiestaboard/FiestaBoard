@@ -2,14 +2,20 @@
   "_comment": "API conventions ratchet (Phase 2, spec §2). Enforced by tests/test_api_conventions_ratchet.py; rules documented in docs/internal/reference/API_CONVENTIONS.md. Append a domain to converted_domains in the slice PR that converts it — never before. Every exception needs a route that exists, a known rule id, and a reason a reviewer can argue with.",
   "converted_domains": [
     "ai",
+    "backup",
+    "board",
     "collections",
     "config",
     "debug",
     "displays",
+    "mqtt",
+    "network",
     "pages",
     "panels",
+    "plugin-support",
     "plugins",
     "schedules",
+    "service",
     "staff-picks",
     "system",
     "templates",
@@ -21,6 +27,21 @@
       "route": "DELETE /config/board",
       "rule": "declared_errors",
       "reason": "Reset is unconditional and idempotent: no board id to miss, no state in which it refuses, and its one internal failure path is swallowed and logged on purpose so a broken settings store cannot block the wizard reset. Nothing to declare at any status."
+    },
+    {
+      "route": "GET /",
+      "rule": "declared_errors",
+      "reason": "Returns three constant strings naming the API. It takes no parameter, reads no state and calls nothing, so there is no failure to declare at any status — the only 500 it could produce is an unhandled bug, which is true of every route and belongs in a log, not the schema."
+    },
+    {
+      "route": "GET /backup/export",
+      "rule": "declared_errors",
+      "reason": "A parameterless dump of local state: no id to miss, no input to reject, and no dependency it calls over the network. BackupService.export_to_json reads the data dir and serializes it; a failure there is an unhandled bug, not a contract."
+    },
+    {
+      "route": "GET /backup/export",
+      "rule": "response_model",
+      "reason": "Serves an opaque file download — a raw Response carrying Content-Disposition and Cache-Control: no-store, whose body is a JSON document whose shape is whatever stores existed at export time. A response_model would either be a lie (dict[str, Any]) or would make FastAPI re-serialize the body and drop the download headers."
     },
     {
       "route": "GET /collections",
@@ -68,6 +89,16 @@
       "reason": "No failure path: an instance with no plugins installed answers an empty list with total 0. It reads the in-process plugin registry, which always exists, and reports availability per entry rather than failing on an unavailable one."
     },
     {
+      "route": "GET /health",
+      "rule": "declared_errors",
+      "reason": "The liveness probe nginx, Docker's HEALTHCHECK and the web boot gate all poll. It answers 200 whenever the process is up and reports the display loop's state in the body; a health check that can 4xx is a health check that takes the container down for a stopped display loop, which is the opposite of what it is for."
+    },
+    {
+      "route": "GET /network/wifi/capability",
+      "rule": "declared_errors",
+      "reason": "This is the probe every other /network/wifi route 501s against, and it must answer 200 even — especially — when WiFi is unmanageable: {available: false, reason} is the payload the UI hides the Network tab on. A refusal here would leave the client unable to distinguish 'no WiFi support' from 'this build has no such endpoint'."
+    },
+    {
       "route": "GET /pages",
       "rule": "declared_errors",
       "reason": "Has no failure path of its own: an instance with no pages answers {\"pages\": [], \"total\": 0}. The only 4xx it can produce is the auth middleware's 401, which is applied app-wide and is not this route's contract to declare."
@@ -113,6 +144,11 @@
       "reason": "No failure path. An unknown board_id deliberately answers false rather than 404 — the same read/write asymmetry, decided in #1888 and documented in API_CONVENTIONS.md."
     },
     {
+      "route": "GET /silence-status",
+      "rule": "declared_errors",
+      "reason": "A read the dashboard polls on a timer. An unknown board_id falls back to the safe answer rather than 404ing, which API_CONVENTIONS.md §board_id validation makes the rule for reads precisely so a tab polling a board another tab just deleted does not raise an error toast. Nothing else it reads can be absent."
+    },
+    {
       "route": "GET /staff-picks",
       "rule": "declared_errors",
       "reason": "Reads the bundled staff-picks/picks.json and degrades a missing file to [] on purpose, so a caller can never see a 4xx from it. The per-pick 404 lives on GET /staff-picks/{pick_id}/share, which declares it."
@@ -153,6 +189,11 @@
       "reason": "Read-only report with no failure path: it cannot 404, 400 or 409, so declaring a 4xx would document an error the endpoint never raises. It reads two env vars and one /proc file, and reports None when the file is absent."
     },
     {
+      "route": "HEAD /health",
+      "rule": "declared_errors",
+      "reason": "The same handler as GET /health, split into its own operation only so FastAPI emits a distinct operationId (#1572). It cannot fail differently from the route it delegates to."
+    },
+    {
       "route": "POST /config/board/enable-local-api",
       "rule": "no_200_on_failure",
       "reason": "Same declared verdict contract as POST /config/board/test (#1887): 'that enablement token is not valid' is the board's answer at 200 through EnableLocalApiResponse. The SSRF and host-validation rejections stayed 400 and the unexpected-exception path stayed 500 when Task 10a fixed this handler."
@@ -171,6 +212,11 @@
       "route": "POST /schedules/validate",
       "rule": "declared_errors",
       "reason": "No failure path. It is a read of existing schedules with an optional board_id, which falls back to the empty set; an inconsistent schedule set is the 200 verdict this endpoint exists to report, not an error."
+    },
+    {
+      "route": "POST /stop",
+      "rule": "declared_errors",
+      "reason": "Idempotent with no failure path: stopping an already-stopped loop is the state the caller asked for, so it answers 200 with changed=false. It touches no resource that can be missing and validates no input — there is nothing it can refuse."
     },
     {
       "route": "POST /triggers/clear",

@@ -851,7 +851,7 @@ class TestGenericDataTestFetch:
         with (
             patch("src.plugins.routes.PLUGIN_SYSTEM_AVAILABLE", True),
             patch("src.plugins.routes.get_config_manager", return_value=mock_cm),
-            patch("src.api_server._get_generic_data_allowed_hosts", return_value=["example.com"]),
+            patch("src.plugin_support.routes._get_generic_data_allowed_hosts", return_value=["example.com"]),
             patch("socket.getaddrinfo", return_value=self._PUBLIC_ADDR_INFO),
             patch("requests.request", return_value=mock_resp),
         ):
@@ -889,7 +889,7 @@ class TestGenericDataTestFetch:
         with (
             patch("src.plugins.routes.PLUGIN_SYSTEM_AVAILABLE", True),
             patch("src.plugins.routes.get_config_manager", return_value=mock_cm),
-            patch("src.api_server._get_generic_data_allowed_hosts", return_value=["example.com"]),
+            patch("src.plugin_support.routes._get_generic_data_allowed_hosts", return_value=["example.com"]),
             patch("socket.getaddrinfo", return_value=self._PUBLIC_ADDR_INFO),
             patch("requests.request", side_effect=req.exceptions.Timeout("timeout")),
         ):
@@ -904,7 +904,7 @@ class TestGenericDataTestFetch:
         with (
             patch("src.plugins.routes.PLUGIN_SYSTEM_AVAILABLE", True),
             patch("src.plugins.routes.get_config_manager", return_value=mock_cm),
-            patch("src.api_server._get_generic_data_allowed_hosts", return_value=["example.com"]),
+            patch("src.plugin_support.routes._get_generic_data_allowed_hosts", return_value=["example.com"]),
             patch("socket.getaddrinfo", return_value=self._PUBLIC_ADDR_INFO),
             patch("requests.request", side_effect=req.exceptions.ConnectionError("conn")),
         ):
@@ -936,7 +936,7 @@ class TestGenericDataTestFetch:
         with (
             patch("src.plugins.routes.PLUGIN_SYSTEM_AVAILABLE", True),
             patch("src.plugins.routes.get_config_manager", return_value=mock_cm),
-            patch("src.api_server._get_generic_data_allowed_hosts", return_value=["example.com"]),
+            patch("src.plugin_support.routes._get_generic_data_allowed_hosts", return_value=["example.com"]),
             patch("socket.getaddrinfo", return_value=self._PUBLIC_ADDR_INFO),
             patch("requests.request", return_value=mock_resp),
         ):

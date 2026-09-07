@@ -590,7 +590,7 @@ class TestSSRFProtection:
         with (
             patch("src.plugins.routes.PLUGIN_SYSTEM_AVAILABLE", True),
             patch("src.plugins.routes.get_config_manager", return_value=mock_cm),
-            patch("src.api_server._get_generic_data_allowed_hosts", return_value=["93.184.216.34"]),
+            patch("src.plugin_support.routes._get_generic_data_allowed_hosts", return_value=["93.184.216.34"]),
             patch("requests.request", return_value=mock_resp),
         ):
             resp = client.post("/generic-data/test-fetch", json={"url": "https://93.184.216.34/api"})
@@ -604,7 +604,7 @@ class TestSSRFProtection:
         with (
             patch("src.plugins.routes.PLUGIN_SYSTEM_AVAILABLE", True),
             patch("src.plugins.routes.get_config_manager", return_value=mock_cm),
-            patch("src.api_server._get_generic_data_allowed_hosts", return_value=["example.com"]),
+            patch("src.plugin_support.routes._get_generic_data_allowed_hosts", return_value=["example.com"]),
             patch("socket.getaddrinfo", return_value=self._PUBLIC_ADDR_INFO),
             patch("requests.request", return_value=mock_resp),
         ):
@@ -620,7 +620,7 @@ class TestSSRFProtection:
         with (
             patch("src.plugins.routes.PLUGIN_SYSTEM_AVAILABLE", True),
             patch("src.plugins.routes.get_config_manager", return_value=mock_cm),
-            patch("src.api_server._get_generic_data_allowed_hosts", return_value=[]),
+            patch("src.plugin_support.routes._get_generic_data_allowed_hosts", return_value=[]),
             patch("socket.getaddrinfo", return_value=self._PUBLIC_ADDR_INFO),
             patch("requests.request", return_value=mock_resp),
         ):
@@ -632,7 +632,7 @@ class TestSSRFProtection:
         with (
             patch("src.plugins.routes.PLUGIN_SYSTEM_AVAILABLE", True),
             patch("src.plugins.routes.get_config_manager", return_value=mock_cm),
-            patch("src.api_server._get_generic_data_allowed_hosts", return_value=["myapi.com"]),
+            patch("src.plugin_support.routes._get_generic_data_allowed_hosts", return_value=["myapi.com"]),
             patch("socket.getaddrinfo", return_value=self._PUBLIC_ADDR_INFO),
         ):
             resp = client.post("/generic-data/test-fetch", json={"url": "https://api.example.com/data"})
