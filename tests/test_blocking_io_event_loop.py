@@ -223,7 +223,7 @@ async def test_a_slow_active_page_send_does_not_block_the_event_loop():
             patch("src.api_server.get_service", return_value=service),
             patch("src.api_server.get_collection_service", return_value=Mock()),
             patch("src.api_server.check_ref_board_compatibility", return_value=Mock(ok=True, warnings=[])),
-            patch("src.api_server.PLUGIN_SYSTEM_AVAILABLE", False),
+            patch("src.plugins.routes.PLUGIN_SYSTEM_AVAILABLE", False),
             patch("src.api_server._board_is_paused", return_value=False),
         ):
             return await ac.put("/settings/active-page", json={"page_id": "p1"})
@@ -354,3 +354,39 @@ def test_concurrent_direct_send_characters_and_render_serialize():
 
     assert len(posts) == 4
     assert overlaps == [], overlaps
+
+
+@pytest.mark.asyncio
+async def test_a_slow_plugin_data_fetch_does_not_block_the_event_loop():
+    """``GET /plugins/{id}/data`` called ``fetch_plugin_data`` inline.
+
+    It was the last handler in the tree still doing so — the options route two
+    hundred lines away carried a comment naming it as the example not to copy
+    ("Never call the plugin inline... GET /plugins/{id}/data still does this;
+    do not copy it."). A plugin fetch is an outbound HTTP call to somebody
+    else's API, so an unresponsive upstream froze the whole process for the
+    plugin's entire timeout: no board driven, no UI, no ``GET /health``.
+
+    Fail-first output, with the handler still calling the registry inline::
+
+        E  AssertionError: /health waited 5.03s behind the plugin data fetch
+           — the event loop was blocked
+        E  assert 5.032923211008892 < 0.5
+    """
+
+    async def _plugin_data(ac, release):
+        registry = Mock()
+        registry.get_plugin.return_value = Mock()
+        registry.is_enabled.return_value = True
+        registry.fetch_plugin_data = _blocking(
+            release,
+            Mock(available=True, data={"v": 1}, formatted_lines=["SLOW"], error=None),
+        )
+        with (
+            patch("src.plugins.routes.PLUGIN_SYSTEM_AVAILABLE", True),
+            patch("src.plugins.routes.get_plugin_registry", return_value=registry),
+        ):
+            return await ac.get("/plugins/slow/data")
+
+    health, waited, still_running = await _health_while_in_flight(_plugin_data)
+    _assert_loop_stayed_free(health, waited, still_running, "plugin data fetch")

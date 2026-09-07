@@ -16,7 +16,10 @@ behavior-preserving:
   and so importing this module never drags in ``api_server``.
 - Plugin mutations go through :class:`src.plugins.service.PluginService`
   (#1757/#1588): the registry holds live state, ConfigManager holds
-  ``config.json``, and only the service writes both.
+  ``config.json``, and only the service writes both. Since Phase 2 slice 4
+  that service raises :class:`src.plugins.errors.PluginError`, not a
+  transport exception, so the executors below catch the domain error and
+  flatten it with :func:`~src.ops.results.plugin_detail`.
 
 Unified semantics decided at #1764 (see the parity suite,
 ``tests/test_op_parity.py``):
@@ -41,7 +44,9 @@ from __future__ import annotations
 import logging
 from typing import Any
 
-from .results import err, ok, rest_detail, serialize
+from src.plugins.errors import PluginError
+
+from .results import err, ok, plugin_detail, rest_detail, serialize
 
 logger = logging.getLogger(__name__)
 
@@ -76,12 +81,10 @@ async def install_plugin(
     ``initial_config`` exists only on the chat grammar; when given it is
     applied through :func:`configure_plugin` after a successful enable.
     """
-    from fastapi import HTTPException
-
     try:
         await _plugin_service().install_from_registry(plugin_id)
-    except HTTPException as exc:
-        return err(f"Error installing plugin '{plugin_id}': {rest_detail(exc)}")
+    except PluginError as exc:
+        return err(f"Error installing plugin '{plugin_id}': {plugin_detail(exc)}")
     except Exception as exc:
         return err(f"Error installing plugin '{plugin_id}': {exc}")
 
@@ -101,12 +104,10 @@ async def install_plugin(
 
 def enable_plugin(plugin_id: str) -> dict[str, Any]:
     """Enable an installed but currently-disabled plugin."""
-    from fastapi import HTTPException
-
     try:
         _plugin_service().enable_plugin(plugin_id)
-    except HTTPException as exc:
-        return err(f"Error enabling plugin '{plugin_id}': {rest_detail(exc)}")
+    except PluginError as exc:
+        return err(f"Error enabling plugin '{plugin_id}': {plugin_detail(exc)}")
     except Exception as exc:
         return err(f"Error enabling plugin '{plugin_id}': {exc}")
 
@@ -115,12 +116,10 @@ def enable_plugin(plugin_id: str) -> dict[str, Any]:
 
 def disable_plugin(plugin_id: str) -> dict[str, Any]:
     """Disable an installed plugin without uninstalling it."""
-    from fastapi import HTTPException
-
     try:
         _plugin_service().disable_plugin(plugin_id)
-    except HTTPException as exc:
-        return err(f"Error disabling plugin '{plugin_id}': {rest_detail(exc)}")
+    except PluginError as exc:
+        return err(f"Error disabling plugin '{plugin_id}': {plugin_detail(exc)}")
     except Exception as exc:
         return err(f"Error disabling plugin '{plugin_id}': {exc}")
 
@@ -129,12 +128,10 @@ def disable_plugin(plugin_id: str) -> dict[str, Any]:
 
 def uninstall_plugin(plugin_id: str) -> dict[str, Any]:
     """Permanently remove an installed plugin. Irreversible."""
-    from fastapi import HTTPException
-
     try:
         _plugin_service().uninstall(plugin_id)
-    except HTTPException as exc:
-        return err(f"Error uninstalling plugin '{plugin_id}': {rest_detail(exc)}")
+    except PluginError as exc:
+        return err(f"Error uninstalling plugin '{plugin_id}': {plugin_detail(exc)}")
     except Exception as exc:
         return err(f"Error uninstalling plugin '{plugin_id}': {exc}")
 
@@ -148,8 +145,6 @@ def configure_plugin(plugin_id: str, config: dict[str, Any]) -> dict[str, Any]:
     fields (and never trips required-field validation on the keys it did
     not send). Pinned by tests/test_mcp_state_effects.py.
     """
-    from fastapi import HTTPException
-
     from src.config_manager import get_config_manager
 
     try:
@@ -159,8 +154,8 @@ def configure_plugin(plugin_id: str, config: dict[str, Any]) -> dict[str, Any]:
         existing = get_config_manager().get_plugin_config(plugin_id, include_env_overrides=False) or {}
         merged = {**existing, **config}
         masked = _plugin_service().update_plugin_config(plugin_id, merged)
-    except HTTPException as exc:
-        return err(f"Error configuring plugin '{plugin_id}': {rest_detail(exc)}")
+    except PluginError as exc:
+        return err(f"Error configuring plugin '{plugin_id}': {plugin_detail(exc)}")
     except Exception as exc:
         return err(f"Error configuring plugin '{plugin_id}': {exc}")
 
@@ -177,12 +172,10 @@ async def update_plugin(plugin_id: str) -> dict[str, Any]:
     #1741: goes through ``PluginService.apply_update`` — the shared,
     guarded path — never re-deriving its checks here.
     """
-    from fastapi import HTTPException
-
     try:
         await _plugin_service().apply_update(plugin_id)
-    except HTTPException as exc:
-        return err(f"Error updating plugin '{plugin_id}': {rest_detail(exc)}")
+    except PluginError as exc:
+        return err(f"Error updating plugin '{plugin_id}': {plugin_detail(exc)}")
     except Exception as exc:
         return err(f"Error updating plugin '{plugin_id}': {exc}")
 

@@ -258,12 +258,14 @@ export const mockSilenceSchedulePlugin: PluginDetailResponse = {
   author: "FiestaBoard",
   icon: "moon",
   category: "utility",
+  plugin_type: "data",
   enabled: true,
   config: {
     enabled: false,
     start_time: "04:00+00:00",
     end_time: "15:00+00:00",
   },
+  env_overridden_keys: [],
   settings_schema: {
     type: "object",
     properties: {
@@ -278,6 +280,9 @@ export const mockSilenceSchedulePlugin: PluginDetailResponse = {
   documentation: "",
   has_demo: false,
   demo_page_id: null,
+  instance_label: null,
+  base_plugin_id: "silence_schedule",
+  instances: [],
 };
 
 // Store for tracking request bodies in tests
@@ -761,13 +766,20 @@ export const handlers = [
       author: "Unknown",
       icon: "puzzle",
       category: "utility",
+      plugin_type: "data",
       enabled: false,
       config: {},
+      env_overridden_keys: [],
       settings_schema: {},
       variables: {},
       max_lengths: {},
       env_vars: [],
       documentation: "",
+      has_demo: false,
+      demo_page_id: null,
+      instance_label: null,
+      base_plugin_id: String(pluginId),
+      instances: [],
     });
   }),
 
@@ -817,7 +829,6 @@ export const handlers = [
     const { pluginId } = params;
     const body = (await request.json()) as { config: Record<string, unknown> };
     return HttpResponse.json({
-      status: "success",
       plugin_id: pluginId,
       config: body.config,
     });
@@ -827,7 +838,6 @@ export const handlers = [
     const { pluginId } = params;
     const body = (await request.json()) as { config: Record<string, unknown> };
     return HttpResponse.json({
-      status: "success",
       plugin_id: pluginId,
       config: body.config,
     });
@@ -839,6 +849,7 @@ export const handlers = [
     return HttpResponse.json({
       plugin_id: pluginId,
       instances: [],
+      total: 0,
     });
   }),
 
@@ -846,24 +857,23 @@ export const handlers = [
     const { pluginId } = params;
     const body = (await request.json()) as { label: string };
     const instanceKey = `${pluginId}:${body.label}`;
-    return HttpResponse.json({
-      status: "success",
-      plugin_id: pluginId,
-      instance_label: body.label,
-      instance_key: instanceKey,
-      message: `Instance "${body.label}" created for plugin "${pluginId}".`,
-    });
+    return HttpResponse.json(
+      {
+        plugin_id: pluginId,
+        instance_label: body.label,
+        instance_key: instanceKey,
+      },
+      { status: 201 },
+    );
   }),
 
   http.delete(`${API_BASE}/plugins/:pluginId/instances/:instanceLabel`, ({ params }) => {
     const { pluginId, instanceLabel } = params;
     const instanceKey = `${pluginId}:${instanceLabel}`;
     return HttpResponse.json({
-      status: "success",
       plugin_id: pluginId,
       instance_label: instanceLabel,
       instance_key: instanceKey,
-      message: `Instance "${instanceLabel}" of plugin "${pluginId}" deleted.`,
     });
   }),
 

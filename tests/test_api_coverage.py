@@ -1800,26 +1800,31 @@ class TestPluginErrors:
     def test_plugin_errors_system_available(self, client):
         """Plugin errors when system is available."""
         with (
-            patch("src.api_server.PLUGIN_SYSTEM_AVAILABLE", True),
-            patch("src.api_server.get_plugin_registry") as mock_reg,
+            patch("src.plugins.routes.PLUGIN_SYSTEM_AVAILABLE", True),
+            patch("src.plugins.routes.get_plugin_registry") as mock_reg,
         ):
             registry = Mock()
-            registry.get_load_errors.return_value = {"bad_plugin": "ImportError"}
+            # A list, and a real breaker map: PluginErrorsResponse types both
+            # now, so the bare Mock this used to hand back is rejected.
+            registry.get_load_errors.return_value = {"bad_plugin": ["ImportError"]}
+            registry.get_fetch_breaker_status.return_value = {}
             mock_reg.return_value = registry
             response = client.get("/plugins/errors")
             assert response.status_code == 200
             data = response.json()
             assert data["plugin_system_enabled"] is True
-            assert "bad_plugin" in data["errors"]
+            assert data["errors"] == {"bad_plugin": ["ImportError"]}
+            assert data["fetch_breakers"] == {}
 
     def test_plugin_errors_system_unavailable(self, client):
         """Plugin errors when system is unavailable."""
-        with patch("src.api_server.PLUGIN_SYSTEM_AVAILABLE", False):
+        with patch("src.plugins.routes.PLUGIN_SYSTEM_AVAILABLE", False):
             response = client.get("/plugins/errors")
             assert response.status_code == 200
             data = response.json()
             assert data["plugin_system_enabled"] is False
             assert data["errors"] == {}
+            assert data["fetch_breakers"] == {}
 
 
 class TestPluginRegistry:
@@ -1828,8 +1833,8 @@ class TestPluginRegistry:
     def test_registry_list(self, client):
         """List registry plugins."""
         with (
-            patch("src.api_server.PLUGIN_SYSTEM_AVAILABLE", True),
-            patch("src.api_server.get_plugin_registry") as mock_reg,
+            patch("src.plugins.routes.PLUGIN_SYSTEM_AVAILABLE", True),
+            patch("src.plugins.routes.get_plugin_registry") as mock_reg,
         ):
             registry = Mock()
             registry.get_registry_entries.return_value = [{"id": "weather", "name": "Weather", "installed": True}]
@@ -1840,7 +1845,7 @@ class TestPluginRegistry:
 
     def test_registry_unavailable(self, client):
         """Plugin system unavailable → 503."""
-        with patch("src.api_server.PLUGIN_SYSTEM_AVAILABLE", False):
+        with patch("src.plugins.routes.PLUGIN_SYSTEM_AVAILABLE", False):
             response = client.get("/plugins/registry")
             assert response.status_code == 503
 
@@ -1851,8 +1856,8 @@ class TestPluginUpdates:
     def test_get_updates(self, client):
         """Get cached update status."""
         with (
-            patch("src.api_server.PLUGIN_SYSTEM_AVAILABLE", True),
-            patch("src.api_server.get_plugin_registry") as mock_reg,
+            patch("src.plugins.routes.PLUGIN_SYSTEM_AVAILABLE", True),
+            patch("src.plugins.routes.get_plugin_registry") as mock_reg,
         ):
             registry = Mock()
             registry.get_update_status.return_value = {"my_plugin": True}
@@ -1865,8 +1870,8 @@ class TestPluginUpdates:
     def test_get_updates_includes_blocked_reasons(self, client):
         """Held-back updates are reported with the reason they were held back."""
         with (
-            patch("src.api_server.PLUGIN_SYSTEM_AVAILABLE", True),
-            patch("src.api_server.get_plugin_registry") as mock_reg,
+            patch("src.plugins.routes.PLUGIN_SYSTEM_AVAILABLE", True),
+            patch("src.plugins.routes.get_plugin_registry") as mock_reg,
         ):
             registry = Mock()
             registry.get_update_status.return_value = {"my_plugin": False}
@@ -1878,7 +1883,7 @@ class TestPluginUpdates:
 
     def test_get_updates_unavailable(self, client):
         """Plugin system unavailable → 503."""
-        with patch("src.api_server.PLUGIN_SYSTEM_AVAILABLE", False):
+        with patch("src.plugins.routes.PLUGIN_SYSTEM_AVAILABLE", False):
             response = client.get("/plugins/updates")
             assert response.status_code == 503
 
@@ -1889,8 +1894,8 @@ class TestTriggerPluginUpdateCheck:
     def test_trigger_check(self, client):
         """Trigger update check."""
         with (
-            patch("src.api_server.PLUGIN_SYSTEM_AVAILABLE", True),
-            patch("src.api_server.get_plugin_registry") as mock_reg,
+            patch("src.plugins.routes.PLUGIN_SYSTEM_AVAILABLE", True),
+            patch("src.plugins.routes.get_plugin_registry") as mock_reg,
         ):
             registry = Mock()
             registry.check_for_updates.return_value = {"plugin_a": True, "plugin_b": False}
@@ -1904,7 +1909,7 @@ class TestTriggerPluginUpdateCheck:
 
     def test_trigger_check_unavailable(self, client):
         """Plugin system unavailable → 503."""
-        with patch("src.api_server.PLUGIN_SYSTEM_AVAILABLE", False):
+        with patch("src.plugins.routes.PLUGIN_SYSTEM_AVAILABLE", False):
             response = client.post("/plugins/updates/check")
             assert response.status_code == 503
 

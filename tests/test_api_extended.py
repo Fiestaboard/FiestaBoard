@@ -287,7 +287,10 @@ def mock_template_engine():
 @pytest.fixture
 def mock_plugin_registry():
     """Mock the plugin registry."""
-    with patch("src.api_server.get_plugin_registry") as mock_get, patch("src.api_server.PLUGIN_SYSTEM_AVAILABLE", True):
+    with (
+        patch("src.plugins.routes.get_plugin_registry") as mock_get,
+        patch("src.plugins.routes.PLUGIN_SYSTEM_AVAILABLE", True),
+    ):
         reg = Mock()
         reg.list_plugins.return_value = [
             {"id": "weather", "name": "Weather", "enabled": True},
@@ -746,7 +749,7 @@ class TestPluginEndpoints:
         assert data["plugin_system_enabled"] is True
 
     def test_list_plugins_system_unavailable(self, client):
-        with patch("src.api_server.PLUGIN_SYSTEM_AVAILABLE", False):
+        with patch("src.plugins.routes.PLUGIN_SYSTEM_AVAILABLE", False):
             response = client.get("/plugins")
         assert response.status_code == 503
 
@@ -772,11 +775,11 @@ class TestPluginEndpoints:
         assert response.status_code == 404
 
     def test_update_plugin_config(self, client, mock_plugin_registry, mock_config_manager):
-        with patch("src.api_server.reset_display_service"), patch("src.api_server.reset_template_engine"):
+        with patch("src.plugins.routes.reset_display_service"), patch("src.plugins.routes.reset_template_engine"):
             response = client.put("/plugins/weather/config", json={"config": {"api_key": "test_key_abc123"}})
         assert response.status_code == 200
         data = response.json()
-        assert data["status"] == "success"
+        assert data["plugin_id"] == "weather"
 
     def test_update_plugin_config_not_found(self, client, mock_plugin_registry, mock_config_manager):
         mock_plugin_registry.get_plugin.return_value = None
@@ -789,12 +792,12 @@ class TestPluginEndpoints:
         assert response.status_code == 400
 
     def test_update_plugin_config_system_unavailable(self, client):
-        with patch("src.api_server.PLUGIN_SYSTEM_AVAILABLE", False):
+        with patch("src.plugins.routes.PLUGIN_SYSTEM_AVAILABLE", False):
             response = client.put("/plugins/weather/config", json={"config": {}})
         assert response.status_code == 503
 
     def test_enable_plugin(self, client, mock_plugin_registry, mock_config_manager):
-        with patch("src.api_server.reset_display_service"), patch("src.api_server.reset_template_engine"):
+        with patch("src.plugins.routes.reset_display_service"), patch("src.plugins.routes.reset_template_engine"):
             response = client.post("/plugins/weather/enable")
         assert response.status_code == 200
         assert response.json()["enabled"] is True
@@ -810,7 +813,7 @@ class TestPluginEndpoints:
         assert response.status_code == 400
 
     def test_disable_plugin(self, client, mock_plugin_registry, mock_config_manager):
-        with patch("src.api_server.reset_display_service"), patch("src.api_server.reset_template_engine"):
+        with patch("src.plugins.routes.reset_display_service"), patch("src.plugins.routes.reset_template_engine"):
             response = client.post("/plugins/weather/disable")
         assert response.status_code == 200
         assert response.json()["enabled"] is False
@@ -854,7 +857,7 @@ class TestPluginEndpoints:
         assert data["plugin_system_enabled"] is True
 
     def test_get_all_plugin_variables_system_unavailable(self, client, mock_template_engine):
-        with patch("src.api_server.PLUGIN_SYSTEM_AVAILABLE", False):
+        with patch("src.plugins.routes.PLUGIN_SYSTEM_AVAILABLE", False):
             response = client.get("/plugins/variables/all")
         assert response.status_code == 200
         data = response.json()
@@ -863,7 +866,7 @@ class TestPluginEndpoints:
     def test_receive_plugin_payload(self, client, mock_plugin_registry):
         response = client.post("/plugins/weather/receive", json={"message": "hello"})
         assert response.status_code == 200
-        assert response.json() == {"status": "ok"}
+        assert response.json() == {"status": "ok", "plugin_id": "weather"}
         mock_plugin_registry.get_plugin.return_value.receive_payload.assert_called_once()
 
     def test_receive_plugin_payload_not_found(self, client, mock_plugin_registry):
@@ -895,7 +898,7 @@ class TestPluginEndpoints:
         assert response.status_code == 403
 
     def test_receive_plugin_payload_system_unavailable(self, client):
-        with patch("src.api_server.PLUGIN_SYSTEM_AVAILABLE", False):
+        with patch("src.plugins.routes.PLUGIN_SYSTEM_AVAILABLE", False):
             response = client.post("/plugins/weather/receive", json={"message": "hello"})
         assert response.status_code == 503
 

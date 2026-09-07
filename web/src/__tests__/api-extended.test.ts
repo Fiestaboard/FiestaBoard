@@ -842,7 +842,7 @@ describe("API Extended Tests", () => {
       server.use(
         http.put(`${API_BASE}/plugins/:pluginId/config`, async ({ request }) => {
           capturedBody = await request.json();
-          return HttpResponse.json({ status: "success", plugin_id: "test", config: {} });
+          return HttpResponse.json({ plugin_id: "test", config: {} });
         }),
       );
       await api.updatePluginConfig("test", { key: "value" });
@@ -852,7 +852,7 @@ describe("API Extended Tests", () => {
     it("enablePlugin sends POST", async () => {
       server.use(
         http.post(`${API_BASE}/plugins/:pluginId/enable`, () =>
-          HttpResponse.json({ status: "success", plugin_id: "test", enabled: true }),
+          HttpResponse.json({ plugin_id: "test", enabled: true }),
         ),
       );
       const result = await api.enablePlugin("test");
@@ -862,7 +862,7 @@ describe("API Extended Tests", () => {
     it("disablePlugin sends POST", async () => {
       server.use(
         http.post(`${API_BASE}/plugins/:pluginId/disable`, () =>
-          HttpResponse.json({ status: "success", plugin_id: "test", enabled: false }),
+          HttpResponse.json({ plugin_id: "test", enabled: false }),
         ),
       );
       const result = await api.disablePlugin("test");
@@ -901,10 +901,29 @@ describe("API Extended Tests", () => {
 
     it("getPluginErrors returns errors", async () => {
       server.use(
-        http.get(`${API_BASE}/plugins/errors`, () => HttpResponse.json({ errors: {}, plugin_system_enabled: true })),
+        http.get(`${API_BASE}/plugins/errors`, () =>
+          HttpResponse.json({ errors: {}, fetch_breakers: {}, plugin_system_enabled: true }),
+        ),
       );
       const result = await api.getPluginErrors();
       expect(result.plugin_system_enabled).toBe(true);
+    });
+
+    it("getPluginErrors reports plugins the fetch circuit breaker is holding back", async () => {
+      server.use(
+        http.get(`${API_BASE}/plugins/errors`, () =>
+          HttpResponse.json({
+            errors: {},
+            fetch_breakers: {
+              stocks: { consecutive_timeouts: 3, quarantined: true, cooldown_remaining_seconds: 42.5 },
+            },
+            plugin_system_enabled: true,
+          }),
+        ),
+      );
+      const result = await api.getPluginErrors();
+      expect(result.fetch_breakers.stocks.quarantined).toBe(true);
+      expect(result.fetch_breakers.stocks.consecutive_timeouts).toBe(3);
     });
   });
 

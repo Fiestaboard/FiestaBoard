@@ -68,7 +68,11 @@ def env(monkeypatch, tmp_path):
     monkeypatch.setattr("src.api_server.get_schedule_service", lambda: schedule_service)
     monkeypatch.setattr("src.api_server.get_service", lambda: None)
     monkeypatch.setattr("src.board_guards.get_settings_service", lambda: settings)
+    # Both bindings: `api_server` imports the flag but keeps its own local
+    # name for the handlers still in that module, and the plugins router
+    # reads the source.
     monkeypatch.setattr("src.api_server.PLUGIN_SYSTEM_AVAILABLE", False)
+    monkeypatch.setattr("src.plugins.routes.PLUGIN_SYSTEM_AVAILABLE", False)
 
     flagship_page = page_service.create_page(PageCreate(name="Flag Page", type="template", template=["a"]))
 

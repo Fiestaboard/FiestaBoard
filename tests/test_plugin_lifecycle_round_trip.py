@@ -420,7 +420,7 @@ def test_writing_the_masked_api_key_back_over_mcp_preserves_the_stored_secret(cl
 def test_creating_an_instance_registers_it_under_the_compound_key(client):
     """The instance is addressable as ``<base><SEPARATOR><label>``."""
     created = client.post(f"/plugins/{HEALTHY}/instances", json={"label": "sf"})
-    assert created.status_code == 200, created.text
+    assert created.status_code == 201, created.text
 
     listed = client.get(f"/plugins/{HEALTHY}/instances")
     assert listed.status_code == 200, listed.text
@@ -430,7 +430,7 @@ def test_creating_an_instance_registers_it_under_the_compound_key(client):
 def test_an_instance_config_is_independent_of_the_base_plugin_config(client, plugin_env):
     """Configuring one must not overwrite the other."""
     instance = f"{HEALTHY}{INSTANCE_SEPARATOR}sf"
-    assert client.post(f"/plugins/{HEALTHY}/instances", json={"label": "sf"}).status_code == 200
+    assert client.post(f"/plugins/{HEALTHY}/instances", json={"label": "sf"}).status_code == 201
 
     _put_config(client, HEALTHY, {"label": "base"})
     _put_config(client, instance, {"label": "san francisco"})
@@ -442,7 +442,7 @@ def test_an_instance_config_is_independent_of_the_base_plugin_config(client, plu
 def test_an_instance_secret_is_masked_independently_of_the_base(client):
     """Masking follows the compound key, not the base id."""
     instance = f"{HEALTHY}{INSTANCE_SEPARATOR}sf"
-    assert client.post(f"/plugins/{HEALTHY}/instances", json={"label": "sf"}).status_code == 200
+    assert client.post(f"/plugins/{HEALTHY}/instances", json={"label": "sf"}).status_code == 201
     _put_config(client, instance, {"api_key": SECRET})
 
     response = client.get(f"/plugins/{instance}")
@@ -454,7 +454,7 @@ def test_an_instance_secret_is_masked_independently_of_the_base(client):
 def test_an_instance_renders_under_its_own_template_namespace(client):
     """``{{base:label.var}}`` resolves to the instance's own data."""
     instance = f"{HEALTHY}{INSTANCE_SEPARATOR}sf"
-    assert client.post(f"/plugins/{HEALTHY}/instances", json={"label": "sf"}).status_code == 200
+    assert client.post(f"/plugins/{HEALTHY}/instances", json={"label": "sf"}).status_code == 201
     _put_config(client, instance, {"api_key": SECRET})
     _enable(client, instance)
 
@@ -464,7 +464,7 @@ def test_an_instance_renders_under_its_own_template_namespace(client):
 def test_deleting_an_instance_purges_its_stored_config(client, plugin_env):
     """A deleted instance must not leave configuration behind to be adopted."""
     instance = f"{HEALTHY}{INSTANCE_SEPARATOR}sf"
-    assert client.post(f"/plugins/{HEALTHY}/instances", json={"label": "sf"}).status_code == 200
+    assert client.post(f"/plugins/{HEALTHY}/instances", json={"label": "sf"}).status_code == 201
     _put_config(client, instance, {"api_key": SECRET})
 
     deleted = client.delete(f"/plugins/{HEALTHY}/instances/sf")
@@ -475,7 +475,7 @@ def test_deleting_an_instance_purges_its_stored_config(client, plugin_env):
 
 def test_deleting_an_instance_leaves_the_base_plugin_config_alone(client, plugin_env):
     """Prefix-based purging must not swallow the base plugin's own entry."""
-    assert client.post(f"/plugins/{HEALTHY}/instances", json={"label": "sf"}).status_code == 200
+    assert client.post(f"/plugins/{HEALTHY}/instances", json={"label": "sf"}).status_code == 201
     _put_config(client, HEALTHY, {"label": "base"})
 
     assert client.delete(f"/plugins/{HEALTHY}/instances/sf").status_code == 200
@@ -489,7 +489,7 @@ def test_deleting_an_instance_leaves_the_base_plugin_config_alone(client, plugin
 def test_installing_from_the_registry_makes_the_plugin_configurable(client, plugin_env):
     """The freshly installed plugin accepts and stores a config."""
     installed = client.post(f"/plugins/registry/{EXTERNAL}/install")
-    assert installed.status_code == 200, installed.text
+    assert installed.status_code == 201, installed.text
 
     _put_config(client, EXTERNAL, {"label": "fresh", "api_key": SECRET})
 
@@ -497,7 +497,7 @@ def test_installing_from_the_registry_makes_the_plugin_configurable(client, plug
 
 
 def test_uninstalling_removes_the_plugin_from_the_listing(client):
-    assert client.post(f"/plugins/registry/{EXTERNAL}/install").status_code == 200
+    assert client.post(f"/plugins/registry/{EXTERNAL}/install").status_code == 201
 
     uninstalled = client.delete(f"/plugins/{EXTERNAL}/uninstall")
     assert uninstalled.status_code == 200, uninstalled.text
@@ -507,7 +507,7 @@ def test_uninstalling_removes_the_plugin_from_the_listing(client):
 
 def test_uninstalling_purges_the_plugin_config(client, plugin_env):
     """#948/#1102: a stale config resurrects the plugin on the next upgrade."""
-    assert client.post(f"/plugins/registry/{EXTERNAL}/install").status_code == 200
+    assert client.post(f"/plugins/registry/{EXTERNAL}/install").status_code == 201
     _put_config(client, EXTERNAL, {"label": "fresh", "api_key": SECRET})
 
     assert client.delete(f"/plugins/{EXTERNAL}/uninstall").status_code == 200
@@ -518,8 +518,8 @@ def test_uninstalling_purges_the_plugin_config(client, plugin_env):
 def test_uninstalling_purges_the_configs_of_its_instances_too(client, plugin_env):
     """Instance keys are separate config entries and must go with the base."""
     instance = f"{EXTERNAL}{INSTANCE_SEPARATOR}sf"
-    assert client.post(f"/plugins/registry/{EXTERNAL}/install").status_code == 200
-    assert client.post(f"/plugins/{EXTERNAL}/instances", json={"label": "sf"}).status_code == 200
+    assert client.post(f"/plugins/registry/{EXTERNAL}/install").status_code == 201
+    assert client.post(f"/plugins/{EXTERNAL}/instances", json={"label": "sf"}).status_code == 201
     _put_config(client, instance, {"api_key": SECRET})
 
     assert client.delete(f"/plugins/{EXTERNAL}/uninstall").status_code == 200
@@ -528,7 +528,7 @@ def test_uninstalling_purges_the_configs_of_its_instances_too(client, plugin_env
 
 
 def test_uninstalling_removes_the_plugin_directory_from_disk(client, plugin_env):
-    assert client.post(f"/plugins/registry/{EXTERNAL}/install").status_code == 200
+    assert client.post(f"/plugins/registry/{EXTERNAL}/install").status_code == 201
     assert (plugin_env["external_dir"] / EXTERNAL).is_dir()
 
     assert client.delete(f"/plugins/{EXTERNAL}/uninstall").status_code == 200
@@ -552,7 +552,7 @@ def test_uninstalling_a_builtin_plugin_is_refused(client, plugin_env):
 def test_the_fixture_keeps_plugin_writes_out_of_the_repo_data_dir(client, plugin_env):
     """Guard for #1762: no stub plugin may land in the developer's data/."""
     repo_data = Path(__file__).resolve().parent.parent / "data"
-    assert client.post(f"/plugins/registry/{EXTERNAL}/install").status_code == 200
+    assert client.post(f"/plugins/registry/{EXTERNAL}/install").status_code == 201
     _put_config(client, HEALTHY, {"label": "base", "api_key": SECRET})
 
     assert (plugin_env["external_dir"] / EXTERNAL).is_dir(), "the fixture never redirected the external dir"

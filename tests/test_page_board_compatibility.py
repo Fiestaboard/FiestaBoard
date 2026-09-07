@@ -57,7 +57,7 @@ def env(monkeypatch, tmp_path):
     monkeypatch.setattr("src.schedules.routes.get_page_service", lambda: page_service)
     monkeypatch.setattr("src.schedules.routes.get_collection_service", lambda: collection_service)
     monkeypatch.setattr("src.api_server.get_service", lambda: None)
-    monkeypatch.setattr("src.api_server.PLUGIN_SYSTEM_AVAILABLE", False)
+    monkeypatch.setattr("src.plugins.routes.PLUGIN_SYSTEM_AVAILABLE", False)
 
     flagship_page = page_service.create_page(PageCreate(name="Flag Page", type="template", template=["a"]))
     note_page = page_service.create_page(

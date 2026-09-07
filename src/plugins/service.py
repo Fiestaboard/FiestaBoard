@@ -21,10 +21,13 @@ Collaborators resolve in one of two ways:
   ``src.plugins.get_plugin_registry`` / ``src.config_manager
   .get_config_manager`` used by the MCP suite stay live.
 
-Error contract: methods raise :class:`fastapi.HTTPException` with exactly the
-status codes and details the REST handlers used to raise inline, so both the
-HTTP layer (which lets them propagate) and the MCP layer (which catches them
-and formats ``exc.detail``) keep their observable behavior.
+Error contract: methods raise the domain exceptions in
+:mod:`src.plugins.errors` and know nothing about HTTP. Phase 1 had this
+service raising a FastAPI transport exception at 25 sites — the one service in
+the tree that knew a status code, and the layering violation the 2026-09 audit
+called out. The REST router owns the mapping now
+(``src/plugins/routes.py::_STATUS_BY_ERROR``); the MCP/ops layer catches the
+same exceptions and renders its own envelope without going near a status code.
 """
 
 from __future__ import annotations
@@ -36,9 +39,14 @@ from collections.abc import Callable
 from pathlib import Path
 from typing import Any
 
-from fastapi import HTTPException
-
 from src.config_manager import unmask_sensitive_values
+
+from .errors import (
+    PluginConfigInvalid,
+    PluginNotFound,
+    PluginOperationFailed,
+    PluginOperationRejected,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -54,12 +62,9 @@ def sanitize_optional_plugin_id(plugin_id: str | None) -> str | None:
     if plugin_id is None:
         return None
     if not isinstance(plugin_id, str) or not plugin_id:
-        raise HTTPException(status_code=400, detail="plugin_id must be a non-empty string")
+        raise PluginOperationRejected("plugin_id must be a non-empty string")
     if not _PLUGIN_ID_RE.fullmatch(plugin_id):
-        raise HTTPException(
-            status_code=400,
-            detail="plugin_id may contain only lowercase letters, digits, and underscores",
-        )
+        raise PluginOperationRejected("plugin_id may contain only lowercase letters, digits, and underscores")
     return plugin_id
 
 
@@ -147,7 +152,7 @@ class PluginService:
         """
         registry = self.registry
         if not registry.get_plugin(plugin_id):
-            raise HTTPException(status_code=404, detail=f"Plugin not found: {plugin_id}")
+            raise PluginNotFound(f"Plugin not found: {plugin_id}")
 
         # Resolve the "***" placeholders before anything sees the payload.
         # Config goes out masked, so any client that echoes back what it read
@@ -168,7 +173,7 @@ class PluginService:
         errors = registry.set_plugin_config(plugin_id, config)
         if errors:
             logger.error(f"Plugin '{plugin_id}' config validation failed: {errors}")
-            raise HTTPException(status_code=400, detail={"errors": errors})
+            raise PluginConfigInvalid(f"Configuration for '{plugin_id}' failed validation.", errors)
 
         # Save to config file
         config_manager.set_plugin_config(plugin_id, config)
@@ -201,10 +206,10 @@ class PluginService:
         """Enable a plugin in the registry and persist the flag to config."""
         registry = self.registry
         if not registry.get_plugin(plugin_id):
-            raise HTTPException(status_code=404, detail=f"Plugin not found: {plugin_id}")
+            raise PluginNotFound(f"Plugin not found: {plugin_id}")
 
         if not registry.enable_plugin(plugin_id):
-            raise HTTPException(status_code=400, detail=f"Failed to enable plugin: {plugin_id}")
+            raise PluginOperationRejected(f"Failed to enable plugin: {plugin_id}")
 
         self.config_manager.enable_plugin(plugin_id)
         self.reset_runtime()
@@ -215,10 +220,10 @@ class PluginService:
         """Disable a plugin in the registry and persist the flag to config."""
         registry = self.registry
         if not registry.get_plugin(plugin_id):
-            raise HTTPException(status_code=404, detail=f"Plugin not found: {plugin_id}")
+            raise PluginNotFound(f"Plugin not found: {plugin_id}")
 
         if not registry.disable_plugin(plugin_id):
-            raise HTTPException(status_code=400, detail=f"Failed to disable plugin: {plugin_id}")
+            raise PluginOperationRejected(f"Failed to disable plugin: {plugin_id}")
 
         self.config_manager.disable_plugin(plugin_id)
         self.reset_runtime()
@@ -240,11 +245,11 @@ class PluginService:
         base_id, _ = registry.parse_instance_key(plugin_id)
 
         if not registry.get_plugin(base_id):
-            raise HTTPException(status_code=404, detail=f"Plugin not found: {base_id}")
+            raise PluginNotFound(f"Plugin not found: {base_id}")
 
         errors = registry.create_instance(base_id, label)
         if errors:
-            raise HTTPException(status_code=400, detail="; ".join(errors))
+            raise PluginOperationRejected("; ".join(errors))
 
         compound_key = registry.make_instance_key(base_id, label)
 
@@ -290,7 +295,7 @@ class PluginService:
 
         errors = registry.delete_instance(base_id, instance_label)
         if errors:
-            raise HTTPException(status_code=400, detail="; ".join(errors))
+            raise PluginOperationRejected("; ".join(errors))
 
         compound_key = registry.make_instance_key(base_id, instance_label)
 
@@ -318,7 +323,7 @@ class PluginService:
         registry = self.registry
         errors = await asyncio.to_thread(registry.install_from_registry, plugin_id)
         if errors:
-            raise HTTPException(status_code=400, detail="; ".join(errors))
+            raise PluginOperationRejected("; ".join(errors))
 
     async def install_from_git(self, repository: str, plugin_id: str | None = None, branch: str = "") -> str:
         """Install a plugin from a public git repository URL; returns its id.
@@ -332,7 +337,7 @@ class PluginService:
 
             _ok, _err = _validate_git_ref(safe_branch)
             if not _ok:
-                raise HTTPException(status_code=400, detail=_err)
+                raise PluginOperationRejected(_err)
 
         safe_plugin_id = sanitize_optional_plugin_id(plugin_id)
 
@@ -344,7 +349,7 @@ class PluginService:
             branch=safe_branch,
         )
         if errors:
-            raise HTTPException(status_code=400, detail="; ".join(errors))
+            raise PluginOperationRejected("; ".join(errors))
 
         # Derive the final plugin id
         pid = safe_plugin_id
@@ -365,7 +370,7 @@ class PluginService:
 
         errors = registry.uninstall_external_plugin(plugin_id)
         if errors:
-            raise HTTPException(status_code=400, detail="; ".join(errors))
+            raise PluginOperationRejected("; ".join(errors))
 
         # Purge persisted configs for both the base plugin and every named
         # instance. The base-id delete is critical: without it the v2→v3
@@ -379,9 +384,10 @@ class PluginService:
     def _validated_update_path(self, plugin_id: str) -> None:
         """Guard an external plugin's local path before letting it near git.
 
-        404 when the plugin has no source at all; 400 for built-ins, missing
-        paths, paths outside the external plugins directory, and non-repos —
-        exactly the checks the REST handler applied inline.
+        :class:`PluginNotFound` when the plugin has no source at all;
+        :class:`PluginOperationRejected` for built-ins, missing paths, paths
+        outside the external plugins directory, and non-repos — exactly the
+        checks the REST handler applied inline, minus the status codes.
         """
         import os as _os
 
@@ -390,19 +396,13 @@ class PluginService:
         source = self.registry.get_plugin_source(plugin_id)
 
         if source is None:
-            raise HTTPException(status_code=404, detail=f"Plugin '{plugin_id}' not found.")
+            raise PluginNotFound(f"Plugin '{plugin_id}' not found.")
 
         if source.source_type == "builtin":
-            raise HTTPException(
-                status_code=400,
-                detail=f"Plugin '{plugin_id}' is a built-in plugin and cannot be updated this way.",
-            )
+            raise PluginOperationRejected(f"Plugin '{plugin_id}' is a built-in plugin and cannot be updated this way.")
 
         if not source.local_path:
-            raise HTTPException(
-                status_code=400,
-                detail=f"Plugin '{plugin_id}' has no local path for updating.",
-            )
+            raise PluginOperationRejected(f"Plugin '{plugin_id}' has no local path for updating.")
 
         # Verify the plugin's local_path is within the external plugins
         # directory before updating, as a defence-in-depth check.
@@ -411,15 +411,12 @@ class PluginService:
         try:
             _common = _os.path.commonpath([_ext_root, _real_local])
         except ValueError:
-            raise HTTPException(status_code=400, detail="Invalid plugin path.") from None
+            raise PluginOperationRejected("Invalid plugin path.") from None
         if _common != _ext_root or _real_local == _ext_root:
-            raise HTTPException(status_code=400, detail="Invalid plugin path.")
+            raise PluginOperationRejected("Invalid plugin path.")
 
         if not (_real_local and (Path(_real_local) / ".git").is_dir()):
-            raise HTTPException(
-                status_code=400,
-                detail=f"Plugin '{plugin_id}' is not a git repository.",
-            )
+            raise PluginOperationRejected(f"Plugin '{plugin_id}' is not a git repository.")
 
     async def apply_update(self, plugin_id: str) -> None:
         """Fetch the latest commits for an external plugin and reload it."""
@@ -435,13 +432,13 @@ class PluginService:
         # update (#1750).
         ok, err = await asyncio.to_thread(clone_or_update_repo, "", plugin_id, external_dir=get_external_plugins_dir())
         if not ok:
-            raise HTTPException(status_code=500, detail=f"Update failed: {err}")
+            raise PluginOperationFailed(f"Update failed: {err}")
 
         reloaded = await asyncio.to_thread(registry.reload_plugin, plugin_id)
         if reloaded is None:
             errors = registry.get_load_errors().get(plugin_id, [])
             detail = "; ".join(errors) if errors else "Plugin failed to reload after update."
-            raise HTTPException(status_code=500, detail=detail)
+            raise PluginOperationFailed(detail)
 
         self.clear_update_status(plugin_id)
 

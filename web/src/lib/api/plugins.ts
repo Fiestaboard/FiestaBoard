@@ -23,14 +23,22 @@ export interface PluginInfo {
    * installed one regardless of `enabled` — the UI must not offer a toggle
    * for them. Absent on responses that predate the field; treat as `"data"`.
    */
-  plugin_type?: "data" | "transition";
-  fiestaboard_version?: string;
+  plugin_type: "data" | "transition";
+  fiestaboard_version: string;
+  /** The stored configuration, with every sensitive value masked as `"***"`. */
   config: Record<string, unknown>;
-  source?: { source_type: "builtin" | "registry" | "external" | "git"; repository_url?: string; local_path?: string };
-  update_available?: boolean;
-  instance_label?: string | null;
-  base_plugin_id?: string;
-  settings_schema?: Record<string, unknown>;
+  source: {
+    source_type: "builtin" | "registry" | "external" | "git";
+    repository_url?: string;
+    local_path?: string;
+  } | null;
+  update_available: boolean;
+  /** Why an upstream commit was not offered; empty when nothing is blocked. */
+  update_blocked_reason: string;
+  supports_triggers: boolean;
+  instance_label: string | null;
+  base_plugin_id: string | null;
+  settings_schema: Record<string, unknown>;
 }
 
 export interface PluginsListResponse {
@@ -135,10 +143,23 @@ export interface PluginDetailResponse {
   version: string;
   description: string;
   author: string;
-  icon: string;
-  category: string;
+  icon: string | null;
+  category: string | null;
+  plugin_type: "data" | "transition";
   enabled: boolean;
+  /**
+   * The **stored** configuration with sensitive values replaced by `"***"`,
+   * deliberately without the environment overlay. Post it back as-is: the
+   * server resolves each `"***"` against the secret it already holds. Serving
+   * the overlay here would freeze env values into `config.json` on the next
+   * save.
+   */
   config: Record<string, unknown>;
+  /**
+   * Config keys whose live value currently comes from an environment
+   * variable. Their values are deliberately absent from `config`.
+   */
+  env_overridden_keys: string[];
   settings_schema: Record<string, unknown>;
   variables: Record<string, unknown>;
   max_lengths: Record<string, number>;
@@ -147,17 +168,17 @@ export interface PluginDetailResponse {
     required: boolean;
     description: string;
   }>;
-  documentation: string;
+  documentation: string | null;
   has_demo: boolean;
   demo_page_id: string | null;
-  instance_label?: string | null;
-  base_plugin_id?: string;
-  instances?: PluginInstanceInfo[];
+  instance_label: string | null;
+  base_plugin_id: string | null;
+  instances: PluginInstanceInfo[];
 }
 
 export interface PluginInstanceInfo {
   label: string;
-  key: string;
+  key: string | null;
   enabled: boolean;
   has_config: boolean;
 }
@@ -168,20 +189,15 @@ export interface PluginInstancesResponse {
   total: number;
 }
 
-export interface PluginInstanceCreateResponse {
-  status: string;
+/**
+ * `POST` and `DELETE` on `/plugins/{id}/instances` answer the same shape.
+ * `instance_label` is the *normalized* label the registry actually holds,
+ * which is not always the string that was sent.
+ */
+export interface PluginInstanceResponse {
   plugin_id: string;
   instance_label: string;
   instance_key: string;
-  message: string;
-}
-
-export interface PluginInstanceDeleteResponse {
-  status: string;
-  plugin_id: string;
-  instance_label: string;
-  instance_key: string;
-  message: string;
 }
 
 export interface PluginDemoPageResponse {
@@ -191,18 +207,18 @@ export interface PluginDemoPageResponse {
 }
 
 export interface PluginDemoPageCreateResponse {
-  status: "created" | "recreated";
+  /** True when an existing demo page for this device type was replaced. */
+  recreated: boolean;
   page: Page;
 }
 
 export interface PluginConfigUpdateResponse {
-  status: string;
   plugin_id: string;
+  /** The stored configuration, re-masked. Never echoes a real secret back. */
   config: Record<string, unknown>;
 }
 
 export interface PluginEnableResponse {
-  status: string;
   plugin_id: string;
   enabled: boolean;
 }
@@ -210,9 +226,10 @@ export interface PluginEnableResponse {
 export interface PluginDataResponse {
   plugin_id: string;
   available: boolean;
-  data: Record<string, unknown>;
-  formatted?: string;
-  error?: string;
+  data: Record<string, unknown> | null;
+  /** The plugin's rendered board lines. (Was mistyped as `formatted`.) */
+  formatted_lines: string[] | null;
+  error: string | null;
 }
 
 export interface PluginVariablesResponse {
@@ -228,8 +245,18 @@ export interface AllPluginVariablesResponse {
   plugin_system_enabled: boolean;
 }
 
+/** One plugin's standing with the data-fetch circuit breaker. */
+export interface FetchBreakerStatus {
+  consecutive_timeouts: number;
+  quarantined: boolean;
+  cooldown_remaining_seconds: number;
+}
+
 export interface PluginErrorsResponse {
+  /** Load-time failures: the plugin never imported. */
   errors: Record<string, string[]>;
+  /** Run-time failures: it imported, then stopped answering. */
+  fetch_breakers: Record<string, FetchBreakerStatus>;
   plugin_system_enabled: boolean;
 }
 
@@ -287,13 +314,13 @@ export const pluginsApi = {
   listPluginInstances: (pluginId: string) => fetchApi<PluginInstancesResponse>(`/plugins/${pluginId}/instances`),
 
   createPluginInstance: (pluginId: string, label: string) =>
-    fetchApi<PluginInstanceCreateResponse>(`/plugins/${pluginId}/instances`, {
+    fetchApi<PluginInstanceResponse>(`/plugins/${pluginId}/instances`, {
       method: "POST",
       body: JSON.stringify({ label }),
     }),
 
   deletePluginInstance: (pluginId: string, instanceLabel: string) =>
-    fetchApi<PluginInstanceDeleteResponse>(`/plugins/${pluginId}/instances/${instanceLabel}`, {
+    fetchApi<PluginInstanceResponse>(`/plugins/${pluginId}/instances/${instanceLabel}`, {
       method: "DELETE",
     }),
 };

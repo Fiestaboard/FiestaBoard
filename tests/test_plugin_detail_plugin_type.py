@@ -70,8 +70,8 @@ def client_for(request):
     """Build a TestClient whose registry reports *plugin_type*."""
 
     def _build(plugin_type: str) -> TestClient:
-        registry_patch = patch("src.api_server.get_plugin_registry", return_value=_FakeRegistry(plugin_type))
-        config_patch = patch("src.api_server.get_config_manager", return_value=_FakeConfigManager())
+        registry_patch = patch("src.plugins.routes.get_plugin_registry", return_value=_FakeRegistry(plugin_type))
+        config_patch = patch("src.plugins.routes.get_config_manager", return_value=_FakeConfigManager())
         registry_patch.start()
         config_patch.start()
         request.addfinalizer(registry_patch.stop)

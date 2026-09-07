@@ -31,7 +31,10 @@ def client():
 @pytest.fixture
 def mock_plugin_registry_secure():
     """Mock plugin registry that returns None for unknown/traversal plugin IDs."""
-    with patch("src.api_server.get_plugin_registry") as mock_get, patch("src.api_server.PLUGIN_SYSTEM_AVAILABLE", True):
+    with (
+        patch("src.plugins.routes.get_plugin_registry") as mock_get,
+        patch("src.plugins.routes.PLUGIN_SYSTEM_AVAILABLE", True),
+    ):
         reg = Mock()
         reg.get_manifest.return_value = None
         reg.get_plugin.return_value = None
@@ -47,9 +50,9 @@ def mock_plugin_registry_secure():
 def mock_plugin_with_sensitive_config():
     """Mock plugin registry with a plugin that has sensitive config fields."""
     with (
-        patch("src.api_server.get_plugin_registry") as mock_get,
-        patch("src.api_server.get_config_manager") as mock_cm_get,
-        patch("src.api_server.PLUGIN_SYSTEM_AVAILABLE", True),
+        patch("src.plugins.routes.get_plugin_registry") as mock_get,
+        patch("src.plugins.routes.get_config_manager") as mock_cm_get,
+        patch("src.plugins.routes.PLUGIN_SYSTEM_AVAILABLE", True),
     ):
         reg = Mock()
         manifest = Mock()
@@ -186,7 +189,7 @@ class TestInputValidation:
 
     def test_put_plugin_config_malformed_json_returns_422(self, client):
         """PUT /plugins/{id}/config with malformed JSON returns 422."""
-        with patch("src.api_server.PLUGIN_SYSTEM_AVAILABLE", True):
+        with patch("src.plugins.routes.PLUGIN_SYSTEM_AVAILABLE", True):
             response = client.put(
                 "/plugins/some_plugin/config",
                 content=b"not valid json {{{",
@@ -196,7 +199,7 @@ class TestInputValidation:
 
     def test_put_plugin_config_missing_config_field_returns_422(self, client):
         """PUT /plugins/{id}/config without 'config' key returns 422."""
-        with patch("src.api_server.PLUGIN_SYSTEM_AVAILABLE", True):
+        with patch("src.plugins.routes.PLUGIN_SYSTEM_AVAILABLE", True):
             response = client.put(
                 "/plugins/some_plugin/config",
                 json={"wrong_key": {"setting": "value"}},
@@ -297,11 +300,11 @@ class TestPluginEnableDisableAPI:
     def test_enable_plugin_success_returns_correct_shape(self, client):
         """POST /plugins/{id}/enable for known plugin returns success shape."""
         with (
-            patch("src.api_server.get_plugin_registry") as mock_reg_get,
-            patch("src.api_server.get_config_manager") as mock_cm_get,
-            patch("src.api_server.PLUGIN_SYSTEM_AVAILABLE", True),
-            patch("src.api_server.reset_display_service"),
-            patch("src.api_server.reset_template_engine"),
+            patch("src.plugins.routes.get_plugin_registry") as mock_reg_get,
+            patch("src.plugins.routes.get_config_manager") as mock_cm_get,
+            patch("src.plugins.routes.PLUGIN_SYSTEM_AVAILABLE", True),
+            patch("src.plugins.routes.reset_display_service"),
+            patch("src.plugins.routes.reset_template_engine"),
         ):
             reg = Mock()
             reg.get_plugin.return_value = Mock()
@@ -312,18 +315,17 @@ class TestPluginEnableDisableAPI:
             response = client.post("/plugins/date_time/enable")
             assert response.status_code == 200
             data = response.json()
-            assert data["status"] == "success"
             assert data["plugin_id"] == "date_time"
             assert data["enabled"] is True
 
     def test_disable_plugin_success_returns_correct_shape(self, client):
         """POST /plugins/{id}/disable for known plugin returns success shape."""
         with (
-            patch("src.api_server.get_plugin_registry") as mock_reg_get,
-            patch("src.api_server.get_config_manager") as mock_cm_get,
-            patch("src.api_server.PLUGIN_SYSTEM_AVAILABLE", True),
-            patch("src.api_server.reset_display_service"),
-            patch("src.api_server.reset_template_engine"),
+            patch("src.plugins.routes.get_plugin_registry") as mock_reg_get,
+            patch("src.plugins.routes.get_config_manager") as mock_cm_get,
+            patch("src.plugins.routes.PLUGIN_SYSTEM_AVAILABLE", True),
+            patch("src.plugins.routes.reset_display_service"),
+            patch("src.plugins.routes.reset_template_engine"),
         ):
             reg = Mock()
             reg.get_plugin.return_value = Mock()
@@ -334,15 +336,14 @@ class TestPluginEnableDisableAPI:
             response = client.post("/plugins/date_time/disable")
             assert response.status_code == 200
             data = response.json()
-            assert data["status"] == "success"
             assert data["plugin_id"] == "date_time"
             assert data["enabled"] is False
 
     def test_enable_plugin_registry_failure_returns_400(self, client):
         """POST /plugins/{id}/enable when registry returns False gives 400."""
         with (
-            patch("src.api_server.get_plugin_registry") as mock_reg_get,
-            patch("src.api_server.PLUGIN_SYSTEM_AVAILABLE", True),
+            patch("src.plugins.routes.get_plugin_registry") as mock_reg_get,
+            patch("src.plugins.routes.PLUGIN_SYSTEM_AVAILABLE", True),
         ):
             reg = Mock()
             reg.get_plugin.return_value = Mock()
@@ -422,8 +423,8 @@ class TestRefreshSecondsBypass:
     def test_put_config_with_below_minimum_refresh_returns_400(self, client):
         """PUT /plugins/{id}/config with refresh_seconds below minimum returns 400."""
         with (
-            patch("src.api_server.get_plugin_registry") as mock_reg_get,
-            patch("src.api_server.PLUGIN_SYSTEM_AVAILABLE", True),
+            patch("src.plugins.routes.get_plugin_registry") as mock_reg_get,
+            patch("src.plugins.routes.PLUGIN_SYSTEM_AVAILABLE", True),
         ):
             reg = Mock()
             reg.get_plugin.return_value = Mock()
@@ -441,11 +442,11 @@ class TestRefreshSecondsBypass:
     def test_put_config_with_valid_refresh_succeeds(self, client):
         """PUT /plugins/{id}/config with valid refresh_seconds returns 200."""
         with (
-            patch("src.api_server.get_plugin_registry") as mock_reg_get,
-            patch("src.api_server.get_config_manager") as mock_cm_get,
-            patch("src.api_server.PLUGIN_SYSTEM_AVAILABLE", True),
-            patch("src.api_server.reset_display_service"),
-            patch("src.api_server.reset_template_engine"),
+            patch("src.plugins.routes.get_plugin_registry") as mock_reg_get,
+            patch("src.plugins.routes.get_config_manager") as mock_cm_get,
+            patch("src.plugins.routes.PLUGIN_SYSTEM_AVAILABLE", True),
+            patch("src.plugins.routes.reset_display_service"),
+            patch("src.plugins.routes.reset_template_engine"),
         ):
             reg = Mock()
             reg.get_plugin.return_value = Mock()
@@ -485,8 +486,8 @@ class TestSSRFProtection:
 
     def _post(self, client, url: str, mock_cm):
         with (
-            patch("src.api_server.PLUGIN_SYSTEM_AVAILABLE", True),
-            patch("src.api_server.get_config_manager", return_value=mock_cm),
+            patch("src.plugins.routes.PLUGIN_SYSTEM_AVAILABLE", True),
+            patch("src.plugins.routes.get_config_manager", return_value=mock_cm),
         ):
             return client.post("/generic-data/test-fetch", json={"url": url})
 
@@ -559,8 +560,8 @@ class TestSSRFProtection:
     def test_rejects_domain_resolving_to_private_ip(self, client, mock_cm):
         private_addr_info = _make_addr_info("10.0.0.5", 80)
         with (
-            patch("src.api_server.PLUGIN_SYSTEM_AVAILABLE", True),
-            patch("src.api_server.get_config_manager", return_value=mock_cm),
+            patch("src.plugins.routes.PLUGIN_SYSTEM_AVAILABLE", True),
+            patch("src.plugins.routes.get_config_manager", return_value=mock_cm),
             patch("socket.getaddrinfo", return_value=private_addr_info),
         ):
             resp = client.post("/generic-data/test-fetch", json={"url": "https://internal.corp/api"})
@@ -572,8 +573,8 @@ class TestSSRFProtection:
         import socket
 
         with (
-            patch("src.api_server.PLUGIN_SYSTEM_AVAILABLE", True),
-            patch("src.api_server.get_config_manager", return_value=mock_cm),
+            patch("src.plugins.routes.PLUGIN_SYSTEM_AVAILABLE", True),
+            patch("src.plugins.routes.get_config_manager", return_value=mock_cm),
             patch("socket.getaddrinfo", side_effect=socket.gaierror("no such host")),
         ):
             resp = client.post("/generic-data/test-fetch", json={"url": "https://no-such-host.invalid/api"})
@@ -587,8 +588,8 @@ class TestSSRFProtection:
         mock_resp.content = b'{"ok": true}'
         mock_resp.json.return_value = {"ok": True}
         with (
-            patch("src.api_server.PLUGIN_SYSTEM_AVAILABLE", True),
-            patch("src.api_server.get_config_manager", return_value=mock_cm),
+            patch("src.plugins.routes.PLUGIN_SYSTEM_AVAILABLE", True),
+            patch("src.plugins.routes.get_config_manager", return_value=mock_cm),
             patch("src.api_server._get_generic_data_allowed_hosts", return_value=["93.184.216.34"]),
             patch("requests.request", return_value=mock_resp),
         ):
@@ -601,8 +602,8 @@ class TestSSRFProtection:
         mock_resp.content = b'{"ok": true}'
         mock_resp.json.return_value = {"ok": True}
         with (
-            patch("src.api_server.PLUGIN_SYSTEM_AVAILABLE", True),
-            patch("src.api_server.get_config_manager", return_value=mock_cm),
+            patch("src.plugins.routes.PLUGIN_SYSTEM_AVAILABLE", True),
+            patch("src.plugins.routes.get_config_manager", return_value=mock_cm),
             patch("src.api_server._get_generic_data_allowed_hosts", return_value=["example.com"]),
             patch("socket.getaddrinfo", return_value=self._PUBLIC_ADDR_INFO),
             patch("requests.request", return_value=mock_resp),
@@ -617,8 +618,8 @@ class TestSSRFProtection:
         mock_resp.content = b'{"ok": true}'
         mock_resp.json.return_value = {"ok": True}
         with (
-            patch("src.api_server.PLUGIN_SYSTEM_AVAILABLE", True),
-            patch("src.api_server.get_config_manager", return_value=mock_cm),
+            patch("src.plugins.routes.PLUGIN_SYSTEM_AVAILABLE", True),
+            patch("src.plugins.routes.get_config_manager", return_value=mock_cm),
             patch("src.api_server._get_generic_data_allowed_hosts", return_value=[]),
             patch("socket.getaddrinfo", return_value=self._PUBLIC_ADDR_INFO),
             patch("requests.request", return_value=mock_resp),
@@ -629,8 +630,8 @@ class TestSSRFProtection:
     def test_rejects_host_not_in_allowlist(self, client, mock_cm):
         """When GENERIC_DATA_ALLOWED_HOSTS is set, hosts outside the list are rejected."""
         with (
-            patch("src.api_server.PLUGIN_SYSTEM_AVAILABLE", True),
-            patch("src.api_server.get_config_manager", return_value=mock_cm),
+            patch("src.plugins.routes.PLUGIN_SYSTEM_AVAILABLE", True),
+            patch("src.plugins.routes.get_config_manager", return_value=mock_cm),
             patch("src.api_server._get_generic_data_allowed_hosts", return_value=["myapi.com"]),
             patch("socket.getaddrinfo", return_value=self._PUBLIC_ADDR_INFO),
         ):

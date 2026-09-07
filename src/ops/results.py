@@ -32,6 +32,20 @@ def rest_detail(exc: Any) -> str:
     return str(detail)
 
 
+def plugin_detail(exc: Any) -> str:
+    """Flatten a :class:`src.plugins.errors.PluginError` into one message.
+
+    ``PluginConfigInvalid`` carries per-field schema messages; every other
+    plugin error is just its string. The REST layer keeps the two apart
+    (a structured ``detail`` object); a chat or MCP answer is one line of
+    prose, so they join here.
+    """
+    errors = getattr(exc, "errors", None)
+    if errors:
+        return "; ".join(str(e) for e in errors)
+    return str(exc)
+
+
 def serialize(obj: Any) -> Any:
     """Convert Pydantic models / dataclasses / datetimes to JSON-compatible primitives.
 

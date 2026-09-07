@@ -4,6 +4,7 @@
     "ai",
     "collections",
     "pages",
+    "plugins",
     "schedules",
     "system"
   ],
@@ -22,6 +23,31 @@
       "route": "GET /pages/cache/stats",
       "rule": "declared_errors",
       "reason": "Reports in-memory preview-cache occupancy, which always exists — an empty cache is a valid answer, not an error. Nothing it reads can be missing or unauthorized at the route level."
+    },
+    {
+      "route": "GET /plugins",
+      "rule": "declared_errors",
+      "reason": "The only failure path is the 503 raised by _require_plugin_system() when the plugin package did not import — a dependency outage, not a client error. It is declared in responses=; there is no 4xx to declare because no request to this route can be wrong."
+    },
+    {
+      "route": "GET /plugins/errors",
+      "rule": "declared_errors",
+      "reason": "The endpoint whose job is to report failures cannot itself fail: with the plugin system down it answers plugin_system_enabled=false and empty maps, which is the correct answer, not an error."
+    },
+    {
+      "route": "GET /plugins/registry",
+      "rule": "declared_errors",
+      "reason": "The only failure path is the 503 raised by _require_plugin_system() when the plugin package did not import — a dependency outage, not a client error. It is declared in responses=; there is no 4xx to declare because no request to this route can be wrong."
+    },
+    {
+      "route": "GET /plugins/updates",
+      "rule": "declared_errors",
+      "reason": "The only failure path is the 503 raised by _require_plugin_system() when the plugin package did not import — a dependency outage, not a client error. It is declared in responses=; there is no 4xx to declare because no request to this route can be wrong."
+    },
+    {
+      "route": "GET /plugins/variables/all",
+      "rule": "declared_errors",
+      "reason": "Has no failure path at all: with the plugin system down it falls back to the template engine's own variables rather than erroring, because the template editor still has a vocabulary without plugins."
     },
     {
       "route": "GET /schedules",
@@ -62,6 +88,21 @@
       "route": "GET /version",
       "rule": "declared_errors",
       "reason": "Read-only report with no failure path: it cannot 404, 400 or 409, so declaring a 4xx would document an error the endpoint never raises. It reads two env vars and one /proc file, and reports None when the file is absent."
+    },
+    {
+      "route": "POST /plugins/updates/apply",
+      "rule": "declared_errors",
+      "reason": "Same 503-only shape as its siblings, plus a deliberate partial-success contract: a bulk update of N plugins reports per-plugin outcomes in `failed` at 200, because collapsing them into one status code would throw away which plugin failed and why."
+    },
+    {
+      "route": "POST /plugins/updates/check",
+      "rule": "declared_errors",
+      "reason": "The only failure path is the 503 raised by _require_plugin_system() when the plugin package did not import — a dependency outage, not a client error. It is declared in responses=; there is no 4xx to declare because no request to this route can be wrong."
+    },
+    {
+      "route": "POST /plugins/{plugin_id}/options/{options_id}",
+      "rule": "no_200_on_failure",
+      "reason": "Three returns inside except blocks, all deliberate. Two serve the last good options with stale=true when the provider times out or throws, so a settings form mid-edit keeps its picker instead of blanking. The third turns OptionsUnavailable (\"no API key yet\") into a 200 with an error hint, because that is the expected state while the user is still filling in the very field the credential goes in — a 4xx there would surface a failed-request toast for a form that is simply incomplete."
     },
     {
       "route": "POST /schedules/validate",
