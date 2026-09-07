@@ -24,6 +24,17 @@ from .previews import BoardPreview, parse_previews, validate_previews, validate_
 
 logger = logging.getLogger(__name__)
 
+# Ceiling on transition_settings.max_runtime_seconds for NON-interruptible
+# transitions (#1868 review). An interruptible transition is preempted at
+# enqueue time (the engine sets the client's cancel event the moment a newer
+# send is queued), so a long ambient one — e.g. quiet_library's 1800s — never
+# holds a wait=True caller. interruptible:false defeats that preemption
+# entirely (src/transitions/runner.py), so ITS runtime must stay inside the
+# engine's SEND_WAIT_TIMEOUT budget (see src/main.py); with cloud frame
+# pacing at 15s/frame that means <=120s. Oversized values are CLAMPED with a
+# warning — never rejected — so published plugins keep loading.
+MAX_TRANSITION_RUNTIME_SECONDS = 120
+
 
 # Canonical settings-schema entry auto-injected for any plugin whose manifest
 # declares ``supports_triggers: true``.  Plugin authors can still override the
@@ -298,7 +309,7 @@ MANIFEST_SCHEMA = {
                     "type": "integer",
                     "minimum": 1,
                     "default": 120,
-                    "description": "Hard cap on wall-clock seconds the transition may run before the runner aborts and snaps to the target grid.",
+                    "description": "Hard cap on wall-clock seconds the transition may run before the runner aborts and snaps to the target grid. For interruptible:false transitions, values above 120 are clamped at load (#1868).",
                 },
             },
         },
@@ -1190,6 +1201,28 @@ def validate_manifest(data: dict[str, Any]) -> tuple[bool, list[str]]:
                         errors.append(f"transition_settings.{key} must be >= {min_value}")
             if "interruptible" in transition_settings and not isinstance(transition_settings["interruptible"], bool):
                 errors.append("transition_settings.interruptible must be a boolean")
+            # Clamp (don't reject) an over-ceiling runtime cap on
+            # NON-interruptible transitions (#1868 review): see
+            # MAX_TRANSITION_RUNTIME_SECONDS. Interruptible transitions are
+            # preempted at enqueue time and may legitimately run long
+            # (quiet_library: 1800s). Mutates the manifest dict in place so
+            # the loaded plugin sees the clamped value.
+            runtime = transition_settings.get("max_runtime_seconds")
+            uninterruptible = transition_settings.get("interruptible") is False
+            if (
+                uninterruptible
+                and isinstance(runtime, int)
+                and not isinstance(runtime, bool)
+                and runtime > MAX_TRANSITION_RUNTIME_SECONDS
+            ):
+                logger.warning(
+                    "transition_settings.max_runtime_seconds=%s exceeds the %ss ceiling for a "
+                    "non-interruptible transition; clamping (it defeats enqueue-time preemption, "
+                    "so it must fit the send-worker wait budget)",
+                    runtime,
+                    MAX_TRANSITION_RUNTIME_SECONDS,
+                )
+                transition_settings["max_runtime_seconds"] = MAX_TRANSITION_RUNTIME_SECONDS
 
     # Validate demo section if present
     demo = data.get("demo")

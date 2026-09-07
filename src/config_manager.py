@@ -390,6 +390,13 @@ class ConfigManager:
                     # otherwise reset this to False and silently disable the
                     # post-upgrade auto-restore (#1102).
                     cls._instance._version_changed_on_load = False
+                    # Monotonic write counter (issue #1752). Initialised here
+                    # (not __init__) for the same re-entrancy reason as above:
+                    # a nested ConfigManager() during the first __init__ must
+                    # not reset it mid-save. Consumers (the silence-window
+                    # cache in src/config.py) treat "generation unchanged" as
+                    # "config unchanged", so it must bump on EVERY save.
+                    cls._instance._config_generation = 0
         return cls._instance
 
     def __init__(self, config_path: str | None = None) -> None:
@@ -774,6 +781,16 @@ class ConfigManager:
 
         logger.info(f"Plugin rename migration complete: {len(renamed)} plugin(s) processed")
 
+    @property
+    def config_generation(self) -> int:
+        """Monotonic counter bumped on every config save (issue #1752).
+
+        Caches keyed on ``(manager, generation)`` — the parsed silence-window
+        cache in :mod:`src.config` — use this to detect writes without taking
+        the file lock or deep-copying config sections on every read.
+        """
+        return self._config_generation
+
     def _save_internal(self) -> None:
         """Internal save without acquiring lock (called from locked context).
 
@@ -782,6 +799,11 @@ class ConfigManager:
         SIGKILL, power loss) never leaves a truncated config file (see #1304)
         and concurrent processes never collide on a fixed staging name.
         """
+        # Bump BEFORE the write (and regardless of its outcome): the in-memory
+        # config this process reads from has already changed by the time any
+        # caller reaches a save, so generation-keyed caches must invalidate
+        # even when the disk write fails (issue #1752).
+        self._config_generation = getattr(self, "_config_generation", 0) + 1
         try:
             write_json_atomic(self._config_path, self._config)
             logger.debug(f"Saved config to {self._config_path}")

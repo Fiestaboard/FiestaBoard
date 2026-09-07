@@ -1,0 +1,29 @@
+{
+  "scenario": "board_send_failure",
+  "sends": [
+    {
+      "t": "2026-07-15T09:00:00+00:00",
+      "board": "board-1",
+      "rows": [
+        "HELLO WORLD           ",
+        "                      ",
+        "                      ",
+        "                      ",
+        "                      ",
+        "                      "
+      ]
+    },
+    {
+      "t": "2026-07-15T09:00:15+00:00",
+      "board": "board-1",
+      "rows": [
+        "HELLO WORLD           ",
+        "                      ",
+        "                      ",
+        "                      ",
+        "                      ",
+        "                      "
+      ]
+    }
+  ]
+}

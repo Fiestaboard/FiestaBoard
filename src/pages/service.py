@@ -5,6 +5,7 @@ Provides high-level operations on pages including preview and send.
 
 import logging
 import time
+from collections.abc import Collection
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 
@@ -19,7 +20,7 @@ from src.devices import (
 from src.displays.service import DisplayResult, get_display_service
 from src.plugins.manifest import DemoPageSchema
 from src.settings.service import get_settings_service
-from src.templates.engine import get_template_engine
+from src.templates.engine import extract_template_plugin_ids, get_template_engine
 
 from .models import LineMetadata, Page, PageCreate, PageUpdate
 from .storage import PageStorage
@@ -30,6 +31,13 @@ logger = logging.getLogger(__name__)
 # Cache TTL in seconds for non-polling preview requests (e.g. UI preview list).
 # The background polling loop bypasses this cache via force_refresh=True.
 PREVIEW_CACHE_TTL = 120
+
+# Prefix for the per-size coverage entries `shared_context_for` keeps inside
+# the per-tick ``contexts`` cache (issue #1751): ``coverage_key -> set of
+# plugin ids the cached context was fetched for``. A size key never starts
+# with NUL, so these companion entries can share the dict without colliding.
+# A size WITHOUT a coverage entry was built with fetch-all (full coverage).
+_CONTEXT_COVERAGE_PREFIX = "\x00fetched:"
 
 
 # Default welcome page templates per device type
@@ -348,16 +356,109 @@ class PageService:
 
     # Rendering
 
-    def render_page(self, page: Page, context: dict | None = None) -> DisplayResult:
+    def shared_context_for(
+        self,
+        contexts: dict[str, dict] | None,
+        device_type: str,
+        notes_wide: int = 1,
+        notes_tall: int = 1,
+        plugin_ids: Collection[str] | None = None,
+    ) -> dict | None:
+        """Get-or-build the per-tick shared template context for one board size.
+
+        ``contexts`` is a per-pass cache keyed by :func:`src.devices.size_key`
+        (the display loop creates one dict per tick, issue #1752). The first
+        consumer of a size pays the plugin fan-out; every later consumer of
+        the same size — collection resolution, other boards' renders —
+        reuses the same dict, exactly as ``preview_pages_batch`` already
+        shares contexts per board size.
+
+        ``plugin_ids`` narrows that fan-out to the plugins the consumer will
+        actually read (issue #1751): a filtered build fetches only those ids
+        (plus trigger plugins — the registry enforces that), and the cache
+        remembers WHICH ids each size's context covers (a companion
+        ``\\x00``-prefixed entry, invisible to templates). A later consumer
+        needing more — another page's variables, or a fetch-all consumer like
+        variable-mode collection resolution (``plugin_ids=None``) — widens
+        the cached context by fetching only what it lacks, so no plugin is
+        fetched twice in one pass.
+
+        Returns None (caller falls back to building its own context, the
+        pre-#1752 behavior) when ``contexts`` is None or the build fails.
+        """
+        if contexts is None:
+            return None
+        key = size_key(device_type or DEFAULT_DEVICE_TYPE, notes_wide or 1, notes_tall or 1)
+        coverage_key = _CONTEXT_COVERAGE_PREFIX + key
+        try:
+            from src.plugins.registry import get_plugin_registry
+
+            registry = get_plugin_registry()
+            context = contexts.get(key)
+            if context is None:
+                board = board_context_for(device_type, notes_wide, notes_tall)
+                if plugin_ids is None:
+                    context = registry.build_template_context(board)
+                    # No coverage entry: a fetch-all context covers everything.
+                else:
+                    context = registry.build_template_context(board, plugin_ids=plugin_ids)
+                    contexts[coverage_key] = set(plugin_ids) | set(getattr(registry, "trigger_plugins", {}) or {})
+                contexts[key] = context
+                return context
+
+            fetched = contexts.get(coverage_key)
+            if fetched is None:
+                return context  # built with fetch-all — covers every consumer
+
+            if plugin_ids is not None:
+                needed = set(plugin_ids)
+            else:
+                needed = set(getattr(registry, "enabled_plugins", {}) or {})
+            missing = needed - fetched
+            if not missing:
+                return context
+
+            board = board_context_for(device_type, notes_wide, notes_tall)
+            # Widening fetches EXACTLY the missing ids: the first build for
+            # this size already fetched the trigger plugins (they are in
+            # ``fetched``), so re-unioning them here would fetch each trigger
+            # plugin once per widening consumer (#1862 review).
+            context.update(registry.build_template_context(board, plugin_ids=missing, include_trigger_plugins=False))
+            if plugin_ids is None:
+                contexts.pop(coverage_key, None)  # widened to full coverage
+            else:
+                contexts[coverage_key] = fetched | missing
+            return context
+        except Exception as e:
+            logger.error(f"Failed to build shared template context: {e}")
+            return None
+
+    def render_page(
+        self, page: Page, context: dict | None = None, contexts: dict[str, dict] | None = None
+    ) -> DisplayResult:
         """Render a page to formatted text.
 
         Args:
             page: The page to render
             context: Optional pre-built template context to avoid redundant plugin fetches
+            contexts: Optional per-tick shared context cache keyed by board
+                size (see :meth:`shared_context_for`). Consulted only when
+                ``context`` is not given.
 
         Returns:
             DisplayResult with formatted text
         """
+        if context is None and contexts is not None and page.type == "template":
+            context = self.shared_context_for(
+                contexts,
+                page.device_type,
+                page.notes_wide,
+                page.notes_tall,
+                # Demand-driven fetch (issue #1751): only the plugins this
+                # page's template references. None (a formula page) keeps
+                # the fetch-all fallback.
+                plugin_ids=extract_template_plugin_ids(page.template),
+            )
         if page.type == "single":
             return self._render_single(page)
         if page.type == "composite":
@@ -518,7 +619,13 @@ class PageService:
                 error=f"Template rendering failed: {e!s}",
             )
 
-    def preview_page(self, page_id: str, force_refresh: bool = False) -> DisplayResult | None:
+    def preview_page(
+        self,
+        page_id: str,
+        force_refresh: bool = False,
+        context: dict | None = None,
+        contexts: dict[str, dict] | None = None,
+    ) -> DisplayResult | None:
         """Preview a page by ID.
 
         Uses cached preview if available and valid, unless force_refresh is True.
@@ -528,6 +635,9 @@ class PageService:
         Args:
             page_id: The page ID
             force_refresh: If True, bypass cache and always render fresh
+            context: Optional pre-built template context (skips the plugin fan-out)
+            contexts: Optional per-tick shared context cache keyed by board
+                size (issue #1752); see :meth:`shared_context_for`
 
         Returns:
             DisplayResult or None if page not found
@@ -545,7 +655,7 @@ class PageService:
 
         # Render fresh
         logger.debug(f"Rendering fresh preview for page {page_id} (force_refresh={force_refresh})")
-        result = self.render_page(page)
+        result = self.render_page(page, context=context, contexts=contexts)
 
         # Cache the result
         self._preview_cache[page_id] = CachedPreview(
@@ -599,17 +709,26 @@ class PageService:
         # different sizes are distinct boards (see _board_key).
         contexts_by_board: dict[str, dict] = {}
         boards: dict[str, BoardContext] = {}
+        # Per-size fetch filters (issue #1751): the union of every batched
+        # template page's referenced plugins for that size, or None (fetch
+        # all) as soon as any page's references cannot be determined.
+        ids_by_board: dict[str, Collection[str] | None] = {}
         for _, p in pages_to_render:
             if p.type != "template":
                 continue
             key = self._board_key(p)
             if key not in boards:
                 boards[key] = board_context_for(p.device_type, p.notes_wide, p.notes_tall)
+            refs = extract_template_plugin_ids(p.template)
+            if key not in ids_by_board:
+                ids_by_board[key] = set(refs) if refs is not None else None
+            elif ids_by_board[key] is not None:
+                ids_by_board[key] = ids_by_board[key] | refs if refs is not None else None
         if boards:
             try:
                 from src.plugins.registry import get_plugin_registry
 
-                contexts_by_board = get_plugin_registry().build_template_contexts_for(boards)
+                contexts_by_board = get_plugin_registry().build_template_contexts_for(boards, plugin_ids=ids_by_board)
             except Exception as e:
                 logger.error(f"Failed to build shared template context: {e}")
 

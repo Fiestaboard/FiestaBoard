@@ -16,6 +16,8 @@ from typing import Any
 
 from src.devices import BoardContext
 
+from .manifest import MAX_TRANSITION_RUNTIME_SECONDS
+
 logger = logging.getLogger(__name__)
 
 # Cache key used when a plugin is fetched without a specific board (legacy
@@ -907,11 +909,21 @@ class TransitionPluginBase(ABC):
         always get a fully populated dict.
         """
         raw = self._manifest.get("transition_settings", {}) or {}
+        interruptible = bool(raw.get("interruptible", DEFAULT_TRANSITION_INTERRUPTIBLE))
+        max_runtime = int(raw.get("max_runtime_seconds", DEFAULT_TRANSITION_MAX_RUNTIME_SECONDS))
+        if not interruptible:
+            # Clamped to the manifest ceiling (#1868 review) even when the
+            # manifest skipped validation: a non-interruptible transition
+            # ignores enqueue-time preemption, so an uncapped runtime would
+            # hold a board's send worker past every wait budget.
+            # Interruptible transitions are preempted at enqueue and may run
+            # long (quiet_library: 1800s).
+            max_runtime = min(max_runtime, MAX_TRANSITION_RUNTIME_SECONDS)
         return {
-            "interruptible": bool(raw.get("interruptible", DEFAULT_TRANSITION_INTERRUPTIBLE)),
+            "interruptible": interruptible,
             "min_interval_ms": int(raw.get("min_interval_ms", DEFAULT_TRANSITION_MIN_INTERVAL_MS)),
             "max_frames": int(raw.get("max_frames", DEFAULT_TRANSITION_MAX_FRAMES)),
-            "max_runtime_seconds": int(raw.get("max_runtime_seconds", DEFAULT_TRANSITION_MAX_RUNTIME_SECONDS)),
+            "max_runtime_seconds": max_runtime,
         }
 
     @abstractmethod

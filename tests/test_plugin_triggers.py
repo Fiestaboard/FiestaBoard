@@ -4,7 +4,7 @@ Tests the ability for plugins to trigger messages based on events,
 rather than pre-scheduled time slots.
 """
 
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 
 import pytest
 
@@ -225,10 +225,10 @@ class TestTriggerService:
     """Tests for the TriggerService that manages trigger lifecycle."""
 
     @pytest.fixture
-    def trigger_service(self):
+    def trigger_service(self, tmp_path):
         from src.triggers.service import TriggerService
 
-        return TriggerService()
+        return TriggerService(dismissals_file=tmp_path / "trigger_dismissals.json")
 
     def test_no_active_triggers_initially(self, trigger_service):
         assert trigger_service.get_active_trigger() is None
@@ -363,7 +363,7 @@ class TestTriggerService:
         trigger_service.dismiss_trigger("lapsing", suppress=True)
 
         # Rewind suppression entry into the past.
-        trigger_service._suppressed_until["lapsing"] = datetime.now() - timedelta(seconds=1)
+        trigger_service._suppressed_until["lapsing"] = datetime.now(UTC) - timedelta(seconds=1)
 
         trigger_service.activate_trigger("plugin", trigger)
         assert trigger_service.get_active_trigger() is not None
@@ -428,7 +428,7 @@ class TestTriggerService:
         trigger_service.activate_trigger("plugin_a", trigger)
 
         # Manually set activation time to the past
-        trigger_service._active_triggers["expires_soon"].activated_at = datetime.now() - timedelta(seconds=10)
+        trigger_service._active_triggers["expires_soon"].activated_at = datetime.now(UTC) - timedelta(seconds=10)
 
         trigger_service.clear_expired()
         assert trigger_service.get_active_trigger() is None
@@ -532,7 +532,7 @@ class TestTriggerService:
             duration_seconds=1,
         )
         trigger_service.activate_trigger("p1", trigger)
-        trigger_service._active_triggers["temp"].activated_at = datetime.now() - timedelta(seconds=10)
+        trigger_service._active_triggers["temp"].activated_at = datetime.now(UTC) - timedelta(seconds=10)
         # get_active_trigger should auto-clear expired
         assert trigger_service.get_active_trigger() is None
 
@@ -552,7 +552,7 @@ class TestActiveTrigger:
             data=None,
             priority=1,
             duration_seconds=60,
-            activated_at=datetime.now() - timedelta(seconds=120),
+            activated_at=datetime.now(UTC) - timedelta(seconds=120),
         )
         assert trigger.is_expired() is True
 
@@ -567,7 +567,7 @@ class TestActiveTrigger:
             data=None,
             priority=1,
             duration_seconds=3600,
-            activated_at=datetime.now(),
+            activated_at=datetime.now(UTC),
         )
         assert trigger.is_expired() is False
 
@@ -582,7 +582,7 @@ class TestActiveTrigger:
             data=None,
             priority=1,
             duration_seconds=60,
-            activated_at=datetime.now() - timedelta(seconds=30),
+            activated_at=datetime.now(UTC) - timedelta(seconds=30),
         )
         remaining = trigger.remaining_seconds()
         assert 25 <= remaining <= 35  # ~30 seconds remaining
@@ -590,7 +590,7 @@ class TestActiveTrigger:
     def test_to_dict(self):
         from src.triggers.service import ActiveTrigger
 
-        now = datetime.now()
+        now = datetime.now(UTC)
         trigger = ActiveTrigger(
             trigger_id="t1",
             plugin_id="p1",

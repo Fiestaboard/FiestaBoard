@@ -309,15 +309,13 @@ def test_concurrent_direct_send_characters_and_render_serialize():
     """
     from src.board_client import BoardClient
 
-    client = BoardClient.__new__(BoardClient)
-    client._init_transition_state()
-    client._is_note_array = False
-    client.use_cloud = False
-    client.skip_unchanged = True
-    client.base_url = "http://board.invalid/local-api/message"
-    client.headers = {}
-    client._last_characters = None
-    client._last_text = None
+    # A real client, not a hand-built ``__new__`` shell: the send path also
+    # reads the throttle state the constructor sets up (``_throttle_lock``,
+    # ``_last_send_monotonic``, ``_request_timeout``), and a partial fake
+    # would fail on an attribute rather than on the property under test.
+    # Local mode has no min-send-interval floor, so the throttle never fires
+    # and every send reaches the patched POST.
+    client = BoardClient(api_key="test_key", host="board.invalid", use_cloud=False, skip_unchanged=True)
 
     active = threading.Semaphore(1)
     overlaps: list[str] = []

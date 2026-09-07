@@ -84,6 +84,49 @@ FILL_SPACE_REPEAT_PATTERN = re.compile(r"\{\{fill_space_repeat:(.+?)\}\}", re.IG
 FILLED_PATTERN = re.compile(r"\{\{filled:(.+?)\}\}", re.IGNORECASE)
 
 
+def extract_template_plugin_ids(template_lines: "list[str] | str | None") -> set[str] | None:
+    """Statically extract the plugin ids a template's variables reference.
+
+    A plain ``{{source.field...}}`` variable resolves against the template
+    context by its root: ``source`` is the plugin id (or instance key like
+    ``weather:sf``), exactly as ``_get_variable_value`` looks it up. That
+    makes the fetch set of a template statically computable, so a render
+    can fetch only the plugins it will actually read (issue #1751).
+
+    Returns ``None`` when the set CANNOT be determined statically — today
+    that is any ``{{= ... }}`` formula expression, whose variable references
+    live inside an expression grammar this scan does not parse. ``None``
+    tells the caller to fall back to fetching every enabled plugin, which
+    is always safe (it is the pre-#1751 behavior).
+
+    Expressions that never read plugin data are skipped: color markers
+    (``{{red}}``), ``fill_space`` / ``filled:`` / ``fill_space_repeat:``
+    specials, and dotless or empty roots (all of which render without a
+    context lookup). Roots that don't name an enabled plugin are harmless
+    to include — the registry intersects with the enabled set.
+    """
+    if template_lines is None:
+        return set()
+    lines = [template_lines] if isinstance(template_lines, str) else list(template_lines)
+
+    refs: set[str] = set()
+    for line in lines:
+        if not line:
+            continue
+        for match in VAR_PATTERN.finditer(line):
+            expr = match.group(1).strip()
+            if expr.startswith("="):
+                return None  # formula: variable owners are not statically known
+            var_part = expr.split("|", 1)[0].strip().lower()
+            if var_part == "fill_space" or var_part.startswith(("filled:", "fill_space_repeat:")):
+                continue
+            root, sep, rest = var_part.partition(".")
+            if not sep or not root or not rest:
+                continue  # colors, invalid or dotless expressions: no context lookup
+            refs.add(root)
+    return refs
+
+
 @dataclass
 class TemplateError:
     """Template validation error."""
