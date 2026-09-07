@@ -58,7 +58,7 @@ class HTTPValidationError(BaseModel):
     :class:`ErrorResponse`, so the schema matches what the endpoint sends.
     """
 
-    detail: list[ValidationError] | None = None
+    detail: list[ValidationError]
 
 
 #: Canonical description per status code, so sibling endpoints across domains
