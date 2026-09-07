@@ -2127,10 +2127,16 @@ def _throttled_send_response(board_client) -> JSONResponse | None:
     between sends (#1754); a send inside the window returns ``(True, False)``
     with ``last_send_throttled`` set — the content was DROPPED, not
     delivered, and unlike the engine tick (which retries next pass) the
-    manual out-of-band endpoints (/send-message, /send-welcome-message,
-    /debug/blank, /debug/fill, /debug/info) never retry. Answering
-    "success/unchanged" would silently swallow the user's write, so they
-    answer 429 with a Retry-After hint computed from the floor.
+    manual out-of-band endpoints (/send-message, /send-welcome-message)
+    never retry. Answering "success/unchanged" would silently swallow the
+    user's write, so they answer 429 with a Retry-After hint computed from
+    the floor.
+
+    The /debug/* senders used to share this helper; since their conventions
+    pass they raise ``HTTPException(429, detail=...)`` from
+    ``src/debug/routes.py`` instead, so the whole domain serves the one
+    ``{"detail": ...}`` error contract. Same status, same Retry-After, same
+    arithmetic — this stays until the remaining senders convert.
 
     Returns None when the last send was not throttled (the ``is True`` guard
     also keeps Mock clients in tests, whose attributes are truthy, on the
