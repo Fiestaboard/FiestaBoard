@@ -70,6 +70,7 @@ def _drop_all_singletons() -> None:
     import src.auth.service as auth_service_module
     import src.backup.service as backup_service_module
     import src.collections.service as collection_service_module
+    import src.display_runtime as display_runtime
     import src.pages.service as page_service_module
     import src.panels.service as panel_service_module
     import src.schedules.service as schedule_service_module
@@ -98,8 +99,19 @@ def _drop_all_singletons() -> None:
     auth_service_module._reset_for_tests()
     reset_trigger_service()
     reset_time_service()
-    # Deliberately NOT reset: src.api_server._service (the background display
-    # loop). test_service_lifecycle.py owns its lifecycle.
+
+    # The DisplayService singleton. The comment that used to sit here named
+    # `src.api_server._service`, an attribute that has not existed since the
+    # debug slice moved the accessor to src/display_runtime.py — so nothing was
+    # being deliberately preserved, the singleton was simply escaping the reset.
+    # Any test that drives a send path without stubbing `get_service` builds a
+    # real DisplayService (with vb_client=None), and it then answered
+    # `get_service()` for every later test in the worker, carrying board clients
+    # and a path into an already-deleted tmp data dir. Reset it like every other
+    # singleton; test_service_lifecycle.py drives the background *thread*
+    # (`_service_running`, `_service_thread`), which is api_server state and is
+    # still left alone.
+    display_runtime._service = None
 
 
 @pytest.fixture(autouse=True)

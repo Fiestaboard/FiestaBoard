@@ -65,7 +65,6 @@ def env(monkeypatch, tmp_path):
     monkeypatch.setattr("src.api_server.get_page_service", lambda: page_service)
     monkeypatch.setattr("src.api_server.get_settings_service", lambda: settings)
     monkeypatch.setattr("src.api_server.get_collection_service", lambda: collection_service)
-    monkeypatch.setattr("src.api_server.get_schedule_service", lambda: schedule_service)
     monkeypatch.setattr("src.api_server.get_service", lambda: None)
     monkeypatch.setattr("src.board_guards.get_settings_service", lambda: settings)
     # Both bindings: `api_server` imports the flag but keeps its own local

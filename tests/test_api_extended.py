@@ -229,15 +229,13 @@ def mock_page_service():
 
 @pytest.fixture
 def mock_schedule_service():
-    """Mock the schedule service."""
-    # The schedules router binds its collaborators at import time now
-    # (Phase 2 §2.3), so this fixture stubs both places: `src.api_server.<name>`
-    # for the handlers that still live in the app module, and
-    # `src.schedules.routes.<name>` for the eleven that no longer do.
-    with (
-        patch("src.api_server.get_schedule_service") as mock_get,
-        patch("src.schedules.routes.get_schedule_service") as routes_get,
-    ):
+    """Mock the schedule service.
+
+    Only the schedules router binds this collaborator: `src.api_server` kept a
+    re-export of it as a patch seam, but no handler there ever called it, so
+    the second stub steered nothing and was removed with the seam.
+    """
+    with patch("src.schedules.routes.get_schedule_service") as routes_get:
         ss = Mock()
         mock_schedule = Mock()
         mock_schedule.model_dump.return_value = {
@@ -258,7 +256,6 @@ def mock_schedule_service():
 
         ss.validate_schedules.return_value = ScheduleValidationResult(valid=True, overlaps=[], gaps=[])
 
-        mock_get.return_value = ss
         routes_get.return_value = ss
         yield ss
 
