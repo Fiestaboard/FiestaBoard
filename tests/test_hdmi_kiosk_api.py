@@ -20,8 +20,8 @@ def client():
 class TestHdmiKioskStatus:
     def test_unsupported_off_pi(self, client):
         with (
-            patch("src.api_server._fiestaboard_profile", return_value="docker"),
-            patch("src.api_server._updater_probe", return_value=True),
+            patch("src.system.update_service._fiestaboard_profile", return_value="docker"),
+            patch("src.system.update_service._updater_probe", return_value=True),
         ):
             response = client.get("/settings/hdmi-kiosk")
         assert response.status_code == 200
@@ -31,8 +31,8 @@ class TestHdmiKioskStatus:
 
     def test_unsupported_without_sidecar(self, client):
         with (
-            patch("src.api_server._fiestaboard_profile", return_value="pi"),
-            patch("src.api_server._updater_probe", return_value=False),
+            patch("src.system.update_service._fiestaboard_profile", return_value="pi"),
+            patch("src.system.update_service._updater_probe", return_value=False),
         ):
             response = client.get("/settings/hdmi-kiosk")
         assert response.status_code == 200
@@ -42,8 +42,8 @@ class TestHdmiKioskStatus:
         sidecar = Mock(status_code=200)
         sidecar.json.return_value = {"status": "enabled", "action": "enable"}
         with (
-            patch("src.api_server._fiestaboard_profile", return_value="pi"),
-            patch("src.api_server._updater_probe", return_value=True),
+            patch("src.system.update_service._fiestaboard_profile", return_value="pi"),
+            patch("src.system.update_service._updater_probe", return_value=True),
             patch("src.settings.routes.requests.get", return_value=sidecar) as get,
         ):
             response = client.get("/settings/hdmi-kiosk")
@@ -57,8 +57,8 @@ class TestHdmiKioskStatus:
         """Fleet sidecars older than the hdmi verbs 404 the status route."""
         sidecar = Mock(status_code=404)
         with (
-            patch("src.api_server._fiestaboard_profile", return_value="pi"),
-            patch("src.api_server._updater_probe", return_value=True),
+            patch("src.system.update_service._fiestaboard_profile", return_value="pi"),
+            patch("src.system.update_service._updater_probe", return_value=True),
             patch("src.settings.routes.requests.get", return_value=sidecar),
         ):
             response = client.get("/settings/hdmi-kiosk")
@@ -73,9 +73,9 @@ class TestHdmiKioskToggle:
         sidecar = Mock(status_code=202)
         sidecar.json.return_value = {"status": "queued", "action": "hdmi_enable"}
         with (
-            patch("src.api_server._fiestaboard_profile", return_value="pi"),
-            patch("src.api_server._updater_probe", return_value=True),
-            patch("src.api_server._updater_token", return_value="tok-123"),
+            patch("src.system.update_service._fiestaboard_profile", return_value="pi"),
+            patch("src.system.update_service._updater_probe", return_value=True),
+            patch("src.system.update_service._updater_token", return_value="tok-123"),
             patch("src.settings.routes.requests.post", return_value=sidecar) as post,
         ):
             response = client.post("/settings/hdmi-kiosk", json={"enabled": True})
@@ -88,9 +88,9 @@ class TestHdmiKioskToggle:
         sidecar = Mock(status_code=202)
         sidecar.json.return_value = {"status": "queued", "action": "hdmi_disable"}
         with (
-            patch("src.api_server._fiestaboard_profile", return_value="pi"),
-            patch("src.api_server._updater_probe", return_value=True),
-            patch("src.api_server._updater_token", return_value="tok-123"),
+            patch("src.system.update_service._fiestaboard_profile", return_value="pi"),
+            patch("src.system.update_service._updater_probe", return_value=True),
+            patch("src.system.update_service._updater_token", return_value="tok-123"),
             patch("src.settings.routes.requests.post", return_value=sidecar) as post,
         ):
             response = client.post("/settings/hdmi-kiosk", json={"enabled": False})
@@ -98,7 +98,7 @@ class TestHdmiKioskToggle:
         assert post.call_args[0][0].endswith("/hdmi/disable")
 
     def test_toggle_rejected_off_pi(self, client):
-        with patch("src.api_server._fiestaboard_profile", return_value="docker"):
+        with patch("src.system.update_service._fiestaboard_profile", return_value="docker"):
             response = client.post("/settings/hdmi-kiosk", json={"enabled": True})
         assert response.status_code == 400
 
@@ -107,9 +107,9 @@ class TestHdmiKioskToggle:
         (the boot service pulls the newest sidecar image on every boot)."""
         sidecar = Mock(status_code=404)
         with (
-            patch("src.api_server._fiestaboard_profile", return_value="pi"),
-            patch("src.api_server._updater_probe", return_value=True),
-            patch("src.api_server._updater_token", return_value="tok-123"),
+            patch("src.system.update_service._fiestaboard_profile", return_value="pi"),
+            patch("src.system.update_service._updater_probe", return_value=True),
+            patch("src.system.update_service._updater_token", return_value="tok-123"),
             patch("src.settings.routes.requests.post", return_value=sidecar),
         ):
             response = client.post("/settings/hdmi-kiosk", json={"enabled": True})
@@ -117,7 +117,7 @@ class TestHdmiKioskToggle:
         assert "reboot" in response.json()["detail"].lower()
 
     def test_missing_enabled_field_is_rejected(self, client):
-        with patch("src.api_server._fiestaboard_profile", return_value="pi"):
+        with patch("src.system.update_service._fiestaboard_profile", return_value="pi"):
             response = client.post("/settings/hdmi-kiosk", json={})
         # 422 since the conventions pass typed the body (Phase 2, Task 8).
         assert response.status_code == 422

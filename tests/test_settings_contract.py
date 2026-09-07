@@ -611,8 +611,8 @@ class TestLocation:
 class TestBeta:
     def test_get_reports_the_settings_and_the_cert_status(self, client):
         with (
-            patch("src.api_server._updater_token", return_value=""),
-            patch("src.api_server._updater_probe", return_value=False),
+            patch("src.system.update_service._updater_token", return_value=""),
+            patch("src.system.update_service._updater_probe", return_value=False),
         ):
             body = client.get("/settings/beta").json()
         assert body["settings"]["https_enabled"] is False
@@ -621,8 +621,8 @@ class TestBeta:
 
     def test_put_returns_the_settings_the_status_and_the_restart_hint(self, client):
         with (
-            patch("src.api_server._updater_token", return_value=""),
-            patch("src.api_server._updater_probe", return_value=False),
+            patch("src.system.update_service._updater_token", return_value=""),
+            patch("src.system.update_service._updater_probe", return_value=False),
         ):
             response = client.put("/settings/beta", json={"transition_plugins_enabled": True})
         assert response.status_code == 200
@@ -637,8 +637,8 @@ class TestBeta:
     def test_put_enabling_https_generates_a_cert_and_asks_for_a_restart(self, client):
         with (
             patch("src.system.https_certs.generate_cert", return_value=("c", "k")) as generate,
-            patch("src.api_server._updater_token", return_value=""),
-            patch("src.api_server._updater_probe", return_value=False),
+            patch("src.system.update_service._updater_token", return_value=""),
+            patch("src.system.update_service._updater_probe", return_value=False),
         ):
             response = client.put("/settings/beta", json={"https_enabled": True})
         assert response.status_code == 200
@@ -648,8 +648,8 @@ class TestBeta:
     def test_put_500s_when_certificate_generation_fails(self, client):
         with (
             patch("src.system.https_certs.generate_cert", side_effect=OSError("boom")),
-            patch("src.api_server._updater_token", return_value=""),
-            patch("src.api_server._updater_probe", return_value=False),
+            patch("src.system.update_service._updater_token", return_value=""),
+            patch("src.system.update_service._updater_probe", return_value=False),
         ):
             response = client.put("/settings/beta", json={"https_enabled": True})
         # CHANGED (conventions, no_200_on_failure): was 200 with
@@ -660,8 +660,8 @@ class TestBeta:
         assert response.status_code == 500
         assert response.json() == {"detail": "Certificate generation failed — check the server logs for details."}
         with (
-            patch("src.api_server._updater_token", return_value=""),
-            patch("src.api_server._updater_probe", return_value=False),
+            patch("src.system.update_service._updater_token", return_value=""),
+            patch("src.system.update_service._updater_probe", return_value=False),
         ):
             assert client.get("/settings/beta").json()["settings"]["https_enabled"] is True
 
@@ -748,7 +748,7 @@ class TestSilenceSchedule:
 
 class TestHdmiKiosk:
     def test_get_reports_unsupported_off_a_fiestapi_install(self, client):
-        with patch("src.api_server._fiestaboard_profile", return_value="docker"):
+        with patch("src.system.update_service._fiestaboard_profile", return_value="docker"):
             body = client.get("/settings/hdmi-kiosk").json()
         # CHANGED (conventions): "enabled" is now always present, null when
         # the platform cannot report one, rather than absent in this branch.
@@ -758,15 +758,15 @@ class TestHdmiKiosk:
         sidecar = Mock(status_code=200)
         sidecar.json.return_value = {"status": "enabled", "enabled": True}
         with (
-            patch("src.api_server._fiestaboard_profile", return_value="pi"),
-            patch("src.api_server._updater_probe", return_value=True),
+            patch("src.system.update_service._fiestaboard_profile", return_value="pi"),
+            patch("src.system.update_service._updater_probe", return_value=True),
             patch("src.api_server.requests.get", return_value=sidecar),
         ):
             body = client.get("/settings/hdmi-kiosk").json()
         assert body == {"supported": True, "status": "enabled", "enabled": True}
 
     def test_post_400s_off_a_fiestapi_install(self, client):
-        with patch("src.api_server._fiestaboard_profile", return_value="docker"):
+        with patch("src.system.update_service._fiestaboard_profile", return_value="docker"):
             response = client.post("/settings/hdmi-kiosk", json={"enabled": True})
         assert response.status_code == 400
         assert response.json() == {
@@ -787,9 +787,9 @@ class TestHdmiKiosk:
 
     def test_post_409s_when_the_sidecar_predates_the_hdmi_verbs(self, client):
         with (
-            patch("src.api_server._fiestaboard_profile", return_value="pi"),
-            patch("src.api_server._updater_probe", return_value=True),
-            patch("src.api_server._updater_token", return_value="tok"),
+            patch("src.system.update_service._fiestaboard_profile", return_value="pi"),
+            patch("src.system.update_service._updater_probe", return_value=True),
+            patch("src.system.update_service._updater_token", return_value="tok"),
             patch("src.api_server.requests.post", return_value=Mock(status_code=404)),
         ):
             response = client.post("/settings/hdmi-kiosk", json={"enabled": True})
@@ -805,9 +805,9 @@ class TestHdmiKiosk:
         accepted = Mock(status_code=202)
         accepted.json.side_effect = ValueError("no body")
         with (
-            patch("src.api_server._fiestaboard_profile", return_value="pi"),
-            patch("src.api_server._updater_probe", return_value=True),
-            patch("src.api_server._updater_token", return_value="tok"),
+            patch("src.system.update_service._fiestaboard_profile", return_value="pi"),
+            patch("src.system.update_service._updater_probe", return_value=True),
+            patch("src.system.update_service._updater_token", return_value="tok"),
             patch("src.api_server.requests.post", return_value=accepted),
         ):
             response = client.post("/settings/hdmi-kiosk", json={"enabled": True})

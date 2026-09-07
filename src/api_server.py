@@ -1044,14 +1044,10 @@ def _collect_plugin_demos() -> list[dict[str, Any]]:
 # overrides (SYSTEM_UPDATE_STATE_FILE / SETTINGS_SNAPSHOT_DIR) now live on the
 # service, and tests patch src.system.update_service.<name> directly. What is
 # imported below is only what api_server's own lifespan / restore paths call.
-from .system.update_service import (  # noqa: E402, F401
+from .system.update_service import (  # noqa: E402
     _detect_post_upgrade_regression,
-    _fiestaboard_profile,
     _managed_externally,
     _resolve_snapshot_name,
-    _updater_probe,
-    _updater_token,
-    _updater_url,
     run_system_update_check_if_due,
 )
 

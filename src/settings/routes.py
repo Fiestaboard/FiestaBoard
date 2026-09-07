@@ -146,12 +146,30 @@ _validate_board_host_is_local_network = _seam("_validate_board_host_is_local_net
 _resolve_active_page_id = _seam("_resolve_active_page_id")
 _resolve_next_check_seconds = _seam("_resolve_next_check_seconds")
 
-# fiestaupdater sidecar probes (canonical home ``src/system/update_service.py``,
-# but the suite patches the ``api_server`` re-export).
-_updater_url = _seam("_updater_url")
-_updater_token = _seam("_updater_token")
-_updater_probe = _seam("_updater_probe")
-_fiestaboard_profile = _seam("_fiestaboard_profile")
+
+# fiestaupdater sidecar probes. These resolve against their canonical home,
+# ``src/system/update_service``, not through ``api_server``: the system slice
+# retired that re-export and asserts its absence
+# (``tests/test_system_seams.py``). Still resolved at call time, because the
+# suite patches ``src.system.update_service.<name>``.
+def _updater_seam(name: str):
+    """Build a call-time passthrough to ``src.system.update_service.<name>``."""
+
+    def _call(*args, **kwargs):
+        from src.system import update_service
+
+        return getattr(update_service, name)(*args, **kwargs)
+
+    _call.__name__ = name
+    _call.__qualname__ = name
+    _call.__doc__ = f"Call-time seam for ``src.system.update_service.{name}``."
+    return _call
+
+
+_updater_url = _updater_seam("_updater_url")
+_updater_token = _updater_seam("_updater_token")
+_updater_probe = _updater_seam("_updater_probe")
+_fiestaboard_profile = _updater_seam("_fiestaboard_profile")
 
 # Domain helpers with canonical homes that the suite still patches on
 # ``api_server``.
