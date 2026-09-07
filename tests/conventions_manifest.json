@@ -1,5 +1,13 @@
 {
-  "_comment": "API conventions ratchet (Phase 2, spec §2). Enforced by tests/test_api_conventions_ratchet.py; rules documented in docs/internal/reference/API_CONVENTIONS.md. Append a domain to converted_domains in the slice PR that converts it — never before. Every exception needs a route that exists, a known rule id, and a reason a reviewer can argue with.",
-  "converted_domains": [],
-  "exceptions": []
+  "_comment": "API conventions ratchet (Phase 2, spec \u00a72). Enforced by tests/test_api_conventions_ratchet.py; rules documented in docs/internal/reference/API_CONVENTIONS.md. Append a domain to converted_domains in the slice PR that converts it \u2014 never before. Every exception needs a route that exists, a known rule id, and a reason a reviewer can argue with.",
+  "converted_domains": [
+    "collections"
+  ],
+  "exceptions": [
+    {
+      "route": "GET /collections",
+      "rule": "declared_errors",
+      "reason": "Listing has no failure path: it returns [] for an empty store and cannot 404 or 400, so declaring a 4xx would document an error the endpoint never raises."
+    }
+  ]
 }
