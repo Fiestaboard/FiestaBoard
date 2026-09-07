@@ -22,6 +22,34 @@ what stop that from happening a third time:
    and their values never appear in ``config``.
 
 Covers all 25 routes the ``plugins`` router serves, success and failure paths.
+
+Re-pinned by the conventions pass in the following commit. What deliberately
+changed, and nothing else:
+
+* Creates answer **201**: ``POST /plugins/{id}/instances``,
+  ``POST /plugins/{id}/demo-page``, ``POST /plugins/install`` and
+  ``POST /plugins/registry/{id}/install`` — conventions doc, "Status codes".
+* ``"status": "success"`` is gone from the config-update, enable, disable,
+  instance create/delete, install, uninstall and update bodies. The status
+  code already carried it.
+* ``POST /plugins/{id}/demo-page`` reports ``recreated: bool`` instead of
+  ``status: "created" | "recreated"``.
+* ``POST /plugins/{id}/receive`` **keeps** its ``{"status": "ok"}`` — it is a
+  webhook target for third-party systems this repo cannot update in lockstep —
+  and gains ``plugin_id`` so the ack names what it acked.
+* The 400 on schema validation now carries ``detail.message`` alongside
+  ``detail.errors``; a dict detail with no message is the exact anti-pattern
+  the conventions doc bans.
+* ``GET /plugins/errors`` gains ``fetch_breakers``, exposing
+  ``registry.get_fetch_breaker_status()`` for the first time.
+* Registry entries and instance infos always carry their full declared key
+  set (defaults where the source is silent) instead of whatever keys the
+  producer happened to include — recipe addendum 4, the "sometimes-absent
+  key" anti-pattern.
+
+Every other value assertion — ids, masked secrets, env-override behavior,
+error strings, the 400/403/404/405/503 status codes — is unchanged from the
+pre-conversion recording. None was weakened.
 """
 
 from __future__ import annotations
@@ -314,14 +342,14 @@ def client(_isolated_data_dir, registry, config_manager, page_service):
     from src.api_server import app
 
     with (
-        patch("src.api_server.PLUGIN_SYSTEM_AVAILABLE", True),
-        patch("src.api_server.get_plugin_registry", new=lambda: registry),
-        patch("src.api_server.get_config_manager", new=lambda: config_manager),
-        patch("src.api_server.reset_display_service", new=Mock()),
-        patch("src.api_server.reset_template_engine", new=Mock()),
-        patch("src.api_server.get_page_service", new=lambda: page_service),
-        patch("src.api_server._PLUGIN_OPTIONS_CACHE", new={}),
-        patch("src.api_server._plugin_options_last_refresh", new={}),
+        patch("src.plugins.routes.PLUGIN_SYSTEM_AVAILABLE", True),
+        patch("src.plugins.routes.get_plugin_registry", new=lambda: registry),
+        patch("src.plugins.routes.get_config_manager", new=lambda: config_manager),
+        patch("src.plugins.routes.reset_display_service", new=Mock()),
+        patch("src.plugins.routes.reset_template_engine", new=Mock()),
+        patch("src.plugins.routes.get_page_service", new=lambda: page_service),
+        patch("src.plugins.options_runtime._PLUGIN_OPTIONS_CACHE", new={}),
+        patch("src.plugins.options_runtime._plugin_options_last_refresh", new={}),
     ):
         yield TestClient(app, raise_server_exceptions=False)
 
@@ -360,7 +388,7 @@ class TestListPlugins:
         assert ext["config"] == {}
 
     def test_503_when_the_plugin_system_failed_to_import(self, client):
-        with patch("src.api_server.PLUGIN_SYSTEM_AVAILABLE", False):
+        with patch("src.plugins.routes.PLUGIN_SYSTEM_AVAILABLE", False):
             response = client.get("/plugins")
 
         assert response.status_code == 503
@@ -388,6 +416,23 @@ class TestPluginErrors:
 
         assert body["errors"] == {"broken_plugin": ["ImportError: contract fixture"]}
 
+    def test_reports_the_fetch_circuit_breakers_holding_plugins_back(self, client):
+        """Run-time failures, not just load-time ones (new in this slice).
+
+        ``registry.get_fetch_breaker_status()`` shipped with the pool-
+        starvation fix (#1884) and nothing exposed it, so a plugin could sit
+        quarantined for minutes while the UI showed only stale variables.
+        """
+        body = client.get("/plugins/errors").json()
+
+        assert body["fetch_breakers"] == {
+            "slow_plugin": {
+                "consecutive_timeouts": 3,
+                "quarantined": True,
+                "cooldown_remaining_seconds": 42.5,
+            }
+        }
+
 
 # ── GET /plugins/registry ───────────────────────────────────────────────────
 
@@ -396,9 +441,16 @@ class TestRegistryListing:
     def test_returns_the_curated_entries_with_their_install_state(self, client):
         body = client.get("/plugins/registry").json()
 
-        assert body["entries"] == [
-            {"id": "beta", "name": "Beta", "installed": False, "repository": "fiestaboard-plugin--beta"}
-        ]
+        entry = body["entries"][0]
+        assert entry["id"] == "beta"
+        assert entry["name"] == "Beta"
+        assert entry["installed"] is False
+        assert entry["repository"] == "fiestaboard-plugin--beta"
+        # Always-present, never sometimes-absent: RegistryEntry declares the
+        # whole key set with defaults, so the marketplace card does not have
+        # to guess whether a missing `teaser` means "none" or "old payload".
+        assert entry["teaser"] == ""
+        assert entry["previews"] == []
 
 
 # ── GET /plugins/updates ────────────────────────────────────────────────────
@@ -441,7 +493,7 @@ class TestPluginDetail:
         assert body["demo_page_id"] is None
         assert body["base_plugin_id"] == "alpha"
         assert body["instance_label"] is None
-        assert body["instances"] == [{"label": "work", "enabled": False}]
+        assert body["instances"] == [{"label": "work", "key": None, "enabled": False, "has_config": False}]
 
     def test_404_names_the_missing_plugin(self, client):
         response = client.get("/plugins/missing")
@@ -499,6 +551,9 @@ class TestUpdateConfig:
 
         assert response.status_code == 400
         assert response.json()["detail"]["errors"] == ["api_key: does not match the schema"]
+        # A dict detail must carry a message key — an errors-only body is the
+        # anti-pattern API_CONVENTIONS.md bans.
+        assert response.json()["detail"]["message"] == "Configuration for 'alpha' failed validation."
 
 
 # ── The masking round-trip (the highest-stakes contract here) ───────────────
@@ -531,13 +586,13 @@ def mask_client(_isolated_data_dir, real_config, registry, page_service):
     from src.api_server import app
 
     with (
-        patch("src.api_server.PLUGIN_SYSTEM_AVAILABLE", True),
-        patch("src.api_server.get_plugin_registry", new=lambda: registry),
+        patch("src.plugins.routes.PLUGIN_SYSTEM_AVAILABLE", True),
+        patch("src.plugins.routes.get_plugin_registry", new=lambda: registry),
         patch("src.plugins.get_plugin_registry", new=lambda: registry),
-        patch("src.api_server.get_config_manager", new=lambda: real_config),
-        patch("src.api_server.reset_display_service", new=Mock()),
-        patch("src.api_server.reset_template_engine", new=Mock()),
-        patch("src.api_server.get_page_service", new=lambda: page_service),
+        patch("src.plugins.routes.get_config_manager", new=lambda: real_config),
+        patch("src.plugins.routes.reset_display_service", new=Mock()),
+        patch("src.plugins.routes.reset_template_engine", new=Mock()),
+        patch("src.plugins.routes.get_page_service", new=lambda: page_service),
     ):
         registry.plugins["weather"] = Mock()
         registry.manifests["weather"] = registry.manifests["alpha"]
@@ -606,6 +661,25 @@ class TestEnvOverrideRoundTrip:
         # env value is not what would come back in the next save.
         assert body["config"]["api_key"] == MASK
         assert self.ENV_VALUE not in json.dumps(body)
+
+    def test_a_non_secret_env_override_is_not_baked_into_the_form(self, mask_client, monkeypatch):
+        """The masked keys hide this one, so it needs its own unmasked witness.
+
+        ``api_key`` is masked on the way out either way, so serving the
+        env-overlaid config instead of the stored one is invisible on that
+        field — a mutation that swaps ``include_env_overrides=False`` for the
+        default passes every other assertion in this class. ``location`` is
+        env-overridable and *not* sensitive, so it is where the difference
+        shows: if the overlay were served, the form would show the env value,
+        the user would save it back, and an env-supplied setting would be
+        frozen into config.json permanently (#1864 review).
+        """
+        monkeypatch.setenv("WEATHER_LOCATION", "Reykjavik, IS")
+
+        body = mask_client.get("/plugins/weather").json()
+
+        assert body["config"]["location"] == "New York, NY"
+        assert body["env_overridden_keys"] == ["location"]
 
     def test_env_overridden_keys_names_exactly_the_env_controlled_keys(self, mask_client, monkeypatch):
         monkeypatch.setenv("WEATHER_API_KEY", self.ENV_VALUE)
@@ -782,9 +856,10 @@ class TestDemoPage:
     def test_create_returns_the_created_page(self, client):
         response = client.post("/plugins/alpha/demo-page?device_type=flagship")
 
-        assert response.status_code == 200
+        assert response.status_code == 201
         assert response.json()["page"]["id"] == "demo-page-1"
         assert response.json()["page"]["name"] == "Alpha Demo"
+        assert response.json()["recreated"] is False
 
     def test_create_400s_for_a_plugin_that_ships_no_demo(self, client):
         response = client.post("/plugins/norecv/demo-page")
@@ -801,13 +876,13 @@ class TestInstances:
         body = client.get("/plugins/alpha/instances").json()
 
         assert body["plugin_id"] == "alpha"
-        assert body["instances"] == [{"label": "work", "enabled": False}]
+        assert body["instances"] == [{"label": "work", "key": None, "enabled": False, "has_config": False}]
         assert body["total"] == 1
 
     def test_create_reports_the_normalized_label_and_compound_key(self, client):
         response = client.post("/plugins/alpha/instances", json={"label": "office"})
 
-        assert response.status_code == 200
+        assert response.status_code == 201
         body = response.json()
         assert body["plugin_id"] == "alpha"
         assert body["instance_label"] == "office"
@@ -849,7 +924,7 @@ class TestReceivePayload:
         response = client.post("/plugins/alpha/receive", json={"hello": "world"})
 
         assert response.status_code == 200
-        assert response.json() == {"status": "ok"}
+        assert response.json() == {"status": "ok", "plugin_id": "alpha"}
         assert registry.plugins["alpha"].receive_payload.call_args[0][0] == {"hello": "world"}
 
     def test_405_when_the_plugin_does_not_implement_receive(self, client, registry):
@@ -890,7 +965,7 @@ class TestInstall:
     def test_registry_install_reports_the_installed_plugin_id(self, client):
         response = client.post("/plugins/registry/beta/install")
 
-        assert response.status_code == 200
+        assert response.status_code == 201
         assert response.json()["plugin_id"] == "beta"
 
     def test_a_registry_install_failure_is_a_400_carrying_the_reason(self, client):
@@ -905,7 +980,7 @@ class TestInstall:
             json={"repository": "https://github.com/example/fiestaboard-plugin--gamma"},
         )
 
-        assert response.status_code == 200
+        assert response.status_code == 201
         assert response.json()["plugin_id"] == "gamma"
 
     def test_a_malformed_branch_is_rejected_before_any_clone(self, client):

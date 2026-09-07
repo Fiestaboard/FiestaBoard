@@ -1,58 +1,192 @@
-"""FastAPI router for the ``/plugins`` endpoint family (issue #1757).
+"""FastAPI router for the ``/plugins`` endpoint family.
 
-Handlers moved from ``src/api_server.py``. Names that still live in
-``api_server`` — ``PLUGIN_SYSTEM_AVAILABLE``, the service getters, the reset
-callables, and the plugin-options machinery/state that the test-suite
-monkeypatches as ``src.api_server.<name>`` — are imported *inside* each
-handler so they resolve through the api_server module at call time. A
-module-level import would both create an import cycle (api_server imports
-this router) and detach the handlers from those patches (the #1756 pattern).
+Handlers moved out of ``src/api_server.py`` in #1757; Phase 2 slice 4 then
+applied ``docs/internal/reference/API_CONVENTIONS.md`` to them and retired the
+call-time ``from src.api_server import ...`` seams the move left behind.
 
-Orchestration (mutate → persist → reset-display → reset-template-engine) and
-the private-member reaches (``ConfigManager._mask_sensitive``,
-``PluginRegistry._update_status``) live in
-:class:`src.plugins.service.PluginService`; the handlers here stay thin.
+Collaborators now resolve from their canonical homes at **module import
+time**, so this module never loads ``src.api_server``
+(``tests/test_plugins_decoupled.py`` asserts that in a fresh interpreter).
+Tests that need to stub a collaborator patch it where this module binds it —
+``src.plugins.routes.<name>`` — not ``src.api_server.<name>``.
+
+Where the collaborators went, for the reader chasing a patch target:
+
+===========================================  ==================================
+Was                                          Now
+===========================================  ==================================
+``api_server.get_plugin_registry``           ``src.plugins``
+``api_server.get_config_manager``            ``src.config_manager``
+``api_server.unmask_sensitive_values``       ``src.config_manager``
+``api_server.get_page_service``              ``src.pages.service``
+``api_server.get_settings_service``          ``src.settings.service``
+``api_server.get_template_engine``           ``src.templates.engine``
+``api_server.reset_template_engine``         ``src.templates.engine``
+``api_server.reset_display_service``         ``src.displays.service``
+``api_server.PLUGIN_SYSTEM_AVAILABLE``       ``src.plugins.routes`` (defined
+                                             here; api_server imports it)
+the 13 ``PLUGIN_OPTIONS_*`` names            ``src.plugins.options_runtime``
+                                             (new)
+===========================================  ==================================
+
+**Error translation lives here, and only here.** ``PluginService`` raises the
+domain exceptions in :mod:`src.plugins.errors`; ``_STATUS_BY_ERROR`` below is
+the single table mapping them to status codes, applied by the
+``@plugin_errors_to_http`` decorator on every handler that can reach the
+service. Phase 1 had the service raising ``fastapi.HTTPException`` at 25
+sites, which made it the one service in the tree that knew about HTTP.
 """
 
 from __future__ import annotations
 
 import asyncio
+import functools
 import json
 import logging
-from typing import Any
+import time
+from collections.abc import Awaitable, Callable
+from typing import Any, TypeVar
 
 from fastapi import APIRouter, HTTPException, Request
-from pydantic import BaseModel, Field
 
+from src.api_errors import errors
+from src.config_manager import get_config_manager, unmask_sensitive_values
+from src.displays.service import reset_display_service
+from src.pages.service import get_page_service
+from src.settings.service import get_settings_service
+from src.templates.engine import get_template_engine, reset_template_engine
+
+from .errors import (
+    PluginConfigInvalid,
+    PluginError,
+    PluginNotEnabled,
+    PluginNotFound,
+    PluginOperationFailed,
+    PluginOperationRejected,
+    PluginOptionsThrottled,
+)
+from .models import (
+    AllPluginVariablesResponse,
+    ExternalPluginInstallRequest,
+    PluginConfigRequest,
+    PluginConfigUpdateResponse,
+    PluginDataResponse,
+    PluginDemoPageCreateResponse,
+    PluginDemoPageResponse,
+    PluginDetail,
+    PluginEnablementResponse,
+    PluginErrorsResponse,
+    PluginInstallResponse,
+    PluginInstanceCreateRequest,
+    PluginInstanceResponse,
+    PluginInstancesResponse,
+    PluginListResponse,
+    PluginManifestResponse,
+    PluginOptionsRequest,
+    PluginOptionsResponse,
+    PluginReceiveResponse,
+    PluginSummary,
+    PluginUninstallResponse,
+    PluginUpdateCheckResponse,
+    PluginUpdateResponse,
+    PluginUpdatesApplyResponse,
+    PluginUpdatesResponse,
+    PluginVariablesResponse,
+    RegistryListResponse,
+)
+from .options_runtime import (
+    PLUGIN_OPTIONS_MAX_CURSOR_CHARS,
+    PLUGIN_OPTIONS_MAX_RETURNED,
+    PLUGIN_OPTIONS_TIMEOUT_SECONDS,
+    _bounded_options_call,
+    _config_fingerprint,
+    _declared_options_ids,
+    _fit_options_payload,
+    _options_cache_seconds,
+    _plugin_options_cache_get,
+    _plugin_options_cache_key,
+    _plugin_options_cache_put,
+    _plugin_options_refresh_throttle,
+    _serialise_options,
+    _stale_options_payload,
+    _truncate,
+)
 from .service import PluginService
+
+try:  # pragma: no cover - the except arm needs a broken install to reach
+    from . import get_plugin_registry
+
+    PLUGIN_SYSTEM_AVAILABLE = True
+except ImportError:  # pragma: no cover
+    PLUGIN_SYSTEM_AVAILABLE = False
+    get_plugin_registry = None  # type: ignore[assignment]
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter(tags=["plugins"])
 
 
+# ── Error translation ───────────────────────────────────────────────────────
+
+#: The single place a plugin-domain failure becomes a status code. Ordered
+#: most-specific first, because ``PluginError`` is the catch-all base.
+_STATUS_BY_ERROR: tuple[tuple[type[PluginError], int], ...] = (
+    (PluginNotFound, 404),
+    (PluginNotEnabled, 400),
+    (PluginConfigInvalid, 400),
+    (PluginOptionsThrottled, 429),
+    (PluginOperationRejected, 400),
+    (PluginOperationFailed, 500),
+)
+
+_T = TypeVar("_T")
+
+
+def _as_http(exc: PluginError) -> HTTPException:
+    """Translate a domain error into the HTTP failure the API serves."""
+    status = next((code for kind, code in _STATUS_BY_ERROR if isinstance(exc, kind)), 400)
+    if isinstance(exc, PluginConfigInvalid):
+        # The one structured detail in this domain: schema validation produces
+        # per-field messages and the settings form highlights the field that
+        # is wrong. ``message`` is present because API_CONVENTIONS.md requires
+        # a dict detail to carry one — an ``errors``-only body was the exact
+        # anti-pattern the doc bans.
+        return HTTPException(status_code=status, detail={"message": str(exc), "errors": exc.errors})
+    return HTTPException(status_code=status, detail=str(exc))
+
+
+def plugin_errors_to_http(handler: Callable[..., Awaitable[_T]]) -> Callable[..., Awaitable[_T]]:
+    """Map :class:`~src.plugins.errors.PluginError` onto ``HTTPException``.
+
+    Applied to every handler that can reach ``PluginService`` so the service
+    never has to know a status code. ``functools.wraps`` keeps the wrapped
+    signature visible to FastAPI's dependency resolution and to the
+    conventions ratchet, which unwraps before reading handler source.
+    """
+
+    @functools.wraps(handler)
+    async def wrapper(*args: Any, **kwargs: Any) -> _T:
+        try:
+            return await handler(*args, **kwargs)
+        except PluginError as exc:
+            raise _as_http(exc) from exc
+
+    return wrapper
+
+
 def _require_plugin_system() -> None:
     """503 unless the plugin system imported successfully at startup."""
-    from src.api_server import PLUGIN_SYSTEM_AVAILABLE  # patched-in-tests seam — see module docstring
-
     if not PLUGIN_SYSTEM_AVAILABLE:
         raise HTTPException(status_code=503, detail="Plugin system is not available.")
 
 
 def _plugin_service() -> PluginService:
-    """Build a PluginService wired to api_server's (possibly patched) seams.
+    """Build a PluginService wired to this module's collaborator bindings.
 
-    The collaborators are resolved through ``src.api_server`` at call time so
-    the suite's ``patch("src.api_server.<name>")`` targets keep steering the
-    service exactly as they steered the inline handlers.
+    Resolved through the module globals so a test can steer the service by
+    patching ``src.plugins.routes.get_plugin_registry`` (and friends) — one
+    seam per collaborator, in the module that uses it.
     """
-    from src.api_server import (  # patched-in-tests seam — see module docstring
-        get_config_manager,
-        get_plugin_registry,
-        reset_display_service,
-        reset_template_engine,
-    )
-
     return PluginService(
         registry=get_plugin_registry(),
         config_manager=get_config_manager(),
@@ -61,158 +195,127 @@ def _plugin_service() -> PluginService:
     )
 
 
-class PluginConfigRequest(BaseModel):
-    """Request body for plugin configuration updates."""
-
-    config: dict[str, Any]
+# ── Listing and cross-plugin reads ──────────────────────────────────────────
 
 
-class PluginEnableRequest(BaseModel):
-    """Request body for enabling/disabling a plugin."""
-
-    enabled: bool
-
-
-@router.get("/plugins")
-async def list_plugins():
-    """
-    List all available plugins.
-
-    Returns plugins with their status, metadata, and whether they're enabled.
-    """
+@router.get(
+    "/plugins",
+    response_model=PluginListResponse,
+    responses=errors(503),
+)
+async def list_plugins() -> PluginListResponse:
+    """List all available plugins with their status, metadata and masked config."""
     _require_plugin_system()
-    from src.api_server import get_config_manager, get_plugin_registry  # patched-in-tests seam
 
     registry = get_plugin_registry()
     plugins = registry.list_plugins()
 
-    # Add configuration status (masked)
     config_manager = get_config_manager()
     service = _plugin_service()
     for plugin in plugins:
         plugin_config = config_manager.get_plugin_config(plugin["id"])
-        if plugin_config:
-            plugin["configured"] = True
-            # Add masked config
-            plugin["config"] = service.mask_config(plugin_config)
-        else:
-            plugin["configured"] = False
-            plugin["config"] = {}
+        plugin["configured"] = bool(plugin_config)
+        plugin["config"] = service.mask_config(plugin_config)
 
-    return {
-        "plugins": plugins,
-        "plugin_system_enabled": True,
-        "total": len(plugins),
-        "enabled_count": sum(1 for p in plugins if p.get("enabled", False)),
-    }
-
-
-@router.get("/plugins/variables/all")
-async def get_all_plugin_variables():
-    """
-    Get all template variables from enabled plugins.
-
-    Returns a combined view of all variables for the template editor.
-    """
-    from src.api_server import (  # patched-in-tests seam — see module docstring
-        PLUGIN_SYSTEM_AVAILABLE,
-        get_plugin_registry,
-        get_template_engine,
+    return PluginListResponse(
+        plugins=[PluginSummary.model_validate(p) for p in plugins],
+        plugin_system_enabled=True,
+        total=len(plugins),
+        enabled_count=sum(1 for p in plugins if p.get("enabled", False)),
     )
 
+
+@router.get("/plugins/variables/all", response_model=AllPluginVariablesResponse)
+async def get_all_plugin_variables() -> AllPluginVariablesResponse:
+    """Every template variable exposed by the plugin system, for the editor."""
     if not PLUGIN_SYSTEM_AVAILABLE:
-        # Fall back to legacy variables
+        # Fall back to legacy variables rather than failing: the template
+        # editor still has a vocabulary without the plugin system.
         template_engine = get_template_engine()
-        return {
-            "variables": template_engine.get_available_variables(),
-            "max_lengths": template_engine.get_variable_max_lengths(),
-            "plugin_system_enabled": False,
-        }
+        return AllPluginVariablesResponse(
+            variables=template_engine.get_available_variables(),
+            max_lengths=template_engine.get_variable_max_lengths(),
+            plugin_system_enabled=False,
+        )
 
     registry = get_plugin_registry()
-
-    return {
-        "variables": registry.get_all_variables(),
-        "max_lengths": registry.get_all_max_lengths(),
-        "plugin_system_enabled": True,
-    }
-
-
-@router.get("/plugins/errors")
-async def get_plugin_errors():
-    """
-    Get any plugin load errors.
-
-    Returns errors from plugins that failed to load.
-    """
-    from src.api_server import PLUGIN_SYSTEM_AVAILABLE, get_plugin_registry  # patched-in-tests seam
-
-    if not PLUGIN_SYSTEM_AVAILABLE:
-        return {"errors": {}, "plugin_system_enabled": False}
-
-    registry = get_plugin_registry()
-
-    return {"errors": registry.get_load_errors(), "plugin_system_enabled": True}
-
-
-@router.get("/plugins/registry")
-async def list_registry_plugins():
-    """
-    List all plugins available in the curated plugin registry.
-
-    Returns registry entries with their installation status.
-    """
-    _require_plugin_system()
-    from src.api_server import get_plugin_registry  # patched-in-tests seam — see module docstring
-
-    registry = get_plugin_registry()
-
-    return {
-        "entries": registry.get_registry_entries(),
-        "plugin_system_enabled": True,
-    }
-
-
-@router.get("/plugins/updates")
-async def get_plugin_updates():
-    """
-    Return cached update availability for all installed external plugins.
-
-    Results are refreshed by a background task every 6 hours.  Call
-    ``POST /plugins/updates/check`` to trigger an immediate check.
-
-    ``blocked`` maps plugin ids to the reason an upstream commit was *not*
-    offered — currently only "the incoming manifest needs a newer FiestaBoard
-    core".  Those plugins appear in ``updates`` as ``False``; the reason is
-    what lets the UI say so rather than looking stuck.
-    """
-    _require_plugin_system()
-    from src.api_server import get_plugin_registry  # patched-in-tests seam — see module docstring
-
-    registry = get_plugin_registry()
-    return {
-        "updates": registry.get_update_status(),
-        "blocked": registry.get_update_blocked_reasons(),
-    }
-
-
-@router.get("/plugins/{plugin_id}")
-async def get_plugin(plugin_id: str):
-    """
-    Get details for a specific plugin.
-
-    Returns the plugin's manifest, configuration, and status.
-    """
-    _require_plugin_system()
-    from src.api_server import (  # patched-in-tests seam — see module docstring
-        get_config_manager,
-        get_page_service,
-        get_plugin_registry,
+    return AllPluginVariablesResponse(
+        variables=registry.get_all_variables(),
+        max_lengths=registry.get_all_max_lengths(),
+        plugin_system_enabled=True,
     )
+
+
+@router.get("/plugins/errors", response_model=PluginErrorsResponse)
+async def get_plugin_errors() -> PluginErrorsResponse:
+    """Report why plugins are not contributing data.
+
+    Two independent failure modes in one payload, because the UI asks one
+    question. ``errors`` is load time — the plugin never imported.
+    ``fetch_breakers`` is run time — it imported fine and then stopped
+    answering, so the circuit breaker (#1884) stopped submitting it. The
+    breaker has existed since the pool-starvation fix and until this slice was
+    unobservable: a plugin could sit quarantined for minutes while the UI
+    showed nothing but stale variables.
+    """
+    if not PLUGIN_SYSTEM_AVAILABLE:
+        return PluginErrorsResponse(errors={}, fetch_breakers={}, plugin_system_enabled=False)
+
+    registry = get_plugin_registry()
+    return PluginErrorsResponse(
+        errors=registry.get_load_errors(),
+        fetch_breakers=registry.get_fetch_breaker_status(),
+        plugin_system_enabled=True,
+    )
+
+
+@router.get(
+    "/plugins/registry",
+    response_model=RegistryListResponse,
+    responses=errors(503),
+)
+async def list_registry_plugins() -> RegistryListResponse:
+    """List every plugin in the curated registry, with its installation status."""
+    _require_plugin_system()
+
+    registry = get_plugin_registry()
+    return RegistryListResponse(entries=registry.get_registry_entries(), plugin_system_enabled=True)
+
+
+@router.get(
+    "/plugins/updates",
+    response_model=PluginUpdatesResponse,
+    responses=errors(503),
+)
+async def get_plugin_updates() -> PluginUpdatesResponse:
+    """Cached update availability for all installed external plugins.
+
+    Refreshed by a background task every 6 hours; call
+    ``POST /plugins/updates/check`` to trigger an immediate check.
+    """
+    _require_plugin_system()
+
+    registry = get_plugin_registry()
+    return PluginUpdatesResponse(
+        updates=registry.get_update_status(),
+        blocked=registry.get_update_blocked_reasons(),
+    )
+
+
+# ── One plugin ──────────────────────────────────────────────────────────────
+
+
+@router.get(
+    "/plugins/{plugin_id}",
+    response_model=PluginDetail,
+    responses=errors(404, 503),
+)
+async def get_plugin(plugin_id: str) -> PluginDetail:
+    """Manifest, configuration and status for one plugin."""
+    _require_plugin_system()
 
     registry = get_plugin_registry()
     manifest = registry.get_manifest(plugin_id)
-
     if not manifest:
         raise HTTPException(status_code=404, detail=f"Plugin not found: {plugin_id}")
 
@@ -220,12 +323,11 @@ async def get_plugin(plugin_id: str):
     # the settings form, and any value baked in here comes straight back in
     # the next save — serving the overlay would freeze env values into
     # config.json (#1864 review). Which keys are currently env-controlled is
-    # reported separately in env_overridden_keys.
+    # reported separately in env_overridden_keys, values excluded.
     config_manager = get_config_manager()
     plugin_config = config_manager.get_plugin_config(plugin_id, include_env_overrides=False)
     env_overridden_keys = sorted(config_manager.get_plugin_env_overrides(plugin_id)) if plugin_config else []
 
-    # Check for demo page (use flagship as the representative for backwards compat)
     has_demo = manifest.demo is not None
     demo_page_id = None
     if has_demo:
@@ -236,124 +338,114 @@ async def get_plugin(plugin_id: str):
         if demo_page:
             demo_page_id = demo_page.id
 
-    # Instance information
     base_id, instance_label = registry.parse_instance_key(plugin_id)
     instances = registry.list_instances(base_id) if not instance_label else []
 
-    return {
-        "id": plugin_id,
-        "name": manifest.name,
-        "version": manifest.version,
-        "description": manifest.description,
-        "author": manifest.author,
-        "icon": manifest.icon,
-        "category": manifest.category,
-        # "data" or "transition" -- the UI hides the enable toggle for
-        # transition plugins, which run whenever selected regardless of it.
-        "plugin_type": manifest.plugin_type,
-        "enabled": registry.is_enabled(plugin_id),
-        "config": _plugin_service().mask_config(plugin_config),
-        # Config keys whose live value currently comes from an env var (the
-        # values themselves are deliberately NOT in "config").
-        "env_overridden_keys": env_overridden_keys,
-        "settings_schema": manifest.settings_schema,
-        "variables": manifest.raw.get("variables", {}),
-        "max_lengths": manifest.max_lengths,
-        "env_vars": manifest.env_vars,
-        "documentation": manifest.documentation,
-        "has_demo": has_demo,
-        "demo_page_id": demo_page_id,
-        "instance_label": instance_label,
-        "base_plugin_id": base_id,
-        "instances": instances,
-    }
+    return PluginDetail(
+        id=plugin_id,
+        name=manifest.name,
+        version=manifest.version,
+        description=manifest.description,
+        author=manifest.author,
+        icon=manifest.icon,
+        category=manifest.category,
+        plugin_type=manifest.plugin_type,
+        enabled=registry.is_enabled(plugin_id),
+        config=_plugin_service().mask_config(plugin_config),
+        env_overridden_keys=env_overridden_keys,
+        settings_schema=manifest.settings_schema,
+        variables=manifest.raw.get("variables", {}),
+        max_lengths=manifest.max_lengths,
+        env_vars=manifest.env_vars,
+        documentation=manifest.documentation,
+        has_demo=has_demo,
+        demo_page_id=demo_page_id,
+        instance_label=instance_label,
+        base_plugin_id=base_id,
+        instances=instances,
+    )
 
 
-@router.get("/plugins/{plugin_id}/manifest")
-async def get_plugin_manifest(plugin_id: str):
-    """
-    Get the full manifest for a plugin.
-
-    Returns the raw manifest data for UI rendering.
-    """
+@router.get(
+    "/plugins/{plugin_id}/manifest",
+    response_model=PluginManifestResponse,
+    responses=errors(404, 503),
+)
+async def get_plugin_manifest(plugin_id: str) -> PluginManifestResponse:
+    """The full raw manifest, for UI rendering."""
     _require_plugin_system()
-    from src.api_server import get_plugin_registry  # patched-in-tests seam — see module docstring
 
     registry = get_plugin_registry()
     manifest = registry.get_manifest(plugin_id)
-
     if not manifest:
         raise HTTPException(status_code=404, detail=f"Plugin not found: {plugin_id}")
 
-    return manifest.raw
+    return PluginManifestResponse.model_validate(manifest.raw)
 
 
-@router.put("/plugins/{plugin_id}/config")
-async def update_plugin_config(plugin_id: str, request: PluginConfigRequest):
-    """
-    Update configuration for a plugin.
+@router.put(
+    "/plugins/{plugin_id}/config",
+    response_model=PluginConfigUpdateResponse,
+    responses=errors(400, 404, 503),
+)
+@plugin_errors_to_http
+async def update_plugin_config(plugin_id: str, request: PluginConfigRequest) -> PluginConfigUpdateResponse:
+    """Validate, persist and apply a plugin's configuration.
 
-    Args:
-        plugin_id: Plugin identifier
-        request: Configuration to apply
-
-    Example body:
-    {
-        "config": {
-            "api_key": "your-api-key",
-            "location": "San Francisco, CA",
-            "refresh_seconds": 300
-        }
-    }
+    A sensitive field posted back as ``"***"`` resolves to the stored secret;
+    see ``PluginService.update_plugin_config`` and
+    ``tests/test_plugins_contract.py`` for the whole round-trip contract.
     """
     _require_plugin_system()
 
     masked = _plugin_service().update_plugin_config(plugin_id, request.config)
-
-    return {
-        "status": "success",
-        "plugin_id": plugin_id,
-        "config": masked,
-    }
+    return PluginConfigUpdateResponse(plugin_id=plugin_id, config=masked)
 
 
-@router.post("/plugins/{plugin_id}/enable")
-async def enable_plugin(plugin_id: str):
-    """
-    Enable a plugin.
-
-    Enables the plugin in both the registry and persists to config.
-    """
+@router.post(
+    "/plugins/{plugin_id}/enable",
+    response_model=PluginEnablementResponse,
+    responses=errors(400, 404, 503),
+)
+@plugin_errors_to_http
+async def enable_plugin(plugin_id: str) -> PluginEnablementResponse:
+    """Enable a plugin in the registry and persist the flag to config."""
     _require_plugin_system()
 
     _plugin_service().enable_plugin(plugin_id)
+    return PluginEnablementResponse(plugin_id=plugin_id, enabled=True)
 
-    return {"status": "success", "plugin_id": plugin_id, "enabled": True}
 
-
-@router.post("/plugins/{plugin_id}/disable")
-async def disable_plugin(plugin_id: str):
-    """
-    Disable a plugin.
-
-    Disables the plugin in both the registry and persists to config.
-    """
+@router.post(
+    "/plugins/{plugin_id}/disable",
+    response_model=PluginEnablementResponse,
+    responses=errors(400, 404, 503),
+)
+@plugin_errors_to_http
+async def disable_plugin(plugin_id: str) -> PluginEnablementResponse:
+    """Disable a plugin in the registry and persist the flag to config."""
     _require_plugin_system()
 
     _plugin_service().disable_plugin(plugin_id)
+    return PluginEnablementResponse(plugin_id=plugin_id, enabled=False)
 
-    return {"status": "success", "plugin_id": plugin_id, "enabled": False}
 
+@router.get(
+    "/plugins/{plugin_id}/data",
+    response_model=PluginDataResponse,
+    responses=errors(400, 404, 503),
+)
+async def get_plugin_data(plugin_id: str) -> PluginDataResponse:
+    """Fetch current data from a plugin.
 
-@router.get("/plugins/{plugin_id}/data")
-async def get_plugin_data(plugin_id: str):
-    """
-    Fetch current data from a plugin.
-
-    Returns the plugin's latest data, formatted output, and status.
+    ``fetch_plugin_data`` makes network calls, so it runs on a worker thread.
+    Inline it seized the single event loop for the whole fetch — the API,
+    every board and ``GET /health`` stopped answering until the plugin's
+    upstream replied. This handler was the last one still doing that; the
+    comment in ``options_runtime`` that used to name it as the bad example is
+    now obsolete, and ``tests/test_plugin_data_event_loop.py`` keeps it so.
     """
     _require_plugin_system()
-    from src.api_server import get_plugin_registry  # patched-in-tests seam — see module docstring
 
     registry = get_plugin_registry()
 
@@ -363,91 +455,57 @@ async def get_plugin_data(plugin_id: str):
     if not registry.is_enabled(plugin_id):
         raise HTTPException(status_code=400, detail=f"Plugin not enabled: {plugin_id}")
 
-    result = registry.fetch_plugin_data(plugin_id)
+    result = await asyncio.to_thread(registry.fetch_plugin_data, plugin_id)
 
-    # Return 503 when plugin data is unavailable (e.g. not configured, auth failure)
-    # so monitoring (Grafana) and request log show it as an error for triage
+    # 503 when plugin data is unavailable (not configured, auth failure) so
+    # monitoring and the request log show it as an error for triage.
     if not result.available:
         raise HTTPException(status_code=503, detail=result.error or "Plugin data not available")
 
-    return {
-        "plugin_id": plugin_id,
-        "available": result.available,
-        "data": result.data,
-        "formatted_lines": result.formatted_lines,
-        "error": result.error,
-    }
+    return PluginDataResponse(
+        plugin_id=plugin_id,
+        available=result.available,
+        data=result.data,
+        formatted_lines=result.formatted_lines,
+        error=result.error,
+    )
 
 
-@router.get("/plugins/{plugin_id}/variables")
-async def get_plugin_variables(plugin_id: str):
-    """
-    Get template variables exposed by a plugin.
-
-    Returns the variables schema for use in the template editor.
-    """
+@router.get(
+    "/plugins/{plugin_id}/variables",
+    response_model=PluginVariablesResponse,
+    responses=errors(404, 503),
+)
+async def get_plugin_variables(plugin_id: str) -> PluginVariablesResponse:
+    """The variables schema a plugin exposes, for the template editor."""
     _require_plugin_system()
-    from src.api_server import get_plugin_registry  # patched-in-tests seam — see module docstring
 
     registry = get_plugin_registry()
     manifest = registry.get_manifest(plugin_id)
-
     if not manifest:
         raise HTTPException(status_code=404, detail=f"Plugin not found: {plugin_id}")
 
-    return {
-        "plugin_id": plugin_id,
-        "variables": manifest.raw.get("variables", {}),
-        "max_lengths": manifest.max_lengths,
-        "color_rules_schema": manifest.raw.get("color_rules_schema", {}),
-    }
-
-
-class PluginOptionsRequestBody(BaseModel):
-    """Body for ``POST /plugins/{plugin_id}/options/{options_id}``.
-
-    POST rather than GET on purpose: ``parent`` holds arbitrary JSON, and
-    ``draft_config`` carries credentials that must never reach a URL, an
-    access log, or browser history.
-    """
-
-    parent: dict[str, Any] = Field(default_factory=dict)
-    query: str = ""
-    limit: int = 200
-    cursor: str | None = None
-    refresh: bool = False
-    draft_config: dict[str, Any] = Field(default_factory=dict)
-
-
-@router.post("/plugins/{plugin_id}/options/{options_id}")
-async def get_plugin_options_endpoint(plugin_id: str, options_id: str, body: PluginOptionsRequestBody):
-    """Browse a plugin's upstream catalog to populate one settings field."""
-    import time
-
-    # Deliberately api_server's logger, not this module's: the never-log-a-
-    # draft-credential contract is pinned by a caplog test listening on the
-    # "src.api_server" logger (test_plugin_options_route.py).
-    from src.api_server import (  # patched-in-tests seam — the options caches/limits are api_server module state
-        PLUGIN_OPTIONS_MAX_CURSOR_CHARS,
-        PLUGIN_OPTIONS_MAX_RETURNED,
-        PLUGIN_OPTIONS_TIMEOUT_SECONDS,
-        _bounded_options_call,
-        _config_fingerprint,
-        _declared_options_ids,
-        _fit_options_payload,
-        _options_cache_seconds,
-        _plugin_options_cache_get,
-        _plugin_options_cache_key,
-        _plugin_options_cache_put,
-        _plugin_options_refresh_throttle,
-        _serialise_options,
-        _stale_options_payload,
-        _truncate,
-        get_plugin_registry,
-        logger,
-        unmask_sensitive_values,
+    return PluginVariablesResponse(
+        plugin_id=plugin_id,
+        variables=manifest.raw.get("variables", {}),
+        max_lengths=manifest.max_lengths,
+        color_rules_schema=manifest.raw.get("color_rules_schema", {}),
     )
 
+
+# ── Remote options ──────────────────────────────────────────────────────────
+
+
+@router.post(
+    "/plugins/{plugin_id}/options/{options_id}",
+    response_model=PluginOptionsResponse,
+    responses=errors(400, 404, 429, 501, 502, 503, 504),
+)
+@plugin_errors_to_http
+async def get_plugin_options_endpoint(
+    plugin_id: str, options_id: str, body: PluginOptionsRequest
+) -> PluginOptionsResponse:
+    """Browse a plugin's upstream catalog to populate one settings field."""
     from .base import OptionsRequest, OptionsUnavailable
 
     _require_plugin_system()
@@ -514,12 +572,11 @@ async def get_plugin_options_endpoint(plugin_id: str, options_id: str, body: Plu
     elif cache_seconds > 0:
         entry = _plugin_options_cache_get(cache_key)
         if entry is not None and (time.monotonic() - entry[0]) < cache_seconds:
-            return {**entry[1], "cached": True, "stale": False}
+            return PluginOptionsResponse.model_validate({**entry[1], "cached": True, "stale": False})
 
     try:
         # Never call the plugin inline: get_options() makes network calls, and
-        # blocking the event loop here would stall every other request in the
-        # process. (GET /plugins/{id}/data still does this; do not copy it.)
+        # blocking the event loop here would stall every other request.
         result = await _bounded_options_call(
             lambda: registry.get_plugin_options(plugin_id, options_id, request, draft_config=draft_config),
             PLUGIN_OPTIONS_TIMEOUT_SECONDS,
@@ -528,7 +585,7 @@ async def get_plugin_options_endpoint(plugin_id: str, options_id: str, body: Plu
         logger.warning("Options provider '%s' timed out for plugin '%s'", options_id, plugin_id)
         stale = _stale_options_payload(cache_key, reason=f"Options provider '{options_id}' timed out")
         if stale is not None:
-            return stale
+            return PluginOptionsResponse.model_validate(stale)
         raise HTTPException(
             status_code=504,
             detail=f"Options provider '{options_id}' timed out",
@@ -544,8 +601,10 @@ async def get_plugin_options_endpoint(plugin_id: str, options_id: str, body: Plu
     except OptionsUnavailable as e:
         # Deliberately a 200. "No API key yet" is the *expected* state while
         # the user is still filling the form in; the widget shows the reason
-        # inline next to the field instead of a failed-request toast.
-        return _envelope(error=str(e))
+        # inline next to the field instead of a failed-request toast. This is
+        # the documented no_200_on_failure exception in
+        # tests/conventions_manifest.json.
+        return PluginOptionsResponse.model_validate(_envelope(error=str(e)))
     except Exception as e:
         # The traceback (with the plugin's raw error text) is already in the
         # server log; the client gets a static message so plugin exceptions
@@ -553,7 +612,7 @@ async def get_plugin_options_endpoint(plugin_id: str, options_id: str, body: Plu
         logger.exception("Options provider '%s' failed for plugin '%s'", options_id, plugin_id)
         stale = _stale_options_payload(cache_key, reason="Options provider failed")
         if stale is not None:
-            return stale
+            return PluginOptionsResponse.model_validate(stale)
         raise HTTPException(status_code=502, detail="Options provider failed") from e
 
     options, truncated = _serialise_options(result.options, limit, plugin_id, options_id)
@@ -570,7 +629,7 @@ async def get_plugin_options_endpoint(plugin_id: str, options_id: str, body: Plu
     if cache_seconds > 0:
         _plugin_options_cache_put(cache_key, payload)
 
-    return payload
+    return PluginOptionsResponse.model_validate(payload)
 
 
 # ── Plugin Demo Pages ────────────────────────────────────────────────────────
@@ -584,8 +643,6 @@ def _resolve_demo_device_type(demo: dict) -> str:
     any device_type the plugin supports, then to "flagship" as a last
     resort. See issue #942.
     """
-    from src.api_server import get_settings_service  # patched-in-tests seam — see module docstring
-
     configured: list[str] = []
     try:
         board_settings = get_settings_service().get_board_settings()
@@ -604,15 +661,14 @@ def _resolve_demo_device_type(demo: dict) -> str:
     return "flagship"
 
 
-@router.get("/plugins/{plugin_id}/demo-page")
-async def get_plugin_demo_page(plugin_id: str, device_type: str = "flagship"):
-    """
-    Check whether a demo page exists for this plugin and device type.
-
-    Returns ``exists: true`` and the page id when one is found.
-    """
+@router.get(
+    "/plugins/{plugin_id}/demo-page",
+    response_model=PluginDemoPageResponse,
+    responses=errors(404, 503),
+)
+async def get_plugin_demo_page(plugin_id: str, device_type: str = "flagship") -> PluginDemoPageResponse:
+    """Whether a demo page exists for this plugin and device type."""
     _require_plugin_system()
-    from src.api_server import get_page_service, get_plugin_registry  # patched-in-tests seam
 
     registry = get_plugin_registry()
     manifest = registry.get_manifest(plugin_id)
@@ -620,39 +676,33 @@ async def get_plugin_demo_page(plugin_id: str, device_type: str = "flagship"):
         raise HTTPException(status_code=404, detail=f"Plugin not found: {plugin_id}")
 
     if manifest.demo is None:
-        return {"exists": False, "page_id": None, "has_demo_template": False}
+        return PluginDemoPageResponse(exists=False, page_id=None, has_demo_template=False)
 
     has_demo_template = device_type in manifest.demo
-    page_service = get_page_service()
-    demo_page = page_service.get_demo_page(plugin_id, device_type=device_type)
-    return {
-        "exists": demo_page is not None,
-        "page_id": demo_page.id if demo_page else None,
-        "has_demo_template": has_demo_template,
-    }
+    demo_page = get_page_service().get_demo_page(plugin_id, device_type=device_type)
+    return PluginDemoPageResponse(
+        exists=demo_page is not None,
+        page_id=demo_page.id if demo_page else None,
+        has_demo_template=has_demo_template,
+    )
 
 
-@router.post("/plugins/{plugin_id}/demo-page")
-async def create_plugin_demo_page(plugin_id: str, device_type: str | None = None):
-    """
-    Create (or recreate) the demo page for a plugin and device type.
+@router.post(
+    "/plugins/{plugin_id}/demo-page",
+    response_model=PluginDemoPageCreateResponse,
+    status_code=201,
+    responses=errors(400, 404, 503),
+)
+async def create_plugin_demo_page(plugin_id: str, device_type: str | None = None) -> PluginDemoPageCreateResponse:
+    """Create (or recreate) the demo page for a plugin and device type.
 
-    When *device_type* is omitted, it is resolved from the configured board
-    settings (the first device type listed under Settings → Hardware), so a
-    Note board does not silently get a Flagship-sized demo page (issue #942).
-    If the plugin does not ship a demo template for the configured device,
-    we fall back to any device type it does support.
-
-    The demo page is a singleton per plugin + device type -- calling this endpoint
-    when a demo page already exists for that device type will delete the old one
-    and create a fresh copy.
+    When *device_type* is omitted it is resolved from the configured board
+    settings, so a Note board does not silently get a Flagship-sized demo page
+    (issue #942). The demo page is a singleton per plugin + device type: a
+    second call deletes the old one and creates a fresh copy, which is what
+    ``recreated`` reports.
     """
     _require_plugin_system()
-    from src.api_server import (  # patched-in-tests seam — see module docstring
-        get_config_manager,
-        get_page_service,
-        get_plugin_registry,
-    )
 
     registry = get_plugin_registry()
     manifest = registry.get_manifest(plugin_id)
@@ -674,12 +724,9 @@ async def create_plugin_demo_page(plugin_id: str, device_type: str | None = None
             detail=f"Plugin '{plugin_id}' has no demo template for device type '{resolved_device_type}'.",
         )
 
-    # Check that required settings are configured
-    settings_schema = manifest.settings_schema
-    required_fields = settings_schema.get("required", [])
+    required_fields = manifest.settings_schema.get("required", [])
     if required_fields:
-        config_manager = get_config_manager()
-        plugin_config = config_manager.get_plugin_config(plugin_id) or {}
+        plugin_config = get_config_manager().get_plugin_config(plugin_id) or {}
         missing = [f for f in required_fields if f != "enabled" and not plugin_config.get(f)]
         if missing:
             raise HTTPException(
@@ -688,116 +735,88 @@ async def create_plugin_demo_page(plugin_id: str, device_type: str | None = None
                 f"Configure them first before creating a demo page.",
             )
 
-    page_service = get_page_service()
-    page, recreated = page_service.create_demo_page(plugin_id, demo_schema)
-
-    return {
-        "status": "recreated" if recreated else "created",
-        "page": page.model_dump(),
-    }
+    page, recreated = get_page_service().create_demo_page(plugin_id, demo_schema)
+    return PluginDemoPageCreateResponse(recreated=recreated, page=page.model_dump())
 
 
 # ── Plugin Instances ────────────────────────────────────────────────────────
 
 
-class PluginInstanceCreateRequest(BaseModel):
-    """Request body for creating a new plugin instance."""
-
-    label: str
-
-
-@router.get("/plugins/{plugin_id}/instances")
-async def list_plugin_instances(plugin_id: str):
-    """
-    List all instances of a plugin.
-
-    Returns the instances (excluding the base) for the given plugin.
-    """
+@router.get(
+    "/plugins/{plugin_id}/instances",
+    response_model=PluginInstancesResponse,
+    responses=errors(404, 503),
+)
+async def list_plugin_instances(plugin_id: str) -> PluginInstancesResponse:
+    """List all instances of a plugin (excluding the base)."""
     _require_plugin_system()
-    from src.api_server import get_plugin_registry  # patched-in-tests seam — see module docstring
 
     registry = get_plugin_registry()
-
-    # Resolve base plugin id (strip instance label if present)
     base_id, _ = registry.parse_instance_key(plugin_id)
 
     if not registry.get_plugin(base_id):
         raise HTTPException(status_code=404, detail=f"Plugin not found: {base_id}")
 
     instances = registry.list_instances(base_id)
-
-    return {
-        "plugin_id": base_id,
-        "instances": instances,
-        "total": len(instances),
-    }
+    return PluginInstancesResponse(plugin_id=base_id, instances=instances, total=len(instances))
 
 
-@router.post("/plugins/{plugin_id}/instances")
-async def create_plugin_instance(plugin_id: str, request: PluginInstanceCreateRequest):
-    """
-    Create a new instance of a plugin.
+@router.post(
+    "/plugins/{plugin_id}/instances",
+    response_model=PluginInstanceResponse,
+    status_code=201,
+    responses=errors(400, 404, 503),
+)
+@plugin_errors_to_http
+async def create_plugin_instance(plugin_id: str, request: PluginInstanceCreateRequest) -> PluginInstanceResponse:
+    """Create a new instance of a plugin.
 
-    The new instance starts disabled with an empty configuration.
-    It can be configured and enabled independently via the standard
-    plugin config/enable endpoints using the compound key
-    ``{plugin_id}:{label}``.
+    The new instance starts disabled with an empty configuration and is
+    configured and enabled independently through the standard endpoints using
+    the compound key ``{plugin_id}:{label}``.
     """
     _require_plugin_system()
-    from src.api_server import get_plugin_registry  # patched-in-tests seam — see module docstring
 
-    service = _plugin_service()
-    base_id, compound_key = service.create_instance(plugin_id, request.label)
+    base_id, compound_key = _plugin_service().create_instance(plugin_id, request.label)
 
     # Report the normalized label — that is the instance the registry holds and
     # the one `{{plugin:label.field}}` template references must use.
     _, instance_label = get_plugin_registry().parse_instance_key(compound_key)
 
-    return {
-        "status": "success",
-        "plugin_id": base_id,
-        "instance_label": instance_label,
-        "instance_key": compound_key,
-        "message": f"Instance '{instance_label}' created for plugin '{base_id}'.",
-    }
+    return PluginInstanceResponse(plugin_id=base_id, instance_label=instance_label, instance_key=compound_key)
 
 
-@router.delete("/plugins/{plugin_id}/instances/{instance_label}")
-async def delete_plugin_instance(plugin_id: str, instance_label: str):
-    """
-    Delete a plugin instance.
-
-    Removes the instance from the registry and its persisted configuration.
-    """
+@router.delete(
+    "/plugins/{plugin_id}/instances/{instance_label}",
+    response_model=PluginInstanceResponse,
+    responses=errors(400, 404, 503),
+)
+@plugin_errors_to_http
+async def delete_plugin_instance(plugin_id: str, instance_label: str) -> PluginInstanceResponse:
+    """Remove an instance from the registry and delete its persisted config."""
     _require_plugin_system()
 
     base_id, compound_key = _plugin_service().delete_instance(plugin_id, instance_label)
-
-    return {
-        "status": "success",
-        "plugin_id": base_id,
-        "instance_label": instance_label,
-        "instance_key": compound_key,
-        "message": f"Instance '{instance_label}' of plugin '{base_id}' deleted.",
-    }
+    return PluginInstanceResponse(plugin_id=base_id, instance_label=instance_label, instance_key=compound_key)
 
 
-@router.post("/plugins/{plugin_id}/receive")
-async def receive_plugin_payload(plugin_id: str, request: Request):
-    """
-    Push a JSON payload to a plugin.
+# ── Webhooks ────────────────────────────────────────────────────────────────
 
-    Allows external systems (CI pipelines, automations, etc.) to push data to
-    plugins that support incoming webhooks.  The plugin's ``receive_payload``
-    method is called with the parsed body, the raw request headers, and the
-    raw body bytes (for HMAC verification).
 
-    Returns 404 when the plugin is not found, 400 when it is not enabled or
-    the body is not valid JSON, 403 when the plugin rejects the request due to
-    a signature mismatch, and 405 when the plugin does not support receive.
+@router.post(
+    "/plugins/{plugin_id}/receive",
+    response_model=PluginReceiveResponse,
+    responses=errors(400, 403, 404, 405, 503),
+)
+async def receive_plugin_payload(plugin_id: str, request: Request) -> PluginReceiveResponse:
+    """Push a JSON payload to a plugin.
+
+    Lets external systems (CI pipelines, automations) push data to plugins
+    that support incoming webhooks. The plugin's ``receive_payload`` is called
+    with the parsed body, the raw headers, and the raw bytes for HMAC
+    verification.
     """
     _require_plugin_system()
-    from src.api_server import get_plugin_registry  # patched-in-tests seam — see module docstring
 
     registry = get_plugin_registry()
     plugin = registry.get_plugin(plugin_id)
@@ -826,24 +845,21 @@ async def receive_plugin_payload(plugin_id: str, request: Request):
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
 
-    return {"status": "ok"}
+    return PluginReceiveResponse(plugin_id=plugin_id)
 
 
 # ── External Plugin Management ──────────────────────────────────────────────
 
 
-class ExternalPluginInstallRequest(BaseModel):
-    """Request body for installing an external plugin."""
-
-    repository: str
-    plugin_id: str | None = None
-    branch: str = ""
-
-
-@router.post("/plugins/registry/{plugin_id}/install")
-async def install_registry_plugin(plugin_id: str):
-    """
-    Install a plugin from the curated registry by its id.
+@router.post(
+    "/plugins/registry/{plugin_id}/install",
+    response_model=PluginInstallResponse,
+    status_code=201,
+    responses=errors(400, 503),
+)
+@plugin_errors_to_http
+async def install_registry_plugin(plugin_id: str) -> PluginInstallResponse:
+    """Install a plugin from the curated registry by its id.
 
     The install shells out to ``git`` (up to 120 s) and then imports the
     plugin package, so it runs in a worker thread — inline it would seize the
@@ -852,24 +868,23 @@ async def install_registry_plugin(plugin_id: str):
     _require_plugin_system()
 
     await _plugin_service().install_from_registry(plugin_id)
-
-    return {
-        "status": "success",
-        "plugin_id": plugin_id,
-        "message": f"Plugin '{plugin_id}' installed from registry.",
-    }
+    return PluginInstallResponse(plugin_id=plugin_id, message=f"Plugin '{plugin_id}' installed from registry.")
 
 
-@router.post("/plugins/install")
-async def install_external_plugin(request: ExternalPluginInstallRequest):
-    """
-    Install a plugin from a public git repository URL.
+@router.post(
+    "/plugins/install",
+    response_model=PluginInstallResponse,
+    status_code=201,
+    responses=errors(400, 503),
+)
+@plugin_errors_to_http
+async def install_external_plugin(request: ExternalPluginInstallRequest) -> PluginInstallResponse:
+    """Install a plugin from a public git repository URL.
 
-    The repository does not need to follow the ``fiestaboard-plugin--``
-    naming convention (that requirement only applies to registry plugins).
-
-    The clone runs in a worker thread so a slow or unreachable remote cannot
-    block the event loop (#1750).
+    The repository does not need to follow the ``fiestaboard-plugin--`` naming
+    convention (that only applies to registry plugins). The clone runs in a
+    worker thread so a slow or unreachable remote cannot block the event loop
+    (#1750).
     """
     _require_plugin_system()
 
@@ -878,81 +893,73 @@ async def install_external_plugin(request: ExternalPluginInstallRequest):
         plugin_id=request.plugin_id,
         branch=request.branch,
     )
-
-    return {
-        "status": "success",
-        "plugin_id": pid,
-        "message": f"Plugin '{pid}' installed from {request.repository}.",
-    }
+    return PluginInstallResponse(plugin_id=pid, message=f"Plugin '{pid}' installed from {request.repository}.")
 
 
-@router.delete("/plugins/{plugin_id}/uninstall")
-async def uninstall_external_plugin(plugin_id: str):
-    """
-    Uninstall an external (non-built-in) plugin.
-
-    Built-in plugins shipped with FiestaBoard cannot be uninstalled.
-    """
+@router.delete(
+    "/plugins/{plugin_id}/uninstall",
+    response_model=PluginUninstallResponse,
+    responses=errors(400, 404, 503),
+)
+@plugin_errors_to_http
+async def uninstall_external_plugin(plugin_id: str) -> PluginUninstallResponse:
+    """Uninstall an external plugin. Built-ins cannot be uninstalled."""
     _require_plugin_system()
 
     _plugin_service().uninstall(plugin_id)
-
-    return {
-        "status": "success",
-        "plugin_id": plugin_id,
-        "message": f"Plugin '{plugin_id}' has been uninstalled.",
-    }
+    return PluginUninstallResponse(plugin_id=plugin_id, message=f"Plugin '{plugin_id}' has been uninstalled.")
 
 
-@router.post("/plugins/updates/check")
-async def trigger_plugin_update_check():
-    """
-    Trigger an immediate update check for all external plugins.
+@router.post(
+    "/plugins/updates/check",
+    response_model=PluginUpdateCheckResponse,
+    responses=errors(503),
+)
+async def trigger_plugin_update_check() -> PluginUpdateCheckResponse:
+    """Trigger an immediate update check for all external plugins.
 
-    Runs ``git ls-remote`` against each external plugin's origin in a thread
-    pool so the event loop is not blocked.
+    Runs ``git ls-remote`` against each external plugin's origin on a worker
+    thread so the event loop is not blocked.
     """
     _require_plugin_system()
-    from src.api_server import get_plugin_registry  # patched-in-tests seam — see module docstring
 
     registry = get_plugin_registry()
-    loop = asyncio.get_event_loop()
-    results = await loop.run_in_executor(None, registry.check_for_updates)
-    plugins_with_updates = [pid for pid, has_update in results.items() if has_update]
-    return {
-        "checked": len(results),
-        "updates_available": plugins_with_updates,
-    }
+    results = await asyncio.to_thread(registry.check_for_updates)
+    return PluginUpdateCheckResponse(
+        checked=len(results),
+        updates_available=[pid for pid, has_update in results.items() if has_update],
+    )
 
 
-@router.post("/plugins/{plugin_id}/update")
-async def update_plugin(plugin_id: str):
-    """
-    Fetch the latest commits for an external plugin from its remote and reload it.
-
-    Built-in plugins cannot be updated via this endpoint.
-    """
+@router.post(
+    "/plugins/{plugin_id}/update",
+    response_model=PluginUpdateResponse,
+    responses=errors(400, 404, 503),
+)
+@plugin_errors_to_http
+async def update_plugin(plugin_id: str) -> PluginUpdateResponse:
+    """Fetch the latest commits for an external plugin and reload it."""
     _require_plugin_system()
 
     await _plugin_service().apply_update(plugin_id)
-
-    return {
-        "status": "success",
-        "plugin_id": plugin_id,
-        "message": f"Plugin '{plugin_id}' has been updated and reloaded.",
-    }
+    return PluginUpdateResponse(plugin_id=plugin_id, message=f"Plugin '{plugin_id}' has been updated and reloaded.")
 
 
-@router.post("/plugins/updates/apply")
-async def apply_all_plugin_updates():
-    """
-    Fetch and reload all external plugins that have a pending update.
+@router.post(
+    "/plugins/updates/apply",
+    response_model=PluginUpdatesApplyResponse,
+    responses=errors(503),
+)
+@plugin_errors_to_http
+async def apply_all_plugin_updates() -> PluginUpdatesApplyResponse:
+    """Fetch and reload every external plugin with a pending update.
 
     Uses the cached update status from the last check — call
-    ``POST /plugins/updates/check`` first if you want a fresh scan before
-    applying.  Returns 200 even when some plugins fail so the caller can
-    inspect partial results.
+    ``POST /plugins/updates/check`` first for a fresh scan. Deliberately
+    answers 200 with partial results when some plugins fail: collapsing an
+    N-plugin bulk update into one status code would throw away which
+    succeeded.
     """
     _require_plugin_system()
 
-    return await _plugin_service().apply_all_updates()
+    return PluginUpdatesApplyResponse.model_validate(await _plugin_service().apply_all_updates())

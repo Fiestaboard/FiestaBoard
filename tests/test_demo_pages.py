@@ -570,11 +570,11 @@ class TestCreateDemoPageEndpoint:
         page_service.create_demo_page.return_value = (created_page, False)
 
         return (
-            patch("src.api_server.PLUGIN_SYSTEM_AVAILABLE", True),
-            patch("src.api_server.get_plugin_registry", return_value=registry),
-            patch("src.api_server.get_settings_service", return_value=settings_service),
-            patch("src.api_server.get_page_service", return_value=page_service),
-            patch("src.api_server.get_config_manager", return_value=Mock(get_plugin_config=Mock(return_value={}))),
+            patch("src.plugins.routes.PLUGIN_SYSTEM_AVAILABLE", True),
+            patch("src.plugins.routes.get_plugin_registry", return_value=registry),
+            patch("src.plugins.routes.get_settings_service", return_value=settings_service),
+            patch("src.plugins.routes.get_page_service", return_value=page_service),
+            patch("src.plugins.routes.get_config_manager", return_value=Mock(get_plugin_config=Mock(return_value={}))),
             page_service,
         )
 
@@ -588,7 +588,7 @@ class TestCreateDemoPageEndpoint:
         with p_avail, p_reg, p_ss, p_ps, p_cm:
             response = client.post("/plugins/test_plugin/demo-page")
 
-        assert response.status_code == 200, response.text
+        assert response.status_code == 201, response.text
         page_service.create_demo_page.assert_called_once()
         passed_schema = page_service.create_demo_page.call_args[0][1]
         assert passed_schema.device_type == "note", (
@@ -605,7 +605,7 @@ class TestCreateDemoPageEndpoint:
         with p_avail, p_reg, p_ss, p_ps, p_cm:
             response = client.post("/plugins/test_plugin/demo-page")
 
-        assert response.status_code == 200, response.text
+        assert response.status_code == 201, response.text
         passed_schema = page_service.create_demo_page.call_args[0][1]
         assert passed_schema.device_type == "flagship"
 
@@ -619,7 +619,7 @@ class TestCreateDemoPageEndpoint:
         with p_avail, p_reg, p_ss, p_ps, p_cm:
             response = client.post("/plugins/test_plugin/demo-page?device_type=flagship")
 
-        assert response.status_code == 200, response.text
+        assert response.status_code == 201, response.text
         passed_schema = page_service.create_demo_page.call_args[0][1]
         assert passed_schema.device_type == "flagship"
 
@@ -636,6 +636,6 @@ class TestCreateDemoPageEndpoint:
         with p_avail, p_reg, p_ss, p_ps, p_cm:
             response = client.post("/plugins/test_plugin/demo-page")
 
-        assert response.status_code == 200, response.text
+        assert response.status_code == 201, response.text
         passed_schema = page_service.create_demo_page.call_args[0][1]
         assert passed_schema.device_type == "flagship"

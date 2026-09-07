@@ -20,7 +20,9 @@
         "plugin_system_enabled": "bool",
         "plugins": [
           {
+            "author": "str",
             "base_plugin_id": "null",
+            "category": "null",
             "config": {
               "api_key": "str",
               "enabled": "bool",
@@ -29,20 +31,38 @@
             "configured": "bool",
             "description": "str",
             "enabled": "bool",
+            "fiestaboard_version": "str",
+            "icon": "null",
             "id": "str",
             "instance_label": "null",
             "name": "str",
+            "plugin_type": "str",
+            "settings_schema": {},
+            "source": "null",
+            "supports_triggers": "bool",
+            "update_available": "bool",
+            "update_blocked_reason": "str",
             "version": "str"
           },
           {
+            "author": "str",
             "base_plugin_id": "null",
+            "category": "null",
             "config": {},
             "configured": "bool",
             "description": "str",
             "enabled": "bool",
+            "fiestaboard_version": "str",
+            "icon": "null",
             "id": "str",
             "instance_label": "null",
             "name": "str",
+            "plugin_type": "str",
+            "settings_schema": {},
+            "source": "null",
+            "supports_triggers": "bool",
+            "update_available": "bool",
+            "update_blocked_reason": "str",
             "version": "str"
           }
         ],
@@ -82,6 +102,13 @@
             "str"
           ]
         },
+        "fetch_breakers": {
+          "slow_plugin": {
+            "consecutive_timeouts": "int",
+            "cooldown_remaining_seconds": "float",
+            "quarantined": "bool"
+          }
+        },
         "plugin_system_enabled": "bool"
       }
     },
@@ -93,10 +120,19 @@
       "shape": {
         "entries": [
           {
+            "author": "str",
+            "branch": "str",
+            "category": "str",
+            "description": "str",
+            "fiestaboard_version": "str",
+            "icon": "str",
             "id": "str",
             "installed": "bool",
             "name": "str",
-            "repository": "str"
+            "plugin_type": "str",
+            "previews": [],
+            "repository": "str",
+            "teaser": "str"
           }
         ],
         "plugin_system_enabled": "bool"
@@ -143,6 +179,8 @@
         "instances": [
           {
             "enabled": "bool",
+            "has_config": "bool",
+            "key": "null",
             "label": "str"
           }
         ],
@@ -199,12 +237,16 @@
       "status": 200,
       "shape": {
         "color_rules_schema": {},
+        "max_lengths": {},
+        "name": "null",
+        "settings_schema": {},
         "variables": {
           "value": {
             "description": "str",
             "example": "str"
           }
-        }
+        },
+        "version": "null"
       }
     },
     {
@@ -227,8 +269,7 @@
           "location": "str",
           "refresh_seconds": "int"
         },
-        "plugin_id": "str",
-        "status": "str"
+        "plugin_id": "str"
       }
     },
     {
@@ -240,7 +281,8 @@
         "detail": {
           "errors": [
             "str"
-          ]
+          ],
+          "message": "str"
         }
       }
     },
@@ -260,8 +302,7 @@
       "status": 200,
       "shape": {
         "enabled": "bool",
-        "plugin_id": "str",
-        "status": "str"
+        "plugin_id": "str"
       }
     },
     {
@@ -289,8 +330,7 @@
       "status": 200,
       "shape": {
         "enabled": "bool",
-        "plugin_id": "str",
-        "status": "str"
+        "plugin_id": "str"
       }
     },
     {
@@ -410,14 +450,14 @@
       "label": "demo_create",
       "method": "POST",
       "path_template": "/plugins/{plugin_id}/demo-page",
-      "status": 200,
+      "status": 201,
       "shape": {
         "page": {
           "id": "str",
           "name": "str",
           "type": "str"
         },
-        "status": "str"
+        "recreated": "bool"
       }
     },
     {
@@ -438,6 +478,8 @@
         "instances": [
           {
             "enabled": "bool",
+            "has_config": "bool",
+            "key": "null",
             "label": "str"
           }
         ],
@@ -449,13 +491,11 @@
       "label": "instance_create",
       "method": "POST",
       "path_template": "/plugins/{plugin_id}/instances",
-      "status": 200,
+      "status": 201,
       "shape": {
         "instance_key": "str",
         "instance_label": "str",
-        "message": "str",
-        "plugin_id": "str",
-        "status": "str"
+        "plugin_id": "str"
       }
     },
     {
@@ -475,9 +515,7 @@
       "shape": {
         "instance_key": "str",
         "instance_label": "str",
-        "message": "str",
-        "plugin_id": "str",
-        "status": "str"
+        "plugin_id": "str"
       }
     },
     {
@@ -486,6 +524,7 @@
       "path_template": "/plugins/{plugin_id}/receive",
       "status": 200,
       "shape": {
+        "plugin_id": "str",
         "status": "str"
       }
     },
@@ -502,11 +541,10 @@
       "label": "registry_install_ok",
       "method": "POST",
       "path_template": "/plugins/registry/{plugin_id}/install",
-      "status": 200,
+      "status": 201,
       "shape": {
         "message": "str",
-        "plugin_id": "str",
-        "status": "str"
+        "plugin_id": "str"
       }
     },
     {
@@ -522,11 +560,10 @@
       "label": "install_git_ok",
       "method": "POST",
       "path_template": "/plugins/install",
-      "status": 200,
+      "status": 201,
       "shape": {
         "message": "str",
-        "plugin_id": "str",
-        "status": "str"
+        "plugin_id": "str"
       }
     },
     {
@@ -545,8 +582,7 @@
       "status": 200,
       "shape": {
         "message": "str",
-        "plugin_id": "str",
-        "status": "str"
+        "plugin_id": "str"
       }
     },
     {

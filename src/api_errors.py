@@ -36,9 +36,14 @@ _DESCRIPTIONS: dict[int, str] = {
     400: "Invalid request — the payload references something that does not exist or violates a rule.",
     403: "Forbidden.",
     404: "Resource not found.",
+    405: "The resource exists but does not implement this operation.",
     409: "Conflict — duplicate id, or a resource pinned by the environment.",
     422: "Request body failed validation.",
+    429: "Rate-limited — the same request arrived again too quickly.",
+    501: "The resource declares this capability but does not implement it.",
+    502: "An upstream the server called on your behalf failed.",
     503: "A required dependency is unavailable.",
+    504: "An upstream the server called on your behalf did not answer in time.",
 }
 
 

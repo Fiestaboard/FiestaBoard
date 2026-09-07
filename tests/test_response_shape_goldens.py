@@ -564,7 +564,7 @@ def test_collections_response_shapes():
 #
 # The plugin routes reach network (git clones, upstream APIs) and the live
 # registry, so this scenario patches the same seams the rest of the API suite
-# patches — ``src.api_server.get_plugin_registry`` / ``get_config_manager`` /
+# patches — ``src.plugins.routes.get_plugin_registry`` / ``get_config_manager`` /
 # ``reset_display_service`` / ``reset_template_engine`` /
 # ``PLUGIN_SYSTEM_AVAILABLE`` — with deterministic stubs. The recorded shapes
 # are of the stub-driven responses; identical stubs re-drive identical shapes
@@ -673,6 +673,15 @@ class _GoldenRegistry:
 
     def get_load_errors(self) -> dict[str, Any]:
         return {"broken_plugin": ["ImportError: golden fixture"]}
+
+    def get_fetch_breaker_status(self) -> dict[str, dict[str, Any]]:
+        return {
+            "slow_plugin": {
+                "consecutive_timeouts": 3,
+                "quarantined": True,
+                "cooldown_remaining_seconds": 42.5,
+            }
+        }
 
     def get_registry_entries(self) -> list[dict[str, Any]]:
         return [{"id": "beta", "name": "Beta", "installed": False, "repository": "fiestaboard-plugin--beta"}]
@@ -807,17 +816,17 @@ def test_plugins_response_shapes():
     )
 
     with (
-        patch("src.api_server.PLUGIN_SYSTEM_AVAILABLE", True),
-        patch("src.api_server.get_plugin_registry", new=lambda: registry),
-        patch("src.api_server.get_config_manager", new=lambda: config_manager),
-        patch("src.api_server.reset_display_service", new=Mock()),
-        patch("src.api_server.reset_template_engine", new=Mock()),
-        patch("src.api_server.get_page_service", new=lambda: page_service),
+        patch("src.plugins.routes.PLUGIN_SYSTEM_AVAILABLE", True),
+        patch("src.plugins.routes.get_plugin_registry", new=lambda: registry),
+        patch("src.plugins.routes.get_config_manager", new=lambda: config_manager),
+        patch("src.plugins.routes.reset_display_service", new=Mock()),
+        patch("src.plugins.routes.reset_template_engine", new=Mock()),
+        patch("src.plugins.routes.get_page_service", new=lambda: page_service),
         # Process-global options caches: isolate the scenario from other tests.
-        patch("src.api_server._PLUGIN_OPTIONS_CACHE", new={}),
-        patch("src.api_server._plugin_options_last_refresh", new={}),
+        patch("src.plugins.options_runtime._PLUGIN_OPTIONS_CACHE", new={}),
+        patch("src.plugins.options_runtime._plugin_options_last_refresh", new={}),
     ):
-        with patch("src.api_server.PLUGIN_SYSTEM_AVAILABLE", False):
+        with patch("src.plugins.routes.PLUGIN_SYSTEM_AVAILABLE", False):
             rec.hit("plugin_system_unavailable", "GET", "/plugins")
 
         rec.hit("list_plugins", "GET", "/plugins")

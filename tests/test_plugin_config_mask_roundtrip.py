@@ -67,14 +67,14 @@ def mask_env(tmp_path):
     registry.set_plugin_config.side_effect = lambda _pid, config: applied.append(copy.deepcopy(config)) or []
 
     with (
-        patch("src.api_server.get_plugin_registry", return_value=registry),
+        patch("src.plugins.routes.get_plugin_registry", return_value=registry),
         # The MCP configure_plugin tool goes through PluginService, which
         # resolves the registry from its canonical home (#1757) — patch both
         # lookup points, as tests/test_mcp_server.py's plugin_services does.
         patch("src.plugins.get_plugin_registry", return_value=registry),
-        patch("src.api_server.PLUGIN_SYSTEM_AVAILABLE", True),
-        patch("src.api_server.reset_display_service"),
-        patch("src.api_server.reset_template_engine"),
+        patch("src.plugins.routes.PLUGIN_SYSTEM_AVAILABLE", True),
+        patch("src.plugins.routes.reset_display_service"),
+        patch("src.plugins.routes.reset_template_engine"),
     ):
         yield applied, cm
 

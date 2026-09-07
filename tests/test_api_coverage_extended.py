@@ -467,8 +467,8 @@ class TestPluginData:
         mock_registry.is_enabled.return_value = True
         mock_registry.fetch_plugin_data.return_value = mock_result
         with (
-            patch("src.api_server.PLUGIN_SYSTEM_AVAILABLE", True),
-            patch("src.api_server.get_plugin_registry", return_value=mock_registry),
+            patch("src.plugins.routes.PLUGIN_SYSTEM_AVAILABLE", True),
+            patch("src.plugins.routes.get_plugin_registry", return_value=mock_registry),
         ):
             resp = client.get("/plugins/test_plugin/data")
         assert resp.status_code == 200
@@ -483,8 +483,8 @@ class TestPluginData:
         mock_registry.is_enabled.return_value = True
         mock_registry.fetch_plugin_data.return_value = mock_result
         with (
-            patch("src.api_server.PLUGIN_SYSTEM_AVAILABLE", True),
-            patch("src.api_server.get_plugin_registry", return_value=mock_registry),
+            patch("src.plugins.routes.PLUGIN_SYSTEM_AVAILABLE", True),
+            patch("src.plugins.routes.get_plugin_registry", return_value=mock_registry),
         ):
             resp = client.get("/plugins/test_plugin/data")
         assert resp.status_code == 503
@@ -493,8 +493,8 @@ class TestPluginData:
         mock_registry = Mock()
         mock_registry.get_plugin.return_value = None
         with (
-            patch("src.api_server.PLUGIN_SYSTEM_AVAILABLE", True),
-            patch("src.api_server.get_plugin_registry", return_value=mock_registry),
+            patch("src.plugins.routes.PLUGIN_SYSTEM_AVAILABLE", True),
+            patch("src.plugins.routes.get_plugin_registry", return_value=mock_registry),
         ):
             resp = client.get("/plugins/nonexistent/data")
         assert resp.status_code == 404
@@ -504,14 +504,14 @@ class TestPluginData:
         mock_registry.get_plugin.return_value = Mock()
         mock_registry.is_enabled.return_value = False
         with (
-            patch("src.api_server.PLUGIN_SYSTEM_AVAILABLE", True),
-            patch("src.api_server.get_plugin_registry", return_value=mock_registry),
+            patch("src.plugins.routes.PLUGIN_SYSTEM_AVAILABLE", True),
+            patch("src.plugins.routes.get_plugin_registry", return_value=mock_registry),
         ):
             resp = client.get("/plugins/test_plugin/data")
         assert resp.status_code == 400
 
     def test_get_plugin_data_system_unavailable(self, client):
-        with patch("src.api_server.PLUGIN_SYSTEM_AVAILABLE", False):
+        with patch("src.plugins.routes.PLUGIN_SYSTEM_AVAILABLE", False):
             resp = client.get("/plugins/test_plugin/data")
         assert resp.status_code == 503
 
@@ -526,8 +526,8 @@ class TestPluginManagement:
         mock_registry = Mock()
         mock_registry.check_for_updates.return_value = {"plugin_a": True, "plugin_b": False}
         with (
-            patch("src.api_server.PLUGIN_SYSTEM_AVAILABLE", True),
-            patch("src.api_server.get_plugin_registry", return_value=mock_registry),
+            patch("src.plugins.routes.PLUGIN_SYSTEM_AVAILABLE", True),
+            patch("src.plugins.routes.get_plugin_registry", return_value=mock_registry),
         ):
             resp = client.post("/plugins/updates/check")
         assert resp.status_code == 200
@@ -535,7 +535,7 @@ class TestPluginManagement:
         assert "plugin_a" in resp.json()["updates_available"]
 
     def test_trigger_update_check_unavailable(self, client):
-        with patch("src.api_server.PLUGIN_SYSTEM_AVAILABLE", False):
+        with patch("src.plugins.routes.PLUGIN_SYSTEM_AVAILABLE", False):
             resp = client.post("/plugins/updates/check")
         assert resp.status_code == 503
 
@@ -549,8 +549,8 @@ class TestPluginManagement:
         mock_registry._update_status = {"test_plugin": True}
 
         with (
-            patch("src.api_server.PLUGIN_SYSTEM_AVAILABLE", True),
-            patch("src.api_server.get_plugin_registry", return_value=mock_registry),
+            patch("src.plugins.routes.PLUGIN_SYSTEM_AVAILABLE", True),
+            patch("src.plugins.routes.get_plugin_registry", return_value=mock_registry),
             patch("pathlib.Path.is_dir", return_value=True),
             patch("src.plugins.sources.get_external_plugins_dir", return_value=Path("/fake")),
             patch("src.plugins.sources.clone_or_update_repo", return_value=(True, None)),
@@ -562,8 +562,8 @@ class TestPluginManagement:
         mock_registry = Mock()
         mock_registry.get_plugin_source.return_value = None
         with (
-            patch("src.api_server.PLUGIN_SYSTEM_AVAILABLE", True),
-            patch("src.api_server.get_plugin_registry", return_value=mock_registry),
+            patch("src.plugins.routes.PLUGIN_SYSTEM_AVAILABLE", True),
+            patch("src.plugins.routes.get_plugin_registry", return_value=mock_registry),
         ):
             resp = client.post("/plugins/nonexistent/update")
         assert resp.status_code == 404
@@ -573,8 +573,8 @@ class TestPluginManagement:
         mock_registry = Mock()
         mock_registry.get_plugin_source.return_value = mock_source
         with (
-            patch("src.api_server.PLUGIN_SYSTEM_AVAILABLE", True),
-            patch("src.api_server.get_plugin_registry", return_value=mock_registry),
+            patch("src.plugins.routes.PLUGIN_SYSTEM_AVAILABLE", True),
+            patch("src.plugins.routes.get_plugin_registry", return_value=mock_registry),
         ):
             resp = client.post("/plugins/weather/update")
         assert resp.status_code == 400
@@ -595,8 +595,8 @@ class TestPluginManagement:
             return (True, "")
 
         with (
-            patch("src.api_server.PLUGIN_SYSTEM_AVAILABLE", True),
-            patch("src.api_server.get_plugin_registry", return_value=mock_registry),
+            patch("src.plugins.routes.PLUGIN_SYSTEM_AVAILABLE", True),
+            patch("src.plugins.routes.get_plugin_registry", return_value=mock_registry),
             patch("pathlib.Path.is_dir", return_value=True),
             patch("src.plugins.sources.get_external_plugins_dir", return_value=Path("/fake")),
             patch("src.plugins.sources.clone_or_update_repo", side_effect=capture_clone),
@@ -616,8 +616,8 @@ class TestPluginManagement:
         mock_registry._update_status = {"plugin_a": True}
 
         with (
-            patch("src.api_server.PLUGIN_SYSTEM_AVAILABLE", True),
-            patch("src.api_server.get_plugin_registry", return_value=mock_registry),
+            patch("src.plugins.routes.PLUGIN_SYSTEM_AVAILABLE", True),
+            patch("src.plugins.routes.get_plugin_registry", return_value=mock_registry),
             patch("pathlib.Path.is_dir", return_value=True),
             patch("src.plugins.sources.get_external_plugins_dir", return_value=Path("/fake")),
             patch("src.plugins.sources.clone_or_update_repo", return_value=(True, "")),
@@ -633,8 +633,8 @@ class TestPluginManagement:
         mock_registry = Mock()
         mock_registry.get_update_status.return_value = {}
         with (
-            patch("src.api_server.PLUGIN_SYSTEM_AVAILABLE", True),
-            patch("src.api_server.get_plugin_registry", return_value=mock_registry),
+            patch("src.plugins.routes.PLUGIN_SYSTEM_AVAILABLE", True),
+            patch("src.plugins.routes.get_plugin_registry", return_value=mock_registry),
         ):
             resp = client.post("/plugins/updates/apply")
         assert resp.status_code == 200
@@ -661,8 +661,8 @@ class TestPluginManagement:
             return (True, "")
 
         with (
-            patch("src.api_server.PLUGIN_SYSTEM_AVAILABLE", True),
-            patch("src.api_server.get_plugin_registry", return_value=mock_registry),
+            patch("src.plugins.routes.PLUGIN_SYSTEM_AVAILABLE", True),
+            patch("src.plugins.routes.get_plugin_registry", return_value=mock_registry),
             patch("pathlib.Path.is_dir", return_value=True),
             patch("src.plugins.sources.get_external_plugins_dir", return_value=Path("/fake")),
             patch("src.plugins.sources.clone_or_update_repo", side_effect=fake_clone),
@@ -674,7 +674,7 @@ class TestPluginManagement:
         assert "bad_plugin" in data["failed"]
 
     def test_apply_all_updates_unavailable(self, client):
-        with patch("src.api_server.PLUGIN_SYSTEM_AVAILABLE", False):
+        with patch("src.plugins.routes.PLUGIN_SYSTEM_AVAILABLE", False):
             resp = client.post("/plugins/updates/apply")
         assert resp.status_code == 503
 
@@ -682,28 +682,28 @@ class TestPluginManagement:
         mock_registry = Mock()
         mock_registry.install_from_git.return_value = []
         with (
-            patch("src.api_server.PLUGIN_SYSTEM_AVAILABLE", True),
-            patch("src.api_server.get_plugin_registry", return_value=mock_registry),
+            patch("src.plugins.routes.PLUGIN_SYSTEM_AVAILABLE", True),
+            patch("src.plugins.routes.get_plugin_registry", return_value=mock_registry),
             patch("src.plugins.sources.repo_name_from_url", return_value="fiestaboard-plugin-test"),
             patch("src.plugins.sources.plugin_id_from_repo_name", return_value="test"),
         ):
             resp = client.post(
                 "/plugins/install", json={"repository": "https://github.com/example/fiestaboard-plugin-test"}
             )
-        assert resp.status_code == 200
+        assert resp.status_code == 201
 
     def test_install_plugin_errors(self, client):
         mock_registry = Mock()
         mock_registry.install_from_git.return_value = ["Clone failed"]
         with (
-            patch("src.api_server.PLUGIN_SYSTEM_AVAILABLE", True),
-            patch("src.api_server.get_plugin_registry", return_value=mock_registry),
+            patch("src.plugins.routes.PLUGIN_SYSTEM_AVAILABLE", True),
+            patch("src.plugins.routes.get_plugin_registry", return_value=mock_registry),
         ):
             resp = client.post("/plugins/install", json={"repository": "https://github.com/example/repo"})
         assert resp.status_code == 400
 
     def test_install_plugin_unavailable(self, client):
-        with patch("src.api_server.PLUGIN_SYSTEM_AVAILABLE", False):
+        with patch("src.plugins.routes.PLUGIN_SYSTEM_AVAILABLE", False):
             resp = client.post("/plugins/install", json={"repository": "https://github.com/example/repo"})
         assert resp.status_code == 503
 
@@ -711,8 +711,8 @@ class TestPluginManagement:
         mock_registry = Mock()
         mock_registry.install_from_git.return_value = []
         with (
-            patch("src.api_server.PLUGIN_SYSTEM_AVAILABLE", True),
-            patch("src.api_server.get_plugin_registry", return_value=mock_registry),
+            patch("src.plugins.routes.PLUGIN_SYSTEM_AVAILABLE", True),
+            patch("src.plugins.routes.get_plugin_registry", return_value=mock_registry),
             patch("src.plugins.sources.repo_name_from_url", return_value="repo"),
             patch("src.plugins.sources.plugin_id_from_repo_name", return_value="repo"),
         ):
@@ -723,10 +723,10 @@ class TestPluginManagement:
                     "branch": "release/2.0",
                 },
             )
-        assert resp.status_code == 200
+        assert resp.status_code == 201
 
     def test_install_plugin_invalid_branch_rejected(self, client):
-        with patch("src.api_server.PLUGIN_SYSTEM_AVAILABLE", True):
+        with patch("src.plugins.routes.PLUGIN_SYSTEM_AVAILABLE", True):
             resp = client.post(
                 "/plugins/install",
                 json={
@@ -740,8 +740,8 @@ class TestPluginManagement:
         mock_registry = Mock()
         mock_registry.install_from_git.return_value = ["fatal: repository not found"]
         with (
-            patch("src.api_server.PLUGIN_SYSTEM_AVAILABLE", True),
-            patch("src.api_server.get_plugin_registry", return_value=mock_registry),
+            patch("src.plugins.routes.PLUGIN_SYSTEM_AVAILABLE", True),
+            patch("src.plugins.routes.get_plugin_registry", return_value=mock_registry),
         ):
             resp = client.post("/plugins/install", json={"repository": "https://github.com/example/repo"})
         assert resp.status_code == 400
@@ -758,9 +758,9 @@ class TestPluginManagement:
         mock_registry.uninstall_external_plugin.return_value = []
         mock_cm = Mock()
         with (
-            patch("src.api_server.PLUGIN_SYSTEM_AVAILABLE", True),
-            patch("src.api_server.get_plugin_registry", return_value=mock_registry),
-            patch("src.api_server.get_config_manager", return_value=mock_cm),
+            patch("src.plugins.routes.PLUGIN_SYSTEM_AVAILABLE", True),
+            patch("src.plugins.routes.get_plugin_registry", return_value=mock_registry),
+            patch("src.plugins.routes.get_config_manager", return_value=mock_cm),
         ):
             resp = client.delete("/plugins/muni/uninstall")
         assert resp.status_code == 200
@@ -779,9 +779,9 @@ class TestPluginManagement:
         mock_registry.uninstall_external_plugin.return_value = []
         mock_cm = Mock()
         with (
-            patch("src.api_server.PLUGIN_SYSTEM_AVAILABLE", True),
-            patch("src.api_server.get_plugin_registry", return_value=mock_registry),
-            patch("src.api_server.get_config_manager", return_value=mock_cm),
+            patch("src.plugins.routes.PLUGIN_SYSTEM_AVAILABLE", True),
+            patch("src.plugins.routes.get_plugin_registry", return_value=mock_registry),
+            patch("src.plugins.routes.get_config_manager", return_value=mock_cm),
         ):
             resp = client.delete("/plugins/weather/uninstall")
         assert resp.status_code == 200
@@ -798,9 +798,9 @@ class TestPluginManagement:
         mock_registry.uninstall_external_plugin.return_value = ["Plugin not found: muni"]
         mock_cm = Mock()
         with (
-            patch("src.api_server.PLUGIN_SYSTEM_AVAILABLE", True),
-            patch("src.api_server.get_plugin_registry", return_value=mock_registry),
-            patch("src.api_server.get_config_manager", return_value=mock_cm),
+            patch("src.plugins.routes.PLUGIN_SYSTEM_AVAILABLE", True),
+            patch("src.plugins.routes.get_plugin_registry", return_value=mock_registry),
+            patch("src.plugins.routes.get_config_manager", return_value=mock_cm),
         ):
             resp = client.delete("/plugins/muni/uninstall")
         assert resp.status_code == 400
@@ -824,8 +824,8 @@ class TestGenericDataTestFetch:
         mock_cm = Mock()
         mock_cm.get_general.return_value = {"timezone": "UTC"}
         with (
-            patch("src.api_server.PLUGIN_SYSTEM_AVAILABLE", True),
-            patch("src.api_server.get_config_manager", return_value=mock_cm),
+            patch("src.plugins.routes.PLUGIN_SYSTEM_AVAILABLE", True),
+            patch("src.plugins.routes.get_config_manager", return_value=mock_cm),
             patch("src.api_server._get_generic_data_allowed_hosts", return_value=["example.com"]),
             patch("socket.getaddrinfo", return_value=self._PUBLIC_ADDR_INFO),
             patch("requests.request", return_value=mock_resp),
@@ -840,8 +840,8 @@ class TestGenericDataTestFetch:
         mock_cm = Mock()
         mock_cm.get_general.return_value = {}
         with (
-            patch("src.api_server.PLUGIN_SYSTEM_AVAILABLE", True),
-            patch("src.api_server.get_config_manager", return_value=mock_cm),
+            patch("src.plugins.routes.PLUGIN_SYSTEM_AVAILABLE", True),
+            patch("src.plugins.routes.get_config_manager", return_value=mock_cm),
         ):
             resp = client.post("/generic-data/test-fetch", json={"url": ""})
         assert resp.status_code == 400
@@ -850,8 +850,8 @@ class TestGenericDataTestFetch:
         mock_cm = Mock()
         mock_cm.get_general.return_value = {}
         with (
-            patch("src.api_server.PLUGIN_SYSTEM_AVAILABLE", True),
-            patch("src.api_server.get_config_manager", return_value=mock_cm),
+            patch("src.plugins.routes.PLUGIN_SYSTEM_AVAILABLE", True),
+            patch("src.plugins.routes.get_config_manager", return_value=mock_cm),
         ):
             resp = client.post("/generic-data/test-fetch", json={"url": "ftp://bad"})
         assert resp.status_code == 400
@@ -862,8 +862,8 @@ class TestGenericDataTestFetch:
         mock_cm = Mock()
         mock_cm.get_general.return_value = {}
         with (
-            patch("src.api_server.PLUGIN_SYSTEM_AVAILABLE", True),
-            patch("src.api_server.get_config_manager", return_value=mock_cm),
+            patch("src.plugins.routes.PLUGIN_SYSTEM_AVAILABLE", True),
+            patch("src.plugins.routes.get_config_manager", return_value=mock_cm),
             patch("src.api_server._get_generic_data_allowed_hosts", return_value=["example.com"]),
             patch("socket.getaddrinfo", return_value=self._PUBLIC_ADDR_INFO),
             patch("requests.request", side_effect=req.exceptions.Timeout("timeout")),
@@ -877,8 +877,8 @@ class TestGenericDataTestFetch:
         mock_cm = Mock()
         mock_cm.get_general.return_value = {}
         with (
-            patch("src.api_server.PLUGIN_SYSTEM_AVAILABLE", True),
-            patch("src.api_server.get_config_manager", return_value=mock_cm),
+            patch("src.plugins.routes.PLUGIN_SYSTEM_AVAILABLE", True),
+            patch("src.plugins.routes.get_config_manager", return_value=mock_cm),
             patch("src.api_server._get_generic_data_allowed_hosts", return_value=["example.com"]),
             patch("socket.getaddrinfo", return_value=self._PUBLIC_ADDR_INFO),
             patch("requests.request", side_effect=req.exceptions.ConnectionError("conn")),
@@ -893,8 +893,8 @@ class TestGenericDataTestFetch:
         mock_cm = Mock()
         mock_cm.get_general.return_value = {}
         with (
-            patch("src.api_server.PLUGIN_SYSTEM_AVAILABLE", True),
-            patch("src.api_server.get_config_manager", return_value=mock_cm),
+            patch("src.plugins.routes.PLUGIN_SYSTEM_AVAILABLE", True),
+            patch("src.plugins.routes.get_config_manager", return_value=mock_cm),
             patch("socket.getaddrinfo", return_value=self._PUBLIC_ADDR_INFO),
             patch("requests.request", return_value=mock_resp),
         ):
@@ -909,8 +909,8 @@ class TestGenericDataTestFetch:
         mock_cm = Mock()
         mock_cm.get_general.return_value = {}
         with (
-            patch("src.api_server.PLUGIN_SYSTEM_AVAILABLE", True),
-            patch("src.api_server.get_config_manager", return_value=mock_cm),
+            patch("src.plugins.routes.PLUGIN_SYSTEM_AVAILABLE", True),
+            patch("src.plugins.routes.get_config_manager", return_value=mock_cm),
             patch("src.api_server._get_generic_data_allowed_hosts", return_value=["example.com"]),
             patch("socket.getaddrinfo", return_value=self._PUBLIC_ADDR_INFO),
             patch("requests.request", return_value=mock_resp),

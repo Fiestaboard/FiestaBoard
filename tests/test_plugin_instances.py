@@ -774,31 +774,36 @@ class TestPluginInstanceEndpoints:
 
     def test_list_instances_success(self, client, mock_registry):
         mock_registry.get_plugin.return_value = Mock()
+        # The shape PluginRegistry.list_instances actually returns. The stub
+        # used to say {"id", "instance_label", "enabled"} — keys the registry
+        # has never emitted — so the assertion below was pinning the stub, not
+        # the API. PluginInstancesResponse now rejects that shape outright.
         mock_registry.list_instances.return_value = [
-            {"id": "weather:sf", "instance_label": "sf", "enabled": False},
+            {"label": "sf", "key": "weather:sf", "enabled": False, "has_config": True},
         ]
         with (
-            patch("src.api_server.PLUGIN_SYSTEM_AVAILABLE", True),
-            patch("src.api_server.get_plugin_registry", return_value=mock_registry),
+            patch("src.plugins.routes.PLUGIN_SYSTEM_AVAILABLE", True),
+            patch("src.plugins.routes.get_plugin_registry", return_value=mock_registry),
         ):
             resp = client.get("/plugins/weather/instances")
         assert resp.status_code == 200
         data = resp.json()
         assert data["plugin_id"] == "weather"
         assert len(data["instances"]) == 1
-        assert data["instances"][0]["instance_label"] == "sf"
+        assert data["instances"][0]["label"] == "sf"
+        assert data["instances"][0]["key"] == "weather:sf"
 
     def test_list_instances_plugin_not_found(self, client, mock_registry):
         mock_registry.get_plugin.return_value = None
         with (
-            patch("src.api_server.PLUGIN_SYSTEM_AVAILABLE", True),
-            patch("src.api_server.get_plugin_registry", return_value=mock_registry),
+            patch("src.plugins.routes.PLUGIN_SYSTEM_AVAILABLE", True),
+            patch("src.plugins.routes.get_plugin_registry", return_value=mock_registry),
         ):
             resp = client.get("/plugins/nonexistent/instances")
         assert resp.status_code == 404
 
     def test_list_instances_system_unavailable(self, client):
-        with patch("src.api_server.PLUGIN_SYSTEM_AVAILABLE", False):
+        with patch("src.plugins.routes.PLUGIN_SYSTEM_AVAILABLE", False):
             resp = client.get("/plugins/weather/instances")
         assert resp.status_code == 503
 
@@ -808,16 +813,15 @@ class TestPluginInstanceEndpoints:
         mock_registry.get_plugin.return_value = Mock()
         mock_registry.create_instance.return_value = []  # no errors
         with (
-            patch("src.api_server.PLUGIN_SYSTEM_AVAILABLE", True),
-            patch("src.api_server.get_plugin_registry", return_value=mock_registry),
-            patch("src.api_server.get_config_manager", return_value=mock_cm),
-            patch("src.api_server.reset_display_service"),
-            patch("src.api_server.reset_template_engine"),
+            patch("src.plugins.routes.PLUGIN_SYSTEM_AVAILABLE", True),
+            patch("src.plugins.routes.get_plugin_registry", return_value=mock_registry),
+            patch("src.plugins.routes.get_config_manager", return_value=mock_cm),
+            patch("src.plugins.routes.reset_display_service"),
+            patch("src.plugins.routes.reset_template_engine"),
         ):
             resp = client.post("/plugins/weather/instances", json={"label": "sf"})
-        assert resp.status_code == 200
+        assert resp.status_code == 201
         data = resp.json()
-        assert data["status"] == "success"
         assert data["instance_label"] == "sf"
         assert data["instance_key"] == "weather:sf"
         # Persists config
@@ -828,11 +832,11 @@ class TestPluginInstanceEndpoints:
         mock_registry.get_plugin.return_value = Mock()
         mock_registry.create_instance.return_value = []
         with (
-            patch("src.api_server.PLUGIN_SYSTEM_AVAILABLE", True),
-            patch("src.api_server.get_plugin_registry", return_value=mock_registry),
-            patch("src.api_server.get_config_manager", return_value=mock_cm),
-            patch("src.api_server.reset_display_service") as mock_rds,
-            patch("src.api_server.reset_template_engine") as mock_rte,
+            patch("src.plugins.routes.PLUGIN_SYSTEM_AVAILABLE", True),
+            patch("src.plugins.routes.get_plugin_registry", return_value=mock_registry),
+            patch("src.plugins.routes.get_config_manager", return_value=mock_cm),
+            patch("src.plugins.routes.reset_display_service") as mock_rds,
+            patch("src.plugins.routes.reset_template_engine") as mock_rte,
         ):
             client.post("/plugins/weather/instances", json={"label": "nyc"})
         mock_rds.assert_called_once()
@@ -846,14 +850,14 @@ class TestPluginInstanceEndpoints:
         mock_registry.get_plugin.return_value = Mock()
         mock_registry.create_instance.return_value = []
         with (
-            patch("src.api_server.PLUGIN_SYSTEM_AVAILABLE", True),
-            patch("src.api_server.get_plugin_registry", return_value=mock_registry),
-            patch("src.api_server.get_config_manager", return_value=mock_cm),
-            patch("src.api_server.reset_display_service"),
-            patch("src.api_server.reset_template_engine"),
+            patch("src.plugins.routes.PLUGIN_SYSTEM_AVAILABLE", True),
+            patch("src.plugins.routes.get_plugin_registry", return_value=mock_registry),
+            patch("src.plugins.routes.get_config_manager", return_value=mock_cm),
+            patch("src.plugins.routes.reset_display_service"),
+            patch("src.plugins.routes.reset_template_engine"),
         ):
             resp = client.post("/plugins/countdown/instances", json={"label": "Xmas"})
-        assert resp.status_code == 200
+        assert resp.status_code == 201
         assert resp.json()["instance_key"] == "countdown:xmas"
         mock_cm.set_plugin_config.assert_called_once_with("countdown:xmas", {"enabled": False})
         mock_cm.clear_plugin_removed.assert_called_once_with("countdown:xmas")
@@ -874,14 +878,14 @@ class TestPluginInstanceEndpoints:
         mock_registry.apply_stored_config.return_value = []
         mock_cm.get_plugin_config.return_value = stored
         with (
-            patch("src.api_server.PLUGIN_SYSTEM_AVAILABLE", True),
-            patch("src.api_server.get_plugin_registry", return_value=mock_registry),
-            patch("src.api_server.get_config_manager", return_value=mock_cm),
-            patch("src.api_server.reset_display_service"),
-            patch("src.api_server.reset_template_engine"),
+            patch("src.plugins.routes.PLUGIN_SYSTEM_AVAILABLE", True),
+            patch("src.plugins.routes.get_plugin_registry", return_value=mock_registry),
+            patch("src.plugins.routes.get_config_manager", return_value=mock_cm),
+            patch("src.plugins.routes.reset_display_service"),
+            patch("src.plugins.routes.reset_template_engine"),
         ):
             resp = client.post("/plugins/countdown/instances", json={"label": "xmas"})
-        assert resp.status_code == 200
+        assert resp.status_code == 201
         # The user's settings are neither overwritten on disk...
         mock_cm.set_plugin_config.assert_not_called()
         # ...nor left behind: the live instance picks them up, still enabled.
@@ -892,8 +896,8 @@ class TestPluginInstanceEndpoints:
         mock_registry.get_plugin.return_value = Mock()
         mock_registry.create_instance.return_value = ["Label already exists"]
         with (
-            patch("src.api_server.PLUGIN_SYSTEM_AVAILABLE", True),
-            patch("src.api_server.get_plugin_registry", return_value=mock_registry),
+            patch("src.plugins.routes.PLUGIN_SYSTEM_AVAILABLE", True),
+            patch("src.plugins.routes.get_plugin_registry", return_value=mock_registry),
         ):
             resp = client.post("/plugins/weather/instances", json={"label": "sf"})
         assert resp.status_code == 400
@@ -902,14 +906,14 @@ class TestPluginInstanceEndpoints:
     def test_create_instance_plugin_not_found(self, client, mock_registry):
         mock_registry.get_plugin.return_value = None
         with (
-            patch("src.api_server.PLUGIN_SYSTEM_AVAILABLE", True),
-            patch("src.api_server.get_plugin_registry", return_value=mock_registry),
+            patch("src.plugins.routes.PLUGIN_SYSTEM_AVAILABLE", True),
+            patch("src.plugins.routes.get_plugin_registry", return_value=mock_registry),
         ):
             resp = client.post("/plugins/nonexistent/instances", json={"label": "sf"})
         assert resp.status_code == 404
 
     def test_create_instance_system_unavailable(self, client):
-        with patch("src.api_server.PLUGIN_SYSTEM_AVAILABLE", False):
+        with patch("src.plugins.routes.PLUGIN_SYSTEM_AVAILABLE", False):
             resp = client.post("/plugins/weather/instances", json={"label": "sf"})
         assert resp.status_code == 503
 
@@ -919,16 +923,15 @@ class TestPluginInstanceEndpoints:
         mock_registry.delete_instance.return_value = []  # no errors
         mock_cm = Mock()
         with (
-            patch("src.api_server.PLUGIN_SYSTEM_AVAILABLE", True),
-            patch("src.api_server.get_plugin_registry", return_value=mock_registry),
-            patch("src.api_server.get_config_manager", return_value=mock_cm),
-            patch("src.api_server.reset_display_service"),
-            patch("src.api_server.reset_template_engine"),
+            patch("src.plugins.routes.PLUGIN_SYSTEM_AVAILABLE", True),
+            patch("src.plugins.routes.get_plugin_registry", return_value=mock_registry),
+            patch("src.plugins.routes.get_config_manager", return_value=mock_cm),
+            patch("src.plugins.routes.reset_display_service"),
+            patch("src.plugins.routes.reset_template_engine"),
         ):
             resp = client.delete("/plugins/weather/instances/sf")
         assert resp.status_code == 200
         data = resp.json()
-        assert data["status"] == "success"
         assert data["instance_key"] == "weather:sf"
         # Uses public delete_plugin_config() (not private internals)
         mock_cm.delete_plugin_config.assert_called_once_with("weather:sf")
@@ -939,11 +942,11 @@ class TestPluginInstanceEndpoints:
         mock_registry.delete_instance.return_value = []
         mock_cm = Mock()
         with (
-            patch("src.api_server.PLUGIN_SYSTEM_AVAILABLE", True),
-            patch("src.api_server.get_plugin_registry", return_value=mock_registry),
-            patch("src.api_server.get_config_manager", return_value=mock_cm),
-            patch("src.api_server.reset_display_service"),
-            patch("src.api_server.reset_template_engine"),
+            patch("src.plugins.routes.PLUGIN_SYSTEM_AVAILABLE", True),
+            patch("src.plugins.routes.get_plugin_registry", return_value=mock_registry),
+            patch("src.plugins.routes.get_config_manager", return_value=mock_cm),
+            patch("src.plugins.routes.reset_display_service"),
+            patch("src.plugins.routes.reset_template_engine"),
         ):
             resp = client.delete("/plugins/weather/instances/sf")
         assert resp.status_code == 200
@@ -955,25 +958,25 @@ class TestPluginInstanceEndpoints:
         mock_registry.get_plugin.return_value = Mock()
         mock_registry.create_instance.return_value = []
         with (
-            patch("src.api_server.PLUGIN_SYSTEM_AVAILABLE", True),
-            patch("src.api_server.get_plugin_registry", return_value=mock_registry),
-            patch("src.api_server.get_config_manager", return_value=mock_cm),
-            patch("src.api_server.reset_display_service"),
-            patch("src.api_server.reset_template_engine"),
+            patch("src.plugins.routes.PLUGIN_SYSTEM_AVAILABLE", True),
+            patch("src.plugins.routes.get_plugin_registry", return_value=mock_registry),
+            patch("src.plugins.routes.get_config_manager", return_value=mock_cm),
+            patch("src.plugins.routes.reset_display_service"),
+            patch("src.plugins.routes.reset_template_engine"),
         ):
             resp = client.post("/plugins/weather/instances", json={"label": "sf"})
-        assert resp.status_code == 200
+        assert resp.status_code == 201
         mock_cm.clear_plugin_removed.assert_called_once_with("weather:sf")
 
     def test_delete_instance_resets_services(self, client, mock_registry):
         """Deleting an instance should reset display and template services."""
         mock_registry.delete_instance.return_value = []
         with (
-            patch("src.api_server.PLUGIN_SYSTEM_AVAILABLE", True),
-            patch("src.api_server.get_plugin_registry", return_value=mock_registry),
-            patch("src.api_server.get_config_manager", return_value=Mock()),
-            patch("src.api_server.reset_display_service") as mock_rds,
-            patch("src.api_server.reset_template_engine") as mock_rte,
+            patch("src.plugins.routes.PLUGIN_SYSTEM_AVAILABLE", True),
+            patch("src.plugins.routes.get_plugin_registry", return_value=mock_registry),
+            patch("src.plugins.routes.get_config_manager", return_value=Mock()),
+            patch("src.plugins.routes.reset_display_service") as mock_rds,
+            patch("src.plugins.routes.reset_template_engine") as mock_rte,
         ):
             client.delete("/plugins/weather/instances/sf")
         mock_rds.assert_called_once()
@@ -982,13 +985,13 @@ class TestPluginInstanceEndpoints:
     def test_delete_instance_not_found(self, client, mock_registry):
         mock_registry.delete_instance.return_value = ["Instance not found"]
         with (
-            patch("src.api_server.PLUGIN_SYSTEM_AVAILABLE", True),
-            patch("src.api_server.get_plugin_registry", return_value=mock_registry),
+            patch("src.plugins.routes.PLUGIN_SYSTEM_AVAILABLE", True),
+            patch("src.plugins.routes.get_plugin_registry", return_value=mock_registry),
         ):
             resp = client.delete("/plugins/weather/instances/nonexistent")
         assert resp.status_code == 400
 
     def test_delete_instance_system_unavailable(self, client):
-        with patch("src.api_server.PLUGIN_SYSTEM_AVAILABLE", False):
+        with patch("src.plugins.routes.PLUGIN_SYSTEM_AVAILABLE", False):
             resp = client.delete("/plugins/weather/instances/sf")
         assert resp.status_code == 503

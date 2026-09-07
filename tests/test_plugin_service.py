@@ -15,8 +15,12 @@ from __future__ import annotations
 from unittest.mock import Mock, patch
 
 import pytest
-from fastapi import HTTPException
 
+from src.plugins.errors import (
+    PluginConfigInvalid,
+    PluginNotFound,
+    PluginOperationRejected,
+)
 from src.plugins.service import PluginService, sanitize_optional_plugin_id
 
 
@@ -91,11 +95,10 @@ def test_update_plugin_config_validation_failure_neither_persists_nor_resets():
     rec = _Recorder()
     svc = _service(rec, config_errors=["api_key: too short"])
 
-    with pytest.raises(HTTPException) as exc_info:
+    with pytest.raises(PluginConfigInvalid) as exc_info:
         svc.update_plugin_config("alpha", {"api_key": "x"})
 
-    assert exc_info.value.status_code == 400
-    assert exc_info.value.detail == {"errors": ["api_key: too short"]}
+    assert exc_info.value.errors == ["api_key: too short"]
     assert rec.steps == ["validate"], "a rejected config must not be saved or applied"
 
 
@@ -141,7 +144,7 @@ def test_create_instance_persists_then_resets():
     svc.config_manager.clear_plugin_removed.assert_called_once_with("alpha:work")
 
 
-def test_unknown_plugin_is_a_404_for_config_enable_and_disable():
+def test_unknown_plugin_raises_not_found_for_config_enable_and_disable():
     rec = _Recorder()
     svc = _service(rec)
     svc.registry.get_plugin.return_value = None
@@ -151,9 +154,8 @@ def test_unknown_plugin_is_a_404_for_config_enable_and_disable():
         lambda: svc.enable_plugin("missing"),
         lambda: svc.disable_plugin("missing"),
     ):
-        with pytest.raises(HTTPException) as exc_info:
+        with pytest.raises(PluginNotFound):
             call()
-        assert exc_info.value.status_code == 404
 
 
 def test_mask_config_delegates_to_the_config_managers_masker():
@@ -202,9 +204,8 @@ def test_bare_service_resolves_collaborators_from_canonical_homes():
 
 @pytest.mark.parametrize("bad", ["", "UPPER", "has-dash", "has space", "dot.dot"])
 def test_sanitize_optional_plugin_id_rejects_invalid_ids(bad: str):
-    with pytest.raises(HTTPException) as exc_info:
+    with pytest.raises(PluginOperationRejected):
         sanitize_optional_plugin_id(bad)
-    assert exc_info.value.status_code == 400
 
 
 def test_sanitize_optional_plugin_id_accepts_none_and_valid_ids():
@@ -213,15 +214,14 @@ def test_sanitize_optional_plugin_id_accepts_none_and_valid_ids():
 
 
 @pytest.mark.asyncio
-async def test_install_from_registry_errors_become_a_400():
+async def test_install_from_registry_errors_become_a_rejection():
     svc = _service(_Recorder())
     svc.registry.install_from_registry = Mock(return_value=["Plugin 'nope' not found in the registry"])
 
-    with pytest.raises(HTTPException) as exc_info:
+    with pytest.raises(PluginOperationRejected) as exc_info:
         await svc.install_from_registry("nope")
 
-    assert exc_info.value.status_code == 400
-    assert "not found in the registry" in exc_info.value.detail
+    assert "not found in the registry" in str(exc_info.value)
 
 
 @pytest.mark.asyncio
@@ -239,10 +239,9 @@ async def test_install_from_git_rejects_a_bad_branch_before_touching_git():
     svc = _service(_Recorder())
     svc.registry.install_from_git = Mock(return_value=[])
 
-    with pytest.raises(HTTPException) as exc_info:
+    with pytest.raises(PluginOperationRejected):
         await svc.install_from_git("https://github.com/example/fiestaboard-plugin--x.git", branch="bad branch")
 
-    assert exc_info.value.status_code == 400
     svc.registry.install_from_git.assert_not_called()
 
 
@@ -263,18 +262,17 @@ def test_uninstall_purges_base_and_instance_configs():
 
 
 @pytest.mark.asyncio
-async def test_apply_update_missing_source_is_a_404_and_builtin_a_400():
+async def test_apply_update_missing_source_is_not_found_and_builtin_a_rejection():
+    """The service names the *kind* of failure; routes.py picks the status code."""
     svc = _service(_Recorder())
 
     svc.registry.get_plugin_source = Mock(return_value=None)
-    with pytest.raises(HTTPException) as exc_info:
+    with pytest.raises(PluginNotFound):
         await svc.apply_update("missing")
-    assert exc_info.value.status_code == 404
 
     svc.registry.get_plugin_source = Mock(return_value=Mock(source_type="builtin", local_path=None))
-    with pytest.raises(HTTPException) as exc_info:
+    with pytest.raises(PluginOperationRejected):
         await svc.apply_update("alpha")
-    assert exc_info.value.status_code == 400
 
 
 @pytest.mark.asyncio

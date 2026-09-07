@@ -25,7 +25,7 @@ It is a **ratchet**: it only checks domains listed in
 
 ```json
 {
-  "converted_domains": ["collections"],
+  "converted_domains": ["collections", "plugins"],
   "exceptions": [
     {
       "route": "POST /plugins/{plugin_id}/options/{options_id}",
@@ -35,6 +35,13 @@ It is a **ratchet**: it only checks domains listed in
   ]
 }
 ```
+
+**`declared_errors` and 503-only routes.** The rule asks for a *4xx*, so a
+route whose only failure is a dependency outage (`503`) records an exception
+rather than inventing a client error it cannot raise. Declare the 503 in
+`responses=` anyway — the exception explains why there is no 4xx, it does not
+excuse leaving the failure undocumented. Seven `/plugins` routes are in this
+position because `_require_plugin_system()` is their only failure path.
 
 **Opting a domain in.** Append the domain's router tag (the `<domain>` in
 `APIRouter(tags=[<domain>])`) to `converted_domains` — in the same PR that
@@ -60,7 +67,16 @@ manifest entry; the cost of a false negative is a shipped 200-on-failure.
 - **Bare bodies.** Return the resource (or list) itself — no `{"status":
   "success", "data": ...}` envelopes. `{"status": ...}` wrappers on existing
   endpoints are grandfathered until their domain's conventions pass; new
-  endpoints never add one.
+  endpoints never add one. The one endpoint that keeps its wrapper past its
+  own conventions pass is `POST /plugins/{id}/receive`: it is a webhook target
+  for third-party systems this repo does not control and cannot update in
+  lockstep, so "deprecation, never deletion" applies to it literally.
+- **Derived or masked payloads get their own wire model.** Aliasing the
+  storage model (`CollectionResponse = Collection`) is honest only when the
+  two really are the same object. `GET /plugins/{id}` assembles its body from
+  four collaborators and masks every secret in it, so it declares
+  `PluginDetail` instead — conflating the masked shape with the stored shape
+  is what let the #1743 masking regression through.
 - **`response_model` on every endpoint.** The route declares its Pydantic
   response model; no untyped `dict` returns. This is what keeps the TS client
   (`web/src/lib/api/`) honest — `/check-types` compares against these models.
@@ -116,6 +132,14 @@ response (CodeQL also enforces this).
 - Routes never touch another object's `_private` members — that is the
   service's job (see `PluginService.mask_config` / `clear_update_status` for
   the pattern).
+- **Services raise domain errors; routers map them to status codes.** A
+  service that raises `fastapi.HTTPException` has an opinion about HTTP it is
+  not entitled to, and it forces every non-HTTP caller (MCP tools, chat ops,
+  background tasks) to import a web framework to catch its failures. The
+  pattern: define the domain's exceptions in `src/<domain>/errors.py` with no
+  status codes on them, and put one `_STATUS_BY_ERROR` table in
+  `src/<domain>/routes.py` (see `src/plugins/`). `PluginService` was the one
+  service that broke this — 25 raise sites, fixed in the plugins slice.
 - During extraction, moved handlers resolve api_server-patched names at call
   time (the `src/mqtt/commands.py` pattern) so existing test patch targets
   stay live. Follow-up: migrate patch targets to the service modules, then
