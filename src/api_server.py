@@ -8134,10 +8134,15 @@ async def import_backup(
     manually if needed.  In-memory service singletons are reloaded so the
     change takes effect without restarting the container.
     """
-    from .backup import BackupError, get_backup_service
+    from .backup import BackupError, BackupRestoreAborted, get_backup_service
 
     try:
         result = get_backup_service().import_from_dict(payload, reinstall_plugins=reinstall_plugins)
+    except BackupRestoreAborted as exc:
+        # The environment failed, not the uploaded file — a 400 would blame
+        # the operator's backup for a full disk (Phase 2 Task 10d).
+        logger.error("Backup restore aborted: %s", exc)
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
     except BackupError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     except Exception:
