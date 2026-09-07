@@ -26,7 +26,8 @@ The four rules
     No request body parameter annotated as a bare ``dict`` /
     ``dict[str, Any]`` / ``Any``.
 ``declared_errors``
-    Every route declares at least one 4xx in ``responses=``.
+    Every route declares at least one error status (4xx or 5xx) in
+    ``responses=``, so its failure modes are part of the published schema.
 
 Precision over cleverness
 -------------------------
@@ -277,14 +278,22 @@ def check_typed_body(record: dict[str, Any]) -> list[str]:
 
 
 def check_declared_errors(record: dict[str, Any]) -> list[str]:
+    """Flag a route that documents no failure mode at all.
+
+    Any declared error status counts, not only 4xx. The plugins slice found
+    seven routes whose only failure is "the plugin subsystem is unavailable"
+    — a 503 with no 4xx anywhere on the route. Demanding a 4xx there would
+    have forced seven manifest exceptions documenting an error the endpoint
+    cannot raise, which is the opposite of what this rule is for.
+    """
     for code in record["responses"]:
         try:
             numeric = int(code)
         except (TypeError, ValueError):
             continue
-        if 400 <= numeric <= 499:
+        if 400 <= numeric <= 599:
             return []
-    return ["declares no 4xx in responses="]
+    return ["declares no error status in responses="]
 
 
 # --------------------------------------------------------------------------
@@ -326,7 +335,7 @@ def test_converted_domains_use_typed_request_bodies():
 
 
 def test_converted_domains_declare_error_responses():
-    """Every route in a converted domain documents at least one 4xx."""
+    """Every route in a converted domain documents at least one error status."""
     offenders = _violations("declared_errors", check_declared_errors)
     assert offenders == [], (
         "Converted domains must declare the errors they raise so the OpenAPI "
@@ -520,9 +529,15 @@ def test_typed_body_rule_flags_bare_dict_body_params():
     ]
 
 
-def test_declared_errors_rule_flags_a_route_with_no_4xx():
+def test_declared_errors_rule_flags_a_route_with_no_error_status():
     offenders = _sample_violations("declared_errors", check_declared_errors)
-    assert offenders == ["GET /sample/no-errors: declares no 4xx in responses="]
+    assert offenders == ["GET /sample/no-errors: declares no error status in responses="]
+
+
+def test_declared_errors_rule_accepts_a_route_whose_only_failure_is_a_5xx():
+    """A 503-only route documents its failure; it must not need an exception."""
+    record = {"path": "/sample/unavailable", "methods": ["GET"], "responses": {503: {"description": "down"}}}
+    assert check_declared_errors(record) == []
 
 
 def test_no_200_on_failure_rule_flags_a_return_inside_except():
@@ -584,7 +599,7 @@ def test_an_exception_entry_excuses_exactly_its_route_and_rule():
     assert _violations("response_model", check_response_model, manifest, records) == []
     # ...and leaks into no other route: the other missing-model route (if any)
     # and every other rule are still enforced.
-    assert "GET /sample/no-errors: declares no 4xx in responses=" in _violations(
+    assert "GET /sample/no-errors: declares no error status in responses=" in _violations(
         "declared_errors", check_declared_errors, manifest, records
     )
 

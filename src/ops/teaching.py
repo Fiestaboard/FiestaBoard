@@ -64,11 +64,15 @@ def color_tokens_phrase() -> str:
 
 
 def numeric_color_range() -> tuple[int, int]:
-    """The numeric flap-code range covered by the named palette."""
-    from src.templates.engine import COLOR_CODES
+    """The numeric flap-code range the engine actually accepts.
 
-    codes = COLOR_CODES.values()
-    return min(codes), max(codes)
+    Derived from the engine rather than recomputed here: teaching a narrower
+    range than the engine honors makes models avoid a valid flap, which is
+    what #1885 recorded when this returned 63-70 for an engine that took 71.
+    """
+    from src.templates.colors import NUMERIC_COLOR_RANGE
+
+    return NUMERIC_COLOR_RANGE
 
 
 def filters_phrase() -> str:

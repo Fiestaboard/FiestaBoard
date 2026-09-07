@@ -18,7 +18,7 @@ route table on every test run:
 | `response_model` | A route with no `response_model=` |
 | `no_200_on_failure` | A `return` inside an `except`, or a `{"success": false}` / `{"status": "error"}` / `{"valid": false}` body on a route that answers 2xx |
 | `typed_body` | A request body parameter annotated `dict`, `dict[str, Any]`, or `Any` |
-| `declared_errors` | A route that declares no 4xx in `responses=` |
+| `declared_errors` | A route that declares no error status (4xx or 5xx) in `responses=` |
 
 It is a **ratchet**: it only checks domains listed in
 `tests/conventions_manifest.json`, and that list only grows.
