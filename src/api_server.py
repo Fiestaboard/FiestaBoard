@@ -55,7 +55,7 @@ from .board_guards import validate_board_host as _validate_board_host  # noqa: E
 from .board_guards import (  # noqa: E402
     validate_board_host_is_local_network as _validate_board_host_is_local_network,
 )
-from .board_send_executor import run_board_preview, run_board_send  # noqa: E402
+from .board_send_executor import run_board_send  # noqa: E402
 from .collections.models import is_collection_id  # noqa: E402
 from .collections.service import (  # noqa: E402
     get_collection_service,
@@ -113,8 +113,6 @@ from .paths import get_data_dir  # noqa: E402, F401  (re-export: patch seam)
 from .schedules.service import get_schedule_service  # noqa: E402, F401
 from .settings.service import VALID_OUTPUT_TARGETS, VALID_STRATEGIES, get_settings_service  # noqa: E402
 from .settings.service import temporary_override_payload as _temporary_override_payload  # noqa: E402
-from .templates.engine import get_template_engine  # noqa: E402
-from .templates.expressions import function_signatures  # noqa: E402
 from .text_to_board import text_to_board_array  # noqa: E402
 from .time_service import reset_time_service  # noqa: E402
 

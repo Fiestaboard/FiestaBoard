@@ -20,7 +20,7 @@ from fastapi import APIRouter, HTTPException
 from src.api_errors import errors
 from src.board_client import board_client_from_board_dict
 from src.board_guards import _board_is_paused, _require_board
-from src.board_send_executor import run_board_send
+from src.board_send_executor import run_board_preview
 from src.devices import resolve_dimensions
 from src.plugins.registry import get_plugin_registry
 from src.settings.service import get_settings_service
@@ -280,7 +280,10 @@ async def render_template_live(request: TemplateRenderLiveRequest):
                 if isinstance(live_strategy, str) and live_strategy.startswith(TRANSITION_PLUGIN_PREFIX):
                     live_strategy = None
                 try:
-                    success, was_sent = await run_board_send(
+                    # Live-editor previews get their own bounded pool (#1878):
+                    # rapid-fire keystroke sends must not occupy the workers
+                    # /refresh, /force-refresh and POST /pages/{id}/send need.
+                    success, was_sent = await run_board_preview(
                         client.send_characters,
                         board_array,
                         strategy=live_strategy,
