@@ -118,6 +118,9 @@ export interface PanelPublicConfig extends Panel {
 export interface HdmiKioskStatus {
   supported: boolean;
   status: "unsupported" | "unknown" | "in_progress" | "enabled" | "disabled" | "failed";
+  // Always present; null when the platform cannot report one (no sidecar,
+  // not a FiestaPi), so "off" and "unknown" stay distinguishable.
+  enabled: boolean | null;
   action?: string;
   error?: string;
 }
@@ -349,7 +352,7 @@ export const boardsApi = {
     }),
   getHdmiKiosk: () => fetchApi<HdmiKioskStatus>("/settings/hdmi-kiosk"),
   setHdmiKiosk: (enabled: boolean) =>
-    fetchApi<{ status: string; action?: string }>("/settings/hdmi-kiosk", {
+    fetchApi<{ status: string; action: string | null }>("/settings/hdmi-kiosk", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ enabled }),

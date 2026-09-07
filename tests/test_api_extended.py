@@ -143,6 +143,10 @@ def mock_settings_service():
             "reduce_motion": False,
             "board_animations": "on",
             "site_animations": "on",
+            # Added with the conventions pass: DisplaySettings has carried
+            # board_flap_speed since #1550, and the response_model on
+            # GET /settings/all now validates it. This stub had drifted.
+            "board_flap_speed": "standard",
         }
         ss.get_display_settings.return_value = display
 
@@ -154,7 +158,10 @@ def mock_settings_service():
 
         beta = Mock()
         beta.https_enabled = False
-        beta.to_dict.return_value = {"https_enabled": False}
+        # transition_plugins_enabled added with the conventions pass: the
+        # field has existed since the transition-plugin beta, and the
+        # response_model now validates it.
+        beta.to_dict.return_value = {"https_enabled": False, "transition_plugins_enabled": False}
         ss.get_beta_settings.return_value = beta
         ss.update_beta_settings.return_value = beta
 
@@ -768,6 +775,7 @@ class TestSettingsEndpoints:
             "reduce_motion": False,
             "board_animations": "on",
             "site_animations": "on",
+            "board_flap_speed": "standard",
         }
         assert "status" in data
 

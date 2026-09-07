@@ -86,10 +86,11 @@ class TestAiProviders:
         assert body["enabled"] is True
         assert client.get("/settings/ai").json()["enabled"] is True
 
-    def test_put_rejects_a_non_object_body_with_400(self, client):
+    def test_put_rejects_a_non_object_body(self, client):
         response = client.put("/settings/ai", json=["not", "an", "object"])
-        assert response.status_code == 400
-        assert response.json() == {"detail": "Body must be a JSON object."}
+        # CHANGED (conventions, typed_body): FastAPI's 422 replaces the
+        # hand-rolled 400 {"detail": "Body must be a JSON object."}.
+        assert response.status_code == 422
 
     def test_test_endpoint_400s_when_no_provider_is_configured(self, client):
         response = client.post("/settings/ai/test", json={})
@@ -626,7 +627,9 @@ class TestBeta:
             response = client.put("/settings/beta", json={"transition_plugins_enabled": True})
         assert response.status_code == 200
         body = response.json()
-        assert body["status"] == "success"
+        # CHANGED (conventions, bare bodies): "status" dropped. There is no
+        # "cert_error" key any more either — a certificate failure is now a
+        # 500, so a 200 body never has to carry one.
         assert body["settings"]["transition_plugins_enabled"] is True
         assert body["restart_required"] is False
         assert "cert_error" not in body
@@ -642,16 +645,20 @@ class TestBeta:
         assert generate.call_count == 1
         assert response.json()["restart_required"] is True
 
-    def test_put_reports_a_certificate_generation_failure(self, client):
+    def test_put_500s_when_certificate_generation_fails(self, client):
         with (
             patch("src.system.https_certs.generate_cert", side_effect=OSError("boom")),
             patch("src.api_server._updater_token", return_value=""),
             patch("src.api_server._updater_probe", return_value=False),
         ):
             response = client.put("/settings/beta", json={"https_enabled": True})
-        assert response.status_code == 200
-        assert response.json()["status"] == "warning"
-        assert response.json()["cert_error"] == "Certificate generation failed — check the server logs for details."
+        # CHANGED (conventions, no_200_on_failure): was 200 with
+        # {"status": "warning", "cert_error": "..."} — the user asked for
+        # HTTPS, did not get it, and the API answered success. The preference
+        # is still persisted before the raise (asserted below), so the next
+        # container start honours the choice.
+        assert response.status_code == 500
+        assert response.json() == {"detail": "Certificate generation failed — check the server logs for details."}
         with (
             patch("src.api_server._updater_token", return_value=""),
             patch("src.api_server._updater_probe", return_value=False),
@@ -743,7 +750,9 @@ class TestHdmiKiosk:
     def test_get_reports_unsupported_off_a_fiestapi_install(self, client):
         with patch("src.api_server._fiestaboard_profile", return_value="docker"):
             body = client.get("/settings/hdmi-kiosk").json()
-        assert body == {"supported": False, "status": "unsupported"}
+        # CHANGED (conventions): "enabled" is now always present, null when
+        # the platform cannot report one, rather than absent in this branch.
+        assert body == {"supported": False, "status": "unsupported", "enabled": None}
 
     def test_get_passes_through_the_sidecar_status(self, client):
         sidecar = Mock(status_code=200)
@@ -766,13 +775,15 @@ class TestHdmiKiosk:
 
     def test_post_without_enabled_is_rejected(self, client):
         response = client.post("/settings/hdmi-kiosk", json={})
-        assert response.status_code == 400
-        assert response.json() == {"detail": "enabled (boolean) is required"}
+        # CHANGED (conventions, typed_body): FastAPI's 422 replaces the
+        # hand-rolled 400 {"detail": "enabled (boolean) is required"}.
+        assert response.status_code == 422
 
     def test_post_refuses_a_non_boolean_enabled_value(self, client):
         response = client.post("/settings/hdmi-kiosk", json={"enabled": "yes"})
-        assert response.status_code == 400
-        assert response.json() == {"detail": "enabled (boolean) is required"}
+        # CHANGED (conventions, StrictBool): "yes" must not become True and
+        # install a kiosk. 422 replaces the hand-rolled 400.
+        assert response.status_code == 422
 
     def test_post_409s_when_the_sidecar_predates_the_hdmi_verbs(self, client):
         with (

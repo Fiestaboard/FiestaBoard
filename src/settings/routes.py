@@ -33,7 +33,7 @@ from datetime import UTC
 from typing import Any
 
 import requests
-from fastapi import APIRouter, HTTPException, Request
+from fastapi import APIRouter, HTTPException
 
 from src.board_send_executor import run_board_send
 from src.devices import classify_dimensions
@@ -47,6 +47,14 @@ from .models import (
     ERROR_502,
     ActivePageResponse,
     AddBoardRequest,
+    AiProvidersResponse,
+    AiProvidersUpdate,
+    AiTestRequest,
+    AiTestResponse,
+    AllSettingsResponse,
+    BetaSettingsResponse,
+    BetaSettingsUpdate,
+    BetaSettingsUpdateResponse,
     BoardIdentifyRequest,
     BoardIdentifyResponse,
     BoardPauseRequest,
@@ -57,8 +65,13 @@ from .models import (
     DetectBoardSizeResponse,
     DisplaySettingsResponse,
     DisplaySettingsUpdate,
+    HdmiKioskActionResponse,
+    HdmiKioskRequest,
+    HdmiKioskStatusResponse,
     LocationSettingsResponse,
     LocationSettingsUpdate,
+    MqttSettingsResponse,
+    MqttSettingsUpdate,
     OutputSettings,
     OutputSettingsResponse,
     OutputSettingsUpdate,
@@ -149,7 +162,7 @@ text_to_board_array = _seam("text_to_board_array")
 board_client_from_board_dict = _seam("board_client_from_board_dict")
 
 
-@router.get("/settings/mqtt")
+@router.get("/settings/mqtt", response_model=MqttSettingsResponse)
 async def get_mqtt_settings():
     """Return current MQTT integration settings (password masked)."""
     from .service import get_settings_service
@@ -158,32 +171,31 @@ async def get_mqtt_settings():
     return s.to_dict(mask_secrets=True)
 
 
-@router.put("/settings/mqtt")
-async def update_mqtt_settings(request: Request):
+@router.put("/settings/mqtt", response_model=MqttSettingsResponse, responses={**ERROR_422})
+async def update_mqtt_settings(request: MqttSettingsUpdate):
     """Save MQTT settings and immediately apply them.
 
     Enables or disables the live MQTT client based on the *enabled* flag.
     Supply only the fields you want to change; omitted fields keep their current
     values.  Password is only updated when a non-empty, non-masked value is sent.
     """
-    body = await request.json()
     from .service import get_settings_service
 
     svc = get_settings_service()
-    updated = svc.set_mqtt_settings(body)
+    updated = svc.set_mqtt_settings(request.model_dump(exclude_unset=True))
     _apply_mqtt_config(updated)
     return updated.to_dict(mask_secrets=True)
 
 
-@router.get("/settings/ai")
+@router.get("/settings/ai", response_model=AiProvidersResponse)
 async def get_ai_settings():
     """Return AI provider configuration with each provider's api_key masked."""
     cm = get_config_manager()
     return cm.get_ai_providers_masked()
 
 
-@router.put("/settings/ai")
-async def update_ai_settings(request: Request):
+@router.put("/settings/ai", response_model=AiProvidersResponse, responses={**ERROR_422})
+async def update_ai_settings(request: AiProvidersUpdate):
     """Update AI provider configuration.
 
     Body may include any of:
@@ -197,18 +209,16 @@ async def update_ai_settings(request: Request):
     keep their existing key on update, matching the rest of FiestaBoard's
     masked-secret pattern.
     """
-    try:
-        body = await request.json()
-    except Exception as exc:
-        raise HTTPException(status_code=400, detail=f"Invalid JSON: {exc}") from exc
-    if not isinstance(body, dict):
-        raise HTTPException(status_code=400, detail="Body must be a JSON object.")
     cm = get_config_manager()
-    return cm.set_ai_providers(body)
+    return cm.set_ai_providers(request.model_dump(exclude_unset=True))
 
 
-@router.post("/settings/ai/test")
-async def test_ai_provider(request: Request):
+@router.post(
+    "/settings/ai/test",
+    response_model=AiTestResponse,
+    responses={**ERROR_400, **ERROR_404},
+)
+async def test_ai_provider(request: AiTestRequest):
     """Send a tiny smoke-test request to a configured provider.
 
     Body: ``{provider_id?: str, model?: str, provider?: dict}``. When
@@ -217,13 +227,9 @@ async def test_ai_provider(request: Request):
     A masked ``api_key`` (``"***"``) is resolved to the stored key by
     ``provider_id``. Otherwise the persisted provider is loaded by id.
     """
-    try:
-        body = await request.json()
-    except Exception:
-        body = {}
-    provider_id = body.get("provider_id") if isinstance(body, dict) else None
-    model = body.get("model") if isinstance(body, dict) else None
-    draft = body.get("provider") if isinstance(body, dict) else None
+    provider_id = request.provider_id
+    model = request.model
+    draft = request.provider
 
     cm = get_config_manager()
 
@@ -1335,7 +1341,7 @@ def _beta_https_status() -> dict[str, Any]:
     }
 
 
-@router.get("/settings/beta")
+@router.get("/settings/beta", response_model=BetaSettingsResponse)
 async def get_beta_settings():
     """Get opt-in beta-feature settings + runtime status."""
     settings_service = get_settings_service()
@@ -1347,8 +1353,12 @@ async def get_beta_settings():
     }
 
 
-@router.put("/settings/beta")
-async def update_beta_settings(request: dict):
+@router.put(
+    "/settings/beta",
+    response_model=BetaSettingsUpdateResponse,
+    responses={**ERROR_422, **ERROR_500},
+)
+async def update_beta_settings(request: BetaSettingsUpdate):
     """Update beta-feature settings.
 
     Body may include:
@@ -1366,24 +1376,29 @@ async def update_beta_settings(request: dict):
 
     Returns the updated settings, the cert status, and a hint about
     whether a restart is required for the change to take effect.
+
+    Certificate generation failing is a 500, not a 200 with a warning: the
+    user asked for HTTPS and did not get it. The preference is persisted
+    first either way, so the next container start (or a manual cert drop)
+    still honours the choice, and the message stays generic — the raw
+    exception can carry paths and config internals (CodeQL
+    py/stack-trace-exposure).
     """
     from src.system import https_certs
 
+    provided = request.model_dump(exclude_unset=True)
     settings_service = get_settings_service()
     previous = settings_service.get_beta_settings().https_enabled
-    requested = request.get("https_enabled", previous) if isinstance(request, dict) else previous
+    requested = provided.get("https_enabled", previous)
 
     cert_error: str | None = None
-    if "https_enabled" in (request or {}):
+    if "https_enabled" in provided:
         if requested and not previous:
             # User just turned HTTPS on -> generate cert eagerly so nginx
-            # finds it on the next restart. Failure here shouldn't block
-            # persisting the user's preference, but we surface the error.
+            # finds it on the next restart.
             try:
                 await asyncio.to_thread(https_certs.generate_cert)
-            except Exception:  # noqa: BLE001 - report to caller
-                # Full detail stays in the server log; the raw exception can
-                # carry paths/config internals (CodeQL py/stack-trace-exposure).
+            except Exception:  # noqa: BLE001 - reported as a 500 below
                 logger.exception("Failed to generate HTTPS certificate")
                 cert_error = "Certificate generation failed — check the server logs for details."
         elif previous and not requested:
@@ -1394,23 +1409,22 @@ async def update_beta_settings(request: dict):
             except Exception as e:  # noqa: BLE001
                 logger.warning("Failed to remove HTTPS certificate: %s", e)
 
-    updated = settings_service.update_beta_settings(request or {})
+    updated = settings_service.update_beta_settings(provided)
+
+    if cert_error:
+        # The preference above is already persisted; the failure is still a
+        # failure and must not be served as a 200.
+        raise HTTPException(status_code=500, detail=cert_error)
+
     status = await asyncio.to_thread(_beta_https_status)
 
     # A restart is required whenever the on/off state changed, since
     # nginx only re-reads its config on container start.
-    restart_required = updated.https_enabled != previous
-
-    response: dict[str, Any] = {
-        "status": "success",
+    return {
         "settings": updated.to_dict(),
         "https": status,
-        "restart_required": restart_required,
+        "restart_required": updated.https_enabled != previous,
     }
-    if cert_error:
-        response["status"] = "warning"
-        response["cert_error"] = cert_error
-    return response
 
 
 @router.get("/settings/plugins", response_model=PluginSettingsResponse)
@@ -1435,7 +1449,7 @@ async def update_plugin_settings(request: PluginSettingsUpdate):
     return updated.to_dict()
 
 
-@router.get("/settings/all")
+@router.get("/settings/all", response_model=AllSettingsResponse)
 async def get_all_settings():
     """
     Get all settings in a single request.
@@ -1494,12 +1508,17 @@ def _hdmi_kiosk_supported() -> bool:
     return _fiestaboard_profile() == "pi" and _updater_probe()
 
 
-@router.get("/settings/hdmi-kiosk")
+@router.get("/settings/hdmi-kiosk", response_model=HdmiKioskStatusResponse)
 async def get_hdmi_kiosk_status():
-    """Status of the FiestaPi HDMI kiosk (Settings → FiestaPanel UI)."""
+    """Status of the FiestaPi HDMI kiosk (Settings → FiestaPanel UI).
+
+    ``enabled`` is always present — null where the platform cannot report one
+    — so a client can tell "off" from "unknown" without inspecting which keys
+    arrived.
+    """
     if not _hdmi_kiosk_supported():
-        return {"supported": False, "status": "unsupported"}
-    status: dict = {"status": "unknown"}
+        return {"supported": False, "status": "unsupported", "enabled": None}
+    status: dict = {"status": "unknown", "enabled": None}
     try:
         resp = requests.get(f"{_updater_url()}/hdmi/status", timeout=3)
         if resp.status_code == 200:
@@ -1511,22 +1530,28 @@ async def get_hdmi_kiosk_status():
     return {"supported": True, **status}
 
 
-@router.post("/settings/hdmi-kiosk")
-async def set_hdmi_kiosk(request: dict):
+@router.post(
+    "/settings/hdmi-kiosk",
+    response_model=HdmiKioskActionResponse,
+    responses={**ERROR_400, **ERROR_409, **ERROR_422, **ERROR_502},
+)
+async def set_hdmi_kiosk(request: HdmiKioskRequest):
     """Enable or disable the HDMI kiosk on this FiestaPi.
 
     Proxies to the sidecar's fixed /hdmi/enable | /hdmi/disable verbs; the
     sidecar performs the host-side install through its Docker socket. Body:
     ``{"enabled": bool}``.
+
+    ``enabled`` is a ``StrictBool``: the handler used to hand-roll
+    ``isinstance(x, bool)`` so ``"yes"`` could not install a kiosk, and a
+    plain ``bool`` field would have undone that.
     """
-    if "enabled" not in request or not isinstance(request["enabled"], bool):
-        raise HTTPException(status_code=400, detail="enabled (boolean) is required")
     if not _hdmi_kiosk_supported():
         raise HTTPException(
             status_code=400,
             detail="HDMI kiosk controls are only available on FiestaPi installs with the updater sidecar",
         )
-    verb = "enable" if request["enabled"] else "disable"
+    verb = "enable" if request.enabled else "disable"
     try:
         resp = requests.post(
             f"{_updater_url()}/hdmi/{verb}",

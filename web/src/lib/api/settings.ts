@@ -75,11 +75,9 @@ export interface BetaSettingsResponse {
 }
 
 export interface BetaSettingsUpdateResponse {
-  status: string;
   settings: BetaSettings;
   https: BetaHttpsStatus;
   restart_required: boolean;
-  cert_error?: string;
 }
 
 export interface LocationSettings {

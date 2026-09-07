@@ -53,7 +53,7 @@ def test_put_beta_enable_https_generates_cert_and_requests_restart(tmp_path, mon
 
     assert response.status_code == 200
     body = response.json()
-    assert body["status"] == "success"
+    # "status" dropped by the conventions pass (Phase 2, Task 8).
     assert body["settings"]["https_enabled"] is True
     assert body["restart_required"] is True
     gen.assert_called_once()
@@ -106,7 +106,7 @@ def test_put_beta_no_change_does_not_request_restart(tmp_path, monkeypatch):
     rm.assert_not_called()
 
 
-def test_put_beta_cert_generation_failure_returns_warning(tmp_path, monkeypatch):
+def test_put_beta_cert_generation_failure_500s(tmp_path, monkeypatch):
     _reset_beta_state()
     monkeypatch.setenv("FIESTABOARD_CERT_DIR", str(tmp_path))
 
@@ -120,13 +120,18 @@ def test_put_beta_cert_generation_failure_returns_warning(tmp_path, monkeypatch)
     ):
         response = client.put("/settings/beta", json={"https_enabled": True})
 
-    assert response.status_code == 200
-    body = response.json()
-    # The setting still toggles (we don't hide the user's intent), but
-    # we surface a cert error so the UI can show it.
-    assert body["status"] == "warning"
-    assert body["settings"]["https_enabled"] is True
-    assert body["cert_error"]
+    # 500 since the conventions pass (Phase 2, Task 8): the user asked for
+    # HTTPS and did not get it, so it is not a success. The preference still
+    # toggles — we don't hide the user's intent — which is what the follow-up
+    # GET asserts.
+    assert response.status_code == 500
+    assert response.json()["detail"]
+
+    with (
+        patch("src.api_server._updater_token", return_value=""),
+        patch("src.api_server._updater_probe", return_value=False),
+    ):
+        assert client.get("/settings/beta").json()["settings"]["https_enabled"] is True
     _reset_beta_state()
 
 
@@ -146,11 +151,9 @@ def test_put_beta_cert_generation_failure_does_not_leak_exception_text(tmp_path,
     ):
         response = client.put("/settings/beta", json={"https_enabled": True})
 
-    assert response.status_code == 200
+    assert response.status_code == 500
     assert "SECRET_INTERNAL_XYZ" not in response.text
-    body = response.json()
-    assert body["status"] == "warning"
-    assert body["cert_error"] == "Certificate generation failed — check the server logs for details."
+    assert response.json() == {"detail": "Certificate generation failed — check the server logs for details."}
     _reset_beta_state()
 
 

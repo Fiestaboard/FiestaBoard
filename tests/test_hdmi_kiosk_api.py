@@ -25,7 +25,9 @@ class TestHdmiKioskStatus:
         ):
             response = client.get("/settings/hdmi-kiosk")
         assert response.status_code == 200
-        assert response.json() == {"supported": False, "status": "unsupported"}
+        # `enabled` is always present since the conventions pass (Phase 2,
+        # Task 8), null when the platform cannot report one.
+        assert response.json() == {"supported": False, "status": "unsupported", "enabled": None}
 
     def test_unsupported_without_sidecar(self, client):
         with (
@@ -34,7 +36,7 @@ class TestHdmiKioskStatus:
         ):
             response = client.get("/settings/hdmi-kiosk")
         assert response.status_code == 200
-        assert response.json() == {"supported": False, "status": "unsupported"}
+        assert response.json() == {"supported": False, "status": "unsupported", "enabled": None}
 
     def test_supported_merges_sidecar_status(self, client):
         sidecar = Mock(status_code=200)
@@ -117,4 +119,5 @@ class TestHdmiKioskToggle:
     def test_missing_enabled_field_is_rejected(self, client):
         with patch("src.api_server._fiestaboard_profile", return_value="pi"):
             response = client.post("/settings/hdmi-kiosk", json={})
-        assert response.status_code == 400
+        # 422 since the conventions pass typed the body (Phase 2, Task 8).
+        assert response.status_code == 422

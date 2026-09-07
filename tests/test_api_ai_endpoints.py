@@ -132,7 +132,9 @@ def test_put_ai_settings_preserves_key_when_mask_is_resent(client, reset_config_
 
 def test_put_ai_settings_rejects_non_object_body(client):
     res = client.put("/settings/ai", json=["not", "an", "object"])
-    assert res.status_code == 400
+    # 422 since the conventions pass typed the body (Phase 2, Task 8); the
+    # hand-rolled 400 "Body must be a JSON object." is gone.
+    assert res.status_code == 422
 
 
 # ---------------------------------------------------------------------------

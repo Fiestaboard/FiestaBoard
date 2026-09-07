@@ -61,10 +61,6 @@ export function BetaSettings() {
     onSuccess: (resp, variables) => {
       queryClient.invalidateQueries({ queryKey: ["settings", "beta"] });
       queryClient.invalidateQueries({ queryKey: ["settings", "all"] });
-      if (resp.cert_error) {
-        toast.error(t("certErrorToast", { error: resp.cert_error }));
-        return;
-      }
       if (resp.restart_required) {
         setRestartPrompt(variables ? "enabled" : "disabled");
       } else {

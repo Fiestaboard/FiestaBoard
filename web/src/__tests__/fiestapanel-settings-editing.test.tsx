@@ -52,7 +52,10 @@ function Wrapper({ children }: { children: React.ReactNode }) {
   return <QueryClientProvider client={client}>{children}</QueryClientProvider>;
 }
 
-function mockList(panels: Panel[] = [PANEL], hdmi: object = { supported: false, status: "unsupported" }) {
+function mockList(
+  panels: Panel[] = [PANEL],
+  hdmi: object = { supported: false, status: "unsupported", enabled: null },
+) {
   server.use(
     http.get("/api/panels", () => HttpResponse.json({ panels, total: panels.length })),
     http.get("/api/settings/hdmi-kiosk", () => HttpResponse.json(hdmi)),
@@ -199,7 +202,7 @@ describe("FiestaPanelSettings — HDMI install kickoff", () => {
     // The sidecar responds "queued" but the status query still reports
     // "disabled" for a while (apt install hasn't started). The switch must
     // not snap back to off with the install running invisibly.
-    mockList([PANEL], { supported: true, status: "disabled" });
+    mockList([PANEL], { supported: true, status: "disabled", enabled: false });
     server.use(
       http.post("/api/settings/hdmi-kiosk", () => HttpResponse.json({ status: "queued", action: "hdmi_enable" })),
     );

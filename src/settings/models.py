@@ -94,16 +94,18 @@ class AiTestRequest(BaseModel):
 class AiTestResponse(BaseModel):
     """Verdict of a provider smoke test.
 
-    ``success`` false at HTTP 200 is the documented probe exception
+    ``ok`` false at HTTP 200 is the documented probe exception
     (API_CONVENTIONS.md, "Probe endpoints"): the caller asked for a verdict
-    about a third-party endpoint, and "your key was rejected" is the payload,
-    not a transport failure.
+    about a third-party endpoint it named, "your key was rejected" is the
+    payload rather than a transport failure, and the verdict arrives as this
+    declared model rather than an ad-hoc dict. Anything the server rejects
+    *before* probing (no providers configured, unknown provider id) is a real
+    4xx.
     """
 
-    model_config = ConfigDict(extra="allow")
-
-    success: bool
-    error: str | None = None
+    ok: bool
+    message: str
+    model_used: str | None = None
 
 
 # ---------------------------------------------------------------------------
