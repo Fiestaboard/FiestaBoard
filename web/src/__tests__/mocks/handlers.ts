@@ -74,18 +74,6 @@ export const mockWeatherDisplay: DisplayResponse = {
   available: true,
 };
 
-export const mockWeatherRaw: DisplayRawResponse = {
-  display_type: "weather",
-  data: {
-    temperature: 72,
-    condition: "Sunny",
-    location: "San Francisco",
-    humidity: 45,
-  },
-  available: true,
-  error: null,
-};
-
 export const mockTransitionSettings: TransitionSettings = {
   strategy: "column",
   step_interval_ms: 500,
@@ -385,18 +373,21 @@ export const handlers = [
     return HttpResponse.json({ displays });
   }),
 
+  // GET /displays/:type/raw is retired (410 Gone) — the app calls
+  // GET /plugins/:id/data instead (see integrations._index.tsx).
   http.get(`${API_BASE}/displays/:type/raw`, ({ params }) => {
     const { type } = params;
-    if (type === "weather") {
-      return HttpResponse.json(mockWeatherRaw);
-    }
-    const response: DisplayRawResponse = {
-      display_type: String(type),
-      data: {},
-      available: true,
-      error: null,
-    };
-    return HttpResponse.json(response);
+    const successor = `/plugins/${type}/data`;
+    return HttpResponse.json(
+      { detail: `GET /displays/${type}/raw has been retired. Use GET ${successor} instead.` },
+      {
+        status: 410,
+        headers: {
+          Deprecation: "true",
+          Link: `<${successor}>; rel="successor-version"`,
+        },
+      },
+    );
   }),
 
   http.post(`${API_BASE}/displays/:type/send`, ({ params }) => {
@@ -766,6 +757,20 @@ export const handlers = [
       max_lengths: {},
       env_vars: [],
       documentation: "",
+    });
+  }),
+
+  // Successor to the retired GET /displays/:type/raw. Returns the plugin's
+  // pre-formatting payload; the config sheet's Template Variables table reads
+  // `data` from here.
+  http.get(`${API_BASE}/plugins/:pluginId/data`, ({ params }) => {
+    const { pluginId } = params;
+    return HttpResponse.json({
+      plugin_id: String(pluginId),
+      available: true,
+      data: pluginId === "weather" ? { temperature: 72, condition: "Sunny" } : {},
+      formatted_lines: [],
+      error: null,
     });
   }),
 

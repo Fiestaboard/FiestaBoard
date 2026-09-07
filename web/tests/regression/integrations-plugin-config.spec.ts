@@ -238,7 +238,7 @@ test.describe("regression: integrations.plugin (config sheet + lifecycle)", () =
    * Route: /integrations (sheet)
    * Preconditions: plugin:enabled, plugin:exposes-variables
    * Expected: Template Variables table shows a "Current Value" column populated
-   *   with the live value returned by /displays/{plugin}/raw.
+   *   with the live value returned by /plugins/{plugin}/data.
    * Issue: https://github.com/Fiestaboard/FiestaBoard/issues/936
    */
   test("integrations.plugin.config-sheet.template-vars — Current Value column shows live value", async ({ page }) => {
@@ -262,7 +262,7 @@ test.describe("regression: integrations.plugin (config sheet + lifecycle)", () =
     await expect(timeRow).toBeVisible({ timeout: 5_000 });
 
     // The "Current Value" cell is the 3rd column. Wait until it renders the live
-    // value — date_time.time always contains a digit (HH:MM). The displays-raw
+    // value — date_time.time always contains a digit (HH:MM). The plugin-data
     // endpoint can take a moment to warm up on a cold container, so allow 30s.
     const valueCell = timeRow.locator("td").nth(2);
     await expect(valueCell).toContainText(/\d/, { timeout: 30_000 });
@@ -309,19 +309,16 @@ test.describe("regression: integrations.plugin (config sheet + lifecycle)", () =
    * Issue: https://github.com/Fiestaboard/FiestaBoard/issues/936
    */
   test("integrations.plugin.config-sheet.template-vars — handles unconfigured plugin gracefully", async ({ page }) => {
-    // Simulate an unconfigured plugin: the raw-display endpoint reports the
-    // plugin's data isn't available. This is what a plugin like `weather`
-    // returns when its API key isn't set.
-    await page.route(`**/api/displays/${TEST_PLUGIN_ID}/raw`, async (route) => {
+    // Simulate an unconfigured plugin: the plugin-data endpoint answers 503
+    // when a plugin can't produce data. This is what a plugin like `weather`
+    // returns when its API key isn't set. (The retired /displays/{id}/raw
+    // endpoint used to return 200 {available:false}; the successor signals it
+    // with an error status instead.)
+    await page.route(`**/api/plugins/${TEST_PLUGIN_ID}/data`, async (route) => {
       await route.fulfill({
-        status: 200,
+        status: 503,
         contentType: "application/json",
-        body: JSON.stringify({
-          display_type: TEST_PLUGIN_ID,
-          data: {},
-          available: false,
-          error: "Plugin not configured",
-        }),
+        body: JSON.stringify({ detail: "Plugin not configured" }),
       });
     });
 

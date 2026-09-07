@@ -4763,37 +4763,45 @@ async def get_display(display_type: str):
     }
 
 
-# Deprecated: use /plugins/{plugin_id}/data instead
-@app.get("/displays/{display_type}/raw")
-async def get_display_raw(display_type: str, response: Response):
+# Retired: superseded by GET /plugins/{plugin_id}/data. See issue #1911 and
+# docs/internal/development/API_MIGRATION.md. The endpoint carried a
+# `Deprecation: true` + successor-version `Link` header pair through its
+# deprecation window; it now answers 410 Gone rather than serving data, so
+# external integrations that never migrated get an explicit, self-describing
+# signal (successor Link + Sunset date) instead of a bare 404 on some later
+# route reshuffle.
+#
+# The old data path returned 503 for an unknown display_type, conflating
+# "you asked for something that does not exist" with "the source is down".
+# The successor GET /plugins/{plugin_id}/data does not inherit that: it
+# answers 404 for an unknown plugin, 400 for a disabled one, and reserves 503
+# for a genuinely unavailable source. 404-for-unknown is the correct contract,
+# so nothing is carried over here.
+_DISPLAY_RAW_SUNSET = "Sun, 07 Sep 2026 00:00:00 GMT"
+
+
+@app.get("/displays/{display_type}/raw", deprecated=True)
+async def get_display_raw(display_type: str):
     """
-    Deprecated: Use /plugins/{plugin_id}/data instead.
+    Retired. Use GET /plugins/{plugin_id}/data instead.
 
-    Get raw data from a display source (before formatting).
-
-    This is useful for debugging or building custom displays.
-
-    Args:
-        display_type: Plugin ID (e.g., weather, datetime, stocks)
-
-    Returns:
-        Raw data dictionary from the source.
+    Superseded by the plugin data endpoint, which serves the same
+    pre-formatting payload with the plugin system's own error contract.
+    This route now answers 410 Gone.
     """
-    response.headers["Deprecation"] = "true"
-    response.headers["Link"] = f'</plugins/{display_type}/data>; rel="successor-version"'
-
-    display_service = get_display_service()
-    result = display_service.get_display(display_type)
-
-    if not result.available and result.error:
-        raise HTTPException(status_code=503, detail=result.error)
-
-    return {
-        "display_type": result.display_type,
-        "data": result.raw,
-        "available": result.available,
-        "error": result.error,
-    }
+    successor = f"/plugins/{display_type}/data"
+    raise HTTPException(
+        status_code=410,
+        detail=(
+            f"GET /displays/{display_type}/raw has been retired. "
+            f"Use GET {successor} instead."
+        ),
+        headers={
+            "Deprecation": "true",
+            "Sunset": _DISPLAY_RAW_SUNSET,
+            "Link": f'<{successor}>; rel="successor-version"',
+        },
+    )
 
 
 @app.post("/displays/raw/batch")

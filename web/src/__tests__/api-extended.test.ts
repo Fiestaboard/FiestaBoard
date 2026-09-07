@@ -54,12 +54,6 @@ describe("API Extended Tests", () => {
       expect(result.lines).toBeDefined();
     });
 
-    it("getDisplayRaw returns raw data", async () => {
-      const result = await api.getDisplayRaw("weather");
-      expect(result.display_type).toBe("weather");
-      expect(result.data).toBeDefined();
-    });
-
     it("getDisplaysRawBatch sends display_types and enabled_only", async () => {
       let capturedBody: any;
       server.use(

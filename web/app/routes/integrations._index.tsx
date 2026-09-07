@@ -1062,12 +1062,25 @@ function InstalledPluginRow({
     data: rawDisplay,
     isLoading: isLoadingRawDisplay,
     isFetching: isFetchingRawDisplay,
+    isError: isRawDisplayError,
+    error: rawDisplayError,
   } = useQuery({
     queryKey: ["plugin-display-raw", plugin.id],
-    queryFn: () => api.getDisplayRaw(plugin.id),
+    queryFn: () => api.getPluginData(plugin.id),
     enabled: isConfigOpen && plugin.enabled,
     refetchInterval: 15_000,
+    // The successor GET /plugins/{id}/data raises (404/400/503) when a plugin
+    // can't produce data — where the retired /displays/{id}/raw returned
+    // 200 {available:false}. Don't retry a known-unavailable plugin three
+    // times per poll; surface it immediately as "live values unavailable".
+    retry: false,
   });
+
+  // Derive the "live values unavailable" state from the query error rather than
+  // an `available: false` flag: the successor endpoint signals unavailability
+  // with an error status, not an in-band flag.
+  const liveValuesUnavailable = plugin.enabled && isRawDisplayError;
+  const liveValuesError = rawDisplayError instanceof Error ? rawDisplayError.message : undefined;
 
   // Initialize config values when plugin details load. Seed schema defaults
   // for any keys the saved config doesn't already set, so fields with a
@@ -1185,7 +1198,7 @@ function InstalledPluginRow({
             </Text>
           ) : isLoadingRawDisplay ? (
             <Skeleton className="h-3 w-16" />
-          ) : rawDisplay && rawDisplay.available === false ? (
+          ) : liveValuesUnavailable ? (
             <Text as="span" tone="muted" className="italic">
               {t("valueUnavailable")}
             </Text>
@@ -1376,10 +1389,10 @@ function InstalledPluginRow({
                         {t("enablePluginForLiveValues")}
                       </Text>
                     )}
-                    {plugin.enabled && rawDisplay && rawDisplay.available === false && (
+                    {liveValuesUnavailable && (
                       <Text size="xs" tone="warning">
-                        {rawDisplay.error
-                          ? t("liveValuesUnavailableWithError", { error: rawDisplay.error })
+                        {liveValuesError
+                          ? t("liveValuesUnavailableWithError", { error: liveValuesError })
                           : t("liveValuesUnavailable")}
                       </Text>
                     )}

@@ -224,14 +224,6 @@ describe("API Contract Tests", () => {
       expect(typeof result.available).toBe("boolean");
     });
 
-    it("getDisplayRaw returns raw data", async () => {
-      const result = await api.getDisplayRaw("weather");
-
-      expect(result.display_type).toBe("weather");
-      expect(result.data).toBeDefined();
-      expect(typeof result.available).toBe("boolean");
-    });
-
     it("sendDisplay returns send result", async () => {
       const result = await api.sendDisplay("weather", "board");
 

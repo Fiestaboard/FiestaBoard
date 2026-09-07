@@ -1820,7 +1820,7 @@ export const api = {
   // Display endpoints
   getDisplays: () => fetchApi<DisplaysResponse>("/displays"),
   getDisplay: (type: string) => fetchApi<DisplayResponse>(`/displays/${type}`),
-  getDisplayRaw: (type: string) => fetchApi<DisplayRawResponse>(`/displays/${type}/raw`),
+  // GET /displays/{type}/raw is retired (410 Gone) — use getPluginData instead.
   getDisplaysRawBatch: (displayTypes: string[], enabledOnly?: boolean) =>
     fetchApi<DisplayRawBatchResponse>("/displays/raw/batch", {
       method: "POST",

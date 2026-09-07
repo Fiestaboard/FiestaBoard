@@ -6,14 +6,20 @@ This guide helps developers migrate from deprecated FiestaBoard API endpoints to
 
 ## Display Raw Data: `/displays/{display_type}/raw` → `/plugins/{plugin_id}/data`
 
-The `/displays/{display_type}/raw` endpoint is deprecated. Use `/plugins/{plugin_id}/data` instead.
+The `/displays/{display_type}/raw` endpoint has been **retired** (issue #1911). It no longer serves data — it answers `410 Gone` with a `Sunset` date and a `Link: rel="successor-version"` header pointing at `/plugins/{plugin_id}/data`. Use `/plugins/{plugin_id}/data` instead.
 
 ### GET - Retrieve plugin/display data
 
-**Deprecated (returns `Deprecation: true` header):**
+**Retired (answers `410 Gone`):**
 
 ```http
 GET /displays/{display_type}/raw
+```
+
+```json
+{
+  "detail": "GET /displays/weather/raw has been retired. Use GET /plugins/weather/data instead."
+}
 ```
 
 **Canonical:**
@@ -24,7 +30,7 @@ GET /plugins/{plugin_id}/data
 
 The `display_type` and `plugin_id` values are the same identifiers (e.g., `weather`, `date_time`, `stocks`).
 
-**Example — old endpoint:**
+**Example — old endpoint (former payload, before retirement):**
 
 ```http
 GET /displays/weather/raw
@@ -38,6 +44,8 @@ GET /displays/weather/raw
   "error": null
 }
 ```
+
+> **Note:** As of issue #1911 this call answers `410 Gone`; the payload above is what it returned before retirement, shown so you can map fields onto the successor's response.
 
 **Example — new endpoint:**
 
@@ -102,14 +110,15 @@ GET /plugins/weather/data
 
 ## Detecting Deprecation Headers
 
-Deprecated endpoints include the following HTTP response headers:
+The retired `/displays/{display_type}/raw` endpoint answers `410 Gone` and still carries these headers so integrations can detect the retirement programmatically:
 
 ```http
 Deprecation: true
+Sunset: Sun, 07 Sep 2026 00:00:00 GMT
 Link: </plugins/{plugin_id}/data>; rel="successor-version"
 ```
 
-The `Link` header value points at the canonical successor for that specific request — e.g. a call to `/displays/weather/raw` returns `Link: </plugins/weather/data>; rel="successor-version"`. Use these headers to detect deprecated calls in your integration code.
+The `Link` header value points at the canonical successor for that specific request — e.g. a call to `/displays/weather/raw` returns `Link: </plugins/weather/data>; rel="successor-version"`. Use these headers to route callers to the successor endpoint.
 
 ---
 

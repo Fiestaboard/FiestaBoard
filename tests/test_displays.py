@@ -189,37 +189,36 @@ class TestDisplayAPIEndpoints:
         assert response.status_code == 503
         assert "not configured" in response.json()["detail"]
 
-    def test_get_display_raw(self, client, mock_display_service):
-        """Test GET /displays/{type}/raw endpoint."""
-        mock_display_service.get_display.return_value = DisplayResult(
-            display_type="weather",
-            formatted="Sunny",
-            raw={"temperature": 72, "condition": "Sunny", "humidity": 45},
-            available=True,
-        )
-
+    def test_get_display_raw_is_retired_with_410(self, client):
+        """The retired raw endpoint answers 410 Gone instead of serving data."""
         response = client.get("/displays/weather/raw")
 
-        assert response.status_code == 200
-        data = response.json()
-        assert data["display_type"] == "weather"
-        assert data["data"]["temperature"] == 72
-        assert data["available"] is True
+        assert response.status_code == 410
+        assert "retired" in response.json()["detail"].lower()
 
-    def test_get_display_raw_invalid_type(self, client, mock_display_service):
-        """Test GET /displays/{type}/raw with invalid type returns 503."""
-        mock_display_service.get_display.return_value = DisplayResult(
-            display_type="invalid_type",
-            formatted="",
-            raw={},
-            available=False,
-            error="Unknown display type: invalid_type",
-        )
+    def test_get_display_raw_points_at_its_successor(self, client):
+        """410 response advertises the successor via Link + Sunset headers.
 
-        response = client.get("/displays/invalid_type/raw")
+        Third parties that never migrated off the endpoint get a
+        self-describing signal (successor-version Link + Sunset date) rather
+        than a bare 404.
+        """
+        response = client.get("/displays/weather/raw")
 
-        # Raw endpoint returns 503 for any unavailable display
-        assert response.status_code == 503
+        assert response.status_code == 410
+        assert response.headers["Deprecation"] == "true"
+        assert 'rel="successor-version"' in response.headers["Link"]
+        assert "/plugins/weather/data" in response.headers["Link"]
+        assert response.headers["Sunset"]
+
+    def test_get_display_raw_does_not_serve_data(self, client, mock_display_service):
+        """The retired route must not touch the display service or leak a payload."""
+        response = client.get("/displays/anything/raw")
+
+        assert response.status_code == 410
+        # Body is an error detail, not the old {display_type, data, ...} payload.
+        assert "data" not in response.json()
+        mock_display_service.get_display.assert_not_called()
 
 
 class TestDisplayServiceEdgeCases:
