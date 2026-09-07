@@ -17,20 +17,18 @@ import type {
   ChatTurnContext,
   CreateCollectionArgs,
   CreateScheduleArgs,
-  DeleteScheduleArgs,
   DisablePluginArgs,
   EnablePluginArgs,
   InstallPluginArgs,
+  SettingCategory,
   TaskItem,
   ToolCall,
   UninstallPluginArgs,
-  UpdateCollectionArgs,
   UpdatePluginArgs,
   UpdatePluginConfigArgs,
-  UpdateScheduleArgs,
   UpdateSettingArgs,
 } from "@/lib/ai-chat-types";
-import { type AISettings, api } from "@/lib/api";
+import { type AiOperationResult, type AISettings, api, type ScheduleEntry } from "@/lib/api";
 import { isChromelessPath } from "@/lib/chromeless";
 import { cn } from "@/lib/utils";
 
@@ -105,6 +103,86 @@ function buildToolResultText(call: ToolCall, success: boolean, errorMsg?: string
     default:
       return `[Tool result: ${(call as ToolCall).op} → ${status}.]`;
   }
+}
+
+// ---------------------------------------------------------------------------
+// Server-executed operations (Phase 2 Task 11)
+//
+// Every op listed here is executed by the server through
+// `POST /ai/operations` (src/ai/routes.py -> src/ops/registry.execute), which
+// runs the same canonical executor the MCP tools call. The browser's job is
+// confirmation UX, cache invalidation and the toast — not a second
+// implementation of the operation. Before this, the drawer dispatched each op
+// to a different REST endpoint itself, and had drifted from the executors in
+// three places (see tests/test_chat_op_http_parity.py).
+//
+// The ops NOT listed are the six the registry marks `client_side=True`:
+// replace_page and apply_patch edit the mounted editor, suggest_variables
+// surfaces a list, navigate_to_page / navigate_to_schedule route, and
+// update_task_list drives the task panel. They have no server effect and the
+// endpoint refuses them with a 400.
+//
+// tests/test_ops_wiring.py fails the build if this list and the registry
+// disagree, or if a server-executed op regrows a browser-side implementation.
+// ---------------------------------------------------------------------------
+
+const SERVER_EXECUTED_OPS = [
+  "create_collection",
+  "create_schedule",
+  "delete_schedule",
+  "disable_plugin",
+  "enable_plugin",
+  "install_plugin",
+  "trigger_system_update",
+  "uninstall_plugin",
+  "update_collection",
+  "update_plugin",
+  "update_plugin_config",
+  "update_schedule",
+  "update_setting",
+] as const;
+
+type ServerExecutedOp = (typeof SERVER_EXECUTED_OPS)[number];
+type ServerExecutedCall = ToolCall & { op: ServerExecutedOp };
+
+function isServerExecutedCall(call: ToolCall): call is ServerExecutedCall {
+  return (SERVER_EXECUTED_OPS as readonly string[]).includes(call.op);
+}
+
+/** Which cached queries each op invalidates — unchanged from the old handlers. */
+const OP_QUERY_KEYS: Record<Exclude<ServerExecutedOp, "update_setting">, readonly string[]> = {
+  create_collection: ["collections"],
+  create_schedule: ["schedules"],
+  delete_schedule: ["schedules"],
+  disable_plugin: ["plugins"],
+  enable_plugin: ["plugins"],
+  install_plugin: ["plugins"],
+  // A system update recreates the container; nothing local is worth refetching.
+  trigger_system_update: [],
+  uninstall_plugin: ["plugins"],
+  update_collection: ["collections"],
+  update_plugin: ["plugins"],
+  update_plugin_config: ["plugins"],
+  update_schedule: ["schedules"],
+};
+
+/** update_setting refreshes only the category it touched. */
+const SETTING_QUERY_KEY: Record<SettingCategory, string> = {
+  display: "display-settings",
+  transitions: "transition-settings",
+  output: "output-settings",
+  polling: "polling-settings",
+  location: "location-settings",
+  silence_schedule: "silence-schedule",
+  active_page: "active-page",
+};
+
+function queryKeysForOp(call: ServerExecutedCall): readonly string[] {
+  if (call.op === "update_setting") {
+    const key = SETTING_QUERY_KEY[(call.args as UpdateSettingArgs).category];
+    return key ? [key] : [];
+  }
+  return OP_QUERY_KEYS[call.op];
 }
 
 export function GlobalAiChatDrawer() {
@@ -297,103 +375,148 @@ export function GlobalAiChatDrawer() {
     };
   }, [pagesData, pluginsData, schedulesData, collectionsData, registryData, getEditorSnapshot]);
 
-  const handleCreateSchedule = useCallback(
-    async (args: CreateScheduleArgs) => {
-      const created = await api.createSchedule({
-        page_id: args.page_id,
-        start_time: args.start_time,
-        end_time: args.end_time ?? null,
-        day_pattern: args.day_pattern,
-        custom_days: args.custom_days ?? undefined,
-        enabled: args.enabled,
-      });
-      await queryClient.invalidateQueries({ queryKey: ["schedules"] });
-      toast.success("Schedule created.", {
-        action: {
-          label: "Undo",
-          onClick: () => {
-            void (async () => {
-              await api.deleteSchedule(created.id);
-              await queryClient.invalidateQueries({ queryKey: ["schedules"] });
-            })();
-          },
-        },
-        duration: 8000,
-      });
+  // ---------------------------------------------------------------------------
+  // Local UX after a server-executed op: the same toasts (and the same Undo
+  // affordances) the per-op handlers showed before execution moved server-side.
+  //
+  // Undo still goes over the plain REST client rather than the ops endpoint:
+  // the chat grammar's create_schedule has no `start_type` / `*_sun_offset`
+  // fields, so restoring a deleted sunrise/sunset schedule through it would
+  // silently downgrade the entry to a fixed clock time.
+  // ---------------------------------------------------------------------------
+  const showServerOpToast = useCallback(
+    (call: ServerExecutedCall, result: AiOperationResult, previousSchedule?: ScheduleEntry) => {
+      const refreshSchedules = () => queryClient.invalidateQueries({ queryKey: ["schedules"] });
+      switch (call.op) {
+        case "create_schedule": {
+          const createdId = result.result.schedule_id;
+          toast.success("Schedule created.", {
+            action:
+              typeof createdId === "string"
+                ? {
+                    label: "Undo",
+                    onClick: () => {
+                      void (async () => {
+                        await api.deleteSchedule(createdId);
+                        await refreshSchedules();
+                      })();
+                    },
+                  }
+                : undefined,
+            duration: 8000,
+          });
+          break;
+        }
+        case "update_schedule":
+          toast.success("Schedule updated.", {
+            action: previousSchedule
+              ? {
+                  label: "Undo",
+                  onClick: () => {
+                    void (async () => {
+                      await api.updateSchedule(previousSchedule.id, {
+                        page_id: previousSchedule.page_id,
+                        start_time: previousSchedule.start_time,
+                        end_time: previousSchedule.end_time ?? null,
+                        day_pattern: previousSchedule.day_pattern,
+                        custom_days: previousSchedule.custom_days,
+                        enabled: previousSchedule.enabled,
+                      });
+                      await refreshSchedules();
+                    })();
+                  },
+                }
+              : undefined,
+            duration: 8000,
+          });
+          break;
+        case "delete_schedule":
+          toast.success("Schedule deleted.", {
+            action: previousSchedule
+              ? {
+                  label: "Undo",
+                  onClick: () => {
+                    void (async () => {
+                      await api.createSchedule({
+                        page_id: previousSchedule.page_id,
+                        start_time: previousSchedule.start_time,
+                        end_time: previousSchedule.end_time ?? null,
+                        day_pattern: previousSchedule.day_pattern,
+                        custom_days: previousSchedule.custom_days,
+                        enabled: previousSchedule.enabled,
+                        start_type: previousSchedule.start_type,
+                        start_sun_offset: previousSchedule.start_sun_offset,
+                        end_type: previousSchedule.end_type,
+                        end_sun_offset: previousSchedule.end_sun_offset,
+                      });
+                      await refreshSchedules();
+                    })();
+                  },
+                }
+              : undefined,
+            duration: 8000,
+          });
+          break;
+        case "install_plugin":
+          toast.success(`Plugin "${(call.args as InstallPluginArgs).plugin_id}" installed successfully.`);
+          break;
+        case "update_plugin_config":
+          toast.success(`Plugin "${(call.args as UpdatePluginConfigArgs).plugin_id}" configuration updated.`);
+          break;
+        case "update_plugin":
+          toast.success(`Plugin "${(call.args as UpdatePluginArgs).plugin_id}" updated successfully.`);
+          break;
+        case "enable_plugin":
+          toast.success(`Plugin "${(call.args as EnablePluginArgs).plugin_id}" enabled.`);
+          break;
+        case "disable_plugin":
+          toast.success(`Plugin "${(call.args as DisablePluginArgs).plugin_id}" disabled.`);
+          break;
+        case "uninstall_plugin":
+          toast.success(`Plugin "${(call.args as UninstallPluginArgs).plugin_id}" uninstalled.`);
+          break;
+        case "update_setting":
+          toast.success("Setting updated.");
+          break;
+        case "create_collection":
+          toast.success(`Collection "${(call.args as CreateCollectionArgs).name}" created.`);
+          break;
+        case "update_collection":
+          toast.success("Collection updated.");
+          break;
+        case "trigger_system_update":
+          toast.success("System update started. The board will restart shortly.");
+          break;
+      }
     },
     [queryClient],
   );
 
-  const handleUpdateSchedule = useCallback(
-    async (args: UpdateScheduleArgs) => {
-      const { schedule_id, ...update } = args;
-      const oldSchedule = schedulesData?.schedules?.find((s) => s.id === schedule_id);
-      await api.updateSchedule(schedule_id, {
-        ...(update.page_id != null && { page_id: update.page_id }),
-        ...(update.start_time != null && { start_time: update.start_time }),
-        ...("end_time" in update && { end_time: update.end_time ?? null }),
-        ...(update.day_pattern != null && { day_pattern: update.day_pattern }),
-        ...(update.custom_days != null && { custom_days: update.custom_days }),
-        ...(update.enabled != null && { enabled: update.enabled }),
-      });
-      await queryClient.invalidateQueries({ queryKey: ["schedules"] });
-      toast.success("Schedule updated.", {
-        action: oldSchedule
-          ? {
-              label: "Undo",
-              onClick: () => {
-                void (async () => {
-                  await api.updateSchedule(schedule_id, {
-                    page_id: oldSchedule.page_id,
-                    start_time: oldSchedule.start_time,
-                    end_time: oldSchedule.end_time ?? null,
-                    day_pattern: oldSchedule.day_pattern,
-                    custom_days: oldSchedule.custom_days,
-                    enabled: oldSchedule.enabled,
-                  });
-                  await queryClient.invalidateQueries({ queryKey: ["schedules"] });
-                })();
-              },
-            }
-          : undefined,
-        duration: 8000,
-      });
-    },
-    [queryClient, schedulesData],
-  );
+  // ---------------------------------------------------------------------------
+  // The single execution seam: one POST, then the local UX.
+  // ---------------------------------------------------------------------------
+  const runServerOp = useCallback(
+    async (call: ToolCall) => {
+      if (!isServerExecutedCall(call)) {
+        // Unreachable via the dispatchers below; a guard so an op added to the
+        // grammar cannot silently fall through to a no-op "success".
+        throw new Error(`${call.op} is not executed server-side`);
+      }
 
-  const handleDeleteSchedule = useCallback(
-    async (args: DeleteScheduleArgs) => {
-      const schedule = schedulesData?.schedules?.find((s) => s.id === args.schedule_id);
-      await api.deleteSchedule(args.schedule_id);
-      await queryClient.invalidateQueries({ queryKey: ["schedules"] });
-      toast.success("Schedule deleted.", {
-        action: schedule
-          ? {
-              label: "Undo",
-              onClick: () => {
-                void (async () => {
-                  await api.createSchedule({
-                    page_id: schedule.page_id,
-                    start_time: schedule.start_time,
-                    end_time: schedule.end_time ?? null,
-                    day_pattern: schedule.day_pattern,
-                    custom_days: schedule.custom_days,
-                    enabled: schedule.enabled,
-                    start_type: schedule.start_type,
-                    start_sun_offset: schedule.start_sun_offset,
-                    end_type: schedule.end_type,
-                    end_sun_offset: schedule.end_sun_offset,
-                  });
-                  await queryClient.invalidateQueries({ queryKey: ["schedules"] });
-                })();
-              },
-            }
-          : undefined,
-        duration: 8000,
-      });
+      // Undo needs the pre-mutation entry, so read it before the round trip.
+      const previousSchedule =
+        call.op === "update_schedule" || call.op === "delete_schedule"
+          ? schedulesData?.schedules?.find((s) => s.id === call.args.schedule_id)
+          : undefined;
+
+      const result = await api.executeAiOperation(call.op, call.args as unknown as Record<string, unknown>);
+
+      for (const key of queryKeysForOp(call)) {
+        await queryClient.invalidateQueries({ queryKey: [key] });
+      }
+      showServerOpToast(call, result, previousSchedule);
     },
-    [queryClient, schedulesData],
+    [queryClient, schedulesData, showServerOpToast],
   );
 
   // ---------------------------------------------------------------------------
@@ -496,16 +619,13 @@ export function GlobalAiChatDrawer() {
           })();
           break;
 
+        // Schedule ops run immediately (no confirmation card), exactly as
+        // before — only the execution moved from three REST calls in this
+        // file to one POST /ai/operations.
         case "create_schedule":
-          void chainAfter(call, () => handleCreateSchedule(call.args))();
-          break;
-
         case "update_schedule":
-          void chainAfter(call, () => handleUpdateSchedule(call.args))();
-          break;
-
         case "delete_schedule":
-          void chainAfter(call, () => handleDeleteSchedule(call.args))();
+          void chainAfter(call, () => runServerOp(call))();
           break;
 
         case "install_plugin":
@@ -534,158 +654,10 @@ export function GlobalAiChatDrawer() {
       waitForEditor,
       hasScheduleEditor,
       openScheduleForm,
-      handleCreateSchedule,
-      handleUpdateSchedule,
-      handleDeleteSchedule,
+      runServerOp,
       chainAfter,
     ],
   );
-
-  const handleInstallPlugin = useCallback(
-    async (args: InstallPluginArgs) => {
-      await api.installRegistryPlugin(args.plugin_id);
-      if (args.auto_enable !== false) {
-        await api.enablePlugin(args.plugin_id);
-      }
-      if (args.initial_config && Object.keys(args.initial_config).length > 0) {
-        await api.updatePluginConfig(args.plugin_id, args.initial_config);
-      }
-      await queryClient.invalidateQueries({ queryKey: ["plugins"] });
-      toast.success(`Plugin "${args.plugin_id}" installed successfully.`);
-    },
-    [queryClient],
-  );
-
-  const handleUpdatePluginConfig = useCallback(
-    async (args: UpdatePluginConfigArgs) => {
-      await api.updatePluginConfig(args.plugin_id, args.config);
-      await queryClient.invalidateQueries({ queryKey: ["plugins"] });
-      toast.success(`Plugin "${args.plugin_id}" configuration updated.`);
-    },
-    [queryClient],
-  );
-
-  const handleUpdatePlugin = useCallback(
-    async (args: UpdatePluginArgs) => {
-      await api.updatePlugin(args.plugin_id);
-      await queryClient.invalidateQueries({ queryKey: ["plugins"] });
-      toast.success(`Plugin "${args.plugin_id}" updated successfully.`);
-    },
-    [queryClient],
-  );
-
-  const handleEnablePlugin = useCallback(
-    async (args: EnablePluginArgs) => {
-      await api.enablePlugin(args.plugin_id);
-      await queryClient.invalidateQueries({ queryKey: ["plugins"] });
-      toast.success(`Plugin "${args.plugin_id}" enabled.`);
-    },
-    [queryClient],
-  );
-
-  const handleDisablePlugin = useCallback(
-    async (args: DisablePluginArgs) => {
-      await api.disablePlugin(args.plugin_id);
-      await queryClient.invalidateQueries({ queryKey: ["plugins"] });
-      toast.success(`Plugin "${args.plugin_id}" disabled.`);
-    },
-    [queryClient],
-  );
-
-  const handleUninstallPlugin = useCallback(
-    async (args: UninstallPluginArgs) => {
-      await api.uninstallPlugin(args.plugin_id);
-      await queryClient.invalidateQueries({ queryKey: ["plugins"] });
-      toast.success(`Plugin "${args.plugin_id}" uninstalled.`);
-    },
-    [queryClient],
-  );
-
-  const handleUpdateSetting = useCallback(
-    async (args: UpdateSettingArgs) => {
-      switch (args.category) {
-        case "display":
-          await api.updateDisplaySettings(args.values as Parameters<typeof api.updateDisplaySettings>[0]);
-          await queryClient.invalidateQueries({ queryKey: ["display-settings"] });
-          break;
-        case "transitions":
-          await api.updateTransitionSettings(args.values as Parameters<typeof api.updateTransitionSettings>[0]);
-          await queryClient.invalidateQueries({ queryKey: ["transition-settings"] });
-          break;
-        case "output": {
-          const target = (args.values as { target?: string }).target;
-          if (target === "ui" || target === "board" || target === "both") {
-            await api.updateOutputSettings(target);
-            await queryClient.invalidateQueries({ queryKey: ["output-settings"] });
-          }
-          break;
-        }
-        case "polling": {
-          const interval = (args.values as { interval_seconds?: number }).interval_seconds;
-          if (typeof interval === "number") {
-            // PUT /settings/polling takes an object of settings keys; passing
-            // the bare number serialized the body as `5` and the endpoint
-            // rejected it (issue #1586).
-            await api.updatePollingSettings({ interval_seconds: interval });
-            await queryClient.invalidateQueries({ queryKey: ["polling-settings"] });
-          }
-          break;
-        }
-        case "location":
-          await api.updateLocationSettings(args.values as Parameters<typeof api.updateLocationSettings>[0]);
-          await queryClient.invalidateQueries({ queryKey: ["location-settings"] });
-          break;
-        case "silence_schedule":
-          await api.updateSilenceSchedule(args.values as Parameters<typeof api.updateSilenceSchedule>[0]);
-          await queryClient.invalidateQueries({ queryKey: ["silence-schedule"] });
-          break;
-        case "active_page": {
-          const pageId = (args.values as { page_id?: string }).page_id ?? null;
-          await api.setActivePage(pageId);
-          await queryClient.invalidateQueries({ queryKey: ["active-page"] });
-          break;
-        }
-      }
-      toast.success("Setting updated.");
-    },
-    [queryClient],
-  );
-
-  const handleCreateCollection = useCallback(
-    async (args: CreateCollectionArgs) => {
-      await api.createCollection({
-        name: args.name,
-        page_ids: args.page_ids,
-        selection_mode: "time",
-        time: { interval_seconds: args.interval_seconds },
-      });
-      await queryClient.invalidateQueries({ queryKey: ["collections"] });
-      toast.success(`Collection "${args.name}" created.`);
-    },
-    [queryClient],
-  );
-
-  const handleUpdateCollection = useCallback(
-    async (args: UpdateCollectionArgs) => {
-      const { collection_id, ...update } = args;
-      await api.updateCollection(collection_id, {
-        ...(update.name != null && { name: update.name }),
-        ...(update.page_ids != null && { page_ids: update.page_ids }),
-        ...(update.interval_seconds != null && {
-          selection_mode: "time",
-          time: { interval_seconds: update.interval_seconds },
-        }),
-      });
-      await queryClient.invalidateQueries({ queryKey: ["collections"] });
-      toast.success("Collection updated.");
-    },
-    [queryClient],
-  );
-
-  const handleTriggerSystemUpdate = useCallback(async () => {
-    await api.applyUpdate();
-    toast.success("System update started. The board will restart shortly.");
-  }, []);
 
   const renderToolCallSupplement = useCallback(
     (call: ToolCall) => {
@@ -698,125 +670,27 @@ export function GlobalAiChatDrawer() {
 
       const autoAllow = chainingMode === "autonomous" && !isDestructive;
 
-      if (call.op === "install_plugin") {
-        return (
-          <AiActionConfirmation
-            call={call}
-            onAllow={chainAfter(call, () => handleInstallPlugin(call.args as InstallPluginArgs))}
-            onDeny={() => {}}
-            autoAllow={autoAllow}
-          />
-        );
-      }
-      if (call.op === "update_plugin_config") {
-        return (
-          <AiActionConfirmation
-            call={call}
-            onAllow={chainAfter(call, () => handleUpdatePluginConfig(call.args as UpdatePluginConfigArgs))}
-            onDeny={() => {}}
-            autoAllow={autoAllow}
-          />
-        );
-      }
-      if (call.op === "update_plugin") {
-        return (
-          <AiActionConfirmation
-            call={call}
-            onAllow={chainAfter(call, () => handleUpdatePlugin(call.args as UpdatePluginArgs))}
-            onDeny={() => {}}
-            autoAllow={autoAllow}
-          />
-        );
-      }
-      if (call.op === "enable_plugin") {
-        return (
-          <AiActionConfirmation
-            call={call}
-            onAllow={chainAfter(call, () => handleEnablePlugin(call.args as EnablePluginArgs))}
-            onDeny={() => {}}
-            autoAllow={autoAllow}
-          />
-        );
-      }
-      if (call.op === "disable_plugin") {
-        return (
-          <AiActionConfirmation
-            call={call}
-            onAllow={chainAfter(call, () => handleDisablePlugin(call.args as DisablePluginArgs))}
-            onDeny={() => {}}
-            autoAllow={autoAllow}
-          />
-        );
-      }
-      if (call.op === "uninstall_plugin") {
-        return (
-          <AiActionConfirmation
-            call={call}
-            onAllow={chainAfter(call, () => handleUninstallPlugin(call.args as UninstallPluginArgs))}
-            onDeny={() => {}}
-            autoAllow={autoAllow}
-          />
-        );
-      }
-      if (call.op === "update_setting") {
-        return (
-          <AiActionConfirmation
-            call={call}
-            onAllow={chainAfter(call, () => handleUpdateSetting(call.args as UpdateSettingArgs))}
-            onDeny={() => {}}
-            autoAllow={autoAllow}
-          />
-        );
-      }
-      if (call.op === "create_collection") {
-        return (
-          <AiActionConfirmation
-            call={call}
-            onAllow={chainAfter(call, () => handleCreateCollection(call.args as CreateCollectionArgs))}
-            onDeny={() => {}}
-            autoAllow={autoAllow}
-          />
-        );
-      }
-      if (call.op === "update_collection") {
-        return (
-          <AiActionConfirmation
-            call={call}
-            onAllow={chainAfter(call, () => handleUpdateCollection(call.args as UpdateCollectionArgs))}
-            onDeny={() => {}}
-            autoAllow={autoAllow}
-          />
-        );
-      }
+      // Schedule ops are applied immediately from handleToolCall (unchanged
+      // UX) — they have no confirmation card.
       if (call.op === "create_schedule" || call.op === "update_schedule" || call.op === "delete_schedule") {
         return null;
       }
-      if (call.op === "trigger_system_update") {
+
+      if (isServerExecutedCall(call)) {
         return (
           <AiActionConfirmation
             call={call}
-            onAllow={chainAfter(call, () => handleTriggerSystemUpdate())}
+            onAllow={chainAfter(call, () => runServerOp(call))}
             onDeny={() => {}}
-            autoAllow={autoAllow} // always false because isDestructive
+            // Always false for the destructive ops above (uninstall_plugin,
+            // trigger_system_update): autonomous mode never skips those.
+            autoAllow={autoAllow}
           />
         );
       }
       return null;
     },
-    [
-      chainingMode,
-      chainAfter,
-      handleInstallPlugin,
-      handleUpdatePluginConfig,
-      handleUpdatePlugin,
-      handleEnablePlugin,
-      handleDisablePlugin,
-      handleUninstallPlugin,
-      handleUpdateSetting,
-      handleCreateCollection,
-      handleUpdateCollection,
-      handleTriggerSystemUpdate,
-    ],
+    [chainingMode, chainAfter, runServerOp],
   );
 
   const hasProviders = (aiSettings?.providers?.length ?? 0) > 0;
