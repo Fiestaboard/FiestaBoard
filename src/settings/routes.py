@@ -41,6 +41,17 @@ from src.devices import classify_dimensions
 
 from .models import (
     ERROR_400,
+    ERROR_404,
+    ERROR_409,
+    ERROR_422,
+    AddBoardRequest,
+    BoardIdentifyRequest,
+    BoardIdentifyResponse,
+    BoardPauseRequest,
+    BoardPauseResponse,
+    BoardSettingsResponse,
+    BoardSettingsUpdate,
+    DetectBoardSizeResponse,
     DisplaySettingsResponse,
     DisplaySettingsUpdate,
     LocationSettingsResponse,
@@ -859,7 +870,7 @@ async def update_polling_settings(request: PollingSettingsUpdate):
     return {**polling.to_dict(), "requires_restart": requires_restart}
 
 
-@router.get("/settings/board")
+@router.get("/settings/board", response_model=BoardSettingsResponse)
 async def get_board_settings():
     """Get current board settings (display type, boards array, devices)."""
     settings_service = get_settings_service()
@@ -867,8 +878,8 @@ async def get_board_settings():
     return board.to_dict()
 
 
-@router.put("/settings/board")
-async def update_board_settings(request: dict):
+@router.put("/settings/board", response_model=BoardSettingsResponse, responses={**ERROR_400})
+async def update_board_settings(request: BoardSettingsUpdate):
     """
     Update board settings.
 
@@ -876,51 +887,64 @@ async def update_board_settings(request: dict):
     - board_type: "black", "white", or null for default
     - devices: list of device types (e.g. ["flagship", "note"]) for backward compatibility
     - boards: full list of board instance dicts
+
+    Exactly one is acted on per call, in the order devices, boards,
+    board_type — unchanged from before the conventions pass. The list-shape
+    checks the handler used to hand-roll are now the request model's job, so
+    a non-list `devices` is a 422 rather than a 400.
     """
     settings_service = get_settings_service()
+    provided = request.model_dump(exclude_unset=True)
 
     try:
-        if "devices" in request:
-            devices = request["devices"]
-            if not isinstance(devices, list):
-                raise HTTPException(status_code=400, detail="devices must be a list")
-            board = settings_service.set_devices(devices)
+        if "devices" in provided:
+            board = settings_service.set_devices(provided["devices"])
             _reinitialize_board_clients()
-            return {"status": "success", "settings": board.to_dict()}
-        if "boards" in request:
-            boards = request["boards"]
-            if not isinstance(boards, list):
-                raise HTTPException(status_code=400, detail="boards must be a list")
-            board = settings_service.set_boards(boards)
+            return board.to_dict()
+        if "boards" in provided:
+            board = settings_service.set_boards(provided["boards"])
             _reinitialize_board_clients()
-            return {"status": "success", "settings": board.to_dict()}
-        if "board_type" in request:
-            board_type = request["board_type"]
-            board = settings_service.set_board_type(board_type)
-            return {"status": "success", "settings": board.to_dict()}
-        raise HTTPException(
-            status_code=400,
-            detail="One of board_type, devices, or boards is required",
-        )
+            return board.to_dict()
+        if "board_type" in provided:
+            board = settings_service.set_board_type(provided["board_type"])
+            return board.to_dict()
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e)) from e
 
+    raise HTTPException(
+        status_code=400,
+        detail="One of board_type, devices, or boards is required",
+    )
 
-@router.post("/settings/board/add")
-async def add_board_instance(request: dict):
-    """Add a new board instance. Body: device_type, optional name and other board fields."""
-    if "device_type" not in request:
-        raise HTTPException(status_code=400, detail="device_type is required")
+
+@router.post(
+    "/settings/board/add",
+    response_model=BoardSettingsResponse,
+    status_code=201,
+    responses={**ERROR_400},
+)
+async def add_board_instance(request: AddBoardRequest):
+    """Add a new board instance. Body: device_type, optional name and other board fields.
+
+    Answers 201 with the board settings the new board now lives in — a
+    create, per the conventions doc. Unknown fields are forwarded to
+    BoardInstance.from_dict as before (the request model allows extras), so
+    a caller can still supply tiles, code62_glyph, and friends.
+    """
     settings_service = get_settings_service()
     try:
-        board = settings_service.add_board(request)
+        board = settings_service.add_board(request.model_dump(exclude_unset=True))
         _reinitialize_board_clients()
-        return {"status": "success", "settings": board.to_dict()}
+        return board.to_dict()
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e)) from e
 
 
-@router.delete("/settings/board/{board_id}")
+@router.delete(
+    "/settings/board/{board_id}",
+    response_model=BoardSettingsResponse,
+    responses={**ERROR_400, **ERROR_409},
+)
 async def remove_board_instance(board_id: str):
     """Remove a board instance by ID.
 
@@ -943,37 +967,45 @@ async def remove_board_instance(board_id: str):
     settings_service = get_settings_service()
     try:
         board = settings_service.remove_board(board_id)
-        _reinitialize_board_clients()
-        return {"status": "success", "settings": board.to_dict()}
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e)) from e
+    _reinitialize_board_clients()
+    return board.to_dict()
 
 
-@router.post("/settings/board/{board_id}/pause")
-async def set_board_paused(board_id: str, request: dict):
+@router.post(
+    "/settings/board/{board_id}/pause",
+    response_model=BoardPauseResponse,
+    responses={**ERROR_404, **ERROR_422},
+)
+async def set_board_paused(board_id: str, request: BoardPauseRequest):
     """Pause or resume a board (issue #970).
 
     Body: ``{"paused": bool}``. When paused, FiestaBoard will not push
     anything to this board from any code path (polling loop, schedule,
     manual sends, plugin triggers, MQTT, debug, welcome, etc) until the
     board is resumed.
+
+    ``paused`` is a ``StrictBool``. The handler used to hand-roll
+    ``isinstance(x, bool)`` for exactly this reason: a plain ``bool`` field
+    would coerce ``"yes"`` / ``1`` / ``"on"`` to True and silently stop the
+    board.
     """
-    if "paused" not in request:
-        raise HTTPException(status_code=400, detail="paused is required")
-    if not isinstance(request["paused"], bool):
-        raise HTTPException(status_code=400, detail="paused must be a boolean")
     _require_board(board_id)
     settings_service = get_settings_service()
-    paused = settings_service.set_paused(request["paused"], board_id=board_id)
+    paused = settings_service.set_paused(request.paused, board_id=board_id)
     return {
-        "status": "success",
         "board_id": board_id,
         "paused": paused,
-        "settings": settings_service.get_board_settings().to_dict(),
+        "board_settings": settings_service.get_board_settings().to_dict(),
     }
 
 
-@router.post("/settings/board/{board_id}/detect-size")
+@router.post(
+    "/settings/board/{board_id}/detect-size",
+    response_model=DetectBoardSizeResponse,
+    responses={**ERROR_400, **ERROR_404, **ERROR_422},
+)
 async def detect_board_size(board_id: str):
     """Auto-detect a board's device type and dimensions from its live layout.
 
@@ -1032,25 +1064,11 @@ async def detect_board_size(board_id: str):
         ) from exc
 
 
-class BoardIdentifyRequest(BaseModel):
-    """Request body for the local note-array identify flash.
-
-    ``target: "tile"`` identifies one slot (``row``/``col`` required unless
-    the credential override is supplied); ``target: "all"`` flashes every
-    configured tile at once. The optional ``host``/``port``/``local_api_key``
-    override lets the assign dialog identify a board BEFORE its tile is
-    saved — in that case ``row``/``col`` name the slot being assigned.
-    """
-
-    target: str = "tile"
-    row: int | None = None
-    col: int | None = None
-    host: str | None = None
-    port: int | None = None
-    local_api_key: str | None = None
-
-
-@router.post("/settings/board/{board_id}/identify")
+@router.post(
+    "/settings/board/{board_id}/identify",
+    response_model=BoardIdentifyResponse,
+    responses={**ERROR_400, **ERROR_404},
+)
 async def identify_board_tiles(board_id: str, request: BoardIdentifyRequest):
     """Flash slot positions onto local note-array tiles (monitor-arrangement style).
 
@@ -1149,7 +1167,7 @@ async def identify_board_tiles(board_id: str, request: BoardIdentifyRequest):
     if service is not None:
         service.invalidate_board_content(board_id)
 
-    return {"status": "success", "board_id": board_id, "results": list(results)}
+    return {"board_id": board_id, "results": list(results)}
 
 
 @router.get("/settings/display", response_model=DisplaySettingsResponse)

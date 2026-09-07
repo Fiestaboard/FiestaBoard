@@ -1179,12 +1179,9 @@ export const handlers = [
       boards?: object[];
     };
     return HttpResponse.json({
-      status: "success",
-      settings: {
-        board_type: body.board_type ?? "black",
-        boards: body.boards ?? [{ id: "default", name: "Flagship", device_type: "flagship", board_color: "black" }],
-        devices: body.devices ?? ["flagship"],
-      },
+      board_type: body.board_type ?? "black",
+      boards: body.boards ?? [{ id: "default", name: "Flagship", device_type: "flagship", board_color: "black" }],
+      devices: body.devices ?? ["flagship"],
     });
   }),
 
@@ -1195,9 +1192,8 @@ export const handlers = [
       board_color?: string;
       code62_glyph?: string;
     };
-    return HttpResponse.json({
-      status: "success",
-      settings: {
+    return HttpResponse.json(
+      {
         board_type: "black",
         boards: [
           { id: "default", name: "Flagship", device_type: "flagship", board_color: "black" },
@@ -1211,17 +1207,15 @@ export const handlers = [
         ],
         devices: ["flagship", body.device_type],
       },
-    });
+      { status: 201 },
+    );
   }),
 
   http.delete(`${API_BASE}/settings/board/:boardId`, () => {
     return HttpResponse.json({
-      status: "success",
-      settings: {
-        board_type: "black",
-        boards: [{ id: "default", name: "Flagship", device_type: "flagship", board_color: "black" }],
-        devices: ["flagship"],
-      },
+      board_type: "black",
+      boards: [{ id: "default", name: "Flagship", device_type: "flagship", board_color: "black" }],
+      devices: ["flagship"],
     });
   }),
 

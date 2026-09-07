@@ -349,12 +349,14 @@ class TestBoardSettings:
     def test_put_devices_returns_the_saved_board_settings(self, client):
         response = client.put("/settings/board", json={"devices": ["flagship", "note"]})
         assert response.status_code == 200
-        assert response.json()["settings"]["devices"] == ["flagship", "note"]
+        # CHANGED (conventions, bare bodies): the bare BoardSettings, was
+        # {"status": "success", "settings": {...}}.
+        assert response.json()["devices"] == ["flagship", "note"]
 
     def test_put_board_type_returns_the_saved_board_settings(self, client):
         response = client.put("/settings/board", json={"board_type": "white"})
         assert response.status_code == 200
-        assert response.json()["settings"]["board_type"] == "white"
+        assert response.json()["board_type"] == "white"
 
     def test_put_with_no_recognised_key_is_a_400(self, client):
         response = client.put("/settings/board", json={})
@@ -363,28 +365,34 @@ class TestBoardSettings:
 
     def test_put_with_a_non_list_devices_value_is_rejected(self, client):
         response = client.put("/settings/board", json={"devices": "flagship"})
-        assert response.status_code == 400
-        assert response.json() == {"detail": "devices must be a list"}
+        # CHANGED (conventions, typed_body): the request model owns the
+        # list-shape check, so FastAPI's 422 replaces the hand-rolled 400
+        # {"detail": "devices must be a list"}.
+        assert response.status_code == 422
 
     def test_add_appends_a_board_and_returns_the_whole_board_settings(self, client):
         response = client.post("/settings/board/add", json={"device_type": "note"})
-        assert response.status_code == 200
-        boards = response.json()["settings"]["boards"]
+        # CHANGED (conventions, status codes): a create answers 201 with the
+        # bare BoardSettings, was 200 + {"status": "success", "settings": ...}.
+        assert response.status_code == 201
+        boards = response.json()["boards"]
         assert len(boards) == 2
         assert boards[1]["device_type"] == "note"
         assert boards[1]["name"] == "My Board 2"
 
     def test_add_without_a_device_type_is_rejected(self, client):
         response = client.post("/settings/board/add", json={})
-        assert response.status_code == 400
-        assert response.json() == {"detail": "device_type is required"}
+        # CHANGED (conventions, typed_body): FastAPI's 422 replaces the
+        # hand-rolled 400 {"detail": "device_type is required"}.
+        assert response.status_code == 422
 
     def test_delete_removes_the_board_and_returns_the_remaining_settings(self, client):
-        added = client.post("/settings/board/add", json={"device_type": "note"}).json()["settings"]
+        added = client.post("/settings/board/add", json={"device_type": "note"}).json()
         board_id = added["boards"][1]["id"]
         response = client.delete(f"/settings/board/{board_id}")
         assert response.status_code == 200
-        assert [b["id"] for b in response.json()["settings"]["boards"]] == [added["boards"][0]["id"]]
+        # CHANGED (conventions, bare bodies): the bare BoardSettings.
+        assert [b["id"] for b in response.json()["boards"]] == [added["boards"][0]["id"]]
 
     def test_delete_400s_for_an_unknown_board(self, client):
         # A second board first: with only one board the "last board" guard
@@ -421,10 +429,12 @@ class TestBoardPause:
         response = client.post(f"/settings/board/{board_id}/pause", json={"paused": True})
         assert response.status_code == 200
         body = response.json()
-        assert body["status"] == "success"
+        # CHANGED (conventions, bare bodies): "status" dropped, and the
+        # generic "settings" key renamed to "board_settings" so the payload
+        # names what it carries.
         assert body["board_id"] == board_id
         assert body["paused"] is True
-        assert body["settings"]["boards"][0]["paused"] is True
+        assert body["board_settings"]["boards"][0]["paused"] is True
 
     def test_pause_404s_for_an_unknown_board(self, client):
         response = client.post("/settings/board/nope/pause", json={"paused": True})
@@ -433,21 +443,25 @@ class TestBoardPause:
 
     def test_pause_without_the_paused_field_is_a_422(self, client):
         response = client.post(f"/settings/board/{_primary_board_id(client)}/pause", json={})
-        assert response.status_code == 400
-        assert response.json() == {"detail": "paused is required"}
+        # CHANGED (conventions, typed_body): FastAPI's 422 replaces the
+        # hand-rolled 400 {"detail": "paused is required"}.
+        assert response.status_code == 422
 
     def test_pause_refuses_a_non_boolean_paused_value(self, client):
         board_id = _primary_board_id(client)
         response = client.post(f"/settings/board/{board_id}/pause", json={"paused": "yes"})
-        assert response.status_code == 400
-        assert response.json() == {"detail": "paused must be a boolean"}
+        # CHANGED (conventions, StrictBool): FastAPI's 422 replaces the
+        # hand-rolled 400 {"detail": "paused must be a boolean"}. The second
+        # assertion is the point of the change: a plain `bool` field would
+        # have coerced "yes" to True and paused the board at 200.
+        assert response.status_code == 422
         assert client.get("/settings/board").json()["boards"][0]["paused"] is False
 
     @pytest.mark.parametrize("truthy", ["on", 1, "1", "true"])
     def test_pause_never_coerces_a_truthy_non_boolean(self, client, truthy):
         board_id = _primary_board_id(client)
         response = client.post(f"/settings/board/{board_id}/pause", json={"paused": truthy})
-        assert response.status_code == 400, f"{truthy!r} was coerced to a boolean"
+        assert response.status_code == 422, f"{truthy!r} was coerced to a boolean"
         assert client.get("/settings/board").json()["boards"][0]["paused"] is False
 
 

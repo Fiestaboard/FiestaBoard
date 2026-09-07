@@ -208,7 +208,17 @@ class TestPanelOrchestration:
             boards[:] = [b for b in boards if b.get("id") != board_id]
             if len(boards) == before:
                 raise ValueError(f"Board with ID '{board_id}' not found")
-            return SimpleNamespace(to_dict=lambda: {"boards": boards})
+            # `board_type` and `devices` are part of the real
+            # BoardSettings.to_dict payload; DELETE /settings/board/{id}
+            # validates its response against BoardSettingsResponse since the
+            # conventions pass, so this double has to carry them too.
+            return SimpleNamespace(
+                to_dict=lambda: {
+                    "board_type": "black",
+                    "boards": boards,
+                    "devices": sorted({b.get("device_type", "flagship") for b in boards}),
+                }
+            )
 
         def set_boards(new_boards: list[dict]):
             if not new_boards:

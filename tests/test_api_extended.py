@@ -89,6 +89,10 @@ def mock_settings_service():
         board_settings.to_dict.return_value = {
             "board_type": "black",
             "boards": [{"id": "b1", "device_type": "flagship"}],
+            # Added with the conventions pass: BoardSettings.to_dict has
+            # always emitted `devices`, and the response_model now validates
+            # it. This stub had drifted.
+            "devices": ["flagship"],
         }
         ss.get_board_settings.return_value = board_settings
 
@@ -692,7 +696,8 @@ class TestSettingsEndpoints:
     def test_update_board_settings_type(self, client, mock_settings_service):
         response = client.put("/settings/board", json={"board_type": "white"})
         assert response.status_code == 200
-        assert response.json()["status"] == "success"
+        # Bare BoardSettings since the conventions pass (Phase 2, Task 8).
+        assert response.json() == mock_settings_service.set_board_type.return_value.to_dict()
 
     def test_update_board_settings_devices(self, client, mock_settings_service):
         response = client.put("/settings/board", json={"devices": ["flagship"]})
@@ -700,7 +705,8 @@ class TestSettingsEndpoints:
 
     def test_update_board_settings_devices_not_list(self, client, mock_settings_service):
         response = client.put("/settings/board", json={"devices": "flagship"})
-        assert response.status_code == 400
+        # 422 since the conventions pass typed the body (Phase 2, Task 8).
+        assert response.status_code == 422
 
     def test_update_board_settings_boards(self, client, mock_settings_service):
         response = client.put("/settings/board", json={"boards": [{"id": "b1", "device_type": "flagship"}]})
@@ -708,7 +714,8 @@ class TestSettingsEndpoints:
 
     def test_update_board_settings_boards_not_list(self, client, mock_settings_service):
         response = client.put("/settings/board", json={"boards": "bad"})
-        assert response.status_code == 400
+        # 422 since the conventions pass typed the body (Phase 2, Task 8).
+        assert response.status_code == 422
 
     def test_update_board_settings_no_param(self, client, mock_settings_service):
         response = client.put("/settings/board", json={"foo": "bar"})
@@ -721,11 +728,13 @@ class TestSettingsEndpoints:
 
     def test_add_board_instance(self, client, mock_settings_service):
         response = client.post("/settings/board/add", json={"device_type": "flagship"})
-        assert response.status_code == 200
+        # 201 since the conventions pass (a create returns the resource).
+        assert response.status_code == 201
 
     def test_add_board_instance_missing_type(self, client, mock_settings_service):
         response = client.post("/settings/board/add", json={})
-        assert response.status_code == 400
+        # 422 since the conventions pass typed the body (Phase 2, Task 8).
+        assert response.status_code == 422
 
     def test_add_board_instance_value_error(self, client, mock_settings_service):
         mock_settings_service.add_board.side_effect = ValueError("Invalid")

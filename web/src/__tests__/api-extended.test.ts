@@ -771,18 +771,19 @@ describe("API Extended Tests", () => {
     });
 
     it("updateBoardSettings sends body", async () => {
+      // Bare BoardSettings since the conventions pass (Phase 2, Task 8).
       const result = await api.updateBoardSettings({ board_type: "white" });
-      expect(result.status).toBe("success");
+      expect(result.board_type).toBe("white");
     });
 
     it("addBoard sends board data", async () => {
       const result = await api.addBoard({ device_type: "note", name: "My Note" });
-      expect(result.status).toBe("success");
+      expect(result.boards.map((b) => b.name)).toContain("My Note");
     });
 
     it("removeBoard sends DELETE", async () => {
       const result = await api.removeBoard("board-1");
-      expect(result.status).toBe("success");
+      expect(result.boards).toHaveLength(1);
     });
 
     it("getAllSettings returns combined settings", async () => {
