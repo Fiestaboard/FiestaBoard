@@ -113,8 +113,9 @@ def _create_collection(client: TestClient, page_id: str) -> dict:
         "/collections",
         json={"name": "Mornings", "page_ids": [page_id]},
     )
-    assert response.status_code == 200, response.text
-    return response.json()["collection"]
+    # 201 + bare resource since the collections conventions pass (Phase 2 slice 1).
+    assert response.status_code == 201, response.text
+    return response.json()
 
 
 def _create_panel(client: TestClient, name: str = "Kitchen TV") -> dict:

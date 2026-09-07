@@ -62,8 +62,8 @@ async function createCollectionApi(name: string, pageIds: string[], intervalSeco
   if (!res.ok) {
     throw new Error(`createCollectionApi failed: ${res.status} ${await res.text()}`);
   }
-  const data = (await res.json()) as { collection: CollectionApi };
-  return data.collection;
+  // 201 + bare resource since the collections conventions pass.
+  return (await res.json()) as CollectionApi;
 }
 
 /**

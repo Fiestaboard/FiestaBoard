@@ -66,12 +66,20 @@ export interface CollectionsResponse {
   total: number;
 }
 
+/** Body of `DELETE /collections/{id}` — the id of the collection that was removed. */
+export interface CollectionDeleteResponse {
+  id: string;
+}
+
+// Create / update / delete return bare bodies, not `{status, collection}`
+// envelopes — see docs/internal/reference/API_CONVENTIONS.md. Create answers
+// 201; `fetchApi` already treats any 2xx as success.
 export const collectionsApi = {
   // Collection endpoints
   getCollections: () => fetchApi<CollectionsResponse>("/collections"),
 
   createCollection: (data: CollectionCreate) =>
-    fetchApi<{ status: string; collection: Collection }>("/collections", {
+    fetchApi<Collection>("/collections", {
       method: "POST",
       body: JSON.stringify(data),
     }),
@@ -79,13 +87,13 @@ export const collectionsApi = {
   getCollection: (collectionId: string) => fetchApi<Collection>(`/collections/${collectionId}`),
 
   updateCollection: (collectionId: string, data: CollectionUpdate) =>
-    fetchApi<{ status: string; collection: Collection }>(`/collections/${collectionId}`, {
+    fetchApi<Collection>(`/collections/${collectionId}`, {
       method: "PUT",
       body: JSON.stringify(data),
     }),
 
   deleteCollection: (collectionId: string) =>
-    fetchApi<{ status: string; message: string }>(`/collections/${collectionId}`, {
+    fetchApi<CollectionDeleteResponse>(`/collections/${collectionId}`, {
       method: "DELETE",
     }),
 };

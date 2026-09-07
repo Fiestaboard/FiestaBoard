@@ -933,14 +933,23 @@ class TestGenericDataTestFetch:
 
 
 class TestCollectionErrors:
+    """Patch targets live on ``src.collections.routes`` (Phase 2 slice 1).
+
+    The collections router used to re-import its collaborators from
+    ``src.api_server`` at call time purely so these patches kept working. That
+    seam is gone: the router binds ``get_collection_service`` /
+    ``get_page_service`` at import time from their canonical modules, so a stub
+    goes where the router looks the name up.
+    """
+
     def test_create_collection_value_error(self, client):
         mock_cs = Mock()
         mock_cs.create_collection.side_effect = ValueError("Duplicate name")
         mock_ps = Mock()
         mock_ps.get_page.return_value = Mock()
         with (
-            patch("src.api_server.get_collection_service", return_value=mock_cs),
-            patch("src.api_server.get_page_service", return_value=mock_ps),
+            patch("src.collections.routes.get_collection_service", return_value=mock_cs),
+            patch("src.collections.routes.get_page_service", return_value=mock_ps),
         ):
             resp = client.post("/collections", json={"name": "Test", "page_ids": ["p1"]})
         assert resp.status_code == 400
@@ -952,8 +961,8 @@ class TestCollectionErrors:
         mock_ps = Mock()
         mock_ps.get_page.return_value = Mock()
         with (
-            patch("src.api_server.get_collection_service", return_value=mock_cs),
-            patch("src.api_server.get_page_service", return_value=mock_ps),
+            patch("src.collections.routes.get_collection_service", return_value=mock_cs),
+            patch("src.collections.routes.get_page_service", return_value=mock_ps),
         ):
             resp = client.put("/collections/c1", json={"name": "Updated", "page_ids": ["p1"]})
         assert resp.status_code == 400

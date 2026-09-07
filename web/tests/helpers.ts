@@ -416,8 +416,8 @@ export async function createCollection(
   if (!res.ok) {
     throw new Error(`createCollection failed: ${res.status} ${await res.text()}`);
   }
-  const data = await res.json();
-  return data.collection;
+  // 201 + bare resource since the collections conventions pass.
+  return await res.json();
 }
 
 /** Delete every collection via the API. */
