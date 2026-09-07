@@ -1077,8 +1077,13 @@ async def get_mqtt_status():
             "connected": client.is_connected(),
             "running": client.is_running(),
         }
-    except Exception:
-        return {"enabled": False, "connected": False, "running": False}
+    except Exception as e:
+        # ``enabled: False`` is a real answer ("MQTT is switched off"), so it
+        # must never double as "we could not tell" — the two were identical
+        # before #1887 and an operator debugging a broken broker saw the
+        # same body as one who had simply not enabled MQTT.
+        logger.error(f"Failed to read MQTT status: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Failed to read MQTT status.") from e
 
 
 @app.post("/mqtt/republish-discovery")
@@ -2220,9 +2225,7 @@ async def refresh_display(board_id: str | None = None, payload: dict | None = Bo
                 "sent": sent,
             }
 
-        board = _find_board(board_id)
-        if board is None:
-            raise HTTPException(status_code=404, detail=f"Board not found: {board_id}")
+        board = _require_board(board_id)
         rt = service.get_runtime(board_id)
         if rt is None:
             raise HTTPException(status_code=503, detail=f"Board client not initialized: {board_id}")
@@ -2379,9 +2382,7 @@ async def get_board_current_message(force: bool = False, board_id: str | None = 
         raise HTTPException(status_code=503, detail="Board client not initialized")
 
     if board_id is not None:
-        board = _find_board(board_id)
-        if board is None:
-            raise HTTPException(status_code=404, detail=f"Board not found: {board_id}")
+        board = _require_board(board_id)
         if board_id != get_settings_service().get_primary_board_id():
             # Secondary board: serve from its runtime cache. No live read —
             # the poll thread only tracks the primary board (issue #1243).
@@ -2988,6 +2989,25 @@ async def validate_config():
     return {"valid": is_valid, "is_first_run": is_first_run, "errors": errors, "missing_fields": missing_fields}
 
 
+class BoardTestResponse(BaseModel):
+    """Declared verdict of a board connection probe.
+
+    ``POST /config/board/test`` is a *probe*: reporting "the board refused
+    this key" is the answer the caller asked for, not a transport failure,
+    so an upstream verdict stays HTTP 200 with ``success=False``. That is
+    only legitimate because the shape is declared here — an ad-hoc dict at
+    200 is indistinguishable from a success to any generic client (#1887).
+    Preconditions the server rejects before probing (missing credential,
+    malformed/unsafe host) are 4xx; unanticipated errors are 5xx.
+    """
+
+    success: bool
+    message: str
+    api_mode: str | None = None
+    error: str | None = None
+    troubleshooting: list[str] | None = None
+
+
 class BoardTestRequest(BaseModel):
     """Request model for testing board connection."""
 
@@ -2999,7 +3019,12 @@ class BoardTestRequest(BaseModel):
     port: int | None = None
 
 
-@app.post("/config/board/test")
+@app.post(
+    "/config/board/test",
+    response_model=BoardTestResponse,
+    response_model_exclude_none=True,
+    responses={400: {"description": "Missing credential, or a host the server refuses to probe"}},
+)
 async def test_board_connection(request: BoardTestRequest):
     """
     Test board connection with provided credentials without saving.
@@ -3023,6 +3048,12 @@ async def test_board_connection(request: BoardTestRequest):
         success: Whether the connection test passed
         message: Human-readable status message
         error: Detailed error message if failed
+
+    Status codes:
+        200: the probe ran and this is its verdict (``success`` may be False)
+        400: the probe could not be attempted — a credential is missing or
+             the host is not one this server will connect to
+        500: an unanticipated server-side error
     """
     from .board_client import BoardClient, is_successful_board_read_response
 
@@ -3031,34 +3062,22 @@ async def test_board_connection(request: BoardTestRequest):
     # Validate required fields based on mode
     if api_mode == "cloud":
         if not request.cloud_key:
-            return {"success": False, "message": "Cloud API key is required", "error": "Missing cloud_key parameter"}
+            raise HTTPException(status_code=400, detail="Cloud API key is required")
         api_key = request.cloud_key
         use_cloud = True
         host = None
     else:  # local mode
         if not request.local_api_key:
-            return {
-                "success": False,
-                "message": "Local API key is required",
-                "error": "Missing local_api_key parameter",
-            }
+            raise HTTPException(status_code=400, detail="Local API key is required")
         if not request.host:
-            return {
-                "success": False,
-                "message": "Board host/IP is required for Local API",
-                "error": "Missing host parameter",
-            }
+            raise HTTPException(status_code=400, detail="Board host/IP is required for Local API")
         api_key = request.local_api_key
         use_cloud = False
         host = request.host
-        try:
-            _validate_board_host(host)
-        except HTTPException as _exc:
-            return {
-                "success": False,
-                "message": "Invalid board host",
-                "error": _exc.detail,
-            }
+        # The host guard is the reason this endpoint cannot be pointed at an
+        # arbitrary URL. Its 400 propagates unchanged: swallowing it into a
+        # 200 body made a refused request look like a failed probe (#1887).
+        _validate_board_host(host)
 
     try:
         # Create temporary client with provided credentials
@@ -3158,14 +3177,11 @@ async def test_board_connection(request: BoardTestRequest):
                 ],
             }
 
-    except ValueError:
-        # Invalid configuration (missing required fields)
+    except ValueError as e:
+        # BoardClient rejected the credentials/host combination outright, so
+        # no probe happened: a precondition failure, not a board verdict.
         logger.warning("Board connection test failed - invalid config", exc_info=True)
-        return {
-            "success": False,
-            "message": "Board connection configuration is invalid.",
-            "error": "Configuration error",
-        }
+        raise HTTPException(status_code=400, detail="Board connection configuration is invalid.") from e
     except requests.exceptions.ConnectionError as e:
         logger.error(f"Board connection test error: {e}")
         if use_cloud:
@@ -3215,18 +3231,27 @@ async def test_board_connection(request: BoardTestRequest):
                     "Try using the board's IP address instead of a hostname.",
                 ],
             }
+    except HTTPException:
+        raise
     except Exception as e:
+        # Not a board verdict — the probe itself broke. Detail stays generic;
+        # the exception is in the log, not in the response (#1887).
         logger.error(f"Board connection test error: {e}", exc_info=True)
-        return {
-            "success": False,
-            "message": "Connection failed",
-            "error": "Unexpected error",
-            "troubleshooting": [
-                "Make sure the Vestaboard is powered on and connected to your network.",
-                "Try restarting FiestaBoard and the Vestaboard.",
-                "Visit the Network Diagnostics page for a detailed connection check.",
-            ],
-        }
+        raise HTTPException(status_code=500, detail="Board connection test failed unexpectedly.") from e
+
+
+class EnableLocalApiResponse(BaseModel):
+    """Declared verdict of a Local API enablement exchange.
+
+    Same contract as :class:`BoardTestResponse` (see its docstring): the
+    board's answer — including "that token is not valid" — is data at 200;
+    preconditions are 4xx; unanticipated errors are 5xx.
+    """
+
+    success: bool
+    message: str
+    api_key: str | None = None
+    error: str | None = None
 
 
 class EnablementTokenRequest(BaseModel):
@@ -3242,7 +3267,12 @@ class BoardScanRequest(BaseModel):
     timeout: float | None = 4.0
 
 
-@app.post("/config/board/enable-local-api")
+@app.post(
+    "/config/board/enable-local-api",
+    response_model=EnableLocalApiResponse,
+    response_model_exclude_none=True,
+    responses={400: {"description": "Missing field, or a host the server refuses to contact"}},
+)
 async def enable_local_api(request: EnablementTokenRequest):
     """
     Exchange a Local API Enablement Token for a Local API Key.
@@ -3260,30 +3290,28 @@ async def enable_local_api(request: EnablementTokenRequest):
         success: Whether the exchange was successful
         api_key: The local API key (if successful)
         message: Human-readable status message
+
+    Status codes:
+        200: the exchange was attempted and this is the board's answer
+        400: the exchange could not be attempted — a field is missing or the
+             host is not one this server will contact
+        500: an unanticipated server-side error
     """
     import requests as http_requests
 
     if not request.host:
-        return {"success": False, "message": "Board IP address is required", "error": "Missing host parameter"}
+        raise HTTPException(status_code=400, detail="Board IP address is required")
 
     if not request.enablement_token:
-        return {
-            "success": False,
-            "message": "Enablement token is required",
-            "error": "Missing enablement_token parameter",
-        }
+        raise HTTPException(status_code=400, detail="Enablement token is required")
 
     # Validate the host before composing the URL so an attacker can't
-    # redirect this request away from the local board (SSRF).
-    try:
-        _validate_board_host(request.host)
-        _validate_board_host_is_local_network(request.host)
-    except HTTPException as exc:
-        return {
-            "success": False,
-            "message": "Invalid board host",
-            "error": exc.detail,
-        }
+    # redirect this request away from the local board (SSRF). These 400s
+    # propagate unchanged — downgrading them to a 200 body meant a blocked
+    # SSRF attempt and a board that rejected the token were the same
+    # response to every client (#1887).
+    _validate_board_host(request.host)
+    _validate_board_host_is_local_network(request.host)
 
     # Resolve the host to a concrete IPv4 address and ensure it is a private/
     # loopback/link-local address.  Using the ``ipaddress`` module's
@@ -3300,27 +3328,15 @@ async def enable_local_api(request: EnablementTokenRequest):
             _addrinfo = _socket_mod.getaddrinfo(
                 request.host, None, family=_socket_mod.AF_INET, type=_socket_mod.SOCK_STREAM
             )
-        except _socket_mod.gaierror:
-            return {
-                "success": False,
-                "message": "Invalid board host",
-                "error": "host could not be resolved",
-            }
+        except _socket_mod.gaierror as exc:
+            raise HTTPException(status_code=400, detail="host could not be resolved") from exc
         _resolved = [info[4][0] for info in _addrinfo if info and len(info) >= 5 and info[4]]
         if not _resolved:
-            return {
-                "success": False,
-                "message": "Invalid board host",
-                "error": "host did not resolve to an IPv4 address",
-            }
+            raise HTTPException(status_code=400, detail="host did not resolve to an IPv4 address") from None
         _ip_obj = _ipaddress_mod.IPv4Address(_resolved[0])
 
     if not (_ip_obj.is_private or _ip_obj.is_loopback or _ip_obj.is_link_local):
-        return {
-            "success": False,
-            "message": "Invalid board host",
-            "error": "host must be on a private network",
-        }
+        raise HTTPException(status_code=400, detail="host must be on a private network")
     _safe_host = _ip_obj.compressed
     # Build the URL for the local enablement endpoint
     url = f"http://{_safe_host}:7000/local-api/enablement"
@@ -3377,13 +3393,11 @@ async def enable_local_api(request: EnablementTokenRequest):
             "message": "Connection timed out. Please check the IP address and try again.",
             "error": "Timeout",
         }
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"Local API enablement error: {e}", exc_info=True)
-        return {
-            "success": False,
-            "message": "Failed to enable local API",
-            "error": "Unexpected error",
-        }
+        raise HTTPException(status_code=500, detail="Failed to enable local API.") from e
 
 
 @app.post("/config/board/scan")
@@ -3602,8 +3616,8 @@ async def update_silence_schedule(request: SilenceScheduleRequest):
     config_manager = get_config_manager()
 
     board_id = request.board_id
-    if board_id is not None and _find_board(board_id) is None:
-        raise HTTPException(status_code=404, detail=f"Board not found: {board_id}")
+    if board_id is not None:
+        _require_board(board_id)
 
     # Validate mode and page_id together
     mode = request.mode if request.mode in ("indicator", "freeze", "page") else "freeze"
@@ -4622,10 +4636,18 @@ async def validate_traffic_route(request: dict):
         data = await asyncio.to_thread(traffic_source.fetch_traffic_data)
 
         if not data:
-            return {
-                "valid": False,
-                "error": "Failed to validate route. This could be due to: 1) Invalid addresses, 2) Google Routes API not enabled, 3) API key issues. Check the API logs for details.",
-            }
+            # No verdict was produced: the upstream Routes API returned
+            # nothing, which is not the same as "this route is invalid".
+            # Reporting it as ``valid: false`` at 200 hid every outage,
+            # quota block and disabled-API misconfiguration (#1887).
+            raise HTTPException(
+                status_code=502,
+                detail=(
+                    "Could not validate the route: the Google Routes API returned no data. "
+                    "This is usually an invalid address, the Routes API not being enabled, "
+                    "or an API key problem."
+                ),
+            )
 
         # Extract coordinates if available
         origin_coords = None
@@ -4642,9 +4664,11 @@ async def validate_traffic_route(request: dict):
             "destination_coords": destination_coords,
         }
 
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"Error validating traffic route: {e}", exc_info=True)
-        return {"valid": False, "error": "Failed to validate route"}
+        raise HTTPException(status_code=500, detail="Failed to validate route.") from e
 
 
 # =============================================================================
@@ -4935,9 +4959,7 @@ def _resolve_live_board_client(board_id: str | None) -> tuple[dict | None, Any]:
     if board_id is not None:
         if not service:
             raise HTTPException(status_code=503, detail="Service not initialized")
-        board = _find_board(board_id)
-        if board is None:
-            raise HTTPException(status_code=404, detail=f"Board not found: {board_id}")
+        board = _require_board(board_id)
         client = service.get_board_client(board_id)
         if client is None:
             raise HTTPException(status_code=503, detail=f"Board client not initialized: {board_id}")
@@ -5289,9 +5311,7 @@ async def set_active_page(request: dict):
     board_id = request.get("board_id")
     board = None
     if board_id is not None:
-        board = _find_board(board_id)
-        if board is None:
-            raise HTTPException(status_code=404, detail=f"Board not found: {board_id}")
+        board = _require_board(board_id)
     collection_service = get_collection_service()
 
     # Validate page or collection exists if not clearing
@@ -5795,10 +5815,8 @@ async def set_board_paused(board_id: str, request: dict):
         raise HTTPException(status_code=400, detail="paused is required")
     if not isinstance(request["paused"], bool):
         raise HTTPException(status_code=400, detail="paused must be a boolean")
+    _require_board(board_id)
     settings_service = get_settings_service()
-    boards = settings_service.get_board_settings().boards or []
-    if not any(b.get("id") == board_id for b in boards):
-        raise HTTPException(status_code=404, detail=f"Board {board_id} not found")
     paused = settings_service.set_paused(request["paused"], board_id=board_id)
     return {
         "status": "success",
@@ -6429,6 +6447,25 @@ def _find_board(board_id: str) -> dict | None:
     return None
 
 
+def _require_board(board_id: str) -> dict:
+    """Return the ``settings.boards`` entry for *board_id*, or raise 404.
+
+    The single place the "unknown board" verdict is made. The pattern was
+    open-coded in nine handlers and simply missing from four schedule write
+    endpoints, which persisted state bound to a board that does not exist and
+    reported success (#1888).
+
+    Use this on any path that *writes* something scoped to a board. Board-
+    scoped **reads** deliberately fall back to their safe default instead —
+    see the "board_id validation" note in
+    ``docs/internal/reference/API_CONVENTIONS.md``.
+    """
+    board = _find_board(board_id)
+    if board is None:
+        raise HTTPException(status_code=404, detail=f"Board not found: {board_id}")
+    return board
+
+
 def _board_dims(board: dict):
     """Resolved dimensions for a settings.boards entry (flagship fallback).
 
@@ -6679,11 +6716,16 @@ async def debug_test_connection():
                 "connected": True,
                 "latency_ms": latency,
             }
-        else:
-            return {"status": "error", "message": "Connection failed", "connected": False, "latency_ms": None}
+        # Unlike /config/board/test this endpoint has no declared verdict
+        # body — no error class, no troubleshooting — so a 200 carrying
+        # ``status: "error"`` was indistinguishable from a success to any
+        # client that only checks the status code (#1887).
+        raise HTTPException(status_code=503, detail="Could not reach the board.")
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"Error testing connection: {e}", exc_info=True)
-        return {"status": "error", "message": "Connection test failed", "connected": False, "latency_ms": None}
+        raise HTTPException(status_code=500, detail="Connection test failed.") from e
 
 
 @app.post("/debug/clear-cache")
@@ -7351,12 +7393,7 @@ async def render_template_live(request: dict):
 
     target_board = None
     if board_id:
-        for b in boards:
-            if b.get("id") == board_id:
-                target_board = b
-                break
-        if not target_board:
-            raise HTTPException(status_code=404, detail=f"Board not found: {board_id}")
+        target_board = _require_board(board_id)
     elif boards:
         target_board = boards[0]
 
@@ -8101,10 +8138,15 @@ async def import_backup(
     manually if needed.  In-memory service singletons are reloaded so the
     change takes effect without restarting the container.
     """
-    from .backup import BackupError, get_backup_service
+    from .backup import BackupError, BackupRestoreAborted, get_backup_service
 
     try:
         result = get_backup_service().import_from_dict(payload, reinstall_plugins=reinstall_plugins)
+    except BackupRestoreAborted as exc:
+        # The environment failed, not the uploaded file — a 400 would blame
+        # the operator's backup for a full disk (Phase 2 Task 10d).
+        logger.error("Backup restore aborted: %s", exc)
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
     except BackupError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     except Exception:

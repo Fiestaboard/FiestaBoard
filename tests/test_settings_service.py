@@ -311,9 +311,14 @@ class TestSettingsServiceInit:
         assert "output" in data
         assert "board" in data
 
-    def test_save_to_file_handles_io_error(self, settings_service):
-        with patch("builtins.open", side_effect=OSError("write error")):
-            settings_service._save_to_file()  # Should not raise
+    def test_save_to_file_propagates_io_error(self, settings_service):
+        """A refused write must reach the caller (Phase 2 Task 10b).
+
+        This asserted "should not raise" until #1887: swallowing it made ~20
+        endpoints answer HTTP 200 having persisted nothing.
+        """
+        with patch("builtins.open", side_effect=OSError("write error")), pytest.raises(OSError):
+            settings_service._save_to_file()
 
     def test_save_to_file_is_atomic_on_mid_write_crash(self, settings_service, settings_file, monkeypatch):
         """Regression for #1313 (mirrors #1304): a crash inside _save_to_file()
@@ -332,7 +337,10 @@ class TestSettingsServiceInit:
             raise OSError("Simulated crash mid-write")
 
         monkeypatch.setattr(service_module.json, "dump", crashing_dump)
-        settings_service._save_to_file()  # swallows OSError; must not corrupt file
+        # The OSError now propagates (Phase 2 Task 10b); the point of this
+        # test is unchanged — the live file must survive the failed write.
+        with pytest.raises(OSError):
+            settings_service._save_to_file()
         monkeypatch.setattr(service_module.json, "dump", real_dump)
 
         assert Path(settings_file).read_bytes() == original_bytes

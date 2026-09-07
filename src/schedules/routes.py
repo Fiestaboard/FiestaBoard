@@ -18,6 +18,28 @@ from .models import ScheduleCreate, ScheduleUpdate
 router = APIRouter(tags=["schedules"])
 
 
+def _validate_board(board_id: str | None) -> None:
+    """404 when *board_id* names a board that does not exist.
+
+    ``None`` and ``""`` mean "the default/primary board" (``DEFAULT_BOARD_ID``
+    is ``""``) and are passed through untouched.
+
+    Every schedule *write* runs this. Before #1888 all four write endpoints
+    took a free-form board id: ``PUT /schedules/default-page`` stored a
+    phantom default, ``PUT /schedules/enabled`` was a logged no-op that
+    reported success, and ``POST``/``PUT /schedules/{id}`` persisted a
+    schedule parented to a nonexistent board because
+    ``check_ref_board_compatibility`` passes silently on an unknown board.
+    Board-scoped *reads* deliberately still fall back — see
+    ``docs/internal/reference/API_CONVENTIONS.md``.
+    """
+    if not board_id:
+        return
+    from src.api_server import _require_board  # patched-in-tests seam — see module docstring (#1756)
+
+    _require_board(board_id)
+
+
 def _enrich_schedule_with_sun_times(schedule_dict: dict) -> dict:
     """Add resolved_start_time / resolved_end_time to a schedule dict.
 
@@ -122,6 +144,8 @@ async def create_schedule(schedule_data: ScheduleCreate):
     """
     from src.api_server import get_schedule_service  # patched-in-tests seam — see module docstring (#1756)
 
+    _validate_board(schedule_data.board_id)
+
     schedule_service = get_schedule_service()
 
     try:
@@ -219,6 +243,7 @@ async def set_default_page(request: dict):
         raise HTTPException(status_code=400, detail="page_id parameter required")
     page_id = request["page_id"]
     board_id = request.get("board_id")
+    _validate_board(board_id)
     if page_id is not None:
         if is_collection_id(page_id):
             collection_service = get_collection_service()
@@ -253,6 +278,7 @@ async def set_schedule_enabled(request: dict):
     if not isinstance(enabled, bool):
         raise HTTPException(status_code=400, detail="enabled must be boolean")
     board_id = request.get("board_id")
+    _validate_board(board_id)
     settings_service = get_settings_service()
     settings_service.set_schedule_enabled(enabled, board_id=board_id)
     return {
@@ -298,6 +324,8 @@ async def update_schedule(schedule_id: str, schedule_data: ScheduleUpdate):
         Updated schedule entry
     """
     from src.api_server import get_schedule_service  # patched-in-tests seam — see module docstring (#1756)
+
+    _validate_board(schedule_data.board_id)
 
     schedule_service = get_schedule_service()
 

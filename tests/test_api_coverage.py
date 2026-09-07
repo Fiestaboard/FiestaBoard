@@ -930,11 +930,10 @@ class TestMQTTStatus:
             assert data["running"] is True
 
     def test_mqtt_status_exception(self, client):
-        """Exception returns disabled."""
+        """An error is a 500 — never a body that reads as "MQTT is off"."""
         with patch("src.mqtt.get_mqtt_client", side_effect=Exception("boom")):
             response = client.get("/mqtt/status")
-            data = response.json()
-            assert data["enabled"] is False
+            assert response.status_code == 500
 
 
 class TestMQTTRepublishDiscovery:
@@ -1704,28 +1703,25 @@ class TestDebugTestConnectionErrorPaths:
     """Additional tests for POST /debug/test-connection."""
 
     def test_connection_failed(self, client):
-        """Connection test returns disconnected."""
+        """An unreachable board is a 503, not a 200 carrying status=error."""
         with patch("src.api_server._get_board_client") as mock_bc:
             bc = Mock()
             bc.test_connection.return_value = False
             mock_bc.return_value = bc
             response = client.post("/debug/test-connection")
-            data = response.json()
-            assert data["connected"] is False
-            assert data["status"] == "error"
+            assert response.status_code == 503
+            assert response.json()["detail"]
 
     def test_connection_exception(self, client):
-        """Exception during connection test."""
+        """Exception during connection test surfaces as a 500."""
         with patch("src.api_server._get_board_client") as mock_bc:
             bc = Mock()
             bc.test_connection.side_effect = RuntimeError("timeout")
             mock_bc.return_value = bc
             response = client.post("/debug/test-connection")
-            data = response.json()
-            assert data["connected"] is False
-            # Generic message — exception details are logged, not leaked.
-            assert data["status"] == "error"
-            assert data["message"]
+            assert response.status_code == 500
+            # Generic detail — exception details are logged, not leaked.
+            assert "timeout" not in response.json()["detail"]
 
 
 class TestDebugClearCacheErrorPaths:

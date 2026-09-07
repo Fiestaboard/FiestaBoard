@@ -137,9 +137,11 @@ test.describe("Board Connection Test — Offline Detection", () => {
         host: BOARD_HOST,
       }),
     });
-    expect(res.ok).toBe(true);
+    // A missing credential is a precondition failure, not a probe verdict:
+    // the endpoint answers 400 rather than a 200 { success: false } (#1887).
+    expect(res.status).toBe(400);
     const data = await res.json();
-    expect(data.success).toBe(false);
+    expect(data.detail).toContain("API key");
   });
 });
 

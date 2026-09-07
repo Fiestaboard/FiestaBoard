@@ -299,7 +299,7 @@ async def system_update_rollback(req: RollbackRequest):
                 detail={"status": "error", "error": f"Could not read snapshot: {e}"},
             ) from e
         try:
-            from src.backup.service import BackupError, get_backup_service
+            from src.backup.service import BackupError, BackupRestoreAborted, get_backup_service
         except Exception as e:  # pragma: no cover - import error is exceptional
             logger.exception("BackupService unavailable")
             raise HTTPException(status_code=500, detail={"status": "error", "error": str(e)}) from e
@@ -309,6 +309,14 @@ async def system_update_rollback(req: RollbackRequest):
             # Don't reinstall plugins from a settings-only snapshot: the user is
             # rolling back configuration, not reshaping their plugin set.
             result = await asyncio.to_thread(service.import_from_json, raw, reinstall_plugins=False)
+        except BackupRestoreAborted as e:
+            # Environment failure (unwritable data dir, full disk), not a bad
+            # snapshot — see Phase 2 Task 10d.
+            logger.error("Settings rollback aborted: %s", e)
+            raise HTTPException(
+                status_code=500,
+                detail={"status": "error", "error": str(e)},
+            ) from e
         except BackupError as e:
             raise HTTPException(
                 status_code=400,

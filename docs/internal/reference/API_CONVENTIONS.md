@@ -75,6 +75,24 @@ manifest entry; the cost of a false negative is a shipped 200-on-failure.
 - **Failures are never 200.** A handler must not answer an error with
   `{"success": false}` and HTTP 200. Client errors are 4xx, server errors
   5xx.
+- **Probe endpoints: one narrow exception.** An endpoint whose declared job
+  is to *report a verdict about something else* — `POST /config/board/test`,
+  `POST /config/board/enable-local-api` — answers 200 when the probe ran, even
+  when the verdict is "the board refused this key". The verdict is the payload
+  the caller asked for, not a transport failure. Three conditions make that
+  legitimate, and all three are required:
+  1. the 200 body is a declared `response_model` (`BoardTestResponse`,
+     `EnableLocalApiResponse`), never an ad-hoc dict;
+  2. the failure originated **upstream** — the board, or the network to it;
+  3. anything the server rejected *before* probing (missing credential,
+     malformed host, an SSRF-guard refusal) is a real 4xx, and anything
+     unanticipated is a 5xx.
+
+  Without (1) a generic client cannot tell the verdict from a success, which
+  is exactly the masking bug this rule replaced (#1887). `POST
+  /debug/test-connection` deliberately does *not* qualify: it has no verdict
+  body — no error class, no troubleshooting steps — so an unreachable board
+  there is a 503 and an unexpected error is a 500.
 - Missing resource → **404**; conflict (duplicate id, env-pinned resource) →
   **409**; feature unavailable / dependency down → **503**.
 
@@ -121,6 +139,41 @@ contract through a deprecation window:
   `/plugins/{id}` cannot be shadowed by literal segments
   (`updates`, `registry`, `install`, ...). Each router owns its reserved
   list next to its routes.
+
+### `board_id` validation: writes 404, reads fall back
+
+Decided 2026-09 with #1888. The asymmetry is deliberate and it is the
+inconsistency-of-record, so read it before "fixing" either half.
+
+- **Writes 404.** Any handler that persists something scoped to a board
+  calls `_require_board(board_id)` (`src/api_server.py`) — the single place
+  the "unknown board" verdict is made. Writing state bound to a board that
+  does not exist is invisible until something else trips over it: the four
+  schedule write endpoints used to store a phantom default page, a no-op
+  that reported `{"status": "success"}`, and schedules parented to
+  nonexistent boards.
+- **Reads fall back.** `GET /schedules` answers `[]`, `GET /schedules/enabled`
+  answers `false`, `GET /schedules/default-page` answers the global default,
+  and their siblings behave the same way. This is not an oversight:
+  1. a read cannot corrupt anything, so the worst case is a caller shown the
+     safe empty answer;
+  2. board-scoped polling legitimately races board deletion — one tab
+     removes a board while another is mid-poll for it — and 404ing there
+     turns a benign race into an error toast for the user;
+  3. the fallback answer ("no schedules", "not enabled") is *correct* for a
+     board that does not exist, whereas a write's fallback ("saved!") is a
+     lie.
+
+  `board_id=*` on `GET /schedules` stays a documented wildcard, not an id.
+
+If reads are ever made strict, they must all change together and the
+polling clients must be updated in the same PR.
+
+Two `SettingsService` setters — `set_paused` and `set_active_page_id` —
+also raise `ValueError` on an unknown board. Both are **unreachable with an
+unknown board over HTTP today** (every route reaching them validates first
+or 404s on its own path parameter); the raise is defense in depth so a
+future caller cannot recreate the phantom write.
 
 ## Zero-regression mechanics (how a conventions pass lands)
 

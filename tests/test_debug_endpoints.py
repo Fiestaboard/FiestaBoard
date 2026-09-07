@@ -263,14 +263,12 @@ class TestDebugTestConnection:
         assert isinstance(data["latency_ms"], int)
 
     def test_connection_failure(self, client, mock_board_client):
-        """Test failed connection test."""
+        """A board that cannot be reached is a 503 (Phase 2 Task 10a, #1887)."""
         mock_board_client.test_connection.return_value = False
 
         response = client.post("/debug/test-connection")
-        assert response.status_code == 200
-        data = response.json()
-        assert data["status"] == "error"
-        assert data["connected"] is False
+        assert response.status_code == 503
+        assert response.json()["detail"]
 
     def test_connection_no_client(self, client):
         """Test connection test when client not configured."""
