@@ -508,22 +508,6 @@ class HealthResponse(BaseModel):
     version: str
 
 
-# System-update request/response models — moved to src/system/models.py
-# (issue #1758). Re-imported so src.api_server.<Model> references keep
-# resolving.
-from .system.models import (  # noqa: E402, F401
-    AutoUpdateRequest,
-    AutoUpdateResponse,
-    RollbackRequest,
-    RollbackResponse,
-    SystemActionResponse,
-    UpdateApplyResponse,
-    UpdateCheckResponse,
-    UpdateStatusResponse,
-    VersionResponse,
-)
-
-
 # ── WiFi / NetworkManager models ─────────────────────────────────────────────
 class WiFiCapabilityResponse(BaseModel):
     available: bool
@@ -1618,71 +1602,23 @@ def _collect_plugin_demos() -> list[dict[str, Any]]:
 # .system-update.json state machine) lives in src/system/update_service.py;
 # its route handlers (/version, /system/update-check, /system/update/*,
 # /system/restart, /system/shutdown) live in src/system/routes.py and are
-# included below, next to the helpers they resolve through this module.
+# included below.
 #
-# Every moved helper is re-imported here so the test-suite's
-# patch("src.api_server.<name>") targets keep working; the extracted handlers
-# import these names back through src.api_server at call time (the
-# #1756/#1757 pattern). The two path-override constants stay *defined* on
-# this module (below) and the service reads them back through it at call
-# time, so patching them here still steers the service.
-
-from .system.update_service import (  # noqa: E402, F401
-    _DIGEST_RE,
-    _IMAGE_REF_RE,
-    _SETTINGS_SNAPSHOT_NAME_RE,
-    AUTO_UPDATE_INTERVALS,
-    DOCKERHUB_TAGS_URL,
-    GITHUB_PACKAGE_URL,
-    GITHUB_RELEASES_API,
-    GITHUB_RELEASES_URL,
-    SETTINGS_SNAPSHOT_RETENTION,
-    _auto_update_default_interval,
-    _check_dockerhub_for_latest,
-    _check_github_releases_for_latest,
-    _detect_hardware_model,
+# Nothing is re-exported for the test suite any more: the Phase 2 system slice
+# retired that seam. src/system/ imports nothing from this module, the two path
+# overrides (SYSTEM_UPDATE_STATE_FILE / SETTINGS_SNAPSHOT_DIR) now live on the
+# service, and tests patch src.system.update_service.<name> directly. What is
+# imported below is only what api_server's own lifespan / restore paths call.
+from .system.update_service import (  # noqa: E402
+    _detect_post_upgrade_regression,
     _fiestaboard_profile,
-    _handle_updater_response,
-    _is_newer_version,
-    _is_update_check_due,
-    _list_settings_snapshots,
     _managed_externally,
-    _parse_version,
-    _perform_update_check,
-    _pick_latest_version,
-    _prune_settings_snapshots,
-    _read_snapshot_metadata,
-    _release_notes_url,
-    _require_updater_token,
-    _resolve_auto_update_interval,
     _resolve_snapshot_name,
-    _settings_snapshot_dir,
-    _system_update_state_file,
-    _system_update_state_load,
-    _system_update_state_save,
-    _system_update_state_update,
-    _take_settings_snapshot,
-    _updater_last_update,
-    _updater_post,
     _updater_probe,
     _updater_token,
     _updater_url,
-    _updater_version,
     run_system_update_check_if_due,
 )
-
-# ``SYSTEM_UPDATE_STATE_FILE`` is a *test seam*: production leaves it ``None``
-# and ``_system_update_state_file()`` (now in src/system/update_service.py)
-# resolves lazily through ``src.paths.get_data_dir()`` (honoring
-# ``FIESTABOARD_DATA_DIR``, #1762). Tests that need a specific file keep
-# monkeypatching this module attribute; the service reads it back through
-# this module at call time.
-SYSTEM_UPDATE_STATE_FILE: Path | None = None
-
-# ``SETTINGS_SNAPSHOT_DIR`` is the matching *test seam* for the pre-update
-# settings-snapshot directory (default: ``<data>/update-backups``), read back
-# through this module by ``_settings_snapshot_dir()`` in the service.
-SETTINGS_SNAPSHOT_DIR: Path | None = None
 
 
 async def _auto_apply_plugin_updates(registry: Any, plugin_ids: list) -> None:
@@ -1867,61 +1803,6 @@ def _log_config_boot_snapshot(stage: str) -> None:
         )
     except Exception:  # pragma: no cover - diagnostics must never block boot
         logger.debug("config boot snapshot [%s] failed", stage, exc_info=True)
-
-
-def _detect_post_upgrade_regression() -> dict[str, Any] | None:
-    """Return a hint payload when the live config looks regressed against the
-    newest pre-update snapshot.
-
-    Signals an upgrade is likely to have dropped user state (issue #948 —
-    "integrations lost on upgrade"). We compare the snapshot's enabled
-    plugin set to the current one; if the snapshot enabled strictly more
-    plugins, point the user at /system/update/rollback so they don't have
-    to discover the recovery path on their own.
-
-    Returns ``None`` when:
-      * there are no snapshots,
-      * the newest snapshot is unreadable,
-      * the snapshot has <= 0 enabled plugins (nothing to recover),
-      * the live config has at least as many enabled plugins as the
-        snapshot (no regression detected).
-    """
-    snapshots = _list_settings_snapshots()
-    if not snapshots:
-        return None
-    newest = _resolve_snapshot_name(snapshots[0]["name"])
-    if newest is None:
-        return None
-    try:
-        snap_doc = json.loads(newest.read_text(encoding="utf-8"))
-    except (OSError, ValueError):
-        return None
-
-    snap_plugins_raw = ((snap_doc.get("data") or {}).get("config") or {}).get("plugins") or {}
-    snap_enabled = {pid for pid, cfg in snap_plugins_raw.items() if isinstance(cfg, dict) and cfg.get("enabled")}
-    if not snap_enabled:
-        return None
-
-    try:
-        live = get_config_manager().get_all_plugin_configs()
-    except Exception:  # pragma: no cover - defensive
-        return None
-    live_enabled = {pid for pid, cfg in live.items() if isinstance(cfg, dict) and cfg.get("enabled")}
-
-    missing = sorted(snap_enabled - live_enabled)
-    if not missing:
-        return None
-
-    return {
-        "snapshot_name": newest.name,
-        "snapshot_enabled_count": len(snap_enabled),
-        "current_enabled_count": len(live_enabled),
-        "missing_plugin_ids": missing,
-        "snapshot_app_version": (snap_doc.get("app_version") if isinstance(snap_doc, dict) else None),
-        "rollback_hint": (
-            "POST /system/update/rollback with snapshot=" + newest.name + " and restore_settings=true to recover."
-        ),
-    }
 
 
 from .system.routes import router as system_router  # noqa: E402

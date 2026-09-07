@@ -996,13 +996,13 @@ def test_plugins_response_shapes():
 # These routes reach the network in three ways — Docker Hub / GitHub Releases
 # version checks, the fiestaupdater sidecar HTTP API, and the BackupService's
 # on-disk export — so the scenario stubs every one of them deterministically:
-# ``src.api_server.requests`` get/post are replaced per hit (the same seam the
-# rest of the suite patches), the state-file and snapshot-dir test seams
-# (``SYSTEM_UPDATE_STATE_FILE`` / ``SETTINGS_SNAPSHOT_DIR``) point at tmp
-# paths, and ``src.backup.service.get_backup_service`` returns a canned
-# document. Identical stubs re-drive identical shapes on re-record, and the
-# golden then proves the extracted router still resolves every one of those
-# seams through ``src.api_server`` at call time.
+# ``src.system.update_service.requests`` get/post are replaced per hit, the
+# state-file and snapshot-dir test seams (``SYSTEM_UPDATE_STATE_FILE`` /
+# ``SETTINGS_SNAPSHOT_DIR``, both owned by the service since the Phase 2
+# system slice) point at tmp paths, and ``src.backup.service.get_backup_service``
+# returns a canned document. Identical stubs re-drive identical shapes on
+# re-record, and the golden then proves the router still resolves every one of
+# those collaborators through ``src.system.update_service``.
 # ---------------------------------------------------------------------------
 
 
@@ -1070,8 +1070,8 @@ def test_system_response_shapes(tmp_path, monkeypatch):
 
     state_file = tmp_path / "state.json"
     snap_dir = tmp_path / "update-backups"
-    monkeypatch.setattr("src.api_server.SYSTEM_UPDATE_STATE_FILE", state_file)
-    monkeypatch.setattr("src.api_server.SETTINGS_SNAPSHOT_DIR", snap_dir)
+    monkeypatch.setattr("src.system.update_service.SYSTEM_UPDATE_STATE_FILE", state_file)
+    monkeypatch.setattr("src.system.update_service.SETTINGS_SNAPSHOT_DIR", snap_dir)
     # Deterministic environment: docker profile, not managed externally, no
     # sidecar token until a hit opts in, dev build.
     for var in ("FIESTAUPDATER_TOKEN", "SUPERVISOR_TOKEN", "FIESTABOARD_MANAGED_EXTERNALLY", "VERSION", "PRODUCTION"):
@@ -1080,14 +1080,14 @@ def test_system_response_shapes(tmp_path, monkeypatch):
     monkeypatch.setattr("src.backup.service.get_backup_service", _GoldenBackupService)
 
     # -- /version -----------------------------------------------------------
-    with patch("src.api_server._detect_hardware_model", return_value="Raspberry Pi 5 Model B Rev 1.0"):
+    with patch("src.system.update_service._detect_hardware_model", return_value="Raspberry Pi 5 Model B Rev 1.0"):
         rec.hit("version_ok", "GET", "/version")
 
     # -- /system/update-check ----------------------------------------------
     # Docker Hub reports 99.0.0, GitHub 98.0.0: newest-of-both-sources wins.
-    with patch("src.api_server.requests.get", side_effect=_version_sources_get):
+    with patch("src.system.update_service.requests.get", side_effect=_version_sources_get):
         rec.hit("update_check_ok", "GET", "/system/update-check")
-    with patch("src.api_server.requests.get", side_effect=Exception("network down")):
+    with patch("src.system.update_service.requests.get", side_effect=Exception("network down")):
         rec.hit("update_check_sources_down", "GET", "/system/update-check")
 
     # -- /system/update/status ---------------------------------------------
@@ -1116,8 +1116,8 @@ def test_system_response_shapes(tmp_path, monkeypatch):
     empty_cm = Mock()
     empty_cm.get_all_plugin_configs.return_value = {}
     with (
-        patch("src.api_server.requests.get", side_effect=_updater_get),
-        patch("src.api_server.get_config_manager", return_value=empty_cm),
+        patch("src.system.update_service.requests.get", side_effect=_updater_get),
+        patch("src.system.update_service.get_config_manager", return_value=empty_cm),
     ):
         rec.hit("update_status_full", "GET", "/system/update/status")
 
@@ -1129,7 +1129,7 @@ def test_system_response_shapes(tmp_path, monkeypatch):
     import requests as _requests
 
     with patch(
-        "src.api_server.requests.post",
+        "src.system.update_service.requests.post",
         side_effect=_requests.exceptions.ConnectionError("sidecar down"),
     ):
         rec.hit("update_apply_sidecar_down", "POST", "/system/update")
@@ -1137,8 +1137,8 @@ def test_system_response_shapes(tmp_path, monkeypatch):
     ok_post = Mock(status_code=202)
     ok_post.json.return_value = {"previous_digest": _GOLDEN_DIGEST}
     with (
-        patch("src.api_server.requests.get", side_effect=_updater_get),
-        patch("src.api_server.requests.post", return_value=ok_post),
+        patch("src.system.update_service.requests.get", side_effect=_updater_get),
+        patch("src.system.update_service.requests.post", return_value=ok_post),
     ):
         rec.hit("update_apply_ok", "POST", "/system/update")
 
@@ -1161,7 +1161,7 @@ def test_system_response_shapes(tmp_path, monkeypatch):
         "/system/update/rollback",
         json_body={"snapshot": planted.name, "restore_image": False},
     )
-    with patch("src.api_server.requests.post", return_value=Mock(status_code=202)):
+    with patch("src.system.update_service.requests.post", return_value=Mock(status_code=202)):
         rec.hit(
             "rollback_full",
             "POST",
@@ -1192,7 +1192,7 @@ def test_system_response_shapes(tmp_path, monkeypatch):
 
     monkeypatch.setenv("FIESTAUPDATER_TOKEN", "golden-token")
     action_ok = Mock(status_code=202, text="")
-    with patch("src.api_server.requests.post", return_value=action_ok):
+    with patch("src.system.update_service.requests.post", return_value=action_ok):
         rec.hit("restart_ok", "POST", "/system/restart")
         rec.hit("shutdown_ok", "POST", "/system/shutdown")
 

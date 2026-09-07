@@ -391,7 +391,7 @@ class TestRootAndHealth:
 
     def test_version_includes_detected_hardware_model(self, client):
         with patch(
-            "src.api_server._detect_hardware_model",
+            "src.system.update_service._detect_hardware_model",
             return_value="Raspberry Pi 5 Model B Rev 1.0",
         ):
             response = client.get("/version")
