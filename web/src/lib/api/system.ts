@@ -4,7 +4,6 @@
 import { apiUrl } from "../base-path";
 import type { BoardStatus } from "./boards";
 import { fetchApi } from "./core";
-import type { ActionResponse } from "./shared";
 
 // Types for API responses
 export interface StatusResponse {
@@ -185,6 +184,19 @@ export interface SystemActionResponse {
   action: "restart" | "shutdown";
 }
 
+/**
+ * `POST /start` and `POST /stop` (Phase 2 Task 8 conventions pass).
+ *
+ * Replaces the `{ status: "already_running" | "started" | "not_running" |
+ * "stopped" }` envelope: `running` is the state the caller asked about, and
+ * `changed` says whether this request is what put it there.
+ */
+export interface ServiceStateResponse {
+  running: boolean;
+  changed: boolean;
+  message: string;
+}
+
 // ── WiFi (FiestaPi only) ──────────────────────────────────────────────────
 export interface WifiCapability {
   available: boolean;
@@ -229,8 +241,8 @@ export const systemApi = {
   getStatus: () => fetchApi<StatusResponse>("/status"),
   getConfig: () => fetchApi<ConfigSummary>("/config"),
   // Mutations (actions)
-  startService: () => fetchApi<ActionResponse>("/start", { method: "POST" }),
-  stopService: () => fetchApi<ActionResponse>("/stop", { method: "POST" }),
+  startService: () => fetchApi<ServiceStateResponse>("/start", { method: "POST" }),
+  stopService: () => fetchApi<ServiceStateResponse>("/stop", { method: "POST" }),
   forceRefresh: () =>
     fetchApi<{ message: string; sent: boolean }>("/force-refresh", {
       method: "POST",
@@ -297,10 +309,10 @@ export const systemApi = {
 
   importBackup: (payload: unknown, reinstallPlugins: boolean = true) =>
     fetchApi<{
-      status: string;
       restored_files: string[];
       skipped_files: string[];
       pre_restore_backup_suffix: string;
+      pre_restore_backup_files: string[];
       plugins: {
         attempted: string[];
         installed: string[];
@@ -336,5 +348,5 @@ export const systemApi = {
     }),
   disconnectWifi: () => fetchApi<WifiStatus>("/network/wifi/disconnect", { method: "POST" }),
   forgetWifi: (conName: string) =>
-    fetchApi<{ status: string }>(`/network/wifi/saved/${encodeURIComponent(conName)}`, { method: "DELETE" }),
+    fetchApi<{ name: string }>(`/network/wifi/saved/${encodeURIComponent(conName)}`, { method: "DELETE" }),
 };
