@@ -52,7 +52,6 @@ from .board_guards import (  # noqa: E402
     _find_board,
     _require_board,
     _silence_active,
-    primary_board_entry,
 )
 from .board_guards import validate_board_host as _validate_board_host  # noqa: E402
 from .board_guards import (  # noqa: E402

@@ -38,6 +38,7 @@ import time
 from collections.abc import Callable
 
 from .board_guards import _board_is_paused  # noqa: F401  (re-export: pre-move patch target)
+from .board_guards import primary_board_entry as _primary_board_entry  # noqa: F401  (same)
 from .devices import resolve_dimensions
 from .main import DisplayService
 from .settings.service import get_settings_service
@@ -219,21 +220,6 @@ def _get_board_client():
     service = get_service()
     if service and service.vb_client:
         return service.vb_client
-    return None
-
-
-def _primary_board_entry() -> dict | None:
-    """First entry of the settings.boards store, or None when it is empty.
-
-    Safe to call from any endpoint — never raises (mirrors
-    ``_get_first_board_dims``).
-    """
-    try:
-        boards = get_settings_service().get_board_settings().boards or []
-        if isinstance(boards, list) and boards and isinstance(boards[0], dict):
-            return boards[0]
-    except Exception as exc:
-        logger.debug("Could not read boards list: %s", exc)
     return None
 
 
