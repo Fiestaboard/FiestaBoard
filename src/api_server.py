@@ -66,7 +66,6 @@ from .config_manager import get_config_manager  # noqa: E402
 from .devices import classify_dimensions, resolve_dimensions  # noqa: E402
 from .display_runtime import get_service, peek_service  # noqa: E402
 from .displays.service import get_display_service, reset_display_service  # noqa: E402, F401
-from .main import DisplayService  # noqa: E402
 from .network.wifi import WiFiError, get_wifi_service  # noqa: E402
 from .pages.service import (  # noqa: E402
     check_ref_board_compatibility,
