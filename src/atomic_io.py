@@ -5,25 +5,32 @@ collections, panels, auth) writes by staging a temp file next to the target and
 then ``os.replace``-ing it into place, so a mid-write crash never truncates the
 real file (see #1304).
 
-That pattern is only safe if each writer owns its staging file, and writers
-come from more than one process: every ``pytest -n auto`` xdist worker, the API
-server alongside a CLI script or the MQTT bridge. With one fixed
-``<file>.tmp`` name, the process that renames second finds its source already
-renamed away and ``os.replace`` fails with ``ENOENT``, taking the save (and, in
-tests, an unrelated request) down with it. Scoping the staging name to the
-process — plus a per-process monotonic counter — removes that collision while
-keeping staging file and target siblings, so the rename stays a
-same-filesystem rename.
+That pattern is only safe if each writer owns its staging file. Within one
+process that is a live concern: two threads writing the same target (a
+settings PUT racing a backup restore, #1860) each need their own staging file,
+or one truncates or adopts the other's half-written temp. The per-process
+monotonic counter gives them that; the pid in the name extends the same
+guarantee to any second process that ever appears, without which the process
+that renames second would find its source already renamed away and
+``os.replace`` would fail with ``ENOENT``. Both keep staging file and target
+siblings, so the rename stays a same-filesystem rename.
 
-The counter matters within one process too: two threads writing the same
-target (a settings PUT racing a backup restore, #1860) each get their own
-staging file, so neither can truncate or adopt the other's half-written temp.
+(An earlier version of this note named ``pytest -n auto`` workers, "the MQTT
+bridge" and "CLI scripts" as *current* multi-process writers. Measured against
+this tree in the Phase 2 audit, none of them are: xdist workers each get their
+own data dir from ``tests/conftest.py``, MQTT is a daemon thread inside the
+API process, and no shipped script under ``scripts/`` writes the data dir. The
+pid scoping is defence for a topology that does not exist today — see
+``docs/internal/reference/PERSISTENCE.md``.)
+
 Unique staging names make the *rename* safe, not the *data*: last rename still
 wins, so writers that must not lose each other's updates still serialise their
 saves. The stores built on :class:`src.storage.json_store.JsonStore` do this
 with the store's ``RLock``; stores with their own locking (``ConfigManager``)
-hold that lock across the write. This module itself is lock-free — it provides
-the atomic write, not the serialisation.
+hold that lock across the write. Those locks are in-process only — there is
+deliberately no cross-process file lock; see PERSISTENCE.md for why. This
+module itself is lock-free — it provides the atomic write, not the
+serialisation.
 """
 
 import contextlib

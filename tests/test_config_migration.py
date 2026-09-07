@@ -204,10 +204,19 @@ class TestAutoMigration:
         assert weather["location"] == "London, UK"
 
     def test_backup_created(self, v1_config_path):
-        """A .v1_backup file should be created before migration."""
+        """A pre-migration backup file should be created before migration.
+
+        DELIBERATE CHANGE (Phase 2, config.json schema versioning): the backup
+        suffix now names the *stored* schema version the file was found at,
+        matching ``JsonStore._backup_before_migration`` (``<file>.v{N}_backup``).
+        A pre-versioning config reads as v0, so the name moved from
+        ``config.json.v1_backup`` (named after the "v1 -> v2 config migration"
+        concept) to ``config.json.v0_backup``. Nothing reads these files
+        programmatically; they exist for a human doing a manual rollback.
+        """
         ConfigManager(config_path=v1_config_path)
 
-        backup = Path(v1_config_path).with_suffix(".json.v1_backup")
+        backup = Path(v1_config_path).with_suffix(".json.v0_backup")
         assert backup.exists()
 
         original = json.loads(backup.read_text())
@@ -216,7 +225,8 @@ class TestAutoMigration:
     def test_backup_not_overwritten_on_restart(self, v1_config_path):
         """The backup should not be overwritten on subsequent starts."""
         ConfigManager(config_path=v1_config_path)
-        backup = Path(v1_config_path).with_suffix(".json.v1_backup")
+        # See test_backup_created for why this is .v0_backup, not .v1_backup.
+        backup = Path(v1_config_path).with_suffix(".json.v0_backup")
         first_content = backup.read_text()
 
         _reset_singleton()

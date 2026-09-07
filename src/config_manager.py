@@ -10,10 +10,13 @@ Supports:
   survive solely as raw input to the one-shot feature->plugin migration
 """
 
+import copy
 import json
 import logging
 import os
+import shutil
 import threading
+from collections.abc import Callable
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any, Optional
@@ -103,6 +106,129 @@ def _adjust_baywheels_to_lyft_bike_share(cfg: dict[str, Any]) -> dict[str, Any]:
 PLUGIN_RENAME_ADJUSTERS: dict[str, Any] = {
     "baywheels": _adjust_baywheels_to_lyft_bike_share,
 }
+
+# ---------------------------------------------------------------------------
+# config.json schema versioning (CLAUDE.md "Page Schema Versioning", applied
+# to config.json).
+#
+# Every other store under ``data/`` records an integer ``schema_version`` and
+# runs ordered migrations keyed on it. ``config.json`` did not: its two
+# structural migrations were guarded by *heuristics* — "is there a
+# ``plugins.weather`` entry yet?", "is ``features.silence_schedule.by_board``
+# present?" — which CLAUDE.md forbids precisely because a heuristic cannot
+# distinguish "not migrated yet" from "migrated, then deliberately changed by
+# the user". The features->plugins pass demonstrated that failure directly: a
+# user who uninstalled a plugin that had a legacy ``features.*`` block got it
+# silently re-created on the next boot, every boot, forever.
+#
+# Rules (same as every other store):
+#   * migrations operate on the raw config dict, before any typed access;
+#   * they are idempotent and safe to re-run;
+#   * they return how many entries they touched, for the log line;
+#   * a backup of the pre-migration file is written once, before the first
+#     migration runs;
+#   * ``CURRENT_SCHEMA_VERSION`` is bumped when a migration is appended.
+#
+# NOT run here (deliberately): the two silence-schedule migrations
+# (``migrate_silence_schedule_to_utc`` / ``migrate_silence_schedule_to_per_board``).
+# Both need collaborators that do not exist at config-load time and that reach
+# back into ``ConfigManager`` — the timezone-aware ``TimeService`` (whose
+# construction reads ``Config.GENERAL_TIMEZONE``) and the settings service's
+# board list (documented deadlock, see ``migrate_silence_schedule_to_per_board``).
+# They stay deferred, run once per process from ``src.config``, and keep their
+# structural guards; see the note on each.
+SCHEMA_VERSION_KEY = "schema_version"
+
+
+def _migrate_v0_to_v1(config: dict[str, Any]) -> int:
+    """Migration 0 -> 1: copy legacy ``features.<id>`` blocks into ``plugins.<id>``.
+
+    For each known legacy feature present in the stored config that has no
+    corresponding ``plugins.*`` entry, the feature settings are copied under
+    the plugin id so the v2 plugin system picks them up.
+
+    Returns the number of features migrated.
+    """
+    features = config.get("features")
+    plugins = config.get("plugins")
+    if not isinstance(features, dict):
+        return 0
+    if not isinstance(plugins, dict):
+        plugins = {}
+        config["plugins"] = plugins
+
+    migrated = 0
+    for feature_key, plugin_id in FEATURE_TO_PLUGIN_MAP.items():
+        feature_cfg = features.get(feature_key)
+        if not feature_cfg or not isinstance(feature_cfg, dict):
+            continue
+        if plugin_id in plugins:
+            continue
+        plugins[plugin_id] = {k: copy.deepcopy(v) for k, v in feature_cfg.items() if k not in MIGRATION_EXCLUDED_FIELDS}
+        logger.info(f"Auto-migrated feature '{feature_key}' -> plugin '{plugin_id}'")
+        migrated += 1
+    return migrated
+
+
+def _migrate_v1_to_v2(config: dict[str, Any]) -> int:
+    """Migration 1 -> 2: apply the plugin id renames in ``PLUGIN_ID_RENAMES``.
+
+    ``plugins.<old_id>`` moves to ``plugins.<new_id>`` (running an optional
+    adjuster to drop/rename fields). If both ids exist the old block is
+    dropped rather than overwriting the user's newer config.
+
+    Returns the number of plugin config blocks processed.
+    """
+    plugins = config.get("plugins")
+    if not isinstance(plugins, dict) or not plugins:
+        return 0
+
+    renamed = 0
+    for old_id, new_id in PLUGIN_ID_RENAMES.items():
+        if old_id not in plugins:
+            continue
+
+        old_cfg = plugins[old_id]
+        if not isinstance(old_cfg, dict):
+            # Unexpected shape; drop it silently rather than raise.
+            plugins.pop(old_id, None)
+            continue
+
+        if new_id in plugins:
+            # User already has the new plugin configured; drop the stale old
+            # entry without overwriting their config.
+            plugins.pop(old_id, None)
+            logger.info(f"Plugin rename '{old_id}' -> '{new_id}': new id already present, dropping stale old config")
+            renamed += 1
+            continue
+
+        adjuster = PLUGIN_RENAME_ADJUSTERS.get(old_id)
+        new_cfg = copy.deepcopy(old_cfg)
+        if adjuster is not None:
+            try:
+                new_cfg = adjuster(new_cfg)
+            except Exception as e:  # pragma: no cover - defensive
+                logger.warning(
+                    f"Adjuster for plugin rename '{old_id}' -> '{new_id}' failed ({e}); falling back to a plain rename"
+                )
+                new_cfg = copy.deepcopy(old_cfg)
+
+        plugins[new_id] = new_cfg
+        plugins.pop(old_id, None)
+        renamed += 1
+        logger.info(f"Renamed plugin config '{old_id}' -> '{new_id}'")
+
+    return renamed
+
+
+#: Ordered ``(target_version, fn)`` pairs. Append, never reorder or renumber.
+MIGRATIONS: list[tuple[int, Callable[[dict[str, Any]], int]]] = [
+    (1, _migrate_v0_to_v1),
+    (2, _migrate_v1_to_v2),
+]
+
+#: The schema version this build writes. Bump when appending to MIGRATIONS.
+CURRENT_SCHEMA_VERSION = 2
 
 # ---------------------------------------------------------------------------
 # Read-time env-var overlay for plugin config (issue #1761).
@@ -425,8 +551,7 @@ class ConfigManager:
         self._config: dict[str, Any] = {}
         self._raw_features: dict[str, Any] = {}
         self._load_or_create()
-        self._auto_migrate_features_to_plugins()
-        self._migrate_renamed_plugins()
+        self._run_schema_migrations()
         self._apply_env_overrides()
         self._initialized = True
 
@@ -438,6 +563,16 @@ class ConfigManager:
                     with self._config_path.open() as f:
                         self._config = json.load(f)
                     logger.info(f"Loaded config from {self._config_path}")
+
+                    # Back up the file exactly as found — before the defaults
+                    # merge resaves it and before any migration rewrites it —
+                    # whenever it is behind the current schema version. Doing
+                    # this here rather than in _run_schema_migrations is what
+                    # makes the backup a copy of the *stored* bytes rather
+                    # than of the merged rewrite.
+                    stored_version = self._schema_version_of(self._config)
+                    if stored_version < CURRENT_SCHEMA_VERSION:
+                        self._backup_before_migration(stored_version)
 
                     # Take a pre-init safety snapshot BEFORE any migration or
                     # merge touches the loaded data. This covers every upgrade
@@ -463,12 +598,16 @@ class ConfigManager:
                     self._config = self._deep_copy(DEFAULT_CONFIG)
                     self._apply_profile_defaults()
                     self._stamp_app_version_seen()
+                    # A config built from defaults has nothing to migrate.
+                    self._stamp_schema_version()
                     self._save_internal()
             else:
                 logger.info(f"Config file not found, creating defaults at {self._config_path}")
                 self._config = self._deep_copy(DEFAULT_CONFIG)
                 self._apply_profile_defaults()
                 self._stamp_app_version_seen()
+                # A config built from defaults has nothing to migrate.
+                self._stamp_schema_version()
                 self._save_internal()
 
     # ── boot-time safety snapshot (issue #948) ──────────────────────────
@@ -666,120 +805,70 @@ class ConfigManager:
 
         return merge(result, config)
 
-    def _auto_migrate_features_to_plugins(self) -> None:
-        """Automatically migrate legacy features to plugins on startup.
+    # ── schema migrations (see the module-level MIGRATIONS list) ─────────
 
-        For each known feature that was **actually present in the user's config
-        file** (not just filled in by defaults) and has no corresponding entry
-        in ``plugins.*``, copy the feature config into the plugins section so
-        the v2 plugin system picks it up.  A JSON backup of the original config
-        is created before any changes are written.
+    @staticmethod
+    def _schema_version_of(config: dict[str, Any]) -> int:
+        """Read the stored schema version, treating anything odd as 0."""
+        version = config.get(SCHEMA_VERSION_KEY, 0)
+        if isinstance(version, bool) or not isinstance(version, int):
+            return 0
+        return version
 
-        This is idempotent — once a plugin entry exists the feature is skipped.
+    def _stamp_schema_version(self) -> None:
+        """Mark the in-memory config as current. Caller persists."""
+        self._config[SCHEMA_VERSION_KEY] = CURRENT_SCHEMA_VERSION
+
+    def _backup_before_migration(self, version: int) -> None:
+        """Copy the pre-migration file to ``config.json.v{N}_backup``, once.
+
+        Mirrors :meth:`src.storage.json_store.JsonStore._backup_before_migration`.
+        Best-effort: a failed backup is logged, never fatal — refusing to boot
+        because a spare copy could not be written would be worse than booting
+        without one.
         """
-        plugins = self._config.get("plugins", {})
-
-        to_migrate: list[tuple] = []
-        for feature_key, plugin_id in FEATURE_TO_PLUGIN_MAP.items():
-            if feature_key not in self._raw_features:
-                continue
-            if plugin_id in plugins:
-                continue
-            raw_cfg = self._raw_features[feature_key]
-            if not raw_cfg or not isinstance(raw_cfg, dict):
-                continue
-            merged_cfg = self._config.get("features", {}).get(feature_key, raw_cfg)
-            to_migrate.append((feature_key, plugin_id, merged_cfg))
-
-        if not to_migrate:
+        if not self._config_path.exists():
             return
+        backup_path = self._config_path.with_suffix(f"{self._config_path.suffix}.v{version}_backup")
+        if backup_path.exists():
+            return
+        try:
+            shutil.copy2(self._config_path, backup_path)
+            logger.info(f"Created pre-migration backup at {backup_path}")
+        except Exception as e:
+            logger.warning(f"Could not create backup: {e}")
 
-        # Back up config before making changes
-        backup_path = self._config_path.with_suffix(".json.v1_backup")
-        if not backup_path.exists():
-            try:
-                import shutil
+    def _run_schema_migrations(self) -> None:
+        """Run every migration the stored config is behind, then stamp + save.
 
-                shutil.copy2(self._config_path, backup_path)
-                logger.info(f"Created pre-migration backup at {backup_path}")
-            except Exception as e:
-                logger.warning(f"Could not create backup: {e}")
-
+        Ordered and gated on the integer ``schema_version`` — never on
+        heuristics (CLAUDE.md). A config already at
+        ``CURRENT_SCHEMA_VERSION`` is a no-op, so a second boot re-runs
+        nothing and a user's deliberate edit is never undone.
+        """
         with self._file_lock:
-            if "plugins" not in self._config:
-                self._config["plugins"] = {}
+            version = self._schema_version_of(self._config)
+            if version >= CURRENT_SCHEMA_VERSION:
+                return
 
-            for feature_key, plugin_id, feature_cfg in to_migrate:
-                plugin_cfg = {
-                    k: self._deep_copy(v) for k, v in feature_cfg.items() if k not in MIGRATION_EXCLUDED_FIELDS
-                }
-                self._config["plugins"][plugin_id] = plugin_cfg
-                logger.info(f"Auto-migrated feature '{feature_key}' -> plugin '{plugin_id}'")
-
-            self._save_internal()
-
-        logger.info(f"Auto-migration complete: {len(to_migrate)} feature(s) migrated to plugins")
-
-    def _migrate_renamed_plugins(self) -> None:
-        """Apply one-shot plugin id renames defined in PLUGIN_ID_RENAMES.
-
-        For each ``old_id -> new_id`` entry, if ``plugins.<old_id>`` exists
-        and ``plugins.<new_id>`` does not, the old block is moved under the
-        new id (running an optional adjuster to drop/rename fields). If
-        both exist, the old block is dropped to avoid leaking stale
-        settings. The pass is naturally idempotent — once the rename has
-        run, ``plugins.<old_id>`` no longer exists and the loop is a
-        no-op.
-        """
-        plugins = self._config.get("plugins")
-        if not isinstance(plugins, dict) or not plugins:
-            return
-
-        renamed: list[tuple] = []
-        for old_id, new_id in PLUGIN_ID_RENAMES.items():
-            if old_id not in plugins:
-                continue
-
-            old_cfg = plugins[old_id]
-            if not isinstance(old_cfg, dict):
-                # Unexpected shape; drop it silently rather than raise.
-                plugins.pop(old_id, None)
-                continue
-
-            if new_id in plugins:
-                # User already has the new plugin configured; drop the
-                # stale old entry without overwriting their config.
-                plugins.pop(old_id, None)
+            # The pre-migration backup is taken in ``_load_or_create``, which
+            # is the only place that still holds the file as it was stored.
+            for target_version, migrate_fn in MIGRATIONS:
+                if version >= target_version:
+                    continue
+                count = migrate_fn(self._config)
                 logger.info(
-                    f"Plugin rename '{old_id}' -> '{new_id}': new id already present, dropping stale old config"
+                    "config schema migration v%d->v%d: %d entr%s affected",
+                    version,
+                    target_version,
+                    count,
+                    "y" if count == 1 else "ies",
                 )
-                renamed.append((old_id, new_id, False))
-                continue
+                version = target_version
 
-            adjuster = PLUGIN_RENAME_ADJUSTERS.get(old_id)
-            new_cfg = self._deep_copy(old_cfg)
-            if adjuster is not None:
-                try:
-                    new_cfg = adjuster(new_cfg)
-                except Exception as e:  # pragma: no cover - defensive
-                    logger.warning(
-                        f"Adjuster for plugin rename '{old_id}' -> '{new_id}' "
-                        f"failed ({e}); falling back to a plain rename"
-                    )
-                    new_cfg = self._deep_copy(old_cfg)
-
-            plugins[new_id] = new_cfg
-            plugins.pop(old_id, None)
-            renamed.append((old_id, new_id, True))
-            logger.info(f"Renamed plugin config '{old_id}' -> '{new_id}'")
-
-        if not renamed:
-            return
-
-        with self._file_lock:
+            self._stamp_schema_version()
             self._save_internal()
-
-        logger.info(f"Plugin rename migration complete: {len(renamed)} plugin(s) processed")
+            logger.info("config.json is now at schema_version %d", CURRENT_SCHEMA_VERSION)
 
     @property
     def config_generation(self) -> int:
@@ -905,8 +994,14 @@ class ConfigManager:
                 self._save_internal()
 
     def reload(self) -> None:
-        """Reload configuration from file."""
+        """Reload configuration from file.
+
+        Runs pending schema migrations too, so a config.json swapped in
+        out-of-band (backup restore, rollback) is brought up to the current
+        version by the reload rather than only by the next process start.
+        """
         self._load_or_create()
+        self._run_schema_migrations()
         self._apply_env_overrides()
         logger.info("Configuration reloaded from file")
 
@@ -1273,6 +1368,11 @@ class ConfigManager:
         read racing other config writers and stalled every thread calling
         ``ConfigManager()`` for the duration of the disk I/O (#1746).
 
+        Deferred rather than version-keyed like the ``MIGRATIONS`` list: it
+        needs ``get_time_service()``, whose construction resolves
+        ``Config.GENERAL_TIMEZONE`` and so re-enters ``ConfigManager`` — it
+        cannot run inside ``ConfigManager.__init__``.
+
         The 5-char heuristic is applied **per window** — to the install-wide
         default and to every ``by_board`` entry independently (issue #1788).
         Applying it once for the whole feature would strand every per-board
@@ -1420,12 +1520,16 @@ class ConfigManager:
         first boot after upgrading, every configured board is given an explicit
         copy of it so nothing changes behaviourally.
 
-        ``config.json`` has no integer schema_version runner, so the guard is
-        structural and reads ``self._raw_features`` — the features section as it
-        existed **on disk before** the defaults merge (which would otherwise
-        supply an empty ``by_board`` and make every install look migrated). A
-        ``by_board`` key in the stored file means this install has already been
-        migrated. That cannot double-apply, and it also means a user who
+        ``config.json`` now HAS an integer schema_version runner
+        (``MIGRATIONS`` / ``_run_schema_migrations``), but this migration
+        cannot use it: it needs the configured board ids, which come from the
+        settings service, which reaches back into ``ConfigManager`` — see the
+        deadlock note below. It therefore runs deferred (once per process,
+        from ``src.config``) and keeps a structural guard: ``self._raw_features``
+        — the features section as it existed **on disk before** the defaults
+        merge (which would otherwise supply an empty ``by_board`` and make
+        every install look migrated). A ``by_board`` key in the stored file
+        means this install has already been migrated. That cannot double-apply, and it also means a user who
         deliberately deletes a board's override does not get it silently
         re-seeded on the next boot (the resolution rule already falls back to
         the install-wide values for them).
