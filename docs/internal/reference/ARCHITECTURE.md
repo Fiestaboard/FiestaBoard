@@ -17,7 +17,7 @@ HTTP request
    │
    ▼
 src/api_server.py ─── the app object, middleware, lifespan, and the
-   │                  handlers of domains not yet extracted
+   │                  eleven deprecated plugin-specific handlers
    ▼
 src/<domain>/routes.py ─── APIRouter(tags=["<domain>"]); HTTP concerns only:
    │                       status codes, response_model, HTTPException
@@ -38,10 +38,11 @@ enforced by tests (`tests/test_service_wiring.py`,
 
 ## The layers, one paragraph each
 
-**`src/api_server.py`** builds the FastAPI app, mounts every router, owns the
-lifespan (start the display service, start MQTT, start the update poller) and
-still holds the handlers for domains that have not been extracted yet. It
-shrinks with every slice. Nothing else should import it — see *Seams* below.
+**`src/api_server.py`** builds the FastAPI app, mounts every router and owns
+the lifespan (start the display service, start MQTT, start the update poller).
+As of the `/pages/ai` slice it holds **no** handler for a live domain: every
+non-deprecated route in the app now belongs to a tagged router under the
+conventions ratchet. Nothing else should import it — see *Seams* below.
 
 Two kinds of thing legitimately stay in it. The **background-loop state** —
 the `_service_running` flag, the thread handle, `_shutting_down`,
@@ -55,7 +56,7 @@ and `src/service_api/routes.py` never sees the state. The other is the
 plugin each, which CLAUDE.md says must not be in `src/` at all. They have no
 consumer, they are `deprecated=True` in the schema, and #1915 tracks removing
 them; extracting a router for code we intend to delete would be motion, not
-progress.
+progress. When #1915 lands, `api_server.py` stops serving routes entirely.
 
 **Routers (`src/<domain>/routes.py`)** are the only place HTTP appears.
 Every route declares `response_model=`, a typed request body, the error

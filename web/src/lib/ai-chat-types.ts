@@ -313,6 +313,11 @@ export interface ChatRequestBody {
 
 // SSE event payloads from POST /pages/ai/chat. The event name is
 // carried by fetchEventSource separately; the data is JSON-decoded.
+//
+// These mirror the ChatStream*Data models registered in
+// CHAT_STREAM_EVENTS (src/ai/page_routes.py). That endpoint streams, so it
+// has no response_model to generate from — the registry is the published
+// schema, and tests/test_ai_pages_contract.py holds it to the wire.
 
 export interface SSETextData {
   delta: string;
@@ -334,7 +339,7 @@ export interface SSEErrorData {
 
 export interface SSEDoneData {
   model_used: string;
-  provider_id: string;
+  provider_id: string | null;
   usage: {
     prompt_tokens: number | null;
     completion_tokens: number | null;

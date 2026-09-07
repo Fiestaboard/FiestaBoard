@@ -175,6 +175,26 @@ describe("streamChat", () => {
     await expect(streamChat(BASE_BODY, {}, ctrl.signal)).resolves.toBeUndefined();
   });
 
+  it("serializes a FastAPI validation detail rather than reporting only the status", async () => {
+    // POST /pages/ai/chat takes a typed body since the Phase 2 conventions
+    // pass, so a malformed request comes back as a 422 whose `detail` is a
+    // list of field errors, not a string. Reporting "Server returned 422."
+    // there hides which field the drawer got wrong.
+    mockFES.mockImplementation(async (_url: string, opts: any) => {
+      const response = {
+        ok: false,
+        status: 422,
+        headers: { get: () => null },
+        json: async () => ({ detail: [{ loc: ["body", "messages"], msg: "Field required" }] }),
+      };
+      await opts.onopen?.(response);
+    });
+    const onError = vi.fn();
+    await streamChat(BASE_BODY, { onError });
+    expect(onError).toHaveBeenCalledWith(expect.stringContaining("messages"));
+    expect(onError).not.toHaveBeenCalledWith("Server returned 422.");
+  });
+
   it("falls back to status text when server JSON has no detail field", async () => {
     mockFES.mockImplementation(async (_url: string, opts: any) => {
       const response = {
