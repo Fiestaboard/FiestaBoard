@@ -9,6 +9,10 @@ fresh interpreter rather than trusting a code review of the import block.
 ``src/board_api/routes.py`` is the interesting one: it is the last domain whose
 collaborators (the pause and silence guards, the service singleton, the
 out-of-band write notifier) all lived in ``api_server`` at the start of Phase 2.
+
+``src/ai/page_routes.py`` is the last router extracted at all — the three
+``/pages/ai`` handlers. Both ``src/ai`` routers carry the same ``ai`` tag: one
+domain, two URL prefixes.
 """
 
 from __future__ import annotations
@@ -28,6 +32,8 @@ ROUTERS = [
     ("src.mqtt.routes", "mqtt"),
     ("src.backup.routes", "backup"),
     ("src.plugin_support.routes", "plugin-support"),
+    ("src.ai.routes", "ai"),
+    ("src.ai.page_routes", "ai"),
 ]
 
 

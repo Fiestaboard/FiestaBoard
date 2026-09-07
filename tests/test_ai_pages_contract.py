@@ -13,10 +13,29 @@ pins a literal the client can observe: the status code, the whole
 ``detail`` string, the exact response keys, and for the chat endpoint the
 raw SSE bytes.
 
-This file is committed **green against the trunk** before the conversion.
-The conventions commit re-pins only what it deliberately changes, marking
-each one with a ``CHANGED (conventions):`` comment naming what moved and
-why. Nothing else in this file may move.
+This file was committed **green against the trunk** before the conversion.
+The conventions commit re-pinned only what it deliberately changed, and
+every one of those is marked with a ``CHANGED (conventions):`` comment
+naming what moved and why. Nothing else in this file moved.
+
+The changes, in full:
+
+1. Structural body/query rejections moved from nine hand-rolled 400s to
+   FastAPI's 422, because the two POST bodies are Pydantic models now and
+   ``device_type`` is a ``Literal``. None of them is reachable from the
+   app — ``global-ai-chat-drawer.tsx`` hardcodes ``device_type``, sends a
+   ``surface`` of ``"editor"``/``"global"``, and always sends a non-empty
+   ``messages`` array; ``generateAiPage`` has no production caller in
+   ``web/src`` at all.
+2. ``POST /generate``'s response is a declared ``AIGenerateResponse``, so
+   ``page`` is serialized as the ``PageCreate`` it always was — every
+   optional field is present-with-null instead of present-only-when-the-
+   generator-set-it.
+
+Everything else — the 400 on a whitespace-only prompt, the 400 carrying
+the generator's message, the 500 wording, the 429 wording, the SSE bytes,
+the stream headers, and every value in every success body — is unchanged
+and asserted here to prove it.
 """
 
 from __future__ import annotations
@@ -35,6 +54,20 @@ from src.config_manager import ConfigManager
 # three handlers resolve. Kept in one constant so the move repoints the seam
 # in one place rather than in every monkeypatch call.
 ROUTES_MODULE = "src.ai.page_routes"
+
+#: Every optional PageCreate field the declared response model fills in with
+#: null when the generator did not set it. Listed so the assertion below is a
+#: pin on the *shape*, not a restatement of whatever the code produced.
+PAGE_NULL_FIELDS = {
+    "display_type",
+    "rows",
+    "transition_strategy",
+    "transition_interval_ms",
+    "transition_step_size",
+    "demo_plugin_id",
+    "notes_wide",
+    "notes_tall",
+}
 
 
 @pytest.fixture
@@ -142,8 +175,11 @@ def test_context_never_leaks_a_credential_into_the_system_prompt(client, cm):
 
 def test_context_rejects_an_unknown_device_type(client):
     res = client.get("/pages/ai/context?device_type=potato")
-    assert res.status_code == 400
-    assert res.json()["detail"] == "Invalid device_type: 'potato'"
+    # CHANGED (conventions): was 400 with detail "Invalid device_type:
+    # 'potato'" from a hand-rolled membership check. device_type is a typed
+    # Literal query parameter now, so the rejection is FastAPI's own schema
+    # validation. Nothing in web/src calls this debug endpoint.
+    assert res.status_code == 422
 
 
 # ---------------------------------------------------------------------------
@@ -176,6 +212,21 @@ def test_generate_returns_the_draft_page_and_the_provider_that_made_it(client, c
     assert page["template"] == ["", "12:34", "", "", "", ""]
     assert page["line_metadata"] == [{"alignment": "center", "wrap": False} for _ in range(6)]
     assert page["duration_seconds"] == 60
+    # CHANGED (conventions): the response is a declared AIGenerateResponse,
+    # so `page` is serialized as the PageCreate it has always been — the
+    # optional fields the generator left unset are now present as null
+    # rather than absent. Additive only; no value the client already read
+    # changed.
+    assert set(page) == {
+        "name",
+        "type",
+        "device_type",
+        "template",
+        "line_metadata",
+        "duration_seconds",
+        *PAGE_NULL_FIELDS,
+    }
+    assert all(page[field] is None for field in PAGE_NULL_FIELDS)
 
 
 def test_generate_forwards_the_prompt_device_and_unmasked_provider_block(client, cm):
@@ -216,8 +267,10 @@ def test_generate_forwards_the_prompt_device_and_unmasked_provider_block(client,
 def test_generate_requires_a_prompt(client, cm):
     _seed_provider(cm)
     res = client.post("/pages/ai/generate", json={"device_type": "flagship"})
-    assert res.status_code == 400
-    assert res.json()["detail"] == "`prompt` is required."
+    # CHANGED (conventions): was 400 "`prompt` is required." from a
+    # hand-rolled isinstance check on a free-form body. `prompt` is a
+    # required field on AIGenerateRequest now, so a missing one is 422.
+    assert res.status_code == 422
 
 
 def test_generate_rejects_a_blank_prompt(client, cm):
@@ -230,8 +283,8 @@ def test_generate_rejects_a_blank_prompt(client, cm):
 def test_generate_rejects_an_unknown_device_type(client, cm):
     _seed_provider(cm)
     res = client.post("/pages/ai/generate", json={"prompt": "x", "device_type": "billboard"})
-    assert res.status_code == 400
-    assert res.json()["detail"] == "Invalid device_type: 'billboard'"
+    # CHANGED (conventions): was 400 "Invalid device_type: 'billboard'".
+    assert res.status_code == 422
 
 
 def test_generate_rejects_a_non_object_current_page(client, cm):
@@ -240,15 +293,15 @@ def test_generate_rejects_a_non_object_current_page(client, cm):
         "/pages/ai/generate",
         json={"prompt": "x", "device_type": "flagship", "current_page": ["not", "a", "dict"]},
     )
-    assert res.status_code == 400
-    assert res.json()["detail"] == "`current_page` must be an object."
+    # CHANGED (conventions): was 400 "`current_page` must be an object."
+    assert res.status_code == 422
 
 
 def test_generate_rejects_a_non_object_body(client, cm):
     _seed_provider(cm)
     res = client.post("/pages/ai/generate", json=["not", "an", "object"])
-    assert res.status_code == 400
-    assert res.json()["detail"] == "Body must be a JSON object."
+    # CHANGED (conventions): was 400 "Body must be a JSON object."
+    assert res.status_code == 422
 
 
 def test_generate_rejects_malformed_json(client, cm):
@@ -258,8 +311,8 @@ def test_generate_rejects_malformed_json(client, cm):
         content=b"{not json",
         headers={"Content-Type": "application/json"},
     )
-    assert res.status_code == 400
-    assert res.json()["detail"].startswith("Invalid JSON: ")
+    # CHANGED (conventions): was 400 "Invalid JSON: ...".
+    assert res.status_code == 422
 
 
 def test_generate_surfaces_a_generation_failure_as_a_400_with_the_model_message(client, cm):
@@ -305,8 +358,18 @@ def test_generate_throttles_a_second_call_inside_the_minimum_interval(client, cm
     assert second.json()["detail"] == "AI generation is rate-limited. Please wait a moment and try again."
 
 
-def test_generate_throttle_fires_before_the_body_is_read(client, cm):
-    """The throttle is checked first, so a rejected call costs no LLM work."""
+def test_generate_rejects_a_malformed_body_without_spending_the_throttle_window(client, cm):
+    """A request that never reaches the LLM never costs an LLM call.
+
+    CHANGED (conventions): the ordering flipped, and it could not not. With
+    a free-form ``await request.json()`` body the throttle ran first, so a
+    malformed second call answered 429 *and* consumed the rate-limit window;
+    with a Pydantic body FastAPI validates before the handler is entered, so
+    it answers 422 and leaves the window alone. No abuse vector opens —
+    spamming *valid* requests is still throttled (the test above) and a
+    malformed one could never have reached the provider — and a request the
+    server refused no longer eats the budget of the next real one.
+    """
     _seed_provider(cm)
 
     async def fake_generate(**kwargs):
@@ -314,11 +377,9 @@ def test_generate_throttle_fires_before_the_body_is_read(client, cm):
 
     with patch("src.ai.generator.generate_page", side_effect=fake_generate) as gen:
         client.post("/pages/ai/generate", json={"prompt": "x", "device_type": "flagship"})
-        # A body that could not pass validation still gets the 429, because
-        # the throttle runs before anything looks at it.
         second = client.post("/pages/ai/generate", json={"nonsense": True})
 
-    assert second.status_code == 429
+    assert second.status_code == 422
     assert gen.call_count == 1
 
 
@@ -510,71 +571,61 @@ def test_chat_is_not_rate_limited_like_generate(client, cm):
 
 
 @pytest.mark.parametrize(
-    "body,detail",
+    "body",
     [
-        pytest.param(
-            {"messages": "not a list", "device_type": "flagship"},
-            "`messages` must be a non-empty array.",
-            id="messages-not-a-list",
-        ),
-        pytest.param(
-            {"messages": [], "device_type": "flagship"},
-            "`messages` must be a non-empty array.",
-            id="messages-empty",
-        ),
+        pytest.param({"messages": "not a list", "device_type": "flagship"}, id="messages-not-a-list"),
+        pytest.param({"messages": [], "device_type": "flagship"}, id="messages-empty"),
         pytest.param(
             {"messages": [{"role": "user", "content": "hi"}], "device_type": "watch"},
-            "Invalid device_type: 'watch'",
             id="unknown-device-type",
         ),
         pytest.param(
             {"messages": [{"role": "user", "content": "hi"}], "device_type": "flagship", "surface": "nonsense"},
-            "Invalid surface: 'nonsense' (expected 'editor' or 'global').",
             id="unknown-surface",
         ),
         pytest.param(
             {"messages": [{"role": "user", "content": "hi"}], "device_type": "flagship", "current_page": []},
-            "`current_page` must be an object.",
             id="current-page-not-an-object",
         ),
         pytest.param(
             {"messages": [{"role": "user", "content": "hi"}], "device_type": "flagship", "available_pages": {}},
-            "`available_pages` must be an array.",
             id="available-pages-not-an-array",
         ),
         pytest.param(
             {"messages": [{"role": "user", "content": "hi"}], "device_type": "flagship", "installed_plugins": {}},
-            "`installed_plugins` must be an array.",
             id="installed-plugins-not-an-array",
         ),
         pytest.param(
             {"messages": [{"role": "user", "content": "hi"}], "device_type": "flagship", "available_schedules": {}},
-            "`available_schedules` must be an array.",
             id="available-schedules-not-an-array",
         ),
         pytest.param(
             {"messages": [{"role": "user", "content": "hi"}], "device_type": "flagship", "available_collections": {}},
-            "`available_collections` must be an array.",
             id="available-collections-not-an-array",
         ),
         pytest.param(
             {"messages": [{"role": "user", "content": "hi"}], "device_type": "flagship", "registry_plugins": {}},
-            "`registry_plugins` must be an array.",
             id="registry-plugins-not-an-array",
         ),
-        pytest.param(["not", "an", "object"], "Body must be a JSON object.", id="body-not-an-object"),
+        pytest.param(["not", "an", "object"], id="body-not-an-object"),
     ],
 )
-def test_chat_rejects_a_malformed_request_before_opening_the_stream(client, cm, body, detail):
+def test_chat_rejects_a_malformed_request_before_opening_the_stream(client, cm, body):
     """A rejected chat request is a JSON error, never a 200 SSE stream.
 
     ``api-stream.ts`` distinguishes the two by ``response.ok`` and then by
     ``content-type``: a failure served as a 200 event-stream would be shown
     as an empty assistant turn instead of an error.
+
+    CHANGED (conventions): every case here answered 400 with a hand-rolled
+    ``detail`` string read off a free-form JSON body. The body is an
+    ``AIChatRequest`` now, so structural rejections are FastAPI's standard
+    422. What is asserted here — that the rejection happens *before* the
+    stream opens, and arrives as JSON rather than as a 200 event-stream —
+    is exactly what it was.
     """
     res = client.post("/pages/ai/chat", json=body)
-    assert res.status_code == 400
-    assert res.json()["detail"] == detail
+    assert res.status_code == 422
     assert res.headers["content-type"].startswith("application/json")
 
 
@@ -584,5 +635,69 @@ def test_chat_rejects_malformed_json(client, cm):
         content=b"{not json",
         headers={"Content-Type": "application/json"},
     )
-    assert res.status_code == 400
-    assert res.json()["detail"].startswith("Invalid JSON: ")
+    # CHANGED (conventions): was 400 "Invalid JSON: ...".
+    assert res.status_code == 422
+
+
+# ---------------------------------------------------------------------------
+# The SSE event schema — what stands in for POST /chat's missing response_model
+# ---------------------------------------------------------------------------
+
+
+def test_every_event_stream_chat_can_emit_is_declared_in_the_registry():
+    """``src/ai/chat.py`` cannot grow an undocumented event type.
+
+    ``POST /pages/ai/chat`` streams, so it has no ``response_model`` and
+    carries a checked-in exception for that rule. ``CHAT_STREAM_EVENTS`` is
+    what the exception points at instead, which only means something if it
+    is kept honest: this walks every ``{"event": <literal>, ...}`` dict in
+    the streamer's own source and asserts the two sets are equal.
+    """
+    import ast
+    import inspect
+
+    from src.ai import chat as chat_module
+    from src.ai.page_routes import CHAT_STREAM_EVENTS
+
+    emitted: set[str] = set()
+    for node in ast.walk(ast.parse(inspect.getsource(chat_module))):
+        if not isinstance(node, ast.Dict):
+            continue
+        for key, value in zip(node.keys, node.values, strict=True):
+            if isinstance(key, ast.Constant) and key.value == "event" and isinstance(value, ast.Constant):
+                emitted.add(value.value)
+
+    assert emitted == set(CHAT_STREAM_EVENTS), (
+        "src/ai/chat.py emits event types the published SSE schema does not "
+        "declare (or declares ones it never emits). Update CHAT_STREAM_EVENTS "
+        "in src/ai/page_routes.py — it is the only schema this endpoint has."
+    )
+
+
+def test_streamed_frames_match_the_declared_event_models(client, cm):
+    """Each frame's ``data`` is exactly the fields its model declares."""
+    from src.ai.page_routes import CHAT_STREAM_EVENTS
+
+    events = [*STREAMED_EVENTS, {"event": "error", "data": {"message": "fatal"}}]
+    with patch("src.ai.chat.stream_chat", _fake_stream(events)):
+        res = client.post("/pages/ai/chat", json=CHAT_BODY)
+
+    frames = _frames(res.text)
+    assert frames, "no frames to check"
+    for name, data in frames:
+        model = CHAT_STREAM_EVENTS[name]
+        # Validates AND pins the key set: a model that merely accepts the
+        # payload would still pass if the wire grew a field nobody declared.
+        model.model_validate(data)
+        assert set(data) <= set(model.model_fields), f"{name} frame carries undeclared keys: {sorted(data)}"
+
+
+def test_the_chat_route_declares_the_event_stream_media_type():
+    """The 200 documents ``text/event-stream``; a JSON body would be a lie."""
+    from src.ai.page_routes import router
+
+    route = next(r for r in router.routes if getattr(r, "path", None) == "/pages/ai/chat")
+    assert route.response_model is None
+    assert "text/event-stream" in route.responses[200]["content"]
+    for name in ("text", "tool_call", "warning", "error", "done"):
+        assert f"`{name}`" in route.responses[200]["description"]

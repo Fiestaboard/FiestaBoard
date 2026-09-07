@@ -185,22 +185,26 @@ def test_generate_page_no_providers_returns_400(client, reset_config_singleton):
     assert res.status_code == 400
 
 
-def test_generate_page_missing_prompt_returns_400(client, reset_config_singleton):
+def test_generate_page_missing_prompt_returns_422(client, reset_config_singleton):
+    # 422 since the conventions pass typed the body: `prompt` is a required
+    # field on AIGenerateRequest, so a missing one is FastAPI's own schema
+    # rejection and the hand-rolled 400 "`prompt` is required." is gone.
     _seed_provider(reset_config_singleton)
     res = client.post(
         "/pages/ai/generate",
         json={"device_type": "flagship"},
     )
-    assert res.status_code == 400
+    assert res.status_code == 422
 
 
-def test_generate_page_invalid_device_returns_400(client, reset_config_singleton):
+def test_generate_page_invalid_device_returns_422(client, reset_config_singleton):
+    # 422 since the conventions pass made device_type a Literal.
     _seed_provider(reset_config_singleton)
     res = client.post(
         "/pages/ai/generate",
         json={"prompt": "x", "device_type": "billboard"},
     )
-    assert res.status_code == 400
+    assert res.status_code == 422
 
 
 def test_generate_page_happy_path_mocks_generator(client, reset_config_singleton):
@@ -309,8 +313,10 @@ def test_get_ai_context_includes_dimensions(client):
 
 
 def test_get_ai_context_rejects_invalid_device(client):
+    # 422 since the conventions pass made the device_type query parameter a
+    # Literal instead of a str with a hand-rolled membership check.
     res = client.get("/pages/ai/context?device_type=potato")
-    assert res.status_code == 400
+    assert res.status_code == 422
 
 
 # ---------------------------------------------------------------------------
@@ -454,10 +460,12 @@ def test_generate_page_passes_current_page_through(client, reset_config_singleto
 
 
 def test_generate_page_rejects_non_dict_current_page(client, reset_config_singleton):
+    # 422 since the conventions pass typed the body; FastAPI's validation
+    # detail still names the offending field, which is what this asserts.
     _seed_provider(reset_config_singleton)
     res = client.post(
         "/pages/ai/generate",
         json={"prompt": "x", "device_type": "flagship", "current_page": ["not", "a", "dict"]},
     )
-    assert res.status_code == 400
-    assert "current_page" in res.json()["detail"]
+    assert res.status_code == 422
+    assert "current_page" in res.text
