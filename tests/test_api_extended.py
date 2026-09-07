@@ -557,8 +557,8 @@ class TestSettingsEndpoints:
     def test_update_transition_settings(self, client, mock_settings_service):
         response = client.put("/settings/transitions", json={"strategy": "column"})
         assert response.status_code == 200
-        data = response.json()
-        assert data["status"] == "success"
+        # Bare TransitionSettings since the conventions pass (Phase 2, Task 8).
+        assert response.json()["strategy"] == "column"
 
     def test_update_transition_settings_invalid(self, client, mock_settings_service):
         mock_settings_service.update_transition_settings.side_effect = ValueError("Invalid strategy")
@@ -575,11 +575,16 @@ class TestSettingsEndpoints:
     def test_update_output_settings(self, client, mock_settings_service):
         response = client.put("/settings/output", json={"target": "board"})
         assert response.status_code == 200
-        assert response.json()["status"] == "success"
+        # Bare OutputSettings since the conventions pass (Phase 2, Task 8):
+        # the body is now what the stubbed service returned, which is the
+        # point — the old `status == "success"` assertion passed whatever
+        # the service said.
+        assert response.json()["target"] == mock_settings_service.set_output_target.return_value.target
 
     def test_update_output_settings_missing_target(self, client, mock_settings_service):
         response = client.put("/settings/output", json={})
-        assert response.status_code == 400
+        # 422 since the conventions pass typed the body (Phase 2, Task 8).
+        assert response.status_code == 422
 
     def test_update_output_settings_invalid_target(self, client, mock_settings_service):
         mock_settings_service.set_output_target.side_effect = ValueError("Invalid target")

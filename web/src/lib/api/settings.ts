@@ -62,15 +62,6 @@ export interface PluginSettings {
   auto_update: boolean;
 }
 
-export interface PluginSettingsResponse {
-  settings: PluginSettings;
-}
-
-export interface PluginSettingsUpdateResponse {
-  status: string;
-  settings: PluginSettings;
-}
-
 export interface BetaHttpsStatus {
   cert_present: boolean;
   cert_path: string;
@@ -128,13 +119,13 @@ export const settingsApi = {
   // Settings endpoints
   getTransitionSettings: () => fetchApi<TransitionSettings>("/settings/transitions"),
   updateTransitionSettings: (settings: Partial<TransitionSettings>) =>
-    fetchApi<{ status: string; settings: TransitionSettings }>("/settings/transitions", {
+    fetchApi<TransitionSettings>("/settings/transitions", {
       method: "PUT",
       body: JSON.stringify(settings),
     }),
   getOutputSettings: () => fetchApi<OutputSettings>("/settings/output"),
   updateOutputSettings: (target: "ui" | "board" | "both") =>
-    fetchApi<{ status: string; settings: { target: string } }>("/settings/output", {
+    fetchApi<{ target: string }>("/settings/output", {
       method: "PUT",
       body: JSON.stringify({ target }),
     }),
@@ -152,7 +143,7 @@ export const settingsApi = {
   // Polling settings
   getPollingSettings: () => fetchApi<PollingSettings>("/settings/polling"),
   updatePollingSettings: (updates: Partial<PollingSettings>) =>
-    fetchApi<{ status: string; settings: PollingSettings; requires_restart: boolean }>("/settings/polling", {
+    fetchApi<PollingSettings & { requires_restart: boolean }>("/settings/polling", {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(updates),
@@ -161,7 +152,7 @@ export const settingsApi = {
   // Display settings
   getDisplaySettings: () => fetchApi<DisplaySettings>("/settings/display"),
   updateDisplaySettings: (settings: Partial<DisplaySettings>) =>
-    fetchApi<{ status: string; settings: DisplaySettings }>("/settings/display", {
+    fetchApi<DisplaySettings>("/settings/display", {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(settings),
@@ -170,7 +161,7 @@ export const settingsApi = {
   // Location settings (for sunrise/sunset schedules)
   getLocationSettings: () => fetchApi<LocationSettings>("/settings/location"),
   updateLocationSettings: (settings: Partial<LocationSettings>) =>
-    fetchApi<{ status: string; settings: LocationSettings }>("/settings/location", {
+    fetchApi<LocationSettings>("/settings/location", {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(settings),
@@ -188,9 +179,9 @@ export const settingsApi = {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(updates),
     }),
-  getPluginSettings: () => fetchApi<PluginSettingsResponse>("/settings/plugins"),
+  getPluginSettings: () => fetchApi<PluginSettings>("/settings/plugins"),
   updatePluginSettings: (updates: Partial<PluginSettings>) =>
-    fetchApi<PluginSettingsUpdateResponse>("/settings/plugins", {
+    fetchApi<PluginSettings>("/settings/plugins", {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(updates),

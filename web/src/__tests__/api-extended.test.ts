@@ -731,8 +731,9 @@ describe("API Extended Tests", () => {
 
     it("updatePollingSettings sends interval", async () => {
       const result = await api.updatePollingSettings({ interval_seconds: 600 });
-      expect(result.status).toBe("success");
-      expect(result.settings.interval_seconds).toBe(600);
+      // Bare PollingSettings + requires_restart since the conventions pass.
+      expect(result.interval_seconds).toBe(600);
+      expect(result.requires_restart).toBe(false);
     });
 
     it("updateSilenceSchedule PUTs to /settings/silence-schedule", async () => {

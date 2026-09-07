@@ -129,6 +129,9 @@ def mock_settings_service():
             "reduce_motion": False,
             "board_animations": "on",
             "site_animations": "on",
+            # Added with the conventions pass: the response_model now
+            # validates the payload, and this stub predated the field.
+            "board_flap_speed": "standard",
         }
         ss.get_display_settings.return_value = display
         ss.update_display_settings.return_value = display
@@ -1321,7 +1324,9 @@ class TestDisplaySettings:
         """Update display settings."""
         response = client.put("/settings/display", json={"reduce_motion": True})
         assert response.status_code == 200
-        assert response.json()["status"] == "success"
+        # Bare DisplaySettings since the conventions pass (Phase 2, Task 8):
+        # the body is the stubbed service's settings, unwrapped.
+        assert response.json() == mock_settings_service.update_display_settings.return_value.to_dict()
         mock_settings_service.update_display_settings.assert_called_once()
 
     def test_get_display_settings(self, client, mock_settings_service):

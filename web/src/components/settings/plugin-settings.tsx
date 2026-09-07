@@ -65,7 +65,7 @@ export function PluginSettingsCard() {
           <Text tone="muted">{t("autoUpdateDescription")}</Text>
         </Stack>
         <Switch
-          checked={data.settings.auto_update}
+          checked={data.auto_update}
           disabled={mutation.isPending}
           onCheckedChange={(checked) => mutation.mutate(checked)}
           aria-label={t("autoUpdateLabel")}

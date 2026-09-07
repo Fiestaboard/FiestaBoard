@@ -348,7 +348,8 @@ test.describe("API – Settings (extended)", () => {
     });
     expect(res.ok).toBe(true);
     const data = await res.json();
-    expect(data.status).toBe("success");
+    // Bare TransitionSettings since the conventions pass (Phase 2, Task 8).
+    expect(data.strategy).toBe(target);
 
     // Restore original
     await fetch(`${API()}/settings/transitions`, {

@@ -134,10 +134,9 @@ class TestTransitions:
     def test_put_returns_the_saved_transition_settings(self, client):
         response = client.put("/settings/transitions", json={"strategy": "column", "step_size": 2})
         assert response.status_code == 200
-        assert response.json() == {
-            "status": "success",
-            "settings": {"strategy": "column", "step_interval_ms": None, "step_size": 2},
-        }
+        # CHANGED (conventions, bare bodies): the bare TransitionSettings,
+        # was {"status": "success", "settings": {...}}.
+        assert response.json() == {"strategy": "column", "step_interval_ms": None, "step_size": 2}
 
     def test_put_400s_on_an_unknown_strategy_naming_the_valid_set(self, client):
         response = client.put("/settings/transitions", json={"strategy": "nope"})
@@ -167,13 +166,15 @@ class TestOutput:
     def test_put_returns_the_saved_output_settings(self, client):
         response = client.put("/settings/output", json={"target": "ui"})
         assert response.status_code == 200
-        assert response.json() == {"status": "success", "settings": {"target": "ui"}}
+        # CHANGED (conventions, bare bodies): the bare OutputSettings.
+        assert response.json() == {"target": "ui"}
         assert client.get("/settings/output").json()["target"] == "ui"
 
     def test_put_without_target_is_rejected(self, client):
         response = client.put("/settings/output", json={})
-        assert response.status_code == 400
-        assert response.json() == {"detail": "target parameter required"}
+        # CHANGED (conventions, typed_body): FastAPI's 422 replaces the
+        # hand-rolled 400 {"detail": "target parameter required"}.
+        assert response.status_code == 422
 
     def test_put_400s_on_an_unknown_target_naming_the_valid_set(self, client):
         response = client.put("/settings/output", json={"target": "nope"})
@@ -309,13 +310,13 @@ class TestPolling:
     def test_put_returns_the_saved_intervals_and_the_restart_hint(self, client):
         response = client.put("/settings/polling", json={"interval_seconds": 60})
         assert response.status_code == 200
+        # CHANGED (conventions, bare bodies): the settings are inlined and
+        # "status" dropped. requires_restart survives — it is real
+        # information about the write, not an envelope.
         assert response.json() == {
-            "status": "success",
-            "settings": {
-                "interval_seconds": 60,
-                "board_read_interval_local": 30,
-                "board_read_interval_cloud": 180,
-            },
+            "interval_seconds": 60,
+            "board_read_interval_local": 30,
+            "board_read_interval_cloud": 180,
             "requires_restart": True,
         }
 
@@ -323,7 +324,7 @@ class TestPolling:
         response = client.put("/settings/polling", json={"board_read_interval_local": 45})
         assert response.status_code == 200
         assert response.json()["requires_restart"] is False
-        assert response.json()["settings"]["board_read_interval_local"] == 45
+        assert response.json()["board_read_interval_local"] == 45
 
     def test_put_400s_below_the_minimum_polling_interval(self, client):
         response = client.put("/settings/polling", json={"interval_seconds": 1})
@@ -519,14 +520,12 @@ class TestDisplay:
     def test_put_returns_the_saved_display_settings(self, client):
         response = client.put("/settings/display", json={"reduce_motion": True})
         assert response.status_code == 200
+        # CHANGED (conventions, bare bodies): the bare DisplaySettings.
         assert response.json() == {
-            "status": "success",
-            "settings": {
-                "reduce_motion": True,
-                "board_animations": "on",
-                "site_animations": "on",
-                "board_flap_speed": "standard",
-            },
+            "reduce_motion": True,
+            "board_animations": "on",
+            "site_animations": "on",
+            "board_flap_speed": "standard",
         }
 
 
@@ -537,10 +536,8 @@ class TestLocation:
     def test_put_returns_the_saved_coordinates(self, client):
         response = client.put("/settings/location", json={"latitude": 40.7128, "longitude": -74.006})
         assert response.status_code == 200
-        assert response.json() == {
-            "status": "success",
-            "settings": {"latitude": 40.7128, "longitude": -74.006},
-        }
+        # CHANGED (conventions, bare bodies): the bare LocationSettings.
+        assert response.json() == {"latitude": 40.7128, "longitude": -74.006}
 
     def test_sun_times_report_not_configured_before_coordinates_are_set(self, client):
         assert client.get("/settings/location/sun-times").json() == {
@@ -649,19 +646,23 @@ class TestBeta:
 
 class TestPluginSettings:
     def test_get_returns_the_plugin_settings(self, client):
-        assert client.get("/settings/plugins").json() == {"settings": {"auto_update": True}}
+        # CHANGED (conventions, bare bodies): the bare PluginSettings, was
+        # {"settings": {...}}.
+        assert client.get("/settings/plugins").json() == {"auto_update": True}
 
     def test_put_returns_the_saved_plugin_settings(self, client):
         response = client.put("/settings/plugins", json={"auto_update": False})
         assert response.status_code == 200
-        assert response.json() == {"status": "success", "settings": {"auto_update": False}}
-        assert client.get("/settings/plugins").json() == {"settings": {"auto_update": False}}
+        # CHANGED (conventions, bare bodies): the bare PluginSettings.
+        assert response.json() == {"auto_update": False}
+        assert client.get("/settings/plugins").json() == {"auto_update": False}
 
-    def test_put_currently_coerces_a_non_boolean_auto_update(self, client):
+    def test_put_refuses_a_non_boolean_auto_update(self, client):
         response = client.put("/settings/plugins", json={"auto_update": "yes"})
-        # Recorded, not endorsed: the untyped body reaches bool("yes") -> True.
-        assert response.status_code == 200
-        assert client.get("/settings/plugins").json() == {"settings": {"auto_update": True}}
+        # CHANGED (conventions, StrictBool): was a 200 that reached
+        # bool("yes") -> True and silently enabled background plugin updates.
+        assert response.status_code == 422
+        assert client.get("/settings/plugins").json() == {"auto_update": True}
 
 
 # ---------------------------------------------------------------------------

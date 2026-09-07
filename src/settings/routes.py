@@ -39,10 +39,27 @@ from pydantic import BaseModel
 from src.board_send_executor import run_board_send
 from src.devices import classify_dimensions
 
-from .service import (
-    VALID_OUTPUT_TARGETS,
-    VALID_STRATEGIES,
+from .models import (
+    ERROR_400,
+    DisplaySettingsResponse,
+    DisplaySettingsUpdate,
+    LocationSettingsResponse,
+    LocationSettingsUpdate,
+    OutputSettings,
+    OutputSettingsResponse,
+    OutputSettingsUpdate,
+    PluginSettingsResponse,
+    PluginSettingsUpdate,
+    PollingSettings,
+    PollingSettingsResponse,
+    PollingSettingsUpdate,
+    SunTimesResponse,
+    SunTimesWeekResponse,
+    TransitionSettings,
+    TransitionSettingsResponse,
+    TransitionSettingsUpdate,
 )
+from .service import VALID_OUTPUT_TARGETS, VALID_STRATEGIES
 from .service import temporary_override_payload as _temporary_override_payload
 
 logger = logging.getLogger(__name__)
@@ -358,7 +375,7 @@ async def update_silence_schedule(request: SilenceScheduleRequest):
     }
 
 
-@router.get("/settings/transitions")
+@router.get("/settings/transitions", response_model=TransitionSettingsResponse)
 async def get_transition_settings():
     """Get current transition animation settings."""
     settings_service = get_settings_service()
@@ -371,8 +388,8 @@ async def get_transition_settings():
     }
 
 
-@router.put("/settings/transitions")
-async def update_transition_settings(request: dict):
+@router.put("/settings/transitions", response_model=TransitionSettings, responses={**ERROR_400})
+async def update_transition_settings(request: TransitionSettingsUpdate):
     """
     Update transition animation settings.
 
@@ -381,25 +398,28 @@ async def update_transition_settings(request: dict):
                 "plugin:<id>" to drive a transition plugin, or null to disable.
     - step_interval_ms: Delay between animation steps (ms), or null for default
     - step_size: How many columns/rows animate at once, or null for default
+
+    An explicit ``null`` clears a field; an omitted key leaves it alone.
     """
     settings_service = get_settings_service()
 
+    # ... is the service's "not provided" sentinel; exclude_unset is what
+    # keeps "omitted" distinguishable from an explicit null.
+    provided = request.model_dump(exclude_unset=True)
+
     try:
-        # Use ... as sentinel for "not provided"
-        strategy = request.get("strategy", ...)
-        step_interval_ms = request.get("step_interval_ms", ...)
-        step_size = request.get("step_size", ...)
-
         transition = settings_service.update_transition_settings(
-            strategy=strategy, step_interval_ms=step_interval_ms, step_size=step_size
+            strategy=provided.get("strategy", ...),
+            step_interval_ms=provided.get("step_interval_ms", ...),
+            step_size=provided.get("step_size", ...),
         )
-
-        return {"status": "success", "settings": transition.to_dict()}
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e)) from e
 
+    return transition.to_dict()
 
-@router.get("/settings/output")
+
+@router.get("/settings/output", response_model=OutputSettingsResponse)
 async def get_output_settings():
     """Get current output target settings."""
     settings_service = get_settings_service()
@@ -407,21 +427,18 @@ async def get_output_settings():
     return {"target": output.target, "effective_target": output.target, "available_targets": VALID_OUTPUT_TARGETS}
 
 
-@router.put("/settings/output")
-async def update_output_settings(request: dict):
+@router.put("/settings/output", response_model=OutputSettings, responses={**ERROR_400})
+async def update_output_settings(request: OutputSettingsUpdate):
     """
     Update output target settings.
 
     Body should include:
     - target: One of "ui", "board", or "both"
     """
-    if "target" not in request:
-        raise HTTPException(status_code=400, detail="target parameter required")
-
     settings_service = get_settings_service()
 
     try:
-        output = settings_service.set_output_target(request["target"])
+        output = settings_service.set_output_target(request.target)
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e)) from e
 
@@ -441,7 +458,7 @@ async def update_output_settings(request: dict):
             except Exception as e:  # never fail the settings write on a cache reset
                 logger.debug("Could not invalidate board %s after output-target change: %s", board_id, e)
 
-    return {"status": "success", "settings": output.to_dict()}
+    return output.to_dict()
 
 
 @router.get("/settings/active-page")
@@ -799,7 +816,7 @@ async def clear_temporary_override():
     return {"status": "cleared", "revert_mode": revert_mode}
 
 
-@router.get("/settings/polling")
+@router.get("/settings/polling", response_model=PollingSettings)
 async def get_polling_settings():
     """Get current polling interval settings."""
     settings_service = get_settings_service()
@@ -807,8 +824,8 @@ async def get_polling_settings():
     return polling.to_dict()
 
 
-@router.put("/settings/polling")
-async def update_polling_settings(request: dict):
+@router.put("/settings/polling", response_model=PollingSettingsResponse, responses={**ERROR_400})
+async def update_polling_settings(request: PollingSettingsUpdate):
     """
     Update polling interval settings.
 
@@ -816,29 +833,30 @@ async def update_polling_settings(request: dict):
     - interval_seconds: How often FiestaBoard checks active page (min 10, requires restart)
     - board_read_interval_local: How often to read board state in local mode (min 20)
     - board_read_interval_cloud: How often to read board state in cloud mode (min 20)
+
+    Only the intervals present in the body are changed.
     """
     settings_service = get_settings_service()
+    provided = request.model_dump(exclude_unset=True)
     requires_restart = False
 
     try:
-        if "interval_seconds" in request:
-            interval_seconds = int(request["interval_seconds"])
-            settings_service.set_polling_interval(interval_seconds)
+        if "interval_seconds" in provided:
+            settings_service.set_polling_interval(int(provided["interval_seconds"]))
             requires_restart = True
 
-        if "board_read_interval_local" in request or "board_read_interval_cloud" in request:
-            local = int(request["board_read_interval_local"]) if "board_read_interval_local" in request else None
-            cloud = int(request["board_read_interval_cloud"]) if "board_read_interval_cloud" in request else None
-            settings_service.set_board_read_intervals(local_seconds=local, cloud_seconds=cloud)
-
-        polling = settings_service.get_polling_settings()
-        return {
-            "status": "success",
-            "settings": polling.to_dict(),
-            "requires_restart": requires_restart,
-        }
+        if "board_read_interval_local" in provided or "board_read_interval_cloud" in provided:
+            local = provided.get("board_read_interval_local")
+            cloud = provided.get("board_read_interval_cloud")
+            settings_service.set_board_read_intervals(
+                local_seconds=int(local) if local is not None else None,
+                cloud_seconds=int(cloud) if cloud is not None else None,
+            )
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e)) from e
+
+    polling = settings_service.get_polling_settings()
+    return {**polling.to_dict(), "requires_restart": requires_restart}
 
 
 @router.get("/settings/board")
@@ -1134,15 +1152,15 @@ async def identify_board_tiles(board_id: str, request: BoardIdentifyRequest):
     return {"status": "success", "board_id": board_id, "results": list(results)}
 
 
-@router.get("/settings/display")
+@router.get("/settings/display", response_model=DisplaySettingsResponse)
 async def get_display_settings():
     """Get current web UI display settings."""
     settings_service = get_settings_service()
     return settings_service.get_display_settings().to_dict()
 
 
-@router.put("/settings/display")
-async def update_display_settings(request: dict):
+@router.put("/settings/display", response_model=DisplaySettingsResponse, responses={**ERROR_400})
+async def update_display_settings(request: DisplaySettingsUpdate):
     """
     Update web UI display settings.
 
@@ -1158,19 +1176,19 @@ async def update_display_settings(request: dict):
       /settings/transitions (step_interval_ms / step_size).
     """
     settings_service = get_settings_service()
-    display = settings_service.update_display_settings(request)
-    return {"status": "success", "settings": display.to_dict()}
+    display = settings_service.update_display_settings(request.model_dump(exclude_unset=True))
+    return display.to_dict()
 
 
-@router.get("/settings/location")
+@router.get("/settings/location", response_model=LocationSettingsResponse)
 async def get_location_settings():
     """Get current location settings for sun-based schedules (sunrise/sunset)."""
     settings_service = get_settings_service()
     return settings_service.get_location_settings().to_dict()
 
 
-@router.put("/settings/location")
-async def update_location_settings(request: dict):
+@router.put("/settings/location", response_model=LocationSettingsResponse, responses={**ERROR_400})
+async def update_location_settings(request: LocationSettingsUpdate):
     """
     Update location settings for sun-based schedules.
 
@@ -1179,11 +1197,11 @@ async def update_location_settings(request: dict):
     - longitude: float | null — Location longitude (-180 to 180)
     """
     settings_service = get_settings_service()
-    location = settings_service.update_location_settings(request)
-    return {"status": "success", "settings": location.to_dict()}
+    location = settings_service.update_location_settings(request.model_dump(exclude_unset=True))
+    return location.to_dict()
 
 
-@router.get("/settings/location/sun-times")
+@router.get("/settings/location/sun-times", response_model=SunTimesResponse, responses={**ERROR_400})
 async def get_location_sun_times(date: str | None = None):
     """
     Get sunrise and sunset times for the configured location on a given date.
@@ -1231,7 +1249,11 @@ async def get_location_sun_times(date: str | None = None):
     }
 
 
-@router.get("/settings/location/sun-times-week")
+@router.get(
+    "/settings/location/sun-times-week",
+    response_model=SunTimesWeekResponse,
+    responses={**ERROR_400},
+)
 async def get_location_sun_times_week(week_start: str):
     """
     Get sunrise and sunset times for each day of a 7-day week.
@@ -1369,23 +1391,26 @@ async def update_beta_settings(request: dict):
     return response
 
 
-@router.get("/settings/plugins")
+@router.get("/settings/plugins", response_model=PluginSettingsResponse)
 async def get_plugin_settings():
     """Get plugin system settings."""
     settings_service = get_settings_service()
-    return {"settings": settings_service.get_plugin_settings().to_dict()}
+    return settings_service.get_plugin_settings().to_dict()
 
 
-@router.put("/settings/plugins")
-async def update_plugin_settings(request: dict):
+@router.put("/settings/plugins", response_model=PluginSettingsResponse, responses={**ERROR_400})
+async def update_plugin_settings(request: PluginSettingsUpdate):
     """Update plugin system settings.
 
     Body may include:
     - auto_update: bool — when true, plugins are updated automatically in the background.
+
+    ``auto_update`` is a ``StrictBool``: ``"yes"`` is a 422, not a silent
+    opt-in to background plugin updates.
     """
     settings_service = get_settings_service()
-    updated = settings_service.update_plugin_settings(request or {})
-    return {"status": "success", "settings": updated.to_dict()}
+    updated = settings_service.update_plugin_settings(request.model_dump(exclude_unset=True))
+    return updated.to_dict()
 
 
 @router.get("/settings/all")

@@ -426,16 +426,18 @@ export const handlers = [
   http.put(`${API_BASE}/settings/transitions`, async ({ request }) => {
     const body = (await request.json()) as Partial<TransitionSettings>;
     requestStore.lastTransitionUpdate = body;
+    // Key presence, not nullishness: the real handler treats an explicit
+    // null as "clear this field" and an absent key as "leave it alone"
+    // (PUT /settings/transitions, exclude_unset). `??` collapsed the two,
+    // so a reset test could not tell them apart.
     const response: TransitionSettings = {
-      strategy: body.strategy ?? mockTransitionSettings.strategy,
-      step_interval_ms: body.step_interval_ms ?? mockTransitionSettings.step_interval_ms,
-      step_size: body.step_size ?? mockTransitionSettings.step_size,
+      strategy: "strategy" in body ? (body.strategy ?? null) : mockTransitionSettings.strategy,
+      step_interval_ms:
+        "step_interval_ms" in body ? (body.step_interval_ms ?? null) : mockTransitionSettings.step_interval_ms,
+      step_size: "step_size" in body ? (body.step_size ?? null) : mockTransitionSettings.step_size,
       available_strategies: mockTransitionSettings.available_strategies,
     };
-    return HttpResponse.json({
-      status: "success",
-      settings: response,
-    });
+    return HttpResponse.json(response);
   }),
 
   http.get(`${API_BASE}/settings/output`, () => {
@@ -445,10 +447,7 @@ export const handlers = [
   http.put(`${API_BASE}/settings/output`, async ({ request }) => {
     const body = (await request.json()) as { target: string };
     requestStore.lastOutputUpdate = body;
-    return HttpResponse.json({
-      status: "success",
-      settings: { target: body.target },
-    });
+    return HttpResponse.json({ target: body.target });
   }),
 
   // Active page settings
@@ -1001,7 +1000,7 @@ export const handlers = [
 
   http.put(`${API_BASE}/settings/display`, async ({ request }) => {
     const body = (await request.json()) as Record<string, unknown>;
-    return HttpResponse.json({ status: "success", settings: { ...mockDisplaySettings, ...body } });
+    return HttpResponse.json({ ...mockDisplaySettings, ...body });
   }),
 
   // MQTT settings endpoints
@@ -1157,8 +1156,9 @@ export const handlers = [
   http.put(`${API_BASE}/settings/polling`, async ({ request }) => {
     const body = (await request.json()) as { interval_seconds: number };
     return HttpResponse.json({
-      status: "success",
-      settings: { interval_seconds: body.interval_seconds },
+      interval_seconds: body.interval_seconds,
+      board_read_interval_local: 30,
+      board_read_interval_cloud: 180,
       requires_restart: false,
     });
   }),
@@ -1256,11 +1256,8 @@ export const handlers = [
   http.put(`${API_BASE}/settings/location`, async ({ request }) => {
     const body = (await request.json()) as { latitude: number | null; longitude: number | null };
     return HttpResponse.json({
-      status: "success",
-      settings: {
-        latitude: body.latitude,
-        longitude: body.longitude,
-      },
+      latitude: body.latitude,
+      longitude: body.longitude,
     });
   }),
 
