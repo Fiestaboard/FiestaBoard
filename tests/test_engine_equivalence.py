@@ -43,9 +43,11 @@ from src.settings.service import TemporaryOverride
 from src.triggers.service import reset_trigger_service
 from tests.engine_harness import (
     FakeClock,
+    GoldenRecordingClient,
     SilenceConfigManager,
     StubPluginRegistry,
     StubTriggerPlugin,
+    TornReadRuntime,
     make_board,
     make_page_service,
     make_settings_service,
@@ -204,6 +206,79 @@ def test_collection_rotation_time_mode(monkeypatch):
         collections=CollectionService(storage=storage),
     )
     check_golden("collection_rotation_time_mode", result.sends)
+
+
+def test_collection_rotation_survives_a_worker_finishing_mid_guard(monkeypatch):
+    """Pins: no frame is sent twice when a send lands between the guard reads.
+
+    This is the CI-only failure of ``test_collection_rotation_time_mode``
+    made deterministic. At 09:00:20 the loop drives the board twice - the
+    initial pass plus the collection gate's first check - and the second pass
+    decides whether to send from two pieces of state the send worker writes
+    at two different moments: the dedupe cache (post-send bookkeeping) and
+    the worker's in-flight key set (retired when the job leaves the queue).
+    Read one after the other they tear, and on a loaded runner the worker
+    finishes in the gap: stale cache, empty queue, ALPHA sent twice.
+
+    ``TornReadRuntime`` + the render gate force that interleaving on EVERY
+    pass of the scenario, so the whole rotation runs at the worst case rather
+    than waiting for CI to produce it. The send sequence must still be the
+    committed golden, byte for byte, and no ``(instant, board, frame)``
+    triple may ever repeat.
+    """
+    collection = Collection(
+        id=COLLECTION_ID,
+        name="Rotation",
+        page_ids=["page-a", "page-b"],
+        selection_mode="time",
+        time=TimeModeConfig(interval_seconds=30),
+    )
+    storage = MagicMock()
+    storage.get.side_effect = lambda cid: collection if cid == COLLECTION_ID else None
+    golden = json.loads((GOLDEN_DIR / "collection_rotation_time_mode.json").read_text())["sends"]
+
+    def one_run():
+        """One full rotation with the worst-case interleaving on every pass."""
+        # The gate holds every render until a dedupe read (or the harness's
+        # pre-advance settle) opens it, so a job is always still in flight
+        # when the next pass starts reading its guards.
+        gate = threading.Event()
+        holder: dict = {}
+
+        class GatedClient(GoldenRecordingClient):
+            def render(self, board_array, **kwargs):
+                assert gate.wait(timeout=10)
+                return super().render(board_array, **kwargs)
+
+        def park():
+            gate.set()
+            assert holder["svc"].wait_until_idle(timeout=10)
+            gate.clear()
+
+        def runtime_factory(service, client, board_id):
+            holder["svc"] = service
+            return TornReadRuntime(client, board_id, park=park)
+
+        return run_engine_scenario(
+            monkeypatch,
+            start=T0 + timedelta(seconds=20),
+            run_until=T0 + timedelta(minutes=2),
+            boards=[make_board("board-1")],
+            settings=make_settings_service(
+                boards=[make_board("board-1")], polling_interval=300, active_page_ids={"board-1": COLLECTION_ID}
+            ),
+            pages=make_page_service({"page-a": "ALPHA", "page-b": "BETA"}),
+            collections=CollectionService(storage=storage),
+            client_factories={"board-1": lambda clock, board_id, sink: GatedClient(clock, board_id, sink)},
+            runtime_factory=runtime_factory,
+            before_settle=gate.set,
+        )
+
+    for _ in range(5):
+        sends = one_run().sends
+        triples = [(s["t"], s["board"], tuple(s["rows"])) for s in sends]
+        assert len(triples) == len(set(triples)), f"the same frame reached the board twice: {triples}"
+        assert sends == golden, f"send sequence diverged: {[(s['t'], s['rows'][0].strip()) for s in sends]}"
 
 
 def test_silence_window_indicator(monkeypatch):

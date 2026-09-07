@@ -53,6 +53,7 @@ coverage for any of the following, because no scenario exercises them:
 
 from __future__ import annotations
 
+import threading
 from collections.abc import Callable
 from dataclasses import dataclass, field
 from datetime import datetime
@@ -142,6 +143,63 @@ class GoldenRecordingClient:
 
     def clear_cache(self):
         self._last_characters = None
+
+
+# --------------------------------------------------------------------------
+# Torn-read runtime (duplicate-send race)
+# --------------------------------------------------------------------------
+
+
+class TornReadRuntime(BoardRuntime):
+    """A runtime that parks the tick thread on every dedupe-state read.
+
+    An engine pass decides "should this frame go to the board?" from TWO
+    pieces of state the send worker writes at two different moments: the
+    dedupe cache (``last_active_page_content`` / ``snoozing_message_sent``,
+    written by post-send bookkeeping) and the worker's in-flight key set
+    (retired once the job leaves the queue). The tick reads them one after
+    the other, so a worker that finishes BETWEEN the two reads leaves the
+    tick holding a stale cache value and looking at an empty queue - and it
+    enqueues the very same frame a second time.
+
+    This runtime makes that interleaving deterministic instead of waiting for
+    a loaded CI runner to produce it: reading a dedupe field captures the
+    current (stale) value, runs ``park`` - which the caller uses to let the
+    worker finish its whole job - and only then returns the captured value.
+    That is exactly what the tick thread being descheduled at that bytecode
+    looks like from the engine's point of view.
+
+    ``park`` only runs on the thread that built the runtime (the tick
+    thread); a send worker reading the same field must never recurse into it.
+    """
+
+    def __init__(self, client, board_id, park: Callable[[], None] | None = None):
+        self._park = None
+        super().__init__(client, board_id)
+        self._park = park
+        self._park_thread = threading.get_ident()
+
+    def _torn_read(self, name: str):
+        value = self.__dict__[name]
+        if self._park is not None and threading.get_ident() == self._park_thread:
+            self._park()
+        return value
+
+    @property
+    def last_active_page_content(self):
+        return self._torn_read("_last_active_page_content")
+
+    @last_active_page_content.setter
+    def last_active_page_content(self, value):
+        self.__dict__["_last_active_page_content"] = value
+
+    @property
+    def snoozing_message_sent(self):
+        return self._torn_read("_snoozing_message_sent")
+
+    @snoozing_message_sent.setter
+    def snoozing_message_sent(self, value):
+        self.__dict__["_snoozing_message_sent"] = value
 
 
 # --------------------------------------------------------------------------
@@ -406,6 +464,7 @@ def run_engine_scenario(
     client_factories: dict[str, Callable] | None = None,
     idle_boards: list[str] | None = None,
     before_settle: Callable[[], None] | None = None,
+    runtime_factory: Callable[[DisplayService, object, str], BoardRuntime] | None = None,
 ) -> ScenarioResult:
     """Run the REAL ``DisplayService.run()`` over ``[start, run_until]``.
 
@@ -427,6 +486,10 @@ def run_engine_scenario(
     building a custom stand-in client for that board (scenario 10's blocking
     client); other boards get the default ``GoldenRecordingClient``.
     ``idle_boards`` / ``before_settle`` are forwarded to :class:`LoopHarness`.
+
+    ``runtime_factory(service, client, board_id)`` replaces the plain
+    ``BoardRuntime`` construction, so a scenario can drive the engine through
+    an instrumented runtime (:class:`TornReadRuntime`).
     """
     clock = FakeClock(start)
     service = DisplayService()
@@ -439,7 +502,10 @@ def run_engine_scenario(
             clients[board_id] = factory(clock, board_id, sink)
         else:
             clients[board_id] = GoldenRecordingClient(clock, board_id, sink, fail_when=(fail_when or {}).get(board_id))
-        service.runtimes[board_id] = BoardRuntime(client=clients[board_id], board_id=board_id)
+        if runtime_factory is not None:
+            service.runtimes[board_id] = runtime_factory(service, clients[board_id], board_id)
+        else:
+            service.runtimes[board_id] = BoardRuntime(client=clients[board_id], board_id=board_id)
     service._primary_board_id = boards[0]["id"]
 
     harness = LoopHarness(service, clock, run_until, idle_boards=idle_boards, before_settle=before_settle)

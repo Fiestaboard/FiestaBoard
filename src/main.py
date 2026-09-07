@@ -224,6 +224,12 @@ class DisplayService:
         # two first-send threads could each create a worker for one runtime.
         self._workers_lock = threading.Lock()
 
+        # Per-thread snapshot of one board's in-flight send keys, taken once
+        # at the top of the pass currently running on THIS thread. See
+        # ``_pass_in_flight_keys`` for why the snapshot (rather than a live
+        # read at each guard) is what makes the dedupe race-free.
+        self._pass_in_flight = threading.local()
+
     # ------------------------------------------------------------------ #
     # Primary-runtime resolution + back-compat property shims
     # ------------------------------------------------------------------ #
@@ -456,9 +462,42 @@ class DisplayService:
                 rt.send_worker = worker
             return worker
 
-    @staticmethod
-    def _send_in_flight(rt: BoardRuntime, key: tuple) -> bool:
-        """True when this exact send is already queued or executing.
+    @contextmanager
+    def _pass_in_flight_keys(self, rt: BoardRuntime):
+        """Snapshot one board's in-flight send keys for the whole pass.
+
+        A fire-and-forget pass decides "does this frame still need sending?"
+        from TWO pieces of state the send worker writes at two different
+        moments: the dedupe caches (``last_active_page_content``,
+        ``snoozing_message_sent``, ...) written by post-send bookkeeping, and
+        the worker's in-flight key set, retired only after that bookkeeping
+        has run. Reading them live, one after the other, TEARS — the worker
+        can finish in the gap, leaving the pass with a stale cache AND an
+        empty queue, so it enqueues the identical frame a second time and the
+        board is written twice. That is the duplicate send CI caught in
+        ``test_collection_rotation_time_mode``.
+
+        Taking the key set ONCE, before the pass reads any dedupe state,
+        removes the tear without a lock and without serializing anything: a
+        key missing from the snapshot means the job was already retired at
+        snapshot time, which means its bookkeeping had already been written,
+        which means every dedupe read later in this pass sees the fresh
+        value. A key present in the snapshot means "skip", exactly as a live
+        read would have.
+
+        Nesting restores the enclosing snapshot, so the silence dispatch
+        calling into ``_send_silence_indicator`` keeps its own board's view.
+        """
+        worker = rt.send_worker
+        previous = getattr(self._pass_in_flight, "keys", None)
+        self._pass_in_flight.keys = worker.active_keys() if worker is not None else frozenset()
+        try:
+            yield
+        finally:
+            self._pass_in_flight.keys = previous
+
+    def _send_in_flight(self, rt: BoardRuntime, key: tuple) -> bool:
+        """True when this exact send was already queued or executing this pass.
 
         The engine's dedupe caches are updated by post-send bookkeeping,
         which now runs on the worker thread — so during a long transition the
@@ -467,9 +506,16 @@ class DisplayService:
         dedupe; only the engine's fire-and-forget passes consult it, so a
         user-initiated ``wait=True`` send still preempts and re-sends exactly
         as an inline ``render()`` call did.
+
+        Inside a board pass the answer comes from that pass's snapshot (see
+        ``_pass_in_flight_keys``); a direct caller outside one falls back to
+        a live read.
         """
-        worker = rt.send_worker
-        return worker is not None and key in worker.active_keys()
+        snapshot = getattr(self._pass_in_flight, "keys", None)
+        if snapshot is None:
+            worker = rt.send_worker
+            snapshot = worker.active_keys() if worker is not None else frozenset()
+        return key in snapshot
 
     def wait_until_idle(self, timeout: float = 5.0, board_ids=None) -> bool:
         """Block (real time) until the boards' send queues are drained.
@@ -1321,6 +1367,25 @@ class DisplayService:
             True if content was sent to this board (``wait=False``: enqueued),
             False otherwise.
         """
+        # The in-flight key snapshot MUST be taken before the pass reads any
+        # of this board's dedupe state, or the two halves of the dedupe tear
+        # and a frame the worker just delivered is sent again.
+        with self._pass_in_flight_keys(rt):
+            return self._drive_board_pass(
+                board_id, rt, is_primary=is_primary, board=board, contexts=contexts, wait=wait
+            )
+
+    def _drive_board_pass(
+        self,
+        board_id,
+        rt: BoardRuntime,
+        *,
+        is_primary: bool,
+        board: dict | None = None,
+        contexts: dict[str, dict] | None = None,
+        wait: bool = True,
+    ) -> bool:
+        """The body of :meth:`check_and_send_for_board`, run under its snapshot."""
         try:
             # Each pass starts clean: a benign skip must not leave a stale
             # failure reason behind (issue #1791).

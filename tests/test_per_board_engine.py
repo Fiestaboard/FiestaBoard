@@ -21,6 +21,7 @@ from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 
 from src.main import BoardRuntime, DisplayService
+from tests.engine_harness import TornReadRuntime
 
 TRANSITIONS = SimpleNamespace(strategy="instant", step_interval_ms=0, step_size=1)
 
@@ -126,8 +127,12 @@ def _schedule_service(active_by_board):
     return svc
 
 
-def _service_with_runtimes(boards):
-    """Build a DisplayService with a mock-client runtime per board."""
+def _service_with_runtimes(boards, runtime_factory=None):
+    """Build a DisplayService with a mock-client runtime per board.
+
+    ``runtime_factory(client, board_id)`` swaps in an instrumented runtime
+    (``TornReadRuntime``) instead of the plain ``BoardRuntime``.
+    """
     svc = DisplayService()
     runtimes = {}
     clients = {}
@@ -140,7 +145,10 @@ def _service_with_runtimes(boards):
         # reads. Pin it False so these behave as real hardware clients.
         client.is_virtual = False
         clients[board["id"]] = client
-        runtimes[board["id"]] = BoardRuntime(client=client, board_id=board["id"])
+        if runtime_factory is not None:
+            runtimes[board["id"]] = runtime_factory(client, board["id"])
+        else:
+            runtimes[board["id"]] = BoardRuntime(client=client, board_id=board["id"])
     svc.runtimes = runtimes
     svc._primary_board_id = boards[0]["id"] if boards else None
     return svc, clients
@@ -532,6 +540,82 @@ class TestEngineTickInFlightDedupe:
         assert svc.wait_until_idle(timeout=5)
         assert results == [True]
         assert clients["b1"].render.call_count == 2
+
+
+class TestDuplicateSendRaceAcrossTheGuardReads:
+    """An engine pass must never send a frame the worker JUST finished sending.
+
+    Each fire-and-forget pass consults two pieces of state that the send
+    worker writes at two different moments: the dedupe cache (written by
+    post-send bookkeeping) and the worker's in-flight key set (retired once
+    the job leaves the queue). Reading them one after the other tears - a
+    worker that completes in the gap leaves the pass holding a stale cache
+    AND looking at an empty queue, so it enqueues the identical frame again
+    and the board is written twice with the same content.
+
+    ``TornReadRuntime`` forces exactly that interleaving: the tick captures
+    the stale dedupe value, the worker then runs its job to completion
+    (send, bookkeeping, key retirement), and only then does the tick reach
+    its in-flight guard.
+    """
+
+    def _drive_twice_with_a_torn_read(self, *, silence=False, trigger_content=None):
+        """Two engine passes; the second one tears across the worker's finish.
+
+        Returns how many frames actually reached the board client.
+        """
+        boards = [_board("b1", "Primary", schedule_enabled=False)]
+        started = threading.Event()
+        release = threading.Event()
+        # The first pass must run undisturbed: it is what puts a job on the
+        # worker for the second pass to race with.
+        armed = threading.Event()
+        holder = {}
+
+        def park():
+            # The tick is "descheduled" right here: let the worker's render
+            # return and wait for the whole job - bookkeeping included - to
+            # finish before the tick reads its next piece of dedupe state.
+            if not armed.is_set():
+                return
+            release.set()
+            assert holder["svc"].wait_until_idle(timeout=5)
+
+        svc, clients = _service_with_runtimes(
+            boards, runtime_factory=lambda client, board_id: TornReadRuntime(client, board_id, park=park)
+        )
+        holder["svc"] = svc
+
+        def blocking_render(*_a, **_k):
+            started.set()
+            assert release.wait(timeout=10)
+            return True, True
+
+        clients["b1"].render.side_effect = blocking_render
+        settings = _settings_service(boards, schedule_off=("b1",), manual={"b1": "page-1"})
+        pages = _page_service({"page-1": {"content": "HELLO"}})
+        kwargs = {"silence": silence, "trigger_content": trigger_content, "wait": False}
+        try:
+            _drive(svc, boards, settings=settings, pages=pages, **kwargs)
+            assert started.wait(timeout=5)
+            armed.set()
+            _drive(svc, boards, settings=settings, pages=pages, **kwargs)
+        finally:
+            release.set()
+        assert svc.wait_until_idle(timeout=5)
+        return clients["b1"].render.call_count
+
+    def test_page_send_is_not_repeated_when_the_worker_finishes_mid_guard(self):
+        sends = self._drive_twice_with_a_torn_read()
+        assert sends == 1, "the same page frame was sent to the board twice"
+
+    def test_silence_indicator_is_not_repeated_when_the_worker_finishes_mid_guard(self):
+        sends = self._drive_twice_with_a_torn_read(silence=True)
+        assert sends == 1, "the same silence indicator was sent to the board twice"
+
+    def test_trigger_send_is_not_repeated_when_the_worker_finishes_mid_guard(self):
+        sends = self._drive_twice_with_a_torn_read(trigger_content="DOOR OPEN")
+        assert sends == 1, "the same trigger frame was sent to the board twice"
 
 
 class TestSeams:
