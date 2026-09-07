@@ -27,10 +27,14 @@ def reset_config_singleton(tmp_path, monkeypatch):
     """
     config_path = tmp_path / "config.json"
     cm = ConfigManager(config_path=str(config_path))
+    # /settings/ai routes still resolve this through the api_server seam;
+    # /pages/ai/* resolve it in src.ai.page_routes now. Stub both — a shared
+    # accessor cannot be repointed until its last consumer converts.
     monkeypatch.setattr("src.api_server.get_config_manager", lambda: cm)
+    monkeypatch.setattr("src.ai.page_routes.get_config_manager", lambda: cm)
     # Reset the rate-limit so back-to-back tests aren't throttled by the
     # 1-second min interval. We use monkeypatch to keep things isolated.
-    monkeypatch.setattr("src.api_server._ai_generate_last_call", 0.0)
+    monkeypatch.setattr("src.ai.page_routes._ai_generate_last_call", 0.0)
     yield cm
 
 

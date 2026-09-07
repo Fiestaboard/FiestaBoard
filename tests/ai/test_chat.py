@@ -867,7 +867,7 @@ async def test_stream_chat_includes_history_in_request():
 
 @pytest.fixture
 def reset_throttle(monkeypatch):
-    monkeypatch.setattr("src.api_server._ai_generate_last_call", 0.0)
+    monkeypatch.setattr("src.ai.page_routes._ai_generate_last_call", 0.0)
 
 
 def test_chat_endpoint_validates_body(reset_throttle):

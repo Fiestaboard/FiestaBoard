@@ -34,7 +34,7 @@ from src.config_manager import ConfigManager
 # The module that owns the throttle globals and the config-manager lookup the
 # three handlers resolve. Kept in one constant so the move repoints the seam
 # in one place rather than in every monkeypatch call.
-ROUTES_MODULE = "src.api_server"
+ROUTES_MODULE = "src.ai.page_routes"
 
 
 @pytest.fixture
