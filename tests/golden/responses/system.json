@@ -110,11 +110,7 @@
       "path_template": "/system/update",
       "status": 503,
       "shape": {
-        "detail": {
-          "hint": "str",
-          "mode": "str",
-          "status": "str"
-        }
+        "detail": "str"
       }
     },
     {
@@ -123,11 +119,7 @@
       "path_template": "/system/update",
       "status": 503,
       "shape": {
-        "detail": {
-          "hint": "str",
-          "mode": "str",
-          "status": "str"
-        }
+        "detail": "str"
       }
     },
     {
@@ -156,10 +148,7 @@
       "path_template": "/system/update/rollback",
       "status": 400,
       "shape": {
-        "detail": {
-          "error": "str",
-          "status": "str"
-        }
+        "detail": "str"
       }
     },
     {
@@ -168,10 +157,7 @@
       "path_template": "/system/update/rollback",
       "status": 404,
       "shape": {
-        "detail": {
-          "error": "str",
-          "status": "str"
-        }
+        "detail": "str"
       }
     },
     {
@@ -279,10 +265,7 @@
       "path_template": "/system/restart",
       "status": 503,
       "shape": {
-        "detail": {
-          "hint": "str",
-          "status": "str"
-        }
+        "detail": "str"
       }
     },
     {
@@ -291,10 +274,7 @@
       "path_template": "/system/shutdown",
       "status": 503,
       "shape": {
-        "detail": {
-          "hint": "str",
-          "status": "str"
-        }
+        "detail": "str"
       }
     },
     {

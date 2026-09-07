@@ -3,7 +3,8 @@
   "converted_domains": [
     "collections",
     "pages",
-    "schedules"
+    "schedules",
+    "system"
   ],
   "exceptions": [
     {
@@ -47,9 +48,39 @@
       "reason": "Reads the bundled staff-picks/picks.json and degrades a missing file to [] on purpose, so a caller can never see a 4xx from it. The per-pick 404 lives on GET /staff-picks/{pick_id}/share, which declares it."
     },
     {
+      "route": "GET /system/update-check",
+      "rule": "declared_errors",
+      "reason": "Probe endpoint (API_CONVENTIONS.md, \"Status codes\"): an unreachable Docker Hub or GitHub is a verdict about something else, reported at 200 in the declared UpdateCheckResponse.error field. Nothing the caller sends can make this route 4xx."
+    },
+    {
+      "route": "GET /system/update/status",
+      "rule": "declared_errors",
+      "reason": "Read-only report with no failure path: it cannot 404, 400 or 409, so declaring a 4xx would document an error the endpoint never raises. An unreachable sidecar is reported as updater_available=false, not as an error."
+    },
+    {
+      "route": "GET /version",
+      "rule": "declared_errors",
+      "reason": "Read-only report with no failure path: it cannot 404, 400 or 409, so declaring a 4xx would document an error the endpoint never raises. It reads two env vars and one /proc file, and reports None when the file is absent."
+    },
+    {
       "route": "POST /schedules/validate",
       "rule": "declared_errors",
       "reason": "No failure path. It is a read of existing schedules with an optional board_id, which falls back to the empty set; an inconsistent schedule set is the 200 verdict this endpoint exists to report, not an error."
+    },
+    {
+      "route": "POST /system/restart",
+      "rule": "declared_errors",
+      "reason": "Every failure mode is upstream: the fiestaupdater sidecar is absent (503), rejects our shared token (500) or errors (502). There is no request a client could send that this route answers 4xx to, and all three codes it does raise are declared in responses=."
+    },
+    {
+      "route": "POST /system/shutdown",
+      "rule": "declared_errors",
+      "reason": "Every failure mode is upstream: the fiestaupdater sidecar is absent (503), rejects our shared token (500) or errors (502). There is no request a client could send that this route answers 4xx to, and all three codes it does raise are declared in responses=."
+    },
+    {
+      "route": "POST /system/update",
+      "rule": "declared_errors",
+      "reason": "Every failure mode is upstream: the fiestaupdater sidecar is absent (503), rejects our shared token (500) or errors (502). There is no request a client could send that this route answers 4xx to, and all three codes it does raise are declared in responses=."
     }
   ]
 }

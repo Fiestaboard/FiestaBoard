@@ -6,14 +6,12 @@ fiestaupdater sidecar HTTP client, pre-update settings snapshots with
 retention pruning, and the ``.system-update.json`` state machine with its
 lock + atomic-write semantics (#1745) preserved exactly.
 
-Patch seams: ``api_server`` re-imports every name here, so the test-suite's
-``patch("src.api_server.<name>")`` targets keep working — the extracted route
-handlers in ``src/system/routes.py`` resolve these helpers *through*
-``src.api_server`` at call time (the #1756/#1757 pattern). The two path
-overrides (``SYSTEM_UPDATE_STATE_FILE`` / ``SETTINGS_SNAPSHOT_DIR``) stay
-*defined* on ``api_server`` and are read back through it at call time here,
-so ``monkeypatch.setattr("src.api_server.SETTINGS_SNAPSHOT_DIR", ...)``
-keeps steering the service.
+This module is the canonical home for every one of those names — including
+the two path overrides ``SYSTEM_UPDATE_STATE_FILE`` / ``SETTINGS_SNAPSHOT_DIR``
+and the post-upgrade regression hint, both of which used to live on
+``api_server``. Nothing here imports ``src.api_server``, at module level or at
+call time (Phase 2 slice: system). Tests patch the name where it lives:
+``patch("src.system.update_service.<name>")``.
 """
 
 from __future__ import annotations
@@ -33,6 +31,7 @@ from fastapi import HTTPException
 
 from src import __version__
 from src.atomic_io import write_json_atomic, write_text_atomic
+from src.config_manager import get_config_manager
 from src.paths import get_data_dir
 
 from .models import SystemActionResponse, UpdateCheckResponse
@@ -237,22 +236,16 @@ def _is_newer_version(latest: str, current: str) -> bool:
 # ``SYSTEM_UPDATE_STATE_FILE`` is a *test seam*: production leaves it ``None``
 # and ``_system_update_state_file()`` resolves lazily through
 # ``src.paths.get_data_dir()`` (honoring ``FIESTABOARD_DATA_DIR``, #1762).
-# Tests that need a specific file keep monkeypatching the module attribute
-# *on api_server* — the constant stays defined there and is read back
-# through it at call time below.
+# Tests that need a specific file monkeypatch this module attribute —
+# ``monkeypatch.setattr("src.system.update_service.SYSTEM_UPDATE_STATE_FILE", ...)``
+# — and the resolver below reads it back at call time.
+SYSTEM_UPDATE_STATE_FILE: Path | None = None
 
 
 def _system_update_state_file() -> Path:
-    """Resolve the system-update state file path at call time.
-
-    The ``SYSTEM_UPDATE_STATE_FILE`` override lives on ``src.api_server``
-    (a documented test seam patched as ``src.api_server.SYSTEM_UPDATE_STATE_FILE``);
-    read it through that module so the patch keeps steering us.
-    """
-    from src import api_server  # patched-in-tests seam — see module docstring
-
-    if api_server.SYSTEM_UPDATE_STATE_FILE is not None:
-        return Path(api_server.SYSTEM_UPDATE_STATE_FILE)
+    """Resolve the system-update state file path at call time."""
+    if SYSTEM_UPDATE_STATE_FILE is not None:
+        return Path(SYSTEM_UPDATE_STATE_FILE)
     return get_data_dir() / ".system-update.json"
 
 
@@ -468,10 +461,10 @@ def _require_updater_token():
     if not _updater_token():
         raise HTTPException(
             status_code=503,
-            detail={
-                "status": "unavailable",
-                "hint": "FIESTAUPDATER_TOKEN is not set. Add COMPOSE_PROFILES=fiestaupdater to your .env and run 'docker compose up -d' to enable sidecar features.",
-            },
+            detail=(
+                "FIESTAUPDATER_TOKEN is not set. Add COMPOSE_PROFILES=fiestaupdater to your .env "
+                "and run 'docker compose up -d' to enable sidecar features."
+            ),
         )
 
 
@@ -480,15 +473,12 @@ def _handle_updater_response(resp: requests.Response, action: str) -> SystemActi
     if resp.status_code == 401:
         raise HTTPException(
             status_code=500,
-            detail={
-                "status": "error",
-                "error": "fiestaupdater rejected our token; check FIESTAUPDATER_TOKEN matches in both services",
-            },
+            detail="fiestaupdater rejected our token; check FIESTAUPDATER_TOKEN matches in both services",
         )
     if resp.status_code >= 400:
         raise HTTPException(
             status_code=502,
-            detail={"status": "error", "error": f"fiestaupdater returned {resp.status_code}: {resp.text[:200]}"},
+            detail=f"fiestaupdater returned {resp.status_code}: {resp.text[:200]}",
         )
     return SystemActionResponse(status="queued", action=action)
 
@@ -503,17 +493,15 @@ def _handle_updater_response(resp: requests.Response, action: str) -> SystemActi
 # ``SETTINGS_SNAPSHOT_DIR`` is a *test seam*: production leaves it ``None``
 # and ``_settings_snapshot_dir()`` resolves lazily through
 # ``src.paths.get_data_dir()`` (honoring ``FIESTABOARD_DATA_DIR``, #1762).
-# The constant stays defined on api_server and is read back through it at
-# call time below, so ``patch("src.api_server.SETTINGS_SNAPSHOT_DIR")``
-# keeps steering the service.
+# Tests point it at a tmp dir with
+# ``monkeypatch.setattr("src.system.update_service.SETTINGS_SNAPSHOT_DIR", ...)``.
+SETTINGS_SNAPSHOT_DIR: Path | None = None
 
 
 def _settings_snapshot_dir() -> Path:
     """Resolve the settings-snapshot directory at call time."""
-    from src import api_server  # patched-in-tests seam — see module docstring
-
-    if api_server.SETTINGS_SNAPSHOT_DIR is not None:
-        return Path(api_server.SETTINGS_SNAPSHOT_DIR)
+    if SETTINGS_SNAPSHOT_DIR is not None:
+        return Path(SETTINGS_SNAPSHOT_DIR)
     return get_data_dir() / "update-backups"
 
 
@@ -736,6 +724,66 @@ def _resolve_snapshot_name(name: str | None) -> Path | None:
 # call the sidecar at all.
 _DIGEST_RE = re.compile(r"^sha256:[a-f0-9]{64}$")
 _IMAGE_REF_RE = re.compile(r"^[a-z0-9][a-z0-9._/-]{0,199}(:[a-zA-Z0-9._-]{1,128})?$")
+
+
+# ── Post-upgrade regression hint (#948) ────────────────────────────────────
+# Lived on ``api_server`` until the system slice; it is a snapshot-reader,
+# so its home is here next to the snapshot helpers it calls.
+
+
+def _detect_post_upgrade_regression() -> dict[str, Any] | None:
+    """Return a hint payload when the live config looks regressed against the
+    newest pre-update snapshot.
+
+    Signals an upgrade is likely to have dropped user state (issue #948 —
+    "integrations lost on upgrade"). We compare the snapshot's enabled
+    plugin set to the current one; if the snapshot enabled strictly more
+    plugins, point the user at /system/update/rollback so they don't have
+    to discover the recovery path on their own.
+
+    Returns ``None`` when:
+      * there are no snapshots,
+      * the newest snapshot is unreadable,
+      * the snapshot has <= 0 enabled plugins (nothing to recover),
+      * the live config has at least as many enabled plugins as the
+        snapshot (no regression detected).
+    """
+    snapshots = _list_settings_snapshots()
+    if not snapshots:
+        return None
+    newest = _resolve_snapshot_name(snapshots[0]["name"])
+    if newest is None:
+        return None
+    try:
+        snap_doc = json.loads(newest.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return None
+
+    snap_plugins_raw = ((snap_doc.get("data") or {}).get("config") or {}).get("plugins") or {}
+    snap_enabled = {pid for pid, cfg in snap_plugins_raw.items() if isinstance(cfg, dict) and cfg.get("enabled")}
+    if not snap_enabled:
+        return None
+
+    try:
+        live = get_config_manager().get_all_plugin_configs()
+    except Exception:  # pragma: no cover - defensive
+        return None
+    live_enabled = {pid for pid, cfg in live.items() if isinstance(cfg, dict) and cfg.get("enabled")}
+
+    missing = sorted(snap_enabled - live_enabled)
+    if not missing:
+        return None
+
+    return {
+        "snapshot_name": newest.name,
+        "snapshot_enabled_count": len(snap_enabled),
+        "current_enabled_count": len(live_enabled),
+        "missing_plugin_ids": missing,
+        "snapshot_app_version": (snap_doc.get("app_version") if isinstance(snap_doc, dict) else None),
+        "rollback_hint": (
+            "POST /system/update/rollback with snapshot=" + newest.name + " and restore_settings=true to recover."
+        ),
+    }
 
 
 async def run_system_update_check_if_due() -> None:
