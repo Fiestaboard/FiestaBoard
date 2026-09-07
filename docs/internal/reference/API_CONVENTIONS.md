@@ -36,12 +36,13 @@ It is a **ratchet**: it only checks domains listed in
 }
 ```
 
-**`declared_errors` and 503-only routes.** The rule asks for a *4xx*, so a
-route whose only failure is a dependency outage (`503`) records an exception
-rather than inventing a client error it cannot raise. Declare the 503 in
-`responses=` anyway — the exception explains why there is no 4xx, it does not
-excuse leaving the failure undocumented. Seven `/plugins` routes are in this
-position because `_require_plugin_system()` is their only failure path.
+**`declared_errors` and 503-only routes.** The rule asks for *an error
+status*, 4xx or 5xx, so a route whose only failure is a dependency outage
+declares its `503` and is done — no manifest exception needed. It was
+originally written as "a 4xx", which would have cost seven `/plugins` routes
+an exception apiece documenting a client error they cannot raise; the rule
+was widened rather than the exceptions accepted. What it still refuses is a
+route that documents *no* failure at all.
 
 **Opting a domain in.** Append the domain's router tag (the `<domain>` in
 `APIRouter(tags=[<domain>])`) to `converted_domains` — in the same PR that
