@@ -94,8 +94,10 @@ export interface ScheduleUpdate {
 export interface SchedulesResponse {
   schedules: ScheduleEntry[];
   total: number;
+  // Both per-board fields are null on the cross-board listing
+  // (`board_id=*`), which has no single board to answer for.
   default_page_id: string | null;
-  enabled: boolean;
+  enabled: boolean | null;
 }
 
 export interface Overlap {

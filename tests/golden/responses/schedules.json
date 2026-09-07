@@ -106,7 +106,7 @@
       "status": 200,
       "shape": {
         "default_page_id": "null",
-        "enabled": "bool",
+        "enabled": "null",
         "schedules": [
           {
             "annual_date": "null",

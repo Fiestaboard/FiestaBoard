@@ -224,17 +224,20 @@ def test_wildcard_listing_reports_no_default_page(client, page_id):
     assert client.get("/schedules", params={"board_id": "*"}).json()["default_page_id"] is None
 
 
-def test_wildcard_listing_reports_enabled_false(client, page_id):
-    """KNOWN BUG, fixed in the next commit of this PR.
+def test_wildcard_listing_does_not_claim_schedule_mode_is_off(client, page_id):
+    """RE-PINNED (bug fix, this PR): ``enabled`` is ``null``, was hardcoded ``false``.
 
-    ``enabled`` is per-board, so the cross-board listing cannot answer it — but
-    the handler hardcodes ``False``, which is indistinguishable from "schedule
-    mode is off everywhere". Pinned here as it behaves *today* so the fix shows
-    up as a deliberate, reviewed diff rather than an unremarked change.
+    ``enabled`` is a per-board flag, so the cross-board listing cannot answer
+    it — exactly like ``default_page_id``, which the same branch already
+    answers with ``null``. Hardcoding ``false`` made "not applicable here"
+    indistinguishable from "schedule mode is off everywhere", which is a lie a
+    client cannot detect: with schedule mode ON for the only board, the
+    wildcard listing still said ``false``.
     """
     client.put("/schedules/enabled", json={"enabled": True})
 
-    assert client.get("/schedules", params={"board_id": "*"}).json()["enabled"] is False
+    assert client.get("/schedules/enabled").json()["enabled"] is True
+    assert client.get("/schedules", params={"board_id": "*"}).json()["enabled"] is None
 
 
 # ── GET /schedules/{schedule_id} ────────────────────────────────────────────

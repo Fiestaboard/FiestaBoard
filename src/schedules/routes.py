@@ -99,13 +99,18 @@ async def list_schedules(board_id: str | None = None):
     settings_service = get_settings_service()
     schedules = schedule_service.list_schedules(board_id=board_id)
 
-    # When listing all boards (board_id="*"), default_page_id and enabled don't make sense
+    # When listing all boards (board_id="*") the two per-board fields have no
+    # answer, so both are null. `enabled` used to be hardcoded `False`, which a
+    # client cannot tell apart from "schedule mode is off on every board" — it
+    # said `false` even with schedule mode on for the only board. `null` is the
+    # honest "not applicable to this listing", and matches what the same branch
+    # has always answered for `default_page_id`.
     if board_id == "*":
         return {
             "schedules": [_enrich_schedule_with_sun_times(s.model_dump()) for s in schedules],
             "total": len(schedules),
             "default_page_id": None,
-            "enabled": False,
+            "enabled": None,
         }
 
     return {
