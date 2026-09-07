@@ -205,6 +205,11 @@
       "reason": "Declared probe contract (#1887, Task 10a): the endpoint's job is to report what the board said, so 'your key was rejected' is the requested answer at 200 through BoardTestResponse, not a transport failure. Preconditions the server rejects before probing (missing credential, unsafe host) really are 400, and unanticipated errors really are 500 \u2014 tests/test_status_code_correctness.py pins both. Making the upstream verdicts 4xx would tell the wizard the request was malformed when it was not."
     },
     {
+      "route": "POST /pages/ai/chat",
+      "rule": "response_model",
+      "reason": "Serves a Server-Sent Events stream, not a JSON document: the body is a sequence of `event:`/`data:` frames written over an open connection, and any response_model would either be a lie about what the client receives or would make FastAPI buffer and re-serialize the stream, which is the one thing an SSE endpoint must not do. The schema is published instead as the 200's text/event-stream content type plus CHAT_STREAM_EVENTS in src/ai/page_routes.py, which names each of the five event types and the model describing its payload; tests/test_ai_pages_contract.py validates real frames against that registry and cross-checks it against the literal event dicts in src/ai/chat.py, so it cannot drift the way an undocumented stream would."
+    },
+    {
       "route": "POST /plugins/{plugin_id}/options/{options_id}",
       "rule": "no_200_on_failure",
       "reason": "Three returns inside except blocks, all deliberate. Two serve the last good options with stale=true when the provider times out or throws, so a settings form mid-edit keeps its picker instead of blanking. The third turns OptionsUnavailable (\"no API key yet\") into a 200 with an error hint, because that is the expected state while the user is still filling in the very field the credential goes in \u2014 a 4xx there would surface a failed-request toast for a form that is simply incomplete."

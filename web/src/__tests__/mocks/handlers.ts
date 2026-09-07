@@ -1081,6 +1081,17 @@ export const handlers = [
           wrap: false,
         })),
         duration_seconds: 60,
+        // Present-as-null since the route declares AIGenerateResponse: the
+        // PageCreate fields the generator did not set are serialized rather
+        // than omitted.
+        display_type: null,
+        rows: null,
+        transition_strategy: null,
+        transition_interval_ms: null,
+        transition_step_size: null,
+        demo_plugin_id: null,
+        notes_wide: null,
+        notes_tall: null,
       },
       model_used: "test-model",
       provider_id: "p1",

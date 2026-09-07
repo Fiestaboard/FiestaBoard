@@ -867,7 +867,7 @@ async def test_stream_chat_includes_history_in_request():
 
 @pytest.fixture
 def reset_throttle(monkeypatch):
-    monkeypatch.setattr("src.api_server._ai_generate_last_call", 0.0)
+    monkeypatch.setattr("src.ai.page_routes._ai_generate_last_call", 0.0)
 
 
 def test_chat_endpoint_validates_body(reset_throttle):
@@ -877,7 +877,9 @@ def test_chat_endpoint_validates_body(reset_throttle):
 
     client = TestClient(app)
     r = client.post("/pages/ai/chat", json={"messages": "not a list"})
-    assert r.status_code == 400
+    # 422 since the conventions pass typed the body as AIChatRequest; the
+    # hand-rolled 400 "`messages` must be a non-empty array." is gone.
+    assert r.status_code == 422
 
 
 def test_chat_endpoint_rejects_invalid_device_type(reset_throttle):
@@ -893,5 +895,7 @@ def test_chat_endpoint_rejects_invalid_device_type(reset_throttle):
             "device_type": "watch",
         },
     )
-    assert r.status_code == 400
-    assert "device_type" in r.json()["detail"]
+    # 422 since the conventions pass made device_type a Literal. FastAPI's
+    # validation detail still names the field, which is what this asserts.
+    assert r.status_code == 422
+    assert "device_type" in r.text

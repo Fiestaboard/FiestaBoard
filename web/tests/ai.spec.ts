@@ -98,6 +98,10 @@ async function getMockState(): Promise<{
  * window if we hit a 429. The endpoint rejects calls landing less than
  * _AI_GENERATE_MIN_INTERVAL_SECONDS (1s) after the previous one — tests
  * that run back-to-back trip it without this.
+ *
+ * The throttle runs after body validation since the conventions pass, so a
+ * malformed body answers 422 and is returned straight through rather than
+ * retried.
  */
 async function callGenerate(
   request: APIRequestContext,
@@ -202,9 +206,12 @@ test.describe("AI", () => {
       expect(data).toHaveProperty("user_prompt");
     });
 
-    test("rejects bogus device_type with 400", async ({ request }) => {
+    // 422, not 400: the Phase 2 conventions pass made device_type a typed
+    // Literal query parameter, so the rejection is FastAPI's own schema
+    // validation rather than a hand-rolled membership check in the handler.
+    test("rejects bogus device_type with 422", async ({ request }) => {
       const res = await request.get(`${API_URL}/pages/ai/context?device_type=potato`);
-      expect(res.status()).toBe(400);
+      expect(res.status()).toBe(422);
     });
   });
 
@@ -341,12 +348,15 @@ test.describe("AI", () => {
       expect(String(data.detail || "")).toMatch(/not enabled|no .* provider/i);
     });
 
-    test("returns 400 when prompt is missing", async ({ request }) => {
+    // 422, not 400: `prompt` is a required field on the AIGenerateRequest
+    // model since the conventions pass, so a missing one never reaches the
+    // handler. The 400 below — the generator's own message — is unchanged.
+    test("returns 422 when prompt is missing", async ({ request }) => {
       await configureMockProvider(request);
       const { status } = await callGenerate(request, {
         device_type: "flagship",
       });
-      expect(status).toBe(400);
+      expect(status).toBe(422);
     });
 
     test("happy path round-trips through the mock and returns a valid page", async ({ request }) => {
@@ -604,12 +614,19 @@ test.describe("AI", () => {
       expect(frames.some((f) => f.event === "warning" || f.event === "error")).toBe(true);
     });
 
+    // Both 422 rather than 400 since the conventions pass typed the chat
+    // body: `messages` has min_length 1 and `surface` is a Literal, so both
+    // rejections are FastAPI's schema validation. What still matters — and
+    // is still asserted — is that a rejected request comes back as a JSON
+    // error and never as a 200 event-stream the drawer would render as an
+    // empty assistant turn.
     test("rejects an empty messages array", async ({ request }) => {
       await configureMockProvider(request);
       const res = await request.post(`${API_URL}/pages/ai/chat`, {
         data: { messages: [], device_type: "flagship" },
       });
-      expect(res.status()).toBe(400);
+      expect(res.status()).toBe(422);
+      expect(res.headers()["content-type"]).toContain("application/json");
     });
 
     test("rejects an invalid surface", async ({ request }) => {
@@ -621,7 +638,8 @@ test.describe("AI", () => {
           surface: "nonsense",
         },
       });
-      expect(res.status()).toBe(400);
+      expect(res.status()).toBe(422);
+      expect(res.headers()["content-type"]).toContain("application/json");
     });
   });
 

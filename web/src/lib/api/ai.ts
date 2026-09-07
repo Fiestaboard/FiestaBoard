@@ -34,17 +34,36 @@ export interface AIPageWarning {
   message: string;
 }
 
+/**
+ * Mirrors `AIGenerateResponse` in `src/ai/page_routes.py`.
+ *
+ * `page` is a `PageCreate`-shaped **draft**, not a stored page — this
+ * endpoint never writes, and the editor holds the draft locally until the
+ * user clicks Save. Since the route declares its response model, every
+ * optional `PageCreate` field the generator did not set arrives as `null`
+ * rather than being absent, so they are typed that way here.
+ */
+export interface AIGeneratedPageDraft {
+  name: string;
+  type: "template";
+  device_type: DeviceType;
+  template: string[];
+  line_metadata: LineMetadata[];
+  duration_seconds: number;
+  display_type: string | null;
+  rows: unknown[] | null;
+  transition_strategy: string | null;
+  transition_interval_ms: number | null;
+  transition_step_size: number | null;
+  demo_plugin_id: string | null;
+  notes_wide: number | null;
+  notes_tall: number | null;
+}
+
 export interface AIGenerateResult {
-  page: {
-    name: string;
-    type: "template";
-    device_type: DeviceType;
-    template: string[];
-    line_metadata: LineMetadata[];
-    duration_seconds: number;
-  };
+  page: AIGeneratedPageDraft;
   model_used: string;
-  provider_id: string;
+  provider_id: string | null;
   warnings: string[];
   usage: {
     prompt_tokens: number | null;
@@ -128,8 +147,13 @@ export const aiApi = {
     if (!res.ok) {
       let detail = `${res.status} ${res.statusText}`;
       try {
-        const body = (await res.json()) as { detail?: string };
-        if (body && typeof body.detail === "string") detail = body.detail;
+        const body = (await res.json()) as { detail?: unknown };
+        // A hand-raised failure is `{detail: string}`; FastAPI's own schema
+        // rejection (422) is `{detail: [...]}`. Serialize the latter rather
+        // than dropping it, matching what `fetchApi` in api/core.ts does.
+        if (body && body.detail !== undefined) {
+          detail = typeof body.detail === "string" ? body.detail : JSON.stringify(body.detail);
+        }
       } catch {
         // Ignore JSON parse errors; fall back to status text.
       }

@@ -257,3 +257,31 @@ future caller cannot recreate the phantom write.
 5. Add the domain to `converted_domains` in
    `tests/conventions_manifest.json` (see *Enforcement* above) so the pass
    cannot silently unwind later.
+
+## Streaming endpoints
+
+`POST /pages/ai/chat` is the one route in the app that answers with a
+`StreamingResponse` rather than a document, and it is the shape to copy if
+another is ever added. A `response_model` cannot describe it — FastAPI would
+either publish a JSON schema for a body that is never JSON, or coerce the
+response and buffer the stream, which defeats the point of streaming. So:
+
+- declare the media type on the 200 (`"content": {"text/event-stream": ...}`)
+  with a description naming every event the stream can emit;
+- keep a **registry** of the event names mapped to the Pydantic model
+  describing each one's payload (`CHAT_STREAM_EVENTS` in
+  `src/ai/page_routes.py`). That registry is what the missing
+  `response_model` would have been, so it only earns its keep if something
+  holds it to the wire: one contract test validates real frames against it,
+  another walks the literal `{"event": ...}` dicts in the streaming source
+  and asserts the two sets are equal, so a new event type cannot ship
+  undocumented;
+- record the `response_model` exception in the manifest, pointing at the
+  registry.
+
+Failures divide by *when* they happen. Anything the server rejects before the
+200 is on the wire is an ordinary JSON error response and is declared in
+`responses=` as usual. After the headers are sent the status code is already
+spent, so the only way to report a failure is a terminal event in the stream
+itself — which is why an `error` frame at HTTP 200 is not a
+`no_200_on_failure` violation.

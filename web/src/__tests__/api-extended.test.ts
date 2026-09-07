@@ -27,6 +27,33 @@ describe("API Extended Tests", () => {
     });
   });
 
+  describe("generateAiPage error handling", () => {
+    // POST /pages/ai/generate takes a typed body since the Phase 2
+    // conventions pass, so a malformed request comes back as a 422 whose
+    // `detail` is a list of field errors rather than a string. The bespoke
+    // fetch in api/ai.ts exists to surface the LLM's own message from the
+    // 400 path; it must not silently drop the 422 shape.
+    it("surfaces the generator's own message from a 400", async () => {
+      server.use(
+        http.post(`${API_BASE}/pages/ai/generate`, () =>
+          HttpResponse.json({ detail: "Bad model output: foo" }, { status: 400 }),
+        ),
+      );
+      await expect(api.generateAiPage({ prompt: "p", device_type: "flagship" })).rejects.toThrow(
+        "Bad model output: foo",
+      );
+    });
+
+    it("serializes a FastAPI validation detail rather than reporting only the status", async () => {
+      server.use(
+        http.post(`${API_BASE}/pages/ai/generate`, () =>
+          HttpResponse.json({ detail: [{ loc: ["body", "prompt"], msg: "Field required" }] }, { status: 422 }),
+        ),
+      );
+      await expect(api.generateAiPage({ prompt: "", device_type: "flagship" })).rejects.toThrow(/prompt/);
+    });
+  });
+
   describe("Service control endpoints", () => {
     it("startService sends POST", async () => {
       const result = await api.startService();
