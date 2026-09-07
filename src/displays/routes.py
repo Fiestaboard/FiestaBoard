@@ -100,7 +100,7 @@ async def get_display(display_type: str):
 # has advertised that with a Deprecation/Link header pair since then. Marking
 # it deprecated in the OpenAPI schema too costs nothing and makes the intent
 # visible to generated clients; the endpoint keeps answering exactly as before.
-# Removal is tracked separately — do not delete it in this PR.
+# Removal is tracked in #1911 — do not delete it in this PR.
 @router.get(
     "/displays/{display_type}/raw",
     response_model=DisplayRawResponse,

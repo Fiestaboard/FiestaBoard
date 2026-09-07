@@ -158,7 +158,8 @@ def test_raw_reports_an_unavailable_source_as_503_not_as_an_empty_200(client):
     """Both the unknown type and the disabled plugin are 503 here.
 
     Asymmetric with GET /displays/{type}, which 400s the unknown type. Pinned
-    as the pre-existing contract, not endorsed: see the PR body.
+    as the pre-existing contract, not endorsed — see #1911, which tracks the
+    retirement of this endpoint.
     """
     assert client.get(f"/displays/{INSTALLED_PLUGIN}/raw").status_code == 503
     unknown = client.get(f"/displays/{UNKNOWN_PLUGIN}/raw")
