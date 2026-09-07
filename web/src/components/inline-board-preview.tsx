@@ -1,8 +1,10 @@
 "use client";
 
+import { Box, Text } from "@fiestaboard/ui";
 import { useQuery } from "@tanstack/react-query";
 
 import { ScaledBoardDisplay } from "@/components/scaled-board-display";
+import { useTranslations } from "@/i18n/translations";
 import type { CurrentPageSnapshot } from "@/lib/ai-chat-types";
 import { api, type DeviceType } from "@/lib/api";
 
@@ -40,6 +42,7 @@ export interface InlineBoardPreviewProps {
  * snapshots dedupe across multiple tool calls in the same session.
  */
 export function InlineBoardPreview({ snapshot, deviceType, size = "sm", className }: InlineBoardPreviewProps) {
+  const t = useTranslations("aiChatPanel");
   const { data, isLoading, isError } = useQuery({
     queryKey: ["inline-preview-render", deviceType, snapshot.template, snapshot.line_metadata],
     queryFn: () => api.renderTemplate(snapshot.template, snapshot.line_metadata, deviceType),
@@ -53,7 +56,11 @@ export function InlineBoardPreview({ snapshot, deviceType, size = "sm", classNam
   if (isError) {
     // Don't crash the chat panel if the render API hiccups — fall
     // back to a quiet hint. The card still has a useful summary.
-    return <div className="text-[10px] text-muted-foreground italic">(preview unavailable)</div>;
+    return (
+      <Text tone="muted" className="text-[10px] italic">
+        {t("previewUnavailable")}
+      </Text>
+    );
   }
 
   // Pass `null` while loading so BoardDisplay shows its empty grid
@@ -61,7 +68,7 @@ export function InlineBoardPreview({ snapshot, deviceType, size = "sm", classNam
   // string — BoardDisplay's tile components init to that target on
   // mount, so no flip animation runs.
   return (
-    <div className={className}>
+    <Box className={className}>
       <ScaledBoardDisplay
         message={isLoading ? null : (data?.rendered ?? "")}
         deviceType={deviceType}
@@ -69,6 +76,6 @@ export function InlineBoardPreview({ snapshot, deviceType, size = "sm", classNam
         boardType="black"
         isStatic
       />
-    </div>
+    </Box>
   );
 }

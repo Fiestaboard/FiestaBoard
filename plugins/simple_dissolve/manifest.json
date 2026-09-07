@@ -1,0 +1,51 @@
+{
+  "id": "simple_dissolve",
+  "name": "Simple Dissolve",
+  "version": "1.0.0",
+  "description": "Replaces tiles in a random order, creating a gradual dissolve from the current message to the target.",
+  "author": "FiestaBoard",
+  "icon": "shuffle",
+  "category": "transition",
+  "plugin_type": "transition",
+  "documentation": "README.md",
+  "settings_schema": {
+    "type": "object",
+    "properties": {
+      "tiles_per_frame": {
+        "type": "integer",
+        "title": "Tiles per frame",
+        "description": "How many tiles flip in each step. Larger = faster, less granular.",
+        "default": 6,
+        "minimum": 1,
+        "maximum": 132
+      },
+      "frame_interval_ms": {
+        "type": "integer",
+        "title": "Delay between frames (ms)",
+        "description": "Time to pause between each step.",
+        "default": 100,
+        "minimum": 0,
+        "maximum": 2000
+      },
+      "seed": {
+        "type": "integer",
+        "title": "Random seed",
+        "description": "Set to a fixed integer for deterministic playback (useful for previews). Leave blank for a fresh random order each run.",
+        "default": 0
+      }
+    }
+  },
+  "transition_settings": {
+    "interruptible": true,
+    "min_interval_ms": 50,
+    "max_frames": 200,
+    "max_runtime_seconds": 60
+  },
+  "screenshots": [
+    {
+      "src": "docs/board-display.png",
+      "alt": "Simple dissolve transition",
+      "primary": true
+    }
+  ]
+}

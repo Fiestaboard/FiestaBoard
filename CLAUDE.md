@@ -47,6 +47,22 @@ This project uses a **unified single container** for all environments (productio
 - **CI**: Tests run directly on the GitHub Actions host for speed (Python and Node.js installed natively)
 - Re-testing after changes should also be done in the container
 
+### Test quality bar
+
+Coverage is not proof. A test that still passes when you revert the production
+change it covers is testing nothing.
+
+- Write the test first and watch it fail. Confirm it fails for the reason you
+  expect, not from a typo, a missing import, or an unmocked request.
+- If a test was written after the code it covers, prove it is not vacuous:
+  break that specific behavior in the production code, confirm the test fails,
+  then restore it. Put the observed failure output in the PR description.
+- One behavior per test, named for the behavior.
+- Never weaken an assertion to make a test pass. Fix the code, or establish
+  that the test encoded the wrong contract and say which.
+- A green CI run is not evidence a new test works. It is only evidence that
+  nothing already covered broke.
+
 ### Exceptions
 
 The only code that may run locally:
@@ -71,6 +87,32 @@ Always suggest Docker-based commands:
 - ❌ `python src/api_server.py`
 - ❌ `cd web && npm run dev`
 - ❌ `pip install -r requirements.txt`
+
+## Design System (@fiestaboard/ui)
+
+The UI primitives (buttons, dialogs, selects, tokens, etc.) live in a separate package: [`@fiestaboard/ui`](https://www.npmjs.com/package/@fiestaboard/ui), developed in the sibling repo `../FiestaUI` and published to **registry.npmjs.org**.
+
+### Registry authentication
+
+None. `@fiestaboard/ui` installs anonymously from the public npm registry — `npm install` works on a fresh clone with no token, no `.npmrc`, and no BuildKit secret.
+
+It was previously on the GitHub Packages npm registry, which requires authentication for every read even when the package is public. That is what made a fresh clone fail with `401 Unauthorized` (Fiestaboard/FiestaBoard#1524); moving to npmjs removed the requirement rather than documenting a workaround.
+
+### Rules
+
+- **Import primitives from `@fiestaboard/ui`**, never re-create them in `web/src/components/ui/` (ESLint enforces this via `no-restricted-imports`)
+- `web/src/components/ui/` holds only app-coupled composites (`sonner.tsx`, `time-picker.tsx`, `timezone-picker.tsx`) — components that need app hooks (theme, i18n) stay here
+- `cn` is re-exported from `@/lib/utils` for compatibility; both import paths are fine
+- Design tokens come from `@fiestaboard/ui/theme.css`, imported at the top of `web/app/globals.css` together with the mandatory `@source "../node_modules/@fiestaboard/ui/dist"` line (Tailwind v4 does not scan node_modules — removing that line silently drops all component styles)
+- Do NOT add `@base-ui/react`, `clsx`, `tailwind-merge`, `class-variance-authority`, or `ogl` back to `web/package.json` — they are transitive dependencies of `@fiestaboard/ui`
+- **App chrome is also in the package**: `Sidebar` (presentational shell), `BoardSelector`, `MainContent`, `PageHeader`/`PageLayout`/`PageToolbar`, `FiestaLogo`/`FiestaIcon` (embedded pixel-taco brand mark), `ThemeToggle`/`LanguageSelector`/`SkipToContent`, and `WizardShell`/`WizardProgress` (the setup-wizard frame, with `BoardBackdrop` as its opt-in backdrop). @fiestaboard/ui 4.0.0 retired the seasonal theming system (`SEASONS`, `useActiveSeason`, `fireSeasonBurst`, the `Sidebar` `season` prop) along with `Aurora` and `DecryptedText`; the app's Festive Months feature was removed with them and is not coming back in that form. App files like `navigation-sidebar.tsx` are thin wiring wrappers (router, i18n, contexts, feature flags) — presentation changes go in FiestaUI, wiring changes here
+
+### Changing the design system
+
+1. Make the change in the `FiestaUI` repo (components + stories + a11y tests)
+2. Release a new version (Actions → Release workflow in FiestaUI)
+3. Bump `@fiestaboard/ui` in `web/package.json` here and update the lockfile in the container
+4. Visual changes to primitives are visible app-wide — treat token/class changes as breaking unless verified
 
 ## Plugin Architecture
 
@@ -146,8 +188,30 @@ For user-facing setup instructions (API key registration, configuration):
 
 When modifying platform/core functionality:
 - Update `README.md` for significant platform changes
-- Update `docs/development/PLUGIN_DEVELOPMENT.md` for plugin system changes
-- Document new platform features in appropriate `docs/` subdirectory
+- Update `docs/internal/development/PLUGIN_DEVELOPMENT.md` for plugin system changes
+- Document new platform features in the appropriate docs tree: `docs/` is the
+  **published** documentation (synced to the separate site repo and rendered
+  on fiestaboard.app — see "Published Docs Site" below); `docs/internal/` is
+  internal engineering documentation that is never published
+
+### Published Docs Site
+
+The documentation website (fiestaboard.app) does NOT live in this repo. The
+published docs source lives in `docs/` here (excluding `docs/internal/`) and
+is synced one-way to the separate site repo,
+[Fiestaboard/fiestaboard.github.io](https://github.com/Fiestaboard/fiestaboard.github.io),
+which builds and deploys fiestaboard.app from its `main` branch via its own
+GitHub Actions.
+
+- `.github/workflows/publish-docs.yml` (via `scripts/publish-docs.sh`) runs
+  the sync on every push to `main` touching `docs/**`,
+  `plugin-registry.json`, `plugin-previews.json`, or `assets/branding/**`.
+- On release, `release.yml` sends a `repository_dispatch` (type `release`)
+  to the site repo, which snapshots and deploys the versioned docs.
+- Never edit site code (Docusaurus config, theme, components) here — that
+  all belongs to the site repo. Edit only the markdown under `docs/`.
+- Docs merge-to-live SLA: a docs change merged to `main` here is live on
+  fiestaboard.app after the sync + site build (measured at cutover: ~4 min).
 
 ### Environment Variables
 
@@ -205,11 +269,11 @@ Instead, put documentation in the appropriate place:
 **For permanent documentation:**
 - **Plugin developer docs**: `plugins/PLUGIN_NAME/README.md` - How the plugin works
 - **Plugin setup guides**: `plugins/PLUGIN_NAME/docs/SETUP.md` - User-facing setup instructions
-- **Plugin development**: `docs/development/PLUGIN_DEVELOPMENT.md` - How to create plugins
+- **Plugin development**: `docs/internal/development/PLUGIN_DEVELOPMENT.md` - How to create plugins
 - **Deployment**: `docs/deployment/*.md` - Deployment and infrastructure docs
-- **Reference**: `docs/reference/*.md` - Technical reference material
-- **Setup**: `docs/setup/*.md` - Development environment setup
-- **Architecture**: Add to `README.md` or create `docs/reference/ARCHITECTURE.md`
+- **Reference**: `docs/internal/reference/*.md` - Technical reference material
+- **Setup**: `docs/internal/setup/*.md` - Development environment setup
+- **Architecture**: Add to `README.md` or create `docs/internal/reference/ARCHITECTURE.md`
 - **Web UI features**: `web/src/components/README.md` or component-specific docs in `web/`
 
 **For temporary notes during development:**
@@ -225,6 +289,55 @@ Before completing any feature or task:
 2. Move any valuable information to the proper location in `docs/`
 3. Delete all temporary implementation/testing markdown files
 4. Ensure all critical information is preserved in proper documentation
+
+## Commit Attribution
+
+Git history is public and feeds the repo's GitHub Insights graph. Attribution
+must be consistent so that one contributor reads as one contributor.
+
+### Claude co-author trailer
+
+End Claude-assisted commit messages with **exactly** this line, and nothing else
+resembling it:
+
+```
+Co-Authored-By: Claude <noreply@anthropic.com>
+```
+
+- No model name, version, or context-window suffix — not `Claude Opus 5`, not
+  `Claude Sonnet 4.6 (1M context)`, not `Claude Fable 5`
+- Use this capitalization (`Co-Authored-By`) so trailers group cleanly
+- One trailer per commit — never repeat it
+
+Model-specific trailers fragment Claude into a separate Insights contributor per
+model per capitalization (history already carries 12 such variants), and they
+leak model-selection history into permanent public metadata for no benefit.
+
+### Other agents
+
+Do not add `Co-authored-by:` or `Made-with:` trailers for other coding agents
+(Cursor, Copilot, etc.). If an agent's tooling adds one automatically, strip it
+before committing, or edit it out of the squash-merge body at merge time.
+
+### Automation identity
+
+Workflows that commit must set an identity matching what actually authored the
+change:
+
+- **Mechanical commits** (version bumps, docs snapshots, stats refreshes, state
+  bookkeeping) → `FiestaBoard CI <ci@fiestaboard.app>`
+- **Claude-authored content** → left to `claude[bot]`, which the Claude action
+  sets itself
+
+The Claude action rewrites global git config while it runs, so any shell step
+that commits *after* it inherits `claude[bot]`. Bookkeeping commits in those
+jobs must pin their identity inline rather than rely on an earlier
+`git config`:
+
+```bash
+git -c user.name="FiestaBoard CI" -c user.email="ci@fiestaboard.app" \
+  commit -m "chore(scope): advance sweep state [skip ci]"
+```
 
 ## Plugin Development Rules
 
@@ -273,6 +386,23 @@ The `manifest.json` MUST include:
 - `version` - Semantic version (X.Y.Z)
 - `settings_schema` - JSON Schema for configuration
 - `variables` - Template variables exposed by plugin
+- `teaser` - One line of literal board text, max 15 tiles (data plugins only)
+- `previews` - Literal board rows per device shape (data plugins only)
+
+### Board Previews (`teaser` / `previews`)
+
+Docs render plugins as live split-flap boards from manifest metadata — never
+from screenshots. Both fields hold **literal** board text (no `{{variables}}`).
+
+- Widths count **tiles, not characters**: `{66}` is one flap; `{/green}` is zero
+- `teaser` max 15 tiles (the Note width, so it fits every board)
+- Provide at least `flagship` (22×6) and `note` (15×3) previews
+- Rows may be shorter than the board (padded), never longer
+- Transition plugins (`plugin_type: "transition"`) must NOT declare either field
+- Validate with `python scripts/validate_plugins.py --verbose`
+
+Absence is a warning, not an error — plugins predating the contract must keep
+loading. `--strict` escalates it for the registry lane.
 
 Optional but recommended:
 - `icon` - Lucide icon name for UI display

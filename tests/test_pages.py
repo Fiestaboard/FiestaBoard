@@ -1139,7 +1139,7 @@ class TestPageService:
         mock_get_engine.return_value = mock_engine
 
         mock_registry = Mock()
-        mock_registry.build_template_contexts_for.return_value = {"flagship": {"weather": {"temp": 72}}}
+        mock_registry.build_template_contexts_for.return_value = {"flagship:6x22": {"weather": {"temp": 72}}}
         mock_get_registry.return_value = mock_registry
 
         # Create multiple template pages (all default to the flagship device)
@@ -1157,7 +1157,8 @@ class TestPageService:
         # not once per page.
         assert mock_registry.build_template_contexts_for.call_count == 1
         boards_arg = mock_registry.build_template_contexts_for.call_args.args[0]
-        assert set(boards_arg) == {"flagship"}
+        # Keys are the canonical size_key (family + resolved dims) since #1245
+        assert set(boards_arg) == {"flagship:6x22"}
         # But render_lines should be called three times (once per page)
         assert mock_engine.render_lines.call_count == 3
 
@@ -1205,7 +1206,7 @@ class TestPagesAPIEndpoints:
     @pytest.fixture
     def mock_page_service(self):
         """Mock the page service."""
-        with patch("src.api_server.get_page_service") as mock:
+        with patch("src.pages.routes.get_page_service") as mock:
             mock_service = Mock()
             mock.return_value = mock_service
             yield mock_service
@@ -1232,10 +1233,9 @@ class TestPagesAPIEndpoints:
 
         response = client.post("/pages", json={"name": "New Page", "type": "single", "display_type": "weather"})
 
-        assert response.status_code == 200
-        data = response.json()
-        assert data["status"] == "success"
-        assert data["page"]["name"] == "New Page"
+        # 201 + the bare page since the Phase 2 conventions pass.
+        assert response.status_code == 201
+        assert response.json()["name"] == "New Page"
 
     def test_get_page(self, client, mock_page_service):
         """Test GET /pages/{id}."""
@@ -1315,7 +1315,7 @@ class TestPagesAPIEndpoints:
         assert data["page_id"] == "test-id"
         assert "Preview Content" in data["message"]
 
-    @patch("src.api_server.get_settings_service")
+    @patch("src.pages.routes.get_settings_service")
     def test_current_display_template_page(self, mock_settings, client, mock_page_service):
         """Test GET /pages/current-display returns raw template for template pages."""
         mock_svc = Mock()
@@ -1351,7 +1351,7 @@ class TestPagesAPIEndpoints:
         assert data["line_metadata"][0]["alignment"] == "center"
         assert data["line_metadata"][1]["wrap"] is True
 
-    @patch("src.api_server.get_settings_service")
+    @patch("src.pages.routes.get_settings_service")
     def test_current_display_single_page(self, mock_settings, client, mock_page_service):
         """Test GET /pages/current-display returns rendered lines for non-template pages."""
         mock_svc = Mock()
@@ -1382,7 +1382,7 @@ class TestPagesAPIEndpoints:
         assert data["template"] == ["72°F Sunny", "Humidity 45%"]
         assert data["line_metadata"] is None
 
-    @patch("src.api_server.get_settings_service")
+    @patch("src.pages.routes.get_settings_service")
     def test_current_display_no_active_page(self, mock_settings, client, mock_page_service):
         """Test GET /pages/current-display returns 404 when no active page."""
         mock_svc = Mock()
@@ -1394,8 +1394,8 @@ class TestPagesAPIEndpoints:
 
         assert response.status_code == 404
 
-    @patch("src.api_server.get_collection_service")
-    @patch("src.api_server.get_settings_service")
+    @patch("src.pages.routes.get_collection_service")
+    @patch("src.pages.routes.get_settings_service")
     def test_current_display_collection_resolved(self, mock_settings, mock_collection, client, mock_page_service):
         """Test GET /pages/current-display resolves collection to underlying page."""
         mock_svc = Mock()
@@ -1558,7 +1558,7 @@ class TestPageShareAPIEndpoints:
 
     @pytest.fixture
     def mock_page_service(self):
-        with patch("src.api_server.get_page_service") as mock:
+        with patch("src.pages.routes.get_page_service") as mock:
             mock_service = Mock()
             mock.return_value = mock_service
             yield mock_service
@@ -1608,10 +1608,9 @@ class TestPageShareAPIEndpoints:
             template=["Hello", "World", "", "", "", ""],
         )
         response = client.post("/pages/import", json={"share_string": share_string})
-        assert response.status_code == 200
-        data = response.json()
-        assert data["status"] == "success"
-        assert data["page"]["name"] == "Test Page"
+        # 201 + the bare page since the Phase 2 conventions pass.
+        assert response.status_code == 201
+        assert response.json()["name"] == "Test Page"
         mock_page_service.create_page.assert_called_once()
 
     def test_import_page_creates_new_id(self, client, mock_page_service):

@@ -86,10 +86,13 @@ class ScheduleService:
             Created schedule
 
         Raises:
-            ValueError: If schedule configuration is invalid
+            ValueError: If schedule configuration is invalid, or the page's
+                size is incompatible with the entry's board (issue #1245)
         """
+        board_id = getattr(data, "board_id", None) or DEFAULT_BOARD_ID
+        self._validate_page_size(data.page_id, board_id)
         schedule = ScheduleEntry(
-            board_id=getattr(data, "board_id", None) or DEFAULT_BOARD_ID,
+            board_id=board_id,
             page_id=data.page_id,
             start_time=data.start_time,
             end_time=data.end_time,
@@ -117,9 +120,32 @@ class ScheduleService:
 
         Returns:
             Updated schedule or None if not found
+
+        Raises:
+            ValueError: If the (possibly updated) page is size-incompatible
+                with the (possibly updated) board (issue #1245)
         """
         updates = data.model_dump(exclude_unset=True)
+        existing = self.storage.get(schedule_id)
+        if existing is not None and ("page_id" in updates or "board_id" in updates):
+            effective_page_id = updates.get("page_id", existing.page_id)
+            effective_board_id = updates.get("board_id", existing.board_id)
+            self._validate_page_size(effective_page_id, effective_board_id)
         return self.storage.update(schedule_id, updates)
+
+    @staticmethod
+    def _validate_page_size(page_ref: str | None, board_id: str | None) -> None:
+        """Block writes whose page/collection cannot render on the entry's board.
+
+        Raises ValueError (mapped to HTTP 400 by the API layer) when the page's
+        size_key does not exactly match the board's, or when a collection has
+        zero members that fit. Unresolvable pages/boards pass (back-compat).
+        """
+        from src.pages.service import check_ref_board_compatibility
+
+        result = check_ref_board_compatibility(page_ref, board_id)
+        if not result.ok:
+            raise ValueError(result.error)
 
     def delete_schedule(self, schedule_id: str) -> bool:
         """Delete a schedule.

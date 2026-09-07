@@ -5,6 +5,8 @@
  * Tests the schedule toggle, form interactions, validation,
  * view modes, and day patterns.
  */
+import type { Locator } from "@playwright/test";
+
 import {
   API_URL,
   configureBoard,
@@ -73,12 +75,20 @@ test.describe("Schedule Management", () => {
     await option.click();
     await expect(pageSelect).toContainText("Schedule Form Test");
 
+    // isVisible() checks instantly (its timeout option is ignored), but the
+    // select popup mounts asynchronously — wait for the option instead.
+    const becomesVisible = (locator: Locator, timeout = 3_000) =>
+      locator.waitFor({ state: "visible", timeout }).then(
+        () => true,
+        () => false,
+      );
+
     // Set start time
     const startTime = page.locator("#start-time");
     if (await startTime.isVisible().catch(() => false)) {
       await startTime.click();
       const opt = page.getByRole("option", { name: "08:00" });
-      if (await opt.isVisible({ timeout: 3_000 }).catch(() => false)) {
+      if (await becomesVisible(opt)) {
         await opt.click();
       }
     }
@@ -88,7 +98,7 @@ test.describe("Schedule Management", () => {
     if (await endTime.isVisible().catch(() => false)) {
       await endTime.click();
       const opt = page.getByRole("option", { name: "17:00" });
-      if (await opt.isVisible({ timeout: 3_000 }).catch(() => false)) {
+      if (await becomesVisible(opt)) {
         await opt.click();
       }
     }

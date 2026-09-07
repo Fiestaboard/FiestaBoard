@@ -1,11 +1,15 @@
 "use client";
 
+import { FiestaIcon, FiestaLogo, Flex, Stack, Text } from "@fiestaboard/ui";
+import { Spinner } from "@fiestaboard/ui/components/feedback/spinner";
 import { useQuery } from "@tanstack/react-query";
 import { WifiOff } from "lucide-react";
 import { useEffect, useState } from "react";
 
-import { FiestaLogo } from "@/components/fiesta-logo";
+import { useUpdate } from "@/components/update-context";
+import { useDepsChanged } from "@/hooks/use-deps-changed";
 import { useTranslations } from "@/i18n/translations";
+import { apiUrl } from "@/lib/base-path";
 
 /** How long to wait before showing the splash (avoids a flash for fast startups). */
 const SHOW_SPLASH_DELAY_MS = 600;
@@ -14,16 +18,29 @@ const SHOW_SPLASH_DELAY_MS = 600;
 const ERROR_TIMEOUT_MS = 30_000;
 
 /**
+ * Restarting after an update legitimately takes longer than a cold boot — the
+ * new container has to start from scratch on hardware that was just busy
+ * pulling an image. Showing "Couldn't connect to FiestaBoard" at 30 s there
+ * reads as a failure when the machine is simply still coming up.
+ */
+const POST_UPDATE_ERROR_TIMEOUT_MS = 120_000;
+
+/**
  * Gates the main UI behind an API availability check on boot.
  *
  * - If the API responds within SHOW_SPLASH_DELAY_MS → no splash ever shown.
  * - If the API is still unavailable after SHOW_SPLASH_DELAY_MS → "Waiting to start…" screen.
- * - If still unavailable after ERROR_TIMEOUT_MS → error screen with a refresh button.
+ * - If still unavailable after the error timeout → error screen with a refresh button.
  * - Once the API responds for the first time → the gate is removed permanently for this session.
  *   A brief connection hiccup during normal use never re-shows the splash.
+ *
+ * When the page has just reloaded itself to finish an update (see
+ * `UpdateProvider`), the same states get update-specific copy and a longer
+ * error timeout, so a normal post-update restart doesn't look like a crash.
  */
 export function BootGate({ children }: { children: React.ReactNode }) {
   const t = useTranslations("bootGate");
+  const { awaitingPostUpdateBoot, markPostUpdateBootComplete } = useUpdate();
   const [hasConnected, setHasConnected] = useState(false);
   const [showSplash, setShowSplash] = useState(false);
   const [timedOut, setTimedOut] = useState(false);
@@ -34,7 +51,7 @@ export function BootGate({ children }: { children: React.ReactNode }) {
     // clears even on a fresh install where /status would 409 with
     // "setup required" until the admin creates the first account.
     queryFn: async () => {
-      const res = await fetch("/api/health", { credentials: "include" });
+      const res = await fetch(apiUrl("/health"), { credentials: "include" });
       if (!res.ok) throw new Error(`health: ${res.status}`);
       return res.json();
     },
@@ -45,10 +62,19 @@ export function BootGate({ children }: { children: React.ReactNode }) {
     enabled: !hasConnected,
   });
 
-  // Mark connected on first successful response.
+  // Mark connected on first successful response. Done during render so the
+  // splash clears in the same commit the health check lands
+  // (react-hooks/set-state-in-effect, issue #1568).
+  if (useDepsChanged([data]) && data) {
+    setHasConnected(true);
+  }
+
+  // Retiring the post-update marker touches the UpdateProvider's state, which
+  // is a different component — that has to stay in an effect.
   useEffect(() => {
-    if (data) setHasConnected(true);
-  }, [data]);
+    if (!data) return;
+    markPostUpdateBootComplete();
+  }, [data, markPostUpdateBootComplete]);
 
   // Delay showing the splash so fast startups never flash it.
   useEffect(() => {
@@ -60,11 +86,14 @@ export function BootGate({ children }: { children: React.ReactNode }) {
 
   // Switch to error state after the timeout elapses.
   useEffect(() => {
-    const timer = setTimeout(() => {
-      setTimedOut(true);
-    }, ERROR_TIMEOUT_MS);
+    const timer = setTimeout(
+      () => {
+        setTimedOut(true);
+      },
+      awaitingPostUpdateBoot ? POST_UPDATE_ERROR_TIMEOUT_MS : ERROR_TIMEOUT_MS,
+    );
     return () => clearTimeout(timer);
-  }, []);
+  }, [awaitingPostUpdateBoot]);
 
   // API is up — show the real app.
   if (hasConnected) return <>{children}</>;
@@ -73,27 +102,32 @@ export function BootGate({ children }: { children: React.ReactNode }) {
   if (!showSplash) return null;
 
   return (
-    <div className="fixed inset-0 z-[200] flex flex-col items-center justify-center bg-background">
-      <div
-        className="flex flex-col items-center gap-6 text-center px-6 max-w-sm"
+    <Flex direction="col" align="center" justify="center" className="fixed inset-0 z-[200] bg-background">
+      <Flex
+        direction="col"
+        align="center"
+        gap="6"
+        className="text-center px-6 max-w-sm"
         role="status"
         aria-live="polite"
         aria-atomic="true"
       >
         {/* Branding */}
-        <div className="flex items-center gap-3">
-          <img src="/icons/favicon-32x32.png" alt="" width={36} height={36} className="flex-shrink-0" />
+        <Flex align="center" gap="3">
+          <FiestaIcon size={36} className="flex-shrink-0" />
           <FiestaLogo className="text-2xl" />
-        </div>
+        </Flex>
 
         {timedOut ? (
           /* ── Error state ── */
           <>
             <WifiOff className="h-10 w-10 text-muted-foreground" strokeWidth={1.5} aria-hidden="true" />
-            <div className="space-y-1.5">
-              <p className="text-base font-semibold">{t("errorHeading")}</p>
-              <p className="text-sm text-muted-foreground">{t("errorDescription")}</p>
-            </div>
+            <Stack gap="1.5">
+              <Text size="base" weight="semibold">
+                {awaitingPostUpdateBoot ? t("updateErrorHeading") : t("errorHeading")}
+              </Text>
+              <Text tone="muted">{awaitingPostUpdateBoot ? t("updateErrorDescription") : t("errorDescription")}</Text>
+            </Stack>
             <button
               onClick={() => window.location.reload()}
               className="px-4 py-2 text-sm font-medium rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 transition-colors"
@@ -104,14 +138,20 @@ export function BootGate({ children }: { children: React.ReactNode }) {
         ) : (
           /* ── Waiting state ── */
           <>
-            <div
-              className="h-8 w-8 rounded-full border-[2.5px] border-muted-foreground/25 border-t-muted-foreground animate-spin"
-              aria-hidden="true"
-            />
-            <p className="text-sm text-muted-foreground">{t("waiting")}</p>
+            <Spinner size="lg" className="size-8 text-muted-foreground" label={null} />
+            {awaitingPostUpdateBoot ? (
+              <Stack gap="1.5">
+                <Text size="base" weight="semibold">
+                  {t("updateWaiting")}
+                </Text>
+                <Text tone="muted">{t("updateWaitingDescription")}</Text>
+              </Stack>
+            ) : (
+              <Text tone="muted">{t("waiting")}</Text>
+            )}
           </>
         )}
-      </div>
-    </div>
+      </Flex>
+    </Flex>
   );
 }

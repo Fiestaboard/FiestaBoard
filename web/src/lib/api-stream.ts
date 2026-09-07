@@ -15,8 +15,8 @@ import type {
   SSEWarningData,
   ToolCall,
 } from "./ai-chat-types";
-
-const API_BASE = "/api";
+import { redirectToLoginIfNeeded } from "./api/core";
+import { apiUrl } from "./base-path";
 
 export interface StreamChatHandlers {
   onText?: (delta: string) => void;
@@ -52,7 +52,7 @@ export async function streamChat(
   }
 
   try {
-    await fetchEventSource(`${API_BASE}/pages/ai/chat`, {
+    await fetchEventSource(apiUrl("/pages/ai/chat"), {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -73,12 +73,21 @@ export async function streamChat(
           }
           return;
         }
-        // Try to surface the server's JSON error detail.
+        // Route auth failures through the same 401/409 login-redirect
+        // logic as fetchApi (lib/api/core.ts) — this path used to bypass
+        // it, leaving an expired-session chat stuck on a silent error.
+        redirectToLoginIfNeeded(response);
+        // Try to surface the server's JSON error detail. A hand-raised
+        // failure is `{detail: string}`; FastAPI's own schema rejection
+        // (422 — the shape POST /pages/ai/chat now answers a malformed body
+        // with) is `{detail: [...]}`. Serialize the latter rather than
+        // dropping it on the floor and reporting only the status number,
+        // matching what `fetchApi` in api/core.ts does.
         let detail: string | null = null;
         try {
           const json = await response.json();
-          if (json && typeof json.detail === "string") {
-            detail = json.detail;
+          if (json && json.detail !== undefined) {
+            detail = typeof json.detail === "string" ? json.detail : JSON.stringify(json.detail);
           }
         } catch {
           /* ignore — fall through */

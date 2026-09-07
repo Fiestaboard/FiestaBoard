@@ -1,4 +1,12 @@
 {
+  "_provenance": {
+    "status": "historical",
+    "audited_at": "2026-06-04T05:34:34Z",
+    "stale_as_of": "2026-09-03",
+    "why_stale": "This audit is the INPUT that produced web/tests/regression/ (26 specs, ~240 tests). Its audited_specs list predates that suite, so the 8.8% headline in `summary` describes coverage BEFORE the gap tests it generated were written. Do not quote it as current coverage.",
+    "superseded_by": "web/tests/regression/*.spec.ts and web/tests/COVERAGE.md",
+    "regenerate_with": "/audit-ux-coverage (qa-auditor agent) - rewrites this file in place"
+  },
   "ux_tree": "ux-tree.json",
   "generated_at": "2026-06-04T05:34:34Z",
   "scope": "pages,schedule,dashboard,integrations,settings,carousels,picks,profile,login,offline,debug",

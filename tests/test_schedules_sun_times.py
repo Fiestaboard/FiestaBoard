@@ -508,10 +508,10 @@ class TestEffectiveTimezone:
         assert get_effective_timezone() == "America/Denver"
 
     @patch("src.config.Config")
-    def test_falls_back_to_plugin_timezone_when_general_empty(self, mock_config):
+    def test_ignores_retired_legacy_plugin_timezone(self, mock_config):
+        """#1761: the legacy features.date_time timezone is gone — general or UTC."""
         mock_config.GENERAL_TIMEZONE = ""
-        mock_config.TIMEZONE = "America/Denver"
-        assert get_effective_timezone() == "America/Denver"
+        assert get_effective_timezone() == "UTC"
 
     @patch("src.config.Config")
     def test_falls_back_to_utc_when_both_empty(self, mock_config):

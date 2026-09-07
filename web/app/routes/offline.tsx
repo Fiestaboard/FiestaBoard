@@ -1,28 +1,30 @@
+import { Box, Flex, List, ListItem, Stack, Text } from "@fiestaboard/ui";
+import { Spinner } from "@fiestaboard/ui/components/feedback/spinner";
 import { RefreshCw, WifiOff } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useSyncExternalStore } from "react";
 
 import { useTranslations } from "@/i18n/translations";
 
+/** `navigator.onLine` is an external store — subscribe to it as one. */
+function subscribeToOnlineStatus(onChange: () => void) {
+  window.addEventListener("online", onChange);
+  window.addEventListener("offline", onChange);
+  return () => {
+    window.removeEventListener("online", onChange);
+    window.removeEventListener("offline", onChange);
+  };
+}
+
 export default function OfflinePage() {
-  const [isOnline, setIsOnline] = useState(false);
+  // Was a mount effect that called setIsOnline(navigator.onLine), i.e. always
+  // one render of "offline" before the truth arrived
+  // (react-hooks/set-state-in-effect, issue #1568).
+  const isOnline = useSyncExternalStore(
+    subscribeToOnlineStatus,
+    () => navigator.onLine,
+    () => false,
+  );
   const t = useTranslations("offline");
-
-  useEffect(() => {
-    // Check initial online status
-    setIsOnline(navigator.onLine);
-
-    // Listen for online/offline events
-    const handleOnline = () => setIsOnline(true);
-    const handleOffline = () => setIsOnline(false);
-
-    window.addEventListener("online", handleOnline);
-    window.addEventListener("offline", handleOffline);
-
-    return () => {
-      window.removeEventListener("online", handleOnline);
-      window.removeEventListener("offline", handleOffline);
-    };
-  }, []);
 
   const handleRetry = () => {
     if (navigator.onLine) {
@@ -40,21 +42,24 @@ export default function OfflinePage() {
   }, [isOnline]);
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-background p-4">
-      <div className="max-w-md w-full text-center space-y-6">
-        <div className="flex justify-center">
-          <div className="rounded-full bg-muted p-6">
+    <Flex align="center" justify="center" className="min-h-screen bg-background p-4">
+      <Stack gap="6" className="max-w-md w-full text-center">
+        <Flex justify="center">
+          <Box className="rounded-full bg-muted p-6">
             <WifiOff className="h-12 w-12 text-muted-foreground" />
-          </div>
-        </div>
+          </Box>
+        </Flex>
 
-        <div className="space-y-2">
+        <Stack gap="2">
+          {/* Reserved for PageHeader elsewhere; this standalone offline splash has no icon/description
+              card to match, so the h1 stays raw here (couldn't snap — see wave 1 report). */}
+          {/* eslint-disable-next-line react/forbid-elements -- standalone offline-splash hero title; PageHeader's icon+card shape doesn't fit and Heading has no level=1 */}
           <h1 className="text-3xl font-bold tracking-tight">{isOnline ? t("reconnecting") : t("youreOffline")}</h1>
-          <p className="text-muted-foreground">{isOnline ? t("connectionRestored") : t("offlineDescription")}</p>
-        </div>
+          <Text tone="muted">{isOnline ? t("connectionRestored") : t("offlineDescription")}</Text>
+        </Stack>
 
         {!isOnline && (
-          <div className="space-y-4">
+          <Stack gap="4">
             <button
               onClick={handleRetry}
               className="inline-flex items-center justify-center gap-2 rounded-md bg-primary px-6 py-3 text-sm font-medium text-primary-foreground hover:bg-primary/90 transition-colors"
@@ -63,23 +68,23 @@ export default function OfflinePage() {
               {t("tryAgain")}
             </button>
 
-            <div className="text-sm text-muted-foreground">
-              <p>{t("whileOffline")}</p>
-              <ul className="mt-2 space-y-1">
-                <li>• {t("viewPreviouslyLoaded")}</li>
-                <li>• {t("accessCached")}</li>
-                <li>• {t("browseSaved")}</li>
-              </ul>
-            </div>
-          </div>
+            <Box className="text-sm text-muted-foreground">
+              <Text tone="muted">{t("whileOffline")}</Text>
+              <List gap="1" className="mt-2">
+                <ListItem>• {t("viewPreviouslyLoaded")}</ListItem>
+                <ListItem>• {t("accessCached")}</ListItem>
+                <ListItem>• {t("browseSaved")}</ListItem>
+              </List>
+            </Box>
+          </Stack>
         )}
 
         {isOnline && (
-          <div className="flex justify-center">
-            <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
-          </div>
+          <Flex justify="center">
+            <Spinner size="lg" className="size-8 text-primary" label={t("reconnecting")} />
+          </Flex>
         )}
-      </div>
-    </div>
+      </Stack>
+    </Flex>
   );
 }

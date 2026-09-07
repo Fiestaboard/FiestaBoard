@@ -32,10 +32,18 @@ def settings_service(tmp_settings_file):
 
 @pytest.fixture
 def client(settings_service):
-    """TestClient with the settings service singleton patched."""
-    with patch("src.api_server.get_settings_service", return_value=settings_service):
-        with patch("src.settings.service.get_settings_service", return_value=settings_service):
-            yield TestClient(app)
+    """TestClient with the settings service singleton patched.
+
+    ``src.schedules.routes`` binds ``get_settings_service`` at import time since
+    the Phase 2 conventions pass, so GET /schedules/active/page needs its own
+    stub here rather than inheriting the app module's.
+    """
+    with (
+        patch("src.api_server.get_settings_service", return_value=settings_service),
+        patch("src.settings.service.get_settings_service", return_value=settings_service),
+        patch("src.schedules.routes.get_settings_service", return_value=settings_service),
+    ):
+        yield TestClient(app)
 
 
 @pytest.fixture
@@ -194,13 +202,15 @@ class TestClearTemporaryOverride:
         )
         r = client.delete("/settings/temporary-override")
         assert r.status_code == 200
-        assert r.json()["status"] == "cleared"
+        # "status": "cleared" dropped by the conventions pass (Phase 2,
+        # Task 8); the 200 says it, and the body names what it reverted to.
+        assert r.json() == {"revert_mode": "schedule"}
         assert settings_service.get_temporary_override() is None
 
     def test_clear_when_no_override_is_safe(self, client):
         r = client.delete("/settings/temporary-override")
         assert r.status_code == 200
-        assert r.json()["status"] == "cleared"
+        assert r.json() == {"revert_mode": None}
 
     def test_clear_sets_active_page_for_revert_page_mode(self, client, settings_service):
         expires = (datetime.now(UTC) + timedelta(minutes=10)).isoformat()

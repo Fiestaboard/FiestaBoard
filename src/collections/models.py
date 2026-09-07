@@ -28,6 +28,11 @@ COLLECTION_ID_PREFIX = "collection:"
 
 SelectionMode = Literal["time", "variable", "random"]
 
+#: Page-duration bounds shared by time mode and random mode. The ceiling is
+#: 24 hours so a collection can hold a single page for a whole day (#1652).
+MIN_INTERVAL_SECONDS = 5
+MAX_INTERVAL_SECONDS = 86400
+
 
 def _shuffle_bag_permutation(round_index: int, n: int) -> list[int]:
     """Return a deterministic random permutation of ``range(n)`` for a round.
@@ -57,7 +62,7 @@ def extract_collection_uuid(collection_id: str) -> str:
 class TimeModeConfig(BaseModel):
     """Settings for time-based rotation (classic carousel)."""
 
-    interval_seconds: int = Field(default=30, ge=5, le=3600)
+    interval_seconds: int = Field(default=30, ge=MIN_INTERVAL_SECONDS, le=MAX_INTERVAL_SECONDS)
 
 
 class VariableRule(BaseModel):
@@ -94,7 +99,7 @@ class RandomModeConfig(BaseModel):
     page is shown before a new one is selected.
     """
 
-    interval_seconds: int = Field(default=30, ge=5, le=3600)
+    interval_seconds: int = Field(default=30, ge=MIN_INTERVAL_SECONDS, le=MAX_INTERVAL_SECONDS)
 
 
 class Collection(BaseModel):
@@ -221,3 +226,32 @@ class CollectionUpdate(BaseModel):
     time: TimeModeConfig | None = None
     variable: VariableModeConfig | None = None
     random: RandomModeConfig | None = None
+
+
+# --- Response models -----------------------------------------------------
+#
+# Phase 2 conventions (spec §2): every route declares a ``response_model``.
+# Collections have no derived, masked, or computed wire fields, so the stored
+# model *is* the response model — ``CollectionResponse`` is an alias rather
+# than a copy, and the routes name the contract instead of the store.
+
+#: The wire shape of a single collection.
+CollectionResponse = Collection
+
+
+class CollectionListResponse(BaseModel):
+    """Body of ``GET /collections``."""
+
+    collections: list[Collection]
+    total: int
+
+
+class CollectionDeleteResponse(BaseModel):
+    """Body of ``DELETE /collections/{collection_id}``.
+
+    Per ``docs/internal/reference/API_CONVENTIONS.md`` a delete answers 200
+    with the deleted resource id (this domain's choice) — not a
+    ``{"status": "success"}`` envelope.
+    """
+
+    id: str

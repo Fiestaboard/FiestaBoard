@@ -260,7 +260,9 @@ SETTINGS (non-credential settings only):
 
    Valid categories and their representative keys:
    - "display": display preferences. `reduce_motion` (bool) disables
-     animated transitions.
+     animated transitions. `board_flap_speed` ("hardware" | "quick" |
+     "standard" | "relaxed", or ms) sets how fast the on-screen board
+     flips — not the physical board, which is "transitions".
    - "transitions": how pages animate in. `transition_type` (string),
      `duration_ms` (int).
    - "output": where rendered pages are sent. `target` is "ui",
@@ -292,7 +294,8 @@ COLLECTIONS (ordered page groups with a selection mode):
 
    `page_ids` is the ordered list of page IDs that belong to the
    collection. By default, the collection rotates time-sliced through them;
-   `interval_seconds` (5–3600) controls how long each page shows.
+   `interval_seconds` (5–86400, i.e. 5 seconds to 24 hours) controls how
+   long each page shows.
    The user will be asked to confirm before creation.
 
 11. Update an existing collection (rename, reorder pages, change interval):
@@ -956,10 +959,19 @@ class _FenceParser:
         try:
             tool = parse_tool_call(parsed)
         except ToolCallValidationError as exc:
+            # ``parse_tool_call`` wraps *any* exception raised by
+            # ``model_validate``, so ``exc`` can carry a multi-line Pydantic
+            # report — or, if validation ever fails for an unexpected reason,
+            # internal detail that has no business on the wire. This handler
+            # is the source CodeQL traces into the SSE stream
+            # (``py/stack-trace-exposure``): keep the full text in the server
+            # log and send the client a bounded, single-line copy.
+            logger.warning("Invalid fiestaboard tool block: %s", exc)
+            detail = _user_safe_error_message(exc, fallback="schema validation failed")
             return [
                 {
                     "event": "warning",
-                    "data": {"message": f"Invalid fiestaboard tool block: {exc}"},
+                    "data": {"message": f"Invalid fiestaboard tool block: {detail}"},
                 }
             ]
 

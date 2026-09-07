@@ -24,13 +24,26 @@ const API_BASE = "/api";
 type BoardOverride = Record<string, unknown>;
 type BoardRecord = Record<string, unknown>;
 
+/** Mirrors BoardInstance.__post_init__ (src/devices.py): strip, cap, default. */
+const MAX_BOARD_NAME_LENGTH = 64;
+function normalizeBoardName(name: unknown): string {
+  const trimmed = typeof name === "string" ? name.trim().slice(0, MAX_BOARD_NAME_LENGTH) : "";
+  return trimmed || "My Board";
+}
+
 /**
  * Stateful board fixture. GET returns the current board; PUT persists the
  * incoming boards and records the request body — mirroring the real backend
  * so the component's invalidate→refetch cycle reflects each save (the
- * controlled Select reads from the refetched query data, not local state).
+ * controlled Select and the name input read from the refetched query data,
+ * not local state).
  *
- * `put.body` is `null` until a PUT fires; reset it between assertions.
+ * The PUT handler applies the backend's own name normalization, so saving
+ * "" (or whitespace) reads back as "My Board" and the clear→reset round-trip
+ * is actually exercised rather than echoed verbatim (issue #1792).
+ *
+ * `put.body` is `null` until a PUT fires and `put.count` counts them; both are
+ * only meaningful after awaiting the request, since the handler is async.
  */
 function setupBoard(board: BoardOverride) {
   const state: { boards: BoardRecord[] } = {
@@ -45,7 +58,8 @@ function setupBoard(board: BoardOverride) {
       },
     ],
   };
-  const put: { body: { boards?: BoardRecord[] } | null } = { body: null };
+  state.boards = state.boards.map((b) => ({ ...b, name: normalizeBoardName(b.name) }));
+  const put: { body: { boards?: BoardRecord[] } | null; count: number } = { body: null, count: 0 };
 
   server.use(
     http.get(`${API_BASE}/settings/board`, () =>
@@ -58,10 +72,13 @@ function setupBoard(board: BoardOverride) {
     http.put(`${API_BASE}/settings/board`, async ({ request }) => {
       const body = (await request.json()) as { boards?: BoardRecord[] };
       put.body = body;
+      put.count += 1;
       if (body.boards) {
-        // Persist, masking the token like the real backend would on read-back.
+        // Persist the way the real backend does on read-back: mask the token
+        // and normalize the display name.
         state.boards = body.boards.map((b) => ({
           ...b,
+          name: normalizeBoardName(b.name),
           note_array_token: b.note_array_token ? "***" : b.note_array_token,
         }));
       }
@@ -89,6 +106,16 @@ async function renderAndExpand(user: ReturnType<typeof userEvent.setup>) {
   await user.click(trigger);
   const card = await screen.findByTestId("board-card");
   return card;
+}
+
+/**
+ * Assert no PUT lands beyond `expected`. The MSW handler is async, so a
+ * synchronous count check would pass even when a request is in flight; this
+ * waits long enough for one to arrive and fails if it does.
+ */
+async function expectNoFurtherPuts(put: { count: number }, expected: number) {
+  await expect(waitFor(() => expect(put.count).toBeGreaterThan(expected), { timeout: 300 })).rejects.toThrow();
+  expect(put.count).toBe(expected);
 }
 
 describe("DisplaySettings — note-array selector", () => {
@@ -139,6 +166,46 @@ describe("DisplaySettings — note-array selector", () => {
     expect(b.notes_tall).toBe(2);
   });
 
+  it("converting a local-mode single board to an array lands in cloud mode", async () => {
+    const user = userEvent.setup();
+    const put = setupBoard({ device_type: "flagship", api_mode: "local", host: "192.168.0.9", local_api_key: "***" });
+    await renderAndExpand(user);
+
+    const combo = screen.getByLabelText("Board type and size");
+    await user.click(combo);
+    await waitFor(() => expect(screen.getByRole("listbox")).toBeInTheDocument());
+    await user.click(screen.getByRole("option", { name: "4 side-by-side" }));
+
+    // Cloud is the array default — the stored "local" must not leak through
+    // and swap the token field for an empty tile grid mid-conversion.
+    await waitFor(() => expect(put.body).not.toBeNull());
+    expect(put.body!.boards![0].api_mode).toBe("cloud");
+    expect(await screen.findByText("Cloud API Token")).toBeInTheDocument();
+  });
+
+  it("resizing an existing local-mode array keeps local mode", async () => {
+    const user = userEvent.setup();
+    const put = setupBoard({
+      device_type: "note_array",
+      api_mode: "local",
+      notes_wide: 2,
+      notes_tall: 1,
+      tiles: [{ row: 0, col: 0, host: "192.168.0.20", port: 7000, local_api_key: "***", enabled: true }],
+    });
+    await renderAndExpand(user);
+
+    const combo = screen.getByLabelText("Board type and size");
+    await user.click(combo);
+    await waitFor(() => expect(screen.getByRole("listbox")).toBeInTheDocument());
+    await user.click(screen.getByRole("option", { name: "2×2 grid" }));
+
+    await waitFor(() => expect(put.body).not.toBeNull());
+    const saved = put.body!.boards![0];
+    expect(saved.api_mode).toBe("local");
+    expect(saved.notes_wide).toBe(2);
+    expect(saved.notes_tall).toBe(2);
+  });
+
   it("selecting Flagship from a note array saves device_type", async () => {
     const user = userEvent.setup();
     const put = setupBoard({ device_type: "note_array", notes_wide: 2, notes_tall: 2 });
@@ -151,6 +218,89 @@ describe("DisplaySettings — note-array selector", () => {
 
     await waitFor(() => expect(put.body).not.toBeNull());
     expect(put.body!.boards![0].device_type).toBe("flagship");
+  });
+});
+
+describe("DisplaySettings — board name field (#1792)", () => {
+  it("shows the current name and saves an edited, trimmed name on blur", async () => {
+    const user = userEvent.setup();
+    const put = setupBoard({ device_type: "flagship" });
+    const card = await renderAndExpand(user);
+
+    const nameInput = (await within(card).findByLabelText("Name")) as HTMLInputElement;
+    expect(nameInput.value).toBe("My Board");
+
+    fireEvent.change(nameInput, { target: { value: "  Kitchen Board  " } });
+    fireEvent.blur(nameInput);
+
+    await waitFor(() => expect(put.count).toBe(1));
+    const saved = put.body!.boards![0];
+    // Trimmed before saving; the rest of the board rides along unchanged in
+    // the boards[] round-trip.
+    expect(saved.name).toBe("Kitchen Board");
+    expect(saved.device_type).toBe("flagship");
+    // The card header picks up the new name after the refetch.
+    expect(await screen.findByText("Kitchen Board")).toBeInTheDocument();
+  });
+
+  it("blurring without changing the name fires no PUT", async () => {
+    const user = userEvent.setup();
+    const put = setupBoard({ device_type: "flagship" });
+    const card = await renderAndExpand(user);
+
+    const nameInput = (await within(card).findByLabelText("Name")) as HTMLInputElement;
+    fireEvent.focus(nameInput);
+    fireEvent.blur(nameInput);
+    // Whitespace-only padding around the same name is also not a change.
+    fireEvent.change(nameInput, { target: { value: " My Board " } });
+    fireEvent.blur(nameInput);
+
+    // The PUT handler is async, so a synchronous assertion here passes whether
+    // or not a request fired. Give any request that WAS made time to land, and
+    // pin the request count rather than only the recorded body.
+    await expectNoFurtherPuts(put, 0);
+    expect(put.body).toBeNull();
+  });
+
+  it("clearing the name saves an empty string and shows the restored default", async () => {
+    const user = userEvent.setup();
+    const put = setupBoard({ device_type: "flagship", name: "Kitchen Board" });
+    render(<DisplaySettings />, { wrapper: TestWrapper });
+    await user.click(await screen.findByText("Kitchen Board"));
+    const card = await screen.findByTestId("board-card");
+
+    const nameInput = (await within(card).findByLabelText("Name")) as HTMLInputElement;
+    fireEvent.change(nameInput, { target: { value: "   " } });
+    fireEvent.blur(nameInput);
+
+    await waitFor(() => expect(put.count).toBe(1));
+    expect(put.body!.boards![0].name).toBe("");
+    // The backend restores its default, and the field must show what is
+    // actually stored — not the empty string the user left behind.
+    expect(await screen.findByText("My Board")).toBeInTheDocument();
+    await waitFor(() => expect(nameInput.value).toBe("My Board"));
+  });
+
+  it("re-blurring after a clear does not fire a second identical PUT", async () => {
+    const user = userEvent.setup();
+    const put = setupBoard({ device_type: "flagship", name: "Kitchen Board" });
+    render(<DisplaySettings />, { wrapper: TestWrapper });
+    await user.click(await screen.findByText("Kitchen Board"));
+    const card = await screen.findByTestId("board-card");
+
+    const nameInput = (await within(card).findByLabelText("Name")) as HTMLInputElement;
+    fireEvent.change(nameInput, { target: { value: "" } });
+    fireEvent.blur(nameInput);
+
+    await waitFor(() => expect(put.count).toBe(1));
+    await screen.findByText("My Board");
+
+    // A field left showing "" while the server holds "My Board" reads as
+    // changed on every blur. Each PUT re-runs _reinitialize_board_clients()
+    // and rewrites config.json, so the repeat is not merely cosmetic.
+    fireEvent.focus(nameInput);
+    fireEvent.blur(nameInput);
+    await expectNoFurtherPuts(put, 1);
   });
 });
 
@@ -315,8 +465,8 @@ describe("DisplaySettings — add board picker", () => {
   });
 });
 
-describe("DisplaySettings — note array connection (cloud-only, local coming soon)", () => {
-  it("marks Local API as coming soon and keeps cloud mode selected", async () => {
+describe("DisplaySettings — note array connection (cloud token vs local tiles)", () => {
+  it("switching a note array to Local API saves the mode and shows the tile grid", async () => {
     const user = userEvent.setup();
     const put = setupBoard({
       device_type: "note_array",
@@ -327,33 +477,183 @@ describe("DisplaySettings — note array connection (cloud-only, local coming so
     });
     const card = await renderAndExpand(user);
 
-    // The teaser replaces the selectable Local API mode.
-    const localButton = within(card).getByRole("button", { name: /Local API/ });
-    expect(within(localButton).getByText("Coming soon")).toBeInTheDocument();
-
-    // Clicking it must NOT switch the board into local mode…
-    await user.click(localButton);
-    expect(put.body).toBeNull();
-    // …but it does tease the upcoming feature.
-    expect(await within(card).findByText(/stay tuned/i)).toBeInTheDocument();
-    // Cloud credentials stay visible (still the active mode).
+    // Cloud mode active: token field visible, no tile grid yet.
     expect(within(card).getByText("Cloud API Token")).toBeInTheDocument();
+    expect(within(card).queryByTestId("tile-grid-assignment")).not.toBeInTheDocument();
+
+    // The API-mode pair is a radiogroup now, not two aria-pressed buttons.
+    await user.click(within(card).getByRole("radio", { name: /Local API/ }));
+
+    await waitFor(() => expect(put.body).not.toBeNull());
+    expect(put.body!.boards![0].api_mode).toBe("local");
+    // After the refetch, the tile grid replaces the cloud token field.
+    expect(await within(card).findByTestId("tile-grid-assignment")).toBeInTheDocument();
+    expect(within(card).queryByText("Cloud API Token")).not.toBeInTheDocument();
   });
 
-  it("forces cloud mode even if the stored board says local", async () => {
+  it("a stored local-mode array renders one slot per Note with assignment status", async () => {
     const user = userEvent.setup();
     setupBoard({
       device_type: "note_array",
       notes_wide: 2,
       notes_tall: 1,
       api_mode: "local",
+      tiles: [{ row: 0, col: 0, host: "192.168.0.20", port: 7000, local_api_key: "***", enabled: true }],
+    });
+    const card = await renderAndExpand(user);
+
+    const grid = within(card).getByTestId("tile-grid-assignment");
+    expect(grid).toBeInTheDocument();
+    expect(within(card).getByText("1/2 tiles assigned")).toBeInTheDocument();
+    // Assigned slot shows its host; the empty slot invites assignment.
+    expect(within(card).getByTestId("tile-slot-0-0")).toHaveTextContent("192.168.0.20");
+    expect(within(card).getByTestId("tile-slot-0-1")).toHaveTextContent("Assign");
+  });
+
+  it("a token-only array switched to local mode stays Connected via the cloud fallback", async () => {
+    const user = userEvent.setup();
+    // api_mode "local" but no tiles saved yet — the backend still drives this
+    // board through its Cloud token (uses_local_tiles requires saved tiles),
+    // so the UI must not flip it to "Not configured".
+    setupBoard({
+      device_type: "note_array",
+      notes_wide: 2,
+      notes_tall: 1,
+      api_mode: "local",
+      tiles: [],
       note_array_token: "***",
     });
     const card = await renderAndExpand(user);
 
-    // Cloud-mode credential fields render; local host/key fields do not.
-    expect(within(card).getByText("Cloud API Token")).toBeInTheDocument();
-    expect(within(card).queryByText("Board Host")).not.toBeInTheDocument();
+    expect(within(card).getByTestId("tile-grid-assignment")).toBeInTheDocument();
+    expect(within(card).getAllByText("Connected").length).toBeGreaterThan(0);
+    expect(within(card).queryByText("Assign at least one tile", { exact: false })).not.toBeInTheDocument();
+  });
+
+  it("disabled tiles do not count as assigned", async () => {
+    const user = userEvent.setup();
+    setupBoard({
+      device_type: "note_array",
+      notes_wide: 2,
+      notes_tall: 1,
+      api_mode: "local",
+      tiles: [
+        { row: 0, col: 0, host: "192.168.0.20", port: 7000, local_api_key: "***", enabled: true },
+        { row: 0, col: 1, host: "192.168.0.21", port: 7000, local_api_key: "***", enabled: false },
+      ],
+    });
+    const card = await renderAndExpand(user);
+
+    expect(within(card).getByText("1/2 tiles assigned")).toBeInTheDocument();
+  });
+
+  it("hides Auto-detect for local-mode arrays (shape is defined by tiles, not detected)", async () => {
+    const user = userEvent.setup();
+    setupBoard({
+      device_type: "note_array",
+      notes_wide: 2,
+      notes_tall: 1,
+      api_mode: "local",
+      tiles: [{ row: 0, col: 0, host: "192.168.0.20", port: 7000, local_api_key: "***", enabled: true }],
+    });
+    const card = await renderAndExpand(user);
+
+    expect(within(card).getByTestId("tile-grid-assignment")).toBeInTheDocument();
+    expect(within(card).queryByRole("button", { name: "Auto-detect from board" })).not.toBeInTheDocument();
+  });
+
+  it("keeps Auto-detect for cloud arrays and single boards", async () => {
+    const user = userEvent.setup();
+    setupBoard({
+      device_type: "note_array",
+      notes_wide: 2,
+      notes_tall: 1,
+      api_mode: "cloud",
+      note_array_token: "***",
+    });
+    const card = await renderAndExpand(user);
+
+    expect(within(card).getByRole("button", { name: "Auto-detect from board" })).toBeInTheDocument();
+  });
+
+  it("moving a tile onto an occupied slot swaps the two tiles", async () => {
+    const user = userEvent.setup();
+    const put = setupBoard({
+      device_type: "note_array",
+      notes_wide: 2,
+      notes_tall: 1,
+      api_mode: "local",
+      tiles: [
+        { row: 0, col: 0, host: "192.168.0.20", port: 7000, local_api_key: "***", enabled: true },
+        { row: 0, col: 1, host: "192.168.0.21", port: 7000, local_api_key: "***", enabled: true },
+      ],
+    });
+    const card = await renderAndExpand(user);
+
+    await user.click(within(card).getByTestId("tile-slot-0-0"));
+    const dialog = await screen.findByRole("dialog");
+    await user.click(within(dialog).getByRole("combobox", { name: "Move to position" }));
+    await waitFor(() => expect(screen.getByRole("listbox")).toBeInTheDocument());
+    await user.click(screen.getByRole("option", { name: /swap with 192\.168\.0\.21/ }));
+
+    await waitFor(() => expect(put.body).not.toBeNull());
+    const tiles = put.body!.boards![0].tiles as Array<{ row: number; col: number; host: string }>;
+    const byHost = Object.fromEntries(tiles.map((tile) => [tile.host, [tile.row, tile.col]]));
+    expect(byHost["192.168.0.20"]).toEqual([0, 1]);
+    expect(byHost["192.168.0.21"]).toEqual([0, 0]);
+  });
+
+  it("moving a tile to an empty slot just relocates it", async () => {
+    const user = userEvent.setup();
+    const put = setupBoard({
+      device_type: "note_array",
+      notes_wide: 2,
+      notes_tall: 1,
+      api_mode: "local",
+      tiles: [{ row: 0, col: 0, host: "192.168.0.20", port: 7000, local_api_key: "***", enabled: true }],
+    });
+    const card = await renderAndExpand(user);
+
+    await user.click(within(card).getByTestId("tile-slot-0-0"));
+    const dialog = await screen.findByRole("dialog");
+    await user.click(within(dialog).getByRole("combobox", { name: "Move to position" }));
+    await waitFor(() => expect(screen.getByRole("listbox")).toBeInTheDocument());
+    await user.click(screen.getByRole("option", { name: /Slot 2 — empty/ }));
+
+    await waitFor(() => expect(put.body).not.toBeNull());
+    const tiles = put.body!.boards![0].tiles as Array<{ row: number; col: number; host: string }>;
+    expect(tiles).toHaveLength(1);
+    expect([tiles[0].row, tiles[0].col]).toEqual([0, 1]);
+  });
+
+  it("saving a tile from the slot dialog persists the tiles array", async () => {
+    const user = userEvent.setup();
+    const put = setupBoard({
+      device_type: "note_array",
+      notes_wide: 2,
+      notes_tall: 1,
+      api_mode: "local",
+      tiles: [],
+    });
+    const card = await renderAndExpand(user);
+
+    await user.click(within(card).getByTestId("tile-slot-0-1"));
+    const dialog = await screen.findByRole("dialog");
+    await user.type(within(dialog).getByLabelText(/Board Host/), "192.168.0.31");
+    await user.type(within(dialog).getByLabelText(/Local API Key/), "tile-key-b");
+    await user.click(within(dialog).getByRole("button", { name: "Save tile" }));
+
+    await waitFor(() => expect(put.body).not.toBeNull());
+    const tiles = put.body!.boards![0].tiles as Array<Record<string, unknown>>;
+    expect(tiles).toHaveLength(1);
+    expect(tiles[0]).toMatchObject({
+      row: 0,
+      col: 1,
+      host: "192.168.0.31",
+      port: 7000,
+      local_api_key: "tile-key-b",
+      enabled: true,
+    });
   });
 
   it("Connected badge follows the note array token, not the cloud key", async () => {
@@ -386,6 +686,100 @@ describe("DisplaySettings — note array connection (cloud-only, local coming so
     const card = await renderAndExpand(user);
 
     expect(within(card).getAllByText("Connected").length).toBeGreaterThan(0);
+  });
+});
+
+describe("DisplaySettings — virtual boards (FiestaPanel)", () => {
+  /** A panel's backing virtual board, as created by POST /panels. */
+  const VIRTUAL_BOARD: BoardOverride = {
+    device_type: "note_array",
+    api_mode: "virtual",
+    notes_wide: 4,
+    notes_tall: 3,
+    name: "My Board",
+    local_api_key: "",
+    cloud_key: "",
+    note_array_token: "",
+    host: "",
+  };
+
+  function setupPanels(panels: Array<Record<string, unknown>>) {
+    server.use(http.get(`${API_BASE}/panels`, () => HttpResponse.json({ panels, total: panels.length })));
+  }
+
+  it("shows the FiestaPanel badge instead of Not configured", async () => {
+    setupBoard(VIRTUAL_BOARD);
+    render(<DisplaySettings />, { wrapper: TestWrapper });
+    await screen.findByText("My Board");
+
+    expect(screen.queryByText("Not configured")).not.toBeInTheDocument();
+    expect(screen.getByText("FiestaPanel")).toBeInTheDocument();
+  });
+
+  it("hides the connection credentials form and explains the virtual board", async () => {
+    const user = userEvent.setup();
+    setupBoard(VIRTUAL_BOARD);
+    const card = await renderAndExpand(user);
+
+    // No API-mode toggle: clicking Local/Cloud would flip the board out of
+    // virtual mode and silently break the panel.
+    expect(within(card).queryByRole("radio", { name: /Local API/ })).not.toBeInTheDocument();
+    expect(within(card).queryByRole("radio", { name: /Cloud API/ })).not.toBeInTheDocument();
+    // "Cloud API Token" / "Board Host" are deliberately NOT asserted here:
+    // neither renders for a note_array board on main either, so they would
+    // pass with this change reverted. The radios and the hint below are what
+    // actually discriminate.
+    expect(within(card).getByTestId("virtual-board-hint")).toBeInTheDocument();
+  });
+
+  it("hides the type selector and auto-detect (grid is owned by the panel's TV size)", async () => {
+    const user = userEvent.setup();
+    setupBoard(VIRTUAL_BOARD);
+    const card = await renderAndExpand(user);
+
+    expect(within(card).queryByLabelText("Board type and size")).not.toBeInTheDocument();
+    expect(within(card).queryByRole("button", { name: "Auto-detect from board" })).not.toBeInTheDocument();
+  });
+
+  /** Two-board fixture (physical + virtual) so the last-board guard doesn't
+   *  mask the panel guard; returns the expanded virtual board's card. */
+  async function renderTwoBoardsAndExpandVirtual(user: ReturnType<typeof userEvent.setup>) {
+    const boards = [
+      { id: "b1", name: "Physical", device_type: "flagship", api_mode: "cloud", cloud_key: "***" },
+      { ...VIRTUAL_BOARD, id: "b2", name: "Living Room (Panel)" },
+    ];
+    server.use(
+      http.get(`${API_BASE}/settings/board`, () =>
+        HttpResponse.json({
+          board_type: "black",
+          boards,
+          devices: boards.map((b) => b.device_type),
+        }),
+      ),
+    );
+    render(<DisplaySettings />, { wrapper: TestWrapper });
+    const trigger = await screen.findByText("Living Room (Panel)");
+    await user.click(trigger);
+    const cards = await screen.findAllByTestId("board-card");
+    const card = cards.find((c) => within(c).queryByText("Living Room (Panel)") !== null);
+    expect(card).toBeDefined();
+    return card!;
+  }
+
+  it("disables Remove Board while a panel still references the virtual board", async () => {
+    const user = userEvent.setup();
+    setupPanels([{ id: "p1", short_code: 1, name: "Living Room", board_id: "b2" }]);
+
+    const card = await renderTwoBoardsAndExpandVirtual(user);
+    await waitFor(() => expect(within(card).getByRole("button", { name: "Remove Board" })).toBeDisabled());
+  });
+
+  it("keeps Remove Board enabled for an orphaned virtual board (its panel is gone)", async () => {
+    const user = userEvent.setup();
+    setupPanels([]);
+
+    const card = await renderTwoBoardsAndExpandVirtual(user);
+    expect(within(card).getByRole("button", { name: "Remove Board" })).toBeEnabled();
   });
 });
 

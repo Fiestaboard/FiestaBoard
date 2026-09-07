@@ -3,9 +3,9 @@
  */
 "use client";
 
+import { Box, Text, Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@fiestaboard/ui";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 
 interface ToolbarDropdownProps {
@@ -16,6 +16,9 @@ interface ToolbarDropdownProps {
   onClose?: () => void;
   /** When false, clicking outside will NOT close the dropdown. Default: true */
   closeOnOutsideClick?: boolean;
+  /** Disables the trigger button and prevents opening. */
+  disabled?: boolean;
+  "data-testid"?: string;
 }
 
 export function ToolbarDropdown({
@@ -25,19 +28,26 @@ export function ToolbarDropdown({
   className,
   onClose,
   closeOnOutsideClick = true,
+  disabled = false,
+  "data-testid": dataTestId,
 }: ToolbarDropdownProps) {
   const [isOpen, setIsOpen] = useState(false);
-  const dropdownRef = useRef<HTMLDivElement>(null);
-  const panelRef = useRef<HTMLDivElement>(null);
+  const dropdownRef = useRef<HTMLElement>(null);
+  const panelRef = useRef<HTMLElement>(null);
   const [panelShift, setPanelShift] = useState(0);
 
   // The panel is plain `absolute top-full left-0` with no collision handling,
   // so a wide picker anchored to a right-side toolbar button runs off narrow
   // (mobile) viewports. Measure after open/content changes and shift it back
   // into view.
+  // The reset on close used to live in this effect. It is redundant: the panel
+  // is only rendered while open, and `clamp()` below runs synchronously in the
+  // same layout effect that opening triggers — before paint — so a shift left
+  // over from the previous open is always overwritten before it can be seen.
+  // Dropping it removes a setState from the effect body
+  // (react-hooks/set-state-in-effect, issue #1568).
   useLayoutEffect(() => {
     if (!isOpen) {
-      setPanelShift(0);
       return;
     }
     const clamp = () => {
@@ -105,45 +115,59 @@ export function ToolbarDropdown({
 
   return (
     <TooltipProvider>
-      <div ref={dropdownRef} className="relative">
+      <Box ref={dropdownRef} className="relative">
         <Tooltip>
           <TooltipTrigger asChild>
             <button
               type="button"
-              onClick={() => setIsOpen(!isOpen)}
+              disabled={disabled}
+              data-testid={dataTestId}
+              onClick={() => {
+                if (disabled) return;
+                setIsOpen(!isOpen);
+              }}
               className={cn(
                 "flex items-center justify-center p-1.5 rounded-md",
                 "hover:bg-muted/50 transition-colors",
                 "border border-transparent",
                 isOpen && "bg-muted/70 border-border",
+                disabled && "opacity-60 cursor-not-allowed",
                 className,
               )}
               aria-expanded={isOpen}
               aria-haspopup="true"
               aria-label={label || "Menu"}
             >
-              {icon && <span className="w-4 h-4">{icon}</span>}
-              {label && <span className="sr-only">{label}</span>}
+              {icon && (
+                <Text as="span" className="w-4 h-4">
+                  {icon}
+                </Text>
+              )}
+              {label && (
+                <Text as="span" className="sr-only">
+                  {label}
+                </Text>
+              )}
             </button>
           </TooltipTrigger>
           {label && (
             <TooltipContent>
-              <p>{label}</p>
+              <Text>{label}</Text>
             </TooltipContent>
           )}
         </Tooltip>
 
         {isOpen && (
-          <div
+          <Box
             ref={panelRef}
             data-testid="toolbar-dropdown-panel"
             className="absolute top-full left-0 mt-1 z-50 bg-popover border border-border rounded-md shadow-lg max-w-[calc(100vw-16px)] overflow-x-auto"
             style={{ transform: panelShift ? `translateX(${panelShift}px)` : undefined }}
           >
             {typeof children === "function" ? children(handleClose) : children}
-          </div>
+          </Box>
         )}
-      </div>
+      </Box>
     </TooltipProvider>
   );
 }

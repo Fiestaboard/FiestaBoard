@@ -1,18 +1,28 @@
 "use client";
 
+import {
+  Badge,
+  Box,
+  Button,
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+  Flex,
+  Grid,
+  Input,
+  Label,
+  PageSection,
+  Skeleton,
+  Stack,
+  Switch,
+  Text,
+} from "@fiestaboard/ui";
+import { SecretInput } from "@fiestaboard/ui/components/forms/secret-input";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { CheckCircle2, ChevronDown, Eye, EyeOff, Loader2, Radio, XCircle } from "lucide-react";
+import { CheckCircle2, ChevronDown, Radio, XCircle } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Skeleton } from "@/components/ui/skeleton";
-import { Switch } from "@/components/ui/switch";
 import { useTranslations } from "@/i18n/translations";
 import type { MqttSettings } from "@/lib/api";
 import { api } from "@/lib/api";
@@ -22,7 +32,6 @@ export function MqttSettingsCard() {
   const tCommon = useTranslations("common");
   const queryClient = useQueryClient();
   const [expanded, setExpanded] = useState(false);
-  const [showPassword, setShowPassword] = useState(false);
   const [draft, setDraft] = useState<Partial<MqttSettings>>({});
 
   const { data: settings, isLoading } = useQuery({
@@ -72,12 +81,10 @@ export function MqttSettingsCard() {
 
   if (isLoading) {
     return (
-      <Card>
-        <CardHeader>
-          <Skeleton className="h-5 w-40" />
-          <Skeleton className="h-4 w-56" />
-        </CardHeader>
-      </Card>
+      <PageSection>
+        <Skeleton className="h-5 w-40" />
+        <Skeleton className="mt-2 h-4 w-56" />
+      </PageSection>
     );
   }
 
@@ -85,42 +92,43 @@ export function MqttSettingsCard() {
   const isEnabled = merged.enabled;
 
   return (
-    <Card>
-      <CardHeader className="pb-3">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <Radio className="h-4 w-4" />
-            <CardTitle className="text-base">{t("title")}</CardTitle>
-          </div>
-          <div className="flex items-center gap-3">
-            {isEnabled &&
-              (isConnected ? (
-                <Badge variant="default" className="text-[10px] h-5 bg-board-green flex items-center gap-1">
-                  <CheckCircle2 className="h-2.5 w-2.5" />
-                  {t("connected")}
-                </Badge>
-              ) : (
-                <Badge variant="secondary" className="text-[10px] h-5 flex items-center gap-1">
-                  <XCircle className="h-2.5 w-2.5" />
-                  {t("disconnected")}
-                </Badge>
-              ))}
-            <Switch checked={isEnabled} onCheckedChange={handleToggleEnabled} disabled={saveMutation.isPending} />
-          </div>
-        </div>
-        <CardDescription>{t("description")}</CardDescription>
-      </CardHeader>
-
+    <PageSection
+      icon={<Radio />}
+      title={t("title")}
+      description={t("description")}
+      action={
+        <Flex align="center" gap="3">
+          {isEnabled &&
+            (isConnected ? (
+              <Badge variant="default" className="text-[10px] h-5 bg-board-green flex items-center gap-1">
+                <CheckCircle2 className="h-2.5 w-2.5" />
+                {t("connected")}
+              </Badge>
+            ) : (
+              <Badge variant="secondary" className="text-[10px] h-5 flex items-center gap-1">
+                <XCircle className="h-2.5 w-2.5" />
+                {t("disconnected")}
+              </Badge>
+            ))}
+          <Switch checked={isEnabled} onCheckedChange={handleToggleEnabled} disabled={saveMutation.isPending} />
+        </Flex>
+      }
+    >
       <Collapsible open={expanded} onOpenChange={setExpanded}>
-        <CollapsibleTrigger className="flex w-full items-center justify-between px-6 py-2 text-xs text-muted-foreground hover:text-foreground transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded-sm">
-          <span>{t("brokerConfiguration")}</span>
+        {/* -mx-6 px-6: the trigger still spans the surface edge to edge, but
+            the surface is the page card now, so it bleeds out of the section's
+            inset rather than assuming a card's own padding. */}
+        <CollapsibleTrigger className="-mx-6 flex w-full items-center justify-between px-6 py-2 text-xs text-muted-foreground hover:text-foreground transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded-sm">
+          <Text as="span" size="xs" tone="muted">
+            {t("brokerConfiguration")}
+          </Text>
           <ChevronDown className={`h-4 w-4 transition-transform duration-200 ${expanded ? "rotate-180" : ""}`} />
         </CollapsibleTrigger>
 
         <CollapsibleContent>
-          <CardContent className="pt-2 space-y-4">
-            <div className="grid grid-cols-3 gap-3">
-              <div className="col-span-2 space-y-1">
+          <Box className="pt-2 space-y-4">
+            <Grid cols="3" gap="3">
+              <Stack gap="1" className="col-span-2">
                 <Label htmlFor="mqtt-broker-host" className="text-xs">
                   {t("brokerHost")}
                 </Label>
@@ -131,8 +139,8 @@ export function MqttSettingsCard() {
                   placeholder="localhost"
                   className="h-8 text-xs font-mono"
                 />
-              </div>
-              <div className="space-y-1">
+              </Stack>
+              <Stack gap="1">
                 <Label htmlFor="mqtt-broker-port" className="text-xs">
                   {t("port")}
                 </Label>
@@ -144,11 +152,11 @@ export function MqttSettingsCard() {
                   placeholder="1883"
                   className="h-8 text-xs font-mono"
                 />
-              </div>
-            </div>
+              </Stack>
+            </Grid>
 
-            <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-1">
+            <Grid cols="2" gap="3">
+              <Stack gap="1">
                 <Label htmlFor="mqtt-username" className="text-xs">
                   {t("username")}
                 </Label>
@@ -159,35 +167,25 @@ export function MqttSettingsCard() {
                   placeholder={t("optional")}
                   className="h-8 text-xs"
                 />
-              </div>
-              <div className="space-y-1">
+              </Stack>
+              <Stack gap="1">
                 <Label htmlFor="mqtt-password" className="text-xs">
                   {t("password")}
                 </Label>
-                <div className="flex gap-1.5">
-                  <Input
-                    id="mqtt-password"
-                    type={showPassword ? "text" : "password"}
-                    value={merged.password === "***" ? "" : merged.password}
-                    onChange={(e) => setDraft((d) => ({ ...d, password: e.target.value }))}
-                    placeholder={settings?.password === "***" ? t("passwordSet") : t("optional")}
-                    className="h-8 text-xs font-mono flex-1"
-                  />
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setShowPassword((p) => !p)}
-                    className="h-8 w-8 p-0 flex-shrink-0"
-                    aria-label={showPassword ? t("hidePassword") : t("showPassword")}
-                  >
-                    {showPassword ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
-                  </Button>
-                </div>
-              </div>
-            </div>
+                <SecretInput
+                  id="mqtt-password"
+                  value={merged.password === "***" ? "" : merged.password}
+                  onChange={(e) => setDraft((d) => ({ ...d, password: e.target.value }))}
+                  placeholder={settings?.password === "***" ? t("passwordSet") : t("optional")}
+                  revealDisabled={merged.password === "***"}
+                  showLabel={t("showPassword")}
+                  hideLabel={t("hidePassword")}
+                  className="h-8 text-xs"
+                />
+              </Stack>
+            </Grid>
 
-            <div className="space-y-1">
+            <Stack gap="1">
               <Label htmlFor="mqtt-external-url" className="text-xs">
                 {t("externalUrl")}
               </Label>
@@ -198,26 +196,28 @@ export function MqttSettingsCard() {
                 placeholder={t("externalUrlPlaceholder")}
                 className="h-8 text-xs font-mono"
               />
-              <p className="text-[10px] text-muted-foreground">{t("externalUrlHint")}</p>
-            </div>
+              <Text tone="muted" className="text-[10px]">
+                {t("externalUrlHint")}
+              </Text>
+            </Stack>
 
             {hasDraft && (
-              <div className="flex justify-end pt-1">
+              <Flex justify="end" className="pt-1">
                 <Button
                   size="sm"
                   variant="brand"
                   onClick={handleSave}
+                  loading={saveMutation.isPending}
                   disabled={saveMutation.isPending}
                   className="text-xs gap-1.5"
                 >
-                  {saveMutation.isPending && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
                   {tCommon("save")}
                 </Button>
-              </div>
+              </Flex>
             )}
-          </CardContent>
+          </Box>
         </CollapsibleContent>
       </Collapsible>
-    </Card>
+    </PageSection>
   );
 }

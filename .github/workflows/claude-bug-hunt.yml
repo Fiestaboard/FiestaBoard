@@ -171,8 +171,8 @@ jobs:
       - name: Configure git identity
         if: steps.dedup.outputs.go == 'true'
         run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git config user.name "FiestaBoard CI"
+          git config user.email "ci@fiestaboard.app"
 
       - name: Run Claude bug-hunt
         if: steps.dedup.outputs.go == 'true'
@@ -206,7 +206,7 @@ jobs:
           claude_args: >-
             --model claude-sonnet-4-6
             --max-turns 250
-            --allowed-tools "Task,Read,Glob,Grep,Edit,Write,Bash(ls:*),Bash(cat:*),Bash(find:*),Bash(grep:*),Bash(rg:*),Bash(date:*),Bash(jq:*),Bash(git status:*),Bash(git diff:*),Bash(git log:*),Bash(git show:*),Bash(git add:*),Bash(git commit:*),Bash(git push:*),Bash(git rev-parse:*),Bash(gh issue list:*),Bash(gh issue view:*),Bash(gh issue create:*),Bash(gh issue edit:*),Bash(gh label list:*),Bash(gh label create:*)"
+            --allowed-tools "Task,Read,Glob,Grep,Edit,Write,Bash(ls:*),Bash(cat:*),Bash(find:*),Bash(grep:*),Bash(rg:*),Bash(date:*),Bash(jq:*),Bash(git status:*),Bash(git diff:*),Bash(git log:*),Bash(git show:*),Bash(git add:*),Bash(git commit:*),Bash(git -c:*),Bash(git push:*),Bash(git rev-parse:*),Bash(gh issue list:*),Bash(gh issue view:*),Bash(gh issue create:*),Bash(gh issue edit:*),Bash(gh label list:*),Bash(gh label create:*)"
           prompt: |
             You are the FiestaBoard **bug hunter**. You run unattended once a
             day and proactively hunt for REAL functional bugs in a batch of the
@@ -406,7 +406,7 @@ jobs:
             4. Commit to `main` directly and push:
                ```bash
                git add .github/bug-hunt-state.json
-               git commit -m "chore(bug-hunt): advance sweep state [skip ci]" || exit 0
+               git -c user.name="FiestaBoard CI" -c user.email="ci@fiestaboard.app" commit -m "chore(bug-hunt): advance sweep state [skip ci]" || exit 0
                git push origin HEAD:main
                ```
                This is the ONLY commit you make.
@@ -451,5 +451,5 @@ jobs:
             exit 0
           fi
           git add .github/bug-hunt-state.json
-          git commit -m "chore(bug-hunt): advance sweep state [skip ci]"
+          git -c user.name="FiestaBoard CI" -c user.email="ci@fiestaboard.app" commit -m "chore(bug-hunt): advance sweep state [skip ci]"
           git push origin HEAD:main

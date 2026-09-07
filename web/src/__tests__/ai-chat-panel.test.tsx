@@ -5,6 +5,7 @@ import { http, HttpResponse } from "msw";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { AiChatPanel } from "@/components/ai-chat-panel";
+import type { UseAiChatResult } from "@/lib/use-ai-chat";
 
 import enMessages from "../../messages/en.json";
 import { server } from "./mocks/server";
@@ -19,9 +20,12 @@ const mockCancel = vi.fn();
 const mockReset = vi.fn();
 const mockRetryLast = vi.fn();
 
-const defaultHookResult = {
+// Typed against the real hook contract: without it the inferred literal
+// types (`status: "idle"`, `messages: never[]`, `error: null`) reject the
+// per-test overrides below.
+const defaultHookResult: UseAiChatResult = {
   messages: [],
-  status: "idle" as const,
+  status: "idle",
   error: null,
   send: mockSend,
   resume: mockResume,
@@ -30,7 +34,7 @@ const defaultHookResult = {
   reset: mockReset,
 };
 
-let hookResult = { ...defaultHookResult };
+let hookResult: UseAiChatResult = { ...defaultHookResult };
 
 vi.mock("@/lib/use-ai-chat", () => ({
   useAiChat: () => hookResult,

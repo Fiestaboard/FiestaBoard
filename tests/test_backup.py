@@ -40,6 +40,14 @@ def _seed_data_dir(data_dir: Path) -> None:
     )
     (data_dir / "collections.json").write_text(json.dumps({"schema_version": 1, "collections": []}))
     (data_dir / "schedules.json").write_text(json.dumps({"schedules": [], "default_page_id": None}))
+    (data_dir / "panels.json").write_text(
+        json.dumps(
+            {
+                "schema_version": 4,
+                "panels": [{"id": "abcdefghijkl", "short_code": 1, "name": "TV", "board_id": "vb1"}],
+            }
+        )
+    )
 
 
 def test_build_backup_includes_all_data_files(tmp_path):
@@ -57,6 +65,9 @@ def test_build_backup_includes_all_data_files(tmp_path):
     assert backup["data"]["settings"]["transitions"]["strategy"] == "column"
     assert backup["data"]["collections"] == {"schema_version": 1, "collections": []}
     assert backup["data"]["schedules"]["schedules"] == []
+    # FiestaPanels round-trip too — losing panels.json orphans every panel's
+    # virtual board on restore and kills the TVs' /p/{n} URLs.
+    assert backup["data"]["panels"]["panels"][0]["id"] == "abcdefghijkl"
     assert isinstance(backup["installed_plugins"], list)
 
 
@@ -66,7 +77,7 @@ def test_build_backup_with_missing_files_uses_none(tmp_path):
 
     backup = service.build_backup()
 
-    for key in ("config", "settings", "pages", "collections", "schedules"):
+    for key in ("config", "settings", "pages", "collections", "schedules", "panels"):
         assert backup["data"][key] is None
 
 
@@ -99,10 +110,27 @@ def test_round_trip_export_then_import(tmp_path):
         "pages.json",
         "collections.json",
         "schedules.json",
+        "panels.json",
     }
     # Data was actually written to the destination.
     assert json.loads((dst_dir / "config.json").read_text())["board"]["host"] == "fiestaboard.example.test"
     assert json.loads((dst_dir / "pages.json").read_text())["pages"][0]["id"] == "p1"
+    assert json.loads((dst_dir / "panels.json").read_text())["panels"][0]["id"] == "abcdefghijkl"
+
+
+def test_reload_services_resets_panel_service_singleton(tmp_path):
+    """After a restore, panel reads must come from the restored panels.json."""
+    import src.panels.service as panels_service_module
+    from src.backup.service import _reload_services
+    from src.panels.storage import PanelStorage
+
+    # Reached through the module object rather than a second `from ... import`
+    # of the same module, which the code-quality bot flags as a duplicate.
+    panels_service_module._panel_service = panels_service_module.PanelService(
+        storage=PanelStorage(storage_file=str(tmp_path / "panels.json"))
+    )
+    _reload_services()
+    assert panels_service_module._panel_service is None
 
 
 def test_import_preserves_existing_files_as_pre_restore_backup(tmp_path):
@@ -176,6 +204,18 @@ def test_import_from_json_rejects_invalid_json(tmp_path):
         service.import_from_json("{not valid json")
 
 
+def test_restore_forces_a_full_plugin_registry_reload():
+    """A restore rewrites every plugin's stored config, so the live plugin
+    objects — which still hold the pre-restore config — must be rebuilt."""
+    from src.backup.service import _reload_services
+
+    fake_registry = MagicMock()
+    with patch("src.plugins.get_plugin_registry", return_value=fake_registry, create=True):
+        _reload_services()
+
+    fake_registry.initialize.assert_called_once_with(force=True)
+
+
 def test_collect_installed_plugins_skips_builtins(tmp_path):
     fake_source_builtin = MagicMock(source_type="builtin", repository_url="")
     fake_source_external = MagicMock(
@@ -240,6 +280,30 @@ def test_reinstall_plugins_records_failures(tmp_path):
 
     assert result["installed"] == []
     assert result["failed"] and result["failed"][0]["plugin_id"] == "weather"
+
+
+def test_reinstall_plugins_does_not_leak_install_error_text(tmp_path):
+    """Install errors embed git/loader exception text (URLs, paths, stderr).
+    They belong in the server log, not in the API response (CodeQL
+    py/stack-trace-exposure, alert #64)."""
+    fake_registry = MagicMock()
+    fake_registry.get_plugin.return_value = None
+    fake_registry.install_from_registry.return_value = ["git clone failed: SECRET_INTERNAL_XYZ /root/.ssh detail"]
+
+    with patch("src.plugins.get_plugin_registry", return_value=fake_registry, create=True):
+        result = BackupService._reinstall_plugins(
+            [
+                {
+                    "plugin_id": "weather",
+                    "source_type": "registry",
+                    "repository_url": "https://example.com/p.git",
+                }
+            ]
+        )
+
+    assert result["failed"] and result["failed"][0]["plugin_id"] == "weather"
+    assert "SECRET_INTERNAL_XYZ" not in repr(result)
+    assert result["failed"][0]["error"] == "install failed (see server logs)"
 
 
 def test_reinstall_plugins_installs_registry_plugin(tmp_path):
@@ -376,7 +440,9 @@ def test_import_endpoint_round_trip(client_with_data_dir):
 
     assert response.status_code == 200, response.text
     body = response.json()
-    assert body["status"] == "success"
+    # Phase 2 Task 8: the "status": "success" envelope is gone — the 200 is the
+    # success, and restored_files is what the caller actually reads.
+    assert "status" not in body
     assert "config.json" in body["restored_files"]
     assert json.loads((data_dir / "config.json").read_text())["board"]["host"] == "new-host.example.test"
 
@@ -388,3 +454,112 @@ def test_import_endpoint_rejects_invalid_payload(client_with_data_dir):
 
     assert response.status_code == 400
     assert "marker" in response.json()["detail"].lower()
+
+
+def test_import_endpoint_does_not_leak_plugin_install_errors(client_with_data_dir):
+    """The import summary is returned verbatim to the browser, so a failed
+    plugin reinstall must not carry raw git/loader exception text (CodeQL
+    py/stack-trace-exposure, alert #64)."""
+    client, _ = client_with_data_dir
+
+    backup = client.get("/backup/export").json()
+    backup["installed_plugins"] = [
+        {
+            "plugin_id": "weather",
+            "source_type": "registry",
+            "repository_url": "https://example.com/p.git",
+        }
+    ]
+
+    fake_registry = MagicMock()
+    fake_registry.get_plugin.return_value = None
+    fake_registry.install_from_registry.return_value = ["git clone failed: SECRET_INTERNAL_XYZ /root/.ssh detail"]
+
+    with patch("src.plugins.get_plugin_registry", return_value=fake_registry, create=True):
+        response = client.post("/backup/import", json=backup)
+
+    assert response.status_code == 200
+    assert "SECRET_INTERNAL_XYZ" not in response.text
+    body = response.json()
+    assert body["plugins"]["failed"] and body["plugins"]["failed"][0]["plugin_id"] == "weather"
+
+
+# ── restore vs. concurrent store writes (#1860) ─────────────────────────────
+
+
+def test_restore_survives_a_concurrent_settings_save(monkeypatch):
+    """A restore and an in-flight settings save must both land coherently.
+
+    Repro from review of #1860: a settings PUT is paused inside ``json.dump``
+    (holding the settings store's lock) while a restore rewrites
+    ``settings.json``. With both writers staging at the same
+    ``<file>.<pid>.tmp`` name and the restore taking no store lock, the
+    restore's rename adopts the paused writer's inode; the resumed save then
+    scribbles over the restored file in place and its own final rename dies
+    with FileNotFoundError — a corrupted or silently reverted restore.
+    """
+    import threading
+
+    from src.paths import get_data_dir
+    from src.settings.service import get_settings_service
+
+    data_dir = get_data_dir()
+    settings_file = data_dir / "settings.json"
+    svc = get_settings_service()  # the live singleton — owns the settings lock
+
+    restore_payload = {
+        "transitions": {"strategy": "column"},
+        "padding_so_the_restore_is_longer_than_the_settings_dump": "x" * 512,
+    }
+    backup = {
+        BACKUP_FILE_MARKER: True,
+        "schema_version": BACKUP_SCHEMA_VERSION,
+        "data": {"settings": restore_payload},
+    }
+
+    real_dump = json.dump
+    settings_ident: list[int] = []
+    paused_in_dump = threading.Event()
+    resume_dump = threading.Event()
+    errors: list[BaseException] = []
+
+    def pausing_dump(obj, fh, **kwargs):
+        if settings_ident and threading.get_ident() == settings_ident[0]:
+            paused_in_dump.set()
+            assert resume_dump.wait(15), "orchestration stalled: dump never resumed"
+        return real_dump(obj, fh, **kwargs)
+
+    monkeypatch.setattr("src.atomic_io.json.dump", pausing_dump)
+
+    def settings_save():
+        settings_ident.append(threading.get_ident())
+        try:
+            svc._atomic_write_json({"display": {"reduce_motion": True}})
+        except BaseException as exc:
+            errors.append(exc)
+
+    def run_restore():
+        try:
+            with patch("src.backup.service._reload_services", return_value=[]):
+                BackupService(data_dir=data_dir).import_from_dict(backup, reinstall_plugins=False)
+        except BaseException as exc:
+            errors.append(exc)
+
+    saver = threading.Thread(target=settings_save)
+    saver.start()
+    assert paused_in_dump.wait(15), "settings save never reached json.dump"
+
+    restorer = threading.Thread(target=run_restore)
+    restorer.start()
+    # Post-fix the restore blocks on the settings store lock, so this join
+    # times out; pre-fix it sails through and clobbers the paused writer.
+    restorer.join(timeout=1.5)
+
+    resume_dump.set()
+    saver.join(timeout=15)
+    restorer.join(timeout=15)
+    assert not saver.is_alive() and not restorer.is_alive(), "writer threads wedged"
+
+    assert errors == [], f"a writer blew up: {errors!r}"
+    on_disk = json.loads(settings_file.read_text())  # corrupt pre-fix
+    assert on_disk == restore_payload, "restore was silently reverted by the concurrent save"

@@ -15,11 +15,15 @@ class TestRenderTemplateLiveEndpoint:
 
         return TestClient(app)
 
-    def test_missing_template_returns_400(self, client):
-        """Template parameter is required."""
+    def test_missing_template_is_rejected(self, client):
+        """Template parameter is required.
+
+        RE-PINNED (Phase 2 slice 8): 422 from Pydantic replaces the
+        hand-rolled 400 {"detail": "template parameter required"} — the body
+        is now a typed model with a required field.
+        """
         response = client.post("/templates/render/live", json={})
-        assert response.status_code == 400
-        assert "template parameter required" in response.json()["detail"]
+        assert response.status_code == 422
 
     def test_empty_list_returns_empty_without_sending(self, client):
         """Empty template list returns empty lines and does not send to board."""
@@ -53,8 +57,8 @@ class TestRenderTemplateLiveEndpoint:
         assert data["sent_to_board"] is False
         assert data["line_count"] == 6
 
-    @patch("src.api_server.get_template_engine")
-    @patch("src.api_server.get_settings_service")
+    @patch("src.templates.routes.get_template_engine")
+    @patch("src.templates.routes.get_settings_service")
     def test_render_with_content_and_no_boards(self, mock_settings, mock_engine, client):
         """Template with content renders but does not send when no boards configured."""
         engine = Mock()
@@ -74,9 +78,9 @@ class TestRenderTemplateLiveEndpoint:
         assert data["sent_to_board"] is False
         assert data["board_id"] is None
 
-    @patch("src.api_server.board_client_from_board_dict")
-    @patch("src.api_server.get_template_engine")
-    @patch("src.api_server.get_settings_service")
+    @patch("src.templates.routes.board_client_from_board_dict")
+    @patch("src.templates.routes.get_template_engine")
+    @patch("src.templates.routes.get_settings_service")
     def test_render_and_send_to_default_board(self, mock_settings, mock_engine, mock_client_factory, client):
         """Content is rendered and sent to the first board when no board_id specified."""
         engine = Mock()
@@ -85,6 +89,7 @@ class TestRenderTemplateLiveEndpoint:
 
         mock_board_client = Mock()
         mock_board_client.send_characters.return_value = (True, True)
+        mock_board_client.render.return_value = (True, True)
         mock_client_factory.return_value = mock_board_client
 
         board_settings = Mock()
@@ -107,8 +112,8 @@ class TestRenderTemplateLiveEndpoint:
         assert data["board_id"] == "board-1"
         assert "Hello Board" in data["rendered"]
 
-    @patch("src.api_server.get_template_engine")
-    @patch("src.api_server.get_settings_service")
+    @patch("src.templates.routes.get_template_engine")
+    @patch("src.templates.routes.get_settings_service")
     def test_render_and_send_to_specific_board(self, mock_settings, mock_engine, client):
         """Content is sent to a specific board when board_id is provided."""
         engine = Mock()
@@ -117,6 +122,7 @@ class TestRenderTemplateLiveEndpoint:
 
         mock_board_client = Mock()
         mock_board_client.send_characters.return_value = (True, True)
+        mock_board_client.render.return_value = (True, True)
 
         board_settings = Mock()
         board_settings.boards = [
@@ -133,7 +139,11 @@ class TestRenderTemplateLiveEndpoint:
         settings.get_transition_settings.return_value = transition_settings
         mock_settings.return_value = settings
 
-        with patch("src.api_server.board_client_from_board_dict", return_value=mock_board_client):
+        with (
+            patch("src.templates.routes.board_client_from_board_dict", return_value=mock_board_client),
+            # _require_board moved to src/board_guards.py (Phase 2 slice 3).
+            patch("src.board_guards.get_settings_service", return_value=settings),
+        ):
             response = client.post(
                 "/templates/render/live",
                 json={
@@ -147,8 +157,8 @@ class TestRenderTemplateLiveEndpoint:
         assert data["sent_to_board"] is True
         assert data["board_id"] == "board-2"
 
-    @patch("src.api_server.get_template_engine")
-    @patch("src.api_server.get_settings_service")
+    @patch("src.templates.routes.get_template_engine")
+    @patch("src.templates.routes.get_settings_service")
     def test_nonexistent_board_id_returns_404(self, mock_settings, mock_engine, client):
         """Requesting a non-existent board_id returns 404."""
         engine = Mock()
@@ -173,8 +183,8 @@ class TestRenderTemplateLiveEndpoint:
         assert response.status_code == 404
         assert "Board not found" in response.json()["detail"]
 
-    @patch("src.api_server.get_template_engine")
-    @patch("src.api_server.get_settings_service")
+    @patch("src.templates.routes.get_template_engine")
+    @patch("src.templates.routes.get_settings_service")
     def test_board_client_none_skips_send(self, mock_settings, mock_engine, client):
         """When board_client_from_board_dict returns None, send is skipped."""
         engine = Mock()
@@ -187,15 +197,15 @@ class TestRenderTemplateLiveEndpoint:
         settings.get_board_settings.return_value = board_settings
         mock_settings.return_value = settings
 
-        with patch("src.api_server.board_client_from_board_dict", return_value=None):
+        with patch("src.templates.routes.board_client_from_board_dict", return_value=None):
             response = client.post("/templates/render/live", json={"template": ["Hello"]})
 
         assert response.status_code == 200
         data = response.json()
         assert data["sent_to_board"] is False
 
-    @patch("src.api_server.get_template_engine")
-    @patch("src.api_server.get_settings_service")
+    @patch("src.templates.routes.get_template_engine")
+    @patch("src.templates.routes.get_settings_service")
     def test_board_send_failure_returns_sent_false(self, mock_settings, mock_engine, client):
         """When the board client raises an exception, sent_to_board is False."""
         engine = Mock()
@@ -217,15 +227,15 @@ class TestRenderTemplateLiveEndpoint:
         settings.get_transition_settings.return_value = transition_settings
         mock_settings.return_value = settings
 
-        with patch("src.api_server.board_client_from_board_dict", return_value=mock_board_client):
+        with patch("src.templates.routes.board_client_from_board_dict", return_value=mock_board_client):
             response = client.post("/templates/render/live", json={"template": ["Hello"]})
 
         assert response.status_code == 200
         data = response.json()
         assert data["sent_to_board"] is False
 
-    @patch("src.api_server.get_template_engine")
-    @patch("src.api_server.get_settings_service")
+    @patch("src.templates.routes.get_template_engine")
+    @patch("src.templates.routes.get_settings_service")
     def test_board_not_actually_sent_returns_false(self, mock_settings, mock_engine, client):
         """When send_characters returns (True, False), sent_to_board is False (skipped unchanged)."""
         engine = Mock()
@@ -234,6 +244,7 @@ class TestRenderTemplateLiveEndpoint:
 
         mock_board_client = Mock()
         mock_board_client.send_characters.return_value = (True, False)
+        mock_board_client.render.return_value = (True, False)
 
         board_settings = Mock()
         board_settings.boards = [{"id": "board-1", "name": "Flagship", "device_type": "flagship"}]
@@ -247,15 +258,15 @@ class TestRenderTemplateLiveEndpoint:
         settings.get_transition_settings.return_value = transition_settings
         mock_settings.return_value = settings
 
-        with patch("src.api_server.board_client_from_board_dict", return_value=mock_board_client):
+        with patch("src.templates.routes.board_client_from_board_dict", return_value=mock_board_client):
             response = client.post("/templates/render/live", json={"template": ["Hello"]})
 
         assert response.status_code == 200
         data = response.json()
         assert data["sent_to_board"] is False
 
-    @patch("src.api_server.get_template_engine")
-    @patch("src.api_server.get_settings_service")
+    @patch("src.templates.routes.get_template_engine")
+    @patch("src.templates.routes.get_settings_service")
     def test_string_template_rendered(self, mock_settings, mock_engine, client):
         """String templates (not lists) are rendered correctly."""
         engine = Mock()
@@ -274,7 +285,7 @@ class TestRenderTemplateLiveEndpoint:
         assert data["rendered"] == "72 degrees"
         assert data["sent_to_board"] is False
 
-    @patch("src.api_server.get_template_engine")
+    @patch("src.templates.routes.get_template_engine")
     def test_template_render_error_returns_400(self, mock_engine, client):
         """Template rendering errors return 400."""
         engine = Mock()
@@ -285,8 +296,8 @@ class TestRenderTemplateLiveEndpoint:
         assert response.status_code == 400
         assert "Template rendering failed" in response.json()["detail"]
 
-    @patch("src.api_server.get_template_engine")
-    @patch("src.api_server.get_settings_service")
+    @patch("src.templates.routes.get_template_engine")
+    @patch("src.templates.routes.get_settings_service")
     def test_force_flag_passed_to_board_client(self, mock_settings, mock_engine, client):
         """The force=True flag is passed to send_characters to bypass skip-unchanged."""
         engine = Mock()
@@ -295,6 +306,7 @@ class TestRenderTemplateLiveEndpoint:
 
         mock_board_client = Mock()
         mock_board_client.send_characters.return_value = (True, True)
+        mock_board_client.render.return_value = (True, True)
 
         board_settings = Mock()
         board_settings.boards = [{"id": "board-1", "name": "Flagship", "device_type": "flagship"}]
@@ -308,14 +320,14 @@ class TestRenderTemplateLiveEndpoint:
         settings.get_transition_settings.return_value = transition_settings
         mock_settings.return_value = settings
 
-        with patch("src.api_server.board_client_from_board_dict", return_value=mock_board_client):
+        with patch("src.templates.routes.board_client_from_board_dict", return_value=mock_board_client):
             client.post("/templates/render/live", json={"template": ["Hello"]})
 
         call_kwargs = mock_board_client.send_characters.call_args
         assert call_kwargs[1].get("force") is True or (len(call_kwargs[0]) > 4 and call_kwargs[0][4] is True)
 
-    @patch("src.api_server.get_template_engine")
-    @patch("src.api_server.get_settings_service")
+    @patch("src.templates.routes.get_template_engine")
+    @patch("src.templates.routes.get_settings_service")
     def test_note_device_type_uses_correct_dimensions(self, mock_settings, mock_engine, client):
         """When targeting a Note board, the correct 3x15 dimensions are used."""
         engine = Mock()
@@ -324,6 +336,7 @@ class TestRenderTemplateLiveEndpoint:
 
         mock_board_client = Mock()
         mock_board_client.send_characters.return_value = (True, True)
+        mock_board_client.render.return_value = (True, True)
 
         board_settings = Mock()
         board_settings.boards = [{"id": "note-1", "name": "Note", "device_type": "note"}]
@@ -338,11 +351,14 @@ class TestRenderTemplateLiveEndpoint:
         mock_settings.return_value = settings
 
         with (
-            patch("src.api_server.board_client_from_board_dict", return_value=mock_board_client),
-            patch("src.api_server.text_to_board_array") as mock_t2b,
+            patch("src.templates.routes.board_client_from_board_dict", return_value=mock_board_client),
+            # _require_board moved to src/board_guards.py (Phase 2 slice 3).
+            patch("src.board_guards.get_settings_service", return_value=settings),
+            patch("src.templates.routes.text_to_board_array") as mock_t2b,
         ):
             mock_t2b.return_value = [[0] * 15] * 3
             mock_board_client.send_characters.return_value = (True, True)
+            mock_board_client.render.return_value = (True, True)
 
             response = client.post(
                 "/templates/render/live",
@@ -358,8 +374,8 @@ class TestRenderTemplateLiveEndpoint:
         assert call_kwargs[1]["rows"] == 3
         assert call_kwargs[1]["cols"] == 15
 
-    @patch("src.api_server.get_template_engine")
-    @patch("src.api_server.get_settings_service")
+    @patch("src.templates.routes.get_template_engine")
+    @patch("src.templates.routes.get_settings_service")
     def test_response_includes_all_fields(self, mock_settings, mock_engine, client):
         """Response includes all expected fields."""
         engine = Mock()
@@ -385,8 +401,8 @@ class TestRenderTemplateLiveEndpoint:
         assert isinstance(data["line_count"], int)
         assert isinstance(data["sent_to_board"], bool)
 
-    @patch("src.api_server.get_template_engine")
-    @patch("src.api_server.get_settings_service")
+    @patch("src.templates.routes.get_template_engine")
+    @patch("src.templates.routes.get_settings_service")
     def test_board_id_passed_in_empty_response(self, mock_settings, mock_engine, client):
         """board_id from request is included in empty template responses."""
         response = client.post(
@@ -401,8 +417,8 @@ class TestRenderTemplateLiveEndpoint:
         assert data["board_id"] == "my-board"
         assert data["sent_to_board"] is False
 
-    @patch("src.api_server.get_template_engine")
-    @patch("src.api_server.get_settings_service")
+    @patch("src.templates.routes.get_template_engine")
+    @patch("src.templates.routes.get_settings_service")
     def test_transition_settings_passed_to_board(self, mock_settings, mock_engine, client):
         """System transition settings are passed to send_characters."""
         engine = Mock()
@@ -411,6 +427,7 @@ class TestRenderTemplateLiveEndpoint:
 
         mock_board_client = Mock()
         mock_board_client.send_characters.return_value = (True, True)
+        mock_board_client.render.return_value = (True, True)
 
         board_settings = Mock()
         board_settings.boards = [{"id": "board-1", "name": "Flagship", "device_type": "flagship"}]
@@ -424,7 +441,7 @@ class TestRenderTemplateLiveEndpoint:
         settings.get_transition_settings.return_value = transition_settings
         mock_settings.return_value = settings
 
-        with patch("src.api_server.board_client_from_board_dict", return_value=mock_board_client):
+        with patch("src.templates.routes.board_client_from_board_dict", return_value=mock_board_client):
             client.post("/templates/render/live", json={"template": ["Test"]})
 
         mock_board_client.send_characters.assert_called_once()

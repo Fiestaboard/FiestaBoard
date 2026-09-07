@@ -54,9 +54,10 @@ test.describe("regression: settings.hardware", () => {
     await expect(page.getByRole("button", { name: /Get API Key from Board/i })).toBeVisible({ timeout: 10_000 });
 
     // Now switch to cloud API mode (the FiestaBoard cloud registry path).
-    // The mode-picker buttons contain the label "Cloud API" plus a description,
-    // so match by partial text instead of exact role-name.
-    const cloudBtn = page.getByRole("button", { name: /Cloud API/i }).first();
+    // The mode picker is a radiogroup, and each tile's accessible name is its
+    // label plus its description, so match by partial text rather than an
+    // exact role-name.
+    const cloudBtn = page.getByRole("radio", { name: /Cloud API/i }).first();
     await expect(cloudBtn).toBeVisible({ timeout: 10_000 });
     await cloudBtn.click();
 
@@ -283,7 +284,10 @@ test.describe("regression: settings.network", () => {
     await ssidRow.getByRole("button", { name: /^Connect$/i }).click();
 
     await expect(page.getByRole("dialog")).toBeVisible({ timeout: 10_000 });
-    await page.getByLabel(/Password/i).fill("hunter2-secure");
+    // SecretInput ships a reveal toggle labelled "Show password", so a loose
+    // /Password/i match now resolves to both it and the field. Match the
+    // field's own label exactly, as the other password specs already do.
+    await page.getByLabel("Password", { exact: true }).fill("hunter2-secure");
 
     const connectBtn = page.getByRole("dialog").getByRole("button", { name: /^Connect$/i });
     await connectBtn.click();

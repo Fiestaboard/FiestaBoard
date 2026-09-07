@@ -31,6 +31,7 @@ def mock_service():
     service = Mock()
     service.vb_client = Mock()
     service.vb_client.send_characters.return_value = (True, True)
+    service.vb_client.render.return_value = (True, True)
     service.vb_client.clear_cache.return_value = None
     service.vb_client.test_connection.return_value = True
     service.vb_client.get_cache_status.return_value = {"has_cached_text": False}
@@ -39,14 +40,37 @@ def mock_service():
     service.initialize.return_value = True
     service.reinitialize_board_client.return_value = None
     service.check_and_send_active_page.return_value = None
-    with patch("src.api_server.get_service", return_value=service):
+    # Patched on api_server and on the pages and config routers, which since
+    # Phase 2 §2.3 import the accessor from src/display_runtime.py at import
+    # time. `src.display_runtime` itself is stubbed too: that is where
+    # `reinitialize_board_clients` resolves the service, and DELETE
+    # /config/board asserts the rebuild happened.
+    with (
+        patch("src.api_server.get_service", return_value=service),
+        patch("src.pages.routes.get_service", return_value=service),
+        patch("src.config_api.routes.get_service", return_value=service),
+        patch("src.display_runtime.get_service", return_value=service),
+        patch("src.displays.routes.get_service", return_value=service),
+    ):
         yield service
 
 
 @pytest.fixture
 def mock_config_manager():
-    """Mock the config manager."""
-    with patch("src.api_server.get_config_manager") as mock_get:
+    """Mock the config manager.
+
+    Both bindings are stubbed on purpose. ``get_config_manager`` is a *shared*
+    accessor: the converted config router resolves it from
+    ``src.config_manager``, while every unconverted domain still resolves it
+    through ``src.api_server``. Repointing rather than stubbing both would
+    silently stop steering the handlers that have not moved yet.
+    """
+    with (
+        patch("src.api_server.get_config_manager") as mock_get,
+        patch("src.config_api.routes.get_config_manager", new=mock_get),
+        patch("src.service_api.routes.get_config_manager", new=mock_get),
+        patch("src.board_api.routes.get_config_manager", new=mock_get),
+    ):
         cm = Mock()
         cm.get_board.return_value = {
             "api_mode": "local",
@@ -69,8 +93,20 @@ def mock_config_manager():
 
 @pytest.fixture
 def mock_settings_service():
-    """Mock the settings service."""
-    with patch("src.api_server.get_settings_service") as mock_get:
+    """Mock the settings service.
+
+    Patched on api_server, on the pages router (which binds it at import time
+    since Phase 2 slice 3), on the config router (Phase 2 Task 8) and on
+    src/board_guards.py (where the board lookup and pause/silence guards now
+    live). One stub, every resolution path.
+    """
+    with (
+        patch("src.api_server.get_settings_service") as mock_get,
+        patch("src.pages.routes.get_settings_service") as routes_get,
+        patch("src.config_api.routes.get_settings_service") as config_get,
+        patch("src.board_guards.get_settings_service") as guards_get,
+        patch("src.displays.routes.get_settings_service") as displays_get,
+    ):
         ss = Mock()
         transition = Mock()
         transition.strategy = "column"
@@ -93,6 +129,9 @@ def mock_settings_service():
             "reduce_motion": False,
             "board_animations": "on",
             "site_animations": "on",
+            # Added with the conventions pass: the response_model now
+            # validates the payload, and this stub predated the field.
+            "board_flap_speed": "standard",
         }
         ss.get_display_settings.return_value = display
         ss.update_display_settings.return_value = display
@@ -101,39 +140,59 @@ def mock_settings_service():
         ss.should_send_to_board.return_value = False
         ss.set_active_page_id.return_value = None
         mock_get.return_value = ss
+        routes_get.return_value = ss
+        config_get.return_value = ss
+        guards_get.return_value = ss
+        displays_get.return_value = ss
         yield ss
 
 
 @pytest.fixture
 def mock_page_service():
-    """Mock the page service."""
-    with patch("src.api_server.get_page_service") as mock_get:
+    """Mock the page service.
+
+    Patched on both api_server and the pages router, which binds its
+    collaborators at import time since Phase 2 slice 3.
+    """
+    with (
+        patch("src.api_server.get_page_service") as mock_get,
+        patch("src.pages.routes.get_page_service") as routes_get,
+    ):
         ps = Mock()
         page = Mock()
         page.transition_strategy = None
         page.transition_interval_ms = None
         page.transition_step_size = None
         page.device_type = "flagship"
+        page.notes_wide = 1
+        page.notes_tall = 1
         ps.get_page.return_value = page
 
         preview = Mock()
         preview.available = True
         preview.formatted = "HELLO WORLD"
+        preview.display_type = "page:template"
+        preview.raw = {}
         preview.error = None
         ps.preview_page.return_value = preview
 
         mock_get.return_value = ps
+        routes_get.return_value = ps
         yield ps
 
 
 @pytest.fixture
 def mock_collection_service():
     """Mock the collection service."""
-    with patch("src.api_server.get_collection_service") as mock_get:
+    with (
+        patch("src.api_server.get_collection_service") as mock_get,
+        patch("src.pages.routes.get_collection_service") as routes_get,
+    ):
         cs = Mock()
         cs.get_collection.return_value = None
         cs.resolve_page_id.return_value = None
         mock_get.return_value = cs
+        routes_get.return_value = cs
         yield cs
 
 
@@ -150,7 +209,12 @@ class TestStartService:
         with patch("src.api_server._service_running", True), patch("src.api_server.get_service", return_value=Mock()):
             response = client.post("/start")
             assert response.status_code == 200
-            assert response.json()["status"] == "already_running"
+            # Phase 2 Task 8: the status word became {"running", "changed"}.
+            assert response.json() == {
+                "running": True,
+                "changed": False,
+                "message": "Service is already running",
+            }
 
     def test_start_no_service(self, client):
         """When service cannot be created, return 503."""
@@ -193,7 +257,8 @@ class TestStartService:
             mock_asyncio.sleep = asyncio.sleep
             response = client.post("/start")
             assert response.status_code == 200
-            assert response.json()["status"] == "started"
+            assert response.json()["running"] is True
+            assert response.json()["changed"] is True
 
     def test_start_service_fails_to_start(self, client):
         """Service thread starts but _service_running stays False."""
@@ -218,15 +283,26 @@ class TestStopService:
         with patch("src.api_server._service_running", False):
             response = client.post("/stop")
             assert response.status_code == 200
-            assert response.json()["status"] == "not_running"
+            assert response.json() == {
+                "running": False,
+                "changed": False,
+                "message": "Service is not running",
+            }
 
     def test_stop_success(self, client):
         """Stopping a running service."""
         service = Mock()
-        with patch("src.api_server._service_running", True), patch("src.api_server._service", service):
+        # Set the singleton itself rather than stubbing the accessor: the
+        # handler and the assertions below must see the same object through
+        # whichever of the two bindings they happen to hold.
+        with (
+            patch("src.api_server._service_running", True),
+            patch("src.display_runtime._service", service),
+        ):
             response = client.post("/stop")
             assert response.status_code == 200
-            assert response.json()["status"] == "stopped"
+            assert response.json()["running"] is False
+            assert response.json()["changed"] is True
 
 
 class TestSendWelcomeMessage:
@@ -234,40 +310,86 @@ class TestSendWelcomeMessage:
 
     def test_welcome_silence_mode(self, client):
         """Welcome is blocked during silence mode."""
-        with patch("src.api_server.Config") as mock_config:
+        # _silence_active reads Config from src/board_guards.py since Phase 2
+        # slice 3, so the silence verdict is stubbed there.
+        with patch("src.board_guards.Config") as mock_config:
             mock_config.is_silence_mode_active.return_value = True
             response = client.post("/send-welcome-message")
-            assert response.status_code == 200
-            assert response.json()["status"] == "blocked"
+            # Phase 2 Task 8: a refusal is a status code, not a word at 200.
+            assert response.status_code == 409
 
-    def test_welcome_board_not_configured(self, client):
-        """Welcome fails when board client cannot be created."""
+    @staticmethod
+    def _settings_with_boards(boards):
+        ss = Mock()
+        board_settings = Mock()
+        board_settings.boards = boards
+        ss.get_board_settings.return_value = board_settings
+        return ss
+
+    def test_welcome_board_client_build_failure(self, client):
+        """A configured board whose client cannot be built → 503 naming it.
+
+        Was ``test_welcome_board_not_configured`` and vacuous: with an empty
+        boards store the handler never reaches
+        ``board_client_from_board_dict``, so it answered 503 from the "no board
+        with a usable connection" branch and passed with **both** patches
+        deleted. A board is configured here so the ``ValueError`` branch is the
+        one under test, and the detail is asserted so the two 503s are told
+        apart.
+        """
+        ss = self._settings_with_boards(
+            [
+                {
+                    "id": "b1",
+                    "device_type": "flagship",
+                    "api_mode": "local",
+                    "host": "192.168.1.100",
+                    "local_api_key": "test_key_12345",
+                }
+            ]
+        )
         with (
-            patch("src.api_server.Config") as mock_config,
+            patch("src.board_guards.Config") as mock_config,
+            patch("src.board_guards.get_settings_service", return_value=ss),
             patch("src.board_client.BoardClient", side_effect=ValueError("no key")),
         ):
             mock_config.is_silence_mode_active.return_value = False
-            mock_config.BOARD_API_MODE = "local"
-            mock_config.get_board_api_key.return_value = "test_key_12345"
-            mock_config.BOARD_HOST = "192.168.1.100"
             response = client.post("/send-welcome-message")
-            assert response.status_code == 503
+        assert response.status_code == 503
+        assert response.json()["detail"] == "Board not configured: no key"
+
+    def test_welcome_with_no_boards_reports_no_usable_connection(self, client):
+        """The empty-store branch is a different 503 from the build failure."""
+        ss = self._settings_with_boards([])
+        with (
+            patch("src.board_guards.Config") as mock_config,
+            patch("src.board_guards.get_settings_service", return_value=ss),
+        ):
+            mock_config.is_silence_mode_active.return_value = False
+            response = client.post("/send-welcome-message")
+        assert response.status_code == 503
+        assert response.json()["detail"] == "Board not configured: no board with a usable connection"
 
     def test_welcome_success(self, client):
         """Welcome message sent successfully."""
         with (
-            patch("src.api_server.Config") as mock_config,
+            # /send-welcome-message reads the silence verdict through
+            # _silence_active -> src.board_guards.Config since Phase 2 slice 3.
+            # src.api_server.Config steered nothing: with it, flipping every
+            # stub below to True left all eight tests green.
+            patch("src.board_guards.Config") as mock_config,
             patch("src.board_client.BoardClient") as MockBoardClient,
-            patch("src.api_server.text_to_board_array") as mock_ttba,
+            patch("src.board_api.routes.text_to_board_array") as mock_ttba,
             patch("src.api_server.get_settings_service") as mock_ss,
+            # _primary_board_entry resolves the store through src/board_guards.py
+            # since the config slice, so the welcome handler needs both stubs.
+            patch("src.board_guards.get_settings_service") as guards_ss,
         ):
             mock_config.is_silence_mode_active.return_value = False
-            mock_config.BOARD_API_MODE = "local"
-            mock_config.get_board_api_key.return_value = "test_key_12345"
-            mock_config.BOARD_HOST = "192.168.1.100"
 
             board_client = Mock()
             board_client.send_characters.return_value = (True, True)
+            board_client.render.return_value = (True, True)
             MockBoardClient.return_value = board_client
 
             mock_ttba.return_value = [[0] * 22 for _ in range(6)]
@@ -278,27 +400,44 @@ class TestSendWelcomeMessage:
             transition.step_interval_ms = 100
             transition.step_size = 1
             ss.get_transition_settings.return_value = transition
+            board_settings = Mock()
+            board_settings.boards = [
+                {
+                    "id": "b1",
+                    "device_type": "flagship",
+                    "api_mode": "local",
+                    "host": "192.168.1.100",
+                    "local_api_key": "test_key_12345",
+                }
+            ]
+            ss.get_board_settings.return_value = board_settings
             mock_ss.return_value = ss
+            guards_ss.return_value = ss
 
             response = client.post("/send-welcome-message")
             assert response.status_code == 200
-            assert response.json()["status"] == "success"
+            assert response.json()["sent"] is True
 
     def test_welcome_send_failure(self, client):
         """Welcome message fails to send."""
         with (
-            patch("src.api_server.Config") as mock_config,
+            # /send-welcome-message reads the silence verdict through
+            # _silence_active -> src.board_guards.Config since Phase 2 slice 3.
+            # src.api_server.Config steered nothing: with it, flipping every
+            # stub below to True left all eight tests green.
+            patch("src.board_guards.Config") as mock_config,
             patch("src.board_client.BoardClient") as MockBoardClient,
-            patch("src.api_server.text_to_board_array") as mock_ttba,
+            patch("src.board_api.routes.text_to_board_array") as mock_ttba,
             patch("src.api_server.get_settings_service") as mock_ss,
+            # _primary_board_entry resolves the store through src/board_guards.py
+            # since the config slice, so the welcome handler needs both stubs.
+            patch("src.board_guards.get_settings_service") as guards_ss,
         ):
             mock_config.is_silence_mode_active.return_value = False
-            mock_config.BOARD_API_MODE = "local"
-            mock_config.get_board_api_key.return_value = "test_key_12345"
-            mock_config.BOARD_HOST = "192.168.1.100"
 
             board_client = Mock()
             board_client.send_characters.return_value = (False, False)
+            board_client.render.return_value = (False, False)
             MockBoardClient.return_value = board_client
 
             mock_ttba.return_value = [[0] * 22 for _ in range(6)]
@@ -309,7 +448,19 @@ class TestSendWelcomeMessage:
             transition.step_interval_ms = 100
             transition.step_size = 1
             ss.get_transition_settings.return_value = transition
+            board_settings = Mock()
+            board_settings.boards = [
+                {
+                    "id": "b1",
+                    "device_type": "flagship",
+                    "api_mode": "local",
+                    "host": "192.168.1.100",
+                    "local_api_key": "test_key_12345",
+                }
+            ]
+            ss.get_board_settings.return_value = board_settings
             mock_ss.return_value = ss
+            guards_ss.return_value = ss
 
             response = client.post("/send-welcome-message")
             assert response.status_code == 500
@@ -317,18 +468,23 @@ class TestSendWelcomeMessage:
     def test_welcome_unchanged(self, client):
         """Welcome message unchanged (was_sent=False, success=True)."""
         with (
-            patch("src.api_server.Config") as mock_config,
+            # /send-welcome-message reads the silence verdict through
+            # _silence_active -> src.board_guards.Config since Phase 2 slice 3.
+            # src.api_server.Config steered nothing: with it, flipping every
+            # stub below to True left all eight tests green.
+            patch("src.board_guards.Config") as mock_config,
             patch("src.board_client.BoardClient") as MockBoardClient,
-            patch("src.api_server.text_to_board_array") as mock_ttba,
+            patch("src.board_api.routes.text_to_board_array") as mock_ttba,
             patch("src.api_server.get_settings_service") as mock_ss,
+            # _primary_board_entry resolves the store through src/board_guards.py
+            # since the config slice, so the welcome handler needs both stubs.
+            patch("src.board_guards.get_settings_service") as guards_ss,
         ):
             mock_config.is_silence_mode_active.return_value = False
-            mock_config.BOARD_API_MODE = "cloud"
-            mock_config.get_board_api_key.return_value = "test_cloud_key"
-            mock_config.BOARD_HOST = "192.168.1.100"
 
             board_client = Mock()
             board_client.send_characters.return_value = (True, False)
+            board_client.render.return_value = (True, False)
             MockBoardClient.return_value = board_client
 
             mock_ttba.return_value = [[0] * 22 for _ in range(6)]
@@ -339,29 +495,44 @@ class TestSendWelcomeMessage:
             transition.step_interval_ms = 100
             transition.step_size = 1
             ss.get_transition_settings.return_value = transition
+            board_settings = Mock()
+            board_settings.boards = [
+                {
+                    "id": "b1",
+                    "device_type": "flagship",
+                    "api_mode": "cloud",
+                    "cloud_key": "test_cloud_key",
+                }
+            ]
+            ss.get_board_settings.return_value = board_settings
             mock_ss.return_value = ss
+            guards_ss.return_value = ss
 
             response = client.post("/send-welcome-message")
             assert response.status_code == 200
-            data = response.json()
-            assert data["status"] == "success"
-            assert data.get("skipped") is True
+            # Phase 2 Task 8: `sent: false` replaces status/skipped.
+            assert response.json()["sent"] is False
 
     def test_welcome_uses_note_template_for_note_board(self, client):
         """When the configured board is a Note, render the 3x15 template."""
         with (
-            patch("src.api_server.Config") as mock_config,
+            # /send-welcome-message reads the silence verdict through
+            # _silence_active -> src.board_guards.Config since Phase 2 slice 3.
+            # src.api_server.Config steered nothing: with it, flipping every
+            # stub below to True left all eight tests green.
+            patch("src.board_guards.Config") as mock_config,
             patch("src.board_client.BoardClient") as MockBoardClient,
-            patch("src.api_server.text_to_board_array") as mock_ttba,
+            patch("src.board_api.routes.text_to_board_array") as mock_ttba,
             patch("src.api_server.get_settings_service") as mock_ss,
+            # _primary_board_entry resolves the store through src/board_guards.py
+            # since the config slice, so the welcome handler needs both stubs.
+            patch("src.board_guards.get_settings_service") as guards_ss,
         ):
             mock_config.is_silence_mode_active.return_value = False
-            mock_config.BOARD_API_MODE = "local"
-            mock_config.get_board_api_key.return_value = "test_key_12345"
-            mock_config.BOARD_HOST = "192.168.1.100"
 
             board_client = Mock()
             board_client.send_characters.return_value = (True, True)
+            board_client.render.return_value = (True, True)
             MockBoardClient.return_value = board_client
 
             mock_ttba.return_value = [[0] * 15 for _ in range(3)]
@@ -373,13 +544,21 @@ class TestSendWelcomeMessage:
             transition.step_size = 1
             ss.get_transition_settings.return_value = transition
             board_settings = Mock()
-            board_settings.boards = [{"device_type": "note"}]
+            board_settings.boards = [
+                {
+                    "device_type": "note",
+                    "api_mode": "local",
+                    "host": "192.168.1.100",
+                    "local_api_key": "test_key_12345",
+                }
+            ]
             ss.get_board_settings.return_value = board_settings
             mock_ss.return_value = ss
+            guards_ss.return_value = ss
 
             response = client.post("/send-welcome-message")
             assert response.status_code == 200
-            assert response.json()["status"] == "success"
+            assert response.json()["sent"] is True
 
             # Verify text_to_board_array was called with Note dimensions
             assert mock_ttba.call_count == 1
@@ -399,18 +578,23 @@ class TestSendWelcomeMessage:
     def test_welcome_uses_flagship_template_for_flagship_board(self, client):
         """When the configured board is a Flagship, render the 6x22 template."""
         with (
-            patch("src.api_server.Config") as mock_config,
+            # /send-welcome-message reads the silence verdict through
+            # _silence_active -> src.board_guards.Config since Phase 2 slice 3.
+            # src.api_server.Config steered nothing: with it, flipping every
+            # stub below to True left all eight tests green.
+            patch("src.board_guards.Config") as mock_config,
             patch("src.board_client.BoardClient") as MockBoardClient,
-            patch("src.api_server.text_to_board_array") as mock_ttba,
+            patch("src.board_api.routes.text_to_board_array") as mock_ttba,
             patch("src.api_server.get_settings_service") as mock_ss,
+            # _primary_board_entry resolves the store through src/board_guards.py
+            # since the config slice, so the welcome handler needs both stubs.
+            patch("src.board_guards.get_settings_service") as guards_ss,
         ):
             mock_config.is_silence_mode_active.return_value = False
-            mock_config.BOARD_API_MODE = "local"
-            mock_config.get_board_api_key.return_value = "test_key_12345"
-            mock_config.BOARD_HOST = "192.168.1.100"
 
             board_client = Mock()
             board_client.send_characters.return_value = (True, True)
+            board_client.render.return_value = (True, True)
             MockBoardClient.return_value = board_client
 
             mock_ttba.return_value = [[0] * 22 for _ in range(6)]
@@ -422,13 +606,21 @@ class TestSendWelcomeMessage:
             transition.step_size = 1
             ss.get_transition_settings.return_value = transition
             board_settings = Mock()
-            board_settings.boards = [{"device_type": "flagship"}]
+            board_settings.boards = [
+                {
+                    "device_type": "flagship",
+                    "api_mode": "local",
+                    "host": "192.168.1.100",
+                    "local_api_key": "test_key_12345",
+                }
+            ]
             ss.get_board_settings.return_value = board_settings
             mock_ss.return_value = ss
+            guards_ss.return_value = ss
 
             response = client.post("/send-welcome-message")
             assert response.status_code == 200
-            assert response.json()["status"] == "success"
+            assert response.json()["sent"] is True
 
             assert mock_ttba.call_count == 1
             kwargs = mock_ttba.call_args.kwargs
@@ -440,18 +632,22 @@ class TestSendWelcomeMessage:
     def test_welcome_uses_note_array_template(self, client):
         """note_array 2-wide board: text_to_board_array called with rows=3, cols=30."""
         with (
-            patch("src.api_server.Config") as mock_config,
+            # /send-welcome-message reads the silence verdict through
+            # _silence_active -> src.board_guards.Config since Phase 2 slice 3.
+            # src.api_server.Config steered nothing: with it, flipping every
+            # stub below to True left all eight tests green.
+            patch("src.board_guards.Config") as mock_config,
             patch("src.board_client.BoardClient") as MockBoardClient,
-            patch("src.api_server.text_to_board_array") as mock_ttba,
+            patch("src.board_api.routes.text_to_board_array") as mock_ttba,
             patch("src.api_server.get_settings_service") as mock_ss,
+            # _primary_board_entry resolves the store through src/board_guards.py
+            # since the config slice, so the welcome handler needs both stubs.
+            patch("src.board_guards.get_settings_service") as guards_ss,
         ):
             mock_config.is_silence_mode_active.return_value = False
-            mock_config.BOARD_API_MODE = "local"
-            mock_config.get_board_api_key.return_value = "test_key_12345"
-            mock_config.BOARD_HOST = "192.168.1.100"
 
             board_client = Mock()
-            board_client.send_characters.return_value = (True, True)
+            board_client.render.return_value = (True, True)
             MockBoardClient.return_value = board_client
 
             mock_ttba.return_value = [[0] * 30 for _ in range(3)]
@@ -463,13 +659,22 @@ class TestSendWelcomeMessage:
             transition.step_size = 1
             ss.get_transition_settings.return_value = transition
             board_settings = Mock()
-            board_settings.boards = [{"device_type": "note_array", "notes_wide": 2, "notes_tall": 1}]
+            board_settings.boards = [
+                {
+                    "device_type": "note_array",
+                    "notes_wide": 2,
+                    "notes_tall": 1,
+                    "api_mode": "cloud",
+                    "note_array_token": "test-token",
+                }
+            ]
             ss.get_board_settings.return_value = board_settings
             mock_ss.return_value = ss
+            guards_ss.return_value = ss
 
             response = client.post("/send-welcome-message")
             assert response.status_code == 200
-            assert response.json()["status"] == "success"
+            assert response.json()["sent"] is True
 
             assert mock_ttba.call_count == 1
             kwargs = mock_ttba.call_args.kwargs
@@ -479,18 +684,22 @@ class TestSendWelcomeMessage:
     def test_welcome_note_array_2tall(self, client):
         """note_array 2-tall board: text_to_board_array called with rows=6, cols=15."""
         with (
-            patch("src.api_server.Config") as mock_config,
+            # /send-welcome-message reads the silence verdict through
+            # _silence_active -> src.board_guards.Config since Phase 2 slice 3.
+            # src.api_server.Config steered nothing: with it, flipping every
+            # stub below to True left all eight tests green.
+            patch("src.board_guards.Config") as mock_config,
             patch("src.board_client.BoardClient") as MockBoardClient,
-            patch("src.api_server.text_to_board_array") as mock_ttba,
+            patch("src.board_api.routes.text_to_board_array") as mock_ttba,
             patch("src.api_server.get_settings_service") as mock_ss,
+            # _primary_board_entry resolves the store through src/board_guards.py
+            # since the config slice, so the welcome handler needs both stubs.
+            patch("src.board_guards.get_settings_service") as guards_ss,
         ):
             mock_config.is_silence_mode_active.return_value = False
-            mock_config.BOARD_API_MODE = "local"
-            mock_config.get_board_api_key.return_value = "test_key_12345"
-            mock_config.BOARD_HOST = "192.168.1.100"
 
             board_client = Mock()
-            board_client.send_characters.return_value = (True, True)
+            board_client.render.return_value = (True, True)
             MockBoardClient.return_value = board_client
 
             mock_ttba.return_value = [[0] * 15 for _ in range(6)]
@@ -502,13 +711,22 @@ class TestSendWelcomeMessage:
             transition.step_size = 1
             ss.get_transition_settings.return_value = transition
             board_settings = Mock()
-            board_settings.boards = [{"device_type": "note_array", "notes_wide": 1, "notes_tall": 2}]
+            board_settings.boards = [
+                {
+                    "device_type": "note_array",
+                    "notes_wide": 1,
+                    "notes_tall": 2,
+                    "api_mode": "cloud",
+                    "note_array_token": "test-token",
+                }
+            ]
             ss.get_board_settings.return_value = board_settings
             mock_ss.return_value = ss
+            guards_ss.return_value = ss
 
             response = client.post("/send-welcome-message")
             assert response.status_code == 200
-            assert response.json()["status"] == "success"
+            assert response.json()["sent"] is True
 
             assert mock_ttba.call_count == 1
             kwargs = mock_ttba.call_args.kwargs
@@ -520,17 +738,17 @@ class TestBuildWelcomeTemplate:
     """Unit tests for _build_welcome_template helper."""
 
     def test_flagship_default_message(self):
-        from src.api_server import _build_welcome_template
+        from src.board_api.welcome import build_welcome_template
 
-        template = _build_welcome_template("flagship", "")
+        template = build_welcome_template("flagship", "")
         assert len(template) == 6
         # Center row (index 2) carries the default Flagship message
         assert template[2] == "HIYA FROM FIESTABOARD"
 
     def test_note_default_message(self):
-        from src.api_server import _build_welcome_template
+        from src.board_api.welcome import build_welcome_template
 
-        template = _build_welcome_template("note", "")
+        template = build_welcome_template("note", "")
         assert len(template) == 3
         # Center row (index 1) carries the default Note message
         assert template[1] == "HIYA FIESTA!"
@@ -538,40 +756,40 @@ class TestBuildWelcomeTemplate:
         assert len(template[1]) <= 15
 
     def test_note_custom_message_truncated_to_15(self):
-        from src.api_server import _build_welcome_template
+        from src.board_api.welcome import build_welcome_template
 
-        template = _build_welcome_template("note", "this message is way too long for a note")
+        template = build_welcome_template("note", "this message is way too long for a note")
         assert len(template) == 3
         assert template[1] == "THIS MESSAGE IS"
         assert len(template[1]) == 15
 
     def test_flagship_custom_message_truncated_to_22(self):
-        from src.api_server import _build_welcome_template
+        from src.board_api.welcome import build_welcome_template
 
-        template = _build_welcome_template("flagship", "this message is much longer than twenty two cols")
+        template = build_welcome_template("flagship", "this message is much longer than twenty two cols")
         assert len(template) == 6
         assert template[2] == "THIS MESSAGE IS MUCH L"
         assert len(template[2]) == 22
 
     def test_unknown_device_falls_back_to_flagship(self):
-        from src.api_server import _build_welcome_template
+        from src.board_api.welcome import build_welcome_template
 
-        template = _build_welcome_template("unknown", "")
+        template = build_welcome_template("unknown", "")
         assert len(template) == 6
         assert template[2] == "HIYA FROM FIESTABOARD"
 
     def test_note_array_2wide_template_has_3_rows(self):
         """note_array 2-wide (3×30) template has exactly 3 rows."""
-        from src.api_server import _build_welcome_template
+        from src.board_api.welcome import build_welcome_template
 
-        template = _build_welcome_template("note_array", "", notes_wide=2, notes_tall=1)
+        template = build_welcome_template("note_array", "", notes_wide=2, notes_tall=1)
         assert len(template) == 3
 
     def test_note_array_2wide_template_center_fits_cols(self):
         """note_array 2-wide center row contains the custom message and fits ≤30 chars."""
-        from src.api_server import _build_welcome_template
+        from src.board_api.welcome import build_welcome_template
 
-        template = _build_welcome_template("note_array", "HI", notes_wide=2, notes_tall=1)
+        template = build_welcome_template("note_array", "HI", notes_wide=2, notes_tall=1)
         # center row is at index dims.rows // 2 = 1
         center_row = template[1]
         assert center_row == "HI"
@@ -579,16 +797,16 @@ class TestBuildWelcomeTemplate:
 
     def test_note_array_2tall_template_has_6_rows(self):
         """note_array 2-tall (6×15) template has exactly 6 rows."""
-        from src.api_server import _build_welcome_template
+        from src.board_api.welcome import build_welcome_template
 
-        template = _build_welcome_template("note_array", "", notes_wide=1, notes_tall=2)
+        template = build_welcome_template("note_array", "", notes_wide=1, notes_tall=2)
         assert len(template) == 6
 
     def test_note_array_custom_msg_truncated_to_cols(self):
         """note_array 2-wide truncates custom message to 30 chars."""
-        from src.api_server import _build_welcome_template
+        from src.board_api.welcome import build_welcome_template
 
-        template = _build_welcome_template("note_array", "a" * 50, notes_wide=2, notes_tall=1)
+        template = build_welcome_template("note_array", "a" * 50, notes_wide=2, notes_tall=1)
         center_row = template[1]
         assert len(center_row) == 30
 
@@ -743,10 +961,10 @@ class TestUpdateGeneralConfig:
     """Tests for PUT /config/general."""
 
     def test_update_timezone(self, client, mock_config_manager):
-        """Update timezone."""
+        """Update timezone. The 200 body is the saved config, not an envelope."""
         response = client.put("/config/general", json={"timezone": "America/New_York"})
         assert response.status_code == 200
-        assert response.json()["status"] == "success"
+        assert response.json()["timezone"] == "America/New_York"
 
     def test_update_refresh_interval(self, client, mock_config_manager):
         """Update refresh interval."""
@@ -812,7 +1030,8 @@ class TestBoardScan:
 
     def test_scan_default_timeout(self, client):
         """Scan with default timeout."""
-        with patch("src.system.mdns.scan_for_boards", return_value=[{"ip": "192.168.1.50"}]):
+        discovered = [{"ip": "192.168.1.50", "port": 7000, "hostname": "vestaboard.local", "source": "mdns"}]
+        with patch("src.system.mdns.scan_for_boards", return_value=discovered):
             response = client.post("/config/board/scan")
             assert response.status_code == 200
             assert "boards" in response.json()
@@ -862,11 +1081,10 @@ class TestMQTTStatus:
             assert data["running"] is True
 
     def test_mqtt_status_exception(self, client):
-        """Exception returns disabled."""
+        """An error is a 500 — never a body that reads as "MQTT is off"."""
         with patch("src.mqtt.get_mqtt_client", side_effect=Exception("boom")):
             response = client.get("/mqtt/status")
-            data = response.json()
-            assert data["enabled"] is False
+            assert response.status_code == 500
 
 
 class TestMQTTRepublishDiscovery:
@@ -879,8 +1097,8 @@ class TestMQTTRepublishDiscovery:
         with patch("src.mqtt.get_mqtt_client", return_value=mqtt):
             response = client.post("/mqtt/republish-discovery")
             assert response.status_code == 200
-            assert response.json()["status"] == "ok"
-            mqtt._publish_discovery.assert_called_once()
+            assert response.json() == {"message": "Discovery messages republished"}
+            mqtt.publish_discovery.assert_called_once()
 
     def test_republish_not_connected(self, client):
         """MQTT not connected → 503."""
@@ -900,7 +1118,7 @@ class TestMQTTRepublishDiscovery:
         """Internal error → 500."""
         mqtt = Mock()
         mqtt.is_connected.return_value = True
-        mqtt._publish_discovery.side_effect = RuntimeError("oops")
+        mqtt.publish_discovery.side_effect = RuntimeError("oops")
         with patch("src.mqtt.get_mqtt_client", return_value=mqtt):
             response = client.post("/mqtt/republish-discovery")
             assert response.status_code == 500
@@ -921,7 +1139,7 @@ class TestSetActivePage:
         mock_settings_service.should_send_to_board.return_value = True
         with (
             patch("src.api_server.resolve_dimensions") as mock_dims,
-            patch("src.api_server.text_to_board_array") as mock_ttba,
+            patch("src.board_api.routes.text_to_board_array") as mock_ttba,
         ):
             mock_dims.return_value = Mock(rows=6, cols=22)
             mock_ttba.return_value = [[0] * 22 for _ in range(6)]
@@ -955,15 +1173,148 @@ class TestSetActivePage:
         """Board send failure still returns success but sent_to_board is False."""
         mock_settings_service.should_send_to_board.return_value = True
         mock_service.vb_client.send_characters.return_value = (False, False)
+        mock_service.vb_client.render.return_value = (False, False)
         with (
             patch("src.api_server.resolve_dimensions") as mock_dims,
-            patch("src.api_server.text_to_board_array") as mock_ttba,
+            patch("src.board_api.routes.text_to_board_array") as mock_ttba,
         ):
             mock_dims.return_value = Mock(rows=6, cols=22)
             mock_ttba.return_value = [[0] * 22 for _ in range(6)]
             response = client.put("/settings/active-page", json={"page_id": "page1"})
             # send_characters returns (False, False), the endpoint logs a warning
             assert response.status_code == 200
+
+    def test_set_active_page_render_unavailable_reports_error(
+        self, client, mock_settings_service, mock_page_service, mock_service, mock_collection_service
+    ):
+        """A page whose render is unavailable (e.g. plugin/network failure) must
+        surface an explicit error instead of silently reporting success (#1791)."""
+        mock_settings_service.should_send_to_board.return_value = True
+        preview = Mock()
+        preview.available = False
+        preview.formatted = ""
+        preview.error = "Weather API unreachable"
+        mock_page_service.preview_page.return_value = preview
+        response = client.put("/settings/active-page", json={"page_id": "page1"})
+        assert response.status_code == 200
+        data = response.json()
+        assert data["sent_to_board"] is False
+        assert "Weather API unreachable" in data["error"]
+
+    def test_set_active_page_board_write_failure_reports_error(
+        self, client, mock_settings_service, mock_page_service, mock_service, mock_collection_service
+    ):
+        """A failed board write must surface an explicit error field (#1791)."""
+        mock_settings_service.should_send_to_board.return_value = True
+        mock_service.vb_client.render.return_value = (False, False)
+        with (
+            patch("src.api_server.resolve_dimensions") as mock_dims,
+            patch("src.board_api.routes.text_to_board_array") as mock_ttba,
+        ):
+            mock_dims.return_value = Mock(rows=6, cols=22)
+            mock_ttba.return_value = [[0] * 22 for _ in range(6)]
+            response = client.put("/settings/active-page", json={"page_id": "page1"})
+        assert response.status_code == 200
+        data = response.json()
+        assert data["sent_to_board"] is False
+        assert data["error"]
+
+    def test_set_active_page_successful_send_has_no_error(
+        self, client, mock_settings_service, mock_page_service, mock_service, mock_collection_service
+    ):
+        """A successful send must not carry an error field."""
+        mock_settings_service.should_send_to_board.return_value = True
+        with (
+            patch("src.api_server.resolve_dimensions") as mock_dims,
+            patch("src.board_api.routes.text_to_board_array") as mock_ttba,
+        ):
+            mock_dims.return_value = Mock(rows=6, cols=22)
+            mock_ttba.return_value = [[0] * 22 for _ in range(6)]
+            response = client.put("/settings/active-page", json={"page_id": "page1"})
+        assert response.status_code == 200
+        data = response.json()
+        assert data["sent_to_board"] is True
+        assert data.get("error") is None
+
+
+class TestRefreshFailureReporting:
+    """POST /refresh and /force-refresh must report send failures instead of
+    unconditionally claiming success (issue #1791).
+
+    The reason comes back from the ``*_with_status`` call itself, never from a
+    follow-up read of ``last_send_error`` — that attribute is shared with the
+    engine thread, which can clear or overwrite it in between.
+    """
+
+    def test_refresh_reports_send_failure(self, client, mock_service):
+        mock_service.check_and_send_active_page_with_status.return_value = (
+            False,
+            "Failed to render active page: p1",
+        )
+        response = client.post("/refresh")
+        assert response.status_code == 500
+        assert "Failed to render active page: p1" in response.json()["detail"]
+
+    def test_refresh_reports_a_secondary_boards_failure(self, client, mock_service):
+        """/refresh drives every board, so a failing secondary must not return
+        success even though the primary was fine."""
+        mock_service.check_and_send_active_page_with_status.return_value = (
+            True,
+            "board b2: Failed to send active page to board: p2",
+        )
+        response = client.post("/refresh")
+        assert response.status_code == 500
+        assert "board b2" in response.json()["detail"]
+
+    def test_refresh_success_reports_sent_flag(self, client, mock_service):
+        mock_service.check_and_send_active_page_with_status.return_value = (True, None)
+        response = client.post("/refresh")
+        assert response.status_code == 200
+        data = response.json()
+        # Phase 2 Task 8: the "status": "success" envelope is gone; `sent` was
+        # always the field that carried the information.
+        assert "status" not in data
+        assert data["sent"] is True
+
+    def test_refresh_benign_skip_is_still_success(self, client, mock_service):
+        """Not sending because nothing changed (or paused) is not a failure."""
+        mock_service.check_and_send_active_page_with_status.return_value = (False, None)
+        response = client.post("/refresh")
+        assert response.status_code == 200
+        data = response.json()
+        assert "status" not in data
+        assert data["sent"] is False
+
+    def test_refresh_does_not_read_last_send_error_after_the_call(self, client, mock_service):
+        """Guard against reintroducing the race: a stale/concurrent
+        ``last_send_error`` must not turn a clean pass into a 500."""
+        mock_service.check_and_send_active_page_with_status.return_value = (True, None)
+        mock_service.get_last_send_error.return_value = "engine thread failure from another tick"
+        response = client.post("/refresh")
+        assert response.status_code == 200
+        assert response.json()["sent"] is True
+
+    def test_refresh_board_id_reports_that_boards_failure(self, client, mock_service, mock_settings_service):
+        mock_settings_service.get_primary_board_id.return_value = "b1"
+        mock_service.check_and_send_for_board_with_status.return_value = (False, "send failed")
+        response = client.post("/refresh?board_id=b1")
+        assert response.status_code == 500
+        assert "send failed" in response.json()["detail"]
+
+    def test_force_refresh_reports_send_failure(self, client, mock_service):
+        mock_service.check_and_send_active_page_with_status.return_value = (
+            False,
+            "Failed to send active page to board: p1",
+        )
+        response = client.post("/force-refresh")
+        assert response.status_code == 500
+        assert "Failed to send active page to board: p1" in response.json()["detail"]
+
+    def test_force_refresh_success_reports_sent_flag(self, client, mock_service):
+        mock_service.check_and_send_active_page_with_status.return_value = (True, None)
+        response = client.post("/force-refresh")
+        assert response.status_code == 200
+        assert response.json()["sent"] is True
 
 
 class TestDisplaySettings:
@@ -973,7 +1324,9 @@ class TestDisplaySettings:
         """Update display settings."""
         response = client.put("/settings/display", json={"reduce_motion": True})
         assert response.status_code == 200
-        assert response.json()["status"] == "success"
+        # Bare DisplaySettings since the conventions pass (Phase 2, Task 8):
+        # the body is the stubbed service's settings, unwrapped.
+        assert response.json() == mock_settings_service.update_display_settings.return_value.to_dict()
         mock_settings_service.update_display_settings.assert_called_once()
 
     def test_get_display_settings(self, client, mock_settings_service):
@@ -1063,9 +1416,9 @@ class TestSendDisplay:
     def test_send_display_no_service(self, client):
         """No service returns 503."""
         with (
-            patch("src.api_server.get_display_service"),
-            patch("src.api_server.get_settings_service"),
-            patch("src.api_server.get_service", return_value=None),
+            patch("src.displays.routes.get_display_service"),
+            patch("src.displays.routes.get_settings_service"),
+            patch("src.displays.routes.get_service", return_value=None),
         ):
             response = client.post("/displays/weather/send")
             assert response.status_code == 503
@@ -1075,16 +1428,16 @@ class TestSendDisplay:
         svc = Mock()
         svc.vb_client = None
         with (
-            patch("src.api_server.get_display_service"),
-            patch("src.api_server.get_settings_service"),
-            patch("src.api_server.get_service", return_value=svc),
+            patch("src.displays.routes.get_display_service"),
+            patch("src.displays.routes.get_settings_service"),
+            patch("src.displays.routes.get_service", return_value=svc),
         ):
             response = client.post("/displays/weather/send")
             assert response.status_code == 503
 
     def test_send_display_unknown_type(self, client, mock_service, mock_settings_service):
         """Unknown display type → 400."""
-        with patch("src.api_server.get_display_service") as mock_ds:
+        with patch("src.displays.routes.get_display_service") as mock_ds:
             display_service = Mock()
             result = Mock()
             result.available = False
@@ -1096,7 +1449,7 @@ class TestSendDisplay:
 
     def test_send_display_not_available(self, client, mock_service, mock_settings_service):
         """Display not available → 503."""
-        with patch("src.api_server.get_display_service") as mock_ds:
+        with patch("src.displays.routes.get_display_service") as mock_ds:
             display_service = Mock()
             result = Mock()
             result.available = False
@@ -1110,9 +1463,9 @@ class TestSendDisplay:
         """Send display to board successfully."""
         mock_settings_service.should_send_to_board.return_value = True
         with (
-            patch("src.api_server.get_display_service") as mock_ds,
-            patch("src.api_server.text_to_board_array") as mock_ttba,
-            patch("src.api_server.resolve_dimensions") as mock_dims,
+            patch("src.displays.routes.get_display_service") as mock_ds,
+            patch("src.displays.routes.text_to_board_array") as mock_ttba,
+            patch("src.displays.routes.resolve_dimensions") as mock_dims,
         ):
             display_service = Mock()
             result = Mock()
@@ -1133,10 +1486,11 @@ class TestSendDisplay:
         """Board send failure → 500."""
         mock_settings_service.should_send_to_board.return_value = True
         mock_service.vb_client.send_characters.return_value = (False, False)
+        mock_service.vb_client.render.return_value = (False, False)
         with (
-            patch("src.api_server.get_display_service") as mock_ds,
-            patch("src.api_server.text_to_board_array") as mock_ttba,
-            patch("src.api_server.resolve_dimensions") as mock_dims,
+            patch("src.displays.routes.get_display_service") as mock_ds,
+            patch("src.displays.routes.text_to_board_array") as mock_ttba,
+            patch("src.displays.routes.resolve_dimensions") as mock_dims,
         ):
             display_service = Mock()
             result = Mock()
@@ -1154,7 +1508,7 @@ class TestSendDisplay:
 
     def test_send_display_target_override(self, client, mock_service, mock_settings_service):
         """Explicit target=ui skips board send."""
-        with patch("src.api_server.get_display_service") as mock_ds:
+        with patch("src.displays.routes.get_display_service") as mock_ds:
             display_service = Mock()
             result = Mock()
             result.available = True
@@ -1172,23 +1526,37 @@ class TestSendPage:
     """Tests for POST /pages/{page_id}/send."""
 
     def test_send_page_no_service(self, client):
-        """No service → 503."""
+        """No display service → 503.
+
+        The stubs must be on ``src.pages.routes``: the handler moved there in
+        Phase 2 slice 3 and binds its collaborators at import time. Stubbing
+        ``src.api_server.get_service`` steered nothing — the handler built a
+        *real* ``DisplayService`` (with ``vb_client=None``, and cached in
+        ``src.display_runtime._service`` for every later test in the worker)
+        and the 503 came from that. Swapping the stub for a healthy ``Mock()``
+        still gave 503.
+        """
         with (
-            patch("src.api_server.get_page_service"),
-            patch("src.api_server.get_settings_service"),
-            patch("src.api_server.get_service", return_value=None),
+            patch("src.pages.routes.get_page_service"),
+            patch("src.pages.routes.get_settings_service"),
+            patch("src.pages.routes.get_service", return_value=None),
         ):
             response = client.post("/pages/page1/send")
-            assert response.status_code == 503
+        assert response.status_code == 503
 
     def test_send_page_not_found(self, client, mock_service, mock_settings_service):
-        """Page not found → 404."""
-        with patch("src.api_server.get_page_service") as mock_ps:
+        """Page not found → 404.
+
+        Stubbed on the pages router, which is what the handler reads. With the
+        ``src.api_server`` target the verdict came from the real (empty) page
+        store, so making the page *exist* still gave 404.
+        """
+        with patch("src.pages.routes.get_page_service") as mock_ps:
             ps = Mock()
             ps.get_page.return_value = None
             mock_ps.return_value = ps
             response = client.post("/pages/nonexistent/send")
-            assert response.status_code == 404
+        assert response.status_code == 404
 
     def test_send_page_render_none(self, client, mock_service, mock_settings_service, mock_page_service):
         """Preview returns None → 404."""
@@ -1215,9 +1583,15 @@ class TestSendPage:
         """Send page to board successfully."""
         mock_settings_service.should_send_to_board.return_value = True
         with (
-            patch("src.api_server.Config") as mock_config,
-            patch("src.api_server.resolve_dimensions") as mock_dims,
-            patch("src.api_server.text_to_board_array") as mock_ttba,
+            # POST /pages/{page_id}/send lives in src/pages/routes.py since
+            # Phase 2 slice 3: the silence verdict is read through
+            # src.board_guards.Config, and the grid is built with the
+            # resolve_dimensions / text_to_board_array this router binds. The
+            # src.api_server.* names steer nothing here — with them, inverting
+            # every stub below left all ten tests green.
+            patch("src.board_guards.Config") as mock_config,
+            patch("src.pages.routes.resolve_dimensions") as mock_dims,
+            patch("src.pages.routes.text_to_board_array") as mock_ttba,
         ):
             mock_config.is_silence_mode_active.return_value = False
             mock_dims.return_value = Mock(rows=6, cols=22)
@@ -1230,7 +1604,9 @@ class TestSendPage:
     def test_send_page_silence_mode_blocks(self, client, mock_service, mock_settings_service, mock_page_service):
         """Silence mode blocks board send but does not error."""
         mock_settings_service.should_send_to_board.return_value = True
-        with patch("src.api_server.Config") as mock_config:
+        # _silence_active reads Config from src/board_guards.py since Phase 2
+        # slice 3, so the silence verdict is stubbed there.
+        with patch("src.board_guards.Config") as mock_config:
             mock_config.is_silence_mode_active.return_value = True
             response = client.post("/pages/page1/send")
             assert response.status_code == 200
@@ -1240,10 +1616,17 @@ class TestSendPage:
         """Board send failure → 500."""
         mock_settings_service.should_send_to_board.return_value = True
         mock_service.vb_client.send_characters.return_value = (False, False)
+        mock_service.vb_client.render.return_value = (False, False)
         with (
-            patch("src.api_server.Config") as mock_config,
-            patch("src.api_server.resolve_dimensions") as mock_dims,
-            patch("src.api_server.text_to_board_array") as mock_ttba,
+            # POST /pages/{page_id}/send lives in src/pages/routes.py since
+            # Phase 2 slice 3: the silence verdict is read through
+            # src.board_guards.Config, and the grid is built with the
+            # resolve_dimensions / text_to_board_array this router binds. The
+            # src.api_server.* names steer nothing here — with them, inverting
+            # every stub below left all ten tests green.
+            patch("src.board_guards.Config") as mock_config,
+            patch("src.pages.routes.resolve_dimensions") as mock_dims,
+            patch("src.pages.routes.text_to_board_array") as mock_ttba,
         ):
             mock_config.is_silence_mode_active.return_value = False
             mock_dims.return_value = Mock(rows=6, cols=22)
@@ -1259,9 +1642,15 @@ class TestSendPage:
     def test_send_page_target_board(self, client, mock_service, mock_settings_service, mock_page_service):
         """Explicit target=board sends to board."""
         with (
-            patch("src.api_server.Config") as mock_config,
-            patch("src.api_server.resolve_dimensions") as mock_dims,
-            patch("src.api_server.text_to_board_array") as mock_ttba,
+            # POST /pages/{page_id}/send lives in src/pages/routes.py since
+            # Phase 2 slice 3: the silence verdict is read through
+            # src.board_guards.Config, and the grid is built with the
+            # resolve_dimensions / text_to_board_array this router binds. The
+            # src.api_server.* names steer nothing here — with them, inverting
+            # every stub below left all ten tests green.
+            patch("src.board_guards.Config") as mock_config,
+            patch("src.pages.routes.resolve_dimensions") as mock_dims,
+            patch("src.pages.routes.text_to_board_array") as mock_ttba,
         ):
             mock_config.is_silence_mode_active.return_value = False
             mock_dims.return_value = Mock(rows=6, cols=22)
@@ -1334,6 +1723,7 @@ class TestDebugBlankErrorPaths:
         ):
             bc = Mock()
             bc.send_characters.return_value = (False, False)
+            bc.render.return_value = (False, False)
             mock_bc.return_value = bc
             ss = Mock()
             ss.should_send_to_board.return_value = True
@@ -1382,6 +1772,7 @@ class TestDebugFillErrorPaths:
         ):
             bc = Mock()
             bc.send_characters.return_value = (False, False)
+            bc.render.return_value = (False, False)
             mock_bc.return_value = bc
             ss = Mock()
             ss.should_send_to_board.return_value = True
@@ -1446,10 +1837,11 @@ class TestDebugInfoErrorPaths:
             patch("src.api_server._format_uptime", return_value="1h"),
             patch("src.api_server.__version__", "1.0.0"),
             patch("src.time_service.get_time_service") as mock_ts,
-            patch("src.api_server.text_to_board_array") as mock_ttba,
+            patch("src.board_api.routes.text_to_board_array") as mock_ttba,
         ):
             bc = Mock()
             bc.send_characters.return_value = (False, False)
+            bc.render.return_value = (False, False)
             mock_bc.return_value = bc
             ss = Mock()
             ss.should_send_to_board.return_value = True
@@ -1476,7 +1868,7 @@ class TestDebugInfoErrorPaths:
             patch("src.api_server._format_uptime", return_value="1h"),
             patch("src.api_server.__version__", "1.0.0"),
             patch("src.time_service.get_time_service") as mock_ts,
-            patch("src.api_server.text_to_board_array") as mock_ttba,
+            patch("src.board_api.routes.text_to_board_array") as mock_ttba,
         ):
             bc = Mock()
             bc.send_characters.side_effect = Exception("error")
@@ -1500,28 +1892,25 @@ class TestDebugTestConnectionErrorPaths:
     """Additional tests for POST /debug/test-connection."""
 
     def test_connection_failed(self, client):
-        """Connection test returns disconnected."""
+        """An unreachable board is a 503, not a 200 carrying status=error."""
         with patch("src.api_server._get_board_client") as mock_bc:
             bc = Mock()
             bc.test_connection.return_value = False
             mock_bc.return_value = bc
             response = client.post("/debug/test-connection")
-            data = response.json()
-            assert data["connected"] is False
-            assert data["status"] == "error"
+            assert response.status_code == 503
+            assert response.json()["detail"]
 
     def test_connection_exception(self, client):
-        """Exception during connection test."""
+        """Exception during connection test surfaces as a 500."""
         with patch("src.api_server._get_board_client") as mock_bc:
             bc = Mock()
             bc.test_connection.side_effect = RuntimeError("timeout")
             mock_bc.return_value = bc
             response = client.post("/debug/test-connection")
-            data = response.json()
-            assert data["connected"] is False
-            # Generic message — exception details are logged, not leaked.
-            assert data["status"] == "error"
-            assert data["message"]
+            assert response.status_code == 500
+            # Generic detail — exception details are logged, not leaked.
+            assert "timeout" not in response.json()["detail"]
 
 
 class TestDebugClearCacheErrorPaths:
@@ -1561,26 +1950,31 @@ class TestPluginErrors:
     def test_plugin_errors_system_available(self, client):
         """Plugin errors when system is available."""
         with (
-            patch("src.api_server.PLUGIN_SYSTEM_AVAILABLE", True),
-            patch("src.api_server.get_plugin_registry") as mock_reg,
+            patch("src.plugins.routes.PLUGIN_SYSTEM_AVAILABLE", True),
+            patch("src.plugins.routes.get_plugin_registry") as mock_reg,
         ):
             registry = Mock()
-            registry.get_load_errors.return_value = {"bad_plugin": "ImportError"}
+            # A list, and a real breaker map: PluginErrorsResponse types both
+            # now, so the bare Mock this used to hand back is rejected.
+            registry.get_load_errors.return_value = {"bad_plugin": ["ImportError"]}
+            registry.get_fetch_breaker_status.return_value = {}
             mock_reg.return_value = registry
             response = client.get("/plugins/errors")
             assert response.status_code == 200
             data = response.json()
             assert data["plugin_system_enabled"] is True
-            assert "bad_plugin" in data["errors"]
+            assert data["errors"] == {"bad_plugin": ["ImportError"]}
+            assert data["fetch_breakers"] == {}
 
     def test_plugin_errors_system_unavailable(self, client):
         """Plugin errors when system is unavailable."""
-        with patch("src.api_server.PLUGIN_SYSTEM_AVAILABLE", False):
+        with patch("src.plugins.routes.PLUGIN_SYSTEM_AVAILABLE", False):
             response = client.get("/plugins/errors")
             assert response.status_code == 200
             data = response.json()
             assert data["plugin_system_enabled"] is False
             assert data["errors"] == {}
+            assert data["fetch_breakers"] == {}
 
 
 class TestPluginRegistry:
@@ -1589,8 +1983,8 @@ class TestPluginRegistry:
     def test_registry_list(self, client):
         """List registry plugins."""
         with (
-            patch("src.api_server.PLUGIN_SYSTEM_AVAILABLE", True),
-            patch("src.api_server.get_plugin_registry") as mock_reg,
+            patch("src.plugins.routes.PLUGIN_SYSTEM_AVAILABLE", True),
+            patch("src.plugins.routes.get_plugin_registry") as mock_reg,
         ):
             registry = Mock()
             registry.get_registry_entries.return_value = [{"id": "weather", "name": "Weather", "installed": True}]
@@ -1601,7 +1995,7 @@ class TestPluginRegistry:
 
     def test_registry_unavailable(self, client):
         """Plugin system unavailable → 503."""
-        with patch("src.api_server.PLUGIN_SYSTEM_AVAILABLE", False):
+        with patch("src.plugins.routes.PLUGIN_SYSTEM_AVAILABLE", False):
             response = client.get("/plugins/registry")
             assert response.status_code == 503
 
@@ -1612,19 +2006,34 @@ class TestPluginUpdates:
     def test_get_updates(self, client):
         """Get cached update status."""
         with (
-            patch("src.api_server.PLUGIN_SYSTEM_AVAILABLE", True),
-            patch("src.api_server.get_plugin_registry") as mock_reg,
+            patch("src.plugins.routes.PLUGIN_SYSTEM_AVAILABLE", True),
+            patch("src.plugins.routes.get_plugin_registry") as mock_reg,
         ):
             registry = Mock()
             registry.get_update_status.return_value = {"my_plugin": True}
+            registry.get_update_blocked_reasons.return_value = {}
             mock_reg.return_value = registry
             response = client.get("/plugins/updates")
             assert response.status_code == 200
             assert response.json()["updates"]["my_plugin"] is True
 
+    def test_get_updates_includes_blocked_reasons(self, client):
+        """Held-back updates are reported with the reason they were held back."""
+        with (
+            patch("src.plugins.routes.PLUGIN_SYSTEM_AVAILABLE", True),
+            patch("src.plugins.routes.get_plugin_registry") as mock_reg,
+        ):
+            registry = Mock()
+            registry.get_update_status.return_value = {"my_plugin": False}
+            registry.get_update_blocked_reasons.return_value = {"my_plugin": "needs FiestaBoard >=99.0.0"}
+            mock_reg.return_value = registry
+            response = client.get("/plugins/updates")
+            assert response.status_code == 200
+            assert response.json()["blocked"] == {"my_plugin": "needs FiestaBoard >=99.0.0"}
+
     def test_get_updates_unavailable(self, client):
         """Plugin system unavailable → 503."""
-        with patch("src.api_server.PLUGIN_SYSTEM_AVAILABLE", False):
+        with patch("src.plugins.routes.PLUGIN_SYSTEM_AVAILABLE", False):
             response = client.get("/plugins/updates")
             assert response.status_code == 503
 
@@ -1635,8 +2044,8 @@ class TestTriggerPluginUpdateCheck:
     def test_trigger_check(self, client):
         """Trigger update check."""
         with (
-            patch("src.api_server.PLUGIN_SYSTEM_AVAILABLE", True),
-            patch("src.api_server.get_plugin_registry") as mock_reg,
+            patch("src.plugins.routes.PLUGIN_SYSTEM_AVAILABLE", True),
+            patch("src.plugins.routes.get_plugin_registry") as mock_reg,
         ):
             registry = Mock()
             registry.check_for_updates.return_value = {"plugin_a": True, "plugin_b": False}
@@ -1650,7 +2059,7 @@ class TestTriggerPluginUpdateCheck:
 
     def test_trigger_check_unavailable(self, client):
         """Plugin system unavailable → 503."""
-        with patch("src.api_server.PLUGIN_SYSTEM_AVAILABLE", False):
+        with patch("src.plugins.routes.PLUGIN_SYSTEM_AVAILABLE", False):
             response = client.post("/plugins/updates/check")
             assert response.status_code == 503
 
@@ -1663,33 +2072,57 @@ class TestTriggerPluginUpdateCheck:
 class TestStocksSearch:
     """Tests for GET /stocks/search."""
 
-    def test_search_success(self, client):
-        """Search stock symbols successfully."""
-        with patch("src.utils.stocks.StocksSource") as MockStocks, patch("src.api_server.Config") as mock_config:
-            mock_config.FINNHUB_API_KEY = "test_finnhub_key"
+    @staticmethod
+    def _config_manager_with_stocks(plugin_config):
+        """Stub the source the handler actually reads the Finnhub key from.
+
+        ``Config.FINNHUB_API_KEY`` does not exist anywhere in ``src/``; these
+        tests used to stub it and both of them therefore exercised the same
+        ``finnhub_api_key=None`` branch. The key is a **stocks plugin
+        setting**, read via ``get_config_manager().get_plugin_config("stocks")``.
+        """
+        cm = Mock()
+        cm.get_plugin_config.return_value = plugin_config
+        return cm
+
+    def test_search_passes_the_configured_finnhub_key_through(self, client):
+        """A key on the stocks plugin reaches StocksSource.search_symbols."""
+        cm = self._config_manager_with_stocks({"finnhub_api_key": "test_finnhub_key"})
+        with (
+            patch("src.utils.stocks.StocksSource") as MockStocks,
+            patch("src.api_server.get_config_manager", return_value=cm),
+        ):
             MockStocks.search_symbols.return_value = [{"symbol": "GOOG", "name": "Alphabet Inc."}]
             response = client.get("/stocks/search?query=GOOG")
-            assert response.status_code == 200
-            data = response.json()
-            assert data["count"] == 1
-            assert data["symbols"][0]["symbol"] == "GOOG"
+        assert response.status_code == 200
+        data = response.json()
+        assert data["count"] == 1
+        assert data["symbols"][0]["symbol"] == "GOOG"
+        MockStocks.search_symbols.assert_called_once_with(query="GOOG", limit=10, finnhub_api_key="test_finnhub_key")
 
-    def test_search_no_api_key(self, client):
-        """Search without API key uses fallback."""
-        with patch("src.utils.stocks.StocksSource") as MockStocks, patch("src.api_server.Config") as mock_config:
-            mock_config.FINNHUB_API_KEY = None
+    def test_search_without_a_finnhub_key_falls_back_to_the_curated_list(self, client):
+        """No key on the stocks plugin → the source is called with None."""
+        cm = self._config_manager_with_stocks({})
+        with (
+            patch("src.utils.stocks.StocksSource") as MockStocks,
+            patch("src.api_server.get_config_manager", return_value=cm),
+        ):
             MockStocks.search_symbols.return_value = []
             response = client.get("/stocks/search?query=XYZ&limit=5")
-            assert response.status_code == 200
-            assert response.json()["count"] == 0
+        assert response.status_code == 200
+        assert response.json()["count"] == 0
+        MockStocks.search_symbols.assert_called_once_with(query="XYZ", limit=5, finnhub_api_key=None)
 
     def test_search_exception(self, client):
         """Exception during search → 500."""
-        with patch("src.utils.stocks.StocksSource") as MockStocks, patch("src.api_server.Config") as mock_config:
-            mock_config.FINNHUB_API_KEY = None
+        cm = self._config_manager_with_stocks({})
+        with (
+            patch("src.utils.stocks.StocksSource") as MockStocks,
+            patch("src.api_server.get_config_manager", return_value=cm),
+        ):
             MockStocks.search_symbols.side_effect = RuntimeError("API down")
             response = client.get("/stocks/search?query=GOOG")
-            assert response.status_code == 500
+        assert response.status_code == 500
 
 
 class TestStocksValidate:

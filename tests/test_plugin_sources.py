@@ -1,11 +1,17 @@
 """Tests for the external plugin sources module."""
 
 import json
+import os
+import shutil
 import subprocess
 from pathlib import Path
 from unittest import mock
 
-from src.plugins.loader import _check_version_constraint, _parse_version
+from src.plugins.loader import (
+    _check_version_constraint,
+    _get_fiestaboard_version,
+    _parse_version,
+)
 from src.plugins.sources import (
     PluginSource,
     RegistryEntry,
@@ -66,6 +72,16 @@ class TestRegistryEntry:
         assert entry.plugin_id == "foo"
         assert entry.repository == ""
         assert entry.branch == ""
+
+    def test_from_dict_carries_declared_plugin_type(self):
+        """A registry entry declaring a transition plugin stays a transition plugin."""
+        entry = RegistryEntry.from_dict({"id": "typewriter", "name": "Typewriter", "plugin_type": "transition"})
+        assert entry.plugin_type == "transition"
+
+    def test_from_dict_defaults_plugin_type_to_data(self):
+        """Existing entries omit plugin_type entirely; they are data plugins."""
+        entry = RegistryEntry.from_dict({"id": "foo", "name": "Foo"})
+        assert entry.plugin_type == "data"
 
 
 # ── Naming convention ────────────────────────────────────────────────────────
@@ -192,6 +208,60 @@ class TestGitUrlValidation:
         assert ok
 
 
+# ── _validate_git_ref ────────────────────────────────────────────────────────
+
+
+class TestValidateGitRef:
+    """The allow-list that keeps a user-supplied branch safe as a git argument.
+
+    ``POST /plugins/install`` lets a caller name a branch, and that value ends
+    up as the last element of ``["git", "fetch", "--depth=1", "origin", ...]``.
+    Nothing is escaped anywhere, and nothing needs to be: ``subprocess.run``
+    gets a list with ``shell=False``, so there is no shell to inject into, and
+    this allow-list is what stops the value being read as an *option* instead.
+
+    CodeQL reports the fetch as ``py/command-line-injection`` (alert #56)
+    because it cannot see this guard. These tests pin the properties that make
+    that a false positive, so it cannot quietly stop being one.
+    """
+
+    def test_rejects_option_like_ref(self):
+        """A leading '-' would make git parse the branch as a flag."""
+        from src.plugins.sources import _validate_git_ref
+
+        for ref in ("--upload-pack=touch /tmp/pwned", "-o", "--exec=sh"):
+            ok, _ = _validate_git_ref(ref)
+            assert not ok, f"option-like ref {ref!r} must be rejected"
+
+    def test_rejects_shell_metacharacters_and_whitespace(self):
+        from src.plugins.sources import _validate_git_ref
+
+        for ref in ("main; rm -rf /", "main && id", "main|id", "$(id)", "`id`", "main branch", "main\nx"):
+            ok, _ = _validate_git_ref(ref)
+            assert not ok, f"ref {ref!r} must be rejected"
+
+    def test_rejects_traversal_and_refspec_punctuation(self):
+        from src.plugins.sources import _validate_git_ref
+
+        for ref in ("../../etc/passwd", "refs/heads/a..b", "a//b", "main:refs/heads/hijack"):
+            ok, _ = _validate_git_ref(ref)
+            assert not ok, f"ref {ref!r} must be rejected"
+
+    def test_rejects_non_strings_and_empty(self):
+        from src.plugins.sources import _validate_git_ref
+
+        assert not _validate_git_ref(None)[0]
+        assert not _validate_git_ref(["main"])[0]
+        assert not _validate_git_ref("")[0]
+
+    def test_accepts_ordinary_branch_and_tag_names(self):
+        from src.plugins.sources import _validate_git_ref
+
+        for ref in ("main", "develop", "release/1.2.3", "v8.32.16", "feat_x-1"):
+            ok, err = _validate_git_ref(ref)
+            assert ok, f"ref {ref!r} should be accepted, got {err!r}"
+
+
 # ── clone_or_update_repo ─────────────────────────────────────────────────────
 
 
@@ -237,6 +307,24 @@ class TestCloneOrUpdateRepo:
         fetch_cmd = mock_run.call_args_list[1][0][0]
         assert "fetch" in fetch_cmd
         assert fetch_cmd[-1] == "develop", "Explicit branch should be the final fetch argument"
+
+    @mock.patch("src.plugins.sources.subprocess.run")
+    def test_rejects_option_like_branch_before_running_git(self, mock_run, tmp_path):
+        """A branch git could read as an option never reaches a subprocess.
+
+        This is the sink CodeQL flags as py/command-line-injection (#56). The
+        argv is a list and there is no shell, so the only real risk is option
+        injection — and the branch is refused before any git runs at all.
+        """
+        ok, err = clone_or_update_repo(
+            "https://github.com/Org/repo",
+            "my_plugin",
+            branch="--upload-pack=touch /tmp/pwned",
+            external_dir=tmp_path,
+        )
+        assert not ok
+        assert "Invalid branch/tag" in err
+        mock_run.assert_not_called()
 
     @mock.patch("src.plugins.sources.subprocess.run")
     def test_fetch_reset_existing(self, mock_run, tmp_path):
@@ -424,8 +512,26 @@ class TestCloneOrUpdateRepoErrorMessages:
 # ── install helpers ──────────────────────────────────────────────────────────
 
 
+def _fake_clone_producing_a_plugin(repo_url, plugin_id, branch, external_dir):
+    """Stand in for a real clone by leaving a usable plugin behind.
+
+    A clone that reports success but writes nothing is not a state git can
+    produce, and since install now verifies what actually landed
+    (sources._install_and_verify), returning (True, "") alone would have the
+    install correctly rejected.
+    """
+    plugin_dir = Path(external_dir) / plugin_id
+    plugin_dir.mkdir(parents=True, exist_ok=True)
+    (plugin_dir / "__init__.py").write_text("class Plugin:\n    pass\n")
+    (plugin_dir / "manifest.json").write_text(json.dumps({"id": plugin_id, "name": plugin_id, "version": "1.0.0"}))
+    return True, ""
+
+
 class TestInstallRegistryPlugin:
-    @mock.patch("src.plugins.sources.clone_or_update_repo", return_value=(True, ""))
+    @mock.patch(
+        "src.plugins.sources.clone_or_update_repo",
+        side_effect=_fake_clone_producing_a_plugin,
+    )
     def test_valid_install(self, mock_clone, tmp_path):
         entry = RegistryEntry(
             plugin_id="ext_weather",
@@ -436,6 +542,18 @@ class TestInstallRegistryPlugin:
         assert ok
         assert err == ""
         mock_clone.assert_called_once()
+
+    @mock.patch("src.plugins.sources.clone_or_update_repo", return_value=(True, ""))
+    def test_clone_that_produces_nothing_usable_is_rejected(self, mock_clone, tmp_path):
+        """A "successful" clone leaving no plugin behind must not install."""
+        entry = RegistryEntry(
+            plugin_id="ext_weather",
+            name="Weather",
+            repository="https://github.com/FiestaBoard/fiestaboard-plugin--ext-weather",
+        )
+        ok, err = install_registry_plugin(entry, external_dir=tmp_path)
+        assert ok is False
+        assert "was not installed" in err
 
     def test_rejects_bad_name(self, tmp_path):
         entry = RegistryEntry(
@@ -449,7 +567,10 @@ class TestInstallRegistryPlugin:
 
 
 class TestInstallGitPlugin:
-    @mock.patch("src.plugins.sources.clone_or_update_repo", return_value=(True, ""))
+    @mock.patch(
+        "src.plugins.sources.clone_or_update_repo",
+        side_effect=_fake_clone_producing_a_plugin,
+    )
     def test_install_custom(self, mock_clone, tmp_path):
         ok, err = install_git_plugin(
             "https://github.com/someone/my-cool-plugin",
@@ -458,7 +579,10 @@ class TestInstallGitPlugin:
         assert ok
         assert err == ""
 
-    @mock.patch("src.plugins.sources.clone_or_update_repo", return_value=(True, ""))
+    @mock.patch(
+        "src.plugins.sources.clone_or_update_repo",
+        side_effect=_fake_clone_producing_a_plugin,
+    )
     def test_install_with_override_id(self, mock_clone, tmp_path):
         ok, _err = install_git_plugin(
             "https://github.com/someone/repo",
@@ -679,21 +803,303 @@ class TestCheckPluginUpdateAvailable:
     def test_no_update_when_shas_match(self, _remote, _local, tmp_path):
         d = tmp_path / "plugin"
         d.mkdir()
-        assert not check_plugin_update_available(d)
+        assert check_plugin_update_available(d).available is False
 
     @mock.patch("src.plugins.sources.get_local_head_sha", return_value="abc")
     @mock.patch("src.plugins.sources.get_remote_head_sha", return_value="def")
     def test_update_available_when_shas_differ(self, _remote, _local, tmp_path):
         d = tmp_path / "plugin"
         d.mkdir()
-        assert check_plugin_update_available(d)
+        assert check_plugin_update_available(d).available is True
 
     @mock.patch("src.plugins.sources.get_local_head_sha", return_value=None)
     @mock.patch("src.plugins.sources.get_remote_head_sha", return_value="def")
     def test_no_update_when_local_sha_missing(self, _remote, _local, tmp_path):
         d = tmp_path / "plugin"
         d.mkdir()
-        assert not check_plugin_update_available(d)
+        assert check_plugin_update_available(d).available is False
+
+
+# ── incoming-version guard ───────────────────────────────────────────────────
+
+
+_GIT_ENV = {
+    "GIT_CONFIG_GLOBAL": os.devnull,
+    "GIT_CONFIG_SYSTEM": os.devnull,
+    "GIT_AUTHOR_NAME": "Test",
+    "GIT_AUTHOR_EMAIL": "test@example.com",
+    "GIT_COMMITTER_NAME": "Test",
+    "GIT_COMMITTER_EMAIL": "test@example.com",
+    "GIT_TERMINAL_PROMPT": "0",
+}
+
+
+def _git(cwd: Path, *args: str) -> str:
+    result = subprocess.run(
+        ["git", "-C", str(cwd), *args],
+        check=True,
+        capture_output=True,
+        text=True,
+        env={**os.environ, **_GIT_ENV},
+    )
+    return result.stdout.strip()
+
+
+def _origin_and_clone(tmp_path: Path, incoming_manifest: str) -> tuple[Path, Path]:
+    """Build a real origin repo plus a clone one commit behind it.
+
+    The clone's checked-out manifest is always a plain, current-core manifest;
+    ``incoming_manifest`` is only ever the *remote* head's content, so any test
+    that reads it proves the read came from the remote and not from disk.
+    """
+    origin = tmp_path / "origin"
+    origin.mkdir()
+    _git(origin, "init", "--quiet", "--initial-branch=main")
+    (origin / "manifest.json").write_text(
+        json.dumps({"id": "p", "name": "P", "version": "1.0.0"}),
+        encoding="utf-8",
+    )
+    _git(origin, "add", "-A")
+    _git(origin, "commit", "--quiet", "-m", "initial")
+
+    clone = tmp_path / "clone"
+    subprocess.run(
+        ["git", "clone", "--quiet", str(origin), str(clone)],
+        check=True,
+        capture_output=True,
+        text=True,
+        env={**os.environ, **_GIT_ENV},
+    )
+
+    (origin / "manifest.json").write_text(incoming_manifest, encoding="utf-8")
+    _git(origin, "add", "-A")
+    _git(origin, "commit", "--quiet", "-m", "incoming")
+    return origin, clone
+
+
+def _check_against_real_remote(origin: Path, clone: Path):
+    """Run the check with the real SHAs of ``origin``/``clone``.
+
+    Only the two SHA helpers are stubbed, and only because
+    :func:`get_remote_head_sha` refuses non-HTTPS remotes.  The manifest read
+    under test still runs for real against the local origin.
+    """
+    local_sha = _git(clone, "rev-parse", "HEAD")
+    remote_sha = _git(origin, "rev-parse", "HEAD")
+    with (
+        mock.patch("src.plugins.sources.get_local_head_sha", return_value=local_sha),
+        mock.patch("src.plugins.sources.get_remote_head_sha", return_value=remote_sha),
+    ):
+        return check_plugin_update_available(clone)
+
+
+class TestUpdateBlockedByCoreVersion:
+    """An update must not be offered when the incoming manifest declares a
+    ``fiestaboard_version`` floor above the running core.
+
+    The loader rejects a manifest it cannot parse outright (``load_manifest``
+    returns *None*), which uninstalls the plugin from the user's board in
+    practice.  Auto-update polls hourly and is on by default while core
+    updates are a manual image pull, so without this guard a plugin can
+    update past its core and silently vanish.
+    """
+
+    def test_no_update_when_incoming_requires_newer_core(self, tmp_path):
+        origin, clone = _origin_and_clone(
+            tmp_path,
+            json.dumps(
+                {
+                    "id": "p",
+                    "name": "P",
+                    "version": "2.0.0",
+                    "fiestaboard_version": ">=99.0.0",
+                }
+            ),
+        )
+        local_sha = _git(clone, "rev-parse", "HEAD")
+        remote_sha = _git(origin, "rev-parse", "HEAD")
+
+        with (
+            mock.patch("src.plugins.sources.get_local_head_sha", return_value=local_sha),
+            mock.patch("src.plugins.sources.get_remote_head_sha", return_value=remote_sha),
+        ):
+            result = check_plugin_update_available(clone)
+
+        assert result.available is False
+        assert ">=99.0.0" in result.blocked_reason
+
+    def test_update_offered_when_running_core_satisfies_floor(self, tmp_path):
+        origin, clone = _origin_and_clone(
+            tmp_path,
+            json.dumps(
+                {
+                    "id": "p",
+                    "name": "P",
+                    "version": "2.0.0",
+                    "fiestaboard_version": ">=1.0.0",
+                }
+            ),
+        )
+        result = _check_against_real_remote(origin, clone)
+
+        assert result.available is True
+        assert result.blocked_reason == ""
+
+    def test_update_offered_when_incoming_manifest_has_no_version(self, tmp_path):
+        origin, clone = _origin_and_clone(
+            tmp_path,
+            json.dumps({"id": "p", "name": "P", "version": "2.0.0"}),
+        )
+        result = _check_against_real_remote(origin, clone)
+
+        assert result.available is True
+        assert result.blocked_reason == ""
+
+    def test_update_offered_when_remote_manifest_is_malformed_json(self, tmp_path):
+        origin, clone = _origin_and_clone(tmp_path, "{ not json at all")
+        result = _check_against_real_remote(origin, clone)
+
+        assert result.available is True
+        assert result.blocked_reason == ""
+
+    def test_update_offered_when_remote_manifest_cannot_be_read(self, tmp_path):
+        """The remote is unreachable — fail open, and let no exception escape."""
+        origin, clone = _origin_and_clone(
+            tmp_path,
+            json.dumps(
+                {
+                    "id": "p",
+                    "name": "P",
+                    "version": "2.0.0",
+                    "fiestaboard_version": ">=99.0.0",
+                }
+            ),
+        )
+        remote_sha = _git(origin, "rev-parse", "HEAD")
+        local_sha = _git(clone, "rev-parse", "HEAD")
+        shutil.rmtree(origin)
+
+        with (
+            mock.patch("src.plugins.sources.get_local_head_sha", return_value=local_sha),
+            mock.patch("src.plugins.sources.get_remote_head_sha", return_value=remote_sha),
+        ):
+            result = check_plugin_update_available(clone)
+
+        assert result.available is True
+        assert result.blocked_reason == ""
+
+    def test_update_offered_when_remote_head_has_no_manifest(self, tmp_path):
+        origin, clone = _origin_and_clone(tmp_path, "{}")
+        (origin / "manifest.json").unlink()
+        _git(origin, "add", "-A")
+        _git(origin, "commit", "--quiet", "-m", "drop manifest")
+
+        result = _check_against_real_remote(origin, clone)
+
+        assert result.available is True
+        assert result.blocked_reason == ""
+
+    def test_update_offered_when_remote_manifest_is_not_an_object(self, tmp_path):
+        origin, clone = _origin_and_clone(tmp_path, json.dumps(["not", "a", "manifest"]))
+        result = _check_against_real_remote(origin, clone)
+
+        assert result.available is True
+        assert result.blocked_reason == ""
+
+    def test_detached_clone_still_reads_the_remote_floor(self, tmp_path):
+        """A clone checked out at a tag reports "HEAD" as its branch name."""
+        origin, clone = _origin_and_clone(
+            tmp_path,
+            json.dumps(
+                {
+                    "id": "p",
+                    "name": "P",
+                    "version": "2.0.0",
+                    "fiestaboard_version": ">=99.0.0",
+                }
+            ),
+        )
+        _git(clone, "checkout", "--quiet", "--detach", "HEAD")
+
+        result = _check_against_real_remote(origin, clone)
+
+        assert result.available is False
+        assert ">=99.0.0" in result.blocked_reason
+
+    def test_update_offered_when_constraint_is_unparseable(self, tmp_path):
+        origin, clone = _origin_and_clone(
+            tmp_path,
+            json.dumps(
+                {
+                    "id": "p",
+                    "name": "P",
+                    "version": "2.0.0",
+                    "fiestaboard_version": "whatever-comes-next",
+                }
+            ),
+        )
+        result = _check_against_real_remote(origin, clone)
+
+        assert result.available is True
+        assert result.blocked_reason == ""
+
+    def test_equal_version_satisfies_a_greater_or_equal_floor(self, tmp_path):
+        """Boundary: the running core exactly meets the floor it declares."""
+        origin, clone = _origin_and_clone(
+            tmp_path,
+            json.dumps(
+                {
+                    "id": "p",
+                    "name": "P",
+                    "version": "2.0.0",
+                    "fiestaboard_version": f">={_get_fiestaboard_version()}",
+                }
+            ),
+        )
+        result = _check_against_real_remote(origin, clone)
+
+        assert result.available is True
+        assert result.blocked_reason == ""
+
+    def test_no_update_when_shas_identical_and_remote_is_never_read(self, tmp_path):
+        _origin, clone = _origin_and_clone(
+            tmp_path,
+            json.dumps({"id": "p", "name": "P", "version": "2.0.0"}),
+        )
+        local_sha = _git(clone, "rev-parse", "HEAD")
+
+        with (
+            mock.patch("src.plugins.sources.get_local_head_sha", return_value=local_sha),
+            mock.patch("src.plugins.sources.get_remote_head_sha", return_value=local_sha),
+            mock.patch("src.plugins.sources._read_remote_manifest_version") as read_manifest,
+        ):
+            result = check_plugin_update_available(clone)
+
+        assert result.available is False
+        assert result.blocked_reason == ""
+        read_manifest.assert_not_called()
+
+    def test_check_does_not_modify_the_working_tree(self, tmp_path):
+        """The guard inspects the remote ref; it never pulls first and asks later."""
+        origin, clone = _origin_and_clone(
+            tmp_path,
+            json.dumps(
+                {
+                    "id": "p",
+                    "name": "P",
+                    "version": "2.0.0",
+                    "fiestaboard_version": ">=99.0.0",
+                }
+            ),
+        )
+        head_before = _git(clone, "rev-parse", "HEAD")
+        manifest_before = (clone / "manifest.json").read_text(encoding="utf-8")
+
+        _check_against_real_remote(origin, clone)
+
+        assert _git(clone, "rev-parse", "HEAD") == head_before
+        assert (clone / "manifest.json").read_text(encoding="utf-8") == manifest_before
+        assert _git(clone, "status", "--porcelain") == ""
 
 
 class TestRegistryPluginDependencies:

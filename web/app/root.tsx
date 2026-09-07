@@ -5,16 +5,17 @@
  * Renders the document shell, mounts the provider tree, and exposes
  * `<Outlet />` for nested routes. Localized `<title>` and
  * `<meta description>` are kept in sync via a `useEffect` on the locale.
- * The HTML `<base href>` is injected by nginx from `X-Ingress-Path` —
- * the browser uses it to resolve all relative asset URLs (Vite emits
- * `./assets/...`), which is how HA Ingress works without any
- * build-time `assetPrefix`.
+ *
+ * HA Ingress support: nginx sub_filter rewrites the absolute asset
+ * URLs in served bodies and the inlined React Router `"basename":"/"`
+ * hydration literal (entrypoint.sh::configure_ingress_path_rewrite);
+ * the SPA reads that basename back at runtime to prefix API calls
+ * (web/src/lib/base-path.ts). No `<base href>` is involved.
  */
 import "./globals.css";
-import "@fontsource-variable/geist";
-import "@fontsource-variable/geist-mono";
 
-import { useEffect, useState } from "react";
+import { Box, PageIconGradientDefs } from "@fiestaboard/ui";
+import { useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import { Links, Meta, Outlet, Scripts, ScrollRestoration } from "react-router";
 
@@ -34,7 +35,7 @@ import { ThemeColorMeta } from "@/components/theme-color-meta";
 import { Toaster } from "@/components/ui/sonner";
 import { WizardProvider } from "@/components/wizard-provider";
 import i18n from "@/i18n/i18next";
-import { readCookieString, shouldShowPride } from "@/lib/pride";
+import { appUrl } from "@/lib/base-path";
 
 import type { Route } from "./+types/root";
 
@@ -42,11 +43,29 @@ import type { Route } from "./+types/root";
 // `useTranslation` runs anywhere in the tree.
 void i18n;
 
+// Classic <script> injected into <head> so it executes during document
+// parsing, before the deferred module bundle. vite.config.ts's
+// `experimental.renderBuiltUrl` routes every JS-hosted asset URL through
+// this global, which prepends the React Router basename under HA Ingress
+// (nginx rewrites the inlined `"basename":"/"` hydration literal — see
+// web/src/lib/base-path.ts). The basename global is read lazily at call
+// time, so script ordering relative to the hydration context script
+// doesn't matter. Filenames arrive relative ("assets/chunk.js").
+const ASSET_URL_HELPER = `window.__fbAssetUrl=function(f){var c=window.__reactRouterContext,b=c&&c.basename;return((!b||b==="/")?"":b.replace(/\\/+$/,""))+"/"+f};`;
+
+// appUrl() wrapping matters for the CLIENT-side <Links /> re-render: at
+// prerender time `window` is undefined so these emit the plain absolute
+// paths into the HTML (which nginx sub_filter rewrites under Ingress),
+// but when React re-renders Links in the browser the hrefs are computed
+// fresh — without the runtime prefix they'd revert to the host root and
+// 404 inside Home Assistant. (There is deliberately no body-level
+// backtick sub_filter for /icons/ etc. — see entrypoint.sh — because it
+// would double-prefix these appUrl() literals.)
 export const links: Route.LinksFunction = () => [
-  { rel: "icon", href: "/favicon.ico", sizes: "any" },
-  { rel: "icon", href: "/icons/favicon-32x32.png", type: "image/png", sizes: "32x32" },
-  { rel: "apple-touch-icon", href: "/icons/apple-touch-icon.png" },
-  { rel: "manifest", href: "/manifest.json" },
+  { rel: "icon", href: appUrl("/favicon.ico"), sizes: "any" },
+  { rel: "icon", href: appUrl("/icons/favicon-32x32.png"), type: "image/png", sizes: "32x32" },
+  { rel: "apple-touch-icon", href: appUrl("/icons/apple-touch-icon.png") },
+  { rel: "manifest", href: appUrl("/manifest.json") },
 ];
 
 export const meta: Route.MetaFunction = () => [
@@ -66,29 +85,13 @@ export function Layout({ children }: { children: React.ReactNode }) {
   // we lean on i18next-browser-languagedetector and patch `<html lang>`
   // imperatively in `RootBody` once it boots.
   //
-  // `pride-month` gates the rainbow logo, dark sidebar base, WebGL aurora,
-  // and click-to-celebrate confetti via CSS rules in `globals.css`. The
-  // class lands on `<html>` BEFORE the theme hook adds `light`/`dark` —
-  // navigation tests compare html.class strings across theme toggles and
-  // depend on that insertion order (see `web/tests/navigation.spec.ts:72-101`).
-  //
-  // The initial className comes from useState (FOUC-free first paint in
-  // June). In SPA mode the prerender runs with `typeof document === "undefined"`
-  // so the `hide_festive_months` cookie can't be read at build time —
-  // `shouldShowPride` falls back to "active" in June. `suppressHydrationWarning`
-  // (kept for the theme hook's classList mutation) means React won't reconcile
-  // the `<html>` className across re-renders, so a re-render alone can't
-  // remove the class on the client. The effect below imperatively toggles
-  // it via classList — that way it composes with the theme hook's
-  // `dark`/`light` class without clobbering them.
-  const [initialIsPrideMonth] = useState(() => shouldShowPride(new Date(), readCookieString()));
-  useEffect(() => {
-    const active = shouldShowPride(new Date(), readCookieString());
-    document.documentElement.classList.toggle("pride-month", active);
-  }, []);
+  // `suppressHydrationWarning` is kept for the theme hook's classList
+  // mutation: it adds `light`/`dark` to `<html>` on the client, which React
+  // would otherwise try to reconcile away.
   return (
-    <html lang="en" className={initialIsPrideMonth ? "pride-month" : undefined} suppressHydrationWarning>
+    <html lang="en" suppressHydrationWarning>
       <head>
+        <script dangerouslySetInnerHTML={{ __html: ASSET_URL_HELPER }} />
         <Meta />
         <Links />
       </head>
@@ -138,18 +141,7 @@ function RootBody() {
 
   return (
     <>
-      <svg width="0" height="0" aria-hidden="true" style={{ position: "absolute" }}>
-        <defs>
-          <linearGradient id="page-icon-gradient" gradientUnits="userSpaceOnUse" x1="0" y1="0" x2="24" y2="24">
-            <stop offset="0%" stopColor="var(--icon-g1)" />
-            <stop offset="20%" stopColor="var(--icon-g2)" />
-            <stop offset="40%" stopColor="var(--icon-g3)" />
-            <stop offset="60%" stopColor="var(--icon-g4)" />
-            <stop offset="80%" stopColor="var(--icon-g5)" />
-            <stop offset="100%" stopColor="var(--icon-g6)" />
-          </linearGradient>
-        </defs>
-      </svg>
+      <PageIconGradientDefs />
       <Providers>
         <ThemeColorMeta />
         <ReduceMotionApplier />
@@ -185,5 +177,5 @@ function RootBody() {
  * is just the visible body content.
  */
 export function HydrateFallback() {
-  return <div style={{ minHeight: "100vh" }} />;
+  return <Box style={{ minHeight: "100vh" }} />;
 }

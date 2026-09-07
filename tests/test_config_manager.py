@@ -3,6 +3,7 @@
 import importlib
 import json
 import threading
+from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -34,34 +35,11 @@ def reset_singleton(tmp_path, monkeypatch):
     monkeypatch.delenv("BOARD_HOST", raising=False)
     monkeypatch.delenv("FB_HOST", raising=False)
 
-    ConfigManager._instance = None
-    ConfigManager._lock = threading.Lock()
-
-    # Pre-seed ConfigManager singleton with an empty tmp config so that
-    # SettingsService._apply_global_connection() doesn't migrate the real
-    # global config from data/config.json into the fresh settings instance.
-    empty_config_path = tmp_path / "_empty_config.json"
-    empty_config_path.write_text('{"board": {}, "features": {}, "general": {}}')
-    ConfigManager(config_path=str(empty_config_path))
-
-    # Reset SettingsService singleton and point it at an empty tmp settings
-    # file so validate() doesn't pick up a real configured board from data/
-    # (e.g. when tests run inside a populated dev container).
-    import src.settings.service as settings_service_module
-
-    settings_service_module._settings_service = settings_service_module.SettingsService(
-        settings_file=str(tmp_path / "settings.json")
-    )
-
-    # Now clear the ConfigManager singleton so each test can pin its own
-    # config_path via ConfigManager(config_path=...).
-    ConfigManager._instance = None
-    ConfigManager._lock = threading.Lock()
-
+    # Singleton + SettingsService isolation is handled by conftest's autouse
+    # ``_isolated_data_dir`` fixture (#1762): every default path resolves into
+    # this test's tmp dir and all singletons are dropped on both sides, so the
+    # old pre-seeding against the developer's real ``data/`` is gone.
     yield tmp_path
-
-    ConfigManager._instance = None
-    settings_service_module._settings_service = None
 
 
 # --- __init__ and _load_or_create ---
@@ -155,9 +133,11 @@ def test_merges_loaded_config_with_defaults_adds_missing_keys(tmp_path):
     board = cm.get_board()
     assert board["host"] == "192.168.1.1"
     assert "local_api_key" in board
+    # #1761: legacy feature blocks are no longer seeded from defaults, but a
+    # stored legacy block is preserved verbatim (the migration reads it).
     weather = cm.get_feature("weather")
     assert weather["enabled"] is True
-    assert "api_key" in weather
+    assert "api_key" not in weather
 
 
 # --- _deep_copy ---
@@ -328,6 +308,62 @@ def test_apply_env_overrides_does_not_override_existing_note_array_token(monkeyp
     assert cm.get_board()["note_array_token"] == "ui-stored-token"
 
 
+def test_apply_env_overrides_preserves_user_customized_api_mode(monkeypatch, tmp_path):
+    """A non-default api_mode stored in config (set via the wizard/UI) is not
+    clobbered by an env var — UI changes are preserved."""
+    monkeypatch.setenv("BOARD_API_MODE", "local")
+    config_path = tmp_path / "config.json"
+    config_path.write_text(json.dumps({"board": {"api_mode": "cloud"}, "features": {}, "general": {}}))
+    cm = ConfigManager(config_path=str(config_path))
+    assert cm.get_board()["api_mode"] == "cloud"
+
+
+def test_apply_env_overrides_preserves_user_chosen_value_equal_to_default(monkeypatch, tmp_path):
+    """A stored value that happens to equal the schema default is still the
+    user's choice and must not be replaced by an env var.
+
+    ``_apply_env_overrides`` cannot distinguish "user deliberately selected
+    the default" from "never configured", so it must never override a
+    present value. ``board.api_mode`` defaults to "local"; a user who picks
+    Local API in Settings or the setup wizard stores exactly that string,
+    and ``BOARD_API_MODE=cloud`` in the compose-loaded ``.env`` must not
+    silently flip it back.
+    """
+    monkeypatch.setenv("BOARD_API_MODE", "cloud")
+    config_path = tmp_path / "config.json"
+    config_path.write_text(json.dumps({"board": {"api_mode": "local"}, "features": {}, "general": {}}))
+    cm = ConfigManager(config_path=str(config_path))
+    assert cm.get_board()["api_mode"] == "local"
+
+
+def test_reload_does_not_revert_user_saved_board_api_mode(monkeypatch, tmp_path):
+    """``PUT /config/board`` calls ``Config.reload()`` inline, which re-runs
+    ``_apply_env_overrides``. A just-saved default-equal value must survive
+    that round-trip instead of reverting inside the same request.
+    """
+    monkeypatch.setenv("BOARD_API_MODE", "cloud")
+    config_path = tmp_path / "config.json"
+    config_path.write_text(json.dumps({"board": {"api_mode": "cloud"}, "features": {}, "general": {}}))
+    cm = ConfigManager(config_path=str(config_path))
+
+    cm.set_board({"api_mode": "local"})
+    assert cm.get_board()["api_mode"] == "local"
+
+    cm.reload()
+    assert cm.get_board()["api_mode"] == "local"
+
+
+def test_apply_env_overrides_preserves_user_chosen_default_timezone(monkeypatch, tmp_path):
+    """The same rule for ``general.timezone``, which feeds schedule rotations
+    and sunrise/sunset: a stored value equal to the default is not replaced.
+    """
+    monkeypatch.setenv("TIMEZONE", "Europe/Berlin")
+    config_path = tmp_path / "config.json"
+    config_path.write_text(json.dumps({"board": {}, "features": {}, "general": {"timezone": "America/Los_Angeles"}}))
+    cm = ConfigManager(config_path=str(config_path))
+    assert cm.get_general()["timezone"] == "America/Los_Angeles"
+
+
 def test_apply_env_overrides_invalid_int_value(monkeypatch, tmp_path):
     """Handles invalid int env var values."""
     monkeypatch.setenv("BOARD_TRANSITION_INTERVAL_MS", "not_a_number")
@@ -341,21 +377,6 @@ def test_apply_env_overrides_invalid_int_value(monkeypatch, tmp_path):
     cm = ConfigManager(config_path=str(config_path))
     board = cm.get_board()
     assert board.get("transition_interval_ms") is None
-
-
-def test_apply_env_overrides_invalid_float_value(monkeypatch, tmp_path):
-    """Handles invalid float env var values."""
-    monkeypatch.setenv("SURF_LATITUDE", "not_a_float")
-    config_path = tmp_path / "config.json"
-    config_data = {
-        "board": {},
-        "features": {"surf": {"latitude": None}},
-        "general": {},
-    }
-    config_path.write_text(json.dumps(config_data))
-    cm = ConfigManager(config_path=str(config_path))
-    surf = cm.get_feature("surf")
-    assert surf.get("latitude") != "not_a_float"
 
 
 # --- get_all and get_all_masked ---
@@ -466,23 +487,25 @@ def test_set_board_ignores_fields_not_in_default(tmp_path):
 
 
 def test_get_feature_returns_feature_config(tmp_path):
-    """get_feature returns feature config."""
+    """get_feature returns the silence_schedule system feature config."""
     config_path = tmp_path / "config.json"
     cm = ConfigManager(config_path=str(config_path))
-    weather = cm.get_feature("weather")
-    assert weather is not None
-    assert "enabled" in weather
-    assert "api_key" in weather
+    silence = cm.get_feature("silence_schedule")
+    assert silence is not None
+    assert "enabled" in silence
+    assert "start_time" in silence
 
 
 def test_get_feature_returns_default_if_not_in_config(tmp_path):
-    """get_feature returns default if feature not in config but in defaults."""
+    """get_feature falls back to defaults only for the silence_schedule feature."""
     config_path = tmp_path / "config.json"
     config_path.write_text(json.dumps({"board": {}, "features": {}, "general": {}}))
     cm = ConfigManager(config_path=str(config_path))
-    weather = cm.get_feature("weather")
-    assert weather is not None
-    assert weather["provider"] == "weatherapi"
+    silence = cm.get_feature("silence_schedule")
+    assert silence is not None
+    assert silence["mode"] == "freeze"
+    # Retired legacy feature blocks have no defaults anymore (#1761).
+    assert not cm.get_feature("weather")
 
 
 def test_get_feature_returns_none_for_unknown_feature(tmp_path):
@@ -496,14 +519,15 @@ def test_set_feature_updates_only_provided_fields(tmp_path):
     """set_feature updates only provided fields."""
     config_path = tmp_path / "config.json"
     cm = ConfigManager(config_path=str(config_path))
-    cm.set_feature("weather", {"enabled": True, "location": "Boston, MA"})
-    weather = cm.get_feature("weather")
-    assert weather["enabled"] is True
-    assert weather["location"] == "Boston, MA"
+    cm.set_feature("silence_schedule", {"enabled": True, "indicator_text": "SHUSH"})
+    silence = cm.get_feature("silence_schedule")
+    assert silence["enabled"] is True
+    assert silence["indicator_text"] == "SHUSH"
+    assert silence["mode"] == "freeze"  # untouched field keeps its default
 
 
-def test_set_feature_preserves_masked_sensitive_fields(tmp_path):
-    """set_feature preserves masked *** sensitive fields."""
+def test_set_feature_rejects_retired_legacy_features(tmp_path):
+    """set_feature refuses writes to retired legacy feature blocks (#1761)."""
     config_path = tmp_path / "config.json"
     config_data = {
         "board": {},
@@ -512,7 +536,7 @@ def test_set_feature_preserves_masked_sensitive_fields(tmp_path):
     }
     config_path.write_text(json.dumps(config_data))
     cm = ConfigManager(config_path=str(config_path))
-    cm.set_feature("weather", {"api_key": "***"})
+    assert cm.set_feature("weather", {"api_key": "new-key"}) is False
     full = cm.get_all()
     assert full["features"]["weather"]["api_key"] == "real-weather-key"
 
@@ -546,44 +570,20 @@ def test_set_general_updates_fields_preserves_masked(tmp_path):
     assert cm.get_general()["timezone"] == "Europe/Paris"
 
 
-# --- is_feature_enabled ---
-
-
-def test_is_feature_enabled_true(tmp_path):
-    """is_feature_enabled returns True when enabled."""
-    config_path = tmp_path / "config.json"
-    cm = ConfigManager(config_path=str(config_path))
-    cm.set_feature("weather", {"enabled": True})
-    assert cm.is_feature_enabled("weather") is True
-
-
-def test_is_feature_enabled_false(tmp_path):
-    """is_feature_enabled returns False when disabled."""
-    config_path = tmp_path / "config.json"
-    cm = ConfigManager(config_path=str(config_path))
-    cm.set_feature("weather", {"enabled": False})
-    assert cm.is_feature_enabled("weather") is False
-
-
-# --- get_feature_list ---
-
-
-def test_get_feature_list_returns_feature_names(tmp_path):
-    """get_feature_list returns list of feature names."""
-    config_path = tmp_path / "config.json"
-    cm = ConfigManager(config_path=str(config_path))
-    features = cm.get_feature_list()
-    assert "weather" in features
-    assert "date_time" in features
-    assert "guest_wifi" in features
-
-
 # --- get_color_rules ---
 
 
 def test_get_color_rules_returns_rules_for_feature_field(tmp_path):
-    """get_color_rules returns rules for feature/field."""
+    """get_color_rules still reads legacy color_rules stored in the config file."""
     config_path = tmp_path / "config.json"
+    config_data = {
+        "board": {},
+        "features": {
+            "weather": {"color_rules": {"temp": [{"condition": ">=", "value": 90, "color": "red"}]}},
+        },
+        "general": {},
+    }
+    config_path.write_text(json.dumps(config_data))
     cm = ConfigManager(config_path=str(config_path))
     rules = cm.get_color_rules("weather", "temp")
     assert isinstance(rules, list)
@@ -714,56 +714,6 @@ def test_validate_local_config_fails_when_multi_board_also_empty(tmp_path, monke
     assert any("host" in e for e in errors)
 
 
-def test_validate_enabled_weather_without_api_key(tmp_path):
-    """Enabled weather without api_key."""
-    config_path = tmp_path / "config.json"
-    config_data = {
-        "board": {"api_mode": "local", "local_api_key": "k", "host": "h"},
-        "features": {"weather": {"enabled": True, "api_key": ""}},
-        "general": {},
-    }
-    config_path.write_text(json.dumps(config_data))
-    cm = ConfigManager(config_path=str(config_path))
-    valid, errors = cm.validate()
-    assert valid is False
-    assert any("Weather" in e for e in errors)
-
-
-def test_validate_enabled_home_assistant_without_base_url_or_token(tmp_path):
-    """Enabled home_assistant without base_url or access_token."""
-    config_path = tmp_path / "config.json"
-    config_data = {
-        "board": {"api_mode": "local", "local_api_key": "k", "host": "h"},
-        "features": {
-            "home_assistant": {"enabled": True, "base_url": "", "access_token": ""},
-        },
-        "general": {},
-    }
-    config_path.write_text(json.dumps(config_data))
-    cm = ConfigManager(config_path=str(config_path))
-    valid, errors = cm.validate()
-    assert valid is False
-    assert any("base_url" in e or "access_token" in e for e in errors)
-
-
-def test_validate_enabled_guest_wifi_without_ssid_or_password(monkeypatch, tmp_path):
-    """Enabled guest_wifi without ssid or password."""
-    # Clear env vars that might fill in ssid/password (e.g. in Docker)
-    for key in ("GUEST_WIFI_SSID", "GUEST_WIFI_PASSWORD"):
-        monkeypatch.delenv(key, raising=False)
-    config_path = tmp_path / "config.json"
-    config_data = {
-        "board": {"api_mode": "local", "local_api_key": "k", "host": "h"},
-        "features": {"guest_wifi": {"enabled": True, "ssid": "", "password": ""}},
-        "general": {},
-    }
-    config_path.write_text(json.dumps(config_data))
-    cm = ConfigManager(config_path=str(config_path))
-    valid, errors = cm.validate()
-    assert valid is False
-    assert any("SSID" in e or "password" in e for e in errors)
-
-
 # --- Plugin config methods ---
 
 
@@ -841,23 +791,6 @@ def test_get_enabled_plugins(tmp_path):
     enabled = cm.get_enabled_plugins()
     assert "weather" in enabled
     assert "stocks" not in enabled
-
-
-def test_migrate_feature_to_plugin(tmp_path):
-    """migrate_feature_to_plugin copies feature to plugin."""
-    config_path = tmp_path / "config.json"
-    config_data = {
-        "board": {},
-        "features": {"weather": {"enabled": True, "api_key": "key", "location": "SF"}},
-        "general": {},
-    }
-    config_path.write_text(json.dumps(config_data))
-    cm = ConfigManager(config_path=str(config_path))
-    result = cm.migrate_feature_to_plugin("weather", "weather")
-    assert result is True
-    plugin_cfg = cm.get_plugin_config("weather")
-    assert plugin_cfg["enabled"] is True
-    assert plugin_cfg["api_key"] == "key"
 
 
 # --- reload ---
@@ -1319,3 +1252,212 @@ def test_save_internal_is_atomic_on_mid_write_crash(tmp_path, monkeypatch):
     # The original file must be byte-identical — the crash should have hit a
     # .tmp file that never got renamed over the real one.
     assert config_path.read_bytes() == original_bytes
+
+
+def test_save_internal_survives_a_concurrent_process_saving_the_same_config(tmp_path, monkeypatch):
+    """A second process saving the same config must not break our save.
+
+    ``_file_lock`` is a ``threading.RLock``, so it serialises threads and
+    nothing else. If two writers stage through the same fixed
+    ``config.json.tmp``, the one that renames second finds its source
+    already gone and ``os.replace`` raises ENOENT — which is why the
+    staging name carries the pid.
+
+    NOTE (Phase 2 audit): this docstring used to claim xdist workers, "the
+    MQTT bridge" and CLI scripts as current multi-process writers. They are
+    not — see ``docs/internal/reference/PERSISTENCE.md``. The test still
+    earns its place: it pins the staging-name property that makes the
+    single-writer assumption safe to *break* later, and the same collision
+    is reachable between threads.
+
+    Simulated deterministically here: a competing writer completes a full
+    save — same naming scheme, tmp staged then renamed into place — in the
+    window between our write and our rename.
+    """
+    config_path = tmp_path / "config.json"
+    cm = ConfigManager(config_path=str(config_path))
+    cm._save_internal()
+
+    real_replace = Path.replace
+    competitor_ran = False
+
+    def replace_after_a_competing_save(self, target):
+        nonlocal competitor_ran
+        if not competitor_ran:
+            competitor_ran = True
+            competitor_tmp = Path(f"{target}.tmp")
+            competitor_tmp.write_text(json.dumps({"written_by": "the other process"}))
+            real_replace(competitor_tmp, target)
+        return real_replace(self, target)
+
+    monkeypatch.setattr(Path, "replace", replace_after_a_competing_save)
+    cm._config["general"]["timezone"] = "America/Chicago"
+    cm._save_internal()
+    monkeypatch.undo()
+
+    assert competitor_ran, "the competing save never ran — the test proves nothing"
+    # We renamed last, so our config is what survives, intact and parseable.
+    on_disk = json.loads(config_path.read_text())
+    assert on_disk["general"]["timezone"] == "America/Chicago"
+    # And we left no staging file behind.
+    assert list(tmp_path.glob("config.json*.tmp")) == []
+
+
+# --- deliberate-removal tombstones (issue #1394) ---
+
+
+def test_mark_plugin_removed_persists_tombstone(tmp_path):
+    """Uninstalling a plugin records a tombstone that survives in config.json."""
+    config_path = tmp_path / "config.json"
+    cm = ConfigManager(config_path=str(config_path))
+    cm.mark_plugin_removed("stocks")
+
+    assert cm.get_removed_plugins() == ["stocks"]
+    assert cm.is_plugin_removed("stocks") is True
+    assert cm.is_plugin_removed("weather") is False
+
+    on_disk = json.loads(config_path.read_text())
+    assert on_disk["removed_plugins"] == ["stocks"]
+
+
+def test_mark_plugin_removed_is_idempotent(tmp_path):
+    cm = ConfigManager(config_path=str(tmp_path / "config.json"))
+    cm.mark_plugin_removed("stocks")
+    cm.mark_plugin_removed("stocks")
+    assert cm.get_removed_plugins() == ["stocks"]
+
+
+def test_is_plugin_removed_covers_instances_of_removed_base(tmp_path):
+    """A base-plugin tombstone also marks its named instances as removed."""
+    cm = ConfigManager(config_path=str(tmp_path / "config.json"))
+    cm.mark_plugin_removed("stocks")
+    assert cm.is_plugin_removed("stocks:sf") is True
+    assert cm.is_plugin_removed("weather:sf") is False
+
+
+def test_clear_plugin_removed_drops_base_and_instance_tombstones(tmp_path):
+    """Reinstalling a plugin clears its tombstone and any instance tombstones."""
+    config_path = tmp_path / "config.json"
+    cm = ConfigManager(config_path=str(config_path))
+    cm.mark_plugin_removed("stocks")
+    cm.mark_plugin_removed("stocks:sf")
+    cm.mark_plugin_removed("weather")
+
+    cm.clear_plugin_removed("stocks")
+
+    assert cm.get_removed_plugins() == ["weather"]
+    on_disk = json.loads(config_path.read_text())
+    assert on_disk["removed_plugins"] == ["weather"]
+
+
+def test_clear_plugin_removed_noop_when_absent(tmp_path):
+    cm = ConfigManager(config_path=str(tmp_path / "config.json"))
+    cm.clear_plugin_removed("stocks")  # must not raise or create the key
+    assert cm.get_removed_plugins() == []
+
+
+def test_removed_plugins_survives_reload_and_merge_with_defaults(tmp_path):
+    """Tombstones must survive a config reload (which merges with defaults)."""
+    config_path = tmp_path / "config.json"
+    config_path.write_text(
+        json.dumps(
+            {
+                "board": {},
+                "features": {},
+                "general": {},
+                "removed_plugins": ["stocks"],
+            }
+        )
+    )
+    cm = ConfigManager(config_path=str(config_path))
+    assert cm.get_removed_plugins() == ["stocks"]
+    assert cm.get_all().get("removed_plugins") == ["stocks"]
+
+
+def test_get_removed_plugins_tolerates_garbage(tmp_path):
+    config_path = tmp_path / "config.json"
+    config_path.write_text(
+        json.dumps(
+            {
+                "board": {},
+                "features": {},
+                "general": {},
+                "removed_plugins": ["stocks", 42, "", None],
+            }
+        )
+    )
+    cm = ConfigManager(config_path=str(config_path))
+    assert cm.get_removed_plugins() == ["stocks"]
+
+
+# ---------------------------------------------------------------------------
+# migrate_silence_schedule_to_utc takes the right lock (issue #1746)
+# ---------------------------------------------------------------------------
+
+
+def _config_needing_silence_migration() -> dict:
+    """Config whose silence times are still in the pre-UTC ``HH:MM`` format."""
+    return {
+        "board": {},
+        "features": {"silence_schedule": {"enabled": True, "start_time": "20:00", "end_time": "07:00"}},
+        "general": {"timezone": "America/Los_Angeles"},
+    }
+
+
+def _acquired_from_another_thread(lock, timeout: float = 0.25) -> bool:
+    """Whether a *different* thread can take ``lock`` right now."""
+    result: list[bool] = []
+
+    def attempt():
+        if lock.acquire(timeout=timeout):
+            result.append(True)
+            lock.release()
+        else:
+            result.append(False)
+
+    thread = threading.Thread(target=attempt)
+    thread.start()
+    thread.join()
+    return result[0]
+
+
+def _migrate_with_a_lock_probe(tmp_path, mock_time_service, lock_of) -> list[bool]:
+    """Run the silence migration, probing a lock from another thread mid-flight."""
+    config_path = tmp_path / "config.json"
+    config_path.write_text(json.dumps(_config_needing_silence_migration()))
+    cm = ConfigManager(config_path=str(config_path))
+
+    probes: list[bool] = []
+
+    def probe_then_convert(local_time, timezone):
+        probes.append(_acquired_from_another_thread(lock_of(cm)))
+        return local_time
+
+    mock_time_service.local_to_utc_iso.side_effect = probe_then_convert
+
+    assert cm.migrate_silence_schedule_to_utc() is True, "the migration never ran — the test proves nothing"
+    assert probes, "the migration never reached the conversion step"
+    return probes
+
+
+def test_silence_migration_holds_the_config_file_lock(tmp_path, mock_time_service):
+    """#1746: the migration read-modify-writes config, so it must hold ``_file_lock``.
+
+    Without it another thread can write config between the migration's read
+    and its save, and lose that write.
+    """
+    probes = _migrate_with_a_lock_probe(tmp_path, mock_time_service, lambda cm: cm._file_lock)
+
+    assert not any(probes), "another thread took the config file lock while the migration was mid-flight"
+
+
+def test_silence_migration_does_not_hold_the_singleton_construction_lock(tmp_path, mock_time_service):
+    """#1746: holding the class-level ``_lock`` blocks ``ConfigManager()`` everywhere.
+
+    ``_lock`` guards singleton construction, not config data. Taking it for the
+    duration of a disk-writing migration stalls every other thread that merely
+    wants a ConfigManager handle.
+    """
+    probes = _migrate_with_a_lock_probe(tmp_path, mock_time_service, lambda cm: ConfigManager._lock)
+
+    assert all(probes), "the migration held the singleton construction lock while doing disk I/O"

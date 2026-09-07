@@ -7,6 +7,7 @@
 import {
   API_URL,
   configureBoard,
+  createNotePage,
   createPage,
   createSchedule,
   deleteAllSchedules,
@@ -114,7 +115,9 @@ test.describe("Multi-Board and Schedule", () => {
   test("schedules API filtered by board_id returns only that board's schedules", async () => {
     const { board1Id, board2Id } = await ensureTwoBoards();
     const pageA = await createPage("Board A Page");
-    const pageB = await createPage("Board B Page");
+    // Board 2 is a Note board (see ensureTwoBoards) — since #1245 the backend
+    // rejects size-incompatible pages on write, so its page must be note-sized.
+    const pageB = await createNotePage("Board B Page");
     await createSchedule(pageA, "09:00", "12:00", "weekdays", board1Id);
     await createSchedule(pageB, "14:00", "18:00", "weekdays", board2Id);
 
@@ -136,7 +139,9 @@ test.describe("Multi-Board and Schedule", () => {
   test("switching boards in UI shows each board's schedules only", async ({ page }) => {
     const { board1Id, board2Id } = await ensureTwoBoards();
     const pageA = await createPage("Board One Page");
-    const pageB = await createPage("Board Two Page");
+    // Board 2 is a Note board (see ensureTwoBoards) — since #1245 the backend
+    // rejects size-incompatible pages on write, so its page must be note-sized.
+    const pageB = await createNotePage("Board Two Page");
     await createSchedule(pageA, "09:00", "12:00", "weekdays", board1Id);
     await createSchedule(pageB, "14:00", "18:00", "weekdays", board2Id);
 

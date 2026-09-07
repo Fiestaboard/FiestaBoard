@@ -16,14 +16,18 @@ MANIFEST_PATH = Path(__file__).parent.parent / "manifest.json"
 
 
 @pytest.fixture
-def manifest_data():
+def manifest():
+    """The parsed manifest dict passed to the plugin constructor.
+
+    PluginBase stores this as-is and calls ``.get()`` on it, so the fixture
+    must return a plain dict — the same thing the loader passes in production
+    (``plugin_class(manifest.raw)``). Bundled plugins do the same in their
+    ``conftest.py`` (``return json.load(f)``). Wrapping it in
+    ``PluginManifest.from_dict()`` would hand the constructor a dataclass with
+    no ``.get()`` method and diverge from how the plugin actually runs.
+    """
     with open(MANIFEST_PATH) as f:
         return json.load(f)
-
-
-@pytest.fixture
-def manifest(manifest_data):
-    return PluginManifest.from_dict(manifest_data)
 
 
 class TestTemplatePlugin:
@@ -73,42 +77,42 @@ class TestTemplatePlugin:
 class TestTemplateManifestMetadata:
     """Tests for the rich metadata format in the template manifest."""
 
-    def test_manifest_uses_dict_simple_format(self, manifest_data):
-        simple = manifest_data["variables"]["simple"]
+    def test_manifest_uses_dict_simple_format(self, manifest):
+        simple = manifest["variables"]["simple"]
         assert isinstance(simple, dict), "simple should use the rich dict format"
 
-    def test_all_variables_have_descriptions(self, manifest_data):
-        simple = manifest_data["variables"]["simple"]
+    def test_all_variables_have_descriptions(self, manifest):
+        simple = manifest["variables"]["simple"]
         for var_name, meta in simple.items():
             assert meta.get("description"), f"Variable '{var_name}' missing description"
 
-    def test_groups_are_defined(self, manifest_data):
-        groups = manifest_data["variables"].get("groups", {})
+    def test_groups_are_defined(self, manifest):
+        groups = manifest["variables"].get("groups", {})
         assert len(groups) > 0
         for group_id, group_def in groups.items():
             assert "label" in group_def, f"Group '{group_id}' missing label"
 
-    def test_all_variables_have_valid_groups(self, manifest_data):
-        groups = set(manifest_data["variables"].get("groups", {}).keys())
-        simple = manifest_data["variables"]["simple"]
+    def test_all_variables_have_valid_groups(self, manifest):
+        groups = set(manifest["variables"].get("groups", {}).keys())
+        simple = manifest["variables"]["simple"]
         for var_name, meta in simple.items():
             group = meta.get("group", "")
             if group:
                 assert group in groups, f"Variable '{var_name}' references undefined group '{group}'"
 
-    def test_manifest_has_arrays(self, manifest_data):
-        arrays = manifest_data["variables"].get("arrays", {})
+    def test_manifest_has_arrays(self, manifest):
+        arrays = manifest["variables"].get("arrays", {})
         assert "items" in arrays
 
-    def test_manifest_parses_successfully(self, manifest_data):
-        manifest = PluginManifest.from_dict(manifest_data)
-        assert manifest.id == "my_plugin"
-        assert len(manifest.variables.simple) == 3
-        assert "value" in manifest.variables.metadata
-        assert manifest.variables.metadata["value"].type == "number"
-        assert manifest.variables.groups["main"].label == "Main Data"
+    def test_manifest_parses_successfully(self, manifest):
+        parsed = PluginManifest.from_dict(manifest)
+        assert parsed.id == "my_plugin"
+        assert len(parsed.variables.simple) == 3
+        assert "value" in parsed.variables.metadata
+        assert parsed.variables.metadata["value"].type == "number"
+        assert parsed.variables.groups["main"].label == "Main Data"
 
-    def test_max_lengths_merged_from_metadata(self, manifest_data):
-        manifest = PluginManifest.from_dict(manifest_data)
-        assert manifest.max_lengths.get("value") == 10
-        assert manifest.max_lengths.get("status") == 15
+    def test_max_lengths_merged_from_metadata(self, manifest):
+        parsed = PluginManifest.from_dict(manifest)
+        assert parsed.max_lengths.get("value") == 10
+        assert parsed.max_lengths.get("status") == 15

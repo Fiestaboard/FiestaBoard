@@ -1,6 +1,8 @@
 """Base classes for FiestaBoard plugins.
 
-All plugins must inherit from PluginBase and implement the required methods.
+All data plugins must inherit from :class:`PluginBase`.  Transition
+plugins (frame-by-frame board animations) inherit from
+:class:`TransitionPluginBase` instead.
 """
 
 import logging
@@ -8,11 +10,13 @@ import threading
 from abc import ABC, abstractmethod
 from collections.abc import Iterator
 from contextlib import contextmanager
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Any
 
 from src.devices import BoardContext
+
+from .manifest import MAX_TRANSITION_RUNTIME_SECONDS
 
 logger = logging.getLogger(__name__)
 
@@ -112,6 +116,99 @@ class PluginInfo:
     author: str = "Unknown"
     repository: str = ""
     documentation: str = "README.md"
+
+
+class OptionsUnavailable(Exception):
+    """The plugin ran but cannot produce options right now.
+
+    Raise this for "ask me later" conditions — no API key configured yet, the
+    upstream service is unreachable, a dependent field has not been chosen.
+    It is *not* an error in the plugin; the UI turns it into a hint next to the
+    field rather than a stack trace.
+    """
+
+
+@dataclass
+class Option:
+    """One selectable choice offered by :meth:`PluginBase.get_options`.
+
+    Attributes:
+        value: What gets stored in the plugin config. JSON scalars only —
+            the value round-trips through config.json and the settings form.
+        label: Human-readable text shown in the picker.
+        description: Secondary line under the label.
+        group: Optional heading the option is filed under.
+        preview: Short sample of what this choice puts on the board.
+        disabled: Show the option but refuse selection (e.g. unsupported).
+        meta: Free-form extras for the widget; never persisted to config.
+    """
+
+    value: str | int | float | bool
+    label: str
+    description: str | None = None
+    group: str | None = None
+    preview: str | None = None
+    disabled: bool = False
+    meta: dict[str, Any] | None = None
+
+    def __post_init__(self) -> None:
+        # ``value`` is written verbatim into the plugin's stored config, so a
+        # dict or list here becomes an un-comparable, un-dedupable blob that
+        # only fails much later. Reject it where it is created.
+        if not isinstance(self.value, str | int | float | bool):
+            raise TypeError(f"Option.value must be a JSON scalar, got {type(self.value).__name__}")
+
+
+@dataclass
+class OptionsRequest:
+    """A request for one field's choices.
+
+    Attributes:
+        options_id: Which catalog the field asked for (from the manifest's
+            ``ui:options.options_id``).
+        parent: Values of the fields this one ``depends_on``, so the plugin can
+            scope the catalog (e.g. ``{"agency": "SF"}``).
+        query: Free-text the user has typed, for server-side search.
+        limit: Maximum number of options to return.
+        cursor: Opaque continuation token from a previous result.
+    """
+
+    options_id: str
+    parent: dict[str, Any] = field(default_factory=dict)
+    query: str = ""
+    limit: int = 200
+    cursor: str | None = None
+
+
+@dataclass
+class OptionsResult:
+    """The answer to an :class:`OptionsRequest`.
+
+    Attributes:
+        options: The choices to show.
+        has_more: Whether more options exist beyond this page.
+        cursor: Continuation token to pass back for the next page.
+        total: Total catalog size when the plugin knows it.
+        error: Human-readable reason the list is empty or partial.
+    """
+
+    options: list[Option] = field(default_factory=list)
+    has_more: bool = False
+    cursor: str | None = None
+    total: int | None = None
+    error: str | None = None
+
+
+def normalise(result: "OptionsResult | list[Option]") -> "OptionsResult":
+    """Coerce a plugin's ``get_options`` return value into an :class:`OptionsResult`.
+
+    Most plugins have a small catalog and just want to return a list; paging
+    and totals are the exception. Accepting both keeps the common case a
+    one-liner without making every caller handle two shapes.
+    """
+    if isinstance(result, OptionsResult):
+        return result
+    return OptionsResult(options=list(result))
 
 
 class PluginBase(ABC):
@@ -571,6 +668,48 @@ class PluginBase(ABC):
         """
         raise NotImplementedError(f"Plugin {self.plugin_id} does not support receive")
 
+    def get_options(self, request: "OptionsRequest") -> "OptionsResult | list[Option]":
+        """Browse this plugin's upstream catalog so the user can pick from it.
+
+        Override this in plugins whose settings schema declares
+        ``"ui:widget": "remote-options"`` on a field. The manifest's
+        ``ui:options.options_id`` selects which catalog is being asked for;
+        one method serves them all via ``request.options_id``.
+
+        **This is not** :meth:`fetch_data`. ``fetch_data`` returns board content
+        for items the user has *already* selected. ``get_options`` browses the
+        whole upstream catalog so the user can select something new — it runs
+        while the settings dialog is open, on every keystroke in a search box,
+        for a plugin that may not be configured yet.
+
+        That leads to four rules:
+
+        * **Be safe when disabled or unconfigured.** The method is called on a
+          throwaway instance with the draft config applied, whether or not the
+          plugin is enabled. Raise :class:`OptionsUnavailable` rather than
+          assuming credentials exist.
+        * **Set a timeout on every outbound call.** A hung request here blocks
+          a UI interaction, not a background poll.
+        * **Do not mutate persisted state.** No config writes, no cache
+          priming, no starting background threads or connections.
+        * **Raise** :class:`OptionsUnavailable` for "cannot answer right now"
+          (not configured, upstream down); let genuine bugs raise normally.
+
+        Return either an :class:`OptionsResult` or a bare ``list[Option]`` —
+        :func:`normalise` accepts both.
+
+        Args:
+            request: Which catalog to browse, plus query/paging context.
+
+        Returns:
+            An :class:`OptionsResult`, or a plain list of :class:`Option`.
+
+        Raises:
+            OptionsUnavailable: The plugin cannot answer right now.
+            NotImplementedError: The plugin offers no remote options (default).
+        """
+        raise NotImplementedError(f"Plugin {self.plugin_id} does not provide options")
+
     def check_triggers(self) -> list["TriggerResult"]:
         """Check whether any event-based triggers should fire.
 
@@ -651,3 +790,186 @@ class PluginBase(ABC):
             List of env var definitions with name, required, description.
         """
         return self._manifest.get("env_vars", [])
+
+
+# Defaults for transition plugin manifest's transition_settings block.
+DEFAULT_TRANSITION_INTERRUPTIBLE = True
+DEFAULT_TRANSITION_MIN_INTERVAL_MS = 50
+DEFAULT_TRANSITION_MAX_FRAMES = 500
+DEFAULT_TRANSITION_MAX_RUNTIME_SECONDS = 120
+
+
+# Type alias documenting the (frame_grid, delay_ms_before_next) tuple a
+# transition plugin yields.  A grid is a list of rows of character codes;
+# delay_ms is how long the runner should wait after sending this frame
+# before pulling the next one from the iterator (clamped to the manifest's
+# min_interval_ms floor).
+TransitionFrame = tuple[list[list[int]], int]
+
+
+class TransitionPluginBase(ABC):
+    """Abstract base class for transition plugins.
+
+    Transition plugins produce a *sequence* of board frames that move the
+    display from one grid (``from_grid``) to another (``to_grid``).  They
+    are driven by the host's :class:`~src.transitions.runner.TransitionRunner`,
+    which calls :meth:`generate_frames` and sends each yielded frame to the
+    board with an interruptible sleep between them.
+
+    Unlike :class:`PluginBase`, transition plugins do not return template
+    variables, do not have a refresh cadence, and have no triggers.  They
+    are configured solely via their own ``settings_schema``; other plugins
+    cannot influence transition behavior.
+
+    Subclasses must implement:
+      * :attr:`plugin_id`
+      * :meth:`generate_frames`
+
+    Optional hooks:
+      * :meth:`validate_config`
+      * :meth:`on_config_change`
+      * :meth:`cleanup`
+    """
+
+    def __init__(self, manifest: dict[str, Any]):
+        """Initialize the transition plugin with its manifest dict."""
+        self._manifest = manifest
+        self._config: dict[str, Any] = {}
+        self._enabled = False
+        logger.debug(f"TransitionPlugin initialized: {self.plugin_id}")
+
+    @property
+    @abstractmethod
+    def plugin_id(self) -> str:
+        """Return unique plugin identifier (must match manifest ``id``)."""
+
+    @property
+    def manifest(self) -> dict[str, Any]:
+        """Return the plugin's raw manifest dictionary."""
+        return self._manifest
+
+    @property
+    def info(self) -> PluginInfo:
+        """Return plugin metadata extracted from the manifest."""
+        return PluginInfo(
+            id=self._manifest.get("id", self.plugin_id),
+            name=self._manifest.get("name", self.plugin_id),
+            version=self._manifest.get("version", "0.0.0"),
+            description=self._manifest.get("description", ""),
+            author=self._manifest.get("author", "Unknown"),
+            repository=self._manifest.get("repository", ""),
+            documentation=self._manifest.get("documentation", "README.md"),
+        )
+
+    @property
+    def config(self) -> dict[str, Any]:
+        """Return current plugin configuration."""
+        return self._config
+
+    @config.setter
+    def config(self, value: dict[str, Any]) -> None:
+        old_config = self._config
+        self._config = value
+        if old_config != value:
+            self.on_config_change(old_config, value)
+
+    @property
+    def enabled(self) -> bool:
+        """Return whether the plugin is enabled."""
+        return self._enabled
+
+    @enabled.setter
+    def enabled(self, value: bool) -> None:
+        if self._enabled != value:
+            self._enabled = value
+            if value:
+                logger.info(f"TransitionPlugin enabled: {self.plugin_id}")
+            else:
+                logger.info(f"TransitionPlugin disabled: {self.plugin_id}")
+                self.cleanup()
+
+    def get_settings_schema(self) -> dict[str, Any]:
+        """Return the JSON schema for the plugin's settings form."""
+        return self._manifest.get("settings_schema", {})
+
+    @property
+    def supports_triggers(self) -> bool:
+        """Transition plugins never fire event triggers."""
+        return False
+
+    def _validate_refresh_seconds(self, config: dict[str, Any]) -> list[str]:
+        """Transition plugins have no refresh cadence; nothing to validate."""
+        return []
+
+    @property
+    def transition_settings(self) -> dict[str, Any]:
+        """Return the merged ``transition_settings`` block from manifest.
+
+        Falls back to module-level defaults for any missing keys so callers
+        always get a fully populated dict.
+        """
+        raw = self._manifest.get("transition_settings", {}) or {}
+        interruptible = bool(raw.get("interruptible", DEFAULT_TRANSITION_INTERRUPTIBLE))
+        max_runtime = int(raw.get("max_runtime_seconds", DEFAULT_TRANSITION_MAX_RUNTIME_SECONDS))
+        if not interruptible:
+            # Clamped to the manifest ceiling (#1868 review) even when the
+            # manifest skipped validation: a non-interruptible transition
+            # ignores enqueue-time preemption, so an uncapped runtime would
+            # hold a board's send worker past every wait budget.
+            # Interruptible transitions are preempted at enqueue and may run
+            # long (quiet_library: 1800s).
+            max_runtime = min(max_runtime, MAX_TRANSITION_RUNTIME_SECONDS)
+        return {
+            "interruptible": interruptible,
+            "min_interval_ms": int(raw.get("min_interval_ms", DEFAULT_TRANSITION_MIN_INTERVAL_MS)),
+            "max_frames": int(raw.get("max_frames", DEFAULT_TRANSITION_MAX_FRAMES)),
+            "max_runtime_seconds": max_runtime,
+        }
+
+    @abstractmethod
+    def generate_frames(
+        self,
+        from_grid: list[list[int]],
+        to_grid: list[list[int]],
+        device: Any,
+        config: dict[str, Any],
+    ) -> Iterator[TransitionFrame]:
+        """Yield (frame_grid, delay_ms) tuples driving the transition.
+
+        The runner sends each ``frame_grid`` to the board, then waits
+        ``delay_ms`` (clamped to ``min_interval_ms``) before pulling the
+        next frame.  The runner also enforces ``max_frames`` and
+        ``max_runtime_seconds`` caps from the manifest -- if the generator
+        exceeds either, the runner aborts and snaps the board to
+        ``to_grid``.
+
+        Args:
+            from_grid: The grid currently displayed on the board.  May be
+                a blank grid if the previous state is unknown.
+            to_grid: The target grid the transition is moving toward.
+            device: The :class:`~src.devices.BoardContext` for the
+                target board (carries rows/cols).
+            config: The resolved plugin config dict (already merged with
+                schema defaults by the caller).
+
+        Yields:
+            ``(grid, delay_ms_before_next)`` tuples.  The final frame need
+            not equal ``to_grid`` -- the runner always sends ``to_grid``
+            once the generator is exhausted to guarantee the board lands
+            on the exact target.
+        """
+
+    def validate_config(self, config: dict[str, Any]) -> list[str]:
+        """Validate a config dict.  Override to add custom checks.
+
+        Returns:
+            List of error messages (empty if valid).
+        """
+        return []
+
+    def on_config_change(self, old_config: dict[str, Any], new_config: dict[str, Any]) -> None:
+        """Hook called when config changes.  Override to react."""
+        logger.debug(f"Config changed for transition plugin {self.plugin_id}")
+
+    def cleanup(self) -> None:  # noqa: B027 - intentional optional override
+        """Hook called when the plugin is disabled or unloaded."""

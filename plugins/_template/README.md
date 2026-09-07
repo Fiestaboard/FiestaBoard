@@ -139,7 +139,7 @@ plugins/my_plugin/
 | `documentation` | string | Path to documentation file |
 | `env_vars` | array | Environment variables the plugin can use |
 | `color_rules_schema` | object | Schema for dynamic color rules |
-| `supports_triggers` | boolean | Enable event-based triggers (see [Triggering Pages from a Plugin](../../docs/development/PLUGIN_DEVELOPMENT.md#triggering-pages-from-a-plugin)) |
+| `supports_triggers` | boolean | Enable event-based triggers (see [Triggering Pages from a Plugin](../../docs/internal/development/PLUGIN_DEVELOPMENT.md#triggering-pages-from-a-plugin)) |
 
 #### Screenshots Field
 
@@ -177,6 +177,7 @@ The `screenshots` array makes plugin images discoverable by the docs site, API, 
 ```python
 from src.plugins.base import PluginBase, PluginResult
 
+
 class MyPlugin(PluginBase):
     @property
     def plugin_id(self) -> str:
@@ -195,7 +196,7 @@ class MyPlugin(PluginBase):
 | `validate_config(config)` | Validate configuration. Return list of errors |
 | `cleanup()` | Called when plugin is disabled. Clean up resources |
 | `on_config_change(old, new)` | Called when configuration is updated |
-| `check_triggers()` | Return event-based `TriggerResult` list (requires `supports_triggers: true` — see [Triggering Pages from a Plugin](../../docs/development/PLUGIN_DEVELOPMENT.md#triggering-pages-from-a-plugin)) |
+| `check_triggers()` | Return event-based `TriggerResult` list (requires `supports_triggers: true` — see [Triggering Pages from a Plugin](../../docs/internal/development/PLUGIN_DEVELOPMENT.md#triggering-pages-from-a-plugin)) |
 | `receive_payload(payload, headers, raw_body)` | Handle a pushed webhook payload (raise `PermissionError` / `ValueError` for 403 / 400) |
 | `config` | Property. The current configuration dictionary |
 | `manifest` | Property. The raw manifest dictionary |
@@ -226,18 +227,25 @@ python scripts/run_plugin_tests.py
 
 ```python
 """Tests for the my_plugin plugin."""
+
 import json, pytest
 from pathlib import Path
 from plugins.my_plugin import MyPlugin
 from src.plugins.base import PluginResult
-from src.plugins.manifest import PluginManifest
 
 MANIFEST_PATH = Path(__file__).parent.parent / "manifest.json"
 
+
+# PluginBase stores the manifest as a plain dict and calls `.get()` on it,
+# so the fixture must return the parsed dict — exactly what the loader passes
+# in production (`plugin_class(manifest.raw)`). Do NOT wrap it in
+# PluginManifest.from_dict(); that object has no `.get()` and any test that
+# touches `self.info` or `self.get_settings_schema()` would raise AttributeError.
 @pytest.fixture
 def manifest():
     with open(MANIFEST_PATH) as f:
-        return PluginManifest.from_dict(json.load(f))
+        return json.load(f)
+
 
 class TestMyPlugin:
     def test_plugin_id(self, manifest):

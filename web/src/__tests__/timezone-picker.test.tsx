@@ -12,6 +12,16 @@ function currentLAOffset(): string {
   return offsetPart?.value?.replace("GMT", "UTC") ?? "UTC-8";
 }
 
+/**
+ * The zone rows. They are the combobox's `role="option"` items — the picker is
+ * a real combobox now, not a portal full of buttons — and every label carries
+ * its offset ("America/Los Angeles (UTC-8)"), which is what identifies a row
+ * as a zone rather than chrome.
+ */
+function zoneOptions(): HTMLElement[] {
+  return screen.queryAllByRole("option").filter((option) => option.textContent?.includes("UTC"));
+}
+
 describe("TimezonePicker", () => {
   it("renders with default value", () => {
     render(<TimezonePicker value="America/Los_Angeles" onChange={vi.fn()} />);
@@ -38,14 +48,7 @@ describe("TimezonePicker", () => {
     await user.click(input);
 
     // Wait for initial dropdown to appear
-    await waitFor(
-      () => {
-        const buttons = screen.queryAllByRole("button");
-        const timezoneButtons = buttons.filter((btn) => btn.textContent && btn.textContent.includes("UTC"));
-        expect(timezoneButtons.length).toBeGreaterThan(0);
-      },
-      { timeout: 3000 },
-    );
+    await waitFor(() => expect(zoneOptions().length).toBeGreaterThan(0), { timeout: 3000 });
 
     // Type to filter
     await user.clear(input);
@@ -53,11 +56,7 @@ describe("TimezonePicker", () => {
 
     // Wait for filtered results to appear - look for New York in any button
     await waitFor(
-      () => {
-        const buttons = screen.queryAllByRole("button");
-        const filteredButtons = buttons.filter((btn) => btn.textContent && /New York/i.test(btn.textContent));
-        expect(filteredButtons.length).toBeGreaterThan(0);
-      },
+      () => expect(zoneOptions().filter((option) => /New York/i.test(option.textContent ?? ""))).not.toHaveLength(0),
       { timeout: 3000 },
     );
   });
@@ -72,37 +71,19 @@ describe("TimezonePicker", () => {
     await user.click(input);
 
     // Wait for dropdown to appear
-    await waitFor(
-      () => {
-        const buttons = screen.queryAllByRole("button");
-        const timezoneButtons = buttons.filter((btn) => btn.textContent && btn.textContent.includes("UTC"));
-        expect(timezoneButtons.length).toBeGreaterThan(0);
-      },
-      { timeout: 3000 },
-    );
+    await waitFor(() => expect(zoneOptions().length).toBeGreaterThan(0), { timeout: 3000 });
 
     // Type to filter for New York
     await user.clear(input);
     await user.type(input, "New York");
 
     // Wait for filtered results
-    await waitFor(
-      () => {
-        const buttons = screen.queryAllByRole("button");
-        const newYorkButton = buttons.find((btn) => btn.textContent && /New York/i.test(btn.textContent));
-        expect(newYorkButton).toBeDefined();
-      },
-      { timeout: 3000 },
-    );
+    await waitFor(() => expect(screen.getByRole("option", { name: /New York/i })).toBeInTheDocument(), {
+      timeout: 3000,
+    });
 
-    // Find and click New York option
-    const buttons = screen.queryAllByRole("button");
-    const newYorkButton = buttons.find((btn) => btn.textContent && /New York/i.test(btn.textContent));
-    expect(newYorkButton).toBeDefined();
-    if (newYorkButton) {
-      await user.click(newYorkButton);
-      expect(handleChange).toHaveBeenCalledWith("America/New_York");
-    }
+    await user.click(screen.getByRole("option", { name: /New York/i }));
+    expect(handleChange).toHaveBeenCalledWith("America/New_York");
   });
 
   it("can be disabled", () => {
@@ -144,14 +125,7 @@ describe("TimezonePicker", () => {
     await user.click(input);
 
     // Wait for dropdown to appear
-    await waitFor(
-      () => {
-        const buttons = screen.queryAllByRole("button");
-        const timezoneButtons = buttons.filter((btn) => btn.textContent && btn.textContent.includes("UTC"));
-        expect(timezoneButtons.length).toBeGreaterThan(0);
-      },
-      { timeout: 3000 },
-    );
+    await waitFor(() => expect(zoneOptions().length).toBeGreaterThan(0), { timeout: 3000 });
 
     // Press Arrow Down to navigate
     await user.keyboard("{ArrowDown}");
@@ -171,26 +145,13 @@ describe("TimezonePicker", () => {
     await user.click(input);
 
     // Wait for dropdown to appear
-    await waitFor(
-      () => {
-        const buttons = screen.queryAllByRole("button");
-        const timezoneButtons = buttons.filter((btn) => btn.textContent && btn.textContent.includes("UTC"));
-        expect(timezoneButtons.length).toBeGreaterThan(0);
-      },
-      { timeout: 3000 },
-    );
+    await waitFor(() => expect(zoneOptions().length).toBeGreaterThan(0), { timeout: 3000 });
 
     // Press Escape
     await user.keyboard("{Escape}");
 
-    // Dropdown should close - timezone buttons should no longer be visible
-    await waitFor(() => {
-      const buttons = screen.queryAllByRole("button");
-      const timezoneButtons = buttons.filter(
-        (btn) => btn.textContent && btn.textContent.includes("UTC") && !btn.textContent.includes("Showing first"),
-      );
-      expect(timezoneButtons.length).toBe(0);
-    });
+    // Dropdown should close - zone rows should no longer be visible
+    await waitFor(() => expect(zoneOptions()).toHaveLength(0));
   });
 
   it("filters timezones by name, value, or offset", async () => {
@@ -201,24 +162,13 @@ describe("TimezonePicker", () => {
     await user.click(input);
 
     // Wait for initial dropdown
-    await waitFor(
-      () => {
-        const buttons = screen.queryAllByRole("button");
-        const timezoneButtons = buttons.filter((btn) => btn.textContent && btn.textContent.includes("UTC"));
-        expect(timezoneButtons.length).toBeGreaterThan(0);
-      },
-      { timeout: 3000 },
-    );
+    await waitFor(() => expect(zoneOptions().length).toBeGreaterThan(0), { timeout: 3000 });
 
     // Search by city name
     await user.clear(input);
     await user.type(input, "Tokyo");
     await waitFor(
-      () => {
-        const buttons = screen.queryAllByRole("button");
-        const tokyoButtons = buttons.filter((btn) => btn.textContent && /Tokyo/i.test(btn.textContent));
-        expect(tokyoButtons.length).toBeGreaterThan(0);
-      },
+      () => expect(zoneOptions().filter((option) => /Tokyo/i.test(option.textContent ?? ""))).not.toHaveLength(0),
       { timeout: 3000 },
     );
 
@@ -226,11 +176,7 @@ describe("TimezonePicker", () => {
     await user.clear(input);
     await user.type(input, "Europe");
     await waitFor(
-      () => {
-        const buttons = screen.queryAllByRole("button");
-        const europeButtons = buttons.filter((btn) => btn.textContent && /Europe/i.test(btn.textContent));
-        expect(europeButtons.length).toBeGreaterThan(0);
-      },
+      () => expect(zoneOptions().filter((option) => /Europe/i.test(option.textContent ?? ""))).not.toHaveLength(0),
       { timeout: 3000 },
     );
   });
@@ -284,25 +230,11 @@ describe("TimezonePicker", () => {
     const input = screen.getByPlaceholderText("Search timezone...");
     await user.click(input);
 
-    // Wait for dropdown - look for any timezone button
-    await waitFor(
-      () => {
-        const buttons = screen.queryAllByRole("button");
-        const timezoneButtons = buttons.filter((btn) => btn.textContent && btn.textContent.includes("UTC"));
-        expect(timezoneButtons.length).toBeGreaterThan(0);
-      },
-      { timeout: 3000 },
-    );
+    // Wait for dropdown - look for any zone row
+    await waitFor(() => expect(zoneOptions().length).toBeGreaterThan(0), { timeout: 3000 });
 
-    // Count visible timezone options (excluding the "Showing first 50" message if present)
-    const timezoneButtons = screen
-      .queryAllByRole("button")
-      .filter(
-        (btn) => btn.textContent && !btn.textContent.includes("Showing first") && btn.textContent.includes("UTC"),
-      );
-
-    // Should show at most 50 items plus the message if there are more
-    expect(timezoneButtons.length).toBeLessThanOrEqual(50);
+    // Should render at most 50 rows even though the zone table is far longer
+    expect(zoneOptions().length).toBeLessThanOrEqual(50);
   });
 
   it("does not call onChange with partial/invalid text while typing", async () => {

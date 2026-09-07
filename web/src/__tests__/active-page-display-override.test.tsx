@@ -141,9 +141,9 @@ describe("ActivePageDisplay - temporary override UX", () => {
       ),
       http.delete(`${API_BASE}/settings/temporary-override`, () => {
         deleteCalled = true;
-        return HttpResponse.json({ status: "cleared", revert_mode: "schedule" });
+        return HttpResponse.json({ revert_mode: "schedule" });
       }),
-      http.post(`${API_BASE}/force-refresh`, () => HttpResponse.json({ status: "ok", message: "Refreshed" })),
+      http.post(`${API_BASE}/force-refresh`, () => HttpResponse.json({ message: "Refreshed", sent: true })),
     );
     render(<ActivePageDisplay />, { wrapper: TestWrapper });
     const cancelBtn = await screen.findByTitle(/cancel override/i);

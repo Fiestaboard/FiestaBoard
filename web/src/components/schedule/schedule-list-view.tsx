@@ -1,15 +1,14 @@
+import { Badge, Box, Button, CardTitle, Flex, Label, Stack, Switch, Text } from "@fiestaboard/ui";
+import { EmptyState } from "@fiestaboard/ui/components/feedback/empty-state";
 import { format } from "date-fns";
 import { Calendar, ChevronRight, Edit, GalleryHorizontalEnd, Moon, Trash2 } from "lucide-react";
+import { useMemo } from "react";
 
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Label } from "@/components/ui/label";
-import { Switch } from "@/components/ui/switch";
 import { useTranslations } from "@/i18n/translations";
 import type { Collection, Page, ScheduleEntry } from "@/lib/api";
 import { isCollectionId } from "@/lib/api";
 import type { ResolvedSilenceSchedule } from "@/lib/schedule-calendar";
+import { sortSchedulesByStart } from "@/lib/schedule-sort";
 
 interface ScheduleListViewProps {
   schedules: ScheduleEntry[];
@@ -114,6 +113,9 @@ export function ScheduleListView({
 
   const showSilenceRow = !!silenceSchedule?.enabled;
 
+  // Entries read chronologically, not in creation order.
+  const sortedSchedules = useMemo(() => sortSchedulesByStart(schedules), [schedules]);
+
   const getPageName = (pageId: string): string => {
     if (isCollectionId(pageId)) {
       const collection = collections.find((c) => c.id === pageId);
@@ -146,55 +148,79 @@ export function ScheduleListView({
         className="w-full text-left flex items-center justify-between p-4 border rounded-lg bg-muted/30 hover:bg-muted/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring transition-colors"
         data-testid="schedule-list-silence-row"
       >
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2 mb-1">
+        <Box className="flex-1 min-w-0">
+          <Flex align="center" gap="2" className="mb-1">
             <Moon className="h-4 w-4 text-muted-foreground flex-shrink-0" aria-hidden="true" />
-            <span className="font-medium">{t("silenceScheduleListTitle")}</span>
-          </div>
-          <div className="text-sm text-muted-foreground truncate">
+            <Text as="span" weight="medium">
+              {t("silenceScheduleListTitle")}
+            </Text>
+          </Flex>
+          <Text tone="muted" className="truncate">
             {timeRange} • {subtitle}
-          </div>
-        </div>
+          </Text>
+        </Box>
         <ChevronRight className="h-4 w-4 text-muted-foreground flex-shrink-0 ml-2" aria-hidden="true" />
       </button>
     );
   };
 
   return (
-    <Card className="mb-6">
-      <CardHeader>
-        <CardTitle className="text-lg">{t("scheduleEntriesTitle")}</CardTitle>
-      </CardHeader>
-      <CardContent>
+    // A block inside the route's PageCard: the PageSection wrapping this in
+    // schedule.tsx owns the inset and the top rule, so the list draws no card
+    // of its own — mirroring the calendar view, whose border was already
+    // traded for the page card. The heading matches its size="base" title.
+    <Box>
+      <CardTitle size="base" className="pb-3">
+        {t("scheduleEntriesTitle")}
+      </CardTitle>
+      <Box>
         {schedules.length === 0 && !showSilenceRow ? (
-          <div className="text-center py-12 text-muted-foreground">
-            <Calendar className="h-12 w-12 mx-auto mb-4" />
-            <p>{t("noSchedulesCreated")}</p>
-            <p className="text-sm mt-1">{t("useToolbarToAdd")}</p>
-          </div>
+          <EmptyState
+            icon={Calendar}
+            title={t("noSchedulesCreated")}
+            description={t("useToolbarToAdd")}
+            className="py-12"
+          />
         ) : (
-          <div className="space-y-3">
+          <Stack gap="3">
             {renderSilenceRow()}
-            {schedules.map((schedule) => {
+            {sortedSchedules.map((schedule) => {
               const pageName = getPageName(schedule.page_id);
               const toggleId = `schedule-enabled-${schedule.id}`;
               return (
-                <div key={schedule.id} className="flex items-center justify-between p-4 border rounded-lg">
-                  <div className="flex-1">
-                    <div className="flex items-center gap-2 mb-1">
+                <Flex
+                  key={schedule.id}
+                  direction="col"
+                  gap="3"
+                  // Phone: description on top, controls on their own row beneath.
+                  // Squeezing both into one row can't work — the text column's
+                  // min-content plus the toggle and buttons is wider than a
+                  // phone viewport, so the actions used to render off-screen
+                  // (#1558). From `sm` up it's the original single row.
+                  className="p-4 border rounded-lg sm:flex-row sm:items-center sm:justify-between sm:gap-4"
+                  data-testid="schedule-list-row"
+                >
+                  {/* min-w-0 lets the text column shrink past its min-content
+                      width instead of pushing the actions out of the row. */}
+                  <Box className="min-w-0 sm:flex-1">
+                    <Flex align="center" gap="2" wrap className="mb-1">
                       {isCollectionId(schedule.page_id) && (
                         <GalleryHorizontalEnd className="h-4 w-4 text-muted-foreground flex-shrink-0" />
                       )}
-                      <span className="font-medium">{pageName}</span>
+                      <Text as="span" weight="medium" className="break-words">
+                        {pageName}
+                      </Text>
                       {!schedule.enabled && <Badge variant="secondary">{tCommon("disabled")}</Badge>}
-                    </div>
-                    <div className="text-sm text-muted-foreground">
+                    </Flex>
+                    <Text tone="muted" className="break-words">
                       {formatTimeDisplay(schedule)} • {formatDays(schedule)}
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-2">
+                    </Text>
+                  </Box>
+                  <Flex align="center" gap="2" className="sm:flex-shrink-0">
                     {onToggleEnabled && (
-                      <div className="flex items-center gap-2 pr-2 border-r mr-1">
+                      // The divider only reads as one on the single-row layout;
+                      // stacked, the toggle and the buttons sit at opposite ends.
+                      <Flex align="center" gap="2" className="sm:pr-2 sm:border-r sm:mr-1">
                         <Label htmlFor={toggleId} className="text-xs text-muted-foreground cursor-pointer">
                           {t("scheduleEntryForm.enabledLabel")}
                         </Label>
@@ -204,31 +230,36 @@ export function ScheduleListView({
                           onCheckedChange={(checked) => onToggleEnabled(schedule, checked)}
                           aria-label={t("toggleEnabledAriaLabel", { pageName })}
                         />
-                      </div>
+                      </Flex>
                     )}
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      onClick={() => onEdit(schedule)}
-                      aria-label={t("editScheduleAriaLabel", { pageName })}
-                    >
-                      <Edit className="h-4 w-4" />
-                    </Button>
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      onClick={() => onDelete(schedule.id)}
-                      aria-label={t("deleteScheduleAriaLabel", { pageName })}
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
-                  </div>
-                </div>
+                    {/* ml-auto pins Edit/Delete to the right edge of the stacked
+                        control row; on the single-row layout they sit next to
+                        the toggle exactly as before. */}
+                    <Flex align="center" gap="2" className="ml-auto sm:ml-0">
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        onClick={() => onEdit(schedule)}
+                        aria-label={t("editScheduleAriaLabel", { pageName })}
+                      >
+                        <Edit className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        onClick={() => onDelete(schedule.id)}
+                        aria-label={t("deleteScheduleAriaLabel", { pageName })}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </Flex>
+                  </Flex>
+                </Flex>
               );
             })}
-          </div>
+          </Stack>
         )}
-      </CardContent>
-    </Card>
+      </Box>
+    </Box>
   );
 }

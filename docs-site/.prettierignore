@@ -1,8 +1,0 @@
-node_modules/
-.docusaurus/
-build/
-static/
-package-lock.json
-versioned_docs/
-versioned_sidebars/
-docs/

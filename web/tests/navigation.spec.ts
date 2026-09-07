@@ -135,7 +135,7 @@ test.describe("Navigation", () => {
     });
   });
 
-  test("sidebar has primary and secondary navigation sections", async ({ page }) => {
+  test("sidebar renders one flat navigation list", async ({ page }) => {
     await page.setViewportSize({ width: 1280, height: 720 });
     await page.goto("/");
     await expect(page.getByRole("heading", { name: "Dashboard" })).toBeVisible({ timeout: 15_000 });
@@ -143,14 +143,15 @@ test.describe("Navigation", () => {
     // Desktop sidebar is in <aside>; mobile menu also contains duplicate nav labels
     // (hidden when the menu is closed), so scope to the fixed sidebar.
     const sidebar = page.locator("aside").first();
-    const primaryNav = sidebar.getByLabel("Primary navigation");
-    await expect(primaryNav).toBeVisible();
+    const nav = sidebar.getByLabel("Primary navigation");
+    await expect(nav).toBeVisible();
 
-    const secondaryNav = sidebar.getByLabel("Secondary navigation");
-    await expect(secondaryNav).toBeVisible();
+    // @fiestaboard/ui v5.12 merged the rail's two lists into one, so there is
+    // no "Secondary navigation" landmark left to find.
+    await expect(sidebar.getByLabel("Secondary navigation")).toHaveCount(0);
 
-    // Settings should be in secondary section
-    const settingsLink = secondaryNav.getByRole("link", { name: "Settings" });
+    // Settings is a row of that one list now, below the primary destinations.
+    const settingsLink = nav.getByRole("link", { name: "Settings" });
     await expect(settingsLink).toBeVisible();
   });
 

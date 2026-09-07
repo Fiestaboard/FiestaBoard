@@ -1,7 +1,7 @@
+import { Label } from "@fiestaboard/ui";
 import type { Meta, StoryObj } from "@storybook/react";
 import { useState } from "react";
 
-import { Label } from "./label";
 import { TimePicker } from "./time-picker";
 
 const meta = {

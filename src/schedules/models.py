@@ -9,7 +9,9 @@ import uuid
 from datetime import UTC, date, datetime
 from typing import Literal
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, StrictBool
+
+from src.settings.service import TemporaryOverrideStatus
 
 DayPattern = Literal["all", "weekdays", "weekends", "custom"]
 TimeType = Literal["fixed", "sunrise", "sunset"]
@@ -280,6 +282,113 @@ class ScheduleUpdate(BaseModel):
     start_sun_offset: int | None = None
     end_type: TimeType | None = None
     end_sun_offset: int | None = None
+
+
+class ScheduleValidateRequest(BaseModel):
+    """Body of ``POST /schedules/validate``. Optional — omit it for all boards."""
+
+    board_id: str | None = None
+
+
+class DefaultPageUpdate(BaseModel):
+    """Body of ``PUT /schedules/default-page``.
+
+    ``page_id`` is required but nullable: ``null`` clears the default page,
+    which is a different request from omitting the field (that is a 422).
+    """
+
+    page_id: str | None
+    board_id: str | None = None
+
+
+class ScheduleEnabledUpdate(BaseModel):
+    """Body of ``PUT /schedules/enabled``.
+
+    ``enabled`` is a ``StrictBool`` on purpose: Pydantic's lax mode would
+    coerce ``"yes"`` / ``"on"`` / ``1`` into ``True`` and silently turn
+    schedule mode on for a client that sent the wrong type. The pre-conversion
+    handler rejected non-booleans by hand; this keeps that promise.
+    """
+
+    enabled: StrictBool
+    board_id: str | None = None
+
+
+class ScheduleResponse(ScheduleEntry):
+    """A schedule as the API serves it: the stored entry plus today's times.
+
+    ``resolved_*`` equals the stored time for fixed schedules and the computed
+    sunrise/sunset time for sun-based ones, so a client never has to know the
+    install's location to render the window.
+    """
+
+    resolved_start_time: str
+    resolved_end_time: str | None = None
+
+
+class ScheduleWriteResponse(ScheduleResponse):
+    """What create and update answer with.
+
+    ``warnings`` carries the non-fatal page<->board size mismatches of issue
+    #1245 — a collection may mix page sizes, and the write is allowed as long
+    as one member fits. The key was previously *omitted* when there was nothing
+    to warn about, so a client could not tell "no warnings" from "this server
+    doesn't report warnings"; it is now always present and empty when clean.
+    """
+
+    warnings: list[str] = Field(default_factory=list)
+
+
+class ScheduleListResponse(BaseModel):
+    """What ``GET /schedules`` answers with.
+
+    ``default_page_id`` and ``enabled`` are per-board, so both are ``null`` on
+    the cross-board listing (``board_id=*``) — that listing has no single board
+    to answer for.
+    """
+
+    schedules: list[ScheduleResponse]
+    total: int
+    default_page_id: str | None = None
+    enabled: bool | None = None
+
+
+class ScheduleDeleteResponse(BaseModel):
+    """The id of the schedule that was deleted."""
+
+    id: str
+
+
+class DefaultPageResponse(BaseModel):
+    """The default page shown when no schedule window is active."""
+
+    default_page_id: str | None = None
+
+
+class ScheduleEnabledResponse(BaseModel):
+    """Whether schedule mode drives the board."""
+
+    enabled: bool
+
+
+class ActiveScheduleResponse(BaseModel):
+    """What ``GET /schedules/active/page`` answers with.
+
+    Every field is always present. The manual branch used to omit
+    ``current_time`` / ``current_day`` / ``default_page_id`` entirely, so one
+    route served two key sets and a client could not tell a missing field from
+    a server that never sends it; they are ``null`` in manual mode now.
+    """
+
+    page_id: str | None = None
+    resolved_page_id: str | None = None
+    resolved_next_check_seconds: int | None = None
+    source: Literal["schedule", "manual", "none"]
+    schedule_enabled: bool
+    current_time: str | None = None
+    current_day: str | None = None
+    default_page_id: str | None = None
+    temporary_override: TemporaryOverrideStatus
 
 
 class Overlap(BaseModel):

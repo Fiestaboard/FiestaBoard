@@ -1,6 +1,7 @@
 """Tests for PluginLoader - discovers and loads plugin modules."""
 
 import sys
+import threading
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
@@ -439,6 +440,25 @@ def test_reload_plugin_loads_if_not_loaded(tmp_path):
     assert plugin.plugin_id == "test_plugin"
 
 
+def test_loading_over_a_live_plugin_cleans_up_the_replaced_instance(tmp_path):
+    """Replacing a loaded instance must run cleanup() on the one it drops.
+
+    Without it, whatever the old instance owns — a listener thread, an open
+    connection — is leaked for the lifetime of the process (issue #1753).
+    """
+    create_valid_plugin_dir(tmp_path, "test_plugin")
+    loader = _loader_for_tests(tmp_path)
+    first = loader.load_plugin("test_plugin")
+
+    cleaned_up = threading.Event()
+    first.cleanup = cleaned_up.set
+
+    second = loader.load_plugin("test_plugin")
+
+    assert second is not first
+    assert cleaned_up.wait(timeout=5), "the replaced plugin instance was dropped without cleanup()"
+
+
 # --- unload_plugin ---
 
 
@@ -559,3 +579,246 @@ def test_default_external_dir_uses_data_location(tmp_path):
 
     mock_dir.assert_called_once()
     assert loader._external_dirs == [tmp_path]
+
+
+# --- path traversal hardening (CodeQL py/path-injection, alerts #66-#71) ---
+#
+# Plugin names reach load_plugin() from user-controlled API input (plugin
+# settings / install / reload endpoints).  A crafted name must never resolve
+# to a directory outside the plugins root, and must fail through the exact
+# same error path as a nonexistent plugin.
+
+
+def _plugins_root_with_outside_decoy(tmp_path: Path, decoy_id: str = "outside_plugin"):
+    """A plugins root plus a fully valid decoy plugin OUTSIDE that root."""
+    plugins_root = tmp_path / "plugins_root"
+    plugins_root.mkdir()
+    decoy_dir = create_valid_plugin_dir(tmp_path, decoy_id)
+    return plugins_root, decoy_dir
+
+
+def test_load_plugin_rejects_parent_traversal_name(tmp_path):
+    """load_plugin('../x') must not open files outside the plugins root.
+
+    The decoy manifest outside the root contains invalid JSON: on vulnerable
+    code the loader reports "Invalid JSON in manifest" — proof it opened the
+    outside file via load_manifest().  Fixed code must never touch it and
+    must report the standard not-found error instead.
+    """
+    plugins_root = tmp_path / "plugins_root"
+    plugins_root.mkdir()
+    decoy_dir = tmp_path / "outside_plugin"
+    decoy_dir.mkdir()
+    (decoy_dir / "manifest.json").write_text("{ invalid json — reading me proves traversal")
+
+    loader = _loader_for_tests(plugins_root)
+    plugin = loader.load_plugin("../outside_plugin")
+
+    assert plugin is None
+    assert loader.load_errors["../outside_plugin"] == ["Plugin directory not found: ../outside_plugin"]
+
+
+def test_load_plugin_rejects_absolute_path_name(tmp_path):
+    """load_plugin('/abs/path') must not resolve a directory outside the root."""
+    plugins_root, decoy_dir = _plugins_root_with_outside_decoy(tmp_path)
+
+    loader = _loader_for_tests(plugins_root)
+    abs_name = str(decoy_dir)
+    plugin = loader.load_plugin(abs_name)
+
+    assert plugin is None
+    assert loader.load_errors[abs_name] == [f"Plugin directory not found: {abs_name}"]
+
+
+def test_load_plugin_rejects_intermediate_traversal_name(tmp_path):
+    """load_plugin('foo/../bar') must be rejected even when it resolves inside the root."""
+    plugins_root = tmp_path / "plugins_root"
+    plugins_root.mkdir()
+    (plugins_root / "foo").mkdir()
+    create_valid_plugin_dir(plugins_root, "bar")
+
+    loader = _loader_for_tests(plugins_root)
+    plugin = loader.load_plugin("foo/../bar")
+
+    assert plugin is None
+    assert loader.load_errors["foo/../bar"] == ["Plugin directory not found: foo/../bar"]
+    assert "bar" not in loader.loaded_plugins
+
+
+def test_load_plugin_rejects_empty_name(tmp_path):
+    """load_plugin('') must not treat the plugins root itself as a plugin dir."""
+    plugins_root = tmp_path / "plugins_root"
+    plugins_root.mkdir()
+
+    loader = _loader_for_tests(plugins_root)
+    plugin = loader.load_plugin("")
+
+    assert plugin is None
+    assert loader.load_errors[""] == ["Plugin directory not found: "]
+
+
+def test_load_plugin_rejects_symlink_escaping_plugins_root(tmp_path):
+    """A symlinked plugin dir pointing outside the plugins root must not load.
+
+    On vulnerable code this decoy actually LOADS (manifest id matches the
+    requested name), executing code from outside the plugins root.
+    """
+    plugins_root, decoy_dir = _plugins_root_with_outside_decoy(tmp_path, decoy_id="evil")
+    (plugins_root / "evil").symlink_to(decoy_dir)
+
+    loader = _loader_for_tests(plugins_root)
+    plugin = loader.load_plugin("evil")
+
+    assert plugin is None
+    assert loader.load_errors["evil"] == ["Plugin directory not found: evil"]
+    assert "evil" not in loader.loaded_plugins
+
+
+def test_load_plugin_rejects_traversal_out_of_external_dir(tmp_path):
+    """Traversal names must be rejected for external plugin dirs too."""
+    builtin_root = tmp_path / "builtin_root"
+    builtin_root.mkdir()
+    external_root = tmp_path / "external_root"
+    external_root.mkdir()
+    create_valid_plugin_dir(tmp_path, "outside_plugin")
+
+    loader = PluginLoader(plugins_dir=builtin_root, external_dirs=[external_root])
+    plugin = loader.load_plugin("../outside_plugin")
+
+    assert plugin is None
+    assert loader.load_errors["../outside_plugin"] == ["Plugin directory not found: ../outside_plugin"]
+
+
+def test_load_plugin_valid_id_with_digits_and_underscores_still_loads(tmp_path):
+    """A normal plugin id (letters, digits, underscores) loads exactly as before."""
+    create_valid_plugin_dir(tmp_path, "clock_v2")
+    loader = _loader_for_tests(tmp_path)
+
+    plugin = loader.load_plugin("clock_v2")
+
+    assert plugin is not None
+    assert plugin.plugin_id == "clock_v2"
+    source = loader.get_source("clock_v2")
+    assert source is not None
+    assert source.source_type == "builtin"
+    assert Path(source.local_path).name == "clock_v2"
+
+
+def test_load_plugin_builtin_still_wins_over_external(tmp_path):
+    """Builtin dir precedence over external dirs is unchanged by the barrier."""
+    builtin_root = tmp_path / "builtin_root"
+    builtin_root.mkdir()
+    external_root = tmp_path / "external_root"
+    external_root.mkdir()
+    create_valid_plugin_dir(builtin_root, "dup_plugin")
+    create_valid_plugin_dir(external_root, "dup_plugin")
+
+    loader = PluginLoader(plugins_dir=builtin_root, external_dirs=[external_root])
+    plugin = loader.load_plugin("dup_plugin")
+
+    assert plugin is not None
+    source = loader.get_source("dup_plugin")
+    assert source is not None
+    assert source.source_type == "builtin"
+
+
+def test_load_plugin_external_plugin_still_reports_external_source(tmp_path):
+    """A plugin that only exists in an external dir still loads with source 'external'."""
+    builtin_root = tmp_path / "builtin_root"
+    builtin_root.mkdir()
+    external_root = tmp_path / "external_root"
+    external_root.mkdir()
+    create_valid_plugin_dir(external_root, "ext_only")
+
+    loader = PluginLoader(plugins_dir=builtin_root, external_dirs=[external_root])
+    plugin = loader.load_plugin("ext_only")
+
+    assert plugin is not None
+    source = loader.get_source("ext_only")
+    assert source is not None
+    assert source.source_type == "external"
+
+
+# --- sweep_renamed_plugin_dirs (issue #1672) ---
+
+
+def _write_renamed_leftover(external_root: Path, dir_name: str, manifest_id: str) -> Path:
+    """Create a leftover dir whose manifest id differs from its directory name.
+
+    This is the on-disk fingerprint of a plugin rename: the update installed
+    ``<manifest_id>/`` and left the old ``<dir_name>/`` behind, still carrying
+    a manifest that now declares the new id.
+    """
+    stale_dir = external_root / dir_name
+    stale_dir.mkdir()
+    (stale_dir / "manifest.json").write_text(
+        '{"id":"'
+        + manifest_id
+        + '","name":"Test","version":"1.0.0","description":"","author":"","variables":{"simple":["var1"]},"max_lengths":{}}'
+    )
+    return stale_dir
+
+
+def test_sweep_removes_orphaned_renamed_directory(tmp_path):
+    """A dir left over from a rename is deleted and its stale error cleared."""
+    builtin_root = tmp_path / "builtin_root"
+    builtin_root.mkdir()
+    external_root = tmp_path / "external_root"
+    external_root.mkdir()
+
+    # The current, correctly-named plugin plus the orphaned predecessor dir.
+    create_valid_plugin_dir(external_root, "lyft_bike_share")
+    stale_dir = _write_renamed_leftover(external_root, "baywheels", "lyft_bike_share")
+
+    loader = PluginLoader(plugins_dir=builtin_root, external_dirs=[external_root])
+    loader.load_all_plugins()
+
+    # Baseline: the leftover fails the id/dirname integrity check.
+    assert "baywheels" in loader.load_errors
+    assert any("does not match directory name" in e for e in loader.load_errors["baywheels"])
+
+    removed = loader.sweep_renamed_plugin_dirs()
+
+    assert removed == ["baywheels"]
+    assert not stale_dir.exists()
+    assert "baywheels" not in loader.load_errors
+    # The real plugin is untouched.
+    assert (external_root / "lyft_bike_share").exists()
+    assert "lyft_bike_share" in loader.loaded_plugins
+
+
+def test_sweep_keeps_leftover_when_target_id_not_installed(tmp_path):
+    """A mismatched dir is left alone if no loaded plugin claims its manifest id."""
+    builtin_root = tmp_path / "builtin_root"
+    builtin_root.mkdir()
+    external_root = tmp_path / "external_root"
+    external_root.mkdir()
+
+    # Only the orphan exists — the plugin it names never loaded, so removing it
+    # would destroy the sole copy. Not the unambiguous rename signature.
+    stale_dir = _write_renamed_leftover(external_root, "baywheels", "lyft_bike_share")
+
+    loader = PluginLoader(plugins_dir=builtin_root, external_dirs=[external_root])
+    loader.load_all_plugins()
+
+    removed = loader.sweep_renamed_plugin_dirs()
+
+    assert removed == []
+    assert stale_dir.exists()
+
+
+def test_sweep_is_idempotent_with_no_leftovers(tmp_path):
+    """A clean install removes nothing and leaves loaded plugins in place."""
+    builtin_root = tmp_path / "builtin_root"
+    builtin_root.mkdir()
+    external_root = tmp_path / "external_root"
+    external_root.mkdir()
+    create_valid_plugin_dir(external_root, "lyft_bike_share")
+
+    loader = PluginLoader(plugins_dir=builtin_root, external_dirs=[external_root])
+    loader.load_all_plugins()
+
+    removed = loader.sweep_renamed_plugin_dirs()
+
+    assert removed == []
+    assert (external_root / "lyft_bike_share").exists()

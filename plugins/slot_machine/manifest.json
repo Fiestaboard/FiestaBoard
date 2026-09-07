@@ -1,0 +1,59 @@
+{
+  "id": "slot_machine",
+  "name": "Slot Machine",
+  "version": "1.0.0",
+  "description": "Each column spins through random characters like a slot-machine reel before locking on the target. Columns stagger left-to-right so the board settles in a satisfying cascade.",
+  "author": "FiestaBoard",
+  "icon": "dices",
+  "category": "transition",
+  "plugin_type": "transition",
+  "documentation": "README.md",
+  "settings_schema": {
+    "type": "object",
+    "properties": {
+      "spin_frames": {
+        "type": "integer",
+        "title": "Spin frames per column",
+        "description": "How many random-character frames each column shows before locking on the target.",
+        "default": 6,
+        "minimum": 1,
+        "maximum": 30
+      },
+      "column_stagger": {
+        "type": "integer",
+        "title": "Column stagger (frames)",
+        "description": "How many frames later each column starts locking, relative to the previous column. 0 = all columns lock simultaneously; higher values produce a left-to-right cascade.",
+        "default": 1,
+        "minimum": 0,
+        "maximum": 10
+      },
+      "frame_interval_ms": {
+        "type": "integer",
+        "title": "Delay between frames (ms)",
+        "description": "Time to pause between each step. Smaller = faster spin.",
+        "default": 80,
+        "minimum": 0,
+        "maximum": 1000
+      },
+      "seed": {
+        "type": "integer",
+        "title": "Random seed",
+        "description": "Set to a fixed integer for deterministic playback (useful for previews). Leave 0 for a fresh random spin each run.",
+        "default": 0
+      }
+    }
+  },
+  "transition_settings": {
+    "interruptible": true,
+    "min_interval_ms": 50,
+    "max_frames": 300,
+    "max_runtime_seconds": 60
+  },
+  "screenshots": [
+    {
+      "src": "docs/board-display.png",
+      "alt": "Slot machine column spin transition",
+      "primary": true
+    }
+  ]
+}

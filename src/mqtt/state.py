@@ -77,13 +77,25 @@ class StatePublisher:
             display_running = self._get_display_running()
             out["display_service"] = "ON" if display_running else "OFF"
 
-            # active_page, current_page: page name
+            # active_page, current_page: page name. With no active page,
+            # publish the select's stable no-page option — HA rejects
+            # states that aren't in the options list (issue #1794).
+            from .discovery import NO_ACTIVE_PAGE_OPTION
+
             active_id = settings.get_active_page_id()
-            page_name = "—"
+            page_name = NO_ACTIVE_PAGE_OPTION
             if active_id:
                 page = page_service.get_page(active_id)
                 if page:
                     page_name = page.name
+            # While the primary board shows out-of-band content (a manual
+            # MQTT/HTTP write, which persists per issue #1794), the board is
+            # NOT showing the configured page — report the same stable
+            # no-page option instead of lying (issue #1831). The stored
+            # active page id is untouched: selecting any page in HA still
+            # force-sends it (issue #1794), which is the restore path.
+            if self._primary_board_showing_out_of_band():
+                page_name = NO_ACTIVE_PAGE_OPTION
             out["active_page"] = page_name
             out["current_page"] = page_name
 
@@ -97,8 +109,14 @@ class StatePublisher:
             # current_message
             out["current_message"] = self._get_current_message()
 
-            # silence_mode
-            silence_active = Config.is_silence_mode_active()
+            # silence_mode — scoped to the primary board (issue #1788).
+            # Every other field in this payload is primary-board scoped
+            # (active_page, transition_style, ...), so publishing the
+            # install-wide layer here made the Home Assistant sensor report
+            # OFF while the board it describes was snoozing. A per-board
+            # sensor set is a separate feature; this keeps the single entity
+            # honest about the board it already describes.
+            silence_active = Config.is_silence_mode_active(settings.get_primary_board_id())
             out["silence_mode"] = "ON" if silence_active else "OFF"
 
             # version
@@ -191,9 +209,51 @@ class StatePublisher:
                     break
             out["current_page"] = page_attrs
 
+            # Per-board active pages (issue #1244) — additive attributes so HA
+            # automations can read every board's page, not just the primary's.
+            # Guarded separately: a failure here must never drop the legacy
+            # current_page attributes above.
+            try:
+                boards = settings.get_board_settings().boards or []
+                by_board: dict = {}
+                for board in boards:
+                    if not isinstance(board, dict) or not board.get("id"):
+                        continue
+                    bid = board["id"]
+                    board_page_id = settings.get_active_page_id(board_id=bid)
+                    if not isinstance(board_page_id, str):
+                        board_page_id = ""
+                    board_page_name = ""
+                    if board_page_id:
+                        board_page = page_service.get_page(board_page_id)
+                        if board_page:
+                            board_page_name = board_page.name
+                    by_board[bid] = {"page_id": board_page_id, "page_name": board_page_name}
+                if by_board:
+                    page_attrs["by_board"] = by_board
+            except Exception as e:
+                logger.debug("Per-board attributes gather error: %s", e)
+
         except Exception as e:
             logger.debug("Attributes gather error: %s", e)
         return out
+
+    @staticmethod
+    def _primary_board_showing_out_of_band() -> bool:
+        """True while the primary board shows out-of-band content (issue #1831).
+
+        Reads the existing DisplayService only (peek, never create): with no
+        service there has been no board write, so nothing is out of band.
+        """
+        try:
+            from src.api_server import peek_service
+
+            service = peek_service()
+            if service is not None and hasattr(service, "is_showing_out_of_band"):
+                return service.is_showing_out_of_band() is True
+        except Exception:
+            logger.debug("Could not read out-of-band display state")
+        return False
 
     @staticmethod
     def _get_uptime() -> str:
@@ -201,7 +261,7 @@ class StatePublisher:
         try:
             import time
 
-            from src.api_server import _service_start_time
+            from src.display_runtime import _service_start_time
 
             if _service_start_time is not None:
                 return str(int(time.time() - _service_start_time))

@@ -4,7 +4,7 @@ import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { PageGridSelector } from "@/components/page-grid-selector";
-import type { Page, PagePreviewBatchResponse } from "@/lib/api";
+import type { Page, PagePreviewBatchEntry, PagePreviewBatchResponse } from "@/lib/api";
 import { api } from "@/lib/api";
 
 // Mock the API
@@ -54,47 +54,28 @@ function TestWrapper({ children }: { children: React.ReactNode }) {
 }
 
 // Mock data
-const mockPages: Page[] = [
-  {
-    id: "page-1",
-    name: "Page 1",
-    template: "Test Template 1",
-    updated_at: "2024-01-01T00:00:00Z",
-  },
-  {
-    id: "page-2",
-    name: "Page 2",
-    template: "Test Template 2",
-    updated_at: "2024-01-02T00:00:00Z",
-  },
-  {
-    id: "page-3",
-    name: "Page 3",
-    template: "Test Template 3",
-    updated_at: "2024-01-03T00:00:00Z",
-  },
-];
+// `template` is a per-row array on the wire, not a single string.
+const mockPages: Page[] = [1, 2, 3].map((n) => ({
+  id: `page-${n}`,
+  name: `Page ${n}`,
+  type: "template",
+  device_type: "flagship",
+  template: [`Test Template ${n}`],
+  duration_seconds: 300,
+  created_at: "2024-01-01T00:00:00Z",
+  updated_at: `2024-01-0${n}T00:00:00Z`,
+}));
+
+/** A successful batch-preview entry, matching the endpoint's payload. */
+function previewEntry(pageId: string, message: string, lines: string[]): PagePreviewBatchEntry {
+  return { page_id: pageId, message, lines, display_type: "template", raw: {}, available: true };
+}
 
 const mockBatchPreviewResponse: PagePreviewBatchResponse = {
   previews: {
-    "page-1": {
-      page_id: "page-1",
-      message: "Preview Message 1",
-      lines: ["Line 1", "Line 2"],
-      available: true,
-    },
-    "page-2": {
-      page_id: "page-2",
-      message: "Preview Message 2",
-      lines: ["Line 3", "Line 4"],
-      available: true,
-    },
-    "page-3": {
-      page_id: "page-3",
-      message: "Preview Message 3",
-      lines: ["Line 5", "Line 6"],
-      available: true,
-    },
+    "page-1": previewEntry("page-1", "Preview Message 1", ["Line 1", "Line 2"]),
+    "page-2": previewEntry("page-2", "Preview Message 2", ["Line 3", "Line 4"]),
+    "page-3": previewEntry("page-3", "Preview Message 3", ["Line 5", "Line 6"]),
   },
   total: 3,
   successful: 3,
@@ -114,7 +95,19 @@ describe("PageGridSelector", () => {
 
     vi.mocked(api.getBoardSettings).mockResolvedValue({
       board_type: "black",
-      boards: [{ id: "default", name: "Flagship", device_type: "flagship", board_color: "black" }],
+      boards: [
+        {
+          id: "default",
+          name: "Flagship",
+          device_type: "flagship",
+          board_color: "black",
+          enabled: true,
+          api_mode: "local",
+          host: "127.0.0.1",
+          local_api_key: "test-local-key",
+          cloud_key: "",
+        },
+      ],
       devices: ["flagship"],
     });
 
@@ -240,25 +233,10 @@ describe("PageGridSelector", () => {
   it("handles partial batch failures", async () => {
     const partialResponse: PagePreviewBatchResponse = {
       previews: {
-        "page-1": {
-          page_id: "page-1",
-          message: "Preview Message 1",
-          lines: ["Line 1", "Line 2"],
-          available: true,
-        },
-        "page-2": {
-          page_id: "page-2",
-          message: "",
-          lines: [],
-          available: false,
-          error: "Page rendering failed",
-        },
-        "page-3": {
-          page_id: "page-3",
-          message: "Preview Message 3",
-          lines: ["Line 5", "Line 6"],
-          available: true,
-        },
+        "page-1": previewEntry("page-1", "Preview Message 1", ["Line 1", "Line 2"]),
+        // A failed entry carries only the error flag pair.
+        "page-2": { available: false, error: "Page rendering failed" },
+        "page-3": previewEntry("page-3", "Preview Message 3", ["Line 5", "Line 6"]),
       },
       total: 3,
       successful: 2,

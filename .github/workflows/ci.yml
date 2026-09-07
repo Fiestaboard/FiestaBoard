@@ -34,6 +34,8 @@ jobs:
       plugins: ${{ steps.filter.outputs.plugins }}
       shared: ${{ steps.filter.outputs.shared }}
       docs: ${{ steps.filter.outputs.docs }}
+      markdown: ${{ steps.filter.outputs.markdown }}
+      e2e_wiring: ${{ steps.filter.outputs.e2e_wiring }}
     steps:
       - name: Checkout code
         uses: actions/checkout@v7
@@ -60,6 +62,18 @@ jobs:
               - 'start-dev.sh'
             plugins:
               - 'plugins/**'
+            e2e_wiring:
+              # The inputs to tests/test_e2e_spec_reachability.py, which
+              # proves no Playwright spec is unreachable by every workflow
+              # and that the merge queue gates on all of them (#1737).
+              # A new workflow, a new `RUN_*` gate in the Playwright config,
+              # or a new spec can each create a never-run test, so the guard
+              # has to re-run whenever one of them changes. Deliberately NOT
+              # folded into `shared` — that would rebuild the Docker image
+              # and run the whole E2E fleet for an unrelated workflow edit.
+              - '.github/workflows/**'
+              - 'web/playwright.config.ts'
+              - 'web/tests/**'
             shared:
               # Files that genuinely affect every test surface (Platform,
               # UI, Plugins, A11y, E2E, Build). Keep this list as an
@@ -68,10 +82,10 @@ jobs:
               # `predicate-quantifier: some`, which makes a single negation
               # like `!foo` match every file that isn't `foo`, turning the
               # whole filter into a universal match. See
-              # docs/development/CI_PATH_FILTERING_AUDIT.md for details.
+              # docs/internal/development/CI_PATH_FILTERING_AUDIT.md for details.
               #
               # Workflows that own their own pipelines (build-fiestapi,
-              # build-fiestaupdater, docs, registry-scan, pr-label,
+              # build-fiestaupdater, publish-docs, registry-scan, pr-label,
               # release) are intentionally NOT listed here.
               - 'docker-compose*.yml'
               - '.github/workflows/ci.yml'
@@ -79,17 +93,27 @@ jobs:
               - 'package.json'
               - 'scripts/version-sync.js'
             docs:
-              - 'docs-site/**'
+              # Published documentation markdown (synced to the separate
+              # site repo, Fiestaboard/fiestaboard.github.io, which builds
+              # and deploys fiestaboard.app). Includes docs/internal/,
+              # which the site never publishes — a rare false positive is
+              # preferable to a negation pattern here (see the warning in
+              # `shared` above).
+              - 'docs/**'
             markdown:
               # Any markdown anywhere, plus the docs-lint tooling/config, so
               # the lint-markdown + link-check jobs run when prose or their
               # own configuration changes.
               - '**/*.md'
               - '**/*.mdx'
+              # Sidebar metadata is part of the docs contract checked by
+              # lint-docs-contract.mjs, so category edits must re-run the gate.
+              - 'docs/**/_category_.json'
               - 'cspell.json'
               - '.markdownlint-cli2.jsonc'
               - 'lychee.toml'
               - 'scripts/lint-docs-frontmatter.mjs'
+              - 'scripts/lint-docs-contract.mjs'
               - 'package.json'
               - 'package-lock.json'
 
@@ -120,23 +144,37 @@ jobs:
           # - caniuse-lite ships browser-compat *data* under CC-BY-4.0 (the
           #   code is MIT); it's a transitive dep of browserslist, pulled
           #   in by tooling across the web build.
-          # - @fontsource-variable/geist + -geist-mono ship the actual
-          #   font files (woff2) under SIL Open Font License 1.1 (OFL-1.1).
-          #   OFL is the standard permissive font license used by Google
-          #   Fonts; the JS wrapper / package metadata is MIT. Replaced
-          #   next/font/google during the Next.js → RR7 migration so the
-          #   fonts are self-hosted (HA-Ingress-safe).
+          # - @fontsource-variable/archivo + -spline-sans-mono ship the
+          #   actual font files (woff2) under SIL Open Font License 1.1
+          #   (OFL-1.1). OFL is the standard permissive font license used
+          #   by Google Fonts; the JS wrapper / package metadata is MIT.
+          #   Self-hosted (HA-Ingress-safe) via @fiestaboard/ui, which
+          #   replaced Geist with these faces in v5.0.0.
+          # - zeroconf is LGPL-2.1-only. It has shipped in requirements.txt
+          #   since well before this allow-list existed; Dependency Review
+          #   only flags it when the pin moves, because a version change
+          #   reads as a newly-introduced dependency. FiestaBoard imports it
+          #   as an unmodified library from a separate PyPI wheel and does
+          #   not link it statically or modify it, which is the LGPL's
+          #   dynamic-linking case. Listing it records a decision already
+          #   made in practice rather than granting anything new.
           allow-dependencies-licenses: >-
+            pkg:pypi/zeroconf,
             pkg:npm/caniuse-lite,
-            pkg:npm/%40fontsource-variable/geist,
-            pkg:npm/%40fontsource-variable/geist-mono
+            pkg:npm/%40fontsource-variable/archivo,
+            pkg:npm/%40fontsource-variable/spline-sans-mono
           comment-summary-in-pr: on-failure
 
   test-platform:
     name: Platform Tests
     runs-on: ubuntu-latest
     needs: detect-changes
-    if: needs.detect-changes.outputs.api == 'true' || needs.detect-changes.outputs.shared == 'true'
+    # `e2e_wiring` is here so the spec-reachability guard runs when a workflow
+    # or the Playwright config changes, even though no Python changed (#1737).
+    if: >-
+      needs.detect-changes.outputs.api == 'true'
+      || needs.detect-changes.outputs.shared == 'true'
+      || needs.detect-changes.outputs.e2e_wiring == 'true'
     timeout-minutes: 10
     
     steps:
@@ -148,7 +186,7 @@ jobs:
     - name: Verify imports
       run: |
         python -c "import sys; sys.path.insert(0, '.'); from src import config, board_client, board_chars; print('✅ Core imports successful')"
-        python -c "import sys; sys.path.insert(0, '.'); from src.utils import weather, datetime, home_assistant, star_trek_quotes; print('✅ Utils imports successful')"
+        python -c "import sys; sys.path.insert(0, '.'); from src.utils import datetime, home_assistant; print('✅ Utils imports successful')"
         python -c "import sys; sys.path.insert(0, '.'); from src.formatters import message_formatter; print('✅ Formatter imports successful')"
         python -c "import sys; sys.path.insert(0, '.'); from src.main import FiestaBoardDisplayService; print('✅ Main module imports successful')"
         python -c "
@@ -173,6 +211,14 @@ jobs:
         # ruff format replaces black; same output, one tool.
         ruff format --check src/ plugins/ tests/ scripts/
     
+    - name: Snapshot data/ before tests
+      run: |
+        # Isolation guard (#1762): the suite must never write the checkout's
+        # data/ directory — every test runs against a tmp_path via the
+        # FIESTABOARD_DATA_DIR seam. Checksum whatever exists now; the step
+        # after the tests re-checksums and diffs.
+        find data -type f 2>/dev/null | sort | xargs -r shasum > /tmp/data-before.txt || true
+
     - name: Run platform tests with coverage
       run: |
         # Exclude integration tests (network-dependent, run in a separate step).
@@ -190,6 +236,18 @@ jobs:
         BOARD_READ_WRITE_KEY: test_key
         WEATHER_API_KEY: test_key
 
+    - name: Verify tests did not write data/
+      run: |
+        # Isolation guard (#1762), second half: any new, changed, or deleted
+        # file under data/ means a test escaped the FIESTABOARD_DATA_DIR seam.
+        # A plain step (not `if: always()`) on purpose — if the tests failed,
+        # that failure is the signal; this guard only needs to gate green runs.
+        find data -type f 2>/dev/null | sort | xargs -r shasum > /tmp/data-after.txt || true
+        if ! diff -u /tmp/data-before.txt /tmp/data-after.txt; then
+          echo "::error::Platform tests wrote to the repo data/ directory (#1762 isolation regression)"
+          exit 1
+        fi
+
     - name: Write coverage summary
       if: always()
       run: |
@@ -201,8 +259,10 @@ jobs:
 
     - name: Run plugin install integration tests
       run: |
-        # Real git clone/pull/uninstall against live Fiestaboard plugin repos on GitHub.
-        # Requires network access and git binary (both available on ubuntu-latest).
+        # Real git install/update/uninstall flows against local file:// fixture
+        # repos — hermetic on purpose. Cloning the live plugin repos from here
+        # made every CI run count as a "unique cloner" in their GitHub traffic
+        # stats, inflating fiestaboard.app/stats (dad-jokes, star-trek-quotes).
         pytest -m integration tests/test_plugin_install_integration.py -v
       env:
         BOARD_READ_WRITE_KEY: test_key
@@ -311,7 +371,10 @@ jobs:
     - name: Set up Node.js
       uses: actions/setup-node@v7
       with:
-        node-version: '20'
+        # Node 24 is the latest Active LTS; react-router 8 needs >= 22.22
+        # (issue #1381) and the Docker image runs Node 26. Docs-site jobs
+        # intentionally stay on Node 20.
+        node-version: '24'
         cache: 'npm'
         # package-lock.json is regenerated by the next CI run after the
         # Next.js → RR7 migration; fall back to package.json for the
@@ -333,37 +396,16 @@ jobs:
       working-directory: web
       run: npm run lint
 
+    # Vite transpiles without typechecking, so a wrong call signature or a
+    # dropped export builds clean and only fails when that code path runs.
+    # Without this step 137 errors accumulated on main unnoticed (issue
+    # #1586), including three live runtime defects.
+    - name: Typecheck
+      working-directory: web
+      run: npm run typecheck
+
     - name: Prettier check
       working-directory: web
-      run: npm run format:check
-
-  lint-docs:
-    name: Lint Docs Site
-    runs-on: ubuntu-latest
-    needs: detect-changes
-    if: needs.detect-changes.outputs.docs == 'true' || needs.detect-changes.outputs.shared == 'true'
-    timeout-minutes: 5
-
-    steps:
-    - uses: actions/checkout@v7
-
-    - name: Set up Node.js
-      uses: actions/setup-node@v7
-      with:
-        node-version: '20'
-        cache: 'npm'
-        cache-dependency-path: docs-site/package-lock.json
-
-    - name: Install docs-site dependencies
-      working-directory: docs-site
-      run: npm ci
-
-    - name: ESLint
-      working-directory: docs-site
-      run: npm run lint
-
-    - name: Prettier check
-      working-directory: docs-site
       run: npm run format:check
 
   test-ui:
@@ -379,7 +421,10 @@ jobs:
     - name: Set up Node.js
       uses: actions/setup-node@v7
       with:
-        node-version: '20'
+        # Node 24 is the latest Active LTS; react-router 8 needs >= 22.22
+        # (issue #1381) and the Docker image runs Node 26. Docs-site jobs
+        # intentionally stay on Node 20.
+        node-version: '24'
         cache: 'npm'
         # package-lock.json is regenerated by the next CI run after the
         # Next.js → RR7 migration; fall back to package.json for the
@@ -438,7 +483,10 @@ jobs:
     - name: Set up Node.js
       uses: actions/setup-node@v7
       with:
-        node-version: '20'
+        # Node 24 is the latest Active LTS; react-router 8 needs >= 22.22
+        # (issue #1381) and the Docker image runs Node 26. Docs-site jobs
+        # intentionally stay on Node 20.
+        node-version: '24'
         cache: 'npm'
         # package-lock.json is regenerated by the next CI run after the
         # Next.js → RR7 migration; fall back to package.json for the
@@ -473,8 +521,27 @@ jobs:
     - name: Start Storybook static server
       working-directory: web
       run: |
-        npx http-server storybook-static --port 6006 --silent &
-        sleep 5
+        # `http-server` is a devDependency, so the `npm ci` step above has
+        # already put it in node_modules and this runs the local binary
+        # without touching the registry. It used to be fetched on demand by
+        # `npx`; when that fetch stalled the server never bound, and the
+        # a11y step then failed with "It seems that your Storybook instance
+        # is not running at: http://localhost:6006" — which reads like an
+        # accessibility violation but means no story was ever visited.
+        npx http-server storybook-static --port 6006 --silent \
+          > /tmp/storybook-server.log 2>&1 &
+        # Poll rather than `sleep 5`: a fixed guess either wastes time or
+        # loses the race, and it hides why the server is missing.
+        for _ in $(seq 1 60); do
+          if curl -sfo /dev/null http://localhost:6006; then
+            echo "Storybook static server is serving on port 6006"
+            exit 0
+          fi
+          sleep 1
+        done
+        echo "::error::Storybook static server never started listening on port 6006"
+        cat /tmp/storybook-server.log
+        exit 1
 
     - name: Run Storybook a11y tests
       working-directory: web
@@ -490,7 +557,20 @@ jobs:
     name: Build Test Image
     runs-on: ubuntu-latest
     needs: detect-changes
-    if: github.event_name == 'pull_request' && (needs.detect-changes.outputs.api == 'true' || needs.detect-changes.outputs.ui == 'true' || needs.detect-changes.outputs.shared == 'true')
+    # Runs on PRs *and* in the merge queue. The queue is the last gate before
+    # code reaches main and it tests the merged result, not the PR head; a
+    # PR-only gate lets two individually-green PRs land a semantic conflict
+    # that then surfaces as an "unrelated" E2E failure on the next branch to
+    # rebase. `plugins` is in the filter because plugin manifests drive the
+    # Integrations routes that integrations.spec.ts covers. Keep this gate
+    # identical across build-test-image and all four E2E jobs — the image
+    # build must be a superset of everything that consumes it.
+    if: >-
+      (github.event_name == 'pull_request' || github.event_name == 'merge_group')
+      && (needs.detect-changes.outputs.api == 'true'
+          || needs.detect-changes.outputs.ui == 'true'
+          || needs.detect-changes.outputs.plugins == 'true'
+          || needs.detect-changes.outputs.shared == 'true')
     timeout-minutes: 10
 
     # Builds the test Docker image once and warms the `build-test` GHA
@@ -540,7 +620,20 @@ jobs:
     name: E2E Tests
     runs-on: ubuntu-latest
     needs: [detect-changes, build-test-image]
-    if: github.event_name == 'pull_request' && (needs.detect-changes.outputs.api == 'true' || needs.detect-changes.outputs.ui == 'true' || needs.detect-changes.outputs.shared == 'true')
+    # Runs on PRs *and* in the merge queue. The queue is the last gate before
+    # code reaches main and it tests the merged result, not the PR head; a
+    # PR-only gate lets two individually-green PRs land a semantic conflict
+    # that then surfaces as an "unrelated" E2E failure on the next branch to
+    # rebase. `plugins` is in the filter because plugin manifests drive the
+    # Integrations routes that integrations.spec.ts covers. Keep this gate
+    # identical across build-test-image and all four E2E jobs — the image
+    # build must be a superset of everything that consumes it.
+    if: >-
+      (github.event_name == 'pull_request' || github.event_name == 'merge_group')
+      && (needs.detect-changes.outputs.api == 'true'
+          || needs.detect-changes.outputs.ui == 'true'
+          || needs.detect-changes.outputs.plugins == 'true'
+          || needs.detect-changes.outputs.shared == 'true')
     timeout-minutes: 15
 
     steps:
@@ -671,7 +764,7 @@ jobs:
       - name: Run E2E tests
         working-directory: web
         timeout-minutes: 10
-        run: npx playwright test --reporter=github
+        run: npx playwright test
         env:
           CI: true
           WORKER_URLS: ${{ env.WORKER_URLS }}
@@ -686,19 +779,40 @@ jobs:
             docker rm -f fiestaboard-$i mock-board-$i mock-cloud-$i 2>/dev/null || true
           done
 
+      - name: Report flaky tests
+        # Runs even when the suite failed: a run can have both a real failure
+        # and a retry-masked flake, and the flake is the one nothing else says.
+        if: ${{ !cancelled() }}
+        run: node scripts/summarize-playwright-flakes.mjs web/playwright-report.json e2e
+
       - name: Upload test results
         uses: actions/upload-artifact@v7
         if: ${{ !cancelled() }}
         with:
           name: playwright-results
-          path: web/playwright-test-results/
+          path: |
+            web/playwright-test-results/
+            web/playwright-report.json
           retention-days: 7
 
   ai-mcp-e2e-tests:
     name: AI + MCP E2E Tests
     runs-on: ubuntu-latest
     needs: [detect-changes, build-test-image]
-    if: github.event_name == 'pull_request' && (needs.detect-changes.outputs.api == 'true' || needs.detect-changes.outputs.ui == 'true' || needs.detect-changes.outputs.shared == 'true')
+    # Runs on PRs *and* in the merge queue. The queue is the last gate before
+    # code reaches main and it tests the merged result, not the PR head; a
+    # PR-only gate lets two individually-green PRs land a semantic conflict
+    # that then surfaces as an "unrelated" E2E failure on the next branch to
+    # rebase. `plugins` is in the filter because plugin manifests drive the
+    # Integrations routes that integrations.spec.ts covers. Keep this gate
+    # identical across build-test-image and all four E2E jobs — the image
+    # build must be a superset of everything that consumes it.
+    if: >-
+      (github.event_name == 'pull_request' || github.event_name == 'merge_group')
+      && (needs.detect-changes.outputs.api == 'true'
+          || needs.detect-changes.outputs.ui == 'true'
+          || needs.detect-changes.outputs.plugins == 'true'
+          || needs.detect-changes.outputs.shared == 'true')
     timeout-minutes: 12
 
     steps:
@@ -800,12 +914,18 @@ jobs:
           done
 
       - name: Sanity check — MCP mount is live
-        # If the mcp Python package failed to install, FastMCP silently
+        # If the mcp Python package failed to install, the server silently
         # disables the mount. Catching that here gives a clearer failure
-        # than ten flaky-looking mcp.spec.ts errors.
+        # than ten flaky-looking mcp.spec.ts errors. Probe with a POST:
+        # since mcp 2.0 a GET opens a never-ending SSE listen stream, so a
+        # plain curl GET hangs until the job timeout. An empty POST returns
+        # a JSON-RPC validation error (400) immediately.
         run: |
-          STATUS=$(curl -s -o /dev/null -w "%{http_code}" "$BASE_URL/api/mcp/" || echo "000")
-          echo "GET /api/mcp/ -> $STATUS"
+          STATUS=$(curl -s -o /dev/null -w "%{http_code}" -m 15 \
+            -X POST -H "Content-Type: application/json" \
+            -H "Accept: application/json, text/event-stream" \
+            -d '{}' "$BASE_URL/api/mcp/" || echo "000")
+          echo "POST /api/mcp/ -> $STATUS"
           if [ "$STATUS" = "404" ]; then
             echo "❌ MCP endpoint returned 404 — mcp package likely missing or mount failed"
             docker logs fiestaboard-ai | grep -i mcp | tail -20
@@ -815,7 +935,7 @@ jobs:
       - name: Run AI + MCP E2E tests
         working-directory: web
         timeout-minutes: 8
-        run: npx playwright test ai.spec.ts mcp.spec.ts --reporter=github --workers=1
+        run: npx playwright test ai.spec.ts mcp.spec.ts --workers=1
         env:
           CI: true
           RUN_AI_TESTS: "1"
@@ -836,19 +956,40 @@ jobs:
         run: |
           docker rm -f fiestaboard-ai mock-llm 2>/dev/null || true
 
+      - name: Report flaky tests
+        # Runs even when the suite failed: a run can have both a real failure
+        # and a retry-masked flake, and the flake is the one nothing else says.
+        if: ${{ !cancelled() }}
+        run: node scripts/summarize-playwright-flakes.mjs web/playwright-report.json ai-mcp
+
       - name: Upload test results
         uses: actions/upload-artifact@v7
         if: ${{ !cancelled() }}
         with:
           name: playwright-ai-mcp-results
-          path: web/playwright-test-results/
+          path: |
+            web/playwright-test-results/
+            web/playwright-report.json
           retention-days: 7
 
   auth-e2e-tests:
     name: Auth E2E Tests
     runs-on: ubuntu-latest
     needs: [detect-changes, build-test-image]
-    if: github.event_name == 'pull_request' && (needs.detect-changes.outputs.api == 'true' || needs.detect-changes.outputs.ui == 'true' || needs.detect-changes.outputs.shared == 'true')
+    # Runs on PRs *and* in the merge queue. The queue is the last gate before
+    # code reaches main and it tests the merged result, not the PR head; a
+    # PR-only gate lets two individually-green PRs land a semantic conflict
+    # that then surfaces as an "unrelated" E2E failure on the next branch to
+    # rebase. `plugins` is in the filter because plugin manifests drive the
+    # Integrations routes that integrations.spec.ts covers. Keep this gate
+    # identical across build-test-image and all four E2E jobs — the image
+    # build must be a superset of everything that consumes it.
+    if: >-
+      (github.event_name == 'pull_request' || github.event_name == 'merge_group')
+      && (needs.detect-changes.outputs.api == 'true'
+          || needs.detect-changes.outputs.ui == 'true'
+          || needs.detect-changes.outputs.plugins == 'true'
+          || needs.detect-changes.outputs.shared == 'true')
     timeout-minutes: 10
 
     steps:
@@ -934,7 +1075,7 @@ jobs:
       - name: Run auth E2E tests
         working-directory: web
         timeout-minutes: 5
-        run: npx playwright test auth.spec.ts --reporter=github --workers=1
+        run: npx playwright test auth.spec.ts --workers=1
         env:
           CI: true
           RUN_AUTH_TESTS: "1"
@@ -948,12 +1089,156 @@ jobs:
         if: always()
         run: docker rm -f fiestaboard-auth 2>/dev/null || true
 
+      - name: Report flaky tests
+        # Runs even when the suite failed: a run can have both a real failure
+        # and a retry-masked flake, and the flake is the one nothing else says.
+        if: ${{ !cancelled() }}
+        run: node scripts/summarize-playwright-flakes.mjs web/playwright-report.json auth
+
       - name: Upload test results
         uses: actions/upload-artifact@v7
         if: ${{ !cancelled() }}
         with:
           name: playwright-auth-results
-          path: web/playwright-test-results/
+          path: |
+            web/playwright-test-results/
+            web/playwright-report.json
+          retention-days: 7
+
+  ingress-e2e-tests:
+    name: HA Ingress E2E Tests
+    runs-on: ubuntu-latest
+    needs: [detect-changes, build-test-image]
+    # Runs on PRs *and* in the merge queue. The queue is the last gate before
+    # code reaches main and it tests the merged result, not the PR head; a
+    # PR-only gate lets two individually-green PRs land a semantic conflict
+    # that then surfaces as an "unrelated" E2E failure on the next branch to
+    # rebase. `plugins` is in the filter because plugin manifests drive the
+    # Integrations routes that integrations.spec.ts covers. Keep this gate
+    # identical across build-test-image and all four E2E jobs — the image
+    # build must be a superset of everything that consumes it.
+    if: >-
+      (github.event_name == 'pull_request' || github.event_name == 'merge_group')
+      && (needs.detect-changes.outputs.api == 'true'
+          || needs.detect-changes.outputs.ui == 'true'
+          || needs.detect-changes.outputs.plugins == 'true'
+          || needs.detect-changes.outputs.shared == 'true')
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v7
+
+      - name: Set up web E2E environment
+        uses: ./.github/actions/setup-web-e2e
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v4
+
+      - name: Log in to Docker Hub
+        # Skip on fork PRs and Dependabot PRs (neither has access to the
+        # DOCKERHUB_* secrets — forks by policy, Dependabot because it uses
+        # a separate secret namespace). On internal PRs and main, fail
+        # loudly so we notice credential problems instead of silently
+        # falling back to anonymous pulls with their tiny rate limits.
+        if: >-
+          (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository)
+          && github.actor != 'dependabot[bot]'
+        uses: docker/login-action@v4
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Build test image
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          file: ./Dockerfile
+          target: runtime
+          push: false
+          load: true
+          tags: fiestaboard:ingress-e2e
+          build-args: |
+            VERSION=dev
+          # Reuse the cache the main e2e job warms up.
+          cache-from: |
+            type=gha,scope=build-linux/amd64
+            type=gha,scope=build-test
+
+      - name: Start FiestaBoard behind the HA Ingress simulator
+        # The simulator conf (infra/ha-ingress-proxy.conf) proxies to
+        # `http://fiestaboard:3000`, so the app container must be named
+        # `fiestaboard` on a shared network. The prod bundle matters here:
+        # the ingress-escape bugs this job guards against (runtime-built
+        # chunk URLs, minifier quote styles) only exist in minified output.
+        run: |
+          docker network create ingress-net
+
+          docker run -d --name fiestaboard --network ingress-net \
+            -e PRODUCTION=false \
+            -e FIESTABOARD_AUTH_ENABLED=false \
+            -e FIESTABOARD_INGRESS_PATH_REWRITE=true \
+            -e FIESTABOARD_X_FRAME_OPTIONS=OFF \
+            fiestaboard:ingress-e2e
+
+          docker run -d --name ha-ingress-proxy --network ingress-net \
+            -v ${{ github.workspace }}/infra/ha-ingress-proxy.conf:/etc/nginx/conf.d/default.conf:ro \
+            -p 5050:80 \
+            nginx:alpine
+
+          echo "BASE_URL=http://localhost:5050" >> $GITHUB_ENV
+
+      - name: Wait for container ready (through the simulator)
+        timeout-minutes: 2
+        run: |
+          for i in $(seq 1 60); do
+            STATUS=$(curl -s -m 5 -o /dev/null -w "%{http_code}" "$BASE_URL/api/hassio_ingress/test-token/api/health" 2>/dev/null || echo "000")
+            if [ "$STATUS" = "200" ]; then
+              echo "✅ Ready (attempt $i)"
+              break
+            fi
+            if [ "$i" = "60" ]; then
+              echo "❌ Failed to become ready"
+              docker logs fiestaboard | tail -50
+              docker logs ha-ingress-proxy | tail -20
+              exit 1
+            fi
+            sleep 1
+          done
+
+      - name: Run ingress E2E tests
+        working-directory: web
+        timeout-minutes: 5
+        run: npx playwright test ingress.spec.ts --workers=1
+        env:
+          CI: true
+          RUN_INGRESS_TESTS: "1"
+          BASE_URL: ${{ env.BASE_URL }}
+
+      - name: Dump container logs on failure
+        if: failure()
+        run: |
+          docker logs fiestaboard | tail -200
+          docker logs ha-ingress-proxy | tail -50
+
+      - name: Stop containers
+        if: always()
+        run: docker rm -f fiestaboard ha-ingress-proxy 2>/dev/null || true; docker network rm ingress-net 2>/dev/null || true
+
+      - name: Report flaky tests
+        # Runs even when the suite failed: a run can have both a real failure
+        # and a retry-masked flake, and the flake is the one nothing else says.
+        if: ${{ !cancelled() }}
+        run: node scripts/summarize-playwright-flakes.mjs web/playwright-report.json ingress
+
+      - name: Upload test results
+        uses: actions/upload-artifact@v7
+        if: ${{ !cancelled() }}
+        with:
+          name: playwright-ingress-results
+          path: |
+            web/playwright-test-results/
+            web/playwright-report.json
           retention-days: 7
 
   build:
@@ -982,7 +1267,7 @@ jobs:
         # Verify each plugin has required files
         for plugin in plugins/*/; do
           plugin_name=$(basename "$plugin")
-          if [ "$plugin_name" != "_template" ] && [ -d "$plugin" ]; then
+          if [ "$plugin_name" != "_template" ] && [ "$plugin_name" != "_template_transition" ] && [ -d "$plugin" ]; then
             echo "Checking plugin: $plugin_name"
             test -f "$plugin/__init__.py" || (echo "❌ $plugin_name/__init__.py missing" && exit 1)
             test -f "$plugin/manifest.json" || (echo "❌ $plugin_name/manifest.json missing" && exit 1)
@@ -991,70 +1276,12 @@ jobs:
         done
         echo "✅ All plugin structures valid"
 
-  build-docs:
-    name: Build Docs
-    runs-on: ubuntu-latest
-    needs: detect-changes
-    if: needs.detect-changes.outputs.docs == 'true' || needs.detect-changes.outputs.shared == 'true'
-    timeout-minutes: 10
-
-    steps:
-    - uses: actions/checkout@v7
-
-    - name: Set up Node.js
-      uses: actions/setup-node@v7
-      with:
-        node-version: '20'
-        cache: 'npm'
-        cache-dependency-path: docs-site/package-lock.json
-
-    - name: Install dependencies
-      working-directory: docs-site
-      run: npm ci
-
-    - name: Cache Docusaurus build
-      uses: actions/cache@v6
-      with:
-        path: |
-          docs-site/.docusaurus
-          docs-site/node_modules/.cache
-        # PR-mode builds skip 40 historical version snapshots, so they
-        # have a different .docusaurus/ shape than full deploy builds.
-        # Keep their caches in separate namespaces to avoid each
-        # poisoning the other on restore.
-        key: docusaurus-pr-${{ runner.os }}-${{ hashFiles('docs-site/src/**', 'docs-site/docs/**', 'docs-site/docusaurus.config.ts', 'docs-site/package-lock.json') }}
-        restore-keys: |
-          docusaurus-pr-${{ runner.os }}-
-
-    - name: Build Docusaurus site
-      working-directory: docs-site
-      env:
-        # Skip 40 historical versioned_docs snapshots on PR builds —
-        # only build the latest documented version. docs.yml (release
-        # deploy) does not set this and builds the full version matrix.
-        DOCS_PR_MODE: '1'
-      run: npm run build
-
-    - name: Write build summary
-      if: always()
-      run: |
-        if [ -d docs-site/build ]; then
-          SIZE=$(du -sh docs-site/build | cut -f1)
-          FILES=$(find docs-site/build -type f | wc -l | tr -d ' ')
-          {
-            echo "## Build Docs"
-            echo ""
-            echo "| Metric | Value |"
-            echo "|---|---|"
-            echo "| Build size | ${SIZE} |"
-            echo "| Files | ${FILES} |"
-          } >> "$GITHUB_STEP_SUMMARY"
-        fi
-
-  # Docs quality gate: spell-check, markdown-lint, and frontmatter-lint over
-  # all repository markdown (config: cspell.json, .markdownlint-cli2.jsonc).
-  # Runs on its own Node 22 because cspell 10 requires Node >= 22.18, whereas
-  # the docs-site jobs (lint-docs, build-docs) pin Node 20.
+  # Docs quality gate: spell-check, markdown-lint, frontmatter-lint, and the
+  # docs contract check over all repository markdown (config: cspell.json,
+  # .markdownlint-cli2.jsonc). The contract check (lint-docs-contract.mjs)
+  # guards what the site repo's Docusaurus build depends on — this repo no
+  # longer builds the site, so without it a malformed doc would only fail
+  # two repos later. Runs on Node 24 because cspell 10 requires Node >= 22.18.
   lint-markdown:
     name: Lint Markdown
     runs-on: ubuntu-latest
@@ -1068,7 +1295,7 @@ jobs:
     - name: Set up Node.js
       uses: actions/setup-node@v7
       with:
-        node-version: '22'
+        node-version: '24'
         cache: 'npm'
         cache-dependency-path: package-lock.json
 
@@ -1078,16 +1305,21 @@ jobs:
     - name: Validate docs frontmatter
       run: npm run docs:lint:frontmatter
 
+    - name: Validate docs contract
+      run: npm run docs:lint:contract
+
     - name: Lint markdown
       run: npm run docs:lint:markdown
 
     - name: Spell check
       run: npm run docs:lint:spell
 
-  # Repo-wide broken-link check for the GitHub-rendered markdown (docs/**,
-  # plugins/**, root *.md). The published Docusaurus site (docs-site/**) is
-  # excluded here and validated by build-docs (onBrokenLinks: 'throw'), the
-  # only checker that understands Docusaurus routing. Config: lychee.toml.
+  # Repo-wide broken-link check for the GitHub-rendered markdown
+  # (docs/internal/**, plugins/**, root *.md). The published docs source
+  # (docs/**, outside internal/) uses Docusaurus link semantics (route
+  # paths, extension stripping) that lychee can't model — those links are
+  # validated by the site build (onBrokenLinks: 'throw') when versions are
+  # snapshotted and built. Config: lychee.toml.
   link-check:
     name: Check Markdown Links
     runs-on: ubuntu-latest
@@ -1103,7 +1335,7 @@ jobs:
       with:
         args: >-
           --config lychee.toml
-          'docs/**/*.md'
+          'docs/internal/**/*.md'
           'plugins/*/README.md'
           'plugins/*/docs/**/*.md'
           README.md CONTRIBUTING.md SECURITY.md CODE_OF_CONDUCT.md DOCKERHUB_README.md
@@ -1111,10 +1343,30 @@ jobs:
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
+  # `@docusaurus/mdx-loader` sizes every Markdown-referenced image with
+  # `image-size`, whose ICNS/JXL/HEIF parsers have two high-severity
+  # infinite-loop advisories and no patched version — the project was
+  # archived with the affected 2.0.2 as its final release. A crafted image
+  # would hang the docs build rather than fail it, so those formats are
+  # refused at the gate instead. See issue #1578.
+  #
+  # Deliberately unconditional: an image can be added under any path filter
+  # (docs/, plugins/*/docs/), and the check is a few seconds.
+  check-image-formats:
+    name: Check Image Formats
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+    - uses: actions/checkout@v7
+
+    - name: Reject ICNS/HEIF/JXL content
+      run: python3 scripts/check_image_formats.py
+
   ci-success:
     name: CI Success
     runs-on: ubuntu-latest
-    needs: [detect-changes, dependency-review, test-platform, test-plugins, lint-web, lint-docs, test-ui, a11y-tests, build-test-image, e2e-tests, ai-mcp-e2e-tests, auth-e2e-tests, build, build-docs, lint-markdown, link-check]
+    needs: [detect-changes, dependency-review, test-platform, test-plugins, lint-web, test-ui, a11y-tests, build-test-image, e2e-tests, ai-mcp-e2e-tests, auth-e2e-tests, ingress-e2e-tests, build, lint-markdown, link-check, check-image-formats]
     if: always()
     steps:
       - name: Check all jobs passed or were skipped
@@ -1128,17 +1380,17 @@ jobs:
             test-platform
             test-plugins
             lint-web
-            lint-docs
             test-ui
             a11y-tests
             build-test-image
             e2e-tests
             ai-mcp-e2e-tests
             auth-e2e-tests
+            ingress-e2e-tests
             build
-            build-docs
             lint-markdown
             link-check
+            check-image-formats
           RESULTS: ${{ toJSON(needs.*.result) }}
         run: |
           python3 - <<'PY'

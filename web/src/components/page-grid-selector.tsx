@@ -1,20 +1,35 @@
 "use client";
 
+import {
+  Badge,
+  Box,
+  Button,
+  Card,
+  CardContent,
+  EmptyState,
+  Flex,
+  Grid,
+  Skeleton,
+  Stack,
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger,
+  Text,
+} from "@fiestaboard/ui";
 import { Clock, FilePlus, GalleryHorizontalEnd, LayoutTemplate } from "lucide-react";
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 
+import { BoardSizeIndicator } from "@/components/board-size-indicator";
+import { useCurrentBoard } from "@/components/current-board-context";
+import { ScaledBoardDisplay } from "@/components/scaled-board-display";
 import Link from "@/components/smart-link";
 import { StaticBoardDisplay } from "@/components/static-board-display";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
-import { EmptyState } from "@/components/ui/empty-state";
-import { Skeleton } from "@/components/ui/skeleton";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { getEffectiveBoardColor, useBoardSettings, useCollections, usePages } from "@/hooks/use-board";
 import { useTranslations } from "@/i18n/translations";
-import type { Collection, DeviceType, Page, PagePreviewResponse } from "@/lib/api";
+import type { Collection, DeviceType, Page, PagePreviewBatchEntry, PagePreviewResponse } from "@/lib/api";
 import { api, isCollectionId } from "@/lib/api";
+import { pagesCompatibleWithBoard } from "@/lib/board-dimensions";
 
 // Cache key for batch previews in localStorage
 const BATCH_CACHE_KEY = "fiestaboard_previews_batch";
@@ -92,17 +107,20 @@ const PageButtonPreview = memo(
     preview: PagePreviewResponse | null;
     isLoading: boolean;
     boardType?: "black" | "white" | null;
-    deviceType?: "flagship" | "note";
+    deviceType?: DeviceType;
   }) {
     const t = useTranslations("pageGridSelector");
     const ref = useRef<HTMLDivElement>(null);
-    const [isVisible, setIsVisible] = useState(false);
+    // Environments without IntersectionObserver (jsdom, very old browsers)
+    // render everything eagerly. Decided in the initializer rather than a
+    // mount effect, which cost a whole extra render pass per tile there
+    // (react-hooks/set-state-in-effect, issue #1568).
+    const [isVisible, setIsVisible] = useState(() => typeof IntersectionObserver === "undefined");
 
     useEffect(() => {
       const el = ref.current;
       if (!el) return;
       if (typeof IntersectionObserver === "undefined") {
-        setIsVisible(true);
         return;
       }
       const observer = new IntersectionObserver(
@@ -120,32 +138,39 @@ const PageButtonPreview = memo(
 
     if (isLoading && !preview) {
       return (
-        <div ref={ref} className="w-full py-4" role="status" aria-label={t("loadingPreviewAriaLabel")}>
+        <Box ref={ref} className="w-full py-4" role="status" aria-label={t("loadingPreviewAriaLabel")}>
           <Skeleton className="h-20 w-full rounded-md" />
-        </div>
+        </Box>
       );
     }
 
     return (
-      <div
-        ref={ref}
-        className="w-full hover-stable overflow-hidden -mr-3"
-        style={{
-          maskImage: "linear-gradient(to right, black 60%, transparent 100%)",
-          WebkitMaskImage: "linear-gradient(to right, black 60%, transparent 100%)",
-        }}
-      >
+      // `overflow-hidden` stays: it is what ScaledBoardDisplay walks up to find
+      // when it measures the slot the board has to fit into. The right-fade
+      // mask and the `-mr-3` bleed that used to sit here are gone — they
+      // existed only to disguise a board that never fitted this card, and with
+      // the board now scaled to fit they would fade a board that is fully
+      // visible.
+      <Box ref={ref} className="w-full hover-stable overflow-hidden">
         {isVisible ? (
-          <StaticBoardDisplay
+          // ScaledBoardDisplay, not StaticBoardDisplay: a 22-column flagship
+          // board is ~349px at the `sm` tile scale and this card is ~315px on a
+          // 390px phone, so without a scale transform the grid overflows and
+          // the first character of every row is cut off (#1597 review). Tiles
+          // are fixed-pixel and `shrink-0`, so nothing else can make it fit.
+          // `isStatic` keeps the cheap zero-hooks-per-tile render path that
+          // made this a StaticBoardDisplay in the first place.
+          <ScaledBoardDisplay
+            isStatic
             message={preview?.message || null}
             size="sm"
             boardType={boardType ?? "black"}
             deviceType={deviceType}
           />
         ) : (
-          <div className="w-full" style={{ height: deviceType === "note" ? 90 : 168 }} />
+          <Box className="w-full" style={{ height: deviceType === "note" ? 90 : 168 }} />
         )}
-      </div>
+      </Box>
     );
   },
   (prevProps, nextProps) => {
@@ -212,22 +237,30 @@ const PageButton = memo(
         type="button"
         aria-pressed={isActive}
       >
-        <div className="flex items-center gap-2.5 min-w-0">
+        <Flex align="center" gap="2.5" className="min-w-0">
           <TypeIcon className={iconClassName} aria-hidden="true" />
-          <span className={nameClassName}>{page.name}</span>
-        </div>
+          <Text as="span" className={nameClassName}>
+            {page.name}
+          </Text>
+          <BoardSizeIndicator
+            deviceType={page.device_type || "flagship"}
+            notesWide={page.notes_wide}
+            notesTall={page.notes_tall}
+            className="ml-auto shrink-0"
+          />
+        </Flex>
 
-        <div className="hover-stable">
+        <Box className="hover-stable">
           <PageButtonPreview
             preview={preview}
             isLoading={isLoadingPreview}
             boardType={boardType}
-            deviceType={(page.device_type as DeviceType) || "flagship"}
+            deviceType={page.device_type || "flagship"}
           />
-        </div>
+        </Box>
 
         {showActiveIndicator && isActive && (
-          <div className="absolute -bottom-0.5 left-1/2 -translate-x-1/2 w-12 h-0.5 bg-brand rounded-full" />
+          <Box className="absolute -bottom-0.5 left-1/2 -translate-x-1/2 w-12 h-0.5 bg-brand rounded-full" />
         )}
       </button>
     );
@@ -303,12 +336,20 @@ const PageListItem = memo(
         aria-pressed={isActive}
       >
         <LayoutTemplate className={iconClassName} aria-hidden="true" />
-        <span className={nameClassName}>{page.name}</span>
+        <Text as="span" className={nameClassName}>
+          {page.name}
+        </Text>
+        <BoardSizeIndicator
+          deviceType={page.device_type || "flagship"}
+          notesWide={page.notes_wide}
+          notesTall={page.notes_tall}
+          className="ml-auto shrink-0"
+        />
         {formattedDate && (
-          <span className="ml-auto flex items-center gap-1 text-xs text-muted-foreground shrink-0">
+          <Text as="span" size="xs" tone="muted" className="ml-auto flex items-center gap-1 shrink-0">
             <Clock className="h-3 w-3" aria-hidden="true" />
             {formattedDate}
-          </span>
+          </Text>
         )}
       </button>
     );
@@ -386,28 +427,30 @@ const CollectionButton = memo(
         type="button"
         aria-pressed={isActive}
       >
-        <div className="flex items-center gap-2.5 min-w-0">
+        <Flex align="center" gap="2.5" className="min-w-0">
           <GalleryHorizontalEnd className={iconClassName} aria-hidden="true" />
-          <span className={nameClassName}>{collection.name}</span>
+          <Text as="span" className={nameClassName}>
+            {collection.name}
+          </Text>
           <Badge variant="secondary" className="text-[10px] ml-auto flex-shrink-0">
             {tCommon("pageCount", { count: collection.page_ids.length })}
           </Badge>
-        </div>
+        </Flex>
 
         {/* Cascading stack of board previews */}
-        <div className="relative h-[160px] w-full overflow-hidden hover-stable">
+        <Box className="relative h-[160px] w-full overflow-hidden hover-stable">
           {loadingPreviews && stackPages.every((sp) => !sp.preview) ? (
-            <div className="flex gap-2 items-end h-full p-2" role="status" aria-label={t("loadingPreviewsAriaLabel")}>
+            <Flex gap="2" align="end" className="h-full p-2" role="status" aria-label={t("loadingPreviewsAriaLabel")}>
               <Skeleton className="h-24 flex-1 max-w-[80px] rounded-md" />
               <Skeleton className="h-28 flex-1 max-w-[80px] rounded-md" />
               <Skeleton className="h-24 flex-1 max-w-[80px] rounded-md" />
-            </div>
+            </Flex>
           ) : (
-            <div className="absolute inset-0">
+            <Box className="absolute inset-0">
               {stackPages.map(({ pageId, page, preview }, idx) => {
                 const deviceType = (page?.device_type as DeviceType) || "flagship";
                 return (
-                  <div
+                  <Box
                     key={pageId}
                     className="absolute"
                     style={{
@@ -420,21 +463,31 @@ const CollectionButton = memo(
                       boxShadow: "0 2px 6px rgba(0,0,0,0.35)",
                     }}
                   >
+                    {/* Still StaticBoardDisplay, unlike PageButtonPreview above.
+                        These cards are absolutely positioned and deliberately
+                        bleed off the right of the 160px frame — that overlap IS
+                        the cascade. Each card starts flush with the frame's left
+                        edge, so nothing is cut off at the start of a row, which
+                        is the defect scaling exists to prevent. Wrapping these
+                        in ScaledBoardDisplay would also measure a slot that has
+                        no definite width (they are `position: absolute`) and
+                        would add its Fit / Actual toggle to a thumbnail for any
+                        note-array page. */}
                     <StaticBoardDisplay
                       message={preview?.message || null}
                       size="sm"
                       boardType={boardType ?? "black"}
                       deviceType={deviceType}
                     />
-                  </div>
+                  </Box>
                 );
               })}
-            </div>
+            </Box>
           )}
-        </div>
+        </Box>
 
         {showActiveIndicator && isActive && (
-          <div className="absolute -bottom-0.5 left-1/2 -translate-x-1/2 w-12 h-0.5 bg-brand rounded-full" />
+          <Box className="absolute -bottom-0.5 left-1/2 -translate-x-1/2 w-12 h-0.5 bg-brand rounded-full" />
         )}
       </button>
     );
@@ -464,14 +517,20 @@ export interface PageGridSelectorProps {
   isPending?: boolean;
   /** Whether to show the active indicator line */
   showActiveIndicator?: boolean;
-  /** Label text above the grid */
-  label?: string;
+  /** Label text above the grid; null suppresses it (undefined falls back to "SELECT PAGE") */
+  label?: string | null;
   /** Filter pages by device type */
   deviceTypeFilter?: DeviceType;
   /** View mode: "grid" shows previews, "list" shows compact list */
   viewMode?: ViewMode;
   /** Whether to include collections in the grid */
   showCollections?: boolean;
+  /**
+   * Show only pages whose size matches the current board (issue #1249).
+   * Used by pickers that ASSIGN a page to a board (e.g. Change Page); the
+   * global Pages library keeps showing everything.
+   */
+  filterByCurrentBoardSize?: boolean;
 }
 
 export function PageGridSelector({
@@ -483,6 +542,7 @@ export function PageGridSelector({
   deviceTypeFilter,
   viewMode = "grid",
   showCollections = true,
+  filterByCurrentBoardSize = false,
 }: PageGridSelectorProps) {
   const t = useTranslations("pageGridSelector");
   const effectiveLabel = label === undefined ? t("selectPageLabel") : label;
@@ -496,118 +556,164 @@ export function PageGridSelector({
   // Fetch board settings for display type
   const { data: boardSettings } = useBoardSettings();
 
+  // Current board for size-compatibility filtering (issue #1249). Single-board
+  // installs see no change: their pages match the only board by construction.
+  const { currentBoard } = useCurrentBoard();
+
   // Memoize pages array to prevent unnecessary re-renders, with optional device type filter
   const allPages = useMemo(() => pagesData?.pages || [], [pagesData]);
   const pages = useMemo(() => {
-    if (!deviceTypeFilter) return allPages;
-    return allPages.filter((p) => (p.device_type || "flagship") === deviceTypeFilter);
-  }, [allPages, deviceTypeFilter]);
+    let result = allPages;
+    if (deviceTypeFilter) {
+      result = result.filter((p) => (p.device_type || "flagship") === deviceTypeFilter);
+    }
+    if (filterByCurrentBoardSize && currentBoard) {
+      result = result.filter((p) => pagesCompatibleWithBoard(p, currentBoard));
+    }
+    return result;
+  }, [allPages, deviceTypeFilter, filterByCurrentBoardSize, currentBoard]);
 
-  // State for batch preview data
-  const [previews, setPreviews] = useState<Record<string, PagePreviewResponse>>({});
-  const [loadingPreviews, setLoadingPreviews] = useState(true);
+  // State for batch preview data — only what the network produced. Both
+  // outcomes are kept: a failed entry is still an answer for that page, and
+  // `previewsPending` below asks "did every requested id come back?".
+  const [fetchedPreviews, setFetchedPreviews] = useState<Record<string, PagePreviewBatchEntry>>({});
+  const [fetchFailed, setFetchFailed] = useState(false);
 
-  // Fetch batch previews when pages change (only in grid mode)
-  useEffect(() => {
+  // Splitting the cache lookup out of the effect is what removes the
+  // set-state-in-effect warnings here (issue #1568): reading localStorage is
+  // synchronous, so the cached previews and the "which ones must we fetch"
+  // list are plain derived values. Only the network result — which arrives in
+  // an async callback, where setState is fine — still needs state.
+  const { cachedPreviews, initialPreviews, pagesToFetch } = useMemo(() => {
     if (viewMode === "list" || pages.length === 0) {
-      setLoadingPreviews(false);
+      return { cachedPreviews: {}, initialPreviews: {}, pagesToFetch: [] as string[] };
+    }
+    const cached = getCachedPreviews();
+    const initial: Record<string, PagePreviewResponse> = {};
+    const toFetch: string[] = [];
+    for (const page of pages) {
+      const entry = cached[page.id];
+      if (isCacheValid(entry, page.updated_at || "")) {
+        initial[page.id] = entry.preview;
+      } else {
+        toFetch.push(page.id);
+      }
+    }
+    return { cachedPreviews: cached, initialPreviews: initial, pagesToFetch: toFetch };
+  }, [pages, viewMode]);
+
+  // Cache hits render instantly; anything fetched since layers on top. Entries
+  // that failed to render carry only `{ error, available: false }` — they stay
+  // out of the render map instead of being spread in as message-less previews.
+  const previews = useMemo(() => {
+    const merged: Record<string, PagePreviewResponse> = { ...initialPreviews };
+    for (const [pageId, preview] of Object.entries(fetchedPreviews)) {
+      if (preview.available) {
+        merged[pageId] = preview;
+      }
+    }
+    return merged;
+  }, [initialPreviews, fetchedPreviews]);
+
+  // Still waiting only while a page we need has neither a cache hit nor a
+  // fetched result, and the fetch hasn't given up.
+  const previewsPending = pagesToFetch.some((id) => !(id in fetchedPreviews)) && !fetchFailed;
+
+  // Fetch missing previews in batch
+  useEffect(() => {
+    if (pagesToFetch.length === 0) {
       return;
     }
 
-    // Check cache first for instant render
-    const cachedPreviews = getCachedPreviews();
-    const initialPreviews: Record<string, PagePreviewResponse> = {};
-    const pagesToFetch: string[] = [];
+    let mounted = true;
 
-    for (const page of pages) {
-      const cached = cachedPreviews[page.id];
-      const pageUpdatedAt = page.updated_at || "";
+    const fetchBatchPreviews = async () => {
+      try {
+        const result = await api.previewPagesBatch(pagesToFetch);
 
-      if (isCacheValid(cached, pageUpdatedAt)) {
-        initialPreviews[page.id] = cached.preview;
-      } else {
-        pagesToFetch.push(page.id);
-      }
-    }
+        if (mounted && result.previews) {
+          const newCachedPreviews = { ...cachedPreviews };
 
-    // Set cached previews immediately for instant render
-    if (Object.keys(initialPreviews).length > 0) {
-      setPreviews(initialPreviews);
-      setLoadingPreviews(pagesToFetch.length > 0);
-    }
-
-    // Fetch missing previews in batch
-    if (pagesToFetch.length > 0) {
-      let mounted = true;
-
-      const fetchBatchPreviews = async () => {
-        try {
-          const result = await api.previewPagesBatch(pagesToFetch);
-
-          if (mounted && result.previews) {
-            const newCachedPreviews = { ...cachedPreviews };
-
-            for (const [pageId, preview] of Object.entries(result.previews)) {
-              if (preview.available) {
-                const page = pages.find((p) => p.id === pageId);
-                if (page) {
-                  newCachedPreviews[pageId] = {
-                    preview,
-                    pageUpdatedAt: page.updated_at || "",
-                    cachedAt: new Date().toISOString(),
-                  };
-                }
+          for (const [pageId, preview] of Object.entries(result.previews)) {
+            if (preview.available) {
+              const page = pages.find((p) => p.id === pageId);
+              if (page) {
+                newCachedPreviews[pageId] = {
+                  preview,
+                  pageUpdatedAt: page.updated_at || "",
+                  cachedAt: new Date().toISOString(),
+                };
               }
             }
-
-            setCachedPreviews(newCachedPreviews);
-
-            setPreviews((prev) => ({
-              ...prev,
-              ...result.previews,
-            }));
-            setLoadingPreviews(false);
           }
-        } catch (error) {
-          console.error("Failed to fetch batch previews:", error);
-          if (mounted) {
-            setLoadingPreviews(false);
-          }
+
+          setCachedPreviews(newCachedPreviews);
+
+          setFetchedPreviews((prev) => ({
+            ...prev,
+            ...result.previews,
+          }));
         }
-      };
+      } catch (error) {
+        console.error("Failed to fetch batch previews:", error);
+        if (mounted) {
+          setFetchFailed(true);
+        }
+      }
+    };
 
-      fetchBatchPreviews();
+    fetchBatchPreviews();
 
-      return () => {
-        mounted = false;
-      };
-    } else {
-      setLoadingPreviews(false);
-    }
-  }, [pages, viewMode]);
+    return () => {
+      mounted = false;
+    };
+  }, [pagesToFetch, cachedPreviews, pages]);
 
   if (isLoadingPages) {
     return (
-      <div aria-busy="true">
+      <Box aria-busy="true">
         {effectiveLabel && (
-          <span className="text-xs font-medium text-muted-foreground mb-3 block">{effectiveLabel}</span>
+          <Text as="span" size="xs" weight="medium" tone="muted" className="mb-3 block">
+            {effectiveLabel}
+          </Text>
         )}
         {viewMode === "list" ? (
-          <div className="flex flex-col gap-3">
+          <Stack gap="3">
             <Skeleton className="h-14 w-full rounded-lg" />
             <Skeleton className="h-14 w-full rounded-lg" />
             <Skeleton className="h-14 w-full rounded-lg" />
             <Skeleton className="h-14 w-full rounded-lg" />
-          </div>
+          </Stack>
         ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <Grid cols="1" gap="4" className="sm:grid-cols-2">
             <Skeleton className="h-40 w-full rounded-lg" />
             <Skeleton className="h-40 w-full rounded-lg" />
             <Skeleton className="h-40 w-full rounded-lg" />
             <Skeleton className="h-40 w-full rounded-lg" />
-          </div>
+          </Grid>
         )}
-      </div>
+      </Box>
+    );
+  }
+
+  // All pages exist but none match the current board's size: explain the
+  // filter instead of claiming no pages were created (issue #1249).
+  if (pages.length === 0 && allPages.length > 0 && filterByCurrentBoardSize && currentBoard) {
+    return (
+      <Card>
+        <CardContent className="py-6">
+          <EmptyState
+            icon={FilePlus}
+            title={t("noCompatiblePagesTitle")}
+            description={t("noCompatiblePagesDescription")}
+            action={
+              <Button asChild variant="brand" size="sm" className="btn-lift">
+                <Link href="/pages/new">{t("createFirstPage")}</Link>
+              </Button>
+            }
+          />
+        </CardContent>
+      </Card>
     );
   }
 
@@ -657,7 +763,7 @@ export function PageGridSelector({
 
   const pagesContent =
     viewMode === "list" ? (
-      <div className="flex flex-col gap-3" role="group" aria-label={t("pagesAriaLabel")}>
+      <Stack gap="3" role="group" aria-label={t("pagesAriaLabel")}>
         {pages.map((page) => (
           <PageListItem
             key={page.id}
@@ -667,15 +773,15 @@ export function PageGridSelector({
             onSelect={onSelectPage}
           />
         ))}
-      </div>
+      </Stack>
     ) : (
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4" role="group" aria-label={t("pagesAriaLabel")}>
+      <Grid cols="1" gap="4" className="sm:grid-cols-2" role="group" aria-label={t("pagesAriaLabel")}>
         {pages.map((page) => (
           <PageButton
             key={page.id}
             page={page}
             preview={previews[page.id] || null}
-            isLoadingPreview={loadingPreviews}
+            isLoadingPreview={previewsPending}
             isActive={page.id === activePageId}
             isPending={isPending}
             onSelect={onSelectPage}
@@ -683,18 +789,18 @@ export function PageGridSelector({
             boardType={getEffectiveBoardColor(boardSettings)}
           />
         ))}
-      </div>
+      </Grid>
     );
 
   const collectionsGrid = (
-    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4" role="group" aria-label={t("collectionsAriaLabel")}>
+    <Grid cols="1" gap="4" className="sm:grid-cols-2" role="group" aria-label={t("collectionsAriaLabel")}>
       {collections.map((collection) => (
         <CollectionButton
           key={collection.id}
           collection={collection}
           pages={allPages}
           previews={previews}
-          loadingPreviews={loadingPreviews}
+          loadingPreviews={previewsPending}
           isActive={collection.id === activePageId}
           isPending={isPending}
           onSelect={onSelectPage}
@@ -702,20 +808,24 @@ export function PageGridSelector({
           boardType={getEffectiveBoardColor(boardSettings)}
         />
       ))}
-    </div>
+    </Grid>
   );
 
   if (!showCollectionItems) {
     return (
-      <div>
-        {effectiveLabel && <p className="text-xs font-medium text-muted-foreground mb-3">{effectiveLabel}</p>}
+      <Box>
+        {effectiveLabel && (
+          <Text size="xs" weight="medium" tone="muted" className="mb-3">
+            {effectiveLabel}
+          </Text>
+        )}
         {pagesContent}
-      </div>
+      </Box>
     );
   }
 
   return (
-    <div>
+    <Box>
       <Tabs defaultValue={defaultTab}>
         <TabsList className="w-full">
           <TabsTrigger value="pages" className="flex-1 gap-1.5">
@@ -730,6 +840,6 @@ export function PageGridSelector({
         <TabsContent value="pages">{pagesContent}</TabsContent>
         <TabsContent value="collections">{collectionsGrid}</TabsContent>
       </Tabs>
-    </div>
+    </Box>
   );
 }

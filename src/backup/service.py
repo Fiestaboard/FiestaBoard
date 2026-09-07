@@ -8,6 +8,8 @@ user-mutable state:
 * ``data/pages.json`` — user pages
 * ``data/collections.json`` — user collections
 * ``data/schedules.json`` — user schedules
+* ``data/panels.json`` — FiestaPanel panels (their virtual boards live in
+  settings.json, so restoring one without the other orphans them)
 * metadata about installed external plugins so they can be re-cloned on
   the new instance
 
@@ -19,6 +21,7 @@ sources rather than being shipped inside the user's backup file.
 
 from __future__ import annotations
 
+import contextlib
 import json
 import logging
 import re
@@ -27,6 +30,9 @@ import threading
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
+
+from src.atomic_io import write_json_atomic
+from src.paths import get_data_dir
 
 #: Strict allowlist for repository URLs read from a backup file.  We only
 #: clone HTTPS URLs that contain a conservative set of characters; anything
@@ -55,6 +61,7 @@ DATA_FILES: tuple[str, ...] = (
     "pages.json",
     "collections.json",
     "schedules.json",
+    "panels.json",
 )
 
 
@@ -62,13 +69,22 @@ class BackupError(Exception):
     """Raised when a backup cannot be produced or restored."""
 
 
+class BackupRestoreAborted(BackupError):
+    """A restore stopped because the environment, not the backup, failed.
+
+    Distinguished from a plain :class:`BackupError` — which means "this file
+    is not a usable backup", a client error — so a full disk or an
+    unwritable ``data/`` is reported as the server-side failure it is
+    instead of blaming the uploaded file.
+    """
+
+
 class BackupService:
     """Export and import FiestaBoard user data."""
 
     def __init__(self, data_dir: Path | None = None) -> None:
         if data_dir is None:
-            project_root = Path(__file__).resolve().parent.parent.parent
-            data_dir = project_root / "data"
+            data_dir = get_data_dir()
         self.data_dir = Path(data_dir)
         self._lock = threading.Lock()
 
@@ -121,7 +137,17 @@ class BackupService:
         The current ``data/`` directory is *not* deleted — instead each
         file we are about to overwrite is copied to
         ``data/<name>.json.pre-restore-<timestamp>`` so the user can roll
-        back manually if something goes wrong.
+        back manually if something goes wrong. A file whose copy cannot be
+        written is not overwritten at all; the restore aborts with
+        :class:`BackupError` instead.
+
+        .. warning::
+           The restore is **not transactional across files**. A hard failure
+           while restoring file N leaves files 1..N-1 restored and N..end at
+           their original contents, with a ``.pre-restore-<timestamp>`` copy
+           beside each of 1..N-1. The suffix is reported so the operator can
+           finish the rollback by hand. Making the whole set atomic (stage
+           every file, then rename them all) is a separate change.
 
         Args:
             backup: Parsed backup document.
@@ -144,6 +170,10 @@ class BackupService:
             timestamp = datetime.now(UTC).strftime("%Y%m%d-%H%M%S")
             restored: list[str] = []
             skipped: list[str] = []
+            # Only files whose pre-restore copy actually landed. The suffix
+            # used to be advertised unconditionally, pointing users at
+            # rollback copies that may never have been written (Task 10d).
+            backed_up: list[str] = []
 
             data_section = backup.get("data") or {}
 
@@ -156,13 +186,17 @@ class BackupService:
                     # first-run import migrates it into collections.json.
                     legacy = data_section.get("carousels")
                     if legacy is not None:
-                        self._write_json_with_backup(self.data_dir / "carousels.json", legacy, timestamp)
+                        # No live store owns carousels.json — plain write.
+                        if self._write_json_with_backup(self.data_dir / "carousels.json", legacy, timestamp):
+                            backed_up.append("carousels.json")
                         restored.append("carousels.json (legacy)")
                         continue
                 if payload is None:
                     skipped.append(filename)
                     continue
-                self._write_json_with_backup(self.data_dir / filename, payload, timestamp)
+                with self._owning_lock(filename):
+                    if self._write_json_with_backup(self.data_dir / filename, payload, timestamp):
+                        backed_up.append(filename)
                 restored.append(filename)
 
         plugin_results: dict[str, Any] = {
@@ -184,7 +218,10 @@ class BackupService:
             "status": "success",
             "restored_files": restored,
             "skipped_files": skipped,
-            "pre_restore_backup_suffix": f".pre-restore-{timestamp}",
+            # Empty when nothing was overwritten, so a caller can no longer
+            # be told to roll back to copies that were never made (Task 10d).
+            "pre_restore_backup_suffix": f".pre-restore-{timestamp}" if backed_up else "",
+            "pre_restore_backup_files": backed_up,
             "plugins": plugin_results,
             "reload_errors": reload_errors,
         }
@@ -216,27 +253,98 @@ class BackupService:
             return None
 
     @staticmethod
-    def _write_json_with_backup(path: Path, payload: Any, timestamp: str) -> None:
+    def _owning_lock(filename: str) -> contextlib.AbstractContextManager:
+        """Return the lock of the live singleton that normally writes *filename*.
+
+        A restore rewrites files that JsonStore-backed services (settings,
+        pages, collections, schedules, panels) and the ConfigManager also
+        write from other threads. Even with per-call staging names a
+        concurrent save could still interleave with the restore (last rename
+        wins mid-restore), so each file is written under its owner's lock
+        (#1860).
+
+        Lock ordering: the restore loop takes exactly ONE of these locks at a
+        time — acquire, write the one file, release, move on — and never
+        nests them, so it cannot deadlock against writers that each hold only
+        their own lock.
+
+        Falls back to a no-op context when the owning subsystem cannot be
+        loaded (a restore must still succeed in a minimal environment).
+        """
+        try:
+            if filename == "config.json":
+                from src.config_manager import get_config_manager
+
+                return get_config_manager().lock
+            if filename == "settings.json":
+                from src.settings.service import get_settings_service
+
+                return get_settings_service().lock
+            if filename == "pages.json":
+                from src.pages.service import get_page_service
+
+                return get_page_service().storage.lock
+            if filename == "collections.json":
+                from src.collections.service import get_collection_service
+
+                return get_collection_service().storage.lock
+            if filename == "schedules.json":
+                from src.schedules.service import get_schedule_service
+
+                return get_schedule_service().storage.lock
+            if filename == "panels.json":
+                from src.panels.service import get_panel_service
+
+                return get_panel_service().storage.lock
+        except Exception as exc:  # pragma: no cover - defensive
+            logger.warning("No owning lock for %s during restore: %s", filename, exc)
+        return contextlib.nullcontext()
+
+    @staticmethod
+    def _write_json_with_backup(path: Path, payload: Any, timestamp: str) -> bool:
         """Write *payload* to *path*, preserving any existing file.
 
-        The old file (if any) is moved to ``<path>.pre-restore-<timestamp>``
-        before the new content is written.  Writes are atomic via
-        ``os.replace`` so a crash mid-restore can never leave a partially
-        written JSON file in place.
+        The old file (if any) is copied to ``<path>.pre-restore-<timestamp>``
+        **before** the new content is written. Writes go through
+        :func:`src.atomic_io.write_json_atomic` (unique per-call staging file
+        + ``os.replace``) so a crash mid-restore can never leave a partially
+        written JSON file in place and no concurrent writer can collide on
+        the staging name. Callers restoring a file owned by a live store must
+        additionally hold that store's lock (see :meth:`_owning_lock`).
+
+        Returns:
+            True when a pre-restore copy was written, False when *path* did
+            not exist and there was therefore nothing to preserve.
+
+        Raises:
+            BackupRestoreAborted: the pre-restore copy failed. The live file is left
+                untouched — the copy is the user's only way back out of a
+                bad restore, so overwriting without one (which is what this
+                did before Phase 2 Task 10d) destroys the escape hatch and
+                then reports success.
         """
         path.parent.mkdir(parents=True, exist_ok=True)
-        if path.exists():
-            backup_path = path.with_suffix(path.suffix + f".pre-restore-{timestamp}")
-            try:
-                shutil.copy2(path, backup_path)
-                logger.info("Saved pre-restore backup to %s", backup_path)
-            except OSError as exc:
-                logger.warning("Could not write pre-restore backup %s: %s", backup_path, exc)
+        if not path.exists():
+            write_json_atomic(path, payload)
+            return False
 
-        tmp_path = path.with_suffix(path.suffix + ".tmp")
-        with tmp_path.open("w", encoding="utf-8") as fh:
-            json.dump(payload, fh, indent=2)
-        tmp_path.replace(path)
+        backup_path = path.with_suffix(path.suffix + f".pre-restore-{timestamp}")
+        try:
+            shutil.copy2(path, backup_path)
+        except OSError as exc:
+            # A half-written copy is worse than none: it looks usable. Drop
+            # it, then abort before touching the live file.
+            with contextlib.suppress(OSError):
+                backup_path.unlink(missing_ok=True)
+            logger.error("Could not write pre-restore backup %s: %s", backup_path, exc)
+            raise BackupRestoreAborted(
+                f"Could not preserve the existing {path.name} before restoring it ({exc}). "
+                f"{path.name} was not overwritten."
+            ) from exc
+        logger.info("Saved pre-restore backup to %s", backup_path)
+
+        write_json_atomic(path, payload)
+        return True
 
     @staticmethod
     def _validate_backup(backup: Any) -> None:
@@ -373,7 +481,11 @@ class BackupService:
                 continue
 
             if errors:
-                result["failed"].append({"plugin_id": safe_plugin_id, "error": "; ".join(errors)})
+                # Install errors embed git/loader exception text (URLs, paths,
+                # stderr) — keep the detail in the server log and return a
+                # static message (CodeQL py/stack-trace-exposure).
+                logger.warning("Plugin reinstall for '%s' failed: %s", safe_plugin_id, "; ".join(errors))
+                result["failed"].append({"plugin_id": safe_plugin_id, "error": "install failed (see server logs)"})
             else:
                 result["installed"].append(safe_plugin_id)
 
@@ -422,6 +534,7 @@ def _reload_services() -> list[str]:
         ("src.pages.service", "_page_service"),
         ("src.collections.service", "_collection_service"),
         ("src.schedules.service", "_schedule_service"),
+        ("src.panels.service", "_panel_service"),
     ):
         try:
             import importlib
@@ -432,6 +545,19 @@ def _reload_services() -> list[str]:
         except Exception:  # pragma: no cover - defensive
             logger.exception("Failed to reset %s.%s", module_path, attr)
             errors.append(f"{module_path}: reset failed (see server logs)")
+
+    # Plugin registry: live plugin objects still hold the pre-restore
+    # configuration. A restore rewrites config.json wholesale, so this is one
+    # of the few places that genuinely must rebuild the whole plugin set —
+    # everywhere else a single plugin's config change reaches only that plugin
+    # (issue #1753).
+    try:
+        from src.plugins import get_plugin_registry
+
+        get_plugin_registry().initialize(force=True)
+    except Exception:  # pragma: no cover - defensive
+        logger.exception("Failed to reload plugin registry")
+        errors.append("plugins: reload failed (see server logs)")
 
     # Display service has its own reset helper.
     try:

@@ -73,11 +73,15 @@ def test_displays_raw_batch_no_display_types():
 
 
 def test_displays_raw_batch_invalid_display_types():
-    """Test batch endpoint with invalid display_types format."""
+    """A non-list display_types is rejected before the handler runs.
+
+    RE-PINNED (Phase 2 slice 8): 422 from Pydantic replaces the hand-rolled
+    400 {"detail": "display_types must be a list"} — the body is now a typed
+    model. The omitted/empty case still answers its own 400 above.
+    """
     response = client.post("/displays/raw/batch", json={"display_types": "not_a_list"})
 
-    assert response.status_code == 400
-    assert "display_types must be a list" in response.json()["detail"]
+    assert response.status_code == 422
 
 
 def test_displays_raw_batch_partial_failure():

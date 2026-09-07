@@ -7,16 +7,33 @@ The manifest.json file is the heart of each plugin, defining:
 - Template variables schema (simple, arrays, nested)
 - Max lengths for template validation
 - Color rules schema
+- Board previews (teaser + previews) that let docs render the plugin
+  without a screenshot -- see :mod:`src.plugins.previews`
 """
 
 import copy
 import json
 import logging
+import re
+from collections.abc import Iterator
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
+from .previews import BoardPreview, parse_previews, validate_previews, validate_teaser
+
 logger = logging.getLogger(__name__)
+
+# Ceiling on transition_settings.max_runtime_seconds for NON-interruptible
+# transitions (#1868 review). An interruptible transition is preempted at
+# enqueue time (the engine sets the client's cancel event the moment a newer
+# send is queued), so a long ambient one — e.g. quiet_library's 1800s — never
+# holds a wait=True caller. interruptible:false defeats that preemption
+# entirely (src/transitions/runner.py), so ITS runtime must stay inside the
+# engine's SEND_WAIT_TIMEOUT budget (see src/main.py); with cloud frame
+# pacing at 15s/frame that means <=120s. Oversized values are CLAMPED with a
+# warning — never rejected — so published plugins keep loading.
+MAX_TRANSITION_RUNTIME_SECONDS = 120
 
 
 # Canonical settings-schema entry auto-injected for any plugin whose manifest
@@ -33,6 +50,125 @@ TRIGGER_PAGE_ID_PROPERTY: dict[str, Any] = {
     "ui:widget": "page-picker",
     "default": "",
 }
+
+
+# ``ui:widget`` value that opts a settings field into the generic remote
+# options primitive: the field's choices come from the plugin's own
+# ``get_options()`` implementation rather than a static ``enum``.
+REMOTE_OPTIONS_WIDGET = "remote-options"
+
+# ``ui:widget`` value that opts a settings field into the generic JSON path
+# mapper: the user probes an endpoint, browses the response, and maps paths in
+# it onto template variables.
+JSON_PATH_MAPPER_WIDGET = "json-path-mapper"
+
+# The name the mapper shipped under before it was a capability. Kept as an
+# accepted alias so a manifest written for an older core keeps rendering the
+# real widget rather than degrading to a plain textarea. Removing it is a
+# separate, later change.
+JSON_PATH_MAPPER_DEPRECATED_WIDGET = "generic-data-mapping-helper"
+
+# The parts of a probe request core knows how to send. A ``ui:options.probe``
+# block maps each of these onto the settings property the plugin keeps it in,
+# so the widget never has to know a particular plugin's field names.
+JSON_PATH_MAPPER_PROBE_PARTS = frozenset({"url", "format", "method", "headers", "body"})
+
+# The parts of one mapping row core knows how to edit, mapped the same way onto
+# whatever keys the plugin stores each row under.
+JSON_PATH_MAPPER_ROW_KEYS = frozenset({"variable", "path", "default"})
+
+# Every ``ui:options`` key a ``json-path-mapper`` field understands. As with
+# remote-options, an unknown key here is a warning rather than an error: it may
+# be grammar from a newer core.
+JSON_PATH_MAPPER_UI_OPTIONS_KEYS = frozenset({"probe", "keys"})
+
+# ``options_id`` becomes a URL path segment on the options route, so keep it to
+# a boring lowercase identifier.
+OPTIONS_ID_RE = re.compile(r"^[a-z][a-z0-9_]*$")
+
+# Every key a ``ui:options`` block *this core* understands. Anything else is
+# either a typo or a key a newer core introduced, and core has no way to tell
+# which -- so it is reported and ignored, never fatal. See
+# ``settings_schema_ui_warnings``.
+#
+# The render flags below are plain booleans. ``multiple`` is deliberately not
+# one of them: it predates the flags and is already policed by its own
+# "requires type 'array'" rule, which a stricter type check would double up on.
+UI_OPTIONS_BOOLEAN_KEYS = frozenset({"searchable", "server_search", "reorderable", "allow_custom"})
+UI_OPTIONS_KEYS = (
+    frozenset({"options_id", "depends_on", "multiple", "cache_seconds", "placeholder", "labels_field"})
+    | UI_OPTIONS_BOOLEAN_KEYS
+)
+
+# How long the UI may reuse a fetched option list. Zero means "never cache";
+# the ceiling is an hour, above which a stale picker outlives the dialog it
+# was opened from.
+MIN_OPTIONS_CACHE_SECONDS = 0
+MAX_OPTIONS_CACHE_SECONDS = 3600
+
+
+def parse_data_files(raw: Any) -> list[str]:
+    """Normalise the manifest's ``data_files`` declaration.
+
+    Entries are paths relative to the plugin's own directory.  Anything that
+    could escape that directory -- absolute paths, ``..`` segments, drive
+    letters, backslashes -- is dropped rather than raising, because
+    ``load_manifest()`` returns None on error and rejecting the manifest would
+    uninstall a working plugin over a bad declaration.  ``validate_install()``
+    reports the dropped entry.
+    """
+    if not isinstance(raw, list):
+        return []
+    cleaned: list[str] = []
+    for entry in raw:
+        if not isinstance(entry, str):
+            continue
+        candidate = entry.strip().replace("\\", "/")
+        if not candidate:
+            continue
+        if candidate.startswith("/") or ":" in candidate:
+            continue
+        parts = [p for p in candidate.split("/") if p not in ("", ".")]
+        if any(p == ".." for p in parts):
+            continue
+        normalised = "/".join(parts)
+        if normalised and normalised not in cleaned:
+            cleaned.append(normalised)
+    return cleaned
+
+
+# ``ui:widget`` values the settings form knows how to render. An unrecognised
+# value is a *warning*, never an error: several installed plugins declare
+# picker widgets core never implemented, and load_manifest() returns None on
+# any validation error -- rejecting them here would uninstall them in practice.
+KNOWN_SETTINGS_WIDGETS = frozenset(
+    {
+        "datetime",
+        JSON_PATH_MAPPER_DEPRECATED_WIDGET,
+        JSON_PATH_MAPPER_WIDGET,
+        "page-picker",
+        "password",
+        REMOTE_OPTIONS_WIDGET,
+        "textarea",
+        "timezone",
+        "wsdot-route-picker",
+    }
+)
+
+
+def _ui_options_keys_for(widget: Any) -> frozenset[str] | None:
+    """Which ``ui:options`` vocabulary applies to *widget*.
+
+    ``None`` means the widget takes no ``ui:options`` at all, so there is no
+    vocabulary to be forward-compatible about. The sets are read at call time
+    rather than captured in a lookup table so that tests can simulate an older
+    core by taking a key back out of the module-level grammar.
+    """
+    if widget == REMOTE_OPTIONS_WIDGET:
+        return UI_OPTIONS_KEYS
+    if widget in (JSON_PATH_MAPPER_WIDGET, JSON_PATH_MAPPER_DEPRECATED_WIDGET):
+        return JSON_PATH_MAPPER_UI_OPTIONS_KEYS
+    return None
 
 
 def _inject_trigger_page_id(settings_schema: dict[str, Any]) -> dict[str, Any]:
@@ -139,8 +275,43 @@ MANIFEST_SCHEMA = {
         "icon": {"type": "string", "description": "Icon name from Lucide icons"},
         "category": {
             "type": "string",
-            "enum": ["art", "data", "transit", "weather", "entertainment", "utility", "home"],
+            "enum": ["art", "data", "transit", "weather", "entertainment", "utility", "home", "transition"],
             "description": "Plugin category for organization",
+        },
+        "plugin_type": {
+            "type": "string",
+            "enum": ["data", "transition"],
+            "default": "data",
+            "description": "Plugin kind. 'data' (default) returns template variables; 'transition' produces frame-by-frame board animations.",
+        },
+        "transition_settings": {
+            "type": "object",
+            "description": "Per-plugin caps and behavior flags for transition plugins (only used when plugin_type='transition').",
+            "properties": {
+                "interruptible": {
+                    "type": "boolean",
+                    "default": True,
+                    "description": "When true, a new page or trigger arriving mid-transition cancels the current transition. When false, the transition runs to completion before the new state is applied.",
+                },
+                "min_interval_ms": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "default": 50,
+                    "description": "Floor on the delay between frame sends. Protects against runaway loops and respects board API rate limits regardless of what the plugin yields.",
+                },
+                "max_frames": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "default": 500,
+                    "description": "Hard cap on the number of frames the runner will send before aborting and snapping to the target grid.",
+                },
+                "max_runtime_seconds": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "default": 120,
+                    "description": "Hard cap on wall-clock seconds the transition may run before the runner aborts and snaps to the target grid. For interruptible:false transitions, values above 120 are clamped at load (#1868).",
+                },
+            },
         },
         "fiestaboard_version": {
             "type": "string",
@@ -207,6 +378,56 @@ MANIFEST_SCHEMA = {
                 },
             },
             "description": "Demo page template that showcases the plugin's features",
+        },
+        "teaser": {
+            "type": "string",
+            "description": (
+                "One line of literal board text, at most 15 tiles (the Note width). "
+                "Rendered as a split-flap strip on plugin directory cards. "
+                "Colour markers like {66} count as one tile."
+            ),
+        },
+        "previews": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "required": ["rows"],
+                "properties": {
+                    "label": {
+                        "type": "string",
+                        "description": "Tab label; defaults to the board shape (e.g. 'Flagship')",
+                    },
+                    "device_type": {
+                        "type": "string",
+                        "enum": ["flagship", "note", "note_array"],
+                        "default": "flagship",
+                        "description": "Board shape this preview is composed for",
+                    },
+                    "notes_wide": {
+                        "type": "integer",
+                        "minimum": 1,
+                        "maximum": 4,
+                        "default": 1,
+                        "description": "Notes wide (note_array only)",
+                    },
+                    "notes_tall": {
+                        "type": "integer",
+                        "minimum": 1,
+                        "maximum": 4,
+                        "default": 1,
+                        "description": "Notes tall (note_array only)",
+                    },
+                    "rows": {
+                        "type": "array",
+                        "items": {"type": "string"},
+                        "description": (
+                            "Literal board rows. May be shorter than the device's row "
+                            "count (padded with blanks) but never longer."
+                        ),
+                    },
+                },
+            },
+            "description": "Literal board previews rendered on the plugin detail page",
         },
     },
 }
@@ -339,6 +560,15 @@ class PluginManifest:
     supports_triggers: bool = False
     screenshots: list[Screenshot] = field(default_factory=list)
     demo: dict[str, DemoPageSchema] | None = None  # keyed by device_type
+    teaser: str = ""
+    previews: list[BoardPreview] = field(default_factory=list)
+    plugin_type: str = "data"  # "data" or "transition"
+    transition_settings: dict[str, Any] = field(default_factory=dict)
+    # Data files the plugin must be able to read, relative to its own
+    # directory. Declared so an install can be rejected before the plugin
+    # ever runs, rather than serving "???" for every variable. See
+    # validate_install() in src/plugins/install_check.py.
+    data_files: list[str] = field(default_factory=list)
     raw: dict[str, Any] = field(default_factory=dict)
 
     @classmethod
@@ -498,6 +728,11 @@ class PluginManifest:
             supports_triggers=supports_triggers,
             screenshots=screenshots,
             demo=demo,
+            teaser=data.get("teaser", "") if isinstance(data.get("teaser", ""), str) else "",
+            previews=parse_previews(data.get("previews")),
+            plugin_type=data.get("plugin_type", "data"),
+            transition_settings=dict(data.get("transition_settings", {})),
+            data_files=parse_data_files(data.get("data_files")),
             raw=raw,
         )
 
@@ -520,6 +755,8 @@ class PluginManifest:
             "category": self.category,
             "fiestaboard_version": self.fiestaboard_version,
             "supports_triggers": self.supports_triggers,
+            "plugin_type": self.plugin_type,
+            "transition_settings": self.transition_settings,
             "screenshots": [
                 {
                     "src": s.src,
@@ -528,6 +765,17 @@ class PluginManifest:
                     "primary": s.primary,
                 }
                 for s in self.screenshots
+            ],
+            "teaser": self.teaser,
+            "previews": [
+                {
+                    "label": p.label,
+                    "device_type": p.device_type,
+                    "notes_wide": p.notes_wide,
+                    "notes_tall": p.notes_tall,
+                    "rows": p.rows,
+                }
+                for p in self.previews
             ],
         }
         # Include parsed metadata and groups so the frontend can use them
@@ -546,6 +794,293 @@ class PluginManifest:
         if self.variables.groups:
             result["variable_groups"] = {gid: {"label": g.label} for gid, g in self.variables.groups.items()}
         return result
+
+
+def _iter_settings_fields(
+    settings_schema: dict[str, Any],
+) -> Iterator[tuple[str, dict[str, Any], dict[str, Any]]]:
+    """Yield ``(dotted_path, property_schema, sibling_properties)`` for every
+    field in *settings_schema*, recursing through nested ``properties`` and
+    array ``items.properties``.
+    """
+
+    def _walk(properties: dict[str, Any], path: str) -> Iterator[tuple[str, dict[str, Any], dict[str, Any]]]:
+        for name, prop in properties.items():
+            if not isinstance(prop, dict):
+                continue
+            field_path = f"{path}.{name}" if path else name
+            yield field_path, prop, properties
+
+            nested = prop.get("properties")
+            if isinstance(nested, dict):
+                yield from _walk(nested, field_path)
+            items = prop.get("items")
+            if isinstance(items, dict) and isinstance(items.get("properties"), dict):
+                yield from _walk(items["properties"], f"{field_path}.items")
+
+    yield from _walk(settings_schema.get("properties") or {}, "")
+
+
+def collect_options_ids(settings_schema: dict[str, Any]) -> set[str]:
+    """Return every ``ui:options.options_id`` declared anywhere in *settings_schema*.
+
+    A non-empty result means the plugin promises to answer options requests and
+    therefore must implement :meth:`~src.plugins.base.PluginBase.get_options`.
+    """
+    ids: set[str] = set()
+    for _path, prop, _siblings in _iter_settings_fields(settings_schema):
+        if prop.get("ui:widget") != REMOTE_OPTIONS_WIDGET:
+            continue
+        ui_options = prop.get("ui:options")
+        options_id = ui_options.get("options_id") if isinstance(ui_options, dict) else None
+        if isinstance(options_id, str) and options_id:
+            ids.add(options_id)
+    return ids
+
+
+def options_cache_seconds(settings_schema: dict[str, Any], options_id: str) -> int | None:
+    """Return the ``ui:options.cache_seconds`` declared for *options_id*.
+
+    ``None`` means the field did not declare one and the caller's default
+    applies; ``0`` is a deliberate "never cache this". The TTL lives per
+    provider because only the plugin author knows whether the catalog is a
+    departure board that goes stale in seconds or a list of airports that does
+    not change this decade.
+
+    Args:
+        settings_schema: The plugin's ``settings_schema`` object.
+        options_id: The provider being asked about.
+
+    Returns:
+        The declared TTL in seconds, or ``None`` when unspecified.
+    """
+    for _path, prop, _siblings in _iter_settings_fields(settings_schema):
+        if prop.get("ui:widget") != REMOTE_OPTIONS_WIDGET:
+            continue
+        ui_options = prop.get("ui:options")
+        if not isinstance(ui_options, dict) or ui_options.get("options_id") != options_id:
+            continue
+        seconds = ui_options.get("cache_seconds")
+        # bool is an int subclass; a `true` here is a schema bug, not a TTL.
+        if isinstance(seconds, int) and not isinstance(seconds, bool):
+            return seconds
+        return None
+    return None
+
+
+def settings_schema_ui_warnings(settings_schema: dict[str, Any]) -> list[str]:
+    """Collect the *non-fatal* ``ui:*`` findings in a ``settings_schema``.
+
+    These are the vocabulary gaps -- a ``ui:widget`` or a ``ui:options`` key
+    this core has never heard of. Core cannot tell an author's typo from a
+    piece of grammar a *newer* core introduced, and ``load_manifest`` returns
+    ``None`` on any validation error, so guessing "typo" and failing would
+    uninstall the plugin from every user running a release behind. Plugin
+    auto-update is hourly and on by default; core updates are a manual image
+    pull, so plugin versions routinely run ahead of core versions.
+
+    Malformed *values* for keys this core does know stay hard errors in
+    :func:`validate_settings_schema_ui` -- those are unambiguously author bugs,
+    with no newer-core reading available.
+
+    Args:
+        settings_schema: The manifest's ``settings_schema`` object.
+
+    Returns:
+        List of human-readable warning strings.
+    """
+    warnings: list[str] = []
+
+    for field_path, prop, _siblings in _iter_settings_fields(settings_schema):
+        widget = prop.get("ui:widget")
+        if widget is not None and widget not in KNOWN_SETTINGS_WIDGETS:
+            warnings.append(
+                f"settings_schema.{field_path}: unknown ui:widget '{widget}' — "
+                f"the settings form will fall back to a plain input"
+            )
+        # Each widget has its own ``ui:options`` vocabulary; a widget with no
+        # entry here declares no options and is left alone.
+        known_keys = _ui_options_keys_for(widget)
+        if known_keys is None:
+            continue
+
+        ui_options = prop.get("ui:options")
+        if not isinstance(ui_options, dict):
+            # A non-object ``ui:options`` is a hard error, not a vocabulary
+            # gap -- there are no keys to be forward-compatible about.
+            continue
+
+        for key in sorted(set(ui_options) - known_keys):
+            warnings.append(
+                f"settings_schema.{field_path}: unknown ui:options key '{key}' — ignored. "
+                f"Check the spelling; if the key is spelled correctly it was added in a newer "
+                f"FiestaBoard, and this core will ignore it until you update."
+            )
+
+    return warnings
+
+
+def _json_path_mapper_errors(field_path: str, prop: dict[str, Any]) -> list[str]:
+    """Validate the ``ui:options`` of one ``json-path-mapper`` field.
+
+    Both blocks are plain string→string maps from a name *core* knows onto the
+    property name *this plugin* uses. Everything on the left is core's own
+    vocabulary, so an unrecognised entry there is a typo rather than grammar
+    from a newer core, and is reported as an error.
+    """
+    errors: list[str] = []
+    ui_options = prop.get("ui:options")
+    if ui_options is None:
+        return errors
+    if not isinstance(ui_options, dict):
+        return [f"settings_schema.{field_path}: ui:options must be an object"]
+    for block, allowed in (
+        ("probe", JSON_PATH_MAPPER_PROBE_PARTS),
+        ("keys", JSON_PATH_MAPPER_ROW_KEYS),
+    ):
+        mapping = ui_options.get(block)
+        if mapping is None:
+            continue
+        if not isinstance(mapping, dict):
+            errors.append(f"settings_schema.{field_path}: ui:options.{block} must be an object, got {mapping!r}")
+            continue
+        for key in sorted(set(mapping) - allowed):
+            errors.append(f"settings_schema.{field_path}: unknown ui:options.{block} key '{key}'")
+        for key in sorted(set(mapping) & allowed):
+            value = mapping[key]
+            if not isinstance(value, str) or not value:
+                errors.append(
+                    f"settings_schema.{field_path}: ui:options.{block}.{key} must name a property, got {value!r}"
+                )
+    return errors
+
+
+def validate_settings_schema_ui(settings_schema: dict[str, Any]) -> list[str]:
+    """Validate the ``ui:*`` annotations in a plugin's ``settings_schema``.
+
+    Returns a list of hard **errors** (empty when the schema is fine).
+    Unrecognised vocabulary -- an unknown ``ui:widget`` or an unknown
+    ``ui:options`` key -- is deliberately *not* an error; it is reported by
+    :func:`settings_schema_ui_warnings`, which this function logs and the
+    plugin loader surfaces through ``GET /plugins/errors``.
+
+    Args:
+        settings_schema: The manifest's ``settings_schema`` object.
+
+    Returns:
+        List of human-readable error strings.
+    """
+    errors: list[str] = []
+    seen_ids: dict[str, str] = {}
+    root_properties = settings_schema.get("properties") or {}
+
+    for warning in settings_schema_ui_warnings(settings_schema):
+        logger.warning("%s", warning)
+
+    for field_path, prop, siblings in _iter_settings_fields(settings_schema):
+        widget = prop.get("ui:widget")
+        if widget in (JSON_PATH_MAPPER_WIDGET, JSON_PATH_MAPPER_DEPRECATED_WIDGET):
+            errors.extend(_json_path_mapper_errors(field_path, prop))
+            continue
+        if widget != REMOTE_OPTIONS_WIDGET:
+            continue
+
+        ui_options = prop.get("ui:options") or {}
+        if not isinstance(ui_options, dict):
+            errors.append(f"settings_schema.{field_path}: ui:options must be an object")
+            # Fall through with an empty block so the field still gets the
+            # "missing options_id" error rather than two shapes of the same bug.
+            ui_options = {}
+
+        options_id = ui_options.get("options_id")
+        if not options_id:
+            errors.append(f"settings_schema.{field_path}: ui:widget 'remote-options' requires ui:options.options_id")
+        elif not isinstance(options_id, str) or not OPTIONS_ID_RE.match(options_id):
+            errors.append(
+                f"settings_schema.{field_path}: ui:options.options_id '{options_id}' must match {OPTIONS_ID_RE.pattern}"
+            )
+        elif options_id in seen_ids:
+            errors.append(
+                f"settings_schema.{field_path}: duplicate ui:options.options_id '{options_id}' "
+                f"(already declared by settings_schema.{seen_ids[options_id]})"
+            )
+        else:
+            seen_ids[options_id] = field_path
+
+        for key in sorted(UI_OPTIONS_BOOLEAN_KEYS):
+            value = ui_options.get(key)
+            if value is not None and not isinstance(value, bool):
+                errors.append(f"settings_schema.{field_path}: ui:options.{key} must be a boolean, got {value!r}")
+
+        placeholder = ui_options.get("placeholder")
+        if placeholder is not None and not isinstance(placeholder, str):
+            errors.append(f"settings_schema.{field_path}: ui:options.placeholder must be a string, got {placeholder!r}")
+
+        if ui_options.get("multiple") and prop.get("type") != "array":
+            errors.append(
+                f"settings_schema.{field_path}: ui:options.multiple requires type 'array', got {prop.get('type')!r}"
+            )
+
+        # ``labels_field`` is the one key that makes the widget write *outside*
+        # its own property: it names the sibling that collects the per-choice
+        # display names, keyed by option value. That sibling therefore has to
+        # exist in the same object schema, and there has to be more than one
+        # choice for the names to be worth keying.
+        labels_field = ui_options.get("labels_field")
+        if labels_field is not None:
+            if not isinstance(labels_field, str):
+                errors.append(
+                    f"settings_schema.{field_path}: ui:options.labels_field must be a string, got {labels_field!r}"
+                )
+            elif labels_field not in siblings:
+                # Siblings only, unlike ``depends_on``: this is a write target,
+                # and the widget writes into the object its own key lives in.
+                errors.append(
+                    f"settings_schema.{field_path}: ui:options.labels_field "
+                    f"references unknown property '{labels_field}'"
+                )
+            if not ui_options.get("multiple"):
+                errors.append(f"settings_schema.{field_path}: ui:options.labels_field requires ui:options.multiple")
+
+        if ui_options.get("reorderable") and not ui_options.get("multiple"):
+            errors.append(f"settings_schema.{field_path}: ui:options.reorderable requires ui:options.multiple")
+
+        # ``server_search`` turns the filter box on by itself -- the widget
+        # renders it on ``searchable || server_search`` -- so an omitted
+        # ``searchable`` is fine. An explicit ``false`` is not: the author asked
+        # for a box and asked for no box, and the UI would quietly pick one.
+        searchable = ui_options.get("searchable")
+        if ui_options.get("server_search") and searchable is False:
+            errors.append(
+                f"settings_schema.{field_path}: ui:options.server_search implies ui:options.searchable, "
+                f"got searchable={searchable!r}"
+            )
+
+        cache_seconds = ui_options.get("cache_seconds")
+        if cache_seconds is not None and (
+            not isinstance(cache_seconds, int)
+            or isinstance(cache_seconds, bool)
+            or not (MIN_OPTIONS_CACHE_SECONDS <= cache_seconds <= MAX_OPTIONS_CACHE_SECONDS)
+        ):
+            errors.append(
+                f"settings_schema.{field_path}: ui:options.cache_seconds must be an integer between "
+                f"{MIN_OPTIONS_CACHE_SECONDS} and {MAX_OPTIONS_CACHE_SECONDS}, got {cache_seconds!r}"
+            )
+
+        depends_on = ui_options.get("depends_on") or []
+        if not isinstance(depends_on, list):
+            errors.append(f"settings_schema.{field_path}: ui:options.depends_on must be an array")
+        else:
+            # A dependency may point at a sibling (same object) or at a
+            # top-level setting -- array item fields routinely depend on a
+            # root field such as the account or agency the rows belong to.
+            for dep in depends_on:
+                if dep not in siblings and dep not in root_properties:
+                    errors.append(
+                        f"settings_schema.{field_path}: ui:options.depends_on references unknown property '{dep}'"
+                    )
+
+    return errors
 
 
 def validate_manifest(data: dict[str, Any]) -> tuple[bool, list[str]]:
@@ -592,6 +1127,8 @@ def validate_manifest(data: dict[str, Any]) -> tuple[bool, list[str]]:
     settings = data.get("settings_schema", {})
     if settings and not isinstance(settings, dict):
         errors.append("settings_schema must be an object")
+    elif isinstance(settings, dict):
+        errors.extend(validate_settings_schema_ui(settings))
 
     # Validate env_vars if present
     env_vars = data.get("env_vars", [])
@@ -640,6 +1177,53 @@ def validate_manifest(data: dict[str, Any]) -> tuple[bool, list[str]]:
             if not isinstance(value, int) or value < 1:
                 errors.append(f"max_lengths.{key} must be a positive integer")
 
+    # Validate plugin_type if present
+    plugin_type = data.get("plugin_type", "data")
+    if plugin_type not in ("data", "transition"):
+        errors.append(f"plugin_type must be 'data' or 'transition', got '{plugin_type}'")
+
+    # Validate transition_settings if present
+    transition_settings = data.get("transition_settings")
+    if transition_settings is not None:
+        if not isinstance(transition_settings, dict):
+            errors.append("transition_settings must be an object")
+        else:
+            for key, expected_type, min_value in (
+                ("min_interval_ms", int, 0),
+                ("max_frames", int, 1),
+                ("max_runtime_seconds", int, 1),
+            ):
+                if key in transition_settings:
+                    value = transition_settings[key]
+                    if not isinstance(value, expected_type) or isinstance(value, bool):
+                        errors.append(f"transition_settings.{key} must be an integer")
+                    elif value < min_value:
+                        errors.append(f"transition_settings.{key} must be >= {min_value}")
+            if "interruptible" in transition_settings and not isinstance(transition_settings["interruptible"], bool):
+                errors.append("transition_settings.interruptible must be a boolean")
+            # Clamp (don't reject) an over-ceiling runtime cap on
+            # NON-interruptible transitions (#1868 review): see
+            # MAX_TRANSITION_RUNTIME_SECONDS. Interruptible transitions are
+            # preempted at enqueue time and may legitimately run long
+            # (quiet_library: 1800s). Mutates the manifest dict in place so
+            # the loaded plugin sees the clamped value.
+            runtime = transition_settings.get("max_runtime_seconds")
+            uninterruptible = transition_settings.get("interruptible") is False
+            if (
+                uninterruptible
+                and isinstance(runtime, int)
+                and not isinstance(runtime, bool)
+                and runtime > MAX_TRANSITION_RUNTIME_SECONDS
+            ):
+                logger.warning(
+                    "transition_settings.max_runtime_seconds=%s exceeds the %ss ceiling for a "
+                    "non-interruptible transition; clamping (it defeats enqueue-time preemption, "
+                    "so it must fit the send-worker wait budget)",
+                    runtime,
+                    MAX_TRANSITION_RUNTIME_SECONDS,
+                )
+                transition_settings["max_runtime_seconds"] = MAX_TRANSITION_RUNTIME_SECONDS
+
     # Validate demo section if present
     demo = data.get("demo")
     if demo is not None:
@@ -672,7 +1256,53 @@ def validate_manifest(data: dict[str, Any]) -> tuple[bool, list[str]]:
                 elif not isinstance(entry["template"], list):
                     errors.append(f"demo.{key}.template must be an array of strings")
 
+    # Validate board previews when present.
+    #
+    # Deliberately NOT required here: load_manifest() returns None whenever
+    # validation fails, so requiring teaser/previews would stop every plugin
+    # that has not yet adopted them from loading at all. Absence means "not
+    # migrated"; only malformed values are errors. The authoring lane enforces
+    # presence via validate_preview_completeness().
+    is_transition = data.get("plugin_type", "data") == "transition"
+
+    if "teaser" in data:
+        if is_transition:
+            errors.append("teaser is not supported for transition plugins — they have no board content to preview")
+        else:
+            errors.extend(validate_teaser(data["teaser"]))
+
+    if "previews" in data:
+        if is_transition:
+            errors.append("previews is not supported for transition plugins — they have no board content to preview")
+        else:
+            errors.extend(validate_previews(data["previews"]))
+
     return len(errors) == 0, errors
+
+
+def validate_preview_completeness(data: dict[str, Any]) -> list[str]:
+    """Require board previews. For the authoring and registry lane only.
+
+    Kept separate from :func:`validate_manifest` on purpose. A manifest with no
+    ``teaser``/``previews`` is *valid* — it simply has not been migrated yet, and
+    must keep loading for existing users. But a plugin being submitted to the
+    registry, or shipped in this repo, is expected to carry both so the docs site
+    can render it without a screenshot.
+
+    Transition plugins are exempt: they have no data to display, and their whole
+    purpose is animation, which previews deliberately do not render.
+
+    Returns a list of human-readable errors (empty when complete).
+    """
+    if data.get("plugin_type", "data") == "transition":
+        return []
+
+    errors: list[str] = []
+    if "teaser" not in data:
+        errors.append("missing required field: teaser (one line, max 15 tiles, shown on plugin directory cards)")
+    if "previews" not in data:
+        errors.append("missing required field: previews (at least one literal board for the detail page)")
+    return errors
 
 
 def load_manifest(manifest_path: Path) -> tuple[PluginManifest | None, list[str]]:

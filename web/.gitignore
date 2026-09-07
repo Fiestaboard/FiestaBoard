@@ -49,3 +49,5 @@ yarn-error.log*
 /blob-report/
 /playwright/.cache/
 /screenshot-results/
+/draw-mode-demo-results/
+/playwright-report.json

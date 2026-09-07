@@ -1,3 +1,32 @@
+import {
+  BoardShowcase,
+  Box,
+  Button,
+  Code,
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  Flex,
+  Heading,
+  Input,
+  Label,
+  List,
+  PageLayout,
+  PluginCategoryBadge,
+  Skeleton,
+  Stack,
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+  Text,
+  TextLink,
+} from "@fiestaboard/ui";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ArrowDownToLine, ArrowLeft, CopyPlus, ExternalLink, Puzzle } from "lucide-react";
 import { useState } from "react";
@@ -5,21 +34,9 @@ import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { toast } from "sonner";
 
-import { PageLayout } from "@/components/page-layout";
 import Link from "@/components/smart-link";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Skeleton } from "@/components/ui/skeleton";
+import { useEffectiveBoardColor } from "@/hooks/use-effective-board-color";
+import { useEffectiveCode62Glyph } from "@/hooks/use-effective-code62-glyph";
 import { useParams, useRouter } from "@/hooks/use-router";
 import { useTranslations } from "@/i18n/translations";
 import { api } from "@/lib/api";
@@ -32,6 +49,8 @@ export default function PluginDetailPage() {
   const params = useParams();
   const router = useRouter();
   const queryClient = useQueryClient();
+  const boardColor = useEffectiveBoardColor();
+  const code62Glyph = useEffectiveCode62Glyph();
   const pluginId = params.pluginId as string;
   const [addInstanceOpen, setAddInstanceOpen] = useState(false);
   const [instanceLabel, setInstanceLabel] = useState("");
@@ -44,6 +63,7 @@ export default function PluginDetailPage() {
     finance: t("categories.finance"),
     home: t("categories.home"),
     transit: t("categories.transit"),
+    transition: t("categories.transition"),
     utility: t("categories.utility"),
     weather: t("categories.weather"),
   };
@@ -75,6 +95,7 @@ export default function PluginDetailPage() {
       )
     : null;
   const categoryLabel = CATEGORY_LABELS[entry?.category ?? "utility"] ?? entry?.category ?? t("categories.utility");
+  const previews = entry?.previews ?? [];
 
   // Install mutation
   const installMutation = useMutation({
@@ -120,24 +141,46 @@ export default function PluginDetailPage() {
   return (
     <PageLayout>
       {/* Back navigation */}
-      <div className="mb-4">
+      <Box className="mb-4">
         <Button variant="ghost" size="sm" className="gap-1.5 -ml-2 text-muted-foreground hover:text-foreground" asChild>
           <Link href="/integrations?tab=marketplace">
             <ArrowLeft className="h-4 w-4" />
             {t("backToMarketplace")}
           </Link>
         </Button>
-      </div>
+      </Box>
 
-      <div className="max-w-3xl mx-auto space-y-6 animate-card-fade-in">
+      <Stack gap="6" className="max-w-3xl mx-auto animate-card-fade-in">
+        {/* Board hero — what this plugin actually puts on a board, the same
+            way the public directory leads at fiestaboard.app/plugins. Absent
+            for plugins that predate the previews contract, in which case the
+            page falls back to leading with the header card. */}
+        {previews.length > 0 && (
+          <BoardShowcase
+            previews={previews}
+            previewLabel={t("boardPreviewLabel", { name: entry?.name ?? pluginId })}
+            defaultBoardType={boardColor}
+            code62Glyph={code62Glyph}
+            labels={{
+              flagship: t("deviceFlagship"),
+              note: t("deviceNote"),
+              noteArray: t("deviceNoteArray"),
+              boardShape: t("boardShapeLabel"),
+              boardColor: t("boardColorLabel"),
+              blackBoard: t("blackBoard"),
+              whiteBoard: t("whiteBoard"),
+            }}
+          />
+        )}
+
         {/* Plugin header card */}
-        <div className="rounded-xl border bg-card px-6 py-5">
-          <div className="flex items-start justify-between gap-4">
-            <div className="flex items-start gap-4 min-w-0">
-              <div className="p-2.5 rounded-lg bg-muted text-muted-foreground shrink-0 mt-0.5">
+        <Box className="rounded-xl border bg-card px-6 py-5">
+          <Flex align="start" justify="between" gap="4">
+            <Flex align="start" gap="4" className="min-w-0">
+              <Box className="p-2.5 rounded-lg bg-muted text-muted-foreground shrink-0 mt-0.5">
                 <Puzzle className="h-5 w-5" />
-              </div>
-              <div className="min-w-0">
+              </Box>
+              <Box className="min-w-0">
                 {isLoading ? (
                   <>
                     <Skeleton className="h-6 w-48 mb-2" />
@@ -145,32 +188,42 @@ export default function PluginDetailPage() {
                   </>
                 ) : (
                   <>
-                    <div className="flex items-center gap-2 flex-wrap mb-1">
+                    <Flex align="center" gap="2" wrap className="mb-1">
+                      {/* Custom card header (icon + badge + trailing actions) doesn't
+                          match PageHeader's shape, so the page h1 stays raw here
+                          (couldn't snap — see wave 1 report). */}
+                      {/* eslint-disable-next-line react/forbid-elements -- custom card-header hero title; PageHeader's icon+card shape doesn't fit and Heading has no level=1 */}
                       <h1 className="text-xl font-semibold">{entry?.name ?? pluginId}</h1>
-                      <Badge variant="secondary" className="text-xs">
-                        {categoryLabel}
-                      </Badge>
-                    </div>
-                    <p className="text-sm text-muted-foreground">
-                      {entry?.author && <span className="mr-3">{t("byAuthor", { author: entry.author })}</span>}
-                      {entry?.fiestaboard_version && (
-                        <span className="text-xs">
-                          {t("requiresFiestaboard", { version: entry.fiestaboard_version })}
-                        </span>
+                      <PluginCategoryBadge category={entry?.category ?? "utility"} label={categoryLabel} />
+                    </Flex>
+                    <Text tone="muted">
+                      {entry?.author && (
+                        <Text as="span" tone="muted" className="mr-3">
+                          {t("byAuthor", { author: entry.author })}
+                        </Text>
                       )}
-                    </p>
+                      {entry?.fiestaboard_version && (
+                        <Text as="span" size="xs" tone="muted">
+                          {t("requiresFiestaboard", { version: entry.fiestaboard_version })}
+                        </Text>
+                      )}
+                    </Text>
                   </>
                 )}
-              </div>
-            </div>
+              </Box>
+            </Flex>
 
             {/* Actions */}
-            <div className="flex items-center gap-2 shrink-0">
+            <Flex align="center" gap="2" className="shrink-0">
               {entry?.repository && (
                 <Button variant="outline" size="sm" asChild>
+                  {/* asChild hands this anchor Button's own chrome (border/bg/text) — TextLink's
+                      underline+text-primary styling would clash with that, so it stays raw
+                      (couldn't snap — see wave 1 report). */}
+                  {/* eslint-disable-next-line react/forbid-elements -- single Slot child of Button asChild; the Button merges its chrome onto this anchor and TextLink would layer conflicting link styling */}
                   <a href={entry.repository} target="_blank" rel="noopener noreferrer">
                     <ExternalLink className="h-3.5 w-3.5 mr-1.5" />
-                    GitHub
+                    {t("githubLink")}
                   </a>
                 </Button>
               )}
@@ -188,19 +241,21 @@ export default function PluginDetailPage() {
                     {installMutation.isPending ? t("installing") : t("install")}
                   </Button>
                 ))}
-            </div>
-          </div>
+            </Flex>
+          </Flex>
 
           {/* Description */}
           {entry?.description && (
-            <p className="mt-4 text-sm text-muted-foreground leading-relaxed border-t pt-4">{entry.description}</p>
+            <Text tone="muted" className="mt-4 leading-relaxed border-t pt-4">
+              {entry.description}
+            </Text>
           )}
-        </div>
+        </Box>
 
         {/* README */}
-        <div className="rounded-xl border bg-card px-6 py-5">
+        <Box className="rounded-xl border bg-card px-6 py-5">
           {isLoadingReadme ? (
-            <div className="space-y-3">
+            <Stack gap="3">
               <Skeleton className="h-5 w-1/3" />
               <Skeleton className="h-4 w-full" />
               <Skeleton className="h-4 w-5/6" />
@@ -209,16 +264,16 @@ export default function PluginDetailPage() {
               <Skeleton className="h-4 w-full" />
               <Skeleton className="h-4 w-3/4" />
               <Skeleton className="h-4 w-5/6" />
-            </div>
+            </Stack>
           ) : readme ? (
-            <div className="plugin-readme">
+            <Box className="plugin-readme">
               <ReactMarkdown
                 remarkPlugins={[remarkGfm]}
                 components={{
                   a: ({ href, children, ...props }) => (
-                    <a href={href} target="_blank" rel="noopener noreferrer" {...props}>
+                    <TextLink href={href} target="_blank" rel="noopener noreferrer" {...props}>
                       {children}
-                    </a>
+                    </TextLink>
                   ),
                   img: ({ src, alt, ...props }) => (
                     <img src={src} alt={alt ?? ""} className="rounded-lg max-h-64 w-auto my-3" {...props} />
@@ -231,66 +286,74 @@ export default function PluginDetailPage() {
                   code: ({ children, className, ...props }) => {
                     const isBlock = className?.startsWith("language-");
                     return isBlock ? (
+                      // eslint-disable-next-line react/forbid-elements -- react-markdown code-block override must render a native <code> inside <pre>; the Code primitive is used for inline code below
                       <code className={className} {...props}>
                         {children}
                       </code>
                     ) : (
-                      <code className="bg-muted px-1.5 py-0.5 rounded text-xs font-mono" {...props}>
-                        {children}
-                      </code>
+                      <Code {...props}>{children}</Code>
                     );
                   },
                   table: ({ children, ...props }) => (
-                    <div className="overflow-x-auto my-4">
-                      <table className="w-full text-xs border-collapse" {...props}>
-                        {children}
-                      </table>
-                    </div>
+                    <Table className="text-xs border-collapse my-4" {...props}>
+                      {children}
+                    </Table>
                   ),
                   thead: ({ children, ...props }) => (
-                    <thead className="bg-muted/50" {...props}>
+                    <TableHeader className="bg-muted/50" {...props}>
                       {children}
-                    </thead>
+                    </TableHeader>
                   ),
+                  tbody: ({ children, ...props }) => <TableBody {...props}>{children}</TableBody>,
+                  tr: ({ children, ...props }) => <TableRow {...props}>{children}</TableRow>,
                   th: ({ children, ...props }) => (
-                    <th className="border border-border px-3 py-2 text-left font-medium" {...props}>
+                    <TableHead className="border border-border text-left" {...props}>
                       {children}
-                    </th>
+                    </TableHead>
                   ),
                   td: ({ children, ...props }) => (
-                    <td className="border border-border px-3 py-2" {...props}>
+                    <TableCell className="border border-border" {...props}>
                       {children}
-                    </td>
+                    </TableCell>
                   ),
                   h1: ({ children, ...props }) => (
+                    // Markdown README content — h1 here is document structure, not the app
+                    // page's own title, so PageHeader doesn't fit; stays raw (couldn't snap).
+                    // eslint-disable-next-line react/forbid-elements -- react-markdown h1 override renders README document structure, not the app page title
                     <h1 className="text-xl font-bold mt-0 mb-4 pb-2 border-b" {...props}>
                       {children}
                     </h1>
                   ),
                   h2: ({ children, ...props }) => (
-                    <h2 className="text-base font-semibold mt-6 mb-2 text-foreground" {...props}>
+                    <Heading level={2} className="mt-6 mb-2" {...props}>
                       {children}
-                    </h2>
+                    </Heading>
                   ),
                   h3: ({ children, ...props }) => (
-                    <h3 className="text-sm font-semibold mt-4 mb-1.5 text-foreground" {...props}>
+                    <Heading level={3} size="sm" className="mt-4 mb-1.5" {...props}>
                       {children}
-                    </h3>
+                    </Heading>
                   ),
                   p: ({ children, ...props }) => (
-                    <p className="text-sm leading-relaxed mb-3 text-muted-foreground" {...props}>
+                    <Text tone="muted" className="leading-relaxed mb-3" {...props}>
                       {children}
-                    </p>
+                    </Text>
                   ),
                   ul: ({ children, ...props }) => (
-                    <ul className="list-disc list-inside space-y-1 mb-3 text-sm text-muted-foreground" {...props}>
+                    <List marker="disc" gap="1" className="list-inside mb-3 text-sm text-muted-foreground" {...props}>
                       {children}
-                    </ul>
+                    </List>
                   ),
                   ol: ({ children, ...props }) => (
-                    <ol className="list-decimal list-inside space-y-1 mb-3 text-sm text-muted-foreground" {...props}>
+                    <List
+                      as="ol"
+                      marker="decimal"
+                      gap="1"
+                      className="list-inside mb-3 text-sm text-muted-foreground"
+                      {...props}
+                    >
                       {children}
-                    </ol>
+                    </List>
                   ),
                   blockquote: ({ children, ...props }) => (
                     <blockquote
@@ -302,30 +365,30 @@ export default function PluginDetailPage() {
                   ),
                   hr: () => <hr className="border-border my-5" />,
                   strong: ({ children, ...props }) => (
-                    <strong className="font-semibold text-foreground" {...props}>
+                    <Text as="span" weight="semibold" {...props}>
                       {children}
-                    </strong>
+                    </Text>
                   ),
                 }}
               >
                 {readme}
               </ReactMarkdown>
-            </div>
+            </Box>
           ) : (
-            <p className="text-sm text-muted-foreground italic">{t("documentationNotAvailable")}</p>
+            <Text tone="muted" className="italic">
+              {t("documentationNotAvailable")}
+            </Text>
           )}
-        </div>
-      </div>
+        </Box>
+      </Stack>
 
       <Dialog open={addInstanceOpen} onOpenChange={setAddInstanceOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>
-              {t("addInstance")} of {entry?.name ?? pluginId}
-            </DialogTitle>
+            <DialogTitle>{t("addInstanceOfTitle", { name: entry?.name ?? pluginId })}</DialogTitle>
             <DialogDescription>{t("addInstanceDescription")}</DialogDescription>
           </DialogHeader>
-          <div className="space-y-2 py-2">
+          <Stack gap="2" className="py-2">
             <Label htmlFor="detail-instance-label">{t("instanceNameLabel")}</Label>
             <Input
               id="detail-instance-label"
@@ -338,8 +401,10 @@ export default function PluginDetailPage() {
               }}
               autoFocus
             />
-            <p className="text-xs text-muted-foreground">{t("instanceNameHelp")}</p>
-          </div>
+            <Text size="xs" tone="muted">
+              {t("instanceNameHelp")}
+            </Text>
+          </Stack>
           <DialogFooter>
             <Button variant="outline" onClick={() => setAddInstanceOpen(false)} disabled={isCreatingInstance}>
               {tCommon("cancel")}

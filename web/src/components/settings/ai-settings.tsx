@@ -1,31 +1,35 @@
 "use client";
 
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
-  CheckCircle2,
-  ChevronDown,
-  Eye,
-  EyeOff,
-  KeyRound,
-  Loader2,
-  Plus,
-  Sparkles,
-  Trash2,
-  XCircle,
-} from "lucide-react";
+  Alert,
+  AlertDescription,
+  Badge,
+  Box,
+  Button,
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+  Flex,
+  Input,
+  Label,
+  PageSection,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+  Skeleton,
+  Stack,
+  Switch,
+  Text,
+} from "@fiestaboard/ui";
+import { SecretInput } from "@fiestaboard/ui/components/forms/secret-input";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { CheckCircle2, ChevronDown, KeyRound, Loader2, Plus, Sparkles, Trash2, XCircle } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 
-import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Skeleton } from "@/components/ui/skeleton";
-import { Switch } from "@/components/ui/switch";
+import { useTranslations } from "@/i18n/translations";
 import type { AIProvider, AISettings } from "@/lib/api";
 import { api } from "@/lib/api";
 
@@ -91,7 +95,7 @@ function ProviderRow({
   onRemove,
   onMakeDefault,
 }: ProviderRowProps) {
-  const [showKey, setShowKey] = useState(false);
+  const t = useTranslations("settings.ai");
   const [modelInput, setModelInput] = useState("");
   const [testing, setTesting] = useState(false);
   const [testResult, setTestResult] = useState<{ ok: boolean; message: string } | null>(null);
@@ -146,29 +150,31 @@ function ProviderRow({
 
   return (
     <Collapsible open={expanded} onOpenChange={onToggleExpanded} className="rounded-md border">
-      <div className="flex items-center justify-between gap-2 p-2">
+      <Flex align="center" justify="between" gap="2" className="p-2">
         <CollapsibleTrigger className="flex flex-1 items-center gap-2 min-w-0 text-left rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
           <ChevronDown
             className={`h-4 w-4 shrink-0 text-muted-foreground transition-transform duration-200 ${
               expanded ? "rotate-180" : ""
             }`}
           />
-          <span className="text-sm font-medium truncate">{summaryName}</span>
+          <Text as="span" size="sm" weight="medium" className="truncate">
+            {summaryName}
+          </Text>
           {isDefault && (
             <Badge variant="default" className="h-5 text-[10px] shrink-0">
-              Default
+              {t("defaultBadge")}
             </Badge>
           )}
           {provider.protocol === "anthropic" && (
             <Badge variant="outline" className="h-5 text-[10px] shrink-0">
-              Anthropic
+              {t("anthropicBadge")}
             </Badge>
           )}
-          <span className="text-[11px] text-muted-foreground shrink-0">
+          <Text as="span" tone="muted" className="text-[11px] shrink-0">
             {modelCount === 0 ? "no models" : `${modelCount} model${modelCount === 1 ? "" : "s"}`}
-          </span>
+          </Text>
         </CollapsibleTrigger>
-        <div className="flex items-center gap-1.5 shrink-0">
+        <Flex align="center" gap="1.5" className="shrink-0">
           {!isDefault && (
             <Button
               type="button"
@@ -179,7 +185,7 @@ function ProviderRow({
               disabled={provider.models.length === 0}
               title={provider.models.length === 0 ? "Add at least one model first" : "Make this the default provider"}
             >
-              Make default
+              {t("makeDefaultButton")}
             </Button>
           )}
           <Button
@@ -188,18 +194,18 @@ function ProviderRow({
             variant="ghost"
             className="h-7 w-7 text-destructive hover:text-destructive hover:bg-destructive/10"
             onClick={onRemove}
-            aria-label="Remove provider"
+            aria-label={t("removeProviderAriaLabel")}
           >
             <Trash2 className="h-3.5 w-3.5" />
           </Button>
-        </div>
-      </div>
+        </Flex>
+      </Flex>
 
       <CollapsibleContent>
-        <div className="space-y-3 border-t p-3">
-          <div className="space-y-1.5">
+        <Stack gap="3" className="border-t p-3">
+          <Stack gap="1.5">
             <Label htmlFor={`name-${provider.id}`} className="text-xs">
-              Name
+              {t("nameLabel")}
             </Label>
             <Input
               id={`name-${provider.id}`}
@@ -208,11 +214,11 @@ function ProviderRow({
               placeholder="OpenRouter"
               className="h-8"
             />
-          </div>
+          </Stack>
 
-          <div className="space-y-1.5">
+          <Stack gap="1.5">
             <Label htmlFor={`protocol-${provider.id}`} className="text-xs">
-              Protocol
+              {t("protocolLabel")}
             </Label>
             <Select
               value={provider.protocol ?? "openai"}
@@ -227,18 +233,15 @@ function ProviderRow({
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="openai">
-                  OpenAI-compatible (OpenAI, OpenRouter, Groq, DeepSeek, Mistral, Together, Fireworks, Ollama, LM
-                  Studio, vLLM, …)
-                </SelectItem>
-                <SelectItem value="anthropic">Anthropic (Messages API)</SelectItem>
+                <SelectItem value="openai">{t("protocolOpenaiOption")}</SelectItem>
+                <SelectItem value="anthropic">{t("protocolAnthropicOption")}</SelectItem>
               </SelectContent>
             </Select>
-          </div>
+          </Stack>
 
-          <div className="space-y-1.5">
+          <Stack gap="1.5">
             <Label htmlFor={`url-${provider.id}`} className="text-xs">
-              Base URL
+              {t("baseUrlLabel")}
             </Label>
             <Input
               id={`url-${provider.id}`}
@@ -247,15 +250,17 @@ function ProviderRow({
               placeholder="https://openrouter.ai/api/v1"
               className="h-8 font-mono text-xs"
             />
-            <div className="rounded-md border border-dashed bg-muted/30 p-2 space-y-1">
-              <div className="text-[10px] uppercase tracking-wide text-muted-foreground font-medium">Quick presets</div>
+            <Stack gap="1" className="rounded-md border border-dashed bg-muted/30 p-2">
+              <Text weight="medium" tone="muted" className="text-[10px] uppercase tracking-wide">
+                {t("quickPresetsLabel")}
+              </Text>
               {(["cloud", "local"] as const).map((group) => {
                 const presets = PROVIDER_PRESETS.filter((p) => p.group === group);
                 return (
-                  <div key={group} className="flex flex-wrap items-center gap-1">
-                    <span className="text-[10px] uppercase tracking-wide text-muted-foreground pr-1 w-10">
+                  <Flex key={group} wrap align="center" gap="1">
+                    <Text as="span" tone="muted" className="text-[10px] uppercase tracking-wide pr-1 w-10">
                       {group === "cloud" ? "Cloud" : "Local"}
-                    </span>
+                    </Text>
                     {presets.map((preset) => (
                       <Button
                         key={preset.label}
@@ -277,42 +282,33 @@ function ProviderRow({
                         {preset.label}
                       </Button>
                     ))}
-                  </div>
+                  </Flex>
                 );
               })}
-            </div>
-          </div>
+            </Stack>
+          </Stack>
 
-          <div className="space-y-1.5">
+          <Stack gap="1.5">
             <Label htmlFor={`key-${provider.id}`} className="text-xs">
-              API Key
+              {t("apiKeyLabel")}
             </Label>
-            <div className="relative">
+            <Box className="relative">
               <KeyRound className="pointer-events-none absolute left-2 top-2 h-3.5 w-3.5 text-muted-foreground" />
-              <Input
+              <SecretInput
                 id={`key-${provider.id}`}
-                type={showKey ? "text" : "password"}
                 value={provider.api_key}
                 onChange={(e) => onChange({ ...provider, api_key: e.target.value })}
                 placeholder="sk-..."
-                className="h-8 pl-7 pr-8 font-mono text-xs"
+                showLabel="Show API key"
+                hideLabel="Hide API key"
+                className="h-8 pl-7 text-xs"
               />
-              <Button
-                type="button"
-                size="icon"
-                variant="ghost"
-                className="absolute right-0 top-0 h-8 w-8"
-                onClick={() => setShowKey((v) => !v)}
-                aria-label={showKey ? "Hide API key" : "Show API key"}
-              >
-                {showKey ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
-              </Button>
-            </div>
-          </div>
+            </Box>
+          </Stack>
 
-          <div className="space-y-1.5">
-            <Label className="text-xs">Models</Label>
-            <div className="flex gap-1.5">
+          <Stack gap="1.5">
+            <Label className="text-xs">{t("modelsLabel")}</Label>
+            <Flex gap="1.5">
               <Input
                 value={modelInput}
                 onChange={(e) => setModelInput(e.target.value)}
@@ -329,9 +325,9 @@ function ProviderRow({
               <Button type="button" size="sm" variant="outline" className="h-8" onClick={addModel}>
                 <Plus className="h-3.5 w-3.5" />
               </Button>
-            </div>
+            </Flex>
             {provider.models.length > 0 && (
-              <div className="flex flex-wrap gap-1 pt-1">
+              <Flex wrap gap="1" className="pt-1">
                 {provider.models.map((m) => (
                   <Badge key={m} variant="secondary" className="font-mono text-[11px] gap-1">
                     {m}
@@ -345,14 +341,14 @@ function ProviderRow({
                     </button>
                   </Badge>
                 ))}
-              </div>
+              </Flex>
             )}
-          </div>
+          </Stack>
 
           {provider.models.length > 0 && (
-            <div className="space-y-1.5">
+            <Stack gap="1.5">
               <Label htmlFor={`default-${provider.id}`} className="text-xs">
-                Default model
+                {t("defaultModelLabel")}
               </Label>
               <Select
                 value={provider.default_model || provider.models[0]}
@@ -369,10 +365,10 @@ function ProviderRow({
                   ))}
                 </SelectContent>
               </Select>
-            </div>
+            </Stack>
           )}
 
-          <div className="flex items-center justify-between gap-2 pt-1">
+          <Flex align="center" justify="between" gap="2" className="pt-1">
             <Button
               type="button"
               size="sm"
@@ -382,22 +378,28 @@ function ProviderRow({
               disabled={testing || provider.models.length === 0 || !provider.base_url}
             >
               {testing ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Sparkles className="h-3.5 w-3.5" />}
-              <span className="text-xs">Test connection</span>
+              <Text as="span" size="xs">
+                {t("testConnectionButton")}
+              </Text>
             </Button>
             {testResult && (
-              <div className={`flex items-center gap-1 text-xs ${testResult.ok ? "text-success" : "text-destructive"}`}>
+              <Flex align="center" gap="1" className={`text-xs ${testResult.ok ? "text-success" : "text-destructive"}`}>
                 {testResult.ok ? <CheckCircle2 className="h-3.5 w-3.5" /> : <XCircle className="h-3.5 w-3.5" />}
-                <span className="line-clamp-2">{testResult.message}</span>
-              </div>
+                <Text as="span" size="xs" tone={testResult.ok ? "success" : "destructive"} className="line-clamp-2">
+                  {testResult.message}
+                </Text>
+              </Flex>
             )}
-          </div>
-        </div>
+          </Flex>
+        </Stack>
       </CollapsibleContent>
     </Collapsible>
   );
 }
 
 export function AiSettings() {
+  const t = useTranslations("settings.ai");
+  const tCommon = useTranslations("common");
   const queryClient = useQueryClient();
 
   const { data, isLoading } = useQuery<AISettings>({
@@ -476,94 +478,80 @@ export function AiSettings() {
 
   if (isLoading) {
     return (
-      <Card>
-        <CardHeader>
-          <Skeleton className="h-5 w-40" />
-          <Skeleton className="h-4 w-64" />
-        </CardHeader>
-      </Card>
+      <PageSection>
+        <Skeleton className="h-5 w-40" />
+        <Skeleton className="mt-2 h-4 w-64" />
+      </PageSection>
     );
   }
 
   return (
-    <Card>
-      <CardHeader>
-        <div className="flex items-start justify-between gap-2">
-          <div>
-            <CardTitle className="text-base flex items-center gap-2">
-              <Sparkles className="h-4 w-4" />
-              AI Providers
-            </CardTitle>
-            <CardDescription>
-              Configure OpenAI-compatible LLMs for the &ldquo;Gen AI&rdquo; page generator. BYO-LLM: FiestaBoard never
-              bundles a key.
-            </CardDescription>
-          </div>
-          <div className="flex items-center gap-2 pt-1">
-            <Label htmlFor="ai-enabled" className="text-xs">
-              {current.enabled ? "Enabled" : "Disabled"}
-            </Label>
-            <Switch
-              id="ai-enabled"
-              checked={current.enabled}
-              onCheckedChange={toggleEnabled}
-              disabled={saveMutation.isPending}
+    <PageSection
+      icon={<Sparkles />}
+      title={t("cardTitle")}
+      description={t("cardDescription")}
+      action={
+        <Flex align="center" gap="2" className="pt-1">
+          <Label htmlFor="ai-enabled" className="text-xs">
+            {current.enabled ? tCommon("enabled") : tCommon("disabled")}
+          </Label>
+          <Switch
+            id="ai-enabled"
+            checked={current.enabled}
+            onCheckedChange={toggleEnabled}
+            disabled={saveMutation.isPending}
+          />
+        </Flex>
+      }
+      contentClassName="space-y-3"
+    >
+      <Alert>
+        <AlertDescription className="text-xs">{t("privacyNotice")}</AlertDescription>
+      </Alert>
+
+      {current.providers.length === 0 ? (
+        <Text tone="muted" className="rounded-md border border-dashed p-6 text-center">
+          {t("emptyState")}
+        </Text>
+      ) : (
+        <Stack gap="3">
+          {current.providers.map((p, idx) => (
+            <ProviderRow
+              key={p.id}
+              provider={p}
+              isDefault={p.id === current.default_provider_id}
+              expanded={expandedIds.has(p.id)}
+              onToggleExpanded={(open) => setRowExpanded(p.id, open)}
+              onChange={(next) => updateProvider(idx, next)}
+              onRemove={() => removeProvider(idx)}
+              onMakeDefault={() => makeDefault(idx)}
             />
-          </div>
-        </div>
-      </CardHeader>
-      <CardContent className="space-y-3">
-        <Alert>
-          <AlertDescription className="text-xs">
-            Your prompts and the variable list of your enabled plugins are sent directly to the provider you configure.
-            API keys are stored on this device and never sent anywhere else.
-          </AlertDescription>
-        </Alert>
+          ))}
+        </Stack>
+      )}
 
-        {current.providers.length === 0 ? (
-          <div className="rounded-md border border-dashed p-6 text-center text-sm text-muted-foreground">
-            No providers configured yet.
-          </div>
-        ) : (
-          <div className="space-y-3">
-            {current.providers.map((p, idx) => (
-              <ProviderRow
-                key={p.id}
-                provider={p}
-                isDefault={p.id === current.default_provider_id}
-                expanded={expandedIds.has(p.id)}
-                onToggleExpanded={(open) => setRowExpanded(p.id, open)}
-                onChange={(next) => updateProvider(idx, next)}
-                onRemove={() => removeProvider(idx)}
-                onMakeDefault={() => makeDefault(idx)}
-              />
-            ))}
-          </div>
+      <Flex wrap align="center" justify="between" gap="2" className="pt-1">
+        <Button type="button" variant="outline" size="sm" className="gap-1.5" onClick={addProvider}>
+          <Plus className="h-3.5 w-3.5" />
+          {t("addProviderButton")}
+        </Button>
+        {hasDraft && (
+          <Flex gap="2">
+            <Button type="button" variant="ghost" size="sm" onClick={() => setDraft(null)}>
+              {t("discardButton")}
+            </Button>
+            <Button
+              type="button"
+              variant="brand"
+              size="sm"
+              onClick={() => saveMutation.mutate(current)}
+              disabled={saveMutation.isPending}
+            >
+              {saveMutation.isPending ? tCommon("saving") : t("saveChangesButton")}
+            </Button>
+          </Flex>
         )}
-
-        <div className="flex flex-wrap items-center justify-between gap-2 pt-1">
-          <Button type="button" variant="outline" size="sm" className="gap-1.5" onClick={addProvider}>
-            <Plus className="h-3.5 w-3.5" />
-            Add provider
-          </Button>
-          {hasDraft && (
-            <div className="flex gap-2">
-              <Button type="button" variant="ghost" size="sm" onClick={() => setDraft(null)}>
-                Discard
-              </Button>
-              <Button
-                type="button"
-                variant="brand"
-                size="sm"
-                onClick={() => saveMutation.mutate(current)}
-                disabled={saveMutation.isPending}
-              >
-                {saveMutation.isPending ? "Saving..." : "Save changes"}
-              </Button>
-            </div>
-          )}
-        </div>
-      </CardContent>
-    </Card>
+      </Flex>
+    </PageSection>
   );
 }

@@ -166,6 +166,37 @@ ignore = [
     "PTH",  # CLI scripts use os.path freely
     "T201", # allow print()
 ]
+# Routers extracted verbatim from src/api_server.py (issue #1756). They keep
+# api_server's lint-ignore set so the extraction stays a pure move; the
+# convention cleanup happens with #1766.
+"src/pages/routes.py" = ["PTH", "SIM", "RET", "PIE", "RUF010", "RUF013", "RUF059", "RUF100"]
+"src/system/routes.py" = ["PTH", "SIM", "RET", "PIE", "RUF010", "RUF013", "RUF059", "RUF100"]
+"src/system/update_service.py" = ["PTH", "SIM", "RET", "PIE", "RUF010", "RUF013", "RUF059", "RUF100"]
+"src/schedules/routes.py" = ["PTH", "SIM", "RET", "PIE", "RUF010", "RUF013", "RUF059", "RUF100"]
+"src/collections/routes.py" = ["PTH", "SIM", "RET", "PIE", "RUF010", "RUF013", "RUF059", "RUF100"]
+"src/settings/routes.py" = ["PTH", "SIM", "RET", "PIE", "RUF010", "RUF013", "RUF059", "RUF100"]
+# Same rule for everything lifted out of api_server in Phase 2 Task 8: moved
+# verbatim, so it keeps api_server's ignore set. config_api/routes.py also
+# holds the SSRF-sanitised enable_local_api handler — restructuring its
+# branches would shift the CodeQL barrier.
+"src/log_store.py" = ["PTH", "SIM", "RET", "PIE", "RUF010", "RUF013", "RUF059", "RUF100"]
+"src/display_runtime.py" = ["PTH", "SIM", "RET", "PIE", "RUF010", "RUF013", "RUF059", "RUF100"]
+"src/config_api/routes.py" = ["PTH", "SIM", "RET", "PIE", "RUF010", "RUF013", "RUF059", "RUF100"]
+"src/displays/routes.py" = ["PTH", "SIM", "RET", "PIE", "RUF010", "RUF013", "RUF059", "RUF100"]
+"src/templates/routes.py" = ["PTH", "SIM", "RET", "PIE", "RUF010", "RUF013", "RUF059", "RUF100"]
+"src/triggers/routes.py" = ["PTH", "SIM", "RET", "PIE", "RUF010", "RUF013", "RUF059", "RUF100"]
+"src/transitions/routes.py" = ["PTH", "SIM", "RET", "PIE", "RUF010", "RUF013", "RUF059", "RUF100"]
+"src/panels/routes.py" = ["PTH", "SIM", "RET", "PIE", "RUF010", "RUF013", "RUF059", "RUF100"]
+"src/staff_picks/routes.py" = ["PTH", "SIM", "RET", "PIE", "RUF010", "RUF013", "RUF059", "RUF100"]
+"src/board_api/routes.py" = ["PTH", "SIM", "RET", "PIE", "RUF010", "RUF013", "RUF059", "RUF100"]
+"src/board_api/welcome.py" = ["PTH", "SIM", "RET", "PIE", "RUF010", "RUF013", "RUF059", "RUF100"]
+"src/board_chars.py" = ["PTH", "SIM", "RET", "PIE", "RUF010", "RUF013", "RUF059", "RUF100"]
+"src/service_api/routes.py" = ["PTH", "SIM", "RET", "PIE", "RUF010", "RUF013", "RUF059", "RUF100"]
+# plugin_support carries the generic-data test fetch: its URL guard and the
+# handler's four-stage SSRF barrier are what CodeQL's py/full-ssrf query
+# recognises, so they moved byte-for-byte and keep api_server's ignore set.
+"src/plugin_support/routes.py" = ["PTH", "SIM", "RET", "PIE", "RUF010", "RUF013", "RUF059", "RUF100"]
+"src/plugin_support/url_guard.py" = ["PTH", "SIM", "RET", "PIE", "RUF010", "RUF013", "RUF059", "RUF100"]
 # CodeQL-sensitive files: see the matching [tool.ruff.format].exclude entry
 # above for the rationale. Any rule fix here would shift line numbers and
 # re-trigger CodeQL's "new alert" false positives on pre-existing findings.

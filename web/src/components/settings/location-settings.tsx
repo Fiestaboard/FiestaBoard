@@ -1,15 +1,13 @@
 "use client";
 
+import { Box, Button, Flex, Grid, Input, Label, PageSection, Stack, Text } from "@fiestaboard/ui";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Loader2, LocateFixed, MapPin } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { toast } from "sonner";
 
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { queryKeys } from "@/hooks/use-board";
+import { useDepsChanged } from "@/hooks/use-deps-changed";
 import { useTranslations } from "@/i18n/translations";
 import type { LocationSettings } from "@/lib/api";
 import { api } from "@/lib/api";
@@ -29,13 +27,14 @@ export function LocationSettingsCard() {
   const [isDirty, setIsDirty] = useState(false);
   const [isGeolocating, setIsGeolocating] = useState(false);
 
-  useEffect(() => {
-    if (location) {
-      setLatitude(location.latitude != null ? String(location.latitude) : "");
-      setLongitude(location.longitude != null ? String(location.longitude) : "");
-      setIsDirty(false);
-    }
-  }, [location]);
+  // Mirror the stored coordinates into the inputs during render rather than
+  // from an effect, so they are populated in the first commit
+  // (react-hooks/set-state-in-effect, issue #1568).
+  if (useDepsChanged([location]) && location) {
+    setLatitude(location.latitude != null ? String(location.latitude) : "");
+    setLongitude(location.longitude != null ? String(location.longitude) : "");
+    setIsDirty(false);
+  }
 
   const mutation = useMutation({
     mutationFn: (settings: Partial<LocationSettings>) => api.updateLocationSettings(settings),
@@ -113,78 +112,75 @@ export function LocationSettingsCard() {
   const isConfigured = location?.latitude != null && location?.longitude != null;
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="text-base flex items-center gap-2">
-          <MapPin className="h-4 w-4" />
-          {t("title")}
-        </CardTitle>
-        <CardDescription>{t("description")}</CardDescription>
-      </CardHeader>
-      <CardContent className="space-y-4">
-        {isLoading ? (
-          <div className="space-y-3">
-            <div className="h-10 bg-muted animate-pulse rounded" />
-            <div className="h-10 bg-muted animate-pulse rounded" />
-          </div>
-        ) : (
-          <>
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="latitude">{t("latitudeLabel")}</Label>
-                <Input
-                  id="latitude"
-                  type="number"
-                  step="any"
-                  min={-90}
-                  max={90}
-                  placeholder={t("latitudePlaceholder")}
-                  value={latitude}
-                  onChange={(e) => handleLatChange(e.target.value)}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="longitude">{t("longitudeLabel")}</Label>
-                <Input
-                  id="longitude"
-                  type="number"
-                  step="any"
-                  min={-180}
-                  max={180}
-                  placeholder={t("longitudePlaceholder")}
-                  value={longitude}
-                  onChange={(e) => handleLonChange(e.target.value)}
-                />
-              </div>
-            </div>
-            <p className="text-xs text-muted-foreground">{t("tip")}</p>
-            <div className="flex gap-2">
-              <Button
-                variant="outline"
-                onClick={handleUseMyLocation}
-                disabled={mutation.isPending || isGeolocating}
-                size="sm"
-              >
-                {isGeolocating ? (
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                ) : (
-                  <LocateFixed className="mr-2 h-4 w-4" />
-                )}
-                {isGeolocating ? t("locating") : t("useMyLocation")}
-              </Button>
-              <Button onClick={handleSave} disabled={mutation.isPending || !isDirty} size="sm">
-                {mutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                {tCommon("save")}
-              </Button>
-              {isConfigured && (
-                <Button variant="outline" onClick={handleClear} disabled={mutation.isPending} size="sm">
-                  {t("clear")}
-                </Button>
+    <PageSection icon={<MapPin />} title={t("title")} description={t("description")} contentClassName="space-y-4">
+      {isLoading ? (
+        <Stack gap="3">
+          <Box className="h-10 bg-muted animate-pulse rounded" />
+          <Box className="h-10 bg-muted animate-pulse rounded" />
+        </Stack>
+      ) : (
+        <>
+          <Grid cols="2" gap="4">
+            <Stack gap="2">
+              <Label htmlFor="latitude">{t("latitudeLabel")}</Label>
+              <Input
+                id="latitude"
+                type="number"
+                step="any"
+                min={-90}
+                max={90}
+                placeholder={t("latitudePlaceholder")}
+                value={latitude}
+                onChange={(e) => handleLatChange(e.target.value)}
+              />
+            </Stack>
+            <Stack gap="2">
+              <Label htmlFor="longitude">{t("longitudeLabel")}</Label>
+              <Input
+                id="longitude"
+                type="number"
+                step="any"
+                min={-180}
+                max={180}
+                placeholder={t("longitudePlaceholder")}
+                value={longitude}
+                onChange={(e) => handleLonChange(e.target.value)}
+              />
+            </Stack>
+          </Grid>
+          <Text size="xs" tone="muted">
+            {t("tip")}
+          </Text>
+          <Flex gap="2">
+            <Button
+              variant="outline"
+              onClick={handleUseMyLocation}
+              disabled={mutation.isPending || isGeolocating}
+              size="sm"
+            >
+              {isGeolocating ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : (
+                <LocateFixed className="mr-2 h-4 w-4" />
               )}
-            </div>
-          </>
-        )}
-      </CardContent>
-    </Card>
+              {isGeolocating ? t("locating") : t("useMyLocation")}
+            </Button>
+            <Button
+              onClick={handleSave}
+              loading={mutation.isPending}
+              disabled={mutation.isPending || !isDirty}
+              size="sm"
+            >
+              {tCommon("save")}
+            </Button>
+            {isConfigured && (
+              <Button variant="outline" onClick={handleClear} disabled={mutation.isPending} size="sm">
+                {t("clear")}
+              </Button>
+            )}
+          </Flex>
+        </>
+      )}
+    </PageSection>
   );
 }

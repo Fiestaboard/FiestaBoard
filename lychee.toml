@@ -1,15 +1,18 @@
 # lychee configuration for FiestaBoard's markdown link check.
 #
 # Division of responsibility for link checking:
-#   - The published Docusaurus site (docs-site/docs/**) is validated by the
-#     docs build (`onBrokenLinks: "throw"` in docusaurus.config.ts), which is
-#     the only checker that understands Docusaurus routing (route paths like
-#     `/docs/plugins/overview`, the static/ asset dir, extension stripping).
-#     lychee can't model that, so docs-site is excluded here.
-#   - lychee covers the markdown the site build never sees: the internal dev
-#     guides under docs/**, every plugin's README + docs/, and the root *.md
-#     files. For those it verifies external URLs AND relative file links
-#     against the filesystem.
+#   - The published site's Docusaurus-specific link semantics (route paths
+#     like `/docs/plugins/overview`, the static/ asset dir, extension
+#     stripping) are validated by the site repo's docs build
+#     (`onBrokenLinks: "throw"` in Fiestaboard/fiestaboard.github.io) —
+#     lychee can't model routing, so server-absolute paths are excluded
+#     below.
+#   - lychee covers the markdown the site build never sees: the internal
+#     dev guides under docs/internal/**, every plugin's README + docs/, and
+#     the root *.md files. The published docs source (docs/**, outside
+#     internal/) is NOT scanned — its links use Docusaurus route semantics
+#     that only the site build can validate (ci.yml scopes the lychee args
+#     accordingly).
 #
 # Together the two checkers give repo-wide link coverage.
 
@@ -22,8 +25,16 @@
 # otherwise make the check flaky.
 accept = ["200..=299", "403", "429"]
 
-max_retries = 2
-retry_wait_time = 2
+# Transport-level failures need a bigger retry budget than HTTP statuses do.
+# GitHub-hosted runners intermittently fail github.com requests with
+# "HTTP/2 protocol error. Server may not support HTTP/2 properly" — not a
+# status code, so no `accept` entry can cover it (same shape as the
+# docs.vestaboard.com timeout excluded below). Observed transient: the same
+# six github.com URLs passed on a PR run and failed in the merge-queue run of
+# the identical commit ~20 minutes later. lychee exposes no flag to force
+# HTTP/1.1, so retries are the only lever.
+max_retries = 5
+retry_wait_time = 5
 timeout = 20
 no_progress = true
 
@@ -46,12 +57,16 @@ exclude = [
   'your-username',
   'your-api-key',
   'YOUR_',
+  # Vestaboard's docs host hangs from GitHub-hosted runners until lychee's
+  # timeout, failing the job (exit 2) with zero actual errors. It answers in
+  # ~100ms with a 200 from a normal network, so this is runner-side blocking,
+  # not a broken link — and no `accept` code covers a timeout. Linked from
+  # README.md; re-test periodically and drop this line if it settles.
+  '^https?://docs\.vestaboard\.com',
 ]
 
 # Directories never scanned for links.
 exclude_path = [
   "node_modules",
-  "docs-site",
-  "docs/superpowers",
   ".claude",
 ]

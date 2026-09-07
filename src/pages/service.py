@@ -5,21 +5,22 @@ Provides high-level operations on pages including preview and send.
 
 import logging
 import time
-from dataclasses import dataclass
+from collections.abc import Collection
+from dataclasses import dataclass, field
 from datetime import UTC, datetime
 
 from src.devices import (
     DEFAULT_DEVICE_TYPE,
-    DEVICE_DIMENSIONS,
     BoardContext,
     board_context_for,
-    is_note_array,
+    pages_compatible_with_board,
     resolve_dimensions,
+    size_key,
 )
 from src.displays.service import DisplayResult, get_display_service
 from src.plugins.manifest import DemoPageSchema
 from src.settings.service import get_settings_service
-from src.templates.engine import get_template_engine
+from src.templates.engine import extract_template_plugin_ids, get_template_engine
 
 from .models import LineMetadata, Page, PageCreate, PageUpdate
 from .storage import PageStorage
@@ -30,6 +31,13 @@ logger = logging.getLogger(__name__)
 # Cache TTL in seconds for non-polling preview requests (e.g. UI preview list).
 # The background polling loop bypasses this cache via force_refresh=True.
 PREVIEW_CACHE_TTL = 120
+
+# Prefix for the per-size coverage entries `shared_context_for` keeps inside
+# the per-tick ``contexts`` cache (issue #1751): ``coverage_key -> set of
+# plugin ids the cached context was fetched for``. A size key never starts
+# with NUL, so these companion entries can share the dict without colliding.
+# A size WITHOUT a coverage entry was built with fetch-all (full coverage).
+_CONTEXT_COVERAGE_PREFIX = "\x00fetched:"
 
 
 # Default welcome page templates per device type
@@ -145,6 +153,9 @@ class PageService:
             template=data.template,
             line_metadata=data.line_metadata,
             duration_seconds=data.duration_seconds,
+            transition_strategy=data.transition_strategy,
+            transition_interval_ms=data.transition_interval_ms,
+            transition_step_size=data.transition_step_size,
             demo_plugin_id=data.demo_plugin_id,
             # PageCreate leaves W×H optional (None) — default to a single Note.
             notes_wide=data.notes_wide or 1,
@@ -163,8 +174,28 @@ class PageService:
 
         Returns:
             Updated page or None if not found
+
+        Raises:
+            ValueError: If a device/size retarget (issue #1250) would leave
+                the page config invalid (e.g. a composite row that no longer
+                fits the new geometry)
         """
         updates = data.model_dump(exclude_unset=True)
+
+        # Device/size retarget (issue #1250): re-validate the prospective page
+        # before persisting so a retarget can't strand an invalid config.
+        # Lossy template truncation is accepted (handled at render time);
+        # structural errors (composite rows out of range) are blocked.
+        if any(key in updates for key in ("device_type", "notes_wide", "notes_tall")):
+            existing = self.storage.get(page_id)
+            if existing is not None:
+                # Mirror storage.update() semantics: None never overwrites the
+                # geometry fields, so validate with None values dropped.
+                prospective = Page(**{**existing.model_dump(), **{k: v for k, v in updates.items() if v is not None}})
+                errors = prospective.validate_config()
+                if errors:
+                    raise ValueError(f"Cannot retarget page: {'; '.join(errors)}")
+
         updated_page = self.storage.update(page_id, updates)
 
         # Invalidate preview cache for this page
@@ -325,16 +356,109 @@ class PageService:
 
     # Rendering
 
-    def render_page(self, page: Page, context: dict | None = None) -> DisplayResult:
+    def shared_context_for(
+        self,
+        contexts: dict[str, dict] | None,
+        device_type: str,
+        notes_wide: int = 1,
+        notes_tall: int = 1,
+        plugin_ids: Collection[str] | None = None,
+    ) -> dict | None:
+        """Get-or-build the per-tick shared template context for one board size.
+
+        ``contexts`` is a per-pass cache keyed by :func:`src.devices.size_key`
+        (the display loop creates one dict per tick, issue #1752). The first
+        consumer of a size pays the plugin fan-out; every later consumer of
+        the same size — collection resolution, other boards' renders —
+        reuses the same dict, exactly as ``preview_pages_batch`` already
+        shares contexts per board size.
+
+        ``plugin_ids`` narrows that fan-out to the plugins the consumer will
+        actually read (issue #1751): a filtered build fetches only those ids
+        (plus trigger plugins — the registry enforces that), and the cache
+        remembers WHICH ids each size's context covers (a companion
+        ``\\x00``-prefixed entry, invisible to templates). A later consumer
+        needing more — another page's variables, or a fetch-all consumer like
+        variable-mode collection resolution (``plugin_ids=None``) — widens
+        the cached context by fetching only what it lacks, so no plugin is
+        fetched twice in one pass.
+
+        Returns None (caller falls back to building its own context, the
+        pre-#1752 behavior) when ``contexts`` is None or the build fails.
+        """
+        if contexts is None:
+            return None
+        key = size_key(device_type or DEFAULT_DEVICE_TYPE, notes_wide or 1, notes_tall or 1)
+        coverage_key = _CONTEXT_COVERAGE_PREFIX + key
+        try:
+            from src.plugins.registry import get_plugin_registry
+
+            registry = get_plugin_registry()
+            context = contexts.get(key)
+            if context is None:
+                board = board_context_for(device_type, notes_wide, notes_tall)
+                if plugin_ids is None:
+                    context = registry.build_template_context(board)
+                    # No coverage entry: a fetch-all context covers everything.
+                else:
+                    context = registry.build_template_context(board, plugin_ids=plugin_ids)
+                    contexts[coverage_key] = set(plugin_ids) | set(getattr(registry, "trigger_plugins", {}) or {})
+                contexts[key] = context
+                return context
+
+            fetched = contexts.get(coverage_key)
+            if fetched is None:
+                return context  # built with fetch-all — covers every consumer
+
+            if plugin_ids is not None:
+                needed = set(plugin_ids)
+            else:
+                needed = set(getattr(registry, "enabled_plugins", {}) or {})
+            missing = needed - fetched
+            if not missing:
+                return context
+
+            board = board_context_for(device_type, notes_wide, notes_tall)
+            # Widening fetches EXACTLY the missing ids: the first build for
+            # this size already fetched the trigger plugins (they are in
+            # ``fetched``), so re-unioning them here would fetch each trigger
+            # plugin once per widening consumer (#1862 review).
+            context.update(registry.build_template_context(board, plugin_ids=missing, include_trigger_plugins=False))
+            if plugin_ids is None:
+                contexts.pop(coverage_key, None)  # widened to full coverage
+            else:
+                contexts[coverage_key] = fetched | missing
+            return context
+        except Exception as e:
+            logger.error(f"Failed to build shared template context: {e}")
+            return None
+
+    def render_page(
+        self, page: Page, context: dict | None = None, contexts: dict[str, dict] | None = None
+    ) -> DisplayResult:
         """Render a page to formatted text.
 
         Args:
             page: The page to render
             context: Optional pre-built template context to avoid redundant plugin fetches
+            contexts: Optional per-tick shared context cache keyed by board
+                size (see :meth:`shared_context_for`). Consulted only when
+                ``context`` is not given.
 
         Returns:
             DisplayResult with formatted text
         """
+        if context is None and contexts is not None and page.type == "template":
+            context = self.shared_context_for(
+                contexts,
+                page.device_type,
+                page.notes_wide,
+                page.notes_tall,
+                # Demand-driven fetch (issue #1751): only the plugins this
+                # page's template references. None (a formula page) keeps
+                # the fetch-all fallback.
+                plugin_ids=extract_template_plugin_ids(page.template),
+            )
         if page.type == "single":
             return self._render_single(page)
         if page.type == "composite":
@@ -358,12 +482,11 @@ class PageService:
     def _board_key(page: Page) -> str:
         """Stable key identifying a page's board *size* for batch context sharing.
 
-        Flagship/Note have fixed sizes (keyed by device_type); note arrays vary,
-        so their dimensions are folded in — matching :meth:`PluginBase._cache_key`.
+        Delegates to the canonical :func:`src.devices.size_key` so batch
+        context sharing and page<->board compatibility use the same notion
+        of "same board size". The key is opaque to its consumers.
         """
-        if is_note_array(page.device_type):
-            return f"note_array:{page.notes_wide}x{page.notes_tall}"
-        return page.device_type if page.device_type in DEVICE_DIMENSIONS else DEFAULT_DEVICE_TYPE
+        return size_key(page.device_type, page.notes_wide, page.notes_tall)
 
     def _render_single(self, page: Page) -> DisplayResult:
         """Render a single-source page."""
@@ -496,7 +619,13 @@ class PageService:
                 error=f"Template rendering failed: {e!s}",
             )
 
-    def preview_page(self, page_id: str, force_refresh: bool = False) -> DisplayResult | None:
+    def preview_page(
+        self,
+        page_id: str,
+        force_refresh: bool = False,
+        context: dict | None = None,
+        contexts: dict[str, dict] | None = None,
+    ) -> DisplayResult | None:
         """Preview a page by ID.
 
         Uses cached preview if available and valid, unless force_refresh is True.
@@ -506,6 +635,9 @@ class PageService:
         Args:
             page_id: The page ID
             force_refresh: If True, bypass cache and always render fresh
+            context: Optional pre-built template context (skips the plugin fan-out)
+            contexts: Optional per-tick shared context cache keyed by board
+                size (issue #1752); see :meth:`shared_context_for`
 
         Returns:
             DisplayResult or None if page not found
@@ -523,7 +655,7 @@ class PageService:
 
         # Render fresh
         logger.debug(f"Rendering fresh preview for page {page_id} (force_refresh={force_refresh})")
-        result = self.render_page(page)
+        result = self.render_page(page, context=context, contexts=contexts)
 
         # Cache the result
         self._preview_cache[page_id] = CachedPreview(
@@ -577,17 +709,26 @@ class PageService:
         # different sizes are distinct boards (see _board_key).
         contexts_by_board: dict[str, dict] = {}
         boards: dict[str, BoardContext] = {}
+        # Per-size fetch filters (issue #1751): the union of every batched
+        # template page's referenced plugins for that size, or None (fetch
+        # all) as soon as any page's references cannot be determined.
+        ids_by_board: dict[str, Collection[str] | None] = {}
         for _, p in pages_to_render:
             if p.type != "template":
                 continue
             key = self._board_key(p)
             if key not in boards:
                 boards[key] = board_context_for(p.device_type, p.notes_wide, p.notes_tall)
+            refs = extract_template_plugin_ids(p.template)
+            if key not in ids_by_board:
+                ids_by_board[key] = set(refs) if refs is not None else None
+            elif ids_by_board[key] is not None:
+                ids_by_board[key] = ids_by_board[key] | refs if refs is not None else None
         if boards:
             try:
                 from src.plugins.registry import get_plugin_registry
 
-                contexts_by_board = get_plugin_registry().build_template_contexts_for(boards)
+                contexts_by_board = get_plugin_registry().build_template_contexts_for(boards, plugin_ids=ids_by_board)
             except Exception as e:
                 logger.error(f"Failed to build shared template context: {e}")
 
@@ -621,6 +762,18 @@ class PageService:
         else:
             self._preview_cache.clear()
 
+    def invalidate_preview_cache(self, page_id: str | None = None) -> None:
+        """Public entry point for ``POST /pages/cache/clear``.
+
+        The route used to call ``_invalidate_cache`` directly, which
+        ``docs/internal/reference/API_CONVENTIONS.md`` bans ("Routes never
+        touch another object's ``_private`` members"). The private method
+        stays as the internal write-path hook the mutators call; this is the
+        one the API is allowed to see, so the cache's shape can change without
+        an endpoint changing with it.
+        """
+        self._invalidate_cache(page_id)
+
     def get_cache_stats(self) -> dict[str, any]:
         """Get cache statistics for monitoring.
 
@@ -644,3 +797,283 @@ def get_page_service() -> PageService:
     if _page_service is None:
         _page_service = PageService()
     return _page_service
+
+
+# ---------------------------------------------------------------------------
+# Page <-> board size compatibility (issue #1245)
+# ---------------------------------------------------------------------------
+
+
+@dataclass
+class BoardCompatibility:
+    """Result of validating a page/collection ref against a board.
+
+    ``error`` is set when the write must be blocked (HTTP 400 at the API
+    layer); ``warnings`` is a non-fatal list for collections whose members
+    only partially fit the board.
+    """
+
+    error: str | None = None
+    warnings: list[str] = field(default_factory=list)
+
+    @property
+    def ok(self) -> bool:
+        return self.error is None
+
+
+def _find_board(board_id: str | None) -> dict | None:
+    """Resolve a board dict by id; ``None``/`""` resolve to the primary board.
+
+    Returns None when the board (or any board at all) cannot be found —
+    callers treat that as "cannot validate, don't block" for back-compat.
+    """
+    settings = get_settings_service()
+    bid = board_id if board_id else settings.get_primary_board_id()
+    if not bid:
+        return None
+    for board in settings.get_board_settings().boards or []:
+        if isinstance(board, dict) and board.get("id") == bid:
+            return board
+    return None
+
+
+def check_ref_board_compatibility(page_ref: str | None, board_id: str | None) -> BoardCompatibility:
+    """Validate a page or ``collection:`` ref against a board's size.
+
+    Rules (issue #1245):
+      - A plain page must match the board's :func:`src.devices.size_key`
+        exactly; a mismatch blocks the write.
+      - A collection may mix sizes: it is blocked only when ZERO member
+        pages fit the board; otherwise it passes with one warning per
+        member page that does not fit.
+      - Anything that cannot be resolved (missing page, unknown collection,
+        unknown board, no boards configured) passes silently so legacy
+        installs and defensive callers see zero behavior change.
+    """
+    result = BoardCompatibility()
+    if not page_ref:
+        return result
+
+    try:
+        board = _find_board(board_id)
+        if board is None:
+            return result
+
+        board_label = f"'{board.get('name') or board.get('id')}' ({size_key(*_board_geometry(board))})"
+        page_service = get_page_service()
+
+        from src.collections.models import is_collection_id
+
+        if is_collection_id(page_ref):
+            from src.collections.service import get_collection_service
+
+            collection = get_collection_service().get_collection(page_ref)
+            if not collection:
+                return result
+            members = [p for p in (page_service.get_page(pid) for pid in collection.page_ids) if p]
+            if not members:
+                return result
+            misfits = [p for p in members if not pages_compatible_with_board(p, board)]
+            if len(misfits) == len(members):
+                result.error = (
+                    f"Collection '{collection.name}' cannot be used on board {board_label}: "
+                    f"none of its {len(members)} pages fit this board size."
+                )
+                return result
+            result.warnings = [
+                f"Page '{p.name}' ({size_key(p.device_type, p.notes_wide, p.notes_tall)}) in "
+                f"collection '{collection.name}' does not fit board {board_label} and will be skipped."
+                for p in misfits
+            ]
+            return result
+
+        page = page_service.get_page(page_ref)
+        if page is None:
+            return result
+        if not pages_compatible_with_board(page, board):
+            result.error = (
+                f"Page '{page.name}' ({size_key(page.device_type, page.notes_wide, page.notes_tall)}) "
+                f"is not compatible with board {board_label}: page and board sizes must match exactly."
+            )
+        return result
+    except Exception:  # pragma: no cover - defensive: never let validation crash a write
+        logger.exception("Page/board compatibility check failed; allowing write")
+        return BoardCompatibility()
+
+
+def _board_geometry(board: dict) -> tuple[str, int, int]:
+    """Board dict -> (device_type, notes_wide, notes_tall) with defaults."""
+    return (
+        board.get("device_type") or DEFAULT_DEVICE_TYPE,
+        board.get("notes_wide") or 1,
+        board.get("notes_tall") or 1,
+    )
+
+
+def silence_page_id_for_board(board_id: str | None) -> str | None:
+    """The page ref a board shows during silence, or None (issue #1788).
+
+    Only meaningful when that board's silence mode is ``page``. Never raises —
+    a failure here must not break a page save.
+    """
+    try:
+        from src.config import Config
+
+        silence = Config.silence_config_for(board_id)
+        return silence["page_id"] if silence["mode"] == "page" else None
+    except Exception:  # pragma: no cover - defensive
+        logger.exception("Could not resolve silence page for board %s", board_id)
+        return None
+
+
+def find_incompatible_references(page: Page) -> list[dict]:
+    """Find schedule/active-page/silence references the page no longer fits.
+
+    Issue #1250, extended by #1788. After a device/size retarget, existing
+    references may point the page at boards whose size no longer matches. This
+    scans, for every board the page is now incompatible with:
+
+      - schedule entries referencing the page directly or via a collection
+        that contains it (``surface: "schedule"``, with ``schedule_id``)
+      - the board's manual active page, direct or via a containing collection
+        (``surface: "active_page"``)
+      - the board's silence page when its silence mode is ``page``
+        (``surface: "silence"``)
+
+    Warn-only by design: nothing is mutated or auto-fixed — callers surface
+    the returned refs to the user. Returns
+    ``[{board_id, board_name, surface, schedule_id}]``; failures degrade to
+    partial results rather than breaking the page save.
+    """
+    refs: list[dict] = []
+    try:
+        settings = get_settings_service()
+        boards = [b for b in (settings.get_board_settings().boards or []) if isinstance(b, dict)]
+        if not boards:
+            return refs
+
+        # Collections containing this page: a schedule/active-page ref to such
+        # a collection references this page too (it would be skipped there).
+        try:
+            from src.collections.service import get_collection_service
+
+            containing = {c.id for c in get_collection_service().list_collections() if page.id in c.page_ids}
+        except Exception:
+            logger.exception("Collection scan failed during stale-reference detection")
+            containing = set()
+
+        def references_page(ref: str | None) -> bool:
+            return bool(ref) and (ref == page.id or ref in containing)
+
+        from src.schedules.service import get_schedule_service
+
+        schedule_service = get_schedule_service()
+
+        for board in boards:
+            if pages_compatible_with_board(page, board):
+                continue
+            board_id = board.get("id") or ""
+            board_name = board.get("name") or board_id
+            # list_schedules() already folds legacy board_id "" entries into
+            # the primary board, so no extra mapping is needed here.
+            for schedule in schedule_service.list_schedules(board_id=board_id):
+                if references_page(schedule.page_id):
+                    refs.append(
+                        {
+                            "board_id": board_id,
+                            "board_name": board_name,
+                            "surface": "schedule",
+                            "schedule_id": schedule.id,
+                        }
+                    )
+            if references_page(settings.get_active_page_id(board_id=board_id)):
+                refs.append(
+                    {
+                        "board_id": board_id,
+                        "board_name": board_name,
+                        "surface": "active_page",
+                        "schedule_id": None,
+                    }
+                )
+            if references_page(silence_page_id_for_board(board_id)):
+                refs.append(
+                    {
+                        "board_id": board_id,
+                        "board_name": board_name,
+                        "surface": "silence",
+                        "schedule_id": None,
+                    }
+                )
+    except Exception:  # pragma: no cover - defensive: never let the scan break a save
+        logger.exception("Stale-reference detection failed; returning partial results")
+    return refs
+
+
+def find_incompatible_board_references(board: dict) -> list[dict]:
+    """Find schedule/active-page refs whose pages no longer fit *board*.
+
+    Board-side mirror of :func:`find_incompatible_references` for surfaces
+    that reshape a board in place — a FiestaPanel TV-size edit re-fits its
+    virtual board's grid, and pages authored for the old grid stay
+    referenced but can no longer render (the send loop rejects the
+    mismatched shape and the panel freezes on its last frame).
+
+    Scans only *board*'s own references:
+
+      - schedule entries whose page (direct, or via a containing collection)
+        no longer matches the board's size (``surface: "schedule"``)
+      - the board's manual active page, likewise (``surface: "active_page"``)
+
+    Warn-only by design, like the page-side scan: nothing is mutated.
+    Returns ``[{page_id, page_name, surface, schedule_id}]``; failures
+    degrade to partial results rather than breaking the panel save.
+    """
+    refs: list[dict] = []
+    try:
+        board_id = (board or {}).get("id") or ""
+        page_service = get_page_service()
+        settings = get_settings_service()
+
+        try:
+            from src.collections.service import get_collection_service
+
+            collection_pages = {c.id: list(c.page_ids) for c in get_collection_service().list_collections()}
+        except Exception:
+            logger.exception("Collection scan failed during board-side stale-reference detection")
+            collection_pages = {}
+
+        def misfit_pages(ref: str | None) -> list:
+            """Pages behind *ref* (a page id or collection id) that no longer fit."""
+            if not ref:
+                return []
+            out = []
+            for page_id in collection_pages.get(ref, [ref]):
+                page = page_service.get_page(page_id)
+                if page is not None and not pages_compatible_with_board(page, board):
+                    out.append(page)
+            return out
+
+        from src.schedules.service import get_schedule_service
+
+        for schedule in get_schedule_service().list_schedules(board_id=board_id):
+            for page in misfit_pages(schedule.page_id):
+                refs.append(
+                    {
+                        "page_id": page.id,
+                        "page_name": page.name,
+                        "surface": "schedule",
+                        "schedule_id": schedule.id,
+                    }
+                )
+        for page in misfit_pages(settings.get_active_page_id(board_id=board_id)):
+            refs.append(
+                {
+                    "page_id": page.id,
+                    "page_name": page.name,
+                    "surface": "active_page",
+                    "schedule_id": None,
+                }
+            )
+    except Exception:  # pragma: no cover - defensive: never let the scan break a save
+        logger.exception("Board-side stale-reference detection failed; returning partial results")
+    return refs

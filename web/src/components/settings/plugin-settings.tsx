@@ -1,13 +1,10 @@
 "use client";
 
+import { Button, Flex, PageSection, Skeleton, Stack, Switch, Text } from "@fiestaboard/ui";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Puzzle, RefreshCw } from "lucide-react";
 import { toast } from "sonner";
 
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Skeleton } from "@/components/ui/skeleton";
-import { Switch } from "@/components/ui/switch";
 import { useTranslations } from "@/i18n/translations";
 import { api } from "@/lib/api";
 import { cn } from "@/lib/utils";
@@ -52,59 +49,46 @@ export function PluginSettingsCard() {
 
   if (isLoading || !data) {
     return (
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base flex items-center gap-2">
-            <Puzzle className="h-4 w-4" />
-            {t("title")}
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <Skeleton className="h-16 w-full" />
-        </CardContent>
-      </Card>
+      <PageSection icon={<Puzzle />} title={t("title")}>
+        <Skeleton className="h-16 w-full" />
+      </PageSection>
     );
   }
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="text-base flex items-center gap-2">
-          <Puzzle className="h-4 w-4" />
-          {t("title")}
-        </CardTitle>
-        <CardDescription>{t("description")}</CardDescription>
-      </CardHeader>
-      <CardContent className="space-y-3">
-        <div className="flex items-start justify-between gap-4 rounded-md border p-4">
-          <div className="space-y-1">
-            <span className="font-medium">{t("autoUpdateLabel")}</span>
-            <p className="text-sm text-muted-foreground">{t("autoUpdateDescription")}</p>
-          </div>
-          <Switch
-            checked={data.settings.auto_update}
-            disabled={mutation.isPending}
-            onCheckedChange={(checked) => mutation.mutate(checked)}
-            aria-label={t("autoUpdateLabel")}
-          />
-        </div>
-        <div className="flex items-start justify-between gap-4 rounded-md border p-4">
-          <div className="space-y-1">
-            <span className="font-medium">{t("checkForUpdates")}</span>
-            <p className="text-sm text-muted-foreground">{t("checkDescription")}</p>
-          </div>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => checkMutation.mutate()}
-            disabled={checkMutation.isPending}
-            className="gap-2 shrink-0"
-          >
-            <RefreshCw className={cn("h-3.5 w-3.5", checkMutation.isPending && "animate-spin")} />
-            {checkMutation.isPending ? t("checking") : t("checkForUpdates")}
-          </Button>
-        </div>
-      </CardContent>
-    </Card>
+    <PageSection icon={<Puzzle />} title={t("title")} description={t("description")} contentClassName="space-y-3">
+      <Flex align="start" justify="between" gap="4" className="rounded-md border p-4">
+        <Stack gap="1">
+          <Text as="span" weight="medium">
+            {t("autoUpdateLabel")}
+          </Text>
+          <Text tone="muted">{t("autoUpdateDescription")}</Text>
+        </Stack>
+        <Switch
+          checked={data.auto_update}
+          disabled={mutation.isPending}
+          onCheckedChange={(checked) => mutation.mutate(checked)}
+          aria-label={t("autoUpdateLabel")}
+        />
+      </Flex>
+      <Flex align="start" justify="between" gap="4" className="rounded-md border p-4">
+        <Stack gap="1">
+          <Text as="span" weight="medium">
+            {t("checkForUpdates")}
+          </Text>
+          <Text tone="muted">{t("checkDescription")}</Text>
+        </Stack>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => checkMutation.mutate()}
+          disabled={checkMutation.isPending}
+          className="gap-2 shrink-0"
+        >
+          <RefreshCw className={cn("h-3.5 w-3.5", checkMutation.isPending && "animate-spin")} />
+          {checkMutation.isPending ? t("checking") : t("checkForUpdates")}
+        </Button>
+      </Flex>
+    </PageSection>
   );
 }

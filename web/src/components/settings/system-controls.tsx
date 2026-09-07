@@ -1,19 +1,24 @@
 "use client";
 
-import { useMutation, useQuery } from "@tanstack/react-query";
-import { ArrowUpCircle, Cpu, Loader2, Power, RefreshCw } from "lucide-react";
-import { useEffect, useState } from "react";
-
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import {
+  Button,
   Dialog,
   DialogContent,
   DialogDescription,
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from "@/components/ui/dialog";
+  Flex,
+  Heading,
+  PageSection,
+  Stack,
+  Text,
+} from "@fiestaboard/ui";
+import { Spinner } from "@fiestaboard/ui/components/feedback/spinner";
+import { useMutation, useQuery } from "@tanstack/react-query";
+import { ArrowUpCircle, Cpu, Loader2, Power, RefreshCw } from "lucide-react";
+import { useEffect, useState } from "react";
+
 import { useUpdate } from "@/components/update-context";
 import { useTranslations } from "@/i18n/translations";
 import { api } from "@/lib/api";
@@ -78,56 +83,47 @@ export function SystemControls() {
 
   return (
     <>
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base flex items-center gap-2">
-            <Cpu className="h-4 w-4" />
-            {t("title")}
-          </CardTitle>
-          <CardDescription>{t("description")}</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="flex flex-wrap gap-2">
-            <Button
-              variant={updateAvailable ? "default" : "outline"}
-              size="sm"
-              onClick={() => setConfirmAction("update")}
-              disabled={anyPending}
-            >
-              {updateMutation.isPending ? (
-                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-              ) : (
-                <ArrowUpCircle className="h-4 w-4 mr-2" />
-              )}
-              {updateAvailable ? t("updateNow") : t("rePullLatest")}
-            </Button>
+      <PageSection icon={<Cpu />} title={t("title")} description={t("description")}>
+        <Flex wrap gap="2">
+          <Button
+            variant={updateAvailable ? "default" : "outline"}
+            size="sm"
+            onClick={() => setConfirmAction("update")}
+            disabled={anyPending}
+          >
+            {updateMutation.isPending ? (
+              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+            ) : (
+              <ArrowUpCircle className="h-4 w-4 mr-2" />
+            )}
+            {updateAvailable ? t("updateNow") : t("rePullLatest")}
+          </Button>
 
-            <Button variant="outline" size="sm" onClick={() => setConfirmAction("restart")} disabled={anyPending}>
-              {restartMutation.isPending ? (
-                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-              ) : (
-                <RefreshCw className="h-4 w-4 mr-2" />
-              )}
-              {t("restart")}
-            </Button>
+          <Button variant="outline" size="sm" onClick={() => setConfirmAction("restart")} disabled={anyPending}>
+            {restartMutation.isPending ? (
+              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+            ) : (
+              <RefreshCw className="h-4 w-4 mr-2" />
+            )}
+            {t("restart")}
+          </Button>
 
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setConfirmAction("shutdown")}
-              disabled={anyPending}
-              className="text-destructive hover:text-destructive"
-            >
-              {shutdownMutation.isPending ? (
-                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-              ) : (
-                <Power className="h-4 w-4 mr-2" />
-              )}
-              {t("shutdown")}
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setConfirmAction("shutdown")}
+            disabled={anyPending}
+            className="text-destructive hover:text-destructive"
+          >
+            {shutdownMutation.isPending ? (
+              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+            ) : (
+              <Power className="h-4 w-4 mr-2" />
+            )}
+            {t("shutdown")}
+          </Button>
+        </Flex>
+      </PageSection>
 
       {/* Update confirmation */}
       <Dialog open={confirmAction === "update"} onOpenChange={(open) => !open && setConfirmAction(null)}>
@@ -288,31 +284,31 @@ function RestartingOverlay({ currentVersion }: { currentVersion?: string }) {
 
   if (phase === "error") {
     return (
-      <div className="fixed inset-0 z-[100] bg-background/95 backdrop-blur-sm flex items-center justify-center">
-        <div className="text-center space-y-4 max-w-sm mx-auto px-4">
-          <h2 className="text-xl font-semibold">{t("takingLonger")}</h2>
-          <p className="text-sm text-muted-foreground">{t("takingLongerDescription")}</p>
+      <Flex align="center" justify="center" className="fixed inset-0 z-[100] bg-background/95 backdrop-blur-sm">
+        <Stack gap="4" className="text-center max-w-sm mx-auto px-4">
+          <Heading level={2} size="xl">
+            {t("takingLonger")}
+          </Heading>
+          <Text tone="muted">{t("takingLongerDescription")}</Text>
           <Button variant="outline" onClick={() => window.location.reload()}>
             <RefreshCw className="h-4 w-4 mr-2" />
             {t("refreshPage")}
           </Button>
-        </div>
-      </div>
+        </Stack>
+      </Flex>
     );
   }
 
   return (
-    <div className="fixed inset-0 z-[100] bg-background/95 backdrop-blur-sm flex items-center justify-center">
-      <div className="text-center space-y-4">
-        <Loader2 className="h-12 w-12 mx-auto animate-spin text-primary" />
-        <h2 className="text-xl font-semibold">
+    <Flex align="center" justify="center" className="fixed inset-0 z-[100] bg-background/95 backdrop-blur-sm">
+      <Stack gap="4" className="text-center">
+        <Spinner size="lg" className="size-12 mx-auto text-primary" label={null} />
+        <Heading level={2} size="xl">
           {phase === "restarting" ? t("restartingFiestaboard") : t("backOnline")}
-        </h2>
-        <p className="text-sm text-muted-foreground">
-          {phase === "restarting" ? t("restartingDuration") : t("almostThere")}
-        </p>
-      </div>
-    </div>
+        </Heading>
+        <Text tone="muted">{phase === "restarting" ? t("restartingDuration") : t("almostThere")}</Text>
+      </Stack>
+    </Flex>
   );
 }
 
@@ -323,12 +319,16 @@ function RestartingOverlay({ currentVersion }: { currentVersion?: string }) {
 function ShutdownOverlay() {
   const t = useTranslations("systemControls");
   return (
-    <div className="fixed inset-0 z-[100] bg-background/95 backdrop-blur-sm flex items-center justify-center">
-      <div className="text-center space-y-4">
+    <Flex align="center" justify="center" className="fixed inset-0 z-[100] bg-background/95 backdrop-blur-sm">
+      <Stack gap="4" className="text-center">
         <Power className="h-12 w-12 mx-auto text-muted-foreground" />
-        <h2 className="text-xl font-semibold">{t("shuttingDown")}</h2>
-        <p className="text-sm text-muted-foreground max-w-sm mx-auto">{t("shuttingDownDescription")}</p>
-      </div>
-    </div>
+        <Heading level={2} size="xl">
+          {t("shuttingDown")}
+        </Heading>
+        <Text tone="muted" className="max-w-sm mx-auto">
+          {t("shuttingDownDescription")}
+        </Text>
+      </Stack>
+    </Flex>
   );
 }

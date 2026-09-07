@@ -35,7 +35,7 @@ class TestStatePublisherGather:
 
     @patch("src.config_manager.ConfigManager")
     @patch("src.api_server._get_board_client")
-    @patch("src.api_server._service_start_time", 1000000.0)
+    @patch("src.display_runtime._service_start_time", 1000000.0)
     @patch("src.pages.service.get_page_service")
     @patch("src.settings.service.get_settings_service")
     @patch("src.config.Config")
@@ -70,7 +70,7 @@ class TestStatePublisherGather:
 
     @patch("src.config_manager.ConfigManager")
     @patch("src.api_server._get_board_client")
-    @patch("src.api_server._service_start_time", 1000000.0)
+    @patch("src.display_runtime._service_start_time", 1000000.0)
     @patch("src.pages.service.get_page_service")
     @patch("src.settings.service.get_settings_service")
     @patch("src.config.Config")
@@ -96,14 +96,58 @@ class TestStatePublisherGather:
             get_display_running=lambda: False,
             get_current_message=lambda: "—",
         )
-        pub.gather_and_publish()
-        first_state_count = mock_client.publish_state.call_count
-        first_attrs_count = mock_client.publish_attributes.call_count
-        pub.gather_and_publish()
-        second_state_count = mock_client.publish_state.call_count
-        second_attrs_count = mock_client.publish_attributes.call_count
+        # `uptime` is derived from the real, unmocked wall clock
+        # (`time.time()` inside StatePublisher._get_uptime) -- only
+        # `_service_start_time` is patched above. Two back-to-back
+        # gather_and_publish() calls can straddle a whole-second boundary
+        # (more likely under xdist CPU contention), making `uptime`
+        # legitimately change between calls and get republished. That is
+        # correct dedup behavior, not a bug -- but it makes this specific
+        # test flaky since it isn't about `uptime` at all. Freeze time so
+        # both calls observe identical state (see #1571).
+        with patch("time.time", return_value=1_000_042.0):
+            pub.gather_and_publish()
+            first_state_count = mock_client.publish_state.call_count
+            first_attrs_count = mock_client.publish_attributes.call_count
+            pub.gather_and_publish()
+            second_state_count = mock_client.publish_state.call_count
+            second_attrs_count = mock_client.publish_attributes.call_count
         assert second_state_count == first_state_count
         assert second_attrs_count == first_attrs_count
+
+    @patch("src.config_manager.ConfigManager")
+    @patch("src.api_server._get_board_client")
+    @patch("src.display_runtime._service_start_time", 1000000.0)
+    @patch("src.pages.service.get_page_service")
+    @patch("src.settings.service.get_settings_service")
+    @patch("src.config.Config")
+    def test_no_active_page_publishes_none_option(
+        self, mock_config, get_settings, get_page, mock_board, mock_cm, mock_client
+    ):
+        """Issue #1794: with no active page, publish the select's stable
+        no-page option (not an em dash HA rejects as an unknown option)."""
+        from src.mqtt.discovery import NO_ACTIVE_PAGE_OPTION
+
+        mock_config.is_silence_mode_active.return_value = False
+        settings = MagicMock()
+        settings.is_schedule_enabled.return_value = False
+        settings.get_active_page_id.return_value = None
+        settings.get_transition_settings.return_value = MagicMock(strategy="")
+        settings.get_polling_interval.return_value = 60
+        settings.get_output_settings.return_value = MagicMock(target="both")
+        get_settings.return_value = settings
+        page_svc = MagicMock()
+        page_svc.get_page.return_value = None
+        page_svc.list_pages.return_value = []
+        get_page.return_value = page_svc
+        mock_board.return_value = None
+        mock_cm.return_value._config = {"plugins": {}}
+        pub = StatePublisher(mock_client)
+        pub.gather_and_publish()
+        state = {c[0][0]: c[0][1] for c in mock_client.publish_state.call_args_list}
+        assert state["active_page"] == NO_ACTIVE_PAGE_OPTION
+        assert state["current_page"] == NO_ACTIVE_PAGE_OPTION
+        assert NO_ACTIVE_PAGE_OPTION == "None"
 
     @patch("src.pages.service.get_page_service")
     @patch("src.settings.service.get_settings_service")
@@ -119,7 +163,7 @@ class TestStatePublisherDiagnostics:
 
     @patch("src.config_manager.ConfigManager")
     @patch("src.api_server._get_board_client")
-    @patch("src.api_server._service_start_time", 1000000.0)
+    @patch("src.display_runtime._service_start_time", 1000000.0)
     @patch("src.pages.service.get_page_service")
     @patch("src.settings.service.get_settings_service")
     @patch("src.config.Config")
@@ -146,7 +190,7 @@ class TestStatePublisherDiagnostics:
 
     @patch("src.config_manager.ConfigManager")
     @patch("src.api_server._get_board_client")
-    @patch("src.api_server._service_start_time", 1000000.0)
+    @patch("src.display_runtime._service_start_time", 1000000.0)
     @patch("src.pages.service.get_page_service")
     @patch("src.settings.service.get_settings_service")
     @patch("src.config.Config")
@@ -179,7 +223,7 @@ class TestStatePublisherDiagnostics:
 
     @patch("src.config_manager.ConfigManager")
     @patch("src.api_server._get_board_client")
-    @patch("src.api_server._service_start_time", 1000000.0)
+    @patch("src.display_runtime._service_start_time", 1000000.0)
     @patch("src.pages.service.get_page_service")
     @patch("src.settings.service.get_settings_service")
     @patch("src.config.Config")
@@ -216,7 +260,7 @@ class TestStatePublisherDiagnostics:
 
     @patch("src.config_manager.ConfigManager")
     @patch("src.api_server._get_board_client")
-    @patch("src.api_server._service_start_time", 1000000.0)
+    @patch("src.display_runtime._service_start_time", 1000000.0)
     @patch("src.pages.service.get_page_service")
     @patch("src.settings.service.get_settings_service")
     @patch("src.config.Config")
@@ -247,7 +291,7 @@ class TestStatePublisherDiagnostics:
 
     @patch("src.config_manager.ConfigManager")
     @patch("src.api_server._get_board_client")
-    @patch("src.api_server._service_start_time", 1000000.0)
+    @patch("src.display_runtime._service_start_time", 1000000.0)
     @patch("src.pages.service.get_page_service")
     @patch("src.settings.service.get_settings_service")
     @patch("src.config.Config")
@@ -284,7 +328,7 @@ class TestStatePublisherTransitions:
 
     @patch("src.config_manager.ConfigManager")
     @patch("src.api_server._get_board_client")
-    @patch("src.api_server._service_start_time", 1000000.0)
+    @patch("src.display_runtime._service_start_time", 1000000.0)
     @patch("src.pages.service.get_page_service")
     @patch("src.settings.service.get_settings_service")
     @patch("src.config.Config")
@@ -388,3 +432,141 @@ class TestStatePublisherEvents:
         pub.mark_display_updated()
         assert pub._last_display_update != ""
         assert "T" in pub._last_display_update
+
+
+class TestStatePublisherPerBoardAttributes:
+    """Issue #1244: current_page attributes include per-board active pages."""
+
+    @patch("src.pages.service.get_page_service")
+    @patch("src.settings.service.get_settings_service")
+    @patch("src.config.Config")
+    def test_gather_publishes_per_board_active_page_attributes(self, mock_config, get_settings, get_page, mock_client):
+        mock_config.is_silence_mode_active.return_value = False
+        settings = MagicMock()
+        settings.is_schedule_enabled.return_value = False
+        settings.get_active_page_id.side_effect = lambda board_id=None: {
+            None: "page-42",
+            "b1": "page-42",
+            "b2": "page-7",
+        }.get(board_id)
+        settings.get_transition_settings.return_value = MagicMock(strategy="")
+        settings.get_polling_interval.return_value = 60
+        board_settings = MagicMock()
+        board_settings.boards = [
+            {"id": "b1", "name": "Lobby", "device_type": "flagship"},
+            {"id": "b2", "name": "Kitchen", "device_type": "note"},
+        ]
+        settings.get_board_settings.return_value = board_settings
+        get_settings.return_value = settings
+
+        page42 = MagicMock()
+        page42.id = "page-42"
+        page42.name = "Weather"
+        page7 = MagicMock()
+        page7.id = "page-7"
+        page7.name = "Transit"
+        page_svc = MagicMock()
+        page_svc.get_page.side_effect = lambda pid: {"page-42": page42, "page-7": page7}.get(pid)
+        page_svc.list_pages.return_value = [page42, page7]
+        get_page.return_value = page_svc
+
+        pub = StatePublisher(mock_client)
+        pub.gather_and_publish()
+
+        attrs_calls = mock_client.publish_attributes.call_args_list
+        attrs_topics = [c[0][0] for c in attrs_calls]
+        assert "current_page" in attrs_topics
+        attrs = json.loads(attrs_calls[attrs_topics.index("current_page")][0][1])
+        assert attrs["by_board"]["b1"] == {"page_id": "page-42", "page_name": "Weather"}
+        assert attrs["by_board"]["b2"] == {"page_id": "page-7", "page_name": "Transit"}
+
+
+class TestStatePublisherOutOfBand:
+    """Issue #1831: while the primary board shows out-of-band content (a
+    manual MQTT/HTTP write), active_page/current_page must report the select's
+    stable no-page option instead of the configured page. The stored active
+    page id is untouched — it remains the restore target (issue #1794)."""
+
+    @staticmethod
+    def _wired(get_settings, get_page, mock_config, active_page_id="page-1", page_name="Weather"):
+        mock_config.is_silence_mode_active.return_value = False
+        settings = MagicMock()
+        settings.is_schedule_enabled.return_value = False
+        settings.get_active_page_id.return_value = active_page_id
+        settings.get_transition_settings.return_value = MagicMock(strategy="")
+        settings.get_polling_interval.return_value = 60
+        settings.get_output_settings.return_value = MagicMock(target="both")
+        get_settings.return_value = settings
+        page_svc = MagicMock()
+        page = MagicMock()
+        page.name = page_name
+        page.id = active_page_id
+        page_svc.get_page.return_value = page
+        page_svc.list_pages.return_value = []
+        get_page.return_value = page_svc
+
+    @patch("src.api_server.peek_service")
+    @patch("src.config_manager.ConfigManager")
+    @patch("src.api_server._get_board_client")
+    @patch("src.display_runtime._service_start_time", 1000000.0)
+    @patch("src.pages.service.get_page_service")
+    @patch("src.settings.service.get_settings_service")
+    @patch("src.config.Config")
+    def test_out_of_band_content_publishes_none_option(
+        self, mock_config, get_settings, get_page, mock_board, mock_cm, peek, mock_client
+    ):
+        from src.mqtt.discovery import NO_ACTIVE_PAGE_OPTION
+
+        self._wired(get_settings, get_page, mock_config)
+        mock_board.return_value = None
+        mock_cm.return_value._config = {"plugins": {}}
+        service = MagicMock()
+        service.is_showing_out_of_band.return_value = True
+        peek.return_value = service
+        pub = StatePublisher(mock_client)
+        pub.gather_and_publish()
+        state = {c[0][0]: c[0][1] for c in mock_client.publish_state.call_args_list}
+        assert state["active_page"] == NO_ACTIVE_PAGE_OPTION
+        assert state["current_page"] == NO_ACTIVE_PAGE_OPTION
+
+    @patch("src.api_server.peek_service")
+    @patch("src.config_manager.ConfigManager")
+    @patch("src.api_server._get_board_client")
+    @patch("src.display_runtime._service_start_time", 1000000.0)
+    @patch("src.pages.service.get_page_service")
+    @patch("src.settings.service.get_settings_service")
+    @patch("src.config.Config")
+    def test_in_band_content_still_publishes_the_page_name(
+        self, mock_config, get_settings, get_page, mock_board, mock_cm, peek, mock_client
+    ):
+        self._wired(get_settings, get_page, mock_config)
+        mock_board.return_value = None
+        mock_cm.return_value._config = {"plugins": {}}
+        service = MagicMock()
+        service.is_showing_out_of_band.return_value = False
+        peek.return_value = service
+        pub = StatePublisher(mock_client)
+        pub.gather_and_publish()
+        state = {c[0][0]: c[0][1] for c in mock_client.publish_state.call_args_list}
+        assert state["active_page"] == "Weather"
+        assert state["current_page"] == "Weather"
+
+    @patch("src.api_server.peek_service")
+    @patch("src.config_manager.ConfigManager")
+    @patch("src.api_server._get_board_client")
+    @patch("src.display_runtime._service_start_time", 1000000.0)
+    @patch("src.pages.service.get_page_service")
+    @patch("src.settings.service.get_settings_service")
+    @patch("src.config.Config")
+    def test_no_display_service_reports_the_page_name(
+        self, mock_config, get_settings, get_page, mock_board, mock_cm, peek, mock_client
+    ):
+        """No DisplayService instance -> nothing can be out of band."""
+        self._wired(get_settings, get_page, mock_config)
+        mock_board.return_value = None
+        mock_cm.return_value._config = {"plugins": {}}
+        peek.return_value = None
+        pub = StatePublisher(mock_client)
+        pub.gather_and_publish()
+        state = {c[0][0]: c[0][1] for c in mock_client.publish_state.call_args_list}
+        assert state["active_page"] == "Weather"

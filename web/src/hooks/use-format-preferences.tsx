@@ -5,6 +5,7 @@ import { format, isValid, parse, parseISO } from "date-fns";
 import { createContext, useContext, useMemo } from "react";
 
 import { api } from "@/lib/api";
+import { isChromelessPath } from "@/lib/chromeless";
 
 export type TimeFormat = "12h" | "24h";
 export type DateFormat = "MM/DD/YYYY" | "DD/MM/YYYY" | "YYYY-MM-DD";
@@ -79,10 +80,14 @@ function buildFormatters(timeFormat: TimeFormat, dateFormat: DateFormat) {
 }
 
 export function FormatPreferencesProvider({ children }: { children: React.ReactNode }) {
+  // The FiestaPanel TV viewer must not fire this authenticated query — see
+  // CurrentBoardProvider for why this reads window.location, not useLocation().
+  const chromeless = typeof window !== "undefined" && isChromelessPath(window.location.pathname);
   const { data: allSettings } = useQuery({
     queryKey: ["all-settings"],
     queryFn: api.getAllSettings,
     staleTime: 1000 * 60 * 5,
+    enabled: !chromeless,
   });
 
   const timeFormat: TimeFormat = (allSettings?.general?.time_format as TimeFormat) ?? "12h";

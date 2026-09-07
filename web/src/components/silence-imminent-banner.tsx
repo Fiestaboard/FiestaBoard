@@ -1,13 +1,13 @@
 "use client";
 
+import { Alert, AlertDescription, AlertTitle, Box, Button, Flex } from "@fiestaboard/ui";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Moon } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Button } from "@/components/ui/button";
-import { useActivePage, usePages } from "@/hooks/use-board";
+import { useCurrentBoard } from "@/components/current-board-context";
+import { queryKeys, useActivePage, usePages } from "@/hooks/use-board";
 import { useTranslations } from "@/i18n/translations";
 import type { ActiveScheduleResponse, SilenceStatus } from "@/lib/api";
 import { api } from "@/lib/api";
@@ -30,9 +30,14 @@ export function SilenceImminentBanner() {
     return () => clearInterval(id);
   }, []);
 
+  // Silence windows are per board (issue #1788). Scope only in multi-board
+  // installs so single-board behavior is completely unchanged.
+  const { currentBoardId, boards } = useCurrentBoard();
+  const scopedBoardId = boards.length > 1 && currentBoardId ? currentBoardId : undefined;
+
   const { data: silenceStatus } = useQuery<SilenceStatus>({
-    queryKey: ["silenceStatus"],
-    queryFn: api.getSilenceStatus,
+    queryKey: queryKeys.silenceStatus(scopedBoardId),
+    queryFn: () => api.getSilenceStatus(scopedBoardId),
     refetchInterval: 30_000,
   });
 
@@ -107,21 +112,21 @@ export function SilenceImminentBanner() {
   };
 
   return (
-    <div className="mb-6">
+    <Box className="mb-6">
       <Alert
         className="border-info/50 bg-info/10 flex flex-col sm:flex-row sm:items-center sm:gap-4 [&>svg]:static [&>svg]:shrink-0 [&>svg+div]:translate-y-0 [&>svg~*]:pl-3"
         data-testid="silence-imminent-banner"
       >
         <Moon className="h-4 w-4 text-info" />
-        <div className="flex-1 min-w-0">
+        <Box className="flex-1 min-w-0">
           <AlertTitle>{t("silenceImminentTitle", { minutes })}</AlertTitle>
           <AlertDescription>
             {silencePage
               ? t("silenceImminentDescription", { pageName: silencePage.name })
               : t("silenceImminentDescriptionUnnamed")}
           </AlertDescription>
-        </div>
-        <div className="flex items-center gap-2 self-center shrink-0">
+        </Box>
+        <Flex align="center" gap="2" className="self-center shrink-0">
           <Button
             variant="ghost"
             size="sm"
@@ -139,8 +144,8 @@ export function SilenceImminentBanner() {
           >
             {t("silenceImminentSwitchNow")}
           </Button>
-        </div>
+        </Flex>
       </Alert>
-    </div>
+    </Box>
   );
 }

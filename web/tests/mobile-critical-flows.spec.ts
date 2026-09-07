@@ -10,8 +10,10 @@ import {
   configureBoard,
   createCollection,
   createPage,
+  createSchedule,
   deleteAllCollections,
   deleteAllPages,
+  deleteAllSchedules,
   expect,
   suppressWizard,
   test,
@@ -179,27 +181,32 @@ test.describe("Mobile — Board preview fits viewport", () => {
     await page.goto("/");
     const firstTile = page.getByTestId("char-tile-0-0");
     await expect(firstTile).toBeVisible({ timeout: 15_000 });
-    // Let ScaledBoardDisplay's measure + rAF scale pass settle
-    await page.waitForTimeout(500);
 
-    const geometry = await page.evaluate(() => {
-      const t0 = document.querySelector('[data-testid="char-tile-0-0"]');
-      const t21 = document.querySelector('[data-testid="char-tile-0-21"]');
-      if (!t0 || !t21) return null;
-      const frame = t0.closest('[class*="border-["]');
-      if (!frame) return null;
-      const fr = frame.getBoundingClientRect();
-      const r0 = t0.getBoundingClientRect();
-      const r21 = t21.getBoundingClientRect();
-      return {
-        frameInViewport: fr.left >= 0 && fr.right <= window.innerWidth,
-        tilesInsideFrame: r0.left >= fr.left - 0.5 && r21.right <= fr.right + 0.5,
-      };
-    });
+    // ScaledBoardDisplay measures, then applies its scale on a rAF. A fixed
+    // sleep followed by a single measurement samples whatever the layout
+    // happened to be at that instant, which is what made this flaky on a
+    // loaded CI runner. Poll the measurement instead so a late scale pass is
+    // waited out rather than caught mid-flight.
+    const readGeometry = () =>
+      page.evaluate(() => {
+        const t0 = document.querySelector('[data-testid="char-tile-0-0"]');
+        const t21 = document.querySelector('[data-testid="char-tile-0-21"]');
+        if (!t0 || !t21) return null;
+        const frame = t0.closest('[class*="border-["]');
+        if (!frame) return null;
+        const fr = frame.getBoundingClientRect();
+        const r0 = t0.getBoundingClientRect();
+        const r21 = t21.getBoundingClientRect();
+        // A frame with no width means the scale pass has not run yet; report
+        // it as not-ready so the poll retries instead of asserting on zeroes.
+        if (fr.width === 0) return null;
+        return {
+          frameInViewport: fr.left >= 0 && fr.right <= window.innerWidth,
+          tilesInsideFrame: r0.left >= fr.left - 0.5 && r21.right <= fr.right + 0.5,
+        };
+      });
 
-    expect(geometry).not.toBeNull();
-    expect(geometry?.frameInViewport).toBe(true);
-    expect(geometry?.tilesInsideFrame).toBe(true);
+    await expect.poll(readGeometry, { timeout: 10_000 }).toEqual({ frameInViewport: true, tilesInsideFrame: true });
   });
 });
 
@@ -215,11 +222,11 @@ test.describe("Mobile — Long names stay inside the viewport", () => {
     const dialog = page.getByRole("dialog");
     await expect(dialog).toBeVisible({ timeout: 10_000 });
 
-    // Radix Select sizes its content to the widest item; long page names
-    // used to blow the panel past the viewport (position is clamped by
-    // Radix, width is not — ui/select.tsx now caps it).
+    // The select popup sizes to the widest item; long page names used to
+    // blow the panel past the viewport (position is clamped, width is
+    // not — ui/select.tsx caps it).
     await dialog.getByRole("combobox").first().click();
-    const panel = page.locator("[data-radix-popper-content-wrapper]");
+    const panel = page.getByRole("listbox");
     await expect(panel).toBeVisible({ timeout: 5_000 });
     const panelBox = await panel.boundingBox();
     expect(panelBox).not.toBeNull();
@@ -240,6 +247,40 @@ test.describe("Mobile — Long names stay inside the viewport", () => {
     }, MOBILE_VIEWPORT.width);
     expect(chipRows.count).toBeGreaterThan(0); // guard against a vacuous pass
     expect(chipRows.overflowing).toBe(0);
+  });
+
+  test("schedule list rows keep their action buttons on screen", async ({ page }) => {
+    // Mirrors the report in #1558: a multi-word page name plus the
+    // "Disabled" badge is enough to blow the row past the phone viewport.
+    const pageId = await createPage("School Departure Countdown");
+    await createSchedule(pageId, "07:40", "07:45", "weekdays", undefined, {
+      enabled: false,
+    });
+
+    try {
+      await page.goto("/schedule");
+      await expect(page.getByTestId("schedule-list-row").first()).toBeVisible({ timeout: 15_000 });
+
+      // The row is overflow:visible, so a too-wide row never widens
+      // document.body — the Edit/Delete buttons simply render past the
+      // right edge. Measure the row's own content box instead.
+      const geometry = await page.evaluate((vw) => {
+        const rows = [...document.querySelectorAll('[data-testid="schedule-list-row"]')];
+        return {
+          count: rows.length,
+          overflowingRows: rows.filter((r) => r.scrollWidth > r.clientWidth + 1).length,
+          offscreenButtons: rows
+            .flatMap((r) => [...r.querySelectorAll("button")])
+            .filter((b) => b.getBoundingClientRect().right > vw + 1).length,
+        };
+      }, MOBILE_VIEWPORT.width);
+
+      expect(geometry.count).toBeGreaterThan(0); // guard against a vacuous pass
+      expect(geometry.overflowingRows).toBe(0);
+      expect(geometry.offscreenButtons).toBe(0);
+    } finally {
+      await deleteAllSchedules().catch(() => {});
+    }
   });
 
   test("collections card truncates long collection and page names", async ({ page }) => {

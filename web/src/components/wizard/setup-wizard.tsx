@@ -1,16 +1,16 @@
 "use client";
 
+import { Box, Button, Flex, Text, WizardShell } from "@fiestaboard/ui";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 
 import { LanguageSelector } from "@/components/language-selector";
-import { Aurora } from "@/components/ui/aurora";
-import { Button } from "@/components/ui/button";
 import { useRouter } from "@/hooks/use-router";
 import { useTranslations } from "@/i18n/translations";
+import type { Code62Glyph } from "@/lib/api";
+import { appUrl } from "@/lib/base-path";
 import type { WizardProgress } from "@/lib/setup-detection";
 import { clearWizardProgress, getWizardProgress, markWizardComplete, saveWizardProgress } from "@/lib/setup-detection";
-import { cn } from "@/lib/utils";
 
 import { StepBoardSetup } from "./step-board-setup";
 import type { WizardPluginConfig } from "./step-easy-plugins";
@@ -23,11 +23,34 @@ interface SetupWizardProps {
 
 const TOTAL_STEPS = 3;
 
+// Decorative split-flap field behind the wizard card. BoardBackdrop renders
+// aria-hidden, so these are not user-facing copy and deliberately stay
+// untranslated — they are sample board output, in the fixed-width uppercase
+// vocabulary the hardware actually flips.
+const BACKDROP_PHRASES = [
+  "WELCOME",
+  "LETS GET STARTED",
+  "72 AND CLEAR",
+  "N JUDAH 4 MIN",
+  "SUNSET 8 04",
+  "GOOD MORNING",
+  "BOARD CONNECTED",
+  "HELLO WORLD",
+];
+
 export function SetupWizard({ onComplete }: SetupWizardProps) {
   const router = useRouter();
   const t = useTranslations("wizard");
   const tc = useTranslations("common");
-  const [currentStep, setCurrentStep] = useState(1);
+  // Restore saved progress in the state initializers rather than a mount
+  // effect. The effect version rendered step 1 with empty fields and then
+  // jumped to the saved step, which also made the "save progress" effect below
+  // fire once with the empty defaults (react-hooks/set-state-in-effect, issue
+  // #1568). Safe because the app is a static SPA (`ssr: false`).
+  // `useState(getWizardProgress)` reads localStorage exactly once.
+  const [saved] = useState(getWizardProgress);
+
+  const [currentStep, setCurrentStep] = useState(() => saved?.currentStep ?? 1);
   const [isLoading, setIsLoading] = useState(false);
   const [canProceed, setCanProceed] = useState(false);
 
@@ -40,46 +63,26 @@ export function SetupWizard({ onComplete }: SetupWizardProps) {
     connectionVerified: boolean;
     device_type: "flagship" | "note";
     board_color: "black" | "white";
-  }>({
-    api_mode: "cloud",
-    local_api_key: "",
-    cloud_key: "",
-    host: "",
+    code62_glyph: Code62Glyph;
+  }>(() => ({
+    api_mode: saved?.boardConfig?.api_mode ?? "cloud",
+    local_api_key: saved?.boardConfig?.local_api_key || "",
+    cloud_key: saved?.boardConfig?.cloud_key || "",
+    host: saved?.boardConfig?.host || "",
     connectionVerified: false,
-    device_type: "flagship",
-    board_color: "black",
-  });
+    device_type: saved?.boardConfig?.device_type || "flagship",
+    board_color: saved?.boardConfig?.board_color || "black",
+    // "degree" preserves what every Flagship drew before Vestaboard swapped the
+    // flap, so a user who skips the question is not opted into a change (#1657).
+    code62_glyph: saved?.boardConfig?.code62_glyph || "degree",
+  }));
 
   // Plugin config state
-  const [pluginConfig, setPluginConfig] = useState<WizardPluginConfig>({
+  const [pluginConfig, setPluginConfig] = useState<WizardPluginConfig>(() => ({
     date_time: { enabled: true, timezone: "America/Los_Angeles" },
     registry_selected: [],
-  });
-
-  // Restore progress on mount
-  useEffect(() => {
-    const saved = getWizardProgress();
-    if (saved) {
-      setCurrentStep(saved.currentStep);
-      if (saved.boardConfig) {
-        setBoardConfig((prev) => ({
-          ...prev,
-          api_mode: saved.boardConfig!.api_mode,
-          local_api_key: saved.boardConfig!.local_api_key || "",
-          cloud_key: saved.boardConfig!.cloud_key || "",
-          host: saved.boardConfig!.host || "",
-          device_type: saved.boardConfig!.device_type || "flagship",
-          board_color: saved.boardConfig!.board_color || "black",
-        }));
-      }
-      if (saved.plugins) {
-        setPluginConfig((prev) => ({
-          ...prev,
-          ...saved.plugins,
-        }));
-      }
-    }
-  }, []);
+    ...saved?.plugins,
+  }));
 
   // Save progress on change
   useEffect(() => {
@@ -92,6 +95,7 @@ export function SetupWizard({ onComplete }: SetupWizardProps) {
         host: boardConfig.host,
         device_type: boardConfig.device_type,
         board_color: boardConfig.board_color,
+        code62_glyph: boardConfig.code62_glyph,
       },
       plugins: pluginConfig,
     };
@@ -158,89 +162,58 @@ export function SetupWizard({ onComplete }: SetupWizardProps) {
   ];
 
   return (
-    <div className="fixed inset-0 z-50 bg-background overflow-y-auto">
-      {/* Aurora background - fixed so it stays in place while content scrolls */}
-      <div className="fixed inset-0 pointer-events-none">
-        <Aurora colorStops={["#f8e71c", "#eb4034", "#AA00FF", "#9b59b6"]} blend={0.5} amplitude={1.0} speed={0.5} />
-      </div>
+    <WizardShell
+      icon={
+        <img
+          src={appUrl("/icons/icon-96x96.png")}
+          alt=""
+          width={48}
+          height={48}
+          className="h-10 w-10 sm:h-12 sm:w-12"
+        />
+      }
+      title={t("welcomeTitle")}
+      description={t("welcomeSubtitle")}
+      aside={<LanguageSelector />}
+      steps={[t("progressConnect"), t("progressCustomize"), t("progressFinish")]}
+      current={currentStep}
+      progressLabel={t("progressLabel")}
+      stepTitle={stepTitles[currentStep - 1]}
+      stepDescription={stepDescriptions[currentStep - 1]}
+      backdropPhrases={BACKDROP_PHRASES}
+      footer={
+        <>
+          <Box>
+            {currentStep > 1 && (
+              <Button variant="ghost" onClick={handleBack} disabled={isLoading} size="lg">
+                <ChevronLeft className="h-4 w-4 mr-1" />
+                {tc("back")}
+              </Button>
+            )}
+          </Box>
 
-      {/* Content container */}
-      <div className="relative min-h-full flex items-start justify-center py-6 sm:py-10 px-4 sm:px-6">
-        <div className="w-full max-w-lg bg-background/75 backdrop-blur-xl rounded-2xl shadow-2xl border border-white/10 p-6 sm:p-8">
-          {/* Header */}
-          <header className="text-center pb-4">
-            <div className="flex items-center justify-between mb-4">
-              <div />
-              <div className="inline-flex items-center justify-center w-14 h-14 sm:w-16 sm:h-16 rounded-2xl bg-primary/10 overflow-hidden">
-                <img src="/icons/icon-96x96.png" alt="" width={48} height={48} className="w-10 h-10 sm:w-12 sm:h-12" />
-              </div>
-              <LanguageSelector />
-            </div>
-            <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">{t("welcomeTitle")}</h1>
-            <p className="text-muted-foreground mt-2 text-sm sm:text-base">{t("welcomeSubtitle")}</p>
-          </header>
+          <Flex align="center" gap="3">
+            <Text as="span" tone="muted">
+              {t("stepOf", { current: currentStep, total: TOTAL_STEPS })}
+            </Text>
 
-          {/* Progress indicator */}
-          <div className="pb-4">
-            <div className="flex items-center gap-2">
-              {[1, 2, 3].map((step) => (
-                <div
-                  key={step}
-                  className={cn(
-                    "flex-1 h-2 rounded-full transition-all duration-500",
-                    step <= currentStep ? "bg-primary" : "bg-muted",
-                  )}
-                />
-              ))}
-            </div>
-            <div className="flex justify-between mt-2 text-xs text-muted-foreground">
-              <span>{t("progressConnect")}</span>
-              <span>{t("progressCustomize")}</span>
-              <span>{t("progressFinish")}</span>
-            </div>
-          </div>
+            {currentStep === 1 && (
+              <Button variant="ghost" onClick={handleComplete} disabled={isLoading} size="lg">
+                {t("skipForNow")}
+              </Button>
+            )}
 
-          {/* Step header */}
-          <div className="mb-6">
-            <h2 className="text-xl sm:text-2xl font-semibold">{stepTitles[currentStep - 1]}</h2>
-            <p className="text-muted-foreground mt-1">{stepDescriptions[currentStep - 1]}</p>
-          </div>
-
-          {/* Step content */}
-          {renderStep()}
-
-          {/* Navigation */}
-          <div className="flex items-center justify-between mt-8 pt-6 border-t border-border">
-            <div>
-              {currentStep > 1 && (
-                <Button variant="ghost" onClick={handleBack} disabled={isLoading} size="lg">
-                  <ChevronLeft className="h-4 w-4 mr-1" />
-                  {tc("back")}
-                </Button>
-              )}
-            </div>
-
-            <div className="flex items-center gap-3">
-              <span className="text-sm text-muted-foreground">
-                {t("stepOf", { current: currentStep, total: TOTAL_STEPS })}
-              </span>
-
-              {currentStep === 1 && (
-                <Button variant="ghost" onClick={handleComplete} disabled={isLoading} size="lg">
-                  {t("skipForNow")}
-                </Button>
-              )}
-
-              {currentStep < TOTAL_STEPS && (
-                <Button onClick={handleNext} disabled={!canProceed || isLoading} size="lg">
-                  {tc("next")}
-                  <ChevronRight className="h-4 w-4 ml-1" />
-                </Button>
-              )}
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
+            {currentStep < TOTAL_STEPS && (
+              <Button onClick={handleNext} disabled={!canProceed || isLoading} size="lg">
+                {tc("next")}
+                <ChevronRight className="h-4 w-4 ml-1" />
+              </Button>
+            )}
+          </Flex>
+        </>
+      }
+    >
+      {renderStep()}
+    </WizardShell>
   );
 }

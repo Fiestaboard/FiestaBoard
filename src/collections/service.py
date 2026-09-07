@@ -12,6 +12,7 @@ blank the board.
 import logging
 import math
 import time
+from collections.abc import Callable
 from datetime import datetime
 from typing import Any
 
@@ -96,6 +97,7 @@ class CollectionService:
         ref_id: str,
         now_unix: float | None = None,
         context: dict[str, Any] | None = None,
+        context_factory: Callable[[], dict[str, Any] | None] | None = None,
     ) -> str | None:
         """If *ref_id* is a collection, return the page that should be shown.
 
@@ -103,7 +105,11 @@ class CollectionService:
         - For ``time`` mode, falls back to deterministic time-slice cycling.
         - For ``variable`` mode, walks ``variable.rules`` in order and returns
           the first ``page_id`` whose expression evaluates truthy. If
-          ``context`` is None, it is built lazily from the plugin registry.
+          ``context`` is None, ``context_factory`` (when given) supplies it —
+          the display loop passes its per-tick shared BOARD-AGNOSTIC context
+          this way (issue #1752) so every board's resolution shares one
+          ``board=None`` plugin fan-out per tick; otherwise it is built
+          lazily from the plugin registry (also board-agnostic).
         - For ``random`` mode, returns the shuffle-bag page for the current
           duration window (deterministic, stateless, no back-to-back repeats).
 
@@ -121,7 +127,7 @@ class CollectionService:
             return collection.current_page_id_time(ts)
 
         if collection.selection_mode == "variable":
-            return self._resolve_variable(collection, context)
+            return self._resolve_variable(collection, context, context_factory)
 
         if collection.selection_mode == "random":
             ts = now_unix if now_unix is not None else time.time()
@@ -180,6 +186,7 @@ class CollectionService:
         self,
         collection: Collection,
         context: dict[str, Any] | None,
+        context_factory: Callable[[], dict[str, Any] | None] | None = None,
     ) -> str | None:
         from src.templates.expressions import evaluate  # local import
 
@@ -187,7 +194,17 @@ class CollectionService:
             # Should be caught by validation; defend anyway.
             return collection.page_ids[0]
 
-        ctx = context if context is not None else self._build_variable_context()
+        if not collection.variable.rules:
+            # No rules to evaluate — the default always wins; skip the
+            # plugin fan-out a context build would cost.
+            return collection.variable.default_page_id
+
+        ctx = context
+        if ctx is None and context_factory is not None:
+            # Per-tick shared context from the display loop (issue #1752).
+            ctx = context_factory()
+        if ctx is None:
+            ctx = self._build_variable_context()
 
         for idx, rule in enumerate(collection.variable.rules):
             try:
@@ -218,3 +235,52 @@ def reset_collection_service_for_tests() -> None:
     """Clear the cached singleton. Tests that swap storage paths use this."""
     global _collection_service
     _collection_service = None
+
+
+def resolve_active_page_id(page_id: str | None, get_collection_service: Callable[[], Any]) -> str | None:
+    """Resolve a collection reference to the page it is currently showing.
+
+    When ``page_id`` is a collection ID the Dashboard needs to know which
+    member page the collection's logic is presently rendering on the board so
+    it can name and link to that page (issue #1513). Plain page IDs (and None)
+    are returned unchanged. Never raises — a collection that can't be resolved
+    just yields None.
+
+    Lived in ``src/api_server.py`` until Phase 2 §2.3; it reads nothing but
+    collections, so the schedules router can import it from here instead of
+    reaching into the app module at call time.
+
+    The service *accessor* is a parameter, not this module's global: the caller
+    passes its own binding, so the lookup keeps resolving through whichever
+    ``get_collection_service`` the calling module binds (and stays lazy — a
+    plain page id never touches the service at all).
+    """
+    if not is_collection_id(page_id):
+        return page_id
+    try:
+        return get_collection_service().resolve_page_id(page_id)
+    except Exception:  # pragma: no cover - defensive; resolution is best-effort
+        logger.warning("Failed to resolve collection page for %s", page_id, exc_info=True)
+        return None
+
+
+def resolve_next_check_seconds(page_id: str | None, get_collection_service: Callable[[], Any]) -> int | None:
+    """Seconds until ``page_id``'s collection may switch to a different page.
+
+    A collection can rotate as often as every 5 seconds (2 for variable-mode
+    polling), so a client that caches ``resolved_page_id`` on a fixed timer
+    would name the wrong page for most of the interval. Handing back the
+    collection's own cadence lets the Dashboard re-poll exactly when the page
+    on the board can change (issue #1513). None for plain pages, collections
+    that can't rotate (<2 pages), and any resolution failure.
+
+    Takes the service accessor as a parameter for the same reason as
+    :func:`resolve_active_page_id`.
+    """
+    if not is_collection_id(page_id):
+        return None
+    try:
+        return get_collection_service().seconds_until_next_check(page_id)
+    except Exception:  # pragma: no cover - defensive; resolution is best-effort
+        logger.warning("Failed to compute next check for collection %s", page_id, exc_info=True)
+        return None

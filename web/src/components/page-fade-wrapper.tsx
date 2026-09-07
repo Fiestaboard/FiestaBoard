@@ -1,6 +1,7 @@
 "use client";
 
-import FadeContent from "@/components/ui/react-bits/fade-content";
+import { FadeContent } from "@fiestaboard/ui";
+
 import { usePathname } from "@/hooks/use-router";
 
 export function PageFadeWrapper({ children }: { children: React.ReactNode }) {

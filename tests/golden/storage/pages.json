@@ -1,0 +1,82 @@
+{
+  "schema_version": 4,
+  "pages": [
+    {
+      "id": "page-golden-1",
+      "name": "Golden Page",
+      "type": "template",
+      "device_type": "flagship",
+      "display_type": null,
+      "rows": null,
+      "template": [
+        "HELLO WORLD",
+        "",
+        "{{date_time.time}}",
+        "",
+        "",
+        ""
+      ],
+      "line_metadata": [
+        {
+          "alignment": "center",
+          "wrap": false
+        },
+        {
+          "alignment": "center",
+          "wrap": false
+        },
+        {
+          "alignment": "center",
+          "wrap": false
+        },
+        {
+          "alignment": "center",
+          "wrap": false
+        },
+        {
+          "alignment": "center",
+          "wrap": false
+        },
+        {
+          "alignment": "center",
+          "wrap": false
+        }
+      ],
+      "duration_seconds": 300,
+      "transition_strategy": null,
+      "transition_interval_ms": null,
+      "transition_step_size": null,
+      "demo_plugin_id": null,
+      "notes_wide": 1,
+      "notes_tall": 1,
+      "created_at": "2026-01-02T03:04:05+00:00",
+      "updated_at": "2026-01-02T03:04:05+00:00"
+    },
+    {
+      "id": "page-golden-2",
+      "name": "Another Page",
+      "type": "template",
+      "device_type": "flagship",
+      "display_type": null,
+      "rows": null,
+      "template": [
+        "SECOND",
+        "",
+        "",
+        "",
+        "",
+        ""
+      ],
+      "line_metadata": null,
+      "duration_seconds": 300,
+      "transition_strategy": null,
+      "transition_interval_ms": null,
+      "transition_step_size": null,
+      "demo_plugin_id": null,
+      "notes_wide": 1,
+      "notes_tall": 1,
+      "created_at": "2026-01-03T06:07:08+00:00",
+      "updated_at": "2026-01-03T06:07:08+00:00"
+    }
+  ]
+}

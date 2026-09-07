@@ -20,8 +20,16 @@ def client():
 
 @pytest.fixture
 def mock_config_manager():
-    """Mock the config manager."""
-    with patch("src.api_server.get_config_manager") as mock_get:
+    """Mock the config manager.
+
+    Both bindings are stubbed on purpose: the converted config router resolves
+    ``get_config_manager`` from ``src.config_manager``, every unconverted
+    domain still resolves it through ``src.api_server``.
+    """
+    with (
+        patch("src.api_server.get_config_manager") as mock_get,
+        patch("src.config_api.routes.get_config_manager", new=mock_get),
+    ):
         cm = Mock()
         cm.get_all_masked.return_value = {"board": {}, "general": {}}
         cm.get_board.return_value = {
@@ -35,6 +43,7 @@ def mock_config_manager():
         cm.set_general.return_value = True
         cm.get_feature.return_value = {"enabled": False, "start_time": "20:00+00:00", "end_time": "07:00+00:00"}
         cm.get_plugin_config.return_value = {"enabled": True}
+        cm.get_plugin_env_overrides.return_value = {}
         cm.set_plugin_config.return_value = None
         cm.enable_plugin.return_value = None
         cm.disable_plugin.return_value = None
@@ -45,8 +54,23 @@ def mock_config_manager():
 
 @pytest.fixture
 def mock_settings_service():
-    """Mock the settings service."""
-    with patch("src.api_server.get_settings_service") as mock_get:
+    """Mock the settings service.
+
+    Every module that resolves this collaborator gets the same stub:
+    ``src.api_server`` for the handlers still in the app module, the
+    ``pages``, ``schedules`` and ``config`` routers (which bind at import
+    time since Phase 2 §2.3), and ``src.board_guards``, where the board
+    lookup and the pause/silence guards now live. One stub, every resolution
+    path.
+    """
+    with (
+        patch("src.api_server.get_settings_service") as mock_get,
+        patch("src.pages.routes.get_settings_service") as pages_get,
+        patch("src.schedules.routes.get_settings_service") as routes_get,
+        patch("src.config_api.routes.get_settings_service") as config_get,
+        patch("src.board_guards.get_settings_service") as guards_get,
+        patch("src.displays.routes.get_settings_service") as displays_get,
+    ):
         ss = Mock()
         transition = Mock()
         transition.strategy = "column"
@@ -65,6 +89,10 @@ def mock_settings_service():
         board_settings.to_dict.return_value = {
             "board_type": "black",
             "boards": [{"id": "b1", "device_type": "flagship"}],
+            # Added with the conventions pass: BoardSettings.to_dict has
+            # always emitted `devices`, and the response_model now validates
+            # it. This stub had drifted.
+            "devices": ["flagship"],
         }
         ss.get_board_settings.return_value = board_settings
 
@@ -115,6 +143,10 @@ def mock_settings_service():
             "reduce_motion": False,
             "board_animations": "on",
             "site_animations": "on",
+            # Added with the conventions pass: DisplaySettings has carried
+            # board_flap_speed since #1550, and the response_model on
+            # GET /settings/all now validates it. This stub had drifted.
+            "board_flap_speed": "standard",
         }
         ss.get_display_settings.return_value = display
 
@@ -126,7 +158,10 @@ def mock_settings_service():
 
         beta = Mock()
         beta.https_enabled = False
-        beta.to_dict.return_value = {"https_enabled": False}
+        # transition_plugins_enabled added with the conventions pass: the
+        # field has existed since the transition-plugin beta, and the
+        # response_model now validates it.
+        beta.to_dict.return_value = {"https_enabled": False, "transition_plugins_enabled": False}
         ss.get_beta_settings.return_value = beta
         ss.update_beta_settings.return_value = beta
 
@@ -136,26 +171,39 @@ def mock_settings_service():
         ss.update_plugin_settings.return_value = plugin_settings
 
         mock_get.return_value = ss
+        pages_get.return_value = ss
+        routes_get.return_value = ss
+        config_get.return_value = ss
+        guards_get.return_value = ss
+        displays_get.return_value = ss
         yield ss
 
 
 @pytest.fixture
 def mock_page_service():
-    """Mock the page service."""
-    with patch("src.api_server.get_page_service") as mock_get:
+    """Mock the page service.
+
+    Patched on ``src.api_server`` (for the handlers still in that module) and
+    on both routers that bind this collaborator at import time since Phase 2
+    §2.3. One stub, every resolution path.
+    """
+    with (
+        patch("src.api_server.get_page_service") as mock_get,
+        patch("src.pages.routes.get_page_service") as pages_get,
+        patch("src.schedules.routes.get_page_service") as routes_get,
+    ):
         ps = Mock()
-        mock_page = Mock()
-        mock_page.model_dump.return_value = {
-            "id": "page1",
-            "name": "Test Page",
-            "type": "template",
-            "template": ["Hello"],
-            "device_type": "flagship",
-        }
-        mock_page.transition_strategy = None
-        mock_page.transition_interval_ms = None
-        mock_page.transition_step_size = None
-        mock_page.device_type = "flagship"
+        # A real Page, not a Mock: the pages routes declare response_model=Page,
+        # so FastAPI validates what the service hands back.
+        from src.pages.models import Page as _Page
+
+        mock_page = _Page(
+            id="page1",
+            name="Test Page",
+            type="template",
+            template=["Hello"],
+            device_type="flagship",
+        )
 
         ps.list_pages.return_value = [mock_page]
         ps.get_page.return_value = mock_page
@@ -181,17 +229,24 @@ def mock_page_service():
         # Batch preview returns a dict mapping page_id to DisplayResult
         ps.preview_pages_batch.return_value = {"page1": preview_result}
 
-        ps.get_cache_stats.return_value = {"size": 0, "cached_pages": [], "ttl_seconds": 30}
-        ps._invalidate_cache.return_value = None
+        ps.get_cache_stats.return_value = {"cache_size": 0, "cached_pages": [], "ttl_seconds": 30}
+        ps.invalidate_preview_cache.return_value = None
 
         mock_get.return_value = ps
+        pages_get.return_value = ps
+        routes_get.return_value = ps
         yield ps
 
 
 @pytest.fixture
 def mock_schedule_service():
-    """Mock the schedule service."""
-    with patch("src.api_server.get_schedule_service") as mock_get:
+    """Mock the schedule service.
+
+    Only the schedules router binds this collaborator: `src.api_server` kept a
+    re-export of it as a patch seam, but no handler there ever called it, so
+    the second stub steered nothing and was removed with the seam.
+    """
+    with patch("src.schedules.routes.get_schedule_service") as routes_get:
         ss = Mock()
         mock_schedule = Mock()
         mock_schedule.model_dump.return_value = {
@@ -208,18 +263,18 @@ def mock_schedule_service():
         ss.delete_schedule.return_value = True
         ss.get_default_page.return_value = "page1"
         ss.get_active_page_id.return_value = "page1"
-        validate_result = Mock()
-        validate_result.model_dump.return_value = {"valid": True, "errors": [], "warnings": []}
-        ss.validate_schedules.return_value = validate_result
+        from src.schedules.models import ScheduleValidationResult
 
-        mock_get.return_value = ss
+        ss.validate_schedules.return_value = ScheduleValidationResult(valid=True, overlaps=[], gaps=[])
+
+        routes_get.return_value = ss
         yield ss
 
 
 @pytest.fixture
 def mock_display_service():
     """Mock the display service."""
-    with patch("src.api_server.get_display_service") as mock_get:
+    with patch("src.displays.routes.get_display_service") as mock_get:
         ds = Mock()
         ds.get_available_displays.return_value = [
             {"type": "weather", "available": True, "description": "Weather", "source": "plugin"},
@@ -239,10 +294,12 @@ def mock_display_service():
 @pytest.fixture
 def mock_template_engine():
     """Mock the template engine."""
-    with patch("src.api_server.get_template_engine") as mock_get:
+    with patch("src.templates.routes.get_template_engine") as mock_get:
         te = Mock()
         te.get_available_variables.return_value = {"weather": ["temperature", "condition"]}
-        te.get_variable_max_lengths.return_value = {"weather": {"temperature": 5}}
+        # TemplateEngine.get_variable_max_lengths() is dict[str, int] — this
+        # fixture had drifted to a nested dict no engine ever returns.
+        te.get_variable_max_lengths.return_value = {"weather.temperature": 5}
         te.validate_template.return_value = []
         te.render.return_value = "Rendered output"
         te.render_lines.return_value = "Rendered lines"
@@ -253,7 +310,10 @@ def mock_template_engine():
 @pytest.fixture
 def mock_plugin_registry():
     """Mock the plugin registry."""
-    with patch("src.api_server.get_plugin_registry") as mock_get, patch("src.api_server.PLUGIN_SYSTEM_AVAILABLE", True):
+    with (
+        patch("src.plugins.routes.get_plugin_registry") as mock_get,
+        patch("src.plugins.routes.PLUGIN_SYSTEM_AVAILABLE", True),
+    ):
         reg = Mock()
         reg.list_plugins.return_value = [
             {"id": "weather", "name": "Weather", "enabled": True},
@@ -265,6 +325,7 @@ def mock_plugin_registry():
         manifest.author = "Test"
         manifest.icon = "cloud"
         manifest.category = "weather"
+        manifest.plugin_type = "data"
         manifest.settings_schema = {}
         manifest.raw = {"variables": {"temperature": "number"}}
         manifest.max_lengths = {"temperature": 5}
@@ -294,12 +355,28 @@ def mock_plugin_registry():
 
 @pytest.fixture
 def mock_service():
-    """Mock the global service."""
-    with patch("src.api_server.get_service") as mock_get:
+    """Mock the global service.
+
+    Patched on api_server and on the pages router, which since Phase 2 slice 3
+    imports the accessor from src/display_runtime.py at module import time.
+    """
+    with (
+        patch("src.api_server.get_service") as mock_get,
+        patch("src.pages.routes.get_service") as routes_get,
+        patch("src.displays.routes.get_service") as displays_get,
+    ):
         svc = Mock()
         svc.vb_client = Mock()
         svc.vb_client.send_characters.return_value = (True, True)
-        svc.vb_client.get_cache_status.return_value = {"has_cached_text": False}
+        svc.vb_client.render.return_value = (True, True)
+        # The full CacheStatus shape every real client reports; GET /cache-status
+        # declares a response_model now, so a partial dict is a 500.
+        svc.vb_client.get_cache_status.return_value = {
+            "has_cached_text": False,
+            "has_cached_characters": False,
+            "skip_unchanged_enabled": True,
+            "cached_text_preview": None,
+        }
         svc.vb_client.clear_cache.return_value = None
         svc.vb_client.use_cloud = False
         svc.vb_client._last_characters = None
@@ -310,6 +387,8 @@ def mock_service():
         svc._polled_characters = None
         svc._polled_at = None
         mock_get.return_value = svc
+        routes_get.return_value = svc
+        displays_get.return_value = svc
         yield svc
 
 
@@ -347,7 +426,7 @@ class TestRootAndHealth:
 
     def test_version_includes_detected_hardware_model(self, client):
         with patch(
-            "src.api_server._detect_hardware_model",
+            "src.system.update_service._detect_hardware_model",
             return_value="Raspberry Pi 5 Model B Rev 1.0",
         ):
             response = client.get("/version")
@@ -391,11 +470,14 @@ class TestConfigEndpoints:
         assert "api_modes" in data
 
     def test_update_board_config(self, client, mock_config_manager, mock_service):
+        """PUT /config/board is a shim over settings (issue #1760): it writes
+        the settings boards store and never the config.json board block."""
         response = client.put("/config/board", json={"api_mode": "local", "host": "10.0.0.1"})
         assert response.status_code == 200
         data = response.json()
         assert data["status"] == "success"
-        mock_config_manager.set_board.assert_called_once()
+        assert data["config"]["host"] == "10.0.0.1"
+        mock_config_manager.set_board.assert_not_called()
 
     def test_validate_config_valid(self, client, mock_config_manager):
         response = client.get("/config/validate")
@@ -425,10 +507,10 @@ class TestConfigEndpoints:
         assert "timezone" in data
 
     def test_update_general_config(self, client, mock_config_manager):
+        """The 200 body is the saved general config, not a status envelope."""
         response = client.put("/config/general", json={"timezone": "America/New_York"})
         assert response.status_code == 200
-        data = response.json()
-        assert data["status"] == "success"
+        assert response.json()["timezone"] == "America/New_York"
 
     def test_update_general_config_failure(self, client, mock_config_manager):
         mock_config_manager.set_general.return_value = False
@@ -438,6 +520,7 @@ class TestConfigEndpoints:
 
 class TestBoardConnectionTest:
     def test_test_board_local_missing_key(self, client):
+        """A missing credential is a precondition failure: 400 (#1887)."""
         response = client.post(
             "/config/board/test",
             json={
@@ -445,10 +528,8 @@ class TestBoardConnectionTest:
                 "host": "192.168.1.100",
             },
         )
-        assert response.status_code == 200
-        data = response.json()
-        assert data["success"] is False
-        assert "API key is required" in data["message"]
+        assert response.status_code == 400
+        assert "API key is required" in response.json()["detail"]
 
     def test_test_board_local_missing_host(self, client):
         response = client.post(
@@ -458,10 +539,8 @@ class TestBoardConnectionTest:
                 "local_api_key": "test_key_123",
             },
         )
-        assert response.status_code == 200
-        data = response.json()
-        assert data["success"] is False
-        assert "host" in data["message"].lower()
+        assert response.status_code == 400
+        assert "host" in response.json()["detail"].lower()
 
     def test_test_board_cloud_missing_key(self, client):
         response = client.post(
@@ -470,8 +549,7 @@ class TestBoardConnectionTest:
                 "api_mode": "cloud",
             },
         )
-        assert response.status_code == 200
-        assert response.json()["success"] is False
+        assert response.status_code == 400
 
 
 # ============================================================
@@ -490,8 +568,8 @@ class TestSettingsEndpoints:
     def test_update_transition_settings(self, client, mock_settings_service):
         response = client.put("/settings/transitions", json={"strategy": "column"})
         assert response.status_code == 200
-        data = response.json()
-        assert data["status"] == "success"
+        # Bare TransitionSettings since the conventions pass (Phase 2, Task 8).
+        assert response.json()["strategy"] == "column"
 
     def test_update_transition_settings_invalid(self, client, mock_settings_service):
         mock_settings_service.update_transition_settings.side_effect = ValueError("Invalid strategy")
@@ -508,11 +586,16 @@ class TestSettingsEndpoints:
     def test_update_output_settings(self, client, mock_settings_service):
         response = client.put("/settings/output", json={"target": "board"})
         assert response.status_code == 200
-        assert response.json()["status"] == "success"
+        # Bare OutputSettings since the conventions pass (Phase 2, Task 8):
+        # the body is now what the stubbed service returned, which is the
+        # point — the old `status == "success"` assertion passed whatever
+        # the service said.
+        assert response.json()["target"] == mock_settings_service.set_output_target.return_value.target
 
     def test_update_output_settings_missing_target(self, client, mock_settings_service):
         response = client.put("/settings/output", json={})
-        assert response.status_code == 400
+        # 422 since the conventions pass typed the body (Phase 2, Task 8).
+        assert response.status_code == 422
 
     def test_update_output_settings_invalid_target(self, client, mock_settings_service):
         mock_settings_service.set_output_target.side_effect = ValueError("Invalid target")
@@ -522,12 +605,46 @@ class TestSettingsEndpoints:
     def test_get_active_page(self, client, mock_settings_service):
         response = client.get("/settings/active-page")
         assert response.status_code == 200
-        assert response.json()["page_id"] == "page1"
+        body = response.json()
+        assert body["page_id"] == "page1"
+        # A plain page resolves to itself (issue #1513).
+        assert body["resolved_page_id"] == "page1"
+
+    def test_get_active_page_resolves_collection(self, client, mock_settings_service):
+        # Issue #1513: when a Collection drives the display, the response
+        # surfaces the member page the collection is currently rendering so the
+        # Dashboard can name and link to that page.
+        mock_settings_service.get_active_page_id.return_value = "collection:abc"
+        with patch("src.api_server.get_collection_service") as mock_get_cs:
+            cs = Mock()
+            cs.resolve_page_id.return_value = "member-page"
+            cs.seconds_until_next_check.return_value = 12
+            mock_get_cs.return_value = cs
+            response = client.get("/settings/active-page")
+        assert response.status_code == 200
+        body = response.json()
+        assert body["page_id"] == "collection:abc"
+        assert body["resolved_page_id"] == "member-page"
+        # The collection's own cadence rides along so the Dashboard can re-poll
+        # when the page on the board can actually change, rather than caching a
+        # stale member-page name.
+        assert body["resolved_next_check_seconds"] == 12
+        cs.resolve_page_id.assert_called_once_with("collection:abc")
+        cs.seconds_until_next_check.assert_called_once_with("collection:abc")
+
+    def test_get_active_page_plain_page_has_no_next_check(self, client, mock_settings_service):
+        # A plain page never rotates, so there is nothing to re-poll for and the
+        # Dashboard keeps its previous (quiet) request volume.
+        response = client.get("/settings/active-page")
+        assert response.status_code == 200
+        assert response.json()["resolved_next_check_seconds"] is None
 
     def test_set_active_page(self, client, mock_settings_service, mock_page_service):
         response = client.put("/settings/active-page", json={"page_id": "page1"})
         assert response.status_code == 200
-        assert response.json()["status"] == "success"
+        # "status" dropped by the conventions pass (Phase 2, Task 8); the
+        # selection itself is the payload.
+        assert response.json()["page_id"] == "page1"
 
     def test_set_active_page_not_found(self, client, mock_settings_service, mock_page_service):
         mock_page_service.get_page.return_value = None
@@ -588,7 +705,8 @@ class TestSettingsEndpoints:
     def test_update_board_settings_type(self, client, mock_settings_service):
         response = client.put("/settings/board", json={"board_type": "white"})
         assert response.status_code == 200
-        assert response.json()["status"] == "success"
+        # Bare BoardSettings since the conventions pass (Phase 2, Task 8).
+        assert response.json() == mock_settings_service.set_board_type.return_value.to_dict()
 
     def test_update_board_settings_devices(self, client, mock_settings_service):
         response = client.put("/settings/board", json={"devices": ["flagship"]})
@@ -596,7 +714,8 @@ class TestSettingsEndpoints:
 
     def test_update_board_settings_devices_not_list(self, client, mock_settings_service):
         response = client.put("/settings/board", json={"devices": "flagship"})
-        assert response.status_code == 400
+        # 422 since the conventions pass typed the body (Phase 2, Task 8).
+        assert response.status_code == 422
 
     def test_update_board_settings_boards(self, client, mock_settings_service):
         response = client.put("/settings/board", json={"boards": [{"id": "b1", "device_type": "flagship"}]})
@@ -604,7 +723,8 @@ class TestSettingsEndpoints:
 
     def test_update_board_settings_boards_not_list(self, client, mock_settings_service):
         response = client.put("/settings/board", json={"boards": "bad"})
-        assert response.status_code == 400
+        # 422 since the conventions pass typed the body (Phase 2, Task 8).
+        assert response.status_code == 422
 
     def test_update_board_settings_no_param(self, client, mock_settings_service):
         response = client.put("/settings/board", json={"foo": "bar"})
@@ -617,11 +737,13 @@ class TestSettingsEndpoints:
 
     def test_add_board_instance(self, client, mock_settings_service):
         response = client.post("/settings/board/add", json={"device_type": "flagship"})
-        assert response.status_code == 200
+        # 201 since the conventions pass (a create returns the resource).
+        assert response.status_code == 201
 
     def test_add_board_instance_missing_type(self, client, mock_settings_service):
         response = client.post("/settings/board/add", json={})
-        assert response.status_code == 400
+        # 422 since the conventions pass typed the body (Phase 2, Task 8).
+        assert response.status_code == 422
 
     def test_add_board_instance_value_error(self, client, mock_settings_service):
         mock_settings_service.add_board.side_effect = ValueError("Invalid")
@@ -653,6 +775,7 @@ class TestSettingsEndpoints:
             "reduce_motion": False,
             "board_animations": "on",
             "site_animations": "on",
+            "board_flap_speed": "standard",
         }
         assert "status" in data
 
@@ -671,7 +794,7 @@ class TestPluginEndpoints:
         assert data["plugin_system_enabled"] is True
 
     def test_list_plugins_system_unavailable(self, client):
-        with patch("src.api_server.PLUGIN_SYSTEM_AVAILABLE", False):
+        with patch("src.plugins.routes.PLUGIN_SYSTEM_AVAILABLE", False):
             response = client.get("/plugins")
         assert response.status_code == 503
 
@@ -697,11 +820,11 @@ class TestPluginEndpoints:
         assert response.status_code == 404
 
     def test_update_plugin_config(self, client, mock_plugin_registry, mock_config_manager):
-        with patch("src.api_server.reset_display_service"), patch("src.api_server.reset_template_engine"):
+        with patch("src.plugins.routes.reset_display_service"), patch("src.plugins.routes.reset_template_engine"):
             response = client.put("/plugins/weather/config", json={"config": {"api_key": "test_key_abc123"}})
         assert response.status_code == 200
         data = response.json()
-        assert data["status"] == "success"
+        assert data["plugin_id"] == "weather"
 
     def test_update_plugin_config_not_found(self, client, mock_plugin_registry, mock_config_manager):
         mock_plugin_registry.get_plugin.return_value = None
@@ -714,12 +837,12 @@ class TestPluginEndpoints:
         assert response.status_code == 400
 
     def test_update_plugin_config_system_unavailable(self, client):
-        with patch("src.api_server.PLUGIN_SYSTEM_AVAILABLE", False):
+        with patch("src.plugins.routes.PLUGIN_SYSTEM_AVAILABLE", False):
             response = client.put("/plugins/weather/config", json={"config": {}})
         assert response.status_code == 503
 
     def test_enable_plugin(self, client, mock_plugin_registry, mock_config_manager):
-        with patch("src.api_server.reset_display_service"), patch("src.api_server.reset_template_engine"):
+        with patch("src.plugins.routes.reset_display_service"), patch("src.plugins.routes.reset_template_engine"):
             response = client.post("/plugins/weather/enable")
         assert response.status_code == 200
         assert response.json()["enabled"] is True
@@ -735,7 +858,7 @@ class TestPluginEndpoints:
         assert response.status_code == 400
 
     def test_disable_plugin(self, client, mock_plugin_registry, mock_config_manager):
-        with patch("src.api_server.reset_display_service"), patch("src.api_server.reset_template_engine"):
+        with patch("src.plugins.routes.reset_display_service"), patch("src.plugins.routes.reset_template_engine"):
             response = client.post("/plugins/weather/disable")
         assert response.status_code == 200
         assert response.json()["enabled"] is False
@@ -779,7 +902,7 @@ class TestPluginEndpoints:
         assert data["plugin_system_enabled"] is True
 
     def test_get_all_plugin_variables_system_unavailable(self, client, mock_template_engine):
-        with patch("src.api_server.PLUGIN_SYSTEM_AVAILABLE", False):
+        with patch("src.plugins.routes.PLUGIN_SYSTEM_AVAILABLE", False):
             response = client.get("/plugins/variables/all")
         assert response.status_code == 200
         data = response.json()
@@ -788,7 +911,7 @@ class TestPluginEndpoints:
     def test_receive_plugin_payload(self, client, mock_plugin_registry):
         response = client.post("/plugins/weather/receive", json={"message": "hello"})
         assert response.status_code == 200
-        assert response.json() == {"status": "ok"}
+        assert response.json() == {"status": "ok", "plugin_id": "weather"}
         mock_plugin_registry.get_plugin.return_value.receive_payload.assert_called_once()
 
     def test_receive_plugin_payload_not_found(self, client, mock_plugin_registry):
@@ -820,7 +943,7 @@ class TestPluginEndpoints:
         assert response.status_code == 403
 
     def test_receive_plugin_payload_system_unavailable(self, client):
-        with patch("src.api_server.PLUGIN_SYSTEM_AVAILABLE", False):
+        with patch("src.plugins.routes.PLUGIN_SYSTEM_AVAILABLE", False):
             response = client.post("/plugins/weather/receive", json={"message": "hello"})
         assert response.status_code == 503
 
@@ -865,8 +988,10 @@ class TestTemplateEndpoints:
         assert len(data["errors"]) == 1
 
     def test_validate_template_missing_param(self, client, mock_template_engine):
+        # RE-PINNED (Phase 2 slice 8): the typed body makes this a 422 from
+        # Pydantic, replacing the hand-rolled 400.
         response = client.post("/templates/validate", json={})
-        assert response.status_code == 400
+        assert response.status_code == 422
 
     def test_render_template_string(self, client, mock_template_engine):
         response = client.post("/templates/render", json={"template": "Hello"})
@@ -898,8 +1023,9 @@ class TestTemplateEndpoints:
         assert data["line_count"] == 6
 
     def test_render_template_missing_param(self, client, mock_template_engine):
+        # RE-PINNED (Phase 2 slice 8): see test_validate_template_missing_param.
         response = client.post("/templates/render", json={})
-        assert response.status_code == 400
+        assert response.status_code == 422
 
     def test_render_template_error(self, client, mock_template_engine):
         mock_template_engine.render.side_effect = Exception("Render failed")
@@ -907,9 +1033,10 @@ class TestTemplateEndpoints:
         assert response.status_code == 400
 
     def test_render_template_live_success(self, client, mock_template_engine, mock_settings_service):
-        with patch("src.api_server.board_client_from_board_dict") as mock_bcfbd:
+        with patch("src.templates.routes.board_client_from_board_dict") as mock_bcfbd:
             mock_board_client = Mock()
             mock_board_client.send_characters.return_value = (True, True)
+            mock_board_client.render.return_value = (True, True)
             mock_bcfbd.return_value = mock_board_client
             response = client.post(
                 "/templates/render/live",
@@ -946,7 +1073,7 @@ class TestTemplateEndpoints:
         board_settings.boards = [na_board]
         mock_settings_service.get_board_settings.return_value = board_settings
 
-        with patch("src.api_server.board_client_from_board_dict") as mock_bcfbd:
+        with patch("src.templates.routes.board_client_from_board_dict") as mock_bcfbd:
             mock_client = Mock()
             mock_client.send_characters.return_value = (True, True)
             mock_bcfbd.return_value = mock_client
@@ -974,12 +1101,13 @@ class TestTemplateEndpoints:
         assert data["sent_to_board"] is False
 
     def test_render_template_live_missing_param(self, client, mock_template_engine):
+        # RE-PINNED (Phase 2 slice 8): see test_validate_template_missing_param.
         response = client.post("/templates/render/live", json={})
-        assert response.status_code == 400
+        assert response.status_code == 422
 
     def test_render_template_live_board_not_found(self, client, mock_template_engine, mock_settings_service):
         mock_settings_service.get_board_settings.return_value = Mock(boards=[{"id": "b1", "device_type": "flagship"}])
-        with patch("src.api_server.board_client_from_board_dict", return_value=None):
+        with patch("src.templates.routes.board_client_from_board_dict", return_value=None):
             response = client.post(
                 "/templates/render/live",
                 json={
@@ -1030,8 +1158,9 @@ class TestPagesEndpoints:
                 "template": ["Hello"],
             },
         )
-        assert response.status_code == 200
-        assert response.json()["status"] == "success"
+        # 201 + the bare page since the Phase 2 conventions pass.
+        assert response.status_code == 201
+        assert response.json()["id"] == "page1"
 
     def test_get_page(self, client, mock_page_service):
         response = client.get("/pages/page1")
@@ -1045,7 +1174,9 @@ class TestPagesEndpoints:
     def test_update_page(self, client, mock_page_service):
         response = client.put("/pages/page1", json={"name": "Updated"})
         assert response.status_code == 200
-        assert response.json()["status"] == "success"
+        # The {"status": "success"} key is gone; the page and its retarget
+        # warnings are the whole body now.
+        assert response.json()["page"]["id"] == "page1"
 
     def test_update_page_not_found(self, client, mock_page_service):
         mock_page_service.update_page.return_value = None
@@ -1116,7 +1247,9 @@ class TestPagesEndpoints:
 
     def test_preview_pages_batch_invalid_input(self, client, mock_page_service, mock_settings_service):
         response = client.post("/pages/preview/batch", json={"page_ids": "not_a_list"})
-        assert response.status_code == 400
+        # 422: the body is a typed model since the Phase 2 conventions pass, so
+        # this is FastAPI's standard validation error (was a hand-rolled 400).
+        assert response.status_code == 422
 
     def test_preview_pages_batch_page_not_found(self, client, mock_page_service, mock_settings_service):
         mock_page_service.preview_pages_batch.return_value = {"gone": None}
@@ -1159,7 +1292,9 @@ class TestPagesEndpoints:
         response = client.post("/pages/page1/send")
         assert response.status_code == 200
         data = response.json()
-        assert data["status"] == "success"
+        # The {"status": "success"} key is gone since the Phase 2 conventions
+        # pass — the 200 already said it. The payload is unchanged.
+        assert data["page_id"] == "page1"
 
     def test_send_page_not_found(self, client, mock_page_service, mock_settings_service, mock_service):
         mock_page_service.get_page.return_value = None
@@ -1167,7 +1302,14 @@ class TestPagesEndpoints:
         assert response.status_code == 404
 
     def test_send_page_no_service(self, client, mock_page_service, mock_settings_service):
-        with patch("src.api_server.get_service", return_value=None):
+        """No display service → 503.
+
+        Stubbed where the handler binds it (``src.pages.routes``). The
+        ``src.api_server`` target steered nothing: a real ``DisplayService``
+        was constructed instead, and a healthy ``Mock()`` in place of ``None``
+        still produced 503.
+        """
+        with patch("src.pages.routes.get_service", return_value=None):
             response = client.post("/pages/page1/send")
         assert response.status_code == 503
 
@@ -1233,6 +1375,27 @@ class TestScheduleEndpoints:
         data = response.json()
         assert data["source"] == "manual"
         assert data["schedule_enabled"] is False
+        # A plain page resolves to itself (issue #1513).
+        assert data["resolved_page_id"] == "page1"
+
+    def test_get_active_schedule_page_resolves_collection(self, client, mock_schedule_service, mock_settings_service):
+        # Issue #1513: in schedule mode, a scheduled Collection reports which
+        # member page it is currently rendering via resolved_page_id.
+        mock_settings_service.is_schedule_enabled.return_value = True
+        mock_schedule_service.get_active_page_id.return_value = "collection:abc"
+        # The schedules router binds get_collection_service at import time now.
+        with patch("src.schedules.routes.get_collection_service") as mock_get_cs:
+            cs = Mock()
+            cs.resolve_page_id.return_value = "member-page"
+            cs.seconds_until_next_check.return_value = 7
+            mock_get_cs.return_value = cs
+            response = client.get("/schedules/active/page")
+        assert response.status_code == 200
+        data = response.json()
+        assert data["source"] == "schedule"
+        assert data["page_id"] == "collection:abc"
+        assert data["resolved_page_id"] == "member-page"
+        assert data["resolved_next_check_seconds"] == 7
 
     def test_validate_schedules(self, client, mock_schedule_service):
         response = client.post("/schedules/validate", json={})
@@ -1248,8 +1411,10 @@ class TestScheduleEndpoints:
         assert response.status_code == 200
 
     def test_set_default_page_missing_param(self, client, mock_schedule_service):
+        # 422 since the conventions pass: the body is a Pydantic model, so a
+        # missing required field is FastAPI's standard validation error.
         response = client.put("/schedules/default-page", json={})
-        assert response.status_code == 400
+        assert response.status_code == 422
 
     def test_set_default_page_not_found(self, client, mock_schedule_service, mock_page_service):
         mock_page_service.get_page.return_value = None
@@ -1271,11 +1436,13 @@ class TestScheduleEndpoints:
 
     def test_set_schedule_enabled_missing_param(self, client, mock_settings_service):
         response = client.put("/schedules/enabled", json={})
-        assert response.status_code == 400
+        assert response.status_code == 422
 
     def test_set_schedule_enabled_not_bool(self, client, mock_settings_service):
+        # StrictBool: "yes" is still refused (Pydantic's lax mode would have
+        # coerced it to True), just as 422 rather than the old hand-rolled 400.
         response = client.put("/schedules/enabled", json={"enabled": "yes"})
-        assert response.status_code == 400
+        assert response.status_code == 422
 
 
 # ============================================================
@@ -1324,6 +1491,14 @@ class TestCacheEndpoints:
         response = client.post("/force-refresh")
         assert response.status_code == 500
 
+    def test_force_refresh_invalidates_the_display_loop_dedupe_state(self, client, mock_service):
+        """Clearing only the board clients' caches is not enough: the display
+        loop skips at its own content-dedupe guard, so "Resend to board" did
+        nothing when the content had not changed (issue #1794 review)."""
+        response = client.post("/force-refresh")
+        assert response.status_code == 200
+        mock_service.invalidate_all_board_content.assert_called_once_with()
+
 
 # ============================================================
 # Service Start / Stop / Refresh / Send Message
@@ -1335,19 +1510,20 @@ class TestServiceLifecycle:
         with patch("src.api_server._service_running", True):
             response = client.post("/start")
         assert response.status_code == 200
-        assert response.json()["status"] == "already_running"
+        # Phase 2 Task 8: the status word became {"running", "changed"}.
+        assert response.json() == {"running": True, "changed": False, "message": "Service is already running"}
 
     def test_stop_not_running(self, client):
         with patch("src.api_server._service_running", False):
             response = client.post("/stop")
         assert response.status_code == 200
-        assert response.json()["status"] == "not_running"
+        assert response.json() == {"running": False, "changed": False, "message": "Service is not running"}
 
     def test_stop_running(self, client, mock_service):
         with patch("src.api_server._service_running", True):
             response = client.post("/stop")
         assert response.status_code == 200
-        assert response.json()["status"] == "stopped"
+        assert response.json() == {"running": False, "changed": True, "message": "Service stopped successfully"}
 
     def test_refresh_no_service(self, client):
         with patch("src.api_server.get_service", return_value=None):
@@ -1367,8 +1543,9 @@ class TestServiceLifecycle:
     def test_send_message_silence_mode(self, client, mock_service):
         with patch("src.api_server.Config.is_silence_mode_active", return_value=True):
             response = client.post("/send-message", json={"text": "Hello"})
-        assert response.status_code == 200
-        assert response.json()["silence_mode"] is True
+        # Phase 2 Task 8: a silence-window refusal is a 409, not a word at 200.
+        assert response.status_code == 409
+        assert "silence mode" in response.json()["detail"]
 
     def test_send_message_no_board_client(self, client, mock_service, mock_settings_service):
         mock_service.vb_client = None
@@ -1380,20 +1557,153 @@ class TestServiceLifecycle:
         with patch("src.api_server.Config.is_silence_mode_active", return_value=False):
             response = client.post("/send-message", json={"text": "Hello"})
         assert response.status_code == 200
-        assert response.json()["status"] == "success"
+        assert response.json() == {"message": "Message sent successfully", "sent": True}
 
     def test_send_message_skipped(self, client, mock_service, mock_settings_service):
         mock_service.vb_client.send_characters.return_value = (True, False)
+        mock_service.vb_client.render.return_value = (True, False)
         with patch("src.api_server.Config.is_silence_mode_active", return_value=False):
             response = client.post("/send-message", json={"text": "Hello"})
         assert response.status_code == 200
-        assert response.json()["skipped"] is True
+        # Phase 2 Task 8: `sent: false` replaces the `skipped` flag.
+        assert response.json()["sent"] is False
 
     def test_send_message_failure(self, client, mock_service, mock_settings_service):
         mock_service.vb_client.send_characters.return_value = (False, False)
+        mock_service.vb_client.render.return_value = (False, False)
         with patch("src.api_server.Config.is_silence_mode_active", return_value=False):
             response = client.post("/send-message", json={"text": "Hello"})
         assert response.status_code == 500
+
+    def test_send_message_leaves_the_display_dedupe_state_alone(self, client, mock_service, mock_settings_service):
+        """Issue #1794: a manual send is an out-of-band write, and must survive
+        the next display-loop tick. Invalidating the dedupe cache here made the
+        engine repaint the active page over it within one polling interval."""
+        with patch("src.api_server.Config.is_silence_mode_active", return_value=False):
+            response = client.post("/send-message", json={"text": "Hello"})
+        assert response.status_code == 200
+        mock_service.invalidate_board_content.assert_not_called()
+        mock_service.invalidate_all_board_content.assert_not_called()
+
+    def test_send_message_success_publishes_mqtt_state(self, client, mock_service, mock_settings_service):
+        """Issue #1794: after a manual send, push fresh MQTT state so HA's
+        last-update sensor reflects the out-of-band write."""
+        mqtt_client = Mock()
+        publisher = Mock()
+        mqtt_client._state_publisher = publisher
+        with (
+            patch("src.api_server.Config.is_silence_mode_active", return_value=False),
+            patch("src.mqtt.get_mqtt_client", return_value=mqtt_client),
+        ):
+            response = client.post("/send-message", json={"text": "Hello"})
+        assert response.status_code == 200
+        publisher.mark_display_updated.assert_called_once()
+        publisher.gather_and_publish.assert_called_once()
+
+    def test_send_message_no_mqtt_client_is_safe(self, client, mock_service, mock_settings_service):
+        """No MQTT client wired: the send still succeeds."""
+        with (
+            patch("src.api_server.Config.is_silence_mode_active", return_value=False),
+            patch("src.mqtt.get_mqtt_client", return_value=None),
+        ):
+            response = client.post("/send-message", json={"text": "Hello"})
+        assert response.status_code == 200
+        assert response.json()["sent"] is True
+
+    def test_peek_service_does_not_create_service(self):
+        """peek_service returns the existing instance only — never creates one.
+
+        The singleton moved to ``src/display_runtime.py`` in Phase 2 slice 3
+        so the extracted routers can reach it without importing api_server;
+        ``api_server`` re-exports the accessor, so both spellings are checked
+        and must agree — the state they guard is one object.
+        """
+        from src import api_server, display_runtime
+
+        with patch.object(display_runtime, "_service", None):
+            assert display_runtime.peek_service() is None
+            assert api_server.peek_service() is None
+
+    def test_send_message_marks_the_board_as_out_of_band(self, client, mock_service, mock_settings_service):
+        """Issue #1831: a manual send replaces the page on the board, so the
+        board must be flagged as showing out-of-band content — that is what
+        makes the HA Active/Current Page entities stop reporting the page."""
+        with (
+            patch("src.api_server.Config.is_silence_mode_active", return_value=False),
+            patch("src.api_server.peek_service", return_value=mock_service),
+        ):
+            response = client.post("/send-message", json={"text": "Hello"})
+        assert response.status_code == 200
+        mock_service.mark_showing_out_of_band.assert_called_once_with()
+
+    def test_skipped_send_message_does_not_mark_out_of_band(self, client, mock_service, mock_settings_service):
+        """was_sent=False means the board already showed this content — nothing
+        was written, so the out-of-band state must not change."""
+        mock_service.vb_client.render.return_value = (True, False)
+        with (
+            patch("src.api_server.Config.is_silence_mode_active", return_value=False),
+            patch("src.api_server.peek_service", return_value=mock_service),
+        ):
+            response = client.post("/send-message", json={"text": "Hello"})
+        assert response.status_code == 200
+        mock_service.mark_showing_out_of_band.assert_not_called()
+
+
+class TestSendMessageWrapping:
+    """Issue #1793: /send-message wraps long text to the board's geometry."""
+
+    @staticmethod
+    def _row_text(row):
+        """Decode a board row of character codes back to letters/spaces."""
+        return "".join(chr(ord("A") + code - 1) if 1 <= code <= 26 else " " for code in row).rstrip()
+
+    def _sent_array(self, client, mock_service, text):
+        with patch("src.api_server.Config.is_silence_mode_active", return_value=False):
+            response = client.post("/send-message", json={"text": text})
+        assert response.status_code == 200
+        return mock_service.vb_client.render.call_args[0][0]
+
+    def test_long_message_wraps_at_word_boundaries_on_note(self, client, mock_service, mock_settings_service):
+        mock_settings_service.get_board_settings.return_value.boards = [
+            {"id": "b1", "device_type": "note", "notes_wide": 1, "notes_tall": 1},
+        ]
+        board_array = self._sent_array(client, mock_service, "TACO TUESDAY PARTY TIME")
+        assert len(board_array) == 3
+        assert len(board_array[0]) == 15
+        assert self._row_text(board_array[0]) == "TACO TUESDAY"
+        assert self._row_text(board_array[1]) == "PARTY TIME"
+
+    def test_backslash_text_renders_exactly_as_before(self, client, mock_service, mock_settings_service):
+        """HTTP JSON bodies can carry a real newline, so /send-message must NOT
+        reinterpret a backslash. ``C:\\new`` keeps its N (issue #1793 review)."""
+        from src.text_to_board import text_to_board_array
+
+        board_array = self._sent_array(client, mock_service, "C:\\new")
+        assert board_array == text_to_board_array("C:\\new", rows=6, cols=22)
+
+    def test_literal_backslash_n_is_not_a_line_break(self, client, mock_service, mock_settings_service):
+        board_array = self._sent_array(client, mock_service, "HI\\nTHERE")
+        assert self._row_text(board_array[0]) == "HI NTHERE"
+        assert self._row_text(board_array[1]) == ""
+
+    def test_long_word_hard_breaks_instead_of_vanishing(self, client, mock_service, mock_settings_service):
+        board_array = self._sent_array(client, mock_service, "SEE SUPERCALIFRAGILISTICEXPIALIDOCIOUS")
+        assert self._row_text(board_array[0]) == "SEE"
+        assert self._row_text(board_array[1]) == "SUPERCALIFRAGILISTICEX"
+        assert self._row_text(board_array[2]) == "PIALIDOCIOUS"
+
+    def test_explicit_newline_breaks_line(self, client, mock_service, mock_settings_service):
+        board_array = self._sent_array(client, mock_service, "HI\nTHERE")
+        assert self._row_text(board_array[0]) == "HI"
+        assert self._row_text(board_array[1]) == "THERE"
+
+    def test_text_beyond_rows_truncates_predictably(self, client, mock_service, mock_settings_service):
+        mock_settings_service.get_board_settings.return_value.boards = [
+            {"id": "b1", "device_type": "note", "notes_wide": 1, "notes_tall": 1},
+        ]
+        board_array = self._sent_array(client, mock_service, "AAAA BBBB CCCC DDDD EEEE FFFF GGGG HHHH IIII JJJJ")
+        assert len(board_array) == 3
+        assert self._row_text(board_array[2]) == "GGGG HHHH IIII"
 
 
 # ============================================================
@@ -1569,8 +1879,10 @@ class TestDisplayBatchEndpoints:
         assert response.status_code == 400
 
     def test_displays_raw_batch_not_list(self, client, mock_display_service):
+        # RE-PINNED (Phase 2 slice 8): the typed body makes this a 422 from
+        # Pydantic, replacing the hand-rolled 400.
         response = client.post("/displays/raw/batch", json={"display_types": "weather"})
-        assert response.status_code == 400
+        assert response.status_code == 422
 
     def test_displays_raw_batch_exception_handling(self, client, mock_display_service):
         mock_display_service.get_display.side_effect = Exception("Plugin error")
@@ -1589,7 +1901,7 @@ class TestDisplayBatchEndpoints:
         assert response.status_code == 400
 
     def test_send_display_no_service(self, client, mock_display_service, mock_settings_service):
-        with patch("src.api_server.get_service", return_value=None):
+        with patch("src.displays.routes.get_service", return_value=None):
             response = client.post("/displays/weather/send")
         assert response.status_code == 503
 
@@ -1616,8 +1928,8 @@ class TestWelcomeMessage:
     def test_send_welcome_silence_mode(self, client):
         with patch("src.api_server.Config.is_silence_mode_active", return_value=True):
             response = client.post("/send-welcome-message")
-        assert response.status_code == 200
-        assert response.json()["silence_mode"] is True
+        assert response.status_code == 409
+        assert "silence mode" in response.json()["detail"]
 
 
 # ============================================================
@@ -1634,8 +1946,7 @@ class TestEnableLocalAPI:
                 "enablement_token": "test_token_xyz",
             },
         )
-        assert response.status_code == 200
-        assert response.json()["success"] is False
+        assert response.status_code == 400
 
     def test_missing_token(self, client):
         response = client.post(
@@ -1645,14 +1956,13 @@ class TestEnableLocalAPI:
                 "enablement_token": "",
             },
         )
-        assert response.status_code == 200
-        assert response.json()["success"] is False
+        assert response.status_code == 400
 
     def test_success(self, client):
         mock_resp = Mock()
         mock_resp.status_code = 200
         mock_resp.json.return_value = {"apiKey": "generated_api_key_abc"}
-        with patch("src.api_server.requests.post", return_value=mock_resp):
+        with patch("src.config_api.routes.requests.post", return_value=mock_resp):
             response = client.post(
                 "/config/board/enable-local-api",
                 json={
@@ -1669,7 +1979,7 @@ class TestEnableLocalAPI:
         mock_resp = Mock()
         mock_resp.status_code = 200
         mock_resp.json.return_value = {}
-        with patch("src.api_server.requests.post", return_value=mock_resp):
+        with patch("src.config_api.routes.requests.post", return_value=mock_resp):
             response = client.post(
                 "/config/board/enable-local-api",
                 json={
@@ -1684,7 +1994,7 @@ class TestEnableLocalAPI:
         mock_resp = Mock()
         mock_resp.status_code = 401
         mock_resp.text = "Unauthorized"
-        with patch("src.api_server.requests.post", return_value=mock_resp):
+        with patch("src.config_api.routes.requests.post", return_value=mock_resp):
             response = client.post(
                 "/config/board/enable-local-api",
                 json={
@@ -1699,7 +2009,7 @@ class TestEnableLocalAPI:
         mock_resp = Mock()
         mock_resp.status_code = 500
         mock_resp.text = "Internal Server Error"
-        with patch("src.api_server.requests.post", return_value=mock_resp):
+        with patch("src.config_api.routes.requests.post", return_value=mock_resp):
             response = client.post(
                 "/config/board/enable-local-api",
                 json={
@@ -1713,7 +2023,9 @@ class TestEnableLocalAPI:
     def test_connection_error(self, client):
         import requests as http_requests
 
-        with patch("src.api_server.requests.post", side_effect=http_requests.exceptions.ConnectionError("refused")):
+        with patch(
+            "src.config_api.routes.requests.post", side_effect=http_requests.exceptions.ConnectionError("refused")
+        ):
             response = client.post(
                 "/config/board/enable-local-api",
                 json={
@@ -1727,7 +2039,7 @@ class TestEnableLocalAPI:
     def test_timeout_error(self, client):
         import requests as http_requests
 
-        with patch("src.api_server.requests.post", side_effect=http_requests.exceptions.Timeout("timed out")):
+        with patch("src.config_api.routes.requests.post", side_effect=http_requests.exceptions.Timeout("timed out")):
             response = client.post(
                 "/config/board/enable-local-api",
                 json={
@@ -1739,7 +2051,7 @@ class TestEnableLocalAPI:
         assert response.json()["success"] is False
 
     def test_generic_error(self, client):
-        with patch("src.api_server.requests.post", side_effect=RuntimeError("unexpected")):
+        with patch("src.config_api.routes.requests.post", side_effect=RuntimeError("unexpected")):
             response = client.post(
                 "/config/board/enable-local-api",
                 json={
@@ -1747,12 +2059,11 @@ class TestEnableLocalAPI:
                     "enablement_token": "test_token_xyz",
                 },
             )
-        assert response.status_code == 200
-        assert response.json()["success"] is False
+        assert response.status_code == 500
 
     def test_rejects_public_ip(self, client):
         """SSRF guard: a public IP must be rejected before any HTTP request."""
-        with patch("src.api_server.requests.post") as mock_post:
+        with patch("src.config_api.routes.requests.post") as mock_post:
             response = client.post(
                 "/config/board/enable-local-api",
                 json={
@@ -1760,16 +2071,16 @@ class TestEnableLocalAPI:
                     "enablement_token": "test_token_xyz",
                 },
             )
-        # Returns 200 with success=False (this endpoint reports validation as a body field).
-        assert response.status_code == 200
-        body = response.json()
-        assert body["success"] is False
+        # The SSRF guard's 400 reaches the client as a 400 (#1887); it used
+        # to be downgraded to a 200 body indistinguishable from a board that
+        # simply rejected the token.
+        assert response.status_code == 400
         # No outbound HTTP request should have been issued.
         mock_post.assert_not_called()
 
     def test_rejects_aws_metadata_address(self, client):
         """SSRF guard: the AWS instance-metadata IP must be rejected."""
-        with patch("src.api_server.requests.post") as mock_post:
+        with patch("src.config_api.routes.requests.post") as mock_post:
             response = client.post(
                 "/config/board/enable-local-api",
                 json={
@@ -1806,7 +2117,7 @@ class TestTrafficGeocode:
         mock_resp.status_code = 200
         mock_resp.json.return_value = [{"lat": "40.7128", "lon": "-74.0060", "display_name": "NYC"}]
         mock_resp.raise_for_status = Mock()
-        with patch("src.api_server.requests.get", return_value=mock_resp):
+        with patch("src.config_api.routes.requests.get", return_value=mock_resp):
             response = client.post("/traffic/routes/geocode", json={"address": "NYC"})
         assert response.status_code == 200
         data = response.json()
@@ -1821,44 +2132,394 @@ class TestTrafficGeocode:
         mock_resp.status_code = 200
         mock_resp.json.return_value = []
         mock_resp.raise_for_status = Mock()
-        with patch("src.api_server.requests.get", return_value=mock_resp):
+        with patch("src.config_api.routes.requests.get", return_value=mock_resp):
             response = client.post("/traffic/routes/geocode", json={"address": "xyznonexistent"})
         assert response.status_code == 404
 
 
 # ============================================================
-# Queue Times Proxy
+# Per-board send routing (issue #1244)
 # ============================================================
 
 
-class TestQueueTimes:
-    def test_list_disney_parks(self, client):
-        with patch("src.api_server._queue_times_get") as mock_qt:
-            mock_qt.return_value = [
-                {"id": 2, "parks": [{"id": 1, "name": "Magic Kingdom", "country": "US", "timezone": "EST"}]},
-            ]
-            response = client.get("/queue-times/parks")
+BOARDS_1244 = [
+    {"id": "b1", "name": "Lobby", "device_type": "flagship", "notes_wide": 1, "notes_tall": 1, "enabled": True},
+    {"id": "b2", "name": "Kitchen", "device_type": "note", "notes_wide": 1, "notes_tall": 1, "enabled": True},
+]
+
+
+def _configure_boards(mock_settings_service):
+    """Give the mocked settings service a two-board setup (b1 primary, b2 note)."""
+    board_settings = Mock()
+    board_settings.boards = [dict(b) for b in BOARDS_1244]
+    mock_settings_service.get_board_settings.return_value = board_settings
+    mock_settings_service.get_primary_board_id.return_value = "b1"
+
+
+class TestSendPagePerBoard:
+    """POST /pages/{page_id}/send with an optional board_id routes to that board."""
+
+    def test_send_page_routes_to_target_board_client(
+        self, client, mock_service, mock_settings_service, mock_page_service
+    ):
+        _configure_boards(mock_settings_service)
+        b2_client = Mock()
+        b2_client.render.return_value = (True, True)
+        mock_service.get_board_client = Mock(return_value=b2_client)
+
+        response = client.post("/pages/page1/send?target=board&board_id=b2")
+
         assert response.status_code == 200
+        data = response.json()
+        assert data["sent_to_board"] is True
+        assert data["board_id"] == "b2"
+        mock_service.get_board_client.assert_called_once_with("b2")
+        b2_client.render.assert_called_once()
+        mock_service.vb_client.render.assert_not_called()
 
-    def test_list_disney_parks_no_group(self, client):
-        with patch("src.api_server._queue_times_get") as mock_qt:
-            mock_qt.return_value = [{"id": 99, "parks": []}]
-            response = client.get("/queue-times/parks")
+    def test_send_page_sizes_grid_to_target_board(self, client, mock_service, mock_settings_service, mock_page_service):
+        """The grid is sized to the target board (note 3x15), not the page's device type."""
+        _configure_boards(mock_settings_service)
+        b2_client = Mock()
+        b2_client.render.return_value = (True, True)
+        mock_service.get_board_client = Mock(return_value=b2_client)
+
+        response = client.post("/pages/page1/send?target=board&board_id=b2")
+
         assert response.status_code == 200
-        assert response.json() == []
+        board_array = b2_client.render.call_args[0][0]
+        assert len(board_array) == 3
+        assert len(board_array[0]) == 15
 
-    def test_list_disney_parks_error(self, client):
-        with patch("src.api_server._queue_times_get", side_effect=Exception("API down")):
-            response = client.get("/queue-times/parks")
-        assert response.status_code == 502
+    def test_send_page_board_id_in_body(self, client, mock_service, mock_settings_service, mock_page_service):
+        _configure_boards(mock_settings_service)
+        b2_client = Mock()
+        b2_client.render.return_value = (True, True)
+        mock_service.get_board_client = Mock(return_value=b2_client)
 
-    def test_list_park_rides(self, client):
-        with patch("src.api_server._queue_times_get") as mock_qt:
-            mock_qt.return_value = {"lands": [{"rides": [{"id": 1, "name": "Space Mountain"}]}]}
-            response = client.get("/queue-times/parks/1/rides")
+        response = client.post("/pages/page1/send", json={"target": "board", "board_id": "b2"})
+
         assert response.status_code == 200
+        assert response.json()["board_id"] == "b2"
+        b2_client.render.assert_called_once()
 
-    def test_list_park_rides_error(self, client):
-        with patch("src.api_server._queue_times_get", side_effect=Exception("fail")):
-            response = client.get("/queue-times/parks/1/rides")
-        assert response.status_code == 502
+    def test_send_page_unknown_board_404(self, client, mock_service, mock_settings_service, mock_page_service):
+        _configure_boards(mock_settings_service)
+        response = client.post("/pages/page1/send?target=board&board_id=nope")
+        assert response.status_code == 404
+
+    def test_send_page_board_without_client_503(self, client, mock_service, mock_settings_service, mock_page_service):
+        _configure_boards(mock_settings_service)
+        mock_service.get_board_client = Mock(return_value=None)
+        response = client.post("/pages/page1/send?target=board&board_id=b2")
+        assert response.status_code == 503
+
+    def test_send_page_without_board_id_uses_primary_client(
+        self, client, mock_service, mock_settings_service, mock_page_service
+    ):
+        """Back-compat: omitting board_id keeps sending via the primary client."""
+        _configure_boards(mock_settings_service)
+        response = client.post("/pages/page1/send?target=board")
+        assert response.status_code == 200
+        mock_service.vb_client.render.assert_called_once()
+
+
+class TestRefreshPerBoard:
+    """POST /refresh with an optional board_id refreshes just that board."""
+
+    def test_refresh_with_board_id_drives_only_that_board(self, client, mock_service, mock_settings_service):
+        _configure_boards(mock_settings_service)
+        rt = Mock()
+        mock_service.get_runtime = Mock(return_value=rt)
+
+        response = client.post("/refresh?board_id=b2")
+
+        assert response.status_code == 200
+        assert response.json()["board_id"] == "b2"
+        mock_service.get_runtime.assert_called_once_with("b2")
+        mock_service.check_and_send_for_board.assert_called_once()
+        args, kwargs = mock_service.check_and_send_for_board.call_args
+        assert args[0] == "b2"
+        assert args[1] is rt
+        assert kwargs["is_primary"] is False
+        assert kwargs["board"]["id"] == "b2"
+        mock_service.check_and_send_active_page.assert_not_called()
+
+    def test_refresh_board_id_in_body_primary(self, client, mock_service, mock_settings_service):
+        _configure_boards(mock_settings_service)
+        rt = Mock()
+        mock_service.get_runtime = Mock(return_value=rt)
+
+        response = client.post("/refresh", json={"board_id": "b1"})
+
+        assert response.status_code == 200
+        kwargs = mock_service.check_and_send_for_board.call_args[1]
+        assert kwargs["is_primary"] is True
+
+    def test_refresh_unknown_board_404(self, client, mock_service, mock_settings_service):
+        _configure_boards(mock_settings_service)
+        response = client.post("/refresh?board_id=nope")
+        assert response.status_code == 404
+
+    def test_refresh_without_board_id_refreshes_all(self, client, mock_service, mock_settings_service):
+        """Back-compat: omitting board_id keeps the legacy all-boards refresh."""
+        _configure_boards(mock_settings_service)
+        response = client.post("/refresh")
+        assert response.status_code == 200
+        mock_service.check_and_send_active_page.assert_called_once()
+        mock_service.check_and_send_for_board.assert_not_called()
+
+
+class TestActivePagePerBoard:
+    """GET/PUT /settings/active-page accept an optional board_id."""
+
+    def test_get_active_page_with_board_id(self, client, mock_settings_service):
+        _configure_boards(mock_settings_service)
+        response = client.get("/settings/active-page?board_id=b2")
+        assert response.status_code == 200
+        mock_settings_service.get_active_page_id.assert_called_once_with(board_id="b2")
+        assert response.json()["board_id"] == "b2"
+
+    def test_get_active_page_without_board_id_unchanged(self, client, mock_settings_service):
+        response = client.get("/settings/active-page")
+        assert response.status_code == 200
+        assert response.json()["page_id"] == "page1"
+        mock_settings_service.get_active_page_id.assert_called_once_with()
+
+    def test_set_active_page_with_board_id(self, client, mock_settings_service, mock_page_service, mock_service):
+        _configure_boards(mock_settings_service)
+        mock_settings_service.should_send_to_board.return_value = True
+        b2_client = Mock()
+        b2_client.render.return_value = (True, True)
+        mock_service.get_board_client = Mock(return_value=b2_client)
+
+        response = client.put("/settings/active-page", json={"page_id": "page1", "board_id": "b2"})
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["board_id"] == "b2"
+        assert data["sent_to_board"] is True
+        mock_settings_service.set_active_page_id.assert_called_once_with("page1", board_id="b2")
+        b2_client.render.assert_called_once()
+        mock_service.vb_client.render.assert_not_called()
+
+    def test_set_active_page_with_board_id_sizes_grid_to_board(
+        self, client, mock_settings_service, mock_page_service, mock_service
+    ):
+        _configure_boards(mock_settings_service)
+        mock_settings_service.should_send_to_board.return_value = True
+        b2_client = Mock()
+        b2_client.render.return_value = (True, True)
+        mock_service.get_board_client = Mock(return_value=b2_client)
+
+        client.put("/settings/active-page", json={"page_id": "page1", "board_id": "b2"})
+
+        board_array = b2_client.render.call_args[0][0]
+        assert len(board_array) == 3
+        assert len(board_array[0]) == 15
+
+    def test_set_active_page_unknown_board_404(self, client, mock_settings_service, mock_page_service, mock_service):
+        _configure_boards(mock_settings_service)
+        response = client.put("/settings/active-page", json={"page_id": "page1", "board_id": "nope"})
+        assert response.status_code == 404
+
+    def test_set_active_page_without_board_id_unchanged(
+        self, client, mock_settings_service, mock_page_service, mock_service
+    ):
+        """Back-compat: omitting board_id keeps the legacy single-arg setter call."""
+        _configure_boards(mock_settings_service)
+        response = client.put("/settings/active-page", json={"page_id": "page1"})
+        assert response.status_code == 200
+        mock_settings_service.set_active_page_id.assert_called_once_with("page1")
+
+
+class TestBoardCurrentMessagePerBoard:
+    """GET /board/current-message accepts an optional board_id (issue #1247)."""
+
+    @staticmethod
+    def _make_runtime(last_sent=None, polled=None, polled_at=None, use_cloud=False):
+        rt = Mock()
+        rt.client = Mock()
+        rt.client._last_characters = last_sent
+        rt.client.use_cloud = use_cloud
+        rt.polled_characters = polled
+        rt.polled_at = polled_at
+        return rt
+
+    def test_unknown_board_404(self, client, mock_service, mock_settings_service):
+        _configure_boards(mock_settings_service)
+        response = client.get("/board/current-message?board_id=nope")
+        assert response.status_code == 404
+
+    def test_primary_board_id_uses_legacy_live_path(self, client, mock_service, mock_settings_service):
+        """board_id pointing at the primary board keeps the live-polled path."""
+        _configure_boards(mock_settings_service)
+        grid = [[0] * 22 for _ in range(6)]
+        mock_service.vb_client.read_current_message.return_value = grid
+        response = client.get("/board/current-message?board_id=b1")
+        assert response.status_code == 200
+        data = response.json()
+        assert data["characters"] == grid
+        assert data["board_id"] == "b1"
+        mock_service.vb_client.read_current_message.assert_called_once()
+
+    def test_secondary_board_serves_last_sent_content(self, client, mock_service, mock_settings_service):
+        """A secondary board is served from its runtime cache with no live read."""
+        _configure_boards(mock_settings_service)
+        last_sent = [[8, 9] + [0] * 13 for _ in range(3)]
+        mock_service.get_runtime = Mock(return_value=self._make_runtime(last_sent=last_sent))
+
+        response = client.get("/board/current-message?board_id=b2")
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["characters"] == last_sent
+        assert data["expected_characters"] == last_sent
+        assert data["rows"] == 3
+        assert data["cols"] == 15
+        assert data["message"].startswith("HI")
+        assert data["cached_at"] is None
+        assert data["board_id"] == "b2"
+        mock_service.get_runtime.assert_called_once_with("b2")
+        mock_service.vb_client.read_current_message.assert_not_called()
+
+    def test_secondary_board_prefers_polled_cache(self, client, mock_service, mock_settings_service):
+        import time
+
+        _configure_boards(mock_settings_service)
+        last_sent = [[1] * 15 for _ in range(3)]
+        polled = [[2] * 15 for _ in range(3)]
+        mock_service.get_runtime = Mock(
+            return_value=self._make_runtime(last_sent=last_sent, polled=polled, polled_at=time.time())
+        )
+
+        response = client.get("/board/current-message?board_id=b2")
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["characters"] == polled
+        assert data["expected_characters"] == last_sent
+        assert data["cached_at"] is not None
+
+    def test_secondary_board_with_no_content_returns_nulls_and_geometry(
+        self, client, mock_service, mock_settings_service
+    ):
+        """Nothing sent yet → null content plus the board's geometry so the UI can degrade."""
+        _configure_boards(mock_settings_service)
+        mock_service.get_runtime = Mock(return_value=self._make_runtime())
+
+        response = client.get("/board/current-message?board_id=b2")
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["characters"] is None
+        assert data["message"] is None
+        assert data["expected_characters"] is None
+        # b2 is a 1x1 note array → 3x15
+        assert data["rows"] == 3
+        assert data["cols"] == 15
+        assert data["board_id"] == "b2"
+
+    def test_secondary_board_missing_runtime_returns_nulls(self, client, mock_service, mock_settings_service):
+        _configure_boards(mock_settings_service)
+        mock_service.get_runtime = Mock(return_value=None)
+
+        response = client.get("/board/current-message?board_id=b2")
+
+        assert response.status_code == 200
+        assert response.json()["characters"] is None
+
+    def test_without_board_id_unchanged(self, client, mock_service, mock_settings_service):
+        """Back-compat: omitting board_id keeps the legacy primary response shape."""
+        grid = [[0] * 22 for _ in range(6)]
+        mock_service.vb_client.read_current_message.return_value = grid
+        response = client.get("/board/current-message")
+        assert response.status_code == 200
+        data = response.json()
+        assert data["characters"] == grid
+        assert data["board_id"] is None
+
+
+class TestStatusPerBoard:
+    """GET /status reports per-board configured/paused/active_page_id."""
+
+    def test_status_reports_per_board_state(self, client, mock_service, mock_settings_service):
+        _configure_boards(mock_settings_service)
+        mock_settings_service.get_active_page_id.return_value = "page1"
+        mock_settings_service.is_paused.side_effect = lambda board_id=None: board_id == "b2"
+        mock_service.get_board_client = Mock(side_effect=lambda bid: Mock() if bid == "b1" else None)
+
+        with patch("src.api_server._service_running", True):
+            response = client.get("/status")
+
+        assert response.status_code == 200
+        boards = response.json()["boards"]
+        assert boards["b1"] == {"configured": True, "paused": False, "active_page_id": "page1", "error": None}
+        assert boards["b2"]["configured"] is False
+        assert boards["b2"]["paused"] is True
+
+    def test_status_surfaces_why_a_board_has_no_client(self, client, mock_service, mock_settings_service):
+        """A board skipped at startup must be observable, not just logged
+        (issue #1749)."""
+        _configure_boards(mock_settings_service)
+        mock_settings_service.get_active_page_id.return_value = "page1"
+        mock_service.get_board_client = Mock(side_effect=lambda bid: None if bid == "b1" else Mock())
+        mock_service.board_init_errors = {"b1": "api_key is required"}
+
+        with patch("src.api_server._service_running", True):
+            response = client.get("/status")
+
+        assert response.status_code == 200
+        boards = response.json()["boards"]
+        assert boards["b1"]["error"] == "api_key is required"
+        assert boards["b2"]["error"] is None
+
+    def test_status_keeps_top_level_fields(self, client, mock_service, mock_settings_service):
+        _configure_boards(mock_settings_service)
+        with patch("src.api_server._service_running", True):
+            response = client.get("/status")
+        assert response.status_code == 200
+        data = response.json()
+        assert "running" in data
+        assert "config_summary" in data
+        assert data["config_summary"]["active_page_id"] == "page1"
+
+
+class TestStatusPerBoardResilience:
+    """Issue #1244 regression pins: per-board status must never break /status.
+
+    The dashboard polls /status; a 500 here puts the UI in a retry loop.
+    These pin the defensive paths for unreachable/mid-init/garbage states.
+    """
+
+    def test_status_ok_when_board_client_lookup_raises(self, client, mock_service, mock_settings_service):
+        _configure_boards(mock_settings_service)
+        mock_service.get_board_client = Mock(side_effect=RuntimeError("runtimes not built yet"))
+        with patch("src.api_server._service_running", True):
+            response = client.get("/status")
+        assert response.status_code == 200
+        boards = response.json()["boards"]
+        assert boards["b1"]["configured"] is False
+        assert boards["b2"]["configured"] is False
+
+    def test_status_ok_when_boards_list_is_garbage(self, client, mock_service, mock_settings_service):
+        board_settings = Mock()
+        board_settings.boards = [None, 42, {"no_id": True}]
+        mock_settings_service.get_board_settings.return_value = board_settings
+        with patch("src.api_server._service_running", True):
+            response = client.get("/status")
+        assert response.status_code == 200
+        assert response.json()["boards"] == {}
+
+
+class TestActivePageUnknownBoardIsSafe:
+    """Issue #1244 regression pin: GET /settings/active-page with an unknown
+    board_id (e.g. a mangled "[object Object]") must return 200 with a null
+    page_id — never 404/500 — because the dashboard polls this endpoint."""
+
+    def test_get_active_page_unknown_board_returns_null_not_error(self, client, mock_settings_service):
+        _configure_boards(mock_settings_service)
+        mock_settings_service.get_active_page_id.return_value = None
+        response = client.get("/settings/active-page?board_id=%5Bobject%20Object%5D")
+        assert response.status_code == 200
+        assert response.json()["page_id"] is None

@@ -23,6 +23,33 @@ _CONNECT_TIMEOUT = 5
 _HTTP_TIMEOUT = 10
 
 
+def _describe_socket_error(exc: OSError) -> str:
+    """Classify a socket-level failure into a static, user-facing message.
+
+    The diagnostics dict is returned verbatim to the browser, so error text
+    must never echo the raw exception (CodeQL py/stack-trace-exposure) — the
+    full detail is logged server-side at each call site instead.
+    """
+    if isinstance(exc, socket.gaierror):
+        return "DNS lookup failed"
+    if isinstance(exc, TimeoutError):
+        return "Connection timed out"
+    if isinstance(exc, ConnectionRefusedError):
+        return "Connection refused"
+    return "Connection failed"
+
+
+def _describe_request_error(exc: requests.exceptions.RequestException) -> str:
+    """Classify a requests-level failure into a static, user-facing message."""
+    if isinstance(exc, requests.exceptions.SSLError):
+        return "SSL/TLS error"
+    if isinstance(exc, requests.exceptions.Timeout):
+        return "Connection timed out"
+    if isinstance(exc, requests.exceptions.ConnectionError):
+        return "Could not connect"
+    return "Request failed"
+
+
 def check_dns_resolution(hostname: str = "google.com", timeout: float = _DNS_TIMEOUT) -> dict:
     """Check if DNS resolution is working.
 
@@ -39,9 +66,11 @@ def check_dns_resolution(hostname: str = "google.com", timeout: float = _DNS_TIM
         ip = socket.gethostbyname(hostname)
         return {"ok": True, "hostname": hostname, "ip": ip}
     except socket.gaierror as exc:
-        return {"ok": False, "hostname": hostname, "ip": None, "error": str(exc)}
+        logger.warning("DNS resolution for %s failed: %s", hostname, exc)
+        return {"ok": False, "hostname": hostname, "ip": None, "error": "DNS lookup failed"}
     except Exception as exc:
-        return {"ok": False, "hostname": hostname, "ip": None, "error": str(exc)}
+        logger.warning("DNS check for %s failed: %s", hostname, exc)
+        return {"ok": False, "hostname": hostname, "ip": None, "error": "DNS check failed"}
     finally:
         socket.setdefaulttimeout(old_timeout)
 
@@ -71,12 +100,13 @@ def check_internet_connectivity(
         }
     except requests.exceptions.RequestException as exc:
         latency_ms = round((time.time() - start) * 1000)
+        logger.warning("Internet connectivity check against %s failed: %s", url, exc)
         return {
             "ok": False,
             "url": url,
             "status_code": None,
             "latency_ms": latency_ms,
-            "error": str(exc),
+            "error": _describe_request_error(exc),
         }
 
 
@@ -99,7 +129,8 @@ def check_port_reachable(host: str, port: int, timeout: float = _CONNECT_TIMEOUT
         return {"ok": True, "host": host, "port": port, "latency_ms": latency_ms}
     except OSError as exc:
         latency_ms = round((time.time() - start) * 1000)
-        return {"ok": False, "host": host, "port": port, "latency_ms": latency_ms, "error": str(exc)}
+        logger.warning("Port check for %s:%s failed: %s", host, port, exc)
+        return {"ok": False, "host": host, "port": port, "latency_ms": latency_ms, "error": _describe_socket_error(exc)}
 
 
 def check_vestaboard_connection(
@@ -149,11 +180,12 @@ def check_vestaboard_connection(
             }
         except requests.exceptions.RequestException as exc:
             latency_ms = round((time.time() - start) * 1000)
+            logger.warning("Vestaboard cloud API check failed: %s", exc)
             steps["cloud_api"] = {
                 "ok": False,
                 "status_code": None,
                 "latency_ms": latency_ms,
-                "error": str(exc),
+                "error": _describe_request_error(exc),
             }
 
         overall = steps.get("cloud_api", {}).get("ok", False)
@@ -190,11 +222,12 @@ def check_vestaboard_connection(
         }
     except requests.exceptions.RequestException as exc:
         latency_ms = round((time.time() - start) * 1000)
+        logger.warning("Vestaboard local API check for %s failed: %s", host, exc)
         steps["api"] = {
             "ok": False,
             "status_code": None,
             "latency_ms": latency_ms,
-            "error": str(exc),
+            "error": _describe_request_error(exc),
         }
 
     overall = all(step.get("ok", False) for step in steps.values())

@@ -5,12 +5,23 @@ import "@testing-library/jest-dom/vitest";
 // en messages are statically imported so lookups resolve synchronously.
 import "../i18n/i18next";
 
-import { cleanup } from "@testing-library/react";
+import { cleanup, configure } from "@testing-library/react";
 import React from "react";
 import { afterAll, afterEach, beforeAll, vi } from "vitest";
 
 import enMessages from "../../messages/en.json";
 import { server } from "./mocks/server";
+
+// Several routes now lazy-load heavy dependencies (TipTap/ProseMirror,
+// CodeMirror, the lucide-react icon barrel — see #1575) via `React.lazy` +
+// `Suspense`. The first `render()` that touches one of those modules in a
+// given worker pays the cost of vitest transforming a large module graph on
+// demand, which can exceed testing-library's default 1000ms `waitFor` /
+// `findBy*` timeout — especially under full-suite parallelism where workers
+// have less CPU time each. Bump the default so async assertions have
+// realistic headroom; this doesn't weaken any assertion, it just gives
+// intentionally-async renders enough time to resolve.
+configure({ asyncUtilTimeout: 5000 });
 
 // Tests mock `@/i18n/translations` with a synchronous English-only
 // implementation so component output is deterministic without
@@ -31,9 +42,23 @@ function getNestedRaw(obj: unknown, path: string): unknown {
   return current;
 }
 
+// `t` must be a STABLE reference across renders, exactly like the real
+// `useTranslations` in `@/i18n/translations` (which memoizes on
+// [language, namespace]). Components legitimately put `t` in `useEffect` /
+// `useMemo` dependency arrays so their text recomputes on a language switch.
+// If this mock handed back a fresh `t` on every render, any such effect that
+// calls `setState` would re-fire every render -> re-render -> re-fire, an
+// infinite loop that OOMs the vitest worker and takes the whole test file
+// down with it (see #1570). The mock is English-only and stateless, so `t`
+// is fully determined by `namespace` and can be built once and cached.
+const intlMockTCache = new Map<string, unknown>();
+
 function makeIntlMock() {
   return {
     useTranslations: (namespace?: string) => {
+      const cacheKey = namespace ?? "";
+      const cached = intlMockTCache.get(cacheKey);
+      if (cached !== undefined) return cached;
       const ns = namespace ? getNestedRaw(enMessages, namespace) : enMessages;
       const lookup = (key: string): unknown => {
         const v = getNestedRaw(ns, key);
@@ -113,6 +138,7 @@ function makeIntlMock() {
         const v = getNestedRaw(ns, key);
         return v === undefined ? key : v;
       };
+      intlMockTCache.set(cacheKey, t);
       return t;
     },
     useLocale: () => "en",
@@ -133,36 +159,37 @@ vi.mock("react-router", async () => {
   // "Cannot destructure property 'basename' of React.useContext(...)" when
   // rendered without a router ancestor. Substitute plain anchor renderers
   // so individual component tests don't need to wrap in `<MemoryRouter>`.
-  const LinkStub = React.forwardRef<
-    HTMLAnchorElement,
-    Record<string, unknown> & { to?: unknown; children?: React.ReactNode }
-  >(function LinkStub({ to, children, replace: _replace, prefetch: _prefetch, viewTransition: _vt, ...rest }, ref) {
+  type AnchorProps = Omit<React.ComponentProps<"a">, "href">;
+  type LinkStubProps = AnchorProps & {
+    to?: unknown;
+    replace?: unknown;
+    prefetch?: unknown;
+    viewTransition?: unknown;
+  };
+  /** NavLink additionally accepts render-prop children/className/style. */
+  type NavLinkStubProps = Omit<AnchorProps, "children" | "className" | "style"> & {
+    to?: unknown;
+    children?: React.ReactNode | ((p: { isActive: boolean }) => React.ReactNode);
+    className?: string | ((p: { isActive: boolean }) => string);
+    style?: React.CSSProperties | ((p: { isActive: boolean }) => React.CSSProperties);
+  };
+
+  const LinkStub = React.forwardRef<HTMLAnchorElement, LinkStubProps>(function LinkStub(
+    { to, children, replace: _replace, prefetch: _prefetch, viewTransition: _vt, ...rest },
+    ref,
+  ) {
     const href = typeof to === "string" ? to : "#";
     return React.createElement("a", { ref, href, ...rest }, children);
   });
-  const NavLinkStub = React.forwardRef<
-    HTMLAnchorElement,
-    Record<string, unknown> & {
-      to?: unknown;
-      children?: React.ReactNode | ((p: { isActive: boolean }) => React.ReactNode);
-    }
-  >(function NavLinkStub({ to, children, className, style, ...rest }, ref) {
+  const NavLinkStub = React.forwardRef<HTMLAnchorElement, NavLinkStubProps>(function NavLinkStub(
+    { to, children, className, style, ...rest },
+    ref,
+  ) {
     const href = typeof to === "string" ? to : "#";
     const isActive = href === "/";
-    const renderedChildren =
-      typeof children === "function"
-        ? (children as (p: { isActive: boolean }) => React.ReactNode)({
-            isActive,
-          })
-        : children;
-    const resolvedClass =
-      typeof className === "function" ? (className as (p: { isActive: boolean }) => string)({ isActive }) : className;
-    const resolvedStyle =
-      typeof style === "function"
-        ? (style as (p: { isActive: boolean }) => React.CSSProperties)({
-            isActive,
-          })
-        : style;
+    const renderedChildren = typeof children === "function" ? children({ isActive }) : children;
+    const resolvedClass = typeof className === "function" ? className({ isActive }) : className;
+    const resolvedStyle = typeof style === "function" ? style({ isActive }) : style;
     return React.createElement(
       "a",
       { ref, href, className: resolvedClass, style: resolvedStyle, ...rest },
@@ -194,7 +221,9 @@ process.emitWarning = (warning: string | Error, ...args: unknown[]) => {
   if (warningString.includes("--localstorage-file")) {
     return; // Suppress this specific warning
   }
-  return originalEmitWarning.call(process, warning, ...(args as [never, never]));
+  // `process.emitWarning` is a four-overload signature; no single typed
+  // `.call` forwards an arbitrary tail of it.
+  return Reflect.apply(originalEmitWarning, process, [warning, ...args]);
 };
 
 // Mock localStorage to avoid jsdom warnings
@@ -281,12 +310,13 @@ if (typeof Range !== "undefined") {
   Range.prototype.getBoundingClientRect = vi.fn(mockDOMRect);
 }
 
-// Mock scrollIntoView and pointer capture (needed by Radix UI)
+// Mock scrollIntoView, pointer capture, and getAnimations (needed by Base UI)
 if (typeof Element !== "undefined") {
   Element.prototype.scrollIntoView = vi.fn();
   Element.prototype.hasPointerCapture = vi.fn(() => false);
   Element.prototype.setPointerCapture = vi.fn();
   Element.prototype.releasePointerCapture = vi.fn();
+  Element.prototype.getAnimations = vi.fn(() => []);
 }
 
 // Mock ResizeObserver for components that use it (e.g., ScrollArea)

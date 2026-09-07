@@ -1,5 +1,6 @@
 """Tests for MQTT command handler."""
 
+from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -7,6 +8,16 @@ import pytest
 from src.mqtt.client import MQTTClient
 from src.mqtt.commands import CommandHandler
 from src.mqtt.config import MQTTConfig
+
+
+@pytest.fixture(autouse=True)
+def _no_display_service():
+    """Command handlers resolve the display service via peek_service (issue
+    #1794). Default it to None so unit tests never touch a DisplayService
+    instance leaked into the process by other tests; tests that need one
+    patch peek_service themselves (their patch wins while active)."""
+    with patch("src.api_server.peek_service", return_value=None):
+        yield
 
 
 @pytest.fixture
@@ -188,8 +199,16 @@ class TestCommandHandlerEventPublishing:
 
     @patch("src.api_server.get_service")
     def test_refresh_display_fires_display_updated_event(self, get_service, handler_with_publisher):
+        """When the refresh actually sent content, a page_refreshed event fires.
+
+        Contract change for issue #1794: the event used to fire
+        unconditionally (even with no service at all); it now reports a real
+        board update, so this test drives a service whose refresh sends.
+        """
         handler, publisher = handler_with_publisher
-        get_service.return_value = None
+        service = MagicMock()
+        service.check_and_send_active_page.return_value = True
+        get_service.return_value = service
         handler.handle("refresh_display", "")
         publisher.publish_event.assert_called_once()
         args = publisher.publish_event.call_args[0]
@@ -199,9 +218,11 @@ class TestCommandHandlerEventPublishing:
 
     @patch("src.api_server.get_service")
     def test_refresh_display_marks_last_update(self, get_service, handler_with_publisher):
-        """Refresh display should call mark_display_updated."""
+        """A refresh that sent content should call mark_display_updated."""
         handler, publisher = handler_with_publisher
-        get_service.return_value = None
+        service = MagicMock()
+        service.check_and_send_active_page.return_value = True
+        get_service.return_value = service
         handler.handle("refresh_display", "")
         publisher.mark_display_updated.assert_called_once()
 
@@ -366,3 +387,1012 @@ class TestCommandHandlerPageNavigation:
         get_page.return_value = page_svc
         handler.handle("next_page", "")
         # Should not raise
+
+
+class TestCommandHandlerPerBoardRouting:
+    """Issue #1244: JSON payloads may name a target board (id or name)."""
+
+    @staticmethod
+    def _settings_with_boards():
+        settings = MagicMock()
+        board_settings = MagicMock()
+        board_settings.boards = [
+            {"id": "b1", "name": "Lobby", "device_type": "flagship", "notes_wide": 1, "notes_tall": 1},
+            {"id": "b2", "name": "Kitchen", "device_type": "note", "notes_wide": 1, "notes_tall": 1},
+        ]
+        settings.get_board_settings.return_value = board_settings
+        settings.get_primary_board_id.return_value = "b1"
+        settings.should_send_to_board.return_value = True
+        settings.is_paused.return_value = False
+        settings.get_transition_settings.return_value = MagicMock(strategy="column", step_interval_ms=100, step_size=1)
+        return settings
+
+    @patch("src.api_server.get_service")
+    @patch("src.settings.service.get_settings_service")
+    @patch("src.config.Config")
+    def test_send_message_routes_to_board_by_name(self, mock_config, get_settings, get_service, handler):
+        mock_config.is_silence_mode_active.return_value = False
+        get_settings.return_value = self._settings_with_boards()
+        service = MagicMock()
+        b2_client = MagicMock()
+        b2_client.send_characters.return_value = (True, True)
+        service.get_board_client.return_value = b2_client
+        get_service.return_value = service
+
+        handler.handle("send_message", '{"message": "HELLO", "board": "Kitchen"}')
+
+        service.get_board_client.assert_called_once_with("b2")
+        b2_client.send_characters.assert_called_once()
+        service.vb_client.send_characters.assert_not_called()
+        # Grid sized to the note board (3x15), not the flagship default
+        board_array = b2_client.send_characters.call_args[0][0]
+        assert len(board_array) == 3
+        assert len(board_array[0]) == 15
+
+    @patch("src.api_server.get_service")
+    @patch("src.settings.service.get_settings_service")
+    @patch("src.config.Config")
+    def test_send_message_unknown_board_skips_send(self, mock_config, get_settings, get_service, handler):
+        mock_config.is_silence_mode_active.return_value = False
+        get_settings.return_value = self._settings_with_boards()
+        service = MagicMock()
+        get_service.return_value = service
+
+        handler.handle("send_message", '{"message": "HELLO", "board_id": "nope"}')
+
+        service.get_board_client.assert_not_called()
+        service.vb_client.send_characters.assert_not_called()
+
+    @patch("src.api_server.get_service")
+    @patch("src.settings.service.get_settings_service")
+    @patch("src.config.Config")
+    def test_send_message_plain_payload_uses_primary_client(self, mock_config, get_settings, get_service, handler):
+        """Back-compat: a plain-text payload still goes to service.vb_client."""
+        mock_config.is_silence_mode_active.return_value = False
+        get_settings.return_value = self._settings_with_boards()
+        service = MagicMock()
+        get_service.return_value = service
+
+        handler.handle("send_message", "Hello World")
+
+        service.vb_client.send_characters.assert_called_once()
+        service.get_board_client.assert_not_called()
+
+    @patch("src.api_server.get_service")
+    @patch("src.settings.service.get_settings_service")
+    def test_blank_board_routes_and_sizes_to_target_board(self, get_settings, get_service, handler):
+        get_settings.return_value = self._settings_with_boards()
+        service = MagicMock()
+        b2_client = MagicMock()
+        service.get_board_client.return_value = b2_client
+        get_service.return_value = service
+
+        handler.handle("blank_board", '{"board_id": "b2"}')
+
+        service.get_board_client.assert_called_once_with("b2")
+        board_array = b2_client.send_characters.call_args[0][0]
+        assert len(board_array) == 3
+        assert len(board_array[0]) == 15
+        assert all(code == 0 for row in board_array for code in row)
+
+    @patch("src.api_server._get_board_client")
+    @patch("src.settings.service.get_settings_service")
+    def test_blank_board_default_sizes_to_primary_board(self, get_settings, get_board, handler):
+        """Without a board ref the blank grid uses the primary board's dims."""
+        settings = self._settings_with_boards()
+        settings.get_board_settings.return_value.boards = [
+            {"id": "b1", "name": "Solo", "device_type": "note", "notes_wide": 1, "notes_tall": 1},
+        ]
+        get_settings.return_value = settings
+        board_client = MagicMock()
+        get_board.return_value = board_client
+
+        handler.handle("blank_board", "")
+
+        board_array = board_client.send_characters.call_args[0][0]
+        assert len(board_array) == 3
+        assert len(board_array[0]) == 15
+
+    @patch("src.settings.service.get_settings_service")
+    @patch("src.api_server.get_service")
+    def test_refresh_display_with_board_id_drives_single_board(self, get_service, get_settings, handler):
+        get_settings.return_value = self._settings_with_boards()
+        service = MagicMock()
+        rt = MagicMock()
+        service.get_runtime.return_value = rt
+        get_service.return_value = service
+
+        handler.handle("refresh_display", '{"board_id": "b2"}')
+
+        service.get_runtime.assert_called_once_with("b2")
+        service.check_and_send_for_board.assert_called_once()
+        args, kwargs = service.check_and_send_for_board.call_args
+        assert args[0] == "b2"
+        assert args[1] is rt
+        assert kwargs["is_primary"] is False
+        assert kwargs["board"]["id"] == "b2"
+        service.check_and_send_active_page.assert_not_called()
+
+    @patch("src.settings.service.get_settings_service")
+    @patch("src.api_server.get_service")
+    def test_refresh_display_plain_payload_refreshes_all(self, get_service, get_settings, handler):
+        """Back-compat: no board ref keeps the legacy all-boards refresh."""
+        get_settings.return_value = self._settings_with_boards()
+        service = MagicMock()
+        get_service.return_value = service
+
+        handler.handle("refresh_display", "PRESS")
+
+        service.check_and_send_active_page.assert_called_once()
+        service.check_and_send_for_board.assert_not_called()
+
+    @patch("src.settings.service.get_settings_service")
+    @patch("src.pages.service.get_page_service")
+    def test_active_page_json_targets_board(self, get_page, get_settings, handler):
+        page_svc = MagicMock()
+        page = MagicMock()
+        page.name = "Weather"
+        page.id = "page-weather-id"
+        page_svc.list_pages.return_value = [page]
+        get_page.return_value = page_svc
+        settings = self._settings_with_boards()
+        get_settings.return_value = settings
+
+        handler.handle("active_page", '{"page": "Weather", "board": "Kitchen"}')
+
+        settings.set_active_page_id.assert_called_once_with("page-weather-id", board_id="b2")
+
+    @patch("src.settings.service.get_settings_service")
+    @patch("src.pages.service.get_page_service")
+    def test_active_page_plain_payload_unchanged(self, get_page, get_settings, handler):
+        """Back-compat: a plain page-name payload keeps the single-arg setter call."""
+        page_svc = MagicMock()
+        page = MagicMock()
+        page.name = "Weather"
+        page.id = "page-weather-id"
+        page_svc.list_pages.return_value = [page]
+        get_page.return_value = page_svc
+        settings = self._settings_with_boards()
+        get_settings.return_value = settings
+
+        handler.handle("active_page", "Weather")
+
+        settings.set_active_page_id.assert_called_once_with("page-weather-id")
+
+
+def _row_text(row):
+    """Decode a board row of character codes back to letters/spaces."""
+    return "".join(chr(ord("A") + code - 1) if 1 <= code <= 26 else " " for code in row).rstrip()
+
+
+class TestCommandHandlerSendMessageWrapping:
+    """Issue #1793: send_message must use the target board's real geometry
+    and word-wrap long text instead of running off the first row."""
+
+    @staticmethod
+    def _settings_with_note_primary():
+        settings = MagicMock()
+        board_settings = MagicMock()
+        board_settings.boards = [
+            {"id": "b1", "name": "Desk", "device_type": "note", "notes_wide": 1, "notes_tall": 1},
+        ]
+        settings.get_board_settings.return_value = board_settings
+        settings.get_primary_board_id.return_value = "b1"
+        settings.should_send_to_board.return_value = True
+        settings.is_paused.return_value = False
+        settings.get_transition_settings.return_value = MagicMock(strategy="column", step_interval_ms=100, step_size=1)
+        return settings
+
+    def _send(self, handler, get_settings, get_service, mock_config, payload):
+        mock_config.is_silence_mode_active.return_value = False
+        get_settings.return_value = self._settings_with_note_primary()
+        service = MagicMock()
+        get_service.return_value = service
+        handler.handle("send_message", payload)
+        service.vb_client.send_characters.assert_called_once()
+        return service.vb_client.send_characters.call_args[0][0]
+
+    @patch("src.api_server.get_service")
+    @patch("src.settings.service.get_settings_service")
+    @patch("src.config.Config")
+    def test_plain_payload_sized_to_primary_note_board(self, mock_config, get_settings, get_service, handler):
+        """A plain-string payload gets a 3x15 grid on a Note, not flagship 6x22."""
+        board_array = self._send(handler, get_settings, get_service, mock_config, "HELLO")
+        assert len(board_array) == 3
+        assert len(board_array[0]) == 15
+
+    @patch("src.api_server.get_service")
+    @patch("src.settings.service.get_settings_service")
+    @patch("src.config.Config")
+    def test_long_message_wraps_at_word_boundaries(self, mock_config, get_settings, get_service, handler):
+        board_array = self._send(handler, get_settings, get_service, mock_config, "TACO TUESDAY PARTY TIME")
+        assert _row_text(board_array[0]) == "TACO TUESDAY"
+        assert _row_text(board_array[1]) == "PARTY TIME"
+
+    @patch("src.api_server.get_service")
+    @patch("src.settings.service.get_settings_service")
+    @patch("src.config.Config")
+    def test_explicit_newline_breaks_line(self, mock_config, get_settings, get_service, handler):
+        board_array = self._send(handler, get_settings, get_service, mock_config, "HI\nTHERE")
+        assert _row_text(board_array[0]) == "HI"
+        assert _row_text(board_array[1]) == "THERE"
+
+    @patch("src.api_server.get_service")
+    @patch("src.settings.service.get_settings_service")
+    @patch("src.config.Config")
+    def test_literal_backslash_n_breaks_line(self, mock_config, get_settings, get_service, handler):
+        """The two-character sequence backslash-n acts as a line break so
+        single-line clients (HA text entities) can request one."""
+        board_array = self._send(handler, get_settings, get_service, mock_config, "HI\\nTHERE")
+        assert _row_text(board_array[0]) == "HI"
+        assert _row_text(board_array[1]) == "THERE"
+
+    @patch("src.api_server.get_service")
+    @patch("src.settings.service.get_settings_service")
+    @patch("src.config.Config")
+    def test_text_beyond_rows_truncates_predictably(self, mock_config, get_settings, get_service, handler):
+        board_array = self._send(
+            handler, get_settings, get_service, mock_config, "AAAA BBBB CCCC DDDD EEEE FFFF GGGG HHHH IIII JJJJ"
+        )
+        assert len(board_array) == 3
+        assert _row_text(board_array[0]) == "AAAA BBBB CCCC"
+        assert _row_text(board_array[1]) == "DDDD EEEE FFFF"
+        assert _row_text(board_array[2]) == "GGGG HHHH IIII"
+
+    @patch("src.api_server.get_service")
+    @patch("src.settings.service.get_settings_service")
+    @patch("src.config.Config")
+    def test_json_payload_to_named_board_also_wraps(self, mock_config, get_settings, get_service, handler):
+        """The board-targeted JSON path wraps too, at that board's width."""
+        mock_config.is_silence_mode_active.return_value = False
+        get_settings.return_value = self._settings_with_note_primary()
+        service = MagicMock()
+        b1_client = MagicMock()
+        service.get_board_client.return_value = b1_client
+        get_service.return_value = service
+        handler.handle("send_message", '{"message": "TACO TUESDAY PARTY TIME", "board": "Desk"}')
+        board_array = b1_client.send_characters.call_args[0][0]
+        assert _row_text(board_array[0]) == "TACO TUESDAY"
+        assert _row_text(board_array[1]) == "PARTY TIME"
+
+    @patch("src.api_server.get_service")
+    @patch("src.settings.service.get_settings_service")
+    @patch("src.config.Config")
+    def test_colour_marker_costs_one_tile_when_wrapping(self, mock_config, get_settings, get_service, handler):
+        """Wrapping counts flaps: "{red} TACO TUESDAY" is 14 tiles and fits
+        one 15-wide Note row even though it is 18 characters."""
+        board_array = self._send(handler, get_settings, get_service, mock_config, "{red} TACO TUESDAY")
+        assert board_array[0][0] == 63  # red tile
+        assert _row_text(board_array[0]) == "  TACO TUESDAY"
+        assert _row_text(board_array[1]) == ""
+
+    @patch("src.api_server.get_service")
+    @patch("src.settings.service.get_settings_service")
+    @patch("src.config.Config")
+    def test_escaped_backslash_n_stays_literal(self, mock_config, get_settings, get_service, handler):
+        """``\\\\n`` is the escape hatch for text that really contains a
+        backslash before an N (issue #1793 review)."""
+        board_array = self._send(handler, get_settings, get_service, mock_config, "C:\\\\new")
+        # One row: "C:" + an unmappable backslash (space) + "NEW" — the N survives.
+        assert _row_text(board_array[0]) == "C  NEW"
+        assert _row_text(board_array[1]) == ""
+
+    @patch("src.api_server.get_service")
+    @patch("src.settings.service.get_settings_service")
+    @patch("src.config.Config")
+    def test_json_payload_does_not_unescape_backslash_n(self, mock_config, get_settings, get_service, handler):
+        """JSON payloads can already carry a real newline, so the escape
+        substitution is confined to the plain-string (HA text entity) path."""
+        mock_config.is_silence_mode_active.return_value = False
+        get_settings.return_value = self._settings_with_note_primary()
+        service = MagicMock()
+        b1_client = MagicMock()
+        service.get_board_client.return_value = b1_client
+        get_service.return_value = service
+        # Raw MQTT payload: {"message": "HI\\nTHERE", "board": "Desk"}
+        handler.handle("send_message", '{"message": "HI\\\\nTHERE", "board": "Desk"}')
+        board_array = b1_client.send_characters.call_args[0][0]
+        assert _row_text(board_array[0]) == "HI NTHERE"
+        assert _row_text(board_array[1]) == ""
+
+    @patch("src.api_server.get_service")
+    @patch("src.settings.service.get_settings_service")
+    @patch("src.config.Config")
+    def test_long_word_hard_breaks_instead_of_vanishing(self, mock_config, get_settings, get_service, handler):
+        board_array = self._send(handler, get_settings, get_service, mock_config, "SUPERCALIFRAGILISTIC")
+        assert _row_text(board_array[0]) == "SUPERCALIFRAGIL"
+        assert _row_text(board_array[1]) == "ISTIC"
+
+
+class TestResolveBoardByName:
+    """``_resolve_board`` matches a board ref by id first, then by display name.
+
+    Board names became user-editable in Settings → Boards (issue #1792), so a
+    rename silently breaks any automation that targets a board by name. Nothing
+    can migrate those payloads for us, so resolving by name warns.
+    """
+
+    @staticmethod
+    def _settings(boards):
+        settings = MagicMock()
+        settings.get_board_settings.return_value = MagicMock(boards=boards)
+        return settings
+
+    def test_name_match_still_resolves(self):
+        boards = [{"id": "b1", "name": "Kitchen"}, {"id": "b2", "name": "Office"}]
+        with patch("src.settings.service.get_settings_service", return_value=self._settings(boards)):
+            assert CommandHandler._resolve_board("Office")[0] == "b2"
+
+    def test_name_match_warns_that_a_rename_will_break_it(self, caplog):
+        boards = [{"id": "b1", "name": "Kitchen"}]
+        with patch("src.settings.service.get_settings_service", return_value=self._settings(boards)):
+            with caplog.at_level("WARNING"):
+                CommandHandler._resolve_board("Kitchen")
+        messages = [r.getMessage() for r in caplog.records]
+        assert any("renaming this board will break it" in m for m in messages), messages
+        # The warning must name the stable id the user should switch to.
+        assert any("'b1'" in m for m in messages), messages
+
+    def test_id_match_does_not_warn(self, caplog):
+        boards = [{"id": "b1", "name": "Kitchen"}]
+        with patch("src.settings.service.get_settings_service", return_value=self._settings(boards)):
+            with caplog.at_level("WARNING"):
+                assert CommandHandler._resolve_board("b1")[0] == "b1"
+        assert caplog.records == []
+
+
+def _page_service_with(name="Weather", page_id="page-weather-id"):
+    """Page service mock exposing one named page."""
+    page_svc = MagicMock()
+    page = MagicMock()
+    page.name = name
+    page.id = page_id
+    page_svc.list_pages.return_value = [page]
+    return page_svc
+
+
+class TestActivePageRestore:
+    """Issue #1794: (re)selecting a page over MQTT must invalidate dedupe
+    state and push the page immediately, so re-selecting the currently-set
+    page restores it after an out-of-band board write."""
+
+    @patch("src.api_server.peek_service")
+    @patch("src.settings.service.get_settings_service")
+    @patch("src.pages.service.get_page_service")
+    def test_active_page_invalidates_and_sends_immediately(self, get_page, get_settings, peek, handler):
+        get_page.return_value = _page_service_with()
+        settings = MagicMock()
+        settings.get_primary_board_id.return_value = "b1"
+        get_settings.return_value = settings
+        service = MagicMock()
+        peek.return_value = service
+
+        handler.handle("active_page", "Weather")
+
+        settings.set_active_page_id.assert_called_once_with("page-weather-id")
+        service.invalidate_board_content.assert_called_once_with("b1")
+        service.check_and_send_active_page.assert_called_once()
+
+    @patch("src.api_server.peek_service")
+    @patch("src.settings.service.get_settings_service")
+    @patch("src.pages.service.get_page_service")
+    def test_active_page_board_targeted_sends_to_that_board(self, get_page, get_settings, peek, handler):
+        get_page.return_value = _page_service_with()
+        settings = TestCommandHandlerPerBoardRouting._settings_with_boards()
+        get_settings.return_value = settings
+        service = MagicMock()
+        rt = MagicMock()
+        service.get_runtime.return_value = rt
+        peek.return_value = service
+
+        handler.handle("active_page", '{"page": "Weather", "board": "Kitchen"}')
+
+        service.invalidate_board_content.assert_called_once_with("b2")
+        service.check_and_send_for_board.assert_called_once()
+        args, kwargs = service.check_and_send_for_board.call_args
+        assert args[0] == "b2"
+        assert args[1] is rt
+        assert kwargs["is_primary"] is False
+        service.check_and_send_active_page.assert_not_called()
+
+    @patch("src.api_server.peek_service")
+    @patch("src.settings.service.get_settings_service")
+    @patch("src.pages.service.get_page_service")
+    def test_active_page_none_option_clears_a_secondary_board(self, get_page, get_settings, peek, handler):
+        """Secondary boards go dark when no page is set, so the no-page option
+        is real there."""
+        page_svc = MagicMock()
+        page_svc.list_pages.return_value = []
+        get_page.return_value = page_svc
+        settings = TestCommandHandlerPerBoardRouting._settings_with_boards()
+        get_settings.return_value = settings
+        peek.return_value = None
+
+        handler.handle("active_page", '{"page": "None", "board": "Kitchen"}')
+
+        settings.set_active_page_id.assert_called_once_with(None, board_id="b2")
+
+    @patch("src.api_server.peek_service")
+    @patch("src.settings.service.get_settings_service")
+    @patch("src.pages.service.get_page_service")
+    def test_active_page_none_option_is_refused_on_the_primary_board(self, get_page, get_settings, peek, handler):
+        """The primary board never goes dark — check_and_send_for_board
+        re-defaults it to pages[0] and persists that within one polling
+        interval, so accepting the selection here would only make the HA
+        select bounce back 15s later (issue #1794 review).
+        """
+        page_svc = MagicMock()
+        page_svc.list_pages.return_value = []
+        get_page.return_value = page_svc
+        settings = MagicMock()
+        settings.get_primary_board_id.return_value = "b1"
+        get_settings.return_value = settings
+        peek.return_value = None
+
+        handler.handle("active_page", "None")
+
+        settings.set_active_page_id.assert_not_called()
+
+    @patch("src.api_server.peek_service")
+    @patch("src.settings.service.get_settings_service")
+    @patch("src.pages.service.get_page_service")
+    def test_active_page_none_option_republishes_so_the_select_snaps_back(
+        self, get_page, get_settings, peek, handler_with_publisher
+    ):
+        """Refusing the selection must not leave HA showing the wrong state."""
+        handler, publisher = handler_with_publisher
+        page_svc = MagicMock()
+        page_svc.list_pages.return_value = []
+        get_page.return_value = page_svc
+        settings = MagicMock()
+        settings.get_primary_board_id.return_value = "b1"
+        get_settings.return_value = settings
+        peek.return_value = None
+
+        handler.handle("active_page", "None")
+
+        publisher.gather_and_publish.assert_called()
+
+    @patch("src.api_server.peek_service")
+    @patch("src.settings.service.get_settings_service")
+    @patch("src.pages.service.get_page_service")
+    def test_a_real_page_named_none_still_wins(self, get_page, get_settings, peek, handler):
+        get_page.return_value = _page_service_with(name="None", page_id="page-none-id")
+        settings = MagicMock()
+        settings.get_primary_board_id.return_value = "b1"
+        get_settings.return_value = settings
+        peek.return_value = None
+
+        handler.handle("active_page", "None")
+
+        settings.set_active_page_id.assert_called_once_with("page-none-id")
+
+    @patch("src.api_server.peek_service")
+    @patch("src.settings.service.get_settings_service")
+    @patch("src.pages.service.get_page_service")
+    def test_active_page_no_service_still_persists_selection(self, get_page, get_settings, peek, handler):
+        """Without a display service the selection is persisted and no send is attempted."""
+        get_page.return_value = _page_service_with()
+        settings = MagicMock()
+        get_settings.return_value = settings
+        peek.return_value = None
+
+        handler.handle("active_page", "Weather")
+
+        settings.set_active_page_id.assert_called_once_with("page-weather-id")
+
+
+class TestRefreshDisplayForce:
+    """Issue #1794: refresh_display is a force refresh — dedupe caches are
+    invalidated first, and display_updated only fires when content was sent."""
+
+    @patch("src.api_server.get_service")
+    def test_refresh_display_invalidates_all_boards_first(self, get_service, handler):
+        service = MagicMock()
+        service.check_and_send_active_page.return_value = True
+        get_service.return_value = service
+
+        handler.handle("refresh_display", "PRESS")
+
+        service.invalidate_all_board_content.assert_called_once()
+        service.check_and_send_active_page.assert_called_once()
+
+    @patch("src.settings.service.get_settings_service")
+    @patch("src.api_server.get_service")
+    def test_refresh_display_board_targeted_invalidates_that_board(self, get_service, get_settings, handler):
+        get_settings.return_value = TestCommandHandlerPerBoardRouting._settings_with_boards()
+        service = MagicMock()
+        service.get_runtime.return_value = MagicMock()
+        service.check_and_send_for_board.return_value = True
+        get_service.return_value = service
+
+        handler.handle("refresh_display", '{"board_id": "b2"}')
+
+        service.invalidate_board_content.assert_called_once_with("b2")
+        service.check_and_send_for_board.assert_called_once()
+
+    @patch("src.api_server.get_service")
+    def test_refresh_display_no_event_when_nothing_sent(self, get_service, handler_with_publisher):
+        handler, publisher = handler_with_publisher
+        service = MagicMock()
+        service.check_and_send_active_page.return_value = False
+        get_service.return_value = service
+
+        handler.handle("refresh_display", "")
+
+        publisher.publish_event.assert_not_called()
+        publisher.mark_display_updated.assert_not_called()
+
+    @patch("src.api_server.get_service")
+    def test_refresh_display_no_service_publishes_no_event(self, get_service, handler_with_publisher):
+        handler, publisher = handler_with_publisher
+        get_service.return_value = None
+
+        handler.handle("refresh_display", "")
+
+        publisher.publish_event.assert_not_called()
+        publisher.mark_display_updated.assert_not_called()
+
+
+class TestOutOfBandWritesSurviveTheDisplayLoop:
+    """Issue #1794: MQTT board writes must NOT invalidate the display loop's
+    dedupe state. Doing so made every message self-destruct on the next
+    engine tick (<=15s). Restoring the active page is a pull — Refresh
+    Display, re-selecting a page, or a real content change."""
+
+    @patch("src.api_server.peek_service")
+    @patch("src.settings.service.get_settings_service")
+    @patch("src.text_to_board.text_to_board_array")
+    @patch("src.api_server.get_service")
+    @patch("src.config.Config")
+    def test_send_message_leaves_the_dedupe_state_alone(
+        self, mock_config, get_service, text_to_board, get_settings, peek, handler
+    ):
+        mock_config.is_silence_mode_active.return_value = False
+        service = MagicMock()
+        service.vb_client = MagicMock()
+        get_service.return_value = service
+        peek.return_value = service
+        text_to_board.return_value = [[0] * 22 for _ in range(6)]
+        settings = MagicMock()
+        settings.get_primary_board_id.return_value = "b1"
+        settings.is_paused.return_value = False
+        settings.get_transition_settings.return_value = MagicMock(strategy="column", step_interval_ms=100, step_size=1)
+        get_settings.return_value = settings
+
+        handler.handle("send_message", "Hello World")
+
+        service.vb_client.send_characters.assert_called_once()
+        service.invalidate_board_content.assert_not_called()
+        service.invalidate_all_board_content.assert_not_called()
+
+    @patch("src.api_server.peek_service")
+    @patch("src.api_server.get_service")
+    @patch("src.settings.service.get_settings_service")
+    @patch("src.config.Config")
+    def test_send_message_board_targeted_leaves_the_dedupe_state_alone(
+        self, mock_config, get_settings, get_service, peek, handler
+    ):
+        mock_config.is_silence_mode_active.return_value = False
+        get_settings.return_value = TestCommandHandlerPerBoardRouting._settings_with_boards()
+        service = MagicMock()
+        service.get_board_client.return_value = MagicMock()
+        get_service.return_value = service
+        peek.return_value = service
+
+        handler.handle("send_message", '{"message": "HELLO", "board": "Kitchen"}')
+
+        service.invalidate_board_content.assert_not_called()
+
+    @patch("src.api_server.peek_service")
+    @patch("src.settings.service.get_settings_service")
+    @patch("src.api_server._get_board_client")
+    def test_blank_board_leaves_the_dedupe_state_alone(self, get_board, get_settings, peek, handler):
+        board_client = MagicMock()
+        get_board.return_value = board_client
+        settings = MagicMock()
+        settings.should_send_to_board.return_value = True
+        settings.is_paused.return_value = False
+        settings.get_primary_board_id.return_value = "b1"
+        get_settings.return_value = settings
+        service = MagicMock()
+        peek.return_value = service
+
+        handler.handle("blank_board", "")
+
+        board_client.send_characters.assert_called_once()
+        service.invalidate_board_content.assert_not_called()
+
+
+class TestDisplayServiceGuardIntegration:
+    """Issue #1794: drive MQTT commands against a REAL DisplayService so the
+    content-dedupe guard in check_and_send_for_board is actually exercised
+    (the unit tests above mock the service, which bypasses the guard)."""
+
+    @staticmethod
+    def _make_env(pages=None, active_page_id="pA"):
+        from src.main import BoardRuntime, DisplayService
+
+        board = {
+            "id": "b1",
+            "name": "Lobby",
+            "device_type": "flagship",
+            "enabled": True,
+            "notes_wide": 1,
+            "notes_tall": 1,
+        }
+        svc = DisplayService()
+        client = MagicMock()
+        client.render.return_value = (True, True)
+        client.send_characters.return_value = (True, True)
+        svc.runtimes = {"b1": BoardRuntime(client=client, board_id="b1")}
+        svc._primary_board_id = "b1"
+
+        settings = MagicMock()
+        settings.get_board_settings.return_value = SimpleNamespace(boards=[board])
+        settings.get_primary_board_id.return_value = "b1"
+        settings.is_paused.return_value = False
+        settings.is_schedule_enabled.return_value = False
+        settings.get_active_page_id.return_value = active_page_id
+        settings.get_transition_settings.return_value = SimpleNamespace(
+            strategy=None, step_interval_ms=None, step_size=None
+        )
+        settings.consume_temporary_override.return_value = None
+        settings.should_send_to_board.return_value = True
+
+        pages = pages if pages is not None else {"pA": ("Alpha", "ALPHA CONTENT")}
+        page_objs = [
+            SimpleNamespace(
+                id=pid,
+                name=name,
+                device_type="flagship",
+                notes_wide=1,
+                notes_tall=1,
+                transition_strategy=None,
+                transition_interval_ms=None,
+                transition_step_size=None,
+            )
+            for pid, (name, _content) in pages.items()
+        ]
+        page_svc = MagicMock()
+        page_svc.list_pages.return_value = page_objs
+        page_svc.get_page.side_effect = lambda pid: next((p for p in page_objs if p.id == pid), None)
+        page_svc.preview_page.side_effect = lambda pid, force_refresh=False, **_kwargs: (
+            SimpleNamespace(available=True, formatted=pages[pid][1], error=None)
+            if pid in pages
+            else SimpleNamespace(available=False, formatted="", error="missing")
+        )
+        return svc, client, settings, page_svc
+
+    @staticmethod
+    def _env_patches(svc, settings, page_svc):
+        from contextlib import ExitStack
+
+        stack = ExitStack()
+        stack.enter_context(patch("src.main.get_settings_service", return_value=settings))
+        stack.enter_context(patch("src.main.get_page_service", return_value=page_svc))
+        stack.enter_context(patch("src.main.get_schedule_service", return_value=MagicMock()))
+        stack.enter_context(patch("src.main.get_collection_service", return_value=MagicMock()))
+        stack.enter_context(patch("src.settings.service.get_settings_service", return_value=settings))
+        stack.enter_context(patch("src.pages.service.get_page_service", return_value=page_svc))
+        stack.enter_context(patch("src.api_server.get_service", return_value=svc))
+        stack.enter_context(patch("src.api_server.peek_service", return_value=svc))
+        cfg_main = stack.enter_context(patch("src.main.Config"))
+        cfg_main.is_silence_mode_active.return_value = False
+        cfg = stack.enter_context(patch("src.config.Config"))
+        cfg.is_silence_mode_active.return_value = False
+        stack.enter_context(patch.object(svc, "_check_trigger_override", return_value=None))
+        stack.enter_context(patch.object(svc, "request_board_refresh"))
+        return stack
+
+    def test_reselecting_current_page_restores_it_after_out_of_band_write(self, handler):
+        svc, client, settings, page_svc = self._make_env()
+        with self._env_patches(svc, settings, page_svc):
+            assert svc.check_and_send_active_page() is True
+            assert client.render.call_count == 1
+            # Second tick dedupes: content and page id unchanged.
+            assert svc.check_and_send_active_page() is False
+            assert client.render.call_count == 1
+
+            # Out-of-band write: MQTT custom message replaces the page frame.
+            handler.handle("send_message", "HELLO")
+            client.send_characters.assert_called_once()
+
+            # Re-selecting the SAME page must re-send it to the board.
+            handler.handle("active_page", "Alpha")
+            assert client.render.call_count == 2
+
+    def test_refresh_display_breaks_the_content_dedupe_guard(self, handler_with_publisher):
+        """The force refresh itself must drop the dedupe state.
+
+        The previous version of this test let its own ``send_message`` step do
+        the invalidating, so it passed with every ``_invalidate_service_boards``
+        call deleted. Here nothing else touches the caches: the second tick is
+        asserted to dedupe first, so the third render can only come from
+        refresh_display invalidating.
+        """
+        handler, publisher = handler_with_publisher
+        svc, client, settings, page_svc = self._make_env()
+        with self._env_patches(svc, settings, page_svc):
+            assert svc.check_and_send_active_page() is True
+            assert client.render.call_count == 1
+            # Guard is armed: unchanged content is skipped.
+            assert svc.check_and_send_active_page() is False
+            assert client.render.call_count == 1
+            publisher.reset_mock()
+
+            handler.handle("refresh_display", "PRESS")
+
+            assert client.render.call_count == 2, "refresh_display did not break the dedupe guard"
+            refreshed = [c for c in publisher.publish_event.call_args_list if c[0][1] == "page_refreshed"]
+            assert len(refreshed) == 1
+
+    def test_refresh_display_restores_the_page_after_an_out_of_band_write(self, handler_with_publisher):
+        """End to end: a custom message is on the board, Refresh Display puts
+        the active page back."""
+        handler, publisher = handler_with_publisher
+        svc, client, settings, page_svc = self._make_env()
+        with self._env_patches(svc, settings, page_svc):
+            assert svc.check_and_send_active_page() is True
+            handler.handle("send_message", "HELLO")
+            client.send_characters.assert_called_once()
+            publisher.reset_mock()
+
+            handler.handle("refresh_display", "PRESS")
+
+            assert client.render.call_count == 2
+            refreshed = [c for c in publisher.publish_event.call_args_list if c[0][1] == "page_refreshed"]
+            assert len(refreshed) == 1
+
+    def test_engine_tick_does_not_overwrite_an_out_of_band_message(self, handler):
+        """An MQTT/HA message must survive the next display-loop tick.
+
+        Invalidating the dedupe cache on the *write* made the message
+        self-destruct within one polling interval (15s by default), which
+        breaks the "Welcome Home" automation in our own HA docs.
+        """
+        svc, client, settings, page_svc = self._make_env()
+        with self._env_patches(svc, settings, page_svc):
+            assert svc.check_and_send_active_page() is True
+            handler.handle("send_message", "HELLO")
+            client.send_characters.assert_called_once()
+
+            resent = svc.check_and_send_active_page()
+
+            assert resent is False, "the next display-loop tick re-sent the active page over the user's message"
+            assert client.render.call_count == 1
+
+    def test_engine_tick_does_not_relight_a_blanked_board(self, handler):
+        """ "Blank the Board at Bedtime" must stay blank, not re-light in 15s."""
+        svc, client, settings, page_svc = self._make_env()
+        with self._env_patches(svc, settings, page_svc):
+            assert svc.check_and_send_active_page() is True
+            with patch("src.api_server._get_board_client", return_value=client):
+                handler.handle("blank_board", "")
+            assert client.send_characters.called
+
+            resent = svc.check_and_send_active_page()
+
+            assert resent is False, "the next display-loop tick re-lit the board after a blank"
+            assert client.render.call_count == 1
+
+    def test_refresh_display_without_send_publishes_no_event(self, handler_with_publisher):
+        handler, publisher = handler_with_publisher
+        svc, client, settings, page_svc = self._make_env(pages={}, active_page_id=None)
+        with self._env_patches(svc, settings, page_svc):
+            handler.handle("refresh_display", "PRESS")
+
+            client.render.assert_not_called()
+            publisher.publish_event.assert_not_called()
+            publisher.mark_display_updated.assert_not_called()
+
+
+class TestOutOfBandFlagMarking:
+    """Issue #1831: the MQTT board-write commands must record that the board
+    now shows out-of-band content, so the state publisher stops reporting the
+    configured page while a manual message/blank is on the board."""
+
+    @patch("src.api_server.peek_service")
+    @patch("src.settings.service.get_settings_service")
+    @patch("src.text_to_board.text_to_board_array")
+    @patch("src.api_server.get_service")
+    @patch("src.config.Config")
+    def test_send_message_marks_the_board_as_out_of_band(
+        self, mock_config, get_service, text_to_board, get_settings, peek, handler
+    ):
+        mock_config.is_silence_mode_active.return_value = False
+        service = MagicMock()
+        service.vb_client = MagicMock()
+        service.vb_client.send_characters.return_value = (True, True)
+        get_service.return_value = service
+        peek.return_value = service
+        text_to_board.return_value = [[0] * 22 for _ in range(6)]
+        settings = MagicMock()
+        settings.get_primary_board_id.return_value = "b1"
+        settings.is_paused.return_value = False
+        settings.get_transition_settings.return_value = MagicMock(strategy="column", step_interval_ms=100, step_size=1)
+        get_settings.return_value = settings
+
+        handler.handle("send_message", "Hello World")
+
+        service.mark_showing_out_of_band.assert_called_once_with(None)
+
+    @patch("src.api_server.peek_service")
+    @patch("src.api_server.get_service")
+    @patch("src.settings.service.get_settings_service")
+    @patch("src.config.Config")
+    def test_send_message_board_targeted_marks_that_board(self, mock_config, get_settings, get_service, peek, handler):
+        mock_config.is_silence_mode_active.return_value = False
+        get_settings.return_value = TestCommandHandlerPerBoardRouting._settings_with_boards()
+        service = MagicMock()
+        board_client = MagicMock()
+        board_client.send_characters.return_value = (True, True)
+        service.get_board_client.return_value = board_client
+        get_service.return_value = service
+        peek.return_value = service
+
+        handler.handle("send_message", '{"message": "HELLO", "board": "Kitchen"}')
+
+        service.mark_showing_out_of_band.assert_called_once_with("b2")
+
+    @patch("src.api_server.peek_service")
+    @patch("src.settings.service.get_settings_service")
+    @patch("src.text_to_board.text_to_board_array")
+    @patch("src.api_server.get_service")
+    @patch("src.config.Config")
+    def test_failed_send_message_does_not_mark_out_of_band(
+        self, mock_config, get_service, text_to_board, get_settings, peek, handler
+    ):
+        mock_config.is_silence_mode_active.return_value = False
+        service = MagicMock()
+        service.vb_client = MagicMock()
+        service.vb_client.send_characters.return_value = (False, False)
+        get_service.return_value = service
+        peek.return_value = service
+        text_to_board.return_value = [[0] * 22 for _ in range(6)]
+        settings = MagicMock()
+        settings.get_primary_board_id.return_value = "b1"
+        settings.is_paused.return_value = False
+        settings.get_transition_settings.return_value = MagicMock(strategy="column", step_interval_ms=100, step_size=1)
+        get_settings.return_value = settings
+
+        handler.handle("send_message", "Hello World")
+
+        service.mark_showing_out_of_band.assert_not_called()
+
+    @patch("src.api_server.peek_service")
+    @patch("src.settings.service.get_settings_service")
+    @patch("src.api_server._get_board_client")
+    def test_blank_board_marks_the_board_as_out_of_band(self, get_board, get_settings, peek, handler):
+        board_client = MagicMock()
+        board_client.send_characters.return_value = (True, True)
+        get_board.return_value = board_client
+        settings = MagicMock()
+        settings.should_send_to_board.return_value = True
+        settings.is_paused.return_value = False
+        settings.get_primary_board_id.return_value = "b1"
+        get_settings.return_value = settings
+        service = MagicMock()
+        peek.return_value = service
+
+        handler.handle("blank_board", "")
+
+        service.mark_showing_out_of_band.assert_called_once_with(None)
+
+    @patch("src.api_server.peek_service")
+    @patch("src.settings.service.get_settings_service")
+    @patch("src.api_server._get_board_client")
+    def test_failed_blank_board_does_not_mark_out_of_band(self, get_board, get_settings, peek, handler):
+        board_client = MagicMock()
+        board_client.send_characters.return_value = (False, False)
+        get_board.return_value = board_client
+        settings = MagicMock()
+        settings.should_send_to_board.return_value = True
+        settings.is_paused.return_value = False
+        settings.get_primary_board_id.return_value = "b1"
+        get_settings.return_value = settings
+        service = MagicMock()
+        peek.return_value = service
+
+        handler.handle("blank_board", "")
+
+        service.mark_showing_out_of_band.assert_not_called()
+
+
+class TestOutOfBandStateReporting:
+    """Issue #1831: while a board shows out-of-band content, the Active Page
+    select / Current Page sensor must report the no-page option instead of
+    the configured page. Drives a REAL DisplayService and a REAL
+    StatePublisher so the flag's full lifecycle is exercised, not mocked."""
+
+    @staticmethod
+    def _publisher(mock_client):
+        from src.mqtt.state import StatePublisher
+
+        return StatePublisher(mock_client)
+
+    @staticmethod
+    def _published(mock_client, object_id):
+        """The last value published for an object_id, or None."""
+        values = [c[0][1] for c in mock_client.publish_state.call_args_list if c[0][0] == object_id]
+        return values[-1] if values else None
+
+    def test_out_of_band_write_flips_published_state_to_the_none_option(self, handler, mock_client):
+        from src.mqtt.discovery import NO_ACTIVE_PAGE_OPTION
+
+        env = TestDisplayServiceGuardIntegration
+        svc, _client, settings, page_svc = env._make_env()
+        pub = self._publisher(mock_client)
+        with env._env_patches(svc, settings, page_svc):
+            assert svc.check_and_send_active_page() is True
+            pub.gather_and_publish()
+            assert self._published(mock_client, "active_page") == "Alpha"
+
+            handler.handle("send_message", "HELLO")
+
+            pub.gather_and_publish()
+            assert self._published(mock_client, "active_page") == NO_ACTIVE_PAGE_OPTION
+            assert self._published(mock_client, "current_page") == NO_ACTIVE_PAGE_OPTION
+
+    def test_reselecting_the_page_flips_state_back_and_resends(self, handler, mock_client):
+        from src.mqtt.discovery import NO_ACTIVE_PAGE_OPTION
+
+        env = TestDisplayServiceGuardIntegration
+        svc, client, settings, page_svc = env._make_env()
+        pub = self._publisher(mock_client)
+        with env._env_patches(svc, settings, page_svc):
+            assert svc.check_and_send_active_page() is True
+            handler.handle("send_message", "HELLO")
+            pub.gather_and_publish()
+            assert self._published(mock_client, "active_page") == NO_ACTIVE_PAGE_OPTION
+
+            # Restoring: picking the page (even the one already configured)
+            # force-sends it and flips the reported state back.
+            handler.handle("active_page", "Alpha")
+
+            assert client.render.call_count == 2, "re-selecting the page did not re-send it"
+            pub.gather_and_publish()
+            assert self._published(mock_client, "active_page") == "Alpha"
+            assert self._published(mock_client, "current_page") == "Alpha"
+
+    def test_engine_tick_delivering_the_page_clears_the_flag(self, handler, mock_client):
+        from src.mqtt.discovery import NO_ACTIVE_PAGE_OPTION
+
+        env = TestDisplayServiceGuardIntegration
+        pages = {"pA": ("Alpha", "ALPHA CONTENT")}
+        svc, _client, settings, page_svc = env._make_env(pages=pages)
+        pub = self._publisher(mock_client)
+        with env._env_patches(svc, settings, page_svc):
+            assert svc.check_and_send_active_page() is True
+            handler.handle("send_message", "HELLO")
+            pub.gather_and_publish()
+            assert self._published(mock_client, "active_page") == NO_ACTIVE_PAGE_OPTION
+
+            # The page's content changes on its own -> the engine repaints the
+            # board with the page, so the board is no longer out of band.
+            pages["pA"] = ("Alpha", "NEW ALPHA CONTENT")
+            assert svc.check_and_send_active_page() is True
+
+            pub.gather_and_publish()
+            assert self._published(mock_client, "active_page") == "Alpha"
+
+    def test_sync_loop_does_not_flap_the_published_value(self, handler, mock_client):
+        """Engine ticks that dedupe (content unchanged) must leave the flag
+        set, and the periodic state publish must keep reporting the sentinel
+        without republishing it every cycle."""
+        from src.mqtt.discovery import NO_ACTIVE_PAGE_OPTION
+
+        env = TestDisplayServiceGuardIntegration
+        svc, _client, settings, page_svc = env._make_env()
+        pub = self._publisher(mock_client)
+        with env._env_patches(svc, settings, page_svc):
+            assert svc.check_and_send_active_page() is True
+            pub.gather_and_publish()
+            handler.handle("send_message", "HELLO")
+
+            for _ in range(3):
+                assert svc.check_and_send_active_page() is False, "sync tick repainted over the manual message"
+                pub.gather_and_publish()
+
+            values = [c[0][1] for c in mock_client.publish_state.call_args_list if c[0][0] == "active_page"]
+            assert values == ["Alpha", NO_ACTIVE_PAGE_OPTION], "published Active Page state flapped"

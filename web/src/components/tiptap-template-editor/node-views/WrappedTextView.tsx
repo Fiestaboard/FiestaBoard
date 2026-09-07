@@ -2,23 +2,22 @@
  * React NodeView for Wrapped Text nodes
  * Displays text that will be wrapped with visual indicator
  */
+import type { ReactNodeViewProps } from "@tiptap/react";
 import { NodeViewWrapper } from "@tiptap/react";
 import { WrapText, X } from "lucide-react";
 import React from "react";
 
+import { useTranslations } from "@/i18n/translations";
 import { cn } from "@/lib/utils";
 
-interface WrappedTextViewProps {
-  node: {
-    attrs: {
-      text: string;
-    };
-  };
-  deleteNode: () => void;
+/** Attributes WrappedTextNode declares (see extensions/wrapped-text-node.ts). */
+interface WrappedTextAttrs {
+  text: string;
 }
 
-export function WrappedTextView({ node, deleteNode }: WrappedTextViewProps) {
-  const { text } = node.attrs;
+export function WrappedTextView({ node, deleteNode }: ReactNodeViewProps) {
+  const { text } = node.attrs as WrappedTextAttrs;
+  const t = useTranslations("templateEditor");
 
   return (
     <NodeViewWrapper
@@ -42,7 +41,11 @@ export function WrappedTextView({ node, deleteNode }: WrappedTextViewProps) {
       {/* Wrap icon */}
       <WrapText className="w-3 h-3 inline-block align-middle" />
 
-      {/* Wrapped text display */}
+      {/* Wrapped text display.
+          Raw <span>: renders inside TipTap's contentEditable atom, inheriting
+          the wrapper's text-warning color, with sub-xs text-[11px] grid
+          geometry. <Text as="span"> would reset both. Kept raw for correctness. */}
+      {/* eslint-disable-next-line react/forbid-elements -- atom span in TipTap contentEditable inheriting the wrapper's text-warning color, with sub-xs text-[11px] grid geometry; Text would reset both */}
       <span className="font-mono text-[11px] inline-block align-middle ml-1">{text}</span>
 
       {/* Delete button */}
@@ -55,7 +58,7 @@ export function WrappedTextView({ node, deleteNode }: WrappedTextViewProps) {
         }}
         className="rounded-full hover:bg-black/10 dark:hover:bg-white/10 p-0.5 -mr-1 ml-0.5 transition-colors"
         tabIndex={-1}
-        aria-label="Remove wrapped text"
+        aria-label={t("removeWrappedTextAriaLabel")}
       >
         <X className="w-3 h-3" />
       </button>

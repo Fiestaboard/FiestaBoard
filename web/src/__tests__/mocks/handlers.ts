@@ -5,20 +5,16 @@ import type {
   CurrentDisplayResponse,
   DisplayRawResponse,
   DisplayResponse,
+  DisplaySettings,
   DisplaysResponse,
   GeneralConfig,
-  LogEntry,
-  LogsResponse,
   OutputSettings,
   Page,
   PageCreate,
   PagesResponse,
-  PluginDetailsResponse,
+  PluginDetailResponse,
   PreviewResponse,
-  Rotation,
-  RotationCreate,
-  RotationsResponse,
-  RotationStateResponse,
+  SetTemporaryOverrideRequest,
   SilenceStatus,
   StatusResponse,
   TemplateRenderResponse,
@@ -59,12 +55,12 @@ export const mockConfig: ConfigSummary = {
 
 export const mockDisplays: DisplaysResponse = {
   displays: [
-    { type: "weather", available: true, description: "Current weather conditions" },
-    { type: "datetime", available: true, description: "Current date and time" },
-    { type: "weather_datetime", available: true, description: "Combined weather and datetime" },
-    { type: "home_assistant", available: false, description: "Home Assistant status" },
-    { type: "star_trek", available: true, description: "Star Trek quotes" },
-    { type: "guest_wifi", available: false, description: "Guest WiFi credentials" },
+    { type: "weather", available: true, description: "Current weather conditions", source: "plugin" },
+    { type: "datetime", available: true, description: "Current date and time", source: "plugin" },
+    { type: "weather_datetime", available: true, description: "Combined weather and datetime", source: "plugin" },
+    { type: "home_assistant", available: false, description: "Home Assistant status", source: "plugin" },
+    { type: "star_trek", available: true, description: "Star Trek quotes", source: "plugin" },
+    { type: "guest_wifi", available: false, description: "Guest WiFi credentials", source: "plugin" },
   ],
   total: 7,
   available_count: 5,
@@ -95,6 +91,16 @@ export const mockTransitionSettings: TransitionSettings = {
   step_interval_ms: 500,
   step_size: 2,
   available_strategies: ["column", "reverse-column", "edges-to-center", "row", "diagonal", "random"],
+};
+
+// Web UI motion preferences. `board_flap_speed` is the on-screen split-flap
+// cadence — deliberately not the same thing as mockTransitionSettings'
+// `step_interval_ms`, which paces the physical unit.
+export const mockDisplaySettings: DisplaySettings = {
+  reduce_motion: false,
+  board_animations: "on",
+  site_animations: "on",
+  board_flap_speed: "standard",
 };
 
 export const mockOutputSettings: OutputSettings = {
@@ -218,90 +224,14 @@ export const mockTemplateVariables: TemplateVariables = {
   },
 };
 
-export const mockRotation: Rotation = {
-  id: "rot-1",
-  name: "Main Rotation",
-  pages: [{ page_id: "page-1" }, { page_id: "page-2", duration_override: 120 }],
-  default_duration: 300,
-  enabled: true,
-  created_at: "2024-01-01T00:00:00Z",
-};
-
-export const mockRotations: RotationsResponse = {
-  rotations: [mockRotation],
-  total: 1,
-  active_rotation_id: "rot-1",
-};
-
-export const mockRotationState: RotationStateResponse = {
-  active: true,
-  rotation_id: "rot-1",
-  rotation_name: "Main Rotation",
-  current_page_index: 0,
-  current_page_id: "page-1",
-  time_on_page: 45,
-  page_duration: 300,
-  total_pages: 2,
-};
-
+// The shape GET /cache-status actually serves (src/debug/models.py CacheStatus).
+// It previously invented cached/last_message_hash/cache_hits fields the API has
+// never returned.
 export const mockCacheStatus = {
-  cached: true,
-  last_message_hash: "abc123",
-  last_sent_at: "2024-01-01T12:00:00Z",
-  cache_hits: 5,
-  total_sends: 10,
-};
-
-// Mock log entries
-export const mockLogEntries: LogEntry[] = [
-  {
-    timestamp: "2025-12-25T10:00:00",
-    level: "INFO",
-    logger: "src.api_server",
-    message: "API server starting up...",
-  },
-  {
-    timestamp: "2025-12-25T10:00:01",
-    level: "INFO",
-    logger: "src.main",
-    message: "Initializing FiestaBoard Display Service...",
-  },
-  {
-    timestamp: "2025-12-25T10:00:02",
-    level: "DEBUG",
-    logger: "src.board_client",
-    message: "Connecting to board at 192.168.1.100",
-  },
-  {
-    timestamp: "2025-12-25T10:00:03",
-    level: "WARNING",
-    logger: "src.data_sources.weather",
-    message: "Weather API rate limit approaching",
-  },
-  {
-    timestamp: "2025-12-25T10:00:04",
-    level: "ERROR",
-    logger: "src.displays.service",
-    message: "Failed to render display: timeout",
-  },
-  {
-    timestamp: "2025-12-25T10:00:05",
-    level: "INFO",
-    logger: "src.api_server",
-    message: "Background service auto-started",
-  },
-];
-
-export const mockLogsResponse: LogsResponse = {
-  logs: mockLogEntries,
-  total: mockLogEntries.length,
-  limit: 50,
-  offset: 0,
-  has_more: false,
-  filters: {
-    level: null,
-    search: null,
-  },
+  has_cached_text: true,
+  has_cached_characters: true,
+  skip_unchanged_enabled: true,
+  cached_text_preview: "HELLO WORLD",
 };
 
 // General config mock
@@ -322,7 +252,7 @@ export const mockSilenceStatus: SilenceStatus = {
 };
 
 // Plugin config mock for silence_schedule
-export const mockSilenceSchedulePlugin: PluginDetailsResponse = {
+export const mockSilenceSchedulePlugin: PluginDetailResponse = {
   id: "silence_schedule",
   name: "Silence Schedule",
   version: "1.0.0",
@@ -330,12 +260,14 @@ export const mockSilenceSchedulePlugin: PluginDetailsResponse = {
   author: "FiestaBoard",
   icon: "moon",
   category: "utility",
+  plugin_type: "data",
   enabled: true,
   config: {
     enabled: false,
     start_time: "04:00+00:00",
     end_time: "15:00+00:00",
   },
+  env_overridden_keys: [],
   settings_schema: {
     type: "object",
     properties: {
@@ -348,18 +280,39 @@ export const mockSilenceSchedulePlugin: PluginDetailsResponse = {
   max_lengths: {},
   env_vars: [],
   documentation: "",
+  has_demo: false,
+  demo_page_id: null,
+  instance_label: null,
+  base_plugin_id: "silence_schedule",
+  instances: [],
 };
 
 // Store for tracking request bodies in tests
 export const requestStore: {
-  lastRotationCreate?: RotationCreate;
   lastPageCreate?: PageCreate;
   lastTransitionUpdate?: Partial<TransitionSettings>;
   lastOutputUpdate?: { target: string };
   lastLiveRender?: { template: string | string[]; board_id?: string };
+  lastTemporaryOverride?: SetTemporaryOverrideRequest;
   liveRenderCallCount: number;
 } = {
   liveRenderCallCount: 0,
+};
+
+// Shared "nothing is overriding the board" payload, mirroring
+// TemporaryOverrideStatus in @/lib/api.
+const inactiveTemporaryOverride = {
+  active: false,
+  page_id: null,
+  expires_at: null,
+  remaining_seconds: null,
+  revert_mode: null,
+  revert_page_id: null,
+  template: null,
+  line_metadata: null,
+  device_type: null,
+  notes_wide: null,
+  notes_tall: null,
 };
 
 // Handlers with request validation
@@ -367,6 +320,16 @@ export const handlers = [
   // Core status endpoints
   http.get(`${API_BASE}/status`, () => {
     return HttpResponse.json(mockStatus);
+  }),
+
+  // Beta settings — queried by the navigation sidebar on every render.
+  // Both flags default off; tests exercising beta features override via
+  // server.use().
+  http.get(`${API_BASE}/settings/beta`, () => {
+    return HttpResponse.json({
+      settings: { https_enabled: false, transition_plugins_enabled: false },
+      https: { cert_present: false, cert_path: "", key_path: "", updater_available: false },
+    });
   }),
 
   http.get(`${API_BASE}/preview`, () => {
@@ -378,11 +341,11 @@ export const handlers = [
   }),
 
   http.post(`${API_BASE}/start`, () => {
-    return HttpResponse.json({ status: "started", message: "Service started successfully" });
+    return HttpResponse.json({ running: true, changed: true, message: "Service started successfully" });
   }),
 
   http.post(`${API_BASE}/stop`, () => {
-    return HttpResponse.json({ status: "stopped", message: "Service stopped successfully" });
+    return HttpResponse.json({ running: false, changed: true, message: "Service stopped successfully" });
   }),
 
   http.post(`${API_BASE}/publish-preview`, () => {
@@ -450,6 +413,7 @@ export const handlers = [
       display_type: type,
       message: `${type} sent`,
       sent_to_board: true,
+      paused: false,
       target: "board",
     });
   }),
@@ -462,16 +426,18 @@ export const handlers = [
   http.put(`${API_BASE}/settings/transitions`, async ({ request }) => {
     const body = (await request.json()) as Partial<TransitionSettings>;
     requestStore.lastTransitionUpdate = body;
+    // Key presence, not nullishness: the real handler treats an explicit
+    // null as "clear this field" and an absent key as "leave it alone"
+    // (PUT /settings/transitions, exclude_unset). `??` collapsed the two,
+    // so a reset test could not tell them apart.
     const response: TransitionSettings = {
-      strategy: body.strategy ?? mockTransitionSettings.strategy,
-      step_interval_ms: body.step_interval_ms ?? mockTransitionSettings.step_interval_ms,
-      step_size: body.step_size ?? mockTransitionSettings.step_size,
+      strategy: "strategy" in body ? (body.strategy ?? null) : mockTransitionSettings.strategy,
+      step_interval_ms:
+        "step_interval_ms" in body ? (body.step_interval_ms ?? null) : mockTransitionSettings.step_interval_ms,
+      step_size: "step_size" in body ? (body.step_size ?? null) : mockTransitionSettings.step_size,
       available_strategies: mockTransitionSettings.available_strategies,
     };
-    return HttpResponse.json({
-      status: "success",
-      settings: response,
-    });
+    return HttpResponse.json(response);
   }),
 
   http.get(`${API_BASE}/settings/output`, () => {
@@ -481,25 +447,28 @@ export const handlers = [
   http.put(`${API_BASE}/settings/output`, async ({ request }) => {
     const body = (await request.json()) as { target: string };
     requestStore.lastOutputUpdate = body;
-    return HttpResponse.json({
-      status: "success",
-      settings: { target: body.target },
-    });
+    return HttpResponse.json({ target: body.target });
   }),
 
   // Active page settings
   http.get(`${API_BASE}/settings/active-page`, () => {
     return HttpResponse.json({
       page_id: "page-1",
+      resolved_page_id: "page-1",
+      resolved_next_check_seconds: null,
+      board_id: null,
     });
   }),
 
   http.put(`${API_BASE}/settings/active-page`, async ({ request }) => {
     const body = (await request.json()) as { page_id: string | null };
     return HttpResponse.json({
-      status: "success",
       page_id: body.page_id,
       sent_to_board: true,
+      paused: false,
+      board_id: null,
+      error: null,
+      warnings: [],
     });
   }),
 
@@ -550,10 +519,8 @@ export const handlers = [
       duration_seconds: body.duration_seconds ?? 300,
       created_at: new Date().toISOString(),
     };
-    return HttpResponse.json({
-      status: "success",
-      page: newPage,
-    });
+    // 201 + the bare page since the Phase 2 conventions pass.
+    return HttpResponse.json(newPage, { status: 201 });
   }),
 
   http.put(`${API_BASE}/pages/:id`, async ({ request, params }) => {
@@ -565,14 +532,18 @@ export const handlers = [
       ...body,
       updated_at: new Date().toISOString(),
     };
-    return HttpResponse.json({
-      status: "success",
-      page: updatedPage,
-    });
+    return HttpResponse.json({ page: updatedPage, incompatible_references: [] });
   }),
 
-  http.delete(`${API_BASE}/pages/:id`, () => {
-    return HttpResponse.json({ status: "success", message: "Page deleted" });
+  http.delete(`${API_BASE}/pages/:id`, ({ params }) => {
+    return HttpResponse.json({
+      id: params.id,
+      message: "Page deleted",
+      default_page_created: false,
+      new_page_id: null,
+      active_page_updated: false,
+      new_active_page_id: null,
+    });
   }),
 
   http.post(`${API_BASE}/pages/:id/preview`, ({ params }) => {
@@ -687,7 +658,7 @@ export const handlers = [
       duration_seconds: 300,
       created_at: new Date().toISOString(),
     };
-    return HttpResponse.json({ status: "success", page: newPage });
+    return HttpResponse.json(newPage, { status: 201 });
   }),
 
   http.post(`${API_BASE}/pages/import/preview`, async ({ request }) => {
@@ -707,10 +678,10 @@ export const handlers = [
   http.post(`${API_BASE}/pages/:id/send`, ({ params }) => {
     const { id } = params;
     return HttpResponse.json({
-      status: "success",
       page_id: id,
       message: "Page sent",
       sent_to_board: true,
+      paused: false,
       target: "board",
     });
   }),
@@ -748,78 +719,8 @@ export const handlers = [
       lines: template ? template.split("\n") : [""],
       line_count: template ? template.split("\n").length : 1,
       sent_to_board: true,
+      paused: false,
       board_id: body.board_id || "default",
-    });
-  }),
-
-  // Rotation endpoints
-  http.get(`${API_BASE}/rotations`, () => {
-    return HttpResponse.json(mockRotations);
-  }),
-
-  http.get(`${API_BASE}/rotations/active`, () => {
-    return HttpResponse.json(mockRotationState);
-  }),
-
-  http.get(`${API_BASE}/rotations/:id`, ({ params }) => {
-    const { id } = params;
-    return HttpResponse.json({
-      ...mockRotation,
-      id: String(id),
-      missing_pages: [],
-    });
-  }),
-
-  http.post(`${API_BASE}/rotations`, async ({ request }) => {
-    const body = (await request.json()) as RotationCreate;
-    requestStore.lastRotationCreate = body;
-
-    const newRotation: Rotation = {
-      id: "new-rot-" + Date.now(),
-      name: body.name,
-      pages: body.pages,
-      default_duration: body.default_duration ?? 300,
-      enabled: body.enabled ?? true,
-      created_at: new Date().toISOString(),
-    };
-    return HttpResponse.json({
-      status: "success",
-      rotation: newRotation,
-    });
-  }),
-
-  http.put(`${API_BASE}/rotations/:id`, async ({ request, params }) => {
-    const body = (await request.json()) as Partial<Rotation>;
-    const { id } = params;
-    const updatedRotation: Rotation = {
-      ...mockRotation,
-      id: String(id),
-      ...body,
-      updated_at: new Date().toISOString(),
-    };
-    return HttpResponse.json({
-      status: "success",
-      rotation: updatedRotation,
-    });
-  }),
-
-  http.delete(`${API_BASE}/rotations/:id`, () => {
-    return HttpResponse.json({ status: "success", message: "Rotation deleted" });
-  }),
-
-  http.post(`${API_BASE}/rotations/:id/activate`, ({ params }) => {
-    const { id } = params;
-    return HttpResponse.json({
-      status: "success",
-      message: "Rotation activated",
-      state: { ...mockRotationState, rotation_id: String(id) },
-    });
-  }),
-
-  http.post(`${API_BASE}/rotations/deactivate`, () => {
-    return HttpResponse.json({
-      status: "success",
-      message: "Rotation deactivated",
     });
   }),
 
@@ -829,58 +730,11 @@ export const handlers = [
   }),
 
   http.post(`${API_BASE}/clear-cache`, () => {
-    return HttpResponse.json({
-      status: "success",
-      message: "Cache cleared",
-    });
+    return HttpResponse.json({ message: "Cache cleared" });
   }),
 
   http.post(`${API_BASE}/force-refresh`, () => {
-    return HttpResponse.json({
-      status: "success",
-      message: "Display force-refreshed",
-    });
-  }),
-
-  // Logs endpoint
-  http.get(`${API_BASE}/logs`, ({ request }) => {
-    const url = new URL(request.url);
-    const limit = parseInt(url.searchParams.get("limit") || "50");
-    const offset = parseInt(url.searchParams.get("offset") || "0");
-    const level = url.searchParams.get("level")?.toUpperCase();
-    const search = url.searchParams.get("search")?.toLowerCase();
-
-    let filteredLogs = [...mockLogEntries];
-
-    // Filter by level
-    if (level) {
-      filteredLogs = filteredLogs.filter((log) => log.level === level);
-    }
-
-    // Filter by search
-    if (search) {
-      filteredLogs = filteredLogs.filter(
-        (log) => log.message.toLowerCase().includes(search) || log.logger.toLowerCase().includes(search),
-      );
-    }
-
-    const total = filteredLogs.length;
-    const paginatedLogs = filteredLogs.slice(offset, offset + limit);
-    const hasMore = offset + limit < total;
-
-    const response: LogsResponse = {
-      logs: paginatedLogs,
-      total,
-      limit,
-      offset,
-      has_more: hasMore,
-      filters: {
-        level: level as LogsResponse["filters"]["level"],
-        search: search || null,
-      },
-    };
-
-    return HttpResponse.json(response);
+    return HttpResponse.json({ message: "Display force-refreshed", sent: true });
   }),
 
   // General config endpoints
@@ -915,13 +769,20 @@ export const handlers = [
       author: "Unknown",
       icon: "puzzle",
       category: "utility",
+      plugin_type: "data",
       enabled: false,
       config: {},
+      env_overridden_keys: [],
       settings_schema: {},
       variables: {},
       max_lengths: {},
       env_vars: [],
       documentation: "",
+      has_demo: false,
+      demo_page_id: null,
+      instance_label: null,
+      base_plugin_id: String(pluginId),
+      instances: [],
     });
   }),
 
@@ -971,7 +832,6 @@ export const handlers = [
     const { pluginId } = params;
     const body = (await request.json()) as { config: Record<string, unknown> };
     return HttpResponse.json({
-      status: "success",
       plugin_id: pluginId,
       config: body.config,
     });
@@ -981,7 +841,6 @@ export const handlers = [
     const { pluginId } = params;
     const body = (await request.json()) as { config: Record<string, unknown> };
     return HttpResponse.json({
-      status: "success",
       plugin_id: pluginId,
       config: body.config,
     });
@@ -993,6 +852,7 @@ export const handlers = [
     return HttpResponse.json({
       plugin_id: pluginId,
       instances: [],
+      total: 0,
     });
   }),
 
@@ -1000,30 +860,31 @@ export const handlers = [
     const { pluginId } = params;
     const body = (await request.json()) as { label: string };
     const instanceKey = `${pluginId}:${body.label}`;
-    return HttpResponse.json({
-      status: "success",
-      plugin_id: pluginId,
-      instance_label: body.label,
-      instance_key: instanceKey,
-      message: `Instance "${body.label}" created for plugin "${pluginId}".`,
-    });
+    return HttpResponse.json(
+      {
+        plugin_id: pluginId,
+        instance_label: body.label,
+        instance_key: instanceKey,
+      },
+      { status: 201 },
+    );
   }),
 
   http.delete(`${API_BASE}/plugins/:pluginId/instances/:instanceLabel`, ({ params }) => {
     const { pluginId, instanceLabel } = params;
     const instanceKey = `${pluginId}:${instanceLabel}`;
     return HttpResponse.json({
-      status: "success",
       plugin_id: pluginId,
       instance_label: instanceLabel,
       instance_key: instanceKey,
-      message: `Instance "${instanceLabel}" of plugin "${pluginId}" deleted.`,
     });
   }),
 
-  // Silence status endpoint
-  http.get(`${API_BASE}/silence-status`, () => {
-    return HttpResponse.json(mockSilenceStatus);
+  // Silence status endpoint. Echoes board_id back like the real endpoint
+  // (issue #1788); the window itself is the install-wide one.
+  http.get(`${API_BASE}/silence-status`, ({ request }) => {
+    const boardId = new URL(request.url).searchParams.get("board_id");
+    return HttpResponse.json({ ...mockSilenceStatus, board_id: boardId });
   }),
 
   // Silence schedule update endpoint (system feature, not a plugin)
@@ -1032,10 +893,11 @@ export const handlers = [
       enabled: boolean;
       start_time: string;
       end_time: string;
+      board_id?: string;
     };
     return HttpResponse.json({
-      status: "success",
       config: body,
+      board_id: body.board_id ?? null,
     });
   }),
 
@@ -1066,16 +928,35 @@ export const handlers = [
       page_id: "page-1",
       source: "manual",
       schedule_enabled: false,
-      temporary_override: {
-        active: false,
-        page_id: null,
-        expires_at: null,
-        remaining_seconds: null,
-        revert_mode: null,
-        revert_page_id: null,
-      },
+      temporary_override: inactiveTemporaryOverride,
       ...(url.searchParams.get("board_id") && { board_id: url.searchParams.get("board_id") }),
     });
+  }),
+
+  // Temporary override (saved-page form and inline one-off form, issue #1787)
+  http.get(`${API_BASE}/settings/temporary-override`, () => {
+    return HttpResponse.json(inactiveTemporaryOverride);
+  }),
+
+  http.post(`${API_BASE}/settings/temporary-override`, async ({ request }) => {
+    const body = (await request.json()) as SetTemporaryOverrideRequest;
+    requestStore.lastTemporaryOverride = body;
+    const durationMinutes = "duration_minutes" in body ? body.duration_minutes : undefined;
+    const expiresAt = durationMinutes ? new Date(Date.now() + durationMinutes * 60_000).toISOString() : null;
+    return HttpResponse.json({
+      ...inactiveTemporaryOverride,
+      active: true,
+      page_id: "page_id" in body ? (body.page_id ?? null) : null,
+      expires_at: expiresAt,
+      remaining_seconds: durationMinutes ? durationMinutes * 60 : null,
+      revert_mode: body.revert_mode ?? "schedule",
+      template: "template" in body ? (body.template ?? null) : null,
+      device_type: "device_type" in body ? (body.device_type ?? null) : null,
+    });
+  }),
+
+  http.delete(`${API_BASE}/settings/temporary-override`, () => {
+    return HttpResponse.json({ status: "cleared", revert_mode: "schedule" });
   }),
 
   // All settings endpoint (for general-settings)
@@ -1109,11 +990,22 @@ export const handlers = [
         password: "",
         external_url: "",
       },
+      display: mockDisplaySettings,
       status: {
         running: true,
         config_summary: {},
       },
     });
+  }),
+
+  // Display settings (web UI motion preferences, incl. board flap speed)
+  http.get(`${API_BASE}/settings/display`, () => {
+    return HttpResponse.json(mockDisplaySettings);
+  }),
+
+  http.put(`${API_BASE}/settings/display`, async ({ request }) => {
+    const body = (await request.json()) as Record<string, unknown>;
+    return HttpResponse.json({ ...mockDisplaySettings, ...body });
   }),
 
   // MQTT settings endpoints
@@ -1189,6 +1081,17 @@ export const handlers = [
           wrap: false,
         })),
         duration_seconds: 60,
+        // Present-as-null since the route declares AIGenerateResponse: the
+        // PageCreate fields the generator did not set are serialized rather
+        // than omitted.
+        display_type: null,
+        rows: null,
+        transition_strategy: null,
+        transition_interval_ms: null,
+        transition_step_size: null,
+        demo_plugin_id: null,
+        notes_wide: null,
+        notes_tall: null,
       },
       model_used: "test-model",
       provider_id: "p1",
@@ -1233,6 +1136,7 @@ export const handlers = [
       updater_available: false,
       auto_update_enabled: false,
       auto_update_interval: "weekly",
+      managed_externally: false,
       profile: null,
       sidecar_url: null,
       last_check: null,
@@ -1268,8 +1172,9 @@ export const handlers = [
   http.put(`${API_BASE}/settings/polling`, async ({ request }) => {
     const body = (await request.json()) as { interval_seconds: number };
     return HttpResponse.json({
-      status: "success",
-      settings: { interval_seconds: body.interval_seconds },
+      interval_seconds: body.interval_seconds,
+      board_read_interval_local: 30,
+      board_read_interval_cloud: 180,
       requires_restart: false,
     });
   }),
@@ -1290,20 +1195,21 @@ export const handlers = [
       boards?: object[];
     };
     return HttpResponse.json({
-      status: "success",
-      settings: {
-        board_type: body.board_type ?? "black",
-        boards: body.boards ?? [{ id: "default", name: "Flagship", device_type: "flagship", board_color: "black" }],
-        devices: body.devices ?? ["flagship"],
-      },
+      board_type: body.board_type ?? "black",
+      boards: body.boards ?? [{ id: "default", name: "Flagship", device_type: "flagship", board_color: "black" }],
+      devices: body.devices ?? ["flagship"],
     });
   }),
 
   http.post(`${API_BASE}/settings/board/add`, async ({ request }) => {
-    const body = (await request.json()) as { device_type: string; name?: string; board_color?: string };
-    return HttpResponse.json({
-      status: "success",
-      settings: {
+    const body = (await request.json()) as {
+      device_type: string;
+      name?: string;
+      board_color?: string;
+      code62_glyph?: string;
+    };
+    return HttpResponse.json(
+      {
         board_type: "black",
         boards: [
           { id: "default", name: "Flagship", device_type: "flagship", board_color: "black" },
@@ -1312,21 +1218,20 @@ export const handlers = [
             name: body.name || (body.device_type === "note" ? "Note" : "Flagship"),
             device_type: body.device_type,
             board_color: body.board_color || "black",
+            code62_glyph: body.code62_glyph || "degree",
           },
         ],
         devices: ["flagship", body.device_type],
       },
-    });
+      { status: 201 },
+    );
   }),
 
   http.delete(`${API_BASE}/settings/board/:boardId`, () => {
     return HttpResponse.json({
-      status: "success",
-      settings: {
-        board_type: "black",
-        boards: [{ id: "default", name: "Flagship", device_type: "flagship", board_color: "black" }],
-        devices: ["flagship"],
-      },
+      board_type: "black",
+      boards: [{ id: "default", name: "Flagship", device_type: "flagship", board_color: "black" }],
+      devices: ["flagship"],
     });
   }),
 
@@ -1344,6 +1249,12 @@ export const handlers = [
     });
   }),
 
+  // FiestaPanel panels: DisplaySettings queries the list to guard removal of
+  // a panel's virtual board. Default: no panels; tests override per-case.
+  http.get(`${API_BASE}/panels`, () => {
+    return HttpResponse.json({ panels: [], total: 0 });
+  }),
+
   // Location settings endpoints
   http.get(`${API_BASE}/settings/location`, () => {
     return HttpResponse.json({
@@ -1355,11 +1266,8 @@ export const handlers = [
   http.put(`${API_BASE}/settings/location`, async ({ request }) => {
     const body = (await request.json()) as { latitude: number | null; longitude: number | null };
     return HttpResponse.json({
-      status: "success",
-      settings: {
-        latitude: body.latitude,
-        longitude: body.longitude,
-      },
+      latitude: body.latitude,
+      longitude: body.longitude,
     });
   }),
 

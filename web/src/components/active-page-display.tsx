@@ -1,15 +1,42 @@
 "use client";
 
+import {
+  Alert,
+  AlertDescription,
+  Badge,
+  Box,
+  Button,
+  CardTitle,
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  Flex,
+  Grid,
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetHeader,
+  SheetTitle,
+  Skeleton,
+  Stack,
+  Text,
+} from "@fiestaboard/ui";
+import { Spinner } from "@fiestaboard/ui/components/feedback/spinner";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   AlertTriangle,
   ArrowLeftRight,
   Calendar,
   CalendarOff,
+  ChevronRight,
   GalleryHorizontalEnd,
   Loader2,
   Moon,
   Pause,
+  PencilLine,
   Radio,
   Timer,
   UploadCloud,
@@ -18,41 +45,50 @@ import {
 import { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { toast } from "sonner";
 
+import { ComposePageDialog } from "@/components/compose-page-dialog";
+import { useCurrentBoard } from "@/components/current-board-context";
 import { ForceSetDialog } from "@/components/force-set-dialog";
 import { PageGridSelector } from "@/components/page-grid-selector";
 import { ScaledBoardDisplay } from "@/components/scaled-board-display";
 import Link from "@/components/smart-link";
-import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
-import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet";
-import { Skeleton } from "@/components/ui/skeleton";
-import {
+  collectionPollMs,
   getEffectiveBoardColor,
+  getEffectiveCode62Glyph,
   getEffectiveDeviceType,
+  queryKeys,
+  resolveCode62Glyph,
   useActivePage,
+  useBoardCurrentMessage,
   useBoardSettings,
+  usePagePreview,
   usePages,
   useSetActivePage,
 } from "@/hooks/use-board";
+import { useDepsChanged } from "@/hooks/use-deps-changed";
 import { useTranslations } from "@/i18n/translations";
-import type { BoardCurrentMessageResponse, Collection, SilenceStatus } from "@/lib/api";
+import type { BoardCurrentMessageResponse, Collection, DeviceType, SilenceStatus } from "@/lib/api";
 import { api, isCollectionId } from "@/lib/api";
+import { classifyDimensions, pagesCompatibleWithBoard } from "@/lib/board-dimensions";
 import { onLiveOutputMessageChange, readLiveOutputMessage, writeLiveOutputMessage } from "@/lib/live-output-channel";
 
 export function ActivePageDisplay() {
   const t = useTranslations("activeDisplay");
   const _tc = useTranslations("common");
   const tPause = useTranslations("displaySettings.pause");
+
+  // Current board selection (issue #1247). Queries are board-scoped only in
+  // multi-board installs so single-board behavior is completely unchanged.
+  const { currentBoardId, currentBoard, boards } = useCurrentBoard();
+  const isMultiBoard = boards.length > 1;
+  const scopedBoardId = isMultiBoard && currentBoardId ? currentBoardId : undefined;
+  // Live board polling (and Live Output) only track the primary board.
+  const isPrimaryBoard = !scopedBoardId || scopedBoardId === boards[0]?.id;
+  // One-off messages always drive the primary board (issue #1787), so the
+  // compose surface is sized to it and says so when that isn't the board the
+  // sidebar has selected.
+  const composeTargetBoard = boards[0];
+  const composeTargetsAnotherBoard = isMultiBoard && !!composeTargetBoard && currentBoardId !== composeTargetBoard.id;
 
   // Sheet open state
   const [isSheetOpen, setIsSheetOpen] = useState(false);
@@ -67,8 +103,17 @@ export function ActivePageDisplay() {
   const [forceSetPageId, setForceSetPageId] = useState<string | null>(null);
   // Schedule mode choice dialog (shown before page selector when schedule is active)
   const [changeModeOpen, setChangeModeOpen] = useState(false);
+  // One-off compose dialog (issue #1787)
+  const [composeOpen, setComposeOpen] = useState(false);
   // When true, the page selector treats selection as manual (after disabling schedule)
   const [openSheetAsManual, setOpenSheetAsManual] = useState(false);
+
+  // Use transition for non-urgent updates to improve perceived performance.
+  // Declared before the effects below so `startTransition` isn't referenced
+  // before its declaration (react-hooks/immutability).
+  const [isPending, startTransition] = useTransition();
+  const lastClickTimeRef = useRef<number>(0);
+  const lastPageIdRef = useRef<string | null>(null);
 
   // Start pre-rendering grid in background after component mounts
   useEffect(() => {
@@ -82,18 +127,22 @@ export function ActivePageDisplay() {
     return () => clearTimeout(timer);
   }, []);
 
-  // Handle showing content after animation completes
+  // Handle showing content after animation completes. Hiding on close is a
+  // render-phase reset, not a setState in the effect body
+  // (react-hooks/set-state-in-effect, issue #1568) — and it stays synchronous
+  // with the close, where an effect would have let the content linger for a
+  // frame.
+  if (useDepsChanged([isSheetOpen]) && !isSheetOpen) {
+    setShowSheetContent(false);
+  }
+
   useEffect(() => {
-    if (isSheetOpen) {
-      // Wait for slide animation to complete (400ms) before revealing content
-      const timer = setTimeout(() => {
-        setShowSheetContent(true);
-      }, 420); // Slightly after animation (400ms + buffer)
-      return () => clearTimeout(timer);
-    } else {
-      // Hide immediately when closing
-      setShowSheetContent(false);
-    }
+    if (!isSheetOpen) return;
+    // Wait for slide animation to complete (400ms) before revealing content
+    const timer = setTimeout(() => {
+      setShowSheetContent(true);
+    }, 420); // Slightly after animation (400ms + buffer)
+    return () => clearTimeout(timer);
   }, [isSheetOpen]);
 
   // Fetch schedule status and active page in a single request.
@@ -101,9 +150,15 @@ export function ActivePageDisplay() {
   // regardless of mode, eliminating the need for a separate heavyweight
   // getSchedules() call that fetched the entire schedule list.
   const { data: activeScheduleData } = useQuery({
-    queryKey: ["schedules", "active"],
-    queryFn: () => api.getActiveSchedule(),
-    refetchInterval: 60000, // Poll every minute for schedule changes
+    // Board-scoped key: the unscoped ["schedules", "active"] invalidations
+    // used elsewhere still match it as a prefix.
+    queryKey: scopedBoardId ? ["schedules", "active", scopedBoardId] : ["schedules", "active"],
+    queryFn: () => api.getActiveSchedule(scopedBoardId),
+    // Every minute for schedule changes, but faster while a scheduled
+    // collection is active — it can swap the page on the board every few
+    // seconds, and the header names that page (issue #1513).
+    refetchInterval: (query) =>
+      Math.min(60000, collectionPollMs(query.state.data?.resolved_next_check_seconds) || 60000),
   });
 
   const scheduleEnabled = activeScheduleData?.schedule_enabled || false;
@@ -114,13 +169,13 @@ export function ActivePageDisplay() {
   const overrideRemainingMinutes =
     overrideActive && temporaryOverride?.remaining_seconds ? Math.floor(temporaryOverride.remaining_seconds / 60) : 0;
 
-  // Fetch manual active page setting
-  const { data: activePageData, isLoading: isLoadingActivePage } = useActivePage();
+  // Fetch manual active page setting for the selected board
+  const { data: activePageData, isLoading: isLoadingActivePage } = useActivePage(scopedBoardId);
 
   // Fetch silence mode status to show snoozing indicator
   const { data: silenceStatus } = useQuery<SilenceStatus>({
-    queryKey: ["silenceStatus"],
-    queryFn: api.getSilenceStatus,
+    queryKey: queryKeys.silenceStatus(scopedBoardId),
+    queryFn: () => api.getSilenceStatus(scopedBoardId),
   });
 
   // Fetch live board state so the Home display reflects what was last sent
@@ -180,7 +235,7 @@ export function ActivePageDisplay() {
   });
 
   const disableScheduleMutation = useMutation({
-    mutationFn: () => api.setScheduleEnabled(false),
+    mutationFn: () => api.setScheduleEnabled(false, scopedBoardId),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["schedules", "active"] });
       toast.success(t("changeModeDisableSuccess"));
@@ -200,12 +255,15 @@ export function ActivePageDisplay() {
       // Optimistically mark as in-sync so the alert disappears immediately.
       // The backend schedules a ~3 s deferred board read after each send;
       // we update the cache now and do a real refetch after 4 s to confirm.
-      queryClient.setQueryData(["board-current-message"], (old: BoardCurrentMessageResponse | undefined) => {
-        if (!old) return old;
-        return { ...old, characters: old.expected_characters ?? old.characters };
-      });
+      queryClient.setQueryData(
+        queryKeys.boardCurrentMessage(scopedBoardId),
+        (old: BoardCurrentMessageResponse | undefined) => {
+          if (!old) return old;
+          return { ...old, characters: old.expected_characters ?? old.characters };
+        },
+      );
       setTimeout(() => {
-        queryClient.invalidateQueries({ queryKey: ["board-current-message"] });
+        queryClient.invalidateQueries({ queryKey: queryKeys.boardCurrentMessage() });
       }, 4000);
       toast.success(t("toastResendSuccess"));
     } catch {
@@ -213,7 +271,7 @@ export function ActivePageDisplay() {
     } finally {
       setIsSyncing(false);
     }
-  }, [queryClient, t]);
+  }, [queryClient, scopedBoardId, t]);
 
   // Fetch board settings for display type
   const { data: boardSettings } = useBoardSettings();
@@ -232,8 +290,12 @@ export function ActivePageDisplay() {
     staleTime: 5 * 60 * 1000,
   });
 
-  // Set active page mutation
-  const setActivePageMutation = useSetActivePage();
+  // Set active page mutation — targets the selected board only
+  const setActivePageMutation = useSetActivePage(scopedBoardId);
+
+  // currentBoard (destructured above from useCurrentBoard()) is also used to
+  // filter the page picker to size-compatible pages and to warn about
+  // partially-fitting collections (issue #1249).
 
   // Get the active page ID based on mode
   const activePageId = scheduleEnabled ? activeScheduleData?.page_id || null : activePageData?.page_id || null;
@@ -250,28 +312,47 @@ export function ActivePageDisplay() {
   // Fetch all pages for default page selection and sheet display
   const { data: pagesData, isLoading: isLoadingPages } = usePages();
 
-  // Default to first page if no active page is set (only in manual mode)
+  // Default to the first page if no active page is set (only in manual mode)
   const pages = useMemo(() => pagesData?.pages || [], [pagesData]);
+  // One attempt per board: without this, a failing auto-select re-fires on
+  // every render (the mutation object's identity changes) — with an
+  // incompatible page that meant an endless 400 retry loop and a stream of
+  // "Failed to set default page" toasts.
+  const autoDefaultAttemptedForRef = useRef<string | null>(null);
   useEffect(() => {
-    // Only auto-select first page in manual mode, not in schedule mode
+    // Only auto-select a page in manual mode, not in schedule mode.
     // In schedule mode, null activePageId means a gap with no default (intentional)
-    if (!scheduleEnabled && !isLoadingActivePage && !isLoadingPages && !activePageId && pages.length > 0) {
-      const firstPage = pages[0];
-      setActivePageMutation.mutate(firstPage.id, {
-        onSuccess: (_result) => {
-          toast.success(t("toastSetActivePage", { pageName: firstPage.name }));
-        },
-        onError: () => {
-          toast.error(t("toastSetDefaultFailed"));
-        },
-      });
-    }
-  }, [scheduleEnabled, isLoadingActivePage, isLoadingPages, activePageId, pages, setActivePageMutation]);
+    if (scheduleEnabled || isLoadingActivePage || isLoadingPages || activePageId || pages.length === 0) return;
+    const attemptKey = scopedBoardId ?? "";
+    if (autoDefaultAttemptedForRef.current === attemptKey) return;
 
-  // Use transition for non-urgent updates to improve perceived performance
-  const [isPending, startTransition] = useTransition();
-  const lastClickTimeRef = useRef<number>(0);
-  const lastPageIdRef = useRef<string | null>(null);
+    // Only a page that actually fits the selected board can be auto-set —
+    // pages[0] on e.g. a FiestaPanel's auto-fit note-array board was the
+    // flagship Welcome page, which the backend rightly refuses (issue
+    // #1249 size compatibility). No fitting page → leave the board idle.
+    const defaultPage = currentBoard ? pages.find((p) => pagesCompatibleWithBoard(p, currentBoard)) : pages[0];
+    if (!defaultPage) return;
+
+    autoDefaultAttemptedForRef.current = attemptKey;
+    setActivePageMutation.mutate(defaultPage.id, {
+      onSuccess: (_result) => {
+        toast.success(t("toastSetActivePage", { pageName: defaultPage.name }));
+      },
+      onError: () => {
+        toast.error(t("toastSetDefaultFailed"));
+      },
+    });
+  }, [
+    scheduleEnabled,
+    isLoadingActivePage,
+    isLoadingPages,
+    activePageId,
+    pages,
+    currentBoard,
+    scopedBoardId,
+    setActivePageMutation,
+    t,
+  ]);
 
   // Handle page selection with debouncing and optimistic updates
   const handleSelectPage = useCallback(
@@ -299,11 +380,32 @@ export function ActivePageDisplay() {
         return;
       }
 
+      // Non-fatal size warning when a collection only partially fits the
+      // current board — mirrors the backend `warnings` from #1245.
+      if (currentBoard && isCollectionId(pageId)) {
+        const collection = collectionsData?.collections?.find((c: Collection) => c.id === pageId);
+        const members = (collection?.page_ids ?? [])
+          .map((pid) => pages.find((p) => p.id === pid))
+          .filter((p): p is (typeof pages)[number] => Boolean(p));
+        const misfits = members.filter((p) => !pagesCompatibleWithBoard(p, currentBoard));
+        if (members.length > 0 && misfits.length > 0) {
+          toast.warning(t("collectionSizeWarning", { count: misfits.length, total: members.length }));
+        }
+      }
+
       // Manual mode (or after the user chose to disable schedule): switch immediately.
       setOpenSheetAsManual(false);
       setActivePageMutation.mutate(pageId, {
-        onSuccess: (_result) => {
+        onSuccess: (result) => {
           setIsSheetOpen(false);
+          // The page selection persisted, but the render/send to the board
+          // can still fail (e.g. plugin/network outage) — the backend reports
+          // that via error + sent_to_board=false on a 200 response, same
+          // contract page-builder consumes (issue #1791).
+          if (result.error) {
+            toast.error(t("toastSwitchNotSent"));
+            return;
+          }
           startTransition(() => {
             toast.success(t("toastSwitchSuccess"));
           });
@@ -313,13 +415,47 @@ export function ActivePageDisplay() {
         },
       });
     },
-    [activePageId, scheduleEnabled, overrideActive, openSheetAsManual, setActivePageMutation],
+    [
+      activePageId,
+      scheduleEnabled,
+      overrideActive,
+      openSheetAsManual,
+      setActivePageMutation,
+      currentBoard,
+      collectionsData,
+      pages,
+      t,
+    ],
   );
 
   // Get the active page for name resolution
   const activePage = useMemo(() => {
     return pages.find((p) => p.id === activePageId) || null;
   }, [pages, activePageId]);
+
+  // During silence "page" mode the board actually renders the configured
+  // silence page and freezes it there (issue #1637); the scheduled/manual page
+  // is temporarily replaced. Surface THAT page in the header so the name and
+  // edit link match what's on the display instead of pointing at the page
+  // silence overrode.
+  const silencePageId = silenceStatus?.active && silenceStatus.mode === "page" ? (silenceStatus.page_id ?? null) : null;
+  const silencePage = useMemo(() => {
+    if (!silencePageId) return null;
+    return pages.find((p) => p.id === silencePageId) || null;
+  }, [pages, silencePageId]);
+
+  // When a Collection is active the backend resolves which member page its
+  // logic is currently rendering on the board (issue #1513). Surface that page
+  // so the Dashboard can name and link to the design actually on the display.
+  const resolvedPageId = scheduleEnabled
+    ? (activeScheduleData?.resolved_page_id ?? null)
+    : (activePageData?.resolved_page_id ?? null);
+  const resolvedCollectionPage = useMemo(() => {
+    // Only relevant while a collection is active — for a plain page the
+    // resolved id just equals activePageId and activePage already links it.
+    if (!activeCollection || !resolvedPageId) return null;
+    return pages.find((p) => p.id === resolvedPageId) || null;
+  }, [activeCollection, resolvedPageId, pages]);
 
   // Get the active page name for display
   const activePageName = useMemo(() => {
@@ -330,29 +466,55 @@ export function ActivePageDisplay() {
       return activeCollection.name;
     }
     return activePage?.name || "No page selected";
-  }, [activePage, activePageId, scheduleEnabled, activeCollection]);
+  }, [activePage, activePageId, scheduleEnabled, activeCollection, t]);
 
   // Poll the actual board state from the backend cache (backend hits Vestaboard
-  // at the configured interval; we just read the cached result here).
-  const { data: boardState } = useQuery({
-    queryKey: ["board-current-message"],
-    queryFn: () => api.getBoardCurrentMessage(),
-    refetchInterval: 30_000,
-    staleTime: 25_000,
-  });
+  // at the configured interval; we just read the cached result here). Secondary
+  // boards are served from their runtime's last-sent cache (issue #1247).
+  const { data: boardState } = useBoardCurrentMessage(scopedBoardId);
 
-  // Derive device type from board state dimensions, falling back to board settings
-  const activeDeviceType = useMemo((): "flagship" | "note" => {
-    if (boardState) {
-      if (boardState.rows === 3 && boardState.cols === 15) return "note";
-      return "flagship";
+  // Live Output drives the primary board, so only surface it there.
+  const liveMessageForBoard = isPrimaryBoard ? (liveOutputMessage ?? null) : null;
+
+  // Graceful degrade for a secondary board with no cached content yet
+  // (nothing sent since startup): render its active page instead of a blank.
+  const needsPreviewFallback = !!scopedBoardId && !!boardState && boardState.message === null;
+  const fallbackPageId = needsPreviewFallback && activePageId && !isCollectionId(activePageId) ? activePageId : null;
+  const { data: fallbackPreview } = usePagePreview(fallbackPageId, { enabled: needsPreviewFallback });
+
+  // Derive the full board geometry from the live board state's dimensions,
+  // falling back to the selected board's settings. Note arrays — including
+  // every FiestaPanel virtual board, which is always an auto-fit array —
+  // must render their true W×H: the old "anything that isn't exactly 3×15
+  // is a flagship" rule squeezed a 12×15 panel's content into a 6×22 grid
+  // (the dashboard preview showed "weird shapes" at the wrong size).
+  const activeGeometry = useMemo((): { deviceType: DeviceType; notesWide: number; notesTall: number } => {
+    if (boardState?.rows && boardState?.cols) {
+      try {
+        const classified = classifyDimensions(boardState.rows, boardState.cols);
+        return {
+          deviceType: classified.device_type as DeviceType,
+          notesWide: classified.notes_wide ?? 1,
+          notesTall: classified.notes_tall ?? 1,
+        };
+      } catch {
+        // Unclassifiable dims (defensive) — fall through to board settings.
+      }
     }
-    return getEffectiveDeviceType(boardSettings);
-  }, [boardState, boardSettings]);
+    if (currentBoard?.device_type) {
+      return {
+        deviceType: currentBoard.device_type,
+        notesWide: currentBoard.notes_wide ?? 1,
+        notesTall: currentBoard.notes_tall ?? 1,
+      };
+    }
+    return { deviceType: getEffectiveDeviceType(boardSettings), notesWide: 1, notesTall: 1 };
+  }, [boardState, currentBoard, boardSettings]);
 
   // The display message: prefer live output (page editor override), then the
-  // actual board state. Falls back to null (BoardDisplay shows a skeleton).
-  const displayMessage = liveOutputMessage ?? boardState?.message ?? null;
+  // actual board state, then the active-page render fallback for a secondary
+  // board with no cached content. Falls back to null (skeleton).
+  const displayMessage = liveMessageForBoard ?? boardState?.message ?? fallbackPreview?.message ?? null;
 
   // Out-of-sync: the board was updated externally if its current state differs
   // from what FiestaBoard last sent.
@@ -363,11 +525,23 @@ export function ActivePageDisplay() {
 
   return (
     <>
-      <Card className="card-interactive">
-        <CardHeader className="pb-4">
-          <div className="flex items-center justify-between">
-            <CardTitle className="text-lg">{t("title")}</CardTitle>
-            <div className="flex items-center gap-2">
+      {/* A block inside the route's PageCard, not a card of its own: home.tsx
+          wraps this in a PageSection, which owns the inset and the top rule.
+          Keeping a bordered Card here drew a second frame inside the page card
+          for a region that is not a click target (see PageCard's "what keeps
+          its border inside" note in @fiestaboard/ui). */}
+      <Box>
+        <Stack gap="2" className="pb-4">
+          <Flex align="center" justify="between">
+            <Flex align="baseline" gap="2" className="min-w-0">
+              <CardTitle className="text-lg">{t("title")}</CardTitle>
+              {isMultiBoard && currentBoard && (
+                <Text as="span" size="xs" tone="muted" className="truncate" data-testid="active-display-board-name">
+                  {t("boardIndicator", { boardName: currentBoard.name })}
+                </Text>
+              )}
+            </Flex>
+            <Flex align="center" gap="2">
               {scheduleEnabled && (
                 <Link
                   href="/schedule"
@@ -385,26 +559,85 @@ export function ActivePageDisplay() {
                 <ArrowLeftRight className="h-4 w-4" />
                 {t("changePage")}
               </Button>
-            </div>
-          </div>
+            </Flex>
+          </Flex>
 
           {/* Active page name and status */}
-          <div className="flex items-center gap-4 text-xs text-muted-foreground mt-3 flex-wrap">
-            <div className="flex items-center gap-1.5">
-              <span className="font-medium text-foreground">{activePageName}</span>
-            </div>
-            {liveOutputMessage ? (
+          <Flex align="center" gap="4" wrap className="text-xs text-muted-foreground mt-3">
+            <Flex align="center" gap="1.5">
+              {silencePage ? (
+                // Silence "page" mode: the board is frozen on the configured
+                // silence page (issue #1637), so name and link that page here —
+                // it takes precedence over the scheduled/manual/collection page
+                // that silence temporarily replaced.
+                <Link
+                  href={`/pages/edit/${silencePage.id}`}
+                  className="inline-flex items-center text-xs font-medium text-foreground underline-offset-2 hover:underline hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded"
+                  aria-label={t("editActivePage", { pageName: silencePage.name })}
+                  title={t("editActivePage", { pageName: silencePage.name })}
+                >
+                  {silencePage.name}
+                </Link>
+              ) : activeCollection ? (
+                // A Collection drives the display through its own logic. Link the
+                // collection name to its editor so the user can adjust that logic
+                // (issue #1513), then link the member page the collection is
+                // currently rendering so they can jump straight to that design.
+                <>
+                  <Link
+                    href="/collections"
+                    className="inline-flex items-center text-xs font-medium text-foreground underline-offset-2 hover:underline hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded"
+                    aria-label={t("editCollection", { collectionName: activeCollection.name })}
+                    title={t("editCollection", { collectionName: activeCollection.name })}
+                  >
+                    {activeCollection.name}
+                  </Link>
+                  {resolvedCollectionPage && (
+                    <>
+                      <ChevronRight className="h-3 w-3 text-muted-foreground" aria-hidden="true" />
+                      <Link
+                        href={`/pages/edit/${resolvedCollectionPage.id}`}
+                        className="inline-flex items-center text-xs font-medium text-foreground underline-offset-2 hover:underline hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded"
+                        aria-label={t("editActivePage", { pageName: resolvedCollectionPage.name })}
+                        title={t("editActivePage", { pageName: resolvedCollectionPage.name })}
+                      >
+                        {resolvedCollectionPage.name}
+                      </Link>
+                    </>
+                  )}
+                </>
+              ) : activePage ? (
+                // When a saved Page is generating the display, link straight to
+                // its editor so the user can jump to the design they're seeing
+                // (issue #1473). Schedule gaps stay plain text.
+                // Sizing and color live on the anchor rather than an inner Text
+                // so `hover:text-primary` isn't overridden on the name itself.
+                <Link
+                  href={`/pages/edit/${activePage.id}`}
+                  className="inline-flex items-center text-xs font-medium text-foreground underline-offset-2 hover:underline hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded"
+                  aria-label={t("editActivePage", { pageName: activePage.name })}
+                  title={t("editActivePage", { pageName: activePage.name })}
+                >
+                  {activePage.name}
+                </Link>
+              ) : (
+                <Text as="span" size="xs" weight="medium">
+                  {activePageName}
+                </Text>
+              )}
+            </Flex>
+            {liveMessageForBoard ? (
               <Badge
                 variant="destructive"
                 className="text-xs gap-1 animate-pulse pr-1 cursor-pointer hover:opacity-90 focus-within:ring-2 focus-within:ring-ring"
               >
                 <Radio className="h-3 w-3" aria-hidden="true" />
-                Live Mode
+                {t("liveModeBadge")}
                 <button
                   type="button"
                   onClick={handleDisableLiveMode}
-                  aria-label="Turn off Live Mode"
-                  title="Turn off Live Mode"
+                  aria-label={t("turnOffLiveModeAriaLabel")}
+                  title={t("turnOffLiveModeAriaLabel")}
                   className="ml-0.5 inline-flex items-center justify-center rounded-sm hover:bg-black/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                 >
                   <X className="h-3 w-3" aria-hidden="true" />
@@ -446,10 +679,12 @@ export function ActivePageDisplay() {
               </Badge>
             )}
             {silenceStatus?.active && (
-              <div className="flex items-center gap-1.5">
+              <Flex align="center" gap="1.5">
                 <Moon className="h-3 w-3 text-info" aria-hidden="true" />
-                <span className="text-info">{t("silenceModeActive")}</span>
-              </div>
+                <Text as="span" size="xs" tone="info">
+                  {t("silenceModeActive")}
+                </Text>
+              </Flex>
             )}
             {pausedBoards.map((board) => (
               <Badge
@@ -463,10 +698,10 @@ export function ActivePageDisplay() {
                 {showBoardNameOnPauseBadge ? `${tPause("badge")}: ${board.name}` : tPause("badge")}
               </Badge>
             ))}
-          </div>
-        </CardHeader>
+          </Flex>
+        </Stack>
 
-        <CardContent className="space-y-4">
+        <Box className="space-y-4">
           {/* Schedule gap warning */}
           {scheduleEnabled && !activePageId && (
             <Alert variant="default" className="border-warning/50 bg-warning/10">
@@ -485,11 +720,13 @@ export function ActivePageDisplay() {
           )}
 
           {/* Out-of-sync warning: board was changed by another app */}
-          {isOutOfSync && !liveOutputMessage && (
+          {isOutOfSync && !liveMessageForBoard && (
             <Alert variant="default" className="border-warning/50 bg-warning/10">
               <AlertTriangle className="h-4 w-4 text-warning" />
               <AlertDescription className="flex items-center justify-between gap-3">
-                <span className="text-sm">{t("updatedExternally")}</span>
+                <Text as="span" size="sm">
+                  {t("updatedExternally")}
+                </Text>
                 <Button
                   size="sm"
                   variant="outline"
@@ -508,29 +745,39 @@ export function ActivePageDisplay() {
               any layout changes in ancestor elements (e.g. sidebar padding snap).
               ScaledBoardDisplay shrinks the board to fit narrow (mobile) cards —
               BoardDisplay's breakpoint tile sizes alone overflow phone widths. */}
-          <div className="flex justify-center overflow-x-hidden px-2" style={{ contain: "layout style paint" }}>
+          <Flex justify="center" className="overflow-x-hidden px-2" style={{ contain: "layout style paint" }}>
             <ScaledBoardDisplay
               message={displayMessage}
-              isLoading={!boardState && !liveOutputMessage}
+              isLoading={!boardState && !liveMessageForBoard}
               size="md"
-              boardType={getEffectiveBoardColor(boardSettings)}
-              deviceType={activeDeviceType}
+              boardType={currentBoard?.board_color ?? getEffectiveBoardColor(boardSettings)}
+              deviceType={activeGeometry.deviceType}
+              notesWide={activeGeometry.notesWide}
+              notesTall={activeGeometry.notesTall}
+              // Which code-62 flap this board carries (issue #1657) — the
+              // preview has to draw what is on the wall, and only the owner
+              // can tell a heart-era Flagship from a degree-era one.
+              code62Glyph={resolveCode62Glyph(
+                activeGeometry.deviceType,
+                currentBoard?.code62_glyph ?? getEffectiveCode62Glyph(boardSettings),
+              )}
             />
-          </div>
-        </CardContent>
-      </Card>
+          </Flex>
+        </Box>
+      </Box>
 
       {/* Pre-render grid in background (hidden) to warm up cache */}
       {shouldPreRender && !isSheetOpen && (
-        <div className="hidden">
+        <Box className="hidden">
           <PageGridSelector
             activePageId={deferredActivePageId}
             onSelectPage={handleSelectPage}
             isPending={isPending || setActivePageMutation.isPending}
             showActiveIndicator={true}
             label=""
+            filterByCurrentBoardSize
           />
-        </div>
+        </Box>
       )}
 
       {/* Page Selector Sheet - grid is already cached so opens instantly */}
@@ -545,17 +792,35 @@ export function ActivePageDisplay() {
           <SheetHeader>
             <SheetTitle>{t("selectPageTitle")}</SheetTitle>
             <SheetDescription>{t("selectPageDescription")}</SheetDescription>
+            {/* The one-off escape hatch (issue #1787). It lives in the sheet
+                header rather than the change-mode dialog because the sheet is
+                reachable in both schedule and manual mode, while the dialog
+                only appears in schedule mode. */}
+            <Flex justify="start" className="pt-2">
+              <Button
+                variant="outline"
+                size="sm"
+                className="gap-2"
+                onClick={() => {
+                  setIsSheetOpen(false);
+                  setComposeOpen(true);
+                }}
+              >
+                <PencilLine className="h-4 w-4" />
+                {t("composeOneOff")}
+              </Button>
+            </Flex>
           </SheetHeader>
 
-          <div className="mt-6">
+          <Box className="mt-6">
             {!showSheetContent ? (
               // Show lightweight skeleton during animation for smooth 60fps
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <Grid cols="1" sm="2" gap="3">
                 <Skeleton className="h-32 w-full" />
                 <Skeleton className="h-32 w-full" />
                 <Skeleton className="h-32 w-full" />
                 <Skeleton className="h-32 w-full" />
-              </div>
+              </Grid>
             ) : shouldPreRender ? (
               <PageGridSelector
                 activePageId={deferredActivePageId}
@@ -563,13 +828,39 @@ export function ActivePageDisplay() {
                 isPending={isPending || setActivePageMutation.isPending}
                 showActiveIndicator={true}
                 label=""
+                filterByCurrentBoardSize
               />
             ) : (
-              <div className="text-center text-sm text-muted-foreground py-8">{t("loadingPages")}</div>
+              <Text tone="muted" className="text-center py-8">
+                {t("loadingPages")}
+              </Text>
             )}
-          </div>
+          </Box>
         </SheetContent>
       </Sheet>
+
+      {/* Compose a one-off message and send it without saving it (issue #1787).
+
+          Sized to the PRIMARY board, not the selected one: the temporary
+          override store is primary-only ("triggers and temporary overrides are
+          the PRIMARY board's feature set", src/main.py), so this is the board
+          the message actually lands on. Sizing the surface to `currentBoard`
+          would preview a 15x3 Note and then send to a 22x6 Flagship — the
+          preview would be lying about its own destination. When those differ,
+          `targetBoardName` makes the dialog say where the message is going. */}
+      <ComposePageDialog
+        open={composeOpen}
+        onOpenChange={setComposeOpen}
+        deviceType={composeTargetBoard?.device_type ?? getEffectiveDeviceType(boardSettings)}
+        notesWide={composeTargetBoard?.notes_wide ?? 1}
+        notesTall={composeTargetBoard?.notes_tall ?? 1}
+        boardColor={composeTargetBoard?.board_color ?? getEffectiveBoardColor(boardSettings)}
+        code62Glyph={resolveCode62Glyph(
+          composeTargetBoard?.device_type ?? getEffectiveDeviceType(boardSettings),
+          composeTargetBoard?.code62_glyph ?? getEffectiveCode62Glyph(boardSettings),
+        )}
+        targetBoardName={composeTargetsAnotherBoard ? composeTargetBoard?.name : undefined}
+      />
 
       {/* Force Set dialog — opened when user picks a page while in schedule mode */}
       <ForceSetDialog
@@ -587,7 +878,7 @@ export function ActivePageDisplay() {
             <DialogDescription>{t("changeModeDescription")}</DialogDescription>
           </DialogHeader>
 
-          <div className="flex flex-col gap-3 py-2">
+          <Stack gap="3" className="py-2">
             {/* Override temporarily */}
             <button
               type="button"
@@ -597,15 +888,21 @@ export function ActivePageDisplay() {
               }}
               className="flex items-start gap-4 p-4 rounded-xl border border-border hover:border-primary/50 hover:bg-primary/5 text-left transition-colors group focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
             >
-              <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0 group-hover:bg-primary/20 transition-colors">
+              <Flex
+                align="center"
+                justify="center"
+                className="h-10 w-10 rounded-full bg-primary/10 flex-shrink-0 group-hover:bg-primary/20 transition-colors"
+              >
                 <Timer className="h-5 w-5 text-primary" />
-              </div>
-              <div className="min-w-0">
-                <div className="font-semibold text-sm text-foreground">{t("changeModeOverrideTitle")}</div>
-                <div className="text-xs text-muted-foreground mt-0.5 leading-relaxed">
+              </Flex>
+              <Box className="min-w-0">
+                <Text size="sm" weight="semibold">
+                  {t("changeModeOverrideTitle")}
+                </Text>
+                <Text size="xs" tone="muted" className="mt-0.5 leading-relaxed">
                   {t("changeModeOverrideDescription")}
-                </div>
-              </div>
+                </Text>
+              </Box>
             </button>
 
             {/* Turn off schedule */}
@@ -615,21 +912,27 @@ export function ActivePageDisplay() {
               disabled={disableScheduleMutation.isPending}
               className="flex items-start gap-4 p-4 rounded-xl border border-border hover:border-muted-foreground/40 hover:bg-muted/40 text-left transition-colors group focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              <div className="h-10 w-10 rounded-full bg-muted flex items-center justify-center flex-shrink-0 group-hover:bg-muted/80 transition-colors">
+              <Flex
+                align="center"
+                justify="center"
+                className="h-10 w-10 rounded-full bg-muted flex-shrink-0 group-hover:bg-muted/80 transition-colors"
+              >
                 {disableScheduleMutation.isPending ? (
-                  <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+                  <Spinner size="lg" className="text-muted-foreground" label={null} />
                 ) : (
                   <CalendarOff className="h-5 w-5 text-muted-foreground" />
                 )}
-              </div>
-              <div className="min-w-0">
-                <div className="font-semibold text-sm text-foreground">{t("changeModeDisableTitle")}</div>
-                <div className="text-xs text-muted-foreground mt-0.5 leading-relaxed">
+              </Flex>
+              <Box className="min-w-0">
+                <Text size="sm" weight="semibold">
+                  {t("changeModeDisableTitle")}
+                </Text>
+                <Text size="xs" tone="muted" className="mt-0.5 leading-relaxed">
                   {t("changeModeDisableDescription")}
-                </div>
-              </div>
+                </Text>
+              </Box>
             </button>
-          </div>
+          </Stack>
 
           <DialogFooter>
             <Button variant="ghost" size="sm" onClick={() => setChangeModeOpen(false)}>

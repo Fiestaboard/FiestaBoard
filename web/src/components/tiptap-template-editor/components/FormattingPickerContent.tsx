@@ -3,11 +3,21 @@
  */
 "use client";
 
+import {
+  Badge,
+  Box,
+  Flex,
+  Grid,
+  Stack,
+  Text,
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@fiestaboard/ui";
 import { ChevronRight, ChevronsLeftRight } from "lucide-react";
 import React from "react";
 
-import { Badge } from "@/components/ui/badge";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { useTranslations } from "@/i18n/translations";
 import { FIESTABOARD_COLORS } from "@/lib/board-colors";
 import { cn } from "@/lib/utils";
@@ -48,7 +58,11 @@ export function FormattingPickerContent({ formatting, onInsert }: FormattingPick
   }));
 
   if (options.length === 0) {
-    return <div className="p-3 text-sm text-muted-foreground">{t("noFormattingAvailable")}</div>;
+    return (
+      <Text tone="muted" className="p-3">
+        {t("noFormattingAvailable")}
+      </Text>
+    );
   }
 
   const handleOptionClick = (option: FormattingOption) => {
@@ -77,7 +91,7 @@ export function FormattingPickerContent({ formatting, onInsert }: FormattingPick
   if (showRepeatColorPicker) {
     return (
       <TooltipProvider>
-        <div className="p-2 min-w-[240px] max-w-[280px]">
+        <Box className="p-2 min-w-[240px] max-w-[280px]">
           <button
             type="button"
             onClick={() => setShowRepeatColorPicker(false)}
@@ -87,9 +101,11 @@ export function FormattingPickerContent({ formatting, onInsert }: FormattingPick
           </button>
 
           {/* Colors Section */}
-          <div className="text-xs font-medium mb-2 text-muted-foreground">{t("selectColor")}</div>
+          <Text size="xs" tone="muted" weight="medium" className="mb-2">
+            {t("selectColor")}
+          </Text>
 
-          <div className="grid grid-cols-4 gap-2 mb-3">
+          <Grid cols="4" gap="2" className="mb-3">
             {COLOR_ORDER.map((colorName) => {
               const colorInfo = COLOR_MAP[colorName];
               if (!colorInfo) return null;
@@ -112,17 +128,19 @@ export function FormattingPickerContent({ formatting, onInsert }: FormattingPick
                     </button>
                   </TooltipTrigger>
                   <TooltipContent>
-                    <p>{colorName}</p>
+                    <Text>{colorName}</Text>
                   </TooltipContent>
                 </Tooltip>
               );
             })}
-          </div>
+          </Grid>
 
           {/* Custom String */}
-          <div className="pt-2 border-t border-border">
-            <div className="text-xs text-muted-foreground mb-1.5">{t("orCustomPattern")}</div>
-            <form onSubmit={handleCustomCharSubmit} className="flex gap-1.5">
+          <Box className="pt-2 border-t border-border">
+            <Text size="xs" tone="muted" className="mb-1.5">
+              {t("orCustomPattern")}
+            </Text>
+            <Box as="form" onSubmit={handleCustomCharSubmit} className="flex gap-1.5">
               <input
                 type="text"
                 value={customChar}
@@ -147,9 +165,9 @@ export function FormattingPickerContent({ formatting, onInsert }: FormattingPick
               >
                 {t("use")}
               </button>
-            </form>
-          </div>
-        </div>
+            </Box>
+          </Box>
+        </Box>
       </TooltipProvider>
     );
   }
@@ -157,8 +175,8 @@ export function FormattingPickerContent({ formatting, onInsert }: FormattingPick
   // Show main formatting options
   return (
     <TooltipProvider>
-      <div className="p-1.5 min-w-[240px] max-w-[280px]">
-        <div className="space-y-0.5">
+      <Box className="p-1.5 min-w-[240px] max-w-[280px]">
+        <Stack gap="0.5">
           {options.map((option) => {
             const isRepeat = option.syntax.includes("fill_space_repeat");
 
@@ -174,10 +192,16 @@ export function FormattingPickerContent({ formatting, onInsert }: FormattingPick
                       "flex items-center justify-between gap-2 group",
                     )}
                   >
-                    <div className="flex items-center gap-2 flex-1 min-w-0">
+                    <Flex align="center" gap="2" className="flex-1 min-w-0">
                       <ChevronsLeftRight className="w-3.5 h-3.5 text-muted-foreground group-hover:text-accent-foreground flex-shrink-0" />
-                      <span className="font-medium capitalize truncate">{option.name}</span>
-                    </div>
+                      <Text
+                        as="span"
+                        weight="medium"
+                        className="capitalize truncate group-hover:text-accent-foreground"
+                      >
+                        {option.name}
+                      </Text>
+                    </Flex>
                     {isRepeat ? (
                       <ChevronRight className="w-3.5 h-3.5 text-muted-foreground group-hover:text-accent-foreground flex-shrink-0" />
                     ) : (
@@ -188,13 +212,13 @@ export function FormattingPickerContent({ formatting, onInsert }: FormattingPick
                   </button>
                 </TooltipTrigger>
                 <TooltipContent>
-                  <p>{option.description ?? option.name}</p>
+                  <Text>{option.description ?? option.name}</Text>
                 </TooltipContent>
               </Tooltip>
             );
           })}
-        </div>
-      </div>
+        </Stack>
+      </Box>
     </TooltipProvider>
   );
 }

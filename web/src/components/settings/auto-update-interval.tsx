@@ -1,12 +1,20 @@
 "use client";
 
+import {
+  Button,
+  Flex,
+  PageSection,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+  Text,
+} from "@fiestaboard/ui";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { CalendarClock, RefreshCw } from "lucide-react";
 import { toast } from "sonner";
 
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useTranslations } from "@/i18n/translations";
 import { api, AUTO_UPDATE_INTERVALS, type AutoUpdateInterval } from "@/lib/api";
 
@@ -92,56 +100,56 @@ export function AutoUpdateIntervalCard() {
   // Hide the card entirely when the status query failed — the rest of the
   // System page already surfaces that error, and a half-broken selector is
   // worse than nothing.
-  if (isLoading || !status) {
+  //
+  // Also hide it under an external supervisor (the Home Assistant add-on):
+  // scheduling background update checks is meaningless when the Supervisor
+  // owns updates, and the manual "Check now" button would only produce a
+  // notification the user can't act on.
+  if (isLoading || !status || status.managed_externally) {
     return null;
   }
 
   const current: AutoUpdateInterval = status.auto_update_interval ?? "weekly";
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="text-base flex items-center gap-2">
-          <CalendarClock className="h-4 w-4" />
-          {t("checkForUpdates")}
-        </CardTitle>
-        <CardDescription>
-          How often FiestaBoard should look for a new release in the background. You&apos;ll see a banner here when one
-          is found.
-        </CardDescription>
-      </CardHeader>
-      <CardContent className="space-y-3">
-        <div className="flex flex-wrap items-center gap-3">
-          <Select
-            value={current}
-            onValueChange={(v) => mutation.mutate(v as AutoUpdateInterval)}
-            disabled={mutation.isPending}
-          >
-            <SelectTrigger className="w-[180px]" aria-label="Update check frequency">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {AUTO_UPDATE_INTERVALS.map((key) => (
-                <SelectItem key={key} value={key}>
-                  {INTERVAL_LABELS[key]}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          <span className="text-xs text-muted-foreground">Last checked: {formatLastCheck(status.last_check)}</span>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => checkNowMutation.mutate()}
-            disabled={checkNowMutation.isPending}
-            className="ml-auto"
-          >
-            <RefreshCw className={`h-4 w-4 mr-2 ${checkNowMutation.isPending ? "animate-spin" : ""}`} />
-            {checkNowMutation.isPending ? t("checkingForUpdates") : t("checkNow")}
-          </Button>
-        </div>
-        <p className="text-sm text-muted-foreground">{INTERVAL_DESCRIPTIONS[current]}</p>
-      </CardContent>
-    </Card>
+    <PageSection
+      icon={<CalendarClock />}
+      title={t("checkForUpdates")}
+      description={t("intervalCardDescription")}
+      contentClassName="space-y-3"
+    >
+      <Flex wrap align="center" gap="3">
+        <Select
+          value={current}
+          onValueChange={(v) => mutation.mutate(v as AutoUpdateInterval)}
+          disabled={mutation.isPending}
+        >
+          <SelectTrigger className="w-[180px]" aria-label={t("intervalSelectAriaLabel")}>
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {AUTO_UPDATE_INTERVALS.map((key) => (
+              <SelectItem key={key} value={key}>
+                {INTERVAL_LABELS[key]}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <Text as="span" size="xs" tone="muted">
+          {t("lastChecked", { time: formatLastCheck(status.last_check) })}
+        </Text>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => checkNowMutation.mutate()}
+          disabled={checkNowMutation.isPending}
+          className="ml-auto"
+        >
+          <RefreshCw className={`h-4 w-4 mr-2 ${checkNowMutation.isPending ? "animate-spin" : ""}`} />
+          {checkNowMutation.isPending ? t("checkingForUpdates") : t("checkNow")}
+        </Button>
+      </Flex>
+      <Text tone="muted">{INTERVAL_DESCRIPTIONS[current]}</Text>
+    </PageSection>
   );
 }

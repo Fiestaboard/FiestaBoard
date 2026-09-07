@@ -1,10 +1,9 @@
+import { TooltipProvider } from "@fiestaboard/ui";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { http, HttpResponse } from "msw";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-
-import { TooltipProvider } from "@/components/ui/tooltip";
 
 import { server } from "./mocks/server";
 

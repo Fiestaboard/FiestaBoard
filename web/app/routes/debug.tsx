@@ -1,23 +1,30 @@
+import { Box, Code, Heading, PageCard, PageHeader, PageLayout, PageSection, Text } from "@fiestaboard/ui";
 import { Activity } from "lucide-react";
 
-import { PageLayout } from "@/components/page-layout";
-import { Card, CardContent } from "@/components/ui/card";
 import { useTranslations } from "@/i18n/translations";
 
 export default function DebugMonitorPage() {
   const t = useTranslations("monitor");
   return (
-    <PageLayout title={t("title")} icon={Activity}>
-      <Card>
-        <CardContent className="py-12 text-center">
-          <Activity className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-          <h2 className="text-lg font-semibold mb-2">{t("monitoringRemovedTitle")}</h2>
-          <p className="text-sm text-muted-foreground max-w-lg mx-auto">
-            {t("monitoringRemovedDescription")}{" "}
-            <code className="px-1.5 py-0.5 rounded bg-muted font-mono text-xs">docker logs fiestaboard</code>
-          </p>
-        </CardContent>
-      </Card>
+    // `title` and `icon` used to be passed to PageLayout, which has neither
+    // prop — they were silently dropped and this route rendered no <h1> at
+    // all. PageHeader is the component that owns the page title everywhere
+    // else in the app.
+    <PageLayout>
+      <PageCard>
+        <PageHeader icon={Activity} title={t("title")} description={t("monitoringRemovedTitle")} />
+        <PageSection>
+          <Box className="py-8 text-center">
+            <Activity className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
+            <Heading level={2} size="lg" className="mb-2">
+              {t("monitoringRemovedTitle")}
+            </Heading>
+            <Text tone="muted" className="max-w-lg mx-auto">
+              {t("monitoringRemovedDescription")} <Code>docker logs fiestaboard</Code>
+            </Text>
+          </Box>
+        </PageSection>
+      </PageCard>
     </PageLayout>
   );
 }

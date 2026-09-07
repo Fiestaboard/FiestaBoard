@@ -591,3 +591,102 @@ class TestRunFullDiagnostics:
 
         assert result["overall_ok"] is False
         assert len(result["recommendations"]) >= 1
+
+
+# ---------------------------------------------------------------------------
+# Error-text sanitization (CodeQL py/stack-trace-exposure, alert #63)
+#
+# The diagnostics dict is returned verbatim by /debug/network-diagnostics, so
+# no ``error`` field may carry raw exception text — only a static, classified
+# description. Full details go to the server log instead.
+# ---------------------------------------------------------------------------
+
+
+class TestErrorTextSanitization:
+    """Every ``error`` field is a static classification, never str(exc)."""
+
+    SENTINEL = "SECRET_INTERNAL_XYZ"
+
+    @patch("src.network_diagnostics.socket.gethostbyname")
+    def test_dns_gaierror_text_is_sanitized(self, mock_resolve):
+        mock_resolve.side_effect = socket.gaierror(self.SENTINEL)
+
+        result = check_dns_resolution()
+
+        assert result["ok"] is False
+        assert self.SENTINEL not in repr(result)
+        assert result["error"] == "DNS lookup failed"
+
+    @patch("src.network_diagnostics.socket.gethostbyname")
+    def test_dns_generic_error_text_is_sanitized(self, mock_resolve):
+        mock_resolve.side_effect = RuntimeError(self.SENTINEL)
+
+        result = check_dns_resolution()
+
+        assert result["ok"] is False
+        assert self.SENTINEL not in repr(result)
+        assert result["error"] == "DNS check failed"
+
+    @patch("src.network_diagnostics.requests.head")
+    def test_internet_timeout_text_is_sanitized(self, mock_head):
+        mock_head.side_effect = requests.exceptions.Timeout(self.SENTINEL)
+
+        result = check_internet_connectivity()
+
+        assert result["ok"] is False
+        assert self.SENTINEL not in repr(result)
+        assert result["error"] == "Connection timed out"
+
+    @patch("src.network_diagnostics.requests.head")
+    def test_internet_connection_error_text_is_sanitized(self, mock_head):
+        mock_head.side_effect = requests.exceptions.ConnectionError(self.SENTINEL)
+
+        result = check_internet_connectivity()
+
+        assert result["ok"] is False
+        assert self.SENTINEL not in repr(result)
+        assert result["error"] == "Could not connect"
+
+    @patch("src.network_diagnostics.socket.create_connection")
+    def test_port_refused_text_is_sanitized(self, mock_conn):
+        mock_conn.side_effect = ConnectionRefusedError(self.SENTINEL)
+
+        result = check_port_reachable("192.0.2.10", 7000)
+
+        assert result["ok"] is False
+        assert self.SENTINEL not in repr(result)
+        assert result["error"] == "Connection refused"
+
+    @patch("src.network_diagnostics.socket.create_connection")
+    def test_port_generic_oserror_text_is_sanitized(self, mock_conn):
+        mock_conn.side_effect = OSError(self.SENTINEL)
+
+        result = check_port_reachable("192.0.2.10", 7000)
+
+        assert result["ok"] is False
+        assert self.SENTINEL not in repr(result)
+        assert result["error"] == "Connection failed"
+
+    @patch("src.network_diagnostics.requests.get")
+    def test_cloud_api_error_text_is_sanitized(self, mock_get):
+        mock_get.side_effect = requests.exceptions.ConnectionError(self.SENTINEL)
+
+        result = check_vestaboard_connection(host="", use_cloud=True, cloud_key="rw-key")
+
+        assert result["ok"] is False
+        assert self.SENTINEL not in repr(result)
+        assert result["steps"]["cloud_api"]["error"] == "Could not connect"
+
+    @patch("src.network_diagnostics.requests.get")
+    @patch("src.network_diagnostics.check_port_reachable")
+    @patch("src.network_diagnostics.check_dns_resolution")
+    def test_local_api_error_text_is_sanitized(self, mock_dns, mock_port, mock_get):
+        mock_dns.return_value = {"ok": True, "hostname": "192.0.2.10", "ip": "192.0.2.10"}
+        mock_port.return_value = {"ok": True, "host": "192.0.2.10", "port": 7000, "latency_ms": 5}
+        mock_get.side_effect = requests.exceptions.Timeout(self.SENTINEL)
+
+        result = check_vestaboard_connection(host="192.0.2.10", api_key="key")
+
+        assert result["ok"] is False
+        assert self.SENTINEL not in repr(result)
+        assert result["steps"]["api"]["error"] == "Connection timed out"

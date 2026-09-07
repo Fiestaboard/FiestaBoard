@@ -1,18 +1,42 @@
 """Tests for PluginRegistry - manages loaded plugins."""
 
+import threading
+import time
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import pytest
 
 from src.plugins.base import PluginBase, PluginResult
-from src.plugins.manifest import PluginManifest
+from src.plugins.manifest import PluginManifest, load_manifest
+from src.plugins.previews import BoardPreview
 from src.plugins.registry import (
     PluginRegistry,
     get_plugin_registry,
     reset_plugin_registry,
 )
-from src.plugins.sources import PluginSource, RegistryEntry
+from src.plugins.sources import PluginSource, PluginUpdateCheck, RegistryEntry
+
+REPO_ROOT = Path(__file__).resolve().parents[1]
+
+
+@pytest.fixture(autouse=True)
+def _no_env_plugin_overrides(monkeypatch):
+    """Neutralize the read-time env overlay for this module (#1761).
+
+    These tests assert the *stored* config that migration and restore hand
+    to the registry. The overlay deliberately wins when seeding LIVE plugin
+    config, so with CI's ``WEATHER_API_KEY=test_key`` exported the live
+    values legitimately differ from the stored ones. Dropping the mapped
+    env vars keeps each test measuring the mechanic it names; the overlay's
+    own contract — including the live-seed path — is pinned by
+    ``tests/test_env_plugin_overrides.py`` and by
+    ``test_live_seed_applies_the_env_overlay`` below.
+    """
+    from src.config_manager import ENV_PLUGIN_OVERRIDES
+
+    for env_var in ENV_PLUGIN_OVERRIDES:
+        monkeypatch.delenv(env_var, raising=False)
 
 
 @pytest.fixture
@@ -59,6 +83,8 @@ def mock_manifest():
     manifest.variables.get_all_variable_names.return_value = ["var1", "var2"]
     manifest.max_lengths = {"var1": 10, "var2": 20}
     manifest.raw = {"variables": {"simple": ["var1", "var2"]}}
+    manifest.teaser = ""
+    manifest.previews = []
     return manifest
 
 
@@ -452,6 +478,34 @@ def test_list_plugins_returns_sorted_info(registry, mock_loader, mock_plugin, mo
     assert info["category"] == "utility"
 
 
+def test_list_plugins_reports_transition_plugin_type(registry, mock_loader, mock_plugin):
+    """A transition plugin's manifest plugin_type reaches the UI via list_plugins."""
+    manifest, errors = load_manifest(REPO_ROOT / "plugins" / "typewriter" / "manifest.json")
+    assert manifest is not None, errors
+    mock_plugin.plugin_id = "typewriter"
+    mock_loader.load_all_plugins.return_value = {"typewriter": mock_plugin}
+    mock_loader.get_manifest.side_effect = lambda pid: manifest if pid == "typewriter" else None
+    registry.initialize()
+
+    info = registry.list_plugins()[0]
+
+    assert info["plugin_type"] == "transition"
+
+
+def test_list_plugins_reports_data_plugin_type(registry, mock_loader, mock_plugin):
+    """A plugin whose manifest omits plugin_type is reported as a data plugin."""
+    manifest, errors = load_manifest(REPO_ROOT / "plugins" / "date_time" / "manifest.json")
+    assert manifest is not None, errors
+    mock_plugin.plugin_id = "date_time"
+    mock_loader.load_all_plugins.return_value = {"date_time": mock_plugin}
+    mock_loader.get_manifest.side_effect = lambda pid: manifest if pid == "date_time" else None
+    registry.initialize()
+
+    info = registry.list_plugins()[0]
+
+    assert info["plugin_type"] == "data"
+
+
 def test_list_plugins_sorted_by_name(registry, mock_loader, mock_plugin, mock_manifest):
     """list_plugins sorts by name."""
     plugin_a = MagicMock(spec=PluginBase)
@@ -808,7 +862,10 @@ def test_check_for_updates_skips_builtin(registry, mock_loader):
     assert results == {}
 
 
-@patch("src.plugins.registry.check_plugin_update_available", return_value=True)
+@patch(
+    "src.plugins.registry.check_plugin_update_available",
+    return_value=PluginUpdateCheck(available=True),
+)
 def test_check_for_updates_detects_external(mock_check, registry, mock_loader):
     """check_for_updates checks enabled external plugins and caches results."""
     mock_loader.plugin_sources = {
@@ -821,7 +878,10 @@ def test_check_for_updates_detects_external(mock_check, registry, mock_loader):
     mock_check.assert_called_once()
 
 
-@patch("src.plugins.registry.check_plugin_update_available", return_value=False)
+@patch(
+    "src.plugins.registry.check_plugin_update_available",
+    return_value=PluginUpdateCheck(available=False),
+)
 def test_check_for_updates_no_update(mock_check, registry, mock_loader):
     """check_for_updates returns False when up to date."""
     mock_loader.plugin_sources = {
@@ -830,6 +890,62 @@ def test_check_for_updates_no_update(mock_check, registry, mock_loader):
     registry._enabled = {"ext_plugin": True}
     results = registry.check_for_updates()
     assert results == {"ext_plugin": False}
+
+
+@patch("src.plugins.registry.check_plugin_update_available")
+def test_check_for_updates_records_blocked_reason(mock_check, registry, mock_loader):
+    """A withheld update is reported as "no update" plus a reason to show."""
+    mock_check.return_value = PluginUpdateCheck(
+        available=False,
+        blocked_reason="Plugin requires FiestaBoard >=99.0.0, but running version is 8.25.0",
+    )
+    mock_loader.plugin_sources = {
+        "ext_plugin": PluginSource(source_type="external", local_path="/ext/ext_plugin"),
+    }
+    registry._enabled = {"ext_plugin": True}
+
+    results = registry.check_for_updates()
+
+    assert results == {"ext_plugin": False}
+    assert registry.get_update_blocked_reasons() == {
+        "ext_plugin": "Plugin requires FiestaBoard >=99.0.0, but running version is 8.25.0"
+    }
+
+
+@patch("src.plugins.registry.check_plugin_update_available")
+def test_check_for_updates_clears_stale_blocked_reason(mock_check, registry, mock_loader):
+    """Once the core catches up the reason must not linger on the plugin."""
+    mock_check.return_value = PluginUpdateCheck(available=True)
+    mock_loader.plugin_sources = {
+        "ext_plugin": PluginSource(source_type="external", local_path="/ext/ext_plugin"),
+    }
+    registry._enabled = {"ext_plugin": True}
+    registry._update_blocked = {"ext_plugin": "stale reason"}
+
+    registry.check_for_updates()
+
+    assert registry.get_update_blocked_reasons() == {}
+
+
+def test_get_update_blocked_reasons_returns_copy(registry):
+    """Callers cannot mutate the registry's cached reasons."""
+    registry._update_blocked = {"p": "because"}
+    reasons = registry.get_update_blocked_reasons()
+    reasons["p"] = "tampered"
+    assert registry._update_blocked["p"] == "because"
+
+
+def test_list_plugins_exposes_update_blocked_reason(registry, mock_loader, mock_plugin, mock_manifest):
+    """The reason rides along with update_available so the UI can explain it."""
+    mock_loader.load_all_plugins.return_value = {"test_plugin": mock_plugin}
+    mock_loader.get_manifest.side_effect = lambda pid: mock_manifest if pid == "test_plugin" else None
+    registry.initialize()
+    registry._update_blocked = {"test_plugin": "needs a newer core"}
+
+    info = registry.list_plugins()[0]
+
+    assert info["update_available"] is False
+    assert info["update_blocked_reason"] == "needs a newer core"
 
 
 def test_get_update_status_returns_copy(registry):
@@ -899,6 +1015,140 @@ def test_get_registry_entries_marks_installed(mock_load, registry, mock_loader, 
     ]
     entries = registry.get_registry_entries()
     assert entries[0]["installed"] is True
+
+
+@patch("src.plugins.registry.load_registry")
+def test_get_registry_entries_includes_plugin_type(mock_load, registry):
+    """The marketplace payload carries plugin_type so transitions aren't shown as data plugins."""
+    mock_load.return_value = [
+        RegistryEntry(
+            plugin_id="typewriter",
+            name="Typewriter",
+            repository="https://github.com/Org/fiestaboard-plugin--typewriter",
+            plugin_type="transition",
+        ),
+    ]
+    entries = registry.get_registry_entries()
+    assert entries[0]["plugin_type"] == "transition"
+
+
+@patch("src.plugins.registry.load_registry")
+def test_get_registry_entries_defaults_plugin_type_to_data(mock_load, registry):
+    """Entries that never declared a type surface as data plugins."""
+    mock_load.return_value = [
+        RegistryEntry(
+            plugin_id="weather",
+            name="Weather",
+            repository="https://github.com/Org/fiestaboard-plugin--weather",
+        ),
+    ]
+    entries = registry.get_registry_entries()
+    assert entries[0]["plugin_type"] == "data"
+
+
+# --- get_registry_entries: board previews ---
+
+
+@patch("src.plugins.registry.load_preview_seed")
+@patch("src.plugins.registry.load_registry")
+def test_get_registry_entries_uses_preview_seed(mock_load, mock_seed, registry):
+    """An uninstalled plugin gets its board previews from the seed file."""
+    mock_load.return_value = [
+        RegistryEntry(
+            plugin_id="weather",
+            name="Weather",
+            repository="https://github.com/Org/fiestaboard-plugin--weather",
+        ),
+    ]
+    mock_seed.return_value = {
+        "weather": {
+            "teaser": "SF 62F SUNNY",
+            "previews": [{"device_type": "note", "rows": ["SF 62F", "SUNNY"]}],
+        }
+    }
+
+    entries = registry.get_registry_entries()
+    assert entries[0]["teaser"] == "SF 62F SUNNY"
+    assert entries[0]["previews"] == [{"device_type": "note", "rows": ["SF 62F", "SUNNY"]}]
+
+
+@patch("src.plugins.registry.load_preview_seed")
+@patch("src.plugins.registry.load_registry")
+def test_get_registry_entries_without_previews(mock_load, mock_seed, registry):
+    """A plugin in neither the manifests nor the seed reports empty previews."""
+    mock_load.return_value = [
+        RegistryEntry(
+            plugin_id="weather",
+            name="Weather",
+            repository="https://github.com/Org/fiestaboard-plugin--weather",
+        ),
+    ]
+    mock_seed.return_value = {}
+
+    entries = registry.get_registry_entries()
+    assert entries[0]["teaser"] == ""
+    assert entries[0]["previews"] == []
+
+
+@patch("src.plugins.registry.load_preview_seed")
+@patch("src.plugins.registry.load_registry")
+def test_get_registry_entries_manifest_wins_over_seed(
+    mock_load, mock_seed, registry, mock_loader, mock_plugin, mock_manifest
+):
+    """An installed plugin's manifest is newer than the seed, so it wins."""
+    mock_manifest.id = "weather"
+    mock_manifest.teaser = "FROM MANIFEST"
+    mock_manifest.previews = [
+        BoardPreview(rows=["FROM MANIFEST"], device_type="note"),
+    ]
+    mock_loader.load_all_plugins.return_value = {"weather": mock_plugin}
+    mock_loader.get_manifest.side_effect = lambda pid: mock_manifest if pid == "weather" else None
+    registry.initialize()
+
+    mock_load.return_value = [
+        RegistryEntry(
+            plugin_id="weather",
+            name="Weather",
+            repository="https://github.com/Org/fiestaboard-plugin--weather",
+        ),
+    ]
+    mock_seed.return_value = {"weather": {"teaser": "FROM SEED", "previews": [{"rows": ["FROM SEED"]}]}}
+
+    entries = registry.get_registry_entries()
+    assert entries[0]["teaser"] == "FROM MANIFEST"
+    assert entries[0]["previews"] == [
+        {
+            "label": "Note",
+            "device_type": "note",
+            "notes_wide": 1,
+            "notes_tall": 1,
+            "rows": ["FROM MANIFEST"],
+        }
+    ]
+
+
+@patch("src.plugins.registry.load_preview_seed")
+@patch("src.plugins.registry.load_registry")
+def test_get_registry_entries_installed_without_manifest_previews_falls_back(
+    mock_load, mock_seed, registry, mock_loader, mock_plugin, mock_manifest
+):
+    """A plugin predating the previews contract still shows the seeded board."""
+    mock_manifest.id = "weather"  # teaser/previews left empty by the fixture
+    mock_loader.load_all_plugins.return_value = {"weather": mock_plugin}
+    mock_loader.get_manifest.side_effect = lambda pid: mock_manifest if pid == "weather" else None
+    registry.initialize()
+
+    mock_load.return_value = [
+        RegistryEntry(
+            plugin_id="weather",
+            name="Weather",
+            repository="https://github.com/Org/fiestaboard-plugin--weather",
+        ),
+    ]
+    mock_seed.return_value = {"weather": {"teaser": "FROM SEED", "previews": []}}
+
+    entries = registry.get_registry_entries()
+    assert entries[0]["teaser"] == "FROM SEED"
 
 
 # --- install_from_registry ---
@@ -1014,6 +1264,48 @@ def test_auto_migrate_noop_when_stored_configs_empty(registry, mock_loader):
         registry.initialize()
 
     mock_load_reg.assert_not_called()
+
+
+@patch("src.plugins.registry.get_external_plugins_dir")
+@patch("src.plugins.registry.install_registry_plugin", return_value=(True, ""))
+@patch("src.plugins.registry.load_registry")
+def test_live_seed_applies_the_env_overlay(
+    mock_load_reg, mock_install, mock_ext_dir, registry, mock_loader, mock_plugin, mock_manifest, monkeypatch
+):
+    """The restore path seeds the LIVE plugin with env-overlaid config (#1761).
+
+    Opts back into the env this module's autouse fixture removes: an
+    operator's ``WEATHER_API_KEY`` must reach the running plugin even though
+    the stored config carries a different key — and the stored dict handed to
+    the registry must come back unmutated, because that same dict is what
+    persistence paths write.
+    """
+    monkeypatch.setenv("WEATHER_API_KEY", "test_env_key_from_ops")
+    mock_loader.load_all_plugins.return_value = {}
+    mock_manifest.id = "weather"
+    mock_load_reg.return_value = [
+        RegistryEntry(
+            plugin_id="weather",
+            name="Weather",
+            repository="https://github.com/Org/fiestaboard-plugin--weather",
+        )
+    ]
+    mock_loader.load_plugin.return_value = mock_plugin
+    mock_loader.get_manifest.return_value = mock_manifest
+
+    stored_cfg = {"enabled": True, "api_key": "test_stored_key", "location": "Seattle"}
+
+    with patch("src.config_manager.get_config_manager") as mock_cm:
+        mock_cm.return_value.is_v2_plugin_migration_done.return_value = False
+        mock_cm.return_value.get_all_plugin_configs.return_value = {"weather": stored_cfg}
+        registry.initialize()
+
+    # The live plugin runs on the operator's env credential...
+    assert mock_plugin.config["api_key"] == "test_env_key_from_ops"
+    assert mock_plugin.config["location"] == "Seattle"
+    # ...while the stored dict the registry was handed is untouched, so no
+    # persistence path can ever write the env value to disk.
+    assert stored_cfg["api_key"] == "test_stored_key"
 
 
 @patch("src.plugins.registry.get_external_plugins_dir")
@@ -1682,7 +1974,10 @@ def test_check_for_updates_checks_enabled_plugin(registry, mock_loader, tmp_path
     mock_loader.plugin_sources = {"foo": _external_source(tmp_path)}
     registry._enabled = {"foo": True}
 
-    with patch("src.plugins.registry.check_plugin_update_available", return_value=True) as mock_check:
+    with patch(
+        "src.plugins.registry.check_plugin_update_available",
+        return_value=PluginUpdateCheck(available=True),
+    ) as mock_check:
         results = registry.check_for_updates()
 
     mock_check.assert_called_once()
@@ -1695,7 +1990,10 @@ def test_check_for_updates_checks_base_with_enabled_instance(registry, mock_load
     mock_loader.plugin_sources = {"foo": _external_source(tmp_path)}
     registry._enabled = {"foo": False, "foo:home": True}
 
-    with patch("src.plugins.registry.check_plugin_update_available", return_value=False) as mock_check:
+    with patch(
+        "src.plugins.registry.check_plugin_update_available",
+        return_value=PluginUpdateCheck(available=False),
+    ) as mock_check:
         results = registry.check_for_updates()
 
     mock_check.assert_called_once()
@@ -1730,3 +2028,270 @@ def test_enable_plugin_installs_missing_registry_plugin(registry):
 def test_enable_plugin_unknown_plugin_still_fails(registry):
     with patch("src.plugins.registry.load_registry", return_value=[]):
         assert registry.enable_plugin("nope") is False
+
+
+# --- deliberate-removal tombstones (issue #1394) ---
+
+
+@patch("src.plugins.registry.remove_external_plugin")
+def test_uninstall_tombstones_plugin_and_purges_stored_configs(
+    mock_remove, registry, mock_loader, mock_plugin, mock_manifest
+):
+    """uninstall_external_plugin must tombstone the id and purge stored configs
+    for the base plugin AND its instances, so no later boot can resurrect it —
+    including uninstalls that bypass the HTTP endpoint (MCP path, #1394)."""
+    registry._plugins["ext"] = mock_plugin
+    registry._manifests["ext"] = mock_manifest
+    registry._enabled["ext"] = True
+    registry._configs["ext"] = {"enabled": True}
+    mock_loader.get_source.return_value = PluginSource(source_type="external", local_path="/ext/ext")
+
+    with patch("src.config_manager.get_config_manager") as mock_cm:
+        inst = mock_cm.return_value
+        inst.get_all_plugin_configs.return_value = {
+            "ext": {"enabled": True},
+            "ext:sf": {"enabled": True},
+            "other": {"enabled": True},
+        }
+        errors = registry.uninstall_external_plugin("ext")
+
+    assert errors == []
+    inst.mark_plugin_removed.assert_called_once_with("ext")
+    deleted = {call.args[0] for call in inst.delete_plugin_config.call_args_list}
+    assert deleted == {"ext", "ext:sf"}
+
+
+@patch("src.plugins.registry.remove_external_plugin")
+def test_uninstall_does_not_tombstone_on_failure(mock_remove, registry, mock_loader):
+    """A failed uninstall (unknown plugin / builtin) must not write a tombstone."""
+    mock_loader.get_source.return_value = PluginSource(source_type="builtin", local_path="/plugins/test")
+    with patch("src.config_manager.get_config_manager") as mock_cm:
+        errors = registry.uninstall_external_plugin("test")
+    assert errors
+    mock_cm.return_value.mark_plugin_removed.assert_not_called()
+
+
+@patch("src.plugins.registry.get_external_plugins_dir")
+@patch("src.plugins.registry.install_registry_plugin", return_value=(True, ""))
+@patch("src.plugins.registry.load_registry")
+def test_install_from_registry_clears_tombstone(
+    mock_load, mock_install, mock_dir, registry, mock_loader, mock_plugin, mock_manifest
+):
+    """An explicit reinstall clears the deliberate-removal tombstone (#1394)."""
+    mock_load.return_value = [
+        RegistryEntry(
+            plugin_id="weather", name="Weather", repository="https://github.com/Org/fiestaboard-plugin--weather"
+        ),
+    ]
+    mock_loader.load_plugin.return_value = mock_plugin
+    mock_loader.get_manifest.return_value = mock_manifest
+
+    with patch("src.config_manager.get_config_manager") as mock_cm:
+        errors = registry.install_from_registry("weather")
+
+    assert errors == []
+    mock_cm.return_value.clear_plugin_removed.assert_called_once_with("weather")
+
+
+@patch("src.plugins.registry.install_registry_plugin", return_value=(False, "clone failed"))
+@patch("src.plugins.registry.load_registry")
+def test_install_from_registry_failure_keeps_tombstone(mock_load, mock_install, registry):
+    mock_load.return_value = [
+        RegistryEntry(
+            plugin_id="weather", name="Weather", repository="https://github.com/Org/fiestaboard-plugin--weather"
+        ),
+    ]
+    with patch("src.config_manager.get_config_manager") as mock_cm:
+        errors = registry.install_from_registry("weather")
+    assert errors == ["clone failed"]
+    mock_cm.return_value.clear_plugin_removed.assert_not_called()
+
+
+@patch("src.plugins.registry.get_external_plugins_dir")
+@patch("src.plugins.registry.install_git_plugin", return_value=(True, ""))
+def test_install_from_git_clears_tombstone(mock_install, mock_dir, registry, mock_loader, mock_plugin, mock_manifest):
+    mock_loader.load_plugin.return_value = mock_plugin
+    mock_loader.get_manifest.return_value = mock_manifest
+
+    with patch("src.config_manager.get_config_manager") as mock_cm:
+        errors = registry.install_from_git("https://github.com/someone/my-plugin", plugin_id="my_plugin")
+
+    assert errors == []
+    mock_cm.return_value.clear_plugin_removed.assert_called_once_with("my_plugin")
+
+
+def test_migration_skips_tombstoned_orphan(registry):
+    """The v2 reconcile must never re-clone a deliberately removed plugin, even
+    if its config entry somehow survived or was resurrected (#1394)."""
+    stored = {"stocks": {"enabled": True}}
+    registry.install_from_registry = MagicMock(return_value=[])
+
+    with patch("src.config_manager.get_config_manager") as mock_cm:
+        inst = _cm_first_run(mock_cm, stored)
+        inst.get_removed_plugins.return_value = ["stocks"]
+        registry._auto_migrate_v2_plugins(stored)
+
+    registry.install_from_registry.assert_not_called()
+
+
+def test_migration_tombstone_covers_instance_configs(registry):
+    """A tombstoned base plugin is not reinstalled even when an instance config
+    ("stocks:sf") would otherwise mark it as in use."""
+    stored = {
+        "stocks": {"enabled": False},
+        "stocks:sf": {"enabled": True},
+    }
+    registry.install_from_registry = MagicMock(return_value=[])
+
+    with patch("src.config_manager.get_config_manager") as mock_cm:
+        inst = _cm_first_run(mock_cm, stored)
+        inst.get_removed_plugins.return_value = ["stocks"]
+        registry._auto_migrate_v2_plugins(stored)
+
+    registry.install_from_registry.assert_not_called()
+
+
+def test_migration_still_installs_untombstoned_orphan(registry):
+    stored = {"weather": {"enabled": True}}
+    registry.install_from_registry = MagicMock(return_value=[])
+
+    with patch("src.config_manager.get_config_manager") as mock_cm:
+        inst = _cm_first_run(mock_cm, stored)
+        inst.get_removed_plugins.return_value = ["stocks"]
+        registry._auto_migrate_v2_plugins(stored)
+
+    registry.install_from_registry.assert_called_once_with("weather")
+
+
+def test_build_template_context_returns_without_waiting_for_a_slow_plugin(
+    registry, mock_loader, mock_plugin, mock_manifest
+):
+    """A plugin that blows the timeout must not delay the render.
+
+    ``futures_wait(timeout=...)`` only decides whether a result is *used*.
+    Leaving the executor to a ``with`` block undoes that: ``__exit__`` calls
+    ``shutdown(wait=True)``, so the call still blocks for the full duration of
+    the slowest plugin and then throws its answer away.
+    """
+    slow_plugin = MagicMock(spec=PluginBase)
+    slow_plugin.plugin_id = "slow_plugin"
+    slow_plugin.validate_config.return_value = []
+    slow_plugin._validate_refresh_seconds.return_value = []
+    slow_plugin.enabled = False
+    slow_plugin.config = {}
+
+    released = threading.Event()
+
+    def never_finishes_in_time(board=None):
+        released.wait(timeout=30)
+        return PluginResult(available=True, data={"key": "too late"})
+
+    slow_plugin.get_data.side_effect = never_finishes_in_time
+
+    mock_loader.load_all_plugins.return_value = {
+        "test_plugin": mock_plugin,
+        "slow_plugin": slow_plugin,
+    }
+    mock_loader.get_manifest.side_effect = lambda pid: mock_manifest
+    with patch("src.config_manager.get_config_manager") as mock_cm:
+        mock_cm.return_value.get_all_plugin_configs.return_value = {
+            "test_plugin": {"enabled": True},
+            "slow_plugin": {"enabled": True},
+        }
+        registry.initialize()
+
+    try:
+        with patch("src.plugins.registry.CONTEXT_BUILD_TIMEOUT_SECONDS", 0.5):
+            started = time.monotonic()
+            context = registry.build_template_context()
+            elapsed = time.monotonic() - started
+
+        assert elapsed < 3, f"build_template_context blocked {elapsed:.1f}s on a plugin it had already abandoned"
+        assert "test_plugin" in context, "the responsive plugin's data was lost"
+        assert "slow_plugin" not in context
+    finally:
+        released.set()
+
+
+# --- plugin lifecycle on reset (issue #1753) ---
+
+
+class _LifecyclePlugin(PluginBase):
+    """Real PluginBase subclass that records every fetch it performs.
+
+    The counter is shared across instances of the same plugin id so a test can
+    tell "the warm instance served its cache" from "a fresh instance refetched".
+    """
+
+    def __init__(self, manifest, fetches):
+        super().__init__(manifest)
+        self._fetches = fetches
+
+    @property
+    def plugin_id(self):
+        return self._manifest["id"]
+
+    def fetch_data(self):
+        self._fetches.append(self.plugin_id)
+        return PluginResult(available=True, data={"n": len(self._fetches)})
+
+
+def _lifecycle_manifest(plugin_id):
+    return {
+        "id": plugin_id,
+        "name": plugin_id.title(),
+        "version": "1.0.0",
+        "description": "",
+        "author": "",
+        "variables": {"simple": ["var1"]},
+        "max_lengths": {},
+    }
+
+
+def _two_generations(plugin_id, fetches):
+    """A live plugin instance plus the replacement a full reload would build."""
+    manifest = _lifecycle_manifest(plugin_id)
+    return _LifecyclePlugin(manifest, fetches), _LifecyclePlugin(manifest, fetches)
+
+
+def test_repeat_initialize_keeps_plugin_data_cached(registry, mock_loader, mock_manifest):
+    """A second initialize() must not swap in cold instances and refetch."""
+    fetches = []
+    live, replacement = _two_generations("beta", fetches)
+    mock_loader.load_all_plugins.side_effect = [{"beta": live}, {"beta": replacement}]
+    mock_loader.get_manifest.side_effect = lambda pid: mock_manifest
+
+    with patch("src.config_manager.get_config_manager") as mock_cm:
+        mock_cm.return_value.get_all_plugin_configs.return_value = {"beta": {"enabled": True}}
+        registry.initialize()
+        registry.get_plugin("beta").get_data()
+
+        # What a plugin config save triggers today: reset_display_service()
+        # drops the DisplayService singleton, and rebuilding it re-initializes
+        # the already-initialized registry.
+        registry.initialize()
+        registry.get_plugin("beta").get_data()
+
+    assert fetches == ["beta"], "plugin beta refetched after an unrelated reset — its cache was thrown away"
+
+
+def test_recreating_the_display_service_keeps_the_live_plugin_instance(registry, mock_loader, mock_manifest):
+    """Rebuilding DisplayService must not re-instantiate the whole plugin set."""
+    from src.displays.service import DisplayService
+
+    fetches = []
+    live, replacement = _two_generations("beta", fetches)
+    mock_loader.load_all_plugins.side_effect = [{"beta": live}, {"beta": replacement}]
+    mock_loader.get_manifest.side_effect = lambda pid: mock_manifest
+
+    with patch("src.config_manager.get_config_manager") as mock_cm:
+        mock_cm.return_value.get_all_plugin_configs.return_value = {"beta": {"enabled": True}}
+        registry.initialize()
+
+        with (
+            patch("src.displays.service.PLUGIN_SYSTEM_AVAILABLE", True),
+            patch("src.displays.service.get_plugin_registry", return_value=registry),
+        ):
+            DisplayService()
+
+    assert registry.get_plugin("beta") is live

@@ -1,22 +1,3 @@
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import {
-  Clock,
-  FileText,
-  GalleryHorizontalEnd,
-  GripVertical,
-  Loader2,
-  Pencil,
-  Plus,
-  Shuffle,
-  Sigma,
-  Trash2,
-} from "lucide-react";
-import { useCallback, useMemo, useState } from "react";
-import { toast } from "sonner";
-
-import { PageHeader } from "@/components/page-header";
-import { PageLayout } from "@/components/page-layout";
-import { PageToolbar } from "@/components/page-toolbar";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -26,15 +7,52 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet";
-import { Skeleton } from "@/components/ui/skeleton";
+  Badge,
+  Box,
+  Button,
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+  Flex,
+  Input,
+  Label,
+  PageCard,
+  PageHeader,
+  PageLayout,
+  PageSection,
+  PageToolbar,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetHeader,
+  SheetTitle,
+  Skeleton,
+  Stack,
+  Text,
+} from "@fiestaboard/ui";
+import { EmptyState } from "@fiestaboard/ui/components/feedback/empty-state";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import {
+  Clock,
+  FileText,
+  GalleryHorizontalEnd,
+  GripVertical,
+  Pencil,
+  Plus,
+  Shuffle,
+  Sigma,
+  Trash2,
+} from "lucide-react";
+import { useCallback, useMemo, useState } from "react";
+import { toast } from "sonner";
+
 import { VariableRuleRow } from "@/components/variable-rule-row";
 import { queryKeys } from "@/hooks/use-board";
 import { useTranslations } from "@/i18n/translations";
@@ -48,6 +66,15 @@ import type {
 } from "@/lib/api";
 import { api } from "@/lib/api";
 
+// Page-duration bounds. These mirror MIN_INTERVAL_SECONDS / MAX_INTERVAL_SECONDS
+// in src/collections/models.py — the server rejects anything outside them, so
+// the form validates locally rather than round-tripping a 422.
+const MIN_INTERVAL_SECONDS = 5;
+const MAX_INTERVAL_SECONDS = 86400; // 24 hours
+
+/** Sentinel Select value that switches the duration field into custom entry. */
+const CUSTOM_INTERVAL = "custom";
+
 const INTERVAL_PRESETS = [
   { labelKey: "interval5s", value: 5 },
   { labelKey: "interval10s", value: 10 },
@@ -59,7 +86,59 @@ const INTERVAL_PRESETS = [
   { labelKey: "interval10m", value: 600 },
   { labelKey: "interval15m", value: 900 },
   { labelKey: "interval30m", value: 1800 },
+  { labelKey: "interval45m", value: 2700 },
+  { labelKey: "interval1h", value: 3600 },
+  { labelKey: "interval2h", value: 7200 },
+  { labelKey: "interval4h", value: 14400 },
+  { labelKey: "interval8h", value: 28800 },
+  { labelKey: "interval12h", value: 43200 },
+  { labelKey: "interval24h", value: 86400 },
 ];
+
+export type IntervalUnit = "seconds" | "minutes" | "hours";
+
+const UNIT_SECONDS: Record<IntervalUnit, number> = {
+  seconds: 1,
+  minutes: 60,
+  hours: 3600,
+};
+
+const UNIT_OPTIONS: { value: IntervalUnit; labelKey: string }[] = [
+  { value: "seconds", labelKey: "unitSeconds" },
+  { value: "minutes", labelKey: "unitMinutes" },
+  { value: "hours", labelKey: "unitHours" },
+];
+
+function isPresetInterval(seconds: number): boolean {
+  return INTERVAL_PRESETS.some((p) => p.value === seconds);
+}
+
+/**
+ * Express a duration in the largest unit that divides it exactly, so an
+ * existing 5400s collection reopens as "90 minutes" rather than "5400 seconds".
+ */
+export function splitInterval(seconds: number): { amount: number; unit: IntervalUnit } {
+  if (seconds > 0 && seconds % UNIT_SECONDS.hours === 0) {
+    return { amount: seconds / UNIT_SECONDS.hours, unit: "hours" };
+  }
+  if (seconds > 0 && seconds % UNIT_SECONDS.minutes === 0) {
+    return { amount: seconds / UNIT_SECONDS.minutes, unit: "minutes" };
+  }
+  return { amount: seconds, unit: "seconds" };
+}
+
+/**
+ * Convert a raw custom-entry amount into seconds. Returns null when the entry
+ * is not a whole number or falls outside the server-accepted range.
+ */
+export function parseCustomInterval(amount: string, unit: IntervalUnit): number | null {
+  const trimmed = amount.trim();
+  if (!/^\d+$/.test(trimmed)) return null;
+  const seconds = Number(trimmed) * UNIT_SECONDS[unit];
+  if (!Number.isSafeInteger(seconds)) return null;
+  if (seconds < MIN_INTERVAL_SECONDS || seconds > MAX_INTERVAL_SECONDS) return null;
+  return seconds;
+}
 
 const POLL_PRESETS = [
   { labelKey: "interval5s", value: 5 },
@@ -69,10 +148,16 @@ const POLL_PRESETS = [
   { labelKey: "interval1m", value: 60 },
 ];
 
-function formatInterval(seconds: number): string {
+export function formatInterval(seconds: number): string {
   if (seconds < 60) return `${seconds}s`;
-  if (seconds < 3600) return `${Math.floor(seconds / 60)}m`;
-  return `${Math.floor(seconds / 3600)}h`;
+  if (seconds < 3600) {
+    const minutes = Math.floor(seconds / 60);
+    const rest = seconds % 60;
+    return rest ? `${minutes}m ${rest}s` : `${minutes}m`;
+  }
+  const hours = Math.floor(seconds / 3600);
+  const minutes = Math.floor((seconds % 3600) / 60);
+  return minutes ? `${hours}h ${minutes}m` : `${hours}h`;
 }
 
 interface CollectionFormProps {
@@ -83,7 +168,7 @@ interface CollectionFormProps {
   onDelete?: () => void;
 }
 
-function CollectionForm({ collection, pages, onSubmit, onCancel, onDelete }: CollectionFormProps) {
+export function CollectionForm({ collection, pages, onSubmit, onCancel, onDelete }: CollectionFormProps) {
   const t = useTranslations("collections");
   const tc = useTranslations("common");
   const isEdit = Boolean(collection);
@@ -91,11 +176,19 @@ function CollectionForm({ collection, pages, onSubmit, onCancel, onDelete }: Col
   const [name, setName] = useState(collection?.name || "");
   const [selectedPageIds, setSelectedPageIds] = useState<string[]>(collection?.page_ids || []);
   const [selectionMode, setSelectionMode] = useState<CollectionSelectionMode>(collection?.selection_mode || "time");
-  const [intervalSeconds, setIntervalSeconds] = useState(
+  // A collection saved with a custom duration (or one saved before a preset was
+  // removed) must reopen in custom mode showing its real value — snapping it to
+  // the nearest preset would silently rewrite the user's setting on save.
+  const initialInterval =
     collection?.selection_mode === "random"
       ? collection?.random?.interval_seconds || 30
-      : collection?.time?.interval_seconds || 30,
-  );
+      : collection?.time?.interval_seconds || 30;
+  const initialCustomEntry = splitInterval(initialInterval);
+
+  const [intervalSeconds, setIntervalSeconds] = useState(initialInterval);
+  const [isCustomInterval, setIsCustomInterval] = useState(() => !isPresetInterval(initialInterval));
+  const [customAmount, setCustomAmount] = useState(String(initialCustomEntry.amount));
+  const [customUnit, setCustomUnit] = useState<IntervalUnit>(initialCustomEntry.unit);
   const [rules, setRules] = useState<VariableRule[]>(collection?.variable?.rules || []);
   const [defaultPageId, setDefaultPageId] = useState<string>(collection?.variable?.default_page_id || "");
   const [pollSeconds, setPollSeconds] = useState(collection?.variable?.poll_seconds || 10);
@@ -287,9 +380,41 @@ function CollectionForm({ collection, pages, onSubmit, onCancel, onDelete }: Col
 
   const handleRuleDragEnd = useCallback(() => setRuleDragIndex(null), []);
 
+  // The duration control only exists in time and random mode; a half-typed
+  // custom value must not block saving a variable-mode collection, whose
+  // rotation is driven by rules rather than by a page duration.
+  const durationModeActive = selectionMode === "time" || selectionMode === "random";
+  const customIntervalActive = durationModeActive && isCustomInterval;
+  const customIntervalSeconds = useMemo(
+    () => (customIntervalActive ? parseCustomInterval(customAmount, customUnit) : null),
+    [customIntervalActive, customAmount, customUnit],
+  );
+  const customIntervalInvalid = customIntervalActive && customIntervalSeconds === null;
+  const resolvedIntervalSeconds = customIntervalActive ? customIntervalSeconds : intervalSeconds;
+
+  const handleIntervalChange = useCallback(
+    (value: string) => {
+      if (!value) return;
+      if (value === CUSTOM_INTERVAL) {
+        const entry = splitInterval(intervalSeconds);
+        setCustomAmount(String(entry.amount));
+        setCustomUnit(entry.unit);
+        setIsCustomInterval(true);
+        return;
+      }
+      setIsCustomInterval(false);
+      setIntervalSeconds(Number(value));
+    },
+    [intervalSeconds],
+  );
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!name.trim() || selectedPageIds.length === 0) return;
+    if (resolvedIntervalSeconds === null) {
+      toast.error(t("customDurationError"));
+      return;
+    }
     if (selectionMode === "variable") {
       if (!defaultPageId) {
         toast.error(t("variableDefaultRequired"));
@@ -306,7 +431,7 @@ function CollectionForm({ collection, pages, onSubmit, onCancel, onDelete }: Col
         name: name.trim(),
         page_ids: selectedPageIds,
         selection_mode: selectionMode,
-        time: { interval_seconds: intervalSeconds },
+        time: { interval_seconds: resolvedIntervalSeconds },
         variable:
           selectionMode === "variable"
             ? {
@@ -315,7 +440,7 @@ function CollectionForm({ collection, pages, onSubmit, onCancel, onDelete }: Col
                 poll_seconds: pollSeconds,
               }
             : null,
-        random: selectionMode === "random" ? { interval_seconds: intervalSeconds } : null,
+        random: selectionMode === "random" ? { interval_seconds: resolvedIntervalSeconds } : null,
       });
     } catch {
       setIsSubmitting(false);
@@ -325,13 +450,14 @@ function CollectionForm({ collection, pages, onSubmit, onCancel, onDelete }: Col
   const canSubmit =
     name.trim().length > 0 &&
     selectedPageIds.length >= 1 &&
+    !customIntervalInvalid &&
     (selectionMode !== "variable" ||
       (defaultPageId.length > 0 && rules.every((r) => r.expression.trim().length > 0 && r.page_id.length > 0)));
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-6 mt-4">
+    <Box as="form" onSubmit={handleSubmit} className="space-y-6 mt-4">
       {/* Name */}
-      <div className="space-y-2">
+      <Stack gap="2">
         <Label htmlFor="collection-name">{t("nameLabel")}</Label>
         <Input
           id="collection-name"
@@ -340,50 +466,55 @@ function CollectionForm({ collection, pages, onSubmit, onCancel, onDelete }: Col
           placeholder={t("namePlaceholder")}
           maxLength={100}
         />
-      </div>
+      </Stack>
 
       {/* Selection mode */}
-      <div className="space-y-2">
+      <Stack gap="2">
         <Label htmlFor="collection-mode">{t("selectionModeLabel")}</Label>
-        <p className="text-xs text-muted-foreground">{t("selectionModeDescription")}</p>
+        <Text size="xs" tone="muted">
+          {t("selectionModeDescription")}
+        </Text>
         <Select value={selectionMode} onValueChange={(v) => setSelectionMode(v as CollectionSelectionMode)}>
           <SelectTrigger id="collection-mode">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="time">
-              <div className="flex items-center gap-2">
+              <Flex align="center" gap="2">
                 <Clock className="h-4 w-4" aria-hidden="true" />
-                <span>{t("modeTimeLabel")}</span>
-              </div>
+                <Text as="span">{t("modeTimeLabel")}</Text>
+              </Flex>
             </SelectItem>
             <SelectItem value="variable">
-              <div className="flex items-center gap-2">
+              <Flex align="center" gap="2">
                 <Sigma className="h-4 w-4" aria-hidden="true" />
-                <span>{t("modeVariableLabel")}</span>
+                <Text as="span">{t("modeVariableLabel")}</Text>
                 <Badge variant="outline" className="text-[10px] uppercase tracking-wide ml-1 py-0">
                   {t("betaBadge")}
                 </Badge>
-              </div>
+              </Flex>
             </SelectItem>
             <SelectItem value="random">
-              <div className="flex items-center gap-2">
+              <Flex align="center" gap="2">
                 <Shuffle className="h-4 w-4" aria-hidden="true" />
-                <span>{t("modeRandomLabel")}</span>
-              </div>
+                <Text as="span">{t("modeRandomLabel")}</Text>
+              </Flex>
             </SelectItem>
           </SelectContent>
         </Select>
-      </div>
+      </Stack>
 
       {/* Page-duration controls (time + random modes) */}
       {(selectionMode === "time" || selectionMode === "random") && (
-        <div className="space-y-2">
+        <Stack gap="2">
           <Label htmlFor="collection-interval">{t("pageDurationLabel")}</Label>
-          <p className="text-xs text-muted-foreground">
+          <Text size="xs" tone="muted">
             {selectionMode === "random" ? t("randomDurationDescription") : t("pageDurationDescription")}
-          </p>
-          <Select value={String(intervalSeconds)} onValueChange={(v) => setIntervalSeconds(Number(v))}>
+          </Text>
+          <Select
+            value={isCustomInterval ? CUSTOM_INTERVAL : String(intervalSeconds)}
+            onValueChange={handleIntervalChange}
+          >
             <SelectTrigger id="collection-interval">
               <SelectValue />
             </SelectTrigger>
@@ -393,38 +524,84 @@ function CollectionForm({ collection, pages, onSubmit, onCancel, onDelete }: Col
                   {t(p.labelKey)}
                 </SelectItem>
               ))}
+              <SelectItem value={CUSTOM_INTERVAL}>{t("intervalCustom")}</SelectItem>
             </SelectContent>
           </Select>
-        </div>
+
+          {isCustomInterval && (
+            <Flex gap="2" align="end" className="flex-wrap">
+              <Stack gap="1" className="flex-1 min-w-[7rem]">
+                <Label htmlFor="collection-interval-amount">{t("customDurationLabel")}</Label>
+                <Input
+                  id="collection-interval-amount"
+                  type="number"
+                  inputMode="numeric"
+                  min={1}
+                  value={customAmount}
+                  onChange={(e) => setCustomAmount(e.target.value)}
+                  aria-invalid={customIntervalInvalid || undefined}
+                  aria-describedby={customIntervalInvalid ? "collection-interval-error" : undefined}
+                />
+              </Stack>
+              <Stack gap="1" className="w-40">
+                <Label htmlFor="collection-interval-unit">{t("customDurationUnitLabel")}</Label>
+                <Select value={customUnit} onValueChange={(v) => v && setCustomUnit(v as IntervalUnit)}>
+                  <SelectTrigger id="collection-interval-unit">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {UNIT_OPTIONS.map((u) => (
+                      <SelectItem key={u.value} value={u.value}>
+                        {t(u.labelKey)}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </Stack>
+            </Flex>
+          )}
+          {isCustomInterval &&
+            (customIntervalInvalid ? (
+              <Text id="collection-interval-error" size="xs" tone="destructive" role="alert">
+                {t("customDurationError")}
+              </Text>
+            ) : (
+              <Text size="xs" tone="muted">
+                {t("customDurationResolved", { duration: formatInterval(customIntervalSeconds ?? 0) })}
+              </Text>
+            ))}
+        </Stack>
       )}
 
       {/* Selected Pages (reorderable) */}
-      <div className="space-y-2">
+      <Stack gap="2">
         <Label>{t("pagesInCollection")}</Label>
-        <p className="text-xs text-muted-foreground">
+        <Text size="xs" tone="muted">
           {selectionMode === "time"
             ? t("dragToReorder")
             : selectionMode === "random"
               ? t("randomMembershipHint")
               : t("variableMembershipHint")}
-        </p>
+        </Text>
 
         {selectedPageIds.length === 0 ? (
-          <div className="border border-dashed rounded-lg p-4 text-center text-sm text-muted-foreground">
+          <Text tone="muted" className="border border-dashed rounded-lg p-4 text-center">
             {t("noPagesAdded")}
-          </div>
+          </Text>
         ) : (
-          <div className="space-y-1">
+          <Stack gap="1">
             {selectedPageIds.map((pid, index) => {
               const page = pages.find((p) => p.id === pid);
               return (
-                <div
+                <Flex
                   key={pid}
+                  align="center"
+                  gap="2"
                   draggable={selectionMode === "time"}
                   onDragStart={() => handleDragStart(index)}
                   onDragOver={(e) => handleDragOver(e, index)}
                   onDragEnd={handleDragEnd}
-                  className={`flex items-center gap-2 rounded-lg border p-2.5 bg-background ${
+                  className={`rounded-lg border p-2.5 bg-background ${
                     selectionMode === "time" ? "cursor-grab active:cursor-grabbing" : ""
                   } ${dragIndex === index ? "opacity-50" : ""}`}
                 >
@@ -435,7 +612,9 @@ function CollectionForm({ collection, pages, onSubmit, onCancel, onDelete }: Col
                     </Badge>
                   )}
                   <FileText className="h-4 w-4 text-muted-foreground flex-shrink-0" />
-                  <span className="text-sm truncate flex-1">{page?.name || pid}</span>
+                  <Text as="span" className="truncate flex-1">
+                    {page?.name || pid}
+                  </Text>
                   <Button
                     type="button"
                     variant="ghost"
@@ -445,10 +624,10 @@ function CollectionForm({ collection, pages, onSubmit, onCancel, onDelete }: Col
                   >
                     <Trash2 className="h-3.5 w-3.5 text-muted-foreground" />
                   </Button>
-                </div>
+                </Flex>
               );
             })}
-          </div>
+          </Stack>
         )}
 
         {availablePages.length > 0 && (
@@ -465,20 +644,28 @@ function CollectionForm({ collection, pages, onSubmit, onCancel, onDelete }: Col
             </SelectContent>
           </Select>
         )}
-      </div>
+      </Stack>
 
       {/* Variable-mode controls */}
       {selectionMode === "variable" && (
-        <div className="space-y-4 border-t pt-4">
-          <div className="flex items-start gap-2 rounded-md border border-dashed bg-muted/40 p-2.5 text-xs text-muted-foreground">
+        <Stack gap="4" className="border-t pt-4">
+          <Flex
+            align="start"
+            gap="2"
+            className="rounded-md border border-dashed bg-muted/40 p-2.5 text-xs text-muted-foreground"
+          >
             <Badge variant="outline" className="text-[10px] uppercase tracking-wide py-0">
               {t("betaBadge")}
             </Badge>
-            <span>{t("variableModeBetaNote")}</span>
-          </div>
-          <div className="space-y-2">
+            <Text as="span" size="xs" tone="muted">
+              {t("variableModeBetaNote")}
+            </Text>
+          </Flex>
+          <Stack gap="2">
             <Label htmlFor="collection-default">{t("variableDefaultLabel")}</Label>
-            <p className="text-xs text-muted-foreground">{t("variableDefaultDescription")}</p>
+            <Text size="xs" tone="muted">
+              {t("variableDefaultDescription")}
+            </Text>
             <Select value={defaultPageId} onValueChange={setDefaultPageId} disabled={selectedPageIds.length === 0}>
               <SelectTrigger id="collection-default">
                 <SelectValue placeholder={t("variableDefaultPlaceholder")} />
@@ -494,18 +681,20 @@ function CollectionForm({ collection, pages, onSubmit, onCancel, onDelete }: Col
                 })}
               </SelectContent>
             </Select>
-          </div>
+          </Stack>
 
-          <div className="space-y-2">
+          <Stack gap="2">
             <Label>{t("variableRulesLabel")}</Label>
-            <p className="text-xs text-muted-foreground">{t("variableRulesDescription")}</p>
+            <Text size="xs" tone="muted">
+              {t("variableRulesDescription")}
+            </Text>
 
             {rules.length === 0 ? (
-              <div className="border border-dashed rounded-lg p-4 text-center text-sm text-muted-foreground">
+              <Text tone="muted" className="border border-dashed rounded-lg p-4 text-center">
                 {t("variableNoRules")}
-              </div>
+              </Text>
             ) : (
-              <div className="space-y-2">
+              <Stack gap="2">
                 {rules.map((rule, index) => (
                   <VariableRuleRow
                     key={index}
@@ -528,7 +717,7 @@ function CollectionForm({ collection, pages, onSubmit, onCancel, onDelete }: Col
                     t={t}
                   />
                 ))}
-              </div>
+              </Stack>
             )}
 
             <Button
@@ -560,11 +749,13 @@ function CollectionForm({ collection, pages, onSubmit, onCancel, onDelete }: Col
                 </AlertDialogFooter>
               </AlertDialogContent>
             </AlertDialog>
-          </div>
+          </Stack>
 
-          <div className="space-y-2">
+          <Stack gap="2">
             <Label htmlFor="collection-poll">{t("variablePollLabel")}</Label>
-            <p className="text-xs text-muted-foreground">{t("variablePollDescription")}</p>
+            <Text size="xs" tone="muted">
+              {t("variablePollDescription")}
+            </Text>
             <Select value={String(pollSeconds)} onValueChange={(v) => setPollSeconds(Number(v))}>
               <SelectTrigger id="collection-poll">
                 <SelectValue />
@@ -577,31 +768,30 @@ function CollectionForm({ collection, pages, onSubmit, onCancel, onDelete }: Col
                 ))}
               </SelectContent>
             </Select>
-          </div>
-        </div>
+          </Stack>
+        </Stack>
       )}
 
       {/* Actions */}
-      <div className="flex justify-between gap-2 pt-2">
-        <div>
+      <Flex justify="between" gap="2" className="pt-2">
+        <Box>
           {isEdit && onDelete && (
             <Button type="button" variant="destructive" onClick={onDelete} disabled={isSubmitting}>
               <Trash2 className="mr-2 h-4 w-4" />
               {tc("delete")}
             </Button>
           )}
-        </div>
-        <div className="flex gap-2">
+        </Box>
+        <Flex gap="2">
           <Button type="button" variant="outline" onClick={onCancel} disabled={isSubmitting}>
             {tc("cancel")}
           </Button>
-          <Button type="submit" disabled={!canSubmit || isSubmitting}>
-            {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+          <Button type="submit" loading={isSubmitting} disabled={!canSubmit || isSubmitting}>
             {isEdit ? t("updateCollection") : t("createCollection")}
           </Button>
-        </div>
-      </div>
-    </form>
+        </Flex>
+      </Flex>
+    </Box>
   );
 }
 
@@ -625,7 +815,7 @@ export default function CollectionsPage() {
 
   const invalidateAll = useCallback(() => {
     queryClient.invalidateQueries({ queryKey: queryKeys.collections });
-    queryClient.invalidateQueries({ queryKey: queryKeys.activePage });
+    queryClient.invalidateQueries({ queryKey: queryKeys.activePage() });
   }, [queryClient]);
 
   const createMutation = useMutation({
@@ -710,33 +900,13 @@ export default function CollectionsPage() {
 
   return (
     <PageLayout>
-      <PageHeader icon={GalleryHorizontalEnd} title={t("title")} description={t("description")} />
-      <PageToolbar
-        right={
-          <Button
-            variant="brand"
-            size="sm"
-            onClick={() => {
-              setEditingCollection(null);
-              setShowForm(true);
-            }}
-            className="btn-lift"
-          >
-            <Plus className="h-4 w-4 mr-1" />
-            {t("newCollection")}
-          </Button>
-        }
-      />
-
-      {/* Collections list */}
-      {collections.length === 0 ? (
-        <Card>
-          <CardContent className="py-12 text-center">
-            <GalleryHorizontalEnd className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-            <p className="text-muted-foreground mb-2">{t("noCollectionsTitle")}</p>
-            <p className="text-sm text-muted-foreground mb-4">{t("noCollectionsDescription")}</p>
+      <PageCard>
+        <PageHeader icon={GalleryHorizontalEnd} title={t("title")} description={t("description")} />
+        <PageToolbar
+          right={
             <Button
               variant="brand"
+              size="sm"
               onClick={() => {
                 setEditingCollection(null);
                 setShowForm(true);
@@ -744,70 +914,107 @@ export default function CollectionsPage() {
               className="btn-lift"
             >
               <Plus className="h-4 w-4 mr-1" />
-              {t("createFirstCollection")}
+              {t("newCollection")}
             </Button>
-          </CardContent>
-        </Card>
-      ) : (
-        <div className="space-y-4">
-          {collections.map((collection, idx) => (
-            <Card
-              key={collection.id}
-              className="animate-card-fade-in card-interactive"
-              style={{ animationDelay: `${idx * 50}ms` }}
-            >
-              <CardHeader className="pb-3">
-                {/* min-w-0: CardHeader is a grid; without it this grid item
-                    sizes to min-content and long names inflate the row. */}
-                <div className="flex items-start justify-between gap-2 min-w-0">
-                  <div className="flex items-center gap-2 min-w-0">
-                    <GalleryHorizontalEnd className="h-5 w-5 text-primary flex-shrink-0" />
-                    <div className="min-w-0">
-                      <CardTitle className="text-base flex items-center gap-2 min-w-0">
-                        <span className="truncate">{collection.name}</span>
-                        <Badge variant="outline" className="text-[10px] uppercase tracking-wide flex-shrink-0">
-                          {collection.selection_mode === "time" ? (
-                            <Clock className="h-3 w-3 mr-1" aria-hidden="true" />
-                          ) : collection.selection_mode === "random" ? (
-                            <Shuffle className="h-3 w-3 mr-1" aria-hidden="true" />
-                          ) : (
-                            <Sigma className="h-3 w-3 mr-1" aria-hidden="true" />
-                          )}
-                          {collection.selection_mode}
-                        </Badge>
-                        {collection.selection_mode === "variable" && (
-                          <Badge variant="outline" className="text-[10px] uppercase tracking-wide flex-shrink-0">
-                            {t("betaBadge")}
-                          </Badge>
-                        )}
-                      </CardTitle>
-                      <CardDescription className="text-xs">
-                        {collection.page_ids.length} page
-                        {collection.page_ids.length !== 1 ? "s" : ""} &middot; {describeMode(collection)}
-                      </CardDescription>
-                    </div>
-                  </div>
-                  <Button variant="ghost" size="sm" className="flex-shrink-0" onClick={() => handleEdit(collection)}>
-                    <Pencil className="h-4 w-4" />
+          }
+        />
+
+        {/* Collections list. The tiles below keep their borders — a collection
+          card is a thing you open, so its border is the click target. */}
+        <PageSection>
+          {collections.length === 0 ? (
+            <Box className="py-8">
+              <EmptyState
+                icon={GalleryHorizontalEnd}
+                title={t("noCollectionsTitle")}
+                description={t("noCollectionsDescription")}
+                action={
+                  <Button
+                    variant="brand"
+                    onClick={() => {
+                      setEditingCollection(null);
+                      setShowForm(true);
+                    }}
+                    className="btn-lift"
+                  >
+                    <Plus className="h-4 w-4 mr-1" />
+                    {t("createFirstCollection")}
                   </Button>
-                </div>
-              </CardHeader>
-              <CardContent className="pt-0">
-                <div className="flex flex-wrap gap-1.5">
-                  {collection.page_ids.map((pid, i) => (
-                    <Badge key={pid} variant="secondary" className="text-xs max-w-full">
-                      {collection.selection_mode === "time" && (
-                        <span className="text-muted-foreground mr-1 flex-shrink-0">{i + 1}.</span>
-                      )}
-                      <span className="truncate">{getPageName(pid)}</span>
-                    </Badge>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
-      )}
+                }
+              />
+            </Box>
+          ) : (
+            <Stack gap="4">
+              {collections.map((collection, idx) => (
+                <Card
+                  key={collection.id}
+                  className="animate-card-fade-in card-interactive"
+                  style={{ animationDelay: `${idx * 50}ms` }}
+                >
+                  <CardHeader className="pb-3">
+                    {/* min-w-0: CardHeader is a grid; without it this grid item
+                    sizes to min-content and long names inflate the row. */}
+                    <Flex align="start" justify="between" gap="2" className="min-w-0">
+                      <Flex align="center" gap="2" className="min-w-0">
+                        <GalleryHorizontalEnd className="h-5 w-5 text-primary flex-shrink-0" />
+                        <Box className="min-w-0">
+                          <CardTitle className="text-base flex items-center gap-2 min-w-0">
+                            <Text as="span" size="base" weight="semibold" className="truncate">
+                              {collection.name}
+                            </Text>
+                            <Badge variant="outline" className="text-[10px] uppercase tracking-wide flex-shrink-0">
+                              {collection.selection_mode === "time" ? (
+                                <Clock className="h-3 w-3 mr-1" aria-hidden="true" />
+                              ) : collection.selection_mode === "random" ? (
+                                <Shuffle className="h-3 w-3 mr-1" aria-hidden="true" />
+                              ) : (
+                                <Sigma className="h-3 w-3 mr-1" aria-hidden="true" />
+                              )}
+                              {collection.selection_mode}
+                            </Badge>
+                            {collection.selection_mode === "variable" && (
+                              <Badge variant="outline" className="text-[10px] uppercase tracking-wide flex-shrink-0">
+                                {t("betaBadge")}
+                              </Badge>
+                            )}
+                          </CardTitle>
+                          <CardDescription className="text-xs">
+                            {tc("pageCount", { count: collection.page_ids.length })} &middot; {describeMode(collection)}
+                          </CardDescription>
+                        </Box>
+                      </Flex>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="flex-shrink-0"
+                        onClick={() => handleEdit(collection)}
+                      >
+                        <Pencil className="h-4 w-4" />
+                      </Button>
+                    </Flex>
+                  </CardHeader>
+                  <CardContent className="pt-0">
+                    <Flex wrap gap="1.5">
+                      {collection.page_ids.map((pid, i) => (
+                        <Badge key={pid} variant="secondary" className="text-xs max-w-full">
+                          {collection.selection_mode === "time" && (
+                            <Text as="span" size="xs" tone="muted" className="mr-1 flex-shrink-0">
+                              {i + 1}.
+                            </Text>
+                          )}
+                          <Text as="span" size="xs" className="truncate text-secondary-foreground">
+                            {getPageName(pid)}
+                          </Text>
+                        </Badge>
+                      ))}
+                    </Flex>
+                  </CardContent>
+                </Card>
+              ))}
+            </Stack>
+          )}
+        </PageSection>
+      </PageCard>
 
       {/* Form Sheet */}
       <Sheet

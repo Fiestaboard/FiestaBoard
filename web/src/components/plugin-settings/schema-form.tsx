@@ -1,34 +1,35 @@
 "use client";
 
 import {
-  ArrowDown,
-  ArrowUp,
-  Check,
-  ChevronDown,
-  ChevronRight,
-  Copy,
-  Eye,
-  EyeOff,
-  Loader2,
-  MapPin,
-  Plus,
-  Trash2,
-  Zap,
-} from "lucide-react";
+  Box,
+  Button,
+  Flex,
+  Grid,
+  Input,
+  Label,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+  Stack,
+  Switch,
+  Text,
+  Textarea,
+} from "@fiestaboard/ui";
+import { SecretInput } from "@fiestaboard/ui/components/forms/secret-input";
+import { Loader2, MapPin, Plus, Trash2 } from "lucide-react";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Switch } from "@/components/ui/switch";
 import { TimezonePicker } from "@/components/ui/timezone-picker";
+import { useDepsChanged } from "@/hooks/use-deps-changed";
 import { useTranslations } from "@/i18n/translations";
-import { api, type QueueTimesPark, type QueueTimesRide } from "@/lib/api";
-import { cn } from "@/lib/utils";
 
+import { FieldScopeContext, SchemaFormPluginContext, useFieldScope } from "./field-context";
+import { isJsonPathMapper, JsonPathMapperField, type JsonPathMapperUiOptions } from "./json-path-mapper-field";
 import { PagePickerField } from "./page-picker-field";
+import { RemoteOptionsField, type RemoteOptionsUiOptions } from "./remote-options-field";
 
 // JSON Schema types (simplified for our use case)
 interface SchemaProperty {
@@ -36,7 +37,13 @@ interface SchemaProperty {
   title?: string;
   description?: string;
   default?: unknown;
-  enum?: unknown[];
+  /**
+   * Normally a JSON Schema `enum` array, but plugin manifests are
+   * user-authored JSON: a bare string or an `{ values: [...] }` wrapper both
+   * turn up in the wild, and StringField normalizes all three. Typed to match
+   * what the runtime actually handles rather than the well-formed case only.
+   */
+  enum?: unknown[] | string | Record<string, unknown>;
   enumNames?: string[];
   minimum?: number;
   maximum?: number;
@@ -47,13 +54,7 @@ interface SchemaProperty {
   required?: string[];
   "ui:widget"?: string;
   "ui:placeholder"?: string;
-  // Capability flags declared by the plugin manifest. Absent → treated as
-  // false, so the picker degrades gracefully on older plugin versions that
-  // don't support these features.
-  "ui:options"?: {
-    customRideNames?: boolean;
-    reorderRides?: boolean;
-  };
+  "ui:options"?: RemoteOptionsUiOptions & JsonPathMapperUiOptions;
 }
 
 interface JSONSchema {
@@ -62,12 +63,46 @@ interface JSONSchema {
   required?: string[];
 }
 
+/**
+ * Narrow an untyped `settings_schema` blob (it arrives as raw manifest JSON
+ * over the wire) to the subset this form reads. Only checked to the depth the
+ * renderer relies on — individual field shapes are already handled
+ * defensively by each widget.
+ */
+export function asJSONSchema(value: Record<string, unknown> | undefined | null): JSONSchema {
+  const properties = value?.properties;
+  const required = value?.required;
+  return {
+    type: "object",
+    properties:
+      properties && typeof properties === "object" && !Array.isArray(properties)
+        ? (properties as Record<string, SchemaProperty>)
+        : {},
+    required: Array.isArray(required) ? required.filter((name): name is string => typeof name === "string") : undefined,
+  };
+}
+
+/** Property name → its display title (falling back to the raw key). */
+function titlesOf(properties: Record<string, SchemaProperty> | undefined): Record<string, string> {
+  const titles: Record<string, string> = {};
+  for (const [key, propSchema] of Object.entries(properties ?? {})) {
+    titles[key] = propSchema.title || key;
+  }
+  return titles;
+}
+
 interface SchemaFormProps {
   schema: JSONSchema;
   values: Record<string, unknown>;
   onChange: (values: Record<string, unknown>) => void;
   disabled?: boolean;
   className?: string;
+  /**
+   * Id of the plugin whose settings are being edited. Optional so existing
+   * call sites keep working; `remote-options` fields need it to know which
+   * plugin to ask for a catalog and degrade to a disabled control without it.
+   */
+  pluginId?: string;
 }
 
 // Individual field components
@@ -75,7 +110,18 @@ interface FieldProps {
   name: string;
   property: SchemaProperty;
   value: unknown;
-  onChange: (value: unknown) => void;
+  /**
+   * Commit this field's value, optionally together with a patch of *sibling*
+   * properties in the same object.
+   *
+   * Only `remote-options` with `ui:options.labels_field` uses the second
+   * argument, and it has to exist because the two writes are one edit:
+   * removing a chosen row changes the array *and* drops that row's display
+   * name. Two separate `onChange` calls in one handler would both be computed
+   * from the same pre-edit object, so the second would silently undo the
+   * first. Every other field ignores the argument and nothing changes for it.
+   */
+  onChange: (value: unknown, siblings?: Record<string, unknown>) => void;
   required?: boolean;
   disabled?: boolean;
 }
@@ -144,7 +190,7 @@ function EnumSelectField({
 }
 
 function StringField({ name, property, value, onChange, required, disabled }: FieldProps) {
-  const [showPassword, setShowPassword] = useState(false);
+  const tSecret = useTranslations("schemaForm");
   const [_timezoneValid, setTimezoneValid] = useState(true);
   const isPassword = property["ui:widget"] === "password";
   const isTextarea = property["ui:widget"] === "textarea";
@@ -215,19 +261,14 @@ function StringField({ name, property, value, onChange, required, disabled }: Fi
 
   if (isTextarea) {
     return (
-      <textarea
+      <Textarea
         id={name}
         value={String(value || "")}
         onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => onChange(e.target.value)}
         placeholder={property["ui:placeholder"] || property.description}
         disabled={disabled}
         required={required}
-        className={cn(
-          "flex min-h-[80px] w-full rounded-md border border-input bg-background px-3 py-2",
-          "text-sm ring-offset-background placeholder:text-muted-foreground",
-          "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
-          "disabled:cursor-not-allowed disabled:opacity-50",
-        )}
+        className="min-h-[80px]"
       />
     );
   }
@@ -248,35 +289,31 @@ function StringField({ name, property, value, onChange, required, disabled }: Fi
     return <PagePickerField id={name} value={String(value || "")} onChange={onChange} disabled={disabled} />;
   }
 
-  return (
-    <div className="relative">
-      <Input
+  if (isPassword) {
+    return (
+      <SecretInput
         id={name}
-        type={isPassword && !showPassword ? "password" : "text"}
         value={String(value || "")}
         onChange={(e: React.ChangeEvent<HTMLInputElement>) => onChange(e.target.value)}
         placeholder={property["ui:placeholder"] || property.description}
         disabled={disabled}
         required={required}
-        className={isPassword ? "pr-10" : undefined}
+        showLabel={tSecret("showSecret")}
+        hideLabel={tSecret("hideSecret")}
       />
-      {isPassword && (
-        <Button
-          type="button"
-          variant="ghost"
-          size="sm"
-          className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
-          onClick={() => setShowPassword(!showPassword)}
-          tabIndex={-1}
-        >
-          {showPassword ? (
-            <EyeOff className="h-4 w-4 text-muted-foreground" />
-          ) : (
-            <Eye className="h-4 w-4 text-muted-foreground" />
-          )}
-        </Button>
-      )}
-    </div>
+    );
+  }
+
+  return (
+    <Input
+      id={name}
+      type="text"
+      value={String(value || "")}
+      onChange={(e: React.ChangeEvent<HTMLInputElement>) => onChange(e.target.value)}
+      placeholder={property["ui:placeholder"] || property.description}
+      disabled={disabled}
+      required={required}
+    />
   );
 }
 
@@ -345,12 +382,13 @@ function NumberField(props: NumberFieldProps) {
   const [isFocused, setIsFocused] = useState(false);
 
   // Keep the local text in sync with external value changes (e.g. the
-  // "use my location" button) when the user is not actively editing.
-  useEffect(() => {
-    if (!isFocused) {
-      setText(value !== undefined && value !== null ? String(value) : "");
-    }
-  }, [value, isFocused]);
+  // "use my location" button) when the user is not actively editing. Done
+  // during render so the new value is in the first commit rather than
+  // replacing the old one a render later
+  // (react-hooks/set-state-in-effect, issue #1568).
+  if (useDepsChanged([value, isFocused]) && !isFocused) {
+    setText(value !== undefined && value !== null ? String(value) : "");
+  }
 
   if (hasNumericEnum) {
     return <NumberEnumField {...props} />;
@@ -470,7 +508,7 @@ function NumberField(props: NumberFieldProps) {
   };
 
   return (
-    <div className="relative">
+    <Box className="relative">
       <Input
         id={name}
         type="number"
@@ -535,746 +573,12 @@ function NumberField(props: NumberFieldProps) {
           )}
         </Button>
       )}
-    </div>
+    </Box>
   );
 }
 
 function BooleanField({ name, value, onChange, disabled }: FieldProps) {
   return <Switch id={name} checked={Boolean(value)} onCheckedChange={onChange} disabled={disabled} />;
-}
-
-/** WSF route options for the route picker (id matches WSDOT API route_id) */
-const WSDOT_FERRY_ROUTES = [
-  { id: 1, label: "Seattle – Bainbridge Island" },
-  { id: 2, label: "Seattle – Bremerton" },
-  { id: 3, label: "Fauntleroy – Vashon – Southworth" },
-  { id: 4, label: "Point Defiance – Tahlequah" },
-  { id: 5, label: "Anacortes – San Juan Islands" },
-  { id: 6, label: "Anacortes – Sidney B.C." },
-  { id: 7, label: "Mukilteo – Clinton" },
-  { id: 8, label: "Port Townsend – Keystone" },
-  { id: 9, label: "Edmonds – Kingston" },
-] as const;
-
-interface WsdotRoutePickerProps extends FieldProps {
-  maxItems?: number;
-}
-
-function WsdotRoutePicker({
-  name,
-  property: _property,
-  value,
-  onChange,
-  disabled,
-  maxItems = 4,
-}: WsdotRoutePickerProps) {
-  const t = useTranslations("schemaForm");
-  const items = Array.isArray(value) ? value : [];
-  const routeEntries = items.map((item) =>
-    item && typeof item === "object" && "route_id" in item ? Number((item as { route_id: number }).route_id) : 0,
-  );
-
-  const setRouteAt = (index: number, routeId: number) => {
-    const next = [...routeEntries];
-    next[index] = routeId;
-    onChange(next.map((id) => ({ route_id: id })));
-  };
-
-  const handleAdd = () => {
-    const firstId = WSDOT_FERRY_ROUTES[0]?.id ?? 1;
-    onChange([...items, { route_id: firstId }]);
-  };
-
-  const handleRemove = (index: number) => {
-    const next = items.filter((_, i) => i !== index) as { route_id: number }[];
-    onChange(next);
-  };
-
-  const canAdd = routeEntries.length < maxItems;
-  const canRemove = routeEntries.length > 0;
-
-  return (
-    <div className="space-y-3">
-      {routeEntries.map((routeId, index) => (
-        <div key={index} className="flex gap-2 items-center">
-          <Select
-            value={
-              routeId && WSDOT_FERRY_ROUTES.some((r) => r.id === routeId)
-                ? String(routeId)
-                : String(WSDOT_FERRY_ROUTES[0]?.id ?? "")
-            }
-            onValueChange={(val) => setRouteAt(index, parseInt(val, 10))}
-            disabled={disabled}
-          >
-            <SelectTrigger id={`${name}-${index}`} className="flex-1">
-              <SelectValue placeholder={t("selectFerryRoute")} />
-            </SelectTrigger>
-            <SelectContent>
-              {WSDOT_FERRY_ROUTES.map((route) => (
-                <SelectItem key={route.id} value={String(route.id)}>
-                  {route.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          {canRemove && (
-            <Button
-              type="button"
-              variant="ghost"
-              size="icon"
-              onClick={() => handleRemove(index)}
-              disabled={disabled}
-              className="h-9 w-9 shrink-0 text-destructive hover:text-destructive"
-              aria-label={t("removeRoute")}
-            >
-              <Trash2 className="h-4 w-4" />
-            </Button>
-          )}
-        </div>
-      ))}
-      {canAdd && (
-        <Button type="button" variant="outline" size="sm" onClick={handleAdd} disabled={disabled} className="w-full">
-          <Plus className="h-4 w-4 mr-2" />
-          {t("addFerryRoute")}
-        </Button>
-      )}
-    </div>
-  );
-}
-
-// Disney Park Queue Times picker: display names, store park_id and ride_ids.
-// ride_ids order is the display/board order. custom_names maps a ride id to a
-// user-supplied label (empty/absent = use the real ride name).
-interface ParkRideEntry {
-  park_id: number;
-  ride_ids: number[];
-  custom_names?: Record<number, string>;
-}
-
-type DisneyParksTimesPickerProps = FieldProps;
-
-function DisneyParksTimesPicker({ name, property, value, onChange, disabled }: DisneyParksTimesPickerProps) {
-  const t = useTranslations("schemaForm");
-  const [parks, setParks] = useState<QueueTimesPark[]>([]);
-  const [parksLoading, setParksLoading] = useState(true);
-  const [ridesByParkId, setRidesByParkId] = useState<Record<number, QueueTimesRide[]>>({});
-
-  // Capability flags from the plugin manifest. Default to false so the picker
-  // only exposes features the installed plugin version actually supports.
-  const uiOptions = property["ui:options"] ?? {};
-  const allowCustomNames = uiOptions.customRideNames === true;
-  const allowReorder = uiOptions.reorderRides === true;
-
-  const items = (Array.isArray(value) ? value : []) as ParkRideEntry[];
-
-  const ensureRidesForPark = useCallback((parkId: number) => {
-    setRidesByParkId((prev) => {
-      if (prev[parkId] !== undefined) return prev;
-      api
-        .getQueueTimesRides(parkId)
-        .then((data) => {
-          setRidesByParkId((p) => ({ ...p, [parkId]: data }));
-        })
-        .catch(() => {
-          setRidesByParkId((p) => ({ ...p, [parkId]: [] }));
-        });
-      return prev;
-    });
-  }, []);
-
-  useEffect(() => {
-    let cancelled = false;
-    api
-      .getQueueTimesParks()
-      .then((data) => {
-        if (!cancelled) {
-          setParks(data);
-          setParksLoading(false);
-        }
-      })
-      .catch(() => {
-        if (!cancelled) setParksLoading(false);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, []);
-
-  useEffect(() => {
-    items.forEach((entry) => {
-      if (entry?.park_id) ensureRidesForPark(entry.park_id);
-    });
-  }, [items, ensureRidesForPark]);
-
-  const setEntryAt = (index: number, next: ParkRideEntry) => {
-    const nextItems = [...items];
-    nextItems[index] = next;
-    onChange(nextItems);
-  };
-
-  const setParkAt = (index: number, parkId: number) => {
-    setEntryAt(index, { park_id: parkId, ride_ids: [] });
-    ensureRidesForPark(parkId);
-  };
-
-  const setRidesAt = (index: number, rideIds: number[]) => {
-    setEntryAt(index, { ...items[index], ride_ids: rideIds });
-  };
-
-  const addRideAt = (index: number, rideId: number) => {
-    const entry = items[index];
-    if (!entry || entry.ride_ids.includes(rideId)) return;
-    setRidesAt(index, [...entry.ride_ids, rideId]);
-  };
-
-  const removeRideAt = (index: number, rideIndex: number) => {
-    const entry = items[index];
-    if (!entry) return;
-    const removedId = entry.ride_ids[rideIndex];
-    const next = entry.ride_ids.filter((_, i) => i !== rideIndex);
-    const nextNames = { ...(entry.custom_names ?? {}) };
-    delete nextNames[removedId];
-    setEntryAt(index, { ...entry, ride_ids: next, custom_names: nextNames });
-  };
-
-  const moveRideAt = (index: number, rideIndex: number, direction: -1 | 1) => {
-    const entry = items[index];
-    if (!entry) return;
-    const target = rideIndex + direction;
-    if (target < 0 || target >= entry.ride_ids.length) return;
-    const next = [...entry.ride_ids];
-    [next[rideIndex], next[target]] = [next[target], next[rideIndex]];
-    setRidesAt(index, next);
-  };
-
-  const setCustomNameAt = (index: number, rideId: number, customName: string) => {
-    const entry = items[index];
-    if (!entry) return;
-    const nextNames = { ...(entry.custom_names ?? {}) };
-    if (customName) {
-      nextNames[rideId] = customName;
-    } else {
-      delete nextNames[rideId];
-    }
-    setEntryAt(index, { ...entry, custom_names: nextNames });
-  };
-
-  const handleAddPark = () => {
-    const firstId = parks[0]?.id ?? 0;
-    onChange([...items, { park_id: firstId, ride_ids: [] }]);
-    if (firstId) ensureRidesForPark(firstId);
-  };
-
-  const handleRemovePark = (index: number) => {
-    onChange(items.filter((_, i) => i !== index));
-  };
-
-  const _parkName = (id: number) => parks.find((p) => p.id === id)?.name ?? `Park ${id}`;
-  const rideName = (parkId: number, rideId: number) =>
-    ridesByParkId[parkId]?.find((r) => r.id === rideId)?.name ?? `Ride ${rideId}`;
-
-  if (parksLoading) {
-    return (
-      <div className="flex items-center gap-2 text-sm text-muted-foreground">
-        <Loader2 className="h-4 w-4 animate-spin" />
-        {t("loadingParks")}
-      </div>
-    );
-  }
-
-  return (
-    <div className="space-y-4">
-      {items.map((entry, index) => (
-        <div key={index} className="rounded-lg border p-3 space-y-2">
-          <div className="flex gap-2 items-center">
-            <Select
-              value={entry.park_id ? String(entry.park_id) : ""}
-              onValueChange={(val) => setParkAt(index, parseInt(val, 10))}
-              disabled={disabled}
-            >
-              <SelectTrigger id={`${name}-park-${index}`} className="flex-1">
-                <SelectValue placeholder={t("selectPark")} />
-              </SelectTrigger>
-              <SelectContent>
-                {parks.map((p) => (
-                  <SelectItem key={p.id} value={String(p.id)}>
-                    {p.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <Button
-              type="button"
-              variant="ghost"
-              size="icon"
-              onClick={() => handleRemovePark(index)}
-              disabled={disabled}
-              className="h-9 w-9 shrink-0 text-destructive hover:text-destructive"
-              aria-label={t("removePark")}
-            >
-              <Trash2 className="h-4 w-4" />
-            </Button>
-          </div>
-          {entry.park_id > 0 && (
-            <div className="space-y-2">
-              <div className="text-xs text-muted-foreground">{t("rides")}</div>
-              <div className="rounded-md border p-2 space-y-2">
-                {(entry.ride_ids || []).map((rid, rideIndex) => (
-                  <div key={rid} className="rounded-sm border overflow-hidden">
-                    <div
-                      className={cn("flex items-center gap-1 bg-muted/50 px-2 py-1.5", allowCustomNames && "border-b")}
-                    >
-                      <span className="flex-1 text-sm font-medium">{rideName(entry.park_id, rid)}</span>
-                      {allowReorder && (
-                        <>
-                          <div className="flex items-center shrink-0">
-                            <Button
-                              type="button"
-                              variant="ghost"
-                              size="icon"
-                              onClick={() => moveRideAt(index, rideIndex, -1)}
-                              disabled={disabled || rideIndex === 0}
-                              className="h-7 w-7 hover:bg-background"
-                              aria-label={t("moveRideUp", { ride: rideName(entry.park_id, rid) })}
-                            >
-                              <ArrowUp className="h-4 w-4" />
-                            </Button>
-                            <Button
-                              type="button"
-                              variant="ghost"
-                              size="icon"
-                              onClick={() => moveRideAt(index, rideIndex, 1)}
-                              disabled={disabled || rideIndex === entry.ride_ids.length - 1}
-                              className="h-7 w-7 hover:bg-background"
-                              aria-label={t("moveRideDown", { ride: rideName(entry.park_id, rid) })}
-                            >
-                              <ArrowDown className="h-4 w-4" />
-                            </Button>
-                          </div>
-                          <div className="mx-1 h-5 w-px shrink-0 bg-border" />
-                        </>
-                      )}
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => removeRideAt(index, rideIndex)}
-                        disabled={disabled}
-                        className="h-7 w-7 shrink-0 text-destructive hover:bg-background hover:text-destructive"
-                        aria-label={t("removeRide", { ride: rideName(entry.park_id, rid) })}
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </div>
-                    {allowCustomNames && (
-                      <div className="p-2">
-                        <Input
-                          value={entry.custom_names?.[rid] ?? ""}
-                          onChange={(e) => setCustomNameAt(index, rid, e.target.value)}
-                          disabled={disabled}
-                          placeholder={t("customRideNamePlaceholder")}
-                          aria-label={t("customRideNameLabel", { ride: rideName(entry.park_id, rid) })}
-                          className="h-8 text-sm"
-                        />
-                      </div>
-                    )}
-                  </div>
-                ))}
-                <Select value="" onValueChange={(val) => addRideAt(index, parseInt(val, 10))} disabled={disabled}>
-                  <SelectTrigger className="w-full border-dashed text-muted-foreground">
-                    <SelectValue placeholder={t("addRide")} />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {(ridesByParkId[entry.park_id] ?? [])
-                      .filter((r) => !(entry.ride_ids || []).includes(r.id))
-                      .map((r) => (
-                        <SelectItem key={r.id} value={String(r.id)}>
-                          {r.name}
-                        </SelectItem>
-                      ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-          )}
-        </div>
-      ))}
-      <Button type="button" variant="outline" size="sm" onClick={handleAddPark} disabled={disabled} className="w-full">
-        <Plus className="h-4 w-4 mr-2" />
-        {t("addPark")}
-      </Button>
-    </div>
-  );
-}
-
-// ---------------------------------------------------------------------------
-// Generic Data — interactive mapping helper
-// ---------------------------------------------------------------------------
-
-interface JsonTreeNodeProps {
-  data: unknown;
-  path: string;
-  onSelect: (path: string, value: unknown) => void;
-  defaultExpanded?: boolean;
-}
-
-function JsonTreeNode({ data, path, onSelect, defaultExpanded = false }: JsonTreeNodeProps) {
-  const [expanded, setExpanded] = useState(defaultExpanded);
-  const [copied, setCopied] = useState(false);
-
-  const handleCopy = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    onSelect(path, data);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 1500);
-  };
-
-  if (data === null || data === undefined) {
-    return <span className="text-muted-foreground italic text-xs">null</span>;
-  }
-
-  if (typeof data === "object" && !Array.isArray(data)) {
-    const entries = Object.entries(data as Record<string, unknown>);
-    return (
-      <div className="ml-1">
-        <button
-          type="button"
-          className="flex items-center gap-1 text-xs hover:bg-muted/60 rounded px-1 py-0.5 -ml-1 w-full text-left"
-          onClick={() => setExpanded(!expanded)}
-        >
-          {expanded ? <ChevronDown className="h-3 w-3 shrink-0" /> : <ChevronRight className="h-3 w-3 shrink-0" />}
-          <span className="text-muted-foreground">{`{${entries.length}}`}</span>
-        </button>
-        {expanded && (
-          <div className="ml-3 border-l border-border pl-2 space-y-0.5">
-            {entries.map(([key, val]) => {
-              const childPath = path ? `${path}.${key}` : key;
-              const isLeaf = val === null || val === undefined || typeof val !== "object";
-              return (
-                <div key={key} className="flex items-start gap-1">
-                  <span className="text-xs font-medium text-blue-600 dark:text-blue-400 shrink-0 pt-0.5">{key}:</span>
-                  {isLeaf ? (
-                    <div className="flex items-center gap-1 group min-w-0">
-                      <span className="text-xs truncate">{String(val ?? "null")}</span>
-                      <button
-                        type="button"
-                        onClick={handleCopy.bind(null, { stopPropagation: () => {} } as React.MouseEvent)}
-                        onClickCapture={(e) => {
-                          e.stopPropagation();
-                          onSelect(childPath, val);
-                          setCopied(true);
-                          setTimeout(() => setCopied(false), 1500);
-                        }}
-                        className="opacity-0 group-hover:opacity-100 shrink-0 p-0.5 rounded hover:bg-muted"
-                        title={`Use path: ${childPath}`}
-                      >
-                        {copied ? (
-                          <Check className="h-3 w-3 text-green-600" />
-                        ) : (
-                          <Copy className="h-3 w-3 text-muted-foreground" />
-                        )}
-                      </button>
-                    </div>
-                  ) : (
-                    <JsonTreeNode data={val} path={childPath} onSelect={onSelect} />
-                  )}
-                </div>
-              );
-            })}
-          </div>
-        )}
-      </div>
-    );
-  }
-
-  if (Array.isArray(data)) {
-    return (
-      <div className="ml-1">
-        <button
-          type="button"
-          className="flex items-center gap-1 text-xs hover:bg-muted/60 rounded px-1 py-0.5 -ml-1 w-full text-left"
-          onClick={() => setExpanded(!expanded)}
-        >
-          {expanded ? <ChevronDown className="h-3 w-3 shrink-0" /> : <ChevronRight className="h-3 w-3 shrink-0" />}
-          <span className="text-muted-foreground">{`[${data.length}]`}</span>
-        </button>
-        {expanded && (
-          <div className="ml-3 border-l border-border pl-2 space-y-0.5">
-            {data.map((item, idx) => {
-              const childPath = path ? `${path}[${idx}]` : `[${idx}]`;
-              const isLeaf = item === null || item === undefined || typeof item !== "object";
-              return (
-                <div key={idx} className="flex items-start gap-1">
-                  <span className="text-xs font-medium text-purple-600 dark:text-purple-400 shrink-0 pt-0.5">
-                    [{idx}]:
-                  </span>
-                  {isLeaf ? (
-                    <div className="flex items-center gap-1 group min-w-0">
-                      <span className="text-xs truncate">{String(item ?? "null")}</span>
-                      <button
-                        type="button"
-                        onClickCapture={(e) => {
-                          e.stopPropagation();
-                          onSelect(childPath, item);
-                        }}
-                        className="opacity-0 group-hover:opacity-100 shrink-0 p-0.5 rounded hover:bg-muted"
-                        title={`Use path: ${childPath}`}
-                      >
-                        <Copy className="h-3 w-3 text-muted-foreground" />
-                      </button>
-                    </div>
-                  ) : (
-                    <JsonTreeNode data={item} path={childPath} onSelect={onSelect} />
-                  )}
-                </div>
-              );
-            })}
-          </div>
-        )}
-      </div>
-    );
-  }
-
-  return <span className="text-xs">{String(data)}</span>;
-}
-
-interface MappingEntry {
-  variable?: string;
-  path?: string;
-  default?: string;
-}
-
-interface GenericDataMappingHelperProps extends FieldProps {
-  allValues: Record<string, unknown>;
-}
-
-function GenericDataMappingHelper({
-  name: _name,
-  property: _property,
-  value,
-  onChange,
-  disabled,
-  allValues,
-}: GenericDataMappingHelperProps) {
-  const t = useTranslations("schemaForm");
-  const [previewData, setPreviewData] = useState<unknown>(null);
-  const [previewLoading, setPreviewLoading] = useState(false);
-  const [previewError, setPreviewError] = useState<string | null>(null);
-
-  const mappings = (Array.isArray(value) ? value : []) as MappingEntry[];
-
-  const handleFetchPreview = async () => {
-    const url = (allValues.url as string) || "";
-    if (!url) {
-      toast.error(t("enterDataUrlFirst"));
-      return;
-    }
-
-    setPreviewLoading(true);
-    setPreviewError(null);
-    setPreviewData(null);
-    try {
-      const result = await api.genericDataTestFetch({
-        url,
-        format: (allValues.format as string) || "json",
-        method: (allValues.method as string) || "GET",
-        headers: (allValues.headers as { name: string; value: string }[]) || [],
-        body: (allValues.body as string) || undefined,
-      });
-      setPreviewData(result.data);
-      toast.success(t("dataFetched"));
-    } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : String(err);
-      setPreviewError(msg);
-      toast.error(t("fetchFailed", { error: msg }));
-    } finally {
-      setPreviewLoading(false);
-    }
-  };
-
-  const handlePathSelect = (path: string, _val: unknown) => {
-    const varName =
-      path
-        .split(".")
-        .pop()
-        ?.replace(/\[\d+\]/g, "") || "value";
-    const sanitised =
-      varName
-        .toLowerCase()
-        .replace(/[^a-z0-9_]/g, "_")
-        .replace(/^_+|_+$/g, "") || "value";
-    const existing = new Set(mappings.map((m) => m.variable));
-    let finalVar = sanitised;
-    let counter = 2;
-    while (existing.has(finalVar)) {
-      finalVar = `${sanitised}_${counter++}`;
-    }
-    const newMappings = [...mappings, { variable: finalVar, path, default: "" }];
-    onChange(newMappings);
-    toast.success(t("addedMapping", { variable: finalVar, path }));
-  };
-
-  const handleAdd = () => {
-    onChange([...mappings, { variable: "", path: "", default: "" }]);
-  };
-
-  const handleRemove = (index: number) => {
-    onChange(mappings.filter((_, i) => i !== index));
-  };
-
-  const handleItemChange = (index: number, key: string, val: string) => {
-    const next = [...mappings];
-    next[index] = { ...next[index], [key]: val };
-    onChange(next);
-  };
-
-  const resolvePreview = (path: string): string | null => {
-    if (!previewData || !path) return null;
-    try {
-      const segments = path.split(".");
-      let current: unknown = previewData;
-      for (const segment of segments) {
-        if (current === null || current === undefined) return null;
-        const match = segment.match(/^([^\[]*)\[(\d+)\]$/);
-        if (match) {
-          const [, key, idxStr] = match;
-          if (key && typeof current === "object" && !Array.isArray(current)) {
-            current = (current as Record<string, unknown>)[key];
-          }
-          if (Array.isArray(current)) {
-            current = current[parseInt(idxStr, 10)];
-          } else {
-            return null;
-          }
-        } else {
-          if (typeof current === "object" && !Array.isArray(current) && current !== null) {
-            current = (current as Record<string, unknown>)[segment];
-          } else {
-            return null;
-          }
-        }
-      }
-      return current !== null && current !== undefined ? String(current) : null;
-    } catch {
-      return null;
-    }
-  };
-
-  return (
-    <div className="space-y-4">
-      {/* Test & Preview button */}
-      <div className="flex gap-2">
-        <Button
-          type="button"
-          variant="outline"
-          size="sm"
-          onClick={handleFetchPreview}
-          disabled={disabled || previewLoading}
-          className="gap-1.5"
-        >
-          {previewLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Zap className="h-4 w-4" />}
-          {t("testAndPreview")}
-        </Button>
-        <p className="text-xs text-muted-foreground self-center">{t("testAndPreviewHelp")}</p>
-      </div>
-
-      {/* Preview error */}
-      {previewError && <div className="text-xs text-destructive bg-destructive/10 rounded-md p-2">{previewError}</div>}
-
-      {/* Response tree browser */}
-      {previewData && (
-        <div className="border rounded-lg p-3 bg-muted/20 sm:max-h-64 sm:overflow-auto">
-          <div className="text-xs font-medium text-muted-foreground mb-2">{t("responseClickToAdd")}</div>
-          <JsonTreeNode data={previewData} path="" onSelect={handlePathSelect} defaultExpanded={true} />
-        </div>
-      )}
-
-      {/* Mapping rows */}
-      {mappings.map((mapping, index) => {
-        const preview = resolvePreview(mapping.path || "");
-        return (
-          <div key={index} className="flex gap-2">
-            <div className="flex-1 grid gap-2 p-3 border rounded-lg bg-muted/30">
-              <div className="grid grid-cols-2 gap-2">
-                <div className="grid gap-1">
-                  <Label htmlFor={`mapping-${index}-variable`} className="text-xs">
-                    {t("variableName")}
-                  </Label>
-                  <Input
-                    id={`mapping-${index}-variable`}
-                    value={mapping.variable || ""}
-                    onChange={(e) => handleItemChange(index, "variable", e.target.value)}
-                    placeholder={t("variableNamePlaceholder")}
-                    disabled={disabled}
-                    className="h-8 text-sm"
-                  />
-                </div>
-                <div className="grid gap-1">
-                  <Label htmlFor={`mapping-${index}-path`} className="text-xs">
-                    {t("dataPath")}
-                  </Label>
-                  <Input
-                    id={`mapping-${index}-path`}
-                    value={mapping.path || ""}
-                    onChange={(e) => handleItemChange(index, "path", e.target.value)}
-                    placeholder={t("dataPathPlaceholder")}
-                    disabled={disabled}
-                    className="h-8 text-sm"
-                  />
-                </div>
-              </div>
-              <div className="grid grid-cols-2 gap-2">
-                <div className="grid gap-1">
-                  <Label htmlFor={`mapping-${index}-default`} className="text-xs">
-                    {t("defaultValue")}
-                  </Label>
-                  <Input
-                    id={`mapping-${index}-default`}
-                    value={mapping.default || ""}
-                    onChange={(e) => handleItemChange(index, "default", e.target.value)}
-                    placeholder={t("defaultValuePlaceholder")}
-                    disabled={disabled}
-                    className="h-8 text-sm"
-                  />
-                </div>
-                {preview !== null && (
-                  <div className="grid gap-1">
-                    <Label className="text-xs text-green-700 dark:text-green-400">{t("preview")}</Label>
-                    <div className="h-8 flex items-center text-sm text-green-700 dark:text-green-300 bg-green-50 dark:bg-green-950/30 rounded-md px-2 truncate border border-green-200 dark:border-green-800">
-                      {preview}
-                    </div>
-                  </div>
-                )}
-              </div>
-              <p className="text-xs text-muted-foreground">
-                {t("useInTemplates")}{" "}
-                <code className="bg-muted px-1 rounded">
-                  {"{{"}generic_data.{mapping.variable || "..."}
-                  {"}}"}
-                </code>
-              </p>
-            </div>
-            <Button
-              type="button"
-              variant="ghost"
-              size="icon"
-              onClick={() => handleRemove(index)}
-              disabled={disabled}
-              className="h-9 w-9 text-destructive hover:text-destructive self-start mt-3"
-              aria-label={t("removeMapping")}
-            >
-              <Trash2 className="h-4 w-4" />
-            </Button>
-          </div>
-        );
-      })}
-
-      <Button type="button" variant="outline" size="sm" onClick={handleAdd} disabled={disabled} className="w-full">
-        <Plus className="h-4 w-4 mr-2" />
-        {t("addMapping")}
-      </Button>
-    </div>
-  );
 }
 
 interface ArrayFieldProps extends FieldProps {
@@ -1283,14 +587,23 @@ interface ArrayFieldProps extends FieldProps {
 
 function ArrayField({ name, property, value, onChange, disabled, itemSchema }: ArrayFieldProps) {
   const t = useTranslations("schemaForm");
+  const { root } = useFieldScope();
   const rawItems = Array.isArray(value) ? value : [];
 
   // Track items with stable IDs so React doesn't reuse component instances
   // when items are added or removed — index-based keys cause Radix UI portal
   // cleanup to call removeChild on a detached node.
-  const nextId = useRef(0);
+  //
+  // `nextId` seeds from the initial item count rather than 0 so IDs assigned
+  // later (handleAdd, the resync effect) never collide with the initial
+  // index-based IDs below. The initial `keyed` state uses plain array
+  // indices instead of `nextId.current++` because reading a ref's value
+  // during render (even inside a useState lazy initializer, which runs
+  // during the render phase) is unsound under Strict Mode / concurrent
+  // rendering — refs must only be read in effects or event handlers.
+  const nextId = useRef(rawItems.length);
   const [keyed, setKeyed] = useState<{ id: number; value: unknown }[]>(() =>
-    rawItems.map((v) => ({ id: nextId.current++, value: v })),
+    rawItems.map((v, i) => ({ id: i, value: v })),
   );
 
   // Keep keyed list in sync when the parent value changes from outside
@@ -1306,7 +619,19 @@ function ArrayField({ name, property, value, onChange, disabled, itemSchema }: A
   const handleAdd = () => {
     let defaultValue: unknown;
     if (itemSchema.type === "object") {
-      defaultValue = {};
+      // Seed every enum-typed property — required or not — with the value its
+      // Select will display: the declared `default` when there is one, else the
+      // first allowed value. Both render paths resolve the shown option that
+      // way, so seeding anything else would persist something other than what
+      // the user sees. The presence check must stay `!== undefined` so a
+      // legitimate falsy default such as `0` or `""` is honoured.
+      const seeded: Record<string, unknown> = {};
+      for (const [key, propSchema] of Object.entries(itemSchema.properties ?? {})) {
+        if (Array.isArray(propSchema.enum) && propSchema.enum.length > 0) {
+          seeded[key] = propSchema.default !== undefined ? propSchema.default : propSchema.enum[0];
+        }
+      }
+      defaultValue = seeded;
     } else if (itemSchema.type === "string") {
       defaultValue = "";
     } else if (itemSchema.type === "number" || itemSchema.type === "integer") {
@@ -1338,33 +663,43 @@ function ArrayField({ name, property, value, onChange, disabled, itemSchema }: A
   const canRemove = !property.minItems || keyed.length > property.minItems;
 
   return (
-    <div className="space-y-3">
+    <Stack gap="3">
       {keyed.map(({ id, value: item }, index) => (
-        <div key={id} className="flex gap-2">
-          <div className="flex-1">
+        <Flex key={id} gap="2">
+          <Box className="flex-1">
             {itemSchema.type === "object" && itemSchema.properties ? (
-              <div className="grid gap-3 p-3 border rounded-lg bg-muted/30">
-                {Object.entries(itemSchema.properties).map(([key, propSchema]) => (
-                  <div key={key} className="grid gap-1.5">
-                    <Label htmlFor={`${name}-${index}-${key}`} className="text-xs">
-                      {propSchema.title || key}
-                    </Label>
-                    <FormField
-                      name={`${name}-${index}-${key}`}
-                      property={propSchema}
-                      value={(item as Record<string, unknown>)?.[key]}
-                      onChange={(val) => {
-                        const newItem = { ...(item as Record<string, unknown>), [key]: val };
-                        handleItemChange(index, newItem);
-                      }}
-                      disabled={disabled}
-                      onLocationRequest={undefined}
-                      showLocationButton={false}
-                      isLocationLoading={false}
-                    />
-                  </div>
-                ))}
-              </div>
+              // A field inside an array item names its siblings *within that
+              // item*, so the item — not the whole config — is its scope.
+              <FieldScopeContext.Provider
+                value={{
+                  scope: (item as Record<string, unknown>) ?? {},
+                  root,
+                  titles: titlesOf(itemSchema.properties),
+                }}
+              >
+                <Grid gap="3" className="p-3 border rounded-lg bg-muted/30">
+                  {Object.entries(itemSchema.properties).map(([key, propSchema]) => (
+                    <Grid key={key} gap="1.5">
+                      <Label htmlFor={`${name}-${index}-${key}`} className="text-xs">
+                        {propSchema.title || key}
+                      </Label>
+                      <FormField
+                        name={`${name}-${index}-${key}`}
+                        property={propSchema}
+                        value={(item as Record<string, unknown>)?.[key]}
+                        onChange={(val, siblings) => {
+                          const newItem = { ...(item as Record<string, unknown>), ...siblings, [key]: val };
+                          handleItemChange(index, newItem);
+                        }}
+                        disabled={disabled}
+                        onLocationRequest={undefined}
+                        showLocationButton={false}
+                        isLocationLoading={false}
+                      />
+                    </Grid>
+                  ))}
+                </Grid>
+              </FieldScopeContext.Provider>
             ) : (
               <FormField
                 name={`${name}-${index}`}
@@ -1374,7 +709,7 @@ function ArrayField({ name, property, value, onChange, disabled, itemSchema }: A
                 disabled={disabled}
               />
             )}
-          </div>
+          </Box>
           {canRemove && (
             <Button
               type="button"
@@ -1388,16 +723,16 @@ function ArrayField({ name, property, value, onChange, disabled, itemSchema }: A
               <Trash2 className="h-4 w-4" />
             </Button>
           )}
-        </div>
+        </Flex>
       ))}
 
       {canAdd && (
         <Button type="button" variant="outline" size="sm" onClick={handleAdd} disabled={disabled} className="w-full">
           <Plus className="h-4 w-4 mr-2" />
-          Add {property.title || name}
+          {t("addItemLabel", { label: property.title || name })}
         </Button>
       )}
-    </div>
+    </Stack>
   );
 }
 
@@ -1421,6 +756,16 @@ function FormField({
   allValues,
 }: FormFieldProps) {
   const t = useTranslations("schemaForm");
+  const { root } = useFieldScope();
+
+  // The generic remote-options widget serves every declared type — a scalar
+  // field is single-select, an array field with `ui:options.multiple` is
+  // multi-select — so it is dispatched ahead of the per-type switch. There is
+  // deliberately only one widget name for this capability.
+  if (property["ui:widget"] === "remote-options") {
+    return <RemoteOptionsField name={name} property={property} value={value} onChange={onChange} disabled={disabled} />;
+  }
+
   switch (property.type) {
     case "string":
       return (
@@ -1460,41 +805,14 @@ function FormField({
         />
       );
     case "array":
-      if (property["ui:widget"] === "generic-data-mapping-helper" && property.items) {
+      if (isJsonPathMapper(property["ui:widget"]) && property.items) {
         return (
-          <GenericDataMappingHelper
-            name={name}
+          <JsonPathMapperField
             property={property}
             value={value}
             onChange={onChange}
-            required={required}
             disabled={disabled}
             allValues={allValues || {}}
-          />
-        );
-      }
-      if (property["ui:widget"] === "wsdot-route-picker" && property.items) {
-        return (
-          <WsdotRoutePicker
-            name={name}
-            property={property}
-            value={value}
-            onChange={onChange}
-            required={required}
-            disabled={disabled}
-            maxItems={property.maxItems ?? 4}
-          />
-        );
-      }
-      if (property["ui:widget"] === "disney-parks-times-picker") {
-        return (
-          <DisneyParksTimesPicker
-            name={name}
-            property={property}
-            value={value}
-            onChange={onChange}
-            required={required}
-            disabled={disabled}
           />
         );
       }
@@ -1511,40 +829,58 @@ function FormField({
           />
         );
       }
-      return <div className="text-sm text-muted-foreground">{t("arrayTypeNoItems")}</div>;
+      return <Text tone="muted">{t("arrayTypeNoItems")}</Text>;
     case "object":
       if (property.properties) {
         return (
-          <div className="grid gap-4 p-4 border rounded-lg">
-            {Object.entries(property.properties).map(([key, propSchema]) => (
-              <div key={key} className="grid gap-1.5">
-                <Label htmlFor={`${name}-${key}`}>
-                  {propSchema.title || key}
-                  {property.required?.includes(key) && <span className="text-destructive ml-1">*</span>}
-                </Label>
-                <FormField
-                  name={`${name}-${key}`}
-                  property={propSchema}
-                  value={(value as Record<string, unknown>)?.[key]}
-                  onChange={(val) => {
-                    const newValue = { ...(value as Record<string, unknown>), [key]: val };
-                    onChange(newValue);
-                  }}
-                  required={property.required?.includes(key)}
-                  disabled={disabled}
-                  onLocationRequest={undefined}
-                  showLocationButton={false}
-                  isLocationLoading={false}
-                />
-                {propSchema.description && <p className="text-xs text-muted-foreground">{propSchema.description}</p>}
-              </div>
-            ))}
-          </div>
+          // Same rule as an array item: a field in a nested object names its
+          // siblings inside that object, so that object is its scope.
+          <FieldScopeContext.Provider
+            value={{
+              scope: (value as Record<string, unknown>) ?? {},
+              root,
+              titles: titlesOf(property.properties),
+            }}
+          >
+            <Grid gap="4" className="p-4 border rounded-lg">
+              {Object.entries(property.properties).map(([key, propSchema]) => (
+                <Grid key={key} gap="1.5">
+                  <Label htmlFor={`${name}-${key}`}>
+                    {propSchema.title || key}
+                    {property.required?.includes(key) && (
+                      <Text as="span" tone="destructive" className="ml-1">
+                        *
+                      </Text>
+                    )}
+                  </Label>
+                  <FormField
+                    name={`${name}-${key}`}
+                    property={propSchema}
+                    value={(value as Record<string, unknown>)?.[key]}
+                    onChange={(val, siblings) => {
+                      const newValue = { ...(value as Record<string, unknown>), ...siblings, [key]: val };
+                      onChange(newValue);
+                    }}
+                    required={property.required?.includes(key)}
+                    disabled={disabled}
+                    onLocationRequest={undefined}
+                    showLocationButton={false}
+                    isLocationLoading={false}
+                  />
+                  {propSchema.description && (
+                    <Text size="xs" tone="muted">
+                      {propSchema.description}
+                    </Text>
+                  )}
+                </Grid>
+              ))}
+            </Grid>
+          </FieldScopeContext.Provider>
         );
       }
-      return <div className="text-sm text-muted-foreground">{t("objectTypeNoProperties")}</div>;
+      return <Text tone="muted">{t("objectTypeNoProperties")}</Text>;
     default:
-      return <div className="text-sm text-muted-foreground">Unknown type: {property.type}</div>;
+      return <Text tone="muted">{t("unknownType", { type: property.type })}</Text>;
   }
 }
 
@@ -1559,11 +895,17 @@ function FormField({
  * - Array fields (add/remove items)
  * - Nested object fields
  */
-export function SchemaForm({ schema, values, onChange, disabled, className }: SchemaFormProps) {
+export function SchemaForm({ schema, values, onChange, disabled, className, pluginId }: SchemaFormProps) {
   const t = useTranslations("schemaForm");
+  // Top-level fields resolve `depends_on` against the whole config: at this
+  // depth the sibling scope and the root are the same object.
+  const rootScope = React.useMemo(
+    () => ({ scope: values, root: values, titles: titlesOf(schema.properties) }),
+    [values, schema.properties],
+  );
   const handleFieldChange = useCallback(
-    (fieldName: string, fieldValue: unknown) => {
-      onChange({ ...values, [fieldName]: fieldValue });
+    (fieldName: string, fieldValue: unknown, siblings?: Record<string, unknown>) => {
+      onChange({ ...values, ...siblings, [fieldName]: fieldValue });
     },
     [values, onChange],
   );
@@ -1585,50 +927,70 @@ export function SchemaForm({ schema, values, onChange, disabled, className }: Sc
   );
 
   if (!schema.properties) {
-    return <div className="text-sm text-muted-foreground">{t("noSchemaProperties")}</div>;
+    return <Text tone="muted">{t("noSchemaProperties")}</Text>;
   }
 
   return (
-    <div className={cn("grid gap-4", className)}>
-      {Object.entries(schema.properties).map(([name, property]) => {
-        // Skip the 'enabled' field as it's handled separately
-        if (name === "enabled") return null;
+    <SchemaFormPluginContext.Provider value={pluginId ?? null}>
+      <FieldScopeContext.Provider value={rootScope}>
+        <Grid gap="4" className={className}>
+          {Object.entries(schema.properties).map(([name, property]) => {
+            // Skip the 'enabled' field as it's handled separately
+            if (name === "enabled") return null;
 
-        const isRequired = schema.required?.includes(name);
-        const isLocationField = hasLocationFields && (name === "latitude" || name === "longitude");
-        const showLocationButton = isLocationField && !!navigator.geolocation;
+            const isRequired = schema.required?.includes(name);
+            const isLocationField = hasLocationFields && (name === "latitude" || name === "longitude");
+            const showLocationButton = isLocationField && !!navigator.geolocation;
 
-        // Disable digit_color when color_pattern is not "solid" (visual_clock plugin)
-        const isDigitColorField = name === "digit_color";
-        const colorPattern = values["color_pattern"] || schema.properties["color_pattern"]?.default || "solid";
-        const shouldDisableDigitColor = isDigitColorField && colorPattern !== "solid";
-        const fieldDisabled = disabled || shouldDisableDigitColor;
+            // Disable digit_color when color_pattern is not "solid" (visual_clock plugin)
+            const isDigitColorField = name === "digit_color";
+            const colorPattern = values["color_pattern"] || schema.properties["color_pattern"]?.default || "solid";
+            const shouldDisableDigitColor = isDigitColorField && colorPattern !== "solid";
+            const fieldDisabled = disabled || shouldDisableDigitColor;
 
-        return (
-          <div key={name} className="grid gap-1.5">
-            <Label htmlFor={name} className="flex items-center gap-1">
-              {property.title || name}
-              {isRequired && <span className="text-destructive">*</span>}
-            </Label>
-            <FormField
-              name={name}
-              property={property}
-              value={values[name]}
-              onChange={(val) => handleFieldChange(name, val)}
-              required={isRequired}
-              disabled={fieldDisabled}
-              onLocationRequest={showLocationButton ? handleLocationRequest : undefined}
-              showLocationButton={showLocationButton}
-              isLocationLoading={false}
-              allValues={values}
-            />
-            {property.description && <p className="text-xs text-muted-foreground">{property.description}</p>}
-            {showLocationButton && <p className="text-xs text-muted-foreground">{t("clickLocationIcon")}</p>}
-            {shouldDisableDigitColor && <p className="text-xs text-muted-foreground">{t("digitColorNotUsed")}</p>}
-          </div>
-        );
-      })}
-    </div>
+            return (
+              <Grid key={name} gap="1.5">
+                <Label htmlFor={name} className="flex items-center gap-1">
+                  {property.title || name}
+                  {isRequired && (
+                    <Text as="span" tone="destructive">
+                      *
+                    </Text>
+                  )}
+                </Label>
+                <FormField
+                  name={name}
+                  property={property}
+                  value={values[name]}
+                  onChange={(val, siblings) => handleFieldChange(name, val, siblings)}
+                  required={isRequired}
+                  disabled={fieldDisabled}
+                  onLocationRequest={showLocationButton ? handleLocationRequest : undefined}
+                  showLocationButton={showLocationButton}
+                  isLocationLoading={false}
+                  allValues={values}
+                />
+                {property.description && (
+                  <Text size="xs" tone="muted">
+                    {property.description}
+                  </Text>
+                )}
+                {showLocationButton && (
+                  <Text size="xs" tone="muted">
+                    {t("clickLocationIcon")}
+                  </Text>
+                )}
+                {shouldDisableDigitColor && (
+                  <Text size="xs" tone="muted">
+                    {t("digitColorNotUsed")}
+                  </Text>
+                )}
+              </Grid>
+            );
+          })}
+        </Grid>
+      </FieldScopeContext.Provider>
+    </SchemaFormPluginContext.Provider>
   );
 }
 

@@ -42,9 +42,14 @@ export const MOCK_BOARD_PORT_2 = parseInt(process.env.MOCK_BOARD_PORT_2 || "1700
 export const BOARD_2_LOCAL_API_PORT = 7001;
 export let MOCK_BOARD_URL_2 = process.env.MOCK_BOARD_URL_2 || `http://localhost:${MOCK_BOARD_PORT_2}`;
 
-function _configureWorker(workerIndex: number) {
+// Backend-pool slot MUST come from parallelIndex, not workerIndex: when a
+// worker restarts after a failure the replacement gets a new unique
+// workerIndex, so `workerIndex % N` wraps onto a backend still owned by a
+// live worker and the two stomp each other's board config. parallelIndex is
+// stable per slot (always 0..workers-1, reused across restarts).
+function _configureWorker(parallelIndex: number) {
   if (_workerUrls.length > 0) {
-    const idx = workerIndex % _workerUrls.length;
+    const idx = parallelIndex % _workerUrls.length;
     API_URL = `${_workerUrls[idx]}/api`;
     MOCK_BOARD_URL = _workerMockUrls[idx] || DEFAULT_MOCK_BOARD_URL;
     BOARD_HOST = _workerMockHosts[idx] || DEFAULT_BOARD_HOST;
@@ -63,7 +68,7 @@ function _configureWorker(workerIndex: number) {
 export const test = base.extend<{ resetBackend: void }, { workerBackend: void }>({
   workerBackend: [
     async ({}, use, workerInfo) => {
-      _configureWorker(workerInfo.workerIndex);
+      _configureWorker(workerInfo.parallelIndex);
       await use();
     },
     { scope: "worker", auto: true },
@@ -71,7 +76,7 @@ export const test = base.extend<{ resetBackend: void }, { workerBackend: void }>
 
   baseURL: async ({}, use, workerInfo) => {
     if (_workerUrls.length > 0) {
-      const idx = workerInfo.workerIndex % _workerUrls.length;
+      const idx = workerInfo.parallelIndex % _workerUrls.length;
       // eslint-disable-next-line react-hooks/rules-of-hooks -- Playwright fixture `use` callback, not a React hook
       await use(_workerUrls[idx]);
     } else {
@@ -98,6 +103,34 @@ export interface MockBoardState {
   request_count?: number;
   history?: Array<{ characters?: number[][]; strategy?: string; dimensions?: number[]; timestamp?: string }>;
   port?: number;
+}
+
+/**
+ * The most recent message the mock board received, with its optional fields
+ * resolved. Throws (failing the test with a readable reason) when nothing was
+ * delivered, instead of letting an index into an absent history explode.
+ */
+export function lastMockMessage(state: MockBoardState): {
+  characters: number[][];
+  dimensions: number[];
+  strategy?: string;
+} {
+  const last = (state.history ?? []).at(-1);
+  if (!last?.characters) {
+    throw new Error(`mock board received no message with characters (history length: ${state.history?.length ?? 0})`);
+  }
+  return { characters: last.characters, dimensions: last.dimensions ?? [], strategy: last.strategy };
+}
+
+/**
+ * The grid currently shown on the mock board. Throws when the board never
+ * received anything.
+ */
+export function mockBoardGrid(state: MockBoardState): number[][] {
+  if (!state.current_message) {
+    throw new Error("mock board has no current_message - nothing was sent to it");
+  }
+  return state.current_message;
 }
 
 /**
@@ -347,7 +380,7 @@ export async function createPage(
   });
   if (!res.ok) throw new Error(`createPage failed: ${res.status}`);
   const data = await res.json();
-  return data.page.id;
+  return data.id;
 }
 
 /** Create a Note page (3 lines, 15 cols) and return its ID. */
@@ -383,8 +416,8 @@ export async function createCollection(
   if (!res.ok) {
     throw new Error(`createCollection failed: ${res.status} ${await res.text()}`);
   }
-  const data = await res.json();
-  return data.collection;
+  // 201 + bare resource since the collections conventions pass.
+  return await res.json();
 }
 
 /** Delete every collection via the API. */
@@ -528,6 +561,24 @@ export async function deleteAllSchedules(): Promise<void> {
   }
 }
 
+/**
+ * Turn schedule mode on or off for the primary board.
+ *
+ * Useful for pinning "no active page" deterministically: the render loop's
+ * "primary never goes dark" rule (src/main.py) auto-promotes the first page
+ * whenever the active page is null *in manual mode*, so a test that needs a
+ * genuinely empty active display should enable schedule mode with no matching
+ * schedules rather than race the loop's ~15s tick.
+ */
+export async function setScheduleEnabled(enabled: boolean): Promise<void> {
+  const res = await fetch(`${API_URL}/schedules/enabled`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json", ...authHeaders() },
+    body: JSON.stringify({ enabled }),
+  });
+  if (!res.ok) throw new Error(`setScheduleEnabled(${enabled}) failed: ${res.status}`);
+}
+
 /** Enable a plugin via the API. */
 export async function enablePlugin(id: string): Promise<void> {
   const res = await fetch(`${API_URL}/plugins/${id}/enable`, {
@@ -647,7 +698,8 @@ export async function ensureTwoBoardsWithConnections(
     throw new Error(`ensureTwoBoardsWithConnections failed: ${res.status} ${await res.text()}`);
   }
   const data = await res.json();
-  const boards = data.settings?.boards ?? [];
+  // Bare BoardSettings since the conventions pass (Phase 2, Task 8).
+  const boards = data.boards ?? [];
   if (boards.length < 2) throw new Error("ensureTwoBoardsWithConnections: expected 2 boards");
   return { board1Id: boards[0].id, board2Id: boards[1].id };
 }

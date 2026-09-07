@@ -1,5 +1,6 @@
 "use client";
 
+import { Box, Button, Card, Flex, Text } from "@fiestaboard/ui";
 import {
   Calendar,
   CheckCircle,
@@ -15,8 +16,6 @@ import {
 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 
-import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
 import { useTranslations } from "@/i18n/translations";
 import type {
   CreateCollectionArgs,
@@ -34,7 +33,22 @@ import type {
   UpdateSettingArgs,
 } from "@/lib/ai-chat-types";
 
-type ConfirmableOp = Exclude<ToolCall["op"], "replace_page" | "apply_patch" | "suggest_variables" | "navigate_to_page">;
+/**
+ * Ops this card can present for approval. Everything excluded here is either
+ * applied straight to the page editor, or is pure navigation / status
+ * bookkeeping that the AI drawer runs without asking. Keeping the two
+ * navigation ops and `update_task_list` in the union left the label and
+ * description switches below silently non-exhaustive.
+ */
+type ConfirmableOp = Exclude<
+  ToolCall["op"],
+  | "replace_page"
+  | "apply_patch"
+  | "suggest_variables"
+  | "navigate_to_page"
+  | "navigate_to_schedule"
+  | "update_task_list"
+>;
 
 type ActionState = "pending" | "running" | "done" | "denied";
 
@@ -218,16 +232,20 @@ export function AiActionConfirmation({ call, onAllow, onDeny, autoAllow = false 
 
   return (
     <Card className="p-3 text-sm border-border/60 bg-muted/30">
-      <div className="flex items-start gap-2">
+      <Flex align="start" gap="2">
         <ActionIcon op={call.op} />
-        <div className="flex-1 min-w-0">
-          <p className="font-medium leading-tight">{actionLabel(call, t)}</p>
-          <p className="text-muted-foreground mt-0.5 leading-snug">{actionDescription(call, t)}</p>
-        </div>
-      </div>
+        <Box className="flex-1 min-w-0">
+          <Text weight="medium" className="leading-tight">
+            {actionLabel(call, t)}
+          </Text>
+          <Text tone="muted" className="mt-0.5 leading-snug">
+            {actionDescription(call, t)}
+          </Text>
+        </Box>
+      </Flex>
 
       {!isSettled && (
-        <div className="flex gap-2 mt-3 justify-end">
+        <Flex gap="2" justify="end" className="mt-3">
           <Button
             variant="outline"
             size="sm"
@@ -246,21 +264,21 @@ export function AiActionConfirmation({ call, onAllow, onDeny, autoAllow = false 
           >
             {state === "running" ? t("working") : t("allow")}
           </Button>
-        </div>
+        </Flex>
       )}
 
       {state === "done" && (
-        <div className="flex items-center gap-1.5 mt-2 text-xs text-green-600 dark:text-green-400">
+        <Flex align="center" gap="1.5" className="mt-2 text-xs text-green-600 dark:text-green-400">
           <CheckCircle className="h-3.5 w-3.5" aria-hidden="true" />
           {t("done")}
-        </div>
+        </Flex>
       )}
 
       {state === "denied" && (
-        <div className="flex items-center gap-1.5 mt-2 text-xs text-muted-foreground">
+        <Flex align="center" gap="1.5" className="mt-2 text-xs text-muted-foreground">
           <XCircle className="h-3.5 w-3.5" aria-hidden="true" />
           {t("denied")}
-        </div>
+        </Flex>
       )}
     </Card>
   );

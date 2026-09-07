@@ -1,3 +1,4 @@
+import { TextLink } from "@fiestaboard/ui";
 import type { AnchorHTMLAttributes, ReactNode } from "react";
 import { Link as RRLink } from "react-router";
 
@@ -33,9 +34,9 @@ export default function SmartLink({
 }: SmartLinkProps) {
   if (EXTERNAL.test(href)) {
     return (
-      <a href={href} {...rest}>
+      <TextLink href={href} {...rest}>
         {children}
-      </a>
+      </TextLink>
     );
   }
   return (

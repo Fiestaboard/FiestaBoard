@@ -9,27 +9,27 @@
 #      `/api/hassio_ingress/test-token/` from each request before
 #      forwarding to the fiestaboard-dev container.
 #   3. Adds an `X-Ingress-Path` header with that same prefix so the
-#      upstream nginx-in-fiestaboard knows which prefix to inject
-#      via `<base href>` (see entrypoint.sh::configure_ingress_path_rewrite).
+#      upstream nginx-in-fiestaboard knows which prefix to prepend via
+#      sub_filter (see entrypoint.sh::configure_ingress_path_rewrite).
 #
-# Used to verify the RR7 SPA + `<base href>` mechanism works under HA
-# Ingress without needing a real HA test instance. Bring up alongside
-# the dev container with `FIESTABOARD_INGRESS_PATH_REWRITE=true` set
-# in the .env file:
+# Used to verify the RR7 SPA + sub_filter + runtime base-path mechanism
+# (web/src/lib/base-path.ts) works under HA Ingress without needing a
+# real HA test instance. Bring up alongside the dev container with
+# `FIESTABOARD_INGRESS_PATH_REWRITE=true` set in the .env file:
 #
 #   FIESTABOARD_INGRESS_PATH_REWRITE=true \
 #   docker compose -f docker-compose.dev.yml -f docker-compose.dev-ingress.yml up
 #
 # Then open http://localhost:5050/api/hassio_ingress/test-token/
-# in a browser. Routes, lazy chunks, fonts, and PWA SW should all
-# resolve relative to the injected `<base href>`. To verify the
+# in a browser. Routes, lazy chunks, fonts, PWA SW, and API calls
+# should all resolve under the ingress prefix. To verify the
 # token-changing case (HA rebuilds the install), edit the prefix in
 # this file to a different fake token and reload.
 ###
 services:
   fiestaboard:
     environment:
-      # Tell the upstream nginx to render the <base href> snippet.
+      # Tell the upstream nginx to render the sub_filter rewrite snippet.
       - FIESTABOARD_INGRESS_PATH_REWRITE=true
 
   ha-ingress-proxy:

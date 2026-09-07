@@ -1,8 +1,7 @@
+import { Label } from "@fiestaboard/ui";
 import type { Meta, StoryObj } from "@storybook/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { useState } from "react";
-
-import { Label } from "@/components/ui/label";
 
 import { PagePickerField } from "./page-picker-field";
 

@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "_comment": "FiestaBoard Plugin Registry - Community and official external plugins",
   "_naming_convention": "All plugins listed here MUST use the fiestaboard-plugin--{name} repository naming convention",
-  "_docs": "See docs-site/docs/development/plugin-guide.md for plugin development details",
+  "_docs": "See docs/development/plugin-guide.md for plugin development details",
   "version": "1.0.0",
   "plugins": [
     {
@@ -115,7 +115,8 @@
       "icon": "database",
       "category": "data"
     },
-    {      "id": "generative_ai_art",
+    {
+      "id": "generative_ai_art",
       "name": "Generative AI Art",
       "description": "Generate full-screen abstract art for your split-flap display using an LLM. Each piece is a unique, thought-out composition using the board's 8-color palette.",
       "repository": "https://github.com/Fiestaboard/fiestaboard-plugin--generative-ai-art",
@@ -124,7 +125,18 @@
       "icon": "palette",
       "category": "art"
     },
-    {      "id": "guest_wifi",
+    {
+      "id": "generative_dashboard",
+      "name": "Generative Dashboard",
+      "description": "AI-curated dashboard composed from your other plugins' variables \u2014 live values, range-driven status lights, grid or prose",
+      "repository": "https://github.com/Fiestaboard/fiestaboard-plugin--generative-dashboard",
+      "author": "FiestaBoard Team",
+      "fiestaboard_version": ">=2.10.0",
+      "icon": "layout-dashboard",
+      "category": "data"
+    },
+    {
+      "id": "guest_wifi",
       "name": "Guest WiFi",
       "description": "Display guest WiFi credentials on your board",
       "repository": "https://github.com/Fiestaboard/fiestaboard-plugin--guest-wifi",
@@ -271,6 +283,16 @@
       "author": "FiestaBoard Team",
       "fiestaboard_version": ">=4.2.0",
       "icon": "shield",
+      "category": "utility"
+    },
+    {
+      "id": "price_list",
+      "name": "Price List",
+      "description": "Display a styled price list or menu sign with your own items, prices, and colors, plus automatic page rotation for longer menus.",
+      "repository": "https://github.com/Fiestaboard/fiestaboard-plugin--price-list",
+      "author": "FiestaBoard Team",
+      "fiestaboard_version": ">=4.2.0",
+      "icon": "tags",
       "category": "utility"
     },
     {
@@ -482,6 +504,16 @@
       "fiestaboard_version": ">=4.2.0",
       "icon": "flame-kindling",
       "category": "data"
+    },
+    {
+      "id": "word_clock",
+      "name": "Word Clock",
+      "description": "Tell the time in words, QLOCKTWO style, in German, English, Spanish or French.",
+      "repository": "https://github.com/Fiestaboard/fiestaboard-plugin--word-clock",
+      "author": "Oliver Rummeyer",
+      "fiestaboard_version": ">=7.9.5",
+      "icon": "clock",
+      "category": "utility"
     },
     {
       "id": "word_of_day",

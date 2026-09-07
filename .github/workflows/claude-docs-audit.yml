@@ -241,14 +241,14 @@ jobs:
         uses: actions/checkout@v7
         with:
           # RELEASE_PAT so the state-file commit can push to main past
-          # branch protection — same pattern as the plugin-stats job.
+          # branch protection — same pattern as the plugin-previews job.
           token: ${{ secrets.RELEASE_PAT }}
           fetch-depth: 0
 
       - name: Configure git identity
         run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git config user.name "FiestaBoard CI"
+          git config user.email "ci@fiestaboard.app"
 
       - name: Run Claude docs audit
         uses: anthropics/claude-code-action@v1
@@ -291,7 +291,7 @@ jobs:
           claude_args: >-
             --model claude-opus-4-8
             --max-turns 250
-            --allowed-tools "Read,Glob,Grep,Edit,Write,Bash(ls:*),Bash(cat:*),Bash(find:*),Bash(date:*),Bash(jq:*),Bash(git status:*),Bash(git diff:*),Bash(git log:*),Bash(git show:*),Bash(git branch:*),Bash(git checkout:*),Bash(git switch:*),Bash(git add:*),Bash(git commit:*),Bash(git push:*),Bash(git fetch:*),Bash(git pull:*),Bash(git rebase:*),Bash(git rev-parse:*),Bash(git reset:*),Bash(gh pr create:*),Bash(gh pr view:*),Bash(gh pr list:*),Bash(gh issue list:*),Bash(gh issue view:*),Bash(gh issue create:*),Bash(gh issue edit:*),Bash(gh label list:*),Bash(gh label create:*)"
+            --allowed-tools "Read,Glob,Grep,Edit,Write,Bash(ls:*),Bash(cat:*),Bash(find:*),Bash(date:*),Bash(jq:*),Bash(git status:*),Bash(git diff:*),Bash(git log:*),Bash(git show:*),Bash(git branch:*),Bash(git checkout:*),Bash(git switch:*),Bash(git add:*),Bash(git commit:*),Bash(git -c:*),Bash(git push:*),Bash(git fetch:*),Bash(git pull:*),Bash(git rebase:*),Bash(git rev-parse:*),Bash(git reset:*),Bash(gh pr create:*),Bash(gh pr view:*),Bash(gh pr list:*),Bash(gh issue list:*),Bash(gh issue view:*),Bash(gh issue create:*),Bash(gh issue edit:*),Bash(gh label list:*),Bash(gh label create:*)"
           prompt: |
             You are the FiestaBoard docs auditor. You run unattended twice a
             day (noon and 4pm America/Los_Angeles) and audit a batch of repo
@@ -442,7 +442,7 @@ jobs:
                - Glob the repo for docs files. Include:
                  `README.md`, `docs/**/*.md`, `plugins/*/README.md`,
                  `plugins/*/docs/**/*.md`, `web/src/components/README.md`.
-                 Exclude `node_modules/`, `.git/`, `docs-site/node_modules/`,
+                 Exclude `node_modules/`, `.git/`,
                  `web/node_modules/`, `tools/`, and anything under `.claude/`.
                - Set `files_remaining` to the full glob, sorted.
                - Set `files_audited` to `[]`.
@@ -627,7 +627,7 @@ jobs:
 
                ```bash
                git add .github/docs-audit-state.json
-               git commit -m "chore(docs-audit): advance sweep state [skip ci]" || exit 0
+               git -c user.name="FiestaBoard CI" -c user.email="ci@fiestaboard.app" commit -m "chore(docs-audit): advance sweep state [skip ci]" || exit 0
                for attempt in 1 2 3 4 5; do
                  if git push origin HEAD:main; then
                    echo "State pushed on attempt $attempt."
@@ -683,7 +683,7 @@ jobs:
             exit 0
           fi
           git add .github/docs-audit-state.json
-          git commit -m "chore(docs-audit): advance sweep state [skip ci]"
+          git -c user.name="FiestaBoard CI" -c user.email="ci@fiestaboard.app" commit -m "chore(docs-audit): advance sweep state [skip ci]"
           for attempt in 1 2 3 4 5; do
             if git push origin HEAD:main; then
               echo "State pushed on attempt $attempt."

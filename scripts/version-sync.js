@@ -6,6 +6,7 @@
  * Synchronizes version across multiple files:
  * - package.json (root)
  * - web/package.json
+ * - web/package-lock.json (root version fields only)
  * - src/__init__.py
  * 
  * Usage:
@@ -22,6 +23,7 @@ const path = require('path');
 const ROOT_DIR = path.join(__dirname, '..');
 const ROOT_PACKAGE_JSON = path.join(ROOT_DIR, 'package.json');
 const WEB_PACKAGE_JSON = path.join(ROOT_DIR, 'web', 'package.json');
+const WEB_PACKAGE_LOCK = path.join(ROOT_DIR, 'web', 'package-lock.json');
 const PYTHON_INIT_FILE = path.join(ROOT_DIR, 'src', '__init__.py');
 
 /**
@@ -86,6 +88,29 @@ function readJsonFile(filePath) {
 function writeJsonFile(filePath, data) {
   const content = JSON.stringify(data, null, 2) + '\n';
   fs.writeFileSync(filePath, content, 'utf8');
+}
+
+/**
+ * Update the root version fields in web/package-lock.json.
+ *
+ * npm records the manifest's own version twice in the lockfile — at the top
+ * level and again under packages[""] — and leaving them behind makes the
+ * lockfile disagree with the manifest it was generated from. Only those two
+ * fields are touched; the dependency tree is npm's to write, so this never
+ * needs an install.
+ */
+function updateLockVersion(filePath, newVersion) {
+  const lock = readJsonFile(filePath);
+  const oldVersion = lock.version;
+
+  lock.version = newVersion;
+  if (lock.packages && lock.packages['']) {
+    lock.packages[''].version = newVersion;
+  }
+
+  writeJsonFile(filePath, lock);
+
+  return oldVersion;
 }
 
 /**
@@ -158,6 +183,15 @@ function main() {
     console.log(`✅ Updated ${path.relative(ROOT_DIR, WEB_PACKAGE_JSON)}: ${oldWebVersion} → ${newVersion}`);
   } else {
     console.log(`✓  ${path.relative(ROOT_DIR, WEB_PACKAGE_JSON)}: ${newVersion} (unchanged)`);
+  }
+
+  // Update web/package-lock.json
+  const oldLockVersion = updateLockVersion(WEB_PACKAGE_LOCK, newVersion);
+
+  if (oldLockVersion !== newVersion) {
+    console.log(`✅ Updated ${path.relative(ROOT_DIR, WEB_PACKAGE_LOCK)}: ${oldLockVersion} → ${newVersion}`);
+  } else {
+    console.log(`✓  ${path.relative(ROOT_DIR, WEB_PACKAGE_LOCK)}: ${newVersion} (unchanged)`);
   }
   
   // Update src/__init__.py

@@ -35,7 +35,7 @@ COVERAGE_DIR = PROJECT_ROOT / "coverage"
 # Default settings
 DEFAULT_FAIL_UNDER = 80  # Minimum coverage percentage required
 WARNING_THRESHOLD = 80  # Warn if coverage is below this percentage
-SKIP_DIRECTORIES = {"_template", "__pycache__"}
+SKIP_DIRECTORIES = {"_template", "_template_transition", "__pycache__"}
 
 
 class PluginTestResult:

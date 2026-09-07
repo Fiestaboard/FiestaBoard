@@ -1,12 +1,12 @@
 "use client";
 
+import { Box, Button, Flex, Heading, Stack, Text } from "@fiestaboard/ui";
 import { CheckCircle, Clock, Loader2, PartyPopper, Puzzle, Send, XCircle } from "lucide-react";
 import { useState } from "react";
 
-import { Button } from "@/components/ui/button";
-import DecryptedText from "@/components/ui/react-bits/decrypted-text";
 import { useTranslations } from "@/i18n/translations";
-import { api } from "@/lib/api";
+import type { Code62Glyph } from "@/lib/api";
+import { api, ApiError } from "@/lib/api";
 import { cn } from "@/lib/utils";
 
 import type { WizardPluginConfig } from "./step-easy-plugins";
@@ -19,6 +19,7 @@ interface BoardConfig {
   connectionVerified: boolean;
   device_type: "flagship" | "note";
   board_color: "black" | "white";
+  code62_glyph: Code62Glyph;
 }
 
 interface StepWelcomeProps {
@@ -72,18 +73,18 @@ export function StepWelcome({ boardConfig, pluginConfig, onComplete, isLoading, 
 
       // Send the welcome message
       const result = await api.sendWelcomeMessage();
-
-      if (result.status === "success") {
-        setSendStatus("success");
-        setSendMessage(result.message);
-      } else if (result.status === "blocked") {
+      setSendStatus("success");
+      setSendMessage(result.message);
+    } catch (error) {
+      // A quiet-hours window (or a paused board) refuses the send with a 409
+      // since the Phase 2 Task 8 conventions pass — it used to be a 200
+      // carrying `status: "blocked"`. It is still a *success* for the wizard:
+      // the board is reachable and configured, it just must not be woken.
+      if (error instanceof ApiError && error.status === 409) {
         setSendStatus("success");
         setSendMessage(t("boardInQuietHours"));
-      } else {
-        setSendStatus("error");
-        setSendMessage(result.message || t("failedToSend"));
+        return;
       }
-    } catch (error) {
       setSendStatus("error");
       setSendMessage(error instanceof Error ? error.message : t("failedToSend"));
     } finally {
@@ -100,26 +101,28 @@ export function StepWelcome({ boardConfig, pluginConfig, onComplete, isLoading, 
   ].filter(Boolean) as { name: string; icon: typeof Clock }[];
 
   return (
-    <div className="space-y-6">
+    <Stack gap="6">
       {/* Success header */}
-      <div className="text-center space-y-2">
-        <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-primary/10 mb-2">
+      <Stack gap="2" className="text-center">
+        <Flex inline align="center" justify="center" className="w-16 h-16 rounded-full bg-primary/10 mb-2">
           <PartyPopper className="h-8 w-8 text-primary" />
-        </div>
-        <h3 className="text-xl font-semibold">
-          <DecryptedText text={t("setupComplete")} speed={60} sequential animateOn="view" revealDirection="start" />
-        </h3>
-        <p className="text-muted-foreground">{t("boardReady")}</p>
-      </div>
+        </Flex>
+        <Heading level={3} className="text-xl">
+          {t("setupComplete")}
+        </Heading>
+        <Text tone="muted">{t("boardReady")}</Text>
+      </Stack>
 
       {/* Summary */}
-      <div className="space-y-3 bg-muted/50 rounded-lg p-4">
-        <h4 className="font-medium text-sm">{t("summaryTitle")}</h4>
+      <Stack gap="3" className="bg-muted/50 rounded-lg p-4">
+        <Heading level={4} size="sm" className="font-medium">
+          {t("summaryTitle")}
+        </Heading>
 
-        <div className="space-y-2 text-sm">
-          <div className="flex items-center gap-2">
+        <Stack gap="2" className="text-sm">
+          <Flex align="center" gap="2">
             <CheckCircle className="h-4 w-4 text-success" />
-            <span>
+            <Text as="span">
               {boardConfig.api_mode === "local"
                 ? t("boardConnectedLocal", {
                     deviceType: boardConfig.device_type === "flagship" ? tc("flagship") : tc("note"),
@@ -129,32 +132,36 @@ export function StepWelcome({ boardConfig, pluginConfig, onComplete, isLoading, 
                     deviceType: boardConfig.device_type === "flagship" ? tc("flagship") : tc("note"),
                     apiMode: boardConfig.api_mode === "cloud" ? "Cloud" : "Local",
                   })}
-            </span>
-          </div>
+            </Text>
+          </Flex>
 
           {enabledPlugins.length > 0 && (
             <>
               {enabledPlugins.map(({ name, icon: _Icon }) => (
-                <div key={name} className="flex items-center gap-2">
+                <Flex key={name} align="center" gap="2">
                   <CheckCircle className="h-4 w-4 text-success" />
-                  <span>{t("pluginEnabled", { name })}</span>
-                </div>
+                  <Text as="span">{t("pluginEnabled", { name })}</Text>
+                </Flex>
               ))}
             </>
           )}
 
           {enabledPlugins.length === 0 && (
-            <div className="flex items-center gap-2 text-muted-foreground">
-              <span>{t("noPluginsEnabled")}</span>
-            </div>
+            <Flex align="center" gap="2" className="text-muted-foreground">
+              <Text as="span" tone="muted">
+                {t("noPluginsEnabled")}
+              </Text>
+            </Flex>
           )}
-        </div>
-      </div>
+        </Stack>
+      </Stack>
 
       {/* Send Welcome Message */}
-      <div className="space-y-3">
-        <div className="text-center">
-          <p className="text-sm text-muted-foreground mb-3">{t("sendWelcomeDescription")}</p>
+      <Stack gap="3">
+        <Box className="text-center">
+          <Text tone="muted" className="mb-3">
+            {t("sendWelcomeDescription")}
+          </Text>
 
           <Button
             onClick={handleSendWelcome}
@@ -179,13 +186,15 @@ export function StepWelcome({ boardConfig, pluginConfig, onComplete, isLoading, 
               </>
             )}
           </Button>
-        </div>
+        </Box>
 
         {/* Status message */}
         {sendMessage && (
-          <div
+          <Flex
+            align="start"
+            gap="2"
             className={cn(
-              "flex items-start gap-2 p-3 rounded-lg text-sm",
+              "p-3 rounded-lg text-sm",
               sendStatus === "success" ? "bg-success/10 text-success" : "bg-destructive/10 text-destructive",
             )}
           >
@@ -194,13 +203,13 @@ export function StepWelcome({ boardConfig, pluginConfig, onComplete, isLoading, 
             ) : (
               <XCircle className="h-5 w-5 flex-shrink-0 mt-0.5" />
             )}
-            <span>{sendMessage}</span>
-          </div>
+            {sendMessage}
+          </Flex>
         )}
-      </div>
+      </Stack>
 
       {/* Complete button */}
-      <div className="pt-4">
+      <Box className="pt-4">
         <Button
           onClick={onComplete}
           variant={sendStatus === "success" ? "default" : "outline"}
@@ -209,7 +218,7 @@ export function StepWelcome({ boardConfig, pluginConfig, onComplete, isLoading, 
         >
           {sendStatus === "success" ? t("goToDashboard") : t("skipGoToDashboard")}
         </Button>
-      </div>
-    </div>
+      </Box>
+    </Stack>
   );
 }

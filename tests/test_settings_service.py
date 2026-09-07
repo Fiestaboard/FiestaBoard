@@ -11,6 +11,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
+from src.devices import MAX_BOARD_NAME_LENGTH
 from src.settings.service import (
     VALID_OUTPUT_TARGETS,
     ActivePageSettings,
@@ -310,9 +311,14 @@ class TestSettingsServiceInit:
         assert "output" in data
         assert "board" in data
 
-    def test_save_to_file_handles_io_error(self, settings_service):
-        with patch("builtins.open", side_effect=OSError("write error")):
-            settings_service._save_to_file()  # Should not raise
+    def test_save_to_file_propagates_io_error(self, settings_service):
+        """A refused write must reach the caller (Phase 2 Task 10b).
+
+        This asserted "should not raise" until #1887: swallowing it made ~20
+        endpoints answer HTTP 200 having persisted nothing.
+        """
+        with patch("builtins.open", side_effect=OSError("write error")), pytest.raises(OSError):
+            settings_service._save_to_file()
 
     def test_save_to_file_is_atomic_on_mid_write_crash(self, settings_service, settings_file, monkeypatch):
         """Regression for #1313 (mirrors #1304): a crash inside _save_to_file()
@@ -331,7 +337,10 @@ class TestSettingsServiceInit:
             raise OSError("Simulated crash mid-write")
 
         monkeypatch.setattr(service_module.json, "dump", crashing_dump)
-        settings_service._save_to_file()  # swallows OSError; must not corrupt file
+        # The OSError now propagates (Phase 2 Task 10b); the point of this
+        # test is unchanged — the live file must survive the failed write.
+        with pytest.raises(OSError):
+            settings_service._save_to_file()
         monkeypatch.setattr(service_module.json, "dump", real_dump)
 
         assert Path(settings_file).read_bytes() == original_bytes
@@ -449,6 +458,40 @@ class TestSettingsServiceBoard:
         with pytest.raises(ValueError, match="At least one board"):
             settings_service.set_boards([])
 
+    def test_set_boards_roundtrips_renamed_board(self, settings_service):
+        """A custom name saved via the boards[] round-trip persists (issue #1792)."""
+        settings_service.set_boards([{"device_type": "flagship", "name": "Kitchen Board"}])
+        board = settings_service.get_board_settings().boards[0]
+        assert board["name"] == "Kitchen Board"
+
+        # Rename the same board (matched by id) and read it back.
+        settings_service.set_boards([{"id": board["id"], "device_type": "flagship", "name": "Garage Board"}])
+        assert settings_service.get_board_settings().boards[0]["name"] == "Garage Board"
+
+    def test_set_boards_empty_name_restores_default(self, settings_service):
+        """Clearing the name falls back to the BoardInstance default (issue #1792)."""
+        settings_service.set_boards([{"device_type": "flagship", "name": "Kitchen Board"}])
+        board_id = settings_service.get_board_settings().boards[0]["id"]
+        settings_service.set_boards([{"id": board_id, "device_type": "flagship", "name": ""}])
+        assert settings_service.get_board_settings().boards[0]["name"] == "My Board"
+
+    def test_set_boards_whitespace_only_name_restores_default(self, settings_service):
+        """A field cleared to spaces must not persist as a blank sidebar row —
+        ``"   "`` is truthy, so this needs the strip in BoardInstance (#1792)."""
+        settings_service.set_boards([{"device_type": "flagship", "name": "Kitchen Board"}])
+        board_id = settings_service.get_board_settings().boards[0]["id"]
+        settings_service.set_boards([{"id": board_id, "device_type": "flagship", "name": "   "}])
+        assert settings_service.get_board_settings().boards[0]["name"] == "My Board"
+
+    def test_set_boards_trims_a_padded_name(self, settings_service):
+        settings_service.set_boards([{"device_type": "flagship", "name": "  Kitchen Board  "}])
+        assert settings_service.get_board_settings().boards[0]["name"] == "Kitchen Board"
+
+    def test_set_boards_caps_an_overlong_name(self, settings_service):
+        settings_service.set_boards([{"device_type": "flagship", "name": "K" * 200}])
+        stored = settings_service.get_board_settings().boards[0]["name"]
+        assert stored == "K" * MAX_BOARD_NAME_LENGTH
+
     def test_add_board(self, settings_service):
         result = settings_service.add_board({"device_type": "note"})
         assert len(result.boards) == 2
@@ -552,9 +595,17 @@ class TestSettingsServiceLoadFromFile:
 
 
 class TestSettingsServiceMigration:
-    """Test _apply_global_connection migration."""
+    """Legacy config.json board connection import (schema migration v2 -> v3).
 
-    def test_apply_global_connection_migrates_when_first_board_empty(self, settings_file, mock_config):
+    Issue #1760: the copy-on-every-boot ``_apply_global_connection`` seam was
+    replaced by a one-time, schema-versioned migration (plus a first-boot
+    seed when no board section exists yet). These tests exercise the
+    migration path: pre-versioned settings files with a credential-less
+    board. tests/test_board_credentials_unification.py covers version
+    gating, precedence, and the divergence contract.
+    """
+
+    def test_migration_imports_legacy_connection_when_first_board_empty(self, settings_file, mock_config):
         Path(settings_file).write_text(
             json.dumps(
                 {
@@ -576,7 +627,7 @@ class TestSettingsServiceMigration:
             svc = SettingsService(settings_file=settings_file)
         assert svc._board.boards[0]["local_api_key"] == "migrated-key"
 
-    def test_apply_global_connection_skips_when_board_has_keys(self, settings_file, mock_config):
+    def test_migration_skips_when_board_has_keys(self, settings_file, mock_config):
         Path(settings_file).write_text(
             json.dumps(
                 {
@@ -590,7 +641,7 @@ class TestSettingsServiceMigration:
             SettingsService(settings_file=settings_file)
             mock_get.assert_not_called()
 
-    def test_apply_global_connection_skips_when_global_empty(self, settings_file, mock_config):
+    def test_migration_skips_when_legacy_config_empty(self, settings_file, mock_config):
         Path(settings_file).write_text(json.dumps({"board": {"boards": [{"name": "B", "device_type": "flagship"}]}}))
         mock_cm = MagicMock()
         mock_cm.get_board.return_value = {"local_api_key": "", "cloud_key": ""}
@@ -598,7 +649,7 @@ class TestSettingsServiceMigration:
             svc = SettingsService(settings_file=settings_file)
         assert svc._board.boards[0].get("local_api_key", "") == ""
 
-    def test_apply_global_connection_handles_exception(self, settings_file, mock_config):
+    def test_migration_handles_config_manager_exception(self, settings_file, mock_config):
         Path(settings_file).write_text(json.dumps({"board": {"boards": [{"name": "B", "device_type": "flagship"}]}}))
         with patch("src.config_manager.get_config_manager", side_effect=Exception("err")):
             svc = SettingsService(settings_file=settings_file)
@@ -743,6 +794,38 @@ class TestDisplaySettings:
         restored = DisplaySettings.from_dict(original.to_dict())
         assert restored == original
 
+    def test_board_flap_speed_defaults_to_standard(self):
+        assert DisplaySettings().board_flap_speed == "standard"
+        assert DisplaySettings.from_dict({}).board_flap_speed == "standard"
+
+    @pytest.mark.parametrize("preset", ["hardware", "quick", "standard", "relaxed"])
+    def test_from_dict_accepts_each_flap_speed_preset(self, preset):
+        assert DisplaySettings.from_dict({"board_flap_speed": preset}).board_flap_speed == preset
+
+    def test_from_dict_flap_speed_is_case_insensitive(self):
+        assert DisplaySettings.from_dict({"board_flap_speed": "RELAXED"}).board_flap_speed == "relaxed"
+
+    def test_from_dict_flap_speed_accepts_raw_milliseconds(self):
+        # The escape hatch: a cadence the four presets do not cover.
+        assert DisplaySettings.from_dict({"board_flap_speed": 200}).board_flap_speed == 200
+        assert DisplaySettings.from_dict({"board_flap_speed": "200"}).board_flap_speed == 200
+
+    def test_from_dict_flap_speed_clamps_out_of_range_milliseconds(self):
+        # Below ~8ms nothing survives a frame boundary; above 2s a board would
+        # take minutes to settle. Clamp rather than reject, so a bad value
+        # degrades instead of wedging the UI.
+        assert DisplaySettings.from_dict({"board_flap_speed": 1}).board_flap_speed == 8
+        assert DisplaySettings.from_dict({"board_flap_speed": 99999}).board_flap_speed == 2000
+
+    def test_from_dict_rejects_invalid_flap_speed(self):
+        assert DisplaySettings.from_dict({"board_flap_speed": "blazing"}).board_flap_speed == "standard"
+        assert DisplaySettings.from_dict({"board_flap_speed": True}).board_flap_speed == "standard"
+        assert DisplaySettings.from_dict({"board_flap_speed": None}).board_flap_speed == "standard"
+
+    def test_to_dict_roundtrip_preserves_flap_speed(self):
+        original = DisplaySettings(board_flap_speed="relaxed")
+        assert DisplaySettings.from_dict(original.to_dict()) == original
+
 
 class TestSettingsServiceDisplay:
     """Test SettingsService display-settings methods."""
@@ -760,6 +843,22 @@ class TestSettingsServiceDisplay:
     def test_update_site_animations(self, settings_service):
         ds = settings_service.update_display_settings({"site_animations": "off"})
         assert ds.site_animations == "off"
+
+    def test_update_board_flap_speed(self, settings_service):
+        ds = settings_service.update_display_settings({"board_flap_speed": "hardware"})
+        assert ds.board_flap_speed == "hardware"
+
+    def test_update_board_flap_speed_rejects_invalid_value(self, settings_service):
+        settings_service.update_display_settings({"board_flap_speed": "relaxed"})
+        ds = settings_service.update_display_settings({"board_flap_speed": "warp"})
+        assert ds.board_flap_speed == "standard"
+
+    def test_update_board_flap_speed_leaves_hardware_transitions_alone(self, settings_service):
+        # The on-screen cadence and the physical board's step interval are
+        # different settings; touching one must not touch the other.
+        before = settings_service.get_transition_settings()
+        settings_service.update_display_settings({"board_flap_speed": "quick"})
+        assert settings_service.get_transition_settings() == before
 
     def test_update_display_settings_partial_preserves_others(self, settings_service):
         settings_service.update_display_settings(
@@ -793,3 +892,107 @@ class TestSettingsServiceDisplay:
         ds = svc2.get_display_settings()
         assert ds.board_animations == "desktop"
         assert ds.site_animations == "off"
+
+
+class TestLocalArrayTileMasking:
+    """Nested per-tile credential masking for local note arrays."""
+
+    def _array_board(self, **kw):
+        return {
+            "device_type": "note_array",
+            "api_mode": "local",
+            "notes_wide": 2,
+            "notes_tall": 1,
+            "tiles": [
+                {"row": 0, "col": 0, "host": "10.0.0.1", "port": 7000, "local_api_key": "secret-a", "enabled": True},
+                {"row": 0, "col": 1, "host": "10.0.0.2", "port": 7000, "local_api_key": "secret-b", "enabled": True},
+            ],
+            **kw,
+        }
+
+    def test_mask_board_masks_tile_keys(self):
+        masked = BoardSettings._mask_board(self._array_board())
+        assert [t["local_api_key"] for t in masked["tiles"]] == ["***", "***"]
+        assert [t["host"] for t in masked["tiles"]] == ["10.0.0.1", "10.0.0.2"]
+
+    def test_mask_board_does_not_mutate_stored_tiles(self):
+        board = self._array_board()
+        BoardSettings._mask_board(board)
+        assert board["tiles"][0]["local_api_key"] == "secret-a"
+
+    def test_mask_board_skips_empty_tile_keys(self):
+        board = self._array_board()
+        board["tiles"][0]["local_api_key"] = ""
+        masked = BoardSettings._mask_board(board)
+        assert masked["tiles"][0]["local_api_key"] == ""
+        assert masked["tiles"][1]["local_api_key"] == "***"
+
+    def test_set_boards_preserves_masked_tile_keys_by_position(self, settings_service):
+        settings_service.set_boards([self._array_board()])
+        board_id = settings_service._board.boards[0]["id"]
+        # Round-trip the masked form (as the UI does), swapping tile hosts
+        update = self._array_board(id=board_id)
+        update["tiles"][0]["local_api_key"] = "***"
+        update["tiles"][1]["local_api_key"] = "***"
+        update["tiles"][0]["host"] = "10.0.0.99"
+        settings_service.set_boards([update])
+        tiles = {(t["row"], t["col"]): t for t in settings_service._board.boards[0]["tiles"]}
+        assert tiles[(0, 0)]["local_api_key"] == "secret-a"
+        assert tiles[(0, 0)]["host"] == "10.0.0.99"
+        assert tiles[(0, 1)]["local_api_key"] == "secret-b"
+
+    def test_set_boards_masked_key_at_new_position_resolves_empty(self, settings_service):
+        settings_service.set_boards([self._array_board()])
+        board_id = settings_service._board.boards[0]["id"]
+        update = self._array_board(id=board_id)
+        update["tiles"] = [
+            {"row": 0, "col": 5, "host": "10.0.0.3", "port": 7000, "local_api_key": "***", "enabled": True}
+        ]
+        settings_service.set_boards([update])
+        [tile] = settings_service._board.boards[0]["tiles"]
+        assert tile["local_api_key"] == ""
+
+    def test_set_boards_accepts_new_plaintext_tile_keys(self, settings_service):
+        settings_service.set_boards([self._array_board()])
+        board_id = settings_service._board.boards[0]["id"]
+        update = self._array_board(id=board_id)
+        update["tiles"][0]["local_api_key"] = "rotated"
+        settings_service.set_boards([update])
+        tiles = {(t["row"], t["col"]): t for t in settings_service._board.boards[0]["tiles"]}
+        assert tiles[(0, 0)]["local_api_key"] == "rotated"
+
+    def test_set_boards_swap_keeps_key_with_its_board(self, settings_service):
+        """Moving/swapping tiles sends masked keys at NEW positions — each key
+        must follow its physical board (host), not the grid position."""
+        board = self._array_board()
+        board["tiles"][0]["local_api_key"] = "key-for-host-1"
+        board["tiles"][1]["local_api_key"] = "key-for-host-2"
+        settings_service.set_boards([board])
+        board_id = settings_service._board.boards[0]["id"]
+
+        # The UI's swap: hosts trade places, keys are masked, positions are new.
+        update = self._array_board(id=board_id)
+        update["tiles"] = [
+            {"row": 0, "col": 0, "host": "10.0.0.2", "port": 7000, "local_api_key": "***", "enabled": True},
+            {"row": 0, "col": 1, "host": "10.0.0.1", "port": 7000, "local_api_key": "***", "enabled": True},
+        ]
+        settings_service.set_boards([update])
+
+        by_host = {t["host"]: t["local_api_key"] for t in settings_service._board.boards[0]["tiles"]}
+        assert by_host["10.0.0.1"] == "key-for-host-1"
+        assert by_host["10.0.0.2"] == "key-for-host-2"
+
+    def test_set_boards_host_edit_at_same_position_keeps_key(self, settings_service):
+        """Changing a tile's IP (same slot, masked key) keeps the stored key —
+        the (row, col) fallback when no host matches."""
+        settings_service.set_boards([self._array_board()])
+        board_id = settings_service._board.boards[0]["id"]
+
+        update = self._array_board(id=board_id)
+        update["tiles"][0]["host"] = "10.0.0.77"  # new IP, no existing tile has it
+        update["tiles"][0]["local_api_key"] = "***"
+        settings_service.set_boards([update])
+
+        tiles = {(t["row"], t["col"]): t for t in settings_service._board.boards[0]["tiles"]}
+        assert tiles[(0, 0)]["host"] == "10.0.0.77"
+        assert tiles[(0, 0)]["local_api_key"] == "secret-a"

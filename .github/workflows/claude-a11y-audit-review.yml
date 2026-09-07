@@ -43,9 +43,17 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     # Skip drafts and Dependabot (its read-only token can't post a review).
+    # Skip fork PRs: `claude-code-action` gates on the ACTOR's repo
+    # permission, and a fork contributor has `read`, so the job can only
+    # fail with "Actor does not have write permissions to the repository"
+    # — a red X on an outside contribution the review never even read
+    # (#1593). No action input bypasses that gate. To review a fork PR,
+    # comment `@claude` on it as a maintainer, or run
+    # `claude-docs-review.yml` via workflow_dispatch for the docs half.
     if: >-
       github.event.pull_request.draft == false
       && github.event.pull_request.user.login != 'dependabot[bot]'
+      && github.event.pull_request.head.repo.full_name == github.repository
     permissions:
       contents: read
       pull-requests: write

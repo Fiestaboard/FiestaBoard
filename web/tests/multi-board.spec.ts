@@ -413,10 +413,14 @@ test.describe("Setup Wizard – Board Configuration", () => {
     await expect(page.getByRole("heading", { name: "Welcome to FiestaBoard" })).toBeVisible({ timeout: 30_000 });
 
     await expect(page.getByText("Board Type")).toBeVisible({ timeout: 5_000 });
-    await expect(page.getByText("Flagship")).toBeVisible();
-    await expect(page.getByText("6 × 22 characters")).toBeVisible();
-    await expect(page.getByText("Note")).toBeVisible();
-    await expect(page.getByText("3 × 15 characters")).toBeVisible();
+    // Target the tiles by role + accessible name, not by bare text. The step's
+    // help copy also mentions "Flagship" and the dimensions read as plain text,
+    // so `getByText("Flagship")` matched the tile AND the help paragraph and
+    // failed strict mode (issue #1657). The accessible name is the tile's label
+    // plus its dimension caption, so this asserts both in one locator. The pair
+    // is a radiogroup, so the role is `radio` rather than `button`.
+    await expect(page.getByRole("radio", { name: "Flagship 6 × 22 characters" })).toBeVisible();
+    await expect(page.getByRole("radio", { name: "Note 3 × 15 characters" })).toBeVisible();
   });
 
   test("wizard shows Board Color swatches with Black and White options", async ({ page }) => {
@@ -582,6 +586,16 @@ test.describe("Cross-Feature – Board Config affects Pages", () => {
     await resetToSingleBoard();
     await suppressWizard(page);
     await deleteAllPages();
+    // deleteAllPages() cannot actually empty the store: deleting the *last*
+    // page regenerates a Welcome carrying that page's device_type (issue
+    // #1307, src/pages/service.py). If a note page happened to be deleted
+    // last — which an earlier spec on this worker's backend decides, not this
+    // one — the store is left holding a note-typed Welcome, and a note-typed
+    // PAGE keeps the Note tab alive on its own (issue #943). The state is
+    // self-perpetuating, so a retry sees it too. Anchor a flagship page so
+    // the store never empties, then clear the note pages.
+    await createPage(`Flagship Anchor ${Date.now() % 1_000_000}`);
+    await deletePagesByDevice("note");
   });
 
   test.afterEach(async () => {
@@ -594,7 +608,7 @@ test.describe("Cross-Feature – Board Config affects Pages", () => {
     await expect(page.getByRole("heading", { name: "Pages", exact: true })).toBeVisible({ timeout: 15_000 });
 
     // Note tab should NOT be visible with only Flagship
-    await expect(page.getByRole("tab", { name: "Note" })).toHaveCount(0, {
+    await expect(page.getByRole("tab", { name: "Note", exact: true })).toHaveCount(0, {
       timeout: 3_000,
     });
 
@@ -608,7 +622,7 @@ test.describe("Cross-Feature – Board Config affects Pages", () => {
     await page.reload();
     await expect(page.getByRole("heading", { name: "Pages", exact: true })).toBeVisible({ timeout: 15_000 });
 
-    await expect(page.getByRole("tab", { name: "Note" })).toBeVisible({
+    await expect(page.getByRole("tab", { name: "Note", exact: true })).toBeVisible({
       timeout: 5_000,
     });
     await expect(page.getByRole("tab", { name: "Flagship" })).toBeVisible();
@@ -625,7 +639,7 @@ test.describe("Cross-Feature – Board Config affects Pages", () => {
     await page.goto("/pages");
     await expect(page.getByRole("heading", { name: "Pages", exact: true })).toBeVisible({ timeout: 15_000 });
 
-    await expect(page.getByRole("tab", { name: "Note" })).toBeVisible({
+    await expect(page.getByRole("tab", { name: "Note", exact: true })).toBeVisible({
       timeout: 5_000,
     });
 
@@ -643,7 +657,7 @@ test.describe("Cross-Feature – Board Config affects Pages", () => {
     await page.reload();
     await expect(page.getByRole("heading", { name: "Pages", exact: true })).toBeVisible({ timeout: 15_000 });
 
-    await expect(page.getByRole("tab", { name: "Note" })).toHaveCount(0, {
+    await expect(page.getByRole("tab", { name: "Note", exact: true })).toHaveCount(0, {
       timeout: 3_000,
     });
   });

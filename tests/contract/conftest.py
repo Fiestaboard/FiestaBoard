@@ -45,34 +45,6 @@ def mock_page_service():
 
 
 @pytest.fixture
-def mock_schedule_service():
-    """Mock the schedule service for isolated contract testing."""
-    with patch("src.api_server.get_schedule_service") as mock_get:
-        svc = Mock()
-
-        from src.schedules.models import ScheduleEntry as Schedule
-
-        sample_schedule = Schedule(
-            id="contract-schedule-1",
-            page_id="contract-page-1",
-            start_time="08:00",
-            end_time="17:00",
-            day_pattern="weekdays",
-        )
-        svc.list_schedules.return_value = []
-        svc.create_schedule.return_value = sample_schedule
-        svc.get_schedule.return_value = sample_schedule
-
-        svc.get_schedules_enabled.return_value = True
-        svc.get_active_page_id.return_value = None
-        svc.get_default_page_id.return_value = None
-        svc.validate_schedule_data.return_value = {"valid": True, "errors": []}
-
-        mock_get.return_value = svc
-        yield svc
-
-
-@pytest.fixture
 def mock_settings_service():
     """Mock the settings service for isolated contract testing."""
     with patch("src.api_server.get_settings_service") as mock_get:

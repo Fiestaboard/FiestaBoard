@@ -1,0 +1,45 @@
+{
+  "id": "quiet_library",
+  "name": "Quiet Library",
+  "version": "1.0.0",
+  "description": "Updates the board word by word in small batches with long pauses, for the quietest possible refresh.",
+  "author": "wonkybutt",
+  "icon": "volume-off",
+  "category": "transition",
+  "plugin_type": "transition",
+  "documentation": "README.md",
+  "settings_schema": {
+    "type": "object",
+    "properties": {
+      "batch_size": {
+        "type": "integer",
+        "title": "Tiles per step",
+        "description": "How many tiles flip in each step. Smaller = quieter. A step never spans two words.",
+        "default": 6,
+        "minimum": 1,
+        "maximum": 15
+      },
+      "step_delay_ms": {
+        "type": "integer",
+        "title": "Delay between steps (ms)",
+        "description": "Pause between steps. The 14500ms default clears the board hardware's flap debounce window so every step animates.",
+        "default": 14500,
+        "minimum": 1000,
+        "maximum": 60000
+      }
+    }
+  },
+  "transition_settings": {
+    "interruptible": true,
+    "min_interval_ms": 1000,
+    "max_frames": 512,
+    "max_runtime_seconds": 1800
+  },
+  "screenshots": [
+    {
+      "src": "docs/board-display.png",
+      "alt": "Quiet Library transition updating one word at a time",
+      "primary": true
+    }
+  ]
+}

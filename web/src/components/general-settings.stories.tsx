@@ -20,6 +20,8 @@ const mockAllSettings: AllSettingsResponse = {
   },
   polling: {
     interval_seconds: 60,
+    board_read_interval_local: 30,
+    board_read_interval_cloud: 60,
   },
   transitions: {
     strategy: "none",
@@ -55,6 +57,23 @@ const mockAllSettings: AllSettingsResponse = {
     username: "",
     password: "",
     external_url: "",
+  },
+  display: {
+    reduce_motion: false,
+    board_animations: "on",
+    site_animations: "on",
+    board_flap_speed: "standard",
+  },
+  location: {
+    latitude: 40.7128,
+    longitude: -74.006,
+  },
+  beta: {
+    https_enabled: false,
+    transition_plugins_enabled: false,
+  },
+  plugins: {
+    auto_update: true,
   },
   status: {
     running: true,

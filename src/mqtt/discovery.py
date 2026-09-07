@@ -26,6 +26,12 @@ from src.mqtt.config import MQTTConfig
 # Valid entity types supported by HA MQTT Discovery
 VALID_ENTITY_TYPES = ["switch", "select", "sensor", "binary_sensor", "button", "text", "number", "event"]
 
+# Stable option representing "no page is active" in the Active Page select
+# (issue #1794). It must be a member of the select's options list — HA
+# rejects published states that aren't — so it is injected ahead of the
+# page names at discovery time and published whenever no page is active.
+NO_ACTIVE_PAGE_OPTION = "None"
+
 
 @dataclass
 class EntityDefinition:
@@ -173,6 +179,8 @@ ENTITY_DEFINITIONS: list[EntityDefinition] = [
         icon="mdi:send",
         has_command=True,
         min_length=1,
+        # Flagship capacity (6x22). Overridden per install from the primary
+        # board's real geometry by build_all_discovery_messages (issue #1793).
         max_length=132,
     ),
     # Number
@@ -411,6 +419,7 @@ def build_all_discovery_messages(
     sw_version: str = "1.0.0",
     configuration_url: str | None = None,
     page_names: list[str] | None = None,
+    max_message_length: int | None = None,
 ) -> list[dict[str, Any]]:
     """Build all discovery messages for FiestaBoard.
 
@@ -423,6 +432,9 @@ def build_all_discovery_messages(
         sw_version: FiestaBoard software version.
         configuration_url: URL to FiestaBoard web UI.
         page_names: Current list of page names (for active_page select options).
+        max_message_length: Characters the board can actually hold
+            (rows x cols). Advertised to HA as the Send Message text limit;
+            ``None`` keeps the flagship 132 default.
 
     Returns:
         List of dicts, each with 'topic' and 'payload' keys.
@@ -431,9 +443,16 @@ def build_all_discovery_messages(
     messages = []
 
     for entity in ENTITY_DEFINITIONS:
-        # Inject dynamic page list into active_page entity
+        # Inject dynamic page list into active_page entity, prefixed with the
+        # stable no-page option so an empty active page is representable
+        # (issue #1794).
         if entity.object_id == "active_page" and page_names is not None:
-            entity = replace(entity, options=page_names)
+            entity = replace(entity, options=[NO_ACTIVE_PAGE_OPTION, *page_names])
+
+        # Advertise the board's real capacity, not the flagship default, so a
+        # Note owner is not offered 132 characters for a 45-tile board.
+        if entity.object_id == "send_message" and max_message_length is not None:
+            entity = replace(entity, max_length=max_message_length)
 
         topic = build_discovery_topic(config, entity)
         payload = build_discovery_payload(config, entity, device_info)

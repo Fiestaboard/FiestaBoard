@@ -8,20 +8,40 @@ import importlib.util
 import logging
 import re
 import sys
+import threading
 from pathlib import Path
 from typing import Any
 
-from .base import PluginBase
-from .manifest import PluginManifest, load_manifest
+from .base import PluginBase, TransitionPluginBase
+from .install_check import validate_install
+from .manifest import PluginManifest, collect_options_ids, load_manifest, settings_schema_ui_warnings
 from .sources import (
     PluginSource,
     get_external_plugins_dir,
+    remove_external_plugin,
 )
+
+# A loaded plugin instance can be either a data plugin or a transition plugin.
+AnyPlugin = PluginBase | TransitionPluginBase
 
 logger = logging.getLogger(__name__)
 
 # Default plugins directory (relative to project root)
 DEFAULT_PLUGINS_DIR = "plugins"
+
+# Plugin directory names are plugin ids: a single path segment of lowercase
+# letters, digits, and underscores (the manifest contract).  Anything else --
+# ``..``, path separators, absolute paths, empty strings -- can never name a
+# plugin and must not reach a filesystem path expression.  Plugin names arrive
+# from user-controlled API input (settings / install / reload endpoints), so
+# this is a security barrier, not just hygiene (CodeQL py/path-injection).
+_SAFE_PLUGIN_NAME_RE = re.compile(r"^[a-z0-9_]+$")
+
+
+def is_safe_plugin_dir_name(plugin_name: str) -> bool:
+    """Return True when *plugin_name* is safe to use as a single path segment."""
+    return isinstance(plugin_name, str) and _SAFE_PLUGIN_NAME_RE.fullmatch(plugin_name) is not None
+
 
 # ---------------------------------------------------------------------------
 # FiestaBoard version compatibility helpers
@@ -96,6 +116,7 @@ class PluginLoader:
         self,
         plugins_dir: Path | None = None,
         external_dirs: list[Path] | None = None,
+        lock: "threading.RLock | None" = None,
     ):
         """Initialize the plugin loader.
 
@@ -106,6 +127,10 @@ class PluginLoader:
             external_dirs: Additional directories to scan for plugins
                 (e.g. ``external_plugins/``).  When *None* the default
                 external directory is included automatically.
+            lock: Re-entrant lock guarding the loader's mutable state.
+                The registry passes its own lock so registry->loader call
+                chains re-enter one lock instead of ordering two (#1828).
+                When *None* a private lock is created.
         """
         if plugins_dir is None:
             project_root = Path(__file__).parent.parent.parent
@@ -120,8 +145,9 @@ class PluginLoader:
         else:
             self._external_dirs = list(external_dirs)
 
-        self._loaded_plugins: dict[str, tuple[PluginBase, PluginManifest]] = {}
-        self._plugin_classes: dict[str, type[PluginBase]] = {}
+        self._lock = lock or threading.RLock()
+        self._loaded_plugins: dict[str, tuple[AnyPlugin, PluginManifest]] = {}
+        self._plugin_classes: dict[str, type[AnyPlugin]] = {}
         self._load_errors: dict[str, list[str]] = {}
         self._plugin_sources: dict[str, PluginSource] = {}
 
@@ -132,19 +158,47 @@ class PluginLoader:
         )
 
     @property
-    def loaded_plugins(self) -> dict[str, tuple[PluginBase, PluginManifest]]:
-        """Return all successfully loaded plugins."""
-        return self._loaded_plugins.copy()
+    def loaded_plugins(self) -> dict[str, tuple[AnyPlugin, PluginManifest]]:
+        """Return all successfully loaded plugins (data + transition)."""
+        with self._lock:
+            return self._loaded_plugins.copy()
+
+    @property
+    def data_plugins(self) -> dict[str, tuple[PluginBase, PluginManifest]]:
+        """Return only loaded *data* plugins (PluginBase subclasses)."""
+        with self._lock:
+            items = list(self._loaded_plugins.items())
+        return {pid: (inst, m) for pid, (inst, m) in items if isinstance(inst, PluginBase)}
+
+    @property
+    def transition_plugins(self) -> dict[str, tuple[TransitionPluginBase, PluginManifest]]:
+        """Return only loaded *transition* plugins."""
+        with self._lock:
+            items = list(self._loaded_plugins.items())
+        return {pid: (inst, m) for pid, (inst, m) in items if isinstance(inst, TransitionPluginBase)}
+
+    def get_transition_plugin(self, plugin_id: str) -> TransitionPluginBase | None:
+        """Return a loaded transition plugin instance, or None."""
+        with self._lock:
+            entry = self._loaded_plugins.get(plugin_id)
+        if entry is None:
+            return None
+        instance, _ = entry
+        if isinstance(instance, TransitionPluginBase):
+            return instance
+        return None
 
     @property
     def load_errors(self) -> dict[str, list[str]]:
         """Return load errors by plugin directory name."""
-        return self._load_errors.copy()
+        with self._lock:
+            return self._load_errors.copy()
 
     @property
     def plugin_sources(self) -> dict[str, PluginSource]:
         """Return source information for every loaded plugin."""
-        return self._plugin_sources.copy()
+        with self._lock:
+            return self._plugin_sources.copy()
 
     # ── discovery ────────────────────────────────────────────────────────
 
@@ -193,14 +247,27 @@ class PluginLoader:
         """Find the on-disk directory for *plugin_name*.
 
         Checks built-in first, then external directories.
-        """
-        # Built-in takes precedence
-        candidate = self.plugins_dir / plugin_name
-        if candidate.is_dir():
-            return candidate
 
-        for ext_dir in self._external_dirs:
-            candidate = ext_dir / plugin_name
+        ``plugin_name`` is user-controlled (plugin ids arrive through the
+        HTTP API), so it must pass :func:`is_safe_plugin_dir_name` and the
+        joined path is resolved and confirmed to still live inside the base
+        directory before any filesystem access.  Names failing either check
+        behave exactly like a nonexistent plugin (returns ``None``).
+        """
+        if not is_safe_plugin_dir_name(plugin_name):
+            return None
+
+        # Built-in takes precedence over external directories.
+        for base in (self.plugins_dir, *self._external_dirs):
+            base_resolved = base.resolve()
+            # Containment barrier: resolve the joined path and reject
+            # anything that escapes the base directory (e.g. a symlinked
+            # plugin dir pointing outside it).  Defense in depth on top of
+            # the name allow-list above, and the sanitizer CodeQL
+            # recognises for py/path-injection.
+            candidate = (base_resolved / plugin_name).resolve()
+            if not candidate.is_relative_to(base_resolved):
+                continue
             if candidate.is_dir():
                 return candidate
 
@@ -209,19 +276,22 @@ class PluginLoader:
     def _source_for_dir(self, plugin_dir: Path) -> PluginSource:
         """Determine the :class:`PluginSource` for a plugin directory."""
         for ext_dir in self._external_dirs:
-            try:
-                plugin_dir.relative_to(ext_dir)
-                return PluginSource(
-                    source_type="external",
-                    local_path=str(plugin_dir),
-                )
-            except ValueError:
-                continue
+            # _resolve_plugin_dir returns fully resolved paths, so compare
+            # against both the raw and the resolved external dir.
+            for ext_base in (ext_dir, ext_dir.resolve()):
+                try:
+                    plugin_dir.relative_to(ext_base)
+                    return PluginSource(
+                        source_type="external",
+                        local_path=str(plugin_dir),
+                    )
+                except ValueError:
+                    continue
         return PluginSource(source_type="builtin", local_path=str(plugin_dir))
 
     # ── loading ──────────────────────────────────────────────────────────
 
-    def load_plugin(self, plugin_name: str) -> PluginBase | None:
+    def load_plugin(self, plugin_name: str) -> AnyPlugin | None:
         """Load a single plugin by directory name.
 
         Args:
@@ -230,6 +300,16 @@ class PluginLoader:
         Returns:
             Loaded plugin instance, or None if loading failed
         """
+        # The whole load runs under the shared lock: it is a multi-step
+        # read-modify-write of _load_errors / _loaded_plugins /
+        # _plugin_classes / _plugin_sources plus sys.modules, and nothing in
+        # it shells out (importlib and file reads only), so holding the lock
+        # for the duration is safe.
+        with self._lock:
+            return self._load_plugin_locked(plugin_name)
+
+    def _load_plugin_locked(self, plugin_name: str) -> AnyPlugin | None:
+        """Body of :meth:`load_plugin`; the caller holds ``self._lock``."""
         plugin_dir = self._resolve_plugin_dir(plugin_name)
         errors: list[str] = []
 
@@ -260,6 +340,32 @@ class PluginLoader:
             self._load_errors[plugin_name] = errors
             return None
 
+        # Vocabulary this core does not recognise -- a ui:widget or a
+        # ui:options key from a newer release. Soft failure on purpose: the
+        # manifest is otherwise valid and the plugin must keep working, but an
+        # ignored key is invisible from the settings dialog, so surface it
+        # through GET /plugins/errors rather than only in the container log.
+        for message in settings_schema_ui_warnings(manifest.settings_schema):
+            self._load_errors.setdefault(plugin_name, []).append(message)
+
+        # Structural problems that make the plugin unusable no matter how the
+        # user configures it: a declared data file that never shipped, a
+        # Python package the platform does not provide. A *fresh* install
+        # carrying these is rejected outright (see sources._install_and_verify);
+        # here we are looking at something already on disk, which may be
+        # driving a board, so surface it through GET /plugins/errors and let
+        # it load rather than silently serving "???" for every variable.
+        install_result = validate_install(plugin_name, plugin_dir, manifest)
+        for message in install_result.errors:
+            self._load_errors.setdefault(plugin_name, []).append(message)
+            logger.error("Plugin %s is installed but cannot work: %s", plugin_name, message)
+        # Warnings are heuristic (a regex over the plugin's source), so they
+        # never stop a load -- but they share the same surface, because an
+        # undeclared data file is precisely the case the declaration cannot
+        # catch on its own.
+        for message in install_result.warnings:
+            self._load_errors.setdefault(plugin_name, []).append(message)
+
         # Check FiestaBoard version compatibility (soft failure -- warn but still load)
         if manifest.fiestaboard_version:
             running = _get_fiestaboard_version()
@@ -274,7 +380,11 @@ class PluginLoader:
         #   2. Package layout: <plugin_dir>/plugins/<id>/__init__.py        (newer repos)
         init_path = plugin_dir / "__init__.py"
         if not init_path.exists():
-            subdir_path = plugin_dir / "plugins" / plugin_name / "__init__.py"
+            # plugin_dir was resolved from the validated plugin name, so its
+            # final component equals that name.  Derive the package-layout
+            # path from the sanitized plugin_dir instead of re-joining the
+            # user-provided plugin_name into a path expression.
+            subdir_path = plugin_dir / "plugins" / plugin_dir.name / "__init__.py"
             if subdir_path.exists():
                 init_path = subdir_path
                 logger.debug("Using package layout for plugin %s: %s", plugin_name, init_path)
@@ -284,18 +394,47 @@ class PluginLoader:
                 return None
 
         try:
-            # Import the plugin module dynamically
+            # Import the plugin module dynamically.  If the module has
+            # already been *fully* imported via the normal Python import
+            # machinery (e.g. a test holds ``from plugins.date_time import X``),
+            # reuse that existing entry instead of clobbering it -- a
+            # replaced sys.modules entry leaves the prior import's
+            # references pointing at a stale module object, which breaks
+            # any patches the caller has applied.
+            #
+            # We must NOT reuse a partially-loaded module: when a previous
+            # exec_module raised mid-execution, sys.modules can still hold
+            # a module object whose ``__file__`` matches.  Reusing that
+            # half-initialized module would mask the original failure.
+            # The ``__fiestaboard_loaded__`` sentinel is set only after a
+            # successful exec_module below.
             module_name = f"plugins.{plugin_name}"
-            spec = importlib.util.spec_from_file_location(module_name, init_path)
+            existing = sys.modules.get(module_name)
+            existing_path = getattr(existing, "__file__", None) if existing is not None else None
+            if (
+                existing is not None
+                and existing_path == str(init_path)
+                and getattr(existing, "__fiestaboard_loaded__", False)
+            ):
+                module = existing
+            else:
+                spec = importlib.util.spec_from_file_location(module_name, init_path)
 
-            if spec is None or spec.loader is None:
-                errors.append(f"Failed to create module spec for {plugin_name}")
-                self._load_errors[plugin_name] = errors
-                return None
+                if spec is None or spec.loader is None:
+                    errors.append(f"Failed to create module spec for {plugin_name}")
+                    self._load_errors[plugin_name] = errors
+                    return None
 
-            module = importlib.util.module_from_spec(spec)
-            sys.modules[module_name] = module
-            spec.loader.exec_module(module)
+                module = importlib.util.module_from_spec(spec)
+                sys.modules[module_name] = module
+                try:
+                    spec.loader.exec_module(module)
+                except Exception:
+                    # Drop the half-loaded module so a retry doesn't pick
+                    # up an inconsistent object.
+                    sys.modules.pop(module_name, None)
+                    raise
+                module.__fiestaboard_loaded__ = True
 
         except Exception as e:
             errors.append(f"Failed to import plugin module: {e}")
@@ -303,10 +442,13 @@ class PluginLoader:
             logger.exception(f"Error importing plugin {plugin_name}")
             return None
 
-        # Find PluginBase subclass
-        plugin_class = self._find_plugin_class(module, manifest.id)
+        # Find PluginBase or TransitionPluginBase subclass.  The manifest's
+        # plugin_type determines which we expect; mismatches are errors.
+        expected_type = manifest.plugin_type or "data"
+        plugin_class = self._find_plugin_class(module, expected_type)
         if plugin_class is None:
-            errors.append(f"No PluginBase subclass found in {plugin_name}")
+            base_name = "TransitionPluginBase" if expected_type == "transition" else "PluginBase"
+            errors.append(f"No {base_name} subclass found in {plugin_name} (manifest plugin_type={expected_type!r})")
             self._load_errors[plugin_name] = errors
             return None
 
@@ -322,7 +464,31 @@ class PluginLoader:
                 self._load_errors[plugin_name] = errors
                 return None
 
-            # Store loaded plugin and class
+            # A manifest can promise remote options that the code never
+            # delivers. Soft failure on purpose: the plugin is otherwise fine
+            # and must keep working, but the mismatch is invisible until a
+            # user opens the settings dialog and the picker comes up empty,
+            # so surface it through GET /plugins/errors instead.
+            options_ids = collect_options_ids(manifest.settings_schema)
+            if (
+                options_ids
+                and isinstance(plugin_instance, PluginBase)
+                and type(plugin_instance).get_options is PluginBase.get_options
+            ):
+                message = (
+                    f"Manifest declares remote options {sorted(options_ids)} but "
+                    f"{type(plugin_instance).__name__} does not implement get_options()"
+                )
+                logger.warning("Plugin '%s': %s", plugin_name, message)
+                self._load_errors.setdefault(plugin_name, []).append(message)
+
+            # Store loaded plugin and class. A plugin loaded over a live one
+            # (re-install, forced rescan) replaces an object that may own a
+            # background thread or an open connection, so retire it first.
+            previous = self._loaded_plugins.get(manifest.id)
+            if previous is not None and previous[0] is not plugin_instance:
+                self._retire_instance(manifest.id, previous[0])
+
             self._loaded_plugins[manifest.id] = (plugin_instance, manifest)
             self._plugin_classes[manifest.id] = plugin_class
             self._plugin_sources[manifest.id] = self._source_for_dir(plugin_dir)
@@ -336,36 +502,57 @@ class PluginLoader:
             logger.exception(f"Error instantiating plugin {plugin_name}")
             return None
 
-    def _find_plugin_class(self, module: Any, expected_id: str) -> type[PluginBase] | None:
-        """Find the PluginBase subclass in a module.
+    def _retire_instance(self, plugin_id: str, plugin: AnyPlugin) -> None:
+        """Run a replaced plugin instance's ``cleanup()`` off the caller's thread.
+
+        ``cleanup()`` is plugin code: it may close a socket, stop an MQTT
+        listener, or join a thread of its own, and nothing bounds how long that
+        takes. A replacement can happen behind a board render (the render path
+        builds the display service, which touches the registry), so the call is
+        handed to a short-lived daemon thread and never joined — a plugin wedged
+        in teardown must not stall a render or an API request.
+
+        The old object is left to finish whatever it is still doing: the
+        registry deliberately lets an abandoned fetch complete on its own thread
+        (see ``PluginRegistry.build_template_context``), and that thread holds
+        the only other reference to this instance. Nothing here cancels or
+        interrupts it; cleanup simply releases the resources the instance owns.
+        """
+
+        def _run() -> None:
+            try:
+                plugin.cleanup()
+            except Exception:
+                logger.exception("Error cleaning up replaced instance of plugin '%s'", plugin_id)
+
+        threading.Thread(target=_run, name=f"plugin-cleanup-{plugin_id}", daemon=True).start()
+
+    def _find_plugin_class(self, module: Any, expected_type: str = "data") -> type[AnyPlugin] | None:
+        """Find a plugin class in *module* matching *expected_type*.
 
         Args:
-            module: Loaded Python module
-            expected_id: Expected plugin_id for validation
+            module: Loaded Python module to scan.
+            expected_type: ``"data"`` (look for :class:`PluginBase` subclass)
+                or ``"transition"`` (look for :class:`TransitionPluginBase`).
 
         Returns:
-            PluginBase subclass, or None if not found
+            The matching plugin class, or None if not found.
         """
-        # Look for exported Plugin class
+        base_class: type[AnyPlugin] = TransitionPluginBase if expected_type == "transition" else PluginBase
+
         for attr_name in dir(module):
             attr = getattr(module, attr_name)
-
-            # Skip non-classes
             if not isinstance(attr, type):
                 continue
-
-            # Skip PluginBase itself
-            if attr is PluginBase:
+            # Skip the base classes themselves.
+            if attr is PluginBase or attr is TransitionPluginBase:
                 continue
-
-            # Check if it's a PluginBase subclass
-            if issubclass(attr, PluginBase):
-                logger.debug(f"Found plugin class: {attr_name}")
+            if issubclass(attr, base_class):
+                logger.debug(f"Found {expected_type} plugin class: {attr_name}")
                 return attr
-
         return None
 
-    def load_all_plugins(self) -> dict[str, PluginBase]:
+    def load_all_plugins(self) -> dict[str, AnyPlugin]:
         """Discover and load all available plugins.
 
         Returns:
@@ -381,13 +568,78 @@ class PluginLoader:
 
         logger.info(f"Loaded {len(loaded)}/{len(plugin_dirs)} plugins")
 
-        if self._load_errors:
-            for name, errors in self._load_errors.items():
-                logger.warning(f"Plugin {name} had errors: {errors}")
+        for name, errors in self.load_errors.items():
+            logger.warning(f"Plugin {name} had errors: {errors}")
 
         return loaded
 
-    def reload_plugin(self, plugin_id: str) -> PluginBase | None:
+    def sweep_renamed_plugin_dirs(self) -> list[str]:
+        """Delete external plugin dirs left orphaned by a plugin rename.
+
+        When a published plugin changes its id, an update installs the new
+        ``<external>/<new_id>`` directory but nothing removes the old
+        ``<external>/<old_id>`` one. The stale directory's manifest declares
+        the *new* id, so its manifest id no longer matches its directory name
+        and it fails the loader's id/dirname integrity check on **every**
+        boot — a permanent, unfixable-from-the-UI entry in
+        ``GET /plugins/errors`` (issue #1672).
+
+        A directory whose manifest id differs from its own name **and** whose
+        manifest id belongs to a plugin that loaded successfully is
+        unambiguous evidence of a leftover rename: it can never load anyway
+        (the id/dirname check guarantees that), and the plugin it names is
+        already present from another directory. Remove it and clear its stale
+        load error.
+
+        Runs after :meth:`load_all_plugins`, so ``_loaded_plugins`` and
+        ``_load_errors`` are populated. Idempotent: a boot with no leftovers
+        removes nothing.
+
+        Returns:
+            Directory names that were removed (empty when nothing was stale).
+        """
+        with self._lock:
+            loaded_ids = set(self._loaded_plugins.keys())
+        removed: list[str] = []
+
+        for ext_dir in self._external_dirs:
+            if not ext_dir.exists() or not ext_dir.is_dir():
+                continue
+            for item in ext_dir.iterdir():
+                # A healthy dir loaded under a matching id — skip it. Also skip
+                # discovery-excluded names (hidden / underscore temp dirs).
+                if item.name in loaded_ids or item.name.startswith((".", "_")):
+                    continue
+                if not item.is_dir():
+                    continue
+                manifest_path = item / "manifest.json"
+                if not manifest_path.exists():
+                    continue
+
+                manifest, manifest_errors = load_manifest(manifest_path)
+                if manifest_errors or manifest is None:
+                    # A genuinely broken manifest is a different problem; leave
+                    # it to surface as its own load error.
+                    continue
+                # Directory name already matches its manifest id, or the id it
+                # claims is not actually installed — neither is the unambiguous
+                # rename-leftover signature, so leave it alone.
+                if manifest.id == item.name or manifest.id not in loaded_ids:
+                    continue
+
+                if remove_external_plugin(item):
+                    with self._lock:
+                        self._load_errors.pop(item.name, None)
+                    removed.append(item.name)
+                    logger.info(
+                        "Removed orphaned renamed plugin directory '%s' (manifest id '%s' installed elsewhere)",
+                        item.name,
+                        manifest.id,
+                    )
+
+        return removed
+
+    def reload_plugin(self, plugin_id: str) -> AnyPlugin | None:
         """Reload a plugin (unload and load again).
 
         Args:
@@ -396,19 +648,21 @@ class PluginLoader:
         Returns:
             Reloaded plugin instance, or None if failed
         """
-        # Unload if loaded
-        if plugin_id in self._loaded_plugins:
-            old_plugin, _ = self._loaded_plugins[plugin_id]
-            old_plugin.cleanup()
-            del self._loaded_plugins[plugin_id]
+        with self._lock:
+            # Unload if loaded.  cleanup() is plugin-authored and unbounded,
+            # so it is retired to a daemon thread instead of running under
+            # the shared registry/loader lock (#1854).
+            if plugin_id in self._loaded_plugins:
+                old_plugin, _ = self._loaded_plugins.pop(plugin_id)
+                self._retire_instance(plugin_id, old_plugin)
 
-            # Remove from sys.modules to force reimport
-            module_name = f"plugins.{plugin_id}"
-            if module_name in sys.modules:
-                del sys.modules[module_name]
+                # Remove from sys.modules to force reimport
+                module_name = f"plugins.{plugin_id}"
+                if module_name in sys.modules:
+                    del sys.modules[module_name]
 
-        # Load again
-        return self.load_plugin(plugin_id)
+            # Load again
+            return self.load_plugin(plugin_id)
 
     def unload_plugin(self, plugin_id: str) -> bool:
         """Unload a plugin.
@@ -419,17 +673,18 @@ class PluginLoader:
         Returns:
             True if unloaded, False if not loaded
         """
-        if plugin_id not in self._loaded_plugins:
-            return False
+        with self._lock:
+            if plugin_id not in self._loaded_plugins:
+                return False
 
-        plugin, _ = self._loaded_plugins[plugin_id]
-        plugin.cleanup()
-        del self._loaded_plugins[plugin_id]
+            # Plugin-authored cleanup() off the shared lock (#1854).
+            plugin, _ = self._loaded_plugins.pop(plugin_id)
+            self._retire_instance(plugin_id, plugin)
 
-        # Remove from sys.modules
-        module_name = f"plugins.{plugin_id}"
-        if module_name in sys.modules:
-            del sys.modules[module_name]
+            # Remove from sys.modules
+            module_name = f"plugins.{plugin_id}"
+            if module_name in sys.modules:
+                del sys.modules[module_name]
 
         logger.info(f"Unloaded plugin: {plugin_id}")
         return True
@@ -443,8 +698,10 @@ class PluginLoader:
         Returns:
             PluginManifest or None if not loaded
         """
-        if plugin_id in self._loaded_plugins:
-            _, manifest = self._loaded_plugins[plugin_id]
+        with self._lock:
+            entry = self._loaded_plugins.get(plugin_id)
+        if entry is not None:
+            _, manifest = entry
             return manifest
         return None
 
@@ -459,7 +716,7 @@ class PluginLoader:
         """
         return self._plugin_sources.get(plugin_id)
 
-    def get_plugin_class(self, plugin_id: str) -> type[PluginBase] | None:
+    def get_plugin_class(self, plugin_id: str) -> type[AnyPlugin] | None:
         """Get the plugin class for a loaded plugin.
 
         This is used to create additional instances of the same plugin type.
@@ -468,11 +725,12 @@ class PluginLoader:
             plugin_id: Plugin ID
 
         Returns:
-            The PluginBase subclass or None if not loaded.
+            The plugin class (PluginBase or TransitionPluginBase subclass)
+            or None if not loaded.
         """
         return self._plugin_classes.get(plugin_id)
 
-    def create_instance(self, plugin_id: str) -> PluginBase | None:
+    def create_instance(self, plugin_id: str) -> AnyPlugin | None:
         """Create a new instance of a loaded plugin.
 
         Returns a fresh PluginBase instance using the stored class and
@@ -485,16 +743,19 @@ class PluginLoader:
         Returns:
             A new PluginBase instance, or None if the plugin is not loaded.
         """
-        plugin_class = self._plugin_classes.get(plugin_id)
+        with self._lock:
+            plugin_class = self._plugin_classes.get(plugin_id)
+            entry = self._loaded_plugins.get(plugin_id)
+
         if plugin_class is None:
             logger.warning("Cannot create instance: plugin class not found for %s", plugin_id)
             return None
 
-        if plugin_id not in self._loaded_plugins:
+        if entry is None:
             logger.warning("Cannot create instance: plugin not loaded: %s", plugin_id)
             return None
 
-        _, manifest = self._loaded_plugins[plugin_id]
+        _, manifest = entry
 
         try:
             return plugin_class(manifest.raw)

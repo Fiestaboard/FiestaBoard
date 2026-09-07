@@ -88,6 +88,7 @@ def paused_service_factory():
         svc = DisplayService()
         svc.vb_client = Mock()
         svc.vb_client.send_characters.return_value = (True, True)
+        svc.vb_client.render.return_value = (True, True)
 
         return svc, mocks, page_service, patches
 
@@ -127,7 +128,7 @@ class TestPolicyPolling:
             svc.check_and_send_active_page()
 
         page_service.preview_page.assert_called()
-        svc.vb_client.send_characters.assert_called_once()
+        svc.vb_client.render.assert_called_once()
 
 
 # ---------------------------------------------------------------------------
@@ -144,7 +145,12 @@ def client():
 def mock_paused_settings_service():
     """Mock SettingsService with a single board and an in-memory paused
     flag so set_paused/is_paused round-trip realistically."""
-    with patch("src.api_server.get_settings_service") as mock_get:
+    with (
+        patch("src.api_server.get_settings_service") as mock_get,
+        # Board guards moved to src/board_guards.py (Phase 2 slice 3); they
+        # resolve the settings service there, not through api_server.
+        patch("src.board_guards.get_settings_service") as guard_get,
+    ):
         ss = Mock()
         state = {"paused": False}
 
@@ -169,6 +175,7 @@ def mock_paused_settings_service():
         ss.set_paused.side_effect = _set_paused
 
         mock_get.return_value = ss
+        guard_get.return_value = ss
         yield ss
 
 
@@ -179,7 +186,7 @@ class TestPauseEndpoint:
         resp = client.post("/settings/board/board-1/pause", json={"paused": True})
         assert resp.status_code == 200
         data = resp.json()
-        assert data["status"] == "success"
+        # "status" dropped by the conventions pass (Phase 2, Task 8).
         assert data["board_id"] == "board-1"
         assert data["paused"] is True
         mock_paused_settings_service.set_paused.assert_called_with(True, board_id="board-1")
@@ -189,13 +196,16 @@ class TestPauseEndpoint:
         assert resp2.status_code == 200
         assert resp2.json()["paused"] is False
 
-    def test_pause_missing_body_field_400s(self, client, mock_paused_settings_service):
+    def test_pause_missing_body_field_422s(self, client, mock_paused_settings_service):
         resp = client.post("/settings/board/board-1/pause", json={})
-        assert resp.status_code == 400
+        # 422 since the conventions pass typed the body (Phase 2, Task 8).
+        assert resp.status_code == 422
 
-    def test_pause_non_bool_body_400s(self, client, mock_paused_settings_service):
+    def test_pause_non_bool_body_422s(self, client, mock_paused_settings_service):
         resp = client.post("/settings/board/board-1/pause", json={"paused": "yes"})
-        assert resp.status_code == 400
+        # StrictBool: "yes" must never be coerced to True (Phase 2, Task 8).
+        assert resp.status_code == 422
+        mock_paused_settings_service.set_paused.assert_not_called()
 
     def test_pause_unknown_board_404s(self, client, mock_paused_settings_service):
         resp = client.post("/settings/board/no-such-board/pause", json={"paused": True})

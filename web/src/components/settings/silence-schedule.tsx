@@ -1,20 +1,35 @@
 "use client";
 
+import {
+  Flex,
+  Grid,
+  Input,
+  Label,
+  PageSection,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+  Skeleton,
+  Stack,
+  Switch,
+  Text,
+} from "@fiestaboard/ui";
+import { Spinner } from "@fiestaboard/ui/components/feedback/spinner";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Moon } from "lucide-react";
-import { useDeferredValue, useEffect, useRef, useState } from "react";
+import { useDeferredValue, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Skeleton } from "@/components/ui/skeleton";
-import { Switch } from "@/components/ui/switch";
+import { useCurrentBoard } from "@/components/current-board-context";
 import { TimePicker } from "@/components/ui/time-picker";
-import { usePages } from "@/hooks/use-board";
+import { queryKeys, usePages } from "@/hooks/use-board";
+import { useDepsChanged } from "@/hooks/use-deps-changed";
 import { useTranslations } from "@/i18n/translations";
 import { api } from "@/lib/api";
+import { pagesCompatibleWithBoard } from "@/lib/board-dimensions";
+import { resolveSilenceConfig } from "@/lib/silence-config";
 import { localTimeToUTC, utcToLocalTime } from "@/lib/timezone-utils";
 
 type SilenceMode = "indicator" | "freeze" | "page";
@@ -23,6 +38,18 @@ export function SilenceSchedule() {
   const t = useTranslations("generalSettings");
   const tc = useTranslations("common");
   const queryClient = useQueryClient();
+
+  // Silence settings are per board (issue #1788), and the display engine
+  // resolves them per board on EVERY install — check_and_send_for_board() is
+  // always called with the primary board's id, never with null. So this form
+  // must always read and write the board-scoped layer too: scoping only in
+  // multi-board installs made a single-board install write the install-wide
+  // layer while the engine kept reading the board's own (migration-seeded)
+  // entry, and the entry won key by key. Silence looked off in the UI and
+  // stayed on for the board, with no feedback and no recovery short of
+  // hand-editing config.json (PR #1801 review, BLOCKER 1).
+  const { currentBoardId, currentBoard } = useCurrentBoard();
+  const scopedBoardId = currentBoardId ?? undefined;
 
   const [hasChanges, setHasChanges] = useState(false);
   const [silenceEnabled, setSilenceEnabled] = useState(false);
@@ -41,14 +68,22 @@ export function SilenceSchedule() {
   const generalConfig = allSettings?.general;
   const silenceConfig = allSettings?.silence_schedule;
   const deferredSilenceConfig = useDeferredValue(silenceConfig);
-  const initializedRef = useRef(false);
+  // Seed the form from the saved schedule exactly once, during render rather
+  // than from an effect, so the stored times are in the first commit instead
+  // of replacing 20:00/07:00 a render later (react-hooks/set-state-in-effect,
+  // issue #1568). The "once" guard is state, not a ref, because refs must not
+  // be read during render either.
+  // Keyed by board rather than a bare boolean: switching boards must re-seed
+  // the form from that board's own settings (issue #1788).
+  const [initializedFor, setInitializedFor] = useState<string | null>(null);
+  const seedKey = scopedBoardId ?? "";
+  const configChanged = useDepsChanged([deferredSilenceConfig, generalConfig?.timezone, seedKey]);
 
-  useEffect(() => {
-    if (initializedRef.current) return;
+  if (configChanged && initializedFor !== seedKey) {
     const rawConfig = (deferredSilenceConfig as { config?: Record<string, unknown> } | undefined)?.config;
     if (rawConfig && generalConfig?.timezone) {
       const userTimezone = generalConfig.timezone ?? "America/Los_Angeles";
-      const config = rawConfig;
+      const config = resolveSilenceConfig(rawConfig as never, scopedBoardId) as Record<string, unknown>;
 
       setSilenceEnabled((config.enabled as boolean) ?? false);
 
@@ -66,15 +101,19 @@ export function SilenceSchedule() {
       setSilenceIndicatorPosition(((config.indicator_position as string) ?? "") || "center");
 
       setHasChanges(false);
-      initializedRef.current = true;
+      setInitializedFor(seedKey);
     }
-  }, [deferredSilenceConfig, generalConfig?.timezone]);
+  }
 
   const updateSilenceMutation = useMutation({
     mutationFn: (data: Parameters<typeof api.updateSilenceSchedule>[0]) => api.updateSilenceSchedule(data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["all-settings"], refetchType: "active" });
-      queryClient.invalidateQueries({ queryKey: ["silence-status"], refetchType: "active" });
+      // Unscoped key = prefix match, so every board-scoped variant refetches
+      // too. This used to invalidate ["silence-status"] (hyphenated) while the
+      // consumers read ["silenceStatus"] (camelCase), so the invalidation
+      // silently missed and the banner kept a stale window.
+      queryClient.invalidateQueries({ queryKey: queryKeys.silenceStatus(), refetchType: "active" });
       toast.success(t("toastSettingsSaved"));
     },
     onError: (error: Error) => {
@@ -83,7 +122,15 @@ export function SilenceSchedule() {
   });
 
   const { data: pagesData } = usePages();
-  const availablePages = pagesData?.pages ?? [];
+  // Only offer pages that fit this board (issue #1788): a 22x6 Flagship page
+  // used to be selectable as a 15x3 Note board's silence page and then
+  // silently mis-rendered. The current selection is always kept so an
+  // existing (possibly stale) choice stays visible instead of vanishing.
+  const availablePages = useMemo(() => {
+    const pages = pagesData?.pages ?? [];
+    if (!currentBoard) return pages;
+    return pages.filter((p) => p.id === silencePageId || pagesCompatibleWithBoard(p, currentBoard));
+  }, [pagesData?.pages, currentBoard, silencePageId]);
 
   const isSaving = updateSilenceMutation.isPending;
 
@@ -135,6 +182,10 @@ export function SilenceSchedule() {
         page_id: silencePageId || null,
         indicator_text: silenceIndicatorText || null,
         indicator_position: silenceIndicatorPosition || null,
+        // Always target the selected board so the layer written here is the
+        // layer the engine reads. Only an install with no board at all (the
+        // context has not resolved one yet) falls back to install-wide.
+        ...(scopedBoardId ? { board_id: scopedBoardId } : {}),
       });
     }
     setHasChanges(false);
@@ -159,166 +210,173 @@ export function SilenceSchedule() {
   ]);
 
   return (
-    <Card id="silence-schedule" className="scroll-mt-24">
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2 text-base">
-          <Moon className="h-4 w-4" />
-          {t("silenceScheduleLabel")}
-        </CardTitle>
-        <CardDescription>{t("silenceScheduleDescription")}</CardDescription>
-      </CardHeader>
-      <CardContent>
-        {isLoading ? (
-          <div className="space-y-3">
-            <Skeleton className="h-5 w-11 rounded-full" />
-            <Skeleton className="h-4 w-32" />
-            <Skeleton className="h-3 w-48" />
-          </div>
-        ) : (
-          <>
-            <div className="flex items-center justify-between gap-3">
-              <label htmlFor="silence-enabled" className="text-sm font-medium cursor-pointer">
-                {t("silenceScheduleLabel")}
-              </label>
-              <Switch
-                checked={silenceEnabled}
-                onCheckedChange={handleSilenceToggle}
-                disabled={isSaving}
-                id="silence-enabled"
-              />
-            </div>
+    <PageSection
+      id="silence-schedule"
+      className="scroll-mt-24"
+      icon={<Moon />}
+      title={t("silenceScheduleLabel")}
+      description={t("silenceScheduleDescription")}
+    >
+      {isLoading ? (
+        <Stack gap="3">
+          <Skeleton className="h-5 w-11 rounded-full" />
+          <Skeleton className="h-4 w-32" />
+          <Skeleton className="h-3 w-48" />
+        </Stack>
+      ) : (
+        <>
+          <Flex align="center" justify="between" gap="3">
+            <label htmlFor="silence-enabled" className="text-sm font-medium cursor-pointer">
+              {t("silenceScheduleLabel")}
+            </label>
+            <Switch
+              checked={silenceEnabled}
+              onCheckedChange={handleSilenceToggle}
+              disabled={isSaving}
+              id="silence-enabled"
+            />
+          </Flex>
 
-            {silenceEnabled && (
-              <div className="mt-6 space-y-6">
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="silence-start" className="text-sm font-medium">
-                      {t("startTimeLabel")}
-                    </Label>
-                    <TimePicker
-                      id="silence-start"
-                      value={silenceStartTime}
-                      onChange={(val) => handleSilenceTimeChange("start", val)}
-                      disabled={isSaving}
-                    />
-                    <p className="text-xs text-muted-foreground">{t("whenSilenceBegins")}</p>
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="silence-end" className="text-sm font-medium">
-                      {t("endTimeLabel")}
-                    </Label>
-                    <TimePicker
-                      id="silence-end"
-                      value={silenceEndTime}
-                      onChange={(val) => handleSilenceTimeChange("end", val)}
-                      disabled={isSaving}
-                    />
-                    <p className="text-xs text-muted-foreground">{t("whenSilenceEnds")}</p>
-                  </div>
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="silence-mode" className="text-sm font-medium">
-                    {t("silenceModeLabel")}
+          {silenceEnabled && (
+            <Stack gap="6" className="mt-6">
+              <Grid cols="2" gap="4">
+                <Stack gap="2">
+                  <Label htmlFor="silence-start" className="text-sm font-medium">
+                    {t("startTimeLabel")}
                   </Label>
-                  <Select
-                    value={silenceMode}
-                    onValueChange={(val) => handleSilenceModeChange(val as SilenceMode)}
+                  <TimePicker
+                    id="silence-start"
+                    value={silenceStartTime}
+                    onChange={(val) => handleSilenceTimeChange("start", val)}
                     disabled={isSaving}
-                  >
-                    <SelectTrigger id="silence-mode" className="w-full">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="indicator">{t("silenceModeIndicator")}</SelectItem>
-                      <SelectItem value="freeze">{t("silenceModeFreeze")}</SelectItem>
-                      <SelectItem value="page">{t("silenceModePage")}</SelectItem>
-                    </SelectContent>
-                  </Select>
-                  <p className="text-xs text-muted-foreground">
-                    {silenceMode === "indicator" && t("silenceModeIndicatorHelp")}
-                    {silenceMode === "freeze" && t("silenceModeFreezeHelp")}
-                    {silenceMode === "page" && t("silenceModePageHelp")}
-                  </p>
-                </div>
+                  />
+                  <Text size="xs" tone="muted">
+                    {t("whenSilenceBegins")}
+                  </Text>
+                </Stack>
+                <Stack gap="2">
+                  <Label htmlFor="silence-end" className="text-sm font-medium">
+                    {t("endTimeLabel")}
+                  </Label>
+                  <TimePicker
+                    id="silence-end"
+                    value={silenceEndTime}
+                    onChange={(val) => handleSilenceTimeChange("end", val)}
+                    disabled={isSaving}
+                  />
+                  <Text size="xs" tone="muted">
+                    {t("whenSilenceEnds")}
+                  </Text>
+                </Stack>
+              </Grid>
 
-                {silenceMode === "indicator" && (
-                  <>
-                    <div className="space-y-2">
-                      <Label htmlFor="silence-indicator-text" className="text-sm font-medium">
-                        {t("silenceIndicatorTextLabel")}
-                      </Label>
-                      <Input
-                        id="silence-indicator-text"
-                        value={silenceIndicatorText}
-                        onChange={(e) => handleSilenceIndicatorTextChange(e.target.value)}
-                        disabled={isSaving}
-                        maxLength={22}
-                        placeholder="SNOOZING"
-                        className="uppercase"
-                      />
-                      <p className="text-xs text-muted-foreground">{t("silenceIndicatorTextHelp")}</p>
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="silence-indicator-position" className="text-sm font-medium">
-                        {t("silenceIndicatorPositionLabel")}
-                      </Label>
-                      <Select
-                        value={silenceIndicatorPosition}
-                        onValueChange={handleSilenceIndicatorPositionChange}
-                        disabled={isSaving}
-                      >
-                        <SelectTrigger id="silence-indicator-position" className="w-full">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="top-left">{t("positionTopLeft")}</SelectItem>
-                          <SelectItem value="top-right">{t("positionTopRight")}</SelectItem>
-                          <SelectItem value="center">{t("positionCenter")}</SelectItem>
-                          <SelectItem value="bottom-left">{t("positionBottomLeft")}</SelectItem>
-                          <SelectItem value="bottom-right">{t("positionBottomRight")}</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  </>
-                )}
+              <Stack gap="2">
+                <Label htmlFor="silence-mode" className="text-sm font-medium">
+                  {t("silenceModeLabel")}
+                </Label>
+                <Select
+                  value={silenceMode}
+                  onValueChange={(val) => handleSilenceModeChange(val as SilenceMode)}
+                  disabled={isSaving}
+                >
+                  <SelectTrigger id="silence-mode" className="w-full">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="indicator">{t("silenceModeIndicator")}</SelectItem>
+                    <SelectItem value="freeze">{t("silenceModeFreeze")}</SelectItem>
+                    <SelectItem value="page">{t("silenceModePage")}</SelectItem>
+                  </SelectContent>
+                </Select>
+                <Text size="xs" tone="muted">
+                  {silenceMode === "indicator" && t("silenceModeIndicatorHelp")}
+                  {silenceMode === "freeze" && t("silenceModeFreezeHelp")}
+                  {silenceMode === "page" && t("silenceModePageHelp")}
+                </Text>
+              </Stack>
 
-                {silenceMode === "page" && (
-                  <div className="space-y-2">
-                    <Label htmlFor="silence-page" className="text-sm font-medium">
-                      {t("silencePageLabel")}
+              {silenceMode === "indicator" && (
+                <>
+                  <Stack gap="2">
+                    <Label htmlFor="silence-indicator-text" className="text-sm font-medium">
+                      {t("silenceIndicatorTextLabel")}
+                    </Label>
+                    <Input
+                      id="silence-indicator-text"
+                      value={silenceIndicatorText}
+                      onChange={(e) => handleSilenceIndicatorTextChange(e.target.value)}
+                      disabled={isSaving}
+                      maxLength={22}
+                      placeholder="SNOOZING"
+                      className="uppercase"
+                    />
+                    <Text size="xs" tone="muted">
+                      {t("silenceIndicatorTextHelp")}
+                    </Text>
+                  </Stack>
+                  <Stack gap="2">
+                    <Label htmlFor="silence-indicator-position" className="text-sm font-medium">
+                      {t("silenceIndicatorPositionLabel")}
                     </Label>
                     <Select
-                      value={silencePageId || undefined}
-                      onValueChange={handleSilencePageChange}
-                      disabled={isSaving || availablePages.length === 0}
+                      value={silenceIndicatorPosition}
+                      onValueChange={handleSilenceIndicatorPositionChange}
+                      disabled={isSaving}
                     >
-                      <SelectTrigger id="silence-page" className="w-full">
-                        <SelectValue placeholder={t("silencePagePlaceholder")} />
+                      <SelectTrigger id="silence-indicator-position" className="w-full">
+                        <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
-                        {availablePages.map((p) => (
-                          <SelectItem key={p.id} value={p.id}>
-                            {p.name || p.id}
-                          </SelectItem>
-                        ))}
+                        <SelectItem value="top-left">{t("positionTopLeft")}</SelectItem>
+                        <SelectItem value="top-right">{t("positionTopRight")}</SelectItem>
+                        <SelectItem value="center">{t("positionCenter")}</SelectItem>
+                        <SelectItem value="bottom-left">{t("positionBottomLeft")}</SelectItem>
+                        <SelectItem value="bottom-right">{t("positionBottomRight")}</SelectItem>
                       </SelectContent>
                     </Select>
-                    <p className="text-xs text-muted-foreground">{t("silencePageHelp")}</p>
-                  </div>
-                )}
-              </div>
-            )}
+                  </Stack>
+                </>
+              )}
 
-            {isSaving && (
-              <div className="flex items-center justify-center gap-2 pt-4 mt-4 border-t text-xs text-muted-foreground">
-                <div className="h-3 w-3 animate-spin rounded-full border-2 border-primary border-t-transparent" />
-                <span>{tc("savingIndicator")}</span>
-              </div>
-            )}
-          </>
-        )}
-      </CardContent>
-    </Card>
+              {silenceMode === "page" && (
+                <Stack gap="2">
+                  <Label htmlFor="silence-page" className="text-sm font-medium">
+                    {t("silencePageLabel")}
+                  </Label>
+                  <Select
+                    value={silencePageId || undefined}
+                    onValueChange={handleSilencePageChange}
+                    disabled={isSaving || availablePages.length === 0}
+                  >
+                    <SelectTrigger id="silence-page" className="w-full">
+                      <SelectValue placeholder={t("silencePagePlaceholder")} />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {availablePages.map((p) => (
+                        <SelectItem key={p.id} value={p.id}>
+                          {p.name || p.id}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <Text size="xs" tone="muted">
+                    {t("silencePageHelp")}
+                  </Text>
+                </Stack>
+              )}
+            </Stack>
+          )}
+
+          {isSaving && (
+            <Flex align="center" justify="center" gap="2" className="pt-4 mt-4 border-t text-xs text-muted-foreground">
+              <Spinner size="sm" className="size-3 text-primary" label={null} />
+              <Text as="span" size="xs" tone="muted">
+                {tc("savingIndicator")}
+              </Text>
+            </Flex>
+          )}
+        </>
+      )}
+    </PageSection>
   );
 }

@@ -1,13 +1,14 @@
 {
   "id": "date_time",
   "name": "Date & Time",
-  "version": "1.3.0",
+  "version": "1.3.1",
   "description": "Display current date and time in configurable formats",
   "author": "FiestaBoard Team",
   "repository": "https://github.com/FiestaBoard/FiestaBoard",
   "documentation": "README.md",
   "icon": "clock",
   "category": "utility",
+  "live_data": true,
   "settings_schema": {
     "type": "object",
     "properties": {
@@ -254,6 +255,28 @@
       }
     ]
   },
+  "teaser": "Sat  2:30 PM",
+  "previews": [
+    {
+      "device_type": "flagship",
+      "rows": [
+        "                      ",
+        "       Saturday       ",
+        "     July 4 2026      ",
+        "       2:30 PM        ",
+        "         PST          ",
+        "                      "
+      ]
+    },
+    {
+      "device_type": "note",
+      "rows": [
+        "{67}{67} SATURDAY",
+        "JULY 4 2026",
+        "2:30 PM PST"
+      ]
+    }
+  ],
   "screenshots": [
     {
       "src": "docs/board-display.png",

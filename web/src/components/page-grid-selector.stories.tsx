@@ -1,7 +1,14 @@
 import type { Meta, StoryObj } from "@storybook/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 
-import type { Collection, CollectionsResponse, Page, PagePreviewBatchResponse, PagesResponse } from "@/lib/api";
+import type {
+  Collection,
+  CollectionsResponse,
+  Page,
+  PagePreviewBatchEntry,
+  PagePreviewBatchResponse,
+  PagesResponse,
+} from "@/lib/api";
 
 import { PageGridSelector } from "./page-grid-selector";
 
@@ -35,56 +42,48 @@ const meta = {
 export default meta;
 type Story = StoryObj<typeof meta>;
 
-const mockPages: Page[] = [
-  {
-    id: "page-1",
-    name: "Weather Dashboard",
+const mockPages: Page[] = ["Weather Dashboard", "Transit Times", "Morning Briefing", "Evening Summary"].map(
+  (name, i) => ({
+    id: `page-${i + 1}`,
+    name,
+    type: "template",
     device_type: "flagship",
-    created_at: "2024-01-01T00:00:00Z",
-    updated_at: "2024-01-01T00:00:00Z",
-  },
-  {
-    id: "page-2",
-    name: "Transit Times",
-    device_type: "flagship",
-    created_at: "2024-01-02T00:00:00Z",
-    updated_at: "2024-01-02T00:00:00Z",
-  },
-  {
-    id: "page-3",
-    name: "Morning Briefing",
-    device_type: "flagship",
-    created_at: "2024-01-03T00:00:00Z",
-    updated_at: "2024-01-03T00:00:00Z",
-  },
-  {
-    id: "page-4",
-    name: "Evening Summary",
-    device_type: "flagship",
-    created_at: "2024-01-04T00:00:00Z",
-    updated_at: "2024-01-04T00:00:00Z",
-  },
-];
+    duration_seconds: 300,
+    created_at: `2024-01-0${i + 1}T00:00:00Z`,
+    updated_at: `2024-01-0${i + 1}T00:00:00Z`,
+  }),
+);
+
+/** A successful batch-preview entry, matching the endpoint's payload. */
+function previewEntry(pageId: string, message: string): PagePreviewBatchEntry {
+  return {
+    page_id: pageId,
+    message,
+    lines: message.split("\n"),
+    display_type: "template",
+    raw: {},
+    available: true,
+  };
+}
 
 const mockPreviews: PagePreviewBatchResponse = {
   previews: {
-    "page-1": {
-      available: true,
-      message: "{63}WEATHER{/63}\n{64}72°F SUNNY{/64}\n \nHIGH: 75°F\nLOW: 65°F\nHUMIDITY: 60%",
-    },
-    "page-2": {
-      available: true,
-      message: "{65}MUNI{/65}\n \n38R  ARRIVES IN 5 MIN\n49   ARRIVES IN 12 MIN\n \nNEXT BART: 8 MIN",
-    },
-    "page-3": {
-      available: true,
-      message: "{66}GOOD MORNING{/66}\n \nTODAY: FEB 26\nWEATHER: SUNNY 72°F\nMEETINGS: 3\nTRANSIT: ON TIME",
-    },
-    "page-4": {
-      available: true,
-      message: "{67}EVENING{/67}\n \nSTOCKS: +2.4%\nCALENDAR: CLEAR\nAIR QUALITY: GOOD\nSUNSET: 6:05 PM",
-    },
+    "page-1": previewEntry("page-1", "{63}WEATHER{/63}\n{64}72°F SUNNY{/64}\n \nHIGH: 75°F\nLOW: 65°F\nHUMIDITY: 60%"),
+    "page-2": previewEntry(
+      "page-2",
+      "{65}MUNI{/65}\n \n38R  ARRIVES IN 5 MIN\n49   ARRIVES IN 12 MIN\n \nNEXT BART: 8 MIN",
+    ),
+    "page-3": previewEntry(
+      "page-3",
+      "{66}GOOD MORNING{/66}\n \nTODAY: FEB 26\nWEATHER: SUNNY 72°F\nMEETINGS: 3\nTRANSIT: ON TIME",
+    ),
+    "page-4": previewEntry(
+      "page-4",
+      "{67}EVENING{/67}\n \nSTOCKS: +2.4%\nCALENDAR: CLEAR\nAIR QUALITY: GOOD\nSUNSET: 6:05 PM",
+    ),
   },
+  total: 4,
+  successful: 4,
 };
 
 const mockCollections: Collection[] = [
@@ -240,7 +239,9 @@ export const ManyPages = () => {
   const manyPages: Page[] = Array.from({ length: 12 }, (_, i) => ({
     id: `page-${i + 1}`,
     name: `Page ${i + 1}`,
+    type: "template",
     device_type: "flagship",
+    duration_seconds: 300,
     created_at: "2024-01-01T00:00:00Z",
     updated_at: "2024-01-01T00:00:00Z",
   }));

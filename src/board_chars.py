@@ -78,7 +78,7 @@ class BoardChars:
     SLASH = 59  # /
     QUESTION = 60  # ?
     # 61 is undefined
-    DEGREE = 62  # ° (Flagship only, Heart on Note)
+    DEGREE = 62  # ° or ❤ — one code, two flaps (see HEART below)
 
     # Color codes (filled color tiles)
     RED = 63
@@ -94,7 +94,15 @@ class BoardChars:
     # Aliases for compatibility
     APOSTROPHE = SINGLE_QUOTE
     HYPHEN = DASH
-    HEART = DEGREE  # Code 62 renders as ❤ on Note, ° on Flagship
+    # Code 62 is one character code with two possible physical flaps, and which
+    # glyph a board draws is a property of the hardware, not of the code we send.
+    # Note has always carried the heart. Flagship carried the degree sign until
+    # 2026, when Vestaboard replaced it with a heart on newly-manufactured units
+    # and published no serial or date boundary (issue #1657) — so the owner tells
+    # FiestaBoard which flap their board has, per board, via
+    # ``BoardInstance.code62_glyph``. That setting is display-only: it decides
+    # what previews draw, never what is encoded here.
+    HEART = DEGREE
 
     @classmethod
     def get_char_code(cls, char: str) -> int | None:
@@ -142,7 +150,7 @@ class BoardChars:
             "/": cls.SLASH,
             "?": cls.QUESTION,
             "°": cls.DEGREE,
-            "❤": cls.DEGREE,  # Heart on Note devices shares code 62
+            "❤": cls.DEGREE,  # A typed heart is code 62, same as a typed degree sign
             "♥": cls.DEGREE,
         }
 
@@ -257,3 +265,112 @@ def get_weather_symbol(condition: str) -> dict[str, any]:
 
 # Backward compatibility aliases
 FiestaboardChars = BoardChars
+
+
+# ---------------------------------------------------------------------------
+# Grid -> message string
+#
+# Lived in ``src/api_server.py`` until Phase 2 slice 8. Three callers need it —
+# GET /board/current-message, GET /panel/{id}/frame and the MCP
+# ``get_board_state`` tool — and one of them is an extracted router, which
+# could only have reached it by importing the 10k-line app module. It is pure
+# character-code translation with no dependency on the app, so it lives with
+# the rest of the character table instead.
+#
+# ``src.api_server`` still binds it as ``_characters_to_message`` so its own
+# handlers, and ``src/mcp_server.py``'s import of that name, are unchanged.
+# ---------------------------------------------------------------------------
+
+
+def characters_to_message(characters: list) -> str:
+    """Convert a character grid (list[list[int]]) to the message string format.
+
+    Character codes map as follows (matching the Vestaboard spec):
+      0       → space
+      1–26    → A–Z
+      27–35   → 1–9
+      36      → 0
+      37–62   → punctuation / special characters
+      63–71   → color tiles, rendered as {63}…{71}
+
+    Undefined codes (43, 45, 51, 57, 58, 61) are rendered as a space.
+    """
+    # Index-aligned lookup table for codes 0–62
+    _LOOKUP = [
+        " ",  # 0
+        "A",
+        "B",
+        "C",
+        "D",
+        "E",
+        "F",
+        "G",
+        "H",
+        "I",
+        "J",  # 1–10
+        "K",
+        "L",
+        "M",
+        "N",
+        "O",
+        "P",
+        "Q",
+        "R",
+        "S",
+        "T",  # 11–20
+        "U",
+        "V",
+        "W",
+        "X",
+        "Y",
+        "Z",  # 21–26
+        "1",
+        "2",
+        "3",
+        "4",
+        "5",
+        "6",
+        "7",
+        "8",
+        "9",
+        "0",  # 27–36
+        "!",
+        "@",
+        "#",
+        "$",
+        "(",
+        ")",  # 37–42
+        " ",  # 43 – undefined
+        "-",  # 44
+        " ",  # 45 – undefined
+        "+",
+        "&",
+        "=",
+        ";",
+        ":",  # 46–50
+        " ",  # 51 – undefined
+        "'",
+        '"',
+        "%",
+        ",",
+        ".",  # 52–56
+        " ",
+        " ",  # 57–58 – undefined
+        "/",
+        "?",  # 59–60
+        " ",  # 61 – undefined
+        "°",  # 62
+    ]
+
+    lines = []
+    for row in characters:
+        chars = []
+        for code in row:
+            if 63 <= code <= 71:
+                chars.append(f"{{{code}}}")
+            elif 0 <= code < len(_LOOKUP):
+                chars.append(_LOOKUP[code])
+            else:
+                chars.append(" ")
+        lines.append("".join(chars))
+    return "\n".join(lines)

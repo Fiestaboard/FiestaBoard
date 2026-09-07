@@ -1,12 +1,14 @@
 "use client";
 
+import { Box, Stack, Text, Textarea } from "@fiestaboard/ui";
 import { useCallback, useEffect, useRef, useState } from "react";
 
-import { Textarea } from "@/components/ui/textarea";
 import { useTranslations } from "@/i18n/translations";
 import { cn } from "@/lib/utils";
 
 interface PlainTextEditorProps {
+  /** id on the underlying textarea, so a caller can point a <Label htmlFor> at it. */
+  id?: string;
   value: string;
   onChange: (value: string) => void;
   onFocus?: () => void;
@@ -21,6 +23,7 @@ interface PlainTextEditorProps {
  * No line-count restrictions — a validation warning is shown when over the limit.
  */
 export function PlainTextEditor({
+  id,
   value,
   onChange,
   onFocus,
@@ -107,9 +110,9 @@ export function PlainTextEditor({
       : Array.from({ length: lineCount }, (_, i) => ({ height: 24, label: i + 1 }));
 
   return (
-    <div className={cn("relative", className)}>
+    <Box className={cn("relative", className)}>
       {/* Hidden mirror div — measures actual wrapped height of each logical line */}
-      <div
+      <Box
         ref={mirrorRef}
         aria-hidden="true"
         style={{
@@ -126,7 +129,7 @@ export function PlainTextEditor({
       />
 
       {/* Editor with line numbers */}
-      <div
+      <Box
         className={cn(
           "flex rounded-md border overflow-hidden bg-background",
           "focus-within:outline-none focus-within:ring-1 focus-within:ring-ring",
@@ -134,7 +137,7 @@ export function PlainTextEditor({
         )}
       >
         {/* Line numbers gutter */}
-        <div
+        <Box
           ref={lineNumbersRef}
           className="select-none overflow-hidden bg-muted/40 border-r shrink-0 text-right"
           style={{
@@ -151,7 +154,7 @@ export function PlainTextEditor({
           aria-hidden="true"
         >
           {gutterNumbers.map(({ height, label }) => (
-            <div
+            <Box
               key={label}
               style={{
                 height: `${height}px`,
@@ -162,12 +165,13 @@ export function PlainTextEditor({
               }}
             >
               {label}
-            </div>
+            </Box>
           ))}
-        </div>
+        </Box>
 
         {/* Textarea — border handled by wrapper above */}
         <Textarea
+          id={id}
           ref={textareaRef}
           value={value}
           onChange={handleChange}
@@ -185,27 +189,29 @@ export function PlainTextEditor({
             lineHeight: "1.5rem",
           }}
         />
-      </div>
+      </Box>
 
       {/* Line counter */}
-      <div className={cn("mt-1 text-xs", isOverLimit ? "text-warning font-medium" : "text-muted-foreground")}>
+      <Text size="xs" className={cn("mt-1", isOverLimit ? "text-warning font-medium" : "text-muted-foreground")}>
         {t("lineCount", { current: lineCount, total: boardLines })}
         {isOverLimit && ` ${t("exceedsLimit", { limit: boardLines })}`}
-      </div>
+      </Text>
 
       {/* Helper text */}
-      <div className="mt-2 text-xs text-muted-foreground space-y-1">
-        <p>• {t("charsPerLine", { width: boardWidth })}</p>
-        <p>
+      <Stack gap="1" className="mt-2">
+        <Text size="xs" tone="muted">
+          • {t("charsPerLine", { width: boardWidth })}
+        </Text>
+        <Text size="xs" tone="muted">
           • {t("templateSyntaxIntro")} {"{{variable}}"}, {"{{red}}"}, {"{{fill_space}}"}
-        </p>
-        <p>
+        </Text>
+        <Text size="xs" tone="muted">
           • {t("alignmentPrefixesIntro")} {"{left}"}, {"{center}"}, {"{right}"}
-        </p>
-        <p>
+        </Text>
+        <Text size="xs" tone="muted">
           • {t("wrapPrefixIntro")} {"{wrap}"}
-        </p>
-      </div>
-    </div>
+        </Text>
+      </Stack>
+    </Box>
   );
 }

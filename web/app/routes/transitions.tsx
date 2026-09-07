@@ -1,0 +1,585 @@
+/**
+ * Transition Lab (beta): transition-plugin test harness.
+ *
+ * Authors of transition plugins use this page to preview a frame-by-frame
+ * animation between two real pages without sending anything to a real
+ * board.  The page fetches the list of enabled transition plugins and the
+ * user's pages, lets the user pick a plugin plus from/to pages, optionally
+ * edit per-plugin config knobs, and then drives the resulting frame array
+ * through a raw grid renderer with play / pause / step / scrub controls.
+ * Each selected page is rendered through the normal page-preview endpoint
+ * so the transition runs against exactly what the board would show.
+ *
+ * The whole feature sits behind beta.transition_plugins_enabled — when
+ * the flag is off the backend 404s and this page shows an opt-in gate.
+ */
+
+import {
+  Badge,
+  Box,
+  Button,
+  CardDescription,
+  CardTitle,
+  Flex,
+  Grid,
+  Label,
+  PageCard,
+  PageHeader,
+  PageLayout,
+  PageSection,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+  Slider,
+  Stack,
+  Text,
+  Textarea,
+} from "@fiestaboard/ui";
+import { useQuery } from "@tanstack/react-query";
+import { Cast, FlaskConical, Pause, Play, RotateCcw, SkipBack, SkipForward, Undo2, Wand2 } from "lucide-react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+
+import { TransitionGridDisplay } from "@/components/transitions/transition-grid-display";
+import { useDepsChanged } from "@/hooks/use-deps-changed";
+import { useRouter } from "@/hooks/use-router";
+import { useTranslations } from "@/i18n/translations";
+import type { DeviceType, TransitionPreviewResponse } from "@/lib/api";
+import { api } from "@/lib/api";
+
+const NOTE_COUNTS = [1, 2, 3, 4, 5, 6, 7, 8];
+
+export default function TransitionsLabPage() {
+  const t = useTranslations("transitionLab");
+  const router = useRouter();
+
+  const [selectedPluginId, setSelectedPluginId] = useState<string>("");
+  const [fromPageId, setFromPageId] = useState<string>("");
+  const [toPageId, setToPageId] = useState<string>("");
+  const [deviceType, setDeviceType] = useState<DeviceType>("flagship");
+  const [notesWide, setNotesWide] = useState(2);
+  const [notesTall, setNotesTall] = useState(1);
+  const [configJson, setConfigJson] = useState<string>("{}");
+  const [preview, setPreview] = useState<TransitionPreviewResponse | null>(null);
+  const [previewError, setPreviewError] = useState<string | null>(null);
+  const [previewing, setPreviewing] = useState(false);
+
+  // Live-test state: run the transition on the real board, then restore.
+  const [liveTesting, setLiveTesting] = useState(false);
+  const [restoring, setRestoring] = useState(false);
+  const [hasLiveTested, setHasLiveTested] = useState(false);
+  const [liveStatus, setLiveStatus] = useState<string | null>(null);
+  const [liveError, setLiveError] = useState<string | null>(null);
+
+  // Playback state.
+  const [frameIdx, setFrameIdx] = useState(0);
+  const [isPlaying, setIsPlaying] = useState(false);
+  const playTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const betaQuery = useQuery({
+    queryKey: ["settings", "beta"],
+    queryFn: () => api.getBetaSettings(),
+  });
+  const betaEnabled = betaQuery.data?.settings.transition_plugins_enabled ?? false;
+
+  const pluginsQuery = useQuery({
+    queryKey: ["transition-plugins"],
+    queryFn: () => api.listTransitionPlugins(),
+    enabled: betaEnabled,
+  });
+
+  const plugins = useMemo(() => pluginsQuery.data?.plugins ?? [], [pluginsQuery.data]);
+
+  const pagesQuery = useQuery({
+    queryKey: ["pages"],
+    queryFn: () => api.getPages(),
+    enabled: betaEnabled,
+  });
+
+  const pages = useMemo(() => pagesQuery.data?.pages ?? [], [pagesQuery.data]);
+
+  // Pick the first plugin once loaded so the page isn't empty. Done during
+  // render rather than in an effect, so the pickers are populated in the same
+  // commit the lists arrive (react-hooks/set-state-in-effect, issue #1568).
+  if (useDepsChanged([plugins]) && !selectedPluginId && plugins.length > 0) {
+    setSelectedPluginId(plugins[0].id);
+  }
+
+  // Default the from/to pickers to the first two pages once loaded.
+  if (useDepsChanged([pages]) && pages.length > 0) {
+    if (!fromPageId) {
+      setFromPageId(pages[0].id);
+    }
+    if (!toPageId) {
+      setToPageId((pages[1] ?? pages[0]).id);
+    }
+  }
+
+  const selectedPlugin = useMemo(
+    () => plugins.find((p) => p.id === selectedPluginId) ?? null,
+    [plugins, selectedPluginId],
+  );
+
+  // Seed the config editor with the plugin's current config when the
+  // selection changes, so authors aren't staring at an empty `{}` when
+  // a plugin already has defaults.
+  if (useDepsChanged([selectedPlugin]) && selectedPlugin) {
+    setConfigJson(JSON.stringify(selectedPlugin.config ?? {}, null, 2));
+  }
+
+  const toPage = useMemo(() => pages.find((p) => p.id === toPageId) ?? null, [pages, toPageId]);
+
+  // Match the preview canvas to the target page's geometry — a transition
+  // on a real board always runs at the dimensions of the page being shown.
+  // The device picker stays editable so authors can still experiment.
+  if (useDepsChanged([toPage]) && toPage) {
+    setDeviceType(toPage.device_type);
+    if (toPage.device_type === "note_array") {
+      setNotesWide(toPage.notes_wide ?? 1);
+      setNotesTall(toPage.notes_tall ?? 1);
+    }
+  }
+
+  const stopPlayback = useCallback(() => {
+    if (playTimerRef.current) {
+      clearTimeout(playTimerRef.current);
+      playTimerRef.current = null;
+    }
+    setIsPlaying(false);
+  }, []);
+
+  // Drive playback: each frame schedules the next based on its delay_ms
+  // (clamped so a long per-frame step delay doesn't stall the preview).
+  // Reaching the last frame stops playback. Done during render so the play
+  // button flips back in the same commit the last frame is shown
+  // (react-hooks/set-state-in-effect, issue #1568).
+  const atLastFrame = preview !== null && frameIdx >= preview.frames.length - 1;
+  if (useDepsChanged([isPlaying, frameIdx, preview]) && isPlaying && atLastFrame) {
+    setIsPlaying(false);
+  }
+
+  useEffect(() => {
+    if (!isPlaying || !preview) return;
+    if (frameIdx >= preview.frames.length - 1) return;
+    const rawDelay = preview.frames[frameIdx]?.delay_ms ?? 100;
+    const playbackDelay = Math.min(rawDelay, 2000);
+    playTimerRef.current = setTimeout(() => {
+      setFrameIdx((idx) => Math.min(idx + 1, preview.frames.length - 1));
+    }, playbackDelay);
+    return () => {
+      if (playTimerRef.current) {
+        clearTimeout(playTimerRef.current);
+        playTimerRef.current = null;
+      }
+    };
+  }, [isPlaying, frameIdx, preview]);
+
+  // When a new preview lands, reset playback to the first frame and autoplay
+  // if it has frames. This has to run off `preview` rather than inside
+  // runPreview: it must win over the "stop at the last frame" reset above,
+  // which is evaluated in the same render, and it must not be undone by it.
+  if (useDepsChanged([preview])) {
+    setFrameIdx(0);
+    setIsPlaying(Boolean(preview && preview.frames.length > 0));
+  }
+
+  const runPreview = useCallback(async () => {
+    if (!selectedPluginId || !fromPageId || !toPageId) return;
+    setPreviewError(null);
+    setPreviewing(true);
+    stopPlayback();
+    try {
+      let parsedConfig: Record<string, unknown> = {};
+      try {
+        parsedConfig = configJson.trim() ? JSON.parse(configJson) : {};
+      } catch (err) {
+        setPreviewError(t("configInvalid", { error: (err as Error).message }));
+        setPreviewing(false);
+        return;
+      }
+      // Render both pages through the normal preview pipeline so the
+      // transition runs against exactly what the board would show.
+      let fromMessage: string;
+      let toMessage: string;
+      try {
+        const [fromPreview, toPreview] = await Promise.all([api.previewPage(fromPageId), api.previewPage(toPageId)]);
+        fromMessage = fromPreview.message;
+        toMessage = toPreview.message;
+      } catch (err) {
+        setPreviewError(t("pageRenderFailed", { error: (err as Error).message }));
+        setPreviewing(false);
+        return;
+      }
+      const result = await api.previewTransition({
+        plugin_id: selectedPluginId,
+        from_text: fromMessage,
+        to_text: toMessage,
+        device_type: deviceType,
+        ...(deviceType === "note_array" ? { notes_wide: notesWide, notes_tall: notesTall } : {}),
+        config: parsedConfig,
+      });
+      setPreview(result);
+    } catch (err) {
+      setPreviewError((err as Error).message);
+    } finally {
+      setPreviewing(false);
+    }
+  }, [configJson, deviceType, fromPageId, notesTall, notesWide, selectedPluginId, stopPlayback, t, toPageId]);
+
+  // Run the transition on the real board: the backend snaps the board to
+  // the from-page, drives the plugin toward the to-page, and leaves the
+  // board there until the user restores (or the display loop takes over).
+  const runLiveTest = useCallback(async () => {
+    if (!selectedPluginId || !toPageId) return;
+    setLiveError(null);
+    setLiveStatus(null);
+    setLiveTesting(true);
+    try {
+      let parsedConfig: Record<string, unknown> = {};
+      try {
+        parsedConfig = configJson.trim() ? JSON.parse(configJson) : {};
+      } catch (err) {
+        setLiveError(t("configInvalid", { error: (err as Error).message }));
+        return;
+      }
+      await api.testTransitionLive({
+        plugin_id: selectedPluginId,
+        to_page_id: toPageId,
+        ...(fromPageId ? { from_page_id: fromPageId } : {}),
+        config: parsedConfig,
+      });
+      setHasLiveTested(true);
+      setLiveStatus(t("liveSuccess"));
+    } catch (err) {
+      setLiveError((err as Error).message);
+    } finally {
+      setLiveTesting(false);
+    }
+  }, [configJson, fromPageId, selectedPluginId, t, toPageId]);
+
+  const restoreBoard = useCallback(async () => {
+    setLiveError(null);
+    setLiveStatus(null);
+    setRestoring(true);
+    try {
+      await api.restoreTransitionTest();
+      setLiveStatus(t("restoreSuccess"));
+    } catch (err) {
+      setLiveError((err as Error).message);
+    } finally {
+      setRestoring(false);
+    }
+  }, [t]);
+
+  // Frame to display: current playback index, or the to-grid when the
+  // plugin produced no frames (e.g. from == to).
+  const displayGrid = useMemo(() => {
+    if (preview && preview.frames.length > 0) {
+      return preview.frames[Math.min(frameIdx, preview.frames.length - 1)].grid;
+    }
+    if (preview) {
+      return preview.to_grid;
+    }
+    return null;
+  }, [preview, frameIdx]);
+
+  const totalDuration = preview?.total_delay_ms ?? 0;
+  const gridSize = deviceType === "flagship" ? "md" : "sm";
+
+  if (betaQuery.isSuccess && !betaEnabled) {
+    return (
+      <PageLayout>
+        <PageCard>
+          <PageHeader icon={FlaskConical} title={t("title")} description={t("description")} />
+          <PageSection
+            title={
+              <Flex align="center" gap="2">
+                {t("betaGateTitle")}
+                <Badge variant="secondary">{t("betaBadge")}</Badge>
+              </Flex>
+            }
+            description={t("betaGateDescription")}
+          >
+            <Button onClick={() => router.push("/settings")}>{t("betaGateCta")}</Button>
+          </PageSection>
+        </PageCard>
+      </PageLayout>
+    );
+  }
+
+  return (
+    <PageLayout>
+      <PageCard>
+        <PageHeader icon={FlaskConical} title={t("title")} description={t("description")} />
+
+        {/* One section holding both panels, so the split is a vertical rule
+            rather than two more borders inside the page card. */}
+        <PageSection className="grid gap-6 lg:grid-cols-[400px_1fr] lg:gap-0 lg:divide-x lg:divide-border">
+          <Box className="space-y-4 lg:pr-6">
+            <Stack gap="1" className="mb-4">
+              <CardTitle size="base">{t("setupTitle")}</CardTitle>
+              <CardDescription>{t("setupDescription")}</CardDescription>
+            </Stack>
+            <Stack gap="2">
+              <Label htmlFor="plugin-picker">{t("pluginLabel")}</Label>
+              <Select value={selectedPluginId} onValueChange={(val: string) => setSelectedPluginId(val)}>
+                <SelectTrigger id="plugin-picker">
+                  <SelectValue placeholder={t("pluginPlaceholder")} />
+                </SelectTrigger>
+                <SelectContent>
+                  {plugins.map((p) => (
+                    <SelectItem key={p.id} value={p.id}>
+                      {p.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {selectedPlugin && (
+                <Text size="xs" tone="muted">
+                  {selectedPlugin.description}
+                </Text>
+              )}
+              {pluginsQuery.isSuccess && plugins.length === 0 && (
+                <Text size="xs" tone="muted" className="flex items-center gap-1">
+                  <Wand2 className="h-3 w-3" />
+                  {t("noPlugins")}
+                </Text>
+              )}
+            </Stack>
+
+            <Stack gap="2">
+              <Label htmlFor="device-picker">{t("deviceLabel")}</Label>
+              <Select value={deviceType} onValueChange={(val: string) => setDeviceType(val as DeviceType)}>
+                <SelectTrigger id="device-picker">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="flagship">{t("deviceFlagship")}</SelectItem>
+                  <SelectItem value="note">{t("deviceNote")}</SelectItem>
+                  <SelectItem value="note_array">{t("deviceNoteArray")}</SelectItem>
+                </SelectContent>
+              </Select>
+            </Stack>
+
+            {deviceType === "note_array" && (
+              <Grid cols="2" gap="3">
+                <Stack gap="2">
+                  <Label htmlFor="notes-wide">{t("notesWideLabel")}</Label>
+                  <Select value={String(notesWide)} onValueChange={(val: string) => setNotesWide(Number(val))}>
+                    <SelectTrigger id="notes-wide">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {NOTE_COUNTS.map((n) => (
+                        <SelectItem key={n} value={String(n)}>
+                          {n}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </Stack>
+                <Stack gap="2">
+                  <Label htmlFor="notes-tall">{t("notesTallLabel")}</Label>
+                  <Select value={String(notesTall)} onValueChange={(val: string) => setNotesTall(Number(val))}>
+                    <SelectTrigger id="notes-tall">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {NOTE_COUNTS.map((n) => (
+                        <SelectItem key={n} value={String(n)}>
+                          {n}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </Stack>
+              </Grid>
+            )}
+
+            <Stack gap="2">
+              <Label htmlFor="from-page">{t("fromPageLabel")}</Label>
+              <Select value={fromPageId} onValueChange={(val: string) => setFromPageId(val)}>
+                <SelectTrigger id="from-page">
+                  <SelectValue placeholder={t("pagePlaceholder")} />
+                </SelectTrigger>
+                <SelectContent>
+                  {pages.map((p) => (
+                    <SelectItem key={p.id} value={p.id}>
+                      {p.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </Stack>
+
+            <Stack gap="2">
+              <Label htmlFor="to-page">{t("toPageLabel")}</Label>
+              <Select value={toPageId} onValueChange={(val: string) => setToPageId(val)}>
+                <SelectTrigger id="to-page">
+                  <SelectValue placeholder={t("pagePlaceholder")} />
+                </SelectTrigger>
+                <SelectContent>
+                  {pages.map((p) => (
+                    <SelectItem key={p.id} value={p.id}>
+                      {p.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {pagesQuery.isSuccess && pages.length === 0 && (
+                <Text size="xs" tone="muted">
+                  {t("noPages")}
+                </Text>
+              )}
+            </Stack>
+
+            <Stack gap="2">
+              <Label htmlFor="config-json">{t("configLabel")}</Label>
+              <Textarea
+                id="config-json"
+                value={configJson}
+                onChange={(e) => setConfigJson(e.target.value)}
+                rows={6}
+                className="font-mono text-xs"
+                spellCheck={false}
+              />
+            </Stack>
+
+            <Button
+              onClick={runPreview}
+              disabled={!selectedPluginId || !fromPageId || !toPageId || previewing}
+              className="w-full"
+            >
+              {previewing ? t("generating") : t("runPreview")}
+            </Button>
+
+            {previewError && <Text tone="destructive">{previewError}</Text>}
+
+            <Stack gap="2" className="border-t pt-4">
+              <Text size="xs" tone="muted">
+                {t("liveHint")}
+              </Text>
+              <Flex gap="2">
+                <Button
+                  variant="outline"
+                  className="flex-1"
+                  onClick={runLiveTest}
+                  disabled={!selectedPluginId || !toPageId || liveTesting || restoring}
+                >
+                  <Cast className="mr-2 h-4 w-4" />
+                  {liveTesting ? t("testingLive") : t("testLive")}
+                </Button>
+                {hasLiveTested && (
+                  <Button
+                    variant="outline"
+                    className="flex-1"
+                    onClick={restoreBoard}
+                    disabled={liveTesting || restoring}
+                  >
+                    <Undo2 className="mr-2 h-4 w-4" />
+                    {restoring ? t("restoring") : t("restoreBoard")}
+                  </Button>
+                )}
+              </Flex>
+              {liveStatus && <Text tone="muted">{liveStatus}</Text>}
+              {liveError && <Text tone="destructive">{liveError}</Text>}
+            </Stack>
+          </Box>
+
+          <Box className="space-y-4 lg:pl-6">
+            <Stack gap="1" className="mb-4">
+              <CardTitle size="base">{t("previewTitle")}</CardTitle>
+              <CardDescription>
+                {preview
+                  ? t("frameSummary", {
+                      count: preview.frame_count,
+                      seconds: (totalDuration / 1000).toFixed(1),
+                    }) + (preview.capped ? ` ${t("cappedSuffix")}` : "")
+                  : t("previewEmptyHint")}
+              </CardDescription>
+            </Stack>
+            {displayGrid ? (
+              <TransitionGridDisplay grid={displayGrid} size={gridSize} />
+            ) : (
+              <Box className="rounded-lg border-2 border-dashed p-12 text-center text-muted-foreground">
+                {t("previewEmpty")}
+              </Box>
+            )}
+
+            {preview && preview.frames.length > 0 && (
+              <>
+                <Flex align="center" gap="2">
+                  <Button
+                    size="icon"
+                    variant="outline"
+                    onClick={() => {
+                      stopPlayback();
+                      setFrameIdx(0);
+                    }}
+                    aria-label={t("restart")}
+                  >
+                    <RotateCcw className="h-4 w-4" />
+                  </Button>
+                  <Button
+                    size="icon"
+                    variant="outline"
+                    onClick={() => {
+                      stopPlayback();
+                      setFrameIdx((i) => Math.max(0, i - 1));
+                    }}
+                    aria-label={t("prevFrame")}
+                  >
+                    <SkipBack className="h-4 w-4" />
+                  </Button>
+                  <Button
+                    size="icon"
+                    variant="default"
+                    onClick={() => setIsPlaying((p) => !p)}
+                    aria-label={isPlaying ? t("pause") : t("play")}
+                  >
+                    {isPlaying ? <Pause className="h-4 w-4" /> : <Play className="h-4 w-4" />}
+                  </Button>
+                  <Button
+                    size="icon"
+                    variant="outline"
+                    onClick={() => {
+                      stopPlayback();
+                      setFrameIdx((i) => Math.min(preview.frames.length - 1, i + 1));
+                    }}
+                    aria-label={t("nextFrame")}
+                  >
+                    <SkipForward className="h-4 w-4" />
+                  </Button>
+                  <Text as="span" tone="muted" className="tabular-nums">
+                    {t("frameCounter", { current: frameIdx + 1, total: preview.frames.length })}
+                  </Text>
+                </Flex>
+
+                <Stack gap="2">
+                  <Label>{t("scrubLabel")}</Label>
+                  <Slider
+                    value={[frameIdx]}
+                    onValueChange={([v]) => {
+                      stopPlayback();
+                      setFrameIdx(v ?? 0);
+                    }}
+                    min={0}
+                    max={Math.max(0, preview.frames.length - 1)}
+                    step={1}
+                  />
+                </Stack>
+
+                {preview.frames[frameIdx] && (
+                  <Text size="xs" tone="muted">
+                    {t("frameDelay", { ms: preview.frames[frameIdx].delay_ms })}
+                  </Text>
+                )}
+              </>
+            )}
+          </Box>
+        </PageSection>
+      </PageCard>
+    </PageLayout>
+  );
+}

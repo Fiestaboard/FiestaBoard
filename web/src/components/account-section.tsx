@@ -14,11 +14,6 @@
  * signed in.
  */
 
-import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { KeyRound, LogOut, ShieldAlert, ShieldCheck, ShieldOff, UserCircle2, UserCog } from "lucide-react";
-import { type FormEvent, type ReactNode, useState } from "react";
-import { toast } from "sonner";
-
 import {
   AlertDialog,
   AlertDialogContent,
@@ -27,12 +22,24 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
   AlertDialogTrigger,
-} from "@/components/ui/alert-dialog";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Skeleton } from "@/components/ui/skeleton";
+  Box,
+  Button,
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+  Input,
+  Label,
+  Skeleton,
+  Stack,
+  Text,
+} from "@fiestaboard/ui";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { KeyRound, LogOut, ShieldAlert, ShieldCheck, ShieldOff, UserCircle2, UserCog } from "lucide-react";
+import { type FormEvent, type ReactNode, useState } from "react";
+import { toast } from "sonner";
+
 import { useRouter } from "@/hooks/use-router";
 import { useTranslations } from "@/i18n/translations";
 import { api } from "@/lib/api";
@@ -100,7 +107,11 @@ export function AccountSection() {
           </CardTitle>
           <CardDescription>
             {t.rich("signedIn.description", {
-              name: () => <span className="font-mono text-foreground">{username}</span>,
+              name: () => (
+                <Text as="span" className="font-mono text-foreground">
+                  {username}
+                </Text>
+              ),
             })}
           </CardDescription>
         </CardHeader>
@@ -189,8 +200,8 @@ function ChangeUsernameForm({ currentUsername }: { currentUsername: string }) {
   const unchanged = newUsername.trim() === currentUsername;
 
   return (
-    <form className="space-y-4 max-w-sm" onSubmit={onSubmit} aria-label={t("changeUsername.formAriaLabel")}>
-      <div className="space-y-2">
+    <Box as="form" className="space-y-4 max-w-sm" onSubmit={onSubmit} aria-label={t("changeUsername.formAriaLabel")}>
+      <Stack gap="2">
         <Label htmlFor="account-username">{t("changeUsername.newUsernameLabel")}</Label>
         <Input
           id="account-username"
@@ -201,8 +212,8 @@ function ChangeUsernameForm({ currentUsername }: { currentUsername: string }) {
           required
           maxLength={64}
         />
-      </div>
-      <div className="space-y-2">
+      </Stack>
+      <Stack gap="2">
         <Label htmlFor="account-username-password">{t("changeUsername.currentPasswordLabel")}</Label>
         <Input
           id="account-username-password"
@@ -213,11 +224,11 @@ function ChangeUsernameForm({ currentUsername }: { currentUsername: string }) {
           disabled={submitting}
           required
         />
-      </div>
+      </Stack>
       <Button type="submit" disabled={submitting || unchanged || !password}>
         {submitting ? t("changeUsername.submitting") : t("changeUsername.submit")}
       </Button>
-    </form>
+    </Box>
   );
 }
 
@@ -255,8 +266,8 @@ function ChangePasswordForm() {
   };
 
   return (
-    <form className="space-y-4 max-w-sm" onSubmit={onSubmit} aria-label={t("changePassword.formAriaLabel")}>
-      <div className="space-y-2">
+    <Box as="form" className="space-y-4 max-w-sm" onSubmit={onSubmit} aria-label={t("changePassword.formAriaLabel")}>
+      <Stack gap="2">
         <Label htmlFor="account-current-password">{t("changePassword.currentPasswordLabel")}</Label>
         <Input
           id="account-current-password"
@@ -267,8 +278,8 @@ function ChangePasswordForm() {
           disabled={submitting}
           required
         />
-      </div>
-      <div className="space-y-2">
+      </Stack>
+      <Stack gap="2">
         <Label htmlFor="account-new-password">{t("changePassword.newPasswordLabel")}</Label>
         <Input
           id="account-new-password"
@@ -280,9 +291,11 @@ function ChangePasswordForm() {
           required
           minLength={8}
         />
-        <p className="text-xs text-muted-foreground">{t("changePassword.newPasswordHint")}</p>
-      </div>
-      <div className="space-y-2">
+        <Text size="xs" tone="muted">
+          {t("changePassword.newPasswordHint")}
+        </Text>
+      </Stack>
+      <Stack gap="2">
         <Label htmlFor="account-confirm-password">{t("changePassword.confirmPasswordLabel")}</Label>
         <Input
           id="account-confirm-password"
@@ -294,16 +307,16 @@ function ChangePasswordForm() {
           required
           minLength={8}
         />
-      </div>
+      </Stack>
       {error && (
-        <p className="text-sm text-destructive" role="alert">
+        <Text tone="destructive" role="alert">
           {error}
-        </p>
+        </Text>
       )}
       <Button type="submit" disabled={submitting || !currentPassword || !newPassword}>
         {submitting ? t("changePassword.submitting") : t("changePassword.submit")}
       </Button>
-    </form>
+    </Box>
   );
 }
 
@@ -360,24 +373,33 @@ function DisableAuthDialog({ username }: { username: string }) {
             <ShieldAlert className="h-5 w-5 text-destructive" />
             {t("disableLogin.dialogTitle")}
           </AlertDialogTitle>
-          <AlertDialogDescription asChild>
-            <div className="space-y-3 text-sm">
-              <p>
-                {t.rich("disableLogin.dialogBody1", {
-                  name: () => <span className="font-mono">{username}</span>,
-                })}
-              </p>
-              <p>
-                {t.rich("disableLogin.dialogBody2", {
-                  strong: (chunks: ReactNode) => <strong>{chunks}</strong>,
-                })}
-              </p>
-              <p>{t("disableLogin.dialogBody3")}</p>
-            </div>
+          {/* Base UI's Description takes `render`, not Radix's `asChild`. The
+              `asChild` prop was inert, so the description rendered a <p> with
+              a <div> Stack inside it — invalid nesting the browser reflows. */}
+          <AlertDialogDescription render={<Stack gap="3" className="text-sm" />}>
+            <Text tone="muted">
+              {t.rich("disableLogin.dialogBody1", {
+                name: () => (
+                  <Text as="span" tone="muted" className="font-mono">
+                    {username}
+                  </Text>
+                ),
+              })}
+            </Text>
+            <Text tone="muted">
+              {t.rich("disableLogin.dialogBody2", {
+                strong: (chunks: ReactNode) => (
+                  <Text as="span" weight="semibold" tone="muted">
+                    {chunks}
+                  </Text>
+                ),
+              })}
+            </Text>
+            <Text tone="muted">{t("disableLogin.dialogBody3")}</Text>
           </AlertDialogDescription>
         </AlertDialogHeader>
-        <form onSubmit={onConfirm} className="space-y-3">
-          <div className="space-y-2">
+        <Box as="form" onSubmit={onConfirm} className="space-y-3">
+          <Stack gap="2">
             <Label htmlFor="disable-auth-password">{t("disableLogin.confirmPasswordLabel")}</Label>
             <Input
               id="disable-auth-password"
@@ -389,11 +411,11 @@ function DisableAuthDialog({ username }: { username: string }) {
               required
               autoFocus
             />
-          </div>
+          </Stack>
           {error && (
-            <p className="text-sm text-destructive" role="alert">
+            <Text tone="destructive" role="alert">
               {error}
-            </p>
+            </Text>
           )}
           <AlertDialogFooter>
             {/* Plain buttons rather than AlertDialogCancel /
@@ -406,7 +428,7 @@ function DisableAuthDialog({ username }: { username: string }) {
               {submitting ? t("disableLogin.confirming") : t("disableLogin.confirm")}
             </Button>
           </AlertDialogFooter>
-        </form>
+        </Box>
       </AlertDialogContent>
     </AlertDialog>
   );
@@ -442,12 +464,16 @@ function EnableLoginCard() {
         </CardTitle>
         <CardDescription>
           {t.rich("enableLogin.description", {
-            strong: (chunks: ReactNode) => <strong>{chunks}</strong>,
+            strong: (chunks: ReactNode) => (
+              <Text as="span" weight="semibold" tone="muted">
+                {chunks}
+              </Text>
+            ),
           })}
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
-        <p className="text-sm text-muted-foreground">{t("enableLogin.body")}</p>
+        <Text tone="muted">{t("enableLogin.body")}</Text>
         <Button type="button" variant="brand" onClick={onEnable} disabled={submitting}>
           <ShieldCheck className="h-4 w-4" />
           {submitting ? t("enableLogin.submitting") : t("enableLogin.button")}

@@ -22,7 +22,10 @@ vi.mock("@/hooks/use-router", () => ({
   }),
 }));
 
-// Stub the wizard so we don't have to stand up Aurora / WebGL in jsdom.
+// Stub the wizard: these tests cover the provider's open/close contract, not
+// the multi-step flow. (It used to be stubbed to avoid standing up Aurora's
+// WebGL context in jsdom; 4.0.0 retired Aurora, but the stub still earns its
+// keep by keeping this suite off the whole wizard tree.)
 vi.mock("@/components/wizard", () => ({
   SetupWizard: () => <div data-testid="wizard" />,
 }));

@@ -2,16 +2,24 @@ import "react-big-calendar/lib/css/react-big-calendar.css";
 import "react-big-calendar/lib/addons/dragAndDrop/styles.css";
 import "@/styles/calendar.css";
 
+import {
+  Box,
+  Button,
+  Flex,
+  Slider,
+  Text,
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@fiestaboard/ui";
 import { addDays, format, getDay, parse, startOfWeek } from "date-fns";
 import { enUS } from "date-fns/locale/en-US";
 import { ChevronLeft, ChevronRight, ZoomIn, ZoomOut } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Calendar, dateFnsLocalizer, Views } from "react-big-calendar";
-import withDragAndDrop, { type EventInteractionArgs } from "react-big-calendar/lib/addons/dragAndDrop";
+import withDragAndDropImport, { type EventInteractionArgs } from "react-big-calendar/lib/addons/dragAndDrop";
 
-import { Button } from "@/components/ui/button";
-import { Slider } from "@/components/ui/slider";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import type { Collection, Overlap, Page, ScheduleEntry } from "@/lib/api";
 import { api } from "@/lib/api";
 import {
@@ -36,6 +44,16 @@ const localizer = dateFnsLocalizer({
   getDay,
   locales,
 });
+
+// The dragAndDrop addon is a Babel-compiled CJS file (`exports.default`).
+// Vite 8 resolves a default import of CJS to `module.exports` itself (Node
+// semantics — see the "Consistent CommonJS Interop" migration note), so the
+// import is the `{ __esModule, default }` exports object there, while older
+// bundlers hand us the unwrapped function. Calling the object sent the
+// /schedule route chunk into React Router's reload-on-failed-module loop
+// (#1381). Unwrap whichever shape we were given.
+const withDragAndDrop = ((withDragAndDropImport as unknown as { default?: typeof withDragAndDropImport }).default ??
+  withDragAndDropImport) as typeof withDragAndDropImport;
 
 // Create DnD-enabled calendar
 const DnDCalendar = withDragAndDrop<CalendarEvent>(Calendar);
@@ -89,7 +107,8 @@ export function ScheduleCalendarView({
   // Track mobile state
   const [isMobile, setIsMobile] = useState(false);
   const [mobileStartDay, setMobileStartDay] = useState(0); // 0 = Sunday
-  const containerRef = useRef<HTMLDivElement>(null);
+  // Typed as HTMLElement (not HTMLDivElement) to satisfy Box's ref contract; only used as a ref target.
+  const containerRef = useRef<HTMLElement>(null);
 
   // Zoom state – persisted to localStorage
   const [zoomIndex, setZoomIndex] = useState<number>(() => {
@@ -318,15 +337,15 @@ export function ScheduleCalendarView({
 
   return (
     <TooltipProvider>
-      <div className="schedule-calendar-wrapper flex flex-col sm:h-full">
+      <Box className="schedule-calendar-wrapper flex flex-col sm:h-full">
         {/* Top bar: mobile day navigation (left) + zoom slider (right).
             flex-wrap: day nav + zoom together exceed narrow phone widths;
             wrapping drops the zoom control to its own line instead of
             pushing it off-screen. */}
-        <div className="flex flex-wrap items-center justify-between gap-y-1 mb-2 px-1">
+        <Flex wrap align="center" justify="between" className="gap-y-1 mb-2 px-1">
           {/* Mobile day navigation */}
           {isMobile ? (
-            <div className="flex items-center gap-1">
+            <Flex align="center" gap="1">
               <Button
                 variant="ghost"
                 size="sm"
@@ -336,7 +355,7 @@ export function ScheduleCalendarView({
               >
                 <ChevronLeft className="h-4 w-4" />
               </Button>
-              <div className="flex gap-1">
+              <Flex gap="1">
                 {DAY_NAMES.map((day, idx) => (
                   <button
                     key={day}
@@ -350,7 +369,7 @@ export function ScheduleCalendarView({
                     {day[0]}
                   </button>
                 ))}
-              </div>
+              </Flex>
               <Button
                 variant="ghost"
                 size="sm"
@@ -360,15 +379,15 @@ export function ScheduleCalendarView({
               >
                 <ChevronRight className="h-4 w-4" />
               </Button>
-            </div>
+            </Flex>
           ) : (
-            <div />
+            <Box />
           )}
 
           {/* Zoom slider */}
           <Tooltip>
             <TooltipTrigger asChild>
-              <div className="ml-auto flex items-center gap-2">
+              <Flex align="center" gap="2" className="ml-auto">
                 <Button
                   variant="ghost"
                   size="sm"
@@ -395,18 +414,18 @@ export function ScheduleCalendarView({
                 >
                   <ZoomIn className="h-3.5 w-3.5" />
                 </Button>
-                <span className="text-[10px] font-medium text-muted-foreground w-8 tabular-nums">
+                <Text as="span" weight="medium" tone="muted" className="text-[10px] w-8 tabular-nums">
                   {ZOOM_PRESETS[zoomIndex][0]}
-                </span>
-              </div>
+                </Text>
+              </Flex>
             </TooltipTrigger>
             <TooltipContent side="bottom">
               {zoomStep === 1 ? "1-minute grid" : `${zoomStep}-minute grid`}
             </TooltipContent>
           </Tooltip>
-        </div>
+        </Flex>
 
-        <div
+        <Box
           ref={containerRef}
           className={`schedule-calendar-container flex-1 min-h-0 ${isMobile ? "schedule-calendar-mobile" : ""}`}
           data-start-day={mobileStartDay}
@@ -451,8 +470,8 @@ export function ScheduleCalendarView({
             resizableAccessor={(event: CalendarEvent) => event.resource.kind !== "silence"}
             longPressThreshold={150}
           />
-        </div>
-      </div>
+        </Box>
+      </Box>
     </TooltipProvider>
   );
 }

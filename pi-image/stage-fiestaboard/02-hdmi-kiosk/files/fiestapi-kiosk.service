@@ -1,0 +1,48 @@
+[Unit]
+Description=FiestaPi HDMI kiosk (FiestaPanel on the connected screen)
+Documentation=https://fiestaboard.app/docs/features/fiestapanel
+# Opt-in: the kiosk (and its ~200 MB of Chromium RSS) only runs when the
+# user dropped the flag file on the boot partition. Delete the file and
+# reboot to reclaim the memory — important on the 1 GB Pi 3B.
+ConditionPathExists=/boot/firmware/fiestapi-hdmi.txt
+After=fiestaboard.service systemd-user-sessions.service
+Wants=fiestaboard.service
+
+[Service]
+Type=simple
+User=kiosk
+# The wait script blocks until the FiestaBoard nginx answers so Chromium
+# never paints a connection-refused page on boot.
+ExecStartPre=/opt/fiestaboard/kiosk-wait.sh
+# cage = single-window Wayland kiosk compositor; Chromium renders the
+# reserved /p/display URL, which follows whichever panel the user marks
+# as "Display output" in Settings → Hardware → FiestaPanel.
+ExecStart=/usr/bin/cage -d -- /usr/bin/chromium \
+    --kiosk \
+    --ozone-platform=wayland \
+    --no-first-run \
+    --noerrdialogs \
+    --disable-infobars \
+    --disable-session-crashed-bubble \
+    --disable-features=TranslateUI \
+    --check-for-update-interval=31536000 \
+    --user-data-dir=/home/kiosk/.chromium-kiosk \
+    http://localhost:4420/p/display
+Restart=always
+RestartSec=5
+
+# Give cage a real seat + VT, per the cage systemd deployment guide.
+PAMName=login
+TTYPath=/dev/tty7
+TTYReset=yes
+TTYVHangup=yes
+TTYVTDisallocate=yes
+StandardInput=tty-fail
+StandardOutput=journal
+StandardError=journal
+UtmpIdentifier=tty7
+UtmpMode=user
+
+[Install]
+# Pi OS Lite boots to multi-user.target — graphical.target never fires here.
+WantedBy=multi-user.target

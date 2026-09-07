@@ -1,10 +1,5 @@
 "use client";
 
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { AlertTriangle, Bot, Check, Copy, KeyRound, Loader2, RefreshCw, Trash2 } from "lucide-react";
-import { useMemo, useState } from "react";
-import { toast } from "sonner";
-
 import {
   AlertDialog,
   AlertDialogAction,
@@ -14,20 +9,43 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import {
+  Badge,
+  Box,
+  Button,
+  Code,
   Dialog,
   DialogContent,
   DialogDescription,
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from "@/components/ui/dialog";
-import { Skeleton } from "@/components/ui/skeleton";
-import { api } from "@/lib/api";
+  Flex,
+  Input,
+  Label,
+  PageSection,
+  Skeleton,
+  Stack,
+  Text,
+  TextLink,
+} from "@fiestaboard/ui";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { AlertTriangle, Bot, Check, Copy, KeyRound, Loader2, Lock, RefreshCw, Trash2 } from "lucide-react";
+import { type ReactNode, useEffect, useMemo, useRef, useState } from "react";
+import { toast } from "sonner";
+
+import { useTranslations } from "@/i18n/translations";
+import { api, ApiError } from "@/lib/api";
+import { appUrl, stripBasePath } from "@/lib/base-path";
+import { isPanelPath } from "@/lib/chromeless";
+
+/** Env var that pins the MCP token when set — never translated. */
+const MCP_TOKEN_ENV_VAR = "FIESTABOARD_MCP_TOKEN";
+
+/** MCP endpoint path — never translated. */
+const MCP_ENDPOINT = "/api/mcp";
+
+/** npm package name of the stdio proxy Claude Desktop shells out to — never translated. */
+const MCP_REMOTE_PACKAGE = "mcp-remote";
 
 /**
  * Build the Claude Desktop config snippet the user will paste into
@@ -65,23 +83,92 @@ function buildClaudeDesktopConfig(token: string): string {
   return JSON.stringify(config, null, 2);
 }
 
+/**
+ * True when an error is the backend's "present the current MCP token"
+ * 401 challenge (#1825) — auth-disabled installs answer it on every
+ * /auth/mcp-token call once a token is configured.
+ */
+function isLockedError(err: unknown): boolean {
+  return err instanceof ApiError && err.status === 401;
+}
+
 export function McpSettings() {
+  const t = useTranslations("mcpSettings");
+  const tCommon = useTranslations("common");
   const queryClient = useQueryClient();
   const [revealedToken, setRevealedToken] = useState<string | null>(null);
   const [confirmingRotate, setConfirmingRotate] = useState(false);
   const [confirmingClear, setConfirmingClear] = useState(false);
   const [copied, setCopied] = useState<"token" | "config" | null>(null);
+  const [tokenInput, setTokenInput] = useState("");
 
-  const { data: status, isLoading } = useQuery({
+  // On auth-disabled installs the backend gates token management behind
+  // the *current* token once one exists (#1825). After a successful
+  // unlock the token is held here and passed as a bearer on every
+  // management call. A ref (not state) so the invalidation-triggered
+  // refetch inside mutation callbacks always sees the freshest value —
+  // a state closure would still hold the pre-rotate token.
+  const heldTokenRef = useRef<string | null>(null);
+
+  const { data: authStatus } = useQuery({
+    queryKey: ["auth-status"],
+    queryFn: api.getAuthStatus,
+    staleTime: 30_000,
+    retry: false,
+  });
+
+  const {
+    data: status,
+    isLoading,
+    error: statusError,
+  } = useQuery({
     queryKey: ["mcp-token-status"],
-    queryFn: () => api.getMcpTokenStatus(),
+    queryFn: () => api.getMcpTokenStatus(heldTokenRef.current ?? undefined),
+    // 401 means "locked" here, not a transient failure — don't retry it.
+    retry: (failureCount, err) => !isLockedError(err) && failureCount < 3,
+  });
+
+  const isLocked = authStatus?.mode === "disabled" && isLockedError(statusError);
+
+  // The token calls skip fetchApi's automatic login redirect because a
+  // 401 means "locked" on auth-disabled installs. When auth is ENABLED,
+  // though, a 401 here is a plain expired session — without this the
+  // component would sit on a skeleton forever. Mirror the shared
+  // redirect helper in @/lib/api (same guards, same redirect target).
+  const sessionExpired = authStatus !== undefined && authStatus.mode !== "disabled" && isLockedError(statusError);
+  useEffect(() => {
+    if (!sessionExpired) return;
+    if (typeof window === "undefined") return;
+    if (stripBasePath(window.location.pathname).startsWith("/login")) return;
+    if (isPanelPath(window.location.pathname)) return;
+    const target = encodeURIComponent(stripBasePath(window.location.pathname) + window.location.search);
+    window.location.assign(appUrl(`/login?redirect=${target}`));
+  }, [sessionExpired]);
+
+  const unlockMutation = useMutation({
+    mutationFn: (token: string) => api.getMcpTokenStatus(token),
+    onSuccess: (data, token) => {
+      heldTokenRef.current = token;
+      setTokenInput("");
+      queryClient.setQueryData(["mcp-token-status"], data);
+    },
+    onError: (err: Error) => {
+      toast.error(isLockedError(err) ? t("unlockFailedToast") : err.message);
+    },
   });
 
   const rotateMutation = useMutation({
-    mutationFn: () => api.rotateMcpToken(),
+    mutationFn: () => api.rotateMcpToken(heldTokenRef.current ?? undefined),
     onSuccess: ({ token }) => {
       setRevealedToken(token);
       setConfirmingRotate(false);
+      // Hold the fresh token unconditionally. In the locked flow the old
+      // bearer just became invalid; on a FIRST mint (auth disabled, no
+      // token yet, nothing held) the status refetch below would 401 and
+      // flip into the locked view — unmounting the reveal dialog before
+      // the user can copy the token. When session auth is doing the work
+      // the extra bearer is simply ignored by the backend.
+      heldTokenRef.current = token;
       queryClient.invalidateQueries({ queryKey: ["mcp-token-status"] });
     },
     onError: (err: Error) => {
@@ -91,10 +178,12 @@ export function McpSettings() {
   });
 
   const clearMutation = useMutation({
-    mutationFn: () => api.clearMcpToken(),
+    mutationFn: () => api.clearMcpToken(heldTokenRef.current ?? undefined),
     onSuccess: () => {
-      toast.success("MCP token revoked");
+      toast.success(t("toastTokenRevoked"));
       setConfirmingClear(false);
+      // No token configured any more — management is open again.
+      heldTokenRef.current = null;
       queryClient.invalidateQueries({ queryKey: ["mcp-token-status"] });
     },
     onError: (err: Error) => {
@@ -109,145 +198,158 @@ export function McpSettings() {
       setCopied(which);
       setTimeout(() => setCopied(null), 1500);
     } catch {
-      toast.error("Couldn't copy to clipboard");
+      toast.error(t("toastCopyFailed"));
     }
   };
 
   const configSnippet = useMemo(() => (revealedToken ? buildClaudeDesktopConfig(revealedToken) : ""), [revealedToken]);
 
+  if (isLocked) {
+    return (
+      <PageSection icon={<Lock />} title={t("title")} description={t("lockedDescription")} className="space-y-4">
+        <Stack gap="2" className="max-w-md">
+          <Label htmlFor="mcp-current-token">{t("lockedTokenLabel")}</Label>
+          <Flex gap="2">
+            <Input
+              id="mcp-current-token"
+              type="password"
+              autoComplete="off"
+              value={tokenInput}
+              onChange={(e) => setTokenInput(e.target.value)}
+              disabled={unlockMutation.isPending}
+            />
+            <Button
+              onClick={() => unlockMutation.mutate(tokenInput.trim())}
+              disabled={unlockMutation.isPending || !tokenInput.trim()}
+              className="gap-2"
+            >
+              {unlockMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+              {t("unlockButton")}
+            </Button>
+          </Flex>
+        </Stack>
+      </PageSection>
+    );
+  }
+
   if (isLoading || !status) {
     return (
-      <Card>
-        <CardHeader>
-          <Skeleton className="h-5 w-44" />
-          <Skeleton className="h-4 w-72" />
-        </CardHeader>
-      </Card>
+      <PageSection>
+        <Skeleton className="h-5 w-44" />
+        <Skeleton className="mt-2 h-4 w-72" />
+      </PageSection>
     );
   }
 
   const isPinnedByEnv = status.source === "env";
   const hasToken = status.configured;
-  const rotateLabel = hasToken ? "Rotate token" : "Generate token";
+  const rotateLabel = hasToken ? t("rotateTokenButton") : t("generateTokenButton");
 
   return (
     <>
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2 text-base">
-            <Bot className="h-4 w-4" />
-            MCP / external clients
-          </CardTitle>
-          <CardDescription>
-            A pre-shared token that lets Claude Desktop, Claude Code, and other MCP clients talk to this FiestaBoard.
-            The token authenticates as a single principal — scoped to the{" "}
-            <code className="font-mono text-xs">/api/mcp</code> endpoint only — so it can&apos;t edit pages or other
-            settings. See{" "}
-            <a
-              href="https://github.com/Fiestaboard/FiestaBoard/blob/main/docs/setup/MCP_CLIENTS.md"
-              target="_blank"
-              rel="noreferrer"
-              className="underline underline-offset-2"
+      <PageSection
+        icon={<Bot />}
+        title={t("title")}
+        description={
+          <>
+            {t.rich("description", {
+              endpoint: () => <Code className="font-mono text-xs">{MCP_ENDPOINT}</Code>,
+              link: (chunks: ReactNode) => (
+                <TextLink
+                  href="https://github.com/Fiestaboard/FiestaBoard/blob/main/docs/setup/MCP_CLIENTS.md"
+                  target="_blank"
+                  rel="noreferrer"
+                  className="underline underline-offset-2"
+                >
+                  {chunks}
+                </TextLink>
+              ),
+            })}
+          </>
+        }
+        className="space-y-4"
+      >
+        <Flex align="center" gap="2">
+          <Text as="span" size="sm" weight="medium">
+            {t("statusLabel")}
+          </Text>
+          {isPinnedByEnv ? (
+            <Badge variant="secondary" className="gap-1.5">
+              <KeyRound className="h-3 w-3" />
+              {t("pinnedByEnvBadge", { envVar: MCP_TOKEN_ENV_VAR })}
+            </Badge>
+          ) : hasToken ? (
+            <Badge variant="default" className="gap-1.5 bg-emerald-600 hover:bg-emerald-600">
+              <Check className="h-3 w-3" />
+              {t("configuredBadge")}
+            </Badge>
+          ) : (
+            <Badge variant="outline">{tCommon("notConfigured")}</Badge>
+          )}
+        </Flex>
+
+        {isPinnedByEnv && (
+          <Text tone="muted">
+            {t.rich("pinnedByEnvDescription", {
+              envVar: () => <Code className="font-mono text-xs">{MCP_TOKEN_ENV_VAR}</Code>,
+              envFile: () => <Code className="font-mono text-xs">.env</Code>,
+            })}
+          </Text>
+        )}
+
+        {!isPinnedByEnv && !hasToken && <Text tone="muted">{t("noTokenDescription")}</Text>}
+
+        {!isPinnedByEnv && hasToken && <Text tone="muted">{t("activeTokenDescription")}</Text>}
+
+        {!isPinnedByEnv && (
+          <Flex wrap gap="2">
+            <Button
+              onClick={() => setConfirmingRotate(true)}
+              disabled={rotateMutation.isPending}
+              variant="default"
+              className="gap-2"
             >
-              MCP client setup
-            </a>{" "}
-            for client-specific quirks (Desktop needs an stdio proxy; claude.ai web Connectors require public HTTPS and
-            OAuth, so they won&apos;t reach a LAN host).
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="flex items-center gap-2">
-            <span className="text-sm font-medium">Status:</span>
-            {isPinnedByEnv ? (
-              <Badge variant="secondary" className="gap-1.5">
-                <KeyRound className="h-3 w-3" />
-                Pinned by FIESTABOARD_MCP_TOKEN
-              </Badge>
-            ) : hasToken ? (
-              <Badge variant="default" className="gap-1.5 bg-emerald-600 hover:bg-emerald-600">
-                <Check className="h-3 w-3" />
-                Configured
-              </Badge>
-            ) : (
-              <Badge variant="outline">Not configured</Badge>
-            )}
-          </div>
-
-          {isPinnedByEnv && (
-            <p className="text-sm text-muted-foreground">
-              The active token is set by the <code className="font-mono text-xs">FIESTABOARD_MCP_TOKEN</code>{" "}
-              environment variable. Unset it in your <code className="font-mono text-xs">.env</code> and restart the
-              container before managing the token from this UI.
-            </p>
-          )}
-
-          {!isPinnedByEnv && !hasToken && (
-            <p className="text-sm text-muted-foreground">
-              No token is configured. External MCP clients will fall back to cookie auth, which Claude Desktop / Claude
-              Code don&apos;t support — they&apos;ll fail registration with an opaque error. Generate a token to unblock
-              them.
-            </p>
-          )}
-
-          {!isPinnedByEnv && hasToken && (
-            <p className="text-sm text-muted-foreground">
-              A token is configured and active. Rotate it to invalidate the previous one (any client still using the old
-              token will start receiving 401), or revoke it entirely to fall back to cookie-only auth.
-            </p>
-          )}
-
-          {!isPinnedByEnv && (
-            <div className="flex flex-wrap gap-2">
+              {rotateMutation.isPending ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <RefreshCw className="h-4 w-4" />
+              )}
+              {rotateLabel}
+            </Button>
+            {hasToken && (
               <Button
-                onClick={() => setConfirmingRotate(true)}
-                disabled={rotateMutation.isPending}
-                variant="default"
+                onClick={() => setConfirmingClear(true)}
+                disabled={clearMutation.isPending}
+                variant="outline"
                 className="gap-2"
               >
-                {rotateMutation.isPending ? (
+                {clearMutation.isPending ? (
                   <Loader2 className="h-4 w-4 animate-spin" />
                 ) : (
-                  <RefreshCw className="h-4 w-4" />
+                  <Trash2 className="h-4 w-4" />
                 )}
-                {rotateLabel}
+                {t("revokeTokenButton")}
               </Button>
-              {hasToken && (
-                <Button
-                  onClick={() => setConfirmingClear(true)}
-                  disabled={clearMutation.isPending}
-                  variant="outline"
-                  className="gap-2"
-                >
-                  {clearMutation.isPending ? (
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                  ) : (
-                    <Trash2 className="h-4 w-4" />
-                  )}
-                  Revoke token
-                </Button>
-              )}
-            </div>
-          )}
-        </CardContent>
-      </Card>
+            )}
+          </Flex>
+        )}
+      </PageSection>
 
       {/* "Are you sure you want to rotate?" — only shown when there's an
           existing token whose rotation would invalidate something. */}
       <AlertDialog open={confirmingRotate} onOpenChange={(open) => !open && setConfirmingRotate(false)}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>{hasToken ? "Rotate MCP token?" : "Generate MCP token?"}</AlertDialogTitle>
+            <AlertDialogTitle>{hasToken ? t("rotateConfirmTitle") : t("generateConfirmTitle")}</AlertDialogTitle>
             <AlertDialogDescription>
-              {hasToken
-                ? "Any client still using the previous token will be denied with a 401 + Bearer challenge on its next request. You'll see the new token once — store it somewhere safe (it's not readable from the UI again)."
-                : "You'll see the token once — store it somewhere safe (it's not readable from the UI again). External MCP clients will use it to authenticate to /api/mcp."}
+              {hasToken ? t("rotateConfirmDescription") : t("generateConfirmDescription", { endpoint: MCP_ENDPOINT })}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel disabled={rotateMutation.isPending}>Cancel</AlertDialogCancel>
+            <AlertDialogCancel disabled={rotateMutation.isPending}>{tCommon("cancel")}</AlertDialogCancel>
             <AlertDialogAction onClick={() => rotateMutation.mutate()} disabled={rotateMutation.isPending}>
               {rotateMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-              {hasToken ? "Rotate" : "Generate"}
+              {hasToken ? t("rotateConfirmButton") : t("generateConfirmButton")}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -256,21 +358,18 @@ export function McpSettings() {
       <AlertDialog open={confirmingClear} onOpenChange={(open) => !open && setConfirmingClear(false)}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Revoke MCP token?</AlertDialogTitle>
-            <AlertDialogDescription>
-              External MCP clients will start receiving 401 on their next request. You can always generate a new token
-              later.
-            </AlertDialogDescription>
+            <AlertDialogTitle>{t("revokeConfirmTitle")}</AlertDialogTitle>
+            <AlertDialogDescription>{t("revokeConfirmDescription")}</AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel disabled={clearMutation.isPending}>Cancel</AlertDialogCancel>
+            <AlertDialogCancel disabled={clearMutation.isPending}>{tCommon("cancel")}</AlertDialogCancel>
             <AlertDialogAction
               onClick={() => clearMutation.mutate()}
               disabled={clearMutation.isPending}
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
               {clearMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-              Revoke
+              {t("revokeConfirmButton")}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -286,20 +385,21 @@ export function McpSettings() {
       >
         <DialogContent className="sm:max-w-xl">
           <DialogHeader>
-            <DialogTitle>Save this token</DialogTitle>
+            <DialogTitle>{t("revealTitle")}</DialogTitle>
             <DialogDescription className="flex items-start gap-2">
               <AlertTriangle className="h-4 w-4 mt-0.5 flex-shrink-0 text-amber-500" />
-              <span>
-                FiestaBoard stores only what&apos;s needed to verify future requests — this is the only time the
-                plaintext value is shown. Copy it into your MCP client now.
-              </span>
+              <Text as="span" size="sm" tone="muted">
+                {t("revealDescription")}
+              </Text>
             </DialogDescription>
           </DialogHeader>
 
-          <div className="space-y-4">
-            <div>
-              <div className="mb-1.5 flex items-center justify-between">
-                <span className="text-sm font-medium">Token</span>
+          <Stack gap="4">
+            <Box>
+              <Flex align="center" justify="between" className="mb-1.5">
+                <Text as="span" size="sm" weight="medium">
+                  {t("tokenLabel")}
+                </Text>
                 <Button
                   size="sm"
                   variant="ghost"
@@ -307,17 +407,19 @@ export function McpSettings() {
                   className="h-7 gap-1.5"
                 >
                   {copied === "token" ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
-                  {copied === "token" ? "Copied" : "Copy"}
+                  {copied === "token" ? t("copiedButton") : t("copyButton")}
                 </Button>
-              </div>
-              <code className="block w-full break-all rounded bg-muted px-3 py-2 font-mono text-xs">
+              </Flex>
+              <Code className="block w-full break-all rounded bg-muted px-3 py-2 font-mono text-xs">
                 {revealedToken}
-              </code>
-            </div>
+              </Code>
+            </Box>
 
-            <div>
-              <div className="mb-1.5 flex items-center justify-between">
-                <span className="text-sm font-medium">Claude Desktop config snippet</span>
+            <Box>
+              <Flex align="center" justify="between" className="mb-1.5">
+                <Text as="span" size="sm" weight="medium">
+                  {t("configSnippetLabel")}
+                </Text>
                 <Button
                   size="sm"
                   variant="ghost"
@@ -325,52 +427,63 @@ export function McpSettings() {
                   className="h-7 gap-1.5"
                 >
                   {copied === "config" ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
-                  {copied === "config" ? "Copied" : "Copy"}
+                  {copied === "config" ? t("copiedButton") : t("copyButton")}
                 </Button>
-              </div>
-              <p className="mb-2 text-xs text-muted-foreground">
-                Paste this into{" "}
-                <code className="font-mono">~/Library/Application Support/Claude/claude_desktop_config.json</code>,
-                merging with anything that&apos;s already there, then fully quit and relaunch Claude Desktop (⌘Q —
-                closing the window isn&apos;t enough). Claude Desktop only supports stdio MCP servers, so this snippet
-                shells out to{" "}
-                <a
-                  href="https://www.npmjs.com/package/mcp-remote"
-                  target="_blank"
-                  rel="noreferrer"
-                  className="underline underline-offset-2"
-                >
-                  mcp-remote
-                </a>{" "}
-                via <code className="font-mono">npx</code> as a proxy — Node 18+ must be installed and{" "}
-                <code className="font-mono">npx</code> reachable from Claude Desktop&apos;s PATH. If it errors with{" "}
-                <code className="font-mono">command not found</code>, replace{" "}
-                <code className="font-mono">&quot;npx&quot;</code> with the absolute path from{" "}
-                <code className="font-mono">which npx</code>.
-              </p>
+              </Flex>
+              <Text size="xs" tone="muted" className="mb-2">
+                {t.rich("configSnippetDescription", {
+                  configPath: () => (
+                    <Code className="font-mono">~/Library/Application Support/Claude/claude_desktop_config.json</Code>
+                  ),
+                  mcpRemoteLink: () => (
+                    <TextLink
+                      href="https://www.npmjs.com/package/mcp-remote"
+                      target="_blank"
+                      rel="noreferrer"
+                      className="underline underline-offset-2"
+                    >
+                      {MCP_REMOTE_PACKAGE}
+                    </TextLink>
+                  ),
+                  npx: () => <Code className="font-mono">npx</Code>,
+                  commandNotFound: () => <Code className="font-mono">command not found</Code>,
+                  npxQuoted: () => <Code className="font-mono">&quot;npx&quot;</Code>,
+                  whichNpx: () => <Code className="font-mono">which npx</Code>,
+                })}
+              </Text>
               <pre className="max-h-64 overflow-auto rounded bg-muted px-3 py-2 font-mono text-xs">{configSnippet}</pre>
-            </div>
+            </Box>
 
-            <p className="text-xs text-muted-foreground">
-              <strong>Claude Code (CLI):</strong> talks HTTP directly — no proxy needed.
+            <Text size="xs" tone="muted">
+              {t.rich("claudeCodeDescription", {
+                label: (chunks: ReactNode) => (
+                  <Text as="span" size="xs" weight="semibold" tone="muted">
+                    {chunks}
+                  </Text>
+                ),
+              })}
               <br />
-              <code className="font-mono">
+              <Code className="font-mono">
                 claude mcp add fiestaboard --transport http --url{" "}
                 {typeof window !== "undefined"
                   ? `${window.location.protocol}//${window.location.host}`
                   : "http://fiestaboard.local:4420"}
                 /api/mcp/ --header &quot;Authorization: Bearer &lt;token&gt;&quot;
-              </code>
-            </p>
-            <p className="text-xs text-muted-foreground">
-              <strong>claude.ai web (Connectors):</strong> not supported for self-hosted FiestaBoard. The Connectors
-              flow requires a public HTTPS URL and OAuth 2.1 dynamic client registration, neither of which a LAN host
-              can provide. Use Desktop or Code instead.
-            </p>
-          </div>
+              </Code>
+            </Text>
+            <Text size="xs" tone="muted">
+              {t.rich("claudeWebDescription", {
+                label: (chunks: ReactNode) => (
+                  <Text as="span" size="xs" weight="semibold" tone="muted">
+                    {chunks}
+                  </Text>
+                ),
+              })}
+            </Text>
+          </Stack>
 
           <DialogFooter>
-            <Button onClick={() => setRevealedToken(null)}>I&apos;ve saved it</Button>
+            <Button onClick={() => setRevealedToken(null)}>{t("savedItButton")}</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

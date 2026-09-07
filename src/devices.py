@@ -31,6 +31,12 @@ NOTE_ROWS: int = 3
 NOTE_COLS: int = 15
 MAX_NOTES_PER_AXIS: int = 8
 
+# Board display names are user-editable (issue #1792) and are rendered in the
+# sidebar board selector, Settings cards and page headers, so cap them at
+# storage time rather than letting every call site truncate.
+MAX_BOARD_NAME_LENGTH: int = 64
+DEFAULT_BOARD_NAME: str = "My Board"
+
 NOTE_ARRAY_PRESETS: list[dict] = [
     {"id": "2_wide", "label": "2 side-by-side", "notes_wide": 2, "notes_tall": 1},  # → 3 rows × 30 cols
     {"id": "4_wide", "label": "4 side-by-side", "notes_wide": 4, "notes_tall": 1},  # → 3 rows × 60 cols
@@ -39,7 +45,71 @@ NOTE_ARRAY_PRESETS: list[dict] = [
     {"id": "2x2_grid", "label": "2×2 grid", "notes_wide": 2, "notes_tall": 2},  # → 6 rows × 30 cols
 ]
 
-VALID_API_MODES = ("local", "cloud")
+VALID_API_MODES = ("local", "cloud", "virtual")
+
+# Which glyph a board's character-code-62 flap physically carries (issue #1657).
+#
+# Code 62 is one code with two possible flaps. Vestaboard shipped every Flagship
+# with a degree sign until 2026, then replaced it with a heart on newly
+# manufactured units ("Every new Vestaboard purchased will ship with the heart in
+# place of the degree symbol"). They published no serial or date boundary, so two
+# boards that both report device_type "flagship" can draw different glyphs and
+# nothing FiestaBoard can query distinguishes them — the owner has to say.
+#
+# Note and note-array hardware only ever carried the heart, so this is a Flagship
+# setting; see BoardInstance.effective_code62_glyph.
+Code62Glyph = Literal["degree", "heart"]
+
+CODE62_GLYPHS = ("degree", "heart")
+
+# Sensitive per-tile fields for local note arrays (masked in API responses)
+TILE_SENSITIVE_FIELDS = {"local_api_key"}
+
+
+def normalize_note_array_tiles(tiles) -> list[dict]:
+    """Normalize a local note-array tile list.
+
+    Each tile addresses one physical Note over the local API:
+    ``{"row", "col", "host", "port", "local_api_key", "enabled"}`` with
+    ``row``/``col`` 0-indexed in note coordinates.
+
+    Drops non-dict entries and entries without a usable row/col, coerces field
+    types, and dedupes by (row, col) keeping the last occurrence. Does NOT
+    filter to the board's current notes_wide/notes_tall — out-of-range tiles
+    are preserved in storage so shrinking and re-growing an array never
+    destroys hard-to-reobtain local API keys. Filter at point of use via
+    BoardInstance.configured_tiles().
+    """
+    if not isinstance(tiles, list):
+        return []
+    by_pos: dict[tuple[int, int], dict] = {}
+    for tile in tiles:
+        if not isinstance(tile, dict):
+            continue
+        try:
+            row = int(tile.get("row"))
+            col = int(tile.get("col"))
+        except (TypeError, ValueError):
+            continue
+        if isinstance(tile.get("row"), bool) or isinstance(tile.get("col"), bool):
+            continue
+        if row < 0 or col < 0:
+            continue
+        port = tile.get("port")
+        if not isinstance(port, int) or isinstance(port, bool):
+            try:
+                port = int(port)
+            except (TypeError, ValueError):
+                port = 7000
+        by_pos[(row, col)] = {
+            "row": row,
+            "col": col,
+            "host": str(tile.get("host") or "").strip(),
+            "port": port,
+            "local_api_key": str(tile.get("local_api_key") or "").strip(),
+            "enabled": bool(tile.get("enabled", True)),
+        }
+    return [by_pos[key] for key in sorted(by_pos)]
 
 
 @dataclass
@@ -55,6 +125,20 @@ class BoardInstance:
     name: str = ""
     device_type: str = "flagship"
     board_color: str = "black"
+    # Which glyph this board's character-code-62 flap physically carries
+    # (issue #1657). Vestaboard shipped every Flagship with a degree sign until
+    # 2026, then replaced it with a heart on newly-manufactured units, and
+    # published no serial or date boundary — so nothing FiestaBoard can query
+    # tells a degree board from a heart board, and the owner has to say.
+    #
+    # Flagship only: Note and note-array hardware only ever carried the heart,
+    # so ``effective_code62_glyph`` ignores this for them. Defaults to "degree",
+    # the glyph every Flagship had before the change, so an existing install
+    # renders exactly as it did before this field existed.
+    #
+    # Display-only. Both glyphs are character code 62 on the wire; this never
+    # changes what is sent to a board.
+    code62_glyph: str = "degree"
     enabled: bool = True
     # Per-board pause flag (issue #970). When True, FiestaBoard does not push
     # anything to this board — polling loop, schedule rotation, manual sends,
@@ -72,20 +156,29 @@ class BoardInstance:
     note_array_token: str = ""  # X-Vestaboard-Token for note-array boards
     notes_wide: int = 1
     notes_tall: int = 1
+    # Local array mode: per-tile local API endpoints, one per physical Note.
+    # Only meaningful when device_type == "note_array" and api_mode == "local".
+    tiles: list = field(default_factory=list)
 
     def __post_init__(self):
         if self.device_type not in DEVICE_TYPES:
             self.device_type = "flagship"
         if self.board_color not in ("black", "white"):
             self.board_color = "black"
+        if self.code62_glyph not in CODE62_GLYPHS:
+            self.code62_glyph = "degree"
         if self.api_mode not in VALID_API_MODES:
             self.api_mode = "local"
         if not isinstance(self.enabled, bool):
             self.enabled = bool(self.enabled)
         if not isinstance(self.paused, bool):
             self.paused = bool(self.paused)
+        # Name is user-editable (issue #1792): strip, cap, and fall back to
+        # the default. "   " is truthy, so a falsy-only guard stored
+        # whitespace verbatim and rendered a blank sidebar row.
+        self.name = self.name.strip()[:MAX_BOARD_NAME_LENGTH] if isinstance(self.name, str) else ""
         if not self.name:
-            self.name = "My Board"
+            self.name = DEFAULT_BOARD_NAME
         # Normalize notes_wide / notes_tall: must be positive ints (bool is a
         # subclass of int, so reject it explicitly), clamped to MAX_NOTES_PER_AXIS
         if isinstance(self.notes_wide, bool) or not isinstance(self.notes_wide, int) or self.notes_wide < 1:
@@ -96,16 +189,85 @@ class BoardInstance:
             self.notes_tall = 1
         if self.notes_tall > MAX_NOTES_PER_AXIS:
             self.notes_tall = MAX_NOTES_PER_AXIS
+        # Tiles only make sense on note-array boards
+        self.tiles = normalize_note_array_tiles(self.tiles) if self.device_type == "note_array" else []
+
+    @property
+    def effective_code62_glyph(self) -> str:
+        """The glyph this board actually draws for character code 62.
+
+        Note and note-array hardware only ever shipped the heart flap, so the
+        glyph is a property of the device there and ``code62_glyph`` is not
+        theirs to set — a stale Flagship preference must not make a Note draw a
+        degree sign it does not physically have. Only Flagship is ambiguous, and
+        only there does the stored setting decide.
+
+        Read this rather than ``code62_glyph`` anywhere a board is rendered.
+        """
+        if is_note_array(self.device_type) or self.device_type == "note":
+            return "heart"
+        return self.code62_glyph
+
+    @property
+    def uses_local_tiles(self) -> bool:
+        """True when this note array is driven tile-by-tile over the local API.
+
+        Requires BOTH api_mode == "local" and at least one saved tile: legacy
+        array dicts created without an explicit api_mode default to "local"
+        but carry only a cloud token — those must keep driving via the cloud.
+        """
+        return is_note_array(self.device_type) and self.api_mode == "local" and bool(self.tiles)
 
     @property
     def is_connection_configured(self) -> bool:
+        if self.api_mode == "virtual":
+            # Virtual boards (FiestaPanel) render to memory; there is no
+            # connection to configure.
+            return True
         if is_note_array(self.device_type):
+            if self.uses_local_tiles:
+                # A partial array is usable: assigned tiles receive their
+                # slice, unassigned slots simply stay dark. Requiring every
+                # slot would flip a half-assembled array back to
+                # "unconfigured" and could re-trigger first-run detection.
+                return bool(self.configured_tiles())
             # notes_wide/notes_tall are always >= 1 (clamped in __post_init__),
             # so configuration hinges solely on having a token.
             return bool(self.note_array_token)
         if self.api_mode == "cloud":
             return bool(self.cloud_key)
         return bool(self.local_api_key and self.host)
+
+    @property
+    def has_connection_attempt(self) -> bool:
+        """True when the user has entered ANY connection detail for this board.
+
+        Deliberately weaker than :attr:`is_connection_configured`: a board
+        with a host but no key (or a note array missing its token) is
+        *misconfigured*, not *unconfigured*. First-run detection must use
+        this, not the strict check — a misconfigured board should surface
+        as a per-board error (#1813), never flip a working install back
+        into the setup wizard (#1760).
+        """
+        if self.api_mode == "virtual":
+            return True
+        return bool(self.host or self.local_api_key or self.cloud_key or self.note_array_token or self.tiles)
+
+    def configured_tiles(self) -> list[dict]:
+        """Return tiles that are in-range for the current W×H, enabled, and credentialed.
+
+        Single source of truth for "which tiles can actually be driven" —
+        used by the client factory, the configured check, and identify.
+        """
+        return [
+            t
+            for t in self.tiles
+            if t["row"] < self.notes_tall
+            and t["col"] < self.notes_wide
+            and t["enabled"]
+            and t["host"]
+            and t["local_api_key"]
+        ]
 
     def to_dict(self) -> dict:
         return asdict(self)
@@ -123,6 +285,11 @@ class BoardInstance:
             name=data.get("name", ""),
             device_type=data.get("device_type", "flagship"),
             board_color=data.get("board_color", "black"),
+            # A board saved before this field existed has no key here, and the
+            # default is "degree" — the glyph every Flagship carried before
+            # Vestaboard changed the flap — so no stored board changes how it
+            # renders and no migration is needed (issue #1657).
+            code62_glyph=data.get("code62_glyph", "degree"),
             enabled=data.get("enabled", True),
             paused=data.get("paused", False),
             schedule_enabled=data.get("schedule_enabled", False),
@@ -134,6 +301,7 @@ class BoardInstance:
             note_array_token=(data.get("note_array_token") or "").strip(),
             notes_wide=data.get("notes_wide", 1),
             notes_tall=data.get("notes_tall", 1),
+            tiles=data.get("tiles") or [],
         )
 
 
@@ -213,6 +381,64 @@ def note_array_dimensions(notes_wide: int, notes_tall: int) -> DeviceDimensions:
 def is_note_array(device_type: str) -> bool:
     """Return True if device_type is 'note_array'."""
     return device_type == "note_array"
+
+
+def slice_note_array_grid(
+    grid: list[list[int]], notes_wide: int, notes_tall: int
+) -> dict[tuple[int, int], list[list[int]]]:
+    """Slice a full note-array grid into per-tile 3×15 subgrids.
+
+    The grid must be exactly (notes_tall * NOTE_ROWS) × (notes_wide * NOTE_COLS).
+    Returns subgrids keyed by (row, col) in note coordinates, 0-indexed.
+
+    Raises ValueError if the grid does not match the expected dimensions.
+    """
+    dims = note_array_dimensions(notes_wide, notes_tall)
+    if len(grid) != dims.rows or any(len(row) != dims.cols for row in grid):
+        raise ValueError(f"Grid must be exactly {dims.rows}×{dims.cols} for a {notes_wide}×{notes_tall} note array")
+    return {
+        (tr, tc): [grid[tr * NOTE_ROWS + i][tc * NOTE_COLS : (tc + 1) * NOTE_COLS] for i in range(NOTE_ROWS)]
+        for tr in range(notes_tall)
+        for tc in range(notes_wide)
+    }
+
+
+def stitch_note_array_grid(
+    subgrids: dict[tuple[int, int], list[list[int]]],
+    notes_wide: int,
+    notes_tall: int,
+    fill: int = 0,
+) -> list[list[int]]:
+    """Stitch per-tile 3×15 subgrids back into a full note-array grid.
+
+    Inverse of slice_note_array_grid. Missing or malformed subgrids leave
+    their slot filled with ``fill``.
+    """
+    dims = note_array_dimensions(notes_wide, notes_tall)
+    grid = [[fill] * dims.cols for _ in range(dims.rows)]
+    for (tr, tc), sub in subgrids.items():
+        if tr < 0 or tr >= notes_tall or tc < 0 or tc >= notes_wide:
+            continue
+        if not isinstance(sub, list) or len(sub) != NOTE_ROWS:
+            continue
+        if any(not isinstance(r, list) or len(r) != NOTE_COLS for r in sub):
+            continue
+        for i in range(NOTE_ROWS):
+            grid[tr * NOTE_ROWS + i][tc * NOTE_COLS : (tc + 1) * NOTE_COLS] = sub[i]
+    return grid
+
+
+def identify_pattern(row: int, col: int, notes_wide: int) -> list[list[int]]:
+    """Render the identify flash for one tile: a 3×15 grid labeling its slot.
+
+    Shows the reading-order position number plus the (row, col) coordinate,
+    1-indexed for humans — mirroring OS monitor-arrangement identify.
+    """
+    from .text_to_board import text_to_board_array
+
+    position = row * notes_wide + col + 1
+    text = f"\nPOSITION {position}\nR{row + 1} C{col + 1}"
+    return text_to_board_array(text, rows=NOTE_ROWS, cols=NOTE_COLS)
 
 
 def is_valid_note_array_grid(rows: int, cols: int) -> bool:
@@ -315,6 +541,54 @@ def classify_dimensions(rows: int, cols: int) -> dict:
 
 # Default device type for backward compatibility
 DEFAULT_DEVICE_TYPE: DeviceType = "flagship"
+
+
+def size_key(device_type: str, notes_wide: int = 1, notes_tall: int = 1) -> str:
+    """Canonical family + resolved-size key for page<->board compatibility.
+
+    Examples: ``"flagship:6x22"``, ``"note:3x15"``, ``"note_array:6x30"``
+    (a 2x2 note grid). The device family is part of the key on purpose:
+    a Note page is NOT compatible with a 1x1 note array even though both
+    resolve to 3x15 — they are driven differently and are distinct families.
+
+    Falls back to the default device type for an unrecognized ``device_type``
+    so a bad stored value never crashes a validation path (mirrors
+    :func:`board_context_for`).
+    """
+    try:
+        dims = resolve_dimensions(device_type, notes_wide, notes_tall)
+    except ValueError:
+        device_type = DEFAULT_DEVICE_TYPE
+        dims = resolve_dimensions(device_type, notes_wide, notes_tall)
+    return f"{device_type}:{dims.rows}x{dims.cols}"
+
+
+def _geometry_of(obj) -> tuple[str, int, int]:
+    """Extract (device_type, notes_wide, notes_tall) from a page/board.
+
+    Accepts either a mapping (board dicts from settings storage) or an object
+    with attributes (Page models, BoardInstance). Missing or falsy values get
+    the platform defaults (flagship, 1x1).
+    """
+    if isinstance(obj, dict):
+        device_type = obj.get("device_type") or DEFAULT_DEVICE_TYPE
+        notes_wide = obj.get("notes_wide") or 1
+        notes_tall = obj.get("notes_tall") or 1
+    else:
+        device_type = getattr(obj, "device_type", None) or DEFAULT_DEVICE_TYPE
+        notes_wide = getattr(obj, "notes_wide", None) or 1
+        notes_tall = getattr(obj, "notes_tall", None) or 1
+    return str(device_type), int(notes_wide), int(notes_tall)
+
+
+def pages_compatible_with_board(page, board) -> bool:
+    """True when *page* renders 1:1 on *board*: EXACT :func:`size_key` match.
+
+    Family-aware: flagship != note even at identical dimensions, and note
+    arrays must match the resolved W×H grid exactly. Both arguments may be
+    Page/BoardInstance objects or raw board dicts.
+    """
+    return size_key(*_geometry_of(page)) == size_key(*_geometry_of(board))
 
 
 def board_context_for(device_type: str, notes_wide: int = 1, notes_tall: int = 1) -> BoardContext:

@@ -1,5 +1,9 @@
 import prettierConfig from "eslint-config-prettier";
 import i18nextPlugin from "eslint-plugin-i18next";
+// The rule shallow-merges its option object over its own defaults, so a bare
+// `words: { exclude: [...] }` REPLACES the plugin's default excludes instead of
+// extending them. Import the defaults and spread them back in.
+import i18nextDefaults from "eslint-plugin-i18next/lib/options/defaults.js";
 import jsxA11y from "eslint-plugin-jsx-a11y";
 import reactPlugin from "eslint-plugin-react";
 import reactHooks from "eslint-plugin-react-hooks";
@@ -92,22 +96,219 @@ const eslintConfig = [
     },
   },
   {
-    // i18n: catch hardcoded user-facing strings in JSX that should be translated
+    // i18n: catch hardcoded user-facing strings in JSX that should be translated.
+    // Errors, not warnings — every string rendered to a user has to exist in all
+    // 14 locale files under messages/ (issue #1567).
     plugins: {
       i18next: i18nextPluginFlatConfigAdapter,
     },
+    // Storybook stories and unit tests are developer-facing fixtures that never
+    // render to an end user, so their copy is deliberately untranslated. They are
+    // already exempted from other app-only rules further down this config.
+    ignores: ["**/*.stories.{ts,tsx}", "**/__tests__/**", "**/*.test.{ts,tsx}", "**/*.spec.{ts,tsx}", "tests/**"],
     rules: {
       "i18next/no-literal-string": [
-        "warn",
+        "error",
         {
           mode: "jsx-text-only",
+          // NOTE: inert under `jsx-text-only` — that mode only visits literals
+          // whose direct parent is a JSXElement/JSXFragment, so attribute
+          // values are never reached. Kept so the intent survives if the mode
+          // is ever widened to "jsx-only". The literal `aria-label` / `title`
+          // values that existed when #1567 landed were translated by hand;
+          // enforcing them needs "jsx-only", which also pulls in every string
+          // inside a JSX expression container (ternaries, toasts) — a separate
+          // sweep.
           "jsx-attributes": {
             include: ["title", "placeholder", "alt", "aria-label"],
           },
+          "jsx-components": {
+            // `Code` / `CodeChip` render shell commands, file paths, env var
+            // names and template syntax. Those are literal by definition and
+            // must NOT be translated, so their children are exempt.
+            exclude: [...i18nextDefaults["jsx-components"].exclude, "Code", "CodeChip"],
+          },
           words: {
-            exclude: ["FiestaBoard", "Vestaboard", "•", "&middot;"],
+            exclude: [
+              ...i18nextDefaults.words.exclude,
+              // Brand names are identical in every locale.
+              "FiestaBoard",
+              "Vestaboard",
+              // Runs of punctuation / symbols / whitespace with no letters in
+              // them — "*", "(", ")", "—", "·", "×", "→", "⌘↵". These are
+              // typography around a neighbouring {t(...)} call, not copy. The
+              // plugin's own ASCII-only default misses the non-ASCII ones.
+              /^[\p{P}\p{S}\s]+$/u,
+              // Emoji sequences (ZWJ + variation selectors), e.g. "🏳️‍🌈".
+              /^[\p{Emoji}‍️\s]+$/u,
+            ],
           },
           "should-validate-template": false,
+        },
+      ],
+    },
+  },
+  {
+    // Guard against HA-Ingress regressions (the exact bug in
+    // Fiestaboard/FiestaBoard-Home-Assistant-App#48): URLs that bypass the
+    // runtime base-path prefix (lib/base-path.ts) 404 behind Home Assistant
+    // Ingress. Two banned shapes:
+    //   1. Hard-coded "/api..." string/template literals — use apiUrl().
+    //   2. Root-relative literals passed to location.assign()/replace() or
+    //      assigned to location.href — hard navigations skip React Router's
+    //      basename handling, so they must go through appUrl().
+    // base-path.ts itself and mcp-settings.tsx (a display-only URL for
+    // external MCP clients that connect via the LAN port, never through
+    // Ingress) are exempt.
+    files: ["src/**/*.{ts,tsx}", "app/**/*.{ts,tsx}"],
+    ignores: ["src/__tests__/**", "src/lib/base-path.ts", "src/components/settings/mcp-settings.tsx"],
+    rules: {
+      "no-restricted-syntax": [
+        "error",
+        {
+          selector: "Literal[value=/^\\u002Fapi(\\u002F|$)/]",
+          message:
+            'Hard-coded "/api" URLs break HA Ingress (issue #48). Build the URL with apiUrl() from "@/lib/base-path".',
+        },
+        {
+          selector: "TemplateElement[value.raw=/^\\u002Fapi(\\u002F|$)/]",
+          message:
+            'Hard-coded "/api" URLs break HA Ingress (issue #48). Build the URL with apiUrl() from "@/lib/base-path".',
+        },
+        {
+          selector:
+            ":matches(CallExpression[callee.object.property.name='location'], CallExpression[callee.object.name='location'])[callee.property.name=/^(assign|replace)$/] > Literal[value=/^\\u002F(?!\\u002F)/]",
+          message:
+            'Root-relative hard navigations break HA Ingress (issue #48). Wrap the path with appUrl() from "@/lib/base-path".',
+        },
+        {
+          selector:
+            ":matches(CallExpression[callee.object.property.name='location'], CallExpression[callee.object.name='location'])[callee.property.name=/^(assign|replace)$/] > TemplateLiteral[quasis.0.value.raw=/^\\u002F(?!\\u002F)/]",
+          message:
+            'Root-relative hard navigations break HA Ingress (issue #48). Wrap the path with appUrl() from "@/lib/base-path".',
+        },
+        {
+          selector:
+            "AssignmentExpression[left.property.name='href']:matches([left.object.property.name='location'], [left.object.name='location']) > Literal[value=/^\\u002F(?!\\u002F)/]",
+          message:
+            'Root-relative hard navigations break HA Ingress (issue #48). Wrap the path with appUrl() from "@/lib/base-path".',
+        },
+        {
+          selector:
+            "AssignmentExpression[left.property.name='href']:matches([left.object.property.name='location'], [left.object.name='location']) > TemplateLiteral[quasis.0.value.raw=/^\\u002F(?!\\u002F)/]",
+          message:
+            'Root-relative hard navigations break HA Ingress (issue #48). Wrap the path with appUrl() from "@/lib/base-path".',
+        },
+        // Static-asset literals in JSX `src` attributes land in the JS
+        // bundle, where the minifier's quote style (oxc emits backticks)
+        // makes nginx sub_filter rewriting unreliable — route them through
+        // appUrl() so the runtime basename is applied instead. (root.tsx's
+        // links()/meta() output is exempt by shape: those are object `href`
+        // properties rendered into the HTML document, which sub_filter
+        // rewrites reliably — not JSX `src` attributes.)
+        // Child (not descendant) combinators: a literal already wrapped in
+        // appUrl(...) sits inside a CallExpression and must not match.
+        {
+          selector:
+            "JSXAttribute[name.name='src'] > Literal[value=/^\\u002F(icons\\u002F|favicon\\.ico$|manifest\\.json$)/]",
+          message:
+            'Absolute asset URLs in JSX bypass the HA Ingress base path. Wrap the path with appUrl() from "@/lib/base-path".',
+        },
+        {
+          selector:
+            "JSXAttribute[name.name='src'] > JSXExpressionContainer > Literal[value=/^\\u002F(icons\\u002F|favicon\\.ico$|manifest\\.json$)/]",
+          message:
+            'Absolute asset URLs in JSX bypass the HA Ingress base path. Wrap the path with appUrl() from "@/lib/base-path".',
+        },
+        {
+          selector:
+            "JSXAttribute[name.name='src'] > JSXExpressionContainer > TemplateLiteral > TemplateElement[value.raw=/^\\u002F(icons\\u002F|favicon\\.ico$|manifest\\.json$)/]",
+          message:
+            'Absolute asset URLs in JSX bypass the HA Ingress base path. Wrap the path with appUrl() from "@/lib/base-path".',
+        },
+      ],
+    },
+  },
+  {
+    // Design-system internals must be reached through @fiestaboard/ui.
+    // These packages were removed from web/package.json when the design
+    // system was extracted to FiestaUI — importing them directly would
+    // re-couple the app to them (and break, since they are no longer
+    // direct dependencies).
+    files: ["src/**/*.{ts,tsx}", "app/**/*.{ts,tsx}"],
+    rules: {
+      "no-restricted-imports": [
+        "error",
+        {
+          paths: [
+            { name: "clsx", message: "Use cn from @fiestaboard/ui (or @/lib/utils)." },
+            { name: "tailwind-merge", message: "Use cn from @fiestaboard/ui (or @/lib/utils)." },
+            { name: "class-variance-authority", message: "Variants belong in the FiestaUI design system." },
+            {
+              name: "ogl",
+              message:
+                "WebGL visuals belong in the FiestaUI design system — and 4.0.0 retired the last one (Aurora). A page backdrop is BoardBackdrop.",
+            },
+            { name: "react-resizable-panels", message: "No longer a direct dependency." },
+          ],
+          patterns: [
+            {
+              group: ["@base-ui/react", "@base-ui/react/*"],
+              message: "UI primitives live in @fiestaboard/ui — import the wrapper, not Base UI directly.",
+            },
+          ],
+        },
+      ],
+    },
+  },
+  // Design-system enforcement: app code renders @fiestaboard/ui components,
+  // not raw HTML. Allowlisted leaves (svg, canvas, iframe, img, br, em,
+  // small, kbd, pre, figure, dl, dt, dd) are simply not listed here.
+  {
+    files: ["app/**/*.tsx", "src/**/*.tsx"],
+    ignores: ["src/**/__tests__/**", "**/*.stories.tsx"],
+    rules: {
+      "react/forbid-elements": [
+        "error",
+        {
+          forbid: [
+            { element: "div", message: "Use Flex/Stack/Grid for layout, or Box (@fiestaboard/ui)" },
+            { element: "span", message: 'Use Text as="span" (@fiestaboard/ui)' },
+            { element: "p", message: "Use Text (@fiestaboard/ui)" },
+            { element: "h1", message: "Use PageHeader (@fiestaboard/ui)" },
+            { element: "h2", message: "Use Heading level={2} (@fiestaboard/ui)" },
+            { element: "h3", message: "Use Heading level={3} (@fiestaboard/ui)" },
+            { element: "h4", message: "Use Heading level={4} (@fiestaboard/ui)" },
+            { element: "h5", message: "Use Heading (@fiestaboard/ui)" },
+            { element: "h6", message: "Use Heading (@fiestaboard/ui)" },
+            { element: "ul", message: "Use List (@fiestaboard/ui)" },
+            { element: "ol", message: 'Use List as="ol" (@fiestaboard/ui)' },
+            { element: "li", message: "Use ListItem (@fiestaboard/ui)" },
+            { element: "section", message: 'Use Box as="section" (@fiestaboard/ui)' },
+            { element: "main", message: 'Use MainContent or Box as="main" (@fiestaboard/ui)' },
+            { element: "header", message: 'Use Box as="header" (@fiestaboard/ui)' },
+            { element: "footer", message: 'Use Box as="footer" (@fiestaboard/ui)' },
+            { element: "nav", message: 'Use Box as="nav" (@fiestaboard/ui)' },
+            { element: "form", message: 'Use Box as="form" (@fiestaboard/ui)' },
+            { element: "textarea", message: "Use Textarea (@fiestaboard/ui)" },
+            { element: "select", message: "Use Select/SelectTrigger/SelectContent/SelectItem (@fiestaboard/ui)" },
+            { element: "table", message: "Use Table (@fiestaboard/ui)" },
+            { element: "thead", message: "Use TableHeader (@fiestaboard/ui)" },
+            { element: "tbody", message: "Use TableBody (@fiestaboard/ui)" },
+            { element: "tr", message: "Use TableRow (@fiestaboard/ui)" },
+            { element: "th", message: "Use TableHead (@fiestaboard/ui)" },
+            { element: "td", message: "Use TableCell (@fiestaboard/ui)" },
+            { element: "a", message: "Use TextLink, or the router Link for navigation (@fiestaboard/ui)" },
+            { element: "code", message: "Use Code (@fiestaboard/ui)" },
+            { element: "strong", message: 'Use Text as="span" weight="semibold" (@fiestaboard/ui)' },
+            // NEXT UP: button, input, label. Deliberately not forbidden yet —
+            // the remaining raw usages (~120 button / ~21 input / ~29 label)
+            // are not all replaceable with today's primitives. They need
+            // ToggleCard (button-as-selectable-card) and SecretInput
+            // (input + label + reveal toggle), which are being promoted into
+            // FiestaUI on a separate branch. Add all three here once those
+            // ship in a published @fiestaboard/ui and the call sites migrate.
+          ],
         },
       ],
     },
@@ -123,6 +324,9 @@ const eslintConfig = [
       "**/*.stories.{ts,tsx}",
       "vitest.config.{ts,mts}",
       "playwright.config.{ts,mts}",
+      // Standalone CLI utility scripts (run manually via `node scripts/*.mjs`,
+      // never bundled into the app) — their console output IS the feature.
+      "scripts/**",
     ],
     rules: {
       "no-console": "off",

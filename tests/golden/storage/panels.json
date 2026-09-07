@@ -1,0 +1,25 @@
+{
+  "schema_version": 5,
+  "panels": [
+    {
+      "id": "panel-golden-1",
+      "short_code": 1,
+      "name": "Golden Panel",
+      "board_id": "board-golden-1",
+      "screen_diagonal_inches": 55.0,
+      "screen_aspect_w": 16.0,
+      "screen_aspect_h": 9.0,
+      "calibration_scale": 1.0,
+      "animations_enabled": false,
+      "is_display": false,
+      "backdrop": "wall",
+      "auto_dim": {
+        "enabled": false,
+        "start": "22:00",
+        "end": "07:00"
+      },
+      "created_at": "2026-01-02T03:04:05+00:00",
+      "updated_at": "2026-01-02T03:04:05+00:00"
+    }
+  ]
+}

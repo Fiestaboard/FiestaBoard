@@ -101,7 +101,7 @@ jobs:
               if (p.startsWith('plugins/')) areaLabels.add('plugin');
               else if (p.startsWith('web/')) areaLabels.add('frontend');
               else if (p.startsWith('src/')) areaLabels.add('backend');
-              else if (p.startsWith('docs/') || p.startsWith('docs-site/')) areaLabels.add('docs');
+              else if (p.startsWith('docs/')) areaLabels.add('docs');
               if (p === 'requirements.txt' || p === 'package-lock.json' || p === 'web/package-lock.json') areaLabels.add('dependencies');
             }
 

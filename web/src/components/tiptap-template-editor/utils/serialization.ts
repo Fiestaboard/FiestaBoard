@@ -124,11 +124,7 @@ function serializeNodeContent(node: JSONContent): string {
     case "variable":
       const filters = node.attrs?.filters || [];
       const filterStr =
-        filters.length > 0
-          ? filters
-              .map((f: { name: string; args?: string[] }) => `|${f.name}${f.args ? ":" + f.args.join(",") : ""}`)
-              .join("")
-          : "";
+        filters.length > 0 ? filters.map((f: TemplateFilter) => `|${f.name}${serializeFilterArg(f)}`).join("") : "";
       return `{{${node.attrs?.pluginId}.${node.attrs?.field}${filterStr}}}`;
 
     case "colorTile":
@@ -150,6 +146,36 @@ function serializeNodeContent(node: JSONContent): string {
     default:
       return "";
   }
+}
+
+/**
+ * A parsed variable filter, e.g. `|pad:3` → `{ name: "pad", arg: "3" }`.
+ *
+ * `arg` (singular string) is the contract: it is what {@link parseVariable}
+ * produces, what the filter picker produces, and what VariableNode declares as
+ * its `filters` attribute. `args` is tolerated on read only — see below.
+ */
+export interface TemplateFilter {
+  name: string;
+  arg?: string;
+  /** @deprecated Legacy plural form; accepted on read, never written. */
+  args?: string[];
+}
+
+/**
+ * Render a filter's argument suffix (`":3"`, or `""` when it takes none).
+ *
+ * This serializer used to read `f.args` (a plural string ARRAY) while every
+ * producer writes `f.arg` (a singular string), so the branch never fired and
+ * every filter argument was silently dropped on save. `{{t.temp|pad:3}}`
+ * round-tripped to `{{t.temp|pad}}`, changing what the board renders. Read the
+ * canonical `arg` first; still accept the legacy `args` array so this stays a
+ * character-for-character match with @fiestaboard/ui's serializer.
+ */
+function serializeFilterArg(filter: TemplateFilter): string {
+  if (filter.arg !== undefined && filter.arg !== "") return `:${filter.arg}`;
+  if (filter.args && filter.args.length > 0) return `:${filter.args.join(",")}`;
+  return "";
 }
 
 /** Node types that are inline atoms (cursor can't sit inside them). */

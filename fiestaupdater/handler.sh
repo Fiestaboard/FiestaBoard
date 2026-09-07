@@ -495,6 +495,121 @@ handle_rollback() {
 }
 
 # ---------------------------------------------------------------------------
+# HDMI kiosk (FiestaPi): fixed enable/disable verbs backed by the retrofit
+# script baked into this image at /app/fiestapi-hdmi-setup.sh (a byte-exact
+# copy of scripts/fiestapi-hdmi-setup.sh — CI pins them together).
+#
+# The sidecar has no host mounts, but the Docker socket is host-root-
+# equivalent by design, so the worker runs the script inside the host's
+# own namespaces: a throwaway privileged container (using the service's
+# already-present image, which ships util-linux) nsenters PID 1 and feeds
+# the script over stdin. Only these two fixed actions exist — the API
+# never accepts a script or arguments from the caller.
+# ---------------------------------------------------------------------------
+HDMI_STATE_FILE="${STATE_DIR}/hdmi.json"
+HDMI_SETUP_SCRIPT="${FIESTAUPDATER_HDMI_SCRIPT:-/app/fiestapi-hdmi-setup.sh}"
+
+write_hdmi_state() {
+    local body="$1"
+    mkdir -p "$STATE_DIR" 2>/dev/null || {
+        log "could not create state dir ${STATE_DIR}"
+        return 0
+    }
+    local tmp="${HDMI_STATE_FILE}.tmp"
+    printf '%s' "$body" >"$tmp" 2>/dev/null && mv -f "$tmp" "$HDMI_STATE_FILE" 2>/dev/null \
+        || log "could not write hdmi state file"
+}
+
+# GET /hdmi/status — read-only, no auth (same policy as /last-update).
+handle_hdmi_status() {
+    if [ -f "$HDMI_STATE_FILE" ]; then
+        local body
+        body=$(cat "$HDMI_STATE_FILE" 2>/dev/null || echo '')
+        if [ -n "$body" ]; then
+            respond 200 OK "$body"
+            return
+        fi
+    fi
+    respond 200 OK '{"status":"unknown"}'
+}
+
+# POST /hdmi/enable | POST /hdmi/disable — queue the host-side change.
+# Args: <action>  ("enable" or "disable" — fixed by the dispatcher, never
+# taken from the request).
+handle_hdmi() {
+    local action="$1"
+    log "hdmi ${action} requested"
+    if [ ! -f "$HDMI_SETUP_SCRIPT" ]; then
+        log "hdmi setup script missing at ${HDMI_SETUP_SCRIPT}"
+        respond 500 "Internal Server Error" '{"error":"hdmi_script_missing"}'
+        return
+    fi
+
+    # Helper image: the service's current image is guaranteed present on
+    # the device and ships /usr/bin/nsenter (util-linux is part of its
+    # Debian base). Validate against the same strict pattern /rollback
+    # uses before interpolating anywhere.
+    local helper_image
+    helper_image=$(docker inspect --format '{{.Config.Image}}' "$SERVICE" 2>/dev/null || echo "")
+    if ! printf '%s' "$helper_image" | grep -qE '^[a-z0-9._/-]+(:[A-Za-z0-9._-]+)?$'; then
+        helper_image="fiestaboard/fiestaboard:latest"
+    fi
+
+    local started_at
+    started_at=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+    write_hdmi_state "{\"status\":\"in_progress\",\"action\":\"${action}\",\"started_at\":\"${started_at}\"}"
+
+    local logsink
+    if [ -e /proc/1/fd/2 ]; then
+        logsink=/proc/1/fd/2
+    else
+        logsink=/dev/null
+    fi
+
+    export FU_HDMI_ACTION="$action"
+    export FU_HDMI_SCRIPT="$HDMI_SETUP_SCRIPT"
+    export FU_HDMI_HELPER_IMAGE="$helper_image"
+    export FU_HDMI_STATE_FILE="$HDMI_STATE_FILE"
+    export FU_STATE_DIR="$STATE_DIR"
+
+    nohup bash -c '
+        set -u
+        _write_state() {
+            mkdir -p "$FU_STATE_DIR" 2>/dev/null || true
+            local tmp="${FU_HDMI_STATE_FILE}.tmp"
+            printf "%s" "$1" >"$tmp" 2>/dev/null && mv -f "$tmp" "$FU_HDMI_STATE_FILE" 2>/dev/null
+        }
+
+        script_arg=""
+        if [ "$FU_HDMI_ACTION" = "disable" ]; then
+            script_arg="--disable"
+        fi
+
+        echo "[fiestaupdater] hdmi ${FU_HDMI_ACTION}: running setup via host namespaces (helper=${FU_HDMI_HELPER_IMAGE})"
+        # -t 1 -m -u -i -n: enter PID 1 mount/uts/ipc/net namespaces so the
+        # script sees the real host (apt, systemd, /boot/firmware). stdin
+        # carries the script so nothing needs to exist on the host first.
+        if docker run --rm -i --privileged --pid=host --network=host \
+                --entrypoint /usr/bin/nsenter "$FU_HDMI_HELPER_IMAGE" \
+                -t 1 -m -u -i -n -- /bin/bash -s -- $script_arg \
+                < "$FU_HDMI_SCRIPT"; then
+            finished_at=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+            if [ "$FU_HDMI_ACTION" = "enable" ]; then
+                _write_state "{\"status\":\"enabled\",\"action\":\"enable\",\"finished_at\":\"${finished_at}\"}"
+            else
+                _write_state "{\"status\":\"disabled\",\"action\":\"disable\",\"finished_at\":\"${finished_at}\"}"
+            fi
+            echo "[fiestaupdater] hdmi ${FU_HDMI_ACTION}: done"
+        else
+            finished_at=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+            _write_state "{\"status\":\"failed\",\"action\":\"${FU_HDMI_ACTION}\",\"finished_at\":\"${finished_at}\",\"error\":\"setup_script_failed\"}"
+            echo "[fiestaupdater] hdmi ${FU_HDMI_ACTION}: FAILED (see above)"
+        fi
+    ' >>"$logsink" 2>&1 &
+    respond 202 Accepted "{\"status\":\"queued\",\"action\":\"hdmi_${action}\"}"
+}
+
+# ---------------------------------------------------------------------------
 # Main dispatch.
 # ---------------------------------------------------------------------------
 parse_request || { respond 400 "Bad Request" '{"error":"malformed_request"}'; exit 0; }
@@ -509,7 +624,10 @@ case "${REQ_METHOD} ${REQ_PATH}" in
     "GET /last-update")
         handle_last_update
         ;;
-    "POST /update"|"POST /rollback"|"POST /restart"|"POST /shutdown")
+    "GET /hdmi/status")
+        handle_hdmi_status
+        ;;
+    "POST /update"|"POST /rollback"|"POST /restart"|"POST /shutdown"|"POST /hdmi/enable"|"POST /hdmi/disable")
         # For routes that take a body (currently just /rollback), capture
         # it; for the others, drain Content-Length bytes so socat doesn't
         # keep the socket half-open.
@@ -531,10 +649,12 @@ case "${REQ_METHOD} ${REQ_PATH}" in
                 token="${REQ_AUTH#Bearer }"
                 if check_token "$token"; then
                     case "${REQ_METHOD} ${REQ_PATH}" in
-                        "POST /update")   handle_update ;;
-                        "POST /rollback") handle_rollback ;;
-                        "POST /restart")  handle_restart ;;
-                        "POST /shutdown") handle_shutdown ;;
+                        "POST /update")       handle_update ;;
+                        "POST /rollback")     handle_rollback ;;
+                        "POST /restart")      handle_restart ;;
+                        "POST /shutdown")     handle_shutdown ;;
+                        "POST /hdmi/enable")  handle_hdmi enable ;;
+                        "POST /hdmi/disable") handle_hdmi disable ;;
                     esac
                 else
                     log "auth failed (bad token)"

@@ -70,6 +70,187 @@ describe("ActivePageDisplay", () => {
     });
   });
 
+  it("links the active page name to its editor when a saved page is displayed", async () => {
+    // Issue #1473: when a Page generates the current display, the Dashboard
+    // should link straight to that page's editor so the user can edit it.
+    render(<ActivePageDisplay />, { wrapper: TestWrapper });
+
+    await waitFor(() => {
+      expect(screen.getByText("Weather Page")).toBeInTheDocument();
+    });
+
+    const editLink = screen.getByRole("link", { name: /Edit page "Weather Page"/i });
+    expect(editLink).toHaveAttribute("href", "/pages/edit/page-1");
+  });
+
+  it("renders the page name as a direct child of the link so hover styling reaches it", async () => {
+    // A descendant carrying its own text-* color class (e.g. <Text>, which
+    // always emits one) beats the anchor's inherited hover:text-primary, so the
+    // name would stay static on hover. Keep the name an unwrapped text node and
+    // the color on the anchor itself.
+    render(<ActivePageDisplay />, { wrapper: TestWrapper });
+
+    await waitFor(() => {
+      expect(screen.getByText("Weather Page")).toBeInTheDocument();
+    });
+
+    const editLink = screen.getByRole("link", { name: /Edit page "Weather Page"/i });
+    expect(editLink.className).toMatch(/hover:text-primary/);
+
+    const namedByOwnText = Array.from(editLink.childNodes).some(
+      (node) => node.nodeType === Node.TEXT_NODE && node.textContent?.trim() === "Weather Page",
+    );
+    expect(namedByOwnText).toBe(true);
+
+    // getAttribute, not .className — an <svg> descendant's className is an
+    // SVGAnimatedString rather than a string.
+    const coloredDescendants = Array.from(editLink.querySelectorAll("*")).filter((el) =>
+      /(^|\s)text-(foreground|muted-foreground|primary|destructive|info|success|warning)(\s|$)/.test(
+        el.getAttribute("class") ?? "",
+      ),
+    );
+    expect(coloredDescendants).toEqual([]);
+  });
+
+  it("does not render a page edit link when a collection is active", async () => {
+    // Collections aren't a single editable page, so no editor link.
+    server.use(
+      http.get(`${API_BASE}/settings/active-page`, () =>
+        HttpResponse.json({ page_id: "collection:test-collection-id" }),
+      ),
+      http.get(`${API_BASE}/collections`, () =>
+        HttpResponse.json({
+          collections: [
+            {
+              id: "collection:test-collection-id",
+              name: "Test Collection",
+              page_ids: ["page-1"],
+              selection_mode: "time",
+              time: { interval_seconds: 30 },
+              variable: null,
+              random: null,
+              created_at: "2025-01-01T00:00:00Z",
+            },
+          ],
+          total: 1,
+        }),
+      ),
+    );
+
+    render(<ActivePageDisplay />, { wrapper: TestWrapper });
+
+    await waitFor(() => {
+      expect(screen.getByText("Test Collection")).toBeInTheDocument();
+    });
+
+    expect(screen.queryByRole("link", { name: /Edit page/i })).not.toBeInTheDocument();
+  });
+
+  it("links the collection name and the page it is currently rendering when a collection is active", async () => {
+    // Issue #1513: a Collection decides which member page shows on the board.
+    // The Dashboard must link the collection (to edit its logic) AND the member
+    // page the collection is currently rendering (to edit that design).
+    server.use(
+      http.get(`${API_BASE}/settings/active-page`, () =>
+        HttpResponse.json({ page_id: "collection:test-collection-id", resolved_page_id: "page-1" }),
+      ),
+      http.get(`${API_BASE}/collections`, () =>
+        HttpResponse.json({
+          collections: [
+            {
+              id: "collection:test-collection-id",
+              name: "Test Collection",
+              page_ids: ["page-1"],
+              selection_mode: "time",
+              time: { interval_seconds: 30 },
+              variable: null,
+              random: null,
+              created_at: "2025-01-01T00:00:00Z",
+            },
+          ],
+          total: 1,
+        }),
+      ),
+    );
+
+    render(<ActivePageDisplay />, { wrapper: TestWrapper });
+
+    await waitFor(() => {
+      expect(screen.getByText("Test Collection")).toBeInTheDocument();
+    });
+
+    // Collection name links to the collections editor.
+    const collectionLink = screen.getByRole("link", { name: /Edit collection "Test Collection"/i });
+    expect(collectionLink).toHaveAttribute("href", "/collections");
+
+    // The member page the collection is currently rendering links to its editor.
+    const pageLink = screen.getByRole("link", { name: /Edit page "Weather Page"/i });
+    expect(pageLink).toHaveAttribute("href", "/pages/edit/page-1");
+  });
+
+  it("links to the scheduled page's editor when a schedule drives the display", async () => {
+    // Issue #1473 calls out complex schedules as the case where it's hardest to
+    // tell which saved page is on the board, so the link must follow the
+    // schedule's page — not whatever the manual active-page setting still says.
+    server.use(
+      http.get(`${API_BASE}/schedules/active/page`, () =>
+        HttpResponse.json({
+          page_id: "page-2",
+          source: "schedule",
+          schedule_enabled: true,
+          current_time: "09:00",
+          current_day: "monday",
+        }),
+      ),
+    );
+
+    render(<ActivePageDisplay />, { wrapper: TestWrapper });
+
+    await waitFor(() => {
+      expect(screen.getByText("Custom Template")).toBeInTheDocument();
+    });
+
+    const editLink = screen.getByRole("link", { name: /Edit page "Custom Template"/i });
+    expect(editLink).toHaveAttribute("href", "/pages/edit/page-2");
+    // The manual active page (page-1) is stale in schedule mode; it must not leak through.
+    expect(screen.queryByRole("link", { name: /Edit page "Weather Page"/i })).not.toBeInTheDocument();
+  });
+
+  it("names the page edit link so it contains the visible page name", async () => {
+    // The aria-label overrides the visible text, so WCAG 2.5.3 (Label in Name)
+    // requires the accessible name to still contain the name shown on screen —
+    // otherwise "click Weather Page" fails for speech-input users.
+    render(<ActivePageDisplay />, { wrapper: TestWrapper });
+
+    await waitFor(() => {
+      expect(screen.getByText("Weather Page")).toBeInTheDocument();
+    });
+
+    const editLink = screen.getByRole("link", { name: /Edit page "Weather Page"/i });
+    expect(editLink).toHaveAccessibleName(expect.stringContaining("Weather Page"));
+  });
+
+  it("does not render a page edit link during a schedule gap", async () => {
+    // No page is scheduled for the current time, so there is nothing to edit.
+    server.use(
+      http.get(`${API_BASE}/schedules/active/page`, () =>
+        HttpResponse.json({
+          page_id: null,
+          source: "schedule",
+          schedule_enabled: true,
+        }),
+      ),
+    );
+
+    render(<ActivePageDisplay />, { wrapper: TestWrapper });
+
+    await waitFor(() => {
+      expect(screen.getByText("Schedule gap (no default page set)")).toBeInTheDocument();
+    });
+
+    expect(screen.queryByRole("link", { name: /Edit page/i })).not.toBeInTheDocument();
+  });
+
   it("shows Change Page button in manual mode", async () => {
     render(<ActivePageDisplay />, { wrapper: TestWrapper });
 
@@ -339,5 +520,58 @@ describe("ActivePageDisplay", () => {
     );
 
     toastSpy.mockRestore();
+  });
+
+  it("shows an error toast when the page switches but the board send fails", async () => {
+    // Issue #1791: the backend persists the page but reports the render/send
+    // failure via error + sent_to_board=false on a 200 response. That must
+    // NOT be toasted as a success.
+    const errorToastSpy = vi.spyOn((await import("sonner")).toast, "error");
+    const successToastSpy = vi.spyOn((await import("sonner")).toast, "success");
+    server.use(
+      http.put(`${API_BASE}/settings/active-page`, () =>
+        HttpResponse.json({
+          status: "success",
+          page_id: "page-2",
+          sent_to_board: false,
+          paused: false,
+          board_id: null,
+          error: "Weather API unreachable",
+        }),
+      ),
+    );
+
+    const user = userEvent.setup();
+    render(<ActivePageDisplay />, { wrapper: TestWrapper });
+
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: /Change Page/i })).toBeInTheDocument();
+    });
+
+    await user.click(screen.getByRole("button", { name: /Change Page/i }));
+
+    await waitFor(() => {
+      expect(screen.getByText("Select Page")).toBeInTheDocument();
+    });
+
+    await waitFor(
+      () => {
+        expect(screen.queryByText("Custom Template")).toBeInTheDocument();
+      },
+      { timeout: 3000 },
+    );
+
+    await user.click(screen.getByText("Custom Template"));
+
+    await waitFor(
+      () => {
+        expect(errorToastSpy).toHaveBeenCalledWith("Page switched, but sending to the board failed");
+      },
+      { timeout: 3000 },
+    );
+    expect(successToastSpy).not.toHaveBeenCalledWith("Switched to active page");
+
+    errorToastSpy.mockRestore();
+    successToastSpy.mockRestore();
   });
 });

@@ -9,29 +9,40 @@
  */
 "use client";
 
+import {
+  Badge,
+  Box,
+  Flex,
+  Skeleton,
+  Text,
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@fiestaboard/ui";
+import type { ReactNodeViewProps } from "@tiptap/react";
 import { NodeViewWrapper } from "@tiptap/react";
 import { SquareFunction } from "lucide-react";
-import React, { useCallback, useEffect, useRef, useState } from "react";
+import React, { lazy, Suspense, useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 
-import { Badge } from "@/components/ui/badge";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { useTranslations } from "@/i18n/translations";
 
-import { FormulaEditorPanel } from "../components/FormulaEditorPanel";
+// Lazy-loaded — CodeMirror (+ the lucide-react icon barrel pulled in via
+// VariablePickerContent's "Variables" tab) is only needed once the formula
+// modal is actually opened, and keeping it out of the base TipTap editor
+// chunk is what keeps that chunk under the 500 kB warning threshold (#1575).
+const FormulaEditorPanel = lazy(() =>
+  import("../components/FormulaEditorPanel").then((m) => ({ default: m.FormulaEditorPanel })),
+);
 
-interface FormulaNodeViewProps {
-  node: {
-    attrs: {
-      expression: string;
-      autoOpen: boolean;
-    };
-  };
-  updateAttributes: (attrs: Partial<{ expression: string; autoOpen: boolean }>) => void;
-  deleteNode: () => void;
+/** Attributes FormulaNode declares (see extensions/formula-node.ts). */
+interface FormulaAttrs {
+  expression: string;
+  autoOpen: boolean;
 }
 
-export function FormulaNodeView({ node, updateAttributes, deleteNode }: FormulaNodeViewProps) {
+export function FormulaNodeView({ node, updateAttributes, deleteNode }: ReactNodeViewProps) {
   const t = useTranslations("formulaEditor");
   const { expression, autoOpen } = node.attrs;
   const [open, setOpen] = useState(false);
@@ -109,35 +120,47 @@ export function FormulaNodeView({ node, updateAttributes, deleteNode }: FormulaN
               }}
             >
               <SquareFunction className="w-2.5 h-2.5 flex-shrink-0" />
+              {/* Raw <span>: colored Badge inside contentEditable; <Text as="span">
+                  would reset the inherited pill color and text-[11px] is sub-xs
+                  grid geometry. Kept raw for correctness. */}
+              {/* eslint-disable-next-line react/forbid-elements -- span inside a colored Badge in TipTap contentEditable; Text as="span" would reset the inherited pill color and text-[11px] is sub-xs grid geometry */}
               <span className="font-mono text-[11px] leading-none">{preview}</span>
             </Badge>
           </TooltipTrigger>
           <TooltipContent>
-            <p className="font-mono text-xs">{"{{= " + expression + " }}"}</p>
-            <p className="text-xs text-muted-foreground mt-0.5">{t("clickToEditFormula")}</p>
+            <Text size="xs" className="font-mono">
+              {"{{= " + expression + " }}"}
+            </Text>
+            <Text size="xs" tone="muted" className="mt-0.5">
+              {t("clickToEditFormula")}
+            </Text>
           </TooltipContent>
         </Tooltip>
       </TooltipProvider>
 
       {open &&
         createPortal(
-          <div
-            className="fixed inset-0 z-[999] flex items-center justify-center p-4"
+          <Flex
+            align="center"
+            justify="center"
+            className="fixed inset-0 z-[999] p-4"
             onMouseDown={(e) => e.stopPropagation()}
           >
             {/* Backdrop — intentionally has no click handler to prevent accidental close */}
-            <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
+            <Box className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
 
             {/* Modal panel */}
-            <div className="relative rounded-lg border border-border bg-popover shadow-2xl max-h-[90vh] overflow-y-auto w-full max-w-[min(660px,90vw)]">
-              <FormulaEditorPanel
-                mode="edit"
-                initialExpr={expression}
-                onConfirm={handleConfirm}
-                onCancel={handleCancel}
-              />
-            </div>
-          </div>,
+            <Box className="relative rounded-lg border border-border bg-popover shadow-2xl max-h-[90vh] overflow-y-auto w-full max-w-[min(660px,90vw)]">
+              <Suspense fallback={<Skeleton className="h-64 w-full" />}>
+                <FormulaEditorPanel
+                  mode="edit"
+                  initialExpr={expression}
+                  onConfirm={handleConfirm}
+                  onCancel={handleCancel}
+                />
+              </Suspense>
+            </Box>
+          </Flex>,
           document.body,
         )}
     </NodeViewWrapper>

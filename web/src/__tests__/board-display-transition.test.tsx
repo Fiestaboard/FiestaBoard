@@ -69,13 +69,13 @@ describe("BoardDisplay Transition Out", () => {
     if (!firstTile) return;
 
     // Now put into loading state
-    rerender(<TestBoardDisplay initialLoading={true} message={message} />, { wrapper: TestWrapper });
+    rerender(<TestBoardDisplay initialLoading={true} message={message} />);
 
     // Wait for loading to start and let tiles cycle a bit
     await vi.advanceTimersByTimeAsync(500);
 
     // Now stop loading - tiles should transition from current position to target
-    rerender(<TestBoardDisplay initialLoading={false} message={message} />, { wrapper: TestWrapper });
+    rerender(<TestBoardDisplay initialLoading={false} message={message} />);
 
     // Advance a bit to let the transition state update
     await vi.advanceTimersByTimeAsync(100);
@@ -146,14 +146,14 @@ describe("BoardDisplay Transition Out", () => {
     const initialChar = firstTile.getAttribute("data-current-char");
 
     // Now put into loading state
-    rerender(<TestBoardDisplay initialLoading={true} message={message1} />, { wrapper: TestWrapper });
+    rerender(<TestBoardDisplay initialLoading={true} message={message1} />);
 
     // Let tiles cycle during loading
     await vi.advanceTimersByTimeAsync(500);
 
     // Transition: set new message and stop loading
     // First character changes from "H" to "W"
-    rerender(<TestBoardDisplay initialLoading={false} message={message2} />, { wrapper: TestWrapper });
+    rerender(<TestBoardDisplay initialLoading={false} message={message2} />);
 
     await vi.advanceTimersByTimeAsync(100);
 
@@ -215,12 +215,12 @@ describe("BoardDisplay Transition Out", () => {
     await vi.advanceTimersByTimeAsync(100);
 
     // Put into loading
-    rerender(<TestBoardDisplay initialLoading={true} message={message1} />, { wrapper: TestWrapper });
+    rerender(<TestBoardDisplay initialLoading={true} message={message1} />);
 
     await vi.advanceTimersByTimeAsync(100);
 
     // Transition to new message - second tile changes from "A" to "Z"
-    rerender(<TestBoardDisplay initialLoading={false} message={message2} />, { wrapper: TestWrapper });
+    rerender(<TestBoardDisplay initialLoading={false} message={message2} />);
 
     await vi.advanceTimersByTimeAsync(50);
 

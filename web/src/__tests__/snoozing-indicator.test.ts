@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 
+import type { IndicatorPosition } from "@/lib/snoozing-indicator";
 import { addSnoozingIndicator, parseLine, tokensToString } from "@/lib/snoozing-indicator";
 
 // Convenience: get the row at index `r` from the result, padded with spaces
@@ -16,7 +17,7 @@ describe("addSnoozingIndicator - position matrix on flagship (6x22)", () => {
   const NUM_COLS = 22;
   const TEXT = "SNOOZING";
 
-  function expectAtPosition(position: string, expectedRow: number, expectedStartCol: number) {
+  function expectAtPosition(position: IndicatorPosition, expectedRow: number, expectedStartCol: number) {
     const result = addSnoozingIndicator("", NUM_ROWS, NUM_COLS, TEXT, position);
     const lines = result.split("\n");
     expect(lines.length).toBe(NUM_ROWS);
@@ -53,7 +54,7 @@ describe("addSnoozingIndicator - position matrix on note (3x15)", () => {
   const NUM_COLS = 15;
   const TEXT = "SNOOZING";
 
-  function expectAtPosition(position: string, expectedRow: number, expectedStartCol: number) {
+  function expectAtPosition(position: IndicatorPosition, expectedRow: number, expectedStartCol: number) {
     const result = addSnoozingIndicator("", NUM_ROWS, NUM_COLS, TEXT, position);
     const lines = result.split("\n");
     expect(lines.length).toBe(NUM_ROWS);
@@ -96,7 +97,9 @@ describe("addSnoozingIndicator - text behavior", () => {
   });
 
   it("falls back to center when position is unknown", () => {
-    const result = addSnoozingIndicator("", 6, 22, "SNOOZING", "weird");
+    // `indicator_position` is a free-form string on the wire, so an
+    // out-of-set value really can reach this function.
+    const result = addSnoozingIndicator("", 6, 22, "SNOOZING", "weird" as IndicatorPosition);
     // Center => row 3
     expect(row(result, 3, 22).includes("SNOOZING")).toBe(true);
   });

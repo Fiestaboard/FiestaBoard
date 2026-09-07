@@ -1,14 +1,17 @@
 "use client";
 
+import { Flex, Text, Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@fiestaboard/ui";
 import { useQuery } from "@tanstack/react-query";
 import { ArrowUpCircle, Package } from "lucide-react";
 
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { useIsManagedExternally } from "@/hooks/use-managed-externally";
 import { useTranslations } from "@/i18n/translations";
 import { api } from "@/lib/api";
 
 export function VersionDisplay() {
   const t = useTranslations("versionDisplay");
+  const tCommon = useTranslations("common");
+  const managedExternally = useIsManagedExternally();
   const { data: version } = useQuery({
     queryKey: ["version"],
     queryFn: () => api.getVersion(),
@@ -26,13 +29,13 @@ export function VersionDisplay() {
   if (!version) return null;
 
   return (
-    <div className="flex items-center gap-2 text-xs text-muted-foreground">
+    <Flex align="center" gap="2" className="text-xs text-muted-foreground">
       <Package className="h-3 w-3" />
-      <span suppressHydrationWarning>
-        v{version.package_version}
+      <Text as="span" size="xs" tone="muted" suppressHydrationWarning>
+        {tCommon("versionShort", { version: version.package_version })}
         {version.is_dev && ` ${t("devSuffix")}`}
-      </span>
-      {updateCheck?.update_available && (
+      </Text>
+      {!managedExternally && updateCheck?.update_available && (
         <TooltipProvider>
           <Tooltip>
             <TooltipTrigger asChild>
@@ -45,11 +48,11 @@ export function VersionDisplay() {
               </button>
             </TooltipTrigger>
             <TooltipContent>
-              <p>{t("updateAvailableTooltip", { version: updateCheck.latest_version ?? "" })}</p>
+              <Text>{t("updateAvailableTooltip", { version: updateCheck.latest_version ?? "" })}</Text>
             </TooltipContent>
           </Tooltip>
         </TooltipProvider>
       )}
-    </div>
+    </Flex>
   );
 }

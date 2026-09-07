@@ -17,7 +17,7 @@ PROJECT_ROOT = Path(__file__).parent.parent
 PLUGINS_DIR = PROJECT_ROOT / "plugins"
 
 # Directories to skip
-SKIP_DIRECTORIES = {"_template", "__pycache__"}
+SKIP_DIRECTORIES = {"_template", "_template_transition", "__pycache__"}
 
 
 def get_plugin_directories() -> list[Path]:
@@ -701,7 +701,12 @@ class TestManifestCompleteness:
         assert not missing, "Plugins missing 'settings_schema':\n" + "\n".join(f"  - {m}" for m in missing)
 
     def test_all_manifests_have_variables(self):
-        """CI Test: All plugin manifests should define a variables section."""
+        """CI Test: All data plugin manifests should define a variables section.
+
+        Transition plugins (``plugin_type == 'transition'``) don't expose
+        template variables -- they shape board updates frame-by-frame --
+        so they're exempt from this requirement.
+        """
         plugins = get_plugin_directories()
 
         if not plugins:
@@ -715,6 +720,8 @@ class TestManifestCompleteness:
                 continue
 
             manifest = load_manifest(plugin_dir)
+            if manifest.get("plugin_type") == "transition":
+                continue
             if "variables" not in manifest:
                 missing.append(plugin_dir.name)
 
@@ -782,7 +789,7 @@ class TestPluginIconsAndCategories:
         if not plugins:
             pytest.skip("No plugins found")
 
-        valid_categories = {"art", "data", "transit", "weather", "entertainment", "utility", "home"}
+        valid_categories = {"art", "data", "transit", "weather", "entertainment", "utility", "home", "transition"}
         invalid: list[str] = []
 
         for plugin_dir in plugins:
@@ -1332,3 +1339,71 @@ class TestLoadManifestFunction:
         assert result is None
         assert len(errors) == 1
         assert "Failed to parse manifest" in errors[0]
+
+
+class TestBundledPluginPreviews:
+    """CI guard: every bundled data plugin ships a renderable board preview.
+
+    Transition plugins are exempt — they have no board content to preview.
+    """
+
+    def _data_plugins(self) -> list[Path]:
+        return [p for p in get_plugin_directories() if load_manifest(p).get("plugin_type", "data") != "transition"]
+
+    def test_every_data_plugin_has_a_teaser(self):
+        plugins = self._data_plugins()
+        if not plugins:
+            pytest.skip("No data plugins found")
+
+        missing = [p.name for p in plugins if not load_manifest(p).get("teaser")]
+        assert not missing, f"Bundled data plugins with no teaser: {', '.join(missing)}"
+
+    def test_every_data_plugin_has_previews(self):
+        plugins = self._data_plugins()
+        if not plugins:
+            pytest.skip("No data plugins found")
+
+        missing = [p.name for p in plugins if not load_manifest(p).get("previews")]
+        assert not missing, f"Bundled data plugins with no previews: {', '.join(missing)}"
+
+    def test_previews_cover_flagship_and_note(self):
+        """Both board families get a preview — the point of issue #1436."""
+        plugins = self._data_plugins()
+        if not plugins:
+            pytest.skip("No data plugins found")
+
+        gaps: list[str] = []
+        for plugin_dir in plugins:
+            devices = {entry.get("device_type", "flagship") for entry in load_manifest(plugin_dir).get("previews", [])}
+            for required in ("flagship", "note"):
+                if required not in devices:
+                    gaps.append(f"{plugin_dir.name} (no {required})")
+
+        assert not gaps, f"Plugins missing a device preview: {', '.join(gaps)}"
+
+    def test_all_bundled_previews_validate(self):
+        """Teasers and previews must satisfy the shared contract."""
+        from src.plugins.previews import validate_previews, validate_teaser
+
+        failures: list[str] = []
+        for plugin_dir in get_plugin_directories():
+            manifest = load_manifest(plugin_dir)
+            if manifest.get("plugin_type", "data") == "transition":
+                continue
+            for error in validate_teaser(manifest.get("teaser", "")):
+                failures.append(f"{plugin_dir.name}: {error}")
+            for error in validate_previews(manifest.get("previews", [])):
+                failures.append(f"{plugin_dir.name}: {error}")
+
+        assert not failures, "Invalid previews:\n" + "\n".join(failures)
+
+    def test_transition_plugins_declare_no_previews(self):
+        offenders: list[str] = []
+        for plugin_dir in get_plugin_directories():
+            manifest = load_manifest(plugin_dir)
+            if manifest.get("plugin_type", "data") != "transition":
+                continue
+            if "teaser" in manifest or "previews" in manifest:
+                offenders.append(plugin_dir.name)
+
+        assert not offenders, f"Transition plugins must not declare previews: {', '.join(offenders)}"

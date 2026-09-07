@@ -24,14 +24,6 @@ vi.mock("@/hooks/use-router", () => ({
   }),
 }));
 
-// Mock usePrideActive so tests can toggle the pride-month logo state
-// without colliding with the calendar. Defaults to false to match the
-// non-pride code path used by the existing suite.
-const mockPrideActive = vi.fn(() => false);
-vi.mock("@/hooks/use-pride-active", () => ({
-  usePrideActive: () => mockPrideActive(),
-}));
-
 // Must import after mocking
 import { NavigationSidebar } from "@/components/navigation-sidebar";
 
@@ -164,47 +156,51 @@ describe("NavigationSidebar mobile menu", () => {
   });
 });
 
-describe("NavigationSidebar primary/secondary sections", () => {
+/*
+ * @fiestaboard/ui v5.12 collapsed the rail's two nav landmarks into one flat
+ * list: Picks, Help & Docs, Settings and the account row are now rows in the
+ * same list as Home and Pages rather than a section fenced off below it.
+ * "Secondary navigation" is gone — these tests assert the list's CONTENTS,
+ * which is what the app actually promises, and no longer the shape of the
+ * container they happen to sit in.
+ */
+describe("NavigationSidebar nav list", () => {
   beforeEach(() => {
     mockPathname.mockReturnValue("/");
   });
 
-  it("renders primary navigation section", () => {
+  it("renders a single navigation landmark per rail", () => {
     render(<NavigationSidebar />, { wrapper: TestWrapper });
 
-    const primaryNav = screen.getAllByLabelText("Primary navigation");
-    expect(primaryNav.length).toBeGreaterThan(0);
+    // getAllBy, not getBy: the desktop <aside> and the mobile menu each
+    // render their own copy of the one list.
+    const navs = screen.getAllByLabelText("Primary navigation");
+    expect(navs.length).toBeGreaterThan(0);
+    expect(screen.queryByLabelText("Secondary navigation")).not.toBeInTheDocument();
   });
 
-  it("renders secondary navigation section", () => {
-    render(<NavigationSidebar />, { wrapper: TestWrapper });
-
-    const secondaryNav = screen.getAllByLabelText("Secondary navigation");
-    expect(secondaryNav.length).toBeGreaterThan(0);
-  });
-
-  it("shows Collections item in primary navigation", () => {
+  it("shows Collections in the nav list", () => {
     render(<NavigationSidebar />, { wrapper: TestWrapper });
 
     const collectionsLinks = screen.getAllByText("Collections");
     expect(collectionsLinks.length).toBeGreaterThan(0);
   });
 
-  it("shows Settings in secondary navigation", () => {
+  it("shows Settings in the nav list", () => {
     render(<NavigationSidebar />, { wrapper: TestWrapper });
 
     const settingsLinks = screen.getAllByText("Settings");
     expect(settingsLinks.length).toBeGreaterThan(0);
   });
 
-  it("shows Help & Docs in secondary navigation", () => {
+  it("shows Help & Docs in the nav list", () => {
     render(<NavigationSidebar />, { wrapper: TestWrapper });
 
     const helpLinks = screen.getAllByText("Help & Docs");
     expect(helpLinks.length).toBeGreaterThan(0);
   });
 
-  it("does not show Profile in secondary navigation (folded into Settings)", () => {
+  it("does not show Profile (folded into Settings)", () => {
     render(<NavigationSidebar />, { wrapper: TestWrapper });
 
     expect(screen.queryByText("Profile")).not.toBeInTheDocument();
@@ -226,30 +222,20 @@ describe("NavigationSidebar collections link", () => {
   });
 });
 
-describe("NavigationSidebar pride logo accessibility (issue #1204)", () => {
+describe("NavigationSidebar logo", () => {
   beforeEach(() => {
     mockPathname.mockReturnValue("/");
-    mockPrideActive.mockReturnValue(false);
   });
 
-  it("renders the logo area as a non-interactive div when Pride Month is inactive", () => {
-    mockPrideActive.mockReturnValue(false);
+  // Was the Pride-Month celebrate button (issue #1204). @fiestaboard/ui 4.0.0
+  // retired seasons, so the app passes no `onLogoClick` and Sidebar renders the
+  // lockup as a plain non-interactive element. Kept as a regression guard: a
+  // logo that silently becomes a button again is a keyboard-nav change nothing
+  // else in the suite would catch.
+  it("renders the logo area as non-interactive", () => {
     render(<NavigationSidebar />, { wrapper: TestWrapper });
 
-    expect(screen.queryByRole("button", { name: "Celebrate Pride Month" })).not.toBeInTheDocument();
-  });
-
-  it("renders the logo area as a keyboard-accessible button during Pride Month", () => {
-    mockPrideActive.mockReturnValue(true);
-    render(<NavigationSidebar />, { wrapper: TestWrapper });
-
-    // Both the mobile header and the desktop sidebar render a celebrate button.
-    const celebrateButtons = screen.getAllByRole("button", { name: "Celebrate Pride Month" });
-    expect(celebrateButtons.length).toBeGreaterThanOrEqual(2);
-    celebrateButtons.forEach((button) => {
-      expect(button.tagName).toBe("BUTTON");
-      expect(button).toHaveAttribute("type", "button");
-    });
+    expect(screen.queryByRole("button", { name: /celebrate/i })).not.toBeInTheDocument();
   });
 });
 

@@ -2,96 +2,6 @@ import { fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
 import { DaySelector } from "@/components/day-selector";
-import { PagePickerDialog } from "@/components/page-picker-dialog";
-
-describe("PagePickerDialog", () => {
-  const mockPages = [
-    { id: "page1", name: "Morning Dashboard", type: "template" },
-    { id: "page2", name: "Afternoon Dashboard", type: "template" },
-    { id: "page3", name: "Evening Dashboard", type: "plugin" },
-  ];
-
-  it("renders all pages", () => {
-    const onSelect = vi.fn();
-    render(<PagePickerDialog pages={mockPages} selectedPageId={null} onSelect={onSelect} />);
-
-    expect(screen.getByText("Morning Dashboard")).toBeInTheDocument();
-    expect(screen.getByText("Afternoon Dashboard")).toBeInTheDocument();
-    expect(screen.getByText("Evening Dashboard")).toBeInTheDocument();
-  });
-
-  it("shows selected page with check mark", () => {
-    const onSelect = vi.fn();
-    render(<PagePickerDialog pages={mockPages} selectedPageId="page2" onSelect={onSelect} />);
-
-    const page2Button = screen.getByText("Afternoon Dashboard").closest("button");
-    expect(page2Button).toHaveClass("border-brand");
-  });
-
-  it("calls onSelect when page is clicked", () => {
-    const onSelect = vi.fn();
-    render(<PagePickerDialog pages={mockPages} selectedPageId={null} onSelect={onSelect} />);
-
-    fireEvent.click(screen.getByText("Morning Dashboard"));
-
-    expect(onSelect).toHaveBeenCalledWith("page1");
-    expect(onSelect).toHaveBeenCalledTimes(1);
-  });
-
-  it("does NOT navigate to edit page when clicked (regression test)", () => {
-    const onSelect = vi.fn();
-    const { container } = render(<PagePickerDialog pages={mockPages} selectedPageId={null} onSelect={onSelect} />);
-
-    fireEvent.click(screen.getByText("Morning Dashboard"));
-
-    // Ensure it called onSelect and not a navigation function
-    expect(onSelect).toHaveBeenCalledWith("page1");
-
-    // Verify no anchor tags are present (which would indicate navigation)
-    expect(container.querySelector("a")).toBeNull();
-  });
-
-  it("shows 'None' option when allowNone is true", () => {
-    const onSelect = vi.fn();
-    render(<PagePickerDialog pages={mockPages} selectedPageId={null} onSelect={onSelect} allowNone={true} />);
-
-    expect(screen.getByText("None (no default)")).toBeInTheDocument();
-  });
-
-  it("does not show 'None' option when allowNone is false", () => {
-    const onSelect = vi.fn();
-    render(<PagePickerDialog pages={mockPages} selectedPageId={null} onSelect={onSelect} allowNone={false} />);
-
-    expect(screen.queryByText("None (no default)")).not.toBeInTheDocument();
-  });
-
-  it("calls onSelect with null when 'None' is clicked", () => {
-    const onSelect = vi.fn();
-    render(<PagePickerDialog pages={mockPages} selectedPageId="page1" onSelect={onSelect} allowNone={true} />);
-
-    fireEvent.click(screen.getByText("None (no default)"));
-
-    expect(onSelect).toHaveBeenCalledWith(null);
-  });
-
-  it("shows check mark on 'None' when selectedPageId is null", () => {
-    const onSelect = vi.fn();
-    render(<PagePickerDialog pages={mockPages} selectedPageId={null} onSelect={onSelect} allowNone={true} />);
-
-    const noneButton = screen.getByText("None (no default)").closest("button");
-    expect(noneButton).toHaveClass("border-brand");
-  });
-
-  it("displays page types as badges", () => {
-    const onSelect = vi.fn();
-    render(<PagePickerDialog pages={mockPages} selectedPageId={null} onSelect={onSelect} />);
-
-    // Use getAllByText since there are multiple pages with "template" type
-    const templateBadges = screen.getAllByText("template");
-    expect(templateBadges.length).toBe(2);
-    expect(screen.getByText("plugin")).toBeInTheDocument();
-  });
-});
 
 describe("DaySelector", () => {
   it("renders all day pattern options", () => {
@@ -166,21 +76,5 @@ describe("DaySelector", () => {
     fireEvent.click(tuesdayCheckbox);
 
     expect(onChange).toHaveBeenCalledWith("custom", ["monday", "friday"]);
-  });
-});
-
-describe("Schedule Component Integration", () => {
-  it("PagePickerDialog works independently without PageSelector navigation", () => {
-    const onSelect = vi.fn();
-    const pages = [{ id: "page1", name: "Test Page" }];
-
-    render(<PagePickerDialog pages={pages} selectedPageId={null} onSelect={onSelect} />);
-
-    const pageButton = screen.getByText("Test Page");
-    fireEvent.click(pageButton);
-
-    // Key assertion: onSelect is called with page ID, not navigation
-    expect(onSelect).toHaveBeenCalledWith("page1");
-    expect(onSelect).toHaveBeenCalledTimes(1);
   });
 });

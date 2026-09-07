@@ -478,31 +478,3 @@ class StocksSource:
                 results.append({"symbol": symbol, "name": name})
 
         return results[:limit]
-
-
-# Singleton instance
-_stocks_source: StocksSource | None = None
-
-
-def get_stocks_source() -> StocksSource | None:
-    """Get or create the stocks source singleton."""
-    global _stocks_source
-    from src.config import Config
-
-    if not Config.STOCKS_ENABLED:
-        return None
-
-    if _stocks_source is None:
-        _stocks_source = StocksSource(
-            symbols=Config.STOCKS_SYMBOLS,
-            time_window=Config.STOCKS_TIME_WINDOW,
-            finnhub_api_key=Config.FINNHUB_API_KEY if Config.FINNHUB_API_KEY else None,
-        )
-
-    return _stocks_source
-
-
-def reset_stocks_source() -> None:
-    """Reset the stocks source singleton."""
-    global _stocks_source
-    _stocks_source = None

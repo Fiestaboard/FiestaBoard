@@ -94,8 +94,10 @@ test.describe("Plugin Management", () => {
     });
     if (res.ok) {
       const data = await res.json();
-      expect(data.status).toBe("success");
+      // No "status" envelope since the plugins conventions pass; the 200
+      // carries that, and the body is the plugin id plus its masked config.
       expect(data.plugin_id).toBe("date_time");
+      expect(data).toHaveProperty("config");
     } else {
       // Plugin system may not be fully available
       expect(res.status).toBe(503);

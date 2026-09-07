@@ -126,6 +126,38 @@ describe("ActivePageDisplay - silence overlay visibility", () => {
     await waitFor(() => expect(screen.getByText("Silence mode active")).toBeInTheDocument());
   });
 
+  it("names and links the configured silence page when mode === 'page' (issue #1637)", async () => {
+    // Manual mode keeps page-1 ("Weather Page") active, but silence "page"
+    // mode freezes the board on page-2 ("Custom Template"). The header must
+    // follow the board, not the overridden manual page.
+    server.use(
+      http.get(`${API_BASE}/silence-status`, () =>
+        HttpResponse.json(silenceStatus({ active: true, mode: "page", page_id: "page-2" })),
+      ),
+    );
+
+    render(<ActivePageDisplay />, { wrapper: TestWrapper });
+
+    // The silence page is named and linked to its editor.
+    const silenceLink = await screen.findByRole("link", { name: 'Edit page "Custom Template"' });
+    expect(silenceLink).toHaveAttribute("href", "/pages/edit/page-2");
+
+    // The manual/scheduled page it replaced is NOT shown.
+    expect(screen.queryByRole("link", { name: 'Edit page "Weather Page"' })).not.toBeInTheDocument();
+  });
+
+  it("keeps the normal active page when silence is active but mode !== 'page'", async () => {
+    // Regression guard: freeze/indicator modes must not hijack the header.
+    server.use(
+      http.get(`${API_BASE}/silence-status`, () => HttpResponse.json(silenceStatus({ active: true, mode: "freeze" }))),
+    );
+
+    render(<ActivePageDisplay />, { wrapper: TestWrapper });
+
+    const activeLink = await screen.findByRole("link", { name: 'Edit page "Weather Page"' });
+    expect(activeLink).toHaveAttribute("href", "/pages/edit/page-1");
+  });
+
   it("shows silence badge even when indicator_text/position are missing", async () => {
     server.use(
       http.get(`${API_BASE}/silence-status`, () =>

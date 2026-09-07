@@ -1,5 +1,8 @@
 """Extended tests for template engine - covering additional code paths."""
 
+import sys
+import time
+from contextlib import contextmanager
 from unittest.mock import Mock, patch
 
 import pytest
@@ -259,6 +262,205 @@ class TestRenderWithWrap:
         context = {"test": {"val": "SHORT"}}
         result = engine._render_with_wrap("{{test.val}} some extra text here now", context, max_lines=2)
         assert len(result) >= 1
+
+
+# ---------------------------------------------------------------------------
+# Wrap-filter detection: parity + linear time (CodeQL alert #65)
+# ---------------------------------------------------------------------------
+
+
+class TestWrapDetectionParity:
+    """Pin the exact matching semantics of the |wrap detection.
+
+    These lock in which ``{{...}}`` expression triggers variable-level wrap
+    (and which spellings do NOT), so the linear-time replacement for the
+    former backtracking regex (CodeQL alert #65, py/polynomial-redos)
+    cannot drift from the original behavior. The variable-wrap path keeps
+    the suffix on the FIRST line; the line-level path wraps the fully
+    rendered template so the suffix lands on the LAST line — that
+    difference makes each assertion sensitive to the detection outcome.
+    """
+
+    CTX = {"test": {"val": "AAAA BBBB CCCC DDDD EEEE", "plain": "HI"}}
+
+    def test_variable_wrap_exact_output(self, engine):
+        result = engine._render_with_wrap("{{test.val|wrap}}", self.CTX, max_lines=3)
+        assert result == ["AAAA BBBB CCCC DDDD", "EEEE"]
+
+    def test_wrap_followed_by_another_filter(self, engine):
+        result = engine._render_with_wrap("{{test.val|wrap|upper}}", self.CTX, max_lines=3)
+        assert result == ["AAAA BBBB CCCC DDDD", "EEEE"]
+
+    def test_another_filter_before_wrap(self, engine):
+        result = engine._render_with_wrap("{{test.val|upper|wrap}}", self.CTX, max_lines=3)
+        assert result == ["AAAA BBBB CCCC DDDD", "EEEE"]
+
+    def test_prefix_suffix_take_variable_wrap_path(self, engine):
+        result = engine._render_with_wrap("X:{{test.val|wrap}}:Y", self.CTX, max_lines=3)
+        assert result == ["X:AAAA BBBB CCCC:Y", "DDDD EEEE"]
+
+    def test_whitespace_around_wrap_is_line_level(self, engine):
+        # "{{ x | wrap }}" never matched the old regex (space between the
+        # pipe and "wrap"), so it must keep taking the line-level path.
+        result = engine._render_with_wrap("X:{{ test.val | wrap }}:Y", self.CTX, max_lines=3)
+        assert result == ["X:AAAA BBBB CCCC DDDD", "EEEE:Y"]
+
+    def test_uppercase_wrap_is_line_level(self, engine):
+        # Detection was case-sensitive in the old regex.
+        result = engine._render_with_wrap("X:{{test.val|WRAP}}:Y", self.CTX, max_lines=3)
+        assert result == ["X:AAAA BBBB CCCC DDDD", "EEEE:Y"]
+
+    def test_wrap_prefixed_filter_name_is_line_level(self, engine):
+        # "wrapx" is not the wrap filter.
+        result = engine._render_with_wrap("X:{{test.val|wrapx}}:Y", self.CTX, max_lines=3)
+        assert result == ["X:AAAA BBBB CCCC DDDD", "EEEE:Y"]
+
+    def test_template_without_wrap_is_line_level(self, engine):
+        result = engine._render_with_wrap("NO WRAP {{test.plain}} HERE", self.CTX, max_lines=2)
+        assert result == ["NO WRAP HI HERE"]
+
+    def test_plain_variable_before_wrap_variable(self, engine):
+        # The first {{...}} has no |wrap; detection must skip it and pick
+        # {{test.val|wrap}}, leaving the rendered plain variable as prefix.
+        result = engine._render_with_wrap("{{test.plain}} {{test.val|wrap}}", self.CTX, max_lines=3)
+        assert result == ["HI AAAA BBBB CCCC DDDD", "EEEE"]
+
+    def test_render_lines_wrap_prefix_exact_rows(self, engine):
+        lines = ["{wrap}{{test.val}}", "", "", "", "", ""]
+        result = engine.render_lines(lines, self.CTX).split("\n")
+        assert [row.rstrip() for row in result] == ["AAAA BBBB CCCC DDDD", "EEEE", "", "", "", ""]
+
+    def test_render_lines_pipe_wrap_exact_rows(self, engine):
+        lines = ["{{test.val|wrap}}", "", "", "", "", ""]
+        result = engine.render_lines(lines, self.CTX).split("\n")
+        assert [row.rstrip() for row in result] == ["AAAA BBBB CCCC DDDD", "EEEE", "", "", "", ""]
+
+
+class TestWrapDetectionLinearTime:
+    """Adversarial templates must not trigger polynomial backtracking.
+
+    CodeQL alert #65 (py/polynomial-redos): the former detection regex
+    ``\\{\\{([^}]+\\|wrap(?:\\|[^}]*)?)\\}\\}`` was quadratic on unclosed
+    ``{{`` runs. Templates are user-authored (pages/API), so these inputs
+    are reachable.
+
+    Rather than an absolute wall-clock bound (flaky on slow shared CI
+    runners), these assert the growth property itself: a 4x larger input
+    may not take quadratically (~16x) longer. Quadratic code fails at any
+    machine speed; linear code passes at any machine speed — on a fast
+    machine via the FAST_ENOUGH absolute bound, on a slow one via the
+    ratio. Measured on the old regex (repo test container): the "||wrap|"
+    shape grew 1.28s -> 20.63s (16.1x) end to end, and the "{{|" shape
+    grew 1.17s -> 18.74s (16.1x) at the detection step; the linear
+    scanner handles both large inputs in milliseconds.
+
+    The "{{|" brace-flood shape is asserted at the detection level only:
+    the downstream ``_split_into_tokens``/``_count_tiles`` tile scan does
+    ``text.find("}", i)`` per "{" and is therefore quadratic on "}"-free
+    brace floods — a pre-existing issue independent of alert #65, so
+    end-to-end growth cannot be asserted on that shape.
+    """
+
+    GROWTH_LIMIT = 12.0  # quadratic growth is ~16x for a 4x input; linear measures ~4x
+    FAST_ENOUGH = 1.0  # seconds; below this, polynomial blowup is impossible at these sizes
+    NOISE_FLOOR = 0.05  # seconds; keeps the ratio denominator meaningful
+    REPEATS = 3  # min-of-k; the adaptive specializer needs a warm-up pass (see below)
+
+    @staticmethod
+    @contextmanager
+    def _tracing_suspended():
+        """Run the timed body with any ``sys.settrace`` tracer detached.
+
+        Under ``pytest --cov`` on Python 3.11 (what CI runs) coverage installs
+        a C tracer via ``sys.settrace``, and CPython disables the adaptive
+        specializing interpreter whenever a trace function is set. Without the
+        specializer there is no ``BINARY_OP_INPLACE_ADD_UNICODE``, so the
+        ``current_word += text[i]`` accumulation in ``_word_wrap_tiles`` loses
+        its amortized in-place resize and copies the whole buffer every
+        iteration: a genuinely linear routine is executed quadratically.
+
+        Measured on the CI interpreter (python:3.11, ``-n 4 --cov=src
+        --cov-branch``) for the ``"||wrap|"`` shape, n=7500 -> n=30000:
+
+            traced    0.05722s -> 0.56904s   9.94x
+            untraced  0.00781s -> 0.03169s   4.06x
+
+        4.06x for a 4x input is the linear signature this class exists to
+        assert. 9.94x is an artifact of the measuring instrument, and it is
+        what made GROWTH_LIMIT=8.0 a coin flip (issue #1820: CI observed
+        0.14s -> 1.15s, 8.01x). Suspending the tracer measures the production
+        code instead of the traced interpreter. Where coverage uses
+        ``sys.monitoring`` instead (Python 3.12+) ``sys.gettrace()`` is None,
+        this is a no-op, and no artifact exists there anyway.
+
+        The suspension only skips coverage accounting for these three timed
+        calls; the same lines are covered by the rest of this module.
+        """
+        previous = sys.gettrace()
+        if previous is None:
+            yield
+            return
+        sys.settrace(None)
+        try:
+            yield
+        finally:
+            sys.settrace(previous)
+
+    @classmethod
+    def _timed(cls, fn):
+        """Best of REPEATS wall-clock samples, measured with tracing detached.
+
+        Min-of-k is noise reduction, not the flake fix — the tracer suspension
+        above is. It earns its place because re-enabling the specializer starts
+        it cold: CPython only specializes an instruction after it has run
+        several times, so the first sample after ``sys.settrace(None)`` is
+        measured on unspecialized bytecode.
+        """
+        best = float("inf")
+        with cls._tracing_suspended():
+            for _ in range(cls.REPEATS):
+                start = time.perf_counter()
+                fn()
+                best = min(best, time.perf_counter() - start)
+        return best
+
+    def _assert_linear_growth(self, run, make_template, n):
+        small = self._timed(lambda: run(make_template(n)))
+        large = self._timed(lambda: run(make_template(4 * n)))
+        ratio = large / max(small, self.NOISE_FLOOR)
+        # Two independent ways to be sub-quadratic, either of which discharges
+        # the property. The absolute bound is not an escape hatch: the old
+        # quadratic regex took 20.63s on the large leg of this very shape, 20x
+        # over FAST_ENOUGH, so finishing inside a second at these sizes rules
+        # polynomial backtracking out on its own. Sizing the inputs so the
+        # ratio always runs would need a ~6.6 MB template, and would make a
+        # quadratic regression take hours to surface instead of seconds --
+        # a regression guard has to fail fast to be worth having.
+        assert large < self.FAST_ENOUGH or ratio < self.GROWTH_LIMIT, (
+            f"4x input grew {ratio:.1f}x ({small:.2f}s -> {large:.2f}s); "
+            f"expected < {self.GROWTH_LIMIT}x for linear-time wrap detection"
+        )
+
+    def test_wrap_pipe_flood_renders_in_linear_time(self, engine):
+        self._assert_linear_growth(
+            lambda t: engine._render_with_wrap(t, {}, max_lines=1),
+            lambda n: "{{||wrap|" + "||wrap|" * n,
+            7_500,
+        )
+
+    def test_long_unclosed_variable_renders_in_linear_time(self, engine):
+        self._assert_linear_growth(
+            lambda t: engine._render_with_wrap(t, {}, max_lines=1),
+            lambda n: "{{" + "a" * n,
+            12_500,
+        )
+
+    def test_brace_pipe_flood_detection_is_linear(self, engine):
+        self._assert_linear_growth(
+            engine._find_wrap_expression,
+            lambda n: "{{" + "{{|" * n,
+            25_000,
+        )
 
 
 # ---------------------------------------------------------------------------

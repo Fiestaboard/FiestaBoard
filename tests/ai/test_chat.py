@@ -466,6 +466,41 @@ def test_fence_parser_invalid_op_emits_warning():
     assert "Unknown tool op" in warnings[0]["data"]["message"]
 
 
+def test_fence_parser_schema_failure_does_not_leak_raw_exception_text():
+    """A validation failure reaches the client sanitized, not verbatim.
+
+    ``parse_tool_call`` wraps whatever ``model_validate`` raises, so the
+    exception text is a multi-line Pydantic report (and, for an unexpected
+    failure, could be arbitrary internal detail). The warning event is
+    streamed straight to the browser over SSE, so it must be a single
+    bounded line of printable ASCII — this is CodeQL's
+    ``py/stack-trace-exposure`` sink.
+    """
+    p = _FenceParser()
+    body = json.dumps(
+        {
+            "op": "apply_patch",
+            "args": {
+                "changes": [
+                    {"type": "replace_line", "index": "not-an-int", "text": "HI"},
+                    {"type": "replace_line", "index": -5, "text": 42},
+                ]
+            },
+        }
+    )
+    events = _events(p, f"```fiestaboard\n{body}\n```")
+
+    warnings = [e for e in events if e["event"] == "warning"]
+    assert len(warnings) == 1
+    message = warnings[0]["data"]["message"]
+    assert message.startswith("Invalid fiestaboard tool block: ")
+    # Single line, printable ASCII, bounded length. The raw Pydantic report
+    # is multi-line and unbounded; none of it may survive as-is.
+    assert "\n" not in message and "\r" not in message
+    assert all(" " <= ch <= "~" for ch in message)
+    assert len(message) <= len("Invalid fiestaboard tool block: ") + 500
+
+
 def test_fence_parser_unterminated_fence():
     p = _FenceParser()
     events = _events(p, "```fiestaboard\nstart of json...")
@@ -832,7 +867,7 @@ async def test_stream_chat_includes_history_in_request():
 
 @pytest.fixture
 def reset_throttle(monkeypatch):
-    monkeypatch.setattr("src.api_server._ai_generate_last_call", 0.0)
+    monkeypatch.setattr("src.ai.page_routes._ai_generate_last_call", 0.0)
 
 
 def test_chat_endpoint_validates_body(reset_throttle):
@@ -842,7 +877,9 @@ def test_chat_endpoint_validates_body(reset_throttle):
 
     client = TestClient(app)
     r = client.post("/pages/ai/chat", json={"messages": "not a list"})
-    assert r.status_code == 400
+    # 422 since the conventions pass typed the body as AIChatRequest; the
+    # hand-rolled 400 "`messages` must be a non-empty array." is gone.
+    assert r.status_code == 422
 
 
 def test_chat_endpoint_rejects_invalid_device_type(reset_throttle):
@@ -858,5 +895,7 @@ def test_chat_endpoint_rejects_invalid_device_type(reset_throttle):
             "device_type": "watch",
         },
     )
-    assert r.status_code == 400
-    assert "device_type" in r.json()["detail"]
+    # 422 since the conventions pass made device_type a Literal. FastAPI's
+    # validation detail still names the field, which is what this asserts.
+    assert r.status_code == 422
+    assert "device_type" in r.text

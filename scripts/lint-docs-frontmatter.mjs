@@ -1,5 +1,6 @@
 #!/usr/bin/env node
-// Frontmatter linter for the published Docusaurus site (docs-site/docs/**).
+// Frontmatter linter for the published Docusaurus site source (docs/**,
+// excluding docs/internal/ which is never published).
 //
 // Every page MUST carry a YAML frontmatter block with a non-empty
 // `description:` field. Docusaurus uses it for the page <meta description>
@@ -17,13 +18,15 @@ import { readFileSync, readdirSync, statSync } from 'node:fs'
 import { join, relative } from 'node:path'
 
 const ROOT = process.cwd()
-const DOCS_DIR = join(ROOT, 'docs-site', 'docs')
+const DOCS_DIR = join(ROOT, 'docs')
+const INTERNAL_DIR = join(DOCS_DIR, 'internal')
 
 /** Recursively collect every .md / .mdx file under a directory. */
 function collectDocs(dir) {
   const out = []
   for (const entry of readdirSync(dir)) {
     const full = join(dir, entry)
+    if (full === INTERNAL_DIR) continue // internal docs carry no frontmatter
     if (statSync(full).isDirectory()) {
       out.push(...collectDocs(full))
     } else if (/\.mdx?$/.test(entry)) {
@@ -73,7 +76,7 @@ if (violations.length > 0) {
   )
   for (const v of violations) console.error(`  ${v.file}: ${v.reason}`)
   console.error(
-    '\nEvery docs-site/docs/**/*.{md,mdx} must have a non-empty `description:` in its YAML frontmatter.',
+    '\nEvery docs/**/*.{md,mdx} (outside docs/internal/) must have a non-empty `description:` in its YAML frontmatter.',
   )
   process.exit(1)
 }

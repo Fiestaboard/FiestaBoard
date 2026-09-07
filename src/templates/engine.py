@@ -4,7 +4,7 @@ Template syntax:
 - Data binding: {{plugin_id.field}} e.g., {{weather.temperature}}, {{date_time.time}}
 - Inline formulas: {{= EXPRESSION }} - Excel-like expressions with IF/AND/OR,
   math, string functions, and COLOR(). See ``src/templates/expressions.py`` and
-  the user-facing reference docs at ``docs-site/docs/reference/template-formulas.md``.
+  the user-facing reference docs at ``docs/reference/template-formulas.md``.
 - Colors: {{red}}, {{blue}}, etc. - Single colored tile (not text wrapping)
 - Symbols: {sun}, {cloud}, {rain}
 - Formatting: {{value|pad:3}}, {{value|zeropad:2}}, {{value|upper}}, {{value|lower}}, {{value|wrap}}
@@ -37,22 +37,11 @@ from src.devices import DEFAULT_DEVICE_TYPE, BoardContext, resolve_dimensions
 from src.plugins import get_plugin_registry
 from src.text_utils import extract_alignment_from_line
 
+from .colors import COLOR_CODES
+from .colors import is_color_code as _is_color_code
 from .expressions import find_formulas, render_expressions, validate_expression
 
 logger = logging.getLogger(__name__)
-
-# Color name to code mapping
-COLOR_CODES = {
-    "red": 63,
-    "orange": 64,
-    "yellow": 65,
-    "green": 66,
-    "blue": 67,
-    "violet": 68,
-    "purple": 68,  # alias
-    "white": 69,
-    "black": 70,
-}
 
 # Symbol name to character mapping
 SYMBOL_CHARS = {
@@ -69,19 +58,61 @@ SYMBOL_CHARS = {
     "x": "X",
 }
 
-
 # Regex patterns
 # Note: ``[^}{]+`` (rather than ``[^}]+``) prevents overlapping matches and
 # eliminates polynomial backtracking on inputs like ``{{{{{{...``.  Variable
 # expressions never contain ``{`` themselves.
 VAR_PATTERN = re.compile(r"\{\{([^}{]+)\}\}")  # {{source.field}} or {{source.field|filter}}
 COLOR_PATTERN = re.compile(
-    r"\{\{(red|orange|yellow|green|blue|violet|purple|white|black|6[3-9]|7[01])\}\}", re.IGNORECASE
+    r"\{\{(red|orange|yellow|green|blue|violet|purple|white|black|filled|6[3-9]|7[01])\}\}", re.IGNORECASE
 )
 SYMBOL_PATTERN = re.compile(r"\{(sun|star|cloud|rain|snow|storm|fog|partly|heart|check|x)\}", re.IGNORECASE)
 FILL_SPACE_PATTERN = re.compile(r"\{\{fill_space\}\}", re.IGNORECASE)
 FILL_SPACE_REPEAT_PATTERN = re.compile(r"\{\{fill_space_repeat:(.+?)\}\}", re.IGNORECASE)
 FILLED_PATTERN = re.compile(r"\{\{filled:(.+?)\}\}", re.IGNORECASE)
+
+
+def extract_template_plugin_ids(template_lines: "list[str] | str | None") -> set[str] | None:
+    """Statically extract the plugin ids a template's variables reference.
+
+    A plain ``{{source.field...}}`` variable resolves against the template
+    context by its root: ``source`` is the plugin id (or instance key like
+    ``weather:sf``), exactly as ``_get_variable_value`` looks it up. That
+    makes the fetch set of a template statically computable, so a render
+    can fetch only the plugins it will actually read (issue #1751).
+
+    Returns ``None`` when the set CANNOT be determined statically — today
+    that is any ``{{= ... }}`` formula expression, whose variable references
+    live inside an expression grammar this scan does not parse. ``None``
+    tells the caller to fall back to fetching every enabled plugin, which
+    is always safe (it is the pre-#1751 behavior).
+
+    Expressions that never read plugin data are skipped: color markers
+    (``{{red}}``), ``fill_space`` / ``filled:`` / ``fill_space_repeat:``
+    specials, and dotless or empty roots (all of which render without a
+    context lookup). Roots that don't name an enabled plugin are harmless
+    to include — the registry intersects with the enabled set.
+    """
+    if template_lines is None:
+        return set()
+    lines = [template_lines] if isinstance(template_lines, str) else list(template_lines)
+
+    refs: set[str] = set()
+    for line in lines:
+        if not line:
+            continue
+        for match in VAR_PATTERN.finditer(line):
+            expr = match.group(1).strip()
+            if expr.startswith("="):
+                return None  # formula: variable owners are not statically known
+            var_part = expr.split("|", 1)[0].strip().lower()
+            if var_part == "fill_space" or var_part.startswith(("filled:", "fill_space_repeat:")):
+                continue
+            root, sep, rest = var_part.partition(".")
+            if not sep or not root or not rest:
+                continue  # colors, invalid or dotless expressions: no context lookup
+            refs.add(root)
+    return refs
 
 
 @dataclass
@@ -202,7 +233,7 @@ class TemplateEngine:
                     # Check if it's a color code (numeric 63-71 or named)
                     if content.isdigit():
                         code = int(content)
-                        if 63 <= code <= 71:
+                        if _is_color_code(code):
                             # Numeric color code like {66}, {70}, or {71}
                             tile_count += 1
                             i = closing_brace + 1
@@ -247,7 +278,7 @@ class TemplateEngine:
                     # Check if it's a color code (numeric 63-71 or named)
                     if content.isdigit():
                         code = int(content)
-                        if 63 <= code <= 71:
+                        if _is_color_code(code):
                             # Numeric color code like {66}, {70}, or {71}
                             result.append(text[i : closing_brace + 1])
                             tile_count += 1
@@ -419,6 +450,49 @@ class TemplateEngine:
 
         return "\n".join(rendered)
 
+    @staticmethod
+    def _find_wrap_expression(template: str) -> tuple[int, int, str] | None:
+        """Find the first ``{{...}}`` whose filter chain contains ``|wrap``.
+
+        Linear-time replacement for the former regex
+        ``\\{\\{([^}]+\\|wrap(?:\\|[^}]*)?)\\}\\}``, which backtracked
+        polynomially on adversarial user-authored templates (CodeQL alert
+        #65, py/polynomial-redos). The matching semantics are preserved
+        exactly: the expression is everything between ``{{`` and the first
+        following ``}`` (which must itself be followed by another ``}``),
+        and it qualifies when splitting on ``|`` yields a segment equal to
+        ``wrap`` (lowercase, unstripped — same as the old regex) that is
+        preceded by at least one character.
+
+        Args:
+            template: Template string to scan
+
+        Returns:
+            ``(start, end, expr)`` for the first qualifying ``{{expr}}``
+            (``start``/``end`` span the braces), or ``None``.
+        """
+        pos = 0
+        while True:
+            start = template.find("{{", pos)
+            if start == -1:
+                return None
+            close = template.find("}", start + 2)
+            if close == -1:
+                return None
+            if template[close + 1 : close + 2] != "}":
+                # "{{...}" without a second "}": nothing can match at or
+                # before this "}", so resume scanning right after it.
+                pos = close + 1
+                continue
+            expr = template[start + 2 : close]
+            segments = expr.split("|")
+            for idx in range(1, len(segments)):
+                # idx > 1 or a non-empty first segment mirrors the old
+                # regex's [^}]+ requirement of ≥1 char before "|wrap".
+                if segments[idx] == "wrap" and (idx > 1 or segments[0]):
+                    return (start, close + 2, expr)
+            pos = close + 2
+
     def _render_with_wrap(
         self, template: str, context: dict[str, Any], max_lines: int = 1, board_width: int = 22
     ) -> list[str]:
@@ -438,13 +512,12 @@ class TemplateEngine:
             List of rendered lines (up to max_lines)
         """
         # First, check if there's a variable with |wrap filter (variable-level wrap)
-        wrap_pattern = re.compile(r"\{\{([^}]+\|wrap(?:\|[^}]*)?)\}\}")
-        match = wrap_pattern.search(template)
+        wrap_match = self._find_wrap_expression(template)
 
-        if match:
+        if wrap_match:
             # Variable-level wrap: wrap only the variable with |wrap filter
             # Get the variable expression (without |wrap)
-            expr = match.group(1)
+            match_start, match_end, expr = wrap_match
             # Remove |wrap from the filter chain
             parts = expr.split("|")
             var_part = parts[0].strip()
@@ -458,8 +531,8 @@ class TemplateEngine:
                 value = self._apply_filter(value, f)
 
             # Get prefix and suffix around the variable
-            prefix = template[: match.start()]
-            suffix = template[match.end() :]
+            prefix = template[:match_start]
+            suffix = template[match_end:]
 
             # Render prefix and suffix (they may have other variables)
             prefix = self.render(prefix, context)
@@ -567,7 +640,7 @@ class TemplateEngine:
                 if closing_brace != -1:
                     content = text[i + 1 : closing_brace]
                     # Check if it's a color code
-                    if content.isdigit() and 63 <= int(content) <= 70:
+                    if content.isdigit() and _is_color_code(int(content)):
                         # It's a numeric color marker
                         tokens.append(text[i : closing_brace + 1])
                         i = closing_brace + 1
@@ -620,7 +693,7 @@ class TemplateEngine:
                 if closing_brace != -1:
                     content = text[i + 1 : closing_brace]
                     # Check if it's a color code
-                    if content.isdigit() and 63 <= int(content) <= 70:
+                    if content.isdigit() and _is_color_code(int(content)):
                         # It's a color marker - add to current word
                         current_word += text[i : closing_brace + 1]
                         i = closing_brace + 1
@@ -797,7 +870,7 @@ class TemplateEngine:
                 color_code_match = re.match(r"^\{(\d+)\}$", value)
                 if color_code_match:
                     code = int(color_code_match.group(1))
-                    if 63 <= code <= 70:
+                    if _is_color_code(code):
                         # Already a valid color code, return as-is
                         return value
                 # If value already starts with a color code (e.g. {66}RISE), do not add
@@ -1379,7 +1452,7 @@ class TemplateEngine:
         lines = template.split("\n")
 
         # Get available sources based on system mode
-        available_sources = self._get_all_known_sources()
+        available_sources = self.get_all_known_sources()
 
         for line_num, line in enumerate(lines, 1):
             # Check for unclosed variable braces
@@ -1432,15 +1505,23 @@ class TemplateEngine:
 
         return errors
 
-    def _get_all_known_sources(self) -> set:
+    def get_all_known_sources(self) -> set:
         """Get all known plugin IDs (for validation).
 
         Includes all plugins, not just enabled ones, so templates
         can be validated even if not all plugins are enabled.
+
+        Public because routers validate payloads against it — reaching into
+        another object's ``_private`` members from a route is exactly what
+        ``docs/internal/reference/API_CONVENTIONS.md`` bans.
         """
         if not self._plugin_registry:
             return set()
         return set(self._plugin_registry.plugins.keys())
+
+    def _get_all_known_sources(self) -> set:
+        """Back-compat alias for :meth:`get_all_known_sources`."""
+        return self.get_all_known_sources()
 
     def _calculate_max_line_length(self, line: str, cols: int = 22) -> int:
         """Calculate maximum possible rendered length of a template line.
@@ -1526,7 +1607,9 @@ class TemplateEngine:
             return {}
 
         max_lengths: dict[str, int] = {}
-        for plugin_id, manifest in self._plugin_registry._manifests.items():
+        # list() snapshots atomically, so a concurrent plugin install can't
+        # mutate the manifests dict mid-iteration (#1828).
+        for plugin_id, manifest in list(self._plugin_registry._manifests.items()):
             for var_name, max_len in manifest.max_lengths.items():
                 full_name = f"{plugin_id}.{var_name}"
                 max_lengths[full_name] = max_len

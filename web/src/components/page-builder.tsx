@@ -1,18 +1,8 @@
 "use client";
 
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { ArrowLeft, Check, Copy, Radio, Save, Trash2, Upload } from "lucide-react";
-import { forwardRef, useCallback, useEffect, useImperativeHandle, useMemo, useRef, useState } from "react";
-import { toast } from "sonner";
-
-import { BoardSizeIndicator } from "@/components/board-size-indicator";
-import { PlainTextEditor } from "@/components/plain-text-editor";
-import { ScaledBoardDisplay } from "@/components/scaled-board-display";
-// Direct import – bypasses next/dynamic chunk caching issues in dev mode.
-// TipTap's useEditor({ immediatelyRender: false }) handles SSR safely.
-import { TipTapTemplateEditor } from "@/components/tiptap-template-editor/TipTapTemplateEditor";
-import { Alert, AlertDescription } from "@/components/ui/alert";
 import {
+  Alert,
+  AlertDescription,
   AlertDialog,
   AlertDialogAction,
   AlertDialogCancel,
@@ -22,17 +12,82 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
   AlertDialogTrigger,
-} from "@/components/ui/alert-dialog";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { ScrollArea } from "@/components/ui/scroll-area";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Skeleton } from "@/components/ui/skeleton";
-import { Switch } from "@/components/ui/switch";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { queryKeys } from "@/hooks/use-board";
-import { getEffectiveBoardColor, useBoardSettings } from "@/hooks/use-board";
+  Box,
+  Button,
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+  Flex,
+  ScrollArea,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+  Skeleton,
+  Stack,
+  Switch,
+  Text,
+  Textarea,
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@fiestaboard/ui";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { ArrowLeft, Check, Copy, Radio, Save, Sparkles, Trash2, Upload } from "lucide-react";
+import {
+  forwardRef,
+  lazy,
+  Suspense,
+  useCallback,
+  useEffect,
+  useImperativeHandle,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
+import { toast } from "sonner";
+
+import { BoardSizeIndicator } from "@/components/board-size-indicator";
+import { useCurrentBoard } from "@/components/current-board-context";
+import type { StrokeCell } from "@/components/drawable-board-preview";
+import { DrawableBoardPreview } from "@/components/drawable-board-preview";
+import { PlainTextEditor } from "@/components/plain-text-editor";
+import { ScaledBoardDisplay } from "@/components/scaled-board-display";
+import type {
+  DrawHistoryEvent,
+  TipTapTemplateEditorHandle,
+} from "@/components/tiptap-template-editor/TipTapTemplateEditor";
+import type { CellPaint, DrawBrush } from "@/components/tiptap-template-editor/utils/draw-mode";
+import {
+  brushToCell,
+  isPositionalLine,
+  paintLine,
+  renderPositionalLine,
+} from "@/components/tiptap-template-editor/utils/draw-mode";
+import {
+  getEffectiveBoardColor,
+  getEffectiveCode62Glyph,
+  queryKeys,
+  resolveCode62Glyph,
+  useBoardSettings,
+} from "@/hooks/use-board";
+import { useRouter } from "@/hooks/use-router";
 import { useTranslations } from "@/i18n/translations";
 import type { CurrentPageSnapshot, ToolCall } from "@/lib/ai-chat-types";
 import type {
@@ -40,15 +95,30 @@ import type {
   DeviceType,
   LineAlignment,
   LineMetadata,
+  Page,
   PageCreate,
   PageType,
   PageUpdate,
+  PageUpdateResponse,
 } from "@/lib/api";
 import { api } from "@/lib/api";
-import { resolveDimensions } from "@/lib/board-dimensions";
+import { MAX_NOTES_PER_AXIS, resolveDimensions } from "@/lib/board-dimensions";
 import { applyLineOpInPlace } from "@/lib/line-ops";
 import { onLiveOutputMessageChange, writeLiveOutputMessage } from "@/lib/live-output-channel";
 import { clearPreviewCacheForPage } from "@/lib/preview-cache";
+
+// Lazy-loaded — TipTap + ProseMirror + CodeMirror + the lucide-react icon
+// barrel push this module past 500 kB minified on their own (see #1575).
+// It's route-split from the surrounding page-builder chunk so "plain" text
+// editor mode (below) never pays for it, and "rich" mode streams it in
+// behind a Suspense fallback instead of blocking the whole page-builder
+// chunk's parse/eval. TipTap's useEditor({ immediatelyRender: false })
+// handles SSR safely, so deferring the import is safe under RR7 SPA mode.
+const TipTapTemplateEditor = lazy(() =>
+  import("@/components/tiptap-template-editor/TipTapTemplateEditor").then((m) => ({
+    default: m.TipTapTemplateEditor,
+  })),
+);
 
 interface PageBuilderProps {
   pageId?: string; // If provided, edit existing page
@@ -83,7 +153,22 @@ interface PageSnapshot {
   lineWrapEnabled: boolean[];
 }
 
+/**
+ * Pre-stroke alignment/wrap for the rows a paint stroke touched. Committing
+ * a stroke forces those rows to left/no-wrap; since that metadata lives in
+ * React state (outside ProseMirror history), undoing the stroke needs this
+ * capture to restore it — see handleDrawHistoryEvent.
+ */
+interface StrokeMetaSnapshot {
+  rows: number[];
+  alignments: LineAlignment[];
+  wraps: boolean[];
+}
+
 const UNDO_STACK_LIMIT = 5;
+
+// 1..MAX_NOTES_PER_AXIS choices for the note-array W×H selectors.
+const NOTE_AXIS_OPTIONS = Array.from({ length: MAX_NOTES_PER_AXIS }, (_, i) => i + 1);
 
 // Draft storage key helper
 function getDraftKey(pageId?: string): string {
@@ -101,6 +186,28 @@ function getStoredEditorMode(): "rich" | "plain" {
   return "rich";
 }
 
+/**
+ * Sentinel used as the radio-group value for "no per-page override". The menu
+ * needs a non-empty string; the saved value is `null`.
+ */
+const TRANSITION_INHERIT = "__inherit__";
+
+/**
+ * Built-in transition strategies, paired with their key under the shared
+ * `transitionSettings.strategies.*` namespace so the per-page picker and the
+ * global settings card always read the same labels.
+ */
+const BUILT_IN_TRANSITIONS: { value: string; labelKey: string }[] = [
+  { value: "column", labelKey: "column" },
+  { value: "reverse-column", labelKey: "reverseColumn" },
+  { value: "edges-to-center", labelKey: "edgesToCenter" },
+  { value: "row", labelKey: "row" },
+  { value: "diagonal", labelKey: "diagonal" },
+  { value: "random", labelKey: "random" },
+];
+
+const PLUGIN_STRATEGY_PREFIX = "plugin:";
+
 interface DraftData {
   name: string;
   templateLines: string[];
@@ -116,10 +223,15 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
   const t = useTranslations("pageBuilder");
   const tCommon = useTranslations("common");
   const tDisplaySettings = useTranslations("displaySettings");
+  // Shared with the global transition settings card so both surfaces label the
+  // built-in strategies identically.
+  const tTransitions = useTranslations("transitionSettings");
   const queryClient = useQueryClient();
+  const router = useRouter();
 
   // Fetch board settings for display type
   const { data: boardSettings } = useBoardSettings();
+  const { currentBoardId } = useCurrentBoard();
 
   // Device type: from prop (new pages) or from existing page (editing)
   const [deviceType, setDeviceType] = useState<DeviceType>(deviceTypeProp);
@@ -131,11 +243,21 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
   const [notesTall, setNotesTall] = useState(1);
   const dims = resolveDimensions(deviceType, notesWide, notesTall);
   const numLines = dims.rows;
+  // Latest numLines for effects that need it without becoming reactive to it
+  // (the load-draft effect below intentionally excludes notesWide/notesTall
+  // changes so resizing a note-array grid doesn't reset in-progress edits).
+  const numLinesRef = useRef(numLines);
+  numLinesRef.current = numLines;
 
   // Preview board color - defaults to the user's configured board color
   const defaultBoardColor = getEffectiveBoardColor(boardSettings);
   const [previewBoardColor, setPreviewBoardColor] = useState<"black" | "white" | null>(null);
   const effectiveBoardColor = previewBoardColor ?? defaultBoardColor;
+
+  // Which glyph code 62 draws in this preview (issue #1657). A page belongs to
+  // a device shape rather than to one board, so this reads the same first board
+  // `defaultBoardColor` does; a Note-shaped page always draws the heart.
+  const effectiveCode62Glyph = resolveCode62Glyph(deviceType, getEffectiveCode62Glyph(boardSettings));
 
   // Helper to create arrays of the correct length
   const emptyLines = () => Array.from({ length: numLines }, () => "");
@@ -154,18 +276,41 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
   const [draftRestored, setDraftRestored] = useState(false);
   const [editorMode, setEditorMode] = useState<"rich" | "plain">(getStoredEditorMode);
 
+  // Per-page transition override. `null` means "inherit the global default"
+  // — the backend clears a stored override only when it is sent an explicit
+  // null, so this always goes out on the wire (see the save mutation).
+  const [transitionStrategy, setTransitionStrategy] = useState<string | null>(null);
+
+  // Pencil draw-mode state — see handleStrokeCommit / drawPreviewMessage
+  // below for how a painted stroke flows back into templateLines.
+  const [drawMode, setDrawMode] = useState(false);
+  const [drawBrush, setDrawBrush] = useState<DrawBrush>({ kind: "color", color: "red" });
+  const [strokePreviewCells, setStrokePreviewCells] = useState<StrokeCell[]>([]);
+  const tipTapRef = useRef<TipTapTemplateEditorHandle>(null);
+  // Metadata history keyed to stroke boundaries: done/undone mirror the
+  // editor's stroke undo/redo stacks (reported via onDrawHistoryEvent).
+  const strokeMetaHistoryRef = useRef<{ done: StrokeMetaSnapshot[]; undone: StrokeMetaSnapshot[] }>({
+    done: [],
+    undone: [],
+  });
+
   // Snapshot of the page state as loaded from the server, used to detect unsaved changes.
   const [savedSnapshot, setSavedSnapshot] = useState<{
     name: string;
     templateLines: string[];
     lineAlignments: LineAlignment[];
     lineWrapEnabled: boolean[];
+    transitionStrategy: string | null;
   } | null>(null);
 
   // Export dialog
   const [exportOpen, setExportOpen] = useState(false);
   const [exportShareString, setExportShareString] = useState("");
   const [exportCopied, setExportCopied] = useState(false);
+
+  // Shrinking-retarget confirmation (issue #1250). Converting a saved page
+  // to a smaller geometry is lossy, so the save is gated behind a confirm.
+  const [confirmRetargetOpen, setConfirmRetargetOpen] = useState(false);
 
   // Snapshot stack so the AI chat panel can offer a one-click Undo
   // after the model applies a change. Bounded to keep the editor
@@ -216,9 +361,10 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
       name !== savedSnapshot.name ||
       JSON.stringify(templateLines) !== JSON.stringify(savedSnapshot.templateLines) ||
       JSON.stringify(lineAlignments) !== JSON.stringify(savedSnapshot.lineAlignments) ||
-      JSON.stringify(lineWrapEnabled) !== JSON.stringify(savedSnapshot.lineWrapEnabled)
+      JSON.stringify(lineWrapEnabled) !== JSON.stringify(savedSnapshot.lineWrapEnabled) ||
+      transitionStrategy !== savedSnapshot.transitionStrategy
     );
-  }, [savedSnapshot, name, templateLines, lineAlignments, lineWrapEnabled]);
+  }, [savedSnapshot, name, templateLines, lineAlignments, lineWrapEnabled, transitionStrategy]);
 
   const pushUndoSnapshot = useCallback(() => {
     const snap: PageSnapshot = {
@@ -248,8 +394,11 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
   /** Apply one structured AI tool call to the editor state. */
   const applyToolCall = useCallback(
     (call: ToolCall) => {
-      if (call.op === "suggest_variables") {
-        // Read-only — surfaced in the chat UI, no editor mutation.
+      // `suggest_variables` is read-only (surfaced in the chat UI); every
+      // other op is handled by the global AI drawer (navigation, plugins,
+      // schedules) and must never fall through to the apply_patch branch
+      // below, which would read `.changes` off the wrong args shape.
+      if (call.op !== "replace_page" && call.op !== "apply_patch") {
         return;
       }
       pushUndoSnapshot();
@@ -332,31 +481,35 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
             deviceTypeRef.current === "note_array"
               ? { notes_wide: notesWideRef.current, notes_tall: notesTallRef.current }
               : {};
-          let result: { page: { id: string } };
-          if (pageId) {
-            result = await api.updatePage(pageId, {
-              name: nameRef.current,
-              template: cleanedLines,
-              line_metadata: metadata,
-              ...noteArrayDims,
-            });
-          } else {
-            result = await api.createPage({
-              name: nameRef.current,
-              type: "template" as PageType,
-              device_type: deviceTypeRef.current,
-              template: cleanedLines,
-              line_metadata: metadata,
-              ...noteArrayDims,
-            });
-          }
+          // The two endpoints no longer share a shape: PUT answers
+          // { page, incompatible_references }, POST answers the bare page at
+          // 201. Narrow to the saved page here so everything below reads one
+          // thing.
+          const saved: Page = pageId
+            ? (
+                await api.updatePage(pageId, {
+                  name: nameRef.current,
+                  device_type: deviceTypeRef.current,
+                  template: cleanedLines,
+                  line_metadata: metadata,
+                  ...noteArrayDims,
+                })
+              ).page
+            : await api.createPage({
+                name: nameRef.current,
+                type: "template" as PageType,
+                device_type: deviceTypeRef.current,
+                template: cleanedLines,
+                line_metadata: metadata,
+                ...noteArrayDims,
+              });
           // Invalidate the pages list and this page's preview, but don't close.
           queryClient.invalidateQueries({ queryKey: queryKeys.pages, refetchType: "active" });
           queryClient.invalidateQueries({
-            queryKey: queryKeys.pagePreview(result.page.id),
+            queryKey: queryKeys.pagePreview(saved.id),
             refetchType: "active",
           });
-          return { id: result.page.id };
+          return { id: saved.id };
         } catch {
           return null;
         }
@@ -373,6 +526,7 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
 
   const handleEditorModeChange = useCallback((mode: "rich" | "plain") => {
     setEditorMode(mode);
+    setDrawMode(false);
     try {
       localStorage.setItem(EDITOR_MODE_KEY, mode);
     } catch {}
@@ -428,7 +582,14 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
         liveTimeoutRef.current = null;
       }
     };
-  }, [liveOutputEnabled, debouncedTemplateLines, debouncedLineAlignments, debouncedLineWrapEnabled, disableLiveOutput]);
+  }, [
+    liveOutputEnabled,
+    debouncedTemplateLines,
+    debouncedLineAlignments,
+    debouncedLineWrapEnabled,
+    disableLiveOutput,
+    LIVE_OUTPUT_TIMEOUT_MS,
+  ]);
 
   // Keep lastPreviewRef in sync so the transition effect below can read the
   // current preview without creating a stale closure.
@@ -458,7 +619,7 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
       });
     }
     liveOutputEnabledRef.current = liveOutputEnabled;
-  }, [liveOutputEnabled]);
+  }, [liveOutputEnabled, queryClient]);
 
   // Restore board display when component unmounts if live output was active.
   // Also clear the shared live-output cache + localStorage so the Home page
@@ -508,6 +669,53 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
     enabled: !!pageId,
   });
 
+  // Transition plugins (beta): the /transitions/plugins endpoint 404s while
+  // the flag is off, so only fetch once the flag is known to be on. Query keys
+  // match the Transition Lab route so both share one cache entry.
+  const { data: betaSettings } = useQuery({
+    queryKey: ["settings", "beta"],
+    queryFn: () => api.getBetaSettings(),
+  });
+  const transitionPluginsEnabled = betaSettings?.settings.transition_plugins_enabled ?? false;
+
+  const { data: transitionPluginsData } = useQuery({
+    queryKey: ["transition-plugins"],
+    queryFn: () => api.listTransitionPlugins(),
+    enabled: transitionPluginsEnabled,
+  });
+  const transitionPlugins = useMemo(() => transitionPluginsData?.plugins ?? [], [transitionPluginsData]);
+
+  // A `plugin:<id>` override whose plugin isn't in the list — the beta is off,
+  // or the plugin was uninstalled. Surface it under its raw id rather than
+  // silently showing "Use global default"; the user's setting is never cleared
+  // behind their back.
+  const unknownPluginStrategy = useMemo(() => {
+    if (!transitionStrategy?.startsWith(PLUGIN_STRATEGY_PREFIX)) return null;
+    const id = transitionStrategy.slice(PLUGIN_STRATEGY_PREFIX.length);
+    return transitionPlugins.some((p) => p.id === id) ? null : id;
+  }, [transitionStrategy, transitionPlugins]);
+
+  // Human-readable name for the currently selected transition, for the tooltip.
+  const transitionLabel = useMemo(() => {
+    if (!transitionStrategy) return t("transitionUseGlobalDefault");
+    if (unknownPluginStrategy) return unknownPluginStrategy;
+    if (transitionStrategy.startsWith(PLUGIN_STRATEGY_PREFIX)) {
+      const id = transitionStrategy.slice(PLUGIN_STRATEGY_PREFIX.length);
+      return transitionPlugins.find((p) => p.id === id)?.name ?? id;
+    }
+    const builtIn = BUILT_IN_TRANSITIONS.find((s) => s.value === transitionStrategy);
+    return builtIn ? tTransitions(`strategies.${builtIn.labelKey}.label`) : transitionStrategy;
+  }, [transitionStrategy, unknownPluginStrategy, transitionPlugins, t, tTransitions]);
+
+  // Device/size retarget (issue #1250): compare the saved geometry with the
+  // editor's current one. A shrink on either axis is lossy (content that
+  // doesn't fit is cut off), so the save asks for confirmation first.
+  const originalDims = existingPage
+    ? resolveDimensions(existingPage.device_type, existingPage.notes_wide ?? 1, existingPage.notes_tall ?? 1)
+    : null;
+  const isShrinkingRetarget =
+    !!pageId && !!originalDims && (dims.rows < originalDims.rows || dims.cols < originalDims.cols);
+
   // Load draft or existing page data
   useEffect(() => {
     if (existingPage) {
@@ -527,7 +735,7 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
       const pageName = existingPage.name;
       setName(pageName);
 
-      const rawLines = existingPage.template || emptyLines();
+      const rawLines = existingPage.template || Array.from({ length: numLinesRef.current }, () => "");
       const meta = existingPage.line_metadata;
 
       const alignments: LineAlignment[] = [];
@@ -550,11 +758,15 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
       setDebouncedLineAlignments(alignments);
       setDebouncedLineWrapEnabled(wrapStates);
       setDebouncedTemplateLines(contents);
+      // Per-page transition override (null = inherit the global default).
+      const savedTransition = existingPage.transition_strategy ?? null;
+      setTransitionStrategy(savedTransition);
       setSavedSnapshot({
         name: pageName,
         templateLines: contents,
         lineAlignments: alignments,
         lineWrapEnabled: wrapStates,
+        transitionStrategy: savedTransition,
       });
     } else if (!pageId && !loadingPage) {
       const draftKey = getDraftKey();
@@ -598,16 +810,23 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
 
   // Seed note-array grid dimensions for a NEW note_array page from the
   // configured note_array board, so the editor previews at the board's real
-  // size before the page has ever been saved. Existing pages source their dims
-  // from the load effect above; flagship/note pages never run this branch and
-  // stay 1×1 (which resolves to their fixed device size).
+  // size before the page has ever been saved. The currently selected board
+  // wins when it IS a note array — with several note-array boards (e.g. a
+  // physical array plus a FiestaPanel's virtual board), seeding from the
+  // first match would author a page sized for a different board than the
+  // one the user is looking at. Existing pages source their dims from the
+  // load effect above; flagship/note pages never run this branch and stay
+  // 1×1 (which resolves to their fixed device size).
   useEffect(() => {
     if (pageId || deviceType !== "note_array" || !boardSettings?.boards) return;
-    const board = boardSettings.boards.find((b) => b.device_type === "note_array");
+    const boards = boardSettings.boards;
+    const board =
+      boards.find((b) => b.id === currentBoardId && b.device_type === "note_array") ??
+      boards.find((b) => b.device_type === "note_array");
     if (!board) return;
     setNotesWide(board.notes_wide ?? 1);
     setNotesTall(board.notes_tall ?? 1);
-  }, [pageId, deviceType, boardSettings?.boards]);
+  }, [pageId, deviceType, boardSettings?.boards, currentBoardId]);
 
   useEffect(() => {
     const timeoutId = setTimeout(() => {
@@ -757,13 +976,23 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
 
   // Save mutation
   const saveMutation = useMutation({
-    mutationFn: async () => {
+    // Since the Phase 2 conventions pass the two endpoints answer differently:
+    // PUT gives `{ page, incompatible_references }`, POST gives the bare page
+    // at 201. Both are normalized to PageUpdateResponse here so `onSuccess`
+    // reads one shape — a create simply reports no stale references, which is
+    // true: a brand-new page cannot have any.
+    mutationFn: async (): Promise<PageUpdateResponse> => {
       const { cleanedLines, metadata } = processLinesWithPrefixes(templateLines, lineAlignments, lineWrapEnabled);
       if (pageId) {
         const payload: PageUpdate = {
           name,
+          device_type: deviceType,
           template: cleanedLines,
           line_metadata: metadata,
+          // Always sent, even when null: the API clears a stored override only
+          // for keys it actually receives, so omitting this would silently keep
+          // a previous per-page transition after the user chose "global default".
+          transition_strategy: transitionStrategy,
           ...(deviceType === "note_array" ? { notes_wide: notesWide, notes_tall: notesTall } : {}),
         };
         return api.updatePage(pageId, payload);
@@ -774,14 +1003,21 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
           device_type: deviceType,
           template: cleanedLines,
           line_metadata: metadata,
+          transition_strategy: transitionStrategy,
           ...(deviceType === "note_array" ? { notes_wide: notesWide, notes_tall: notesTall } : {}),
         };
-        return api.createPage(payload);
+        const created = await api.createPage(payload);
+        return { page: created, incompatible_references: [] };
       }
     },
     onSuccess: (data) => {
+      // The saved page is always `data.page` after the normalization in
+      // mutationFn — reading `data.id` here was undefined and silently skipped
+      // every id-keyed cleanup below when creating a new page (issue #1586).
+      const targetPageId = pageId || data.page.id;
+
       // Clear draft on successful save
-      const draftKey = getDraftKey(pageId || data.id);
+      const draftKey = getDraftKey(targetPageId);
       localStorage.removeItem(draftKey);
       // Also clear the 'new' draft if this was a new page
       if (!pageId) {
@@ -789,7 +1025,6 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
       }
 
       // Clear preview cache for this page
-      const targetPageId = pageId || data.id;
       if (targetPageId) {
         clearPreviewCacheForPage(targetPageId);
       }
@@ -807,10 +1042,26 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
       queryClient.invalidateQueries({ queryKey: ["pagePreview"], refetchType: "active" });
 
       // If this page is currently active, refresh the active page data
-      queryClient.invalidateQueries({ queryKey: queryKeys.activePage, refetchType: "active" });
+      queryClient.invalidateQueries({ queryKey: queryKeys.activePage(), refetchType: "active" });
       queryClient.invalidateQueries({ queryKey: queryKeys.status, refetchType: "active" });
 
       toast.success(pageId ? t("toastPageUpdated") : t("toastPageCreated"));
+
+      // Stale-reference warning after a device/size retarget (issue #1250):
+      // list the schedules / active pages now pointing this page at a board
+      // it no longer fits. Non-blocking — the save already succeeded and
+      // nothing is auto-removed.
+      const incompatibleRefs = data.incompatible_references;
+      if (incompatibleRefs.length > 0) {
+        const list = incompatibleRefs
+          .map(
+            (ref) =>
+              `${ref.board_name} (${ref.surface === "schedule" ? t("retargetSurfaceSchedule") : t("retargetSurfaceActivePage")})`,
+          )
+          .join(", ");
+        toast.warning(t("retargetIncompatibleWarning", { list }), { duration: 10000 });
+      }
+
       onSave?.();
       onClose();
     },
@@ -841,7 +1092,7 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
 
       // Also invalidate active page if it was updated
       if (data.active_page_updated) {
-        queryClient.invalidateQueries({ queryKey: queryKeys.activePage, refetchType: "active" });
+        queryClient.invalidateQueries({ queryKey: queryKeys.activePage(), refetchType: "active" });
         queryClient.invalidateQueries({ queryKey: queryKeys.status, refetchType: "active" });
       }
 
@@ -973,14 +1224,24 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
     },
   });
 
+  // react-query returns a new `previewMutation` object identity on most
+  // renders, so it can't be listed directly in the effect's dependency array
+  // below without making the debounced-preview effect (and its 200ms
+  // setTimeout) re-fire on every render instead of only when the tracked
+  // template/alignment/wrap state actually changes. Read the latest mutation
+  // through a ref instead — same pattern as lastPreviewRef/liveOutputEnabledRef
+  // above.
+  const previewMutationRef = useRef(previewMutation);
+  previewMutationRef.current = previewMutation;
+
   // Auto-preview when debounced template lines or alignments change (debounced)
   // Skipped when live mode is on — the live fast path handles preview updates directly.
   useEffect(() => {
     if (liveOutputEnabled) {
       needsRePreview.current = false;
-      if (previewMutation.isPending) {
+      if (previewMutationRef.current.isPending) {
         shouldIgnoreNextResponse.current = true;
-        previewMutation.reset();
+        previewMutationRef.current.reset();
       }
       return;
     }
@@ -990,9 +1251,9 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
     if (!hasContent) {
       setPreview(null);
       needsRePreview.current = false;
-      if (previewMutation.isPending) {
+      if (previewMutationRef.current.isPending) {
         shouldIgnoreNextResponse.current = true;
-        previewMutation.reset();
+        previewMutationRef.current.reset();
       }
       return;
     }
@@ -1009,15 +1270,15 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
       if (!stillHasContent) {
         setPreview(null);
         shouldIgnoreNextResponse.current = false;
-        if (previewMutation.isPending) {
+        if (previewMutationRef.current.isPending) {
           shouldIgnoreNextResponse.current = true;
-          previewMutation.reset();
+          previewMutationRef.current.reset();
         }
         return;
       }
 
-      if (!previewMutation.isPending) {
-        previewMutation.mutate();
+      if (!previewMutationRef.current.isPending) {
+        previewMutationRef.current.mutate();
       } else {
         needsRePreview.current = true;
       }
@@ -1057,6 +1318,10 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
     },
   });
 
+  // Same react-query identity-churn concern as previewMutationRef above.
+  const liveSendMutationRef = useRef(liveSendMutation);
+  liveSendMutationRef.current = liveSendMutation;
+
   // Legacy live send path — only used as fallback when fast path hasn't handled the update.
   // The fast path sets lastLiveSentPreview to match preview, so this is effectively a no-op
   // when live mode is active. Kept for safety if the fast path request fails.
@@ -1068,10 +1333,10 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
     const hasContent = debouncedTemplateLines.some((line) => line.trim().length > 0);
     if (!hasContent) return;
 
-    if (!liveSendMutation.isPending) {
-      liveSendMutation.mutate(preview);
+    if (!liveSendMutationRef.current.isPending) {
+      liveSendMutationRef.current.mutate(preview);
     }
-  }, [preview, liveOutputEnabled]);
+  }, [preview, liveOutputEnabled, debouncedTemplateLines]);
 
   // Live edit fast path: single 100ms debounce → single API call → preview + board update.
   // Bypasses the normal double-debounce (150ms + 200ms) and double API call chain.
@@ -1150,7 +1415,7 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
         liveAbortRef.current = null;
       }
     };
-  }, [liveOutputEnabled, templateLines, lineAlignments, lineWrapEnabled, selectedBoardId]);
+  }, [liveOutputEnabled, templateLines, lineAlignments, lineWrapEnabled, selectedBoardId, deviceType, queryClient]);
 
   // Initialize selected board to first board when settings load
   useEffect(() => {
@@ -1158,6 +1423,154 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
       setSelectedBoardId(boardSettings.boards[0].id);
     }
   }, [boardSettings?.boards, selectedBoardId]);
+
+  // Draw mode: a committed stroke is applied straight to the editor's live
+  // ProseMirror doc (one undo step), which fires onChange -> setTemplateLines
+  // on its own — no separate setTemplateLines call needed here. Painted rows
+  // are positional, so force left alignment + wrap off so the client-side
+  // preview composition below (and the server render on save) don't
+  // reinterpret the painted cells.
+  const handleStrokeCommit = useCallback(
+    (cells: StrokeCell[]) => {
+      setStrokePreviewCells([]);
+      const rows = tipTapRef.current?.applyStroke(cells, drawBrush) ?? [];
+      if (rows.length === 0) return;
+      // Capture the pre-stroke metadata so undoing this stroke can restore
+      // it; a new stroke also invalidates any redoable strokes (the editor's
+      // redo stack is cleared by the new doc change).
+      const hist = strokeMetaHistoryRef.current;
+      hist.done.push({
+        rows,
+        alignments: rows.map((r) => lineAlignmentsRef.current[r] ?? "left"),
+        wraps: rows.map((r) => lineWrapEnabledRef.current[r] ?? false),
+      });
+      hist.undone = [];
+      // Painted lines are positional: force left alignment + wrap off.
+      setLineAlignments((prev) => {
+        const next = [...prev];
+        for (const r of rows) next[r] = "left";
+        return next;
+      });
+      setLineWrapEnabled((prev) => {
+        const next = [...prev];
+        for (const r of rows) next[r] = false;
+        return next;
+      });
+    },
+    [drawBrush],
+  );
+
+  // Undo/redo crossed a paint-stroke boundary in the editor's history: the
+  // editor already rewound/reapplied the ProseMirror doc — mirror that onto
+  // the alignment/wrap metadata the stroke commit force-overwrote.
+  const handleDrawHistoryEvent = useCallback((event: DrawHistoryEvent) => {
+    if (!event.stroke) return;
+    const hist = strokeMetaHistoryRef.current;
+    if (event.action === "undo") {
+      const entry = hist.done.pop();
+      if (!entry) return;
+      hist.undone.push(entry);
+      setLineAlignments((prev) => {
+        const next = [...prev];
+        entry.rows.forEach((r, i) => {
+          next[r] = entry.alignments[i] ?? "left";
+        });
+        return next;
+      });
+      setLineWrapEnabled((prev) => {
+        const next = [...prev];
+        entry.rows.forEach((r, i) => {
+          next[r] = entry.wraps[i] ?? false;
+        });
+        return next;
+      });
+    } else {
+      const entry = hist.undone.pop();
+      if (!entry) return;
+      hist.done.push(entry);
+      setLineAlignments((prev) => {
+        const next = [...prev];
+        for (const r of entry.rows) next[r] = "left";
+        return next;
+      });
+      setLineWrapEnabled((prev) => {
+        const next = [...prev];
+        for (const r of entry.rows) next[r] = false;
+        return next;
+      });
+    }
+  }, []);
+
+  // Draw-mode preview composition (client-side, instant — no server
+  // round-trip for painted rows). Falls back to the server-rendered preview
+  // for rows that aren't locally renderable (dynamic content, non-left
+  // alignment, or wrap enabled).
+  const drawPreviewMessage = useMemo(() => {
+    if (!drawMode) return null;
+    const serverLines = (preview ?? lastPreview ?? "").split("\n");
+    const strokeByRow = new Map<number, CellPaint[]>();
+    const strokeCell = brushToCell(drawBrush);
+    for (const c of strokePreviewCells) {
+      const arr = strokeByRow.get(c.row) ?? [];
+      arr.push({ col: c.col, cell: strokeCell });
+      strokeByRow.set(c.row, arr);
+    }
+    const out: string[] = [];
+    for (let r = 0; r < dims.rows; r++) {
+      const tpl = templateLines[r] ?? "";
+      const strokePaints = strokeByRow.get(r);
+      const isLocallyRenderable =
+        isPositionalLine(tpl) && (lineAlignments[r] ?? "left") === "left" && !(lineWrapEnabled[r] ?? false);
+      if (strokePaints) {
+        // Preview exactly what committing this stroke will produce
+        // (including variable stripping + left alignment).
+        out.push(renderPositionalLine(paintLine(tpl, strokePaints, dims.cols)));
+      } else if (isLocallyRenderable) {
+        out.push(renderPositionalLine(tpl));
+      } else {
+        out.push(serverLines[r] ?? "");
+      }
+    }
+    return out.join("\n");
+  }, [
+    drawMode,
+    strokePreviewCells,
+    drawBrush,
+    templateLines,
+    lineAlignments,
+    lineWrapEnabled,
+    preview,
+    lastPreview,
+    dims.rows,
+    dims.cols,
+  ]);
+
+  // Keyboard shortcuts while drawing: Esc exits; undo/redo work even though
+  // the editor itself is visually hidden (and thus not focused) in draw mode.
+  useEffect(() => {
+    if (!drawMode) return;
+    const onKey = (e: KeyboardEvent) => {
+      const target = e.target as HTMLElement | null;
+      if (target && (target.tagName === "INPUT" || target.tagName === "TEXTAREA" || target.isContentEditable)) {
+        return;
+      }
+      if (e.key === "Escape") {
+        setDrawMode(false);
+        return;
+      }
+      if (!(e.metaKey || e.ctrlKey)) return;
+      const k = e.key.toLowerCase();
+      if (k === "z" && !e.shiftKey) {
+        e.preventDefault();
+        tipTapRef.current?.undo();
+      } else if (k === "y" || (k === "z" && e.shiftKey)) {
+        e.preventDefault();
+        tipTapRef.current?.redo();
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [drawMode]);
 
   if (pageId && loadingPage) {
     return (
@@ -1171,12 +1584,12 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
 
   return (
     <>
-      <div className="flex-1 min-h-0 w-full max-w-full overflow-x-hidden">
+      <Box className="flex-1 min-h-0 w-full max-w-full overflow-x-hidden">
         {/* Main Editor */}
         <Card className="flex flex-col min-h-0 w-full max-w-full overflow-x-hidden">
           <CardHeader className="pb-1 flex-shrink-0 px-4 sm:px-6">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2 min-w-0">
+            <Flex align="center" justify="between">
+              <Flex align="center" gap="2" className="min-w-0">
                 <Button
                   variant="ghost"
                   size="icon"
@@ -1189,7 +1602,7 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
                 <CardTitle className="text-base sm:text-lg truncate">
                   {pageId ? t("editPage") : t("createPage")}
                 </CardTitle>
-              </div>
+              </Flex>
               {/* `skipDelayDuration={0}` disables Radix's "skip the
                *  hover delay when moving between tooltips" behavior.
                *  Without it, clicking the AI toggle and triggering a
@@ -1199,7 +1612,92 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
                *  time to settle on the new layout before any new
                *  tooltip pops. */}
               <TooltipProvider skipDelayDuration={0}>
-                <div className="flex items-center gap-1.5">
+                <Flex align="center" gap="1.5">
+                  {/* Per-page transition override. Null (the default) inherits
+                   *  the global setting; the trigger carries a dot when this
+                   *  page overrides it. */}
+                  <DropdownMenu>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <DropdownMenuTrigger asChild>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="relative h-9 w-9"
+                            aria-label={t("transitionPickerAriaLabel")}
+                          >
+                            <Sparkles className={`h-4 w-4 ${transitionStrategy ? "text-brand" : ""}`} />
+                            {transitionStrategy && (
+                              <Text
+                                as="span"
+                                aria-hidden="true"
+                                className="absolute right-1.5 top-1.5 h-1.5 w-1.5 rounded-full bg-brand"
+                              />
+                            )}
+                          </Button>
+                        </DropdownMenuTrigger>
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <Text>{t("transitionPickerTooltip", { strategy: transitionLabel })}</Text>
+                      </TooltipContent>
+                    </Tooltip>
+                    <DropdownMenuContent align="end" className="w-56">
+                      <DropdownMenuLabel className="text-xs font-medium">{t("transitionMenuTitle")}</DropdownMenuLabel>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuRadioGroup
+                        value={transitionStrategy ?? TRANSITION_INHERIT}
+                        onValueChange={(value) =>
+                          setTransitionStrategy(value === TRANSITION_INHERIT ? null : String(value))
+                        }
+                      >
+                        {/* Base UI's MenuRadioItem defaults closeOnClick to
+                         *  false; without this the menu stays open after a
+                         *  pick and its inert backdrop swallows clicks on
+                         *  Save. Picking a transition is a one-shot choice,
+                         *  so every item closes the menu. */}
+                        <DropdownMenuRadioItem value={TRANSITION_INHERIT} className="text-xs" closeOnClick>
+                          {t("transitionUseGlobalDefault")}
+                        </DropdownMenuRadioItem>
+                        <DropdownMenuLabel className="text-[11px] text-muted-foreground">
+                          {t("transitionBuiltInGroup")}
+                        </DropdownMenuLabel>
+                        {BUILT_IN_TRANSITIONS.map((strategy) => (
+                          <DropdownMenuRadioItem
+                            key={strategy.value}
+                            value={strategy.value}
+                            className="text-xs"
+                            closeOnClick
+                          >
+                            {tTransitions(`strategies.${strategy.labelKey}.label`)}
+                          </DropdownMenuRadioItem>
+                        ))}
+                        {transitionPlugins.length > 0 && (
+                          <DropdownMenuLabel className="text-[11px] text-muted-foreground">
+                            {t("transitionPluginsGroup")}
+                          </DropdownMenuLabel>
+                        )}
+                        {transitionPlugins.map((plugin) => (
+                          <DropdownMenuRadioItem
+                            key={plugin.id}
+                            value={`${PLUGIN_STRATEGY_PREFIX}${plugin.id}`}
+                            className="text-xs"
+                            closeOnClick
+                          >
+                            {plugin.name}
+                          </DropdownMenuRadioItem>
+                        ))}
+                        {unknownPluginStrategy && (
+                          <DropdownMenuRadioItem value={transitionStrategy!} className="text-xs" closeOnClick>
+                            {unknownPluginStrategy}
+                          </DropdownMenuRadioItem>
+                        )}
+                      </DropdownMenuRadioGroup>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem className="text-xs" onClick={() => router.push("/transitions")}>
+                        {t("transitionOpenLab")}
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
                   {/* Delete button - only show when editing */}
                   {pageId && (
                     <AlertDialog>
@@ -1217,7 +1715,7 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
                           </AlertDialogTrigger>
                         </TooltipTrigger>
                         <TooltipContent>
-                          <p>{t("deletePageTooltip")}</p>
+                          <Text>{t("deletePageTooltip")}</Text>
                         </TooltipContent>
                       </Tooltip>
                       <AlertDialogContent>
@@ -1247,17 +1745,24 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
                       <Button
                         variant="brand"
                         size="sm"
-                        className="h-8 gap-1.5 px-3"
-                        onClick={() => saveMutation.mutate()}
+                        className="h-8 gap-1.5 px-3 text-xs"
+                        onClick={() => {
+                          // A shrinking retarget loses content — confirm first.
+                          if (isShrinkingRetarget) {
+                            setConfirmRetargetOpen(true);
+                          } else {
+                            saveMutation.mutate();
+                          }
+                        }}
                         disabled={!name.trim() || saveMutation.isPending}
                         aria-label={t("savePageAriaLabel")}
                       >
                         <Save className="h-3.5 w-3.5" />
-                        <span className="text-xs">{saveMutation.isPending ? tCommon("saving") : t("savePage")}</span>
+                        {saveMutation.isPending ? tCommon("saving") : t("savePage")}
                       </Button>
                     </TooltipTrigger>
                     <TooltipContent>
-                      <p>{t("savePageTooltip")}</p>
+                      <Text>{t("savePageTooltip")}</Text>
                     </TooltipContent>
                   </Tooltip>
                   {/* Export button — only on existing pages */}
@@ -1267,7 +1772,7 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
                         <Button
                           variant="secondary"
                           size="sm"
-                          className="h-8 gap-1.5 px-3"
+                          className="h-8 gap-1.5 px-3 text-xs"
                           disabled={hasUnsavedChanges}
                           onClick={async () => {
                             try {
@@ -1282,30 +1787,33 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
                           aria-label={t("exportPageAriaLabel")}
                         >
                           <Upload className="h-3.5 w-3.5" />
-                          <span className="text-xs">{t("exportPage")}</span>
+                          {t("exportPage")}
                         </Button>
                       </TooltipTrigger>
                       <TooltipContent>
-                        <p>{hasUnsavedChanges ? t("exportDisabledTooltip") : t("exportPageTooltip")}</p>
+                        <Text>{hasUnsavedChanges ? t("exportDisabledTooltip") : t("exportPageTooltip")}</Text>
                       </TooltipContent>
                     </Tooltip>
                   )}
-                </div>
+                </Flex>
               </TooltipProvider>
-            </div>
+            </Flex>
           </CardHeader>
 
           <CardContent className="flex flex-col flex-1 min-h-0 px-3 sm:px-4 md:px-6 pt-2">
             <ScrollArea className="flex-1 min-h-0 space-y-4">
               {/* Draft restored notification */}
               {draftRestored && (
-                <Alert className="bg-info/10 border-info/20">
+                // mb-4 by hand: the parent ScrollArea's space-y-4 spaces its
+                // viewport wrapper, not the content siblings inside it, so
+                // without this the banner sat flush against the name field.
+                <Alert className="bg-info/10 border-info/20 mb-4">
                   <AlertDescription className="text-sm">{t("draftRestored")}</AlertDescription>
                 </Alert>
               )}
 
               {/* Page name */}
-              <div className="space-y-1.5">
+              <Stack gap="1.5">
                 <label htmlFor="page-name" className="text-xs sm:text-sm font-medium">
                   {t("pageNameLabel")}
                 </label>
@@ -1317,22 +1825,23 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
                   placeholder={t("pageNamePlaceholder")}
                   className="w-full h-10 sm:h-9 px-3 text-sm rounded-md border bg-background focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
                 />
-              </div>
+              </Stack>
 
               {/* Template line editors */}
-              <div className="space-y-3">
-                <div className="flex items-center justify-between">
+              <Stack gap="3">
+                <Flex align="center" justify="between">
                   <label className="text-xs sm:text-sm font-medium">{t("templateLabel")}</label>
-                  <div
-                    className="flex items-center border rounded-md overflow-hidden"
+                  <Flex
+                    align="center"
                     role="group"
                     aria-label={t("editorModeAriaLabel")}
+                    className="border rounded-md overflow-hidden"
                   >
                     <Button
                       size="sm"
                       variant="ghost"
                       onClick={() => handleEditorModeChange("rich")}
-                      className={`h-7 px-3 text-[11px] rounded-none ${editorMode === "rich" ? "bg-brand-emphasis text-brand-foreground hover:bg-brand-emphasis/85 hover:text-brand-foreground" : ""}`}
+                      className={`h-7 px-3 text-[11px] rounded-none ${editorMode === "rich" ? "bg-primary text-primary-foreground hover:bg-primary/85 hover:text-primary-foreground" : ""}`}
                       aria-label={t("richEditorAriaLabel")}
                       aria-pressed={editorMode === "rich"}
                     >
@@ -1342,98 +1851,107 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
                       size="sm"
                       variant="ghost"
                       onClick={() => handleEditorModeChange("plain")}
-                      className={`h-7 px-3 text-[11px] rounded-none ${editorMode === "plain" ? "bg-brand-emphasis text-brand-foreground hover:bg-brand-emphasis/85 hover:text-brand-foreground" : ""}`}
+                      className={`h-7 px-3 text-[11px] rounded-none ${editorMode === "plain" ? "bg-primary text-primary-foreground hover:bg-primary/85 hover:text-primary-foreground" : ""}`}
                       aria-label={t("plainTextAriaLabel")}
                       aria-pressed={editorMode === "plain"}
                     >
                       {t("plainEditor")}
                     </Button>
-                  </div>
-                </div>
+                  </Flex>
+                </Flex>
                 {editorMode === "rich" ? (
-                  <div>
+                  <Box>
                     {/* Template editor with device-specific dimensions */}
-                    <TipTapTemplateEditor
-                      value={templateLines.join("\n")}
-                      onChange={(newValue) => {
-                        if (isUpdatingWrap.current) {
-                          return;
-                        }
-                        const lines = newValue.split("\n");
-                        setTemplateLines(lines);
-
-                        const oldLen = templateLines.length;
-                        const newLen = lines.length;
-                        if (newLen !== oldLen) {
-                          let prefixMatch = 0;
-                          while (
-                            prefixMatch < Math.min(newLen, oldLen) &&
-                            lines[prefixMatch] === templateLines[prefixMatch]
-                          ) {
-                            prefixMatch++;
+                    <Suspense fallback={<Skeleton className="h-48 w-full rounded-md" />}>
+                      <TipTapTemplateEditor
+                        ref={tipTapRef}
+                        value={templateLines.join("\n")}
+                        onChange={(newValue) => {
+                          if (isUpdatingWrap.current) {
+                            return;
                           }
-                          let suffixMatch = 0;
-                          while (
-                            suffixMatch < Math.min(newLen, oldLen) - prefixMatch &&
-                            lines[newLen - 1 - suffixMatch] === templateLines[oldLen - 1 - suffixMatch]
-                          ) {
-                            suffixMatch++;
-                          }
+                          const lines = newValue.split("\n");
+                          setTemplateLines(lines);
 
-                          const updatedAlignments = [...lineAlignments];
-                          const updatedWrap = [...lineWrapEnabled];
-
-                          if (newLen < oldLen) {
-                            const deleteCount = oldLen - newLen;
-                            const deleteStart = prefixMatch + (newLen - prefixMatch - suffixMatch);
-                            updatedAlignments.splice(deleteStart, deleteCount);
-                            updatedWrap.splice(deleteStart, deleteCount);
-                          } else {
-                            const insertCount = newLen - oldLen;
-                            const insertStart = prefixMatch + (oldLen - prefixMatch - suffixMatch);
-                            for (let i = 0; i < insertCount; i++) {
-                              updatedAlignments.splice(insertStart + i, 0, "left");
-                              updatedWrap.splice(insertStart + i, 0, false);
+                          const oldLen = templateLines.length;
+                          const newLen = lines.length;
+                          if (newLen !== oldLen) {
+                            let prefixMatch = 0;
+                            while (
+                              prefixMatch < Math.min(newLen, oldLen) &&
+                              lines[prefixMatch] === templateLines[prefixMatch]
+                            ) {
+                              prefixMatch++;
                             }
+                            let suffixMatch = 0;
+                            while (
+                              suffixMatch < Math.min(newLen, oldLen) - prefixMatch &&
+                              lines[newLen - 1 - suffixMatch] === templateLines[oldLen - 1 - suffixMatch]
+                            ) {
+                              suffixMatch++;
+                            }
+
+                            const updatedAlignments = [...lineAlignments];
+                            const updatedWrap = [...lineWrapEnabled];
+
+                            if (newLen < oldLen) {
+                              const deleteCount = oldLen - newLen;
+                              const deleteStart = prefixMatch + (newLen - prefixMatch - suffixMatch);
+                              updatedAlignments.splice(deleteStart, deleteCount);
+                              updatedWrap.splice(deleteStart, deleteCount);
+                            } else {
+                              const insertCount = newLen - oldLen;
+                              const insertStart = prefixMatch + (oldLen - prefixMatch - suffixMatch);
+                              for (let i = 0; i < insertCount; i++) {
+                                updatedAlignments.splice(insertStart + i, 0, "left");
+                                updatedWrap.splice(insertStart + i, 0, false);
+                              }
+                            }
+
+                            while (updatedAlignments.length < newLen) updatedAlignments.push("left");
+                            while (updatedWrap.length < newLen) updatedWrap.push(false);
+                            updatedAlignments.length = newLen;
+                            updatedWrap.length = newLen;
+
+                            setLineAlignments(updatedAlignments);
+                            setLineWrapEnabled(updatedWrap);
                           }
-
-                          while (updatedAlignments.length < newLen) updatedAlignments.push("left");
-                          while (updatedWrap.length < newLen) updatedWrap.push(false);
-                          updatedAlignments.length = newLen;
-                          updatedWrap.length = newLen;
-
-                          setLineAlignments(updatedAlignments);
-                          setLineWrapEnabled(updatedWrap);
-                        }
-                      }}
-                      lineAlignments={lineAlignments}
-                      lineWrapEnabled={lineWrapEnabled}
-                      onLineAlignmentChange={(lineIndex, alignment) => {
-                        setLineAlignments((prev) => {
-                          const newAlignments = [...prev];
-                          newAlignments[lineIndex] = alignment;
-                          return newAlignments;
-                        });
-                      }}
-                      onLineWrapChange={(lineIndex, wrapEnabled) => {
-                        setLineWrapEnabled((prev) => {
-                          const newWrapStates = [...prev];
-                          newWrapStates[lineIndex] = wrapEnabled;
-                          return newWrapStates;
-                        });
-                      }}
-                      placeholder={t("richEditorPlaceholder")}
-                      showAlignmentControls={true}
-                      showToolbar={true}
-                      boardWidth={dims.cols}
-                      boardLines={numLines}
-                      deviceType={deviceType}
-                      onSyncFromBoard={!pageId ? () => syncFromBoardMutation.mutate() : undefined}
-                      syncFromBoardPending={syncFromBoardMutation.isPending}
-                    />
-                  </div>
+                        }}
+                        lineAlignments={lineAlignments}
+                        lineWrapEnabled={lineWrapEnabled}
+                        onLineAlignmentChange={(lineIndex, alignment) => {
+                          setLineAlignments((prev) => {
+                            const newAlignments = [...prev];
+                            newAlignments[lineIndex] = alignment;
+                            return newAlignments;
+                          });
+                        }}
+                        onLineWrapChange={(lineIndex, wrapEnabled) => {
+                          setLineWrapEnabled((prev) => {
+                            const newWrapStates = [...prev];
+                            newWrapStates[lineIndex] = wrapEnabled;
+                            return newWrapStates;
+                          });
+                        }}
+                        placeholder={t("richEditorPlaceholder")}
+                        showAlignmentControls={true}
+                        showToolbar={true}
+                        boardWidth={dims.cols}
+                        boardLines={numLines}
+                        deviceType={deviceType}
+                        code62Glyph={effectiveCode62Glyph}
+                        onSyncFromBoard={!pageId ? () => syncFromBoardMutation.mutate() : undefined}
+                        syncFromBoardPending={syncFromBoardMutation.isPending}
+                        drawMode={drawMode}
+                        onDrawModeToggle={() => setDrawMode((v) => !v)}
+                        drawBrush={drawBrush}
+                        onDrawBrushChange={setDrawBrush}
+                        onDrawHistoryEvent={handleDrawHistoryEvent}
+                      />
+                    </Suspense>
+                  </Box>
                 ) : (
-                  <div>
+                  <Box>
                     <PlainTextEditor
                       value={templateLines.join("\n")}
                       onChange={(newValue) => {
@@ -1443,32 +1961,46 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
                       boardLines={numLines}
                       boardWidth={dims.cols}
                     />
-                  </div>
+                  </Box>
                 )}
 
                 {/* Line count validation warning */}
                 {lineCount > numLines && (
-                  <div className="flex items-start gap-2 rounded-md border border-warning/50 bg-warning/10 px-3 py-2 text-xs text-warning">
-                    <span className="font-medium shrink-0">{t("warningLabel")}</span>
-                    <span>{t("lineCountWarning", { lineCount, maxLines: numLines })}</span>
-                  </div>
+                  <Flex
+                    align="start"
+                    gap="2"
+                    className="rounded-md border border-warning/50 bg-warning/10 px-3 py-2 text-xs text-warning"
+                  >
+                    <Text as="span" size="xs" weight="medium" tone="warning" className="shrink-0">
+                      {t("warningLabel")}
+                    </Text>
+                    <Text as="span" size="xs" tone="warning">
+                      {t("lineCountWarning", { lineCount, maxLines: numLines })}
+                    </Text>
+                  </Flex>
                 )}
 
                 {/* Wrap budget warnings */}
                 {wrapBudgetWarnings.map((lineNumber) => (
-                  <div
+                  <Flex
                     key={`wrap-budget-${lineNumber}`}
-                    className="flex items-start gap-2 rounded-md border border-warning/50 bg-warning/10 px-3 py-2 text-xs text-warning"
+                    align="start"
+                    gap="2"
+                    className="rounded-md border border-warning/50 bg-warning/10 px-3 py-2 text-xs text-warning"
                   >
-                    <span className="font-medium shrink-0">{t("warningLabel")}</span>
-                    <span>{t("wrapBudgetWarning", { lineNumber })}</span>
-                  </div>
+                    <Text as="span" size="xs" weight="medium" tone="warning" className="shrink-0">
+                      {t("warningLabel")}
+                    </Text>
+                    <Text as="span" size="xs" tone="warning">
+                      {t("wrapBudgetWarning", { lineNumber })}
+                    </Text>
+                  </Flex>
                 ))}
 
                 {/* Live preview */}
-                <div className="mt-4">
-                  <div className="flex flex-wrap items-center justify-between gap-y-1 mb-2">
-                    <div className="flex items-center gap-2">
+                <Box className="mt-4">
+                  <Flex align="center" justify="between" className="flex-wrap gap-y-1 mb-2">
+                    <Flex align="center" gap="2">
                       <label className="text-xs sm:text-sm font-medium">{t("previewLabel")}</label>
                       <BoardSizeIndicator
                         deviceType={deviceType}
@@ -1476,30 +2008,74 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
                         notesTall={notesTall}
                         className="ml-1"
                       />
-                      {/* New pages can still change device size — the type is only
-                          locked once the page is saved (converting saved content
-                          between 6×22 and 3×15 is lossy, so that stays out of scope). */}
-                      {!pageId && (
-                        <Select value={deviceType} onValueChange={(v) => setDeviceType(v as DeviceType)}>
-                          <SelectTrigger
-                            className="h-7 w-auto gap-1 px-2 text-xs"
-                            aria-label={t("deviceTypeSwitcherAriaLabel")}
-                          >
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="flagship" className="text-xs">
-                              {tDisplaySettings("flagshipLabel")}
-                            </SelectItem>
-                            <SelectItem value="note" className="text-xs">
-                              {tDisplaySettings("noteLabel")}
-                            </SelectItem>
-                          </SelectContent>
-                        </Select>
+                      {/* Device/size retarget (issue #1250): both new AND saved
+                          pages can change board size. Converting a saved page is
+                          lossy (shrinks truncate), so saving a shrinking retarget
+                          asks for confirmation first. */}
+                      <Select
+                        value={deviceType}
+                        onValueChange={(v) => {
+                          setDeviceType(v as DeviceType);
+                          setDrawMode(false);
+                        }}
+                      >
+                        <SelectTrigger
+                          className="h-7 w-auto gap-1 px-2 text-xs"
+                          aria-label={t("deviceTypeSwitcherAriaLabel")}
+                        >
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="flagship" className="text-xs">
+                            {tDisplaySettings("flagshipLabel")}
+                          </SelectItem>
+                          <SelectItem value="note" className="text-xs">
+                            {tDisplaySettings("noteLabel")}
+                          </SelectItem>
+                          <SelectItem value="note_array" className="text-xs">
+                            {tDisplaySettings("noteArrayLabel")}
+                          </SelectItem>
+                        </SelectContent>
+                      </Select>
+                      {deviceType === "note_array" && (
+                        <>
+                          <Select value={String(notesWide)} onValueChange={(v) => setNotesWide(Number(v))}>
+                            <SelectTrigger
+                              className="h-7 w-auto gap-1 px-2 text-xs"
+                              aria-label={tDisplaySettings("notesWideLabel")}
+                            >
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {NOTE_AXIS_OPTIONS.map((n) => (
+                                <SelectItem key={`w-${n}`} value={String(n)} className="text-xs">
+                                  {t("notesWideOption", { count: n })}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                          <Select value={String(notesTall)} onValueChange={(v) => setNotesTall(Number(v))}>
+                            <SelectTrigger
+                              className="h-7 w-auto gap-1 px-2 text-xs"
+                              aria-label={tDisplaySettings("notesTallLabel")}
+                            >
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {NOTE_AXIS_OPTIONS.map((n) => (
+                                <SelectItem key={`t-${n}`} value={String(n)} className="text-xs">
+                                  {t("notesTallOption", { count: n })}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </>
                       )}
-                    </div>
-                    <div className="flex items-center gap-1.5 shrink-0">
-                      <span className="text-[10px] text-muted-foreground mr-0.5">{t("boardColorLabel")}</span>
+                    </Flex>
+                    <Flex align="center" gap="1.5" className="shrink-0">
+                      <Text as="span" size="xs" tone="muted" className="mr-0.5">
+                        {t("boardColorLabel")}
+                      </Text>
                       <button
                         onClick={() => setPreviewBoardColor("black")}
                         aria-label={t("previewAsBlack")}
@@ -1520,48 +2096,73 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
                             : "border-border hover:border-muted-foreground"
                         }`}
                       />
-                    </div>
-                  </div>
-                  <div className="flex justify-center">
-                    <ScaledBoardDisplay
-                      message={(() => {
-                        // Use new loading pattern: keep previous message visible during loading/transition
-                        // This allows tiles to cycle through characters (like real FiestaBoard)
-                        // instead of showing legacy FlipTiles
+                    </Flex>
+                  </Flex>
+                  <Flex justify="center">
+                    <DrawableBoardPreview
+                      active={drawMode}
+                      onStrokePreview={setStrokePreviewCells}
+                      onStrokeCommit={handleStrokeCommit}
+                    >
+                      <ScaledBoardDisplay
+                        message={
+                          drawMode
+                            ? drawPreviewMessage
+                            : (() => {
+                                // Use new loading pattern: keep previous message visible during loading/transition
+                                // This allows tiles to cycle through characters (like real FiestaBoard)
+                                // instead of showing legacy FlipTiles
 
-                        const hasContent = debouncedTemplateLines.some((line) => line.trim().length > 0);
-                        const isPending = previewMutation.isPending;
-                        const shouldIgnore = shouldIgnoreNextResponse.current;
+                                const hasContent = debouncedTemplateLines.some((line) => line.trim().length > 0);
+                                const isPending = previewMutation.isPending;
+                                const shouldIgnore = shouldIgnoreNextResponse.current;
 
-                        if (isTransitioning && lastPreview) return lastPreview;
-                        if (preview !== null) return preview;
-                        if (!hasContent && !isPending && !shouldIgnore) return "";
-                        if (isPending && hasContent && !shouldIgnore && lastPreview) return lastPreview;
-                        if (isPending && hasContent && !shouldIgnore) return "";
-                        return null;
-                      })()}
-                      isLoading={(() => {
-                        const hasContent = debouncedTemplateLines.some((line) => line.trim().length > 0);
-                        const isPending = previewMutation.isPending;
-                        const shouldIgnore = shouldIgnoreNextResponse.current;
+                                if (isTransitioning && lastPreview) return lastPreview;
+                                if (preview !== null) return preview;
+                                if (!hasContent && !isPending && !shouldIgnore) return "";
+                                if (isPending && hasContent && !shouldIgnore && lastPreview) return lastPreview;
+                                if (isPending && hasContent && !shouldIgnore) return "";
+                                return null;
+                              })()
+                        }
+                        isLoading={
+                          drawMode
+                            ? false
+                            : (() => {
+                                const hasContent = debouncedTemplateLines.some((line) => line.trim().length > 0);
+                                const isPending = previewMutation.isPending;
+                                const shouldIgnore = shouldIgnoreNextResponse.current;
 
-                        if (isTransitioning) return true;
-                        if (preview !== null) return false;
-                        if (!hasContent) return false;
-                        if (shouldIgnore) return false;
-                        return isPending && hasContent;
-                      })()}
-                      size="md"
-                      boardType={effectiveBoardColor}
-                      deviceType={deviceType}
-                      notesWide={notesWide}
-                      notesTall={notesTall}
-                    />
-                  </div>
+                                if (isTransitioning) return true;
+                                if (preview !== null) return false;
+                                if (!hasContent) return false;
+                                if (shouldIgnore) return false;
+                                return isPending && hasContent;
+                              })()
+                        }
+                        isStatic={drawMode}
+                        size="md"
+                        boardType={effectiveBoardColor}
+                        deviceType={deviceType}
+                        code62Glyph={effectiveCode62Glyph}
+                        notesWide={notesWide}
+                        notesTall={notesTall}
+                        // DrawableBoardPreview hit-tests strokes through the
+                        // tiles' data-row/data-col attributes; only this
+                        // editor preview opts into emitting them.
+                        emitCellMetadata
+                      />
+                    </DrawableBoardPreview>
+                  </Flex>
+                  {drawMode && (
+                    <Text tone="muted" size="xs" className="mt-1 text-center">
+                      {t("drawModeHint")}
+                    </Text>
+                  )}
 
                   {/* Live output controls */}
-                  <div className="mt-3 flex items-center justify-between gap-3 rounded-lg border px-3 py-2">
-                    <div className="flex items-center gap-2">
+                  <Flex align="center" justify="between" gap="3" className="mt-3 rounded-lg border px-3 py-2">
+                    <Flex align="center" gap="2">
                       <Switch
                         id="live-output-toggle"
                         checked={liveOutputEnabled}
@@ -1578,9 +2179,11 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
                         {t("liveOutput")}
                       </label>
                       {liveSendMutation.isPending && (
-                        <span className="text-[10px] text-muted-foreground">{tCommon("sending")}</span>
+                        <Text as="span" size="xs" tone="muted">
+                          {tCommon("sending")}
+                        </Text>
                       )}
-                    </div>
+                    </Flex>
 
                     {boardSettings?.boards && boardSettings.boards.length > 1 && (
                       <Select value={selectedBoardId} onValueChange={setSelectedBoardId}>
@@ -1596,13 +2199,13 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
                         </SelectContent>
                       </Select>
                     )}
-                  </div>
-                </div>
-              </div>
+                  </Flex>
+                </Box>
+              </Stack>
             </ScrollArea>
           </CardContent>
         </Card>
-      </div>
+      </Box>
 
       {/* Export dialog */}
       <Dialog open={exportOpen} onOpenChange={setExportOpen}>
@@ -1611,12 +2214,12 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
             <DialogTitle>{t("exportDialogTitle")}</DialogTitle>
             <DialogDescription>{t("exportDialogDescription")}</DialogDescription>
           </DialogHeader>
-          <div className="relative">
-            <textarea
+          <Box className="relative">
+            <Textarea
               readOnly
               value={exportShareString}
               aria-label={t("exportStringAriaLabel")}
-              className="w-full h-28 px-3 py-2 pr-10 text-xs font-mono rounded-md border bg-muted resize-none focus-visible:outline-none"
+              className="h-28 pr-10 text-xs font-mono bg-muted resize-none"
               onFocus={(e) => e.target.select()}
             />
             <button
@@ -1630,9 +2233,37 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
             >
               {exportCopied ? <Check className="h-4 w-4 text-green-600" /> : <Copy className="h-4 w-4" />}
             </button>
-          </div>
+          </Box>
         </DialogContent>
       </Dialog>
+
+      {/* Shrinking-retarget confirmation (issue #1250). Conversion between
+          geometries is lossy: content that doesn't fit the smaller board is
+          cut off, so the save is gated behind an explicit confirm. */}
+      <AlertDialog open={confirmRetargetOpen} onOpenChange={setConfirmRetargetOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{t("retargetConfirmTitle")}</AlertDialogTitle>
+            <AlertDialogDescription>
+              {t("retargetConfirmDescription", {
+                oldSize: originalDims ? `${originalDims.rows} × ${originalDims.cols}` : "",
+                newSize: `${dims.rows} × ${dims.cols}`,
+              })}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>{tCommon("cancel")}</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                setConfirmRetargetOpen(false);
+                saveMutation.mutate();
+              }}
+            >
+              {t("retargetConfirmAction")}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </>
   );
 });

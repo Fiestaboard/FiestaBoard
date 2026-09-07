@@ -1,0 +1,576 @@
+"use client";
+
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  Box,
+  Button,
+  Code,
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  Flex,
+  Input,
+  Label,
+  PageSection,
+  Skeleton,
+  Stack,
+  Switch,
+  Text,
+} from "@fiestaboard/ui";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { Copy, Pencil, Trash2, Tv } from "lucide-react";
+import { QRCodeSVG } from "qrcode.react";
+import { useState } from "react";
+import { toast } from "sonner";
+
+import { TvPreview } from "@/components/panel/tv-preview";
+import { TimePicker } from "@/components/ui/time-picker";
+import { useTranslations } from "@/i18n/translations";
+import { api, type HdmiKioskStatus, type Panel } from "@/lib/api";
+import { appUrl } from "@/lib/base-path";
+
+/** TV-diagonal presets offered as one-tap chips (inches) — never translated. */
+const SIZE_PRESETS = [32, 43, 50, 55, 65, 75, 85] as const;
+
+/** Aspect-ratio presets (never translated); custom W:H inputs cover the rest. */
+const ASPECT_PRESETS: ReadonlyArray<{ label: string; w: number; h: number }> = [
+  { label: "16:9", w: 16, h: 9 },
+  { label: "21:9", w: 21, h: 9 },
+  { label: "4:3", w: 4, h: 3 },
+  { label: "9:16", w: 9, h: 16 },
+];
+
+/** Screen bounds — mirror the backend's Panel model. */
+const DIAGONAL_MIN = 3;
+const DIAGONAL_MAX = 200;
+const ASPECT_MIN = 1;
+const ASPECT_MAX = 100;
+
+const PANELS_QUERY_KEY = ["panels"] as const;
+const HDMI_QUERY_KEY = ["hdmi-kiosk"] as const;
+
+/** How long to keep polling for the sidecar's "in_progress" after an enable. */
+const HDMI_KICKOFF_GRACE_MS = 120_000;
+
+function panelViewerUrl(panel: Pick<Panel, "id" | "short_code">): string {
+  // Prefer the TV-typable short URL (/p/1); fall back to the full id for
+  // panels created before short codes existed.
+  const path = panel.short_code > 0 ? `/p/${panel.short_code}` : `/panel/${panel.id}`;
+  return new URL(appUrl(path), window.location.origin).toString();
+}
+
+interface EditorState {
+  mode: "create" | "edit";
+  panelId?: string;
+  name: string;
+  diagonal: number;
+  aspectW: number;
+  aspectH: number;
+  animationsEnabled: boolean;
+  autoDimEnabled: boolean;
+  autoDimStart: string;
+  autoDimEnd: string;
+  calibration: number;
+}
+
+/** Calibration bounds — mirror the backend's Panel.calibration_scale. */
+const CALIBRATION_MIN = 0.85;
+const CALIBRATION_MAX = 1.15;
+
+const NEW_PANEL: EditorState = {
+  mode: "create",
+  name: "",
+  diagonal: 55,
+  aspectW: 16,
+  aspectH: 9,
+  // Mirrors the backend default (off): create sends only name + size, so a
+  // different value here would misrepresent what the server will store.
+  animationsEnabled: false,
+  autoDimEnabled: false,
+  autoDimStart: "22:00",
+  autoDimEnd: "07:00",
+  calibration: 1,
+};
+
+function editorFromPanel(panel: Panel): EditorState {
+  return {
+    mode: "edit",
+    panelId: panel.id,
+    name: panel.name,
+    diagonal: panel.screen_diagonal_inches,
+    aspectW: panel.screen_aspect_w ?? 16,
+    aspectH: panel.screen_aspect_h ?? 9,
+    animationsEnabled: panel.animations_enabled,
+    autoDimEnabled: panel.auto_dim.enabled,
+    autoDimStart: panel.auto_dim.start,
+    autoDimEnd: panel.auto_dim.end,
+    calibration: panel.calibration_scale,
+  };
+}
+
+export function FiestaPanelSettings() {
+  const t = useTranslations("fiestaPanels");
+  const queryClient = useQueryClient();
+  const [editor, setEditor] = useState<EditorState | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<Panel | null>(null);
+
+  const { data, isLoading } = useQuery({
+    queryKey: PANELS_QUERY_KEY,
+    queryFn: () => api.listPanels(),
+  });
+
+  // POST /settings/hdmi-kiosk is fire-and-forget: the sidecar reports
+  // "in_progress" only once the install actually starts, so a single
+  // post-toggle refetch can land before the flip and polling would never
+  // begin — the switch appears to snap back while a multi-minute install
+  // runs invisibly. Keep polling through a grace window after an enable.
+  // "Awaiting" is DERIVED (kickoff recent + status not yet moved) rather
+  // than cleared in an effect (react-hooks/set-state-in-effect).
+  const [installKickedOffAt, setInstallKickedOffAt] = useState<number | null>(null);
+
+  const withinKickoffGrace = (status: HdmiKioskStatus["status"] | undefined) =>
+    installKickedOffAt !== null &&
+    Date.now() - installKickedOffAt < HDMI_KICKOFF_GRACE_MS &&
+    (status === "disabled" || status === "unknown");
+
+  const hdmi = useQuery({
+    queryKey: HDMI_QUERY_KEY,
+    queryFn: () => api.getHdmiKiosk(),
+    // Installs take minutes (apt on a Pi); poll while one is running.
+    refetchInterval: (query) => {
+      const status = query.state.data?.status;
+      if (status === "in_progress" || withinKickoffGrace(status)) return 3000;
+      return false;
+    },
+  });
+
+  const awaitingInstallStart = withinKickoffGrace(hdmi.data?.status);
+
+  const invalidate = () => {
+    void queryClient.invalidateQueries({ queryKey: PANELS_QUERY_KEY });
+    // A panel's virtual board shows up in every board-scoped surface.
+    void queryClient.invalidateQueries({ queryKey: ["boardSettings"] });
+  };
+
+  const createMutation = useMutation({
+    mutationFn: (state: EditorState) =>
+      api.createPanel({
+        name: state.name,
+        screen_diagonal_inches: state.diagonal,
+        screen_aspect_w: state.aspectW,
+        screen_aspect_h: state.aspectH,
+      }),
+    onSuccess: () => {
+      invalidate();
+      setEditor(null);
+      toast.success(t("created"));
+    },
+    onError: (error: Error) => toast.error(error.message),
+  });
+
+  const updateMutation = useMutation({
+    mutationFn: (state: EditorState) =>
+      api.updatePanel(state.panelId ?? "", {
+        name: state.name,
+        screen_diagonal_inches: state.diagonal,
+        screen_aspect_w: state.aspectW,
+        screen_aspect_h: state.aspectH,
+        animations_enabled: state.animationsEnabled,
+        auto_dim: { enabled: state.autoDimEnabled, start: state.autoDimStart, end: state.autoDimEnd },
+        calibration_scale: state.calibration,
+      }),
+    onSuccess: (result) => {
+      invalidate();
+      setEditor(null);
+      toast.success(t("saved"));
+      // A TV-size change re-fits the board's grid; pages authored for the
+      // old grid stay referenced but can no longer render on this panel.
+      const staleRefs = result.incompatible_references ?? [];
+      if (staleRefs.length > 0) {
+        const names = [...new Set(staleRefs.map((ref) => ref.page_name))];
+        toast.warning(t("resizeStaleRefs", { pages: names.join(", ") }), { duration: 10000 });
+      }
+    },
+    onError: (error: Error) => toast.error(error.message),
+  });
+
+  const hdmiMutation = useMutation({
+    mutationFn: (enabled: boolean) => api.setHdmiKiosk(enabled),
+    onSuccess: (_result, enabled) => {
+      if (enabled) setInstallKickedOffAt(Date.now());
+      void queryClient.invalidateQueries({ queryKey: HDMI_QUERY_KEY });
+    },
+    onError: (error: Error) => {
+      setInstallKickedOffAt(null);
+      toast.error(error.message);
+    },
+  });
+
+  const displayMutation = useMutation({
+    mutationFn: ({ panelId, isDisplay }: { panelId: string; isDisplay: boolean }) =>
+      api.updatePanel(panelId, { is_display: isDisplay }),
+    onSuccess: () => invalidate(),
+    onError: (error: Error) => toast.error(error.message),
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: (panelId: string) => api.deletePanel(panelId),
+    onSuccess: () => {
+      invalidate();
+      setDeleteTarget(null);
+      toast.success(t("deleted"));
+    },
+    onError: (error: Error) => toast.error(error.message),
+  });
+
+  const copyUrl = async (panel: Panel) => {
+    try {
+      await navigator.clipboard.writeText(panelViewerUrl(panel));
+      toast.success(t("urlCopied"));
+    } catch {
+      toast.error(t("urlCopyFailed"));
+    }
+  };
+
+  if (isLoading) {
+    return (
+      <PageSection icon={<Tv />} title={t("title")} description={t("description")}>
+        <Skeleton className="h-24 w-full" />
+      </PageSection>
+    );
+  }
+
+  const panels = data?.panels ?? [];
+  const saving = createMutation.isPending || updateMutation.isPending;
+
+  return (
+    <PageSection icon={<Tv />} title={t("title")} description={t("description")} className="space-y-4">
+      {panels.length === 0 ? (
+        <Text tone="muted">{t("empty")}</Text>
+      ) : (
+        <Stack gap="3">
+          {panels.map((panel) => (
+            <Flex key={panel.id} gap="4" align="start" className="rounded-lg border border-border p-4">
+              <Box aria-hidden="true" className="hidden rounded-md bg-white p-1.5 sm:block">
+                <QRCodeSVG value={panelViewerUrl(panel)} size={72} />
+              </Box>
+              <Stack gap="1" className="min-w-0 flex-1">
+                <Text className="font-medium">{panel.name}</Text>
+                <Text size="sm" tone="muted">
+                  {t("screenMeta", { inches: panel.screen_diagonal_inches })}
+                  {panel.rows && panel.cols ? ` · ${t("gridMeta", { cols: panel.cols, rows: panel.rows })}` : ""}
+                  {panel.board_missing ? ` · ${t("boardMissing")}` : ""}
+                </Text>
+                <Flex gap="2" align="center" className="min-w-0">
+                  <Code className="truncate text-xs">{panelViewerUrl(panel)}</Code>
+                  <Button variant="ghost" size="icon-sm" aria-label={t("copyUrl")} onClick={() => void copyUrl(panel)}>
+                    <Copy />
+                  </Button>
+                </Flex>
+                <Text size="xs" tone="muted">
+                  {t("openOnTv")}
+                </Text>
+                <Flex gap="2" align="center">
+                  <Switch
+                    id={`panel-display-${panel.id}`}
+                    checked={panel.is_display}
+                    disabled={displayMutation.isPending && displayMutation.variables?.panelId === panel.id}
+                    onCheckedChange={(checked) =>
+                      displayMutation.mutate({ panelId: panel.id, isDisplay: checked === true })
+                    }
+                  />
+                  <Label htmlFor={`panel-display-${panel.id}`} className="text-sm font-normal">
+                    {t("displayOutput")}
+                  </Label>
+                </Flex>
+                {panel.is_display && (
+                  <Text size="xs" tone="muted">
+                    {t("displayOutputHint")}
+                  </Text>
+                )}
+              </Stack>
+              <Flex gap="1">
+                <Button
+                  variant="ghost"
+                  size="icon-sm"
+                  aria-label={t("editPanel")}
+                  onClick={() => setEditor(editorFromPanel(panel))}
+                >
+                  <Pencil />
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="icon-sm"
+                  aria-label={t("deletePanel")}
+                  onClick={() => setDeleteTarget(panel)}
+                >
+                  <Trash2 />
+                </Button>
+              </Flex>
+            </Flex>
+          ))}
+        </Stack>
+      )}
+
+      <Button onClick={() => setEditor(NEW_PANEL)}>{t("createPanel")}</Button>
+
+      {hdmi.data?.supported && (
+        <Stack gap="2" className="rounded-lg border border-border p-4">
+          <Flex gap="3" align="center">
+            <Switch
+              id="hdmi-kiosk"
+              checked={hdmi.data.status === "enabled" || hdmi.data.status === "in_progress" || awaitingInstallStart}
+              disabled={hdmi.data.status === "in_progress" || awaitingInstallStart || hdmiMutation.isPending}
+              onCheckedChange={(checked) => hdmiMutation.mutate(checked === true)}
+            />
+            <Label htmlFor="hdmi-kiosk">{t("hdmiTitle")}</Label>
+          </Flex>
+          <Text size="xs" tone="muted">
+            {hdmi.data.status === "in_progress" || awaitingInstallStart
+              ? t("hdmiInstalling")
+              : hdmi.data.status === "failed"
+                ? t("hdmiFailed")
+                : hdmi.data.status === "enabled"
+                  ? t("hdmiEnabledHint")
+                  : t("hdmiHelp")}
+          </Text>
+        </Stack>
+      )}
+
+      <Dialog open={editor !== null} onOpenChange={(open) => !open && setEditor(null)}>
+        <DialogContent>
+          {editor && (
+            <>
+              <DialogHeader>
+                <DialogTitle>{editor.mode === "create" ? t("createPanel") : t("editPanel")}</DialogTitle>
+                <DialogDescription>{t("editorHelp")}</DialogDescription>
+              </DialogHeader>
+              <Stack gap="4">
+                <Stack gap="2">
+                  <Label htmlFor="panel-name">{t("panelName")}</Label>
+                  <Input
+                    id="panel-name"
+                    value={editor.name}
+                    onChange={(e) => setEditor({ ...editor, name: e.target.value })}
+                  />
+                </Stack>
+                <Stack gap="2">
+                  <Label>{t("screenSize")}</Label>
+                  <Flex gap="2" wrap>
+                    {SIZE_PRESETS.map((inches) => (
+                      <Button
+                        key={inches}
+                        type="button"
+                        size="sm"
+                        variant={editor.diagonal === inches ? "default" : "outline"}
+                        onClick={() => setEditor({ ...editor, diagonal: inches })}
+                      >
+                        {inches}&quot;
+                      </Button>
+                    ))}
+                  </Flex>
+                  <Flex gap="2" align="center">
+                    <Label htmlFor="panel-custom-size" className="text-sm font-normal">
+                      {t("screenSizeCustom")}
+                    </Label>
+                    <Input
+                      id="panel-custom-size"
+                      type="number"
+                      min={DIAGONAL_MIN}
+                      max={DIAGONAL_MAX}
+                      step={0.5}
+                      className="w-24"
+                      value={editor.diagonal}
+                      onChange={(e) => {
+                        const parsed = Number(e.target.value);
+                        if (Number.isFinite(parsed)) setEditor({ ...editor, diagonal: parsed });
+                      }}
+                    />
+                  </Flex>
+                </Stack>
+                <Stack gap="2">
+                  <Label>{t("aspectRatioLabel")}</Label>
+                  <Flex gap="2" align="center" wrap>
+                    {ASPECT_PRESETS.map((preset) => (
+                      <Button
+                        key={preset.label}
+                        type="button"
+                        size="sm"
+                        variant={editor.aspectW === preset.w && editor.aspectH === preset.h ? "default" : "outline"}
+                        onClick={() => setEditor({ ...editor, aspectW: preset.w, aspectH: preset.h })}
+                      >
+                        {preset.label}
+                      </Button>
+                    ))}
+                    <Flex gap="1" align="center">
+                      <Input
+                        aria-label={t("aspectWidthLabel")}
+                        type="number"
+                        min={ASPECT_MIN}
+                        max={ASPECT_MAX}
+                        step={1}
+                        className="w-16"
+                        value={editor.aspectW}
+                        onChange={(e) => {
+                          const parsed = Number(e.target.value);
+                          if (Number.isFinite(parsed)) setEditor({ ...editor, aspectW: parsed });
+                        }}
+                      />
+                      <Text as="span" size="xs" tone="muted">
+                        :
+                      </Text>
+                      <Input
+                        aria-label={t("aspectHeightLabel")}
+                        type="number"
+                        min={ASPECT_MIN}
+                        max={ASPECT_MAX}
+                        step={1}
+                        className="w-16"
+                        value={editor.aspectH}
+                        onChange={(e) => {
+                          const parsed = Number(e.target.value);
+                          if (Number.isFinite(parsed)) setEditor({ ...editor, aspectH: parsed });
+                        }}
+                      />
+                    </Flex>
+                  </Flex>
+                </Stack>
+                <Stack gap="2">
+                  <Label>{t("tvPreviewLabel")}</Label>
+                  {editor.aspectW >= ASPECT_MIN &&
+                    editor.aspectH >= ASPECT_MIN &&
+                    editor.diagonal >= DIAGONAL_MIN &&
+                    editor.diagonal <= DIAGONAL_MAX && (
+                      <TvPreview diagonalInches={editor.diagonal} aspectW={editor.aspectW} aspectH={editor.aspectH} />
+                    )}
+                  <Text size="xs" tone="muted">
+                    {t("autoFitHint")}
+                  </Text>
+                </Stack>
+                {editor.mode === "edit" && (
+                  <>
+                    <Flex gap="3" align="center">
+                      <Switch
+                        id="panel-animations"
+                        checked={editor.animationsEnabled}
+                        onCheckedChange={(checked) => setEditor({ ...editor, animationsEnabled: checked === true })}
+                      />
+                      <Label htmlFor="panel-animations">{t("flapAnimation")}</Label>
+                    </Flex>
+                    <Flex gap="3" align="center">
+                      <Switch
+                        id="panel-auto-dim"
+                        checked={editor.autoDimEnabled}
+                        onCheckedChange={(checked) => setEditor({ ...editor, autoDimEnabled: checked === true })}
+                      />
+                      <Label htmlFor="panel-auto-dim">{t("autoDim")}</Label>
+                    </Flex>
+                    {editor.autoDimEnabled && (
+                      <Flex gap="4">
+                        <Stack gap="2">
+                          <Label htmlFor="panel-dim-start">{t("autoDimStart")}</Label>
+                          <TimePicker
+                            id="panel-dim-start"
+                            value={editor.autoDimStart}
+                            onChange={(value) => setEditor({ ...editor, autoDimStart: value })}
+                          />
+                        </Stack>
+                        <Stack gap="2">
+                          <Label htmlFor="panel-dim-end">{t("autoDimEnd")}</Label>
+                          <TimePicker
+                            id="panel-dim-end"
+                            value={editor.autoDimEnd}
+                            onChange={(value) => setEditor({ ...editor, autoDimEnd: value })}
+                          />
+                        </Stack>
+                      </Flex>
+                    )}
+                    <Stack gap="2">
+                      <Label htmlFor="panel-calibration">{t("calibration")}</Label>
+                      <Input
+                        id="panel-calibration"
+                        type="number"
+                        min={CALIBRATION_MIN}
+                        max={CALIBRATION_MAX}
+                        step={0.01}
+                        className="w-24"
+                        value={editor.calibration}
+                        onChange={(e) => {
+                          const parsed = Number(e.target.value);
+                          if (Number.isFinite(parsed)) setEditor({ ...editor, calibration: parsed });
+                        }}
+                      />
+                      {editor.calibration >= CALIBRATION_MIN && editor.calibration <= CALIBRATION_MAX ? (
+                        <Text size="xs" tone="muted">
+                          {t("calibrationHelp")}
+                        </Text>
+                      ) : (
+                        <Text role="alert" size="xs" tone="destructive">
+                          {t("calibrationRange", { min: CALIBRATION_MIN, max: CALIBRATION_MAX })}
+                        </Text>
+                      )}
+                    </Stack>
+                  </>
+                )}
+              </Stack>
+              <DialogFooter>
+                <Button variant="outline" onClick={() => setEditor(null)} disabled={saving}>
+                  {t("cancel")}
+                </Button>
+                <Button
+                  onClick={() =>
+                    editor.mode === "create" ? createMutation.mutate(editor) : updateMutation.mutate(editor)
+                  }
+                  disabled={
+                    saving ||
+                    !editor.name.trim() ||
+                    editor.diagonal < DIAGONAL_MIN ||
+                    editor.diagonal > DIAGONAL_MAX ||
+                    editor.aspectW < ASPECT_MIN ||
+                    editor.aspectW > ASPECT_MAX ||
+                    editor.aspectH < ASPECT_MIN ||
+                    editor.aspectH > ASPECT_MAX ||
+                    editor.calibration < CALIBRATION_MIN ||
+                    editor.calibration > CALIBRATION_MAX
+                  }
+                >
+                  {editor.mode === "create" ? t("create") : t("save")}
+                </Button>
+              </DialogFooter>
+            </>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      <AlertDialog open={deleteTarget !== null} onOpenChange={(open) => !open && setDeleteTarget(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{t("deleteConfirmTitle")}</AlertDialogTitle>
+            <AlertDialogDescription>
+              {t("deleteConfirmBody", { name: deleteTarget?.name ?? "" })}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>{t("cancel")}</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => deleteTarget && deleteMutation.mutate(deleteTarget.id)}
+              disabled={deleteMutation.isPending}
+            >
+              {t("delete")}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </PageSection>
+  );
+}

@@ -24,54 +24,72 @@ function TestWrapper({ children }: { children: React.ReactNode }) {
   );
 }
 
-describe("ColorPickerContent heart button for Note device", () => {
-  it("shows heart button when deviceType is 'note'", () => {
-    const onInsert = vi.fn();
-    render(<ColorPickerContent onInsert={onInsert} deviceType="note" />, { wrapper: TestWrapper });
+/**
+ * The picker's character-code-62 button (issue #1657).
+ *
+ * This button was gated on `deviceType === "note"`, which left Flagship owners
+ * with no way to insert code 62 from the picker at all — including the owners of
+ * 2026-era Flagships whose flap draws a heart. It is now offered for every
+ * board; only its wording follows the board, because a degree-flap Flagship must
+ * not be handed a button captioned "Heart" that draws a degree sign.
+ */
+describe("ColorPickerContent code-62 button", () => {
+  it("labels it a heart on a Note device", () => {
+    render(<ColorPickerContent onInsert={vi.fn()} deviceType="note" />, { wrapper: TestWrapper });
 
-    const heartButton = screen.getByRole("option", { name: "Heart character" });
-    expect(heartButton).toBeTruthy();
+    expect(screen.getByRole("option", { name: "Heart character" })).toBeTruthy();
   });
 
-  it("does not show heart button when deviceType is 'flagship'", () => {
-    const onInsert = vi.fn();
-    render(<ColorPickerContent onInsert={onInsert} deviceType="flagship" />, { wrapper: TestWrapper });
+  it("labels it a heart on a Flagship whose flap carries one", () => {
+    render(<ColorPickerContent onInsert={vi.fn()} deviceType="flagship" code62Glyph="heart" />, {
+      wrapper: TestWrapper,
+    });
 
-    const heartButton = screen.queryByRole("option", { name: "Heart character" });
-    expect(heartButton).toBeNull();
+    expect(screen.getByRole("option", { name: "Heart character" })).toBeTruthy();
   });
 
-  it("does not show heart button when deviceType is not provided", () => {
-    const onInsert = vi.fn();
-    render(<ColorPickerContent onInsert={onInsert} />, { wrapper: TestWrapper });
+  it("labels it a degree on a Flagship that was not told which flap it has", () => {
+    render(<ColorPickerContent onInsert={vi.fn()} deviceType="flagship" />, { wrapper: TestWrapper });
 
-    const heartButton = screen.queryByRole("option", { name: "Heart character" });
-    expect(heartButton).toBeNull();
+    expect(screen.getByRole("option", { name: "Degree character" })).toBeTruthy();
+    expect(screen.queryByRole("option", { name: "Heart character" })).toBeNull();
   });
 
-  it("calls onInsert with degree symbol (renders as heart on Note device) when heart button is clicked", () => {
-    const onInsert = vi.fn();
-    render(<ColorPickerContent onInsert={onInsert} deviceType="note" />, { wrapper: TestWrapper });
+  it("offers the button to a Flagship at all", () => {
+    // The regression itself: the whole control used to be absent here.
+    render(<ColorPickerContent onInsert={vi.fn()} deviceType="flagship" />, { wrapper: TestWrapper });
 
-    const heartButton = screen.getByRole("option", { name: "Heart character" });
-    fireEvent.click(heartButton);
-
-    expect(onInsert).toHaveBeenCalledWith("°");
+    expect(screen.getByRole("option", { name: "Degree character" })).toBeTruthy();
   });
 
-  it("still shows all color buttons alongside heart button for Note", () => {
-    const onInsert = vi.fn();
-    render(<ColorPickerContent onInsert={onInsert} deviceType="note" />, { wrapper: TestWrapper });
+  it("inserts the degree symbol whichever glyph the board draws", () => {
+    // Code 62 is what goes on the wire; the flap decides only what is seen.
+    const cases = [
+      { deviceType: "note", code62Glyph: undefined, name: "Heart character" },
+      { deviceType: "flagship", code62Glyph: undefined, name: "Degree character" },
+      { deviceType: "flagship", code62Glyph: "heart", name: "Heart character" },
+    ] as const;
 
-    // All standard colors should still be present
+    for (const { deviceType, code62Glyph, name } of cases) {
+      const onInsert = vi.fn();
+      const { unmount } = render(
+        <ColorPickerContent onInsert={onInsert} deviceType={deviceType} code62Glyph={code62Glyph} />,
+        { wrapper: TestWrapper },
+      );
+
+      fireEvent.click(screen.getByRole("option", { name }));
+      expect(onInsert).toHaveBeenCalledWith("°");
+      unmount();
+    }
+  });
+
+  it("still shows all color buttons alongside it", () => {
+    render(<ColorPickerContent onInsert={vi.fn()} deviceType="note" />, { wrapper: TestWrapper });
+
     const colors = ["red", "orange", "yellow", "green", "blue", "violet", "white", "black"];
     for (const color of colors) {
-      const button = screen.getByRole("option", { name: `${color} color` });
-      expect(button).toBeTruthy();
+      expect(screen.getByRole("option", { name: `${color} color` })).toBeTruthy();
     }
-
-    // Heart should also be present
-    const heartButton = screen.getByRole("option", { name: "Heart character" });
-    expect(heartButton).toBeTruthy();
+    expect(screen.getByRole("option", { name: "Heart character" })).toBeTruthy();
   });
 });

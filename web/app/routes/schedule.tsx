@@ -1,3 +1,46 @@
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  BoardIcon,
+  Box,
+  Button,
+  CardTitle,
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+  Flex,
+  PageCard,
+  PageHeader,
+  PageLayout,
+  PageSection,
+  PageToolbar,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetHeader,
+  SheetTitle,
+  Skeleton,
+  Stack,
+  Text,
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@fiestaboard/ui";
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   AlertCircle,
@@ -12,39 +55,11 @@ import {
 import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 
-import { BoardIcon } from "@/components/board-icon";
 import { useCurrentBoard } from "@/components/current-board-context";
-import { PageHeader } from "@/components/page-header";
-import { PageLayout } from "@/components/page-layout";
-import { PageToolbar } from "@/components/page-toolbar";
 import { ScheduleListView } from "@/components/schedule";
 import { useScheduleEditorBridge } from "@/components/schedule-editor-bridge-context";
 import { ScheduleEntryForm } from "@/components/schedule-entry-form";
 import Link from "@/components/smart-link";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet";
-import { Skeleton } from "@/components/ui/skeleton";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { queryKeys } from "@/hooks/use-board";
 import { useCollections } from "@/hooks/use-board";
 import { useRouter, useSearchParams } from "@/hooks/use-router";
@@ -70,9 +85,9 @@ function ScheduleCalendarView(props: React.ComponentProps<typeof ScheduleCalenda
   return (
     <Suspense
       fallback={
-        <div className="space-y-4">
+        <Stack gap="4">
           <Skeleton className="h-96 w-full" />
-        </div>
+        </Stack>
       }
     >
       <ScheduleCalendarViewLazy {...props} />
@@ -83,6 +98,41 @@ function ScheduleCalendarView(props: React.ComponentProps<typeof ScheduleCalenda
 type ViewMode = "list" | "calendar";
 
 const SCHEDULE_VIEW_MODE_KEY = "schedule-view-mode";
+
+/** Pre-fill for the entry form, from a calendar slot, the AI drawer, or the URL. */
+interface PrefillData {
+  startTime?: string;
+  endTime?: string;
+  dayPattern?: DayPattern;
+  customDays?: string[];
+  pageId?: string;
+}
+
+/**
+ * Read the `prefill_*` query params the AI drawer sets when it navigates here
+ * from another page. Returns null when there is nothing to prefill.
+ */
+function readUrlPrefill(searchParams: URLSearchParams): PrefillData | null {
+  const pageId = searchParams.get("prefill_page_id");
+  const startTime = searchParams.get("prefill_start");
+  if (!pageId && !startTime) return null;
+
+  const rawDayPattern = searchParams.get("prefill_days");
+  const dayPattern: DayPattern | undefined =
+    rawDayPattern === "all" ||
+    rawDayPattern === "weekdays" ||
+    rawDayPattern === "weekends" ||
+    rawDayPattern === "custom"
+      ? rawDayPattern
+      : undefined;
+
+  return {
+    pageId: pageId ?? undefined,
+    startTime: startTime ?? undefined,
+    endTime: searchParams.get("prefill_end") ?? undefined,
+    dayPattern,
+  };
+}
 const NO_DEFAULT_PAGE = "__none__";
 
 export default function SchedulePage() {
@@ -105,7 +155,15 @@ export default function SchedulePage() {
   useEffect(() => {
     localStorage.setItem(SCHEDULE_VIEW_MODE_KEY, viewMode);
   }, [viewMode]);
-  const [showForm, setShowForm] = useState(false);
+  // Handle URL params set by the AI drawer when navigating from outside. Read
+  // once, in a state initializer rather than a mount effect: the effect version
+  // rendered the page without the form and then popped it open
+  // (react-hooks/set-state-in-effect, issue #1568).
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const [urlPrefill] = useState(() => readUrlPrefill(searchParams));
+
+  const [showForm, setShowForm] = useState(urlPrefill !== null);
   const [editingSchedule, setEditingSchedule] = useState<ScheduleEntry | null>(null);
   const [deleteScheduleId, setDeleteScheduleId] = useState<string | null>(null);
 
@@ -117,13 +175,7 @@ export default function SchedulePage() {
   const effectiveBoardId = boards.length > 1 ? currentBoardId || undefined : undefined;
 
   // Pre-fill data when creating from calendar slot selection or AI navigation
-  const [prefillData, setPrefillData] = useState<{
-    startTime?: string;
-    endTime?: string;
-    dayPattern?: DayPattern;
-    customDays?: string[];
-    pageId?: string;
-  } | null>(null);
+  const [prefillData, setPrefillData] = useState<PrefillData | null>(urlPrefill);
 
   // Register with the schedule editor bridge so the AI drawer can open the
   // form directly when the user is already on this page.
@@ -147,35 +199,15 @@ export default function SchedulePage() {
     return () => unregister();
   }, [register, unregister]);
 
-  // Handle URL params set by the AI drawer when navigating from outside.
-  const router = useRouter();
-  const searchParams = useSearchParams();
-  const urlParamsHandled = useRef(false);
+  // The AI drawer navigates here with prefill_* query params. `urlPrefill` was
+  // read in the state initializer above; all that is left is scrubbing the
+  // params from the URL, which has to stay in an effect because navigating
+  // during render is not allowed.
   useEffect(() => {
-    if (urlParamsHandled.current) return;
-    const pageId = searchParams.get("prefill_page_id");
-    const startTime = searchParams.get("prefill_start");
-    const endTime = searchParams.get("prefill_end");
-    const rawDayPattern = searchParams.get("prefill_days");
-    const dayPattern: DayPattern | undefined =
-      rawDayPattern === "all" ||
-      rawDayPattern === "weekdays" ||
-      rawDayPattern === "weekends" ||
-      rawDayPattern === "custom"
-        ? rawDayPattern
-        : undefined;
-    if (pageId || startTime) {
-      urlParamsHandled.current = true;
-      setPrefillData({
-        pageId: pageId ?? undefined,
-        startTime: startTime ?? undefined,
-        endTime: endTime ?? undefined,
-        dayPattern,
-      });
-      setShowForm(true);
+    if (urlPrefill) {
       router.replace("/schedule", { scroll: false });
     }
-  }, [searchParams, router]);
+  }, [urlPrefill, router]);
 
   // Fetch schedules (scoped by board when multi-board). keepPreviousData holds
   // the outgoing board's list on screen while the new board's loads, so
@@ -248,7 +280,7 @@ export default function SchedulePage() {
       queryClient.invalidateQueries({ queryKey: ["schedules"], refetchType: "active" });
       queryClient.invalidateQueries({ queryKey: ["schedules", "active"], refetchType: "active" });
       queryClient.invalidateQueries({ queryKey: ["schedules", "validation"], refetchType: "active" });
-      queryClient.invalidateQueries({ queryKey: queryKeys.activePage, refetchType: "active" });
+      queryClient.invalidateQueries({ queryKey: queryKeys.activePage(), refetchType: "active" });
       toast.success(schedulesData?.enabled ? t("toastScheduleDisabled") : t("toastScheduleEnabled"));
     },
     onError: () => {
@@ -264,7 +296,7 @@ export default function SchedulePage() {
       queryClient.invalidateQueries({ queryKey: ["schedules"], refetchType: "active" });
       queryClient.invalidateQueries({ queryKey: ["schedules", "active"], refetchType: "active" });
       queryClient.invalidateQueries({ queryKey: ["schedules", "validation"], refetchType: "active" });
-      queryClient.invalidateQueries({ queryKey: queryKeys.activePage, refetchType: "active" });
+      queryClient.invalidateQueries({ queryKey: queryKeys.activePage(), refetchType: "active" });
       toast.success(t("toastCreated"));
       setShowForm(false);
       setPrefillData(null);
@@ -282,7 +314,7 @@ export default function SchedulePage() {
       queryClient.invalidateQueries({ queryKey: ["schedules"], refetchType: "active" });
       queryClient.invalidateQueries({ queryKey: ["schedules", "active"], refetchType: "active" });
       queryClient.invalidateQueries({ queryKey: ["schedules", "validation"], refetchType: "active" });
-      queryClient.invalidateQueries({ queryKey: queryKeys.activePage, refetchType: "active" });
+      queryClient.invalidateQueries({ queryKey: queryKeys.activePage(), refetchType: "active" });
       toast.success(t("toastUpdated"));
       setShowForm(false);
       setEditingSchedule(null);
@@ -300,7 +332,7 @@ export default function SchedulePage() {
       queryClient.invalidateQueries({ queryKey: ["schedules"], refetchType: "active" });
       queryClient.invalidateQueries({ queryKey: ["schedules", "active"], refetchType: "active" });
       queryClient.invalidateQueries({ queryKey: ["schedules", "validation"], refetchType: "active" });
-      queryClient.invalidateQueries({ queryKey: queryKeys.activePage, refetchType: "active" });
+      queryClient.invalidateQueries({ queryKey: queryKeys.activePage(), refetchType: "active" });
       toast.success(t("toastDeleted"));
       setDeleteScheduleId(null);
     },
@@ -316,7 +348,7 @@ export default function SchedulePage() {
       queryClient.invalidateQueries({ queryKey: ["schedules"], refetchType: "active" });
       queryClient.invalidateQueries({ queryKey: ["schedules", "active"], refetchType: "active" });
       queryClient.invalidateQueries({ queryKey: ["schedules", "validation"], refetchType: "active" });
-      queryClient.invalidateQueries({ queryKey: queryKeys.activePage, refetchType: "active" });
+      queryClient.invalidateQueries({ queryKey: queryKeys.activePage(), refetchType: "active" });
       toast.success(t("toastDefaultPageUpdated"));
     },
     onError: () => {
@@ -348,7 +380,7 @@ export default function SchedulePage() {
       queryClient.invalidateQueries({ queryKey: ["schedules"], refetchType: "active" });
       queryClient.invalidateQueries({ queryKey: ["schedules", "active"], refetchType: "active" });
       queryClient.invalidateQueries({ queryKey: ["schedules", "validation"], refetchType: "active" });
-      queryClient.invalidateQueries({ queryKey: queryKeys.activePage, refetchType: "active" });
+      queryClient.invalidateQueries({ queryKey: queryKeys.activePage(), refetchType: "active" });
       toast.success(variables.enabled ? t("toastEntryEnabled") : t("toastEntryDisabled"));
     },
     onError: () => {
@@ -459,267 +491,298 @@ export default function SchedulePage() {
 
   return (
     <PageLayout fillHeight={isCalendarMode}>
-      {/* ── Page header ── */}
-      <PageHeader
-        icon={CalendarIcon}
-        title={t("title")}
-        className={cn(
-          "flex-shrink-0",
-          // In calendar mode the grid wants every vertical pixel — compact the
-          // header chrome on mobile so the calendar isn't squeezed.
-          isCalendarMode && "py-2 sm:py-4 mb-2 sm:mb-5",
-        )}
-        description={t("descriptionWithTimezone", { timezone: Intl.DateTimeFormat().resolvedOptions().timeZone })}
-      />
+      <PageCard fillHeight={isCalendarMode}>
+        {/* ── Page header ── */}
+        <PageHeader
+          icon={CalendarIcon}
+          title={t("title")}
+          className={cn(
+            "flex-shrink-0",
+            // In calendar mode the grid wants every vertical pixel — compact the
+            // header chrome on mobile so the calendar isn't squeezed.
+            isCalendarMode && "py-2 sm:py-4 mb-2 sm:mb-5",
+          )}
+          description={t("descriptionWithTimezone", { timezone: Intl.DateTimeFormat().resolvedOptions().timeZone })}
+        />
 
-      {/* ── Compact toolbar: everything in one row ── */}
-      <TooltipProvider>
-        <PageToolbar
-          className="flex-shrink-0"
-          left={
-            /* View toggle */
-            <div className="flex items-center gap-1 bg-muted p-1 rounded-md">
-              <Button
-                variant={viewMode === "list" ? "secondary" : "ghost"}
-                size="sm"
-                onClick={() => setViewMode("list")}
-                className="px-3"
-              >
-                <List className="h-4 w-4 mr-1.5" />
-                {t("listView")}
-              </Button>
-              <Button
-                variant={viewMode === "calendar" ? "secondary" : "ghost"}
-                size="sm"
-                onClick={() => setViewMode("calendar")}
-                className="px-3"
-              >
-                <CalendarDays className="h-4 w-4 mr-1.5" />
-                {t("calendarView")}
-              </Button>
-            </div>
-          }
-          right={
-            <div className="flex items-center gap-2 flex-wrap justify-end">
-              {/* Active board indicator (multi-board only). Read-only: switching
-                  boards happens via the shared sidebar selector (#1248). */}
-              {boards.length > 1 && (
-                <span
-                  data-testid="active-board-indicator"
-                  className="flex items-center gap-1.5 h-8 px-2.5 rounded-md border bg-muted/40 text-xs text-muted-foreground max-w-[150px]"
+        {/* ── Compact toolbar: everything in one row ── */}
+        <TooltipProvider>
+          <PageToolbar
+            className="flex-shrink-0"
+            left={
+              /* View toggle */
+              <Flex align="center" gap="1" className="bg-muted p-1 rounded-md">
+                <Button
+                  variant={viewMode === "list" ? "secondary" : "ghost"}
+                  size="sm"
+                  onClick={() => setViewMode("list")}
+                  className="px-3"
                 >
-                  <BoardIcon className="h-3.5 w-3.5 shrink-0" />
-                  <span className="truncate">
-                    {currentBoard?.name || t("boardFallback", { id: currentBoardId.slice(0, 8) })}
-                  </span>
-                </span>
-              )}
-
-              {/* Schedule on/off toggle */}
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <button
-                    type="button"
-                    data-testid="schedule-enabled-toggle"
-                    role="switch"
-                    aria-checked={scheduleEnabled}
-                    aria-label={scheduleEnabled ? t("disableScheduleMode") : t("enableScheduleMode")}
-                    disabled={toggleSchedule.isPending}
-                    onClick={() => !toggleSchedule.isPending && toggleSchedule.mutate(!scheduleEnabled)}
-                    className="flex items-center gap-1.5 border rounded-md px-2.5 h-8 cursor-pointer bg-transparent text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-60"
+                  <List className="h-4 w-4 mr-1.5" />
+                  {t("listView")}
+                </Button>
+                <Button
+                  variant={viewMode === "calendar" ? "secondary" : "ghost"}
+                  size="sm"
+                  onClick={() => setViewMode("calendar")}
+                  className="px-3"
+                >
+                  <CalendarDays className="h-4 w-4 mr-1.5" />
+                  {t("calendarView")}
+                </Button>
+              </Flex>
+            }
+            right={
+              <Flex align="center" justify="end" gap="2" wrap>
+                {/* Active board indicator (multi-board only). Read-only: switching
+                  boards happens via the shared sidebar selector (#1248). */}
+                {boards.length > 1 && (
+                  <Flex
+                    data-testid="active-board-indicator"
+                    align="center"
+                    gap="1.5"
+                    className="h-8 px-2.5 rounded-md border bg-muted/40 text-xs text-muted-foreground max-w-[150px]"
                   >
-                    <Power className={`h-3.5 w-3.5 ${scheduleEnabled ? "text-green-500" : "text-muted-foreground"}`} />
-                    <span className="text-xs font-medium">{scheduleEnabled ? tCommon("on") : tCommon("off")}</span>
-                    <span
-                      aria-hidden="true"
-                      className={cn(
-                        "inline-flex h-[1.15rem] w-8 shrink-0 items-center rounded-full border border-transparent transition-all",
-                        scheduleEnabled ? "bg-primary" : "bg-input/80 dark:bg-input/80",
-                        "scale-75",
-                      )}
-                    >
-                      <span
-                        className={cn(
-                          "pointer-events-none block size-4 rounded-full bg-background ring-0 transition-transform",
-                          scheduleEnabled ? "translate-x-[calc(100%-3px)]" : "translate-x-px",
-                        )}
-                      />
-                    </span>
-                  </button>
-                </TooltipTrigger>
-                <TooltipContent side="bottom">
-                  {scheduleEnabled ? t("disableScheduleMode") : t("enableScheduleMode")}
-                </TooltipContent>
-              </Tooltip>
+                    <BoardIcon className="h-3.5 w-3.5 shrink-0" />
+                    <Text as="span" size="xs" tone="muted" className="truncate">
+                      {currentBoard?.name || t("boardFallback", { id: currentBoardId.slice(0, 8) })}
+                    </Text>
+                  </Flex>
+                )}
 
-              {/* Default page for gaps */}
-              <Select
-                value={defaultPageId || NO_DEFAULT_PAGE}
-                onValueChange={(value) => setDefaultPage.mutate(value === NO_DEFAULT_PAGE ? null : value)}
-              >
+                {/* Schedule on/off toggle */}
                 <Tooltip>
                   <TooltipTrigger asChild>
-                    <SelectTrigger
-                      data-testid="gap-default-select"
-                      className="h-8 w-[150px] text-xs"
-                      aria-label={t("gapDefaultTooltip")}
+                    <button
+                      type="button"
+                      data-testid="schedule-enabled-toggle"
+                      role="switch"
+                      aria-checked={scheduleEnabled}
+                      aria-label={scheduleEnabled ? t("disableScheduleMode") : t("enableScheduleMode")}
+                      disabled={toggleSchedule.isPending}
+                      onClick={() => !toggleSchedule.isPending && toggleSchedule.mutate(!scheduleEnabled)}
+                      className="flex items-center gap-1.5 border rounded-md px-2.5 h-8 cursor-pointer bg-transparent text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-60"
                     >
-                      <SelectValue placeholder={t("gapDefaultPlaceholder")} />
-                    </SelectTrigger>
+                      <Power
+                        className={`h-3.5 w-3.5 ${scheduleEnabled ? "text-green-500" : "text-muted-foreground"}`}
+                      />
+                      <Text as="span" size="xs" weight="medium">
+                        {scheduleEnabled ? tCommon("on") : tCommon("off")}
+                      </Text>
+                      <Flex
+                        aria-hidden="true"
+                        align="center"
+                        inline
+                        className={cn(
+                          "h-[1.15rem] w-8 shrink-0 rounded-full border border-transparent transition-all",
+                          scheduleEnabled ? "bg-primary" : "bg-input/80 dark:bg-input/80",
+                          "scale-75",
+                        )}
+                      >
+                        <Box
+                          className={cn(
+                            "pointer-events-none block size-4 rounded-full bg-background ring-0 transition-transform",
+                            scheduleEnabled ? "translate-x-[calc(100%-3px)]" : "translate-x-px",
+                          )}
+                        />
+                      </Flex>
+                    </button>
                   </TooltipTrigger>
-                  <TooltipContent side="bottom">{t("gapDefaultTooltip")}</TooltipContent>
+                  <TooltipContent side="bottom">
+                    {scheduleEnabled ? t("disableScheduleMode") : t("enableScheduleMode")}
+                  </TooltipContent>
                 </Tooltip>
-                <SelectContent>
-                  <SelectItem value={NO_DEFAULT_PAGE}>{t("noDefault")}</SelectItem>
-                  {pagesData?.pages.map((page) => (
-                    <SelectItem key={page.id} value={page.id}>
-                      {page.name}
-                    </SelectItem>
-                  ))}
-                  {collectionsData?.collections?.map((collection) => (
-                    <SelectItem key={collection.id} value={collection.id}>
-                      {collection.name} {t("collectionSuffix")}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
 
-              {/* Validation indicator — floating icon that opens a detail dropdown */}
-              {(hasOverlaps || hasGaps) && (
-                <DropdownMenu>
+                {/* Default page for gaps */}
+                <Select
+                  value={defaultPageId || NO_DEFAULT_PAGE}
+                  onValueChange={(value) => setDefaultPage.mutate(value === NO_DEFAULT_PAGE ? null : value)}
+                >
                   <Tooltip>
                     <TooltipTrigger asChild>
-                      <DropdownMenuTrigger asChild>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className={`relative h-8 w-8 p-0 ${hasOverlaps ? "text-destructive hover:text-destructive" : "text-yellow-500 hover:text-yellow-500"}`}
-                        >
-                          {hasOverlaps ? <AlertCircle className="h-4 w-4" /> : <AlertTriangle className="h-4 w-4" />}
-                          <span
-                            className={`absolute -top-1 -right-1 h-4 min-w-4 px-0.5 text-[9px] font-bold rounded-full flex items-center justify-center text-white ${hasOverlaps ? "bg-destructive" : "bg-yellow-500"}`}
-                          >
-                            {issueCount}
-                          </span>
-                        </Button>
-                      </DropdownMenuTrigger>
+                      <SelectTrigger
+                        data-testid="gap-default-select"
+                        className="h-8 w-[150px] text-xs"
+                        aria-label={t("gapDefaultTooltip")}
+                      >
+                        <SelectValue placeholder={t("gapDefaultPlaceholder")} />
+                      </SelectTrigger>
                     </TooltipTrigger>
-                    <TooltipContent side="bottom">
-                      {hasOverlaps
-                        ? t("conflictsCountTooltip", { count: issueCount })
-                        : t("gapsCountTooltip", { count: issueCount })}
-                    </TooltipContent>
+                    <TooltipContent side="bottom">{t("gapDefaultTooltip")}</TooltipContent>
                   </Tooltip>
-                  <DropdownMenuContent align="end" className="w-80">
-                    <DropdownMenuLabel
-                      className={hasOverlaps ? "text-destructive" : "text-yellow-600 dark:text-yellow-400"}
-                    >
-                      {hasOverlaps ? t("scheduleConflictsLabel") : t("scheduleGapsLabel")}
-                    </DropdownMenuLabel>
-                    <DropdownMenuSeparator />
-                    {hasOverlaps ? (
-                      validation?.overlaps?.map((overlap, i) => (
-                        <DropdownMenuItem
-                          key={i}
-                          className="text-xs whitespace-normal cursor-default focus:bg-transparent"
-                          variant="destructive"
-                        >
-                          {overlap?.conflict_description || t("unknownConflict")}
-                        </DropdownMenuItem>
-                      ))
-                    ) : (
-                      <>
-                        <DropdownMenuItem className="text-xs cursor-default focus:bg-transparent">
-                          {t("gapsInSchedule", { count: issueCount })}{" "}
-                          {defaultPageId ? (
+                  <SelectContent>
+                    <SelectItem value={NO_DEFAULT_PAGE}>{t("noDefault")}</SelectItem>
+                    {pagesData?.pages.map((page) => (
+                      <SelectItem key={page.id} value={page.id}>
+                        {page.name}
+                      </SelectItem>
+                    ))}
+                    {collectionsData?.collections?.map((collection) => (
+                      <SelectItem key={collection.id} value={collection.id}>
+                        {collection.name} {t("collectionSuffix")}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+
+                {/* Validation indicator — floating icon that opens a detail dropdown */}
+                {(hasOverlaps || hasGaps) && (
+                  <DropdownMenu>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <DropdownMenuTrigger asChild>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            aria-label={
+                              hasOverlaps
+                                ? t("conflictsCountTooltip", { count: issueCount })
+                                : t("gapsCountTooltip", { count: issueCount })
+                            }
+                            className={`relative h-8 w-8 p-0 ${hasOverlaps ? "text-destructive hover:text-destructive" : "text-warning hover:text-warning"}`}
+                          >
+                            {hasOverlaps ? <AlertCircle className="h-4 w-4" /> : <AlertTriangle className="h-4 w-4" />}
+                            <Flex
+                              align="center"
+                              justify="center"
+                              inline
+                              className={cn(
+                                "absolute -top-1 -right-1 h-4 min-w-4 px-0.5 text-xs font-bold rounded-full",
+                                hasOverlaps
+                                  ? "bg-destructive text-destructive-foreground"
+                                  : "bg-warning text-warning-foreground",
+                              )}
+                            >
+                              {issueCount}
+                            </Flex>
+                          </Button>
+                        </DropdownMenuTrigger>
+                      </TooltipTrigger>
+                      <TooltipContent side="bottom">
+                        {hasOverlaps
+                          ? t("conflictsCountTooltip", { count: issueCount })
+                          : t("gapsCountTooltip", { count: issueCount })}
+                      </TooltipContent>
+                    </Tooltip>
+                    <DropdownMenuContent align="end" className="w-80">
+                      <DropdownMenuLabel className={hasOverlaps ? "text-destructive" : "text-warning"}>
+                        {hasOverlaps ? t("scheduleConflictsLabel") : t("scheduleGapsLabel")}
+                      </DropdownMenuLabel>
+                      <DropdownMenuSeparator />
+                      {hasOverlaps ? (
+                        validation?.overlaps?.map((overlap, i) => (
+                          <DropdownMenuItem
+                            key={i}
+                            className="text-xs whitespace-normal cursor-default focus:bg-transparent"
+                            variant="destructive"
+                          >
+                            {overlap?.conflict_description || t("unknownConflict")}
+                          </DropdownMenuItem>
+                        ))
+                      ) : (
+                        <>
+                          <DropdownMenuItem className="text-xs cursor-default focus:bg-transparent">
+                            {t("gapsInSchedule", { count: issueCount })}{" "}
+                            {defaultPageId ? (
+                              <>
+                                {t("defaultLabel")}{" "}
+                                <Text as="span" size="xs" weight="medium">
+                                  {getPageName(defaultPageId)}
+                                </Text>
+                              </>
+                            ) : (
+                              <Text as="span" size="xs" tone="muted">
+                                {t("noDefaultPageSet")}
+                              </Text>
+                            )}
+                          </DropdownMenuItem>
+                          {validation?.gaps && validation.gaps.length > 0 && (
                             <>
-                              {t("defaultLabel")} <span className="font-medium">{getPageName(defaultPageId)}</span>
+                              <DropdownMenuSeparator />
+                              {validation.gaps.map((gap, i) => {
+                                if (!gap?.days || !gap?.start_time || !gap?.end_time) return null;
+                                return (
+                                  <DropdownMenuItem key={i} className="text-xs cursor-default focus:bg-transparent">
+                                    <Text as="span" size="xs" tone="muted" className="mr-2">
+                                      {formatDaysCompact(gap.days)}
+                                    </Text>
+                                    {gap.start_time} – {gap.end_time}
+                                  </DropdownMenuItem>
+                                );
+                              })}
                             </>
-                          ) : (
-                            <span className="text-muted-foreground">{t("noDefaultPageSet")}</span>
                           )}
-                        </DropdownMenuItem>
-                        {validation?.gaps && validation.gaps.length > 0 && (
-                          <>
-                            <DropdownMenuSeparator />
-                            {validation.gaps.map((gap, i) => {
-                              if (!gap?.days || !gap?.start_time || !gap?.end_time) return null;
-                              return (
-                                <DropdownMenuItem key={i} className="text-xs cursor-default focus:bg-transparent">
-                                  <span className="text-muted-foreground mr-2">{formatDaysCompact(gap.days)}</span>
-                                  {gap.start_time} – {gap.end_time}
-                                </DropdownMenuItem>
-                              );
-                            })}
-                          </>
-                        )}
-                      </>
-                    )}
-                  </DropdownMenuContent>
-                </DropdownMenu>
-              )}
+                        </>
+                      )}
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                )}
 
-              <Button variant="brand" size="sm" onClick={handleAdd} className="btn-lift">
-                <Plus className="h-4 w-4 mr-1" />
-                {t("addSchedule")}
-              </Button>
-            </div>
-          }
-        />
-      </TooltipProvider>
+                <Button variant="brand" size="sm" onClick={handleAdd} className="btn-lift">
+                  <Plus className="h-4 w-4 mr-1" />
+                  {t("addSchedule")}
+                </Button>
+              </Flex>
+            }
+          />
+        </TooltipProvider>
 
-      {/* ── Location warning (sun schedules without location configured) ── */}
-      {hasSunSchedules && !locationConfigured && (
-        <div className="flex items-start gap-2.5 rounded-md border border-amber-300 bg-amber-50 dark:border-amber-800 dark:bg-amber-950/30 px-3.5 py-2.5 text-sm text-amber-800 dark:text-amber-300 flex-shrink-0">
-          <MapPin className="h-4 w-4 mt-0.5 shrink-0" />
-          <span>
-            {t("locationWarning")}{" "}
-            <Link href="/settings" className="font-medium underline underline-offset-2 hover:no-underline">
-              {t("configureLocationLink")}
-            </Link>
-            .
-          </span>
-        </div>
-      )}
+        {/* ── Location warning (sun schedules without location configured) ── */}
+        {hasSunSchedules && !locationConfigured && (
+          <Flex
+            align="start"
+            gap="2.5"
+            className="rounded-md border border-amber-300 bg-amber-50 dark:border-amber-800 dark:bg-amber-950/30 px-3.5 py-2.5 text-sm text-amber-800 dark:text-amber-300 flex-shrink-0"
+          >
+            <MapPin className="h-4 w-4 mt-0.5 shrink-0" />
+            <Text as="span" tone="warning">
+              {t("locationWarning")}{" "}
+              <Link href="/settings" className="font-medium underline underline-offset-2 hover:no-underline">
+                {t("configureLocationLink")}
+              </Link>
+              .
+            </Text>
+          </Flex>
+        )}
 
-      {/* ── Schedule View ── */}
-      {viewMode === "list" ? (
-        <ScheduleListView
-          schedules={schedules}
-          pages={pages}
-          collections={collectionsData?.collections}
-          silenceSchedule={resolvedSilenceSchedule}
-          onEdit={handleEdit}
-          onDelete={handleDelete}
-          onToggleEnabled={handleToggleEnabled}
-          onSilenceClick={handleSilenceClick}
-        />
-      ) : (
-        /* Calendar card: grows to fill remaining space in the pinned layout.
-           Mobile: drop the card chrome (title + extra padding) and let the
-           calendar grow to its natural 24-hour height so the page scrolls. */
-        <Card
-          className="flex flex-col overflow-hidden animate-card-fade-in py-2 sm:py-6 sm:flex-1 sm:min-h-0"
-          style={{ animationDelay: "300ms" }}
-        >
-          <CardHeader className="flex-shrink-0 py-3 hidden sm:block">
-            <CardTitle className="text-base">{t("scheduleCalendar")}</CardTitle>
-          </CardHeader>
-          <CardContent className="overflow-hidden pt-0 px-2 sm:px-6 sm:flex-1 sm:min-h-0">
-            <ScheduleCalendarView
+        {/* ── Schedule View ── */}
+        <PageSection fill={isCalendarMode} scrollLabel={t("scheduleCalendar")}>
+          {viewMode === "list" ? (
+            <ScheduleListView
               schedules={schedules}
               pages={pages}
               collections={collectionsData?.collections}
-              overlaps={validation?.overlaps}
               silenceSchedule={resolvedSilenceSchedule}
-              onEventClick={handleEventClick}
-              onSlotSelect={handleSlotSelect}
-              onEventTimeChange={handleEventTimeChange}
+              onEdit={handleEdit}
+              onDelete={handleDelete}
+              onToggleEnabled={handleToggleEnabled}
               onSilenceClick={handleSilenceClick}
             />
-          </CardContent>
-        </Card>
-      )}
+          ) : (
+            /* Calendar: grows to fill remaining space in the pinned layout. The
+           border is gone — the page card is the surface now — but the flex
+           sizing is unchanged, and it is still the thing that scrolls. */
+            <Box className="flex flex-col overflow-hidden sm:flex-1 sm:min-h-0">
+              <CardTitle size="base" className="flex-shrink-0 pb-3 hidden sm:block">
+                {t("scheduleCalendar")}
+              </CardTitle>
+              <Box className="overflow-hidden -mx-4 px-4 sm:mx-0 sm:px-0 sm:flex-1 sm:min-h-0">
+                <ScheduleCalendarView
+                  schedules={schedules}
+                  pages={pages}
+                  collections={collectionsData?.collections}
+                  overlaps={validation?.overlaps}
+                  silenceSchedule={resolvedSilenceSchedule}
+                  onEventClick={handleEventClick}
+                  onSlotSelect={handleSlotSelect}
+                  onEventTimeChange={handleEventTimeChange}
+                  onSilenceClick={handleSilenceClick}
+                />
+              </Box>
+            </Box>
+          )}
+        </PageSection>
+      </PageCard>
 
       {/* Form Tray */}
       <Sheet
@@ -738,7 +801,7 @@ export default function SchedulePage() {
           {pagesData && (
             <ScheduleEntryForm
               schedule={editingSchedule || undefined}
-              pages={pagesData.pages.map((p) => ({ id: p.id, name: p.name }))}
+              pages={pagesData.pages}
               collections={collectionsData?.collections}
               onSubmit={handleSubmit}
               onCancel={handleCloseForm}

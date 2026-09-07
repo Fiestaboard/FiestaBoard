@@ -19,7 +19,11 @@ WORKDIR /app
 
 COPY fiestaupdater.sh /app/fiestaupdater.sh
 COPY handler.sh /app/handler.sh
-RUN chmod +x /app/fiestaupdater.sh /app/handler.sh
+# HDMI kiosk retrofit script (byte-exact copy of scripts/fiestapi-hdmi-setup.sh
+# at the repo root; tests/test_fiestapi_hdmi_sync.py pins them together). Fed
+# over stdin to a host-namespace helper by the /hdmi/enable|disable verbs.
+COPY fiestapi-hdmi-setup.sh /app/fiestapi-hdmi-setup.sh
+RUN chmod +x /app/fiestaupdater.sh /app/handler.sh /app/fiestapi-hdmi-setup.sh
 
 # Default values; override in compose.
 ENV FIESTAUPDATER_PORT=8765 \

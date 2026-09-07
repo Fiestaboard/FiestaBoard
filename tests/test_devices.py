@@ -5,6 +5,7 @@ import pytest
 from src.devices import (
     DEVICE_DIMENSIONS,
     DEVICE_TYPES,
+    MAX_BOARD_NAME_LENGTH,
     MAX_NOTES_PER_AXIS,
     NOTE_ARRAY_PRESETS,
     NOTE_COLS,
@@ -109,10 +110,11 @@ class TestDeviceConstants:
         assert "note_array" in DEVICE_TYPES
 
     def test_valid_api_modes(self):
-        """VALID_API_MODES contains only local and cloud (no note_array entry)."""
-        assert VALID_API_MODES == ("local", "cloud")
+        """VALID_API_MODES contains local, cloud, and virtual (no note_array entry)."""
+        assert VALID_API_MODES == ("local", "cloud", "virtual")
         assert "local" in VALID_API_MODES
         assert "cloud" in VALID_API_MODES
+        assert "virtual" in VALID_API_MODES
         assert "note_array" not in VALID_API_MODES
 
 
@@ -783,3 +785,409 @@ class TestBoardContextFor:
         """An unrecognized device type falls back to the default (flagship)."""
         b = board_context_for("nonsense")
         assert (b.device_type, b.rows, b.cols) == ("flagship", 6, 22)
+
+
+class TestNormalizeNoteArrayTiles:
+    """Tile-list normalization for local note arrays."""
+
+    def test_non_list_returns_empty(self):
+        from src.devices import normalize_note_array_tiles
+
+        assert normalize_note_array_tiles(None) == []
+        assert normalize_note_array_tiles("nope") == []
+        assert normalize_note_array_tiles({"row": 0}) == []
+
+    def test_drops_malformed_entries(self):
+        from src.devices import normalize_note_array_tiles
+
+        tiles = [
+            "not-a-dict",
+            {"host": "10.0.0.1"},  # missing row/col
+            {"row": "x", "col": 0},  # non-numeric row
+            {"row": -1, "col": 0, "host": "10.0.0.1"},  # negative
+            {"row": True, "col": 0, "host": "10.0.0.1"},  # bool row
+        ]
+        assert normalize_note_array_tiles(tiles) == []
+
+    def test_coerces_types_and_defaults(self):
+        from src.devices import normalize_note_array_tiles
+
+        [tile] = normalize_note_array_tiles(
+            [{"row": "1", "col": "0", "host": " 10.0.0.5 ", "port": "7001", "local_api_key": " k "}]
+        )
+        assert tile == {
+            "row": 1,
+            "col": 0,
+            "host": "10.0.0.5",
+            "port": 7001,
+            "local_api_key": "k",
+            "enabled": True,
+        }
+
+    def test_bad_port_defaults_to_7000(self):
+        from src.devices import normalize_note_array_tiles
+
+        [tile] = normalize_note_array_tiles([{"row": 0, "col": 0, "port": "abc"}])
+        assert tile["port"] == 7000
+
+    def test_dedupes_by_position_last_wins(self):
+        from src.devices import normalize_note_array_tiles
+
+        tiles = normalize_note_array_tiles(
+            [
+                {"row": 0, "col": 0, "host": "old"},
+                {"row": 0, "col": 0, "host": "new"},
+            ]
+        )
+        assert len(tiles) == 1
+        assert tiles[0]["host"] == "new"
+
+    def test_out_of_range_positions_preserved(self):
+        """Tiles beyond the current W×H are kept — resize must not destroy keys."""
+        from src.devices import normalize_note_array_tiles
+
+        tiles = normalize_note_array_tiles([{"row": 5, "col": 7, "host": "10.0.0.9", "local_api_key": "k"}])
+        assert len(tiles) == 1
+
+
+class TestBoardInstanceTiles:
+    """BoardInstance tile handling."""
+
+    def _tile(self, row=0, col=0, **kw):
+        return {"row": row, "col": col, "host": "10.0.0.1", "port": 7000, "local_api_key": "key", "enabled": True, **kw}
+
+    def test_tiles_cleared_on_non_array_boards(self):
+        b = BoardInstance(device_type="flagship", tiles=[self._tile()])
+        assert b.tiles == []
+
+    def test_tiles_normalized_on_array_boards(self):
+        b = BoardInstance(device_type="note_array", tiles=[self._tile(), "junk"])
+        assert len(b.tiles) == 1
+
+    def test_tiles_round_trip_from_dict_to_dict(self):
+        b = BoardInstance(device_type="note_array", api_mode="local", notes_wide=2, tiles=[self._tile(col=1)])
+        b2 = BoardInstance.from_dict(b.to_dict())
+        assert b2.tiles == b.tiles
+
+    def test_configured_tiles_filters_out_of_range(self):
+        b = BoardInstance(
+            device_type="note_array",
+            api_mode="local",
+            notes_wide=2,
+            notes_tall=1,
+            tiles=[self._tile(col=0), self._tile(col=1), self._tile(col=5), self._tile(row=3)],
+        )
+        assert {(t["row"], t["col"]) for t in b.configured_tiles()} == {(0, 0), (0, 1)}
+
+    def test_configured_tiles_requires_host_key_enabled(self):
+        b = BoardInstance(
+            device_type="note_array",
+            api_mode="local",
+            notes_wide=4,
+            tiles=[
+                self._tile(col=0),
+                self._tile(col=1, host=""),
+                self._tile(col=2, local_api_key=""),
+                self._tile(col=3, enabled=False),
+            ],
+        )
+        assert [(t["row"], t["col"]) for t in b.configured_tiles()] == [(0, 0)]
+
+    def test_local_array_configured_with_one_tile(self):
+        b = BoardInstance(device_type="note_array", api_mode="local", notes_wide=2, tiles=[self._tile()])
+        assert b.uses_local_tiles
+        assert b.is_connection_configured
+
+    def test_local_array_not_configured_when_no_usable_tile(self):
+        b = BoardInstance(device_type="note_array", api_mode="local", notes_wide=2, tiles=[self._tile(host="")])
+        assert b.uses_local_tiles
+        assert not b.is_connection_configured
+
+    def test_legacy_array_without_tiles_keeps_token_semantics(self):
+        """api_mode defaults to 'local' on old dicts — token must still work."""
+        b = BoardInstance(device_type="note_array", note_array_token="tok")
+        assert b.api_mode == "local"
+        assert not b.uses_local_tiles
+        assert b.is_connection_configured
+
+    def test_cloud_array_ignores_tiles(self):
+        b = BoardInstance(device_type="note_array", api_mode="cloud", note_array_token="tok", tiles=[self._tile()])
+        assert not b.uses_local_tiles
+        assert b.is_connection_configured
+
+
+class TestSliceStitchNoteArrayGrid:
+    """Slicing the virtual frame into per-tile subgrids and back."""
+
+    def _grid(self, notes_wide, notes_tall):
+        rows, cols = notes_tall * NOTE_ROWS, notes_wide * NOTE_COLS
+        return [[r * 1000 + c for c in range(cols)] for r in range(rows)]
+
+    @pytest.mark.parametrize("w,h", [(1, 1), (2, 1), (1, 2), (2, 2), (4, 1), (8, 8)])
+    def test_slice_stitch_round_trip(self, w, h):
+        from src.devices import slice_note_array_grid, stitch_note_array_grid
+
+        grid = self._grid(w, h)
+        subgrids = slice_note_array_grid(grid, w, h)
+        assert len(subgrids) == w * h
+        assert stitch_note_array_grid(subgrids, w, h) == grid
+
+    def test_tile_0_1_gets_cols_15_to_29(self):
+        from src.devices import slice_note_array_grid
+
+        grid = self._grid(2, 1)
+        sub = slice_note_array_grid(grid, 2, 1)[(0, 1)]
+        assert len(sub) == NOTE_ROWS
+        assert all(len(r) == NOTE_COLS for r in sub)
+        assert sub[0] == grid[0][15:30]
+        assert sub[2] == grid[2][15:30]
+
+    def test_tile_1_0_gets_rows_3_to_5(self):
+        from src.devices import slice_note_array_grid
+
+        grid = self._grid(1, 2)
+        sub = slice_note_array_grid(grid, 1, 2)[(1, 0)]
+        assert sub == [grid[3], grid[4], grid[5]]
+
+    def test_slice_rejects_wrong_dimensions(self):
+        from src.devices import slice_note_array_grid
+
+        with pytest.raises(ValueError):
+            slice_note_array_grid(self._grid(2, 1), 2, 2)
+        with pytest.raises(ValueError):
+            slice_note_array_grid([[0] * 14] * 3, 1, 1)
+
+    def test_stitch_fills_missing_slots(self):
+        from src.devices import slice_note_array_grid, stitch_note_array_grid
+
+        grid = self._grid(2, 1)
+        subgrids = slice_note_array_grid(grid, 2, 1)
+        del subgrids[(0, 1)]
+        stitched = stitch_note_array_grid(subgrids, 2, 1, fill=0)
+        assert stitched[0][:15] == grid[0][:15]
+        assert stitched[0][15:] == [0] * 15
+
+    def test_stitch_ignores_out_of_range_and_malformed(self):
+        from src.devices import stitch_note_array_grid
+
+        stitched = stitch_note_array_grid({(5, 5): [[1] * NOTE_COLS] * NOTE_ROWS, (0, 0): [[1] * 3]}, 1, 1)
+        assert stitched == [[0] * NOTE_COLS for _ in range(NOTE_ROWS)]
+
+
+class TestIdentifyPattern:
+    """Identify-flash pattern rendering."""
+
+    def test_shape_is_note_sized(self):
+        from src.devices import identify_pattern
+
+        pattern = identify_pattern(0, 0, notes_wide=2)
+        assert len(pattern) == NOTE_ROWS
+        assert all(len(r) == NOTE_COLS for r in pattern)
+
+    def test_distinct_slots_produce_distinct_patterns(self):
+        from src.devices import identify_pattern
+
+        assert identify_pattern(0, 0, 2) != identify_pattern(0, 1, 2)
+        assert identify_pattern(0, 1, 2) != identify_pattern(1, 0, 2)
+
+
+class TestSizeKey:
+    """Canonical family+size key for page/board compatibility (issue #1245)."""
+
+    def test_flagship(self):
+        from src.devices import size_key
+
+        assert size_key("flagship") == "flagship:6x22"
+
+    def test_note(self):
+        from src.devices import size_key
+
+        assert size_key("note") == "note:3x15"
+
+    def test_note_array_resolves_dimensions(self):
+        from src.devices import size_key
+
+        assert size_key("note_array", notes_wide=2, notes_tall=2) == "note_array:6x30"
+        assert size_key("note_array", notes_wide=2, notes_tall=1) == "note_array:3x30"
+        assert size_key("note_array", notes_wide=1, notes_tall=4) == "note_array:12x15"
+        assert size_key("note_array") == "note_array:3x15"
+
+    def test_flagship_ignores_note_counts(self):
+        from src.devices import size_key
+
+        assert size_key("flagship", notes_wide=3, notes_tall=2) == "flagship:6x22"
+
+    def test_unknown_device_type_falls_back_to_default(self):
+        from src.devices import size_key
+
+        assert size_key("mystery") == "flagship:6x22"
+
+
+class TestPagesCompatibleWithBoard:
+    """Exact size_key compatibility predicate (issue #1245)."""
+
+    @staticmethod
+    def _board(device_type, notes_wide=1, notes_tall=1):
+        return {"id": "b1", "device_type": device_type, "notes_wide": notes_wide, "notes_tall": notes_tall}
+
+    @staticmethod
+    def _page(device_type, notes_wide=1, notes_tall=1):
+        from src.pages.models import Page
+
+        return Page(
+            name="p",
+            type="template",
+            device_type=device_type,
+            template=["hi"],
+            notes_wide=notes_wide,
+            notes_tall=notes_tall,
+        )
+
+    def test_flagship_page_flagship_board(self):
+        from src.devices import pages_compatible_with_board
+
+        assert pages_compatible_with_board(self._page("flagship"), self._board("flagship")) is True
+
+    def test_flagship_page_note_board(self):
+        from src.devices import pages_compatible_with_board
+
+        assert pages_compatible_with_board(self._page("flagship"), self._board("note")) is False
+
+    def test_note_page_note_board(self):
+        from src.devices import pages_compatible_with_board
+
+        assert pages_compatible_with_board(self._page("note"), self._board("note")) is True
+
+    def test_note_page_1x1_note_array_board_is_family_mismatch(self):
+        """Same 3x15 dimensions but different family: note != note_array."""
+        from src.devices import pages_compatible_with_board
+
+        assert pages_compatible_with_board(self._page("note"), self._board("note_array", 1, 1)) is False
+
+    def test_note_array_exact_grid_match(self):
+        from src.devices import pages_compatible_with_board
+
+        page = self._page("note_array", notes_wide=2, notes_tall=2)
+        assert pages_compatible_with_board(page, self._board("note_array", 2, 2)) is True
+        assert pages_compatible_with_board(page, self._board("note_array", 2, 1)) is False
+        assert pages_compatible_with_board(page, self._board("note_array", 4, 1)) is False
+
+    def test_board_instance_object(self):
+        from src.devices import pages_compatible_with_board
+
+        board = BoardInstance(device_type="note_array", notes_wide=2, notes_tall=1)
+        assert pages_compatible_with_board(self._page("note_array", 2, 1), board) is True
+        assert pages_compatible_with_board(self._page("note_array", 1, 2), board) is False
+
+    def test_board_dict_missing_geometry_defaults(self):
+        """Board dicts without device_type/notes fields behave as a flagship."""
+        from src.devices import pages_compatible_with_board
+
+        assert pages_compatible_with_board(self._page("flagship"), {"id": "b1"}) is True
+        assert pages_compatible_with_board(self._page("note"), {"id": "b1"}) is False
+
+
+class TestBoardInstanceCode62Glyph:
+    """The per-board code-62 flap (issue #1657).
+
+    Character code 62 is one code with two possible physical flaps: Vestaboard
+    shipped every Flagship with a degree sign until 2026, then replaced it with
+    a heart on newly-manufactured units and published no boundary anyone can
+    query. So the owner tells FiestaBoard which flap their board has.
+    """
+
+    def test_defaults_to_degree(self):
+        """A board nobody has configured draws the pre-2026 Flagship glyph.
+
+        This is the promise to every existing install: nothing renders
+        differently until its owner says so.
+        """
+        assert BoardInstance().code62_glyph == "degree"
+        assert BoardInstance().effective_code62_glyph == "degree"
+
+    def test_a_flagship_draws_the_flap_its_owner_reports(self):
+        board = BoardInstance(device_type="flagship", code62_glyph="heart")
+        assert board.effective_code62_glyph == "heart"
+
+    def test_invalid_glyph_falls_back_to_degree(self):
+        """An unrecognised value must not silently become a heart."""
+        assert BoardInstance(code62_glyph="sparkle").code62_glyph == "degree"
+        assert BoardInstance(code62_glyph=None).code62_glyph == "degree"
+
+    def test_note_hardware_always_draws_a_heart(self):
+        """Note flaps only ever carried the heart, whatever is stored.
+
+        A board switched from Flagship to Note keeps its old preference in
+        storage; it must not make a Note preview a degree sign it does not have.
+        """
+        for device_type in ("note", "note_array"):
+            board = BoardInstance(device_type=device_type, code62_glyph="degree")
+            assert board.effective_code62_glyph == "heart", device_type
+
+    def test_survives_a_save_and_reload(self):
+        """to_dict/from_dict must carry the field, or the setting is lost."""
+        original = BoardInstance(device_type="flagship", code62_glyph="heart")
+        restored = BoardInstance.from_dict(original.to_dict())
+        assert restored.code62_glyph == "heart"
+
+    def test_a_board_stored_before_this_field_existed_loads_as_degree(self):
+        """The reason no schema migration is needed.
+
+        Boards saved by an older FiestaBoard have no ``code62_glyph`` key at
+        all. ``from_dict`` defaults them to the glyph they already rendered, so
+        an upgrade changes nothing on anyone's board.
+        """
+        legacy = {"id": "b1", "name": "Kitchen", "device_type": "flagship", "board_color": "black"}
+        assert BoardInstance.from_dict(legacy).code62_glyph == "degree"
+
+
+class TestVirtualApiMode:
+    """Tests for the virtual api_mode (FiestaPanel boards, no hardware)."""
+
+    def test_virtual_api_mode_is_preserved(self):
+        """api_mode="virtual" survives __post_init__ instead of coercing to local."""
+        board = BoardInstance(api_mode="virtual")
+        assert board.api_mode == "virtual"
+
+    def test_virtual_board_is_connection_configured_without_credentials(self):
+        """Virtual boards need no host or keys to count as configured."""
+        board = BoardInstance(api_mode="virtual", host="", local_api_key="", cloud_key="")
+        assert board.is_connection_configured is True
+
+    def test_unknown_api_mode_still_coerces_to_local(self):
+        """Arbitrary junk api_mode values keep falling back to local."""
+        board = BoardInstance(api_mode="bogus")
+        assert board.api_mode == "local"
+
+
+class TestBoardNameNormalization:
+    """``name`` is user-editable in Settings → Boards (issue #1792), so
+    ``__post_init__`` is the single place that normalizes what gets stored."""
+
+    def test_empty_name_falls_back_to_the_default(self):
+        assert BoardInstance(name="").name == "My Board"
+
+    def test_whitespace_only_name_falls_back_to_the_default(self):
+        """A whitespace-only name is truthy, so a falsy-only guard stored it
+        verbatim and the sidebar rendered a blank row."""
+        assert BoardInstance(name="   ").name == "My Board"
+
+    def test_surrounding_whitespace_is_stripped(self):
+        assert BoardInstance(name="  Kitchen Board  ").name == "Kitchen Board"
+
+    def test_overlong_name_is_capped(self):
+        """Names are shown in the sidebar, board selector and card headers;
+        an unbounded string is a layout hazard, so cap it at storage time."""
+        board = BoardInstance(name="K" * 200)
+        assert len(board.name) == MAX_BOARD_NAME_LENGTH
+        assert board.name == "K" * MAX_BOARD_NAME_LENGTH
+
+    def test_a_normal_name_is_left_alone(self):
+        assert BoardInstance(name="Kitchen Board").name == "Kitchen Board"
+
+    def test_non_string_name_falls_back_to_the_default(self):
+        assert BoardInstance(name=None).name == "My Board"
+
+    def test_from_dict_applies_the_same_normalization(self):
+        board = BoardInstance.from_dict({"device_type": "flagship", "name": "  Garage  "})
+        assert board.name == "Garage"

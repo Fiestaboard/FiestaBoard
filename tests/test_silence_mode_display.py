@@ -22,7 +22,43 @@ def service():
     svc = DisplayService()
     svc.vb_client = Mock()
     svc.vb_client.send_characters.return_value = (True, True)
+    svc.vb_client.render.return_value = (True, True)
     return svc
+
+
+def _silence_config_mock(
+    *,
+    silence_active=True,
+    mode="indicator",
+    page_id=None,
+    indicator_text="SNOOZING",
+    indicator_position="center",
+):
+    """A ``Config`` stand-in for the silence path.
+
+    Since issue #1788 the display engine reads a board's resolved silence
+    settings through ``Config.silence_config_for(board_id)`` instead of the
+    seven install-wide ``SILENCE_SCHEDULE_*`` classproperties, so a Mock that
+    only sets the classproperties no longer drives the engine. The
+    classproperties are still set here: they remain the install-wide mirror.
+    """
+    resolved = {
+        "enabled": True,
+        "start_time": "04:00+00:00",
+        "end_time": "15:00+00:00",
+        "mode": mode,
+        "page_id": page_id,
+        "indicator_text": indicator_text,
+        "indicator_position": indicator_position,
+    }
+    config = Mock()
+    config.is_silence_mode_active.return_value = silence_active
+    config.silence_config_for.return_value = resolved
+    config.SILENCE_SCHEDULE_MODE = mode
+    config.SILENCE_SCHEDULE_PAGE_ID = page_id
+    config.SILENCE_SCHEDULE_INDICATOR_TEXT = indicator_text
+    config.SILENCE_SCHEDULE_INDICATOR_POSITION = indicator_position
+    return config
 
 
 def _decode_board_text(board_array):
@@ -61,7 +97,7 @@ class TestSilenceIndicator:
         assert sent is True
         # Captured board array - must be 3x15 (Note dims) and contain only
         # SNOOZING (no other characters).
-        args, _ = service.vb_client.send_characters.call_args
+        args, _ = service.vb_client.render.call_args
         board_array = args[0]
         assert len(board_array) == 3
         assert all(len(row) == 15 for row in board_array)
@@ -82,7 +118,7 @@ class TestSilenceIndicator:
 
             assert service._send_silence_indicator("flagship") is True
 
-        args, _ = service.vb_client.send_characters.call_args
+        args, _ = service.vb_client.render.call_args
         board_array = args[0]
         assert len(board_array) == 6
         assert all(len(row) == 22 for row in board_array)
@@ -113,12 +149,11 @@ class TestSilenceModeDispatch:
         settings.get_board_settings.return_value = Mock(boards=[{"device_type": "note"}])
         settings.get_transition_settings.return_value = Mock(strategy=None, step_interval_ms=500, step_size=1)
 
-        config = Mock()
-        config.is_silence_mode_active.return_value = silence_active
-        config.SILENCE_SCHEDULE_MODE = mode
-        config.SILENCE_SCHEDULE_PAGE_ID = page_id
-        config.SILENCE_SCHEDULE_INDICATOR_TEXT = "SNOOZING"
-        config.SILENCE_SCHEDULE_INDICATOR_POSITION = "center"
+        config = _silence_config_mock(
+            silence_active=silence_active,
+            mode=mode,
+            page_id=page_id,
+        )
 
         return page, page_service, settings, config
 
@@ -134,7 +169,7 @@ class TestSilenceModeDispatch:
             sent = service.check_and_send_active_page()
 
         assert sent is False
-        service.vb_client.send_characters.assert_not_called()
+        service.vb_client.render.assert_not_called()
         assert service._last_silence_mode_active is True
 
     def test_freeze_mode_blocks_subsequent_ticks(self, service):
@@ -150,7 +185,7 @@ class TestSilenceModeDispatch:
             sent = service.check_and_send_active_page()
 
         assert sent is False
-        service.vb_client.send_characters.assert_not_called()
+        service.vb_client.render.assert_not_called()
 
     def test_indicator_mode_sends_once(self, service):
         _, page_service, settings, config = self._patch_common(mode="indicator")
@@ -163,16 +198,16 @@ class TestSilenceModeDispatch:
         ):
             # First tick: enters silence, sends indicator
             service.check_and_send_active_page()
-            assert service.vb_client.send_characters.call_count == 1
+            assert service.vb_client.render.call_count == 1
 
             # The board should display ONLY SNOOZING - not the page content
-            args, _ = service.vb_client.send_characters.call_args
+            args, _ = service.vb_client.render.call_args
             board_array = args[0]
             assert _decode_board_text(board_array).strip() == "SNOOZING"
 
             # Second tick: still silenced, must NOT send again
             service.check_and_send_active_page()
-            assert service.vb_client.send_characters.call_count == 1
+            assert service.vb_client.render.call_count == 1
 
     def test_page_mode_renders_configured_page(self, service):
         active_page, page_service, settings, config = self._patch_common(mode="page", page_id="silence-page")
@@ -192,7 +227,7 @@ class TestSilenceModeDispatch:
                 return silence_page
             return active_page
 
-        def _preview(pid, force_refresh=False):
+        def _preview(pid, force_refresh=False, **_kwargs):
             if pid == "silence-page":
                 return silence_result
             return Mock(available=True, formatted="WEATHER\nTEMP")
@@ -210,12 +245,12 @@ class TestSilenceModeDispatch:
             sent = service.check_and_send_active_page()
             assert sent is True
             # The board content should be the silence page, not the active page.
-            args, _ = service.vb_client.send_characters.call_args
+            args, _ = service.vb_client.render.call_args
             board_array = args[0]
             assert "GOOD NIGHT" in _decode_board_text(board_array)
             # And further ticks must not send again.
             service.check_and_send_active_page()
-            assert service.vb_client.send_characters.call_count == 1
+            assert service.vb_client.render.call_count == 1
 
     def test_page_mode_falls_back_to_indicator_when_page_missing(self, service):
         active_page, page_service, settings, config = self._patch_common(mode="page", page_id="missing-page")
@@ -237,7 +272,7 @@ class TestSilenceModeDispatch:
             sent = service.check_and_send_active_page()
 
         assert sent is True
-        args, _ = service.vb_client.send_characters.call_args
+        args, _ = service.vb_client.render.call_args
         board_array = args[0]
         assert _decode_board_text(board_array).strip() == "SNOOZING"
 
@@ -265,12 +300,12 @@ class TestCustomIndicatorTextAndPosition:
         settings.get_board_settings.return_value = Mock(boards=[{"device_type": "flagship"}])
         settings.get_transition_settings.return_value = Mock(strategy=None, step_interval_ms=500, step_size=1)
 
-        config = Mock()
-        config.is_silence_mode_active.return_value = True
-        config.SILENCE_SCHEDULE_MODE = "indicator"
-        config.SILENCE_SCHEDULE_PAGE_ID = None
-        config.SILENCE_SCHEDULE_INDICATOR_TEXT = indicator_text
-        config.SILENCE_SCHEDULE_INDICATOR_POSITION = indicator_position
+        config = _silence_config_mock(
+            silence_active=True,
+            mode="indicator",
+            indicator_text=indicator_text,
+            indicator_position=indicator_position,
+        )
         return page_service, settings, config
 
     def test_indicator_uses_custom_text(self, service):
@@ -284,7 +319,7 @@ class TestCustomIndicatorTextAndPosition:
         ):
             service.check_and_send_active_page()
 
-        args, _ = service.vb_client.send_characters.call_args
+        args, _ = service.vb_client.render.call_args
         board_array = args[0]
         text = _decode_board_text(board_array).strip()
         assert text == "ZZZ"
@@ -300,7 +335,7 @@ class TestCustomIndicatorTextAndPosition:
         ):
             service.check_and_send_active_page()
 
-        args, _ = service.vb_client.send_characters.call_args
+        args, _ = service.vb_client.render.call_args
         board_array = args[0]
         # Flagship: 6 rows x 22 cols. Bottom row, right-aligned ZZZ at cols 19-21.
         assert len(board_array) == 6
@@ -319,6 +354,7 @@ class TestCustomIndicatorTextAndPosition:
         """If config provides no mode (so Config.SILENCE_SCHEDULE_MODE == 'freeze'), no send."""
         page_service, settings, config = self._patch_common()
         config.SILENCE_SCHEDULE_MODE = "freeze"
+        config.silence_config_for.return_value = {**config.silence_config_for.return_value, "mode": "freeze"}
         with (
             patch("src.main.get_page_service", return_value=page_service),
             patch("src.main.get_settings_service", return_value=settings),
@@ -329,7 +365,7 @@ class TestCustomIndicatorTextAndPosition:
             sent = service.check_and_send_active_page()
 
         assert sent is False
-        service.vb_client.send_characters.assert_not_called()
+        service.vb_client.render.assert_not_called()
 
 
 class TestTemporaryOverrideDuringSilence:
@@ -369,7 +405,7 @@ class TestTemporaryOverrideDuringSilence:
         def _get_page(pid):
             return override_page if pid == "override-page" else active_page
 
-        def _preview(pid, force_refresh=False):
+        def _preview(pid, force_refresh=False, **_kwargs):
             return override_result if pid == "override-page" else active_result
 
         page_service = Mock()
@@ -393,12 +429,7 @@ class TestTemporaryOverrideDuringSilence:
         settings.get_transition_settings.return_value = Mock(strategy=None, step_interval_ms=500, step_size=1)
         settings.consume_temporary_override.return_value = override
 
-        config = Mock()
-        config.is_silence_mode_active.return_value = silence_active
-        config.SILENCE_SCHEDULE_MODE = silence_mode
-        config.SILENCE_SCHEDULE_PAGE_ID = None
-        config.SILENCE_SCHEDULE_INDICATOR_TEXT = "SNOOZING"
-        config.SILENCE_SCHEDULE_INDICATOR_POSITION = "center"
+        config = _silence_config_mock(silence_active=silence_active, mode=silence_mode)
 
         return page_service, settings, config
 
@@ -415,7 +446,7 @@ class TestTemporaryOverrideDuringSilence:
             sent = service.check_and_send_active_page()
 
         assert sent is True
-        args, _ = service.vb_client.send_characters.call_args
+        args, _ = service.vb_client.render.call_args
         text = _decode_board_text(args[0]).strip()
         assert "HELLO" in text
         assert "SNOOZING" not in text
@@ -433,8 +464,8 @@ class TestTemporaryOverrideDuringSilence:
             sent = service.check_and_send_active_page()
 
         assert sent is True
-        service.vb_client.send_characters.assert_called_once()
-        args, _ = service.vb_client.send_characters.call_args
+        service.vb_client.render.assert_called_once()
+        args, _ = service.vb_client.render.call_args
         assert "HELLO" in _decode_board_text(args[0])
 
     def test_no_override_still_silences(self, service):
@@ -449,7 +480,7 @@ class TestTemporaryOverrideDuringSilence:
         ):
             service.check_and_send_active_page()
 
-        args, _ = service.vb_client.send_characters.call_args
+        args, _ = service.vb_client.render.call_args
         assert _decode_board_text(args[0]).strip() == "SNOOZING"
 
 
@@ -480,4 +511,4 @@ class TestSendTriggerContent:
     def test_returns_false_when_content_unchanged(self, service):
         service._last_active_page_content = "SAME"
         assert service._send_trigger_content("SAME") is False
-        service.vb_client.send_characters.assert_not_called()
+        service.vb_client.render.assert_not_called()

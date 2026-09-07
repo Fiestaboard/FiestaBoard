@@ -3,25 +3,24 @@
  * Displays {{red}}, {{blue}}, etc. as solid colored tiles
  * Can be dragged and dropped, deleted with backspace, and copied/pasted
  */
+import { Box, Text, Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@fiestaboard/ui";
+import type { ReactNodeViewProps } from "@tiptap/react";
 import { NodeViewWrapper } from "@tiptap/react";
 import React from "react";
 
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { useTranslations } from "@/i18n/translations";
 import { FIESTABOARD_COLORS } from "@/lib/board-colors";
 import { cn } from "@/lib/utils";
 
-interface ColorTileNodeViewProps {
-  node: {
-    attrs: {
-      color: string;
-      code: number;
-    };
-  };
-  deleteNode: () => void;
+/** Attributes ColorTileNode declares (see extensions/color-tile-node.ts). */
+interface ColorTileAttrs {
+  color: string;
+  code: number;
 }
 
-export function ColorTileNodeView({ node, deleteNode: _deleteNode }: ColorTileNodeViewProps) {
-  const { color, code } = node.attrs;
+export function ColorTileNodeView({ node }: ReactNodeViewProps) {
+  const t = useTranslations("templateEditor");
+  const { color, code } = node.attrs as ColorTileAttrs;
   const colorKey = color.toLowerCase() as keyof typeof FIESTABOARD_COLORS;
   const bgColor = FIESTABOARD_COLORS[colorKey] || FIESTABOARD_COLORS.red;
 
@@ -62,10 +61,10 @@ export function ColorTileNodeView({ node, deleteNode: _deleteNode }: ColorTileNo
             }}
           >
             {/* Subtle split flip effect - horizontal line in middle */}
-            <div className="absolute top-1/2 left-0 right-0 h-[1px] bg-black/10" />
+            <Box className="absolute top-1/2 left-0 right-0 h-[1px] bg-black/10" />
 
             {/* Subtle gradient for curvature */}
-            <div
+            <Box
               className="absolute inset-0 pointer-events-none rounded-[3px]"
               style={{
                 background: "linear-gradient(180deg, rgba(255,255,255,0.15) 0%, transparent 50%, rgba(0,0,0,0.2) 100%)",
@@ -74,7 +73,12 @@ export function ColorTileNodeView({ node, deleteNode: _deleteNode }: ColorTileNo
 
             {/* Block character gives the browser selectable text so the native
           selection highlight (blue overlay) is visible on the tile.
-          Transparent color keeps it invisible until selected. */}
+          Transparent color keeps it invisible until selected.
+          Kept as a raw <span>: this is a selection-anchor inside TipTap's
+          contentEditable and all styling is inline; wrapping it in <Text>
+          would inject text-foreground/text-sm classes that could disturb the
+          transparent-until-selected geometry. Correctness over coverage. */}
+            {/* eslint-disable-next-line react/forbid-elements -- selection-anchor span in TipTap contentEditable with all-inline styling; Text would inject classes that disturb the transparent-until-selected geometry */}
             <span
               aria-label={`${color} color tile`}
               style={{
@@ -92,9 +96,7 @@ export function ColorTileNodeView({ node, deleteNode: _deleteNode }: ColorTileNo
           </NodeViewWrapper>
         </TooltipTrigger>
         <TooltipContent>
-          <p>
-            {color} tile (code {code}) - drag to move, backspace to delete
-          </p>
+          <Text>{t("colorTileTooltip", { color, code })}</Text>
         </TooltipContent>
       </Tooltip>
     </TooltipProvider>

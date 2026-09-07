@@ -1,0 +1,211 @@
+# Regenerate the serialised app screens the docs site renders instead of PNGs.
+#
+# These captures are real DOM, taken from the app running against a mock board
+# with seeded fixtures, and committed to this repo under assets/docs-captures/.
+# publish-docs.yml then syncs them to the site repo as static/captures/, where
+# <AppShot> renders them. One capture covers light, dark, desktop and mobile.
+#
+# Runs on web/ changes so the docs stop drifting the moment the UI does — the
+# problem this replaced was a committed screenshot of a Settings page that had
+# not existed for months.
+name: "Docs: regenerate app captures"
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "web/app/**"
+      - "web/src/**"
+      - "web/tests/generate-screenshots.spec.ts"
+      - "web/tests/lib/dom-capture.ts"
+      - "web/package.json"
+      - ".github/workflows/docs-captures.yml"
+  workflow_dispatch: {}
+
+# Queue runs, never cancel them. This job takes ~11 minutes — build the image,
+# boot the app, capture every screen twice — and it triggers on any web/**
+# change. With cancel-in-progress the first four real runs were all killed by
+# the next merge landing before they finished, so the capture PR was never
+# refreshed and sat there as a rollback of everything merged after it.
+#
+# Queueing wastes some runner time when merges cluster. Cancelling wasted the
+# entire mechanism.
+concurrency:
+  group: docs-captures
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+
+jobs:
+  capture:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v4
+
+      - name: Build app image
+        uses: docker/build-push-action@v7
+        timeout-minutes: 15
+        with:
+          context: .
+          file: ./Dockerfile
+          target: runtime
+          push: false
+          load: true
+          tags: fiestaboard:captures
+          # Share the cache scopes the e2e jobs populate.
+          cache-from: |
+            type=gha,scope=build-linux/amd64
+            type=gha,scope=build-test
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: "24"
+          cache: "npm"
+          cache-dependency-path: web/package.json
+
+      - name: Cache Playwright browsers
+        uses: actions/cache@v6
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ hashFiles('web/package.json', 'web/package-lock.json') }}
+          restore-keys: playwright-${{ runner.os }}-
+
+      - name: Install UI dependencies
+        working-directory: web
+        run: npm ci --legacy-peer-deps --no-audit || npm install --legacy-peer-deps --no-audit
+
+      - name: Install Playwright chromium
+        working-directory: web
+        run: npx playwright install --with-deps chromium
+
+      # mock-board/server.py is stdlib-only, so no pip install is needed.
+      - name: Start mock Vestaboard API
+        run: |
+          python3 integration-tests/mock-board/server.py &
+          sleep 2
+
+      - name: Start FiestaBoard
+        run: |
+          docker run -d --name fiestaboard-captures \
+            --add-host=host.docker.internal:host-gateway \
+            -p 4420:3000 \
+            -e BOARD_API_MODE=local \
+            -e BOARD_HOST=host.docker.internal \
+            -e BOARD_LOCAL_API_KEY=test_key \
+            -e PRODUCTION=false \
+            -e FIESTABOARD_AUTH_ENABLED=false \
+            fiestaboard:captures
+          for i in $(seq 1 60); do
+            if curl -s -o /dev/null -w "%{http_code}" http://localhost:4420/api/health | grep -q 200; then
+              echo "app ready"; break
+            fi
+            sleep 1
+          done
+
+      # Only the light project runs: the DOM capture is theme-independent (the
+      # theme is a class on the wrapper), so the dark project would rewrite
+      # identical files. PNGs are a by-product here and are not committed.
+      - name: Generate captures
+        working-directory: web
+        env:
+          MOCK_BOARD_HOST: host.docker.internal
+        run: npx playwright test --config playwright-screenshots.config.ts --project=screenshots-light
+
+      # The invariant that matters is that the OUTPUT is reproducible, not that
+      # every screen holds still — some animate forever by design. Capturing
+      # twice and diffing proves it directly, and costs one extra pass.
+      #
+      # WARNING, NOT A FAILURE, for now. Nine sources of run-to-run variance
+      # have been fixed (see assets/docs-captures/README.md), taking a local
+      # two-run diff from 24 files down to ~0, but the tail is per-screen and
+      # was still producing the occasional straggler when this landed. A job
+      # that fails on main for something nobody did is worse than the drift
+      # this replaces. Promote to `exit 1` once a few real runs come back
+      # quiet — the annotation below names exactly what is left.
+      - name: Verify captures are reproducible
+        working-directory: web
+        env:
+          MOCK_BOARD_HOST: host.docker.internal
+        run: |
+          cp -r ../assets/docs-captures /tmp/captures-first
+          npx playwright test --config playwright-screenshots.config.ts --project=screenshots-light
+          if ! diff -rq /tmp/captures-first ../assets/docs-captures; then
+            echo "::warning::Captures differ between two identical runs. Something on these screens varies with wall-clock time, a server-minted id, or interaction state. See assets/docs-captures/README.md (Determinism)."
+          else
+            echo "captures reproduced identically"
+          fi
+
+      # `main` is protected — PRs and the merge queue only — so this cannot
+      # commit directly. It pushes a bot-owned branch and opens (or updates) a
+      # PR instead, which also means a person sees screenshot changes before
+      # they reach the docs.
+      #
+      # RELEASE_PAT rather than GITHUB_TOKEN: a PR opened with GITHUB_TOKEN does
+      # not trigger workflows, so the required "CI Success" check would never
+      # run and the PR could never merge.
+      - name: Open capture-refresh PR
+        env:
+          GH_TOKEN: ${{ secrets.RELEASE_PAT }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add assets/docs-captures
+          if git diff --cached --quiet; then
+            echo "captures unchanged — nothing to open"
+            exit 0
+          fi
+
+          BRANCH=chore/docs-captures
+          git checkout -b "$BRANCH"
+          git commit -m "chore(docs): regenerate app captures"
+          # Force: the branch is bot-owned and always rebuilt from current main,
+          # so any previous unmerged refresh is superseded rather than merged.
+          git push --force -u origin "$BRANCH"
+
+          # Always rewrite the body, whether the PR is new or refreshed. A
+          # capture PR that sat through an unrelated merge is silently stale —
+          # it was built from an older main, so merging it REVERTS whatever
+          # landed since. Naming the commit it was generated from is what makes
+          # that visible on the PR itself.
+          printf '%s\n' \
+            "Serialised app screens regenerated because the UI changed." \
+            "" \
+            "- Generated from \`$GITHUB_SHA\` on \`main\`" \
+            "- $(ls assets/docs-captures/*.html | wc -l | tr -d ' ') capture files" \
+            "" \
+            "**Check the commit above is still recent before merging.** This branch is rebuilt from whatever \`main\` was when the run started, so a PR left open across other merges will roll them back. Re-run \`Docs: regenerate app captures\` to refresh it." \
+            "" \
+            "Generated by \`.github/workflows/docs-captures.yml\`; see \`assets/docs-captures/README.md\`. Merging syncs these to the site through \`publish-docs.yml\`." \
+            > /tmp/capture-pr-body.md
+
+          # REST, not `gh pr view`/`create`/`edit`. Those go through GraphQL,
+          # which resolves author login/name/slug and so demands `read:org`;
+          # RELEASE_PAT carries only `repo`, and the step failed on the scope
+          # check AFTER successfully pushing the captures — a red run that had
+          # actually done its job. These endpoints need `repo` alone.
+          EXISTING=$(gh api \
+            "repos/$GITHUB_REPOSITORY/pulls?head=${GITHUB_REPOSITORY%%/*}:$BRANCH&state=open" \
+            --jq '.[0].number // empty')
+
+          if [ -n "$EXISTING" ]; then
+            gh api -X PATCH "repos/$GITHUB_REPOSITORY/pulls/$EXISTING" \
+              -f body="$(cat /tmp/capture-pr-body.md)" >/dev/null
+            echo "refreshed capture PR #$EXISTING"
+          else
+            NUM=$(gh api -X POST "repos/$GITHUB_REPOSITORY/pulls" \
+              -f title="chore(docs): regenerate app captures" \
+              -f head="$BRANCH" -f base=main \
+              -f body="$(cat /tmp/capture-pr-body.md)" \
+              --jq .number)
+            echo "opened capture PR #$NUM"
+          fi
+
+      - name: Collect diagnostics on failure
+        if: failure()
+        run: docker logs fiestaboard-captures 2>&1 | tail -100 || true

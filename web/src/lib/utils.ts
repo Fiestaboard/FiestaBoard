@@ -1,6 +1,3 @@
-import { type ClassValue, clsx } from "clsx";
-import { twMerge } from "tailwind-merge";
-
-export function cn(...inputs: ClassValue[]) {
-  return twMerge(clsx(inputs));
-}
+// cn now lives in the design system; this shim keeps the historic
+// "@/lib/utils" import path working across the app.
+export { cn } from "@fiestaboard/ui";

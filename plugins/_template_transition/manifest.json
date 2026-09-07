@@ -1,0 +1,38 @@
+{
+  "id": "my_transition",
+  "name": "My Transition",
+  "version": "1.0.0",
+  "description": "Short one-line description shown in the transition picker.",
+  "author": "Your Name",
+  "icon": "wand-2",
+  "category": "transition",
+  "plugin_type": "transition",
+  "repository": "https://github.com/YourUsername/fiestaboard-transition--my-transition",
+  "documentation": "README.md",
+  "settings_schema": {
+    "type": "object",
+    "properties": {
+      "speed_ms": {
+        "type": "integer",
+        "title": "Frame delay (ms)",
+        "description": "Time to wait between frames.",
+        "default": 100,
+        "minimum": 0,
+        "maximum": 2000
+      }
+    }
+  },
+  "transition_settings": {
+    "interruptible": true,
+    "min_interval_ms": 50,
+    "max_frames": 200,
+    "max_runtime_seconds": 60
+  },
+  "screenshots": [
+    {
+      "src": "docs/board-display.png",
+      "alt": "My Transition demo",
+      "primary": true
+    }
+  ]
+}

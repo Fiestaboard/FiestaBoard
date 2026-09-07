@@ -1,28 +1,44 @@
 "use client";
 
 import {
-  CheckCircle,
-  Cloud,
-  Eye,
-  EyeOff,
-  HelpCircle,
-  Key,
-  KeyRound,
-  Loader2,
-  Search,
-  Wifi,
-  XCircle,
-} from "lucide-react";
+  Button,
+  Flex,
+  Grid,
+  Input,
+  Label,
+  List,
+  ListItem,
+  Stack,
+  Text,
+  ToggleCard,
+  ToggleCardGroup,
+} from "@fiestaboard/ui";
+import { Spinner } from "@fiestaboard/ui/components/feedback/spinner";
+import { SecretInput } from "@fiestaboard/ui/components/forms/secret-input";
+import { CheckCircle, Cloud, HelpCircle, Key, KeyRound, Loader2, Search, Wifi, XCircle } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 
 import { ScaledBoardDisplay } from "@/components/scaled-board-display";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { useTranslations } from "@/i18n/translations";
-import type { BoardInstance, DiscoveredBoard } from "@/lib/api";
+import type { BoardInstance, Code62Glyph, DiscoveredBoard } from "@/lib/api";
 import { api } from "@/lib/api";
 import { cn } from "@/lib/utils";
+
+/** The board shapes the wizard can set up. */
+type DeviceType = "flagship" | "note";
+
+function isDeviceType(value: string): value is DeviceType {
+  return value === "flagship" || value === "note";
+}
+
+/**
+ * The two flaps a Flagship's character-code-62 slot can physically carry
+ * (issue #1657). Module scope so the swatch pair has one source of truth.
+ */
+const CODE62_CHOICES: ReadonlyArray<{ value: Code62Glyph; glyph: string; labelKey: string }> = [
+  { value: "degree", glyph: "°", labelKey: "code62DegreeAriaLabel" },
+  { value: "heart", glyph: "♥", labelKey: "code62HeartAriaLabel" },
+];
 
 interface BoardConfig {
   api_mode: "local" | "cloud";
@@ -30,8 +46,10 @@ interface BoardConfig {
   cloud_key: string;
   host: string;
   connectionVerified: boolean;
-  device_type: "flagship" | "note";
+  device_type: DeviceType;
   board_color: "black" | "white";
+  /** Which flap this Flagship's code-62 slot carries (issue #1657). */
+  code62_glyph: Code62Glyph;
 }
 
 interface StepBoardSetupProps {
@@ -54,13 +72,18 @@ export function StepBoardSetup({
   const t = useTranslations("wizard.boardSetup");
   const tc = useTranslations("common");
   const tbs = useTranslations("boardSettings");
+  // Mirrors `config` for use inside async callbacks (connection tests, board
+  // scans) so they always read the latest value instead of a stale closure.
+  // Refs may only be read/written outside of render, so the mirror is
+  // synced in an effect rather than assigned inline during render.
   const configRef = useRef(config);
-  configRef.current = config;
+  useEffect(() => {
+    configRef.current = config;
+  }, [config]);
 
   const [testStatus, setTestStatus] = useState<"idle" | "testing" | "success" | "error">("idle");
   const [testMessage, setTestMessage] = useState("");
   const [troubleshootingSteps, setTroubleshootingSteps] = useState<string[]>([]);
-  const [showApiKey, setShowApiKey] = useState(false);
   const [localKeyMode, setLocalKeyMode] = useState<LocalKeyMode>("api_key");
   const [enablementToken, setEnablementToken] = useState("");
   const [enablementStatus, setEnablementStatus] = useState<"idle" | "loading" | "success" | "error">("idle");
@@ -173,9 +196,11 @@ export function StepBoardSetup({
         await api.updateBoardSettings({
           boards: [
             {
-              name: "My Board",
+              // No name: the backend fills in its default ("My Board");
+              // users rename boards in Settings → Boards (issue #1792).
               device_type: cfg.device_type,
               board_color: cfg.board_color,
+              code62_glyph: cfg.code62_glyph,
               api_mode: cfg.api_mode,
               host: cfg.host,
               local_api_key: cfg.local_api_key,
@@ -224,11 +249,13 @@ export function StepBoardSetup({
   }, [config.device_type]);
 
   return (
-    <div className="space-y-6">
+    <Stack gap="6">
       {/* API Mode Selection */}
-      <div className="space-y-3">
-        <p className="text-base font-medium">{t("connectionType")}</p>
-        <div className="grid grid-cols-2 gap-3">
+      <Stack gap="3">
+        <Text size="base" weight="medium">
+          {t("connectionType")}
+        </Text>
+        <Grid cols="2" gap="3">
           <button
             type="button"
             onClick={() => handleModeChange("cloud")}
@@ -238,8 +265,12 @@ export function StepBoardSetup({
             )}
           >
             <Cloud className={cn("h-8 w-8", config.api_mode === "cloud" ? "text-primary" : "text-muted-foreground")} />
-            <span className="font-medium">{t("cloudApi")}</span>
-            <span className="text-xs text-muted-foreground text-center">{t("cloudApiEasiest")}</span>
+            <Text as="span" weight="medium">
+              {t("cloudApi")}
+            </Text>
+            <Text as="span" size="xs" tone="muted" className="text-center">
+              {t("cloudApiEasiest")}
+            </Text>
           </button>
 
           <button
@@ -251,54 +282,48 @@ export function StepBoardSetup({
             )}
           >
             <Wifi className={cn("h-8 w-8", config.api_mode === "local" ? "text-primary" : "text-muted-foreground")} />
-            <span className="font-medium">{t("localApi")}</span>
-            <span className="text-xs text-muted-foreground text-center">{t("localApiFaster")}</span>
+            <Text as="span" weight="medium">
+              {t("localApi")}
+            </Text>
+            <Text as="span" size="xs" tone="muted" className="text-center">
+              {t("localApiFaster")}
+            </Text>
           </button>
-        </div>
-      </div>
+        </Grid>
+      </Stack>
 
       {/* Fields based on mode */}
       {config.api_mode === "cloud" ? (
-        <div className="space-y-4">
-          <div className="space-y-2">
+        <Stack gap="4">
+          <Stack gap="2">
             <Label htmlFor="cloud_key">{t("readWriteApiKey")}</Label>
-            <div className="relative">
-              <Input
-                id="cloud_key"
-                type={showApiKey ? "text" : "password"}
-                placeholder={t("cloudKeyPlaceholder")}
-                value={config.cloud_key}
-                onChange={(e) => {
-                  onConfigChange({
-                    ...config,
-                    cloud_key: e.target.value,
-                    connectionVerified: false,
-                  });
-                  setTestStatus("idle");
-                }}
-                className="pr-10"
-              />
-              <button
-                type="button"
-                onClick={() => setShowApiKey(!showApiKey)}
-                aria-label={showApiKey ? tbs("hideApiKey") : tbs("showApiKey")}
-                className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded"
-              >
-                {showApiKey ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-              </button>
-            </div>
-            <p className="text-xs text-muted-foreground flex items-center gap-1">
+            <SecretInput
+              id="cloud_key"
+              placeholder={t("cloudKeyPlaceholder")}
+              value={config.cloud_key}
+              onChange={(e) => {
+                onConfigChange({
+                  ...config,
+                  cloud_key: e.target.value,
+                  connectionVerified: false,
+                });
+                setTestStatus("idle");
+              }}
+              showLabel={tbs("showApiKey")}
+              hideLabel={tbs("hideApiKey")}
+            />
+            <Text size="xs" tone="muted" className="flex items-center gap-1">
               <HelpCircle className="h-3 w-3" />
               {t("cloudKeyHelp")}
-            </p>
-          </div>
-        </div>
+            </Text>
+          </Stack>
+        </Stack>
       ) : (
-        <div className="space-y-4">
+        <Stack gap="4">
           {/* Board IP Address - always needed for local */}
-          <div className="space-y-2">
+          <Stack gap="2">
             <Label htmlFor="host">{t("boardIpAddress")}</Label>
-            <div className="flex gap-2">
+            <Flex gap="2">
               <Input
                 id="host"
                 placeholder={t("boardIpPlaceholder")}
@@ -328,30 +353,34 @@ export function StepBoardSetup({
                   <Search className="h-4 w-4" />
                 )}
               </Button>
-            </div>
-            <p className="text-xs text-muted-foreground flex items-center gap-1">
+            </Flex>
+            <Text size="xs" tone="muted" className="flex items-center gap-1">
               <HelpCircle className="h-3 w-3" />
               {t("boardIpHelp")}
-            </p>
-          </div>
+            </Text>
+          </Stack>
 
           {/* Scan results */}
           {scanStatus === "scanning" && (
-            <div className="flex items-center gap-2 p-3 rounded-lg bg-muted/50 text-sm text-muted-foreground">
-              <Loader2 className="h-4 w-4 animate-spin" />
-              <span>{t("scanningNetwork")}</span>
-            </div>
+            <Flex align="center" gap="2" className="p-3 rounded-lg bg-muted/50 text-sm text-muted-foreground">
+              <Spinner label={null} />
+              <Text as="span" tone="muted">
+                {t("scanningNetwork")}
+              </Text>
+            </Flex>
           )}
           {scanStatus === "done" && discoveredBoards.length === 0 && (
-            <div className="flex items-center gap-2 p-3 rounded-lg bg-muted/50 text-sm text-muted-foreground">
+            <Flex align="center" gap="2" className="p-3 rounded-lg bg-muted/50 text-sm text-muted-foreground">
               <HelpCircle className="h-4 w-4" />
-              <span>{t("noBoardsFound")}</span>
-            </div>
+              <Text as="span" tone="muted">
+                {t("noBoardsFound")}
+              </Text>
+            </Flex>
           )}
           {scanStatus === "done" && discoveredBoards.length >= 1 && (
-            <div className="space-y-2">
-              <p className="text-sm">{t("foundBoards", { count: discoveredBoards.length })}</p>
-              <div className="space-y-1.5">
+            <Stack gap="2">
+              <Text>{t("foundBoards", { count: discoveredBoards.length })}</Text>
+              <Stack gap="1.5">
                 {discoveredBoards.map((board) => (
                   <button
                     key={board.ip}
@@ -364,24 +393,32 @@ export function StepBoardSetup({
                         : "border-muted hover:border-muted-foreground/30",
                     )}
                   >
-                    <span className="font-mono">{board.ip}</span>
-                    {board.hostname && <span className="text-xs text-muted-foreground">{board.hostname}</span>}
+                    <Text as="span" className="font-mono">
+                      {board.ip}
+                    </Text>
+                    {board.hostname && (
+                      <Text as="span" size="xs" tone="muted">
+                        {board.hostname}
+                      </Text>
+                    )}
                   </button>
                 ))}
-              </div>
-            </div>
+              </Stack>
+            </Stack>
           )}
           {scanStatus === "error" && (
-            <div className="flex items-center gap-2 p-3 rounded-lg bg-destructive/10 text-destructive text-sm">
+            <Flex align="center" gap="2" className="p-3 rounded-lg bg-destructive/10 text-destructive text-sm">
               <XCircle className="h-4 w-4" />
-              <span>{t("scanFailed")}</span>
-            </div>
+              <Text as="span" tone="destructive">
+                {t("scanFailed")}
+              </Text>
+            </Flex>
           )}
 
           {/* Local Key Mode Toggle */}
-          <div className="space-y-3">
-            <p className="text-sm font-medium">{t("authenticationMethod")}</p>
-            <div className="grid grid-cols-2 gap-2">
+          <Stack gap="3">
+            <Text weight="medium">{t("authenticationMethod")}</Text>
+            <Grid cols="2" gap="2">
               <button
                 type="button"
                 onClick={() => setLocalKeyMode("api_key")}
@@ -393,7 +430,7 @@ export function StepBoardSetup({
                 )}
               >
                 <Key className="h-4 w-4" />
-                <span>{t("apiKey")}</span>
+                {t("apiKey")}
               </button>
               <button
                 type="button"
@@ -406,74 +443,54 @@ export function StepBoardSetup({
                 )}
               >
                 <KeyRound className="h-4 w-4" />
-                <span>{t("enablementToken")}</span>
+                {t("enablementToken")}
               </button>
-            </div>
-          </div>
+            </Grid>
+          </Stack>
 
           {localKeyMode === "api_key" ? (
-            <div className="space-y-2">
+            <Stack gap="2">
               <Label htmlFor="local_api_key">{t("localApiKey")}</Label>
-              <div className="relative">
-                <Input
-                  id="local_api_key"
-                  type={showApiKey ? "text" : "password"}
-                  placeholder={t("localApiKeyPlaceholder")}
-                  value={config.local_api_key}
-                  onChange={(e) => {
-                    onConfigChange({
-                      ...config,
-                      local_api_key: e.target.value,
-                      connectionVerified: false,
-                    });
-                    setTestStatus("idle");
-                  }}
-                  className="pr-10"
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowApiKey(!showApiKey)}
-                  aria-label={showApiKey ? tbs("hideApiKey") : tbs("showApiKey")}
-                  className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded"
-                >
-                  {showApiKey ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                </button>
-              </div>
-              <p className="text-xs text-muted-foreground flex items-center gap-1">
+              <SecretInput
+                id="local_api_key"
+                placeholder={t("localApiKeyPlaceholder")}
+                value={config.local_api_key}
+                onChange={(e) => {
+                  onConfigChange({
+                    ...config,
+                    local_api_key: e.target.value,
+                    connectionVerified: false,
+                  });
+                  setTestStatus("idle");
+                }}
+                showLabel={tbs("showApiKey")}
+                hideLabel={tbs("hideApiKey")}
+              />
+              <Text size="xs" tone="muted" className="flex items-center gap-1">
                 <HelpCircle className="h-3 w-3" />
                 {t("localApiKeyHelp")}
-              </p>
-            </div>
+              </Text>
+            </Stack>
           ) : (
-            <div className="space-y-3">
-              <div className="space-y-2">
+            <Stack gap="3">
+              <Stack gap="2">
                 <Label htmlFor="enablement_token">{t("enablementToken")}</Label>
-                <div className="relative">
-                  <Input
-                    id="enablement_token"
-                    type={showApiKey ? "text" : "password"}
-                    placeholder={t("enablementTokenPlaceholder")}
-                    value={enablementToken}
-                    onChange={(e) => {
-                      setEnablementToken(e.target.value);
-                      setEnablementStatus("idle");
-                    }}
-                    className="pr-10"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowApiKey(!showApiKey)}
-                    aria-label={showApiKey ? tbs("hideToken") : tbs("showToken")}
-                    className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded"
-                  >
-                    {showApiKey ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                  </button>
-                </div>
-                <p className="text-xs text-muted-foreground flex items-center gap-1">
+                <SecretInput
+                  id="enablement_token"
+                  placeholder={t("enablementTokenPlaceholder")}
+                  value={enablementToken}
+                  onChange={(e) => {
+                    setEnablementToken(e.target.value);
+                    setEnablementStatus("idle");
+                  }}
+                  showLabel={tbs("showToken")}
+                  hideLabel={tbs("hideToken")}
+                />
+                <Text size="xs" tone="muted" className="flex items-center gap-1">
                   <HelpCircle className="h-3 w-3" />
                   {t("enablementTokenHelp")}
-                </p>
-              </div>
+                </Text>
+              </Stack>
 
               <Button
                 onClick={handleEnableLocalApi}
@@ -498,9 +515,11 @@ export function StepBoardSetup({
 
               {/* Enablement status message */}
               {enablementMessage && (
-                <div
+                <Flex
+                  align="start"
+                  gap="2"
                   className={cn(
-                    "flex items-start gap-2 p-3 rounded-lg text-sm",
+                    "p-3 rounded-lg text-sm",
                     enablementStatus === "success"
                       ? "bg-success/10 text-success"
                       : "bg-destructive/10 text-destructive",
@@ -511,16 +530,16 @@ export function StepBoardSetup({
                   ) : (
                     <XCircle className="h-5 w-5 flex-shrink-0 mt-0.5" />
                   )}
-                  <span>{enablementMessage}</span>
-                </div>
+                  {enablementMessage}
+                </Flex>
               )}
-            </div>
+            </Stack>
           )}
-        </div>
+        </Stack>
       )}
 
       {/* Test Connection */}
-      <div className="space-y-3">
+      <Stack gap="3">
         <Button
           onClick={handleTestConnection}
           disabled={!canTest || isLoading}
@@ -544,9 +563,11 @@ export function StepBoardSetup({
 
         {/* Status message */}
         {testMessage && (
-          <div
+          <Flex
+            align="start"
+            gap="2"
             className={cn(
-              "flex items-start gap-2 p-3 rounded-lg text-sm",
+              "p-3 rounded-lg text-sm",
               testStatus === "success" ? "bg-success/10 text-success" : "bg-destructive/10 text-destructive",
             )}
           >
@@ -555,58 +576,48 @@ export function StepBoardSetup({
             ) : (
               <XCircle className="h-5 w-5 flex-shrink-0 mt-0.5" />
             )}
-            <div className="flex-1 space-y-2">
-              <span>{testMessage}</span>
+            <Stack gap="2" className="flex-1">
+              {testMessage}
               {testStatus === "error" && troubleshootingSteps.length > 0 && (
-                <div className="mt-2 space-y-1.5">
-                  <p className="font-medium text-foreground/80 text-xs uppercase tracking-wide">{t("thingsToTry")}</p>
-                  <ol className="list-decimal list-inside space-y-1 text-foreground/70">
+                <Stack gap="1.5" className="mt-2">
+                  <Text size="xs" weight="medium" className="text-foreground/80 uppercase tracking-wide">
+                    {t("thingsToTry")}
+                  </Text>
+                  <List as="ol" marker="decimal" gap="1" className="text-foreground/70">
                     {troubleshootingSteps.map((step, i) => (
-                      <li key={i}>{step}</li>
+                      <ListItem key={i}>{step}</ListItem>
                     ))}
-                  </ol>
-                </div>
+                  </List>
+                </Stack>
               )}
-            </div>
-          </div>
+            </Stack>
+          </Flex>
         )}
-      </div>
+      </Stack>
 
       {/* Device Type & Board Color */}
-      <div className="space-y-4 pt-4 border-t">
-        <div className="space-y-3">
-          <p className="text-sm font-medium">{t("boardType")}</p>
-          <div className="grid grid-cols-2 gap-3">
-            <button
-              type="button"
-              onClick={() => onConfigChange({ ...config, device_type: "flagship" })}
-              aria-pressed={config.device_type === "flagship"}
-              className={cn(
-                "flex flex-col items-center gap-1.5 p-3 rounded-lg border-2 transition-all",
-                config.device_type === "flagship" ? "border-primary bg-primary/5" : "border-muted hover:border-border",
-              )}
-            >
-              <span className="font-medium text-sm">{tc("flagship")}</span>
-              <span className="text-xs text-muted-foreground">{t("flagshipDimensions")}</span>
-            </button>
-            <button
-              type="button"
-              onClick={() => onConfigChange({ ...config, device_type: "note" })}
-              aria-pressed={config.device_type === "note"}
-              className={cn(
-                "flex flex-col items-center gap-1.5 p-3 rounded-lg border-2 transition-all",
-                config.device_type === "note" ? "border-primary bg-primary/5" : "border-muted hover:border-border",
-              )}
-            >
-              <span className="font-medium text-sm">{tc("note")}</span>
-              <span className="text-xs text-muted-foreground">{t("noteDimensions")}</span>
-            </button>
-          </div>
-        </div>
+      <Stack gap="4" className="pt-4 border-t">
+        <Stack gap="3">
+          <Text weight="medium">{t("boardType")}</Text>
+          {/* One-of-two, so a radiogroup: one tab stop, arrows move the
+              choice, and each tile announces "1 of 2". */}
+          <ToggleCardGroup
+            columns="2"
+            align="center"
+            value={config.device_type}
+            onValueChange={(value) => {
+              if (isDeviceType(value)) onConfigChange({ ...config, device_type: value });
+            }}
+            aria-label={t("boardType")}
+          >
+            <ToggleCard value="flagship" title={tc("flagship")} description={t("flagshipDimensions")} />
+            <ToggleCard value="note" title={tc("note")} description={t("noteDimensions")} />
+          </ToggleCardGroup>
+        </Stack>
 
-        <div className="space-y-3">
-          <p className="text-sm font-medium">{t("boardColor")}</p>
-          <div className="flex items-center gap-3">
+        <Stack gap="3">
+          <Text weight="medium">{t("boardColor")}</Text>
+          <Flex align="center" gap="3">
             <button
               type="button"
               onClick={() => onConfigChange({ ...config, board_color: "black" })}
@@ -631,20 +642,56 @@ export function StepBoardSetup({
                   : "border-border hover:border-muted-foreground",
               )}
             />
-          </div>
-        </div>
+          </Flex>
+        </Stack>
+
+        {/* Code-62 flap (issue #1657). Flagship only: Note hardware has only
+            ever carried the heart, so there is nothing to ask its owner. */}
+        {config.device_type === "flagship" && (
+          <Stack gap="3">
+            <Text weight="medium">{t("code62Label")}</Text>
+            <Text size="sm" tone="muted">
+              {t("code62Help")}
+            </Text>
+            <Flex align="center" gap="3">
+              {CODE62_CHOICES.map(({ value, glyph, labelKey }) => (
+                <button
+                  key={value}
+                  type="button"
+                  onClick={() => onConfigChange({ ...config, code62_glyph: value })}
+                  aria-label={t(labelKey)}
+                  aria-pressed={config.code62_glyph === value}
+                  data-testid={`wizard-code62-${value}`}
+                  className={cn(
+                    "flex h-8 w-8 items-center justify-center rounded-full border-2 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1",
+                    config.code62_glyph === value
+                      ? "border-primary ring-2 ring-primary/30"
+                      : "border-border hover:border-muted-foreground",
+                  )}
+                >
+                  <Text as="span" aria-hidden="true">
+                    {glyph}
+                  </Text>
+                </button>
+              ))}
+            </Flex>
+          </Stack>
+        )}
 
         {/* Live board preview */}
-        <div className="space-y-2 pt-3">
-          <p className="text-sm font-medium text-muted-foreground">{tc("preview")}</p>
+        <Stack gap="2" className="pt-3">
+          <Text weight="medium" tone="muted">
+            {tc("preview")}
+          </Text>
           <ScaledBoardDisplay
             message={previewMessage}
             size="sm"
             boardType={config.board_color}
             deviceType={config.device_type}
+            code62Glyph={config.code62_glyph}
           />
-        </div>
-      </div>
-    </div>
+        </Stack>
+      </Stack>
+    </Stack>
   );
 }

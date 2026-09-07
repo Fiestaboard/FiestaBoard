@@ -2,9 +2,11 @@
  * Accessibility regression tests.
  *
  * Runs axe-core against the main pages and fails on critical+serious
- * WCAG violations. Moderate/minor findings are reported but don't fail
- * CI so the test stays useful as a regression guard without blocking on
- * known cosmetic issues. To debug, set DEBUG_A11Y=1 to log every finding.
+ * WCAG violations. Moderate/minor findings never fail CI, so the test
+ * stays useful as a regression guard without blocking on known cosmetic
+ * issues — and they are not logged either, because printing the same
+ * never-actioned `heading-order` finding on every run drowned the E2E
+ * log. Set DEBUG_A11Y=1 to log every finding at every impact level.
  *
  * Pages covered:
  *   - /          Dashboard (with and without pages configured)
@@ -66,11 +68,24 @@ async function auditPage(page: Page, path: string, waitForSelector?: string) {
     sample: v.nodes.slice(0, 3).map((n) => n.target),
   }));
 
-  if (process.env.DEBUG_A11Y || summarised.length > 0) {
-    console.log(`[a11y] ${path}:`, JSON.stringify(summarised, null, 2));
-  }
-
   const failing = violations.filter((v) => FAIL_IMPACTS.has(v.impact || ""));
+
+  // Only speak up when the finding is one this test actually fails on, or when
+  // someone asked for everything. Logging every moderate violation on every
+  // run buried the E2E log in the same handful of never-actioned warnings and
+  // made real failures expensive to find.
+  if (process.env.DEBUG_A11Y) {
+    console.log(`[a11y] ${path}:`, JSON.stringify(summarised, null, 2));
+  } else if (failing.length > 0) {
+    console.log(
+      `[a11y] ${path}:`,
+      JSON.stringify(
+        summarised.filter((v) => FAIL_IMPACTS.has(v.impact || "")),
+        null,
+        2,
+      ),
+    );
+  }
   return { violations, failing };
 }
 

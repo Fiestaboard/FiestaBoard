@@ -1,21 +1,26 @@
 "use client";
 
-import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { Timer } from "lucide-react";
-import { useCallback, useEffect, useState } from "react";
-import { toast } from "sonner";
-
-import { Button } from "@/components/ui/button";
 import {
+  Box,
+  Button,
   Dialog,
   DialogContent,
   DialogDescription,
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+  Flex,
+  Input,
+  Label,
+  Stack,
+  Text,
+} from "@fiestaboard/ui";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { Timer } from "lucide-react";
+import { useCallback, useState } from "react";
+import { toast } from "sonner";
+
+import { useDepsChanged } from "@/hooks/use-deps-changed";
 import { useTranslations } from "@/i18n/translations";
 import type { SetTemporaryOverrideRequest } from "@/lib/api";
 import { api } from "@/lib/api";
@@ -42,13 +47,14 @@ export function ForceSetDialog({ open, onOpenChange, pageId, pageName }: ForceSe
   const [customMinutes, setCustomMinutes] = useState<string>("");
   const [isCustom, setIsCustom] = useState(false);
 
-  useEffect(() => {
-    if (open) {
-      setDurationMinutes(5);
-      setCustomMinutes("");
-      setIsCustom(false);
-    }
-  }, [open]);
+  // Reset the duration picker each time the dialog opens. Done during render
+  // so the dialog's first painted frame already shows the defaults instead of
+  // last time's selection (react-hooks/set-state-in-effect, issue #1568).
+  if (useDepsChanged([open]) && open) {
+    setDurationMinutes(5);
+    setCustomMinutes("");
+    setIsCustom(false);
+  }
 
   const effectiveDuration = isCustom ? Math.max(1, Math.min(480, parseInt(customMinutes, 10) || 1)) : durationMinutes;
 
@@ -93,10 +99,10 @@ export function ForceSetDialog({ open, onOpenChange, pageId, pageName }: ForceSe
           <DialogDescription>{t("description", { pageName })}</DialogDescription>
         </DialogHeader>
 
-        <div className="py-2">
-          <div className="space-y-2">
+        <Box className="py-2">
+          <Stack gap="2">
             <Label className="text-sm font-medium">{t("showFor")}</Label>
-            <div className="flex flex-wrap gap-2">
+            <Flex wrap gap="2">
               {DURATION_PRESETS.map((preset) => (
                 <button
                   key={preset.minutes}
@@ -125,9 +131,9 @@ export function ForceSetDialog({ open, onOpenChange, pageId, pageName }: ForceSe
               >
                 {t("custom")}
               </button>
-            </div>
+            </Flex>
             {isCustom && (
-              <div className="flex items-center gap-2">
+              <Flex align="center" gap="2">
                 <Input
                   type="number"
                   min={1}
@@ -138,11 +144,13 @@ export function ForceSetDialog({ open, onOpenChange, pageId, pageName }: ForceSe
                   className="w-24"
                   autoFocus
                 />
-                <span className="text-sm text-muted-foreground">{t("minutes")}</span>
-              </div>
+                <Text as="span" size="sm" tone="muted">
+                  {t("minutes")}
+                </Text>
+              </Flex>
             )}
-          </div>
-        </div>
+          </Stack>
+        </Box>
 
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)} disabled={setOverrideMutation.isPending}>

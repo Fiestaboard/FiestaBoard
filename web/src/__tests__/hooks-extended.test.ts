@@ -1,7 +1,7 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { act, renderHook, waitFor } from "@testing-library/react";
 import React from "react";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
   getEffectiveBoardColor,
@@ -30,7 +30,12 @@ describe("use-board extended", () => {
     it("has correct key structures", () => {
       expect(queryKeys.status).toEqual(["status"]);
       expect(queryKeys.config).toEqual(["config"]);
-      expect(queryKeys.activePage).toEqual(["activePage"]);
+      // Board-scopable keys (issue #1247): no arg → legacy key (also the
+      // invalidation prefix for every board-scoped variant); id → scoped key.
+      expect(queryKeys.activePage()).toEqual(["activePage"]);
+      expect(queryKeys.activePage("board-2")).toEqual(["activePage", "board-2"]);
+      expect(queryKeys.boardCurrentMessage()).toEqual(["board-current-message"]);
+      expect(queryKeys.boardCurrentMessage("board-2")).toEqual(["board-current-message", "board-2"]);
       expect(queryKeys.pages).toEqual(["pages"]);
       expect(queryKeys.boardSettings).toEqual(["boardSettings"]);
       expect(queryKeys.pagePreview("p1")).toEqual(["pagePreview", "p1"]);
@@ -48,8 +53,9 @@ describe("use-board extended", () => {
       });
 
       await waitFor(() => expect(result.current.isSuccess).toBe(true));
-      expect(result.current.data?.status).toBe("success");
+      // "status" dropped by the conventions pass (Phase 2, Task 8).
       expect(result.current.data?.page_id).toBe("page-1");
+      expect(result.current.data?.warnings).toEqual([]);
     });
 
     it("sends mutation with null to clear", async () => {

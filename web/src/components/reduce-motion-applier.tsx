@@ -4,6 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useEffect } from "react";
 
 import { api } from "@/lib/api";
+import { isChromelessPath } from "@/lib/chromeless";
 
 /**
  * Reads display animation settings from the API and toggles classes on
@@ -18,9 +19,13 @@ import { api } from "@/lib/api";
  * the rest of the UI to stay still.
  */
 export function ReduceMotionApplier() {
+  // The FiestaPanel TV viewer must not fire this authenticated query — see
+  // CurrentBoardProvider for why this reads window.location, not useLocation().
+  const chromeless = typeof window !== "undefined" && isChromelessPath(window.location.pathname);
   const { data: allSettings } = useQuery({
     queryKey: ["all-settings"],
     queryFn: api.getAllSettings,
+    enabled: !chromeless,
   });
 
   const display = allSettings?.display;

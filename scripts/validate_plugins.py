@@ -36,8 +36,19 @@ SCRIPT_DIR = Path(__file__).parent
 PROJECT_ROOT = SCRIPT_DIR.parent
 PLUGINS_DIR = PROJECT_ROOT / "plugins"
 
+sys.path.insert(0, str(PROJECT_ROOT))
+
+# Board-preview rules are imported rather than re-implemented here. The rest of
+# this script duplicates manifest validation so it can run standalone, but tile
+# counting and device geometry are exactly the logic that must not drift between
+# the authoring lane and the runtime lane.
+from src.plugins.previews import (  # noqa: E402
+    validate_previews,
+    validate_teaser,
+)
+
 # Directories to skip
-SKIP_DIRECTORIES = {"_template", "__pycache__"}
+SKIP_DIRECTORIES = {"_template", "_template_transition", "__pycache__"}
 
 
 class ValidationResult:
@@ -185,12 +196,52 @@ def validate_manifest_schema(manifest: dict, plugin_dir_name: str) -> list[str]:
         errors.append("icon must be a string")
 
     # Validate category if present
-    valid_categories = ["art", "data", "transit", "weather", "entertainment", "utility", "home"]
+    valid_categories = [
+        "art",
+        "data",
+        "transit",
+        "weather",
+        "entertainment",
+        "utility",
+        "home",
+        "transition",
+    ]
     category = manifest.get("category", "")
     if category and category not in valid_categories:
         errors.append(f"category must be one of: {', '.join(valid_categories)}")
 
+    # Board previews. Transition plugins are exempt — they have no board
+    # content to preview, and their whole purpose is animation.
+    is_transition = manifest.get("plugin_type", "data") == "transition"
+    if is_transition:
+        for field_name in ("teaser", "previews"):
+            if field_name in manifest:
+                errors.append(f"{field_name} is not supported for transition plugins")
+    else:
+        if "teaser" in manifest:
+            errors.extend(validate_teaser(manifest["teaser"]))
+        if "previews" in manifest:
+            errors.extend(validate_previews(manifest["previews"]))
+
     return errors
+
+
+def validate_preview_presence(manifest: dict) -> list[str]:
+    """Warn when a plugin ships no board previews.
+
+    A warning rather than an error: plugins predating the preview contract must
+    keep validating (and loading) until they are backfilled. ``--strict`` turns
+    it into a failure, which is what the registry-submission lane should use.
+    """
+    if manifest.get("plugin_type", "data") == "transition":
+        return []
+
+    warnings = []
+    if "teaser" not in manifest:
+        warnings.append("No teaser — plugin directory cards will have no preview strip")
+    if "previews" not in manifest:
+        warnings.append("No previews — the plugin detail page will have no board preview")
+    return warnings
 
 
 def validate_plugin_structure(plugin_dir: Path) -> tuple[list[str], list[str]]:
@@ -251,7 +302,47 @@ def validate_plugin(plugin_dir: Path) -> ValidationResult:
     for error in schema_errors:
         result.add_error(error)
 
+    # Board previews (warning until every plugin is backfilled; --strict fails)
+    for warning in validate_preview_presence(manifest):
+        result.add_warning(warning)
+
+    # Can this plugin actually work once installed? A declared data file that
+    # never shipped, or a Python package FiestaBoard does not provide, means
+    # the plugin renders "???" for every variable no matter how it is
+    # configured. Errors here are hard errors; the advisory "reads a file it
+    # does not declare" is a warning that --strict escalates, which is what
+    # the registry submission lane wants.
+    for error, warning in _install_findings(plugin_dir, manifest):
+        if error:
+            result.add_error(error)
+        else:
+            result.add_warning(warning)
+
     return result
+
+
+def _install_findings(plugin_dir: Path, manifest: dict):
+    """Yield ``(error, warning)`` pairs from the shared install checks.
+
+    Imported lazily so this script keeps working (minus these checks) if it is
+    ever run somewhere the platform package is not importable.
+    """
+    try:
+        from src.plugins.install_check import validate_install
+        from src.plugins.manifest import PluginManifest
+    except ImportError:  # pragma: no cover - defensive
+        return
+
+    try:
+        parsed = PluginManifest.from_dict(manifest)
+    except Exception:
+        return
+
+    outcome = validate_install(manifest.get("id", plugin_dir.name), plugin_dir, parsed)
+    for message in outcome.errors:
+        yield message, None
+    for message in outcome.warnings:
+        yield None, message
 
 
 def validate_unique_ids(plugins: list[Path]) -> list[str]:

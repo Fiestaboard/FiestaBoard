@@ -48,7 +48,7 @@ def client():
 class TestBoardTestSuccess:
     """Test successful board connection responses."""
 
-    @patch("src.api_server.requests.get")
+    @patch("src.config_api.routes.requests.get")
     @patch("src.board_client.BoardClient")
     def test_local_success_with_message_dict(self, mock_client_cls, mock_get, client):
         """Local API returns 200 with {message: [[...]]}."""
@@ -76,7 +76,7 @@ class TestBoardTestSuccess:
         assert data["success"] is True
         assert "successfully" in data["message"].lower()
 
-    @patch("src.api_server.requests.get")
+    @patch("src.config_api.routes.requests.get")
     @patch("src.board_client.BoardClient")
     def test_local_success_with_list_response(self, mock_client_cls, mock_get, client):
         """Local API returns 200 with a list (older firmware format)."""
@@ -102,7 +102,7 @@ class TestBoardTestSuccess:
         data = response.json()
         assert data["success"] is True
 
-    @patch("src.api_server.requests.get")
+    @patch("src.config_api.routes.requests.get")
     @patch("src.board_client.BoardClient")
     def test_cloud_success(self, mock_client_cls, mock_get, client):
         """Cloud API returns 200 with valid data."""
@@ -136,7 +136,7 @@ class TestBoardTestSuccess:
 class TestBoardTestAuthFailure:
     """Test auth rejection error messages with troubleshooting steps."""
 
-    @patch("src.api_server.requests.get")
+    @patch("src.config_api.routes.requests.get")
     @patch("src.board_client.BoardClient")
     def test_local_401_returns_troubleshooting(self, mock_client_cls, mock_get, client):
         mock_client = Mock()
@@ -163,7 +163,7 @@ class TestBoardTestAuthFailure:
         assert "troubleshooting" in data
         assert any("Local API" in s for s in data["troubleshooting"])
 
-    @patch("src.api_server.requests.get")
+    @patch("src.config_api.routes.requests.get")
     @patch("src.board_client.BoardClient")
     def test_local_403_returns_troubleshooting(self, mock_client_cls, mock_get, client):
         mock_client = Mock()
@@ -188,7 +188,7 @@ class TestBoardTestAuthFailure:
         assert data["success"] is False
         assert "rejected" in data["message"].lower()
 
-    @patch("src.api_server.requests.get")
+    @patch("src.config_api.routes.requests.get")
     @patch("src.board_client.BoardClient")
     def test_cloud_401_returns_cloud_troubleshooting(self, mock_client_cls, mock_get, client):
         mock_client = Mock()
@@ -222,7 +222,7 @@ class TestBoardTestAuthFailure:
 class TestBoardTestServerError:
     """Test server error messages with troubleshooting steps."""
 
-    @patch("src.api_server.requests.get")
+    @patch("src.config_api.routes.requests.get")
     @patch("src.board_client.BoardClient")
     def test_500_returns_troubleshooting(self, mock_client_cls, mock_get, client):
         mock_client = Mock()
@@ -249,7 +249,7 @@ class TestBoardTestServerError:
         assert "troubleshooting" in data
         assert any("unplug" in s.lower() for s in data["troubleshooting"])
 
-    @patch("src.api_server.requests.get")
+    @patch("src.config_api.routes.requests.get")
     @patch("src.board_client.BoardClient")
     def test_502_returns_troubleshooting(self, mock_client_cls, mock_get, client):
         mock_client = Mock()
@@ -283,7 +283,7 @@ class TestBoardTestServerError:
 class TestBoardTestConnectionError:
     """Test connection error messages with troubleshooting steps."""
 
-    @patch("src.api_server.requests.get")
+    @patch("src.config_api.routes.requests.get")
     @patch("src.board_client.BoardClient")
     def test_local_connection_refused(self, mock_client_cls, mock_get, client):
         mock_client = Mock()
@@ -308,7 +308,7 @@ class TestBoardTestConnectionError:
         assert "troubleshooting" in data
         assert any("same wi-fi" in s.lower() for s in data["troubleshooting"])
 
-    @patch("src.api_server.requests.get")
+    @patch("src.config_api.routes.requests.get")
     @patch("src.board_client.BoardClient")
     def test_cloud_connection_error(self, mock_client_cls, mock_get, client):
         mock_client = Mock()
@@ -340,7 +340,7 @@ class TestBoardTestConnectionError:
 class TestBoardTestTimeout:
     """Test timeout error messages with troubleshooting steps."""
 
-    @patch("src.api_server.requests.get")
+    @patch("src.config_api.routes.requests.get")
     @patch("src.board_client.BoardClient")
     def test_local_timeout(self, mock_client_cls, mock_get, client):
         mock_client = Mock()
@@ -365,7 +365,7 @@ class TestBoardTestTimeout:
         assert "troubleshooting" in data
         assert any("ip" in s.lower() or "address" in s.lower() for s in data["troubleshooting"])
 
-    @patch("src.api_server.requests.get")
+    @patch("src.config_api.routes.requests.get")
     @patch("src.board_client.BoardClient")
     def test_cloud_timeout(self, mock_client_cls, mock_get, client):
         mock_client = Mock()
@@ -397,7 +397,7 @@ class TestBoardTestTimeout:
 class TestBoardTestUnexpectedResponse:
     """Test unexpected response format messages."""
 
-    @patch("src.api_server.requests.get")
+    @patch("src.config_api.routes.requests.get")
     @patch("src.board_client.BoardClient")
     def test_200_unexpected_json_format(self, mock_client_cls, mock_get, client):
         """200 but no 'message' key and not a list → unexpected format."""
@@ -426,7 +426,7 @@ class TestBoardTestUnexpectedResponse:
         assert "status" in data.get("error", "").lower() or "keys" in data.get("error", "").lower()
         assert "troubleshooting" in data
 
-    @patch("src.api_server.requests.get")
+    @patch("src.config_api.routes.requests.get")
     @patch("src.board_client.BoardClient")
     def test_cloud_200_current_message_note_layout(self, mock_client_cls, mock_get, client):
         """Cloud GET returns Vestaboard currentMessage.layout string (Note 3x15)."""
@@ -455,7 +455,7 @@ class TestBoardTestUnexpectedResponse:
         assert data["success"] is True
         assert data["api_mode"] == "cloud"
 
-    @patch("src.api_server.requests.get")
+    @patch("src.config_api.routes.requests.get")
     @patch("src.board_client.BoardClient")
     def test_cloud_200_current_message_null(self, mock_client_cls, mock_get, client):
         """Cloud GET with empty board (currentMessage null) still counts as connected."""
@@ -475,7 +475,7 @@ class TestBoardTestUnexpectedResponse:
         )
         assert response.json()["success"] is True
 
-    @patch("src.api_server.requests.get")
+    @patch("src.config_api.routes.requests.get")
     @patch("src.board_client.BoardClient")
     def test_200_invalid_json(self, mock_client_cls, mock_get, client):
         """200 but body is not valid JSON."""
@@ -502,7 +502,7 @@ class TestBoardTestUnexpectedResponse:
         assert data["success"] is False
         assert "troubleshooting" in data
 
-    @patch("src.api_server.requests.get")
+    @patch("src.config_api.routes.requests.get")
     @patch("src.board_client.BoardClient")
     def test_unexpected_http_status(self, mock_client_cls, mock_get, client):
         """Non-200, non-401/403, non-500+ status code."""
@@ -528,7 +528,7 @@ class TestBoardTestUnexpectedResponse:
         assert data["success"] is False
         assert "troubleshooting" in data
 
-    @patch("src.api_server.requests.get")
+    @patch("src.config_api.routes.requests.get")
     @patch("src.board_client.BoardClient")
     def test_200_empty_list(self, mock_client_cls, mock_get, client):
         """200 with empty list — no message data."""
@@ -564,7 +564,7 @@ class TestBoardTestUnexpectedResponse:
 class TestBoardTestGeneralError:
     """Test the catch-all exception handler."""
 
-    @patch("src.api_server.requests.get")
+    @patch("src.config_api.routes.requests.get")
     @patch("src.board_client.BoardClient")
     def test_unexpected_exception(self, mock_client_cls, mock_get, client):
         mock_client = Mock()
@@ -583,9 +583,9 @@ class TestBoardTestGeneralError:
             },
         )
 
-        data = response.json()
-        assert data["success"] is False
-        assert "troubleshooting" in data
+        # An unanticipated failure is not a probe verdict (Phase 2 Task 10a).
+        assert response.status_code == 500
+        assert "unexpected error" not in response.json()["detail"]
 
 
 # ---------------------------------------------------------------------------
@@ -596,7 +596,7 @@ class TestBoardTestGeneralError:
 class TestBoardTestTroubleshootingStructure:
     """Verify troubleshooting field is always a list of strings."""
 
-    @patch("src.api_server.requests.get")
+    @patch("src.config_api.routes.requests.get")
     @patch("src.board_client.BoardClient")
     def test_troubleshooting_is_list_of_strings(self, mock_client_cls, mock_get, client):
         """Every error response should have troubleshooting as a list of strings."""
@@ -625,3 +625,51 @@ class TestBoardTestTroubleshootingStructure:
             )
             for step in data["troubleshooting"]:
                 assert isinstance(step, str), f"Each troubleshooting step should be a string for {type(exc).__name__}"
+
+
+class TestBoardTestPort:
+    """The test endpoint honors a custom Local API port (local-array tiles)."""
+
+    @patch("src.config_api.routes.requests.get")
+    @patch("src.board_client.BoardClient")
+    def test_custom_port_forwarded_to_client(self, mock_client_cls, mock_get, client):
+        mock_client = Mock()
+        mock_client.base_url = "http://192.168.1.10:7001/local-api/message"
+        mock_client.headers = {"X-Vestaboard-Local-Api-Key": "key"}
+        mock_client_cls.return_value = mock_client
+
+        mock_resp = Mock()
+        mock_resp.status_code = 200
+        mock_resp.json.return_value = {"message": [[0] * 15] * 3}
+        mock_get.return_value = mock_resp
+
+        response = client.post(
+            "/config/board/test",
+            json={"api_mode": "local", "local_api_key": "key", "host": "192.168.1.10", "port": 7001},
+        )
+
+        assert response.status_code == 200
+        assert response.json()["success"] is True
+        assert mock_client_cls.call_args.kwargs["port"] == 7001
+
+    @patch("src.config_api.routes.requests.get")
+    @patch("src.board_client.BoardClient")
+    def test_port_omitted_defaults_to_none(self, mock_client_cls, mock_get, client):
+        """No port in the request → BoardClient gets None and applies its 7000 default."""
+        mock_client = Mock()
+        mock_client.base_url = "http://192.168.1.10:7000/local-api/message"
+        mock_client.headers = {"X-Vestaboard-Local-Api-Key": "key"}
+        mock_client_cls.return_value = mock_client
+
+        mock_resp = Mock()
+        mock_resp.status_code = 200
+        mock_resp.json.return_value = {"message": [[0] * 22] * 6}
+        mock_get.return_value = mock_resp
+
+        response = client.post(
+            "/config/board/test",
+            json={"api_mode": "local", "local_api_key": "key", "host": "192.168.1.10"},
+        )
+
+        assert response.status_code == 200
+        assert mock_client_cls.call_args.kwargs["port"] is None

@@ -1,5 +1,31 @@
 "use client";
 
+import {
+  Alert,
+  AlertDescription,
+  Badge,
+  Box,
+  Button,
+  Card,
+  Code,
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+  Flex,
+  Label,
+  List,
+  ListItem,
+  ScrollArea,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+  Stack,
+  Text,
+  Textarea,
+} from "@fiestaboard/ui";
+import { Spinner } from "@fiestaboard/ui/components/feedback/spinner";
 import { useQuery } from "@tanstack/react-query";
 import {
   AlertCircle,
@@ -8,7 +34,6 @@ import {
   Circle,
   Eye,
   EyeOff,
-  Loader2,
   RotateCcw,
   Send,
   Sparkles,
@@ -23,15 +48,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ChainingModePicker } from "@/components/chaining-mode-picker";
 import { ChatMarkdown } from "@/components/chat-markdown";
 import { InlineBoardPreview } from "@/components/inline-board-preview";
-import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
-import { Label } from "@/components/ui/label";
-import { ScrollArea } from "@/components/ui/scroll-area";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Textarea } from "@/components/ui/textarea";
+import { useDepsChanged } from "@/hooks/use-deps-changed";
 import { useTranslations } from "@/i18n/translations";
 import type {
   ChainingMode,
@@ -178,16 +195,18 @@ export function AiChatPanel({
   };
 
   return (
-    <div className="flex h-full min-h-0 w-full flex-col">
-      <Card className="flex flex-1 min-h-0 w-full flex-col gap-0 overflow-hidden rounded-none border-0 py-0 shadow-none">
+    <Flex direction="col" className="h-full min-h-0 w-full">
+      <Card className="flex flex-1 min-h-0 w-full flex-col gap-0 overflow-hidden py-0">
         {/* Header */}
-        <div className="flex flex-shrink-0 items-center justify-between gap-2 border-b px-4 py-3">
-          <div className="flex min-w-0 items-center gap-2">
+        <Flex align="center" justify="between" gap="2" className="flex-shrink-0 border-b px-4 py-3">
+          <Flex align="center" gap="2" className="min-w-0">
             <Sparkles className="h-4 w-4 shrink-0 text-brand-emphasis" />
-            <span className="truncate text-sm font-semibold">FiestaBot (Beta)</span>
-            {status === "streaming" && <Loader2 className="h-3.5 w-3.5 animate-spin text-muted-foreground" />}
-          </div>
-          <div className="flex items-center gap-1">
+            <Text as="span" size="sm" weight="semibold" className="truncate">
+              {t("panelTitle")}
+            </Text>
+            {status === "streaming" && <Spinner size="sm" className="text-muted-foreground" label={null} />}
+          </Flex>
+          <Flex align="center" gap="1">
             {onChainingModeChange && <ChainingModePicker mode={chainingMode} onChange={onChainingModeChange} />}
             {messages.length > 0 && (
               <Button
@@ -213,8 +232,8 @@ export function AiChatPanel({
             >
               <X className="h-4 w-4" />
             </Button>
-          </div>
-        </div>
+          </Flex>
+        </Flex>
 
         {/* Task list panel — shown when the AI has an active task list */}
         {(taskList?.length ?? 0) > 0 && <TaskListPanel tasks={taskList!} />}
@@ -224,8 +243,9 @@ export function AiChatPanel({
             to screen-reader users as they arrive (additions + text
             changes), without re-reading the entire transcript. */}
         <ScrollArea className="min-h-0 flex-1 overflow-x-hidden">
-          <div
-            className="min-w-0 max-w-full overflow-x-hidden space-y-3 px-4 py-4"
+          <Stack
+            gap="3"
+            className="min-w-0 max-w-full overflow-x-hidden px-4 py-4"
             aria-live="polite"
             aria-atomic="false"
             aria-relevant="additions text"
@@ -249,16 +269,16 @@ export function AiChatPanel({
                 <AlertCircle className="h-3.5 w-3.5" />
                 <AlertDescription className="break-words">
                   {error}
-                  <div className="mt-1.5">
+                  <Box className="mt-1.5">
                     <Button size="sm" variant="outline" className="h-7 text-xs" onClick={retryLast}>
                       <RotateCcw className="mr-1 h-3 w-3" />
-                      Retry
+                      {t("retryButton")}
                     </Button>
-                  </div>
+                  </Box>
                 </AlertDescription>
               </Alert>
             )}
-          </div>
+          </Stack>
         </ScrollArea>
 
         {/* Sticky composer at the bottom of the Card.
@@ -267,9 +287,9 @@ export function AiChatPanel({
          *  the model is a property of the next turn, not chrome at the
          *  top of the panel. This also frees vertical space and works
          *  well in narrow chat-pane widths. */}
-        <div className="flex flex-shrink-0 flex-col gap-2 border-t bg-card px-4 py-4">
+        <Flex direction="col" gap="2" className="flex-shrink-0 border-t bg-card px-4 py-4">
           <Label htmlFor="ai-chat-input" className="sr-only">
-            Message
+            {t("messageLabel")}
           </Label>
           <Textarea
             id="ai-chat-input"
@@ -285,8 +305,8 @@ export function AiChatPanel({
             disabled={blocked}
             className="resize-none px-3 py-3 text-sm"
           />
-          <div className="flex flex-wrap items-center justify-between gap-2">
-            <div className="flex min-w-0 flex-wrap items-center gap-1.5">
+          <Flex wrap align="center" justify="between" gap="2">
+            <Flex wrap align="center" gap="1.5" className="min-w-0">
               <ModelPill
                 providers={providers}
                 providerId={effectiveProviderId}
@@ -298,12 +318,14 @@ export function AiChatPanel({
                 model={effectiveModel}
                 onModelChange={setModel}
               />
-              <span className="text-[10px] text-muted-foreground">⌘/Ctrl+Enter</span>
-            </div>
+              {/* Keyboard shortcut glyphs are never translated. `Code` keeps them
+                  exempt from i18next/no-literal-string without a disable comment. */}
+              <Code className="bg-transparent px-0 py-0 text-[10px] text-muted-foreground">⌘/Ctrl+Enter</Code>
+            </Flex>
             {status === "streaming" ? (
               <Button type="button" size="sm" variant="outline" className="h-7 gap-1 text-xs" onClick={cancel}>
                 <Square className="h-3 w-3" />
-                Stop
+                {t("stopButton")}
               </Button>
             ) : (
               <Button
@@ -315,13 +337,13 @@ export function AiChatPanel({
                 disabled={!draft.trim() || blocked}
               >
                 <Send className="h-3 w-3" />
-                Send
+                {t("sendButton")}
               </Button>
             )}
-          </div>
-        </div>
+          </Flex>
+        </Flex>
       </Card>
-    </div>
+    </Flex>
   );
 }
 
@@ -336,7 +358,7 @@ function TaskStatusIcon({ status }: { status: TaskStatus }) {
     case "failed":
       return <XCircle className="h-3 w-3 shrink-0 text-destructive" aria-hidden="true" />;
     case "in_progress":
-      return <Loader2 className="h-3 w-3 shrink-0 animate-spin text-brand-emphasis" aria-hidden="true" />;
+      return <Spinner size="sm" className="size-3 shrink-0 text-brand-emphasis" label={null} />;
     case "pending":
       return <Circle className="h-3 w-3 shrink-0 text-muted-foreground/50" aria-hidden="true" />;
   }
@@ -346,34 +368,38 @@ function TaskListPanel({ tasks }: { tasks: TaskItem[] }) {
   const t = useTranslations("aiChatPanel");
   const allDone = tasks.length > 0 && tasks.every((task) => task.status === "done" || task.status === "failed");
   const doneCount = tasks.filter((task) => task.status === "done").length;
-  const [visible, setVisible] = useState(true);
+  // The panel auto-hides 3s after everything finishes, and comes back when new
+  // work starts. Only the hide is a timer; the un-hide is a render-phase reset
+  // rather than a setState in the effect body
+  // (react-hooks/set-state-in-effect, issue #1568).
+  const [hidden, setHidden] = useState(false);
+  if (useDepsChanged([allDone]) && !allDone) {
+    setHidden(false);
+  }
 
   useEffect(() => {
-    if (allDone) {
-      const timer = setTimeout(() => setVisible(false), 3000);
-      return () => clearTimeout(timer);
-    } else {
-      setVisible(true);
-    }
+    if (!allDone) return;
+    const timer = setTimeout(() => setHidden(true), 3000);
+    return () => clearTimeout(timer);
   }, [allDone]);
 
-  if (!visible) return null;
+  if (hidden) return null;
 
   const pct = tasks.length > 0 ? (doneCount / tasks.length) * 100 : 0;
 
   return (
-    <div
+    <Box
       className="border-b px-4 py-2 bg-muted/30 flex-shrink-0"
       role="status"
       aria-live="polite"
       aria-atomic="false"
       aria-label={t("taskStatusAriaLabel")}
     >
-      <div className="flex items-center justify-between mb-1.5">
-        <span className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
-          Tasks ({doneCount}/{tasks.length})
-        </span>
-        <div
+      <Flex align="center" justify="between" className="mb-1.5">
+        <Text as="span" weight="medium" tone="muted" className="text-[10px] uppercase tracking-wide">
+          {t("tasksHeading", { done: doneCount, total: tasks.length })}
+        </Text>
+        <Box
           role="progressbar"
           aria-valuenow={pct}
           aria-valuemin={0}
@@ -381,34 +407,35 @@ function TaskListPanel({ tasks }: { tasks: TaskItem[] }) {
           aria-label={t("taskProgressAriaLabel")}
           className="h-1 w-20 rounded-full bg-muted overflow-hidden"
         >
-          <div className="h-full bg-brand-emphasis transition-all duration-300" style={{ width: `${pct}%` }} />
-        </div>
-      </div>
-      <ul className="space-y-0.5 max-h-28 overflow-y-auto">
+          <Box className="h-full bg-brand-emphasis transition-all duration-300" style={{ width: `${pct}%` }} />
+        </Box>
+      </Flex>
+      <List gap="0" className="space-y-0.5 max-h-28 overflow-y-auto">
         {tasks.map((task) => (
-          <li key={task.id} className="flex items-center gap-1.5 text-[11px]">
+          <ListItem key={task.id} className="flex items-center gap-1.5 text-[11px]">
             <TaskStatusIcon status={task.status} />
-            <span
+            <Text
+              as="span"
               className={cn(
-                "truncate",
+                "truncate text-[11px]",
                 task.status === "done" ? "text-muted-foreground line-through" : "",
                 task.status === "failed" ? "text-destructive" : "",
               )}
             >
               {task.label}
-            </span>
-          </li>
+            </Text>
+          </ListItem>
         ))}
-      </ul>
-    </div>
+      </List>
+    </Box>
   );
 }
 
 function GradientSparkles({ className }: { className?: string }) {
   return (
-    <span className={`relative inline-block shrink-0 ${className ?? ""}`} aria-hidden="true">
+    <Text as="span" className={`relative inline-block shrink-0 ${className ?? ""}`} aria-hidden="true">
       {/* Big central star — gradient sweep via CSS mask */}
-      <span className="ai-sparkle-icon absolute inset-0 h-full w-full" />
+      <Text as="span" className="ai-sparkle-icon absolute inset-0 h-full w-full" />
       {/* Small elements — pulse independently from their own centers */}
       <svg
         viewBox="0 0 24 24"
@@ -432,11 +459,12 @@ function GradientSparkles({ className }: { className?: string }) {
         </g>
         <circle className="sparkle-circ" cx={4} cy={20} r={2} stroke="url(#ai-sg)" />
       </svg>
-    </span>
+    </Text>
   );
 }
 
 function EmptyState({ blocked, aiDisabled }: { blocked: boolean; aiDisabled: boolean }) {
+  const t = useTranslations("aiChatPanel");
   if (blocked) {
     return (
       <Alert variant="destructive" className="text-xs">
@@ -450,25 +478,29 @@ function EmptyState({ blocked, aiDisabled }: { blocked: boolean; aiDisabled: boo
     );
   }
   return (
-    <div className="flex flex-col items-center gap-5 px-2 py-6 text-center">
+    <Flex direction="col" align="center" gap="5" className="px-2 py-6 text-center">
       <GradientSparkles className="h-8 w-8" />
-      <div>
-        <p className="text-sm font-medium">How can I help?</p>
-        <p className="mt-1 text-xs text-muted-foreground">Describe what you&apos;d like to build or change.</p>
-      </div>
-      <div className="w-full space-y-2 text-left text-xs">
+      <Box>
+        <Text weight="medium">{t("emptyStateTitle")}</Text>
+        <Text size="xs" tone="muted" className="mt-1">
+          {t("emptyStateDescription")}
+        </Text>
+      </Box>
+      <Stack gap="2" className="w-full text-left text-xs">
         {[
           "Build a weather + transit page for my morning commute",
           "Replace line 2 with today’s date",
           "What plugin variables can I use on this page?",
         ].map((s) => (
-          <div key={s} className="flex items-start gap-2 text-muted-foreground">
+          <Flex key={s} align="start" gap="2" className="text-muted-foreground">
             <ChevronRight className="mt-0.5 h-3 w-3 shrink-0 text-muted-foreground/50" />
-            <span>&ldquo;{s}&rdquo;</span>
-          </div>
+            <Text as="span" size="xs" tone="muted">
+              &ldquo;{s}&rdquo;
+            </Text>
+          </Flex>
         ))}
-      </div>
-    </div>
+      </Stack>
+    </Flex>
   );
 }
 
@@ -494,15 +526,16 @@ function ModelPill({
   model: string;
   onModelChange: (m: string) => void;
 }) {
+  const t = useTranslations("aiChatPanel");
   const onlyOneProvider = providers.length <= 1;
   const shortModel = model ? model.split("/").slice(-1)[0] || model : "Default";
   return (
-    <div className="flex items-center gap-1">
+    <Flex align="center" gap="1">
       {!onlyOneProvider && (
         <Select value={providerId} onValueChange={onProviderChange}>
           <SelectTrigger
             className="h-6 gap-1 rounded-full border-border/60 bg-muted/40 px-2 text-[11px] shadow-none hover:bg-muted/70"
-            aria-label="Provider"
+            aria-label={t("providerSelectAriaLabel")}
           >
             <SelectValue placeholder="Default" />
           </SelectTrigger>
@@ -518,10 +551,13 @@ function ModelPill({
       <Select value={model} onValueChange={onModelChange} disabled={models.length === 0}>
         <SelectTrigger
           className="h-6 max-w-[180px] gap-1 truncate rounded-full border-border/60 bg-muted/40 px-2 font-mono text-[11px] shadow-none hover:bg-muted/70"
-          aria-label="Model"
+          aria-label={t("modelSelectAriaLabel")}
           title={model}
         >
           <SelectValue>
+            {/* Inherit-only span: relies on SelectTrigger's font-mono text-[11px];
+                Text as="span" would reset size/family, so this stays raw. */}
+            {/* eslint-disable-next-line react/forbid-elements -- inherit-only span relying on SelectTrigger's font-mono text-[11px]; Text as="span" would reset size/family */}
             <span className="truncate">{shortModel}</span>
           </SelectValue>
         </SelectTrigger>
@@ -533,7 +569,7 @@ function ModelPill({
           ))}
         </SelectContent>
       </Select>
-    </div>
+    </Flex>
   );
 }
 
@@ -567,41 +603,49 @@ function MessageBubble({
     if (message.isToolResult) {
       const displayText = message.content.replace(/^\[Tool result:\s*/, "").replace(/\]$/, "");
       return (
-        <div ref={ref} className="flex justify-center py-0.5">
-          <div className="flex items-center gap-1.5 overflow-hidden rounded-full border border-border/40 bg-muted/30 px-2.5 py-1 text-[10px] text-muted-foreground max-w-[85%]">
+        <Flex ref={ref} justify="center" className="py-0.5">
+          <Flex
+            align="center"
+            gap="1.5"
+            className="overflow-hidden rounded-full border border-border/40 bg-muted/30 px-2.5 py-1 text-[10px] text-muted-foreground max-w-[85%]"
+          >
             <CheckCircle2 className="h-3 w-3 shrink-0 text-green-500" />
-            <span className="min-w-0 truncate font-mono">{displayText}</span>
-          </div>
-        </div>
+            <Text as="span" tone="muted" className="min-w-0 truncate font-mono text-[10px]">
+              {displayText}
+            </Text>
+          </Flex>
+        </Flex>
       );
     }
     return (
-      <div ref={ref} className="flex justify-end">
-        <div className="max-w-[85%] whitespace-pre-wrap break-words rounded-2xl rounded-br-sm bg-brand-emphasis/15 px-3 py-2 text-sm">
+      <Flex ref={ref} justify="end">
+        <Box className="max-w-[85%] whitespace-pre-wrap break-words rounded-2xl rounded-br-sm bg-brand-emphasis/15 px-3 py-2 text-sm">
           {message.content}
-        </div>
-      </div>
+        </Box>
+      </Flex>
     );
   }
 
   return (
-    <div ref={ref} className="flex flex-col gap-1.5">
-      <div className="flex items-center gap-1.5">
+    <Flex ref={ref} direction="col" gap="1.5">
+      <Flex align="center" gap="1.5">
         <Sparkles className="h-3 w-3 text-brand-emphasis" />
-        <span className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">AI</span>
-        {message.pending && <Loader2 className="h-3 w-3 animate-spin text-muted-foreground" />}
-      </div>
+        <Text as="span" weight="medium" tone="muted" className="text-[10px] uppercase tracking-wide">
+          AI
+        </Text>
+        {message.pending && <Spinner size="sm" className="size-3 text-muted-foreground" label={null} />}
+      </Flex>
       {message.content && (
-        <div className="break-words text-sm">
+        <Box className="break-words text-sm">
           <ChatMarkdown>{message.content}</ChatMarkdown>
-        </div>
+        </Box>
       )}
       {message.toolCalls
         // update_task_list is a status-only op shown in the task panel above —
         // suppress it from the chat thread to avoid redundant cards.
         ?.filter((call) => call.op !== "update_task_list")
         .map((call) => (
-          <div key={call.id} className="space-y-1.5">
+          <Stack key={call.id} gap="1.5">
             <ToolCallCard
               call={call}
               showUndo={isLastAssistant && canUndo}
@@ -610,19 +654,19 @@ function MessageBubble({
               onToggleBoard={() => onToggleBoard(call.id)}
             />
             {renderToolCallSupplement?.(call)}
-          </div>
+          </Stack>
         ))}
       {message.warnings && message.warnings.length > 0 && (
-        <div className="space-y-1">
+        <Stack gap="1">
           {message.warnings.map((w, i) => (
             <Alert key={i} className="py-1.5 text-xs">
               <AlertCircle className="h-3 w-3" />
               <AlertDescription>{w}</AlertDescription>
             </Alert>
           ))}
-        </div>
+        </Stack>
       )}
-    </div>
+    </Flex>
   );
 }
 
@@ -639,15 +683,16 @@ function ToolCallCard({
   boardVisible: boolean;
   onToggleBoard: () => void;
 }) {
+  const t = useTranslations("aiChatPanel");
   const deviceType = call.deviceType ?? "flagship";
   const hasBoard = !!call.appliedSnapshot;
   return (
-    <div className="space-y-2 overflow-hidden rounded-lg border bg-muted/40 p-2.5">
-      <div className="flex items-center justify-between gap-2">
+    <Stack gap="2" className="overflow-hidden rounded-lg border bg-muted/40 p-2.5">
+      <Flex align="center" justify="between" gap="2">
         <Badge variant="secondary" className="font-mono text-[10px]">
           {labelFor(call)}
         </Badge>
-        <div className="flex items-center gap-1">
+        <Flex align="center" gap="1">
           {hasBoard && !boardVisible && (
             <Button
               type="button"
@@ -655,10 +700,10 @@ function ToolCallCard({
               variant="ghost"
               className="h-6 gap-1 px-1.5 text-[11px] text-muted-foreground"
               onClick={onToggleBoard}
-              title="Show board preview"
+              title={t("showBoardTooltip")}
             >
               <Eye className="h-3 w-3" />
-              Show board
+              {t("showBoardButton")}
             </Button>
           )}
           {hasBoard && boardVisible && !showUndo && (
@@ -668,7 +713,7 @@ function ToolCallCard({
               variant="ghost"
               className="h-6 gap-1 px-1.5 text-[11px] text-muted-foreground"
               onClick={onToggleBoard}
-              title="Hide board preview"
+              title={t("hideBoardTooltip")}
             >
               <EyeOff className="h-3 w-3" />
             </Button>
@@ -680,17 +725,17 @@ function ToolCallCard({
               variant="ghost"
               className="h-6 gap-1 px-1.5 text-[11px]"
               onClick={onUndo}
-              title="Undo last AI change"
+              title={t("undoTooltip")}
             >
               <Undo2 className="h-3 w-3" />
-              Undo
+              {t("undoButton")}
             </Button>
           )}
-        </div>
-      </div>
+        </Flex>
+      </Flex>
       {hasBoard && boardVisible && <InlineBoardPreview snapshot={call.appliedSnapshot!} deviceType={deviceType} />}
       <ToolCallSummary call={call} />
-    </div>
+    </Stack>
   );
 }
 
@@ -704,12 +749,20 @@ function labelFor(call: ToolCall): string {
       return `${call.args.suggestions.length} suggestion${call.args.suggestions.length === 1 ? "" : "s"}`;
     case "navigate_to_page":
       return call.args.page_id === "new" ? "New page" : "Navigate to page";
+    case "navigate_to_schedule":
+      return "Navigate to schedule";
     case "install_plugin":
       return `Install: ${call.args.plugin_id}`;
     case "update_plugin_config":
       return `Configure: ${call.args.plugin_id}`;
     case "update_plugin":
       return `Update: ${call.args.plugin_id}`;
+    case "enable_plugin":
+      return `Enable: ${call.args.plugin_id}`;
+    case "disable_plugin":
+      return `Disable: ${call.args.plugin_id}`;
+    case "uninstall_plugin":
+      return `Uninstall: ${call.args.plugin_id}`;
     case "update_setting":
       return `Setting: ${call.args.category}`;
     case "create_collection":
@@ -730,6 +783,7 @@ function labelFor(call: ToolCall): string {
 }
 
 function ToolCallSummary({ call }: { call: ToolCall }) {
+  const t = useTranslations("aiChatPanel");
   // `replace_page` is fully described by the inline board preview
   // above; rendering a JSON line-dump here would just duplicate the
   // visual. Keep the card lean.
@@ -744,27 +798,34 @@ function ToolCallSummary({ call }: { call: ToolCall }) {
       // the main thing the user sees, with the patch detail
       // available for anyone who wants to inspect it.
       <PatchDetailDisclosure count={count}>
-        <ul className="space-y-0.5 px-1 pt-1 text-[11px] text-muted-foreground">
+        <List gap="0" className="space-y-0.5 px-1 pt-1 text-[11px] text-muted-foreground">
           {call.args.changes.map((c, i) => (
-            <li key={i} className="break-all font-mono">
+            <ListItem key={i} className="break-all font-mono">
               {summarizeLineOp(c)}
-            </li>
+            </ListItem>
           ))}
-          {call.args.rename && <li className="break-all font-mono">→ rename to &quot;{call.args.rename}&quot;</li>}
-        </ul>
+          {call.args.rename && (
+            <ListItem className="break-all font-mono">{t("renameSummary", { name: call.args.rename })}</ListItem>
+          )}
+        </List>
       </PatchDetailDisclosure>
     );
   }
   if (call.op === "suggest_variables") {
     return (
-      <ul className="space-y-0.5 text-[11px]">
+      <List gap="0" className="space-y-0.5 text-[11px]">
         {call.args.suggestions.map((s, i) => (
-          <li key={i}>
-            <code className="font-mono text-[10px]">{`{{${s.ref}}}`}</code>
-            {s.description && <span className="text-muted-foreground"> — {s.description}</span>}
-          </li>
+          <ListItem key={i}>
+            <Code className="font-mono text-[10px]">{`{{${s.ref}}}`}</Code>
+            {s.description && (
+              <Text as="span" tone="muted" className="text-[11px]">
+                {" "}
+                — {s.description}
+              </Text>
+            )}
+          </ListItem>
         ))}
-      </ul>
+      </List>
     );
   }
   // navigate_to_page, install_plugin, update_plugin_config, update_setting:
@@ -780,7 +841,11 @@ function PatchDetailDisclosure({ count, children }: { count: number; children: R
           type="button"
           className="group/disclose flex w-full items-center gap-1 rounded text-[10px] text-muted-foreground transition-colors hover:text-foreground"
         >
-          <ChevronRight className="h-3 w-3 transition-transform group-data-[state=open]/disclose:rotate-90" />
+          <ChevronRight className="h-3 w-3 transition-transform group-data-[panel-open]/disclose:rotate-90" />
+          {/* Inherit-only span: the button's color flips on hover
+              (text-muted-foreground → text-foreground); a Text tone would pin
+              the color and defeat that transition, so this stays raw. */}
+          {/* eslint-disable-next-line react/forbid-elements -- inherit-only span; the button's text color flips on hover and a Text tone would pin the color and defeat that transition */}
           <span>{count === 1 ? "View change" : `View ${count} changes`}</span>
         </button>
       </CollapsibleTrigger>

@@ -20,15 +20,10 @@ updates:
         patterns:
           - "*"
     ignore:
-      # react-router 8 / vite 8 majors break the /schedule route and need
-      # a dedicated migration — see issue #1381. Drop these once it lands.
-      - dependency-name: "react-router"
-        update-types: ["version-update:semver-major"]
-      - dependency-name: "@react-router/*"
-        update-types: ["version-update:semver-major"]
-      - dependency-name: "vite"
-        update-types: ["version-update:semver-major"]
-      - dependency-name: "@vitejs/plugin-react"
+      # TS 7 (native compiler) breaks typescript-eslint (hard-refuses TS >= 7,
+      # typescript-eslint#10940) and Storybook's react-docgen-typescript plugin.
+      # Remove once both support TS 7, then migrate deliberately.
+      - dependency-name: "typescript"
         update-types: ["version-update:semver-major"]
 
   - package-ecosystem: "github-actions"

@@ -17,6 +17,7 @@ import json
 import logging
 import os
 import re
+import threading
 import time as _time_module
 from collections.abc import Callable
 from typing import Any, Literal, Optional
@@ -24,6 +25,10 @@ from typing import Any, Literal, Optional
 import requests
 
 logger = logging.getLogger(__name__)
+
+# Sentinel prefix on the strategy string that routes a render() call through
+# a transition plugin instead of the hardware's built-in strategies.
+TRANSITION_PLUGIN_PREFIX = "plugin:"
 
 # Regex pattern to match color markers like {63}, {red}, {/}, {/red}
 COLOR_MARKER_PATTERN = re.compile(
@@ -69,9 +74,52 @@ VALID_STRATEGIES = ["column", "reverse-column", "edges-to-center", "row", "diago
 # Minimum interval (seconds) between note-array sends enforced client-side.
 NOTE_ARRAY_MIN_SEND_INTERVAL: float = 15.0
 
+# Minimum interval (seconds) between RW Cloud API sends enforced client-side.
+# Vestaboard's documented Read/Write API limit is one message per 15 seconds
+# (docs/setup/cloud-api.md). The Local API has no documented limit, so local
+# boards stay unfloored.
+CLOUD_MIN_SEND_INTERVAL: float = 15.0
+
+# Connection-level send retry policy: retry once after a short backoff, but
+# only for errors where the board never ACCEPTED the connection.
+# HTTP 4xx/5xx responses ARE the board answering and are never retried.
+SEND_MAX_ATTEMPTS: int = 2
+SEND_RETRY_BACKOFF_SECONDS: float = 0.5
+
+
+def _is_retryable_send_error(exc: BaseException) -> bool:
+    """True when the board never accepted the connection, so a retry is worth it.
+
+    A refused or reset connection, or a DNS failure, means the board is not
+    listening: the retry is cheap (the failure is immediate) and often wins —
+    a board mid-reboot, a transient LAN blip. ``ConnectTimeout`` subclasses
+    ``ConnectionError`` as well as ``Timeout`` and lands on this side for the
+    same reason: no connection was established.
+
+    A ``ReadTimeout`` is the opposite case. The board took the request and then
+    went quiet, so it is wedged, and the second attempt pays the identical read
+    timeout against the identical wedged board. #1754 retried both classes
+    alike; the Phase 2 audit measured what that costs — a send to a wedged
+    board went from 10.01s to 20.53s, doubling the stall for nothing while the
+    per-board send worker (and any waiter on it) blocked.
+    """
+    return isinstance(exc, requests.exceptions.ConnectionError)
+
+
+# (connect, read) timeouts per API type. LAN connects should fail fast (an
+# unreachable board otherwise burns the full timeout per attempt in the
+# per-board send worker); cloud gets a little longer for DNS + TLS. Read
+# timeouts are unchanged from the historical 10s total.
+LOCAL_REQUEST_TIMEOUT: tuple[float, float] = (3.0, 10.0)
+CLOUD_REQUEST_TIMEOUT: tuple[float, float] = (5.0, 10.0)
+
 # Module-level per-board throttle state. Key = note_array_token (board id proxy).
-# Persists across BoardClient recreations within a process.
+# Persists across BoardClient recreations within a process (a tested contract:
+# reinitializing the client must not reset the 15s window). Guarded by
+# _note_array_throttle_lock -- concurrent per-board send workers (#1755) may
+# share a token across client instances.
 _note_array_last_send: dict[str, float] = {}
+_note_array_throttle_lock = threading.Lock()
 
 
 def _valid_grid_dimensions() -> set:
@@ -136,7 +184,162 @@ def is_successful_board_read_response(data: Any) -> bool:
     return bool(isinstance(data, dict) and "currentMessage" in data and data.get("currentMessage") is None)
 
 
-class BoardClient:
+class TransitionRenderMixin:
+    """Adds transition-plugin support on top of a ``send_characters`` client.
+
+    Shared by :class:`BoardClient` and
+    :class:`~src.note_array_local_client.NoteArrayLocalClient` so every
+    board type honors ``"plugin:<id>"`` strategies through one code path.
+    The host class must provide ``send_characters(grid, strategy=None,
+    step_interval_ms=None, step_size=None, force=False)`` and call
+    :meth:`_init_transition_state` from its ``__init__``.
+    """
+
+    def _init_transition_state(self) -> None:
+        # Per-board lock serializing sends.  Used by the transition runner to
+        # make sure rotation / manual API / trigger sends don't interleave
+        # frames mid-transition.  RLock so render() → send_characters chains
+        # don't self-deadlock.
+        self._send_lock = threading.RLock()
+
+        # Cancellation flag for the currently-running interruptible transition.
+        # Each render() call installs a fresh Event under the send lock and
+        # passes it to the runner.  A concurrent render() signals the
+        # currently-active event *before* acquiring the lock so an in-flight
+        # transition actually wakes up between frames.  Using a per-run Event
+        # (rather than set/clear-ing one shared Event) means a freshly-started
+        # transition can't be pre-cancelled by a signal that was meant for the
+        # previous run.
+        self._cancel_transition: threading.Event = threading.Event()
+
+        # Pluggable transition runner.  Set via set_transition_runner() by
+        # the service layer at startup.  When None, "plugin:<id>" strategies
+        # fall back to a plain send (logged warning).
+        self._transition_runner: Any | None = None
+
+    def set_transition_runner(self, runner: Any | None) -> None:
+        """Attach (or detach) the transition runner used by :meth:`render`.
+
+        Decouples this module from the runner implementation; the service
+        layer injects the runner once both are constructed.
+        """
+        self._transition_runner = runner
+
+    @staticmethod
+    def _transition_plugins_beta_enabled() -> bool:
+        """Return whether the transition-plugin beta flag is currently on.
+
+        Imported lazily so this module has no hard dependency on the
+        settings layer.  Failures default to *False* -- if the settings
+        service can't be reached, we'd rather fall back to a no-strategy
+        send than execute experimental code.
+        """
+        try:
+            from .settings.service import get_settings_service
+
+            return bool(get_settings_service().get_beta_settings().transition_plugins_enabled)
+        except Exception as exc:  # pragma: no cover - defensive
+            logger.warning("render: could not read transition_plugins beta flag: %s", exc)
+            return False
+
+    def render(
+        self,
+        characters: list[list[int]],
+        *,
+        strategy: str | None = None,
+        step_interval_ms: int | None = None,
+        step_size: int | None = None,
+        force: bool = False,
+        device_type: str | None = None,
+        transition_config: dict | None = None,
+    ) -> tuple[bool, bool]:
+        """High-level send that understands transition-plugin strategies.
+
+        Behaves identically to :meth:`send_characters` for built-in
+        strategies (``column``, ``edges-to-center``, etc. or *None*).  When
+        *strategy* starts with ``"plugin:"`` and a transition runner is
+        attached, the runner drives a frame-by-frame animation toward
+        *characters*; the final frame is always *characters* itself.
+
+        Args:
+            characters: Target grid to render.
+            strategy: Built-in strategy name, ``"plugin:<id>"``, or *None*.
+            step_interval_ms: Forwarded to built-in strategies.
+            step_size: Forwarded to built-in strategies.
+            force: Bypass the unchanged-message cache.
+            device_type: Optional device hint forwarded to the transition
+                runner so plugins receive the right dimensions.
+            transition_config: Optional per-run plugin config override
+                forwarded to the transition runner (used by the Transition
+                Lab's live test).  *None* keeps the plugin's bound config.
+
+        Returns:
+            ``(success, was_sent)`` mirroring :meth:`send_characters`.
+        """
+        is_plugin = isinstance(strategy, str) and strategy.startswith(TRANSITION_PLUGIN_PREFIX)
+
+        # Signal any in-flight transition to wind down *before* we wait on
+        # the send lock.  Without this, a built-in render() arriving during
+        # a plugin transition would block on the lock instead of preempting
+        # the animation, and the in-flight runner would never see a cancel.
+        self._cancel_transition.set()
+
+        with self._send_lock:
+            # Install a fresh Event for this run so a stale set() from the
+            # previous caller can't immediately cancel us.  The runner of
+            # the just-cancelled transition still holds its own reference
+            # to the old Event, so its cancellation signal isn't lost.
+            run_cancel_event = threading.Event()
+            self._cancel_transition = run_cancel_event
+
+            if not is_plugin:
+                return self.send_characters(
+                    characters,
+                    strategy=strategy,
+                    step_interval_ms=step_interval_ms,
+                    step_size=step_size,
+                    force=force,
+                )
+
+            plugin_id = strategy[len(TRANSITION_PLUGIN_PREFIX) :].strip()
+            if not plugin_id:
+                logger.warning(
+                    "render: empty transition plugin id in strategy %r; sending as-is",
+                    strategy,
+                )
+                return self.send_characters(characters, strategy=None, force=force)
+
+            # Defense in depth: if the operator toggled the beta flag off
+            # after pages were saved with a plugin: strategy, the runtime
+            # must not execute plugin code anyway -- the API surface is
+            # gated, and so is the execution path.  Import locally to avoid
+            # a hard dependency from this module on settings.
+            if not self._transition_plugins_beta_enabled():
+                logger.warning(
+                    "render: transition_plugins beta is off; plugin:%s ignored, snapping to target",
+                    plugin_id,
+                )
+                return self.send_characters(characters, strategy=None, force=force)
+
+            runner = self._transition_runner
+            if runner is None:
+                logger.warning(
+                    "render: no transition runner attached; plugin:%s ignored, snapping to target grid",
+                    plugin_id,
+                )
+                return self.send_characters(characters, strategy=None, force=force)
+
+            return runner.run(
+                plugin_id=plugin_id,
+                to_grid=characters,
+                board_client=self,
+                cancel_event=run_cancel_event,
+                device_type=device_type,
+                config=transition_config,
+            )
+
+
+class BoardClient(TransitionRenderMixin):
     """Client for the board with support for Local and Cloud APIs.
 
     Features:
@@ -205,9 +408,18 @@ class BoardClient:
                 f"Board client initialized with Local API at {host}:{self._port} (skip_unchanged={skip_unchanged})"
             )
 
+        # (connect, read) timeout for every request this client makes.
+        self._request_timeout: tuple[float, float] = CLOUD_REQUEST_TIMEOUT if use_cloud else LOCAL_REQUEST_TIMEOUT
+
         # Client-side cache to avoid sending unchanged messages
         self._last_text: str | None = None
         self._last_characters: list[list[int]] | None = None
+
+        # Per-instance min-send-interval floor state (RW Cloud). Note arrays
+        # use the module-level _note_array_last_send registry instead so the
+        # window survives client recreation.
+        self._last_send_monotonic: float | None = None
+        self._throttle_lock = threading.Lock()
 
         # Note-array state. Note arrays are constructed with use_cloud=True, so
         # base_url/headers above point at the RW Cloud API — but when
@@ -221,6 +433,154 @@ class BoardClient:
         self._is_note_array: bool = bool(note_array_token)
         # Injectable monotonic clock for the note-array send throttle (tests).
         self._time_func: Callable[[], float] = _time_func if _time_func is not None else _time_module.monotonic
+        # Whether the most recent send_characters call was dropped by the
+        # note-array rate limit (see the last_send_throttled property).
+        self._last_send_throttled: bool = False
+
+        # Transition-plugin render state (lock, cancel event, runner slot).
+        self._init_transition_state()
+
+    @property
+    def last_send_throttled(self) -> bool:
+        """True when the most recent send was dropped by the note-array rate limit.
+
+        That drop reports ``(True, False)`` — byte-identical to the
+        unchanged-content skip — but the two mean opposite things: after an
+        unchanged-content skip the frame IS on the board, whereas after a
+        throttle it never left. Callers that cache "what the board is
+        showing" must not do so on a throttle, or the board stays stale
+        forever because nothing re-attempts unchanged content (issue #1794).
+        """
+        return self._last_send_throttled
+
+    @property
+    def min_send_interval_ms(self) -> int:
+        """Floor between consecutive sends the transition runner must respect.
+
+        Throttled clients (cloud note arrays and RW Cloud boards) silently
+        skip sends inside their window, which would drop transition frames
+        (and the final snap-to-target).  Exposing the floor lets the
+        runner pace frames so every send actually lands.
+        """
+        return int(self._min_send_interval * 1000)
+
+    @property
+    def _min_send_interval(self) -> float:
+        """Per-board-type min-send-interval floor in seconds (0 = unfloored)."""
+        if self._is_note_array:
+            return NOTE_ARRAY_MIN_SEND_INTERVAL
+        if self.use_cloud:
+            return CLOUD_MIN_SEND_INTERVAL
+        return 0.0
+
+    def _throttle_state_lock(self) -> threading.Lock:
+        """Lock guarding this client's last-send timestamp.
+
+        Note arrays share a module-level registry (and therefore a module
+        lock) keyed by token; everything else uses per-instance state.
+        """
+        return _note_array_throttle_lock if self._is_note_array else self._throttle_lock
+
+    def _get_last_send_locked(self) -> float | None:
+        """Read the last-send timestamp. Caller holds _throttle_state_lock()."""
+        if self._is_note_array:
+            return _note_array_last_send.get(self._note_array_token)
+        return self._last_send_monotonic
+
+    def _set_last_send_locked(self, value: float | None) -> None:
+        """Write the last-send timestamp. Caller holds _throttle_state_lock()."""
+        if self._is_note_array:
+            if value is None:
+                _note_array_last_send.pop(self._note_array_token, None)
+            else:
+                _note_array_last_send[self._note_array_token] = value
+        else:
+            self._last_send_monotonic = value
+
+    def _admit_send(self, is_unchanged: Callable[[], bool]) -> tuple[str, float | None, float | None]:
+        """Atomically decide whether a send may proceed, reserving its slot.
+
+        Under the throttle lock: apply the per-type min-send-interval floor,
+        then the unchanged-content cache check, and -- only if the send will
+        actually go out -- record ``now`` as the last-send timestamp *before*
+        the POST.  Reserving up front is what makes the floor race-free: a
+        concurrent sender is throttled while the first POST is still in
+        flight instead of double-sending inside the window.  A failed POST
+        must give the slot back via :meth:`_release_send_slot`.
+
+        Returns:
+            ``(verdict, prev_last, now)`` where verdict is ``"send"``,
+            ``"throttled"`` (floor hit; ``last_send_throttled`` was set), or
+            ``"unchanged"`` (cache hit; nothing reserved).
+        """
+        floor = self._min_send_interval
+        with self._throttle_state_lock():
+            now = self._time_func() if floor > 0 else None
+            prev_last: float | None = None
+            if floor > 0:
+                prev_last = self._get_last_send_locked()
+                if prev_last is not None:
+                    elapsed = now - prev_last
+                    if elapsed < floor:
+                        logger.warning(
+                            "%s send throttled: %.1fs since last send (min %.0fs); skipping.",
+                            "Note-array" if self._is_note_array else "Cloud",
+                            elapsed,
+                            floor,
+                        )
+                        self._last_send_throttled = True
+                        return ("throttled", prev_last, now)
+            if is_unchanged():
+                return ("unchanged", prev_last, now)
+            if floor > 0:
+                self._set_last_send_locked(now)
+            return ("send", prev_last, now)
+
+    def _release_send_slot(self, prev_last: float | None, now: float | None) -> None:
+        """Roll back a reservation made by :meth:`_admit_send` after a failed POST.
+
+        Only restores the previous timestamp if our reservation is still the
+        current value, so a slot legitimately taken afterwards isn't clobbered.
+        """
+        if now is None:
+            return
+        with self._throttle_state_lock():
+            if self._get_last_send_locked() == now:
+                self._set_last_send_locked(prev_last)
+
+    def _post_with_retry(self, url: str, headers: dict[str, str], payload: Any) -> requests.Response:
+        """POST with a single connection-level retry after a short backoff.
+
+        Retries (once) ONLY errors where the board never ACCEPTED the
+        connection -- see :func:`_is_retryable_send_error`. A ``ReadTimeout``
+        is raised by a board that answered and then went quiet, and is not
+        retried: the second attempt would pay the same read timeout again.
+        An HTTP error response is the board answering: it is returned to the
+        caller (whose ``raise_for_status`` surfaces it) and never retried.
+        The backoff waits on the active cancel event rather than sleeping, so
+        a preempting render() / newer send job abandons the retry promptly.
+        Worst case: SEND_MAX_ATTEMPTS * connect timeout + read timeout +
+        backoff, well under the send worker's wait bound.
+        """
+        last_exc: requests.exceptions.RequestException | None = None
+        for attempt in range(1, SEND_MAX_ATTEMPTS + 1):
+            try:
+                return requests.post(url, headers=headers, json=payload, timeout=self._request_timeout)
+            except (requests.exceptions.ConnectionError, requests.exceptions.Timeout) as exc:
+                last_exc = exc
+                if attempt >= SEND_MAX_ATTEMPTS or not _is_retryable_send_error(exc):
+                    break
+                logger.debug(
+                    "Send attempt %d/%d failed with connection-level error (%s); retrying in %.1fs",
+                    attempt,
+                    SEND_MAX_ATTEMPTS,
+                    exc,
+                    SEND_RETRY_BACKOFF_SECONDS,
+                )
+                if self._cancel_transition.wait(SEND_RETRY_BACKOFF_SECONDS):
+                    logger.debug("Send retry abandoned: cancel signalled during backoff")
+                    break
+        raise last_exc
 
     @property
     def _note_array_headers(self) -> dict[str, str]:
@@ -255,8 +615,18 @@ class BoardClient:
         # Strip color markers and convert to uppercase (board requirement)
         clean_text = strip_color_markers(text).upper()
 
-        # Check if message has changed (client-side caching)
-        if self.skip_unchanged and not force and self._last_text == clean_text:
+        self._last_send_throttled = False
+
+        # Per-type send floor + unchanged-content cache, atomically (see
+        # _admit_send). A throttled send returns without sending and sets
+        # last_send_throttled so callers don't cache content that never
+        # reached the board (issue #1794).
+        verdict, prev_last, reserved_at = self._admit_send(
+            lambda: self.skip_unchanged and not force and self._last_text == clean_text
+        )
+        if verdict == "throttled":
+            return (True, False)
+        if verdict == "unchanged":
             logger.debug("Message unchanged, skipping send")
             return (True, False)
 
@@ -264,7 +634,7 @@ class BoardClient:
         payload = {"text": clean_text}
 
         try:
-            response = requests.post(self.base_url, headers=self.headers, json=payload, timeout=10)
+            response = self._post_with_retry(self.base_url, self.headers, payload)
             response.raise_for_status()
 
             self._last_text = clean_text
@@ -274,6 +644,7 @@ class BoardClient:
             return (True, True)
 
         except requests.exceptions.RequestException as e:
+            self._release_send_slot(prev_last, reserved_at)
             logger.error(f"Failed to send message to board: {e}")
             if hasattr(e, "response") and e.response is not None:
                 logger.error(f"Response: {e.response.text}")
@@ -338,76 +709,79 @@ class BoardClient:
             step_interval_ms = None
             step_size = None
 
-        # Rate-limit note-array sends to >= NOTE_ARRAY_MIN_SEND_INTERVAL seconds.
-        # Read the clock once and reuse it for the success-path timestamp below.
-        # The check+update below is not locked: FiestaBoard's send paths run on a
-        # single-threaded main loop, so the TOCTOU window is unreachable in
-        # practice. If sends ever become concurrent, guard this with a per-token lock.
-        now = self._time_func() if self._is_note_array else None
-        if self._is_note_array:
-            last = _note_array_last_send.get(self._note_array_token)
-            if last is not None:
-                elapsed = now - last
-                if elapsed < NOTE_ARRAY_MIN_SEND_INTERVAL:
-                    logger.warning(
-                        "Note-array send throttled: %.1fs since last send (min %.0fs); skipping.",
-                        elapsed,
-                        NOTE_ARRAY_MIN_SEND_INTERVAL,
-                    )
-                    return (True, False)
+        # The whole check-send-write section runs under the per-board send
+        # lock. render() holds the same (re-entrant) lock around its sends,
+        # but the /debug/blank, /debug/fill and /debug/info handlers call
+        # send_characters directly — and since #1826 moved handlers onto
+        # worker threads, those calls run concurrently with renders. Without
+        # the lock they interleave: crossed _last_characters writes and a
+        # double-posted send-floor window. The throttle lock taken inside
+        # _admit_send/_release_send_slot is always acquired under this one,
+        # never the other way round.
+        with self._send_lock:
+            self._last_send_throttled = False
 
-        # Check if characters have changed (client-side caching)
-        if self.skip_unchanged and not force and self._last_characters == characters:
-            logger.debug("Character array unchanged, skipping send")
-            return (True, False)
+            # Per-type min-send-interval floor (note arrays and RW Cloud; local
+            # is unfloored) + unchanged-content cache, checked atomically under
+            # the throttle lock. The slot is reserved *before* the POST so
+            # concurrent per-board send workers (#1755) can't double-send inside
+            # the window; a failed POST releases it below.
+            verdict, prev_last, reserved_at = self._admit_send(
+                lambda: self.skip_unchanged and not force and self._last_characters == characters
+            )
+            if verdict == "throttled":
+                return (True, False)
+            if verdict == "unchanged":
+                logger.debug("Character array unchanged, skipping send")
+                return (True, False)
 
-        # Build payload - format differs by API type
-        if self._is_note_array:
-            # Note-array Cloud API: POST {"characters": grid} to cloud.vestaboard.com
-            payload = {"characters": characters}
-        elif self.use_cloud:
-            # RW Cloud API: sends the array directly (no wrapper)
-            payload = characters
-        else:
-            # Local API: {"characters": [...]} with optional transitions
-            payload = {"characters": characters}
-            if strategy is not None:
-                payload["strategy"] = strategy
-            if step_interval_ms is not None:
-                payload["step_interval_ms"] = step_interval_ms
-            if step_size is not None:
-                payload["step_size"] = step_size
-
-        try:
+            # Build payload - format differs by API type
             if self._is_note_array:
-                url = self.CLOUD_NOTE_ARRAY_API_URL
-                hdrs = self._note_array_headers
+                # Note-array Cloud API: POST {"characters": grid} to cloud.vestaboard.com
+                payload = {"characters": characters}
+            elif self.use_cloud:
+                # RW Cloud API: sends the array directly (no wrapper)
+                payload = characters
             else:
-                url = self.base_url
-                hdrs = self.headers
-            response = requests.post(url, headers=hdrs, json=payload, timeout=10)
-            response.raise_for_status()
+                # Local API: {"characters": [...]} with optional transitions
+                payload = {"characters": characters}
+                if strategy is not None:
+                    payload["strategy"] = strategy
+                if step_interval_ms is not None:
+                    payload["step_interval_ms"] = step_interval_ms
+                if step_size is not None:
+                    payload["step_size"] = step_size
 
-            self._last_characters = [row[:] for row in characters]
-            self._last_text = None
+            try:
+                if self._is_note_array:
+                    url = self.CLOUD_NOTE_ARRAY_API_URL
+                    hdrs = self._note_array_headers
+                else:
+                    url = self.base_url
+                    hdrs = self.headers
+                response = self._post_with_retry(url, hdrs, payload)
+                response.raise_for_status()
 
-            if self._is_note_array:
-                _note_array_last_send[self._note_array_token] = now
+                self._last_characters = [row[:] for row in characters]
+                self._last_text = None
+                # The throttle slot was already reserved (at the same clock
+                # reading the old code stored here), so success keeps it.
 
-            transition_info = ""
-            if strategy:
-                transition_info = f" with {strategy} transition"
-                if step_interval_ms:
-                    transition_info += f" ({step_interval_ms}ms interval)"
+                transition_info = ""
+                if strategy:
+                    transition_info = f" with {strategy} transition"
+                    if step_interval_ms:
+                        transition_info += f" ({step_interval_ms}ms interval)"
 
-            logger.info(f"Character array sent successfully to board{transition_info}")
-            return (True, True)
+                logger.info(f"Character array sent successfully to board{transition_info}")
+                return (True, True)
 
-        except requests.exceptions.RequestException as e:
-            logger.error(f"Failed to send character array to board: {e}")
-            if hasattr(e, "response") and e.response is not None:
-                logger.error(f"Response: {e.response.text}")
-            return (False, False)
+            except requests.exceptions.RequestException as e:
+                self._release_send_slot(prev_last, reserved_at)
+                logger.error(f"Failed to send character array to board: {e}")
+                if hasattr(e, "response") and e.response is not None:
+                    logger.error(f"Response: {e.response.text}")
+                return (False, False)
 
     def read_current_message(self, sync_cache: bool = False) -> list[list[int]] | None:
         """
@@ -428,7 +802,7 @@ class BoardClient:
             else:
                 url = self.base_url
                 hdrs = self.headers
-            response = requests.get(url, headers=hdrs, timeout=10)
+            response = requests.get(url, headers=hdrs, timeout=self._request_timeout)
             response.raise_for_status()
             data = response.json()
             characters = parse_read_message_payload(data)
@@ -500,23 +874,45 @@ class BoardClient:
 
 
 def board_client_from_board_dict(board: dict) -> Optional["BoardClient"]:
-    """Build a BoardClient from a board instance dict (e.g. from settings.boards).
+    """Build a board client from a board instance dict (e.g. from settings.boards).
 
     Args:
         board: Dict with api_mode, host, port (optional), local_api_key, cloud_key.
 
     Returns:
-        BoardClient if the board has connection configured, None otherwise.
+        BoardClient (or a duck-type compatible NoteArrayLocalClient for
+        local-mode note arrays) if the board has connection configured,
+        None otherwise.
     """
     api_mode = (board.get("api_mode") or "local").lower()
     use_cloud = api_mode == "cloud"
 
+    # Virtual boards (FiestaPanel): no hardware, frames render to memory.
+    if api_mode == "virtual":
+        from .virtual_board_client import VirtualBoardClient
+
+        return VirtualBoardClient(
+            device_type=board.get("device_type") or "flagship",
+            board_id=board.get("id"),
+            notes_wide=board.get("notes_wide") or 1,
+            notes_tall=board.get("notes_tall") or 1,
+        )
+
     # Note-array boards: detected by device_type (not api_mode).
-    # They use the new Cloud API with X-Vestaboard-Token.
-    from .devices import is_note_array
+    # Local mode (api_mode == "local" with saved tiles) fans out per-tile
+    # local POSTs; otherwise they use the Cloud API with X-Vestaboard-Token.
+    from .devices import BoardInstance, is_note_array
 
     device_type = board.get("device_type") or "flagship"
     if is_note_array(device_type):
+        instance = BoardInstance.from_dict(board)
+        if instance.uses_local_tiles:
+            from .note_array_local_client import NoteArrayLocalClient
+
+            tiles = instance.configured_tiles()
+            if not tiles:
+                return None
+            return NoteArrayLocalClient(tiles, instance.notes_wide, instance.notes_tall)
         token = board.get("note_array_token") or ""
         if not token:
             return None

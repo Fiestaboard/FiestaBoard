@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { http, HttpResponse } from "msw";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -226,5 +226,109 @@ describe("CurrentBoardProvider — board switch view transition", () => {
 
     await waitFor(() => expect(screen.getByTestId("current-id")).toHaveTextContent("two"));
     expect(document.documentElement.dataset.boardSwitch).toBeUndefined();
+  });
+});
+
+// The suite above stubs `startViewTransition` so it invokes the update callback
+// SYNCHRONOUSLY. Real browsers do not: they take the "old" snapshot, yield, and
+// call back a frame or more later. That gap is where `setCurrentBoardIdState`
+// has not run yet, so `currentBoardIdRef` still holds the previous board and a
+// second click sails past the guard in `setCurrentBoardId`. The stub below
+// models the real contract by deferring the callback.
+describe("CurrentBoardProvider — asynchronous view transitions", () => {
+  const twoBoards = () =>
+    server.use(
+      http.get(`${API_BASE}/settings/board`, () =>
+        boardsResponse([
+          { id: "one", name: "Kitchen" },
+          { id: "two", name: "Office" },
+        ]),
+      ),
+    );
+
+  let startViewTransition: ReturnType<typeof vi.fn>;
+
+  beforeEach(() => {
+    localStorage.clear();
+    startViewTransition = vi.fn((cb: () => void) => {
+      // Deferred, not inline — `act` only keeps React's warning quiet, it does
+      // not pull the callback back into the caller's synchronous frame.
+      queueMicrotask(() => act(() => cb()));
+      return { finished: Promise.resolve() };
+    });
+    (document as unknown as { startViewTransition: unknown }).startViewTransition = startViewTransition;
+  });
+
+  afterEach(() => {
+    delete (document as unknown as { startViewTransition?: unknown }).startViewTransition;
+    delete document.documentElement.dataset.boardSwitch;
+  });
+
+  it("double-clicking the same board starts exactly one transition", async () => {
+    twoBoards();
+    renderProbe();
+    await waitFor(() => expect(screen.getByTestId("current-id")).toHaveTextContent("one"));
+
+    // Both clicks land inside the browser's callback gap. Per spec, starting a
+    // transition while one is active SKIPS the first and rejects its `finished`
+    // with AbortError, so the second one here is not merely wasteful — it
+    // aborts the animation the user is already watching.
+    fireEvent.click(screen.getByTestId("select-two"));
+    fireEvent.click(screen.getByTestId("select-two"));
+
+    expect(startViewTransition).toHaveBeenCalledTimes(1);
+  });
+
+  it("an aborted transition does not surface an unhandled rejection", async () => {
+    // A skipped transition rejects `finished` with AbortError. `.finally()`
+    // does not consume a rejection — it re-raises it on the promise it returns
+    // — so a `.finally()` with no `.catch()` leaks one on every abort.
+    const unhandled: unknown[] = [];
+    const record = (reason: unknown) => unhandled.push(reason);
+    process.on("unhandledRejection", record);
+
+    try {
+      startViewTransition.mockImplementation((cb: () => void) => {
+        queueMicrotask(() => act(() => cb()));
+        return { finished: Promise.reject(new DOMException("Transition was skipped", "AbortError")) };
+      });
+
+      twoBoards();
+      renderProbe();
+      await waitFor(() => expect(screen.getByTestId("current-id")).toHaveTextContent("one"));
+
+      fireEvent.click(screen.getByTestId("select-two"));
+      await waitFor(() => expect(screen.getByTestId("current-id")).toHaveTextContent("two"));
+      // Node only reports a rejection as unhandled once the microtask queue has
+      // drained, so give it a macrotask to do that.
+      await new Promise((resolve) => setTimeout(resolve, 20));
+
+      expect(unhandled).toEqual([]);
+    } finally {
+      process.off("unhandledRejection", record);
+    }
+  });
+
+  it("keeps a board selectable after its transition is aborted", async () => {
+    // A skipped transition never runs its update callback, so `currentBoardId`
+    // never moves. If the pending target survives the abort, the guard reads
+    // that board as already-current forever and the user can never reach it.
+    startViewTransition.mockImplementation(() => ({
+      finished: Promise.reject(new DOMException("Transition was skipped", "AbortError")),
+    }));
+
+    twoBoards();
+    renderProbe();
+    await waitFor(() => expect(screen.getByTestId("current-id")).toHaveTextContent("one"));
+
+    fireEvent.click(screen.getByTestId("select-two"));
+    expect(startViewTransition).toHaveBeenCalledTimes(1);
+    expect(screen.getByTestId("current-id")).toHaveTextContent("one");
+
+    // Let the abort settle.
+    await new Promise((resolve) => setTimeout(resolve, 20));
+
+    fireEvent.click(screen.getByTestId("select-two"));
+    expect(startViewTransition).toHaveBeenCalledTimes(2);
   });
 });

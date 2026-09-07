@@ -1,3 +1,4 @@
+import { PageCard } from "@fiestaboard/ui";
 import type { Meta, StoryObj } from "@storybook/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 
@@ -10,6 +11,8 @@ const flagshipBoard: BoardInstance = {
   name: "Living Room",
   device_type: "flagship",
   board_color: "black",
+  // A Flagship built before 2026: its code-62 flap is a degree sign (#1657).
+  code62_glyph: "degree",
   enabled: true,
   api_mode: "local",
   host: "192.168.1.100",
@@ -34,6 +37,8 @@ const disabledBoard: BoardInstance = {
   name: "Office Board",
   device_type: "flagship",
   board_color: "black",
+  // A Flagship built from 2026: the same flap carries a heart (#1657).
+  code62_glyph: "heart",
   enabled: false,
   api_mode: "local",
   host: "",
@@ -80,7 +85,12 @@ export const SingleBoard: Story = {
     (Story) => (
       <QueryClientProvider client={createQueryClient([flagshipBoard])}>
         <div className="max-w-lg">
-          <Story />
+          {/* PageSection pads and divides itself but draws no surface — the
+              page card is what a settings section lives in, so the story
+              shows it in one rather than floating unpadded. */}
+          <PageCard>
+            <Story />
+          </PageCard>
         </div>
       </QueryClientProvider>
     ),
@@ -92,7 +102,12 @@ export const MultipleBoards: Story = {
     (Story) => (
       <QueryClientProvider client={createQueryClient([flagshipBoard, noteBoard, disabledBoard])}>
         <div className="max-w-lg">
-          <Story />
+          {/* PageSection pads and divides itself but draws no surface — the
+              page card is what a settings section lives in, so the story
+              shows it in one rather than floating unpadded. */}
+          <PageCard>
+            <Story />
+          </PageCard>
         </div>
       </QueryClientProvider>
     ),
@@ -106,7 +121,12 @@ export const UnconfiguredBoard: Story = {
         client={createQueryClient([{ ...flagshipBoard, host: "", local_api_key: "", name: "New Board" }])}
       >
         <div className="max-w-lg">
-          <Story />
+          {/* PageSection pads and divides itself but draws no surface — the
+              page card is what a settings section lives in, so the story
+              shows it in one rather than floating unpadded. */}
+          <PageCard>
+            <Story />
+          </PageCard>
         </div>
       </QueryClientProvider>
     ),
@@ -118,7 +138,12 @@ export const Loading: Story = {
     (Story) => (
       <QueryClientProvider client={new QueryClient()}>
         <div className="max-w-lg">
-          <Story />
+          {/* PageSection pads and divides itself but draws no surface — the
+              page card is what a settings section lives in, so the story
+              shows it in one rather than floating unpadded. */}
+          <PageCard>
+            <Story />
+          </PageCard>
         </div>
       </QueryClientProvider>
     ),
@@ -132,7 +157,12 @@ export const WhiteBoard: Story = {
         client={createQueryClient([{ ...flagshipBoard, board_color: "white", name: "White Flagship" }])}
       >
         <div className="max-w-lg">
-          <Story />
+          {/* PageSection pads and divides itself but draws no surface — the
+              page card is what a settings section lives in, so the story
+              shows it in one rather than floating unpadded. */}
+          <PageCard>
+            <Story />
+          </PageCard>
         </div>
       </QueryClientProvider>
     ),

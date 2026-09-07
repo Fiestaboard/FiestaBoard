@@ -52,6 +52,21 @@ MUNI 33 - 12 MIN
 {64}{64} TRAFFIC {64}{64}
 HOME TO WORK 25M`;
 
+// Hoisted to module scope (rather than declared inside the story components)
+// so it's a stable reference the mount-effect's dependency array doesn't need
+// to track.
+const LOADING_TRANSITION_MESSAGE = `{red}HELLO WORLD{/red}
+WELCOME TO
+FIESTABOARD
+{blue}52{/blue}°F {yellow}62{/yellow}°F CLOUDY
+{63}{64}{65}{66}{67}{68} SPLIT FLAP {63}{64}{65}{66}{67}{68}`;
+
+const LOADING_TO_LOADED_MESSAGE = `{red}BRUSH YOUR TEETH!{/red}
+{blue}SPENCER{/blue}
+{green}ROBBIE{/green}
+{orange}ELI{/orange}
+{yellow}FLOSS TOO!{/yellow}`;
+
 const multiColorBar = `{63}{63}{64}{64}{65}{65}{66}{66}{67}{67}{68}{68}
 {red}RED{/red} {orange}ORANGE{/orange} {yellow}YELLOW{/yellow}
 {green}GREEN{/green} {blue}BLUE{/blue} {violet}VIOLET{/violet}
@@ -168,16 +183,10 @@ export const LoadingTransition = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [message, setMessage] = useState<string | null>(null);
 
-  const testMessage = `{red}HELLO WORLD{/red}
-WELCOME TO
-FIESTABOARD
-{blue}52{/blue}°F {yellow}62{/yellow}°F CLOUDY
-{63}{64}{65}{66}{67}{68} SPLIT FLAP {63}{64}{65}{66}{67}{68}`;
-
   useEffect(() => {
     // Start with loading, then show message after 3 seconds
     const timer = setTimeout(() => {
-      setMessage(testMessage);
+      setMessage(LOADING_TRANSITION_MESSAGE);
       setIsLoading(false);
     }, 3000);
 
@@ -190,7 +199,7 @@ FIESTABOARD
 
     // After 3 seconds of loading, show the message again
     setTimeout(() => {
-      setMessage(testMessage);
+      setMessage(LOADING_TRANSITION_MESSAGE);
       setIsLoading(false);
     }, 3000);
   };
@@ -282,16 +291,10 @@ export const LoadingToLoadedTransition = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [message, setMessage] = useState<string | null>(null);
 
-  const testMessage = `{red}BRUSH YOUR TEETH!{/red}
-{blue}SPENCER{/blue}
-{green}ROBBIE{/green}
-{orange}ELI{/orange}
-{yellow}FLOSS TOO!{/yellow}`;
-
   useEffect(() => {
     // Start with loading for 3 seconds, then show message
     const timer = setTimeout(() => {
-      setMessage(testMessage);
+      setMessage(LOADING_TO_LOADED_MESSAGE);
       setIsLoading(false);
     }, 3000);
 
@@ -303,7 +306,7 @@ export const LoadingToLoadedTransition = () => {
     setMessage(null);
 
     setTimeout(() => {
-      setMessage(testMessage);
+      setMessage(LOADING_TO_LOADED_MESSAGE);
       setIsLoading(false);
     }, 3000);
   };

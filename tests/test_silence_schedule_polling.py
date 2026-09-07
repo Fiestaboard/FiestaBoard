@@ -42,6 +42,18 @@ def service_factory():
         mocks["config"].SILENCE_SCHEDULE_INDICATOR_TEXT = "SNOOZING"
         mocks["config"].SILENCE_SCHEDULE_INDICATOR_POSITION = "center"
         mocks["config"].SILENCE_SCHEDULE_PAGE_ID = None
+        # Since issue #1788 the engine resolves a board's silence settings via
+        # Config.silence_config_for(board_id); the classproperties above are
+        # only the install-wide mirror.
+        mocks["config"].silence_config_for.return_value = {
+            "enabled": True,
+            "start_time": "04:00+00:00",
+            "end_time": "15:00+00:00",
+            "mode": "indicator",
+            "page_id": None,
+            "indicator_text": "SNOOZING",
+            "indicator_position": "center",
+        }
 
         settings_service = Mock()
         settings_service.is_schedule_enabled.return_value = False
@@ -76,6 +88,13 @@ def service_factory():
         svc = DisplayService()
         svc.vb_client = Mock()
         svc.vb_client.send_characters.return_value = (True, True)
+        svc.vb_client.render.return_value = (True, True)
+        # Hardware clients have no ``is_virtual`` attribute, but a bare Mock
+        # auto-creates a truthy one. The UI-only short-circuit (issue #1835)
+        # reads it, so pin a real ``False``: these tests are about a physical
+        # board, and without this they would exercise the virtual exemption
+        # instead of the behaviour they name.
+        svc.vb_client.is_virtual = False
 
         return svc, mocks, page_service, patches
 
@@ -113,7 +132,7 @@ class TestSilenceModeShortCircuit:
         # CRITICAL: plugin rendering must NOT happen during steady silence.
         page_service.preview_page.assert_not_called()
         # Board must not be touched.
-        svc.vb_client.send_characters.assert_not_called()
+        svc.vb_client.render.assert_not_called()
 
     def test_steady_silence_does_not_evaluate_triggers(self, service_factory):
         """Trigger plugins must not be polled during silence."""
@@ -141,12 +160,12 @@ class TestEnteringSilence:
             result = svc.check_and_send_active_page()
 
         assert result is True
-        svc.vb_client.send_characters.assert_called_once()
+        svc.vb_client.render.assert_called_once()
         assert svc._snoozing_message_sent is True
         assert svc._last_silence_mode_active is True
 
         # Verify SNOOZING was stamped on the board array (center row by default).
-        sent_array = svc.vb_client.send_characters.call_args.args[0]
+        sent_array = svc.vb_client.render.call_args.args[0]
         center_row = sent_array[len(sent_array) // 2]
         center_row_text = "".join(chr(c + 64) if 1 <= c <= 26 else "?" for c in center_row)
         assert "SNOOZING" in center_row_text
@@ -160,13 +179,13 @@ class TestEnteringSilence:
         with patch.object(svc, "_check_trigger_override", return_value=None):
             svc.check_and_send_active_page()
         page_service.preview_page.reset_mock()
-        svc.vb_client.send_characters.reset_mock()
+        svc.vb_client.render.reset_mock()
 
         # Next tick — still silenced.
         svc.check_and_send_active_page()
 
         page_service.preview_page.assert_not_called()
-        svc.vb_client.send_characters.assert_not_called()
+        svc.vb_client.render.assert_not_called()
 
 
 class TestExitingSilence:
@@ -188,11 +207,150 @@ class TestExitingSilence:
 
         # MUST re-send to clear the SNOOZING indicator.
         assert result is True
-        svc.vb_client.send_characters.assert_called_once()
+        svc.vb_client.render.assert_called_once()
         assert svc._snoozing_message_sent is False
         assert svc._last_silence_mode_active is False
 
         # Indicator should NOT be present on the freshly-sent board.
-        sent_array = svc.vb_client.send_characters.call_args.args[0]
+        sent_array = svc.vb_client.render.call_args.args[0]
         last_row_text = "".join(chr(c + 64) if 1 <= c <= 26 else "?" for c in sent_array[-1])
         assert "SNOOZING" not in last_row_text
+
+
+def _sleep_that_stops_after(svc, iterations, on_iteration=None):
+    """Fake ``time.sleep`` that drives the run loop for a fixed number of ticks.
+
+    Replaces the wall clock entirely: each call is one simulated second, so a
+    silence window can be walked tick by tick without any real waiting.
+    """
+    state = {"ticks": 0}
+
+    def _fake_sleep(_seconds):
+        state["ticks"] += 1
+        if on_iteration is not None:
+            on_iteration(state["ticks"])
+        if state["ticks"] >= iterations:
+            svc.running = False
+
+    return _fake_sleep
+
+
+class TestSilenceBoundaryDetector:
+    """The 1 Hz boundary detector must fire once per boundary, not once per
+    second, even when the board's update path returns early (issue #1740)."""
+
+    def test_paused_board_does_not_force_an_update_every_second_during_silence(self, service_factory):
+        svc, mocks, _page_service = service_factory(is_silence=True)
+        mocks["settings"].return_value.is_paused.return_value = True
+
+        with (
+            patch.object(svc, "check_and_send_active_page", wraps=svc.check_and_send_active_page) as drive,
+            patch("src.main.schedule"),
+            patch("src.main.time.sleep", _sleep_that_stops_after(svc, 5)),
+        ):
+            svc.run()
+
+        # Only the initial update before the loop; the detector must stay quiet.
+        assert drive.call_count == 1
+
+    def test_render_failure_does_not_force_an_update_every_second_during_silence(self, service_factory):
+        svc, mocks, page_service = service_factory(is_silence=True)
+        failed_preview = Mock()
+        failed_preview.available = False
+        page_service.preview_page.return_value = failed_preview
+        mocks["settings"].return_value.is_paused.return_value = False
+
+        with (
+            patch.object(svc, "check_and_send_active_page", wraps=svc.check_and_send_active_page) as drive,
+            patch.object(svc, "_check_trigger_override", return_value=None),
+            patch("src.main.schedule"),
+            patch("src.main.time.sleep", _sleep_that_stops_after(svc, 5)),
+        ):
+            svc.run()
+
+        assert drive.call_count == 1
+
+    def test_crossing_into_silence_forces_exactly_one_update(self, service_factory):
+        svc, mocks, _page_service = service_factory(is_silence=False)
+        mocks["settings"].return_value.is_paused.return_value = True
+
+        silence = {"active": False}
+        # Since issue #1788 the engine resolves silence per board, so the stub
+        # has to accept the board_id the drive path and the boundary detector
+        # both pass.
+        mocks["config"].is_silence_mode_active.side_effect = lambda board_id=None: silence["active"]
+
+        def _flip_at_tick_3(tick):
+            if tick == 3:
+                silence["active"] = True
+
+        with (
+            patch.object(svc, "check_and_send_active_page", wraps=svc.check_and_send_active_page) as drive,
+            patch("src.main.schedule"),
+            patch("src.main.time.sleep", _sleep_that_stops_after(svc, 6, _flip_at_tick_3)),
+        ):
+            svc.run()
+
+        # One initial update + exactly one forced update at the boundary.
+        assert drive.call_count == 2
+
+    def test_clientless_primary_does_not_force_an_update_every_second_during_silence(self, service_factory):
+        """A primary board with a runtime but no client is a normal running
+        state since #1749/#1813 — the fleet keeps going while that one board is
+        skipped. Its silence flag must still be latched, or the 1 Hz boundary
+        detector sees a permanent mismatch and re-drives every board once per
+        second for the whole silence window (issue #1740).
+        """
+        svc, mocks, page_service = service_factory(is_silence=True)
+        svc.vb_client = None
+        assert svc._ensure_primary_runtime().client is None
+        mocks["settings"].return_value.is_paused.return_value = False
+
+        with (
+            # The fleet came up; only the primary lacks a client (issue #1749).
+            patch.object(svc, "initialize", return_value=True),
+            patch.object(svc, "check_and_send_active_page", wraps=svc.check_and_send_active_page) as drive,
+            patch.object(svc, "_check_trigger_override", return_value=None),
+            patch("src.main.schedule"),
+            patch("src.main.time.sleep", _sleep_that_stops_after(svc, 5)),
+        ):
+            svc.run()
+
+        # Only the initial update before the loop — not one per simulated second.
+        assert drive.call_count == 1
+        assert page_service.preview_page.call_count == 1
+
+    def test_ui_only_target_during_silence_does_not_busy_loop(self, service_factory):
+        """A UI-only install must still latch the silence flag (issues #1748 + #1740).
+
+        ``OutputSettings.target == "ui"`` makes ``check_and_send_for_board``
+        return early without touching hardware. That early return sits BELOW
+        the ``rt.last_silence_mode_active`` latch on purpose: above it, the
+        flag never records that silence is active, so the 1 Hz boundary
+        detector in ``run()`` sees a permanent mismatch and re-drives every
+        board once per second for the whole silence window.
+
+        Note the fixture's settings service is a bare ``Mock()``, whose
+        ``should_send_to_board()`` returns a Mock — and ``Mock() is False`` is
+        False, so the short-circuit would never even run. This test pins a real
+        ``False`` so the UI-only path is genuinely exercised.
+        """
+        svc, mocks, _page_service = service_factory(is_silence=True)
+        settings_service = mocks["settings"].return_value
+        settings_service.is_paused.return_value = False
+        settings_service.should_send_to_board.return_value = False
+
+        # The guard is an identity check, so the fixture must yield real False.
+        assert settings_service.should_send_to_board() is False
+
+        with (
+            patch.object(svc, "check_and_send_active_page", wraps=svc.check_and_send_active_page) as drive,
+            patch("src.main.schedule"),
+            patch("src.main.time.sleep", _sleep_that_stops_after(svc, 5)),
+        ):
+            svc.run()
+
+        # Only the initial update before the loop - not one per simulated second.
+        assert drive.call_count == 1
+        # UI-only means the wire is never touched, silence window or not.
+        svc.vb_client.render.assert_not_called()

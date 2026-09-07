@@ -14,6 +14,8 @@
  * NOTE: Tests run sequentially. The wizard test runs first and configures
  * the board so subsequent tests have a working backend.
  */
+import type { Locator } from "@playwright/test";
+
 import {
   API_URL,
   BOARD_HOST,
@@ -21,6 +23,7 @@ import {
   configureBoard,
   expect,
   getMockBoardState,
+  mockBoardGrid,
   resetToSingleBoard,
   suppressWizard,
   test,
@@ -35,8 +38,9 @@ test.describe("Infrastructure", () => {
   test("mock board server is running and responsive", async () => {
     const state = await getMockBoardState();
     expect(state).toHaveProperty("current_message");
-    expect(state.current_message).toHaveLength(6);
-    expect(state.current_message[0]).toHaveLength(22);
+    const grid = mockBoardGrid(state);
+    expect(grid).toHaveLength(6);
+    expect(grid[0]).toHaveLength(22);
   });
 
   test("API health check responds OK", async () => {
@@ -205,13 +209,20 @@ test.describe("Schedule Management", () => {
     // Wait for the schedule form dialog — title is "Add Schedule" in the dialog
     await expect(page.getByText("Add Schedule").first()).toBeVisible({ timeout: 10_000 });
 
-    // Select a page (the first available one) via the Radix select trigger
+    // Select a page (the first available one) via the select trigger.
+    // The popup mounts asynchronously, so wait for the option rather than
+    // an instant isVisible() check (its timeout option is ignored).
+    const becomesVisible = (locator: Locator, timeout = 3_000) =>
+      locator.waitFor({ state: "visible", timeout }).then(
+        () => true,
+        () => false,
+      );
     const pageSelect = page.locator("#page");
     if (await pageSelect.isVisible().catch(() => false)) {
       await pageSelect.click();
       // Click first available option
       const firstOption = page.getByRole("option").first();
-      if (await firstOption.isVisible({ timeout: 3_000 }).catch(() => false)) {
+      if (await becomesVisible(firstOption)) {
         await firstOption.click();
       }
     }
@@ -221,7 +232,7 @@ test.describe("Schedule Management", () => {
     if (await startTime.isVisible().catch(() => false)) {
       await startTime.click();
       const option0900 = page.getByRole("option", { name: "09:00" });
-      if (await option0900.isVisible({ timeout: 3_000 }).catch(() => false)) {
+      if (await becomesVisible(option0900)) {
         await option0900.click();
       }
     }
@@ -231,7 +242,7 @@ test.describe("Schedule Management", () => {
     if (await endTime.isVisible().catch(() => false)) {
       await endTime.click();
       const option1700 = page.getByRole("option", { name: "17:00" });
-      if (await option1700.isVisible({ timeout: 3_000 }).catch(() => false)) {
+      if (await becomesVisible(option1700)) {
         await option1700.click();
       }
     }

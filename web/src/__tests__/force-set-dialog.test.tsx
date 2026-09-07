@@ -100,7 +100,7 @@ describe("ForceSetDialog", () => {
           revert_page_id: null,
         });
       }),
-      http.post(`${API_BASE}/force-refresh`, () => HttpResponse.json({ status: "ok", message: "Refreshed" })),
+      http.post(`${API_BASE}/force-refresh`, () => HttpResponse.json({ message: "Refreshed", sent: true })),
     );
     renderDialog();
     fireEvent.click(screen.getByRole("button", { name: /force set/i }));
@@ -137,7 +137,7 @@ describe("ForceSetDialog", () => {
           revert_page_id: null,
         });
       }),
-      http.post(`${API_BASE}/force-refresh`, () => HttpResponse.json({ status: "ok", message: "Refreshed" })),
+      http.post(`${API_BASE}/force-refresh`, () => HttpResponse.json({ message: "Refreshed", sent: true })),
     );
     renderDialog();
     const btn = screen.getByRole("button", { name: /force set/i });

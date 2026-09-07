@@ -1,24 +1,22 @@
 <h1 align="center">
   <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="docs-site/static/img/branding/logo-lockup-dark.png">
-    <source media="(prefers-color-scheme: light)" srcset="docs-site/static/img/branding/logo-lockup-light.png">
-    <img alt="FiestaBoard" src="docs-site/static/img/branding/logo-lockup-light.png" width="320">
+    <source media="(prefers-color-scheme: dark)" srcset="https://fiestaboard.app/img/branding/logo-lockup-dark.png">
+    <source media="(prefers-color-scheme: light)" srcset="https://fiestaboard.app/img/branding/logo-lockup-light.png">
+    <img alt="FiestaBoard" src="https://fiestaboard.app/img/branding/logo-lockup-light.png" width="320">
   </picture>
 </h1>
 
 <p align="center">
-  <a href="https://opensource.org/licenses/MIT"><img src="https://img.shields.io/badge/License-MIT-yellow.svg" alt="License: MIT"></a>
-  <a href="https://github.com/Fiestaboard/FiestaBoard/actions/workflows/ci.yml"><img src="https://img.shields.io/github/actions/workflow/status/Fiestaboard/FiestaBoard/ci.yml?label=CI" alt="CI"></a>
   <a href="https://hub.docker.com/r/fiestaboard/fiestaboard"><img src="https://img.shields.io/badge/docker-fiestaboard-blue?logo=docker" alt="Docker"></a>
   <a href="https://fiestaboard.app"><img src="https://img.shields.io/badge/docs-fiestaboard.app-orange" alt="Documentation"></a>
-  <a href="https://discord.gg/JvN8y6ahaf"><img src="https://img.shields.io/badge/Discord-Join%20us-7289da?logo=discord&logoColor=white" alt="Discord"></a>
+  <a href="https://discord.gg/2GAqKnRF6h"><img src="https://img.shields.io/badge/Discord-Join%20us-7289da?logo=discord&logoColor=white" alt="Discord"></a>
 </p>
 
 **FiestaBoard is free, open-source software for Vestaboard and split-flap displays.** It gives you a self-hosted platform with a plugin system to pull in data from the sources that matter to you - weather, stocks, transit, sports, surf conditions, and more - and display it on your board. Compatible with Vestaboard Flagship (22 × 6), Note (15 × 3), and Note arrays (multiple Notes tiled into one larger canvas).
 
 You bring the board. You bring the API keys for the services you care about. FiestaBoard handles the rest.
 
-**[Full Documentation](https://fiestaboard.app)** &nbsp;|&nbsp; **[Discord Community](https://discord.gg/JvN8y6ahaf)**
+**[Full Documentation](https://fiestaboard.app)** &nbsp;|&nbsp; **[Discord Community](https://discord.gg/2GAqKnRF6h)**
 
 ---
 
@@ -41,7 +39,7 @@ If you have (or are willing to buy) a Raspberry Pi 3B or newer, this is by far t
 
 That's it — FiestaBoard starts on every boot and updates itself with one click in Settings.
 
-**→ [Full Raspberry Pi setup guide](docs/setup/RASPBERRY_PI.md)** with detailed flashing instructions, headless Wi-Fi setup, and troubleshooting.
+**→ [Full Raspberry Pi setup guide](docs/internal/setup/RASPBERRY_PI.md)** with detailed flashing instructions, headless Wi-Fi setup, and troubleshooting.
 
 > **Why we recommend this path:** The Pi is inexpensive, low-power, runs 24/7, and is purpose-built to be a reliable always-on display controller. Even users who have never touched a Raspberry Pi before can complete this in under 15 minutes.
 
@@ -53,7 +51,7 @@ If you have **Home Assistant OS** or **Home Assistant Supervised**, you can inst
 
 **→ [Home Assistant Add-on setup guide](https://fiestaboard.app/docs/setup/home-assistant-addon)**
 
-> 🧪 **The HA add-on is in beta and we want your feedback.** Report bugs or feature requests at the [add-on repo issues](https://github.com/Fiestaboard/FiestaBoard-Home-Assistant-App/issues), or come say hi on [Discord](https://discord.gg/JvN8y6ahaf) — even "it just worked" reports help us stabilize the beta.
+> 🧪 **The HA add-on is in beta and we want your feedback.** Report bugs or feature requests at the [add-on repo issues](https://github.com/Fiestaboard/FiestaBoard-Home-Assistant-App/issues), or come say hi on [Discord](https://discord.gg/2GAqKnRF6h) — even "it just worked" reports help us stabilize the beta.
 
 ### Alternative: Run on a computer with Docker
 
@@ -105,7 +103,9 @@ The wizard collects your board API key, starts the server, and opens the setup p
 
 > **Use `http://`, not `https://`.** FiestaBoard runs on your local network and is served over plain HTTP — it has no SSL certificate. Type the address with `http://` (for example `http://localhost:4420`). If your browser shows a "connection is not secure" or `ERR_SSL_PROTOCOL_ERROR` page, it upgraded the address to `https://`; delete the `s` and reload. See [Can't reach the web UI](#cant-reach-the-web-ui) if it keeps happening.
 
-> **Accessing from other devices:** FiestaBoard advertises itself on your local network via mDNS/Bonjour, so you can open **http://fiestaboard.local:4420** from any device on the same network. If `.local` addresses don't work on your network, use your server's IP address instead (e.g. `http://192.168.1.50:4420`).
+> **Accessing from other devices:** From another device on the same network, open FiestaBoard at your server's IP address — for example `http://192.168.1.50:4420`. This works on a default Docker install.
+>
+> The shorter `http://fiestaboard.local:4420` only resolves when you run with host networking (`network_mode: host`, commented out in `docker-compose.yml`) *and* your host has an mDNS/Bonjour resolver — the default `docker-compose.yml` uses bridge networking (`4420:3000`) and does **not** advertise `fiestaboard.local`. The FiestaPi image ships avahi and advertises as `fiestapi.local` out of the box. See [MCP clients — Hostname tip](docs/internal/setup/MCP_CLIENTS.md) for details.
 
 ---
 
@@ -115,19 +115,19 @@ FiestaBoard has a catalog of **50+ plugins** covering weather, finance, transit,
 
 **Weather** - Temperature, UV index, precipitation, high/low, sunset time
 
-![Weather Display](./docs-site/static/img/weather-display.png)
+![Weather Display](https://fiestaboard.app/img/weather-display.png)
 
 **Stocks** - Real-time prices with color-coded change indicators
 
-![Stocks Display](./docs-site/static/img/stocks-display.png)
+![Stocks Display](https://fiestaboard.app/img/stocks-display.png)
 
 **Sports Scores** - Recent match scores from NFL, Soccer, NHL, and NBA
 
-![Sports Scores Display](./docs-site/static/img/sports-scores-display.png)
+![Sports Scores Display](https://fiestaboard.app/img/sports-scores-display.png)
 
 **Nearby Aircraft** - Real-time aircraft info with call signs, altitude, and speed
 
-![Nearby Aircraft Display](./docs-site/static/img/nearby-aircraft-display.png)
+![Nearby Aircraft Display](https://fiestaboard.app/img/nearby-aircraft-display.png)
 
 ### All Available Plugins
 
@@ -147,6 +147,7 @@ FiestaBoard has a catalog of **50+ plugins** covering weather, finance, transit,
 | [Earthquake Monitor](https://github.com/Fiestaboard/fiestaboard-plugin--earthquake) | Recent USGS earthquake data | No |
 | [Element of the Day](https://github.com/Fiestaboard/fiestaboard-plugin--element-of-day) | Periodic table element of the day | No |
 | [Generative AI Art](https://github.com/Fiestaboard/fiestaboard-plugin--generative-ai-art) | LLM-generated abstract art using the board's 8-color palette | Yes |
+| [Generative Dashboard](https://github.com/Fiestaboard/fiestaboard-plugin--generative-dashboard) | AI-curated dashboard from your other plugins' data | Yes |
 | [Generic Data](https://github.com/Fiestaboard/fiestaboard-plugin--generic-data) | Custom data from any JSON/XML URL | No |
 | [Guest WiFi](https://github.com/Fiestaboard/fiestaboard-plugin--guest-wifi) | WiFi credentials for guests | No |
 | [Hacker News](https://github.com/Fiestaboard/fiestaboard-plugin--hacker-news) | Top Hacker News story title and score | No |
@@ -163,6 +164,7 @@ FiestaBoard has a catalog of **50+ plugins** covering weather, finance, transit,
 | [On This Day](https://github.com/Fiestaboard/fiestaboard-plugin--on-this-day) | Historical event from today's date | No |
 | [Pet Facts](https://github.com/Fiestaboard/fiestaboard-plugin--pet-facts) | Random cat or dog fact | No |
 | [Pi-hole Stats](https://github.com/Fiestaboard/fiestaboard-plugin--pihole) | DNS query stats from local Pi-hole | No |
+| [Price List](https://github.com/Fiestaboard/fiestaboard-plugin--price-list) | Styled price list or menu sign with page rotation | No |
 | [Quote of the Day](https://github.com/Fiestaboard/fiestaboard-plugin--quote-of-day) | Daily inspirational quote | No |
 | [Random](./plugins/random/README.md) | Randomly selected values from a custom list, coin flip, or board color | No |
 | [Reddit Hot](https://github.com/Fiestaboard/fiestaboard-plugin--reddit-hot) | Top post from any subreddit | No |
@@ -185,8 +187,25 @@ FiestaBoard has a catalog of **50+ plugins** covering weather, finance, transit,
 | [Webhook](https://github.com/Fiestaboard/fiestaboard-plugin--webhook) | Custom message via HTTP webhook | No |
 | [White Noise](https://github.com/Fiestaboard/fiestaboard-plugin--white-noise) | Ambient rain/white noise effect | No |
 | [Wildfire Monitor](https://github.com/Fiestaboard/fiestaboard-plugin--wildfire) | Active wildfires from NIFC | No |
+| [Word Clock](https://github.com/Fiestaboard/fiestaboard-plugin--word-clock) | Time spelled out in words, QLOCKTWO style | No |
 | [Word of the Day](https://github.com/Fiestaboard/fiestaboard-plugin--word-of-day) | Word, pronunciation, and definition | No |
 | [WSDOT Ferries](https://github.com/Fiestaboard/fiestaboard-plugin--wsdot) | WA State ferry schedules and alerts | Yes (free) |
+
+### Transition Plugins (Beta)
+
+> ⚠️ **Experimental.** Enable in Settings → Beta. The plugin SDK is not yet stable — APIs and manifest fields may change before general availability.
+
+Transition plugins drive **frame-by-frame board animations** that aren't possible with Vestaboard's built-in hardware transitions. They're picked per-page (or as the system default) and animate the change from one display to the next. Preview any transition without a real board at `/transitions` (Transition Lab).
+
+<!-- Sorted alphabetically -->
+| Plugin | What It Does |
+|--------|--------------|
+| [Quiet Library](./plugins/quiet_library/README.md) | Updates word by word in small batches with long pauses — the quietest refresh |
+| [Simple Dissolve](./plugins/simple_dissolve/README.md) | Flips changed tiles in a random order for a gradual dissolve |
+| [Slot Machine](./plugins/slot_machine/README.md) | Spins each column like a flap reel before locking left-to-right |
+| [Typewriter](./plugins/typewriter/README.md) | Reveals the message one character at a time, left-to-right |
+
+Build your own with the [Transition Plugin Development Guide](./docs/internal/development/TRANSITION_PLUGIN_DEVELOPMENT.md).
 
 ---
 
@@ -198,6 +217,10 @@ Create and edit board pages with a visual editor. See exactly how content will a
 
 ![Rich Page Editor](./images/page-editor-wysiwyg.png)
 
+### Pencil Draw Mode
+
+Toggle the pencil in the editor toolbar to paint directly on the board preview. Click or drag to fill tiles with any of the 8 board colors, erase, or stamp individual characters — with full undo/redo. Works on every board size, from a single Note to large note arrays.
+
 ### Schedule Mode
 
 Use the visual calendar to schedule which page displays at which time. Set different pages for mornings, afternoons, and evenings. Choose a default page for gaps, or turn scheduling off to pick pages manually.
@@ -208,11 +231,15 @@ Use the visual calendar to schedule which page displays at which time. Set diffe
 
 Create pages for both Vestaboard Flagship (22x6) and Note (15x3). The editor and preview adapt to each device's dimensions automatically.
 
+### FiestaPanel (Virtual Boards)
+
+Turn any TV or screen with a web browser into a split-flap display that fills the screen — no Vestaboard hardware required. A FiestaPanel is a virtual board sized automatically to your screen (every flap at real Vestaboard scale, borderless edge to edge), driven by the same pages, schedules, and plugins as a physical board; the TV just opens a URL and shows it, with an optional full flip animation. See the [FiestaPanel guide](docs/features/fiestapanel.md).
+
 ### AI Page Drafts (Optional)
 
 Click the **Gen AI** button in the page editor, describe what you want ("commute home dashboard with weather and the next two Muni arrivals"), and an LLM drafts the page for you. You always review and click **Save** — nothing is auto-published to your board.
 
-**Bring your own provider.** FiestaBoard ships with no bundled LLM credentials and supports both **OpenAI-compatible** APIs (OpenRouter, OpenAI, Ollama, LM Studio, vLLM, llama.cpp) and the **Anthropic Messages API** (direct Claude access). See [docs/setup/AI_PROVIDERS.md](docs/setup/AI_PROVIDERS.md) for setup.
+**Bring your own provider.** FiestaBoard ships with no bundled LLM credentials and supports both **OpenAI-compatible** APIs (OpenRouter, OpenAI, Ollama, LM Studio, vLLM, llama.cpp) and the **Anthropic Messages API** (direct Claude access). See [docs/internal/setup/AI_PROVIDERS.md](docs/internal/setup/AI_PROVIDERS.md) for setup.
 
 ### More
 
@@ -261,15 +288,15 @@ Five preset sizes are available, plus a custom size up to **8 × 8 Notes**:
 | 4 stacked | 1 × 4 | 15 × 12 |
 | 2×2 grid | 2 × 2 | 30 × 6 |
 
-Note arrays connect through the **Vestaboard Cloud API** using an `X-Vestaboard-Token` (from your Vestaboard Cloud API subscription) — not the Read/Write key. Configure the board type, size, and token in **Settings → Hardware**, or let FiestaBoard read the array and pick the size for you with **Auto-detect from board**.
+Note arrays connect two ways: through the **Vestaboard Cloud API** using an `X-Vestaboard-Token` (from your Vestaboard Cloud API subscription — not the Read/Write key), or in **local mode**, where FiestaBoard drives each Note directly over your network with its own IP and Local API key — no cloud subscription, no rate limit, and transitions work. Configure the board type, size, and connection in **Settings → Hardware**: paste the token (cloud), or assign each Note to its slot in the tile grid (local) and use **Identify** to flash position numbers on the wall and verify the layout. **Auto-detect from board** can read the array and pick the size for you.
 
-**→ [Note Array setup guide](docs/setup/NOTE_ARRAYS.md)** for the full walkthrough, and the [Note Arrays reference](docs/reference/NOTE_ARRAYS.md) for the dimensions model and API details.
+**→ [Note Array setup guide](docs/internal/setup/NOTE_ARRAYS.md)** for the full walkthrough, and the [Note Arrays reference](docs/internal/reference/NOTE_ARRAYS.md) for the dimensions model and API details.
 
 ---
 
 ## Running on a Raspberry Pi
 
-For most users, the easiest way to run on a Pi is the pre-built **FiestaPi** image — see the [Get Started](#get-started-in-5-minutes) section above for the 4-step flash flow, or the [full Raspberry Pi setup guide](docs/setup/RASPBERRY_PI.md).
+For most users, the easiest way to run on a Pi is the pre-built **FiestaPi** image — see the [Get Started](#get-started-in-5-minutes) section above for the 4-step flash flow, or the [full Raspberry Pi setup guide](docs/internal/setup/RASPBERRY_PI.md).
 
 If you'd rather run Docker on a Pi you've already set up, the pre-built Docker image supports ARM64 out of the box — follow the same Docker Hub setup above. See the [Raspberry Pi Deployment guide](https://fiestaboard.app/docs/deployment/raspberry-pi) for advanced options.
 
@@ -331,7 +358,7 @@ Then open **http://localhost:4420** — the service starts automatically once th
 ### Still stuck?
 
 - Check the full [Troubleshooting Guide](https://fiestaboard.app/docs/troubleshooting)
-- Ask in [Discord](https://discord.gg/JvN8y6ahaf)
+- Ask in [Discord](https://discord.gg/2GAqKnRF6h)
 - [Open an issue](https://github.com/Fiestaboard/FiestaBoard/issues) on GitHub
 
 ---
@@ -382,7 +409,7 @@ The MCP server exposes 28 tools covering the full FiestaBoard API:
 | Collections | `list_collections`, `create_collection`, `update_collection`, `delete_collection` |
 | System | `get_system_status`, `get_settings_summary`, `set_active_page`, `set_schedule_mode` |
 
-The MCP server requires a bearer token for all requests. Generate one in **Settings → Integrations → MCP / external clients**. See [MCP Clients Setup](docs/setup/MCP_CLIENTS.md) for full setup details and troubleshooting.
+The MCP server requires a bearer token for all requests. Generate one in **Settings → Integrations → MCP / external clients**. See [MCP Clients Setup](docs/internal/setup/MCP_CLIENTS.md) for full setup details and troubleshooting.
 
 ---
 
@@ -404,8 +431,8 @@ Full documentation is at **[fiestaboard.app](https://fiestaboard.app)**, includi
 If you want to **contribute code** or **build plugins** (not just use FiestaBoard), see the development guides:
 
 - **[Contributing Guide](./CONTRIBUTING.md)** - Branch workflow, PR process, standards
-- **[Local Development](./docs/setup/LOCAL_DEVELOPMENT.md)** - Dev environment with hot-reload
-- **[Plugin Development](./docs/development/PLUGIN_DEVELOPMENT.md)** - Create custom plugins
+- **[Local Development](./docs/internal/setup/LOCAL_DEVELOPMENT.md)** - Dev environment with hot-reload
+- **[Plugin Development](./docs/internal/development/PLUGIN_DEVELOPMENT.md)** - Create custom plugins
 
 ```bash
 # Development environment (hot-reload for Python, volume mounts)
@@ -419,15 +446,14 @@ FiestaBoard/
 ├── plugins/          # Plugin-based data sources (weather, stocks, etc.)
 ├── src/              # Platform core (API server, display service, plugin system)
 ├── web/              # React Router v7 + Vite web UI
-├── docs/             # Development documentation
-├── docs-site/        # Documentation website (fiestaboard.app)
+├── docs/             # Documentation markdown (synced to the site repo, which builds fiestaboard.app)
 ├── Dockerfile        # Unified container (API + Web UI + nginx)
 └── docker-compose.yml
 ```
 
 ## Accessibility
 
-FiestaBoard aims to meet [WCAG 2.2 Level AA](https://www.w3.org/TR/WCAG22/) standards. We are committed to making the web UI accessible to everyone, including users who rely on assistive technologies. If you find an accessibility issue, please [open an issue](https://github.com/Fiestaboard/FiestaBoard/issues) or reach out on [Discord](https://discord.gg/JvN8y6ahaf).
+FiestaBoard aims to meet [WCAG 2.2 Level AA](https://www.w3.org/TR/WCAG22/) standards. We are committed to making the web UI accessible to everyone, including users who rely on assistive technologies. If you find an accessibility issue, please [open an issue](https://github.com/Fiestaboard/FiestaBoard/issues) or reach out on [Discord](https://discord.gg/2GAqKnRF6h).
 
 ---
 

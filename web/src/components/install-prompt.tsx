@@ -1,5 +1,6 @@
 "use client";
 
+import { Box, Flex, Heading, Text } from "@fiestaboard/ui";
 import { Download, X } from "lucide-react";
 import { useEffect, useState } from "react";
 
@@ -10,16 +11,23 @@ interface BeforeInstallPromptEvent extends Event {
   userChoice: Promise<{ outcome: "accepted" | "dismissed" }>;
 }
 
+function isRunningStandalone(): boolean {
+  return typeof window !== "undefined" && window.matchMedia("(display-mode: standalone)").matches;
+}
+
 export function InstallPrompt() {
   const t = useTranslations("installPrompt");
   const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null);
   const [isVisible, setIsVisible] = useState(false);
-  const [isInstalled, setIsInstalled] = useState(false);
+  // Read display-mode in the initializer rather than a mount effect, so an
+  // installed app never renders the "not installed" branch first
+  // (react-hooks/set-state-in-effect, issue #1568). Safe because the app is a
+  // static SPA (`ssr: false`) — there is no server render to mismatch.
+  const [isInstalled, setIsInstalled] = useState(isRunningStandalone);
 
   useEffect(() => {
-    // Check if app is already installed
-    if (window.matchMedia("(display-mode: standalone)").matches) {
-      setIsInstalled(true);
+    // Already installed: nothing to listen for.
+    if (isInstalled) {
       return;
     }
 
@@ -61,7 +69,7 @@ export function InstallPrompt() {
       window.removeEventListener("beforeinstallprompt", handleBeforeInstallPrompt);
       window.removeEventListener("appinstalled", handleAppInstalled);
     };
-  }, []);
+  }, [isInstalled]);
 
   const handleInstallClick = async () => {
     if (!deferredPrompt) {
@@ -95,22 +103,26 @@ export function InstallPrompt() {
   }
 
   return (
-    <div
+    <Box
       role="status"
       aria-live="polite"
       className="fixed bottom-4 left-4 right-4 lg:left-auto lg:right-4 lg:w-96 z-50 animate-in slide-in-from-bottom-5"
     >
-      <div className="bg-card border border-border rounded-lg shadow-lg p-4">
-        <div className="flex items-start gap-3">
-          <div className="flex-shrink-0 rounded-full bg-primary/10 p-2">
+      <Box className="bg-card border border-border rounded-lg shadow-lg p-4">
+        <Flex align="start" gap="3">
+          <Box className="flex-shrink-0 rounded-full bg-primary/10 p-2">
             <Download className="h-5 w-5 text-primary" />
-          </div>
+          </Box>
 
-          <div className="flex-1 min-w-0">
-            <h3 className="font-semibold text-sm mb-1">{t("title")}</h3>
-            <p className="text-xs text-muted-foreground mb-3">{t("description")}</p>
+          <Box className="flex-1 min-w-0">
+            <Heading level={3} size="sm" className="mb-1">
+              {t("title")}
+            </Heading>
+            <Text size="xs" tone="muted" className="mb-3">
+              {t("description")}
+            </Text>
 
-            <div className="flex gap-2">
+            <Flex gap="2">
               <button
                 onClick={handleInstallClick}
                 className="flex-1 inline-flex items-center justify-center gap-2 rounded-md bg-primary px-3 py-2 text-xs font-medium text-primary-foreground hover:bg-primary/90 transition-colors"
@@ -124,8 +136,8 @@ export function InstallPrompt() {
               >
                 {t("notNow")}
               </button>
-            </div>
-          </div>
+            </Flex>
+          </Box>
 
           <button
             onClick={handleDismiss}
@@ -134,8 +146,8 @@ export function InstallPrompt() {
           >
             <X className="h-4 w-4" />
           </button>
-        </div>
-      </div>
-    </div>
+        </Flex>
+      </Box>
+    </Box>
   );
 }
