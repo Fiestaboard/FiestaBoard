@@ -133,7 +133,7 @@ async function configureBoards(opts: {
   });
   if (!res.ok) throw new Error(`configureBoards failed: ${res.status} ${await res.text()}`);
   const data = await res.json();
-  const saved = data.settings?.boards ?? [];
+  const saved = data.boards ?? [];
   return opts.flagship ? { flagshipId: saved[0].id, arrayId: saved[1].id } : { arrayId: saved[0].id };
 }
 

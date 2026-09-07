@@ -698,7 +698,8 @@ export async function ensureTwoBoardsWithConnections(
     throw new Error(`ensureTwoBoardsWithConnections failed: ${res.status} ${await res.text()}`);
   }
   const data = await res.json();
-  const boards = data.settings?.boards ?? [];
+  // Bare BoardSettings since the conventions pass (Phase 2, Task 8).
+  const boards = data.boards ?? [];
   if (boards.length < 2) throw new Error("ensureTwoBoardsWithConnections: expected 2 boards");
   return { board1Id: boards[0].id, board2Id: boards[1].id };
 }
