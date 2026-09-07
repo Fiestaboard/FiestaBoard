@@ -13,6 +13,21 @@
   extend the critical section around its own read-modify-write (the fix for
   lost concurrent settings PUTs, #1848).
 
+  **There is deliberately no cross-process lock** (``fcntl.flock`` or
+  otherwise), and adding one would be unjustified machinery. Every deployment
+  this repo ships runs exactly one Python process against a data directory:
+  ``supervisord.conf`` starts a single ``uvicorn`` with no ``--workers``; MQTT
+  and the display loop are threads inside it, not processes; no compose
+  service other than ``fiestaboard`` mounts ``./data`` (the FiestaUpdater
+  sidecar deliberately does not); the updater's recreate is stop-old →
+  start-new with no overlap; the Pi image runs the same single container; and
+  no shipped script under ``scripts/`` writes the data dir. A lock whose
+  contended path is never exercised is a lock nobody can trust.
+
+  What *is* true is that nothing enforces this. The three ways a second writer
+  could appear, and what would have to change first, are enumerated in
+  ``docs/internal/reference/PERSISTENCE.md``. Read that before adding locking.
+
 * **Schema migrations** — the ordered ``(target_version, fn)`` machinery from
   ``src/pages/storage.py``, generalised. Migration functions receive the raw
   top-level object (usually a dict; stores whose payload is a wrapped list

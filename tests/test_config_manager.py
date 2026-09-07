@@ -1257,13 +1257,18 @@ def test_save_internal_is_atomic_on_mid_write_crash(tmp_path, monkeypatch):
 def test_save_internal_survives_a_concurrent_process_saving_the_same_config(tmp_path, monkeypatch):
     """A second process saving the same config must not break our save.
 
-    ``_file_lock`` is a ``threading.Lock``, so it serialises threads and
-    nothing else. Under ``pytest -n auto`` every xdist worker is its own
-    process sharing one ``data/`` directory, and in production the API
-    server, MQTT bridge and CLI scripts all construct a ConfigManager. If
-    every one of them stages through the same fixed ``config.json.tmp``,
-    the process that renames second finds its source already gone and
-    ``os.replace`` raises ENOENT.
+    ``_file_lock`` is a ``threading.RLock``, so it serialises threads and
+    nothing else. If two writers stage through the same fixed
+    ``config.json.tmp``, the one that renames second finds its source
+    already gone and ``os.replace`` raises ENOENT — which is why the
+    staging name carries the pid.
+
+    NOTE (Phase 2 audit): this docstring used to claim xdist workers, "the
+    MQTT bridge" and CLI scripts as current multi-process writers. They are
+    not — see ``docs/internal/reference/PERSISTENCE.md``. The test still
+    earns its place: it pins the staging-name property that makes the
+    single-writer assumption safe to *break* later, and the same collision
+    is reachable between threads.
 
     Simulated deterministically here: a competing writer completes a full
     save — same naming scheme, tmp staged then renamed into place — in the
