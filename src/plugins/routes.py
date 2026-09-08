@@ -49,6 +49,7 @@ from typing import Any, TypeVar
 
 from fastapi import APIRouter, HTTPException, Request
 
+from src.api_deprecation import superseded_by_v1
 from src.api_errors import errors
 from src.config_manager import get_config_manager, unmask_sensitive_values
 from src.displays.service import reset_display_service
@@ -225,7 +226,11 @@ async def list_plugins() -> PluginListResponse:
     )
 
 
-@router.get("/plugins/variables/all", response_model=AllPluginVariablesResponse)
+@router.get(
+    "/plugins/variables/all",
+    response_model=AllPluginVariablesResponse,
+    dependencies=[superseded_by_v1("GET /plugins/variables/all")],
+)
 async def get_all_plugin_variables() -> AllPluginVariablesResponse:
     """Every template variable exposed by the plugin system, for the editor."""
     if not PLUGIN_SYSTEM_AVAILABLE:
@@ -313,6 +318,7 @@ async def get_plugin_updates() -> PluginUpdatesResponse:
     "/plugins/{plugin_id}",
     response_model=PluginDetail,
     responses=errors(404, 503),
+    dependencies=[superseded_by_v1("GET /plugins/{plugin_id}")],
 )
 async def get_plugin(plugin_id: str) -> PluginDetail:
     """Manifest, configuration and status for one plugin."""
@@ -391,6 +397,7 @@ async def get_plugin_manifest(plugin_id: str) -> PluginManifestResponse:
     "/plugins/{plugin_id}/config",
     response_model=PluginConfigUpdateResponse,
     responses=errors(400, 404, 503),
+    dependencies=[superseded_by_v1("PUT /plugins/{plugin_id}/config")],
 )
 @plugin_errors_to_http
 async def update_plugin_config(plugin_id: str, request: PluginConfigRequest) -> PluginConfigUpdateResponse:
@@ -410,6 +417,7 @@ async def update_plugin_config(plugin_id: str, request: PluginConfigRequest) -> 
     "/plugins/{plugin_id}/enable",
     response_model=PluginEnablementResponse,
     responses=errors(400, 404, 503),
+    dependencies=[superseded_by_v1("POST /plugins/{plugin_id}/enable")],
 )
 @plugin_errors_to_http
 async def enable_plugin(plugin_id: str) -> PluginEnablementResponse:
@@ -424,6 +432,7 @@ async def enable_plugin(plugin_id: str) -> PluginEnablementResponse:
     "/plugins/{plugin_id}/disable",
     response_model=PluginEnablementResponse,
     responses=errors(400, 404, 503),
+    dependencies=[superseded_by_v1("POST /plugins/{plugin_id}/disable")],
 )
 @plugin_errors_to_http
 async def disable_plugin(plugin_id: str) -> PluginEnablementResponse:
@@ -438,6 +447,7 @@ async def disable_plugin(plugin_id: str) -> PluginEnablementResponse:
     "/plugins/{plugin_id}/data",
     response_model=PluginDataResponse,
     responses=errors(400, 404, 503),
+    dependencies=[superseded_by_v1("GET /plugins/{plugin_id}/data")],
 )
 async def get_plugin_data(plugin_id: str) -> PluginDataResponse:
     """Fetch current data from a plugin.

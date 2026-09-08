@@ -226,6 +226,41 @@ days, so a release count is not a window an outside integrator can plan
 against — and callers this repo cannot see are the entire reason these routes
 still exist.
 
+### The second cohort: what `/v1` supersedes
+
+The same rule was then applied to the routes `/v1` replaced. #1934 moved every
+web-client call `/v1` supersedes onto `/v1` and left **33** internal endpoints
+with no product caller; #1936 closed five of the ten gaps that migration found.
+**25 of the 33** carry the notice from #1941, on the same clock
+(`Sunset: Tue, 01 Dec 2026 00:00:00 GMT`) — one appliance, one removal date,
+because two countdowns a few weeks apart means an integrator has to track both
+to learn when their script stops working. The cohort is
+`SUPERSEDED_BY_V1` in `src/api_deprecation.py` and
+`tests/test_superseded_route_headers.py` pins it in both directions.
+
+**The eight that were excluded are the reviewable half.** A
+`successor-version` link is a promise that following it loses nothing, so a
+route whose v1 equivalent still drops a field is *not* superseded and does not
+get one:
+
+| Not deprecated | What its v1 equivalent still drops |
+|---|---|
+| `POST /pages/{id}/send` | `paused` and `target`; a paused board is a 409 on v1, not a 200 that says so |
+| `POST /displays/{type}/send` | nothing in `POST /v1/boards/{b}/message` accepts a plugin id at all |
+| `GET`/`PUT /schedules/enabled` | both answer for the *install* when no `board_id` is given; `GET`/`PATCH /v1/boards/{board}` has no board-less form, and the write 404s where these fall back to the global mirror |
+| `GET`/`PUT /schedules/default-page` | same |
+| `GET /displays` | `source`; and it 503s where this answers 200 with an empty list |
+| `POST /settings/board/{id}/pause` | the embedded `board_settings` block — `BoardDetail` deliberately carries no credentials, tiles, colour or transport fields |
+
+**Known limitation of the mechanism, shared with the first cohort.**
+`deprecation_notice` stamps the `Response` FastAPI injects into the handler,
+and FastAPI merges that object's headers only into a response built from a
+returned value. A route that raises `HTTPException` is answered from a fresh
+response and the notice is dropped, so a caller who only ever sees 4xx never
+sees it. Pinned by
+`test_a_refusal_carries_no_notice__inherited_limitation` rather than left to be
+rediscovered as a bug.
+
 ## Identifiers
 
 - Resource ids are validated against reserved route words so

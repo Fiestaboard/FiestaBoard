@@ -19,6 +19,7 @@ import logging
 
 from fastapi import APIRouter, HTTPException, Response
 
+from src.api_deprecation import superseded_by_v1
 from src.api_errors import errors
 from src.board_guards import _board_is_paused
 from src.board_send_executor import run_board_send
@@ -64,7 +65,12 @@ async def list_displays():
     )
 
 
-@router.get("/displays/{display_type}", response_model=DisplayResponse, responses=errors(400, 503))
+@router.get(
+    "/displays/{display_type}",
+    response_model=DisplayResponse,
+    responses=errors(400, 503),
+    dependencies=[superseded_by_v1("GET /displays/{display_type}")],
+)
 async def get_display(display_type: str):
     """
     Get formatted output for a specific display type.

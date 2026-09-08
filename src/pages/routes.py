@@ -26,6 +26,7 @@ import logging
 
 from fastapi import APIRouter, HTTPException, Query
 
+from src.api_deprecation import superseded_by_v1
 from src.api_errors import errors
 from src.board_guards import _board_dims, _board_is_paused, _require_board, _silence_active
 from src.collections.models import is_collection_id
@@ -97,7 +98,11 @@ def _reject_plugin_strategy_when_beta_off(strategy: str | None) -> None:
 
 # No 4xx of its own: an empty instance is an empty list, not an error. See the
 # declared_errors exception in tests/conventions_manifest.json.
-@router.get("/pages", response_model=PageListResponse)
+@router.get(
+    "/pages",
+    response_model=PageListResponse,
+    dependencies=[superseded_by_v1("GET /pages")],
+)
 async def list_pages():
     """List all saved pages."""
     page_service = get_page_service()
@@ -173,7 +178,13 @@ async def get_current_display():
     )
 
 
-@router.post("/pages", response_model=PageModel, status_code=201, responses=errors(400))
+@router.post(
+    "/pages",
+    response_model=PageModel,
+    status_code=201,
+    responses=errors(400),
+    dependencies=[superseded_by_v1("POST /pages")],
+)
 async def create_page(page_data: PageCreate):
     """
     Create a new page.
@@ -192,7 +203,12 @@ async def create_page(page_data: PageCreate):
         raise HTTPException(status_code=400, detail=str(e)) from e
 
 
-@router.get("/pages/{page_id}", response_model=PageModel, responses=errors(404))
+@router.get(
+    "/pages/{page_id}",
+    response_model=PageModel,
+    responses=errors(404),
+    dependencies=[superseded_by_v1("GET /pages/{page_id}")],
+)
 async def get_page(page_id: str):
     """Get a page by ID."""
     page_service = get_page_service()
@@ -208,6 +224,7 @@ async def get_page(page_id: str):
     "/pages/{page_id}",
     response_model=PageUpdateResponse,
     responses=errors(400, 404),
+    dependencies=[superseded_by_v1("PUT /pages/{page_id}")],
 )
 async def update_page(page_id: str, page_data: PageUpdate):
     """Update an existing page.
@@ -238,7 +255,12 @@ async def update_page(page_id: str, page_data: PageUpdate):
     return PageUpdateResponse(page=page, incompatible_references=incompatible)
 
 
-@router.delete("/pages/{page_id}", response_model=PageDeleteResponse, responses=errors(404))
+@router.delete(
+    "/pages/{page_id}",
+    response_model=PageDeleteResponse,
+    responses=errors(404),
+    dependencies=[superseded_by_v1("DELETE /pages/{page_id}")],
+)
 async def delete_page(page_id: str):
     """Delete a page.
 
