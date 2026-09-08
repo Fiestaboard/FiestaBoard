@@ -113,7 +113,11 @@ async def list_boards() -> BoardListResponse:
     ),
 )
 async def get_board(board: str) -> BoardDetail:
-    from src.collections.service import get_collection_service, resolve_active_page_id
+    from src.collections.service import (
+        get_collection_service,
+        resolve_active_page_id,
+        resolve_next_check_seconds,
+    )
     from src.time_service import get_time_service
 
     board_id, entry = resolve_board(board)
@@ -124,15 +128,21 @@ async def get_board(board: str) -> BoardDetail:
 
     service = runtime.get_service()
     characters: list[list[int]] | None = None
+    expected_characters: list[list[int]] | None = None
     read_at: str | None = None
     if service is not None:
         rt = service.get_runtime(board_id)
         if rt is not None:
+            # What was *sent* and what the board *shows* are two different
+            # facts, and the difference is the only way a caller can notice
+            # the board has drifted — a flap that did not turn, or another
+            # writer. GET /board/current-message publishes both; so does this.
+            expected_characters = getattr(rt.client, "_last_characters", None) if rt.client is not None else None
             characters = rt.polled_characters
             if characters is not None and rt.polled_at is not None:
                 read_at = datetime.fromtimestamp(rt.polled_at, tz=UTC).isoformat()
             if characters is None:
-                characters = getattr(rt.client, "_last_characters", None) if rt.client is not None else None
+                characters = expected_characters
 
     active_page_id = settings_service.get_active_page_id(board_id=board_id)
     scheduled_page_id = None
@@ -157,10 +167,12 @@ async def get_board(board: str) -> BoardDetail:
         **base.model_dump(),
         characters=characters,
         text=characters_to_message(characters) if characters else None,
+        expected_characters=expected_characters,
         read_at=read_at,
         active_page_id=active_page_id,
         scheduled_page_id=scheduled_page_id,
         resolved_page_id=resolve_active_page_id(chosen, get_collection_service),
+        resolved_next_check_seconds=resolve_next_check_seconds(chosen, get_collection_service),
         source=source,
         default_page_id=schedule_service.get_default_page(board_id=board_id),
         override_expires_at=(override.expires_at if override is not None and board_id == primary_id else None),
@@ -486,7 +498,9 @@ async def clear_board_message(board: str) -> MessageResponse:
     description=(
         "Sets the page (or collection) this board shows until something changes it — the sticky selection a "
         "schedule falls back from. The page is rendered and sent immediately. Send `null` to unpin, after which "
-        "the board follows its schedule again. Pinning a page whose size does not match the board is rejected."
+        "the board follows its schedule again. Pinning a page whose size does not match the board is rejected.\n\n"
+        "The selection is stored whether or not the send succeeded, so check `sent` — and `error`, which names "
+        "the render or send failure when it is false."
     ),
 )
 async def set_board_active_page(board: str, request: ActivePageRequest) -> ActivePageResponse:
@@ -499,5 +513,9 @@ async def set_board_active_page(board: str, request: ActivePageRequest) -> Activ
         board_id=board_id,
         page_id=response.get("page_id"),
         sent=bool(response.get("sent_to_board")),
+        # #1791 added this to the internal response precisely so a 200 that
+        # never reached the board is detectable. Dropping it made every v1
+        # pin look like a success.
+        error=response.get("error"),
         warnings=list(response.get("warnings") or []),
     )

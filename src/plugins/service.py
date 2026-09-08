@@ -143,6 +143,29 @@ class PluginService:
         """
         self.registry.clear_update_status(plugin_id)
 
+    # -- reads ---------------------------------------------------------------
+
+    async def fetch_data(self, plugin_id: str) -> Any:
+        """The plugin's current data, with an unavailable plugin *reported*.
+
+        Returns the registry's own :class:`~src.plugins.base.PluginResult`.
+        Only one outcome raises: :class:`PluginNotFound`, for an id the
+        registry has never heard of, because that is a mistake in the request
+        rather than a fact about the plugin. Disabled, unconfigured, a
+        transition plugin with no data, and a fetch that threw all come back
+        ``available=False`` with the reason in ``error`` — the registry
+        already distinguishes those four, and flattening them into one
+        refusal throws that away.
+
+        ``fetch_plugin_data`` makes network calls, so it runs on a worker
+        thread. Inline it would seize the single event loop for the whole
+        fetch (``tests/test_plugin_data_event_loop.py``).
+        """
+        registry = self.registry
+        if registry.get_plugin(plugin_id) is None:
+            raise PluginNotFound(f"Plugin not found: {plugin_id}")
+        return await asyncio.to_thread(registry.fetch_plugin_data, plugin_id)
+
     # -- config / enablement mutations --------------------------------------
 
     def update_plugin_config(self, plugin_id: str, config: dict[str, Any]) -> dict[str, Any]:

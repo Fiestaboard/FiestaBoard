@@ -4,7 +4,8 @@ Activated only when ``FIESTABOARD_AUTH_ENABLED`` is truthy — otherwise it
 short-circuits to a no-op so existing local-only installs are unaffected.
 
 Public paths (no auth required):
-    * ``/`` and ``/health`` — liveness probes / nginx upstream checks
+    * ``/``, ``/health`` and ``/v1/health`` — liveness probes / nginx
+      upstream checks / the web UI's pre-session boot gate
     * ``/auth/*`` — login / setup / status itself
     * ``/openapi.json``, ``/docs``, ``/redoc`` — API docs (still useful)
     * ``/internal/openapi.json`` — the full schema, public for the same
@@ -61,7 +62,15 @@ _PUBLIC_PREFIXES: tuple = (
 )
 
 # Exact paths that never require authentication.
-_PUBLIC_EXACT: frozenset = frozenset({"/", "/auth", "/health"})
+#
+# ``/v1/health`` is here for the same two reasons ``/health`` is, and it is
+# the same handler: a container liveness probe has no session to present, and
+# the web UI polls it *before* it has one to decide whether the API is up. A
+# health endpoint that answers 401 can serve neither purpose, which made the
+# whole ``/v1`` surface unusable as the one a consumer is pointed at. Both
+# nginx regimes are listed because ``/api`` is stripped from most traffic and
+# left intact on some paths — the same double form ``_is_v1_path`` handles.
+_PUBLIC_EXACT: frozenset = frozenset({"/", "/auth", "/health", "/v1/health", "/api/v1/health"})
 
 
 def _is_public_path(path: str) -> bool:
