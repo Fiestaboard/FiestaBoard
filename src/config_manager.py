@@ -624,10 +624,7 @@ class ConfigManager:
 
         Caller is responsible for persisting via ``_save_internal``.
         """
-        try:
-            from src import __version__ as current_version
-        except Exception:  # pragma: no cover - defensive
-            return
+        from src import __version__ as current_version
         self._config[APP_VERSION_SEEN_KEY] = current_version
 
     # Files captured in the pre-init snapshot. Mirrors backup/service.py's
@@ -664,10 +661,7 @@ class ConfigManager:
         clobbers the one the caller passed in. We hand-roll a minimal
         snapshot to keep the safety net free of that init-time recursion.
         """
-        try:
-            from src import __version__ as current_version
-        except Exception:  # pragma: no cover
-            return
+        from src import __version__ as current_version
 
         seen = self._config.get(APP_VERSION_SEEN_KEY)
         # Latch: once True for this process it stays True. A second load (e.g. a

@@ -106,10 +106,7 @@ class BackupService:
 
             installed_plugins = self._collect_installed_plugins()
 
-            try:
-                from src import __version__ as app_version
-            except Exception:  # pragma: no cover - defensive only
-                app_version = "unknown"
+            from src import __version__ as app_version
 
             return {
                 BACKUP_FILE_MARKER: True,
