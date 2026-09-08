@@ -393,9 +393,80 @@ async def lifespan(app: FastAPI):
 
 
 # Create FastAPI app
+# The front page of /api/docs. Swagger renders this as markdown, so it is the
+# one place a newcomer can be told what the nouns are and be handed a request
+# that works. Keep it short and keep it true — no endpoint that does not exist.
+API_DESCRIPTION = """\
+FiestaBoard drives one or more split-flap displays from templated pages.
+
+### Hello world
+
+Put text on the board right now:
+
+```bash
+curl -X POST http://fiestaboard.local:4420/api/send-message \\
+  -H 'Content-Type: application/json' \\
+  -d '{"text": "HELLO WORLD"}'
+```
+
+### How the pieces fit
+
+* A **page** is a template: literal text plus `{{plugin_id.variable}}`
+  placeholders that **plugins** fill with live data.
+* A **schedule** or a **collection** decides which page a board shows at a
+  given moment. `POST /send-message` bypasses both for a one-off write.
+* `/settings/*` and `/config/*` are the install's configuration;
+  `/system/*`, `/network/*` and `/auth/*` administer the appliance itself.
+
+### Base URL
+
+nginx fronts the API under `/api`, so every path below is reached as
+`/api/<path>` — `GET /status` is `http://fiestaboard.local:4420/api/status`.
+These docs live at `/api/docs`, the schema at `/api/openapi.json`.
+
+### Authentication
+
+Off by default: a fresh install answers every request. With
+`FIESTABOARD_AUTH_ENABLED=true`, requests carry the session cookie that
+`POST /auth/login` sets. MCP clients may instead send
+`Authorization: Bearer <token>` to `/api/mcp` (see `POST /auth/mcp-token`).
+"""
+
+# Deliberate order — Swagger lists tags in this order, and anything not listed
+# here falls in after them. Boards and the content on them come first; the
+# appliance-administration surfaces a newcomer does not need on day one
+# (settings, updates, Wi-Fi, diagnostics) come last. The previous default was
+# first-appearance-in-the-paths-object order, which opened on MQTT and put
+# `pages` fourteenth, below `debug`.
+OPENAPI_TAGS = [
+    {"name": "service", "description": "The display loop itself: health, status, start/stop/refresh."},
+    {"name": "board", "description": "Write to a board out of band, and read back what is physically on it."},
+    {"name": "pages", "description": "Pages — the unit of content. CRUD, preview, send, import/export."},
+    {"name": "templates", "description": "Render and validate template text; list the variables and formula functions it can use."},
+    {"name": "displays", "description": "Device shapes and raw character-code grids."},
+    {"name": "schedules", "description": "Time-of-day rules choosing which page a board shows."},
+    {"name": "collections", "description": "Ordered groups of pages that rotate as one."},
+    {"name": "triggers", "description": "Event-driven page interrupts, and the ones currently firing."},
+    {"name": "transitions", "description": "Transition plugins (beta): preview, test and restore board animations."},
+    {"name": "plugins", "description": "Install, configure, enable and inspect the data-source plugins that fill template variables."},
+    {"name": "plugin-support", "description": "Platform helpers that back a plugin's configuration form."},
+    {"name": "staff-picks", "description": "Curated example pages shipped with the app."},
+    {"name": "panels", "description": "FiestaPanel — the read-only browser view of a board."},
+    {"name": "ai", "description": "AI page generation, chat editing and the operation grammar shared with MCP."},
+    {"name": "settings", "description": "Install settings: boards, display, location, polling, output, MQTT, AI, beta flags."},
+    {"name": "config", "description": "Board connection configuration and its validation/discovery helpers."},
+    {"name": "backup", "description": "Export and import the whole install as one file."},
+    {"name": "mqtt", "description": "MQTT / Home Assistant discovery status and republish."},
+    {"name": "auth", "description": "Optional login, password/username management and MCP bearer tokens."},
+    {"name": "network", "description": "Wi-Fi configuration for the appliance."},
+    {"name": "system", "description": "Version, update checks, updates and rollback, restart and shutdown."},
+    {"name": "debug", "description": "Diagnostics: logs, caches, connection tests and board fill/blank probes."},
+]
+
 app = FastAPI(
     title="FiestaBoard Display API",
-    description="REST API for controlling and monitoring the FiestaBoard Display Service",
+    description=API_DESCRIPTION,
+    openapi_tags=OPENAPI_TAGS,
     version=__version__,
     lifespan=lifespan,
     # The API is served behind nginx under the /api/* prefix (which nginx
