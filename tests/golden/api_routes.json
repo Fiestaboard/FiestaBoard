@@ -1636,6 +1636,254 @@
       "kind": "APIRoute"
     },
     {
+      "path": "/v1/boards",
+      "methods": [
+        "GET"
+      ],
+      "name": "list_boards",
+      "kind": "APIRoute"
+    },
+    {
+      "path": "/v1/boards/{board}",
+      "methods": [
+        "GET"
+      ],
+      "name": "get_board",
+      "kind": "APIRoute"
+    },
+    {
+      "path": "/v1/boards/{board}",
+      "methods": [
+        "PATCH"
+      ],
+      "name": "update_board",
+      "kind": "APIRoute"
+    },
+    {
+      "path": "/v1/boards/{board}/active-page",
+      "methods": [
+        "PUT"
+      ],
+      "name": "set_board_active_page",
+      "kind": "APIRoute"
+    },
+    {
+      "path": "/v1/boards/{board}/message",
+      "methods": [
+        "DELETE"
+      ],
+      "name": "clear_board_message",
+      "kind": "APIRoute"
+    },
+    {
+      "path": "/v1/boards/{board}/message",
+      "methods": [
+        "POST"
+      ],
+      "name": "send_to_board",
+      "kind": "APIRoute"
+    },
+    {
+      "path": "/v1/collections",
+      "methods": [
+        "GET"
+      ],
+      "name": "list_collections",
+      "kind": "APIRoute"
+    },
+    {
+      "path": "/v1/collections",
+      "methods": [
+        "POST"
+      ],
+      "name": "create_collection",
+      "kind": "APIRoute"
+    },
+    {
+      "path": "/v1/collections/{collection_id}",
+      "methods": [
+        "DELETE"
+      ],
+      "name": "delete_collection",
+      "kind": "APIRoute"
+    },
+    {
+      "path": "/v1/collections/{collection_id}",
+      "methods": [
+        "GET"
+      ],
+      "name": "get_collection",
+      "kind": "APIRoute"
+    },
+    {
+      "path": "/v1/collections/{collection_id}",
+      "methods": [
+        "PUT"
+      ],
+      "name": "update_collection",
+      "kind": "APIRoute"
+    },
+    {
+      "path": "/v1/functions",
+      "methods": [
+        "GET"
+      ],
+      "name": "list_functions",
+      "kind": "APIRoute"
+    },
+    {
+      "path": "/v1/health",
+      "methods": [
+        "GET"
+      ],
+      "name": "health",
+      "kind": "APIRoute"
+    },
+    {
+      "path": "/v1/pages",
+      "methods": [
+        "GET"
+      ],
+      "name": "list_pages",
+      "kind": "APIRoute"
+    },
+    {
+      "path": "/v1/pages",
+      "methods": [
+        "POST"
+      ],
+      "name": "create_page",
+      "kind": "APIRoute"
+    },
+    {
+      "path": "/v1/pages/{page_id}",
+      "methods": [
+        "DELETE"
+      ],
+      "name": "delete_page",
+      "kind": "APIRoute"
+    },
+    {
+      "path": "/v1/pages/{page_id}",
+      "methods": [
+        "GET"
+      ],
+      "name": "get_page",
+      "kind": "APIRoute"
+    },
+    {
+      "path": "/v1/pages/{page_id}",
+      "methods": [
+        "PUT"
+      ],
+      "name": "update_page",
+      "kind": "APIRoute"
+    },
+    {
+      "path": "/v1/plugins",
+      "methods": [
+        "GET"
+      ],
+      "name": "list_plugins",
+      "kind": "APIRoute"
+    },
+    {
+      "path": "/v1/plugins/{plugin_id}",
+      "methods": [
+        "GET"
+      ],
+      "name": "get_plugin",
+      "kind": "APIRoute"
+    },
+    {
+      "path": "/v1/plugins/{plugin_id}",
+      "methods": [
+        "PATCH"
+      ],
+      "name": "update_plugin",
+      "kind": "APIRoute"
+    },
+    {
+      "path": "/v1/plugins/{plugin_id}/data",
+      "methods": [
+        "GET"
+      ],
+      "name": "get_plugin_data",
+      "kind": "APIRoute"
+    },
+    {
+      "path": "/v1/plugins/{plugin_id}/receive",
+      "methods": [
+        "POST"
+      ],
+      "name": "receive_plugin_payload",
+      "kind": "APIRoute"
+    },
+    {
+      "path": "/v1/render",
+      "methods": [
+        "POST"
+      ],
+      "name": "render_template",
+      "kind": "APIRoute"
+    },
+    {
+      "path": "/v1/schedules",
+      "methods": [
+        "GET"
+      ],
+      "name": "list_schedules",
+      "kind": "APIRoute"
+    },
+    {
+      "path": "/v1/schedules",
+      "methods": [
+        "POST"
+      ],
+      "name": "create_schedule",
+      "kind": "APIRoute"
+    },
+    {
+      "path": "/v1/schedules/{schedule_id}",
+      "methods": [
+        "DELETE"
+      ],
+      "name": "delete_schedule",
+      "kind": "APIRoute"
+    },
+    {
+      "path": "/v1/schedules/{schedule_id}",
+      "methods": [
+        "GET"
+      ],
+      "name": "get_schedule",
+      "kind": "APIRoute"
+    },
+    {
+      "path": "/v1/schedules/{schedule_id}",
+      "methods": [
+        "PUT"
+      ],
+      "name": "update_schedule",
+      "kind": "APIRoute"
+    },
+    {
+      "path": "/v1/status",
+      "methods": [
+        "GET"
+      ],
+      "name": "status",
+      "kind": "APIRoute"
+    },
+    {
+      "path": "/v1/variables",
+      "methods": [
+        "GET"
+      ],
+      "name": "list_variables",
+      "kind": "APIRoute"
+    },
+    {
       "path": "/version",
       "methods": [
         "GET"

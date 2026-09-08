@@ -447,6 +447,9 @@ Off by default: a fresh install answers every request. With
 # first-appearance-in-the-paths-object order, which opened on MQTT and put
 # `pages` fourteenth, below `debug`.
 OPENAPI_TAGS = [
+    # `/v1` is deliberately absent: it is prepended by src/v1/openapi.py, which
+    # owns its own description and has to run after this module is importable.
+    # Swagger renders tags in schema order, so the consumer surface still leads.
     {"name": "service", "description": "The display loop itself: health, status, start/stop/refresh."},
     {"name": "board", "description": "Write to a board out of band, and read back what is physically on it."},
     {"name": "pages", "description": "Pages — the unit of content. CRUD, preview, send, import/export."},
@@ -2114,6 +2117,14 @@ app.include_router(plugin_support_router)
 from .backup.routes import router as backup_router  # noqa: E402
 
 app.include_router(backup_router)
+
+# The consumer-facing API. Mounted last, and imported here rather than at the
+# top of the module, because src/v1 imports the domain routers it adapts —
+# every one of which this module has already imported by now. src/v1 owns its
+# own routes, its tag metadata and the securitySchemes declaration.
+from .v1 import mount_v1  # noqa: E402
+
+mount_v1(app)
 
 
 if __name__ == "__main__":

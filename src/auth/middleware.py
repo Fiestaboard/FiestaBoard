@@ -9,14 +9,17 @@ Public paths (no auth required):
     * ``/openapi.json``, ``/docs``, ``/redoc`` — API docs (still useful)
     * CORS preflight (``OPTIONS``) requests
 
-MCP endpoint (``/mcp/*``):
-    If an MCP token is configured (``FIESTABOARD_MCP_TOKEN`` or the value
+Bearer-token paths (``/mcp/*`` and ``/v1/*``):
+    If an API token is configured (``FIESTABOARD_MCP_TOKEN`` or the value
     stored via Settings), the MCP endpoint requires an
     ``Authorization: Bearer <token>`` header instead of the session
     cookie. This lets external MCP clients (Claude Desktop, Claude Code)
-    connect without needing to drive a browser login flow. A 401 from
-    this endpoint includes ``WWW-Authenticate: Bearer`` so the client
-    knows to send a pre-shared token rather than attempting OAuth.
+    connect — and lets any script drive ``/v1`` — without needing to
+    drive a browser login flow. A 401 from the MCP endpoint includes
+    ``WWW-Authenticate: Bearer`` so the client knows to send a pre-shared
+    token rather than attempting OAuth. On ``/v1`` a request with no
+    Authorization header falls through to the ordinary session-cookie
+    check instead, so a token does not lock the browser out.
 
     That check runs in **every** auth mode, ``disabled`` included — a
     configured token is a credential the operator asked for, not a
@@ -80,6 +83,27 @@ def _is_mcp_path(path: str) -> bool:
     return path == "/mcp" or path.startswith(("/mcp/", "/api/mcp/")) or path == "/api/mcp"
 
 
+def _is_v1_path(path: str) -> bool:
+    """True for the consumer-facing ``/v1`` surface.
+
+    The same nginx double-regime as MCP: usually the ``/api`` prefix is
+    stripped before we see it, but a path arriving with the prefix intact
+    must resolve identically.
+    """
+    return path == "/v1" or path.startswith(("/v1/", "/api/v1/")) or path == "/api/v1"
+
+
+def _accepts_bearer(path: str) -> bool:
+    """Paths on which an ``Authorization: Bearer`` token is a valid credential.
+
+    Bearer acceptance used to stop at ``/mcp*``, which is the mechanical
+    reason a script could not authenticate against the REST API at all: the
+    token existed, ``verify_mcp_bearer`` existed, and no HTTP path would take
+    it. ``/v1`` is the surface a script is meant to use, so it takes it too.
+    """
+    return _is_mcp_path(path) or _is_v1_path(path)
+
+
 def _bearer_from(request: Request) -> str | None:
     """Pull the token from an ``Authorization: Bearer <token>`` header."""
     header = request.headers.get("authorization", "")
@@ -133,16 +157,22 @@ class AuthMiddleware(BaseHTTPMiddleware):
         # When no token is configured there is nothing to enforce, so we
         # fall through: auth-disabled installs stay open and cookie-auth
         # installs keep using the session cookie.
-        if _is_mcp_path(path) and mcp_token() is not None:
+        if _accepts_bearer(path) and mcp_token() is not None:
             supplied = _bearer_from(request)
-            # No Authorization header, or a bad one -> challenge. We skip
-            # the session-cookie fallback because Claude/etc. will never
-            # have a cookie, and a 401 with WWW-Authenticate is exactly
-            # the signal such a client needs.
-            if supplied is None or not verify_mcp_bearer(supplied):
+            if supplied is not None:
+                if not verify_mcp_bearer(supplied):
+                    return _mcp_unauthorized()
+                request.scope["auth_user"] = "mcp-client" if _is_mcp_path(path) else "api-token"
+                return await call_next(request)
+            # A bearer path with no Authorization header. On /mcp that is a
+            # challenge — Claude/etc. will never have a cookie, and a 401
+            # with WWW-Authenticate is exactly the signal such a client
+            # needs. On /v1 it falls through to the ordinary cookie check
+            # instead, because the browser is a legitimate v1 caller once
+            # the web UI migrates onto it (Wave 2), and refusing a valid
+            # session there would be a regression the token merely enables.
+            if _is_mcp_path(path):
                 return _mcp_unauthorized()
-            request.scope["auth_user"] = "mcp-client"
-            return await call_next(request)
 
         if mode == "disabled":
             return await call_next(request)
