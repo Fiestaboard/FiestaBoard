@@ -328,8 +328,7 @@ def _reads_body_via_request(record: dict[str, Any]) -> list[str]:
         if isinstance(value, ast.Name) and value.id in request_params:
             seen.add(f"{value.id}.{called.attr}()")
     return [
-        f"reads the request body via `{marker}` on a bare `Request` — use a Pydantic model"
-        for marker in sorted(seen)
+        f"reads the request body via `{marker}` on a bare `Request` — use a Pydantic model" for marker in sorted(seen)
     ]
 
 
