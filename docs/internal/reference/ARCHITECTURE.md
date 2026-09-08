@@ -41,13 +41,20 @@ in `tests/layering_manifest.json`, and only those**:
 | A router may not open a file | `router_no_file_io` | No `open()`, `Path.read_*`/`write_*`, `json.load`/`dump`, `os`/`shutil` filesystem verb, or import of a storage module / `src.atomic_io` / `src.paths` in a transport module |
 | A router may not hold domain logic | `router_no_domain_logic` | A **size proxy**: every module-level function in a transport module stays within 15 body statements and cyclomatic complexity 8 |
 
-Enforced today: **`auth`, `backup`, `mqtt`, `network`, `schedules`,
-`triggers`**. Everything else — including `pages`, `collections`, `panels`,
-`config_api`, `settings`, `transitions`, `board_api`, `system` — is
+Enforced today: **`auth`, `backup`, `config_api`, `mqtt`, `network`,
+`schedules`, `system`, `transitions`, `triggers`**. Everything else —
+including `pages`, `collections`, `panels`, `settings`, `board_api` — is
 **unenforced**, and most of it does not currently comply: the 2026-09 audit
 counted ~1,600 lines of domain logic living in thirteen routers. A domain
 joins the list in the PR that makes it comply, never by loosening a rule
 until it passes. The ratchet is a floor that only moves up.
+
+`config_api`, `system` and `transitions` joined by moving ~790 lines out of
+their routers: `src/config_api/service.py` is new (the domain had no service
+module at all), the transition frame loops and board routing went to
+`src/transitions/service.py`, and the update-apply and rollback workflows went
+to `src/system/update_service.py`, which also stopped importing `fastapi`.
+No rule was loosened and no exception was recorded to admit any of them.
 
 The third rule is a proxy and its docstring says plainly what it does and
 does not catch — logic sharded across ten small helpers passes; a dense

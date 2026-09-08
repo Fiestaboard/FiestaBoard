@@ -37,6 +37,7 @@ import src.config_api.routes as routes
 from src.config_api.models import BoardConfigUpdate, BoardScanRequest, GeneralConfigUpdate
 
 assert "src.api_server" not in sys.modules, "importing the config router must not import api_server"
+assert "src.config_api.service" in sys.modules, "the router must resolve its service at import time"
 
 
 def call(coro):
@@ -71,6 +72,8 @@ service = MagicMock()
 with (
     patch("src.config_api.routes.get_config_manager", return_value=config_manager),
     patch("src.config_api.routes.get_settings_service", return_value=settings_service),
+    patch("src.config_api.service.get_config_manager", return_value=config_manager),
+    patch("src.config_api.service.get_settings_service", return_value=settings_service),
     patch("src.config_api.routes.primary_board_entry", return_value={"host": "192.0.2.4", "local_api_key": "stored"}),
     patch("src.config_api.routes.reinitialize_board_clients") as reinit,
     patch("src.config_api.routes.get_service", return_value=service),
@@ -140,7 +143,7 @@ def test_config_router_source_declares_no_api_server_import():
     rarely-taken ``except`` branch fails the build too.
     """
     offenders: list[str] = []
-    for name in ("routes.py", "models.py", "__init__.py"):
+    for name in ("routes.py", "service.py", "models.py", "__init__.py"):
         tree = ast.parse((REPO_ROOT / "src" / "config_api" / name).read_text())
         for node in ast.walk(tree):
             if isinstance(node, ast.Import):

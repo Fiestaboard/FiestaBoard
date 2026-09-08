@@ -118,6 +118,16 @@ manifest entry; the cost of a false negative is a shipped 200-on-failure.
   of schedules is the verdict the caller asked for, served 200 as a declared
   `ScheduleValidationResult`.
 
+  The two `/config` probes no longer carry a `no_200_on_failure` exception.
+  `no_200_on_failure` walks the **handler's own AST**, and when the layering
+  ratchet moved these verdict bodies into `src/config_api/service.py` the rule
+  stopped seeing them — a dead exception, which `validate_manifest` fails the
+  build on. Nothing about the contract changed, and nothing is unguarded: the
+  status/verdict pairs are pinned by value in `tests/test_config_contract.py`
+  and `tests/test_status_code_correctness.py`. Note the general lesson — moving
+  logic *out* of a handler silently retires this ratchet's coverage of it, so
+  the value pins have to exist first.
+
   Without (1) a generic client cannot tell the verdict from a success, which
   is exactly the masking bug this rule replaced (#1887). `POST
   /debug/test-connection` deliberately does *not* qualify: it has no verdict

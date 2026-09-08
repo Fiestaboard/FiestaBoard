@@ -97,6 +97,53 @@ def registry(monkeypatch):
     return fresh
 
 
+class _CrashesMidRun(TransitionPluginBase):
+    """Yields one good frame, then raises — the plugin-error branch."""
+
+    @property
+    def plugin_id(self) -> str:
+        return "contract_crashes"
+
+    def generate_frames(self, from_grid, to_grid, device, config):
+        yield to_grid, 0
+        raise RuntimeError("boom")
+
+
+class _YieldsRubbish(TransitionPluginBase):
+    """Yields one unusable value between two good frames."""
+
+    @property
+    def plugin_id(self) -> str:
+        return "contract_rubbish"
+
+    def generate_frames(self, from_grid, to_grid, device, config):
+        yield to_grid, 0
+        yield "not a grid"
+        yield to_grid, 0
+
+
+def _install(registry_mod, fresh, plugin_cls, plugin_id):
+    """Add one hand-built transition plugin to *fresh* under *plugin_id*."""
+    manifest = dict(_TWO_FRAMES_MANIFEST, id=plugin_id, name=plugin_id)
+    plugin = plugin_cls(manifest)
+    plugin.config = {}
+    fresh._plugins[plugin_id] = plugin
+    fresh._manifests[plugin_id] = PluginManifest.from_dict(manifest)
+    fresh._enabled[plugin_id] = True
+
+
+@pytest.fixture
+def misbehaving_registry(monkeypatch):
+    """A registry holding the two plugins that misbehave on purpose."""
+    from src.plugins import registry as registry_mod
+
+    fresh = registry_mod.PluginRegistry()
+    _install(registry_mod, fresh, _CrashesMidRun, "contract_crashes")
+    _install(registry_mod, fresh, _YieldsRubbish, "contract_rubbish")
+    monkeypatch.setattr(registry_mod, "_registry", fresh)
+    return fresh
+
+
 # ---------------------------------------------------------------------------
 # The beta gate
 # ---------------------------------------------------------------------------
@@ -273,3 +320,30 @@ def test_restore_accepts_an_omitted_body(client, beta_on, registry):
     response = client.post("/transitions/restore")
     assert response.status_code == 503
     assert response.json()["detail"] == "Service not initialized"
+
+
+# ---------------------------------------------------------------------------
+# What the preview frame loop does with a plugin that misbehaves.
+#
+# Pinned by value ahead of the router→service move (#1934): the loop moved out
+# of the router into ``src/transitions/service.py`` and now shares its frame
+# coercion with the runner, so "the same tests still pass" has to cover the
+# branches where the two loops deliberately differ.
+# ---------------------------------------------------------------------------
+
+
+def test_preview_reports_a_crashing_plugin_as_a_500_quoting_the_error(client, beta_on, misbehaving_registry):
+    response = client.post("/transitions/preview", json={"plugin_id": "contract_crashes", "to_text": "HI"})
+
+    assert response.status_code == 500
+    assert response.json()["detail"] == "Plugin error: boom"
+
+
+def test_preview_skips_a_malformed_frame_rather_than_failing_the_run(client, beta_on, misbehaving_registry):
+    """A preview shows the frames it could read; only the runner aborts."""
+    response = client.post("/transitions/preview", json={"plugin_id": "contract_rubbish", "to_text": "HI"})
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["frame_count"] == 2
+    assert body["capped"] is False

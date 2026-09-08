@@ -524,3 +524,132 @@ def test_enable_local_api_returns_the_key_the_board_issued(client):
     body = response.json()
     assert body["success"] is True
     assert body["api_key"] == "issued-key-123"
+
+
+# ---------------------------------------------------------------------------
+# The verdict branches the two probes answer at 200, and the preconditions
+# they answer at 4xx.
+#
+# Pinned by value ahead of the router→service move (#1934) so that "the same
+# tests still pass" is evidence the move changed nothing. Every message below
+# was recorded from the unmodified tree; none of these branches had a value
+# pin before.
+# ---------------------------------------------------------------------------
+
+
+def test_enable_local_api_rejects_an_empty_host_before_contacting_anything(client):
+    response = client.post("/config/board/enable-local-api", json={"host": "", "enablement_token": "t"})
+
+    assert response.status_code == 400
+    assert response.json()["detail"] == "Board IP address is required"
+
+
+def test_enable_local_api_rejects_an_empty_token_before_contacting_anything(client):
+    response = client.post("/config/board/enable-local-api", json={"host": "192.168.1.10", "enablement_token": ""})
+
+    assert response.status_code == 400
+    assert response.json()["detail"] == "Enablement token is required"
+
+
+def test_enable_local_api_reports_an_unreachable_board_as_a_verdict_at_200(client):
+    import requests
+
+    with patch.object(requests, "post", side_effect=requests.exceptions.ConnectionError("refused")):
+        response = client.post(
+            "/config/board/enable-local-api",
+            json={"host": "192.168.1.10", "enablement_token": "t"},
+        )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["success"] is False
+    assert body["error"] == "Connection error"
+    assert body["message"] == (
+        "Could not connect to board. Please check the IP address and ensure the board is on the same network."
+    )
+
+
+def test_enable_local_api_reports_a_timeout_as_a_verdict_at_200(client):
+    import requests
+
+    with patch.object(requests, "post", side_effect=requests.exceptions.Timeout("slow")):
+        response = client.post(
+            "/config/board/enable-local-api",
+            json={"host": "192.168.1.10", "enablement_token": "t"},
+        )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["success"] is False
+    assert body["error"] == "Timeout"
+    assert body["message"] == "Connection timed out. Please check the IP address and try again."
+
+
+def test_enable_local_api_reports_a_200_without_an_api_key_as_a_failed_exchange(client):
+    import requests
+
+    with patch.object(requests, "post") as mock_post:
+        mock_post.return_value.status_code = 200
+        mock_post.return_value.json.return_value = {"ok": True}
+        response = client.post(
+            "/config/board/enable-local-api",
+            json={"host": "192.168.1.10", "enablement_token": "t"},
+        )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["success"] is False
+    assert body["message"] == "Received response but no API key was provided"
+    assert body["error"] == "Board response did not include an apiKey"
+
+
+def test_enable_local_api_quotes_an_unexpected_board_status_in_its_verdict(client):
+    import requests
+
+    with patch.object(requests, "post") as mock_post:
+        mock_post.return_value.status_code = 500
+        response = client.post(
+            "/config/board/enable-local-api",
+            json={"host": "192.168.1.10", "enablement_token": "t"},
+        )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["success"] is False
+    assert body["message"] == "Board returned an error (HTTP 500)"
+    assert body["error"] == "HTTP 500"
+
+
+def test_enable_local_api_reports_an_unanticipated_failure_as_a_generic_500(client):
+    """The detail stays generic — the exception belongs in the log (#1887)."""
+    import requests
+
+    with patch.object(requests, "post", side_effect=RuntimeError("secret internal detail")):
+        response = client.post(
+            "/config/board/enable-local-api",
+            json={"host": "192.168.1.10", "enablement_token": "t"},
+        )
+
+    assert response.status_code == 500
+    assert response.json()["detail"] == "Failed to enable local API."
+
+
+def test_validate_drops_the_legacy_board_errors_once_a_board_instance_is_configured(client):
+    """The multi-board override clears *board* errors only.
+
+    A non-board validation error must survive, and ``valid`` is recomputed
+    from what is left — the branch at the end of the first-run determination.
+    """
+    from src.config_manager import get_config_manager
+
+    _configure_board(client)
+    with patch.object(
+        get_config_manager(),
+        "validate",
+        return_value=(False, ["Board host is not set", "Timezone is not a known IANA name"]),
+    ):
+        body = client.get("/config/validate").json()
+
+    assert body["is_first_run"] is False
+    assert body["errors"] == ["Timezone is not a known IANA name"]
+    assert body["valid"] is False

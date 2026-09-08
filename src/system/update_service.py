@@ -12,6 +12,15 @@ and the post-upgrade regression hint, both of which used to live on
 ``api_server``. Nothing here imports ``src.api_server``, at module level or at
 call time (Phase 2 slice: system). Tests patch the name where it lives:
 ``patch("src.system.update_service.<name>")``.
+
+Nor does it import a web framework. It used to, for two ``HTTPException``
+raises, which is what ``tests/test_layering_ratchet.py``'s
+``service_no_fastapi`` rule flags: a domain module has to stay callable from
+MQTT, MCP, the display loop and a test without dragging a framework's error
+model along. Refusals are raised as :class:`SidecarError` instead, and
+``src/system/routes.py`` translates it back into the exact status/detail pairs
+the endpoints have always answered (``tests/test_system_contract.py`` pins all
+of them by value).
 """
 
 from __future__ import annotations
@@ -27,16 +36,36 @@ from pathlib import Path
 from typing import Any
 
 import requests
-from fastapi import HTTPException
 
 from src import __version__
 from src.atomic_io import write_json_atomic, write_text_atomic
 from src.config_manager import get_config_manager
 from src.paths import get_data_dir
 
-from .models import SystemActionResponse, UpdateCheckResponse
+from .models import (
+    RollbackRequest,
+    RollbackResponse,
+    SystemActionResponse,
+    UpdateApplyResponse,
+    UpdateCheckResponse,
+)
 
 logger = logging.getLogger(__name__)
+
+
+class SidecarError(Exception):
+    """A system-update operation refused, or failed, with the answer to give.
+
+    ``status_code`` and ``detail`` are handed to ``HTTPException`` verbatim by
+    the router. They are this domain's recorded contract
+    (``tests/test_system_contract.py``), not a transport detail — which is why
+    they live on the exception rather than being re-derived upstairs.
+    """
+
+    def __init__(self, status_code: int, detail: str):
+        super().__init__(detail)
+        self.status_code = status_code
+        self.detail = detail
 
 
 def _detect_hardware_model() -> str | None:
@@ -459,9 +488,9 @@ def _updater_post(path: str) -> requests.Response:
 def _require_updater_token():
     """Raise 503 if FIESTAUPDATER_TOKEN is not configured."""
     if not _updater_token():
-        raise HTTPException(
-            status_code=503,
-            detail=(
+        raise SidecarError(
+            503,
+            (
                 "FIESTAUPDATER_TOKEN is not set. Add COMPOSE_PROFILES=fiestaupdater to your .env "
                 "and run 'docker compose up -d' to enable sidecar features."
             ),
@@ -471,16 +500,30 @@ def _require_updater_token():
 def _handle_updater_response(resp: requests.Response, action: str) -> SystemActionResponse:
     """Translate a sidecar HTTP response into a SystemActionResponse or raise."""
     if resp.status_code == 401:
-        raise HTTPException(
-            status_code=500,
-            detail="fiestaupdater rejected our token; check FIESTAUPDATER_TOKEN matches in both services",
+        raise SidecarError(
+            500,
+            "fiestaupdater rejected our token; check FIESTAUPDATER_TOKEN matches in both services",
         )
     if resp.status_code >= 400:
-        raise HTTPException(
-            status_code=502,
-            detail=f"fiestaupdater returned {resp.status_code}: {resp.text[:200]}",
-        )
+        raise SidecarError(502, f"fiestaupdater returned {resp.status_code}: {resp.text[:200]}")
     return SystemActionResponse(status="queued", action=action)
+
+
+async def perform_sidecar_action(action: str) -> SystemActionResponse:
+    """Ask the sidecar to *action* (``restart`` / ``shutdown``) and report.
+
+    The connection drops while the sidecar acts on us, so this only reports
+    that the request was accepted; clients poll ``/health`` for the rest.
+    """
+    _require_updater_token()
+    try:
+        resp = await asyncio.to_thread(_updater_post, f"/{action}")
+    except requests.exceptions.ConnectionError:
+        raise SidecarError(503, "Could not reach the fiestaupdater sidecar.") from None
+    except Exception as e:
+        logger.warning("fiestaupdater %s call failed: %s", action, e)
+        raise SidecarError(502, f"fiestaupdater {action} call failed: {e}") from e
+    return _handle_updater_response(resp, action)
 
 
 # ── Settings snapshots (used by the rollback flow) ──────────────────────────
@@ -804,3 +847,217 @@ async def run_system_update_check_if_due() -> None:
             interval_name,
         )
         await _perform_update_check()
+
+
+# ── The two multi-step update workflows ─────────────────────────────────────
+#
+# Both were handler bodies in ``src/system/routes.py`` until the layering
+# ratchet (#1933) flagged them: 23 and 51 statements of sidecar bookkeeping
+# with nothing HTTP about them beyond the status codes, which now travel on
+# :class:`SidecarError`. ``apply_update`` in particular open-coded the
+# ``requests.post`` its siblings do through :func:`_updater_post`; it uses the
+# shared helper now, so there is one place a sidecar call is made.
+
+
+async def apply_update() -> UpdateApplyResponse:
+    """Trigger an in-place update via the fiestaupdater sidecar.
+
+    The sidecar answers 202 almost immediately; the container recreation that
+    kills this process happens shortly after, so the caller should expect its
+    connection to drop and poll ``/health`` for the new version.
+
+    A settings snapshot is taken *before* the sidecar is asked to do anything,
+    tagged with the currently-running image's digest and reference so
+    :func:`rollback` knows which image to pair with the restored settings. A
+    snapshot failure is non-fatal — the user can still roll the image back by
+    hand.
+    """
+    if not _updater_token():
+        raise SidecarError(
+            503,
+            (
+                "FIESTAUPDATER_TOKEN is not set. Add COMPOSE_PROFILES=fiestaupdater to your .env "
+                "and run 'docker compose up -d' to enable in-app updates."
+            ),
+        )
+
+    version = await asyncio.to_thread(_updater_version)
+    snapshot = await asyncio.to_thread(_take_settings_snapshot, version.get("digest"), version.get("image"))
+
+    try:
+        resp = await asyncio.to_thread(_updater_post, "/update")
+    except requests.exceptions.ConnectionError:
+        raise SidecarError(
+            503,
+            (
+                "Could not reach the fiestaupdater sidecar. Run 'docker compose pull && docker compose up -d' "
+                "from your install directory to update manually."
+            ),
+        ) from None
+    except Exception as e:
+        logger.warning(f"fiestaupdater update call failed: {e}")
+        raise SidecarError(502, f"fiestaupdater update call failed: {e}") from e
+
+    if resp.status_code == 401:
+        raise SidecarError(
+            500,
+            "fiestaupdater rejected our token; check FIESTAUPDATER_TOKEN matches in both services",
+        )
+    if resp.status_code >= 400:
+        raise SidecarError(502, f"fiestaupdater returned {resp.status_code}: {resp.text[:200]}")
+
+    # Record bookkeeping so the UI can show "last update".
+    body = {}
+    try:
+        body = resp.json()
+    except ValueError as e:
+        # fiestaupdater may return a non-JSON body (e.g. plain-text on error); fall back to empty dict.
+        logger.debug("fiestaupdater response is not JSON, using empty body (non-fatal): %s", e)
+    _system_update_state_update(last_update=datetime.now(UTC).isoformat())
+
+    return UpdateApplyResponse(
+        status="queued",
+        mode="sidecar",
+        previous_digest=body.get("previous_digest"),
+        settings_snapshot=snapshot,
+    )
+
+
+async def _restore_settings_from_snapshot(path: Path) -> dict[str, Any]:
+    """Restore configuration from the snapshot at *path*.
+
+    Returns the summary the rollback response carries. Raises
+    :class:`SidecarError` with 400 for a snapshot this cannot use and 500 when
+    the environment (unwritable data dir, full disk) aborted the restore —
+    the distinction Phase 2 Task 10d drew.
+    """
+    try:
+        raw = await asyncio.to_thread(path.read_text, "utf-8")
+    except OSError as e:
+        logger.warning("Could not read snapshot %s: %s", path, e)
+        raise SidecarError(400, f"Could not read snapshot: {e}") from e
+    try:
+        from src.backup.service import BackupError, BackupRestoreAborted, get_backup_service
+    except Exception as e:  # pragma: no cover - import error is exceptional
+        logger.exception("BackupService unavailable")
+        raise SidecarError(500, f"Backup service unavailable: {e}") from e
+
+    service = get_backup_service()
+    try:
+        # Don't reinstall plugins from a settings-only snapshot: the user is
+        # rolling back configuration, not reshaping their plugin set.
+        result = await asyncio.to_thread(service.import_from_json, raw, reinstall_plugins=False)
+    except BackupRestoreAborted as e:
+        # Environment failure (unwritable data dir, full disk), not a bad
+        # snapshot — see Phase 2 Task 10d.
+        logger.error("Settings rollback aborted: %s", e)
+        raise SidecarError(500, str(e)) from e
+    except BackupError as e:
+        raise SidecarError(400, str(e)) from e
+    return {
+        "restored_from": path.name,
+        "restored_files": result.get("restored_files", []),
+        "skipped_files": result.get("skipped_files", []),
+        "pre_restore_backup_suffix": result.get("pre_restore_backup_suffix", ""),
+        "reload_errors": result.get("reload_errors", []),
+    }
+
+
+async def _roll_image_back(snapshot_meta: dict[str, str | None], warnings: list[str]) -> dict[str, Any] | None:
+    """Ask the sidecar to retag the snapshot's recorded digest and recreate.
+
+    Returns the image-rollback summary, or *None* after appending a warning:
+    a snapshot with no usable image identity, or a missing sidecar token, is
+    *partial success* — the settings were already restored — not a failure.
+    """
+    digest = snapshot_meta.get("previous_digest")
+    image_ref = snapshot_meta.get("previous_image")
+    if not digest or not image_ref:
+        # Old snapshot taken before we started annotating.  We can't
+        # safely guess the digest, so report partial success rather
+        # than guessing.
+        warnings.append("Snapshot does not record a previous image digest; image was not rolled back.")
+        return None
+    if not _DIGEST_RE.fullmatch(digest) or not _IMAGE_REF_RE.fullmatch(image_ref):
+        warnings.append("Snapshot's recorded image identity is malformed; image was not rolled back.")
+        return None
+    if not _updater_token():
+        warnings.append(
+            "FIESTAUPDATER_TOKEN is not set; image rollback is unavailable. "
+            "Settings have been restored but the image is unchanged."
+        )
+        return None
+
+    url = f"{_updater_url()}/rollback"
+    headers = {
+        "Authorization": f"Bearer {_updater_token()}",
+        "Content-Type": "application/json",
+    }
+    payload = {"digest": digest, "image": image_ref}
+
+    def _post():
+        return requests.post(url, headers=headers, json=payload, timeout=(5, 30))
+
+    try:
+        resp = await asyncio.to_thread(_post)
+    except requests.exceptions.ConnectionError:
+        raise SidecarError(503, "Could not reach the fiestaupdater sidecar; image rollback unavailable.") from None
+    except Exception as e:
+        logger.warning("fiestaupdater rollback call failed: %s", e)
+        raise SidecarError(502, f"fiestaupdater rollback call failed: {e}") from e
+
+    if resp.status_code == 401:
+        raise SidecarError(500, "fiestaupdater rejected our token")
+    if resp.status_code >= 400:
+        raise SidecarError(502, f"fiestaupdater returned {resp.status_code}: {resp.text[:200]}")
+
+    return {
+        "target_digest": digest,
+        "target_image": image_ref,
+        "queued": True,
+    }
+
+
+async def rollback(req: RollbackRequest) -> RollbackResponse:
+    """Roll the running instance back to a previous version.
+
+    The user selects a snapshot — the most recent by default — and this:
+
+    1. Looks up the snapshot's recorded ``previous_digest`` /
+       ``previous_image`` (captured the moment the snapshot was taken).
+    2. (When ``restore_settings=True``, the default) restores configuration
+       from the snapshot via :class:`~src.backup.service.BackupService`.
+    3. (When ``restore_image=True``, the default) asks the sidecar's
+       ``POST /rollback`` to retag that digest back onto the original image
+       reference and force-recreate the container.
+
+    Settings are restored *before* the image flip so that when the container
+    comes back up on the previous image, it reads the matching configuration.
+    """
+    if not req.restore_settings and not req.restore_image:
+        raise SidecarError(400, "At least one of restore_settings, restore_image must be true.")
+
+    path = await asyncio.to_thread(_resolve_snapshot_name, req.snapshot)
+    if path is None:
+        raise SidecarError(404, "No matching settings snapshot was found.")
+
+    snapshot_meta = await asyncio.to_thread(_read_snapshot_metadata, path)
+
+    warnings: list[str] = []
+    settings_result: dict[str, Any] | None = None
+    image_result: dict[str, Any] | None = None
+
+    if req.restore_settings:
+        settings_result = await _restore_settings_from_snapshot(path)
+
+    if req.restore_image:
+        image_result = await _roll_image_back(snapshot_meta, warnings)
+
+    overall = "success" if not warnings else "partial"
+    return RollbackResponse(
+        status=overall,
+        snapshot=path.name,
+        image_rollback=image_result,
+        settings_rollback=settings_result,
+        warnings=warnings,
+    )
