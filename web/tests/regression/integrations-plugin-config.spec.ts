@@ -111,8 +111,11 @@ test.describe("regression: integrations.plugin (config sheet + lifecycle)", () =
     await page.goto("/integrations");
     await expect(page.getByRole("heading", { name: /integrations/i })).toBeVisible({ timeout: 15_000 });
 
-    // Throttle the plugin details endpoint so the loading state is observable
-    await page.route(`**/api/plugins/${TEST_PLUGIN_ID}`, async (route) => {
+    // Throttle the plugin details endpoint so the loading state is observable.
+    // `GET /v1/plugins/{id}` shares its URL with the write PATCH, so guard on
+    // the method to keep this the read-only throttle it always was.
+    await page.route(`**/api/v1/plugins/${TEST_PLUGIN_ID}`, async (route) => {
+      if (route.request().method() !== "GET") return route.continue();
       await new Promise((r) => setTimeout(r, 1500));
       await route.continue();
     });
@@ -144,8 +147,11 @@ test.describe("regression: integrations.plugin (config sheet + lifecycle)", () =
     await page.goto("/integrations");
     await expect(page.getByRole("heading", { name: /integrations/i })).toBeVisible({ timeout: 15_000 });
 
-    // Intercept plugin details and return a payload with no settings_schema and no variables
-    await page.route(`**/api/plugins/${TEST_PLUGIN_ID}`, async (route) => {
+    // Intercept plugin details and return a payload with no settings_schema and
+    // no variables. Method-guarded: `GET /v1/plugins/{id}` now shares its URL
+    // with the write PATCH.
+    await page.route(`**/api/v1/plugins/${TEST_PLUGIN_ID}`, async (route) => {
+      if (route.request().method() !== "GET") return route.continue();
       const response = await route.fetch();
       const data = await response.json();
       // Wipe everything that would render config UI
@@ -182,9 +188,12 @@ test.describe("regression: integrations.plugin (config sheet + lifecycle)", () =
     await expect(saveBtn).toBeVisible({ timeout: 15_000 });
     await expect(saveBtn).toBeEnabled({ timeout: 15_000 });
 
-    // Throttle PUT /plugins/{id}/config to make Saving... observable
-    await page.route(`**/api/plugins/${TEST_PLUGIN_ID}/config`, async (route) => {
-      if (route.request().method() === "PUT") {
+    // Throttle the config write to make Saving... observable. `PUT
+    // /plugins/{id}/config` is now `PATCH /v1/plugins/{id} {config}`, which
+    // shares its URL with the detail GET and the enable/disable PATCH — hence
+    // the method + body-key guard.
+    await page.route(`**/api/v1/plugins/${TEST_PLUGIN_ID}`, async (route) => {
+      if (route.request().method() === "PATCH" && "config" in (route.request().postDataJSON() ?? {})) {
         await new Promise((r) => setTimeout(r, 1200));
       }
       await route.continue();

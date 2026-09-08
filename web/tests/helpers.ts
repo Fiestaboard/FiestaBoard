@@ -250,7 +250,7 @@ let _cachedSessionCookie: string | null = null;
  * pending state to let the real request finish.
  *
  * @example
- *   const release = await slowRoute(page, "**\/api\/pages", ["GET"]);
+ *   const release = await slowRoute(page, "**\/api\/v1\/pages", ["GET"]);
  *   await page.goto("/pages");
  *   await expect(skeleton).toBeVisible();
  *   release();

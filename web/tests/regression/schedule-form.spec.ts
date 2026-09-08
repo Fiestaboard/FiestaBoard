@@ -216,7 +216,7 @@ test.describe("regression: schedule.form", () => {
 
     // Capture the create payload to assert end_time: null on the wire.
     const createResponse = page.waitForResponse(
-      (r) => r.url().endsWith("/api/schedules") && r.request().method() === "POST",
+      (r) => r.url().endsWith("/api/v1/schedules") && r.request().method() === "POST",
     );
     await sheet.getByRole("button", { name: "Create Schedule" }).click();
     const resp = await createResponse;
@@ -328,7 +328,7 @@ test.describe("regression: schedule.form", () => {
    */
   test("schedule.form.create-error — failed create keeps sheet open and toasts", async ({ page }) => {
     const pageId = await createPage("Sched Err", ["A", "", "", "", "", ""]);
-    await page.route("**/api/schedules", (route) => {
+    await page.route("**/api/v1/schedules", (route) => {
       if (route.request().method() === "POST") {
         return route.fulfill({ status: 422, body: '{"detail":"overlap"}' });
       }
@@ -365,7 +365,7 @@ test.describe("regression: schedule.form", () => {
   test("schedule.form.update-error — failed update keeps sheet open", async ({ page }) => {
     const pageId = await createPage("Update Err Page");
     const schedId = await createSchedule(pageId, "09:00", "10:00", "weekdays");
-    await page.route(`**/api/schedules/${schedId}`, (route) => {
+    await page.route(`**/api/v1/schedules/${schedId}`, (route) => {
       if (route.request().method() === "PUT") {
         return route.fulfill({ status: 500, body: '{"detail":"boom"}' });
       }
@@ -467,7 +467,7 @@ test.describe("regression: schedule.form", () => {
   test("schedule.form.creating — Create button shows pending state", async ({ page }) => {
     const pageId = await createPage("Sched Pending", ["A", "", "", "", "", ""]);
     let release: () => void = () => {};
-    await page.route("**/api/schedules", async (route) => {
+    await page.route("**/api/v1/schedules", async (route) => {
       if (route.request().method() === "POST") {
         await new Promise<void>((r) => {
           release = r;
@@ -507,7 +507,7 @@ test.describe("regression: schedule.form", () => {
   test("schedule.form.updating — Update button shows pending state", async ({ page }) => {
     const pageId = await createPage("Updating Page");
     const schedId = await createSchedule(pageId, "09:00", "10:00", "weekdays");
-    const release = await slowRoute(page, `**/api/schedules/${schedId}`, ["PUT"]);
+    const release = await slowRoute(page, `**/api/v1/schedules/${schedId}`, ["PUT"]);
     await page.goto("/schedule");
     await page
       .getByRole("button", { name: /Edit schedule/i })

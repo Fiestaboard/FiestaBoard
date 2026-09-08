@@ -316,7 +316,11 @@ test.describe("regression: integrations.installed", () => {
     try {
       // Stall + 500 the disable call so we can observe the optimistic flip
       // and the rollback when the mutation eventually fails.
-      await page.route(`**/api/plugins/${STABLE_PLUGIN_ID}/disable`, async (route) => {
+      // `POST /plugins/{id}/disable` is now `PATCH /v1/plugins/{id}
+      // {enabled: false}`. The body guard keeps this matching only the
+      // disable half, as the /disable path did.
+      await page.route(`**/api/v1/plugins/${STABLE_PLUGIN_ID}`, async (route) => {
+        if (route.request().postDataJSON()?.enabled !== false) return route.continue();
         await new Promise((r) => setTimeout(r, 1200));
         await route.fulfill({
           status: 500,
@@ -355,7 +359,9 @@ test.describe("regression: integrations.installed", () => {
     if (!initiallyEnabled) await enablePlugin(STABLE_PLUGIN_ID);
 
     try {
-      await page.route(`**/api/plugins/${STABLE_PLUGIN_ID}/disable`, async (route) => {
+      // See toggle-pending: disable is now `PATCH /v1/plugins/{id} {enabled: false}`.
+      await page.route(`**/api/v1/plugins/${STABLE_PLUGIN_ID}`, async (route) => {
+        if (route.request().postDataJSON()?.enabled !== false) return route.continue();
         await route.fulfill({
           status: 500,
           body: JSON.stringify({ detail: "toggle failed" }),
