@@ -1,0 +1,12 @@
+{
+  "_comment": "Layering ratchet. Enforced by tests/test_layering_ratchet.py; the layering it defends is drawn in docs/internal/reference/ARCHITECTURE.md. Three rules: a domain module may not import fastapi (service_no_fastapi), a transport module may not touch the filesystem (router_no_file_io), and a router function may not exceed the size proxy for domain logic (router_no_domain_logic). Append a domain to enforced_domains in the PR that makes it comply — never before, and never by loosening a rule until it passes. Every exception needs a target that exists in the tree, a known rule id, and a reason a reviewer can argue with; an exception whose rule already passes is a build failure.",
+  "enforced_domains": [
+    "auth",
+    "backup",
+    "mqtt",
+    "network",
+    "schedules",
+    "triggers"
+  ],
+  "exceptions": []
+}
