@@ -76,9 +76,20 @@ def test_a_dropped_services_poll_thread_stops_rebuilding_the_settings_singleton(
 
     _drop_all_singletons()
 
-    # A construction already in flight when the reset landed may still assign;
-    # let it, then re-drop. What must not happen is a *new* one after this.
-    time.sleep(0.05)
+    # Join before clearing, rather than allowing a fixed grace period for a
+    # construction already in flight. A 50ms grace outran the poll thread on an
+    # unloaded machine and lost to it on a loaded xdist worker, which made this
+    # test flake in CI twice — and sleeping longer would make the race rarer,
+    # not absent. Once the thread has exited nothing can reassign the global,
+    # so the observation below is deterministic.
+    #
+    # This also sharpens the failure: revert the conftest fix and the join times
+    # out here, naming the live thread, instead of surfacing as a mystery
+    # reassignment 250ms later.
+    service._poll_thread.join(timeout=5)
+    assert not service._poll_thread.is_alive(), (
+        "board-state-poll outlived the singleton reset, so it can still rebuild the settings global inside a later test"
+    )
     settings_service_module._settings_service = None
 
     # Long enough for a 1ms-interval loop to have rebuilt it a hundred times.
