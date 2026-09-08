@@ -44,6 +44,8 @@ from src.api_errors import errors
 from src.board_chars import characters_to_message
 from src.board_client import board_client_from_board_dict
 from src.board_guards import _board_dims, _require_board, _silence_active
+from src.board_guards import raise_if_paused as _raise_if_paused
+from src.board_guards import raise_if_throttled as _raise_if_throttled
 from src.config_manager import get_config_manager
 from src.devices import resolve_dimensions
 from src.text_to_board import text_to_board_array
@@ -56,7 +58,6 @@ logger = logging.getLogger(__name__)
 router = APIRouter(tags=["board"])
 
 SILENCE_DETAIL = "Manual sends are blocked during silence mode to prevent waking the board."
-PAUSED_DETAIL = "Board is paused — sends are blocked until it is resumed."
 
 
 def _raise_if_silenced() -> None:
@@ -68,39 +69,6 @@ def _raise_if_silenced() -> None:
     if _silence_active():
         logger.info("Silence mode is active - blocking manual send to prevent wake-up")
         raise HTTPException(status_code=409, detail=SILENCE_DETAIL)
-
-
-def _raise_if_paused() -> None:
-    """A paused board refuses writes (issue #970)."""
-    if runtime._board_is_paused():
-        logger.info("Board is paused - blocking manual send")
-        raise HTTPException(status_code=409, detail=PAUSED_DETAIL)
-
-
-def _raise_if_throttled(board_client) -> None:
-    """A write dropped by the client-side send floor is a 429 (#1868, #1754).
-
-    Cloud boards and note arrays enforce a minimum interval between sends; a
-    send inside that window returns ``(True, False)`` with
-    ``last_send_throttled`` set — the content was DROPPED, not delivered, and
-    unlike the engine tick (which retries next pass) these manual endpoints
-    never retry.
-
-    The ``is True`` guard keeps Mock clients, whose attributes are all truthy,
-    on the delivered path unless a test opts in.
-    """
-    if getattr(board_client, "last_send_throttled", False) is not True:
-        return
-    try:
-        floor_ms = int(getattr(board_client, "min_send_interval_ms", 0))
-    except (TypeError, ValueError):
-        floor_ms = 0
-    retry_after = max(1, -(-floor_ms // 1000)) if floor_ms else 15
-    raise HTTPException(
-        status_code=429,
-        detail=f"Send skipped: the board accepts at most one message every {retry_after}s. Retry shortly.",
-        headers={"Retry-After": str(retry_after)},
-    )
 
 
 def _primary_geometry(settings_service):

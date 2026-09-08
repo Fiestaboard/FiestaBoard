@@ -625,6 +625,7 @@ class ConfigManager:
         Caller is responsible for persisting via ``_save_internal``.
         """
         from src import __version__ as current_version
+
         self._config[APP_VERSION_SEEN_KEY] = current_version
 
     # Files captured in the pre-init snapshot. Mirrors backup/service.py's
