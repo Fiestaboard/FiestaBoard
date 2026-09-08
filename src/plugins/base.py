@@ -48,10 +48,13 @@ class PluginResult:
     error: str | None = None
     formatted_lines: list[str] | None = None
 
-    #: Memo for :meth:`data_fingerprint`. Excluded from ``__init__``, ``repr``
-    #: and ``__eq__`` so two results with equal fields stay equal whether or
-    #: not either has been hashed yet.
-    _data_fingerprint: str | None = field(default=None, init=False, repr=False, compare=False)
+    #: Memo for :meth:`data_fingerprint`. Deliberately a plain class attribute
+    #: with NO annotation, so it is not a dataclass field: ``asdict`` (used by
+    #: ``src/ops/results.py::serialize``) walks fields and would otherwise leak
+    #: a ``_data_fingerprint`` key into API responses. Keeping it off the field
+    #: list also keeps ``__eq__`` and ``__repr__`` unchanged, so two results
+    #: with equal data stay equal whether or not either has been hashed.
+    _data_fingerprint = None
 
     def data_fingerprint(self) -> str:
         """Stable hash of :attr:`data`, serialised at most once per result.
