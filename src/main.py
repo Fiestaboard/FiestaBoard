@@ -24,7 +24,11 @@ from .devices import (
 )
 from .displays.send_worker import BoardSendWorker, SendJob
 from .pages.models import LineMetadata, Page
-from .pages.service import get_page_service
+from .pages.service import (
+    CONTEXT_FINGERPRINT_PREFIX,
+    CONTEXT_RENDER_MEMO_PREFIX,
+    get_page_service,
+)
 from .schedules.service import get_schedule_service
 from .settings.service import get_settings_service
 from .templates.engine import extract_template_plugin_ids
@@ -1275,7 +1279,34 @@ class DisplayService:
 
     # Bumped whenever the set of inputs the fingerprint covers changes, so a
     # memo recorded by an older build can never be mistaken for a match.
-    _RENDER_FINGERPRINT_VERSION = 1
+    # v2: plugin payloads enter the hash as their own precomputed hashes
+    # rather than as re-serialised payloads.
+    _RENDER_FINGERPRINT_VERSION = 2
+
+    # Stands in for a referenced plugin that contributed no data to the
+    # context. Never collides with a payload hash (which is hex).
+    _FINGERPRINT_ABSENT = "\x00absent"
+
+    @staticmethod
+    def _fingerprint_data_part(contexts, size, context, sorted_refs) -> dict:
+        """The per-plugin inputs the render fingerprint hashes.
+
+        Prefers the per-size payload-hash companion ``shared_context_for``
+        records: one 32-char digest per referenced plugin, computed ONCE on
+        the ``PluginResult`` object ``PluginBase`` caches, instead of a full
+        ``json.dumps`` of every referenced payload once per board per tick.
+
+        Falls back to the raw payloads whenever the companion does not
+        provably cover every referenced plugin the context actually holds
+        data for. That check is the load-bearing part: a missing digest would
+        otherwise read as "this plugin contributed nothing", which would hide
+        a real data change and strand the board on a stale frame.
+        """
+        data = context or {}
+        fingerprints = contexts.get(CONTEXT_FINGERPRINT_PREFIX + size)
+        if isinstance(fingerprints, dict) and all(ref in fingerprints for ref in sorted_refs if ref in data):
+            return {ref: fingerprints.get(ref, DisplayService._FINGERPRINT_ABSENT) for ref in sorted_refs}
+        return {ref: data.get(ref) for ref in sorted_refs}
 
     @staticmethod
     def _render_fingerprint(page, active_page_id, page_service, contexts, *, override_active: bool) -> str | None:
@@ -1306,6 +1337,17 @@ class DisplayService:
         owners are not statically knowable, a page object without a Pydantic
         dump, a config manager with no generation counter, or any exception at
         all. Every unknown fails toward rendering.
+
+        The result is memoised inside the per-pass ``contexts`` dict, keyed by
+        board SIZE and by every input above. Four same-size boards on the same
+        page used to serialise the identical ``(page, context)`` pair four
+        times per tick; now the second, third and fourth read the memo. The
+        memo is per-size and never global because board-aware plugins
+        legitimately return different data per geometry — collapsing sizes
+        would hand one board another board's fingerprint. It lives and dies
+        with the tick, so it cannot outlive the state it summarises; the
+        self-validating ``rt.last_render`` triple, which is re-checked against
+        the live dedupe cache at the call site, is unchanged.
         """
         if contexts is None:
             return None
@@ -1328,6 +1370,33 @@ class DisplayService:
             if generation is None:
                 return None  # cannot see config writes -> cannot skip a render
 
+            size = size_key(
+                getattr(page, "device_type", None) or DEFAULT_DEVICE_TYPE,
+                getattr(page, "notes_wide", 1) or 1,
+                getattr(page, "notes_tall", 1) or 1,
+            )
+            sorted_refs = tuple(sorted(refs))
+            # ``id(page)`` and ``updated_at`` together: every stored mutation
+            # bumps updated_at, and the identity check additionally catches a
+            # page object swapped out mid-pass. Both must match, so the memo
+            # can only ever be MORE conservative than recomputing.
+            memo_key = (
+                active_page_id,
+                id(page),
+                getattr(page, "updated_at", None),
+                bool(override_active),
+                generation,
+                sorted_refs,
+            )
+            memo = contexts.get(CONTEXT_RENDER_MEMO_PREFIX + size)
+            if isinstance(memo, dict):
+                memoised = memo.get(memo_key)
+                if memoised is not None:
+                    return memoised
+            else:
+                memo = {}
+                contexts[CONTEXT_RENDER_MEMO_PREFIX + size] = memo
+
             context = None
             if refs:
                 context = page_service.shared_context_for(
@@ -1346,16 +1415,18 @@ class DisplayService:
                     "page": dump(),
                     "override": bool(override_active),
                     "generation": generation,
-                    "data": {ref: (context or {}).get(ref) for ref in sorted(refs)},
+                    "data": DisplayService._fingerprint_data_part(contexts, size, context, sorted_refs),
                 },
                 sort_keys=True,
                 default=str,
                 separators=(",", ":"),
             )
+            fingerprint = hashlib.blake2b(payload.encode("utf-8", "replace"), digest_size=16).hexdigest()
+            memo[memo_key] = fingerprint
         except Exception as e:  # never let the optimization break a send
             logger.debug("Render fingerprint unavailable for %s: %s", active_page_id, e)
             return None
-        return hashlib.blake2b(payload.encode("utf-8", "replace"), digest_size=16).hexdigest()
+        return fingerprint
 
     # ------------------------------------------------------------------ #
     # Per-board display engine (single tick loop)

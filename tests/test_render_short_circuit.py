@@ -32,6 +32,7 @@ from src.main import BoardRuntime, DisplayService
 from src.pages.models import Page
 from src.pages.service import PageService
 from src.pages.storage import PageStorage
+from src.plugins.base import PluginResult
 from src.templates.engine import get_template_engine, reset_template_engine
 from tests.fake_clock import FakeClock, install_fake_time_service
 
@@ -79,12 +80,20 @@ class StubRegistry:
     def enabled_plugins(self) -> dict:
         return dict.fromkeys(self.data)
 
-    def build_template_context(self, board=None, plugin_ids=None, include_trigger_plugins=True):
+    def build_template_context(self, board=None, plugin_ids=None, include_trigger_plugins=True, fingerprints=None):
         self.builds += 1
         if plugin_ids is None:
-            return {k: dict(v) for k, v in self.data.items()}
-        wanted = {str(p).lower() for p in plugin_ids}
-        return {k: dict(v) for k, v in self.data.items() if k.lower() in wanted}
+            built = {k: dict(v) for k, v in self.data.items()}
+        else:
+            wanted = {str(p).lower() for p in plugin_ids}
+            built = {k: dict(v) for k, v in self.data.items() if k.lower() in wanted}
+        # Mirror the real registry's contract: fingerprints covers EXACTLY the
+        # ids this build put in the context, so the render short-circuit
+        # exercises its hash-composition path rather than its fallback.
+        if fingerprints is not None:
+            for plugin_id, payload in built.items():
+                fingerprints[plugin_id] = PluginResult(available=True, data=payload).data_fingerprint()
+        return built
 
     def get_manifest(self, _plugin_id):
         return None

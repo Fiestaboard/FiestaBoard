@@ -46,7 +46,7 @@ class CountingRegistry:
         # differs between board=None and board-aware builds override this.
         self.payload = lambda board: {}
 
-    def build_template_context(self, board=None, plugin_ids=None):
+    def build_template_context(self, board=None, plugin_ids=None, include_trigger_plugins=True, fingerprints=None):
         self.build_calls += 1
         self.boards_seen.append(board)
         return self.payload(board)

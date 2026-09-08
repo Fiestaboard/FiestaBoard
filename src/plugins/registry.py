@@ -1822,11 +1822,35 @@ class PluginRegistry:
 
         return _done
 
+    def get_cached_plugin_data(self, plugin_id: str, board: BoardContext | None = None) -> PluginResult | None:
+        """Return a plugin's already-cached result, or None if a fetch is needed.
+
+        The non-blocking half of :meth:`fetch_plugin_data`: registry lookups
+        under ``_lock``, then a dict read under the plugin's own cache lock.
+        No plugin code runs, so this is safe to call on the calling thread
+        even when that thread is the service thread.
+        """
+        with self._lock:
+            plugin = self._plugins.get(plugin_id)
+            enabled = self._enabled.get(plugin_id, False)
+        if plugin is None or not enabled or not isinstance(plugin, PluginBase):
+            return None
+        try:
+            result = plugin.cached_result(board)
+        except Exception:  # a broken property must never break a render
+            logger.debug("Cached-data probe failed for %s", plugin_id, exc_info=True)
+            return None
+        # Only a genuine PluginResult may short-circuit a fetch. A subclass
+        # (or a test double) that returns something else must fall through to
+        # the real fetch rather than have its stand-in land in the context.
+        return result if isinstance(result, PluginResult) else None
+
     def build_template_context(
         self,
         board: BoardContext | None = None,
         plugin_ids: Collection[str] | None = None,
         include_trigger_plugins: bool = True,
+        fingerprints: dict[str, str] | None = None,
     ) -> dict[str, Any]:
         """Build context dictionary for template rendering.
 
@@ -1849,6 +1873,12 @@ class PluginRegistry:
                 build — otherwise every widening would re-fetch them, up to
                 N times per tick (#1862 review). Only meaningful when
                 ``plugin_ids`` is given.
+            fingerprints: Optional out-parameter. When given, it is filled
+                with ``plugin_id -> PluginResult.data_fingerprint()`` for
+                EXACTLY the ids this build puts into the returned context —
+                the invariant the render short-circuit relies on to know its
+                hash map covers every payload it is standing in for. Hashing
+                happens once per result object, not once per consumer.
 
         Returns:
             Dictionary mapping plugin_id to plugin data
@@ -1891,6 +1921,33 @@ class PluginRegistry:
                 len(quarantined),
                 quarantined,
             )
+        if not to_fetch:
+            return context
+
+        # Calling-thread fast path for already-cached plugins. Dispatching a
+        # fetch whose own cache is fresh costs a Future allocation, a queue
+        # put, a worker wakeup, a condvar wait, a done-callback and three lock
+        # round-trips — measured at 21x the cost of the in-memory dict read it
+        # is wrapping. Serving those inline also means a fully-cached tick
+        # never reaches ``futures_wait`` at all, so it can never pay
+        # CONTEXT_BUILD_TIMEOUT_SECONDS for a plugin it was not going to talk
+        # to. ``get_cached_plugin_data`` runs no plugin code and cannot block,
+        # which is what makes it safe on the single service thread.
+        #
+        # Deliberately AFTER the breaker gate: a quarantined plugin stays
+        # dropped from the build whether or not it has stale-but-fresh-enough
+        # data lying around.
+        still_to_fetch: list[str] = []
+        for plugin_id in to_fetch:
+            cached = self.get_cached_plugin_data(plugin_id, board)
+            if cached is None:
+                still_to_fetch.append(plugin_id)
+                continue
+            if cached.available and cached.data:
+                context[plugin_id] = cached.data
+                if fingerprints is not None:
+                    fingerprints[plugin_id] = cached.data_fingerprint()
+        to_fetch = still_to_fetch
         if not to_fetch:
             return context
 
@@ -1963,6 +2020,8 @@ class PluginRegistry:
                 result = future.result()
                 if result.available and result.data:
                     context[plugin_id] = result.data
+                    if fingerprints is not None:
+                        fingerprints[plugin_id] = result.data_fingerprint()
             except Exception:
                 logger.exception(f"Plugin {plugin_id} raised an error during context build")
 
