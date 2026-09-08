@@ -255,12 +255,18 @@ def validate_board_host_is_local_network(host: str) -> None:
 PAUSED_DETAIL = "Board is paused — sends are blocked until it is resumed."
 
 
-def raise_if_paused(what: str = "manual send") -> None:
+def raise_if_paused(board_id: str | None = None, *, what: str = "manual send") -> None:
     """A paused board refuses writes: 409 (issue #970).
 
     Both senders answered 200 with ``{"status": "blocked"}`` before the
     conventions pass — a refusal dressed as a success, which any client
     checking only the status code read as "sent".
+
+    ``board_id`` resolves the *target* board's pause state; omitted means the
+    primary. Pause is per board (#970) and so is silence (#1788), so a guard
+    that only ever asked about the primary would let a targeted send through
+    to a paused secondary. It answered 200 for exactly that case until this
+    parameter existed.
 
     ``_board_is_paused`` is deliberately resolved through
     ``src.display_runtime`` at call time rather than from this module's own
@@ -272,7 +278,7 @@ def raise_if_paused(what: str = "manual send") -> None:
     """
     from . import display_runtime as runtime
 
-    if runtime._board_is_paused():
+    if runtime._board_is_paused(board_id):
         logger.info("Board is paused - blocking %s", what)
         raise HTTPException(status_code=409, detail=PAUSED_DETAIL)
 
