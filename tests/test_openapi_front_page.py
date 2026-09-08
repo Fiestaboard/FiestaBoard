@@ -36,24 +36,37 @@ def used_tags(schema) -> set[str]:
     return tags
 
 
-def test_every_tag_a_route_uses_is_described(used_tags):
-    """An undescribed tag is a bare heading in the docs sidebar."""
-    described = {tag["name"] for tag in OPENAPI_TAGS if tag.get("description")}
+def test_every_tag_a_route_uses_is_described(used_tags, schema):
+    """An undescribed tag is a bare heading in the docs sidebar.
+
+    Checked against the published schema, not ``OPENAPI_TAGS``: `v1` describes
+    itself in ``src/v1/openapi.py`` and is prepended there, so the constant is
+    only one of the document's two inputs.
+    """
+    described = {tag["name"] for tag in schema["tags"] if tag.get("description")}
     assert used_tags <= described, (
-        f"tags used by routes but not described in OPENAPI_TAGS: {sorted(used_tags - described)}"
+        f"tags used by routes but not described in the published schema: {sorted(used_tags - described)}"
     )
 
 
-def test_no_described_tag_is_stale(used_tags):
+def test_no_described_tag_is_stale(used_tags, schema):
     """A described tag no route uses renders an empty section."""
-    declared = {tag["name"] for tag in OPENAPI_TAGS}
+    declared = {tag["name"] for tag in schema["tags"]}
     assert declared <= used_tags, f"described tags no route uses: {sorted(declared - used_tags)}"
 
 
 def test_the_tag_order_is_the_declared_order(schema):
-    """Swagger renders tags in ``openapi_tags`` order; boards/content lead."""
-    assert [tag["name"] for tag in schema["tags"]] == [tag["name"] for tag in OPENAPI_TAGS]
-    assert schema["tags"][0]["name"] == "service"
+    """Swagger renders tags in schema order; the consumer surface leads.
+
+    Asserted against the **published schema** rather than ``OPENAPI_TAGS``.
+    That constant is only one input: ``src/v1/openapi.py`` prepends the ``v1``
+    tag, because v1 owns its own description and cannot be imported this early
+    in ``api_server``. Comparing to the input would have pinned a list the
+    document does not actually publish.
+    """
+    published = [tag["name"] for tag in schema["tags"]]
+    assert published == ["v1"] + [tag["name"] for tag in OPENAPI_TAGS]
+    assert published[0] == "v1", "the consumer surface must be the first thing a newcomer sees"
     assert [t["name"] for t in schema["tags"]].index("pages") < [t["name"] for t in schema["tags"]].index("debug")
 
 

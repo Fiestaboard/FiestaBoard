@@ -447,6 +447,9 @@ Off by default: a fresh install answers every request. With
 # first-appearance-in-the-paths-object order, which opened on MQTT and put
 # `pages` fourteenth, below `debug`.
 OPENAPI_TAGS = [
+    # `/v1` is deliberately absent: it is prepended by src/v1/openapi.py, which
+    # owns its own description and has to run after this module is importable.
+    # Swagger renders tags in schema order, so the consumer surface still leads.
     {"name": "service", "description": "The display loop itself: health, status, start/stop/refresh."},
     {"name": "board", "description": "Write to a board out of band, and read back what is physically on it."},
     {"name": "pages", "description": "Pages — the unit of content. CRUD, preview, send, import/export."},

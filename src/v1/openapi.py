@@ -82,7 +82,9 @@ def build_openapi(app) -> dict[str, Any]:
         version=app.version,
         description=app.description,
         routes=app.routes,
-        tags=(app.openapi_tags or []) + [V1_TAG_METADATA],
+        # Prepended, not appended: Swagger renders tags in this order and the
+        # consumer surface has to be the first thing a newcomer sees.
+        tags=[V1_TAG_METADATA, *(app.openapi_tags or [])],
     )
     schema.setdefault("components", {})["securitySchemes"] = SECURITY_SCHEMES
     schema["security"] = SECURITY_REQUIREMENT
