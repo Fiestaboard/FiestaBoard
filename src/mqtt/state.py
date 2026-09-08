@@ -240,7 +240,7 @@ class StatePublisher:
             from src.api_server import peek_service
 
             service = peek_service()
-            if service is not None and hasattr(service, "is_showing_out_of_band"):
+            if service is not None:
                 return service.is_showing_out_of_band() is True
         except Exception:
             logger.debug("Could not read out-of-band display state")
@@ -267,7 +267,7 @@ class StatePublisher:
             from src.api_server import _get_board_client
 
             client = _get_board_client()
-            if client and hasattr(client, "use_cloud"):
+            if client:
                 return "Cloud API" if client.use_cloud else "Local API"
         except Exception:
             logger.debug("Could not get board API mode")
