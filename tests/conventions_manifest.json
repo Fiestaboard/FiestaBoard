@@ -21,7 +21,8 @@
     "system",
     "templates",
     "transitions",
-    "triggers"
+    "triggers",
+    "v1"
   ],
   "exceptions": [
     {

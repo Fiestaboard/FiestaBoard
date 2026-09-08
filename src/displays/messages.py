@@ -29,10 +29,16 @@ def render_message(
     strategy: str,
     step_interval_ms: int,
     step_size: int,
+    force: bool = False,
 ) -> tuple[bool, bool]:
     """Wrap ``text`` to a ``rows``×``cols`` grid and render it through ``client``.
 
     Returns the client's ``(success, was_sent)`` pair unchanged.
+
+    ``force`` bypasses the client's unchanged-content dedupe, so an identical
+    message is re-flapped rather than skipped. It defaults to False — the
+    behavior every caller had before ``POST /v1/boards/{board}/message``
+    needed to expose it.
     """
     wrapped = wrap_message_text(text, rows=rows, cols=cols)
     board_array = text_to_board_array(wrapped, rows=rows, cols=cols)
@@ -41,4 +47,5 @@ def render_message(
         strategy=strategy,
         step_interval_ms=step_interval_ms,
         step_size=step_size,
+        force=force,
     )

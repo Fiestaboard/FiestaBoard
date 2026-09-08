@@ -2115,6 +2115,14 @@ from .backup.routes import router as backup_router  # noqa: E402
 
 app.include_router(backup_router)
 
+# The consumer-facing API. Mounted last, and imported here rather than at the
+# top of the module, because src/v1 imports the domain routers it adapts —
+# every one of which this module has already imported by now. src/v1 owns its
+# own routes, its tag metadata and the securitySchemes declaration.
+from .v1 import mount_v1  # noqa: E402
+
+mount_v1(app)
+
 
 if __name__ == "__main__":
     import uvicorn

@@ -322,7 +322,153 @@ async def set_active_page(page_id: str, board_id: str | None = None) -> dict[str
     )
 
 
-def send_message(text: str, board_id: str | None = None) -> dict[str, Any]:
+class _SendTarget:
+    """The collaborators one board write needs, resolved once.
+
+    Built by :func:`_resolve_send_target`, which is the gate sequence
+    ``POST /send-message`` performs before it touches a board. Factored out
+    of :func:`send_message` so :func:`send_characters` cannot drift from it:
+    the two operations differ only in what grid they hand the client.
+    """
+
+    __slots__ = ("board", "board_id", "client", "primary_id", "service", "settings_service")
+
+    def __init__(self, service, client, board, board_id, primary_id, settings_service) -> None:
+        self.service = service
+        self.client = client
+        self.board = board
+        self.board_id = board_id
+        self.primary_id = primary_id
+        self.settings_service = settings_service
+
+
+def _resolve_send_target(board_id: str | None) -> tuple[_SendTarget | None, dict[str, Any] | None]:
+    """``(target, refusal)`` — exactly one of the two is not ``None``.
+
+    The refusal is already an executor envelope: an ``err`` for a missing
+    collaborator, or a ``status: "blocked"`` result for the silence window
+    (#1788) and a paused board (#970). Blocked is deliberately not an error —
+    it is policy, and a model relaying it should not retry.
+    """
+    # get_service is the DisplayService singleton accessor — api_server
+    # owns it, but this is the same seam get_system_status and
+    # set_active_page already use; no REST handler is called.
+    from src.api_server import get_service
+    from src.config import Config
+    from src.settings.service import get_settings_service
+
+    service = get_service()
+    if not service:
+        return None, err("Display service not initialized.")
+
+    settings_service = get_settings_service()
+    primary_id = settings_service.get_primary_board_id()
+    board: dict[str, Any] | None = None
+    if board_id is not None:
+        boards = settings_service.get_board_settings().boards or []
+        board = next((b for b in boards if isinstance(b, dict) and b.get("id") == board_id), None)
+        if board is None:
+            return None, err(f"Board not found: {board_id}")
+
+    # Silence gate (#1788): resolve the *target* board's window; omitted
+    # board_id resolves the primary, exactly like the REST handler.
+    if Config.is_silence_mode_active(board_id if board_id is not None else primary_id):
+        return None, {
+            "status": "blocked",
+            "message": "Manual sends blocked during silence mode to prevent wake-ups",
+            "silence_mode": True,
+            "board_id": board_id,
+        }
+
+    # Pause gate (#970): a paused board is left untouched.
+    if settings_service.is_paused(board_id=board_id) is True:
+        return None, {
+            "status": "blocked",
+            "message": "Board is paused — sends are blocked until it is resumed.",
+            "paused": True,
+            "board_id": board_id,
+        }
+
+    client = service.get_board_client(board_id) if board_id is not None else service.vb_client
+    if not client:
+        return None, err(
+            f"Board client not initialized: {board_id}" if board_id is not None else "Board client not initialized."
+        )
+
+    # Size the grid to the target board (the REST handler's active-first-
+    # board sizing when board_id is omitted).
+    if board is None:
+        board_settings = settings_service.get_board_settings()
+        board = board_settings.boards[0] if board_settings.boards else {}
+
+    return _SendTarget(service, client, board, board_id, primary_id, settings_service), None
+
+
+def _target_dimensions(target: _SendTarget):
+    """Rows/cols of the board this send targets."""
+    from src.devices import resolve_dimensions
+
+    return resolve_dimensions(
+        target.board.get("device_type") or "flagship",
+        target.board.get("notes_wide") or 1,
+        target.board.get("notes_tall") or 1,
+    )
+
+
+def _transition_for(target: _SendTarget, strategy, step_interval_ms, step_size):
+    """Per-call transition overrides, falling back to the stored settings.
+
+    ``None`` means "use what the install is configured for" — the behavior
+    every caller had before the overrides existed.
+    """
+    stored = target.settings_service.get_transition_settings()
+    return (
+        stored.strategy if strategy is None else strategy,
+        stored.step_interval_ms if step_interval_ms is None else step_interval_ms,
+        stored.step_size if step_size is None else step_size,
+    )
+
+
+def _after_send(target: _SendTarget) -> None:
+    """Out-of-band bookkeeping every manual write owes the rest of the app.
+
+    The board now shows content the display loop didn't put there
+    (#1794/#1831): mark it, push fresh MQTT state so Home Assistant agrees,
+    and ask for an adaptive refresh. The dedupe cache is deliberately left
+    alone so the message survives the next engine tick.
+    """
+    try:
+        target.service.mark_showing_out_of_band(target.board_id)
+    except Exception as exc:
+        logger.debug("Out-of-band mark after send failed: %s", exc)
+    try:
+        from src.mqtt import get_mqtt_client
+
+        mqtt_client = get_mqtt_client()
+        publisher = getattr(mqtt_client, "_state_publisher", None) if mqtt_client else None
+        if publisher is not None:
+            publisher.mark_display_updated()
+            publisher.gather_and_publish()
+    except Exception as exc:
+        logger.debug("MQTT state publish after send failed: %s", exc)
+    # Adaptive post-send refresh is primary-only (board-state polling
+    # tracks only the primary board — issue #1243).
+    if target.board_id is None or target.board_id == target.primary_id:
+        try:
+            target.service.request_board_refresh()
+        except Exception as exc:
+            logger.debug("Board refresh after send failed: %s", exc)
+
+
+def send_message(
+    text: str,
+    board_id: str | None = None,
+    *,
+    strategy: str | None = None,
+    step_interval_ms: int | None = None,
+    step_size: int | None = None,
+    force: bool = False,
+) -> dict[str, Any]:
     """Send an ad-hoc text message straight to a board (issue #1765).
 
     Mirrors ``POST /send-message`` gate for gate — silence (#1788), pause
@@ -335,109 +481,93 @@ def send_message(text: str, board_id: str | None = None) -> dict[str, Any]:
     Silence and pause come back as ``status: "blocked"`` results, not
     errors — they are deliberate policy, and the model should relay them
     rather than retry.
+
+    The keyword-only arguments are pass-throughs for the ``/v1`` front door
+    (``POST /v1/boards/{board}/message``): a per-request transition, and
+    ``force`` to bypass the client's unchanged-content dedupe. Every one of
+    them defaults to the behavior this executor had before they existed —
+    the stored transition settings, and no forcing.
     """
     try:
-        # get_service is the DisplayService singleton accessor — api_server
-        # owns it, but this is the same seam get_system_status and
-        # set_active_page already use; no REST handler is called.
-        from src.api_server import get_service
-        from src.config import Config
-        from src.devices import resolve_dimensions
         from src.displays.messages import render_message
-        from src.settings.service import get_settings_service
 
-        service = get_service()
-        if not service:
-            return err("Display service not initialized.")
+        target, refusal = _resolve_send_target(board_id)
+        if refusal is not None:
+            return refusal
+        assert target is not None
 
-        settings_service = get_settings_service()
-        primary_id = settings_service.get_primary_board_id()
-        board: dict[str, Any] | None = None
-        if board_id is not None:
-            boards = settings_service.get_board_settings().boards or []
-            board = next((b for b in boards if isinstance(b, dict) and b.get("id") == board_id), None)
-            if board is None:
-                return err(f"Board not found: {board_id}")
-
-        # Silence gate (#1788): resolve the *target* board's window; omitted
-        # board_id resolves the primary, exactly like the REST handler.
-        if Config.is_silence_mode_active(board_id if board_id is not None else primary_id):
-            return {
-                "status": "blocked",
-                "message": "Manual sends blocked during silence mode to prevent wake-ups",
-                "silence_mode": True,
-                "board_id": board_id,
-            }
-
-        # Pause gate (#970): a paused board is left untouched.
-        if settings_service.is_paused(board_id=board_id) is True:
-            return {
-                "status": "blocked",
-                "message": "Board is paused — sends are blocked until it is resumed.",
-                "paused": True,
-                "board_id": board_id,
-            }
-
-        client = service.get_board_client(board_id) if board_id is not None else service.vb_client
-        if not client:
-            return err(
-                f"Board client not initialized: {board_id}" if board_id is not None else "Board client not initialized."
-            )
-
-        # Size the grid to the target board (the REST handler's active-first-
-        # board sizing when board_id is omitted).
-        if board is None:
-            board_settings = settings_service.get_board_settings()
-            board = board_settings.boards[0] if board_settings.boards else {}
-        dims = resolve_dimensions(
-            board.get("device_type") or "flagship",
-            board.get("notes_wide") or 1,
-            board.get("notes_tall") or 1,
+        dims = _target_dimensions(target)
+        resolved_strategy, resolved_interval, resolved_step = _transition_for(
+            target, strategy, step_interval_ms, step_size
         )
-
-        transition = settings_service.get_transition_settings()
         success, was_sent = render_message(
-            client,
+            target.client,
             text,
             rows=dims.rows,
             cols=dims.cols,
-            strategy=transition.strategy,
-            step_interval_ms=transition.step_interval_ms,
-            step_size=transition.step_size,
+            strategy=resolved_strategy,
+            step_interval_ms=resolved_interval,
+            step_size=resolved_step,
+            force=force,
         )
         if not success:
             return err("Failed to send message to the board.")
         if not was_sent:
             return ok("Message unchanged, no update needed.", skipped=True, board_id=board_id)
 
-        # Out-of-band bookkeeping (#1794/#1831): the board now shows content
-        # the display loop didn't put there. The dedupe cache is deliberately
-        # left alone so the message survives the next engine tick.
-        try:
-            service.mark_showing_out_of_band(board_id)
-        except Exception as exc:
-            logger.debug("Out-of-band mark after MCP send failed: %s", exc)
-        try:
-            from src.mqtt import get_mqtt_client
-
-            mqtt_client = get_mqtt_client()
-            publisher = getattr(mqtt_client, "_state_publisher", None) if mqtt_client else None
-            if publisher is not None:
-                publisher.mark_display_updated()
-                publisher.gather_and_publish()
-        except Exception as exc:
-            logger.debug("MQTT state publish after MCP send failed: %s", exc)
-        # Adaptive post-send refresh is primary-only (board-state polling
-        # tracks only the primary board — issue #1243).
-        if board_id is None or board_id == primary_id:
-            try:
-                service.request_board_refresh()
-            except Exception as exc:
-                logger.debug("Board refresh after MCP send failed: %s", exc)
-
+        _after_send(target)
         return ok("Message sent successfully.", board_id=board_id)
     except Exception as exc:
         return err(f"Error sending message: {exc}")
+
+
+def send_characters(
+    characters: list[list[int]],
+    board_id: str | None = None,
+    *,
+    strategy: str | None = None,
+    step_interval_ms: int | None = None,
+    step_size: int | None = None,
+    force: bool = False,
+) -> dict[str, Any]:
+    """Send an already-built flap grid to a board.
+
+    The raw-grid sibling of :func:`send_message`: same gate sequence, same
+    bookkeeping, no text layout. It backs the ``characters``, ``fill`` and
+    ``page_id`` forms of ``POST /v1/boards/{board}/message``, which arrive as
+    a grid rather than as a string, so those forms cannot acquire a different
+    silence/pause/refresh story from the text form.
+
+    ``characters`` is trusted to be the right shape for the target board —
+    validating it is the caller's job, because the caller knows whether a
+    mismatch is a client error (a supplied grid) or a server one (a page that
+    rendered wrong).
+    """
+    try:
+        target, refusal = _resolve_send_target(board_id)
+        if refusal is not None:
+            return refusal
+        assert target is not None
+
+        resolved_strategy, resolved_interval, resolved_step = _transition_for(
+            target, strategy, step_interval_ms, step_size
+        )
+        success, was_sent = target.client.render(
+            characters,
+            strategy=resolved_strategy,
+            step_interval_ms=resolved_interval,
+            step_size=resolved_step,
+            force=force,
+        )
+        if not success:
+            return err("Failed to send characters to the board.")
+        if not was_sent:
+            return ok("Board content unchanged, no update needed.", skipped=True, board_id=board_id)
+
+        _after_send(target)
+        return ok("Characters sent successfully.", board_id=board_id)
+    except Exception as exc:
+        return err(f"Error sending characters: {exc}")
 
 
 # ---------------------------------------------------------------------------
