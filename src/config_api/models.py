@@ -22,9 +22,11 @@ Two shapes here are deliberately *not* the conventional bare-resource body:
 
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, Literal, get_args
 
-from pydantic import BaseModel, ConfigDict, RootModel
+from pydantic import BaseModel, ConfigDict, Field, RootModel
+
+from src.devices import ApiMode
 
 
 class ConfigSummaryResponse(BaseModel):
@@ -68,6 +70,12 @@ class FullConfigResponse(RootModel[dict[str, Any]]):
     """
 
 
+#: How the web UI renders clock times. There is no older constant to derive
+#: from — this Literal is the definition, and ``ConfigManager``'s "12h" default
+#: is its only other spelling.
+TimeFormat = Literal["12h", "24h"]
+
+
 class LegacyBoardConfig(BaseModel):
     """The legacy ``config.json`` board block, as the shim still serves it.
 
@@ -105,7 +113,12 @@ class BoardConfigUpdate(BaseModel):
     metadata.
     """
 
-    api_mode: str | None = None
+    #: ``ApiMode``, not ``str``. An unknown mode was written into the boards
+    #: store and normalised straight back to "local" by
+    #: ``BoardInstance.__post_init__``, so the caller's value was accepted and
+    #: discarded in the same 200. The Literal is the one the storage layer
+    #: validates against (``src.devices.VALID_API_MODES`` is derived from it).
+    api_mode: ApiMode | None = None
     local_api_key: str | None = None
     cloud_key: str | None = None
     note_array_token: str | None = None
@@ -225,7 +238,12 @@ class GeneralConfig(BaseModel):
     refresh_interval_seconds: int = 300
     output_target: str = "board"
     instance_name: str = ""
-    time_format: str = "12h"
+    #: Publishes the vocabulary but stays ``str``. This is the RESPONSE
+    #: model, and an install that PUT a bad time_format before the request
+    #: model started refusing them still has it on disk — narrowing the type
+    #: here would turn that stale value into a 500 on a read. Requests are
+    #: where the vocabulary is enforced (``GeneralConfigUpdate``).
+    time_format: str = Field(default="12h", json_schema_extra={"enum": list(get_args(TimeFormat))})
     date_format: str = "MM/DD/YYYY"
     welcome_message: str = ""
 
@@ -246,6 +264,9 @@ class GeneralConfigUpdate(BaseModel):
     refresh_interval_seconds: int | None = None
     output_target: str | None = None
     instance_name: str | None = None
-    time_format: str | None = None
+    #: The web UI switches its clock rendering on this. It used to be stored
+    #: verbatim, so ``"bogus"`` round-tripped through ``GET /config/general``
+    #: and reached the browser as an unrecognised format.
+    time_format: TimeFormat | None = None
     date_format: str | None = None
     welcome_message: str | None = None

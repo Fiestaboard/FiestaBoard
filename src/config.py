@@ -5,6 +5,7 @@ ConfigManager (JSON file-based storage).
 """
 
 import logging
+from typing import Literal, get_args
 
 from .config_manager import get_config_manager
 
@@ -22,7 +23,12 @@ _SILENCE_KEYS = (
 )
 
 SILENCE_INDICATOR_POSITIONS = ("center", "top-left", "top-right", "bottom-left", "bottom-right")
-SILENCE_MODES = ("indicator", "freeze", "page")
+#: What the board does while the silence window is open. Defined once and
+#: derived, so ``SilenceScheduleRequest.mode`` publishes exactly the set
+#: ``resolve_silence_schedule`` enforces.
+SilenceMode = Literal["indicator", "freeze", "page"]
+
+SILENCE_MODES: tuple[str, ...] = get_args(SilenceMode)
 
 
 def resolve_silence_schedule(feature: dict | None, board_id: str | None = None) -> dict:

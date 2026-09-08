@@ -168,20 +168,31 @@ def _publish_mqtt_state_update() -> None:
         logger.debug(f"MQTT state publish after board write failed: {e}")
 
 
-def _note_out_of_band_write() -> None:
-    """Record a successful out-of-band write to the primary board and push
-    fresh MQTT state (issue #1831).
+def _note_out_of_band_write(board_id: str | None = None) -> None:
+    """Record a successful out-of-band write to a board and push fresh MQTT
+    state (issue #1831).
 
     The write bypassed the display loop and persists (issue #1794), so the
     board no longer shows the configured page; flagging it lets the state
     publisher report that instead of the page name. Peek only — with no
     DisplayService there is nothing to flag, and reporting must never fail
     the board write that triggered it.
+
+    ``board_id`` omitted → the primary board, which is what every caller
+    meant before ``POST /send-message`` learned to target one (issue #1247);
+    ``mark_showing_out_of_band`` resolves it the same way.
     """
     service = peek_service()
     if service is not None:
         try:
-            service.mark_showing_out_of_band()
+            # Called with NO argument for the primary board. mark_showing_out_
+            # _of_band(None) means the same thing, but ~4 existing tests assert
+            # the zero-argument call, and re-pinning them to record an
+            # explicit None would be re-pinning a promise nothing changed.
+            if board_id is None:
+                service.mark_showing_out_of_band()
+            else:
+                service.mark_showing_out_of_band(board_id)
         except Exception as e:
             logger.debug(f"Out-of-band mark failed: {e}")
     _publish_mqtt_state_update()

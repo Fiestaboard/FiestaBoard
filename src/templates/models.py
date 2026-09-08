@@ -16,6 +16,8 @@ from typing import Any
 
 from pydantic import BaseModel, Field
 
+from src.devices import DeviceType
+
 
 class TemplateVariablesResponse(BaseModel):
     """``GET /templates/variables`` — everything the editor autocompletes on."""
@@ -74,10 +76,15 @@ class TemplateValidationResponse(BaseModel):
 
 
 class TemplateRenderRequest(BaseModel):
-    """``POST /templates/render`` request body."""
+    """``POST /templates/render`` request body.
+
+    ``device_type`` is the ``DeviceType`` Literal, not a bare string: the
+    renderer falls back to flagship geometry for anything it does not know,
+    so a typo used to render at the wrong size and answer 200.
+    """
 
     template: str | list[str]
-    device_type: str | None = None
+    device_type: DeviceType | None = None
     line_metadata: list[dict[str, Any]] | None = None
 
 

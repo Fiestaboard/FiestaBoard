@@ -217,7 +217,11 @@ class TestSilenceScheduleModes:
         assert config["page_id"] == "page-abc"
         assert store["page_id"] == "page-abc"
 
-    def test_invalid_mode_falls_back_to_freeze(self, client, mock_config_manager_for_silence):
+    # CHANGED (w0/schema-honesty): 200-with-"freeze" -> 422. `mode` now
+    # declares its vocabulary (src.config.SilenceMode), so an unknown mode is
+    # refused instead of silently becoming "freeze" — a client that asked for
+    # "indicater" used to get a frozen board and a 200 saying it worked.
+    def test_invalid_mode_is_refused(self, client, mock_config_manager_for_silence):
         response = client.put(
             "/settings/silence-schedule",
             json={
@@ -226,6 +230,14 @@ class TestSilenceScheduleModes:
                 "end_time": "15:00+00:00",
                 "mode": "garbage",
             },
+        )
+        assert response.status_code == 422
+
+    def test_omitting_mode_still_defaults_to_freeze(self, client, mock_config_manager_for_silence):
+        """The fallback that remains: absent is not the same as invalid."""
+        response = client.put(
+            "/settings/silence-schedule",
+            json={"enabled": True, "start_time": "04:00+00:00", "end_time": "15:00+00:00"},
         )
         assert response.status_code == 200
         assert response.json()["config"]["mode"] == "freeze"

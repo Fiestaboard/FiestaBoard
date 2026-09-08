@@ -13,6 +13,7 @@ from typing import Literal
 from pydantic import BaseModel, ConfigDict, Field
 
 from src.devices import DEFAULT_DEVICE_TYPE, MAX_NOTES_PER_AXIS, DeviceType, resolve_dimensions
+from src.settings.service import VALID_OUTPUT_TARGETS
 
 PageType = Literal["single", "composite", "template"]
 
@@ -355,9 +356,17 @@ class PageSendRequest(BaseModel):
     """Body of ``POST /pages/{page_id}/send``.
 
     Both fields may equally be given as query parameters; the query wins.
+
+    ``target`` publishes its vocabulary (derived from
+    ``VALID_OUTPUT_TARGETS``, so it cannot drift) but stays typed ``str``.
+    Typing it as the Literal would make Pydantic answer 422 for a bad *body*
+    while the identical value in the *query string* — the other half of this
+    endpoint's own contract — kept answering the handler's 400. One request
+    field cannot have two verdicts, so the verdict stays where it already is
+    and only the documentation moves.
     """
 
-    target: str | None = None
+    target: str | None = Field(default=None, json_schema_extra={"enum": VALID_OUTPUT_TARGETS})
     board_id: str | None = None
 
 

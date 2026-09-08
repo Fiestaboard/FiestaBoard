@@ -13,7 +13,7 @@ import threading
 from collections.abc import Callable
 from dataclasses import asdict, dataclass, field
 from datetime import UTC, datetime
-from typing import Literal, Optional, TypeVar
+from typing import Literal, Optional, TypeVar, get_args
 
 from pydantic import BaseModel
 
@@ -27,9 +27,18 @@ logger = logging.getLogger(__name__)
 # transitions use the ``plugin:<id>`` form and are validated dynamically
 # against the transition-plugin registry rather than this list.
 VALID_STRATEGIES = ["column", "reverse-column", "edges-to-center", "row", "diagonal", "random"]
-VALID_OUTPUT_TARGETS = ["ui", "board", "both"]
 
+#: Where rendered content goes. The Literal is the definition and the list is
+#: derived from it, so a request model annotated ``target: OutputTarget``
+#: publishes exactly the set ``set_output_target`` enforces — they used to be
+#: two hand-copied spellings of the same three words.
 OutputTarget = Literal["ui", "board", "both"]
+VALID_OUTPUT_TARGETS = list(get_args(OutputTarget))
+
+#: The six BUILT-IN strategies. Deliberately NOT the whole vocabulary and so
+#: deliberately not a wire enum: ``is_valid_strategy`` also accepts any
+#: ``plugin:<id>`` reference, so a closed enum on the wire would refuse every
+#: transition plugin.
 TransitionStrategy = Literal["column", "reverse-column", "edges-to-center", "row", "diagonal", "random"]
 
 # Prefix that marks a strategy string as referring to a transition plugin

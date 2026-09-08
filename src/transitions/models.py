@@ -21,6 +21,8 @@ from typing import Any
 
 from pydantic import BaseModel, Field
 
+from src.devices import DEVICE_TYPES
+
 
 class TransitionSettingsCaps(BaseModel):
     """A transition plugin's declared limits, from its manifest."""
@@ -58,7 +60,13 @@ class TransitionPreviewRequest(BaseModel):
     plugin_id: str | None = None
     from_text: str = ""
     to_text: str = ""
-    device_type: str = "flagship"
+    # The vocabulary is published (derived from src.devices.DEVICE_TYPES, so
+    # it cannot drift) but the *type* stays ``str`` on purpose: the handler
+    # already answers 400 "Unknown device_type: ..." and this module's
+    # recorded decision is that widening that 400 into a Pydantic 422 is a
+    # contract change with no benefit. A generated client now knows the three
+    # legal values; the server keeps giving the same verdict it always gave.
+    device_type: str = Field(default="flagship", json_schema_extra={"enum": list(DEVICE_TYPES)})
     notes_wide: Any = 1
     notes_tall: Any = 1
     config: dict[str, Any] | None = None

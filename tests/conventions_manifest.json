@@ -308,6 +308,16 @@
       "route": "POST /settings/hdmi-kiosk",
       "rule": "no_200_on_failure",
       "reason": "The flagged return is the `except` around `resp.json()`, reached only after the sidecar has already answered 200 or 202 \u2014 the enable was accepted and the work is queued. Returning {'status': 'queued'} there is correct; the sidecar simply sent no JSON body. Every real failure above it is already a 4xx/502. Called out as do-not-touch in the Phase 2 plan's silent-failure enumeration (Task 10a)."
+    },
+    {
+      "route": "PUT /settings/mqtt",
+      "rule": "declared_errors",
+      "reason": "Its only failure is request-body validation. It used to declare 422 by hand, which is worse than declaring nothing: a hand-written 422 entry REPLACES the HTTPValidationError body FastAPI publishes automatically, so the schema announced a 422 with an empty body. The entry is gone and FastAPI's own 422 is published instead. The handler persists a validated model and raises no HTTPException of its own, so there is no other status it deliberately returns."
+    },
+    {
+      "route": "PUT /settings/ai",
+      "rule": "declared_errors",
+      "reason": "Its only failure is request-body validation. It used to declare 422 by hand, which is worse than declaring nothing: a hand-written 422 entry REPLACES the HTTPValidationError body FastAPI publishes automatically, so the schema announced a 422 with an empty body. The entry is gone and FastAPI's own 422 is published instead. The handler persists a validated model and raises no HTTPException of its own, so there is no other status it deliberately returns."
     }
   ]
 }
