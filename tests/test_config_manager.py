@@ -1237,6 +1237,11 @@ def test_save_internal_is_atomic_on_mid_write_crash(tmp_path, monkeypatch):
     cm._save_internal()  # normalize on-disk content
     original_bytes = config_path.read_bytes()
 
+    # The pending save must be a REAL one: an unchanged save is now correctly
+    # skipped as a no-op (write_json_atomic if_changed), so a crash test that
+    # re-saves identical bytes would never reach the crash it exists to test.
+    cm._config.setdefault("general", {})["instance_name"] = "Changed in memory only"
+
     real_dump = json.dump
 
     def crashing_dump(obj, fh, *args, **kwargs):

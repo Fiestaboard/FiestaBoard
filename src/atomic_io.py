@@ -101,8 +101,8 @@ def write_json_atomic(
     the bytes would be identical. An SD card is not worn out by writes that
     change something; it is worn out by writes, and a rewrite of identical
     content is the one class of write with no upside at all. The cost of the
-    check is a read of a file we were about to rewrite anyway, against an
-    fsync we then skip entirely.
+    check is a read of a file we were about to rewrite anyway plus one
+    in-memory serialisation, against an fsync we then skip entirely.
 
     It is deliberately opt-in. A caller that writes to signal liveness (a
     heartbeat, a mtime other code reads) must keep writing, and only the
@@ -112,13 +112,19 @@ def write_json_atomic(
     was skipped as a no-op.
     """
     target.parent.mkdir(parents=True, exist_ok=True)
-    payload = json.dumps(data, indent=indent)
-    if if_changed and _matches(target, payload):
+    if if_changed and _matches(target, json.dumps(data, indent=indent)):
         return False
     tmp_path = staging_path(target)
     try:
+        # ``json.dump`` streams into the staging file rather than building the
+        # whole document first. That is load-bearing, not incidental: a
+        # serialisation failure partway through must leave a partial STAGING
+        # file that gets unlinked below, never a partial target
+        # (tests/test_storage_kernel.py crashes json.dump to prove it). The
+        # ``if_changed`` comparison above therefore serialises separately
+        # instead of reusing this write's output.
         with _open_staging(tmp_path, private) as fh:
-            fh.write(payload)
+            json.dump(data, fh, indent=indent)
             fh.flush()
             os.fsync(fh.fileno())
         tmp_path.replace(target)
