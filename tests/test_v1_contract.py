@@ -276,6 +276,11 @@ def test_get_board_merges_the_three_reads_into_one_answer(client, boards, board_
     assert body["source"] == "manual"
     assert body["scheduled_page_id"] is None
     assert body["id"] == primary_id
+    # RE-PINNED: gained ``expected_characters`` (what was last sent, so drift
+    # from what the board shows is detectable at all) and
+    # ``resolved_next_check_seconds`` (a rotating collection's own re-poll
+    # cadence, #1513). Both are published by the internal reads this route
+    # merges and were dropped on the way through.
     assert set(body) == {
         "id",
         "name",
@@ -287,10 +292,12 @@ def test_get_board_merges_the_three_reads_into_one_answer(client, boards, board_
         "schedule_enabled",
         "characters",
         "text",
+        "expected_characters",
         "read_at",
         "active_page_id",
         "scheduled_page_id",
         "resolved_page_id",
+        "resolved_next_check_seconds",
         "source",
         "default_page_id",
         "override_expires_at",
@@ -656,7 +663,17 @@ def test_pinning_a_page_sets_it_and_reports_delivery(client, boards, board_clien
     response = client.put("/v1/boards/primary/active-page", json={"page_id": page_id})
 
     assert response.status_code == 200
-    assert response.json() == {"board_id": primary_id, "page_id": page_id, "sent": True, "warnings": []}
+    # RE-PINNED: gained ``error``, which #1791 added to the internal response
+    # so a 200 that never reached the board is detectable. Null here because
+    # this send worked; test_pinning_a_page_that_did_not_reach_the_board_says_why
+    # is the case that made it necessary.
+    assert response.json() == {
+        "board_id": primary_id,
+        "page_id": page_id,
+        "sent": True,
+        "error": None,
+        "warnings": [],
+    }
 
 
 def test_unpinning_clears_the_selection(client, boards, board_client):
@@ -846,11 +863,51 @@ def test_plugin_data_serves_both_the_raw_payload_and_the_board_lines(client):
     assert body["error"] is None
 
 
-def test_plugin_data_for_a_disabled_plugin_is_a_400(client):
+# RE-PINNED: a disabled plugin was a 400 with no body. The response model has
+# published ``available`` and ``error`` since the surface shipped, and the
+# handler it delegated to could not produce either — 400 for disabled, 503 for
+# a failed fetch. A published field that can never occur is a lie the schema
+# tells. The delegation was the half that was wrong: the registry already
+# returns available=False with the reason for all four unavailable cases, and
+# POST /displays/raw/batch already serves exactly that shape at 200. 404 stays
+# for an id that names no plugin, because that is a mistake in the request.
+def test_plugin_data_for_a_disabled_plugin_reports_it_rather_than_refusing(client):
     response = client.get("/v1/plugins/date_time/data")
 
-    assert response.status_code == 400
-    assert response.json() == {"detail": "Plugin not enabled: date_time"}
+    assert response.status_code == 200
+    assert response.json() == {
+        "plugin_id": "date_time",
+        "available": False,
+        "data": None,
+        "lines": [],
+        "text": "",
+        "error": "Plugin not enabled: date_time",
+    }
+
+
+def test_plugin_data_for_an_id_that_names_no_plugin_is_a_404(client):
+    """Availability is a fact about the plugin; a bad id is a bad request."""
+    response = client.get("/v1/plugins/nope/data")
+
+    assert response.status_code == 404
+    assert response.json() == {"detail": "Plugin not found: nope"}
+
+
+def test_plugin_data_reports_a_failed_fetch_rather_than_a_503(client):
+    """A source that could not be reached is the answer, not a broken instance."""
+    from src.plugins.base import PluginResult
+
+    client.patch("/v1/plugins/date_time", json={"enabled": True})
+    registry = Mock()
+    registry.get_plugin.return_value = object()
+    registry.fetch_plugin_data.return_value = PluginResult(available=False, error="Upstream timed out")
+
+    with patch("src.plugins.routes.get_plugin_registry", return_value=registry):
+        response = client.get("/v1/plugins/date_time/data")
+
+    assert response.status_code == 200
+    assert response.json()["available"] is False
+    assert response.json()["error"] == "Upstream timed out"
 
 
 # ── templating and service ──────────────────────────────────────────────────
@@ -928,3 +985,181 @@ def test_status_reports_per_board_state(client, boards, board_client):
 
     assert response.status_code == 200
     assert response.json()["boards"][primary_id]["paused"] is False
+
+
+# ── the health probe is public ──────────────────────────────────────────────
+#
+# ``GET /health`` has been in the middleware's public set since auth landed;
+# its v1 twin was not, which meant the surface a consumer is pointed at could
+# serve neither of the two things a health endpoint is for — a container
+# liveness probe (no session to present) and the web UI's boot gate (asked
+# before there is a session). Fixed in src/auth/middleware.py by adding the
+# path to ``_PUBLIC_EXACT``, alongside the one it is a twin of.
+
+
+@pytest.fixture
+def auth_enabled(client, monkeypatch):
+    """Auth switched on, an admin provisioned, and no session held.
+
+    ``/auth/setup`` logs the new user straight in, so the cookie jar is
+    cleared afterwards — otherwise every assertion below would ride on that
+    session and prove nothing about the unauthenticated path. The MCP token
+    is unset because ``src.api_server`` calls ``load_dotenv()`` at import and
+    a developer's ``.env`` can leak one into the test process.
+    """
+    from src.auth import routes as auth_routes
+
+    monkeypatch.setenv("FIESTABOARD_AUTH_ENABLED", "true")
+    monkeypatch.delenv("FIESTABOARD_MCP_TOKEN", raising=False)
+    auth_routes._FAILED_ATTEMPTS.clear()
+    created = client.post("/auth/setup", json={"username": "admin", "password": "Password123!"})
+    assert created.status_code in (200, 201), created.text
+    client.cookies.clear()
+    return client
+
+
+def test_health_answers_a_caller_with_no_credentials_at_all(auth_enabled):
+    """No cookie, no bearer, no anything — the liveness probe still answers."""
+    response = auth_enabled.get("/v1/health", headers={})
+
+    assert response.status_code == 200
+    assert response.json()["status"] == "ok"
+
+
+def test_only_health_is_public_on_the_v1_surface(auth_enabled):
+    """The exemption is one route, not a hole in the surface.
+
+    Without this, widening ``_PUBLIC_EXACT`` to a ``/v1`` prefix would look
+    like a passing change.
+    """
+    assert auth_enabled.get("/v1/status").status_code == 401
+    assert auth_enabled.get("/v1/boards").status_code == 401
+
+
+def test_health_is_public_under_both_nginx_path_regimes():
+    """``/api`` is stripped from most traffic and left intact on some paths.
+
+    ``_is_v1_path`` already handles both forms; the public set has to as
+    well, or the exemption depends on which location block served it.
+    """
+    from src.auth.middleware import _is_public_path
+
+    assert _is_public_path("/v1/health") is True
+    assert _is_public_path("/api/v1/health") is True
+    assert _is_public_path("/v1/status") is False
+
+
+# ── drift, re-poll cadence, and a pin that never landed ─────────────────────
+
+
+def test_get_board_reports_what_was_sent_next_to_what_is_shown(client, boards):
+    """``expected_characters`` is how a caller detects the board has drifted.
+
+    ``GET /board/current-message`` publishes both halves; v1 published only
+    the polled one, so a v1 consumer could not notice a flap that failed to
+    turn — the out-of-sync alert the dashboard is built on.
+    """
+    sent = [[63] * FLAGSHIP_COLS for _ in range(FLAGSHIP_ROWS)]
+    shown = [[0] * FLAGSHIP_COLS for _ in range(FLAGSHIP_ROWS)]
+    board_client = _board_client()
+    board_client._last_characters = sent
+    service = Mock()
+    runtime = Mock()
+    runtime.polled_characters = shown
+    runtime.polled_at = 1_700_000_000.0
+    runtime.client = board_client
+    service.get_runtime.return_value = runtime
+
+    with patch(SERVICE, return_value=service), patch(RUNTIME_SERVICE, return_value=service):
+        response = client.get("/v1/boards/primary")
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["characters"] == shown
+    assert body["expected_characters"] == sent
+    assert body["characters"] != body["expected_characters"]
+
+
+def test_get_board_reports_when_a_rotating_collection_may_change(client, boards, board_client):
+    """``resolved_next_check_seconds`` is the collection's own cadence (#1513).
+
+    Without it a client caches ``resolved_page_id`` on a guessed timer and
+    names the wrong page for most of the interval.
+    """
+    first = _seed_page(client, "One")
+    second = _seed_page(client, "Two")
+    collection_id = client.post("/v1/collections", json={"name": "Rotation", "page_ids": [first, second]}).json()["id"]
+    client.put("/v1/boards/primary/active-page", json={"page_id": collection_id})
+
+    body = client.get("/v1/boards/primary").json()
+
+    assert body["active_page_id"] == collection_id
+    assert isinstance(body["resolved_next_check_seconds"], int)
+    assert body["resolved_next_check_seconds"] >= 1
+
+
+def test_get_board_has_no_re_poll_cadence_for_a_plain_page(client, boards, board_client):
+    """A page that cannot rotate has no next check — null, not a made-up number."""
+    page_id = _seed_page(client)
+    client.put("/v1/boards/primary/active-page", json={"page_id": page_id})
+
+    assert client.get("/v1/boards/primary").json()["resolved_next_check_seconds"] is None
+
+
+def test_pinning_a_page_that_did_not_reach_the_board_says_why(client, boards, board_client):
+    """A 200 whose send failed must be distinguishable from one that worked.
+
+    #1791 added ``error`` to the internal response for exactly this; v1
+    dropped it, which turned every failed pin into an indistinguishable
+    success.
+    """
+    page_id = _seed_page(client)
+    board_client.render.return_value = (False, False)
+
+    response = client.put("/v1/boards/primary/active-page", json={"page_id": page_id})
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["sent"] is False
+    assert body["error"] == f"Failed to send page to board: {page_id}"
+    # The selection is still stored — that is what makes the error load-bearing.
+    assert client.get("/v1/boards/primary").json()["active_page_id"] == page_id
+
+
+# ── rendering for a shape no board has ──────────────────────────────────────
+
+
+def test_render_sizes_the_output_to_an_explicit_device_type(client):
+    """Geometry from a board was the only way in, so a page for a device type
+    no configured board has could not be previewed at its own size at all."""
+    from src.settings.service import get_settings_service
+
+    get_settings_service().set_boards([{"device_type": "flagship", "name": "Kitchen"}])
+
+    response = client.post("/v1/render", json={"template": ["HI"]}, params={"device_type": "note"})
+
+    assert response.status_code == 200
+    assert response.json()["line_count"] == NOTE_ROWS
+
+
+def test_render_with_no_board_and_no_device_type_is_flagship(client):
+    response = client.post("/v1/render", json={"template": ["HI"]})
+
+    assert response.status_code == 200
+    assert response.json()["line_count"] == FLAGSHIP_ROWS
+
+
+def test_render_refuses_a_board_and_a_device_type_together(client, boards):
+    """They can disagree, and silently picking one would be the worse answer."""
+    response = client.post("/v1/render", json={"template": ["HI"]}, params={"board": "primary", "device_type": "note"})
+
+    assert response.status_code == 400
+    assert response.json() == {
+        "detail": "Send either board or device_type, not both — they can disagree about the geometry."
+    }
+
+
+def test_render_rejects_an_unknown_device_type(client):
+    response = client.post("/v1/render", json={"template": ["HI"]}, params={"device_type": "billboard"})
+
+    assert response.status_code == 422

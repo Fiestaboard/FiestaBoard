@@ -107,15 +107,37 @@ async def update_plugin(plugin_id: str, request: PluginUpdate) -> PluginDetail:
     description=(
         "The plugin's latest fetch, in both forms the internal API served separately: `data` is the raw variable "
         "payload a template reads from, and `lines`/`text` are the board-ready rendering of it. `available` is "
-        "false, with `error` set, when the plugin is disabled, unconfigured, or its source could not be reached."
+        "false, with `error` set, when the plugin is disabled, unconfigured, or its source could not be reached — "
+        "a 200, because that is the answer to the question asked. 404 means no such plugin is installed."
     ),
 )
+@plugins_routes.plugin_errors_to_http
 async def get_plugin_data(plugin_id: str) -> PluginData:
+    """Report the plugin's state rather than refusing over it.
+
+    The response model published ``available`` and ``error`` from the start,
+    but the internal handler this used to delegate to raises 400 for a
+    disabled plugin and 503 for one whose fetch failed — so neither field
+    could ever be false or set, and the schema documented a state the route
+    could not produce. The registry already answers all four unavailable
+    cases as a ``PluginResult``; v1 serves that, the way
+    ``POST /displays/raw/batch`` already does per source.
+
+    Reaching past that handler to the service is deliberate: it owns the
+    400/503 verdict the web UI depends on, and that verdict is not v1's. The
+    three ``plugins_routes`` names used here are shared plumbing — the
+    availability guard, the wired-up service, and the one error-to-status
+    table — not that handler's contract, so v1 resolves the registry through
+    exactly the seam every other plugin handler does.
+    """
     from src.displays.service import get_display_service
 
-    payload = await plugins_routes.get_plugin_data(plugin_id)
-    lines: list[str] = list(payload.formatted_lines or [])
-    if not lines and payload.available:
+    plugins_routes._require_plugin_system()
+    result = await plugins_routes._plugin_service().fetch_data(plugin_id)
+
+    available = bool(result.available)
+    lines: list[str] = list(result.formatted_lines or [])
+    if not lines and available:
         # The /displays half of the merge. A plugin that publishes no
         # formatted_lines of its own still has a board rendering — the display
         # service falls back to its data's "formatted" key — and GET
@@ -125,12 +147,12 @@ async def get_plugin_data(plugin_id: str) -> PluginData:
             lines = display.formatted.split("\n")
 
     return PluginData(
-        plugin_id=payload.plugin_id,
-        available=bool(payload.available),
-        data=payload.data,
+        plugin_id=plugin_id,
+        available=available,
+        data=result.data,
         lines=lines,
         text="\n".join(lines),
-        error=payload.error,
+        error=result.error,
     )
 
 

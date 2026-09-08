@@ -10,9 +10,10 @@ to know to ask both.
 
 from __future__ import annotations
 
-from fastapi import Query
+from fastapi import HTTPException, Query
 
 from src.api_errors import errors
+from src.devices import DeviceType
 from src.plugins import routes as plugins_routes
 from src.service_api import routes as service_routes
 from src.service_api.models import HealthResponse, StatusResponse
@@ -86,8 +87,8 @@ async def list_functions() -> FormulaFunctionsResponse:
     description=(
         "Runs a template against the current data and gives you back the text, so you can see what a page would "
         "look like before you save it. Pass `board` — a board id or `primary` — to lay it out for that board's "
-        "size; without it the template is rendered at the default flagship geometry. Nothing is written to any "
-        "board."
+        "size, or `device_type` to lay it out for a hardware shape you have not configured a board for; without "
+        "either, the template is rendered at the default flagship geometry. Nothing is written to any board."
     ),
 )
 async def render_template(
@@ -96,14 +97,30 @@ async def render_template(
         default=None,
         description="Board id, or 'primary', whose geometry the template should be laid out for.",
     ),
+    device_type: DeviceType | None = Query(
+        default=None,
+        description=(
+            "Board shape to lay the template out for, as an alternative to naming a board. Use this to preview "
+            "a page whose device type no configured board has."
+        ),
+    ),
 ) -> TemplateRenderResponse:
-    device_type = None
+    # Geometry from a board was the only way in, so a page for a shape this
+    # install has no board of — the Note page you are writing before the Note
+    # arrives — could not be previewed at its own size at all. The board form
+    # stays the convenient default; this is the escape hatch.
+    if board is not None and device_type is not None:
+        raise HTTPException(
+            status_code=400,
+            detail="Send either board or device_type, not both — they can disagree about the geometry.",
+        )
+    resolved: str | None = device_type
     if board is not None:
-        device_type = resolve_board(board)[1].get("device_type") or "flagship"
+        resolved = resolve_board(board)[1].get("device_type") or "flagship"
     return await templates_routes.render_template(
         TemplateRenderRequest(
             template=request.template,
-            device_type=device_type,
+            device_type=resolved,
             line_metadata=request.line_metadata,
         )
     )

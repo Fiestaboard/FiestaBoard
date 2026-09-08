@@ -70,6 +70,14 @@ class BoardDetail(BoardSummary):
         default=None,
         description="``characters`` decoded back to text, for reading. Null when ``characters`` is null.",
     )
+    expected_characters: list[list[int]] | None = Field(
+        default=None,
+        description=(
+            "The flap grid FiestaBoard last sent to this board. When it differs from ``characters`` the board "
+            "has drifted from what was sent — a flap that did not turn, or something else writing to the board. "
+            "Null until this instance has sent anything."
+        ),
+    )
     read_at: str | None = Field(
         default=None,
         description="When ``characters`` was read from the board (ISO 8601). Null for a live read.",
@@ -85,6 +93,14 @@ class BoardDetail(BoardSummary):
     resolved_page_id: str | None = Field(
         default=None,
         description="The page actually being displayed, with any collection resolved to a member page.",
+    )
+    resolved_next_check_seconds: int | None = Field(
+        default=None,
+        description=(
+            "Seconds until ``resolved_page_id`` may change on its own, when it came from a collection that "
+            "rotates. Poll again after this long rather than on a guessed timer. Null for a plain page and for "
+            "a collection that cannot rotate."
+        ),
     )
     source: Literal["manual", "schedule", "none"] = Field(
         description="Where ``resolved_page_id`` came from.",
@@ -236,6 +252,13 @@ class ActivePageResponse(BaseModel):
     board_id: str
     page_id: str | None = Field(description="What is now pinned. Null means nothing is.")
     sent: bool = Field(description="Whether the new page reached the board immediately.")
+    error: str | None = Field(
+        default=None,
+        description=(
+            "Why the page did not reach the board, when ``sent`` is false. The selection is stored either way, "
+            "so a 200 here is not on its own proof that anything was displayed (#1791)."
+        ),
+    )
     warnings: list[str] = Field(
         default_factory=list,
         description="Non-fatal problems, e.g. collection members that do not fit this board.",
