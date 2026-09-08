@@ -31,10 +31,32 @@ src/<domain>/storage.py ─── a JsonStore over one file under data/
 data/<domain>.json
 ```
 
-Four hops, one responsibility each. The rule that keeps them honest: a
-service may not import `fastapi`, and a router may not open a file. Both are
-enforced by tests (`tests/test_service_wiring.py`,
-`tests/test_plugins_decoupled.py` and its siblings).
+Four hops, one responsibility each. Three rules keep them honest, and
+`tests/test_layering_ratchet.py` enforces all three **for the domains listed
+in `tests/layering_manifest.json`, and only those**:
+
+| Rule | id | What it checks |
+| --- | --- | --- |
+| A service may not import `fastapi` | `service_no_fastapi` | No module in `src/<domain>/` other than `routes.py` / `*_routes.py` / `middleware.py` imports `fastapi` or `starlette` |
+| A router may not open a file | `router_no_file_io` | No `open()`, `Path.read_*`/`write_*`, `json.load`/`dump`, `os`/`shutil` filesystem verb, or import of a storage module / `src.atomic_io` / `src.paths` in a transport module |
+| A router may not hold domain logic | `router_no_domain_logic` | A **size proxy**: every module-level function in a transport module stays within 15 body statements and cyclomatic complexity 8 |
+
+Enforced today: **`auth`, `backup`, `mqtt`, `network`, `schedules`,
+`triggers`**. Everything else — including `pages`, `collections`, `panels`,
+`config_api`, `settings`, `transitions`, `board_api`, `system` — is
+**unenforced**, and most of it does not currently comply: the 2026-09 audit
+counted ~1,600 lines of domain logic living in thirteen routers. A domain
+joins the list in the PR that makes it comply, never by loosening a rule
+until it passes. The ratchet is a floor that only moves up.
+
+The third rule is a proxy and its docstring says plainly what it does and
+does not catch — logic sharded across ten small helpers passes; a dense
+one-line comprehension passes. Read it before trusting a green run as proof
+of good layering.
+
+`src/plugins/` is a special case: it keeps rule 1 (via
+`tests/test_plugins_decoupled.py`, which calls the shared checker) but is not
+in the manifest, because its router still fails rule 3.
 
 ## The layers, one paragraph each
 
@@ -62,12 +84,17 @@ progress. When #1915 lands, `api_server.py` stops serving routes entirely.
 Every route declares `response_model=`, a typed request body, the error
 statuses it can raise, and `201` when it creates something. Those four rules
 are enforced per domain by `tests/test_api_conventions_ratchet.py`; see
-[API_CONVENTIONS.md](API_CONVENTIONS.md).
+[API_CONVENTIONS.md](API_CONVENTIONS.md). What a router must *not* do —
+persistence, and decision-making — is a separate per-domain ratchet,
+`tests/test_layering_ratchet.py`, with its own manifest and its own opt-in
+list.
 
 **Services (`src/<domain>/service.py`)** hold the behaviour and are callable
 from anywhere — a route, an MCP tool, the display loop, a test. They raise
 domain exceptions (`PageNotFound`, `PluginError`) which the router maps to
-status codes through one table per domain.
+status codes through one table per domain, and they never import `fastapi` —
+`service_no_fastapi` above is what stops that regressing in an enforced
+domain.
 
 **Storage (`src/storage/`)** is one kernel: `JsonStore` gives every store an
 `RLock`, an atomic write, and ordered `schema_version` migrations. Every

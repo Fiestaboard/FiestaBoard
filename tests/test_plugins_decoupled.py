@@ -322,25 +322,42 @@ def test_plugins_router_source_declares_no_api_server_import():
     assert offenders == [], f"src/plugins/ imports api_server: {offenders}"
 
 
-def test_the_plugin_service_raises_no_transport_exception():
-    """Layering: the service names failures, the router picks status codes.
+def test_no_plugins_domain_module_imports_fastapi():
+    """Layering, half one: the web framework stops at ``routes.py``.
 
-    ``PluginService`` was the one service in the tree raising
-    ``fastapi.HTTPException`` — 25 sites — which is the violation the 2026-09
-    audit called out. A static check because a runtime one would only cover
-    the raise sites a test happens to reach.
+    ``PluginService`` was the one service in the tree importing ``fastapi``
+    and raising ``HTTPException`` — 25 sites — which is the violation the
+    2026-09 audit called out. This used to be a hand-rolled AST walk over
+    ``src/plugins/service.py`` alone, and it was the *only* place the
+    architecture doc's "a service may not import fastapi" rule was enforced
+    anywhere in the tree.
+
+    The walk now lives in ``tests/test_layering_ratchet.py`` and runs against
+    every domain listed in ``tests/layering_manifest.json``. Plugins is not on
+    that list — its router still holds real domain logic, so it fails the
+    ratchet's third rule — but it must not lose the coverage it already had,
+    so this calls the shared checker directly. The scope is *wider* than
+    before: every module in ``src/plugins/`` except the router, not just
+    ``service.py``.
+    """
+    from tests.test_layering_ratchet import check_service_no_fastapi
+
+    findings = check_service_no_fastapi("plugins")
+    assert findings == [], "\n  ".join(str(f) for f in findings)
+
+
+def test_the_plugin_service_raises_no_transport_exception():
+    """Layering, half two: the service names failures, the router picks codes.
+
+    Distinct from the import check above — a service can raise
+    ``HTTPException`` through a re-export without importing ``fastapi`` by
+    name. A static check because a runtime one would only cover the raise
+    sites a test happens to reach.
     """
     import ast
 
     source = (REPO_ROOT / "src" / "plugins" / "service.py").read_text()
     tree = ast.parse(source)
-
-    fastapi_imports = [
-        node
-        for node in ast.walk(tree)
-        if isinstance(node, ast.ImportFrom) and (node.module or "").startswith("fastapi")
-    ]
-    assert fastapi_imports == [], "src/plugins/service.py must not import fastapi"
 
     raised = {
         node.exc.func.id
