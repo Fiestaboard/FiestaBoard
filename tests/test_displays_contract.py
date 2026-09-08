@@ -149,7 +149,10 @@ def test_raw_is_marked_deprecated_in_the_published_schema(client):
     A generated client reads the schema, not the response headers, so the
     successor (GET /plugins/{plugin_id}/data) was invisible to it.
     """
-    schema = client.get("/openapi.json").json()
+    # The internal document: /displays/* is not in the published one since
+    # src/v1/visibility.py hid the internal surface, and a KeyError here would
+    # be the honest failure while a `.get(...)` would be a vacuous pass.
+    schema = client.get("/internal/openapi.json").json()
     assert schema["paths"]["/displays/{display_type}/raw"]["get"]["deprecated"] is True
     assert schema["paths"]["/displays/{display_type}"]["get"].get("deprecated") is not True
 

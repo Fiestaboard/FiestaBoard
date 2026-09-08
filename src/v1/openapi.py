@@ -75,17 +75,47 @@ V1_TAG_METADATA: dict[str, Any] = {
 }
 
 
-def build_openapi(app) -> dict[str, Any]:
-    """The app's schema, with the security it actually enforces declared."""
+def _tags_used_by(schema: dict[str, Any]) -> set[str]:
+    """Every tag named by an operation the document actually contains."""
+    used: set[str] = set()
+    for operations in schema.get("paths", {}).values():
+        for operation in operations.values():
+            if isinstance(operation, dict):
+                used.update(operation.get("tags", []))
+    return used
+
+
+def build_openapi(
+    app,
+    *,
+    routes=None,
+    title: str | None = None,
+    description: str | None = None,
+) -> dict[str, Any]:
+    """The app's schema, with the security it actually enforces declared.
+
+    ``routes``, ``title`` and ``description`` override the app's own, which is
+    what lets the internal document (``src/v1/visibility.py``) reuse this
+    builder — the same security declaration, the same tag metadata — while
+    saying plainly on its front page that it is not a consumer API.
+
+    The declared tag list is filtered to the tags operations in *this*
+    document actually use. Once the internal surface is hidden the app still
+    declares twenty-two internal tag descriptions, and publishing headings for
+    sections a reader cannot reach is the same noise this whole change is
+    removing. Order is preserved, so the consumer surface still leads.
+    """
     schema = get_openapi(
-        title=app.title,
+        title=title if title is not None else app.title,
         version=app.version,
-        description=app.description,
-        routes=app.routes,
+        description=description if description is not None else app.description,
+        routes=app.routes if routes is None else routes,
         # Prepended, not appended: Swagger renders tags in this order and the
         # consumer surface has to be the first thing a newcomer sees.
         tags=[V1_TAG_METADATA, *(app.openapi_tags or [])],
     )
+    used = _tags_used_by(schema)
+    schema["tags"] = [tag for tag in schema.get("tags", []) if tag["name"] in used]
     schema.setdefault("components", {})["securitySchemes"] = SECURITY_SCHEMES
     schema["security"] = SECURITY_REQUIREMENT
     return schema

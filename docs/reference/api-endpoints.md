@@ -8,6 +8,26 @@ keywords: [FiestaBoard API, REST API, API endpoints, API reference, display API,
 
 FiestaBoard provides a REST API powered by FastAPI. Interactive API documentation is available at `http://localhost:4420/api/docs` when FiestaBoard is running.
 
+:::tip Start with `/api/v1`
+
+`/api/v1` is the API to build against: four nouns — board, page, schedule,
+plugin — and one way to do each thing. It is what `/api/docs` publishes, and
+it is the only surface with a compatibility promise.
+
+```bash
+curl -X POST http://localhost:4420/api/v1/boards/primary/message \
+  -H 'Content-Type: application/json' \
+  -d '{"text": "HELLO WORLD"}'
+```
+
+The flat paths listed below still answer exactly as they always have, but they
+are the web UI's internal channel and are no longer published in the OpenAPI
+document. `POST /send-message` and `POST /refresh` are the exceptions — they
+remain published, now marked deprecated, and each names its `/v1` replacement
+in a `Link` header.
+
+:::
+
 ## Base URL
 
 ```text

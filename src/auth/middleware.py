@@ -7,6 +7,10 @@ Public paths (no auth required):
     * ``/`` and ``/health`` — liveness probes / nginx upstream checks
     * ``/auth/*`` — login / setup / status itself
     * ``/openapi.json``, ``/docs``, ``/redoc`` — API docs (still useful)
+    * ``/internal/openapi.json`` — the full schema, public for the same
+      reason ``/openapi.json`` is and because it is exactly what
+      ``/openapi.json`` published before the internal surface was hidden.
+      Gating it now would be a new restriction dressed up as a refactor.
     * CORS preflight (``OPTIONS``) requests
 
 Bearer-token paths (``/mcp/*`` and ``/v1/*``):
@@ -51,6 +55,7 @@ _PUBLIC_PREFIXES: tuple = (
     "/auth/",
     "/health",
     "/openapi.json",
+    "/internal/openapi.json",
     "/docs",
     "/redoc",
 )

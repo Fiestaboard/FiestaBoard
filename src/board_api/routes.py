@@ -62,6 +62,7 @@ from datetime import UTC, datetime
 from fastapi import APIRouter, HTTPException
 
 from src import display_runtime as runtime
+from src.api_deprecation import V1_BOARD_MESSAGE_SUCCESSOR, deprecation_notice
 from src.api_errors import errors
 from src.board_chars import characters_to_message
 from src.board_client import board_client_from_board_dict
@@ -214,14 +215,33 @@ async def get_board_current_message(force: bool = False, board_id: str | None = 
 # ---------------------------------------------------------------------------
 
 
-@router.post("/send-message", response_model=SendResponse, responses=errors(404, 409, 429, 500, 503))
+# One of the two legacy operations that stay in the published consumer schema
+# (``src/v1/visibility.py``). It is what ``docs/reference/api-endpoints.md``
+# and the front page of ``/api/docs`` have told readers to call for years, so
+# hiding it would break a documented path; instead it is flagged deprecated and
+# names its successor on every response. No ``Sunset``: no removal date has
+# been agreed for it, and an unbacked one teaches integrators to ignore the
+# header.
+@router.post(
+    "/send-message",
+    response_model=SendResponse,
+    responses=errors(404, 409, 429, 500, 503),
+    deprecated=True,
+    dependencies=[deprecation_notice(successor=V1_BOARD_MESSAGE_SUCCESSOR)],
+)
 async def send_message(request: MessageRequest):
-    """Send a custom message to a board.
+    """Deprecated: use ``POST /v1/boards/{board}/message`` instead.
+
+    Send a custom message to a board.
 
     ``board_id`` (optional) targets one board; omitted → the primary board,
     which is what every caller got before this endpoint could address a
     second one (issue #1247). Gate for gate this is the same policy the MCP
     executor applies — see ``src/ops/executors.py``.
+
+    The v1 successor takes the board in the path, so it cannot be forgotten,
+    and reports whether flaps actually moved rather than only that the
+    request was accepted.
     """
     service = runtime.get_service()
     if not service:
