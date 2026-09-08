@@ -22,7 +22,7 @@ from typing import Any, Optional
 from src.devices import BoardContext
 
 from .base import OptionsRequest, OptionsResult, PluginBase, PluginResult, normalise
-from .loader import PluginLoader
+from .loader import PluginLoader, retire_plugin_object
 from .manifest import PluginManifest, VariableMetadata
 from .previews import load_preview_seed
 from .sources import (
@@ -335,23 +335,6 @@ class PluginRegistry:
         logger.info("Created plugin instance: %s", compound_key)
         return []
 
-    def _retire_plugin_object(self, plugin_id: str, plugin: PluginBase) -> None:
-        """Run a removed plugin's ``cleanup()`` on a short-lived daemon thread.
-
-        Mirrors :meth:`PluginLoader._retire_instance` (#1854): ``cleanup()``
-        is plugin-authored code that may join threads or close sockets, and
-        nothing bounds how long that takes — so it must never run under the
-        registry lock, where a wedged plugin would stall every reader.
-        """
-
-        def _run() -> None:
-            try:
-                plugin.cleanup()
-            except Exception:
-                logger.exception("Error cleaning up removed plugin '%s'", plugin_id)
-
-        threading.Thread(target=_run, name=f"plugin-cleanup-{plugin_id}", daemon=True).start()
-
     def delete_instance(self, plugin_id: str, instance_label: str) -> list[str]:
         """Delete a plugin instance.
 
@@ -377,7 +360,7 @@ class PluginRegistry:
             self._configs.pop(compound_key, None)
             self._discovered_vars.pop(compound_key, None)
 
-        self._retire_plugin_object(compound_key, instance)
+        retire_plugin_object(compound_key, instance, what="removed plugin")
 
         logger.info("Deleted plugin instance: %s", compound_key)
         return []
@@ -1409,7 +1392,7 @@ class PluginRegistry:
             # Unload
             old_plugin = self._plugins.pop(plugin_id, None)
             if old_plugin is not None:
-                self._retire_plugin_object(plugin_id, old_plugin)
+                retire_plugin_object(plugin_id, old_plugin, what="removed plugin")
             if plugin_id in self._manifests:
                 del self._manifests[plugin_id]
 
@@ -1487,7 +1470,7 @@ class PluginRegistry:
             # Plugin-authored code off the lock (#1854): old instance's
             # cleanup() on a daemon thread; enable/config restore fires the
             # config setter (clear_cache/on_config_change) unlocked.
-            self._retire_plugin_object(compound_key, old_instance)
+            retire_plugin_object(compound_key, old_instance, what="removed plugin")
 
             # Restore state (mirrors the base-plugin restore above)
             if was_enabled:
@@ -1788,7 +1771,7 @@ class PluginRegistry:
             self._loader.unload_plugin(plugin_id)
 
         for retired_key, retired_plugin in retired:
-            self._retire_plugin_object(retired_key, retired_plugin)
+            retire_plugin_object(retired_key, retired_plugin, what="removed plugin")
 
         # Remove the directory — under the same per-directory lock the
         # install/update path takes (#1854), so an overlapping update and
