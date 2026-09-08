@@ -239,21 +239,23 @@ def _isolated_data_dir(tmp_path, monkeypatch):
 #: Collaborators that moved from ``src.api_server`` to ``src.display_runtime``
 #: in the Phase 2 debug slice. ``api_server`` re-exports every one of them, so
 #: both module attributes exist and both are legitimate patch targets.
+#:
+#: Six names left this tuple with their re-exports: ``_primary_board_entry``,
+#: ``_primary_connection_info``, ``_get_first_board_dims``,
+#: ``_note_out_of_band_write``, ``_publish_mqtt_state_update`` and
+#: ``_send_with_status``. No test patches any of them at
+#: ``src.api_server.<name>``, so forwarding them there steered nothing —
+#: it only kept six re-exports alive that had no other consumer. Patch
+#: ``src.display_runtime.<name>`` for these; the rest still work both ways.
 _DISPLAY_RUNTIME_SEAMS = (
     "get_settings_service",
     "get_service",
     "peek_service",
     "_get_board_client",
     "_board_is_paused",
-    "_primary_board_entry",
-    "_primary_connection_info",
-    "_get_first_board_dims",
     "_get_server_ip",
     "_get_service_uptime",
     "_format_uptime",
-    "_note_out_of_band_write",
-    "_publish_mqtt_state_update",
-    "_send_with_status",
 )
 
 

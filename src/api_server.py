@@ -12,8 +12,9 @@ from datetime import datetime
 from typing import Any
 
 from dotenv import load_dotenv
-from fastapi import FastAPI, HTTPException, Query
+from fastapi import Depends, FastAPI, HTTPException, Query, Response
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import PlainTextResponse
 
 # Load environment variables from .env file before importing modules that may
 # read them at import time. The intra-package imports below intentionally come
@@ -54,11 +55,13 @@ from .board_guards import (  # noqa: E402, F401  (patch seams, see above)
     _require_board,
 )
 from .collections.models import is_collection_id  # noqa: E402, F401  (patch seam)
-from .collections.service import (  # noqa: E402
-    get_collection_service,
-    resolve_active_page_id,
-    resolve_next_check_seconds,
-)
+
+# Patch seam: src/settings/routes.py resolves this through ``src.api_server``
+# at call time, so the 7 tests that stub it here steer the moved /settings
+# handlers. The two collection resolvers that used to be imported alongside it
+# are gone — settings/routes.py binds them from their canonical home now, the
+# way src/schedules/routes.py already did, so nothing resolved them here.
+from .collections.service import get_collection_service  # noqa: E402, F401  (patch seam)
 
 # ``unmask_sensitive_values`` / ``reset_display_service`` /
 # ``reset_template_engine`` used to be imported here purely as patch seams for
@@ -69,42 +72,48 @@ from .collections.service import (  # noqa: E402
 from .config import Config  # noqa: E402,F401  (41 tests patch src.api_server.Config.*)
 from .config_manager import get_config_manager  # noqa: E402
 from .devices import resolve_dimensions  # noqa: E402, F401  (patch seam)
+
+# The four underscored names are re-exports the suite patches at
+# ``src.api_server.<name>`` (counts measured, not assumed: _get_board_client
+# 40, _format_uptime / _get_server_ip / _get_service_uptime 5 each).
+# ``get_service``, ``mark_service_started`` and ``peek_service`` are called by
+# this module's own lifecycle code.
+#
+# Seven names that used to be listed here — _get_first_board_dims,
+# _note_out_of_band_write, _primary_board_entry, _primary_connection_info,
+# _publish_mqtt_state_update, _send_with_status, reinitialize_board_clients —
+# are gone: zero references through ``src.api_server`` anywhere in tests, src,
+# scripts, plugins or web, and no caller here. A re-export nothing resolves
+# advertises a patch target that steers nothing.
 from .display_runtime import (  # noqa: E402
     _format_uptime,  # noqa: F401  (re-export: pre-move patch target)
     _get_board_client,  # noqa: F401  (re-export: pre-move patch target)
-    _get_first_board_dims,  # noqa: F401  (re-export: pre-move patch target)
     _get_server_ip,  # noqa: F401  (re-export: pre-move patch target)
     _get_service_uptime,  # noqa: F401  (re-export: pre-move patch target)
-    _note_out_of_band_write,  # noqa: F401  (re-export: pre-move patch target)
-    _primary_board_entry,  # noqa: F401  (re-export: pre-move patch target)
-    _primary_connection_info,  # noqa: F401  (re-export: pre-move patch target)
-    _publish_mqtt_state_update,  # noqa: F401  (re-export: pre-move patch target)
-    _send_with_status,  # noqa: F401  (re-export: pre-move patch target)
-    get_service,  # noqa: F401  (re-export: pre-move patch target)
-    mark_service_started,  # noqa: F401  (re-export: pre-move patch target)
-    peek_service,  # noqa: F401  (re-export: pre-move patch target)
-    reinitialize_board_clients,  # noqa: F401  (re-export: pre-move patch target)
+    get_service,
+    mark_service_started,
+    peek_service,
 )
 from .displays.service import get_display_service, reset_display_service  # noqa: E402, F401
+
+# ``LogBufferHandler`` and ``_setup_file_logging`` are called by this module;
+# the five ``_log_*`` names are live patch targets. ``LOG_BACKUP_COUNT``,
+# ``LOG_MAX_BYTES``, ``JSONFileHandler`` and ``_create_log_entry`` were
+# neither — zero references through ``src.api_server`` — and are gone.
 from .log_store import (  # noqa: E402
-    LOG_BACKUP_COUNT,  # noqa: F401  (re-export: pre-move patch target)
-    LOG_MAX_BYTES,  # noqa: F401  (re-export: pre-move patch target)
-    JSONFileHandler,  # noqa: F401  (re-export: pre-move patch target)
-    LogBufferHandler,  # noqa: F401  (re-export: pre-move patch target)
-    _create_log_entry,  # noqa: F401  (re-export: pre-move patch target)
+    LogBufferHandler,
     _log_buffer,  # noqa: F401  (re-export: pre-move patch target)
     _log_dir,  # noqa: F401  (re-export: pre-move patch target)
     _log_file,  # noqa: F401  (re-export: pre-move patch target)
     _log_lock,  # noqa: F401  (re-export: pre-move patch target)
     _read_logs_from_files,  # noqa: F401  (re-export: pre-move patch target)
-    _setup_file_logging,  # noqa: F401  (re-export: pre-move patch target)
+    _setup_file_logging,
 )
 from .pages.service import (  # noqa: E402, F401  (patch seam)
     check_ref_board_compatibility,
     get_page_service,
 )
 from .panels.service import get_panel_service  # noqa: E402, F401  (patch seam, see above)
-from .paths import get_data_dir  # noqa: E402, F401  (re-export: patch seam)
 from .settings.service import get_settings_service  # noqa: E402, F401  (patch seam)
 from .text_to_board import text_to_board_array  # noqa: E402, F401  (patch seam)
 from .time_service import reset_time_service  # noqa: E402
@@ -167,35 +176,16 @@ def _run_startup_migrations() -> None:
 async def lifespan(app: FastAPI):
     """Lifespan context manager for startup and shutdown events.
 
-    Also runs the MCP server's ``StreamableHTTPSessionManager`` for the
-    duration of the API. FastAPI's ``app.mount(...)`` does NOT propagate
-    a sub-app's lifespan, so without wiring this here the MCP session
-    manager's ``_task_group`` is never created and every request to
-    ``/api/mcp/*`` returns 404. The wrapping is best-effort: if the mcp
-    package failed to load or the session manager init throws, the rest
-    of the API still comes up — MCP just stays disabled.
+    Startup does **not** touch MCP: the ``mcp`` package is imported by the
+    lazy mount (``_LazyMCPMount``) on the first request to ``/api/mcp``,
+    and that mount also owns the session manager's lifecycle. Shutdown
+    closes it if it was ever activated.
     """
-    global _service_thread, _shutting_down, _service_running
-
-    # Resolve the MCP context manager (or fall back to a no-op) before we
-    # decide which branch to take. The mount at the bottom of this module
-    # already called ``streamable_http_app()`` (which lazily creates the
-    # session manager), so it's safe to access ``session_manager`` here.
-    _mcp_ctx = None
-    try:
-        from .mcp_server import mcp_server as _mcp_for_lifespan
-
-        if _mcp_for_lifespan is not None:
-            _mcp_ctx = _mcp_for_lifespan.session_manager.run()
-    except Exception as _mcp_exc:  # pragma: no cover — defensive
-        logger.warning(
-            "MCP session manager could not be wired into lifespan: %s",
-            _mcp_exc,
-        )
-        _mcp_ctx = None
+    global _service_thread, _shutting_down, _service_running, _mcp_serving
 
     # --- Startup ---
     _shutting_down = False
+    _mcp_serving = True
     logger.info("API server starting up...")
 
     # Set up file-based logging
@@ -350,18 +340,14 @@ async def lifespan(app: FastAPI):
         except Exception as e:
             logger.warning(f"Could not start system update checker: {e}")
 
-    # Hold the MCP session manager open for the lifetime of the API, then
-    # let it tear down on shutdown. ``_mcp_ctx`` is None when the mcp
-    # package didn't load — fall through to a bare yield in that case so
-    # the rest of the API still serves requests.
-    if _mcp_ctx is not None:
-        async with _mcp_ctx:
-            logger.info("MCP session manager started")
-            yield
-    else:
-        yield
+    yield
 
     # --- Shutdown ---
+    # Release the MCP session manager if a request ever activated it. No-op
+    # on the (overwhelmingly common) boot where nobody spoke MCP.
+    _mcp_serving = False
+    await _mcp_mount.aclose()
+
     if update_check_task is not None:
         update_check_task.cancel()
     if system_update_task is not None:
@@ -415,9 +401,80 @@ async def lifespan(app: FastAPI):
 
 
 # Create FastAPI app
+# The front page of /api/docs. Swagger renders this as markdown, so it is the
+# one place a newcomer can be told what the nouns are and be handed a request
+# that works. Keep it short and keep it true — no endpoint that does not exist.
+API_DESCRIPTION = """\
+FiestaBoard drives one or more split-flap displays from templated pages.
+
+### Hello world
+
+Put text on the board right now:
+
+```bash
+curl -X POST http://fiestaboard.local:4420/api/send-message \\
+  -H 'Content-Type: application/json' \\
+  -d '{"text": "HELLO WORLD"}'
+```
+
+### How the pieces fit
+
+* A **page** is a template: literal text plus `{{plugin_id.variable}}`
+  placeholders that **plugins** fill with live data.
+* A **schedule** or a **collection** decides which page a board shows at a
+  given moment. `POST /send-message` bypasses both for a one-off write.
+* `/settings/*` and `/config/*` are the install's configuration;
+  `/system/*`, `/network/*` and `/auth/*` administer the appliance itself.
+
+### Base URL
+
+nginx fronts the API under `/api`, so every path below is reached as
+`/api/<path>` — `GET /status` is `http://fiestaboard.local:4420/api/status`.
+These docs live at `/api/docs`, the schema at `/api/openapi.json`.
+
+### Authentication
+
+Off by default: a fresh install answers every request. With
+`FIESTABOARD_AUTH_ENABLED=true`, requests carry the session cookie that
+`POST /auth/login` sets. MCP clients may instead send
+`Authorization: Bearer <token>` to `/api/mcp` (see `POST /auth/mcp-token`).
+"""
+
+# Deliberate order — Swagger lists tags in this order, and anything not listed
+# here falls in after them. Boards and the content on them come first; the
+# appliance-administration surfaces a newcomer does not need on day one
+# (settings, updates, Wi-Fi, diagnostics) come last. The previous default was
+# first-appearance-in-the-paths-object order, which opened on MQTT and put
+# `pages` fourteenth, below `debug`.
+OPENAPI_TAGS = [
+    {"name": "service", "description": "The display loop itself: health, status, start/stop/refresh."},
+    {"name": "board", "description": "Write to a board out of band, and read back what is physically on it."},
+    {"name": "pages", "description": "Pages — the unit of content. CRUD, preview, send, import/export."},
+    {"name": "templates", "description": "Render and validate template text; list the variables and formula functions it can use."},
+    {"name": "displays", "description": "Device shapes and raw character-code grids."},
+    {"name": "schedules", "description": "Time-of-day rules choosing which page a board shows."},
+    {"name": "collections", "description": "Ordered groups of pages that rotate as one."},
+    {"name": "triggers", "description": "Event-driven page interrupts, and the ones currently firing."},
+    {"name": "transitions", "description": "Transition plugins (beta): preview, test and restore board animations."},
+    {"name": "plugins", "description": "Install, configure, enable and inspect the data-source plugins that fill template variables."},
+    {"name": "plugin-support", "description": "Platform helpers that back a plugin's configuration form."},
+    {"name": "staff-picks", "description": "Curated example pages shipped with the app."},
+    {"name": "panels", "description": "FiestaPanel — the read-only browser view of a board."},
+    {"name": "ai", "description": "AI page generation, chat editing and the operation grammar shared with MCP."},
+    {"name": "settings", "description": "Install settings: boards, display, location, polling, output, MQTT, AI, beta flags."},
+    {"name": "config", "description": "Board connection configuration and its validation/discovery helpers."},
+    {"name": "backup", "description": "Export and import the whole install as one file."},
+    {"name": "mqtt", "description": "MQTT / Home Assistant discovery status and republish."},
+    {"name": "auth", "description": "Optional login, password/username management and MCP bearer tokens."},
+    {"name": "network", "description": "Wi-Fi configuration for the appliance."},
+    {"name": "system", "description": "Version, update checks, updates and rollback, restart and shutdown."},
+    {"name": "debug", "description": "Diagnostics: logs, caches, connection tests and board fill/blank probes."},
+]
+
 app = FastAPI(
     title="FiestaBoard Display API",
-    description="REST API for controlling and monitoring the FiestaBoard Display Service",
+    description=API_DESCRIPTION,
+    openapi_tags=OPENAPI_TAGS,
     version=__version__,
     lifespan=lifespan,
     # The API is served behind nginx under the /api/* prefix (which nginx
@@ -487,19 +544,130 @@ def cors_settings() -> dict:
 # Add CORS middleware
 app.add_middleware(CORSMiddleware, **cors_settings())
 
-# Mount the MCP server at /mcp (accessible at /api/mcp via nginx).
-# Gracefully skipped if the mcp package is not installed.
-try:
-    from .mcp_server import build_streamable_http_app as _build_mcp_app
 
-    _mcp_app = _build_mcp_app()
-    if _mcp_app is not None:
-        app.mount("/mcp", _mcp_app)
-        logger.info("FiestaBoard MCP server mounted at /mcp (public: /api/mcp)")
-    else:
-        logger.warning("MCP server disabled — mcp package not installed or failed to initialise")
-except Exception as _mcp_mount_err:  # pragma: no cover
-    logger.warning("Failed to mount MCP server: %s", _mcp_mount_err)
+# ---------------------------------------------------------------------------
+# MCP server mount
+# ---------------------------------------------------------------------------
+
+
+class _MCPActivation:
+    """One activation of the MCP sub-app, bound to one event loop.
+
+    Holds the streamable-HTTP session manager open in a dedicated task for as
+    long as the API is serving. ``StreamableHTTPSessionManager.run()`` is
+    once-per-instance, but ``build_streamable_http_app()`` mints a fresh
+    manager on every call, so re-activating (after ``aclose()``, or on a new
+    event loop) is safe.
+    """
+
+    def __init__(self, loop: asyncio.AbstractEventLoop) -> None:
+        self.loop = loop
+        self.app: Any = None
+        self.error: str | None = None
+        self._stop = asyncio.Event()
+        self._ready: asyncio.Future[None] = loop.create_future()
+        self._runner: asyncio.Task[None] | None = None
+
+    def _mark_ready(self) -> None:
+        if not self._ready.done():
+            self._ready.set_result(None)
+
+    async def _hold(self) -> None:
+        """Build the sub-app and keep its lifespan open until ``aclose()``."""
+        try:
+            from .mcp_server import build_streamable_http_app
+
+            sub_app = build_streamable_http_app()
+            if sub_app is None:
+                self.error = "mcp package not installed or failed to initialise"
+                logger.warning("MCP server disabled — %s", self.error)
+                return
+            # The sub-app's own lifespan *is* ``session_manager.run()``, and
+            # FastAPI's ``app.mount()`` does not propagate a sub-app lifespan.
+            # Without running it here the session manager has no task group
+            # and every request to ``/api/mcp/*`` fails.
+            async with sub_app.router.lifespan_context(sub_app):
+                self.app = sub_app
+                logger.info("FiestaBoard MCP server activated at /mcp (public: /api/mcp)")
+                self._mark_ready()
+                await self._stop.wait()
+        except Exception as exc:  # pragma: no cover — defensive
+            self.error = str(exc)
+            logger.warning("Failed to activate MCP server: %s", exc, exc_info=True)
+        finally:
+            self._mark_ready()
+
+    async def wait_ready(self) -> None:
+        """Start the holder task on first call; every caller awaits the same result."""
+        if self._runner is None:
+            self._runner = asyncio.create_task(self._hold(), name="fiestaboard-mcp-session-manager")
+        await self._ready
+
+    async def aclose(self) -> None:
+        self._stop.set()
+        if self._runner is not None:
+            await self._runner
+
+
+class _LazyMCPMount:
+    """ASGI app mounted at ``/mcp`` that imports ``mcp`` on first request.
+
+    Building the MCP app at module scope pulled the whole ``mcp`` package —
+    240 modules — into every boot whether or not anyone speaks MCP: measured
+    at +434 ms of import time and +34.7 MB RSS, a third of the process. On a
+    Raspberry Pi that is seconds of "did it survive the power cut?".
+
+    The mount itself is still registered eagerly, so the route table is
+    unchanged; only the import and the session manager are deferred.
+    """
+
+    def __init__(self) -> None:
+        self._state: _MCPActivation | None = None
+
+    async def _activation(self) -> _MCPActivation:
+        loop = asyncio.get_running_loop()
+        state = self._state
+        if state is None or state.loop is not loop:
+            # A previous activation's task group belongs to an event loop that
+            # is gone (each bare TestClient request gets its own). Build a
+            # fresh activation rather than dispatch into a dead task group.
+            state = self._state = _MCPActivation(loop)
+        await state.wait_ready()
+        return state
+
+    async def __call__(self, scope: Any, receive: Any, send: Any) -> None:
+        if not _mcp_serving:
+            # The session manager's lifetime is the app's lifetime: activating
+            # it outside a running lifespan would leave a task group nothing
+            # ever closes. Matches the pre-lazy behaviour, where the manager
+            # was only ever started from the lifespan.
+            response = PlainTextResponse("MCP server is not running", status_code=503)
+            await response(scope, receive, send)
+            return
+        state = await self._activation()
+        if state.app is None:
+            response = PlainTextResponse(
+                f"MCP server unavailable: {state.error or 'not initialised'}",
+                status_code=503,
+            )
+            await response(scope, receive, send)
+            return
+        await state.app(scope, receive, send)
+
+    async def aclose(self) -> None:
+        state, self._state = self._state, None
+        if state is not None:
+            await state.aclose()
+
+
+# Mount the MCP server at /mcp (accessible at /api/mcp via nginx).
+#
+# ``_mcp_serving`` is True only while the app lifespan is running. The mount
+# refuses to activate outside it, because the session manager it starts has to
+# be closed by that same lifespan.
+_mcp_serving = False
+_mcp_mount = _LazyMCPMount()
+app.mount("/mcp", _mcp_mount)
 
 # Optional authentication layer (opt-in via FIESTABOARD_AUTH_ENABLED env var).
 # Mounted unconditionally so /auth/* endpoints are always reachable; the
@@ -982,7 +1150,54 @@ app.include_router(displays_router)
 # and stay outside the conventions ratchet, because re-shaping a body we
 # intend to delete buys a lockstep web change and nothing else.
 
-@app.get("/baywheels/stations", deprecated=True)  # removal tracked in #1915
+# ── Deprecation window ───────────────────────────────────────────────────────
+#
+# ``deprecated=True`` alone only greys the operation out in Swagger; a caller
+# in another repo — the whole reason these were deprecated instead of deleted —
+# sees nothing. RFC 8594 / RFC 9745 put the notice on the wire, which is what
+# ``docs/internal/reference/API_CONVENTIONS.md`` asks for: ``Deprecation``,
+# ``Sunset`` and a ``successor-version`` link.
+#
+# The date is a quarter out, not "two releases": FiestaBoard cuts a minor
+# release every few days, so a release count is not a window an integrator can
+# plan against, and two of these routes (``/muni/stops*``, ``/stocks/*``) are
+# published as API reference in shipped plugin SETUP guides. A quarter gives
+# those plugin authors a release cycle of their own to migrate. Reasoning
+# recorded on #1915.
+DEPRECATED_ROUTES_SUNSET = "Tue, 01 Dec 2026 00:00:00 GMT"
+
+
+def _deprecated_route(successor_plugin_id: str | None = None):
+    """Dependency that stamps the deprecation notice onto a route's response.
+
+    Every one of these pickers was replaced by the generic remote-options
+    endpoint ``POST /plugins/{plugin_id}/options/{options_id}``. ``options_id``
+    is declared by the plugin's own manifest and is not knowable from here, so
+    the successor is emitted as a URI Template with the plugin id filled in.
+    ``successor_plugin_id=None`` means no successor exists yet
+    (``/transit/cache/status``), and only ``Deprecation``/``Sunset`` are sent.
+    """
+    link = None
+    if successor_plugin_id:
+        link = f'</api/plugins/{successor_plugin_id}/options/{{options_id}}>; rel="successor-version"'
+
+    def _set_deprecation_headers(response: Response) -> None:
+        response.headers["Deprecation"] = "true"
+        response.headers["Sunset"] = DEPRECATED_ROUTES_SUNSET
+        if link is not None:
+            response.headers["Link"] = link
+
+    # Read by tests/test_deprecated_route_headers.py to pin which route points
+    # at which successor without calling eleven upstream APIs.
+    _set_deprecation_headers.successor_plugin_id = successor_plugin_id  # type: ignore[attr-defined]
+    return Depends(_set_deprecation_headers)
+
+
+@app.get(
+    "/baywheels/stations",
+    deprecated=True,  # removal tracked in #1915
+    dependencies=[_deprecated_route("lyft_bike_share")],
+)
 async def list_all_baywheels_stations():
     """
     List all Bay Wheels stations with current status.
@@ -1043,7 +1258,11 @@ async def list_all_baywheels_stations():
         raise HTTPException(status_code=500, detail=str(e)) from e
 
 
-@app.get("/baywheels/stations/nearby", deprecated=True)  # removal tracked in #1915
+@app.get(
+    "/baywheels/stations/nearby",
+    deprecated=True,  # removal tracked in #1915
+    dependencies=[_deprecated_route("lyft_bike_share")],
+)
 async def find_nearby_baywheels_stations(
     lat: float = Query(..., description="Latitude"),
     lng: float = Query(..., description="Longitude"),
@@ -1112,7 +1331,11 @@ async def find_nearby_baywheels_stations(
         raise HTTPException(status_code=500, detail=str(e)) from e
 
 
-@app.get("/baywheels/stations/search", deprecated=True)  # removal tracked in #1915
+@app.get(
+    "/baywheels/stations/search",
+    deprecated=True,  # removal tracked in #1915
+    dependencies=[_deprecated_route("lyft_bike_share")],
+)
 async def search_baywheels_stations_by_address(
     address: str = Query(..., description="Address to search near"),
     radius: float = Query(2.0, description="Search radius in kilometers"),
@@ -1211,7 +1434,11 @@ async def search_baywheels_stations_by_address(
 # =============================================================================
 
 
-@app.get("/muni/stops", deprecated=True)  # removal tracked in #1915
+@app.get(
+    "/muni/stops",
+    deprecated=True,  # removal tracked in #1915
+    dependencies=[_deprecated_route("muni")],
+)
 async def list_all_muni_stops():
     """
     List all SF Muni stops with metadata.
@@ -1298,7 +1525,11 @@ async def list_all_muni_stops():
         raise HTTPException(status_code=500, detail=str(e)) from e
 
 
-@app.get("/muni/stops/nearby", deprecated=True)  # removal tracked in #1915
+@app.get(
+    "/muni/stops/nearby",
+    deprecated=True,  # removal tracked in #1915
+    dependencies=[_deprecated_route("muni")],
+)
 async def find_nearby_muni_stops(
     lat: float = Query(..., description="Latitude"),
     lng: float = Query(..., description="Longitude"),
@@ -1409,7 +1640,11 @@ async def find_nearby_muni_stops(
         raise HTTPException(status_code=500, detail=str(e)) from e
 
 
-@app.get("/muni/stops/search", deprecated=True)  # removal tracked in #1915
+@app.get(
+    "/muni/stops/search",
+    deprecated=True,  # removal tracked in #1915
+    dependencies=[_deprecated_route("muni")],
+)
 async def search_muni_stops_by_address(
     address: str = Query(..., description="Address to search near"),
     radius: float = Query(0.5, description="Search radius in kilometers"),
@@ -1470,7 +1705,11 @@ async def search_muni_stops_by_address(
         raise HTTPException(status_code=500, detail=str(e)) from e
 
 
-@app.get("/transit/cache/status", deprecated=True)  # removal tracked in #1915
+@app.get(
+    "/transit/cache/status",
+    deprecated=True,  # removal tracked in #1915
+    dependencies=[_deprecated_route()],
+)
 async def get_transit_cache_status():
     """
     Get status and health information about the regional transit cache.
@@ -1509,7 +1748,11 @@ async def get_transit_cache_status():
 # =============================================================================
 
 
-@app.get("/stocks/search", deprecated=True)  # removal tracked in #1915
+@app.get(
+    "/stocks/search",
+    deprecated=True,  # removal tracked in #1915
+    dependencies=[_deprecated_route("stocks")],
+)
 async def search_stock_symbols(
     query: str = Query(..., description="Search query (symbol or company name)"),
     limit: int = Query(10, ge=1, le=50, description="Maximum number of results"),
@@ -1542,7 +1785,11 @@ async def search_stock_symbols(
         raise HTTPException(status_code=500, detail=str(e)) from e
 
 
-@app.post("/stocks/validate", deprecated=True)  # removal tracked in #1915
+@app.post(
+    "/stocks/validate",
+    deprecated=True,  # removal tracked in #1915
+    dependencies=[_deprecated_route("stocks")],
+)
 async def validate_stock_symbol(request: dict):
     """
     Validate if a stock symbol is valid.
@@ -1580,7 +1827,11 @@ async def validate_stock_symbol(request: dict):
 # =============================================================================
 
 
-@app.post("/traffic/routes/geocode", deprecated=True)  # removal tracked in #1915
+@app.post(
+    "/traffic/routes/geocode",
+    deprecated=True,  # removal tracked in #1915
+    dependencies=[_deprecated_route("traffic")],
+)
 async def geocode_address(request: dict):
     """
     Geocode an address to coordinates.
@@ -1626,7 +1877,11 @@ async def geocode_address(request: dict):
         raise HTTPException(status_code=500, detail=str(e)) from e
 
 
-@app.post("/traffic/routes/validate", deprecated=True)  # removal tracked in #1915
+@app.post(
+    "/traffic/routes/validate",
+    deprecated=True,  # removal tracked in #1915
+    dependencies=[_deprecated_route("traffic")],
+)
 async def validate_traffic_route(request: dict):
     """
     Validate a traffic route and get basic info.
@@ -1719,32 +1974,6 @@ async def validate_traffic_route(request: dict):
 from .transitions.routes import router as transitions_router  # noqa: E402
 
 app.include_router(transitions_router)
-
-
-def _resolve_active_page_id(page_id: str | None) -> str | None:
-    """This module's binding of :func:`src.collections.service.resolve_active_page_id`.
-
-    Passes *this* module's ``get_collection_service``, so the resolution goes on
-    resolving through the name the suite stubs when it exercises the handlers
-    that still live here.
-    """
-    return resolve_active_page_id(page_id, get_collection_service)
-
-
-def _resolve_next_check_seconds(page_id: str | None) -> int | None:
-    """This module's binding of :func:`src.collections.service.resolve_next_check_seconds`."""
-    return resolve_next_check_seconds(page_id, get_collection_service)
-
-
-def _reinitialize_board_clients() -> None:
-    """Rebuild board clients after a boards-list mutation.
-
-    Kept as a name here because unconverted domains patch
-    ``src.api_server._reinitialize_board_clients``; the implementation moved to
-    ``src/display_runtime.py`` so routers can reach it without importing this
-    module.
-    """
-    reinitialize_board_clients()
 
 
 # ==================== Beta Settings (HTTPS, etc.) ====================

@@ -920,14 +920,19 @@ jobs:
         # since mcp 2.0 a GET opens a never-ending SSE listen stream, so a
         # plain curl GET hangs until the job timeout. An empty POST returns
         # a JSON-RPC validation error (400) immediately.
+        #
+        # 503 counts as a failure too: the mount is registered eagerly and the
+        # mcp package imported on first request, so a broken install now shows
+        # up as "MCP server unavailable" from the mount rather than a 404 from
+        # a missing route. This is the request that pays that first import.
         run: |
           STATUS=$(curl -s -o /dev/null -w "%{http_code}" -m 15 \
             -X POST -H "Content-Type: application/json" \
             -H "Accept: application/json, text/event-stream" \
             -d '{}' "$BASE_URL/api/mcp/" || echo "000")
           echo "POST /api/mcp/ -> $STATUS"
-          if [ "$STATUS" = "404" ]; then
-            echo "❌ MCP endpoint returned 404 — mcp package likely missing or mount failed"
+          if [ "$STATUS" = "404" ] || [ "$STATUS" = "503" ]; then
+            echo "❌ MCP endpoint returned $STATUS — mcp package likely missing or activation failed"
             docker logs fiestaboard-ai | grep -i mcp | tail -20
             exit 1
           fi
