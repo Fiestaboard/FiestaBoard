@@ -8,8 +8,7 @@ must now be read back out of ``api_server`` at call time).
 
 **Collaborator resolution.** ``/settings`` is the widest domain in the app and
 its handlers reach 25 collaborators that still live in ``src/api_server.py``
-(``get_service``, ``_require_board``, ``_reinitialize_board_clients``, the
-updater-sidecar probes, ...) or that other, not-yet-converted routers still
+(``get_service``, ``_require_board``, ``_apply_mqtt_config``, ...) or that other, not-yet-converted routers still
 resolve through ``api_server`` (``get_settings_service`` alone is patched at
 160 sites). Per ``docs/internal/reference/API_CONVENTIONS.md`` ("during
 extraction, moved handlers resolve api_server-patched names at call time") and
@@ -21,8 +20,11 @@ remaining domains convert.
 
 Collaborators that already have a canonical home *and* are not patched through
 ``src.api_server`` anywhere in the suite (``classify_dimensions``,
-``run_board_send``, ``VALID_STRATEGIES``, ``VALID_OUTPUT_TARGETS``) are
-imported normally at module import time.
+``run_board_send``, ``VALID_STRATEGIES``, ``VALID_OUTPUT_TARGETS``,
+``reinitialize_board_clients``, ``resolve_active_page_id`` /
+``resolve_next_check_seconds``) are imported normally at module import time —
+the same way ``src/panels/routes.py`` and ``src/schedules/routes.py`` bind
+them.
 """
 
 from __future__ import annotations
@@ -42,7 +44,9 @@ from src.board_guards import (
     validate_board_host_is_local_network as _validate_board_host_is_local_network,
 )
 from src.board_send_executor import run_board_send
+from src.collections.service import resolve_active_page_id, resolve_next_check_seconds
 from src.devices import classify_dimensions
+from src.display_runtime import reinitialize_board_clients
 
 from .models import (
     ERROR_400,
@@ -143,12 +147,6 @@ _require_board = _seam("_require_board")
 _board_is_paused = _seam("_board_is_paused")
 _board_dims = _seam("_board_dims")
 _apply_mqtt_config = _seam("_apply_mqtt_config")
-_reinitialize_board_clients = _seam("_reinitialize_board_clients")
-
-# Shared with ``src/schedules/routes.py``; cannot move until that domain owns
-# a copy or a common module exists (addendum 3).
-_resolve_active_page_id = _seam("_resolve_active_page_id")
-_resolve_next_check_seconds = _seam("_resolve_next_check_seconds")
 
 
 # fiestaupdater sidecar probes. These resolve against their canonical home,
@@ -512,8 +510,8 @@ async def get_active_page(board_id: str | None = None):
         page_id = settings_service.get_active_page_id()
     return {
         "page_id": page_id,
-        "resolved_page_id": _resolve_active_page_id(page_id),
-        "resolved_next_check_seconds": _resolve_next_check_seconds(page_id),
+        "resolved_page_id": resolve_active_page_id(page_id, get_collection_service),
+        "resolved_next_check_seconds": resolve_next_check_seconds(page_id, get_collection_service),
         "board_id": board_id,
     }
 
@@ -931,11 +929,11 @@ async def update_board_settings(request: BoardSettingsUpdate):
     try:
         if "devices" in provided:
             board = settings_service.set_devices(provided["devices"])
-            _reinitialize_board_clients()
+            reinitialize_board_clients()
             return board.to_dict()
         if "boards" in provided:
             board = settings_service.set_boards(provided["boards"])
-            _reinitialize_board_clients()
+            reinitialize_board_clients()
             return board.to_dict()
         if "board_type" in provided:
             board = settings_service.set_board_type(provided["board_type"])
@@ -966,7 +964,7 @@ async def add_board_instance(request: AddBoardRequest):
     settings_service = get_settings_service()
     try:
         board = settings_service.add_board(request.model_dump(exclude_unset=True))
-        _reinitialize_board_clients()
+        reinitialize_board_clients()
         return board.to_dict()
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e)) from e
@@ -1001,7 +999,7 @@ async def remove_board_instance(board_id: str):
         board = settings_service.remove_board(board_id)
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e)) from e
-    _reinitialize_board_clients()
+    reinitialize_board_clients()
     return board.to_dict()
 
 

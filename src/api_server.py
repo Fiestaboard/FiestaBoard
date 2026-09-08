@@ -55,11 +55,13 @@ from .board_guards import (  # noqa: E402, F401  (patch seams, see above)
     _require_board,
 )
 from .collections.models import is_collection_id  # noqa: E402, F401  (patch seam)
-from .collections.service import (  # noqa: E402
-    get_collection_service,
-    resolve_active_page_id,
-    resolve_next_check_seconds,
-)
+
+# Patch seam: src/settings/routes.py resolves this through ``src.api_server``
+# at call time, so the 7 tests that stub it here steer the moved /settings
+# handlers. The two collection resolvers that used to be imported alongside it
+# are gone — settings/routes.py binds them from their canonical home now, the
+# way src/schedules/routes.py already did, so nothing resolved them here.
+from .collections.service import get_collection_service  # noqa: E402, F401  (patch seam)
 
 # ``unmask_sensitive_values`` / ``reset_display_service`` /
 # ``reset_template_engine`` used to be imported here purely as patch seams for
@@ -70,42 +72,48 @@ from .collections.service import (  # noqa: E402
 from .config import Config  # noqa: E402,F401  (41 tests patch src.api_server.Config.*)
 from .config_manager import get_config_manager  # noqa: E402
 from .devices import resolve_dimensions  # noqa: E402, F401  (patch seam)
+
+# The four underscored names are re-exports the suite patches at
+# ``src.api_server.<name>`` (counts measured, not assumed: _get_board_client
+# 40, _format_uptime / _get_server_ip / _get_service_uptime 5 each).
+# ``get_service``, ``mark_service_started`` and ``peek_service`` are called by
+# this module's own lifecycle code.
+#
+# Seven names that used to be listed here — _get_first_board_dims,
+# _note_out_of_band_write, _primary_board_entry, _primary_connection_info,
+# _publish_mqtt_state_update, _send_with_status, reinitialize_board_clients —
+# are gone: zero references through ``src.api_server`` anywhere in tests, src,
+# scripts, plugins or web, and no caller here. A re-export nothing resolves
+# advertises a patch target that steers nothing.
 from .display_runtime import (  # noqa: E402
     _format_uptime,  # noqa: F401  (re-export: pre-move patch target)
     _get_board_client,  # noqa: F401  (re-export: pre-move patch target)
-    _get_first_board_dims,  # noqa: F401  (re-export: pre-move patch target)
     _get_server_ip,  # noqa: F401  (re-export: pre-move patch target)
     _get_service_uptime,  # noqa: F401  (re-export: pre-move patch target)
-    _note_out_of_band_write,  # noqa: F401  (re-export: pre-move patch target)
-    _primary_board_entry,  # noqa: F401  (re-export: pre-move patch target)
-    _primary_connection_info,  # noqa: F401  (re-export: pre-move patch target)
-    _publish_mqtt_state_update,  # noqa: F401  (re-export: pre-move patch target)
-    _send_with_status,  # noqa: F401  (re-export: pre-move patch target)
-    get_service,  # noqa: F401  (re-export: pre-move patch target)
-    mark_service_started,  # noqa: F401  (re-export: pre-move patch target)
-    peek_service,  # noqa: F401  (re-export: pre-move patch target)
-    reinitialize_board_clients,  # noqa: F401  (re-export: pre-move patch target)
+    get_service,
+    mark_service_started,
+    peek_service,
 )
 from .displays.service import get_display_service, reset_display_service  # noqa: E402, F401
+
+# ``LogBufferHandler`` and ``_setup_file_logging`` are called by this module;
+# the five ``_log_*`` names are live patch targets. ``LOG_BACKUP_COUNT``,
+# ``LOG_MAX_BYTES``, ``JSONFileHandler`` and ``_create_log_entry`` were
+# neither — zero references through ``src.api_server`` — and are gone.
 from .log_store import (  # noqa: E402
-    LOG_BACKUP_COUNT,  # noqa: F401  (re-export: pre-move patch target)
-    LOG_MAX_BYTES,  # noqa: F401  (re-export: pre-move patch target)
-    JSONFileHandler,  # noqa: F401  (re-export: pre-move patch target)
-    LogBufferHandler,  # noqa: F401  (re-export: pre-move patch target)
-    _create_log_entry,  # noqa: F401  (re-export: pre-move patch target)
+    LogBufferHandler,
     _log_buffer,  # noqa: F401  (re-export: pre-move patch target)
     _log_dir,  # noqa: F401  (re-export: pre-move patch target)
     _log_file,  # noqa: F401  (re-export: pre-move patch target)
     _log_lock,  # noqa: F401  (re-export: pre-move patch target)
     _read_logs_from_files,  # noqa: F401  (re-export: pre-move patch target)
-    _setup_file_logging,  # noqa: F401  (re-export: pre-move patch target)
+    _setup_file_logging,
 )
 from .pages.service import (  # noqa: E402, F401  (patch seam)
     check_ref_board_compatibility,
     get_page_service,
 )
 from .panels.service import get_panel_service  # noqa: E402, F401  (patch seam, see above)
-from .paths import get_data_dir  # noqa: E402, F401  (re-export: patch seam)
 from .settings.service import get_settings_service  # noqa: E402, F401  (patch seam)
 from .text_to_board import text_to_board_array  # noqa: E402, F401  (patch seam)
 from .time_service import reset_time_service  # noqa: E402
@@ -1966,32 +1974,6 @@ async def validate_traffic_route(request: dict):
 from .transitions.routes import router as transitions_router  # noqa: E402
 
 app.include_router(transitions_router)
-
-
-def _resolve_active_page_id(page_id: str | None) -> str | None:
-    """This module's binding of :func:`src.collections.service.resolve_active_page_id`.
-
-    Passes *this* module's ``get_collection_service``, so the resolution goes on
-    resolving through the name the suite stubs when it exercises the handlers
-    that still live here.
-    """
-    return resolve_active_page_id(page_id, get_collection_service)
-
-
-def _resolve_next_check_seconds(page_id: str | None) -> int | None:
-    """This module's binding of :func:`src.collections.service.resolve_next_check_seconds`."""
-    return resolve_next_check_seconds(page_id, get_collection_service)
-
-
-def _reinitialize_board_clients() -> None:
-    """Rebuild board clients after a boards-list mutation.
-
-    Kept as a name here because unconverted domains patch
-    ``src.api_server._reinitialize_board_clients``; the implementation moved to
-    ``src/display_runtime.py`` so routers can reach it without importing this
-    module.
-    """
-    reinitialize_board_clients()
 
 
 # ==================== Beta Settings (HTTPS, etc.) ====================
