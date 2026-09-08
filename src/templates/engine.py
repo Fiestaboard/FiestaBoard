@@ -548,7 +548,6 @@ class TemplateEngine:
             # Subsequent lines have full width
             subsequent_width = board_width
 
-            # Word-wrap the value
             wrapped = self._word_wrap(value, first_line_width, subsequent_width, max_lines)
 
             # Build result lines
@@ -639,7 +638,6 @@ class TemplateEngine:
                 closing_brace = text.find("}", i)
                 if closing_brace != -1:
                     content = text[i + 1 : closing_brace]
-                    # Check if it's a color code
                     if content.isdigit() and _is_color_code(int(content)):
                         # It's a numeric color marker
                         tokens.append(text[i : closing_brace + 1])
@@ -692,7 +690,6 @@ class TemplateEngine:
                 closing_brace = text.find("}", i)
                 if closing_brace != -1:
                     content = text[i + 1 : closing_brace]
-                    # Check if it's a color code
                     if content.isdigit() and _is_color_code(int(content)):
                         # It's a color marker - add to current word
                         current_word += text[i : closing_brace + 1]
@@ -745,7 +742,6 @@ class TemplateEngine:
                             tokens_to_take += 1
 
                         if tokens_to_take > 0:
-                            # Reconstruct the line from tokens
                             current_line = "".join(tokens[:tokens_to_take])
                             remaining_word = "".join(tokens[tokens_to_take:])
                             lines.append(current_line)
@@ -766,7 +762,6 @@ class TemplateEngine:
                                 current_width = subsequent_width
                             else:
                                 break
-                    # Set current_line to any remaining part
                     current_line = remaining_word if remaining_word else ""
             elif current_line_tiles + 1 + word_tiles <= current_width:
                 # Word fits on current line
@@ -798,7 +793,6 @@ class TemplateEngine:
                             tokens_to_take += 1
 
                         if tokens_to_take > 0:
-                            # Reconstruct the line from tokens
                             current_line = "".join(tokens[:tokens_to_take])
                             remaining_word = "".join(tokens[tokens_to_take:])
                             lines.append(current_line)
@@ -1045,7 +1039,6 @@ class TemplateEngine:
             entity_id_part = parts[1]
             attribute = parts[2]
 
-            # Get home_assistant context data first
             ha_data = context.get("home_assistant", {})
 
             # Smart entity_id conversion: try different underscore positions
@@ -1461,7 +1454,6 @@ class TemplateEngine:
             if open_count != close_count:
                 errors.append(TemplateError(line=line_num, column=0, message="Mismatched variable braces {{}}"))
 
-            # Calculate max possible line length
             max_length = self._calculate_max_line_length(line, cols=cols)
             if max_length > cols:
                 errors.append(
@@ -1558,7 +1550,6 @@ class TemplateEngine:
         # Get max lengths from appropriate source
         max_lengths = self._get_max_lengths_for_validation()
 
-        # Replace variables with their max length
         def replace_with_max_length(match):
             expr = match.group(1).strip()
             # Remove filters for lookup

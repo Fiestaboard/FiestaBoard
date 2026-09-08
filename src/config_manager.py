@@ -938,7 +938,6 @@ class ConfigManager:
         if "general" not in self._config:
             self._config["general"] = {}
 
-        # Helper to apply string env var
         def apply_str(config: dict, key: str, env_var: str, alt_env_var: str | None = None) -> bool:
             value = os.getenv(env_var, "").strip()
             if not value and alt_env_var:
@@ -952,7 +951,6 @@ class ConfigManager:
                 return True
             return False
 
-        # Helper to apply int env var
         def apply_int(config: dict, key: str, env_var: str, alt_env_var: str | None = None) -> bool:
             value = os.getenv(env_var, "").strip()
             if not value and alt_env_var:

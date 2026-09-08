@@ -357,7 +357,6 @@ class StocksSource:
             # Note: No parentheses around percentage to save 2 tiles for prices > $1000
             formatted = f"{symbol}{color_tile} ${current_price_str} {change_percent_str}"
 
-            # Get company name if available
             company_name = info.get("longName") or info.get("shortName") or symbol
 
             return {
@@ -410,7 +409,6 @@ class StocksSource:
             if current_price is None:
                 return {"valid": False, "symbol": symbol, "error": "No price data available"}
 
-            # Get company name
             company_name = info.get("longName") or info.get("shortName") or symbol
 
             return {"valid": True, "symbol": symbol, "name": company_name}
@@ -441,7 +439,6 @@ class StocksSource:
 
         results = []
 
-        # Try Finnhub API if key is provided
         if finnhub_api_key:
             try:
                 import finnhub

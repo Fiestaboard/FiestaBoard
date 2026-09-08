@@ -314,7 +314,6 @@ class ScheduleStorage:
         # Recreate schedule with updates
         updated_schedule = ScheduleEntry(**schedule_dict)
 
-        # Validate
         errors = updated_schedule.validate_config()
         if errors:
             raise ValueError(f"Invalid schedule configuration: {errors}")

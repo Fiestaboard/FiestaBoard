@@ -335,7 +335,6 @@ class ScheduleService:
                 if not common_days:
                     continue  # No day overlap
 
-                # Check if times overlap
                 if self._times_overlap(
                     schedule1.start_time, schedule1.end_time, schedule2.start_time, schedule2.end_time
                 ):
@@ -418,7 +417,6 @@ class ScheduleService:
 
         # Check each day of the week
         for day in VALID_DAYS:
-            # Get all schedules for this day
             day_schedules = [s for s in schedules if s.applies_to_day(day)]
 
             if not day_schedules:

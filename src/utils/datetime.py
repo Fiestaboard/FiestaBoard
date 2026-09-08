@@ -28,7 +28,6 @@ class DateTimeSource:
         Returns:
             Dictionary with formatted date and time strings
         """
-        # Use TimeService to get current time in configured timezone
         now = self.time_service.get_current_time(self.timezone)
 
         return {

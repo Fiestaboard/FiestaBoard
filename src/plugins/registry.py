@@ -1379,7 +1379,6 @@ class PluginRegistry:
             }
             plugins.append(info)
 
-        # Sort by name
         plugins.sort(key=lambda p: p["name"].lower())
 
         return plugins
@@ -1414,7 +1413,6 @@ class PluginRegistry:
             if plugin_id in self._manifests:
                 del self._manifests[plugin_id]
 
-            # Reload
             plugin = self._loader.reload_plugin(plugin_id)
             manifest = self._loader.get_manifest(plugin_id) if plugin else None
             if not plugin or not manifest:

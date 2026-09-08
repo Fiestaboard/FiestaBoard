@@ -269,7 +269,6 @@ class TimeService:
             Formatted timestamp string in local timezone
         """
         try:
-            # Parse UTC timestamp
             utc_dt = datetime.fromisoformat(utc_timestamp.replace("Z", "+00:00"))
 
             # Ensure it's UTC-aware

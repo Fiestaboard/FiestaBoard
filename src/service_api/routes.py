@@ -115,7 +115,6 @@ async def get_status():
     status = StatusResponse(
         running=runtime.is_service_running(), initialized=service is not None, config_summary=Config.get_summary()
     )
-    # Add active page ID to config summary
     status.config_summary["active_page_id"] = settings_service.get_active_page_id()
 
     # Per-board status (issue #1244): configured/paused/active page for every

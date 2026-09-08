@@ -114,9 +114,7 @@ class DisplayService:
                 display_type=display_type, formatted="", raw={}, available=False, error="Plugin system not initialized."
             )
 
-        # Validate the display type exists as a plugin
         if not self._plugin_registry.get_plugin(display_type):
-            # Get list of valid plugin IDs
             valid_types = [p["id"] for p in self._plugin_registry.list_plugins()]
             return DisplayResult(
                 display_type=display_type,
