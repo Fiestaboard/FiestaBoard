@@ -1353,10 +1353,6 @@ class SettingsService:
         """Determine if message should be sent to board based on output target."""
         return self._output.target in ["board", "both"]
 
-    def should_send_to_ui(self) -> bool:
-        """Determine if message should be sent to UI."""
-        return True
-
     # Active page settings (per-board)
     def get_active_page_id(self, board_id: str | None = None) -> str | None:
         """Get the currently active (manual) page ID for a board.

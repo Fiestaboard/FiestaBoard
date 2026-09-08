@@ -289,8 +289,8 @@ class TestAvailableVariables:
         assert isinstance(variables, dict)
 
     def test_get_all_known_sources_returns_set(self, engine):
-        """Test _get_all_known_sources returns a set of plugin IDs."""
-        sources = engine._get_all_known_sources()
+        """Test get_all_known_sources returns a set of plugin IDs."""
+        sources = engine.get_all_known_sources()
         assert isinstance(sources, set)
 
 

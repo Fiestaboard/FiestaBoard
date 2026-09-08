@@ -723,15 +723,6 @@ class DisplayService:
     def _refresh_thread(self, value):
         self._ensure_primary_runtime().refresh_thread = value
 
-    @property
-    def _refresh_cancel(self):
-        rt = self._primary_runtime()
-        return rt.refresh_cancel if rt is not None else None
-
-    @_refresh_cancel.setter
-    def _refresh_cancel(self, value):
-        self._ensure_primary_runtime().refresh_cancel = value
-
     # ------------------------------------------------------------------ #
     # Building / rebuilding runtimes
     # ------------------------------------------------------------------ #

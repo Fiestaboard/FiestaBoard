@@ -390,9 +390,6 @@ class TestSettingsServiceOutput:
         settings_service.set_output_target("ui")
         assert settings_service.should_send_to_board() is False
 
-    def test_should_send_to_ui_always_true(self, settings_service):
-        assert settings_service.should_send_to_ui() is True
-
 
 class TestSettingsServiceActivePage:
     """Test SettingsService active page settings."""

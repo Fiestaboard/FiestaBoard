@@ -231,12 +231,6 @@ def get_collection_service() -> CollectionService:
     return _collection_service
 
 
-def reset_collection_service_for_tests() -> None:
-    """Clear the cached singleton. Tests that swap storage paths use this."""
-    global _collection_service
-    _collection_service = None
-
-
 def resolve_active_page_id(page_id: str | None, get_collection_service: Callable[[], Any]) -> str | None:
     """Resolve a collection reference to the page it is currently showing.
 

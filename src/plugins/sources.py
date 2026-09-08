@@ -806,53 +806,6 @@ def get_external_plugins_dir(project_root: Path | None = None) -> Path:
     return ext_dir
 
 
-def _safe_external_dest(external_dir: Path, plugin_id: str) -> tuple[Path | None, str]:
-    """Compute a safe destination path inside `external_dir` for a plugin.
-
-    The plugin id flows through three independent CodeQL-recognized
-    path-injection barriers before it ever reaches a filesystem call:
-
-    1. :func:`re.fullmatch` against a strict character-class allow-list.
-    2. Per-character allow-list reconstruction — the value is rebuilt
-       from a constant string of permitted characters and the result
-       must equal the original input.
-    3. After `os.path.realpath`, :func:`os.path.commonpath` is used to
-       prove the resolved candidate is contained within
-       `external_root`.  This is the canonical CodeQL sanitizer for
-       `py/path-injection` and is checked **before** any further use
-       of the path.
-    """
-    if not isinstance(plugin_id, str) or not plugin_id:
-        return None, "Invalid plugin id"
-
-    # (1) Inline allow-list match (single segment, lowercase + digits +
-    # underscore only).
-    if not PLUGIN_ID_RE.fullmatch(plugin_id):
-        return None, f"Invalid plugin id {plugin_id!r}"
-
-    # (2) Rebuild from a fixed allow-list and require equality.
-    safe_id = "".join(c for c in plugin_id if c in _PLUGIN_ID_ALLOWED)
-    if safe_id != plugin_id:
-        return None, f"Invalid plugin id {plugin_id!r}"
-
-    # (3) Build and resolve the candidate path, then confirm containment
-    # with ``os.path.commonpath`` *before* returning the path.  This is
-    # the CodeQL-recognised path-injection barrier.
-    external_root = os.path.realpath(str(external_dir))
-    raw_candidate = os.path.join(external_root, safe_id)
-    candidate_real = os.path.realpath(raw_candidate)
-    try:
-        common = os.path.commonpath([external_root, candidate_real])
-    except ValueError:
-        return None, f"Refusing to install plugin outside {external_root}"
-    if common != external_root:
-        return None, f"Refusing to install plugin outside {external_root}"
-    if candidate_real == external_root:
-        return None, "Refusing to install plugin at root directory"
-
-    return Path(candidate_real), ""
-
-
 def verify_installed_plugin(plugin_id: str, plugin_dir: Path) -> tuple[bool, str]:
     """Check that a freshly-cloned plugin can actually work on this box.
 

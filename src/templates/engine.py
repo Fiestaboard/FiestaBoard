@@ -1519,10 +1519,6 @@ class TemplateEngine:
             return set()
         return set(self._plugin_registry.plugins.keys())
 
-    def _get_all_known_sources(self) -> set:
-        """Back-compat alias for :meth:`get_all_known_sources`."""
-        return self.get_all_known_sources()
-
     def _calculate_max_line_length(self, line: str, cols: int = 22) -> int:
         """Calculate maximum possible rendered length of a template line.
 

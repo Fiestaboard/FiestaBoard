@@ -1076,15 +1076,6 @@ class ConfigManager:
             self._save_internal()
         logger.info("Board settings updated")
 
-    # Backward compatibility aliases
-    def get_board_legacy(self) -> dict[str, Any]:
-        """Backward compatibility alias for get_board()."""
-        return self.get_board()
-
-    def set_board_legacy(self, settings: dict[str, Any]) -> None:
-        """Backward compatibility alias for set_board()."""
-        self.set_board(settings)
-
     def reset_board_config(self) -> None:
         """Reset board configuration to defaults, bypassing env-var re-application.
 

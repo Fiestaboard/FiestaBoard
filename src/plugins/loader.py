@@ -716,20 +716,6 @@ class PluginLoader:
         """
         return self._plugin_sources.get(plugin_id)
 
-    def get_plugin_class(self, plugin_id: str) -> type[AnyPlugin] | None:
-        """Get the plugin class for a loaded plugin.
-
-        This is used to create additional instances of the same plugin type.
-
-        Args:
-            plugin_id: Plugin ID
-
-        Returns:
-            The plugin class (PluginBase or TransitionPluginBase subclass)
-            or None if not loaded.
-        """
-        return self._plugin_classes.get(plugin_id)
-
     def create_instance(self, plugin_id: str) -> AnyPlugin | None:
         """Create a new instance of a loaded plugin.
 
