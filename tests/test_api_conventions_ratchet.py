@@ -24,7 +24,9 @@ The four rules
     ``{"valid": False}`` body on a route that answers 200.
 ``typed_body``
     No request body parameter annotated as a bare ``dict`` /
-    ``dict[str, Any]`` / ``Any``.
+    ``dict[str, Any]`` / ``Any`` — and no handler that sidesteps the type
+    system entirely by taking ``request: Request`` and reading the body off
+    it with ``await request.json()`` / ``request.body()`` (issue #1922).
 ``declared_errors``
     Every route declares at least one error status (4xx or 5xx) in
     ``responses=``, so its failure modes are part of the published schema.
@@ -257,6 +259,79 @@ def _is_untyped_body(annotation: Any) -> bool:
     return False
 
 
+#: Methods on a Starlette ``Request`` that consume the request body. Calling
+#: any of these is the free-form equivalent of a bare ``dict`` parameter —
+#: FastAPI sees no body param at all, so ``dependant.body_params`` is blind to
+#: it (issue #1922). Reading headers / the client address / the session is
+#: *attribute* access, not a call, so those legitimate uses are never flagged.
+BODY_READING_METHODS = frozenset({"json", "body", "form", "stream"})
+
+
+def _request_param_names(func: ast.AST) -> set[str]:
+    """Names of parameters annotated as a Starlette/FastAPI ``Request``.
+
+    Matches ``request: Request`` (an ``ast.Name``), ``request:
+    starlette.requests.Request`` / ``fastapi.Request`` (an ``ast.Attribute``
+    ending in ``Request``), and the string-forward-ref form. The AST carries
+    the written annotation verbatim, so ``from __future__ import annotations``
+    does not change what is matched.
+    """
+    args = getattr(func, "args", None)
+    if args is None:  # pragma: no cover - handlers are always functions
+        return set()
+    names: set[str] = set()
+    for arg in (*args.posonlyargs, *args.args, *args.kwonlyargs):
+        annotation = arg.annotation
+        if (
+            (isinstance(annotation, ast.Name) and annotation.id == "Request")
+            or (isinstance(annotation, ast.Attribute) and annotation.attr == "Request")
+            or (
+                isinstance(annotation, ast.Constant)
+                and isinstance(annotation.value, str)
+                and annotation.value.split(".")[-1] == "Request"
+            )
+        ):
+            names.add(arg.arg)
+    return names
+
+
+def _reads_body_via_request(record: dict[str, Any]) -> list[str]:
+    """Flag a handler that reads the body off a bare ``Request`` object.
+
+    A handler declared ``async def h(request: Request)`` that then calls
+    ``await request.json()`` / ``request.body()`` has **no** FastAPI body param,
+    so :func:`check_typed_body`'s ``dependant.body_params`` scan cannot see the
+    most free-form body of all (issue #1922). This AST arm closes that gap
+    while staying narrow: only a body-consuming *method call*
+    (:data:`BODY_READING_METHODS`) on a ``Request``-typed parameter trips it,
+    so the legitimate uses of ``Request`` — headers, the client address, the
+    session — that several converted routes rely on are left alone.
+    """
+    endpoint = record.get("endpoint")
+    if endpoint is None:
+        return []
+    try:
+        func, _lines, _filename, _first = _handler_ast(endpoint)
+    except (OSError, TypeError, SyntaxError, IndexError):  # pragma: no cover - defensive
+        return []
+    request_params = _request_param_names(func)
+    if not request_params:
+        return []
+    seen: set[str] = set()
+    for node in ast.walk(func):
+        if not isinstance(node, ast.Call):
+            continue
+        called = node.func
+        if not isinstance(called, ast.Attribute) or called.attr not in BODY_READING_METHODS:
+            continue
+        value = called.value
+        if isinstance(value, ast.Name) and value.id in request_params:
+            seen.add(f"{value.id}.{called.attr}()")
+    return [
+        f"reads the request body via `{marker}` on a bare `Request` — use a Pydantic model" for marker in sorted(seen)
+    ]
+
+
 def check_typed_body(record: dict[str, Any]) -> list[str]:
     dependant = getattr(record["route"], "dependant", None)
     problems: list[str] = []
@@ -269,6 +344,7 @@ def check_typed_body(record: dict[str, Any]) -> list[str]:
                 else (getattr(annotation, "__name__", None) or str(annotation))
             )
             problems.append(f"body param `{field.name}` is annotated `{shown}` — use a Pydantic model")
+    problems.extend(_reads_body_via_request(record))
     return problems
 
 
@@ -476,7 +552,7 @@ SAMPLE_MANIFEST = {"converted_domains": ["sample"], "exceptions": []}
 
 def _sample_records() -> list[dict[str, Any]]:
     """An app whose ``sample`` domain breaks one rule per route."""
-    from fastapi import APIRouter, FastAPI, Response
+    from fastapi import APIRouter, FastAPI, Request, Response
     from pydantic import BaseModel
 
     class Thing(BaseModel):
@@ -497,6 +573,19 @@ def _sample_records() -> list[dict[str, Any]]:
     @router.post("/sample/untyped-body", response_model=Thing, responses=ok)
     async def untyped_body(payload: dict, other: dict[str, Any], maybe: dict | None = None) -> Thing:
         return Thing(name="ok")
+
+    # No FastAPI body param at all — the body is read off the raw Request, the
+    # most free-form shape of all. `dependant.body_params` is blind to it; the
+    # AST arm is what catches it (issue #1922).
+    @router.post("/sample/request-body", response_model=Thing, responses=ok)
+    async def request_body(request: Request) -> Thing:
+        body = await request.json()
+        return Thing(name=str(body))
+
+    # Reading headers off a Request is a legitimate use and must NOT be flagged.
+    @router.get("/sample/reads-headers", response_model=Thing, responses=ok)
+    async def reads_headers(request: Request) -> Thing:
+        return Thing(name=request.headers.get("x-thing", "ok"))
 
     @router.get("/sample/no-errors", response_model=Thing)
     async def no_errors() -> Thing:
@@ -545,12 +634,28 @@ def test_response_model_rule_flags_a_route_that_declares_none():
 
 
 def test_typed_body_rule_flags_bare_dict_body_params():
-    offenders = _sample_violations("typed_body", check_typed_body)
+    offenders = [o for o in _sample_violations("typed_body", check_typed_body) if "untyped-body" in o]
     assert offenders == [
         "POST /sample/untyped-body: body param `maybe` is annotated `dict | None` — use a Pydantic model",
         "POST /sample/untyped-body: body param `other` is annotated `dict[str, typing.Any]` — use a Pydantic model",
         "POST /sample/untyped-body: body param `payload` is annotated `dict` — use a Pydantic model",
     ]
+
+
+def test_typed_body_rule_flags_a_body_read_off_a_bare_request():
+    """A handler reading `await request.json()` has no body_param — the AST arm
+    (issue #1922) is the only thing that sees it."""
+    offenders = [o for o in _sample_violations("typed_body", check_typed_body) if "request-body" in o]
+    assert offenders == [
+        "POST /sample/request-body: reads the request body via `request.json()` "
+        "on a bare `Request` — use a Pydantic model"
+    ]
+
+
+def test_typed_body_rule_ignores_a_request_used_only_for_headers():
+    """Reading headers/client/session off a Request is legitimate — don't flag it."""
+    offenders = [o for o in _sample_violations("typed_body", check_typed_body) if "reads-headers" in o]
+    assert offenders == []
 
 
 def test_declared_errors_rule_flags_a_route_with_no_error_status():
