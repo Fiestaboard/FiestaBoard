@@ -45,8 +45,11 @@ test.describe("regression: schedule.toolbar", () => {
   /** UX node: schedule.toolbar.toggle-pending */
   test("schedule.toolbar.toggle-pending — pending toggle disables switch", async ({ page }) => {
     let release: () => void = () => {};
-    await page.route("**/api/schedules/enabled", async (route) => {
-      if (route.request().method() === "PUT") {
+    // `PUT /schedules/enabled` is now `PATCH /v1/boards/{board} {schedule_enabled}`.
+    // The board PATCH also carries the default-page write, so match on the
+    // body key — otherwise this would stall a mutation it never used to.
+    await page.route("**/api/v1/boards/*", async (route) => {
+      if (route.request().method() === "PATCH" && "schedule_enabled" in (route.request().postDataJSON() ?? {})) {
         await new Promise<void>((r) => {
           release = r;
         });
@@ -61,8 +64,10 @@ test.describe("regression: schedule.toolbar", () => {
 
   /** UX node: schedule.toolbar.toggle-error */
   test("schedule.toolbar.toggle-error — failed toggle surfaces error toast", async ({ page }) => {
-    await page.route("**/api/schedules/enabled", (route) => {
-      if (route.request().method() === "PUT") {
+    // See the toggle-pending note: the schedule switch now writes
+    // `PATCH /v1/boards/{board} {schedule_enabled}`.
+    await page.route("**/api/v1/boards/*", (route) => {
+      if (route.request().method() === "PATCH" && "schedule_enabled" in (route.request().postDataJSON() ?? {})) {
         return route.fulfill({ status: 500, body: '{"detail":"boom"}' });
       }
       return route.continue();
@@ -109,8 +114,11 @@ test.describe("regression: schedule.toolbar", () => {
 
   /** UX node: schedule.toolbar.default-page-error */
   test("schedule.toolbar.default-page-error — failed set-default toasts error", async ({ page }) => {
-    await page.route("**/api/schedules/default-page", (route) => {
-      if (route.request().method() === "PUT") {
+    // `PUT /schedules/default-page` is now `PATCH /v1/boards/{board}
+    // {default_page_id}` — same board PATCH as the schedule toggle, so the
+    // body key is what keeps this aimed at the set-default call.
+    await page.route("**/api/v1/boards/*", (route) => {
+      if (route.request().method() === "PATCH" && "default_page_id" in (route.request().postDataJSON() ?? {})) {
         return route.fulfill({ status: 500, body: '{"detail":"boom"}' });
       }
       return route.continue();

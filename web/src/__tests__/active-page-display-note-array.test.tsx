@@ -108,7 +108,7 @@ function usePanelBoard({
   const puts: Array<{ page_id?: string | null; board_id?: string }> = [];
   server.use(
     http.get(`${API_BASE}/settings/board`, () => HttpResponse.json(BOARDS_WITH_PANEL)),
-    http.get(`${API_BASE}/pages`, () => HttpResponse.json({ pages, total: pages.length })),
+    http.get(`${API_BASE}/v1/pages`, () => HttpResponse.json({ pages, total: pages.length })),
     http.get(`${API_BASE}/settings/active-page`, () => HttpResponse.json({ page_id: activePageId })),
     http.get(`${API_BASE}/schedules/active/page`, () =>
       HttpResponse.json({ page_id: activePageId, source: "manual", schedule_enabled: false }),

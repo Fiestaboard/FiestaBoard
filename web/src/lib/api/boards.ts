@@ -207,6 +207,47 @@ export interface BoardInstance {
   tiles?: NoteArrayTile[];
 }
 
+/**
+ * `GET | PATCH /v1/boards/{board}` — mirrors `BoardDetail` in src/v1/models.py.
+ *
+ * A deliberate projection of a board plus what it is doing right now. It is
+ * NOT a replacement for `BoardInstance` (`GET /settings/board`): v1 drops the
+ * connection credentials, per-tile wiring, board colour and code-62 glyph on
+ * purpose, so anything configuring a board still reads the settings shape.
+ */
+export interface BoardDetail {
+  id: string;
+  name: string;
+  device_type: DeviceType;
+  rows: number;
+  cols: number;
+  is_primary: boolean;
+  paused: boolean;
+  schedule_enabled: boolean;
+  characters: number[][] | null;
+  text: string | null;
+  read_at: string | null;
+  active_page_id: string | null;
+  scheduled_page_id: string | null;
+  resolved_page_id: string | null;
+  source: "manual" | "schedule" | "none";
+  default_page_id: string | null;
+  override_expires_at: string | null;
+}
+
+/**
+ * The `{board}` path segment of a v1 board route.
+ *
+ * v1 accepts the literal `primary` in place of an id, which is how an
+ * id-less internal call ("no board_id" = the default board) is expressed:
+ * `SettingsService.get_primary_board_id()` is the same resolution both sides
+ * use. Non-empty string only — these wrappers get handed to TanStack Query
+ * and event handlers as bare references (issue #1244).
+ */
+export function boardPathSegment(boardId?: string | null): string {
+  return typeof boardId === "string" && boardId ? encodeURIComponent(boardId) : "primary";
+}
+
 export interface BoardSettings {
   board_type: "black" | "white" | null;
   boards: BoardInstance[];
@@ -323,9 +364,13 @@ export const boardsApi = {
     fetchApi<BoardSettings>(`/settings/board/${boardId}`, {
       method: "DELETE",
     }),
+  // Pausing moved to `PATCH /v1/boards/{board}` (issue #1930), which calls the
+  // same `SettingsService.set_paused`. The response is the v1 BoardDetail
+  // rather than `{ board_id, paused, board_settings }` — no caller read those
+  // fields; the one consumer invalidates its queries instead.
   setBoardPaused: (boardId: string, paused: boolean) =>
-    fetchApi<{ board_id: string; paused: boolean; board_settings: BoardSettings }>(`/settings/board/${boardId}/pause`, {
-      method: "POST",
+    fetchApi<BoardDetail>(`/v1/boards/${boardPathSegment(boardId)}`, {
+      method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ paused }),
     }),

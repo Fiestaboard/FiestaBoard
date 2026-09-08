@@ -53,7 +53,7 @@ describe("PageBuilder — saving a new page", () => {
     vi.clearAllMocks();
     localStorage.clear();
     server.use(
-      http.post(`${API_BASE}/pages`, async () => {
+      http.post(`${API_BASE}/v1/pages`, async () => {
         // 201 + the bare page since the Phase 2 conventions pass. This test is
         // the #1586 regression guard: the id the builder invalidates on must be
         // the one the create response carried.

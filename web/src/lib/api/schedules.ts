@@ -1,6 +1,7 @@
 // Schedules domain: schedule CRUD/validation, default page,
 // temporary overrides, and the silence (quiet hours) feature.
 
+import { type BoardDetail, boardPathSegment } from "./boards";
 import { fetchApi } from "./core";
 import type { LineMetadata } from "./shared";
 
@@ -176,14 +177,6 @@ export interface ActiveScheduleResponse {
   temporary_override: TemporaryOverrideStatus;
 }
 
-export interface ScheduleEnabledResponse {
-  enabled: boolean;
-}
-
-export interface DefaultPageResponse {
-  default_page_id: string | null;
-}
-
 /**
  * What POST/PUT /schedules answer with: the schedule, plus the non-fatal
  * page<->board size mismatches of issue #1245. `warnings` is always present
@@ -233,26 +226,26 @@ export const schedulesApi = {
     fetchApi<{ revert_mode: string | null }>("/settings/temporary-override", {
       method: "DELETE",
     }),
-  // Schedule endpoints (optional boardId for per-board schedules)
+  // Schedule CRUD lives on /v1 (issue #1930): `/v1/schedules*` delegates to the
+  // same handlers `/schedules*` does — including the sun-time enrichment and
+  // the #1245 size warnings — so only the path moved.
   getSchedules: (boardId?: string) =>
-    fetchApi<SchedulesResponse>(boardId ? `/schedules?board_id=${encodeURIComponent(boardId)}` : "/schedules"),
+    fetchApi<SchedulesResponse>(boardId ? `/v1/schedules?board_id=${encodeURIComponent(boardId)}` : "/v1/schedules"),
 
   createSchedule: (data: ScheduleCreate) =>
-    fetchApi<ScheduleWriteResponse>("/schedules", {
+    fetchApi<ScheduleWriteResponse>("/v1/schedules", {
       method: "POST",
       body: JSON.stringify(data),
     }),
 
-  getSchedule: (scheduleId: string) => fetchApi<ScheduleEntry>(`/schedules/${scheduleId}`),
-
   updateSchedule: (scheduleId: string, data: ScheduleUpdate) =>
-    fetchApi<ScheduleWriteResponse>(`/schedules/${scheduleId}`, {
+    fetchApi<ScheduleWriteResponse>(`/v1/schedules/${scheduleId}`, {
       method: "PUT",
       body: JSON.stringify(data),
     }),
 
   deleteSchedule: (scheduleId: string) =>
-    fetchApi<ScheduleDeleteResponse>(`/schedules/${scheduleId}`, {
+    fetchApi<ScheduleDeleteResponse>(`/v1/schedules/${scheduleId}`, {
       method: "DELETE",
     }),
 
@@ -267,26 +260,22 @@ export const schedulesApi = {
       body: JSON.stringify(boardId != null ? { board_id: boardId } : {}),
     }),
 
-  getDefaultPage: (boardId?: string) =>
-    fetchApi<DefaultPageResponse>(
-      boardId ? `/schedules/default-page?board_id=${encodeURIComponent(boardId)}` : "/schedules/default-page",
-    ),
-
+  // Both of these are per-board settings, so v1 puts them on the board rather
+  // than on /schedules: `PATCH /v1/boards/{board}` calls the same
+  // `ScheduleService.set_default_page` / `SettingsService.set_schedule_enabled`
+  // (and the same page-exists 404) that the /schedules setters did. The
+  // response widens from `{default_page_id}` / `{enabled}` to the whole
+  // BoardDetail; no caller read the old body.
   setDefaultPage: (pageId: string | null, boardId?: string) =>
-    fetchApi<DefaultPageResponse>("/schedules/default-page", {
-      method: "PUT",
-      body: JSON.stringify({ page_id: pageId, ...(boardId != null && { board_id: boardId }) }),
+    fetchApi<BoardDetail>(`/v1/boards/${boardPathSegment(boardId)}`, {
+      method: "PATCH",
+      body: JSON.stringify({ default_page_id: pageId }),
     }),
 
-  getScheduleEnabled: (boardId?: string) =>
-    fetchApi<ScheduleEnabledResponse>(
-      boardId ? `/schedules/enabled?board_id=${encodeURIComponent(boardId)}` : "/schedules/enabled",
-    ),
-
   setScheduleEnabled: (enabled: boolean, boardId?: string) =>
-    fetchApi<ScheduleEnabledResponse>("/schedules/enabled", {
-      method: "PUT",
-      body: JSON.stringify({ enabled, ...(boardId != null && { board_id: boardId }) }),
+    fetchApi<BoardDetail>(`/v1/boards/${boardPathSegment(boardId)}`, {
+      method: "PATCH",
+      body: JSON.stringify({ schedule_enabled: enabled }),
     }),
   // Silence mode status (optional boardId reads that board's window).
   // boardId is only honored when it's a non-empty string: this wrapper is

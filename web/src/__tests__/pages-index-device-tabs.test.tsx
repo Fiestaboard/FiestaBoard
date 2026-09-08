@@ -61,7 +61,7 @@ function mockBoardSettings(devices: TestDevice[]) {
 
 function mockPages(pages: { id: string; name: string; device_type: TestDevice }[]) {
   server.use(
-    http.get(`${API_BASE}/pages`, () =>
+    http.get(`${API_BASE}/v1/pages`, () =>
       HttpResponse.json({
         pages: pages.map((p) => ({
           ...p,
@@ -78,7 +78,7 @@ function mockPages(pages: { id: string; name: string; device_type: TestDevice }[
   // the component finishes loading.
   server.use(http.post(`${API_BASE}/pages/preview-batch`, () => HttpResponse.json({ previews: {} })));
   // Collections — empty.
-  server.use(http.get(`${API_BASE}/collections`, () => HttpResponse.json({ collections: [] })));
+  server.use(http.get(`${API_BASE}/v1/collections`, () => HttpResponse.json({ collections: [] })));
 }
 
 describe("PagesPage device-type tabs", () => {

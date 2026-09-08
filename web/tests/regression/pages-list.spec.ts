@@ -64,7 +64,7 @@ test.describe("regression: pages.list", () => {
   test("pages.list.empty — empty pages payload renders the list surface", async ({ page }) => {
     // Mock /pages to empty so the empty state is observed without flake from
     // stray pages left by other parallel workers.
-    await page.route("**/api/pages", (route) => {
+    await page.route("**/api/v1/pages", (route) => {
       if (route.request().method() !== "GET") return route.continue();
       return route.fulfill({
         status: 200,
@@ -83,7 +83,7 @@ test.describe("regression: pages.list", () => {
     page,
   }) => {
     let release: () => void = () => {};
-    await page.route("**/api/pages", async (route) => {
+    await page.route("**/api/v1/pages", async (route) => {
       if (route.request().method() === "GET") {
         await new Promise<void>((r) => {
           release = r;
@@ -104,7 +104,7 @@ test.describe("regression: pages.list", () => {
       localStorage.setItem("fiestaboard_pages_view_mode", "grid");
     });
     let release: () => void = () => {};
-    await page.route("**/api/pages", async (route) => {
+    await page.route("**/api/v1/pages", async (route) => {
       if (route.request().method() === "GET") {
         await new Promise<void>((r) => {
           release = r;
@@ -124,7 +124,7 @@ test.describe("regression: pages.list", () => {
       localStorage.setItem("fiestaboard_pages_view_mode", "list");
     });
     let release: () => void = () => {};
-    await page.route("**/api/pages", async (route) => {
+    await page.route("**/api/v1/pages", async (route) => {
       if (route.request().method() === "GET") {
         await new Promise<void>((r) => {
           release = r;

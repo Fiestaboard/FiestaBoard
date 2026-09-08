@@ -54,7 +54,7 @@ function TestWrapper({ children }: { children: React.ReactNode }) {
 /** Serve GET /pages/page-1 with the given saved override. */
 function servePageWithTransition(transitionStrategy: string | null) {
   server.use(
-    http.get(`${API_BASE}/pages/page-1`, () =>
+    http.get(`${API_BASE}/v1/pages/page-1`, () =>
       HttpResponse.json({
         id: "page-1",
         name: "Weather Page",
@@ -73,7 +73,7 @@ function servePageWithTransition(transitionStrategy: string | null) {
 function captureUpdate(): { body: Record<string, unknown> | null } {
   const captured: { body: Record<string, unknown> | null } = { body: null };
   server.use(
-    http.put(`${API_BASE}/pages/page-1`, async ({ request }) => {
+    http.put(`${API_BASE}/v1/pages/page-1`, async ({ request }) => {
       captured.body = (await request.json()) as Record<string, unknown>;
       return HttpResponse.json({
         page: { id: "page-1", name: "Weather Page", type: "template", device_type: "flagship" },

@@ -133,7 +133,7 @@ test.describe("regression: collections.list", () => {
     const gate = new Promise<void>((resolve) => {
       release = resolve;
     });
-    await page.route("**/api/collections", async (route) => {
+    await page.route("**/api/v1/collections", async (route) => {
       if (route.request().method() !== "GET") return route.fallback();
       await gate;
       return route.continue();
@@ -311,7 +311,7 @@ test.describe("regression: collections.form", () => {
     const gate = new Promise<void>((resolve) => {
       release = resolve;
     });
-    await page.route("**/api/collections", async (route) => {
+    await page.route("**/api/v1/collections", async (route) => {
       if (route.request().method() !== "POST") return route.continue();
       await gate;
       return route.continue();
@@ -354,7 +354,7 @@ test.describe("regression: collections.form", () => {
     const pageName = `E2E Page ${Date.now()}`;
     await createPage(pageName);
 
-    await page.route("**/api/collections", async (route) => {
+    await page.route("**/api/v1/collections", async (route) => {
       if (route.request().method() !== "POST") return route.continue();
       await route.fulfill({
         status: 500,
@@ -404,7 +404,7 @@ test.describe("regression: collections.form", () => {
     const gate = new Promise<void>((resolve) => {
       release = resolve;
     });
-    await page.route(`**/api/collections/${collection.id}`, async (route) => {
+    await page.route(`**/api/v1/collections/${collection.id}`, async (route) => {
       if (route.request().method() !== "PUT") return route.continue();
       await gate;
       return route.continue();
@@ -443,7 +443,7 @@ test.describe("regression: collections.form", () => {
     const name = `E2E Update Error ${Date.now()}`;
     const collection = await createCollectionApi(name, [pageId], 30);
 
-    await page.route(`**/api/collections/${collection.id}`, async (route) => {
+    await page.route(`**/api/v1/collections/${collection.id}`, async (route) => {
       if (route.request().method() !== "PUT") return route.continue();
       await route.fulfill({
         status: 500,

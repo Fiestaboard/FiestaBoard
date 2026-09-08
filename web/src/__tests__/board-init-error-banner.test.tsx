@@ -43,7 +43,7 @@ function setupHandlers({ boardsStatus }: { boardsStatus?: Record<string, unknown
         devices: ["flagship", "note"],
       }),
     ),
-    http.get(`${API_BASE}/status`, () =>
+    http.get(`${API_BASE}/v1/status`, () =>
       HttpResponse.json({
         running: true,
         initialized: true,

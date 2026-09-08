@@ -99,7 +99,7 @@ test.describe("regression: pages.edit", () => {
   test("pages.edit.saving — Save click shows pending state", async ({ page }) => {
     const id = await createPage("Saving Test", ["A", "", "", "", "", ""]);
     let release: () => void = () => {};
-    await page.route(`**/api/pages/${id}`, async (route) => {
+    await page.route(`**/api/v1/pages/${id}`, async (route) => {
       if (route.request().method() === "PUT") {
         await new Promise<void>((r) => {
           release = r;
@@ -119,7 +119,7 @@ test.describe("regression: pages.edit", () => {
   /** UX node: pages.edit.save-error */
   test("pages.edit.save-error — failed save surfaces toast and keeps dirty state", async ({ page }) => {
     const id = await createPage("Save Err", ["A", "", "", "", "", ""]);
-    await page.route(`**/api/pages/${id}`, (route) => {
+    await page.route(`**/api/v1/pages/${id}`, (route) => {
       if (route.request().method() === "PUT") {
         return route.fulfill({ status: 500, body: '{"detail":"boom"}' });
       }
@@ -167,7 +167,7 @@ test.describe("regression: pages.edit", () => {
   /** UX node: pages.edit.delete-error */
   test("pages.edit.delete-error — failed delete surfaces toast and keeps editor", async ({ page }) => {
     const id = await createPage("Delete Err", ["A", "", "", "", "", ""]);
-    await page.route(`**/api/pages/${id}`, (route) => {
+    await page.route(`**/api/v1/pages/${id}`, (route) => {
       if (route.request().method() === "DELETE") {
         return route.fulfill({ status: 500, body: '{"detail":"boom"}' });
       }
@@ -195,7 +195,7 @@ test.describe("regression: pages.edit", () => {
   test("pages.edit.loading — page query in-flight shows skeleton", async ({ page }) => {
     const id = await createPage("Loading Test", ["A", "", "", "", "", ""]);
     let release: () => void = () => {};
-    await page.route(`**/api/pages/${id}`, async (route) => {
+    await page.route(`**/api/v1/pages/${id}`, async (route) => {
       if (route.request().method() === "GET") {
         await new Promise<void>((r) => {
           release = r;

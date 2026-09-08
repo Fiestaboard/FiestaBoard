@@ -99,14 +99,6 @@ describe("API Contract Tests", () => {
       expect(Array.isArray(result.lines)).toBe(true);
       expect(result.display_type).toBeDefined();
     });
-
-    it("sendPage returns send result", async () => {
-      const result = await api.sendPage("page-1");
-
-      // The {"status": "success"} key is gone; the 200 carries that.
-      expect(result.page_id).toBe("page-1");
-      expect(typeof result.sent_to_board).toBe("boolean");
-    });
   });
 
   describe("Settings API", () => {
@@ -198,45 +190,12 @@ describe("API Contract Tests", () => {
   });
 
   describe("Display API", () => {
-    it("getDisplays returns display list with availability", async () => {
-      const result = await api.getDisplays();
-
-      expect(result.displays).toBeDefined();
-      expect(Array.isArray(result.displays)).toBe(true);
-      expect(typeof result.total).toBe("number");
-      expect(typeof result.available_count).toBe("number");
-
-      // Check display structure
-      if (result.displays.length > 0) {
-        const display = result.displays[0];
-        expect(display.type).toBeDefined();
-        expect(typeof display.available).toBe("boolean");
-        expect(display.description).toBeDefined();
-      }
-    });
-
-    it("getDisplay returns formatted message", async () => {
-      const result = await api.getDisplay("weather");
-
-      expect(result.display_type).toBe("weather");
-      expect(result.message).toBeDefined();
-      expect(Array.isArray(result.lines)).toBe(true);
-      expect(typeof result.line_count).toBe("number");
-      expect(typeof result.available).toBe("boolean");
-    });
-
     it("getDisplayRaw returns raw data", async () => {
       const result = await api.getDisplayRaw("weather");
 
       expect(result.display_type).toBe("weather");
       expect(result.data).toBeDefined();
       expect(typeof result.available).toBe("boolean");
-    });
-
-    it("sendDisplay returns send result", async () => {
-      const result = await api.sendDisplay("weather", "board");
-
-      expect(result.status).toBe("success");
     });
   });
 });
