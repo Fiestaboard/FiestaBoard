@@ -15,6 +15,10 @@ Usage in a router::
 Declare only the codes a route can actually return. A route with no failure
 path declares nothing and carries a checked-in exception in
 ``tests/conventions_manifest.json`` saying why.
+
+Every declared code publishes :class:`ErrorResponse` except **422**, which is
+FastAPI's own schema-validation failure and publishes
+:class:`HTTPValidationError` (a list body) instead — see ``_model_for``.
 """
 
 from __future__ import annotations
@@ -28,6 +32,33 @@ class ErrorResponse(BaseModel):
     """The single error body the API serves."""
 
     detail: str
+
+
+class ValidationError(BaseModel):
+    """One entry in FastAPI's request-validation error list.
+
+    Mirrors the ``ValidationError`` component FastAPI generates for schema
+    rejections (same field names, so the two describe one component rather
+    than two).
+    """
+
+    loc: list[str | int]
+    msg: str
+    type: str
+
+
+class HTTPValidationError(BaseModel):
+    """FastAPI's 422 body: a *list* of per-field validation errors.
+
+    422 is not the ``{"detail": <string>}`` contract the rest of the API
+    serves — it is the code FastAPI raises for request-schema rejection, whose
+    ``detail`` is a list of ``{loc, msg, type}`` objects (see
+    ``docs/internal/reference/API_CONVENTIONS.md`` §"422 belongs to FastAPI").
+    Declaring ``errors(422)`` therefore has to publish *this* shape, not
+    :class:`ErrorResponse`, so the schema matches what the endpoint sends.
+    """
+
+    detail: list[ValidationError]
 
 
 #: Canonical description per status code, so sibling endpoints across domains
@@ -48,9 +79,21 @@ _DESCRIPTIONS: dict[int, str] = {
 }
 
 
+def _model_for(code: int) -> type[BaseModel]:
+    """The response model a given status code publishes.
+
+    Everything the API hand-raises is the ``{"detail": <string>}``
+    :class:`ErrorResponse`. 422 is the one exception: it belongs to FastAPI's
+    schema validation and carries a list body, so it publishes
+    :class:`HTTPValidationError` instead. Attaching ``ErrorResponse`` to 422
+    overrode FastAPI's own model with one that lies about the shape.
+    """
+    return HTTPValidationError if code == 422 else ErrorResponse
+
+
 def errors(*status_codes: int) -> dict[int | str, dict[str, Any]]:
     """Build the ``responses=`` block for the given failure codes."""
     unknown = [code for code in status_codes if code not in _DESCRIPTIONS]
     if unknown:
         raise ValueError(f"No canonical description for status code(s) {unknown}; add one to src/api_errors.py")
-    return {code: {"model": ErrorResponse, "description": _DESCRIPTIONS[code]} for code in status_codes}
+    return {code: {"model": _model_for(code), "description": _DESCRIPTIONS[code]} for code in status_codes}
