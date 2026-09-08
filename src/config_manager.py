@@ -737,11 +737,21 @@ class ConfigManager:
 
             write_json_atomic(target, doc)
 
+            # These accumulate one file per version change forever otherwise
+            # (58 files / 1.3 MB observed live). Same retention as the
+            # pre-update snapshots this shares a directory and a filename
+            # shape with; imported lazily because update_service pulls in the
+            # backup service, which reaches back into this module.
+            from src.system.update_service import prune_snapshot_dir
+
+            pruned = prune_snapshot_dir(snapshot_dir)
+
             logger.info(
-                "Version change detected (%s -> %s); pre-init snapshot written to %s",
+                "Version change detected (%s -> %s); pre-init snapshot written to %s%s",
                 seen or "<unknown>",
                 current_version,
                 target.name,
+                f" ({pruned} older snapshot(s) pruned)" if pruned else "",
             )
         except Exception:
             logger.warning(
@@ -882,15 +892,27 @@ class ConfigManager:
         scoped staging file + ``os.replace``) so a mid-write crash (OOM,
         SIGKILL, power loss) never leaves a truncated config file (see #1304)
         and concurrent processes never collide on a fixed staging name.
+
+        ``if_changed``: the boot path calls this unconditionally after the
+        defaults merge, and on a normal restart the merge changes nothing —
+        measured, config.json's md5 is identical before and after. That was one
+        fsync + rename per restart for no content change, and the same is true
+        of any PUT that stores the value already stored. Only the disk write is
+        conditional; the generation bump below is not.
         """
         # Bump BEFORE the write (and regardless of its outcome): the in-memory
         # config this process reads from has already changed by the time any
         # caller reaches a save, so generation-keyed caches must invalidate
-        # even when the disk write fails (issue #1752).
+        # even when the disk write fails (issue #1752). This must NOT become
+        # conditional on the write happening — a caller that mutated the config
+        # and then wrote identical bytes still changed what this process reads
+        # if the file on disk was ahead of it.
         self._config_generation = getattr(self, "_config_generation", 0) + 1
         try:
-            write_json_atomic(self._config_path, self._config)
-            logger.debug(f"Saved config to {self._config_path}")
+            if write_json_atomic(self._config_path, self._config, if_changed=True):
+                logger.debug(f"Saved config to {self._config_path}")
+            else:
+                logger.debug(f"Config unchanged on disk; skipped rewrite of {self._config_path}")
         except OSError as e:
             logger.error(f"Failed to save config: {e}")
             raise

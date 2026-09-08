@@ -732,6 +732,36 @@ def _prune_settings_snapshots() -> None:
             logger.warning("Could not prune old settings snapshot %s", path)
 
 
+def prune_snapshot_dir(directory: Path) -> int:
+    """Apply the same retention to a snapshot directory named explicitly.
+
+    ``ConfigManager`` writes a pre-init snapshot on every version change, into
+    its own ``<config dir>/update-backups`` rather than through this module,
+    and had no retention at all — 58 files / 1.3 MB observed on a live
+    instance. It cannot call :func:`_prune_settings_snapshots` because that
+    resolves the directory from ``get_data_dir()``, which need not be the
+    directory its config lives in.
+
+    Returns the number of files deleted.
+    """
+    try:
+        candidates = sorted(
+            (p for p in directory.glob("pre-update-*.json") if _SETTINGS_SNAPSHOT_NAME_RE.match(p.name)),
+            key=lambda p: p.name,
+            reverse=True,
+        )
+    except OSError:
+        return 0
+    deleted = 0
+    for stale in candidates[SETTINGS_SNAPSHOT_RETENTION:]:
+        try:
+            stale.unlink()
+            deleted += 1
+        except OSError:
+            logger.warning("Could not prune old settings snapshot %s", stale)
+    return deleted
+
+
 def _resolve_snapshot_name(name: str | None) -> Path | None:
     """Return the absolute path of the named snapshot, or the newest one
     if *name* is None.  Returns ``None`` when no valid snapshot exists.

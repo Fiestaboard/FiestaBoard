@@ -143,11 +143,17 @@ class JsonStore:
 
     def save(self, data: Any) -> None:
         """Atomically persist *data*, stamping ``schema_version`` on
-        versioned dict payloads. Write errors propagate."""
+        versioned dict payloads. Write errors propagate.
+
+        A save whose bytes match what is already on disk is skipped: a PUT
+        that stores the value already stored used to cost a full fsynced
+        rewrite. The in-memory ``_data`` is still adopted either way, so the
+        store's own view never depends on whether the disk needed touching.
+        """
         with self._lock:
             if self._version and isinstance(data, dict):
                 data["schema_version"] = self._version
-            write_json_atomic(self._path, data)
+            write_json_atomic(self._path, data, if_changed=True)
             self._data = data
 
     def mutate(self, fn: Callable[[Any], Any]) -> Any:
