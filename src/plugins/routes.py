@@ -232,9 +232,13 @@ async def get_all_plugin_variables() -> AllPluginVariablesResponse:
         # Fall back to legacy variables rather than failing: the template
         # editor still has a vocabulary without the plugin system.
         template_engine = get_template_engine()
+        # Auto-discovery can fetch from a plugin, so this cannot run inline.
+        variables, max_lengths = await asyncio.to_thread(
+            lambda: (template_engine.get_available_variables(), template_engine.get_variable_max_lengths())
+        )
         return AllPluginVariablesResponse(
-            variables=template_engine.get_available_variables(),
-            max_lengths=template_engine.get_variable_max_lengths(),
+            variables=variables,
+            max_lengths=max_lengths,
             plugin_system_enabled=False,
         )
 

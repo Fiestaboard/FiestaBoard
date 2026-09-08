@@ -188,7 +188,11 @@ class TemplateEngine:
             Rendered string with all substitutions applied
         """
         if context is None:
-            context = self._build_context()
+            # Demand-driven, exactly as PageService.render_page already is
+            # (#1751): fetch only the plugins this template's variables name.
+            # ``extract_template_plugin_ids`` returns None for a formula page,
+            # which keeps the safe fetch-everything fallback.
+            context = self._build_context(plugin_ids=extract_template_plugin_ids(template))
 
         result = template
 
@@ -353,7 +357,10 @@ class TemplateEngine:
         # Build the BoardContext from the resolved dims so plugins receive the true
         # board size — including note arrays (no fixed DEVICE_DIMENSIONS entry).
         if context is None:
-            context = self._build_context(BoardContext(render_device_type, rows=dims.rows, cols=dims.cols))
+            context = self._build_context(
+                BoardContext(render_device_type, rows=dims.rows, cols=dims.cols),
+                plugin_ids=extract_template_plugin_ids(template_lines),
+            )
         num_rows = dims.rows
         board_width = dims.cols
 
@@ -823,12 +830,16 @@ class TemplateEngine:
 
         return lines
 
-    def _build_context(self, board: BoardContext | None = None) -> dict[str, Any]:
-        """Build context by fetching all available data from enabled plugins.
+    def _build_context(self, board: BoardContext | None = None, plugin_ids: "set[str] | None" = None) -> dict[str, Any]:
+        """Build context by fetching data from enabled plugins.
 
         Args:
             board: Board being rendered on, forwarded to plugins so board-aware
                 ones can adapt their data. ``None`` keeps board-agnostic behavior.
+            plugin_ids: Fetch only these plugins (plus trigger plugins, which
+                the registry adds itself). ``None`` fetches everything — the
+                safe fallback for a template whose variable owners cannot be
+                determined statically.
 
         Returns:
             Dictionary mapping plugin_id to plugin data
@@ -836,7 +847,9 @@ class TemplateEngine:
         if not self._plugin_registry:
             return {}
 
-        return self._plugin_registry.build_template_context(board)
+        if plugin_ids is None:
+            return self._plugin_registry.build_template_context(board)
+        return self._plugin_registry.build_template_context(board, plugin_ids=plugin_ids)
 
     def _render_variables(self, template: str, context: dict[str, Any]) -> str:
         """Replace {{source.field}} variables with values from context.

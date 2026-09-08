@@ -14,12 +14,14 @@ Tests that need to stub a collaborator patch it where this module binds it —
 
 from __future__ import annotations
 
+import asyncio
 import logging
 
 from fastapi import APIRouter, HTTPException, Response
 
 from src.api_errors import errors
 from src.board_guards import _board_is_paused
+from src.board_send_executor import run_board_send
 from src.devices import resolve_dimensions
 from src.display_runtime import get_service
 from src.settings.service import VALID_OUTPUT_TARGETS, get_settings_service
@@ -75,7 +77,8 @@ async def get_display(display_type: str):
         Formatted message text ready for display on board.
     """
     display_service = get_display_service()
-    result = display_service.get_display(display_type)
+    # Plugin data fetch — never on the event loop.
+    result = await asyncio.to_thread(display_service.get_display, display_type)
 
     # Check for invalid display type (will have error message about valid types)
     if not result.available and result.error and "Unknown display type" in result.error:
@@ -125,7 +128,8 @@ async def get_display_raw(display_type: str, response: Response):
     response.headers["Link"] = f'</plugins/{display_type}/data>; rel="successor-version"'
 
     display_service = get_display_service()
-    result = display_service.get_display(display_type)
+    # Plugin data fetch — never on the event loop.
+    result = await asyncio.to_thread(display_service.get_display, display_type)
 
     if not result.available and result.error:
         raise HTTPException(status_code=503, detail=result.error)
@@ -177,7 +181,8 @@ async def get_displays_raw_batch(request: DisplayRawBatchRequest):
 
     for display_type in display_types:
         try:
-            result = display_service.get_display(display_type)
+            # Plugin data fetch — never on the event loop.
+            result = await asyncio.to_thread(display_service.get_display, display_type)
 
             if enabled_only and not result.available:
                 continue
@@ -222,8 +227,9 @@ async def send_display(display_type: str, target: str | None = None):
     if not service or not service.vb_client:
         raise HTTPException(status_code=503, detail="Service not initialized")
 
-    # Get the display content (validates display_type against plugin registry)
-    result = display_service.get_display(display_type)
+    # Get the display content (validates display_type against plugin registry).
+    # This fetches plugin data, so it cannot run on the event loop either.
+    result = await asyncio.to_thread(display_service.get_display, display_type)
 
     # Check for invalid display type
     if not result.available and result.error and "Unknown display type" in result.error:
@@ -260,7 +266,10 @@ async def send_display(display_type: str, target: str | None = None):
                 notes_tall = primary_board.get("notes_tall", 1)
             dims = resolve_dimensions(device_type, notes_wide, notes_tall)
             board_array = text_to_board_array(result.formatted, rows=dims.rows, cols=dims.cols)
-            success, was_sent = service.vb_client.render(
+            # Board network I/O goes on the dedicated bounded send pool, never
+            # inline on the event loop (#1878).
+            success, was_sent = await run_board_send(
+                service.vb_client.render,
                 board_array,
                 strategy=transition.strategy,
                 step_interval_ms=transition.step_interval_ms,
