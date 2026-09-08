@@ -6,9 +6,17 @@ from pydantic import BaseModel
 
 
 class MessageRequest(BaseModel):
-    """Body of ``POST /send-message``."""
+    """Body of ``POST /send-message``.
+
+    ``board_id`` closes the gap that made board 2 unreachable over HTTP: the
+    MCP executor (``src.ops.executors.send_message``) has taken one since
+    issue #1765, and this endpoint — the one the published docs recommend —
+    had no spelling for it. Omitted → the primary board, which is exactly
+    what every existing caller gets today.
+    """
 
     text: str
+    board_id: str | None = None
 
 
 class SendResponse(BaseModel):

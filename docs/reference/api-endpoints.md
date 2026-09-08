@@ -32,7 +32,7 @@ When using the default deployment, prefix all paths with `/api` (e.g. `GET http:
 |--------|----------|-------------|
 | `POST` | `/refresh` | Refresh the current display |
 | `POST` | `/force-refresh` | Force refresh (bypasses preview cache) |
-| `POST` | `/send-message` | Send a custom message to the board |
+| `POST` | `/send-message` | Send a custom message to a board (optional `board_id`) |
 
 ### Service Control
 
@@ -295,6 +295,22 @@ newline, so `{"text": "C:\\new"}` renders `C:\new` verbatim. The
 `\n`-as-line-break shorthand exists only on the MQTT plain-string
 `send_message` payload, for single-line clients that cannot type a newline;
 see [Home Assistant control](../features/home-assistant-control.md).
+
+### Send a Message to a Specific Board
+
+Add `board_id` to address a board other than the primary one. Board ids come
+from `GET /settings/board`.
+
+```bash
+curl -X POST http://localhost:4420/api/send-message \
+  -H "Content-Type: application/json" \
+  -d '{"text": "Hello World!", "board_id": "your-board-id"}'
+```
+
+The message is sized to *that* board's geometry, and that board's own silence
+window and pause state decide whether it is delivered. An unknown board id is
+a `404`. Omitting `board_id` targets the primary board, which is what this
+endpoint has always done.
 
 ### List Plugins
 

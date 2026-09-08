@@ -48,7 +48,6 @@ from .models import (
     ERROR_400,
     ERROR_404,
     ERROR_409,
-    ERROR_422,
     ERROR_500,
     ERROR_502,
     ActivePageResponse,
@@ -193,7 +192,7 @@ async def get_mqtt_settings():
     return s.to_dict(mask_secrets=True)
 
 
-@router.put("/settings/mqtt", response_model=MqttSettingsResponse, responses={**ERROR_422})
+@router.put("/settings/mqtt", response_model=MqttSettingsResponse)
 async def update_mqtt_settings(request: MqttSettingsUpdate):
     """Save MQTT settings and immediately apply them.
 
@@ -216,7 +215,7 @@ async def get_ai_settings():
     return cm.get_ai_providers_masked()
 
 
-@router.put("/settings/ai", response_model=AiProvidersResponse, responses={**ERROR_422})
+@router.put("/settings/ai", response_model=AiProvidersResponse)
 async def update_ai_settings(request: AiProvidersUpdate):
     """Update AI provider configuration.
 
@@ -693,7 +692,7 @@ async def get_temporary_override():
 @router.post(
     "/settings/temporary-override",
     response_model=TemporaryOverrideResponse,
-    responses={**ERROR_404, **ERROR_422},
+    responses={**ERROR_404},
 )
 async def set_temporary_override(request: TemporaryOverrideRequest):
     """
@@ -1008,7 +1007,7 @@ async def remove_board_instance(board_id: str):
 @router.post(
     "/settings/board/{board_id}/pause",
     response_model=BoardPauseResponse,
-    responses={**ERROR_404, **ERROR_422},
+    responses={**ERROR_404},
 )
 async def set_board_paused(board_id: str, request: BoardPauseRequest):
     """Pause or resume a board (issue #970).
@@ -1036,7 +1035,7 @@ async def set_board_paused(board_id: str, request: BoardPauseRequest):
 @router.post(
     "/settings/board/{board_id}/detect-size",
     response_model=DetectBoardSizeResponse,
-    responses={**ERROR_400, **ERROR_404, **ERROR_422},
+    responses={**ERROR_400, **ERROR_404},
 )
 async def detect_board_size(board_id: str):
     """Auto-detect a board's device type and dimensions from its live layout.
@@ -1378,7 +1377,7 @@ async def get_beta_settings():
 @router.put(
     "/settings/beta",
     response_model=BetaSettingsUpdateResponse,
-    responses={**ERROR_422, **ERROR_500},
+    responses={**ERROR_500},
 )
 async def update_beta_settings(request: BetaSettingsUpdate):
     """Update beta-feature settings.
@@ -1555,7 +1554,7 @@ async def get_hdmi_kiosk_status():
 @router.post(
     "/settings/hdmi-kiosk",
     response_model=HdmiKioskActionResponse,
-    responses={**ERROR_400, **ERROR_409, **ERROR_422, **ERROR_502},
+    responses={**ERROR_400, **ERROR_409, **ERROR_502},
 )
 async def set_hdmi_kiosk(request: HdmiKioskRequest):
     """Enable or disable the HDMI kiosk on this FiestaPi.

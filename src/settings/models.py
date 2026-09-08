@@ -28,6 +28,10 @@ from typing import Any
 
 from pydantic import BaseModel, ConfigDict, Field, StrictBool
 
+from src.config import SilenceMode
+from src.devices import DeviceType
+from src.settings.service import VALID_OUTPUT_TARGETS
+
 # ---------------------------------------------------------------------------
 # MQTT
 # ---------------------------------------------------------------------------
@@ -158,9 +162,18 @@ class OutputSettingsResponse(OutputSettings):
 
 
 class OutputSettingsUpdate(BaseModel):
-    """Set the output target. Validated against the known set by the service."""
+    """Set the output target.
 
-    target: str
+    The vocabulary is published (derived from ``VALID_OUTPUT_TARGETS``) but
+    the field stays ``str``: ``SettingsService.set_output_target`` already
+    refuses an unknown target, and the handler turns that into a 400 whose
+    detail names the valid set. Moving the verdict to Pydantic would trade
+    that message for a generic 422 and change a recorded status code for no
+    gain — the defect here was the missing *documentation*, not a missing
+    check.
+    """
+
+    target: str = Field(json_schema_extra={"enum": VALID_OUTPUT_TARGETS})
 
 
 # ---------------------------------------------------------------------------
@@ -228,7 +241,7 @@ class TemporaryOverrideRequest(BaseModel):
     page_id: str | None = None
     template: list[Any] | None = None
     line_metadata: list[Any] | None = None
-    device_type: str | None = None
+    device_type: DeviceType | None = None
     notes_wide: Any | None = None
     notes_tall: Any | None = None
     duration_minutes: Any | None = None
@@ -311,7 +324,11 @@ class AddBoardRequest(BaseModel):
 
     model_config = ConfigDict(extra="allow")
 
-    device_type: str
+    #: ``DeviceType``, not ``str``: BoardInstance.__post_init__ rewrites an
+    #: unknown device_type to "flagship", so ``{"device_type": "bogus"}``
+    #: created a flagship board and answered 201. The vocabulary is now in
+    #: the schema and the coercion is unreachable from here.
+    device_type: DeviceType
     name: str | None = None
 
 
@@ -335,7 +352,7 @@ class BoardPauseResponse(BaseModel):
 class DetectBoardSizeResponse(BaseModel):
     """A board's device type and grid, classified from its live layout."""
 
-    device_type: str
+    device_type: DeviceType
     rows: int
     cols: int
     notes_wide: int | None = None
@@ -509,7 +526,9 @@ class SilenceScheduleRequest(BaseModel):
     enabled: bool
     start_time: str
     end_time: str
-    mode: str | None = None  # "freeze" (default), "indicator", or "page"
+    # An unknown mode used to be coerced to "freeze" and answered 200, so a
+    # client asking for "indicater" got a frozen board and no signal.
+    mode: SilenceMode | None = None  # omitted → "freeze"
     page_id: str | None = None  # Page id to display when mode == "page"
     indicator_text: str | None = None  # Custom text to display when mode == "indicator"
     indicator_position: str | None = None  # Position: center, top-left, top-right, bottom-left, bottom-right
@@ -614,10 +633,17 @@ class AllSettingsResponse(BaseModel):
 # The conventions ratchet requires every route to declare the 4xx it can
 # actually answer. These are the shared descriptions so a reader sees the same
 # wording for the same failure across the domain.
+#
+# There is deliberately no ``ERROR_422``. There used to be — seven routes
+# declared ``{422: {"description": "Validation error"}}``, which is worse
+# than declaring nothing: a hand-written 422 entry *replaces* the
+# ``HTTPValidationError`` body FastAPI publishes automatically, so the schema
+# announced a 422 with an empty body and a consumer learned nothing about it.
+# Validation errors are FastAPI's own contract (API_CONVENTIONS.md, "Typed
+# request models"); let it declare them.
 
 ERROR_400 = {400: {"description": "Invalid request"}}
 ERROR_404 = {404: {"description": "Not found"}}
 ERROR_409 = {409: {"description": "Conflict"}}
-ERROR_422 = {422: {"description": "Validation error"}}
 ERROR_500 = {500: {"description": "Server error"}}
 ERROR_502 = {502: {"description": "Upstream (board or sidecar) error"}}

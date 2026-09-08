@@ -747,7 +747,10 @@ class TestSettingsEndpoints:
 
     def test_add_board_instance_value_error(self, client, mock_settings_service):
         mock_settings_service.add_board.side_effect = ValueError("Invalid")
-        response = client.post("/settings/board/add", json={"device_type": "bad"})
+        # device_type is incidental here — this pins "the service refused the
+        # add" -> 400. It has to be a REAL device type now that the field
+        # declares its vocabulary, or the request never reaches the service.
+        response = client.post("/settings/board/add", json={"device_type": "note"})
         assert response.status_code == 400
 
     def test_remove_board_instance(self, client, mock_settings_service):

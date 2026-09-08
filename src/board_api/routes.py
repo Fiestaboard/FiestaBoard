@@ -24,6 +24,28 @@ and ``str(HTTPException)`` is ``"500: <detail>"``, which is why a refused send
 served the stuttering detail ``"500: Failed to send message"``. The guards now
 raise outside that ``try``.
 
+Board targeting
+---------------
+``POST /send-message`` takes an optional ``board_id``. It did not before, so
+on a multi-board install board 2 was unreachable over HTTP — while the MCP
+``send_message`` executor (``src/ops/executors.py``) had accepted one since
+#1765. The two now apply the same policy: 404 on an unknown board, the
+*target* board's silence window and pause state, geometry from the target
+board, out-of-band bookkeeping against the target board, and the adaptive
+post-send refresh only when the target is the primary (board-state polling is
+primary-only, #1243). Omitting ``board_id`` reproduces the previous behaviour
+exactly.
+
+The handlers are still separate rather than the REST route delegating to the
+executor, because the two do not answer the same way and one of them is
+right: the executor returns ``{"status": "blocked"}``/``{"status": "error"}``
+dicts by design (an MCP tool relays policy to a model, it does not raise), and
+it has no equivalent of ``_raise_if_throttled`` — a write the send floor
+dropped comes back from the executor as ``ok(skipped=True)``. That is the
+REST side's #1868 bug, fixed here and still open there; folding this handler
+into the executor would have re-introduced it. Tracked for the executor
+separately rather than changed in a REST slice.
+
 ``GET /board/current-message`` is unchanged by value. Issue #1912 tracks
 collapsing its cache-selection logic with the two other copies
 (``src/mcp_server.py`` and the panel frame endpoint); that consolidation is
@@ -60,13 +82,14 @@ router = APIRouter(tags=["board"])
 SILENCE_DETAIL = "Manual sends are blocked during silence mode to prevent waking the board."
 
 
-def _raise_if_silenced() -> None:
+def _raise_if_silenced(board_id: str | None = None) -> None:
     """The silence window refuses every manual send (issue #1788).
 
-    This path drives the primary board's client, so it resolves the primary
-    board's window.
+    Silence is per board, so the guard resolves the window of the board it is
+    about to touch. ``board_id`` omitted resolves the primary board, which is
+    what this path meant before it could target one.
     """
-    if _silence_active():
+    if _silence_active(board_id):
         logger.info("Silence mode is active - blocking manual send to prevent wake-up")
         raise HTTPException(status_code=409, detail=SILENCE_DETAIL)
 
@@ -191,25 +214,42 @@ async def get_board_current_message(force: bool = False, board_id: str | None = 
 # ---------------------------------------------------------------------------
 
 
-@router.post("/send-message", response_model=SendResponse, responses=errors(409, 429, 500, 503))
+@router.post("/send-message", response_model=SendResponse, responses=errors(404, 409, 429, 500, 503))
 async def send_message(request: MessageRequest):
-    """Send a custom message to the board."""
+    """Send a custom message to a board.
+
+    ``board_id`` (optional) targets one board; omitted → the primary board,
+    which is what every caller got before this endpoint could address a
+    second one (issue #1247). Gate for gate this is the same policy the MCP
+    executor applies — see ``src/ops/executors.py``.
+    """
     service = runtime.get_service()
     if not service:
         raise HTTPException(status_code=503, detail="Service not initialized")
 
-    _raise_if_silenced()
-    _raise_if_paused()
+    # Writes 404 on an unknown board (API_CONVENTIONS.md, #1888). Resolved
+    # before the send gates so an unknown id never reads as "silenced".
+    board_id = request.board_id
+    board = _require_board(board_id) if board_id is not None else None
 
-    if not service.vb_client:
-        raise HTTPException(status_code=503, detail="Board client not initialized")
+    _raise_if_silenced(board_id)
+    _raise_if_paused(board_id)
+
+    board_client = service.get_board_client(board_id) if board_id is not None else service.vb_client
+    if not board_client:
+        detail = "Board client not initialized" if board_id is None else f"Board client not initialized: {board_id}"
+        raise HTTPException(status_code=503, detail=detail)
 
     settings_service = runtime.get_settings_service()
     transition = settings_service.get_transition_settings()
-    # Size the grid to the active (first) board so a manual send to a note
-    # array uses its real geometry instead of a default flagship 22×6.
-    device_type, notes_wide, notes_tall = _primary_geometry(settings_service)
-    dims = resolve_dimensions(device_type, notes_wide, notes_tall)
+    # Size the grid to the board actually being written to, so a manual send
+    # to a note array uses its real geometry instead of a default flagship
+    # 22×6. With no board_id that is the active (first) board, unchanged.
+    if board is not None:
+        dims = _board_dims(board)
+    else:
+        device_type, notes_wide, notes_tall = _primary_geometry(settings_service)
+        dims = resolve_dimensions(device_type, notes_wide, notes_tall)
     # Word-wrap/convert/render is the shared message core (#1765): the
     # MCP send_message executor calls the same function, so the two
     # surfaces cannot render a message differently. See
@@ -218,7 +258,7 @@ async def send_message(request: MessageRequest):
 
     try:
         success, was_sent = render_message(
-            service.vb_client,
+            board_client,
             request.text,
             rows=dims.rows,
             cols=dims.cols,
@@ -239,7 +279,7 @@ async def send_message(request: MessageRequest):
     if not was_sent:
         # A not-sent "success" can also mean the send floor dropped the write
         # entirely (#1868 review) — that is not "unchanged".
-        _raise_if_throttled(service.vb_client)
+        _raise_if_throttled(board_client)
         return SendResponse(message="Message unchanged, no update needed", sent=False)
 
     # Flag the out-of-band write and push fresh MQTT state so HA reflects the
@@ -248,8 +288,12 @@ async def send_message(request: MessageRequest):
     # self-destruct on the next engine tick (<=15s). Restoring the active page
     # is a pull — /force-refresh, MQTT Refresh Display, re-selecting a page,
     # or an actual content change (issue #1794).
-    runtime._note_out_of_band_write()
-    service.request_board_refresh()
+    runtime._note_out_of_band_write(board_id)
+    # The adaptive post-send refresh polls the PRIMARY board only (board-state
+    # polling tracks one board by design, issue #1243), so a send aimed at a
+    # secondary must not ask for one. Same rule the executor applies.
+    if board_id is None or board_id == settings_service.get_primary_board_id():
+        service.request_board_refresh()
     return SendResponse(message="Message sent successfully", sent=True)
 
 

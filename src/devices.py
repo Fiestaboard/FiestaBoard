@@ -5,11 +5,17 @@ Defines the supported Vestaboard device types and their physical constraints.
 
 import uuid
 from dataclasses import asdict, dataclass, field
-from typing import Literal, NamedTuple
+from typing import Literal, NamedTuple, get_args
 
+#: The device vocabulary, defined ONCE. ``DEVICE_TYPES`` is derived from the
+#: Literal rather than retyped beside it: the two used to be hand-copied
+#: siblings, and a wire model that spells its own copy of a vocabulary is the
+#: second source of truth that eventually drifts from the one the runtime
+#: enforces. Request models annotate ``device_type: DeviceType`` and get the
+#: same set the storage layer validates against.
 DeviceType = Literal["flagship", "note", "note_array"]
 
-DEVICE_TYPES = ("flagship", "note", "note_array")
+DEVICE_TYPES: tuple[str, ...] = get_args(DeviceType)
 
 
 class DeviceDimensions(NamedTuple):
@@ -45,7 +51,13 @@ NOTE_ARRAY_PRESETS: list[dict] = [
     {"id": "2x2_grid", "label": "2×2 grid", "notes_wide": 2, "notes_tall": 2},  # → 6 rows × 30 cols
 ]
 
-VALID_API_MODES = ("local", "cloud", "virtual")
+#: How a board is reached. Same one-definition rule as ``DeviceType`` above.
+#: ``virtual`` is a real stored value (FiestaPanel boards), so it belongs in
+#: the published vocabulary even though the legacy ``GET /config/board``
+#: response advertises only the two hardware modes it can configure.
+ApiMode = Literal["local", "cloud", "virtual"]
+
+VALID_API_MODES: tuple[str, ...] = get_args(ApiMode)
 
 # Which glyph a board's character-code-62 flap physically carries (issue #1657).
 #

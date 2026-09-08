@@ -121,8 +121,15 @@ def _mask_legacy_board_view(view: dict) -> LegacyBoardConfig:
     return LegacyBoardConfig(**masked)
 
 
-# Deprecated: use GET /settings/board instead
-@router.get("/config/board", response_model=BoardConfigResponse)
+# Deprecated: use GET /settings/board instead.
+#
+# The Deprecation/Link header pair and the "Deprecated:" first line of the
+# docstring have both been served since #1760, but the OpenAPI operation
+# carried no ``deprecated`` flag — so Swagger, and every client generated
+# from the schema, rendered this shim as a first-class route. The flag costs
+# nothing and the endpoint keeps answering exactly as before; removal stays
+# tracked on #1760.
+@router.get("/config/board", response_model=BoardConfigResponse, deprecated=True)
 async def get_board_config(response: Response):
     """Deprecated: use GET /settings/board instead (issue #1760).
 
@@ -138,8 +145,13 @@ async def get_board_config(response: Response):
     )
 
 
-# Deprecated: use PUT /settings/board instead
-@router.put("/config/board", response_model=BoardConfigUpdateResponse, responses=errors(400, 422))
+# Deprecated: use PUT /settings/board instead (same reasoning as the GET).
+@router.put(
+    "/config/board",
+    response_model=BoardConfigUpdateResponse,
+    responses=errors(400, 422),
+    deprecated=True,
+)
 async def update_board_config(request: BoardConfigUpdate, response: Response):
     """Deprecated: use PUT /settings/board instead (issue #1760).
 
