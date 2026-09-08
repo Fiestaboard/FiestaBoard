@@ -74,26 +74,28 @@ export interface CollectionDeleteResponse {
 // Create / update / delete return bare bodies, not `{status, collection}`
 // envelopes — see docs/internal/reference/API_CONVENTIONS.md. Create answers
 // 201; `fetchApi` already treats any 2xx as success.
+//
+// All of these are on /v1 (issue #1930): `/v1/collections*` delegates to the
+// same handlers `/collections*` does, so the models and status codes are
+// identical and only the path moved.
 export const collectionsApi = {
   // Collection endpoints
-  getCollections: () => fetchApi<CollectionsResponse>("/collections"),
+  getCollections: () => fetchApi<CollectionsResponse>("/v1/collections"),
 
   createCollection: (data: CollectionCreate) =>
-    fetchApi<Collection>("/collections", {
+    fetchApi<Collection>("/v1/collections", {
       method: "POST",
       body: JSON.stringify(data),
     }),
 
-  getCollection: (collectionId: string) => fetchApi<Collection>(`/collections/${collectionId}`),
-
   updateCollection: (collectionId: string, data: CollectionUpdate) =>
-    fetchApi<Collection>(`/collections/${collectionId}`, {
+    fetchApi<Collection>(`/v1/collections/${collectionId}`, {
       method: "PUT",
       body: JSON.stringify(data),
     }),
 
   deleteCollection: (collectionId: string) =>
-    fetchApi<CollectionDeleteResponse>(`/collections/${collectionId}`, {
+    fetchApi<CollectionDeleteResponse>(`/v1/collections/${collectionId}`, {
       method: "DELETE",
     }),
 };

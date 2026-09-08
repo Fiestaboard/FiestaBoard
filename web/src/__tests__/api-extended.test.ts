@@ -12,7 +12,7 @@ describe("API Extended Tests", () => {
     it("throws on non-ok response", async () => {
       server.use(
         http.get(
-          `${API_BASE}/status`,
+          `${API_BASE}/v1/status`,
           () => new HttpResponse(null, { status: 500, statusText: "Internal Server Error" }),
         ),
       );
@@ -73,18 +73,6 @@ describe("API Extended Tests", () => {
   });
 
   describe("Display endpoints", () => {
-    it("getDisplays returns display list", async () => {
-      const result = await api.getDisplays();
-      expect(result.displays).toBeDefined();
-      expect(result.total).toBeGreaterThan(0);
-    });
-
-    it("getDisplay returns formatted display", async () => {
-      const result = await api.getDisplay("weather");
-      expect(result.display_type).toBe("weather");
-      expect(result.lines).toBeDefined();
-    });
-
     it("getDisplayRaw returns raw data", async () => {
       const result = await api.getDisplayRaw("weather");
       expect(result.display_type).toBe("weather");
@@ -105,22 +93,6 @@ describe("API Extended Tests", () => {
 
       await api.getDisplaysRawBatch(["weather"], false);
       expect(capturedBody).toEqual({ display_types: ["weather"], enabled_only: false });
-    });
-
-    it("sendDisplay appends target query param", async () => {
-      let capturedUrl = "";
-      server.use(
-        http.post(`${API_BASE}/displays/:type/send`, ({ request }) => {
-          capturedUrl = request.url;
-          return HttpResponse.json({ status: "success", message: "sent" });
-        }),
-      );
-
-      await api.sendDisplay("weather", "board");
-      expect(capturedUrl).toContain("target=board");
-
-      await api.sendDisplay("weather");
-      expect(capturedUrl).not.toContain("target=");
     });
   });
 
@@ -170,7 +142,7 @@ describe("API Extended Tests", () => {
     it("updatePage sends correct body", async () => {
       let capturedBody: any;
       server.use(
-        http.put(`${API_BASE}/pages/:id`, async ({ request }) => {
+        http.put(`${API_BASE}/v1/pages/:id`, async ({ request }) => {
           capturedBody = await request.json();
           return HttpResponse.json({ page: { ...capturedBody, id: "page-1" }, incompatible_references: [] });
         }),
@@ -203,28 +175,6 @@ describe("API Extended Tests", () => {
 
       await api.previewPagesBatch(["page-1", "page-2"]);
       expect(capturedBody).toEqual({ page_ids: ["page-1", "page-2"] });
-    });
-
-    it("sendPage appends target query param", async () => {
-      let capturedUrl = "";
-      server.use(
-        http.post(`${API_BASE}/pages/:id/send`, ({ request }) => {
-          capturedUrl = request.url;
-          return HttpResponse.json({
-            page_id: "page-1",
-            message: "sent",
-            sent_to_board: true,
-            paused: false,
-            target: "both",
-          });
-        }),
-      );
-
-      await api.sendPage("page-1", "both");
-      expect(capturedUrl).toContain("target=both");
-
-      await api.sendPage("page-1");
-      expect(capturedUrl).not.toContain("target=");
     });
 
     it("getCurrentDisplay returns current board display", async () => {
@@ -309,7 +259,7 @@ describe("API Extended Tests", () => {
   describe("Schedule endpoints", () => {
     beforeEach(() => {
       server.use(
-        http.get(`${API_BASE}/schedules`, ({ request }) => {
+        http.get(`${API_BASE}/v1/schedules`, ({ request }) => {
           const url = new URL(request.url);
           const boardId = url.searchParams.get("board_id");
           return HttpResponse.json({
@@ -320,7 +270,7 @@ describe("API Extended Tests", () => {
             ...(boardId && { board_id: boardId }),
           });
         }),
-        http.post(`${API_BASE}/schedules`, async ({ request }) => {
+        http.post(`${API_BASE}/v1/schedules`, async ({ request }) => {
           const body = (await request.json()) as any;
           return HttpResponse.json({
             id: "sched-1",
@@ -342,32 +292,11 @@ describe("API Extended Tests", () => {
           const body = (await request.json()) as any;
           return HttpResponse.json({ valid: true, overlaps: [], gaps: [], ...body });
         }),
-        http.get(`${API_BASE}/schedules/default-page`, () => HttpResponse.json({ default_page_id: null })),
-        http.put(`${API_BASE}/schedules/default-page`, async ({ request }) => {
-          const body = (await request.json()) as any;
-          return HttpResponse.json({ status: "success", default_page_id: body.page_id });
-        }),
-        http.get(`${API_BASE}/schedules/enabled`, () => HttpResponse.json({ enabled: true })),
-        http.put(`${API_BASE}/schedules/enabled`, async ({ request }) => {
-          const body = (await request.json()) as any;
-          return HttpResponse.json({ status: "success", enabled: body.enabled, message: "ok" });
-        }),
-        http.get(`${API_BASE}/schedules/:id`, ({ params }) =>
-          HttpResponse.json({
-            id: params.id,
-            page_id: "page-1",
-            start_time: "09:00",
-            end_time: "17:00",
-            day_pattern: "all",
-            enabled: true,
-            created_at: new Date().toISOString(),
-          }),
-        ),
-        http.put(`${API_BASE}/schedules/:id`, async ({ request, params }) => {
+        http.put(`${API_BASE}/v1/schedules/:id`, async ({ request, params }) => {
           const body = (await request.json()) as any;
           return HttpResponse.json({ id: params.id, ...body });
         }),
-        http.delete(`${API_BASE}/schedules/:id`, ({ params }) => HttpResponse.json({ id: params.id })),
+        http.delete(`${API_BASE}/v1/schedules/:id`, ({ params }) => HttpResponse.json({ id: params.id })),
       );
     });
 
@@ -391,11 +320,6 @@ describe("API Extended Tests", () => {
       });
       expect(result.page_id).toBe("page-1");
       expect(result.day_pattern).toBe("weekdays");
-    });
-
-    it("getSchedule returns single entry", async () => {
-      const result = await api.getSchedule("sched-1");
-      expect(result.id).toBe("sched-1");
     });
 
     it("updateSchedule sends partial update", async () => {
@@ -436,49 +360,53 @@ describe("API Extended Tests", () => {
       expect(capturedBody).toEqual({});
     });
 
-    it("getDefaultPage returns default_page_id", async () => {
-      const result = await api.getDefaultPage();
-      expect(result).toHaveProperty("default_page_id");
-    });
-
-    it("setDefaultPage sends page_id and optional board_id", async () => {
+    // The schedule's fallback page is a per-board setting, so v1 addresses it
+    // on the board: `PUT /schedules/default-page {page_id, board_id?}` became
+    // `PATCH /v1/boards/{board} {default_page_id}`. An omitted board_id used
+    // to mean "the primary board"; the path segment `primary` says the same.
+    it("setDefaultPage patches the board it targets", async () => {
       let capturedBody: any;
+      let capturedUrl = "";
       server.use(
-        http.put(`${API_BASE}/schedules/default-page`, async ({ request }) => {
+        http.patch(`${API_BASE}/v1/boards/:board`, async ({ request }) => {
+          capturedUrl = request.url;
           capturedBody = await request.json();
-          return HttpResponse.json({ default_page_id: capturedBody.page_id });
+          return HttpResponse.json({ default_page_id: capturedBody.default_page_id });
         }),
       );
 
       await api.setDefaultPage("page-1");
-      expect(capturedBody).toEqual({ page_id: "page-1" });
+      expect(capturedUrl).toContain("/v1/boards/primary");
+      expect(capturedBody).toEqual({ default_page_id: "page-1" });
 
       await api.setDefaultPage("page-1", "board-1");
-      expect(capturedBody).toEqual({ page_id: "page-1", board_id: "board-1" });
+      expect(capturedUrl).toContain("/v1/boards/board-1");
+      expect(capturedBody).toEqual({ default_page_id: "page-1" });
 
       await api.setDefaultPage(null);
-      expect(capturedBody).toEqual({ page_id: null });
+      expect(capturedBody).toEqual({ default_page_id: null });
     });
 
-    it("getScheduleEnabled returns enabled state", async () => {
-      const result = await api.getScheduleEnabled();
-      expect(result.enabled).toBe(true);
-    });
-
-    it("setScheduleEnabled sends enabled and optional board_id", async () => {
+    // Same move: `PUT /schedules/enabled {enabled, board_id?}` became
+    // `PATCH /v1/boards/{board} {schedule_enabled}`.
+    it("setScheduleEnabled patches the board it targets", async () => {
       let capturedBody: any;
+      let capturedUrl = "";
       server.use(
-        http.put(`${API_BASE}/schedules/enabled`, async ({ request }) => {
+        http.patch(`${API_BASE}/v1/boards/:board`, async ({ request }) => {
+          capturedUrl = request.url;
           capturedBody = await request.json();
-          return HttpResponse.json({ enabled: capturedBody.enabled });
+          return HttpResponse.json({ schedule_enabled: capturedBody.schedule_enabled });
         }),
       );
 
       await api.setScheduleEnabled(false);
-      expect(capturedBody).toEqual({ enabled: false });
+      expect(capturedUrl).toContain("/v1/boards/primary");
+      expect(capturedBody).toEqual({ schedule_enabled: false });
 
       await api.setScheduleEnabled(true, "board-1");
-      expect(capturedBody).toEqual({ enabled: true, board_id: "board-1" });
+      expect(capturedUrl).toContain("/v1/boards/board-1");
+      expect(capturedBody).toEqual({ schedule_enabled: true });
     });
   });
 
@@ -879,46 +807,46 @@ describe("API Extended Tests", () => {
       expect(result.id).toBe("weather");
     });
 
-    it("updatePluginConfig sends config body", async () => {
+    // `PUT /plugins/{id}/config`, `POST .../enable` and `POST .../disable`
+    // are one `PATCH /v1/plugins/{id}`, which answers with the plugin's
+    // detail rather than `{plugin_id, config}` / `{plugin_id, enabled}`.
+    it("updatePluginConfig patches the plugin with a config body", async () => {
       let capturedBody: any;
       server.use(
-        http.put(`${API_BASE}/plugins/:pluginId/config`, async ({ request }) => {
+        http.patch(`${API_BASE}/v1/plugins/:pluginId`, async ({ request, params }) => {
           capturedBody = await request.json();
-          return HttpResponse.json({ plugin_id: "test", config: {} });
+          return HttpResponse.json({ id: params.pluginId, config: capturedBody.config });
         }),
       );
-      await api.updatePluginConfig("test", { key: "value" });
+      const result = await api.updatePluginConfig("test", { key: "value" });
       expect(capturedBody).toEqual({ config: { key: "value" } });
+      expect(result.config).toEqual({ key: "value" });
     });
 
-    it("enablePlugin sends POST", async () => {
+    it("enablePlugin patches the plugin with enabled: true", async () => {
+      let capturedBody: any;
       server.use(
-        http.post(`${API_BASE}/plugins/:pluginId/enable`, () =>
-          HttpResponse.json({ plugin_id: "test", enabled: true }),
-        ),
+        http.patch(`${API_BASE}/v1/plugins/:pluginId`, async ({ request, params }) => {
+          capturedBody = await request.json();
+          return HttpResponse.json({ id: params.pluginId, enabled: capturedBody.enabled });
+        }),
       );
       const result = await api.enablePlugin("test");
+      expect(capturedBody).toEqual({ enabled: true });
       expect(result.enabled).toBe(true);
     });
 
-    it("disablePlugin sends POST", async () => {
+    it("disablePlugin patches the plugin with enabled: false", async () => {
+      let capturedBody: any;
       server.use(
-        http.post(`${API_BASE}/plugins/:pluginId/disable`, () =>
-          HttpResponse.json({ plugin_id: "test", enabled: false }),
-        ),
+        http.patch(`${API_BASE}/v1/plugins/:pluginId`, async ({ request, params }) => {
+          capturedBody = await request.json();
+          return HttpResponse.json({ id: params.pluginId, enabled: capturedBody.enabled });
+        }),
       );
       const result = await api.disablePlugin("test");
+      expect(capturedBody).toEqual({ enabled: false });
       expect(result.enabled).toBe(false);
-    });
-
-    it("getPluginData returns data", async () => {
-      server.use(
-        http.get(`${API_BASE}/plugins/:pluginId/data`, () =>
-          HttpResponse.json({ plugin_id: "test", available: true, data: { foo: "bar" } }),
-        ),
-      );
-      const result = await api.getPluginData("test");
-      expect(result.available).toBe(true);
     });
 
     it("getPluginVariables returns variables", async () => {
@@ -929,16 +857,6 @@ describe("API Extended Tests", () => {
       );
       const result = await api.getPluginVariables("test");
       expect(result.plugin_id).toBe("test");
-    });
-
-    it("getAllPluginVariables returns all variables", async () => {
-      server.use(
-        http.get(`${API_BASE}/plugins/variables/all`, () =>
-          HttpResponse.json({ variables: {}, max_lengths: {}, plugin_system_enabled: true }),
-        ),
-      );
-      const result = await api.getAllPluginVariables();
-      expect(result.plugin_system_enabled).toBe(true);
     });
 
     it("getPluginErrors returns errors", async () => {
@@ -1198,33 +1116,6 @@ describe("Per-board boardId params (issue #1244)", () => {
 
     await api.setActivePage("page-1", "b2");
     expect(capturedBody).toEqual({ page_id: "page-1", board_id: "b2" });
-  });
-
-  it("sendPage only appends board_id for a non-empty string", async () => {
-    let capturedUrl = "";
-    server.use(
-      http.post(`${API_BASE}/pages/:id/send`, ({ request }) => {
-        capturedUrl = request.url;
-        return HttpResponse.json({
-          page_id: "page-1",
-          message: "sent",
-          sent_to_board: true,
-          paused: false,
-          target: "board",
-        });
-      }),
-    );
-    await api.sendPage("page-1", "board", "b2");
-    expect(capturedUrl).toContain("board_id=b2");
-
-    await (api.sendPage as unknown as (pageId: string, target?: string, arg?: unknown) => Promise<unknown>)(
-      "page-1",
-      "board",
-      {
-        not: "a-board",
-      },
-    );
-    expect(capturedUrl).not.toContain("board_id");
   });
 
   it("getBoardCurrentMessage only appends board_id for a non-empty string", async () => {

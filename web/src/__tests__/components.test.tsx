@@ -42,7 +42,7 @@ describe("ServiceControls", () => {
 
   it("shows Stopped badge when status.running is false", async () => {
     server.use(
-      http.get(`${API_BASE}/status`, () =>
+      http.get(`${API_BASE}/v1/status`, () =>
         HttpResponse.json({
           running: false,
           initialized: true,

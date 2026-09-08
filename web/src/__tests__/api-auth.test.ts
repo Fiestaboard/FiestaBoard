@@ -169,14 +169,14 @@ describe("api auth helpers", () => {
     });
 
     it("redirects to /login on 401", async () => {
-      server.use(http.get("/api/status", () => HttpResponse.json({ detail: "Not authenticated" }, { status: 401 })));
+      server.use(http.get("/api/v1/status", () => HttpResponse.json({ detail: "Not authenticated" }, { status: 401 })));
       await expect(api.getStatus()).rejects.toThrow();
       expect(assignMock).toHaveBeenCalledWith(expect.stringMatching(/^\/login\?redirect=/));
     });
 
     it("redirects to /login on 409 with setup_required", async () => {
       server.use(
-        http.get("/api/status", () =>
+        http.get("/api/v1/status", () =>
           HttpResponse.json({ detail: "Setup required", setup_required: true, first_run: true }, { status: 409 }),
         ),
       );
@@ -188,7 +188,9 @@ describe("api auth helpers", () => {
     });
 
     it("does NOT redirect on 409 without setup_required", async () => {
-      server.use(http.get("/api/status", () => HttpResponse.json({ detail: "Some other conflict" }, { status: 409 })));
+      server.use(
+        http.get("/api/v1/status", () => HttpResponse.json({ detail: "Some other conflict" }, { status: 409 })),
+      );
       await expect(api.getStatus()).rejects.toThrow();
       await new Promise((r) => setTimeout(r, 0));
       expect(assignMock).not.toHaveBeenCalled();

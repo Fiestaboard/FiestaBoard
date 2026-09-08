@@ -83,8 +83,13 @@ export interface TemplateRenderLiveResponse {
 
 export const templatesApi = {
   // Templates endpoints
-  getTemplateVariables: () => fetchApi<TemplateVariables>("/templates/variables"),
-  getFormulaFunctions: () => fetchApi<FormulaFunctionsResponse>("/templates/formula-functions"),
+  // `GET /v1/variables` is the merge of `GET /templates/variables` and
+  // `GET /plugins/variables/all` (issue #1930). Both sides read the same
+  // `registry.get_all_variables()` — `TemplateEngine.get_available_variables`
+  // forwards to it — so the merge adds nothing to `variables`/`max_lengths`
+  // and the payload here is a strict superset of the old one.
+  getTemplateVariables: () => fetchApi<TemplateVariables>("/v1/variables"),
+  getFormulaFunctions: () => fetchApi<FormulaFunctionsResponse>("/v1/functions"),
   validateTemplate: (template: string | string[]) =>
     fetchApi<TemplateValidationResponse>("/templates/validate", {
       method: "POST",

@@ -360,6 +360,13 @@ export async function waitForApi(timeoutMs = 15_000) {
 }
 
 // ---------------------------------------------------------------------------
+// These fixtures set up the fleet through the same /v1 surface the app now
+// uses (issue #1930). /v1 pages, schedules and collections delegate to the
+// internal domain handlers, so the bodies read here are unchanged; the two
+// that did change shape are noted at their call sites.
+// ---------------------------------------------------------------------------
+
+// ---------------------------------------------------------------------------
 // CRUD helpers – keep tests focused on assertions, not setup boilerplate
 // ---------------------------------------------------------------------------
 
@@ -373,7 +380,7 @@ export async function createPage(
   if (deviceType !== "flagship") {
     body.device_type = deviceType;
   }
-  const res = await fetch(`${API_URL}/pages`, {
+  const res = await fetch(`${API_URL}/v1/pages`, {
     method: "POST",
     headers: { "Content-Type": "application/json", ...authHeaders() },
     body: JSON.stringify(body),
@@ -390,7 +397,7 @@ export async function createNotePage(name: string, template: string[] = ["NOTE T
 
 /** Delete a page via the API. */
 export async function deletePage(id: string): Promise<void> {
-  const res = await fetch(`${API_URL}/pages/${id}`, {
+  const res = await fetch(`${API_URL}/v1/pages/${id}`, {
     method: "DELETE",
     headers: authHeaders(),
   });
@@ -403,7 +410,7 @@ export async function createCollection(
   pageIds: string[],
   intervalSeconds = 30,
 ): Promise<{ id: string; name: string; page_ids: string[]; time: { interval_seconds: number } }> {
-  const res = await fetch(`${API_URL}/collections`, {
+  const res = await fetch(`${API_URL}/v1/collections`, {
     method: "POST",
     headers: { "Content-Type": "application/json", ...authHeaders() },
     body: JSON.stringify({
@@ -422,11 +429,11 @@ export async function createCollection(
 
 /** Delete every collection via the API. */
 export async function deleteAllCollections(): Promise<void> {
-  const res = await fetch(`${API_URL}/collections`, { headers: authHeaders() });
+  const res = await fetch(`${API_URL}/v1/collections`, { headers: authHeaders() });
   if (!res.ok) return;
   const data = await res.json();
   for (const c of data.collections || []) {
-    await fetch(`${API_URL}/collections/${c.id}`, {
+    await fetch(`${API_URL}/v1/collections/${c.id}`, {
       method: "DELETE",
       headers: authHeaders(),
     });
@@ -486,12 +493,12 @@ export async function configureMockCloud(notesWide: number, notesTall: number): 
  * would keep the Note tab alive (issue #943 semantics).
  */
 export async function deletePagesByDevice(deviceType: string): Promise<void> {
-  const res = await fetch(`${API_URL}/pages`, { headers: authHeaders() });
+  const res = await fetch(`${API_URL}/v1/pages`, { headers: authHeaders() });
   if (!res.ok) return;
   const data = await res.json();
   for (const p of data.pages) {
     if (p.device_type === deviceType) {
-      await fetch(`${API_URL}/pages/${p.id}`, {
+      await fetch(`${API_URL}/v1/pages/${p.id}`, {
         method: "DELETE",
         headers: authHeaders(),
       });
@@ -501,11 +508,11 @@ export async function deletePagesByDevice(deviceType: string): Promise<void> {
 
 /** Delete every page via the API. */
 export async function deleteAllPages(): Promise<void> {
-  const res = await fetch(`${API_URL}/pages`, { headers: authHeaders() });
+  const res = await fetch(`${API_URL}/v1/pages`, { headers: authHeaders() });
   if (!res.ok) return;
   const data = await res.json();
   for (const p of data.pages) {
-    await fetch(`${API_URL}/pages/${p.id}`, {
+    await fetch(`${API_URL}/v1/pages/${p.id}`, {
       method: "DELETE",
       headers: authHeaders(),
     });
@@ -529,7 +536,7 @@ export async function createSchedule(
   };
   if (boardId != null && boardId !== "") body.board_id = boardId;
   if (opts.enabled === false) body.enabled = false;
-  const res = await fetch(`${API_URL}/schedules`, {
+  const res = await fetch(`${API_URL}/v1/schedules`, {
     method: "POST",
     headers: { "Content-Type": "application/json", ...authHeaders() },
     body: JSON.stringify(body),
@@ -541,7 +548,7 @@ export async function createSchedule(
 
 /** Delete a schedule via the API. */
 export async function deleteSchedule(id: string): Promise<void> {
-  const res = await fetch(`${API_URL}/schedules/${id}`, {
+  const res = await fetch(`${API_URL}/v1/schedules/${id}`, {
     method: "DELETE",
     headers: authHeaders(),
   });
@@ -550,11 +557,11 @@ export async function deleteSchedule(id: string): Promise<void> {
 
 /** Delete every schedule via the API (across all boards). */
 export async function deleteAllSchedules(): Promise<void> {
-  const res = await fetch(`${API_URL}/schedules?board_id=*`, { headers: authHeaders() });
+  const res = await fetch(`${API_URL}/v1/schedules?board_id=*`, { headers: authHeaders() });
   if (!res.ok) return;
   const data = await res.json();
   for (const s of data.schedules) {
-    await fetch(`${API_URL}/schedules/${s.id}`, {
+    await fetch(`${API_URL}/v1/schedules/${s.id}`, {
       method: "DELETE",
       headers: authHeaders(),
     });
@@ -569,38 +576,44 @@ export async function deleteAllSchedules(): Promise<void> {
  * whenever the active page is null *in manual mode*, so a test that needs a
  * genuinely empty active display should enable schedule mode with no matching
  * schedules rather than race the loop's ~15s tick.
+ *
+ * Schedule mode is a per-board setting, so v1 addresses it on the board:
+ * `PUT /schedules/enabled {enabled}` with no board_id meant "the primary
+ * board", which is exactly what the `primary` path segment resolves to.
  */
 export async function setScheduleEnabled(enabled: boolean): Promise<void> {
-  const res = await fetch(`${API_URL}/schedules/enabled`, {
-    method: "PUT",
+  const res = await fetch(`${API_URL}/v1/boards/primary`, {
+    method: "PATCH",
     headers: { "Content-Type": "application/json", ...authHeaders() },
-    body: JSON.stringify({ enabled }),
+    body: JSON.stringify({ schedule_enabled: enabled }),
   });
   if (!res.ok) throw new Error(`setScheduleEnabled(${enabled}) failed: ${res.status}`);
 }
 
-/** Enable a plugin via the API. */
+/** Enable a plugin via the API. `PATCH /v1/plugins/{id}` replaced POST .../enable. */
 export async function enablePlugin(id: string): Promise<void> {
-  const res = await fetch(`${API_URL}/plugins/${id}/enable`, {
-    method: "POST",
-    headers: authHeaders(),
+  const res = await fetch(`${API_URL}/v1/plugins/${id}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json", ...authHeaders() },
+    body: JSON.stringify({ enabled: true }),
   });
   if (!res.ok) throw new Error(`enablePlugin failed: ${res.status}`);
 }
 
-/** Disable a plugin via the API. */
+/** Disable a plugin via the API. `PATCH /v1/plugins/{id}` replaced POST .../disable. */
 export async function disablePlugin(id: string): Promise<void> {
-  const res = await fetch(`${API_URL}/plugins/${id}/disable`, {
-    method: "POST",
-    headers: authHeaders(),
+  const res = await fetch(`${API_URL}/v1/plugins/${id}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json", ...authHeaders() },
+    body: JSON.stringify({ enabled: false }),
   });
   if (!res.ok) throw new Error(`disablePlugin failed: ${res.status}`);
 }
 
-/** Update plugin configuration via the API. */
+/** Update plugin configuration. `PATCH /v1/plugins/{id}` replaced PUT .../config. */
 export async function updatePluginConfig(id: string, config: Record<string, unknown>): Promise<void> {
-  const res = await fetch(`${API_URL}/plugins/${id}/config`, {
-    method: "PUT",
+  const res = await fetch(`${API_URL}/v1/plugins/${id}`, {
+    method: "PATCH",
     headers: { "Content-Type": "application/json", ...authHeaders() },
     body: JSON.stringify({ config }),
   });

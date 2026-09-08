@@ -238,7 +238,8 @@ export interface WifiConnectResponse {
 
 export const systemApi = {
   // Queries (read-only)
-  getStatus: () => fetchApi<StatusResponse>("/status"),
+  // `GET /v1/status` is `GET /status`'s own handler behind a new path.
+  getStatus: () => fetchApi<StatusResponse>("/v1/status"),
   getConfig: () => fetchApi<ConfigSummary>("/config"),
   // Mutations (actions)
   startService: () => fetchApi<ServiceStateResponse>("/start", { method: "POST" }),

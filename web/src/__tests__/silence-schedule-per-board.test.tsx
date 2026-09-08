@@ -89,7 +89,7 @@ function stub({ boards = [FLAGSHIP], silence = {} as Record<string, unknown>, on
     http.get(`${API_BASE}/settings/board`, () =>
       HttpResponse.json({ board_type: "black", boards, devices: ["flagship"] }),
     ),
-    http.get(`${API_BASE}/pages`, () => HttpResponse.json({ pages: PAGES, total: PAGES.length })),
+    http.get(`${API_BASE}/v1/pages`, () => HttpResponse.json({ pages: PAGES, total: PAGES.length })),
     http.put(`${API_BASE}/settings/silence-schedule`, async ({ request }) => {
       const body = await request.json();
       onPut(body);

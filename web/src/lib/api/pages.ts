@@ -167,16 +167,6 @@ export interface PagePreviewBatchResponse {
   successful: number;
 }
 
-export interface PageSendResponse {
-  page_id: string;
-  message: string;
-  sent_to_board: boolean;
-  /** True when the send was skipped because the target board is paused. */
-  paused: boolean;
-  target: string;
-  board_id?: string | null;
-}
-
 export interface CurrentDisplayResponse {
   page_id: string;
   page_name: string;
@@ -205,36 +195,30 @@ export const pagesApi = {
         ...(typeof boardId === "string" && boardId && { board_id: boardId }),
       }),
     }),
-  // Pages endpoints
-  getPages: () => fetchApi<PagesResponse>("/pages"),
+  // Pages CRUD lives on /v1 (issue #1930). `/v1/pages*` delegates to the very
+  // same handlers `/pages*` does — same models, same 404 wording — so this is
+  // a path change with no response-shape change.
+  getPages: () => fetchApi<PagesResponse>("/v1/pages"),
   getCurrentDisplay: () => fetchApi<CurrentDisplayResponse>("/pages/current-display"),
-  getPage: (pageId: string) => fetchApi<Page>(`/pages/${pageId}`),
+  getPage: (pageId: string) => fetchApi<Page>(`/v1/pages/${pageId}`),
   /** 201 with the created page itself — no envelope. */
   createPage: (page: PageCreate) =>
-    fetchApi<Page>("/pages", {
+    fetchApi<Page>("/v1/pages", {
       method: "POST",
       body: JSON.stringify(page),
     }),
   updatePage: (pageId: string, page: PageUpdate) =>
-    fetchApi<PageUpdateResponse>(`/pages/${pageId}`, {
+    fetchApi<PageUpdateResponse>(`/v1/pages/${pageId}`, {
       method: "PUT",
       body: JSON.stringify(page),
     }),
-  deletePage: (pageId: string) => fetchApi<PageDeleteResponse>(`/pages/${pageId}`, { method: "DELETE" }),
+  deletePage: (pageId: string) => fetchApi<PageDeleteResponse>(`/v1/pages/${pageId}`, { method: "DELETE" }),
   previewPage: (pageId: string) => fetchApi<PagePreviewResponse>(`/pages/${pageId}/preview`, { method: "POST" }),
   previewPagesBatch: (pageIds: string[]) =>
     fetchApi<PagePreviewBatchResponse>("/pages/preview/batch", {
       method: "POST",
       body: JSON.stringify({ page_ids: pageIds }),
     }),
-  sendPage: (pageId: string, target?: "ui" | "board" | "both", boardId?: string) => {
-    const query = new URLSearchParams();
-    if (target) query.set("target", target);
-    // Non-empty string only — see the getActivePage note (issue #1244).
-    if (typeof boardId === "string" && boardId) query.set("board_id", boardId);
-    const qs = query.toString();
-    return fetchApi<PageSendResponse>(`/pages/${pageId}/send${qs ? `?${qs}` : ""}`, { method: "POST" });
-  },
   getPageShareString: (pageId: string) => fetchApi<{ share_string: string }>(`/pages/${pageId}/share`),
   /** 201 with the created page itself — no envelope, same as createPage. */
   importPage: (shareString: string) =>

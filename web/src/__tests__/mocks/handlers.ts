@@ -4,9 +4,7 @@ import type {
   ConfigSummary,
   CurrentDisplayResponse,
   DisplayRawResponse,
-  DisplayResponse,
   DisplaySettings,
-  DisplaysResponse,
   GeneralConfig,
   OutputSettings,
   Page,
@@ -51,27 +49,6 @@ export const mockConfig: ConfigSummary = {
   guest_wifi_enabled: false,
   star_trek_quotes_enabled: true,
   rotation_enabled: true,
-};
-
-export const mockDisplays: DisplaysResponse = {
-  displays: [
-    { type: "weather", available: true, description: "Current weather conditions", source: "plugin" },
-    { type: "datetime", available: true, description: "Current date and time", source: "plugin" },
-    { type: "weather_datetime", available: true, description: "Combined weather and datetime", source: "plugin" },
-    { type: "home_assistant", available: false, description: "Home Assistant status", source: "plugin" },
-    { type: "star_trek", available: true, description: "Star Trek quotes", source: "plugin" },
-    { type: "guest_wifi", available: false, description: "Guest WiFi credentials", source: "plugin" },
-  ],
-  total: 7,
-  available_count: 5,
-};
-
-export const mockWeatherDisplay: DisplayResponse = {
-  display_type: "weather",
-  message: "San Francisco: * Sunny\nTemp: 72°F",
-  lines: ["San Francisco: * Sunny", "Temp: 72°F"],
-  line_count: 2,
-  available: true,
 };
 
 export const mockWeatherRaw: DisplayRawResponse = {
@@ -316,9 +293,39 @@ const inactiveTemporaryOverride = {
 };
 
 // Handlers with request validation
+/** The `PluginDetail` body `GET`/`PATCH /v1/plugins/{id}` both answer with. */
+function pluginDetailFor(pluginId: string) {
+  if (pluginId === "silence_schedule") {
+    return mockSilenceSchedulePlugin;
+  }
+  return {
+    id: pluginId,
+    name: pluginId,
+    version: "1.0.0",
+    description: "",
+    author: "Unknown",
+    icon: "puzzle",
+    category: "utility",
+    plugin_type: "data",
+    enabled: false,
+    config: {},
+    env_overridden_keys: [],
+    settings_schema: {},
+    variables: {},
+    max_lengths: {},
+    env_vars: [],
+    documentation: "",
+    has_demo: false,
+    demo_page_id: null,
+    instance_label: null,
+    base_plugin_id: pluginId,
+    instances: [],
+  };
+}
+
 export const handlers = [
   // Core status endpoints
-  http.get(`${API_BASE}/status`, () => {
+  http.get(`${API_BASE}/v1/status`, () => {
     return HttpResponse.json(mockStatus);
   }),
 
@@ -356,25 +363,6 @@ export const handlers = [
   }),
 
   // Display endpoints
-  http.get(`${API_BASE}/displays`, () => {
-    return HttpResponse.json(mockDisplays);
-  }),
-
-  http.get(`${API_BASE}/displays/:type`, ({ params }) => {
-    const { type } = params;
-    if (type === "weather") {
-      return HttpResponse.json(mockWeatherDisplay);
-    }
-    const response: DisplayResponse = {
-      display_type: String(type),
-      message: `${type} display`,
-      lines: [`${type} display`],
-      line_count: 1,
-      available: true,
-    };
-    return HttpResponse.json(response);
-  }),
-
   http.post(`${API_BASE}/displays/raw/batch`, async ({ request }) => {
     const body = (await request.json()) as { display_types?: string[] };
     const displayTypes = body.display_types || [];
@@ -404,18 +392,6 @@ export const handlers = [
       error: null,
     };
     return HttpResponse.json(response);
-  }),
-
-  http.post(`${API_BASE}/displays/:type/send`, ({ params }) => {
-    const { type } = params;
-    return HttpResponse.json({
-      status: "success",
-      display_type: type,
-      message: `${type} sent`,
-      sent_to_board: true,
-      paused: false,
-      target: "board",
-    });
   }),
 
   // Settings endpoints
@@ -473,7 +449,7 @@ export const handlers = [
   }),
 
   // Pages endpoints
-  http.get(`${API_BASE}/pages`, () => {
+  http.get(`${API_BASE}/v1/pages`, () => {
     return HttpResponse.json(mockPages);
   }),
 
@@ -493,7 +469,7 @@ export const handlers = [
     });
   }),
 
-  http.get(`${API_BASE}/pages/:id`, ({ params }) => {
+  http.get(`${API_BASE}/v1/pages/:id`, ({ params }) => {
     const { id } = params;
     if (id === "page-1") {
       return HttpResponse.json(mockPage);
@@ -504,7 +480,7 @@ export const handlers = [
     return HttpResponse.json(mockPage);
   }),
 
-  http.post(`${API_BASE}/pages`, async ({ request }) => {
+  http.post(`${API_BASE}/v1/pages`, async ({ request }) => {
     const body = (await request.json()) as PageCreate;
     requestStore.lastPageCreate = body;
 
@@ -523,7 +499,7 @@ export const handlers = [
     return HttpResponse.json(newPage, { status: 201 });
   }),
 
-  http.put(`${API_BASE}/pages/:id`, async ({ request, params }) => {
+  http.put(`${API_BASE}/v1/pages/:id`, async ({ request, params }) => {
     const body = (await request.json()) as Partial<Page>;
     const { id } = params;
     const updatedPage: Page = {
@@ -535,7 +511,7 @@ export const handlers = [
     return HttpResponse.json({ page: updatedPage, incompatible_references: [] });
   }),
 
-  http.delete(`${API_BASE}/pages/:id`, ({ params }) => {
+  http.delete(`${API_BASE}/v1/pages/:id`, ({ params }) => {
     return HttpResponse.json({
       id: params.id,
       message: "Page deleted",
@@ -675,19 +651,8 @@ export const handlers = [
     });
   }),
 
-  http.post(`${API_BASE}/pages/:id/send`, ({ params }) => {
-    const { id } = params;
-    return HttpResponse.json({
-      page_id: id,
-      message: "Page sent",
-      sent_to_board: true,
-      paused: false,
-      target: "board",
-    });
-  }),
-
   // Template endpoints
-  http.get(`${API_BASE}/templates/variables`, () => {
+  http.get(`${API_BASE}/v1/variables`, () => {
     return HttpResponse.json(mockTemplateVariables);
   }),
 
@@ -755,34 +720,20 @@ export const handlers = [
   }),
 
   // Plugin config endpoints
-  http.get(`${API_BASE}/plugins/:pluginId`, ({ params }) => {
-    const { pluginId } = params;
-    if (pluginId === "silence_schedule") {
-      return HttpResponse.json(mockSilenceSchedulePlugin);
-    }
-    // Return generic plugin response for other plugins
+  http.get(`${API_BASE}/v1/plugins/:pluginId`, ({ params }) => {
+    return HttpResponse.json(pluginDetailFor(String(params.pluginId)));
+  }),
+
+  // `PATCH /v1/plugins/{id}` replaced PUT /plugins/{id}/config, POST
+  // .../enable and POST .../disable, and answers with the plugin's detail
+  // instead of `{plugin_id, config}` / `{plugin_id, enabled}`.
+  http.patch(`${API_BASE}/v1/plugins/:pluginId`, async ({ request, params }) => {
+    const body = (await request.json()) as { config?: Record<string, unknown>; enabled?: boolean };
+    const detail = pluginDetailFor(String(params.pluginId));
     return HttpResponse.json({
-      id: pluginId,
-      name: String(pluginId),
-      version: "1.0.0",
-      description: "",
-      author: "Unknown",
-      icon: "puzzle",
-      category: "utility",
-      plugin_type: "data",
-      enabled: false,
-      config: {},
-      env_overridden_keys: [],
-      settings_schema: {},
-      variables: {},
-      max_lengths: {},
-      env_vars: [],
-      documentation: "",
-      has_demo: false,
-      demo_page_id: null,
-      instance_label: null,
-      base_plugin_id: String(pluginId),
-      instances: [],
+      ...detail,
+      ...(body.config !== undefined && { config: body.config }),
+      ...(body.enabled !== undefined && { enabled: body.enabled }),
     });
   }),
 
@@ -825,24 +776,6 @@ export const handlers = [
       settings_schema: {},
       max_lengths: {},
       variables: { simple: [] },
-    });
-  }),
-
-  http.post(`${API_BASE}/plugins/:pluginId/config`, async ({ request, params }) => {
-    const { pluginId } = params;
-    const body = (await request.json()) as { config: Record<string, unknown> };
-    return HttpResponse.json({
-      plugin_id: pluginId,
-      config: body.config,
-    });
-  }),
-
-  http.put(`${API_BASE}/plugins/:pluginId/config`, async ({ request, params }) => {
-    const { pluginId } = params;
-    const body = (await request.json()) as { config: Record<string, unknown> };
-    return HttpResponse.json({
-      plugin_id: pluginId,
-      config: body.config,
     });
   }),
 
@@ -902,7 +835,7 @@ export const handlers = [
   }),
 
   // Collection endpoints
-  http.get(`${API_BASE}/collections`, () => {
+  http.get(`${API_BASE}/v1/collections`, () => {
     return HttpResponse.json({
       collections: [],
       total: 0,
@@ -910,7 +843,7 @@ export const handlers = [
   }),
 
   // Schedule endpoints (for active-page-display)
-  http.get(`${API_BASE}/schedules`, ({ request }) => {
+  http.get(`${API_BASE}/v1/schedules`, ({ request }) => {
     const url = new URL(request.url);
     const boardId = url.searchParams.get("board_id");
     return HttpResponse.json({
@@ -1180,6 +1113,38 @@ export const handlers = [
   }),
 
   // Board settings endpoints
+  // `PATCH /v1/boards/{board}` — where pausing, schedule mode and the
+  // schedule's fallback page moved (was POST /settings/board/{id}/pause,
+  // PUT /schedules/enabled, PUT /schedules/default-page). `primary` is the
+  // alias for "the board an id-less internal call meant".
+  http.patch(`${API_BASE}/v1/boards/:board`, async ({ request, params }) => {
+    const body = (await request.json()) as {
+      paused?: boolean;
+      schedule_enabled?: boolean;
+      default_page_id?: string | null;
+      name?: string;
+    };
+    return HttpResponse.json({
+      id: String(params.board),
+      name: body.name ?? String(params.board),
+      device_type: "flagship",
+      rows: 6,
+      cols: 22,
+      is_primary: true,
+      paused: body.paused ?? false,
+      schedule_enabled: body.schedule_enabled ?? false,
+      characters: null,
+      text: null,
+      read_at: null,
+      active_page_id: null,
+      scheduled_page_id: null,
+      resolved_page_id: null,
+      source: "none",
+      default_page_id: body.default_page_id ?? null,
+      override_expires_at: null,
+    });
+  }),
+
   http.get(`${API_BASE}/settings/board`, () => {
     return HttpResponse.json({
       board_type: "black",

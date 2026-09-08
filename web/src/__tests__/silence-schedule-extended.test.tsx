@@ -78,7 +78,7 @@ describe("SilenceSchedule — indicator position handler", () => {
   beforeEach(() => {
     server.use(
       http.get(`${API_BASE}/settings/all`, () => HttpResponse.json(allSettings({ mode: "indicator" }))),
-      http.get(`${API_BASE}/pages`, () => HttpResponse.json({ pages: mockPages })),
+      http.get(`${API_BASE}/v1/pages`, () => HttpResponse.json({ pages: mockPages })),
     );
   });
   afterEach(() => server.resetHandlers());

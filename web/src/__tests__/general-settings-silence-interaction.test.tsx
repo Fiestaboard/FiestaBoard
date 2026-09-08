@@ -133,7 +133,7 @@ describe("GeneralSettings - silence interaction handlers", () => {
   it("renders available pages in page mode selector", async () => {
     server.use(
       http.get(`${API_BASE}/settings/all`, () => HttpResponse.json(allSettings({ mode: "page" }))),
-      http.get(`${API_BASE}/pages`, () => HttpResponse.json(mockPages)),
+      http.get(`${API_BASE}/v1/pages`, () => HttpResponse.json(mockPages)),
     );
 
     const user = userEvent.setup();

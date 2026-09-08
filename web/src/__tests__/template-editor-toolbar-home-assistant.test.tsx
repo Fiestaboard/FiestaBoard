@@ -31,10 +31,10 @@ const sensorTemperature: HomeAssistantEntity = {
   friendly_name: "Living Room Temperature",
 };
 
-/** `/templates/variables` including a `home_assistant` namespace. */
+/** `GET /v1/variables` including a `home_assistant` namespace. */
 function useHomeAssistantVariables() {
   server.use(
-    http.get(`${API_BASE}/templates/variables`, () =>
+    http.get(`${API_BASE}/v1/variables`, () =>
       HttpResponse.json({
         ...mockTemplateVariables,
         variables: { ...mockTemplateVariables.variables, home_assistant: ["sensor_temperature.state"] },
@@ -104,7 +104,7 @@ describe("TemplateEditorToolbar Home Assistant entity picker", () => {
   });
 
   it("does not render the Home Assistant entity button when home_assistant is absent", async () => {
-    // The default `/templates/variables` mock only exposes weather + datetime.
+    // The default `GET /v1/variables` mock only exposes weather + datetime.
     renderToolbar();
 
     // Wait for the toolbar to have consumed the variables response.

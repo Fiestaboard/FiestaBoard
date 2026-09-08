@@ -212,37 +212,11 @@ export interface PluginDemoPageCreateResponse {
   page: Page;
 }
 
-export interface PluginConfigUpdateResponse {
-  plugin_id: string;
-  /** The stored configuration, re-masked. Never echoes a real secret back. */
-  config: Record<string, unknown>;
-}
-
-export interface PluginEnableResponse {
-  plugin_id: string;
-  enabled: boolean;
-}
-
-export interface PluginDataResponse {
-  plugin_id: string;
-  available: boolean;
-  data: Record<string, unknown> | null;
-  /** The plugin's rendered board lines. (Was mistyped as `formatted`.) */
-  formatted_lines: string[] | null;
-  error: string | null;
-}
-
 export interface PluginVariablesResponse {
   plugin_id: string;
   variables: Record<string, unknown>;
   max_lengths: Record<string, number>;
   color_rules_schema: Record<string, unknown>;
-}
-
-export interface AllPluginVariablesResponse {
-  variables: Record<string, string[]>;
-  max_lengths: Record<string, number>;
-  plugin_system_enabled: boolean;
 }
 
 /** One plugin's standing with the data-fetch circuit breaker. */
@@ -264,24 +238,32 @@ export const pluginsApi = {
   // Plugin system endpoints
   listPlugins: () => fetchApi<PluginsListResponse>("/plugins"),
 
-  getPlugin: (pluginId: string) => fetchApi<PluginDetailResponse>(`/plugins/${pluginId}`),
+  // `GET /v1/plugins/{id}` is `GET /plugins/{id}`'s own handler behind a new
+  // path — same PluginDetail model, same masking of stored secrets.
+  getPlugin: (pluginId: string) => fetchApi<PluginDetailResponse>(`/v1/plugins/${pluginId}`),
 
   getPluginManifest: (pluginId: string) => fetchApi<PluginManifest>(`/plugins/${pluginId}/manifest`),
 
+  // `PUT /plugins/{id}/config`, `POST .../enable` and `POST .../disable` are
+  // one `PATCH /v1/plugins/{id}` (issue #1930). v1 dispatches to those three
+  // handlers unchanged and answers with the plugin's full detail instead of
+  // `{plugin_id, config}` / `{plugin_id, enabled}`; no caller read either.
   updatePluginConfig: (pluginId: string, config: Record<string, unknown>) =>
-    fetchApi<PluginConfigUpdateResponse>(`/plugins/${pluginId}/config`, {
-      method: "PUT",
+    fetchApi<PluginDetailResponse>(`/v1/plugins/${pluginId}`, {
+      method: "PATCH",
       body: JSON.stringify({ config }),
     }),
 
   enablePlugin: (pluginId: string) =>
-    fetchApi<PluginEnableResponse>(`/plugins/${pluginId}/enable`, {
-      method: "POST",
+    fetchApi<PluginDetailResponse>(`/v1/plugins/${pluginId}`, {
+      method: "PATCH",
+      body: JSON.stringify({ enabled: true }),
     }),
 
   disablePlugin: (pluginId: string) =>
-    fetchApi<PluginEnableResponse>(`/plugins/${pluginId}/disable`, {
-      method: "POST",
+    fetchApi<PluginDetailResponse>(`/v1/plugins/${pluginId}`, {
+      method: "PATCH",
+      body: JSON.stringify({ enabled: false }),
     }),
 
   /**
@@ -295,8 +277,6 @@ export const pluginsApi = {
       body: JSON.stringify(request),
     }),
 
-  getPluginData: (pluginId: string) => fetchApi<PluginDataResponse>(`/plugins/${pluginId}/data`),
-
   getPluginVariables: (pluginId: string) => fetchApi<PluginVariablesResponse>(`/plugins/${pluginId}/variables`),
 
   getPluginDemoPage: (pluginId: string) => fetchApi<PluginDemoPageResponse>(`/plugins/${pluginId}/demo-page`),
@@ -305,8 +285,6 @@ export const pluginsApi = {
     fetchApi<PluginDemoPageCreateResponse>(`/plugins/${pluginId}/demo-page`, {
       method: "POST",
     }),
-
-  getAllPluginVariables: () => fetchApi<AllPluginVariablesResponse>("/plugins/variables/all"),
 
   getPluginErrors: () => fetchApi<PluginErrorsResponse>("/plugins/errors"),
 
