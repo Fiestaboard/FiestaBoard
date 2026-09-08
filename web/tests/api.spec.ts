@@ -342,3 +342,88 @@ test.describe("API – Debug", () => {
     expect(typeof data.message).toBe("string");
   });
 });
+
+// ---------------------------------------------------------------------------
+// Deprecation notices on the internal surface
+// ---------------------------------------------------------------------------
+
+// These specs are, deliberately, the internal surface's contract tests — the
+// web client itself moved onto /v1 wherever /v1 supersedes (#1934). A test
+// caller does not save an endpoint from deprecation, but it does have to know
+// what the endpoint now says: 25 of these paths carry RFC 9745 `Deprecation`,
+// RFC 8594 `Sunset` and an RFC 8288 `successor-version` link on every
+// successful response (#1941).
+//
+// This is the only layer that proves the headers survive nginx. The Python
+// suite exercises the ASGI app directly; nginx is what a real caller talks to,
+// and a proxy that dropped these would make the whole notice invisible.
+
+const SUNSET = "Tue, 01 Dec 2026 00:00:00 GMT";
+
+/** The v1 operation each of these announces as its replacement. */
+const SUPERSEDED: Array<[string, string]> = [
+  ["/pages", "/api/v1/pages"],
+  ["/collections", "/api/v1/collections"],
+  ["/schedules", "/api/v1/schedules"],
+  ["/status", "/api/v1/status"],
+  ["/templates/variables", "/api/v1/variables"],
+  ["/templates/formula-functions", "/api/v1/functions"],
+  ["/plugins/variables/all", "/api/v1/variables"],
+];
+
+/**
+ * Endpoints in #1934's inventory of 33 that are deliberately NOT deprecated,
+ * because their v1 equivalent still drops something. Asserting the absence is
+ * what stops the cohort growing by a sweep instead of by an audit.
+ */
+const NOT_SUPERSEDED = ["/displays", "/schedules/enabled", "/schedules/default-page"];
+
+test.describe("API – Deprecation notices", () => {
+  for (const [path, successor] of SUPERSEDED) {
+    test(`GET ${path} announces ${successor} on the wire`, async () => {
+      const res = await fetch(`${API()}${path}`);
+      expect(res.ok).toBe(true);
+      expect(res.headers.get("deprecation")).toBe("true");
+      expect(res.headers.get("sunset")).toBe(SUNSET);
+      expect(res.headers.get("link")).toBe(`<${successor}>; rel="successor-version"`);
+    });
+  }
+
+  for (const path of NOT_SUPERSEDED) {
+    test(`GET ${path} sends no deprecation notice`, async () => {
+      const res = await fetch(`${API()}${path}`);
+      expect(res.ok).toBe(true);
+      expect(res.headers.get("deprecation")).toBeNull();
+      expect(res.headers.get("sunset")).toBeNull();
+    });
+  }
+
+  test("the /v1 successors do not announce their own removal", async () => {
+    for (const successor of ["/api/v1/pages", "/api/v1/collections", "/api/v1/status"]) {
+      // API() already ends in /api, so strip the duplicate prefix.
+      const res = await fetch(`${API()}${successor.replace(/^\/api/, "")}`);
+      expect(res.ok).toBe(true);
+      expect(res.headers.get("deprecation")).toBeNull();
+    }
+  });
+
+  test("a deprecated write announces its successor too", async () => {
+    const created = await fetch(`${API()}/pages`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        name: `Deprecation Notice ${Date.now()}`,
+        type: "template",
+        template: ["HELLO"],
+      }),
+    });
+    expect(created.status).toBe(201);
+    expect(created.headers.get("deprecation")).toBe("true");
+    expect(created.headers.get("link")).toBe('</api/v1/pages>; rel="successor-version"');
+
+    const { id } = await created.json();
+    const deleted = await fetch(`${API()}/pages/${id}`, { method: "DELETE" });
+    expect(deleted.ok).toBe(true);
+    expect(deleted.headers.get("link")).toBe('</api/v1/pages/{page_id}>; rel="successor-version"');
+  });
+});

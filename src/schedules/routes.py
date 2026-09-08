@@ -30,6 +30,7 @@ from __future__ import annotations
 
 from fastapi import APIRouter, HTTPException
 
+from src.api_deprecation import superseded_by_v1
 from src.api_errors import errors
 from src.board_guards import _require_board
 from src.collections.models import is_collection_id
@@ -138,7 +139,11 @@ def _with_compat_warnings(response: dict, schedule) -> dict:
     return response
 
 
-@router.get("/schedules", response_model=ScheduleListResponse)
+@router.get(
+    "/schedules",
+    response_model=ScheduleListResponse,
+    dependencies=[superseded_by_v1("GET /schedules")],
+)
 async def list_schedules(board_id: str | None = None):
     """List schedule entries, optionally for one board (query: board_id=).
 
@@ -171,6 +176,7 @@ async def list_schedules(board_id: str | None = None):
     response_model=ScheduleWriteResponse,
     status_code=201,
     responses=errors(400, 404),
+    dependencies=[superseded_by_v1("POST /schedules")],
 )
 async def create_schedule(schedule_data: ScheduleCreate):
     """Create a new schedule entry."""
@@ -302,6 +308,7 @@ async def set_schedule_enabled(request: ScheduleEnabledUpdate):
     "/schedules/{schedule_id}",
     response_model=ScheduleResponse,
     responses=errors(404),
+    dependencies=[superseded_by_v1("GET /schedules/{schedule_id}")],
 )
 async def get_schedule(schedule_id: str):
     """Get a schedule entry by ID."""
@@ -318,6 +325,7 @@ async def get_schedule(schedule_id: str):
     "/schedules/{schedule_id}",
     response_model=ScheduleWriteResponse,
     responses=errors(400, 404),
+    dependencies=[superseded_by_v1("PUT /schedules/{schedule_id}")],
 )
 async def update_schedule(schedule_id: str, schedule_data: ScheduleUpdate):
     """Update an existing schedule entry."""
@@ -339,6 +347,7 @@ async def update_schedule(schedule_id: str, schedule_data: ScheduleUpdate):
     "/schedules/{schedule_id}",
     response_model=ScheduleDeleteResponse,
     responses=errors(404),
+    dependencies=[superseded_by_v1("DELETE /schedules/{schedule_id}")],
 )
 async def delete_schedule(schedule_id: str):
     """Delete a schedule entry."""

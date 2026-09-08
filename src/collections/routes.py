@@ -17,6 +17,7 @@ from __future__ import annotations
 
 from fastapi import APIRouter, HTTPException
 
+from src.api_deprecation import superseded_by_v1
 from src.api_errors import errors
 from src.pages.service import get_page_service
 from src.templates.engine import get_template_engine
@@ -83,7 +84,11 @@ def _validate_collection_payload(
             )
 
 
-@router.get("/collections", response_model=CollectionListResponse)
+@router.get(
+    "/collections",
+    response_model=CollectionListResponse,
+    dependencies=[superseded_by_v1("GET /collections")],
+)
 async def list_collections():
     """List all collections."""
     collection_service = get_collection_service()
@@ -96,6 +101,7 @@ async def list_collections():
     response_model=CollectionResponse,
     status_code=201,
     responses=errors(400),
+    dependencies=[superseded_by_v1("POST /collections")],
 )
 async def create_collection(data: CollectionCreate):
     """Create a new collection."""
@@ -114,6 +120,7 @@ async def create_collection(data: CollectionCreate):
     "/collections/{collection_id}",
     response_model=CollectionResponse,
     responses=errors(404),
+    dependencies=[superseded_by_v1("GET /collections/{collection_id}")],
 )
 async def get_collection(collection_id: str):
     """Get a collection by ID."""
@@ -128,6 +135,7 @@ async def get_collection(collection_id: str):
     "/collections/{collection_id}",
     response_model=CollectionResponse,
     responses=errors(400, 404),
+    dependencies=[superseded_by_v1("PUT /collections/{collection_id}")],
 )
 async def update_collection(collection_id: str, data: CollectionUpdate):
     """Update an existing collection."""
@@ -149,6 +157,7 @@ async def update_collection(collection_id: str, data: CollectionUpdate):
     "/collections/{collection_id}",
     response_model=CollectionDeleteResponse,
     responses=errors(404),
+    dependencies=[superseded_by_v1("DELETE /collections/{collection_id}")],
 )
 async def delete_collection(collection_id: str):
     """Delete a collection."""

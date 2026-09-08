@@ -36,7 +36,7 @@ from fastapi import APIRouter, HTTPException
 
 from src import __version__
 from src import display_runtime as runtime
-from src.api_deprecation import V1_BOARD_MESSAGE_SUCCESSOR, deprecation_notice
+from src.api_deprecation import V1_BOARD_MESSAGE_SUCCESSOR, deprecation_notice, superseded_by_v1
 from src.api_errors import errors
 from src.board_guards import _require_board
 from src.board_send_executor import run_board_send
@@ -104,7 +104,12 @@ async def health_head():
 # ---------------------------------------------------------------------------
 
 
-@router.get("/status", response_model=StatusResponse, responses=errors(503))
+@router.get(
+    "/status",
+    response_model=StatusResponse,
+    responses=errors(503),
+    dependencies=[superseded_by_v1("GET /status")],
+)
 async def get_status():
     """Get current service status."""
     service = runtime.get_service()

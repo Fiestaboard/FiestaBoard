@@ -18,6 +18,7 @@ import logging
 
 from fastapi import APIRouter, HTTPException
 
+from src.api_deprecation import superseded_by_v1
 from src.api_errors import errors
 from src.board_client import board_client_from_board_dict
 from src.board_guards import _board_is_paused, _require_board
@@ -49,7 +50,11 @@ router = APIRouter(tags=["templates"])
 # registry, both of which always exist — an install with no plugins answers
 # empty catalogs. See the declared_errors exception in
 # tests/conventions_manifest.json.
-@router.get("/templates/variables", response_model=TemplateVariablesResponse)
+@router.get(
+    "/templates/variables",
+    response_model=TemplateVariablesResponse,
+    dependencies=[superseded_by_v1("GET /templates/variables")],
+)
 async def get_template_variables():
     """
     Get available template variables by source.
@@ -145,7 +150,11 @@ async def validate_template(request: TemplateValidateRequest):
 # No 4xx of its own: the function table is a module-level constant, so this
 # route cannot fail on anything the caller controls. See the declared_errors
 # exception in tests/conventions_manifest.json.
-@router.get("/templates/formula-functions", response_model=FormulaFunctionsResponse)
+@router.get(
+    "/templates/formula-functions",
+    response_model=FormulaFunctionsResponse,
+    dependencies=[superseded_by_v1("GET /templates/formula-functions")],
+)
 async def get_formula_functions():
     """
     Return metadata for every built-in formula function.
