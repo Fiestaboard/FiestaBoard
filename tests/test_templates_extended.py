@@ -1152,7 +1152,7 @@ class TestNoRegistryPaths:
 
     def test_get_all_known_sources_empty(self, engine):
         engine._plugin_registry = None
-        assert engine._get_all_known_sources() == set()
+        assert engine.get_all_known_sources() == set()
 
     def test_get_max_lengths_for_validation_empty(self, engine):
         engine._plugin_registry = None

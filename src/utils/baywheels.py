@@ -150,7 +150,6 @@ class BayWheelsSource:
             # NEW FORMAT (as of late 2024): API provides num_ebikes_available directly
             if "num_ebikes_available" in station_data:
                 electric_bikes = station_data.get("num_ebikes_available", 0)
-                # Classic bikes = total - electric
                 classic_bikes = num_bikes_available - electric_bikes
             else:
                 # OLD FORMAT (fallback): Use vehicle_types_available array
@@ -168,7 +167,6 @@ class BayWheelsSource:
                         # If we can't determine type, count as classic
                         classic_bikes += count
 
-            # Get station name from station information if available
             station_info = self._get_station_information()
             station_name = station_id
             if station_info and station_id in station_info:

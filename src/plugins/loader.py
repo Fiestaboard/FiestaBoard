@@ -98,6 +98,36 @@ class PluginLoadError(Exception):
     """Raised when a plugin fails to load."""
 
 
+def retire_plugin_object(plugin_id: str, plugin: Any, *, what: str) -> None:
+    """Run a discarded plugin object's ``cleanup()`` on a short-lived daemon thread.
+
+    Used both when the loader replaces an instance and when the registry
+    removes one (#1854); *what* only names the case in the failure log.
+
+    ``cleanup()`` is plugin-authored code: it may close a socket, stop an MQTT
+    listener, or join a thread of its own, and nothing bounds how long that
+    takes. A replacement can happen behind a board render (the render path
+    builds the display service, which touches the registry), and a removal runs
+    with callers waiting on the registry lock — so the call is handed to a
+    daemon thread and never joined. A plugin wedged in teardown must not stall a
+    render, an API request, or every registry reader.
+
+    The old object is left to finish whatever it is still doing: the registry
+    deliberately lets an abandoned fetch complete on its own thread (see
+    ``PluginRegistry.build_template_context``), and that thread holds the only
+    other reference to this instance. Nothing here cancels or interrupts it;
+    cleanup simply releases the resources the instance owns.
+    """
+
+    def _run() -> None:
+        try:
+            plugin.cleanup()
+        except Exception:
+            logger.exception("Error cleaning up %s '%s'", what, plugin_id)
+
+    threading.Thread(target=_run, name=f"plugin-cleanup-{plugin_id}", daemon=True).start()
+
+
 class PluginLoader:
     """Discovers and loads plugins from multiple directories.
 
@@ -487,7 +517,7 @@ class PluginLoader:
             # background thread or an open connection, so retire it first.
             previous = self._loaded_plugins.get(manifest.id)
             if previous is not None and previous[0] is not plugin_instance:
-                self._retire_instance(manifest.id, previous[0])
+                retire_plugin_object(manifest.id, previous[0], what="replaced instance of plugin")
 
             self._loaded_plugins[manifest.id] = (plugin_instance, manifest)
             self._plugin_classes[manifest.id] = plugin_class
@@ -501,31 +531,6 @@ class PluginLoader:
             self._load_errors[plugin_name] = errors
             logger.exception(f"Error instantiating plugin {plugin_name}")
             return None
-
-    def _retire_instance(self, plugin_id: str, plugin: AnyPlugin) -> None:
-        """Run a replaced plugin instance's ``cleanup()`` off the caller's thread.
-
-        ``cleanup()`` is plugin code: it may close a socket, stop an MQTT
-        listener, or join a thread of its own, and nothing bounds how long that
-        takes. A replacement can happen behind a board render (the render path
-        builds the display service, which touches the registry), so the call is
-        handed to a short-lived daemon thread and never joined — a plugin wedged
-        in teardown must not stall a render or an API request.
-
-        The old object is left to finish whatever it is still doing: the
-        registry deliberately lets an abandoned fetch complete on its own thread
-        (see ``PluginRegistry.build_template_context``), and that thread holds
-        the only other reference to this instance. Nothing here cancels or
-        interrupts it; cleanup simply releases the resources the instance owns.
-        """
-
-        def _run() -> None:
-            try:
-                plugin.cleanup()
-            except Exception:
-                logger.exception("Error cleaning up replaced instance of plugin '%s'", plugin_id)
-
-        threading.Thread(target=_run, name=f"plugin-cleanup-{plugin_id}", daemon=True).start()
 
     def _find_plugin_class(self, module: Any, expected_type: str = "data") -> type[AnyPlugin] | None:
         """Find a plugin class in *module* matching *expected_type*.
@@ -654,7 +659,7 @@ class PluginLoader:
             # the shared registry/loader lock (#1854).
             if plugin_id in self._loaded_plugins:
                 old_plugin, _ = self._loaded_plugins.pop(plugin_id)
-                self._retire_instance(plugin_id, old_plugin)
+                retire_plugin_object(plugin_id, old_plugin, what="replaced instance of plugin")
 
                 # Remove from sys.modules to force reimport
                 module_name = f"plugins.{plugin_id}"
@@ -679,7 +684,7 @@ class PluginLoader:
 
             # Plugin-authored cleanup() off the shared lock (#1854).
             plugin, _ = self._loaded_plugins.pop(plugin_id)
-            self._retire_instance(plugin_id, plugin)
+            retire_plugin_object(plugin_id, plugin, what="replaced instance of plugin")
 
             # Remove from sys.modules
             module_name = f"plugins.{plugin_id}"
@@ -715,20 +720,6 @@ class PluginLoader:
             :class:`PluginSource` or *None* if not loaded.
         """
         return self._plugin_sources.get(plugin_id)
-
-    def get_plugin_class(self, plugin_id: str) -> type[AnyPlugin] | None:
-        """Get the plugin class for a loaded plugin.
-
-        This is used to create additional instances of the same plugin type.
-
-        Args:
-            plugin_id: Plugin ID
-
-        Returns:
-            The plugin class (PluginBase or TransitionPluginBase subclass)
-            or None if not loaded.
-        """
-        return self._plugin_classes.get(plugin_id)
 
     def create_instance(self, plugin_id: str) -> AnyPlugin | None:
         """Create a new instance of a loaded plugin.

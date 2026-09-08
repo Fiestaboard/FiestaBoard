@@ -487,3 +487,72 @@ class TestConcurrentWriters:
         on_disk = json.loads(path.read_text())
         assert on_disk["display"]["reduce_motion"] is True, "display PUT lost"
         assert on_disk["location"]["latitude"] == 40.7128, "location PUT lost"
+
+    @pytest.mark.parametrize(
+        "mutate",
+        [
+            pytest.param(lambda svc: svc.set_active_page_id("page-1"), id="set_active_page_id"),
+            pytest.param(lambda svc: svc.set_schedule_enabled(True), id="set_schedule_enabled"),
+        ],
+    )
+    def test_per_board_setters_hold_the_store_lock_for_the_whole_body(self, tmp_path, monkeypatch, mutate):
+        """The two per-board setters mutate+save under the JsonStore RLock.
+
+        Both carried a second, private ``_per_board_write_lock`` described in
+        the source as a "stopgap until #1848 gives SettingsService real
+        thread-safety across every mutator". #1848 landed and put ``@_locked``
+        on both, so the store RLock is held from the first line of the body
+        through ``_save_to_file`` — which is what the private lock was for.
+
+        This pins that claim rather than arguing it: with the body paused on
+        its way into ``_save_to_file``, no other thread can take the store
+        lock. It passes with the private lock present and must keep passing
+        with it gone; it fails if ``@_locked`` is ever dropped from either
+        setter.
+
+        (The obvious alternative — parameterising the timing race in
+        ``test_settings_two_concurrent_puts_to_different_sections_both_survive``
+        onto this pair — cannot discriminate: ``_save_to_file`` is itself
+        ``@_locked``, so that interleaving is already impossible with or
+        without the setter locks.)
+        """
+        from src.settings.service import SettingsService
+
+        svc = SettingsService(settings_file=str(tmp_path / "settings.json"))
+
+        inside_body = threading.Event()
+        may_finish = threading.Event()
+        # Bound to the class *after* @_locked, so this hook runs before
+        # _save_to_file's own lock acquisition: whatever holds the store lock
+        # at this point was taken by the setter, not by the save.
+        decorated_save = SettingsService._save_to_file
+
+        def paused_save(self):
+            inside_body.set()
+            may_finish.wait(timeout=2.0)
+            return decorated_save(self)
+
+        monkeypatch.setattr(SettingsService, "_save_to_file", paused_save)
+
+        errors: list[Exception] = []
+
+        def writer():
+            try:
+                mutate(svc)
+            except Exception as exc:  # pragma: no cover - surfaced by the assert
+                errors.append(exc)
+
+        thread = threading.Thread(target=writer)
+        thread.start()
+        try:
+            assert inside_body.wait(timeout=2.0), "setter never reached _save_to_file"
+            acquired = svc._store.lock.acquire(blocking=False)
+            if acquired:
+                svc._store.lock.release()
+        finally:
+            may_finish.set()
+            thread.join(timeout=5.0)
+
+        assert not thread.is_alive()
+        assert errors == []
+        assert not acquired, "another thread took the store lock mid-mutation: the setter body is not serialised"

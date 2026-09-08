@@ -69,7 +69,6 @@ class StatePublisher:
             settings = get_settings_service()
             page_service = get_page_service()
 
-            # schedule_enabled
             schedule_enabled = settings.is_schedule_enabled()
             out["schedule_enabled"] = "ON" if schedule_enabled else "OFF"
 
@@ -103,10 +102,8 @@ class StatePublisher:
             trans = settings.get_transition_settings()
             out["transition_style"] = trans.strategy or ""
 
-            # service_status
             out["service_status"] = "ON" if display_running else "OFF"
 
-            # current_message
             out["current_message"] = self._get_current_message()
 
             # silence_mode — scoped to the primary board (issue #1788).
@@ -119,29 +116,23 @@ class StatePublisher:
             silence_active = Config.is_silence_mode_active(settings.get_primary_board_id())
             out["silence_mode"] = "ON" if silence_active else "OFF"
 
-            # version
             out["version"] = getattr(src_pkg, "__version__", "1.0.0")
 
             # page_count
             pages = page_service.list_pages()
             out["page_count"] = str(len(pages))
 
-            # refresh_interval
             out["refresh_interval"] = str(settings.get_polling_interval())
 
             # uptime (diagnostic)
             out["uptime"] = self._get_uptime()
 
-            # board_api_mode (diagnostic)
             out["board_api_mode"] = self._get_board_api_mode()
 
-            # active_plugins (diagnostic)
             out["active_plugins"] = self._get_active_plugin_count()
 
-            # last_display_update (diagnostic)
             out["last_display_update"] = self._last_display_update or ""
 
-            # output_target (diagnostic)
             out["output_target"] = self._get_output_target()
 
             # Detect and fire events for state transitions
@@ -249,7 +240,7 @@ class StatePublisher:
             from src.api_server import peek_service
 
             service = peek_service()
-            if service is not None and hasattr(service, "is_showing_out_of_band"):
+            if service is not None:
                 return service.is_showing_out_of_band() is True
         except Exception:
             logger.debug("Could not read out-of-band display state")
@@ -276,7 +267,7 @@ class StatePublisher:
             from src.api_server import _get_board_client
 
             client = _get_board_client()
-            if client and hasattr(client, "use_cloud"):
+            if client:
                 return "Cloud API" if client.use_cloud else "Local API"
         except Exception:
             logger.debug("Could not get board API mode")

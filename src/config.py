@@ -97,7 +97,6 @@ class Config:
     Values are read from the ConfigManager which persists to config.json.
     """
 
-    # Valid transition strategies
     VALID_TRANSITION_STRATEGIES = ["column", "reverse-column", "edges-to-center", "row", "diagonal", "random"]
 
     # Parsed silence-window cache (issue #1752). The 1 Hz silence boundary

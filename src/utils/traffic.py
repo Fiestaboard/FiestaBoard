@@ -256,11 +256,9 @@ class TrafficSource:
             static_duration = self._parse_duration(route.get("staticDuration", "0s"))
             route_token = route.get("routeToken", "")
 
-            # If static duration is 0, use duration as fallback
             if static_duration == 0:
                 static_duration = duration_in_traffic
 
-            # Calculate traffic index
             traffic_index = self.calculate_traffic_index(duration_in_traffic, static_duration)
             traffic_status, traffic_color = self.get_traffic_status(traffic_index)
 
@@ -272,7 +270,6 @@ class TrafficSource:
             duration_minutes = round(duration_in_traffic / 60)
             static_duration_minutes = round(static_duration / 60)
 
-            # Format message
             formatted_message = self.format_message(destination_name, duration_minutes, delay_minutes)
 
             return {

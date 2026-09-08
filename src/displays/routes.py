@@ -179,7 +179,6 @@ async def get_displays_raw_batch(request: DisplayRawBatchRequest):
         try:
             result = display_service.get_display(display_type)
 
-            # Skip if enabled_only is true and plugin is not available
             if enabled_only and not result.available:
                 continue
 

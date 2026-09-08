@@ -28,7 +28,6 @@ class DateTimeSource:
         Returns:
             Dictionary with formatted date and time strings
         """
-        # Use TimeService to get current time in configured timezone
         now = self.time_service.get_current_time(self.timezone)
 
         return {
@@ -44,19 +43,6 @@ class DateTimeSource:
             "hour": str(now.hour),  # Hour (0-23)
             "minute": str(now.minute),  # Minute (0-59)
         }
-
-    def format_for_display(self, format_string: str = "%Y-%m-%d %H:%M %Z") -> str:
-        """
-        Format current datetime for display.
-
-        Args:
-            format_string: strftime format string
-
-        Returns:
-            Formatted datetime string
-        """
-        now = self.time_service.get_current_time(self.timezone)
-        return now.strftime(format_string)
 
 
 def get_datetime_source() -> DateTimeSource:

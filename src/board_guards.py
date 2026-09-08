@@ -242,3 +242,62 @@ def validate_board_host_is_local_network(host: str) -> None:
             status_code=400,
             detail="host must resolve only to local/private IPv4 addresses",
         )
+
+
+# ---------------------------------------------------------------------------
+# Send guards — the refusals a manual-send endpoint owes its caller
+#
+# ``src/board_api/routes.py`` and ``src/debug/routes.py`` each grew their own
+# byte-identical copy of these two, plus a second definition of PAUSED_DETAIL.
+# They answer the same question about the same board, so they live here once.
+# ---------------------------------------------------------------------------
+
+PAUSED_DETAIL = "Board is paused — sends are blocked until it is resumed."
+
+
+def raise_if_paused(what: str = "manual send") -> None:
+    """A paused board refuses writes: 409 (issue #970).
+
+    Both senders answered 200 with ``{"status": "blocked"}`` before the
+    conventions pass — a refusal dressed as a success, which any client
+    checking only the status code read as "sent".
+
+    ``_board_is_paused`` is deliberately resolved through
+    ``src.display_runtime`` at call time rather than from this module's own
+    binding: that attribute is the patch seam the endpoint tests use
+    (``tests/test_platform_contract.py::PAUSED``,
+    ``tests/test_debug_decoupled.py``), and reading the local name would
+    silently ignore it. The import is function-local because
+    ``display_runtime`` imports this module.
+    """
+    from . import display_runtime as runtime
+
+    if runtime._board_is_paused():
+        logger.info("Board is paused - blocking %s", what)
+        raise HTTPException(status_code=409, detail=PAUSED_DETAIL)
+
+
+def raise_if_throttled(board_client) -> None:
+    """A write dropped by the client-side send floor is a 429 (#1868, #1754).
+
+    Cloud boards and note arrays enforce a minimum interval between sends; a
+    send inside that window returns ``(True, False)`` with
+    ``last_send_throttled`` set — the content was DROPPED, not delivered, and
+    unlike the engine tick (which retries next pass) these manual endpoints
+    never retry.
+
+    The ``is True`` guard keeps Mock clients, whose attributes are all truthy,
+    on the delivered path unless a test opts in.
+    """
+    if getattr(board_client, "last_send_throttled", False) is not True:
+        return
+    try:
+        floor_ms = int(getattr(board_client, "min_send_interval_ms", 0))
+    except (TypeError, ValueError):
+        floor_ms = 0
+    retry_after = max(1, -(-floor_ms // 1000)) if floor_ms else 15
+    raise HTTPException(
+        status_code=429,
+        detail=f"Send skipped: the board accepts at most one message every {retry_after}s. Retry shortly.",
+        headers={"Retry-After": str(retry_after)},
+    )

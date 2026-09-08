@@ -173,7 +173,6 @@ def stop_mdns() -> None:
 
 # -- Board scanning / discovery -------------------------------------------
 
-# Vestaboard Local API port
 _VESTABOARD_LOCAL_API_PORT = 7000
 
 # mDNS service types to browse when looking for Vestaboards

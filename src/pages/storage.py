@@ -141,7 +141,6 @@ def _migrate_v2_to_v3(pages_data: list[dict]) -> int:
             if page_changed:
                 page_data["template"] = new_template
 
-        # Single-page display_type
         display_type = page_data.get("display_type")
         if isinstance(display_type, str) and display_type in _PLUGIN_ID_RENAMES:
             page_data["display_type"] = _PLUGIN_ID_RENAMES[display_type]
@@ -376,7 +375,6 @@ class PageStorage:
             if page.id in self._pages:
                 raise ValueError(f"Page with ID {page.id} already exists")
 
-            # Validate
             errors = page.validate_config()
             if errors:
                 raise ValueError(f"Invalid page configuration: {errors}")
@@ -433,7 +431,6 @@ class PageStorage:
         # Recreate page with updates
         updated_page = Page(**page_dict)
 
-        # Validate
         errors = updated_page.validate_config()
         if errors:
             raise ValueError(f"Invalid page configuration: {errors}")

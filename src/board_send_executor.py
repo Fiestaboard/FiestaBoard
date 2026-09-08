@@ -39,6 +39,56 @@ from collections.abc import Callable
 from concurrent.futures import ThreadPoolExecutor
 from typing import Any, TypeVar
 
+T = TypeVar("T")
+
+
+class _BoundedPool:
+    """One lazily-created, bounded thread pool plus its ``to_thread`` helper.
+
+    The two board pools are the same machinery with different bounds and
+    thread names. The bounds and the separation are the whole point (see the
+    module docstring); the lazy-init / lock / shutdown plumbing is not, so it
+    lives here once.
+    """
+
+    def __init__(self, max_workers: int, thread_name_prefix: str) -> None:
+        self._max_workers = max_workers
+        self._thread_name_prefix = thread_name_prefix
+        self._lock = threading.Lock()
+        self._executor: ThreadPoolExecutor | None = None
+
+    def _get(self) -> ThreadPoolExecutor:
+        with self._lock:
+            if self._executor is None:
+                self._executor = ThreadPoolExecutor(
+                    max_workers=self._max_workers, thread_name_prefix=self._thread_name_prefix
+                )
+            return self._executor
+
+    def shutdown(self) -> None:
+        """Shut the pool down (process teardown and tests only).
+
+        Safe to call repeatedly; a later submission lazily creates a fresh
+        pool. ``wait=False`` so a wedged board cannot stall shutdown.
+        """
+        with self._lock:
+            if self._executor is not None:
+                self._executor.shutdown(wait=False, cancel_futures=True)
+                self._executor = None
+
+    async def run(self, func: Callable[..., T], /, *args: Any, **kwargs: Any) -> T:
+        """``asyncio.to_thread`` for this pool, context propagation included.
+
+        Same contract as ``asyncio.to_thread``: runs *func* on a worker thread
+        and awaits its result. Only the pool differs, which is the entire
+        point — saturating one pool cannot starve the other, nor the default
+        executor every other blocking handler in the process depends on.
+        """
+        loop = asyncio.get_running_loop()
+        ctx = contextvars.copy_context()
+        return await loop.run_in_executor(self._get(), functools.partial(ctx.run, func, *args, **kwargs))
+
+
 # Concurrency ceiling for board sends. Sends are already serialized per board
 # by that board's send worker, so this only needs to cover a handful of boards
 # being driven at once plus the occasional out-of-band send.
@@ -50,77 +100,13 @@ BOARD_SEND_MAX_WORKERS = 4
 # that even a preview flood cannot consume send capacity indirectly.
 BOARD_PREVIEW_MAX_WORKERS = 2
 
-_executor: ThreadPoolExecutor | None = None
-_executor_lock = threading.Lock()
+_send_pool = _BoundedPool(BOARD_SEND_MAX_WORKERS, "board-send")
+_preview_pool = _BoundedPool(BOARD_PREVIEW_MAX_WORKERS, "board-preview")
 
-_preview_executor: ThreadPoolExecutor | None = None
-_preview_executor_lock = threading.Lock()
+# Public API. Two pools, four entry points; the docstrings live on
+# :class:`_BoundedPool` because both pools honour exactly the same contract.
+run_board_send = _send_pool.run
+shutdown_board_send_executor = _send_pool.shutdown
 
-T = TypeVar("T")
-
-
-def get_board_send_executor() -> ThreadPoolExecutor:
-    """Lazily create (once) the shared board-send pool."""
-    global _executor
-    with _executor_lock:
-        if _executor is None:
-            _executor = ThreadPoolExecutor(max_workers=BOARD_SEND_MAX_WORKERS, thread_name_prefix="board-send")
-        return _executor
-
-
-def shutdown_board_send_executor() -> None:
-    """Shut down the board-send pool (process teardown and tests only).
-
-    Safe to call repeatedly; a later send lazily creates a fresh pool.
-    ``wait=False`` so a wedged board cannot stall shutdown.
-    """
-    global _executor
-    with _executor_lock:
-        if _executor is not None:
-            _executor.shutdown(wait=False, cancel_futures=True)
-            _executor = None
-
-
-async def run_board_send(func: Callable[..., T], /, *args: Any, **kwargs: Any) -> T:
-    """``asyncio.to_thread`` for board sends, on the dedicated bounded pool.
-
-    Same contract as ``asyncio.to_thread``, context propagation included: runs
-    *func* on a worker thread and awaits its result. Only the pool differs,
-    which is the entire point — saturating it cannot starve the default
-    executor every other blocking handler in the process depends on.
-    """
-    loop = asyncio.get_running_loop()
-    ctx = contextvars.copy_context()
-    return await loop.run_in_executor(get_board_send_executor(), functools.partial(ctx.run, func, *args, **kwargs))
-
-
-def get_board_preview_executor() -> ThreadPoolExecutor:
-    """Lazily create (once) the shared live-preview pool."""
-    global _preview_executor
-    with _preview_executor_lock:
-        if _preview_executor is None:
-            _preview_executor = ThreadPoolExecutor(
-                max_workers=BOARD_PREVIEW_MAX_WORKERS, thread_name_prefix="board-preview"
-            )
-        return _preview_executor
-
-
-def shutdown_board_preview_executor() -> None:
-    """Shut down the live-preview pool (process teardown and tests only)."""
-    global _preview_executor
-    with _preview_executor_lock:
-        if _preview_executor is not None:
-            _preview_executor.shutdown(wait=False, cancel_futures=True)
-            _preview_executor = None
-
-
-async def run_board_preview(func: Callable[..., T], /, *args: Any, **kwargs: Any) -> T:
-    """``asyncio.to_thread`` for live-editor previews, on their own pool.
-
-    Identical contract to :func:`run_board_send`; only the pool differs, which
-    is the entire point — a rapid-fire burst of previews cannot occupy the
-    workers a real send needs.
-    """
-    loop = asyncio.get_running_loop()
-    ctx = contextvars.copy_context()
-    return await loop.run_in_executor(get_board_preview_executor(), functools.partial(ctx.run, func, *args, **kwargs))
+run_board_preview = _preview_pool.run
+shutdown_board_preview_executor = _preview_pool.shutdown

@@ -624,10 +624,8 @@ class ConfigManager:
 
         Caller is responsible for persisting via ``_save_internal``.
         """
-        try:
-            from src import __version__ as current_version
-        except Exception:  # pragma: no cover - defensive
-            return
+        from src import __version__ as current_version
+
         self._config[APP_VERSION_SEEN_KEY] = current_version
 
     # Files captured in the pre-init snapshot. Mirrors backup/service.py's
@@ -664,10 +662,7 @@ class ConfigManager:
         clobbers the one the caller passed in. We hand-roll a minimal
         snapshot to keep the safety net free of that init-time recursion.
         """
-        try:
-            from src import __version__ as current_version
-        except Exception:  # pragma: no cover
-            return
+        from src import __version__ as current_version
 
         seen = self._config.get(APP_VERSION_SEEN_KEY)
         # Latch: once True for this process it stays True. A second load (e.g. a
@@ -938,7 +933,6 @@ class ConfigManager:
         if "general" not in self._config:
             self._config["general"] = {}
 
-        # Helper to apply string env var
         def apply_str(config: dict, key: str, env_var: str, alt_env_var: str | None = None) -> bool:
             value = os.getenv(env_var, "").strip()
             if not value and alt_env_var:
@@ -952,7 +946,6 @@ class ConfigManager:
                 return True
             return False
 
-        # Helper to apply int env var
         def apply_int(config: dict, key: str, env_var: str, alt_env_var: str | None = None) -> bool:
             value = os.getenv(env_var, "").strip()
             if not value and alt_env_var:
@@ -1075,15 +1068,6 @@ class ConfigManager:
 
             self._save_internal()
         logger.info("Board settings updated")
-
-    # Backward compatibility aliases
-    def get_board_legacy(self) -> dict[str, Any]:
-        """Backward compatibility alias for get_board()."""
-        return self.get_board()
-
-    def set_board_legacy(self, settings: dict[str, Any]) -> None:
-        """Backward compatibility alias for set_board()."""
-        self.set_board(settings)
 
     def reset_board_config(self) -> None:
         """Reset board configuration to defaults, bypassing env-var re-application.

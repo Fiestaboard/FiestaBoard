@@ -76,7 +76,7 @@ def _drop_all_singletons() -> None:
     * ``src.display_runtime._running_probe`` / ``_loop_spawn`` / ``_loop_halt``
       / ``_service_start_time`` — installed once by ``src.api_server`` at
       import; not per-test state.
-    * ``src.board_send_executor._executor`` / ``_preview_executor`` and
+    * ``src.board_send_executor._send_pool`` / ``_preview_pool`` and
       ``src.plugins.registry._fetch_executor`` / ``_fetch_workers_lost`` —
       idle thread pools that are already self-healing (shut down to ``None``,
       rebuilt lazily). Their threads hold no config or data-dir state.

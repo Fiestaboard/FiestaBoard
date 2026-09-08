@@ -13,11 +13,13 @@ import threading
 from collections.abc import Callable
 from dataclasses import asdict, dataclass, field
 from datetime import UTC, datetime
-from typing import Literal, Optional
+from typing import Literal, Optional, TypeVar
 
 from pydantic import BaseModel
 
 from src.storage.json_store import JsonStore
+
+_Section = TypeVar("_Section")
 
 logger = logging.getLogger(__name__)
 
@@ -949,33 +951,31 @@ class SettingsService:
         )
         self.settings_file = self._store.path
 
-        # Serializes the mutate+save pair in the per-board setters
-        # (set_active_page_id / set_schedule_enabled). Since #1826 those run
-        # on worker threads, so two concurrent PUTs can race _save_to_file's
-        # asdict() walk against a by_board mutation (RuntimeError + lost
-        # write). Stopgap until #1848 gives SettingsService real
-        # thread-safety across every mutator.
-        self._per_board_write_lock = threading.Lock()
-
         # Run ordered schema migrations on the raw settings file BEFORE any
         # subsystem reads, so every _load_* sees fully migrated values. This
         # includes the legacy carousel:->collection: rewrite (folded into the
         # v0->v1 migration) plus per-board active-page / schedule_enabled moves.
         self._run_migrations()
 
-        # Load initial settings from env/file
-        self._transition = self._load_transition_settings()
-        self._output = self._load_output_settings()
-        self._active_page = self._load_active_page_settings()
-        self._polling = self._load_polling_settings()
-        self._board = self._load_board_settings()
-        self._schedule = self._load_schedule_settings()
-        self._mqtt = self._load_mqtt_settings()
-        self._display = self._load_display_settings()
-        self._location = self._load_location_settings()
-        self._beta = self._load_beta_settings()
-        self._plugins = self._load_plugin_settings()
-        self._temporary_override: TemporaryOverride | None = self._load_temporary_override()
+        # Load initial settings from env/file. settings.json is read and
+        # parsed ONCE here and handed to every section loader. Each loader
+        # used to call _load_from_file() itself, so constructing the service
+        # opened and fully parsed the same file 12 times (13 with the
+        # migration pass above) — on a 15 KB file that is ~200 KB read and
+        # ~185 KB parsed per construction, on the Pi boot path.
+        file_data = self._load_from_file()
+        self._transition = self._load_transition_settings(file_data)
+        self._output = self._load_output_settings(file_data)
+        self._active_page = self._load_section(file_data, "active_page", ActivePageSettings)
+        self._polling = self._load_section(file_data, "polling", PollingSettings)
+        self._board = self._load_board_settings(file_data)
+        self._schedule = self._load_section(file_data, "schedule", ScheduleSettings)
+        self._mqtt = self._load_mqtt_settings(file_data)
+        self._display = self._load_section(file_data, "display", DisplaySettings)
+        self._location = self._load_section(file_data, "location", LocationSettings)
+        self._beta = self._load_section(file_data, "beta", BetaSettings)
+        self._plugins = self._load_section(file_data, "plugins", PluginSettings)
+        self._temporary_override: TemporaryOverride | None = self._load_temporary_override(file_data)
 
         if getattr(self, "_needs_seed_save", False):
             try:
@@ -1123,10 +1123,22 @@ class SettingsService:
             logger.error(f"Failed to save settings file: {e}")
             raise
 
-    def _load_transition_settings(self) -> TransitionSettings:
-        """Load transition settings from file or env."""
-        # Try file first
-        file_data = self._load_from_file()
+    def _load_section(self, file_data: dict, key: str, cls: type[_Section]) -> _Section:
+        """Read one settings section, or fall back to the dataclass default.
+
+        Seven sections (active_page, polling, schedule, display, location,
+        beta, plugins) are exactly this and nothing else — they had seven
+        six-line methods, one caller each. The two sections with an env-var
+        fallback (transitions, output), the one that seeds from legacy
+        config.json (board), the one with env fallbacks (mqtt) and the one
+        with expiry (temporary_override) keep their own loaders below.
+        """
+        if key in file_data:
+            return cls.from_dict(file_data[key])
+        return cls()
+
+    def _load_transition_settings(self, file_data: dict) -> TransitionSettings:
+        """Load transition settings from the parsed file, or env."""
         if "transitions" in file_data:
             return TransitionSettings.from_dict(file_data["transitions"])
 
@@ -1139,10 +1151,8 @@ class SettingsService:
             step_size=Config.FB_TRANSITION_STEP_SIZE,
         )
 
-    def _load_output_settings(self) -> OutputSettings:
-        """Load output settings from file or env."""
-        # Try file first
-        file_data = self._load_from_file()
+    def _load_output_settings(self, file_data: dict) -> OutputSettings:
+        """Load output settings from the parsed file, or env."""
         if "output" in file_data:
             return OutputSettings.from_dict(file_data["output"])
 
@@ -1151,22 +1161,8 @@ class SettingsService:
 
         return OutputSettings(target=Config.OUTPUT_TARGET)
 
-    def _load_active_page_settings(self) -> ActivePageSettings:
-        """Load active page settings from file."""
-        file_data = self._load_from_file()
-        if "active_page" in file_data:
-            return ActivePageSettings.from_dict(file_data["active_page"])
-        return ActivePageSettings()
-
-    def _load_polling_settings(self) -> PollingSettings:
-        """Load polling settings from file."""
-        file_data = self._load_from_file()
-        if "polling" in file_data:
-            return PollingSettings.from_dict(file_data["polling"])
-        return PollingSettings()  # Default to 60 seconds
-
-    def _load_board_settings(self) -> BoardSettings:
-        """Load board settings from file.
+    def _load_board_settings(self, file_data: dict) -> BoardSettings:
+        """Load board settings from the parsed file.
 
         Existing files: the schema migrations (run before any ``_load_*``)
         already imported the legacy config.json connection where appropriate,
@@ -1179,7 +1175,6 @@ class SettingsService:
         seed credentials. The seed is persisted after init via
         ``_needs_seed_save``.
         """
-        file_data = self._load_from_file()
         if "board" in file_data:
             return BoardSettings.from_dict(file_data["board"])
 
@@ -1215,16 +1210,8 @@ class SettingsService:
         logger.info("Seeded first-boot board connection from legacy config.json")
         return True
 
-    def _load_schedule_settings(self) -> ScheduleSettings:
-        """Load schedule settings from file."""
-        file_data = self._load_from_file()
-        if "schedule" in file_data:
-            return ScheduleSettings.from_dict(file_data["schedule"])
-        return ScheduleSettings()
-
-    def _load_mqtt_settings(self) -> "MQTTSettings":
-        """Load MQTT settings from file, falling back to env vars."""
-        file_data = self._load_from_file()
+    def _load_mqtt_settings(self, file_data: dict) -> "MQTTSettings":
+        """Load MQTT settings from the parsed file, falling back to env vars."""
         if "mqtt" in file_data:
             return MQTTSettings.from_dict(file_data["mqtt"])
         # Fall back to env vars so existing env-based setups continue to work
@@ -1238,37 +1225,8 @@ class SettingsService:
             external_url=os.environ.get("FIESTABOARD_EXTERNAL_URL", "") or "",
         )
 
-    def _load_display_settings(self) -> "DisplaySettings":
-        """Load display settings from file."""
-        file_data = self._load_from_file()
-        if "display" in file_data:
-            return DisplaySettings.from_dict(file_data["display"])
-        return DisplaySettings()
-
-    def _load_location_settings(self) -> "LocationSettings":
-        """Load location settings from file."""
-        file_data = self._load_from_file()
-        if "location" in file_data:
-            return LocationSettings.from_dict(file_data["location"])
-        return LocationSettings()
-
-    def _load_beta_settings(self) -> "BetaSettings":
-        """Load beta-feature settings from file."""
-        file_data = self._load_from_file()
-        if "beta" in file_data:
-            return BetaSettings.from_dict(file_data["beta"])
-        return BetaSettings()
-
-    def _load_plugin_settings(self) -> "PluginSettings":
-        """Load plugin system settings from file."""
-        file_data = self._load_from_file()
-        if "plugins" in file_data:
-            return PluginSettings.from_dict(file_data["plugins"])
-        return PluginSettings()
-
-    def _load_temporary_override(self) -> Optional["TemporaryOverride"]:
-        """Load temporary override from file, returning None if absent or expired."""
-        file_data = self._load_from_file()
+    def _load_temporary_override(self, file_data: dict) -> Optional["TemporaryOverride"]:
+        """Load temporary override from the parsed file; None if absent or expired."""
         raw = file_data.get("temporary_override")
         if not raw:
             return None
@@ -1353,10 +1311,6 @@ class SettingsService:
         """Determine if message should be sent to board based on output target."""
         return self._output.target in ["board", "both"]
 
-    def should_send_to_ui(self) -> bool:
-        """Determine if message should be sent to UI."""
-        return True
-
     # Active page settings (per-board)
     def get_active_page_id(self, board_id: str | None = None) -> str | None:
         """Get the currently active (manual) page ID for a board.
@@ -1402,28 +1356,24 @@ class SettingsService:
                 to add a phantom ``by_board`` entry that nothing ever reads
                 and nothing reports.
         """
-        # Mutate+save under the stopgap lock (#1848 is the real fix): two
-        # worker-thread PUTs would otherwise race the asdict() walk in
-        # _save_to_file against the by_board mutation below.
-        with self._per_board_write_lock:
-            primary_id = self.get_primary_board_id()
-            bid = board_id if board_id is not None else primary_id
+        primary_id = self.get_primary_board_id()
+        bid = board_id if board_id is not None else primary_id
 
-            if board_id and not any(b.get("id") == board_id for b in self._board.boards):
-                raise ValueError(f"Board not found: {board_id}")
+        if board_id and not any(b.get("id") == board_id for b in self._board.boards):
+            raise ValueError(f"Board not found: {board_id}")
 
-            if bid is not None:
-                if page_id:
-                    self._active_page.by_board[bid] = page_id
-                else:
-                    self._active_page.by_board.pop(bid, None)
+        if bid is not None:
+            if page_id:
+                self._active_page.by_board[bid] = page_id
+            else:
+                self._active_page.by_board.pop(bid, None)
 
-            # Keep the legacy primary mirror in sync (also covers the no-boards
-            # case where bid is None and we only have the mirror to write to).
-            if board_id is None or bid is None or bid == primary_id:
-                self._active_page.page_id = page_id
+        # Keep the legacy primary mirror in sync (also covers the no-boards
+        # case where bid is None and we only have the mirror to write to).
+        if board_id is None or bid is None or bid == primary_id:
+            self._active_page.page_id = page_id
 
-            self._save_to_file()
+        self._save_to_file()
         logger.info(f"Active page for board {bid!r} set to: {page_id}")
         return self._active_page
 
@@ -1797,29 +1747,26 @@ class SettingsService:
         board also updates the deprecated ``schedule.enabled`` mirror for one
         release.
         """
-        # Same stopgap lock as set_active_page_id (#1848 is the real fix):
-        # the boards-list mutation must not race _save_to_file's asdict walk.
-        with self._per_board_write_lock:
-            primary_id = self.get_primary_board_id()
-            bid = board_id if board_id is not None else primary_id
+        primary_id = self.get_primary_board_id()
+        bid = board_id if board_id is not None else primary_id
 
-            if bid is not None:
-                for b in self._board.boards:
-                    if b.get("id") == bid:
-                        b["schedule_enabled"] = enabled
-                        if bid == primary_id:
-                            self._schedule.enabled = enabled
-                        self._save_to_file()
-                        logger.info(f"Schedule mode for board {bid}: {'enabled' if enabled else 'disabled'}")
-                        return self._schedule
-                logger.warning(f"Board {bid} not found for set_schedule_enabled")
-                return self._schedule
-
-            # No boards configured: write the deprecated global mirror only.
-            self._schedule.enabled = enabled
-            self._save_to_file()
-            logger.info(f"Schedule mode (global, no boards): {'enabled' if enabled else 'disabled'}")
+        if bid is not None:
+            for b in self._board.boards:
+                if b.get("id") == bid:
+                    b["schedule_enabled"] = enabled
+                    if bid == primary_id:
+                        self._schedule.enabled = enabled
+                    self._save_to_file()
+                    logger.info(f"Schedule mode for board {bid}: {'enabled' if enabled else 'disabled'}")
+                    return self._schedule
+            logger.warning(f"Board {bid} not found for set_schedule_enabled")
             return self._schedule
+
+        # No boards configured: write the deprecated global mirror only.
+        self._schedule.enabled = enabled
+        self._save_to_file()
+        logger.info(f"Schedule mode (global, no boards): {'enabled' if enabled else 'disabled'}")
+        return self._schedule
 
     def get_mqtt_settings(self) -> "MQTTSettings":
         """Return current MQTT integration settings."""

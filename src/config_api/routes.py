@@ -174,7 +174,6 @@ async def update_board_config(request: BoardConfigUpdate, response: Response):
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e)) from e
 
-    # Reinitialize the board clients with the new connection
     reinitialize_board_clients()
 
     return BoardConfigUpdateResponse(
@@ -614,7 +613,6 @@ async def enable_local_api(request: EnablementTokenRequest):
     if not (_ip_obj.is_private or _ip_obj.is_loopback or _ip_obj.is_link_local):
         raise HTTPException(status_code=400, detail="host must be on a private network")
     _safe_host = _ip_obj.compressed
-    # Build the URL for the local enablement endpoint
     url = f"http://{_safe_host}:7000/local-api/enablement"
     headers = {"X-Vestaboard-Local-Api-Enablement-Token": request.enablement_token}
 
@@ -723,7 +721,6 @@ async def update_general_config(request: GeneralConfigUpdate):
     """
     config_manager = get_config_manager()
 
-    # Get current general config
     general_config = config_manager.get_general()
 
     # exclude_unset: a caller who did not mention a field must not overwrite

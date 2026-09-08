@@ -1327,7 +1327,6 @@ def load_manifest(manifest_path: Path) -> tuple[PluginManifest | None, list[str]
     except Exception as e:
         return None, [f"Failed to read manifest: {e}"]
 
-    # Validate
     is_valid, validation_errors = validate_manifest(data)
     if not is_valid:
         return None, validation_errors

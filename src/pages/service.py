@@ -263,7 +263,6 @@ class PageService:
         # Normal deletion
         self.storage.delete(page_id)
 
-        # Invalidate cache for deleted page
         self._invalidate_cache(page_id)
 
         # If deleted page was active, set another page as active
@@ -540,7 +539,6 @@ class PageService:
 
             source_data[row_config.source] = result.raw
 
-            # Split source into lines
             source_lines = result.formatted.split("\n")
 
             # Get the specified row if it exists

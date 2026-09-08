@@ -241,7 +241,6 @@ class PluginService:
         """
         registry = self.registry
 
-        # Resolve base plugin id
         base_id, _ = registry.parse_instance_key(plugin_id)
 
         if not registry.get_plugin(base_id):
@@ -298,7 +297,6 @@ class PluginService:
         """
         registry = self.registry
 
-        # Resolve base plugin id
         base_id, _ = registry.parse_instance_key(plugin_id)
         compound_key = registry.make_instance_key(base_id, instance_label)
 
