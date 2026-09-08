@@ -12,7 +12,7 @@ from datetime import datetime
 from typing import Any
 
 from dotenv import load_dotenv
-from fastapi import FastAPI, HTTPException, Query
+from fastapi import Depends, FastAPI, HTTPException, Query, Response
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import PlainTextResponse
 
@@ -1142,7 +1142,54 @@ app.include_router(displays_router)
 # and stay outside the conventions ratchet, because re-shaping a body we
 # intend to delete buys a lockstep web change and nothing else.
 
-@app.get("/baywheels/stations", deprecated=True)  # removal tracked in #1915
+# ── Deprecation window ───────────────────────────────────────────────────────
+#
+# ``deprecated=True`` alone only greys the operation out in Swagger; a caller
+# in another repo — the whole reason these were deprecated instead of deleted —
+# sees nothing. RFC 8594 / RFC 9745 put the notice on the wire, which is what
+# ``docs/internal/reference/API_CONVENTIONS.md`` asks for: ``Deprecation``,
+# ``Sunset`` and a ``successor-version`` link.
+#
+# The date is a quarter out, not "two releases": FiestaBoard cuts a minor
+# release every few days, so a release count is not a window an integrator can
+# plan against, and two of these routes (``/muni/stops*``, ``/stocks/*``) are
+# published as API reference in shipped plugin SETUP guides. A quarter gives
+# those plugin authors a release cycle of their own to migrate. Reasoning
+# recorded on #1915.
+DEPRECATED_ROUTES_SUNSET = "Tue, 01 Dec 2026 00:00:00 GMT"
+
+
+def _deprecated_route(successor_plugin_id: str | None = None):
+    """Dependency that stamps the deprecation notice onto a route's response.
+
+    Every one of these pickers was replaced by the generic remote-options
+    endpoint ``POST /plugins/{plugin_id}/options/{options_id}``. ``options_id``
+    is declared by the plugin's own manifest and is not knowable from here, so
+    the successor is emitted as a URI Template with the plugin id filled in.
+    ``successor_plugin_id=None`` means no successor exists yet
+    (``/transit/cache/status``), and only ``Deprecation``/``Sunset`` are sent.
+    """
+    link = None
+    if successor_plugin_id:
+        link = f'</api/plugins/{successor_plugin_id}/options/{{options_id}}>; rel="successor-version"'
+
+    def _set_deprecation_headers(response: Response) -> None:
+        response.headers["Deprecation"] = "true"
+        response.headers["Sunset"] = DEPRECATED_ROUTES_SUNSET
+        if link is not None:
+            response.headers["Link"] = link
+
+    # Read by tests/test_deprecated_route_headers.py to pin which route points
+    # at which successor without calling eleven upstream APIs.
+    _set_deprecation_headers.successor_plugin_id = successor_plugin_id  # type: ignore[attr-defined]
+    return Depends(_set_deprecation_headers)
+
+
+@app.get(
+    "/baywheels/stations",
+    deprecated=True,  # removal tracked in #1915
+    dependencies=[_deprecated_route("lyft_bike_share")],
+)
 async def list_all_baywheels_stations():
     """
     List all Bay Wheels stations with current status.
@@ -1203,7 +1250,11 @@ async def list_all_baywheels_stations():
         raise HTTPException(status_code=500, detail=str(e)) from e
 
 
-@app.get("/baywheels/stations/nearby", deprecated=True)  # removal tracked in #1915
+@app.get(
+    "/baywheels/stations/nearby",
+    deprecated=True,  # removal tracked in #1915
+    dependencies=[_deprecated_route("lyft_bike_share")],
+)
 async def find_nearby_baywheels_stations(
     lat: float = Query(..., description="Latitude"),
     lng: float = Query(..., description="Longitude"),
@@ -1272,7 +1323,11 @@ async def find_nearby_baywheels_stations(
         raise HTTPException(status_code=500, detail=str(e)) from e
 
 
-@app.get("/baywheels/stations/search", deprecated=True)  # removal tracked in #1915
+@app.get(
+    "/baywheels/stations/search",
+    deprecated=True,  # removal tracked in #1915
+    dependencies=[_deprecated_route("lyft_bike_share")],
+)
 async def search_baywheels_stations_by_address(
     address: str = Query(..., description="Address to search near"),
     radius: float = Query(2.0, description="Search radius in kilometers"),
@@ -1371,7 +1426,11 @@ async def search_baywheels_stations_by_address(
 # =============================================================================
 
 
-@app.get("/muni/stops", deprecated=True)  # removal tracked in #1915
+@app.get(
+    "/muni/stops",
+    deprecated=True,  # removal tracked in #1915
+    dependencies=[_deprecated_route("muni")],
+)
 async def list_all_muni_stops():
     """
     List all SF Muni stops with metadata.
@@ -1458,7 +1517,11 @@ async def list_all_muni_stops():
         raise HTTPException(status_code=500, detail=str(e)) from e
 
 
-@app.get("/muni/stops/nearby", deprecated=True)  # removal tracked in #1915
+@app.get(
+    "/muni/stops/nearby",
+    deprecated=True,  # removal tracked in #1915
+    dependencies=[_deprecated_route("muni")],
+)
 async def find_nearby_muni_stops(
     lat: float = Query(..., description="Latitude"),
     lng: float = Query(..., description="Longitude"),
@@ -1569,7 +1632,11 @@ async def find_nearby_muni_stops(
         raise HTTPException(status_code=500, detail=str(e)) from e
 
 
-@app.get("/muni/stops/search", deprecated=True)  # removal tracked in #1915
+@app.get(
+    "/muni/stops/search",
+    deprecated=True,  # removal tracked in #1915
+    dependencies=[_deprecated_route("muni")],
+)
 async def search_muni_stops_by_address(
     address: str = Query(..., description="Address to search near"),
     radius: float = Query(0.5, description="Search radius in kilometers"),
@@ -1630,7 +1697,11 @@ async def search_muni_stops_by_address(
         raise HTTPException(status_code=500, detail=str(e)) from e
 
 
-@app.get("/transit/cache/status", deprecated=True)  # removal tracked in #1915
+@app.get(
+    "/transit/cache/status",
+    deprecated=True,  # removal tracked in #1915
+    dependencies=[_deprecated_route()],
+)
 async def get_transit_cache_status():
     """
     Get status and health information about the regional transit cache.
@@ -1669,7 +1740,11 @@ async def get_transit_cache_status():
 # =============================================================================
 
 
-@app.get("/stocks/search", deprecated=True)  # removal tracked in #1915
+@app.get(
+    "/stocks/search",
+    deprecated=True,  # removal tracked in #1915
+    dependencies=[_deprecated_route("stocks")],
+)
 async def search_stock_symbols(
     query: str = Query(..., description="Search query (symbol or company name)"),
     limit: int = Query(10, ge=1, le=50, description="Maximum number of results"),
@@ -1702,7 +1777,11 @@ async def search_stock_symbols(
         raise HTTPException(status_code=500, detail=str(e)) from e
 
 
-@app.post("/stocks/validate", deprecated=True)  # removal tracked in #1915
+@app.post(
+    "/stocks/validate",
+    deprecated=True,  # removal tracked in #1915
+    dependencies=[_deprecated_route("stocks")],
+)
 async def validate_stock_symbol(request: dict):
     """
     Validate if a stock symbol is valid.
@@ -1740,7 +1819,11 @@ async def validate_stock_symbol(request: dict):
 # =============================================================================
 
 
-@app.post("/traffic/routes/geocode", deprecated=True)  # removal tracked in #1915
+@app.post(
+    "/traffic/routes/geocode",
+    deprecated=True,  # removal tracked in #1915
+    dependencies=[_deprecated_route("traffic")],
+)
 async def geocode_address(request: dict):
     """
     Geocode an address to coordinates.
@@ -1786,7 +1869,11 @@ async def geocode_address(request: dict):
         raise HTTPException(status_code=500, detail=str(e)) from e
 
 
-@app.post("/traffic/routes/validate", deprecated=True)  # removal tracked in #1915
+@app.post(
+    "/traffic/routes/validate",
+    deprecated=True,  # removal tracked in #1915
+    dependencies=[_deprecated_route("traffic")],
+)
 async def validate_traffic_route(request: dict):
     """
     Validate a traffic route and get basic info.

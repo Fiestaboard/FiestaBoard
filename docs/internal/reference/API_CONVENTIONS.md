@@ -197,6 +197,21 @@ response body we intend to delete buys a lockstep web change and nothing else.
 "deprecation, never deletion" applies to unused routes too — "nothing in this
 repo calls it" is not the same claim as "nothing calls it".
 
+Since then those eleven serve the notice on the wire rather than only in the
+OpenAPI schema. Every one sends `Deprecation: true` and
+`Sunset: Tue, 01 Dec 2026 00:00:00 GMT`; the ten replaced by the generic
+remote-options endpoint also send a `rel="successor-version"` link to
+`/api/plugins/<plugin_id>/options/{options_id}`, with the plugin id filled in
+and `options_id` left as a template because only the plugin's own manifest
+declares it. `/transit/cache/status` has no successor and sends no link. The
+date lives in `DEPRECATED_ROUTES_SUNSET` in `src/api_server.py`, and
+`tests/test_deprecated_route_headers.py` pins which route points where.
+
+A quarter, not "two releases": FiestaBoard cuts a minor release every few
+days, so a release count is not a window an outside integrator can plan
+against — and callers this repo cannot see are the entire reason these routes
+still exist.
+
 ## Identifiers
 
 - Resource ids are validated against reserved route words so
