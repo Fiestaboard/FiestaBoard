@@ -292,13 +292,14 @@ settings_service.get_beta_settings.return_value = SimpleNamespace(transition_plu
 settings_service.get_active_page_id.return_value = "p1"
 
 with (
-    patch("src.transitions.routes.get_plugin_registry", return_value=registry),
     patch("src.transitions.routes.get_settings_service", return_value=settings_service),
-    patch("src.transitions.routes.get_service", return_value=service),
-    patch("src.transitions.routes.get_page_service", return_value=page_service),
-    patch("src.transitions.routes._silence_active", return_value=False),
-    patch("src.transitions.routes._board_is_paused", return_value=False),
-    patch("src.transitions.routes.LIVE_TEST_FROM_HOLD_SECONDS", 0),
+    patch("src.transitions.service.get_plugin_registry", return_value=registry),
+    patch("src.transitions.service.get_settings_service", return_value=settings_service),
+    patch("src.transitions.service.get_service", return_value=service),
+    patch("src.transitions.service.get_page_service", return_value=page_service),
+    patch("src.transitions.service._silence_active", return_value=False),
+    patch("src.transitions.service._board_is_paused", return_value=False),
+    patch("src.transitions.service.LIVE_TEST_FROM_HOLD_SECONDS", 0),
 ):
     listed = asyncio.run(routes.list_transition_plugins())
     assert listed.plugins == [], listed

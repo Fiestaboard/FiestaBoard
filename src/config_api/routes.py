@@ -14,29 +14,42 @@ this module never loads ``src.api_server``
 Tests that need to stub a collaborator patch it where this module binds it —
 ``src.config_api.routes.<name>``.
 
-``config`` carries eight checked-in exceptions to the ratchet, all in the
-manifest with reasons: six ``declared_errors`` (this domain is read-heavy —
-six routes are parameterless reads of local state with no failure path) and
-two ``no_200_on_failure`` (the probe endpoints' declared verdict contract,
-#1887).
+The domain's behaviour lives in ``src/config_api/service.py``, created when
+``config_api`` opted into ``tests/test_layering_ratchet.py``: the first-run
+determination, the board probe and the enablement exchange were 421 lines of
+router with no HTTP in them. They raise
+:class:`~src.config_api.service.BoardProbeError`; the handlers translate it and
+change nothing about the status or the detail.
+
+``config`` carries six checked-in ``declared_errors`` exceptions to the
+conventions ratchet — this domain is read-heavy, and six routes are
+parameterless reads of local state with no failure path.
+
+It carried two more, ``no_200_on_failure`` on the probe endpoints, until those
+bodies moved down. That rule walks the *handler's own AST*, so a handler that
+no longer builds the ``{"success": false, ...}`` verdict stops tripping it, and
+``validate_manifest`` fails the build on an exception whose rule already
+passes. Nothing about the contract changed — ``tests/test_config_contract.py``
+and ``tests/test_status_code_correctness.py`` pin every status/verdict pair by
+value, which is stronger than the AST proxy was — and the deleted reasons are
+preserved on the service functions.
 """
 
 from __future__ import annotations
 
-import asyncio
 import logging
 
-import requests
 from fastapi import APIRouter, HTTPException, Response
 
 from src.api_errors import errors
-from src.board_guards import primary_board_entry, validate_board_host, validate_board_host_is_local_network
+from src.board_guards import primary_board_entry
 from src.config import Config
 from src.config_manager import get_config_manager
 from src.display_runtime import get_service, reinitialize_board_clients
 from src.settings.service import get_settings_service
 from src.time_service import reset_time_service
 
+from . import service
 from .models import (
     BoardConfigResetResponse,
     BoardConfigResponse,
@@ -59,6 +72,15 @@ from .models import (
 logger = logging.getLogger(__name__)
 
 router = APIRouter(tags=["config"])
+
+
+def _as_http(exc: service.BoardProbeError) -> HTTPException:
+    """The domain's refusal, in the transport's vocabulary.
+
+    Status and detail pass through untouched — ``tests/test_config_contract.py``
+    pins every pair by value.
+    """
+    return HTTPException(status_code=exc.status_code, detail=exc.detail)
 
 
 @router.get("/config", response_model=ConfigSummaryResponse)
@@ -261,76 +283,7 @@ async def validate_config():
     ensures users who set up a board through Settings (rather than the
     wizard) are not treated as first-run.
     """
-    config_manager = get_config_manager()
-    is_valid, validation_errors = config_manager.validate()
-
-    # Get board config to check first-run state
-    board_config = config_manager.get_board()
-    api_mode = board_config.get("api_mode", "local")
-
-    # Detect first-run: no API key configured for the selected mode
-    is_first_run = False
-    missing_fields = []
-
-    if api_mode == "cloud":
-        if not board_config.get("cloud_key"):
-            is_first_run = True
-            missing_fields.append("board.cloud_key")
-    else:  # local mode
-        if not board_config.get("local_api_key"):
-            is_first_run = True
-            missing_fields.append("board.local_api_key")
-        if not board_config.get("host"):
-            is_first_run = True
-            missing_fields.append("board.host")
-
-    # Also consider boards configured via the multi-board settings service.
-    # If any configured board instance has connection credentials, the user
-    # has completed setup (e.g. via Settings) and should not be treated as
-    # first-run. Board-related validation errors/missing_fields from the
-    # legacy config are dropped in that case.
-    has_configured_board_instance = False
-    has_connection_attempt = False
-    try:
-        from src.devices import BoardInstance
-
-        board_settings = get_settings_service().get_board_settings()
-        for b in board_settings.boards or []:
-            try:
-                instance = BoardInstance.from_dict(b)
-            except Exception:  # pragma: no cover - defensive
-                continue
-            if instance.has_connection_attempt:
-                has_connection_attempt = True
-            if instance.is_connection_configured:
-                has_configured_board_instance = True
-                break
-    except Exception:  # pragma: no cover - defensive
-        logger.exception("Failed to inspect multi-board settings during validate_config")
-
-    # A board with SOME connection detail but not a working set is
-    # *misconfigured*, not first-run: it must surface as a per-board error
-    # (#1813), never bounce an existing install back into the setup wizard.
-    # Before #1760 the legacy config.json copy masked this case; with
-    # settings as the single credential source the distinction is load-
-    # bearing (a token-less note array replacing the only board used to
-    # keep the wizard away purely via the stale legacy copy).
-    if has_connection_attempt and not has_configured_board_instance:
-        is_first_run = False
-
-    if has_configured_board_instance:
-        is_first_run = False
-        missing_fields = [f for f in missing_fields if not f.startswith("board.")]
-        board_error_prefixes = ("Board cloud_key", "Board local_api_key", "Board host")
-        validation_errors = [e for e in validation_errors if not e.startswith(board_error_prefixes)]
-        is_valid = len(validation_errors) == 0
-
-    return ConfigValidationResponse(
-        valid=is_valid,
-        is_first_run=is_first_run,
-        errors=validation_errors,
-        missing_fields=missing_fields,
-    )
+    return service.determine_config_validity()
 
 
 @router.post(
@@ -369,189 +322,10 @@ async def test_board_connection(request: BoardTestRequest):
              the host is not one this server will connect to
         500: an unanticipated server-side error
     """
-    from src.board_client import BoardClient, is_successful_board_read_response
-
-    api_mode = request.api_mode.lower()
-
-    # Validate required fields based on mode
-    if api_mode == "cloud":
-        if not request.cloud_key:
-            raise HTTPException(status_code=400, detail="Cloud API key is required")
-        api_key = request.cloud_key
-        use_cloud = True
-        host = None
-    else:  # local mode
-        if not request.local_api_key:
-            raise HTTPException(status_code=400, detail="Local API key is required")
-        if not request.host:
-            raise HTTPException(status_code=400, detail="Board host/IP is required for Local API")
-        api_key = request.local_api_key
-        use_cloud = False
-        host = request.host
-        # The host guard is the reason this endpoint cannot be pointed at an
-        # arbitrary URL. Its 400 propagates unchanged: swallowing it into a
-        # 200 body made a refused request look like a failed probe (#1887).
-        validate_board_host(host)
-
     try:
-        # Create temporary client with provided credentials
-        client = BoardClient(api_key=api_key, host=host, use_cloud=use_cloud, skip_unchanged=False, port=request.port)
-
-        # Test the connection directly so we can inspect HTTP status codes
-        # (read_current_message() swallows errors and returns None, losing details)
-        response = await asyncio.to_thread(requests.get, client.base_url, headers=client.headers, timeout=10)
-
-        if response.status_code == 200:
-            # Parse the response to verify it's valid board data
-            try:
-                data = response.json()
-                if is_successful_board_read_response(data):
-                    logger.info(f"Board connection test successful ({api_mode} mode)")
-                    return {
-                        "success": True,
-                        "message": "Successfully connected to your board!",
-                        "api_mode": api_mode,
-                    }
-                detail = (
-                    f"JSON keys: {', '.join(sorted(data))}"
-                    if isinstance(data, dict)
-                    else f"body type: {type(data).__name__}"
-                )
-                logger.warning(f"Board connection test: HTTP 200 but unrecognized response ({api_mode} mode): {detail}")
-                return {
-                    "success": False,
-                    "message": "Connected to Vestaboard but the response shape was not recognized.",
-                    "error": f"Unrecognized read response ({detail}).",
-                    "troubleshooting": [
-                        "Update FiestaBoard to the latest version.",
-                        "If this persists, file an issue with the response keys shown above (no API keys).",
-                    ],
-                }
-            except ValueError:
-                logger.warning(f"Board connection test: HTTP 200 but invalid JSON ({api_mode} mode)")
-                return {
-                    "success": False,
-                    "message": "Connected to the board but the response could not be read. The board may be starting up.",
-                    "error": "Invalid JSON response",
-                    "troubleshooting": [
-                        "Wait 30 seconds and try again — the board may still be starting up.",
-                        "Try unplugging the board for 10 seconds and plugging it back in.",
-                    ],
-                }
-
-        elif response.status_code == 401 or response.status_code == 403:
-            logger.warning(f"Board connection test: auth rejected HTTP {response.status_code} ({api_mode} mode)")
-            if use_cloud:
-                return {
-                    "success": False,
-                    "message": f"Your API key was rejected by the Vestaboard cloud service (HTTP {response.status_code}).",
-                    "error": f"HTTP {response.status_code}",
-                    "troubleshooting": [
-                        "Go to https://web.vestaboard.com and sign in to your account.",
-                        "Make sure you are copying the Read/Write API key (not the subscription key or installable key).",
-                        "Paste the key into the Cloud API Key field and try again.",
-                    ],
-                }
-            else:
-                return {
-                    "success": False,
-                    "message": f"Your API key was rejected by the board (HTTP {response.status_code}).",
-                    "error": f"HTTP {response.status_code}",
-                    "troubleshooting": [
-                        "Verify your Local API key is correct — it was provided when you enabled the Local API with your enablement token.",
-                        "If you need a new key, request an enablement token at https://www.vestaboard.com/local-api",
-                        "Paste the correct key into the Local API Key field and try again.",
-                        "If the key was recently regenerated, the old key will no longer work.",
-                    ],
-                }
-
-        elif response.status_code >= 500:
-            logger.warning(f"Board connection test: server error HTTP {response.status_code} ({api_mode} mode)")
-            return {
-                "success": False,
-                "message": f"The board returned an error (HTTP {response.status_code}). It may be temporarily unavailable.",
-                "error": f"HTTP {response.status_code}",
-                "troubleshooting": [
-                    "Try unplugging the Vestaboard for 10 seconds and plugging it back in.",
-                    "Wait about a minute for the board to restart, then try again.",
-                    "If the problem continues, check for firmware updates in the Vestaboard app.",
-                ],
-            }
-
-        else:
-            logger.warning(f"Board connection test: unexpected HTTP {response.status_code} ({api_mode} mode)")
-            return {
-                "success": False,
-                "message": f"Received an unexpected response from the board (HTTP {response.status_code}).",
-                "error": f"HTTP {response.status_code}",
-                "troubleshooting": [
-                    "Try unplugging the Vestaboard for 10 seconds and plugging it back in.",
-                    "Check for firmware updates in the Vestaboard app.",
-                    "If the problem continues, try using the other connection mode (Local or Cloud).",
-                ],
-            }
-
-    except ValueError as e:
-        # BoardClient rejected the credentials/host combination outright, so
-        # no probe happened: a precondition failure, not a board verdict.
-        logger.warning("Board connection test failed - invalid config", exc_info=True)
-        raise HTTPException(status_code=400, detail="Board connection configuration is invalid.") from e
-    except requests.exceptions.ConnectionError as e:
-        logger.error(f"Board connection test error: {e}")
-        if use_cloud:
-            return {
-                "success": False,
-                "message": "Could not connect to the Vestaboard cloud service.",
-                "error": "Connection error",
-                "troubleshooting": [
-                    "Make sure the device running FiestaBoard has a working internet connection.",
-                    "Try opening https://rw.vestaboard.com in a browser to verify the service is reachable.",
-                    "If you use a VPN or corporate network, make sure it allows connections to rw.vestaboard.com.",
-                ],
-            }
-        else:
-            return {
-                "success": False,
-                "message": "Could not connect to the board. The board may be off or not on the same network.",
-                "error": "Connection error",
-                "troubleshooting": [
-                    "Make sure the Vestaboard is powered on (check for the LED on the back).",
-                    "Make sure both FiestaBoard and the Vestaboard are on the same Wi-Fi network.",
-                    "Double-check the board's IP address — you can find it on your router's admin page or use FiestaBoard's network scan.",
-                    "Make sure the Local API is enabled on your board (see https://docs.vestaboard.com/docs/local-api/authentication).",
-                ],
-            }
-    except requests.exceptions.Timeout as e:
-        logger.error(f"Board connection test timeout: {e}")
-        if use_cloud:
-            return {
-                "success": False,
-                "message": "Connection to the Vestaboard cloud service timed out.",
-                "error": "Timeout",
-                "troubleshooting": [
-                    "Check that the device running FiestaBoard has a stable internet connection.",
-                    "The Vestaboard cloud service may be experiencing issues — try again in a few minutes.",
-                ],
-            }
-        else:
-            return {
-                "success": False,
-                "message": "Connection to the board timed out. The board may be off or the IP address may be wrong.",
-                "error": "Timeout",
-                "troubleshooting": [
-                    "Make sure the Vestaboard is powered on.",
-                    "Double-check the IP address in the Vestaboard app under Settings.",
-                    "Make sure both devices are on the same network.",
-                    "Try using the board's IP address instead of a hostname.",
-                ],
-            }
-    except HTTPException:
-        raise
-    except Exception as e:
-        # Not a board verdict — the probe itself broke. Detail stays generic;
-        # the exception is in the log, not in the response (#1887).
-        logger.error(f"Board connection test error: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail="Board connection test failed unexpectedly.") from e
+        return await service.probe_board_connection(request)
+    except service.BoardProbeError as exc:
+        raise _as_http(exc) from exc
 
 
 @router.post(
@@ -584,106 +358,10 @@ async def enable_local_api(request: EnablementTokenRequest):
              host is not one this server will contact
         500: an unanticipated server-side error
     """
-    import requests as http_requests
-
-    if not request.host:
-        raise HTTPException(status_code=400, detail="Board IP address is required")
-
-    if not request.enablement_token:
-        raise HTTPException(status_code=400, detail="Enablement token is required")
-
-    # Validate the host before composing the URL so an attacker can't
-    # redirect this request away from the local board (SSRF). These 400s
-    # propagate unchanged — downgrading them to a 200 body meant a blocked
-    # SSRF attempt and a board that rejected the token were the same
-    # response to every client (#1887).
-    validate_board_host(request.host)
-    validate_board_host_is_local_network(request.host)
-
-    # Resolve the host to a concrete IPv4 address and ensure it is a private/
-    # loopback/link-local address.  Using the ``ipaddress`` module's
-    # ``is_private``/``is_loopback``/``is_link_local`` checks is the
-    # CodeQL-recognised sanitiser for ``py/full-ssrf``: downstream sinks see
-    # a value derived from an ``IPv4Address`` object, not from raw user input.
-    import ipaddress as _ipaddress_mod
-    import socket as _socket_mod
-
     try:
-        _ip_obj = _ipaddress_mod.IPv4Address(request.host)
-    except ValueError:
-        try:
-            _addrinfo = _socket_mod.getaddrinfo(
-                request.host, None, family=_socket_mod.AF_INET, type=_socket_mod.SOCK_STREAM
-            )
-        except _socket_mod.gaierror as exc:
-            raise HTTPException(status_code=400, detail="host could not be resolved") from exc
-        _resolved = [info[4][0] for info in _addrinfo if info and len(info) >= 5 and info[4]]
-        if not _resolved:
-            raise HTTPException(status_code=400, detail="host did not resolve to an IPv4 address") from None
-        _ip_obj = _ipaddress_mod.IPv4Address(_resolved[0])
-
-    if not (_ip_obj.is_private or _ip_obj.is_loopback or _ip_obj.is_link_local):
-        raise HTTPException(status_code=400, detail="host must be on a private network")
-    _safe_host = _ip_obj.compressed
-    url = f"http://{_safe_host}:7000/local-api/enablement"
-    headers = {"X-Vestaboard-Local-Api-Enablement-Token": request.enablement_token}
-
-    try:
-        logger.info(f"Attempting to enable local API on {request.host}")
-        response = http_requests.post(url, headers=headers, timeout=10)
-
-        if response.status_code == 200:
-            data = response.json()
-            api_key = data.get("apiKey")
-
-            if api_key:
-                logger.info(f"Successfully enabled local API on {request.host}")
-                return {
-                    "success": True,
-                    "api_key": api_key,
-                    "message": "Local API enabled successfully! Your API key has been retrieved.",
-                }
-            else:
-                logger.warning(f"Local API enablement response missing apiKey: {data}")
-                return {
-                    "success": False,
-                    "message": "Received response but no API key was provided",
-                    "error": "Board response did not include an apiKey",
-                }
-        elif response.status_code == 401 or response.status_code == 403:
-            logger.warning("Local API enablement failed - invalid token")
-            return {
-                "success": False,
-                "message": "Invalid enablement token. Please check the token and try again.",
-                "error": f"HTTP {response.status_code}: Unauthorized",
-            }
-        else:
-            logger.warning(f"Local API enablement failed - HTTP {response.status_code}")
-            return {
-                "success": False,
-                "message": f"Board returned an error (HTTP {response.status_code})",
-                "error": f"HTTP {response.status_code}",
-            }
-
-    except http_requests.exceptions.ConnectionError as e:
-        logger.error(f"Local API enablement connection error: {e}")
-        return {
-            "success": False,
-            "message": "Could not connect to board. Please check the IP address and ensure the board is on the same network.",
-            "error": "Connection error",
-        }
-    except http_requests.exceptions.Timeout as e:
-        logger.error(f"Local API enablement timeout: {e}")
-        return {
-            "success": False,
-            "message": "Connection timed out. Please check the IP address and try again.",
-            "error": "Timeout",
-        }
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"Local API enablement error: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail="Failed to enable local API.") from e
+        return await service.exchange_enablement_token(request)
+    except service.BoardProbeError as exc:
+        raise _as_http(exc) from exc
 
 
 @router.post("/config/board/scan", response_model=BoardScanResponse, responses=errors(422))

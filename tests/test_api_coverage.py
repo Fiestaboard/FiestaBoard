@@ -68,6 +68,7 @@ def mock_config_manager():
     with (
         patch("src.api_server.get_config_manager") as mock_get,
         patch("src.config_api.routes.get_config_manager", new=mock_get),
+        patch("src.config_api.service.get_config_manager", new=mock_get),
         patch("src.service_api.routes.get_config_manager", new=mock_get),
         patch("src.board_api.routes.get_config_manager", new=mock_get),
     ):
@@ -104,6 +105,7 @@ def mock_settings_service():
         patch("src.api_server.get_settings_service") as mock_get,
         patch("src.pages.routes.get_settings_service") as routes_get,
         patch("src.config_api.routes.get_settings_service") as config_get,
+        patch("src.config_api.service.get_settings_service", new=config_get),
         patch("src.board_guards.get_settings_service") as guards_get,
         patch("src.displays.routes.get_settings_service") as displays_get,
     ):

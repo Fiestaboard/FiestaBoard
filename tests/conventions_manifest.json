@@ -271,16 +271,6 @@
       "reason": "The same handler as GET /health, split into its own operation only so FastAPI emits a distinct operationId (#1572). It cannot fail differently from the route it delegates to."
     },
     {
-      "route": "POST /config/board/enable-local-api",
-      "rule": "no_200_on_failure",
-      "reason": "Same declared verdict contract as POST /config/board/test (#1887): 'that enablement token is not valid' is the board's answer at 200 through EnableLocalApiResponse. The SSRF and host-validation rejections stayed 400 and the unexpected-exception path stayed 500 when Task 10a fixed this handler."
-    },
-    {
-      "route": "POST /config/board/test",
-      "rule": "no_200_on_failure",
-      "reason": "Declared probe contract (#1887, Task 10a): the endpoint's job is to report what the board said, so 'your key was rejected' is the requested answer at 200 through BoardTestResponse, not a transport failure. Preconditions the server rejects before probing (missing credential, unsafe host) really are 400, and unanticipated errors really are 500 — tests/test_status_code_correctness.py pins both. Making the upstream verdicts 4xx would tell the wizard the request was malformed when it was not."
-    },
-    {
       "route": "POST /pages/ai/chat",
       "rule": "response_model",
       "reason": "Serves a Server-Sent Events stream, not a JSON document: the body is a sequence of `event:`/`data:` frames written over an open connection, and any response_model would either be a lie about what the client receives or would make FastAPI buffer and re-serialize the stream, which is the one thing an SSE endpoint must not do. The schema is published instead as the 200's text/event-stream content type plus CHAT_STREAM_EVENTS in src/ai/page_routes.py, which names each of the five event types and the model describing its payload; tests/test_ai_pages_contract.py validates real frames against that registry and cross-checks it against the literal event dicts in src/ai/chat.py, so it cannot drift the way an undocumented stream would."

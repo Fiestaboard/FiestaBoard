@@ -43,6 +43,33 @@ logger = logging.getLogger(__name__)
 TransitionResolver = Callable[[str], TransitionPluginBase | None]
 
 
+def unpack_frame(frame: Any) -> tuple[list[list[int]] | None, int]:
+    """Coerce a plugin's yielded value into ``(grid, delay_ms)``.
+
+    Accepts ``(grid, delay)`` tuples and bare grids (treated as zero delay).
+    Returns ``(None, 0)`` on shapes we can't make sense of, leaving the caller
+    to decide what that means — :meth:`TransitionRunner._drive_generator`
+    aborts the run, while ``/transitions/preview`` skips the frame.
+
+    Module level, not a method, because both callers are outside this class:
+    ``src/transitions/service.py`` open-coded a byte-for-byte copy of this
+    coercion until the router→service move gave the two loops one definition
+    of what a frame is.
+    """
+    if isinstance(frame, tuple) and len(frame) == 2:
+        grid, delay = frame
+        try:
+            delay_int = int(delay)
+        except (TypeError, ValueError):
+            delay_int = 0
+        if isinstance(grid, list) and grid and isinstance(grid[0], list):
+            return grid, delay_int
+        return None, 0
+    if isinstance(frame, list) and frame and isinstance(frame[0], list):
+        return frame, 0
+    return None, 0
+
+
 @dataclass
 class TransitionRunResult:
     """Outcome of a single :meth:`TransitionRunner.run` invocation.
@@ -334,7 +361,7 @@ class TransitionRunner:
                 reason = "cancelled by concurrent send"
                 break
 
-            grid, delay_ms = self._unpack_frame(frame)
+            grid, delay_ms = unpack_frame(frame)
             if grid is None:
                 reason = "plugin yielded malformed frame"
                 break
@@ -371,26 +398,3 @@ class TransitionRunner:
             reason=reason,
             last_send_monotonic=last_send,
         )
-
-    @staticmethod
-    def _unpack_frame(
-        frame: Any,
-    ) -> tuple[list[list[int]] | None, int]:
-        """Coerce a plugin's yielded value into ``(grid, delay_ms)``.
-
-        Accepts ``(grid, delay)`` tuples and bare grids (treated as zero
-        delay).  Returns ``(None, 0)`` on shapes we can't make sense of so
-        the caller aborts the run with a logged reason.
-        """
-        if isinstance(frame, tuple) and len(frame) == 2:
-            grid, delay = frame
-            try:
-                delay_int = int(delay)
-            except (TypeError, ValueError):
-                delay_int = 0
-            if isinstance(grid, list) and grid and isinstance(grid[0], list):
-                return grid, delay_int
-            return None, 0
-        if isinstance(frame, list) and frame and isinstance(frame[0], list):
-            return frame, 0
-        return None, 0

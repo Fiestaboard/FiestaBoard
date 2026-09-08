@@ -21,7 +21,7 @@ from types import SimpleNamespace
 import pytest
 from fastapi import HTTPException
 
-import src.transitions.routes as transitions_routes
+import src.transitions.service as transitions_service
 from src.config import Config
 from src.plugins.base import TransitionPluginBase
 from src.plugins.manifest import PluginManifest
@@ -366,12 +366,12 @@ def live_env(monkeypatch, patched_registry):
     no silence, no pause, zero from-page hold."""
     board_client = _FakeBoardClient()
     fake_service = SimpleNamespace(vb_client=board_client, get_board_client=lambda board_id: board_client)
-    monkeypatch.setattr(transitions_routes, "get_service", lambda: fake_service)
-    monkeypatch.setattr(transitions_routes, "get_page_service", _FakePageService)
+    monkeypatch.setattr(transitions_service, "get_service", lambda: fake_service)
+    monkeypatch.setattr(transitions_service, "get_page_service", _FakePageService)
     # Since issue #1788 the guard resolves the target board, so the stub takes a board_id.
     monkeypatch.setattr(Config, "is_silence_mode_active", staticmethod(lambda board_id=None: False))
-    monkeypatch.setattr(transitions_routes, "_board_is_paused", lambda board_id=None: False)
-    monkeypatch.setattr(transitions_routes, "LIVE_TEST_FROM_HOLD_SECONDS", 0)
+    monkeypatch.setattr(transitions_service, "_board_is_paused", lambda board_id=None: False)
+    monkeypatch.setattr(transitions_service, "LIVE_TEST_FROM_HOLD_SECONDS", 0)
     return board_client
 
 
@@ -434,7 +434,7 @@ def test_live_blocked_by_silence_mode(live_env, monkeypatch):
 
 
 def test_live_blocked_when_board_paused(live_env, monkeypatch):
-    monkeypatch.setattr(transitions_routes, "_board_is_paused", lambda board_id=None: True)
+    monkeypatch.setattr(transitions_service, "_board_is_paused", lambda board_id=None: True)
     with pytest.raises(HTTPException) as exc:
         _run(_live({"plugin_id": "fake_typewriter", "to_page_id": "page-to"}))
     assert exc.value.status_code == 409
@@ -445,7 +445,7 @@ def test_restore_sends_active_page_plainly(live_env, monkeypatch):
         get_active_page_id=lambda board_id=None: "page-to",
         get_beta_settings=lambda: SimpleNamespace(transition_plugins_enabled=True),
     )
-    monkeypatch.setattr(transitions_routes, "get_settings_service", lambda: fake_settings)
+    monkeypatch.setattr(transitions_service, "get_settings_service", lambda: fake_settings)
     data = _run(_restore({}))
     assert data.status == "success"
     assert data.page_id == "page-to"
@@ -458,7 +458,7 @@ def test_restore_without_active_page_returns_404(live_env, monkeypatch):
         get_active_page_id=lambda board_id=None: None,
         get_beta_settings=lambda: SimpleNamespace(transition_plugins_enabled=True),
     )
-    monkeypatch.setattr(transitions_routes, "get_settings_service", lambda: fake_settings)
+    monkeypatch.setattr(transitions_service, "get_settings_service", lambda: fake_settings)
     with pytest.raises(HTTPException) as exc:
         _run(_restore({}))
     assert exc.value.status_code == 404
@@ -506,3 +506,33 @@ def test_page_create_persists_transition_fields(tmp_path):
     assert stored.transition_strategy == "plugin:fake_typewriter"
     assert stored.transition_interval_ms == 50
     assert stored.transition_step_size == 2
+
+
+# ---------------------------------------------------------------------------
+# The unreachable-board branch of both live endpoints.
+#
+# Pinned by value ahead of the router→service move (#1934): the 502 travelled
+# from the handler into ``src/transitions/service.py`` and back out through
+# the router's error translation, and nothing covered it before.
+# ---------------------------------------------------------------------------
+
+
+def test_live_reports_an_unreachable_board_as_502(live_env, monkeypatch):
+    monkeypatch.setattr(live_env, "render", lambda *a, **k: (False, False))
+    with pytest.raises(HTTPException) as exc:
+        _run(_live({"plugin_id": "fake_typewriter", "to_page_id": "page-to"}))
+    assert exc.value.status_code == 502
+    assert exc.value.detail == "Board unreachable - live test failed"
+
+
+def test_restore_reports_an_unreachable_board_as_502(live_env, monkeypatch):
+    fake_settings = SimpleNamespace(
+        get_active_page_id=lambda board_id=None: "page-to",
+        get_beta_settings=lambda: SimpleNamespace(transition_plugins_enabled=True),
+    )
+    monkeypatch.setattr(transitions_service, "get_settings_service", lambda: fake_settings)
+    monkeypatch.setattr(live_env, "render", lambda *a, **k: (False, False))
+    with pytest.raises(HTTPException) as exc:
+        _run(_restore({}))
+    assert exc.value.status_code == 502
+    assert exc.value.detail == "Board unreachable - restore failed"

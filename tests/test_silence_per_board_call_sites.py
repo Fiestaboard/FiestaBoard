@@ -141,9 +141,9 @@ class TestApiSendGuards:
         with (
             _board_aware_silence(),
             patch("src.transitions.routes._ensure_transition_plugins_beta"),
-            patch("src.transitions.routes.get_plugin_registry", return_value=registry),
-            patch("src.transitions.routes._resolve_live_board_client", return_value=(BOARDS[0], MagicMock())),
-            patch("src.transitions.routes.get_settings_service", return_value=_settings(primary=LOUD_BOARD)),
+            patch("src.transitions.service.get_plugin_registry", return_value=registry),
+            patch("src.transitions.service._resolve_live_board_client", return_value=(BOARDS[0], MagicMock())),
+            patch("src.transitions.service.get_settings_service", return_value=_settings(primary=LOUD_BOARD)),
         ):
             response = client.post(
                 "/transitions/test-live",
@@ -159,8 +159,8 @@ class TestApiSendGuards:
         with (
             _board_aware_silence(),
             patch("src.transitions.routes._ensure_transition_plugins_beta"),
-            patch("src.transitions.routes._resolve_live_board_client", return_value=(BOARDS[0], MagicMock())),
-            patch("src.transitions.routes.get_settings_service", return_value=_settings(primary=LOUD_BOARD)),
+            patch("src.transitions.service._resolve_live_board_client", return_value=(BOARDS[0], MagicMock())),
+            patch("src.transitions.service.get_settings_service", return_value=_settings(primary=LOUD_BOARD)),
         ):
             response = client.post("/transitions/restore", json={"board_id": SILENCED_BOARD})
 
