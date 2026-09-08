@@ -14,6 +14,7 @@ from typing import Any
 from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import PlainTextResponse
 
 # Load environment variables from .env file before importing modules that may
 # read them at import time. The intra-package imports below intentionally come
@@ -167,35 +168,16 @@ def _run_startup_migrations() -> None:
 async def lifespan(app: FastAPI):
     """Lifespan context manager for startup and shutdown events.
 
-    Also runs the MCP server's ``StreamableHTTPSessionManager`` for the
-    duration of the API. FastAPI's ``app.mount(...)`` does NOT propagate
-    a sub-app's lifespan, so without wiring this here the MCP session
-    manager's ``_task_group`` is never created and every request to
-    ``/api/mcp/*`` returns 404. The wrapping is best-effort: if the mcp
-    package failed to load or the session manager init throws, the rest
-    of the API still comes up — MCP just stays disabled.
+    Startup does **not** touch MCP: the ``mcp`` package is imported by the
+    lazy mount (``_LazyMCPMount``) on the first request to ``/api/mcp``,
+    and that mount also owns the session manager's lifecycle. Shutdown
+    closes it if it was ever activated.
     """
-    global _service_thread, _shutting_down, _service_running
-
-    # Resolve the MCP context manager (or fall back to a no-op) before we
-    # decide which branch to take. The mount at the bottom of this module
-    # already called ``streamable_http_app()`` (which lazily creates the
-    # session manager), so it's safe to access ``session_manager`` here.
-    _mcp_ctx = None
-    try:
-        from .mcp_server import mcp_server as _mcp_for_lifespan
-
-        if _mcp_for_lifespan is not None:
-            _mcp_ctx = _mcp_for_lifespan.session_manager.run()
-    except Exception as _mcp_exc:  # pragma: no cover — defensive
-        logger.warning(
-            "MCP session manager could not be wired into lifespan: %s",
-            _mcp_exc,
-        )
-        _mcp_ctx = None
+    global _service_thread, _shutting_down, _service_running, _mcp_serving
 
     # --- Startup ---
     _shutting_down = False
+    _mcp_serving = True
     logger.info("API server starting up...")
 
     # Set up file-based logging
@@ -350,18 +332,14 @@ async def lifespan(app: FastAPI):
         except Exception as e:
             logger.warning(f"Could not start system update checker: {e}")
 
-    # Hold the MCP session manager open for the lifetime of the API, then
-    # let it tear down on shutdown. ``_mcp_ctx`` is None when the mcp
-    # package didn't load — fall through to a bare yield in that case so
-    # the rest of the API still serves requests.
-    if _mcp_ctx is not None:
-        async with _mcp_ctx:
-            logger.info("MCP session manager started")
-            yield
-    else:
-        yield
+    yield
 
     # --- Shutdown ---
+    # Release the MCP session manager if a request ever activated it. No-op
+    # on the (overwhelmingly common) boot where nobody spoke MCP.
+    _mcp_serving = False
+    await _mcp_mount.aclose()
+
     if update_check_task is not None:
         update_check_task.cancel()
     if system_update_task is not None:
@@ -487,19 +465,130 @@ def cors_settings() -> dict:
 # Add CORS middleware
 app.add_middleware(CORSMiddleware, **cors_settings())
 
-# Mount the MCP server at /mcp (accessible at /api/mcp via nginx).
-# Gracefully skipped if the mcp package is not installed.
-try:
-    from .mcp_server import build_streamable_http_app as _build_mcp_app
 
-    _mcp_app = _build_mcp_app()
-    if _mcp_app is not None:
-        app.mount("/mcp", _mcp_app)
-        logger.info("FiestaBoard MCP server mounted at /mcp (public: /api/mcp)")
-    else:
-        logger.warning("MCP server disabled — mcp package not installed or failed to initialise")
-except Exception as _mcp_mount_err:  # pragma: no cover
-    logger.warning("Failed to mount MCP server: %s", _mcp_mount_err)
+# ---------------------------------------------------------------------------
+# MCP server mount
+# ---------------------------------------------------------------------------
+
+
+class _MCPActivation:
+    """One activation of the MCP sub-app, bound to one event loop.
+
+    Holds the streamable-HTTP session manager open in a dedicated task for as
+    long as the API is serving. ``StreamableHTTPSessionManager.run()`` is
+    once-per-instance, but ``build_streamable_http_app()`` mints a fresh
+    manager on every call, so re-activating (after ``aclose()``, or on a new
+    event loop) is safe.
+    """
+
+    def __init__(self, loop: asyncio.AbstractEventLoop) -> None:
+        self.loop = loop
+        self.app: Any = None
+        self.error: str | None = None
+        self._stop = asyncio.Event()
+        self._ready: asyncio.Future[None] = loop.create_future()
+        self._runner: asyncio.Task[None] | None = None
+
+    def _mark_ready(self) -> None:
+        if not self._ready.done():
+            self._ready.set_result(None)
+
+    async def _hold(self) -> None:
+        """Build the sub-app and keep its lifespan open until ``aclose()``."""
+        try:
+            from .mcp_server import build_streamable_http_app
+
+            sub_app = build_streamable_http_app()
+            if sub_app is None:
+                self.error = "mcp package not installed or failed to initialise"
+                logger.warning("MCP server disabled — %s", self.error)
+                return
+            # The sub-app's own lifespan *is* ``session_manager.run()``, and
+            # FastAPI's ``app.mount()`` does not propagate a sub-app lifespan.
+            # Without running it here the session manager has no task group
+            # and every request to ``/api/mcp/*`` fails.
+            async with sub_app.router.lifespan_context(sub_app):
+                self.app = sub_app
+                logger.info("FiestaBoard MCP server activated at /mcp (public: /api/mcp)")
+                self._mark_ready()
+                await self._stop.wait()
+        except Exception as exc:  # pragma: no cover — defensive
+            self.error = str(exc)
+            logger.warning("Failed to activate MCP server: %s", exc, exc_info=True)
+        finally:
+            self._mark_ready()
+
+    async def wait_ready(self) -> None:
+        """Start the holder task on first call; every caller awaits the same result."""
+        if self._runner is None:
+            self._runner = asyncio.create_task(self._hold(), name="fiestaboard-mcp-session-manager")
+        await self._ready
+
+    async def aclose(self) -> None:
+        self._stop.set()
+        if self._runner is not None:
+            await self._runner
+
+
+class _LazyMCPMount:
+    """ASGI app mounted at ``/mcp`` that imports ``mcp`` on first request.
+
+    Building the MCP app at module scope pulled the whole ``mcp`` package —
+    240 modules — into every boot whether or not anyone speaks MCP: measured
+    at +434 ms of import time and +34.7 MB RSS, a third of the process. On a
+    Raspberry Pi that is seconds of "did it survive the power cut?".
+
+    The mount itself is still registered eagerly, so the route table is
+    unchanged; only the import and the session manager are deferred.
+    """
+
+    def __init__(self) -> None:
+        self._state: _MCPActivation | None = None
+
+    async def _activation(self) -> _MCPActivation:
+        loop = asyncio.get_running_loop()
+        state = self._state
+        if state is None or state.loop is not loop:
+            # A previous activation's task group belongs to an event loop that
+            # is gone (each bare TestClient request gets its own). Build a
+            # fresh activation rather than dispatch into a dead task group.
+            state = self._state = _MCPActivation(loop)
+        await state.wait_ready()
+        return state
+
+    async def __call__(self, scope: Any, receive: Any, send: Any) -> None:
+        if not _mcp_serving:
+            # The session manager's lifetime is the app's lifetime: activating
+            # it outside a running lifespan would leave a task group nothing
+            # ever closes. Matches the pre-lazy behaviour, where the manager
+            # was only ever started from the lifespan.
+            response = PlainTextResponse("MCP server is not running", status_code=503)
+            await response(scope, receive, send)
+            return
+        state = await self._activation()
+        if state.app is None:
+            response = PlainTextResponse(
+                f"MCP server unavailable: {state.error or 'not initialised'}",
+                status_code=503,
+            )
+            await response(scope, receive, send)
+            return
+        await state.app(scope, receive, send)
+
+    async def aclose(self) -> None:
+        state, self._state = self._state, None
+        if state is not None:
+            await state.aclose()
+
+
+# Mount the MCP server at /mcp (accessible at /api/mcp via nginx).
+#
+# ``_mcp_serving`` is True only while the app lifespan is running. The mount
+# refuses to activate outside it, because the session manager it starts has to
+# be closed by that same lifespan.
+_mcp_serving = False
+_mcp_mount = _LazyMCPMount()
+app.mount("/mcp", _mcp_mount)
 
 # Optional authentication layer (opt-in via FIESTABOARD_AUTH_ENABLED env var).
 # Mounted unconditionally so /auth/* endpoints are always reachable; the
