@@ -137,10 +137,10 @@ They only apply to built-in strategies. Transition plugins pace themselves throu
 
 ### A transition endpoint returns 404
 
-The `/transitions/*` API endpoints are gated behind the beta flag and respond `404` while it is off. See [API Endpoints](/docs/reference/api-endpoints#transition-plugin-endpoints).
+The `/transitions/*` API endpoints are gated behind the beta flag and respond `404` while it is off. They are part of the web UI's internal surface rather than the published API, so they appear in `/api/internal/openapi.json` rather than in the [API Endpoints](/docs/reference/api-endpoints) reference.
 
 ## Next Steps
 
 - [Page Editor](/docs/features/page-editor) - Set a per-page transition while you build a page
 - [Plugin Development Guide](/docs/development/plugin-guide) - Build your own transition plugin
-- [API Endpoints](/docs/reference/api-endpoints) - Drive transitions from the REST API
+- [API Endpoints](/docs/reference/api-endpoints) - The published REST API reference

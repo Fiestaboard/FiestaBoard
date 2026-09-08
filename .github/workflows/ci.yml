@@ -1281,18 +1281,29 @@ jobs:
         done
         echo "✅ All plugin structures valid"
 
-  # Docs quality gate: spell-check, markdown-lint, frontmatter-lint, and the
-  # docs contract check over all repository markdown (config: cspell.json,
-  # .markdownlint-cli2.jsonc). The contract check (lint-docs-contract.mjs)
-  # guards what the site repo's Docusaurus build depends on — this repo no
-  # longer builds the site, so without it a malformed doc would only fail
-  # two repos later. Runs on Node 24 because cspell 10 requires Node >= 22.18.
+  # Docs quality gate: spell-check, markdown-lint, frontmatter-lint, the docs
+  # contract check over all repository markdown (config: cspell.json,
+  # .markdownlint-cli2.jsonc), and the generated API reference's staleness
+  # check. The contract check (lint-docs-contract.mjs) guards what the site
+  # repo's Docusaurus build depends on — this repo no longer builds the site,
+  # so without it a malformed doc would only fail two repos later. Runs on
+  # Node 24 because cspell 10 requires Node >= 22.18, plus Python because
+  # docs/reference/api-endpoints.md is generated from the app's own OpenAPI
+  # document.
+  #
+  # `api` is in the condition alongside `markdown` on purpose: the API
+  # reference goes stale when a *route* changes, not when markdown changes,
+  # so gating this job on markdown alone would let every schema change
+  # through unchecked.
   lint-markdown:
     name: Lint Markdown
     runs-on: ubuntu-latest
     needs: detect-changes
-    if: needs.detect-changes.outputs.markdown == 'true' || needs.detect-changes.outputs.shared == 'true'
-    timeout-minutes: 5
+    if: >-
+      needs.detect-changes.outputs.markdown == 'true'
+      || needs.detect-changes.outputs.api == 'true'
+      || needs.detect-changes.outputs.shared == 'true'
+    timeout-minutes: 10
 
     steps:
     - uses: actions/checkout@v7
@@ -1318,6 +1329,20 @@ jobs:
 
     - name: Spell check
       run: npm run docs:lint:spell
+
+    - name: Set up Python deps
+      uses: ./.github/actions/setup-python-deps
+
+    # `--check` the way a formatter's `--check` runs: regenerate
+    # docs/reference/api-endpoints.md from `app.openapi()` and fail with a
+    # diff if the committed page differs. Without this the generator is a
+    # script somebody ran once, and the published reference starts rotting
+    # again the same day.
+    - name: Check the generated API reference is current
+      run: python scripts/generate_api_reference.py --check
+      env:
+        BOARD_READ_WRITE_KEY: test_key
+        WEATHER_API_KEY: test_key
 
   # Repo-wide broken-link check for the GitHub-rendered markdown
   # (docs/internal/**, plugins/**, root *.md). The published docs source
