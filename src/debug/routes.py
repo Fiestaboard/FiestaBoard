@@ -34,6 +34,7 @@ module attributes, and one patch target is the whole truth.
 
 from __future__ import annotations
 
+import asyncio
 import logging
 import time
 
@@ -496,7 +497,14 @@ async def get_logs(
             detail=f"Invalid log level: {level}. Valid levels: {list(VALID_LOG_LEVELS)}",
         )
 
-    logs, total, has_more = log_store._read_logs_from_files(limit=limit, offset=offset, level=level, search=search)
+    # Reading a log page touches the filesystem. Even bounded to one page it
+    # is blocking I/O, and on a Pi the syscall latency is an order of
+    # magnitude worse than here — so it goes to a thread rather than stalling
+    # the event loop for every other request, the same way the page and
+    # settings routes hand their blocking work off.
+    logs, total, has_more = await asyncio.to_thread(
+        log_store._read_logs_from_files, limit=limit, offset=offset, level=level, search=search
+    )
 
     return LogsResponse(
         logs=logs,

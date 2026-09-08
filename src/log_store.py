@@ -19,6 +19,7 @@ from __future__ import annotations
 import json
 import logging
 import logging.handlers
+import os
 import threading
 from collections import deque
 from pathlib import Path
@@ -135,6 +136,87 @@ def _setup_file_logging():
         logger.warning(f"Failed to set up file logging: {e}")
 
 
+# Reverse-read chunk size. One 64 KB read holds ~250 JSON log lines, so a
+# default 50-row page is usually satisfied by a single read() near the end of
+# ``app.log``.
+_REVERSE_CHUNK_BYTES = 64 * 1024
+
+# How many recently-seen ``(timestamp, message)`` keys the deduplicator
+# remembers. The old reader kept one per entry in the whole corpus — 177k
+# tuples for a full 33.5 MB log set, and the single largest term in the
+# 191.6 MB an unfiltered ``GET /logs?limit=100`` used to allocate.
+#
+# A window is sufficient because duplicates cannot be far apart in the
+# newest-first stream: rotation writes every line to exactly one file, so the
+# only pairs that ever collide are an entry in the 500-slot in-memory ring and
+# its copy among the newest lines of ``app.log``. Those are at most ~1000
+# positions apart; 4096 is an 8x margin over that, and costs well under a
+# megabyte.
+_DEDUPE_WINDOW = 4096
+
+
+def _iter_lines_reversed(path: Path, chunk_size: int = _REVERSE_CHUNK_BYTES):
+    """Yield a file's lines newest-last-first, reading backwards in chunks.
+
+    The equivalent of ``reversed(f.readlines())`` without the ``readlines()``:
+    the caller can stop after a handful of lines and the rest of the file is
+    never read. Lines come back as ``bytes``; decoding is the caller's job so
+    that one undecodable line does not sink the file.
+    """
+    with open(path, "rb") as f:
+        f.seek(0, os.SEEK_END)
+        remaining = f.tell()
+        # Bytes belonging to a line that started before the current chunk.
+        partial = b""
+        while remaining > 0:
+            read_size = min(chunk_size, remaining)
+            remaining -= read_size
+            f.seek(remaining)
+            parts = (f.read(read_size) + partial).split(b"\n")
+            # parts[0] is only a line's tail unless we just read byte 0.
+            partial = parts.pop(0)
+            yield from reversed(parts)
+        if partial:
+            yield partial
+
+
+def _iter_entries_newest_first():
+    """Yield log entries newest first, opening as little as possible.
+
+    Order matches what the eager reader produced: the in-memory ring
+    (newest first), then ``app.log``, then ``app.log.1`` .. ``app.log.N``,
+    each read back to front. Files are opened lazily, so a consumer that
+    stops after one page never touches the backups.
+    """
+    with _log_lock:
+        memory_logs = list(_log_buffer)
+    yield from reversed(memory_logs)
+
+    current_log = _log_file()
+    candidates = [current_log] + [Path(f"{current_log}.{i}") for i in range(1, LOG_BACKUP_COUNT + 1)]
+
+    for log_file in candidates:
+        if not log_file.exists():
+            continue
+        try:
+            for raw in _iter_lines_reversed(log_file):
+                line = raw.strip()
+                if not line:
+                    continue
+                try:
+                    yield json.loads(line)
+                except (UnicodeDecodeError, ValueError):
+                    # Not JSON, or not even UTF-8. Skip the line. The old
+                    # reader let a decode error escape ``readlines()`` and
+                    # dropped the whole file; reverse reading has already
+                    # emitted the newer entries by then, so per-line is both
+                    # the only available granularity and the better one.
+                    continue
+        except Exception:
+            # A file that cannot be read never breaks the endpoint, as before.
+            continue
+
+
 def _read_logs_from_files(
     limit: int = 100, offset: int = 0, level: str | None = None, search: str | None = None
 ) -> tuple[list[dict[str, Any]], int, bool]:
@@ -142,78 +224,52 @@ def _read_logs_from_files(
     Read logs from log files with filtering and pagination.
 
     Returns: (logs, total_matching, has_more)
+
+    Cost is O(offset + limit), not O(bytes on disk): the stream is consumed
+    newest first and abandoned one entry past the requested page.
+    Consequently ``total_matching`` is a **lower bound** whenever the scan
+    stopped early — the reader cannot count a corpus it deliberately did not
+    read. It is exact whenever the stream was exhausted, which covers every
+    small deployment and every filter that matches less than a full page.
+    ``has_more`` is exact in all cases and is the authoritative "is there
+    another page" signal.
     """
-    all_logs = []
+    need = offset + limit
+    level_upper = level.upper() if level else None
+    search_lower = search.lower() if search else None
 
-    # Read from current log file and backups
-    current_log = _log_file()
-    log_files = [current_log]
-    for i in range(1, LOG_BACKUP_COUNT + 1):
-        backup_file = Path(f"{current_log}.{i}")
-        if backup_file.exists():
-            log_files.append(backup_file)
+    # Bounded dedupe window: a set for lookups, a deque to evict the oldest
+    # key once it can no longer collide with anything still to come.
+    seen: set[tuple[Any, Any]] = set()
+    seen_order: deque[tuple[Any, Any]] = deque()
 
-    # Read all log entries from files (newest first)
-    for log_file in log_files:
-        if not log_file.exists():
+    page: list[dict[str, Any]] = []
+    matched = 0
+
+    for entry in _iter_entries_newest_first():
+        # Deduplicate before filtering, as before: two entries can share a
+        # ``(timestamp, message)`` while differing in level, and the first one
+        # seen is the one that counts.
+        key = (entry.get("timestamp"), entry.get("message"))
+        if key in seen:
             continue
-        try:
-            with open(log_file, encoding="utf-8") as f:
-                lines = f.readlines()
-                for line in reversed(lines):
-                    line = line.strip()
-                    if not line:
-                        continue
-                    try:
-                        entry = json.loads(line)
-                        all_logs.append(entry)
-                    except json.JSONDecodeError:
-                        continue
-        except Exception:
+        seen.add(key)
+        seen_order.append(key)
+        if len(seen_order) > _DEDUPE_WINDOW:
+            seen.discard(seen_order.popleft())
+
+        if level_upper is not None and entry.get("level") != level_upper:
+            continue
+        if search_lower is not None and not (
+            search_lower in entry.get("message", "").lower() or search_lower in entry.get("logger", "").lower()
+        ):
             continue
 
-    # Also include in-memory buffer (most recent)
-    with _log_lock:
-        memory_logs = list(_log_buffer)
+        matched += 1
+        if matched > offset and len(page) < limit:
+            page.append(entry)
+        if matched > need:
+            # One past the page: enough to answer ``has_more`` exactly.
+            break
 
-    # Merge: memory logs are most recent, then file logs
-    # Deduplicate by timestamp + message
-    seen = set()
-    merged_logs = []
-
-    for log in reversed(memory_logs):
-        key = (log.get("timestamp"), log.get("message"))
-        if key not in seen:
-            seen.add(key)
-            merged_logs.append(log)
-
-    for log in all_logs:
-        key = (log.get("timestamp"), log.get("message"))
-        if key not in seen:
-            seen.add(key)
-            merged_logs.append(log)
-
-    # Apply filters
-    filtered_logs = merged_logs
-
-    if level:
-        level_upper = level.upper()
-        filtered_logs = [log for log in filtered_logs if log.get("level") == level_upper]
-
-    if search:
-        search_lower = search.lower()
-        filtered_logs = [
-            log
-            for log in filtered_logs
-            if search_lower in log.get("message", "").lower() or search_lower in log.get("logger", "").lower()
-        ]
-
-    total_matching = len(filtered_logs)
-
-    # Apply pagination
-    start = offset
-    end = offset + limit
-    paginated = filtered_logs[start:end]
-    has_more = end < total_matching
-
-    return paginated, total_matching, has_more
+    return page, matched, matched > need
