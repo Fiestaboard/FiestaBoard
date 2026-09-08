@@ -460,6 +460,15 @@
       "kind": "APIRoute"
     },
     {
+      "path": "/internal/openapi.json",
+      "methods": [
+        "GET",
+        "HEAD"
+      ],
+      "name": "internal_openapi",
+      "kind": "Route"
+    },
+    {
       "path": "/logs",
       "methods": [
         "GET"

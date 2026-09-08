@@ -88,7 +88,7 @@ page itself, and the OpenAPI docs keep working:
 
 - `GET /`, `GET /health`
 - `GET/POST /auth/*`
-- `GET /openapi.json`, `/docs`, `/redoc`
+- `GET /openapi.json`, `/internal/openapi.json`, `/docs`, `/redoc`
 
 Everything else (status, config, pages, plugins, etc.) requires a valid
 session cookie.

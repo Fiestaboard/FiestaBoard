@@ -12,7 +12,7 @@ from datetime import datetime
 from typing import Any
 
 from dotenv import load_dotenv
-from fastapi import Depends, FastAPI, HTTPException, Query, Response
+from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import PlainTextResponse
 
@@ -30,6 +30,7 @@ from . import (  # noqa: E402,F401  (re-export)
     display_runtime,
     log_store,
 )
+from .api_deprecation import deprecation_notice  # noqa: E402
 from .auth import is_auth_enabled  # noqa: E402
 from .auth.middleware import AuthMiddleware  # noqa: E402
 from .auth.routes import router as auth_router  # noqa: E402
@@ -412,32 +413,51 @@ FiestaBoard drives one or more split-flap displays from templated pages.
 Put text on the board right now:
 
 ```bash
-curl -X POST http://fiestaboard.local:4420/api/send-message \\
+curl -X POST http://fiestaboard.local:4420/api/v1/boards/primary/message \\
   -H 'Content-Type: application/json' \\
   -d '{"text": "HELLO WORLD"}'
 ```
 
+`primary` works as a board id on every `/v1/boards/...` path, so a
+single-board install never has to look one up — and a multi-board install
+puts the id there instead.
+
 ### How the pieces fit
 
+Four nouns, and one way to do each thing:
+
+* A **board** is a physical display. `POST /v1/boards/{board}/message` writes
+  to it; `GET /v1/boards/{board}` says what is on it and why.
 * A **page** is a template: literal text plus `{{plugin_id.variable}}`
   placeholders that **plugins** fill with live data.
-* A **schedule** or a **collection** decides which page a board shows at a
-  given moment. `POST /send-message` bypasses both for a one-off write.
-* `/settings/*` and `/config/*` are the install's configuration;
-  `/system/*`, `/network/*` and `/auth/*` administer the appliance itself.
+* A **schedule** (or a **collection**) decides which page a board shows at a
+  given moment. A message write bypasses both for a one-off; `DELETE
+  /v1/boards/{board}/message` hands the board back to the schedule.
 
 ### Base URL
 
 nginx fronts the API under `/api`, so every path below is reached as
-`/api/<path>` — `GET /status` is `http://fiestaboard.local:4420/api/status`.
-These docs live at `/api/docs`, the schema at `/api/openapi.json`.
+`/api/<path>` — `GET /v1/status` is
+`http://fiestaboard.local:4420/api/v1/status`. These docs live at
+`/api/docs`, the schema at `/api/openapi.json`.
+
+### What is not here
+
+This document is the API to build against: 33 operations. The app serves
+~200 more, but they are the web UI's private RPC channel — undocumented on
+purpose, with no compatibility promise, and liable to change in any release.
+They are published separately at `/api/internal/openapi.json` for the UI's
+own contract checks. Two flat legacy operations, `POST /send-message` and
+`POST /refresh`, remain here because earlier documentation named them; both
+are deprecated and both name their `/v1` replacement in a `Link` header.
 
 ### Authentication
 
 Off by default: a fresh install answers every request. With
-`FIESTABOARD_AUTH_ENABLED=true`, requests carry the session cookie that
-`POST /auth/login` sets. MCP clients may instead send
-`Authorization: Bearer <token>` to `/api/mcp` (see `POST /auth/mcp-token`).
+`FIESTABOARD_AUTH_ENABLED=true`, a script sends
+`Authorization: Bearer <token>` (create one with `POST /auth/mcp-token`),
+which is accepted on every `/v1` path and on `/api/mcp`. The web UI instead
+carries the session cookie that `POST /auth/login` sets.
 """
 
 # Deliberate order — Swagger lists tags in this order, and anything not listed
@@ -1180,20 +1200,15 @@ def _deprecated_route(successor_plugin_id: str | None = None):
     ``successor_plugin_id=None`` means no successor exists yet
     (``/transit/cache/status``), and only ``Deprecation``/``Sunset`` are sent.
     """
-    link = None
+    successor = None
     if successor_plugin_id:
-        link = f'</api/plugins/{successor_plugin_id}/options/{{options_id}}>; rel="successor-version"'
+        successor = f"/api/plugins/{successor_plugin_id}/options/{{options_id}}"
 
-    def _set_deprecation_headers(response: Response) -> None:
-        response.headers["Deprecation"] = "true"
-        response.headers["Sunset"] = DEPRECATED_ROUTES_SUNSET
-        if link is not None:
-            response.headers["Link"] = link
-
+    dependency = deprecation_notice(successor=successor, sunset=DEPRECATED_ROUTES_SUNSET)
     # Read by tests/test_deprecated_route_headers.py to pin which route points
     # at which successor without calling eleven upstream APIs.
-    _set_deprecation_headers.successor_plugin_id = successor_plugin_id  # type: ignore[attr-defined]
-    return Depends(_set_deprecation_headers)
+    dependency.dependency.successor_plugin_id = successor_plugin_id  # type: ignore[attr-defined]
+    return dependency
 
 
 @app.get(

@@ -36,6 +36,7 @@ from fastapi import APIRouter, HTTPException
 
 from src import __version__
 from src import display_runtime as runtime
+from src.api_deprecation import V1_BOARD_MESSAGE_SUCCESSOR, deprecation_notice
 from src.api_errors import errors
 from src.board_guards import _require_board
 from src.board_send_executor import run_board_send
@@ -209,9 +210,22 @@ async def stop_service():
 # ---------------------------------------------------------------------------
 
 
-@router.post("/refresh", response_model=RefreshResponse, responses=errors(404, 500, 503))
+# The second of the two legacy operations kept in the published consumer
+# schema — see the note on ``POST /send-message`` in src/board_api/routes.py.
+# Its successor is ``DELETE /v1/boards/{board}/message``, which calls this very
+# handler: reverting a board to its scheduled content and re-driving it is the
+# same act.
+@router.post(
+    "/refresh",
+    response_model=RefreshResponse,
+    responses=errors(404, 500, 503),
+    deprecated=True,
+    dependencies=[deprecation_notice(successor=V1_BOARD_MESSAGE_SUCCESSOR)],
+)
 async def refresh_display(board_id: str | None = None, payload: RefreshRequest | None = None):
-    """Manually trigger a display refresh.
+    """Deprecated: use ``DELETE /v1/boards/{board}/message`` instead.
+
+    Manually trigger a display refresh.
 
     Args:
         board_id: Optional board to refresh (query param, or

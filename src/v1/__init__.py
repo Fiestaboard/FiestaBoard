@@ -27,12 +27,33 @@ from __future__ import annotations
 from . import routes_boards, routes_content, routes_meta, routes_plugins
 from .openapi import install_security_scheme
 from .router import router
+from .visibility import build_internal_openapi, hide_internal_operations, mount_internal_schema
 
 
 def mount_v1(app) -> None:
-    """Attach the v1 surface to *app*: its routes and its security scheme."""
+    """Attach the v1 surface to *app* and hide everything that is not it.
+
+    Order matters, and each step depends on the one before it:
+
+    1. include the ``/v1`` routes, so there is a consumer surface at all;
+    2. declare the security schemes, so the document says the API is
+       authenticated;
+    3. mount ``/internal/openapi.json``, so the full document has somewhere
+       to live *before* anything is taken out of the published one;
+    4. hide every non-``/v1`` operation. Last, because it sweeps the whole
+       route table — every router this module's caller included, plus the
+       internal-schema route added in step 3.
+    """
     app.include_router(router)
     install_security_scheme(app)
+    mount_internal_schema(app)
+    hide_internal_operations(app)
 
 
-__all__ = ["install_security_scheme", "mount_v1", "router"]
+__all__ = [
+    "build_internal_openapi",
+    "hide_internal_operations",
+    "install_security_scheme",
+    "mount_v1",
+    "router",
+]

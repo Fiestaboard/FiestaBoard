@@ -201,9 +201,19 @@ def _operation(spec: dict, method: str, path: str) -> dict:
 
 @pytest.fixture(scope="module")
 def openapi() -> dict:
-    from src.api_server import app
+    """The **internal** document, not the published one.
 
-    return app.openapi()
+    Every operation this file asserts on — ``/config/board``, ``/settings/*``,
+    ``/templates/render`` — is internal, and ``src/v1/visibility.py`` took all
+    of them out of ``app.openapi()``. Reading the published document here
+    would not fail loudly; the two "the rule, not the instances" tests below
+    iterate ``paths`` and would simply find nothing to object to. A green,
+    vacuous ratchet is worse than a red one.
+    """
+    from src.api_server import app
+    from src.v1.visibility import build_internal_openapi
+
+    return build_internal_openapi(app)
 
 
 class TestDeprecationIsDeclared:

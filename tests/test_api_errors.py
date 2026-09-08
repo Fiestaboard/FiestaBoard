@@ -18,10 +18,9 @@ from __future__ import annotations
 
 from typing import Any
 
-from fastapi.testclient import TestClient
-
 from src.api_errors import ErrorResponse, HTTPValidationError, errors
 from src.api_server import app
+from src.v1.visibility import build_internal_openapi
 
 
 def test_errors_maps_422_to_http_validation_error():
@@ -70,8 +69,13 @@ def _detail_type(schema: dict[str, Any], response: dict[str, Any]) -> str:
 
 
 def _openapi() -> dict[str, Any]:
-    app.openapi_schema = None  # bypass FastAPI's cached build
-    return TestClient(app).get("/openapi.json").json()
+    """The internal document — ``/pages/*`` is not in the published one.
+
+    ``src/v1/visibility.py`` publishes only the 33 consumer operations, and
+    both routes below are internal. Built fresh each call (it is never cached)
+    so this still re-exercises the schema build rather than reading a snapshot.
+    """
+    return build_internal_openapi(app)
 
 
 def test_openapi_serves_list_shaped_422_on_a_validation_only_route():
