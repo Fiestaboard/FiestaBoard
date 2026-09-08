@@ -296,8 +296,9 @@ class PluginListResponse(BaseModel):
 class PluginUpdate(BaseModel):
     """``PATCH /v1/plugins/{plugin}``.
 
-    Collapses ``POST /enable``, ``POST /disable`` and ``PUT /config`` into
-    one call. ``config`` stays a free-form map on purpose: a typed body would
+    Collapses ``POST /plugins/{plugin_id}/enable``,
+    ``POST /plugins/{plugin_id}/disable`` and ``PUT /plugins/{plugin_id}/config``
+    into one call. ``config`` stays a free-form map on purpose: a typed body would
     reject the ``"***"`` sentinel the API serves in place of a stored secret,
     which is what a client round-trips when it edits one field of a form.
     """

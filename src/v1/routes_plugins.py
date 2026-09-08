@@ -3,7 +3,8 @@
 The internal API publishes the plugin registry twice: ``GET /plugins`` with
 eighteen fields and ``GET /displays`` with four, both built from the same
 ``registry.list_plugins()`` call. It also splits one write — "change this
-plugin" — across ``POST /enable``, ``POST /disable`` and ``PUT /config``.
+plugin" — across ``POST /plugins/{plugin_id}/enable``,
+``POST /plugins/{plugin_id}/disable`` and ``PUT /plugins/{plugin_id}/config``.
 v1 serves one catalogue and one ``PATCH``.
 """
 

@@ -39,6 +39,7 @@
     "\\w*&[a-z]+;\\w*"
   ],
   "words": [
+    "acked",
     "automations",
     "avahi",
     "balena",
@@ -95,6 +96,7 @@
     "repoint",
     "rescan",
     "retags",
+    "retarget",
     "rfkill",
     "rootdir",
     "rounddown",
