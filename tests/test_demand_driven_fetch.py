@@ -19,16 +19,18 @@ these tests must pass WITHOUT any golden changing.
 """
 
 import threading
+from datetime import timedelta
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import pytest
 
 import src.plugins.registry as registry_module
+from src.devices import BoardContext
 from src.pages.models import Page
 from src.pages.service import PageService
 from src.pages.storage import PageStorage
-from src.plugins.base import PluginBase, PluginResult
+from src.plugins.base import DEFAULT_REFRESH_SECONDS, PluginBase, PluginResult
 from src.plugins.registry import PluginRegistry
 from src.templates.engine import TemplateEngine
 
@@ -284,3 +286,147 @@ class TestTriggerFetchedOncePerTick:
         assert contexts[next(k for k in contexts if not k.startswith("\x00"))].get("trig") == {"value": "TRIG"}
 
         assert _fetched_ids(registry) == {"alpha": 1, "beta": 1, "gamma": 1, "trig": 1}
+
+
+# ==========================================================================
+# The calling-thread fast path for already-cached plugins
+# ==========================================================================
+
+
+class _CountingPlugin(PluginBase):
+    """A real PluginBase, so its real cache decides what a fetch costs."""
+
+    def __init__(self, plugin_id: str, manifest_extra: dict | None = None):
+        self._pid = plugin_id
+        self.fetches = 0
+        super().__init__({"id": plugin_id, "name": plugin_id, "version": "1.0.0", **(manifest_extra or {})})
+
+    @property
+    def plugin_id(self) -> str:
+        return self._pid
+
+    def fetch_data(self) -> PluginResult:
+        self.fetches += 1
+        return PluginResult(available=True, data={"value": f"V{self.fetches}"})
+
+
+@pytest.fixture
+def counted_pool(monkeypatch):
+    """Count every submission to the shared plugin-fetch pool."""
+    executor = registry_module._get_fetch_executor()
+    submits = []
+    real_submit = executor.submit
+
+    def counting_submit(fn, *args, **kwargs):
+        submits.append(args[0] if args else None)
+        return real_submit(fn, *args, **kwargs)
+
+    monkeypatch.setattr(executor, "submit", counting_submit)
+    return submits
+
+
+def _install_real_plugin(registry, plugin, enabled: bool = True):
+    registry._plugins[plugin.plugin_id] = plugin
+    registry._enabled[plugin.plugin_id] = enabled
+    return plugin
+
+
+class TestCachedFetchFastPath:
+    """A plugin whose own cache is fresh must not be dispatched to a thread.
+
+    Measured against doing the identical work inline, the dispatch — Future
+    allocation, queue put, worker wakeup, condvar wait, done-callback and
+    three lock round-trips — costs 21x what the in-memory dict read it wraps
+    costs. The second-order win matters more: a fully cached tick that never
+    submits also never enters ``futures_wait``, so it can never pay the
+    context-build timeout for a plugin it was not going to talk to.
+    """
+
+    def test_a_cached_plugin_is_served_without_touching_the_pool(self, counted_pool):
+        registry = _make_registry()
+        plugin = _install_real_plugin(registry, _CountingPlugin("cached"))
+
+        first = registry.build_template_context(plugin_ids=["cached"])
+        submits_after_first = len(counted_pool)
+        second = registry.build_template_context(plugin_ids=["cached"])
+
+        assert first == {"cached": {"value": "V1"}}
+        assert second == {"cached": {"value": "V1"}}, "the cached payload must still reach the context"
+        assert submits_after_first == 1, "the cold build must dispatch"
+        assert len(counted_pool) == 1, "the warm build must not dispatch"
+        assert plugin.fetches == 1
+
+    def test_a_cached_build_never_enters_the_context_build_wait(self, monkeypatch):
+        """This is what decouples a fully-cached tick from the fetch timeout."""
+        registry = _make_registry()
+        _install_real_plugin(registry, _CountingPlugin("cached"))
+        registry.build_template_context(plugin_ids=["cached"])
+
+        waits = []
+        real_wait = registry_module.futures_wait
+        monkeypatch.setattr(
+            registry_module,
+            "futures_wait",
+            lambda *a, **k: (waits.append(1), real_wait(*a, **k))[1],
+        )
+        assert registry.build_template_context(plugin_ids=["cached"]) == {"cached": {"value": "V1"}}
+        assert waits == []
+
+    def test_a_live_data_plugin_never_takes_the_fast_path(self, counted_pool):
+        """live_data means "stale is wrong by definition" — it has no cache."""
+        registry = _make_registry()
+        plugin = _install_real_plugin(registry, _CountingPlugin("clock", {"live_data": True}))
+
+        registry.build_template_context(plugin_ids=["clock"])
+        registry.build_template_context(plugin_ids=["clock"])
+
+        assert len(counted_pool) == 2
+        assert plugin.fetches == 2
+
+    def test_an_expired_cache_is_refetched_through_the_pool(self, counted_pool, monkeypatch):
+        registry = _make_registry()
+        plugin = _install_real_plugin(registry, _CountingPlugin("stale"))
+        registry.build_template_context(plugin_ids=["stale"])
+
+        # Age the cache past the default refresh interval.
+        with plugin._cache_lock:
+            for key in plugin._last_fetch_times:
+                plugin._last_fetch_times[key] -= timedelta(seconds=DEFAULT_REFRESH_SECONDS + 1)
+
+        assert registry.build_template_context(plugin_ids=["stale"]) == {"stale": {"value": "V2"}}
+        assert len(counted_pool) == 2
+        assert plugin.fetches == 2
+
+    def test_a_disabled_plugin_is_never_served_from_cache(self):
+        registry = _make_registry()
+        _install_real_plugin(registry, _CountingPlugin("off"))
+        registry.build_template_context(plugin_ids=["off"])
+        registry._enabled["off"] = False
+
+        assert registry.get_cached_plugin_data("off") is None
+
+    def test_a_plugin_returning_a_non_result_falls_through_to_a_real_fetch(self, counted_pool):
+        """Only a genuine PluginResult may stand in for a fetch.
+
+        Without this guard any ``MagicMock(spec=PluginBase)`` — the shape half
+        this suite's doubles take — would satisfy the fast path and put a mock
+        object into the template context.
+        """
+        registry = _make_registry()
+        plugin = _install_real_plugin(registry, _CountingPlugin("liar"))
+        plugin.cached_result = lambda board=None: {"not": "a result"}
+
+        assert registry.build_template_context(plugin_ids=["liar"]) == {"liar": {"value": "V1"}}
+        assert len(counted_pool) == 1
+
+    def test_cached_result_is_keyed_by_board_geometry(self):
+        """A Flagship's cached payload must never answer a Note's probe."""
+        registry = _make_registry()
+        _install_real_plugin(registry, _CountingPlugin("board_aware"))
+        flagship = BoardContext("flagship", rows=6, cols=22)
+        note = BoardContext("note", rows=3, cols=15)
+
+        registry.build_template_context(flagship, plugin_ids=["board_aware"])
+
+        assert registry.get_cached_plugin_data("board_aware", flagship) is not None
+        assert registry.get_cached_plugin_data("board_aware", note) is None

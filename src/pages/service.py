@@ -39,6 +39,19 @@ PREVIEW_CACHE_TTL = 120
 # A size WITHOUT a coverage entry was built with fetch-all (full coverage).
 _CONTEXT_COVERAGE_PREFIX = "\x00fetched:"
 
+# Prefix for the per-size payload-hash companion entries `shared_context_for`
+# keeps beside each cached context (issue #1883 follow-up): ``fingerprint_key
+# -> {plugin_id: PluginResult.data_fingerprint()}``, covering EXACTLY the ids
+# in that size's context. The render short-circuit composes those hashes
+# instead of re-serialising every payload once per board per tick; a size
+# WITHOUT this entry makes it fall back to hashing the payloads itself.
+CONTEXT_FINGERPRINT_PREFIX = "\x00fingerprints:"
+
+# Prefix for the per-size render-fingerprint memo (issue #1883 follow-up).
+# Keyed by size so board-aware plugins, which legitimately return different
+# data per geometry, can never have their fingerprints collapsed together.
+CONTEXT_RENDER_MEMO_PREFIX = "\x00render-fp:"
+
 
 # Default welcome page templates per device type
 DEFAULT_PAGE_TEMPLATES = {
@@ -389,6 +402,7 @@ class PageService:
             return None
         key = size_key(device_type or DEFAULT_DEVICE_TYPE, notes_wide or 1, notes_tall or 1)
         coverage_key = _CONTEXT_COVERAGE_PREFIX + key
+        fingerprint_key = CONTEXT_FINGERPRINT_PREFIX + key
         try:
             from src.plugins.registry import get_plugin_registry
 
@@ -396,13 +410,15 @@ class PageService:
             context = contexts.get(key)
             if context is None:
                 board = board_context_for(device_type, notes_wide, notes_tall)
+                fingerprints: dict[str, str] = {}
                 if plugin_ids is None:
-                    context = registry.build_template_context(board)
+                    context = registry.build_template_context(board, fingerprints=fingerprints)
                     # No coverage entry: a fetch-all context covers everything.
                 else:
-                    context = registry.build_template_context(board, plugin_ids=plugin_ids)
+                    context = registry.build_template_context(board, plugin_ids=plugin_ids, fingerprints=fingerprints)
                     contexts[coverage_key] = set(plugin_ids) | set(getattr(registry, "trigger_plugins", {}) or {})
                 contexts[key] = context
+                contexts[fingerprint_key] = fingerprints
                 return context
 
             fetched = contexts.get(coverage_key)
@@ -422,7 +438,20 @@ class PageService:
             # this size already fetched the trigger plugins (they are in
             # ``fetched``), so re-unioning them here would fetch each trigger
             # plugin once per widening consumer (#1862 review).
-            context.update(registry.build_template_context(board, plugin_ids=missing, include_trigger_plugins=False))
+            widened: dict[str, str] = {}
+            context.update(
+                registry.build_template_context(
+                    board, plugin_ids=missing, include_trigger_plugins=False, fingerprints=widened
+                )
+            )
+            # Keep the hash companion covering exactly what the context holds:
+            # a widening that added payloads without adding their hashes would
+            # leave the render short-circuit hashing "absent" for live data.
+            existing = contexts.get(fingerprint_key)
+            if isinstance(existing, dict):
+                existing.update(widened)
+            else:
+                contexts[fingerprint_key] = widened
             if plugin_ids is None:
                 contexts.pop(coverage_key, None)  # widened to full coverage
             else:

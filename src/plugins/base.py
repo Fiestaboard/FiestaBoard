@@ -5,6 +5,8 @@ plugins (frame-by-frame board animations) inherit from
 :class:`TransitionPluginBase` instead.
 """
 
+import hashlib
+import json
 import logging
 import threading
 from abc import ABC, abstractmethod
@@ -45,6 +47,33 @@ class PluginResult:
     data: dict[str, Any] | None = None
     error: str | None = None
     formatted_lines: list[str] | None = None
+
+    #: Memo for :meth:`data_fingerprint`. Deliberately a plain class attribute
+    #: with NO annotation, so it is not a dataclass field: ``asdict`` (used by
+    #: ``src/ops/results.py::serialize``) walks fields and would otherwise leak
+    #: a ``_data_fingerprint`` key into API responses. Keeping it off the field
+    #: list also keeps ``__eq__`` and ``__repr__`` unchanged, so two results
+    #: with equal data stay equal whether or not either has been hashed.
+    _data_fingerprint = None
+
+    def data_fingerprint(self) -> str:
+        """Stable hash of :attr:`data`, serialised at most once per result.
+
+        The render short-circuit (issue #1883) needs to know whether a
+        plugin's payload moved, not what it contains. Hashing here — once,
+        on the object ``PluginBase`` caches and hands back to every consumer
+        — means a cached plugin costs O(1) per board per tick instead of a
+        full ``json.dumps`` of its payload per board per tick.
+
+        Two threads racing to fill the memo both compute the same value, so
+        no lock is needed.
+        """
+        fingerprint = self._data_fingerprint
+        if fingerprint is None:
+            payload = json.dumps(self.data, sort_keys=True, default=str, separators=(",", ":"))
+            fingerprint = hashlib.blake2b(payload.encode("utf-8", "replace"), digest_size=16).hexdigest()
+            self._data_fingerprint = fingerprint
+        return fingerprint
 
     def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary for API responses."""
@@ -465,6 +494,33 @@ class PluginBase(ABC):
                 self._last_fetch_times[key] = datetime.now()
 
         return result
+
+    def cached_result(self, board: BoardContext | None = None) -> PluginResult | None:
+        """Return this plugin's cached result for *board* if it is still fresh.
+
+        A pure dict lookup under ``_cache_lock``: it never calls
+        :meth:`fetch_data`, never touches the network, and never blocks on
+        plugin code, so a caller may use it on a latency-sensitive thread to
+        decide whether a fetch needs dispatching at all (issue #1751 follow-up).
+
+        Returns ``None`` for "you must fetch" — including for live-data
+        plugins and plugins with no refresh interval, which have no cache by
+        definition. It never means "this plugin has no data".
+        """
+        if self.live_data:
+            return None
+        interval = self.refresh_seconds
+        if interval is None:
+            return None
+        key = self._cache_key(board)
+        with self._cache_lock:
+            cached = self._cached_results.get(key)
+            last_fetch = self._last_fetch_times.get(key)
+        if cached is None or last_fetch is None:
+            return None
+        if (datetime.now() - last_fetch).total_seconds() >= interval:
+            return None
+        return cached
 
     @staticmethod
     def _cache_key(board: BoardContext | None) -> str:

@@ -490,7 +490,12 @@ async def exchange_enablement_token(request: EnablementTokenRequest) -> dict:
 
     try:
         logger.info(f"Attempting to enable local API on {request.host}")
-        response = http_requests.post(url, headers=headers, timeout=10)
+        # Off the event loop (#1826 class): a board that accepts the connection
+        # and never answers holds the loop for the full 10s timeout otherwise.
+        # The sink's arguments are unchanged and it stays adjacent to the
+        # private-network gate above, so the SSRF barrier #1938 verified with
+        # CodeQL is not reshaped — only the thread it runs on changes.
+        response = await asyncio.to_thread(http_requests.post, url, headers=headers, timeout=10)
         return _verdict_for_enablement_response(response, request.host)
     except http_requests.exceptions.ConnectionError as e:
         logger.error(f"Local API enablement connection error: {e}")

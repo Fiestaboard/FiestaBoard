@@ -16,6 +16,17 @@ because the third rule is deliberately *not* enforced at all.
 crash mid-write leaves the previous contents fully intact (#1304); the partial
 staging file is removed rather than leaked.
 
+`if_changed=True` reads the target first and skips the write when the bytes
+would be identical, returning whether it wrote. `ConfigManager` and
+`JsonStore` both use it, so a restart that merges in no new defaults, and a
+PUT that stores the value already stored, cost zero fsyncs instead of one
+each. It is opt-in because a caller that writes to signal liveness must keep
+writing. A read that fails for any reason answers "changed", so the failure
+mode is a needless write and never a skipped one.
+
+`config_generation` is deliberately NOT conditional on the write happening.
+It means "what this process reads has moved", not "the disk moved".
+
 Every store's default path resolves through `src.paths.get_data_dir()`, the one
 seam that honours `FIESTABOARD_DATA_DIR`. `tests/test_data_dir_isolation.py` is
 the guard: it constructs each store with defaults and asserts the resulting

@@ -69,6 +69,7 @@ from src.board_client import board_client_from_board_dict
 from src.board_guards import _board_dims, _require_board, _silence_active
 from src.board_guards import raise_if_paused as _raise_if_paused
 from src.board_guards import raise_if_throttled as _raise_if_throttled
+from src.board_send_executor import run_board_send
 from src.config_manager import get_config_manager
 from src.devices import resolve_dimensions
 from src.text_to_board import text_to_board_array
@@ -366,7 +367,10 @@ async def send_welcome_message():
     board_array = text_to_board_array("\n".join(welcome_template), rows=dims.rows, cols=dims.cols)
 
     try:
-        success, was_sent = board_client.render(
+        # Board network I/O goes on the dedicated bounded send pool, never
+        # inline on the event loop (#1878) — see src/board_send_executor.py.
+        success, was_sent = await run_board_send(
+            board_client.render,
             board_array,
             strategy=transition.strategy,
             step_interval_ms=transition.step_interval_ms,

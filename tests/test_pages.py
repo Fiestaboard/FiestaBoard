@@ -1915,6 +1915,12 @@ class TestAtomicSave:
         assert storage.count() == 1
         original_bytes = Path(temp_storage_file).read_bytes()
 
+        # The pending save must be a REAL one: an unchanged save is now
+        # correctly skipped as a no-op (write_json_atomic if_changed), so a
+        # crash test that re-saves identical bytes would never reach the
+        # crash it exists to test.
+        storage._pages[page.id] = page.model_copy(update={"name": "Renamed in memory only"})
+
         def crashing_dump(obj, fh, *args, **kwargs):
             fh.write('{"pages": [{"id": "abc", "name": "Impor')
             fh.flush()

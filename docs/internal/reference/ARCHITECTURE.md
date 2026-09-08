@@ -153,6 +153,13 @@ Names you will meet:
   unchanged tick skips the render entirely. It re-checks its own content
   against the live dedupe cache before it is trusted, which is why every
   existing cache-invalidation site invalidates the memo for free.
+  The fingerprint enters each plugin's payload as a hash computed once on the
+  `PluginResult` that `PluginBase` cached, not by re-encoding the
+  payload, and the fingerprint itself is memoised per board **size** inside
+  the per-tick context cache. Both matter: without them, deciding "nothing
+  changed" cost one full `json.dumps` of every referenced payload per board
+  per tick. The memo is per-size and never global, because board-aware plugins
+  legitimately return different data per geometry.
 - **Silence and pause** are per board, resolved through `src/board_guards.py`.
   Every send path asks; both guards degrade to "not blocked" and log rather
   than raising, because a guard that raises turns an unrelated failure into a
@@ -172,9 +179,20 @@ Two properties are load-bearing and easy to break:
   deadlock, and no other test would see it.
 - **A wedged plugin cannot starve the healthy ones.** Fetches run on one
   shared bounded pool, in-flight dedupe caps each plugin at one worker, and a
-  per-plugin circuit breaker takes a repeatedly-timing-out plugin out of
-  rotation. Without the breaker, eight distinct wedged plugins were enough to
-  block every plugin's data.
+  circuit breaker takes a repeatedly-timing-out plugin out of rotation.
+  Without the breaker, eight distinct wedged plugins were enough to block
+  every plugin's data. The breaker, the in-flight dedupe and the fetch itself
+  are all keyed by `(plugin_id, board_key)` — one plugin on one geometry —
+  and they must stay that way: keyed by `plugin_id` alone, two boards charged
+  two timeouts per tick and one healthy geometry cleared the streak a wedged
+  one was accumulating.
+- **`CONTEXT_BUILD_TIMEOUT_SECONDS` must stay below the poll interval.**
+  `build_template_context` blocks the service thread that also runs the 1 Hz
+  silence-boundary detector, so a budget equal to the tick period lets one
+  slow plugin consume a whole tick *and* delay silence entry by that long.
+- **An already-cached plugin is read on the calling thread**, not dispatched
+  to the pool. A fully cached tick therefore never enters `futures_wait` and
+  can never pay the fetch budget for a plugin it was not going to talk to.
 
 ## Operations: one grammar for chat and MCP
 

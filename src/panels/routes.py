@@ -36,6 +36,7 @@ from fastapi import APIRouter, HTTPException
 from src.api_errors import errors
 from src.board_chars import characters_to_message
 from src.board_guards import _board_dims, _find_board
+from src.board_send_executor import run_board_send
 from src.devices import resolve_dimensions
 from src.display_runtime import get_service, reinitialize_board_clients
 from src.pages.service import find_incompatible_board_references
@@ -282,7 +283,9 @@ async def get_panel_frame(panel_id: str):
     updated_at = None
     if client is not None:
         if getattr(client, "is_virtual", False):
-            characters = client.read_current_message()
+            # A virtual board reads from memory, but the same call on a real
+            # client is network I/O; keep it off the loop either way (#1878).
+            characters = await run_board_send(client.read_current_message)
         else:
             characters = getattr(client, "_last_characters", None)
         ts = getattr(client, "_last_sent_at", None)

@@ -1075,7 +1075,9 @@ async def detect_board_size(board_id: str):
             detail=f"Board {board_id} is not configured (missing credentials)",
         )
 
-    grid = client.read_current_message()
+    # A board READ is board network I/O like any other; it belongs on the
+    # bounded send pool, not inline on the event loop (#1878).
+    grid = await run_board_send(client.read_current_message)
     if grid is None:
         raise HTTPException(
             status_code=422,
@@ -1539,7 +1541,7 @@ async def get_hdmi_kiosk_status():
         return {"supported": False, "status": "unsupported", "enabled": None}
     status: dict = {"status": "unknown", "enabled": None}
     try:
-        resp = requests.get(f"{_updater_url()}/hdmi/status", timeout=3)
+        resp = await asyncio.to_thread(requests.get, f"{_updater_url()}/hdmi/status", timeout=3)
         if resp.status_code == 200:
             body = resp.json()
             if isinstance(body, dict):
@@ -1572,7 +1574,8 @@ async def set_hdmi_kiosk(request: HdmiKioskRequest):
         )
     verb = "enable" if request.enabled else "disable"
     try:
-        resp = requests.post(
+        resp = await asyncio.to_thread(
+            requests.post,
             f"{_updater_url()}/hdmi/{verb}",
             headers={"Authorization": f"Bearer {_updater_token()}"},
             timeout=10,

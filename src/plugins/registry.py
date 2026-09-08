@@ -52,7 +52,27 @@ _INSTANCE_LABEL_RE = re.compile(r"^[a-zA-Z0-9_-]{1,40}$")
 # How long build_template_context() waits for the slowest enabled plugin before
 # rendering without it. A board that is a little stale beats a board that never
 # updates because one data source is wedged.
-CONTEXT_BUILD_TIMEOUT_SECONDS = 15
+#
+# It MUST stay strictly below the smallest poll interval the settings service
+# will accept (``set_polling_interval`` floors at 10s, default 15s), and with
+# room to spare. ``build_template_context`` runs on the single service thread,
+# which also drives the 1 Hz silence-boundary detector and the
+# collection-cadence gate (src/main.py). At 15s this constant EQUALLED the
+# default interval, so one slow plugin consumed an entire tick period AND
+# delayed silence entry/exit by up to a full 15 seconds — the user-visible
+# half. At 5s the worst case is a fifth of that and the tick still finishes
+# inside its own period.
+#
+# A plugin slower than this budget is not lost: its fetch keeps running on its
+# pool worker, ``PluginBase`` caches the result when it lands, and the next
+# tick serves that cached result from the calling-thread fast path below
+# without dispatching anything. It arrives one tick late instead of holding
+# the service thread hostage. Serving it also CLEARS its timeout streak, so a
+# merely slow data source is never mistaken for a wedged one.
+#
+# tests/test_plugin_fetch_breaker.py ratchets the relationship so the two
+# constants cannot drift back into equality.
+CONTEXT_BUILD_TIMEOUT_SECONDS = 5
 
 # One persistent, bounded pool serves every plugin fetch (issue #1751). The
 # previous design built a fresh ThreadPoolExecutor per render and abandoned it
@@ -235,8 +255,19 @@ class PluginRegistry:
         # fetches that actually started; _fetch_breaker_until holds the
         # monotonic deadline until which a quarantined plugin is neither
         # submitted nor waited on.
-        self._fetch_timeouts: dict[str, int] = {}
-        self._fetch_breaker_until: dict[str, float] = {}
+        #
+        # Keyed by ``(plugin_id, board_key)`` — the SAME key the in-flight
+        # registry above uses, because that is the granularity of the work
+        # being measured: one fetch per plugin per board geometry. Keying
+        # these by plugin_id alone made the counters cross geometries in both
+        # directions. Two wedged geometries charged two timeouts per tick and
+        # tripped a threshold-3 breaker in two ticks; and one HEALTHY geometry
+        # cleared the streak the wedged one was accumulating, so a plugin
+        # wedged on Flagship but fine on Note was never quarantined and every
+        # Flagship render kept paying the full context-build timeout forever —
+        # exactly the stall the breaker exists to end.
+        self._fetch_timeouts: dict[tuple[str, tuple | None], int] = {}
+        self._fetch_breaker_until: dict[tuple[str, tuple | None], float] = {}
 
         # Set once initialize() has loaded the plugin set. Guards against a
         # repeat call rebuilding every live plugin (issue #1753).
@@ -1822,11 +1853,35 @@ class PluginRegistry:
 
         return _done
 
+    def get_cached_plugin_data(self, plugin_id: str, board: BoardContext | None = None) -> PluginResult | None:
+        """Return a plugin's already-cached result, or None if a fetch is needed.
+
+        The non-blocking half of :meth:`fetch_plugin_data`: registry lookups
+        under ``_lock``, then a dict read under the plugin's own cache lock.
+        No plugin code runs, so this is safe to call on the calling thread
+        even when that thread is the service thread.
+        """
+        with self._lock:
+            plugin = self._plugins.get(plugin_id)
+            enabled = self._enabled.get(plugin_id, False)
+        if plugin is None or not enabled or not isinstance(plugin, PluginBase):
+            return None
+        try:
+            result = plugin.cached_result(board)
+        except Exception:  # a broken property must never break a render
+            logger.debug("Cached-data probe failed for %s", plugin_id, exc_info=True)
+            return None
+        # Only a genuine PluginResult may short-circuit a fetch. A subclass
+        # (or a test double) that returns something else must fall through to
+        # the real fetch rather than have its stand-in land in the context.
+        return result if isinstance(result, PluginResult) else None
+
     def build_template_context(
         self,
         board: BoardContext | None = None,
         plugin_ids: Collection[str] | None = None,
         include_trigger_plugins: bool = True,
+        fingerprints: dict[str, str] | None = None,
     ) -> dict[str, Any]:
         """Build context dictionary for template rendering.
 
@@ -1849,6 +1904,12 @@ class PluginRegistry:
                 build — otherwise every widening would re-fetch them, up to
                 N times per tick (#1862 review). Only meaningful when
                 ``plugin_ids`` is given.
+            fingerprints: Optional out-parameter. When given, it is filled
+                with ``plugin_id -> PluginResult.data_fingerprint()`` for
+                EXACTLY the ids this build puts into the returned context —
+                the invariant the render short-circuit relies on to know its
+                hash map covers every payload it is standing in for. Hashing
+                happens once per result object, not once per consumer.
 
         Returns:
             Dictionary mapping plugin_id to plugin data
@@ -1875,6 +1936,11 @@ class PluginRegistry:
         if not to_fetch:
             return context
 
+        # The identity of a fetch: one plugin ON one board geometry. The
+        # in-flight registry, the circuit breaker and the timeout streaks all
+        # key off it, so they agree on what "this fetch" means.
+        board_key = None if board is None else (board.device_type, board.rows, board.cols)
+
         # Circuit-breaker gate (issue #1884): a quarantined plugin is dropped
         # from this build entirely — not submitted, and crucially not WAITED
         # on. Skipping the wait is what removes the per-render
@@ -1882,15 +1948,52 @@ class PluginRegistry:
         # plugin used to impose on every tick.
         now = time.monotonic()
         with self._inflight_lock:
-            quarantined = [pid for pid in to_fetch if self._fetch_breaker_until.get(pid, 0.0) > now]
+            quarantined = [pid for pid in to_fetch if self._fetch_breaker_until.get((pid, board_key), 0.0) > now]
             if quarantined:
-                to_fetch = [pid for pid in to_fetch if self._fetch_breaker_until.get(pid, 0.0) <= now]
+                to_fetch = [pid for pid in to_fetch if self._fetch_breaker_until.get((pid, board_key), 0.0) <= now]
         if quarantined:
             logger.debug(
                 "Skipping %d quarantined plugin(s) this render (fetch circuit breaker open): %s",
                 len(quarantined),
                 quarantined,
             )
+        if not to_fetch:
+            return context
+
+        # Calling-thread fast path for already-cached plugins. Dispatching a
+        # fetch whose own cache is fresh costs a Future allocation, a queue
+        # put, a worker wakeup, a condvar wait, a done-callback and three lock
+        # round-trips — measured at 21x the cost of the in-memory dict read it
+        # is wrapping. Serving those inline also means a fully-cached tick
+        # never reaches ``futures_wait`` at all, so it can never pay
+        # CONTEXT_BUILD_TIMEOUT_SECONDS for a plugin it was not going to talk
+        # to. ``get_cached_plugin_data`` runs no plugin code and cannot block,
+        # which is what makes it safe on the single service thread.
+        #
+        # Deliberately AFTER the breaker gate: a quarantined plugin stays
+        # dropped from the build whether or not it has stale-but-fresh-enough
+        # data lying around.
+        still_to_fetch: list[str] = []
+        answered: list[str] = []
+        for plugin_id in to_fetch:
+            cached = self.get_cached_plugin_data(plugin_id, board)
+            if cached is None:
+                still_to_fetch.append(plugin_id)
+                continue
+            answered.append(plugin_id)
+            if cached.available and cached.data:
+                context[plugin_id] = cached.data
+                if fingerprints is not None:
+                    fingerprints[plugin_id] = cached.data_fingerprint()
+        if answered:
+            # Cached data is PROOF the plugin answered — a fetch this build
+            # abandoned at the timeout still landed and filled the cache. Ending
+            # its streak here is what keeps a merely slow data source out of the
+            # quarantine the breaker reserves for wedged ones.
+            with self._inflight_lock:
+                for plugin_id in answered:
+                    self._fetch_timeouts.pop((plugin_id, board_key), None)
+        to_fetch = still_to_fetch
         if not to_fetch:
             return context
 
@@ -1911,7 +2014,6 @@ class PluginRegistry:
         # A done future means the previous fetch finished; submit a fresh
         # one (fetch_plugin_data's own caching decides how fresh the data
         # actually is, exactly as before).
-        board_key = None if board is None else (board.device_type, board.rows, board.cols)
         futures: dict[Any, str] = {}
         submitted: list[tuple[tuple, Any]] = []
         with self._inflight_lock:
@@ -1946,7 +2048,7 @@ class PluginRegistry:
             # CANCELLED, so what is left is the set that genuinely started and
             # is still running — the only set the breaker may hold against a
             # plugin (issue #1884).
-            self._record_fetch_timeouts([f for f in not_done if not f.cancelled()], futures)
+            self._record_fetch_timeouts([f for f in not_done if not f.cancelled()], futures, board_key)
 
         if done:
             # A fetch that completed — with data, without data, or with an
@@ -1954,8 +2056,8 @@ class PluginRegistry:
             # any quarantine is lifted.
             with self._inflight_lock:
                 for future in done:
-                    self._fetch_timeouts.pop(futures[future], None)
-                    self._fetch_breaker_until.pop(futures[future], None)
+                    self._fetch_timeouts.pop((futures[future], board_key), None)
+                    self._fetch_breaker_until.pop((futures[future], board_key), None)
 
         for future in done:
             plugin_id = futures[future]
@@ -1963,13 +2065,19 @@ class PluginRegistry:
                 result = future.result()
                 if result.available and result.data:
                     context[plugin_id] = result.data
+                    if fingerprints is not None:
+                        fingerprints[plugin_id] = result.data_fingerprint()
             except Exception:
                 logger.exception(f"Plugin {plugin_id} raised an error during context build")
 
         return context
 
-    def _record_fetch_timeouts(self, running: list, futures: dict) -> None:
+    def _record_fetch_timeouts(self, running: list, futures: dict, board_key: tuple | None = None) -> None:
         """Charge one consecutive timeout to each plugin in *running*.
+
+        Charged against ``(plugin_id, board_key)`` — the geometry whose fetch
+        actually failed to answer — so a plugin that is wedged on one board
+        size keeps serving every other size.
 
         Opens the circuit breaker for any plugin that reaches
         PLUGIN_FETCH_BREAKER_THRESHOLD, and writes off the pool worker its
@@ -1985,11 +2093,12 @@ class PluginRegistry:
         with self._inflight_lock:
             for future in running:
                 plugin_id = futures[future]
-                count = self._fetch_timeouts.get(plugin_id, 0) + 1
-                self._fetch_timeouts[plugin_id] = count
+                breaker_key = (plugin_id, board_key)
+                count = self._fetch_timeouts.get(breaker_key, 0) + 1
+                self._fetch_timeouts[breaker_key] = count
                 if count < PLUGIN_FETCH_BREAKER_THRESHOLD:
                     continue
-                self._fetch_breaker_until[plugin_id] = deadline
+                self._fetch_breaker_until[breaker_key] = deadline
                 opened.append(plugin_id)
                 if not getattr(future, "_fb_worker_written_off", False):
                     future._fb_worker_written_off = True
@@ -2010,19 +2119,31 @@ class PluginRegistry:
         Maps plugin_id -> ``{"consecutive_timeouts": int, "quarantined": bool,
         "cooldown_remaining_seconds": float}`` for every plugin with a live
         timeout streak. Empty when every data source is answering.
+
+        The breaker's own bookkeeping is per ``(plugin_id, board_key)``; this
+        report is per plugin because that is the unit a user recognises. A
+        plugin wedged on one board geometry and healthy on another is reported
+        by its WORST geometry — the deepest streak and the longest remaining
+        cooldown — so "this data source is in trouble" is never hidden by a
+        second board that happens to be fine.
         """
         now = time.monotonic()
         with self._inflight_lock:
             timeouts = dict(self._fetch_timeouts)
             until = dict(self._fetch_breaker_until)
         status: dict[str, dict[str, Any]] = {}
-        for plugin_id, count in timeouts.items():
-            remaining = max(0.0, until.get(plugin_id, 0.0) - now)
-            status[plugin_id] = {
-                "consecutive_timeouts": count,
-                "quarantined": remaining > 0.0,
-                "cooldown_remaining_seconds": round(remaining, 1),
-            }
+        for (plugin_id, board_key), count in timeouts.items():
+            remaining = max(0.0, until.get((plugin_id, board_key), 0.0) - now)
+            entry = status.setdefault(
+                plugin_id,
+                {"consecutive_timeouts": 0, "quarantined": False, "cooldown_remaining_seconds": 0.0},
+            )
+            entry["consecutive_timeouts"] = max(entry["consecutive_timeouts"], count)
+            entry["quarantined"] = entry["quarantined"] or remaining > 0.0
+            entry["cooldown_remaining_seconds"] = round(
+                max(entry["cooldown_remaining_seconds"], remaining),
+                1,
+            )
         return status
 
     def build_template_contexts_for(

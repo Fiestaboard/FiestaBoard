@@ -13,6 +13,7 @@ module binds it — ``src.templates.routes.<name>`` — not
 
 from __future__ import annotations
 
+import asyncio
 import logging
 
 from fastapi import APIRouter, HTTPException
@@ -61,12 +62,25 @@ async def get_template_variables():
     template_engine = get_template_engine()
     registry = get_plugin_registry()
 
+    # ``get_all_variables_with_metadata`` builds a FETCH-ALL template context,
+    # and ``get_available_variables`` can trigger an auto-discovery fetch, so
+    # this route can block for the full context-build budget. It is an
+    # ``async def``, which means that block would be the whole event loop.
+    variables, max_lengths, metadata, groups = await asyncio.to_thread(
+        lambda: (
+            template_engine.get_available_variables(),
+            template_engine.get_variable_max_lengths(),
+            registry.get_all_variables_with_metadata(),
+            registry.get_all_variable_groups(),
+        )
+    )
+
     return TemplateVariablesResponse.model_validate(
         {
-            "variables": template_engine.get_available_variables(),
-            "max_lengths": template_engine.get_variable_max_lengths(),
-            "variable_metadata": registry.get_all_variables_with_metadata(),
-            "variable_groups": registry.get_all_variable_groups(),
+            "variables": variables,
+            "max_lengths": max_lengths,
+            "variable_metadata": metadata,
+            "variable_groups": groups,
             "colors": {
                 "red": 63,
                 "orange": 64,
@@ -175,12 +189,17 @@ async def render_template(request: TemplateRenderRequest):
     line_metadata = request.line_metadata
 
     try:
+        # Rendering fetches plugin data, so it belongs on a worker thread, not
+        # on the event loop. The engine's own fetch is demand-driven, so a
+        # template naming four variables fetches four plugins, not every one.
         if isinstance(template, list):
             logger.info(f"Rendering template lines: {template}")
-            rendered = template_engine.render_lines(template, line_metadata=line_metadata, device_type=device_type)
+            rendered = await asyncio.to_thread(
+                template_engine.render_lines, template, line_metadata=line_metadata, device_type=device_type
+            )
         else:
             logger.info(f"Rendering template string: {template}")
-            rendered = template_engine.render(template)
+            rendered = await asyncio.to_thread(template_engine.render, template)
 
         lines = rendered.split("\n")
         return TemplateRenderResponse(rendered=rendered, lines=lines, line_count=len(lines))
@@ -225,7 +244,9 @@ async def render_template_live(request: TemplateRenderLiveRequest):
                     sent_to_board=False,
                     board_id=board_id,
                 )
-            rendered = template_engine.render_lines(template, line_metadata=line_metadata, device_type=device_type)
+            rendered = await asyncio.to_thread(
+                template_engine.render_lines, template, line_metadata=line_metadata, device_type=device_type
+            )
         else:
             if not template.strip():
                 return TemplateRenderLiveResponse(
@@ -235,7 +256,7 @@ async def render_template_live(request: TemplateRenderLiveRequest):
                     sent_to_board=False,
                     board_id=board_id,
                 )
-            rendered = template_engine.render(template)
+            rendered = await asyncio.to_thread(template_engine.render, template)
     except Exception as e:
         logger.error(f"Template rendering error: {e}", exc_info=True)
         raise HTTPException(status_code=400, detail=f"Template rendering failed: {str(e)}") from e
