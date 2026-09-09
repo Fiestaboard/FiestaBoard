@@ -1158,9 +1158,20 @@ export interface AllSettingsResponse {
   location: LocationSettings;
   beta: BetaSettings;
   plugins: PluginSettings;
+  schedule: ScheduleBehaviorSettings;
   status: {
     running: boolean;
   };
+}
+
+/** Global schedule behavior (not per-board — see `schedules/enabled` for that). */
+export interface ScheduleBehaviorSettings {
+  /**
+   * When true, turning schedule mode back on leaves the board on its manual
+   * page until the schedule reaches its next window, instead of repainting
+   * the moment the toggle flips.
+   */
+  defer_on_reenable: boolean;
 }
 
 export interface MqttSettings {
@@ -2010,6 +2021,14 @@ export const api = {
     fetchApi<{ status: string; enabled: boolean; message: string }>("/schedules/enabled", {
       method: "PUT",
       body: JSON.stringify({ enabled, ...(boardId != null && { board_id: boardId }) }),
+    }),
+
+  getScheduleSettings: () => fetchApi<ScheduleBehaviorSettings>("/schedules/settings"),
+
+  setScheduleSettings: (settings: ScheduleBehaviorSettings) =>
+    fetchApi<{ status: string; defer_on_reenable: boolean }>("/schedules/settings", {
+      method: "PUT",
+      body: JSON.stringify(settings),
     }),
 
   // Collection endpoints

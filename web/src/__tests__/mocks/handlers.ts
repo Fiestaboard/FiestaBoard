@@ -977,11 +977,22 @@ export const handlers = [
         external_url: "",
       },
       display: mockDisplaySettings,
+      schedule: { defer_on_reenable: false },
       status: {
         running: true,
         config_summary: {},
       },
     });
+  }),
+
+  // Global schedule behavior (how the schedule on/off toggle behaves)
+  http.get(`${API_BASE}/schedules/settings`, () => {
+    return HttpResponse.json({ defer_on_reenable: false });
+  }),
+
+  http.put(`${API_BASE}/schedules/settings`, async ({ request }) => {
+    const body = (await request.json()) as { defer_on_reenable: boolean };
+    return HttpResponse.json({ status: "success", defer_on_reenable: body.defer_on_reenable });
   }),
 
   // Display settings (web UI motion preferences, incl. board flap speed)

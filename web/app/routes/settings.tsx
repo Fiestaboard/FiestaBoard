@@ -39,6 +39,7 @@ import { McpSettings } from "@/components/settings/mcp-settings";
 import { MqttSettingsCard } from "@/components/settings/mqtt-settings";
 import { NetworkSettings } from "@/components/settings/network-settings";
 import { PluginSettingsCard } from "@/components/settings/plugin-settings";
+import { ScheduleBehavior } from "@/components/settings/schedule-behavior";
 import { SilenceSchedule } from "@/components/settings/silence-schedule";
 import { SystemControls } from "@/components/settings/system-controls";
 import { SystemUpdate } from "@/components/settings/system-update";
@@ -225,6 +226,7 @@ export default function SettingsPage() {
           <TabsContent value="behavior" className="mt-0">
             <TransitionSettings />
             <UpdateIntervals />
+            <ScheduleBehavior />
             <SilenceSchedule />
           </TabsContent>
 
