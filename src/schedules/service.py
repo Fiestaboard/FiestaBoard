@@ -168,8 +168,39 @@ class ScheduleService:
     ) -> str | None:
         """Determine which page should be displayed based on schedules for the given board.
 
+        Resolution is delegated to :meth:`get_active_schedule_entry`; when no
+        entry matches, the board's default page (if any) is returned.
+        """
+        entry = self.get_active_schedule_entry(current_time, current_day, board_id=board_id)
+        if entry is not None:
+            return entry.page_id
+
+        bid = board_id or DEFAULT_BOARD_ID
+        time_str = current_time.strftime("%H:%M")
+        default_page_id = self.storage.get_default_page_id(board_id=bid)
+        if default_page_id:
+            logger.debug(f"No schedule match for {current_day} {time_str}, using default: {default_page_id}")
+        else:
+            logger.debug(f"No schedule match for {current_day} {time_str}, no default set")
+        return default_page_id
+
+    def get_active_schedule_entry(
+        self,
+        current_time: time,
+        current_day: str,
+        board_id: str | None = None,
+    ) -> ScheduleEntry | None:
+        """Return the schedule entry that wins at the given moment, if any.
+
+        The entry — not its page id — is what identifies a scheduled *window*.
+        The display loop uses it to tell "still inside the same window" from
+        "the schedule just moved on", a distinction page ids cannot express
+        because two consecutive windows may point at the same page.
+
         Sun-based schedules (start_type/end_type of "sunrise" or "sunset") have
-        their times dynamically resolved using the configured location settings.
+        their times dynamically resolved using the configured location settings,
+        so the returned entry is a copy carrying resolved times; its ``id`` is
+        still the stored entry's id.
 
         Priority order (highest wins):
         1. one_off_date matches (most specific — single calendar date or range)
@@ -213,14 +244,9 @@ class ScheduleService:
                     f"Active schedule: {tier_matches[0].id} ({tier_name}) "
                     f"for {today.isoformat()} {time_str} (board={bid})"
                 )
-                return tier_matches[0].page_id
+                return tier_matches[0]
 
-        default_page_id = self.storage.get_default_page_id(board_id=bid)
-        if default_page_id:
-            logger.debug(f"No schedule match for {current_day} {time_str}, using default: {default_page_id}")
-        else:
-            logger.debug(f"No schedule match for {current_day} {time_str}, no default set")
-        return default_page_id
+        return None
 
     def _get_location(self) -> tuple[float | None, float | None, str]:
         """Get the configured location and timezone for sun time resolution.

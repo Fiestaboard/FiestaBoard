@@ -50,6 +50,12 @@ def _board_size_key(board: dict) -> str:
     )
 
 
+# Defer key standing for "no schedule entry is winning" (a schedule gap, where
+# the board falls back to the schedule's default page). Deliberately not a
+# valid schedule id, so it can never collide with a real entry.
+_SCHEDULE_GAP_KEY = "__schedule_gap__"
+
+
 class BoardRuntime:
     """Client + per-board display state for one configured board.
 
@@ -91,6 +97,14 @@ class BoardRuntime:
         # Silence-mode state (global decision, per-board delivery).
         self.last_silence_mode_active: bool = False
         self.snoozing_message_sent: bool = False
+
+        # Schedule-mode edge tracking for defer-on-reenable. ``None`` means
+        # "no pass has decided this board's page yet", so the first pass after
+        # startup is never mistaken for a re-enable. ``schedule_defer_key``
+        # holds the schedule entry id (or the gap sentinel) the board is
+        # waiting to move off before it follows the schedule again.
+        self.last_schedule_enabled: bool | None = None
+        self.schedule_defer_key: str | None = None
 
         # Why the most recent check_and_send_for_board pass failed for this
         # board, or None when it succeeded or skipped benignly (paused,
@@ -850,6 +864,50 @@ class DisplayService:
                 self._record_send_error(rt, board_id, str(e) or e.__class__.__name__)
                 logger.error(f"Board {board_id}: update failed: {e}")
 
+    def _schedule_defer_active(self, rt: BoardRuntime, now, board_id) -> bool:
+        """Whether this board should hold its manual page instead of following the schedule.
+
+        Turning schedule mode back on normally repaints the board at once: the
+        active page is re-resolved from the clock on every pass, so the board
+        jumps to whichever window is current. With ``schedule.defer_on_reenable``
+        on, the re-enable instead records the schedule entry winning right then,
+        and the board keeps showing its manual page until a *different* entry
+        wins -- the next scheduled time it would have changed anyway.
+
+        Schedule gaps count as a window of their own (``_SCHEDULE_GAP_KEY``), so
+        the toggle never repaints the board on its own.
+        """
+        settings_service = get_settings_service()
+        arming = rt.last_schedule_enabled is False and rt.schedule_defer_key is None
+        if arming:
+            if not settings_service.get_schedule_settings().defer_on_reenable:
+                return False
+        elif rt.schedule_defer_key is None:
+            return False
+
+        entry = get_schedule_service().get_active_schedule_entry(
+            now.time(), now.strftime("%A").lower(), board_id=board_id
+        )
+        key = entry.id if entry is not None else _SCHEDULE_GAP_KEY
+
+        if arming:
+            rt.schedule_defer_key = key
+            logger.info(
+                "Board %s: schedule re-enabled - holding the current page until its next window",
+                board_id or "(default)",
+            )
+            return True
+
+        if rt.schedule_defer_key == key:
+            return True
+
+        rt.schedule_defer_key = None
+        logger.info(
+            "Board %s: schedule reached its next window - following the schedule again",
+            board_id or "(default)",
+        )
+        return False
+
     def check_and_send_for_board(
         self, board_id, rt: BoardRuntime, *, is_primary: bool, board: dict | None = None
     ) -> bool:
@@ -1004,26 +1062,50 @@ class DisplayService:
                         rt.last_active_page_content = None
 
             # --- Determine this board's active page (schedule vs manual) ---
-            if active_page_id is None and settings_service.is_schedule_enabled(board_id=board_id):
+            # ``resolving_from_source``: no override/trigger already claimed
+            # this pass, so the schedule-vs-manual decision below is the one
+            # driving the board. Only such a pass may consume the schedule
+            # on/off edge — otherwise an override running across a re-enable
+            # would swallow it and the defer would never arm.
+            resolving_from_source = active_page_id is None
+            schedule_enabled = settings_service.is_schedule_enabled(board_id=board_id)
+            schedule_deferred = False
+            if resolving_from_source and schedule_enabled:
                 from .time_service import get_time_service
 
                 now = get_time_service().get_current_time()
                 current_time = now.time()
                 current_day = now.strftime("%A").lower()  # monday, tuesday, etc.
-                active_page_id = schedule_service.get_active_page_id(current_time, current_day, board_id=board_id)
-                if active_page_id:
-                    logger.debug(f"Board {board_id}: schedule active page: {active_page_id}")
-                else:
+                schedule_deferred = self._schedule_defer_active(rt, now, board_id)
+                if schedule_deferred:
+                    active_page_id = settings_service.get_active_page_id(board_id=board_id)
                     logger.debug(
-                        f"Board {board_id}: no matching schedule for {current_day} {current_time.strftime('%H:%M')}"
+                        f"Board {board_id}: schedule deferred until its next window, "
+                        f"holding manual page: {active_page_id}"
                     )
-            elif active_page_id is None:
+                else:
+                    active_page_id = schedule_service.get_active_page_id(current_time, current_day, board_id=board_id)
+                    if active_page_id:
+                        logger.debug(f"Board {board_id}: schedule active page: {active_page_id}")
+                    else:
+                        logger.debug(
+                            f"Board {board_id}: no matching schedule for {current_day} {current_time.strftime('%H:%M')}"
+                        )
+            elif resolving_from_source:
                 active_page_id = settings_service.get_active_page_id(board_id=board_id)
                 logger.debug(f"Board {board_id}: manual active page: {active_page_id}")
 
+            if resolving_from_source:
+                if not schedule_enabled:
+                    # Nothing to wait for while the schedule is off; the next
+                    # re-enable arms a fresh defer against whatever is current.
+                    rt.schedule_defer_key = None
+                rt.last_schedule_enabled = schedule_enabled
+
             # Primary never goes dark: default to first page in manual mode.
+            # A deferred board is manual for now, so it defaults the same way.
             # Secondary boards do NOT default (they go dark when no page is set).
-            if not active_page_id and is_primary and not settings_service.is_schedule_enabled(board_id=board_id):
+            if not active_page_id and is_primary and (not schedule_enabled or schedule_deferred):
                 pages = page_service.list_pages()
                 if pages:
                     active_page_id = pages[0].id

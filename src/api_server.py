@@ -7273,6 +7273,7 @@ async def get_all_settings():
     location = settings_service.get_location_settings()
     beta = settings_service.get_beta_settings()
     plugins = settings_service.get_plugin_settings()
+    schedule = settings_service.get_schedule_settings()
 
     return {
         "general": general,
@@ -7286,6 +7287,7 @@ async def get_all_settings():
         "location": location.to_dict(),
         "beta": beta.to_dict(),
         "plugins": plugins.to_dict(),
+        "schedule": schedule.to_dict(),
         "status": {
             "running": _service_running,
         },
@@ -8857,6 +8859,26 @@ async def set_schedule_enabled(request: dict):
         "enabled": enabled,
         "message": f"Schedule mode {'enabled' if enabled else 'disabled'}",
     }
+
+
+@app.get("/schedules/settings")
+async def get_schedule_settings():
+    """Get global schedule behavior settings."""
+    settings_service = get_settings_service()
+    return {"defer_on_reenable": settings_service.get_schedule_settings().defer_on_reenable}
+
+
+@app.put("/schedules/settings")
+async def set_schedule_settings(request: dict):
+    """Update global schedule behavior settings. Body: defer_on_reenable."""
+    if "defer_on_reenable" not in request:
+        raise HTTPException(status_code=400, detail="defer_on_reenable parameter required")
+    defer = request["defer_on_reenable"]
+    if not isinstance(defer, bool):
+        raise HTTPException(status_code=400, detail="defer_on_reenable must be boolean")
+    settings_service = get_settings_service()
+    schedule = settings_service.set_schedule_defer_on_reenable(defer)
+    return {"status": "success", "defer_on_reenable": schedule.defer_on_reenable}
 
 
 # Parameterized routes come LAST to avoid matching specific paths
