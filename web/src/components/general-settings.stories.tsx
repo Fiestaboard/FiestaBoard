@@ -75,6 +75,9 @@ const mockAllSettings: AllSettingsResponse = {
   plugins: {
     auto_update: true,
   },
+  schedule: {
+    defer_on_reenable: false,
+  },
   status: {
     running: true,
   },

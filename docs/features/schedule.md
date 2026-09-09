@@ -82,6 +82,28 @@ At your configured polling interval (default: 15 seconds), the display service:
 
 > **Note:** Schedules can cross midnight (e.g., 11 PM to 1 AM). The system handles the rollover automatically.
 
+## Turning the Schedule Off and On
+
+Schedule mode is a *source* switch, not a freeze: while it is on the board
+follows the schedule, and while it is off it follows the manually selected
+page. Because the active page is re-resolved on every polling pass, turning
+the schedule back on normally repaints the board straight away — it jumps to
+whichever window is current.
+
+If you drive the switch from an automation (say, turning the schedule off
+while a film is playing), you may prefer the board to stay put until it would
+have changed on its own. Turn on **Settings → Behavior → Schedule toggle →
+"Wait for the next scheduled change"**. Re-enabling then records the schedule
+entry winning at that moment and keeps the board on its manual page until a
+different entry takes over. Gaps between entries count as a window of their
+own, so the toggle never repaints the board by itself.
+
+The setting is off by default and applies to every board.
+
+> **Tip:** To leave the board completely untouched — rather than switching it
+> to the manual page — pause the board or turn off the Display Service switch,
+> instead of disabling the schedule.
+
 ## Known Limitations
 
 - **Switching delay** - There may be a delay of up to one refresh interval when switching between scheduled pages.

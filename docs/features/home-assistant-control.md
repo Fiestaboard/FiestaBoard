@@ -106,6 +106,15 @@ Once connected, FiestaBoard appears as a device with **24 entities** — control
 | **Previous Page** | Button | Navigate to the previous page in the page list (wraps around) |
 | **Refresh Interval** | Number | Set how often the board refreshes (30–3600 seconds). *Categorized as config.* |
 
+**The Schedule switch repaints the board.** It selects where the board's
+content comes from — the schedule while on, the manually selected page while
+off — so both edges of the switch change the board on the next polling pass.
+To make re-enabling wait until the schedule reaches its next window, turn on
+*Wait for the next scheduled change* in Settings → Behavior (see
+[Schedule Mode](/docs/features/schedule)). To leave the board untouched
+entirely while an automation runs, use the **Display Service** switch instead
+of the Schedule switch.
+
 **Manual writes stay on the board.** Send Message, Blank Board and the debug
 endpoints write straight to the board and are left there — the display loop
 will not paint over them on its next cycle. While manual content is displayed,

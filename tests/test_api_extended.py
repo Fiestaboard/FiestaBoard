@@ -55,6 +55,12 @@ def mock_settings_service():
         transition.to_dict.return_value = {"strategy": "column", "step_interval_ms": 100, "step_size": 1}
         ss.get_transition_settings.return_value = transition
 
+        schedule = Mock()
+        schedule.enabled = False
+        schedule.defer_on_reenable = False
+        schedule.to_dict.return_value = {"enabled": False, "defer_on_reenable": False}
+        ss.get_schedule_settings.return_value = schedule
+
         output = Mock()
         output.target = "ui"
         output.to_dict.return_value = {"target": "ui"}
