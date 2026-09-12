@@ -251,14 +251,17 @@ async def lifespan(app: FastAPI):
         logger.warning("Service instance could not be created - check logs for initialization errors")
     _log_config_boot_snapshot("post-service-init")
 
-    # Start mDNS/Bonjour advertisement (fiestaboard.local)
+    # Start mDNS/Bonjour advertisement (fiestaboard.local), off the startup
+    # path: zeroconf blocks for its whole timeout when multicast reaches no
+    # responder (measured 5.2s here; the Pi 3 case is documented in
+    # src/system/mdns.py), and nothing is served while startup waits. The
+    # `.local` name is advertised a moment later instead of the API booting
+    # seconds later — and losing it entirely is already a survivable,
+    # logged outcome. Issue #1955.
     try:
-        from .system.mdns import start_mdns
+        from .system.mdns import start_mdns_background
 
-        if start_mdns():
-            from .system.mdns import get_mdns_service
-
-            logger.info("Access FiestaBoard at %s", get_mdns_service().local_url)
+        start_mdns_background(on_registered=lambda url: logger.info("Access FiestaBoard at %s", url))
     except Exception as e:
         logger.warning(f"mDNS service could not be started: {e}")
 
