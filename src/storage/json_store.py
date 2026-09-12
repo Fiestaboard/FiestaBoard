@@ -61,6 +61,30 @@ logger = logging.getLogger(__name__)
 Migration = tuple[int, Callable[[Any], int]]
 
 
+class SchemaTooNewError(RuntimeError):
+    """A store file was written by a build newer than the one reading it.
+
+    Migrations are forward-only, so there is nothing to run and no way to
+    interpret the file correctly. Raised rather than tolerated because the
+    tolerant behaviour is worse than a crash: the file would be read as if
+    it were this version's format, and the next ``save()`` would stamp this
+    version's number back onto it — destroying the only evidence that the
+    data came from somewhere newer.
+    """
+
+    def __init__(self, *, label: str, path: Path, found: int, supported: int):
+        self.label = label
+        self.path = path
+        self.found = found
+        self.supported = supported
+        super().__init__(
+            f"{label}: {path} is schema_version {found}, but this build only understands "
+            f"up to {supported}. It was written by a newer version of FiestaBoard. "
+            f"Refusing to read it rather than risk misinterpreting the data. "
+            f"Restore a backup taken before the upgrade, or reinstall the newer version."
+        )
+
+
 class JsonStore:
     """Atomic, locked, schema-versioned persistence for one JSON file."""
 
@@ -99,6 +123,10 @@ class JsonStore:
         #: True when the most recent ``load()`` applied migrations; the caller
         #: should persist (``mutate()`` does so automatically).
         self.migrated = False
+        #: Set when a load refused a file from a newer build. Latches so a
+        #: caller that swallowed the load error cannot then overwrite the
+        #: file it failed to understand.
+        self._refused_future_schema = False
 
     @property
     def path(self) -> Path:
@@ -134,6 +162,7 @@ class JsonStore:
             # builtins.open to inject I/O errors.
             with open(self._path) as f:  # noqa: PTH123
                 data = json.load(f)
+            self._reject_future_schema(data)
             if self._migrations_pending(data):
                 self._backup_before_migration(data)
                 self._run_migrations(data)
@@ -151,6 +180,15 @@ class JsonStore:
         store's own view never depends on whether the disk needed touching.
         """
         with self._lock:
+            if self._refused_future_schema:
+                # The load refused this file; writing now would stamp our
+                # lower schema_version onto newer content.
+                raise SchemaTooNewError(
+                    label=self._label,
+                    path=self._path,
+                    found=self._file_version(self._peek_disk_version()),
+                    supported=self._version,
+                )
             if self._version and isinstance(data, dict):
                 data["schema_version"] = self._version
             write_json_atomic(self._path, data, if_changed=True)
@@ -182,6 +220,30 @@ class JsonStore:
             return result
 
     # ── schema migrations ──────────────────────────────────────────────
+
+    def _reject_future_schema(self, data: Any) -> None:
+        """Refuse a file stamped newer than this build understands."""
+        if self._version <= 0 or not isinstance(data, dict):
+            return
+        found = self._file_version(data)
+        if found <= self._version:
+            return
+        self._refused_future_schema = True
+        raise SchemaTooNewError(
+            label=self._label,
+            path=self._path,
+            found=found,
+            supported=self._version,
+        )
+
+    def _peek_disk_version(self) -> dict:
+        """Re-read just the version stamp, for the refusal message."""
+        try:
+            with open(self._path) as f:  # noqa: PTH123
+                data = json.load(f)
+            return data if isinstance(data, dict) else {}
+        except Exception:
+            return {}
 
     def _migrations_pending(self, data: Any) -> bool:
         return self._version > 0 and isinstance(data, dict) and self._file_version(data) < self._version

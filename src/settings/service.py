@@ -17,7 +17,7 @@ from typing import Literal, Optional, TypeVar, get_args
 
 from pydantic import BaseModel
 
-from src.storage.json_store import JsonStore
+from src.storage.json_store import JsonStore, SchemaTooNewError
 
 _Section = TypeVar("_Section")
 
@@ -1035,6 +1035,20 @@ class SettingsService:
         current_version = data.get("schema_version", 0)
         if not isinstance(current_version, int):
             current_version = 0
+
+        if current_version > CURRENT_SETTINGS_SCHEMA_VERSION:
+            # Written by a newer build. Migrations are forward-only, so
+            # there is nothing to run and no way to read this correctly.
+            # Falling through would read v(N+1) content as vN and the next
+            # save would stamp vN back onto it. This file is the one store
+            # whose schema has actually diverged across a release boundary,
+            # so it is what a downgrading user hits first.
+            raise SchemaTooNewError(
+                label="settings",
+                path=self.settings_file,
+                found=current_version,
+                supported=CURRENT_SETTINGS_SCHEMA_VERSION,
+            )
 
         if current_version >= CURRENT_SETTINGS_SCHEMA_VERSION:
             return
