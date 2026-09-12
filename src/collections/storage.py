@@ -15,6 +15,7 @@ from datetime import datetime
 from pathlib import Path
 
 from src.atomic_io import staging_path
+from src.paths import get_data_dir
 
 from .models import COLLECTION_ID_PREFIX, Collection
 
@@ -67,10 +68,7 @@ class CollectionStorage:
 
     def __init__(self, storage_file: str | None = None):
         if storage_file is None:
-            project_root = Path(__file__).parent.parent.parent
-            data_dir = project_root / "data"
-            data_dir.mkdir(exist_ok=True)
-            self.storage_file = data_dir / "collections.json"
+            self.storage_file = get_data_dir() / "collections.json"
         else:
             self.storage_file = Path(storage_file)
 

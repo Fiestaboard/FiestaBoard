@@ -27,16 +27,24 @@ from pathlib import Path
 
 from cryptography.fernet import Fernet, InvalidToken
 
+from src.paths import get_data_dir
+
 logger = logging.getLogger(__name__)
 
 # Versioned marker on every ciphertext. Lets us spot encrypted values in
 # config files and roll the scheme forward in the future without guessing.
 ENCRYPTED_PREFIX = "enc::v1::"
 
-# Path resolution mirrors src/config_manager.py — the canonical data
-# directory is ``<repo>/data``.
-_DATA_DIR = Path(__file__).resolve().parent.parent.parent / "data"
-_KEY_PATH = _DATA_DIR / ".secret_key"
+
+def _data_dir() -> Path:
+    """The canonical data directory, resolved lazily via the seam (#1762)."""
+    return get_data_dir()
+
+
+def _key_path() -> Path:
+    """Path of the on-disk Fernet key file, resolved lazily per call."""
+    return _data_dir() / ".secret_key"
+
 
 _ENV_VAR = "FIESTABOARD_SECRET_KEY"
 
@@ -58,15 +66,15 @@ def _load_or_generate_key() -> bytes:
             ) from exc
         return env_value.encode("utf-8")
 
-    _DATA_DIR.mkdir(parents=True, exist_ok=True)
+    key_path = _key_path()  # get_data_dir() creates the directory
 
-    if _KEY_PATH.exists():
-        key = _KEY_PATH.read_bytes().strip()
+    if key_path.exists():
+        key = key_path.read_bytes().strip()
         try:
             Fernet(key)
         except (ValueError, TypeError) as exc:
             raise RuntimeError(
-                f"Secret key file at {_KEY_PATH} is corrupt. "
+                f"Secret key file at {key_path} is corrupt. "
                 "Delete it to regenerate (encrypted values will need to "
                 f"be re-entered) or set {_ENV_VAR}."
             ) from exc
@@ -77,7 +85,7 @@ def _load_or_generate_key() -> bytes:
     # Write atomically with a 0600 mode so other users on the host cannot
     # read the key. ``os.open`` lets us set the mode at create time.
     fd = os.open(
-        str(_KEY_PATH),
+        str(key_path),
         os.O_WRONLY | os.O_CREAT | os.O_EXCL,
         stat.S_IRUSR | stat.S_IWUSR,
     )
@@ -89,14 +97,14 @@ def _load_or_generate_key() -> bytes:
         # If even the cleanup unlink fails, there's nothing useful to do —
         # the original write failure (re-raised below) is the actionable error.
         with contextlib.suppress(OSError):
-            _KEY_PATH.unlink(missing_ok=True)
+            key_path.unlink(missing_ok=True)
         raise
 
     logger.warning(
         "Generated new secret encryption key at %s. Back this file up "
         "(or set %s) — losing it makes existing encrypted secrets "
         "unrecoverable.",
-        _KEY_PATH,
+        key_path,
         _ENV_VAR,
     )
     return key

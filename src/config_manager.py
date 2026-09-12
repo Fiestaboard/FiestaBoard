@@ -17,6 +17,8 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any, Optional
 
+from src.paths import get_data_dir
+
 # Import TimeService for migration
 from .atomic_io import staging_path
 from .time_service import get_time_service
@@ -478,9 +480,7 @@ class ConfigManager:
             self._config_path = Path(config_path)
         else:
             # Default to data directory
-            data_dir = Path(__file__).parent.parent / "data"
-            data_dir.mkdir(exist_ok=True)
-            self._config_path = data_dir / "config.json"
+            self._config_path = get_data_dir() / "config.json"
 
         self._config: dict[str, Any] = {}
         self._raw_features: dict[str, Any] = {}
