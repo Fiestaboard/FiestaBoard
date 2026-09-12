@@ -2,10 +2,9 @@
 // settings, transition strategy settings, and the all-settings
 // aggregate.
 
-import type { ScheduleBehaviorSettings } from "./schedules";
 import type { BoardSettings } from "./boards";
 import { fetchApi } from "./core";
-import type { SilenceScheduleSettings } from "./schedules";
+import type { ScheduleBehaviorSettings, SilenceScheduleSettings } from "./schedules";
 import type { MqttSettings } from "./system";
 
 // Settings types
