@@ -661,16 +661,39 @@ class DisplayService:
         while self.running:
             interval = self._get_board_read_interval()
             try:
-                rt = self._primary_runtime()
-                if rt is not None and rt.client is not None:
-                    chars = rt.client.read_current_message()
-                    if chars:
-                        rt.polled_characters = chars
-                        rt.polled_at = time.time()
-                        logger.debug("Board state poll succeeded")
+                self._poll_board_state_once()
             except Exception as e:
                 logger.debug(f"Board state poll failed: {e}")
             time.sleep(interval)
+
+    def _poll_board_state_once(self) -> None:
+        """Read the primary board once, cache the result, and detect
+        external writes (issue #1946).
+
+        A fresh read that differs from what this process last wrote means
+        someone else wrote the board (Vestaboard app, direct API call), so
+        the runtime is marked out-of-band and MQTT/HA stops reporting the
+        stale active page. The baseline is snapshotted around the read: if
+        a send replaces it mid-read, the read is stale against the new
+        baseline and detection is skipped for this cycle. The poll never
+        clears the flag — a matching read only proves the board shows our
+        last write, which may itself be a manual out-of-band message
+        (issue #1831); the engine's own page sends clear it.
+        """
+        rt = self._primary_runtime()
+        if rt is None or rt.client is None:
+            return
+        baseline = getattr(rt.client, "_last_characters", None)
+        chars = rt.client.read_current_message()
+        if not chars:
+            return
+        rt.polled_characters = chars
+        rt.polled_at = time.time()
+        logger.debug("Board state poll succeeded")
+        current = getattr(rt.client, "_last_characters", None)
+        if current is not None and current is baseline and chars != current:
+            rt.showing_out_of_band = True
+            logger.info("Board content changed externally; marking out-of-band")
 
     def request_board_refresh(
         self,
