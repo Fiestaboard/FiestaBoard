@@ -47,6 +47,8 @@ from .models import (
     ActiveScheduleResponse,
     DefaultPageResponse,
     DefaultPageUpdate,
+    ScheduleBehaviorResponse,
+    ScheduleBehaviorUpdate,
     ScheduleCreate,
     ScheduleDeleteResponse,
     ScheduleEnabledResponse,
@@ -299,6 +301,25 @@ async def set_schedule_enabled(request: ScheduleEnabledUpdate):
     settings_service = get_settings_service()
     settings_service.set_schedule_enabled(request.enabled, board_id=request.board_id)
     return ScheduleEnabledResponse(enabled=request.enabled)
+
+
+@router.get("/schedules/settings", response_model=ScheduleBehaviorResponse)
+async def get_schedule_settings():
+    """Global schedule behaviour settings."""
+    settings_service = get_settings_service()
+    return ScheduleBehaviorResponse(defer_on_reenable=settings_service.get_schedule_settings().defer_on_reenable)
+
+
+@router.put(
+    "/schedules/settings",
+    response_model=ScheduleBehaviorResponse,
+    responses=errors(422),
+)
+async def set_schedule_settings(request: ScheduleBehaviorUpdate):
+    """Update global schedule behaviour. Body: defer_on_reenable."""
+    settings_service = get_settings_service()
+    schedule = settings_service.set_schedule_defer_on_reenable(request.defer_on_reenable)
+    return ScheduleBehaviorResponse(defer_on_reenable=schedule.defer_on_reenable)
 
 
 # Parameterized routes come LAST to avoid matching specific paths

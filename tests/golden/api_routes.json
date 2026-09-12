@@ -1045,6 +1045,22 @@
       "kind": "APIRoute"
     },
     {
+      "path": "/schedules/settings",
+      "methods": [
+        "GET"
+      ],
+      "name": "get_schedule_settings",
+      "kind": "APIRoute"
+    },
+    {
+      "path": "/schedules/settings",
+      "methods": [
+        "PUT"
+      ],
+      "name": "set_schedule_settings",
+      "kind": "APIRoute"
+    },
+    {
       "path": "/schedules/validate",
       "methods": [
         "POST"

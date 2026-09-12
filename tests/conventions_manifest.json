@@ -151,6 +151,11 @@
       "reason": "No failure path. An unknown board_id deliberately answers false rather than 404 — the same read/write asymmetry, decided in #1888 and documented in API_CONVENTIONS.md."
     },
     {
+      "route": "GET /schedules/settings",
+      "rule": "declared_errors",
+      "reason": "No failure path. It takes no parameter and reads one global boolean that always exists (ScheduleSettings defaults defer_on_reenable to False), so it cannot 400 or 404 — the same reasoning as GET /schedules/enabled and GET /collections. Declaring a 4xx would document an error the endpoint never raises."
+    },
+    {
       "route": "GET /settings/active-page",
       "rule": "declared_errors",
       "reason": "Takes an optional board_id and deliberately falls back rather than 404ing on an unknown one — the board-scoped-read rule in API_CONVENTIONS.md ('reads fall back', decided with #1888). With the fallback in place there is no error status left to declare, and adding one would document a failure this endpoint is specifically designed not to raise."

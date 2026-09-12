@@ -47,7 +47,8 @@
     ]
   },
   "schedule": {
-    "enabled": false
+    "enabled": false,
+    "defer_on_reenable": false
   },
   "mqtt": {
     "enabled": false,

@@ -2,6 +2,7 @@
 // settings, transition strategy settings, and the all-settings
 // aggregate.
 
+import type { ScheduleBehaviorSettings } from "./schedules";
 import type { BoardSettings } from "./boards";
 import { fetchApi } from "./core";
 import type { SilenceScheduleSettings } from "./schedules";
@@ -108,6 +109,7 @@ export interface AllSettingsResponse {
   location: LocationSettings;
   beta: BetaSettings;
   plugins: PluginSettings;
+  schedule: ScheduleBehaviorSettings;
   status: {
     running: boolean;
   };

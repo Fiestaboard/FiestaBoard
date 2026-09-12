@@ -836,6 +836,10 @@ class TestAllSettings:
             "location",
             "beta",
             "plugins",
+            # Added when #1950 (schedule hold-on-re-enable) was ported onto
+            # this trunk: the settings page reads `schedule.defer_on_reenable`
+            # from the aggregate rather than issuing a second request.
+            "schedule",
             "status",
         }
         assert body["polling"]["interval_seconds"] == 15

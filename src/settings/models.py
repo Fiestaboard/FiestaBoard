@@ -604,6 +604,17 @@ class SilenceScheduleBlock(BaseModel):
     config: dict[str, Any]
 
 
+class ScheduleBehaviourBlock(BaseModel):
+    """Global schedule behaviour, as served inside ``/settings/all``.
+
+    Mirrors ``ScheduleBehaviorResponse`` from the schedules domain; declared
+    here so ``AllSettingsResponse`` stays fully typed without importing a
+    router-owned model across domains.
+    """
+
+    defer_on_reenable: bool = False
+
+
 class AllSettingsResponse(BaseModel):
     """Everything the settings page loads, in one request.
 
@@ -623,6 +634,7 @@ class AllSettingsResponse(BaseModel):
     location: LocationSettingsResponse
     beta: BetaSettings
     plugins: PluginSettingsResponse
+    schedule: ScheduleBehaviourBlock
     status: ServiceStatus
 
 
