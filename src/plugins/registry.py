@@ -9,6 +9,7 @@ The PluginRegistry is the central point for:
 """
 
 import logging
+import random
 import re
 import time
 from concurrent.futures import ThreadPoolExecutor
@@ -60,6 +61,10 @@ CONTEXT_BUILD_TIMEOUT_SECONDS = 15
 # healthy plugins (and sparing every render the full timeout wait it caused).
 PLUGIN_FETCH_BREAKER_THRESHOLD = 3
 PLUGIN_FETCH_BREAKER_COOLDOWN_SECONDS = 60.0
+# A timed-out fetch only earns a strike when it held a worker for at least
+# this fraction of the context-build window: anything less means it started
+# late (queued behind wedged fetches) and is mid-flight, not wedged itself.
+PLUGIN_FETCH_BREAKER_MIN_HOLD = 0.8
 
 
 def _config_in_use(plugin_id: str, stored_configs: dict[str, dict[str, Any]]) -> bool:
@@ -1572,11 +1577,14 @@ class PluginRegistry:
 
         # Circuit breaker (#1884): skip plugins whose fetches have repeatedly
         # wedged, so they cannot occupy every pool worker and starve the rest.
+        # The skip itself logs at DEBUG — the trip (below) already logged a
+        # WARNING, and this branch re-fires on every render tick for the
+        # whole cooldown.
         now = time.monotonic()
-        tripped = [pid for pid in enabled if self._fetch_breaker_open_until.get(pid, 0.0) > now]
+        tripped = {pid for pid in enabled if self._fetch_breaker_open_until.get(pid, 0.0) > now}
         if tripped:
-            logger.warning(f"Skipping {len(tripped)} plugin(s) with an open fetch circuit breaker: {tripped}")
-            enabled = [pid for pid in enabled if pid not in set(tripped)]
+            logger.debug(f"Skipping {len(tripped)} plugin(s) with an open fetch circuit breaker: {sorted(tripped)}")
+            enabled = [pid for pid in enabled if pid not in tripped]
         if not enabled:
             return context
 
@@ -1585,7 +1593,17 @@ class PluginRegistry:
         max_workers = min(len(enabled), 8)
         executor = ThreadPoolExecutor(max_workers=max_workers, thread_name_prefix="plugin-fetch")
         try:
-            futures = {executor.submit(self.fetch_plugin_data, plugin_id, board): plugin_id for plugin_id in enabled}
+            # Stamp when each fetch actually gets a worker: `running()` at
+            # the deadline cannot distinguish "wedged since the start" from
+            # "queued behind wedged fetches and started late" — only the
+            # former deserves a breaker strike.
+            fetch_started: dict[str, float] = {}
+
+            def _timed_fetch(plugin_id: str):
+                fetch_started[plugin_id] = time.monotonic()
+                return self.fetch_plugin_data(plugin_id, board)
+
+            futures = {executor.submit(_timed_fetch, plugin_id): plugin_id for plugin_id in enabled}
             done, not_done = futures_wait(futures, timeout=CONTEXT_BUILD_TIMEOUT_SECONDS)
 
             if not_done:
@@ -1594,22 +1612,31 @@ class PluginRegistry:
                     f"{len(not_done)} plugin(s) did not complete within the "
                     f"context-build timeout and will be skipped: {slow_ids}"
                 )
+                deadline = time.monotonic()
                 for future in not_done:
-                    if not future.running():
-                        # Never got a worker: this plugin was starved by the
-                        # pool, not wedged itself. Don't count it against the
-                        # breaker — that would ban the victims too.
-                        continue
                     plugin_id = futures[future]
+                    started = fetch_started.get(plugin_id)
+                    held_whole_window = (
+                        started is not None
+                        and deadline - started >= CONTEXT_BUILD_TIMEOUT_SECONDS * PLUGIN_FETCH_BREAKER_MIN_HOLD
+                    )
+                    if not future.running() or not held_whole_window:
+                        # Never got a worker, or got one late and is still
+                        # mid-flight: a starvation victim, not a wedged
+                        # fetch. Don't count it against the breaker — that
+                        # would ban the victims too.
+                        continue
                     strikes = self._fetch_timeout_counts.get(plugin_id, 0) + 1
                     self._fetch_timeout_counts[plugin_id] = strikes
                     if strikes >= PLUGIN_FETCH_BREAKER_THRESHOLD:
-                        self._fetch_breaker_open_until[plugin_id] = (
-                            time.monotonic() + PLUGIN_FETCH_BREAKER_COOLDOWN_SECONDS
-                        )
+                        # Jitter the cooldown so plugins tripped in the same
+                        # pass don't all re-probe on the same later tick and
+                        # re-occupy every worker at once.
+                        cooldown = PLUGIN_FETCH_BREAKER_COOLDOWN_SECONDS * (1.0 + 0.25 * random.random())
+                        self._fetch_breaker_open_until[plugin_id] = time.monotonic() + cooldown
                         logger.warning(
                             f"Plugin {plugin_id} timed out {strikes} consecutive time(s); "
-                            f"pausing its fetches for {PLUGIN_FETCH_BREAKER_COOLDOWN_SECONDS:.0f}s"
+                            f"pausing its fetches for {cooldown:.0f}s"
                         )
 
             for future in done:

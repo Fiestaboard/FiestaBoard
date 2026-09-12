@@ -760,6 +760,51 @@ def test_fetch_breaker_closes_after_cooldown_and_success(registry, monkeypatch):
     assert registry._fetch_timeout_counts.get("flaky", 0) == 0
 
 
+def test_fetch_breaker_spares_healthy_plugin_that_started_late(registry, monkeypatch):
+    """A fetch that only got a pool worker late in the window is mid-flight at
+    the deadline, not wedged — `running()` alone cannot tell them apart, so
+    the breaker must only strike fetches that held a worker for (nearly) the
+    whole window. Otherwise the starved-but-healthy plugin the breaker exists
+    to protect gets banned itself.
+    """
+    import src.plugins.registry as registry_module
+
+    monkeypatch.setattr(registry_module, "CONTEXT_BUILD_TIMEOUT_SECONDS", 0.6)
+
+    release = threading.Event()
+    try:
+        # 7 wedged fetches hold 7 of the 8 workers all window.
+        for i in range(7):
+            _install(registry, _wedged_plugin(f"wedged_{i}", release))
+
+        # One brief fetch takes the 8th worker, then frees it mid-window...
+        brief = MagicMock(spec=PluginBase)
+        brief.plugin_id = "brief"
+
+        def _brief(board=None):
+            time.sleep(0.3)
+            return PluginResult(available=True, data={"ok": True})
+
+        brief.get_data.side_effect = _brief
+        _install(registry, brief)
+
+        # ...so this healthy-but-slow fetch starts ~halfway through the
+        # window and is still running (not wedged) when the deadline hits.
+        late = _wedged_plugin("late", release)
+        _install(registry, late)
+
+        ticks = PLUGIN_FETCH_BREAKER_THRESHOLD + 1
+        for _ in range(ticks):
+            registry.build_template_context()
+    finally:
+        release.set()
+
+    assert late.get_data.call_count == ticks, (
+        "late-starting fetch was struck as wedged and banned: it was "
+        f"submitted on only {late.get_data.call_count} of {ticks} ticks"
+    )
+
+
 # --- get_plugin_registry / reset_plugin_registry ---
 
 

@@ -30,13 +30,54 @@ def _make_service(last_chars):
 
 
 class TestExternalChangeDetection:
-    def test_differing_read_marks_out_of_band(self):
-        """A fresh read that differs from what we last sent = external write."""
+    def test_two_consecutive_differing_reads_mark_out_of_band(self):
+        """Reads that differ from what we last sent, twice in a row against
+        the same baseline, prove an external write."""
+        svc, client = _make_service(SENT)
+        client.read_current_message.return_value = EXTERNAL
+
+        svc._poll_board_state_once()
+        svc._poll_board_state_once()
+
+        assert svc.is_showing_out_of_band() is True
+
+    def test_single_differing_read_is_only_a_suspect(self):
+        """One mismatch may be the cloud read API lagging our own send
+        (the lag request_board_refresh absorbs) — never flag on one read."""
         svc, client = _make_service(SENT)
         client.read_current_message.return_value = EXTERNAL
 
         svc._poll_board_state_once()
 
+        assert svc.is_showing_out_of_band() is False
+
+    def test_lag_that_resolves_by_the_next_poll_never_flags(self):
+        """Post-send read lag: first poll still sees the old frame, second
+        poll sees what we sent. No external write happened."""
+        svc, client = _make_service(SENT)
+        client.read_current_message.side_effect = [EXTERNAL, SENT, EXTERNAL]
+
+        svc._poll_board_state_once()
+        svc._poll_board_state_once()
+        # A later lone mismatch starts a fresh suspect cycle, not a flag.
+        svc._poll_board_state_once()
+
+        assert svc.is_showing_out_of_band() is False
+
+    def test_send_between_the_two_mismatches_resets_the_suspect(self):
+        """A send replaces the baseline: the second mismatch is judged
+        against fresh lag, so the suspect cycle restarts."""
+        svc, client = _make_service(SENT)
+        new_sent = [[4, 4, 4]]
+        client.read_current_message.return_value = EXTERNAL
+
+        svc._poll_board_state_once()
+        client._last_characters = new_sent  # engine sent between polls
+        svc._poll_board_state_once()
+
+        assert svc.is_showing_out_of_band() is False
+        # ...but persistence against the *new* baseline still flags.
+        svc._poll_board_state_once()
         assert svc.is_showing_out_of_band() is True
 
     def test_matching_read_does_not_mark_out_of_band(self):
@@ -44,6 +85,7 @@ class TestExternalChangeDetection:
         svc, client = _make_service(SENT)
         client.read_current_message.return_value = SENT
 
+        svc._poll_board_state_once()
         svc._poll_board_state_once()
 
         assert svc.is_showing_out_of_band() is False
