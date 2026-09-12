@@ -12,6 +12,7 @@ import logging
 import os
 import socket
 import threading
+from collections.abc import Callable
 from typing import Any, Optional
 
 logger = logging.getLogger(__name__)
@@ -22,6 +23,11 @@ DEFAULT_SERVICE_PORT = 4420
 
 _mdns_service: Optional["MDNSService"] = None
 _mdns_lock = threading.Lock()
+
+#: Set while the app is shutting down, so a registration still in flight on
+#: the background thread tears itself down instead of leaving an
+#: advertisement up. See :func:`start_mdns_background`.
+_mdns_shutdown = threading.Event()
 
 
 class MDNSService:
@@ -161,12 +167,68 @@ def get_mdns_service() -> MDNSService:
 
 
 def start_mdns() -> bool:
-    """Convenience wrapper – create the singleton and start advertising."""
+    """Convenience wrapper – create the singleton and start advertising.
+
+    Blocks until zeroconf accepts the registration or gives up. Callers on
+    a latency-sensitive path want :func:`start_mdns_background` instead.
+    """
     return get_mdns_service().start()
 
 
+def start_mdns_background(on_registered: Callable[[str], None] | None = None) -> threading.Thread:
+    """Register the mDNS service without holding the calling thread (#1955).
+
+    ``zeroconf.register_service()`` blocks for the whole of its internal
+    timeout when multicast does not reach a responder — measured at 5.2 s
+    in a container with no multicast route, and :meth:`MDNSService.start`
+    already documents the Raspberry Pi 3 case. Run from the app's startup
+    path that is 5.2 s during which nothing is served, to learn something
+    the app treats as optional either way: losing ``<host>.local`` is a
+    logged, survivable outcome, because the box stays reachable by IP.
+
+    So the registration runs on a daemon thread and the caller continues.
+    *on_registered* is invoked with the local URL if — and only if — the
+    registration actually succeeded, so the announcement is deferred
+    rather than dropped.
+
+    Returns the thread, which callers may join in tests. Nothing in the
+    product joins it: it is a daemon, so it can never hold process exit.
+    """
+    _mdns_shutdown.clear()
+
+    def _register() -> None:
+        try:
+            registered = start_mdns()
+        except Exception:
+            logger.warning("mDNS service could not be started", exc_info=True)
+            return
+        if not registered:
+            return
+        if _mdns_shutdown.is_set():
+            # The lifespan ended while we were still registering. Undo it
+            # rather than leaving an advertisement behind for a process
+            # that is going away.
+            stop_mdns()
+            return
+        if on_registered is not None:
+            try:
+                on_registered(get_mdns_service().local_url)
+            except Exception:
+                logger.debug("mDNS registration callback failed", exc_info=True)
+
+    thread = threading.Thread(target=_register, name="mdns-register", daemon=True)
+    thread.start()
+    return thread
+
+
 def stop_mdns() -> None:
-    """Convenience wrapper – stop the singleton service."""
+    """Convenience wrapper – stop the singleton service.
+
+    Sets the shutdown flag first so a registration still in flight on the
+    background thread tears itself down when it lands, instead of this
+    call blocking to wait for it.
+    """
+    _mdns_shutdown.set()
     if _mdns_service is not None:
         _mdns_service.stop()
 

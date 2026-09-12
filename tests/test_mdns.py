@@ -1,4 +1,17 @@
-"""Tests for mDNS/Bonjour service (src.system.mdns)."""
+"""Tests for mDNS/Bonjour service (src.system.mdns).
+
+Never simulate a missing dependency with ``patch("builtins.__import__")``.
+It swaps in a process-global mock that *records every call*, so any import
+performed by any live background thread — the display service's init retry
+loop, the update checkers, anything a previously-run test left running —
+is appended to its ``call_args_list`` until the interpreter is OOM-killed.
+The failure lands on whichever test holds the patch, which is never the
+test that started the thread, so it reads as an unrelated hang.
+
+``patch.dict("sys.modules", {"<name>": None})`` blocks the import on its
+own — ``None`` in ``sys.modules`` is CPython's own marker for it — and
+touches no global machinery. Use that instead.
+"""
 
 from unittest.mock import MagicMock, patch
 
@@ -131,10 +144,15 @@ class TestMDNSServiceLifecycle:
         from src.system.mdns import MDNSService
 
         svc = MDNSService()
+        # `None` in sys.modules is CPython's own "this import is blocked"
+        # marker, so `from zeroconf import ...` raises ImportError on its
+        # own. Patching builtins.__import__ as well used to do the same job,
+        # but that installs a process-global *recording* mock: every import
+        # any live background thread performs is appended to its call list,
+        # which grows without bound and kills the interpreter. See the
+        # module docstring.
         with patch.dict("sys.modules", {"zeroconf": None}):
-            # Force ImportError by patching the import inside start()
-            with patch("builtins.__import__", side_effect=ImportError("no zeroconf")):
-                result = svc.start()
+            result = svc.start()
 
         assert result is False
         assert svc.is_running is False
@@ -373,7 +391,7 @@ class TestScanForBoards:
         from src.system.mdns import scan_for_boards
 
         with (
-            patch("builtins.__import__", side_effect=ImportError("no zeroconf")),
+            patch.dict("sys.modules", {"zeroconf": None}),
             patch("src.system.mdns._get_local_ip", return_value="127.0.0.1"),
         ):
             result = scan_for_boards(timeout=0.1)
