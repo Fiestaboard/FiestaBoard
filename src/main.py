@@ -119,6 +119,12 @@ class BoardRuntime:
         # future per-board poll is a drop-in change.
         self.polled_characters: list[list[int]] | None = None
         self.polled_at: float | None = None
+        # External-write detection (issue #1946): the client's
+        # ``_last_characters`` object observed on a poll whose read
+        # mismatched it. A second consecutive mismatch against this same
+        # object (by identity — any send replaces it) confirms an external
+        # write; see ``DisplayService._poll_board_state_once``.
+        self.external_change_suspect_baseline: list[list[int]] | None = None
 
         # Adaptive post-send refresh thread + its cancel event.
         self.refresh_thread: threading.Thread | None = None
@@ -661,16 +667,62 @@ class DisplayService:
         while self.running:
             interval = self._get_board_read_interval()
             try:
-                rt = self._primary_runtime()
-                if rt is not None and rt.client is not None:
-                    chars = rt.client.read_current_message()
-                    if chars:
-                        rt.polled_characters = chars
-                        rt.polled_at = time.time()
-                        logger.debug("Board state poll succeeded")
+                self._poll_board_state_once()
             except Exception as e:
                 logger.debug(f"Board state poll failed: {e}")
             time.sleep(interval)
+
+    def _poll_board_state_once(self) -> None:
+        """Read the primary board once, cache the result, and detect
+        external writes (issue #1946).
+
+        A fresh read that differs from what this process last wrote means
+        someone else wrote the board (Vestaboard app, direct API call), so
+        the runtime is marked out-of-band and MQTT/HA stops reporting the
+        stale active page.
+
+        Detection needs TWO consecutive mismatching polls against the same
+        unchanged baseline before flagging: a single mismatch can be our own
+        send still propagating — the cloud read API lags a POST by seconds
+        (the lag request_board_refresh absorbs), and send_characters assigns
+        ``_last_characters`` only after the POST returns, so one read can
+        race any of that. Lag resolves well before the next poll (30s local
+        / 3min cloud); a genuine external write persists. The baseline is
+        snapshotted around each read and remembered between polls by object
+        identity, so any send in between restarts the suspect cycle.
+
+        The poll never clears the flag — a matching read only proves the
+        board shows our last write, which may itself be a manual
+        out-of-band message (issue #1831); the engine's own page sends
+        clear it.
+        """
+        rt = self._primary_runtime()
+        if rt is None or rt.client is None:
+            return
+        baseline = getattr(rt.client, "_last_characters", None)
+        chars = rt.client.read_current_message()
+        if not chars:
+            return
+        rt.polled_characters = chars
+        rt.polled_at = time.time()
+        logger.debug("Board state poll succeeded")
+        current = getattr(rt.client, "_last_characters", None)
+        if current is None or current is not baseline:
+            # No baseline to judge against, or a send raced the read —
+            # whatever we saw proves nothing about external writers.
+            rt.external_change_suspect_baseline = None
+            return
+        if chars == current:
+            rt.external_change_suspect_baseline = None
+            return
+        if rt.external_change_suspect_baseline is current:
+            # Second consecutive mismatch with no send in between: this is
+            # a persistent external write, not our own send's read lag.
+            rt.external_change_suspect_baseline = None
+            rt.showing_out_of_band = True
+            logger.info("Board content changed externally; marking out-of-band")
+        else:
+            rt.external_change_suspect_baseline = current
 
     def request_board_refresh(
         self,

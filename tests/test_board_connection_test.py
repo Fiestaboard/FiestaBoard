@@ -673,3 +673,18 @@ class TestBoardTestPort:
 
         assert response.status_code == 200
         assert mock_client_cls.call_args.kwargs["port"] is None
+
+
+class TestBoardTestHostValidation:
+    """SSRF host-validation failures surface as HTTP 400, not 200 (issue #1887)."""
+
+    @patch("src.api_server.requests.get")
+    def test_invalid_host_returns_400(self, mock_get, client):
+        """A host with URL delimiters is rejected with HTTP 400 and no outbound request."""
+        response = client.post(
+            "/config/board/test",
+            json={"api_mode": "local", "local_api_key": "key", "host": "evil.com/path"},
+        )
+        assert response.status_code == 400
+        assert "host" in response.json()["detail"]
+        mock_get.assert_not_called()

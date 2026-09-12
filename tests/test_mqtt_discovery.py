@@ -124,7 +124,7 @@ class TestEntityDefinitions:
         texts = [e for e in ENTITY_DEFINITIONS if e.entity_type == "text"]
         assert len(texts) == 1
         assert texts[0].object_id == "send_message"
-        assert texts[0].max_length == 132  # 22 chars × 6 rows
+        assert texts[0].max_length == 255  # HA text ceiling, not tile count (issue #1957)
 
     def test_number_entities(self):
         """Should have number entity for refresh interval."""
@@ -546,15 +546,14 @@ class TestBuildAllDiscoveryMessages:
                 return payload
         raise AssertionError("no send_message discovery message")
 
-    def test_send_message_max_length_defaults_to_flagship_capacity(self, mqtt_config):
-        """Without a resolved board, keep the historical 6x22 = 132 default."""
+    def test_send_message_max_is_ha_text_ceiling_not_tile_count(self, mqtt_config):
+        """Markup spends payload characters without spending tiles — {red} is
+        five characters for one flap — so a tile-count limit strands real
+        messages (issue #1957). Advertise HA's own text-entity ceiling (255)
+        instead; the server already wraps/clips whatever arrives to the board.
+        """
         messages = build_all_discovery_messages(mqtt_config)
-        assert self._send_message_payload(messages)["max"] == 132
-
-    def test_send_message_max_length_follows_the_board(self, mqtt_config):
-        """A Note holds 3x15 = 45 characters, not 132 (issue #1793 review)."""
-        messages = build_all_discovery_messages(mqtt_config, max_message_length=45)
-        assert self._send_message_payload(messages)["max"] == 45
+        assert self._send_message_payload(messages)["max"] == 255
 
     def test_custom_instance_id(self):
         """Custom instance ID should be reflected in all payloads."""

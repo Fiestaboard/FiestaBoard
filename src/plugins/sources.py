@@ -21,6 +21,8 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
+from src.paths import get_data_dir
+
 logger = logging.getLogger(__name__)
 
 # ── constants ────────────────────────────────────────────────────────────────
@@ -723,7 +725,12 @@ def get_external_plugins_dir(project_root: Path | None = None) -> Path:
     """
     if project_root is None:
         project_root = Path(__file__).parent.parent.parent
-    ext_dir = project_root / "data" / EXTERNAL_PLUGINS_DIR
+        # Default resolves through the central data-dir seam (src/paths.py)
+        # so FIESTABOARD_DATA_DIR redirects the clone cache too. The legacy
+        # fallback below stays relative to the repo root either way.
+        ext_dir = get_data_dir() / EXTERNAL_PLUGINS_DIR
+    else:
+        ext_dir = project_root / "data" / EXTERNAL_PLUGINS_DIR
     ext_dir.mkdir(parents=True, exist_ok=True)
 
     marker = ext_dir / _LEGACY_MIGRATION_MARKER
