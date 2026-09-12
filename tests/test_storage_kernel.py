@@ -208,6 +208,86 @@ class TestJsonStoreMigrations:
         assert path.read_text() == original
 
 
+class TestJsonStoreRefusesAFutureSchema:
+    """A file written by a NEWER build must not be read as if it were ours.
+
+    Downgrading is now a supported path (the beta release channel), and a
+    downgrade lands an older binary on a data directory a newer one already
+    migrated. Before this guard every store took the same shape:
+
+        if file_version >= CURRENT_SCHEMA_VERSION: skip migrations
+
+    so a v3 file loaded into a v2 build fell straight through and was read
+    as v2 — and the first ``save()`` then stamped ``schema_version: 2`` back
+    onto v3-shaped content, destroying the evidence. Silent misreading, then
+    silent corruption.
+
+    Loud refusal is the contract: ``load()`` already documents that read
+    errors propagate and the domain store decides whether a broken file is
+    fatal.
+    """
+
+    def _store(self, path, version=2):
+        from src.storage.json_store import JsonStore
+
+        return JsonStore(path, current_schema_version=version, label="widgets")
+
+    def test_load_refuses_a_file_from_a_newer_build(self, tmp_path):
+        from src.storage.json_store import SchemaTooNewError
+
+        path = tmp_path / "x.json"
+        path.write_text(json.dumps({"schema_version": 3, "items": ["from the future"]}))
+
+        with pytest.raises(SchemaTooNewError) as excinfo:
+            self._store(path, version=2).load()
+
+        message = str(excinfo.value)
+        assert "widgets" in message, "the error must name which store refused"
+        assert "3" in message and "2" in message, "the error must name both versions"
+
+    def test_the_refused_file_is_left_exactly_as_it_was(self, tmp_path):
+        """The newer file is the user's only copy of that data."""
+        from src.storage.json_store import SchemaTooNewError
+
+        path = tmp_path / "x.json"
+        original = json.dumps({"schema_version": 3, "items": ["from the future"]})
+        path.write_text(original)
+
+        with contextlib.suppress(SchemaTooNewError):
+            self._store(path, version=2).load()
+
+        assert path.read_text() == original
+        assert not list(tmp_path.glob("*_backup")), "a refused load must not take a migration backup"
+
+    def test_a_refused_store_will_not_overwrite_the_newer_file(self, tmp_path):
+        """The dangerous move is the SAVE after the failed load, not the load."""
+        from src.storage.json_store import SchemaTooNewError
+
+        path = tmp_path / "x.json"
+        original = json.dumps({"schema_version": 3, "items": ["from the future"]})
+        path.write_text(original)
+        store = self._store(path, version=2)
+
+        with contextlib.suppress(SchemaTooNewError):
+            store.load()
+        with pytest.raises(SchemaTooNewError):
+            store.save({"items": []})
+
+        assert path.read_text() == original
+
+    def test_an_equal_version_still_loads(self, tmp_path):
+        """The guard must fire on strictly-newer only, never on equal."""
+        path = tmp_path / "x.json"
+        path.write_text(json.dumps({"schema_version": 2, "items": ["ours"]}))
+        assert self._store(path, version=2).load()["items"] == ["ours"]
+
+    def test_an_unversioned_store_reads_anything(self, tmp_path):
+        """current_schema_version=0 disables versioning entirely."""
+        path = tmp_path / "x.json"
+        path.write_text(json.dumps({"schema_version": 99, "items": ["ok"]}))
+        assert self._store(path, version=0).load()["items"] == ["ok"]
+
+
 class TestJsonStoreMutate:
     def test_mutate_is_a_locked_read_modify_write(self, tmp_path):
         from src.storage.json_store import JsonStore

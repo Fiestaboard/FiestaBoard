@@ -1004,3 +1004,72 @@ class TestLocalArrayTileMasking:
         tiles = {(t["row"], t["col"]): t for t in settings_service._board.boards[0]["tiles"]}
         assert tiles[(0, 0)]["host"] == "10.0.0.77"
         assert tiles[(0, 0)]["local_api_key"] == "secret-a"
+
+
+class TestSettingsRefusesAFutureSchema:
+    """settings.json written by a NEWER build must not be read as ours.
+
+    ``SettingsService`` does not load through ``JsonStore.load()`` — it
+    pre-reads the file itself in ``_migrate_if_needed`` (an artifact of the
+    migration machinery predating the storage kernel), so the kernel's
+    :class:`SchemaTooNewError` guard does not cover it. That matters more
+    here than anywhere else: ``settings.json`` is the one store whose schema
+    has actually diverged across a release boundary (v2 on the stable line,
+    v3 on ``next``), so it is the file a downgrading user is guaranteed to
+    hit.
+
+    Without this the old build reads v3 content as v2 and the next save
+    stamps ``schema_version: 2`` back onto it.
+    """
+
+    def _seed(self, tmp_path, version_offset):
+        import json
+
+        from src.settings.service import CURRENT_SETTINGS_SCHEMA_VERSION
+
+        path = tmp_path / "settings.json"
+        payload = {
+            "schema_version": CURRENT_SETTINGS_SCHEMA_VERSION + version_offset,
+            "general": {"instance_name": "From the future"},
+        }
+        path.write_text(json.dumps(payload))
+        return path, json.dumps(payload)
+
+    def test_a_newer_settings_file_is_refused(self, tmp_path, monkeypatch):
+        import pytest
+
+        from src.storage.json_store import SchemaTooNewError
+
+        path, _ = self._seed(tmp_path, +1)
+        monkeypatch.setenv("FIESTABOARD_DATA_DIR", str(tmp_path))
+
+        from src.settings.service import SettingsService
+
+        with pytest.raises(SchemaTooNewError) as excinfo:
+            SettingsService(settings_file=path)
+
+        assert "settings" in str(excinfo.value).lower()
+
+    def test_the_refused_settings_file_is_not_rewritten(self, tmp_path, monkeypatch):
+        import contextlib
+
+        from src.storage.json_store import SchemaTooNewError
+
+        path, original = self._seed(tmp_path, +1)
+        monkeypatch.setenv("FIESTABOARD_DATA_DIR", str(tmp_path))
+
+        from src.settings.service import SettingsService
+
+        with contextlib.suppress(SchemaTooNewError):
+            SettingsService(settings_file=path)
+
+        assert path.read_text() == original
+
+    def test_a_current_settings_file_still_loads(self, tmp_path, monkeypatch):
+        """The guard fires on strictly-newer only."""
+        path, _ = self._seed(tmp_path, 0)
+        monkeypatch.setenv("FIESTABOARD_DATA_DIR", str(tmp_path))
+
+        from src.settings.service import SettingsService
+
+        SettingsService(settings_file=path)  # must not raise
