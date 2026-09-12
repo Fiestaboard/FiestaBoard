@@ -10,6 +10,7 @@ The PluginRegistry is the central point for:
 
 import logging
 import re
+import time
 from concurrent.futures import ThreadPoolExecutor
 from concurrent.futures import wait as futures_wait
 from dataclasses import replace
@@ -49,6 +50,16 @@ _INSTANCE_LABEL_RE = re.compile(r"^[a-zA-Z0-9_-]{1,40}$")
 # rendering without it. A board that is a little stale beats a board that never
 # updates because one data source is wedged.
 CONTEXT_BUILD_TIMEOUT_SECONDS = 15
+
+# Per-plugin fetch circuit breaker (#1884). The fetch pool is bounded, so a
+# permanently wedged fetch occupies one worker for the full context-build
+# timeout on every tick; once pool-size distinct fetches are wedged, healthy
+# plugins queued behind them never get a worker and *all* plugin data starves.
+# After PLUGIN_FETCH_BREAKER_THRESHOLD consecutive timeouts a plugin's fetch
+# is skipped for PLUGIN_FETCH_BREAKER_COOLDOWN_SECONDS, freeing its worker for
+# healthy plugins (and sparing every render the full timeout wait it caused).
+PLUGIN_FETCH_BREAKER_THRESHOLD = 3
+PLUGIN_FETCH_BREAKER_COOLDOWN_SECONDS = 60.0
 
 
 def _config_in_use(plugin_id: str, stored_configs: dict[str, dict[str, Any]]) -> bool:
@@ -99,6 +110,12 @@ class PluginRegistry:
         # Set once initialize() has loaded the plugin set. Guards against a
         # repeat call rebuilding every live plugin (issue #1753).
         self._initialized = False
+
+        # Fetch circuit-breaker state (#1884): plugin_id -> consecutive
+        # context-build timeouts, and plugin_id -> monotonic deadline until
+        # which its fetch is skipped. Both cleared on a completed fetch.
+        self._fetch_timeout_counts: dict[str, int] = {}
+        self._fetch_breaker_open_until: dict[str, float] = {}
 
         logger.info("PluginRegistry initialized")
 
@@ -1553,6 +1570,16 @@ class PluginRegistry:
         if not enabled:
             return context
 
+        # Circuit breaker (#1884): skip plugins whose fetches have repeatedly
+        # wedged, so they cannot occupy every pool worker and starve the rest.
+        now = time.monotonic()
+        tripped = [pid for pid in enabled if self._fetch_breaker_open_until.get(pid, 0.0) > now]
+        if tripped:
+            logger.warning(f"Skipping {len(tripped)} plugin(s) with an open fetch circuit breaker: {tripped}")
+            enabled = [pid for pid in enabled if pid not in set(tripped)]
+        if not enabled:
+            return context
+
         # Fetch every plugin concurrently; cap the pool to avoid spawning an
         # unbounded number of threads when many plugins are enabled.
         max_workers = min(len(enabled), 8)
@@ -1567,9 +1594,28 @@ class PluginRegistry:
                     f"{len(not_done)} plugin(s) did not complete within the "
                     f"context-build timeout and will be skipped: {slow_ids}"
                 )
+                for future in not_done:
+                    if not future.running():
+                        # Never got a worker: this plugin was starved by the
+                        # pool, not wedged itself. Don't count it against the
+                        # breaker — that would ban the victims too.
+                        continue
+                    plugin_id = futures[future]
+                    strikes = self._fetch_timeout_counts.get(plugin_id, 0) + 1
+                    self._fetch_timeout_counts[plugin_id] = strikes
+                    if strikes >= PLUGIN_FETCH_BREAKER_THRESHOLD:
+                        self._fetch_breaker_open_until[plugin_id] = (
+                            time.monotonic() + PLUGIN_FETCH_BREAKER_COOLDOWN_SECONDS
+                        )
+                        logger.warning(
+                            f"Plugin {plugin_id} timed out {strikes} consecutive time(s); "
+                            f"pausing its fetches for {PLUGIN_FETCH_BREAKER_COOLDOWN_SECONDS:.0f}s"
+                        )
 
             for future in done:
                 plugin_id = futures[future]
+                self._fetch_timeout_counts.pop(plugin_id, None)
+                self._fetch_breaker_open_until.pop(plugin_id, None)
                 try:
                     result = future.result()
                     if result.available and result.data:
