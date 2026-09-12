@@ -7418,6 +7418,16 @@ def _find_board(board_id: str) -> dict | None:
     return None
 
 
+def _require_board(board_id: str | None) -> None:
+    """Raise 404 when board_id names a board that is not configured (issue #1888).
+
+    ``None`` (no board targeted) and ``""`` (the legacy default-board sentinel,
+    see ``src.schedules.models.DEFAULT_BOARD_ID``) pass through untouched.
+    """
+    if board_id and _find_board(board_id) is None:
+        raise HTTPException(status_code=404, detail=f"Board not found: {board_id}")
+
+
 def _board_dims(board: dict):
     """Resolved dimensions for a settings.boards entry (flagship fallback).
 
@@ -8735,6 +8745,7 @@ async def create_schedule(schedule_data: ScheduleCreate):
     Returns:
         Created schedule entry
     """
+    _require_board(schedule_data.board_id)
     schedule_service = get_schedule_service()
 
     try:
@@ -8813,6 +8824,7 @@ async def set_default_page(request: dict):
         raise HTTPException(status_code=400, detail="page_id parameter required")
     page_id = request["page_id"]
     board_id = request.get("board_id")
+    _require_board(board_id)
     if page_id is not None:
         if is_collection_id(page_id):
             collection_service = get_collection_service()
@@ -8843,6 +8855,7 @@ async def set_schedule_enabled(request: dict):
     if not isinstance(enabled, bool):
         raise HTTPException(status_code=400, detail="enabled must be boolean")
     board_id = request.get("board_id")
+    _require_board(board_id)
     settings_service = get_settings_service()
     settings_service.set_schedule_enabled(enabled, board_id=board_id)
     return {
@@ -8905,6 +8918,7 @@ async def update_schedule(schedule_id: str, schedule_data: ScheduleUpdate):
     Returns:
         Updated schedule entry
     """
+    _require_board(schedule_data.board_id)
     schedule_service = get_schedule_service()
 
     try:
