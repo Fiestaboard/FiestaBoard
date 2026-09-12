@@ -4062,14 +4062,10 @@ async def test_board_connection(request: BoardTestRequest):
         api_key = request.local_api_key
         use_cloud = False
         host = request.host
-        try:
-            _validate_board_host(host)
-        except HTTPException as _exc:
-            return {
-                "success": False,
-                "message": "Invalid board host",
-                "error": _exc.detail,
-            }
+        # SSRF guard: raises HTTPException(400) for invalid hosts. Let it
+        # propagate — downgrading it to a 200 body hides the rejection from
+        # status-code-based clients (issue #1887).
+        _validate_board_host(host)
 
     try:
         # Create temporary client with provided credentials
@@ -4285,16 +4281,11 @@ async def enable_local_api(request: EnablementTokenRequest):
         }
 
     # Validate the host before composing the URL so an attacker can't
-    # redirect this request away from the local board (SSRF).
-    try:
-        _validate_board_host(request.host)
-        _validate_board_host_is_local_network(request.host)
-    except HTTPException as exc:
-        return {
-            "success": False,
-            "message": "Invalid board host",
-            "error": exc.detail,
-        }
+    # redirect this request away from the local board (SSRF). These raise
+    # HTTPException(400) — let it propagate rather than downgrading the
+    # rejection to a 200 body (issue #1887).
+    _validate_board_host(request.host)
+    _validate_board_host_is_local_network(request.host)
 
     # Resolve the host to a concrete IPv4 address and ensure it is a private/
     # loopback/link-local address.  Using the ``ipaddress`` module's
