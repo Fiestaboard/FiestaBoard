@@ -449,12 +449,20 @@ class ScheduleSettings:
 
     enabled: bool = False  # Deprecated mirror of the primary board's schedule_enabled
 
+    # When True, turning schedule mode back on does not repaint the board:
+    # it keeps showing the manually selected page until the schedule reaches
+    # its next window. Off by default — see SettingsService.set_schedule_defer_on_reenable.
+    defer_on_reenable: bool = False
+
     def to_dict(self) -> dict:
         return asdict(self)
 
     @classmethod
     def from_dict(cls, data: dict) -> "ScheduleSettings":
-        return cls(enabled=data.get("enabled", False))
+        return cls(
+            enabled=data.get("enabled", False),
+            defer_on_reenable=bool(data.get("defer_on_reenable", False)),
+        )
 
 
 @dataclass
@@ -1789,6 +1797,17 @@ class SettingsService:
         self._schedule.enabled = enabled
         self._save_to_file()
         logger.info(f"Schedule mode (global, no boards): {'enabled' if enabled else 'disabled'}")
+        return self._schedule
+
+    def set_schedule_defer_on_reenable(self, defer: bool) -> ScheduleSettings:
+        """Set whether re-enabling schedule mode waits for the next window.
+
+        Unlike ``schedule_enabled`` this is a single global preference: it
+        describes how the toggle behaves, not what any one board is showing.
+        """
+        self._schedule.defer_on_reenable = bool(defer)
+        self._save_to_file()
+        logger.info(f"Schedule defer-on-reenable: {'on' if defer else 'off'}")
         return self._schedule
 
     def get_mqtt_settings(self) -> "MQTTSettings":

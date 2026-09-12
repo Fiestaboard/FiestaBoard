@@ -4,7 +4,7 @@
 
 import type { BoardSettings } from "./boards";
 import { fetchApi } from "./core";
-import type { SilenceScheduleSettings } from "./schedules";
+import type { ScheduleBehaviorSettings, SilenceScheduleSettings } from "./schedules";
 import type { MqttSettings } from "./system";
 
 // Settings types
@@ -108,6 +108,7 @@ export interface AllSettingsResponse {
   location: LocationSettings;
   beta: BetaSettings;
   plugins: PluginSettings;
+  schedule: ScheduleBehaviorSettings;
   status: {
     running: boolean;
   };

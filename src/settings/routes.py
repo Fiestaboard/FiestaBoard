@@ -1503,6 +1503,7 @@ async def get_all_settings():
     location = settings_service.get_location_settings()
     beta = settings_service.get_beta_settings()
     plugins = settings_service.get_plugin_settings()
+    schedule = settings_service.get_schedule_settings()
 
     return {
         "general": general,
@@ -1516,6 +1517,7 @@ async def get_all_settings():
         "location": location.to_dict(),
         "beta": beta.to_dict(),
         "plugins": plugins.to_dict(),
+        "schedule": schedule.to_dict(),
         "status": {
             "running": _api("_service_running"),
         },

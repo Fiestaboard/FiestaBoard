@@ -214,6 +214,16 @@ export interface SilenceScheduleSettings {
   config?: Partial<SilenceScheduleConfig>;
 }
 
+/** Global schedule behaviour — not per-board (see `/schedules/enabled` for that). */
+export interface ScheduleBehaviorSettings {
+  /**
+   * When true, turning schedule mode back on leaves the board on its manual
+   * page until the schedule reaches its next window, instead of repainting
+   * the moment the toggle flips.
+   */
+  defer_on_reenable: boolean;
+}
+
 export const schedulesApi = {
   // Temporary override endpoints
   getTemporaryOverride: () => fetchApi<TemporaryOverrideStatus>("/settings/temporary-override"),
@@ -305,5 +315,16 @@ export const schedulesApi = {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(data),
+    }),
+
+  // Global schedule behaviour (#1950). PUT takes a StrictBool server-side, so
+  // a non-boolean is refused with 422 rather than coerced.
+  getScheduleSettings: () => fetchApi<ScheduleBehaviorSettings>("/schedules/settings"),
+
+  setScheduleSettings: (settings: ScheduleBehaviorSettings) =>
+    fetchApi<ScheduleBehaviorSettings>("/schedules/settings", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(settings),
     }),
 };

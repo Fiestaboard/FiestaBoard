@@ -24,7 +24,7 @@ astral>=3.2
 docker>=7.1.0
 
 # mDNS/Bonjour local network discovery (fiestaboard.local)
-zeroconf>=0.151.2
+zeroconf>=0.151.3
 
 # MQTT client for Home Assistant auto-discovery and control
 paho-mqtt>=2.1.0

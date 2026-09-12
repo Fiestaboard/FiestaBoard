@@ -359,6 +359,23 @@ class ScheduleDeleteResponse(BaseModel):
     id: str
 
 
+class ScheduleBehaviorUpdate(BaseModel):
+    """Body of ``PUT /schedules/settings``.
+
+    ``StrictBool`` on purpose, same reasoning as
+    :class:`ScheduleEnabledUpdate`: lax mode would coerce ``"yes"`` into
+    ``True`` and silently change how the board behaves on re-enable.
+    """
+
+    defer_on_reenable: StrictBool
+
+
+class ScheduleBehaviorResponse(BaseModel):
+    """Global schedule behaviour — not per-board (see ``/schedules/enabled``)."""
+
+    defer_on_reenable: bool
+
+
 class DefaultPageResponse(BaseModel):
     """The default page shown when no schedule window is active."""
 

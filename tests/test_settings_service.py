@@ -242,7 +242,7 @@ class TestScheduleSettings:
 
     def test_to_dict(self):
         ss = ScheduleSettings(enabled=True)
-        assert ss.to_dict() == {"enabled": True}
+        assert ss.to_dict() == {"enabled": True, "defer_on_reenable": False}
 
 
 # ==================== SettingsService ====================
