@@ -32,7 +32,7 @@ export function VersionDisplay() {
     <Flex align="center" gap="2" className="text-xs text-muted-foreground">
       <Package className="h-3 w-3" />
       <Text as="span" size="xs" tone="muted" suppressHydrationWarning>
-        {tCommon("versionShort", { version: version.package_version })}
+        {tCommon("versionShort", { version: version.running_version })}
         {version.is_dev && ` ${t("devSuffix")}`}
       </Text>
       {!managedExternally && updateCheck?.update_available && (
