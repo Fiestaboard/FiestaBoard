@@ -65,27 +65,56 @@ jobs:
 
       - name: Compute the beta version
         id: version
+        env:
+          # The stable release `next` is heading for. Declared, not derived.
+          #
+          # 9.0.0 because `next` is a breaking-change branch: MCP tool errors
+          # became protocol `isError` (#1874), GET /plugins dropped previews to
+          # opt-in, and GET /logs `total` became a lower bound rather than an
+          # exact count. Those are real contract breaks for existing clients.
+          #
+          # It is declared rather than derived for two reasons:
+          #
+          #   1. Deriving it would get it WRONG. The repo infers bump type from
+          #      conventional-commit titles (pr-label.yml:54-57 looks for `!:`
+          #      or a BREAKING CHANGE footer). Not one PR merged into `next`
+          #      carries a major label, because the breaking changes landed
+          #      under plain `feat:`/`refactor:` titles. The history undercounts
+          #      what actually happened to the API.
+          #   2. Deriving from package.json drifts. `next` tracks `main`, so a
+          #      "bump the minor" rule would silently retarget the moment main
+          #      shipped — and any beta already published under the old number
+          #      would then sort BELOW the stable release that took it.
+          #
+          # Change this when `next` starts aiming at a different release.
+          BETA_TARGET_VERSION: "9.0.0"
         run: |
           set -euo pipefail
-          # The stable version currently on this trunk. `next` tracks `main`,
-          # so this is the release a beta is running *ahead of*.
-          STABLE=$(node -p "require('./package.json').version")
-          if ! printf '%s' "$STABLE" | grep -qE '^[0-9]+\.[0-9]+\.[0-9]+$'; then
-            echo "::error::package.json version '$STABLE' is not X.Y.Z — refusing to derive a beta from it"
+          if ! printf '%s' "$BETA_TARGET_VERSION" | grep -qE '^[0-9]+\.[0-9]+\.[0-9]+$'; then
+            echo "::error::BETA_TARGET_VERSION '$BETA_TARGET_VERSION' is not X.Y.Z"
             exit 1
           fi
-          MAJOR=${STABLE%%.*}
-          MINOR=$(printf '%s' "$STABLE" | cut -d. -f2)
-          # A beta is the next MINOR: the smallest bump that is unambiguously
-          # ahead of every patch `main` can still ship while the beta is out.
-          # 8.35.5 -> 8.36.0-beta.N.
-          NEXT_MINOR=$((MINOR + 1))
-          # run_number is monotonic per workflow, so betas order correctly —
-          # semver compares numeric prerelease identifiers numerically, so
-          # beta.9 < beta.10 (a string sort would get that backwards).
-          VERSION="${MAJOR}.${NEXT_MINOR}.0-beta.${{ github.run_number }}"
+
+          STABLE=$(node -p "require('./package.json').version")
+
+          # Guard the drift case explicitly rather than trusting the target to
+          # stay ahead: if `main` ever ships at or past the target, every beta
+          # from here would sort at or below a real release, and the update
+          # checker would happily offer a "newer" beta that is actually older.
+          # Fail loudly at build time instead of publishing that.
+          NEWEST=$(printf '%s\n%s\n' "$STABLE" "$BETA_TARGET_VERSION" | sort -V | tail -1)
+          if [ "$NEWEST" != "$BETA_TARGET_VERSION" ] || [ "$STABLE" = "$BETA_TARGET_VERSION" ]; then
+            echo "::error::stable is $STABLE but betas target $BETA_TARGET_VERSION — main has caught up. Raise BETA_TARGET_VERSION in .github/workflows/release-beta.yml."
+            exit 1
+          fi
+
+          # run_number is monotonic per workflow, and semver compares numeric
+          # prerelease identifiers numerically, so beta.9 < beta.10 (a plain
+          # string sort would get that backwards).
+          VERSION="${BETA_TARGET_VERSION}-beta.${{ github.run_number }}"
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
           echo "Stable on this trunk: $STABLE"
+          echo "Betas target:         $BETA_TARGET_VERSION"
           echo "Publishing beta:      $VERSION"
 
   build:

@@ -132,3 +132,36 @@ def test_the_stable_workflow_does_not_publish_a_beta_tag():
         if "fiestaboard/fiestaboard:beta" in line and not line.strip().startswith("#")
     ]
     assert not offenders, f"release.yml publishes to the beta tag: {offenders}"
+
+
+def test_the_declared_beta_target_is_ahead_of_the_stable_version():
+    """Betas must sort above the release they follow and below the one they precede.
+
+    The target is declared in the workflow rather than derived, because
+    deriving it gets it wrong in both available ways: the repo infers bump
+    type from conventional-commit titles and no PR merged into `next` carries
+    a major label (the breaking changes landed under plain `feat:`/`refactor:`
+    titles), and deriving from package.json drifts the moment `main` ships —
+    retroactively putting already-published betas *below* a real release.
+
+    Declaring it moves the risk to one place, and this test plus the
+    workflow's own runtime guard watch that place.
+    """
+    import json
+    import re
+
+    beta_text = BETA.read_text(encoding="utf-8")
+    match = re.search(r'BETA_TARGET_VERSION:\s*"([^"]+)"', beta_text)
+    assert match, "release-beta.yml no longer declares BETA_TARGET_VERSION"
+    target = match.group(1)
+    assert re.fullmatch(r"\d+\.\d+\.\d+", target), f"BETA_TARGET_VERSION {target!r} is not X.Y.Z"
+
+    stable = json.loads((BETA.parent.parent.parent / "package.json").read_text())["version"]
+    as_tuple = lambda v: tuple(int(p) for p in v.split("."))  # noqa: E731
+
+    assert as_tuple(target) > as_tuple(stable), (
+        f"betas target {target} but stable is already {stable}. Every beta published "
+        f"from here would sort at or below a real release, and the update checker "
+        f"would offer a 'newer' beta that is actually older. Raise "
+        f"BETA_TARGET_VERSION in .github/workflows/release-beta.yml."
+    )
