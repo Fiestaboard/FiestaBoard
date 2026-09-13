@@ -159,16 +159,73 @@ def _check_github_releases_for_latest() -> str | None:
         return None
 
 
-def _parse_version(v: str) -> tuple[int, ...]:
-    """Parse a numeric ``a.b.c`` version string into a comparable tuple.
+#: Sorts below every real prerelease identifier, so a final release compares
+#: above its own prereleases. semver: "1.0.0-beta < 1.0.0".
+_RELEASE_RANK = (1,)
+_PRERELEASE_RANK = (0,)
 
-    Raises ``ValueError`` for anything that is not purely dot-separated
-    integers (e.g. a stray ``v`` prefix or an ``-rc`` suffix).
+
+def _parse_version(v: str) -> tuple:
+    """Parse a version string into a comparable tuple, prereleases included.
+
+    ``a.b.c`` and ``a.b.c-beta.N`` both parse. The release/prerelease rank is
+    appended so ordering follows semver rather than string order:
+
+        8.35.5  <  9.0.0-beta.1  <  9.0.0-beta.2  <  9.0.0-beta.10  <  9.0.0
+
+    Prerelease identifiers compare numerically when they are numeric, which
+    is what puts ``beta.10`` above ``beta.9``; a plain string sort would get
+    that backwards and silently strand testers on an older build.
+
+    Raises ``ValueError`` for anything else (a stray ``v`` prefix, ``dev``,
+    build metadata), so callers keep failing closed on junk.
     """
-    parts = v.split(".")
+    core, _, prerelease = v.partition("-")
+    parts = core.split(".")
     if not parts or not all(p.isdigit() for p in parts):
         raise ValueError(f"Invalid version: {v}")
-    return tuple(int(x) for x in parts)
+    numbers = tuple(int(x) for x in parts)
+
+    if not prerelease:
+        return (numbers, _RELEASE_RANK)
+
+    identifiers: list[tuple[int, object]] = []
+    for chunk in prerelease.split("."):
+        if not chunk:
+            raise ValueError(f"Invalid version: {v}")
+        # Numeric identifiers rank below alphanumeric ones and compare as
+        # numbers (semver §11.4.1); the leading int keeps the two kinds from
+        # being compared against each other and raising TypeError.
+        identifiers.append((0, int(chunk)) if chunk.isdigit() else (1, chunk))
+    return (numbers, _PRERELEASE_RANK, tuple(identifiers))
+
+
+def running_version() -> str:
+    """The version this process should compare against when checking updates.
+
+    Normally ``__version__`` from ``src/__init__.py``. On a beta build that
+    is the *stable* number the branch forked from — the beta's own version
+    exists only in the ``VERSION`` build-arg, because committing a prerelease
+    string into package.json would break ``scripts/version-sync.js`` on the
+    next stable release.
+
+    So when ``VERSION`` carries a parseable prerelease, it is the truthful
+    answer and wins. Anything else (``dev``, a plain release, junk, unset)
+    leaves the committed version in charge.
+
+    Without this a beta install believes it is on stable, and once ``main``
+    ships past that number the checker offers the beta a *stable* build as an
+    upgrade — walking the user backwards across a schema the older build
+    refuses to read.
+    """
+    build = os.getenv("VERSION", "").strip()
+    if "-" in build:
+        try:
+            _parse_version(build)
+        except ValueError:
+            return __version__
+        return build
+    return __version__
 
 
 def _pick_latest_version(*candidates: str | None) -> str | None:
@@ -220,13 +277,13 @@ async def _perform_update_check() -> UpdateCheckResponse:
         latest_version = _pick_latest_version(dh_version, gh_version)
 
         if latest_version:
-            update_available = _is_newer_version(latest_version, __version__)
+            update_available = _is_newer_version(latest_version, running_version())
             try:
                 _system_update_state_update(last_check=datetime.now(UTC).isoformat())
             except Exception as e:
                 logger.debug("Could not persist update-check result (non-fatal): %s", e, exc_info=True)
             return UpdateCheckResponse(
-                current_version=__version__,
+                current_version=running_version(),
                 latest_version=latest_version,
                 update_available=update_available,
                 package_url=_release_notes_url(latest_version),
@@ -237,7 +294,7 @@ async def _perform_update_check() -> UpdateCheckResponse:
     except Exception as e:
         logger.warning(f"Failed to check for updates: {e}")
         return UpdateCheckResponse(
-            current_version=__version__,
+            current_version=running_version(),
             latest_version=None,
             update_available=False,
             package_url=GITHUB_PACKAGE_URL,
