@@ -73,7 +73,7 @@ export function AboutCard() {
               <Flex align="center" gap="2">
                 <Package className="h-3.5 w-3.5 text-muted-foreground" />
                 <Text as="span" className="font-mono tabular-nums">
-                  {tCommon("versionShort", { version: versionData.package_version })}
+                  {tCommon("versionShort", { version: versionData.running_version })}
                 </Text>
                 {versionData.is_dev && (
                   <Badge variant="secondary" className="text-xs">

@@ -1100,6 +1100,7 @@ export const handlers = [
   http.get(`${API_BASE}/version`, () => {
     return HttpResponse.json({
       package_version: "2.0.1",
+      running_version: "2.0.1",
       build_version: "dev",
       is_dev: true,
     });

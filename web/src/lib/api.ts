@@ -1588,6 +1588,12 @@ export interface PluginApplyUpdatesResponse {
 export interface VersionResponse {
   package_version: string;
   build_version: string;
+  /**
+   * The version actually running — show THIS. On a beta build
+   * `package_version` is the stale stable number compiled into the
+   * image, not what the box is on.
+   */
+  running_version: string;
   is_dev: boolean;
   hardware_model: string | null;
 }
