@@ -102,6 +102,63 @@ docker compose pull && docker compose up -d
 The compose file uses a relative bind mount (`./data:/app/data`), so persistence depends on your current shell directory. If you run `docker compose pull && up -d` from a different folder than your original install, FiestaBoard will come up with empty settings — your data isn't deleted, but Docker is mounting a different (empty) folder. See [Troubleshooting → Settings or board credentials are gone after an update](/docs/troubleshooting#settings-or-board-credentials-are-gone-after-an-update) if this has happened.
 :::
 
+## The beta channel
+
+Beta builds come from the `next` branch and carry changes that have not
+reached a stable release yet. They are published on every merge, so a beta is
+newer than stable but has had far less time in front of real boards.
+
+:::caution Betas can break, and going back is not free
+A beta may migrate your settings and pages to a format stable does not
+understand. FiestaBoard refuses to read such a file rather than misinterpret
+it, so returning to stable means restoring a backup. **Take one before you
+opt in:** Settings → System → Backup → Export.
+:::
+
+### Docker installs
+
+You already control which build you run — it is the image tag in your compose
+file. Edit `docker-compose.hub.yml`:
+
+```yaml
+services:
+  fiestaboard:
+    image: fiestaboard/fiestaboard:beta # was :latest
+```
+
+Then, from the folder you originally installed in:
+
+```bash
+cd ~/fiestaboard
+docker compose -f docker-compose.hub.yml pull
+docker compose -f docker-compose.hub.yml up -d
+```
+
+Two tags are published:
+
+| Tag | Use it when |
+| --- | --- |
+| `beta` | You want the newest beta and want Update Now to keep you on betas |
+| `9.0.0-beta.4` | You want to stay on one exact build, or you are filing a bug |
+
+The in-app **Update Now** button pulls whatever tag your compose file names,
+so once you are on `:beta` it keeps you on betas. Nothing else to configure.
+
+### Going back to stable
+
+Set the tag back to `:latest`, pull, and bring the stack up again — then
+restore the backup you took before opting in. If you skipped that step and the
+app reports a schema it cannot read, your data is still on disk and intact;
+the newer FiestaBoard can still read it, so re-pulling `:beta` gets you running
+again while you export a backup.
+
+### FiestaPi and Home Assistant
+
+Not yet. A Pi cannot switch tags this way — the image ships its own compose
+file that the app cannot rewrite — and Home Assistant installs are updated by
+the HA Supervisor rather than by FiestaBoard. Both are being worked on and
+will switch from inside the app (Pi) or the HA add-on store (Home Assistant).
+
 ## Troubleshooting
 
 **The Update Now button isn't showing** — Check the status panel just below the button area in Settings → System. It will say whether the updater sidecar is reachable. Most common cause: `COMPOSE_PROFILES=fiestaupdater` isn't set in `.env`, or the sidecar container isn't running.
