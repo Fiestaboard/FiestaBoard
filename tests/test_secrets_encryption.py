@@ -11,10 +11,8 @@ from src.security import secrets as secrets_mod
 
 @pytest.fixture(autouse=True)
 def _isolated_key(tmp_path, monkeypatch):
-    """Point the module at a temp data dir and clear any cached cipher."""
-    # Use env var path: deterministic across tests.
-    monkeypatch.setattr(secrets_mod, "_DATA_DIR", tmp_path)
-    monkeypatch.setattr(secrets_mod, "_KEY_PATH", tmp_path / ".secret_key")
+    """Point the data-dir seam at a temp dir and clear any cached cipher."""
+    monkeypatch.setenv("FIESTABOARD_DATA_DIR", str(tmp_path))
     monkeypatch.delenv("FIESTABOARD_SECRET_KEY", raising=False)
     secrets_mod._reset_for_tests()
     yield
@@ -53,7 +51,7 @@ def test_is_encrypted():
 
 def test_key_file_perms(tmp_path):
     secrets_mod.encrypt_secret("anything")
-    key_path = secrets_mod._KEY_PATH
+    key_path = secrets_mod._key_path()
     assert key_path.exists()
     mode = stat.S_IMODE(key_path.stat().st_mode)
     # 0600

@@ -1954,10 +1954,10 @@ class TestEnableLocalAPI:
                     "enablement_token": "test_token_xyz",
                 },
             )
-        # Returns 200 with success=False (this endpoint reports validation as a body field).
-        assert response.status_code == 200
-        body = response.json()
-        assert body["success"] is False
+        # Host validation is the SSRF guard — its rejection must surface as
+        # HTTP 400, not a 200 with success=False (issue #1887).
+        assert response.status_code == 400
+        assert "host" in response.json()["detail"]
         # No outbound HTTP request should have been issued.
         mock_post.assert_not_called()
 

@@ -11,6 +11,7 @@ from src.plugins.base import PluginBase, PluginResult
 from src.plugins.manifest import PluginManifest, load_manifest
 from src.plugins.previews import BoardPreview
 from src.plugins.registry import (
+    PLUGIN_FETCH_BREAKER_THRESHOLD,
     PluginRegistry,
     get_plugin_registry,
     reset_plugin_registry,
@@ -647,6 +648,161 @@ def test_build_template_context_skips_unavailable(registry, mock_loader, mock_pl
 
     context = registry.build_template_context()
     assert "test_plugin" not in context
+
+
+# --- build_template_context: fetch-pool starvation (#1884) ---
+
+
+def _wedged_plugin(pid: str, release: threading.Event) -> MagicMock:
+    """A plugin whose fetch blocks until *release* is set (a wedged network call)."""
+    plugin = MagicMock(spec=PluginBase)
+    plugin.plugin_id = pid
+
+    def _hang(board=None):
+        release.wait()
+        return PluginResult(available=False, error="wedged")
+
+    plugin.get_data.side_effect = _hang
+    return plugin
+
+
+def _healthy_plugin(pid: str) -> MagicMock:
+    plugin = MagicMock(spec=PluginBase)
+    plugin.plugin_id = pid
+    plugin.get_data.return_value = PluginResult(available=True, data={"ok": True})
+    return plugin
+
+
+def _install(registry, plugin):
+    registry._plugins[plugin.plugin_id] = plugin
+    registry._enabled[plugin.plugin_id] = True
+
+
+def test_wedged_plugins_do_not_starve_healthy_plugin(registry, monkeypatch):
+    """Regression test for #1884: >= pool-size permanently wedged fetches must
+    not block a healthy plugin's data forever.
+
+    Eight wedged plugins (one per pool worker) are submitted ahead of one
+    healthy plugin. Without a circuit breaker the wedged fetches occupy every
+    worker on every tick and the healthy plugin's fetch never runs, so its
+    data never reaches the context.
+    """
+    import src.plugins.registry as registry_module
+
+    monkeypatch.setattr(registry_module, "CONTEXT_BUILD_TIMEOUT_SECONDS", 0.2)
+
+    release = threading.Event()
+    try:
+        for i in range(8):
+            _install(registry, _wedged_plugin(f"wedged_{i}", release))
+        healthy = _healthy_plugin("healthy")
+        _install(registry, healthy)
+
+        # One tick per breaker strike, plus one tick to observe recovery.
+        contexts = [registry.build_template_context() for _ in range(PLUGIN_FETCH_BREAKER_THRESHOLD + 1)]
+    finally:
+        release.set()
+
+    assert "healthy" in contexts[-1], (
+        "healthy plugin starved: wedged fetches occupied every pool worker "
+        f"on all {len(contexts)} ticks and its fetch never ran"
+    )
+    assert contexts[-1]["healthy"] == {"ok": True}
+
+
+def test_fetch_breaker_opens_after_consecutive_timeouts(registry, monkeypatch):
+    """After threshold consecutive fetch timeouts a plugin is skipped for the
+    cooldown instead of being resubmitted every tick."""
+    import src.plugins.registry as registry_module
+
+    monkeypatch.setattr(registry_module, "CONTEXT_BUILD_TIMEOUT_SECONDS", 0.2)
+
+    release = threading.Event()
+    try:
+        wedged = _wedged_plugin("wedged", release)
+        _install(registry, wedged)
+        _install(registry, _healthy_plugin("healthy"))
+
+        # threshold strikes + 1 tick inside the cooldown
+        for _ in range(PLUGIN_FETCH_BREAKER_THRESHOLD + 1):
+            context = registry.build_template_context()
+            assert "healthy" in context  # pool has a free worker throughout
+    finally:
+        release.set()
+
+    # The strikes opened the breaker; the last tick must not have submitted the fetch.
+    assert wedged.get_data.call_count == PLUGIN_FETCH_BREAKER_THRESHOLD
+
+
+def test_fetch_breaker_closes_after_cooldown_and_success(registry, monkeypatch):
+    """Once the cooldown lapses the plugin is probed again, and a successful
+    fetch resets the breaker so it is not skipped afterwards."""
+    import src.plugins.registry as registry_module
+
+    monkeypatch.setattr(registry_module, "CONTEXT_BUILD_TIMEOUT_SECONDS", 0.2)
+
+    release = threading.Event()
+    try:
+        wedged = _wedged_plugin("flaky", release)
+        _install(registry, wedged)
+        for _ in range(PLUGIN_FETCH_BREAKER_THRESHOLD):  # open the breaker
+            registry.build_template_context()
+    finally:
+        release.set()
+
+    # Simulate the cooldown lapsing and the upstream recovering.
+    registry._fetch_breaker_open_until["flaky"] = 0.0
+    wedged.get_data.side_effect = None
+    wedged.get_data.return_value = PluginResult(available=True, data={"back": True})
+
+    context = registry.build_template_context()
+    assert context["flaky"] == {"back": True}
+    assert registry._fetch_timeout_counts.get("flaky", 0) == 0
+
+
+def test_fetch_breaker_spares_healthy_plugin_that_started_late(registry, monkeypatch):
+    """A fetch that only got a pool worker late in the window is mid-flight at
+    the deadline, not wedged — `running()` alone cannot tell them apart, so
+    the breaker must only strike fetches that held a worker for (nearly) the
+    whole window. Otherwise the starved-but-healthy plugin the breaker exists
+    to protect gets banned itself.
+    """
+    import src.plugins.registry as registry_module
+
+    monkeypatch.setattr(registry_module, "CONTEXT_BUILD_TIMEOUT_SECONDS", 0.6)
+
+    release = threading.Event()
+    try:
+        # 7 wedged fetches hold 7 of the 8 workers all window.
+        for i in range(7):
+            _install(registry, _wedged_plugin(f"wedged_{i}", release))
+
+        # One brief fetch takes the 8th worker, then frees it mid-window...
+        brief = MagicMock(spec=PluginBase)
+        brief.plugin_id = "brief"
+
+        def _brief(board=None):
+            time.sleep(0.3)
+            return PluginResult(available=True, data={"ok": True})
+
+        brief.get_data.side_effect = _brief
+        _install(registry, brief)
+
+        # ...so this healthy-but-slow fetch starts ~halfway through the
+        # window and is still running (not wedged) when the deadline hits.
+        late = _wedged_plugin("late", release)
+        _install(registry, late)
+
+        ticks = PLUGIN_FETCH_BREAKER_THRESHOLD + 1
+        for _ in range(ticks):
+            registry.build_template_context()
+    finally:
+        release.set()
+
+    assert late.get_data.call_count == ticks, (
+        "late-starting fetch was struck as wedged and banned: it was "
+        f"submitted on only {late.get_data.call_count} of {ticks} ticks"
+    )
 
 
 # --- get_plugin_registry / reset_plugin_registry ---
