@@ -524,3 +524,104 @@ SH
     [[ "$(status_of "$out")" == "HTTP/1.1 500 Internal Server Error" ]]
     [[ "$out" == *hdmi_script_missing* ]]
 }
+
+# ---- /install --------------------------------------------------------------
+#
+# Installs a NAMED TAG. This is what lets a box switch release channels
+# without anyone editing a compose file — which matters because the compose
+# file is mounted read-only here, and on the Pi image the app container does
+# not mount it at all.
+#
+# Mechanically it is /rollback's move with a pull in front: fetch the tag,
+# retag it onto whatever reference the compose file names, recreate.
+
+@test "POST /install with no Authorization → 401" {
+    req=$'POST /install HTTP/1.1\r\nHost: x\r\nContent-Length: 0\r\n\r\n'
+    out=$(send "$req")
+    [[ "$(status_of "$out")" == "HTTP/1.1 401 Unauthorized" ]]
+}
+
+@test "POST /install with wrong bearer token → 401" {
+    body='{"image":"fiestaboard/fiestaboard","tag":"9.0.0-beta.2"}'
+    req=$'POST /install HTTP/1.1\r\nHost: x\r\nAuthorization: Bearer nope\r\nContent-Length: '"${#body}"$'\r\n\r\n'"$body"
+    out=$(send "$req")
+    [[ "$(status_of "$out")" == "HTTP/1.1 401 Unauthorized" ]]
+}
+
+@test "POST /install pulls the requested tag and recreates the service" {
+    body='{"image":"fiestaboard/fiestaboard","tag":"9.0.0-beta.2"}'
+    req=$'POST /install HTTP/1.1\r\nHost: x\r\nAuthorization: Bearer test-token-abc\r\nContent-Length: '"${#body}"$'\r\n\r\n'"$body"
+    out=$(send "$req")
+    [[ "$(status_of "$out")" == "HTTP/1.1 202 Accepted" ]]
+    [[ "$out" == *'"status":"queued"'* ]]
+    [[ "$out" == *'"action":"install"'* ]]
+    sleep 1
+    grep -q "pull fiestaboard/fiestaboard:9.0.0-beta.2" "${SANDBOX}/docker.calls"
+    grep -q "up -d --no-deps --force-recreate fiestaboard" "${SANDBOX}/docker.calls"
+}
+
+@test "POST /install retags onto the compose reference, not one the caller picks" {
+    # The security property: the caller says which tag to FETCH, never which
+    # local reference to overwrite. That comes from the running container, so
+    # a compromised or buggy caller cannot retag some unrelated image.
+    body='{"image":"fiestaboard/fiestaboard","tag":"9.0.0-beta.2","target":"evil/image:latest"}'
+    req=$'POST /install HTTP/1.1\r\nHost: x\r\nAuthorization: Bearer test-token-abc\r\nContent-Length: '"${#body}"$'\r\n\r\n'"$body"
+    send "$req" >/dev/null
+    sleep 1
+    grep -q "tag fiestaboard/fiestaboard:9.0.0-beta.2 fiestaboard/fiestaboard:latest" "${SANDBOX}/docker.calls"
+    ! grep -q "evil/image" "${SANDBOX}/docker.calls"
+}
+
+@test "POST /install rejects a bogus image reference" {
+    body='{"image":"bad;rm -rf /","tag":"9.0.0-beta.2"}'
+    req=$'POST /install HTTP/1.1\r\nHost: x\r\nAuthorization: Bearer test-token-abc\r\nContent-Length: '"${#body}"$'\r\n\r\n'"$body"
+    out=$(send "$req")
+    [[ "$(status_of "$out")" == "HTTP/1.1 400 Bad Request" ]]
+    [[ "$out" == *'"error":"invalid_image"'* ]]
+}
+
+@test "POST /install rejects a bogus tag" {
+    body='{"image":"fiestaboard/fiestaboard","tag":"latest;reboot"}'
+    req=$'POST /install HTTP/1.1\r\nHost: x\r\nAuthorization: Bearer test-token-abc\r\nContent-Length: '"${#body}"$'\r\n\r\n'"$body"
+    out=$(send "$req")
+    [[ "$(status_of "$out")" == "HTTP/1.1 400 Bad Request" ]]
+    [[ "$out" == *'"error":"invalid_tag"'* ]]
+}
+
+@test "POST /install records success in last-update state" {
+    body='{"image":"fiestaboard/fiestaboard","tag":"9.0.0-beta.2"}'
+    req=$'POST /install HTTP/1.1\r\nHost: x\r\nAuthorization: Bearer test-token-abc\r\nContent-Length: '"${#body}"$'\r\n\r\n'"$body"
+    send "$req" >/dev/null
+    sleep 1
+    # "success" and not a new status word, so the web UI's existing
+    # update-overlay polling recognises the outcome unchanged.
+    grep -q '"status":"success"' "${SANDBOX}/state/last-update.json"
+    grep -q '"action":"install"' "${SANDBOX}/state/last-update.json"
+}
+
+@test "POST /install writes status=failed when the pull fails" {
+    cat >"${SANDBOX}/docker" <<'SH'
+#!/bin/sh
+echo "$@" >> "${SANDBOX}/docker.calls"
+case "$1" in
+    inspect)
+        case "$3" in
+            *Config.Image*) echo "fiestaboard/fiestaboard:latest" ;;
+            *Image*)        echo "sha256:abc123" ;;
+            *)              echo "" ;;
+        esac
+        ;;
+    pull) exit 1 ;;
+    *)    exit 0 ;;
+esac
+SH
+    chmod +x "${SANDBOX}/docker"
+    body='{"image":"fiestaboard/fiestaboard","tag":"9.0.0-beta.2"}'
+    req=$'POST /install HTTP/1.1\r\nHost: x\r\nAuthorization: Bearer test-token-abc\r\nContent-Length: '"${#body}"$'\r\n\r\n'"$body"
+    send "$req" >/dev/null
+    sleep 1
+    grep -q '"status":"failed"' "${SANDBOX}/state/last-update.json"
+    grep -q '"error":"pull_failed"' "${SANDBOX}/state/last-update.json"
+    # A failed pull must not touch the running container.
+    ! grep -q "force-recreate" "${SANDBOX}/docker.calls"
+}

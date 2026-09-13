@@ -9,6 +9,7 @@
 #   GET  /last-update     → 200  {"status":"...", ...}  (last update result)
 #   POST /update          → 202  {"status":"queued"}    (requires Bearer auth)
 #   POST /rollback        → 202  {"status":"queued"}    (requires Bearer auth)
+#   POST /install         → 202  {"status":"queued"}    (requires Bearer auth)
 #   POST /restart         → 202                         (requires Bearer auth)
 #   POST /shutdown        → 202                         (requires Bearer auth)
 #
@@ -399,6 +400,131 @@ handle_update() {
 # Both fields are validated with strict regexes; if either fails to
 # match we respond 400 and never invoke ``docker``.
 # ---------------------------------------------------------------------------
+# ---------------------------------------------------------------------------
+# POST /install — switch the service onto a NAMED TAG.
+#
+# This is what lets a box change release channels without anyone editing a
+# compose file, which matters because we mount that file read-only, and on
+# the Pi image the app container does not mount it at all. So rewriting the
+# `image:` line is not an option; retagging underneath it is.
+#
+# Mechanically it is /rollback's move with a pull in front:
+#
+#     docker pull  <image>:<tag>
+#     docker tag   <image>:<tag>  <the reference the compose file names>
+#     docker compose up -d --no-deps --force-recreate <service>
+#
+# The caller says which tag to FETCH. It never says which local reference to
+# overwrite — that is read from the running container, so a buggy or hostile
+# caller cannot point the retag at some unrelated image. Every captured value
+# is validated against a strict pattern before it reaches `docker`, and is
+# passed through the environment rather than interpolated into the worker's
+# `bash -c` string, exactly as /update and /rollback do.
+# ---------------------------------------------------------------------------
+handle_install() {
+    log "install requested for service=${SERVICE}"
+    if [ ! -f "$COMPOSE_FILE" ]; then
+        log "compose file missing at ${COMPOSE_FILE}"
+        respond 500 "Internal Server Error" '{"error":"compose_file_missing"}'
+        return
+    fi
+
+    local body="${REQ_BODY:-}"
+    local image tag
+    image=$(printf '%s' "$body" | grep -oE '"image"[[:space:]]*:[[:space:]]*"[^"]*"' | head -n1 | sed -E 's/.*"image"[[:space:]]*:[[:space:]]*"([^"]*)".*/\1/')
+    tag=$(printf '%s' "$body" | grep -oE '"tag"[[:space:]]*:[[:space:]]*"[^"]*"' | head -n1 | sed -E 's/.*"tag"[[:space:]]*:[[:space:]]*"([^"]*)".*/\1/')
+
+    # Same allow-list /rollback uses. The regex IS the security boundary.
+    if ! [[ "$image" =~ ^[a-z0-9][a-z0-9._/-]{0,199}$ ]]; then
+        log "install: invalid image reference"
+        respond 400 "Bad Request" '{"error":"invalid_image"}'
+        return
+    fi
+    # Docker tag grammar: alphanumeric start, then word chars, dots, dashes.
+    if ! [[ "$tag" =~ ^[a-zA-Z0-9][a-zA-Z0-9._-]{0,127}$ ]]; then
+        log "install: invalid tag"
+        respond 400 "Bad Request" '{"error":"invalid_tag"}'
+        return
+    fi
+
+    # The retag target is whatever the RUNNING container was created from,
+    # never anything the caller supplied.
+    local target
+    target=$(docker inspect --format '{{.Config.Image}}' "$SERVICE" 2>/dev/null || echo "")
+    if [ -z "$target" ]; then
+        log "install: could not determine the running image reference"
+        respond 500 "Internal Server Error" '{"error":"target_unresolved"}'
+        return
+    fi
+
+    local source="${image}:${tag}"
+    local started_at current_digest
+    started_at=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+    current_digest=$(docker inspect --format '{{.Image}}' "$SERVICE" 2>/dev/null || echo "")
+    write_state "{\"status\":\"in_progress\",\"action\":\"install\",\"service\":\"${SERVICE}\",\"target_image\":\"${source}\",\"previous_digest\":\"${current_digest}\",\"started_at\":\"${started_at}\"}"
+
+    local logsink
+    if [ -e /proc/1/fd/2 ]; then
+        logsink=/proc/1/fd/2
+    else
+        logsink=/dev/null
+    fi
+    export FU_SERVICE="$SERVICE"
+    export FU_COMPOSE_FILE="$COMPOSE_FILE"
+    export FU_PROJECT_DIR="$PROJECT_DIR"
+    export FU_SOURCE_IMAGE="$source"
+    export FU_TARGET_REF="$target"
+    export FU_PREVIOUS_DIGEST="$current_digest"
+    export FU_STATE_FILE="$STATE_FILE"
+    export FU_STATE_DIR="$STATE_DIR"
+
+    nohup bash -c '
+        set -u
+        _write_state() {
+            mkdir -p "$FU_STATE_DIR" 2>/dev/null || true
+            local tmp="${FU_STATE_FILE}.tmp"
+            printf "%s" "$1" >"$tmp" 2>/dev/null && mv -f "$tmp" "$FU_STATE_FILE" 2>/dev/null
+        }
+
+        if [ -n "${FU_PROJECT_DIR:-}" ]; then
+            set -- --project-directory "$FU_PROJECT_DIR"
+        else
+            set --
+        fi
+
+        echo "[fiestaupdater] installing ${FU_SOURCE_IMAGE} onto ${FU_TARGET_REF}"
+        # Pull FIRST and bail without touching the container if it fails.
+        # Leaving a working install running is the whole point: a user
+        # escaping a bad build must not be stranded by a network blip.
+        if ! docker pull "$FU_SOURCE_IMAGE"; then
+            completed_at=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+            echo "[fiestaupdater] pull failed; leaving the running container alone"
+            _write_state "{\"status\":\"failed\",\"action\":\"install\",\"service\":\"${FU_SERVICE}\",\"target_image\":\"${FU_SOURCE_IMAGE}\",\"previous_digest\":\"${FU_PREVIOUS_DIGEST}\",\"error\":\"pull_failed\",\"completed_at\":\"${completed_at}\"}"
+            exit 0
+        fi
+        if ! docker tag "$FU_SOURCE_IMAGE" "$FU_TARGET_REF"; then
+            completed_at=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+            echo "[fiestaupdater] docker tag failed"
+            _write_state "{\"status\":\"failed\",\"action\":\"install\",\"service\":\"${FU_SERVICE}\",\"target_image\":\"${FU_SOURCE_IMAGE}\",\"previous_digest\":\"${FU_PREVIOUS_DIGEST}\",\"error\":\"retag_failed\",\"completed_at\":\"${completed_at}\"}"
+            exit 0
+        fi
+        if ! docker compose "$@" -f "$FU_COMPOSE_FILE" up -d --no-deps --force-recreate "$FU_SERVICE"; then
+            completed_at=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+            echo "[fiestaupdater] recreate failed; service may not be running"
+            _write_state "{\"status\":\"failed\",\"action\":\"install\",\"service\":\"${FU_SERVICE}\",\"target_image\":\"${FU_SOURCE_IMAGE}\",\"previous_digest\":\"${FU_PREVIOUS_DIGEST}\",\"error\":\"recreate_failed\",\"completed_at\":\"${completed_at}\"}"
+            exit 0
+        fi
+        now_on=$(docker inspect --format "{{.Image}}" "$FU_SERVICE" 2>/dev/null || echo "")
+        completed_at=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+        echo "[fiestaupdater] install complete; service now on ${now_on}"
+        # "success", not a new status word, so the web UI update overlay
+        # recognises the outcome with no client change.
+        _write_state "{\"status\":\"success\",\"action\":\"install\",\"service\":\"${FU_SERVICE}\",\"target_image\":\"${FU_SOURCE_IMAGE}\",\"previous_digest\":\"${FU_PREVIOUS_DIGEST}\",\"installed_digest\":\"${now_on}\",\"completed_at\":\"${completed_at}\"}"
+    ' >>"$logsink" 2>&1 &
+
+    respond 202 Accepted "{\"status\":\"queued\",\"action\":\"install\",\"service\":\"${SERVICE}\",\"target_image\":\"${source}\"}"
+}
+
 handle_rollback() {
     log "rollback requested for service=${SERVICE}"
     if [ ! -f "$COMPOSE_FILE" ]; then
@@ -627,13 +753,13 @@ case "${REQ_METHOD} ${REQ_PATH}" in
     "GET /hdmi/status")
         handle_hdmi_status
         ;;
-    "POST /update"|"POST /rollback"|"POST /restart"|"POST /shutdown"|"POST /hdmi/enable"|"POST /hdmi/disable")
+    "POST /update"|"POST /rollback"|"POST /install"|"POST /restart"|"POST /shutdown"|"POST /hdmi/enable"|"POST /hdmi/disable")
         # For routes that take a body (currently just /rollback), capture
         # it; for the others, drain Content-Length bytes so socat doesn't
         # keep the socket half-open.
         REQ_BODY=""
         if [ "${REQ_CONTENT_LENGTH:-0}" -gt 0 ] 2>/dev/null; then
-            if [ "${REQ_METHOD} ${REQ_PATH}" = "POST /rollback" ]; then
+            if [ "${REQ_METHOD} ${REQ_PATH}" = "POST /rollback" ] || [ "${REQ_METHOD} ${REQ_PATH}" = "POST /install" ]; then
                 # Cap body size at 8 KiB — /rollback's payload is two
                 # short strings; anything larger is malformed or hostile.
                 _read="$REQ_CONTENT_LENGTH"
@@ -651,6 +777,7 @@ case "${REQ_METHOD} ${REQ_PATH}" in
                     case "${REQ_METHOD} ${REQ_PATH}" in
                         "POST /update")       handle_update ;;
                         "POST /rollback")     handle_rollback ;;
+                        "POST /install")      handle_install ;;
                         "POST /restart")      handle_restart ;;
                         "POST /shutdown")     handle_shutdown ;;
                         "POST /hdmi/enable")  handle_hdmi enable ;;
