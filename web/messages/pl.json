@@ -1011,6 +1011,7 @@
     "checkFailedToast": "Nie udało się sprawdzić aktualizacji: {error}",
     "updateNow": "Aktualizuj teraz",
     "oneClickHint": "Chcesz tu mieć przycisk jednoklikowej „Aktualizuj teraz\"? Ustaw <profile></profile> w swoim <envFile></envFile>, a następnie uruchom <command></command>.",
+    "oneClickHintPi": "The updater service isn't running, so there's no one-click update. SSH in and run <command></command> to bring it back.",
     "dialogTitle": "Zaktualizować FiestaBoard?",
     "dialogDescription": "Pobrane zostanie <version></version> i FiestaBoard zostanie zrestartowany. Wyświetlacz boarda zatrzyma się na około 30 sekund, a strona przeładuje się automatycznie.",
     "intervalSelectAriaLabel": "Częstotliwość sprawdzania aktualizacji",

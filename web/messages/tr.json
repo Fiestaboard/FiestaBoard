@@ -1011,6 +1011,7 @@
     "checkFailedToast": "Güncellemeler kontrol edilemedi: {error}",
     "updateNow": "Şimdi Güncelle",
     "oneClickHint": "Burada tek tıkla \"Şimdi Güncelle\" düğmesi mi istiyorsunuz? <envFile></envFile> dosyanızda <profile></profile> ayarlayın, ardından <command></command> komutunu çalıştırın.",
+    "oneClickHintPi": "The updater service isn't running, so there's no one-click update. SSH in and run <command></command> to bring it back.",
     "dialogTitle": "FiestaBoard güncellensin mi?",
     "dialogDescription": "Bu, <version></version> sürümünü çekip FiestaBoard'u yeniden başlatır. Board ekranı yaklaşık 30 saniye duraklar ve bu sayfa otomatik olarak yeniden yüklenir.",
     "intervalSelectAriaLabel": "Güncelleme kontrol sıklığı",

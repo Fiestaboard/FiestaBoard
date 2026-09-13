@@ -1011,6 +1011,7 @@
     "checkFailedToast": "アップデートを確認できませんでした: {error}",
     "updateNow": "今すぐ更新",
     "oneClickHint": "ここにワンクリックの「今すぐ更新」ボタンが欲しいですか? <envFile></envFile> に <profile></profile> を設定して、<command></command> を実行してください。",
+    "oneClickHintPi": "The updater service isn't running, so there's no one-click update. SSH in and run <command></command> to bring it back.",
     "dialogTitle": "FiestaBoard を更新しますか?",
     "dialogDescription": "<version></version> をプルして FiestaBoard を再起動します。ボード表示は約 30 秒停止し、このページは自動的に再読み込みされます。",
     "intervalSelectAriaLabel": "アップデート確認の頻度",

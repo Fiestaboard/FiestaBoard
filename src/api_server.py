@@ -2156,14 +2156,51 @@ def _updater_token() -> str:
     return os.getenv("FIESTAUPDATER_TOKEN", "")
 
 
+#: Last known reachability of the sidecar, so the probe can log the two
+#: TRANSITIONS rather than every poll. ``None`` until the first probe.
+_updater_probe_last_ok: bool | None = None
+
+
 def _updater_probe() -> bool:
     """Return True when the sidecar's /healthz responds 200.  Short timeout
-    because this is called on every status query from the UI."""
+    because this is called on every status query from the UI.
+
+    Logs when reachability CHANGES, in either direction. This used to be
+    entirely silent, which meant a sidecar that stopped answering produced
+    no evidence anywhere: the Update Now button vanished and that was the
+    only symptom. Found on a FiestaPi that had been unable to update for
+    four days, whose logs contained no occurrence of "updater", "sidecar"
+    or "fiestaupdater" at all.
+
+    Edge-triggered on purpose. The settings page polls the status endpoint
+    every 30 seconds, so logging each failure would bury the journal faster
+    than silence hid the problem.
+    """
+    global _updater_probe_last_ok
+    reason = ""
     try:
         resp = requests.get(f"{_updater_url()}/healthz", timeout=2)
-        return resp.status_code == 200
-    except Exception:
-        return False
+        ok = resp.status_code == 200
+        if not ok:
+            reason = f"HTTP {resp.status_code}"
+    except Exception as e:
+        ok = False
+        reason = f"{type(e).__name__}: {e}"
+
+    if ok != _updater_probe_last_ok:
+        if ok:
+            logger.info("fiestaupdater sidecar is reachable again at %s", _updater_url())
+        else:
+            logger.warning(
+                "fiestaupdater sidecar is not reachable at %s (%s) — in-app updates "
+                "are unavailable until it is running. On Docker: check "
+                "COMPOSE_PROFILES=fiestaupdater in .env. On FiestaPi: "
+                "`cd /opt/fiestaboard && docker compose up -d`.",
+                _updater_url(),
+                reason,
+            )
+        _updater_probe_last_ok = ok
+    return ok
 
 
 def _updater_last_update() -> dict[str, Any]:

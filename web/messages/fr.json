@@ -1011,6 +1011,7 @@
     "checkFailedToast": "Impossible de vérifier les mises à jour : {error}",
     "updateNow": "Mettre à jour maintenant",
     "oneClickHint": "Vous voulez un bouton « Mettre à jour maintenant » en un clic ici ? Définissez <profile></profile> dans votre <envFile></envFile>, puis exécutez <command></command>.",
+    "oneClickHintPi": "The updater service isn't running, so there's no one-click update. SSH in and run <command></command> to bring it back.",
     "dialogTitle": "Mettre à jour FiestaBoard ?",
     "dialogDescription": "Cela téléchargera <version></version> et redémarrera FiestaBoard. L'affichage du tableau s'interrompra pendant environ 30 secondes et cette page se rechargera automatiquement.",
     "intervalSelectAriaLabel": "Fréquence de vérification des mises à jour",
