@@ -105,55 +105,109 @@ def _release_notes_url(version: str | None) -> str:
     return f"{GITHUB_RELEASES_URL}/tag/v{version}"
 
 
-def _check_dockerhub_for_latest() -> str | None:
-    """Check Docker Hub for the latest version tag.
+#: How many Docker Hub tag pages to follow. The registry paginates, and the
+#: newest tag is not guaranteed to be on page one once the list grows. Ten
+#: pages is far more than this repo will ever need and still bounds a boot
+#: against a registry that keeps claiming another page.
+DOCKERHUB_MAX_PAGES = 10
 
-    Queries the Docker Hub API for available tags. No authentication required
-    for public repositories. Filters tags to find the highest semver version.
 
-    Returns the latest version string, or None if the check fails.
+def _check_dockerhub_for_latest(channel: str = "stable") -> str | None:
+    """Check Docker Hub for the newest version tag on *channel*.
+
+    On ``stable`` this keeps the original behaviour exactly: only tags whose
+    dot-separated parts are all digits are considered, so a prerelease can
+    never be offered to someone who did not ask for one. That filter is the
+    protection, not an accident.
+
+    On ``beta`` prerelease tags are considered too, ordered by
+    :func:`_parse_version`, which compares numeric prerelease identifiers
+    numerically — so ``beta.10`` is newer than ``beta.9``, and the final
+    ``9.0.0`` is newer than every ``9.0.0-beta.N``. Without this a beta
+    install could never see another beta: it was a one-way door.
+
+    Returns the newest version string, or None if the check fails.
     """
     try:
-        # Query Docker Hub tags endpoint
-        resp = requests.get(DOCKERHUB_TAGS_URL, timeout=4)
-        resp.raise_for_status()
-        data = resp.json()
+        best: tuple | None = None
+        best_str: str | None = None
+        url: str | None = DOCKERHUB_TAGS_URL
+        for _ in range(DOCKERHUB_MAX_PAGES):
+            if not url:
+                break
+            resp = requests.get(url, timeout=4)
+            resp.raise_for_status()
+            data = resp.json()
 
-        # Extract tag names from results
-        results = data.get("results", [])
-        tags = [result.get("name") for result in results if result.get("name")]
+            for result in data.get("results", []):
+                tag = result.get("name")
+                if not tag:
+                    continue
+                core = tag.partition("-")[0]
+                parts = core.split(".")
+                if len(parts) < 2 or not all(p.isdigit() for p in parts):
+                    continue  # "latest", "beta", and anything unparseable
+                if "-" in tag and channel != "beta":
+                    continue  # prereleases are invisible on the stable channel
+                try:
+                    parsed = _parse_version(tag)
+                except ValueError:
+                    continue
+                if best is None or parsed > best:
+                    best, best_str = parsed, tag
 
-        # Filter to semver-style tags and find the highest version
-        version_tags = []
-        for tag in tags:
-            parts = tag.split(".")
-            if len(parts) >= 2 and all(p.isdigit() for p in parts):
-                version_tags.append(tuple(int(p) for p in parts))
+            url = data.get("next")
 
-        if not version_tags:
-            return None
-
-        best = max(version_tags)
-        return ".".join(str(p) for p in best)
+        return best_str
     except Exception as e:
         logger.debug(f"Docker Hub version check failed: {e}")
         return None
 
 
-def _check_github_releases_for_latest() -> str | None:
-    """Check GitHub Releases API for the latest version.
+def _check_github_releases_for_latest(channel: str = "stable") -> str | None:
+    """Check the GitHub Releases API for the newest version on *channel*.
 
-    Returns the latest version string, or None if the check fails.
+    ``stable`` keeps using ``/releases/latest``, which GitHub itself defines
+    as excluding prereleases and drafts. That endpoint IS the stable filter,
+    so it is left exactly as it was.
+
+    ``beta`` lists releases instead and takes the newest entry, prereleases
+    included — drafts never, since they are not published to anyone.
+
+    Returns the newest version string, or None if the check fails.
     """
     try:
+        if channel != "beta":
+            resp = requests.get(
+                GITHUB_RELEASES_API,
+                headers={"Accept": "application/vnd.github.v3+json"},
+                timeout=4,
+            )
+            resp.raise_for_status()
+            tag_name = resp.json().get("tag_name", "")
+            return tag_name.lstrip("v") if tag_name else None
+
         resp = requests.get(
-            GITHUB_RELEASES_API,
+            f"{GITHUB_RELEASES_API.rsplit('/', 1)[0]}?per_page=20",
             headers={"Accept": "application/vnd.github.v3+json"},
             timeout=4,
         )
         resp.raise_for_status()
-        tag_name = resp.json().get("tag_name", "")
-        return tag_name.lstrip("v") if tag_name else None
+        best: tuple | None = None
+        best_str: str | None = None
+        for release in resp.json() or []:
+            if release.get("draft"):
+                continue
+            tag = (release.get("tag_name") or "").lstrip("v")
+            if not tag:
+                continue
+            try:
+                parsed = _parse_version(tag)
+            except ValueError:
+                continue
+            if best is None or parsed > best:
+                best, best_str = parsed, tag
+        return best_str
     except Exception as e:
         logger.debug(f"GitHub releases check failed: {e}")
         return None
@@ -270,9 +324,13 @@ async def _perform_update_check() -> UpdateCheckResponse:
         # lets a lagging source (e.g. Docker Hub tag metadata that has not yet
         # registered a freshly published release) mask a real update the other
         # source already sees.
+        # Which channel this install follows decides what "newest" even
+        # means: a beta must be able to see a newer beta, and a stable
+        # install must never be shown one.
+        channel = current_channel()
         dh_version, gh_version = await asyncio.gather(
-            asyncio.to_thread(_check_dockerhub_for_latest),
-            asyncio.to_thread(_check_github_releases_for_latest),
+            asyncio.to_thread(_check_dockerhub_for_latest, channel),
+            asyncio.to_thread(_check_github_releases_for_latest, channel),
         )
         latest_version = _pick_latest_version(dh_version, gh_version)
 
