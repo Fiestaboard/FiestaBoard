@@ -36,11 +36,25 @@ from src.settings.service import PollingSettings
 WEDGED = 8
 HEALTHY = 4
 TICKS = 60
-TIMEOUT = 0.05
+# The context-build timeout the registry is patched to use. Generous
+# relative to the work being timed (the healthy plugins are MagicMocks that
+# return instantly) because this is a FAIRNESS test, not a latency one: the
+# question is whether healthy plugins are served at all, and a budget tight
+# enough for CI scheduling jitter to miss turns runner load into a failure.
+# At 0.05 this test failed under `-n auto` on a loaded runner with
+# "tick 52: only 3 of 4 healthy reached the context" — starved by the test
+# harness, not by the bug.
+TIMEOUT = 0.25
 # Ticks allowed for the breaker to notice and quarantine the wedged plugins.
 # Deliberately expressed as a plain number rather than as the threshold
 # constant so this test measures BEHAVIOR on both sides of the fix.
 SETTLE_TICKS = 10
+
+# Upper bound for the settle loop in the starvation test. Only a bound: the
+# loop stops as soon as the breaker has actually quarantined everything, so
+# a fast machine does not pay for it. Exists so a broken breaker fails with
+# "never quarantined" rather than hanging.
+MAX_SETTLE_TICKS = 30
 
 
 def _make_registry() -> PluginRegistry:
@@ -113,14 +127,34 @@ class TestStarvationUnderWedgedPlugins:
             _install(registry, pid)
 
         referenced = wedged_ids + healthy_ids
-        contexts = [registry.build_template_context(plugin_ids=referenced) for _ in range(TICKS)]
 
-        # The breaker needs a few ticks to notice; after that every tick must
-        # carry all four healthy plugins.
-        for offset, context in enumerate(contexts[SETTLE_TICKS:]):
+        # Settle on the CONDITION rather than a tick count. The old version
+        # sliced off a fixed 10 ticks and asserted on the rest, which assumed
+        # 10 was always enough — on a loaded runner it is not, and the test
+        # then blamed the breaker for the scheduler's delay.
+        settle_ticks = 0
+        for _ in range(MAX_SETTLE_TICKS):
+            registry.build_template_context(plugin_ids=referenced)
+            settle_ticks += 1
+            status = registry.get_fetch_breaker_status()
+            if all(status.get(pid, {}).get("quarantined") for pid in wedged_ids):
+                break
+        else:
+            quarantined = [
+                pid for pid in wedged_ids if registry.get_fetch_breaker_status().get(pid, {}).get("quarantined")
+            ]
+            raise AssertionError(
+                f"after {MAX_SETTLE_TICKS} ticks the breaker had quarantined only "
+                f"{quarantined} of {wedged_ids} — it never opened"
+            )
+
+        # From here every tick must carry all four healthy plugins. This is the
+        # assertion the fix exists for and it is unchanged.
+        contexts = [registry.build_template_context(plugin_ids=referenced) for _ in range(TICKS - settle_ticks)]
+        for offset, context in enumerate(contexts):
             present = [pid for pid in healthy_ids if pid in context]
             assert present == healthy_ids, (
-                f"tick {offset + SETTLE_TICKS}: only {present} of {healthy_ids} reached the context"
+                f"tick {offset + settle_ticks}: only {present} of {healthy_ids} reached the context"
             )
 
         # Non-vacuity: the data really is the healthy plugins' own.
