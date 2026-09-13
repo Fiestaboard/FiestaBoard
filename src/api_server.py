@@ -488,6 +488,12 @@ class VersionResponse(BaseModel):
 
     package_version: str
     build_version: str
+    #: The version this process is ACTUALLY running, and the only one a UI
+    #: should show. On a beta build ``package_version`` is the stale stable
+    #: number baked into src/__init__.py — the beta's own version exists
+    #: only in the VERSION build-arg, because a committed prerelease string
+    #: would break scripts/version-sync.js on the next stable release.
+    running_version: str
     is_dev: bool
     hardware_model: str | None = None
 
@@ -1769,6 +1775,25 @@ def _detect_hardware_model() -> str | None:
     return model or None
 
 
+def _running_version() -> str:
+    """The version this process is actually running.
+
+    ``__version__`` normally. On a beta build that is the *stable* number
+    the branch forked from, so when ``VERSION`` carries a parseable
+    prerelease it is the truthful answer and wins. Anything else (``dev``,
+    a plain release, junk, unset) leaves the committed version in charge.
+
+    Exists so every consumer agrees. A FiestaPi running 9.0.0-beta.4
+    displayed "v8.37.2" in its sidebar because each caller reached for
+    ``package_version`` and worked it out differently, or not at all.
+    """
+    build = os.getenv("VERSION", "").strip()
+    core, _, prerelease = build.partition("-")
+    if prerelease and core and all(part.isdigit() for part in core.split(".")):
+        return build
+    return __version__
+
+
 @app.get("/version", response_model=VersionResponse)
 async def version():
     """Get version information.
@@ -1780,6 +1805,7 @@ async def version():
     production = os.getenv("PRODUCTION", "false").lower() == "true"
     return VersionResponse(
         package_version=__version__,
+        running_version=_running_version(),
         build_version=build_version,
         is_dev=build_version == "dev" and not production,
         hardware_model=_detect_hardware_model(),
