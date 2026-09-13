@@ -2151,5 +2151,21 @@
     "hdmiInstalling": "HDMI キオスクを設定中 — Pi にブラウザをインストールしています。数分かかることがあります…",
     "hdmiEnabledHint": "HDMI 画面には、上で「ディスプレイ出力」をオンにしたパネルが表示されます。",
     "hdmiFailed": "前回の HDMI キオスクの変更に失敗しました。再試行するか、Pi を再起動してください。"
+  },
+  "releaseChannel": {
+    "title": "Release channel",
+    "description": "Choose whether this install follows stable releases or beta builds.",
+    "currentLabel": "Currently on",
+    "channelStable": "Stable",
+    "channelBeta": "Beta",
+    "onStableBody": "You are on stable releases — the builds everyone gets, after testing.",
+    "onBetaBody": "You are on beta builds from the next release. Expect rough edges, and report anything you find.",
+    "joinCta": "Join the beta",
+    "confirmTitle": "Join the beta channel?",
+    "confirmBody": "Beta builds ship before they are finished, and may change your settings and pages to a newer format that the stable build will refuse to read. A backup is taken automatically before switching — keep it, because restoring it is how you get back. FiestaBoard will restart onto the beta build.",
+    "confirmCta": "Join the beta",
+    "cancel": "Cancel",
+    "switching": "Switching…",
+    "switchFailedToast": "Could not switch channel: {error}"
   }
 }

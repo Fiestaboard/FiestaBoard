@@ -2151,5 +2151,21 @@
     "hdmiInstalling": "HDMI 키오스크 설정 중 — Pi에 브라우저를 설치하고 있으며 몇 분 걸릴 수 있습니다…",
     "hdmiEnabledHint": "HDMI 화면에는 위에서 “디스플레이 출력”을 켠 패널이 표시됩니다.",
     "hdmiFailed": "마지막 HDMI 키오스크 변경이 실패했습니다. 다시 시도하거나 Pi를 재부팅하세요."
+  },
+  "releaseChannel": {
+    "title": "Release channel",
+    "description": "Choose whether this install follows stable releases or beta builds.",
+    "currentLabel": "Currently on",
+    "channelStable": "Stable",
+    "channelBeta": "Beta",
+    "onStableBody": "You are on stable releases — the builds everyone gets, after testing.",
+    "onBetaBody": "You are on beta builds from the next release. Expect rough edges, and report anything you find.",
+    "joinCta": "Join the beta",
+    "confirmTitle": "Join the beta channel?",
+    "confirmBody": "Beta builds ship before they are finished, and may change your settings and pages to a newer format that the stable build will refuse to read. A backup is taken automatically before switching — keep it, because restoring it is how you get back. FiestaBoard will restart onto the beta build.",
+    "confirmCta": "Join the beta",
+    "cancel": "Cancel",
+    "switching": "Switching…",
+    "switchFailedToast": "Could not switch channel: {error}"
   }
 }

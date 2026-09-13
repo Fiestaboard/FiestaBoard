@@ -1592,6 +1592,22 @@ export interface VersionResponse {
   hardware_model: string | null;
 }
 
+/** Which release channel an install follows. */
+export interface ReleaseChannelResponse {
+  channel: "stable" | "beta";
+  available_channels: string[];
+  can_switch: boolean;
+  /** Why switching is unavailable, when it is. */
+  reason: string | null;
+}
+
+export interface ReleaseChannelSwitchResponse {
+  status: string;
+  channel: string;
+  tag: string;
+  settings_snapshot: Record<string, unknown> | null;
+}
+
 export interface UpdateCheckResponse {
   current_version: string;
   latest_version: string | null;
@@ -2360,6 +2376,17 @@ export const api = {
 
   // System management endpoints
   checkForUpdate: () => fetchApi<UpdateCheckResponse>("/system/update-check"),
+
+  // Release channel (#1955). Opting IN lives on stable; the beta build
+  // carries opting out.
+  getReleaseChannel: () => fetchApi<ReleaseChannelResponse>("/system/channel"),
+
+  setReleaseChannel: (channel: "stable" | "beta") =>
+    fetchApi<ReleaseChannelSwitchResponse>("/system/channel", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ channel }),
+    }),
 
   // Self-update sidecar endpoints (5.0+)
   getUpdateStatus: () => fetchApi<UpdateStatusResponse>("/system/update/status"),
