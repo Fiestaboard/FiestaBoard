@@ -1272,4 +1272,53 @@ def switch_channel(channel: str) -> dict[str, Any]:
     if resp.status_code >= 400:
         raise SidecarError(502, f"fiestaupdater returned {resp.status_code}: {resp.text[:200]}")
 
+    # Record the choice only now. The sidecar answering 202 is the earliest
+    # honest moment — it means the work was accepted. Persisting before the
+    # call meant a refused switch (bad token, sidecar too old, registry down)
+    # still wrote the channel, so every subsequent boot would re-attempt the
+    # same doomed install with the recorded channel permanently disagreeing
+    # with the running one.
+    _system_update_state_update(channel=channel)
+
     return {"status": "queued", "channel": channel, "tag": tag, "settings_snapshot": snapshot}
+
+
+def reassert_release_channel() -> None:
+    """Put the box back on its chosen channel after a boot that overrode it.
+
+    A channel switch is a local retag, and the Pi's systemd unit runs
+    ``docker compose pull`` before ``up -d`` on every boot. With
+    ``pull_policy: always`` that pull fetches whatever ``:latest`` means in
+    the registry and overwrites the retag, so a rebooted Pi silently comes
+    back on stable. Measured end to end: 8.37.2 -> switch -> 9.0.0-beta.4 ->
+    reboot -> 8.37.2.
+
+    Rewriting the compose file would fix it at the source, but nothing
+    updates ``/opt/fiestaboard/docker-compose.yml`` on an app update and the
+    sidecar mounts it read-only, so that cannot reach installs that already
+    exist. The data dir can, so the choice lives there and is re-applied
+    here.
+
+    Never raises: a boot must not be taken down by an unreachable registry.
+    Silent when the running build already matches, which is every boot after
+    the first on a given channel — the reinstall costs one restart, and only
+    when the boot actually overrode the choice.
+    """
+    wanted = None
+    try:
+        wanted = _system_update_state_load().get("channel")
+        if wanted not in CHANNEL_TAGS:
+            return  # never opted in, or a value we do not recognise
+        if current_channel() == wanted:
+            return  # the boot came up where it should
+        if channel_switch_blocker():
+            # HA-managed, or no sidecar. Not ours to correct.
+            return
+        logger.info(
+            "Boot came up on the %s channel but %s was chosen; re-applying it.",
+            current_channel(),
+            wanted,
+        )
+        switch_channel(wanted)
+    except Exception as e:  # noqa: BLE001 - startup must survive anything here
+        logger.warning("Could not re-apply the %s release channel: %s", wanted or "?", e)
