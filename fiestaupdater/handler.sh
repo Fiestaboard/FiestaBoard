@@ -492,6 +492,15 @@ handle_install() {
             set --
         fi
 
+        # --pull never is load-bearing. The shipped compose files set
+        # `pull_policy: always` (pi-image docker-compose.yml:11,
+        # docker-compose.hub.yml:11) and `up --force-recreate` honours it, so
+        # without this the recreate RE-PULLS the tag from the registry and
+        # silently overwrites the retag made two lines up. Every step still
+        # exits 0, so the caller is told it worked while the box stays exactly
+        # where it was. Reproduced on a real FiestaPi, then minimally:
+        # retag alpine:3.20 onto alpine:3.21, recreate, get 3.21 back.
+        # We already hold the exact image we want; compose must not refetch.
         echo "[fiestaupdater] installing ${FU_SOURCE_IMAGE} onto ${FU_TARGET_REF}"
         # Pull FIRST and bail without touching the container if it fails.
         # Leaving a working install running is the whole point: a user
@@ -508,7 +517,7 @@ handle_install() {
             _write_state "{\"status\":\"failed\",\"action\":\"install\",\"service\":\"${FU_SERVICE}\",\"target_image\":\"${FU_SOURCE_IMAGE}\",\"previous_digest\":\"${FU_PREVIOUS_DIGEST}\",\"error\":\"retag_failed\",\"completed_at\":\"${completed_at}\"}"
             exit 0
         fi
-        if ! docker compose "$@" -f "$FU_COMPOSE_FILE" up -d --no-deps --force-recreate "$FU_SERVICE"; then
+        if ! docker compose "$@" -f "$FU_COMPOSE_FILE" up -d --no-deps --force-recreate --pull never "$FU_SERVICE"; then
             completed_at=$(date -u +%Y-%m-%dT%H:%M:%SZ)
             echo "[fiestaupdater] recreate failed; service may not be running"
             _write_state "{\"status\":\"failed\",\"action\":\"install\",\"service\":\"${FU_SERVICE}\",\"target_image\":\"${FU_SOURCE_IMAGE}\",\"previous_digest\":\"${FU_PREVIOUS_DIGEST}\",\"error\":\"recreate_failed\",\"completed_at\":\"${completed_at}\"}"
@@ -597,6 +606,15 @@ handle_rollback() {
             set --
         fi
 
+        # --pull never is load-bearing. The shipped compose files set
+        # `pull_policy: always` (pi-image docker-compose.yml:11,
+        # docker-compose.hub.yml:11) and `up --force-recreate` honours it, so
+        # without this the recreate RE-PULLS the tag from the registry and
+        # silently overwrites the retag made two lines up. Every step still
+        # exits 0, so the caller is told it worked while the box stays exactly
+        # where it was. Reproduced on a real FiestaPi, then minimally:
+        # retag alpine:3.20 onto alpine:3.21, recreate, get 3.21 back.
+        # We already hold the exact image we want; compose must not refetch.
         echo "[fiestaupdater] rolling back ${FU_SERVICE} to ${FU_TARGET_DIGEST} (image=${FU_TARGET_IMAGE})"
         if ! docker tag "$FU_TARGET_DIGEST" "$FU_TARGET_IMAGE"; then
             completed_at=$(date -u +%Y-%m-%dT%H:%M:%SZ)
@@ -604,7 +622,7 @@ handle_rollback() {
             _write_state "{\"status\":\"rollback_failed\",\"action\":\"rollback\",\"service\":\"${FU_SERVICE}\",\"target_digest\":\"${FU_TARGET_DIGEST}\",\"target_image\":\"${FU_TARGET_IMAGE}\",\"previous_digest\":\"${FU_PREVIOUS_DIGEST}\",\"error\":\"retag_failed\",\"completed_at\":\"${completed_at}\"}"
             exit 0
         fi
-        if ! docker compose "$@" -f "$FU_COMPOSE_FILE" up -d --no-deps --force-recreate "$FU_SERVICE"; then
+        if ! docker compose "$@" -f "$FU_COMPOSE_FILE" up -d --no-deps --force-recreate --pull never "$FU_SERVICE"; then
             completed_at=$(date -u +%Y-%m-%dT%H:%M:%SZ)
             rolled_to=$(docker inspect --format "{{.Image}}" "$FU_SERVICE" 2>/dev/null || echo "")
             echo "[fiestaupdater] rollback recreate failed; service may not be running"

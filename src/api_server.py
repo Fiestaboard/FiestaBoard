@@ -265,6 +265,19 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         logger.warning(f"mDNS service could not be started: {e}")
 
+    # Put the box back on its chosen release channel if this boot overrode
+    # it (#1955). Off the startup path for the same reason mDNS is: it may
+    # pull an image, and it recreates this very container when it acts, so
+    # awaiting it would be both slow and self-defeating.
+    try:
+        from .system.update_service import reassert_release_channel
+
+        threading.Thread(
+            target=reassert_release_channel, name="channel-reassert", daemon=True
+        ).start()
+    except Exception as e:
+        logger.warning(f"Could not start the release-channel check: {e}")
+
     # Start MQTT client for Home Assistant discovery/control (optional)
     try:
         from .settings.service import get_settings_service
