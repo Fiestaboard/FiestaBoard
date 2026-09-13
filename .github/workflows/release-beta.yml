@@ -1,0 +1,264 @@
+name: "Release: Publish Beta Image"
+
+# Publishes a beta image from `next` on every merge.
+#
+# Deliberately a SEPARATE workflow from release.yml rather than a branch
+# condition inside it. Three reasons, each load-bearing:
+#
+#   1. release.yml's `revert-on-failure` job force-pushes `main`
+#      (release.yml:673-767). A shared workflow that ever ran with
+#      `github.ref` pointing at `next` is one expression away from
+#      force-pushing the wrong branch. Separation makes that impossible
+#      rather than unlikely.
+#   2. release.yml commits a version bump back to the branch. Betas must
+#      NOT do that: `scripts/version-sync.js:33` hard-matches
+#      /^(\d+)\.(\d+)\.(\d+)$/ and throws on a prerelease string, so a
+#      committed `-beta.N` would break the next *stable* release. The beta
+#      version is computed here and passed as a build-arg only.
+#   3. release.yml dispatches to the docs site (release.yml:639-652), which
+#      would snapshot fiestaboard.app to a beta tag.
+#
+# What this does NOT do, on purpose: no version commit, no docs dispatch, no
+# `latest` tag, no revert-on-failure, and no Pi image. `build-fiestapi.yml`
+# keys its `workflow_run` trigger on the literal name "Release: Publish
+# Image", so this workflow's different name means betas never kick off the
+# 60-minute Pi build; it also already filters prereleases out of its version
+# lookup (build-fiestapi.yml:118-120).
+
+on:
+  push:
+    branches: [next]
+    paths-ignore:
+      - "**.md"
+      - "docs/**"
+      - ".github/**"
+      - ".devcontainer/**"
+      - ".cursor*"
+      - "images/**"
+      - "LICENSE"
+      - "fiesta-icon.png"
+  workflow_dispatch:
+    inputs:
+      reason:
+        description: "Why you are cutting this beta by hand"
+        required: false
+        default: "manual"
+
+# Betas are disposable but their pushes are not: cancelling mid-`imagetools
+# create` can leave a half-written manifest list. Queue instead of cancel,
+# matching release.yml.
+concurrency:
+  group: release-beta-publish
+  cancel-in-progress: false
+
+jobs:
+  version:
+    name: Compute beta version
+    # Never publish from a fork.
+    if: github.repository == 'Fiestaboard/FiestaBoard'
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Compute the beta version
+        id: version
+        run: |
+          set -euo pipefail
+          # The stable version currently on this trunk. `next` tracks `main`,
+          # so this is the release a beta is running *ahead of*.
+          STABLE=$(node -p "require('./package.json').version")
+          if ! printf '%s' "$STABLE" | grep -qE '^[0-9]+\.[0-9]+\.[0-9]+$'; then
+            echo "::error::package.json version '$STABLE' is not X.Y.Z — refusing to derive a beta from it"
+            exit 1
+          fi
+          MAJOR=${STABLE%%.*}
+          MINOR=$(printf '%s' "$STABLE" | cut -d. -f2)
+          # A beta is the next MINOR: the smallest bump that is unambiguously
+          # ahead of every patch `main` can still ship while the beta is out.
+          # 8.35.5 -> 8.36.0-beta.N.
+          NEXT_MINOR=$((MINOR + 1))
+          # run_number is monotonic per workflow, so betas order correctly —
+          # semver compares numeric prerelease identifiers numerically, so
+          # beta.9 < beta.10 (a string sort would get that backwards).
+          VERSION="${MAJOR}.${NEXT_MINOR}.0-beta.${{ github.run_number }}"
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "Stable on this trunk: $STABLE"
+          echo "Publishing beta:      $VERSION"
+
+  build:
+    name: Build (${{ matrix.platform }})
+    needs: [version]
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      fail-fast: true
+      matrix:
+        include:
+          - platform: linux/amd64
+            runner: ubuntu-latest
+            arch: amd64
+          - platform: linux/arm64
+            runner: ubuntu-24.04-arm
+            arch: arm64
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v4
+
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v4
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      # Native runners per arch, same as release.yml. QEMU would be the
+      # simpler YAML, but this image builds the web UI, and emulated arm64
+      # turns a ~5-minute build into the better part of an hour — unworkable
+      # for something that runs on every merge to `next`.
+      - name: Build and push by digest
+        id: build
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          file: ./Dockerfile
+          # Pin the production stage — a target-less build takes whatever
+          # stage is last in the Dockerfile, which once shipped the dev
+          # supervisor config to users (#1377).
+          target: runtime
+          platforms: ${{ matrix.platform }}
+          build-args: |
+            VERSION=${{ needs.version.outputs.version }}
+          cache-from: type=gha,scope=beta-${{ matrix.platform }}
+          cache-to: type=gha,mode=max,scope=beta-${{ matrix.platform }}
+          outputs: type=image,name=fiestaboard/fiestaboard,push-by-digest=true,name-canonical=true,push=true
+
+      - name: Export digest
+        run: |
+          mkdir -p /tmp/digests
+          touch "/tmp/digests/${digest#sha256:}"
+        env:
+          digest: ${{ steps.build.outputs.digest }}
+
+      - name: Upload digest
+        uses: actions/upload-artifact@v7
+        with:
+          name: beta-digests-${{ matrix.arch }}
+          path: /tmp/digests/*
+          if-no-files-found: error
+          retention-days: 1
+
+  publish:
+    name: Tag and publish beta
+    needs: [version, build]
+    runs-on: ubuntu-latest
+    # Explicit rather than inherited: this job creates a tag and a release.
+    # If the repo's default GITHUB_TOKEN permissions are ever tightened to
+    # read-only, an inherited scope would fail here at publish time — after
+    # the image is already on Docker Hub, leaving a tagless beta.
+    permissions:
+      contents: write
+    steps:
+      - name: Download digests
+        uses: actions/download-artifact@v8
+        with:
+          path: /tmp/digests
+          pattern: beta-digests-*
+          merge-multiple: true
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v4
+
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v4
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      # Two tags and deliberately NOT `latest`: `:beta` is the moving tag a
+      # tester follows, `:X.Y.Z-beta.N` is the immutable one a bug report can
+      # name.
+      - name: Create manifest list and push
+        working-directory: /tmp/digests
+        run: |
+          set -euo pipefail
+          docker buildx imagetools create \
+            -t fiestaboard/fiestaboard:beta \
+            -t fiestaboard/fiestaboard:${{ needs.version.outputs.version }} \
+            $(printf 'fiestaboard/fiestaboard@sha256:%s ' *)
+
+      - name: Verify the published manifest carries both architectures
+        run: |
+          set -euo pipefail
+          RAW=$(docker buildx imagetools inspect \
+            "fiestaboard/fiestaboard:${{ needs.version.outputs.version }}" --raw)
+          for arch in amd64 arm64; do
+            echo "$RAW" | jq -e --arg a "$arch" \
+              '.manifests[] | select(.platform.architecture == $a and .platform.os == "linux")' >/dev/null \
+              || { echo "::error::published beta is missing linux/$arch"; exit 1; }
+          done
+          echo "beta manifest carries linux/amd64 and linux/arm64"
+
+      - name: Create the prerelease
+        uses: actions/github-script@v9
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const version = '${{ steps.version.outputs.version }}';
+            const tag = `v${version}`;
+            const sha = context.sha;
+
+            // The tag is what the update checker's GitHub source resolves a
+            // beta by, so it has to exist before the release references it.
+            try {
+              await github.rest.git.createRef({
+                ...context.repo, ref: `refs/tags/${tag}`, sha,
+              });
+            } catch (e) {
+              if (e.status !== 422) throw e;   // 422 = already exists
+              core.info(`tag ${tag} already exists, reusing it`);
+            }
+
+            const body = [
+              '> **This is a beta build from `next`.** It is not a stable release.',
+              '> Expect breaking changes, and read the notes below before installing.',
+              '',
+              '## Install',
+              '',
+              '```bash',
+              '# point your compose file at the beta tag',
+              'docker compose -f docker-compose.hub.yml pull && docker compose -f docker-compose.hub.yml up -d',
+              '```',
+              '',
+              `Pinned: \`docker pull fiestaboard/fiestaboard:${version}\``,
+              `Moving: \`docker pull fiestaboard/fiestaboard:beta\``,
+              '',
+              '## Going back to stable',
+              '',
+              'Set the tag back to `:latest` and pull again. Note that `next` may',
+              'have migrated your data to a schema stable does not understand — the',
+              'app refuses to read such a file rather than misinterpreting it, so',
+              'restore a backup taken before you joined the beta.',
+              '',
+              `Built from \`${sha.substring(0, 9)}\`.`,
+            ].join('\n');
+
+            await github.rest.repos.createRelease({
+              ...context.repo,
+              tag_name: tag,
+              name: `Beta ${version}`,
+              body,
+              draft: false,
+              // Both matter. `prerelease` is what keeps this out of
+              // /releases/latest, which is the endpoint stable installs poll —
+              // so a stable user can never be offered a beta. `make_latest`
+              // false keeps release.yml's pinned "latest" pointing at the
+              // newest STABLE release (release.yml:624-627).
+              prerelease: true,
+              make_latest: 'false',
+            });
+
+            core.notice(`Published beta ${version} (${tag})`);
