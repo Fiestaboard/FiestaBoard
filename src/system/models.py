@@ -6,7 +6,7 @@ them so any existing ``src.api_server.<Model>`` reference keeps resolving.
 
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, Literal
 
 from pydantic import BaseModel
 
@@ -140,3 +140,32 @@ class SystemActionResponse(BaseModel):
 
     status: str  # "queued"
     action: str  # "restart" | "shutdown"
+
+
+class ReleaseChannelRequest(BaseModel):
+    """Body of ``POST /system/channel``."""
+
+    # Literal, not a plain str: an unknown channel is a 422 from FastAPI
+    # rather than a KeyError deep inside the handler.
+    channel: Literal["stable", "beta"]
+
+
+class ReleaseChannelResponse(BaseModel):
+    """Which release channel this install is on."""
+
+    channel: str
+    available_channels: list[str]
+    can_switch: bool
+    #: Why switching is unavailable, when it is. None when it is available.
+    reason: str | None = None
+
+
+class ReleaseChannelSwitchResponse(BaseModel):
+    """Result of asking the sidecar to move onto another channel."""
+
+    status: str
+    channel: str
+    tag: str
+    #: Metadata for the snapshot taken before the switch, when one was
+    #: produced. This is what a later restore points at.
+    settings_snapshot: dict[str, Any] | None = None

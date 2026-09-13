@@ -1019,6 +1019,7 @@
     "checkFailedToast": "No se pudo buscar actualizaciones: {error}",
     "updateNow": "Actualizar ahora",
     "oneClickHint": "¿Quieres un botón de \"Actualizar ahora\" con un solo clic aquí? Establece <profile></profile> en tu <envFile></envFile>, luego ejecuta <command></command>.",
+    "oneClickHintPi": "The updater service isn't running, so there's no one-click update. SSH in and run <command></command> to bring it back.",
     "dialogTitle": "¿Actualizar FiestaBoard?",
     "dialogDescription": "Esto descargará <version></version> y reiniciará FiestaBoard. La pantalla del tablero se pausará durante unos 30 segundos y esta página se recargará automáticamente.",
     "intervalSelectAriaLabel": "Frecuencia de búsqueda de actualizaciones",
@@ -2162,5 +2163,21 @@
     "hdmiInstalling": "Configurando el quiosco HDMI — se está instalando un navegador en el Pi y puede tardar unos minutos…",
     "hdmiEnabledHint": "La pantalla HDMI muestra el panel que tenga activada «Salida de pantalla» arriba.",
     "hdmiFailed": "El último cambio del quiosco HDMI falló. Inténtalo de nuevo o reinicia el Pi."
+  },
+  "releaseChannel": {
+    "title": "Release channel",
+    "description": "Choose whether this install follows stable releases or beta builds.",
+    "currentLabel": "Currently on",
+    "channelStable": "Stable",
+    "channelBeta": "Beta",
+    "onStableBody": "You are on stable releases — the builds everyone gets, after testing.",
+    "onBetaBody": "You are on beta builds from the next release. Expect rough edges, and report anything you find.",
+    "joinCta": "Join the beta",
+    "confirmTitle": "Join the beta channel?",
+    "confirmBody": "Beta builds ship before they are finished, and may change your settings and pages to a newer format that the stable build will refuse to read. A backup is taken automatically before switching — keep it, because restoring it is how you get back. FiestaBoard will restart onto the beta build.",
+    "confirmCta": "Join the beta",
+    "cancel": "Cancel",
+    "switching": "Switching…",
+    "switchFailedToast": "Could not switch channel: {error}"
   }
 }

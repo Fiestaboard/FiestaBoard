@@ -99,7 +99,7 @@ Once connected, FiestaBoard appears as a device with **24 entities** — control
 | **Display Service** | Switch | Start/stop the FiestaBoard display service |
 | **Active Page** | Select | Choose which page to display (dynamically populated from your pages). Selecting a page always re-sends it, even if it is already the active page — that is how you put the page back after a manual message. The list also carries a `None` option so "no page is active" is a state HA can show; as a *command* it only applies to secondary boards, since the primary board never goes dark. |
 | **Transition Style** | Select | Board transition animation (column, reverse-column, edges-to-center, row, diagonal, random) |
-| **Send Message** | Text | Send a text message to the board (up to 132 characters) |
+| **Send Message** | Text | Send a text message to the board (up to 255 characters — Home Assistant's text-entity ceiling; markup like `{red}` counts as characters here but as one flap on the board) |
 | **Refresh Display** | Button | Force a display refresh. This is a *force* refresh: unchanged content is re-sent, so it restores the active page after something else wrote to the board. |
 | **Blank Board** | Button | Clear the board display (all blank) |
 | **Next Page** | Button | Navigate to the next page in the page list (wraps around) |

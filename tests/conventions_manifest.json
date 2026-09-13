@@ -236,6 +236,11 @@
       "reason": "Reads the bundled staff-picks/picks.json and degrades a missing file to [] on purpose, so a caller can never see a 4xx from it. The per-pick 404 lives on GET /staff-picks/{pick_id}/share, which declares it."
     },
     {
+      "route": "GET /system/channel",
+      "rule": "declared_errors",
+      "reason": "No failure path. It takes no parameter and reports two derived facts — the channel (read from the build version) and whether switching is possible (a probe whose failure IS the answer, returned as can_switch=false with a reason string, not as an error). There is no input to reject and no id to miss, so declaring a 4xx would document an error the endpoint never raises. The POST that acts on this declares its errors."
+    },
+    {
       "route": "GET /system/update-check",
       "rule": "declared_errors",
       "reason": "Probe endpoint (API_CONVENTIONS.md, \"Status codes\"): an unreachable Docker Hub or GitHub is a verdict about something else, reported at 200 in the declared UpdateCheckResponse.error field. Nothing the caller sends can make this route 4xx."

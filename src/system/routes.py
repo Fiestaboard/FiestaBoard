@@ -41,6 +41,9 @@ from . import update_service
 from .models import (
     AutoUpdateRequest,
     AutoUpdateResponse,
+    ReleaseChannelRequest,
+    ReleaseChannelResponse,
+    ReleaseChannelSwitchResponse,
     RollbackRequest,
     RollbackResponse,
     SystemActionResponse,
@@ -282,3 +285,36 @@ async def system_shutdown():
         return await update_service.perform_sidecar_action("shutdown")
     except update_service.SidecarError as exc:
         raise _as_http(exc) from exc
+
+
+@router.get("/system/channel", response_model=ReleaseChannelResponse)
+async def get_release_channel():
+    """Which release channel this install is on, and whether it can change."""
+    blocker = await asyncio.to_thread(update_service.channel_switch_blocker)
+    return ReleaseChannelResponse(
+        channel=update_service.current_channel(),
+        available_channels=sorted(update_service.CHANNEL_TAGS),
+        can_switch=blocker is None,
+        reason=blocker,
+    )
+
+
+@router.post(
+    "/system/channel",
+    response_model=ReleaseChannelSwitchResponse,
+    responses=_SIDECAR_ERRORS,
+)
+async def set_release_channel(request: ReleaseChannelRequest):
+    """Move this install onto another release channel.
+
+    A settings snapshot is taken before anything is swapped — see
+    ``update_service.switch_channel``.
+    """
+    blocker = await asyncio.to_thread(update_service.channel_switch_blocker)
+    if blocker:
+        raise HTTPException(status_code=503, detail=blocker)
+    try:
+        result = await asyncio.to_thread(update_service.switch_channel, request.channel)
+    except update_service.SidecarError as e:
+        raise _as_http(e) from e
+    return ReleaseChannelSwitchResponse(**result)

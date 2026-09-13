@@ -236,6 +236,22 @@ export interface WifiConnectResponse {
   message: string;
 }
 
+/** Which release channel an install follows (#1955). */
+export interface ReleaseChannelResponse {
+  channel: "stable" | "beta";
+  available_channels: string[];
+  can_switch: boolean;
+  /** Why switching is unavailable, when it is. */
+  reason: string | null;
+}
+
+export interface ReleaseChannelSwitchResponse {
+  status: string;
+  channel: string;
+  tag: string;
+  settings_snapshot: Record<string, unknown> | null;
+}
+
 export const systemApi = {
   // Queries (read-only)
   // `GET /v1/status` is `GET /status`'s own handler behind a new path.
@@ -350,4 +366,15 @@ export const systemApi = {
   disconnectWifi: () => fetchApi<WifiStatus>("/network/wifi/disconnect", { method: "POST" }),
   forgetWifi: (conName: string) =>
     fetchApi<{ name: string }>(`/network/wifi/saved/${encodeURIComponent(conName)}`, { method: "DELETE" }),
+
+  // Release channel (#1955). Opting in lives on stable; this build carries
+  // both directions because the API takes the target channel either way.
+  getReleaseChannel: () => fetchApi<ReleaseChannelResponse>("/system/channel"),
+
+  setReleaseChannel: (channel: "stable" | "beta") =>
+    fetchApi<ReleaseChannelSwitchResponse>("/system/channel", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ channel }),
+    }),
 };
