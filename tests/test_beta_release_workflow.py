@@ -165,3 +165,42 @@ def test_the_declared_beta_target_is_ahead_of_the_stable_version():
         f"would offer a 'newer' beta that is actually older. Raise "
         f"BETA_TARGET_VERSION in .github/workflows/release-beta.yml."
     )
+
+
+def test_no_job_reads_the_version_from_a_step_it_does_not_own():
+    """`steps.version.outputs` is empty in any job but the one that ran it.
+
+    This is not hypothetical. The first published beta created its GitHub
+    release with tag `v` and name `Beta ` — an empty version string — because
+    the release step still said `steps.version.outputs.version` after the
+    workflow was split into version/build/publish jobs. The Docker tags were
+    already on `needs.` and came out correct, so the image published fine and
+    every job reported success; only the release was malformed. GitHub does
+    not error on an unresolvable expression, it substitutes empty.
+    """
+    import re
+
+    text = BETA.read_text(encoding="utf-8")
+    doc = _load(BETA)
+
+    owner = None
+    for name, job in doc["jobs"].items():
+        for step in job.get("steps", []):
+            if step.get("id") == "version":
+                owner = name
+    assert owner, "no job declares a step with id 'version'"
+
+    # Split the file into per-job regions so a reference can be attributed.
+    job_starts = sorted((m.start(), m.group(1)) for m in re.finditer(r"^  ([a-z][\w-]*):\s*$", text, re.MULTILINE))
+    offenders = []
+    for m in re.finditer(r"steps\.version\.outputs", text):
+        job = next((n for pos, n in reversed(job_starts) if pos < m.start()), "?")
+        if job != owner:
+            offenders.append(job)
+    assert not offenders, (
+        f"jobs {sorted(set(offenders))} read `steps.version.outputs`, but the "
+        f"version step runs in {owner!r}. Cross-job reads must use "
+        f"`needs.{owner}.outputs.version` — an unresolvable expression "
+        f"silently becomes an empty string, which is how beta.1 shipped a "
+        f"release tagged `v`."
+    )
