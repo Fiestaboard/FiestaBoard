@@ -1011,6 +1011,7 @@
     "checkFailedToast": "Kon niet controleren op updates: {error}",
     "updateNow": "Nu bijwerken",
     "oneClickHint": "Wil je hier een één-klik \"Nu bijwerken\"-knop? Stel <profile></profile> in je <envFile></envFile> in en voer dan <command></command> uit.",
+    "oneClickHintPi": "The updater service isn't running, so there's no one-click update. SSH in and run <command></command> to bring it back.",
     "dialogTitle": "FiestaBoard bijwerken?",
     "dialogDescription": "Dit haalt <version></version> op en herstart FiestaBoard. De board-weergave pauzeert ongeveer 30 seconden en deze pagina laadt automatisch opnieuw.",
     "intervalSelectAriaLabel": "Frequentie van updatecontrole",

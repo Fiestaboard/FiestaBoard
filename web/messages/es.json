@@ -1011,6 +1011,7 @@
     "checkFailedToast": "No se pudo buscar actualizaciones: {error}",
     "updateNow": "Actualizar ahora",
     "oneClickHint": "¿Quieres un botón de \"Actualizar ahora\" con un solo clic aquí? Establece <profile></profile> en tu <envFile></envFile>, luego ejecuta <command></command>.",
+    "oneClickHintPi": "The updater service isn't running, so there's no one-click update. SSH in and run <command></command> to bring it back.",
     "dialogTitle": "¿Actualizar FiestaBoard?",
     "dialogDescription": "Esto descargará <version></version> y reiniciará FiestaBoard. La pantalla del tablero se pausará durante unos 30 segundos y esta página se recargará automáticamente.",
     "intervalSelectAriaLabel": "Frecuencia de búsqueda de actualizaciones",

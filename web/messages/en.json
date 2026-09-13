@@ -967,6 +967,7 @@
     "checkFailedToast": "Couldn't check for updates: {error}",
     "updateNow": "Update Now",
     "oneClickHint": "Want a one-click \"Update Now\" button here? Set <profile></profile> in your <envFile></envFile>, then run <command></command>.",
+    "oneClickHintPi": "The updater service isn't running, so there's no one-click update. SSH in and run <command></command> to bring it back.",
     "dialogTitle": "Update FiestaBoard?",
     "dialogDescription": "This will pull <version></version> and restart FiestaBoard. The board display will pause for about 30 seconds and this page will reload automatically.",
     "intervalSelectAriaLabel": "Update check frequency",

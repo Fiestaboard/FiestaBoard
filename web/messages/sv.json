@@ -1011,6 +1011,7 @@
     "checkFailedToast": "Kunde inte söka efter uppdateringar: {error}",
     "updateNow": "Uppdatera nu",
     "oneClickHint": "Vill du ha en ett-klicks ”Uppdatera nu”-knapp här? Ange <profile></profile> i din <envFile></envFile> och kör sedan <command></command>.",
+    "oneClickHintPi": "The updater service isn't running, so there's no one-click update. SSH in and run <command></command> to bring it back.",
     "dialogTitle": "Uppdatera FiestaBoard?",
     "dialogDescription": "Detta hämtar <version></version> och startar om FiestaBoard. Board-displayen pausar i cirka 30 sekunder och denna sida laddas om automatiskt.",
     "intervalSelectAriaLabel": "Frekvens för uppdateringssökning",
