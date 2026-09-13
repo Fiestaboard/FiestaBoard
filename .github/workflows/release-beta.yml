@@ -236,7 +236,7 @@ jobs:
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
-            const version = '${{ steps.version.outputs.version }}';
+            const version = '${{ needs.version.outputs.version }}';
             const tag = `v${version}`;
             const sha = context.sha;
 
