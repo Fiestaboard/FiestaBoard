@@ -14,6 +14,20 @@ on:
       - 'images/**'
       - 'LICENSE'
       - 'fiesta-icon.png'
+      # The updater sidecar ships as its OWN image on its OWN cadence
+      # (build-fiestaupdater.yml, triggered on these same paths) and is not
+      # versioned with the app. Releasing the app for a sidecar-only change
+      # publishes an image whose application code is byte-identical to the
+      # previous one, and then prompts every user to install it.
+      #
+      # That is not hypothetical: #1969 touched only handler.sh and its bats
+      # tests, and cut 8.36.0 — a release whose entire diff outside version
+      # strings was the sidecar. Every FiestaBoard on the network asked to
+      # update to it.
+      #
+      # A PR that changes the sidecar AND app code still releases: paths-ignore
+      # skips a push only when EVERY changed file matches.
+      - 'fiestaupdater/**'
 
 concurrency:
   group: release-publish
