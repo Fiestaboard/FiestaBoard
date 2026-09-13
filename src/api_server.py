@@ -812,6 +812,17 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         logger.warning(f"mDNS service could not be started: {e}")
 
+    # Put the box back on its chosen release channel if this boot overrode
+    # it (#1955). Off the startup path for the same reason mDNS is: it may
+    # pull an image, and nothing is served while startup blocks. It also
+    # recreates this very container when it acts, so it must not be awaited.
+    try:
+        threading.Thread(
+            target=_reassert_release_channel, name="channel-reassert", daemon=True
+        ).start()
+    except Exception as e:
+        logger.warning(f"Could not start the release-channel check: {e}")
+
     # Start MQTT client for Home Assistant discovery/control (optional)
     try:
         from .settings.service import get_settings_service
@@ -3113,6 +3124,109 @@ def _channel_switch_blocker() -> str | None:
     return None
 
 
+def _switch_channel_sync(channel: str) -> dict[str, Any]:
+    """Persist the channel choice, snapshot, then install its tag.
+
+    Persisting FIRST is deliberate. The retag this performs is undone by the
+    next ``docker compose pull`` (the compose file still names ``:latest``
+    and sets ``pull_policy: always``), so the durable part of "switch
+    channel" is the recorded intent, not the running image.
+    ``_reassert_release_channel`` re-applies it at boot.
+
+    Raises ``HTTPException`` for anything the caller should surface.
+    """
+    tag = _CHANNEL_TAGS[channel]
+    running = _updater_version() or {}
+    image_ref = running.get("image") or ""
+    # Repository and tag go separately; sending "repo:tag" as the image
+    # would ask the sidecar for "repo:tag:beta".
+    repository = image_ref.rsplit(":", 1)[0] if ":" in image_ref.rsplit("/", 1)[-1] else image_ref
+    if not repository:
+        raise HTTPException(
+            status_code=502,
+            detail={"status": "error", "error": "could not determine the running image reference"},
+        )
+
+    _system_update_state_update(channel=channel)
+    snapshot = _take_settings_snapshot(running.get("digest"), image_ref)
+
+    try:
+        resp = _updater_post("/install", {"image": repository, "tag": tag})
+    except requests.RequestException as e:
+        raise HTTPException(
+            status_code=503,
+            detail={"status": "unavailable", "error": f"updater sidecar unreachable: {e}"},
+        ) from e
+
+    if resp.status_code == 404:
+        raise HTTPException(
+            status_code=503,
+            detail={
+                "status": "unavailable",
+                "error": (
+                    "This updater sidecar is too old to switch channels. Run "
+                    "'docker compose pull fiestaupdater && docker compose up -d' "
+                    "to update it, then try again."
+                ),
+            },
+        )
+    if resp.status_code == 401:
+        raise HTTPException(
+            status_code=500,
+            detail={
+                "status": "error",
+                "error": "fiestaupdater rejected our token; check FIESTAUPDATER_TOKEN matches in both services",
+            },
+        )
+    if resp.status_code >= 400:
+        raise HTTPException(
+            status_code=502,
+            detail={"status": "error", "error": f"fiestaupdater returned {resp.status_code}: {resp.text[:200]}"},
+        )
+
+    return {"status": "queued", "channel": channel, "tag": tag, "settings_snapshot": snapshot}
+
+
+def _reassert_release_channel() -> None:
+    """Put the box back on its chosen channel after a boot that overrode it.
+
+    A channel switch is a local retag, and the Pi's systemd unit runs
+    ``docker compose pull`` before ``up -d`` on every boot. With
+    ``pull_policy: always`` that pull fetches whatever ``:latest`` means in
+    the registry and overwrites the retag, so a rebooted Pi silently comes
+    back on stable. Measured: 8.37.2 -> switch -> 9.0.0-beta.4 -> reboot ->
+    8.37.2.
+
+    Rewriting the compose file would fix it at the source, but nothing
+    updates ``/opt/fiestaboard/docker-compose.yml`` on an app update and the
+    sidecar mounts it read-only, so that cannot reach installs that already
+    exist. The data dir can, so the choice lives there and is re-applied
+    here.
+
+    Never raises: a boot must not be taken down by an unreachable registry.
+    Silent when the running build already matches, which is every boot after
+    the first one on a given channel — the reinstall costs one restart, and
+    only when the boot actually overrode the choice.
+    """
+    try:
+        wanted = _system_update_state_load().get("channel")
+        if wanted not in _CHANNEL_TAGS:
+            return  # never opted in, or a value we do not recognise
+        if _current_channel() == wanted:
+            return  # the boot came up where it should
+        if _channel_switch_blocker():
+            # HA-managed, or no sidecar. Not ours to correct.
+            return
+        logger.info(
+            "Boot came up on the %s channel but %s was chosen; re-applying it.",
+            _current_channel(),
+            wanted,
+        )
+        _switch_channel_sync(wanted)
+    except Exception as e:  # noqa: BLE001 - startup must survive anything here
+        logger.warning("Could not re-apply the %s release channel: %s", wanted if "wanted" in dir() else "?", e)
+
+
 @app.get("/system/channel", response_model=ReleaseChannelResponse)
 async def get_release_channel():
     """Which release channel this install is on, and whether it can change."""
@@ -3136,68 +3250,8 @@ async def set_release_channel(request: ReleaseChannelRequest):
     blocker = await asyncio.to_thread(_channel_switch_blocker)
     if blocker:
         raise HTTPException(status_code=503, detail={"status": "unavailable", "error": blocker})
-
-    tag = _CHANNEL_TAGS[request.channel]
-
-    running = await asyncio.to_thread(_updater_version)
-    image_ref = (running or {}).get("image") or ""
-    # The sidecar wants the repository and the tag separately; sending
-    # "repo:tag" as the image would ask it for "repo:tag:beta".
-    repository = image_ref.rsplit(":", 1)[0] if ":" in image_ref.rsplit("/", 1)[-1] else image_ref
-    if not repository:
-        raise HTTPException(
-            status_code=502,
-            detail={"status": "error", "error": "could not determine the running image reference"},
-        )
-
-    snapshot = await asyncio.to_thread(
-        _take_settings_snapshot, (running or {}).get("digest"), image_ref
-    )
-
-    try:
-        resp = await asyncio.to_thread(
-            _updater_post, "/install", {"image": repository, "tag": tag}
-        )
-    except requests.RequestException as e:
-        raise HTTPException(
-            status_code=503,
-            detail={"status": "unavailable", "error": f"updater sidecar unreachable: {e}"},
-        ) from e
-
-    if resp.status_code == 404:
-        # The sidecar predates /install (#1969). "Broken" is the wrong story;
-        # the only useful thing to say is that it needs pulling.
-        raise HTTPException(
-            status_code=503,
-            detail={
-                "status": "unavailable",
-                "error": (
-                    "This updater sidecar is too old to switch channels. "
-                    "Run 'docker compose pull fiestaupdater && docker compose up -d' "
-                    "to update it, then try again."
-                ),
-            },
-        )
-    if resp.status_code == 401:
-        raise HTTPException(
-            status_code=500,
-            detail={
-                "status": "error",
-                "error": "fiestaupdater rejected our token; check FIESTAUPDATER_TOKEN matches in both services",
-            },
-        )
-    if resp.status_code >= 400:
-        raise HTTPException(
-            status_code=502,
-            detail={"status": "error", "error": f"fiestaupdater returned {resp.status_code}: {resp.text[:200]}"},
-        )
-
-    return ReleaseChannelSwitchResponse(
-        status="queued",
-        channel=request.channel,
-        tag=tag,
-        settings_snapshot=snapshot,
-    )
+    result = await asyncio.to_thread(_switch_channel_sync, request.channel)
+    return ReleaseChannelSwitchResponse(**result)
 
 
 @app.post("/system/restart", response_model=SystemActionResponse)
