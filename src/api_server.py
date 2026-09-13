@@ -3127,11 +3127,15 @@ def _channel_switch_blocker() -> str | None:
 def _switch_channel_sync(channel: str) -> dict[str, Any]:
     """Persist the channel choice, snapshot, then install its tag.
 
-    Persisting FIRST is deliberate. The retag this performs is undone by the
-    next ``docker compose pull`` (the compose file still names ``:latest``
-    and sets ``pull_policy: always``), so the durable part of "switch
-    channel" is the recorded intent, not the running image.
+    The retag this performs is undone by the next ``docker compose pull``
+    (the compose file still names ``:latest`` and sets
+    ``pull_policy: always``), so the durable part of "switch channel" is the
+    recorded intent, not the running image;
     ``_reassert_release_channel`` re-applies it at boot.
+
+    The choice is recorded only once the sidecar has ACCEPTED the install.
+    A refused switch must leave the channel alone, or every boot would
+    retry it.
 
     Raises ``HTTPException`` for anything the caller should surface.
     """
@@ -3147,7 +3151,6 @@ def _switch_channel_sync(channel: str) -> dict[str, Any]:
             detail={"status": "error", "error": "could not determine the running image reference"},
         )
 
-    _system_update_state_update(channel=channel)
     snapshot = _take_settings_snapshot(running.get("digest"), image_ref)
 
     try:
@@ -3183,6 +3186,14 @@ def _switch_channel_sync(channel: str) -> dict[str, Any]:
             status_code=502,
             detail={"status": "error", "error": f"fiestaupdater returned {resp.status_code}: {resp.text[:200]}"},
         )
+
+    # Record the choice only now. The sidecar answering 202 is the earliest
+    # honest moment — it means the work was accepted. Persisting before the
+    # call meant a refused switch (bad token, sidecar too old, registry down)
+    # still wrote the channel, so every subsequent boot would re-attempt the
+    # same doomed install with the recorded channel permanently disagreeing
+    # with the running one.
+    _system_update_state_update(channel=channel)
 
     return {"status": "queued", "channel": channel, "tag": tag, "settings_snapshot": snapshot}
 

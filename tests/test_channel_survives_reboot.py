@@ -29,6 +29,7 @@ from __future__ import annotations
 from unittest.mock import MagicMock, patch
 
 import pytest
+from fastapi import HTTPException
 
 import src.api_server as api_server
 
@@ -155,3 +156,57 @@ class TestReassertingAtBoot:
         ):
             api_server._switch_channel_sync("stable")
         assert api_server._system_update_state_load().get("channel") == "stable"
+
+
+class TestAFailedSwitchIsNotRemembered:
+    """Recording intent the sidecar refused would make every boot retry it.
+
+    Found by driving the real endpoint against a stack whose token did not
+    match: the switch returned 500, the box stayed on stable — and "beta"
+    was already written to the state file. The boot re-assert would then
+    attempt the same doomed install on every single boot, with the recorded
+    channel permanently disagreeing with the running one and nothing in the
+    UI to explain it.
+
+    The sidecar answering 202 is the earliest honest moment: it means the
+    work was accepted. Anything before that is a wish, not a choice.
+    """
+
+    @pytest.mark.parametrize(
+        ("status", "why"),
+        [(401, "token rejected"), (404, "sidecar too old"), (502, "sidecar error")],
+    )
+    def test_a_refused_switch_leaves_the_channel_alone(self, sidecar_ready, monkeypatch, status, why):
+        monkeypatch.setenv("VERSION", "8.37.2")
+        state = api_server._system_update_state_load()
+        state.pop("channel", None)
+        api_server._system_update_state_save(state)
+
+        resp = MagicMock(status_code=status, text="nope")
+        with (
+            patch("src.api_server._updater_post", return_value=resp),
+            patch("src.api_server._take_settings_snapshot", return_value=None),
+            pytest.raises(HTTPException),
+        ):
+            api_server._switch_channel_sync("beta")
+
+        assert api_server._system_update_state_load().get("channel") is None, (
+            f"a switch the sidecar refused ({why}) was recorded anyway; every boot would retry it"
+        )
+
+    def test_an_unreachable_sidecar_leaves_the_channel_alone(self, sidecar_ready, monkeypatch):
+        import requests as _requests
+
+        monkeypatch.setenv("VERSION", "8.37.2")
+        state = api_server._system_update_state_load()
+        state.pop("channel", None)
+        api_server._system_update_state_save(state)
+
+        with (
+            patch("src.api_server._updater_post", side_effect=_requests.ConnectionError("down")),
+            patch("src.api_server._take_settings_snapshot", return_value=None),
+            pytest.raises(HTTPException),
+        ):
+            api_server._switch_channel_sync("beta")
+
+        assert api_server._system_update_state_load().get("channel") is None
