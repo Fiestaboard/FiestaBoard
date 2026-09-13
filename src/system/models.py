@@ -16,6 +16,12 @@ class VersionResponse(BaseModel):
 
     package_version: str
     build_version: str
+    #: The version this process is ACTUALLY running, and the only one a UI
+    #: should show. On a beta build ``package_version`` is the stale stable
+    #: number baked into src/__init__.py — the beta's own version exists
+    #: only in the VERSION build-arg, because a committed prerelease string
+    #: would break scripts/version-sync.js on the next stable release.
+    running_version: str
     is_dev: bool
     hardware_model: str | None = None
 

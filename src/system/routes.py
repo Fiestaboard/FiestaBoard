@@ -91,6 +91,7 @@ async def version():
     production = os.getenv("PRODUCTION", "false").lower() == "true"
     return VersionResponse(
         package_version=__version__,
+        running_version=update_service.running_version(),
         build_version=build_version,
         is_dev=build_version == "dev" and not production,
         hardware_model=update_service._detect_hardware_model(),

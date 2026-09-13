@@ -10,7 +10,8 @@
         "build_version": "str",
         "hardware_model": "str",
         "is_dev": "bool",
-        "package_version": "str"
+        "package_version": "str",
+        "running_version": "str"
       }
     },
     {

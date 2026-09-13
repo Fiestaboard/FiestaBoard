@@ -137,6 +137,11 @@ def test_version_reports_the_package_version_and_a_dev_build(client, monkeypatch
     assert response.json() == {
         "package_version": __version__,
         "build_version": "dev",
+        # Added deliberately: the version a UI should display. On a dev or
+        # stable build it equals package_version; on a beta it is the
+        # prerelease from the VERSION build-arg, which is the whole reason
+        # the field exists — a Pi running 9.0.0-beta.4 was showing v8.37.2.
+        "running_version": __version__,
         "is_dev": True,
         "hardware_model": "Raspberry Pi 5 Model B Rev 1.0",
     }
