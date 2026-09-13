@@ -1066,8 +1066,33 @@ async def apply_update() -> UpdateApplyResponse:
     version = await asyncio.to_thread(_updater_version)
     snapshot = await asyncio.to_thread(_take_settings_snapshot, version.get("digest"), version.get("image"))
 
+    # Which request updates this box depends on its channel.
+    #
+    # "/update" asks the sidecar to `docker compose pull` the user's own
+    # compose file. On stable that is exactly right — it is what keeps a
+    # Docker user who edited their `image:` tag on the tag they chose.
+    #
+    # On beta it is the bug: every shipped compose file says
+    # `fiestaboard/fiestaboard:latest`, and the app cannot rewrite it (the
+    # sidecar mounts it read-only, the Pi's app container does not mount it
+    # at all). So the "update" pulls stable over a 9.x box. Measured on a
+    # real Pi: beta.7 -> 8.37.5 -> (three recreations later) beta.8, once
+    # reassert_release_channel() noticed and undid it. Naming the tag
+    # through "/install" (#1969) gets there in one step instead of four,
+    # and never runs an 8.x build against 9.x data on the way.
+    channel = current_channel()
+    endpoint, payload = "/update", None
+    if channel != "stable":
+        image_ref = version.get("image") or ""
+        # The sidecar wants repository and tag separately; sending "repo:tag"
+        # as the image would ask it for "repo:tag:beta".
+        repository = image_ref.rsplit(":", 1)[0] if ":" in image_ref.rsplit("/", 1)[-1] else image_ref
+        if not repository:
+            raise SidecarError(502, "could not determine the running image reference")
+        endpoint, payload = "/install", {"image": repository, "tag": CHANNEL_TAGS[channel]}
+
     try:
-        resp = await asyncio.to_thread(_updater_post, "/update")
+        resp = await asyncio.to_thread(_updater_post, endpoint, payload)
     except requests.exceptions.ConnectionError:
         raise SidecarError(
             503,
@@ -1084,6 +1109,15 @@ async def apply_update() -> UpdateApplyResponse:
         raise SidecarError(
             500,
             "fiestaupdater rejected our token; check FIESTAUPDATER_TOKEN matches in both services",
+        )
+    if resp.status_code == 404 and endpoint == "/install":
+        # A sidecar predating #1969. "Broken" is the wrong story; the only
+        # useful thing to say is that it needs pulling.
+        raise SidecarError(
+            503,
+            "This updater sidecar is too old to update a beta install. Run "
+            "'docker compose pull fiestaupdater && docker compose up -d' to "
+            "update it, then try again.",
         )
     if resp.status_code >= 400:
         raise SidecarError(502, f"fiestaupdater returned {resp.status_code}: {resp.text[:200]}")
