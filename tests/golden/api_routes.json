@@ -1452,6 +1452,22 @@
       "kind": "APIRoute"
     },
     {
+      "path": "/system/channel",
+      "methods": [
+        "GET"
+      ],
+      "name": "get_release_channel",
+      "kind": "APIRoute"
+    },
+    {
+      "path": "/system/channel",
+      "methods": [
+        "POST"
+      ],
+      "name": "set_release_channel",
+      "kind": "APIRoute"
+    },
+    {
       "path": "/system/restart",
       "methods": [
         "POST"

@@ -15,7 +15,7 @@ from collections import deque
 from contextlib import asynccontextmanager
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any
+from typing import Any, Literal
 from urllib.parse import urlparse
 
 import requests
@@ -604,6 +604,35 @@ class AutoUpdateResponse(BaseModel):
 
     enabled: bool  # derived: True when interval != "manual"
     interval: str  # "daily" | "weekly" | "monthly" | "manual"
+
+
+class ReleaseChannelRequest(BaseModel):
+    """Body of ``POST /system/channel``."""
+
+    # Literal, not a plain str: an unknown channel is a 422 from FastAPI
+    # rather than a KeyError deep inside the handler.
+    channel: Literal["stable", "beta"]
+
+
+class ReleaseChannelResponse(BaseModel):
+    """Which release channel this install is on."""
+
+    channel: str
+    available_channels: list[str]
+    can_switch: bool
+    #: Why switching is unavailable, when it is. None when it is available.
+    reason: str | None = None
+
+
+class ReleaseChannelSwitchResponse(BaseModel):
+    """Result of asking the sidecar to move onto another channel."""
+
+    status: str
+    channel: str
+    tag: str
+    #: Metadata for the snapshot taken before the switch, when one was
+    #: produced. This is what a later restore points at.
+    settings_snapshot: dict[str, Any] | None = None
 
 
 class SystemActionResponse(BaseModel):
@@ -2925,13 +2954,16 @@ async def system_update_set_auto(req: AutoUpdateRequest):
     return AutoUpdateResponse(enabled=interval != "manual", interval=interval)
 
 
-def _updater_post(path: str) -> requests.Response:
+def _updater_post(path: str, json: dict[str, Any] | None = None) -> requests.Response:
     """POST to the fiestaupdater sidecar and return the response.
     Raises on network-level failures; callers handle HTTP errors.
+
+    ``json`` carries a body for the routes that take one (``/install``,
+    ``/rollback``); the others send none, as before.
     """
     url = f"{_updater_url()}/{path.lstrip('/')}"
     headers = {"Authorization": f"Bearer {_updater_token()}"}
-    return requests.post(url, headers=headers, timeout=(5, 30))
+    return requests.post(url, headers=headers, json=json, timeout=(5, 30))
 
 
 def _require_updater_token():
@@ -2962,6 +2994,142 @@ def _handle_updater_response(resp: requests.Response, action: str) -> SystemActi
             detail={"status": "error", "error": f"fiestaupdater returned {resp.status_code}: {resp.text[:200]}"},
         )
     return SystemActionResponse(status="queued", action=action)
+
+
+# ---------------------------------------------------------------------------
+# Release channel (issue #1955)
+#
+# Beta builds come from `next` and are published as `fiestaboard/fiestaboard:beta`.
+# This is the opt-IN half, and it lives on the stable line deliberately: if the
+# control only shipped on the beta, you could only find it after you had already
+# opted in. Opting out lives on the beta build, which is where you are by then.
+#
+# The app never edits a compose file — it cannot. The sidecar mounts it
+# read-only, and on the FiestaPi image the app container does not mount it at
+# all. Instead the sidecar pulls the requested tag and retags it onto whatever
+# reference the compose file already names (`POST /install`, added in #1969).
+# ---------------------------------------------------------------------------
+
+#: Docker tag per channel.
+_CHANNEL_TAGS = {"stable": "latest", "beta": "beta"}
+
+
+def _current_channel() -> str:
+    """Which channel this build came from.
+
+    Derived from the build version rather than stored, so there is no state
+    that can disagree with the image actually running. A beta carries a
+    prerelease identifier (`9.0.0-beta.3`); a stable release never does.
+    """
+    build = os.getenv("VERSION", "").strip()
+    core, _, prerelease = build.partition("-")
+    if prerelease and all(part.isdigit() for part in core.split(".") if part):
+        return "beta"
+    return "stable"
+
+
+def _channel_switch_blocker() -> str | None:
+    """Why this install cannot change channel, or None if it can."""
+    if _managed_externally():
+        return (
+            "This install is managed by Home Assistant, which controls updates "
+            "through the add-on store. Install the beta add-on there instead."
+        )
+    if not _updater_token():
+        return (
+            "The updater sidecar is not enabled. Add COMPOSE_PROFILES=fiestaupdater "
+            "to your .env and run 'docker compose up -d'."
+        )
+    if not _updater_probe():
+        return "The updater sidecar is not reachable."
+    return None
+
+
+@app.get("/system/channel", response_model=ReleaseChannelResponse)
+async def get_release_channel():
+    """Which release channel this install is on, and whether it can change."""
+    blocker = await asyncio.to_thread(_channel_switch_blocker)
+    return ReleaseChannelResponse(
+        channel=_current_channel(),
+        available_channels=sorted(_CHANNEL_TAGS),
+        can_switch=blocker is None,
+        reason=blocker,
+    )
+
+
+@app.post("/system/channel", response_model=ReleaseChannelSwitchResponse)
+async def set_release_channel(request: ReleaseChannelRequest):
+    """Move this install onto another release channel.
+
+    Takes a settings snapshot first. That snapshot is the way back: a beta
+    may migrate data to a schema the stable build refuses to read, so it has
+    to exist *before* anything is swapped, not after.
+    """
+    blocker = await asyncio.to_thread(_channel_switch_blocker)
+    if blocker:
+        raise HTTPException(status_code=503, detail={"status": "unavailable", "error": blocker})
+
+    tag = _CHANNEL_TAGS[request.channel]
+
+    running = await asyncio.to_thread(_updater_version)
+    image_ref = (running or {}).get("image") or ""
+    # The sidecar wants the repository and the tag separately; sending
+    # "repo:tag" as the image would ask it for "repo:tag:beta".
+    repository = image_ref.rsplit(":", 1)[0] if ":" in image_ref.rsplit("/", 1)[-1] else image_ref
+    if not repository:
+        raise HTTPException(
+            status_code=502,
+            detail={"status": "error", "error": "could not determine the running image reference"},
+        )
+
+    snapshot = await asyncio.to_thread(
+        _take_settings_snapshot, (running or {}).get("digest"), image_ref
+    )
+
+    try:
+        resp = await asyncio.to_thread(
+            _updater_post, "/install", {"image": repository, "tag": tag}
+        )
+    except requests.RequestException as e:
+        raise HTTPException(
+            status_code=503,
+            detail={"status": "unavailable", "error": f"updater sidecar unreachable: {e}"},
+        ) from e
+
+    if resp.status_code == 404:
+        # The sidecar predates /install (#1969). "Broken" is the wrong story;
+        # the only useful thing to say is that it needs pulling.
+        raise HTTPException(
+            status_code=503,
+            detail={
+                "status": "unavailable",
+                "error": (
+                    "This updater sidecar is too old to switch channels. "
+                    "Run 'docker compose pull fiestaupdater && docker compose up -d' "
+                    "to update it, then try again."
+                ),
+            },
+        )
+    if resp.status_code == 401:
+        raise HTTPException(
+            status_code=500,
+            detail={
+                "status": "error",
+                "error": "fiestaupdater rejected our token; check FIESTAUPDATER_TOKEN matches in both services",
+            },
+        )
+    if resp.status_code >= 400:
+        raise HTTPException(
+            status_code=502,
+            detail={"status": "error", "error": f"fiestaupdater returned {resp.status_code}: {resp.text[:200]}"},
+        )
+
+    return ReleaseChannelSwitchResponse(
+        status="queued",
+        channel=request.channel,
+        tag=tag,
+        settings_snapshot=snapshot,
+    )
 
 
 @app.post("/system/restart", response_model=SystemActionResponse)

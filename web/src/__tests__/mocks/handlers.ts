@@ -1117,6 +1117,15 @@ export const handlers = [
     });
   }),
 
+  http.get(`${API_BASE}/system/channel`, () => {
+    return HttpResponse.json({
+      channel: "stable",
+      available_channels: ["beta", "stable"],
+      can_switch: true,
+      reason: null,
+    });
+  }),
+
   http.get(`${API_BASE}/system/update/status`, () => {
     return HttpResponse.json({
       updater_available: false,
