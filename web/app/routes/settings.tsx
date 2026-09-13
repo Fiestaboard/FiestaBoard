@@ -39,6 +39,7 @@ import { McpSettings } from "@/components/settings/mcp-settings";
 import { MqttSettingsCard } from "@/components/settings/mqtt-settings";
 import { NetworkSettings } from "@/components/settings/network-settings";
 import { PluginSettingsCard } from "@/components/settings/plugin-settings";
+import { ReleaseChannelCard } from "@/components/settings/release-channel";
 import { ScheduleBehavior } from "@/components/settings/schedule-behavior";
 import { SilenceSchedule } from "@/components/settings/silence-schedule";
 import { SystemControls } from "@/components/settings/system-controls";
@@ -240,6 +241,7 @@ export default function SettingsPage() {
           <TabsContent value="system" className="mt-0">
             <SystemControls />
             <AutoUpdateIntervalCard />
+            <ReleaseChannelCard />
             <BackupSettings />
             <Card>
               <CardHeader>

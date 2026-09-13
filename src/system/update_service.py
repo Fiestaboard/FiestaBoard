@@ -484,14 +484,51 @@ def _updater_token() -> str:
     return os.getenv("FIESTAUPDATER_TOKEN", "")
 
 
+#: Last known reachability of the sidecar, so the probe can log the two
+#: TRANSITIONS rather than every poll. ``None`` until the first probe.
+_updater_probe_last_ok: bool | None = None
+
+
 def _updater_probe() -> bool:
     """Return True when the sidecar's /healthz responds 200.  Short timeout
-    because this is called on every status query from the UI."""
+    because this is called on every status query from the UI.
+
+    Logs when reachability CHANGES, in either direction. This used to be
+    entirely silent, which meant a sidecar that stopped answering produced
+    no evidence anywhere: the Update Now button vanished and that was the
+    only symptom. Found on a FiestaPi that had been unable to update for
+    four days, whose logs contained no occurrence of "updater", "sidecar"
+    or "fiestaupdater" at all.
+
+    Edge-triggered on purpose. The settings page polls the status endpoint
+    every 30 seconds, so logging each failure would bury the journal faster
+    than silence hid the problem.
+    """
+    global _updater_probe_last_ok
+    reason = ""
     try:
         resp = requests.get(f"{_updater_url()}/healthz", timeout=2)
-        return resp.status_code == 200
-    except Exception:
-        return False
+        ok = resp.status_code == 200
+        if not ok:
+            reason = f"HTTP {resp.status_code}"
+    except Exception as e:
+        ok = False
+        reason = f"{type(e).__name__}: {e}"
+
+    if ok != _updater_probe_last_ok:
+        if ok:
+            logger.info("fiestaupdater sidecar is reachable again at %s", _updater_url())
+        else:
+            logger.warning(
+                "fiestaupdater sidecar is not reachable at %s (%s) — in-app updates "
+                "are unavailable until it is running. On Docker: check "
+                "COMPOSE_PROFILES=fiestaupdater in .env. On FiestaPi: "
+                "`cd /opt/fiestaboard && docker compose up -d`.",
+                _updater_url(),
+                reason,
+            )
+        _updater_probe_last_ok = ok
+    return ok
 
 
 def _updater_last_update() -> dict[str, Any]:
@@ -533,13 +570,13 @@ def _updater_version() -> dict[str, Any]:
     return {}
 
 
-def _updater_post(path: str) -> requests.Response:
+def _updater_post(path: str, json: dict[str, Any] | None = None) -> requests.Response:
     """POST to the fiestaupdater sidecar and return the response.
     Raises on network-level failures; callers handle HTTP errors.
     """
     url = f"{_updater_url()}/{path.lstrip('/')}"
     headers = {"Authorization": f"Bearer {_updater_token()}"}
-    return requests.post(url, headers=headers, timeout=(5, 30))
+    return requests.post(url, headers=headers, json=json, timeout=(5, 30))
 
 
 def _require_updater_token():
@@ -1148,3 +1185,91 @@ async def rollback(req: RollbackRequest) -> RollbackResponse:
         settings_rollback=settings_result,
         warnings=warnings,
     )
+
+
+# ── release channel (#1955) ────────────────────────────────────────────
+#
+# Beta builds come from `next` and publish as `fiestaboard/fiestaboard:beta`.
+# The app never edits a compose file to switch — it cannot: the sidecar
+# mounts it read-only and the Pi image's app container does not mount it at
+# all. It asks the sidecar to pull a tag and retag it onto whatever
+# reference the compose file already names (`POST /install`, #1969).
+
+#: Docker tag per channel.
+CHANNEL_TAGS = {"stable": "latest", "beta": "beta"}
+
+
+def current_channel() -> str:
+    """Which channel this build came from.
+
+    Derived from the build version rather than stored, so there is no state
+    that can disagree with the image actually running. A beta carries a
+    prerelease identifier; a stable release never does.
+    """
+    build = os.getenv("VERSION", "").strip()
+    core, _, prerelease = build.partition("-")
+    if prerelease and all(part.isdigit() for part in core.split(".") if part):
+        return "beta"
+    return "stable"
+
+
+def channel_switch_blocker() -> str | None:
+    """Why this install cannot change channel, or None if it can."""
+    if _managed_externally():
+        return (
+            "This install is managed by Home Assistant, which controls updates "
+            "through the add-on store. Install the beta add-on there instead."
+        )
+    if not _updater_token():
+        return (
+            "The updater sidecar is not enabled. Add COMPOSE_PROFILES=fiestaupdater "
+            "to your .env and run 'docker compose up -d'."
+        )
+    if not _updater_probe():
+        return "The updater sidecar is not reachable."
+    return None
+
+
+def switch_channel(channel: str) -> dict[str, Any]:
+    """Snapshot, then ask the sidecar to install *channel*'s tag.
+
+    The snapshot comes FIRST and is the way back: a beta may migrate data to
+    a schema the stable build refuses to read (#1961), so one taken after the
+    swap is worthless.
+
+    Raises :class:`SidecarError` for every failure the caller should surface.
+    """
+    tag = CHANNEL_TAGS[channel]
+    running = _updater_version() or {}
+    image_ref = running.get("image") or ""
+    # The sidecar wants repository and tag separately; sending "repo:tag" as
+    # the image would ask it for "repo:tag:beta".
+    repository = image_ref.rsplit(":", 1)[0] if ":" in image_ref.rsplit("/", 1)[-1] else image_ref
+    if not repository:
+        raise SidecarError(502, "could not determine the running image reference")
+
+    snapshot = _take_settings_snapshot(running.get("digest"), image_ref)
+
+    try:
+        resp = _updater_post("/install", {"image": repository, "tag": tag})
+    except requests.RequestException as e:
+        raise SidecarError(503, f"updater sidecar unreachable: {e}") from e
+
+    if resp.status_code == 404:
+        # The sidecar predates /install (#1969). "Broken" is the wrong story;
+        # the only useful thing to say is that it needs pulling.
+        raise SidecarError(
+            503,
+            "This updater sidecar is too old to switch channels. Run "
+            "'docker compose pull fiestaupdater && docker compose up -d' to "
+            "update it, then try again.",
+        )
+    if resp.status_code == 401:
+        raise SidecarError(
+            500,
+            "fiestaupdater rejected our token; check FIESTAUPDATER_TOKEN matches in both services",
+        )
+    if resp.status_code >= 400:
+        raise SidecarError(502, f"fiestaupdater returned {resp.status_code}: {resp.text[:200]}")
+
+    return {"status": "queued", "channel": channel, "tag": tag, "settings_snapshot": snapshot}

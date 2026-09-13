@@ -1019,6 +1019,7 @@
     "checkFailedToast": "Não foi possível verificar atualizações: {error}",
     "updateNow": "Atualizar agora",
     "oneClickHint": "Quer aqui um botão de «Atualizar agora» com um clique? Defina <profile></profile> no seu <envFile></envFile>, depois execute <command></command>.",
+    "oneClickHintPi": "The updater service isn't running, so there's no one-click update. SSH in and run <command></command> to bring it back.",
     "dialogTitle": "Atualizar FiestaBoard?",
     "dialogDescription": "Isto irá obter <version></version> e reiniciar o FiestaBoard. O ecrã do board ficará em pausa cerca de 30 segundos e esta página será recarregada automaticamente.",
     "intervalSelectAriaLabel": "Frequência de verificação de atualizações",
@@ -2162,5 +2163,21 @@
     "hdmiInstalling": "Configurando o quiosque HDMI — um navegador está sendo instalado no Pi e pode levar alguns minutos…",
     "hdmiEnabledHint": "A tela HDMI mostra o painel com “Saída de tela” ativada acima.",
     "hdmiFailed": "A última alteração do quiosque HDMI falhou. Tente novamente ou reinicie o Pi."
+  },
+  "releaseChannel": {
+    "title": "Release channel",
+    "description": "Choose whether this install follows stable releases or beta builds.",
+    "currentLabel": "Currently on",
+    "channelStable": "Stable",
+    "channelBeta": "Beta",
+    "onStableBody": "You are on stable releases — the builds everyone gets, after testing.",
+    "onBetaBody": "You are on beta builds from the next release. Expect rough edges, and report anything you find.",
+    "joinCta": "Join the beta",
+    "confirmTitle": "Join the beta channel?",
+    "confirmBody": "Beta builds ship before they are finished, and may change your settings and pages to a newer format that the stable build will refuse to read. A backup is taken automatically before switching — keep it, because restoring it is how you get back. FiestaBoard will restart onto the beta build.",
+    "confirmCta": "Join the beta",
+    "cancel": "Cancel",
+    "switching": "Switching…",
+    "switchFailedToast": "Could not switch channel: {error}"
   }
 }

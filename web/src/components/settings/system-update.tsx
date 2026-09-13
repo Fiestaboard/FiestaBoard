@@ -154,13 +154,21 @@ export function SystemUpdate() {
           </AlertDescription>
         </Alert>
 
+        {/* A FiestaPi cannot act on the Docker advice: COMPOSE_PROFILES is
+            already set in its image, and the fix is a command on the box.
+            Telling a Pi owner to edit a .env they have to SSH in to find
+            sends them the wrong way entirely. */}
         {!sidecarReady && (
           <Text size="xs" tone="muted" className="mt-2 ml-1">
-            {t.rich("oneClickHint", {
-              profile: () => <Code>COMPOSE_PROFILES=fiestaupdater</Code>,
-              envFile: () => <Code>.env</Code>,
-              command: () => <Code>docker compose up -d</Code>,
-            })}
+            {status?.profile === "pi"
+              ? t.rich("oneClickHintPi", {
+                  command: () => <Code>cd /opt/fiestaboard &amp;&amp; docker compose up -d</Code>,
+                })
+              : t.rich("oneClickHint", {
+                  profile: () => <Code>COMPOSE_PROFILES=fiestaupdater</Code>,
+                  envFile: () => <Code>.env</Code>,
+                  command: () => <Code>docker compose up -d</Code>,
+                })}
           </Text>
         )}
 

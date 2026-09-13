@@ -1019,6 +1019,7 @@
     "checkFailedToast": "Impossible de vérifier les mises à jour : {error}",
     "updateNow": "Mettre à jour maintenant",
     "oneClickHint": "Vous voulez un bouton « Mettre à jour maintenant » en un clic ici ? Définissez <profile></profile> dans votre <envFile></envFile>, puis exécutez <command></command>.",
+    "oneClickHintPi": "The updater service isn't running, so there's no one-click update. SSH in and run <command></command> to bring it back.",
     "dialogTitle": "Mettre à jour FiestaBoard ?",
     "dialogDescription": "Cela téléchargera <version></version> et redémarrera FiestaBoard. L'affichage du tableau s'interrompra pendant environ 30 secondes et cette page se rechargera automatiquement.",
     "intervalSelectAriaLabel": "Fréquence de vérification des mises à jour",
@@ -2162,5 +2163,21 @@
     "hdmiInstalling": "Configuration du kiosque HDMI — un navigateur s'installe sur le Pi, cela peut prendre quelques minutes…",
     "hdmiEnabledHint": "L'écran HDMI affiche le panneau dont « Sortie d'affichage » est activée ci-dessus.",
     "hdmiFailed": "La dernière modification du kiosque HDMI a échoué. Réessayez ou redémarrez le Pi."
+  },
+  "releaseChannel": {
+    "title": "Release channel",
+    "description": "Choose whether this install follows stable releases or beta builds.",
+    "currentLabel": "Currently on",
+    "channelStable": "Stable",
+    "channelBeta": "Beta",
+    "onStableBody": "You are on stable releases — the builds everyone gets, after testing.",
+    "onBetaBody": "You are on beta builds from the next release. Expect rough edges, and report anything you find.",
+    "joinCta": "Join the beta",
+    "confirmTitle": "Join the beta channel?",
+    "confirmBody": "Beta builds ship before they are finished, and may change your settings and pages to a newer format that the stable build will refuse to read. A backup is taken automatically before switching — keep it, because restoring it is how you get back. FiestaBoard will restart onto the beta build.",
+    "confirmCta": "Join the beta",
+    "cancel": "Cancel",
+    "switching": "Switching…",
+    "switchFailedToast": "Could not switch channel: {error}"
   }
 }

@@ -2084,8 +2084,11 @@ class TestEnableLocalAPI:
             )
         # The SSRF guard's 400 reaches the client as a 400 (#1887); it used
         # to be downgraded to a 200 body indistinguishable from a board that
-        # simply rejected the token.
+        # simply rejected the token. The detail assertion comes from main's
+        # version of this test and is kept: it pins that the rejection says
+        # WHY, rather than just failing with the right number.
         assert response.status_code == 400
+        assert "host" in response.json()["detail"]
         # No outbound HTTP request should have been issued.
         mock_post.assert_not_called()
 

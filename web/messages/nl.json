@@ -1019,6 +1019,7 @@
     "checkFailedToast": "Kon niet controleren op updates: {error}",
     "updateNow": "Nu bijwerken",
     "oneClickHint": "Wil je hier een één-klik \"Nu bijwerken\"-knop? Stel <profile></profile> in je <envFile></envFile> in en voer dan <command></command> uit.",
+    "oneClickHintPi": "The updater service isn't running, so there's no one-click update. SSH in and run <command></command> to bring it back.",
     "dialogTitle": "FiestaBoard bijwerken?",
     "dialogDescription": "Dit haalt <version></version> op en herstart FiestaBoard. De board-weergave pauzeert ongeveer 30 seconden en deze pagina laadt automatisch opnieuw.",
     "intervalSelectAriaLabel": "Frequentie van updatecontrole",
@@ -2162,5 +2163,21 @@
     "hdmiInstalling": "HDMI-kiosk wordt ingesteld — er wordt een browser op de Pi geïnstalleerd, dit kan enkele minuten duren…",
     "hdmiEnabledHint": "Het HDMI-scherm toont het paneel waarvoor hierboven “Schermuitvoer” is ingeschakeld.",
     "hdmiFailed": "De laatste HDMI-kioskwijziging is mislukt. Probeer opnieuw of herstart de Pi."
+  },
+  "releaseChannel": {
+    "title": "Release channel",
+    "description": "Choose whether this install follows stable releases or beta builds.",
+    "currentLabel": "Currently on",
+    "channelStable": "Stable",
+    "channelBeta": "Beta",
+    "onStableBody": "You are on stable releases — the builds everyone gets, after testing.",
+    "onBetaBody": "You are on beta builds from the next release. Expect rough edges, and report anything you find.",
+    "joinCta": "Join the beta",
+    "confirmTitle": "Join the beta channel?",
+    "confirmBody": "Beta builds ship before they are finished, and may change your settings and pages to a newer format that the stable build will refuse to read. A backup is taken automatically before switching — keep it, because restoring it is how you get back. FiestaBoard will restart onto the beta build.",
+    "confirmCta": "Join the beta",
+    "cancel": "Cancel",
+    "switching": "Switching…",
+    "switchFailedToast": "Could not switch channel: {error}"
   }
 }
