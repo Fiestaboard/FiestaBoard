@@ -151,6 +151,20 @@ export interface UpdateStatusResponse {
   managed_externally: boolean;
   profile: "docker" | "pi";
   sidecar_url: string;
+  /**
+   * What the fiestaupdater sidecar advertises it can do. Empty for any
+   * sidecar predating the field — nothing on a running box refreshes the
+   * sidecar (the Pi pulls it once per boot), so absence is how a too-old
+   * sidecar is detected rather than guessing from release dates.
+   */
+  updater_capabilities: string[];
+  /**
+   * True when the sidecar is reachable but too old to make a retag stick.
+   * A channel switch still succeeds, but takes several restarts and passes
+   * through a stable build on the way. Remedy: reboot (Pi) or
+   * `docker compose pull fiestaupdater` (Docker). See #1977.
+   */
+  updater_stale: boolean;
   last_check: string | null;
   last_update: string | null;
   /**

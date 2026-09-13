@@ -32,6 +32,8 @@ function status(overrides: Partial<UpdateStatusResponse> = {}): UpdateStatusResp
     managed_externally: false,
     profile: "docker",
     sidecar_url: "http://fiestaupdater:8765",
+    updater_capabilities: ["install", "pull-never"],
+    updater_stale: false,
     last_check: null,
     last_update: null,
     last_update_status: "in_progress",

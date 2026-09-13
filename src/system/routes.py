@@ -137,6 +137,9 @@ async def system_update_status():
     interval = update_service._resolve_auto_update_interval(state)
     snapshots = await asyncio.to_thread(update_service._list_settings_snapshots)
     regression = await asyncio.to_thread(update_service._detect_post_upgrade_regression)
+    # Only ask what the sidecar can do when it is there to ask. An
+    # unreachable sidecar is a different fault with a different remedy.
+    capabilities = await asyncio.to_thread(update_service.updater_capabilities) if available else []
     return UpdateStatusResponse(
         updater_available=available,
         auto_update_enabled=interval != "manual",
@@ -144,6 +147,8 @@ async def system_update_status():
         managed_externally=update_service._managed_externally(),
         profile=update_service._fiestaboard_profile(),
         sidecar_url=update_service._updater_url(),
+        updater_capabilities=capabilities,
+        updater_stale=available and update_service.CAPABILITY_PULL_NEVER not in capabilities,
         last_check=state.get("last_check"),
         last_update=state.get("last_update"),
         last_update_status=last.get("status"),

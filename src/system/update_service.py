@@ -628,6 +628,47 @@ def _updater_version() -> dict[str, Any]:
     return {}
 
 
+# The capability whose absence produces the four-restart channel switch.
+# Without `--pull never` (#1977), `pull_policy: always` re-pulls :latest
+# straight over the retag, so the box comes up on stable and only reaches the
+# chosen channel once reassert_release_channel notices and tries again.
+CAPABILITY_PULL_NEVER = "pull-never"
+
+_STALE_SIDECAR_REMEDY = (
+    "Your fiestaupdater sidecar is out of date, so a channel switch will take "
+    "several restarts and pass through a stable build on the way. On a FiestaPi, "
+    "reboot to pick up the current sidecar; with Docker, run "
+    "'docker compose pull fiestaupdater && docker compose up -d'."
+)
+
+
+def updater_capabilities() -> list[str]:
+    """What the sidecar says it can do, or ``[]`` if it does not say.
+
+    A sidecar older than #1977 has no ``capabilities`` key at all, and that
+    absence is the whole signal — there is no version to negotiate and no
+    release date to reason about. A malformed value is treated the same way:
+    the status path must never turn a bad payload into a crash.
+    """
+    body = _updater_version()
+    caps = body.get("capabilities")
+    if not isinstance(caps, list):
+        return []
+    return [c for c in caps if isinstance(c, str)]
+
+
+def updater_is_stale() -> bool:
+    """Whether the sidecar is too old to make a retag stick.
+
+    An unreachable sidecar is deliberately *not* stale: that is a different
+    problem, already reported by ``_updater_probe``, and with a different
+    remedy. Conflating them sends the user to fix the wrong thing.
+    """
+    if not _updater_probe():
+        return False
+    return CAPABILITY_PULL_NEVER not in updater_capabilities()
+
+
 def _updater_post(path: str, json: dict[str, Any] | None = None) -> requests.Response:
     """POST to the fiestaupdater sidecar and return the response.
     Raises on network-level failures; callers handle HTTP errors.
@@ -1339,6 +1380,14 @@ def switch_channel(channel: str) -> dict[str, Any]:
     repository = image_ref.rsplit(":", 1)[0] if ":" in image_ref.rsplit("/", 1)[-1] else image_ref
     if not repository:
         raise SidecarError(502, "could not determine the running image reference")
+
+    caps = running.get("capabilities")
+    if not isinstance(caps, list) or CAPABILITY_PULL_NEVER not in caps:
+        # Proceed anyway — reassert_release_channel gets there in the end —
+        # but say why it is about to look broken. Without this the user sees
+        # a switch "succeed", the box land on stable, and the beta reappear
+        # minutes later, with nothing anywhere connecting the three.
+        logger.warning(_STALE_SIDECAR_REMEDY)
 
     snapshot = _take_settings_snapshot(running.get("digest"), image_ref)
 

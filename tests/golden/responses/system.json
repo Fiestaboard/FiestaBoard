@@ -62,7 +62,9 @@
         "profile": "str",
         "settings_snapshots": [],
         "sidecar_url": "str",
-        "updater_available": "bool"
+        "updater_available": "bool",
+        "updater_capabilities": [],
+        "updater_stale": "bool"
       }
     },
     {
@@ -102,7 +104,9 @@
           }
         ],
         "sidecar_url": "str",
-        "updater_available": "bool"
+        "updater_available": "bool",
+        "updater_capabilities": [],
+        "updater_stale": "bool"
       }
     },
     {
