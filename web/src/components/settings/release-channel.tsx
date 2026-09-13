@@ -71,21 +71,20 @@ export function ReleaseChannelCard() {
   const onBeta = data.channel === "beta";
 
   return (
-    <PageSection title={t("title")} description={t("description")}>
+    <PageSection icon={<FlaskConical />} title={t("title")} description={t("description")}>
       <Flex align="start" justify="between" gap="4" className="rounded-md border p-4">
         <Flex direction="col" gap="1" className="min-w-0">
           <Flex align="center" gap="2">
-            <FlaskConical className="h-4 w-4 shrink-0" aria-hidden="true" />
             <Text weight="medium">{t("currentLabel")}</Text>
             <Badge variant={onBeta ? "default" : "secondary"}>{onBeta ? t("channelBeta") : t("channelStable")}</Badge>
           </Flex>
 
           {onBeta ? (
-            <Text size="sm" variant="muted">
+            <Text size="sm" tone="muted">
               {t("onBetaBody")}
             </Text>
           ) : (
-            <Text size="sm" variant="muted">
+            <Text size="sm" tone="muted">
               {t("onStableBody")}
             </Text>
           )}
@@ -93,7 +92,7 @@ export function ReleaseChannelCard() {
           {!data.can_switch && data.reason && (
             <Flex align="start" gap="2" className="mt-1">
               <AlertTriangle className="text-warning mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
-              <Text size="sm" variant="muted">
+              <Text size="sm" tone="muted">
                 {data.reason}
               </Text>
             </Flex>
