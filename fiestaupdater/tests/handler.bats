@@ -392,7 +392,11 @@ SH
     # Heart of the rollback: retag target digest onto image ref, then
     # force-recreate the service so it picks the rollback target up.
     grep -q "tag ${digest} fiestaboard/fiestaboard:latest" "${SANDBOX}/docker.calls"
-    grep -q "up -d --no-deps --force-recreate fiestaboard" "${SANDBOX}/docker.calls"
+    # Matched in two parts rather than as one literal: the flag list between
+    # --force-recreate and the service name is allowed to grow (it gained
+    # --pull never), and pinning the exact string makes an unrelated flag
+    # addition look like a broken recreate.
+    grep -E "up -d --no-deps --force-recreate" "${SANDBOX}/docker.calls" | grep -q "fiestaboard"
     grep -q '"status":"rolled_back"' "${SANDBOX}/state/last-update.json"
     grep -q "\"target_digest\":\"${digest}\"" "${SANDBOX}/state/last-update.json"
 }
@@ -557,7 +561,11 @@ SH
     [[ "$out" == *'"action":"install"'* ]]
     sleep 1
     grep -q "pull fiestaboard/fiestaboard:9.0.0-beta.2" "${SANDBOX}/docker.calls"
-    grep -q "up -d --no-deps --force-recreate fiestaboard" "${SANDBOX}/docker.calls"
+    # Matched in two parts rather than as one literal: the flag list between
+    # --force-recreate and the service name is allowed to grow (it gained
+    # --pull never), and pinning the exact string makes an unrelated flag
+    # addition look like a broken recreate.
+    grep -E "up -d --no-deps --force-recreate" "${SANDBOX}/docker.calls" | grep -q "fiestaboard"
 }
 
 @test "POST /install retags onto the compose reference, not one the caller picks" {
@@ -624,4 +632,45 @@ SH
     grep -q '"error":"pull_failed"' "${SANDBOX}/state/last-update.json"
     # A failed pull must not touch the running container.
     ! grep -q "force-recreate" "${SANDBOX}/docker.calls"
+}
+
+# ---- pull_policy: always defeats a retag -----------------------------------
+#
+# Found on a real FiestaPi: POST /install reported success, every step exited
+# 0, and the box stayed on stable.
+#
+# The shipped compose files set `pull_policy: always` (pi-image
+# docker-compose.yml:11, docker-compose.hub.yml:11). `docker compose up
+# --force-recreate` honours it, so the recreate RE-PULLS the tag from the
+# registry and overwrites the local retag. Reproduced minimally: retag
+# alpine:3.20 onto alpine:3.21, recreate, and the container comes back as
+# 3.21 — the retag silently reverted.
+#
+# /install and /rollback both already hold the exact image they want, so
+# compose must not refetch. /update is deliberately unchanged: it WANTS the
+# newest image.
+
+@test "POST /install recreates with --pull never so the retag survives" {
+    body='{"image":"fiestaboard/fiestaboard","tag":"9.0.0-beta.3"}'
+    req=$'POST /install HTTP/1.1\r\nHost: x\r\nAuthorization: Bearer test-token-abc\r\nContent-Length: '"${#body}"$'\r\n\r\n'"$body"
+    send "$req" >/dev/null
+    sleep 1
+    grep -E "up -d --no-deps --force-recreate" "${SANDBOX}/docker.calls" | grep -q -- "--pull never"
+}
+
+@test "POST /rollback recreates with --pull never so the retag survives" {
+    digest="sha256:$(printf 'a%.0s' $(seq 1 64))"
+    body="{\"digest\":\"${digest}\",\"image\":\"fiestaboard/fiestaboard:latest\"}"
+    req=$'POST /rollback HTTP/1.1\r\nHost: x\r\nAuthorization: Bearer test-token-abc\r\nContent-Length: '"${#body}"$'\r\n\r\n'"$body"
+    send "$req" >/dev/null
+    sleep 1
+    grep -E "up -d --no-deps --force-recreate" "${SANDBOX}/docker.calls" | grep -q -- "--pull never"
+}
+
+@test "POST /update still pulls — it wants the newest image, not a held one" {
+    req=$'POST /update HTTP/1.1\r\nHost: x\r\nAuthorization: Bearer test-token-abc\r\nContent-Length: 0\r\n\r\n'
+    send "$req" >/dev/null
+    sleep 1
+    grep -q "pull fiestaboard" "${SANDBOX}/docker.calls"
+    ! grep -E "up -d --no-deps fiestaboard" "${SANDBOX}/docker.calls" | grep -q -- "--pull never"
 }
