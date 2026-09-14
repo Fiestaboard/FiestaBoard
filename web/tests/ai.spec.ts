@@ -553,7 +553,11 @@ test.describe("AI", () => {
             ops: [
               {
                 op: "create_page",
-                args: { name: "Scripted Page", template_lines: ["SCRIPTED", "", "", "", "", ""], device_type: "flagship" },
+                args: {
+                  name: "Scripted Page",
+                  template_lines: ["SCRIPTED", "", "", "", "", ""],
+                  device_type: "flagship",
+                },
               },
             ],
           },
@@ -641,7 +645,13 @@ test.describe("AI", () => {
     test("a destructive tool pauses for approval and runs only on approve", async ({ request }) => {
       await configureMockProvider(request);
       const pageRes = await request.post(`${API_URL}/pages`, {
-        data: { name: "Doomed", type: "template", device_type: "flagship", template: ["X", "", "", "", "", ""], duration_seconds: 300 },
+        data: {
+          name: "Doomed",
+          type: "template",
+          device_type: "flagship",
+          template: ["X", "", "", "", "", ""],
+          duration_seconds: 300,
+        },
       });
       const pageId = (await pageRes.json()).id as string;
 
@@ -657,7 +667,11 @@ test.describe("AI", () => {
 
       const transcript = [
         ...ask,
-        { role: "assistant", content: "Deleting it.", tool_calls: [{ id: call.data.id, name: "delete_page", args: call.data.args }] },
+        {
+          role: "assistant",
+          content: "Deleting it.",
+          tool_calls: [{ id: call.data.id, name: "delete_page", args: call.data.args }],
+        },
       ];
       await setMockScript({ prose: "Gone." });
       const approved = await callChat(request, {
@@ -784,16 +798,28 @@ test.describe("AI", () => {
       expect(list.length).toBe(beforeCount + 1);
     });
 
-    test("a destructive tool waits for Approve in the panel, and Deny leaves the page alone", async ({ page, request }) => {
+    test("a destructive tool waits for Approve in the panel, and Deny leaves the page alone", async ({
+      page,
+      request,
+    }) => {
       await configureMockProvider(request);
       await stubBoard(request);
       const pageRes = await request.post(`${API_URL}/pages`, {
-        data: { name: "Keep Me", type: "template", device_type: "flagship", template: ["KEEP", "", "", "", "", ""], duration_seconds: 300 },
+        data: {
+          name: "Keep Me",
+          type: "template",
+          device_type: "flagship",
+          template: ["KEEP", "", "", "", "", ""],
+          duration_seconds: 300,
+        },
       });
       const pageId = (await pageRes.json()).id as string;
 
       await setMockScript({
-        steps: [{ prose: "Deleting it.", ops: [{ op: "delete_page", args: { page_id: pageId } }] }, { prose: "Okay, leaving it." }],
+        steps: [
+          { prose: "Deleting it.", ops: [{ op: "delete_page", args: { page_id: pageId } }] },
+          { prose: "Okay, leaving it." },
+        ],
       });
       await openDrawer(page);
       await sendMessage(page, "delete the keep me page");

@@ -132,7 +132,8 @@ export function useAiChat(opts: UseAiChatOptions): UseAiChatResult {
       // page tool's card can render a board preview locally.
       let runningSnapshot: CurrentPageSnapshot | undefined = ctx.currentPage;
 
-      const patch = (update: (m: ChatMessage) => ChatMessage) => setMessages((prev) => patchLastAssistant(prev, update));
+      const patch = (update: (m: ChatMessage) => ChatMessage) =>
+        setMessages((prev) => patchLastAssistant(prev, update));
 
       try {
         await streamChat(
@@ -237,7 +238,17 @@ export function useAiChat(opts: UseAiChatOptions): UseAiChatResult {
         });
       }
     },
-    [getTurnContext, onToolCall, onToolResult, onAwaitingApproval, onElicitation, onStatus, onStopped, providerId, model],
+    [
+      getTurnContext,
+      onToolCall,
+      onToolResult,
+      onAwaitingApproval,
+      onElicitation,
+      onStatus,
+      onStopped,
+      providerId,
+      model,
+    ],
   );
 
   const messagesRef = useRef(messages);
@@ -306,7 +317,10 @@ export function useAiChat(opts: UseAiChatOptions): UseAiChatResult {
       );
       setMessages(next);
       setPendingElicitation(null);
-      void runStream(next, { resume: { tool_call_id: toolCallId, decision: "answer", answer: given }, continueAssistant: true });
+      void runStream(next, {
+        resume: { tool_call_id: toolCallId, decision: "answer", answer: given },
+        continueAssistant: true,
+      });
     },
     [runStream],
   );
@@ -407,7 +421,13 @@ export function toWireMessages(history: ChatMessage[]): WireMessage[] {
     for (const c of calls) {
       if (c.name === "ask_user") {
         if (m.elicitation?.answer) {
-          wire.push({ role: "tool", tool_call_id: c.id, name: c.name, status: "answered", result: answerResult(m.elicitation.answer) });
+          wire.push({
+            role: "tool",
+            tool_call_id: c.id,
+            name: c.name,
+            status: "answered",
+            result: answerResult(m.elicitation.answer),
+          });
         }
         continue;
       }

@@ -49,9 +49,21 @@ const DELETE_PAGE: ToolCall = {
   requires_approval: true,
 };
 
-const OK: ToolResult = { id: "tc1", name: "create_page", status: "ok", summary: "Page created.", result: { page_id: "p9" }, error: null };
+const OK: ToolResult = {
+  id: "tc1",
+  name: "create_page",
+  status: "ok",
+  summary: "Page created.",
+  result: { page_id: "p9" },
+  error: null,
+};
 
-const DONE = { model_used: "m", provider_id: "p", usage: { prompt_tokens: 1, completion_tokens: 1, total_tokens: 2 }, steps: 1 };
+const DONE = {
+  model_used: "m",
+  provider_id: "p",
+  usage: { prompt_tokens: 1, completion_tokens: 1, total_tokens: 2 },
+  steps: 1,
+};
 
 function lastBody() {
   return capturedBodies[capturedBodies.length - 1] as { messages: unknown[]; resume?: unknown };
@@ -143,7 +155,12 @@ describe("useAiChat", () => {
       result.current.send("hi");
     });
     await act(async () => {
-      capturedHandlers?.onStatus?.({ phase: "tool_running", message: "Running create_page…", tool_call_id: "tc1", step: 1 });
+      capturedHandlers?.onStatus?.({
+        phase: "tool_running",
+        message: "Running create_page…",
+        tool_call_id: "tc1",
+        step: 1,
+      });
     });
     expect(result.current.messages[1].statusMessage).toBe("Running create_page…");
     await act(async () => {
@@ -190,7 +207,11 @@ describe("useAiChat", () => {
     // The replayed transcript carries the pending call; the server answers it.
     expect(lastBody().messages).toEqual([
       { role: "user", content: "delete it" },
-      { role: "assistant", content: "Deleting.", tool_calls: [{ id: "tc2", name: "delete_page", args: { page_id: "p1" } }] },
+      {
+        role: "assistant",
+        content: "Deleting.",
+        tool_calls: [{ id: "tc2", name: "delete_page", args: { page_id: "p1" } }],
+      },
     ]);
     await act(async () => {
       capturedHandlers?.onToolResult?.({ ...OK, id: "tc2", name: "delete_page", summary: "Deleted." });
@@ -246,14 +267,23 @@ describe("useAiChat", () => {
       id: "q1",
       name: "ask_user",
       message: "Which board?",
-      requested_schema: { type: "object" as const, properties: { answer: { type: "string" as const, enum: ["Kitchen", "Hall"] } } },
+      requested_schema: {
+        type: "object" as const,
+        properties: { answer: { type: "string" as const, enum: ["Kitchen", "Hall"] } },
+      },
       allow_free_text: true,
     };
     act(() => {
       result.current.send("put the weather up");
     });
     await act(async () => {
-      capturedHandlers?.onToolCall?.({ ...CREATE_PAGE, id: "q1", name: "ask_user", read_only: true, args: { question: "Which board?" } });
+      capturedHandlers?.onToolCall?.({
+        ...CREATE_PAGE,
+        id: "q1",
+        name: "ask_user",
+        read_only: true,
+        args: { question: "Which board?" },
+      });
       capturedHandlers?.onElicitation?.(elicitation);
       capturedHandlers?.onDone?.({ ...DONE, reason: "awaiting_input", pending_tool_call_id: "q1" });
       resolveStream?.();
@@ -270,7 +300,10 @@ describe("useAiChat", () => {
       decision: "answer",
       answer: { action: "accept", content: { answer: "Kitchen" } },
     });
-    expect(result.current.messages[1].elicitation?.answer).toEqual({ action: "accept", content: { answer: "Kitchen" } });
+    expect(result.current.messages[1].elicitation?.answer).toEqual({
+      action: "accept",
+      content: { answer: "Kitchen" },
+    });
     // The answer is not a user bubble; it rides on the resume.
     expect(result.current.messages.filter((m) => m.role === "user")).toHaveLength(1);
   });
@@ -396,9 +429,19 @@ describe("toWireMessages", () => {
 
   it("renders an error outcome as an error payload", () => {
     const history: ChatMessage[] = [
-      { role: "assistant", content: "", toolCalls: [{ ...CREATE_PAGE, phase: "error", result: { ...OK, status: "error", error: "taken" } }] },
+      {
+        role: "assistant",
+        content: "",
+        toolCalls: [{ ...CREATE_PAGE, phase: "error", result: { ...OK, status: "error", error: "taken" } }],
+      },
     ];
-    expect(toWireMessages(history)[1]).toEqual({ role: "tool", tool_call_id: "tc1", name: "create_page", status: "error", result: { error: "taken" } });
+    expect(toWireMessages(history)[1]).toEqual({
+      role: "tool",
+      tool_call_id: "tc1",
+      name: "create_page",
+      status: "error",
+      result: { error: "taken" },
+    });
   });
 });
 
@@ -410,7 +453,14 @@ describe("computeAppliedSnapshot", () => {
   });
 
   it("merges an update_page over the base page", () => {
-    const base = { name: "Old", template: ["A", "B"], line_metadata: [{ alignment: "center" as const, wrap: true }, { alignment: "left" as const, wrap: false }] };
+    const base = {
+      name: "Old",
+      template: ["A", "B"],
+      line_metadata: [
+        { alignment: "center" as const, wrap: true },
+        { alignment: "left" as const, wrap: false },
+      ],
+    };
     const snap = computeAppliedSnapshot({ name: "update_page", args: { page_id: "p", name: "New" } }, base);
     expect(snap).toEqual({ name: "New", template: ["A", "B"], line_metadata: base.line_metadata });
   });

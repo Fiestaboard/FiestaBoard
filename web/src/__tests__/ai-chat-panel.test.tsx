@@ -298,9 +298,7 @@ describe("AiChatPanel", () => {
 
   it("renders a tool call as a card that settles with its result", async () => {
     server.use(
-      http.get(`${API_BASE}/settings/ai`, () =>
-        HttpResponse.json({ ...CONFIGURED, providers: [CONFIGURED_PROVIDER] }),
-      ),
+      http.get(`${API_BASE}/settings/ai`, () => HttpResponse.json({ ...CONFIGURED, providers: [CONFIGURED_PROVIDER] })),
     );
     hookResult = {
       ...defaultHookResult,
@@ -313,7 +311,14 @@ describe("AiChatPanel", () => {
             {
               ...CREATE_PAGE_CALL,
               phase: "ok",
-              result: { id: "tc1", name: "create_page", status: "ok", summary: "Page created.", result: { page_id: "p9" }, error: null },
+              result: {
+                id: "tc1",
+                name: "create_page",
+                status: "ok",
+                summary: "Page created.",
+                result: { page_id: "p9" },
+                error: null,
+              },
             },
           ],
         },
@@ -328,9 +333,7 @@ describe("AiChatPanel", () => {
 
   it("shows the step timeline while the turn is running", async () => {
     server.use(
-      http.get(`${API_BASE}/settings/ai`, () =>
-        HttpResponse.json({ ...CONFIGURED, providers: [CONFIGURED_PROVIDER] }),
-      ),
+      http.get(`${API_BASE}/settings/ai`, () => HttpResponse.json({ ...CONFIGURED, providers: [CONFIGURED_PROVIDER] })),
     );
     hookResult = {
       ...defaultHookResult,
@@ -356,11 +359,16 @@ describe("AiChatPanel", () => {
 
   it("shows Approve / Deny for the pending destructive call and forwards the decision", async () => {
     server.use(
-      http.get(`${API_BASE}/settings/ai`, () =>
-        HttpResponse.json({ ...CONFIGURED, providers: [CONFIGURED_PROVIDER] }),
-      ),
+      http.get(`${API_BASE}/settings/ai`, () => HttpResponse.json({ ...CONFIGURED, providers: [CONFIGURED_PROVIDER] })),
     );
-    const pending = { ...CREATE_PAGE_CALL, id: "tc2", name: "delete_page", args: { page_id: "p1" }, destructive: true, requires_approval: true };
+    const pending = {
+      ...CREATE_PAGE_CALL,
+      id: "tc2",
+      name: "delete_page",
+      args: { page_id: "p1" },
+      destructive: true,
+      requires_approval: true,
+    };
     hookResult = {
       ...defaultHookResult,
       status: "awaiting_approval",
@@ -379,15 +387,16 @@ describe("AiChatPanel", () => {
 
   it("renders a question with chips and answers through the hook", async () => {
     server.use(
-      http.get(`${API_BASE}/settings/ai`, () =>
-        HttpResponse.json({ ...CONFIGURED, providers: [CONFIGURED_PROVIDER] }),
-      ),
+      http.get(`${API_BASE}/settings/ai`, () => HttpResponse.json({ ...CONFIGURED, providers: [CONFIGURED_PROVIDER] })),
     );
     const elicitation = {
       id: "q1",
       name: "ask_user",
       message: "Which board?",
-      requested_schema: { type: "object" as const, properties: { answer: { type: "string" as const, enum: ["Kitchen", "Hall"] } } },
+      requested_schema: {
+        type: "object" as const,
+        properties: { answer: { type: "string" as const, enum: ["Kitchen", "Hall"] } },
+      },
       allow_free_text: true,
     };
     hookResult = {
@@ -409,9 +418,7 @@ describe("AiChatPanel", () => {
 
   it("empty-state suggestions and placeholders resolve through i18n", async () => {
     server.use(
-      http.get(`${API_BASE}/settings/ai`, () =>
-        HttpResponse.json({ ...CONFIGURED, providers: [CONFIGURED_PROVIDER] }),
-      ),
+      http.get(`${API_BASE}/settings/ai`, () => HttpResponse.json({ ...CONFIGURED, providers: [CONFIGURED_PROVIDER] })),
     );
     const user = userEvent.setup();
     render(<AiChatPanel {...defaultProps} />, { wrapper: Wrapper });

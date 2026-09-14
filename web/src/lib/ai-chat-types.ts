@@ -65,8 +65,7 @@ export interface ApplyPatchArgs {
 
 /** An edit the page editor applies to its own draft. */
 export type EditorToolCall =
-  | { id: string; op: "replace_page"; args: ReplacePageArgs }
-  | { id: string; op: "apply_patch"; args: ApplyPatchArgs };
+  { id: string; op: "replace_page"; args: ReplacePageArgs } | { id: string; op: "apply_patch"; args: ApplyPatchArgs };
 
 // ---------------------------------------------------------------------------
 // Tools — the MCP tool names, plus the two chat-only extensions.
@@ -184,13 +183,7 @@ export type DoneReason = "complete" | "awaiting_approval" | "awaiting_input" | "
 // helpers, not a union — an unknown tool's args are still a plain object.
 export type DayPattern = "all" | "weekdays" | "weekends" | "custom";
 export type SettingCategory =
-  | "display"
-  | "transitions"
-  | "output"
-  | "polling"
-  | "location"
-  | "silence_schedule"
-  | "active_page";
+  "display" | "transitions" | "output" | "polling" | "location" | "silence_schedule" | "active_page";
 
 export interface CreatePageArgs {
   name: string;
@@ -286,7 +279,11 @@ export type WireToolStatus = "ok" | "blocked" | "error" | "denied" | "interrupte
 /** One transcript entry as the server wants it replayed. */
 export type WireMessage =
   | { role: "user"; content: string }
-  | { role: "assistant"; content: string; tool_calls?: Array<{ id: string; name: string; args: Record<string, unknown> }> }
+  | {
+      role: "assistant";
+      content: string;
+      tool_calls?: Array<{ id: string; name: string; args: Record<string, unknown> }>;
+    }
   | { role: "tool"; tool_call_id: string; name: string; status: WireToolStatus; result: unknown };
 
 export interface CurrentPageSnapshot {

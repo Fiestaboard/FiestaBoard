@@ -128,18 +128,29 @@ export function AiChatPanel({
   const noModels = !!selectedProvider && !effectiveModel;
   const blocked = aiDisabled || noProviders || noModels;
 
-  const { messages, status, pendingApproval, pendingElicitation, error, send, approve, answer, stop, retryLast, reset } =
-    useAiChat({
-      getTurnContext,
-      onToolCall,
-      onToolResult,
-      onAwaitingApproval,
-      onElicitation,
-      onStatus,
-      onStopped,
-      providerId: effectiveProviderId || undefined,
-      model: effectiveModel || undefined,
-    });
+  const {
+    messages,
+    status,
+    pendingApproval,
+    pendingElicitation,
+    error,
+    send,
+    approve,
+    answer,
+    stop,
+    retryLast,
+    reset,
+  } = useAiChat({
+    getTurnContext,
+    onToolCall,
+    onToolResult,
+    onAwaitingApproval,
+    onElicitation,
+    onStatus,
+    onStopped,
+    providerId: effectiveProviderId || undefined,
+    model: effectiveModel || undefined,
+  });
 
   // Slot-ref pattern: keep the parent's ref pointed at the latest controller.
   useEffect(() => {
@@ -257,7 +268,11 @@ export function AiChatPanel({
           <Label htmlFor="ai-chat-input" className="sr-only">
             {t("messageLabel")}
           </Label>
-          <PromptInput status={composerStatus} labels={{ send: t("sendButton"), stop: t("stopButton") }} onSubmit={handleSubmit}>
+          <PromptInput
+            status={composerStatus}
+            labels={{ send: t("sendButton"), stop: t("stopButton") }}
+            onSubmit={handleSubmit}
+          >
             <PromptInputTextarea
               id="ai-chat-input"
               value={draft}
@@ -325,7 +340,15 @@ function GradientSparkles({ className }: { className?: string }) {
   );
 }
 
-function EmptyState({ blocked, aiDisabled, onPick }: { blocked: boolean; aiDisabled: boolean; onPick: (text: string) => void }) {
+function EmptyState({
+  blocked,
+  aiDisabled,
+  onPick,
+}: {
+  blocked: boolean;
+  aiDisabled: boolean;
+  onPick: (text: string) => void;
+}) {
   const t = useTranslations("aiChatPanel");
   if (blocked) {
     return (

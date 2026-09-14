@@ -75,7 +75,14 @@ describe("streamChat", () => {
   });
 
   it("fires onToolResult for 'tool_result' events", async () => {
-    const payload = { id: "tc1", name: "create_page", status: "ok", summary: "Page created.", result: { page_id: "p9" }, error: null };
+    const payload = {
+      id: "tc1",
+      name: "create_page",
+      status: "ok",
+      summary: "Page created.",
+      result: { page_id: "p9" },
+      error: null,
+    };
     mockFES.mockImplementation(async (_url: string, opts: any) => {
       opts.onmessage?.({ event: "tool_result", data: JSON.stringify(payload), id: "", retry: undefined });
     });
@@ -89,7 +96,11 @@ describe("streamChat", () => {
       id: "q1",
       name: "ask_user",
       message: "Which board?",
-      requested_schema: { type: "object", properties: { answer: { type: "string", enum: ["A", "B"] } }, required: ["answer"] },
+      requested_schema: {
+        type: "object",
+        properties: { answer: { type: "string", enum: ["A", "B"] } },
+        required: ["answer"],
+      },
       allow_free_text: true,
     };
     mockFES.mockImplementation(async (_url: string, opts: any) => {
@@ -104,10 +115,7 @@ describe("streamChat", () => {
     mockFES.mockResolvedValue(undefined);
     const body = { ...BASE_BODY, resume: { tool_call_id: "tc1", decision: "approve" as const } };
     await streamChat(body, {});
-    expect(mockFES).toHaveBeenCalledWith(
-      "/api/pages/ai/chat",
-      expect.objectContaining({ body: JSON.stringify(body) }),
-    );
+    expect(mockFES).toHaveBeenCalledWith("/api/pages/ai/chat", expect.objectContaining({ body: JSON.stringify(body) }));
   });
 
   it("fires onWarning handler for 'warning' events", async () => {
