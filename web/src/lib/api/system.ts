@@ -159,10 +159,10 @@ export interface UpdateStatusResponse {
    */
   updater_capabilities: string[];
   /**
-   * True when the sidecar is reachable but too old to make a retag stick.
-   * A channel switch still succeeds, but takes several restarts and passes
-   * through a stable build on the way. Remedy: reboot (Pi) or
-   * `docker compose pull fiestaupdater` (Docker). See #1977.
+   * True when the sidecar is reachable but predates #1977, which stopped
+   * `pull_policy: always` from undoing a retag on recreate. Channel switches
+   * and rollbacks may not stick. Remedy: reboot (Pi) or
+   * `docker compose pull fiestaupdater` (Docker).
    */
   updater_stale: boolean;
   last_check: string | null;
