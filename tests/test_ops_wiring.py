@@ -152,7 +152,10 @@ def _query_key_prefixes_in_use() -> set[str]:
                 continue
             used.update(re.findall(r'queryKey:\s*\[\s*"([^"]+)"', path.read_text(encoding="utf-8")))
     helpers = (REPO_ROOT / "web/src/hooks/use-board.ts").read_text(encoding="utf-8")
-    start, end = helpers.index("export const queryKeys = {"), helpers.index("};", helpers.index("export const queryKeys = {"))
+    start, end = (
+        helpers.index("export const queryKeys = {"),
+        helpers.index("};", helpers.index("export const queryKeys = {")),
+    )
     used.update(re.findall(r'\[\s*"([^"]+)"', helpers[start:end]))
     return used
 
