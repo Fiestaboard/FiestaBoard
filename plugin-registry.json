@@ -6,6 +6,17 @@
   "version": "1.0.0",
   "plugins": [
     {
+      "id": "mlb",
+      "name": "Major League Baseball (MLB)",
+      "description": "Track MLB Game Scores",
+      "repository": "https://github.com/cordell25/fiestaboard-plugin--mlb",
+      "author": "Andrew Cordell",
+      "fiestaboard_version": ">=8.0.0",
+      "icon": "trophy",
+      "category": "data",
+      "added": "2026-09-14"
+    },
+    {
       "id": "airport_board",
       "name": "Airport Board",
       "description": "Display live flight information near a configurable airport.",
