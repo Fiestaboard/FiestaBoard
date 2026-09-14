@@ -634,10 +634,17 @@ def _updater_version() -> dict[str, Any]:
 # chosen channel once reassert_release_channel notices and tries again.
 CAPABILITY_PULL_NEVER = "pull-never"
 
+# State what is verifiable — that this sidecar predates the fix — and stop
+# there. An earlier draft promised the symptom ("will take several restarts
+# and pass through a stable build"), which a measured beta.9 -> beta.11
+# upgrade on a box reporting exactly this staleness did not exhibit: it
+# landed in one restart. Whether a given retag survives depends on timing and
+# on what the registry serves, so naming a symptom the user may never see
+# teaches them to ignore the warning.
 _STALE_SIDECAR_REMEDY = (
-    "Your fiestaupdater sidecar is out of date, so a channel switch will take "
-    "several restarts and pass through a stable build on the way. On a FiestaPi, "
-    "reboot to pick up the current sidecar; with Docker, run "
+    "Your fiestaupdater sidecar predates the fix for retags being undone on "
+    "recreate (#1977), so channel switches and rollbacks may not stick. On a "
+    "FiestaPi, reboot to pick up the current sidecar; with Docker, run "
     "'docker compose pull fiestaupdater && docker compose up -d'."
 )
 
