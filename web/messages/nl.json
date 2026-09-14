@@ -1317,75 +1317,6 @@
       "failure": "Kon aanmelden niet inschakelen"
     }
   },
-  "aiActionConfirmation": {
-    "deny": "Weigeren",
-    "allow": "Toestaan",
-    "working": "Bezig…",
-    "done": "Klaar",
-    "denied": "Geweigerd",
-    "noChanges": "geen wijzigingen",
-    "noValues": "geen waarden",
-    "noChangesSpecified": "Geen wijzigingen opgegeven.",
-    "openEnd": "open",
-    "label": {
-      "installPlugin": "Plug-in installeren: {id}",
-      "updatePluginConfig": "Plug-in configureren: {id}",
-      "updatePlugin": "Plug-in bijwerken: {id}",
-      "enablePlugin": "Plug-in inschakelen: {id}",
-      "disablePlugin": "Plug-in uitschakelen: {id}",
-      "uninstallPlugin": "Plug-in verwijderen: {id}",
-      "updateSetting": "Instelling wijzigen: {category}",
-      "createCollection": "Collectie maken: \"{name}\"",
-      "updateCollection": "Collectie bijwerken",
-      "createSchedule": "Planning maken",
-      "updateSchedule": "Planning bijwerken",
-      "deleteSchedule": "Planning verwijderen",
-      "triggerSystemUpdate": "Systeemupdate"
-    },
-    "description": {
-      "installPlugin": "Installeert \"{id}\" uit het officiële register.",
-      "installPluginEnable": "Installeert \"{id}\" uit het officiële register en schakelt het in.",
-      "updatePluginConfig": "Werkt de configuratie van \"{id}\" bij: {keys}.",
-      "updatePlugin": "Downloadt en installeert de nieuwste registerversie van \"{id}\".",
-      "enablePlugin": "Schakelt \"{id}\" in zodat het gegevens aan je borden kan leveren.",
-      "disablePlugin": "Schakelt \"{id}\" uit zonder het te verwijderen. Het kan later opnieuw worden ingeschakeld.",
-      "uninstallPlugin": "Verwijdert \"{id}\" definitief. Dit kan niet ongedaan worden gemaakt.",
-      "updateSetting": "Stelt {values} in bij de instellingen voor {category}.",
-      "createCollection": "Maakt een collectie met {count, plural, one {# pagina} other {# pagina's}}, die elke {interval}s wisselt.",
-      "createSchedule": "Toont pagina \"{page}\" vanaf {time} op {days}-dagen.",
-      "deleteSchedule": "Verwijdert planning \"{id}\" definitief. Dit kan niet ongedaan worden gemaakt.",
-      "triggerSystemUpdate": "Downloadt en installeert de nieuwste FiestaBoard-update. Het systeem start kort opnieuw op."
-    },
-    "change": {
-      "rename": "hernoemen naar \"{name}\"",
-      "setPages": "{count, plural, one {# pagina} other {# pagina's}} instellen",
-      "interval": "interval → {interval}s",
-      "page": "pagina → {page}",
-      "start": "begin → {start}",
-      "end": "einde → {end}",
-      "days": "dagen → {days}",
-      "enable": "inschakelen",
-      "disable": "uitschakelen"
-    }
-  },
-  "chainingModePicker": {
-    "menuTitle": "AI-koppelingsmodus",
-    "triggerAriaLabel": "AI-koppelingsmodus: {mode}",
-    "modes": {
-      "manual": {
-        "label": "Handmatig",
-        "description": "Ik vraag het na elke actie opnieuw"
-      },
-      "autoContinue": {
-        "label": "Automatisch doorgaan",
-        "description": "Koppel acties, bevestig elke stap"
-      },
-      "autonomous": {
-        "label": "Autonoom",
-        "description": "Voer tot het einde uit, sla bevestigingen over"
-      }
-    }
-  },
   "bootGate": {
     "waiting": "Wachten op opstarten…",
     "errorHeading": "Kan geen verbinding maken met FiestaBoard",
@@ -1397,7 +1328,31 @@
     "updateErrorDescription": "De update is klaar, maar de app start nog op. Wacht even en vernieuw daarna de pagina."
   },
   "globalAiChatDrawer": {
-    "panelAriaLabel": "FiestaBot AI-chat"
+    "panelAriaLabel": "FiestaBot AI-chat",
+    "toast": {
+      "undo": "Ongedaan maken",
+      "pageCreated": "Pagina gemaakt.",
+      "pageUpdated": "Pagina bijgewerkt.",
+      "pageDeleted": "Pagina verwijderd.",
+      "scheduleCreated": "Schema gemaakt.",
+      "scheduleUpdated": "Schema bijgewerkt.",
+      "scheduleDeleted": "Schema verwijderd.",
+      "pluginInstalled": "Plugin \"{id}\" geïnstalleerd.",
+      "pluginConfigured": "Plugin \"{id}\" ingesteld.",
+      "pluginUpdated": "Plugin \"{id}\" bijgewerkt.",
+      "pluginEnabled": "Plugin \"{id}\" ingeschakeld.",
+      "pluginDisabled": "Plugin \"{id}\" uitgeschakeld.",
+      "pluginUninstalled": "Plugin \"{id}\" verwijderd.",
+      "settingUpdated": "Instelling bijgewerkt.",
+      "collectionCreated": "Collectie \"{name}\" gemaakt.",
+      "collectionUpdated": "Collectie bijgewerkt.",
+      "collectionDeleted": "Collectie verwijderd.",
+      "activePageSet": "Bord bijgewerkt.",
+      "messageSent": "Bericht naar het bord gestuurd.",
+      "systemUpdate": "Systeemupdate gestart. Het bord herstart zo.",
+      "toolFailed": "{tool} mislukt: {error}",
+      "stopped": "Gestopt. Wat al bezig is, wordt nog afgemaakt."
+    }
   },
   "plainTextEditor": {
     "placeholder": "Typ je sjabloontekst...",
@@ -2042,27 +1997,87 @@
   },
   "aiChatPanel": {
     "messagesAriaLabel": "Chatberichten",
-    "taskStatusAriaLabel": "Taakvoortgang",
-    "taskProgressAriaLabel": "Voortgang AI-taken",
     "clearConversationAriaLabel": "Gesprek wissen",
     "closePanelAriaLabel": "FiestaBot (Beta) sluiten",
     "providerSelectAriaLabel": "Provider",
     "modelSelectAriaLabel": "Model",
-    "showBoardTooltip": "Board-voorbeeld tonen",
-    "hideBoardTooltip": "Board-voorbeeld verbergen",
-    "undoTooltip": "Laatste AI-wijziging ongedaan maken",
     "panelTitle": "FiestaBot (Beta)",
     "retryButton": "Opnieuw proberen",
     "messageLabel": "Bericht",
     "stopButton": "Stoppen",
     "sendButton": "Verzenden",
-    "tasksHeading": "Taken ({done}/{total})",
     "emptyStateTitle": "Waarmee kan ik helpen?",
     "emptyStateDescription": "Beschrijf wat je wilt bouwen of wijzigen.",
-    "showBoardButton": "Board tonen",
-    "undoButton": "Ongedaan maken",
-    "renameSummary": "→ hernoemen naar \"{name}\"",
-    "previewUnavailable": "(voorbeeld niet beschikbaar)"
+    "placeholderEmpty": "Beschrijf de gewenste pagina of vraag om wijzigingen…",
+    "placeholderRefine": "Verfijn, vraag of vraag om nog een wijziging…",
+    "placeholderAnswer": "Typ je antwoord…",
+    "blockedAiDisabled": "AI is uitgeschakeld. Schakel het in via Instellingen → AI-providers.",
+    "blockedNoProviders": "Stel een AI-provider met minstens één model in via Instellingen → AI-providers.",
+    "suggestions": {
+      "weather": "Maak een weer- en ov-pagina voor mijn ochtendrit",
+      "date": "Vervang regel 2 door de datum van vandaag",
+      "variables": "Welke pluginvariabelen kan ik op deze pagina gebruiken?"
+    },
+    "jumpToLatest": "Naar het nieuwste",
+    "defaultModel": "Standaard",
+    "stepsAriaLabel": "Stappen in uitvoering",
+    "stepsHeading": "{done} van {total} stappen",
+    "toolInput": "Argumenten",
+    "toolOutput": "Resultaat",
+    "toolStates": {
+      "inputStreaming": "Voorbereiden",
+      "inputAvailable": "Bezig",
+      "outputAvailable": "Klaar",
+      "outputError": "Mislukt",
+      "approvalRequested": "Wacht op je goedkeuring",
+      "denied": "Niet uitgevoerd",
+      "stopped": "Gestopt"
+    },
+    "question": {
+      "skip": "Overslaan",
+      "typeAnswer": "Of typ hieronder een antwoord.",
+      "answered": "Je antwoordde: {answer}",
+      "declined": "(overgeslagen)",
+      "cancelled": "(geannuleerd)"
+    },
+    "tool": {
+      "createPage": "Pagina maken",
+      "updatePage": "Pagina bijwerken",
+      "deletePage": "Pagina verwijderen",
+      "createSchedule": "Schema toevoegen",
+      "updateSchedule": "Schema bijwerken",
+      "deleteSchedule": "Schema verwijderen",
+      "createCollection": "Collectie maken",
+      "updateCollection": "Collectie bijwerken",
+      "deleteCollection": "Collectie verwijderen",
+      "installPlugin": "Plugin installeren",
+      "enablePlugin": "Plugin inschakelen",
+      "disablePlugin": "Plugin uitschakelen",
+      "uninstallPlugin": "Plugin verwijderen",
+      "configurePlugin": "Plugin instellen",
+      "updatePlugin": "Plugin bijwerken",
+      "setActivePage": "Pagina op bord tonen",
+      "setScheduleMode": "Schemamodus instellen",
+      "sendMessage": "Bericht naar bord sturen",
+      "updateSetting": "Instelling wijzigen",
+      "triggerSystemUpdate": "Systeemupdate",
+      "askUser": "Vraag",
+      "listPages": "Pagina's opzoeken",
+      "getPage": "Pagina lezen",
+      "listSchedules": "Schema's opzoeken",
+      "listCollections": "Collecties opzoeken",
+      "listInstalledPlugins": "Geïnstalleerde plugins opzoeken",
+      "listRegistryPlugins": "Pluginregister doorzoeken",
+      "getTemplateVariables": "Sjabloonvariabelen opzoeken",
+      "getPluginData": "Plugingegevens lezen",
+      "renderPagePreview": "Sjabloon voorvertonen",
+      "previewSavedPage": "Pagina voorvertonen",
+      "validateTemplate": "Sjabloon controleren",
+      "getSystemStatus": "Systeemstatus controleren",
+      "getSettingsSummary": "Instellingen lezen",
+      "getActivePage": "Actieve pagina controleren",
+      "getBoardContent": "Bord lezen"
+    }
   },
   "boardSizeIndicator": {
     "custom": "Aangepast",
@@ -2183,5 +2198,19 @@
     "leaveConfirmTitle": "Bètakanaal verlaten?",
     "leaveConfirmBody": "Hiermee gaat u terug naar de huidige stabiele versie, die ouder is dan de bèta die u gebruikt. Uw instellingen en pagina's worden teruggezet naar de back-up die bij deelname is gemaakt — alles wat u tijdens de bèta hebt gewijzigd, gaat verloren. FiestaBoard start opnieuw op met de stabiele versie. Wilt u uw wijzigingen behouden, wacht dan: zodra de volgende stabiele versie uw bèta voorbijstreeft, brengt 'Nu bijwerken' u erheen zonder verlies.",
     "leaveConfirmCta": "Bèta verlaten"
+  },
+  "aiApprovalCard": {
+    "heading": "Heeft je goedkeuring nodig",
+    "approve": "Goedkeuren",
+    "deny": "Weigeren",
+    "working": "Bezig…",
+    "description": {
+      "deletePage": "Verwijdert pagina \"{detail}\" definitief. Schema's en collecties die hem gebruiken, verliezen hem.",
+      "deleteSchedule": "Verwijdert schema \"{detail}\" definitief. Dit kan niet ongedaan worden gemaakt.",
+      "deleteCollection": "Verwijdert collectie \"{detail}\" definitief. Dit kan niet ongedaan worden gemaakt.",
+      "uninstallPlugin": "Verwijdert plugin \"{detail}\" en de configuratie definitief.",
+      "triggerSystemUpdate": "Downloadt en installeert de nieuwste FiestaBoard-update. Het systeem herstart kort.",
+      "generic": "Deze actie kan niet door een andere tool ongedaan worden gemaakt."
+    }
   }
 }

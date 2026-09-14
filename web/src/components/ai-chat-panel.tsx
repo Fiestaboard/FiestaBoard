@@ -3,112 +3,105 @@
 import {
   Alert,
   AlertDescription,
-  Badge,
   Box,
   Button,
   Card,
   Code,
-  Collapsible,
-  CollapsibleContent,
-  CollapsibleTrigger,
+  Conversation,
+  ConversationContent,
+  ConversationScrollButton,
   Flex,
   Label,
-  List,
-  ListItem,
-  ScrollArea,
+  Message,
+  MessageAvatar,
+  MessageContent,
+  PromptInput,
+  PromptInputSubmit,
+  PromptInputTextarea,
+  PromptInputToolbar,
+  PromptInputTools,
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
   Stack,
+  Suggestion,
+  Suggestions,
   Text,
-  Textarea,
+  Tool,
+  ToolContent,
+  ToolHeader,
+  ToolInput,
+  ToolOutput,
+  type ToolState,
 } from "@fiestaboard/ui";
 import { Spinner } from "@fiestaboard/ui/components/feedback/spinner";
 import { useQuery } from "@tanstack/react-query";
-import {
-  AlertCircle,
-  CheckCircle2,
-  ChevronRight,
-  Circle,
-  Eye,
-  EyeOff,
-  RotateCcw,
-  Send,
-  Sparkles,
-  Square,
-  Trash2,
-  Undo2,
-  X,
-  XCircle,
-} from "lucide-react";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { AlertCircle, RotateCcw, Sparkles, Trash2, X } from "lucide-react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 
-import { ChainingModePicker } from "@/components/chaining-mode-picker";
+import { AiApprovalCard } from "@/components/ai-approval-card";
+import { AiQuestionCard } from "@/components/ai-question-card";
+import { AiStepTimeline } from "@/components/ai-step-timeline";
+import { detailForTool, labelForTool } from "@/components/ai-tool-labels";
 import { ChatMarkdown } from "@/components/chat-markdown";
 import { InlineBoardPreview } from "@/components/inline-board-preview";
-import { useDepsChanged } from "@/hooks/use-deps-changed";
 import { useTranslations } from "@/i18n/translations";
 import type {
-  ChainingMode,
+  ApprovalDecision,
   ChatMessage,
   ChatTurnContext,
-  LineOp,
-  TaskItem,
-  TaskStatus,
+  Elicitation,
+  ElicitationAnswer,
+  SSEStatusData,
   ToolCall,
   ToolCallDisplay,
+  ToolPhase,
+  ToolResult,
 } from "@/lib/ai-chat-types";
 import { type AISettings, api } from "@/lib/api";
 import { useAiChat } from "@/lib/use-ai-chat";
-import { cn } from "@/lib/utils";
+
+/** What the drawer can drive from outside the panel (spotlight controls, later). */
+export interface AiChatController {
+  approve: (toolCallId: string, decision: ApprovalDecision) => void;
+  answer: (toolCallId: string, answer: ElicitationAnswer) => void;
+  stop: () => void;
+}
 
 export interface AiChatPanelProps {
-  /** Per-turn editor context (device type + current page snapshot). */
+  /** Per-turn context (device type, current page snapshot, what exists). */
   getTurnContext: () => ChatTurnContext;
-  /** Editor mutation hook — invoked when a validated tool call arrives. */
-  onToolCall: (call: ToolCall) => void;
-  /** Show an Undo button next to a successfully applied mutation. */
-  canUndo?: boolean;
-  onUndo?: () => void;
+  /** The server is about to run (or is waiting on the user for) this call. */
+  onToolCall?: (call: ToolCall) => void;
+  /** The call finished. The drawer invalidates caches and toasts here. */
+  onToolResult?: (result: ToolResult, call: ToolCall) => void;
+  onAwaitingApproval?: (call: ToolCall) => void;
+  onElicitation?: (elicitation: Elicitation) => void;
+  onStatus?: (status: SSEStatusData) => void;
+  /** The user stopped the turn with these calls still running server-side. */
+  onStopped?: (unresolved: ToolCall[]) => void;
   /** Close button hides the panel without losing the existing layout. */
   onClose: () => void;
   /**
-   * Optional renderer for supplemental content below a tool call card.
-   * Used by the global AI drawer to render confirmation cards for
-   * install_plugin, update_setting, etc.
+   * Slot ref: the panel writes its controller here so a sibling (the
+   * drawer's spotlight strip) can approve, answer or stop without
+   * prop-drilling through the conversation.
    */
-  renderToolCallSupplement?: (call: ToolCall) => React.ReactNode;
-  /**
-   * Slot ref: parent writes into this ref so sibling components can
-   * call `resume(toolResultText)` after tool execution completes.
-   * The slot is populated from the `resume` function returned by
-   * `useAiChat`, so it always points at the latest closure.
-   */
-  resumeFnRef?: React.MutableRefObject<((text: string) => void) | null>;
-  /** Current AI chaining mode (controlled by parent). */
-  chainingMode?: ChainingMode;
-  /** Called when the user changes the chaining mode via the in-panel picker. */
-  onChainingModeChange?: (mode: ChainingMode) => void;
-  /** Running task list emitted by the AI for multi-step sequences. */
-  taskList?: TaskItem[];
-  /** Called when the user clears the conversation so the parent can reset task state. */
-  onConversationReset?: () => void;
+  controllerRef?: React.MutableRefObject<AiChatController | null>;
 }
 
 export function AiChatPanel({
   getTurnContext,
   onToolCall,
-  canUndo = false,
-  onUndo = () => {},
+  onToolResult,
+  onAwaitingApproval,
+  onElicitation,
+  onStatus,
+  onStopped,
   onClose,
-  renderToolCallSupplement,
-  resumeFnRef,
-  chainingMode = "manual",
-  onChainingModeChange,
-  taskList,
-  onConversationReset,
+  controllerRef,
 }: AiChatPanelProps) {
   const t = useTranslations("aiChatPanel");
   const [providerId, setProviderId] = useState<string>("");
@@ -135,64 +128,49 @@ export function AiChatPanel({
   const noModels = !!selectedProvider && !effectiveModel;
   const blocked = aiDisabled || noProviders || noModels;
 
-  const { messages, status, error, send, resume, cancel, retryLast, reset } = useAiChat({
-    getTurnContext,
-    onToolCall,
-    providerId: effectiveProviderId || undefined,
-    model: effectiveModel || undefined,
-  });
+  const { messages, status, pendingApproval, pendingElicitation, error, send, approve, answer, stop, retryLast, reset } =
+    useAiChat({
+      getTurnContext,
+      onToolCall,
+      onToolResult,
+      onAwaitingApproval,
+      onElicitation,
+      onStatus,
+      onStopped,
+      providerId: effectiveProviderId || undefined,
+      model: effectiveModel || undefined,
+    });
 
-  // Slot-ref pattern: keep the parent's ref pointed at the latest resume fn.
+  // Slot-ref pattern: keep the parent's ref pointed at the latest controller.
   useEffect(() => {
-    if (resumeFnRef) resumeFnRef.current = resume;
-  }, [resumeFnRef, resume]);
+    if (controllerRef) controllerRef.current = { approve, answer, stop };
+  }, [controllerRef, approve, answer, stop]);
 
-  // Wrap reset to also notify parent (so it can clear the task list etc.)
-  const handleReset = useCallback(() => {
-    reset();
-    onConversationReset?.();
-  }, [reset, onConversationReset]);
+  const streaming = status === "streaming";
+  const composerStatus = streaming ? "streaming" : status === "error" ? "error" : "ready";
 
-  // Boards beyond the 3 most recent are collapsed by default.
-  // Users can manually expand them; that choice is tracked here.
-  const [manuallyExpandedBoardIds, setManuallyExpandedBoardIds] = useState<Set<string>>(new Set());
-
-  const allBoardIds = useMemo(() => {
-    const ids: string[] = [];
-    for (const msg of messages) {
-      for (const call of msg.toolCalls ?? []) {
-        if (call.appliedSnapshot) ids.push(call.id);
-      }
+  const lastAssistant = useMemo(() => {
+    for (let i = messages.length - 1; i >= 0; i--) {
+      if (messages[i].role === "assistant") return messages[i];
     }
-    return ids;
+    return null;
   }, [messages]);
 
-  const isBoardVisible = (callId: string) => {
-    const idx = allBoardIds.indexOf(callId);
-    return idx >= allBoardIds.length - 3 || manuallyExpandedBoardIds.has(callId);
-  };
+  const handleSubmit = useCallback(
+    (event: React.FormEvent<HTMLFormElement>) => {
+      event.preventDefault();
+      if (!draft.trim() || blocked || streaming) return;
+      send(draft);
+      setDraft("");
+    },
+    [draft, blocked, streaming, send],
+  );
 
-  const toggleBoard = (callId: string) => {
-    setManuallyExpandedBoardIds((prev) => {
-      const next = new Set(prev);
-      if (next.has(callId)) next.delete(callId);
-      else next.add(callId);
-      return next;
-    });
-  };
-
-  const handleSubmit = () => {
-    if (!draft.trim() || blocked || status === "streaming") return;
-    send(draft);
-    setDraft("");
-  };
-
-  const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
-    if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
-      e.preventDefault();
-      handleSubmit();
-    }
-  };
+  const placeholder = pendingElicitation
+    ? t("placeholderAnswer")
+    : messages.length === 0
+      ? t("placeholderEmpty")
+      : t("placeholderRefine");
 
   return (
     <Flex direction="col" className="h-full min-h-0 w-full">
@@ -200,21 +178,20 @@ export function AiChatPanel({
         {/* Header */}
         <Flex align="center" justify="between" gap="2" className="flex-shrink-0 border-b px-4 py-3">
           <Flex align="center" gap="2" className="min-w-0">
-            <Sparkles className="h-4 w-4 shrink-0 text-brand-emphasis" />
+            <Sparkles className="h-4 w-4 shrink-0 text-brand-emphasis" aria-hidden="true" />
             <Text as="span" size="sm" weight="semibold" className="truncate">
               {t("panelTitle")}
             </Text>
-            {status === "streaming" && <Spinner size="sm" className="text-muted-foreground" label={null} />}
+            {streaming && <Spinner size="sm" className="text-muted-foreground" label={null} />}
           </Flex>
           <Flex align="center" gap="1">
-            {onChainingModeChange && <ChainingModePicker mode={chainingMode} onChange={onChainingModeChange} />}
             {messages.length > 0 && (
               <Button
                 type="button"
                 size="icon"
                 variant="ghost"
                 className="h-7 w-7"
-                onClick={handleReset}
+                onClick={reset}
                 title={t("clearConversationAriaLabel")}
                 aria-label={t("clearConversationAriaLabel")}
               >
@@ -235,33 +212,25 @@ export function AiChatPanel({
           </Flex>
         </Flex>
 
-        {/* Task list panel — shown when the AI has an active task list */}
-        {(taskList?.length ?? 0) > 0 && <TaskListPanel tasks={taskList!} />}
+        {/* Observed steps of the current turn — outside the log so each is announced once. */}
+        {lastAssistant && (lastAssistant.pending || status === "awaiting_approval" || status === "awaiting_input") ? (
+          <AiStepTimeline message={lastAssistant} />
+        ) : null}
 
-        {/* Messages — scrollable middle section. The list is an
-            aria-live region so streamed assistant replies are announced
-            to screen-reader users as they arrive (additions + text
-            changes), without re-reading the entire transcript. */}
-        <ScrollArea className="min-h-0 flex-1 overflow-x-hidden">
-          <Stack
-            gap="3"
-            className="min-w-0 max-w-full overflow-x-hidden px-4 py-4"
-            aria-live="polite"
-            aria-atomic="false"
-            aria-relevant="additions text"
-            aria-label={t("messagesAriaLabel")}
-          >
-            {messages.length === 0 && <EmptyState blocked={blocked} aiDisabled={aiDisabled} />}
+        {/* Transcript */}
+        <Conversation labels={{ conversation: t("messagesAriaLabel"), scrollToBottom: t("jumpToLatest") }}>
+          <ConversationContent className="px-4 py-4">
+            {messages.length === 0 && <EmptyState blocked={blocked} aiDisabled={aiDisabled} onPick={send} />}
             {messages.map((m, i) => (
-              <MessageBubble
+              <ChatTurn
                 key={i}
                 message={m}
-                isLastAssistant={m.role === "assistant" && i === messages.length - 1}
-                canUndo={canUndo}
-                onUndo={onUndo}
-                isBoardVisible={isBoardVisible}
-                onToggleBoard={toggleBoard}
-                renderToolCallSupplement={renderToolCallSupplement}
+                isLast={i === messages.length - 1}
+                pendingApproval={pendingApproval}
+                pendingElicitation={pendingElicitation}
+                busy={streaming}
+                onApprove={approve}
+                onAnswer={answer}
               />
             ))}
             {error && status === "error" && (
@@ -278,70 +247,45 @@ export function AiChatPanel({
                 </AlertDescription>
               </Alert>
             )}
-          </Stack>
-        </ScrollArea>
+          </ConversationContent>
+          <ConversationScrollButton />
+        </Conversation>
 
-        {/* Sticky composer at the bottom of the Card.
-         *  Provider + model pickers sit BELOW the input as compact
-         *  pills — same pattern as ChatGPT / Claude / other LLM UIs:
-         *  the model is a property of the next turn, not chrome at the
-         *  top of the panel. This also frees vertical space and works
-         *  well in narrow chat-pane widths. */}
-        <Flex direction="col" gap="2" className="flex-shrink-0 border-t bg-card px-4 py-4">
+        {/* Composer. The provider + model pills sit below the input: the
+            model is a property of the next turn, not chrome at the top. */}
+        <Box className="flex-shrink-0 border-t bg-card px-3 py-3">
           <Label htmlFor="ai-chat-input" className="sr-only">
             {t("messageLabel")}
           </Label>
-          <Textarea
-            id="ai-chat-input"
-            rows={3}
-            value={draft}
-            onChange={(e) => setDraft(e.target.value)}
-            onKeyDown={handleKeyDown}
-            placeholder={
-              messages.length === 0
-                ? "Describe the page you want, or ask for changes…"
-                : "Refine, ask, or request another change…"
-            }
-            disabled={blocked}
-            className="resize-none px-3 py-3 text-sm"
-          />
-          <Flex wrap align="center" justify="between" gap="2">
-            <Flex wrap align="center" gap="1.5" className="min-w-0">
-              <ModelPill
-                providers={providers}
-                providerId={effectiveProviderId}
-                onProviderChange={(v) => {
-                  setProviderId(v);
-                  setModel("");
-                }}
-                models={availableModels}
-                model={effectiveModel}
-                onModelChange={setModel}
-              />
-              {/* Keyboard shortcut glyphs are never translated. `Code` keeps them
-                  exempt from i18next/no-literal-string without a disable comment. */}
-              <Code className="bg-transparent px-0 py-0 text-[10px] text-muted-foreground">⌘/Ctrl+Enter</Code>
-            </Flex>
-            {status === "streaming" ? (
-              <Button type="button" size="sm" variant="outline" className="h-7 gap-1 text-xs" onClick={cancel}>
-                <Square className="h-3 w-3" />
-                {t("stopButton")}
-              </Button>
-            ) : (
-              <Button
-                type="button"
-                size="sm"
-                variant="brand"
-                className="h-7 gap-1 text-xs"
-                onClick={handleSubmit}
-                disabled={!draft.trim() || blocked}
-              >
-                <Send className="h-3 w-3" />
-                {t("sendButton")}
-              </Button>
-            )}
-          </Flex>
-        </Flex>
+          <PromptInput status={composerStatus} labels={{ send: t("sendButton"), stop: t("stopButton") }} onSubmit={handleSubmit}>
+            <PromptInputTextarea
+              id="ai-chat-input"
+              value={draft}
+              onChange={(e) => setDraft(e.target.value)}
+              placeholder={placeholder}
+              disabled={blocked}
+              minRows={2}
+            />
+            <PromptInputToolbar>
+              <PromptInputTools className="min-w-0 flex-wrap">
+                <ModelPill
+                  providers={providers}
+                  providerId={effectiveProviderId}
+                  onProviderChange={(v) => {
+                    setProviderId(v);
+                    setModel("");
+                  }}
+                  models={availableModels}
+                  model={effectiveModel}
+                  onModelChange={setModel}
+                />
+                {/* Keyboard shortcut glyphs are never translated. */}
+                <Code className="bg-transparent px-0 py-0 text-[10px] text-muted-foreground">Enter</Code>
+              </PromptInputTools>
+              <PromptInputSubmit onStop={stop} disabled={blocked || (!streaming && !draft.trim())} />
+            </PromptInputToolbar>
+          </PromptInput>
+        </Box>
       </Card>
     </Flex>
   );
@@ -351,92 +295,10 @@ export function AiChatPanel({
 // Sub-components
 // ---------------------------------------------------------------------------
 
-function TaskStatusIcon({ status }: { status: TaskStatus }) {
-  switch (status) {
-    case "done":
-      return <CheckCircle2 className="h-3 w-3 shrink-0 text-green-500" aria-hidden="true" />;
-    case "failed":
-      return <XCircle className="h-3 w-3 shrink-0 text-destructive" aria-hidden="true" />;
-    case "in_progress":
-      return <Spinner size="sm" className="size-3 shrink-0 text-brand-emphasis" label={null} />;
-    case "pending":
-      return <Circle className="h-3 w-3 shrink-0 text-muted-foreground/50" aria-hidden="true" />;
-  }
-}
-
-function TaskListPanel({ tasks }: { tasks: TaskItem[] }) {
-  const t = useTranslations("aiChatPanel");
-  const allDone = tasks.length > 0 && tasks.every((task) => task.status === "done" || task.status === "failed");
-  const doneCount = tasks.filter((task) => task.status === "done").length;
-  // The panel auto-hides 3s after everything finishes, and comes back when new
-  // work starts. Only the hide is a timer; the un-hide is a render-phase reset
-  // rather than a setState in the effect body
-  // (react-hooks/set-state-in-effect, issue #1568).
-  const [hidden, setHidden] = useState(false);
-  if (useDepsChanged([allDone]) && !allDone) {
-    setHidden(false);
-  }
-
-  useEffect(() => {
-    if (!allDone) return;
-    const timer = setTimeout(() => setHidden(true), 3000);
-    return () => clearTimeout(timer);
-  }, [allDone]);
-
-  if (hidden) return null;
-
-  const pct = tasks.length > 0 ? (doneCount / tasks.length) * 100 : 0;
-
-  return (
-    <Box
-      className="border-b px-4 py-2 bg-muted/30 flex-shrink-0"
-      role="status"
-      aria-live="polite"
-      aria-atomic="false"
-      aria-label={t("taskStatusAriaLabel")}
-    >
-      <Flex align="center" justify="between" className="mb-1.5">
-        <Text as="span" weight="medium" tone="muted" className="text-[10px] uppercase tracking-wide">
-          {t("tasksHeading", { done: doneCount, total: tasks.length })}
-        </Text>
-        <Box
-          role="progressbar"
-          aria-valuenow={pct}
-          aria-valuemin={0}
-          aria-valuemax={100}
-          aria-label={t("taskProgressAriaLabel")}
-          className="h-1 w-20 rounded-full bg-muted overflow-hidden"
-        >
-          <Box className="h-full bg-brand-emphasis transition-all duration-300" style={{ width: `${pct}%` }} />
-        </Box>
-      </Flex>
-      <List gap="0" className="space-y-0.5 max-h-28 overflow-y-auto">
-        {tasks.map((task) => (
-          <ListItem key={task.id} className="flex items-center gap-1.5 text-[11px]">
-            <TaskStatusIcon status={task.status} />
-            <Text
-              as="span"
-              className={cn(
-                "truncate text-[11px]",
-                task.status === "done" ? "text-muted-foreground line-through" : "",
-                task.status === "failed" ? "text-destructive" : "",
-              )}
-            >
-              {task.label}
-            </Text>
-          </ListItem>
-        ))}
-      </List>
-    </Box>
-  );
-}
-
 function GradientSparkles({ className }: { className?: string }) {
   return (
     <Text as="span" className={`relative inline-block shrink-0 ${className ?? ""}`} aria-hidden="true">
-      {/* Big central star — gradient sweep via CSS mask */}
       <Text as="span" className="ai-sparkle-icon absolute inset-0 h-full w-full" />
-      {/* Small elements — pulse independently from their own centers */}
       <svg
         viewBox="0 0 24 24"
         fill="none"
@@ -463,20 +325,17 @@ function GradientSparkles({ className }: { className?: string }) {
   );
 }
 
-function EmptyState({ blocked, aiDisabled }: { blocked: boolean; aiDisabled: boolean }) {
+function EmptyState({ blocked, aiDisabled, onPick }: { blocked: boolean; aiDisabled: boolean; onPick: (text: string) => void }) {
   const t = useTranslations("aiChatPanel");
   if (blocked) {
     return (
       <Alert variant="destructive" className="text-xs">
         <AlertCircle className="h-3.5 w-3.5" />
-        <AlertDescription>
-          {aiDisabled
-            ? "AI is disabled. Enable it in Settings → AI Providers."
-            : "Configure an AI provider with at least one model in Settings → AI Providers."}
-        </AlertDescription>
+        <AlertDescription>{aiDisabled ? t("blockedAiDisabled") : t("blockedNoProviders")}</AlertDescription>
       </Alert>
     );
   }
+  const starters = [t("suggestions.weather"), t("suggestions.date"), t("suggestions.variables")];
   return (
     <Flex direction="col" align="center" gap="5" className="px-2 py-6 text-center">
       <GradientSparkles className="h-8 w-8" />
@@ -486,30 +345,18 @@ function EmptyState({ blocked, aiDisabled }: { blocked: boolean; aiDisabled: boo
           {t("emptyStateDescription")}
         </Text>
       </Box>
-      <Stack gap="2" className="w-full text-left text-xs">
-        {[
-          "Build a weather + transit page for my morning commute",
-          "Replace line 2 with today’s date",
-          "What plugin variables can I use on this page?",
-        ].map((s) => (
-          <Flex key={s} align="start" gap="2" className="text-muted-foreground">
-            <ChevronRight className="mt-0.5 h-3 w-3 shrink-0 text-muted-foreground/50" />
-            <Text as="span" size="xs" tone="muted">
-              &ldquo;{s}&rdquo;
-            </Text>
-          </Flex>
+      <Suggestions className="justify-center">
+        {starters.map((s) => (
+          <Suggestion key={s} suggestion={s} onClick={onPick} />
         ))}
-      </Stack>
+      </Suggestions>
     </Flex>
   );
 }
 
 /**
- * Compact model picker rendered next to the Send button — same pattern
- * as ChatGPT/Claude/etc. Shows a single pill with `provider · model`,
- * collapses to icons when there's no horizontal room. We surface both
- * provider and model as nested selects so multi-provider users still
- * have the full picker without dedicating header real estate to it.
+ * Compact model picker rendered in the composer toolbar — same pattern
+ * as ChatGPT/Claude/etc. Shows a single pill with `provider · model`.
  */
 function ModelPill({
   providers,
@@ -528,7 +375,7 @@ function ModelPill({
 }) {
   const t = useTranslations("aiChatPanel");
   const onlyOneProvider = providers.length <= 1;
-  const shortModel = model ? model.split("/").slice(-1)[0] || model : "Default";
+  const shortModel = model ? model.split("/").slice(-1)[0] || model : t("defaultModel");
   return (
     <Flex align="center" gap="1">
       {!onlyOneProvider && (
@@ -537,7 +384,7 @@ function ModelPill({
             className="h-6 gap-1 rounded-full border-border/60 bg-muted/40 px-2 text-[11px] shadow-none hover:bg-muted/70"
             aria-label={t("providerSelectAriaLabel")}
           >
-            <SelectValue placeholder="Default" />
+            <SelectValue placeholder={t("defaultModel")} />
           </SelectTrigger>
           <SelectContent>
             {providers.map((p) => (
@@ -555,10 +402,9 @@ function ModelPill({
           title={model}
         >
           <SelectValue>
-            {/* Inherit-only span: relies on SelectTrigger's font-mono text-[11px];
-                Text as="span" would reset size/family, so this stays raw. */}
-            {/* eslint-disable-next-line react/forbid-elements -- inherit-only span relying on SelectTrigger's font-mono text-[11px]; Text as="span" would reset size/family */}
-            <span className="truncate">{shortModel}</span>
+            <Text as="span" className="truncate font-mono text-[11px]">
+              {shortModel}
+            </Text>
           </SelectValue>
         </SelectTrigger>
         <SelectContent>
@@ -573,300 +419,131 @@ function ModelPill({
   );
 }
 
-function MessageBubble({
+function ChatTurn({
   message,
-  isLastAssistant,
-  canUndo,
-  onUndo,
-  isBoardVisible,
-  onToggleBoard,
-  renderToolCallSupplement,
+  isLast,
+  pendingApproval,
+  pendingElicitation,
+  busy,
+  onApprove,
+  onAnswer,
 }: {
   message: ChatMessage;
-  isLastAssistant: boolean;
-  canUndo: boolean;
-  onUndo: () => void;
-  isBoardVisible: (callId: string) => boolean;
-  onToggleBoard: (callId: string) => void;
-  renderToolCallSupplement?: (call: ToolCall) => React.ReactNode;
+  isLast: boolean;
+  pendingApproval: ToolCall | null;
+  pendingElicitation: Elicitation | null;
+  busy: boolean;
+  onApprove: (id: string, decision: ApprovalDecision) => void;
+  onAnswer: (id: string, answer: ElicitationAnswer) => void;
 }) {
-  const ref = useRef<HTMLDivElement>(null);
-  // Scroll the latest message into view as it streams.
-  useEffect(() => {
-    if (isLastAssistant) {
-      ref.current?.scrollIntoView({ block: "end", behavior: "smooth" });
-    }
-  }, [isLastAssistant, message.content, message.toolCalls?.length]);
-
   if (message.role === "user") {
-    // Tool-result injection messages get a compact system pill, not a user bubble.
-    if (message.isToolResult) {
-      const displayText = message.content.replace(/^\[Tool result:\s*/, "").replace(/\]$/, "");
-      return (
-        <Flex ref={ref} justify="center" className="py-0.5">
-          <Flex
-            align="center"
-            gap="1.5"
-            className="overflow-hidden rounded-full border border-border/40 bg-muted/30 px-2.5 py-1 text-[10px] text-muted-foreground max-w-[85%]"
-          >
-            <CheckCircle2 className="h-3 w-3 shrink-0 text-green-500" />
-            <Text as="span" tone="muted" className="min-w-0 truncate font-mono text-[10px]">
-              {displayText}
-            </Text>
-          </Flex>
-        </Flex>
-      );
-    }
     return (
-      <Flex ref={ref} justify="end">
-        <Box className="max-w-[85%] whitespace-pre-wrap break-words rounded-2xl rounded-br-sm bg-brand-emphasis/15 px-3 py-2 text-sm">
-          {message.content}
-        </Box>
-      </Flex>
+      <Message from="user">
+        <MessageContent className="whitespace-pre-wrap break-words">{message.content}</MessageContent>
+      </Message>
     );
   }
 
   return (
-    <Flex ref={ref} direction="col" gap="1.5">
-      <Flex align="center" gap="1.5">
-        <Sparkles className="h-3 w-3 text-brand-emphasis" />
-        <Text as="span" weight="medium" tone="muted" className="text-[10px] uppercase tracking-wide">
-          AI
-        </Text>
-        {message.pending && <Spinner size="sm" className="size-3 text-muted-foreground" label={null} />}
-      </Flex>
-      {message.content && (
-        <Box className="break-words text-sm">
-          <ChatMarkdown>{message.content}</ChatMarkdown>
-        </Box>
-      )}
-      {message.toolCalls
-        // update_task_list is a status-only op shown in the task panel above —
-        // suppress it from the chat thread to avoid redundant cards.
-        ?.filter((call) => call.op !== "update_task_list")
-        .map((call) => (
-          <Stack key={call.id} gap="1.5">
-            <ToolCallCard
-              call={call}
-              showUndo={isLastAssistant && canUndo}
-              onUndo={onUndo}
-              boardVisible={isBoardVisible(call.id)}
-              onToggleBoard={() => onToggleBoard(call.id)}
+    <Message from="assistant">
+      <MessageAvatar>
+        <Sparkles />
+      </MessageAvatar>
+      <MessageContent>
+        <Stack gap="2">
+          {message.content && (
+            <Box className="break-words text-sm">
+              <ChatMarkdown>{message.content}</ChatMarkdown>
+            </Box>
+          )}
+          {message.toolCalls
+            ?.filter((call) => call.name !== "ask_user")
+            .map((call) => (
+              <Stack key={call.id} gap="1.5">
+                <ToolCallCard call={call} />
+                {isLast && pendingApproval?.id === call.id && call.phase === "awaiting_approval" ? (
+                  <AiApprovalCard
+                    call={call}
+                    busy={busy}
+                    onApprove={() => onApprove(call.id, "approve")}
+                    onDeny={() => onApprove(call.id, "deny")}
+                  />
+                ) : null}
+              </Stack>
+            ))}
+          {message.elicitation ? (
+            <AiQuestionCard
+              elicitation={message.elicitation}
+              busy={busy || (isLast && pendingElicitation === null && !message.elicitation.answer)}
+              onAnswer={(a) => onAnswer(message.elicitation!.id, a)}
             />
-            {renderToolCallSupplement?.(call)}
-          </Stack>
-        ))}
-      {message.warnings && message.warnings.length > 0 && (
-        <Stack gap="1">
-          {message.warnings.map((w, i) => (
-            <Alert key={i} className="py-1.5 text-xs">
-              <AlertCircle className="h-3 w-3" />
-              <AlertDescription>{w}</AlertDescription>
-            </Alert>
-          ))}
+          ) : null}
+          {message.warnings && message.warnings.length > 0 && (
+            <Stack gap="1">
+              {message.warnings.map((w, i) => (
+                <Alert key={i} className="py-1.5 text-xs">
+                  <AlertCircle className="h-3 w-3" />
+                  <AlertDescription>{w}</AlertDescription>
+                </Alert>
+              ))}
+            </Stack>
+          )}
         </Stack>
-      )}
-    </Flex>
+      </MessageContent>
+    </Message>
   );
 }
 
-function ToolCallCard({
-  call,
-  showUndo,
-  onUndo,
-  boardVisible,
-  onToggleBoard,
-}: {
-  call: ToolCallDisplay;
-  showUndo: boolean;
-  onUndo: () => void;
-  boardVisible: boolean;
-  onToggleBoard: () => void;
-}) {
+const TOOL_STATE_FOR_PHASE: Record<ToolPhase, ToolState> = {
+  running: "input-available",
+  awaiting_approval: "approval-requested",
+  ok: "output-available",
+  blocked: "output-error",
+  error: "output-error",
+  denied: "denied",
+  stopped: "stopped",
+};
+
+function ToolCallCard({ call }: { call: ToolCallDisplay }) {
   const t = useTranslations("aiChatPanel");
   const deviceType = call.deviceType ?? "flagship";
-  const hasBoard = !!call.appliedSnapshot;
+  const state = TOOL_STATE_FOR_PHASE[call.phase];
+  const result = call.result;
+  const errorText =
+    result && (result.status === "error" || result.status === "blocked") ? (result.error ?? result.summary) : undefined;
+  const output =
+    result && result.status === "ok" ? (
+      <Stack gap="2">
+        {call.appliedSnapshot ? <InlineBoardPreview snapshot={call.appliedSnapshot} deviceType={deviceType} /> : null}
+        <Text size="xs">{result.summary}</Text>
+      </Stack>
+    ) : call.appliedSnapshot ? (
+      <InlineBoardPreview snapshot={call.appliedSnapshot} deviceType={deviceType} />
+    ) : undefined;
+
   return (
-    <Stack gap="2" className="overflow-hidden rounded-lg border bg-muted/40 p-2.5">
-      <Flex align="center" justify="between" gap="2">
-        <Badge variant="secondary" className="font-mono text-[10px]">
-          {labelFor(call)}
-        </Badge>
-        <Flex align="center" gap="1">
-          {hasBoard && !boardVisible && (
-            <Button
-              type="button"
-              size="sm"
-              variant="ghost"
-              className="h-6 gap-1 px-1.5 text-[11px] text-muted-foreground"
-              onClick={onToggleBoard}
-              title={t("showBoardTooltip")}
-            >
-              <Eye className="h-3 w-3" />
-              {t("showBoardButton")}
-            </Button>
-          )}
-          {hasBoard && boardVisible && !showUndo && (
-            <Button
-              type="button"
-              size="sm"
-              variant="ghost"
-              className="h-6 gap-1 px-1.5 text-[11px] text-muted-foreground"
-              onClick={onToggleBoard}
-              title={t("hideBoardTooltip")}
-            >
-              <EyeOff className="h-3 w-3" />
-            </Button>
-          )}
-          {showUndo && (
-            <Button
-              type="button"
-              size="sm"
-              variant="ghost"
-              className="h-6 gap-1 px-1.5 text-[11px]"
-              onClick={onUndo}
-              title={t("undoTooltip")}
-            >
-              <Undo2 className="h-3 w-3" />
-              {t("undoButton")}
-            </Button>
-          )}
-        </Flex>
-      </Flex>
-      {hasBoard && boardVisible && <InlineBoardPreview snapshot={call.appliedSnapshot!} deviceType={deviceType} />}
-      <ToolCallSummary call={call} />
-    </Stack>
+    <Tool
+      state={state}
+      data-testid={`ai-tool-${call.name}`}
+      labels={{
+        input: t("toolInput"),
+        output: t("toolOutput"),
+        states: {
+          "input-streaming": t("toolStates.inputStreaming"),
+          "input-available": t("toolStates.inputAvailable"),
+          "output-available": t("toolStates.outputAvailable"),
+          "output-error": t("toolStates.outputError"),
+          "approval-requested": t("toolStates.approvalRequested"),
+          denied: t("toolStates.denied"),
+          stopped: t("toolStates.stopped"),
+        },
+      }}
+    >
+      <ToolHeader title={labelForTool(call, t)} detail={detailForTool(call)} />
+      <ToolContent>
+        <ToolInput input={call.args} />
+        <ToolOutput output={output} errorText={errorText} />
+      </ToolContent>
+    </Tool>
   );
-}
-
-function labelFor(call: ToolCall): string {
-  switch (call.op) {
-    case "replace_page":
-      return "Replaced page";
-    case "apply_patch":
-      return `Applied ${call.args.changes.length} change${call.args.changes.length === 1 ? "" : "s"}`;
-    case "suggest_variables":
-      return `${call.args.suggestions.length} suggestion${call.args.suggestions.length === 1 ? "" : "s"}`;
-    case "navigate_to_page":
-      return call.args.page_id === "new" ? "New page" : "Navigate to page";
-    case "navigate_to_schedule":
-      return "Navigate to schedule";
-    case "install_plugin":
-      return `Install: ${call.args.plugin_id}`;
-    case "update_plugin_config":
-      return `Configure: ${call.args.plugin_id}`;
-    case "update_plugin":
-      return `Update: ${call.args.plugin_id}`;
-    case "enable_plugin":
-      return `Enable: ${call.args.plugin_id}`;
-    case "disable_plugin":
-      return `Disable: ${call.args.plugin_id}`;
-    case "uninstall_plugin":
-      return `Uninstall: ${call.args.plugin_id}`;
-    case "update_setting":
-      return `Setting: ${call.args.category}`;
-    case "create_collection":
-      return `Create collection: "${call.args.name}"`;
-    case "update_collection":
-      return "Update collection";
-    case "create_schedule":
-      return `Schedule: ${call.args.start_time}${call.args.end_time ? `–${call.args.end_time}` : "+"}`;
-    case "update_schedule":
-      return "Update schedule";
-    case "delete_schedule":
-      return "Delete schedule";
-    case "trigger_system_update":
-      return "System update";
-    case "update_task_list":
-      return "Task list update";
-  }
-}
-
-function ToolCallSummary({ call }: { call: ToolCall }) {
-  const t = useTranslations("aiChatPanel");
-  // `replace_page` is fully described by the inline board preview
-  // above; rendering a JSON line-dump here would just duplicate the
-  // visual. Keep the card lean.
-  if (call.op === "replace_page") {
-    return null;
-  }
-  if (call.op === "apply_patch") {
-    const count = call.args.changes.length + (call.args.rename ? 1 : 0);
-    return (
-      // Patches with long color-token strings can dominate the card —
-      // hide the raw line text behind a disclosure so the preview is
-      // the main thing the user sees, with the patch detail
-      // available for anyone who wants to inspect it.
-      <PatchDetailDisclosure count={count}>
-        <List gap="0" className="space-y-0.5 px-1 pt-1 text-[11px] text-muted-foreground">
-          {call.args.changes.map((c, i) => (
-            <ListItem key={i} className="break-all font-mono">
-              {summarizeLineOp(c)}
-            </ListItem>
-          ))}
-          {call.args.rename && (
-            <ListItem className="break-all font-mono">{t("renameSummary", { name: call.args.rename })}</ListItem>
-          )}
-        </List>
-      </PatchDetailDisclosure>
-    );
-  }
-  if (call.op === "suggest_variables") {
-    return (
-      <List gap="0" className="space-y-0.5 text-[11px]">
-        {call.args.suggestions.map((s, i) => (
-          <ListItem key={i}>
-            <Code className="font-mono text-[10px]">{`{{${s.ref}}}`}</Code>
-            {s.description && (
-              <Text as="span" tone="muted" className="text-[11px]">
-                {" "}
-                — {s.description}
-              </Text>
-            )}
-          </ListItem>
-        ))}
-      </List>
-    );
-  }
-  // navigate_to_page, install_plugin, update_plugin_config, update_setting:
-  // these are handled by renderToolCallSupplement (AiActionConfirmation).
-  return null;
-}
-
-function PatchDetailDisclosure({ count, children }: { count: number; children: React.ReactNode }) {
-  return (
-    <Collapsible className="text-[11px]">
-      <CollapsibleTrigger asChild>
-        <button
-          type="button"
-          className="group/disclose flex w-full items-center gap-1 rounded text-[10px] text-muted-foreground transition-colors hover:text-foreground"
-        >
-          <ChevronRight className="h-3 w-3 transition-transform group-data-[panel-open]/disclose:rotate-90" />
-          {/* Inherit-only span: the button's color flips on hover
-              (text-muted-foreground → text-foreground); a Text tone would pin
-              the color and defeat that transition, so this stays raw. */}
-          {/* eslint-disable-next-line react/forbid-elements -- inherit-only span; the button's text color flips on hover and a Text tone would pin the color and defeat that transition */}
-          <span>{count === 1 ? "View change" : `View ${count} changes`}</span>
-        </button>
-      </CollapsibleTrigger>
-      <CollapsibleContent>{children}</CollapsibleContent>
-    </Collapsible>
-  );
-}
-
-function summarizeLineOp(op: LineOp): string {
-  switch (op.type) {
-    case "replace_line":
-      return `line ${op.index + 1}: "${op.text}"`;
-    case "insert_line":
-      return `+ line ${op.index + 1}: "${op.text}"`;
-    case "delete_line":
-      return `− line ${op.index + 1}`;
-    case "update_line_metadata": {
-      const parts: string[] = [];
-      if (op.alignment) parts.push(op.alignment);
-      if (op.wrap !== undefined) parts.push(`wrap=${op.wrap}`);
-      return `line ${op.index + 1} meta: ${parts.join(" ")}`;
-    }
-  }
 }

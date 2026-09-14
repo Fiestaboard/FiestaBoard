@@ -1317,75 +1317,6 @@
       "failure": "Impossible d'activer la connexion"
     }
   },
-  "aiActionConfirmation": {
-    "deny": "Refuser",
-    "allow": "Autoriser",
-    "working": "En cours…",
-    "done": "Terminé",
-    "denied": "Refusé",
-    "noChanges": "aucun changement",
-    "noValues": "aucune valeur",
-    "noChangesSpecified": "Aucun changement spécifié.",
-    "openEnd": "ouvert",
-    "label": {
-      "installPlugin": "Installer le module : {id}",
-      "updatePluginConfig": "Configurer le module : {id}",
-      "updatePlugin": "Mettre à jour le module : {id}",
-      "enablePlugin": "Activer le module : {id}",
-      "disablePlugin": "Désactiver le module : {id}",
-      "uninstallPlugin": "Désinstaller le module : {id}",
-      "updateSetting": "Modifier le paramètre : {category}",
-      "createCollection": "Créer une collection : \"{name}\"",
-      "updateCollection": "Mettre à jour la collection",
-      "createSchedule": "Créer une programmation",
-      "updateSchedule": "Mettre à jour la programmation",
-      "deleteSchedule": "Supprimer la programmation",
-      "triggerSystemUpdate": "Mise à jour du système"
-    },
-    "description": {
-      "installPlugin": "Installe \"{id}\" depuis le registre officiel.",
-      "installPluginEnable": "Installe \"{id}\" depuis le registre officiel et l'active.",
-      "updatePluginConfig": "Met à jour la configuration de \"{id}\" : {keys}.",
-      "updatePlugin": "Télécharge et installe la dernière version du registre de \"{id}\".",
-      "enablePlugin": "Active \"{id}\" pour qu'il puisse fournir des données à vos tableaux.",
-      "disablePlugin": "Désactive \"{id}\" sans le supprimer. Il peut être réactivé plus tard.",
-      "uninstallPlugin": "Supprime définitivement \"{id}\". Cette action est irréversible.",
-      "updateSetting": "Définit {values} dans les paramètres {category}.",
-      "createCollection": "Crée une collection avec {count, plural, one {# page} other {# pages}}, en alternant toutes les {interval}s.",
-      "createSchedule": "Affiche la page \"{page}\" de {time} les jours {days}.",
-      "deleteSchedule": "Supprime définitivement la programmation \"{id}\". Cette action est irréversible.",
-      "triggerSystemUpdate": "Télécharge et installe la dernière mise à jour de FiestaBoard. Le système redémarrera brièvement."
-    },
-    "change": {
-      "rename": "renommer en \"{name}\"",
-      "setPages": "définir {count, plural, one {# page} other {# pages}}",
-      "interval": "intervalle → {interval}s",
-      "page": "page → {page}",
-      "start": "début → {start}",
-      "end": "fin → {end}",
-      "days": "jours → {days}",
-      "enable": "activer",
-      "disable": "désactiver"
-    }
-  },
-  "chainingModePicker": {
-    "menuTitle": "Mode de chaînage IA",
-    "triggerAriaLabel": "Mode de chaînage IA : {mode}",
-    "modes": {
-      "manual": {
-        "label": "Manuel",
-        "description": "Je redemanderai après chaque action"
-      },
-      "autoContinue": {
-        "label": "Continuation auto",
-        "description": "Enchaîne les actions, confirme chaque étape"
-      },
-      "autonomous": {
-        "label": "Autonome",
-        "description": "Exécute jusqu'au bout, ignore les confirmations"
-      }
-    }
-  },
   "bootGate": {
     "waiting": "En attente de démarrage…",
     "errorHeading": "Impossible de se connecter à FiestaBoard",
@@ -1397,7 +1328,31 @@
     "updateErrorDescription": "La mise à jour est terminée, mais l'application redémarre encore. Patientez un instant, puis actualisez."
   },
   "globalAiChatDrawer": {
-    "panelAriaLabel": "Chat IA FiestaBot"
+    "panelAriaLabel": "Chat IA FiestaBot",
+    "toast": {
+      "undo": "Annuler",
+      "pageCreated": "Page créée.",
+      "pageUpdated": "Page mise à jour.",
+      "pageDeleted": "Page supprimée.",
+      "scheduleCreated": "Programmation créée.",
+      "scheduleUpdated": "Programmation mise à jour.",
+      "scheduleDeleted": "Programmation supprimée.",
+      "pluginInstalled": "Plugin « {id} » installé.",
+      "pluginConfigured": "Plugin « {id} » configuré.",
+      "pluginUpdated": "Plugin « {id} » mis à jour.",
+      "pluginEnabled": "Plugin « {id} » activé.",
+      "pluginDisabled": "Plugin « {id} » désactivé.",
+      "pluginUninstalled": "Plugin « {id} » désinstallé.",
+      "settingUpdated": "Paramètre mis à jour.",
+      "collectionCreated": "Collection « {name} » créée.",
+      "collectionUpdated": "Collection mise à jour.",
+      "collectionDeleted": "Collection supprimée.",
+      "activePageSet": "Tableau mis à jour.",
+      "messageSent": "Message envoyé au tableau.",
+      "systemUpdate": "Mise à jour du système lancée. Le tableau va redémarrer sous peu.",
+      "toolFailed": "{tool} a échoué : {error}",
+      "stopped": "Arrêté. Ce qui est déjà en cours se terminera quand même."
+    }
   },
   "plainTextEditor": {
     "placeholder": "Tapez votre texte de modèle...",
@@ -2042,27 +1997,87 @@
   },
   "aiChatPanel": {
     "messagesAriaLabel": "Messages du chat",
-    "taskStatusAriaLabel": "Progression des tâches",
-    "taskProgressAriaLabel": "Progression des tâches IA",
     "clearConversationAriaLabel": "Effacer la conversation",
     "closePanelAriaLabel": "Fermer FiestaBot (Beta)",
     "providerSelectAriaLabel": "Fournisseur",
     "modelSelectAriaLabel": "Modèle",
-    "showBoardTooltip": "Afficher l'aperçu du tableau",
-    "hideBoardTooltip": "Masquer l'aperçu du tableau",
-    "undoTooltip": "Annuler la dernière modification de l'IA",
     "panelTitle": "FiestaBot (Beta)",
     "retryButton": "Réessayer",
     "messageLabel": "Message",
     "stopButton": "Arrêter",
     "sendButton": "Envoyer",
-    "tasksHeading": "Tâches ({done}/{total})",
     "emptyStateTitle": "Comment puis-je vous aider ?",
     "emptyStateDescription": "Décrivez ce que vous souhaitez créer ou modifier.",
-    "showBoardButton": "Afficher le tableau",
-    "undoButton": "Annuler",
-    "renameSummary": "→ renommer en \"{name}\"",
-    "previewUnavailable": "(aperçu indisponible)"
+    "placeholderEmpty": "Décris la page souhaitée ou demande des modifications…",
+    "placeholderRefine": "Affine, pose une question ou demande une autre modification…",
+    "placeholderAnswer": "Saisis ta réponse…",
+    "blockedAiDisabled": "L'IA est désactivée. Active-la dans Paramètres → Fournisseurs d'IA.",
+    "blockedNoProviders": "Configure un fournisseur d'IA avec au moins un modèle dans Paramètres → Fournisseurs d'IA.",
+    "suggestions": {
+      "weather": "Crée une page météo + transports pour mon trajet du matin",
+      "date": "Remplace la ligne 2 par la date du jour",
+      "variables": "Quelles variables de plugins puis-je utiliser sur cette page ?"
+    },
+    "jumpToLatest": "Aller au plus récent",
+    "defaultModel": "Par défaut",
+    "stepsAriaLabel": "Étapes en cours",
+    "stepsHeading": "{done} étapes sur {total}",
+    "toolInput": "Arguments",
+    "toolOutput": "Résultat",
+    "toolStates": {
+      "inputStreaming": "Préparation",
+      "inputAvailable": "En cours",
+      "outputAvailable": "Terminé",
+      "outputError": "Échec",
+      "approvalRequested": "En attente de ton approbation",
+      "denied": "Non exécuté",
+      "stopped": "Arrêté"
+    },
+    "question": {
+      "skip": "Passer",
+      "typeAnswer": "Ou saisis une réponse ci-dessous.",
+      "answered": "Ta réponse : {answer}",
+      "declined": "(passé)",
+      "cancelled": "(annulé)"
+    },
+    "tool": {
+      "createPage": "Créer une page",
+      "updatePage": "Mettre à jour la page",
+      "deletePage": "Supprimer la page",
+      "createSchedule": "Ajouter une programmation",
+      "updateSchedule": "Mettre à jour la programmation",
+      "deleteSchedule": "Supprimer la programmation",
+      "createCollection": "Créer une collection",
+      "updateCollection": "Mettre à jour la collection",
+      "deleteCollection": "Supprimer la collection",
+      "installPlugin": "Installer le plugin",
+      "enablePlugin": "Activer le plugin",
+      "disablePlugin": "Désactiver le plugin",
+      "uninstallPlugin": "Désinstaller le plugin",
+      "configurePlugin": "Configurer le plugin",
+      "updatePlugin": "Mettre à jour le plugin",
+      "setActivePage": "Afficher la page sur le tableau",
+      "setScheduleMode": "Définir le mode programmation",
+      "sendMessage": "Envoyer un message au tableau",
+      "updateSetting": "Modifier un paramètre",
+      "triggerSystemUpdate": "Mise à jour du système",
+      "askUser": "Question",
+      "listPages": "Consulter les pages",
+      "getPage": "Lire la page",
+      "listSchedules": "Consulter les programmations",
+      "listCollections": "Consulter les collections",
+      "listInstalledPlugins": "Consulter les plugins installés",
+      "listRegistryPlugins": "Parcourir le registre des plugins",
+      "getTemplateVariables": "Consulter les variables de modèle",
+      "getPluginData": "Lire les données du plugin",
+      "renderPagePreview": "Prévisualiser le modèle",
+      "previewSavedPage": "Prévisualiser la page",
+      "validateTemplate": "Vérifier le modèle",
+      "getSystemStatus": "Vérifier l'état du système",
+      "getSettingsSummary": "Lire les paramètres",
+      "getActivePage": "Vérifier la page active",
+      "getBoardContent": "Lire le tableau"
+    }
   },
   "boardSizeIndicator": {
     "custom": "Personnalisé",
@@ -2183,5 +2198,19 @@
     "leaveConfirmTitle": "Quitter le canal bêta ?",
     "leaveConfirmBody": "Vous reviendrez à la version stable actuelle, plus ancienne que la bêta que vous utilisez. Vos réglages et vos pages seront restaurés à partir de la sauvegarde créée lors de votre inscription — tout ce que vous avez modifié pendant la bêta sera perdu. FiestaBoard redémarrera sur la version stable. Si vous préférez conserver vos modifications, attendez : lorsque la prochaine version stable dépassera votre bêta, « Mettre à jour » vous y amènera sans rien perdre.",
     "leaveConfirmCta": "Quitter la bêta"
+  },
+  "aiApprovalCard": {
+    "heading": "Nécessite ton approbation",
+    "approve": "Approuver",
+    "deny": "Refuser",
+    "working": "En cours…",
+    "description": {
+      "deletePage": "Supprime définitivement la page « {detail} ». Les programmations et collections qui l'utilisent la perdent.",
+      "deleteSchedule": "Supprime définitivement la programmation « {detail} ». Irréversible.",
+      "deleteCollection": "Supprime définitivement la collection « {detail} ». Irréversible.",
+      "uninstallPlugin": "Supprime définitivement le plugin « {detail} » et sa configuration.",
+      "triggerSystemUpdate": "Télécharge et installe la dernière mise à jour de FiestaBoard. Le système redémarrera brièvement.",
+      "generic": "Aucun autre outil ne peut annuler cette action."
+    }
   }
 }

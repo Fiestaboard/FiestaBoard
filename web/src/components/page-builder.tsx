@@ -89,7 +89,7 @@ import {
 } from "@/hooks/use-board";
 import { useRouter } from "@/hooks/use-router";
 import { useTranslations } from "@/i18n/translations";
-import type { CurrentPageSnapshot, ToolCall } from "@/lib/ai-chat-types";
+import type { CurrentPageSnapshot, EditorToolCall } from "@/lib/ai-chat-types";
 import type {
   BoardInstance,
   DeviceType,
@@ -135,7 +135,7 @@ interface PageBuilderProps {
 export interface PageBuilderHandle {
   getCurrentPage: () => CurrentPageSnapshot | undefined;
   getDeviceType: () => DeviceType;
-  applyToolCall: (call: ToolCall) => void;
+  applyToolCall: (call: EditorToolCall) => void;
   /**
    * Persist the current editor content to the API without closing.
    * Used by the AI chaining layer to auto-save before navigating away.
@@ -393,7 +393,7 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
 
   /** Apply one structured AI tool call to the editor state. */
   const applyToolCall = useCallback(
-    (call: ToolCall) => {
+    (call: EditorToolCall) => {
       // `suggest_variables` is read-only (surfaced in the chat UI); every
       // other op is handled by the global AI drawer (navigation, plugins,
       // schedules) and must never fall through to the apply_patch branch

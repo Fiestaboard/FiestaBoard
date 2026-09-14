@@ -1317,75 +1317,6 @@
       "failure": "Det gick inte att aktivera inloggning"
     }
   },
-  "aiActionConfirmation": {
-    "deny": "Neka",
-    "allow": "Tillåt",
-    "working": "Arbetar…",
-    "done": "Klar",
-    "denied": "Nekad",
-    "noChanges": "inga ändringar",
-    "noValues": "inga värden",
-    "noChangesSpecified": "Inga ändringar angivna.",
-    "openEnd": "öppet",
-    "label": {
-      "installPlugin": "Installera plugin: {id}",
-      "updatePluginConfig": "Konfigurera plugin: {id}",
-      "updatePlugin": "Uppdatera plugin: {id}",
-      "enablePlugin": "Aktivera plugin: {id}",
-      "disablePlugin": "Inaktivera plugin: {id}",
-      "uninstallPlugin": "Avinstallera plugin: {id}",
-      "updateSetting": "Ändra inställning: {category}",
-      "createCollection": "Skapa samling: \"{name}\"",
-      "updateCollection": "Uppdatera samling",
-      "createSchedule": "Skapa schema",
-      "updateSchedule": "Uppdatera schema",
-      "deleteSchedule": "Ta bort schema",
-      "triggerSystemUpdate": "Systemuppdatering"
-    },
-    "description": {
-      "installPlugin": "Installerar \"{id}\" från det officiella registret.",
-      "installPluginEnable": "Installerar \"{id}\" från det officiella registret och aktiverar det.",
-      "updatePluginConfig": "Uppdaterar konfigurationen för \"{id}\": {keys}.",
-      "updatePlugin": "Laddar ner och installerar den senaste registerversionen av \"{id}\".",
-      "enablePlugin": "Aktiverar \"{id}\" så att det kan leverera data till dina tavlor.",
-      "disablePlugin": "Inaktiverar \"{id}\" utan att ta bort det. Det kan aktiveras igen senare.",
-      "uninstallPlugin": "Tar bort \"{id}\" permanent. Detta kan inte ångras.",
-      "updateSetting": "Ställer in {values} i inställningarna för {category}.",
-      "createCollection": "Skapar en samling med {count, plural, one {# sida} other {# sidor}}, som växlar var {interval}:e sekund.",
-      "createSchedule": "Visar sidan \"{page}\" från {time} på {days}-dagar.",
-      "deleteSchedule": "Tar bort schemat \"{id}\" permanent. Detta kan inte ångras.",
-      "triggerSystemUpdate": "Laddar ner och installerar den senaste FiestaBoard-uppdateringen. Systemet startar om en kort stund."
-    },
-    "change": {
-      "rename": "byt namn till \"{name}\"",
-      "setPages": "ange {count, plural, one {# sida} other {# sidor}}",
-      "interval": "intervall → {interval}s",
-      "page": "sida → {page}",
-      "start": "start → {start}",
-      "end": "slut → {end}",
-      "days": "dagar → {days}",
-      "enable": "aktivera",
-      "disable": "inaktivera"
-    }
-  },
-  "chainingModePicker": {
-    "menuTitle": "AI-kedjeläge",
-    "triggerAriaLabel": "AI-kedjeläge: {mode}",
-    "modes": {
-      "manual": {
-        "label": "Manuell",
-        "description": "Jag frågar igen efter varje åtgärd"
-      },
-      "autoContinue": {
-        "label": "Fortsätt automatiskt",
-        "description": "Kedjar åtgärder, bekräftar varje steg"
-      },
-      "autonomous": {
-        "label": "Autonom",
-        "description": "Kör till slutet, hoppar över bekräftelser"
-      }
-    }
-  },
   "bootGate": {
     "waiting": "Väntar på start…",
     "errorHeading": "Det gick inte att ansluta till FiestaBoard",
@@ -1397,7 +1328,31 @@
     "updateErrorDescription": "Uppdateringen är klar, men appen startar fortfarande om. Vänta en stund och uppdatera sedan sidan."
   },
   "globalAiChatDrawer": {
-    "panelAriaLabel": "FiestaBot AI-chatt"
+    "panelAriaLabel": "FiestaBot AI-chatt",
+    "toast": {
+      "undo": "Ångra",
+      "pageCreated": "Sida skapad.",
+      "pageUpdated": "Sida uppdaterad.",
+      "pageDeleted": "Sida borttagen.",
+      "scheduleCreated": "Schema skapat.",
+      "scheduleUpdated": "Schema uppdaterat.",
+      "scheduleDeleted": "Schema borttaget.",
+      "pluginInstalled": "Plugin \"{id}\" installerat.",
+      "pluginConfigured": "Plugin \"{id}\" konfigurerat.",
+      "pluginUpdated": "Plugin \"{id}\" uppdaterat.",
+      "pluginEnabled": "Plugin \"{id}\" aktiverat.",
+      "pluginDisabled": "Plugin \"{id}\" inaktiverat.",
+      "pluginUninstalled": "Plugin \"{id}\" avinstallerat.",
+      "settingUpdated": "Inställning uppdaterad.",
+      "collectionCreated": "Samlingen \"{name}\" skapad.",
+      "collectionUpdated": "Samling uppdaterad.",
+      "collectionDeleted": "Samling borttagen.",
+      "activePageSet": "Tavlan uppdaterad.",
+      "messageSent": "Meddelande skickat till tavlan.",
+      "systemUpdate": "Systemuppdatering påbörjad. Tavlan startar om strax.",
+      "toolFailed": "{tool} misslyckades: {error}",
+      "stopped": "Stoppat. Det som redan körs slutförs ändå."
+    }
   },
   "plainTextEditor": {
     "placeholder": "Skriv din malltext...",
@@ -2042,27 +1997,87 @@
   },
   "aiChatPanel": {
     "messagesAriaLabel": "Chattmeddelanden",
-    "taskStatusAriaLabel": "Uppgiftsförlopp",
-    "taskProgressAriaLabel": "AI-uppgifters förlopp",
     "clearConversationAriaLabel": "Rensa konversation",
     "closePanelAriaLabel": "Stäng FiestaBot (Beta)",
     "providerSelectAriaLabel": "Leverantör",
     "modelSelectAriaLabel": "Modell",
-    "showBoardTooltip": "Visa board-förhandsvisning",
-    "hideBoardTooltip": "Dölj board-förhandsvisning",
-    "undoTooltip": "Ångra senaste AI-ändringen",
     "panelTitle": "FiestaBot (Beta)",
     "retryButton": "Försök igen",
     "messageLabel": "Meddelande",
     "stopButton": "Stoppa",
     "sendButton": "Skicka",
-    "tasksHeading": "Uppgifter ({done}/{total})",
     "emptyStateTitle": "Hur kan jag hjälpa till?",
     "emptyStateDescription": "Beskriv vad du vill bygga eller ändra.",
-    "showBoardButton": "Visa board",
-    "undoButton": "Ångra",
-    "renameSummary": "→ byt namn till ”{name}”",
-    "previewUnavailable": "(förhandsvisning inte tillgänglig)"
+    "placeholderEmpty": "Beskriv sidan du vill ha eller be om ändringar…",
+    "placeholderRefine": "Förfina, fråga eller be om en annan ändring…",
+    "placeholderAnswer": "Skriv ditt svar…",
+    "blockedAiDisabled": "AI är avstängt. Aktivera det under Inställningar → AI-leverantörer.",
+    "blockedNoProviders": "Ställ in en AI-leverantör med minst en modell under Inställningar → AI-leverantörer.",
+    "suggestions": {
+      "weather": "Bygg en väder- och kollektivtrafiksida för min morgonpendling",
+      "date": "Ersätt rad 2 med dagens datum",
+      "variables": "Vilka pluginvariabler kan jag använda på den här sidan?"
+    },
+    "jumpToLatest": "Hoppa till senaste",
+    "defaultModel": "Standard",
+    "stepsAriaLabel": "Pågående steg",
+    "stepsHeading": "{done} av {total} steg",
+    "toolInput": "Argument",
+    "toolOutput": "Resultat",
+    "toolStates": {
+      "inputStreaming": "Förbereder",
+      "inputAvailable": "Körs",
+      "outputAvailable": "Klart",
+      "outputError": "Misslyckades",
+      "approvalRequested": "Väntar på ditt godkännande",
+      "denied": "Inte kört",
+      "stopped": "Stoppat"
+    },
+    "question": {
+      "skip": "Hoppa över",
+      "typeAnswer": "Eller skriv ett svar nedan.",
+      "answered": "Du svarade: {answer}",
+      "declined": "(överhoppat)",
+      "cancelled": "(avbrutet)"
+    },
+    "tool": {
+      "createPage": "Skapa sida",
+      "updatePage": "Uppdatera sida",
+      "deletePage": "Ta bort sida",
+      "createSchedule": "Lägg till schema",
+      "updateSchedule": "Uppdatera schema",
+      "deleteSchedule": "Ta bort schema",
+      "createCollection": "Skapa samling",
+      "updateCollection": "Uppdatera samling",
+      "deleteCollection": "Ta bort samling",
+      "installPlugin": "Installera plugin",
+      "enablePlugin": "Aktivera plugin",
+      "disablePlugin": "Inaktivera plugin",
+      "uninstallPlugin": "Avinstallera plugin",
+      "configurePlugin": "Konfigurera plugin",
+      "updatePlugin": "Uppdatera plugin",
+      "setActivePage": "Visa sida på tavlan",
+      "setScheduleMode": "Ställ in schemaläge",
+      "sendMessage": "Skicka meddelande till tavlan",
+      "updateSetting": "Ändra inställning",
+      "triggerSystemUpdate": "Systemuppdatering",
+      "askUser": "Fråga",
+      "listPages": "Slå upp sidor",
+      "getPage": "Läs sida",
+      "listSchedules": "Slå upp scheman",
+      "listCollections": "Slå upp samlingar",
+      "listInstalledPlugins": "Slå upp installerade plugins",
+      "listRegistryPlugins": "Bläddra i pluginregistret",
+      "getTemplateVariables": "Slå upp mallvariabler",
+      "getPluginData": "Läs plugindata",
+      "renderPagePreview": "Förhandsgranska mall",
+      "previewSavedPage": "Förhandsgranska sida",
+      "validateTemplate": "Kontrollera mall",
+      "getSystemStatus": "Kontrollera systemstatus",
+      "getSettingsSummary": "Läs inställningar",
+      "getActivePage": "Kontrollera aktiv sida",
+      "getBoardContent": "Läs tavlan"
+    }
   },
   "boardSizeIndicator": {
     "custom": "Anpassad",
@@ -2183,5 +2198,19 @@
     "leaveConfirmTitle": "Lämna betakanalen?",
     "leaveConfirmBody": "Detta tar dig tillbaka till den aktuella stabila versionen, som är äldre än betan du kör. Dina inställningar och sidor återställs till säkerhetskopian som togs när du gick med — allt du ändrat under betan går förlorat. FiestaBoard startar om på den stabila versionen. Vill du behålla dina ändringar, vänta i stället: när nästa stabila version passerar din beta tar «Uppdatera nu» dig dit utan att något går förlorat.",
     "leaveConfirmCta": "Lämna betan"
+  },
+  "aiApprovalCard": {
+    "heading": "Kräver ditt godkännande",
+    "approve": "Godkänn",
+    "deny": "Neka",
+    "working": "Arbetar…",
+    "description": {
+      "deletePage": "Tar bort sidan \"{detail}\" permanent. Scheman och samlingar som använder den förlorar den.",
+      "deleteSchedule": "Tar bort schemat \"{detail}\" permanent. Det går inte att ångra.",
+      "deleteCollection": "Tar bort samlingen \"{detail}\" permanent. Det går inte att ångra.",
+      "uninstallPlugin": "Tar bort pluginet \"{detail}\" och dess konfiguration permanent.",
+      "triggerSystemUpdate": "Laddar ner och installerar den senaste FiestaBoard-uppdateringen. Systemet startar om kort.",
+      "generic": "Den här åtgärden kan inte ångras av ett annat verktyg."
+    }
   }
 }

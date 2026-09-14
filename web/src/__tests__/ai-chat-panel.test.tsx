@@ -15,8 +15,9 @@ const API_BASE = "/api";
 // Mock the streaming hook so tests don't need a real SSE connection.
 // Each test controls status / messages via `mockHook`.
 const mockSend = vi.fn();
-const mockResume = vi.fn();
-const mockCancel = vi.fn();
+const mockApprove = vi.fn();
+const mockAnswer = vi.fn();
+const mockStop = vi.fn();
 const mockReset = vi.fn();
 const mockRetryLast = vi.fn();
 
@@ -26,12 +27,32 @@ const mockRetryLast = vi.fn();
 const defaultHookResult: UseAiChatResult = {
   messages: [],
   status: "idle",
+  pendingApproval: null,
+  pendingElicitation: null,
   error: null,
   send: mockSend,
-  resume: mockResume,
-  cancel: mockCancel,
+  approve: mockApprove,
+  answer: mockAnswer,
+  stop: mockStop,
   retryLast: mockRetryLast,
   reset: mockReset,
+};
+
+const CONFIGURED = {
+  enabled: true,
+  providers: [] as unknown[],
+  default_provider_id: "p1",
+};
+
+const CREATE_PAGE_CALL = {
+  id: "tc1",
+  name: "create_page",
+  args: { name: "Morning", template_lines: ["HELLO"] },
+  title: "Create page",
+  read_only: false,
+  destructive: false,
+  requires_approval: false,
+  source: "mcp" as const,
 };
 
 let hookResult: UseAiChatResult = { ...defaultHookResult };
@@ -63,7 +84,6 @@ const defaultProps = {
     surface: "global" as const,
     currentPage: undefined,
   }),
-  onToolCall: noop,
   onClose: noop,
 };
 
@@ -160,7 +180,7 @@ describe("AiChatPanel", () => {
     expect(mockSend).toHaveBeenCalledWith("Show me the weather");
   });
 
-  it("Ctrl+Enter submits the message", async () => {
+  it("Enter submits the message", async () => {
     server.use(
       http.get(`${API_BASE}/settings/ai`, () =>
         HttpResponse.json({
@@ -177,7 +197,7 @@ describe("AiChatPanel", () => {
     await waitFor(() => expect(textarea).not.toBeDisabled());
 
     await user.type(textarea, "Hello");
-    await user.keyboard("{Control>}{Enter}{/Control}");
+    await user.keyboard("{Enter}");
 
     expect(mockSend).toHaveBeenCalledWith("Hello");
   });
@@ -200,7 +220,7 @@ describe("AiChatPanel", () => {
     expect(screen.queryByRole("button", { name: /^send$/i })).not.toBeInTheDocument();
   });
 
-  it("stop button calls cancel()", async () => {
+  it("stop button calls stop()", async () => {
     server.use(
       http.get(`${API_BASE}/settings/ai`, () =>
         HttpResponse.json({
@@ -216,7 +236,7 @@ describe("AiChatPanel", () => {
     render(<AiChatPanel {...defaultProps} />, { wrapper: Wrapper });
 
     await user.click(await screen.findByRole("button", { name: /stop/i }));
-    expect(mockCancel).toHaveBeenCalledOnce();
+    expect(mockStop).toHaveBeenCalledOnce();
   });
 
   it("clear conversation button is hidden with no messages", async () => {
@@ -276,50 +296,129 @@ describe("AiChatPanel", () => {
     expect(await screen.findByText(/provider timeout after 30s/i)).toBeInTheDocument();
   });
 
-  it("renders tool-result messages as compact pills, not user bubbles", async () => {
+  it("renders a tool call as a card that settles with its result", async () => {
     server.use(
       http.get(`${API_BASE}/settings/ai`, () =>
-        HttpResponse.json({
-          enabled: true,
-          providers: [CONFIGURED_PROVIDER],
-          default_provider_id: "p1",
-        }),
+        HttpResponse.json({ ...CONFIGURED, providers: [CONFIGURED_PROVIDER] }),
       ),
     );
     hookResult = {
       ...defaultHookResult,
       messages: [
+        { role: "user", content: "make a page" },
         {
-          role: "user",
-          content: '[Tool result: install_plugin for "openweather" → Success.]',
-          isToolResult: true,
+          role: "assistant",
+          content: "Creating it.",
+          toolCalls: [
+            {
+              ...CREATE_PAGE_CALL,
+              phase: "ok",
+              result: { id: "tc1", name: "create_page", status: "ok", summary: "Page created.", result: { page_id: "p9" }, error: null },
+            },
+          ],
         },
       ],
     };
 
     render(<AiChatPanel {...defaultProps} />, { wrapper: Wrapper });
-    // The pill strips the "[Tool result: " prefix when displaying
-    expect(await screen.findByText(/install_plugin for "openweather" → Success/)).toBeInTheDocument();
+    const card = await screen.findByTestId("ai-tool-create_page");
+    expect(card).toHaveAttribute("data-state", "output-available");
+    expect(screen.getByRole("button", { name: /Create page.*Morning.*Done/ })).toBeInTheDocument();
   });
 
-  it("shows ChainingModePicker when onChainingModeChange is provided", async () => {
+  it("shows the step timeline while the turn is running", async () => {
     server.use(
       http.get(`${API_BASE}/settings/ai`, () =>
-        HttpResponse.json({
-          enabled: true,
-          providers: [CONFIGURED_PROVIDER],
-          default_provider_id: "p1",
-        }),
+        HttpResponse.json({ ...CONFIGURED, providers: [CONFIGURED_PROVIDER] }),
       ),
     );
-    const onModeChange = vi.fn();
-    render(<AiChatPanel {...defaultProps} chainingMode="manual" onChainingModeChange={onModeChange} />, {
-      wrapper: Wrapper,
-    });
-    // ChainingModePicker exposes the current mode through the trigger's
-    // accessible name (aria-label), which stays present even when the
-    // visible label is hidden at narrow widths.
-    expect(await screen.findByRole("button", { name: /ai chaining mode: manual/i })).toBeInTheDocument();
+    hookResult = {
+      ...defaultHookResult,
+      status: "streaming",
+      messages: [
+        { role: "user", content: "make a page" },
+        {
+          role: "assistant",
+          content: "",
+          pending: true,
+          statusMessage: "Running create_page…",
+          toolCalls: [{ ...CREATE_PAGE_CALL, phase: "running" }],
+        },
+      ],
+    };
+
+    render(<AiChatPanel {...defaultProps} />, { wrapper: Wrapper });
+    const timeline = await screen.findByTestId("ai-step-timeline");
+    expect(timeline).toHaveAttribute("role", "status");
+    expect(timeline).toHaveTextContent("0 of 1 steps");
+    expect(timeline).toHaveTextContent("Running create_page…");
+  });
+
+  it("shows Approve / Deny for the pending destructive call and forwards the decision", async () => {
+    server.use(
+      http.get(`${API_BASE}/settings/ai`, () =>
+        HttpResponse.json({ ...CONFIGURED, providers: [CONFIGURED_PROVIDER] }),
+      ),
+    );
+    const pending = { ...CREATE_PAGE_CALL, id: "tc2", name: "delete_page", args: { page_id: "p1" }, destructive: true, requires_approval: true };
+    hookResult = {
+      ...defaultHookResult,
+      status: "awaiting_approval",
+      pendingApproval: pending,
+      messages: [
+        { role: "user", content: "delete it" },
+        { role: "assistant", content: "Deleting.", toolCalls: [{ ...pending, phase: "awaiting_approval" }] },
+      ],
+    };
+
+    const user = userEvent.setup();
+    render(<AiChatPanel {...defaultProps} />, { wrapper: Wrapper });
+    await user.click(await screen.findByRole("button", { name: "Approve" }));
+    expect(mockApprove).toHaveBeenCalledWith("tc2", "approve");
+  });
+
+  it("renders a question with chips and answers through the hook", async () => {
+    server.use(
+      http.get(`${API_BASE}/settings/ai`, () =>
+        HttpResponse.json({ ...CONFIGURED, providers: [CONFIGURED_PROVIDER] }),
+      ),
+    );
+    const elicitation = {
+      id: "q1",
+      name: "ask_user",
+      message: "Which board?",
+      requested_schema: { type: "object" as const, properties: { answer: { type: "string" as const, enum: ["Kitchen", "Hall"] } } },
+      allow_free_text: true,
+    };
+    hookResult = {
+      ...defaultHookResult,
+      status: "awaiting_input",
+      pendingElicitation: elicitation,
+      messages: [
+        { role: "user", content: "put weather up" },
+        { role: "assistant", content: "", elicitation },
+      ],
+    };
+
+    const user = userEvent.setup();
+    render(<AiChatPanel {...defaultProps} />, { wrapper: Wrapper });
+    await user.click(await screen.findByRole("button", { name: "Kitchen" }));
+    expect(mockAnswer).toHaveBeenCalledWith("q1", { action: "accept", content: { answer: "Kitchen" } });
+    expect(screen.getByRole("textbox")).toHaveAttribute("placeholder", enMessages.aiChatPanel.placeholderAnswer);
+  });
+
+  it("empty-state suggestions and placeholders resolve through i18n", async () => {
+    server.use(
+      http.get(`${API_BASE}/settings/ai`, () =>
+        HttpResponse.json({ ...CONFIGURED, providers: [CONFIGURED_PROVIDER] }),
+      ),
+    );
+    const user = userEvent.setup();
+    render(<AiChatPanel {...defaultProps} />, { wrapper: Wrapper });
+    const chip = await screen.findByRole("button", { name: enMessages.aiChatPanel.suggestions.weather });
+    expect(screen.getByRole("textbox")).toHaveAttribute("placeholder", enMessages.aiChatPanel.placeholderEmpty);
+    await user.click(chip);
+    expect(mockSend).toHaveBeenCalledWith(enMessages.aiChatPanel.suggestions.weather);
   });
 
   it("header buttons resolve their aria-label through next-intl (no hardcoded English)", async () => {
@@ -355,45 +454,5 @@ describe("AiChatPanel", () => {
         name: enMessages.aiChatPanel.closePanelAriaLabel,
       }),
     ).toBeInTheDocument();
-  });
-
-  it("does not show ChainingModePicker when onChainingModeChange is absent", async () => {
-    server.use(
-      http.get(`${API_BASE}/settings/ai`, () =>
-        HttpResponse.json({
-          enabled: true,
-          providers: [CONFIGURED_PROVIDER],
-          default_provider_id: "p1",
-        }),
-      ),
-    );
-    render(<AiChatPanel {...defaultProps} />, { wrapper: Wrapper });
-    await screen.findByText("FiestaBot (Beta)");
-    expect(screen.queryByTitle(/ai mode:/i)).not.toBeInTheDocument();
-  });
-
-  it("task progress bar exposes role=progressbar with ARIA value attributes", async () => {
-    server.use(
-      http.get(`${API_BASE}/settings/ai`, () =>
-        HttpResponse.json({
-          enabled: true,
-          providers: [CONFIGURED_PROVIDER],
-          default_provider_id: "p1",
-        }),
-      ),
-    );
-    const taskList = [
-      { id: "1", label: "Read docs", status: "done" as const },
-      { id: "2", label: "Patch component", status: "in_progress" as const },
-      { id: "3", label: "Run tests", status: "pending" as const },
-      { id: "4", label: "Open PR", status: "pending" as const },
-    ];
-    render(<AiChatPanel {...defaultProps} taskList={taskList} />, { wrapper: Wrapper });
-
-    const progressbar = await screen.findByRole("progressbar");
-    expect(progressbar).toHaveAttribute("aria-valuenow", "25");
-    expect(progressbar).toHaveAttribute("aria-valuemin", "0");
-    expect(progressbar).toHaveAttribute("aria-valuemax", "100");
-    expect(progressbar).toHaveAccessibleName();
   });
 });

@@ -2,11 +2,11 @@
 
 import { createContext, useCallback, useContext, useRef, useState } from "react";
 
-import type { CurrentPageSnapshot, ToolCall } from "@/lib/ai-chat-types";
+import type { CurrentPageSnapshot, EditorToolCall } from "@/lib/ai-chat-types";
 
 interface EditorHandlers {
   getSnapshot: () => CurrentPageSnapshot | null;
-  applyOp: (call: ToolCall) => void;
+  applyOp: (call: EditorToolCall) => void;
   /** Persist the current editor state to the API without closing. */
   save: () => Promise<{ id: string } | null>;
   getCanUndo: () => boolean;
@@ -19,7 +19,7 @@ interface PageEditorBridgeContextValue {
   /** Get the current page snapshot from the editor. Called lazily at turn time. */
   getEditorSnapshot: () => CurrentPageSnapshot | null;
   /** Apply a page-editing op to the mounted editor. */
-  applyEditorOp: (call: ToolCall) => void;
+  applyEditorOp: (call: EditorToolCall) => void;
   /**
    * Persist the current editor content to the API without closing the editor.
    * Used by the AI chaining layer to save before navigating away.
@@ -33,8 +33,8 @@ interface PageEditorBridgeContextValue {
   /**
    * Resolves once a page editor is mounted (either already, or after the next
    * `register()` call). Resolves `true` on success and `false` on timeout so
-   * the chaining loop never stalls. Used by `navigate_to_page` to wait out the
-   * route transition before resuming the AI.
+   * a caller never stalls. Used to wait out a route transition before
+   * driving the editor.
    */
   waitForEditor: (timeoutMs?: number) => Promise<boolean>;
   /** Called by the page editor to register itself. */
@@ -92,7 +92,7 @@ export function PageEditorBridgeProvider({ children }: { children: React.ReactNo
 
   const getEditorSnapshot = useCallback(() => handlersRef.current?.getSnapshot() ?? null, []);
 
-  const applyEditorOp = useCallback((call: ToolCall) => {
+  const applyEditorOp = useCallback((call: EditorToolCall) => {
     handlersRef.current?.applyOp(call);
     setMutationPulse((p) => p + 1);
   }, []);

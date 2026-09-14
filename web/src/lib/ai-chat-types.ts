@@ -1,9 +1,23 @@
 // Types for the streaming AI chat feature.
 //
-// Mirrors src/ai/chat_ops.py — keep these in sync when changing
-// either side of the wire.
+// The chat is a server-side agent loop over the in-process MCP server
+// (src/ai/agent.py). The browser no longer executes tools: it renders what
+// the stream says is happening (`tool_call` before a tool runs,
+// `tool_result` after), answers the two questions only a person can
+// (approve a destructive tool, reply to `ask_user`), and replays the
+// structured transcript on every request.
+//
+// Mirrors the ChatStream*Data models registered in CHAT_STREAM_EVENTS
+// (src/ai/page_routes.py) and the request models beside them.
+// tests/test_ai_stream_contract.py holds the two sides together.
 
 import type { DeviceType, LineMetadata } from "./api";
+
+// ---------------------------------------------------------------------------
+// Editor-local ops. These never cross the wire any more: the page editor's
+// own undo/apply plumbing still speaks them (src/lib/line-ops.ts,
+// page-builder.tsx), which is why they live on.
+// ---------------------------------------------------------------------------
 
 export type Alignment = "left" | "center" | "right";
 
@@ -49,175 +63,231 @@ export interface ApplyPatchArgs {
   rename?: string | null;
 }
 
-export interface VariableSuggestion {
-  ref: string;
-  description?: string | null;
-  example?: string | null;
+/** An edit the page editor applies to its own draft. */
+export type EditorToolCall =
+  | { id: string; op: "replace_page"; args: ReplacePageArgs }
+  | { id: string; op: "apply_patch"; args: ApplyPatchArgs };
+
+// ---------------------------------------------------------------------------
+// Tools — the MCP tool names, plus the two chat-only extensions.
+// ---------------------------------------------------------------------------
+
+/**
+ * The tools the choreography and the labels know by name. The server may
+ * emit any tool the MCP server registers; an unknown one still renders,
+ * with a generic label. tests/test_ai_stream_contract.py asserts every name
+ * here is a real MCP tool (or a chat extension).
+ */
+export const KNOWN_TOOL_NAMES = [
+  "create_page",
+  "update_page",
+  "delete_page",
+  "create_schedule",
+  "update_schedule",
+  "delete_schedule",
+  "create_collection",
+  "update_collection",
+  "delete_collection",
+  "install_plugin",
+  "enable_plugin",
+  "disable_plugin",
+  "uninstall_plugin",
+  "configure_plugin",
+  "update_plugin",
+  "set_active_page",
+  "set_schedule_mode",
+  "send_message",
+  "update_setting",
+  "trigger_system_update",
+  "ask_user",
+  "list_pages",
+  "get_page",
+  "list_schedules",
+  "list_collections",
+  "list_installed_plugins",
+  "list_registry_plugins",
+  "get_template_variables",
+  "get_plugin_data",
+  "render_page_preview",
+  "preview_saved_page",
+  "validate_template",
+  "get_system_status",
+  "get_settings_summary",
+  "get_active_page",
+  "get_board_content",
+] as const;
+
+export type KnownToolName = (typeof KNOWN_TOOL_NAMES)[number];
+// eslint-disable-next-line @typescript-eslint/no-empty-object-type -- keeps autocomplete for the known names while accepting any string
+export type ToolName = KnownToolName | (string & {});
+
+export type ToolSource = "mcp" | "chat";
+
+/** One `tool_call` frame: a validated call, emitted BEFORE it runs. */
+export interface ToolCall {
+  id: string;
+  name: ToolName;
+  args: Record<string, unknown>;
+  title: string;
+  read_only: boolean;
+  destructive: boolean;
+  requires_approval: boolean;
+  source: ToolSource;
 }
 
-export interface SuggestVariablesArgs {
-  suggestions: VariableSuggestion[];
+export type ToolResultStatus = "ok" | "blocked" | "error" | "denied";
+
+/** One `tool_result` frame: what the call did. */
+export interface ToolResult {
+  id: string;
+  name: ToolName;
+  status: ToolResultStatus;
+  summary: string;
+  result: unknown;
+  error: string | null;
 }
 
-export interface NavigateToPageArgs {
-  page_id: string;
-  device_type?: string | null;
+/** One `elicitation` frame: the assistant asked the user something. */
+export interface Elicitation {
+  id: string;
+  name: ToolName;
+  message: string;
+  requested_schema: {
+    type: "object";
+    properties: Record<string, ElicitationProperty>;
+    required?: string[];
+  };
+  allow_free_text: boolean;
 }
 
-export interface InstallPluginArgs {
-  plugin_id: string;
-  source: "registry";
-  auto_enable?: boolean;
-  initial_config?: Record<string, unknown> | null;
+export interface ElicitationProperty {
+  type: "string" | "number" | "integer" | "boolean";
+  title?: string;
+  description?: string;
+  enum?: string[];
 }
 
-export interface UpdatePluginConfigArgs {
-  plugin_id: string;
-  config: Record<string, unknown>;
-}
+export type ElicitationAnswer =
+  | { action: "accept"; content: Record<string, string | number | boolean> }
+  | { action: "decline" }
+  | { action: "cancel" };
 
-export type SettingCategory =
-  "display" | "transitions" | "output" | "polling" | "location" | "silence_schedule" | "active_page";
+export type ApprovalDecision = "approve" | "deny";
 
-export interface UpdateSettingArgs {
-  category: SettingCategory;
-  values: Record<string, unknown>;
-}
+export type ResumePayload =
+  | { tool_call_id: string; decision: ApprovalDecision }
+  | { tool_call_id: string; decision: "answer"; answer: ElicitationAnswer };
 
+export type DoneReason = "complete" | "awaiting_approval" | "awaiting_input" | "step_limit";
+
+// Typed views of the arguments the choreography and labels read. Narrowing
+// helpers, not a union — an unknown tool's args are still a plain object.
 export type DayPattern = "all" | "weekdays" | "weekends" | "custom";
+export type SettingCategory =
+  | "display"
+  | "transitions"
+  | "output"
+  | "polling"
+  | "location"
+  | "silence_schedule"
+  | "active_page";
 
-export interface CreateCollectionArgs {
+export interface CreatePageArgs {
   name: string;
-  page_ids: string[];
-  interval_seconds: number;
+  template_lines: string[];
+  device_type?: DeviceType;
+  duration_seconds?: number;
 }
 
-export interface UpdateCollectionArgs {
-  collection_id: string;
+export interface UpdatePageArgs {
+  page_id: string;
   name?: string | null;
-  page_ids?: string[] | null;
-  interval_seconds?: number | null;
+  template_lines?: string[] | null;
+  duration_seconds?: number | null;
 }
 
 export interface CreateScheduleArgs {
   page_id: string;
   start_time: string;
   end_time?: string | null;
-  day_pattern: DayPattern;
+  day_pattern?: DayPattern;
   custom_days?: string[] | null;
-  enabled: boolean;
+  enabled?: boolean;
 }
 
-export interface UpdateScheduleArgs {
-  schedule_id: string;
-  page_id?: string | null;
-  start_time?: string | null;
-  end_time?: string | null;
-  day_pattern?: DayPattern | null;
-  custom_days?: string[] | null;
-  enabled?: boolean | null;
-}
-
-export interface DeleteScheduleArgs {
+export interface UpdateScheduleArgs extends Partial<CreateScheduleArgs> {
   schedule_id: string;
 }
 
-export interface NavigateToScheduleArgs {
-  prefill?: {
-    page_id?: string;
-    start_time?: string;
-    end_time?: string | null;
-    day_pattern?: DayPattern;
-    custom_days?: string[];
-  };
+export interface UpdateSettingArgs {
+  category: SettingCategory;
+  values: Record<string, unknown>;
 }
 
-export interface UpdatePluginArgs {
+export interface ConfigurePluginArgs {
   plugin_id: string;
+  config: Record<string, unknown>;
 }
 
-export interface EnablePluginArgs {
-  plugin_id: string;
+export interface AskUserArgs {
+  question: string;
+  options?: string[] | null;
+  allow_free_text?: boolean;
 }
 
-export interface DisablePluginArgs {
-  plugin_id: string;
+export function argsOf<T>(call: Pick<ToolCall, "args">): T {
+  return call.args as unknown as T;
 }
 
-export interface UninstallPluginArgs {
-  plugin_id: string;
-}
-
-export type TaskStatus = "pending" | "in_progress" | "done" | "failed";
-
-export interface TaskItem {
-  id: string;
-  label: string;
-  status: TaskStatus;
-}
-
-export interface UpdateTaskListArgs {
-  tasks: TaskItem[];
-}
-
-export type ToolCall =
-  | { id: string; op: "replace_page"; args: ReplacePageArgs }
-  | { id: string; op: "apply_patch"; args: ApplyPatchArgs }
-  | { id: string; op: "suggest_variables"; args: SuggestVariablesArgs }
-  | { id: string; op: "navigate_to_page"; args: NavigateToPageArgs }
-  | { id: string; op: "navigate_to_schedule"; args: NavigateToScheduleArgs }
-  | { id: string; op: "install_plugin"; args: InstallPluginArgs }
-  | { id: string; op: "update_plugin_config"; args: UpdatePluginConfigArgs }
-  | { id: string; op: "update_setting"; args: UpdateSettingArgs }
-  | { id: string; op: "create_collection"; args: CreateCollectionArgs }
-  | { id: string; op: "update_collection"; args: UpdateCollectionArgs }
-  | { id: string; op: "create_schedule"; args: CreateScheduleArgs }
-  | { id: string; op: "update_schedule"; args: UpdateScheduleArgs }
-  | { id: string; op: "delete_schedule"; args: DeleteScheduleArgs }
-  | { id: string; op: "update_plugin"; args: UpdatePluginArgs }
-  | { id: string; op: "enable_plugin"; args: EnablePluginArgs }
-  | { id: string; op: "disable_plugin"; args: DisablePluginArgs }
-  | { id: string; op: "uninstall_plugin"; args: UninstallPluginArgs }
-  | { id: string; op: "trigger_system_update"; args: Record<string, never> }
-  | { id: string; op: "update_task_list"; args: UpdateTaskListArgs };
+// ---------------------------------------------------------------------------
+// What the panel renders
+// ---------------------------------------------------------------------------
 
 /**
- * Tool call as displayed in the chat thread. Adds an optional
- * `appliedSnapshot` that the runtime computes locally — the page
- * state *as it would render after this call*. Used to draw a static
- * board preview inline in the assistant's tool-call card.
- *
- * For `replace_page`, the snapshot mirrors `args` exactly. For
- * `apply_patch`, it's the result of replaying the patch against the
- * pre-call page state. For `suggest_variables`, no snapshot.
+ * Where a call is in its life, as the panel shows it. `running` is the
+ * gap between `tool_call` and `tool_result`; `awaiting_approval` is a
+ * destructive tool waiting on the user; `stopped` is a call that was
+ * running when the user ended the turn (it may still have completed).
  */
+export type ToolPhase = "running" | "awaiting_approval" | "ok" | "blocked" | "error" | "denied" | "stopped";
+
 export type ToolCallDisplay = ToolCall & {
+  phase: ToolPhase;
+  result?: ToolResult;
+  /**
+   * The page as it would render after this call, computed locally from the
+   * call's arguments so a `create_page` / `update_page` card can show a
+   * board preview before the result arrives.
+   */
   appliedSnapshot?: CurrentPageSnapshot;
-  // Device the call was made against — needed by the inline board
-  // preview so it can size itself to flagship vs note.
   deviceType?: DeviceType;
 };
-
-export type ChainingMode = "manual" | "auto-continue" | "autonomous";
 
 export interface ChatMessage {
   role: "user" | "assistant";
   content: string;
-  // Tool calls associated with an assistant message. Rendered inline
-  // alongside the prose.
+  /** Tool calls the assistant made in this turn, in order. */
   toolCalls?: ToolCallDisplay[];
-  // Surface model warnings/errors next to the message so the user
-  // sees them in context.
+  /** The last `status` message the server sent for this turn. */
+  statusMessage?: string;
+  /** A question the assistant asked, with the answer once given. */
+  elicitation?: Elicitation & { answer?: ElicitationAnswer };
   warnings?: string[];
-  // True while the assistant is still streaming this message.
+  /** True while the server is still working on this turn. */
   pending?: boolean;
-  /**
-   * When true this message is an automated tool-result injection (role: "user"
-   * under the hood) rather than something the human typed. The chat renderer
-   * displays it as a compact system pill instead of a full user bubble.
-   */
-  isToolResult?: boolean;
 }
+
+// ---------------------------------------------------------------------------
+// The wire
+// ---------------------------------------------------------------------------
+
+export type WireToolStatus = "ok" | "blocked" | "error" | "denied" | "interrupted" | "answered";
+
+/** One transcript entry as the server wants it replayed. */
+export type WireMessage =
+  | { role: "user"; content: string }
+  | { role: "assistant"; content: string; tool_calls?: Array<{ id: string; name: string; args: Record<string, unknown> }> }
+  | { role: "tool"; tool_call_id: string; name: string; status: WireToolStatus; result: unknown };
 
 export interface CurrentPageSnapshot {
   name: string;
@@ -268,21 +338,10 @@ export interface CollectionRef {
 }
 
 /**
- * Latest editor state needed to issue a chat turn. Bundles both the
- * device the user is targeting (which dictates layout constraints in
- * the system prompt) and an optional snapshot of what's already in
- * the editor (for refinement turns).
- *
- * The global AI panel also passes availablePages, installedPlugins,
- * availableSchedules, and availableCollections so the AI can propose
- * navigation, plugin installs, schedule/collection management, etc.
- */
-/**
  * Which chat surface the user is talking to. The inline page-editor
  * panel ("editor") biases the AI toward in-place edits of the page
- * being edited; the global drawer ("global") biases it toward navigation
- * and configuration actions. The backend uses this to swap a single
- * paragraph of the chat system prompt.
+ * being edited; the global drawer ("global") biases it toward creating
+ * things and letting the app open them.
  */
 export type ChatSurface = "editor" | "global";
 
@@ -298,7 +357,8 @@ export interface ChatTurnContext {
 }
 
 export interface ChatRequestBody {
-  messages: { role: "user" | "assistant"; content: string }[];
+  messages: WireMessage[];
+  resume?: ResumePayload;
   device_type: DeviceType;
   surface?: ChatSurface;
   current_page?: CurrentPageSnapshot;
@@ -311,23 +371,25 @@ export interface ChatRequestBody {
   model?: string;
 }
 
-// SSE event payloads from POST /pages/ai/chat. The event name is
-// carried by fetchEventSource separately; the data is JSON-decoded.
-//
-// These mirror the ChatStream*Data models registered in
-// CHAT_STREAM_EVENTS (src/ai/page_routes.py). That endpoint streams, so it
-// has no response_model to generate from — the registry is the published
-// schema, and tests/test_ai_pages_contract.py holds it to the wire.
+// SSE event payloads from POST /pages/ai/chat. The event name is carried by
+// fetchEventSource separately; the data is JSON-decoded.
 
 export interface SSETextData {
   delta: string;
 }
 
-export interface SSEToolCallData {
-  id: string;
-  op: ToolCall["op"];
-  args: Record<string, unknown>;
+export interface SSEStatusData {
+  phase: "thinking" | "tool_running" | "tool_done";
+  message: string;
+  tool_call_id: string | null;
+  step: number;
 }
+
+export type SSEToolCallData = ToolCall;
+
+export type SSEToolResultData = ToolResult;
+
+export type SSEElicitationData = Elicitation;
 
 export interface SSEWarningData {
   message: string;
@@ -345,4 +407,7 @@ export interface SSEDoneData {
     completion_tokens: number | null;
     total_tokens: number | null;
   };
+  reason: DoneReason;
+  pending_tool_call_id: string | null;
+  steps: number;
 }

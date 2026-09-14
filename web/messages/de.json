@@ -1317,75 +1317,6 @@
       "failure": "Anmeldung konnte nicht aktiviert werden"
     }
   },
-  "aiActionConfirmation": {
-    "deny": "Ablehnen",
-    "allow": "Zulassen",
-    "working": "Wird ausgeführt…",
-    "done": "Fertig",
-    "denied": "Abgelehnt",
-    "noChanges": "keine Änderungen",
-    "noValues": "keine Werte",
-    "noChangesSpecified": "Keine Änderungen angegeben.",
-    "openEnd": "offen",
-    "label": {
-      "installPlugin": "Plugin installieren: {id}",
-      "updatePluginConfig": "Plugin konfigurieren: {id}",
-      "updatePlugin": "Plugin aktualisieren: {id}",
-      "enablePlugin": "Plugin aktivieren: {id}",
-      "disablePlugin": "Plugin deaktivieren: {id}",
-      "uninstallPlugin": "Plugin deinstallieren: {id}",
-      "updateSetting": "Einstellung ändern: {category}",
-      "createCollection": "Sammlung erstellen: \"{name}\"",
-      "updateCollection": "Sammlung aktualisieren",
-      "createSchedule": "Zeitplan erstellen",
-      "updateSchedule": "Zeitplan aktualisieren",
-      "deleteSchedule": "Zeitplan löschen",
-      "triggerSystemUpdate": "Systemaktualisierung"
-    },
-    "description": {
-      "installPlugin": "Installiert \"{id}\" aus der offiziellen Registry.",
-      "installPluginEnable": "Installiert \"{id}\" aus der offiziellen Registry und aktiviert es.",
-      "updatePluginConfig": "Aktualisiert die Konfiguration von \"{id}\": {keys}.",
-      "updatePlugin": "Lädt die neueste Registry-Version von \"{id}\" herunter und installiert sie.",
-      "enablePlugin": "Aktiviert \"{id}\", damit es Daten für deine Boards bereitstellen kann.",
-      "disablePlugin": "Deaktiviert \"{id}\", ohne es zu entfernen. Es kann später wieder aktiviert werden.",
-      "uninstallPlugin": "Entfernt \"{id}\" dauerhaft. Dies kann nicht rückgängig gemacht werden.",
-      "updateSetting": "Setzt {values} in den {category}-Einstellungen.",
-      "createCollection": "Erstellt eine Sammlung mit {count, plural, one {# Seite} other {# Seiten}}, die alle {interval}s wechselt.",
-      "createSchedule": "Zeigt Seite \"{page}\" von {time} an {days}-Tagen.",
-      "deleteSchedule": "Entfernt den Zeitplan \"{id}\" dauerhaft. Dies kann nicht rückgängig gemacht werden.",
-      "triggerSystemUpdate": "Lädt die neueste FiestaBoard-Aktualisierung herunter und installiert sie. Das System startet kurz neu."
-    },
-    "change": {
-      "rename": "umbenennen in \"{name}\"",
-      "setPages": "{count, plural, one {# Seite} other {# Seiten}} festlegen",
-      "interval": "Intervall → {interval}s",
-      "page": "Seite → {page}",
-      "start": "Start → {start}",
-      "end": "Ende → {end}",
-      "days": "Tage → {days}",
-      "enable": "aktivieren",
-      "disable": "deaktivieren"
-    }
-  },
-  "chainingModePicker": {
-    "menuTitle": "KI-Verkettungsmodus",
-    "triggerAriaLabel": "KI-Verkettungsmodus: {mode}",
-    "modes": {
-      "manual": {
-        "label": "Manuell",
-        "description": "Ich frage nach jeder Aktion erneut nach"
-      },
-      "autoContinue": {
-        "label": "Auto-Fortsetzung",
-        "description": "Aktionen verketten, jeden Schritt bestätigen"
-      },
-      "autonomous": {
-        "label": "Autonom",
-        "description": "Bis zum Abschluss ausführen, Bestätigungen überspringen"
-      }
-    }
-  },
   "bootGate": {
     "waiting": "Warten auf den Start…",
     "errorHeading": "Verbindung zu FiestaBoard fehlgeschlagen",
@@ -1397,7 +1328,31 @@
     "updateErrorDescription": "Das Update ist abgeschlossen, aber die App startet noch. Warten Sie einen Moment und aktualisieren Sie die Seite."
   },
   "globalAiChatDrawer": {
-    "panelAriaLabel": "FiestaBot-KI-Chat"
+    "panelAriaLabel": "FiestaBot-KI-Chat",
+    "toast": {
+      "undo": "Rückgängig",
+      "pageCreated": "Seite erstellt.",
+      "pageUpdated": "Seite aktualisiert.",
+      "pageDeleted": "Seite gelöscht.",
+      "scheduleCreated": "Zeitplan erstellt.",
+      "scheduleUpdated": "Zeitplan aktualisiert.",
+      "scheduleDeleted": "Zeitplan gelöscht.",
+      "pluginInstalled": "Plugin „{id}“ installiert.",
+      "pluginConfigured": "Plugin „{id}“ konfiguriert.",
+      "pluginUpdated": "Plugin „{id}“ aktualisiert.",
+      "pluginEnabled": "Plugin „{id}“ aktiviert.",
+      "pluginDisabled": "Plugin „{id}“ deaktiviert.",
+      "pluginUninstalled": "Plugin „{id}“ deinstalliert.",
+      "settingUpdated": "Einstellung aktualisiert.",
+      "collectionCreated": "Sammlung „{name}“ erstellt.",
+      "collectionUpdated": "Sammlung aktualisiert.",
+      "collectionDeleted": "Sammlung gelöscht.",
+      "activePageSet": "Board aktualisiert.",
+      "messageSent": "Nachricht an das Board gesendet.",
+      "systemUpdate": "Systemaktualisierung gestartet. Das Board startet in Kürze neu.",
+      "toolFailed": "{tool} fehlgeschlagen: {error}",
+      "stopped": "Gestoppt. Bereits laufende Aktionen werden noch abgeschlossen."
+    }
   },
   "plainTextEditor": {
     "placeholder": "Vorlagentext eingeben...",
@@ -2042,27 +1997,87 @@
   },
   "aiChatPanel": {
     "messagesAriaLabel": "Chat-Nachrichten",
-    "taskStatusAriaLabel": "Aufgabenfortschritt",
-    "taskProgressAriaLabel": "Fortschritt der KI-Aufgaben",
     "clearConversationAriaLabel": "Konversation löschen",
     "closePanelAriaLabel": "FiestaBot (Beta) schließen",
     "providerSelectAriaLabel": "Anbieter",
     "modelSelectAriaLabel": "Modell",
-    "showBoardTooltip": "Board-Vorschau anzeigen",
-    "hideBoardTooltip": "Board-Vorschau ausblenden",
-    "undoTooltip": "Letzte KI-Änderung rückgängig machen",
     "panelTitle": "FiestaBot (Beta)",
     "retryButton": "Erneut versuchen",
     "messageLabel": "Nachricht",
     "stopButton": "Stoppen",
     "sendButton": "Senden",
-    "tasksHeading": "Aufgaben ({done}/{total})",
     "emptyStateTitle": "Wie kann ich helfen?",
     "emptyStateDescription": "Beschreibe, was du erstellen oder ändern möchtest.",
-    "showBoardButton": "Board anzeigen",
-    "undoButton": "Rückgängig",
-    "renameSummary": "→ umbenennen in „{name}“",
-    "previewUnavailable": "(Vorschau nicht verfügbar)"
+    "placeholderEmpty": "Beschreibe die gewünschte Seite oder bitte um Änderungen…",
+    "placeholderRefine": "Verfeinern, fragen oder eine weitere Änderung anfordern…",
+    "placeholderAnswer": "Antwort eingeben…",
+    "blockedAiDisabled": "KI ist deaktiviert. Aktiviere sie unter Einstellungen → KI-Anbieter.",
+    "blockedNoProviders": "Richte unter Einstellungen → KI-Anbieter einen Anbieter mit mindestens einem Modell ein.",
+    "suggestions": {
+      "weather": "Erstelle eine Wetter- und Verkehrsseite für meinen Arbeitsweg",
+      "date": "Ersetze Zeile 2 durch das heutige Datum",
+      "variables": "Welche Plugin-Variablen kann ich auf dieser Seite verwenden?"
+    },
+    "jumpToLatest": "Zum Neuesten springen",
+    "defaultModel": "Standard",
+    "stepsAriaLabel": "Laufende Schritte",
+    "stepsHeading": "{done} von {total} Schritten",
+    "toolInput": "Argumente",
+    "toolOutput": "Ergebnis",
+    "toolStates": {
+      "inputStreaming": "Wird vorbereitet",
+      "inputAvailable": "Läuft",
+      "outputAvailable": "Fertig",
+      "outputError": "Fehlgeschlagen",
+      "approvalRequested": "Wartet auf deine Freigabe",
+      "denied": "Nicht ausgeführt",
+      "stopped": "Gestoppt"
+    },
+    "question": {
+      "skip": "Überspringen",
+      "typeAnswer": "Oder gib unten eine Antwort ein.",
+      "answered": "Deine Antwort: {answer}",
+      "declined": "(übersprungen)",
+      "cancelled": "(abgebrochen)"
+    },
+    "tool": {
+      "createPage": "Seite erstellen",
+      "updatePage": "Seite aktualisieren",
+      "deletePage": "Seite löschen",
+      "createSchedule": "Zeitplan hinzufügen",
+      "updateSchedule": "Zeitplan aktualisieren",
+      "deleteSchedule": "Zeitplan löschen",
+      "createCollection": "Sammlung erstellen",
+      "updateCollection": "Sammlung aktualisieren",
+      "deleteCollection": "Sammlung löschen",
+      "installPlugin": "Plugin installieren",
+      "enablePlugin": "Plugin aktivieren",
+      "disablePlugin": "Plugin deaktivieren",
+      "uninstallPlugin": "Plugin deinstallieren",
+      "configurePlugin": "Plugin konfigurieren",
+      "updatePlugin": "Plugin aktualisieren",
+      "setActivePage": "Seite auf dem Board anzeigen",
+      "setScheduleMode": "Zeitplanmodus setzen",
+      "sendMessage": "Nachricht an das Board senden",
+      "updateSetting": "Einstellung ändern",
+      "triggerSystemUpdate": "Systemaktualisierung",
+      "askUser": "Frage",
+      "listPages": "Seiten nachschlagen",
+      "getPage": "Seite lesen",
+      "listSchedules": "Zeitpläne nachschlagen",
+      "listCollections": "Sammlungen nachschlagen",
+      "listInstalledPlugins": "Installierte Plugins nachschlagen",
+      "listRegistryPlugins": "Plugin-Registry durchsuchen",
+      "getTemplateVariables": "Vorlagenvariablen nachschlagen",
+      "getPluginData": "Plugin-Daten lesen",
+      "renderPagePreview": "Vorlage in der Vorschau anzeigen",
+      "previewSavedPage": "Seitenvorschau",
+      "validateTemplate": "Vorlage prüfen",
+      "getSystemStatus": "Systemstatus prüfen",
+      "getSettingsSummary": "Einstellungen lesen",
+      "getActivePage": "Aktive Seite prüfen",
+      "getBoardContent": "Board lesen"
+    }
   },
   "boardSizeIndicator": {
     "custom": "Benutzerdefiniert",
@@ -2183,5 +2198,19 @@
     "leaveConfirmTitle": "Beta-Kanal verlassen?",
     "leaveConfirmBody": "Dies bringt Sie zurück zur aktuellen stabilen Version, die älter ist als die Beta, die Sie verwenden. Ihre Einstellungen und Seiten werden auf die Sicherung zurückgesetzt, die beim Beitritt erstellt wurde — alles, was Sie während der Beta geändert haben, geht verloren. FiestaBoard startet mit der stabilen Version neu. Wenn Sie Ihre Änderungen behalten möchten, warten Sie stattdessen: Sobald die nächste stabile Version Ihre Beta überholt, bringt Sie „Jetzt aktualisieren“ ohne Verluste dorthin.",
     "leaveConfirmCta": "Beta verlassen"
+  },
+  "aiApprovalCard": {
+    "heading": "Braucht deine Freigabe",
+    "approve": "Freigeben",
+    "deny": "Ablehnen",
+    "working": "Läuft…",
+    "description": {
+      "deletePage": "Entfernt die Seite „{detail}“ dauerhaft. Zeitpläne und Sammlungen, die sie nutzen, verlieren sie.",
+      "deleteSchedule": "Entfernt den Zeitplan „{detail}“ dauerhaft. Das lässt sich nicht rückgängig machen.",
+      "deleteCollection": "Entfernt die Sammlung „{detail}“ dauerhaft. Das lässt sich nicht rückgängig machen.",
+      "uninstallPlugin": "Entfernt das Plugin „{detail}“ und seine Konfiguration dauerhaft.",
+      "triggerSystemUpdate": "Lädt die neueste FiestaBoard-Aktualisierung herunter und installiert sie. Das System startet kurz neu.",
+      "generic": "Diese Aktion kann durch kein anderes Werkzeug rückgängig gemacht werden."
+    }
   }
 }
