@@ -328,11 +328,7 @@ async def _perform_update_check() -> UpdateCheckResponse:
         # means: a beta must be able to see a newer beta, and a stable
         # install must never be shown one.
         channel = current_channel()
-        dh_version, gh_version = await asyncio.gather(
-            asyncio.to_thread(_check_dockerhub_for_latest, channel),
-            asyncio.to_thread(_check_github_releases_for_latest, channel),
-        )
-        latest_version = _pick_latest_version(dh_version, gh_version)
+        latest_version = await _latest_for_channel(channel)
 
         if latest_version:
             update_available = _is_newer_version(latest_version, running_version())
@@ -1134,6 +1130,20 @@ async def run_system_update_check_if_due() -> None:
 # shared helper now, so there is one place a sidecar call is made.
 
 
+async def _latest_for_channel(channel: str) -> str | None:
+    """Newest version published on *channel*, across both discovery sources.
+
+    Extracted so the apply path can install the exact version the check just
+    reported, rather than a moving tag that may mean something else by the
+    time the user presses the button.
+    """
+    dh_version, gh_version = await asyncio.gather(
+        asyncio.to_thread(_check_dockerhub_for_latest, channel),
+        asyncio.to_thread(_check_github_releases_for_latest, channel),
+    )
+    return _pick_latest_version(dh_version, gh_version)
+
+
 async def apply_update() -> UpdateApplyResponse:
     """Trigger an in-place update via the fiestaupdater sidecar.
 
@@ -1182,7 +1192,27 @@ async def apply_update() -> UpdateApplyResponse:
         repository = image_ref.rsplit(":", 1)[0] if ":" in image_ref.rsplit("/", 1)[-1] else image_ref
         if not repository:
             raise SidecarError(502, "could not determine the running image reference")
-        endpoint, payload = "/install", {"image": repository, "tag": CHANNEL_TAGS[channel]}
+        # Install the version the update check actually reported, not the
+        # moving channel tag.
+        #
+        # `:beta` means "newest beta". Once 9.0.0 ships it is no longer the
+        # newest thing published, so a box shown "9.0.0 available" that then
+        # got `:beta` would be handed back the older beta it is already
+        # running — told one thing, given another, with no way forward.
+        #
+        # Naming the exact version also graduates the box off the beta for
+        # free: current_channel() reads the running build, so landing on a
+        # release with no prerelease identifier reports stable from then on.
+        tag = CHANNEL_TAGS[channel]
+        discovered = await _latest_for_channel(channel)
+        if discovered and _is_newer_version(discovered, running_version()):
+            # _is_newer_version fails closed on anything unparseable, and
+            # rejects a candidate that is not strictly newer — so a stale or
+            # wrong discovery result cannot walk a box backwards across a
+            # major. Leaving the beta is a deliberate act, not something
+            # Update Now does by accident.
+            tag = discovered
+        endpoint, payload = "/install", {"image": repository, "tag": tag}
 
     try:
         resp = await asyncio.to_thread(_updater_post, endpoint, payload)
