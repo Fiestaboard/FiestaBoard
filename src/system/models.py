@@ -182,3 +182,10 @@ class ReleaseChannelSwitchResponse(BaseModel):
     #: Metadata for the snapshot taken before the switch, when one was
     #: produced. This is what a later restore points at.
     settings_snapshot: dict[str, Any] | None = None
+    #: Leaving the beta only. Whether the configuration captured when the box
+    #: joined was rolled back before the image flipped. False means the stable
+    #: build may come up on data it refuses to read, and the user needs to
+    #: restore a backup by hand.
+    settings_restored: bool | None = None
+    #: Human-readable caveat to surface, e.g. that no join snapshot existed.
+    warning: str | None = None

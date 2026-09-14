@@ -2178,6 +2178,10 @@
     "confirmCta": "Join the beta",
     "cancel": "Cancel",
     "switching": "Switching…",
-    "switchFailedToast": "Could not switch channel: {error}"
+    "switchFailedToast": "Could not switch channel: {error}",
+    "leaveCta": "Esci dalla beta",
+    "leaveConfirmTitle": "Uscire dal canale beta?",
+    "leaveConfirmBody": "Tornerai alla versione stabile attuale, che è più vecchia della beta che stai usando. Le impostazioni e le pagine verranno ripristinate al backup creato al momento dell'adesione: tutto ciò che hai modificato durante la beta andrà perso. FiestaBoard si riavvierà sulla versione stabile. Se preferisci mantenere le modifiche, aspetta: quando la prossima versione stabile supererà la tua beta, «Aggiorna ora» ti ci porterà senza perdere nulla.",
+    "leaveConfirmCta": "Esci dalla beta"
   }
 }

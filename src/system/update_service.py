@@ -961,8 +961,16 @@ def _list_settings_snapshots() -> list[dict[str, Any]]:
 
 
 def _prune_settings_snapshots() -> None:
-    """Delete all but the ``SETTINGS_SNAPSHOT_RETENTION`` newest snapshots."""
-    snapshots = _list_settings_snapshots()
+    """Delete all but the ``SETTINGS_SNAPSHOT_RETENTION`` newest snapshots.
+
+    The snapshot taken when the box joined the beta is exempt. Retention is
+    by mtime, so it is the oldest and would go first — and it is the only
+    configuration a stable build is guaranteed to be able to read, which is
+    what makes leaving the beta survivable. Weeks of beta updates would
+    otherwise quietly delete the way back.
+    """
+    keep = _channel_join_snapshot_name()
+    snapshots = [s for s in _list_settings_snapshots() if s["name"] != keep]
     if len(snapshots) <= SETTINGS_SNAPSHOT_RETENTION:
         return
     for stale in snapshots[SETTINGS_SNAPSHOT_RETENTION:]:
@@ -1445,6 +1453,86 @@ def channel_switch_blocker() -> str | None:
     return None
 
 
+def _channel_join_snapshot_name() -> str | None:
+    """Name of the snapshot taken when this box joined the beta, if any."""
+    try:
+        return _system_update_state_load().get("channel_join_snapshot") or None
+    except Exception:  # pragma: no cover - state file unreadable
+        return None
+
+
+async def leave_beta() -> dict[str, Any]:
+    """Return to stable, restoring the configuration captured at join time.
+
+    The ordinary way off a beta is to wait for the release to overtake it —
+    same data generation, an ordinary update, handled by apply_update. This
+    is the escape hatch for leaving *before* that: a downgrade across a
+    major, onto a build that refuses to read data the beta migrated (#1961).
+
+    Settings are restored *before* the image flips, the same ordering
+    :func:`rollback` uses and for the same reason — the older container has
+    to come up on configuration it understands.
+
+    A box with no recorded join snapshot is still allowed to leave. Refusing
+    would strand someone on a beta they want off; instead the caller is told
+    the restore did not happen so they can restore a backup by hand.
+    """
+    blocker = channel_switch_blocker()
+    if blocker:
+        raise SidecarError(503, blocker)
+
+    running = _updater_version() or {}
+    image_ref = running.get("image") or ""
+    repository = image_ref.rsplit(":", 1)[0] if ":" in image_ref.rsplit("/", 1)[-1] else image_ref
+    if not repository:
+        raise SidecarError(502, "could not determine the running image reference")
+
+    name = _channel_join_snapshot_name()
+    path = await asyncio.to_thread(_resolve_snapshot_name, name) if name else None
+
+    settings_restored = False
+    warning: str | None = None
+    if path is not None:
+        await _restore_settings_from_snapshot(path)
+        settings_restored = True
+    else:
+        warning = (
+            "No join snapshot was available, so your settings were not rolled "
+            "back. The stable build may refuse to read configuration this beta "
+            "migrated — restore a backup from Settings → System → Backup if it "
+            "comes up empty."
+        )
+        logger.warning("Leaving the beta without a join snapshot (recorded=%r)", name)
+
+    try:
+        resp = await asyncio.to_thread(_updater_post, "/install", {"image": repository, "tag": CHANNEL_TAGS["stable"]})
+    except requests.RequestException as e:
+        raise SidecarError(503, f"updater sidecar unreachable: {e}") from e
+
+    if resp.status_code == 404:
+        raise SidecarError(
+            503,
+            "This updater sidecar is too old to switch channels. Run "
+            "'docker compose pull fiestaupdater && docker compose up -d' to "
+            "update it, then try again.",
+        )
+    if resp.status_code >= 400:
+        raise SidecarError(502, f"fiestaupdater returned {resp.status_code}: {resp.text[:200]}")
+
+    # Only now: the sidecar accepting is the earliest honest moment. Recording
+    # stable also stops reassert_release_channel dragging the box back to beta
+    # on the next boot.
+    _system_update_state_update(channel="stable", channel_join_snapshot=None)
+
+    return {
+        "status": "queued",
+        "channel": "stable",
+        "tag": CHANNEL_TAGS["stable"],
+        "settings_restored": settings_restored,
+        "warning": warning,
+    }
+
+
 def switch_channel(channel: str) -> dict[str, Any]:
     """Snapshot, then ask the sidecar to install *channel*'s tag.
 
@@ -1501,7 +1589,13 @@ def switch_channel(channel: str) -> dict[str, Any]:
     # still wrote the channel, so every subsequent boot would re-attempt the
     # same doomed install with the recorded channel permanently disagreeing
     # with the running one.
-    _system_update_state_update(channel=channel)
+    # Record which snapshot is the way back out, not just that we joined.
+    # Leaving the beta before the release catches up is a downgrade across a
+    # major, and this file is what makes it survivable.
+    extra: dict[str, Any] = {"channel": channel}
+    if channel == "beta" and isinstance(snapshot, dict) and snapshot.get("name"):
+        extra["channel_join_snapshot"] = snapshot["name"]
+    _system_update_state_update(**extra)
 
     return {"status": "queued", "channel": channel, "tag": tag, "settings_snapshot": snapshot}
 

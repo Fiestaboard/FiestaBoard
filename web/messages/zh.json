@@ -2178,6 +2178,10 @@
     "confirmCta": "Join the beta",
     "cancel": "Cancel",
     "switching": "Switching…",
-    "switchFailedToast": "Could not switch channel: {error}"
+    "switchFailedToast": "Could not switch channel: {error}",
+    "leaveCta": "退出测试版",
+    "leaveConfirmTitle": "退出测试版通道？",
+    "leaveConfirmBody": "这会让你回到当前的稳定版本，它比你正在运行的测试版更旧。你的设置和页面将回滚到加入时创建的备份——测试期间所做的任何更改都会丢失。FiestaBoard 将以稳定版本重新启动。如果你希望保留更改，请改为等待：当下一个稳定版本超过你的测试版时，“立即更新”会带你过去且不丢失任何内容。",
+    "leaveConfirmCta": "退出测试版"
   }
 }

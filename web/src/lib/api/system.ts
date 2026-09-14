@@ -270,6 +270,15 @@ export interface ReleaseChannelSwitchResponse {
   channel: string;
   tag: string;
   settings_snapshot: Record<string, unknown> | null;
+  /**
+   * Leaving the beta only. Whether the configuration captured when the box
+   * joined was rolled back before the image flipped. `false` means the stable
+   * build may come up on data it refuses to read and the user has to restore
+   * a backup by hand — surface `warning` when this is false.
+   */
+  settings_restored?: boolean | null;
+  /** Human-readable caveat to show the user, e.g. no join snapshot existed. */
+  warning?: string | null;
 }
 
 export const systemApi = {
