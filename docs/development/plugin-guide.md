@@ -1052,9 +1052,12 @@ To get your plugin into the curated registry:
   "name": "My Weather Plugin",
   "description": "Custom weather data from my favorite API",
   "repository": "https://github.com/yourname/fiestaboard-plugin--my-weather",
-  "author": "Your Name"
+  "author": "Your Name",
+  "added": "2026-09-14"
 }
 ```
+
+`added` is the date your entry lands, as `YYYY-MM-DD`. The marketplace sorts its **Added** column by it so users can see what is new.
 
 ---
 

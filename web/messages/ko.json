@@ -454,6 +454,7 @@
     "categoryColumn": "카테고리",
     "statusColumn": "상태",
     "authorColumn": "작성자",
+    "addedColumn": "추가일",
     "noInstalledMatch": "\"{query}\"와 일치하는 설치된 플러그인이 없습니다",
     "noPluginsInstalled": "설치된 플러그인이 없습니다",
     "headToMarketplace": "마켓플레이스 탭에서 플러그인을 찾아 설치하세요.",

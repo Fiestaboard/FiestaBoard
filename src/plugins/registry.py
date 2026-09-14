@@ -1366,6 +1366,7 @@ class PluginRegistry:
                     "icon": e.icon,
                     "category": e.category,
                     "plugin_type": e.plugin_type,
+                    "added": e.added,
                     "installed": installed,
                     "teaser": teaser,
                     "previews": previews,

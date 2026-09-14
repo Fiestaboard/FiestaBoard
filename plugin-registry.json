@@ -13,7 +13,8 @@
       "author": "FiestaBoard Team",
       "fiestaboard_version": ">=4.2.0",
       "icon": "plane",
-      "category": "transit"
+      "category": "transit",
+      "added": "2026-05-02"
     },
     {
       "id": "air_fog",
@@ -23,7 +24,8 @@
       "author": "FiestaBoard Team",
       "fiestaboard_version": ">=2.10.0",
       "icon": "wind",
-      "category": "weather"
+      "category": "weather",
+      "added": "2026-03-22"
     },
     {
       "id": "aurora_forecast",
@@ -33,7 +35,8 @@
       "author": "FiestaBoard Team",
       "fiestaboard_version": ">=4.2.0",
       "icon": "zap",
-      "category": "data"
+      "category": "data",
+      "added": "2026-05-02"
     },
     {
       "id": "lyft_bike_share",
@@ -43,7 +46,8 @@
       "author": "FiestaBoard Team",
       "fiestaboard_version": ">=2.10.0",
       "icon": "bike",
-      "category": "transit"
+      "category": "transit",
+      "added": "2026-05-04"
     },
     {
       "id": "calendar_sub",
@@ -53,7 +57,8 @@
       "author": "FiestaBoard Team",
       "fiestaboard_version": ">=2.10.0",
       "icon": "calendar",
-      "category": "utility"
+      "category": "utility",
+      "added": "2026-04-03"
     },
     {
       "id": "currency",
@@ -63,7 +68,8 @@
       "author": "FiestaBoard Team",
       "fiestaboard_version": ">=4.2.0",
       "icon": "banknote",
-      "category": "data"
+      "category": "data",
+      "added": "2026-05-02"
     },
     {
       "id": "dad_jokes",
@@ -73,7 +79,8 @@
       "author": "FiestaBoard Team",
       "fiestaboard_version": ">=2.10.0",
       "icon": "laugh",
-      "category": "entertainment"
+      "category": "entertainment",
+      "added": "2026-03-22"
     },
     {
       "id": "disney_parks_times",
@@ -83,7 +90,8 @@
       "author": "FiestaBoard Team",
       "fiestaboard_version": ">=2.10.0",
       "icon": "landmark",
-      "category": "entertainment"
+      "category": "entertainment",
+      "added": "2026-03-22"
     },
     {
       "id": "earthquake",
@@ -93,7 +101,8 @@
       "author": "FiestaBoard Team",
       "fiestaboard_version": ">=4.2.0",
       "icon": "activity",
-      "category": "data"
+      "category": "data",
+      "added": "2026-05-02"
     },
     {
       "id": "element_of_day",
@@ -103,7 +112,8 @@
       "author": "FiestaBoard Team",
       "fiestaboard_version": ">=4.2.0",
       "icon": "atom",
-      "category": "utility"
+      "category": "utility",
+      "added": "2026-05-02"
     },
     {
       "id": "generic_data",
@@ -113,7 +123,8 @@
       "author": "FiestaBoard Team",
       "fiestaboard_version": ">=4.2.0",
       "icon": "database",
-      "category": "data"
+      "category": "data",
+      "added": "2026-03-22"
     },
     {
       "id": "generative_ai_art",
@@ -123,7 +134,8 @@
       "author": "FiestaBoard Team",
       "fiestaboard_version": ">=2.10.0",
       "icon": "palette",
-      "category": "art"
+      "category": "art",
+      "added": "2026-05-02"
     },
     {
       "id": "generative_dashboard",
@@ -133,7 +145,8 @@
       "author": "FiestaBoard Team",
       "fiestaboard_version": ">=2.10.0",
       "icon": "layout-dashboard",
-      "category": "data"
+      "category": "data",
+      "added": "2026-09-05"
     },
     {
       "id": "guest_wifi",
@@ -143,7 +156,8 @@
       "author": "FiestaBoard Team",
       "fiestaboard_version": ">=2.10.0",
       "icon": "wifi",
-      "category": "utility"
+      "category": "utility",
+      "added": "2026-03-22"
     },
     {
       "id": "hacker_news",
@@ -153,7 +167,8 @@
       "author": "FiestaBoard Team",
       "fiestaboard_version": ">=4.2.0",
       "icon": "newspaper",
-      "category": "data"
+      "category": "data",
+      "added": "2026-05-02"
     },
     {
       "id": "health",
@@ -163,7 +178,8 @@
       "author": "FiestaBoard Team",
       "fiestaboard_version": ">=2.10.0",
       "icon": "heart-pulse",
-      "category": "weather"
+      "category": "weather",
+      "added": "2026-03-22"
     },
     {
       "id": "home_assistant",
@@ -173,7 +189,8 @@
       "author": "FiestaBoard Team",
       "fiestaboard_version": ">=2.10.0",
       "icon": "home",
-      "category": "home"
+      "category": "home",
+      "added": "2026-03-22"
     },
     {
       "id": "iss_tracker",
@@ -183,7 +200,8 @@
       "author": "FiestaBoard Team",
       "fiestaboard_version": ">=4.2.0",
       "icon": "satellite",
-      "category": "data"
+      "category": "data",
+      "added": "2026-05-02"
     },
     {
       "id": "last_fm",
@@ -193,7 +211,8 @@
       "author": "FiestaBoard Team",
       "fiestaboard_version": ">=2.10.0",
       "icon": "music",
-      "category": "entertainment"
+      "category": "entertainment",
+      "added": "2026-03-22"
     },
     {
       "id": "lightning",
@@ -203,7 +222,8 @@
       "author": "FiestaBoard Team",
       "fiestaboard_version": ">=4.2.0",
       "icon": "cloud-lightning",
-      "category": "data"
+      "category": "data",
+      "added": "2026-05-02"
     },
     {
       "id": "moon_phase",
@@ -213,7 +233,8 @@
       "author": "FiestaBoard Team",
       "fiestaboard_version": ">=4.2.0",
       "icon": "moon",
-      "category": "data"
+      "category": "data",
+      "added": "2026-05-02"
     },
     {
       "id": "muni",
@@ -223,7 +244,8 @@
       "author": "FiestaBoard Team",
       "fiestaboard_version": ">=2.10.0",
       "icon": "train",
-      "category": "transit"
+      "category": "transit",
+      "added": "2026-03-22"
     },
     {
       "id": "national_day",
@@ -233,7 +255,8 @@
       "author": "FiestaBoard Team",
       "fiestaboard_version": ">=4.2.0",
       "icon": "calendar-heart",
-      "category": "utility"
+      "category": "utility",
+      "added": "2026-05-02"
     },
     {
       "id": "nearby_aircraft",
@@ -243,7 +266,8 @@
       "author": "FiestaBoard Team",
       "fiestaboard_version": ">=2.10.0",
       "icon": "plane",
-      "category": "data"
+      "category": "data",
+      "added": "2026-03-22"
     },
     {
       "id": "network_speed",
@@ -253,7 +277,8 @@
       "author": "FiestaBoard Team",
       "fiestaboard_version": ">=4.2.0",
       "icon": "gauge",
-      "category": "utility"
+      "category": "utility",
+      "added": "2026-05-02"
     },
     {
       "id": "on_this_day",
@@ -263,7 +288,8 @@
       "author": "FiestaBoard Team",
       "fiestaboard_version": ">=4.2.0",
       "icon": "history",
-      "category": "utility"
+      "category": "utility",
+      "added": "2026-05-02"
     },
     {
       "id": "pet_facts",
@@ -273,7 +299,8 @@
       "author": "FiestaBoard Team",
       "fiestaboard_version": ">=4.2.0",
       "icon": "paw-print",
-      "category": "entertainment"
+      "category": "entertainment",
+      "added": "2026-05-02"
     },
     {
       "id": "pihole",
@@ -283,7 +310,8 @@
       "author": "FiestaBoard Team",
       "fiestaboard_version": ">=4.2.0",
       "icon": "shield",
-      "category": "utility"
+      "category": "utility",
+      "added": "2026-05-02"
     },
     {
       "id": "price_list",
@@ -293,7 +321,8 @@
       "author": "FiestaBoard Team",
       "fiestaboard_version": ">=4.2.0",
       "icon": "tags",
-      "category": "utility"
+      "category": "utility",
+      "added": "2026-08-13"
     },
     {
       "id": "quote_of_day",
@@ -303,7 +332,8 @@
       "author": "FiestaBoard Team",
       "fiestaboard_version": ">=4.2.0",
       "icon": "quote",
-      "category": "utility"
+      "category": "utility",
+      "added": "2026-05-02"
     },
     {
       "id": "reddit_hot",
@@ -313,7 +343,8 @@
       "author": "FiestaBoard Team",
       "fiestaboard_version": ">=4.2.0",
       "icon": "message-circle",
-      "category": "data"
+      "category": "data",
+      "added": "2026-05-02"
     },
     {
       "id": "river_flow",
@@ -323,7 +354,8 @@
       "author": "FiestaBoard Team",
       "fiestaboard_version": ">=4.2.0",
       "icon": "droplets",
-      "category": "data"
+      "category": "data",
+      "added": "2026-05-02"
     },
     {
       "id": "santa_tracker",
@@ -333,7 +365,8 @@
       "author": "FiestaBoard Team",
       "fiestaboard_version": ">=2.10.0",
       "icon": "gift",
-      "category": "entertainment"
+      "category": "entertainment",
+      "added": "2026-03-22"
     },
     {
       "id": "solar_activity",
@@ -343,7 +376,8 @@
       "author": "FiestaBoard Team",
       "fiestaboard_version": ">=4.2.0",
       "icon": "sun",
-      "category": "data"
+      "category": "data",
+      "added": "2026-05-02"
     },
     {
       "id": "spacecraft_launches",
@@ -353,7 +387,8 @@
       "author": "FiestaBoard Team",
       "fiestaboard_version": ">=2.10.0",
       "icon": "rocket",
-      "category": "data"
+      "category": "data",
+      "added": "2026-03-22"
     },
     {
       "id": "sports_scores",
@@ -363,7 +398,8 @@
       "author": "FiestaBoard Team",
       "fiestaboard_version": ">=2.10.0",
       "icon": "trophy",
-      "category": "data"
+      "category": "data",
+      "added": "2026-03-22"
     },
     {
       "id": "star_trek_quotes",
@@ -373,7 +409,8 @@
       "author": "FiestaBoard Team",
       "fiestaboard_version": ">=2.10.0",
       "icon": "star",
-      "category": "entertainment"
+      "category": "entertainment",
+      "added": "2026-03-22"
     },
     {
       "id": "stardate",
@@ -383,7 +420,8 @@
       "author": "FiestaBoard Team",
       "fiestaboard_version": ">=2.10.0",
       "icon": "star",
-      "category": "entertainment"
+      "category": "entertainment",
+      "added": "2026-03-22"
     },
     {
       "id": "stocks",
@@ -393,7 +431,8 @@
       "author": "FiestaBoard Team",
       "fiestaboard_version": ">=2.10.0",
       "icon": "trending-up",
-      "category": "data"
+      "category": "data",
+      "added": "2026-03-22"
     },
     {
       "id": "sun_art",
@@ -403,7 +442,8 @@
       "author": "FiestaBoard Team",
       "fiestaboard_version": ">=2.10.0",
       "icon": "sun",
-      "category": "art"
+      "category": "art",
+      "added": "2026-03-22"
     },
     {
       "id": "surf",
@@ -413,7 +453,8 @@
       "author": "FiestaBoard Team",
       "fiestaboard_version": ">=2.10.0",
       "icon": "waves",
-      "category": "weather"
+      "category": "weather",
+      "added": "2026-03-22"
     },
     {
       "id": "tide_times",
@@ -423,7 +464,8 @@
       "author": "FiestaBoard Team",
       "fiestaboard_version": ">=4.2.0",
       "icon": "waves",
-      "category": "data"
+      "category": "data",
+      "added": "2026-05-02"
     },
     {
       "id": "traffic",
@@ -433,7 +475,8 @@
       "author": "FiestaBoard Team",
       "fiestaboard_version": ">=2.10.0",
       "icon": "car",
-      "category": "transit"
+      "category": "transit",
+      "added": "2026-03-22"
     },
     {
       "id": "uv_index",
@@ -443,7 +486,8 @@
       "author": "FiestaBoard Team",
       "fiestaboard_version": ">=4.2.0",
       "icon": "sun-medium",
-      "category": "weather"
+      "category": "weather",
+      "added": "2026-05-02"
     },
     {
       "id": "visual_clock",
@@ -453,7 +497,8 @@
       "author": "FiestaBoard Team",
       "fiestaboard_version": ">=2.10.0",
       "icon": "clock",
-      "category": "art"
+      "category": "art",
+      "added": "2026-03-22"
     },
     {
       "id": "volcano",
@@ -463,7 +508,8 @@
       "author": "FiestaBoard Team",
       "fiestaboard_version": ">=4.2.0",
       "icon": "flame",
-      "category": "data"
+      "category": "data",
+      "added": "2026-05-02"
     },
     {
       "id": "weather",
@@ -473,7 +519,8 @@
       "author": "FiestaBoard Team",
       "fiestaboard_version": ">=2.10.0",
       "icon": "cloud-sun",
-      "category": "weather"
+      "category": "weather",
+      "added": "2026-03-22"
     },
     {
       "id": "webhook",
@@ -483,7 +530,8 @@
       "author": "FiestaBoard Team",
       "fiestaboard_version": ">=4.2.0",
       "icon": "webhook",
-      "category": "utility"
+      "category": "utility",
+      "added": "2026-05-02"
     },
     {
       "id": "white_noise",
@@ -493,7 +541,8 @@
       "author": "FiestaBoard Team",
       "fiestaboard_version": ">=2.10.0",
       "icon": "cloud-rain",
-      "category": "art"
+      "category": "art",
+      "added": "2026-03-22"
     },
     {
       "id": "wildfire",
@@ -503,7 +552,8 @@
       "author": "FiestaBoard Team",
       "fiestaboard_version": ">=4.2.0",
       "icon": "flame-kindling",
-      "category": "data"
+      "category": "data",
+      "added": "2026-05-02"
     },
     {
       "id": "word_clock",
@@ -513,7 +563,8 @@
       "author": "Oliver Rummeyer",
       "fiestaboard_version": ">=7.9.5",
       "icon": "clock",
-      "category": "utility"
+      "category": "utility",
+      "added": "2026-08-15"
     },
     {
       "id": "word_of_day",
@@ -523,7 +574,8 @@
       "author": "FiestaBoard Team",
       "fiestaboard_version": ">=4.2.0",
       "icon": "book-open",
-      "category": "utility"
+      "category": "utility",
+      "added": "2026-05-02"
     },
     {
       "id": "airport_departures",
@@ -533,7 +585,8 @@
       "author": "Jonathan Breedlove",
       "fiestaboard_version": ">=2.10.0",
       "icon": "plane-takeoff",
-      "category": "transit"
+      "category": "transit",
+      "added": "2026-07-18"
     },
     {
       "id": "wsdot",
@@ -543,7 +596,8 @@
       "author": "FiestaBoard Team",
       "fiestaboard_version": ">=2.10.0",
       "icon": "ship",
-      "category": "transit"
+      "category": "transit",
+      "added": "2026-03-22"
     },
     {
       "id": "rss_reader",
@@ -553,7 +607,8 @@
       "author": "FiestaBoard Team",
       "fiestaboard_version": ">=2.10.0",
       "icon": "rss",
-      "category": "data"
+      "category": "data",
+      "added": "2026-09-13"
     },
     {
       "id": "crypto",
@@ -563,7 +618,8 @@
       "author": "FiestaBoard Team",
       "fiestaboard_version": ">=2.10.0",
       "icon": "coins",
-      "category": "data"
+      "category": "data",
+      "added": "2026-09-13"
     },
     {
       "id": "trivia",
@@ -573,7 +629,8 @@
       "author": "FiestaBoard Team",
       "fiestaboard_version": ">=2.10.0",
       "icon": "brain",
-      "category": "entertainment"
+      "category": "entertainment",
+      "added": "2026-09-13"
     },
     {
       "id": "package_tracking",
@@ -583,7 +640,8 @@
       "author": "FiestaBoard Team",
       "fiestaboard_version": ">=2.10.0",
       "icon": "package",
-      "category": "utility"
+      "category": "utility",
+      "added": "2026-09-13"
     },
     {
       "id": "trash_day",
@@ -593,7 +651,8 @@
       "author": "FiestaBoard Team",
       "fiestaboard_version": ">=8.0.0",
       "icon": "trash-2",
-      "category": "utility"
+      "category": "utility",
+      "added": "2026-09-13"
     },
     {
       "id": "reminders",
@@ -603,7 +662,8 @@
       "author": "FiestaBoard Team",
       "fiestaboard_version": ">=8.0.0",
       "icon": "bell-ring",
-      "category": "utility"
+      "category": "utility",
+      "added": "2026-09-13"
     },
     {
       "id": "school_lunch",
@@ -613,7 +673,8 @@
       "author": "FiestaBoard Team",
       "fiestaboard_version": ">=2.10.0",
       "icon": "utensils",
-      "category": "utility"
+      "category": "utility",
+      "added": "2026-09-13"
     },
     {
       "id": "horoscope",
@@ -623,7 +684,8 @@
       "author": "FiestaBoard Team",
       "fiestaboard_version": ">=2.10.0",
       "icon": "sparkles",
-      "category": "entertainment"
+      "category": "entertainment",
+      "added": "2026-09-13"
     },
     {
       "id": "game_of_life",
@@ -633,7 +695,8 @@
       "author": "FiestaBoard Team",
       "fiestaboard_version": ">=2.10.0",
       "icon": "grid-3x3",
-      "category": "art"
+      "category": "art",
+      "added": "2026-09-13"
     }
   ]
 }

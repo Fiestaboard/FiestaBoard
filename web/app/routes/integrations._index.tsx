@@ -1884,6 +1884,19 @@ function RegistryPluginRow({
 }) {
   const t = useTranslations("integrations");
   const categoryLabels = useCategoryLabels();
+
+  const formattedAdded = useMemo(() => {
+    if (!entry.added) return null;
+    try {
+      return new Date(`${entry.added}T00:00:00`).toLocaleDateString(undefined, {
+        month: "short",
+        day: "numeric",
+        year: "numeric",
+      });
+    } catch {
+      return null;
+    }
+  }, [entry.added]);
   const Icon = ICON_MAP[normalizePluginIconKey(entry.icon)] ?? Puzzle;
   return (
     <TableRow className="border-b last:border-b-0 hover:bg-muted/30 transition-colors">
@@ -1928,6 +1941,9 @@ function RegistryPluginRow({
         {categoryLabels[entry.category || "utility"] || entry.category || categoryLabels.utility}
       </TableCell>
       <TableCell className="px-4 py-2.5 text-sm text-muted-foreground whitespace-nowrap">{entry.author}</TableCell>
+      <TableCell className="px-4 py-2.5 text-sm text-muted-foreground whitespace-nowrap">
+        {formattedAdded ?? "—"}
+      </TableCell>
       <TableCell className="px-4 py-2.5 text-right">
         {!isInstalled && (
           <Button
@@ -1957,7 +1973,10 @@ export default function IntegrationsPage() {
     return tab === "marketplace" || tab === "installed" ? tab : "installed";
   });
   const [marketplaceView, setMarketplaceView] = useState<"card" | "list">("card");
-  const [marketplaceSort, setMarketplaceSort] = useState<{ key: "name" | "category" | "author"; dir: "asc" | "desc" }>({
+  const [marketplaceSort, setMarketplaceSort] = useState<{
+    key: "name" | "category" | "author" | "added";
+    dir: "asc" | "desc";
+  }>({
     key: "name",
     dir: "asc",
   });
@@ -2211,14 +2230,31 @@ export default function IntegrationsPage() {
     } else if (marketplaceSort.key === "author") {
       valA = a.author || "";
       valB = b.author || "";
+    } else if (marketplaceSort.key === "added") {
+      // ISO dates sort correctly as strings. Entries with no date go last in
+      // both directions -- an unknown date is not "the oldest", and letting
+      // "" sort first would bury the newest plugins under it. Same-day
+      // entries (a bulk extraction publishes many at once) fall back to name
+      // so the order is stable rather than incidental.
+      const dateA = a.added || "";
+      const dateB = b.added || "";
+      if (dateA !== dateB) {
+        if (!dateA) return 1;
+        if (!dateB) return -1;
+        return marketplaceSort.dir === "asc" ? dateA.localeCompare(dateB) : dateB.localeCompare(dateA);
+      }
+      return a.name.localeCompare(b.name);
     }
     return marketplaceSort.dir === "asc" ? valA.localeCompare(valB) : valB.localeCompare(valA);
   });
 
-  const handleMarketplaceSort = (key: "name" | "category" | "author") => {
-    setMarketplaceSort((prev) =>
-      prev.key === key ? { key, dir: prev.dir === "asc" ? "desc" : "asc" } : { key, dir: "asc" },
-    );
+  const handleMarketplaceSort = (key: "name" | "category" | "author" | "added") => {
+    setMarketplaceSort((prev) => {
+      if (prev.key === key) return { key, dir: prev.dir === "asc" ? "desc" : "asc" };
+      // Newest-first is what someone clicking a date column is asking for;
+      // the text columns still open A-Z.
+      return { key, dir: key === "added" ? "desc" : "asc" };
+    });
   };
 
   const handleInstalledSort = (key: "name" | "category" | "status") => {
@@ -2632,11 +2668,12 @@ export default function IntegrationsPage() {
                   <Table>
                     <TableHeader>
                       <TableRow className="border-b bg-muted/40">
-                        {(["name", "category", "author"] as const).map((col) => {
+                        {(["name", "category", "author", "added"] as const).map((col) => {
                           const labels: Record<string, string> = {
                             name: t("nameColumn"),
                             category: t("categoryColumn"),
                             author: t("authorColumn"),
+                            added: t("addedColumn"),
                           };
                           const active = marketplaceSort.key === col;
                           return (

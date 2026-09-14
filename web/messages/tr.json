@@ -454,6 +454,7 @@
     "categoryColumn": "Kategori",
     "statusColumn": "Durum",
     "authorColumn": "Yazar",
+    "addedColumn": "Eklenme",
     "noInstalledMatch": "\"{query}\" ile eşleşen kurulu eklenti yok",
     "noPluginsInstalled": "Henüz eklenti kurulmadı",
     "headToMarketplace": "Eklentileri keşfedip kurmak için Marketplace sekmesine gidin.",

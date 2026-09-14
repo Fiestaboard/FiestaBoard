@@ -527,6 +527,37 @@ def _fake_clone_producing_a_plugin(repo_url, plugin_id, branch, external_dir):
     return True, ""
 
 
+class TestRegistryEntryAdded:
+    """The `added` date the marketplace sorts by (issue #1999)."""
+
+    def test_from_dict_reads_added(self):
+        entry = RegistryEntry.from_dict({"id": "weather", "name": "Weather", "added": "2026-03-22"})
+        assert entry.added == "2026-03-22"
+
+    def test_from_dict_defaults_added_to_empty(self):
+        """An entry predating the field must load, not explode."""
+        entry = RegistryEntry.from_dict({"id": "weather", "name": "Weather"})
+        assert entry.added == ""
+
+    def test_every_shipped_registry_entry_has_an_added_date(self):
+        """The backfill covers the whole catalogue; a new entry must carry one too."""
+        import json
+        from pathlib import Path as _Path
+
+        registry = json.loads((_Path(__file__).parent.parent / "plugin-registry.json").read_text())
+        missing = [e["id"] for e in registry["plugins"] if not e.get("added")]
+        assert not missing, f"registry entries with no `added` date: {missing}"
+
+    def test_shipped_added_dates_are_iso(self):
+        import json
+        import re
+        from pathlib import Path as _Path
+
+        registry = json.loads((_Path(__file__).parent.parent / "plugin-registry.json").read_text())
+        bad = [e["id"] for e in registry["plugins"] if not re.fullmatch(r"\d{4}-\d{2}-\d{2}", e.get("added", ""))]
+        assert not bad, f"registry entries with a malformed `added` date: {bad}"
+
+
 class TestInstallRegistryPlugin:
     @mock.patch(
         "src.plugins.sources.clone_or_update_repo",
