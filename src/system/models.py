@@ -49,6 +49,13 @@ class UpdateStatusResponse(BaseModel):
     managed_externally: bool
     profile: str  # "docker" | "pi"  (where this install is running)
     sidecar_url: str
+    # What the sidecar advertises it can do (see handler.sh CAPABILITIES).
+    # Empty for any sidecar predating the field, which is how the app detects
+    # one that is too old rather than guessing from release dates.
+    updater_capabilities: list[str] = []
+    # True when the sidecar is reachable but cannot make a retag stick, so a
+    # channel switch will take several restarts via a stable build. See #1977.
+    updater_stale: bool = False
     last_check: str | None = None
     last_update: str | None = None
     # ── Rollback bookkeeping (5.1) ──────────────────────────────────────

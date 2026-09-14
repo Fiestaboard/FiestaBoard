@@ -90,6 +90,39 @@ status_of() {
     [[ "$out" == *'"digest":"sha256:abc123"'* ]]
 }
 
+# A sidecar is only ever refreshed by a boot-time `docker compose pull`, so a
+# box that does not reboot keeps whatever handler.sh it flashed with. When
+# #1977 added `--pull never`, a running Pi went on silently clobbering its own
+# retags for hours with nothing anywhere saying why. /version now states what
+# this handler can do, so the app can name a stale sidecar instead of leaving
+# the user to infer it from four container restarts.
+
+@test "GET /version advertises this handler's capabilities" {
+    req=$'GET /version HTTP/1.1\r\nHost: x\r\n\r\n'
+    out=$(send "$req")
+    [[ "$(status_of "$out")" == "HTTP/1.1 200 OK" ]]
+    [[ "$out" == *'"capabilities":'* ]]
+}
+
+@test "GET /version advertises install, added in #1969" {
+    out=$(send $'GET /version HTTP/1.1\r\nHost: x\r\n\r\n')
+    [[ "$out" == *'"install"'* ]]
+}
+
+@test "GET /version advertises pull-never, added in #1977" {
+    # This is the capability whose absence made channel switches self-heal
+    # through a stable interlude instead of landing in one recreate.
+    out=$(send $'GET /version HTTP/1.1\r\nHost: x\r\n\r\n')
+    [[ "$out" == *'"pull-never"'* ]]
+}
+
+@test "GET /version keeps reporting image and digest" {
+    # Additive only -- the app reads these to label rollback snapshots.
+    out=$(send $'GET /version HTTP/1.1\r\nHost: x\r\n\r\n')
+    [[ "$out" == *'"image":"fiestaboard/fiestaboard:latest"'* ]]
+    [[ "$out" == *'"digest":"sha256:abc123"'* ]]
+}
+
 # ---- /update : auth --------------------------------------------------------
 
 @test "POST /update with no Authorization → 401" {
