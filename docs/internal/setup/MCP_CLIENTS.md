@@ -299,6 +299,22 @@ until it opts back in, by naming the fields it wants:
 carries only the fields you name, plus `id`, which is always included. Naming
 a field no entry has is an error that lists the valid ones.
 
+### Also new: tool annotations
+
+Every tool now carries the standard MCP annotations (`readOnlyHint`,
+`destructiveHint`, `idempotentHint`, `openWorldHint`, `title`) in
+`tools/list`. Clients that honour them — Claude Desktop and Claude Code do —
+stop asking you to confirm reads like `list_pages` and keep asking for the
+four that cannot be undone: `delete_page`, `delete_schedule`,
+`delete_collection` and `uninstall_plugin`. The `update_*` tools overwrite
+but are not flagged destructive; the previous value is one `get_*` call away.
+Nothing changes for a client that ignores annotations.
+
+There is also one more tool, `update_setting(category, values)`, for the
+display, transitions, output, polling, location, silence-schedule and
+active-page settings — the same categories the in-app chat could already
+change. Read current values with `get_settings_summary()` first.
+
 ### Also new: five tools
 
 `get_active_page`, `get_board_content`, `preview_saved_page`,

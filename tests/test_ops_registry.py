@@ -136,6 +136,14 @@ def test_operation_names_include_both_grammars():
 # ---------------------------------------------------------------------------
 
 
+def test_update_setting_has_both_spellings():
+    """``update_setting`` is an MCP tool as well as a chat op, so the in-app
+    chat can change settings through the same server external clients use."""
+    op = get_operation("update_setting")
+    assert op.chat_name == "update_setting"
+    assert op.mcp_tool == "update_setting"
+
+
 def test_registry_mcp_tools_are_registered_mcp_tools():
     pytest.importorskip("mcp", reason="mcp package not installed")
     from src.mcp_server import _build_mcp_server
