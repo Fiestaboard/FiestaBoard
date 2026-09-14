@@ -544,6 +544,96 @@
       "fiestaboard_version": ">=2.10.0",
       "icon": "ship",
       "category": "transit"
+    },
+    {
+      "id": "rss_reader",
+      "name": "RSS Reader",
+      "description": "Display the newest headlines from any RSS 2.0 or Atom feed",
+      "repository": "https://github.com/Fiestaboard/fiestaboard-plugin--rss-reader",
+      "author": "FiestaBoard Team",
+      "fiestaboard_version": ">=2.10.0",
+      "icon": "rss",
+      "category": "data"
+    },
+    {
+      "id": "crypto",
+      "name": "Crypto Prices",
+      "description": "Display live cryptocurrency prices and 24h changes from CoinGecko",
+      "repository": "https://github.com/Fiestaboard/fiestaboard-plugin--crypto",
+      "author": "FiestaBoard Team",
+      "fiestaboard_version": ">=2.10.0",
+      "icon": "coins",
+      "category": "data"
+    },
+    {
+      "id": "trivia",
+      "name": "Trivia",
+      "description": "Multiple-choice trivia from the Open Trivia Database: a question one refresh, the answer the next",
+      "repository": "https://github.com/Fiestaboard/fiestaboard-plugin--trivia",
+      "author": "FiestaBoard Team",
+      "fiestaboard_version": ">=2.10.0",
+      "icon": "brain",
+      "category": "entertainment"
+    },
+    {
+      "id": "package_tracking",
+      "name": "Package Tracking",
+      "description": "Track shipments from any carrier via 17TRACK and show their status on the board",
+      "repository": "https://github.com/Fiestaboard/fiestaboard-plugin--package-tracking",
+      "author": "FiestaBoard Team",
+      "fiestaboard_version": ">=2.10.0",
+      "icon": "package",
+      "category": "utility"
+    },
+    {
+      "id": "trash_day",
+      "name": "Trash & Recycling Day",
+      "description": "Never miss collection day: shows the next trash, recycling, compost or yard-waste pickup from a simple weekly/biweekly schedule, with an optional evening-before board reminder.",
+      "repository": "https://github.com/Fiestaboard/fiestaboard-plugin--trash-day",
+      "author": "FiestaBoard Team",
+      "fiestaboard_version": ">=8.0.0",
+      "icon": "trash-2",
+      "category": "utility"
+    },
+    {
+      "id": "reminders",
+      "name": "Reminders",
+      "description": "Recurring nags that stay on the board until someone acknowledges them: medication, plant watering, pet feeding and anything else that has to happen on a schedule.",
+      "repository": "https://github.com/Fiestaboard/fiestaboard-plugin--reminders",
+      "author": "FiestaBoard Team",
+      "fiestaboard_version": ">=8.0.0",
+      "icon": "bell-ring",
+      "category": "utility"
+    },
+    {
+      "id": "school_lunch",
+      "name": "School Lunch Menu",
+      "description": "Show today's (or tomorrow's) school lunch menu from Nutrislice",
+      "repository": "https://github.com/Fiestaboard/fiestaboard-plugin--school-lunch",
+      "author": "FiestaBoard Team",
+      "fiestaboard_version": ">=2.10.0",
+      "icon": "utensils",
+      "category": "utility"
+    },
+    {
+      "id": "horoscope",
+      "name": "Horoscope",
+      "description": "Daily horoscope for your zodiac sign, with sign symbol, element, date range and a lucky number",
+      "repository": "https://github.com/Fiestaboard/fiestaboard-plugin--horoscope",
+      "author": "FiestaBoard Team",
+      "fiestaboard_version": ">=2.10.0",
+      "icon": "sparkles",
+      "category": "entertainment"
+    },
+    {
+      "id": "game_of_life",
+      "name": "Game of Life",
+      "description": "Conway's Game of Life on your board \u2014 one generation per refresh, auto-reseeds when the colony dies or settles",
+      "repository": "https://github.com/Fiestaboard/fiestaboard-plugin--game-of-life",
+      "author": "FiestaBoard Team",
+      "fiestaboard_version": ">=2.10.0",
+      "icon": "grid-3x3",
+      "category": "art"
     }
   ]
 }
