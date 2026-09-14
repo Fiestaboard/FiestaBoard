@@ -129,6 +129,30 @@
         }
       ]
     },
+    "crypto": {
+      "teaser": "BTC 77,679 {66}",
+      "previews": [
+        {
+          "device_type": "flagship",
+          "rows": [
+            "        CRYPTO",
+            "BTC      77,679  +0.6%",
+            "ETH       2,513  -0.3%",
+            "SOL       84.10  +2.1%",
+            "DOGE     0.1234  -1.4%",
+            "ADA      0.3921  +0.8%"
+          ]
+        },
+        {
+          "device_type": "note",
+          "rows": [
+            "CRYPTO",
+            "BTC      77,679",
+            "ETH       2,513"
+          ]
+        }
+      ]
+    },
     "currency": {
       "teaser": "EUR 0.9234",
       "previews": [
@@ -245,6 +269,30 @@
             "{68}{68} HYDROGEN",
             "SYMBOL H  NO. 1",
             "PERIOD 1 GAS"
+          ]
+        }
+      ]
+    },
+    "game_of_life": {
+      "teaser": "{66}{66}{66} LIFE",
+      "previews": [
+        {
+          "device_type": "flagship",
+          "rows": [
+            "{70}{70}{66}{70}{70}{70}{70}{70}{70}{70}{70}{70}{70}{70}{70}{70}{70}{70}{70}{70}{70}{70}",
+            "{70}{70}{70}{66}{70}{70}{70}{70}{70}{70}{70}{70}{70}{70}{66}{70}{70}{70}{70}{70}{70}{70}",
+            "{70}{66}{66}{66}{70}{70}{70}{70}{70}{70}{70}{70}{70}{70}{66}{70}{70}{70}{70}{70}{70}{70}",
+            "{70}{70}{70}{70}{70}{70}{70}{70}{70}{70}{70}{70}{70}{70}{66}{70}{70}{70}{70}{70}{70}{70}",
+            "{70}{70}{70}{70}{70}{70}{70}{70}{70}{70}{70}{70}{70}{70}{70}{70}{70}{70}{70}{70}{70}{70}",
+            "{70}{70}{70}{70}{70}{70}{70}{70}{70}{70}{70}{70}{70}{70}{70}{70}{70}{70}{70}{70}{70}{70}"
+          ]
+        },
+        {
+          "device_type": "note",
+          "rows": [
+            "{70}{70}{66}{70}{70}{70}{70}{70}{70}{70}{70}{70}{70}{70}{70}",
+            "{70}{70}{70}{66}{70}{70}{70}{70}{70}{70}{66}{66}{66}{70}{70}",
+            "{70}{66}{66}{66}{70}{70}{70}{70}{70}{70}{70}{70}{70}{70}{70}"
           ]
         }
       ]
@@ -413,6 +461,30 @@
             "{67}{67} HOME ASST",
             "12 ENTITIES",
             "ALL {66}ONLINE"
+          ]
+        }
+      ]
+    },
+    "horoscope": {
+      "teaser": "{63}ARIES TODAY",
+      "previews": [
+        {
+          "device_type": "flagship",
+          "rows": [
+            "{63}ARIES  SEP 13",
+            "THINGS ARE MOVING",
+            "QUICKLY FOR ARIES",
+            "RIGHT NOW, WITH NEW",
+            "OPPORTUNITIES COMING",
+            "UP FAST. STAY..."
+          ]
+        },
+        {
+          "device_type": "note",
+          "rows": [
+            "{63}ARIES  SEP 13",
+            "THINGS ARE",
+            "MOVING QUICK..."
           ]
         }
       ]
@@ -655,6 +727,30 @@
         }
       ]
     },
+    "package_tracking": {
+      "teaser": "{67}2 IN TRANSIT",
+      "previews": [
+        {
+          "device_type": "flagship",
+          "rows": [
+            "PACKAGES",
+            "{65}SHOES  OUT FOR DELIV",
+            "{67}HEADPHONES IN TRANSIT",
+            "{66}MOM'S GIFT  DELIVERED",
+            "{63}LAPTOP      EXCEPTION",
+            ""
+          ]
+        },
+        {
+          "device_type": "note",
+          "rows": [
+            "PACKAGES",
+            "{67}SHOES TRANSIT",
+            "{66}GIFT DELIVERED"
+          ]
+        }
+      ]
+    },
     "pet_facts": {
       "teaser": "CATS SLEEP 16H",
       "previews": [
@@ -799,6 +895,30 @@
         }
       ]
     },
+    "reminders": {
+      "teaser": "{63} VITAMINS DUE",
+      "previews": [
+        {
+          "device_type": "flagship",
+          "rows": [
+            "      REMINDERS",
+            "",
+            "{63} VITAMINS     8:00 AM",
+            "{67} WATER FERNS  9:30 AM",
+            "{65} FEED THE CAT 6:00 PM",
+            ""
+          ]
+        },
+        {
+          "device_type": "note",
+          "rows": [
+            "   REMINDERS",
+            "{63} VITAMINS",
+            "{67} WATER FERNS"
+          ]
+        }
+      ]
+    },
     "river_flow": {
       "teaser": "245 CFS NORMAL",
       "previews": [
@@ -823,6 +943,30 @@
         }
       ]
     },
+    "rss_reader": {
+      "teaser": "{64}HACKER NEWS",
+      "previews": [
+        {
+          "device_type": "flagship",
+          "rows": [
+            "{64} HACKER NEWS",
+            "SHOW HN: IS IT GREG 5M",
+            "NIKE EXITS S&P 100 12M",
+            "RUST 2.0 RELEASED   1H",
+            "SPACEX LANDS ON MAR 2H",
+            "PYTHON 4 ANNOUNCED  3H"
+          ]
+        },
+        {
+          "device_type": "note",
+          "rows": [
+            "{64} HACKER NEWS",
+            "IS IT GREG   5M",
+            "RUST 2.0     1H"
+          ]
+        }
+      ]
+    },
     "santa_tracker": {
       "teaser": "SANTA IN TOKYO",
       "previews": [
@@ -843,6 +987,30 @@
             "{63}{66}{63} SANTA",
             "IN TOKYO JAPAN",
             "50% COMPLETE"
+          ]
+        }
+      ]
+    },
+    "school_lunch": {
+      "teaser": "{66}LUNCH: PIZZA",
+      "previews": [
+        {
+          "device_type": "flagship",
+          "rows": [
+            "LUNCH TUE SEP 16",
+            "PEPPERONI PIZZA",
+            "SEASONED PEAS",
+            "PINEAPPLE TIDBITS",
+            "FRESH ORANGE",
+            "LOW FAT MILK"
+          ]
+        },
+        {
+          "device_type": "note",
+          "rows": [
+            "{66} TUE SEP 16",
+            "PEPPERONI PIZZA",
+            "SEASONED PEAS"
           ]
         }
       ]
@@ -1082,6 +1250,54 @@
             "{65}{65} TRAFFIC",
             "WORK 25 MIN",
             "{63}+8 MIN DELAY"
+          ]
+        }
+      ]
+    },
+    "trash_day": {
+      "teaser": "{67} TRASH TUE",
+      "previews": [
+        {
+          "device_type": "flagship",
+          "rows": [
+            "     NEXT PICKUP",
+            "    TUESDAY SEP 16",
+            "",
+            "{67} TRASH       SEP 16",
+            "{66} RECYCLING   SEP 16",
+            "{64} YARD WASTE  SEP 23"
+          ]
+        },
+        {
+          "device_type": "note",
+          "rows": [
+            "NEXT PICKUP",
+            "TUESDAY SEP 16",
+            "{67}TRASH {66}RECYCLE"
+          ]
+        }
+      ]
+    },
+    "trivia": {
+      "teaser": "{66}TRIVIA TIME",
+      "previews": [
+        {
+          "device_type": "flagship",
+          "rows": [
+            "WHAT IS THE CAPITAL",
+            "OF AUSTRALIA?",
+            "A SYDNEY   B CANBERRA",
+            "C PERTH    D MELBOURNE",
+            "",
+            "{66}ANSWER: B CANBERRA"
+          ]
+        },
+        {
+          "device_type": "note",
+          "rows": [
+            "CAPITAL OF",
+            "AUSTRALIA?",
+            "{66} B CANBERRA"
           ]
         }
       ]
