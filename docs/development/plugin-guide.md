@@ -1044,7 +1044,7 @@ To get your plugin into the curated registry:
 
 1. Ensure your repository follows the `fiestaboard-plugin--{name}` naming convention.
 2. Open a pull request against the FiestaBoard repository that adds your plugin to `plugin-registry.json`.
-3. Your entry should include the plugin id, name, description, repository URL, and author.
+3. Your entry should include the plugin id, name, description, repository URL, author, and the date it was added.
 
 ```json
 {
