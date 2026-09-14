@@ -106,12 +106,15 @@ wire-format protocols are supported out of the box:
 2. Type a description of what you want — for example, *"Build a weather
    and transit page for my morning commute"* or *"Replace line 2 with
    today's date"*.
-3. FiestaBot edits your page in the editor directly. You can see each
-   change applied in real time.
+3. FiestaBot shows its work: each action appears in the panel as it
+   runs, and the app takes you to the page, schedule or setting it is
+   changing so you can watch the values land.
 4. Continue the conversation to refine the result, ask questions, or
-   request a completely different layout.
-5. Click **Save** when you're happy — FiestaBot never saves a page
-   without you confirming.
+   request a completely different layout. When a request is ambiguous
+   FiestaBot asks first.
+5. Anything that cannot be undone — deleting a page or schedule,
+   uninstalling a plugin — waits for your **Approve**. **Stop** ends a
+   turn at any point.
 
 When a page is open in the editor, FiestaBot automatically has context
 of what you're working on — no need to attach anything manually. The
@@ -125,11 +128,14 @@ answer questions about plugins, variables, and FiestaBoard features.
 - **Suggest variables** — recommend which plugin variables to use for
   a given goal and explain what they do.
 - **Install plugins** — recommend and install a plugin from the registry
-  when it's needed for what you're building (requires your confirmation).
-- **Configure settings** — update display, polling, or silence schedule
-  settings on your behalf (requires your confirmation).
-- **Create and edit schedules and carousels** — build automation around
-  the pages you create (requires your confirmation).
+  when it's needed for what you're building.
+- **Configure settings** — update display, polling, location, or silence
+  schedule settings on your behalf.
+- **Create and edit schedules and collections** — build automation around
+  the pages you create.
+- **Everything the MCP server can do** — FiestaBot uses the same tools an
+  external MCP client (Claude Desktop, Claude Code) would, so there is one
+  set of capabilities, not two.
 
 ### Setup
 

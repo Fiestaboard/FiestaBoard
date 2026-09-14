@@ -331,21 +331,34 @@ either publish a JSON schema for a body that is never JSON, or coerce the
 response and buffer the stream, which defeats the point of streaming. So:
 
 - declare the media type on the 200 (`"content": {"text/event-stream": ...}`)
-  with a description naming every event the stream can emit;
+  with a description naming every event the stream can emit — for the chat:
+  `text`, `status`, `tool_call`, `tool_result`, `elicitation`, `warning`,
+  `error`, `done`;
 - keep a **registry** of the event names mapped to the Pydantic model
   describing each one's payload (`CHAT_STREAM_EVENTS` in
   `src/ai/page_routes.py`). That registry is what the missing
   `response_model` would have been, so it only earns its keep if something
   holds it to the wire: one contract test validates real frames against it,
-  another walks the literal `{"event": ...}` dicts in the streaming source
-  and asserts the two sets are equal, so a new event type cannot ship
-  undocumented;
+  another walks the literal `{"event": ...}` dicts in the streaming sources
+  (`src/ai/chat.py` and `src/ai/agent.py`) and asserts the two sets are
+  equal, so a new event type cannot ship undocumented — which is also why
+  those modules build every event as a literal dict rather than through a
+  helper;
 - record the `response_model` exception in the manifest, pointing at the
   registry.
 
+A stream that has to **pause** for the user (a destructive tool awaiting
+approval, a question awaiting an answer) does not hold the connection open:
+it ends with a terminal `done` frame whose `reason` says what is awaited and
+`pending_tool_call_id` names the call, and the client re-POSTs the transcript
+with a `resume` decision. There is no server-side session to resume from —
+the transcript the client replays *is* the state.
+
 Failures divide by *when* they happen. Anything the server rejects before the
 200 is on the wire is an ordinary JSON error response and is declared in
-`responses=` as usual. After the headers are sent the status code is already
+`responses=` as usual — schema problems are the 422, and a well-formed
+transcript that makes no sense (a `resume` naming no pending call, a
+conversation ending on the assistant's turn) is the 400. After the headers are sent the status code is already
 spent, so the only way to report a failure is a terminal event in the stream
 itself — which is why an `error` frame at HTTP 200 is not a
 `no_200_on_failure` violation.

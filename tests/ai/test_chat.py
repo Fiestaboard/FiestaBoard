@@ -14,11 +14,15 @@ from typing import Any
 import httpx
 import pytest
 
-from src.ai.chat import _FenceParser, stream_chat
+from src.ai.chat import _FenceParser, stream_model
 from src.ai.chat_ops import (
     ToolCallValidationError,
     parse_tool_call,
 )
+from src.ai.mcp_bridge import ToolDescriptor
+from src.ai.protocols import get_protocol
+from src.ai.tool_catalog import ParsedToolCall, ToolCatalog
+from src.ai.tool_catalog import ToolCallValidationError as CatalogValidationError
 
 _PROVIDERS_BLOCK_OPENAI: dict[str, Any] = {
     "enabled": True,
@@ -388,7 +392,48 @@ def test_parse_tool_call_bad_arg_types():
 
 # ---------------------------------------------------------------------------
 # _FenceParser
+#
+# The parser knows fences; the catalog knows tools. A small catalog stands
+# in for the MCP server's here so the tests pin parser behaviour, not the
+# real tool list.
 # ---------------------------------------------------------------------------
+
+
+def _descriptor(name: str, schema: dict[str, Any], *, read_only: bool = False) -> ToolDescriptor:
+    return ToolDescriptor(
+        name=name,
+        title=name,
+        description=f"{name}.",
+        input_schema=schema,
+        read_only=read_only,
+        destructive=False,
+        idempotent=read_only,
+        open_world=False,
+        source="mcp",
+    )
+
+
+_CATALOG = ToolCatalog(
+    [
+        _descriptor("list_pages", {"type": "object", "properties": {}}, read_only=True),
+        _descriptor(
+            "create_page",
+            {
+                "type": "object",
+                "properties": {"name": {"type": "string"}, "template_lines": {"type": "array"}},
+                "required": ["name", "template_lines"],
+            },
+        ),
+        _descriptor(
+            "validate_template",
+            {"type": "object", "properties": {"template": {"type": "string"}, "device_type": {"type": "string"}}},
+        ),
+    ]
+)
+
+
+def _parser() -> _FenceParser:
+    return _FenceParser(_CATALOG.validate)
 
 
 def _events(parser: _FenceParser, *chunks: str) -> list[dict[str, Any]]:
@@ -400,178 +445,148 @@ def _events(parser: _FenceParser, *chunks: str) -> list[dict[str, Any]]:
 
 
 def test_fence_parser_passes_through_plain_text():
-    p = _FenceParser()
-    events = _events(p, "Hello, ", "world!")
+    events = _events(_parser(), "Hello, ", "world!")
     deltas = [e["data"]["delta"] for e in events if e["event"] == "text"]
     assert "".join(deltas) == "Hello, world!"
     assert all(e["event"] == "text" for e in events)
 
 
 def test_fence_parser_emits_tool_call():
-    p = _FenceParser()
-    body = json.dumps(
-        {
-            "op": "apply_patch",
-            "args": {"changes": [{"type": "replace_line", "index": 0, "text": "HI"}]},
-        }
-    )
+    body = json.dumps({"op": "create_page", "args": {"name": "A", "template_lines": ["HI"]}})
     chunk = f"Here you go:\n```fiestaboard\n{body}\n```\nDone!"
-    events = _events(p, chunk)
+    events = _events(_parser(), chunk)
     text = "".join(e["data"]["delta"] for e in events if e["event"] == "text")
     tools = [e for e in events if e["event"] == "tool_call"]
     assert "Here you go" in text
     assert "Done!" in text
     assert len(tools) == 1
-    assert tools[0]["data"]["op"] == "apply_patch"
+    assert tools[0]["data"]["name"] == "create_page"
+    assert tools[0]["data"]["args"] == {"name": "A", "template_lines": ["HI"]}
     assert "id" in tools[0]["data"]
+
+
+def test_fence_parser_accepts_catalog_tool_names_only():
+    events = _events(_parser(), "```fiestaboard\n" + json.dumps({"op": "list_pages", "args": {}}) + "\n```")
+    assert [e["event"] for e in events] == ["tool_call"]
 
 
 def test_fence_parser_handles_chunked_fence_open():
     """Fence open marker straddles multiple chunks."""
-    p = _FenceParser()
-    body = '{"op":"suggest_variables","args":{"suggestions":[]}}'
-    # Split right in the middle of the marker.
-    events = _events(p, "Look:\n``", "`fiest", "aboard\n", body, "\n```\nbye")
+    body = '{"op":"list_pages","args":{}}'
+    events = _events(_parser(), "Look:\n``", "`fiest", "aboard\n", body, "\n```\nbye")
     tools = [e for e in events if e["event"] == "tool_call"]
     assert len(tools) == 1
-    assert tools[0]["data"]["op"] == "suggest_variables"
+    assert tools[0]["data"]["name"] == "list_pages"
     text = "".join(e["data"]["delta"] for e in events if e["event"] == "text")
     assert text.startswith("Look:\n")
     assert text.endswith("bye")
 
 
 def test_fence_parser_chunked_close():
-    p = _FenceParser()
-    body = '{"op":"apply_patch","args":{"changes":[]}}'
-    events = _events(p, f"```fiestaboard\n{body}\n``", "`\nokay")
+    body = '{"op":"list_pages","args":{}}'
+    events = _events(_parser(), f"```fiestaboard\n{body}\n``", "`\nokay")
     tools = [e for e in events if e["event"] == "tool_call"]
     assert len(tools) == 1
 
 
 def test_fence_parser_invalid_json_emits_warning():
-    p = _FenceParser()
-    chunk = "```fiestaboard\nnot json {{{\n```"
-    events = _events(p, chunk)
+    events = _events(_parser(), "```fiestaboard\nnot json {{{\n```")
     warnings = [e for e in events if e["event"] == "warning"]
     assert len(warnings) == 1
     assert "parse" in warnings[0]["data"]["message"].lower()
 
 
-def test_fence_parser_invalid_op_emits_warning():
-    p = _FenceParser()
-    chunk = "```fiestaboard\n" + json.dumps({"op": "self_destruct", "args": {}}) + "\n```"
-    events = _events(p, chunk)
+def test_fence_parser_unknown_tool_emits_warning_with_closest_match():
+    chunk = "```fiestaboard\n" + json.dumps({"op": "creat_page", "args": {}}) + "\n```"
+    events = _events(_parser(), chunk)
     warnings = [e for e in events if e["event"] == "warning"]
     assert len(warnings) == 1
-    assert "Unknown tool op" in warnings[0]["data"]["message"]
+    assert "Unknown tool 'creat_page'" in warnings[0]["data"]["message"]
+    assert "create_page" in warnings[0]["data"]["message"]
+
+
+def test_fence_parser_retired_op_emits_warning_naming_the_replacement():
+    chunk = "```fiestaboard\n" + json.dumps({"op": "replace_page", "args": {"template": ["x"]}}) + "\n```"
+    events = _events(_parser(), chunk)
+    warnings = [e for e in events if e["event"] == "warning"]
+    assert len(warnings) == 1
+    assert "retired" in warnings[0]["data"]["message"]
+    assert "update_page" in warnings[0]["data"]["message"]
+
+
+def test_fence_parser_missing_required_arg_emits_warning():
+    chunk = "```fiestaboard\n" + json.dumps({"op": "create_page", "args": {"name": "A"}}) + "\n```"
+    events = _events(_parser(), chunk)
+    warnings = [e for e in events if e["event"] == "warning"]
+    assert len(warnings) == 1
+    assert "template_lines" in warnings[0]["data"]["message"]
 
 
 def test_fence_parser_schema_failure_does_not_leak_raw_exception_text():
     """A validation failure reaches the client sanitized, not verbatim.
 
-    ``parse_tool_call`` wraps whatever ``model_validate`` raises, so the
-    exception text is a multi-line Pydantic report (and, for an unexpected
-    failure, could be arbitrary internal detail). The warning event is
-    streamed straight to the browser over SSE, so it must be a single
-    bounded line of printable ASCII — this is CodeQL's
-    ``py/stack-trace-exposure`` sink.
+    The warning event is streamed straight to the browser over SSE, so it
+    must be a single bounded line of printable ASCII whatever the validator
+    raised — this is CodeQL's ``py/stack-trace-exposure`` sink.
     """
-    p = _FenceParser()
-    body = json.dumps(
-        {
-            "op": "apply_patch",
-            "args": {
-                "changes": [
-                    {"type": "replace_line", "index": "not-an-int", "text": "HI"},
-                    {"type": "replace_line", "index": -5, "text": 42},
-                ]
-            },
-        }
-    )
-    events = _events(p, f"```fiestaboard\n{body}\n```")
+
+    def noisy_validate(payload: object) -> ParsedToolCall:
+        raise CatalogValidationError("2 validation errors\nname\n  Input should be a valid string\n" + "x" * 2000)
+
+    p = _FenceParser(noisy_validate)
+    events = _events(p, "```fiestaboard\n" + json.dumps({"op": "create_page", "args": {}}) + "\n```")
 
     warnings = [e for e in events if e["event"] == "warning"]
     assert len(warnings) == 1
     message = warnings[0]["data"]["message"]
     assert message.startswith("Invalid fiestaboard tool block: ")
-    # Single line, printable ASCII, bounded length. The raw Pydantic report
-    # is multi-line and unbounded; none of it may survive as-is.
     assert "\n" not in message and "\r" not in message
     assert all(" " <= ch <= "~" for ch in message)
     assert len(message) <= len("Invalid fiestaboard tool block: ") + 500
 
 
 def test_fence_parser_unterminated_fence():
-    p = _FenceParser()
-    events = _events(p, "```fiestaboard\nstart of json...")
+    events = _events(_parser(), "```fiestaboard\nstart of json...")
     warnings = [e for e in events if e["event"] == "warning"]
     assert any("unterminated" in w["data"]["message"].lower() for w in warnings)
 
 
 def test_fence_parser_empty_block_warning():
-    p = _FenceParser()
-    chunk = "```fiestaboard\n\n```"
-    events = _events(p, chunk)
+    events = _events(_parser(), "```fiestaboard\n\n```")
     warnings = [e for e in events if e["event"] == "warning"]
     assert len(warnings) == 1
     assert "empty" in warnings[0]["data"]["message"].lower()
 
 
-def test_fence_parser_repairs_replace_page_filled_color():
-    """The reported bug: ``{{filled:green.}}`` in a replace_page tool call
-    is repaired in-place and a warning event is emitted alongside the
-    tool_call."""
-    p = _FenceParser()
+def test_fence_parser_repairs_create_page_filled_color():
+    """``{{filled:green.}}`` in a create_page call is repaired in place and
+    a warning event is emitted alongside the tool_call."""
     body = json.dumps(
-        {
-            "op": "replace_page",
-            "args": {
-                "name": "Test",
-                "template": [
-                    "Title{{filled:green.}}99",
-                    "OK",
-                ],
-            },
-        }
+        {"op": "create_page", "args": {"name": "Test", "template_lines": ["Title{{filled:green.}}99", "OK"]}}
     )
-    events = _events(p, f"```fiestaboard\n{body}\n```")
+    events = _events(_parser(), f"```fiestaboard\n{body}\n```")
     tools = [e for e in events if e["event"] == "tool_call"]
     warnings = [e for e in events if e["event"] == "warning"]
     assert len(tools) == 1
-    assert tools[0]["data"]["args"]["template"][0] == "Title{{filled:green}}99"
+    assert tools[0]["data"]["args"]["template_lines"][0] == "Title{{filled:green}}99"
     assert len(warnings) == 1
     assert "green" in warnings[0]["data"]["message"]
 
 
-def test_fence_parser_repairs_apply_patch_filled_color():
-    p = _FenceParser()
+def test_fence_parser_repairs_validate_template_string():
     body = json.dumps(
-        {
-            "op": "apply_patch",
-            "args": {
-                "changes": [
-                    {
-                        "type": "replace_line",
-                        "index": 0,
-                        "text": "X{{filled:red.}}",
-                    },
-                    {"type": "delete_line", "index": 1},
-                ]
-            },
-        }
+        {"op": "validate_template", "args": {"template": "X{{filled:red.}}\nOK", "device_type": "flagship"}}
     )
-    events = _events(p, f"```fiestaboard\n{body}\n```")
+    events = _events(_parser(), f"```fiestaboard\n{body}\n```")
     tools = [e for e in events if e["event"] == "tool_call"]
     warnings = [e for e in events if e["event"] == "warning"]
     assert len(tools) == 1
-    changes = tools[0]["data"]["args"]["changes"]
-    assert changes[0]["text"] == "X{{filled:red}}"
-    assert changes[1]["type"] == "delete_line"
+    assert tools[0]["data"]["args"]["template"] == "X{{filled:red}}\nOK"
     assert len(warnings) == 1
 
 
 # ---------------------------------------------------------------------------
-# stream_chat() end-to-end
+# stream_model() — one provider request
 # ---------------------------------------------------------------------------
 
 
@@ -632,232 +647,118 @@ def _stream_response(body: bytes) -> httpx.Response:
     return httpx.Response(200, stream=_AsyncByteStream(body))
 
 
+def _fresh_usage() -> dict[str, int | None]:
+    return {"prompt_tokens": None, "completion_tokens": None, "total_tokens": None}
+
+
+async def _stream(handler, provider: dict[str, Any], messages: list[dict[str, str]], usage: dict[str, int | None]):
+    client = httpx.AsyncClient(transport=httpx.MockTransport(handler))
+    try:
+        return [
+            evt
+            async for evt in stream_model(
+                protocol=get_protocol(provider.get("protocol")),
+                provider=provider,
+                model="test-model",
+                messages=messages,
+                parser=_parser(),
+                usage=usage,
+                client=client,
+            )
+        ]
+    finally:
+        await client.aclose()
+
+
+_OPENAI = _PROVIDERS_BLOCK_OPENAI["providers"][0]
+_ANTHROPIC = _PROVIDERS_BLOCK_ANTHROPIC["providers"][0]
+_MESSAGES = [{"role": "system", "content": "sys"}, {"role": "user", "content": "make line 1 say hello"}]
+
+
 @pytest.mark.asyncio
-async def test_stream_chat_emits_text_and_tool_call():
+async def test_stream_model_emits_text_and_tool_call_and_records_usage():
     body = (
         "Sure!\n```fiestaboard\n"
-        + json.dumps(
-            {
-                "op": "apply_patch",
-                "args": {"changes": [{"type": "replace_line", "index": 0, "text": "HELLO"}]},
-            }
-        )
+        + json.dumps({"op": "create_page", "args": {"name": "A", "template_lines": ["HELLO"]}})
         + "\n```\nAll set."
     )
     sse = _openai_sse(
-        [body[:5], body[5:30], body[30:]],
-        usage={
-            "prompt_tokens": 10,
-            "completion_tokens": 4,
-            "total_tokens": 14,
-        },
+        [body[:5], body[5:30], body[30:]], usage={"prompt_tokens": 10, "completion_tokens": 4, "total_tokens": 14}
     )
 
     def handler(request: httpx.Request) -> httpx.Response:
         assert request.url.path.endswith("/chat/completions")
-        # Verify stream flag was sent.
         sent = json.loads(request.content)
         assert sent.get("stream") is True
+        assert "response_format" not in sent
+        assert sent["messages"] == _MESSAGES  # forwarded verbatim; the agent owns the prompt
         return _stream_response(sse)
 
-    transport = httpx.MockTransport(handler)
-    client = httpx.AsyncClient(transport=transport)
-    try:
-        events: list[dict[str, Any]] = []
-        async for evt in stream_chat(
-            messages=[{"role": "user", "content": "make line 1 say hello"}],
-            device_type="flagship",
-            providers_block=_PROVIDERS_BLOCK_OPENAI,
-            variables={},
-            current_page={
-                "name": "P",
-                "template": ["", "", "", "", "", ""],
-                "line_metadata": [],
-            },
-            client=client,
-        ):
-            events.append(evt)
-    finally:
-        await client.aclose()
+    usage = _fresh_usage()
+    events = await _stream(handler, _OPENAI, _MESSAGES, usage)
 
-    assert events[-1]["event"] == "done"
-    assert events[-1]["data"]["model_used"] == "test-model"
-    assert events[-1]["data"]["provider_id"] == "p1"
-    assert events[-1]["data"]["usage"]["total_tokens"] == 14
-
+    assert usage["total_tokens"] == 14
+    assert "done" not in {e["event"] for e in events}  # the loop, not the call, ends a turn
     tool_calls = [e for e in events if e["event"] == "tool_call"]
     assert len(tool_calls) == 1
-    assert tool_calls[0]["data"]["op"] == "apply_patch"
-
+    assert tool_calls[0]["data"]["name"] == "create_page"
     text = "".join(e["data"]["delta"] for e in events if e["event"] == "text")
     assert "Sure!" in text
     assert "All set" in text
 
 
 @pytest.mark.asyncio
-async def test_stream_chat_anthropic_protocol():
-    body = "Hello there"
+async def test_stream_model_anthropic_protocol():
     sse = _anthropic_sse(["Hel", "lo ", "there"])
 
     def handler(request: httpx.Request) -> httpx.Response:
         assert request.url.path.endswith("/messages")
-        # Anthropic auth header check.
         assert request.headers.get("x-api-key") == "secret"
         return _stream_response(sse)
 
-    transport = httpx.MockTransport(handler)
-    client = httpx.AsyncClient(transport=transport)
-    try:
-        events = [
-            evt
-            async for evt in stream_chat(
-                messages=[{"role": "user", "content": "hi"}],
-                device_type="flagship",
-                providers_block=_PROVIDERS_BLOCK_ANTHROPIC,
-                variables={},
-                client=client,
-            )
-        ]
-    finally:
-        await client.aclose()
+    usage = _fresh_usage()
+    events = await _stream(handler, _ANTHROPIC, _MESSAGES, usage)
 
     text = "".join(e["data"]["delta"] for e in events if e["event"] == "text")
-    assert text == body
-    done = next(e for e in events if e["event"] == "done")
-    assert done["data"]["usage"]["prompt_tokens"] == 7
-    assert done["data"]["usage"]["completion_tokens"] == 3
-    assert done["data"]["usage"]["total_tokens"] == 10
+    assert text == "Hello there"
+    assert usage == {"prompt_tokens": 7, "completion_tokens": 3, "total_tokens": 10}
 
 
 @pytest.mark.asyncio
-async def test_stream_chat_invalid_tool_emits_warning_but_continues():
+async def test_stream_model_invalid_tool_emits_warning_but_continues():
     bad = json.dumps({"op": "self_destruct", "args": {}})
     body = f"Trying...\n```fiestaboard\n{bad}\n```\nNever mind."
-    sse = _openai_sse([body])
 
     def handler(request: httpx.Request) -> httpx.Response:
-        return _stream_response(sse)
+        return _stream_response(_openai_sse([body]))
 
-    transport = httpx.MockTransport(handler)
-    client = httpx.AsyncClient(transport=transport)
-    try:
-        events = [
-            evt
-            async for evt in stream_chat(
-                messages=[{"role": "user", "content": "x"}],
-                device_type="flagship",
-                providers_block=_PROVIDERS_BLOCK_OPENAI,
-                variables={},
-                client=client,
-            )
-        ]
-    finally:
-        await client.aclose()
+    events = await _stream(handler, _OPENAI, _MESSAGES, _fresh_usage())
 
     warnings = [e for e in events if e["event"] == "warning"]
-    assert len(warnings) >= 1
-    assert any("Unknown tool op" in w["data"]["message"] for w in warnings)
-    # Stream still finished cleanly.
-    assert events[-1]["event"] == "done"
+    assert any("Unknown tool 'self_destruct'" in w["data"]["message"] for w in warnings)
+    assert "error" not in {e["event"] for e in events}
     text = "".join(e["data"]["delta"] for e in events if e["event"] == "text")
     assert "Never mind" in text
 
 
 @pytest.mark.asyncio
-async def test_stream_chat_provider_error_emits_error_event():
+async def test_stream_model_provider_error_emits_error_event():
     def handler(request: httpx.Request) -> httpx.Response:
         return httpx.Response(401, json={"error": {"message": "Bad API key"}})
 
-    transport = httpx.MockTransport(handler)
-    client = httpx.AsyncClient(transport=transport)
-    try:
-        events = [
-            evt
-            async for evt in stream_chat(
-                messages=[{"role": "user", "content": "x"}],
-                device_type="flagship",
-                providers_block=_PROVIDERS_BLOCK_OPENAI,
-                variables={},
-                client=client,
-            )
-        ]
-    finally:
-        await client.aclose()
+    events = await _stream(handler, _OPENAI, _MESSAGES, _fresh_usage())
 
-    errors = [e for e in events if e["event"] == "error"]
-    assert len(errors) == 1
-    assert "401" in errors[0]["data"]["message"]
-    assert "Bad API key" in errors[0]["data"]["message"]
+    assert [e["event"] for e in events] == ["error"]
+    assert "401" in events[0]["data"]["message"]
+    assert "Bad API key" in events[0]["data"]["message"]
 
 
 @pytest.mark.asyncio
-async def test_stream_chat_rejects_empty_messages():
-    events = [
-        evt
-        async for evt in stream_chat(
-            messages=[],
-            device_type="flagship",
-            providers_block=_PROVIDERS_BLOCK_OPENAI,
-            variables={},
-        )
-    ]
-    assert events == [{"event": "error", "data": {"message": "No messages provided."}}]
-
-
-@pytest.mark.asyncio
-async def test_stream_chat_rejects_when_no_user_last():
-    events = [
-        evt
-        async for evt in stream_chat(
-            messages=[
-                {"role": "user", "content": "hi"},
-                {"role": "assistant", "content": "hello"},
-            ],
-            device_type="flagship",
-            providers_block=_PROVIDERS_BLOCK_OPENAI,
-            variables={},
-        )
-    ]
-    assert any(e["event"] == "error" and "must end with a user message" in e["data"]["message"] for e in events)
-
-
-@pytest.mark.asyncio
-async def test_stream_chat_includes_history_in_request():
-    """History messages should be forwarded to the provider verbatim."""
-    sse = _openai_sse(["ok"])
-    captured: dict[str, Any] = {}
-
-    def handler(request: httpx.Request) -> httpx.Response:
-        captured["body"] = json.loads(request.content)
-        return _stream_response(sse)
-
-    transport = httpx.MockTransport(handler)
-    client = httpx.AsyncClient(transport=transport)
-    try:
-        async for _ in stream_chat(
-            messages=[
-                {"role": "user", "content": "first turn"},
-                {"role": "assistant", "content": "ok i did it"},
-                {"role": "user", "content": "now do it again"},
-            ],
-            device_type="flagship",
-            providers_block=_PROVIDERS_BLOCK_OPENAI,
-            variables={},
-            client=client,
-        ):
-            pass
-    finally:
-        await client.aclose()
-
-    sent_messages = captured["body"]["messages"]
-    roles = [m["role"] for m in sent_messages]
-    contents = [m["content"] for m in sent_messages]
-    # First entry is system; "first turn" and "ok i did it" must appear,
-    # then the latest user prompt at the end.
-    assert roles[0] == "system"
-    assert "first turn" in contents
-    assert "ok i did it" in contents
-    assert sent_messages[-1]["content"] == "now do it again"
+async def test_stream_model_without_base_url_is_an_error_event():
+    events = await _stream(
+        lambda r: _stream_response(_openai_sse(["x"])), {**_OPENAI, "base_url": ""}, _MESSAGES, _fresh_usage()
+    )
+    assert [e["event"] for e in events] == ["error"]
 
 
 # ---------------------------------------------------------------------------

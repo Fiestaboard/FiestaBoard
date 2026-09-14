@@ -26,7 +26,11 @@ Mock control:
     POST /mock/provider    — body {"provider": "<name>"}; emulate that provider's
                              request validation (see PROVIDERS below)
     POST /mock/script      — body {"prose": str?, "ops": [ {...}, ... ]}; the next
-                             chat completion returns this content verbatim
+                             chat completion returns this content verbatim.
+                             Or body {"steps": [{"prose", "ops"}, ...]}: one
+                             completion per step, in order, for driving the
+                             server-side agent loop (each tool result the
+                             loop feeds back earns the next scripted reply).
 
 Provider personalities
 ----------------------
@@ -166,6 +170,19 @@ class MockLLMState:
             self.script = script
             self.scenario = "script"
 
+    def next_script(self) -> dict | None:
+        """The script for THIS completion: a multi-step script is consumed
+        one step per call; a single script is returned every time."""
+        with self._lock:
+            script = self.script
+            if isinstance(script, dict) and isinstance(script.get("steps"), list):
+                steps = script["steps"]
+                if not steps:
+                    return {"prose": "Nothing more staged."}
+                step = steps.pop(0)
+                return step if isinstance(step, dict) else {"prose": str(step)}
+            return script
+
     def record_request(self, body: dict, headers: dict) -> None:
         with self._lock:
             # Trim headers down to what tests typically assert against, so
@@ -300,7 +317,7 @@ def _content_for_scenario(scenario: str, body: dict) -> tuple[int, dict]:
         return 200, _make_chat_completion(json.dumps(page), model=model)
 
     if scenario == "script":
-        return 200, _make_chat_completion(_scripted_content(STATE.script), model=model)
+        return 200, _make_chat_completion(_scripted_content(STATE.next_script()), model=model)
 
     # "ok" — the default happy path.
     return 200, _make_chat_completion(json.dumps(_DEFAULT_PAGE), model=model)
@@ -440,6 +457,14 @@ class Handler(BaseHTTPRequestHandler):
 
         if self.path == "/mock/script":
             body = self._read_json()
+            steps = body.get("steps")
+            if steps is not None:
+                if not isinstance(steps, list) or not all(isinstance(step, dict) for step in steps):
+                    self._send_json(400, {"error": {"message": "'steps' must be an array of objects."}})
+                    return
+                STATE.set_script({"steps": [{"prose": st.get("prose"), "ops": st.get("ops") or []} for st in steps]})
+                self._send_json(200, {"status": "ok", "scenario": "script", "steps": len(steps)})
+                return
             ops = body.get("ops")
             if ops is not None and not isinstance(ops, list):
                 self._send_json(400, {"error": {"message": "'ops' must be an array."}})

@@ -115,3 +115,25 @@ def test_permissive_provider_accepts_what_lmstudio_rejects(mock_server):
         )
         is None
     )
+
+
+def test_script_steps_are_consumed_in_order(mock_server):
+    """A multi-step script hands out one step per completion, then a
+    harmless filler — the server-side agent loop calls the model once per
+    tool round, and each call must get the next scripted reply."""
+    state = mock_server.MockLLMState()
+    state.set_script(
+        {"steps": [{"prose": "one", "ops": []}, {"prose": "two", "ops": [{"op": "list_pages", "args": {}}]}]}
+    )
+    first = mock_server._scripted_content(state.next_script())
+    second = mock_server._scripted_content(state.next_script())
+    third = mock_server._scripted_content(state.next_script())
+    assert first == "one"
+    assert second.startswith("two") and "```fiestaboard" in second
+    assert "staged" in third.lower()
+
+
+def test_single_script_is_returned_for_every_completion(mock_server):
+    state = mock_server.MockLLMState()
+    state.set_script({"prose": "same", "ops": []})
+    assert state.next_script() is state.next_script()

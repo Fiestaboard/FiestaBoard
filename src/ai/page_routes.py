@@ -40,7 +40,8 @@ type in ``responses[200]``, and :data:`CHAT_STREAM_EVENTS` below names every
 event it emits and the model describing that event's ``data`` payload.
 ``tests/test_ai_pages_contract.py`` validates real frames against that
 registry and cross-checks it against the literal ``{"event": ...}`` dicts in
-:mod:`src.ai.chat`, so the published schema cannot drift from the wire. The
+:mod:`src.ai.chat` and :mod:`src.ai.agent`, so the published schema cannot drift
+from the wire. The
 matching ``response_model`` exception is recorded in
 ``tests/conventions_manifest.json``.
 """
@@ -56,7 +57,7 @@ from typing import Annotated, Any, Literal
 
 from fastapi import APIRouter, HTTPException, Query
 from fastapi.responses import StreamingResponse
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 
 from src.api_errors import errors
 from src.config_manager import get_config_manager
@@ -98,6 +99,11 @@ class AIPromptContextResponse(BaseModel):
     exemplars: list[dict[str, Any]] = Field(default_factory=list)
     current_page: dict[str, Any] | None = None
     system_prompt: str = ""
+    #: The chat's generated tool section, when ``include_tools`` was asked
+    #: for. Rendered from the MCP server's own tool list, so this is the
+    #: place to check what the model is being taught (and how much of the
+    #: context window it costs).
+    tool_catalog: str | None = None
 
 
 class AIGenerateRequest(BaseModel):
@@ -133,11 +139,76 @@ class AIGenerateResponse(BaseModel):
     usage: dict[str, int | None] = Field(default_factory=dict)
 
 
-class ChatMessage(BaseModel):
-    """One turn of the conversation as the client replays it."""
+class ChatToolCallRecord(BaseModel):
+    """A tool call the assistant made, as the client replays it."""
 
-    role: Literal["user", "assistant", "system"]
+    id: str
+    name: str
+    args: dict[str, Any] = Field(default_factory=dict)
+
+
+ToolMessageStatus = Literal["ok", "blocked", "error", "denied", "interrupted", "answered"]
+
+
+class ChatMessage(BaseModel):
+    """One turn of the conversation as the client replays it.
+
+    There is no server-side session: the client sends the whole transcript
+    every request, so the transcript has to be able to say what the server
+    did. An ``assistant`` turn carries the ``tool_calls`` it made; each
+    outcome is a ``tool`` turn keyed by ``tool_call_id``. The server renders
+    both into plain text for the model (:mod:`src.ai.transcript`), exactly
+    as it rendered its own steps when it made them.
+    """
+
+    role: Literal["user", "assistant", "system", "tool"]
     content: str = ""
+    tool_calls: list[ChatToolCallRecord] | None = None
+    tool_call_id: str | None = None
+    name: str | None = None
+    status: ToolMessageStatus | None = None
+    result: Any = None
+
+    @model_validator(mode="after")
+    def _tool_fields_match_role(self) -> ChatMessage:
+        if self.role == "tool":
+            if not (self.tool_call_id and self.name and self.status):
+                raise ValueError("a tool message needs tool_call_id, name and status")
+            if self.tool_calls is not None:
+                raise ValueError("a tool message cannot carry tool_calls")
+        elif self.role != "assistant" and self.tool_calls is not None:
+            raise ValueError(f"a {self.role} message cannot carry tool_calls")
+        elif self.role != "tool" and (self.tool_call_id or self.status):
+            raise ValueError(f"a {self.role} message cannot carry a tool outcome")
+        return self
+
+
+class ChatAnswer(BaseModel):
+    """The user's reply to an ``ask_user`` question (MCP elicitation shape)."""
+
+    action: Literal["accept", "decline", "cancel"]
+    content: dict[str, Any] | None = None
+
+
+class ChatResumeDecision(BaseModel):
+    """What the client decided about the tool call the last turn paused on.
+
+    ``approve`` / ``deny`` answer a destructive tool's approval pause;
+    ``answer`` carries the reply to an ``ask_user`` question. The
+    ``tool_call_id`` must be the call the transcript is still waiting on.
+    """
+
+    tool_call_id: str
+    decision: Literal["approve", "deny", "answer"]
+    answer: ChatAnswer | None = None
+
+    @model_validator(mode="after")
+    def _answer_only_with_answer_decision(self) -> ChatResumeDecision:
+        if self.decision == "answer" and self.answer is None:
+            raise ValueError("decision 'answer' needs an answer")
+        if self.decision != "answer" and self.answer is not None:
+            raise ValueError("only decision 'answer' carries an answer")
+        return self
 
 
 class AIChatRequest(BaseModel):
@@ -153,6 +224,7 @@ class AIChatRequest(BaseModel):
     """
 
     messages: list[ChatMessage] = Field(min_length=1)
+    resume: ChatResumeDecision | None = None
     device_type: AIDeviceType = "flagship"
     surface: ChatSurface = "global"
     current_page: dict[str, Any] | None = None
@@ -183,12 +255,55 @@ class ChatStreamTextData(BaseModel):
     delta: str
 
 
+class ChatStreamStatusData(BaseModel):
+    """``event: status`` — what the loop is doing, for the step timeline."""
+
+    phase: Literal["thinking", "tool_running", "tool_done"]
+    message: str
+    tool_call_id: str | None = None
+    step: int
+
+
 class ChatStreamToolCallData(BaseModel):
-    """``event: tool_call`` — one validated structured operation."""
+    """``event: tool_call`` — a validated call, emitted BEFORE it runs.
+
+    The annotation flags come from the MCP tool's own ``ToolAnnotations``;
+    ``requires_approval`` is what the client keys its pause UI on.
+    """
 
     id: str
-    op: str
+    name: str
     args: dict[str, Any] = Field(default_factory=dict)
+    title: str
+    read_only: bool
+    destructive: bool
+    requires_approval: bool
+    source: Literal["mcp", "chat"]
+
+
+class ChatStreamToolResultData(BaseModel):
+    """``event: tool_result`` — what the call did, emitted after it ran."""
+
+    id: str
+    name: str
+    status: Literal["ok", "blocked", "error", "denied"]
+    summary: str
+    result: Any = None
+    error: str | None = None
+
+
+class ChatStreamElicitationData(BaseModel):
+    """``event: elicitation`` — the assistant is asking the user a question.
+
+    The same field names as an MCP ``elicitation/create`` request, so the
+    client renders ``ask_user`` and (later) tool-driven elicitation alike.
+    """
+
+    id: str
+    name: str
+    message: str
+    requested_schema: dict[str, Any]
+    allow_free_text: bool = True
 
 
 class ChatStreamMessageData(BaseModel):
@@ -202,11 +317,20 @@ class ChatStreamMessageData(BaseModel):
 
 
 class ChatStreamDoneData(BaseModel):
-    """``event: done`` — the terminal frame, always last on a clean stream."""
+    """``event: done`` — the terminal frame, always last on a clean stream.
+
+    ``reason`` says why the turn ended: ``complete`` (nothing pending),
+    ``awaiting_approval`` (a destructive tool waits on the user — resume
+    with approve/deny), ``awaiting_input`` (an ``ask_user`` question waits —
+    resume with an answer), or ``step_limit`` (runaway protection).
+    """
 
     model_used: str
     provider_id: str | None = None
     usage: dict[str, int | None] = Field(default_factory=dict)
+    reason: Literal["complete", "awaiting_approval", "awaiting_input", "step_limit"]
+    pending_tool_call_id: str | None = None
+    steps: int
 
 
 #: Every event name ``POST /chat`` emits, mapped to the model describing that
@@ -215,7 +339,10 @@ class ChatStreamDoneData(BaseModel):
 #: ``web/src/lib/api-stream.ts`` switches on.
 CHAT_STREAM_EVENTS: dict[str, type[BaseModel]] = {
     "text": ChatStreamTextData,
+    "status": ChatStreamStatusData,
     "tool_call": ChatStreamToolCallData,
+    "tool_result": ChatStreamToolResultData,
+    "elicitation": ChatStreamElicitationData,
     "warning": ChatStreamMessageData,
     "error": ChatStreamMessageData,
     "done": ChatStreamDoneData,
@@ -268,12 +395,16 @@ def _ai_generate_throttle_check() -> None:
 )
 async def get_ai_context(
     device_type: Annotated[AIDeviceType, Query(description="Board geometry to build the prompt for.")] = "flagship",
+    include_tools: Annotated[
+        bool, Query(description="Also render the chat's tool catalog (imports the MCP server).")
+    ] = False,
 ) -> AIPromptContextResponse:
     """Return the variable list + exemplars that would be sent to the model.
 
     Useful for debugging the prompt; never includes API keys. An unknown
     ``device_type`` is FastAPI's 422 — the parameter is a Literal, so the
     rejection is schema validation rather than a hand-rolled membership test.
+    ``include_tools`` adds the generated tool section the chat appends.
     """
     from .prompt_builder import build_prompt
 
@@ -286,7 +417,15 @@ async def get_ai_context(
         variables=variables,
         plugin_demos=demos,
     )
-    return AIPromptContextResponse(**context.to_dict())
+    payload = context.to_dict()
+    if include_tools:
+        from .chat_tools import ChatExtensionBackend
+        from .mcp_bridge import CompositeToolBackend, McpToolBackend
+        from .tool_catalog import ToolCatalog
+
+        descriptors = await CompositeToolBackend(McpToolBackend(), ChatExtensionBackend()).list_tools()
+        payload["tool_catalog"] = ToolCatalog(descriptors).render_addendum("global")
+    return AIPromptContextResponse(**payload)
 
 
 @router.post(
@@ -365,97 +504,110 @@ async def generate_ai_page(request: AIGenerateRequest) -> AIGenerateResponse:
             "description": _CHAT_STREAM_DESCRIPTION,
             "content": {"text/event-stream": {"schema": {"type": "string"}}},
         },
-        **errors(422),
+        **errors(400, 422),
     },
     summary="Stream a multi-turn AI chat as Server-Sent Events",
 )
 async def chat_ai_page(request: AIChatRequest) -> StreamingResponse:
-    """Stream a multi-turn AI chat for refining/building a page.
+    """Run one turn of the AI chat and stream it as Server-Sent Events.
 
-    Returns a Server-Sent Events stream, so this route has no
-    ``response_model`` — :data:`CHAT_STREAM_EVENTS` is the published schema
-    instead, and the matching exception is checked in to
-    ``tests/conventions_manifest.json``. Event types match what
-    :func:`src.ai.chat.stream_chat` yields:
+    A turn may span several model calls and tool executions
+    (:mod:`src.ai.agent`); every tool runs through the in-process MCP
+    server, so the chat and external MCP clients share one implementation.
+    The route has no ``response_model`` — :data:`CHAT_STREAM_EVENTS` is the
+    published schema, and the matching exception is checked in to
+    ``tests/conventions_manifest.json``. Event types:
 
-    - ``text``      — token-level prose deltas
-    - ``tool_call`` — a validated structured operation
-                       (see :mod:`src.ai.chat_ops`)
-    - ``warning``   — recoverable issue (e.g. malformed tool block)
-    - ``error``     — fatal issue, stream is about to close
-    - ``done``      — terminal frame with usage + model_used
+    - ``text``        — token-level prose deltas
+    - ``status``      — loop progress (thinking / running a tool)
+    - ``tool_call``   — a validated call, before it runs
+    - ``tool_result`` — the outcome, after it ran
+    - ``elicitation`` — the assistant asked the user a question
+    - ``warning``     — recoverable issue (e.g. malformed tool block)
+    - ``error``       — fatal issue, stream is about to close
+    - ``done``        — terminal frame: usage, model, and why the turn ended
 
     A failure that happens *before* the stream opens is a normal JSON error
-    response (422 for a malformed body); once the 200 and its headers are on
-    the wire the only way to report a failure is an ``error`` frame.
-
-    Like ``/pages/ai/generate``, this never persists anything: the
-    editor applies tool calls locally and the user must click Save.
+    response (422 for a malformed body, 400 for a well-formed transcript
+    that makes no sense — a ``resume`` naming no pending call, or a
+    transcript ending on the assistant's turn); once the 200 and its
+    headers are on the wire the only way to report a failure is an
+    ``error`` frame.
 
     Note: we deliberately skip the per-second throttle here. Chat is
-    conversational — the user may send several messages back-to-back
-    (especially when iterating on a design), and a 429 mid-conversation
-    is jarring. The semaphore below caps concurrent streams instead,
-    which is the real protection against runaway clients.
+    conversational — the user may send several messages back-to-back —
+    and a 429 mid-conversation is jarring. The provider semaphore is passed
+    into the loop instead, which holds it only around each model call.
     """
-    messages = [message.model_dump() for message in request.messages]
-    device_type = request.device_type
-    provider_id = request.provider_id
-    model = request.model
-    current_page = request.current_page
-    available_pages = request.available_pages
-    installed_plugins = request.installed_plugins
-    available_schedules = request.available_schedules
-    available_collections = request.available_collections
-    registry_plugins = request.registry_plugins
-    surface = request.surface
+    from .transcript import pending_tool_call
 
+    messages = [message.model_dump(exclude_none=True) for message in request.messages]
+    pending = pending_tool_call(messages)
+    if request.resume is not None:
+        if pending is None or pending["id"] != request.resume.tool_call_id:
+            raise HTTPException(
+                status_code=400,
+                detail=f"No tool call {request.resume.tool_call_id!r} is awaiting a decision.",
+            )
+    else:
+        last = messages[-1]
+        if last["role"] not in ("user", "tool"):
+            raise HTTPException(
+                status_code=400,
+                detail="Conversation must end with a user message, a tool result, or a resume decision.",
+            )
+        if last["role"] == "user" and not (last.get("content") or "").strip():
+            raise HTTPException(status_code=400, detail="User message is empty.")
+        if pending is not None and last["role"] == "user":
+            raise HTTPException(
+                status_code=400,
+                detail=f"Tool call {pending['id']!r} is still awaiting a decision; send a resume with the message.",
+            )
+
+    resume = request.resume.model_dump() if request.resume is not None else None
     cm = get_config_manager()
     providers_block = cm.get_ai_providers()
     variables = _collect_ai_variables()
     demos = _collect_plugin_demos()
 
-    from .chat import stream_chat as ai_stream_chat
+    # Imported here, not at module scope: ``agent`` pulls in the MCP bridge,
+    # and the ``mcp`` package must stay out of the boot path
+    # (tests/test_mcp_lazy_mount.py). The first chat turn pays the import.
+    from .agent import run_chat_turn
+    from .chat_tools import ChatExtensionBackend
+    from .mcp_bridge import CompositeToolBackend, McpToolBackend
+
+    backend = CompositeToolBackend(McpToolBackend(), ChatExtensionBackend())
 
     async def event_source():
-        """Render the normalized event stream as SSE bytes.
-
-        Holds the AI semaphore for the duration of the stream so a
-        client that drops mid-response still releases the slot via
-        ``finally`` when the generator is closed.
-        """
+        """Render the normalized event stream as SSE bytes."""
         try:
-            await _AI_GENERATE_SEMAPHORE.acquire()
+            async for evt in run_chat_turn(
+                messages=messages,
+                resume=resume,
+                device_type=request.device_type,
+                surface=request.surface,
+                providers_block=providers_block,
+                backend=backend,
+                variables=variables,
+                plugin_demos=demos,
+                current_page=request.current_page,
+                available_pages=request.available_pages,
+                installed_plugins=request.installed_plugins,
+                available_schedules=request.available_schedules,
+                available_collections=request.available_collections,
+                registry_plugins=request.registry_plugins,
+                provider_id=request.provider_id,
+                model=request.model,
+                provider_gate=_AI_GENERATE_SEMAPHORE,
+            ):
+                yield _format_sse_event(evt["event"], evt["data"])
         except Exception:
-            yield _format_sse_event("error", {"message": "Could not acquire AI lock."})
-            return
-        try:
-            try:
-                async for evt in ai_stream_chat(
-                    messages=messages,
-                    device_type=device_type,
-                    providers_block=providers_block,
-                    variables=variables,
-                    plugin_demos=demos,
-                    current_page=current_page,
-                    available_pages=available_pages,
-                    installed_plugins=installed_plugins,
-                    available_schedules=available_schedules,
-                    available_collections=available_collections,
-                    registry_plugins=registry_plugins,
-                    surface=surface,
-                    provider_id=provider_id,
-                    model=model,
-                ):
-                    yield _format_sse_event(evt["event"], evt["data"])
-            except Exception:
-                logger.exception("Unexpected error in /pages/ai/chat")
-                yield _format_sse_event(
-                    "error",
-                    {"message": ("Unexpected AI chat error. See server logs for details.")},
-                )
-        finally:
-            _AI_GENERATE_SEMAPHORE.release()
+            logger.exception("Unexpected error in /pages/ai/chat")
+            yield _format_sse_event(
+                "error",
+                {"message": ("Unexpected AI chat error. See server logs for details.")},
+            )
 
     return StreamingResponse(
         event_source(),
