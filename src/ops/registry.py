@@ -198,6 +198,7 @@ OPERATIONS: tuple[Operation, ...] = (
         name="update_setting",
         executor=executors.update_setting,
         chat_name="update_setting",
+        mcp_tool="update_setting",
         adapt_chat_args=lambda a: {"category": a.category, "values": a.values},
     ),
     Operation(

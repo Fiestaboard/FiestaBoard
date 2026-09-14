@@ -373,6 +373,7 @@ EXPECTED_TOOLS = {
     "get_settings_summary",
     "set_active_page",
     "set_schedule_mode",
+    "update_setting",
     # Read-back / action tools (#1765)
     "get_active_page",
     "get_board_content",

@@ -94,6 +94,7 @@ COVERED = {
     "send_message",
     "preview_saved_page",
     "validate_template",
+    "update_setting",
 }
 
 #: Tools not yet covered here, each with the reason. Not an exemption list.
@@ -730,6 +731,105 @@ def test_get_settings_summary_returns_a_payload(mcp, services):
 def test_list_installed_plugins_returns_a_list(mcp, services):
     result = call(mcp, "list_installed_plugins")
     assert isinstance(result, (list, dict))
+
+
+# -- update_setting ----------------------------------------------------------
+#
+# The chat's ``update_setting`` op becomes an MCP tool so the in-app chat can
+# change settings through the same server external clients use. The read-back
+# is ``get_settings_summary``, which is what a model would call to confirm.
+
+
+def test_update_setting_display_change_is_read_back_by_get_settings_summary(mcp, services, two_boards):
+    before = assert_ok(call(mcp, "get_settings_summary"), "get_settings_summary")
+    assert before["display"]["reduce_motion"] is False
+
+    result = assert_ok(
+        call(mcp, "update_setting", category="display", values={"reduce_motion": True}),
+        "update_setting",
+    )
+    assert result["category"] == "display"
+
+    after = assert_ok(call(mcp, "get_settings_summary"), "get_settings_summary")
+    assert after["display"]["reduce_motion"] is True
+
+
+def test_update_setting_location_change_survives_a_fresh_settings_service(mcp, services, two_boards, tmp_path):
+    """Persisted, not just cached: a new service over the same file sees it."""
+    import src.settings.service as settings_module
+
+    assert_ok(
+        call(mcp, "update_setting", category="location", values={"latitude": 40.7128, "longitude": -74.006}),
+        "update_setting",
+    )
+
+    reloaded = settings_module.SettingsService(settings_file=str(tmp_path / "settings.json"))
+    loc = reloaded.get_location_settings()
+    assert (loc.latitude, loc.longitude) == (40.7128, -74.006)
+
+
+def test_update_setting_active_page_is_the_same_selection_set_active_page_makes(mcp, services, two_boards):
+    page = assert_ok(
+        call(mcp, "create_page", name="Via setting", template_lines=FLAGSHIP_TEMPLATE, device_type="flagship"),
+        "create_page",
+    )
+
+    assert_ok(
+        call(mcp, "update_setting", category="active_page", values={"page_id": page["page_id"]}), "update_setting"
+    )
+
+    assert two_boards.get_active_page_id() == page["page_id"]
+
+
+def test_update_setting_rejects_an_unknown_category(mcp, services, two_boards):
+    message = call_expect_error(mcp, "update_setting", category="mqtt", values={"host": "broker"})
+    assert "mqtt" in message
+
+
+# -- read-only honesty --------------------------------------------------------
+#
+# ``readOnlyHint`` is a promise to clients (and to the in-app chat, which
+# runs these tools without asking). This checks the promise against the
+# stores: calling every read-only tool leaves every persisted file
+# byte-identical. Open-world read tools are exercised too — the fixture
+# plugin is local — but the network-backed registry listing is not.
+
+
+def _persisted_files(root) -> dict[str, bytes]:
+    return {
+        str(path.relative_to(root)): path.read_bytes()
+        for path in sorted(root.rglob("*"))
+        if path.is_file() and "__pycache__" not in path.parts
+    }
+
+
+def test_read_only_tools_leave_every_store_untouched(mcp, services, plugins, engine, tmp_path):
+    from tests.test_mcp_annotations import READ_ONLY
+
+    page = assert_ok(
+        call(mcp, "create_page", name="Fixture", template_lines=FLAGSHIP_TEMPLATE, device_type="flagship"),
+        "create_page",
+    )
+    args_for: dict[str, dict[str, Any]] = {
+        "get_page": {"page_id": page["page_id"]},
+        "preview_saved_page": {"page_id": page["page_id"]},
+        "render_page_preview": {"template_lines": FLAGSHIP_TEMPLATE, "device_type": "flagship"},
+        "validate_template": {"template": "\n".join(FLAGSHIP_TEMPLATE), "device_type": "flagship"},
+        "get_plugin_data": {"plugin_id": PLUGIN_ID},
+    }
+    skipped = {"list_registry_plugins"}  # network-backed registry
+    # get_plugin_data reads a plugin's live values, which needs it enabled
+    # and configured — writes that belong BEFORE the snapshot.
+    assert_ok(call(mcp, "configure_plugin", plugin_id=PLUGIN_ID, config={"station_id": "9414290"}), "configure_plugin")
+    assert_ok(call(mcp, "enable_plugin", plugin_id=PLUGIN_ID), "enable_plugin")
+
+    before = _persisted_files(tmp_path)
+    for name in sorted(READ_ONLY - skipped):
+        assert_ok(call(mcp, name, **args_for.get(name, {})), name)
+    after = _persisted_files(tmp_path)
+
+    changed = sorted(k for k in set(before) | set(after) if before.get(k) != after.get(k))
+    assert not changed, f"read-only tools changed persisted state: {changed}"
 
 
 # ---------------------------------------------------------------------------

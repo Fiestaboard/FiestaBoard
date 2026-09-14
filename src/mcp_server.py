@@ -41,8 +41,19 @@ Connection example for Claude Code (talks HTTP directly, no proxy)::
         --url http://localhost:4420/api/mcp/ \\
         --header "Authorization: Bearer <FIESTABOARD_MCP_TOKEN>"
 
-See ``docs/setup/MCP_CLIENTS.md`` for the full setup walkthrough,
+See ``docs/internal/setup/MCP_CLIENTS.md`` for the full setup walkthrough,
 including why claude.ai web Connectors can't reach a LAN host.
+
+Tool annotations
+----------------
+Every tool carries standard MCP ``ToolAnnotations`` (``readOnlyHint``,
+``destructiveHint``, ``idempotentHint``, ``openWorldHint``, ``title``), set
+through the ``_tool`` decorator's keyword flags. They are the server's
+statement of what a tool does to the world, and two consumers rely on
+them: external clients decide whether to confirm a call, and the in-app
+chat runs ``readOnlyHint`` tools freely mid-turn while pausing only on
+``destructiveHint`` ones. ``tests/test_mcp_annotations.py`` pins the sets,
+so a new tool has to declare its flags rather than inherit a default.
 """
 
 from __future__ import annotations
@@ -75,12 +86,14 @@ logger = logging.getLogger(__name__)
 try:
     from mcp.server import MCPServer  # type: ignore[import-untyped]
     from mcp.server.mcpserver.exceptions import ToolError  # type: ignore[import-untyped]
+    from mcp.types import ToolAnnotations  # type: ignore[import-untyped]
 
     _MCP_AVAILABLE = True
 except ImportError:  # pragma: no cover
     _MCP_AVAILABLE = False
     MCPServer = None  # type: ignore[assignment,misc]
     ToolError = None  # type: ignore[assignment,misc]
+    ToolAnnotations = None  # type: ignore[assignment,misc]
     logger.warning(
         "mcp package not installed — FiestaBoard MCP server is disabled. "
         "Add `mcp>=2.0.0` to requirements.txt and rebuild the container."
@@ -213,7 +226,9 @@ def _build_mcp_server() -> Any:
             "  4. install/configure plugins as needed\n"
             "  5. render_page_preview() — iterate on a template until it looks right\n"
             "  6. create_page() with template_lines using {{plugin_id.variable_name}} syntax\n"
-            "  7. Optionally schedule pages with create_schedule()\n\n"
+            "  7. Optionally schedule pages with create_schedule()\n"
+            "  8. Adjust display, location, polling or quiet hours with\n"
+            "     update_setting() — read them first via get_settings_summary()\n\n"
             "DEBUGGING TOOLS\n"
             "  • render_page_preview(template_lines, device_type) — see how a\n"
             "    template will look WITHOUT creating a page. Use this to iterate.\n"
@@ -259,32 +274,77 @@ def _build_mcp_server() -> Any:
     # isError=True with the domain message); unexpected exceptions are logged
     # server-side with their traceback and mapped to a concise message. A
     # ToolError raised by a tool body passes through untouched.
-    def _tool(fn: Any) -> Any:
-        if inspect.iscoroutinefunction(fn):
+    def _tool(
+        fn: Any = None,
+        *,
+        read_only: bool = False,
+        destructive: bool | None = None,
+        idempotent: bool | None = None,
+        open_world: bool = False,
+        title: str | None = None,
+    ) -> Any:
+        """Register ``fn`` as a tool with the error contract and its annotations.
 
-            @functools.wraps(fn)
-            async def wrapper(*args: Any, **kwargs: Any) -> Any:
-                try:
-                    result = await fn(*args, **kwargs)
-                except ToolError:
-                    raise
-                except Exception as exc:
-                    raise _tool_failure(fn.__name__, exc) from exc
-                return _raise_error_envelope(result)
+        The keyword flags become standard MCP ``ToolAnnotations``, which are
+        how a client (and the in-app chat) learns what a tool does to the
+        world without keeping its own list:
 
-        else:
+        - ``read_only``: observes only. Implies ``destructive=False`` and
+          ``idempotent=True``; the chat runs these without pausing.
+        - ``destructive``: cannot be undone by another tool call (deletes,
+          uninstalls). Clients ask the user first. Defaults to
+          ``not read_only`` so an unclassified writer errs on the side of
+          asking — the spec's own default for a missing hint is *true*.
+        - ``idempotent``: the same call twice leaves the same state as once.
+        - ``open_world``: reaches outside this install (registry over the
+          network, a git remote, a plugin's upstream API).
 
-            @functools.wraps(fn)
-            def wrapper(*args: Any, **kwargs: Any) -> Any:
-                try:
-                    result = fn(*args, **kwargs)
-                except ToolError:
-                    raise
-                except Exception as exc:
-                    raise _tool_failure(fn.__name__, exc) from exc
-                return _raise_error_envelope(result)
+        ``tests/test_mcp_annotations.py`` pins the resulting sets, so adding
+        a tool means deciding its flags; there is no silent default path.
+        """
 
-        return mcp.tool()(wrapper)
+        def decorate(fn: Any) -> Any:
+            if inspect.iscoroutinefunction(fn):
+
+                @functools.wraps(fn)
+                async def wrapper(*args: Any, **kwargs: Any) -> Any:
+                    try:
+                        result = await fn(*args, **kwargs)
+                    except ToolError:
+                        raise
+                    except Exception as exc:
+                        raise _tool_failure(fn.__name__, exc) from exc
+                    return _raise_error_envelope(result)
+
+            else:
+
+                @functools.wraps(fn)
+                def wrapper(*args: Any, **kwargs: Any) -> Any:
+                    try:
+                        result = fn(*args, **kwargs)
+                    except ToolError:
+                        raise
+                    except Exception as exc:
+                        raise _tool_failure(fn.__name__, exc) from exc
+                    return _raise_error_envelope(result)
+
+            is_destructive = (not read_only) if destructive is None else destructive
+            is_idempotent = read_only if idempotent is None else idempotent
+            # Wire names, not attribute names: the SDK renamed the Python
+            # attributes between 2.1 (readOnlyHint) and 2.2 (read_only_hint);
+            # the camelCase aliases are the stable contract on both.
+            annotations = ToolAnnotations.model_validate(
+                {
+                    "title": title or fn.__name__.replace("_", " ").capitalize(),
+                    "readOnlyHint": read_only,
+                    "destructiveHint": is_destructive,
+                    "idempotentHint": is_idempotent,
+                    "openWorldHint": open_world,
+                }
+            )
+            return mcp.tool(annotations=annotations)(wrapper)
+
+        return decorate(fn) if fn is not None else decorate
 
     # -----------------------------------------------------------------------
     # Plugin tools
@@ -301,7 +361,7 @@ def _build_mcp_server() -> Any:
     # what keeps mcp_server importable without api_server.
     # -----------------------------------------------------------------------
 
-    @_tool
+    @_tool(read_only=True)
     def list_installed_plugins() -> list[dict[str, Any]] | dict[str, Any]:
         """List all installed FiestaBoard plugins with their status and config schema.
 
@@ -326,7 +386,7 @@ def _build_mcp_server() -> Any:
             p["configured"] = bool(cfg)
         return _serialize(plugins)
 
-    @_tool
+    @_tool(read_only=True, open_world=True)
     def list_registry_plugins(
         page: int = 1,
         page_size: int = 20,
@@ -383,7 +443,7 @@ def _build_mcp_server() -> Any:
             "total_pages": max(1, -(-total // page_size)),
         }
 
-    @_tool
+    @_tool(destructive=False, open_world=True)
     async def install_plugin(plugin_id: str, auto_enable: bool = True) -> dict[str, Any]:
         """Install a plugin from the official FiestaBoard registry and optionally enable it.
 
@@ -396,7 +456,7 @@ def _build_mcp_server() -> Any:
         """
         return await ops_executors.install_plugin(plugin_id, auto_enable=auto_enable)
 
-    @_tool
+    @_tool(destructive=False, idempotent=True)
     async def enable_plugin(plugin_id: str) -> dict[str, Any]:
         """Enable an installed but currently-disabled plugin.
 
@@ -408,7 +468,7 @@ def _build_mcp_server() -> Any:
         """
         return ops_executors.enable_plugin(plugin_id)
 
-    @_tool
+    @_tool(destructive=False, idempotent=True)
     async def disable_plugin(plugin_id: str) -> dict[str, Any]:
         """Disable an installed plugin without uninstalling it.
 
@@ -419,7 +479,7 @@ def _build_mcp_server() -> Any:
         """
         return ops_executors.disable_plugin(plugin_id)
 
-    @_tool
+    @_tool(destructive=True)
     async def uninstall_plugin(plugin_id: str) -> dict[str, Any]:
         """Permanently remove an installed plugin.
 
@@ -432,7 +492,7 @@ def _build_mcp_server() -> Any:
         """
         return ops_executors.uninstall_plugin(plugin_id)
 
-    @_tool
+    @_tool(destructive=False, idempotent=True)
     async def configure_plugin(plugin_id: str, config: dict[str, Any]) -> dict[str, Any]:
         """Update configuration settings for an installed plugin.
 
@@ -453,7 +513,7 @@ def _build_mcp_server() -> Any:
         """
         return ops_executors.configure_plugin(plugin_id, config)
 
-    @_tool
+    @_tool(destructive=False, idempotent=True, open_world=True)
     async def update_plugin(plugin_id: str) -> dict[str, Any]:
         """Update an installed plugin to its latest version from its git remote.
 
@@ -466,7 +526,7 @@ def _build_mcp_server() -> Any:
         # PluginService.apply_update — the shared, guarded path.
         return await ops_executors.update_plugin(plugin_id)
 
-    @_tool
+    @_tool(read_only=True)
     def get_template_variables() -> dict[str, Any]:
         """Get all template variables available from enabled plugins.
 
@@ -483,7 +543,7 @@ def _build_mcp_server() -> Any:
         # already uses the *_with_metadata variant; this call site drifted.
         return _serialize(registry.get_all_variables_with_metadata())
 
-    @_tool
+    @_tool(read_only=True, open_world=True)
     def get_plugin_data(plugin_id: str) -> dict[str, Any]:
         """Fetch the CURRENT live values a plugin is exposing to template variables.
 
@@ -513,7 +573,7 @@ def _build_mcp_server() -> Any:
     # Page tools
     # -----------------------------------------------------------------------
 
-    @_tool
+    @_tool(read_only=True)
     def list_pages() -> list[dict[str, Any]] | dict[str, Any]:
         """List all display pages on this FiestaBoard.
 
@@ -529,7 +589,7 @@ def _build_mcp_server() -> Any:
         svc = get_page_service()
         return _serialize(svc.list_pages())
 
-    @_tool
+    @_tool(read_only=True)
     def get_page(page_id: str) -> dict[str, Any]:
         """Get full details of a specific page including its template content.
 
@@ -548,7 +608,7 @@ def _build_mcp_server() -> Any:
             raise ToolError(f"Page '{page_id}' not found.")
         return _serialize(page)
 
-    @_tool
+    @_tool(destructive=False)
     def create_page(
         name: str,
         template_lines: list[str],
@@ -582,7 +642,7 @@ def _build_mcp_server() -> Any:
             duration_seconds=duration_seconds,
         )
 
-    @_tool
+    @_tool(destructive=False, idempotent=True)
     def update_page(
         page_id: str,
         name: str | None = None,
@@ -604,7 +664,7 @@ def _build_mcp_server() -> Any:
             duration_seconds=duration_seconds,
         )
 
-    @_tool
+    @_tool(destructive=True)
     def delete_page(page_id: str) -> dict[str, Any]:
         """Delete a page permanently.
 
@@ -616,7 +676,7 @@ def _build_mcp_server() -> Any:
         """
         return ops_executors.delete_page(page_id)
 
-    @_tool
+    @_tool(read_only=True)
     def render_page_preview(
         template_lines: list[str],
         device_type: str = "flagship",
@@ -678,7 +738,7 @@ def _build_mcp_server() -> Any:
             "context_plugins": sorted(context.keys()),
         }
 
-    @_tool
+    @_tool(read_only=True)
     def preview_saved_page(page_id: str, board_id: str | None = None) -> dict[str, Any]:
         """Render a SAVED page exactly as the display engine would send it.
 
@@ -735,7 +795,7 @@ def _build_mcp_server() -> Any:
                 out["board_error"] = compat.error
         return out
 
-    @_tool
+    @_tool(read_only=True)
     def validate_template(template: list[str] | str, device_type: str = "flagship") -> dict[str, Any]:
         """Check template syntax without rendering, saving, or touching the board.
 
@@ -770,7 +830,7 @@ def _build_mcp_server() -> Any:
     # Schedule tools
     # -----------------------------------------------------------------------
 
-    @_tool
+    @_tool(read_only=True)
     def list_schedules() -> list[dict[str, Any]] | dict[str, Any]:
         """List all scheduled time slots for page display.
 
@@ -786,7 +846,7 @@ def _build_mcp_server() -> Any:
         svc = get_schedule_service()
         return _serialize(svc.list_schedules())
 
-    @_tool
+    @_tool(destructive=False)
     def create_schedule(
         page_id: str,
         start_time: str,
@@ -814,7 +874,7 @@ def _build_mcp_server() -> Any:
             enabled=enabled,
         )
 
-    @_tool
+    @_tool(destructive=False, idempotent=True)
     def update_schedule(
         schedule_id: str,
         page_id: str | None = None,
@@ -853,7 +913,7 @@ def _build_mcp_server() -> Any:
             clear_custom_days=clear_custom_days,
         )
 
-    @_tool
+    @_tool(destructive=True)
     def delete_schedule(schedule_id: str) -> dict[str, Any]:
         """Delete a schedule entry permanently.
 
@@ -866,7 +926,7 @@ def _build_mcp_server() -> Any:
     # Collection tools
     # -----------------------------------------------------------------------
 
-    @_tool
+    @_tool(read_only=True)
     def list_collections() -> list[dict[str, Any]] | dict[str, Any]:
         """List all collections (ordered page groups with a selection mode).
 
@@ -881,7 +941,7 @@ def _build_mcp_server() -> Any:
         svc = get_collection_service()
         return _serialize(svc.list_collections())
 
-    @_tool
+    @_tool(destructive=False)
     def create_collection(
         name: str,
         page_ids: list[str],
@@ -922,7 +982,7 @@ def _build_mcp_server() -> Any:
             poll_seconds=poll_seconds,
         )
 
-    @_tool
+    @_tool(destructive=False, idempotent=True)
     def update_collection(
         collection_id: str,
         name: str | None = None,
@@ -960,7 +1020,7 @@ def _build_mcp_server() -> Any:
             poll_seconds=poll_seconds,
         )
 
-    @_tool
+    @_tool(destructive=True)
     def delete_collection(collection_id: str) -> dict[str, Any]:
         """Delete a collection permanently.
 
@@ -973,7 +1033,7 @@ def _build_mcp_server() -> Any:
     # System tools
     # -----------------------------------------------------------------------
 
-    @_tool
+    @_tool(read_only=True)
     def get_system_status() -> dict[str, Any]:
         """Get the current status of the FiestaBoard system.
 
@@ -994,7 +1054,7 @@ def _build_mcp_server() -> Any:
             "plugins_enabled": sum(1 for p in plugins if p.get("enabled")),
         }
 
-    @_tool
+    @_tool(read_only=True)
     def get_settings_summary() -> dict[str, Any]:
         """Get a summary of current FiestaBoard settings (non-sensitive fields only).
 
@@ -1038,7 +1098,7 @@ def _build_mcp_server() -> Any:
         summary["boards"] = _boards_summary(svc)
         return summary
 
-    @_tool
+    @_tool(destructive=False, idempotent=True)
     async def set_active_page(page_id: str, board_id: str | None = None) -> dict[str, Any]:
         """Set which page is currently shown on the FiestaBoard display.
 
@@ -1055,7 +1115,7 @@ def _build_mcp_server() -> Any:
         # triggers (#856), and renders to the board.
         return await ops_executors.set_active_page(page_id, board_id=board_id)
 
-    @_tool
+    @_tool(destructive=False, idempotent=True)
     def set_schedule_mode(enabled: bool, board_id: str | None = None) -> dict[str, Any]:
         """Enable or disable schedule mode.
 
@@ -1070,7 +1130,46 @@ def _build_mcp_server() -> Any:
         """
         return ops_executors.set_schedule_mode(enabled, board_id=board_id)
 
-    @_tool
+    @_tool(destructive=False, idempotent=True)
+    async def update_setting(category: str, values: dict[str, Any]) -> dict[str, Any]:
+        """Change one category of non-credential settings.
+
+        Only the keys you pass change; everything else in the category is
+        left as it is. Read the current values first with
+        get_settings_summary().
+
+        Args:
+            category: Which settings group to change. One of 'display',
+                'transitions', 'output', 'polling', 'location',
+                'silence_schedule', or 'active_page'.
+            values: The keys to change within that category. Representative
+                keys per category:
+                - display (the on-screen board preview, not the physical
+                  board): reduce_motion (bool), board_animations
+                  ("on" | "desktop" | "off"), site_animations ("on" | "off"),
+                  board_flap_speed ("hardware" | "quick" | "standard" |
+                  "relaxed", or a millisecond count).
+                - transitions (how the physical board animates between
+                  pages): strategy (string), step_interval_ms (int),
+                  step_size (int).
+                - output: target ("ui" | "board" | "both").
+                - polling: interval_seconds (int) — how often plugins
+                  refresh; board_read_interval_local / _cloud (int seconds).
+                - location: latitude (float), longitude (float) — used by
+                  sunrise/sunset schedules and location-aware plugins.
+                - silence_schedule: enabled (bool), start_time and end_time
+                  ("HH:MM"), mode ("freeze" | "page" | "indicator"), page_id,
+                  indicator_text, indicator_position.
+                - active_page: page_id (string) — the same selection
+                  set_active_page() makes for the primary board.
+
+        NEVER use this for AI provider settings, MQTT, or board API
+        credentials. Those are configured by the user in the web UI's
+        Settings page and are not reachable over MCP.
+        """
+        return await ops_executors.update_setting(category, values)
+
+    @_tool(read_only=True)
     def get_active_page(board_id: str | None = None) -> dict[str, Any]:
         """What a board is CONFIGURED to show right now, fully resolved.
 
@@ -1138,7 +1237,7 @@ def _build_mcp_server() -> Any:
             "page": page_summary,
         }
 
-    @_tool
+    @_tool(read_only=True)
     def get_board_content(board_id: str | None = None) -> dict[str, Any]:
         """What is currently ON a board — the last known flap content. Read-only.
 
@@ -1215,7 +1314,7 @@ def _build_mcp_server() -> Any:
             "board_id": board_id,
         }
 
-    @_tool
+    @_tool(destructive=False)
     def send_message(text: str, board_id: str | None = None) -> dict[str, Any]:
         """Send a one-off text message directly to a board.
 
