@@ -102,10 +102,98 @@ docker compose pull && docker compose up -d
 The compose file uses a relative bind mount (`./data:/app/data`), so persistence depends on your current shell directory. If you run `docker compose pull && up -d` from a different folder than your original install, FiestaBoard will come up with empty settings — your data isn't deleted, but Docker is mounting a different (empty) folder. See [Troubleshooting → Settings or board credentials are gone after an update](/docs/troubleshooting#settings-or-board-credentials-are-gone-after-an-update) if this has happened.
 :::
 
+## The beta channel
+
+Beta builds come from the `next` branch and carry changes that have not reached
+a stable release yet. They are published on every merge, so a beta is newer than
+stable but has had far less time in front of real boards.
+
+:::caution Betas can break, and going back is not free
+A beta may migrate your settings and pages to a format stable does not
+understand. FiestaBoard refuses to read such a file rather than misinterpret it,
+so returning to stable means restoring a backup. **Take one before you opt in:**
+Settings → System → Backup → Export.
+:::
+
+### FiestaPi
+
+Settings → System → **Release channel** → **Join the beta**.
+
+A backup is taken automatically before the switch, and FiestaBoard restarts onto
+the beta build. From then on **Update Now** keeps you on betas — it moves you
+from one beta to the next, not back to stable.
+
+Joining is one-way on a Pi for now; see [Going back to stable](#going-back-to-stable)
+before you opt in.
+
+The choice survives a reboot. A Pi re-pulls its images on every boot, which would
+otherwise put you back on stable, so FiestaBoard re-applies your channel at
+startup if the build that came up does not match it.
+
+### Docker installs
+
+You already control which build you run — it is the image tag in your compose
+file. Edit `docker-compose.hub.yml`:
+
+```yaml
+services:
+  fiestaboard:
+    image: fiestaboard/fiestaboard:beta # was :latest
+```
+
+Then, from the folder you originally installed in:
+
+```bash
+cd ~/fiestaboard
+docker compose -f docker-compose.hub.yml pull
+docker compose -f docker-compose.hub.yml up -d
+```
+
+Two tags are published:
+
+| Tag | Use it when |
+| --- | --- |
+| `beta` | You want the newest beta, and want Update Now to keep you on betas |
+| `9.0.0-beta.12` | You want to stay on one exact build, or you are filing a bug |
+
+The in-app **Update Now** button pulls whatever tag your compose file names, so
+once you are on `:beta` it keeps you on betas. Nothing else to configure.
+
+### Home Assistant
+
+Not available. The HA Supervisor owns updating for add-ons — FiestaBoard cannot
+change the image it runs, and the Release channel card will tell you so rather
+than offering a button that cannot work. Supporting betas there means shipping a
+separate add-on entry, which is not planned yet.
+
+### Going back to stable
+
+**Docker** — set the tag back to `:latest`, pull, bring the stack up again, then
+restore the backup you took before opting in.
+
+If you skipped that backup and the app reports a schema it cannot read, your data
+is still on disk and intact. The newer FiestaBoard can still read it, so going
+back to `:beta` gets you running again — export a backup, then switch.
+
+**FiestaPi** — there is no in-app way back yet.
+
+:::warning A FiestaPi cannot leave the beta from the app
+Joining is currently one-way on a Pi. The control to return to stable has not
+shipped, so treat joining as a decision to stay on beta for now. If that is not
+what you want, wait — it is being worked on.
+:::
+
 ## Troubleshooting
 
 **The Update Now button isn't showing** — Check the status panel just below the button area in Settings → System. It will say whether the updater sidecar is reachable. Most common cause: `COMPOSE_PROFILES=fiestaupdater` isn't set in `.env`, or the sidecar container isn't running.
 
 **Update started but the page never came back** — Open `http://fiestaboard.local:4420` (or `localhost:4420`) again after a minute. If it's still down, check logs: `docker logs fiestaboard`. As a last resort, `docker compose up -d` will bring you back online.
+
+**I joined the beta but came back on stable** — The switch works by retagging
+the image the compose file names, and an out-of-date updater sidecar can undo
+that when it recreates the container. FiestaBoard re-applies your channel at
+startup, so the box usually arrives on the beta a minute later after an extra
+restart. To stop it happening: reboot a FiestaPi to pick up the current sidecar,
+or on Docker run `docker compose pull fiestaupdater && docker compose up -d`.
 
 **I want to roll back** — Pin the previous image tag in `docker-compose.yml`, then `docker compose up -d`. Automated rollback is planned for a future release.
