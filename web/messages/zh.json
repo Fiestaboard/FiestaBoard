@@ -454,6 +454,7 @@
     "categoryColumn": "类别",
     "statusColumn": "状态",
     "authorColumn": "作者",
+    "addedColumn": "添加日期",
     "noInstalledMatch": "没有已安装的插件匹配 \"{query}\"",
     "noPluginsInstalled": "尚未安装插件",
     "headToMarketplace": "前往 Marketplace 选项卡发现并安装插件。",

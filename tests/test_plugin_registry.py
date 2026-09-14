@@ -1136,6 +1136,28 @@ def test_get_registry_entries(mock_load, registry):
 
 
 @patch("src.plugins.registry.load_registry")
+def test_get_registry_entries_exposes_added_date(mock_load, registry):
+    """The marketplace sorts by `added`, so the API has to publish it (#1999)."""
+    mock_load.return_value = [
+        RegistryEntry(
+            plugin_id="weather",
+            name="Weather",
+            repository="https://github.com/Org/fiestaboard-plugin--weather",
+            added="2026-03-22",
+        ),
+        RegistryEntry(
+            plugin_id="legacy",
+            name="Legacy",
+            repository="https://github.com/Org/fiestaboard-plugin--legacy",
+        ),
+    ]
+    entries = registry.get_registry_entries()
+    by_id = {e["id"]: e for e in entries}
+    assert by_id["weather"]["added"] == "2026-03-22"
+    assert by_id["legacy"]["added"] == ""
+
+
+@patch("src.plugins.registry.load_registry")
 def test_get_registry_entries_marks_installed(mock_load, registry, mock_loader, mock_plugin, mock_manifest):
     """get_registry_entries marks plugins as installed when loaded."""
     mock_loader.load_all_plugins.return_value = {"weather": mock_plugin}

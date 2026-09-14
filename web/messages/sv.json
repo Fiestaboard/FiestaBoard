@@ -454,6 +454,7 @@
     "categoryColumn": "Kategori",
     "statusColumn": "Status",
     "authorColumn": "Författare",
+    "addedColumn": "Tillagd",
     "noInstalledMatch": "Inga installerade plugins matchar ”{query}”",
     "noPluginsInstalled": "Inga plugins installerade än",
     "headToMarketplace": "Gå till Marketplace-fliken för att upptäcka och installera plugins.",

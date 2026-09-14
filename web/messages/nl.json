@@ -454,6 +454,7 @@
     "categoryColumn": "Categorie",
     "statusColumn": "Status",
     "authorColumn": "Auteur",
+    "addedColumn": "Toegevoegd",
     "noInstalledMatch": "Geen geïnstalleerde plugins komen overeen met \"{query}\"",
     "noPluginsInstalled": "Nog geen plugins geïnstalleerd",
     "headToMarketplace": "Ga naar het Marketplace-tabblad om plugins te ontdekken en installeren.",

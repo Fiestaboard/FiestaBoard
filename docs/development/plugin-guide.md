@@ -1044,7 +1044,7 @@ To get your plugin into the curated registry:
 
 1. Ensure your repository follows the `fiestaboard-plugin--{name}` naming convention.
 2. Open a pull request against the FiestaBoard repository that adds your plugin to `plugin-registry.json`.
-3. Your entry should include the plugin id, name, description, repository URL, and author.
+3. Your entry should include the plugin id, name, description, repository URL, author, and the date it was added.
 
 ```json
 {
@@ -1052,9 +1052,12 @@ To get your plugin into the curated registry:
   "name": "My Weather Plugin",
   "description": "Custom weather data from my favorite API",
   "repository": "https://github.com/yourname/fiestaboard-plugin--my-weather",
-  "author": "Your Name"
+  "author": "Your Name",
+  "added": "2026-09-14"
 }
 ```
+
+`added` is the date your entry lands, as `YYYY-MM-DD`. The marketplace sorts its **Added** column by it so users can see what is new.
 
 ---
 

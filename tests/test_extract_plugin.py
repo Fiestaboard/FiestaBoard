@@ -6,7 +6,13 @@ worth guarding is the pure translation from a plugin's manifest into its
 not silently arrive in the marketplace as a data plugin.
 """
 
-from scripts.extract_plugin import FIESTABOARD_VERSION_CONSTRAINT, build_registry_entry
+from datetime import date
+
+from scripts.extract_plugin import (
+    FIESTABOARD_VERSION_CONSTRAINT,
+    build_registry_entry,
+    registry_added_date,
+)
 
 REPO_URL = "https://github.com/Fiestaboard/fiestaboard-plugin--typewriter"
 
@@ -35,6 +41,7 @@ class TestBuildRegistryEntry:
                 "category": "weather",
             },
             REPO_URL,
+            added="2026-03-22",
         )
         assert entry == {
             "id": "weather",
@@ -46,4 +53,33 @@ class TestBuildRegistryEntry:
             "icon": "cloud-sun",
             "category": "weather",
             "plugin_type": "data",
+            "added": "2026-03-22",
         }
+
+
+class TestAddedDate:
+    """`added` feeds the marketplace's newness sort (issue #1999)."""
+
+    def test_stamps_today_for_a_new_plugin(self):
+        entry = build_registry_entry("weather", {"name": "Weather"}, REPO_URL)
+        assert entry["added"] == date.today().isoformat()
+
+    def test_preserves_the_original_date_when_republishing(self):
+        """Re-extraction rebuilds the entry, so the old date has to be carried in.
+
+        Without this a plugin re-published years later would jump to the top of
+        a newest-first sort as though it had just arrived.
+        """
+        entry = build_registry_entry("weather", {"name": "Weather"}, REPO_URL, added="2026-03-22")
+        assert entry["added"] == "2026-03-22"
+
+    def test_registry_added_date_finds_an_existing_entry(self):
+        registry = {"plugins": [{"id": "weather", "added": "2026-03-22"}]}
+        assert registry_added_date(registry, "weather") == "2026-03-22"
+
+    def test_registry_added_date_is_empty_for_an_unknown_plugin(self):
+        assert registry_added_date({"plugins": []}, "weather") == ""
+
+    def test_registry_added_date_is_empty_for_an_entry_without_one(self):
+        registry = {"plugins": [{"id": "weather"}]}
+        assert registry_added_date(registry, "weather") == ""
