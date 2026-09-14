@@ -2178,6 +2178,10 @@
     "confirmCta": "Join the beta",
     "cancel": "Cancel",
     "switching": "Switching…",
-    "switchFailedToast": "Could not switch channel: {error}"
+    "switchFailedToast": "Could not switch channel: {error}",
+    "leaveCta": "Beta'dan çık",
+    "leaveConfirmTitle": "Beta kanalından çıkılsın mı?",
+    "leaveConfirmBody": "Bu, sizi kullandığınız betadan daha eski olan mevcut kararlı sürüme geri döndürür. Ayarlarınız ve sayfalarınız katıldığınızda alınan yedeğe geri alınır; beta sırasında değiştirdiğiniz her şey kaybolur. FiestaBoard kararlı sürümle yeniden başlar. Değişikliklerinizi korumak isterseniz bekleyin: bir sonraki kararlı sürüm betanızı geçtiğinde «Şimdi güncelle» sizi hiçbir şey kaybetmeden oraya taşır.",
+    "leaveConfirmCta": "Beta'dan çık"
   }
 }

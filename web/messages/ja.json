@@ -2178,6 +2178,10 @@
     "confirmCta": "Join the beta",
     "cancel": "Cancel",
     "switching": "Switching…",
-    "switchFailedToast": "Could not switch channel: {error}"
+    "switchFailedToast": "Could not switch channel: {error}",
+    "leaveCta": "ベータを終了",
+    "leaveConfirmTitle": "ベータチャンネルを終了しますか？",
+    "leaveConfirmBody": "現在の安定版に戻ります。安定版は使用中のベータより古いバージョンです。設定とページは参加時に作成されたバックアップに戻され、ベータ中に変更した内容は失われます。FiestaBoard は安定版で再起動します。変更を保持したい場合は、お待ちください。次の安定版がベータを追い越すと、「今すぐ更新」で何も失わずに移行できます。",
+    "leaveConfirmCta": "ベータを終了"
   }
 }

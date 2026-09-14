@@ -313,14 +313,22 @@ async def get_release_channel():
 async def set_release_channel(request: ReleaseChannelRequest):
     """Move this install onto another release channel.
 
-    A settings snapshot is taken before anything is swapped — see
+    Joining takes a settings snapshot before anything is swapped — see
     ``update_service.switch_channel``.
+
+    Leaving is not the mirror image of joining and does not share its path.
+    Going back to stable before the release catches up is a downgrade across
+    a major, so it restores the configuration captured at join time *before*
+    the image flips — see ``update_service.leave_beta``.
     """
     blocker = await asyncio.to_thread(update_service.channel_switch_blocker)
     if blocker:
         raise HTTPException(status_code=503, detail=blocker)
     try:
-        result = await asyncio.to_thread(update_service.switch_channel, request.channel)
+        if request.channel == "stable":
+            result = await update_service.leave_beta()
+        else:
+            result = await asyncio.to_thread(update_service.switch_channel, request.channel)
     except update_service.SidecarError as e:
         raise _as_http(e) from e
     return ReleaseChannelSwitchResponse(**result)
