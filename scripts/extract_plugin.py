@@ -26,6 +26,7 @@ import json
 import shutil
 import subprocess
 import sys
+from datetime import date
 from pathlib import Path
 
 # ---------------------------------------------------------------------------
@@ -154,6 +155,10 @@ def build_registry_entry(plugin_id: str, manifest: dict, repo_url: str) -> dict:
     ``plugin_type`` has to travel with the rest of the manifest metadata:
     without it a published transition plugin would land in the marketplace
     indistinguishable from a data plugin.
+
+    ``added`` is stamped with today's date so the marketplace can sort by
+    newness without anyone remembering to set it — it records the day the
+    plugin became installable, not when its repo was created.
     """
     return {
         "id": plugin_id,
@@ -165,6 +170,7 @@ def build_registry_entry(plugin_id: str, manifest: dict, repo_url: str) -> dict:
         "icon": manifest.get("icon", "puzzle"),
         "category": manifest.get("category", "utility"),
         "plugin_type": manifest.get("plugin_type", "data"),
+        "added": date.today().isoformat(),
     }
 
 
@@ -325,11 +331,18 @@ def extract_plugin(plugin_id: str, dry_run: bool = False) -> bool:
 
     # 8. Register in plugin-registry.json
     registry = load_registry()
+    entry = build_registry_entry(plugin_id, manifest, repo_url)
     if registry_has_plugin(registry, plugin_id):
         log(f"  Registry entry already exists for {plugin_id}, updating...")
+        # Re-registering is an update, not a first appearance — keep the
+        # original "added" date so the marketplace's newness ordering stays
+        # honest instead of jumping the plugin to the top on every re-extract.
+        existing = next(e for e in registry["plugins"] if e.get("id") == plugin_id)
+        if existing.get("added"):
+            entry["added"] = existing["added"]
         registry["plugins"] = [e for e in registry["plugins"] if e.get("id") != plugin_id]
 
-    registry["plugins"].append(build_registry_entry(plugin_id, manifest, repo_url))
+    registry["plugins"].append(entry)
 
     # Keep registry sorted by id for clean diffs
     registry["plugins"].sort(key=lambda e: e["id"])

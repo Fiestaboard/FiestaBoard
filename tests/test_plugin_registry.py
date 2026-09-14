@@ -1183,6 +1183,35 @@ def test_get_registry_entries_defaults_plugin_type_to_data(mock_load, registry):
     assert entries[0]["plugin_type"] == "data"
 
 
+@patch("src.plugins.registry.load_registry")
+def test_get_registry_entries_includes_added_date(mock_load, registry):
+    """The marketplace payload carries the 'added' date so the list can sort by newness."""
+    mock_load.return_value = [
+        RegistryEntry(
+            plugin_id="weather",
+            name="Weather",
+            repository="https://github.com/Org/fiestaboard-plugin--weather",
+            added="2026-05-02",
+        ),
+    ]
+    entries = registry.get_registry_entries()
+    assert entries[0]["added"] == "2026-05-02"
+
+
+@patch("src.plugins.registry.load_registry")
+def test_get_registry_entries_defaults_added_to_empty(mock_load, registry):
+    """Entries predating the 'added' field surface an empty string, not a missing key."""
+    mock_load.return_value = [
+        RegistryEntry(
+            plugin_id="weather",
+            name="Weather",
+            repository="https://github.com/Org/fiestaboard-plugin--weather",
+        ),
+    ]
+    entries = registry.get_registry_entries()
+    assert entries[0]["added"] == ""
+
+
 # --- get_registry_entries: board previews ---
 
 

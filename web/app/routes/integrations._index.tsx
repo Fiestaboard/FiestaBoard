@@ -1928,6 +1928,9 @@ function RegistryPluginRow({
         {categoryLabels[entry.category || "utility"] || entry.category || categoryLabels.utility}
       </TableCell>
       <TableCell className="px-4 py-2.5 text-sm text-muted-foreground whitespace-nowrap">{entry.author}</TableCell>
+      <TableCell className="px-4 py-2.5 text-sm text-muted-foreground whitespace-nowrap tabular-nums">
+        {entry.added || "—"}
+      </TableCell>
       <TableCell className="px-4 py-2.5 text-right">
         {!isInstalled && (
           <Button
@@ -1957,7 +1960,10 @@ export default function IntegrationsPage() {
     return tab === "marketplace" || tab === "installed" ? tab : "installed";
   });
   const [marketplaceView, setMarketplaceView] = useState<"card" | "list">("card");
-  const [marketplaceSort, setMarketplaceSort] = useState<{ key: "name" | "category" | "author"; dir: "asc" | "desc" }>({
+  const [marketplaceSort, setMarketplaceSort] = useState<{
+    key: "name" | "category" | "author" | "added";
+    dir: "asc" | "desc";
+  }>({
     key: "name",
     dir: "asc",
   });
@@ -2211,13 +2217,25 @@ export default function IntegrationsPage() {
     } else if (marketplaceSort.key === "author") {
       valA = a.author || "";
       valB = b.author || "";
+    } else if (marketplaceSort.key === "added") {
+      // ISO dates (YYYY-MM-DD) compare correctly as strings. Entries with no
+      // date sort last under newest-first (desc): "" < any real date, so the
+      // desc comparison pushes them to the bottom. Same-day entries fall back
+      // to name so a bulk-added cluster reads alphabetically instead of by id.
+      valA = a.added || "";
+      valB = b.added || "";
+      if (valA === valB) return a.name.localeCompare(b.name);
     }
     return marketplaceSort.dir === "asc" ? valA.localeCompare(valB) : valB.localeCompare(valA);
   });
 
-  const handleMarketplaceSort = (key: "name" | "category" | "author") => {
+  const handleMarketplaceSort = (key: "name" | "category" | "author" | "added") => {
     setMarketplaceSort((prev) =>
-      prev.key === key ? { key, dir: prev.dir === "asc" ? "desc" : "asc" } : { key, dir: "asc" },
+      prev.key === key
+        ? { key, dir: prev.dir === "asc" ? "desc" : "asc" }
+        : // "Added" defaults to newest-first — that is the whole point of the
+          // column; the text columns default to A→Z.
+          { key, dir: key === "added" ? "desc" : "asc" },
     );
   };
 
@@ -2632,11 +2650,12 @@ export default function IntegrationsPage() {
                   <Table>
                     <TableHeader>
                       <TableRow className="border-b bg-muted/40">
-                        {(["name", "category", "author"] as const).map((col) => {
+                        {(["name", "category", "author", "added"] as const).map((col) => {
                           const labels: Record<string, string> = {
                             name: t("nameColumn"),
                             category: t("categoryColumn"),
                             author: t("authorColumn"),
+                            added: t("addedColumn"),
                           };
                           const active = marketplaceSort.key === col;
                           return (

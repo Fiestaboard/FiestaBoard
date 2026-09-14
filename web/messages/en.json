@@ -410,6 +410,7 @@
     "categoryColumn": "Category",
     "statusColumn": "Status",
     "authorColumn": "Author",
+    "addedColumn": "Added",
     "noInstalledMatch": "No installed plugins match \"{query}\"",
     "noPluginsInstalled": "No plugins installed yet",
     "headToMarketplace": "Head to the Marketplace tab to discover and install plugins.",

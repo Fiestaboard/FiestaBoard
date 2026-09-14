@@ -83,6 +83,16 @@ class TestRegistryEntry:
         entry = RegistryEntry.from_dict({"id": "foo", "name": "Foo"})
         assert entry.plugin_type == "data"
 
+    def test_from_dict_carries_added_date(self):
+        """The 'added' date rides through so the marketplace can sort by newness."""
+        entry = RegistryEntry.from_dict({"id": "foo", "name": "Foo", "added": "2026-03-22"})
+        assert entry.added == "2026-03-22"
+
+    def test_from_dict_defaults_added_to_empty(self):
+        """Entries predating the 'added' field default to empty, not a crash."""
+        entry = RegistryEntry.from_dict({"id": "foo", "name": "Foo"})
+        assert entry.added == ""
+
 
 # ── Naming convention ────────────────────────────────────────────────────────
 

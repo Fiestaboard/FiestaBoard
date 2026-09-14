@@ -1538,6 +1538,12 @@ export interface RegistryEntry {
   fiestaboard_version: string;
   icon: string;
   category: string;
+  /**
+   * ISO date (`YYYY-MM-DD`) the plugin became installable via the registry.
+   * Empty string for entries that predate the field — those sort last under
+   * the marketplace's "newest first" ordering.
+   */
+  added: string;
   installed: boolean;
   /**
    * "data" (a plugin that publishes template variables) or "transition" (a

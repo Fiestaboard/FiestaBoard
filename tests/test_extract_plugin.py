@@ -6,6 +6,8 @@ worth guarding is the pure translation from a plugin's manifest into its
 not silently arrive in the marketplace as a data plugin.
 """
 
+from datetime import date
+
 from scripts.extract_plugin import FIESTABOARD_VERSION_CONSTRAINT, build_registry_entry
 
 REPO_URL = "https://github.com/Fiestaboard/fiestaboard-plugin--typewriter"
@@ -46,4 +48,10 @@ class TestBuildRegistryEntry:
             "icon": "cloud-sun",
             "category": "weather",
             "plugin_type": "data",
+            "added": date.today().isoformat(),
         }
+
+    def test_stamps_added_with_todays_date(self):
+        """A freshly extracted plugin records the day it became installable."""
+        entry = build_registry_entry("weather", {"name": "Weather"}, REPO_URL)
+        assert entry["added"] == date.today().isoformat()
