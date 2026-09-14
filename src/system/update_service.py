@@ -711,6 +711,27 @@ SETTINGS_SNAPSHOT_RETENTION = 5
 _SETTINGS_SNAPSHOT_NAME_RE = re.compile(r"^pre-update-\d{8}T\d{6}(?:\.\d{3})?Z\.json$")
 
 
+def _snapshot_has_content(document: str | None) -> bool:
+    """Whether *document* is a backup worth keeping.
+
+    Anything that would restore nothing — empty, whitespace, ``null``, or an
+    object with no keys — is not a restore point. Unparseable text is treated
+    as content on purpose: this guard exists to catch the empty case, not to
+    second-guess a format BackupService may extend.
+    """
+    if not document or not document.strip():
+        return False
+    try:
+        parsed = json.loads(document)
+    except (ValueError, TypeError):
+        return True
+    if parsed is None:
+        return False
+    if isinstance(parsed, dict | list) and not parsed:
+        return False
+    return True
+
+
 def _take_settings_snapshot(
     previous_digest: str | None = None,
     previous_image: str | None = None,
@@ -740,6 +761,30 @@ def _take_settings_snapshot(
         document = service.export_to_json()
     except Exception:
         logger.exception("Failed to build pre-update settings snapshot")
+        return None
+
+    # An export that produced nothing must not become a restore point.
+    #
+    # Seen on a real FiestaPi mid-channel-switch: while the box was briefly
+    # running an 8.x build against data a 9.x build had migrated, the
+    # forward-compat guard (#1961) correctly refused to read the
+    # future-schema settings, so there was nothing to export. The empty
+    # result was written anyway — two 0-byte files among five snapshots.
+    #
+    # The second-order effect is the damaging one: _prune_settings_snapshots
+    # keeps the newest SETTINGS_SNAPSHOT_RETENTION files by mtime and does
+    # not look inside them, so each empty snapshot evicts a real one. Enough
+    # churn and every genuine restore point is gone.
+    #
+    # "Could not snapshot" is already a supported outcome — this function
+    # returns None and every caller proceeds — so route "produced nothing"
+    # there rather than persisting the nothing.
+    if not _snapshot_has_content(document):
+        logger.warning(
+            "Pre-update settings snapshot came back empty; not writing it. "
+            "This usually means the running build could not read the stored "
+            "configuration (e.g. a stable build looking at beta-migrated data)."
+        )
         return None
 
     # Embed the pre-update image identity so a later rollback can pair the
