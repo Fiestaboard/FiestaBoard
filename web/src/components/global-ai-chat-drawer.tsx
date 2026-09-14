@@ -13,6 +13,7 @@ import type { ChatTurnContext, ToolCall, ToolResult } from "@/lib/ai-chat-types"
 import { queryKeysForTool } from "@/lib/ai-choreography/query-keys";
 import { type AISettings, api, type ScheduleEntry } from "@/lib/api";
 import { isChromelessPath } from "@/lib/chromeless";
+import type { StopReason } from "@/lib/use-ai-chat";
 import { cn } from "@/lib/utils";
 
 /** The chaining-mode preference of the browser-side loop; gone with it. */
@@ -373,15 +374,24 @@ export function GlobalAiChatDrawer() {
   // changed on two ticks — once soon, once after a slow one (a plugin
   // install) has had time to land — the same two-tick idea as
   // scheduleBoardStateInvalidations in use-board.ts.
+  //
+  // A fatal stream error leaves calls unresolved too; those get the same
+  // refresh but no "Stopped" toast — the panel shows the error itself.
+  const refreshTimersRef = useRef<number[]>([]);
+  useEffect(() => {
+    const timers = refreshTimersRef.current;
+    return () => {
+      for (const id of timers) window.clearTimeout(id);
+    };
+  }, []);
   const handleStopped = useCallback(
-    (unresolved: ToolCall[]) => {
+    (unresolved: ToolCall[], reason: StopReason) => {
       if (unresolved.length === 0) return;
-      toast.info(t("toast.stopped"));
+      if (reason === "stopped") toast.info(t("toast.stopped"));
       const refresh = () => {
         for (const call of unresolved) void invalidateFor(call);
       };
-      window.setTimeout(refresh, 1000);
-      window.setTimeout(refresh, 5000);
+      refreshTimersRef.current.push(window.setTimeout(refresh, 1000), window.setTimeout(refresh, 5000));
     },
     [invalidateFor, t],
   );

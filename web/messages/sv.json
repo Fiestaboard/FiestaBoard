@@ -2033,6 +2033,11 @@
       "denied": "Inte kört",
       "stopped": "Stoppat"
     },
+    "status": {
+      "thinking": "Tänker…",
+      "running": "Kör {tool}…",
+      "done": "{tool} klart"
+    },
     "question": {
       "skip": "Hoppa över",
       "typeAnswer": "Eller skriv ett svar nedan.",

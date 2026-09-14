@@ -2033,6 +2033,11 @@
       "denied": "Niet uitgevoerd",
       "stopped": "Gestopt"
     },
+    "status": {
+      "thinking": "Aan het nadenken…",
+      "running": "{tool} wordt uitgevoerd…",
+      "done": "{tool} voltooid"
+    },
     "question": {
       "skip": "Overslaan",
       "typeAnswer": "Of typ hieronder een antwoord.",

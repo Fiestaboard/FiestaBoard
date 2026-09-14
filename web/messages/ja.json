@@ -2033,6 +2033,11 @@
       "denied": "未実行",
       "stopped": "停止"
     },
+    "status": {
+      "thinking": "考え中…",
+      "running": "{tool} を実行中…",
+      "done": "{tool} が完了"
+    },
     "question": {
       "skip": "スキップ",
       "typeAnswer": "または下に回答を入力してください。",

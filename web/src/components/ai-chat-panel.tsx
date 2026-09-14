@@ -11,6 +11,7 @@ import {
   ConversationContent,
   ConversationScrollButton,
   Flex,
+  JsonTree,
   Label,
   Message,
   MessageAvatar,
@@ -61,7 +62,7 @@ import type {
   ToolResult,
 } from "@/lib/ai-chat-types";
 import { type AISettings, api } from "@/lib/api";
-import { useAiChat } from "@/lib/use-ai-chat";
+import { type StopReason, useAiChat } from "@/lib/use-ai-chat";
 
 /** What the drawer can drive from outside the panel (spotlight controls, later). */
 export interface AiChatController {
@@ -81,7 +82,7 @@ export interface AiChatPanelProps {
   onElicitation?: (elicitation: Elicitation) => void;
   onStatus?: (status: SSEStatusData) => void;
   /** The user stopped the turn with these calls still running server-side. */
-  onStopped?: (unresolved: ToolCall[]) => void;
+  onStopped?: (unresolved: ToolCall[], reason: StopReason) => void;
   /** Close button hides the panel without losing the existing layout. */
   onClose: () => void;
   /**
@@ -160,12 +161,12 @@ export function AiChatPanel({
   const streaming = status === "streaming";
   const composerStatus = streaming ? "streaming" : status === "error" ? "error" : "ready";
 
-  const lastAssistant = useMemo(() => {
-    for (let i = messages.length - 1; i >= 0; i--) {
-      if (messages[i].role === "assistant") return messages[i];
-    }
-    return null;
-  }, [messages]);
+  // Consecutive assistant entries (one per model call; a resume starts a
+  // new one) read as one turn on screen.
+  const turns = useMemo(() => groupTurns(messages), [messages]);
+  const lastTurn = turns[turns.length - 1];
+  const currentTurn = lastTurn?.role === "assistant" ? lastTurn : null;
+  const lastEntry = currentTurn?.entries[currentTurn.entries.length - 1];
 
   const handleSubmit = useCallback(
     (event: React.FormEvent<HTMLFormElement>) => {
@@ -224,26 +225,32 @@ export function AiChatPanel({
         </Flex>
 
         {/* Observed steps of the current turn — outside the log so each is announced once. */}
-        {lastAssistant && (lastAssistant.pending || status === "awaiting_approval" || status === "awaiting_input") ? (
-          <AiStepTimeline message={lastAssistant} />
+        {currentTurn && (lastEntry?.pending || status === "awaiting_approval" || status === "awaiting_input") ? (
+          <AiStepTimeline messages={messages} />
         ) : null}
 
         {/* Transcript */}
         <Conversation labels={{ conversation: t("messagesAriaLabel"), scrollToBottom: t("jumpToLatest") }}>
           <ConversationContent className="px-4 py-4">
             {messages.length === 0 && <EmptyState blocked={blocked} aiDisabled={aiDisabled} onPick={send} />}
-            {messages.map((m, i) => (
-              <ChatTurn
-                key={i}
-                message={m}
-                isLast={i === messages.length - 1}
-                pendingApproval={pendingApproval}
-                pendingElicitation={pendingElicitation}
-                busy={streaming}
-                onApprove={approve}
-                onAnswer={answer}
-              />
-            ))}
+            {turns.map((turn, i) =>
+              turn.role === "user" ? (
+                <Message key={turn.index} from="user">
+                  <MessageContent className="whitespace-pre-wrap break-words">{turn.message.content}</MessageContent>
+                </Message>
+              ) : (
+                <AssistantTurn
+                  key={turn.index}
+                  entries={turn.entries}
+                  isLast={i === turns.length - 1}
+                  pendingApproval={pendingApproval}
+                  pendingElicitation={pendingElicitation}
+                  busy={streaming}
+                  onApprove={approve}
+                  onAnswer={answer}
+                />
+              ),
+            )}
             {error && status === "error" && (
               <Alert variant="destructive" className="text-xs">
                 <AlertCircle className="h-3.5 w-3.5" />
@@ -442,8 +449,27 @@ function ModelPill({
   );
 }
 
-function ChatTurn({
-  message,
+type Turn =
+  { role: "user"; index: number; message: ChatMessage } | { role: "assistant"; index: number; entries: ChatMessage[] };
+
+/** Pure: consecutive assistant entries become one turn; `index` is the first entry's. */
+export function groupTurns(messages: ChatMessage[]): Turn[] {
+  const turns: Turn[] = [];
+  messages.forEach((m, index) => {
+    const last = turns[turns.length - 1];
+    if (m.role === "user") {
+      turns.push({ role: "user", index, message: m });
+    } else if (last?.role === "assistant") {
+      last.entries.push(m);
+    } else {
+      turns.push({ role: "assistant", index, entries: [m] });
+    }
+  });
+  return turns;
+}
+
+function AssistantTurn({
+  entries,
   isLast,
   pendingApproval,
   pendingElicitation,
@@ -451,7 +477,7 @@ function ChatTurn({
   onApprove,
   onAnswer,
 }: {
-  message: ChatMessage;
+  entries: ChatMessage[];
   isLast: boolean;
   pendingApproval: ToolCall | null;
   pendingElicitation: Elicitation | null;
@@ -459,14 +485,6 @@ function ChatTurn({
   onApprove: (id: string, decision: ApprovalDecision) => void;
   onAnswer: (id: string, answer: ElicitationAnswer) => void;
 }) {
-  if (message.role === "user") {
-    return (
-      <Message from="user">
-        <MessageContent className="whitespace-pre-wrap break-words">{message.content}</MessageContent>
-      </Message>
-    );
-  }
-
   return (
     <Message from="assistant">
       <MessageAvatar>
@@ -474,43 +492,50 @@ function ChatTurn({
       </MessageAvatar>
       <MessageContent>
         <Stack gap="2">
-          {message.content && (
-            <Box className="break-words text-sm">
-              <ChatMarkdown>{message.content}</ChatMarkdown>
-            </Box>
-          )}
-          {message.toolCalls
-            ?.filter((call) => call.name !== "ask_user")
-            .map((call) => (
-              <Stack key={call.id} gap="1.5">
-                <ToolCallCard call={call} />
-                {isLast && pendingApproval?.id === call.id && call.phase === "awaiting_approval" ? (
-                  <AiApprovalCard
-                    call={call}
-                    busy={busy}
-                    onApprove={() => onApprove(call.id, "approve")}
-                    onDeny={() => onApprove(call.id, "deny")}
+          {entries.map((message, i) => {
+            const isLastEntry = isLast && i === entries.length - 1;
+            return (
+              <Stack key={i} gap="2">
+                {message.content && (
+                  <Box className="break-words text-sm">
+                    <ChatMarkdown>{message.content}</ChatMarkdown>
+                  </Box>
+                )}
+                {message.toolCalls
+                  ?.filter((call) => call.name !== "ask_user")
+                  .map((call) => (
+                    <Stack key={call.id} gap="1.5">
+                      <ToolCallCard call={call} />
+                      {isLastEntry && pendingApproval?.id === call.id && call.phase === "awaiting_approval" ? (
+                        <AiApprovalCard
+                          call={call}
+                          busy={busy}
+                          onApprove={() => onApprove(call.id, "approve")}
+                          onDeny={() => onApprove(call.id, "deny")}
+                        />
+                      ) : null}
+                    </Stack>
+                  ))}
+                {message.elicitation ? (
+                  <AiQuestionCard
+                    elicitation={message.elicitation}
+                    busy={busy || (isLastEntry && pendingElicitation === null && !message.elicitation.answer)}
+                    onAnswer={(a) => onAnswer(message.elicitation!.id, a)}
                   />
                 ) : null}
+                {message.warnings && message.warnings.length > 0 && (
+                  <Stack gap="1">
+                    {message.warnings.map((w, j) => (
+                      <Alert key={j} className="py-1.5 text-xs">
+                        <AlertCircle className="h-3 w-3" />
+                        <AlertDescription>{w}</AlertDescription>
+                      </Alert>
+                    ))}
+                  </Stack>
+                )}
               </Stack>
-            ))}
-          {message.elicitation ? (
-            <AiQuestionCard
-              elicitation={message.elicitation}
-              busy={busy || (isLast && pendingElicitation === null && !message.elicitation.answer)}
-              onAnswer={(a) => onAnswer(message.elicitation!.id, a)}
-            />
-          ) : null}
-          {message.warnings && message.warnings.length > 0 && (
-            <Stack gap="1">
-              {message.warnings.map((w, i) => (
-                <Alert key={i} className="py-1.5 text-xs">
-                  <AlertCircle className="h-3 w-3" />
-                  <AlertDescription>{w}</AlertDescription>
-                </Alert>
-              ))}
-            </Stack>
-          )}
+            );
+          })}
         </Stack>
       </MessageContent>
     </Message>
@@ -532,16 +557,29 @@ function ToolCallCard({ call }: { call: ToolCallDisplay }) {
   const deviceType = call.deviceType ?? "flagship";
   const state = TOOL_STATE_FOR_PHASE[call.phase];
   const result = call.result;
+  // The server's `summary` is English prose for logs; the card shows the
+  // result itself (and the board preview a page tool implies), so nothing
+  // untranslated reaches the screen. Error text is the executor's own
+  // message, as everywhere else in the app.
   const errorText =
-    result && (result.status === "error" || result.status === "blocked") ? (result.error ?? result.summary) : undefined;
+    result && (result.status === "error" || result.status === "blocked") ? (result.error ?? undefined) : undefined;
+  const preview = call.appliedSnapshot ? (
+    <InlineBoardPreview snapshot={call.appliedSnapshot} deviceType={deviceType} />
+  ) : null;
+  const hasResult = result?.status === "ok" && result.result !== null && result.result !== undefined;
   const output =
-    result && result.status === "ok" ? (
+    preview || hasResult ? (
       <Stack gap="2">
-        {call.appliedSnapshot ? <InlineBoardPreview snapshot={call.appliedSnapshot} deviceType={deviceType} /> : null}
-        <Text size="xs">{result.summary}</Text>
+        {preview}
+        {hasResult ? (
+          <Box
+            className="max-h-48 overflow-auto rounded-md bg-muted p-2 font-mono text-xs"
+            data-testid="ai-tool-result"
+          >
+            <JsonTree data={result.result} />
+          </Box>
+        ) : null}
       </Stack>
-    ) : call.appliedSnapshot ? (
-      <InlineBoardPreview snapshot={call.appliedSnapshot} deviceType={deviceType} />
     ) : undefined;
 
   return (

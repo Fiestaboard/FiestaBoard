@@ -549,6 +549,20 @@ async def chat_ai_page(request: AIChatRequest) -> StreamingResponse:
                 status_code=400,
                 detail=f"No tool call {request.resume.tool_call_id!r} is awaiting a decision.",
             )
+        # A question takes an answer; anything else takes approve/deny. A
+        # crossed decision would be recorded as if it fit (an "approve" of
+        # ask_user would run a tool that has no executor).
+        is_question = pending["name"] == "ask_user"
+        if is_question and request.resume.decision != "answer":
+            raise HTTPException(
+                status_code=400,
+                detail=f"Tool call {pending['id']!r} is a question; resume it with an answer.",
+            )
+        if not is_question and request.resume.decision == "answer":
+            raise HTTPException(
+                status_code=400,
+                detail=f"Tool call {pending['id']!r} is not a question; approve or deny it.",
+            )
     else:
         last = messages[-1]
         if last["role"] not in ("user", "tool"):

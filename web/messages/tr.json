@@ -2033,6 +2033,11 @@
       "denied": "Çalıştırılmadı",
       "stopped": "Durduruldu"
     },
+    "status": {
+      "thinking": "Düşünüyorum…",
+      "running": "{tool} çalışıyor…",
+      "done": "{tool} tamamlandı"
+    },
     "question": {
       "skip": "Atla",
       "typeAnswer": "Ya da aşağıya bir cevap yaz.",

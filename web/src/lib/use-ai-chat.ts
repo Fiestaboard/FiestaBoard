@@ -53,7 +53,7 @@ export interface UseAiChatOptions {
   onElicitation?: (elicitation: Elicitation) => void;
   onStatus?: (status: SSEStatusData) => void;
   /** The user stopped the turn while these calls had no result yet. */
-  onStopped?: (unresolved: ToolCall[]) => void;
+  onStopped?: (unresolved: ToolCall[], reason: StopReason) => void;
   providerId?: string;
   model?: string;
 }
@@ -81,9 +81,10 @@ export interface UseAiChatResult {
 
 interface RunOptions {
   resume?: ResumePayload;
-  /** Keep appending to the current assistant message instead of starting one. */
-  continueAssistant?: boolean;
 }
+
+/** Why a turn ended without a result for every call it started. */
+export type StopReason = "stopped" | "error";
 
 export function useAiChat(opts: UseAiChatOptions): UseAiChatResult {
   const { getTurnContext, onToolCall, onToolResult, onAwaitingApproval, onElicitation, onStatus, onStopped } = opts;
@@ -109,11 +110,9 @@ export function useAiChat(opts: UseAiChatOptions): UseAiChatResult {
 
   const runStream = useCallback(
     async (history: ChatMessage[], options: RunOptions = {}) => {
-      if (!options.continueAssistant) {
-        setMessages((prev) => [...prev, { role: "assistant", content: "", pending: true }]);
-      } else {
-        setMessages((prev) => patchLastAssistant(prev, (m) => ({ ...m, pending: true })));
-      }
+      // Every request starts a new assistant entry — a resume too, since the
+      // server appends a fresh assistant message after the tool outcome.
+      setMessages((prev) => [...prev, { role: "assistant", content: "", pending: true }]);
 
       const controller = new AbortController();
       abortRef.current = controller;
@@ -134,6 +133,10 @@ export function useAiChat(opts: UseAiChatOptions): UseAiChatResult {
 
       const patch = (update: (m: ChatMessage) => ChatMessage) =>
         setMessages((prev) => patchLastAssistant(prev, update));
+      // A call's outcome may belong to an earlier entry (the approved call
+      // sits in the entry that proposed it), so results patch by id.
+      const patchCall = (id: string, update: (c: ToolCallDisplay) => ToolCallDisplay) =>
+        setMessages((prev) => patchCallById(prev, id, update));
 
       try {
         await streamChat(
@@ -154,7 +157,7 @@ export function useAiChat(opts: UseAiChatOptions): UseAiChatResult {
           {
             onText: (delta) => patch((m) => ({ ...m, content: m.content + delta })),
             onStatus: (s) => {
-              patch((m) => ({ ...m, statusMessage: s.message }));
+              patch((m) => ({ ...m, status: { phase: s.phase, toolCallId: s.tool_call_id } }));
               onStatus?.(s);
             },
             onToolCall: (call) => {
@@ -171,13 +174,8 @@ export function useAiChat(opts: UseAiChatOptions): UseAiChatResult {
             },
             onToolResult: (result) => {
               resolvedRef.current.add(result.id);
-              patch((m) => ({
-                ...m,
-                statusMessage: undefined,
-                toolCalls: (m.toolCalls ?? []).map((c) =>
-                  c.id === result.id ? { ...c, result, phase: result.status as ToolPhase } : c,
-                ),
-              }));
+              patch((m) => ({ ...m, status: undefined }));
+              patchCall(result.id, (c) => ({ ...c, result, phase: result.status as ToolPhase }));
               const call = callsRef.current.get(result.id) ?? findCall(history, result.id);
               if (call) onToolResult?.(result, call);
             },
@@ -195,10 +193,7 @@ export function useAiChat(opts: UseAiChatOptions): UseAiChatResult {
               if (info.reason === "awaiting_approval" && info.pending_tool_call_id) {
                 const id = info.pending_tool_call_id;
                 const call = callsRef.current.get(id);
-                patch((m) => ({
-                  ...m,
-                  toolCalls: (m.toolCalls ?? []).map((c) => (c.id === id ? { ...c, phase: "awaiting_approval" } : c)),
-                }));
+                patchCall(id, (c) => ({ ...c, phase: "awaiting_approval" }));
                 if (call) {
                   setPendingApproval(call);
                   onAwaitingApproval?.(call);
@@ -220,17 +215,26 @@ export function useAiChat(opts: UseAiChatOptions): UseAiChatResult {
         // error) are reported so the caller can refresh what may have
         // changed anyway; the transcript renders them as interrupted.
         const unresolved = [...callsRef.current.values()].filter((c) => !resolvedRef.current.has(c.id));
-        setMessages((prev) =>
-          patchLastAssistant(prev, (m) => ({
-            ...m,
-            pending: false,
-            statusMessage: undefined,
-            toolCalls: (m.toolCalls ?? []).map((c) =>
-              c.phase === "running" && !ended ? { ...c, phase: "stopped" } : c,
-            ),
-          })),
-        );
-        if (!ended && unresolved.length > 0) onStopped?.(unresolved);
+        const stillRunning = new Set(unresolved.map((c) => c.id));
+        if (options.resume?.decision === "approve") stillRunning.add(options.resume.tool_call_id);
+        setMessages((prev) => {
+          const settled = patchLastAssistant(prev, (m) => ({ ...m, pending: false, status: undefined }));
+          if (ended) return settled;
+          return settled.map((m) =>
+            m.role === "assistant" && m.toolCalls
+              ? {
+                  ...m,
+                  toolCalls: m.toolCalls.map((c) =>
+                    c.phase === "running" && stillRunning.has(c.id) ? { ...c, phase: "stopped" } : c,
+                  ),
+                }
+              : m,
+          );
+        });
+        // A fatal `error` frame (or a rejected resume) is not a Stop: the
+        // caller may still refresh what a call could have changed, but it
+        // must not tell the user they stopped anything.
+        if (!ended && unresolved.length > 0) onStopped?.(unresolved, streamHadError ? "error" : "stopped");
         setStatus((current) => {
           if (streamHadError) return "error";
           if (current === "streaming") return "idle";
@@ -274,7 +278,7 @@ export function useAiChat(opts: UseAiChatOptions): UseAiChatResult {
         );
         setMessages(next);
         setPendingElicitation(null);
-        void runStream(next, { resume: { tool_call_id: id, decision: "answer", answer }, continueAssistant: true });
+        void runStream(next, { resume: { tool_call_id: id, decision: "answer", answer } });
         return;
       }
 
@@ -301,15 +305,13 @@ export function useAiChat(opts: UseAiChatOptions): UseAiChatResult {
   const approve = useCallback(
     (toolCallId: string, decision: ApprovalDecision) => {
       const current = messagesRef.current;
-      const next = patchLastAssistant(current, (m) => ({
-        ...m,
-        toolCalls: (m.toolCalls ?? []).map((c) =>
-          c.id === toolCallId ? { ...c, phase: decision === "approve" ? "running" : "denied" } : c,
-        ),
+      const next = patchCallById(current, toolCallId, (c) => ({
+        ...c,
+        phase: decision === "approve" ? "running" : "denied",
       }));
       setMessages(next);
       setPendingApproval(null);
-      void runStream(next, { resume: { tool_call_id: toolCallId, decision }, continueAssistant: true });
+      void runStream(next, { resume: { tool_call_id: toolCallId, decision } });
     },
     [runStream],
   );
@@ -322,10 +324,7 @@ export function useAiChat(opts: UseAiChatOptions): UseAiChatResult {
       );
       setMessages(next);
       setPendingElicitation(null);
-      void runStream(next, {
-        resume: { tool_call_id: toolCallId, decision: "answer", answer: given },
-        continueAssistant: true,
-      });
+      void runStream(next, { resume: { tool_call_id: toolCallId, decision: "answer", answer: given } });
     },
     [runStream],
   );
@@ -384,6 +383,19 @@ export function useAiChat(opts: UseAiChatOptions): UseAiChatResult {
 // ---------------------------------------------------------------------------
 // Pure helpers
 // ---------------------------------------------------------------------------
+
+/** Pure: update one tool call wherever it sits in the transcript. */
+function patchCallById(
+  messages: ChatMessage[],
+  id: string,
+  update: (c: ToolCallDisplay) => ToolCallDisplay,
+): ChatMessage[] {
+  return messages.map((m) =>
+    m.role === "assistant" && m.toolCalls?.some((c) => c.id === id)
+      ? { ...m, toolCalls: m.toolCalls.map((c) => (c.id === id ? update(c) : c)) }
+      : m,
+  );
+}
 
 function patchLastAssistant(list: ChatMessage[], update: (m: ChatMessage) => ChatMessage): ChatMessage[] {
   const next = [...list];

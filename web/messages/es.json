@@ -2033,6 +2033,11 @@
       "denied": "No ejecutado",
       "stopped": "Detenido"
     },
+    "status": {
+      "thinking": "Pensando…",
+      "running": "Ejecutando {tool}…",
+      "done": "{tool} terminado"
+    },
     "question": {
       "skip": "Omitir",
       "typeAnswer": "O escribe una respuesta abajo.",

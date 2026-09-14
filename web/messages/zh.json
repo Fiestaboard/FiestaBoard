@@ -2033,6 +2033,11 @@
       "denied": "未运行",
       "stopped": "已停止"
     },
+    "status": {
+      "thinking": "思考中…",
+      "running": "正在运行 {tool}…",
+      "done": "{tool} 已完成"
+    },
     "question": {
       "skip": "跳过",
       "typeAnswer": "或在下方输入回答。",

@@ -30,22 +30,27 @@ export const TOOL_QUERY_KEYS: Record<string, Keys> = {
   uninstall_plugin: PLUGINS,
   configure_plugin: PLUGINS,
   update_plugin: PLUGINS,
-  set_active_page: [["activePage"], ["active-page"], ["status"], ["boardCurrentMessage"]],
+  set_active_page: [["activePage"], ["status"], ["board-current-message"]],
   set_schedule_mode: [["schedules"], ["status"]],
-  send_message: [["boardCurrentMessage"], ["status"]],
+  send_message: [["board-current-message"], ["status"]],
   // A system update recreates the container; nothing local is worth refetching.
   trigger_system_update: [],
 };
 
-/** update_setting refreshes only the category it touched. */
+/**
+ * update_setting refreshes the category it touched. Most settings cards
+ * read from the one `all-settings` query; the two categories with their
+ * own query get it as well. Every key here must be a queryKey prefix some
+ * component actually uses — tests/test_ops_wiring.py checks the source.
+ */
 export const SETTING_QUERY_KEYS: Record<SettingCategory, Keys> = {
-  display: [["display-settings"], ["all-settings"]],
-  transitions: [["transition-settings"], ["all-settings"]],
-  output: [["output-settings"], ["all-settings"]],
+  display: [["all-settings"], ["status"]],
+  transitions: [["all-settings"]],
+  output: [["all-settings"]],
   polling: [["polling-settings"], ["all-settings"]],
-  location: [["location-settings"], ["all-settings"]],
-  silence_schedule: [["silence-schedule"], ["all-settings"], ["silenceStatus"]],
-  active_page: [["active-page"], ["activePage"], ["status"]],
+  location: [["location-settings"], ["settings", "location"], ["all-settings"]],
+  silence_schedule: [["all-settings"], ["status"]],
+  active_page: [["activePage"], ["status"], ["board-current-message"]],
 };
 
 /** Read-only tools touch nothing; unknown writers refresh the usual suspects. */

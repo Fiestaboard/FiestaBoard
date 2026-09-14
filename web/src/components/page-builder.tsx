@@ -394,10 +394,9 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
   /** Apply one structured AI tool call to the editor state. */
   const applyToolCall = useCallback(
     (call: EditorToolCall) => {
-      // `suggest_variables` is read-only (surfaced in the chat UI); every
-      // other op is handled by the global AI drawer (navigation, plugins,
-      // schedules) and must never fall through to the apply_patch branch
-      // below, which would read `.changes` off the wrong args shape.
+      // Only the two editor-local ops are applied here; anything else must
+      // never fall through to the apply_patch branch below, which would
+      // read `.changes` off the wrong args shape.
       if (call.op !== "replace_page" && call.op !== "apply_patch") {
         return;
       }

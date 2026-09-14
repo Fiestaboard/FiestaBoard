@@ -162,12 +162,12 @@ describe("useAiChat", () => {
         step: 1,
       });
     });
-    expect(result.current.messages[1].statusMessage).toBe("Running create_page…");
+    expect(result.current.messages[1].status).toEqual({ phase: "tool_running", toolCallId: "tc1" });
     await act(async () => {
       capturedHandlers?.onToolCall?.(CREATE_PAGE);
       capturedHandlers?.onToolResult?.(OK);
     });
-    expect(result.current.messages[1].statusMessage).toBeUndefined();
+    expect(result.current.messages[1].status).toBeUndefined();
   });
 
   it("done{awaiting_approval} pauses on the destructive call", async () => {
@@ -187,7 +187,7 @@ describe("useAiChat", () => {
     expect(onAwaitingApproval).toHaveBeenCalledWith(DELETE_PAGE);
   });
 
-  it("approve() re-POSTs with the decision and keeps appending to the same assistant message", async () => {
+  it("approve() re-POSTs with the decision and continues in a new assistant entry", async () => {
     const { result } = renderHook(() => useAiChat(makeOpts()));
     act(() => {
       result.current.send("delete it");
@@ -202,7 +202,11 @@ describe("useAiChat", () => {
       result.current.approve("tc2", "approve");
     });
     expect(result.current.status).toBe("streaming");
-    expect(result.current.messages).toHaveLength(2); // no new placeholder
+    // The server appends a new assistant message after the tool outcome;
+    // the transcript here does the same so a replay reads identically.
+    expect(result.current.messages).toHaveLength(3);
+    expect(result.current.messages[2]).toMatchObject({ role: "assistant", content: "", pending: true });
+    expect(result.current.messages[1].toolCalls![0].phase).toBe("running");
     expect(lastBody().resume).toEqual({ tool_call_id: "tc2", decision: "approve" });
     // The replayed transcript carries the pending call; the server answers it.
     expect(lastBody().messages).toEqual([
@@ -219,9 +223,36 @@ describe("useAiChat", () => {
       capturedHandlers?.onDone?.({ ...DONE, reason: "complete", pending_tool_call_id: null });
       resolveStream?.();
     });
-    expect(result.current.messages[1].content).toBe("Deleting. Gone.");
+    expect(result.current.messages[1].content).toBe("Deleting.");
+    expect(result.current.messages[2].content).toBe(" Gone.");
+    // The result lands on the call in the entry that proposed it.
     expect(result.current.messages[1].toolCalls![0].phase).toBe("ok");
+    expect(result.current.messages[2].toolCalls).toBeUndefined();
     expect(result.current.status).toBe("idle");
+  });
+
+  it("stopping a resumed turn before the approved call reports marks that call stopped", async () => {
+    const onStopped = vi.fn();
+    const { result } = renderHook(() => useAiChat(makeOpts({ onStopped })));
+    act(() => {
+      result.current.send("delete it");
+    });
+    await act(async () => {
+      capturedHandlers?.onToolCall?.(DELETE_PAGE);
+      capturedHandlers?.onDone?.({ ...DONE, reason: "awaiting_approval", pending_tool_call_id: "tc2" });
+      resolveStream?.();
+    });
+    act(() => {
+      result.current.approve("tc2", "approve");
+    });
+    await act(async () => {
+      result.current.stop();
+      resolveStream?.();
+    });
+    expect(result.current.messages[1].toolCalls![0].phase).toBe("stopped");
+    expect(toWireMessages(result.current.messages).filter((m) => m.role === "tool")).toEqual([
+      { role: "tool", tool_call_id: "tc2", name: "delete_page", status: "interrupted", result: null },
+    ]);
   });
 
   it("deny is recorded on the card and sent as the decision", async () => {
@@ -362,8 +393,24 @@ describe("useAiChat", () => {
       resolveStream?.();
     });
     expect(result.current.messages[1].toolCalls![0].phase).toBe("stopped");
-    expect(onStopped).toHaveBeenCalledWith([CREATE_PAGE]);
+    expect(onStopped).toHaveBeenCalledWith([CREATE_PAGE], "stopped");
     expect(result.current.status).toBe("idle");
+  });
+
+  it("a fatal error frame reports unresolved calls as an error, not a stop", async () => {
+    const onStopped = vi.fn();
+    const { result } = renderHook(() => useAiChat(makeOpts({ onStopped })));
+    act(() => {
+      result.current.send("hi");
+    });
+    await act(async () => {
+      capturedHandlers?.onToolCall?.(CREATE_PAGE);
+      capturedHandlers?.onError?.("provider went away");
+      resolveStream?.();
+    });
+    expect(result.current.status).toBe("error");
+    expect(result.current.messages[1].toolCalls![0].phase).toBe("stopped");
+    expect(onStopped).toHaveBeenCalledWith([CREATE_PAGE], "error");
   });
 
   it("onError sets the error state and status", async () => {

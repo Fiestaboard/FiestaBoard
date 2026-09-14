@@ -2033,6 +2033,11 @@
       "denied": "실행되지 않음",
       "stopped": "중지됨"
     },
+    "status": {
+      "thinking": "생각 중…",
+      "running": "{tool} 실행 중…",
+      "done": "{tool} 완료"
+    },
     "question": {
       "skip": "건너뛰기",
       "typeAnswer": "또는 아래에 답변을 입력하세요.",

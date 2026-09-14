@@ -795,6 +795,52 @@ def test_resume_is_rejected_when_no_matching_pending_call(client, cm):
     assert "zzz" in res.json()["detail"]
 
 
+QUESTION_TRANSCRIPT = [
+    {"role": "user", "content": "put the weather up"},
+    {
+        "role": "assistant",
+        "content": "",
+        "tool_calls": [{"id": "q1", "name": "ask_user", "args": {"question": "Which board?"}}],
+    },
+]
+
+
+@pytest.mark.parametrize(
+    ("messages", "resume"),
+    [
+        pytest.param(
+            PENDING_TRANSCRIPT,
+            {"tool_call_id": "c1", "decision": "answer", "answer": {"action": "accept", "content": {"answer": "x"}}},
+            id="answer-for-a-tool",
+        ),
+        pytest.param(QUESTION_TRANSCRIPT, {"tool_call_id": "q1", "decision": "approve"}, id="approve-for-a-question"),
+        pytest.param(QUESTION_TRANSCRIPT, {"tool_call_id": "q1", "decision": "deny"}, id="deny-for-a-question"),
+    ],
+)
+def test_a_resume_decision_must_fit_the_pending_call(client, cm, messages, resume):
+    """Approve/deny belong to a tool, an answer to a question — never crossed."""
+    res = client.post("/pages/ai/chat", json={"messages": messages, "device_type": "flagship", "resume": resume})
+    assert res.status_code == 400
+    assert resume["tool_call_id"] in res.json()["detail"]
+
+
+def test_a_question_resumes_with_an_answer(client, cm):
+    with patch(TURN, _fake_stream(STREAMED_EVENTS)):
+        res = client.post(
+            "/pages/ai/chat",
+            json={
+                "messages": QUESTION_TRANSCRIPT,
+                "device_type": "flagship",
+                "resume": {
+                    "tool_call_id": "q1",
+                    "decision": "answer",
+                    "answer": {"action": "accept", "content": {"answer": "Kitchen"}},
+                },
+            },
+        )
+    assert res.status_code == 200
+
+
 def test_a_transcript_ending_on_the_assistants_turn_needs_a_resume(client, cm):
     res = client.post("/pages/ai/chat", json={"messages": PENDING_TRANSCRIPT, "device_type": "flagship"})
     assert res.status_code == 400

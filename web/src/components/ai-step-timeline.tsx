@@ -2,9 +2,9 @@
 
 import { Box, Shimmer, Task, TaskContent, TaskItem, TaskTrigger } from "@fiestaboard/ui";
 
-import { detailForTool, labelForTool } from "@/components/ai-tool-labels";
+import { detailForTool, labelForTool, type TranslateFn } from "@/components/ai-tool-labels";
 import { useTranslations } from "@/i18n/translations";
-import type { ChatMessage, ToolPhase } from "@/lib/ai-chat-types";
+import type { ChatMessage, ToolCallDisplay, ToolPhase, TurnStatus } from "@/lib/ai-chat-types";
 
 type ItemStatus = "pending" | "running" | "done" | "error";
 
@@ -18,21 +18,34 @@ const STATUS_FOR_PHASE: Record<ToolPhase, ItemStatus> = {
   stopped: "error",
 };
 
+/** The entries since the user last spoke: one per model call, a resume starts another. */
+export function currentTurnEntries(messages: ChatMessage[]): ChatMessage[] {
+  let start = messages.length;
+  while (start > 0 && messages[start - 1].role === "assistant") start -= 1;
+  return messages.slice(start);
+}
+
 /**
  * The observed steps of the current turn: one row per tool call the
- * server actually made, plus the server's own status line while it works.
- * Nothing here is the model's self-report — every row is a `tool_call`
- * frame, every tick a `tool_result`.
+ * server actually made, plus a status line while it works. Nothing here
+ * is the model's self-report — every row is a `tool_call` frame, every
+ * tick a `tool_result`.
+ *
+ * The status line is rendered from the frame's `phase` and tool id, not
+ * its English `message`, so it reads in the user's language.
  *
  * Rendered OUTSIDE the conversation's live region so each step is
  * announced once, by this `role="status"` box, not again by the log.
  */
-export function AiStepTimeline({ message }: { message: ChatMessage }) {
+export function AiStepTimeline({ messages }: { messages: ChatMessage[] }) {
   const t = useTranslations("aiChatPanel");
-  const calls = message.toolCalls ?? [];
+  const entries = currentTurnEntries(messages);
+  const calls = entries.flatMap((m) => m.toolCalls ?? []);
+  const last = entries[entries.length - 1];
   const doneCount = calls.filter((c) => c.phase === "ok").length;
+  const statusLine = last?.pending && last.status ? statusText(last.status, messages, t) : null;
 
-  if (calls.length === 0 && !message.statusMessage) return null;
+  if (calls.length === 0 && !statusLine) return null;
 
   return (
     <Box
@@ -59,9 +72,24 @@ export function AiStepTimeline({ message }: { message: ChatMessage }) {
           </TaskContent>
         </Task>
       ) : null}
-      {message.pending && message.statusMessage ? (
-        <Shimmer className="block px-1 pt-1 text-xs">{message.statusMessage}</Shimmer>
-      ) : null}
+      {statusLine ? <Shimmer className="block px-1 pt-1 text-xs">{statusLine}</Shimmer> : null}
     </Box>
   );
+}
+
+function statusText(status: TurnStatus, messages: ChatMessage[], t: TranslateFn): string {
+  if (status.phase === "thinking") return t("status.thinking");
+  // The call may sit in an earlier entry (an approved call is resumed from
+  // the entry that proposed it), so look across the whole transcript.
+  const call = status.toolCallId ? findCall(messages, status.toolCallId) : undefined;
+  const tool = call ? labelForTool(call, t) : "";
+  return status.phase === "tool_done" ? t("status.done", { tool }) : t("status.running", { tool });
+}
+
+function findCall(messages: ChatMessage[], id: string): ToolCallDisplay | undefined {
+  for (let i = messages.length - 1; i >= 0; i--) {
+    const hit = messages[i].toolCalls?.find((c) => c.id === id);
+    if (hit) return hit;
+  }
+  return undefined;
 }

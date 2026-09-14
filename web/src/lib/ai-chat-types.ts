@@ -222,16 +222,6 @@ export interface ConfigurePluginArgs {
   config: Record<string, unknown>;
 }
 
-export interface AskUserArgs {
-  question: string;
-  options?: string[] | null;
-  allow_free_text?: boolean;
-}
-
-export function argsOf<T>(call: Pick<ToolCall, "args">): T {
-  return call.args as unknown as T;
-}
-
 // ---------------------------------------------------------------------------
 // What the panel renders
 // ---------------------------------------------------------------------------
@@ -256,17 +246,34 @@ export type ToolCallDisplay = ToolCall & {
   deviceType?: DeviceType;
 };
 
+/** The server's last `status` frame for a segment, rendered with t() by phase. */
+export interface TurnStatus {
+  phase: SSEStatusData["phase"];
+  toolCallId: string | null;
+}
+
+/**
+ * One transcript entry as the panel holds it.
+ *
+ * An assistant turn is one entry per model call. A resume (Approve, Deny,
+ * an answer) starts a new assistant entry, exactly as the server appends a
+ * new assistant message after the `tool` outcome — so the replayed
+ * transcript reads the same as the live one, and a question (`ask_user`
+ * pauses the loop, so at most one per model call) belongs to the entry
+ * that asked it. The panel groups consecutive assistant entries into one
+ * visible turn.
+ */
 export interface ChatMessage {
   role: "user" | "assistant";
   content: string;
-  /** Tool calls the assistant made in this turn, in order. */
+  /** Tool calls the assistant made in this entry, in order. */
   toolCalls?: ToolCallDisplay[];
-  /** The last `status` message the server sent for this turn. */
-  statusMessage?: string;
-  /** A question the assistant asked, with the answer once given. */
+  /** The last `status` frame the server sent while this entry was live. */
+  status?: TurnStatus;
+  /** The question this entry asked, with the answer once given. */
   elicitation?: Elicitation & { answer?: ElicitationAnswer };
   warnings?: string[];
-  /** True while the server is still working on this turn. */
+  /** True while the server is still working on this entry. */
   pending?: boolean;
 }
 

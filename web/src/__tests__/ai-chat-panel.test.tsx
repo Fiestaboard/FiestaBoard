@@ -344,7 +344,7 @@ describe("AiChatPanel", () => {
           role: "assistant",
           content: "",
           pending: true,
-          statusMessage: "Running create_page…",
+          status: { phase: "tool_running", toolCallId: "tc1" },
           toolCalls: [{ ...CREATE_PAGE_CALL, phase: "running" }],
         },
       ],
@@ -354,7 +354,38 @@ describe("AiChatPanel", () => {
     const timeline = await screen.findByTestId("ai-step-timeline");
     expect(timeline).toHaveAttribute("role", "status");
     expect(timeline).toHaveTextContent("0 of 1 steps");
-    expect(timeline).toHaveTextContent("Running create_page…");
+    // The status line is built from the frame's phase and the tool's
+    // translated label, never from the server's English `message`.
+    expect(timeline).toHaveTextContent("Running Create page…");
+    expect(timeline).not.toHaveTextContent("create_page");
+  });
+
+  it("consecutive assistant entries render as one turn, with steps from all of them", async () => {
+    server.use(
+      http.get(`${API_BASE}/settings/ai`, () => HttpResponse.json({ ...CONFIGURED, providers: [CONFIGURED_PROVIDER] })),
+    );
+    hookResult = {
+      ...defaultHookResult,
+      status: "streaming",
+      messages: [
+        { role: "user", content: "delete it" },
+        {
+          role: "assistant",
+          content: "Deleting.",
+          toolCalls: [{ ...CREATE_PAGE_CALL, id: "tc2", name: "delete_page", args: { page_id: "p1" }, phase: "ok" }],
+        },
+        { role: "assistant", content: "Gone.", pending: true, status: { phase: "thinking", toolCallId: null } },
+      ],
+    };
+
+    const { container } = render(<AiChatPanel {...defaultProps} />, { wrapper: Wrapper });
+    const assistantTurns = container.querySelectorAll('[data-slot="message"][data-from="assistant"]');
+    expect(assistantTurns).toHaveLength(1);
+    expect(assistantTurns[0]).toHaveTextContent("Deleting.");
+    expect(assistantTurns[0]).toHaveTextContent("Gone.");
+    const timeline = await screen.findByTestId("ai-step-timeline");
+    expect(timeline).toHaveTextContent("1 of 1 steps");
+    expect(timeline).toHaveTextContent(enMessages.aiChatPanel.status.thinking);
   });
 
   it("shows Approve / Deny for the pending destructive call and forwards the decision", async () => {

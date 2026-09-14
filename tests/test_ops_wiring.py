@@ -124,6 +124,60 @@ def test_the_choreography_layer_makes_no_api_calls():
 # ---------------------------------------------------------------------------
 
 
+# ---------------------------------------------------------------------------
+# The cache keys the drawer invalidates must be keys something reads
+# ---------------------------------------------------------------------------
+
+QUERY_KEYS = REPO_ROOT / "web/src/lib/ai-choreography/query-keys.ts"
+WEB_SOURCE_DIRS = (REPO_ROOT / "web/src", REPO_ROOT / "web/app")
+
+
+def _declared_query_key_prefixes() -> set[str]:
+    """Every ``["x"]`` / ``["x", "y"]`` literal in the choreography key map."""
+    source = QUERY_KEYS.read_text(encoding="utf-8")
+    return {m.group(1) for m in re.finditer(r'\[\s*"([^"]+)"', source)}
+
+
+def _query_key_prefixes_in_use() -> set[str]:
+    """The first element of every query key the web app declares.
+
+    Literal ``queryKey: ["x", ...]`` sites, plus the board-scoped helpers in
+    ``web/src/hooks/use-board.ts`` (``queryKeys.activePage()`` and friends
+    build ``["activePage", boardId]`` and are what the board pages use).
+    """
+    used: set[str] = set()
+    for root in WEB_SOURCE_DIRS:
+        for path in root.rglob("*.ts*"):
+            if path == QUERY_KEYS or "__tests__" in path.parts or path.name.endswith(".test.tsx"):
+                continue
+            used.update(re.findall(r'queryKey:\s*\[\s*"([^"]+)"', path.read_text(encoding="utf-8")))
+    helpers = (REPO_ROOT / "web/src/hooks/use-board.ts").read_text(encoding="utf-8")
+    start, end = helpers.index("export const queryKeys = {"), helpers.index("};", helpers.index("export const queryKeys = {"))
+    used.update(re.findall(r'\[\s*"([^"]+)"', helpers[start:end]))
+    return used
+
+
+def test_every_invalidated_query_key_is_one_a_component_reads():
+    """An invalidation for a key nothing subscribes to refreshes nothing.
+
+    The old drawer carried ``boardCurrentMessage`` (the real key is
+    ``board-current-message``) and per-category settings keys no card ever
+    used, so ``send_message`` never refreshed the board. The map is checked
+    against the queries actually declared in the app.
+    """
+    declared = _declared_query_key_prefixes()
+    used = _query_key_prefixes_in_use()
+    assert declared, "the key map scan found nothing"
+    assert used, "the app scan found no queries"
+    unknown = sorted(declared - used)
+    assert unknown == [], f"query-keys.ts invalidates keys no useQuery declares: {unknown}"
+
+
+def test_the_query_key_scan_can_see_a_bogus_key():
+    assert "boardCurrentMessage" not in _query_key_prefixes_in_use()
+    assert "board-current-message" in _query_key_prefixes_in_use()
+
+
 def test_the_source_scan_actually_found_the_drawer():
     assert "toastForToolResult" in DRAWER_SOURCE
     assert "queryKeysForTool" in DRAWER_SOURCE
