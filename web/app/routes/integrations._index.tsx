@@ -1096,6 +1096,11 @@ function InstalledPluginRow({
       await api.updatePluginConfig(plugin.id, configValues);
       toast.success(`${plugin.name} configuration saved`);
       onConfigUpdate();
+      // The sheet's own details query. Without this the panel keeps serving the
+      // pre-save config for staleTime (1 min), so areDemoRequirementsMet() still
+      // reads the old values and Create Demo Page stays disabled after a save
+      // that actually satisfied the requirements.
+      queryClient.invalidateQueries({ queryKey: ["plugin", plugin.id] });
       queryClient.invalidateQueries({ queryKey: ["plugin-displays-batch"] });
       queryClient.invalidateQueries({ queryKey: ["plugin-display-raw", plugin.id] });
       queryClient.invalidateQueries({ queryKey: ["pagePreview"] });
