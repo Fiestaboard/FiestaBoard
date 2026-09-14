@@ -70,6 +70,11 @@ def sidecar(monkeypatch):
         ),
         patch("src.system.update_service._updater_post", side_effect=fake_post),
         patch("src.system.update_service._take_settings_snapshot", return_value={"name": "s.json"}),
+        # Discovery must be stubbed. The apply path consults it to install the
+        # exact version it reported, so leaving it live made these tests call
+        # Docker Hub and the GitHub API for real — slow, broken offline, and
+        # the asserted tag became whatever happened to be published.
+        patch("src.system.update_service._latest_for_channel", return_value=None),
     ):
         yield posted
 
@@ -101,6 +106,11 @@ class TestABetaBoxStaysOnBeta:
             "a beta box asked the sidecar to pull its compose file's tag; that "
             "file says :latest, so the update fetched stable 8.x over a 9.x box"
         )
+        # The moving `:beta` tag is the fallback used when discovery cannot
+        # name a version (stubbed to None here). When discovery *does* answer,
+        # the exact version is installed instead — see
+        # test_beta_graduates_to_stable.py, which supersedes the narrower
+        # "always the channel tag" contract this test originally encoded.
         assert payload["tag"] == "beta"
         assert payload["image"] == "fiestaboard/fiestaboard"
 
