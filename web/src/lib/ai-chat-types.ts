@@ -117,7 +117,7 @@ export const KNOWN_TOOL_NAMES = [
 ] as const;
 
 export type KnownToolName = (typeof KNOWN_TOOL_NAMES)[number];
-// eslint-disable-next-line @typescript-eslint/no-empty-object-type -- keeps autocomplete for the known names while accepting any string
+// `string & {}` keeps autocomplete for the known names while accepting any string.
 export type ToolName = KnownToolName | (string & {});
 
 export type ToolSource = "mcp" | "chat";

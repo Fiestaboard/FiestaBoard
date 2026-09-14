@@ -13,7 +13,7 @@
 // doesn't execute tools. Callers observe what the server is doing through
 // the `onToolCall` / `onToolResult` callbacks.
 
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 import type {
   ApprovalDecision,
@@ -138,7 +138,7 @@ export function useAiChat(opts: UseAiChatOptions): UseAiChatResult {
       try {
         await streamChat(
           {
-            messages: toWireMessages(history),
+            messages: toWireMessages(history, options.resume?.tool_call_id),
             resume: options.resume,
             device_type: ctx.deviceType,
             surface: ctx.surface,
@@ -251,8 +251,13 @@ export function useAiChat(opts: UseAiChatOptions): UseAiChatResult {
     ],
   );
 
+  // The event handlers below read the latest transcript without
+  // re-creating themselves on every streamed delta. The ref is written from
+  // an effect, never during render (React Compiler rule).
   const messagesRef = useRef(messages);
-  messagesRef.current = messages;
+  useEffect(() => {
+    messagesRef.current = messages;
+  }, [messages]);
 
   const send = useCallback(
     (text: string) => {
@@ -404,8 +409,14 @@ function findCall(history: ChatMessage[], id: string): ToolCall | undefined {
  * carries its calls; each call that has an outcome (or was answered,
  * denied, or interrupted by Stop) is followed by a `tool` entry, so the
  * server can render the turn exactly as it did while running it.
+ *
+ * `awaitingToolCallId` is the call a `resume` on the same request decides.
+ * The panel records the decision on its card before the request goes out,
+ * so that call must stay unresolved here: the server rejects a resume for a
+ * call the transcript already answers ("No tool call … is awaiting a
+ * decision").
  */
-export function toWireMessages(history: ChatMessage[]): WireMessage[] {
+export function toWireMessages(history: ChatMessage[], awaitingToolCallId?: string): WireMessage[] {
   const wire: WireMessage[] = [];
   for (const m of history) {
     if (m.role === "user") {
@@ -419,6 +430,7 @@ export function toWireMessages(history: ChatMessage[]): WireMessage[] {
       tool_calls: calls.length ? calls.map((c) => ({ id: c.id, name: c.name, args: c.args })) : undefined,
     });
     for (const c of calls) {
+      if (c.id === awaitingToolCallId) continue; // the resume carries the decision
       if (c.name === "ask_user") {
         if (m.elicitation?.answer) {
           wire.push({

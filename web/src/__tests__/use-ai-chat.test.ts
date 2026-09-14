@@ -239,6 +239,13 @@ describe("useAiChat", () => {
     });
     expect(lastBody().resume).toEqual({ tool_call_id: "tc2", decision: "deny" });
     expect(result.current.messages[1].toolCalls![0].phase).toBe("denied");
+    // The card shows the denial, but the replayed transcript must still
+    // leave tc2 pending: the server records the denial itself and rejects a
+    // resume for a call the transcript already answers.
+    expect(lastBody().messages).toEqual([
+      { role: "user", content: "delete it" },
+      { role: "assistant", content: "", tool_calls: [{ id: "tc2", name: "delete_page", args: { page_id: "p1" } }] },
+    ]);
   });
 
   it("typing while an approval is pending denies it and sends the new message together", async () => {
@@ -257,7 +264,9 @@ describe("useAiChat", () => {
     expect(lastBody().resume).toEqual({ tool_call_id: "tc2", decision: "deny" });
     const wire = lastBody().messages as Array<{ role: string; content?: string }>;
     expect(wire[wire.length - 1]).toEqual({ role: "user", content: "actually rename it" });
+    expect(wire.filter((m) => m.role === "tool")).toEqual([]);
     expect(result.current.pendingApproval).toBeNull();
+    expect(result.current.messages[1].toolCalls![0].phase).toBe("denied");
   });
 
   it("a question pauses the turn, and the composer answers it", async () => {
@@ -304,8 +313,17 @@ describe("useAiChat", () => {
       action: "accept",
       content: { answer: "Kitchen" },
     });
-    // The answer is not a user bubble; it rides on the resume.
+    // The answer is not a user bubble; it rides on the resume — and only
+    // there. The transcript keeps q1 pending for the server to answer.
     expect(result.current.messages.filter((m) => m.role === "user")).toHaveLength(1);
+    expect(lastBody().messages).toEqual([
+      { role: "user", content: "put the weather up" },
+      {
+        role: "assistant",
+        content: "",
+        tool_calls: [{ id: "q1", name: "ask_user", args: { question: "Which board?" } }],
+      },
+    ]);
   });
 
   it("answer() with a decline resumes with the decline", async () => {
@@ -425,6 +443,34 @@ describe("toWireMessages", () => {
       { role: "tool", tool_call_id: "tc2", name: "delete_page", status: "denied", result: null },
       { role: "tool", tool_call_id: "tc3", name: "create_page", status: "interrupted", result: null },
     ]);
+  });
+
+  it("leaves the call a resume decides unresolved, whatever its card shows", () => {
+    const history: ChatMessage[] = [
+      { role: "user", content: "go" },
+      {
+        role: "assistant",
+        content: "",
+        toolCalls: [
+          { ...CREATE_PAGE, phase: "ok", result: OK },
+          { ...DELETE_PAGE, phase: "denied" },
+        ],
+        elicitation: {
+          id: "q1",
+          name: "ask_user",
+          message: "?",
+          requested_schema: { type: "object", properties: {} },
+          allow_free_text: true,
+          answer: { action: "accept", content: { answer: "Kitchen" } },
+        },
+      },
+    ];
+    const denied = toWireMessages(history, "tc2");
+    expect(denied.filter((m) => m.role === "tool").map((m) => (m as { tool_call_id: string }).tool_call_id)).toEqual([
+      "tc1",
+    ]);
+    // Without the id the same history renders the denial.
+    expect(toWireMessages(history).filter((m) => m.role === "tool")).toHaveLength(2);
   });
 
   it("renders an error outcome as an error payload", () => {
