@@ -412,6 +412,80 @@ Notes for scripted clients:
 - `delete_plugin_instance` joins the destructive set, so annotation-aware
   clients confirm it.
 
+## Schedules, collections and board state
+
+Everything the Schedules page and the Home page can change is reachable
+over MCP — the same coverage rule the in-app chat follows, since it drives
+these very tools.
+
+### Changed: `list_schedules` answers with the Schedules page's shape
+
+It used to return a bare list of stored entries. It now returns what
+`GET /v1/schedules` returns:
+
+```json
+{
+  "schedules": [{"id": "...", "start_time": "06:00", "start_type": "sunrise",
+                 "resolved_start_time": "06:41", "...": "..."}],
+  "total": 1,
+  "board_id": "board-main",
+  "default_page_id": "page-123",
+  "schedule_enabled": true
+}
+```
+
+Each entry carries every stored field plus `resolved_start_time` /
+`resolved_end_time` — today's actual HH:MM, which differs from the stored
+time only for sunrise/sunset entries. `board_id` is optional (omitted = the
+primary board; `"*"` lists every board, with the two per-board fields null).
+A client iterating the old array must read `.schedules`.
+
+### Schedule entries: every form field
+
+`create_schedule` and `update_schedule` accept everything the entry form
+saves: `custom_days`, `board_id`, `recurrence_type` (`weekly` |
+`annual_date` | `one_off_date`) with `annual_date`/`annual_end_date`
+(`MM-DD`) or `one_off_date`/`one_off_end_date` (`YYYY-MM-DD`), and
+`start_type`/`end_type` (`fixed` | `sunrise` | `sunset`) with
+`start_sun_offset`/`end_sun_offset` in minutes. On `update_schedule`,
+omitting a field means "unchanged", so the clears are explicit flags:
+`clear_end_time`, `clear_custom_days`, `clear_annual_end_date`,
+`clear_one_off_end_date`.
+
+Around the entries:
+
+- `validate_schedules(board_id?)` — overlaps and gaps (read-only).
+- `set_default_page(page_id | null, board_id?)` — the page shown in gaps.
+- `update_setting("schedule_behavior", {"defer_on_reenable": bool})` — the
+  global re-enable behaviour.
+
+### Collections: random mode and partial updates
+
+`create_collection` / `update_collection` take `selection_mode: "random"`;
+`interval_seconds` is the page duration for both time and random mode.
+`update_collection` merges mode config with what is stored, so
+`poll_seconds` or `rules` can change alone in variable mode without
+re-sending `default_page_id`, and switching to random carries the current
+interval over.
+
+### Board state: the Home page's controls
+
+| Tool | REST equivalent | Annotations |
+|---|---|---|
+| `get_temporary_override()` | `GET /settings/temporary-override` | read-only |
+| `set_temporary_override(page_id \| template_lines, duration_minutes?, revert_mode?, …)` | `POST /settings/temporary-override` | write, not idempotent (each call restarts the clock) |
+| `cancel_temporary_override()` | `DELETE /settings/temporary-override` | write, idempotent |
+| `force_refresh()` | `POST /force-refresh` ("Resend to board") | write, idempotent |
+| `get_silence_status(board_id?)` | `GET /silence-status` | read-only |
+| `pause_board(board_id?)` / `resume_board(board_id?)` | `PATCH /v1/boards/{id}` `paused` | write, idempotent |
+
+`get_active_page` now also carries `temporary_override`. The override and
+the forced resend take no `board_id` on purpose: the override lives in one
+store the display loop applies to the primary board, and the resend covers
+every board — a parameter the store cannot honour would be a lie in the
+schema. None of these is flagged destructive; each is reversible by the
+matching tool, so a client that honours annotations does not prompt.
+
 ## Troubleshooting
 
 **"Some MCP servers could not be loaded… skipped: fiestaboard"** — your
