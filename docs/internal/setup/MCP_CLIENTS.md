@@ -368,6 +368,7 @@ Annotations: `export_page`, `list_staff_picks`, `get_current_display`,
 `import_page`, `import_staff_pick` and `test_transition_live` are writes
 but not destructive (a client should not ask for confirmation);
 `restore_board` is additionally idempotent. Nothing here is destructive.
+
 ### Also new: the rest of the Integrations page
 
 Everything the **Integrations** page can do is now reachable over MCP, so
