@@ -369,6 +369,49 @@ Annotations: `export_page`, `list_staff_picks`, `get_current_display`,
 but not destructive (a client should not ask for confirmation);
 `restore_board` is additionally idempotent. Nothing here is destructive.
 
+### Also new: the rest of the Integrations page
+
+Everything the **Integrations** page can do is now reachable over MCP, so
+the in-app chat (which only calls these tools) can do it too:
+
+| Tool | Mirrors | Annotations |
+|---|---|---|
+| `install_plugin(repository=…, branch=…, plugin_id=…, initial_config=…)` | **Add from Git** (`POST /plugins/install`) | open-world |
+| `list_plugin_instances(plugin_id)` | `GET /plugins/{id}/instances` | read-only |
+| `create_plugin_instance(plugin_id, label)` | `POST /plugins/{id}/instances` | — |
+| `delete_plugin_instance(plugin_id, label)` | `DELETE /plugins/{id}/instances/{label}` | **destructive** |
+| `get_plugin_demo_page(plugin_id, device_type)` | `GET /plugins/{id}/demo-page` | read-only |
+| `create_plugin_demo_page(plugin_id, device_type, recreate)` | `POST /plugins/{id}/demo-page` | — |
+| `list_pending_plugin_updates()` | `GET /plugins/updates` | read-only |
+| `check_plugin_updates()` | `POST /plugins/updates/check` | idempotent, open-world |
+| `update_all_plugins()` | `POST /plugins/updates/apply` | idempotent, open-world |
+| `list_plugin_options(plugin_id, options_id, parent, query, limit, cursor)` | `POST /plugins/{id}/options/{options_id}` | read-only, open-world |
+| `get_plugin_manifest(plugin_id)` | `GET /plugins/{id}/manifest` | read-only |
+| `list_plugin_errors()` | `GET /plugins/errors` | read-only |
+
+Notes for scripted clients:
+
+- `install_plugin` still installs from the registry when only `plugin_id` is
+  given; `repository` switches it to a git clone (https URLs only) and
+  `plugin_id` then becomes an optional override of the derived id. The
+  result gains a `source` field (`"registry"` or `"git"`).
+- Plugin instances are addressed as `base:label` everywhere else
+  (`configure_plugin`, `enable_plugin`, `get_plugin_data`, templates).
+- `create_plugin_demo_page` defaults to `recreate=false`, unlike the REST
+  endpoint: an existing demo page is kept and reported back (`created:
+  false`) rather than rebuilt over the user's edits. Pass `recreate=true`
+  for the REST behaviour.
+- `configure_plugin` now documents the `color_rules` config key
+  (`{field: [{condition, value, color}, …]}`, first match wins) so a model
+  can set colour rules; `get_plugin_manifest` lists the eligible fields
+  under `color_rules_schema`.
+- `list_plugin_options` is a single uncached lookup against the plugin's
+  stored config — there is no `draft_config` or `refresh`; configure
+  credentials first. Its payload matches the REST endpoint minus the cache
+  fields.
+- `delete_plugin_instance` joins the destructive set, so annotation-aware
+  clients confirm it.
+
 ## Troubleshooting
 
 **"Some MCP servers could not be loaded… skipped: fiestaboard"** — your

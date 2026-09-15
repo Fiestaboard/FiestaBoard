@@ -59,6 +59,12 @@ READ_ONLY = {
     "get_current_display",
     "list_transition_plugins",
     "list_formula_functions",
+    "list_plugin_instances",
+    "get_plugin_demo_page",
+    "list_pending_plugin_updates",
+    "list_plugin_options",
+    "get_plugin_manifest",
+    "list_plugin_errors",
 }
 
 #: Tools whose effect cannot be undone by calling another tool. These are
@@ -70,6 +76,7 @@ APPROVAL_GATED = {
     "delete_schedule",
     "delete_collection",
     "uninstall_plugin",
+    "delete_plugin_instance",
 }
 
 #: Tools that touch something outside this install (the plugin registry
@@ -79,6 +86,9 @@ OPEN_WORLD = {
     "get_plugin_data",
     "install_plugin",
     "update_plugin",
+    "list_plugin_options",
+    "check_plugin_updates",
+    "update_all_plugins",
 }
 
 #: Calling these twice with the same arguments leaves the same state as
@@ -96,6 +106,8 @@ IDEMPOTENT = READ_ONLY | {
     "update_collection",
     # Snapping a board back to its active page twice leaves it where once did.
     "restore_board",
+    "check_plugin_updates",
+    "update_all_plugins",
 }
 
 

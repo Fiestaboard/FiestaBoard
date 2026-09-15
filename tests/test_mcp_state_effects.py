@@ -106,6 +106,18 @@ COVERED = {
     "test_transition_live",
     "restore_board",
     "list_formula_functions",
+    # Integrations-page coverage: instances, demo pages, updates, discovery.
+    "list_plugin_instances",
+    "create_plugin_instance",
+    "delete_plugin_instance",
+    "get_plugin_demo_page",
+    "create_plugin_demo_page",
+    "list_pending_plugin_updates",
+    "check_plugin_updates",
+    "update_all_plugins",
+    "list_plugin_options",
+    "get_plugin_manifest",
+    "list_plugin_errors",
 }
 
 #: Tools not yet covered here, each with the reason. Not an exemption list.
@@ -173,11 +185,30 @@ def _manifest(plugin_id: str, version: str = "1.0.0") -> dict[str, Any]:
         "settings_schema": {
             "type": "object",
             "properties": {
-                "station_id": {"type": "string", "title": "Station ID"},
+                # A remote-options picker, so list_plugin_options has a real
+                # provider to browse (the plugin's get_options below).
+                "station_id": {
+                    "type": "string",
+                    "title": "Station ID",
+                    "ui:widget": "remote-options",
+                    "ui:options": {"options_id": "stations"},
+                },
                 "api_key": {"type": "string", "title": "API Key", "ui:widget": "password"},
                 "enabled": {"type": "boolean", "title": "Enabled", "default": False},
             },
             "required": ["station_id"],
+        },
+        # One demo template per device shape, so create_plugin_demo_page has
+        # something to build and get_plugin_demo_page something to find.
+        "demo": {
+            "flagship": {
+                "name": "Harness Demo",
+                "template": [f"TIDE {{{{{plugin_id}.next_high}}}}", "", "", "", "", ""],
+            },
+            "note": {
+                "name": "Harness Demo",
+                "template": [f"{{{{{plugin_id}.next_high}}}}", "", ""],
+            },
         },
         "variables": {
             "simple": {
@@ -222,6 +253,16 @@ class HarnessPlugin(PluginBase):
         board = getattr(self, "board", None)
         cols = str(board.cols) if board is not None else "no-board"
         return PluginResult(available=True, data={{"next_high": "06:12", "board_cols": cols}})
+
+    def get_options(self, request):
+        # The catalog behind the ``stations`` remote-options picker. Search is
+        # server-side so list_plugin_options(query=...) is observable.
+        from src.plugins.base import Option, OptionsResult
+
+        stations = [("9414290", "Golden Gate"), ("8518750", "The Battery")]
+        query = (request.query or "").lower()
+        options = [Option(value=v, label=name) for v, name in stations if query in name.lower()]
+        return OptionsResult(options=options, total=len(options))
 '''
 
 
@@ -828,6 +869,10 @@ def test_read_only_tools_leave_every_store_untouched(mcp, services, plugins, eng
         "validate_template": {"template": "\n".join(FLAGSHIP_TEMPLATE), "device_type": "flagship"},
         "get_plugin_data": {"plugin_id": PLUGIN_ID},
         "export_page": {"page_id": page["page_id"]},
+        "list_plugin_instances": {"plugin_id": PLUGIN_ID},
+        "get_plugin_demo_page": {"plugin_id": PLUGIN_ID},
+        "get_plugin_manifest": {"plugin_id": PLUGIN_ID},
+        "list_plugin_options": {"plugin_id": PLUGIN_ID, "options_id": "stations"},
     }
     skipped = {"list_registry_plugins"}  # network-backed registry
     # get_plugin_data reads a plugin's live values, which needs it enabled
@@ -1251,6 +1296,418 @@ def test_update_plugin_refuses_a_plugin_that_is_not_a_git_checkout(mcp, updatabl
 
 def test_update_plugin_reports_an_error_for_an_unknown_plugin(mcp, updatable_plugins):
     call_expect_error(mcp, "update_plugin", plugin_id="not_a_plugin")
+
+
+# ---------------------------------------------------------------------------
+# Update checks — the Integrations page's "Check for updates" / "Update all"
+#
+# Real git remote (the ``updatable_plugins`` fixture): the check runs a real
+# ``git ls-remote`` and the bulk apply a real fetch, so the version on disk
+# has to move. The one seam replaced is ``get_remote_head_sha``'s https-only
+# guard on the origin URL — the fixture's origin is ``file://`` — and the
+# replacement still asks git for the remote SHA rather than inventing one.
+# ---------------------------------------------------------------------------
+
+
+@pytest.fixture
+def file_origin_updates(updatable_plugins, monkeypatch):
+    def remote_head_sha(dest_dir: Path) -> str | None:
+        url = subprocess.run(
+            ["git", "-C", str(dest_dir), "remote", "get-url", "origin"], capture_output=True, text=True, check=True
+        ).stdout.strip()
+        listed = subprocess.run(["git", "ls-remote", url, "HEAD"], capture_output=True, text=True, check=True)
+        return listed.stdout.split()[0] if listed.stdout.strip() else None
+
+    monkeypatch.setattr("src.plugins.sources.get_remote_head_sha", remote_head_sha)
+    return updatable_plugins
+
+
+def test_check_plugin_updates_reports_a_newly_published_version(mcp, file_origin_updates):
+    """The state effect: the registry's cached update status is refreshed."""
+    updatable_plugins = file_origin_updates
+    registry = updatable_plugins["registry"]
+    # The check skips plugins that are not in use (no git traffic for idle code).
+    assert_ok(call(mcp, "enable_plugin", plugin_id=GIT_PLUGIN_ID), "enable_plugin")
+    assert registry.get_update_status() == {}
+
+    updatable_plugins["publish"]("2.0.0")
+
+    result = assert_ok(call(mcp, "check_plugin_updates"), "check_plugin_updates")
+
+    assert GIT_PLUGIN_ID in result["updates_available"]
+    assert result["checked"] >= 1
+    assert registry.get_update_status().get(GIT_PLUGIN_ID) is True, (
+        "check_plugin_updates reported an update but did not refresh the registry cache"
+    )
+
+
+def test_list_pending_plugin_updates_reads_the_cached_check(mcp, file_origin_updates):
+    updatable_plugins = file_origin_updates
+    assert_ok(call(mcp, "enable_plugin", plugin_id=GIT_PLUGIN_ID), "enable_plugin")
+    updatable_plugins["publish"]("2.0.0")
+    assert_ok(call(mcp, "check_plugin_updates"), "check_plugin_updates")
+
+    pending = call(mcp, "list_pending_plugin_updates")
+
+    assert pending["updates"].get(GIT_PLUGIN_ID) is True
+    assert isinstance(pending["blocked"], dict)
+
+
+def test_update_all_plugins_fetches_every_pending_update(mcp, file_origin_updates):
+    """The state effect: the manifest on disk moves for the pending plugin."""
+    updatable_plugins = file_origin_updates
+    registry = updatable_plugins["registry"]
+    assert_ok(call(mcp, "enable_plugin", plugin_id=GIT_PLUGIN_ID), "enable_plugin")
+    updatable_plugins["publish"]("2.0.0")
+    assert_ok(call(mcp, "check_plugin_updates"), "check_plugin_updates")
+
+    result = assert_ok(call(mcp, "update_all_plugins"), "update_all_plugins")
+
+    assert result["updated"] == [GIT_PLUGIN_ID]
+    assert result["failed"] == {}
+    on_disk = json.loads(
+        (updatable_plugins["external_dir"] / GIT_PLUGIN_ID / "manifest.json").read_text(encoding="utf-8")
+    )
+    assert on_disk["version"] == "2.0.0", "update_all_plugins reported success but never fetched the new code"
+    assert registry.get_manifest(GIT_PLUGIN_ID).version == "2.0.0"
+    assert registry.get_update_status().get(GIT_PLUGIN_ID) is None, "the applied update is still advertised"
+
+
+def test_update_all_plugins_with_nothing_pending_is_a_clean_no_op(mcp, updatable_plugins):
+    result = assert_ok(call(mcp, "update_all_plugins"), "update_all_plugins")
+    assert result["updated"] == []
+    assert result["failed"] == {}
+
+
+# ---------------------------------------------------------------------------
+# install_plugin from a git URL — the Integrations page's "Add from Git"
+#
+# ``_validate_git_url`` only accepts https, so a ``file://`` remote cannot
+# stand in. The clone (``install_git_plugin``) is the one seam replaced: the
+# fake copies the staged package into the external dir, and everything after
+# — the loader import, registry bookkeeping, enable, config.json — is real.
+# ---------------------------------------------------------------------------
+
+GIT_REPOSITORY = "https://github.com/example/fiestaboard-plugin--harness-surf.git"
+
+
+@pytest.fixture
+def git_clone(plugins, tmp_path, monkeypatch):
+    """Replace the network clone with a locally written package; record calls."""
+    external_dir = tmp_path / "external_plugins"
+    calls: list[dict[str, Any]] = []
+
+    def fake_install_git_plugin(repo_url, plugin_id=None, branch="", external_dir=None):
+        calls.append({"repo_url": repo_url, "plugin_id": plugin_id, "branch": branch})
+        from src.plugins.sources import plugin_id_from_repo_name, repo_name_from_url
+
+        pid = plugin_id or plugin_id_from_repo_name(repo_name_from_url(repo_url))
+        # A clone whose manifest id matches the directory it lands in.
+        _write_plugin(tmp_path / "external_plugins" / pid, pid)
+        return True, ""
+
+    monkeypatch.setattr("src.plugins.registry.install_git_plugin", fake_install_git_plugin)
+    monkeypatch.setattr("src.plugins.registry.get_external_plugins_dir", lambda *a, **k: external_dir)
+    monkeypatch.setattr("src.plugins.sources.get_external_plugins_dir", lambda *a, **k: external_dir)
+    return calls
+
+
+def test_install_plugin_from_git_loads_and_enables_the_cloned_plugin(mcp, plugins, git_clone):
+    registry = plugins["registry"]
+    assert registry.get_plugin(UNINSTALLED_PLUGIN_ID) is None
+
+    result = assert_ok(
+        call(mcp, "install_plugin", repository=GIT_REPOSITORY, branch="main"),
+        "install_plugin",
+    )
+
+    assert result["plugin_id"] == UNINSTALLED_PLUGIN_ID
+    assert result["source"] == "git"
+    assert git_clone == [{"repo_url": GIT_REPOSITORY, "plugin_id": None, "branch": "main"}], (
+        "the clone was not asked for the repository and branch the user gave"
+    )
+    assert registry.get_plugin(UNINSTALLED_PLUGIN_ID) is not None, "the cloned plugin never reached the registry"
+    stored = stored_plugin_config(plugins["config_path"], UNINSTALLED_PLUGIN_ID)
+    assert stored and stored.get("enabled") is True, "installed from git but not persisted as enabled"
+
+
+def test_install_plugin_from_git_honours_the_plugin_id_override(mcp, plugins, git_clone):
+    result = assert_ok(
+        call(mcp, "install_plugin", repository=GIT_REPOSITORY, plugin_id="harness_custom", auto_enable=False),
+        "install_plugin",
+    )
+
+    assert result["plugin_id"] == "harness_custom"
+    assert git_clone[0]["plugin_id"] == "harness_custom"
+    assert plugins["registry"].get_plugin("harness_custom") is not None
+    assert not plugins["registry"].is_enabled("harness_custom")
+
+
+def test_install_plugin_from_git_applies_initial_config(mcp, plugins, git_clone):
+    assert_ok(
+        call(mcp, "install_plugin", repository=GIT_REPOSITORY, initial_config={"station_id": "9414290"}),
+        "install_plugin",
+    )
+    stored = stored_plugin_config(plugins["config_path"], UNINSTALLED_PLUGIN_ID)
+    assert stored["station_id"] == "9414290"
+
+
+def test_install_plugin_from_git_rejects_an_invalid_branch_before_cloning(mcp, plugins, git_clone):
+    message = call_expect_error(mcp, "install_plugin", repository=GIT_REPOSITORY, branch="not a ref")
+    assert "branch" in message.lower()
+    assert git_clone == [], "an invalid ref must be refused before any clone is attempted"
+
+
+def test_install_plugin_without_a_target_is_an_error(mcp, plugins, git_clone):
+    message = call_expect_error(mcp, "install_plugin")
+    assert "plugin_id" in message and "repository" in message
+    assert git_clone == []
+
+
+def test_install_plugin_registry_path_is_unchanged_when_only_plugin_id_is_given(mcp, plugins, git_clone):
+    assert_ok(call(mcp, "install_plugin", plugin_id=UNINSTALLED_PLUGIN_ID), "install_plugin")
+    assert git_clone == [], "a registry install must not go through the git clone path"
+    assert plugins["registry"].get_plugin(UNINSTALLED_PLUGIN_ID) is not None
+
+
+# ---------------------------------------------------------------------------
+# Plugin instances — the Integrations page's "Add instance" / remove
+# ---------------------------------------------------------------------------
+
+
+def test_create_plugin_instance_registers_it_and_persists_its_config(mcp, plugins):
+    registry = plugins["registry"]
+    assert registry.list_instances(PLUGIN_ID) == []
+
+    result = assert_ok(call(mcp, "create_plugin_instance", plugin_id=PLUGIN_ID, label="SF"), "create_plugin_instance")
+
+    assert result["instance_key"] == f"{PLUGIN_ID}:sf", "the label must be normalised the way the registry stores it"
+    assert result["instance_label"] == "sf"
+    assert [i["key"] for i in registry.list_instances(PLUGIN_ID)] == [f"{PLUGIN_ID}:sf"]
+    assert stored_plugin_config(plugins["config_path"], f"{PLUGIN_ID}:sf") is not None, (
+        "the instance exists in memory but nothing was written to config.json"
+    )
+
+
+def test_list_plugin_instances_reads_back_what_was_created(mcp, plugins):
+    assert call(mcp, "list_plugin_instances", plugin_id=PLUGIN_ID) == {
+        "plugin_id": PLUGIN_ID,
+        "instances": [],
+        "total": 0,
+    }
+    assert_ok(call(mcp, "create_plugin_instance", plugin_id=PLUGIN_ID, label="sf"), "create_plugin_instance")
+
+    listed = call(mcp, "list_plugin_instances", plugin_id=PLUGIN_ID)
+
+    assert listed["total"] == 1
+    assert listed["instances"][0]["key"] == f"{PLUGIN_ID}:sf"
+    assert listed["instances"][0]["enabled"] is False
+
+
+def test_list_plugin_instances_accepts_an_instance_key(mcp, plugins):
+    assert_ok(call(mcp, "create_plugin_instance", plugin_id=PLUGIN_ID, label="sf"), "create_plugin_instance")
+    listed = call(mcp, "list_plugin_instances", plugin_id=f"{PLUGIN_ID}:sf")
+    assert listed["plugin_id"] == PLUGIN_ID
+    assert listed["total"] == 1
+
+
+def test_create_plugin_instance_twice_is_reported_not_duplicated(mcp, plugins):
+    assert_ok(call(mcp, "create_plugin_instance", plugin_id=PLUGIN_ID, label="sf"), "create_plugin_instance")
+    message = call_expect_error(mcp, "create_plugin_instance", plugin_id=PLUGIN_ID, label="sf")
+    assert "already exists" in message
+    assert len(plugins["registry"].list_instances(PLUGIN_ID)) == 1
+
+
+def test_create_plugin_instance_reports_an_error_for_an_unknown_plugin(mcp, plugins):
+    call_expect_error(mcp, "create_plugin_instance", plugin_id="not_a_plugin", label="sf")
+
+
+def test_instance_can_be_configured_and_enabled_through_the_plugin_tools(mcp, plugins):
+    """The compound key is what configure_plugin / enable_plugin take."""
+    assert_ok(call(mcp, "create_plugin_instance", plugin_id=PLUGIN_ID, label="sf"), "create_plugin_instance")
+    key = f"{PLUGIN_ID}:sf"
+
+    assert_ok(call(mcp, "configure_plugin", plugin_id=key, config={"station_id": "9414290"}), "configure_plugin")
+    assert_ok(call(mcp, "enable_plugin", plugin_id=key), "enable_plugin")
+
+    stored = stored_plugin_config(plugins["config_path"], key)
+    assert stored["station_id"] == "9414290"
+    assert stored["enabled"] is True
+    assert plugins["registry"].is_enabled(key)
+
+
+def test_delete_plugin_instance_removes_it_and_purges_its_config(mcp, plugins):
+    registry = plugins["registry"]
+    assert_ok(call(mcp, "create_plugin_instance", plugin_id=PLUGIN_ID, label="sf"), "create_plugin_instance")
+    assert stored_plugin_config(plugins["config_path"], f"{PLUGIN_ID}:sf") is not None
+
+    assert_ok(call(mcp, "delete_plugin_instance", plugin_id=PLUGIN_ID, label="sf"), "delete_plugin_instance")
+
+    assert registry.list_instances(PLUGIN_ID) == []
+    assert stored_plugin_config(plugins["config_path"], f"{PLUGIN_ID}:sf") is None, (
+        "the instance was dropped from the registry but its config.json entry survived"
+    )
+    assert registry.get_plugin(PLUGIN_ID) is not None, "deleting an instance must never touch the base plugin"
+
+
+def test_delete_plugin_instance_reports_an_error_for_an_unknown_instance(mcp, plugins):
+    message = call_expect_error(mcp, "delete_plugin_instance", plugin_id=PLUGIN_ID, label="nope")
+    assert "not found" in message.lower()
+
+
+# ---------------------------------------------------------------------------
+# Demo pages — the Integrations page's "Create Demo Page"
+# ---------------------------------------------------------------------------
+
+
+def _configure_harness(mcp: Any) -> None:
+    assert_ok(call(mcp, "configure_plugin", plugin_id=PLUGIN_ID, config={"station_id": "9414290"}), "configure_plugin")
+
+
+def test_get_plugin_demo_page_reports_no_page_before_one_is_created(mcp, plugins):
+    assert call(mcp, "get_plugin_demo_page", plugin_id=PLUGIN_ID) == {
+        "plugin_id": PLUGIN_ID,
+        "device_type": "flagship",
+        "has_demo_template": True,
+        "exists": False,
+        "page_id": None,
+    }
+
+
+def test_create_plugin_demo_page_persists_a_page_visible_to_list_pages(mcp, plugins, services):
+    _configure_harness(mcp)
+
+    result = assert_ok(call(mcp, "create_plugin_demo_page", plugin_id=PLUGIN_ID), "create_plugin_demo_page")
+
+    assert result["created"] is True
+    assert result["recreated"] is False
+    assert result["device_type"] == "flagship"
+    page_ids = {p["id"] for p in call(mcp, "list_pages")}
+    assert result["page_id"] in page_ids, "create_plugin_demo_page reported a page that list_pages cannot see"
+    stored = services["pages"].get_page(result["page_id"])
+    assert stored.demo_plugin_id == PLUGIN_ID
+    assert stored.template[0] == f"TIDE {{{{{PLUGIN_ID}.next_high}}}}"
+
+    status = call(mcp, "get_plugin_demo_page", plugin_id=PLUGIN_ID)
+    assert status["exists"] is True
+    assert status["page_id"] == result["page_id"]
+
+
+def test_create_plugin_demo_page_honours_device_type(mcp, plugins, services):
+    _configure_harness(mcp)
+    result = assert_ok(
+        call(mcp, "create_plugin_demo_page", plugin_id=PLUGIN_ID, device_type="note"), "create_plugin_demo_page"
+    )
+    assert result["device_type"] == "note"
+    assert services["pages"].get_page(result["page_id"]).device_type == "note"
+    assert call(mcp, "get_plugin_demo_page", plugin_id=PLUGIN_ID, device_type="note")["exists"] is True
+    assert call(mcp, "get_plugin_demo_page", plugin_id=PLUGIN_ID, device_type="flagship")["exists"] is False
+
+
+def test_create_plugin_demo_page_keeps_an_existing_page_unless_told_to_recreate(mcp, plugins, services):
+    _configure_harness(mcp)
+    first = assert_ok(call(mcp, "create_plugin_demo_page", plugin_id=PLUGIN_ID), "create_plugin_demo_page")
+    services["pages"].update_page(first["page_id"], _page_update(name="Edited By Hand"))
+
+    kept = assert_ok(call(mcp, "create_plugin_demo_page", plugin_id=PLUGIN_ID), "create_plugin_demo_page")
+
+    assert kept["created"] is False
+    assert kept["page_id"] == first["page_id"]
+    assert services["pages"].get_page(first["page_id"]).name == "Edited By Hand", (
+        "a second call without recreate=True must not replace the user's edited demo page"
+    )
+
+    rebuilt = assert_ok(
+        call(mcp, "create_plugin_demo_page", plugin_id=PLUGIN_ID, recreate=True), "create_plugin_demo_page"
+    )
+    assert rebuilt["created"] is True
+    assert rebuilt["recreated"] is True
+    assert rebuilt["page_id"] != first["page_id"]
+    assert services["pages"].get_page(first["page_id"]) is None
+    assert len([p for p in services["pages"].list_pages() if p.demo_plugin_id == PLUGIN_ID]) == 1
+
+
+def test_create_plugin_demo_page_refuses_until_required_settings_are_configured(mcp, plugins, services):
+    message = call_expect_error(mcp, "create_plugin_demo_page", plugin_id=PLUGIN_ID)
+    assert "station_id" in message
+    assert services["pages"].list_pages() == []
+
+
+def test_create_plugin_demo_page_reports_a_plugin_without_a_demo(mcp, plugins):
+    _configure_harness(mcp)
+    # harness_surf's manifest has a demo too, so strip it off the live manifest.
+    manifest = plugins["registry"].get_manifest(PLUGIN_ID)
+    manifest.demo = None
+    message = call_expect_error(mcp, "create_plugin_demo_page", plugin_id=PLUGIN_ID)
+    assert "demo" in message.lower()
+
+
+def test_create_plugin_demo_page_reports_an_error_for_an_unknown_plugin(mcp, plugins):
+    call_expect_error(mcp, "create_plugin_demo_page", plugin_id="not_a_plugin")
+
+
+def _page_update(**fields: Any) -> Any:
+    from src.pages.models import PageUpdate
+
+    return PageUpdate(**fields)
+
+
+# ---------------------------------------------------------------------------
+# Discovery reads the configure flow needs
+# ---------------------------------------------------------------------------
+
+
+def test_list_plugin_options_browses_the_plugin_catalog(mcp, plugins):
+    result = call(mcp, "list_plugin_options", plugin_id=PLUGIN_ID, options_id="stations")
+
+    assert result["plugin_id"] == PLUGIN_ID
+    assert result["options_id"] == "stations"
+    assert [o["value"] for o in result["options"]] == ["9414290", "8518750"]
+    assert result["options"][0]["label"] == "Golden Gate"
+    assert result["has_more"] is False
+    assert result["error"] is None
+
+
+def test_list_plugin_options_passes_the_query_to_the_provider(mcp, plugins):
+    result = call(mcp, "list_plugin_options", plugin_id=PLUGIN_ID, options_id="stations", query="battery")
+    assert [o["value"] for o in result["options"]] == ["8518750"]
+
+
+def test_list_plugin_options_rejects_an_undeclared_options_id(mcp, plugins):
+    message = call_expect_error(mcp, "list_plugin_options", plugin_id=PLUGIN_ID, options_id="nope")
+    assert "stations" in message, "the error must name the providers the plugin does declare"
+
+
+def test_list_plugin_options_reports_an_error_for_an_unknown_plugin(mcp, plugins):
+    call_expect_error(mcp, "list_plugin_options", plugin_id="not_a_plugin", options_id="stations")
+
+
+def test_get_plugin_manifest_returns_the_raw_manifest(mcp, plugins):
+    manifest = call(mcp, "get_plugin_manifest", plugin_id=PLUGIN_ID)
+    assert manifest["id"] == PLUGIN_ID
+    assert manifest["version"] == "1.0.0"
+    assert "station_id" in manifest["settings_schema"]["properties"]
+    assert "flagship" in manifest["demo"]
+
+
+def test_get_plugin_manifest_reports_an_error_for_an_unknown_plugin(mcp, plugins):
+    call_expect_error(mcp, "get_plugin_manifest", plugin_id="not_a_plugin")
+
+
+def test_list_plugin_errors_returns_both_failure_modes(mcp, plugins):
+    result = call(mcp, "list_plugin_errors")
+    assert result == {"errors": {}, "fetch_breakers": {}}
+
+
+def test_list_plugin_errors_surfaces_a_plugin_that_failed_to_load(mcp, plugins, tmp_path):
+    broken = tmp_path / "external_plugins" / "harness_broken"
+    _write_plugin(broken, "harness_broken")
+    (broken / "__init__.py").write_text("raise RuntimeError('boom at import')\n", encoding="utf-8")
+    plugins["restart"]()
+
+    result = call(mcp, "list_plugin_errors")
+
+    assert "harness_broken" in result["errors"], f"a plugin that failed to import is not reported: {result}"
 
 
 # ---------------------------------------------------------------------------
