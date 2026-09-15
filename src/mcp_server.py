@@ -229,6 +229,24 @@ def _build_mcp_server() -> Any:
             "  7. Optionally schedule pages with create_schedule()\n"
             "  8. Adjust display, location, polling or quiet hours with\n"
             "     update_setting() — read them first via get_settings_summary()\n\n"
+            "PAGE EDITOR\n"
+            "  Everything the web page editor saves is reachable here:\n"
+            "  • update_page() takes device_type, notes_wide/notes_tall (note_array\n"
+            "    geometry), line_metadata (per-line alignment + wrap), duration_seconds\n"
+            "    and a per-page transition override (transition_strategy,\n"
+            "    transition_interval_ms, transition_step_size; clear_transition_override\n"
+            "    removes it). A device/size retarget answers incompatible_references —\n"
+            "    the boards, schedules and silence pages the page no longer fits.\n"
+            "    Relay them to the user; nothing is changed automatically.\n"
+            "  • export_page(page_id) → a portable share string; import_page(share_string)\n"
+            "    creates a new page from one (the editor's Share / Import buttons).\n"
+            "  • list_staff_picks() + import_staff_pick(pick_id) — the curated gallery.\n"
+            "  • get_current_display() — the raw template + line_metadata of the page\n"
+            "    a board is showing, to start a new page from.\n"
+            "  • list_formula_functions() — every function usable inside {{= ...}}.\n"
+            "  • Transition Lab (beta, Settings → Beta): list_transition_plugins(),\n"
+            "    test_transition_live(plugin_id, to_page_id) runs one on the real board,\n"
+            "    restore_board() snaps it back to its active page afterwards.\n\n"
             "DEBUGGING TOOLS\n"
             "  • render_page_preview(template_lines, device_type) — see how a\n"
             "    template will look WITHOUT creating a page. Use this to iterate.\n"
@@ -614,6 +632,12 @@ def _build_mcp_server() -> Any:
         template_lines: list[str],
         device_type: str = "flagship",
         duration_seconds: int = 300,
+        line_metadata: list[dict[str, Any]] | None = None,
+        notes_wide: int | None = None,
+        notes_tall: int | None = None,
+        transition_strategy: str | None = None,
+        transition_interval_ms: int | None = None,
+        transition_step_size: int | None = None,
     ) -> dict[str, Any]:
         """Create a new template page on FiestaBoard.
 
@@ -622,14 +646,31 @@ def _build_mcp_server() -> Any:
 
         Flagship display is 22 columns × 6 rows.
         Note display is 15 columns × 3 rows.
+        A note_array is notes_wide × notes_tall Notes: 15·notes_wide columns
+        × 3·notes_tall rows.
 
         Args:
             name: Display name for the page.
             template_lines: List of template strings, one per row. Must match
                             the number of rows for the device_type
-                            (6 for flagship, 3 for note).
-            device_type: 'flagship' (default) or 'note'.
+                            (6 for flagship, 3 for note, 3·notes_tall for
+                            note_array).
+            device_type: 'flagship' (default), 'note', or 'note_array'.
             duration_seconds: How long to show this page in a time-mode collection (default: 300).
+            line_metadata: Optional per-line dicts with "alignment"
+                           ('left'/'center'/'right') and "wrap" (bool), one
+                           per template line — the editor's alignment and
+                           wrap toggles. Omitted = left-aligned, no wrap.
+            notes_wide: For note_array only — Notes across (1–8). Omitted = 1.
+            notes_tall: For note_array only — Notes down (1–8). Omitted = 1.
+            transition_strategy: Optional per-page transition override —
+                                 'column', 'reverse-column', 'edges-to-center',
+                                 'row', 'diagonal', 'random', or the
+                                 'plugin:<id>' string from
+                                 list_transition_plugins(). Omitted = the
+                                 system transition from get_settings_summary().
+            transition_interval_ms: Optional per-page step interval (0–5000 ms).
+            transition_step_size: Optional per-page step size (≥ 1).
 
         Example template_lines for a weather page:
             ["{{white}}{{= UPPER(weather.city)}}", "{{yellow}}{{weather.temperature}}°F",
@@ -640,6 +681,12 @@ def _build_mcp_server() -> Any:
             template_lines=template_lines,
             device_type=device_type,
             duration_seconds=duration_seconds,
+            line_metadata=line_metadata,
+            notes_wide=notes_wide,
+            notes_tall=notes_tall,
+            transition_strategy=transition_strategy,
+            transition_interval_ms=transition_interval_ms,
+            transition_step_size=transition_step_size,
         )
 
     @_tool(destructive=False, idempotent=True)
@@ -648,20 +695,62 @@ def _build_mcp_server() -> Any:
         name: str | None = None,
         template_lines: list[str] | None = None,
         duration_seconds: int | None = None,
+        device_type: str | None = None,
+        notes_wide: int | None = None,
+        notes_tall: int | None = None,
+        line_metadata: list[dict[str, Any]] | None = None,
+        transition_strategy: str | None = None,
+        transition_interval_ms: int | None = None,
+        transition_step_size: int | None = None,
+        clear_transition_override: bool = False,
     ) -> dict[str, Any]:
-        """Update an existing page's name, template content, or duration.
+        """Update any field of an existing page. Only the fields you pass change.
+
+        Covers everything the web page editor saves. Changing device_type,
+        notes_wide or notes_tall RETARGETS the page to a new size: content
+        that no longer fits is truncated at render time, and the response's
+        incompatible_references lists every board reference (a schedule
+        entry, a board's active page, a silence page) that now points this
+        page at a board it no longer fits. Nothing is changed automatically
+        — relay the list to the user so they can fix the references.
 
         Args:
             page_id: The page identifier (from list_pages()).
             name: New display name (optional).
-            template_lines: New template content (optional). Replaces all lines.
+            template_lines: New template content (optional). Replaces all lines;
+                            must match the row count of the (new) device size.
             duration_seconds: New time-mode duration in seconds (optional).
+            device_type: Retarget to 'flagship', 'note', or 'note_array' (optional).
+            notes_wide: New note_array width in Notes, 1–8 (optional).
+            notes_tall: New note_array height in Notes, 1–8 (optional).
+            line_metadata: New per-line alignment/wrap list (optional). Replaces
+                           the whole list; one {"alignment", "wrap"} dict per line.
+            transition_strategy: New per-page transition override (optional) —
+                                 a built-in strategy name or a 'plugin:<id>'
+                                 from list_transition_plugins().
+            transition_interval_ms: New per-page step interval, 0–5000 (optional).
+            transition_step_size: New per-page step size, ≥ 1 (optional).
+            clear_transition_override: Set True to remove the per-page
+                transition override so the page follows the system
+                transition again. Needed because omitting the transition
+                fields means "unchanged".
+
+        Returns: {status, message, page_id, name, device_type,
+        incompatible_references: [{board_id, board_name, surface, schedule_id}]}.
         """
         return ops_executors.update_page(
             page_id,
             name=name,
             template_lines=template_lines,
             duration_seconds=duration_seconds,
+            device_type=device_type,
+            notes_wide=notes_wide,
+            notes_tall=notes_tall,
+            line_metadata=line_metadata,
+            transition_strategy=transition_strategy,
+            transition_interval_ms=transition_interval_ms,
+            transition_step_size=transition_step_size,
+            clear_transition_override=clear_transition_override,
         )
 
     @_tool(destructive=True)
@@ -681,6 +770,8 @@ def _build_mcp_server() -> Any:
         template_lines: list[str],
         device_type: str = "flagship",
         line_metadata: list[dict[str, Any]] | None = None,
+        notes_wide: int = 1,
+        notes_tall: int = 1,
     ) -> dict[str, Any]:
         """Render a template to see how it will look BEFORE saving it as a page.
 
@@ -692,16 +783,20 @@ def _build_mcp_server() -> Any:
         Args:
             template_lines: Template strings to render (one per row). Extra
                             rows are dropped; missing rows are filled with blanks.
-            device_type: 'flagship' (22×6) or 'note' (15×3).
+            device_type: 'flagship' (22×6), 'note' (15×3), or 'note_array'
+                         (15·notes_wide × 3·notes_tall).
             line_metadata: Optional per-line dicts with "alignment"
                            ('left'/'center'/'right') and "wrap" (bool) — the
                            same metadata saved pages carry. Include it to
                            preview alignment and wrap faithfully.
+            notes_wide: For note_array — Notes across (1–8). Ignored otherwise.
+            notes_tall: For note_array — Notes down (1–8). Ignored otherwise.
 
         Returns:
             {
               "rendered": "<grid string with \\n between rows>",
               "device_type": "flagship",
+              "rows": 6, "cols": 22,
               "context_plugins": ["weather", "date_time", ...]
             }
         Unresolved variables render as "???" — that's a sign of a typo or a
@@ -718,10 +813,11 @@ def _build_mcp_server() -> Any:
         # board-aware plugins see the true geometry. The pre-#1765 call
         # passed no board at all, and every plugin previewed board-blind.
         # Unknown device types fall back to the default, matching
-        # render_lines' own never-crash fallback.
+        # render_lines' own never-crash fallback. A note_array is sized from
+        # notes_wide × notes_tall, exactly as a saved page's geometry is.
         render_device_type = device_type or DEFAULT_DEVICE_TYPE
         try:
-            dims = resolve_dimensions(render_device_type)
+            dims = resolve_dimensions(render_device_type, notes_wide, notes_tall)
         except ValueError:
             render_device_type = DEFAULT_DEVICE_TYPE
             dims = resolve_dimensions(render_device_type)
@@ -731,10 +827,14 @@ def _build_mcp_server() -> Any:
             context=context,
             line_metadata=line_metadata,
             device_type=device_type,
+            notes_wide=notes_wide,
+            notes_tall=notes_tall,
         )
         return {
             "rendered": rendered,
             "device_type": device_type,
+            "rows": dims.rows,
+            "cols": dims.cols,
             "context_plugins": sorted(context.keys()),
         }
 
@@ -825,6 +925,258 @@ def _build_mcp_server() -> Any:
             "errors": [{"line": e.line, "column": e.column, "message": e.message} for e in errors],
             "device_type": device_type,
         }
+
+    @_tool(read_only=True)
+    def list_formula_functions() -> dict[str, Any]:
+        """List every function usable inside a {{= ...}} template expression.
+
+        The reference behind the editor's function picker: conditionals,
+        arithmetic, text and date helpers, each with its signature and a
+        one-line summary. Use it when writing formulas for a page template
+        or a variable-mode collection rule, before validate_template().
+
+        Returns: {functions: {NAME: {category, signature, summary}}}.
+        """
+        from .templates.expressions import function_signatures
+
+        return {"functions": _serialize(function_signatures())}
+
+    # -----------------------------------------------------------------------
+    # Page sharing — the editor's Share / Import buttons and the staff-picks
+    # gallery. Share strings are the portable base64url envelope
+    # src.pages.share produces; a string from another install imports here.
+    # -----------------------------------------------------------------------
+
+    @_tool(read_only=True)
+    def export_page(page_id: str) -> dict[str, Any]:
+        """Export a page as a portable share string (the editor's Share button).
+
+        The string encodes the page's content — name, template, line_metadata,
+        duration and transition override — but never its id or timestamps.
+        Give it to another FiestaBoard user; import_page() recreates the page.
+        Read-only: nothing changes on this install.
+
+        Args:
+            page_id: The page identifier (from list_pages()).
+
+        Returns: {page_id, name, device_type, share_string}.
+        """
+        from .pages.service import get_page_service
+        from .pages.share import encode_page
+
+        page = get_page_service().get_page(page_id)
+        if page is None:
+            raise ToolError(f"Page '{page_id}' not found.")
+        return {
+            "page_id": page.id,
+            "name": page.name,
+            "device_type": page.device_type,
+            "share_string": encode_page(page),
+        }
+
+    @_tool(destructive=False)
+    def import_page(share_string: str) -> dict[str, Any]:
+        """Create a NEW page from a share string (the editor's Import button).
+
+        Every call creates another page — importing the same string twice
+        gives two pages. The imported page is not shown on any board until
+        you set_active_page() or schedule it.
+
+        Args:
+            share_string: A share string from export_page() or another
+                          FiestaBoard user. Malformed strings are reported
+                          as errors and nothing is created.
+
+        Returns: {status, message, page_id, name, device_type}.
+        """
+        return ops_executors.import_page(share_string)
+
+    @_tool(read_only=True)
+    def list_staff_picks() -> list[dict[str, Any]] | dict[str, Any]:
+        """List the curated staff-pick pages that ship with FiestaBoard.
+
+        Each entry has id (use it with import_staff_pick()), name,
+        description, device_type, tags, and required_plugins — the plugins
+        its template references, which must be installed and enabled
+        (list_installed_plugins()) for the page to render without '???'.
+        Share strings are deliberately not included here.
+        """
+        from .staff_picks.routes import _load_staff_picks
+
+        picks = _load_staff_picks()
+        return _serialize([{k: v for k, v in pick.items() if k != "share_string"} for pick in picks])
+
+    @_tool(destructive=False)
+    def import_staff_pick(pick_id: str) -> dict[str, Any]:
+        """Create a NEW page from a staff pick (the gallery's Add button).
+
+        Every call creates another page. Check the pick's required_plugins
+        from list_staff_picks() and install/enable them first, or the page
+        will render '???' where their variables are.
+
+        Args:
+            pick_id: The staff pick identifier (from list_staff_picks()).
+
+        Returns: {status, message, page_id, name, device_type, pick_id,
+        required_plugins}.
+        """
+        return ops_executors.import_staff_pick(pick_id)
+
+    @_tool(read_only=True)
+    def get_current_display(board_id: str | None = None) -> dict[str, Any]:
+        """The page a board is showing right now, with its raw template content.
+
+        Resolves schedule mode and collections to the concrete page, like
+        get_active_page(), but returns the CONTENT: for a template page the
+        raw template ({{variables}} intact) plus its line_metadata, so you can
+        start a new page from it; for other page types the rendered rows and
+        line_metadata null. Read-only.
+
+        Args:
+            board_id: Board to inspect on a multi-board install (from the boards
+                      list in get_settings_summary()). Omitted = the primary board.
+
+        Returns: {board_id, page_id, page_name, page_type, device_type,
+        notes_wide, notes_tall, template: [rows], line_metadata}.
+        """
+        from .collections.models import is_collection_id
+        from .pages.service import get_page_service
+        from .settings.service import get_settings_service
+
+        svc = get_settings_service()
+        if board_id is not None:
+            boards = svc.get_board_settings().boards or []
+            if not any(isinstance(b, dict) and b.get("id") == board_id for b in boards):
+                raise ToolError(f"Board not found: {board_id}")
+
+        # Mirrors GET /pages/current-display, with a board_id so a secondary
+        # board's content is reachable too (the REST route is primary-only).
+        if svc.is_schedule_enabled(board_id):
+            from .schedules.service import get_schedule_service
+            from .time_service import get_time_service
+
+            now = get_time_service().get_current_time()
+            active_ref = get_schedule_service().get_active_page_id(
+                now.time(), now.strftime("%A").lower(), board_id=board_id
+            )
+        else:
+            active_ref = svc.get_active_page_id(board_id)
+        if not active_ref:
+            where = f" for board '{board_id}'" if board_id is not None else ""
+            raise ToolError(f"No active page set{where}.")
+
+        if is_collection_id(active_ref):
+            from .collections.service import get_collection_service
+
+            active_ref = get_collection_service().resolve_page_id(active_ref)
+            if not active_ref:
+                raise ToolError("Collection could not be resolved to a page.")
+
+        page_service = get_page_service()
+        page = page_service.get_page(active_ref)
+        if page is None:
+            raise ToolError(f"Active page '{active_ref}' not found.")
+
+        if page.type == "template" and page.template:
+            template = list(page.template)
+            line_metadata = [m.model_dump() for m in page.line_metadata] if page.line_metadata else None
+        else:
+            result = page_service.preview_page(page.id, force_refresh=True)
+            template = result.formatted.split("\n") if result is not None and result.available else []
+            line_metadata = None
+
+        return {
+            "board_id": board_id,
+            "page_id": page.id,
+            "page_name": page.name,
+            "page_type": page.type,
+            "device_type": page.device_type,
+            "notes_wide": page.notes_wide,
+            "notes_tall": page.notes_tall,
+            "template": template,
+            "line_metadata": line_metadata,
+        }
+
+    # -----------------------------------------------------------------------
+    # Transition Lab (beta) — the /transitions endpoints. Gated behind
+    # Settings → Beta → transition plugins, exactly like the REST routes.
+    # -----------------------------------------------------------------------
+
+    @_tool(read_only=True)
+    def list_transition_plugins() -> dict[str, Any]:
+        """List installed transition plugins (frame-by-frame board animations).
+
+        Each entry has id, name, description, settings_schema (its config
+        form), transition_settings (its frame/runtime caps), config (its
+        current bound config) and strategy — the 'plugin:<id>' string to
+        store as a page's transition_strategy via update_page(), or as the
+        system transition via update_setting('transitions', ...).
+
+        Transition plugins are a beta: while Settings → Beta has them off
+        this reports an error, the same way the web UI hides the picker.
+        """
+        from .transitions import service as transitions
+
+        refusal = ops_executors._transition_beta_refusal()
+        if refusal is not None:
+            return refusal
+        return {"plugins": _serialize(transitions.list_installed_transition_plugins())}
+
+    @_tool(destructive=False)
+    async def test_transition_live(
+        plugin_id: str,
+        to_page_id: str,
+        from_page_id: str | None = None,
+        config: dict[str, Any] | None = None,
+        board_id: str | None = None,
+    ) -> dict[str, Any]:
+        """Run a transition plugin ONCE on the real board (the Transition Lab).
+
+        Snaps from_page_id onto the board (when given), then animates to
+        to_page_id with the plugin. The board is LEFT showing to_page_id —
+        call restore_board() afterwards, or wait for the display loop to put
+        the active page back. Does not change which page is active.
+
+        A paused board or an active silence window returns status "blocked"
+        (deliberate policy — relay it to the user, don't retry). Beta-gated
+        like list_transition_plugins().
+
+        Args:
+            plugin_id: The transition plugin (from list_transition_plugins()).
+            to_page_id: The page the transition lands on (from list_pages()).
+            from_page_id: Optional page shown first so the animation visibly
+                          starts from it. Omitted = whatever the board shows now.
+            config: Optional per-run overrides merged over the plugin's
+                    current config (keys from its settings_schema).
+            board_id: Board to target on a multi-board install (from the boards
+                      list in get_settings_summary()). Omitted = the primary board.
+
+        Returns: {status, message, sent, plugin_id, from_page_id, to_page_id, board_id}.
+        """
+        return await ops_executors.test_transition_live(
+            plugin_id,
+            to_page_id,
+            from_page_id=from_page_id,
+            config=config,
+            board_id=board_id,
+        )
+
+    @_tool(destructive=False, idempotent=True)
+    async def restore_board(board_id: str | None = None) -> dict[str, Any]:
+        """Snap a board back to its active page after test_transition_live().
+
+        Re-renders the board's active page and sends it plainly (no
+        transition), cancelling any still-running plugin transition. Safe to
+        repeat. A paused board or an active silence window returns status
+        "blocked". Beta-gated like list_transition_plugins().
+
+        Args:
+            board_id: Board to restore on a multi-board install (from the boards
+                      list in get_settings_summary()). Omitted = the primary board.
+
+        Returns: {status, message, page_id, sent, board_id}.
+        """
+        return await ops_executors.restore_board(board_id=board_id)
 
     # -----------------------------------------------------------------------
     # Schedule tools

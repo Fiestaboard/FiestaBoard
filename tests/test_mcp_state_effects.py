@@ -95,6 +95,17 @@ COVERED = {
     "preview_saved_page",
     "validate_template",
     "update_setting",
+    # Page editor parity: every field the editor saves, share strings,
+    # staff picks, the live display, and the Transition Lab.
+    "export_page",
+    "import_page",
+    "list_staff_picks",
+    "import_staff_pick",
+    "get_current_display",
+    "list_transition_plugins",
+    "test_transition_live",
+    "restore_board",
+    "list_formula_functions",
 }
 
 #: Tools not yet covered here, each with the reason. Not an exemption list.
@@ -816,12 +827,19 @@ def test_read_only_tools_leave_every_store_untouched(mcp, services, plugins, eng
         "render_page_preview": {"template_lines": FLAGSHIP_TEMPLATE, "device_type": "flagship"},
         "validate_template": {"template": "\n".join(FLAGSHIP_TEMPLATE), "device_type": "flagship"},
         "get_plugin_data": {"plugin_id": PLUGIN_ID},
+        "export_page": {"page_id": page["page_id"]},
     }
     skipped = {"list_registry_plugins"}  # network-backed registry
     # get_plugin_data reads a plugin's live values, which needs it enabled
-    # and configured — writes that belong BEFORE the snapshot.
+    # and configured — writes that belong BEFORE the snapshot. Likewise
+    # get_current_display needs an active page and list_transition_plugins
+    # needs the beta gate open.
     assert_ok(call(mcp, "configure_plugin", plugin_id=PLUGIN_ID, config={"station_id": "9414290"}), "configure_plugin")
     assert_ok(call(mcp, "enable_plugin", plugin_id=PLUGIN_ID), "enable_plugin")
+    from src.settings.service import get_settings_service
+
+    get_settings_service().set_active_page_id(page["page_id"])
+    get_settings_service().update_beta_settings({"transition_plugins_enabled": True})
 
     before = _persisted_files(tmp_path)
     for name in sorted(READ_ONLY - skipped):
@@ -1393,12 +1411,22 @@ def test_get_settings_summary_boards_never_leak_credentials(mcp, services, two_b
 class _FakeClient:
     def __init__(self):
         self.rendered: list[list[list[int]]] = []
+        self.render_kwargs: list[dict[str, Any]] = []
+        self.snapped: list[list[list[int]]] = []
         self._last_characters = None
 
     def render(self, board_array, **kwargs):
         self.rendered.append(board_array)
+        self.render_kwargs.append(kwargs)
         self._last_characters = board_array
         return (True, True)
+
+    def send_characters(self, board_array, **kwargs):
+        # The Transition Lab snaps the from-page onto the board plainly
+        # before animating to the to-page.
+        self.snapped.append(board_array)
+        self._last_characters = board_array
+        return True
 
 
 class _FakeRuntime:
@@ -1719,3 +1747,481 @@ def test_render_page_preview_applies_line_metadata(mcp, services):
     first_row = result["rendered"].split("\n")[0]
     assert first_row.strip() == "HI"
     assert first_row.index("HI") > 0, "center alignment from line_metadata was not applied"
+
+
+# ---------------------------------------------------------------------------
+# Page editor parity
+#
+# Every control the page editor saves must be reachable from update_page /
+# create_page, and the sibling editor features — share strings, staff picks,
+# the live display, the Transition Lab — need tools of their own. Each test
+# reads the state back through get_page / list_pages / the fake board client,
+# never through a call record.
+# ---------------------------------------------------------------------------
+
+
+def test_update_page_retargets_device_type_and_get_page_reads_it_back(mcp, services):
+    created = assert_ok(
+        call(mcp, "create_page", name="Retarget", template_lines=FLAGSHIP_TEMPLATE, device_type="flagship"),
+        "create_page",
+    )
+    page_id = created["page_id"]
+
+    result = assert_ok(
+        call(mcp, "update_page", page_id=page_id, device_type="note", template_lines=NOTE_TEMPLATE),
+        "update_page (device_type)",
+    )
+    assert result["incompatible_references"] == [], "no board references this page yet"
+
+    page = assert_ok(call(mcp, "get_page", page_id=page_id), "get_page")
+    assert page["device_type"] == "note", "update_page reported success but device_type did not change"
+    assert page["template"] == NOTE_TEMPLATE
+
+
+def test_update_page_sets_note_array_geometry(mcp, services):
+    created = assert_ok(
+        call(mcp, "create_page", name="Array", template_lines=FLAGSHIP_TEMPLATE, device_type="flagship"),
+        "create_page",
+    )
+    page_id = created["page_id"]
+
+    assert_ok(
+        call(
+            mcp,
+            "update_page",
+            page_id=page_id,
+            device_type="note_array",
+            notes_wide=2,
+            notes_tall=1,
+            template_lines=NOTE_TEMPLATE,
+        ),
+        "update_page (note_array)",
+    )
+
+    page = assert_ok(call(mcp, "get_page", page_id=page_id), "get_page")
+    assert page["device_type"] == "note_array"
+    assert (page["notes_wide"], page["notes_tall"]) == (2, 1), "note-array geometry was not persisted"
+
+
+def test_update_page_persists_line_metadata(mcp, services):
+    created = assert_ok(
+        call(mcp, "create_page", name="Aligned", template_lines=FLAGSHIP_TEMPLATE, device_type="flagship"),
+        "create_page",
+    )
+    page_id = created["page_id"]
+
+    metadata = [{"alignment": "center", "wrap": True}] + [{"alignment": "left", "wrap": False}] * 5
+    assert_ok(call(mcp, "update_page", page_id=page_id, line_metadata=metadata), "update_page (line_metadata)")
+
+    page = assert_ok(call(mcp, "get_page", page_id=page_id), "get_page")
+    assert page["line_metadata"] == metadata, "line_metadata was not persisted"
+    assert page["template"] == FLAGSHIP_TEMPLATE, "setting line_metadata destroyed the template"
+
+
+def test_update_page_persists_a_per_page_transition_override(mcp, services):
+    created = assert_ok(
+        call(mcp, "create_page", name="Animated", template_lines=FLAGSHIP_TEMPLATE, device_type="flagship"),
+        "create_page",
+    )
+    page_id = created["page_id"]
+
+    assert_ok(
+        call(
+            mcp,
+            "update_page",
+            page_id=page_id,
+            transition_strategy="row",
+            transition_interval_ms=120,
+            transition_step_size=2,
+        ),
+        "update_page (transition)",
+    )
+
+    page = assert_ok(call(mcp, "get_page", page_id=page_id), "get_page")
+    assert page["transition_strategy"] == "row"
+    assert page["transition_interval_ms"] == 120
+    assert page["transition_step_size"] == 2
+
+
+def test_update_page_clear_transition_override_restores_the_system_default(mcp, services):
+    """``None`` means "unchanged" for every optional argument, so removing an
+    override needs an explicit flag — the same escape hatch update_schedule
+    has for end_time."""
+    created = assert_ok(
+        call(
+            mcp,
+            "create_page",
+            name="Animated",
+            template_lines=FLAGSHIP_TEMPLATE,
+            device_type="flagship",
+            transition_strategy="row",
+            transition_interval_ms=120,
+        ),
+        "create_page",
+    )
+    page_id = created["page_id"]
+    assert assert_ok(call(mcp, "get_page", page_id=page_id), "get_page")["transition_strategy"] == "row"
+
+    assert_ok(call(mcp, "update_page", page_id=page_id, clear_transition_override=True), "update_page (clear)")
+
+    page = assert_ok(call(mcp, "get_page", page_id=page_id), "get_page")
+    assert page["transition_strategy"] is None, "the override was not cleared"
+    assert page["transition_interval_ms"] is None
+    assert page["transition_step_size"] is None
+    assert page["template"] == FLAGSHIP_TEMPLATE
+
+
+def test_update_page_reports_the_references_a_retarget_leaves_incompatible(mcp, services, two_boards):
+    """Shrinking a flagship page to a note while the flagship board shows it:
+    the REST layer answers ``incompatible_references`` and the editor shows
+    them; the tool must relay the same list rather than a bare success."""
+    created = assert_ok(
+        call(mcp, "create_page", name="Shown", template_lines=FLAGSHIP_TEMPLATE, device_type="flagship"),
+        "create_page",
+    )
+    page_id = created["page_id"]
+    two_boards.set_active_page_id(page_id, board_id="board-main")
+
+    result = assert_ok(
+        call(mcp, "update_page", page_id=page_id, device_type="note", template_lines=NOTE_TEMPLATE),
+        "update_page (retarget)",
+    )
+
+    refs = result["incompatible_references"]
+    assert refs, "the retarget stranded board-main's active page but nothing was reported"
+    assert {(r["board_id"], r["surface"]) for r in refs} == {("board-main", "active_page")}
+    # Warn-only: the reference itself is left alone, exactly like REST.
+    assert two_boards.get_active_page_id(board_id="board-main") == page_id
+
+
+def test_create_page_persists_every_editor_field(mcp, services):
+    metadata = [{"alignment": "right", "wrap": False}] * 3
+    created = assert_ok(
+        call(
+            mcp,
+            "create_page",
+            name="Everything",
+            template_lines=NOTE_TEMPLATE,
+            device_type="note_array",
+            notes_wide=2,
+            notes_tall=1,
+            duration_seconds=45,
+            line_metadata=metadata,
+            transition_strategy="column",
+            transition_interval_ms=80,
+            transition_step_size=3,
+        ),
+        "create_page",
+    )
+
+    page = assert_ok(call(mcp, "get_page", page_id=created["page_id"]), "get_page")
+    assert page["device_type"] == "note_array"
+    assert (page["notes_wide"], page["notes_tall"]) == (2, 1)
+    assert page["duration_seconds"] == 45
+    assert page["line_metadata"] == metadata
+    assert page["transition_strategy"] == "column"
+    assert page["transition_interval_ms"] == 80
+    assert page["transition_step_size"] == 3
+
+
+def test_render_page_preview_sizes_a_note_array_from_notes_wide(mcp, plugins):
+    _enable_harness_plugin(mcp)
+
+    result = assert_ok(
+        call(
+            mcp,
+            "render_page_preview",
+            template_lines=["{{" + PLUGIN_ID + ".board_cols}}", "", ""],
+            device_type="note_array",
+            notes_wide=2,
+            notes_tall=1,
+        ),
+        "render_page_preview",
+    )
+
+    rows = result["rendered"].split("\n")
+    assert "30" in rows[0], f"a 2-wide note array is 30 columns; the plugin saw: {rows[0]!r}"
+    assert len(rows) == 3, "a 2x1 note array is 3 rows tall"
+    assert (result["rows"], result["cols"]) == (3, 30)
+
+
+# -- share strings -----------------------------------------------------------
+
+
+def test_export_page_then_import_page_round_trips_the_template(mcp, services):
+    metadata = [{"alignment": "center", "wrap": False}] * 6
+    created = assert_ok(
+        call(
+            mcp,
+            "create_page",
+            name="Shared",
+            template_lines=FLAGSHIP_TEMPLATE,
+            device_type="flagship",
+            line_metadata=metadata,
+            duration_seconds=60,
+        ),
+        "create_page",
+    )
+
+    exported = assert_ok(call(mcp, "export_page", page_id=created["page_id"]), "export_page")
+    assert exported["share_string"], "export_page returned no share string"
+
+    imported = assert_ok(call(mcp, "import_page", share_string=exported["share_string"]), "import_page")
+    assert imported["page_id"] != created["page_id"], "import must create a NEW page"
+
+    copy = assert_ok(call(mcp, "get_page", page_id=imported["page_id"]), "get_page")
+    assert copy["name"] == "Shared"
+    assert copy["template"] == FLAGSHIP_TEMPLATE
+    assert copy["line_metadata"] == metadata
+    assert copy["duration_seconds"] == 60
+    assert len(assert_ok(call(mcp, "list_pages"), "list_pages")) == 2
+
+
+def test_import_page_rejects_a_string_that_is_not_a_share_string(mcp, services):
+    message = call_expect_error(mcp, "import_page", share_string="definitely not base64 json")
+    assert "share string" in message.lower()
+    assert assert_ok(call(mcp, "list_pages"), "list_pages") == [], "a rejected import must persist nothing"
+
+
+def test_export_page_reports_an_unknown_page(mcp, services):
+    assert "not found" in call_expect_error(mcp, "export_page", page_id="nope").lower()
+
+
+# -- staff picks -------------------------------------------------------------
+
+
+def test_list_staff_picks_lists_the_catalog_without_share_strings(mcp, services):
+    picks = assert_ok(call(mcp, "list_staff_picks"), "list_staff_picks")
+    assert picks, "the checked-in catalog is not empty"
+    for pick in picks:
+        assert {"id", "name", "device_type", "required_plugins"} <= set(pick)
+        assert "share_string" not in pick, "share strings are served only by import_staff_pick"
+
+
+def test_import_staff_pick_creates_a_page_from_the_catalog(mcp, services):
+    pick = assert_ok(call(mcp, "list_staff_picks"), "list_staff_picks")[0]
+
+    imported = assert_ok(call(mcp, "import_staff_pick", pick_id=pick["id"]), "import_staff_pick")
+
+    page = assert_ok(call(mcp, "get_page", page_id=imported["page_id"]), "get_page")
+    assert page["template"], "the imported pick has no template"
+    assert page["device_type"] == pick["device_type"]
+    assert imported["required_plugins"] == pick["required_plugins"]
+
+
+def test_import_staff_pick_reports_an_unknown_pick(mcp, services):
+    assert "not found" in call_expect_error(mcp, "import_staff_pick", pick_id="no-such-pick").lower()
+    assert assert_ok(call(mcp, "list_pages"), "list_pages") == []
+
+
+# -- current display ---------------------------------------------------------
+
+
+def test_get_current_display_returns_the_active_pages_raw_template(mcp, services, two_boards):
+    created = assert_ok(
+        call(
+            mcp,
+            "create_page",
+            name="Live",
+            template_lines=["{{date_time.time_12h}}", "", "", "", "", ""],
+            device_type="flagship",
+            line_metadata=[{"alignment": "center", "wrap": False}] * 6,
+        ),
+        "create_page",
+    )
+    two_boards.set_active_page_id(created["page_id"])
+
+    shown = assert_ok(call(mcp, "get_current_display"), "get_current_display")
+
+    assert shown["page_id"] == created["page_id"]
+    assert shown["template"] == ["{{date_time.time_12h}}", "", "", "", "", ""], "the RAW template, variables intact"
+    assert shown["line_metadata"][0] == {"alignment": "center", "wrap": False}
+    assert shown["device_type"] == "flagship"
+
+
+def test_get_current_display_follows_the_named_board(mcp, services, two_boards):
+    main = assert_ok(
+        call(mcp, "create_page", name="Main", template_lines=FLAGSHIP_TEMPLATE, device_type="flagship"),
+        "create_page",
+    )
+    note = assert_ok(
+        call(mcp, "create_page", name="Note", template_lines=NOTE_TEMPLATE, device_type="note"),
+        "create_page",
+    )
+    two_boards.set_active_page_id(main["page_id"], board_id="board-main")
+    two_boards.set_active_page_id(note["page_id"], board_id="board-note")
+
+    shown = assert_ok(call(mcp, "get_current_display", board_id="board-note"), "get_current_display")
+    assert shown["page_id"] == note["page_id"]
+    assert shown["template"] == NOTE_TEMPLATE
+
+
+def test_get_current_display_without_an_active_page_is_an_error(mcp, services, two_boards):
+    assert "no active page" in call_expect_error(mcp, "get_current_display").lower()
+
+
+# -- formula functions -------------------------------------------------------
+
+
+def test_list_formula_functions_describes_every_function(mcp, services):
+    result = assert_ok(call(mcp, "list_formula_functions"), "list_formula_functions")
+    functions = result["functions"]
+    assert "IF" in functions and "UPPER" in functions
+    for name, entry in functions.items():
+        assert set(entry) == {"category", "signature", "summary"}, f"{name}: {entry}"
+        assert entry["signature"].startswith(name)
+
+
+# -- Transition Lab ----------------------------------------------------------
+
+TRANSITION_PLUGIN_ID = "harness_wipe"
+
+_TRANSITION_MANIFEST = {
+    "id": TRANSITION_PLUGIN_ID,
+    "name": "Harness Wipe",
+    "version": "1.0.0",
+    "description": "Fixture transition plugin for MCP state-effect tests.",
+    "author": "FiestaBoard Tests",
+    "icon": "type",
+    "category": "transition",
+    "plugin_type": "transition",
+    "settings_schema": {"type": "object", "properties": {"frame_interval_ms": {"type": "integer", "default": 100}}},
+    "transition_settings": {"interruptible": True, "min_interval_ms": 25, "max_frames": 5, "max_runtime_seconds": 60},
+}
+
+
+@pytest.fixture
+def transition_lab(engine, monkeypatch):
+    """Beta on, one hand-built transition plugin installed, fake board engine.
+
+    The transitions service binds ``get_service`` at import time from
+    ``src.display_runtime``, so the engine fake is patched there as well as
+    where the ``engine`` fixture already puts it.
+    """
+    from src.plugins import registry as registry_mod
+    from src.plugins.base import TransitionPluginBase
+    from src.plugins.manifest import PluginManifest
+    from src.settings.service import get_settings_service
+
+    class _Wipe(TransitionPluginBase):
+        @property
+        def plugin_id(self) -> str:
+            return TRANSITION_PLUGIN_ID
+
+        def generate_frames(self, from_grid, to_grid, device, config):
+            yield [list(row) for row in from_grid], int(config.get("frame_interval_ms", 100))
+            yield to_grid, 0
+
+    fresh = registry_mod.PluginRegistry()
+    plugin = _Wipe(_TRANSITION_MANIFEST)
+    plugin.config = {"frame_interval_ms": 50}
+    fresh._plugins[TRANSITION_PLUGIN_ID] = plugin
+    fresh._manifests[TRANSITION_PLUGIN_ID] = PluginManifest.from_dict(_TRANSITION_MANIFEST)
+    fresh._enabled[TRANSITION_PLUGIN_ID] = True
+    monkeypatch.setattr(registry_mod, "_registry", fresh)
+    monkeypatch.setattr("src.transitions.service.get_service", lambda: engine)
+    monkeypatch.setattr("src.transitions.service.LIVE_TEST_FROM_HOLD_SECONDS", 0)
+    get_settings_service().update_beta_settings({"transition_plugins_enabled": True})
+    return engine
+
+
+def test_list_transition_plugins_is_gated_behind_the_beta_flag(mcp, services, two_boards):
+    assert "beta" in call_expect_error(mcp, "list_transition_plugins").lower()
+
+
+def test_list_transition_plugins_lists_the_installed_transition_plugins(mcp, services, transition_lab):
+    result = assert_ok(call(mcp, "list_transition_plugins"), "list_transition_plugins")
+    by_id = {p["id"]: p for p in result["plugins"]}
+    assert TRANSITION_PLUGIN_ID in by_id
+    entry = by_id[TRANSITION_PLUGIN_ID]
+    assert entry["strategy"] == f"plugin:{TRANSITION_PLUGIN_ID}", "the string a page stores as transition_strategy"
+    assert entry["config"] == {"frame_interval_ms": 50}
+    assert entry["transition_settings"]["max_frames"] == 5
+
+
+def test_test_transition_live_drives_the_plugin_on_the_board(mcp, services, transition_lab):
+    target = assert_ok(
+        call(mcp, "create_page", name="Target", template_lines=FLAGSHIP_TEMPLATE, device_type="flagship"),
+        "create_page",
+    )
+    origin = assert_ok(
+        call(mcp, "create_page", name="Origin", template_lines=["BYE", "", "", "", "", ""], device_type="flagship"),
+        "create_page",
+    )
+
+    result = assert_ok(
+        call(
+            mcp,
+            "test_transition_live",
+            plugin_id=TRANSITION_PLUGIN_ID,
+            to_page_id=target["page_id"],
+            from_page_id=origin["page_id"],
+            config={"frame_interval_ms": 30},
+        ),
+        "test_transition_live",
+    )
+
+    assert result["sent"] is True
+    client = transition_lab.vb_client
+    assert len(client.snapped) == 1, "the from-page must be snapped onto the board first"
+    assert len(client.rendered) == 1, "the to-page must be rendered exactly once"
+    assert (len(client.rendered[0]), len(client.rendered[0][0])) == (6, 22)
+    kwargs = client.render_kwargs[0]
+    assert kwargs["strategy"] == f"plugin:{TRANSITION_PLUGIN_ID}"
+    assert kwargs["transition_config"] == {"frame_interval_ms": 30}, "per-run config overrides the bound config"
+    assert transition_lab.runtimes["board-note"].client.rendered == [], "the other board was touched"
+
+
+def test_test_transition_live_on_a_paused_board_is_blocked_without_touching_it(mcp, services, transition_lab):
+    from src.settings.service import get_settings_service
+
+    target = assert_ok(
+        call(mcp, "create_page", name="Target", template_lines=NOTE_TEMPLATE, device_type="note"),
+        "create_page",
+    )
+    get_settings_service().set_paused(True, board_id="board-note")
+
+    result = call(
+        mcp,
+        "test_transition_live",
+        plugin_id=TRANSITION_PLUGIN_ID,
+        to_page_id=target["page_id"],
+        board_id="board-note",
+    )
+
+    assert result["status"] == "blocked", result
+    assert result["paused"] is True
+    assert transition_lab.runtimes["board-note"].client.rendered == []
+
+
+def test_test_transition_live_reports_an_unknown_plugin(mcp, services, transition_lab):
+    target = assert_ok(
+        call(mcp, "create_page", name="Target", template_lines=FLAGSHIP_TEMPLATE, device_type="flagship"),
+        "create_page",
+    )
+    message = call_expect_error(mcp, "test_transition_live", plugin_id="no_such_plugin", to_page_id=target["page_id"])
+    assert "no_such_plugin" in message
+    assert transition_lab.vb_client.rendered == []
+
+
+def test_restore_board_snaps_the_board_back_to_its_active_page(mcp, services, transition_lab):
+    from src.settings.service import get_settings_service
+
+    active = assert_ok(
+        call(mcp, "create_page", name="Active", template_lines=FLAGSHIP_TEMPLATE, device_type="flagship"),
+        "create_page",
+    )
+    get_settings_service().set_active_page_id(active["page_id"])
+
+    result = assert_ok(call(mcp, "restore_board"), "restore_board")
+
+    assert result["page_id"] == active["page_id"]
+    assert result["sent"] is True
+    client = transition_lab.vb_client
+    assert len(client.rendered) == 1
+    assert client.render_kwargs[0]["strategy"] is None, "restore sends plainly, with no transition"
+
+
+def test_restore_board_without_an_active_page_is_an_error(mcp, services, transition_lab):
+    assert "no active page" in call_expect_error(mcp, "restore_board").lower()
+    assert transition_lab.vb_client.rendered == []

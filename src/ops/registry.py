@@ -90,6 +90,14 @@ OPERATIONS: tuple[Operation, ...] = (
     Operation(name="update_page", executor=executors.update_page, mcp_tool="update_page"),
     Operation(name="delete_page", executor=executors.delete_page, mcp_tool="delete_page"),
     Operation(name="set_active_page", executor=executors.set_active_page, mcp_tool="set_active_page"),
+    # MCP-only server ops for the page editor's sibling features (share
+    # strings and the staff-picks gallery). The chat grammar has no
+    # spelling for them — the in-app chat reaches them as MCP tools.
+    Operation(name="import_page", executor=executors.import_page, mcp_tool="import_page"),
+    Operation(name="import_staff_pick", executor=executors.import_staff_pick, mcp_tool="import_staff_pick"),
+    # -- Transition Lab (beta) --------------------------------------------
+    Operation(name="test_transition_live", executor=executors.test_transition_live, mcp_tool="test_transition_live"),
+    Operation(name="restore_board", executor=executors.restore_board, mcp_tool="restore_board"),
     # -- schedules --------------------------------------------------------
     Operation(
         name="create_schedule",

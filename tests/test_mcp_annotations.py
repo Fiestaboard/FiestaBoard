@@ -54,6 +54,11 @@ READ_ONLY = {
     "get_settings_summary",
     "get_active_page",
     "get_board_content",
+    "export_page",
+    "list_staff_picks",
+    "get_current_display",
+    "list_transition_plugins",
+    "list_formula_functions",
 }
 
 #: Tools whose effect cannot be undone by calling another tool. These are
@@ -89,6 +94,8 @@ IDEMPOTENT = READ_ONLY | {
     "update_page",
     "update_schedule",
     "update_collection",
+    # Snapping a board back to its active page twice leaves it where once did.
+    "restore_board",
 }
 
 

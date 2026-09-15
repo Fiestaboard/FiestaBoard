@@ -380,6 +380,17 @@ EXPECTED_TOOLS = {
     "send_message",
     "preview_saved_page",
     "validate_template",
+    # Page editor parity: share strings, staff picks, live display,
+    # Transition Lab, formula reference
+    "export_page",
+    "import_page",
+    "list_staff_picks",
+    "import_staff_pick",
+    "get_current_display",
+    "list_transition_plugins",
+    "test_transition_live",
+    "restore_board",
+    "list_formula_functions",
 }
 
 
