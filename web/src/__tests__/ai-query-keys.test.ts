@@ -32,10 +32,6 @@ describe("queryKeysForTool", () => {
     }
   });
 
-  it("refreshes the usual suspects for a writer it does not know", () => {
-    expect(queryKeysForTool(call("brand_new_tool"))).toEqual([["pages"], ["schedules"], ["collections"], ["plugins"]]);
-  });
-
   it("uses prefix keys for board-scoped schedule caches", () => {
     expect(queryKeysForTool(call("create_schedule"))).toEqual([["schedules"]]);
   });

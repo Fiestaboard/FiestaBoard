@@ -613,8 +613,9 @@ describe("computeAppliedSnapshot", () => {
     expect(snap?.line_metadata).toHaveLength(2);
   });
 
-  it("merges an update_page over the base page", () => {
+  it("merges an update_page over the base page it targets", () => {
     const base = {
+      id: "p",
       name: "Old",
       template: ["A", "B"],
       line_metadata: [
@@ -623,7 +624,7 @@ describe("computeAppliedSnapshot", () => {
       ],
     };
     const snap = computeAppliedSnapshot({ name: "update_page", args: { page_id: "p", name: "New" } }, base);
-    expect(snap).toEqual({ name: "New", template: ["A", "B"], line_metadata: base.line_metadata });
+    expect(snap).toEqual({ id: "p", name: "New", template: ["A", "B"], line_metadata: base.line_metadata });
   });
 
   it("is undefined for tools that do not touch a page", () => {

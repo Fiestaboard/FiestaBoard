@@ -57,7 +57,8 @@ const CREATE_PAGE_CALL = {
 
 let hookResult: UseAiChatResult = { ...defaultHookResult };
 
-vi.mock("@/lib/use-ai-chat", () => ({
+vi.mock("@/lib/use-ai-chat", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/lib/use-ai-chat")>()),
   useAiChat: () => hookResult,
 }));
 
