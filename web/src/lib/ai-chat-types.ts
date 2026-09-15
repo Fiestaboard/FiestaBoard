@@ -190,6 +190,10 @@ export interface CreatePageArgs {
   template_lines: string[];
   device_type?: DeviceType;
   duration_seconds?: number;
+  notes_wide?: number;
+  notes_tall?: number;
+  line_metadata?: LineMetadata[];
+  transition_strategy?: string | null;
 }
 
 export interface UpdatePageArgs {
@@ -197,6 +201,11 @@ export interface UpdatePageArgs {
   name?: string | null;
   template_lines?: string[] | null;
   duration_seconds?: number | null;
+  device_type?: DeviceType | null;
+  notes_wide?: number | null;
+  notes_tall?: number | null;
+  line_metadata?: LineMetadata[] | null;
+  transition_strategy?: string | null;
 }
 
 export interface CreateScheduleArgs {
