@@ -1003,6 +1003,29 @@ async def restore_board(board_id: str | None = None) -> dict[str, Any]:
 # ---------------------------------------------------------------------------
 
 
+def _board_exists(settings_service: Any, board_id: str) -> bool:
+    """Roster check shared by the board-scoped executors."""
+    boards = settings_service.get_board_settings().boards or []
+    return any(isinstance(b, dict) and b.get("id") == board_id for b in boards)
+
+
+def _unknown_board(board_id: str | None) -> dict[str, Any] | None:
+    """An ``err`` envelope when *board_id* names no configured board, else None.
+
+    The schedule REST writes 404 on an unknown board (#1888) because the
+    services below it would otherwise persist state parented to a board that
+    does not exist and report success. ``None`` and ``""`` are the default
+    board and pass through.
+    """
+    if not board_id:
+        return None
+    from src.settings.service import get_settings_service
+
+    if not _board_exists(get_settings_service(), board_id):
+        return err(f"Board not found: {board_id}")
+    return None
+
+
 def create_schedule(
     page_id: str,
     start_time: str,
@@ -1010,15 +1033,32 @@ def create_schedule(
     end_time: str | None = None,
     enabled: bool = True,
     custom_days: list[str] | None = None,
+    board_id: str | None = None,
+    recurrence_type: str | None = None,
+    annual_date: str | None = None,
+    annual_end_date: str | None = None,
+    one_off_date: str | None = None,
+    one_off_end_date: str | None = None,
+    start_type: str | None = None,
+    start_sun_offset: int | None = None,
+    end_type: str | None = None,
+    end_sun_offset: int | None = None,
 ) -> dict[str, Any]:
     """Create a schedule entry showing a page (or collection) at a time slot.
 
-    ``custom_days`` exists only on the chat grammar (required there when
-    ``day_pattern == "custom"``); the MCP tool never sends it.
+    Every field the schedule form saves is accepted; the ones left ``None``
+    take :class:`~src.schedules.models.ScheduleCreate`'s defaults (weekly
+    recurrence, fixed times, the default board), so the pre-existing calls
+    that send only the five core arguments are unchanged. An unknown
+    ``board_id`` is refused up front, mirroring the REST 404 (#1888).
     """
     try:
         from src.schedules.models import ScheduleCreate
         from src.schedules.service import get_schedule_service
+
+        refusal = _unknown_board(board_id)
+        if refusal is not None:
+            return refusal
 
         svc = get_schedule_service()
         fields: dict[str, Any] = {
@@ -1028,8 +1068,20 @@ def create_schedule(
             "day_pattern": day_pattern,
             "enabled": enabled,
         }
-        if custom_days is not None:
-            fields["custom_days"] = custom_days
+        optional = {
+            "custom_days": custom_days,
+            "board_id": board_id,
+            "recurrence_type": recurrence_type,
+            "annual_date": annual_date,
+            "annual_end_date": annual_end_date,
+            "one_off_date": one_off_date,
+            "one_off_end_date": one_off_end_date,
+            "start_type": start_type,
+            "start_sun_offset": start_sun_offset,
+            "end_type": end_type,
+            "end_sun_offset": end_sun_offset,
+        }
+        fields.update({k: v for k, v in optional.items() if v is not None})
         entry = svc.create_schedule(ScheduleCreate(**fields))
         return ok(
             f"Schedule created: page '{page_id}' from {start_time} on {day_pattern} days.",
@@ -1049,6 +1101,18 @@ def update_schedule(
     custom_days: list[str] | None = None,
     clear_end_time: bool = False,
     clear_custom_days: bool = False,
+    board_id: str | None = None,
+    recurrence_type: str | None = None,
+    annual_date: str | None = None,
+    annual_end_date: str | None = None,
+    one_off_date: str | None = None,
+    one_off_end_date: str | None = None,
+    start_type: str | None = None,
+    start_sun_offset: int | None = None,
+    end_type: str | None = None,
+    end_sun_offset: int | None = None,
+    clear_annual_end_date: bool = False,
+    clear_one_off_end_date: bool = False,
 ) -> dict[str, Any]:
     """Update an existing schedule entry. Only supplied fields change.
 
@@ -1063,32 +1127,47 @@ def update_schedule(
     leaves no way to make a bounded entry open-ended again — the explicit
     ``clear_end_time=True`` flag is that escape hatch (#1873/#1874 review).
     ``clear_custom_days=True`` is the symmetric flag for dropping a stale
-    custom day list when switching ``day_pattern`` away from ``custom``.
-    REST is unaffected: its PATCH body distinguishes absent from null
-    natively.
+    custom day list when switching ``day_pattern`` away from ``custom``,
+    and ``clear_annual_end_date`` / ``clear_one_off_end_date`` do the same
+    for the optional end of a date range. REST is unaffected: its PATCH
+    body distinguishes absent from null natively.
     """
     try:
         from src.schedules.models import ScheduleUpdate
         from src.schedules.service import get_schedule_service
 
+        refusal = _unknown_board(board_id)
+        if refusal is not None:
+            return refusal
+
         svc = get_schedule_service()
-        fields: dict[str, Any] = {}
-        if page_id is not None:
-            fields["page_id"] = page_id
-        if start_time is not None:
-            fields["start_time"] = start_time
-        if end_time is not None:
-            fields["end_time"] = end_time
+        supplied = {
+            "page_id": page_id,
+            "start_time": start_time,
+            "end_time": end_time,
+            "day_pattern": day_pattern,
+            "enabled": enabled,
+            "custom_days": custom_days,
+            "board_id": board_id,
+            "recurrence_type": recurrence_type,
+            "annual_date": annual_date,
+            "annual_end_date": annual_end_date,
+            "one_off_date": one_off_date,
+            "one_off_end_date": one_off_end_date,
+            "start_type": start_type,
+            "start_sun_offset": start_sun_offset,
+            "end_type": end_type,
+            "end_sun_offset": end_sun_offset,
+        }
+        fields: dict[str, Any] = {k: v for k, v in supplied.items() if v is not None}
         if clear_end_time:
             fields["end_time"] = None
-        if day_pattern is not None:
-            fields["day_pattern"] = day_pattern
-        if enabled is not None:
-            fields["enabled"] = enabled
-        if custom_days is not None:
-            fields["custom_days"] = custom_days
         if clear_custom_days:
             fields["custom_days"] = None
+        if clear_annual_end_date:
+            fields["annual_end_date"] = None
+        if clear_one_off_end_date:
+            fields["one_off_end_date"] = None
         # No empty-fields guard: an empty ScheduleUpdate is a no-op merge, and
         # the pre-#1764 tool always called the service — the "not found" reply
         # for an unknown id (pinned by tests/test_mcp_server.py) depends on it.
@@ -1144,6 +1223,86 @@ def set_schedule_mode(enabled: bool, board_id: str | None = None) -> dict[str, A
         return err(f"Error setting schedule mode: {exc}")
 
 
+def resolve_board_id(board_id: str | None) -> str | None:
+    """The concrete board a board-scoped call targets.
+
+    Omitted means the primary board — resolved to its real id, exactly as
+    the ``/v1/boards/primary`` path segment resolves — so per-board state
+    written here lands where the web UI (which always names the board) reads
+    it back. ``None`` only when no board is configured at all.
+    """
+    from src.settings.service import get_settings_service
+
+    if board_id:
+        return board_id
+    return get_settings_service().get_primary_board_id()
+
+
+def set_default_page(page_id: str | None, board_id: str | None = None) -> dict[str, Any]:
+    """Set (or with ``None`` clear) the page a board falls back to in schedule gaps.
+
+    Mirrors ``PATCH /v1/boards/{board}`` with ``default_page_id``: the ref
+    must name an existing page or collection, the board must exist, and the
+    value is stored per board under the board's concrete id.
+    """
+    try:
+        from src.collections.models import is_collection_id
+        from src.collections.service import get_collection_service
+        from src.pages.service import get_page_service
+        from src.schedules.service import get_schedule_service
+
+        refusal = _unknown_board(board_id)
+        if refusal is not None:
+            return refusal
+        if page_id is not None:
+            if is_collection_id(page_id):
+                if not get_collection_service().get_collection(page_id):
+                    return err(f"Collection not found: {page_id}")
+            elif not get_page_service().get_page(page_id):
+                return err(f"Page not found: {page_id}")
+
+        target = resolve_board_id(board_id)
+        get_schedule_service().set_default_page(page_id, board_id=target)
+        if page_id is None:
+            return ok("Default page cleared.", default_page_id=None, board_id=target)
+        return ok(f"Default page set to '{page_id}'.", default_page_id=page_id, board_id=target)
+    except Exception as exc:
+        return err(f"Error setting default page: {exc}")
+
+
+def _set_board_paused(paused: bool, board_id: str | None) -> dict[str, Any]:
+    """Pause or resume a board (issue #970) — the ``paused`` half of ``PATCH /v1/boards``.
+
+    While paused, nothing is written to the board from any code path. An
+    unknown board is an error here because the REST route 404s before the
+    setter runs, and a no-op reported as success is the #1888 defect.
+    """
+    try:
+        from src.settings.service import get_settings_service
+
+        refusal = _unknown_board(board_id)
+        if refusal is not None:
+            return refusal
+        target = resolve_board_id(board_id)
+        if target is None:
+            return err("No board is configured on this install.")
+        state = get_settings_service().set_paused(paused, board_id=target)
+        verb = "paused" if state else "resumed"
+        return ok(f"Board '{target}' {verb}.", paused=state, board_id=target)
+    except Exception as exc:
+        return err(f"Error {'pausing' if paused else 'resuming'} board: {exc}")
+
+
+def pause_board(board_id: str | None = None) -> dict[str, Any]:
+    """Stop every write to a board until :func:`resume_board`."""
+    return _set_board_paused(True, board_id)
+
+
+def resume_board(board_id: str | None = None) -> dict[str, Any]:
+    """Let a paused board receive writes again."""
+    return _set_board_paused(False, board_id)
+
+
 # ---------------------------------------------------------------------------
 # Collection operations
 # ---------------------------------------------------------------------------
@@ -1158,10 +1317,16 @@ def create_collection(
     default_page_id: str | None = None,
     poll_seconds: int = 10,
 ) -> dict[str, Any]:
-    """Create a collection that decides which page to show."""
+    """Create a collection that decides which page to show.
+
+    ``interval_seconds`` is the page duration for both ``time`` and
+    ``random`` mode — the same number the collection form saves into
+    whichever config block the chosen mode reads.
+    """
     try:
         from src.collections.models import (
             CollectionCreate,
+            RandomModeConfig,
             TimeModeConfig,
             VariableModeConfig,
             VariableRule,
@@ -1172,6 +1337,7 @@ def create_collection(
 
         time_cfg = TimeModeConfig(interval_seconds=interval_seconds)
         variable_cfg: Any = None
+        random_cfg: Any = None
         if selection_mode == "variable":
             if not default_page_id:
                 return err("variable mode requires default_page_id")
@@ -1180,6 +1346,8 @@ def create_collection(
                 default_page_id=default_page_id,
                 poll_seconds=poll_seconds,
             )
+        elif selection_mode == "random":
+            random_cfg = RandomModeConfig(interval_seconds=interval_seconds)
 
         data = CollectionCreate(
             name=name,
@@ -1187,6 +1355,7 @@ def create_collection(
             selection_mode=selection_mode,  # type: ignore[arg-type]
             time=time_cfg,
             variable=variable_cfg,
+            random=random_cfg,
         )
         collection = svc.create_collection(data)
         return ok(
@@ -1210,13 +1379,19 @@ def update_collection(
 ) -> dict[str, Any]:
     """Update a collection's name, page list, or selection config.
 
-    An interval-only update changes the time-mode config without forcing
-    ``selection_mode`` back to ``"time"`` — flipping a variable-mode
-    collection requires sending ``selection_mode`` explicitly.
+    Mode-specific fields are MERGED with the stored config block, so a
+    variable-mode collection can have only its ``poll_seconds`` or ``rules``
+    changed without re-sending ``default_page_id``; the previous behavior
+    demanded the whole block on every touch. An interval-only update changes
+    the time-mode config without forcing ``selection_mode`` back to
+    ``"time"`` — flipping a collection's mode requires sending
+    ``selection_mode`` explicitly. In ``random`` mode ``interval_seconds``
+    lands in the ``random`` block instead, the same way the form saves it.
     """
     try:
         from src.collections.models import (
             CollectionUpdate,
+            RandomModeConfig,
             TimeModeConfig,
             VariableModeConfig,
             VariableRule,
@@ -1224,16 +1399,40 @@ def update_collection(
         from src.collections.service import get_collection_service
 
         svc = get_collection_service()
+        existing = svc.get_collection(collection_id)
+        if existing is None:
+            return err(f"Collection '{collection_id}' not found.")
 
-        time_cfg: Any = TimeModeConfig(interval_seconds=interval_seconds) if interval_seconds is not None else None
+        effective_mode = selection_mode or existing.selection_mode
+        time_cfg: Any = None
+        random_cfg: Any = None
+        if effective_mode == "random":
+            # Switching to random needs a random block even without a new
+            # interval (the model validator requires one); carry over the
+            # duration the collection already rotates on.
+            stored_random = existing.random.interval_seconds if existing.random else existing.time.interval_seconds
+            random_cfg = RandomModeConfig(
+                interval_seconds=interval_seconds if interval_seconds is not None else stored_random
+            )
+        elif interval_seconds is not None:
+            time_cfg = TimeModeConfig(interval_seconds=interval_seconds)
+
         variable_cfg: Any = None
-        if rules is not None or default_page_id is not None or poll_seconds is not None:
-            if not default_page_id:
-                return err("variable mode update requires default_page_id")
+        touches_variable = rules is not None or default_page_id is not None or poll_seconds is not None
+        if touches_variable or (effective_mode == "variable" and existing.variable is None):
+            base = existing.variable
+            merged_default = (
+                default_page_id if default_page_id is not None else (base.default_page_id if base else None)
+            )
+            if not merged_default:
+                return err("variable mode requires default_page_id")
+            merged_rules: list[Any] = (
+                [VariableRule(**r) for r in rules] if rules is not None else (list(base.rules) if base else [])
+            )
             variable_cfg = VariableModeConfig(
-                rules=[VariableRule(**r) for r in (rules or [])],
-                default_page_id=default_page_id,
-                poll_seconds=poll_seconds if poll_seconds is not None else 10,
+                rules=merged_rules,
+                default_page_id=merged_default,
+                poll_seconds=poll_seconds if poll_seconds is not None else (base.poll_seconds if base else 10),
             )
 
         data = CollectionUpdate(
@@ -1242,6 +1441,7 @@ def update_collection(
             selection_mode=selection_mode,  # type: ignore[arg-type]
             time=time_cfg,
             variable=variable_cfg,
+            random=random_cfg,
         )
         collection = svc.update_collection(collection_id, data)
         if collection is None:
@@ -1279,7 +1479,9 @@ async def update_setting(category: str, values: dict[str, Any]) -> dict[str, Any
     Chat-grammar op. Each category delegates to the REST handler that owns
     it (the same endpoints the web drawer calls), so validation and
     normalization live exactly once. ``active_page`` resolves to the
-    canonical :func:`set_active_page` executor shared with MCP.
+    canonical :func:`set_active_page` executor shared with MCP;
+    ``schedule_behavior`` is ``PUT /schedules/settings`` (the global
+    ``defer_on_reenable`` toggle on the Schedules page).
     """
     from fastapi import HTTPException
 
@@ -1289,6 +1491,17 @@ async def update_setting(category: str, values: dict[str, Any]) -> dict[str, Any
             if not isinstance(page_id, str) or not page_id:
                 return err("active_page requires values.page_id")
             return await set_active_page(page_id)
+
+        if category == "schedule_behavior":
+            from src.schedules.models import ScheduleBehaviorUpdate
+            from src.schedules.routes import set_schedule_settings
+
+            response = await set_schedule_settings(ScheduleBehaviorUpdate(**values))
+            return ok(
+                "schedule_behavior settings updated.",
+                category=category,
+                defer_on_reenable=response.defer_on_reenable,
+            )
 
         import src.settings.models as models
         import src.settings.routes as api
@@ -1317,6 +1530,117 @@ async def update_setting(category: str, values: dict[str, Any]) -> dict[str, Any
         return err(f"Error updating {category} settings: {exc}")
 
     return ok(f"{category} settings updated.", category=category)
+
+
+# ---------------------------------------------------------------------------
+# Board state operations — the Home page's controls
+#
+# The temporary override and the forced resend are install-wide: the
+# override lives in one consume-once store the display loop applies to the
+# PRIMARY board only (src/main.py, "Temporary override (PRIMARY only)"), and
+# POST /force-refresh clears every board's caches in one pass. Neither takes
+# a board_id because neither REST route does; offering one would promise a
+# targeting the store cannot honor.
+# ---------------------------------------------------------------------------
+
+
+async def set_temporary_override(
+    page_id: str | None = None,
+    template_lines: list[str] | None = None,
+    line_metadata: list[dict[str, Any]] | None = None,
+    device_type: str | None = None,
+    notes_wide: int | None = None,
+    notes_tall: int | None = None,
+    duration_minutes: int | None = None,
+    revert_mode: str = "schedule",
+    revert_page_id: str | None = None,
+) -> dict[str, Any]:
+    """Show a saved page or a composed one-off on the primary board for a while.
+
+    Delegates to ``POST /settings/temporary-override`` — the handler behind
+    both the Home page's "force set" dialog (a saved page) and its compose
+    dialog (inline lines, issue #1787) — so the exactly-one-of-page-or-
+    template rule, the geometry checks and the 1–480 minute bound live once.
+    ``duration_minutes=None`` is an indefinite override that stays until
+    :func:`cancel_temporary_override`. Deliberately not gated by silence or
+    pause: a user-initiated override beats the silence schedule (#949).
+    """
+    from fastapi import HTTPException
+
+    from src.settings.models import TemporaryOverrideRequest
+    from src.settings.routes import set_temporary_override as _rest_set_override
+
+    try:
+        request = TemporaryOverrideRequest(
+            page_id=page_id,
+            template=template_lines,
+            line_metadata=line_metadata,
+            device_type=device_type,
+            notes_wide=notes_wide,
+            notes_tall=notes_tall,
+            duration_minutes=duration_minutes,
+            revert_mode=revert_mode,
+            revert_page_id=revert_page_id,
+        )
+        payload = await _rest_set_override(request)
+    except HTTPException as exc:
+        return err(f"Error setting temporary override: {rest_detail(exc)}")
+    except Exception as exc:
+        return err(f"Error setting temporary override: {exc}")
+
+    what = f"page '{page_id}'" if page_id else "a one-off message"
+    how_long = f"for {duration_minutes} minutes" if duration_minutes is not None else "until cancelled"
+    return ok(f"Temporary override set: {what} {how_long}.", override=serialize(payload))
+
+
+async def cancel_temporary_override() -> dict[str, Any]:
+    """Cancel the active temporary override and let the board revert.
+
+    Delegates to ``DELETE /settings/temporary-override``: the ``page``
+    revert mode is applied server-side and the display cache is cleared so
+    the next tick re-renders. Cancelling when nothing is active is a no-op
+    reported as success — the same answer the REST route gives.
+    """
+    from fastapi import HTTPException
+
+    from src.settings.routes import clear_temporary_override as _rest_clear_override
+
+    try:
+        response = await _rest_clear_override()
+    except HTTPException as exc:
+        return err(f"Error cancelling temporary override: {rest_detail(exc)}")
+    except Exception as exc:
+        return err(f"Error cancelling temporary override: {exc}")
+
+    revert_mode = response.get("revert_mode") if isinstance(response, dict) else getattr(response, "revert_mode", None)
+    if revert_mode is None:
+        return ok("No temporary override was active.", was_active=False, revert_mode=None)
+    return ok(f"Temporary override cancelled (revert mode: {revert_mode}).", was_active=True, revert_mode=revert_mode)
+
+
+async def force_refresh() -> dict[str, Any]:
+    """Resend the active content to every board, ignoring the unchanged-content caches.
+
+    Delegates to ``POST /force-refresh`` — the Home page's "Resend to board"
+    — which clears each board client's dedupe cache and the display loop's
+    own per-runtime guard (#1794) before driving one send pass.
+    """
+    from fastapi import HTTPException
+
+    from src.debug.routes import force_refresh as _rest_force_refresh
+
+    try:
+        response = await _rest_force_refresh()
+    except HTTPException as exc:
+        return err(f"Error forcing a refresh: {rest_detail(exc)}")
+    except Exception as exc:
+        return err(f"Error forcing a refresh: {exc}")
+
+    sent = bool(getattr(response, "sent", False))
+    message = "Display force-refreshed; content was resent to the board."
+    if not sent:
+        message = "Display refresh ran, but nothing was sent (UI-only output target, paused board, or no change)."
+    return ok(message, sent=sent)
 
 
 async def trigger_system_update() -> dict[str, Any]:

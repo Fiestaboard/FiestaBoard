@@ -70,6 +70,14 @@ EXPECTED_CANONICAL = {
     "import_staff_pick",
     "test_transition_live",
     "restore_board",
+    # MCP-only server ops for the Schedules page's default page and the Home
+    # page's board-state controls; the chat grammar has no spellings.
+    "set_default_page",
+    "pause_board",
+    "resume_board",
+    "set_temporary_override",
+    "cancel_temporary_override",
+    "force_refresh",
     # client-side chat ops, registered so the registry is the whole grammar.
     # ``replace_page`` joined them in Phase 2 Task 11: it edits the page
     # mounted in the editor (like ``apply_patch``), which is what the system
