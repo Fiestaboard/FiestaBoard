@@ -187,21 +187,53 @@ async def update_plugin(plugin_id: str) -> dict[str, Any]:
 # ---------------------------------------------------------------------------
 
 
+def _plugin_strategy_refusal(transition_strategy: str | None) -> dict[str, Any] | None:
+    """The REST layer's beta gate on ``plugin:<id>`` strategies, as an envelope.
+
+    ``POST/PUT /pages`` and ``POST /pages/import`` all refuse a plugin
+    transition while ``beta.transition_plugins_enabled`` is off, so a page
+    can never store a strategy the runtime will not honor. The same guard
+    is reused here rather than re-derived, so the three page writers and
+    their MCP counterparts cannot disagree about it.
+    """
+    from fastapi import HTTPException
+
+    from src.pages.routes import _reject_plugin_strategy_when_beta_off
+
+    try:
+        _reject_plugin_strategy_when_beta_off(transition_strategy)
+    except HTTPException as exc:
+        return err(rest_detail(exc))
+    return None
+
+
 def create_page(
     name: str,
     template_lines: list[str],
     device_type: str = "flagship",
     duration_seconds: int = 300,
     line_metadata: list[dict[str, Any]] | None = None,
+    notes_wide: int | None = None,
+    notes_tall: int | None = None,
+    transition_strategy: str | None = None,
+    transition_interval_ms: int | None = None,
+    transition_step_size: int | None = None,
 ) -> dict[str, Any]:
-    """Create a new template page.
+    """Create a new template page with every field the page editor saves.
 
-    ``line_metadata`` exists only on the chat grammar (``replace_page``);
-    the MCP tool never sends it.
+    ``notes_wide``/``notes_tall`` size a ``note_array`` page; ``line_metadata``
+    is the per-line alignment + wrap the editor stores; the three
+    ``transition_*`` fields are the per-page override of the system
+    transition. Omitted fields take the model defaults, exactly like a REST
+    ``POST /pages`` body that leaves them out.
     """
     try:
         from src.pages.models import PageCreate
         from src.pages.service import get_page_service
+
+        refusal = _plugin_strategy_refusal(transition_strategy)
+        if refusal is not None:
+            return refusal
 
         svc = get_page_service()
         fields: dict[str, Any] = {
@@ -211,13 +243,21 @@ def create_page(
             "template": template_lines,
             "duration_seconds": duration_seconds,
         }
-        if line_metadata:
-            fields["line_metadata"] = line_metadata
+        supplied = {
+            "line_metadata": line_metadata,
+            "notes_wide": notes_wide,
+            "notes_tall": notes_tall,
+            "transition_strategy": transition_strategy,
+            "transition_interval_ms": transition_interval_ms,
+            "transition_step_size": transition_step_size,
+        }
+        fields.update({key: value for key, value in supplied.items() if value is not None})
         page = svc.create_page(PageCreate(**fields))
         return ok(
             f"Page '{name}' created with id '{page.id}'.",
             page_id=page.id,
             name=page.name,
+            device_type=page.device_type,
         )
     except Exception as exc:
         return err(f"Error creating page: {exc}")
@@ -228,34 +268,160 @@ def update_page(
     name: str | None = None,
     template_lines: list[str] | None = None,
     duration_seconds: int | None = None,
+    device_type: str | None = None,
+    notes_wide: int | None = None,
+    notes_tall: int | None = None,
+    line_metadata: list[dict[str, Any]] | None = None,
+    transition_strategy: str | None = None,
+    transition_interval_ms: int | None = None,
+    transition_step_size: int | None = None,
+    clear_transition_override: bool = False,
 ) -> dict[str, Any]:
-    """Update an existing page's name, template content, or duration.
+    """Update any of the fields the page editor saves. Only supplied fields change.
 
     Only fields the caller actually supplied are passed through —
     ``PageService.update_page`` merges with ``model_dump(exclude_unset=True)``,
     where an explicit ``None`` counts as set and would wipe the template.
+
+    That wipe-protection makes ``transition_strategy=None`` mean "unchanged",
+    which leaves no way to drop a per-page transition override and fall back
+    to the system default — ``clear_transition_override=True`` is that
+    escape hatch (the ``clear_end_time`` pattern from :func:`update_schedule`).
+
+    A device or size retarget (``device_type``/``notes_wide``/``notes_tall``)
+    answers ``incompatible_references`` exactly as ``PUT /pages/{id}`` does:
+    the schedule entries, per-board active pages and silence pages that now
+    point this page at a board it no longer fits. Warn-only — nothing is
+    mutated — so the caller must relay the list rather than a bare success.
     """
     try:
+        from src.devices import size_key
         from src.pages.models import PageUpdate
-        from src.pages.service import get_page_service
+        from src.pages.service import find_incompatible_references, get_page_service
+
+        refusal = _plugin_strategy_refusal(transition_strategy)
+        if refusal is not None:
+            return refusal
 
         svc = get_page_service()
-        fields: dict[str, Any] = {}
-        if name is not None:
-            fields["name"] = name
-        if template_lines is not None:
-            fields["template"] = template_lines
-        if duration_seconds is not None:
-            fields["duration_seconds"] = duration_seconds
+        supplied = {
+            "name": name,
+            "template": template_lines,
+            "duration_seconds": duration_seconds,
+            "device_type": device_type,
+            "notes_wide": notes_wide,
+            "notes_tall": notes_tall,
+            "line_metadata": line_metadata,
+            "transition_strategy": transition_strategy,
+            "transition_interval_ms": transition_interval_ms,
+            "transition_step_size": transition_step_size,
+        }
+        fields: dict[str, Any] = {key: value for key, value in supplied.items() if value is not None}
+        if clear_transition_override:
+            # Explicit Nones: PageStorage.update lets exactly these three be
+            # cleared back to "inherit the system transition" (#1306).
+            fields.update(transition_strategy=None, transition_interval_ms=None, transition_step_size=None)
         if not fields:
-            return err("Nothing to update: pass at least one of name, template_lines, duration_seconds.")
+            return err(
+                "Nothing to update: pass at least one of name, template_lines, duration_seconds, "
+                "device_type, notes_wide, notes_tall, line_metadata, transition_strategy, "
+                "transition_interval_ms, transition_step_size, or clear_transition_override."
+            )
 
+        existing = svc.get_page(page_id)
         page = svc.update_page(page_id, PageUpdate(**fields))
         if page is None:
             return err(f"Page '{page_id}' not found.")
-        return ok(f"Page '{page_id}' updated.", page_id=page.id, name=page.name)
+
+        incompatible: list[dict[str, Any]] = []
+        if existing is not None:
+            old_size = size_key(existing.device_type, existing.notes_wide, existing.notes_tall)
+            new_size = size_key(page.device_type, page.notes_wide, page.notes_tall)
+            if old_size != new_size:
+                incompatible = find_incompatible_references(page)
+
+        message = f"Page '{page_id}' updated."
+        if incompatible:
+            message += (
+                f" The retarget left {len(incompatible)} reference(s) pointing this page at a board it no longer"
+                " fits — see incompatible_references."
+            )
+        return ok(
+            message,
+            page_id=page.id,
+            name=page.name,
+            device_type=page.device_type,
+            incompatible_references=serialize(incompatible),
+        )
     except Exception as exc:
         return err(f"Error updating page '{page_id}': {exc}")
+
+
+def import_page(share_string: str) -> dict[str, Any]:
+    """Create a page from a share string — ``POST /pages/import``.
+
+    The same three verdicts as the REST handler: a string the decoder rejects
+    or that does not satisfy ``PageCreate`` is the caller's problem, a page
+    the service refuses is reported with its reason, and the beta gate on
+    ``plugin:<id>`` strategies applies exactly as it does on create.
+    """
+    try:
+        from src.pages.models import PageCreate
+        from src.pages.service import get_page_service
+        from src.pages.share import decode_page
+
+        try:
+            page_data = decode_page(share_string)
+        except ValueError as exc:
+            return err(str(exc))
+        try:
+            page_create = PageCreate(**{k: v for k, v in page_data.items() if k in PageCreate.model_fields})
+        except Exception as exc:
+            return err(f"Invalid share string — {exc}")
+
+        refusal = _plugin_strategy_refusal(page_create.transition_strategy)
+        if refusal is not None:
+            return refusal
+
+        page = get_page_service().create_page(page_create)
+        return ok(
+            f"Page '{page.name}' imported with id '{page.id}'.",
+            page_id=page.id,
+            name=page.name,
+            device_type=page.device_type,
+        )
+    except Exception as exc:
+        return err(f"Error importing page: {exc}")
+
+
+def import_staff_pick(pick_id: str) -> dict[str, Any]:
+    """Import a curated staff pick — ``GET /staff-picks/{id}/share`` then import.
+
+    The catalog is the checked-in ``staff-picks/picks.json`` the REST router
+    serves; its loader is reused so the two surfaces read the same file.
+    """
+    try:
+        # The catalog loader lives beside the router that serves it; there
+        # is no staff-picks service (the catalog is a static file).
+        from src.staff_picks.routes import _load_staff_picks
+
+        pick = next((p for p in _load_staff_picks() if isinstance(p, dict) and p.get("id") == pick_id), None)
+        if pick is None:
+            return err(f"Staff pick not found: {pick_id}")
+
+        result = import_page(pick.get("share_string") or "")
+        if result.get("status") != "success":
+            return result
+        return ok(
+            f"Staff pick '{pick.get('name', pick_id)}' imported as page '{result['page_id']}'.",
+            page_id=result["page_id"],
+            name=result["name"],
+            device_type=result["device_type"],
+            pick_id=pick_id,
+            required_plugins=serialize(pick.get("required_plugins") or []),
+        )
+    except Exception as exc:
+        return err(f"Error importing staff pick '{pick_id}': {exc}")
 
 
 def delete_page(page_id: str) -> dict[str, Any]:
@@ -568,6 +734,116 @@ def send_characters(
         return ok("Characters sent successfully.", board_id=board_id)
     except Exception as exc:
         return err(f"Error sending characters: {exc}")
+
+
+# ---------------------------------------------------------------------------
+# Transition Lab operations (beta)
+#
+# Both delegate to :mod:`src.transitions.service`, the domain layer behind
+# ``POST /transitions/test-live`` and ``POST /transitions/restore``. The
+# service raises ``TransitionError`` with the status/detail pair the router
+# answers; here a 409 (silence window, paused board) becomes the same
+# ``status: "blocked"`` policy envelope :func:`send_message` returns, and
+# everything else is an error.
+# ---------------------------------------------------------------------------
+
+
+def _transition_beta_refusal() -> dict[str, Any] | None:
+    """The router's beta gate, as an envelope: 404 while the flag is off."""
+    from src.settings.service import get_settings_service
+
+    if get_settings_service().get_beta_settings().transition_plugins_enabled:
+        return None
+    return err("Transition plugins are an experimental beta. Enable them in Settings → Beta to use this tool.")
+
+
+def _transition_refusal(exc: Any, board_id: str | None) -> dict[str, Any]:
+    """Map a ``TransitionError`` onto the executor envelope contract."""
+    detail = str(getattr(exc, "detail", exc))
+    if getattr(exc, "status_code", None) == 409:
+        paused = "paused" in detail.lower()
+        return {
+            "status": "blocked",
+            "message": detail,
+            "paused": paused,
+            "silence_mode": not paused,
+            "board_id": board_id,
+        }
+    return err(detail)
+
+
+async def test_transition_live(
+    plugin_id: str,
+    to_page_id: str,
+    from_page_id: str | None = None,
+    config: dict[str, Any] | None = None,
+    board_id: str | None = None,
+) -> dict[str, Any]:
+    """Run a transition plugin once on the real board — ``POST /transitions/test-live``."""
+    from fastapi import HTTPException
+
+    refusal = _transition_beta_refusal()
+    if refusal is not None:
+        return refusal
+    try:
+        from src.transitions import service as transitions
+        from src.transitions.models import TransitionLiveTestRequest
+
+        response = await transitions.run_live_transition_test(
+            TransitionLiveTestRequest(
+                plugin_id=plugin_id,
+                to_page_id=to_page_id,
+                from_page_id=from_page_id,
+                config=config,
+                board_id=board_id,
+            )
+        )
+    except transitions.TransitionError as exc:
+        return _transition_refusal(exc, board_id)
+    except HTTPException as exc:
+        # _require_board still raises the transport error for an unknown board.
+        return err(f"Error running live transition test: {rest_detail(exc)}")
+    except Exception as exc:
+        return err(f"Error running live transition test: {exc}")
+
+    target = f" on board '{board_id}'" if board_id is not None else ""
+    return ok(
+        f"Transition '{plugin_id}' ran{target}; the board is now showing page '{to_page_id}'. "
+        "Call restore_board() to return it to its active page.",
+        sent=bool(response.sent),
+        plugin_id=response.plugin_id,
+        from_page_id=response.from_page_id,
+        to_page_id=response.to_page_id,
+        board_id=response.board_id,
+    )
+
+
+async def restore_board(board_id: str | None = None) -> dict[str, Any]:
+    """Snap a board back to its active page — ``POST /transitions/restore``."""
+    from fastapi import HTTPException
+
+    refusal = _transition_beta_refusal()
+    if refusal is not None:
+        return refusal
+    try:
+        from src.transitions import service as transitions
+        from src.transitions.models import TransitionRestoreRequest
+
+        response = await transitions.restore_after_transition_test(TransitionRestoreRequest(board_id=board_id))
+    except transitions.TransitionError as exc:
+        return _transition_refusal(exc, board_id)
+    except HTTPException as exc:
+        return err(f"Error restoring the board: {rest_detail(exc)}")
+    except Exception as exc:
+        return err(f"Error restoring the board: {exc}")
+
+    target = f"Board '{board_id}'" if board_id is not None else "The board"
+    return ok(
+        f"{target} is back on its active page '{response.page_id}'.",
+        page_id=response.page_id,
+        sent=bool(response.sent),
+        board_id=response.board_id,
+    )
 
 
 # ---------------------------------------------------------------------------
