@@ -247,6 +247,31 @@ def _build_mcp_server() -> Any:
             "  • Transition Lab (beta, Settings → Beta): list_transition_plugins(),\n"
             "    test_transition_live(plugin_id, to_page_id) runs one on the real board,\n"
             "    restore_board() snaps it back to its active page afterwards.\n\n"
+            "SCHEDULES (everything the Schedules page can do)\n"
+            "  • list_schedules(board_id) is the page's view: entries with today's\n"
+            "    resolved sunrise/sunset times, plus default_page_id and\n"
+            "    schedule_enabled for that board.\n"
+            "  • create_schedule()/update_schedule() take every entry-form field:\n"
+            "    custom_days, recurrence_type ('weekly' | 'annual_date' |\n"
+            "    'one_off_date') with its dates, start_type/end_type ('fixed' |\n"
+            "    'sunrise' | 'sunset') with minute offsets, and board_id.\n"
+            "  • validate_schedules(board_id) reports overlaps and gaps — run it\n"
+            "    after editing. set_default_page(page_id) picks what shows in gaps;\n"
+            "    update_setting('schedule_behavior', {defer_on_reenable}) sets the\n"
+            "    global re-enable behavior.\n"
+            "  • Collections rotate on 'time', pick by 'variable' rules, or shuffle\n"
+            "    on 'random'; update_collection() merges mode config, so a single\n"
+            "    field (poll_seconds, rules, interval_seconds) can change alone.\n\n"
+            "BOARD STATE (the Home page's controls)\n"
+            "  • set_temporary_override(page_id | template_lines, duration_minutes)\n"
+            "    shows something for a while on the primary board and reverts on\n"
+            "    its own; get_temporary_override() reads it; cancel_temporary_override()\n"
+            "    ends it early. get_active_page() also reports it.\n"
+            "  • force_refresh() resends the active content to every board\n"
+            "    ('Resend to board'). get_silence_status(board_id) says whether\n"
+            "    quiet hours are suppressing sends right now.\n"
+            "  • pause_board(board_id)/resume_board(board_id) stop and restart\n"
+            "    every write to a board; a paused board reports 'blocked' on sends.\n\n"
             "DEBUGGING TOOLS\n"
             "  • render_page_preview(template_lines, device_type) — see how a\n"
             "    template will look WITHOUT creating a page. Use this to iterate.\n"
@@ -1183,20 +1208,82 @@ def _build_mcp_server() -> Any:
     # -----------------------------------------------------------------------
 
     @_tool(read_only=True)
-    def list_schedules() -> list[dict[str, Any]] | dict[str, Any]:
-        """List all scheduled time slots for page display.
+    def list_schedules(board_id: str | None = None) -> dict[str, Any]:
+        """List a board's schedule entries, with today's resolved times, exactly as the Schedules page shows them.
 
-        Returns a list of schedule entries with:
-        - id: use this for update_schedule(), delete_schedule()
-        - page_id: which page to show
-        - start_time / end_time: HH:MM format (24h). end_time null = runs until next schedule.
-        - day_pattern: 'all', 'weekdays', 'weekends', or 'custom'
-        - enabled: whether the schedule entry is active
+        Mirrors GET /v1/schedules. Each entry carries the stored fields
+        (id, page_id, start_time/end_time in HH:MM, day_pattern, custom_days,
+        recurrence_type with annual_date/annual_end_date or
+        one_off_date/one_off_end_date, start_type/end_type with the sun
+        offsets, enabled, board_id) plus resolved_start_time /
+        resolved_end_time — the actual HH:MM for today, which differs from the
+        stored value only for sunrise/sunset entries. end_time null means the
+        entry runs until the next one starts.
+
+        Args:
+            board_id: Board to list (from the boards list in
+                      get_settings_summary()). Omitted = the primary board.
+                      Pass "*" for every board's entries at once — then
+                      default_page_id and schedule_enabled are null, since
+                      they are per-board.
+
+        Returns: {schedules: [...], total, board_id, default_page_id (the page
+        shown in schedule gaps — change it with set_default_page()),
+        schedule_enabled (whether schedule mode drives this board — change it
+        with set_schedule_mode())}.
+        """
+        from .schedules.routes import _enrich_schedule_with_sun_times
+        from .schedules.service import get_schedule_service
+        from .settings.service import get_settings_service
+
+        svc = get_schedule_service()
+        if board_id == "*":
+            entries = [_enrich_schedule_with_sun_times(s.model_dump()) for s in svc.list_schedules(board_id="*")]
+            return {
+                "schedules": _serialize(entries),
+                "total": len(entries),
+                "board_id": "*",
+                "default_page_id": None,
+                "schedule_enabled": None,
+            }
+
+        settings = get_settings_service()
+        if board_id is not None and not any(
+            isinstance(b, dict) and b.get("id") == board_id for b in (settings.get_board_settings().boards or [])
+        ):
+            raise ToolError(f"Board not found: {board_id}")
+        target = ops_executors.resolve_board_id(board_id)
+        entries = [_enrich_schedule_with_sun_times(s.model_dump()) for s in svc.list_schedules(board_id=target)]
+        return {
+            "schedules": _serialize(entries),
+            "total": len(entries),
+            "board_id": target,
+            "default_page_id": svc.get_default_page(board_id=target),
+            "schedule_enabled": bool(settings.is_schedule_enabled(board_id=target)),
+        }
+
+    @_tool(read_only=True)
+    def validate_schedules(board_id: str | None = None) -> dict[str, Any]:
+        """Check a board's schedule for overlapping entries and uncovered gaps.
+
+        The same check the Schedules page runs (POST /schedules/validate).
+        Only enabled weekly entries take part; annual and one-off dates are
+        intentional overrides and never count as conflicts. Sunrise/sunset
+        entries are resolved to today's times first. Read-only.
+
+        Args:
+            board_id: Board to validate (from the boards list in
+                      get_settings_summary()). Omitted = the primary board.
+
+        Returns: {valid (false when any overlap exists), overlaps:
+        [{schedule1_id, schedule2_id, conflict_description}], gaps:
+        [{start_time, end_time, days}]}. Gaps are informational — the
+        board shows default_page_id (see list_schedules()) during them.
         """
         from .schedules.service import get_schedule_service
 
-        svc = get_schedule_service()
-        return _serialize(svc.list_schedules())
+        target = ops_executors.resolve_board_id(board_id)
+        return _serialize(get_schedule_service().validate_schedules(board_id=target))
 
     @_tool(destructive=False)
     def create_schedule(
@@ -1205,18 +1292,55 @@ def _build_mcp_server() -> Any:
         day_pattern: str = "all",
         end_time: str | None = None,
         enabled: bool = True,
+        custom_days: list[str] | None = None,
+        board_id: str | None = None,
+        recurrence_type: str | None = None,
+        annual_date: str | None = None,
+        annual_end_date: str | None = None,
+        one_off_date: str | None = None,
+        one_off_end_date: str | None = None,
+        start_type: str | None = None,
+        start_sun_offset: int | None = None,
+        end_type: str | None = None,
+        end_sun_offset: int | None = None,
     ) -> dict[str, Any]:
         """Create a new schedule entry to show a specific page at a specific time.
+
+        Accepts every field the Schedules page's entry form saves. The
+        simplest call is page_id + start_time: a weekly entry, every day,
+        fixed times, on the primary board.
 
         Args:
             page_id: Which page (or collection) to display. Use IDs from list_pages()
                      or list_collections().
             start_time: When to start showing this page in HH:MM format (24h), e.g. "07:00".
+                        For start_type 'sunrise'/'sunset' this is the fallback used
+                        when no location is configured.
             day_pattern: When this applies — 'all' (every day), 'weekdays', 'weekends',
-                         or 'custom'. Default: 'all'.
+                         or 'custom' (then pass custom_days). Default: 'all'.
+                         Only meaningful for weekly recurrence.
             end_time: When to stop in HH:MM format. Null means open-ended
                       (runs until the next schedule or end of day). Default: None.
             enabled: Whether this schedule is active. Default: True.
+            custom_days: For day_pattern 'custom' — lowercase day names, e.g.
+                         ["monday", "wednesday", "friday"].
+            board_id: Board this entry belongs to (from the boards list in
+                      get_settings_summary()). Omitted = the primary board.
+            recurrence_type: 'weekly' (default; uses day_pattern), 'annual_date'
+                             (repeats every year on annual_date) or 'one_off_date'
+                             (a single calendar date). Date entries override
+                             weekly ones while their date is active.
+            annual_date: For 'annual_date' — "MM-DD", e.g. "12-25".
+            annual_end_date: Optional "MM-DD" end of a multi-day annual window
+                             (may wrap the year, e.g. "12-30" to "01-02").
+            one_off_date: For 'one_off_date' — "YYYY-MM-DD".
+            one_off_end_date: Optional "YYYY-MM-DD" end of a multi-day one-off window.
+            start_type: 'fixed' (default, uses start_time), 'sunrise' or 'sunset'
+                        (computed daily from the location setting).
+            start_sun_offset: Minutes relative to the sun event for start_type
+                              'sunrise'/'sunset' — positive = after, negative = before.
+            end_type: 'fixed' (default, uses end_time), 'sunrise' or 'sunset'.
+            end_sun_offset: Minutes relative to the sun event for end_type.
         """
         return ops_executors.create_schedule(
             page_id=page_id,
@@ -1224,6 +1348,17 @@ def _build_mcp_server() -> Any:
             day_pattern=day_pattern,
             end_time=end_time,
             enabled=enabled,
+            custom_days=custom_days,
+            board_id=board_id,
+            recurrence_type=recurrence_type,
+            annual_date=annual_date,
+            annual_end_date=annual_end_date,
+            one_off_date=one_off_date,
+            one_off_end_date=one_off_end_date,
+            start_type=start_type,
+            start_sun_offset=start_sun_offset,
+            end_type=end_type,
+            end_sun_offset=end_sun_offset,
         )
 
     @_tool(destructive=False, idempotent=True)
@@ -1236,23 +1371,52 @@ def _build_mcp_server() -> Any:
         enabled: bool | None = None,
         clear_end_time: bool = False,
         clear_custom_days: bool = False,
+        custom_days: list[str] | None = None,
+        board_id: str | None = None,
+        recurrence_type: str | None = None,
+        annual_date: str | None = None,
+        annual_end_date: str | None = None,
+        one_off_date: str | None = None,
+        one_off_end_date: str | None = None,
+        start_type: str | None = None,
+        start_sun_offset: int | None = None,
+        end_type: str | None = None,
+        end_sun_offset: int | None = None,
+        clear_annual_end_date: bool = False,
+        clear_one_off_end_date: bool = False,
     ) -> dict[str, Any]:
         """Update an existing schedule entry.
 
-        Only the fields you provide will be changed.
+        Only the fields you provide will be changed. Every field
+        create_schedule() accepts can be changed here; the clear_* flags
+        exist because omitting a field means "unchanged", so an explicit
+        null cannot express a clear.
 
         Args:
             schedule_id: The schedule identifier (from list_schedules()).
-            page_id: New page to display (optional).
+            page_id: New page or collection to display (optional).
             start_time: New start time in HH:MM format (optional).
             end_time: New end time in HH:MM format (optional; omitted = unchanged).
             day_pattern: New day pattern: 'all', 'weekdays', 'weekends', 'custom' (optional).
             enabled: Enable or disable this schedule entry (optional).
             clear_end_time: Set True to remove the end time, making the entry
-                open-ended. Needed because omitting end_time means
-                "unchanged" — an explicit null cannot express the clear.
+                open-ended.
             clear_custom_days: Set True to drop a stored custom day list
                 (e.g. when changing day_pattern away from 'custom').
+            custom_days: New day list for day_pattern 'custom' (lowercase names).
+            board_id: Move the entry to another board (from the boards list in
+                      get_settings_summary()).
+            recurrence_type: 'weekly', 'annual_date' or 'one_off_date'.
+            annual_date: New "MM-DD" for annual recurrence.
+            annual_end_date: New "MM-DD" end of the annual window.
+            one_off_date: New "YYYY-MM-DD" for a one-off entry.
+            one_off_end_date: New "YYYY-MM-DD" end of the one-off window.
+            start_type: 'fixed', 'sunrise' or 'sunset'.
+            start_sun_offset: Minutes relative to the start sun event (+after/-before).
+            end_type: 'fixed', 'sunrise' or 'sunset'.
+            end_sun_offset: Minutes relative to the end sun event (+after/-before).
+            clear_annual_end_date: Set True to make an annual entry a single day again.
+            clear_one_off_end_date: Set True to make a one-off entry a single day again.
         """
         return ops_executors.update_schedule(
             schedule_id,
@@ -1263,7 +1427,37 @@ def _build_mcp_server() -> Any:
             enabled=enabled,
             clear_end_time=clear_end_time,
             clear_custom_days=clear_custom_days,
+            custom_days=custom_days,
+            board_id=board_id,
+            recurrence_type=recurrence_type,
+            annual_date=annual_date,
+            annual_end_date=annual_end_date,
+            one_off_date=one_off_date,
+            one_off_end_date=one_off_end_date,
+            start_type=start_type,
+            start_sun_offset=start_sun_offset,
+            end_type=end_type,
+            end_sun_offset=end_sun_offset,
+            clear_annual_end_date=clear_annual_end_date,
+            clear_one_off_end_date=clear_one_off_end_date,
         )
+
+    @_tool(destructive=False, idempotent=True)
+    def set_default_page(page_id: str | None, board_id: str | None = None) -> dict[str, Any]:
+        """Set (or clear) the page a board falls back to when no schedule entry is active.
+
+        This is the Schedules page's "default page" — what shows during the
+        gaps validate_schedules() reports. Read it back from
+        list_schedules() as default_page_id.
+
+        Args:
+            page_id: A page or collection ID (from list_pages() or
+                     list_collections()), or null to clear the default so
+                     gaps leave the board on whatever it last showed.
+            board_id: Board to target (from the boards list in
+                      get_settings_summary()). Omitted = the primary board.
+        """
+        return ops_executors.set_default_page(page_id, board_id=board_id)
 
     @_tool(destructive=True)
     def delete_schedule(schedule_id: str) -> dict[str, Any]:
@@ -1285,8 +1479,9 @@ def _build_mcp_server() -> Any:
         Returns a list with:
         - id: use for update_collection(), delete_collection(), or as page_id in schedules
         - name, page_ids
-        - selection_mode: "time" (rotate on interval) or "variable" (pick by rule)
-        - time / variable: mode-specific config block
+        - selection_mode: "time" (rotate on interval), "variable" (pick by
+          rule) or "random" (shuffle, never the same page twice in a row)
+        - time / variable / random: mode-specific config block
         """
         from .collections.service import get_collection_service
 
@@ -1313,9 +1508,10 @@ def _build_mcp_server() -> Any:
             page_ids: Ordered list of page IDs that belong to the collection.
             selection_mode: "time" (default) rotates pages on a fixed interval;
                 "variable" picks a page by evaluating expression rules against
-                live plugin data.
-            interval_seconds: For time mode — how long to show each page
-                (default 30). Range: 5–86400 (5 seconds to 24 hours).
+                live plugin data; "random" shows a random page per interval,
+                never the same page twice in a row.
+            interval_seconds: For time and random mode — how long to show
+                each page (default 30). Range: 5–86400 (5 seconds to 24 hours).
             rules: For variable mode — ordered list of
                 {"expression": ..., "page_id": ...} entries. First truthy
                 expression wins.
@@ -1347,17 +1543,20 @@ def _build_mcp_server() -> Any:
     ) -> dict[str, Any]:
         """Update an existing collection's name, page list, or selection config.
 
-        Pass only the fields you want to change. To switch modes, send the new
-        selection_mode together with its config (interval_seconds for time,
-        or rules + default_page_id for variable).
+        Pass only the fields you want to change. Mode-specific fields merge
+        with what is stored, so a variable-mode collection can have just its
+        poll_seconds or rules changed. To switch modes, send the new
+        selection_mode (plus default_page_id when switching TO variable mode
+        for the first time); interval_seconds is optional when switching to
+        random — the current interval carries over.
 
         Args:
             collection_id: The collection identifier (from list_collections()).
             name: New name (optional).
             page_ids: New ordered list of page IDs (optional). Replaces entire list.
-            selection_mode: New mode ("time" or "variable").
-            interval_seconds: New rotation interval (time mode).
-            rules: New rule list (variable mode).
+            selection_mode: New mode ("time", "variable" or "random").
+            interval_seconds: New page duration (time and random mode).
+            rules: New rule list (variable mode). Replaces the whole list.
             default_page_id: New fallback page (variable mode).
             poll_seconds: New re-evaluation cadence (variable mode).
         """
@@ -1493,7 +1692,7 @@ def _build_mcp_server() -> Any:
         Args:
             category: Which settings group to change. One of 'display',
                 'transitions', 'output', 'polling', 'location',
-                'silence_schedule', or 'active_page'.
+                'silence_schedule', 'schedule_behavior', or 'active_page'.
             values: The keys to change within that category. Representative
                 keys per category:
                 - display (the on-screen board preview, not the physical
@@ -1512,6 +1711,10 @@ def _build_mcp_server() -> Any:
                 - silence_schedule: enabled (bool), start_time and end_time
                   ("HH:MM"), mode ("freeze" | "page" | "indicator"), page_id,
                   indicator_text, indicator_position.
+                - schedule_behavior: defer_on_reenable (bool) — the
+                  Schedules page's global toggle: when true, turning schedule
+                  mode back on waits for the next entry's start instead of
+                  switching the board immediately.
                 - active_page: page_id (string) — the same selection
                   set_active_page() makes for the primary board.
 
@@ -1535,10 +1738,12 @@ def _build_mcp_server() -> Any:
 
         Returns: {board_id, schedule_enabled, source ('schedule' or 'manual'),
         active_ref (the stored page/collection id), resolved_page_id (after
-        collection resolution), page (summary of the resolved page, or null)}.
+        collection resolution), page (summary of the resolved page, or null),
+        temporary_override (the same status get_temporary_override() returns;
+        when active it wins over source/active_ref on the primary board)}.
         """
         from .collections.models import is_collection_id
-        from .settings.service import get_settings_service
+        from .settings.service import get_settings_service, temporary_override_payload
 
         svc = get_settings_service()
         if board_id is not None:
@@ -1587,6 +1792,7 @@ def _build_mcp_server() -> Any:
             "active_ref": active_ref,
             "resolved_page_id": resolved_page_id,
             "page": page_summary,
+            "temporary_override": temporary_override_payload(svc.get_temporary_override()),
         }
 
     @_tool(read_only=True)
@@ -1684,6 +1890,164 @@ def _build_mcp_server() -> Any:
                       list in get_settings_summary()). Omitted = the primary board.
         """
         return ops_executors.send_message(text, board_id=board_id)
+
+    # -----------------------------------------------------------------------
+    # Board state tools — the Home page's controls
+    #
+    # The temporary override and the forced resend are install-wide: one
+    # override store, applied by the display loop to the primary board only;
+    # one refresh pass over every board. They take no board_id because the
+    # REST routes behind them take none, and a parameter the store cannot
+    # honor would be a lie in the schema.
+    # -----------------------------------------------------------------------
+
+    @_tool(read_only=True)
+    def get_temporary_override() -> dict[str, Any]:
+        """Whether a temporary override is showing on the primary board, and what it is.
+
+        Mirrors GET /settings/temporary-override. An override is a saved
+        page or a one-off message put up by set_temporary_override(); while
+        active it wins over the schedule and the manually selected page.
+
+        Returns: {active, page_id (saved-page form), template (one-off form),
+        line_metadata, device_type, notes_wide, notes_tall, expires_at (ISO
+        UTC, or null for an indefinite override), remaining_seconds (null when
+        indefinite or inactive), revert_mode, revert_page_id}. Every field but
+        active is null when nothing is active.
+        """
+        from .settings.service import get_settings_service, temporary_override_payload
+
+        return temporary_override_payload(get_settings_service().get_temporary_override())
+
+    @_tool(destructive=False, idempotent=False)
+    async def set_temporary_override(
+        page_id: str | None = None,
+        template_lines: list[str] | None = None,
+        line_metadata: list[dict[str, Any]] | None = None,
+        device_type: str | None = None,
+        notes_wide: int | None = None,
+        notes_tall: int | None = None,
+        duration_minutes: int | None = None,
+        revert_mode: str = "schedule",
+        revert_page_id: str | None = None,
+    ) -> dict[str, Any]:
+        """Temporarily show a saved page or a composed one-off on the primary board.
+
+        The Home page's "force set" and "compose" actions (POST
+        /settings/temporary-override). Supply EITHER page_id OR
+        template_lines, never both. Unlike send_message(), the override
+        survives display refreshes and reverts on its own when it expires;
+        it also deliberately beats silence mode and pause. Check
+        get_temporary_override() to read it back; cancel_temporary_override()
+        ends it early.
+
+        Args:
+            page_id: Saved page or collection to show (from list_pages() or
+                     list_collections()).
+            template_lines: One-off board content instead of a saved page —
+                            template strings, one per row, never persisted as
+                            a page. Use render_page_preview() to iterate first.
+            line_metadata: Optional per-line {"alignment", "wrap"} dicts for
+                           the one-off form (same shape as saved pages).
+            device_type: Geometry the one-off content was composed for:
+                         'flagship' (default), 'note' or 'note_array'.
+            notes_wide: note_array only — notes across (1–8).
+            notes_tall: note_array only — notes down (1–8).
+            duration_minutes: How long to show it, 1–480. Omit for an
+                              indefinite override that stays until cancelled.
+            revert_mode: What happens when a timed override expires:
+                         'schedule' (default — resume schedule/manual page),
+                         'blank' (clear the board) or 'page' (switch the
+                         active page to revert_page_id).
+            revert_page_id: Required when revert_mode is 'page'.
+        """
+        return await ops_executors.set_temporary_override(
+            page_id=page_id,
+            template_lines=template_lines,
+            line_metadata=line_metadata,
+            device_type=device_type,
+            notes_wide=notes_wide,
+            notes_tall=notes_tall,
+            duration_minutes=duration_minutes,
+            revert_mode=revert_mode,
+            revert_page_id=revert_page_id,
+        )
+
+    @_tool(destructive=False, idempotent=True)
+    async def cancel_temporary_override() -> dict[str, Any]:
+        """End the active temporary override now and let the primary board revert.
+
+        Mirrors DELETE /settings/temporary-override. A 'page' revert mode is
+        applied immediately; the board re-renders on the next tick. Calling
+        this when nothing is active is a harmless no-op (was_active: false).
+
+        Returns: {status, message, was_active, revert_mode}.
+        """
+        return await ops_executors.cancel_temporary_override()
+
+    @_tool(destructive=False, idempotent=True)
+    async def force_refresh() -> dict[str, Any]:
+        """Resend the active content to every board even if it looks unchanged.
+
+        The Home page's "Resend to board" (POST /force-refresh): clears the
+        unchanged-content caches and drives one send pass. Use it when the
+        flaps disagree with what get_active_page() says should be showing.
+        Respects pause and a UI-only output target — then sent is false.
+
+        Returns: {status, message, sent}.
+        """
+        return await ops_executors.force_refresh()
+
+    @_tool(read_only=True)
+    async def get_silence_status(board_id: str | None = None) -> dict[str, Any]:
+        """Whether a board is inside its silence (quiet hours) window right now.
+
+        Mirrors GET /silence-status. Silence mode suppresses sends so the
+        board does not clack at night; send_message() comes back "blocked"
+        while it is active. The window itself is changed with
+        update_setting('silence_schedule', ...).
+
+        Args:
+            board_id: Board to read (from the boards list in
+                      get_settings_summary()). Omitted = the primary board.
+
+        Returns: {enabled, active, start_time_utc, end_time_utc,
+        current_time_utc, next_change_utc, seconds_until_next_change (null
+        when disabled), mode ('freeze' | 'page' | 'indicator'), page_id,
+        indicator_text, indicator_position, board_id}.
+        """
+        from .service_api.routes import get_silence_status as _rest_silence_status
+
+        return _serialize(await _rest_silence_status(board_id))
+
+    @_tool(destructive=False, idempotent=True)
+    def pause_board(board_id: str | None = None) -> dict[str, Any]:
+        """Pause a board: nothing is written to it until resume_board().
+
+        The Home page's pause toggle (PATCH /v1/boards/{id} paused=true).
+        Every code path stops — the display loop, schedules, plugin
+        triggers, MQTT, send_message(). The board keeps showing whatever is
+        on it. Reversible with resume_board(); read the state back from the
+        boards list in get_settings_summary().
+
+        Args:
+            board_id: Board to pause (from the boards list in
+                      get_settings_summary()). Omitted = the primary board.
+        """
+        return ops_executors.pause_board(board_id=board_id)
+
+    @_tool(destructive=False, idempotent=True)
+    def resume_board(board_id: str | None = None) -> dict[str, Any]:
+        """Resume a paused board so it receives writes again.
+
+        The Home page's pause toggle (PATCH /v1/boards/{id} paused=false).
+        The next display tick re-sends the active content.
+
+        Args:
+            board_id: Board to resume (from the boards list in
+                      get_settings_summary()). Omitted = the primary board.
+        """
+        return ops_executors.resume_board(board_id=board_id)
 
     # -----------------------------------------------------------------------
     # MCP Resources
