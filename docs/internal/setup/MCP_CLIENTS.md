@@ -321,6 +321,48 @@ change. Read current values with `get_settings_summary()` first.
 `send_message`, and `validate_template` were added in the same release.
 Nothing was removed or renamed.
 
+### Also new: the rest of the Settings page
+
+Every control on the web UI's Settings page that is not a secret is now
+reachable, so the in-app chat (which can only call MCP tools) and an
+external client can do the same things a person can there:
+
+- `update_setting(category, values)` gained the categories `general`
+  (`instance_name` — how you rename the install — `timezone`,
+  `time_format`, `date_format`, `welcome_message`), `beta`, `plugins`
+  (`auto_update`), `mqtt` (broker address and `external_url`; not the
+  username/password), `ai` (enabled, default provider, and each provider's
+  non-secret fields; never `api_key`), `release_channel`, `auto_update`
+  (interval) and `hdmi_kiosk`. `silence_schedule` and `active_page` accept
+  a `board_id`. Unknown keys are refused rather than ignored, and secret
+  keys are refused by name.
+- Boards: `update_board` (name, device type, note-array grid, colour,
+  code-62 glyph, API mode, host), `add_board`, `remove_board`,
+  `detect_board_size`, `identify_tile`.
+- FiestaPanels: `list_panels`, `create_panel`, `update_panel` (including
+  `is_display`), `delete_panel`.
+- Network (FiestaPi): `disconnect_wifi`, `forget_wifi_network`. No scan or
+  connect — joining needs a passphrase.
+- System: `check_for_update`, `trigger_system_update` (previously a
+  chat-only tool), `restart_system`, `shutdown_system`, `export_backup`
+  (credentials masked, so not restorable as-is), `test_ai_provider`.
+- Advanced: `blank_board`, `fill_board`, `show_board_debug_info`,
+  `run_network_diagnostics`, `clear_board_cache`.
+- Reads: `get_settings_summary` now returns every category above (secrets
+  masked as `***`), and `get_system_status` reports the running version,
+  release channel, auto-update interval, updater reachability, MQTT
+  connection state and HDMI kiosk state.
+
+Approval-gated (`destructiveHint`) in this batch: `remove_board`,
+`delete_panel`, `disconnect_wifi`, `forget_wifi_network`,
+`trigger_system_update`, `restart_system`, `shutdown_system`.
+
+**Excluded by design:** board API keys and note-array tokens, Wi-Fi
+passphrases (scan/connect), the enablement token for the local API, MQTT
+username/password, AI provider `api_key` and `headers`, the MCP token, and
+every auth setting (password, username, disabling the login, the auth
+preference) and backup *import*. Those stay in the web UI.
+
 ## Troubleshooting
 
 **"Some MCP servers could not be loaded… skipped: fiestaboard"** — your
