@@ -131,10 +131,29 @@ OPERATIONS: tuple[Operation, ...] = (
         adapt_chat_args=lambda a: {"schedule_id": a.schedule_id},
     ),
     Operation(name="set_schedule_mode", executor=executors.set_schedule_mode, mcp_tool="set_schedule_mode"),
+    # The schedule-gap fallback page — PATCH /v1/boards/{board} default_page_id.
+    Operation(name="set_default_page", executor=executors.set_default_page, mcp_tool="set_default_page"),
     # -- board messages ---------------------------------------------------
     # MCP-only server op (#1765): the ad-hoc send the REST surface has as
     # POST /send-message. The chat grammar has no spelling for it today.
     Operation(name="send_message", executor=executors.send_message, mcp_tool="send_message"),
+    # -- board state (the Home page's controls) ---------------------------
+    # MCP-only server ops. Pause/resume are one executor behind two tool
+    # spellings because the registry names one MCP tool per operation, and
+    # "pause" vs "resume" is the whole meaning of the call.
+    Operation(name="pause_board", executor=executors.pause_board, mcp_tool="pause_board"),
+    Operation(name="resume_board", executor=executors.resume_board, mcp_tool="resume_board"),
+    Operation(
+        name="set_temporary_override",
+        executor=executors.set_temporary_override,
+        mcp_tool="set_temporary_override",
+    ),
+    Operation(
+        name="cancel_temporary_override",
+        executor=executors.cancel_temporary_override,
+        mcp_tool="cancel_temporary_override",
+    ),
+    Operation(name="force_refresh", executor=executors.force_refresh, mcp_tool="force_refresh"),
     # -- collections ------------------------------------------------------
     Operation(
         name="create_collection",

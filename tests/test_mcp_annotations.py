@@ -59,6 +59,9 @@ READ_ONLY = {
     "get_current_display",
     "list_transition_plugins",
     "list_formula_functions",
+    "validate_schedules",
+    "get_temporary_override",
+    "get_silence_status",
 }
 
 #: Tools whose effect cannot be undone by calling another tool. These are
@@ -82,7 +85,9 @@ OPEN_WORLD = {
 }
 
 #: Calling these twice with the same arguments leaves the same state as
-#: calling them once.
+#: calling them once. ``set_temporary_override`` is deliberately absent: a
+#: second call restarts the expiry clock, so the state after two calls is
+#: not the state after one.
 IDEMPOTENT = READ_ONLY | {
     "enable_plugin",
     "disable_plugin",
@@ -96,6 +101,11 @@ IDEMPOTENT = READ_ONLY | {
     "update_collection",
     # Snapping a board back to its active page twice leaves it where once did.
     "restore_board",
+    "set_default_page",
+    "cancel_temporary_override",
+    "force_refresh",
+    "pause_board",
+    "resume_board",
 }
 
 
