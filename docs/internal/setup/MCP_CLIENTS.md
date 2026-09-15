@@ -321,6 +321,54 @@ change. Read current values with `get_settings_summary()` first.
 `send_message`, and `validate_template` were added in the same release.
 Nothing was removed or renamed.
 
+### Page-editor parity: every editor control, share strings, staff picks, the Transition Lab
+
+The in-app AI chat drives FiestaBoard through this same server, so
+everything the web page editor can save has to be reachable as a tool.
+This release closes that gap. Existing argument names are unchanged; the
+additions are all optional.
+
+- **`update_page` and `create_page` accept every editor field**:
+  `device_type` (`flagship` / `note` / `note_array`), `notes_wide` and
+  `notes_tall` (note-array geometry), `line_metadata` (one
+  `{"alignment": "left"|"center"|"right", "wrap": bool}` per line),
+  `transition_strategy` / `transition_interval_ms` / `transition_step_size`
+  (the per-page transition override) and, on update, `duration_seconds`.
+  `update_page(clear_transition_override=True)` removes the override —
+  needed because an omitted field means "unchanged". A device or size
+  retarget answers `incompatible_references`, the same list
+  `PUT /pages/{id}` returns: every schedule entry, board active page or
+  silence page that now points the page at a board it no longer fits.
+  Warn-only; nothing is mutated.
+- **`render_page_preview(notes_wide, notes_tall)`** previews a `note_array`
+  at its real size and now reports `rows` / `cols`.
+- **`export_page(page_id)`** → the portable share string
+  (`GET /pages/{id}/share`); **`import_page(share_string)`** creates a new
+  page from one (`POST /pages/import`). Read-only and non-destructive
+  respectively.
+- **`list_staff_picks()`** and **`import_staff_pick(pick_id)`** — the
+  curated gallery (`GET /staff-picks`, then share → import). Listings never
+  carry share strings.
+- **`get_current_display(board_id?)`** — the live page's raw template plus
+  `line_metadata` and device geometry (`GET /pages/current-display`, with a
+  `board_id` the REST route lacks).
+- **`list_formula_functions()`** — the `{{= ...}}` function reference
+  (`GET /v1/functions`).
+- **Transition Lab** (beta; errors until Settings → Beta enables transition
+  plugins, exactly like the REST routes): **`list_transition_plugins()`**
+  (`GET /transitions/plugins`), **`test_transition_live(plugin_id,
+  to_page_id, from_page_id?, config?, board_id?)`** (`POST
+  /transitions/test-live`) and **`restore_board(board_id?)`** (`POST
+  /transitions/restore`). A paused board or an active silence window comes
+  back as `status: "blocked"`, the same policy result `send_message`
+  returns.
+
+Annotations: `export_page`, `list_staff_picks`, `get_current_display`,
+`list_transition_plugins` and `list_formula_functions` are read-only;
+`import_page`, `import_staff_pick` and `test_transition_live` are writes
+but not destructive (a client should not ask for confirmation);
+`restore_board` is additionally idempotent. Nothing here is destructive.
+
 ## Troubleshooting
 
 **"Some MCP servers could not be loaded… skipped: fiestaboard"** — your
