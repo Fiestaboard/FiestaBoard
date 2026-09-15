@@ -9,6 +9,7 @@ import { toast } from "sonner";
 import { queryKeys } from "@/hooks/use-board";
 import { useDepsChanged } from "@/hooks/use-deps-changed";
 import { useTranslations } from "@/i18n/translations";
+import { anchorProps } from "@/lib/ai-choreography/anchors";
 import type { LocationSettings } from "@/lib/api";
 import { api } from "@/lib/api";
 
@@ -112,7 +113,13 @@ export function LocationSettingsCard() {
   const isConfigured = location?.latitude != null && location?.longitude != null;
 
   return (
-    <PageSection icon={<MapPin />} title={t("title")} description={t("description")} contentClassName="space-y-4">
+    <PageSection
+      icon={<MapPin />}
+      title={t("title")}
+      description={t("description")}
+      contentClassName="space-y-4"
+      {...anchorProps("settings.location")}
+    >
       {isLoading ? (
         <Stack gap="3">
           <Box className="h-10 bg-muted animate-pulse rounded" />

@@ -2035,7 +2035,9 @@
     },
     "status": {
       "thinking": "Thinking…",
-      "running": "Running {tool}…"
+      "running": "Running {tool}…",
+      "preparing": "Preparing {tool}…",
+      "elapsed": "{seconds}s"
     },
     "question": {
       "skip": "Skip",
@@ -2217,5 +2219,40 @@
       "triggerSystemUpdate": "Downloads and installs the latest FiestaBoard update. The system will restart briefly.",
       "generic": "This action cannot be undone by another tool."
     }
+  },
+  "aiSpotlight": {
+    "stop": "Stop",
+    "approve": "Approve",
+    "deny": "Deny"
+  },
+  "aiChoreography": {
+    "working": "{tool}…",
+    "done": "{tool} — done",
+    "failed": "{tool} failed",
+    "awaitingApproval": "{tool} — waiting for your approval",
+    "openingNewPage": "Opening a new page…",
+    "typingName": "Naming the page…",
+    "typingLines": "Writing the lines…",
+    "creatingPage": "Creating “{name}”…",
+    "pageCreated": "Page created",
+    "pageUpdated": "Page updated",
+    "pageFailed": "The page could not be saved",
+    "updatingBehindEdits": "Updating the saved page — your unsaved edits stay as they are",
+    "changingDevice": "Changing the board size…",
+    "aboutToDeletePage": "About to delete this page",
+    "pageDeleted": "Page deleted",
+    "openingScheduleForm": "Opening the schedule form…",
+    "fillingSchedule": "Filling in the schedule…",
+    "savingSchedule": "Saving the schedule…",
+    "scheduleCreated": "Schedule added",
+    "scheduleUpdated": "Schedule updated",
+    "scheduleFailed": "The schedule could not be saved",
+    "aboutToDeleteSchedule": "About to delete this schedule",
+    "scheduleDeleted": "Schedule deleted",
+    "changingSetting": "{tool}…",
+    "settingSaved": "Setting saved",
+    "settingFailed": "The setting could not be saved",
+    "on": "On",
+    "off": "Off"
   }
 }

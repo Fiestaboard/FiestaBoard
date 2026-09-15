@@ -2035,7 +2035,9 @@
     },
     "status": {
       "thinking": "考え中…",
-      "running": "{tool} を実行中…"
+      "running": "{tool} を実行中…",
+      "preparing": "{tool} を準備中…",
+      "elapsed": "{seconds}秒"
     },
     "question": {
       "skip": "スキップ",
@@ -2217,5 +2219,40 @@
       "triggerSystemUpdate": "最新の FiestaBoard 更新をダウンロードしてインストールします。システムが短時間再起動します。",
       "generic": "この操作は他のツールでは元に戻せません。"
     }
+  },
+  "aiSpotlight": {
+    "stop": "停止",
+    "approve": "承認",
+    "deny": "拒否"
+  },
+  "aiChoreography": {
+    "working": "{tool}…",
+    "done": "{tool} — 完了",
+    "failed": "{tool} に失敗しました",
+    "awaitingApproval": "{tool} — 承認を待っています",
+    "openingNewPage": "新しいページを開いています…",
+    "typingName": "ページ名を入力中…",
+    "typingLines": "行を入力中…",
+    "creatingPage": "「{name}」を作成中…",
+    "pageCreated": "ページを作成しました",
+    "pageUpdated": "ページを更新しました",
+    "pageFailed": "ページを保存できませんでした",
+    "updatingBehindEdits": "保存済みページを更新中 — 未保存の編集はそのままです",
+    "changingDevice": "ボードサイズを変更中…",
+    "aboutToDeletePage": "このページを削除しようとしています",
+    "pageDeleted": "ページを削除しました",
+    "openingScheduleForm": "スケジュールフォームを開いています…",
+    "fillingSchedule": "スケジュールを入力中…",
+    "savingSchedule": "スケジュールを保存中…",
+    "scheduleCreated": "スケジュールを追加しました",
+    "scheduleUpdated": "スケジュールを更新しました",
+    "scheduleFailed": "スケジュールを保存できませんでした",
+    "aboutToDeleteSchedule": "このスケジュールを削除しようとしています",
+    "scheduleDeleted": "スケジュールを削除しました",
+    "changingSetting": "{tool}…",
+    "settingSaved": "設定を保存しました",
+    "settingFailed": "設定を保存できませんでした",
+    "on": "オン",
+    "off": "オフ"
   }
 }

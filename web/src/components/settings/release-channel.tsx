@@ -22,6 +22,7 @@ import { toast } from "sonner";
 
 import { useUpdate } from "@/components/update-context";
 import { useTranslations } from "@/i18n/translations";
+import { anchorProps } from "@/lib/ai-choreography/anchors";
 import { api } from "@/lib/api";
 
 /**
@@ -75,7 +76,12 @@ export function ReleaseChannelCard() {
   const onBeta = data.channel === "beta";
 
   return (
-    <PageSection icon={<FlaskConical />} title={t("title")} description={t("description")}>
+    <PageSection
+      icon={<FlaskConical />}
+      title={t("title")}
+      description={t("description")}
+      {...anchorProps("settings.release_channel")}
+    >
       <Flex align="start" justify="between" gap="4" className="rounded-md border p-4">
         <Flex direction="col" gap="1" className="min-w-0">
           <Flex align="center" gap="2">
@@ -104,7 +110,12 @@ export function ReleaseChannelCard() {
         </Flex>
 
         {data.can_switch && (
-          <Button variant="outline" onClick={() => setConfirming(true)} disabled={switchMutation.isPending}>
+          <Button
+            variant="outline"
+            onClick={() => setConfirming(true)}
+            disabled={switchMutation.isPending}
+            {...anchorProps("settings.release_channel.channel")}
+          >
             {onBeta ? t("leaveCta") : t("joinCta")}
           </Button>
         )}

@@ -2035,7 +2035,9 @@
     },
     "status": {
       "thinking": "Denke nach…",
-      "running": "{tool} läuft…"
+      "running": "{tool} läuft…",
+      "preparing": "{tool} wird vorbereitet…",
+      "elapsed": "{seconds} s"
     },
     "question": {
       "skip": "Überspringen",
@@ -2217,5 +2219,40 @@
       "triggerSystemUpdate": "Lädt die neueste FiestaBoard-Aktualisierung herunter und installiert sie. Das System startet kurz neu.",
       "generic": "Diese Aktion kann durch kein anderes Werkzeug rückgängig gemacht werden."
     }
+  },
+  "aiSpotlight": {
+    "stop": "Stopp",
+    "approve": "Erlauben",
+    "deny": "Ablehnen"
+  },
+  "aiChoreography": {
+    "working": "{tool}…",
+    "done": "{tool} — fertig",
+    "failed": "{tool} fehlgeschlagen",
+    "awaitingApproval": "{tool} — wartet auf deine Freigabe",
+    "openingNewPage": "Neue Seite wird geöffnet…",
+    "typingName": "Seite wird benannt…",
+    "typingLines": "Zeilen werden geschrieben…",
+    "creatingPage": "„{name}“ wird erstellt…",
+    "pageCreated": "Seite erstellt",
+    "pageUpdated": "Seite aktualisiert",
+    "pageFailed": "Die Seite konnte nicht gespeichert werden",
+    "updatingBehindEdits": "Gespeicherte Seite wird aktualisiert — deine ungespeicherten Änderungen bleiben erhalten",
+    "changingDevice": "Boardgröße wird geändert…",
+    "aboutToDeletePage": "Diese Seite wird gleich gelöscht",
+    "pageDeleted": "Seite gelöscht",
+    "openingScheduleForm": "Zeitplanformular wird geöffnet…",
+    "fillingSchedule": "Zeitplan wird ausgefüllt…",
+    "savingSchedule": "Zeitplan wird gespeichert…",
+    "scheduleCreated": "Zeitplan hinzugefügt",
+    "scheduleUpdated": "Zeitplan aktualisiert",
+    "scheduleFailed": "Der Zeitplan konnte nicht gespeichert werden",
+    "aboutToDeleteSchedule": "Dieser Zeitplan wird gleich gelöscht",
+    "scheduleDeleted": "Zeitplan gelöscht",
+    "changingSetting": "{tool}…",
+    "settingSaved": "Einstellung gespeichert",
+    "settingFailed": "Die Einstellung konnte nicht gespeichert werden",
+    "on": "An",
+    "off": "Aus"
   }
 }

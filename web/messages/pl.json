@@ -2035,7 +2035,9 @@
     },
     "status": {
       "thinking": "Myślę…",
-      "running": "Wykonywanie: {tool}…"
+      "running": "Wykonywanie: {tool}…",
+      "preparing": "Przygotowywanie: {tool}…",
+      "elapsed": "{seconds} s"
     },
     "question": {
       "skip": "Pomiń",
@@ -2217,5 +2219,40 @@
       "triggerSystemUpdate": "Pobiera i instaluje najnowszą aktualizację FiestaBoard. System na chwilę się zrestartuje.",
       "generic": "Tej akcji nie da się cofnąć innym narzędziem."
     }
+  },
+  "aiSpotlight": {
+    "stop": "Zatrzymaj",
+    "approve": "Zatwierdź",
+    "deny": "Odrzuć"
+  },
+  "aiChoreography": {
+    "working": "{tool}…",
+    "done": "{tool} — gotowe",
+    "failed": "{tool} nie powiodło się",
+    "awaitingApproval": "{tool} — czeka na Twoją zgodę",
+    "openingNewPage": "Otwieranie nowej strony…",
+    "typingName": "Nadawanie nazwy stronie…",
+    "typingLines": "Pisanie wierszy…",
+    "creatingPage": "Tworzenie „{name}”…",
+    "pageCreated": "Strona utworzona",
+    "pageUpdated": "Strona zaktualizowana",
+    "pageFailed": "Nie udało się zapisać strony",
+    "updatingBehindEdits": "Aktualizacja zapisanej strony — Twoje niezapisane zmiany pozostają",
+    "changingDevice": "Zmiana rozmiaru tablicy…",
+    "aboutToDeletePage": "Ta strona zostanie usunięta",
+    "pageDeleted": "Strona usunięta",
+    "openingScheduleForm": "Otwieranie formularza harmonogramu…",
+    "fillingSchedule": "Wypełnianie harmonogramu…",
+    "savingSchedule": "Zapisywanie harmonogramu…",
+    "scheduleCreated": "Harmonogram dodany",
+    "scheduleUpdated": "Harmonogram zaktualizowany",
+    "scheduleFailed": "Nie udało się zapisać harmonogramu",
+    "aboutToDeleteSchedule": "Ten harmonogram zostanie usunięty",
+    "scheduleDeleted": "Harmonogram usunięty",
+    "changingSetting": "{tool}…",
+    "settingSaved": "Ustawienie zapisane",
+    "settingFailed": "Nie udało się zapisać ustawienia",
+    "on": "Wł.",
+    "off": "Wył."
   }
 }

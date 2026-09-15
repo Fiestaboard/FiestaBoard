@@ -90,6 +90,7 @@ import {
 import { useRouter } from "@/hooks/use-router";
 import { useTranslations } from "@/i18n/translations";
 import type { CurrentPageSnapshot, EditorToolCall } from "@/lib/ai-chat-types";
+import { anchorProps } from "@/lib/ai-choreography/anchors";
 import type {
   BoardInstance,
   DeviceType,
@@ -137,13 +138,23 @@ export interface PageBuilderHandle {
   getCurrentPage: () => CurrentPageSnapshot | undefined;
   getDeviceType: () => DeviceType;
   applyToolCall: (call: EditorToolCall) => void;
-  /**
-   * Persist the current editor content to the API without closing.
-   * Used by the AI chaining layer to auto-save before navigating away.
-   */
+  /** Persist the current editor content to the API without closing. */
   save: () => Promise<{ id: string } | null>;
   undo: () => void;
   canUndo: () => boolean;
+  hasUnsavedChanges: () => boolean;
+  /**
+   * The AI walkthrough types a page in for real while the server writes
+   * it. Staging takes one snapshot, suspends the draft autosave and locks
+   * Save; `discardStaging` restores the snapshot, `reloadFromServer`
+   * re-seeds from the saved page. Neither leaves a "Draft restored" behind.
+   */
+  beginStaging: () => void;
+  stageName: (value: string) => void;
+  stageLine: (index: number, value: string) => void;
+  stageDeviceType: (value: string) => void;
+  discardStaging: () => void;
+  reloadFromServer: () => Promise<void>;
 }
 
 interface PageSnapshot {
@@ -466,9 +477,72 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
     };
   }, [pageId]);
 
+  const takeSnapshot = useCallback(
+    (): PageSnapshot => ({
+      name: nameRef.current,
+      deviceType: deviceTypeRef.current,
+      templateLines: [...templateLinesRef.current],
+      lineAlignments: [...lineAlignmentsRef.current],
+      lineWrapEnabled: [...lineWrapEnabledRef.current],
+    }),
+    [],
+  );
+
+  const beginStaging = useCallback(() => {
+    if (stagingSnapshotRef.current) return;
+    stagingSnapshotRef.current = takeSnapshot();
+    setStagingActive(true);
+  }, [takeSnapshot]);
+
+  const stageName = useCallback((value: string) => {
+    setName(value);
+  }, []);
+
+  const stageLine = useCallback((index: number, value: string) => {
+    skipNextPreviewDebounceRef.current = true;
+    setTemplateLines((prev) => {
+      const next = [...prev];
+      while (next.length <= index) next.push("");
+      next[index] = value;
+      return next;
+    });
+  }, []);
+
+  const stageDeviceType = useCallback((value: string) => {
+    setDeviceType(value as DeviceType);
+    setDrawMode(false);
+  }, []);
+
+  const discardStaging = useCallback(() => {
+    const snap = stagingSnapshotRef.current;
+    stagingSnapshotRef.current = null;
+    setStagingActive(false);
+    if (snap) applySnapshot(snap);
+    try {
+      localStorage.removeItem(getDraftKey(pageId));
+    } catch {
+      /* storage may be unavailable */
+    }
+  }, [applySnapshot, pageId]);
+
+  const reloadFromServer = useCallback(async () => {
+    stagingSnapshotRef.current = null;
+    setStagingActive(false);
+    if (!pageId) return;
+    forceReseedRef.current = true;
+    await queryClient.invalidateQueries({ queryKey: ["page", pageId] });
+  }, [pageId, queryClient]);
+
   useImperativeHandle(
     ref,
     (): PageBuilderHandle => ({
+      hasUnsavedChanges: () => hasUnsavedChangesRef.current,
+      beginStaging,
+      stageName,
+      stageLine,
+      stageDeviceType,
+      discardStaging,
+      reloadFromServer,
       getCurrentPage: getCurrentPageSnapshot,
       getDeviceType: () => deviceTypeRef.current,
       applyToolCall,
@@ -523,7 +597,20 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
     // when the stack changes (the function returned by canUndo always
     // sees the latest ref, but consumers may render gates off it).
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [getCurrentPageSnapshot, applyToolCall, handleUndoAi, undoVersion, pageId, queryClient],
+    [
+      getCurrentPageSnapshot,
+      applyToolCall,
+      handleUndoAi,
+      undoVersion,
+      pageId,
+      queryClient,
+      beginStaging,
+      stageName,
+      stageLine,
+      stageDeviceType,
+      discardStaging,
+      reloadFromServer,
+    ],
   );
 
   const handleEditorModeChange = useCallback((mode: "rich" | "plain") => {
@@ -727,13 +814,21 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
     hasUnsavedChangesRef.current = hasUnsavedChanges;
   }, [hasUnsavedChanges]);
   const seededPageIdRef = useRef<string | null>(null);
+  // A reload the walkthrough asked for re-seeds even though staging left
+  // the editor looking dirty.
+  const forceReseedRef = useRef(false);
+  // While the walkthrough stages values: the snapshot to restore, and a
+  // flag the autosave and Save button read.
+  const stagingSnapshotRef = useRef<PageSnapshot | null>(null);
+  const [stagingActive, setStagingActive] = useState(false);
 
   // Load draft or existing page data
   useEffect(() => {
     if (existingPage) {
-      if (seededPageIdRef.current === existingPage.id && hasUnsavedChangesRef.current) {
+      if (seededPageIdRef.current === existingPage.id && hasUnsavedChangesRef.current && !forceReseedRef.current) {
         return;
       }
+      forceReseedRef.current = false;
       seededPageIdRef.current = existingPage.id;
       // Clear draft when loading existing page
       const draftKey = getDraftKey(pageId);
@@ -873,6 +968,10 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
     if (existingPage) {
       return;
     }
+    // A staged reveal is not the user's draft.
+    if (stagingActive) {
+      return;
+    }
 
     // Debounce draft saving
     const timeoutId = setTimeout(() => {
@@ -892,7 +991,7 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
     }, 1000); // Save draft 1 second after last change
 
     return () => clearTimeout(timeoutId);
-  }, [name, templateLines, lineAlignments, lineWrapEnabled, pageId, existingPage]);
+  }, [name, templateLines, lineAlignments, lineWrapEnabled, pageId, existingPage, stagingActive]);
 
   // Auto-resize textareas when content changes
   useEffect(() => {
@@ -1762,6 +1861,7 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
                         variant="brand"
                         size="sm"
                         className="h-8 gap-1.5 px-3 text-xs"
+                        {...anchorProps("page-editor.save")}
                         onClick={() => {
                           // A shrinking retarget loses content — confirm first.
                           if (isShrinkingRetarget) {
@@ -1770,7 +1870,7 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
                             saveMutation.mutate();
                           }
                         }}
-                        disabled={!name.trim() || saveMutation.isPending}
+                        disabled={!name.trim() || saveMutation.isPending || stagingActive}
                         aria-label={t("savePageAriaLabel")}
                       >
                         <Save className="h-3.5 w-3.5" />
@@ -1876,7 +1976,7 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
                   </Flex>
                 </Flex>
                 {editorMode === "rich" ? (
-                  <Box>
+                  <Box {...anchorProps("page-editor.template")}>
                     {/* Template editor with device-specific dimensions */}
                     <Suspense fallback={<Skeleton className="h-48 w-full rounded-md" />}>
                       <TipTapTemplateEditor
@@ -1967,7 +2067,7 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
                     </Suspense>
                   </Box>
                 ) : (
-                  <Box>
+                  <Box {...anchorProps("page-editor.template")}>
                     <PlainTextEditor
                       value={templateLines.join("\n")}
                       onChange={(newValue) => {
@@ -2036,6 +2136,7 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
                         }}
                       >
                         <SelectTrigger
+                          {...anchorProps("page-editor.device")}
                           className="h-7 w-auto gap-1 px-2 text-xs"
                           aria-label={t("deviceTypeSwitcherAriaLabel")}
                         >

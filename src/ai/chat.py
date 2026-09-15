@@ -268,6 +268,11 @@ _FENCE_OPEN_RE = re.compile(r"```fiestaboard\b")
 _FENCE_CLOSE_RE = re.compile(r"```")
 
 
+#: Characters a fence must grow by between two ``tool_streaming`` drafts.
+_DRAFT_STEP = 12
+_DRAFT_OP_RE = re.compile(r'"(?:op|tool)"\s*:\s*"([a-z_]+)"')
+
+
 class _FenceParser:
     """Buffer streamed text and split it into prose vs. fenced JSON.
 
@@ -285,6 +290,9 @@ class _FenceParser:
         self._buffer: str = ""
         self._in_fence: bool = False
         self._fence_buffer: str = ""
+        # How much of the open fence the client has already seen as a
+        # draft; drafts go out when the block has grown by a few tokens.
+        self._draft_sent_len: int = 0
 
     def feed(self, chunk: str) -> list[dict[str, Any]]:
         """Feed a text delta; return zero or more events to emit.
@@ -306,6 +314,9 @@ class _FenceParser:
                     safe_len = max(0, len(self._buffer) - 3)
                     self._fence_buffer += self._buffer[:safe_len]
                     self._buffer = self._buffer[safe_len:]
+                    draft = self._draft_event()
+                    if draft is not None:
+                        events.append(draft)
                     return events
                 # Close: text up to start of ``` is the final fence
                 # contents.
@@ -349,6 +360,27 @@ class _FenceParser:
             self._buffer = after
             self._in_fence = True
             self._fence_buffer = ""
+            self._draft_sent_len = 0
+
+    def _draft_event(self) -> dict[str, Any] | None:
+        """The open block so far, for the UI to act on before it closes.
+
+        A model writing a six-line page spends seconds inside one fence;
+        without this the user sees nothing move. The draft carries the raw
+        text (the client keeps a tolerant reader for the parts it can use)
+        and the tool name once it is legible. Sent once the block has grown
+        by :data:`_DRAFT_STEP` characters, so a long block costs a few
+        dozen small frames, not one per token.
+        """
+        grown = len(self._fence_buffer) - self._draft_sent_len
+        if grown < _DRAFT_STEP:
+            return None
+        self._draft_sent_len = len(self._fence_buffer)
+        # The newline after the opening marker may arrive in its own chunk
+        # and land in the buffer; the block itself starts at the brace.
+        text = self._fence_buffer.lstrip()
+        match = _DRAFT_OP_RE.search(text)
+        return {"event": "tool_streaming", "data": {"op": match.group(1) if match else None, "text": text}}
 
     def flush(self) -> list[dict[str, Any]]:
         """Drain any remaining buffered text after the stream closes."""

@@ -2035,7 +2035,9 @@
     },
     "status": {
       "thinking": "思考中…",
-      "running": "正在运行 {tool}…"
+      "running": "正在运行 {tool}…",
+      "preparing": "正在准备 {tool}…",
+      "elapsed": "{seconds}秒"
     },
     "question": {
       "skip": "跳过",
@@ -2217,5 +2219,40 @@
       "triggerSystemUpdate": "下载并安装最新的 FiestaBoard 更新。系统将短暂重启。",
       "generic": "此操作无法通过其他工具撤销。"
     }
+  },
+  "aiSpotlight": {
+    "stop": "停止",
+    "approve": "批准",
+    "deny": "拒绝"
+  },
+  "aiChoreography": {
+    "working": "{tool}…",
+    "done": "{tool} — 完成",
+    "failed": "{tool} 失败",
+    "awaitingApproval": "{tool} — 等待你的批准",
+    "openingNewPage": "正在打开新页面…",
+    "typingName": "正在命名页面…",
+    "typingLines": "正在写入各行…",
+    "creatingPage": "正在创建“{name}”…",
+    "pageCreated": "页面已创建",
+    "pageUpdated": "页面已更新",
+    "pageFailed": "无法保存页面",
+    "updatingBehindEdits": "正在更新已保存的页面 — 你未保存的编辑保持不变",
+    "changingDevice": "正在更改板面尺寸…",
+    "aboutToDeletePage": "即将删除此页面",
+    "pageDeleted": "页面已删除",
+    "openingScheduleForm": "正在打开计划表单…",
+    "fillingSchedule": "正在填写计划…",
+    "savingSchedule": "正在保存计划…",
+    "scheduleCreated": "计划已添加",
+    "scheduleUpdated": "计划已更新",
+    "scheduleFailed": "无法保存计划",
+    "aboutToDeleteSchedule": "即将删除此计划",
+    "scheduleDeleted": "计划已删除",
+    "changingSetting": "{tool}…",
+    "settingSaved": "设置已保存",
+    "settingFailed": "无法保存设置",
+    "on": "开",
+    "off": "关"
   }
 }

@@ -140,6 +140,12 @@
   animation: settings-anchor-pulse 2.2s ease-in-out;
 }
 
+/* The AI walkthrough's "landed" flash: the same pulse the settings deep-link
+   uses, on whatever element the assistant just changed. */
+.ai-anchor-pulse {
+  animation: settings-anchor-pulse 2.2s ease-in-out;
+}
+
 /* Micro-interaction: subtle lift for primary CTAs (respects prefers-reduced-motion via transition) */
 .btn-lift {
   @apply transition-transform duration-150 ease-out;

@@ -2035,7 +2035,9 @@
     },
     "status": {
       "thinking": "Düşünüyorum…",
-      "running": "{tool} çalışıyor…"
+      "running": "{tool} çalışıyor…",
+      "preparing": "{tool} hazırlanıyor…",
+      "elapsed": "{seconds} sn"
     },
     "question": {
       "skip": "Atla",
@@ -2217,5 +2219,40 @@
       "triggerSystemUpdate": "En son FiestaBoard güncellemesini indirip kurar. Sistem kısa süreliğine yeniden başlar.",
       "generic": "Bu işlem başka bir araçla geri alınamaz."
     }
+  },
+  "aiSpotlight": {
+    "stop": "Durdur",
+    "approve": "Onayla",
+    "deny": "Reddet"
+  },
+  "aiChoreography": {
+    "working": "{tool}…",
+    "done": "{tool} — tamam",
+    "failed": "{tool} başarısız",
+    "awaitingApproval": "{tool} — onayınızı bekliyor",
+    "openingNewPage": "Yeni sayfa açılıyor…",
+    "typingName": "Sayfa adlandırılıyor…",
+    "typingLines": "Satırlar yazılıyor…",
+    "creatingPage": "“{name}” oluşturuluyor…",
+    "pageCreated": "Sayfa oluşturuldu",
+    "pageUpdated": "Sayfa güncellendi",
+    "pageFailed": "Sayfa kaydedilemedi",
+    "updatingBehindEdits": "Kayıtlı sayfa güncelleniyor — kaydedilmemiş düzenlemeleriniz korunur",
+    "changingDevice": "Pano boyutu değiştiriliyor…",
+    "aboutToDeletePage": "Bu sayfa silinmek üzere",
+    "pageDeleted": "Sayfa silindi",
+    "openingScheduleForm": "Zamanlama formu açılıyor…",
+    "fillingSchedule": "Zamanlama dolduruluyor…",
+    "savingSchedule": "Zamanlama kaydediliyor…",
+    "scheduleCreated": "Zamanlama eklendi",
+    "scheduleUpdated": "Zamanlama güncellendi",
+    "scheduleFailed": "Zamanlama kaydedilemedi",
+    "aboutToDeleteSchedule": "Bu zamanlama silinmek üzere",
+    "scheduleDeleted": "Zamanlama silindi",
+    "changingSetting": "{tool}…",
+    "settingSaved": "Ayar kaydedildi",
+    "settingFailed": "Ayar kaydedilemedi",
+    "on": "Açık",
+    "off": "Kapalı"
   }
 }
