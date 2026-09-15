@@ -1317,75 +1317,6 @@
       "failure": "Oturum açma etkinleştirilemedi"
     }
   },
-  "aiActionConfirmation": {
-    "deny": "Reddet",
-    "allow": "İzin ver",
-    "working": "Çalışıyor…",
-    "done": "Tamam",
-    "denied": "Reddedildi",
-    "noChanges": "değişiklik yok",
-    "noValues": "değer yok",
-    "noChangesSpecified": "Değişiklik belirtilmedi.",
-    "openEnd": "açık",
-    "label": {
-      "installPlugin": "Eklenti yükle: {id}",
-      "updatePluginConfig": "Eklentiyi yapılandır: {id}",
-      "updatePlugin": "Eklentiyi güncelle: {id}",
-      "enablePlugin": "Eklentiyi etkinleştir: {id}",
-      "disablePlugin": "Eklentiyi devre dışı bırak: {id}",
-      "uninstallPlugin": "Eklentiyi kaldır: {id}",
-      "updateSetting": "Ayarı değiştir: {category}",
-      "createCollection": "Koleksiyon oluştur: \"{name}\"",
-      "updateCollection": "Koleksiyonu güncelle",
-      "createSchedule": "Zamanlama oluştur",
-      "updateSchedule": "Zamanlamayı güncelle",
-      "deleteSchedule": "Zamanlamayı sil",
-      "triggerSystemUpdate": "Sistem güncellemesi"
-    },
-    "description": {
-      "installPlugin": "\"{id}\" eklentisini resmi kayıttan yükler.",
-      "installPluginEnable": "\"{id}\" eklentisini resmi kayıttan yükler ve etkinleştirir.",
-      "updatePluginConfig": "\"{id}\" yapılandırmasını günceller: {keys}.",
-      "updatePlugin": "\"{id}\" eklentisinin en son kayıt sürümünü indirir ve yükler.",
-      "enablePlugin": "\"{id}\" eklentisini panolarınıza veri sağlayabilmesi için etkinleştirir.",
-      "disablePlugin": "\"{id}\" eklentisini kaldırmadan devre dışı bırakır. Daha sonra tekrar etkinleştirilebilir.",
-      "uninstallPlugin": "\"{id}\" eklentisini kalıcı olarak kaldırır. Bu işlem geri alınamaz.",
-      "updateSetting": "{category} ayarlarında {values} değerini ayarlar.",
-      "createCollection": "{count, plural, one {# sayfa} other {# sayfa}} içeren bir koleksiyon oluşturur, her {interval}s'de bir döner.",
-      "createSchedule": "\"{page}\" sayfasını {days} günlerinde {time} arasında gösterir.",
-      "deleteSchedule": "\"{id}\" zamanlamasını kalıcı olarak kaldırır. Bu işlem geri alınamaz.",
-      "triggerSystemUpdate": "En son FiestaBoard güncellemesini indirir ve yükler. Sistem kısa süreliğine yeniden başlar."
-    },
-    "change": {
-      "rename": "\"{name}\" olarak yeniden adlandır",
-      "setPages": "{count, plural, one {# sayfa} other {# sayfa}} ayarla",
-      "interval": "aralık → {interval}s",
-      "page": "sayfa → {page}",
-      "start": "başlangıç → {start}",
-      "end": "bitiş → {end}",
-      "days": "günler → {days}",
-      "enable": "etkinleştir",
-      "disable": "devre dışı bırak"
-    }
-  },
-  "chainingModePicker": {
-    "menuTitle": "Yapay zeka zincirleme modu",
-    "triggerAriaLabel": "Yapay zeka zincirleme modu: {mode}",
-    "modes": {
-      "manual": {
-        "label": "Manuel",
-        "description": "Her işlemden sonra tekrar soracağım"
-      },
-      "autoContinue": {
-        "label": "Otomatik devam",
-        "description": "İşlemleri zincirler, her adımı onaylar"
-      },
-      "autonomous": {
-        "label": "Otonom",
-        "description": "Tamamlanana kadar çalışır, onayları atlar"
-      }
-    }
-  },
   "bootGate": {
     "waiting": "Başlatılması bekleniyor…",
     "errorHeading": "FiestaBoard'a bağlanılamadı",
@@ -1397,7 +1328,31 @@
     "updateErrorDescription": "Güncelleme bitti ancak uygulama hâlâ yeniden başlıyor. Biraz bekleyip sayfayı yenileyin."
   },
   "globalAiChatDrawer": {
-    "panelAriaLabel": "FiestaBot yapay zeka sohbeti"
+    "panelAriaLabel": "FiestaBot yapay zeka sohbeti",
+    "toast": {
+      "undo": "Geri al",
+      "pageCreated": "Sayfa oluşturuldu.",
+      "pageUpdated": "Sayfa güncellendi.",
+      "pageDeleted": "Sayfa silindi.",
+      "scheduleCreated": "Zamanlama oluşturuldu.",
+      "scheduleUpdated": "Zamanlama güncellendi.",
+      "scheduleDeleted": "Zamanlama silindi.",
+      "pluginInstalled": "\"{id}\" eklentisi yüklendi.",
+      "pluginConfigured": "\"{id}\" eklentisi yapılandırıldı.",
+      "pluginUpdated": "\"{id}\" eklentisi güncellendi.",
+      "pluginEnabled": "\"{id}\" eklentisi etkinleştirildi.",
+      "pluginDisabled": "\"{id}\" eklentisi devre dışı bırakıldı.",
+      "pluginUninstalled": "\"{id}\" eklentisi kaldırıldı.",
+      "settingUpdated": "Ayar güncellendi.",
+      "collectionCreated": "\"{name}\" koleksiyonu oluşturuldu.",
+      "collectionUpdated": "Koleksiyon güncellendi.",
+      "collectionDeleted": "Koleksiyon silindi.",
+      "activePageSet": "Pano güncellendi.",
+      "messageSent": "Mesaj panoya gönderildi.",
+      "systemUpdate": "Sistem güncellemesi başlatıldı. Pano kısa süre içinde yeniden başlayacak.",
+      "toolFailed": "{tool} başarısız oldu: {error}",
+      "stopped": "Durduruldu. Zaten çalışan işlemler tamamlanacak."
+    }
   },
   "plainTextEditor": {
     "placeholder": "Şablon metninizi yazın...",
@@ -2042,26 +1997,91 @@
   },
   "aiChatPanel": {
     "messagesAriaLabel": "Sohbet mesajları",
-    "taskStatusAriaLabel": "Görev ilerlemesi",
-    "taskProgressAriaLabel": "AI görev ilerlemesi",
     "clearConversationAriaLabel": "Konuşmayı temizle",
     "closePanelAriaLabel": "FiestaBot (Beta)'yı kapat",
     "providerSelectAriaLabel": "Sağlayıcı",
     "modelSelectAriaLabel": "Model",
-    "showBoardTooltip": "Board önizlemesini göster",
-    "hideBoardTooltip": "Board önizlemesini gizle",
-    "undoTooltip": "Son yapay zeka değişikliğini geri al",
     "panelTitle": "FiestaBot (Beta)",
     "retryButton": "Yeniden dene",
     "messageLabel": "Mesaj",
     "stopButton": "Durdur",
     "sendButton": "Gönder",
-    "tasksHeading": "Görevler ({done}/{total})",
     "emptyStateTitle": "Nasıl yardımcı olabilirim?",
     "emptyStateDescription": "Ne oluşturmak veya değiştirmek istediğinizi anlatın.",
-    "showBoardButton": "Board'u göster",
-    "undoButton": "Geri al",
-    "renameSummary": "→ \"{name}\" olarak yeniden adlandır",
+    "placeholderEmpty": "İstediğin sayfayı anlat ya da değişiklik iste…",
+    "placeholderRefine": "Düzelt, sor ya da başka bir değişiklik iste…",
+    "placeholderAnswer": "Cevabını yaz…",
+    "blockedAiDisabled": "Yapay zeka kapalı. Ayarlar → Yapay Zeka Sağlayıcıları'ndan açın.",
+    "blockedNoProviders": "Ayarlar → Yapay Zeka Sağlayıcıları'ndan en az bir modeli olan bir sağlayıcı yapılandırın.",
+    "suggestions": {
+      "weather": "Sabah yolculuğum için hava durumu + ulaşım sayfası yap",
+      "date": "2. satırı bugünün tarihiyle değiştir",
+      "variables": "Bu sayfada hangi eklenti değişkenlerini kullanabilirim?"
+    },
+    "jumpToLatest": "En sona git",
+    "defaultModel": "Varsayılan",
+    "stepsAriaLabel": "Devam eden adımlar",
+    "stepsHeading": "{total} adımdan {done}",
+    "toolInput": "Argümanlar",
+    "toolOutput": "Sonuç",
+    "toolStates": {
+      "inputStreaming": "Hazırlanıyor",
+      "inputAvailable": "Çalışıyor",
+      "outputAvailable": "Tamamlandı",
+      "outputError": "Başarısız",
+      "approvalRequested": "Onayın bekleniyor",
+      "denied": "Çalıştırılmadı",
+      "stopped": "Durduruldu"
+    },
+    "status": {
+      "thinking": "Düşünüyorum…",
+      "running": "{tool} çalışıyor…"
+    },
+    "question": {
+      "skip": "Atla",
+      "typeAnswer": "Ya da aşağıya bir cevap yaz.",
+      "answered": "Cevabın: {answer}",
+      "declined": "(atlandı)",
+      "cancelled": "(iptal edildi)"
+    },
+    "tool": {
+      "createPage": "Sayfa oluştur",
+      "updatePage": "Sayfayı güncelle",
+      "deletePage": "Sayfayı sil",
+      "createSchedule": "Zamanlama ekle",
+      "updateSchedule": "Zamanlamayı güncelle",
+      "deleteSchedule": "Zamanlamayı sil",
+      "createCollection": "Koleksiyon oluştur",
+      "updateCollection": "Koleksiyonu güncelle",
+      "deleteCollection": "Koleksiyonu sil",
+      "installPlugin": "Eklentiyi yükle",
+      "enablePlugin": "Eklentiyi etkinleştir",
+      "disablePlugin": "Eklentiyi devre dışı bırak",
+      "uninstallPlugin": "Eklentiyi kaldır",
+      "configurePlugin": "Eklentiyi yapılandır",
+      "updatePlugin": "Eklentiyi güncelle",
+      "setActivePage": "Sayfayı panoda göster",
+      "setScheduleMode": "Zamanlama modunu ayarla",
+      "sendMessage": "Panoya mesaj gönder",
+      "updateSetting": "Ayarı değiştir",
+      "triggerSystemUpdate": "Sistem güncellemesi",
+      "askUser": "Soru",
+      "listPages": "Sayfalara bak",
+      "getPage": "Sayfayı oku",
+      "listSchedules": "Zamanlamalara bak",
+      "listCollections": "Koleksiyonlara bak",
+      "listInstalledPlugins": "Yüklü eklentilere bak",
+      "listRegistryPlugins": "Eklenti kaydına göz at",
+      "getTemplateVariables": "Şablon değişkenlerine bak",
+      "getPluginData": "Eklenti verisini oku",
+      "renderPagePreview": "Şablonu önizle",
+      "previewSavedPage": "Sayfayı önizle",
+      "validateTemplate": "Şablonu denetle",
+      "getSystemStatus": "Sistem durumunu kontrol et",
+      "getSettingsSummary": "Ayarları oku",
+      "getActivePage": "Etkin sayfayı kontrol et",
+      "getBoardContent": "Panoyu oku"
+    },
     "previewUnavailable": "(önizleme kullanılamıyor)"
   },
   "boardSizeIndicator": {
@@ -2183,5 +2203,19 @@
     "leaveConfirmTitle": "Beta kanalından çıkılsın mı?",
     "leaveConfirmBody": "Bu, sizi kullandığınız betadan daha eski olan mevcut kararlı sürüme geri döndürür. Ayarlarınız ve sayfalarınız katıldığınızda alınan yedeğe geri alınır; beta sırasında değiştirdiğiniz her şey kaybolur. FiestaBoard kararlı sürümle yeniden başlar. Değişikliklerinizi korumak isterseniz bekleyin: bir sonraki kararlı sürüm betanızı geçtiğinde «Şimdi güncelle» sizi hiçbir şey kaybetmeden oraya taşır.",
     "leaveConfirmCta": "Beta'dan çık"
+  },
+  "aiApprovalCard": {
+    "heading": "Onayın gerekiyor",
+    "approve": "Onayla",
+    "deny": "Reddet",
+    "working": "Çalışıyor…",
+    "description": {
+      "deletePage": "\"{detail}\" sayfasını kalıcı olarak siler. Onu kullanan zamanlamalar ve koleksiyonlar onu kaybeder.",
+      "deleteSchedule": "\"{detail}\" zamanlamasını kalıcı olarak siler. Geri alınamaz.",
+      "deleteCollection": "\"{detail}\" koleksiyonunu kalıcı olarak siler. Geri alınamaz.",
+      "uninstallPlugin": "\"{detail}\" eklentisini ve yapılandırmasını kalıcı olarak kaldırır.",
+      "triggerSystemUpdate": "En son FiestaBoard güncellemesini indirip kurar. Sistem kısa süreliğine yeniden başlar.",
+      "generic": "Bu işlem başka bir araçla geri alınamaz."
+    }
   }
 }

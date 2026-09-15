@@ -100,3 +100,22 @@ def test_first_request_activates_a_working_mcp_server(tmp_path):
     )
     result = _run(code, tmp_path)
     assert result.returncode == 0, result.stdout + result.stderr
+
+
+def test_importing_the_chat_modules_does_not_import_mcp(tmp_path):
+    """The chat drives the MCP server in-process, but only once a turn runs.
+
+    ``src/ai/page_routes.py`` is imported at boot (it is a router);
+    ``src/ai/agent.py`` and ``src/ai/mcp_bridge.py`` are the chat side of the
+    seam. None of them may import ``mcp`` or ``src.mcp_server`` at module
+    scope, or the boot-cost deferral above is silently undone.
+    """
+    code = (
+        "import sys\n"
+        "import src.ai.page_routes, src.ai.agent, src.ai.mcp_bridge, src.ai.chat_tools\n"
+        "mcp_mods = sorted(m for m in sys.modules if m == 'mcp' or m.startswith('mcp.'))\n"
+        "assert not mcp_mods, mcp_mods\n"
+        "assert 'src.mcp_server' not in sys.modules\n"
+    )
+    result = _run(code, tmp_path)
+    assert result.returncode == 0, "importing the chat modules pulled in mcp:\n" + result.stdout + result.stderr

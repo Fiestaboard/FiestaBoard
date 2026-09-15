@@ -48,15 +48,74 @@ describe("streamChat", () => {
   it("fires onToolCall handler for 'tool_call' events", async () => {
     const payload = {
       id: "tc1",
-      op: "replace_page",
-      args: { name: "p", template: [], line_metadata: [], duration_seconds: 300 },
+      name: "create_page",
+      args: { name: "p", template_lines: ["HI"] },
+      title: "Create page",
+      read_only: false,
+      destructive: false,
+      requires_approval: false,
+      source: "mcp",
     };
     mockFES.mockImplementation(async (_url: string, opts: any) => {
       opts.onmessage?.({ event: "tool_call", data: JSON.stringify(payload), id: "", retry: undefined });
     });
     const onToolCall = vi.fn();
     await streamChat(BASE_BODY, { onToolCall });
-    expect(onToolCall).toHaveBeenCalledWith({ id: "tc1", op: "replace_page", args: payload.args });
+    expect(onToolCall).toHaveBeenCalledWith(payload);
+  });
+
+  it("fires onStatus for 'status' events", async () => {
+    const payload = { phase: "tool_running", message: "Running create_page…", tool_call_id: "tc1", step: 1 };
+    mockFES.mockImplementation(async (_url: string, opts: any) => {
+      opts.onmessage?.({ event: "status", data: JSON.stringify(payload), id: "", retry: undefined });
+    });
+    const onStatus = vi.fn();
+    await streamChat(BASE_BODY, { onStatus });
+    expect(onStatus).toHaveBeenCalledWith(payload);
+  });
+
+  it("fires onToolResult for 'tool_result' events", async () => {
+    const payload = {
+      id: "tc1",
+      name: "create_page",
+      status: "ok",
+      summary: "Page created.",
+      result: { page_id: "p9" },
+      error: null,
+    };
+    mockFES.mockImplementation(async (_url: string, opts: any) => {
+      opts.onmessage?.({ event: "tool_result", data: JSON.stringify(payload), id: "", retry: undefined });
+    });
+    const onToolResult = vi.fn();
+    await streamChat(BASE_BODY, { onToolResult });
+    expect(onToolResult).toHaveBeenCalledWith(payload);
+  });
+
+  it("fires onElicitation for 'elicitation' events", async () => {
+    const payload = {
+      id: "q1",
+      name: "ask_user",
+      message: "Which board?",
+      requested_schema: {
+        type: "object",
+        properties: { answer: { type: "string", enum: ["A", "B"] } },
+        required: ["answer"],
+      },
+      allow_free_text: true,
+    };
+    mockFES.mockImplementation(async (_url: string, opts: any) => {
+      opts.onmessage?.({ event: "elicitation", data: JSON.stringify(payload), id: "", retry: undefined });
+    });
+    const onElicitation = vi.fn();
+    await streamChat(BASE_BODY, { onElicitation });
+    expect(onElicitation).toHaveBeenCalledWith(payload);
+  });
+
+  it("sends the resume decision in the POST body", async () => {
+    mockFES.mockResolvedValue(undefined);
+    const body = { ...BASE_BODY, resume: { tool_call_id: "tc1", decision: "approve" as const } };
+    await streamChat(body, {});
+    expect(mockFES).toHaveBeenCalledWith("/api/pages/ai/chat", expect.objectContaining({ body: JSON.stringify(body) }));
   });
 
   it("fires onWarning handler for 'warning' events", async () => {

@@ -2,224 +2,56 @@
 
 import { Box } from "@fiestaboard/ui";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef } from "react";
 import { toast } from "sonner";
 
-import { AiActionConfirmation } from "@/components/ai-action-confirmation";
 import { AiChatPanel } from "@/components/ai-chat-panel";
 import { useGlobalAiPanel } from "@/components/global-ai-panel-context";
 import { usePageEditorBridge } from "@/components/page-editor-bridge-context";
-import { useScheduleEditorBridge } from "@/components/schedule-editor-bridge-context";
 import { useRouter } from "@/hooks/use-router";
 import { useTranslations } from "@/i18n/translations";
-import type {
-  ChainingMode,
-  ChatTurnContext,
-  CreateCollectionArgs,
-  CreateScheduleArgs,
-  DisablePluginArgs,
-  EnablePluginArgs,
-  InstallPluginArgs,
-  SettingCategory,
-  TaskItem,
-  ToolCall,
-  UninstallPluginArgs,
-  UpdatePluginArgs,
-  UpdatePluginConfigArgs,
-  UpdateSettingArgs,
-} from "@/lib/ai-chat-types";
-import { type AiOperationResult, type AISettings, api, type ScheduleEntry } from "@/lib/api";
+import type { ChatTurnContext, ToolCall, ToolResult } from "@/lib/ai-chat-types";
+import { queryKeysForTool } from "@/lib/ai-choreography/query-keys";
+import { type AISettings, api, type ScheduleEntry } from "@/lib/api";
 import { isChromelessPath } from "@/lib/chromeless";
+import { getDraftKey } from "@/lib/page-draft";
+import type { StopReason } from "@/lib/use-ai-chat";
 import { cn } from "@/lib/utils";
 
-// ---------------------------------------------------------------------------
-// Helpers for building tool-result chain messages
-// ---------------------------------------------------------------------------
+/** The chaining-mode preference of the browser-side loop; gone with it. */
+const LEGACY_CHAINING_MODE_KEY = "fiestaboard:ai-chaining-mode";
 
-function buildToolResultText(call: ToolCall, success: boolean, errorMsg?: string): string {
-  const status = success ? "Success" : `Failed: ${errorMsg ?? "unknown error"}`;
-  switch (call.op) {
-    case "install_plugin": {
-      const a = call.args as InstallPluginArgs;
-      return `[Tool result: install_plugin for "${a.plugin_id}" → ${status}.${success ? " Plugin installed and enabled. Continue with any remaining steps." : ""}]`;
-    }
-    case "update_plugin_config": {
-      const a = call.args as UpdatePluginConfigArgs;
-      return `[Tool result: update_plugin_config for "${a.plugin_id}" → ${status}.${success ? " Configuration saved. Continue with any remaining steps." : ""}]`;
-    }
-    case "update_plugin": {
-      const a = call.args as UpdatePluginArgs;
-      return `[Tool result: update_plugin for "${a.plugin_id}" → ${status}.]`;
-    }
-    case "enable_plugin": {
-      const a = call.args as EnablePluginArgs;
-      return `[Tool result: enable_plugin for "${a.plugin_id}" → ${status}.]`;
-    }
-    case "disable_plugin": {
-      const a = call.args as DisablePluginArgs;
-      return `[Tool result: disable_plugin for "${a.plugin_id}" → ${status}.]`;
-    }
-    case "uninstall_plugin": {
-      const a = call.args as UninstallPluginArgs;
-      return `[Tool result: uninstall_plugin for "${a.plugin_id}" → ${status}.]`;
-    }
-    case "update_setting": {
-      const a = call.args as UpdateSettingArgs;
-      return `[Tool result: update_setting (${a.category}) → ${status}.${success ? " Setting applied. Continue with any remaining steps." : ""}]`;
-    }
-    case "create_collection": {
-      const a = call.args as CreateCollectionArgs;
-      return `[Tool result: create_collection "${a.name}" → ${status}.${success ? " Collection created. Continue with any remaining steps." : ""}]`;
-    }
-    case "update_collection":
-      return `[Tool result: update_collection → ${status}.]`;
-    case "create_schedule": {
-      const a = call.args as CreateScheduleArgs;
-      return `[Tool result: create_schedule at ${a.start_time} → ${status}.${success ? " Schedule created. Continue with any remaining steps." : ""}]`;
-    }
-    case "update_schedule":
-      return `[Tool result: update_schedule → ${status}.]`;
-    case "delete_schedule":
-      return `[Tool result: delete_schedule → ${status}.]`;
-    case "trigger_system_update":
-      return `[Tool result: trigger_system_update → ${status}.]`;
-    case "navigate_to_page": {
-      if (!success) return `[Tool result: navigate_to_page → ${status}.]`;
-      const isNew = call.args.page_id === "new";
-      return `[Tool result: navigate_to_page → Success. ${
-        isNew
-          ? "Blank page editor is now mounted. Surface is 'editor' — use replace_page to ship the template you described, then continue with any remaining steps (schedules, integrations, etc.)."
-          : "Page editor is now mounted. Use apply_patch for incremental edits or replace_page to rewrite, then continue with any remaining steps."
-      }]`;
-    }
-    case "navigate_to_schedule":
-      return `[Tool result: navigate_to_schedule → ${status}.${success ? " Schedule form is open. Continue with create_schedule (or update_schedule) to commit the change." : ""}]`;
-    case "replace_page":
-      return `[Tool result: replace_page → ${status}.${success ? " Page template applied. Continue with any remaining steps." : ' Hint: emit navigate_to_page with page_id="new" first if no editor is mounted.'}]`;
-    case "apply_patch":
-      return `[Tool result: apply_patch → ${status}.${success ? " Patch applied. Continue with any remaining steps." : " Hint: emit navigate_to_page first if no editor is mounted."}]`;
-    case "suggest_variables":
-      return `[Tool result: suggest_variables → ${status}.${success ? " Suggestions surfaced. Continue with any remaining steps." : ""}]`;
-    default:
-      return `[Tool result: ${(call as ToolCall).op} → ${status}.]`;
-  }
-}
-
-// ---------------------------------------------------------------------------
-// Server-executed operations (Phase 2 Task 11)
-//
-// Every op listed here is executed by the server through
-// `POST /ai/operations` (src/ai/routes.py -> src/ops/registry.execute), which
-// runs the same canonical executor the MCP tools call. The browser's job is
-// confirmation UX, cache invalidation and the toast — not a second
-// implementation of the operation. Before this, the drawer dispatched each op
-// to a different REST endpoint itself, and had drifted from the executors in
-// three places (see tests/test_chat_op_http_parity.py).
-//
-// The ops NOT listed are the six the registry marks `client_side=True`:
-// replace_page and apply_patch edit the mounted editor, suggest_variables
-// surfaces a list, navigate_to_page / navigate_to_schedule route, and
-// update_task_list drives the task panel. They have no server effect and the
-// endpoint refuses them with a 400.
-//
-// tests/test_ops_wiring.py fails the build if this list and the registry
-// disagree, or if a server-executed op regrows a browser-side implementation.
-// ---------------------------------------------------------------------------
-
-const SERVER_EXECUTED_OPS = [
-  "create_collection",
-  "create_schedule",
-  "delete_schedule",
-  "disable_plugin",
-  "enable_plugin",
-  "install_plugin",
-  "trigger_system_update",
-  "uninstall_plugin",
-  "update_collection",
-  "update_plugin",
-  "update_plugin_config",
-  "update_schedule",
-  "update_setting",
-] as const;
-
-type ServerExecutedOp = (typeof SERVER_EXECUTED_OPS)[number];
-type ServerExecutedCall = ToolCall & { op: ServerExecutedOp };
-
-function isServerExecutedCall(call: ToolCall): call is ServerExecutedCall {
-  return (SERVER_EXECUTED_OPS as readonly string[]).includes(call.op);
-}
-
-/** Which cached queries each op invalidates — unchanged from the old handlers. */
-const OP_QUERY_KEYS: Record<Exclude<ServerExecutedOp, "update_setting">, readonly string[]> = {
-  create_collection: ["collections"],
-  create_schedule: ["schedules"],
-  delete_schedule: ["schedules"],
-  disable_plugin: ["plugins"],
-  enable_plugin: ["plugins"],
-  install_plugin: ["plugins"],
-  // A system update recreates the container; nothing local is worth refetching.
-  trigger_system_update: [],
-  uninstall_plugin: ["plugins"],
-  update_collection: ["collections"],
-  update_plugin: ["plugins"],
-  update_plugin_config: ["plugins"],
-  update_schedule: ["schedules"],
-};
-
-/** update_setting refreshes only the category it touched. */
-const SETTING_QUERY_KEY: Record<SettingCategory, string> = {
-  display: "display-settings",
-  transitions: "transition-settings",
-  output: "output-settings",
-  polling: "polling-settings",
-  location: "location-settings",
-  silence_schedule: "silence-schedule",
-  active_page: "active-page",
-};
-
-function queryKeysForOp(call: ServerExecutedCall): readonly string[] {
-  if (call.op === "update_setting") {
-    const key = SETTING_QUERY_KEY[(call.args as UpdateSettingArgs).category];
-    return key ? [key] : [];
-  }
-  return OP_QUERY_KEYS[call.op];
-}
-
+/**
+ * The global AI drawer: a floating card on every screen that hosts the chat
+ * panel and reacts to what the server-side loop did.
+ *
+ * Every tool now runs on the server through the MCP server; the browser's
+ * job here is to keep the screen honest afterwards — invalidate the caches a
+ * tool made stale, toast the outcome, keep the schedule Undo affordances —
+ * and to hand the panel the context each turn starts from. Navigation and
+ * the on-screen walkthrough of each call are the next PR (the choreography).
+ */
 export function GlobalAiChatDrawer() {
   const { isOpen, close } = useGlobalAiPanel();
   const t = useTranslations("globalAiChatDrawer");
-  const router = useRouter();
 
   // Focus-management refs for the modal slide-in panel.
   const panelRef = useRef<HTMLDivElement>(null);
   // The element that had focus when the panel opened, so we can restore it on close.
   const openerRef = useRef<HTMLElement | null>(null);
   const queryClient = useQueryClient();
-  const { getEditorSnapshot, applyEditorOp, saveEditor, hasEditor, canEditorUndo, editorUndo, waitForEditor } =
-    usePageEditorBridge();
-  const { hasScheduleEditor, openScheduleForm } = useScheduleEditorBridge();
+  const router = useRouter();
+  const { getEditorSnapshot } = usePageEditorBridge();
 
-  // ---------------------------------------------------------------------------
-  // AI chaining mode
-  // ---------------------------------------------------------------------------
-  const [chainingMode, setChainingMode] = useState<ChainingMode>(() => {
-    if (typeof window !== "undefined") {
-      const stored = localStorage.getItem("fiestaboard:ai-chaining-mode");
-      if (stored === "auto-continue" || stored === "autonomous") return stored;
-    }
-    return "manual";
-  });
-
+  // The browser-side loop's chaining preference has no meaning any more;
+  // clear it so a downgrade cannot resurrect it either.
   useEffect(() => {
-    localStorage.setItem("fiestaboard:ai-chaining-mode", chainingMode);
-  }, [chainingMode]);
-
-  // Slot ref: AiChatPanel writes its resume() fn here so this component can
-  // trigger re-streaming after tool execution without prop-drilling.
-  const resumeFnRef = useRef<((text: string) => void) | null>(null);
-
-  // Task list state — updated by update_task_list ops from the AI.
-  const [taskList, setTaskList] = useState<TaskItem[]>([]);
+    try {
+      localStorage.removeItem(LEGACY_CHAINING_MODE_KEY);
+    } catch {
+      /* storage may be unavailable; nothing to clear */
+    }
+  }, []);
 
   // The FiestaPanel TV viewer must not fire this authenticated query — see
   // CurrentBoardProvider for why this reads window.location, not useLocation().
@@ -363,8 +195,8 @@ export function GlobalAiChatDrawer() {
     return {
       deviceType: "flagship",
       // "editor" when the user is actively editing a page (so the AI
-      // should bias toward in-place edits of that page); "global"
-      // otherwise (so the AI biases toward navigation / config).
+      // should bias toward updating THAT page); "global" otherwise (so the
+      // AI biases toward creating things the app then opens).
       surface: editorSnapshot ? "editor" : "global",
       currentPage: editorSnapshot ?? undefined,
       availablePages: pages,
@@ -376,25 +208,29 @@ export function GlobalAiChatDrawer() {
   }, [pagesData, pluginsData, schedulesData, collectionsData, registryData, getEditorSnapshot]);
 
   // ---------------------------------------------------------------------------
-  // Local UX after a server-executed op: the same toasts (and the same Undo
-  // affordances) the per-op handlers showed before execution moved server-side.
-  //
-  // Undo still goes over the plain REST client rather than the ops endpoint:
-  // the chat grammar's create_schedule has no `start_type` / `*_sun_offset`
-  // fields, so restoring a deleted sunrise/sunset schedule through it would
-  // silently downgrade the entry to a fixed clock time.
+  // After a tool ran: the toast, and for schedules the same Undo affordances
+  // as before. Undo goes over the plain REST client: the MCP create_schedule
+  // has no `start_type` / `*_sun_offset` fields, so restoring a deleted
+  // sunrise/sunset schedule through it would silently downgrade the entry to
+  // a fixed clock time.
   // ---------------------------------------------------------------------------
-  const showServerOpToast = useCallback(
-    (call: ServerExecutedCall, result: AiOperationResult, previousSchedule?: ScheduleEntry) => {
+  const toastForToolResult = useCallback(
+    (call: ToolCall, result: ToolResult, previousSchedule?: ScheduleEntry) => {
       const refreshSchedules = () => queryClient.invalidateQueries({ queryKey: ["schedules"] });
-      switch (call.op) {
+      if (result.status === "denied") return;
+      if (result.status !== "ok") {
+        toast.error(t("toast.toolFailed", { tool: call.title || call.name, error: result.error ?? result.summary }));
+        return;
+      }
+      const payload = (result.result ?? {}) as Record<string, unknown>;
+      switch (call.name) {
         case "create_schedule": {
-          const createdId = result.result.schedule_id;
-          toast.success("Schedule created.", {
+          const createdId = payload.schedule_id;
+          toast.success(t("toast.scheduleCreated"), {
             action:
               typeof createdId === "string"
                 ? {
-                    label: "Undo",
+                    label: t("toast.undo"),
                     onClick: () => {
                       void (async () => {
                         await api.deleteSchedule(createdId);
@@ -408,10 +244,10 @@ export function GlobalAiChatDrawer() {
           break;
         }
         case "update_schedule":
-          toast.success("Schedule updated.", {
+          toast.success(t("toast.scheduleUpdated"), {
             action: previousSchedule
               ? {
-                  label: "Undo",
+                  label: t("toast.undo"),
                   onClick: () => {
                     void (async () => {
                       await api.updateSchedule(previousSchedule.id, {
@@ -431,10 +267,10 @@ export function GlobalAiChatDrawer() {
           });
           break;
         case "delete_schedule":
-          toast.success("Schedule deleted.", {
+          toast.success(t("toast.scheduleDeleted"), {
             action: previousSchedule
               ? {
-                  label: "Undo",
+                  label: t("toast.undo"),
                   onClick: () => {
                     void (async () => {
                       await api.createSchedule({
@@ -457,240 +293,133 @@ export function GlobalAiChatDrawer() {
             duration: 8000,
           });
           break;
-        case "install_plugin":
-          toast.success(`Plugin "${(call.args as InstallPluginArgs).plugin_id}" installed successfully.`);
+        case "create_page":
+          toast.success(t("toast.pageCreated"));
           break;
-        case "update_plugin_config":
-          toast.success(`Plugin "${(call.args as UpdatePluginConfigArgs).plugin_id}" configuration updated.`);
+        case "update_page":
+          toast.success(t("toast.pageUpdated"));
+          break;
+        case "delete_page":
+          toast.success(t("toast.pageDeleted"));
+          break;
+        case "install_plugin":
+          toast.success(t("toast.pluginInstalled", { id: String(call.args.plugin_id ?? "") }));
+          break;
+        case "configure_plugin":
+          toast.success(t("toast.pluginConfigured", { id: String(call.args.plugin_id ?? "") }));
           break;
         case "update_plugin":
-          toast.success(`Plugin "${(call.args as UpdatePluginArgs).plugin_id}" updated successfully.`);
+          toast.success(t("toast.pluginUpdated", { id: String(call.args.plugin_id ?? "") }));
           break;
         case "enable_plugin":
-          toast.success(`Plugin "${(call.args as EnablePluginArgs).plugin_id}" enabled.`);
+          toast.success(t("toast.pluginEnabled", { id: String(call.args.plugin_id ?? "") }));
           break;
         case "disable_plugin":
-          toast.success(`Plugin "${(call.args as DisablePluginArgs).plugin_id}" disabled.`);
+          toast.success(t("toast.pluginDisabled", { id: String(call.args.plugin_id ?? "") }));
           break;
         case "uninstall_plugin":
-          toast.success(`Plugin "${(call.args as UninstallPluginArgs).plugin_id}" uninstalled.`);
+          toast.success(t("toast.pluginUninstalled", { id: String(call.args.plugin_id ?? "") }));
           break;
         case "update_setting":
-          toast.success("Setting updated.");
+          toast.success(t("toast.settingUpdated"));
           break;
         case "create_collection":
-          toast.success(`Collection "${(call.args as CreateCollectionArgs).name}" created.`);
+          toast.success(t("toast.collectionCreated", { name: String(call.args.name ?? "") }));
           break;
         case "update_collection":
-          toast.success("Collection updated.");
+          toast.success(t("toast.collectionUpdated"));
+          break;
+        case "delete_collection":
+          toast.success(t("toast.collectionDeleted"));
+          break;
+        case "set_active_page":
+          toast.success(t("toast.activePageSet"));
+          break;
+        case "send_message":
+          toast.success(t("toast.messageSent"));
           break;
         case "trigger_system_update":
-          toast.success("System update started. The board will restart shortly.");
+          toast.success(t("toast.systemUpdate"));
+          break;
+        default:
+          // Read-only tools and anything this list does not know: no toast.
           break;
       }
+    },
+    [queryClient, t],
+  );
+
+  const invalidateFor = useCallback(
+    async (call: ToolCall) => {
+      await Promise.all(queryKeysForTool(call).map((key) => queryClient.invalidateQueries({ queryKey: [...key] })));
     },
     [queryClient],
   );
 
-  // ---------------------------------------------------------------------------
-  // The single execution seam: one POST, then the local UX.
-  // ---------------------------------------------------------------------------
-  const runServerOp = useCallback(
-    async (call: ToolCall) => {
-      if (!isServerExecutedCall(call)) {
-        // Unreachable via the dispatchers below; a guard so an op added to the
-        // grammar cannot silently fall through to a no-op "success".
-        throw new Error(`${call.op} is not executed server-side`);
-      }
-
-      // Undo needs the pre-mutation entry, so read it before the round trip.
+  const handleToolResult = useCallback(
+    (result: ToolResult, call: ToolCall) => {
+      // Undo needs the pre-mutation entry. Read it from the cache now, not
+      // from a render-time snapshot: this handler is captured for the whole
+      // turn, and an earlier call in the same turn may have refreshed it.
       const previousSchedule =
-        call.op === "update_schedule" || call.op === "delete_schedule"
-          ? schedulesData?.schedules?.find((s) => s.id === call.args.schedule_id)
+        call.name === "update_schedule" || call.name === "delete_schedule"
+          ? queryClient
+              .getQueryData<{ schedules?: ScheduleEntry[] }>(["schedules"])
+              ?.schedules?.find((s) => s.id === call.args.schedule_id)
           : undefined;
-
-      const result = await api.executeAiOperation(call.op, call.args as unknown as Record<string, unknown>);
-
-      for (const key of queryKeysForOp(call)) {
-        await queryClient.invalidateQueries({ queryKey: [key] });
-      }
-      showServerOpToast(call, result, previousSchedule);
-    },
-    [queryClient, schedulesData, showServerOpToast],
-  );
-
-  // ---------------------------------------------------------------------------
-  // Chaining: wrap each handler so that on completion (success or failure),
-  // a `[Tool result: ...]` message is injected and the AI re-streams if the
-  // current mode is auto-continue or autonomous.
-  // Declared before handleToolCall so the callback can reference it directly.
-  // ---------------------------------------------------------------------------
-  const chainAfter = useCallback(
-    (call: ToolCall, handler: () => Promise<void>): (() => Promise<void>) =>
-      async () => {
-        try {
-          await handler();
-          if (chainingMode === "manual") return;
-          resumeFnRef.current?.(buildToolResultText(call, true));
-        } catch (e) {
-          if (chainingMode !== "manual") {
-            resumeFnRef.current?.(buildToolResultText(call, false, String(e)));
+      void invalidateFor(call).then(() => {
+        toastForToolResult(call, result, previousSchedule);
+        // The prompt promises that a created page is opened for the user.
+        // If it grew out of the editor's unsaved draft, the draft is done
+        // with: drop it so /pages/new does not offer to restore it later.
+        const pageId = result.status === "ok" ? (result.result as { page_id?: unknown } | null)?.page_id : undefined;
+        if (call.name === "create_page" && typeof pageId === "string") {
+          const editing = getEditorSnapshot();
+          if (editing && !editing.id) {
+            try {
+              localStorage.removeItem(getDraftKey());
+            } catch {
+              /* storage may be unavailable */
+            }
           }
+          router.push(`/pages/edit/${pageId}`);
         }
-      },
-    [chainingMode],
+      });
+    },
+    [getEditorSnapshot, invalidateFor, queryClient, router, toastForToolResult],
   );
 
-  const handleToolCall = useCallback(
-    (call: ToolCall): void => {
-      switch (call.op) {
-        case "navigate_to_page": {
-          void chainAfter(call, async () => {
-            // Auto-save any in-progress page before navigating so AI-written
-            // content isn't lost when the editor unmounts (supports multi-page
-            // creation flows where the AI navigates away after replace_page).
-            if (hasEditor) {
-              await saveEditor().catch(() => {});
-            }
-            const { page_id, device_type } = call.args;
-            if (page_id === "new") {
-              const params = new URLSearchParams();
-              if (device_type) params.set("device", device_type);
-              params.set("fresh", "1");
-              router.push(`/pages/new?${params.toString()}`);
-            } else {
-              router.push(`/pages/edit/${page_id}`);
-            }
-            // Wait out the route transition so the destination editor is
-            // mounted before the chain resumes; otherwise a follow-up
-            // replace_page would race the mount and silently no-op.
-            await waitForEditor();
-          })();
-          break;
-        }
-
-        case "navigate_to_schedule": {
-          void chainAfter(call, async () => {
-            const { prefill } = call.args;
-            if (hasScheduleEditor) {
-              openScheduleForm(prefill ?? undefined);
-            } else {
-              const params = new URLSearchParams();
-              if (prefill?.page_id) params.set("prefill_page_id", prefill.page_id);
-              if (prefill?.start_time) params.set("prefill_start", prefill.start_time);
-              if (prefill?.end_time) params.set("prefill_end", prefill.end_time);
-              if (prefill?.day_pattern) params.set("prefill_days", prefill.day_pattern);
-              const qs = params.size ? `?${params.toString()}` : "";
-              router.push(`/schedule${qs}`);
-            }
-          })();
-          break;
-        }
-
-        case "update_task_list":
-          // Status-only op — update the task panel, do NOT chain or call resume.
-          setTaskList(call.args.tasks);
-          break;
-
-        case "replace_page":
-        case "apply_patch":
-        case "suggest_variables":
-          void chainAfter(call, async () => {
-            // Wait on the live handlersRef rather than the closure-captured
-            // `hasEditor` state. When the model emits navigate_to_page and
-            // replace_page in the same stream turn, both handlers share the
-            // pre-navigation closure (hasEditor === false). waitForEditor
-            // resolves as soon as the new editor registers, regardless of
-            // when the React state catches up.
-            const ready = await waitForEditor();
-            if (!ready) {
-              // Surface the missing editor so the AI can recover (e.g. by
-              // first emitting navigate_to_page) instead of the call being
-              // silently dropped.
-              throw new Error("no page editor mounted");
-            }
-            applyEditorOp(call);
-            // Auto-save after every AI page edit so the content is persisted
-            // immediately (supports chaining: the next navigate_to_page won't
-            // lose unsaved work, and the user doesn't need to click Save).
-            if (call.op !== "suggest_variables") {
-              await saveEditor().catch(() => {});
-            }
-          })();
-          break;
-
-        // Schedule ops run immediately (no confirmation card), exactly as
-        // before — only the execution moved from three REST calls in this
-        // file to one POST /ai/operations.
-        case "create_schedule":
-        case "update_schedule":
-        case "delete_schedule":
-          void chainAfter(call, () => runServerOp(call))();
-          break;
-
-        case "install_plugin":
-        case "update_plugin_config":
-        case "update_plugin":
-        case "update_setting":
-        case "create_collection":
-        case "update_collection":
-        case "enable_plugin":
-        case "disable_plugin":
-        case "uninstall_plugin":
-        case "trigger_system_update":
-          // Handled declaratively via AiActionConfirmation in the chat
-          // thread (see renderToolCallSupplement).
-          break;
-
-        default:
-          break;
+  // Stop ends the stream, but a tool that was already running finishes on
+  // the server without a result reaching us. Refresh what it may have
+  // changed on two ticks — once soon, once after a slow one (a plugin
+  // install) has had time to land — the same two-tick idea as
+  // scheduleBoardStateInvalidations in use-board.ts.
+  //
+  // A fatal stream error leaves calls unresolved too; those get the same
+  // refresh but no "Stopped" toast — the panel shows the error itself.
+  const refreshTimersRef = useRef<number[]>([]);
+  useEffect(() => {
+    const timers = refreshTimersRef.current;
+    return () => {
+      for (const id of timers) window.clearTimeout(id);
+    };
+  }, []);
+  const handleStopped = useCallback(
+    (unresolved: ToolCall[], reason: StopReason) => {
+      if (unresolved.length === 0) return;
+      if (reason === "stopped") toast.info(t("toast.stopped"));
+      const refresh = () => {
+        for (const call of unresolved) void invalidateFor(call);
+      };
+      for (const delay of [1000, 5000]) {
+        const id = window.setTimeout(() => {
+          refreshTimersRef.current = refreshTimersRef.current.filter((t) => t !== id);
+          refresh();
+        }, delay);
+        refreshTimersRef.current.push(id);
       }
     },
-    [
-      router,
-      hasEditor,
-      applyEditorOp,
-      saveEditor,
-      waitForEditor,
-      hasScheduleEditor,
-      openScheduleForm,
-      runServerOp,
-      chainAfter,
-    ],
-  );
-
-  const renderToolCallSupplement = useCallback(
-    (call: ToolCall) => {
-      if (call.op === "navigate_to_page") return null;
-      if (call.op === "navigate_to_schedule") return null;
-      if (call.op === "replace_page" || call.op === "apply_patch" || call.op === "suggest_variables") return null;
-
-      const isDestructive =
-        call.op === "delete_schedule" || call.op === "trigger_system_update" || call.op === "uninstall_plugin";
-
-      const autoAllow = chainingMode === "autonomous" && !isDestructive;
-
-      // Schedule ops are applied immediately from handleToolCall (unchanged
-      // UX) — they have no confirmation card.
-      if (call.op === "create_schedule" || call.op === "update_schedule" || call.op === "delete_schedule") {
-        return null;
-      }
-
-      if (isServerExecutedCall(call)) {
-        return (
-          <AiActionConfirmation
-            call={call}
-            onAllow={chainAfter(call, () => runServerOp(call))}
-            onDeny={() => {}}
-            // Always false for the destructive ops above (uninstall_plugin,
-            // trigger_system_update): autonomous mode never skips those.
-            autoAllow={autoAllow}
-          />
-        );
-      }
-      return null;
-    },
-    [chainingMode, chainAfter, runServerOp],
+    [invalidateFor, t],
   );
 
   const hasProviders = (aiSettings?.providers?.length ?? 0) > 0;
@@ -727,16 +456,9 @@ export function GlobalAiChatDrawer() {
     >
       <AiChatPanel
         getTurnContext={getTurnContext}
-        onToolCall={handleToolCall}
+        onToolResult={handleToolResult}
+        onStopped={handleStopped}
         onClose={close}
-        renderToolCallSupplement={renderToolCallSupplement}
-        canUndo={hasEditor && canEditorUndo()}
-        onUndo={hasEditor ? editorUndo : undefined}
-        resumeFnRef={resumeFnRef}
-        chainingMode={chainingMode}
-        onChainingModeChange={setChainingMode}
-        taskList={taskList}
-        onConversationReset={() => setTaskList([])}
       />
     </Box>
   );

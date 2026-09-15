@@ -283,7 +283,7 @@
     {
       "route": "POST /pages/ai/chat",
       "rule": "response_model",
-      "reason": "Serves a Server-Sent Events stream, not a JSON document: the body is a sequence of `event:`/`data:` frames written over an open connection, and any response_model would either be a lie about what the client receives or would make FastAPI buffer and re-serialize the stream, which is the one thing an SSE endpoint must not do. The schema is published instead as the 200's text/event-stream content type plus CHAT_STREAM_EVENTS in src/ai/page_routes.py, which names each of the five event types and the model describing its payload; tests/test_ai_pages_contract.py validates real frames against that registry and cross-checks it against the literal event dicts in src/ai/chat.py, so it cannot drift the way an undocumented stream would."
+      "reason": "Serves a Server-Sent Events stream, not a JSON document: the body is a sequence of `event:`/`data:` frames written over an open connection, and any response_model would either be a lie about what the client receives or would make FastAPI buffer and re-serialize the stream, which is the one thing an SSE endpoint must not do. The schema is published instead as the 200's text/event-stream content type plus CHAT_STREAM_EVENTS in src/ai/page_routes.py, which names each event type (text, status, tool_call, tool_result, elicitation, warning, error, done) and the model describing its payload; tests/test_ai_pages_contract.py validates real frames against that registry and cross-checks it against the literal event dicts in src/ai/chat.py and src/ai/agent.py, so it cannot drift the way an undocumented stream would."
     },
     {
       "route": "POST /plugins/{plugin_id}/options/{options_id}",

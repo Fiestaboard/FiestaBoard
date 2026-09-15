@@ -145,7 +145,9 @@ def test_context_returns_the_flagship_geometry_and_the_debug_prompt(client):
         "exemplars",
         "current_page",
         "system_prompt",
+        "tool_catalog",
     }
+    assert body["tool_catalog"] is None
     assert body["device_type"] == "flagship"
     assert body["rows"] == 6
     assert body["cols"] == 22
@@ -427,15 +429,54 @@ def test_generate_rejects_a_malformed_body_without_spending_the_throttle_window(
 # POST /pages/ai/chat — the SSE stream
 # ---------------------------------------------------------------------------
 
-#: One of every event type ``src.ai.chat.stream_chat`` yields. The five names
-#: and their payload keys are the wire contract ``web/src/lib/api-stream.ts``
-#: switches on; ``web/src/lib/ai-chat-types.ts`` declares the TS mirror.
+#: One of every event type the agent loop yields. The names and their
+#: payload keys are the wire contract ``web/src/lib/api-stream.ts`` switches
+#: on; ``web/src/lib/ai-chat-types.ts`` declares the TS mirror.
 STREAMED_EVENTS: list[dict[str, Any]] = [
+    {"event": "status", "data": {"phase": "thinking", "message": "Thinking…", "tool_call_id": None, "step": 1}},
     {"event": "text", "data": {"delta": "Here is "}},
     {"event": "text", "data": {"delta": "the plan."}},
     {
         "event": "tool_call",
-        "data": {"id": "abc123", "op": "replace_page", "args": {"name": "Scripted"}},
+        "data": {
+            "id": "abc123",
+            "name": "create_page",
+            "args": {"name": "Scripted"},
+            "title": "Create page",
+            "read_only": False,
+            "destructive": False,
+            "requires_approval": False,
+            "source": "mcp",
+        },
+    },
+    {
+        "event": "status",
+        "data": {"phase": "tool_running", "message": "Running create_page…", "tool_call_id": "abc123", "step": 1},
+    },
+    {
+        "event": "tool_result",
+        "data": {
+            "id": "abc123",
+            "name": "create_page",
+            "status": "ok",
+            "summary": "Page created.",
+            "result": {"page_id": "p9"},
+            "error": None,
+        },
+    },
+    {
+        "event": "elicitation",
+        "data": {
+            "id": "q1",
+            "name": "ask_user",
+            "message": "Which board?",
+            "requested_schema": {
+                "type": "object",
+                "properties": {"answer": {"type": "string"}},
+                "required": ["answer"],
+            },
+            "allow_free_text": True,
+        },
     },
     {"event": "warning", "data": {"message": "a recoverable issue"}},
     {
@@ -444,6 +485,9 @@ STREAMED_EVENTS: list[dict[str, Any]] = [
             "model_used": "test-model",
             "provider_id": "p1",
             "usage": {"prompt_tokens": 1, "completion_tokens": 2, "total_tokens": 3},
+            "reason": "complete",
+            "pending_tool_call_id": None,
+            "steps": 1,
         },
     },
 ]
@@ -453,6 +497,11 @@ CHAT_BODY = {
     "device_type": "flagship",
     "surface": "editor",
 }
+
+#: Where the route hands off. Patched in the streaming tests so no model,
+#: no MCP server and no tool ever runs; what is asserted is the route's own
+#: work: validation, framing, headers.
+TURN = "src.ai.agent.run_chat_turn"
 
 
 def _fake_stream(events: list[dict[str, Any]]):
@@ -477,7 +526,7 @@ def _frames(raw: str) -> list[tuple[str, dict[str, Any]]]:
 
 
 def test_chat_serves_an_event_stream_with_the_no_buffering_headers(client, cm):
-    with patch("src.ai.chat.stream_chat", _fake_stream(STREAMED_EVENTS)):
+    with patch(TURN, _fake_stream(STREAMED_EVENTS)):
         res = client.post("/pages/ai/chat", json=CHAT_BODY)
 
     assert res.status_code == 200
@@ -490,38 +539,74 @@ def test_chat_serves_an_event_stream_with_the_no_buffering_headers(client, cm):
 
 
 def test_chat_frames_are_sse_bytes_in_the_order_the_generator_yielded_them(client, cm):
-    with patch("src.ai.chat.stream_chat", _fake_stream(STREAMED_EVENTS)):
+    with patch(TURN, _fake_stream(STREAMED_EVENTS)):
         res = client.post("/pages/ai/chat", json=CHAT_BODY)
 
     # The literal wire format: `event: <name>\ndata: <json>\n\n`. Pinned as
     # raw text because the framing — not just the parsed content — is what
     # @microsoft/fetch-event-source consumes.
     assert res.text == (
+        "event: status\n"
+        'data: {"phase": "thinking", "message": "Thinking…", "tool_call_id": null, "step": 1}\n\n'
         'event: text\ndata: {"delta": "Here is "}\n\n'
         'event: text\ndata: {"delta": "the plan."}\n\n'
         "event: tool_call\n"
-        'data: {"id": "abc123", "op": "replace_page", "args": {"name": "Scripted"}}\n\n'
+        'data: {"id": "abc123", "name": "create_page", "args": {"name": "Scripted"}, "title": "Create page", '
+        '"read_only": false, "destructive": false, "requires_approval": false, "source": "mcp"}\n\n'
+        "event: status\n"
+        'data: {"phase": "tool_running", "message": "Running create_page…", "tool_call_id": "abc123", "step": 1}\n\n'
+        "event: tool_result\n"
+        'data: {"id": "abc123", "name": "create_page", "status": "ok", "summary": "Page created.", '
+        '"result": {"page_id": "p9"}, "error": null}\n\n'
+        "event: elicitation\n"
+        'data: {"id": "q1", "name": "ask_user", "message": "Which board?", '
+        '"requested_schema": {"type": "object", "properties": {"answer": {"type": "string"}}, "required": ["answer"]}, '
+        '"allow_free_text": true}\n\n'
         'event: warning\ndata: {"message": "a recoverable issue"}\n\n'
         "event: done\n"
         'data: {"model_used": "test-model", "provider_id": "p1", '
-        '"usage": {"prompt_tokens": 1, "completion_tokens": 2, "total_tokens": 3}}\n\n'
+        '"usage": {"prompt_tokens": 1, "completion_tokens": 2, "total_tokens": 3}, '
+        '"reason": "complete", "pending_tool_call_id": null, "steps": 1}\n\n'
     )
 
 
 def test_chat_emits_every_event_type_the_client_switches_on(client, cm):
-    """The five event names are the contract; the TS client ignores others."""
+    """The eight event names are the contract; the TS client ignores others."""
     events = [*STREAMED_EVENTS, {"event": "error", "data": {"message": "fatal"}}]
-    with patch("src.ai.chat.stream_chat", _fake_stream(events)):
+    with patch(TURN, _fake_stream(events)):
         res = client.post("/pages/ai/chat", json=CHAT_BODY)
 
     frames = _frames(res.text)
-    assert [name for name, _ in frames] == ["text", "text", "tool_call", "warning", "done", "error"]
+    assert [name for name, _ in frames] == [
+        "status",
+        "text",
+        "text",
+        "tool_call",
+        "status",
+        "tool_result",
+        "elicitation",
+        "warning",
+        "done",
+        "error",
+    ]
     by_name = dict(frames)
     assert set(by_name["text"]) == {"delta"}
-    assert set(by_name["tool_call"]) == {"id", "op", "args"}
+    assert set(by_name["status"]) == {"phase", "message", "tool_call_id", "step"}
+    assert set(by_name["tool_call"]) == {
+        "id",
+        "name",
+        "args",
+        "title",
+        "read_only",
+        "destructive",
+        "requires_approval",
+        "source",
+    }
+    assert set(by_name["tool_result"]) == {"id", "name", "status", "summary", "result", "error"}
+    assert set(by_name["elicitation"]) == {"id", "name", "message", "requested_schema", "allow_free_text"}
     assert set(by_name["warning"]) == {"message"}
     assert set(by_name["error"]) == {"message"}
-    assert set(by_name["done"]) == {"model_used", "provider_id", "usage"}
+    assert set(by_name["done"]) == {"model_used", "provider_id", "usage", "reason", "pending_tool_call_id", "steps"}
 
 
 def test_chat_forwards_every_context_block_to_the_streamer(client, cm):
@@ -529,9 +614,12 @@ def test_chat_forwards_every_context_block_to_the_streamer(client, cm):
 
     async def stream(**kwargs):
         seen.update(kwargs)
-        yield {"event": "done", "data": {"model_used": "m", "provider_id": "p", "usage": {}}}
+        yield {
+            "event": "done",
+            "data": {"model_used": "m", "provider_id": "p", "usage": {}, "reason": "complete", "steps": 1},
+        }
 
-    with patch("src.ai.chat.stream_chat", stream):
+    with patch(TURN, stream):
         res = client.post(
             "/pages/ai/chat",
             json={
@@ -561,6 +649,11 @@ def test_chat_forwards_every_context_block_to_the_streamer(client, cm):
     assert seen["registry_plugins"] == [{"id": "muni"}]
     assert seen["provider_id"] == "p1"
     assert seen["model"] == "test-model"
+    assert seen["resume"] is None
+    # The loop gets the tool backend and the provider gate from the route;
+    # both are the route's to wire, never the client's to choose.
+    assert hasattr(seen["backend"], "call_tool")
+    assert seen["provider_gate"] is not None
 
 
 def test_chat_defaults_surface_to_global_for_clients_that_omit_it(client, cm):
@@ -568,9 +661,12 @@ def test_chat_defaults_surface_to_global_for_clients_that_omit_it(client, cm):
 
     async def stream(**kwargs):
         seen.update(kwargs)
-        yield {"event": "done", "data": {"model_used": "m", "provider_id": "p", "usage": {}}}
+        yield {
+            "event": "done",
+            "data": {"model_used": "m", "provider_id": "p", "usage": {}, "reason": "complete", "steps": 1},
+        }
 
-    with patch("src.ai.chat.stream_chat", stream):
+    with patch(TURN, stream):
         client.post(
             "/pages/ai/chat",
             json={"messages": [{"role": "user", "content": "hi"}], "device_type": "flagship"},
@@ -586,7 +682,7 @@ def test_chat_reports_an_unexpected_streamer_failure_as_an_error_frame(client, c
         yield {"event": "text", "data": {"delta": "starting"}}
         raise RuntimeError("connection string s3cr3t")
 
-    with patch("src.ai.chat.stream_chat", boom):
+    with patch(TURN, boom):
         res = client.post("/pages/ai/chat", json=CHAT_BODY)
 
     assert res.status_code == 200
@@ -597,7 +693,7 @@ def test_chat_reports_an_unexpected_streamer_failure_as_an_error_frame(client, c
 
 def test_chat_is_not_rate_limited_like_generate(client, cm):
     """Conversational turns arrive back-to-back; a 429 mid-chat is not ok."""
-    with patch("src.ai.chat.stream_chat", _fake_stream(STREAMED_EVENTS)):
+    with patch(TURN, _fake_stream(STREAMED_EVENTS)):
         first = client.post("/pages/ai/chat", json=CHAT_BODY)
         second = client.post("/pages/ai/chat", json=CHAT_BODY)
 
@@ -680,12 +776,191 @@ def test_chat_rejects_malformed_json(client, cm):
 
 
 # ---------------------------------------------------------------------------
+# POST /pages/ai/chat — transcript semantics (400 before the stream opens)
+# ---------------------------------------------------------------------------
+
+PENDING_CALL = {"id": "c1", "name": "delete_page", "args": {"page_id": "p1"}}
+PENDING_TRANSCRIPT = [
+    {"role": "user", "content": "delete it"},
+    {"role": "assistant", "content": "Deleting.", "tool_calls": [PENDING_CALL]},
+]
+
+
+def test_resume_is_rejected_when_no_matching_pending_call(client, cm):
+    res = client.post(
+        "/pages/ai/chat",
+        json={**CHAT_BODY, "resume": {"tool_call_id": "zzz", "decision": "approve"}},
+    )
+    assert res.status_code == 400
+    assert "zzz" in res.json()["detail"]
+
+
+QUESTION_TRANSCRIPT = [
+    {"role": "user", "content": "put the weather up"},
+    {
+        "role": "assistant",
+        "content": "",
+        "tool_calls": [{"id": "q1", "name": "ask_user", "args": {"question": "Which board?"}}],
+    },
+]
+
+
+@pytest.mark.parametrize(
+    ("messages", "resume"),
+    [
+        pytest.param(
+            PENDING_TRANSCRIPT,
+            {"tool_call_id": "c1", "decision": "answer", "answer": {"action": "accept", "content": {"answer": "x"}}},
+            id="answer-for-a-tool",
+        ),
+        pytest.param(QUESTION_TRANSCRIPT, {"tool_call_id": "q1", "decision": "approve"}, id="approve-for-a-question"),
+        pytest.param(QUESTION_TRANSCRIPT, {"tool_call_id": "q1", "decision": "deny"}, id="deny-for-a-question"),
+    ],
+)
+def test_a_resume_decision_must_fit_the_pending_call(client, cm, messages, resume):
+    """Approve/deny belong to a tool, an answer to a question — never crossed."""
+    res = client.post("/pages/ai/chat", json={"messages": messages, "device_type": "flagship", "resume": resume})
+    assert res.status_code == 400
+    assert resume["tool_call_id"] in res.json()["detail"]
+
+
+def test_a_question_resumes_with_an_answer(client, cm):
+    with patch(TURN, _fake_stream(STREAMED_EVENTS)):
+        res = client.post(
+            "/pages/ai/chat",
+            json={
+                "messages": QUESTION_TRANSCRIPT,
+                "device_type": "flagship",
+                "resume": {
+                    "tool_call_id": "q1",
+                    "decision": "answer",
+                    "answer": {"action": "accept", "content": {"answer": "Kitchen"}},
+                },
+            },
+        )
+    assert res.status_code == 200
+
+
+def test_a_transcript_ending_on_the_assistants_turn_needs_a_resume(client, cm):
+    res = client.post("/pages/ai/chat", json={"messages": PENDING_TRANSCRIPT, "device_type": "flagship"})
+    assert res.status_code == 400
+    assert "resume" in res.json()["detail"].lower()
+
+
+def test_a_new_prompt_while_a_call_is_pending_must_carry_the_decision(client, cm):
+    """Stop-then-type: the deferred deny rides with the new message."""
+    messages = [*PENDING_TRANSCRIPT, {"role": "user", "content": "actually rename it"}]
+    res = client.post("/pages/ai/chat", json={"messages": messages, "device_type": "flagship"})
+    assert res.status_code == 400
+    assert "c1" in res.json()["detail"]
+
+    with patch(TURN, _fake_stream(STREAMED_EVENTS)):
+        ok = client.post(
+            "/pages/ai/chat",
+            json={
+                "messages": messages,
+                "device_type": "flagship",
+                "resume": {"tool_call_id": "c1", "decision": "deny"},
+            },
+        )
+    assert ok.status_code == 200
+
+
+def test_resume_with_the_pending_call_opens_the_stream(client, cm):
+    seen: dict[str, Any] = {}
+
+    async def stream(**kwargs):
+        seen.update(kwargs)
+        yield {
+            "event": "done",
+            "data": {"model_used": "m", "provider_id": "p", "usage": {}, "reason": "complete", "steps": 1},
+        }
+
+    with patch(TURN, stream):
+        res = client.post(
+            "/pages/ai/chat",
+            json={
+                "messages": PENDING_TRANSCRIPT,
+                "device_type": "flagship",
+                "resume": {"tool_call_id": "c1", "decision": "approve"},
+            },
+        )
+    assert res.status_code == 200
+    assert seen["resume"] == {"tool_call_id": "c1", "decision": "approve", "answer": None}
+    assert seen["messages"][1]["tool_calls"] == [PENDING_CALL]
+
+
+def test_chat_can_end_with_a_tool_message(client, cm):
+    """A client that recorded a result itself may hand the loop the next step."""
+    messages = [
+        *PENDING_TRANSCRIPT,
+        {"role": "tool", "tool_call_id": "c1", "name": "delete_page", "status": "ok", "result": {"deleted": True}},
+    ]
+    with patch(TURN, _fake_stream(STREAMED_EVENTS)):
+        res = client.post("/pages/ai/chat", json={"messages": messages, "device_type": "flagship"})
+    assert res.status_code == 200
+
+
+def test_an_empty_user_message_is_rejected_before_the_stream(client, cm):
+    res = client.post(
+        "/pages/ai/chat", json={"messages": [{"role": "user", "content": "   "}], "device_type": "flagship"}
+    )
+    assert res.status_code == 400
+
+
+@pytest.mark.parametrize(
+    "message",
+    [
+        pytest.param({"role": "tool", "content": "x"}, id="tool-without-call-id"),
+        pytest.param({"role": "tool", "tool_call_id": "c1", "name": "delete_page"}, id="tool-without-status"),
+        pytest.param({"role": "user", "content": "x", "tool_calls": [PENDING_CALL]}, id="user-with-tool-calls"),
+        pytest.param(
+            {"role": "assistant", "content": "x", "tool_call_id": "c1", "status": "ok"}, id="assistant-with-outcome"
+        ),
+        pytest.param({"role": "tool", "tool_call_id": "c1", "name": "n", "status": "bogus"}, id="unknown-status"),
+    ],
+)
+def test_tool_role_messages_are_shape_checked(client, cm, message):
+    res = client.post(
+        "/pages/ai/chat", json={"messages": [{"role": "user", "content": "hi"}, message], "device_type": "flagship"}
+    )
+    assert res.status_code == 422
+
+
+@pytest.mark.parametrize(
+    "resume",
+    [
+        pytest.param({"tool_call_id": "c1", "decision": "answer"}, id="answer-without-answer"),
+        pytest.param(
+            {"tool_call_id": "c1", "decision": "approve", "answer": {"action": "accept"}}, id="approve-with-answer"
+        ),
+        pytest.param({"tool_call_id": "c1", "decision": "maybe"}, id="unknown-decision"),
+    ],
+)
+def test_resume_decisions_are_shape_checked(client, cm, resume):
+    res = client.post(
+        "/pages/ai/chat", json={"messages": PENDING_TRANSCRIPT, "device_type": "flagship", "resume": resume}
+    )
+    assert res.status_code == 422
+
+
+def test_context_can_include_the_generated_tool_catalog(client):
+    pytest.importorskip("mcp", reason="mcp package not installed")
+    plain = client.get("/pages/ai/context")
+    assert plain.status_code == 200 and plain.json()["tool_catalog"] is None
+    with_tools = client.get("/pages/ai/context", params={"include_tools": "true"})
+    assert with_tools.status_code == 200
+    catalog = with_tools.json()["tool_catalog"]
+    assert "### create_page" in catalog and "### update_setting" in catalog
+
+
+# ---------------------------------------------------------------------------
 # The SSE event schema — what stands in for POST /chat's missing response_model
 # ---------------------------------------------------------------------------
 
 
 def test_every_event_stream_chat_can_emit_is_declared_in_the_registry():
-    """``src/ai/chat.py`` cannot grow an undocumented event type.
+    """``src/ai/chat.py`` and ``src/ai/agent.py`` cannot grow an undocumented event type.
 
     ``POST /pages/ai/chat`` streams, so it has no ``response_model`` and
     carries a checked-in exception for that rule. ``CHAT_STREAM_EVENTS`` is
@@ -696,21 +971,24 @@ def test_every_event_stream_chat_can_emit_is_declared_in_the_registry():
     import ast
     import inspect
 
+    from src.ai import agent as agent_module
     from src.ai import chat as chat_module
     from src.ai.page_routes import CHAT_STREAM_EVENTS
 
     emitted: set[str] = set()
-    for node in ast.walk(ast.parse(inspect.getsource(chat_module))):
-        if not isinstance(node, ast.Dict):
-            continue
-        for key, value in zip(node.keys, node.values, strict=True):
-            if isinstance(key, ast.Constant) and key.value == "event" and isinstance(value, ast.Constant):
-                emitted.add(value.value)
+    for module in (chat_module, agent_module):
+        for node in ast.walk(ast.parse(inspect.getsource(module))):
+            if not isinstance(node, ast.Dict):
+                continue
+            for key, value in zip(node.keys, node.values, strict=True):
+                if isinstance(key, ast.Constant) and key.value == "event" and isinstance(value, ast.Constant):
+                    emitted.add(value.value)
 
     assert emitted == set(CHAT_STREAM_EVENTS), (
-        "src/ai/chat.py emits event types the published SSE schema does not "
-        "declare (or declares ones it never emits). Update CHAT_STREAM_EVENTS "
-        "in src/ai/page_routes.py — it is the only schema this endpoint has."
+        "src/ai/chat.py or src/ai/agent.py emits event types the published SSE "
+        "schema does not declare (or declares ones they never emit). Update "
+        "CHAT_STREAM_EVENTS in src/ai/page_routes.py — it is the only schema "
+        "this endpoint has."
     )
 
 
@@ -719,7 +997,7 @@ def test_streamed_frames_match_the_declared_event_models(client, cm):
     from src.ai.page_routes import CHAT_STREAM_EVENTS
 
     events = [*STREAMED_EVENTS, {"event": "error", "data": {"message": "fatal"}}]
-    with patch("src.ai.chat.stream_chat", _fake_stream(events)):
+    with patch(TURN, _fake_stream(events)):
         res = client.post("/pages/ai/chat", json=CHAT_BODY)
 
     frames = _frames(res.text)
@@ -739,5 +1017,5 @@ def test_the_chat_route_declares_the_event_stream_media_type():
     route = next(r for r in router.routes if getattr(r, "path", None) == "/pages/ai/chat")
     assert route.response_model is None
     assert "text/event-stream" in route.responses[200]["content"]
-    for name in ("text", "tool_call", "warning", "error", "done"):
+    for name in ("text", "status", "tool_call", "tool_result", "elicitation", "warning", "error", "done"):
         assert f"`{name}`" in route.responses[200]["description"]

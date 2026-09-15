@@ -1317,75 +1317,6 @@
       "failure": "로그인을 활성화할 수 없습니다"
     }
   },
-  "aiActionConfirmation": {
-    "deny": "거부",
-    "allow": "허용",
-    "working": "처리 중…",
-    "done": "완료",
-    "denied": "거부됨",
-    "noChanges": "변경 없음",
-    "noValues": "값 없음",
-    "noChangesSpecified": "지정된 변경 사항이 없습니다.",
-    "openEnd": "미지정",
-    "label": {
-      "installPlugin": "플러그인 설치: {id}",
-      "updatePluginConfig": "플러그인 구성: {id}",
-      "updatePlugin": "플러그인 업데이트: {id}",
-      "enablePlugin": "플러그인 활성화: {id}",
-      "disablePlugin": "플러그인 비활성화: {id}",
-      "uninstallPlugin": "플러그인 제거: {id}",
-      "updateSetting": "설정 변경: {category}",
-      "createCollection": "컬렉션 만들기: \"{name}\"",
-      "updateCollection": "컬렉션 업데이트",
-      "createSchedule": "일정 만들기",
-      "updateSchedule": "일정 업데이트",
-      "deleteSchedule": "일정 삭제",
-      "triggerSystemUpdate": "시스템 업데이트"
-    },
-    "description": {
-      "installPlugin": "공식 레지스트리에서 \"{id}\"을(를) 설치합니다.",
-      "installPluginEnable": "공식 레지스트리에서 \"{id}\"을(를) 설치하고 활성화합니다.",
-      "updatePluginConfig": "\"{id}\"의 구성을 업데이트합니다: {keys}.",
-      "updatePlugin": "\"{id}\"의 최신 레지스트리 버전을 다운로드하여 설치합니다.",
-      "enablePlugin": "\"{id}\"을(를) 활성화하여 보드에 데이터를 제공할 수 있도록 합니다.",
-      "disablePlugin": "\"{id}\"을(를) 제거하지 않고 비활성화합니다. 나중에 다시 활성화할 수 있습니다.",
-      "uninstallPlugin": "\"{id}\"을(를) 영구적으로 제거합니다. 이 작업은 취소할 수 없습니다.",
-      "updateSetting": "{category} 설정에서 {values}을(를) 설정합니다.",
-      "createCollection": "{count, plural, other {# 페이지}}로 컬렉션을 만들고 {interval}초마다 전환합니다.",
-      "createSchedule": "\"{page}\" 페이지를 {days} 요일에 {time}에 표시합니다.",
-      "deleteSchedule": "일정 \"{id}\"을(를) 영구적으로 제거합니다. 이 작업은 취소할 수 없습니다.",
-      "triggerSystemUpdate": "최신 FiestaBoard 업데이트를 다운로드하여 설치합니다. 시스템이 잠시 다시 시작됩니다."
-    },
-    "change": {
-      "rename": "\"{name}\"(으)로 이름 변경",
-      "setPages": "{count, plural, other {# 페이지}} 설정",
-      "interval": "간격 → {interval}초",
-      "page": "페이지 → {page}",
-      "start": "시작 → {start}",
-      "end": "종료 → {end}",
-      "days": "요일 → {days}",
-      "enable": "활성화",
-      "disable": "비활성화"
-    }
-  },
-  "chainingModePicker": {
-    "menuTitle": "AI 체이닝 모드",
-    "triggerAriaLabel": "AI 체이닝 모드: {mode}",
-    "modes": {
-      "manual": {
-        "label": "수동",
-        "description": "각 작업 후에 다시 확인합니다"
-      },
-      "autoContinue": {
-        "label": "자동 계속",
-        "description": "작업을 연결하고 각 단계를 확인합니다"
-      },
-      "autonomous": {
-        "label": "자율",
-        "description": "완료될 때까지 실행하며 확인을 건너뜁니다"
-      }
-    }
-  },
   "bootGate": {
     "waiting": "시작을 기다리는 중…",
     "errorHeading": "FiestaBoard에 연결할 수 없습니다",
@@ -1397,7 +1328,31 @@
     "updateErrorDescription": "업데이트는 끝났지만 앱이 아직 다시 시작 중입니다. 잠시 후 새로고침하세요."
   },
   "globalAiChatDrawer": {
-    "panelAriaLabel": "FiestaBot AI 채팅"
+    "panelAriaLabel": "FiestaBot AI 채팅",
+    "toast": {
+      "undo": "실행 취소",
+      "pageCreated": "페이지를 만들었습니다.",
+      "pageUpdated": "페이지를 업데이트했습니다.",
+      "pageDeleted": "페이지를 삭제했습니다.",
+      "scheduleCreated": "일정을 만들었습니다.",
+      "scheduleUpdated": "일정을 업데이트했습니다.",
+      "scheduleDeleted": "일정을 삭제했습니다.",
+      "pluginInstalled": "플러그인 \"{id}\"을(를) 설치했습니다.",
+      "pluginConfigured": "플러그인 \"{id}\"을(를) 구성했습니다.",
+      "pluginUpdated": "플러그인 \"{id}\"을(를) 업데이트했습니다.",
+      "pluginEnabled": "플러그인 \"{id}\"을(를) 활성화했습니다.",
+      "pluginDisabled": "플러그인 \"{id}\"을(를) 비활성화했습니다.",
+      "pluginUninstalled": "플러그인 \"{id}\"을(를) 제거했습니다.",
+      "settingUpdated": "설정을 업데이트했습니다.",
+      "collectionCreated": "컬렉션 \"{name}\"을(를) 만들었습니다.",
+      "collectionUpdated": "컬렉션을 업데이트했습니다.",
+      "collectionDeleted": "컬렉션을 삭제했습니다.",
+      "activePageSet": "보드를 업데이트했습니다.",
+      "messageSent": "보드에 메시지를 보냈습니다.",
+      "systemUpdate": "시스템 업데이트를 시작했습니다. 보드가 곧 재시작됩니다.",
+      "toolFailed": "{tool} 실패: {error}",
+      "stopped": "중지했습니다. 이미 실행 중인 작업은 완료됩니다."
+    }
   },
   "plainTextEditor": {
     "placeholder": "템플릿 텍스트를 입력하세요...",
@@ -2042,26 +1997,91 @@
   },
   "aiChatPanel": {
     "messagesAriaLabel": "채팅 메시지",
-    "taskStatusAriaLabel": "작업 진행 상황",
-    "taskProgressAriaLabel": "AI 작업 진행률",
     "clearConversationAriaLabel": "대화 지우기",
     "closePanelAriaLabel": "FiestaBot (Beta) 닫기",
     "providerSelectAriaLabel": "제공자",
     "modelSelectAriaLabel": "모델",
-    "showBoardTooltip": "보드 미리보기 표시",
-    "hideBoardTooltip": "보드 미리보기 숨기기",
-    "undoTooltip": "마지막 AI 변경 실행 취소",
     "panelTitle": "FiestaBot (Beta)",
     "retryButton": "다시 시도",
     "messageLabel": "메시지",
     "stopButton": "중지",
     "sendButton": "보내기",
-    "tasksHeading": "작업 ({done}/{total})",
     "emptyStateTitle": "무엇을 도와드릴까요?",
     "emptyStateDescription": "만들거나 변경하고 싶은 내용을 설명하세요.",
-    "showBoardButton": "보드 표시",
-    "undoButton": "실행 취소",
-    "renameSummary": "→ \"{name}\"(으)로 이름 변경",
+    "placeholderEmpty": "원하는 페이지를 설명하거나 변경을 요청하세요…",
+    "placeholderRefine": "다듬거나 질문하거나 다른 변경을 요청하세요…",
+    "placeholderAnswer": "답변을 입력하세요…",
+    "blockedAiDisabled": "AI가 비활성화되어 있습니다. 설정 → AI 제공자에서 활성화하세요.",
+    "blockedNoProviders": "설정 → AI 제공자에서 모델이 하나 이상 있는 제공자를 구성하세요.",
+    "suggestions": {
+      "weather": "아침 출근용 날씨 + 교통 페이지를 만들어 줘",
+      "date": "2번째 줄을 오늘 날짜로 바꿔 줘",
+      "variables": "이 페이지에서 사용할 수 있는 플러그인 변수는?"
+    },
+    "jumpToLatest": "최신으로 이동",
+    "defaultModel": "기본값",
+    "stepsAriaLabel": "진행 중인 단계",
+    "stepsHeading": "{total}단계 중 {done}단계",
+    "toolInput": "인수",
+    "toolOutput": "결과",
+    "toolStates": {
+      "inputStreaming": "준비 중",
+      "inputAvailable": "실행 중",
+      "outputAvailable": "완료",
+      "outputError": "실패",
+      "approvalRequested": "승인 대기 중",
+      "denied": "실행되지 않음",
+      "stopped": "중지됨"
+    },
+    "status": {
+      "thinking": "생각 중…",
+      "running": "{tool} 실행 중…"
+    },
+    "question": {
+      "skip": "건너뛰기",
+      "typeAnswer": "또는 아래에 답변을 입력하세요.",
+      "answered": "답변: {answer}",
+      "declined": "(건너뜀)",
+      "cancelled": "(취소됨)"
+    },
+    "tool": {
+      "createPage": "페이지 만들기",
+      "updatePage": "페이지 업데이트",
+      "deletePage": "페이지 삭제",
+      "createSchedule": "일정 추가",
+      "updateSchedule": "일정 업데이트",
+      "deleteSchedule": "일정 삭제",
+      "createCollection": "컬렉션 만들기",
+      "updateCollection": "컬렉션 업데이트",
+      "deleteCollection": "컬렉션 삭제",
+      "installPlugin": "플러그인 설치",
+      "enablePlugin": "플러그인 활성화",
+      "disablePlugin": "플러그인 비활성화",
+      "uninstallPlugin": "플러그인 제거",
+      "configurePlugin": "플러그인 구성",
+      "updatePlugin": "플러그인 업데이트",
+      "setActivePage": "보드에 페이지 표시",
+      "setScheduleMode": "일정 모드 설정",
+      "sendMessage": "보드에 메시지 보내기",
+      "updateSetting": "설정 변경",
+      "triggerSystemUpdate": "시스템 업데이트",
+      "askUser": "질문",
+      "listPages": "페이지 조회",
+      "getPage": "페이지 읽기",
+      "listSchedules": "일정 조회",
+      "listCollections": "컬렉션 조회",
+      "listInstalledPlugins": "설치된 플러그인 조회",
+      "listRegistryPlugins": "플러그인 레지스트리 탐색",
+      "getTemplateVariables": "템플릿 변수 조회",
+      "getPluginData": "플러그인 데이터 읽기",
+      "renderPagePreview": "템플릿 미리보기",
+      "previewSavedPage": "페이지 미리보기",
+      "validateTemplate": "템플릿 검사",
+      "getSystemStatus": "시스템 상태 확인",
+      "getSettingsSummary": "설정 읽기",
+      "getActivePage": "활성 페이지 확인",
+      "getBoardContent": "보드 읽기"
+    },
     "previewUnavailable": "(미리보기를 사용할 수 없음)"
   },
   "boardSizeIndicator": {
@@ -2183,5 +2203,19 @@
     "leaveConfirmTitle": "베타 채널을 나가시겠습니까?",
     "leaveConfirmBody": "현재 안정 버전으로 돌아갑니다. 안정 버전은 사용 중인 베타보다 이전 버전입니다. 설정과 페이지는 참여할 때 만든 백업으로 되돌아가며, 베타 사용 중 변경한 내용은 사라집니다. FiestaBoard가 안정 버전으로 다시 시작됩니다. 변경 사항을 유지하려면 기다리세요. 다음 안정 버전이 베타를 앞지르면 '지금 업데이트'로 아무것도 잃지 않고 이동할 수 있습니다.",
     "leaveConfirmCta": "베타 나가기"
+  },
+  "aiApprovalCard": {
+    "heading": "승인이 필요합니다",
+    "approve": "승인",
+    "deny": "거부",
+    "working": "처리 중…",
+    "description": {
+      "deletePage": "페이지 \"{detail}\"을(를) 영구 삭제합니다. 이를 사용하는 일정과 컬렉션에서 제거됩니다.",
+      "deleteSchedule": "일정 \"{detail}\"을(를) 영구 삭제합니다. 되돌릴 수 없습니다.",
+      "deleteCollection": "컬렉션 \"{detail}\"을(를) 영구 삭제합니다. 되돌릴 수 없습니다.",
+      "uninstallPlugin": "플러그인 \"{detail}\"과(와) 구성을 영구 삭제합니다.",
+      "triggerSystemUpdate": "최신 FiestaBoard 업데이트를 다운로드하고 설치합니다. 시스템이 잠시 재시작됩니다.",
+      "generic": "이 작업은 다른 도구로 되돌릴 수 없습니다."
+    }
   }
 }

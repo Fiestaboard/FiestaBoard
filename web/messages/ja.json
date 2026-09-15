@@ -1317,75 +1317,6 @@
       "failure": "ログインを有効化できませんでした"
     }
   },
-  "aiActionConfirmation": {
-    "deny": "拒否",
-    "allow": "許可",
-    "working": "実行中…",
-    "done": "完了",
-    "denied": "拒否しました",
-    "noChanges": "変更なし",
-    "noValues": "値なし",
-    "noChangesSpecified": "変更が指定されていません。",
-    "openEnd": "未指定",
-    "label": {
-      "installPlugin": "プラグインをインストール: {id}",
-      "updatePluginConfig": "プラグインを設定: {id}",
-      "updatePlugin": "プラグインを更新: {id}",
-      "enablePlugin": "プラグインを有効化: {id}",
-      "disablePlugin": "プラグインを無効化: {id}",
-      "uninstallPlugin": "プラグインをアンインストール: {id}",
-      "updateSetting": "設定を変更: {category}",
-      "createCollection": "コレクションを作成: \"{name}\"",
-      "updateCollection": "コレクションを更新",
-      "createSchedule": "スケジュールを作成",
-      "updateSchedule": "スケジュールを更新",
-      "deleteSchedule": "スケジュールを削除",
-      "triggerSystemUpdate": "システム更新"
-    },
-    "description": {
-      "installPlugin": "公式レジストリから「{id}」をインストールします。",
-      "installPluginEnable": "公式レジストリから「{id}」をインストールして有効化します。",
-      "updatePluginConfig": "「{id}」の設定を更新します: {keys}。",
-      "updatePlugin": "「{id}」の最新のレジストリ版をダウンロードしてインストールします。",
-      "enablePlugin": "「{id}」を有効にして、ボードにデータを提供できるようにします。",
-      "disablePlugin": "「{id}」を削除せずに無効化します。後で再び有効化できます。",
-      "uninstallPlugin": "「{id}」を完全に削除します。この操作は元に戻せません。",
-      "updateSetting": "{category} 設定に {values} を設定します。",
-      "createCollection": "{count, plural, other {# ページ}}のコレクションを作成し、{interval}秒ごとに切り替えます。",
-      "createSchedule": "「{page}」ページを {days} の日に {time} に表示します。",
-      "deleteSchedule": "スケジュール「{id}」を完全に削除します。この操作は元に戻せません。",
-      "triggerSystemUpdate": "最新の FiestaBoard アップデートをダウンロードしてインストールします。システムは短時間再起動します。"
-    },
-    "change": {
-      "rename": "「{name}」に名前を変更",
-      "setPages": "{count, plural, other {# ページ}}を設定",
-      "interval": "間隔 → {interval}秒",
-      "page": "ページ → {page}",
-      "start": "開始 → {start}",
-      "end": "終了 → {end}",
-      "days": "曜日 → {days}",
-      "enable": "有効化",
-      "disable": "無効化"
-    }
-  },
-  "chainingModePicker": {
-    "menuTitle": "AI チェーンモード",
-    "triggerAriaLabel": "AI チェーンモード: {mode}",
-    "modes": {
-      "manual": {
-        "label": "手動",
-        "description": "各操作のあとに再確認します"
-      },
-      "autoContinue": {
-        "label": "自動継続",
-        "description": "操作を連鎖し、各ステップを確認します"
-      },
-      "autonomous": {
-        "label": "自律",
-        "description": "完了まで実行し、確認をスキップします"
-      }
-    }
-  },
   "bootGate": {
     "waiting": "起動を待機中…",
     "errorHeading": "FiestaBoard に接続できませんでした",
@@ -1397,7 +1328,31 @@
     "updateErrorDescription": "アップデートは完了しましたが、アプリはまだ再起動中です。少し待ってから再読み込みしてください。"
   },
   "globalAiChatDrawer": {
-    "panelAriaLabel": "FiestaBot AI チャット"
+    "panelAriaLabel": "FiestaBot AI チャット",
+    "toast": {
+      "undo": "元に戻す",
+      "pageCreated": "ページを作成しました。",
+      "pageUpdated": "ページを更新しました。",
+      "pageDeleted": "ページを削除しました。",
+      "scheduleCreated": "スケジュールを作成しました。",
+      "scheduleUpdated": "スケジュールを更新しました。",
+      "scheduleDeleted": "スケジュールを削除しました。",
+      "pluginInstalled": "プラグイン「{id}」をインストールしました。",
+      "pluginConfigured": "プラグイン「{id}」を設定しました。",
+      "pluginUpdated": "プラグイン「{id}」を更新しました。",
+      "pluginEnabled": "プラグイン「{id}」を有効にしました。",
+      "pluginDisabled": "プラグイン「{id}」を無効にしました。",
+      "pluginUninstalled": "プラグイン「{id}」をアンインストールしました。",
+      "settingUpdated": "設定を更新しました。",
+      "collectionCreated": "コレクション「{name}」を作成しました。",
+      "collectionUpdated": "コレクションを更新しました。",
+      "collectionDeleted": "コレクションを削除しました。",
+      "activePageSet": "ボードを更新しました。",
+      "messageSent": "ボードにメッセージを送信しました。",
+      "systemUpdate": "システム更新を開始しました。まもなくボードが再起動します。",
+      "toolFailed": "{tool} が失敗しました: {error}",
+      "stopped": "停止しました。すでに実行中の処理は完了します。"
+    }
   },
   "plainTextEditor": {
     "placeholder": "テンプレートテキストを入力...",
@@ -2042,26 +1997,91 @@
   },
   "aiChatPanel": {
     "messagesAriaLabel": "チャットメッセージ",
-    "taskStatusAriaLabel": "タスクの進捗",
-    "taskProgressAriaLabel": "AI タスクの進行状況",
     "clearConversationAriaLabel": "会話をクリア",
     "closePanelAriaLabel": "FiestaBot (Beta) を閉じる",
     "providerSelectAriaLabel": "プロバイダー",
     "modelSelectAriaLabel": "モデル",
-    "showBoardTooltip": "ボードプレビューを表示",
-    "hideBoardTooltip": "ボードプレビューを非表示",
-    "undoTooltip": "AI による最後の変更を元に戻す",
     "panelTitle": "FiestaBot (Beta)",
     "retryButton": "再試行",
     "messageLabel": "メッセージ",
     "stopButton": "停止",
     "sendButton": "送信",
-    "tasksHeading": "タスク ({done}/{total})",
     "emptyStateTitle": "何かお手伝いできますか？",
     "emptyStateDescription": "作成または変更したい内容を説明してください。",
-    "showBoardButton": "ボードを表示",
-    "undoButton": "元に戻す",
-    "renameSummary": "→ 「{name}」に名前を変更",
+    "placeholderEmpty": "作りたいページを説明するか、変更を依頼してください…",
+    "placeholderRefine": "調整、質問、または別の変更を依頼…",
+    "placeholderAnswer": "回答を入力…",
+    "blockedAiDisabled": "AI は無効です。設定 → AI プロバイダーで有効にしてください。",
+    "blockedNoProviders": "設定 → AI プロバイダーで、モデルを 1 つ以上持つプロバイダーを設定してください。",
+    "suggestions": {
+      "weather": "朝の通勤用に天気と交通のページを作って",
+      "date": "2 行目を今日の日付に置き換えて",
+      "variables": "このページで使えるプラグイン変数は？"
+    },
+    "jumpToLatest": "最新へ移動",
+    "defaultModel": "デフォルト",
+    "stepsAriaLabel": "進行中のステップ",
+    "stepsHeading": "{total} ステップ中 {done}",
+    "toolInput": "引数",
+    "toolOutput": "結果",
+    "toolStates": {
+      "inputStreaming": "準備中",
+      "inputAvailable": "実行中",
+      "outputAvailable": "完了",
+      "outputError": "失敗",
+      "approvalRequested": "承認待ち",
+      "denied": "未実行",
+      "stopped": "停止"
+    },
+    "status": {
+      "thinking": "考え中…",
+      "running": "{tool} を実行中…"
+    },
+    "question": {
+      "skip": "スキップ",
+      "typeAnswer": "または下に回答を入力してください。",
+      "answered": "回答: {answer}",
+      "declined": "(スキップ)",
+      "cancelled": "(キャンセル)"
+    },
+    "tool": {
+      "createPage": "ページを作成",
+      "updatePage": "ページを更新",
+      "deletePage": "ページを削除",
+      "createSchedule": "スケジュールを追加",
+      "updateSchedule": "スケジュールを更新",
+      "deleteSchedule": "スケジュールを削除",
+      "createCollection": "コレクションを作成",
+      "updateCollection": "コレクションを更新",
+      "deleteCollection": "コレクションを削除",
+      "installPlugin": "プラグインをインストール",
+      "enablePlugin": "プラグインを有効化",
+      "disablePlugin": "プラグインを無効化",
+      "uninstallPlugin": "プラグインをアンインストール",
+      "configurePlugin": "プラグインを設定",
+      "updatePlugin": "プラグインを更新",
+      "setActivePage": "ボードにページを表示",
+      "setScheduleMode": "スケジュールモードを設定",
+      "sendMessage": "ボードにメッセージを送信",
+      "updateSetting": "設定を変更",
+      "triggerSystemUpdate": "システム更新",
+      "askUser": "質問",
+      "listPages": "ページを確認",
+      "getPage": "ページを読む",
+      "listSchedules": "スケジュールを確認",
+      "listCollections": "コレクションを確認",
+      "listInstalledPlugins": "インストール済みプラグインを確認",
+      "listRegistryPlugins": "プラグインレジストリを閲覧",
+      "getTemplateVariables": "テンプレート変数を確認",
+      "getPluginData": "プラグインデータを読む",
+      "renderPagePreview": "テンプレートをプレビュー",
+      "previewSavedPage": "ページをプレビュー",
+      "validateTemplate": "テンプレートを検証",
+      "getSystemStatus": "システム状態を確認",
+      "getSettingsSummary": "設定を読む",
+      "getActivePage": "アクティブなページを確認",
+      "getBoardContent": "ボードを読む"
+    },
     "previewUnavailable": "（プレビューを利用できません）"
   },
   "boardSizeIndicator": {
@@ -2183,5 +2203,19 @@
     "leaveConfirmTitle": "ベータチャンネルを終了しますか？",
     "leaveConfirmBody": "現在の安定版に戻ります。安定版は使用中のベータより古いバージョンです。設定とページは参加時に作成されたバックアップに戻され、ベータ中に変更した内容は失われます。FiestaBoard は安定版で再起動します。変更を保持したい場合は、お待ちください。次の安定版がベータを追い越すと、「今すぐ更新」で何も失わずに移行できます。",
     "leaveConfirmCta": "ベータを終了"
+  },
+  "aiApprovalCard": {
+    "heading": "承認が必要です",
+    "approve": "承認",
+    "deny": "拒否",
+    "working": "処理中…",
+    "description": {
+      "deletePage": "ページ「{detail}」を完全に削除します。使用中のスケジュールとコレクションから外れます。",
+      "deleteSchedule": "スケジュール「{detail}」を完全に削除します。元に戻せません。",
+      "deleteCollection": "コレクション「{detail}」を完全に削除します。元に戻せません。",
+      "uninstallPlugin": "プラグイン「{detail}」とその設定を完全に削除します。",
+      "triggerSystemUpdate": "最新の FiestaBoard 更新をダウンロードしてインストールします。システムが短時間再起動します。",
+      "generic": "この操作は他のツールでは元に戻せません。"
+    }
   }
 }

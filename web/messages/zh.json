@@ -1317,75 +1317,6 @@
       "failure": "无法开启登录"
     }
   },
-  "aiActionConfirmation": {
-    "deny": "拒绝",
-    "allow": "允许",
-    "working": "处理中…",
-    "done": "完成",
-    "denied": "已拒绝",
-    "noChanges": "无更改",
-    "noValues": "无值",
-    "noChangesSpecified": "未指定更改。",
-    "openEnd": "未设定",
-    "label": {
-      "installPlugin": "安装插件：{id}",
-      "updatePluginConfig": "配置插件：{id}",
-      "updatePlugin": "更新插件：{id}",
-      "enablePlugin": "启用插件：{id}",
-      "disablePlugin": "禁用插件：{id}",
-      "uninstallPlugin": "卸载插件：{id}",
-      "updateSetting": "更改设置：{category}",
-      "createCollection": "创建合集：\"{name}\"",
-      "updateCollection": "更新合集",
-      "createSchedule": "创建日程",
-      "updateSchedule": "更新日程",
-      "deleteSchedule": "删除日程",
-      "triggerSystemUpdate": "系统更新"
-    },
-    "description": {
-      "installPlugin": "从官方注册表安装“{id}”。",
-      "installPluginEnable": "从官方注册表安装“{id}”并启用它。",
-      "updatePluginConfig": "更新“{id}”的配置：{keys}。",
-      "updatePlugin": "下载并安装“{id}”的最新注册表版本。",
-      "enablePlugin": "启用“{id}”，使其能够向你的看板提供数据。",
-      "disablePlugin": "禁用“{id}”但不移除它。稍后可重新启用。",
-      "uninstallPlugin": "永久移除“{id}”。此操作无法撤销。",
-      "updateSetting": "在 {category} 设置中设置 {values}。",
-      "createCollection": "创建一个包含 {count, plural, other {# 个页面}} 的合集，每 {interval} 秒轮换一次。",
-      "createSchedule": "在 {days} 的 {time} 显示页面“{page}”。",
-      "deleteSchedule": "永久移除日程“{id}”。此操作无法撤销。",
-      "triggerSystemUpdate": "下载并安装最新的 FiestaBoard 更新。系统将短暂重启。"
-    },
-    "change": {
-      "rename": "重命名为“{name}”",
-      "setPages": "设置 {count, plural, other {# 个页面}}",
-      "interval": "间隔 → {interval}秒",
-      "page": "页面 → {page}",
-      "start": "开始 → {start}",
-      "end": "结束 → {end}",
-      "days": "日期 → {days}",
-      "enable": "启用",
-      "disable": "禁用"
-    }
-  },
-  "chainingModePicker": {
-    "menuTitle": "AI 链式模式",
-    "triggerAriaLabel": "AI 链式模式：{mode}",
-    "modes": {
-      "manual": {
-        "label": "手动",
-        "description": "每次操作后我会再次询问"
-      },
-      "autoContinue": {
-        "label": "自动继续",
-        "description": "串联操作，逐步确认"
-      },
-      "autonomous": {
-        "label": "自主",
-        "description": "运行至完成，跳过确认"
-      }
-    }
-  },
   "bootGate": {
     "waiting": "正在等待启动…",
     "errorHeading": "无法连接到 FiestaBoard",
@@ -1397,7 +1328,31 @@
     "updateErrorDescription": "更新已完成，但应用仍在重启。请稍候片刻，然后刷新页面。"
   },
   "globalAiChatDrawer": {
-    "panelAriaLabel": "FiestaBot AI 聊天"
+    "panelAriaLabel": "FiestaBot AI 聊天",
+    "toast": {
+      "undo": "撤销",
+      "pageCreated": "页面已创建。",
+      "pageUpdated": "页面已更新。",
+      "pageDeleted": "页面已删除。",
+      "scheduleCreated": "排程已创建。",
+      "scheduleUpdated": "排程已更新。",
+      "scheduleDeleted": "排程已删除。",
+      "pluginInstalled": "插件“{id}”已安装。",
+      "pluginConfigured": "插件“{id}”已配置。",
+      "pluginUpdated": "插件“{id}”已更新。",
+      "pluginEnabled": "插件“{id}”已启用。",
+      "pluginDisabled": "插件“{id}”已禁用。",
+      "pluginUninstalled": "插件“{id}”已卸载。",
+      "settingUpdated": "设置已更新。",
+      "collectionCreated": "合集“{name}”已创建。",
+      "collectionUpdated": "合集已更新。",
+      "collectionDeleted": "合集已删除。",
+      "activePageSet": "板已更新。",
+      "messageSent": "消息已发送到板。",
+      "systemUpdate": "系统更新已开始。板将很快重启。",
+      "toolFailed": "{tool} 失败：{error}",
+      "stopped": "已停止。已在运行的操作仍会完成。"
+    }
   },
   "plainTextEditor": {
     "placeholder": "输入您的模板文本...",
@@ -2042,26 +1997,91 @@
   },
   "aiChatPanel": {
     "messagesAriaLabel": "聊天消息",
-    "taskStatusAriaLabel": "任务进度",
-    "taskProgressAriaLabel": "AI 任务进度",
     "clearConversationAriaLabel": "清除对话",
     "closePanelAriaLabel": "关闭 FiestaBot (Beta)",
     "providerSelectAriaLabel": "提供商",
     "modelSelectAriaLabel": "模型",
-    "showBoardTooltip": "显示看板预览",
-    "hideBoardTooltip": "隐藏看板预览",
-    "undoTooltip": "撤销上一次 AI 更改",
     "panelTitle": "FiestaBot (Beta)",
     "retryButton": "重试",
     "messageLabel": "消息",
     "stopButton": "停止",
     "sendButton": "发送",
-    "tasksHeading": "任务（{done}/{total}）",
     "emptyStateTitle": "需要什么帮助？",
     "emptyStateDescription": "描述您想要构建或更改的内容。",
-    "showBoardButton": "显示看板",
-    "undoButton": "撤销",
-    "renameSummary": "→ 重命名为“{name}”",
+    "placeholderEmpty": "描述你想要的页面，或提出修改要求…",
+    "placeholderRefine": "继续完善、提问或提出其他修改…",
+    "placeholderAnswer": "输入你的回答…",
+    "blockedAiDisabled": "AI 已禁用。请在 设置 → AI 提供商 中启用。",
+    "blockedNoProviders": "请在 设置 → AI 提供商 中配置至少包含一个模型的提供商。",
+    "suggestions": {
+      "weather": "为我的早晨通勤做一个天气和交通页面",
+      "date": "把第 2 行换成今天的日期",
+      "variables": "这个页面可以使用哪些插件变量？"
+    },
+    "jumpToLatest": "跳到最新",
+    "defaultModel": "默认",
+    "stepsAriaLabel": "进行中的步骤",
+    "stepsHeading": "{total} 步中的第 {done} 步",
+    "toolInput": "参数",
+    "toolOutput": "结果",
+    "toolStates": {
+      "inputStreaming": "准备中",
+      "inputAvailable": "运行中",
+      "outputAvailable": "完成",
+      "outputError": "失败",
+      "approvalRequested": "等待你的批准",
+      "denied": "未运行",
+      "stopped": "已停止"
+    },
+    "status": {
+      "thinking": "思考中…",
+      "running": "正在运行 {tool}…"
+    },
+    "question": {
+      "skip": "跳过",
+      "typeAnswer": "或在下方输入回答。",
+      "answered": "你的回答：{answer}",
+      "declined": "（已跳过）",
+      "cancelled": "（已取消）"
+    },
+    "tool": {
+      "createPage": "创建页面",
+      "updatePage": "更新页面",
+      "deletePage": "删除页面",
+      "createSchedule": "添加排程",
+      "updateSchedule": "更新排程",
+      "deleteSchedule": "删除排程",
+      "createCollection": "创建合集",
+      "updateCollection": "更新合集",
+      "deleteCollection": "删除合集",
+      "installPlugin": "安装插件",
+      "enablePlugin": "启用插件",
+      "disablePlugin": "禁用插件",
+      "uninstallPlugin": "卸载插件",
+      "configurePlugin": "配置插件",
+      "updatePlugin": "更新插件",
+      "setActivePage": "在板上显示页面",
+      "setScheduleMode": "设置排程模式",
+      "sendMessage": "向板发送消息",
+      "updateSetting": "更改设置",
+      "triggerSystemUpdate": "系统更新",
+      "askUser": "提问",
+      "listPages": "查看页面",
+      "getPage": "读取页面",
+      "listSchedules": "查看排程",
+      "listCollections": "查看合集",
+      "listInstalledPlugins": "查看已安装插件",
+      "listRegistryPlugins": "浏览插件库",
+      "getTemplateVariables": "查看模板变量",
+      "getPluginData": "读取插件数据",
+      "renderPagePreview": "预览模板",
+      "previewSavedPage": "预览页面",
+      "validateTemplate": "检查模板",
+      "getSystemStatus": "检查系统状态",
+      "getSettingsSummary": "读取设置",
+      "getActivePage": "检查当前页面",
+      "getBoardContent": "读取板内容"
+    },
     "previewUnavailable": "（预览不可用）"
   },
   "boardSizeIndicator": {
@@ -2183,5 +2203,19 @@
     "leaveConfirmTitle": "退出测试版通道？",
     "leaveConfirmBody": "这会让你回到当前的稳定版本，它比你正在运行的测试版更旧。你的设置和页面将回滚到加入时创建的备份——测试期间所做的任何更改都会丢失。FiestaBoard 将以稳定版本重新启动。如果你希望保留更改，请改为等待：当下一个稳定版本超过你的测试版时，“立即更新”会带你过去且不丢失任何内容。",
     "leaveConfirmCta": "退出测试版"
+  },
+  "aiApprovalCard": {
+    "heading": "需要你的批准",
+    "approve": "批准",
+    "deny": "拒绝",
+    "working": "处理中…",
+    "description": {
+      "deletePage": "永久删除页面“{detail}”。使用它的排程和合集将失去该页面。",
+      "deleteSchedule": "永久删除排程“{detail}”。此操作无法撤销。",
+      "deleteCollection": "永久删除合集“{detail}”。此操作无法撤销。",
+      "uninstallPlugin": "永久删除插件“{detail}”及其配置。",
+      "triggerSystemUpdate": "下载并安装最新的 FiestaBoard 更新。系统将短暂重启。",
+      "generic": "此操作无法通过其他工具撤销。"
+    }
   }
 }

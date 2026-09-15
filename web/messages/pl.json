@@ -1317,75 +1317,6 @@
       "failure": "Nie udało się włączyć logowania"
     }
   },
-  "aiActionConfirmation": {
-    "deny": "Odmów",
-    "allow": "Zezwól",
-    "working": "Trwa…",
-    "done": "Gotowe",
-    "denied": "Odmówiono",
-    "noChanges": "brak zmian",
-    "noValues": "brak wartości",
-    "noChangesSpecified": "Nie określono zmian.",
-    "openEnd": "otwarte",
-    "label": {
-      "installPlugin": "Zainstaluj wtyczkę: {id}",
-      "updatePluginConfig": "Skonfiguruj wtyczkę: {id}",
-      "updatePlugin": "Zaktualizuj wtyczkę: {id}",
-      "enablePlugin": "Włącz wtyczkę: {id}",
-      "disablePlugin": "Wyłącz wtyczkę: {id}",
-      "uninstallPlugin": "Odinstaluj wtyczkę: {id}",
-      "updateSetting": "Zmień ustawienie: {category}",
-      "createCollection": "Utwórz kolekcję: \"{name}\"",
-      "updateCollection": "Zaktualizuj kolekcję",
-      "createSchedule": "Utwórz harmonogram",
-      "updateSchedule": "Zaktualizuj harmonogram",
-      "deleteSchedule": "Usuń harmonogram",
-      "triggerSystemUpdate": "Aktualizacja systemu"
-    },
-    "description": {
-      "installPlugin": "Instaluje \"{id}\" z oficjalnego rejestru.",
-      "installPluginEnable": "Instaluje \"{id}\" z oficjalnego rejestru i włącza ją.",
-      "updatePluginConfig": "Aktualizuje konfigurację \"{id}\": {keys}.",
-      "updatePlugin": "Pobiera i instaluje najnowszą wersję \"{id}\" z rejestru.",
-      "enablePlugin": "Włącza \"{id}\", aby mogła dostarczać dane do Twoich tablic.",
-      "disablePlugin": "Wyłącza \"{id}\" bez usuwania. Można ją później ponownie włączyć.",
-      "uninstallPlugin": "Trwale usuwa \"{id}\". Tej operacji nie można cofnąć.",
-      "updateSetting": "Ustawia {values} w ustawieniach {category}.",
-      "createCollection": "Tworzy kolekcję z {count, plural, one {# stroną} other {# stronami}}, zmieniając co {interval}s.",
-      "createSchedule": "Pokazuje stronę \"{page}\" od {time} w dni {days}.",
-      "deleteSchedule": "Trwale usuwa harmonogram \"{id}\". Tej operacji nie można cofnąć.",
-      "triggerSystemUpdate": "Pobiera i instaluje najnowszą aktualizację FiestaBoard. System na chwilę uruchomi się ponownie."
-    },
-    "change": {
-      "rename": "zmień nazwę na \"{name}\"",
-      "setPages": "ustaw {count, plural, one {# stronę} other {# stron}}",
-      "interval": "interwał → {interval}s",
-      "page": "strona → {page}",
-      "start": "początek → {start}",
-      "end": "koniec → {end}",
-      "days": "dni → {days}",
-      "enable": "włącz",
-      "disable": "wyłącz"
-    }
-  },
-  "chainingModePicker": {
-    "menuTitle": "Tryb łączenia AI",
-    "triggerAriaLabel": "Tryb łączenia AI: {mode}",
-    "modes": {
-      "manual": {
-        "label": "Ręczny",
-        "description": "Zapytam ponownie po każdej akcji"
-      },
-      "autoContinue": {
-        "label": "Automatyczna kontynuacja",
-        "description": "Łączy akcje, potwierdza każdy krok"
-      },
-      "autonomous": {
-        "label": "Autonomiczny",
-        "description": "Wykonuje do końca, pomija potwierdzenia"
-      }
-    }
-  },
   "bootGate": {
     "waiting": "Oczekiwanie na uruchomienie…",
     "errorHeading": "Nie można połączyć się z FiestaBoard",
@@ -1397,7 +1328,31 @@
     "updateErrorDescription": "Aktualizacja się zakończyła, ale aplikacja nadal się uruchamia. Poczekaj chwilę i odśwież stronę."
   },
   "globalAiChatDrawer": {
-    "panelAriaLabel": "Czat AI FiestaBot"
+    "panelAriaLabel": "Czat AI FiestaBot",
+    "toast": {
+      "undo": "Cofnij",
+      "pageCreated": "Utworzono stronę.",
+      "pageUpdated": "Zaktualizowano stronę.",
+      "pageDeleted": "Usunięto stronę.",
+      "scheduleCreated": "Utworzono harmonogram.",
+      "scheduleUpdated": "Zaktualizowano harmonogram.",
+      "scheduleDeleted": "Usunięto harmonogram.",
+      "pluginInstalled": "Zainstalowano wtyczkę „{id}”.",
+      "pluginConfigured": "Skonfigurowano wtyczkę „{id}”.",
+      "pluginUpdated": "Zaktualizowano wtyczkę „{id}”.",
+      "pluginEnabled": "Włączono wtyczkę „{id}”.",
+      "pluginDisabled": "Wyłączono wtyczkę „{id}”.",
+      "pluginUninstalled": "Odinstalowano wtyczkę „{id}”.",
+      "settingUpdated": "Zaktualizowano ustawienie.",
+      "collectionCreated": "Utworzono kolekcję „{name}”.",
+      "collectionUpdated": "Zaktualizowano kolekcję.",
+      "collectionDeleted": "Usunięto kolekcję.",
+      "activePageSet": "Zaktualizowano tablicę.",
+      "messageSent": "Wysłano wiadomość na tablicę.",
+      "systemUpdate": "Rozpoczęto aktualizację systemu. Tablica wkrótce się zrestartuje.",
+      "toolFailed": "{tool} nie powiodło się: {error}",
+      "stopped": "Zatrzymano. To, co już trwa, zostanie dokończone."
+    }
   },
   "plainTextEditor": {
     "placeholder": "Wpisz tekst szablonu...",
@@ -2042,26 +1997,91 @@
   },
   "aiChatPanel": {
     "messagesAriaLabel": "Wiadomości czatu",
-    "taskStatusAriaLabel": "Postęp zadań",
-    "taskProgressAriaLabel": "Postęp zadań AI",
     "clearConversationAriaLabel": "Wyczyść rozmowę",
     "closePanelAriaLabel": "Zamknij FiestaBot (Beta)",
     "providerSelectAriaLabel": "Dostawca",
     "modelSelectAriaLabel": "Model",
-    "showBoardTooltip": "Pokaż podgląd boarda",
-    "hideBoardTooltip": "Ukryj podgląd boarda",
-    "undoTooltip": "Cofnij ostatnią zmianę AI",
     "panelTitle": "FiestaBot (Beta)",
     "retryButton": "Ponów",
     "messageLabel": "Wiadomość",
     "stopButton": "Zatrzymaj",
     "sendButton": "Wyślij",
-    "tasksHeading": "Zadania ({done}/{total})",
     "emptyStateTitle": "W czym mogę pomóc?",
     "emptyStateDescription": "Opisz, co chcesz zbudować lub zmienić.",
-    "showBoardButton": "Pokaż board",
-    "undoButton": "Cofnij",
-    "renameSummary": "→ zmień nazwę na „{name}”",
+    "placeholderEmpty": "Opisz stronę, którą chcesz, lub poproś o zmiany…",
+    "placeholderRefine": "Dopracuj, zapytaj lub poproś o kolejną zmianę…",
+    "placeholderAnswer": "Wpisz odpowiedź…",
+    "blockedAiDisabled": "AI jest wyłączona. Włącz ją w Ustawienia → Dostawcy AI.",
+    "blockedNoProviders": "Skonfiguruj dostawcę AI z co najmniej jednym modelem w Ustawienia → Dostawcy AI.",
+    "suggestions": {
+      "weather": "Zbuduj stronę z pogodą i komunikacją na poranny dojazd",
+      "date": "Zamień wiersz 2 na dzisiejszą datę",
+      "variables": "Jakich zmiennych wtyczek mogę użyć na tej stronie?"
+    },
+    "jumpToLatest": "Przejdź do najnowszego",
+    "defaultModel": "Domyślny",
+    "stepsAriaLabel": "Kroki w toku",
+    "stepsHeading": "{done} z {total} kroków",
+    "toolInput": "Argumenty",
+    "toolOutput": "Wynik",
+    "toolStates": {
+      "inputStreaming": "Przygotowywanie",
+      "inputAvailable": "Trwa",
+      "outputAvailable": "Gotowe",
+      "outputError": "Niepowodzenie",
+      "approvalRequested": "Czeka na Twoją zgodę",
+      "denied": "Nie uruchomiono",
+      "stopped": "Zatrzymano"
+    },
+    "status": {
+      "thinking": "Myślę…",
+      "running": "Wykonywanie: {tool}…"
+    },
+    "question": {
+      "skip": "Pomiń",
+      "typeAnswer": "Albo wpisz odpowiedź poniżej.",
+      "answered": "Odpowiedź: {answer}",
+      "declined": "(pominięto)",
+      "cancelled": "(anulowano)"
+    },
+    "tool": {
+      "createPage": "Utwórz stronę",
+      "updatePage": "Zaktualizuj stronę",
+      "deletePage": "Usuń stronę",
+      "createSchedule": "Dodaj harmonogram",
+      "updateSchedule": "Zaktualizuj harmonogram",
+      "deleteSchedule": "Usuń harmonogram",
+      "createCollection": "Utwórz kolekcję",
+      "updateCollection": "Zaktualizuj kolekcję",
+      "deleteCollection": "Usuń kolekcję",
+      "installPlugin": "Zainstaluj wtyczkę",
+      "enablePlugin": "Włącz wtyczkę",
+      "disablePlugin": "Wyłącz wtyczkę",
+      "uninstallPlugin": "Odinstaluj wtyczkę",
+      "configurePlugin": "Skonfiguruj wtyczkę",
+      "updatePlugin": "Zaktualizuj wtyczkę",
+      "setActivePage": "Pokaż stronę na tablicy",
+      "setScheduleMode": "Ustaw tryb harmonogramu",
+      "sendMessage": "Wyślij wiadomość na tablicę",
+      "updateSetting": "Zmień ustawienie",
+      "triggerSystemUpdate": "Aktualizacja systemu",
+      "askUser": "Pytanie",
+      "listPages": "Sprawdź strony",
+      "getPage": "Odczytaj stronę",
+      "listSchedules": "Sprawdź harmonogramy",
+      "listCollections": "Sprawdź kolekcje",
+      "listInstalledPlugins": "Sprawdź zainstalowane wtyczki",
+      "listRegistryPlugins": "Przeglądaj rejestr wtyczek",
+      "getTemplateVariables": "Sprawdź zmienne szablonu",
+      "getPluginData": "Odczytaj dane wtyczki",
+      "renderPagePreview": "Podgląd szablonu",
+      "previewSavedPage": "Podgląd strony",
+      "validateTemplate": "Sprawdź szablon",
+      "getSystemStatus": "Sprawdź stan systemu",
+      "getSettingsSummary": "Odczytaj ustawienia",
+      "getActivePage": "Sprawdź aktywną stronę",
+      "getBoardContent": "Odczytaj tablicę"
+    },
     "previewUnavailable": "(podgląd niedostępny)"
   },
   "boardSizeIndicator": {
@@ -2183,5 +2203,19 @@
     "leaveConfirmTitle": "Opuścić kanał beta?",
     "leaveConfirmBody": "Spowoduje to powrót do bieżącej wersji stabilnej, która jest starsza niż używana wersja beta. Ustawienia i strony zostaną przywrócone z kopii zapasowej utworzonej przy dołączeniu — wszystko, co zmieniono w trakcie bety, zostanie utracone. FiestaBoard uruchomi się ponownie w wersji stabilnej. Jeśli wolisz zachować zmiany, poczekaj: gdy kolejna wersja stabilna wyprzedzi twoją betę, „Aktualizuj teraz” przeniesie cię na nią bez strat.",
     "leaveConfirmCta": "Opuść wersję beta"
+  },
+  "aiApprovalCard": {
+    "heading": "Wymaga Twojej zgody",
+    "approve": "Zatwierdź",
+    "deny": "Odrzuć",
+    "working": "Trwa…",
+    "description": {
+      "deletePage": "Trwale usuwa stronę „{detail}”. Harmonogramy i kolekcje, które jej używają, ją stracą.",
+      "deleteSchedule": "Trwale usuwa harmonogram „{detail}”. Nie można tego cofnąć.",
+      "deleteCollection": "Trwale usuwa kolekcję „{detail}”. Nie można tego cofnąć.",
+      "uninstallPlugin": "Trwale usuwa wtyczkę „{detail}” i jej konfigurację.",
+      "triggerSystemUpdate": "Pobiera i instaluje najnowszą aktualizację FiestaBoard. System na chwilę się zrestartuje.",
+      "generic": "Tej akcji nie da się cofnąć innym narzędziem."
+    }
   }
 }

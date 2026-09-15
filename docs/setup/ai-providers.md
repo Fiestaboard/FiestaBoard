@@ -181,9 +181,11 @@ any FiestaBoard-hosted service.
   manually (some don't strictly honor JSON mode), or by registering a
   new entry in `src/ai/protocols.py`.
 - No image/vision input.
-- FiestaBot never saves pages, installs plugins, or changes settings
-  without showing a confirmation step first — you always have the
-  final say.
+- FiestaBot acts through the same tools as the MCP server and shows
+  each action as it happens. Creating, editing and configuring apply
+  immediately; deleting a page, schedule or collection, uninstalling a
+  plugin, and updating the system always wait for your approval, and
+  **Stop** ends a turn at any time.
 - A modest per-process rate limit applies to page generation requests
   to protect against runaway clients (1 second between calls, 2
   concurrent).

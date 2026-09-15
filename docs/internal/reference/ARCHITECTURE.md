@@ -194,36 +194,52 @@ Two properties are load-bearing and easy to break:
   to the pool. A fully cached tick therefore never enters `futures_wait` and
   can never pay the fetch budget for a plugin it was not going to talk to.
 
-## Operations: one grammar for chat and MCP
+## Operations: the chat drives the MCP server
 
-`src/ops/` is the named operation set. Every action a model can take —
-whether it arrives as a chat tool call or an MCP tool — resolves to **one**
-executor, so the two surfaces cannot drift apart.
+`src/ops/` is the named operation set, and `src/mcp_server.py` is the one
+place every operation is described and served. The in-app chat does not
+have tools of its own: it calls the in-process MCP server through
+`src/ai/mcp_bridge.py`, so external MCP clients and FiestaBot use the same
+tool names, arguments, descriptions and annotations.
 
 ```text
-chat tool call ──► POST /ai/operations ──┐
-                                         ├──► src/ops/registry.execute ──► executor ──► service
-MCP tool call ───────────────────────────┘
+browser drawer ──POST /pages/ai/chat (SSE)──► src/ai/agent.py (server-side loop)
+                                              │  model call: src/ai/chat.py stream_model
+                                              │  tool catalog + execution: src/ai/mcp_bridge.py
+                                              ▼
+                                     src/mcp_server.py  list_tools() / call_tool()  ◄── /api/mcp/ (external clients)
+                                              ▼
+                                     src/ops/executors.py ──► services
 ```
 
-- `src/ops/grammar.py` — the pydantic models and the chat spelling of each op
-- `src/ops/registry.py` — canonical name, chat alias, MCP alias, executor
-- `src/ops/executors.py` — the one implementation per operation
-- `src/ops/teaching.py` — the instruction text, **generated** from the modules
-  that define the behaviour (device dimensions, colour palette, template
-  filters, formula registry) so it cannot rot
+- `src/ai/agent.py` — one user turn: as many model calls and tool
+  executions as it needs, streamed as one SSE stream. A `tool_call` frame is
+  emitted *before* a tool runs and a `tool_result` after, which is what the
+  web app narrates.
+- `src/ai/mcp_bridge.py` — the only chat-side module that imports `mcp`;
+  descriptors in, outcomes out. Lazy, so boot never pays the import.
+- `src/ai/tool_catalog.py` — the prose the model is taught, generated from
+  the MCP tool list; and the validator the fence parser runs.
+- `src/ai/transcript.py` — the client replays a structured transcript
+  (assistant `tool_calls`, `tool` outcomes); this renders it for the model
+  exactly as the loop rendered its own steps.
+- `src/ai/chat_tools.py` — two chat-only tools that are deliberately not
+  MCP: `ask_user` (answered in the browser) and `trigger_system_update`.
+- `src/ops/executors.py` — still the one implementation per write
+  operation; MCP tools call them. `src/ops/teaching.py` generates the
+  instruction text from the defining modules so it cannot rot.
 
-Six operations stay in the browser because they act on the editor rather than
-on stored state: `apply_patch`, `suggest_variables`, `navigate_to_page`,
-`navigate_to_schedule`, `update_task_list`, `replace_page`. They are marked
-`client_side=True` in the registry, and `tests/test_ops_wiring.py` fails if a
-server-side op regains a browser-side implementation.
+The MCP tool **annotations** decide policy, not a list in the chat:
+`readOnlyHint` tools run freely mid-turn; `destructiveHint` tools
+(`delete_*`, `uninstall_plugin`, plus the chat-only `trigger_system_update`)
+end the stream with `done{reason: "awaiting_approval"}` and run only when the
+client re-POSTs a `resume` approving them. `ask_user` ends it with
+`awaiting_input`. `tests/test_mcp_annotations.py` pins the sets.
 
-Wiring chat through the layer surfaced three divergences that had been live
-in production: `update_schedule` wiped `end_time` on partial updates,
-`update_plugin_config` replaced instead of merging, and `update_collection`
-destroyed variable-mode rules. In all three the browser was wrong and the
-executor was right — nothing had ever called the executor.
+The previous design — a hand-written chat op grammar, six browser-side ops
+(`replace_page`, `apply_patch`, `navigate_to_*`, …) and `POST /ai/operations`
+as the execution seam — is retired in favour of this; the endpoint and
+`src/ops/grammar.py` remain only until the web client stops calling them.
 
 ## Seams: why `src.api_server` imports are counted
 

@@ -89,7 +89,7 @@ import {
 } from "@/hooks/use-board";
 import { useRouter } from "@/hooks/use-router";
 import { useTranslations } from "@/i18n/translations";
-import type { CurrentPageSnapshot, ToolCall } from "@/lib/ai-chat-types";
+import type { CurrentPageSnapshot, EditorToolCall } from "@/lib/ai-chat-types";
 import type {
   BoardInstance,
   DeviceType,
@@ -105,6 +105,7 @@ import { api } from "@/lib/api";
 import { MAX_NOTES_PER_AXIS, resolveDimensions } from "@/lib/board-dimensions";
 import { applyLineOpInPlace } from "@/lib/line-ops";
 import { onLiveOutputMessageChange, writeLiveOutputMessage } from "@/lib/live-output-channel";
+import { getDraftKey } from "@/lib/page-draft";
 import { clearPreviewCacheForPage } from "@/lib/preview-cache";
 
 // Lazy-loaded — TipTap + ProseMirror + CodeMirror + the lucide-react icon
@@ -135,7 +136,7 @@ interface PageBuilderProps {
 export interface PageBuilderHandle {
   getCurrentPage: () => CurrentPageSnapshot | undefined;
   getDeviceType: () => DeviceType;
-  applyToolCall: (call: ToolCall) => void;
+  applyToolCall: (call: EditorToolCall) => void;
   /**
    * Persist the current editor content to the API without closing.
    * Used by the AI chaining layer to auto-save before navigating away.
@@ -169,11 +170,6 @@ const UNDO_STACK_LIMIT = 5;
 
 // 1..MAX_NOTES_PER_AXIS choices for the note-array W×H selectors.
 const NOTE_AXIS_OPTIONS = Array.from({ length: MAX_NOTES_PER_AXIS }, (_, i) => i + 1);
-
-// Draft storage key helper
-function getDraftKey(pageId?: string): string {
-  return `fiestaboard-page-draft-${pageId || "new"}`;
-}
 
 const EDITOR_MODE_KEY = "fiestaboard_editor_mode";
 
@@ -391,13 +387,16 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
     setDebouncedLineWrapEnabled(snap.lineWrapEnabled);
   }, []);
 
-  /** Apply one structured AI tool call to the editor state. */
+  /**
+   * Apply one editor-local edit to the draft. The AI chat no longer drives
+   * this directly (its tools write through the server); it stays as the
+   * editor bridge's apply path until the staged-typing work replaces it.
+   */
   const applyToolCall = useCallback(
-    (call: ToolCall) => {
-      // `suggest_variables` is read-only (surfaced in the chat UI); every
-      // other op is handled by the global AI drawer (navigation, plugins,
-      // schedules) and must never fall through to the apply_patch branch
-      // below, which would read `.changes` off the wrong args shape.
+    (call: EditorToolCall) => {
+      // Only the two editor-local ops are applied here; anything else must
+      // never fall through to the apply_patch branch below, which would
+      // read `.changes` off the wrong args shape.
       if (call.op !== "replace_page" && call.op !== "apply_patch") {
         return;
       }
@@ -455,6 +454,9 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
     const lines = templateLinesRef.current;
     if (!nameRef.current && !lines.some((l) => l)) return undefined;
     return {
+      // The id tells the assistant whether update_page can target this
+      // page; an unsaved draft has none and is created instead.
+      ...(pageId ? { id: pageId } : {}),
       name: nameRef.current,
       template: lines,
       line_metadata: lines.map((_, i) => ({
@@ -462,7 +464,7 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
         wrap: lineWrapEnabledRef.current[i] ?? false,
       })),
     };
-  }, []);
+  }, [pageId]);
 
   useImperativeHandle(
     ref,
@@ -716,9 +718,23 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
   const isShrinkingRetarget =
     !!pageId && !!originalDims && (dims.rows < originalDims.rows || dims.cols < originalDims.cols);
 
+  // Refetches of the page (the AI drawer invalidates ["page"] after an
+  // update_page) must not overwrite what the user is typing: seed once per
+  // page, and re-seed later only while the editor is clean. Read through a
+  // ref so the effect does not re-run on every keystroke.
+  const hasUnsavedChangesRef = useRef(false);
+  useEffect(() => {
+    hasUnsavedChangesRef.current = hasUnsavedChanges;
+  }, [hasUnsavedChanges]);
+  const seededPageIdRef = useRef<string | null>(null);
+
   // Load draft or existing page data
   useEffect(() => {
     if (existingPage) {
+      if (seededPageIdRef.current === existingPage.id && hasUnsavedChangesRef.current) {
+        return;
+      }
+      seededPageIdRef.current = existingPage.id;
       // Clear draft when loading existing page
       const draftKey = getDraftKey(pageId);
       localStorage.removeItem(draftKey);
