@@ -1,7 +1,7 @@
 "use client";
 
 import { Box, Button, GhostValue, SpotlightCaption, SpotlightRing, type SpotlightTone } from "@fiestaboard/ui";
-import { createContext, useCallback, useContext, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { createContext, useCallback, useContext, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 
 import { useTranslations } from "@/i18n/translations";
@@ -146,8 +146,6 @@ function SpotlightOverlay({
   const t = useTranslations("aiSpotlight");
   const ringRef = useRef<HTMLDivElement>(null);
   const ghostRefs = useRef(new Map<number, HTMLElement>());
-  const [mounted, setMounted] = useState(false);
-  useEffect(() => setMounted(true), []);
 
   // One measurement loop for the ring and every ghost, alive only while
   // something is shown. Writes go to the elements, not to React.
@@ -195,7 +193,7 @@ function SpotlightOverlay({
     return () => window.cancelAnimationFrame(frame);
   }, [anchorId, ghosts]);
 
-  if (!mounted || (!state && ghosts.length === 0)) return null;
+  if (typeof document === "undefined" || (!state && ghosts.length === 0)) return null;
 
   const controls =
     state?.controls === "approval" ? (

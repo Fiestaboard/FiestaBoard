@@ -2,8 +2,8 @@ import { act, renderHook } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
 import {
-  type ScheduleEditorHandlers,
   ScheduleEditorBridgeProvider,
+  type ScheduleEditorHandlers,
   useScheduleEditorBridge,
 } from "@/components/schedule-editor-bridge-context";
 

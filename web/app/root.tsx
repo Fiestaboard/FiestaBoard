@@ -19,13 +19,13 @@ import { useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import { Links, Meta, Outlet, Scripts, ScrollRestoration } from "react-router";
 
+import { SpotlightProvider } from "@/components/ai-spotlight/spotlight-provider";
 import { BootGate } from "@/components/boot-gate";
 import { GlobalAiChatDrawer } from "@/components/global-ai-chat-drawer";
 import { GlobalAiPanelProvider } from "@/components/global-ai-panel-context";
 import { InstallPrompt } from "@/components/install-prompt";
 import { MainContent } from "@/components/main-content";
 import { NavigationSidebar } from "@/components/navigation-sidebar";
-import { SpotlightProvider } from "@/components/ai-spotlight/spotlight-provider";
 import { PageEditorBridgeProvider } from "@/components/page-editor-bridge-context";
 import { PageFadeWrapper } from "@/components/page-fade-wrapper";
 import { Providers } from "@/components/providers";

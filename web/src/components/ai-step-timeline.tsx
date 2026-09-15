@@ -111,15 +111,17 @@ function statusText(entry: ChatMessage, messages: ChatMessage[], seconds: number
 function useElapsedSeconds(active: boolean): number {
   const [seconds, setSeconds] = useState(0);
   useEffect(() => {
-    if (!active) {
-      setSeconds(0);
-      return;
-    }
+    if (!active) return;
     const started = Date.now();
+    // The first tick resets the count for this wait; later ticks count up.
     const timer = window.setInterval(() => setSeconds(Math.floor((Date.now() - started) / 1000)), 1000);
-    return () => window.clearInterval(timer);
+    const reset = window.setTimeout(() => setSeconds(0), 0);
+    return () => {
+      window.clearInterval(timer);
+      window.clearTimeout(reset);
+    };
   }, [active]);
-  return seconds;
+  return active ? seconds : 0;
 }
 
 const DRAFT_CALL: ToolCall = {

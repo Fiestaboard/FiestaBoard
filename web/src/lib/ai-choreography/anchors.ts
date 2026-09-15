@@ -61,7 +61,8 @@ const LEGACY_SELECTORS: Record<string, readonly string[]> = {
 
 /** Every selector that may resolve `id`, most specific first. */
 export function anchorSelectors(id: string): string[] {
-  const escaped = typeof CSS !== "undefined" && CSS.escape ? CSS.escape(id) : id.replace(/"/g, '\\"');
+  const escaped =
+    typeof CSS !== "undefined" && CSS.escape ? CSS.escape(id) : id.replace(/\\/g, "\\\\").replace(/"/g, '\\"');
   return [`[${ANCHOR_ATTR}="${escaped}"]`, ...(LEGACY_SELECTORS[id] ?? [])];
 }
 

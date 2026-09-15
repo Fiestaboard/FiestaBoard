@@ -49,7 +49,6 @@ import { detailForTool, labelForTool } from "@/components/ai-tool-labels";
 import { ChatMarkdown } from "@/components/chat-markdown";
 import { InlineBoardPreview } from "@/components/inline-board-preview";
 import { useTranslations } from "@/i18n/translations";
-import { parseToolDraft } from "@/lib/ai-choreography/draft";
 import type {
   ApprovalDecision,
   ChatMessage,
@@ -63,6 +62,7 @@ import type {
   ToolPhase,
   ToolResult,
 } from "@/lib/ai-chat-types";
+import { parseToolDraft } from "@/lib/ai-choreography/draft";
 import { type AISettings, api } from "@/lib/api";
 import { type StopReason, useAiChat } from "@/lib/use-ai-chat";
 

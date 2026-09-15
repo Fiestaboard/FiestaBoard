@@ -6,8 +6,9 @@
 // a human pace, fast-forwarding when the server has already answered and
 // skipping motion entirely for users who asked for less of it.
 
-import type { ToolCall, ToolResult } from "@/lib/ai-chat-types";
 import type { SpotlightTone } from "@fiestaboard/ui";
+
+import type { ToolCall, ToolResult } from "@/lib/ai-chat-types";
 
 /** A field the page editor can stage without a real form submit. */
 export type PageEditorField = { field: "name" } | { field: "line"; index: number } | { field: "device_type" };

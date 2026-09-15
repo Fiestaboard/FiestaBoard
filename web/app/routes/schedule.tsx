@@ -64,6 +64,7 @@ import { queryKeys } from "@/hooks/use-board";
 import { useCollections } from "@/hooks/use-board";
 import { useRouter, useSearchParams } from "@/hooks/use-router";
 import { useTranslations } from "@/i18n/translations";
+import { anchorProps } from "@/lib/ai-choreography/anchors";
 import {
   api,
   type DayPattern,
@@ -73,7 +74,6 @@ import {
   type ScheduleUpdate,
   type SilenceMode,
 } from "@/lib/api";
-import { anchorProps } from "@/lib/ai-choreography/anchors";
 import { extractTimeFromDate, getDayNameFromDate, type ResolvedSilenceSchedule } from "@/lib/schedule-calendar";
 import { utcToLocalTime } from "@/lib/timezone-utils";
 import { cn } from "@/lib/utils";

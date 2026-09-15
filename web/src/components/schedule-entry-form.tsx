@@ -25,7 +25,9 @@ import { forwardRef, useEffect, useImperativeHandle, useMemo, useState } from "r
 import { BoardSizeIndicator } from "@/components/board-size-indicator";
 import { useCurrentBoard } from "@/components/current-board-context";
 import { DaySelector } from "@/components/day-selector";
+import type { ScheduleFormHandle } from "@/components/schedule-editor-bridge-context";
 import { useTranslations } from "@/i18n/translations";
+import { anchorProps } from "@/lib/ai-choreography/anchors";
 import type {
   Collection,
   DayPattern,
@@ -35,10 +37,8 @@ import type {
   ScheduleUpdate,
   TimeType,
 } from "@/lib/api";
-import { anchorProps } from "@/lib/ai-choreography/anchors";
 import { isCollectionId } from "@/lib/api";
 import { pagesCompatibleWithBoard } from "@/lib/board-dimensions";
-import type { ScheduleFormHandle } from "@/components/schedule-editor-bridge-context";
 
 interface SchedulePageOption {
   id: string;

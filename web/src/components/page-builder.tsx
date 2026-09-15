@@ -991,7 +991,7 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
     }, 1000); // Save draft 1 second after last change
 
     return () => clearTimeout(timeoutId);
-  }, [name, templateLines, lineAlignments, lineWrapEnabled, pageId, existingPage]);
+  }, [name, templateLines, lineAlignments, lineWrapEnabled, pageId, existingPage, stagingActive]);
 
   // Auto-resize textareas when content changes
   useEffect(() => {
