@@ -55,6 +55,24 @@ EXPECTED_CANONICAL = {
     # MCP-only server op since #1765 — the REST POST /send-message
     # equivalent; the chat grammar has no spelling for it today.
     "send_message",
+    # MCP-only server ops covering the Settings page (boards, panels,
+    # network, system, debug). The in-app chat reaches them through the MCP
+    # catalog, not the legacy chat grammar.
+    "restart_system",
+    "shutdown_system",
+    "update_board",
+    "add_board",
+    "remove_board",
+    "identify_tile",
+    "create_panel",
+    "update_panel",
+    "delete_panel",
+    "disconnect_wifi",
+    "forget_wifi_network",
+    "blank_board",
+    "fill_board",
+    "show_board_debug_info",
+    "clear_board_cache",
     # client-side chat ops, registered so the registry is the whole grammar.
     # ``replace_page`` joined them in Phase 2 Task 11: it edits the page
     # mounted in the editor (like ``apply_patch``), which is what the system
@@ -142,6 +160,13 @@ def test_update_setting_has_both_spellings():
     op = get_operation("update_setting")
     assert op.chat_name == "update_setting"
     assert op.mcp_tool == "update_setting"
+
+
+def test_trigger_system_update_is_an_mcp_tool_not_a_chat_extension():
+    """The update used to be a chat-only extension tool; it is a real MCP
+    tool now, so external clients and the chat share one implementation."""
+    op = get_operation("trigger_system_update")
+    assert op.mcp_tool == "trigger_system_update"
 
 
 def test_registry_mcp_tools_are_registered_mcp_tools():

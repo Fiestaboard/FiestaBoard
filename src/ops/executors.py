@@ -841,17 +841,123 @@ def delete_collection(collection_id: str) -> dict[str, Any]:
 
 
 # ---------------------------------------------------------------------------
-# Settings / system operations (chat-grammar surface)
+# Settings operations
+#
+# Each category delegates to the REST handler that owns it (the same
+# endpoints the web Settings page calls), so validation and normalization
+# live exactly once. Secrets are excluded by design: API keys, tokens,
+# passwords and auth changes are entered in the web UI and never travel over
+# MCP — reads mask them, and the writers below refuse them by name rather
+# than silently dropping them.
 # ---------------------------------------------------------------------------
+
+#: Keys ``update_setting`` refuses in every category. Naming them (rather than
+#: relying on the request model to ignore unknown keys) is what turns a model
+#: "helpfully" pasting a password into a clear refusal instead of a silent
+#: no-op that reports success.
+SECRET_SETTING_KEYS: frozenset[str] = frozenset(
+    {
+        "api_key",
+        "password",
+        "username",
+        "headers",
+        "token",
+        "local_api_key",
+        "cloud_key",
+        "note_array_token",
+        "client_secret",
+    }
+)
+
+#: ``general`` keys the Settings page edits. The stored block also carries
+#: legacy copies of the polling interval and output target, which have their
+#: own categories, so the writer is narrowed to what the UI actually offers.
+GENERAL_SETTING_KEYS: tuple[str, ...] = ("instance_name", "timezone", "time_format", "date_format", "welcome_message")
+
+#: Non-secret fields of an AI provider entry. ``api_key`` and ``headers`` are
+#: secrets; anything else is unknown to the provider model.
+AI_PROVIDER_PUBLIC_KEYS: tuple[str, ...] = ("id", "name", "protocol", "base_url", "models", "default_model")
+
+#: The MQTT keys the tool accepts, in the request model's spelling.
+MQTT_SETTING_KEYS: tuple[str, ...] = ("enabled", "broker_host", "broker_port", "external_url")
+
+#: Spellings the MQTT category also accepts for the broker address.
+_MQTT_KEY_ALIASES = {"host": "broker_host", "port": "broker_port"}
+
+
+def _refuse_secret_keys(category: str, keys: Any) -> dict[str, Any] | None:
+    """An error envelope naming the first secret key in ``keys``, or ``None``."""
+    for key in keys:
+        if key in SECRET_SETTING_KEYS:
+            return err(
+                f"'{key}' is a credential and cannot be set through this tool. "
+                f"Ask the user to enter it in the web UI (Settings → {category})."
+            )
+    return None
+
+
+def _refuse_unknown_keys(category: str, keys: Any, allowed: Any) -> dict[str, Any] | None:
+    """An error envelope listing keys ``category`` does not accept, or ``None``.
+
+    The request models ignore unknown keys, so without this check a typo
+    (``{"hostname": ...}``) would be reported as a successful update that
+    changed nothing.
+    """
+    unknown = sorted(set(keys) - set(allowed))
+    if unknown:
+        return err(f"Unknown keys for category '{category}': {', '.join(unknown)}. Valid keys: {', '.join(allowed)}.")
+    return None
+
+
+def _prepare_ai_values(values: dict[str, Any]) -> tuple[dict[str, Any] | None, dict[str, Any] | None]:
+    """Validate the ``ai`` category and shape it for ``PUT /settings/ai``.
+
+    Provider entries are the tricky part: the endpoint REPLACES the provider
+    list, and it keeps a provider's stored key only when the incoming entry
+    carries the mask placeholder. So every provider the caller sends gets
+    ``api_key="***"`` when it already exists (key preserved) and ``""`` when
+    it is new (a key-less provider the user completes in the web UI).
+
+    Returns ``(body, None)`` or ``(None, error_envelope)``.
+    """
+    body = dict(values)
+    providers = body.get("providers")
+    if providers is None:
+        return body, None
+    if not isinstance(providers, list):
+        return None, err("'providers' must be a list of provider objects.")
+
+    from src.config_manager import get_config_manager
+
+    existing_ids = {
+        p.get("id")
+        for p in get_config_manager().get_ai_providers().get("providers", [])
+        if isinstance(p, dict) and p.get("id")
+    }
+    cleaned: list[dict[str, Any]] = []
+    for raw in providers:
+        if not isinstance(raw, dict) or not raw.get("id"):
+            return None, err("Each provider must be an object with at least an 'id'.")
+        refusal = _refuse_secret_keys("AI", raw) or _refuse_unknown_keys("ai.providers[]", raw, AI_PROVIDER_PUBLIC_KEYS)
+        if refusal is not None:
+            return None, refusal
+        provider = dict(raw)
+        provider["api_key"] = "***" if provider["id"] in existing_ids else ""
+        cleaned.append(provider)
+    body["providers"] = cleaned
+    return body, None
 
 
 async def update_setting(category: str, values: dict[str, Any]) -> dict[str, Any]:
-    """Change a non-credential system setting.
+    """Change one category of non-credential settings.
 
-    Chat-grammar op. Each category delegates to the REST handler that owns
-    it (the same endpoints the web drawer calls), so validation and
-    normalization live exactly once. ``active_page`` resolves to the
-    canonical :func:`set_active_page` executor shared with MCP.
+    Each category delegates to the REST handler that owns it (the same
+    endpoints the web Settings page calls), so validation and normalization
+    live exactly once. ``active_page`` resolves to the canonical
+    :func:`set_active_page` executor shared with MCP.
+
+    Unknown keys are refused rather than ignored, and secret keys are refused
+    by name — see :data:`SECRET_SETTING_KEYS`.
     """
     from fastapi import HTTPException
 
@@ -860,7 +966,11 @@ async def update_setting(category: str, values: dict[str, Any]) -> dict[str, Any
             page_id = values.get("page_id")
             if not isinstance(page_id, str) or not page_id:
                 return err("active_page requires values.page_id")
-            return await set_active_page(page_id)
+            return await set_active_page(page_id, board_id=values.get("board_id"))
+
+        refusal = _refuse_secret_keys(category, values)
+        if refusal is not None:
+            return refusal
 
         import src.settings.models as models
         import src.settings.routes as api
@@ -868,21 +978,74 @@ async def update_setting(category: str, values: dict[str, Any]) -> dict[str, Any
         # The handlers take Pydantic request models since the Phase 2
         # conventions pass; build the model here rather than handing them a
         # dict. ValidationError is caught by the generic handler below and
-        # reported to the chat op like any other bad input.
+        # reported to the caller like any other bad input. Every branch
+        # refuses unknown keys first — the models ignore extras, which would
+        # otherwise report a typo as a successful update.
+        body: dict[str, Any] = values
         if category == "display":
-            await api.update_display_settings(models.DisplaySettingsUpdate(**values))
+            allowed: Any = models.DisplaySettingsUpdate.model_fields
+            handler: Any = lambda: api.update_display_settings(models.DisplaySettingsUpdate(**body))  # noqa: E731
         elif category == "transitions":
-            await api.update_transition_settings(models.TransitionSettingsUpdate(**values))
+            allowed = models.TransitionSettingsUpdate.model_fields
+            handler = lambda: api.update_transition_settings(models.TransitionSettingsUpdate(**body))  # noqa: E731
         elif category == "output":
-            await api.update_output_settings(models.OutputSettingsUpdate(**values))
+            allowed = models.OutputSettingsUpdate.model_fields
+            handler = lambda: api.update_output_settings(models.OutputSettingsUpdate(**body))  # noqa: E731
         elif category == "polling":
-            await api.update_polling_settings(models.PollingSettingsUpdate(**values))
+            allowed = models.PollingSettingsUpdate.model_fields
+            handler = lambda: api.update_polling_settings(models.PollingSettingsUpdate(**body))  # noqa: E731
         elif category == "location":
-            await api.update_location_settings(models.LocationSettingsUpdate(**values))
+            allowed = models.LocationSettingsUpdate.model_fields
+            handler = lambda: api.update_location_settings(models.LocationSettingsUpdate(**body))  # noqa: E731
         elif category == "silence_schedule":
-            await api.update_silence_schedule(models.SilenceScheduleRequest(**values))
+            allowed = models.SilenceScheduleRequest.model_fields
+            handler = lambda: api.update_silence_schedule(models.SilenceScheduleRequest(**body))  # noqa: E731
+        elif category == "general":
+            from src.config_api.models import GeneralConfigUpdate
+            from src.config_api.routes import update_general_config
+
+            allowed = GENERAL_SETTING_KEYS
+            handler = lambda: update_general_config(GeneralConfigUpdate(**body))  # noqa: E731
+        elif category == "beta":
+            allowed = models.BetaSettingsUpdate.model_fields
+            handler = lambda: api.update_beta_settings(models.BetaSettingsUpdate(**body))  # noqa: E731
+        elif category == "plugins":
+            allowed = models.PluginSettingsUpdate.model_fields
+            handler = lambda: api.update_plugin_settings(models.PluginSettingsUpdate(**body))  # noqa: E731
+        elif category == "mqtt":
+            body = {_MQTT_KEY_ALIASES.get(k, k): v for k, v in values.items()}
+            allowed = MQTT_SETTING_KEYS
+            handler = lambda: api.update_mqtt_settings(models.MqttSettingsUpdate(**body))  # noqa: E731
+        elif category == "ai":
+            allowed = models.AiProvidersUpdate.model_fields
+            handler = lambda: api.update_ai_settings(models.AiProvidersUpdate(**body))  # noqa: E731
+        elif category == "release_channel":
+            from src.system.models import ReleaseChannelRequest
+            from src.system.routes import set_release_channel
+
+            allowed = ("channel",)
+            handler = lambda: set_release_channel(ReleaseChannelRequest(**body))  # noqa: E731
+        elif category == "auto_update":
+            from src.system.models import AutoUpdateRequest
+            from src.system.routes import system_update_set_auto
+
+            allowed = ("interval",)
+            handler = lambda: system_update_set_auto(AutoUpdateRequest(**body))  # noqa: E731
+        elif category == "hdmi_kiosk":
+            allowed = models.HdmiKioskRequest.model_fields
+            handler = lambda: api.set_hdmi_kiosk(models.HdmiKioskRequest(**body))  # noqa: E731
         else:
             return err(f"Unknown setting category: {category!r}")
+
+        refusal = _refuse_unknown_keys(category, body, allowed)
+        if refusal is not None:
+            return refusal
+        if category == "ai":
+            prepared, refusal = _prepare_ai_values(values)
+            if refusal is not None:
+                return refusal
+            body = prepared or {}
+        await handler()
     except HTTPException as exc:
         return err(f"Error updating {category} settings: {rest_detail(exc)}")
     except Exception as exc:
@@ -891,11 +1054,421 @@ async def update_setting(category: str, values: dict[str, Any]) -> dict[str, Any
     return ok(f"{category} settings updated.", category=category)
 
 
+# ---------------------------------------------------------------------------
+# Board hardware operations
+#
+# Per-board, non-secret fields only. Credentials (local API key, cloud key,
+# note-array token, per-tile keys) are never accepted or returned; the
+# settings service preserves the stored ones because the roster handed back
+# to ``PUT /settings/board`` is the raw stored one, not a masked copy.
+# ---------------------------------------------------------------------------
+
+#: The projection of a board every board tool returns. Never the raw dict —
+#: that carries credentials. ``host`` is write-only (``update_board`` sets
+#: it, ``has_host`` confirms it), matching the summary tool's projection.
+BOARD_PUBLIC_FIELDS: tuple[str, ...] = (
+    "id",
+    "name",
+    "device_type",
+    "notes_wide",
+    "notes_tall",
+    "board_color",
+    "code62_glyph",
+    "api_mode",
+    "enabled",
+    "paused",
+    "schedule_enabled",
+)
+
+
+def board_public_view(board: dict[str, Any]) -> dict[str, Any]:
+    """Credential-free projection of a stored board dict."""
+    view = {key: board.get(key) for key in BOARD_PUBLIC_FIELDS}
+    view["has_host"] = bool(board.get("host"))
+    view["has_credentials"] = bool(
+        board.get("local_api_key") or board.get("cloud_key") or board.get("note_array_token")
+    )
+    return view
+
+
+def _stored_boards() -> list[dict[str, Any]]:
+    from src.settings.service import get_settings_service
+
+    return [b for b in (get_settings_service().get_board_settings().boards or []) if isinstance(b, dict)]
+
+
+def _validate_board_fields(**fields: Any) -> dict[str, Any] | None:
+    """Refuse values ``BoardInstance`` would silently coerce to a default.
+
+    ``BoardInstance.__post_init__`` rewrites an unknown device_type,
+    board_color, code62_glyph or api_mode to its default instead of failing
+    — over MCP that would read as "updated" while the board kept its old
+    value. A malformed host raises the guard's own HTTPException(400).
+    """
+    from src.board_guards import validate_board_host
+    from src.devices import CODE62_GLYPHS, DEVICE_TYPES, MAX_NOTES_PER_AXIS, VALID_API_MODES
+
+    vocab = {
+        "device_type": DEVICE_TYPES,
+        "board_color": ("black", "white"),
+        "code62_glyph": CODE62_GLYPHS,
+        "api_mode": VALID_API_MODES,
+    }
+    for key, allowed in vocab.items():
+        value = fields.get(key)
+        if value is not None and value not in allowed:
+            return err(f"{key} must be one of: {', '.join(allowed)} (got {value!r}).")
+    for key in ("notes_wide", "notes_tall"):
+        value = fields.get(key)
+        if value is None:
+            continue
+        if isinstance(value, bool) or not isinstance(value, int) or not 1 <= value <= MAX_NOTES_PER_AXIS:
+            return err(f"{key} must be an integer between 1 and {MAX_NOTES_PER_AXIS}.")
+    host = fields.get("host")
+    if host is not None:
+        validate_board_host(host)
+    return None
+
+
+async def update_board(
+    board_id: str,
+    name: str | None = None,
+    device_type: str | None = None,
+    notes_wide: int | None = None,
+    notes_tall: int | None = None,
+    board_color: str | None = None,
+    code62_glyph: str | None = None,
+    api_mode: str | None = None,
+    host: str | None = None,
+) -> dict[str, Any]:
+    """Change non-secret hardware fields of one board.
+
+    The Settings page edits a board by re-sending the whole roster to
+    ``PUT /settings/board`` with one entry changed; this does the same, so
+    the service-side normalization (name trimming, ``board_type`` sync,
+    masked-credential preservation) and the client rebuild happen exactly
+    as they do for the UI.
+    """
+    from fastapi import HTTPException
+
+    try:
+        import src.settings.models as models
+        import src.settings.routes as api
+
+        updates = {
+            key: value
+            for key, value in {
+                "name": name,
+                "device_type": device_type,
+                "notes_wide": notes_wide,
+                "notes_tall": notes_tall,
+                "board_color": board_color,
+                "code62_glyph": code62_glyph,
+                "api_mode": api_mode,
+                "host": host,
+            }.items()
+            if value is not None
+        }
+        if not updates:
+            return err(
+                "Nothing to update: pass at least one of name, device_type, notes_wide, notes_tall, "
+                "board_color, code62_glyph, api_mode, host."
+            )
+        refusal = _validate_board_fields(**updates)
+        if refusal is not None:
+            return refusal
+
+        boards = [dict(b) for b in _stored_boards()]
+        target = next((b for b in boards if b.get("id") == board_id), None)
+        if target is None:
+            return err(f"Board not found: {board_id}")
+        target.update(updates)
+        response = await api.update_board_settings(models.BoardSettingsUpdate(boards=boards))
+    except HTTPException as exc:
+        return err(f"Error updating board '{board_id}': {rest_detail(exc)}")
+    except Exception as exc:
+        return err(f"Error updating board '{board_id}': {exc}")
+
+    stored = next((b for b in response.get("boards", []) if b.get("id") == board_id), target)
+    return ok(f"Board '{board_id}' updated.", board_id=board_id, board=board_public_view(stored))
+
+
+async def add_board(
+    device_type: str,
+    name: str | None = None,
+    api_mode: str | None = None,
+    notes_wide: int | None = None,
+    notes_tall: int | None = None,
+    board_color: str | None = None,
+    host: str | None = None,
+) -> dict[str, Any]:
+    """Add a board to the roster (``POST /settings/board/add``).
+
+    A board can be added without credentials — it appears in Settings →
+    Boards where the user pastes the API key; until then it fails to
+    initialize and says so in the boards summary.
+    """
+    from fastapi import HTTPException
+
+    try:
+        import src.settings.models as models
+        import src.settings.routes as api
+
+        body = {
+            key: value
+            for key, value in {
+                "device_type": device_type,
+                "name": name,
+                "api_mode": api_mode,
+                "notes_wide": notes_wide,
+                "notes_tall": notes_tall,
+                "board_color": board_color,
+                "host": host,
+            }.items()
+            if value is not None
+        }
+        refusal = _validate_board_fields(**body)
+        if refusal is not None:
+            return refusal
+        before = {b.get("id") for b in _stored_boards()}
+        response = await api.add_board_instance(models.AddBoardRequest(**body))
+    except HTTPException as exc:
+        return err(f"Error adding board: {rest_detail(exc)}")
+    except Exception as exc:
+        return err(f"Error adding board: {exc}")
+
+    added = next((b for b in response.get("boards", []) if b.get("id") not in before), None)
+    if added is None:  # pragma: no cover - the handler appends or raises
+        return err("Board was not added.")
+    return ok(
+        f"Board '{added.get('name')}' added with id '{added.get('id')}'.",
+        board_id=added.get("id"),
+        board=board_public_view(added),
+    )
+
+
+async def remove_board(board_id: str) -> dict[str, Any]:
+    """Remove a board from the roster (``DELETE /settings/board/{id}``).
+
+    The handler refuses the last board and a board a FiestaPanel still
+    drives (delete the panel instead); both come back as errors here.
+    """
+    from fastapi import HTTPException
+
+    try:
+        import src.settings.routes as api
+
+        response = await api.remove_board_instance(board_id)
+    except HTTPException as exc:
+        return err(f"Error removing board '{board_id}': {rest_detail(exc)}")
+    except Exception as exc:
+        return err(f"Error removing board '{board_id}': {exc}")
+
+    remaining = [b.get("id") for b in response.get("boards", []) if isinstance(b, dict)]
+    return ok(f"Board '{board_id}' removed.", board_id=board_id, remaining_board_ids=remaining)
+
+
+async def detect_board_size(board_id: str) -> dict[str, Any]:
+    """Read a board's live layout and classify its device type and grid."""
+    from fastapi import HTTPException
+
+    try:
+        import src.settings.routes as api
+
+        detected = await api.detect_board_size(board_id)
+    except HTTPException as exc:
+        return err(f"Error detecting size of board '{board_id}': {rest_detail(exc)}")
+    except Exception as exc:
+        return err(f"Error detecting size of board '{board_id}': {exc}")
+
+    return {"board_id": board_id, **serialize(detected)}
+
+
+async def identify_tile(
+    board_id: str, row: int | None = None, col: int | None = None, target: str = "tile"
+) -> dict[str, Any]:
+    """Flash slot positions onto a local note array's tiles.
+
+    Only the saved-tile form of ``POST /settings/board/{id}/identify`` —
+    the unsaved-credential override the assign dialog uses needs a tile API
+    key, which never travels over MCP.
+    """
+    from fastapi import HTTPException
+
+    try:
+        import src.settings.models as models
+        import src.settings.routes as api
+
+        response = await api.identify_board_tiles(
+            board_id, models.BoardIdentifyRequest(target=target, row=row, col=col)
+        )
+    except HTTPException as exc:
+        return err(f"Error identifying tiles on board '{board_id}': {rest_detail(exc)}")
+    except Exception as exc:
+        return err(f"Error identifying tiles on board '{board_id}': {exc}")
+
+    results = serialize(response).get("results", [])
+    flashed = sum(1 for r in results if r.get("success"))
+    return ok(
+        f"Identify pattern sent to {flashed} of {len(results)} tile(s); "
+        "the real frame returns on the next display cycle.",
+        board_id=board_id,
+        results=results,
+    )
+
+
+# ---------------------------------------------------------------------------
+# FiestaPanel operations (``/panels``)
+# ---------------------------------------------------------------------------
+
+
+async def create_panel(
+    name: str,
+    screen_diagonal_inches: float = 55.0,
+    screen_aspect_w: float = 16.0,
+    screen_aspect_h: float = 9.0,
+) -> dict[str, Any]:
+    """Create a FiestaPanel and its auto-fit virtual board."""
+    from fastapi import HTTPException
+
+    try:
+        from src.panels.models import PanelCreate
+        from src.panels.routes import create_panel as _rest_create_panel
+
+        panel = await _rest_create_panel(
+            PanelCreate(
+                name=name,
+                screen_diagonal_inches=screen_diagonal_inches,
+                screen_aspect_w=screen_aspect_w,
+                screen_aspect_h=screen_aspect_h,
+            )
+        )
+    except HTTPException as exc:
+        return err(f"Error creating panel: {rest_detail(exc)}")
+    except Exception as exc:
+        return err(f"Error creating panel: {exc}")
+
+    data = serialize(panel)
+    return ok(
+        f"Panel '{name}' created with id '{data.get('id')}' on virtual board '{data.get('board_id')}'.",
+        panel_id=data.get("id"),
+        board_id=data.get("board_id"),
+        panel=data,
+    )
+
+
+async def update_panel(
+    panel_id: str,
+    name: str | None = None,
+    screen_diagonal_inches: float | None = None,
+    screen_aspect_w: float | None = None,
+    screen_aspect_h: float | None = None,
+    calibration_scale: float | None = None,
+    animations_enabled: bool | None = None,
+    is_display: bool | None = None,
+    backdrop: str | None = None,
+    auto_dim: dict[str, Any] | None = None,
+) -> dict[str, Any]:
+    """Update a panel's display configuration. Only supplied fields change."""
+    from fastapi import HTTPException
+
+    try:
+        from src.panels.models import PanelUpdate
+        from src.panels.routes import update_panel as _rest_update_panel
+
+        fields = {
+            key: value
+            for key, value in {
+                "name": name,
+                "screen_diagonal_inches": screen_diagonal_inches,
+                "screen_aspect_w": screen_aspect_w,
+                "screen_aspect_h": screen_aspect_h,
+                "calibration_scale": calibration_scale,
+                "animations_enabled": animations_enabled,
+                "is_display": is_display,
+                "backdrop": backdrop,
+                "auto_dim": auto_dim,
+            }.items()
+            if value is not None
+        }
+        if not fields:
+            return err(
+                "Nothing to update: pass at least one of name, screen_diagonal_inches, screen_aspect_w, "
+                "screen_aspect_h, calibration_scale, animations_enabled, is_display, backdrop, auto_dim."
+            )
+        panel = await _rest_update_panel(panel_id, PanelUpdate(**fields))
+    except HTTPException as exc:
+        return err(f"Error updating panel '{panel_id}': {rest_detail(exc)}")
+    except Exception as exc:
+        return err(f"Error updating panel '{panel_id}': {exc}")
+
+    return ok(f"Panel '{panel_id}' updated.", panel_id=panel_id, panel=serialize(panel))
+
+
+async def delete_panel(panel_id: str) -> dict[str, Any]:
+    """Delete a panel and its virtual board."""
+    from fastapi import HTTPException
+
+    try:
+        from src.panels.routes import delete_panel as _rest_delete_panel
+
+        await _rest_delete_panel(panel_id)
+    except HTTPException as exc:
+        return err(f"Error deleting panel '{panel_id}': {rest_detail(exc)}")
+    except Exception as exc:
+        return err(f"Error deleting panel '{panel_id}': {exc}")
+
+    return ok(f"Panel '{panel_id}' deleted along with its virtual board.", panel_id=panel_id)
+
+
+# ---------------------------------------------------------------------------
+# Network operations (FiestaPi Wi-Fi). No scan/connect: joining a network
+# needs a passphrase, which never travels over MCP.
+# ---------------------------------------------------------------------------
+
+
+async def disconnect_wifi() -> dict[str, Any]:
+    """Bring the active Wi-Fi connection down (the saved profile is kept)."""
+    from fastapi import HTTPException
+
+    try:
+        from src.network.routes import wifi_disconnect
+
+        status = await wifi_disconnect()
+    except HTTPException as exc:
+        return err(f"Error disconnecting Wi-Fi: {rest_detail(exc)}")
+    except Exception as exc:
+        return err(f"Error disconnecting Wi-Fi: {exc}")
+
+    return ok("Wi-Fi disconnected. The saved profile is kept, so it may auto-join again.", status=serialize(status))
+
+
+async def forget_wifi_network(name: str) -> dict[str, Any]:
+    """Delete a saved Wi-Fi profile so the device stops auto-joining it."""
+    from fastapi import HTTPException
+
+    try:
+        from src.network.routes import wifi_forget
+
+        await wifi_forget(name)
+    except HTTPException as exc:
+        return err(f"Error forgetting Wi-Fi network '{name}': {rest_detail(exc)}")
+    except Exception as exc:
+        return err(f"Error forgetting Wi-Fi network '{name}': {exc}")
+
+    return ok(f"Wi-Fi network '{name}' forgotten.", name=name)
+
+
+# ---------------------------------------------------------------------------
+# System operations (updater sidecar)
+# ---------------------------------------------------------------------------
+
+
 async def trigger_system_update() -> dict[str, Any]:
     """Trigger an in-place system update via the updater sidecar.
 
-    Chat-grammar op. Delegates to the system router's apply handler
-    (#1758) — the process may be recreated shortly after it succeeds.
+    Delegates to the system router's apply handler (#1758) — the process
+    may be recreated shortly after it succeeds.
     """
     from fastapi import HTTPException
 
@@ -909,3 +1482,151 @@ async def trigger_system_update() -> dict[str, Any]:
         return err(f"Error triggering system update: {exc}")
 
     return ok("System update started. The board will restart shortly.", detail=serialize(response))
+
+
+async def restart_system() -> dict[str, Any]:
+    """Restart the FiestaBoard container via the updater sidecar."""
+    from fastapi import HTTPException
+
+    try:
+        from src.system.routes import system_restart
+
+        response = await system_restart()
+    except HTTPException as exc:
+        return err(f"Error restarting FiestaBoard: {rest_detail(exc)}")
+    except Exception as exc:
+        return err(f"Error restarting FiestaBoard: {exc}")
+
+    return ok(
+        "Restart requested. The web UI drops for a few seconds while the container comes back.",
+        detail=serialize(response),
+    )
+
+
+async def shutdown_system() -> dict[str, Any]:
+    """Power the host off via the updater sidecar."""
+    from fastapi import HTTPException
+
+    try:
+        from src.system.routes import system_shutdown
+
+        response = await system_shutdown()
+    except HTTPException as exc:
+        return err(f"Error shutting down: {rest_detail(exc)}")
+    except Exception as exc:
+        return err(f"Error shutting down: {exc}")
+
+    return ok(
+        "Shutdown requested. The host powers off and must be switched on again by hand.",
+        detail=serialize(response),
+    )
+
+
+# ---------------------------------------------------------------------------
+# Debug board actions (Settings → Advanced). Out-of-band writes to a board:
+# the same gate sequence as send_message (silence, pause) through
+# _resolve_send_target, then a forced raw send that bypasses the
+# unchanged-content dedupe exactly like the /debug/* handlers do.
+# ---------------------------------------------------------------------------
+
+
+def _send_grid_out_of_band(
+    board_id: str | None,
+    build_grid: Any,
+    *,
+    success_message: str,
+    failure_message: str,
+    **extra: Any,
+) -> dict[str, Any]:
+    """Resolve the target board once, build a grid for its size, send it."""
+    try:
+        target, refusal = _resolve_send_target(board_id)
+        if refusal is not None:
+            return refusal
+        assert target is not None
+
+        dims = _target_dimensions(target)
+        characters = build_grid(dims)
+        success, was_sent = target.client.send_characters(characters, force=True)
+        if not success:
+            return err(failure_message)
+        if not was_sent:
+            # A forced send that still did not go out was dropped by the
+            # client's send floor (#1868): the content was NOT delivered.
+            return err(f"{failure_message}: the board accepts at most one message every few seconds — retry shortly.")
+        _after_send(target)
+        return ok(success_message, board_id=board_id, rows=dims.rows, cols=dims.cols, **extra)
+    except Exception as exc:
+        return err(f"{failure_message}: {exc}")
+
+
+def blank_board(board_id: str | None = None) -> dict[str, Any]:
+    """Clear a board by filling every tile with blank (code 0)."""
+    return _send_grid_out_of_band(
+        board_id,
+        lambda dims: [[0] * dims.cols for _ in range(dims.rows)],
+        success_message="Board blanked.",
+        failure_message="Failed to blank the board",
+    )
+
+
+def fill_board(character_code: int, board_id: str | None = None) -> dict[str, Any]:
+    """Fill every tile of a board with one flap code (0-71)."""
+    if isinstance(character_code, bool) or not isinstance(character_code, int) or not 0 <= character_code <= 71:
+        return err("character_code must be an integer flap code between 0 and 71.")
+    return _send_grid_out_of_band(
+        board_id,
+        lambda dims: [[character_code] * dims.cols for _ in range(dims.rows)],
+        success_message=f"Board filled with character code {character_code}.",
+        failure_message="Failed to fill the board",
+        character_code=character_code,
+    )
+
+
+def show_board_debug_info(board_id: str | None = None) -> dict[str, Any]:
+    """Send the six-line support card (IPs, uptime, API mode, version) to a board."""
+
+    def build(dims: Any) -> list[list[int]]:
+        from src.debug.routes import _build_debug_text
+        from src.text_to_board import text_to_board_array
+
+        return text_to_board_array(_build_debug_text(), use_color_tiles=False, rows=dims.rows, cols=dims.cols)
+
+    return _send_grid_out_of_band(
+        board_id,
+        build,
+        success_message="Debug info card sent to the board (board IP, server IP, uptime, API mode, version, time).",
+        failure_message="Failed to send the debug info card",
+    )
+
+
+def clear_board_cache(board_id: str | None = None) -> dict[str, Any]:
+    """Drop a board client's unchanged-content cache so the next send always goes out."""
+    try:
+        from src.api_server import get_service
+        from src.settings.service import get_settings_service
+
+        service = get_service()
+        if not service:
+            return err("Display service not initialized.")
+        if board_id is None:
+            client = service.vb_client
+        else:
+            if not any(b.get("id") == board_id for b in _stored_boards()):
+                return err(f"Board not found: {board_id}")
+            client = service.get_board_client(board_id)
+            if client is None and board_id == get_settings_service().get_primary_board_id():
+                # Legacy installs key the primary runtime under a sentinel
+                # (same fallback as get_board_content).
+                client = service.vb_client
+        if not client:
+            return err(
+                f"Board client not initialized: {board_id}" if board_id is not None else "Board client not initialized."
+            )
+        client.clear_cache()
+    except Exception as exc:
+        return err(f"Error clearing board cache: {exc}")
+
+    return ok(
+        "Cache cleared — the next send to this board goes out even if the content is unchanged.", board_id=board_id
+    )

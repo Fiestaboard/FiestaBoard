@@ -1,19 +1,20 @@
 """Chat-only extension tools.
 
-Two tools the in-app chat needs that are deliberately **not** MCP tools:
+One tool the in-app chat needs that is deliberately **not** an MCP tool:
 
 - ``ask_user`` — the model asks the user a question, optionally with
   choices. It is answered in the browser, never executed here, and would
   be meaningless to an external MCP client (which has its own way to ask —
   elicitation — that cannot run in-process today).
-- ``trigger_system_update`` — pulls a new FiestaBoard image through the
-  updater sidecar. It was already a chat-only operation; promoting it to
-  MCP is a separate decision, so it keeps its executor and gains only the
-  descriptor shape.
 
-They are rendered in the same :class:`~src.ai.mcp_bridge.ToolDescriptor`
+``trigger_system_update`` used to live here too; it is a real MCP tool now
+(``src/mcp_server.py``), alongside ``restart_system`` and
+``shutdown_system``, so external clients and the chat share one
+implementation and one approval gate.
+
+It is rendered in the same :class:`~src.ai.mcp_bridge.ToolDescriptor`
 shape as the MCP catalog so the model, the parser and the UI treat every
-tool alike; ``source="chat"`` is what tells them apart.
+tool alike; ``source="chat"`` is what tells it apart.
 """
 
 from __future__ import annotations
@@ -25,7 +26,6 @@ from pydantic import BaseModel, Field
 from .mcp_bridge import ToolDescriptor, ToolOutcome
 
 ASK_USER = "ask_user"
-TRIGGER_SYSTEM_UPDATE = "trigger_system_update"
 
 
 class AskUserArgs(BaseModel):
@@ -59,41 +59,17 @@ _ASK_USER = ToolDescriptor(
     source="chat",
 )
 
-_TRIGGER_SYSTEM_UPDATE = ToolDescriptor(
-    name=TRIGGER_SYSTEM_UPDATE,
-    title="Update FiestaBoard",
-    description=(
-        "Pull the latest FiestaBoard release and restart. The container "
-        "restarts and the web UI drops for a minute. Only call this when the "
-        "user explicitly asks to update the system; it always requires their "
-        "approval."
-    ),
-    input_schema={"type": "object", "properties": {}},
-    read_only=False,
-    destructive=True,
-    idempotent=False,
-    open_world=True,
-    source="chat",
-)
-
 
 class ChatExtensionBackend:
     """The chat-only tools, behind the same interface as the MCP backend."""
 
     async def list_tools(self) -> list[ToolDescriptor]:
-        return [_ASK_USER, _TRIGGER_SYSTEM_UPDATE]
+        return [_ASK_USER]
 
     async def call_tool(self, name: str, args: dict[str, Any]) -> ToolOutcome:
         if name == ASK_USER:
             return ToolOutcome(status="error", error="ask_user is answered by the user, not executed.")
-        if name == TRIGGER_SYSTEM_UPDATE:
-            from src.ops import executors
-
-            envelope = await executors.trigger_system_update()
-            if isinstance(envelope, dict) and envelope.get("status") == "error":
-                return ToolOutcome(status="error", error=str(envelope.get("error") or "The update could not start."))
-            return ToolOutcome(status="ok", result=envelope)
         return ToolOutcome(status="error", error=f"Unknown tool: {name}")
 
 
-__all__ = ["ASK_USER", "TRIGGER_SYSTEM_UPDATE", "ChatExtensionBackend"]
+__all__ = ["ASK_USER", "ChatExtensionBackend"]

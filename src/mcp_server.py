@@ -73,6 +73,7 @@ from pydantic import Field
 # get real JSON instead of a JSON string that has to be parsed again.
 from .ops import executors as ops_executors
 from .ops import teaching as ops_teaching
+from .ops.results import rest_detail as _rest_detail
 from .ops.results import serialize as _serialize
 
 logger = logging.getLogger(__name__)
@@ -153,22 +154,34 @@ def _boards_summary(settings_service: Any) -> list[dict[str, Any]]:
         error = init_errors.get(bid)
         boards_out.append(
             {
-                "id": bid,
-                "name": board.get("name", ""),
-                "device_type": board.get("device_type", "flagship"),
+                # The credential-free projection every board tool returns
+                # (id, name, device_type, colour, glyph, api_mode, flags,
+                # has_host / has_credentials) plus the summary-only fields.
+                **ops_executors.board_public_view(board),
                 "rows": rows,
                 "cols": cols,
-                "notes_wide": board.get("notes_wide", 1),
-                "notes_tall": board.get("notes_tall", 1),
                 "primary": bid == primary_id,
-                "enabled": bool(board.get("enabled", True)),
-                "paused": bool(board.get("paused", False)),
-                "schedule_enabled": bool(board.get("schedule_enabled", False)),
                 "active_page_id": active_page_id,
                 "error": error if isinstance(error, str) else None,
             }
         )
     return boards_out
+
+
+def _mask_settings_block(cm: Any, block: Any) -> Any:
+    """Mask credential fields in a config block on the way out.
+
+    ``ConfigManager._mask_sensitive`` is the same projection the REST
+    settings endpoints apply; it replaces a set value with ``"***"`` and
+    leaves an unset one empty, so a model can tell "configured" from "not"
+    without ever seeing the secret.
+    """
+    return cm._mask_sensitive(_serialize(block))
+
+
+def _rest_error(exc: Any) -> Exception:
+    """Map a REST handler's HTTPException onto the MCP error contract."""
+    return ToolError(_rest_detail(exc))
 
 
 def _tool_failure(tool_name: str, exc: Exception) -> Exception:
@@ -229,6 +242,28 @@ def _build_mcp_server() -> Any:
             "  7. Optionally schedule pages with create_schedule()\n"
             "  8. Adjust display, location, polling or quiet hours with\n"
             "     update_setting() — read them first via get_settings_summary()\n\n"
+            "SETTINGS, HARDWARE AND SYSTEM (everything the Settings page can change,\n"
+            "except secrets)\n"
+            "  • update_setting(category, values) — general (instance_name renames\n"
+            "    the install, timezone, time/date format), display, transitions,\n"
+            "    output, polling, location, silence_schedule, active_page, beta,\n"
+            "    plugins (auto_update), mqtt (no username/password), ai (no\n"
+            "    api_key), release_channel, auto_update, hdmi_kiosk\n"
+            "  • Boards: update_board() renames/retypes/resizes a board, sets its\n"
+            "    colour, code-62 glyph, API mode or host; add_board(),\n"
+            "    remove_board(), detect_board_size(), identify_tile()\n"
+            "  • FiestaPanels (TV viewers): list_panels(), create_panel(),\n"
+            "    update_panel() (incl. is_display), delete_panel()\n"
+            "  • Network (FiestaPi): disconnect_wifi(), forget_wifi_network()\n"
+            "  • System: get_system_status(), check_for_update(),\n"
+            "    trigger_system_update(), restart_system(), shutdown_system(),\n"
+            "    export_backup(), test_ai_provider()\n"
+            "  • Advanced/debug: blank_board(), fill_board(),\n"
+            "    show_board_debug_info(), run_network_diagnostics(),\n"
+            "    clear_board_cache()\n"
+            "  Secrets never travel over MCP: board API keys, Wi-Fi passphrases,\n"
+            "  MQTT/AI credentials, MCP tokens and login settings are entered by\n"
+            "  the user in the web UI. Tell them where, don't ask them to paste.\n\n"
             "DEBUGGING TOOLS\n"
             "  • render_page_preview(template_lines, device_type) — see how a\n"
             "    template will look WITHOUT creating a page. Use this to iterate.\n"
@@ -253,8 +288,10 @@ def _build_mcp_server() -> Any:
             "  • NEVER guess API keys, tokens, or credentials. If a plugin needs\n"
             "    one, ask the user to provide it before calling configure_plugin().\n"
             "  • Destructive tools (uninstall_plugin, delete_page, delete_schedule,\n"
-            "    delete_collection) cannot be undone — confirm intent with the user\n"
-            "    before calling them unless they explicitly requested the deletion.\n"
+            "    delete_collection, remove_board, delete_panel, forget_wifi_network,\n"
+            "    disconnect_wifi, trigger_system_update, restart_system,\n"
+            "    shutdown_system) cannot be undone — confirm intent with the user\n"
+            "    before calling them unless they explicitly requested the action.\n"
             "  • Sensitive config values are MASKED as '***' when read back; that\n"
             "    is intentional — do not try to 'restore' or re-send the mask.\n\n"
             "DESIGN TIPS\n"
@@ -1034,11 +1071,22 @@ def _build_mcp_server() -> Any:
     # -----------------------------------------------------------------------
 
     @_tool(read_only=True)
-    def get_system_status() -> dict[str, Any]:
+    async def get_system_status() -> dict[str, Any]:
         """Get the current status of the FiestaBoard system.
 
         Returns version, whether the display service is running, plugin system
-        status, and the number of installed/enabled plugins.
+        status, the number of installed/enabled plugins, plus:
+        - running_version, release_channel ("stable" | "beta")
+        - update: {auto_update_interval ("daily" | "weekly" | "monthly" |
+          "manual"), updater_available (sidecar reachable — needed for
+          trigger_system_update(), restart_system(), shutdown_system() and
+          channel switches), managed_externally, last_check, last_update}.
+          For whether a newer release exists, call check_for_update().
+        - mqtt: {enabled, connected, running} — the live Home Assistant bridge
+        - hdmi_kiosk: {supported, status, enabled} — the FiestaPi TV kiosk
+
+        Blocks that cannot be read are reported as null rather than failing
+        the whole status.
         """
         from .api_server import __version__, _service_running, get_service
         from .plugins import get_plugin_registry
@@ -1046,29 +1094,85 @@ def _build_mcp_server() -> Any:
         registry = get_plugin_registry()
         plugins = registry.list_plugins()
         service = get_service()
-        return {
+        status: dict[str, Any] = {
             "version": __version__,
             "service_running": _service_running and service is not None,
             "plugin_system_available": True,
             "plugins_installed": len(plugins),
             "plugins_enabled": sum(1 for p in plugins if p.get("enabled")),
+            "running_version": None,
+            "release_channel": None,
+            "update": None,
+            "mqtt": None,
+            "hdmi_kiosk": None,
         }
+        try:
+            from .system import update_service
+
+            state = update_service._system_update_state_load()
+            has_token = bool(update_service._updater_token())
+            status["running_version"] = update_service.running_version()
+            status["release_channel"] = update_service.current_channel()
+            status["update"] = {
+                "auto_update_interval": update_service._resolve_auto_update_interval(state),
+                "updater_available": bool(update_service._updater_probe()) if has_token else False,
+                "managed_externally": bool(update_service._managed_externally()),
+                "last_check": state.get("last_check"),
+                "last_update": state.get("last_update"),
+            }
+        except Exception as exc:
+            logger.debug("get_system_status: could not read update state: %s", exc)
+        try:
+            from .mqtt import get_mqtt_client
+            from .settings.service import get_settings_service
+
+            client = get_mqtt_client()
+            status["mqtt"] = {
+                "enabled": bool(get_settings_service().get_mqtt_settings().enabled),
+                "connected": bool(client.is_connected()) if client else False,
+                "running": bool(client.is_running()) if client else False,
+            }
+        except Exception as exc:
+            logger.debug("get_system_status: could not read MQTT state: %s", exc)
+        try:
+            from .settings.routes import get_hdmi_kiosk_status
+
+            status["hdmi_kiosk"] = _serialize(await get_hdmi_kiosk_status())
+        except Exception as exc:
+            logger.debug("get_system_status: could not read HDMI kiosk state: %s", exc)
+        return status
 
     @_tool(read_only=True)
     def get_settings_summary() -> dict[str, Any]:
         """Get a summary of current FiestaBoard settings (non-sensitive fields only).
 
-        Returns display, location, and output settings, plus:
+        Every block is keyed by the update_setting() category that changes it:
+        - general: instance_name (the install's name), timezone, time_format,
+          date_format, welcome_message
+        - display, transitions, output, polling, location: as documented on
+          update_setting()
+        - silence_schedule: the install-wide quiet-hours config, plus
+          by_board overrides keyed by board id
+        - beta: https_enabled, transition_plugins_enabled
+        - plugins: auto_update
+        - mqtt: enabled, broker_host, broker_port, external_url, username and
+          password masked as "***" when set
+        - ai: enabled, default_provider_id, providers (id, name, protocol,
+          base_url, models, default_model; api_key masked as "***" when set)
         - schedule: {enabled} — whether schedule mode drives the primary board
         - active_page_id: the primary board's manually-selected page (or null)
         - boards: one entry per configured board with id, name, device_type,
-          rows/cols, notes_wide/notes_tall, primary, enabled, paused,
+          rows/cols, notes_wide/notes_tall, board_color, code62_glyph,
+          api_mode, has_host, has_credentials, primary, enabled, paused,
           schedule_enabled, active_page_id, and error (why the board failed to
           initialize, or null). Use a board's id as the board_id argument to
           board-targeting tools, and its rows/cols to size templates for it.
 
-        AI provider credentials and board API keys are intentionally excluded.
+        Release channel, auto-update interval, MQTT connection and HDMI kiosk
+        state are on get_system_status(). Credentials (board API keys, Wi-Fi,
+        MQTT password, AI api_key, MCP token, login) are never returned.
         """
+        from .config_manager import get_config_manager
         from .settings.service import get_settings_service
 
         svc = get_settings_service()
@@ -1077,6 +1181,10 @@ def _build_mcp_server() -> Any:
             ("display", svc.get_display_settings),
             ("location", svc.get_location_settings),
             ("output", svc.get_output_settings),
+            ("transitions", svc.get_transition_settings),
+            ("polling", svc.get_polling_settings),
+            ("beta", svc.get_beta_settings),
+            ("plugins", svc.get_plugin_settings),
         ):
             try:
                 summary[key] = _serialize(fetch())
@@ -1086,6 +1194,25 @@ def _build_mcp_server() -> Any:
                     key,
                     exc,
                 )
+
+        # Blocks that carry credentials go through the config manager's
+        # masking so a set secret reads as "***" and an unset one as "".
+        try:
+            cm = get_config_manager()
+            general = cm.get_general() or {}
+            summary["general"] = {key: general.get(key) for key in ops_executors.GENERAL_SETTING_KEYS}
+            summary["silence_schedule"] = _serialize(cm.get_feature("silence_schedule") or {})
+            ai = _mask_settings_block(cm, cm.get_ai_providers())
+            for provider in ai.get("providers", []) or []:
+                if isinstance(provider, dict):
+                    provider.pop("headers", None)  # may carry an Authorization header
+            summary["ai"] = ai
+            mqtt = _mask_settings_block(cm, svc.get_mqtt_settings())
+            if mqtt.get("username"):
+                mqtt["username"] = "***"
+            summary["mqtt"] = mqtt
+        except Exception as exc:
+            logger.debug("get_settings_summary: could not fetch config-manager blocks: %s", exc)
 
         # Schedule mode + active page (#1765): the troubleshoot prompt
         # walks both, and until now no tool returned them.
@@ -1136,14 +1263,22 @@ def _build_mcp_server() -> Any:
 
         Only the keys you pass change; everything else in the category is
         left as it is. Read the current values first with
-        get_settings_summary().
+        get_settings_summary() (and get_system_status() for the system
+        categories). Unknown keys are refused, not ignored.
 
         Args:
-            category: Which settings group to change. One of 'display',
-                'transitions', 'output', 'polling', 'location',
-                'silence_schedule', or 'active_page'.
-            values: The keys to change within that category. Representative
-                keys per category:
+            category: Which settings group to change. One of 'general',
+                'display', 'transitions', 'output', 'polling', 'location',
+                'silence_schedule', 'active_page', 'beta', 'plugins', 'mqtt',
+                'ai', 'release_channel', 'auto_update', or 'hdmi_kiosk'.
+            values: The keys to change within that category. Keys per
+                category:
+                - general: instance_name (string — the install's name, shown
+                  in the UI and on the network; this is how you rename the
+                  board/instance), timezone (IANA name, e.g.
+                  "America/New_York"), time_format ("12h" | "24h"),
+                  date_format ("MM/DD/YYYY" | "DD/MM/YYYY" | "YYYY-MM-DD"),
+                  welcome_message (string, "" = default).
                 - display (the on-screen board preview, not the physical
                   board): reduce_motion (bool), board_animations
                   ("on" | "desktop" | "off"), site_animations ("on" | "off"),
@@ -1159,13 +1294,37 @@ def _build_mcp_server() -> Any:
                   sunrise/sunset schedules and location-aware plugins.
                 - silence_schedule: enabled (bool), start_time and end_time
                   ("HH:MM"), mode ("freeze" | "page" | "indicator"), page_id,
-                  indicator_text, indicator_position.
-                - active_page: page_id (string) — the same selection
-                  set_active_page() makes for the primary board.
+                  indicator_text, indicator_position, board_id (optional —
+                  writes that board's own override instead of the
+                  install-wide schedule; boards without an override follow
+                  the install-wide one).
+                - active_page: page_id (string), board_id (optional) — the
+                  same selection set_active_page() makes.
+                - beta: https_enabled (bool — needs a restart_system() to
+                  take effect), transition_plugins_enabled (bool).
+                - plugins: auto_update (bool — update installed plugins in
+                  the background).
+                - mqtt (Home Assistant bridge): enabled (bool), broker_host
+                  (string), broker_port (int), external_url (string).
+                  username and password are set by the user in the web UI.
+                - ai (the in-app assistant): enabled (bool),
+                  default_provider_id (string), providers (list replacing the
+                  provider list; each entry: id, name, protocol
+                  ("openai" | "anthropic"), base_url, models (list),
+                  default_model). Existing providers keep their stored
+                  api_key; a new provider is saved without one until the
+                  user adds it in the web UI. Never pass api_key or headers.
+                - release_channel: channel ("stable" | "beta") — switches the
+                  install's update channel via the updater sidecar; the
+                  container restarts on the new image.
+                - auto_update: interval ("daily" | "weekly" | "monthly" |
+                  "manual") — how often FiestaBoard updates itself.
+                - hdmi_kiosk: enabled (bool) — the FiestaPi's HDMI TV kiosk
+                  (FiestaPi with the updater sidecar only).
 
-        NEVER use this for AI provider settings, MQTT, or board API
-        credentials. Those are configured by the user in the web UI's
-        Settings page and are not reachable over MCP.
+        Secrets are refused by name: api_key, password, username, headers,
+        token, local_api_key, cloud_key, note_array_token. Ask the user to
+        enter those in the web UI's Settings page.
         """
         return await ops_executors.update_setting(category, values)
 
@@ -1332,6 +1491,451 @@ def _build_mcp_server() -> Any:
                       list in get_settings_summary()). Omitted = the primary board.
         """
         return ops_executors.send_message(text, board_id=board_id)
+
+    # -----------------------------------------------------------------------
+    # Board hardware tools (Settings → Boards). Non-secret fields only; board
+    # API keys and note-array tokens are entered by the user in the web UI.
+    # -----------------------------------------------------------------------
+
+    @_tool(destructive=False, idempotent=True)
+    async def update_board(
+        board_id: str,
+        name: str | None = None,
+        device_type: str | None = None,
+        notes_wide: int | None = None,
+        notes_tall: int | None = None,
+        board_color: str | None = None,
+        code62_glyph: str | None = None,
+        api_mode: str | None = None,
+        host: str | None = None,
+    ) -> dict[str, Any]:
+        """Rename, retype, resize or reconfigure one board's non-secret hardware fields.
+
+        Only the fields you pass change. Read the roster first with
+        get_settings_summary() (the boards list). Changing device_type or the
+        note-array grid changes the board's rows/cols, so pages sized for the
+        old shape stop fitting — check with preview_saved_page() afterwards.
+
+        Args:
+            board_id: The board to change (from the boards list in get_settings_summary()).
+            name: New display name (trimmed; empty restores the default "My Board").
+            device_type: 'flagship' (22×6), 'note' (15×3) or 'note_array'
+                (a grid of Notes; set notes_wide/notes_tall too).
+            notes_wide: Note-array width in Notes (1–8).
+            notes_tall: Note-array height in Notes (1–8).
+            board_color: 'black' or 'white' — the physical board's colour,
+                used by previews and FiestaPanels.
+            code62_glyph: 'degree' or 'heart' — which glyph this Flagship's
+                character-62 flap carries (display only; Flagship only).
+            api_mode: 'local' (LAN API) or 'cloud' (Vestaboard cloud API).
+                The matching credential must be entered by the user in the
+                web UI.
+            host: IP address or hostname of the board on the LAN (local API
+                mode). Write-only: the summary reports has_host, never the
+                address.
+        """
+        return await ops_executors.update_board(
+            board_id,
+            name=name,
+            device_type=device_type,
+            notes_wide=notes_wide,
+            notes_tall=notes_tall,
+            board_color=board_color,
+            code62_glyph=code62_glyph,
+            api_mode=api_mode,
+            host=host,
+        )
+
+    @_tool(destructive=False)
+    async def add_board(
+        device_type: str,
+        name: str | None = None,
+        api_mode: str | None = None,
+        notes_wide: int | None = None,
+        notes_tall: int | None = None,
+        board_color: str | None = None,
+        host: str | None = None,
+    ) -> dict[str, Any]:
+        """Add another board to this install (multi-board driving).
+
+        The board is added without credentials: tell the user to open
+        Settings → Boards and enter its API key (or enable the local API)
+        — until then it fails to initialize and the boards summary says so.
+
+        Args:
+            device_type: 'flagship', 'note' or 'note_array'.
+            name: Display name (default: "My Board", "My Board 2", ...).
+            api_mode: 'local' or 'cloud' (default 'local'; note arrays are
+                usually 'cloud').
+            notes_wide: Note-array width in Notes (1–8, note_array only).
+            notes_tall: Note-array height in Notes (1–8, note_array only).
+            board_color: 'black' or 'white'.
+            host: IP address or hostname on the LAN (local API mode).
+        """
+        return await ops_executors.add_board(
+            device_type,
+            name=name,
+            api_mode=api_mode,
+            notes_wide=notes_wide,
+            notes_tall=notes_tall,
+            board_color=board_color,
+            host=host,
+        )
+
+    @_tool(destructive=True)
+    async def remove_board(board_id: str) -> dict[str, Any]:
+        """Remove a board from this install permanently.
+
+        WARNING: cannot be undone — the board's credentials go with it and
+        the user has to re-enter them to add it back. The last board cannot be
+        removed, and a board driven by a FiestaPanel must be removed via
+        delete_panel() instead.
+
+        Args:
+            board_id: The board to remove (from the boards list in get_settings_summary()).
+        """
+        return await ops_executors.remove_board(board_id)
+
+    @_tool(read_only=True)
+    async def detect_board_size(board_id: str) -> dict[str, Any]:
+        """Read a board's live layout to find its real device type and grid size.
+
+        Use it when a board renders truncated or padded content — the stored
+        device_type may not match the hardware. Nothing is written; apply the
+        answer with update_board(). Not available for local-mode note arrays
+        (their size is defined by their tile assignments).
+
+        Args:
+            board_id: The board to probe (from the boards list in get_settings_summary()).
+
+        Returns: {board_id, device_type, rows, cols, notes_wide, notes_tall,
+        matched_preset}.
+        """
+        return await ops_executors.detect_board_size(board_id)
+
+    @_tool(destructive=False, idempotent=True)
+    async def identify_tile(
+        board_id: str,
+        row: int | None = None,
+        col: int | None = None,
+        target: str = "tile",
+    ) -> dict[str, Any]:
+        """Flash a slot label onto a local note array's tiles so the user can see which Note sits where.
+
+        Only for note arrays in local API mode with tiles already assigned in
+        the web UI. The real frame comes back on the next display cycle.
+
+        Args:
+            board_id: The note-array board (from the boards list in get_settings_summary()).
+            row: Tile row (0-based) when target is 'tile'.
+            col: Tile column (0-based) when target is 'tile'.
+            target: 'tile' (one slot, needs row and col) or 'all' (every
+                configured tile at once).
+        """
+        return await ops_executors.identify_tile(board_id, row=row, col=col, target=target)
+
+    # -----------------------------------------------------------------------
+    # FiestaPanel tools (Settings → FiestaPanel): TV viewers backed by a
+    # virtual board that is auto-fit to the screen.
+    # -----------------------------------------------------------------------
+
+    @_tool(read_only=True)
+    async def list_panels() -> dict[str, Any]:
+        """List the FiestaPanels (TV viewers) and the virtual board behind each.
+
+        Each entry has id (use it for update_panel() / delete_panel()), name,
+        board_id (the virtual board — appears in the boards list too and can
+        be targeted like any board), screen_diagonal_inches, screen_aspect_w /
+        _h, calibration_scale, animations_enabled, is_display (the panel the
+        FiestaPi HDMI kiosk shows at /p/display), backdrop, auto_dim, and the
+        board's device_type / rows / cols. short_code is the number the TV
+        types into /p/<code>.
+        """
+        from .panels.routes import list_panels as _rest_list_panels
+
+        return _serialize(await _rest_list_panels())
+
+    @_tool(destructive=False)
+    async def create_panel(
+        name: str,
+        screen_diagonal_inches: float = 55.0,
+        screen_aspect_w: float = 16.0,
+        screen_aspect_h: float = 9.0,
+    ) -> dict[str, Any]:
+        """Create a FiestaPanel — a browser viewer for a TV — with its own virtual board.
+
+        The virtual board's grid is auto-fit from the screen size so every
+        flap renders at real-world scale; no shape is chosen by hand. The new
+        board appears in the boards list and can be targeted like any board.
+
+        Args:
+            name: Display name for the panel (the board is named "<name> (Panel)").
+            screen_diagonal_inches: TV size in inches (3–200, default 55).
+            screen_aspect_w: Aspect ratio width (default 16).
+            screen_aspect_h: Aspect ratio height (default 9).
+        """
+        return await ops_executors.create_panel(
+            name,
+            screen_diagonal_inches=screen_diagonal_inches,
+            screen_aspect_w=screen_aspect_w,
+            screen_aspect_h=screen_aspect_h,
+        )
+
+    @_tool(destructive=False, idempotent=True)
+    async def update_panel(
+        panel_id: str,
+        name: str | None = None,
+        screen_diagonal_inches: float | None = None,
+        screen_aspect_w: float | None = None,
+        screen_aspect_h: float | None = None,
+        calibration_scale: float | None = None,
+        animations_enabled: bool | None = None,
+        is_display: bool | None = None,
+        backdrop: str | None = None,
+        auto_dim: dict[str, Any] | None = None,
+    ) -> dict[str, Any]:
+        """Change a FiestaPanel's display settings. Only the fields you pass change.
+
+        A screen-size change re-fits the virtual board's grid; pages authored
+        for the old grid are reported back as incompatible_references.
+
+        Args:
+            panel_id: The panel (from list_panels()).
+            name: New display name.
+            screen_diagonal_inches: TV size in inches (3–200).
+            screen_aspect_w: Aspect ratio width (1–100).
+            screen_aspect_h: Aspect ratio height (1–100).
+            calibration_scale: Fine size nudge, 0.85–1.15 (1.0 = true scale).
+            animations_enabled: Whether tiles flip mechanically on the TV.
+            is_display: True makes this THE local display panel served at
+                /p/display (the FiestaPi HDMI kiosk); the previous holder is
+                demoted automatically.
+            backdrop: 'wall', 'dark' or 'none'.
+            auto_dim: Night dimming window as {"enabled": bool,
+                "start": "HH:MM", "end": "HH:MM"} on the TV's local clock.
+        """
+        return await ops_executors.update_panel(
+            panel_id,
+            name=name,
+            screen_diagonal_inches=screen_diagonal_inches,
+            screen_aspect_w=screen_aspect_w,
+            screen_aspect_h=screen_aspect_h,
+            calibration_scale=calibration_scale,
+            animations_enabled=animations_enabled,
+            is_display=is_display,
+            backdrop=backdrop,
+            auto_dim=auto_dim,
+        )
+
+    @_tool(destructive=True)
+    async def delete_panel(panel_id: str) -> dict[str, Any]:
+        """Delete a FiestaPanel and the virtual board behind it permanently.
+
+        WARNING: cannot be undone. Pages and schedules that referenced the
+        panel's board keep their references but no longer render anywhere.
+
+        Args:
+            panel_id: The panel (from list_panels()).
+        """
+        return await ops_executors.delete_panel(panel_id)
+
+    # -----------------------------------------------------------------------
+    # Network tools (Settings → Network, FiestaPi only). No scan/connect —
+    # joining a network needs a passphrase, which the user enters in the UI.
+    # -----------------------------------------------------------------------
+
+    @_tool(destructive=True)
+    async def disconnect_wifi() -> dict[str, Any]:
+        """Drop the FiestaPi's active Wi-Fi connection.
+
+        WARNING: if the user reaches FiestaBoard over that Wi-Fi, this cuts
+        them off until the Pi reconnects (the saved profile is kept, so it
+        usually auto-joins again) or they plug in Ethernet. FiestaPi only;
+        other installs report that Wi-Fi management is unavailable.
+        """
+        return await ops_executors.disconnect_wifi()
+
+    @_tool(destructive=True)
+    async def forget_wifi_network(name: str) -> dict[str, Any]:
+        """Delete a saved Wi-Fi profile so the FiestaPi stops auto-joining it.
+
+        WARNING: cannot be undone here — re-joining needs the passphrase,
+        which the user enters in Settings → Network. Forgetting the network
+        currently in use disconnects the Pi. FiestaPi only.
+
+        Args:
+            name: The saved profile's name (usually the SSID) as listed in
+                Settings → Network.
+        """
+        return await ops_executors.forget_wifi_network(name)
+
+    # -----------------------------------------------------------------------
+    # System tools (Settings → System / About / Backup / AI)
+    # -----------------------------------------------------------------------
+
+    @_tool(read_only=True, open_world=True)
+    async def check_for_update() -> dict[str, Any]:
+        """Check Docker Hub / GitHub for a newer FiestaBoard release on this install's channel.
+
+        Returns {current_version, latest_version, update_available,
+        package_url, error, is_production}. An unreachable registry comes
+        back as error text, not a failure. Apply with trigger_system_update().
+        """
+        from .system.routes import system_update_check
+
+        return _serialize(await system_update_check())
+
+    @_tool(destructive=True, open_world=True)
+    async def trigger_system_update() -> dict[str, Any]:
+        """Pull the latest FiestaBoard release and restart onto it.
+
+        WARNING: the container restarts and the web UI (and this connection)
+        drop for a minute. A settings snapshot is taken first so the update
+        can be rolled back from Settings → System. Needs the updater sidecar
+        (get_system_status() → update.updater_available); otherwise the error
+        carries the manual-update instructions to relay. Only call this when
+        the user explicitly asks to update.
+        """
+        return await ops_executors.trigger_system_update()
+
+    @_tool(destructive=True)
+    async def restart_system() -> dict[str, Any]:
+        """Restart the FiestaBoard container via the updater sidecar.
+
+        WARNING: the web UI and this connection drop for ~5 seconds. Needed
+        after enabling HTTPS (beta) or changing the polling interval. Needs
+        the updater sidecar (get_system_status() → update.updater_available).
+        """
+        return await ops_executors.restart_system()
+
+    @_tool(destructive=True)
+    async def shutdown_system() -> dict[str, Any]:
+        """Power off the host machine (FiestaPi) via the updater sidecar.
+
+        WARNING: the host stays off until someone switches it on again by
+        hand — there is no remote power-on. Only call this when the user
+        explicitly asks to shut the device down.
+        """
+        return await ops_executors.shutdown_system()
+
+    @_tool(read_only=True)
+    def export_backup() -> dict[str, Any]:
+        """Return the full backup document (config, settings, pages, collections, schedules, panels).
+
+        The same document Settings → Backup downloads, with every credential
+        masked as "***" — so it is a complete picture of the install for
+        review or diffing, but a masked document cannot be restored as-is.
+        For a restorable file the user downloads it from Settings → Backup.
+        """
+        from .backup import get_backup_service
+        from .config_manager import get_config_manager
+
+        return _mask_settings_block(get_config_manager(), get_backup_service().build_backup())
+
+    @_tool(read_only=True, open_world=True)
+    async def test_ai_provider(provider_id: str | None = None, model: str | None = None) -> dict[str, Any]:
+        """Send a tiny smoke-test request to a configured AI provider to verify it works.
+
+        Reports the provider's own verdict ({ok, message, model_used}) —
+        "your key was rejected" is a result, not a failure. Provider ids are
+        in get_settings_summary() → ai.providers.
+
+        Args:
+            provider_id: Which configured provider to test. Omitted = the
+                default provider (or the first one).
+            model: Model name to try instead of the provider's default_model.
+        """
+        from fastapi import HTTPException
+
+        from .settings.models import AiTestRequest
+        from .settings.routes import test_ai_provider as _rest_test_ai_provider
+
+        try:
+            result = await _rest_test_ai_provider(AiTestRequest(provider_id=provider_id, model=model))
+        except HTTPException as exc:
+            raise _rest_error(exc) from exc
+        return _serialize(result)
+
+    # -----------------------------------------------------------------------
+    # Advanced / debug tools (Settings → Advanced). Out-of-band writes to a
+    # board: same silence/pause gates as send_message, forced past the
+    # unchanged-content dedupe.
+    # -----------------------------------------------------------------------
+
+    @_tool(destructive=False, idempotent=True)
+    def blank_board(board_id: str | None = None) -> dict[str, Any]:
+        """Clear a board — every tile to blank.
+
+        The board stays blank until the active page next changes or the
+        display refreshes. A paused board or active silence mode returns
+        status "blocked" (deliberate policy — relay it, don't retry).
+
+        Args:
+            board_id: Board to target on a multi-board install (from the boards
+                      list in get_settings_summary()). Omitted = the primary board.
+        """
+        return ops_executors.blank_board(board_id)
+
+    @_tool(destructive=False, idempotent=True)
+    def fill_board(character_code: int, board_id: str | None = None) -> dict[str, Any]:
+        """Fill every tile of a board with one flap code — a quick hardware test.
+
+        A paused board or active silence mode returns status "blocked".
+
+        Args:
+            character_code: Flap code 0–71: 0 blank, 1–26 A–Z, 27–36 digits
+                0–9, 63–71 colour tiles (63 red, 64 orange, 65 yellow,
+                66 green, 67 blue, 68 violet, 69 white, 70 black, 71 filled).
+            board_id: Board to target on a multi-board install (from the boards
+                      list in get_settings_summary()). Omitted = the primary board.
+        """
+        return ops_executors.fill_board(character_code, board_id)
+
+    @_tool(destructive=False, idempotent=True)
+    def show_board_debug_info(board_id: str | None = None) -> dict[str, Any]:
+        """Show the support card (board IP, server IP, uptime, API mode, version, time) ON the board.
+
+        Use it when the user is at the board and wants to check connectivity
+        without the web UI. A paused board or active silence mode returns
+        status "blocked".
+
+        Args:
+            board_id: Board to target on a multi-board install (from the boards
+                      list in get_settings_summary()). Omitted = the primary board.
+        """
+        return ops_executors.show_board_debug_info(board_id)
+
+    @_tool(read_only=True, open_world=True)
+    async def run_network_diagnostics() -> dict[str, Any]:
+        """Check DNS, internet reachability and the primary board's API from the FiestaBoard host.
+
+        Use it when the board is unreachable or plugins report network
+        errors. Returns per-step results and recommendations; nothing is
+        changed.
+        """
+        from fastapi import HTTPException
+
+        from .debug.routes import debug_network_diagnostics
+
+        try:
+            result = await debug_network_diagnostics()
+        except HTTPException as exc:
+            raise _rest_error(exc) from exc
+        return _serialize(result)
+
+    @_tool(destructive=False, idempotent=True)
+    def clear_board_cache(board_id: str | None = None) -> dict[str, Any]:
+        """Forget what was last sent to a board so the next send goes out even if unchanged.
+
+        Use it when the board shows something different from what FiestaBoard
+        believes it sent (a power cycle, a manual change on the board) and a
+        refresh is being skipped as "unchanged".
+
+        Args:
+            board_id: Board to target on a multi-board install (from the boards
+                      list in get_settings_summary()). Omitted = the primary board.
+        """
+        return ops_executors.clear_board_cache(board_id)
 
     # -----------------------------------------------------------------------
     # MCP Resources

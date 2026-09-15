@@ -17,7 +17,7 @@ Three kinds of operation live here:
 
 - shared ops — a chat name and an MCP tool name resolving to one executor;
 - single-surface server ops — only one grammar names them today
-  (``delete_page`` is MCP-only, ``update_setting`` is chat-only);
+  (``delete_page``, ``update_board``, ``restart_system`` … are MCP-only);
 - client-side chat ops — applied inside the web UI with no server-side
   effect (``replace_page`` and ``apply_patch`` edit the editor's draft,
   ``navigate_to_page`` routes). They are registered so the registry
@@ -205,8 +205,32 @@ OPERATIONS: tuple[Operation, ...] = (
         name="trigger_system_update",
         executor=executors.trigger_system_update,
         chat_name="trigger_system_update",
+        mcp_tool="trigger_system_update",
         adapt_chat_args=lambda a: {},
     ),
+    # MCP-only server ops covering the rest of the Settings page (secrets
+    # excluded by design — see executors.SECRET_SETTING_KEYS). The chat
+    # grammar has no spelling for them; the in-app chat reaches them through
+    # the MCP catalog.
+    Operation(name="restart_system", executor=executors.restart_system, mcp_tool="restart_system"),
+    Operation(name="shutdown_system", executor=executors.shutdown_system, mcp_tool="shutdown_system"),
+    # -- board hardware ---------------------------------------------------
+    Operation(name="update_board", executor=executors.update_board, mcp_tool="update_board"),
+    Operation(name="add_board", executor=executors.add_board, mcp_tool="add_board"),
+    Operation(name="remove_board", executor=executors.remove_board, mcp_tool="remove_board"),
+    Operation(name="identify_tile", executor=executors.identify_tile, mcp_tool="identify_tile"),
+    # -- FiestaPanel ------------------------------------------------------
+    Operation(name="create_panel", executor=executors.create_panel, mcp_tool="create_panel"),
+    Operation(name="update_panel", executor=executors.update_panel, mcp_tool="update_panel"),
+    Operation(name="delete_panel", executor=executors.delete_panel, mcp_tool="delete_panel"),
+    # -- network ----------------------------------------------------------
+    Operation(name="disconnect_wifi", executor=executors.disconnect_wifi, mcp_tool="disconnect_wifi"),
+    Operation(name="forget_wifi_network", executor=executors.forget_wifi_network, mcp_tool="forget_wifi_network"),
+    # -- debug board actions ----------------------------------------------
+    Operation(name="blank_board", executor=executors.blank_board, mcp_tool="blank_board"),
+    Operation(name="fill_board", executor=executors.fill_board, mcp_tool="fill_board"),
+    Operation(name="show_board_debug_info", executor=executors.show_board_debug_info, mcp_tool="show_board_debug_info"),
+    Operation(name="clear_board_cache", executor=executors.clear_board_cache, mcp_tool="clear_board_cache"),
     # -- client-side chat ops (no server effect) --------------------------
     # ``replace_page`` is an EDITOR op, not "create a page" (Phase 2 Task 11).
     # #1764 aliased it onto ``create_page``, but nothing on the chat path ever
