@@ -77,11 +77,15 @@ class PluginService:
         config_manager: Any | None = None,
         reset_display: Callable[[], None] | None = None,
         reset_template: Callable[[], None] | None = None,
+        page_service: Any | None = None,
+        settings_service: Any | None = None,
     ) -> None:
         self._registry = registry
         self._config_manager = config_manager
         self._reset_display = reset_display
         self._reset_template = reset_template
+        self._page_service = page_service
+        self._settings_service = settings_service
 
     # -- collaborator resolution --------------------------------------------
 
@@ -100,6 +104,22 @@ class PluginService:
         from src.config_manager import get_config_manager  # canonical home; patched by the MCP suite
 
         return get_config_manager()
+
+    @property
+    def page_service(self) -> Any:
+        if self._page_service is not None:
+            return self._page_service
+        from src.pages.service import get_page_service
+
+        return get_page_service()
+
+    @property
+    def settings_service(self) -> Any:
+        if self._settings_service is not None:
+            return self._settings_service
+        from src.settings.service import get_settings_service
+
+        return get_settings_service()
 
     # -- the one orchestration tail -----------------------------------------
 
@@ -165,6 +185,210 @@ class PluginService:
         if registry.get_plugin(plugin_id) is None:
             raise PluginNotFound(f"Plugin not found: {plugin_id}")
         return await asyncio.to_thread(registry.fetch_plugin_data, plugin_id)
+
+    async def browse_options(
+        self,
+        plugin_id: str,
+        options_id: str,
+        *,
+        parent: dict[str, Any] | None = None,
+        query: str = "",
+        limit: int = 50,
+        cursor: str | None = None,
+    ) -> dict[str, Any]:
+        """Browse one of the plugin's remote-options catalogs (one lookup, no cache).
+
+        The same provider ``POST /plugins/{id}/options/{options_id}`` serves
+        the settings form's picker from, minus the keystroke-driven cache,
+        refresh throttle and draft-config overlay — an assistant asks once,
+        against the stored config, after :meth:`update_plugin_config`. The
+        payload shape is the endpoint's (``options``, ``has_more``,
+        ``cursor``, ``total``, ``error``), and the same ceilings apply: the
+        registry's worker-thread deadline and the option-count cap.
+
+        Raises :class:`PluginNotFound` for an unknown plugin,
+        :class:`PluginOperationRejected` for an ``options_id`` the manifest
+        does not declare, and :class:`PluginOperationFailed` when the
+        provider is unimplemented, times out, or throws. "Cannot answer yet"
+        (:class:`~src.plugins.base.OptionsUnavailable`) is not a failure: it
+        comes back as an empty list with the reason in ``error``.
+        """
+        from .base import OptionsRequest, OptionsUnavailable
+        from .options_runtime import (
+            PLUGIN_OPTIONS_MAX_CURSOR_CHARS,
+            PLUGIN_OPTIONS_MAX_RETURNED,
+            PLUGIN_OPTIONS_TIMEOUT_SECONDS,
+            _bounded_options_call,
+            _declared_options_ids,
+            _serialise_options,
+            _truncate,
+        )
+
+        registry = self.registry
+        if registry.get_plugin(plugin_id) is None:
+            raise PluginNotFound(f"Plugin not found: {plugin_id}")
+
+        declared = _declared_options_ids(registry.get_manifest(plugin_id))
+        if options_id not in declared:
+            known = ", ".join(sorted(declared)) or "none"
+            raise PluginOperationRejected(
+                f"Plugin '{plugin_id}' does not declare options provider '{options_id}' (declared: {known})"
+            )
+
+        limit = max(1, min(limit, PLUGIN_OPTIONS_MAX_RETURNED))
+        request = OptionsRequest(
+            options_id=options_id,
+            parent=dict(parent or {}),
+            query=query or "",
+            limit=limit,
+            cursor=cursor,
+        )
+
+        def _envelope(**overrides: Any) -> dict[str, Any]:
+            payload: dict[str, Any] = {
+                "plugin_id": plugin_id,
+                "options_id": options_id,
+                "options": [],
+                "has_more": False,
+                "cursor": None,
+                "total": None,
+                "error": None,
+            }
+            payload.update(overrides)
+            return payload
+
+        try:
+            result = await _bounded_options_call(
+                lambda: registry.get_plugin_options(plugin_id, options_id, request),
+                PLUGIN_OPTIONS_TIMEOUT_SECONDS,
+            )
+        except TimeoutError as exc:
+            raise PluginOperationFailed(f"Options provider '{options_id}' timed out") from exc
+        except NotImplementedError as exc:
+            raise PluginOperationFailed(str(exc)) from exc
+        except KeyError as exc:
+            raise PluginNotFound(f"Plugin not found: {plugin_id}") from exc
+        except OptionsUnavailable as exc:
+            return _envelope(error=str(exc))
+        except Exception as exc:
+            # Traceback to the log; the caller gets a static message so a
+            # plugin's raw error text (keys, URLs, paths) cannot leak.
+            logger.exception("Options provider '%s' failed for plugin '%s'", options_id, plugin_id)
+            raise PluginOperationFailed("Options provider failed") from exc
+
+        options, truncated = _serialise_options(result.options, limit, plugin_id, options_id)
+        return _envelope(
+            options=options,
+            has_more=bool(result.has_more) or truncated,
+            cursor=_truncate(result.cursor, PLUGIN_OPTIONS_MAX_CURSOR_CHARS),
+            total=result.total,
+            error=result.error,
+        )
+
+    # -- demo pages ----------------------------------------------------------
+
+    def resolve_demo_device_type(self, demo: dict[str, Any]) -> str:
+        """Pick the demo device_type that matches the configured board.
+
+        Walks the user's configured boards in order and returns the first
+        device_type that the plugin actually ships a demo for. Falls back to
+        any device_type the plugin supports, then to "flagship" as a last
+        resort. See issue #942.
+        """
+        configured: list[str] = []
+        try:
+            board_settings = self.settings_service.get_board_settings()
+            for board in getattr(board_settings, "boards", []) or []:
+                dt = board.get("device_type") if isinstance(board, dict) else None
+                if dt and dt not in configured:
+                    configured.append(dt)
+        except Exception:
+            logger.debug("Could not resolve configured device_type; using plugin default", exc_info=True)
+
+        for dt in configured:
+            if dt in demo:
+                return dt
+        if demo:
+            return next(iter(demo))
+        return "flagship"
+
+    def demo_page_status(self, plugin_id: str, device_type: str = "flagship") -> dict[str, Any]:
+        """Whether a demo page exists for this plugin and device type.
+
+        Returns ``{"exists", "page_id", "has_demo_template"}`` — the
+        ``GET /plugins/{id}/demo-page`` payload. Raises
+        :class:`PluginNotFound` for an unknown plugin.
+        """
+        manifest = self.registry.get_manifest(plugin_id)
+        if not manifest:
+            raise PluginNotFound(f"Plugin not found: {plugin_id}")
+        if manifest.demo is None:
+            return {"exists": False, "page_id": None, "has_demo_template": False}
+
+        demo_page = self.page_service.get_demo_page(plugin_id, device_type=device_type)
+        return {
+            "exists": demo_page is not None,
+            "page_id": demo_page.id if demo_page else None,
+            "has_demo_template": device_type in manifest.demo,
+        }
+
+    def create_demo_page(
+        self,
+        plugin_id: str,
+        device_type: str | None = None,
+        *,
+        recreate: bool = True,
+    ) -> dict[str, Any]:
+        """Create (or recreate) the demo page for a plugin and device type.
+
+        When *device_type* is omitted it is resolved from the configured
+        board settings, so a Note board does not silently get a
+        Flagship-sized demo page (issue #942). The demo page is a singleton
+        per plugin + device type. With ``recreate=True`` (the REST default)
+        an existing page is deleted and rebuilt; with ``recreate=False`` an
+        existing page is left alone and returned, so an assistant does not
+        throw away a demo page the user has since edited.
+
+        Returns ``{"page", "created", "recreated", "device_type"}``:
+        ``created`` is False only when an existing page was kept.
+
+        Raises :class:`PluginNotFound` for an unknown plugin and
+        :class:`PluginOperationRejected` when the plugin ships no demo for
+        that device type or its required settings are not configured yet.
+        """
+        manifest = self.registry.get_manifest(plugin_id)
+        if not manifest:
+            raise PluginNotFound(f"Plugin not found: {plugin_id}")
+
+        if manifest.demo is None:
+            raise PluginOperationRejected(f"Plugin '{plugin_id}' does not include a demo page template.")
+
+        resolved_device_type = device_type or self.resolve_demo_device_type(manifest.demo)
+
+        demo_schema = manifest.demo.get(resolved_device_type)
+        if demo_schema is None:
+            raise PluginOperationRejected(
+                f"Plugin '{plugin_id}' has no demo template for device type '{resolved_device_type}'."
+            )
+
+        required_fields = manifest.settings_schema.get("required", [])
+        if required_fields:
+            plugin_config = self.config_manager.get_plugin_config(plugin_id) or {}
+            missing = [f for f in required_fields if f != "enabled" and not plugin_config.get(f)]
+            if missing:
+                raise PluginOperationRejected(
+                    f"Required settings not configured: {', '.join(missing)}. "
+                    f"Configure them first before creating a demo page."
+                )
+
+        page_service = self.page_service
+        if not recreate:
+            existing = page_service.get_demo_page(plugin_id, device_type=resolved_device_type)
+            if existing is not None:
+                return {"page": existing, "created": False, "recreated": False, "device_type": resolved_device_type}
+
+        page, recreated = page_service.create_demo_page(plugin_id, demo_schema)
+        return {"page": page, "created": True, "recreated": recreated, "device_type": resolved_device_type}
 
     # -- config / enablement mutations --------------------------------------
 
