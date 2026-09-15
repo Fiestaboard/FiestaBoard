@@ -105,8 +105,8 @@ import { api } from "@/lib/api";
 import { MAX_NOTES_PER_AXIS, resolveDimensions } from "@/lib/board-dimensions";
 import { applyLineOpInPlace } from "@/lib/line-ops";
 import { onLiveOutputMessageChange, writeLiveOutputMessage } from "@/lib/live-output-channel";
-import { clearPreviewCacheForPage } from "@/lib/preview-cache";
 import { getDraftKey } from "@/lib/page-draft";
+import { clearPreviewCacheForPage } from "@/lib/preview-cache";
 
 // Lazy-loaded — TipTap + ProseMirror + CodeMirror + the lucide-react icon
 // barrel push this module past 500 kB minified on their own (see #1575).
