@@ -294,6 +294,8 @@ export type WireMessage =
   | { role: "tool"; tool_call_id: string; name: string; status: WireToolStatus; result: unknown };
 
 export interface CurrentPageSnapshot {
+  /** The saved page's id; absent for an unsaved draft in /pages/new. */
+  id?: string;
   name: string;
   template: string[];
   line_metadata: LineMetadata[];
@@ -383,7 +385,7 @@ export interface SSETextData {
 }
 
 export interface SSEStatusData {
-  phase: "thinking" | "tool_running" | "tool_done";
+  phase: "thinking" | "tool_running";
   message: string;
   tool_call_id: string | null;
   step: number;

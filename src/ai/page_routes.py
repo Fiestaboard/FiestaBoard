@@ -258,7 +258,7 @@ class ChatStreamTextData(BaseModel):
 class ChatStreamStatusData(BaseModel):
     """``event: status`` — what the loop is doing, for the step timeline."""
 
-    phase: Literal["thinking", "tool_running", "tool_done"]
+    phase: Literal["thinking", "tool_running"]
     message: str
     tool_call_id: str | None = None
     step: int
@@ -419,12 +419,9 @@ async def get_ai_context(
     )
     payload = context.to_dict()
     if include_tools:
-        from .chat_tools import ChatExtensionBackend
-        from .mcp_bridge import CompositeToolBackend, McpToolBackend
         from .tool_catalog import ToolCatalog
 
-        descriptors = await CompositeToolBackend(McpToolBackend(), ChatExtensionBackend()).list_tools()
-        payload["tool_catalog"] = ToolCatalog(descriptors).render_addendum("global")
+        payload["tool_catalog"] = ToolCatalog(await _tool_backend().list_tools()).render_addendum("global")
     return AIPromptContextResponse(**payload)
 
 
@@ -494,6 +491,26 @@ async def generate_ai_page(request: AIGenerateRequest) -> AIGenerateResponse:
         ) from None
 
     return AIGenerateResponse.model_validate(result)
+
+
+_TOOL_BACKEND = None
+
+
+def _tool_backend():
+    """The one tool backend for the process, built on first use.
+
+    The MCP tool list is static for the life of the process, and
+    ``McpToolBackend`` caches it per instance — so one instance, not one per
+    request. Imported here, not at module scope: the ``mcp`` package must
+    stay out of the boot path (tests/test_mcp_lazy_mount.py).
+    """
+    global _TOOL_BACKEND
+    if _TOOL_BACKEND is None:
+        from .chat_tools import ChatExtensionBackend
+        from .mcp_bridge import CompositeToolBackend, McpToolBackend
+
+        _TOOL_BACKEND = CompositeToolBackend(McpToolBackend(), ChatExtensionBackend())
+    return _TOOL_BACKEND
 
 
 @router.post(
@@ -588,10 +605,8 @@ async def chat_ai_page(request: AIChatRequest) -> StreamingResponse:
     # and the ``mcp`` package must stay out of the boot path
     # (tests/test_mcp_lazy_mount.py). The first chat turn pays the import.
     from .agent import run_chat_turn
-    from .chat_tools import ChatExtensionBackend
-    from .mcp_bridge import CompositeToolBackend, McpToolBackend
 
-    backend = CompositeToolBackend(McpToolBackend(), ChatExtensionBackend())
+    backend = _tool_backend()
 
     async def event_source():
         """Render the normalized event stream as SSE bytes."""

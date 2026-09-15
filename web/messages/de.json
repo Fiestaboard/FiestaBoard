@@ -2035,8 +2035,7 @@
     },
     "status": {
       "thinking": "Denke nach…",
-      "running": "{tool} läuft…",
-      "done": "{tool} abgeschlossen"
+      "running": "{tool} läuft…"
     },
     "question": {
       "skip": "Überspringen",
@@ -2082,7 +2081,8 @@
       "getSettingsSummary": "Einstellungen lesen",
       "getActivePage": "Aktive Seite prüfen",
       "getBoardContent": "Board lesen"
-    }
+    },
+    "previewUnavailable": "(Vorschau nicht verfügbar)"
   },
   "boardSizeIndicator": {
     "custom": "Benutzerdefiniert",

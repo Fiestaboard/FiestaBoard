@@ -53,8 +53,18 @@ export const SETTING_QUERY_KEYS: Record<SettingCategory, Keys> = {
   active_page: [["activePage"], ["status"], ["board-current-message"]],
 };
 
-/** Read-only tools touch nothing; unknown writers refresh the usual suspects. */
-const BROAD: Keys = [["pages"], ["schedules"], ["collections"], ["plugins"]];
+/**
+ * Read-only tools touch nothing; a writer this map does not know refreshes
+ * everything any known writer touches. A new server tool must never leave a
+ * cache stale just because the web side has not learned its name yet.
+ */
+const BROAD: Keys = [
+  ...new Map(
+    [...Object.values(TOOL_QUERY_KEYS), ...Object.values(SETTING_QUERY_KEYS)]
+      .flat()
+      .map((key) => [key.join("/"), key] as const),
+  ).values(),
+];
 
 export function queryKeysForTool(call: Pick<ToolCall, "name" | "args" | "read_only">): Keys {
   if (call.read_only) return [];

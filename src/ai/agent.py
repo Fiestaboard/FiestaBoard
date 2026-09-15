@@ -76,6 +76,27 @@ class TurnLimits:
 
 async def run_chat_turn(
     *,
+    client: httpx.AsyncClient | None = None,
+    timeout_seconds: float = _DEFAULT_TIMEOUT_SECONDS,
+    **kwargs: Any,
+) -> AsyncIterator[dict[str, Any]]:
+    """Run one chat turn; see :func:`_run_chat_turn` for the parameters.
+
+    Owns one HTTP client for the whole turn when the caller passes none, so
+    the (up to ``max_model_calls``) provider requests of a turn reuse a
+    connection instead of paying a TCP + TLS handshake each.
+    """
+    if client is not None:
+        async for event in _run_chat_turn(client=client, timeout_seconds=timeout_seconds, **kwargs):
+            yield event
+        return
+    async with httpx.AsyncClient(timeout=timeout_seconds) as owned:
+        async for event in _run_chat_turn(client=owned, timeout_seconds=timeout_seconds, **kwargs):
+            yield event
+
+
+async def _run_chat_turn(
+    *,
     messages: list[dict[str, Any]],
     resume: dict[str, Any] | None,
     device_type: DeviceType,
@@ -142,23 +163,13 @@ async def run_chat_turn(
             )
             tool_calls_made += 1
             yield {"event": "tool_result", "data": _tool_result_data(pending["id"], pending["name"], outcome)}
-            transcript.append(_tool_message(pending, outcome))
+            _record_outcome(transcript, pending["id"], _tool_message(pending, outcome))
         elif decision == "deny":
-            denied = ToolOutcome(status="error", error="denied")
-            yield {
-                "event": "tool_result",
-                "data": {
-                    "id": pending["id"],
-                    "name": pending["name"],
-                    "status": "denied",
-                    "summary": "Not run.",
-                    "result": None,
-                    "error": None,
-                },
-            }
-            transcript.append({**_tool_message(pending, denied), "status": "denied", "result": None})
+            denied = ToolOutcome(status="denied")
+            yield {"event": "tool_result", "data": _tool_result_data(pending["id"], pending["name"], denied)}
+            _record_outcome(transcript, pending["id"], _tool_message(pending, denied))
         elif decision == "answer":
-            transcript.append(_answer_message(pending, resume.get("answer") or {}))
+            _record_outcome(transcript, pending["id"], _answer_message(pending, resume.get("answer") or {}))
         else:
             yield {"event": "error", "data": {"message": f"Unknown resume decision {decision!r}."}}
             return
@@ -394,6 +405,8 @@ def _tool_result_data(call_id: str, name: str, outcome: ToolOutcome) -> dict[str
 
 
 def _summary(name: str, outcome: ToolOutcome) -> str:
+    if outcome.status == "denied":
+        return "Not run."
     if outcome.status == "error":
         return outcome.error or f"{name} failed."
     result = outcome.result
@@ -423,6 +436,28 @@ def _tool_message(call: dict[str, Any], outcome: ToolOutcome) -> dict[str, Any]:
         "status": outcome.status,
         "result": outcome.result if outcome.status != "error" else {"error": outcome.error},
     }
+
+
+def _record_outcome(transcript: list[dict[str, Any]], call_id: str, message: dict[str, Any]) -> None:
+    """Put a call's outcome where the server would have put it: right after
+    the assistant turn that made the call (after any outcomes already
+    there), not at the end.
+
+    Stop-then-type sends the decision *with* a new user message; appending
+    the outcome after that message would let the renderer flush the call as
+    "interrupted" before it sees the denial, and the model would be told
+    both.
+    """
+    for index, entry in enumerate(transcript):
+        if entry.get("role") != "assistant":
+            continue
+        if any(call.get("id") == call_id for call in entry.get("tool_calls") or []):
+            insert_at = index + 1
+            while insert_at < len(transcript) and transcript[insert_at].get("role") == "tool":
+                insert_at += 1
+            transcript.insert(insert_at, message)
+            return
+    transcript.append(message)
 
 
 def _answer_message(call: dict[str, Any], answer: dict[str, Any]) -> dict[str, Any]:

@@ -5,14 +5,16 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useCallback, useEffect, useRef } from "react";
 import { toast } from "sonner";
 
-import { type AiChatController, AiChatPanel } from "@/components/ai-chat-panel";
+import { AiChatPanel } from "@/components/ai-chat-panel";
 import { useGlobalAiPanel } from "@/components/global-ai-panel-context";
 import { usePageEditorBridge } from "@/components/page-editor-bridge-context";
+import { useRouter } from "@/hooks/use-router";
 import { useTranslations } from "@/i18n/translations";
 import type { ChatTurnContext, ToolCall, ToolResult } from "@/lib/ai-chat-types";
 import { queryKeysForTool } from "@/lib/ai-choreography/query-keys";
 import { type AISettings, api, type ScheduleEntry } from "@/lib/api";
 import { isChromelessPath } from "@/lib/chromeless";
+import { getDraftKey } from "@/lib/page-draft";
 import type { StopReason } from "@/lib/use-ai-chat";
 import { cn } from "@/lib/utils";
 
@@ -37,8 +39,8 @@ export function GlobalAiChatDrawer() {
   const panelRef = useRef<HTMLDivElement>(null);
   // The element that had focus when the panel opened, so we can restore it on close.
   const openerRef = useRef<HTMLElement | null>(null);
-  const controllerRef = useRef<AiChatController | null>(null);
   const queryClient = useQueryClient();
+  const router = useRouter();
   const { getEditorSnapshot } = usePageEditorBridge();
 
   // The browser-side loop's chaining preference has no meaning any more;
@@ -349,24 +351,42 @@ export function GlobalAiChatDrawer() {
 
   const invalidateFor = useCallback(
     async (call: ToolCall) => {
-      for (const key of queryKeysForTool(call)) {
-        await queryClient.invalidateQueries({ queryKey: [...key] });
-      }
+      await Promise.all(queryKeysForTool(call).map((key) => queryClient.invalidateQueries({ queryKey: [...key] })));
     },
     [queryClient],
   );
 
   const handleToolResult = useCallback(
     (result: ToolResult, call: ToolCall) => {
-      // Undo needs the pre-mutation entry; the cache still has it because
-      // invalidation has not run yet.
+      // Undo needs the pre-mutation entry. Read it from the cache now, not
+      // from a render-time snapshot: this handler is captured for the whole
+      // turn, and an earlier call in the same turn may have refreshed it.
       const previousSchedule =
         call.name === "update_schedule" || call.name === "delete_schedule"
-          ? schedulesData?.schedules?.find((s) => s.id === call.args.schedule_id)
+          ? queryClient
+              .getQueryData<{ schedules?: ScheduleEntry[] }>(["schedules"])
+              ?.schedules?.find((s) => s.id === call.args.schedule_id)
           : undefined;
-      void invalidateFor(call).then(() => toastForToolResult(call, result, previousSchedule));
+      void invalidateFor(call).then(() => {
+        toastForToolResult(call, result, previousSchedule);
+        // The prompt promises that a created page is opened for the user.
+        // If it grew out of the editor's unsaved draft, the draft is done
+        // with: drop it so /pages/new does not offer to restore it later.
+        const pageId = result.status === "ok" ? (result.result as { page_id?: unknown } | null)?.page_id : undefined;
+        if (call.name === "create_page" && typeof pageId === "string") {
+          const editing = getEditorSnapshot();
+          if (editing && !editing.id) {
+            try {
+              localStorage.removeItem(getDraftKey());
+            } catch {
+              /* storage may be unavailable */
+            }
+          }
+          router.push(`/pages/edit/${pageId}`);
+        }
+      });
     },
-    [invalidateFor, schedulesData, toastForToolResult],
+    [getEditorSnapshot, invalidateFor, queryClient, router, toastForToolResult],
   );
 
   // Stop ends the stream, but a tool that was already running finishes on
@@ -391,7 +411,13 @@ export function GlobalAiChatDrawer() {
       const refresh = () => {
         for (const call of unresolved) void invalidateFor(call);
       };
-      refreshTimersRef.current.push(window.setTimeout(refresh, 1000), window.setTimeout(refresh, 5000));
+      for (const delay of [1000, 5000]) {
+        const id = window.setTimeout(() => {
+          refreshTimersRef.current = refreshTimersRef.current.filter((t) => t !== id);
+          refresh();
+        }, delay);
+        refreshTimersRef.current.push(id);
+      }
     },
     [invalidateFor, t],
   );
@@ -433,7 +459,6 @@ export function GlobalAiChatDrawer() {
         onToolResult={handleToolResult}
         onStopped={handleStopped}
         onClose={close}
-        controllerRef={controllerRef}
       />
     </Box>
   );

@@ -325,6 +325,10 @@ def test_resume_with_a_trailing_user_message_denies_then_continues_with_it():
     assert _only(events, "tool_result")[0]["status"] == "denied"
     last = provider.messages_of(0)[-1]["content"]
     assert "denied by the user" in last and "rename it instead" in last
+    # The denial is recorded where the server would have put it — right
+    # after the call — so the renderer never also flushes it as interrupted.
+    assert "interrupted" not in last
+    assert last.index("denied by the user") < last.index("rename it instead")
 
 
 def test_resume_is_rejected_when_no_matching_pending_call():

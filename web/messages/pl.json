@@ -2035,8 +2035,7 @@
     },
     "status": {
       "thinking": "Myślę…",
-      "running": "Wykonywanie: {tool}…",
-      "done": "Zakończono: {tool}"
+      "running": "Wykonywanie: {tool}…"
     },
     "question": {
       "skip": "Pomiń",
@@ -2082,7 +2081,8 @@
       "getSettingsSummary": "Odczytaj ustawienia",
       "getActivePage": "Sprawdź aktywną stronę",
       "getBoardContent": "Odczytaj tablicę"
-    }
+    },
+    "previewUnavailable": "(podgląd niedostępny)"
   },
   "boardSizeIndicator": {
     "custom": "Niestandardowy",

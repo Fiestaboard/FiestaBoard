@@ -106,6 +106,7 @@ import { MAX_NOTES_PER_AXIS, resolveDimensions } from "@/lib/board-dimensions";
 import { applyLineOpInPlace } from "@/lib/line-ops";
 import { onLiveOutputMessageChange, writeLiveOutputMessage } from "@/lib/live-output-channel";
 import { clearPreviewCacheForPage } from "@/lib/preview-cache";
+import { getDraftKey } from "@/lib/page-draft";
 
 // Lazy-loaded — TipTap + ProseMirror + CodeMirror + the lucide-react icon
 // barrel push this module past 500 kB minified on their own (see #1575).
@@ -169,11 +170,6 @@ const UNDO_STACK_LIMIT = 5;
 
 // 1..MAX_NOTES_PER_AXIS choices for the note-array W×H selectors.
 const NOTE_AXIS_OPTIONS = Array.from({ length: MAX_NOTES_PER_AXIS }, (_, i) => i + 1);
-
-// Draft storage key helper
-function getDraftKey(pageId?: string): string {
-  return `fiestaboard-page-draft-${pageId || "new"}`;
-}
 
 const EDITOR_MODE_KEY = "fiestaboard_editor_mode";
 
@@ -391,7 +387,11 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
     setDebouncedLineWrapEnabled(snap.lineWrapEnabled);
   }, []);
 
-  /** Apply one structured AI tool call to the editor state. */
+  /**
+   * Apply one editor-local edit to the draft. The AI chat no longer drives
+   * this directly (its tools write through the server); it stays as the
+   * editor bridge's apply path until the staged-typing work replaces it.
+   */
   const applyToolCall = useCallback(
     (call: EditorToolCall) => {
       // Only the two editor-local ops are applied here; anything else must
@@ -454,6 +454,9 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
     const lines = templateLinesRef.current;
     if (!nameRef.current && !lines.some((l) => l)) return undefined;
     return {
+      // The id tells the assistant whether update_page can target this
+      // page; an unsaved draft has none and is created instead.
+      ...(pageId ? { id: pageId } : {}),
       name: nameRef.current,
       template: lines,
       line_metadata: lines.map((_, i) => ({
@@ -461,7 +464,7 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
         wrap: lineWrapEnabledRef.current[i] ?? false,
       })),
     };
-  }, []);
+  }, [pageId]);
 
   useImperativeHandle(
     ref,
@@ -715,9 +718,23 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
   const isShrinkingRetarget =
     !!pageId && !!originalDims && (dims.rows < originalDims.rows || dims.cols < originalDims.cols);
 
+  // Refetches of the page (the AI drawer invalidates ["page"] after an
+  // update_page) must not overwrite what the user is typing: seed once per
+  // page, and re-seed later only while the editor is clean. Read through a
+  // ref so the effect does not re-run on every keystroke.
+  const hasUnsavedChangesRef = useRef(false);
+  useEffect(() => {
+    hasUnsavedChangesRef.current = hasUnsavedChanges;
+  }, [hasUnsavedChanges]);
+  const seededPageIdRef = useRef<string | null>(null);
+
   // Load draft or existing page data
   useEffect(() => {
     if (existingPage) {
+      if (seededPageIdRef.current === existingPage.id && hasUnsavedChangesRef.current) {
+        return;
+      }
+      seededPageIdRef.current = existingPage.id;
       // Clear draft when loading existing page
       const draftKey = getDraftKey(pageId);
       localStorage.removeItem(draftKey);

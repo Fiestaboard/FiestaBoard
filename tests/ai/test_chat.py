@@ -428,6 +428,11 @@ _CATALOG = ToolCatalog(
             "validate_template",
             {"type": "object", "properties": {"template": {"type": "string"}, "device_type": {"type": "string"}}},
         ),
+        _descriptor(
+            "render_page_preview",
+            {"type": "object", "properties": {"template_lines": {"type": "array"}}, "required": ["template_lines"]},
+            read_only=True,
+        ),
     ]
 )
 
@@ -573,7 +578,20 @@ def test_fence_parser_repairs_create_page_filled_color():
     assert "green" in warnings[0]["data"]["message"]
 
 
-def test_fence_parser_repairs_validate_template_string():
+def test_fence_parser_leaves_a_read_only_preview_unrepaired():
+    """render_page_preview carries template_lines like create_page does, but
+    it is a viewer, not a writer: it renders what the model wrote."""
+    body = json.dumps({"op": "render_page_preview", "args": {"template_lines": ["X{{filled:red.}}", "OK"]}})
+    events = _events(_parser(), f"```fiestaboard\n{body}\n```")
+    tools = [e for e in events if e["event"] == "tool_call"]
+    assert len(tools) == 1
+    assert tools[0]["data"]["args"]["template_lines"] == ["X{{filled:red.}}", "OK"]
+    assert [e for e in events if e["event"] == "warning"] == []
+
+
+def test_fence_parser_leaves_validate_template_exactly_as_written():
+    """The checker must see the model's own text: repairing it first would
+    report a mistake as valid and the model would keep making it."""
     body = json.dumps(
         {"op": "validate_template", "args": {"template": "X{{filled:red.}}\nOK", "device_type": "flagship"}}
     )
@@ -581,8 +599,8 @@ def test_fence_parser_repairs_validate_template_string():
     tools = [e for e in events if e["event"] == "tool_call"]
     warnings = [e for e in events if e["event"] == "warning"]
     assert len(tools) == 1
-    assert tools[0]["data"]["args"]["template"] == "X{{filled:red}}\nOK"
-    assert len(warnings) == 1
+    assert tools[0]["data"]["args"]["template"] == "X{{filled:red.}}\nOK"
+    assert warnings == []
 
 
 # ---------------------------------------------------------------------------

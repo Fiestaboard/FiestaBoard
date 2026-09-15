@@ -2035,8 +2035,7 @@
     },
     "status": {
       "thinking": "Думаю…",
-      "running": "Выполняется: {tool}…",
-      "done": "Завершено: {tool}"
+      "running": "Выполняется: {tool}…"
     },
     "question": {
       "skip": "Пропустить",
@@ -2082,7 +2081,8 @@
       "getSettingsSummary": "Прочитать настройки",
       "getActivePage": "Проверить активную страницу",
       "getBoardContent": "Прочитать доску"
-    }
+    },
+    "previewUnavailable": "(предпросмотр недоступен)"
   },
   "boardSizeIndicator": {
     "custom": "Пользовательский",

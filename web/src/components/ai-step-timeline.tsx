@@ -4,7 +4,8 @@ import { Box, Shimmer, Task, TaskContent, TaskItem, TaskTrigger } from "@fiestab
 
 import { detailForTool, labelForTool, type TranslateFn } from "@/components/ai-tool-labels";
 import { useTranslations } from "@/i18n/translations";
-import type { ChatMessage, ToolCallDisplay, ToolPhase, TurnStatus } from "@/lib/ai-chat-types";
+import type { ChatMessage, ToolPhase, TurnStatus } from "@/lib/ai-chat-types";
+import { findCall } from "@/lib/use-ai-chat";
 
 type ItemStatus = "pending" | "running" | "done" | "error";
 
@@ -40,7 +41,9 @@ export function currentTurnEntries(messages: ChatMessage[]): ChatMessage[] {
 export function AiStepTimeline({ messages }: { messages: ChatMessage[] }) {
   const t = useTranslations("aiChatPanel");
   const entries = currentTurnEntries(messages);
-  const calls = entries.flatMap((m) => m.toolCalls ?? []);
+  // A question is answered by the person, not run by the server; its card
+  // is the question itself, so it is not a step here.
+  const calls = entries.flatMap((m) => m.toolCalls ?? []).filter((c) => c.name !== "ask_user");
   const last = entries[entries.length - 1];
   const doneCount = calls.filter((c) => c.phase === "ok").length;
   const statusLine = last?.pending && last.status ? statusText(last.status, messages, t) : null;
@@ -83,13 +86,5 @@ function statusText(status: TurnStatus, messages: ChatMessage[], t: TranslateFn)
   // the entry that proposed it), so look across the whole transcript.
   const call = status.toolCallId ? findCall(messages, status.toolCallId) : undefined;
   const tool = call ? labelForTool(call, t) : "";
-  return status.phase === "tool_done" ? t("status.done", { tool }) : t("status.running", { tool });
-}
-
-function findCall(messages: ChatMessage[], id: string): ToolCallDisplay | undefined {
-  for (let i = messages.length - 1; i >= 0; i--) {
-    const hit = messages[i].toolCalls?.find((c) => c.id === id);
-    if (hit) return hit;
-  }
-  return undefined;
+  return t("status.running", { tool });
 }

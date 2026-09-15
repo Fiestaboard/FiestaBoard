@@ -206,7 +206,10 @@ describe("useAiChat", () => {
     // the transcript here does the same so a replay reads identically.
     expect(result.current.messages).toHaveLength(3);
     expect(result.current.messages[2]).toMatchObject({ role: "assistant", content: "", pending: true });
-    expect(result.current.messages[1].toolCalls![0].phase).toBe("running");
+    // Approve is not "running" until the server says so: the card and the
+    // pending approval stay until the status frame confirms the call.
+    expect(result.current.messages[1].toolCalls![0].phase).toBe("awaiting_approval");
+    expect(result.current.pendingApproval?.id).toBe("tc2");
     expect(lastBody().resume).toEqual({ tool_call_id: "tc2", decision: "approve" });
     // The replayed transcript carries the pending call; the server answers it.
     expect(lastBody().messages).toEqual([
@@ -217,6 +220,11 @@ describe("useAiChat", () => {
         tool_calls: [{ id: "tc2", name: "delete_page", args: { page_id: "p1" } }],
       },
     ]);
+    await act(async () => {
+      capturedHandlers?.onStatus?.({ phase: "tool_running", message: "Running…", tool_call_id: "tc2", step: 0 });
+    });
+    expect(result.current.messages[1].toolCalls![0].phase).toBe("running");
+    expect(result.current.pendingApproval).toBeNull();
     await act(async () => {
       capturedHandlers?.onToolResult?.({ ...OK, id: "tc2", name: "delete_page", summary: "Deleted." });
       capturedHandlers?.onText?.(" Gone.");
@@ -231,7 +239,7 @@ describe("useAiChat", () => {
     expect(result.current.status).toBe("idle");
   });
 
-  it("stopping a resumed turn before the approved call reports marks that call stopped", async () => {
+  it("stopping a resumed turn while the approved call runs marks it stopped and reports it", async () => {
     const onStopped = vi.fn();
     const { result } = renderHook(() => useAiChat(makeOpts({ onStopped })));
     act(() => {
@@ -246,13 +254,57 @@ describe("useAiChat", () => {
       result.current.approve("tc2", "approve");
     });
     await act(async () => {
+      // The server re-sends no tool_call for an approved call; the status
+      // frame is what puts it in this turn's set.
+      capturedHandlers?.onStatus?.({ phase: "tool_running", message: "Running…", tool_call_id: "tc2", step: 0 });
+    });
+    await act(async () => {
       result.current.stop();
       resolveStream?.();
     });
     expect(result.current.messages[1].toolCalls![0].phase).toBe("stopped");
+    // The drawer must hear about it: the delete may have finished server-side.
+    expect(onStopped).toHaveBeenCalledWith([expect.objectContaining({ id: "tc2", name: "delete_page" })], "stopped");
     expect(toWireMessages(result.current.messages).filter((m) => m.role === "tool")).toEqual([
       { role: "tool", tool_call_id: "tc2", name: "delete_page", status: "interrupted", result: null },
     ]);
+  });
+
+  it("a rejected approve leaves the decision pending instead of marking the call interrupted", async () => {
+    const onStopped = vi.fn();
+    const { result } = renderHook(() => useAiChat(makeOpts({ onStopped })));
+    act(() => {
+      result.current.send("delete it");
+    });
+    await act(async () => {
+      capturedHandlers?.onToolCall?.(DELETE_PAGE);
+      capturedHandlers?.onDone?.({ ...DONE, reason: "awaiting_approval", pending_tool_call_id: "tc2" });
+      resolveStream?.();
+    });
+    act(() => {
+      result.current.approve("tc2", "approve");
+    });
+    await act(async () => {
+      capturedHandlers?.onError?.("No tool call 'tc2' is awaiting a decision.");
+      resolveStream?.();
+    });
+    expect(result.current.status).toBe("error");
+    expect(result.current.messages[1].toolCalls![0].phase).toBe("awaiting_approval");
+    expect(result.current.pendingApproval?.id).toBe("tc2");
+    expect(onStopped).not.toHaveBeenCalled();
+    // Nothing ran, so the transcript still shows the call as pending.
+    expect(toWireMessages(result.current.messages, "tc2").filter((m) => m.role === "tool")).toEqual([]);
+  });
+
+  it("a create_page card previews at the device size the call asks for", async () => {
+    const { result } = renderHook(() => useAiChat(makeOpts()));
+    act(() => {
+      result.current.send("a note page");
+    });
+    await act(async () => {
+      capturedHandlers?.onToolCall?.({ ...CREATE_PAGE, args: { ...CREATE_PAGE.args, device_type: "note" } });
+    });
+    expect(result.current.messages[1].toolCalls![0].deviceType).toBe("note");
   });
 
   it("deny is recorded on the card and sent as the decision", async () => {
@@ -347,6 +399,8 @@ describe("useAiChat", () => {
     // The answer is not a user bubble; it rides on the resume — and only
     // there. The transcript keeps q1 pending for the server to answer.
     expect(result.current.messages.filter((m) => m.role === "user")).toHaveLength(1);
+    // The question's call is settled on the card once answered.
+    expect(result.current.messages[1].toolCalls![0].phase).toBe("ok");
     expect(lastBody().messages).toEqual([
       { role: "user", content: "put the weather up" },
       {
@@ -539,6 +593,20 @@ describe("toWireMessages", () => {
 });
 
 describe("computeAppliedSnapshot", () => {
+  it("builds on the editor's page only when update_page targets that page", () => {
+    const base = { id: "p1", name: "Morning", template: ["A", "B"], line_metadata: [] };
+    const rename = { name: "update_page", args: { page_id: "p1", name: "Dawn" } };
+    expect(computeAppliedSnapshot(rename, base)).toMatchObject({ id: "p1", name: "Dawn", template: ["A", "B"] });
+    // Another page: nothing local to preview from.
+    expect(computeAppliedSnapshot({ ...rename, args: { page_id: "p2", name: "Dawn" } }, base)).toBeUndefined();
+    // An unsaved draft has no id, so it cannot be the target either.
+    expect(computeAppliedSnapshot(rename, { ...base, id: undefined })).toBeUndefined();
+    // With template_lines the preview stands on its own.
+    expect(
+      computeAppliedSnapshot({ name: "update_page", args: { page_id: "p2", template_lines: ["X"] } }, base),
+    ).toMatchObject({ name: "", template: ["X"] });
+  });
+
   it("previews a create_page from its template lines", () => {
     const snap = computeAppliedSnapshot(CREATE_PAGE, undefined);
     expect(snap?.name).toBe("Morning");

@@ -40,7 +40,7 @@ import {
 import { Spinner } from "@fiestaboard/ui/components/feedback/spinner";
 import { useQuery } from "@tanstack/react-query";
 import { AlertCircle, RotateCcw, Sparkles, Trash2, X } from "lucide-react";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { memo, useCallback, useMemo, useState } from "react";
 
 import { AiApprovalCard } from "@/components/ai-approval-card";
 import { AiQuestionCard } from "@/components/ai-question-card";
@@ -64,13 +64,6 @@ import type {
 import { type AISettings, api } from "@/lib/api";
 import { type StopReason, useAiChat } from "@/lib/use-ai-chat";
 
-/** What the drawer can drive from outside the panel (spotlight controls, later). */
-export interface AiChatController {
-  approve: (toolCallId: string, decision: ApprovalDecision) => void;
-  answer: (toolCallId: string, answer: ElicitationAnswer) => void;
-  stop: () => void;
-}
-
 export interface AiChatPanelProps {
   /** Per-turn context (device type, current page snapshot, what exists). */
   getTurnContext: () => ChatTurnContext;
@@ -85,12 +78,6 @@ export interface AiChatPanelProps {
   onStopped?: (unresolved: ToolCall[], reason: StopReason) => void;
   /** Close button hides the panel without losing the existing layout. */
   onClose: () => void;
-  /**
-   * Slot ref: the panel writes its controller here so a sibling (the
-   * drawer's spotlight strip) can approve, answer or stop without
-   * prop-drilling through the conversation.
-   */
-  controllerRef?: React.MutableRefObject<AiChatController | null>;
 }
 
 export function AiChatPanel({
@@ -102,7 +89,6 @@ export function AiChatPanel({
   onStatus,
   onStopped,
   onClose,
-  controllerRef,
 }: AiChatPanelProps) {
   const t = useTranslations("aiChatPanel");
   const [providerId, setProviderId] = useState<string>("");
@@ -152,11 +138,6 @@ export function AiChatPanel({
     providerId: effectiveProviderId || undefined,
     model: effectiveModel || undefined,
   });
-
-  // Slot-ref pattern: keep the parent's ref pointed at the latest controller.
-  useEffect(() => {
-    if (controllerRef) controllerRef.current = { approve, answer, stop };
-  }, [controllerRef, approve, answer, stop]);
 
   const streaming = status === "streaming";
   const composerStatus = streaming ? "streaming" : status === "error" ? "error" : "ready";
@@ -495,45 +476,16 @@ function AssistantTurn({
           {entries.map((message, i) => {
             const isLastEntry = isLast && i === entries.length - 1;
             return (
-              <Stack key={i} gap="2">
-                {message.content && (
-                  <Box className="break-words text-sm">
-                    <ChatMarkdown>{message.content}</ChatMarkdown>
-                  </Box>
-                )}
-                {message.toolCalls
-                  ?.filter((call) => call.name !== "ask_user")
-                  .map((call) => (
-                    <Stack key={call.id} gap="1.5">
-                      <ToolCallCard call={call} />
-                      {isLastEntry && pendingApproval?.id === call.id && call.phase === "awaiting_approval" ? (
-                        <AiApprovalCard
-                          call={call}
-                          busy={busy}
-                          onApprove={() => onApprove(call.id, "approve")}
-                          onDeny={() => onApprove(call.id, "deny")}
-                        />
-                      ) : null}
-                    </Stack>
-                  ))}
-                {message.elicitation ? (
-                  <AiQuestionCard
-                    elicitation={message.elicitation}
-                    busy={busy || (isLastEntry && pendingElicitation === null && !message.elicitation.answer)}
-                    onAnswer={(a) => onAnswer(message.elicitation!.id, a)}
-                  />
-                ) : null}
-                {message.warnings && message.warnings.length > 0 && (
-                  <Stack gap="1">
-                    {message.warnings.map((w, j) => (
-                      <Alert key={j} className="py-1.5 text-xs">
-                        <AlertCircle className="h-3 w-3" />
-                        <AlertDescription>{w}</AlertDescription>
-                      </Alert>
-                    ))}
-                  </Stack>
-                )}
-              </Stack>
+              <AssistantEntry
+                key={i}
+                message={message}
+                isLastEntry={isLastEntry}
+                pendingApproval={isLastEntry ? pendingApproval : null}
+                pendingElicitation={isLastEntry ? pendingElicitation : null}
+                busy={isLastEntry ? busy : false}
+                onApprove={onApprove}
+                onAnswer={onAnswer}
+              />
             );
           })}
         </Stack>
@@ -541,6 +493,72 @@ function AssistantTurn({
     </Message>
   );
 }
+
+/**
+ * One model call's output. Memoised so a streamed delta re-renders only the
+ * entry it lands in: `patchLastAssistant` keeps every other entry's object
+ * identity, and the pending/busy props are only ever non-empty for the
+ * last entry.
+ */
+const AssistantEntry = memo(function AssistantEntry({
+  message,
+  isLastEntry,
+  pendingApproval,
+  pendingElicitation,
+  busy,
+  onApprove,
+  onAnswer,
+}: {
+  message: ChatMessage;
+  isLastEntry: boolean;
+  pendingApproval: ToolCall | null;
+  pendingElicitation: Elicitation | null;
+  busy: boolean;
+  onApprove: (id: string, decision: ApprovalDecision) => void;
+  onAnswer: (id: string, answer: ElicitationAnswer) => void;
+}) {
+  return (
+    <Stack gap="2">
+      {message.content && (
+        <Box className="break-words text-sm">
+          <ChatMarkdown>{message.content}</ChatMarkdown>
+        </Box>
+      )}
+      {message.toolCalls
+        ?.filter((call) => call.name !== "ask_user")
+        .map((call) => (
+          <Stack key={call.id} gap="1.5">
+            <ToolCallCard call={call} />
+            {isLastEntry && pendingApproval?.id === call.id && call.phase === "awaiting_approval" ? (
+              <AiApprovalCard
+                call={call}
+                busy={busy}
+                onApprove={() => onApprove(call.id, "approve")}
+                onDeny={() => onApprove(call.id, "deny")}
+              />
+            ) : null}
+          </Stack>
+        ))}
+      {message.elicitation ? (
+        <AiQuestionCard
+          elicitation={message.elicitation}
+          busy={busy || (isLastEntry && pendingElicitation === null && !message.elicitation.answer)}
+          onAnswer={(a) => onAnswer(message.elicitation!.id, a)}
+        />
+      ) : null}
+      {message.warnings && message.warnings.length > 0 && (
+        <Stack gap="1">
+          {message.warnings.map((w, j) => (
+            <Alert key={j} className="py-1.5 text-xs">
+              <AlertCircle className="h-3 w-3" />
+              <AlertDescription>{w}</AlertDescription>
+            </Alert>
+          ))}
+        </Stack>
+      )}
+    </Stack>
+  );
+});
 
 const TOOL_STATE_FOR_PHASE: Record<ToolPhase, ToolState> = {
   running: "input-available",

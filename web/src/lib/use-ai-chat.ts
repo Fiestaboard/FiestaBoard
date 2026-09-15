@@ -32,6 +32,7 @@ import type {
   UpdatePageArgs,
   WireMessage,
 } from "./ai-chat-types";
+import type { DeviceType } from "./api";
 import { streamChat } from "./api-stream";
 
 export type ChatStatus = "idle" | "streaming" | "awaiting_approval" | "awaiting_input" | "error";
@@ -81,6 +82,12 @@ export interface UseAiChatResult {
 
 interface RunOptions {
   resume?: ResumePayload;
+  /**
+   * Keep the approval card up until the server reports the call running.
+   * An approve is not "done" when the request goes out: a rejected resume
+   * must leave the decision pending, not pretend the tool ran.
+   */
+  keepApproval?: boolean;
 }
 
 /** Why a turn ended without a result for every call it started. */
@@ -117,7 +124,7 @@ export function useAiChat(opts: UseAiChatOptions): UseAiChatResult {
       const controller = new AbortController();
       abortRef.current = controller;
       setStatus("streaming");
-      setPendingApproval(null);
+      if (!options.keepApproval) setPendingApproval(null);
       setPendingElicitation(null);
       setError(null);
       callsRef.current = new Map();
@@ -158,6 +165,19 @@ export function useAiChat(opts: UseAiChatOptions): UseAiChatResult {
             onText: (delta) => patch((m) => ({ ...m, content: m.content + delta })),
             onStatus: (s) => {
               patch((m) => ({ ...m, status: { phase: s.phase, toolCallId: s.tool_call_id } }));
+              if (s.phase === "tool_running" && s.tool_call_id) {
+                // The server confirms a call is running. For an approved
+                // call this is the only signal (no tool_call frame is
+                // re-sent), so the card leaves "awaiting approval" here and
+                // the call joins this turn's set — Stop must report it.
+                const id = s.tool_call_id;
+                if (!callsRef.current.has(id)) {
+                  const known = findCall(history, id);
+                  if (known) callsRef.current.set(id, known);
+                }
+                patchCall(id, (c) => (c.phase === "awaiting_approval" ? { ...c, phase: "running" } : c));
+                setPendingApproval((p) => (p?.id === id ? null : p));
+              }
               onStatus?.(s);
             },
             onToolCall: (call) => {
@@ -166,7 +186,7 @@ export function useAiChat(opts: UseAiChatOptions): UseAiChatResult {
                 ...call,
                 phase: "running",
                 appliedSnapshot: computeAppliedSnapshot(call, runningSnapshot),
-                deviceType: ctx.deviceType,
+                deviceType: deviceTypeForCall(call, ctx.deviceType),
               };
               if (display.appliedSnapshot) runningSnapshot = display.appliedSnapshot;
               patch((m) => ({ ...m, toolCalls: [...(m.toolCalls ?? []), display] }));
@@ -176,6 +196,7 @@ export function useAiChat(opts: UseAiChatOptions): UseAiChatResult {
               resolvedRef.current.add(result.id);
               patch((m) => ({ ...m, status: undefined }));
               patchCall(result.id, (c) => ({ ...c, result, phase: result.status as ToolPhase }));
+              setPendingApproval((p) => (p?.id === result.id ? null : p));
               const call = callsRef.current.get(result.id) ?? findCall(history, result.id);
               if (call) onToolResult?.(result, call);
             },
@@ -216,7 +237,6 @@ export function useAiChat(opts: UseAiChatOptions): UseAiChatResult {
         // changed anyway; the transcript renders them as interrupted.
         const unresolved = [...callsRef.current.values()].filter((c) => !resolvedRef.current.has(c.id));
         const stillRunning = new Set(unresolved.map((c) => c.id));
-        if (options.resume?.decision === "approve") stillRunning.add(options.resume.tool_call_id);
         setMessages((prev) => {
           const settled = patchLastAssistant(prev, (m) => ({ ...m, pending: false, status: undefined }));
           if (ended) return settled;
@@ -273,9 +293,7 @@ export function useAiChat(opts: UseAiChatOptions): UseAiChatResult {
         // The composer is the answer channel while a question is pending.
         const id = pendingElicitation.id;
         const answer: ElicitationAnswer = { action: "accept", content: { answer: trimmed } };
-        const next = patchLastAssistant(current, (m) =>
-          m.elicitation ? { ...m, elicitation: { ...m.elicitation, answer } } : m,
-        );
+        const next = recordAnswer(current, id, answer);
         setMessages(next);
         setPendingElicitation(null);
         void runStream(next, { resume: { tool_call_id: id, decision: "answer", answer } });
@@ -305,23 +323,23 @@ export function useAiChat(opts: UseAiChatOptions): UseAiChatResult {
   const approve = useCallback(
     (toolCallId: string, decision: ApprovalDecision) => {
       const current = messagesRef.current;
-      const next = patchCallById(current, toolCallId, (c) => ({
-        ...c,
-        phase: decision === "approve" ? "running" : "denied",
-      }));
-      setMessages(next);
-      setPendingApproval(null);
-      void runStream(next, { resume: { tool_call_id: toolCallId, decision } });
+      if (decision === "deny") {
+        const next = patchCallById(current, toolCallId, (c) => ({ ...c, phase: "denied" }));
+        setMessages(next);
+        setPendingApproval(null);
+        void runStream(next, { resume: { tool_call_id: toolCallId, decision } });
+        return;
+      }
+      // The card stays "awaiting approval" until the server says the call
+      // is running (a status frame); a rejected resume leaves it pending.
+      void runStream(current, { resume: { tool_call_id: toolCallId, decision }, keepApproval: true });
     },
     [runStream],
   );
 
   const answer = useCallback(
     (toolCallId: string, given: ElicitationAnswer) => {
-      const current = messagesRef.current;
-      const next = patchLastAssistant(current, (m) =>
-        m.elicitation ? { ...m, elicitation: { ...m.elicitation, answer: given } } : m,
-      );
+      const next = recordAnswer(messagesRef.current, toolCallId, given);
       setMessages(next);
       setPendingElicitation(null);
       void runStream(next, { resume: { tool_call_id: toolCallId, decision: "answer", answer: given } });
@@ -408,12 +426,32 @@ function patchLastAssistant(list: ChatMessage[], update: (m: ChatMessage) => Cha
   return next;
 }
 
-function findCall(history: ChatMessage[], id: string): ToolCall | undefined {
-  for (const m of history) {
-    const hit = m.toolCalls?.find((c) => c.id === id);
+/** The call with this id, wherever it sits in the transcript. */
+export function findCall(history: ChatMessage[], id: string): ToolCallDisplay | undefined {
+  for (let i = history.length - 1; i >= 0; i--) {
+    const hit = history[i].toolCalls?.find((c) => c.id === id);
     if (hit) return hit;
   }
   return undefined;
+}
+
+/** Pure: the answer on the question's entry, and its ask_user call settled. */
+function recordAnswer(history: ChatMessage[], toolCallId: string, given: ElicitationAnswer): ChatMessage[] {
+  const withAnswer = history.map((m) =>
+    m.role === "assistant" && m.elicitation?.id === toolCallId
+      ? { ...m, elicitation: { ...m.elicitation, answer: given } }
+      : m,
+  );
+  return patchCallById(withAnswer, toolCallId, (c) => ({ ...c, phase: "ok" }));
+}
+
+/** A create_page card previews at the size the page is created for. */
+function deviceTypeForCall(call: ToolCall, fallback: DeviceType): DeviceType {
+  if (call.name === "create_page") {
+    const requested = (call.args as unknown as CreatePageArgs).device_type;
+    if (typeof requested === "string") return requested;
+  }
+  return fallback;
 }
 
 /**
@@ -502,12 +540,16 @@ export function computeAppliedSnapshot(
   }
   if (call.name === "update_page") {
     const a = call.args as unknown as UpdatePageArgs;
-    const template = a.template_lines ?? base?.template;
+    // The editor's page is only the base when it is the page being updated;
+    // an update to another page has nothing local to build on.
+    const target = base?.id && base.id === a.page_id ? base : undefined;
+    const template = a.template_lines ?? target?.template;
     if (!template) return undefined;
     return {
-      name: a.name ?? base?.name ?? "",
+      ...(target?.id ? { id: target.id } : {}),
+      name: a.name ?? target?.name ?? "",
       template,
-      line_metadata: template.map((_, i) => base?.line_metadata?.[i] ?? { alignment: "left", wrap: false }),
+      line_metadata: template.map((_, i) => target?.line_metadata?.[i] ?? { alignment: "left", wrap: false }),
     };
   }
   return undefined;

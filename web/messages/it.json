@@ -2035,8 +2035,7 @@
     },
     "status": {
       "thinking": "Sto pensando…",
-      "running": "Esecuzione di {tool}…",
-      "done": "{tool} completato"
+      "running": "Esecuzione di {tool}…"
     },
     "question": {
       "skip": "Salta",
@@ -2082,7 +2081,8 @@
       "getSettingsSummary": "Leggi impostazioni",
       "getActivePage": "Verifica pagina attiva",
       "getBoardContent": "Leggi board"
-    }
+    },
+    "previewUnavailable": "(anteprima non disponibile)"
   },
   "boardSizeIndicator": {
     "custom": "Personalizzato",

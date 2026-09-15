@@ -96,4 +96,4 @@ class ChatExtensionBackend:
         return ToolOutcome(status="error", error=f"Unknown tool: {name}")
 
 
-__all__ = ["ASK_USER", "TRIGGER_SYSTEM_UPDATE", "AskUserArgs", "ChatExtensionBackend"]
+__all__ = ["ASK_USER", "TRIGGER_SYSTEM_UPDATE", "ChatExtensionBackend"]

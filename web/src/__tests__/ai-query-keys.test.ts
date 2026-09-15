@@ -25,6 +25,13 @@ describe("queryKeysForTool", () => {
     expect(queryKeysForTool(call("list_pages", {}, true))).toEqual([]);
   });
 
+  it("refreshes everything any known writer touches for a writer it does not know", () => {
+    const keys = queryKeysForTool({ name: "clear_board", args: {}, read_only: false }).map((k) => k.join("/"));
+    for (const expected of ["pages", "status", "activePage", "board-current-message", "all-settings"]) {
+      expect(keys).toContain(expected);
+    }
+  });
+
   it("refreshes the usual suspects for a writer it does not know", () => {
     expect(queryKeysForTool(call("brand_new_tool"))).toEqual([["pages"], ["schedules"], ["collections"], ["plugins"]]);
   });

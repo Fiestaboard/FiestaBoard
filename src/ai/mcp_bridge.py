@@ -51,7 +51,10 @@ MAX_ERROR_CHARS = 600
 DEFAULT_TOOL_TIMEOUT_SECONDS = 90.0
 
 ToolSource = Literal["mcp", "chat"]
-OutcomeStatus = Literal["ok", "blocked", "error"]
+# ``denied`` never comes from a backend: the agent records it when the user
+# refuses a destructive call, in the same outcome shape so one helper renders
+# every ``tool`` message.
+OutcomeStatus = Literal["ok", "blocked", "error", "denied"]
 
 
 @dataclass(frozen=True)

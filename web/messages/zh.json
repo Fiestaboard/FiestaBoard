@@ -2035,8 +2035,7 @@
     },
     "status": {
       "thinking": "思考中…",
-      "running": "正在运行 {tool}…",
-      "done": "{tool} 已完成"
+      "running": "正在运行 {tool}…"
     },
     "question": {
       "skip": "跳过",
@@ -2082,7 +2081,8 @@
       "getSettingsSummary": "读取设置",
       "getActivePage": "检查当前页面",
       "getBoardContent": "读取板内容"
-    }
+    },
+    "previewUnavailable": "（预览不可用）"
   },
   "boardSizeIndicator": {
     "custom": "自定义",

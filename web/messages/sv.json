@@ -2035,8 +2035,7 @@
     },
     "status": {
       "thinking": "Tänker…",
-      "running": "Kör {tool}…",
-      "done": "{tool} klart"
+      "running": "Kör {tool}…"
     },
     "question": {
       "skip": "Hoppa över",
@@ -2082,7 +2081,8 @@
       "getSettingsSummary": "Läs inställningar",
       "getActivePage": "Kontrollera aktiv sida",
       "getBoardContent": "Läs tavlan"
-    }
+    },
+    "previewUnavailable": "(förhandsvisning inte tillgänglig)"
   },
   "boardSizeIndicator": {
     "custom": "Anpassad",

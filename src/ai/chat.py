@@ -443,35 +443,31 @@ class _FenceParser:
         return events
 
 
-def _repair_tool_template_lines(tool: ParsedToolCall) -> list[str]:
-    """Repair template text carried by a validated tool call, in place.
+#: The tools whose ``template_lines`` the parser repairs before they run.
+#: Only the page writers: a read-only checker such as ``validate_template``
+#: must see exactly what the model wrote, or it reports the mistake fixed.
+REPAIRED_TEMPLATE_TOOLS = frozenset({"create_page", "update_page"})
 
-    Any tool whose args carry ``template_lines`` (a list of rows —
-    ``create_page``, ``update_page``, ``render_page_preview``) or
-    ``template`` (``validate_template``'s newline-joined string) gets the
-    conservative ``{{filled:...}}`` repairs from
-    :mod:`src.ai.template_validator`. Other tools are untouched.
+
+def _repair_tool_template_lines(tool: ParsedToolCall) -> list[str]:
+    """Repair template text carried by a page-writing tool call, in place.
+
+    ``create_page`` and ``update_page`` get the conservative
+    ``{{filled:...}}`` repairs from :mod:`src.ai.template_validator` on their
+    ``template_lines``. Every other tool is untouched — in particular
+    ``validate_template`` and ``render_page_preview``, which exist to show
+    the model what its text actually does.
     """
+    if tool.name not in REPAIRED_TEMPLATE_TOOLS:
+        return []
     args = tool.args
-    warnings: list[str] = []
     lines = args.get("template_lines")
-    if isinstance(lines, list) and lines and all(isinstance(line, str) for line in lines):
-        repaired, found = repair_template_lines(lines)
-        if found:
-            args["template_lines"] = repaired
-            warnings.extend(found)
-    template = args.get("template")
-    if isinstance(template, str) and template:
-        repaired, found = repair_template_lines(template.split("\n"))
-        if found:
-            args["template"] = "\n".join(repaired)
-            warnings.extend(found)
-    elif isinstance(template, list) and template and all(isinstance(line, str) for line in template):
-        repaired, found = repair_template_lines(template)
-        if found:
-            args["template"] = repaired
-            warnings.extend(found)
-    return warnings
+    if not (isinstance(lines, list) and lines and all(isinstance(line, str) for line in lines)):
+        return []
+    repaired, found = repair_template_lines(lines)
+    if found:
+        args["template_lines"] = repaired
+    return list(found)
 
 
 __all__ = [

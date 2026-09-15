@@ -2035,8 +2035,7 @@
     },
     "status": {
       "thinking": "Thinking…",
-      "running": "Running {tool}…",
-      "done": "Finished {tool}"
+      "running": "Running {tool}…"
     },
     "question": {
       "skip": "Skip",
@@ -2082,7 +2081,8 @@
       "getSettingsSummary": "Read settings",
       "getActivePage": "Check active page",
       "getBoardContent": "Read board"
-    }
+    },
+    "previewUnavailable": "(preview unavailable)"
   },
   "boardSizeIndicator": {
     "custom": "Custom",

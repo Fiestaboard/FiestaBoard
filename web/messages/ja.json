@@ -2035,8 +2035,7 @@
     },
     "status": {
       "thinking": "考え中…",
-      "running": "{tool} を実行中…",
-      "done": "{tool} が完了"
+      "running": "{tool} を実行中…"
     },
     "question": {
       "skip": "スキップ",
@@ -2082,7 +2081,8 @@
       "getSettingsSummary": "設定を読む",
       "getActivePage": "アクティブなページを確認",
       "getBoardContent": "ボードを読む"
-    }
+    },
+    "previewUnavailable": "（プレビューを利用できません）"
   },
   "boardSizeIndicator": {
     "custom": "カスタム",

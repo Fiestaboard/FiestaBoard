@@ -2035,8 +2035,7 @@
     },
     "status": {
       "thinking": "Düşünüyorum…",
-      "running": "{tool} çalışıyor…",
-      "done": "{tool} tamamlandı"
+      "running": "{tool} çalışıyor…"
     },
     "question": {
       "skip": "Atla",
@@ -2082,7 +2081,8 @@
       "getSettingsSummary": "Ayarları oku",
       "getActivePage": "Etkin sayfayı kontrol et",
       "getBoardContent": "Panoyu oku"
-    }
+    },
+    "previewUnavailable": "(önizleme kullanılamıyor)"
   },
   "boardSizeIndicator": {
     "custom": "Özel",

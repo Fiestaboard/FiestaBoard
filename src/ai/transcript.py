@@ -58,6 +58,12 @@ def render_transcript(messages: list[dict[str, Any]]) -> list[dict[str, str]]:
             continue
         if role == "assistant":
             flush_interrupted()
+            if not (message.get("content") or "").strip() and not message.get("tool_calls"):
+                # A turn that produced nothing (a malformed fence, a Stop
+                # while thinking) is kept in the transcript but not shown to
+                # the model: Anthropic rejects an empty non-final assistant
+                # message, and the neighbours coalesce anyway.
+                continue
             parts = [message.get("content") or ""]
             for call in message.get("tool_calls") or []:
                 unanswered[call["id"]] = call

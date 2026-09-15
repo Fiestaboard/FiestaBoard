@@ -2035,8 +2035,7 @@
     },
     "status": {
       "thinking": "생각 중…",
-      "running": "{tool} 실행 중…",
-      "done": "{tool} 완료"
+      "running": "{tool} 실행 중…"
     },
     "question": {
       "skip": "건너뛰기",
@@ -2082,7 +2081,8 @@
       "getSettingsSummary": "설정 읽기",
       "getActivePage": "활성 페이지 확인",
       "getBoardContent": "보드 읽기"
-    }
+    },
+    "previewUnavailable": "(미리보기를 사용할 수 없음)"
   },
   "boardSizeIndicator": {
     "custom": "사용자 지정",

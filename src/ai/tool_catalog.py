@@ -86,18 +86,11 @@ class ToolCatalog:
             self._by_name[descriptor.name] = descriptor
 
     @property
-    def descriptors(self) -> list[ToolDescriptor]:
-        return list(self._by_name.values())
-
-    @property
     def names(self) -> list[str]:
         return list(self._by_name)
 
     def get(self, name: str) -> ToolDescriptor | None:
         return self._by_name.get(name)
-
-    def __contains__(self, name: object) -> bool:
-        return name in self._by_name
 
     # -- validation ---------------------------------------------------------
 
@@ -166,8 +159,12 @@ class ToolCatalog:
 
 _EDITOR_SURFACE_INTRO = (
     "SURFACE — You are the chat panel inside the page editor. The user is\n"
-    "editing one page, sent above as `current_page`. Prefer update_page on\n"
-    "that page's id; only create_page when they clearly want a new page.\n"
+    "editing one page, sent above as `current_page`. If it has an `id`, the\n"
+    "page is saved: call update_page with that id to change it. If it has\n"
+    "no `id`, it is an unsaved draft: call create_page with the whole\n"
+    "template (their draft plus your change) — the app opens the saved page\n"
+    "and drops the draft. Only make a second page when they clearly ask\n"
+    "for a new one.\n"
 )
 
 _GLOBAL_SURFACE_INTRO = (

@@ -83,6 +83,23 @@ def test_dangling_tool_call_renders_as_interrupted():
     assert "actually stop" in out[1]["content"]
 
 
+def test_an_empty_assistant_turn_is_not_shown_to_the_model():
+    """A turn that produced nothing (malformed fence, Stop while thinking)
+    stays in the transcript but is not rendered: Anthropic rejects an empty
+    non-final assistant message."""
+    out = render_transcript(
+        [
+            {"role": "user", "content": "hi"},
+            _assistant(""),
+            {"role": "user", "content": "[Tool error] bad block"},
+            _assistant("   "),
+            {"role": "user", "content": "again"},
+        ]
+    )
+    assert [m["role"] for m in out] == ["user"]
+    assert out[0]["content"] == "hi\n\n[Tool error] bad block\n\nagain"
+
+
 def test_consecutive_same_role_messages_are_coalesced():
     out = render_transcript([_assistant("", [CALL]), _tool("c1", "create_page"), {"role": "user", "content": "next"}])
     assert [m["role"] for m in out] == ["assistant", "user"]

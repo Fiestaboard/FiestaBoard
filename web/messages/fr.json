@@ -2035,8 +2035,7 @@
     },
     "status": {
       "thinking": "Réflexion…",
-      "running": "Exécution de {tool}…",
-      "done": "{tool} terminé"
+      "running": "Exécution de {tool}…"
     },
     "question": {
       "skip": "Passer",
@@ -2082,7 +2081,8 @@
       "getSettingsSummary": "Lire les paramètres",
       "getActivePage": "Vérifier la page active",
       "getBoardContent": "Lire le tableau"
-    }
+    },
+    "previewUnavailable": "(aperçu indisponible)"
   },
   "boardSizeIndicator": {
     "custom": "Personnalisé",

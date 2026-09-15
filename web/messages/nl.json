@@ -2035,8 +2035,7 @@
     },
     "status": {
       "thinking": "Aan het nadenken…",
-      "running": "{tool} wordt uitgevoerd…",
-      "done": "{tool} voltooid"
+      "running": "{tool} wordt uitgevoerd…"
     },
     "question": {
       "skip": "Overslaan",
@@ -2082,7 +2081,8 @@
       "getSettingsSummary": "Instellingen lezen",
       "getActivePage": "Actieve pagina controleren",
       "getBoardContent": "Bord lezen"
-    }
+    },
+    "previewUnavailable": "(voorbeeld niet beschikbaar)"
   },
   "boardSizeIndicator": {
     "custom": "Aangepast",
