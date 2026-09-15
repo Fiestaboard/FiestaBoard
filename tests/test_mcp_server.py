@@ -391,6 +391,18 @@ EXPECTED_TOOLS = {
     "test_transition_live",
     "restore_board",
     "list_formula_functions",
+    # Integrations-page coverage: instances, demo pages, updates, discovery
+    "list_plugin_instances",
+    "create_plugin_instance",
+    "delete_plugin_instance",
+    "get_plugin_demo_page",
+    "create_plugin_demo_page",
+    "list_pending_plugin_updates",
+    "check_plugin_updates",
+    "update_all_plugins",
+    "list_plugin_options",
+    "get_plugin_manifest",
+    "list_plugin_errors",
 }
 
 
@@ -582,6 +594,33 @@ class TestInstallPlugin:
         registry.get_plugin.return_value = None
         message = _call_tool_expect_error(mcp, "install_plugin", plugin_id="stocks")
         assert "installed but could not be enabled" in message
+
+    def test_install_from_git_clones_the_repository_and_branch(self, mcp, plugin_services):
+        """The "Add from Git" dialog: repository + branch take the git path, never the registry."""
+        registry, config_manager = plugin_services
+        registry.install_from_git.return_value = []
+        repo = "https://github.com/example/fiestaboard-plugin--stocks.git"
+        result = _call_tool(mcp, "install_plugin", repository=repo, branch="main")
+        assert result["status"] == "success"
+        assert result["plugin_id"] == "stocks"
+        assert result["source"] == "git"
+        registry.install_from_git.assert_called_once_with(repo, plugin_id=None, branch="main")
+        registry.install_from_registry.assert_not_called()
+        registry.enable_plugin.assert_called_once_with("stocks")
+        config_manager.enable_plugin.assert_called_once_with("stocks")
+
+    def test_install_from_git_reports_the_clone_failure(self, mcp, plugin_services):
+        registry, _ = plugin_services
+        registry.install_from_git.return_value = ["Only HTTPS URLs are supported (got 'ftp://x')"]
+        message = _call_tool_expect_error(mcp, "install_plugin", repository="ftp://x")
+        assert "Only HTTPS URLs are supported" in message
+
+    def test_install_without_plugin_id_or_repository_is_an_error(self, mcp, plugin_services):
+        registry, _ = plugin_services
+        message = _call_tool_expect_error(mcp, "install_plugin")
+        assert "plugin_id" in message and "repository" in message
+        registry.install_from_registry.assert_not_called()
+        registry.install_from_git.assert_not_called()
 
 
 class TestEnablePlugin:

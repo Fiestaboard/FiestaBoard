@@ -72,21 +72,41 @@ def _plugin_service() -> Any:
 
 
 async def install_plugin(
-    plugin_id: str,
+    plugin_id: str | None = None,
     auto_enable: bool = True,
     initial_config: dict[str, Any] | None = None,
+    repository: str | None = None,
+    branch: str = "",
 ) -> dict[str, Any]:
-    """Install a plugin from the official registry, optionally enable + configure it.
+    """Install a plugin, optionally enable + configure it.
 
-    ``initial_config`` exists only on the chat grammar; when given it is
-    applied through :func:`configure_plugin` after a successful enable.
+    Two sources, mirroring the Integrations page:
+
+    - ``repository`` given — the "Add from Git" dialog
+      (``POST /plugins/install``): clone that public git URL, on ``branch``
+      when set; ``plugin_id`` is then an optional override of the id
+      derived from the repository name.
+    - only ``plugin_id`` — the registry install
+      (``POST /plugins/registry/{id}/install``), unchanged.
+
+    ``initial_config`` (chat grammar and MCP) is applied through
+    :func:`configure_plugin` after a successful install.
     """
+    if not repository and not plugin_id:
+        return err("Nothing to install: pass plugin_id (registry install) or repository (git URL).")
+
+    source = "git" if repository else "registry"
+    label = plugin_id or repository
     try:
-        await _plugin_service().install_from_registry(plugin_id)
+        if repository:
+            plugin_id = await _plugin_service().install_from_git(repository, plugin_id=plugin_id, branch=branch)
+        else:
+            assert plugin_id is not None
+            await _plugin_service().install_from_registry(plugin_id)
     except PluginError as exc:
-        return err(f"Error installing plugin '{plugin_id}': {plugin_detail(exc)}")
+        return err(f"Error installing plugin '{label}': {plugin_detail(exc)}")
     except Exception as exc:
-        return err(f"Error installing plugin '{plugin_id}': {exc}")
+        return err(f"Error installing plugin '{label}': {exc}")
 
     if auto_enable:
         enabled = enable_plugin(plugin_id)
@@ -99,7 +119,13 @@ async def install_plugin(
             return err(f"Plugin '{plugin_id}' was installed but could not be configured: {configured['error']}")
 
     state = "installed and enabled" if auto_enable else "installed (disabled)"
-    return ok(f"Plugin '{plugin_id}' {state} successfully.", plugin_id=plugin_id, enabled=auto_enable)
+    origin = f" from {repository}" if repository else ""
+    return ok(
+        f"Plugin '{plugin_id}' {state} successfully{origin}.",
+        plugin_id=plugin_id,
+        enabled=auto_enable,
+        source=source,
+    )
 
 
 def enable_plugin(plugin_id: str) -> dict[str, Any]:
@@ -180,6 +206,132 @@ async def update_plugin(plugin_id: str) -> dict[str, Any]:
         return err(f"Error updating plugin '{plugin_id}': {exc}")
 
     return ok(f"Plugin '{plugin_id}' updated successfully.", plugin_id=plugin_id)
+
+
+async def check_plugin_updates() -> dict[str, Any]:
+    """Run an immediate update check for every enabled external plugin.
+
+    ``POST /plugins/updates/check``: a ``git ls-remote`` per plugin on a
+    worker thread, refreshing the registry's cached status that
+    ``list_pending_plugin_updates`` / ``update_all_plugins`` read.
+    """
+    import asyncio
+
+    try:
+        registry = _plugin_service().registry
+        results = await asyncio.to_thread(registry.check_for_updates)
+        blocked = registry.get_update_blocked_reasons()
+    except Exception as exc:
+        return err(f"Error checking for plugin updates: {exc}")
+
+    available = sorted(pid for pid, has_update in results.items() if has_update)
+    return ok(
+        f"Checked {len(results)} plugin(s); {len(available)} update(s) available.",
+        checked=len(results),
+        updates_available=available,
+        blocked=serialize(blocked),
+    )
+
+
+async def update_all_plugins() -> dict[str, Any]:
+    """Fetch and reload every external plugin with a pending update.
+
+    ``POST /plugins/updates/apply``: uses the cached status from the last
+    check. Partial failure is a *success* envelope carrying ``failed`` —
+    collapsing an N-plugin bulk update into one error would throw away
+    which ones went through.
+    """
+    try:
+        result = await _plugin_service().apply_all_updates()
+    except PluginError as exc:
+        return err(f"Error applying plugin updates: {plugin_detail(exc)}")
+    except Exception as exc:
+        return err(f"Error applying plugin updates: {exc}")
+
+    return ok(result["message"], updated=list(result["updated"]), failed=dict(result["failed"]))
+
+
+def create_plugin_instance(plugin_id: str, label: str) -> dict[str, Any]:
+    """Create a named instance of a multi-instance plugin.
+
+    ``POST /plugins/{id}/instances``. The instance starts disabled with an
+    empty config and is addressed everywhere else by its compound key
+    ``base:label`` (label normalised to lowercase).
+    """
+    try:
+        base_id, compound_key = _plugin_service().create_instance(plugin_id, label)
+    except PluginError as exc:
+        return err(f"Error creating instance '{label}' of plugin '{plugin_id}': {plugin_detail(exc)}")
+    except Exception as exc:
+        return err(f"Error creating instance '{label}' of plugin '{plugin_id}': {exc}")
+
+    instance_label = compound_key.split(":", 1)[1]
+    return ok(
+        f"Instance '{compound_key}' of plugin '{base_id}' created (disabled, unconfigured).",
+        plugin_id=base_id,
+        instance_label=instance_label,
+        instance_key=compound_key,
+    )
+
+
+def delete_plugin_instance(plugin_id: str, label: str) -> dict[str, Any]:
+    """Remove a plugin instance and purge its persisted config. Irreversible.
+
+    ``DELETE /plugins/{id}/instances/{label}``. The base plugin is never
+    touched.
+    """
+    try:
+        base_id, compound_key = _plugin_service().delete_instance(plugin_id, label)
+    except PluginError as exc:
+        return err(f"Error deleting instance '{label}' of plugin '{plugin_id}': {plugin_detail(exc)}")
+    except Exception as exc:
+        return err(f"Error deleting instance '{label}' of plugin '{plugin_id}': {exc}")
+
+    return ok(
+        f"Instance '{compound_key}' deleted.",
+        plugin_id=base_id,
+        instance_label=label,
+        instance_key=compound_key,
+    )
+
+
+def create_plugin_demo_page(
+    plugin_id: str,
+    device_type: str | None = None,
+    recreate: bool = False,
+) -> dict[str, Any]:
+    """Create the bundled demo page for a plugin.
+
+    ``POST /plugins/{id}/demo-page``. REST always rebuilds the singleton;
+    here ``recreate`` defaults to False so an assistant does not replace a
+    demo page the user has since edited — an existing page is reported
+    back with ``created=False`` instead.
+    """
+    try:
+        result = _plugin_service().create_demo_page(plugin_id, device_type, recreate=recreate)
+    except PluginError as exc:
+        return err(f"Error creating demo page for plugin '{plugin_id}': {plugin_detail(exc)}")
+    except Exception as exc:
+        return err(f"Error creating demo page for plugin '{plugin_id}': {exc}")
+
+    page = result["page"]
+    if not result["created"]:
+        message = (
+            f"Demo page '{page.name}' for '{plugin_id}' already exists ({page.id}); "
+            "pass recreate=True to rebuild it from the plugin's template."
+        )
+    elif result["recreated"]:
+        message = f"Demo page '{page.name}' for '{plugin_id}' rebuilt with id '{page.id}'."
+    else:
+        message = f"Demo page '{page.name}' for '{plugin_id}' created with id '{page.id}'."
+    return ok(
+        message,
+        page_id=page.id,
+        name=page.name,
+        device_type=result["device_type"],
+        created=result["created"],
+        recreated=result["recreated"],
+    )
 
 
 # ---------------------------------------------------------------------------

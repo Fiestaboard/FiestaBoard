@@ -50,6 +50,13 @@ EXPECTED_CANONICAL = {
     "disable_plugin",
     "uninstall_plugin",
     "update_plugin",
+    # MCP-only plugin ops covering the Integrations page (instances, demo
+    # pages, bulk updates); the chat grammar has no spelling for them.
+    "create_plugin_instance",
+    "delete_plugin_instance",
+    "create_plugin_demo_page",
+    "check_plugin_updates",
+    "update_all_plugins",
     "update_setting",
     "trigger_system_update",
     # MCP-only server op since #1765 — the REST POST /send-message

@@ -247,6 +247,27 @@ def _build_mcp_server() -> Any:
             "  • Transition Lab (beta, Settings → Beta): list_transition_plugins(),\n"
             "    test_transition_live(plugin_id, to_page_id) runs one on the real board,\n"
             "    restore_board() snaps it back to its active page afterwards.\n\n"
+            "PLUGIN MANAGEMENT (everything the Integrations page can do)\n"
+            "  • install_plugin(plugin_id) installs from the registry;\n"
+            "    install_plugin(repository=<https git URL>, branch=...) is the\n"
+            "    'Add from Git' dialog — confirm the URL with the user first.\n"
+            "  • Multi-instance plugins (one weather plugin per city): \n"
+            "    list_plugin_instances() / create_plugin_instance() /\n"
+            "    delete_plugin_instance(). Instances are addressed as 'base:label'\n"
+            "    in configure_plugin(), enable_plugin() and {{base:label.var}}.\n"
+            "  • Demo pages: get_plugin_demo_page() tells whether a plugin bundles\n"
+            "    one and whether it exists; create_plugin_demo_page() builds it\n"
+            "    (requires the plugin's required settings to be configured).\n"
+            "  • Updates: list_pending_plugin_updates() reads the cached check;\n"
+            "    check_plugin_updates() scans the git remotes now;\n"
+            "    update_all_plugins() applies every pending update at once.\n"
+            "  • Configuring: get_plugin_manifest() has the full settings_schema,\n"
+            "    color_rules_schema and demo templates; list_plugin_options()\n"
+            "    browses a remote-options picker (Home Assistant entities, transit\n"
+            "    stops…) for a valid value; configure_plugin() also takes\n"
+            "    color_rules (see its description) to colour a variable by value.\n"
+            "  • list_plugin_errors() explains plugins that failed to load or\n"
+            "    were quarantined by the fetch circuit breaker.\n\n"
             "DEBUGGING TOOLS\n"
             "  • render_page_preview(template_lines, device_type) — see how a\n"
             "    template will look WITHOUT creating a page. Use this to iterate.\n"
@@ -270,9 +291,10 @@ def _build_mcp_server() -> Any:
             "SAFETY RULES (please follow strictly)\n"
             "  • NEVER guess API keys, tokens, or credentials. If a plugin needs\n"
             "    one, ask the user to provide it before calling configure_plugin().\n"
-            "  • Destructive tools (uninstall_plugin, delete_page, delete_schedule,\n"
-            "    delete_collection) cannot be undone — confirm intent with the user\n"
-            "    before calling them unless they explicitly requested the deletion.\n"
+            "  • Destructive tools (uninstall_plugin, delete_plugin_instance,\n"
+            "    delete_page, delete_schedule, delete_collection) cannot be undone —\n"
+            "    confirm intent with the user before calling them unless they\n"
+            "    explicitly requested the deletion.\n"
             "  • Sensitive config values are MASKED as '***' when read back; that\n"
             "    is intentional — do not try to 'restore' or re-send the mask.\n\n"
             "DESIGN TIPS\n"
@@ -462,17 +484,43 @@ def _build_mcp_server() -> Any:
         }
 
     @_tool(destructive=False, open_world=True)
-    async def install_plugin(plugin_id: str, auto_enable: bool = True) -> dict[str, Any]:
-        """Install a plugin from the official FiestaBoard registry and optionally enable it.
+    async def install_plugin(
+        plugin_id: str | None = None,
+        auto_enable: bool = True,
+        repository: str | None = None,
+        branch: str = "",
+        initial_config: dict[str, Any] | None = None,
+    ) -> dict[str, Any]:
+        """Install a plugin from the FiestaBoard registry or from a public git URL.
+
+        Two sources, like the Integrations page:
+        - Registry (default): pass only plugin_id from list_registry_plugins().
+        - "Add from Git": pass repository (an https git URL) and optionally
+          branch; plugin_id is then an optional override of the id derived
+          from the repository name. Anyone can publish a plugin repo, so
+          confirm the URL with the user before installing from git.
 
         Args:
-            plugin_id: The plugin identifier from list_registry_plugins() (e.g. 'openweather').
+            plugin_id: Registry plugin id (e.g. 'openweather'); or, with
+                       repository, the id to install the clone under.
             auto_enable: Whether to enable the plugin after installation (default: True).
+            repository: Public https git URL to clone instead of using the registry.
+            branch: Branch or tag to check out when installing from repository
+                    (default: the repository's default branch).
+            initial_config: Settings to apply right after install (same shape
+                            as configure_plugin's config). Never guess API keys.
 
-        After installing, use configure_plugin() to set API keys and other settings.
-        Use get_template_variables() to discover the variables the plugin exposes.
+        Returns {plugin_id, enabled, source: 'registry'|'git'}. After
+        installing, use configure_plugin() to set API keys and other settings
+        and get_template_variables() to discover the variables it exposes.
         """
-        return await ops_executors.install_plugin(plugin_id, auto_enable=auto_enable)
+        return await ops_executors.install_plugin(
+            plugin_id,
+            auto_enable=auto_enable,
+            initial_config=initial_config,
+            repository=repository,
+            branch=branch,
+        )
 
     @_tool(destructive=False, idempotent=True)
     async def enable_plugin(plugin_id: str) -> dict[str, Any]:
@@ -524,8 +572,27 @@ def _build_mcp_server() -> Any:
         IMPORTANT: Never guess API keys — only set values the user has provided.
         Sensitive fields (api_key, password, etc.) must be provided explicitly.
 
+        Plugin instances: a multi-instance plugin's named instances are
+        configured by their compound id 'base:label' (e.g. 'weather:sf') —
+        see list_plugin_instances() / create_plugin_instance(). Fields with
+        a remote-options picker ("ui:widget": "remote-options" in the
+        settings_schema) take a value from list_plugin_options().
+
+        Color rules: to colour a variable automatically, set the special
+        'color_rules' key — {field_name: [rule, ...]} where each rule is
+        {"condition": "==" | "!=" | ">" | "<" | ">=" | "<=", "value": <number
+        or string>, "color": "red" | "orange" | "yellow" | "green" | "blue" |
+        "violet" | "white" | "black"}. Rules are checked in order and the
+        FIRST match wins; a colour tile is then placed before the value
+        wherever {{plugin.field}} is rendered. get_plugin_manifest() lists
+        the eligible fields under color_rules_schema. Example:
+        {"color_rules": {"temp_f": [{"condition": ">=", "value": 90,
+        "color": "red"}, {"condition": "<", "value": 50, "color": "blue"}]}}.
+        'color_rules' replaces the whole map for that plugin (it is not
+        merged per field), so send every field's rules together.
+
         Args:
-            plugin_id: The plugin identifier.
+            plugin_id: The plugin identifier, or an instance id 'base:label'.
             config: Dictionary of configuration key-value pairs to update.
                     Only include keys you want to change.
         """
@@ -543,6 +610,249 @@ def _build_mcp_server() -> Any:
         # #1741 lives on in the executor: updates go through
         # PluginService.apply_update — the shared, guarded path.
         return await ops_executors.update_plugin(plugin_id)
+
+    # -- updates (the Integrations page's "Check for updates" / "Update all") --
+
+    @_tool(read_only=True)
+    def list_pending_plugin_updates() -> dict[str, Any]:
+        """Which installed external plugins have an update waiting, per the last check.
+
+        Reads the cached result of the periodic (6-hourly) check or of
+        check_plugin_updates(); it never touches the network itself.
+
+        Returns {updates: {plugin_id: true|false}, blocked: {plugin_id:
+        reason}} — 'blocked' explains updates held back because the new
+        version needs a newer FiestaBoard core.
+        """
+        from .plugins import get_plugin_registry
+
+        registry = get_plugin_registry()
+        return {
+            "updates": _serialize(registry.get_update_status()),
+            "blocked": _serialize(registry.get_update_blocked_reasons()),
+        }
+
+    @_tool(destructive=False, idempotent=True, open_world=True)
+    async def check_plugin_updates() -> dict[str, Any]:
+        """Check every enabled external plugin's git remote for a newer version now.
+
+        Refreshes the cache list_pending_plugin_updates() reads. Apply what
+        it finds with update_plugin() (one) or update_all_plugins() (all).
+
+        Returns {checked, updates_available: [plugin_id, ...], blocked:
+        {plugin_id: reason}}.
+        """
+        return await ops_executors.check_plugin_updates()
+
+    @_tool(destructive=False, idempotent=True, open_world=True)
+    async def update_all_plugins() -> dict[str, Any]:
+        """Fetch and reload every external plugin with a pending update.
+
+        Uses the cached status from the last check — call
+        check_plugin_updates() first for a fresh scan. A plugin that fails
+        does not abort the rest: the result is still a success carrying
+        {updated: [plugin_id, ...], failed: {plugin_id: reason}}.
+        """
+        return await ops_executors.update_all_plugins()
+
+    # -- instances (multi-instance plugins, e.g. one weather plugin per city) --
+
+    @_tool(read_only=True)
+    def list_plugin_instances(plugin_id: str) -> dict[str, Any]:
+        """List the named instances of a multi-instance plugin (the base is not included).
+
+        Args:
+            plugin_id: The base plugin identifier (an instance id 'base:label'
+                       is accepted and resolved to its base).
+
+        Returns {plugin_id, instances: [{label, key, enabled, has_config}],
+        total}. 'key' is the compound id ('base:label') to pass to
+        configure_plugin(), enable_plugin(), disable_plugin() and
+        get_plugin_data(); templates reference it as {{base:label.variable}}.
+        """
+        from .plugins import get_plugin_registry
+
+        registry = get_plugin_registry()
+        base_id, _ = registry.parse_instance_key(plugin_id)
+        if registry.get_plugin(base_id) is None:
+            raise ToolError(f"Plugin not found: {base_id}")
+        instances = registry.list_instances(base_id)
+        return {"plugin_id": base_id, "instances": _serialize(instances), "total": len(instances)}
+
+    @_tool(destructive=False)
+    async def create_plugin_instance(plugin_id: str, label: str) -> dict[str, Any]:
+        """Create a named instance of an installed plugin (e.g. a second weather city).
+
+        The new instance starts DISABLED with an empty configuration; configure
+        it with configure_plugin() and enable it with enable_plugin() using
+        the returned instance_key ('base:label'). Labels are 1-40 letters,
+        digits, underscores or hyphens and are normalised to lowercase.
+
+        Args:
+            plugin_id: The base plugin identifier (from list_installed_plugins()).
+            label: Short label for the instance (e.g. 'sf', 'kitchen').
+
+        Returns {plugin_id, instance_label, instance_key}.
+        """
+        return ops_executors.create_plugin_instance(plugin_id, label)
+
+    @_tool(destructive=True)
+    async def delete_plugin_instance(plugin_id: str, label: str) -> dict[str, Any]:
+        """Permanently remove a plugin instance and its saved configuration.
+
+        WARNING: irreversible. Pages that reference {{base:label.variable}}
+        will render '???' afterwards. The base plugin itself is untouched —
+        use uninstall_plugin() for that.
+
+        Args:
+            plugin_id: The base plugin identifier.
+            label: The instance label (from list_plugin_instances()).
+        """
+        return ops_executors.delete_plugin_instance(plugin_id, label)
+
+    # -- demo pages (the Integrations page's "Create Demo Page") --------------
+
+    @_tool(read_only=True)
+    def get_plugin_demo_page(plugin_id: str, device_type: str = "flagship") -> dict[str, Any]:
+        """Whether a plugin ships a demo page template and whether one has been created.
+
+        Args:
+            plugin_id: The plugin identifier (from list_installed_plugins()).
+            device_type: Board shape to check for ('flagship' or 'note';
+                         default 'flagship').
+
+        Returns {plugin_id, device_type, has_demo_template, exists, page_id}.
+        'has_demo_template' is whether the plugin bundles a demo for that
+        shape; 'exists'/'page_id' whether create_plugin_demo_page() has
+        already built it.
+        """
+        from .plugins.errors import PluginError
+        from .plugins.service import PluginService
+
+        try:
+            status = PluginService().demo_page_status(plugin_id, device_type)
+        except PluginError as exc:
+            raise ToolError(str(exc)) from exc
+        return {"plugin_id": plugin_id, "device_type": device_type, **status}
+
+    @_tool(destructive=False)
+    async def create_plugin_demo_page(
+        plugin_id: str,
+        device_type: str | None = None,
+        recreate: bool = False,
+    ) -> dict[str, Any]:
+        """Create the demo page a plugin bundles — a ready-made page showing its variables.
+
+        The plugin's required settings must be configured first (the tool says
+        which are missing). The demo page is a singleton per plugin and device
+        type: if one already exists it is left alone and reported back, unless
+        recreate=True, which deletes it and rebuilds from the plugin's template
+        (losing any edits the user made to it).
+
+        Args:
+            plugin_id: The plugin identifier (from list_installed_plugins()).
+            device_type: 'flagship' or 'note'. Omitted = whichever the user's
+                         configured boards need (first board with a matching
+                         demo template).
+            recreate: Rebuild an existing demo page instead of keeping it
+                      (default: False).
+
+        Returns {page_id, name, device_type, created, recreated}. Show it
+        with set_active_page() or preview it with preview_saved_page().
+        """
+        return ops_executors.create_plugin_demo_page(plugin_id, device_type, recreate=recreate)
+
+    # -- discovery reads the configure flow needs ------------------------------
+
+    @_tool(read_only=True, open_world=True)
+    async def list_plugin_options(
+        plugin_id: str,
+        options_id: str,
+        parent: dict[str, Any] | None = None,
+        query: str = "",
+        limit: int = 50,
+        cursor: str | None = None,
+    ) -> dict[str, Any]:
+        """Browse a plugin's upstream catalog to find a valid value for a settings field.
+
+        Some settings fields are pickers over a remote catalog (Home Assistant
+        entities, transit stops, stock symbols…): in the settings_schema they
+        carry "ui:widget": "remote-options" and "ui:options": {"options_id":
+        ...}. This tool asks the plugin for that catalog so you can put a real
+        value into configure_plugin(). The plugin's stored config is used, so
+        set credentials first. Uses the plugin's upstream API.
+
+        Args:
+            plugin_id: The plugin identifier, or an instance id 'base:label'.
+            options_id: The catalog to browse — the field's ui:options.options_id.
+            parent: Values of the fields this one depends on (ui:options.depends_on),
+                    e.g. {"agency": "SF"} to scope a stop list to an agency.
+            query: Free-text search for catalogs that support it.
+            limit: Maximum options to return, 1-1000 (default 50).
+            cursor: Continuation token from a previous result's 'cursor'.
+
+        Returns {plugin_id, options_id, options: [{value, label, description,
+        group, preview, disabled}], has_more, cursor, total, error}. 'value'
+        is what goes into the config. A non-null 'error' with no options is a
+        hint (e.g. no API key yet), not a failure.
+        """
+        from .plugins.errors import PluginError
+        from .plugins.service import PluginService
+
+        try:
+            result = await PluginService().browse_options(
+                plugin_id,
+                options_id,
+                parent=parent,
+                query=query,
+                limit=limit,
+                cursor=cursor,
+            )
+        except PluginError as exc:
+            raise ToolError(str(exc)) from exc
+        return _serialize(result)
+
+    @_tool(read_only=True)
+    def get_plugin_manifest(plugin_id: str) -> dict[str, Any]:
+        """The full raw manifest of an installed plugin.
+
+        Everything the plugin declares in one read: settings_schema (with any
+        ui:widget / ui:options picker hints), variables and their groups,
+        max_lengths, color_rules_schema (which fields configure_plugin()'s
+        color_rules can target, with their default rules), demo templates,
+        env_vars, screenshots. list_installed_plugins() carries only the
+        summary; use this when configuring a plugin in detail.
+
+        Args:
+            plugin_id: The plugin identifier, or an instance id 'base:label'.
+        """
+        from .plugins import get_plugin_registry
+
+        manifest = get_plugin_registry().get_manifest(plugin_id)
+        if manifest is None:
+            raise ToolError(f"Plugin not found: {plugin_id}")
+        return _serialize(manifest.raw)
+
+    @_tool(read_only=True)
+    def list_plugin_errors() -> dict[str, Any]:
+        """Why installed plugins are not contributing data — load errors and tripped breakers.
+
+        Two independent failure modes in one payload: 'errors' maps plugin ids
+        to import-time error messages (the plugin never loaded, so it is
+        missing from list_installed_plugins()); 'fetch_breakers' maps plugin
+        ids to {consecutive_timeouts, quarantined, cooldown_remaining_seconds}
+        for plugins that loaded fine but keep timing out, so the circuit
+        breaker has stopped polling them. Empty maps mean all is well. Check
+        this when a page shows '???' or stale values and get_plugin_data()
+        does not explain it.
+        """
+        from .plugins import get_plugin_registry
+
+        registry = get_plugin_registry()
+        return {
+            "errors": _serialize(registry.get_load_errors()),
+            "fetch_breakers": _serialize(registry.get_fetch_breaker_status()),
+        }
 
     @_tool(read_only=True)
     def get_template_variables() -> dict[str, Any]:
