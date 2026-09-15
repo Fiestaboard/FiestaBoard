@@ -270,6 +270,8 @@ export interface ChatMessage {
   toolCalls?: ToolCallDisplay[];
   /** The last `status` frame the server sent while this entry was live. */
   status?: TurnStatus;
+  /** The tool block being written right now (cleared when it becomes a call). */
+  draft?: SSEToolStreamingData;
   /** The question this entry asked, with the answer once given. */
   elicitation?: Elicitation & { answer?: ElicitationAnswer };
   warnings?: string[];
@@ -382,6 +384,13 @@ export interface ChatRequestBody {
 
 export interface SSETextData {
   delta: string;
+}
+
+/** One `tool_streaming` frame: a tool block the model is still writing. */
+export interface SSEToolStreamingData {
+  op: string | null;
+  /** The whole block so far, not a delta. */
+  text: string;
 }
 
 export interface SSEStatusData {

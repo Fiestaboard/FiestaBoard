@@ -67,6 +67,7 @@ import {
 } from "@/hooks/use-board";
 import { useDepsChanged } from "@/hooks/use-deps-changed";
 import { useTranslations } from "@/i18n/translations";
+import { anchorProps } from "@/lib/ai-choreography/anchors";
 import type { BoardCurrentMessageResponse, Collection, DeviceType, SilenceStatus } from "@/lib/api";
 import { api, isCollectionId } from "@/lib/api";
 import { classifyDimensions, pagesCompatibleWithBoard } from "@/lib/board-dimensions";
@@ -530,7 +531,7 @@ export function ActivePageDisplay() {
           Keeping a bordered Card here drew a second frame inside the page card
           for a region that is not a click target (see PageCard's "what keeps
           its border inside" note in @fiestaboard/ui). */}
-      <Box>
+      <Box {...anchorProps("home.active-display")}>
         <Stack gap="2" className="pb-4">
           <Flex align="center" justify="between">
             <Flex align="baseline" gap="2" className="min-w-0">

@@ -16,6 +16,7 @@ import type {
   SSETextData,
   SSEToolCallData,
   SSEToolResultData,
+  SSEToolStreamingData,
   SSEWarningData,
   ToolCall,
   ToolResult,
@@ -26,6 +27,8 @@ import { apiUrl } from "./base-path";
 export interface StreamChatHandlers {
   onText?: (delta: string) => void;
   onStatus?: (status: SSEStatusData) => void;
+  /** The model is still writing a tool block; the text is the block so far. */
+  onToolStreaming?: (draft: SSEToolStreamingData) => void;
   /** A validated call, emitted BEFORE the server runs it. */
   onToolCall?: (call: ToolCall) => void;
   /** What the call did, emitted after it ran (or was denied). */
@@ -120,6 +123,9 @@ export async function streamChat(
             break;
           case "status":
             handlers.onStatus?.(data as SSEStatusData);
+            break;
+          case "tool_streaming":
+            handlers.onToolStreaming?.(data as SSEToolStreamingData);
             break;
           case "tool_call":
             handlers.onToolCall?.(data as SSEToolCallData);

@@ -25,6 +25,7 @@ import type {
   ElicitationAnswer,
   ResumePayload,
   SSEStatusData,
+  SSEToolStreamingData,
   ToolCall,
   ToolCallDisplay,
   ToolPhase,
@@ -53,6 +54,10 @@ export interface UseAiChatOptions {
   /** The assistant asked the user a question. */
   onElicitation?: (elicitation: Elicitation) => void;
   onStatus?: (status: SSEStatusData) => void;
+  /** The model is writing a tool block; fired per `tool_streaming` frame. */
+  onToolStreaming?: (draft: SSEToolStreamingData) => void;
+  /** The turn finished with no decision pending. */
+  onTurnComplete?: () => void;
   /** The user stopped the turn while these calls had no result yet. */
   onStopped?: (unresolved: ToolCall[], reason: StopReason) => void;
   providerId?: string;
@@ -95,6 +100,7 @@ export type StopReason = "stopped" | "error";
 
 export function useAiChat(opts: UseAiChatOptions): UseAiChatResult {
   const { getTurnContext, onToolCall, onToolResult, onAwaitingApproval, onElicitation, onStatus, onStopped } = opts;
+  const { onToolStreaming, onTurnComplete } = opts;
   const { providerId, model } = opts;
 
   const [messages, setMessages] = useState<ChatMessage[]>([]);
@@ -180,7 +186,12 @@ export function useAiChat(opts: UseAiChatOptions): UseAiChatResult {
               }
               onStatus?.(s);
             },
+            onToolStreaming: (draft) => {
+              patch((m) => ({ ...m, draft }));
+              onToolStreaming?.(draft);
+            },
             onToolCall: (call) => {
+              patch((m) => ({ ...m, draft: undefined }));
               callsRef.current.set(call.id, call);
               const display: ToolCallDisplay = {
                 ...call,
@@ -211,6 +222,8 @@ export function useAiChat(opts: UseAiChatOptions): UseAiChatResult {
             },
             onDone: (info) => {
               ended = true;
+              patch((m) => ({ ...m, draft: undefined }));
+              if (info.reason === "complete" || info.reason === "step_limit") onTurnComplete?.();
               if (info.reason === "awaiting_approval" && info.pending_tool_call_id) {
                 const id = info.pending_tool_call_id;
                 const call = callsRef.current.get(id);
@@ -238,7 +251,12 @@ export function useAiChat(opts: UseAiChatOptions): UseAiChatResult {
         const unresolved = [...callsRef.current.values()].filter((c) => !resolvedRef.current.has(c.id));
         const stillRunning = new Set(unresolved.map((c) => c.id));
         setMessages((prev) => {
-          const settled = patchLastAssistant(prev, (m) => ({ ...m, pending: false, status: undefined }));
+          const settled = patchLastAssistant(prev, (m) => ({
+            ...m,
+            pending: false,
+            status: undefined,
+            draft: undefined,
+          }));
           if (ended) return settled;
           return settled.map((m) =>
             m.role === "assistant" && m.toolCalls
@@ -255,6 +273,9 @@ export function useAiChat(opts: UseAiChatOptions): UseAiChatResult {
         // caller may still refresh what a call could have changed, but it
         // must not tell the user they stopped anything.
         if (!ended && unresolved.length > 0) onStopped?.(unresolved, streamHadError ? "error" : "stopped");
+        // A turn that did not end with a decision pending is over for the
+        // walkthrough too (a Stop or an error included).
+        if (!ended) onTurnComplete?.();
         setStatus((current) => {
           if (streamHadError) return "error";
           if (current === "streaming") return "idle";
@@ -270,6 +291,8 @@ export function useAiChat(opts: UseAiChatOptions): UseAiChatResult {
       onElicitation,
       onStatus,
       onStopped,
+      onToolStreaming,
+      onTurnComplete,
       providerId,
       model,
     ],

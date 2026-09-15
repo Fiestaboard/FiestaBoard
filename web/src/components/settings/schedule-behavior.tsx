@@ -8,6 +8,7 @@ import { toast } from "sonner";
 
 import { useDepsChanged } from "@/hooks/use-deps-changed";
 import { useTranslations } from "@/i18n/translations";
+import { anchorProps } from "@/lib/ai-choreography/anchors";
 import { api } from "@/lib/api";
 
 /**
@@ -53,6 +54,7 @@ export function ScheduleBehavior() {
       icon={<CalendarClock />}
       title={t("scheduleBehaviorTitle")}
       description={t("scheduleBehaviorDescription")}
+      {...anchorProps("settings.schedule_behavior")}
     >
       {isLoading ? (
         <Skeleton className="h-6 w-48" />

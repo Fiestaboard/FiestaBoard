@@ -2035,7 +2035,9 @@
     },
     "status": {
       "thinking": "Tänker…",
-      "running": "Kör {tool}…"
+      "running": "Kör {tool}…",
+      "preparing": "Förbereder {tool}…",
+      "elapsed": "{seconds} s"
     },
     "question": {
       "skip": "Hoppa över",
@@ -2217,5 +2219,40 @@
       "triggerSystemUpdate": "Laddar ner och installerar den senaste FiestaBoard-uppdateringen. Systemet startar om kort.",
       "generic": "Den här åtgärden kan inte ångras av ett annat verktyg."
     }
+  },
+  "aiSpotlight": {
+    "stop": "Stoppa",
+    "approve": "Godkänn",
+    "deny": "Neka"
+  },
+  "aiChoreography": {
+    "working": "{tool}…",
+    "done": "{tool} — klart",
+    "failed": "{tool} misslyckades",
+    "awaitingApproval": "{tool} — väntar på ditt godkännande",
+    "openingNewPage": "Öppnar en ny sida…",
+    "typingName": "Namnger sidan…",
+    "typingLines": "Skriver raderna…",
+    "creatingPage": "Skapar ”{name}”…",
+    "pageCreated": "Sidan skapad",
+    "pageUpdated": "Sidan uppdaterad",
+    "pageFailed": "Sidan kunde inte sparas",
+    "updatingBehindEdits": "Uppdaterar den sparade sidan — dina osparade ändringar är kvar",
+    "changingDevice": "Ändrar tavlans storlek…",
+    "aboutToDeletePage": "Den här sidan tas snart bort",
+    "pageDeleted": "Sidan borttagen",
+    "openingScheduleForm": "Öppnar schemaformuläret…",
+    "fillingSchedule": "Fyller i schemat…",
+    "savingSchedule": "Sparar schemat…",
+    "scheduleCreated": "Schema tillagt",
+    "scheduleUpdated": "Schema uppdaterat",
+    "scheduleFailed": "Schemat kunde inte sparas",
+    "aboutToDeleteSchedule": "Det här schemat tas snart bort",
+    "scheduleDeleted": "Schema borttaget",
+    "changingSetting": "{tool}…",
+    "settingSaved": "Inställning sparad",
+    "settingFailed": "Inställningen kunde inte sparas",
+    "on": "På",
+    "off": "Av"
   }
 }

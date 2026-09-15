@@ -1,93 +1,84 @@
-import { act, render, renderHook } from "@testing-library/react";
+import { act, renderHook } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
-import { ScheduleEditorBridgeProvider, useScheduleEditorBridge } from "@/components/schedule-editor-bridge-context";
+import {
+  type ScheduleEditorHandlers,
+  ScheduleEditorBridgeProvider,
+  useScheduleEditorBridge,
+} from "@/components/schedule-editor-bridge-context";
 
-function wrapper({ children }: { children: React.ReactNode }) {
-  return <ScheduleEditorBridgeProvider>{children}</ScheduleEditorBridgeProvider>;
+const wrapper = ({ children }: { children: React.ReactNode }) => (
+  <ScheduleEditorBridgeProvider>{children}</ScheduleEditorBridgeProvider>
+);
+
+function handlers(overrides: Partial<ScheduleEditorHandlers> = {}): ScheduleEditorHandlers {
+  return { openEmpty: vi.fn(), openEntry: vi.fn(), close: vi.fn(), getForm: () => null, ...overrides };
 }
 
-describe("ScheduleEditorBridgeProvider", () => {
-  it("hasScheduleEditor is false before register and true after", () => {
+describe("ScheduleEditorBridge", () => {
+  it("reports whether the schedule page is mounted", () => {
     const { result } = renderHook(() => useScheduleEditorBridge(), { wrapper });
     expect(result.current.hasScheduleEditor).toBe(false);
-
-    act(() => {
-      result.current.register(() => {});
-    });
+    expect(result.current.staging.isMounted()).toBe(false);
+    act(() => result.current.register(handlers()));
     expect(result.current.hasScheduleEditor).toBe(true);
-
-    act(() => {
-      result.current.unregister();
-    });
+    act(() => result.current.unregister());
     expect(result.current.hasScheduleEditor).toBe(false);
   });
 
-  it("openScheduleForm invokes the registered handler with prefill", () => {
-    const handler = vi.fn();
+  it("forwards the staging calls to the registered page and its form", () => {
+    const setField = vi.fn();
+    const h = handlers({ getForm: () => ({ setField }) });
     const { result } = renderHook(() => useScheduleEditorBridge(), { wrapper });
-
-    act(() => {
-      result.current.register(handler);
-    });
-
-    act(() => {
-      result.current.openScheduleForm({
-        page_id: "abc",
-        start_time: "07:00",
-        end_time: "09:00",
-        day_pattern: "weekdays",
-      });
-    });
-
-    expect(handler).toHaveBeenCalledTimes(1);
-    expect(handler).toHaveBeenCalledWith({
-      page_id: "abc",
-      start_time: "07:00",
-      end_time: "09:00",
-      day_pattern: "weekdays",
-    });
+    act(() => result.current.register(h));
+    result.current.staging.openEmpty();
+    result.current.staging.openEntry("s1");
+    result.current.staging.setField("start_time", "06:45");
+    result.current.staging.close();
+    expect(h.openEmpty).toHaveBeenCalled();
+    expect(h.openEntry).toHaveBeenCalledWith("s1");
+    expect(setField).toHaveBeenCalledWith("start_time", "06:45");
+    expect(h.close).toHaveBeenCalled();
   });
 
-  it("openScheduleForm with no prefill calls the handler with undefined", () => {
-    const handler = vi.fn();
+  it("is safe to drive with no page mounted", () => {
     const { result } = renderHook(() => useScheduleEditorBridge(), { wrapper });
-
-    act(() => {
-      result.current.register(handler);
-    });
-    act(() => {
-      result.current.openScheduleForm();
-    });
-
-    expect(handler).toHaveBeenCalledWith(undefined);
+    expect(() => {
+      result.current.staging.openEmpty();
+      result.current.staging.setField("enabled", true);
+      result.current.staging.close();
+    }).not.toThrow();
   });
 
-  it("openScheduleForm after unregister is a no-op", () => {
-    const handler = vi.fn();
-    const { result } = renderHook(() => useScheduleEditorBridge(), { wrapper });
-
-    act(() => {
-      result.current.register(handler);
-    });
-    act(() => {
-      result.current.unregister();
-    });
-    act(() => {
-      result.current.openScheduleForm({ page_id: "abc" });
-    });
-
-    expect(handler).not.toHaveBeenCalled();
+  it("waitFor resolves when the page registers, and false on timeout", async () => {
+    vi.useFakeTimers();
+    try {
+      const { result } = renderHook(() => useScheduleEditorBridge(), { wrapper });
+      const pending = result.current.staging.waitFor(1000);
+      act(() => result.current.register(handlers()));
+      await expect(pending).resolves.toBe(true);
+      act(() => result.current.unregister());
+      const timeout = result.current.staging.waitFor(200);
+      await vi.advanceTimersByTimeAsync(250);
+      await expect(timeout).resolves.toBe(false);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
-  it("throws when used outside the provider", () => {
-    const consoleError = vi.spyOn(console, "error").mockImplementation(() => {});
-    expect(() => render(<TestConsumer />)).toThrow(/must be used within ScheduleEditorBridgeProvider/);
-    consoleError.mockRestore();
+  it("waitForForm polls until the form handle exists", async () => {
+    vi.useFakeTimers();
+    try {
+      let form: { setField: () => void } | null = null;
+      const { result } = renderHook(() => useScheduleEditorBridge(), { wrapper });
+      act(() => result.current.register(handlers({ getForm: () => form })));
+      const pending = result.current.staging.waitForForm(1000);
+      await vi.advanceTimersByTimeAsync(120);
+      form = { setField: vi.fn() };
+      await vi.advanceTimersByTimeAsync(120);
+      await expect(pending).resolves.toBe(true);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });
-
-function TestConsumer() {
-  useScheduleEditorBridge();
-  return null;
-}

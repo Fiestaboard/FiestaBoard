@@ -25,6 +25,7 @@ import { GlobalAiPanelProvider } from "@/components/global-ai-panel-context";
 import { InstallPrompt } from "@/components/install-prompt";
 import { MainContent } from "@/components/main-content";
 import { NavigationSidebar } from "@/components/navigation-sidebar";
+import { SpotlightProvider } from "@/components/ai-spotlight/spotlight-provider";
 import { PageEditorBridgeProvider } from "@/components/page-editor-bridge-context";
 import { PageFadeWrapper } from "@/components/page-fade-wrapper";
 import { Providers } from "@/components/providers";
@@ -148,20 +149,22 @@ function RootBody() {
         <BootGate>
           <ScheduleEditorBridgeProvider>
             <PageEditorBridgeProvider>
-              <GlobalAiPanelProvider>
-                <WizardProvider>
-                  <SkipToContent />
-                  <NavigationSidebar />
-                  <GlobalAiChatDrawer />
-                  <MainContent>
-                    <PageFadeWrapper>
-                      <Outlet />
-                    </PageFadeWrapper>
-                  </MainContent>
-                  <Toaster />
-                  <InstallPrompt />
-                </WizardProvider>
-              </GlobalAiPanelProvider>
+              <SpotlightProvider>
+                <GlobalAiPanelProvider>
+                  <WizardProvider>
+                    <SkipToContent />
+                    <NavigationSidebar />
+                    <GlobalAiChatDrawer />
+                    <MainContent>
+                      <PageFadeWrapper>
+                        <Outlet />
+                      </PageFadeWrapper>
+                    </MainContent>
+                    <Toaster />
+                    <InstallPrompt />
+                  </WizardProvider>
+                </GlobalAiPanelProvider>
+              </SpotlightProvider>
             </PageEditorBridgeProvider>
           </ScheduleEditorBridgeProvider>
         </BootGate>

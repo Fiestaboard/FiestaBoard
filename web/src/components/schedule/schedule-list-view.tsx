@@ -5,6 +5,7 @@ import { Calendar, ChevronRight, Edit, GalleryHorizontalEnd, Moon, Trash2 } from
 import { useMemo } from "react";
 
 import { useTranslations } from "@/i18n/translations";
+import { anchorProps } from "@/lib/ai-choreography/anchors";
 import type { Collection, Page, ScheduleEntry } from "@/lib/api";
 import { isCollectionId } from "@/lib/api";
 import type { ResolvedSilenceSchedule } from "@/lib/schedule-calendar";
@@ -190,6 +191,7 @@ export function ScheduleListView({
               return (
                 <Flex
                   key={schedule.id}
+                  {...anchorProps(`schedule.row.${schedule.id}`)}
                   direction="col"
                   gap="3"
                   // Phone: description on top, controls on their own row beneath.

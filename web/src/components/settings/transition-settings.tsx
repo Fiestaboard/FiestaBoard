@@ -9,6 +9,7 @@ import { toast } from "sonner";
 
 import { useDepsChanged } from "@/hooks/use-deps-changed";
 import { useTranslations } from "@/i18n/translations";
+import { anchorProps } from "@/lib/ai-choreography/anchors";
 import type { TransitionSettings as TransitionSettingsType } from "@/lib/api";
 import { api } from "@/lib/api";
 
@@ -149,7 +150,13 @@ export function TransitionSettings() {
   }
 
   return (
-    <PageSection icon={<Sparkles />} title={t("title")} description={t("description")} contentClassName="space-y-5">
+    <PageSection
+      icon={<Sparkles />}
+      title={t("title")}
+      description={t("description")}
+      contentClassName="space-y-5"
+      {...anchorProps("settings.transitions")}
+    >
       {/* Strategy Selector */}
       <Stack gap="2">
         <Label className="text-sm font-medium">{t("transitionStyle")}</Label>
@@ -161,7 +168,7 @@ export function TransitionSettings() {
             {t("builtInGroup")}
           </Text>
         )}
-        <Flex wrap gap="2">
+        <Flex wrap gap="2" {...anchorProps("settings.transitions.strategy")}>
           {STRATEGY_VALUES.map((option) => {
             const isSelected = strategy === option.value;
             return (

@@ -54,6 +54,7 @@ import { toast } from "sonner";
 import { BoardSizeIndicator } from "@/components/board-size-indicator";
 import { queryKeys, useBoardSettings, useStatus } from "@/hooks/use-board";
 import { useTranslations } from "@/i18n/translations";
+import { anchorProps } from "@/lib/ai-choreography/anchors";
 import type { BoardInstance, Code62Glyph, DeviceType } from "@/lib/api";
 import { api } from "@/lib/api";
 import { isNoteArray, MAX_BOARD_NAME_LENGTH, MAX_NOTES_PER_AXIS, NOTE_ARRAY_PRESETS } from "@/lib/board-dimensions";
@@ -665,7 +666,13 @@ export function DisplaySettings() {
   }
 
   return (
-    <PageSection icon={<Monitor />} title={t("title")} description={t("description")} contentClassName="space-y-4">
+    <PageSection
+      icon={<Monitor />}
+      title={t("title")}
+      description={t("description")}
+      contentClassName="space-y-4"
+      {...anchorProps("settings.boards")}
+    >
       <Stack gap="3">
         {boards.map((board) => {
           const isPaused = board.paused === true;
@@ -696,6 +703,7 @@ export function DisplaySettings() {
             <Collapsible
               key={board.id}
               data-testid="board-card"
+              {...anchorProps(`settings.board.${board.id}`)}
               data-paused={isPaused ? "true" : undefined}
               className={`rounded-lg border overflow-hidden ${isPaused ? "border-amber-500/60 bg-amber-500/5" : ""}`}
             >

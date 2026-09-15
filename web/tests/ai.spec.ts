@@ -862,4 +862,152 @@ test.describe("AI", () => {
       await expect(dialog.getByTestId("ai-question-answered")).toContainText("Kitchen");
     });
   });
+
+  test.describe("walkthrough", () => {
+    async function stubBoard(request: APIRequestContext): Promise<void> {
+      const res = await request.put(`${API_URL}/config/board`, {
+        data: { api_mode: "local", host: "127.0.0.1", local_api_key: "test-key" },
+      });
+      expect(res.ok(), await res.text()).toBe(true);
+    }
+
+    async function openDrawer(page: import("@playwright/test").Page, path = "/"): Promise<void> {
+      await page.goto(path);
+      await page.getByRole("button", { name: "AI Assistant" }).first().click();
+      await expect(page.getByRole("dialog", { name: /FiestaBot/i })).toBeVisible();
+    }
+
+    async function sendMessage(page: import("@playwright/test").Page, text: string): Promise<void> {
+      const box = page
+        .getByRole("dialog", { name: /FiestaBot/i })
+        .getByRole("textbox")
+        .first();
+      await box.fill(text);
+      await page.getByRole("button", { name: "Send", exact: true }).click();
+    }
+
+    test("the stream announces a tool block while the model is still writing it", async ({ request }) => {
+      await configureMockProvider(request);
+      await setMockScript({
+        prose: "Making it.",
+        ops: [
+          { op: "create_page", args: { name: "Streamed Page", template_lines: ["HELLO STREAM", "", "", "", "", ""] } },
+        ],
+      });
+      const frames = await callChat(request, {
+        messages: [{ role: "user", content: "make a page called Streamed Page" }],
+        device_type: "flagship",
+      });
+      const kinds = frames.map((f) => f.event);
+      expect(kinds).toContain("tool_streaming");
+      expect(kinds.indexOf("tool_streaming")).toBeLessThan(kinds.indexOf("tool_call"));
+      const drafts = frames.filter((f) => f.event === "tool_streaming");
+      expect(drafts[drafts.length - 1].data.op).toBe("create_page");
+      const pageId = (frames.find((f) => f.event === "tool_result")!.data.result as { page_id: string }).page_id;
+      await request.delete(`${API_URL}/pages/${pageId}`);
+    });
+
+    test("create_page walks to a fresh editor, types the page, and lands on the saved page", async ({
+      page,
+      request,
+    }) => {
+      await configureMockProvider(request);
+      await stubBoard(request);
+      await setMockScript({
+        steps: [
+          {
+            prose: "Building it.",
+            ops: [
+              {
+                op: "create_page",
+                args: { name: "Walked Page", template_lines: ["GOOD MORNING", "", "", "", "", ""] },
+              },
+            ],
+          },
+          { prose: "Done, it is open." },
+        ],
+      });
+      await openDrawer(page, "/settings");
+      await sendMessage(page, "make me a page called Walked Page");
+
+      // The spotlight narrates on screen, outside the chat dialog.
+      const caption = page.getByTestId("ai-spotlight-caption");
+      await expect(caption).toBeVisible({ timeout: 15_000 });
+      // The editor opens (via the Pages list) and the name is typed for real.
+      await expect(page).toHaveURL(/\/pages\/(new|edit\/)/, { timeout: 15_000 });
+      await expect(page.getByLabel(/page name/i)).toHaveValue("Walked Page", { timeout: 15_000 });
+      // It settles on the saved page, and the server has it.
+      await expect(page).toHaveURL(/\/pages\/edit\/[0-9a-f-]+/, { timeout: 20_000 });
+      await expect(caption).toHaveText(/Page created/i, { timeout: 15_000 });
+      const pages = await (await request.get(`${API_URL}/pages`)).json();
+      const list = (Array.isArray(pages) ? pages : pages.pages || []) as Array<Record<string, unknown>>;
+      const created = list.find((p) => p.name === "Walked Page");
+      expect(created).toBeTruthy();
+      // The staged draft left nothing behind for /pages/new to restore.
+      await page.goto("/pages/new");
+      await expect(page.getByText(/draft restored/i)).toHaveCount(0);
+      await request.delete(`${API_URL}/pages/${created!.id}`);
+    });
+
+    test("update_setting goes to the tab, ghosts the value over its control, and pulses the card", async ({
+      page,
+      request,
+    }) => {
+      await configureMockProvider(request);
+      await stubBoard(request);
+      await setMockScript({
+        steps: [
+          {
+            prose: "Renaming.",
+            ops: [{ op: "update_setting", args: { category: "general", values: { instance_name: "Kitchen Board" } } }],
+          },
+          { prose: "Renamed." },
+        ],
+      });
+      await openDrawer(page, "/pages");
+      await sendMessage(page, "rename my board to Kitchen Board");
+
+      await expect(page).toHaveURL(/\/settings\?section=general/, { timeout: 15_000 });
+      const ghost = page.getByTestId("ai-ghost");
+      await expect(ghost.first()).toBeVisible({ timeout: 15_000 });
+      await expect(ghost.first()).toContainText("Kitchen Board");
+      await expect(page.getByTestId("ai-spotlight-caption")).toHaveText(/Setting saved/i, { timeout: 15_000 });
+      // The real value landed on the control the ghost pointed at.
+      await expect(page.locator("#instance-name")).toHaveValue("Kitchen Board", { timeout: 15_000 });
+      // The ring is gone once the walkthrough settles.
+      await expect(page.getByTestId("ai-spotlight-ring")).toHaveCount(0, { timeout: 10_000 });
+    });
+
+    test("Stop mid-walkthrough discards the staged page and leaves the editor clean", async ({ page, request }) => {
+      await configureMockProvider(request);
+      await stubBoard(request);
+      // A slow tool: the create waits on approval-free but the mock delays the model's next turn.
+      await setMockScript({
+        steps: [
+          {
+            prose: "Building it.",
+            ops: [
+              {
+                op: "create_page",
+                args: { name: "Stopped Page", template_lines: ["ONE", "TWO", "THREE", "FOUR", "FIVE", "SIX"] },
+              },
+            ],
+          },
+          { prose: "Anything else?" },
+        ],
+      });
+      await openDrawer(page, "/settings");
+      await sendMessage(page, "make a page called Stopped Page");
+      await expect(page).toHaveURL(/\/pages\/(new|edit\/)/, { timeout: 15_000 });
+      // Stop as soon as the walkthrough is on screen.
+      await page.getByTestId("ai-spotlight-caption").getByRole("button", { name: "Stop" }).click({ timeout: 15_000 });
+      await expect(page.getByTestId("ai-spotlight-ring")).toHaveCount(0, { timeout: 10_000 });
+      // Whatever was staged is gone: nothing typed lingers in a draft.
+      await page.goto("/pages/new");
+      await expect(page.getByText(/draft restored/i)).toHaveCount(0);
+      const pages = await (await request.get(`${API_URL}/pages`)).json();
+      const list = (Array.isArray(pages) ? pages : pages.pages || []) as Array<Record<string, unknown>>;
+      for (const p of list.filter((p) => p.name === "Stopped Page")) await request.delete(`${API_URL}/pages/${p.id}`);
+    });
+  });
 });

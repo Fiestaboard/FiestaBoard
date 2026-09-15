@@ -16,6 +16,7 @@ import { CalendarClock, RefreshCw } from "lucide-react";
 import { toast } from "sonner";
 
 import { useTranslations } from "@/i18n/translations";
+import { anchorProps } from "@/lib/ai-choreography/anchors";
 import { api, AUTO_UPDATE_INTERVALS, type AutoUpdateInterval } from "@/lib/api";
 
 /**
@@ -117,6 +118,7 @@ export function AutoUpdateIntervalCard() {
       title={t("checkForUpdates")}
       description={t("intervalCardDescription")}
       contentClassName="space-y-3"
+      {...anchorProps("settings.auto_update")}
     >
       <Flex wrap align="center" gap="3">
         <Select
@@ -124,7 +126,11 @@ export function AutoUpdateIntervalCard() {
           onValueChange={(v) => mutation.mutate(v as AutoUpdateInterval)}
           disabled={mutation.isPending}
         >
-          <SelectTrigger className="w-[180px]" aria-label={t("intervalSelectAriaLabel")}>
+          <SelectTrigger
+            className="w-[180px]"
+            aria-label={t("intervalSelectAriaLabel")}
+            {...anchorProps("settings.auto_update.interval")}
+          >
             <SelectValue />
           </SelectTrigger>
           <SelectContent>

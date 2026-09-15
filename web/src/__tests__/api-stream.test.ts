@@ -64,6 +64,16 @@ describe("streamChat", () => {
     expect(onToolCall).toHaveBeenCalledWith(payload);
   });
 
+  it("fires onToolStreaming for 'tool_streaming' events", async () => {
+    const payload = { op: "create_page", text: '{"op": "create_page", "args": {"name": "Mo' };
+    mockFES.mockImplementation(async (_url: string, opts: any) => {
+      opts.onmessage?.({ event: "tool_streaming", data: JSON.stringify(payload), id: "", retry: undefined });
+    });
+    const onToolStreaming = vi.fn();
+    await streamChat(BASE_BODY, { onToolStreaming });
+    expect(onToolStreaming).toHaveBeenCalledWith(payload);
+  });
+
   it("fires onStatus for 'status' events", async () => {
     const payload = { phase: "tool_running", message: "Running create_page…", tool_call_id: "tc1", step: 1 };
     mockFES.mockImplementation(async (_url: string, opts: any) => {

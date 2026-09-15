@@ -23,6 +23,7 @@ import { useState } from "react";
 import { toast } from "sonner";
 
 import { useTranslations } from "@/i18n/translations";
+import { anchorProps } from "@/lib/ai-choreography/anchors";
 import { api } from "@/lib/api";
 
 /**
@@ -126,6 +127,7 @@ export function BetaSettings() {
         }
         description={t("description")}
         contentClassName="space-y-4"
+        {...anchorProps("settings.beta")}
       >
         <Flex align="start" justify="between" gap="4" className="rounded-md border p-4">
           <Stack gap="1">
@@ -151,6 +153,7 @@ export function BetaSettings() {
           </Stack>
           <Switch
             checked={httpsEnabled}
+            {...anchorProps("settings.beta.https_enabled")}
             disabled={mutation.isPending}
             onCheckedChange={(checked) => mutation.mutate(checked)}
             aria-label={t("httpsLabel")}
@@ -184,6 +187,7 @@ export function BetaSettings() {
           </Stack>
           <Switch
             checked={transitionsEnabled}
+            {...anchorProps("settings.beta.transition_plugins_enabled")}
             disabled={transitionsMutation.isPending}
             onCheckedChange={(checked) => transitionsMutation.mutate(checked)}
             aria-label={t("transitionsLabel")}

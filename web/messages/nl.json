@@ -2035,7 +2035,9 @@
     },
     "status": {
       "thinking": "Aan het nadenken…",
-      "running": "{tool} wordt uitgevoerd…"
+      "running": "{tool} wordt uitgevoerd…",
+      "preparing": "{tool} voorbereiden…",
+      "elapsed": "{seconds} s"
     },
     "question": {
       "skip": "Overslaan",
@@ -2217,5 +2219,40 @@
       "triggerSystemUpdate": "Downloadt en installeert de nieuwste FiestaBoard-update. Het systeem herstart kort.",
       "generic": "Deze actie kan niet door een andere tool ongedaan worden gemaakt."
     }
+  },
+  "aiSpotlight": {
+    "stop": "Stop",
+    "approve": "Goedkeuren",
+    "deny": "Weigeren"
+  },
+  "aiChoreography": {
+    "working": "{tool}…",
+    "done": "{tool} — klaar",
+    "failed": "{tool} mislukt",
+    "awaitingApproval": "{tool} — wacht op je goedkeuring",
+    "openingNewPage": "Nieuwe pagina openen…",
+    "typingName": "Pagina benoemen…",
+    "typingLines": "Regels schrijven…",
+    "creatingPage": "“{name}” aanmaken…",
+    "pageCreated": "Pagina aangemaakt",
+    "pageUpdated": "Pagina bijgewerkt",
+    "pageFailed": "De pagina kon niet worden opgeslagen",
+    "updatingBehindEdits": "Opgeslagen pagina bijwerken — je niet-opgeslagen wijzigingen blijven staan",
+    "changingDevice": "Bordgrootte wijzigen…",
+    "aboutToDeletePage": "Deze pagina wordt zo verwijderd",
+    "pageDeleted": "Pagina verwijderd",
+    "openingScheduleForm": "Planningsformulier openen…",
+    "fillingSchedule": "Planning invullen…",
+    "savingSchedule": "Planning opslaan…",
+    "scheduleCreated": "Planning toegevoegd",
+    "scheduleUpdated": "Planning bijgewerkt",
+    "scheduleFailed": "De planning kon niet worden opgeslagen",
+    "aboutToDeleteSchedule": "Deze planning wordt zo verwijderd",
+    "scheduleDeleted": "Planning verwijderd",
+    "changingSetting": "{tool}…",
+    "settingSaved": "Instelling opgeslagen",
+    "settingFailed": "De instelling kon niet worden opgeslagen",
+    "on": "Aan",
+    "off": "Uit"
   }
 }
