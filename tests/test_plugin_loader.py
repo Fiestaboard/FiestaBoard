@@ -459,7 +459,7 @@ class TestPlugin(PluginBase):
 '''
     )
     (plugin_dir / "__init__.py").write_text(
-        f'''
+        f"""
 import sys
 from pathlib import Path
 
@@ -468,7 +468,7 @@ if _dir not in sys.path:
     sys.path.insert(0, _dir)
 
 from {plugin_id}_impl import TestPlugin
-'''
+"""
     )
     return plugin_dir
 
