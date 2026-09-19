@@ -96,9 +96,11 @@ V1_BOARD_MESSAGE_SUCCESSOR = "/api/v1/boards/{board}/message"
 # left 33 internal endpoints with no product caller. #1936 then closed five of
 # the ten places where a v1 route dropped something its internal twin carried.
 #
-# The 25 below are what survives both a caller audit (``src/mcp_server.py``,
-# ``src/ops/executors.py``, ``src/mqtt/commands.py`` and the bundled plugins
-# all reach their domains through *services*, not these paths) and an
+# The 25 below (plus ``GET /displays/{display_type}/raw``, which joined from a
+# separate audit — see its entry) are what survives both a caller audit
+# (``src/mcp_server.py``, ``src/ops/executors.py``, ``src/mqtt/commands.py``
+# and the bundled plugins all reach their domains through *services*, not
+# these paths) and an
 # exactness audit: for each one, the successor named here answers every fact
 # the legacy response carries, accepts every input the legacy route accepts,
 # and refuses nothing the legacy route answered. The eight of the 33 that
@@ -163,6 +165,12 @@ SUPERSEDED_BY_V1: dict[str, str] = {
     # The display read is the same fetch seen twice: v1 carries `lines` and
     # `text`, and `line_count` is len(lines).
     "GET /displays/{display_type}": "/api/v1/plugins/{plugin_id}/data",
+    # The raw half of that same fetch. Not one of #1934's thirty-three: it had
+    # been deprecated on its own since the plugin marketplace landed, with a
+    # hand-rolled header pair that sent no Sunset and spelled its successor
+    # without the /api prefix nginx strips. #1911 moved it here. v1 carries
+    # `data`, `available` and `error` verbatim; `display_type` is `plugin_id`.
+    "GET /displays/{display_type}/raw": "/api/v1/plugins/{plugin_id}/data",
     # Template vocabulary. GET /v1/variables is the merge of both of these:
     # both sides read PluginRegistry.get_all_variables() / get_all_max_lengths()
     # (TemplateEngine forwards to them verbatim), and v1 adds the fields

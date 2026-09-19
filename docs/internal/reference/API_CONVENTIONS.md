@@ -238,6 +238,23 @@ to learn when their script stops working. The cohort is
 `SUPERSEDED_BY_V1` in `src/api_deprecation.py` and
 `tests/test_superseded_route_headers.py` pins it in both directions.
 
+`GET /displays/{type}/raw` joined the cohort later (#1911). It was not one of
+the 33 — it had been deprecated on its own since the plugin marketplace
+landed — but its notice was hand-rolled: no `Sunset`, and a successor spelled
+without the `/api` prefix nginx strips, so a caller who followed the link got
+a 404. It now sends the shared clock and names
+`/api/v1/plugins/{plugin_id}/data`, the same successor as
+`GET /displays/{type}`, because v1 serves the raw and formatted halves of that
+one fetch together.
+
+**A deprecated route keeps its historical status codes until it is removed.**
+`GET /displays/{type}/raw` still answers 503 for an unknown display type where
+`GET /displays/{type}` answers 400 and the v1 successor answers 404. That
+asymmetry is pinned, not endorsed: re-shaping the error contract of a route
+weeks from deletion breaks exactly the callers the deprecation window exists
+to protect, and the successor already has the right contract. Migrate to the
+successor rather than waiting for the old route to change.
+
 **The eight that were excluded are the reviewable half.** A
 `successor-version` link is a promise that following it loses nothing, so a
 route whose v1 equivalent still drops a field is *not* superseded and does not

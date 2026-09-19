@@ -247,11 +247,11 @@ test.describe("regression: integrations.plugin (config sheet + lifecycle)", () =
    * Route: /integrations (sheet)
    * Preconditions: plugin:enabled, plugin:exposes-variables
    * Expected: Template Variables table shows a "Current Value" column populated
-   *   with the live value returned by /displays/{plugin}/raw.
+   *   with the live value returned by /v1/plugins/{plugin}/data.
    * Issue: https://github.com/Fiestaboard/FiestaBoard/issues/936
    */
   test("integrations.plugin.config-sheet.template-vars — Current Value column shows live value", async ({ page }) => {
-    // The raw-display endpoint only refreshes on the plugin scheduler tick,
+    // The plugin-data endpoint only refreshes on the plugin scheduler tick,
     // which on a cold CI container can take >20s for date_time's first cycle.
     // Triple the default 30s budget so the assertion has room to wait it out.
     test.slow();
@@ -271,7 +271,7 @@ test.describe("regression: integrations.plugin (config sheet + lifecycle)", () =
     await expect(timeRow).toBeVisible({ timeout: 5_000 });
 
     // The "Current Value" cell is the 3rd column. Wait until it renders the live
-    // value — date_time.time always contains a digit (HH:MM). The displays-raw
+    // value — date_time.time always contains a digit (HH:MM). The plugin-data
     // endpoint can take a moment to warm up on a cold container, so allow 30s.
     const valueCell = timeRow.locator("td").nth(2);
     await expect(valueCell).toContainText(/\d/, { timeout: 30_000 });
@@ -309,7 +309,7 @@ test.describe("regression: integrations.plugin (config sheet + lifecycle)", () =
   /**
    * UX node: integrations.plugin.config-sheet.template-vars.unconfigured
    * Route: /integrations (sheet)
-   * Preconditions: plugin:enabled, raw-display:unavailable (missing config / fetch error)
+   * Preconditions: plugin:enabled, plugin-data:unavailable (missing config / fetch error)
    * Expected:
    *   - sheet still renders without crashing
    *   - "Unavailable" message visible above the table
@@ -318,17 +318,19 @@ test.describe("regression: integrations.plugin (config sheet + lifecycle)", () =
    * Issue: https://github.com/Fiestaboard/FiestaBoard/issues/936
    */
   test("integrations.plugin.config-sheet.template-vars — handles unconfigured plugin gracefully", async ({ page }) => {
-    // Simulate an unconfigured plugin: the raw-display endpoint reports the
+    // Simulate an unconfigured plugin: GET /v1/plugins/{id}/data reports the
     // plugin's data isn't available. This is what a plugin like `weather`
     // returns when its API key isn't set.
-    await page.route(`**/api/displays/${TEST_PLUGIN_ID}/raw`, async (route) => {
+    await page.route(`**/api/v1/plugins/${TEST_PLUGIN_ID}/data`, async (route) => {
       await route.fulfill({
         status: 200,
         contentType: "application/json",
         body: JSON.stringify({
-          display_type: TEST_PLUGIN_ID,
+          plugin_id: TEST_PLUGIN_ID,
           data: {},
           available: false,
+          lines: [],
+          text: "",
           error: "Plugin not configured",
         }),
       });

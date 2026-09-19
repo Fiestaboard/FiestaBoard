@@ -82,9 +82,6 @@ settings_service = MagicMock()
 settings_service.should_send_to_board.return_value = False
 settings_service.get_output_settings.return_value = MagicMock(target="ui")
 
-response = MagicMock()
-response.headers = {}
-
 with (
     patch("src.displays.routes.get_display_service", return_value=display_service),
     patch("src.displays.routes.get_settings_service", return_value=settings_service),
@@ -94,7 +91,9 @@ with (
     assert listed.total == 1, listed
     one = asyncio.run(routes.get_display("weather"))
     assert one.message == "SUNNY 72F", one
-    raw = asyncio.run(routes.get_display_raw("weather", response))
+    # The deprecation headers are a route dependency (#1911), not a handler
+    # parameter, so the handler is called bare.
+    raw = asyncio.run(routes.get_display_raw("weather"))
     assert raw.data == {"temp": 72}, raw
     batch = asyncio.run(routes.get_displays_raw_batch(DisplayRawBatchRequest(display_types=["weather"])))
     assert batch.total == 1, batch

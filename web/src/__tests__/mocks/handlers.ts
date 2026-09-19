@@ -3,7 +3,7 @@ import { http, HttpResponse } from "msw";
 import type {
   ConfigSummary,
   CurrentDisplayResponse,
-  DisplayRawResponse,
+  DisplayRawBatchResponse,
   DisplaySettings,
   GeneralConfig,
   OutputSettings,
@@ -49,18 +49,6 @@ export const mockConfig: ConfigSummary = {
   guest_wifi_enabled: false,
   star_trek_quotes_enabled: true,
   rotation_enabled: true,
-};
-
-export const mockWeatherRaw: DisplayRawResponse = {
-  display_type: "weather",
-  data: {
-    temperature: 72,
-    condition: "Sunny",
-    location: "San Francisco",
-    humidity: 45,
-  },
-  available: true,
-  error: null,
 };
 
 export const mockTransitionSettings: TransitionSettings = {
@@ -366,11 +354,10 @@ export const handlers = [
   http.post(`${API_BASE}/displays/raw/batch`, async ({ request }) => {
     const body = (await request.json()) as { display_types?: string[] };
     const displayTypes = body.display_types || [];
-    const displays: Record<string, DisplayRawResponse> = {};
+    const displays: DisplayRawBatchResponse["displays"] = {};
 
     displayTypes.forEach((type: string) => {
       displays[type] = {
-        display_type: type,
         data: {},
         available: true,
         error: null,
@@ -378,20 +365,6 @@ export const handlers = [
     });
 
     return HttpResponse.json({ displays });
-  }),
-
-  http.get(`${API_BASE}/displays/:type/raw`, ({ params }) => {
-    const { type } = params;
-    if (type === "weather") {
-      return HttpResponse.json(mockWeatherRaw);
-    }
-    const response: DisplayRawResponse = {
-      display_type: String(type),
-      data: {},
-      available: true,
-      error: null,
-    };
-    return HttpResponse.json(response);
   }),
 
   // Settings endpoints
@@ -722,6 +695,20 @@ export const handlers = [
   // Plugin config endpoints
   http.get(`${API_BASE}/v1/plugins/:pluginId`, ({ params }) => {
     return HttpResponse.json(pluginDetailFor(String(params.pluginId)));
+  }),
+
+  // `GET /v1/plugins/{id}/data` replaced GET /displays/{type}/raw (#1911).
+  http.get(`${API_BASE}/v1/plugins/:pluginId/data`, ({ params }) => {
+    const pluginId = String(params.pluginId);
+    const data = pluginId === "weather" ? { temperature: 72, condition: "Sunny", humidity: 45 } : {};
+    return HttpResponse.json({
+      plugin_id: pluginId,
+      available: true,
+      data,
+      lines: [],
+      text: "",
+      error: null,
+    });
   }),
 
   // `PATCH /v1/plugins/{id}` replaced PUT /plugins/{id}/config, POST

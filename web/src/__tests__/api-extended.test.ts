@@ -72,13 +72,35 @@ describe("API Extended Tests", () => {
     });
   });
 
-  describe("Display endpoints", () => {
-    it("getDisplayRaw returns raw data", async () => {
-      const result = await api.getDisplayRaw("weather");
-      expect(result.display_type).toBe("weather");
-      expect(result.data).toBeDefined();
-    });
+  describe("Plugin data", () => {
+    it("getPluginData reads GET /v1/plugins/{id}/data", async () => {
+      // The deprecated GET /displays/{type}/raw answers the same fetch (#1911),
+      // so the path is what this test is for, not the body.
+      let requested: string | undefined;
+      server.use(
+        http.get(`${API_BASE}/v1/plugins/:pluginId/data`, ({ request }) => {
+          requested = new URL(request.url).pathname;
+          return HttpResponse.json({
+            plugin_id: "weather",
+            available: true,
+            data: { temperature: 72 },
+            lines: ["72F"],
+            text: "72F",
+            error: null,
+          });
+        }),
+      );
 
+      const result = await api.getPluginData("weather");
+
+      expect(requested).toBe("/api/v1/plugins/weather/data");
+      expect(result.plugin_id).toBe("weather");
+      expect(result.available).toBe(true);
+      expect(result.data).toEqual({ temperature: 72 });
+    });
+  });
+
+  describe("Display endpoints", () => {
     it("getDisplaysRawBatch sends display_types and enabled_only", async () => {
       let capturedBody: any;
       server.use(

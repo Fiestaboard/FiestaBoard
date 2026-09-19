@@ -1056,15 +1056,17 @@ function InstalledPluginRow({
     enabled: isConfigOpen,
   });
 
-  // Fetch current variable values (raw display data) for the Template Variables table.
-  // Polls while the sheet is open so users can watch values update during troubleshooting.
+  // Fetch current variable values (the plugin's raw data) for the Template
+  // Variables table. Polls while the sheet is open so users can watch values
+  // update during troubleshooting. Reads GET /v1/plugins/{id}/data, the
+  // successor of the deprecated GET /displays/{type}/raw (#1911).
   const {
-    data: rawDisplay,
-    isLoading: isLoadingRawDisplay,
-    isFetching: isFetchingRawDisplay,
+    data: pluginData,
+    isLoading: isLoadingPluginData,
+    isFetching: isFetchingPluginData,
   } = useQuery({
-    queryKey: ["plugin-display-raw", plugin.id],
-    queryFn: () => api.getDisplayRaw(plugin.id),
+    queryKey: ["plugin-data", plugin.id],
+    queryFn: () => api.getPluginData(plugin.id),
     enabled: isConfigOpen && plugin.enabled,
     refetchInterval: 15_000,
   });
@@ -1102,7 +1104,7 @@ function InstalledPluginRow({
       // that actually satisfied the requirements.
       queryClient.invalidateQueries({ queryKey: ["plugin", plugin.id] });
       queryClient.invalidateQueries({ queryKey: ["plugin-displays-batch"] });
-      queryClient.invalidateQueries({ queryKey: ["plugin-display-raw", plugin.id] });
+      queryClient.invalidateQueries({ queryKey: ["plugin-data", plugin.id] });
       queryClient.invalidateQueries({ queryKey: ["pagePreview"] });
       setIsConfigOpen(false);
     } catch (error) {
@@ -1162,7 +1164,7 @@ function InstalledPluginRow({
   const renderVariableRow = (variable: PluginVariableRow) => {
     const resolved = formatCurrentValue(
       variable.name,
-      rawDisplay?.available ? (rawDisplay.data as Record<string, unknown>) : undefined,
+      pluginData?.available ? (pluginData.data as Record<string, unknown>) : undefined,
     );
     return (
       <TableRow
@@ -1188,9 +1190,9 @@ function InstalledPluginRow({
             <Text as="span" tone="muted">
               —
             </Text>
-          ) : isLoadingRawDisplay ? (
+          ) : isLoadingPluginData ? (
             <Skeleton className="h-3 w-16" />
-          ) : rawDisplay && rawDisplay.available === false ? (
+          ) : pluginData && pluginData.available === false ? (
             <Text as="span" tone="muted" className="italic">
               {t("valueUnavailable")}
             </Text>
@@ -1381,10 +1383,10 @@ function InstalledPluginRow({
                         {t("enablePluginForLiveValues")}
                       </Text>
                     )}
-                    {plugin.enabled && rawDisplay && rawDisplay.available === false && (
+                    {plugin.enabled && pluginData && pluginData.available === false && (
                       <Text size="xs" tone="warning">
-                        {rawDisplay.error
-                          ? t("liveValuesUnavailableWithError", { error: rawDisplay.error })
+                        {pluginData.error
+                          ? t("liveValuesUnavailableWithError", { error: pluginData.error })
                           : t("liveValuesUnavailable")}
                       </Text>
                     )}
@@ -1400,7 +1402,7 @@ function InstalledPluginRow({
                             </TableHead>
                             <TableHead className="text-left px-3 py-2 font-medium h-auto">
                               {t("currentValueColumn")}
-                              {plugin.enabled && isFetchingRawDisplay && !isLoadingRawDisplay && (
+                              {plugin.enabled && isFetchingPluginData && !isLoadingPluginData && (
                                 <Text as="span" size="xs" tone="muted" className="ml-1.5 text-[10px] font-normal">
                                   ({t("refreshingValues")})
                                 </Text>

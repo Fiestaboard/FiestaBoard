@@ -235,6 +235,24 @@ def test_the_eight_endpoints_v1_does_not_fully_replace_send_no_notice(operation)
     assert operation not in _wired_notices()
 
 
+def test_the_raw_display_read_joined_the_cohort_on_the_same_clock():
+    """``GET /displays/{type}/raw`` is the 26th member, from a different audit.
+
+    It was not in #1934's thirty-three — it had been deprecated on its own
+    since the plugin marketplace landed, with a hand-rolled header pair that
+    sent no ``Sunset`` and named a successor without the ``/api`` prefix.
+    #1911 moved it onto this mechanism. Its successor is the same v1 read that
+    replaces ``GET /displays/{type}``: v1 serves the raw payload and the
+    formatted one together, so both legacy halves point at one route.
+    """
+    assert SUPERSEDED_BY_V1["GET /displays/{display_type}/raw"] == "/api/v1/plugins/{plugin_id}/data"
+    assert SUPERSEDED_BY_V1["GET /displays/{display_type}/raw"] == SUPERSEDED_BY_V1["GET /displays/{display_type}"]
+    assert _wired_notices()["GET /displays/{display_type}/raw"] == (
+        "/api/v1/plugins/{plugin_id}/data",
+        SUPERSEDED_BY_V1_SUNSET,
+    )
+
+
 def test_a_route_kept_on_the_internal_surface_sends_nothing(client):
     """``GET /displays`` is in #1934's thirty-three and deliberately not here.
 

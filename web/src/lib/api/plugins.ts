@@ -234,9 +234,30 @@ export interface PluginErrorsResponse {
   plugin_system_enabled: boolean;
 }
 
+/**
+ * `GET /v1/plugins/{plugin}/data` — mirrors `PluginData` in src/v1/models.py.
+ * The merge of the raw and formatted reads: `data` is the variable payload a
+ * template reads from, `lines`/`text` its board rendering. `available` is
+ * false, with `error` set, for a disabled or unconfigured plugin — a 200,
+ * because that is the answer to the question asked.
+ */
+export interface PluginDataResponse {
+  plugin_id: string;
+  available: boolean;
+  data: Record<string, unknown> | null;
+  lines: string[];
+  text: string;
+  error: string | null;
+}
+
 export const pluginsApi = {
   // Plugin system endpoints
   listPlugins: () => fetchApi<PluginsListResponse>("/plugins"),
+
+  // Replaces `GET /displays/{type}/raw` (#1911): same fetch, same `data`,
+  // `available` and `error`, under the plugin's own id. The old route rides
+  // the shared Sunset clock and is deleted with the rest of that cohort.
+  getPluginData: (pluginId: string) => fetchApi<PluginDataResponse>(`/v1/plugins/${pluginId}/data`),
 
   // `GET /v1/plugins/{id}` is `GET /plugins/{id}`'s own handler behind a new
   // path — same PluginDetail model, same masking of stored secrets.
