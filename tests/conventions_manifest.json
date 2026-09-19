@@ -2,6 +2,7 @@
   "_comment": "API conventions ratchet (Phase 2, spec §2). Enforced by tests/test_api_conventions_ratchet.py; rules documented in docs/internal/reference/API_CONVENTIONS.md. Append a domain to converted_domains in the slice PR that converts it — never before. Every exception needs a route that exists, a known rule id, and a reason a reviewer can argue with.",
   "converted_domains": [
     "ai",
+    "auth",
     "backup",
     "board",
     "collections",
@@ -39,6 +40,11 @@
       "route": "GET /",
       "rule": "declared_errors",
       "reason": "Returns three constant strings naming the API. It takes no parameter, reads no state and calls nothing, so there is no failure to declare at any status — the only 500 it could produce is an unhandled bug, which is true of every route and belongs in a log, not the schema."
+    },
+    {
+      "route": "GET /auth/status",
+      "rule": "declared_errors",
+      "reason": "Deliberately public and unconditional: the web UI calls it on every load to decide whether to redirect to /login, so it must answer 200 for an anonymous caller, a signed-in one, and every auth mode. It takes no parameter and raises nothing — an invalid or expired session cookie is reported as authenticated=false at 200, not as a 401, because 'you are not signed in' is the answer the caller asked for."
     },
     {
       "route": "GET /backup/export",
@@ -279,6 +285,11 @@
       "route": "HEAD /health",
       "rule": "declared_errors",
       "reason": "The same handler as GET /health, split into its own operation only so FastAPI emits a distinct operationId (#1572). It cannot fail differently from the route it delegates to."
+    },
+    {
+      "route": "POST /auth/logout",
+      "rule": "declared_errors",
+      "reason": "Idempotent cookie clear with no body and no state to check. Logging out without a session is a success — the caller's intent (no session) is satisfied either way — so there is no status it refuses at, and the handler raises nothing."
     },
     {
       "route": "POST /pages/ai/chat",

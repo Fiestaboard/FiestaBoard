@@ -65,6 +65,7 @@ class HTTPValidationError(BaseModel):
 #: document the same failure the same way.
 _DESCRIPTIONS: dict[int, str] = {
     400: "Invalid request — the payload references something that does not exist or violates a rule.",
+    401: "Not authenticated — no valid session cookie or bearer token was presented, or the credentials were wrong.",
     403: "Forbidden.",
     404: "Resource not found.",
     405: "The resource exists but does not implement this operation.",
