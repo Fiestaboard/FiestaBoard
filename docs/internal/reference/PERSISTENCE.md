@@ -5,7 +5,7 @@ Not published to fiestaboard.app.
 
 Every long-lived store — `config.json`, `settings.json`, `pages.json`,
 `schedules.json`, `collections.json`, `panels.json`, `auth.json`,
-`trigger_dismissals.json` — obeys the same three rules. This document exists
+`trigger_dismissals.json`, `.system-update.json` — obeys the same three rules. This document exists
 because two of them used to be enforced by convention rather than by code, and
 because the third rule is deliberately *not* enforced at all.
 

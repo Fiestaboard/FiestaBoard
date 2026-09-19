@@ -3,8 +3,10 @@
 Everything here moved verbatim out of ``src/api_server.py``: the Docker Hub /
 GitHub Releases version comparison (newest-of-both-sources, #1430), the
 fiestaupdater sidecar HTTP client, pre-update settings snapshots with
-retention pruning, and the ``.system-update.json`` state machine with its
-lock + atomic-write semantics (#1745) preserved exactly.
+retention pruning, and the ``.system-update.json`` state machine. That state
+file sits on the storage kernel (:class:`src.storage.json_store.JsonStore`,
+#1848): the lock + atomic-write semantics it gained in #1745 are now the
+kernel's, and it carries a ``schema_version`` like every other store.
 
 This module is the canonical home for every one of those names — including
 the two path overrides ``SYSTEM_UPDATE_STATE_FILE`` / ``SETTINGS_SNAPSHOT_DIR``
@@ -38,9 +40,10 @@ from typing import Any
 import requests
 
 from src import __version__
-from src.atomic_io import write_json_atomic, write_text_atomic
+from src.atomic_io import write_text_atomic
 from src.config_manager import get_config_manager
 from src.paths import get_data_dir
+from src.storage.json_store import JsonStore, Migration, SchemaTooNewError
 
 from .models import (
     RollbackRequest,
@@ -389,47 +392,100 @@ def _system_update_state_file() -> Path:
     return get_data_dir() / ".system-update.json"
 
 
-# Serialises the read-modify-write of the state file.  Three writers share it —
-# the hourly auto-update loop, ``POST /system/update`` and
-# ``POST /system/update/auto`` — and each does load -> mutate -> save.  Without
-# this lock a writer's read goes stale and the other writer's field is lost
-# (#1745).  Re-entrant so a guarded update can call load/save directly.
-_SYSTEM_UPDATE_STATE_LOCK = threading.RLock()
+# The state file's schema. Version 1 is the #1745-era payload unchanged
+# (``auto_update_enabled`` / ``auto_update_interval`` / ``last_check`` /
+# ``last_update`` / ``channel`` / ``channel_join_snapshot``) plus the stamp;
+# the v0->v1 migration exists so a file an existing install wrote before
+# versioning is stamped once, with a ``.v0_backup`` kept, and so any later
+# change to the payload has a version to key on (CLAUDE.md: never heuristics).
+SYSTEM_UPDATE_STATE_SCHEMA_VERSION = 1
+
+
+def _migrate_system_update_state_v0_to_v1(state: dict[str, Any]) -> int:
+    """Migration 0 -> 1: adopt schema versioning. The payload is untouched."""
+    return 0
+
+
+SYSTEM_UPDATE_STATE_MIGRATIONS: list[Migration] = [
+    (1, _migrate_system_update_state_v0_to_v1),
+]
+
+# The kernel store for the state file. Three writers share the file — the
+# hourly auto-update loop, ``POST /system/update`` and
+# ``POST /system/update/auto`` — and each does load -> mutate -> save; the
+# store's re-entrant lock serialises them so neither writer's read goes stale
+# (#1745), and its atomic write means a crash mid-save never truncates the
+# file. Resolved at call time rather than at import because the path is a test
+# seam (``SYSTEM_UPDATE_STATE_FILE``) and the data dir can move under
+# ``FIESTABOARD_DATA_DIR``; the store is rebuilt only when the resolved path
+# changes, which in production is never.
+_SYSTEM_UPDATE_STORE: JsonStore | None = None
+_SYSTEM_UPDATE_STORE_GUARD = threading.Lock()
+
+
+def _system_update_store() -> JsonStore:
+    """The storage-kernel store for ``.system-update.json``, for the current path."""
+    global _SYSTEM_UPDATE_STORE
+    path = _system_update_state_file()
+    with _SYSTEM_UPDATE_STORE_GUARD:
+        store = _SYSTEM_UPDATE_STORE
+        if store is None or store.path != path:
+            store = JsonStore(
+                path,
+                current_schema_version=SYSTEM_UPDATE_STATE_SCHEMA_VERSION,
+                migrations=SYSTEM_UPDATE_STATE_MIGRATIONS,
+                label="System update state",
+            )
+            _SYSTEM_UPDATE_STORE = store
+        return store
 
 
 def _system_update_state_load() -> dict[str, Any]:
-    """Read the system-update state file.  Returns a fresh dict on any error."""
-    with _SYSTEM_UPDATE_STATE_LOCK:
-        state_file = _system_update_state_file()
+    """Read the system-update state file.  Returns a fresh dict on any error.
+
+    Always reads the disk (never the store's cached copy), exactly as before
+    the kernel: the auto-update loop and the API threads each want the other's
+    latest write. A file written before schema versioning is migrated on the
+    way through and the stamp is written back at once, so the migration (and
+    its one-time backup) runs once per install rather than on every read.
+    """
+    store = _system_update_store()
+    with store.lock:
         try:
-            if state_file.exists():
-                with state_file.open("r", encoding="utf-8") as f:
-                    data = json.load(f)
-                    if isinstance(data, dict):
-                        return data
+            data = store.load()
+        except SchemaTooNewError as e:
+            # Written by a newer build. Read nothing rather than misinterpret
+            # it; the store latches so the save below cannot overwrite it.
+            logger.warning(str(e))
+            return {}
         except Exception as e:
-            logger.debug(f"Failed to read {state_file}: {e}")
-        return {}
+            logger.debug(f"Failed to read {store.path}: {e}")
+            return {}
+        if not isinstance(data, dict):
+            return {}
+        if store.migrated:
+            _system_update_state_save(data)
+        return data
 
 
 def _system_update_state_save(state: dict[str, Any]) -> None:
-    """Persist the system-update state file atomically.
+    """Persist the system-update state file atomically (stamping ``schema_version``).
 
     A truncating ``open("w")`` here used to leave a half-written file behind on
     a crash; the loader swallows the resulting JSON error and returns ``{}``,
     which silently resets the auto-update toggle to its default (#1745).
     """
-    with _SYSTEM_UPDATE_STATE_LOCK:
-        state_file = _system_update_state_file()
-        try:
-            write_json_atomic(state_file, state)
-        except Exception as e:
-            logger.warning(f"Failed to write {state_file}: {e}")
+    store = _system_update_store()
+    try:
+        store.save(state)
+    except Exception as e:
+        logger.warning(f"Failed to write {store.path}: {e}")
 
 
 def _system_update_state_update(**changes: Any) -> dict[str, Any]:
     """Merge *changes* into the state file as one locked read-modify-write."""
-    with _SYSTEM_UPDATE_STATE_LOCK:
+    store = _system_update_store()
+    with store.lock:
         state = _system_update_state_load()
         state.update(changes)
         _system_update_state_save(state)

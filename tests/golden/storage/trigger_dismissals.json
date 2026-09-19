@@ -1,0 +1,13 @@
+{
+  "schema_version": 1,
+  "dismissals": {
+    "door-open": {
+      "suppressed_until": "2026-07-15T10:00:00+00:00",
+      "dismissed_at": "2026-07-15T08:55:00+00:00"
+    },
+    "garage-open": {
+      "suppressed_until": "2026-07-15T11:00:00+00:00",
+      "dismissed_at": "2026-07-15T09:00:00+00:00"
+    }
+  }
+}
