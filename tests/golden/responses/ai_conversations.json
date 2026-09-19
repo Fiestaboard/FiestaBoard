@@ -1,0 +1,315 @@
+{
+  "_comment": "Golden response shapes for the ai_conversations domain (issue #1756). Do not hand-edit: regenerate with `RECORD_RESPONSE_GOLDEN=1 pytest tests/test_response_shape_goldens.py` and review the diff.",
+  "records": [
+    {
+      "label": "list_conversations_empty",
+      "method": "GET",
+      "path_template": "/ai/conversations",
+      "status": 200,
+      "shape": {
+        "conversations": [],
+        "total": "int"
+      }
+    },
+    {
+      "label": "upsert_conversation_create",
+      "method": "PUT",
+      "path_template": "/ai/conversations/{conversation_id}",
+      "status": 201,
+      "shape": {
+        "approval": "bool",
+        "created_at": "str",
+        "id": "str",
+        "messages": [
+          {
+            "content": "str",
+            "role": "str"
+          },
+          {
+            "content": "str",
+            "role": "str",
+            "toolCalls": [
+              {
+                "args": {},
+                "id": "str",
+                "name": "str"
+              }
+            ]
+          }
+        ],
+        "model": "str",
+        "provider_id": "str",
+        "title": "str",
+        "updated_at": "str"
+      }
+    },
+    {
+      "label": "upsert_conversation_update",
+      "method": "PUT",
+      "path_template": "/ai/conversations/{conversation_id}",
+      "status": 200,
+      "shape": {
+        "approval": "bool",
+        "created_at": "str",
+        "id": "str",
+        "messages": [
+          {
+            "content": "str",
+            "role": "str"
+          },
+          {
+            "content": "str",
+            "role": "str",
+            "toolCalls": [
+              {
+                "args": {},
+                "id": "str",
+                "name": "str"
+              }
+            ]
+          }
+        ],
+        "model": "str",
+        "provider_id": "str",
+        "title": "str",
+        "updated_at": "str"
+      }
+    },
+    {
+      "label": "upsert_conversation_invalid",
+      "method": "PUT",
+      "path_template": "/ai/conversations/{conversation_id}",
+      "status": 422,
+      "shape": {
+        "detail": [
+          {
+            "ctx": {
+              "actual_length": "int",
+              "field_type": "str",
+              "min_length": "int"
+            },
+            "input": [],
+            "loc": [
+              "str",
+              "str"
+            ],
+            "msg": "str",
+            "type": "str"
+          }
+        ]
+      }
+    },
+    {
+      "label": "list_conversations",
+      "method": "GET",
+      "path_template": "/ai/conversations",
+      "status": 200,
+      "shape": {
+        "conversations": [
+          {
+            "created_at": "str",
+            "id": "str",
+            "message_count": "int",
+            "model": "str",
+            "provider_id": "str",
+            "title": "str",
+            "updated_at": "str"
+          }
+        ],
+        "total": "int"
+      }
+    },
+    {
+      "label": "list_conversations_search",
+      "method": "GET",
+      "path_template": "/ai/conversations",
+      "status": 200,
+      "shape": {
+        "conversations": [
+          {
+            "created_at": "str",
+            "id": "str",
+            "message_count": "int",
+            "model": "str",
+            "provider_id": "str",
+            "title": "str",
+            "updated_at": "str"
+          }
+        ],
+        "total": "int"
+      }
+    },
+    {
+      "label": "get_conversation_ok",
+      "method": "GET",
+      "path_template": "/ai/conversations/{conversation_id}",
+      "status": 200,
+      "shape": {
+        "approval": "bool",
+        "created_at": "str",
+        "id": "str",
+        "messages": [
+          {
+            "content": "str",
+            "role": "str"
+          },
+          {
+            "content": "str",
+            "role": "str",
+            "toolCalls": [
+              {
+                "args": {},
+                "id": "str",
+                "name": "str"
+              }
+            ]
+          }
+        ],
+        "model": "str",
+        "provider_id": "str",
+        "title": "str",
+        "updated_at": "str"
+      }
+    },
+    {
+      "label": "get_conversation_missing",
+      "method": "GET",
+      "path_template": "/ai/conversations/{conversation_id}",
+      "status": 404,
+      "shape": {
+        "detail": "str"
+      }
+    },
+    {
+      "label": "rename_conversation_ok",
+      "method": "PATCH",
+      "path_template": "/ai/conversations/{conversation_id}",
+      "status": 200,
+      "shape": {
+        "approval": "bool",
+        "created_at": "str",
+        "id": "str",
+        "messages": [
+          {
+            "content": "str",
+            "role": "str"
+          },
+          {
+            "content": "str",
+            "role": "str",
+            "toolCalls": [
+              {
+                "args": {},
+                "id": "str",
+                "name": "str"
+              }
+            ]
+          }
+        ],
+        "model": "str",
+        "provider_id": "str",
+        "title": "str",
+        "updated_at": "str"
+      }
+    },
+    {
+      "label": "rename_conversation_invalid",
+      "method": "PATCH",
+      "path_template": "/ai/conversations/{conversation_id}",
+      "status": 422,
+      "shape": {
+        "detail": [
+          {
+            "ctx": {
+              "min_length": "int"
+            },
+            "input": "str",
+            "loc": [
+              "str",
+              "str"
+            ],
+            "msg": "str",
+            "type": "str"
+          }
+        ]
+      }
+    },
+    {
+      "label": "rename_conversation_missing",
+      "method": "PATCH",
+      "path_template": "/ai/conversations/{conversation_id}",
+      "status": 404,
+      "shape": {
+        "detail": "str"
+      }
+    },
+    {
+      "label": "export_conversation_ok",
+      "method": "GET",
+      "path_template": "/ai/conversations/{conversation_id}/export",
+      "status": 200,
+      "shape": {
+        "approval": "bool",
+        "created_at": "str",
+        "id": "str",
+        "messages": [
+          {
+            "content": "str",
+            "role": "str"
+          },
+          {
+            "content": "str",
+            "role": "str",
+            "toolCalls": [
+              {
+                "args": {},
+                "id": "str",
+                "name": "str"
+              }
+            ]
+          }
+        ],
+        "model": "str",
+        "provider_id": "str",
+        "title": "str",
+        "updated_at": "str"
+      }
+    },
+    {
+      "label": "export_conversation_missing",
+      "method": "GET",
+      "path_template": "/ai/conversations/{conversation_id}/export",
+      "status": 404,
+      "shape": {
+        "detail": "str"
+      }
+    },
+    {
+      "label": "delete_conversation_ok",
+      "method": "DELETE",
+      "path_template": "/ai/conversations/{conversation_id}",
+      "status": 200,
+      "shape": {
+        "id": "str"
+      }
+    },
+    {
+      "label": "delete_conversation_missing",
+      "method": "DELETE",
+      "path_template": "/ai/conversations/{conversation_id}",
+      "status": 404,
+      "shape": {
+        "detail": "str"
+      }
+    },
+    {
+      "label": "clear_conversations",
+      "method": "DELETE",
+      "path_template": "/ai/conversations",
+      "status": 200,
+      "shape": {
+        "deleted": "int"
+      }
+    }
+  ]
+}
