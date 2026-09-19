@@ -32,10 +32,18 @@ def client():
 
 
 @pytest.fixture(autouse=True)
-def _isolate_state_file(tmp_path):
-    """Give every test its own state file to prevent state leaking between tests."""
-    with patch("src.system.update_service.SYSTEM_UPDATE_STATE_FILE", tmp_path / "update_state.json"):
-        yield
+def _isolate_state_file(tmp_path, monkeypatch):
+    """Give every test its own state file to prevent state leaking between tests.
+
+    Set through ``monkeypatch`` — the same undo stack the tests' own
+    ``monkeypatch.setattr(...SYSTEM_UPDATE_STATE_FILE...)`` calls land on —
+    so the two restores unwind in order. As a ``patch()`` context this fixture
+    could exit before a test's monkeypatch undo, which then put *this*
+    fixture's path back on the module for good: every later test in the
+    session that resolved the default path got this file instead
+    (``tests/test_data_dir_isolation.py`` is what caught it).
+    """
+    monkeypatch.setattr("src.system.update_service.SYSTEM_UPDATE_STATE_FILE", tmp_path / "update_state.json")
 
 
 class TestUpdateCheck:
