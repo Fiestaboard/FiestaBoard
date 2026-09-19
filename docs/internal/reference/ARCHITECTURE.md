@@ -234,7 +234,7 @@ browser drawer ──POST /pages/ai/chat (SSE)──► src/ai/agent.py (server-
 The MCP tool **annotations** decide policy, not a list in the chat:
 `readOnlyHint` tools run freely mid-turn; `destructiveHint` tools
 (`delete_*`, `uninstall_plugin`, `remove_board`, `delete_panel`, the Wi-Fi
-teardowns and the system actions `trigger_system_update` / `restart_system` /
+disconnect/forget tools and the system actions `trigger_system_update` / `restart_system` /
 `shutdown_system`)
 end the stream with `done{reason: "awaiting_approval"}` and run only when the
 client re-POSTs a `resume` approving them. `ask_user` ends it with
