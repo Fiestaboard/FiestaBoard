@@ -2130,10 +2130,13 @@ def _build_mcp_server() -> Any:
         Args:
             category: Which settings group to change. One of 'general',
                 'display', 'transitions', 'output', 'polling', 'location',
-                'silence_schedule', 'schedule_behavior', 'active_page', 'beta', 'plugins', 'mqtt',
-                'ai', 'release_channel', 'auto_update', or 'hdmi_kiosk'.
-            values: The keys to change within that category. Keys per
-                category:
+                'silence_schedule', 'schedule_behavior', 'active_page', 'beta',
+                'plugins', 'mqtt', 'ai', 'release_channel', 'auto_update', or
+                'hdmi_kiosk'.
+            values: The keys to change within that category — see "Keys
+                per category" below.
+
+        Keys per category:
                 - general: instance_name (string — the install's name, shown
                   in the UI and on the network; this is how you rename the
                   board/instance), timezone (IANA name, e.g.
