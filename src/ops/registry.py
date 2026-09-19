@@ -201,6 +201,26 @@ OPERATIONS: tuple[Operation, ...] = (
         mcp_tool="update_plugin",
         adapt_chat_args=lambda a: {"plugin_id": a.plugin_id},
     ),
+    # MCP-only plugin ops covering the rest of the Integrations page —
+    # instances, demo pages, bulk update checks. The chat grammar has no
+    # spelling for them; the in-app chat reaches them as MCP tools.
+    Operation(
+        name="create_plugin_instance",
+        executor=executors.create_plugin_instance,
+        mcp_tool="create_plugin_instance",
+    ),
+    Operation(
+        name="delete_plugin_instance",
+        executor=executors.delete_plugin_instance,
+        mcp_tool="delete_plugin_instance",
+    ),
+    Operation(
+        name="create_plugin_demo_page",
+        executor=executors.create_plugin_demo_page,
+        mcp_tool="create_plugin_demo_page",
+    ),
+    Operation(name="check_plugin_updates", executor=executors.check_plugin_updates, mcp_tool="check_plugin_updates"),
+    Operation(name="update_all_plugins", executor=executors.update_all_plugins, mcp_tool="update_all_plugins"),
     # -- settings / system ------------------------------------------------
     Operation(
         name="update_setting",

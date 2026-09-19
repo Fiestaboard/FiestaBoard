@@ -193,6 +193,8 @@ def _plugin_service() -> PluginService:
         config_manager=get_config_manager(),
         reset_display=reset_display_service,
         reset_template=reset_template_engine,
+        page_service=get_page_service(),
+        settings_service=get_settings_service(),
     )
 
 
@@ -649,56 +651,17 @@ async def get_plugin_options_endpoint(
 # ── Plugin Demo Pages ────────────────────────────────────────────────────────
 
 
-def _resolve_demo_device_type(demo: dict) -> str:
-    """Pick the demo device_type that matches the configured board.
-
-    Walks the user's configured boards in order and returns the first
-    device_type that the plugin actually ships a demo for. Falls back to
-    any device_type the plugin supports, then to "flagship" as a last
-    resort. See issue #942.
-    """
-    configured: list[str] = []
-    try:
-        board_settings = get_settings_service().get_board_settings()
-        for board in getattr(board_settings, "boards", []) or []:
-            dt = board.get("device_type") if isinstance(board, dict) else None
-            if dt and dt not in configured:
-                configured.append(dt)
-    except Exception:
-        logger.debug("Could not resolve configured device_type; using plugin default", exc_info=True)
-
-    for dt in configured:
-        if dt in demo:
-            return dt
-    if demo:
-        return next(iter(demo))
-    return "flagship"
-
-
 @router.get(
     "/plugins/{plugin_id}/demo-page",
     response_model=PluginDemoPageResponse,
     responses=errors(404, 503),
 )
+@plugin_errors_to_http
 async def get_plugin_demo_page(plugin_id: str, device_type: str = "flagship") -> PluginDemoPageResponse:
     """Whether a demo page exists for this plugin and device type."""
     _require_plugin_system()
 
-    registry = get_plugin_registry()
-    manifest = registry.get_manifest(plugin_id)
-    if not manifest:
-        raise HTTPException(status_code=404, detail=f"Plugin not found: {plugin_id}")
-
-    if manifest.demo is None:
-        return PluginDemoPageResponse(exists=False, page_id=None, has_demo_template=False)
-
-    has_demo_template = device_type in manifest.demo
-    demo_page = get_page_service().get_demo_page(plugin_id, device_type=device_type)
-    return PluginDemoPageResponse(
-        exists=demo_page is not None,
-        page_id=demo_page.id if demo_page else None,
-        has_demo_template=has_demo_template,
-    )
+    return PluginDemoPageResponse.model_validate(_plugin_service().demo_page_status(plugin_id, device_type))
 
 
 @router.post(
@@ -707,6 +670,7 @@ async def get_plugin_demo_page(plugin_id: str, device_type: str = "flagship") ->
     status_code=201,
     responses=errors(400, 404, 503),
 )
+@plugin_errors_to_http
 async def create_plugin_demo_page(plugin_id: str, device_type: str | None = None) -> PluginDemoPageCreateResponse:
     """Create (or recreate) the demo page for a plugin and device type.
 
@@ -714,43 +678,14 @@ async def create_plugin_demo_page(plugin_id: str, device_type: str | None = None
     settings, so a Note board does not silently get a Flagship-sized demo page
     (issue #942). The demo page is a singleton per plugin + device type: a
     second call deletes the old one and creates a fresh copy, which is what
-    ``recreated`` reports.
+    ``recreated`` reports. The orchestration lives in
+    ``PluginService.create_demo_page`` so the MCP ``create_plugin_demo_page``
+    tool shares it.
     """
     _require_plugin_system()
 
-    registry = get_plugin_registry()
-    manifest = registry.get_manifest(plugin_id)
-    if not manifest:
-        raise HTTPException(status_code=404, detail=f"Plugin not found: {plugin_id}")
-
-    if manifest.demo is None:
-        raise HTTPException(
-            status_code=400,
-            detail=f"Plugin '{plugin_id}' does not include a demo page template.",
-        )
-
-    resolved_device_type = device_type or _resolve_demo_device_type(manifest.demo)
-
-    demo_schema = manifest.demo.get(resolved_device_type)
-    if demo_schema is None:
-        raise HTTPException(
-            status_code=400,
-            detail=f"Plugin '{plugin_id}' has no demo template for device type '{resolved_device_type}'.",
-        )
-
-    required_fields = manifest.settings_schema.get("required", [])
-    if required_fields:
-        plugin_config = get_config_manager().get_plugin_config(plugin_id) or {}
-        missing = [f for f in required_fields if f != "enabled" and not plugin_config.get(f)]
-        if missing:
-            raise HTTPException(
-                status_code=400,
-                detail=f"Required settings not configured: {', '.join(missing)}. "
-                f"Configure them first before creating a demo page.",
-            )
-
-    page, recreated = get_page_service().create_demo_page(plugin_id, demo_schema)
-    return PluginDemoPageCreateResponse(recreated=recreated, page=page.model_dump())
+    result = _plugin_service().create_demo_page(plugin_id, device_type)
+    return PluginDemoPageCreateResponse(recreated=result["recreated"], page=result["page"].model_dump())
 
 
 # ── Plugin Instances ────────────────────────────────────────────────────────
