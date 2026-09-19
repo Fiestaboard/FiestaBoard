@@ -124,14 +124,19 @@ the first mint is open — until a token exists the whole API is open anyway,
 so gating it would protect nothing. (Earlier releases left these routes
 fully open on such installs, so anyone who could reach the port could
 rotate or revoke a Settings-stored token — fixed in
-Fiestaboard/FiestaBoard#1825.) The gate protects against casual or
-accidental mint-and-read and revocation, but it is not a boundary against
-an attacker who can already reach the port: with the login disabled by
-preference, that attacker can re-enable it (`POST /auth/preference`),
-register the first admin (`POST /auth/setup`), and manage the token with
-that session. `FIESTABOARD_MCP_TOKEN` is the option that actually holds:
-while it is set, both mutating routes refuse with `409` and the token
-cannot be changed over the network at all.
+Fiestaboard/FiestaBoard#1825.) The stored token also guards the one way
+around that gate. With the login disabled by preference, re-enabling it
+(`POST /auth/preference` with `enabled: true`) and registering the first
+admin (`POST /auth/setup`) would each hand out a session that can rotate or
+revoke the token — so while a stored token exists, both of those requests
+must present it as an `Authorization: Bearer` header too, and are refused
+with a `403` otherwise (Fiestaboard/FiestaBoard#1880). Turning the login
+*off* is never gated; it cannot take anything over. If you chose *Continue
+without login* and later want to add one, send the token with the request
+or clear it in **Settings → Integrations** first. A token pinned by
+`FIESTABOARD_MCP_TOKEN` is not gated this way because there is nothing to
+hijack: while it is set, both mutating routes refuse with `409` and the
+token cannot be changed over the network at all.
 
 ## Cross-origin browser access (CORS)
 
