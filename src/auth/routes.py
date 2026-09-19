@@ -9,6 +9,8 @@ import time
 from fastapi import APIRouter, HTTPException, Request, Response, status
 from pydantic import BaseModel, Field
 
+from src.api_errors import errors
+
 from .middleware import _bearer_from
 from .service import (
     SESSION_COOKIE_NAME,
@@ -252,7 +254,7 @@ async def auth_status(request: Request) -> StatusResponse:
     )
 
 
-@router.post("/preference", response_model=SimpleResponse)
+@router.post("/preference", response_model=SimpleResponse, responses=errors(403, 409))
 async def auth_preference(payload: PreferenceRequest, request: Request) -> SimpleResponse:
     """Record the admin's first-run auth on/off choice.
 
@@ -287,7 +289,7 @@ async def auth_preference(payload: PreferenceRequest, request: Request) -> Simpl
     return SimpleResponse(status="ok")
 
 
-@router.post("/setup", response_model=SimpleResponse, status_code=201)
+@router.post("/setup", response_model=SimpleResponse, status_code=201, responses=errors(400, 403, 409))
 async def auth_setup(payload: SetupRequest, request: Request, response: Response) -> SimpleResponse:
     """Create the first user. Only callable when no user exists yet."""
     svc = get_auth_service()
@@ -316,7 +318,7 @@ async def auth_setup(payload: SetupRequest, request: Request, response: Response
     return SimpleResponse(status="ok", username=payload.username)
 
 
-@router.post("/login", response_model=SimpleResponse)
+@router.post("/login", response_model=SimpleResponse, responses=errors(401, 409, 429))
 async def auth_login(payload: LoginRequest, request: Request, response: Response) -> SimpleResponse:
     """Verify credentials and issue a session cookie."""
     ip = _client_ip(request)
@@ -347,7 +349,7 @@ async def auth_logout(response: Response) -> SimpleResponse:
     return SimpleResponse(status="ok")
 
 
-@router.post("/change-password", response_model=SimpleResponse)
+@router.post("/change-password", response_model=SimpleResponse, responses=errors(400, 401))
 async def auth_change_password(payload: ChangePasswordRequest, request: Request, response: Response) -> SimpleResponse:
     """Change the logged-in user's password."""
     svc = get_auth_service()
@@ -372,7 +374,7 @@ async def auth_change_password(payload: ChangePasswordRequest, request: Request,
     return SimpleResponse(status="ok", username=username)
 
 
-@router.post("/change-username", response_model=SimpleResponse)
+@router.post("/change-username", response_model=SimpleResponse, responses=errors(400, 401))
 async def auth_change_username(payload: ChangeUsernameRequest, request: Request, response: Response) -> SimpleResponse:
     """Rename the logged-in user, gated by their current password."""
     svc = get_auth_service()
@@ -396,7 +398,7 @@ async def auth_change_username(payload: ChangeUsernameRequest, request: Request,
     return SimpleResponse(status="ok", username=new_username)
 
 
-@router.post("/disable", response_model=SimpleResponse)
+@router.post("/disable", response_model=SimpleResponse, responses=errors(401, 409))
 async def auth_disable(payload: DisableAuthRequest, request: Request, response: Response) -> SimpleResponse:
     """Turn off auth enforcement after a password check.
 
@@ -490,7 +492,7 @@ def _require_admin_or_mcp_token(request: Request) -> str:
     )
 
 
-@router.get("/mcp-token", response_model=McpTokenStatusResponse)
+@router.get("/mcp-token", response_model=McpTokenStatusResponse, responses=errors(401))
 async def auth_mcp_token_status(request: Request) -> McpTokenStatusResponse:
     """Report whether an MCP bearer token is configured, and from where."""
     _require_admin_or_mcp_token(request)
@@ -502,6 +504,7 @@ async def auth_mcp_token_status(request: Request) -> McpTokenStatusResponse:
     "/mcp-token",
     response_model=McpTokenRotateResponse,
     status_code=status.HTTP_201_CREATED,
+    responses=errors(401, 409),
 )
 async def auth_mcp_token_rotate(request: Request) -> McpTokenRotateResponse:
     """Generate a fresh MCP bearer token, persist it, and return it ONCE.
@@ -525,7 +528,7 @@ async def auth_mcp_token_rotate(request: Request) -> McpTokenRotateResponse:
     return McpTokenRotateResponse(token=token)
 
 
-@router.delete("/mcp-token", response_model=SimpleResponse)
+@router.delete("/mcp-token", response_model=SimpleResponse, responses=errors(401, 409))
 async def auth_mcp_token_clear(request: Request) -> SimpleResponse:
     """Revoke the stored MCP bearer token.
 

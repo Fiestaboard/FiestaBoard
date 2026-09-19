@@ -64,18 +64,21 @@ client config — it replaces `<YOUR_TOKEN>` in the examples below.
 > login-redirect loop. (Earlier releases left these routes fully anonymous
 > on such installs, so anyone who could reach the port could mint or
 > revoke the token — fixed in Fiestaboard/FiestaBoard#1825.)
-> Even so, the possession gate is **not a boundary against an attacker
-> who can already reach the port**: on an install where the login is
-> merely *disabled by preference*, the preference itself is part of the
-> open API, so such an attacker can `POST /auth/preference` to enable the
-> login, register the first admin via `POST /auth/setup`, and manage the
-> token with that session. Treat the gate as protection against casual or
-> accidental mint-and-read and revocation.
-> `FIESTABOARD_MCP_TOKEN` is the configuration that actually holds: while
-> it is set, the mutating routes refuse with `409` even for a caller
-> presenting the token, so it cannot be rotated or revoked over the
-> network at all. Enabling the browser login gates management behind the
-> admin session as usual.
+> The stored token also guards the way around that gate. On an install
+> where the login is merely *disabled by preference*, the preference
+> itself is part of the open API — but enabling it
+> (`POST /auth/preference` with `enabled: true`) and registering the first
+> admin (`POST /auth/setup`) would each hand out a session that can manage
+> the token, so while a stored token exists both requests must present it
+> as an `Authorization: Bearer` header and are refused with a `403`
+> otherwise (Fiestaboard/FiestaBoard#1880). Disabling the login is never
+> gated. To add a login later on such an install, send the token with the
+> request or clear it in **Settings → Integrations** first.
+> `FIESTABOARD_MCP_TOKEN` is not gated this way because there is nothing
+> to hijack: while it is set, the mutating routes refuse with `409` even
+> for a caller presenting the token, so it cannot be rotated or revoked
+> over the network at all. Enabling the browser login gates management
+> behind the admin session as usual.
 
 ## Why local hosting makes this awkward
 
