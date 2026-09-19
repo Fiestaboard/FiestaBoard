@@ -2006,6 +2006,8 @@
     "messageLabel": "Bericht",
     "stopButton": "Stoppen",
     "sendButton": "Verzenden",
+    "enterToSend": "om te verzenden",
+    "shiftEnterNewline": "voor een nieuwe regel",
     "emptyStateTitle": "Waarmee kan ik helpen?",
     "emptyStateDescription": "Beschrijf wat je wilt bouwen of wijzigen.",
     "placeholderEmpty": "Beschrijf de gewenste pagina of vraag om wijzigingen…",

@@ -2006,6 +2006,8 @@
     "messageLabel": "Meddelande",
     "stopButton": "Stoppa",
     "sendButton": "Skicka",
+    "enterToSend": "för att skicka",
+    "shiftEnterNewline": "för ny rad",
     "emptyStateTitle": "Hur kan jag hjälpa till?",
     "emptyStateDescription": "Beskriv vad du vill bygga eller ändra.",
     "placeholderEmpty": "Beskriv sidan du vill ha eller be om ändringar…",

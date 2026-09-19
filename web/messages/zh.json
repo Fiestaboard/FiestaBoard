@@ -2006,6 +2006,8 @@
     "messageLabel": "消息",
     "stopButton": "停止",
     "sendButton": "发送",
+    "enterToSend": "发送",
+    "shiftEnterNewline": "换行",
     "emptyStateTitle": "需要什么帮助？",
     "emptyStateDescription": "描述您想要构建或更改的内容。",
     "placeholderEmpty": "描述你想要的页面，或提出修改要求…",

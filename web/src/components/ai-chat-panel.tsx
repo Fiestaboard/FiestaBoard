@@ -6,12 +6,12 @@ import {
   Box,
   Button,
   Card,
-  Code,
   Conversation,
   ConversationContent,
   ConversationScrollButton,
   Flex,
   JsonTree,
+  Kbd,
   Label,
   Message,
   MessageAvatar,
@@ -282,10 +282,33 @@ export function AiChatPanel({
                   model={effectiveModel}
                   onModelChange={setModel}
                 />
-                {/* Keyboard shortcut glyphs are never translated. */}
-                <Code className="bg-transparent px-0 py-0 text-[10px] text-muted-foreground">Enter</Code>
               </PromptInputTools>
-              <PromptInputSubmit onStop={stop} disabled={blocked || (!streaming && !draft.trim())} />
+              <Flex align="center" gap="2" className="shrink-0">
+                {/* Sighted pointer users get the bindings from this hint;
+                    screen readers get them from `aria-keyshortcuts` on the
+                    button, so the hint stays out of the accessibility tree.
+                    Touch keyboards have no Shift+Enter, so coarse pointers
+                    do not see it at all. Keycap glyphs are never translated;
+                    the verbs are. */}
+                <Text
+                  as="span"
+                  size="xs"
+                  tone="muted"
+                  aria-hidden="true"
+                  data-testid="ai-chat-send-hint"
+                  className="inline-flex items-center gap-1.5 whitespace-nowrap pointer-coarse:hidden"
+                >
+                  <Kbd keys={["Enter"]} />
+                  {t("enterToSend")}
+                  <Kbd keys={["Shift", "Enter"]} />
+                  {t("shiftEnterNewline")}
+                </Text>
+                <PromptInputSubmit
+                  aria-keyshortcuts="Enter"
+                  onStop={stop}
+                  disabled={blocked || (!streaming && !draft.trim())}
+                />
+              </Flex>
             </PromptInputToolbar>
           </PromptInput>
         </Box>

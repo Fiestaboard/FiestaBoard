@@ -2006,6 +2006,8 @@
     "messageLabel": "Mesaj",
     "stopButton": "Durdur",
     "sendButton": "Gönder",
+    "enterToSend": "göndermek için",
+    "shiftEnterNewline": "yeni satır için",
     "emptyStateTitle": "Nasıl yardımcı olabilirim?",
     "emptyStateDescription": "Ne oluşturmak veya değiştirmek istediğinizi anlatın.",
     "placeholderEmpty": "İstediğin sayfayı anlat ya da değişiklik iste…",
