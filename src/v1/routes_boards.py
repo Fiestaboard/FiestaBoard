@@ -346,11 +346,18 @@ async def send_to_board(board: str, request: MessageRequest) -> MessageResponse:
     dims = board_dimensions(entry)
     characters, text, template_lines = _grid_for(request, dims.rows, dims.cols)
 
+    # A timed message is validated up front (its 400s must precede any
+    # write) but ARMED only after the write is in. It used to be armed and
+    # persisted before the executor ran, and nothing rolled it back on a
+    # refusal — so a write the send floor dropped (429) still landed on the
+    # next display tick, for the full duration (#1931 review).
     expires_at = None
     if request.duration_minutes is not None:
-        expires_at = await _arm_temporary_override(board_id, request, template_lines)
+        _check_timed_request(board_id, template_lines)
 
     if not settings_service.should_send_to_board():
+        if request.duration_minutes is not None:
+            expires_at = await _arm_temporary_override(board_id, request, template_lines)
         return MessageResponse(
             sent=False,
             board_id=board_id,
@@ -377,6 +384,9 @@ async def send_to_board(board: str, request: MessageRequest) -> MessageResponse:
 
     _raise_for_executor(result)
 
+    if request.duration_minutes is not None:
+        expires_at = await _arm_temporary_override(board_id, request, template_lines)
+
     if result.get("skipped"):
         return MessageResponse(
             sent=False,
@@ -397,19 +407,14 @@ async def send_to_board(board: str, request: MessageRequest) -> MessageResponse:
     )
 
 
-async def _arm_temporary_override(board_id: str, request: MessageRequest, template_lines: list[str] | None) -> str:
-    """Store the timed-message state, and return when it expires.
+def _check_timed_request(board_id: str, template_lines: list[str] | None) -> None:
+    """The 400s a ``duration_minutes`` request can earn, before anything is sent.
 
-    Delegates to ``POST /settings/temporary-override`` — the existing home of
-    duration, revert mode and the inline one-off content of #1787 — rather
-    than restating its validation. Two limits come from that mechanism and
-    are reported rather than papered over: it is stored globally and applied
-    by the display loop for the **primary** board only, and it can only hold
-    text, so the raw-grid forms cannot be timed.
+    Two limits come from the override mechanism and are reported rather than
+    papered over: it is stored globally and applied by the display loop for
+    the **primary** board only, and it can only hold text, so the raw-grid
+    forms cannot be timed.
     """
-    from src.settings.models import TemporaryOverrideRequest
-    from src.settings.routes import set_temporary_override
-
     settings_service = _settings_service()
     if board_id != settings_service.get_primary_board_id():
         raise HTTPException(
@@ -424,6 +429,21 @@ async def _arm_temporary_override(board_id: str, request: MessageRequest, templa
             status_code=400,
             detail="duration_minutes cannot be combined with characters or fill; use text, lines or page_id",
         )
+
+
+async def _arm_temporary_override(board_id: str, request: MessageRequest, template_lines: list[str] | None) -> str:
+    """Store the timed-message state, and return when it expires.
+
+    Delegates to ``POST /settings/temporary-override`` — the existing home of
+    duration, revert mode and the inline one-off content of #1787 — rather
+    than restating its validation. Called only once the write is in (or the
+    install is UI-only and there is no write to wait for); see
+    :func:`_check_timed_request` for the refusals, which run first.
+    """
+    from src.settings.models import TemporaryOverrideRequest
+    from src.settings.routes import set_temporary_override
+
+    _check_timed_request(board_id, template_lines)
 
     body: dict[str, Any] = {
         "duration_minutes": request.duration_minutes,

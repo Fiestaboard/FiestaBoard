@@ -227,10 +227,12 @@ gives with 429. MCP has no `Retry-After` header and the error path carries no
 `structuredContent` (next section), so the retry window is in the text:
 
 ```text
-Error executing tool send_message: Send skipped: the board accepts at most one message every 15s. Retry shortly.
+Error executing tool send_message: Send skipped: the board accepts at most one message every 15s. Retry in 10s.
 ```
 
-Wait out the stated window, then retry. (Before this contract the tool
+The first number is the board's send floor; the second is the window
+*remaining* at the time of the call — the same value the HTTP surfaces put in
+`Retry-After`. Wait it out, then retry. (Before this contract the tool
 answered `{"status": "success", "skipped": true}` for the same write.)
 
 ### 2. `structuredContent` is absent on the failure path

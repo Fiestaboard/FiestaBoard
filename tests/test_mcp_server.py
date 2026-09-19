@@ -1563,10 +1563,9 @@ class TestProtocolIsError:
         settings.get_board_settings.return_value = SimpleNamespace(boards=[{"id": "b1", "device_type": "flagship"}])
         settings.is_paused.return_value = False
         settings.get_transition_settings.return_value = SimpleNamespace(strategy=None, step_interval_ms=0, step_size=1)
-        board_client = MagicMock()
-        board_client.render.return_value = (True, False)
-        board_client.last_send_throttled = True
-        board_client.min_send_interval_ms = 15000
+        from tests.test_send_outcome import throttled_cloud_client
+
+        board_client = throttled_cloud_client({"t": 1000.0})  # a REAL client, fresh into its window
         service = MagicMock()
         service.vb_client = board_client
         with (
@@ -1580,4 +1579,4 @@ class TestProtocolIsError:
         assert "structuredContent" not in result
         text = self._text(result)
         assert "every 15s" in text, text
-        assert "Retry" in text, text
+        assert "Retry in 15s" in text, text

@@ -615,7 +615,7 @@ def test_a_write_the_send_floor_dropped_is_refused_on_both_surfaces(tmp_path, mc
 
         refused = rest.post("/send-message", json={"text": "WORLD"})
         assert refused.status_code == 429
-        assert refused.headers["Retry-After"] == "15"
+        assert refused.headers["Retry-After"] == "10"  # 5s into a 15s window
         rest_detail = refused.json()["detail"]
 
         with pytest.raises(ToolError) as tool_refused:

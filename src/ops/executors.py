@@ -45,6 +45,7 @@ import logging
 from typing import Any
 
 from src.plugins.errors import PluginError
+from src.send_outcome import SendOutcome
 
 from .results import err, ok, plugin_detail, rest_detail, serialize
 
@@ -747,30 +748,74 @@ def _transition_for(target: _SendTarget, strategy, step_interval_ms, step_size):
     )
 
 
-def _throttle_refusal(target: _SendTarget) -> dict[str, Any] | None:
+def _throttle_refusal(outcome: Any, board_id: str | None) -> dict[str, Any] | None:
     """The error envelope for a write the board's send floor dropped, or ``None``.
 
     The client reports a throttled write and an unchanged-content skip with
-    the same ``(True, False)``; only ``last_send_throttled`` tells them
-    apart, and they mean opposite things — after a skip the board shows the
-    content, after a throttle it never left the process (#1794). REST has
-    answered the throttle with 429 + ``Retry-After`` since #1868; this
-    executor reported it as ``skipped`` success, so an MCP model sending
-    twice inside the window was told both landed (#1931).
+    the same ``(True, False)``, and they mean opposite things — after a skip
+    the board shows the content, after a throttle it never left the process
+    (#1794). ``outcome`` is the send's own :class:`SendOutcome` (returned
+    with ``with_outcome=True``): the verdict decided under the send lock for
+    THIS call. The first version of this gate read
+    ``client.last_send_throttled`` after the call returned, and a concurrent
+    engine tick or send worker on the same client could rewrite that flag
+    in the gap — reporting a dropped write as ``skipped`` success, or an
+    unchanged one as throttled (#1931 review).
+
+    REST has answered the throttle with 429 + ``Retry-After`` since #1868;
+    this executor reported it as ``skipped`` success, so an MCP model
+    sending twice inside the window was told both landed (#1931).
 
     It is an *error*, not a ``status: "blocked"`` policy result: silence and
     pause are the user's standing instruction and a model should relay
     them, whereas a throttle is transient and the right move is to retry
-    after the window. The retry hint rides in the text (the MCP error path
-    has no header and no ``structuredContent``) and, for ``/v1``, as
-    ``retry_after_seconds``.
+    after the window. The retry hint — the REMAINING window, not the whole
+    floor — rides in the text (the MCP error path has no header and no
+    ``structuredContent``) and, for ``/v1``, as ``retry_after_seconds``.
     """
     from src.board_guards import throttle_retry_after, throttled_detail
 
-    retry_after = throttle_retry_after(target.client)
+    outcome = SendOutcome.of(outcome)
+    retry_after = throttle_retry_after(outcome)
     if retry_after is None:
         return None
-    return err(throttled_detail(retry_after), retry_after_seconds=retry_after, board_id=target.board_id)
+    return err(
+        throttled_detail(retry_after, outcome.floor_seconds),
+        retry_after_seconds=retry_after,
+        board_id=board_id,
+    )
+
+
+def _settle_send(
+    target: _SendTarget,
+    outcome: Any,
+    *,
+    failure: str,
+    success: str,
+    unchanged: str | None = None,
+    **fields: Any,
+) -> dict[str, Any]:
+    """Turn one board write's outcome into the executor's answer.
+
+    The tail every board write in this module shares: a failed send is
+    ``failure``; a write the send floor dropped is the throttle refusal;
+    a write the client skipped as unchanged is ``unchanged`` reported as
+    ``skipped`` success — or, when the caller forced the send and so has no
+    unchanged case (``unchanged=None``), ``failure``; and a delivered write
+    owes :func:`_after_send` its bookkeeping before reporting ``success``.
+    """
+    outcome = SendOutcome.of(outcome)
+    if not outcome.success:
+        return err(failure)
+    if not outcome.was_sent:
+        throttled = _throttle_refusal(outcome, target.board_id)
+        if throttled is not None:
+            return throttled
+        if unchanged is None:
+            return err(failure)
+        return ok(unchanged, skipped=True, board_id=target.board_id)
+    _after_send(target)
+    return ok(success, board_id=target.board_id, **fields)
 
 
 def _after_send(target: _SendTarget) -> None:
@@ -848,7 +893,7 @@ def send_message(
         resolved_strategy, resolved_interval, resolved_step = _transition_for(
             target, strategy, step_interval_ms, step_size
         )
-        success, was_sent = render_message(
+        outcome = render_message(
             target.client,
             text,
             rows=dims.rows,
@@ -857,17 +902,15 @@ def send_message(
             step_interval_ms=resolved_interval,
             step_size=resolved_step,
             force=force,
+            with_outcome=True,
         )
-        if not success:
-            return err("Failed to send message to the board.")
-        if not was_sent:
-            throttled = _throttle_refusal(target)
-            if throttled is not None:
-                return throttled
-            return ok("Message unchanged, no update needed.", skipped=True, board_id=board_id)
-
-        _after_send(target)
-        return ok("Message sent successfully.", board_id=board_id)
+        return _settle_send(
+            target,
+            outcome,
+            failure="Failed to send message to the board.",
+            unchanged="Message unchanged, no update needed.",
+            success="Message sent successfully.",
+        )
     except Exception as exc:
         return err(f"Error sending message: {exc}")
 
@@ -903,23 +946,21 @@ def send_characters(
         resolved_strategy, resolved_interval, resolved_step = _transition_for(
             target, strategy, step_interval_ms, step_size
         )
-        success, was_sent = target.client.render(
+        outcome = target.client.render(
             characters,
             strategy=resolved_strategy,
             step_interval_ms=resolved_interval,
             step_size=resolved_step,
             force=force,
+            with_outcome=True,
         )
-        if not success:
-            return err("Failed to send characters to the board.")
-        if not was_sent:
-            throttled = _throttle_refusal(target)
-            if throttled is not None:
-                return throttled
-            return ok("Board content unchanged, no update needed.", skipped=True, board_id=board_id)
-
-        _after_send(target)
-        return ok("Characters sent successfully.", board_id=board_id)
+        return _settle_send(
+            target,
+            outcome,
+            failure="Failed to send characters to the board.",
+            unchanged="Board content unchanged, no update needed.",
+            success="Characters sent successfully.",
+        )
     except Exception as exc:
         return err(f"Error sending characters: {exc}")
 
@@ -2334,15 +2375,19 @@ def _send_grid_out_of_band(
 
         dims = _target_dimensions(target)
         characters = build_grid(dims)
-        success, was_sent = target.client.send_characters(characters, force=True)
-        if not success:
-            return err(failure_message)
-        if not was_sent:
-            # A forced send that still did not go out was dropped by the
-            # client's send floor (#1868): the content was NOT delivered.
-            return err(f"{failure_message}: the board accepts at most one message every few seconds — retry shortly.")
-        _after_send(target)
-        return ok(success_message, board_id=board_id, rows=dims.rows, cols=dims.cols, **extra)
+        # Forced, so there is no unchanged case: a ``(True, False)`` here is
+        # the send floor dropping the write (#1868), and _settle_send answers
+        # it with the same retry-window refusal send_message gives.
+        outcome = target.client.send_characters(characters, force=True, with_outcome=True)
+        return _settle_send(
+            target,
+            outcome,
+            failure=failure_message,
+            success=success_message,
+            rows=dims.rows,
+            cols=dims.cols,
+            **extra,
+        )
     except Exception as exc:
         return err(f"{failure_message}: {exc}")
 

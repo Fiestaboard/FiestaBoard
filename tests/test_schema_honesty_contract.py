@@ -181,10 +181,14 @@ class TestSendMessageBoardTargeting:
     def test_a_throttled_send_is_still_a_429_with_retry_after(self, client, two_boards):
         """The gate the MCP executor does NOT have; it must survive this change."""
         clients, _service, _ss = two_boards
+        from src.send_outcome import SendOutcome
+
         target = clients["board-second"]
-        target.render = lambda board_array, **kwargs: (True, False)
-        target.last_send_throttled = True
-        target.min_send_interval_ms = 15000
+        # The verdict travels with the call (#1931 review): a fresh throttle,
+        # the whole 15s floor still ahead.
+        target.render = lambda board_array, **kwargs: SendOutcome(
+            True, False, throttled=True, retry_after_seconds=15, floor_seconds=15
+        )
         response = client.post("/send-message", json={"text": "HELLO", "board_id": "board-second"})
         assert response.status_code == 429
         assert response.headers["Retry-After"] == "15"

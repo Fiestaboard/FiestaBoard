@@ -2032,12 +2032,13 @@ class _UnchangedClient(_FakeClient):
         return (True, False)
 
 
-class _ThrottledClient(_UnchangedClient):
-    """The send floor dropped the write: the SAME ``(True, False)`` as an
-    unchanged skip, distinguishable only by ``last_send_throttled`` (#1794)."""
+def _throttled_client():
+    """A REAL cloud client 5s into its 15s send floor: the next write is
+    DROPPED with the same ``(True, False)`` an unchanged skip reports (#1794).
+    Real, not a stub: the verdict is per call (tests/test_send_outcome.py)."""
+    from tests.test_send_outcome import throttled_cloud_client
 
-    last_send_throttled = True
-    min_send_interval_ms = 15000
+    return throttled_cloud_client({"t": 1000.0}, elapsed=5.0)
 
 
 def test_send_message_unchanged_content_is_a_skipped_success_not_an_error(mcp, services, engine):
@@ -2058,23 +2059,36 @@ def test_send_message_dropped_by_the_send_floor_is_an_error_with_a_retry_hint(mc
     the MCP error path has neither a ``Retry-After`` header nor
     ``structuredContent`` to put it in.
     """
-    engine.runtimes["board-main"].client = _ThrottledClient()
+    engine.runtimes["board-main"].client = _throttled_client()
 
     message = call_expect_error(mcp, "send_message", text="HELLO")
 
     assert "every 15s" in message, message
-    assert "Retry" in message, message
+    assert "Retry in 10s" in message, f"the hint must be the REMAINING window, not the whole floor: {message}"
 
 
 def test_send_message_dropped_by_the_send_floor_does_no_post_send_bookkeeping(mcp, services, engine):
     """Nothing landed, so the board is not marked out-of-band and no adaptive
     refresh is requested — the bookkeeping a delivered write owes."""
-    engine.runtimes["board-main"].client = _ThrottledClient()
+    engine.runtimes["board-main"].client = _throttled_client()
 
     call_expect_error(mcp, "send_message", text="HELLO")
 
     assert engine.out_of_band == []
     assert engine.refreshes == 0
+
+
+def test_blank_board_dropped_by_the_send_floor_is_an_error_with_the_retry_window(mcp, services, engine):
+    """The forced out-of-band grid sends (blank/fill/debug card) share the
+    send_message refusal: the floor, the remaining window, and no bookkeeping
+    — not a hand-rolled "every few seconds"."""
+    engine.runtimes["board-main"].client = _throttled_client()
+
+    message = call_expect_error(mcp, "blank_board")
+
+    assert "every 15s" in message, message
+    assert "Retry in 10s" in message, message
+    assert engine.out_of_band == []
 
 
 # -- get_active_page --------------------------------------------------------

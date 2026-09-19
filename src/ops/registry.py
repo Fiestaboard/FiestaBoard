@@ -38,13 +38,19 @@ import asyncio
 import inspect
 from collections.abc import Callable
 from dataclasses import dataclass, field
-from typing import Any, Literal
+from typing import Any, Literal, get_args
 
 from . import executors
 
 
 class ClientSideOperationError(LookupError):
     """Raised when execute() is asked to run an op that only the web UI applies."""
+
+
+#: Which grammar a caller spelled an operation in. ``"canonical"`` covers the
+#: canonical name and the MCP tool name (they are the same set today);
+#: ``"chat"`` is the streaming chat's fenced-block spelling.
+Grammar = Literal["canonical", "chat"]
 
 
 @dataclass(frozen=True)
@@ -63,9 +69,22 @@ class Operation:
     #: True for ops the web UI applies client-side (no server effect).
     client_side: bool = field(default=False)
 
+    def names_in(self, grammar: Grammar) -> set[str]:
+        """The spellings of this operation in one grammar.
+
+        The single place the spelling fields are partitioned by grammar:
+        :attr:`aliases` is the union, and :func:`execute` checks a name
+        against the grammar the caller claims. A new spelling field goes
+        here and nowhere else.
+        """
+        if grammar == "chat":
+            return {self.chat_name} if self.chat_name else set()
+        return {n for n in (self.name, self.mcp_tool) if n}
+
     @property
     def aliases(self) -> set[str]:
-        return {n for n in (self.name, self.chat_name, self.mcp_tool) if n}
+        """Every spelling the registry resolves for this operation."""
+        return self.names_in("canonical") | self.names_in("chat")
 
 
 def _model_fields(args: Any, *names: str) -> dict[str, Any]:
@@ -327,18 +346,6 @@ def operation_names() -> set[str]:
     return set(_BY_ALIAS)
 
 
-#: Which grammar a caller spelled an operation in. ``"canonical"`` covers the
-#: canonical name and the MCP tool name (they are the same set today);
-#: ``"chat"`` is the streaming chat's fenced-block spelling.
-Grammar = Literal["canonical", "chat"]
-
-
-def _names_in(op: Operation, grammar: Grammar) -> set[str]:
-    if grammar == "chat":
-        return {op.chat_name} if op.chat_name else set()
-    return {n for n in (op.name, op.mcp_tool) if n}
-
-
 async def execute(name: str, args: dict[str, Any], *, grammar: Grammar = "canonical") -> dict[str, Any]:
     """Execute an operation, validating ``args`` the way ``grammar`` demands.
 
@@ -357,10 +364,13 @@ async def execute(name: str, args: dict[str, Any], *, grammar: Grammar = "canoni
     the chat schema and any kwarg the schema did not know was silently
     dropped (``extra="ignore"``). A name that is not a spelling of the
     operation in the given grammar is a ``KeyError``, the same verdict an
-    unknown name gets.
+    unknown name gets; a grammar this registry does not know is a
+    ``ValueError`` rather than a silent canonical passthrough.
     """
+    if grammar not in get_args(Grammar):
+        raise ValueError(f"unknown grammar {grammar!r}; expected one of {get_args(Grammar)}")
     op = get_operation(name)
-    if name not in _names_in(op, grammar):
+    if name not in op.names_in(grammar):
         raise KeyError(f"{name!r} is not a {grammar}-grammar spelling of operation {op.name!r}")
     if op.client_side:
         raise ClientSideOperationError(

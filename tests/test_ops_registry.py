@@ -246,6 +246,30 @@ def test_execute_refuses_a_canonical_only_spelling_under_the_chat_grammar():
         _run(execute("create_page", {"name": "P", "template_lines": ["HELLO"]}, grammar="chat"))
 
 
+def test_execute_rejects_a_grammar_it_does_not_know():
+    """An unknown grammar must not quietly become canonical passthrough."""
+    with pytest.raises(ValueError, match="grammar"):
+        _run(execute("create_page", {"name": "P", "template_lines": ["HELLO"]}, grammar="mcp"))
+
+
+def test_operation_aliases_are_the_union_of_its_grammar_spellings():
+    """One list of spelling fields: ``names_in`` partitions them, ``aliases``
+    is their union, so a new spelling field cannot reach one and not the other."""
+    shared = get_operation("update_schedule")
+    assert shared.names_in("canonical") == {"update_schedule"}
+    assert shared.names_in("chat") == {"update_schedule"}
+
+    chat_only = get_operation("update_plugin_config")
+    assert chat_only.names_in("chat") == {"update_plugin_config"}
+    assert "update_plugin_config" not in chat_only.names_in("canonical")
+
+    mcp_only = get_operation("create_page")
+    assert mcp_only.names_in("chat") == set()
+
+    for op in OPERATIONS:
+        assert op.aliases == op.names_in("canonical") | op.names_in("chat"), op.name
+
+
 def test_execute_unknown_name_raises_key_error():
     with pytest.raises(KeyError):
         _run(execute("no_such_op", {}))

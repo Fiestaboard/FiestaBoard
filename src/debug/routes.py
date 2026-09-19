@@ -44,7 +44,9 @@ from src import __version__, log_store
 from src import display_runtime as runtime
 from src.api_errors import errors
 from src.board_client import board_client_from_board_dict
+from src.board_guards import raise_if_throttled
 from src.board_send_executor import run_board_send
+from src.send_outcome import SendOutcome
 
 from .models import (
     BoardFillRequest,
@@ -71,7 +73,9 @@ router = APIRouter(tags=["debug"])
 # the same order: is a board configured, is the UI the only output target, is
 # the board paused, and did the client-side send floor drop the write. Before
 # the conventions pass each handler open-coded them, which is how the three
-# senders ended up with three different answers to "did that work".
+# senders ended up with three different answers to "did that work". The
+# throttle verdict is ``src.board_guards.raise_if_throttled`` — one home for
+# the 429 and its Retry-After arithmetic, shared with the other senders.
 # ---------------------------------------------------------------------------
 
 PAUSED_DETAIL = "Board is paused — sends are blocked until it is resumed."
@@ -97,31 +101,6 @@ def _raise_if_paused() -> None:
         raise HTTPException(status_code=409, detail=PAUSED_DETAIL)
 
 
-def _raise_if_throttled(client) -> None:
-    """A write dropped by the client-side send floor is a 429 (#1868, #1754).
-
-    Cloud boards and note arrays enforce a minimum interval between sends; a
-    send inside that window returns ``(True, False)`` with
-    ``last_send_throttled`` set — the content was DROPPED, not delivered, and
-    unlike the engine tick these manual endpoints never retry.
-
-    The ``is True`` guard keeps Mock clients, whose attributes are all truthy,
-    on the delivered path unless a test opts in.
-    """
-    if getattr(client, "last_send_throttled", False) is not True:
-        return
-    try:
-        floor_ms = int(getattr(client, "min_send_interval_ms", 0))
-    except (TypeError, ValueError):
-        floor_ms = 0
-    retry_after = max(1, -(-floor_ms // 1000)) if floor_ms else 15
-    raise HTTPException(
-        status_code=429,
-        detail=(f"Send skipped: the board accepts at most one message every {retry_after}s. Retry shortly."),
-        headers={"Retry-After": str(retry_after)},
-    )
-
-
 def _send_out_of_band(client, grid: list[list[int]], *, failure: str) -> None:
     """Push ``grid`` to the board, turning every outcome into a status code.
 
@@ -132,15 +111,17 @@ def _send_out_of_band(client, grid: list[list[int]], *, failure: str) -> None:
     detail used to read "500: Failed to blank board".
     """
     try:
-        success, was_sent = client.send_characters(grid, force=True)
+        outcome = SendOutcome.of(client.send_characters(grid, force=True, with_outcome=True))
     except Exception as exc:
         logger.error(f"Out-of-band board write failed: {exc}")
         raise HTTPException(status_code=500, detail=str(exc)) from exc
 
-    if not success:
+    if not outcome.success:
         raise HTTPException(status_code=500, detail=failure)
-    if not was_sent:
-        _raise_if_throttled(client)
+    if not outcome.was_sent:
+        # Forced, so not "unchanged": the send floor dropped it. The verdict
+        # is the call's own outcome, not the client's flag (#1931 review).
+        raise_if_throttled(outcome)
     runtime._note_out_of_band_write()
 
 
