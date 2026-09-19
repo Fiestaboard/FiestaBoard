@@ -12,13 +12,6 @@ export interface PreviewResponse {
   preview: boolean;
 }
 
-export interface DisplayRawResponse {
-  display_type: string;
-  data: Record<string, unknown> | null;
-  available: boolean;
-  error: string | null;
-}
-
 export interface DisplayRawBatchResponse {
   displays: Record<
     string,
@@ -77,8 +70,9 @@ export interface StockSymbolValidation {
 }
 
 export const miscApi = {
-  // Display endpoints
-  getDisplayRaw: (type: string) => fetchApi<DisplayRawResponse>(`/displays/${type}/raw`),
+  // Display endpoints. `getDisplayRaw` (GET /displays/{type}/raw) is gone:
+  // the route is deprecated (#1911) and `pluginsApi.getPluginData` reads the
+  // successor.
   getDisplaysRawBatch: (displayTypes: string[], enabledOnly?: boolean) =>
     fetchApi<DisplayRawBatchResponse>("/displays/raw/batch", {
       method: "POST",

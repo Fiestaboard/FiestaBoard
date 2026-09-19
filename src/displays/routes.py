@@ -17,7 +17,7 @@ from __future__ import annotations
 import asyncio
 import logging
 
-from fastapi import APIRouter, HTTPException, Response
+from fastapi import APIRouter, HTTPException
 
 from src.api_deprecation import superseded_by_v1
 from src.api_errors import errors
@@ -104,21 +104,28 @@ async def get_display(display_type: str):
 
 
 # One of the four endpoints that answer "what does this source hold", found by
-# the 2026-09 audit. It was superseded by GET /plugins/{plugin_id}/data, which
-# serves the same raw payload with the plugin system's own error contract, and
-# has advertised that with a Deprecation/Link header pair since then. Marking
-# it deprecated in the OpenAPI schema too costs nothing and makes the intent
-# visible to generated clients; the endpoint keeps answering exactly as before.
-# Removal is tracked in #1911 — do not delete it in this PR.
+# the 2026-09 audit. It is the raw half of the fetch GET /displays/{type}
+# serves formatted, and GET /v1/plugins/{plugin_id}/data serves both halves
+# together, so the two legacy reads name the same successor. Until #1911 this
+# route stamped its own Deprecation/Link pair — no Sunset, and a successor
+# without the /api prefix — so it was the one deprecated route not on the
+# shared clock. It now rides SUPERSEDED_BY_V1 with the rest of the cohort.
+#
+# The endpoint keeps answering exactly as before, including its 503 for an
+# unknown display type where GET /displays/{type} 400s and v1 404s: a
+# deprecated route keeps its historical status codes until it is removed
+# (API_CONVENTIONS.md, "Deprecation, never deletion"). Deletion is gated on
+# the Sunset date and tracked by #1941 — do not delete it here.
 @router.get(
     "/displays/{display_type}/raw",
     response_model=DisplayRawResponse,
     responses=errors(503),
     deprecated=True,
+    dependencies=[superseded_by_v1("GET /displays/{display_type}/raw")],
 )
-async def get_display_raw(display_type: str, response: Response):
+async def get_display_raw(display_type: str):
     """
-    Deprecated: Use /plugins/{plugin_id}/data instead.
+    Deprecated: Use GET /v1/plugins/{plugin_id}/data instead.
 
     Get raw data from a display source (before formatting).
 
@@ -130,9 +137,6 @@ async def get_display_raw(display_type: str, response: Response):
     Returns:
         Raw data dictionary from the source.
     """
-    response.headers["Deprecation"] = "true"
-    response.headers["Link"] = f'</plugins/{display_type}/data>; rel="successor-version"'
-
     display_service = get_display_service()
     # Plugin data fetch — never on the event loop.
     result = await asyncio.to_thread(display_service.get_display, display_type)

@@ -137,10 +137,21 @@ def test_an_available_raw_source_returns_its_data_and_a_null_error(client, avail
 
 
 def test_raw_declares_itself_deprecated_and_points_at_its_successor(client, available_source):
+    """The notice is the shared one, not a hand-rolled header pair.
+
+    Before #1911 this route stamped its own ``Deprecation``/``Link`` headers:
+    no ``Sunset``, and a successor spelled without the ``/api`` prefix nginx
+    strips, so a caller who followed the link got a 404. It now rides the
+    ``SUPERSEDED_BY_V1`` clock with the rest of the cohort, and the successor
+    is the v1 read that merges this raw payload with the formatted one.
+    """
+    from src.api_deprecation import SUPERSEDED_BY_V1_SUNSET
+
     response = client.get(f"/displays/{INSTALLED_PLUGIN}/raw")
     assert response.status_code == 200
     assert response.headers["Deprecation"] == "true"
-    assert response.headers["Link"] == f'</plugins/{INSTALLED_PLUGIN}/data>; rel="successor-version"'
+    assert response.headers["Sunset"] == SUPERSEDED_BY_V1_SUNSET
+    assert response.headers["Link"] == '</api/v1/plugins/{plugin_id}/data>; rel="successor-version"'
 
 
 def test_raw_is_marked_deprecated_in_the_published_schema(client):
@@ -160,9 +171,12 @@ def test_raw_is_marked_deprecated_in_the_published_schema(client):
 def test_raw_reports_an_unavailable_source_as_503_not_as_an_empty_200(client):
     """Both the unknown type and the disabled plugin are 503 here.
 
-    Asymmetric with GET /displays/{type}, which 400s the unknown type. Pinned
-    as the pre-existing contract, not endorsed — see #1911, which tracks the
-    retirement of this endpoint.
+    Asymmetric with GET /displays/{type}, which 400s the unknown type, and
+    with the v1 successor, which 404s it. Kept on purpose: a deprecated route
+    keeps its historical status codes until it is removed (#1911 decided
+    this; API_CONVENTIONS.md records it), because re-shaping the error
+    contract of a route weeks from deletion breaks exactly the callers the
+    deprecation window exists to protect. Deletion is tracked by #1941.
     """
     assert client.get(f"/displays/{INSTALLED_PLUGIN}/raw").status_code == 503
     unknown = client.get(f"/displays/{UNKNOWN_PLUGIN}/raw")

@@ -8,6 +8,8 @@ This guide helps developers migrate from deprecated FiestaBoard API endpoints to
 
 The `/displays/{display_type}/raw` endpoint is deprecated. Use `/plugins/{plugin_id}/data` instead.
 
+> **Update (#1911):** `/plugins/{plugin_id}/data` is itself superseded by `GET /v1/plugins/{plugin_id}/data`, which serves the raw `data` and the formatted `lines`/`text` together and answers `200 {"available": false, "error": ...}` for a disabled or unconfigured plugin instead of refusing. The deprecated route's `Link` header now names the v1 route, and both legacy routes send `Sunset: Tue, 01 Dec 2026 00:00:00 GMT`. New integrations should go straight to v1; the rest of this section describes the intermediate route as it still answers.
+
 ### GET - Retrieve plugin/display data
 
 **Deprecated (returns `Deprecation: true` header):**

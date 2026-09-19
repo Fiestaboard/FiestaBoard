@@ -188,14 +188,4 @@ describe("API Contract Tests", () => {
       expect(typeof result.line_count).toBe("number");
     });
   });
-
-  describe("Display API", () => {
-    it("getDisplayRaw returns raw data", async () => {
-      const result = await api.getDisplayRaw("weather");
-
-      expect(result.display_type).toBe("weather");
-      expect(result.data).toBeDefined();
-      expect(typeof result.available).toBe("boolean");
-    });
-  });
 });
