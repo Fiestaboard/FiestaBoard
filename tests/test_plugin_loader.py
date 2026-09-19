@@ -430,6 +430,99 @@ def test_reload_plugin_unloads_and_loads_again(tmp_path):
     assert reloaded.plugin_id == "test_plugin"
 
 
+def _create_flattened_plugin_dir(tmp_path: Path, plugin_id: str, marker: str) -> Path:
+    """A plugin in the flattened layout: __init__ puts its own dir on sys.path.
+
+    This is the layout that broke updates -- the sibling module is imported
+    under a bare top-level name, not as ``plugins.<id>.<sibling>``.
+    """
+    plugin_dir = tmp_path / plugin_id
+    plugin_dir.mkdir(exist_ok=True)
+
+    (plugin_dir / "manifest.json").write_text(
+        '{"id":"' + plugin_id + '","name":"Test","version":"1.0.0","description":"",'
+        '"author":"","variables":{"simple":["var1"]},"max_lengths":{}}'
+    )
+    (plugin_dir / f"{plugin_id}_sibling.py").write_text(f'MARKER = "{marker}"\n')
+    (plugin_dir / f"{plugin_id}_impl.py").write_text(
+        f'''
+from src.plugins.base import PluginBase, PluginResult
+from {plugin_id}_sibling import MARKER
+
+class TestPlugin(PluginBase):
+    @property
+    def plugin_id(self) -> str:
+        return "{plugin_id}"
+
+    def fetch_data(self) -> PluginResult:
+        return PluginResult(available=True, data={{"marker": MARKER}})
+'''
+    )
+    (plugin_dir / "__init__.py").write_text(
+        f"""
+import sys
+from pathlib import Path
+
+_dir = str(Path(__file__).parent)
+if _dir not in sys.path:
+    sys.path.insert(0, _dir)
+
+from {plugin_id}_impl import TestPlugin
+"""
+    )
+    return plugin_dir
+
+
+def test_reload_plugin_evicts_sibling_modules(tmp_path):
+    """An updated plugin must not keep serving its old code after a reload.
+
+    A flattened plugin imports its siblings under bare top-level names. Those
+    entries used to survive ``reload_plugin``, which evicted only
+    ``plugins.<id>``, so the re-executed ``__init__`` re-bound the stale
+    module: the manifest version changed but the running code did not, and the
+    plugin kept serving old data until the process restarted.
+    """
+    _create_flattened_plugin_dir(tmp_path, "flat_plugin", "before")
+    loader = _loader_for_tests(tmp_path)
+
+    plugin = loader.load_plugin("flat_plugin")
+    assert plugin is not None
+    assert plugin.fetch_data().data["marker"] == "before"
+
+    # Simulate an update landing on disk, as clone_or_update_repo would.
+    _create_flattened_plugin_dir(tmp_path, "flat_plugin", "after")
+
+    reloaded = loader.reload_plugin("flat_plugin")
+    assert reloaded is not None
+    assert reloaded.fetch_data().data["marker"] == "after"
+
+
+def test_unload_plugin_evicts_sibling_modules(tmp_path):
+    """unload_plugin clears the same modules, so a later load starts clean."""
+    _create_flattened_plugin_dir(tmp_path, "flat_unload", "before")
+    loader = _loader_for_tests(tmp_path)
+    loader.load_plugin("flat_unload")
+
+    assert loader.unload_plugin("flat_unload") is True
+    assert "flat_unload_sibling" not in sys.modules
+    assert "flat_unload_impl" not in sys.modules
+
+
+def test_evict_plugin_modules_leaves_other_modules_alone(tmp_path):
+    """Eviction is scoped to the plugin's own directory."""
+    create_valid_plugin_dir(tmp_path, "scoped_plugin")
+    loader = _loader_for_tests(tmp_path)
+    loader.load_plugin("scoped_plugin")
+
+    before = set(sys.modules)
+    loader._evict_plugin_modules("scoped_plugin")
+    removed = before - set(sys.modules)
+
+    assert all(name.startswith("plugins.scoped_plugin") for name in removed), removed
+    assert "src.plugins.base" in sys.modules
+    assert "json" in sys.modules
+
+
 def test_reload_plugin_loads_if_not_loaded(tmp_path):
     """reload_plugin loads plugin if not previously loaded."""
     create_valid_plugin_dir(tmp_path, "test_plugin")
