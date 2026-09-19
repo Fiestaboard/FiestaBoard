@@ -293,25 +293,23 @@ def _raise_for_executor(result: dict[str, Any]) -> None:
     """Turn an executor refusal into the status code it deserves.
 
     Blocked is policy, not breakage: silence and pause are both 409, the same
-    verdict ``POST /send-message`` and ``POST /debug/fill`` give. Anything
-    else the executor calls an error is a 500 — the 503 cases (no service, no
-    client) are checked before it is ever called, so they cannot arrive here.
+    verdict ``POST /send-message`` and ``POST /debug/fill`` give. A write the
+    board's send floor dropped arrives as an error envelope carrying
+    ``retry_after_seconds`` (#1931) and is the 429 + ``Retry-After`` the
+    other manual senders answer — this route used to derive that itself from
+    the client after a ``skipped`` result, before the executor gated it.
+    Anything else the executor calls an error is a 500 — the 503 cases (no
+    service, no client) are checked before it is ever called, so they cannot
+    arrive here.
     """
     if result.get("status") == "blocked":
         raise HTTPException(status_code=409, detail=str(result.get("message")))
     if result.get("status") == "error":
-        raise HTTPException(status_code=500, detail=str(result.get("error") or "Failed to send to the board."))
-
-
-def _raise_if_throttled(client) -> None:
-    """A write the client-side send floor dropped is a 429 (#1868, #1754).
-
-    Reuses the debug router's helper rather than restating its Retry-After
-    arithmetic, so all three manual senders answer the same way.
-    """
-    from src.debug.routes import _raise_if_throttled as _debug_raise_if_throttled
-
-    _debug_raise_if_throttled(client)
+        detail = str(result.get("error") or "Failed to send to the board.")
+        retry_after = result.get("retry_after_seconds")
+        if retry_after is not None:
+            raise HTTPException(status_code=429, detail=detail, headers={"Retry-After": str(int(retry_after))})
+        raise HTTPException(status_code=500, detail=detail)
 
 
 @router.post(
@@ -380,7 +378,6 @@ async def send_to_board(board: str, request: MessageRequest) -> MessageResponse:
     _raise_for_executor(result)
 
     if result.get("skipped"):
-        _raise_if_throttled(service.get_board_client(board_id))
         return MessageResponse(
             sent=False,
             board_id=board_id,

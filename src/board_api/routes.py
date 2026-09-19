@@ -37,14 +37,14 @@ primary-only, #1243). Omitting ``board_id`` reproduces the previous behaviour
 exactly.
 
 The handlers are still separate rather than the REST route delegating to the
-executor, because the two do not answer the same way and one of them is
-right: the executor returns ``{"status": "blocked"}``/``{"status": "error"}``
-dicts by design (an MCP tool relays policy to a model, it does not raise), and
-it has no equivalent of ``_raise_if_throttled`` — a write the send floor
-dropped comes back from the executor as ``ok(skipped=True)``. That is the
-REST side's #1868 bug, fixed here and still open there; folding this handler
-into the executor would have re-introduced it. Tracked for the executor
-separately rather than changed in a REST slice.
+executor, because the two do not answer in the same shape: the executor
+returns ``{"status": "blocked"}``/``{"status": "error"}`` dicts by design (an
+MCP tool relays policy to a model, it does not raise), and this router
+raises. The gates themselves are now the same five, throttle included: the
+executor answers a write the send floor dropped with an error envelope
+carrying ``retry_after_seconds`` (#1931), computed by the same
+``src.board_guards`` arithmetic ``_raise_if_throttled`` uses here, and
+``/v1`` maps that envelope to this router's 429.
 
 ``GET /board/current-message`` is unchanged by value. Issue #1912 tracks
 collapsing its cache-selection logic with the two other copies

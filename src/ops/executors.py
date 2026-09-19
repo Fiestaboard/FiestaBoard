@@ -747,6 +747,32 @@ def _transition_for(target: _SendTarget, strategy, step_interval_ms, step_size):
     )
 
 
+def _throttle_refusal(target: _SendTarget) -> dict[str, Any] | None:
+    """The error envelope for a write the board's send floor dropped, or ``None``.
+
+    The client reports a throttled write and an unchanged-content skip with
+    the same ``(True, False)``; only ``last_send_throttled`` tells them
+    apart, and they mean opposite things — after a skip the board shows the
+    content, after a throttle it never left the process (#1794). REST has
+    answered the throttle with 429 + ``Retry-After`` since #1868; this
+    executor reported it as ``skipped`` success, so an MCP model sending
+    twice inside the window was told both landed (#1931).
+
+    It is an *error*, not a ``status: "blocked"`` policy result: silence and
+    pause are the user's standing instruction and a model should relay
+    them, whereas a throttle is transient and the right move is to retry
+    after the window. The retry hint rides in the text (the MCP error path
+    has no header and no ``structuredContent``) and, for ``/v1``, as
+    ``retry_after_seconds``.
+    """
+    from src.board_guards import throttle_retry_after, throttled_detail
+
+    retry_after = throttle_retry_after(target.client)
+    if retry_after is None:
+        return None
+    return err(throttled_detail(retry_after), retry_after_seconds=retry_after, board_id=target.board_id)
+
+
 def _after_send(target: _SendTarget) -> None:
     """Out-of-band bookkeeping every manual write owes the rest of the app.
 
@@ -790,15 +816,19 @@ def send_message(
     """Send an ad-hoc text message straight to a board (issue #1765).
 
     Mirrors ``POST /send-message`` gate for gate — silence (#1788), pause
-    (#970), out-of-band bookkeeping and MQTT state push (#1794/#1831),
-    adaptive refresh — through the same service seams, and shares the
-    wrap/convert/render core (:mod:`src.displays.messages`) with the REST
-    handler so the two surfaces render identically. On top of the REST
-    behavior it can target a secondary board via ``board_id``.
+    (#970), the send-floor throttle (#1868/#1931), out-of-band bookkeeping
+    and MQTT state push (#1794/#1831), adaptive refresh — through the same
+    service seams, and shares the wrap/convert/render core
+    (:mod:`src.displays.messages`) with the REST handler so the two surfaces
+    render identically. On top of the REST behavior it can target a
+    secondary board via ``board_id``.
 
     Silence and pause come back as ``status: "blocked"`` results, not
     errors — they are deliberate policy, and the model should relay them
-    rather than retry.
+    rather than retry. A write the board's send floor dropped is the
+    opposite: an ``err`` envelope carrying the retry window (see
+    :func:`_throttle_refusal`), because the content did not land and a
+    retry after the window is exactly what should happen.
 
     The keyword-only arguments are pass-throughs for the ``/v1`` front door
     (``POST /v1/boards/{board}/message``): a per-request transition, and
@@ -831,6 +861,9 @@ def send_message(
         if not success:
             return err("Failed to send message to the board.")
         if not was_sent:
+            throttled = _throttle_refusal(target)
+            if throttled is not None:
+                return throttled
             return ok("Message unchanged, no update needed.", skipped=True, board_id=board_id)
 
         _after_send(target)
@@ -880,6 +913,9 @@ def send_characters(
         if not success:
             return err("Failed to send characters to the board.")
         if not was_sent:
+            throttled = _throttle_refusal(target)
+            if throttled is not None:
+                return throttled
             return ok("Board content unchanged, no update needed.", skipped=True, board_id=board_id)
 
         _after_send(target)

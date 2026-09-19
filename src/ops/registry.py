@@ -24,11 +24,12 @@ Three kinds of operation live here:
   describes the *whole* grammar, but carry no executor;
   ``POST /ai/operations`` refuses them with a 4xx.
 
-``execute()`` is the chat-grammar entry point: given a chat op name it
-validates the args against the op's chat schema (the same models
-``parse_tool_call`` uses) before adapting them onto the executor. MCP
-tools call the executors directly — their argument shape already is the
-canonical one.
+``execute()`` runs an operation in whichever grammar the caller says it
+used: ``grammar="chat"`` validates the args against the op's chat schema
+(the same models ``parse_tool_call`` uses) before adapting them onto the
+executor; the canonical grammar passes them through as executor kwargs.
+MCP tools call the executors directly — their argument shape already is
+the canonical one.
 """
 
 from __future__ import annotations
@@ -37,7 +38,7 @@ import asyncio
 import inspect
 from collections.abc import Callable
 from dataclasses import dataclass, field
-from typing import Any
+from typing import Any, Literal
 
 from . import executors
 
@@ -326,22 +327,48 @@ def operation_names() -> set[str]:
     return set(_BY_ALIAS)
 
 
-async def execute(name: str, args: dict[str, Any]) -> dict[str, Any]:
-    """Execute an operation by chat-grammar or canonical name.
+#: Which grammar a caller spelled an operation in. ``"canonical"`` covers the
+#: canonical name and the MCP tool name (they are the same set today);
+#: ``"chat"`` is the streaming chat's fenced-block spelling.
+Grammar = Literal["canonical", "chat"]
 
-    Chat names are validated against the chat-op schema first (the exact
-    validation ``parse_tool_call`` applies), then adapted onto the
-    canonical executor. Canonical/MCP names pass ``args`` straight through
-    as executor kwargs.
+
+def _names_in(op: Operation, grammar: Grammar) -> set[str]:
+    if grammar == "chat":
+        return {op.chat_name} if op.chat_name else set()
+    return {n for n in (op.name, op.mcp_tool) if n}
+
+
+async def execute(name: str, args: dict[str, Any], *, grammar: Grammar = "canonical") -> dict[str, Any]:
+    """Execute an operation, validating ``args`` the way ``grammar`` demands.
+
+    ``grammar`` is the grammar the *caller* used, and it — not the name —
+    decides how ``args`` are treated (#1849 review, item 2):
+
+    - ``"chat"``: ``args`` are validated against the chat-op schema (the
+      exact validation ``parse_tool_call`` applies) and adapted onto the
+      canonical executor's kwargs.
+    - ``"canonical"`` (the default): ``args`` pass straight through as
+      executor kwargs.
+
+    It used to be inferred from name equality — "this is a chat call if the
+    name is the op's chat name" — and for a dozen ops the canonical name
+    *is* the chat name, so a canonical caller's kwargs were pushed through
+    the chat schema and any kwarg the schema did not know was silently
+    dropped (``extra="ignore"``). A name that is not a spelling of the
+    operation in the given grammar is a ``KeyError``, the same verdict an
+    unknown name gets.
     """
     op = get_operation(name)
+    if name not in _names_in(op, grammar):
+        raise KeyError(f"{name!r} is not a {grammar}-grammar spelling of operation {op.name!r}")
     if op.client_side:
         raise ClientSideOperationError(
             f"operation {name!r} is applied client-side by the web UI and has no server executor"
         )
     assert op.executor is not None
 
-    if op.chat_name is not None and name == op.chat_name:
+    if grammar == "chat":
         from .grammar import parse_tool_call
 
         validated = parse_tool_call({"op": name, "args": args})
@@ -356,6 +383,6 @@ async def execute(name: str, args: dict[str, Any]) -> dict[str, Any]:
     return result
 
 
-def execute_sync(name: str, args: dict[str, Any]) -> dict[str, Any]:
+def execute_sync(name: str, args: dict[str, Any], *, grammar: Grammar = "canonical") -> dict[str, Any]:
     """Blocking convenience wrapper around :func:`execute`."""
-    return asyncio.run(execute(name, args))
+    return asyncio.run(execute(name, args, grammar=grammar))

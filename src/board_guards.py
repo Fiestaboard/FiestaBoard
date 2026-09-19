@@ -283,6 +283,36 @@ def raise_if_paused(board_id: str | None = None, *, what: str = "manual send") -
         raise HTTPException(status_code=409, detail=PAUSED_DETAIL)
 
 
+def throttle_retry_after(board_client) -> int | None:
+    """Seconds until the board's send floor admits another write, or ``None``.
+
+    ``None`` means the last send was not throttled: either it went out, or
+    it was the unchanged-content skip that reports the same ``(True, False)``
+    but leaves the board showing what was asked (#1794).
+
+    The ``is True`` guard keeps Mock clients, whose attributes are all truthy,
+    on the delivered path unless a test opts in. The window is the client's
+    ``min_send_interval_ms`` rounded up to whole seconds, falling back to the
+    15s cloud floor when the client does not expose one.
+
+    Shared by the HTTP guard below and the ops executors
+    (:func:`src.ops.executors.send_message`), so every surface computes the
+    same retry hint (#1931).
+    """
+    if getattr(board_client, "last_send_throttled", False) is not True:
+        return None
+    try:
+        floor_ms = int(getattr(board_client, "min_send_interval_ms", 0))
+    except (TypeError, ValueError):
+        floor_ms = 0
+    return max(1, -(-floor_ms // 1000)) if floor_ms else 15
+
+
+def throttled_detail(retry_after: int) -> str:
+    """The one sentence every surface uses for a write the send floor dropped."""
+    return f"Send skipped: the board accepts at most one message every {retry_after}s. Retry shortly."
+
+
 def raise_if_throttled(board_client) -> None:
     """A write dropped by the client-side send floor is a 429 (#1868, #1754).
 
@@ -291,19 +321,12 @@ def raise_if_throttled(board_client) -> None:
     ``last_send_throttled`` set — the content was DROPPED, not delivered, and
     unlike the engine tick (which retries next pass) these manual endpoints
     never retry.
-
-    The ``is True`` guard keeps Mock clients, whose attributes are all truthy,
-    on the delivered path unless a test opts in.
     """
-    if getattr(board_client, "last_send_throttled", False) is not True:
+    retry_after = throttle_retry_after(board_client)
+    if retry_after is None:
         return
-    try:
-        floor_ms = int(getattr(board_client, "min_send_interval_ms", 0))
-    except (TypeError, ValueError):
-        floor_ms = 0
-    retry_after = max(1, -(-floor_ms // 1000)) if floor_ms else 15
     raise HTTPException(
         status_code=429,
-        detail=f"Send skipped: the board accepts at most one message every {retry_after}s. Retry shortly.",
+        detail=throttled_detail(retry_after),
         headers={"Retry-After": str(retry_after)},
     )

@@ -562,6 +562,44 @@ def test_a_write_the_send_floor_dropped_is_a_429(client, boards):
     assert response.headers["Retry-After"] == "15"
 
 
+def test_a_raw_grid_the_send_floor_dropped_is_a_429(client, boards):
+    """The ``characters`` form goes through ``executors.send_characters``,
+    which must carry the same throttle gate as the text form."""
+    client_stub = _board_client(render=(True, False), throttled=True)
+    service = Mock()
+    service.get_board_client.return_value = client_stub
+    service.vb_client = client_stub
+    with patch(SERVICE, return_value=service), patch(RUNTIME_SERVICE, return_value=service):
+        response = client.post("/v1/boards/primary/message", json={"characters": BLANK_FLAGSHIP})
+
+    assert response.status_code == 429
+    assert response.headers["Retry-After"] == "15"
+
+
+def test_the_executor_throttle_refusal_maps_to_429_not_500():
+    """#1931: the executor now refuses a throttled write itself, as an error
+    envelope carrying ``retry_after_seconds``. The v1 front door must turn
+    that into the 429 + ``Retry-After`` it already promised — not the 500
+    every other executor error gets — so fixing the MCP side cannot
+    regress the REST contract pinned just above.
+    """
+    from fastapi import HTTPException
+
+    from src.v1.routes_boards import _raise_for_executor
+
+    envelope = {
+        "status": "error",
+        "error": "Send skipped: the board accepts at most one message every 15s. Retry shortly.",
+        "retry_after_seconds": 15,
+    }
+    with pytest.raises(HTTPException) as refused:
+        _raise_for_executor(envelope)
+
+    assert refused.value.status_code == 429
+    assert refused.value.detail == envelope["error"]
+    assert refused.value.headers == {"Retry-After": "15"}
+
+
 def test_a_refused_send_is_a_500_with_an_unstuttered_detail(client, boards):
     client_stub = _board_client(render=(False, False))
     service = Mock()

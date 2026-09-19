@@ -15,9 +15,16 @@ def ok(message: str, **fields: Any) -> dict[str, Any]:
     return {"status": "success", "message": message, **fields}
 
 
-def err(error: str) -> dict[str, Any]:
-    """Standard error envelope. Executors never raise — they return this instead."""
-    return {"status": "error", "error": error}
+def err(error: str, **fields: Any) -> dict[str, Any]:
+    """Standard error envelope. Executors never raise — they return this instead.
+
+    Extra ``fields`` ride alongside ``error`` for a front door that maps the
+    failure to something richer than "it failed" — ``/v1`` turns
+    ``retry_after_seconds`` into a 429 with ``Retry-After`` (#1931). The MCP
+    boundary raises only ``error`` (its error path is text-only), so the
+    message itself must still say everything a model needs.
+    """
+    return {"status": "error", "error": error, **fields}
 
 
 def rest_detail(exc: Any) -> str:

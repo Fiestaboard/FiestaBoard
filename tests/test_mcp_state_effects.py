@@ -2024,6 +2024,59 @@ def test_send_message_reports_an_unknown_board(mcp, services, engine):
     assert engine.vb_client.rendered == []
 
 
+class _UnchangedClient(_FakeClient):
+    """The board already shows this content: ``(True, False)``, no throttle."""
+
+    def render(self, board_array, **kwargs):
+        self.render_kwargs.append(kwargs)
+        return (True, False)
+
+
+class _ThrottledClient(_UnchangedClient):
+    """The send floor dropped the write: the SAME ``(True, False)`` as an
+    unchanged skip, distinguishable only by ``last_send_throttled`` (#1794)."""
+
+    last_send_throttled = True
+    min_send_interval_ms = 15000
+
+
+def test_send_message_unchanged_content_is_a_skipped_success_not_an_error(mcp, services, engine):
+    engine.runtimes["board-main"].client = _UnchangedClient()
+
+    result = call(mcp, "send_message", text="HELLO")
+
+    assert result["status"] == "success", result
+    assert result["skipped"] is True
+
+
+def test_send_message_dropped_by_the_send_floor_is_an_error_with_a_retry_hint(mcp, services, engine):
+    """#1931: a write the board's send floor dropped never reached the board.
+
+    Reporting it as ``skipped`` success told the model both of two rapid
+    sends landed. It is now the same refusal REST answers with 429: an
+    error (protocol ``isError``) whose text carries the retry window, since
+    the MCP error path has neither a ``Retry-After`` header nor
+    ``structuredContent`` to put it in.
+    """
+    engine.runtimes["board-main"].client = _ThrottledClient()
+
+    message = call_expect_error(mcp, "send_message", text="HELLO")
+
+    assert "every 15s" in message, message
+    assert "Retry" in message, message
+
+
+def test_send_message_dropped_by_the_send_floor_does_no_post_send_bookkeeping(mcp, services, engine):
+    """Nothing landed, so the board is not marked out-of-band and no adaptive
+    refresh is requested — the bookkeeping a delivered write owes."""
+    engine.runtimes["board-main"].client = _ThrottledClient()
+
+    call_expect_error(mcp, "send_message", text="HELLO")
+
+    assert engine.out_of_band == []
+    assert engine.refreshes == 0
+
+
 # -- get_active_page --------------------------------------------------------
 
 

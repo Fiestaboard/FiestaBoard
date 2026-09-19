@@ -563,3 +563,66 @@ def test_a_do_nothing_executor_no_longer_passes_parity(tmp_path, mcp):
 
     with pytest.raises(AssertionError, match="persisted no change at all"):
         assert_parity(tmp_path, lambda env: None, lambda env: None)
+
+
+# ---------------------------------------------------------------------------
+# Gate parity for the ad-hoc send — the one gate the executor lacked (#1931)
+# ---------------------------------------------------------------------------
+
+
+def test_a_write_the_send_floor_dropped_is_refused_on_both_surfaces(tmp_path, mcp):
+    """#1931: the REST sender and the MCP tool must give one answer to a
+    write the board's send floor dropped.
+
+    ``send_message`` persists nothing, so the state-snapshot harness above
+    cannot see this divergence — which is why the suite that exists to
+    catch exactly this shape of drift did not. The gate is observed
+    directly instead: one REAL cloud client on a controllable clock, one
+    delivered write, then the same second write inside the 15s window over
+    each surface. REST answers 429 with ``Retry-After``; the MCP tool must
+    refuse too (``ToolError`` → protocol ``isError``), carrying the same
+    retry hint in its text because MCP has no header to put it in and the
+    error path carries no ``structuredContent``. Before the fix the tool
+    reported ``{"status": "success", "skipped": true}`` — a delivered
+    write, to a model, for content that never left the process.
+    """
+    from unittest.mock import Mock, patch
+
+    from fastapi.testclient import TestClient
+    from mcp.server.mcpserver.exceptions import ToolError
+
+    from src.api_server import app
+    from src.board_client import BoardClient
+
+    now = {"t": 1000.0}
+    cloud = BoardClient(api_key="test_key", use_cloud=True, _time_func=lambda: now["t"])
+    service = Mock()
+    service.vb_client = cloud
+    service.get_board_client.return_value = cloud
+    service.running = True
+
+    with (
+        patch("src.api_server.get_service", return_value=service),
+        patch("src.board_client.requests.post") as post,
+    ):
+        post.return_value = Mock(raise_for_status=Mock())
+        rest = TestClient(app)
+
+        assert rest.post("/send-message", json={"text": "HELLO"}).status_code == 200
+        assert post.call_count == 1
+
+        now["t"] += 5.0  # inside the cloud send floor: the write is DROPPED, not deduped
+
+        refused = rest.post("/send-message", json={"text": "WORLD"})
+        assert refused.status_code == 429
+        assert refused.headers["Retry-After"] == "15"
+        rest_detail = refused.json()["detail"]
+
+        with pytest.raises(ToolError) as tool_refused:
+            mcp_call(mcp, "send_message", text="WORLD")
+
+        assert post.call_count == 1, "a dropped write reached the board"
+
+    assert rest_detail in str(tool_refused.value), (
+        f"the MCP refusal must carry the same retry hint as the REST 429: {tool_refused.value}"
+    )
