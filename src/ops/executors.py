@@ -1804,6 +1804,8 @@ async def force_refresh() -> dict[str, Any]:
     if not sent:
         message = "Display refresh ran, but nothing was sent (UI-only output target, paused board, or no change)."
     return ok(message, sent=sent)
+
+
 # Board hardware operations
 #
 # Per-board, non-secret fields only. Credentials (local API key, cloud key,

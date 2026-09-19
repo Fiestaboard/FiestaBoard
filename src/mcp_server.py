@@ -2517,6 +2517,7 @@ def _build_mcp_server() -> Any:
                       get_settings_summary()). Omitted = the primary board.
         """
         return ops_executors.resume_board(board_id=board_id)
+
     # Board hardware tools (Settings → Boards). Non-secret fields only; board
     # API keys and note-array tokens are entered by the user in the web UI.
     # -----------------------------------------------------------------------
