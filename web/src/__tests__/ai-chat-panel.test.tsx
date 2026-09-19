@@ -203,6 +203,72 @@ describe("AiChatPanel", () => {
     expect(mockSend).toHaveBeenCalledWith("Hello");
   });
 
+  // Issue #2020: the composer used to render a lone `Enter` code glyph among
+  // the provider/model pickers. The hint now lives beside the Send button,
+  // with a verb, as keycaps — and the shortcut reaches assistive tech
+  // through the button itself rather than through the decorative hint.
+  describe("send hint", () => {
+    beforeEach(() => {
+      server.use(
+        http.get(`${API_BASE}/settings/ai`, () =>
+          HttpResponse.json({ ...CONFIGURED, providers: [CONFIGURED_PROVIDER] }),
+        ),
+      );
+    });
+
+    it("no longer renders a bare Enter glyph among the toolbar tools", async () => {
+      const { container } = render(<AiChatPanel {...defaultProps} />, { wrapper: Wrapper });
+      await screen.findByRole("textbox");
+
+      const tools = container.querySelector('[data-slot="prompt-input-tools"]');
+      expect(tools).not.toBeNull();
+      expect(tools).not.toHaveTextContent(/Enter/);
+    });
+
+    it("renders Enter to send and Shift+Enter for a new line as keycaps beside Send", async () => {
+      render(<AiChatPanel {...defaultProps} />, { wrapper: Wrapper });
+      await screen.findByRole("textbox");
+
+      const hint = screen.getByTestId("ai-chat-send-hint");
+      const caps = Array.from(hint.querySelectorAll('kbd[data-slot="kbd-key"]')).map((el) => el.textContent);
+      expect(caps).toEqual(["Enter", "Shift", "Enter"]);
+      expect(hint).toHaveTextContent(enMessages.aiChatPanel.enterToSend);
+      expect(hint).toHaveTextContent(enMessages.aiChatPanel.shiftEnterNewline);
+      // Beside the Send button, not among the model pickers.
+      expect(hint.parentElement).toContainElement(screen.getByRole("button", { name: /send/i }));
+    });
+
+    it("keeps the hint decorative: hidden from assistive tech and on coarse pointers", async () => {
+      render(<AiChatPanel {...defaultProps} />, { wrapper: Wrapper });
+      await screen.findByRole("textbox");
+
+      const hint = screen.getByTestId("ai-chat-send-hint");
+      expect(hint).toHaveAttribute("aria-hidden", "true");
+      // Touch keyboards have no Shift+Enter; the hint would only mislead.
+      expect(hint).toHaveClass("pointer-coarse:hidden");
+    });
+
+    it("advertises Enter on the send button through aria-keyshortcuts", async () => {
+      render(<AiChatPanel {...defaultProps} />, { wrapper: Wrapper });
+      await screen.findByRole("textbox");
+
+      expect(screen.getByRole("button", { name: /send/i })).toHaveAttribute("aria-keyshortcuts", "Enter");
+    });
+
+    it("Shift+Enter inserts a newline instead of sending (what the hint promises)", async () => {
+      const user = userEvent.setup();
+      render(<AiChatPanel {...defaultProps} />, { wrapper: Wrapper });
+      const textarea = await screen.findByRole("textbox");
+      await waitFor(() => expect(textarea).not.toBeDisabled());
+
+      await user.type(textarea, "Hello");
+      await user.keyboard("{Shift>}{Enter}{/Shift}");
+
+      expect(mockSend).not.toHaveBeenCalled();
+      expect(textarea).toHaveValue("Hello\n");
+    });
+  });
+
   it("shows Stop button and hides Send while streaming", async () => {
     server.use(
       http.get(`${API_BASE}/settings/ai`, () =>

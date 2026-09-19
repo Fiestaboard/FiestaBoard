@@ -2006,6 +2006,8 @@
     "messageLabel": "Wiadomość",
     "stopButton": "Zatrzymaj",
     "sendButton": "Wyślij",
+    "enterToSend": "aby wysłać",
+    "shiftEnterNewline": "aby dodać nową linię",
     "emptyStateTitle": "W czym mogę pomóc?",
     "emptyStateDescription": "Opisz, co chcesz zbudować lub zmienić.",
     "placeholderEmpty": "Opisz stronę, którą chcesz, lub poproś o zmiany…",

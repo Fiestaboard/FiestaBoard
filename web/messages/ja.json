@@ -2006,6 +2006,8 @@
     "messageLabel": "メッセージ",
     "stopButton": "停止",
     "sendButton": "送信",
+    "enterToSend": "で送信",
+    "shiftEnterNewline": "で改行",
     "emptyStateTitle": "何かお手伝いできますか？",
     "emptyStateDescription": "作成または変更したい内容を説明してください。",
     "placeholderEmpty": "作りたいページを説明するか、変更を依頼してください…",

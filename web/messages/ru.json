@@ -2006,6 +2006,8 @@
     "messageLabel": "Сообщение",
     "stopButton": "Остановить",
     "sendButton": "Отправить",
+    "enterToSend": "чтобы отправить",
+    "shiftEnterNewline": "для новой строки",
     "emptyStateTitle": "Чем я могу помочь?",
     "emptyStateDescription": "Опишите, что вы хотите создать или изменить.",
     "placeholderEmpty": "Опишите нужную страницу или попросите внести изменения…",
