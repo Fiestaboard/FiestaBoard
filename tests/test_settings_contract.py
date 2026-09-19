@@ -75,11 +75,30 @@ class TestMqtt:
 
 class TestAiProviders:
     def test_get_returns_the_empty_provider_block(self, client):
+        # CHANGED (#2021): the block carries the chat's approval mode,
+        # defaulting to "ask" (today's behaviour) on every install.
         assert client.get("/settings/ai").json() == {
             "enabled": False,
             "providers": [],
             "default_provider_id": None,
+            "approval_mode": "ask",
         }
+
+    def test_put_persists_the_approval_mode_and_get_reads_it_back(self, client):
+        body = client.put("/settings/ai", json={"approval_mode": "auto"}).json()
+        assert body["approval_mode"] == "auto"
+        assert client.get("/settings/ai").json()["approval_mode"] == "auto"
+        # Switching back is the same one-key PUT.
+        assert client.put("/settings/ai", json={"approval_mode": "ask"}).json()["approval_mode"] == "ask"
+
+    def test_put_of_another_key_leaves_the_approval_mode_alone(self, client):
+        client.put("/settings/ai", json={"approval_mode": "auto"})
+        assert client.put("/settings/ai", json={"enabled": True}).json()["approval_mode"] == "auto"
+
+    def test_put_422s_on_an_unknown_approval_mode(self, client):
+        response = client.put("/settings/ai", json={"approval_mode": "yolo"})
+        assert response.status_code == 422
+        assert client.get("/settings/ai").json()["approval_mode"] == "ask"
 
     def test_put_persists_enabled_and_returns_the_masked_block(self, client):
         body = client.put("/settings/ai", json={"enabled": True}).json()

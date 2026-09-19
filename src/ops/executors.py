@@ -1678,6 +1678,14 @@ async def update_setting(category: str, values: dict[str, Any]) -> dict[str, Any
         refusal = _refuse_secret_keys(category, values)
         if refusal is not None:
             return refusal
+        if category == "ai" and "approval_mode" in values:
+            # #2021: the assistant must never loosen (or tighten) the policy
+            # that decides whether its own destructive calls pause for the
+            # user. Refused before the model is built, like a secret.
+            return err(
+                "'approval_mode' is the assistant's own approval policy and cannot be changed through "
+                "this tool. Ask the user to switch it in the chat panel (Ask / Auto)."
+            )
 
         if category == "schedule_behavior":
             from src.schedules.models import ScheduleBehaviorUpdate

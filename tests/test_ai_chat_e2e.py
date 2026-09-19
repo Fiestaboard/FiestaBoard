@@ -142,10 +142,17 @@ def _block(name: str, args: dict[str, Any]) -> dict[str, Any]:
     return {"op": name, "args": args}
 
 
-def _chat(client: TestClient, messages: list[dict[str, Any]], resume: dict[str, Any] | None = None):
+def _chat(
+    client: TestClient,
+    messages: list[dict[str, Any]],
+    resume: dict[str, Any] | None = None,
+    approval: dict[str, Any] | None = None,
+):
     body: dict[str, Any] = {"messages": messages, "device_type": "flagship", "surface": "global"}
     if resume is not None:
         body["resume"] = resume
+    if approval is not None:
+        body["approval"] = approval
     res = client.post("/pages/ai/chat", json=body)
     assert res.status_code == 200, res.text
     assert res.headers["content-type"].startswith("text/event-stream")
@@ -265,6 +272,66 @@ def test_a_destructive_call_waits_for_approval_and_only_runs_on_approve(client, 
     assert result["id"] == call["id"] and result["status"] == "ok", result
     assert _only(approved, "done")[0]["reason"] == "complete"
     assert created not in _page_names(client)
+
+
+def _create_doomed_page(client, mock_llm) -> str:
+    mock_llm.script(
+        [{"prose": "", "ops": [_block("create_page", {"name": "Doomed", "template_lines": ["X"]})]}, {"prose": "ok"}]
+    )
+    created = _only(_chat(client, USER), "tool_result")[0]["result"]["page_id"]
+    assert created in _page_names(client)
+    return created
+
+
+def test_auto_mode_deletes_without_a_pause_and_the_frame_says_so(client, cm, mock_llm):
+    """#2021: with the install set to Auto the same delete runs in one
+    request — no ``awaiting_approval``, no second POST — through the same
+    MCP tool, and the ``tool_call`` frame is badged ``auto_approved``."""
+    created = _create_doomed_page(client, mock_llm)
+    cm.set_ai_providers({"approval_mode": "auto"})
+
+    mock_llm.script(
+        [{"prose": "Deleting it. ", "ops": [_block("delete_page", {"page_id": created})]}, {"prose": "Gone."}]
+    )
+    frames = _chat(client, [{"role": "user", "content": "delete the doomed page"}])
+    call = _only(frames, "tool_call")[0]
+    assert call["name"] == "delete_page" and call["requires_approval"] is True
+    assert call["auto_approved"] is True and call["system_gated"] is False
+    assert _only(frames, "tool_result")[0]["status"] == "ok"
+    assert _only(frames, "done")[0]["reason"] == "complete"
+    assert created not in _page_names(client)
+
+
+def test_the_conversation_flag_deletes_without_a_pause_while_the_install_still_asks(client, cm, mock_llm):
+    created = _create_doomed_page(client, mock_llm)
+    assert cm.get_ai_providers()["approval_mode"] == "ask"
+
+    mock_llm.script(
+        [{"prose": "Deleting it. ", "ops": [_block("delete_page", {"page_id": created})]}, {"prose": "Gone."}]
+    )
+    frames = _chat(
+        client,
+        [{"role": "user", "content": "delete the doomed page"}],
+        approval={"auto_approve_destructive": True},
+    )
+    assert _only(frames, "tool_call")[0]["auto_approved"] is True
+    assert _only(frames, "done")[0]["reason"] == "complete"
+    assert created not in _page_names(client)
+
+
+def test_a_system_action_still_pauses_in_auto_mode(client, cm, mock_llm):
+    cm.set_ai_providers({"approval_mode": "auto"})
+    mock_llm.script([{"prose": "Restarting. ", "ops": [_block("restart_system", {})]}])
+    frames = _chat(
+        client,
+        [{"role": "user", "content": "restart the system"}],
+        approval={"auto_approve_destructive": True},
+    )
+    call = _only(frames, "tool_call")[0]
+    assert call["name"] == "restart_system" and call["system_gated"] is True and call["auto_approved"] is False
+    done = _only(frames, "done")[0]
+    assert done["reason"] == "awaiting_approval" and done["pending_tool_call_id"] == call["id"]
+    assert "tool_result" not in [event for event, _ in frames]
 
 
 def test_a_question_to_the_user_pauses_and_the_answer_reaches_the_model(client, cm, mock_llm):

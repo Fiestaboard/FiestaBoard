@@ -57,7 +57,7 @@ from typing import Annotated, Any, Literal
 
 from fastapi import APIRouter, HTTPException, Query
 from fastapi.responses import StreamingResponse
-from pydantic import BaseModel, Field, model_validator
+from pydantic import BaseModel, Field, StrictBool, model_validator
 
 from src.api_errors import errors
 from src.config_manager import get_config_manager
@@ -211,6 +211,18 @@ class ChatResumeDecision(BaseModel):
         return self
 
 
+class ChatApprovalOptions(BaseModel):
+    """Per-conversation approval overrides (#2021).
+
+    ``auto_approve_destructive`` is what the client sends for the rest of a
+    conversation after the user chose "Approve and don't ask again in this
+    chat". It relaxes the pause on destructive tools exactly as the install's
+    ``approval_mode: "auto"`` does — and, like it, never on the system tier.
+    """
+
+    auto_approve_destructive: StrictBool = False
+
+
 class AIChatRequest(BaseModel):
     """``POST /chat`` — the conversation plus the context blocks.
 
@@ -225,6 +237,7 @@ class AIChatRequest(BaseModel):
 
     messages: list[ChatMessage] = Field(min_length=1)
     resume: ChatResumeDecision | None = None
+    approval: ChatApprovalOptions | None = None
     device_type: AIDeviceType = "flagship"
     surface: ChatSurface = "global"
     current_page: dict[str, Any] | None = None
@@ -269,6 +282,9 @@ class ChatStreamToolCallData(BaseModel):
 
     The annotation flags come from the MCP tool's own ``ToolAnnotations``;
     ``requires_approval`` is what the client keys its pause UI on.
+    ``system_gated`` marks the tier that pauses in every approval mode, and
+    ``auto_approved`` is true when a destructive call ran without a pause
+    (the install is in Auto, or the conversation said "don't ask again").
     """
 
     id: str
@@ -279,6 +295,8 @@ class ChatStreamToolCallData(BaseModel):
     destructive: bool
     requires_approval: bool
     source: Literal["mcp", "chat"]
+    system_gated: bool = False
+    auto_approved: bool = False
 
 
 class ChatStreamToolResultData(BaseModel):
@@ -598,6 +616,10 @@ async def chat_ai_page(request: AIChatRequest) -> StreamingResponse:
     resume = request.resume.model_dump() if request.resume is not None else None
     cm = get_config_manager()
     providers_block = cm.get_ai_providers()
+    # The install's policy comes from the AI block, never from the client;
+    # the conversation's "don't ask again" comes from the client alone.
+    approval_mode = "auto" if providers_block.get("approval_mode") == "auto" else "ask"
+    auto_approve_destructive = request.approval.auto_approve_destructive if request.approval is not None else False
     variables = _collect_ai_variables()
     demos = _collect_plugin_demos()
 
@@ -629,6 +651,8 @@ async def chat_ai_page(request: AIChatRequest) -> StreamingResponse:
                 provider_id=request.provider_id,
                 model=request.model,
                 provider_gate=_AI_GENERATE_SEMAPHORE,
+                approval_mode=approval_mode,
+                auto_approve_destructive=auto_approve_destructive,
             ):
                 yield _format_sse_event(evt["event"], evt["data"])
         except Exception:

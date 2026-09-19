@@ -1203,7 +1203,7 @@ class ConfigManager:
         (use ``get_ai_providers_masked``).
         """
         with self._file_lock:
-            return self._deep_copy(
+            block = self._deep_copy(
                 self._config.get(
                     "ai_providers",
                     {
@@ -1213,6 +1213,10 @@ class ConfigManager:
                     },
                 )
             )
+        # Installs that predate #2021 have no approval_mode; they ask, as
+        # they always did. Filled on read so every caller sees the key.
+        block.setdefault("approval_mode", "ask")
+        return block
 
     def get_ai_providers_masked(self) -> dict[str, Any]:
         """Get the AI providers config with each provider's api_key masked."""
@@ -1230,7 +1234,9 @@ class ConfigManager:
         """Update the AI providers configuration block.
 
         Accepts a partial dict with any of: ``enabled`` (bool),
-        ``providers`` (list of provider dicts), ``default_provider_id``.
+        ``providers`` (list of provider dicts), ``default_provider_id``,
+        ``approval_mode`` (``"ask"`` | ``"auto"``; anything else is ignored —
+        the API layer has already validated it).
 
         For ``providers``, the list replaces the stored list, but for any
         provider whose ``api_key`` field is the mask placeholder ``"***"``
@@ -1255,6 +1261,9 @@ class ConfigManager:
             if "default_provider_id" in settings:
                 value = settings["default_provider_id"]
                 existing["default_provider_id"] = value if value else None
+
+            if settings.get("approval_mode") in ("ask", "auto"):
+                existing["approval_mode"] = settings["approval_mode"]
 
             if "providers" in settings and isinstance(settings["providers"], list):
                 cleaned: list[dict[str, Any]] = []

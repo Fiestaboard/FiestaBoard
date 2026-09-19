@@ -24,7 +24,7 @@ full dump, so an unset optional field never overwrites stored state with
 
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, StrictBool
 
@@ -64,12 +64,19 @@ class MqttSettingsUpdate(BaseModel):
 # ---------------------------------------------------------------------------
 
 
+#: How the in-app chat handles destructive tools (#2021). ``ask`` pauses on
+#: every one; ``auto`` runs them without asking. The system tier (restart,
+#: shutdown, update) asks in both modes.
+AiApprovalMode = Literal["ask", "auto"]
+
+
 class AiProvidersResponse(BaseModel):
     """AI provider configuration with every ``api_key`` masked."""
 
     enabled: bool
     providers: list[dict[str, Any]]
     default_provider_id: str | None = None
+    approval_mode: AiApprovalMode = "ask"
 
 
 class AiProvidersUpdate(BaseModel):
@@ -85,6 +92,7 @@ class AiProvidersUpdate(BaseModel):
     enabled: StrictBool | None = None
     providers: list[dict[str, Any]] | None = None
     default_provider_id: str | None = None
+    approval_mode: AiApprovalMode | None = None
 
 
 class AiTestRequest(BaseModel):

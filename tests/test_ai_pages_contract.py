@@ -447,6 +447,8 @@ STREAMED_EVENTS: list[dict[str, Any]] = [
             "destructive": False,
             "requires_approval": False,
             "source": "mcp",
+            "system_gated": False,
+            "auto_approved": False,
         },
     },
     {
@@ -552,7 +554,8 @@ def test_chat_frames_are_sse_bytes_in_the_order_the_generator_yielded_them(clien
         'event: text\ndata: {"delta": "the plan."}\n\n'
         "event: tool_call\n"
         'data: {"id": "abc123", "name": "create_page", "args": {"name": "Scripted"}, "title": "Create page", '
-        '"read_only": false, "destructive": false, "requires_approval": false, "source": "mcp"}\n\n'
+        '"read_only": false, "destructive": false, "requires_approval": false, "source": "mcp", '
+        '"system_gated": false, "auto_approved": false}\n\n'
         "event: status\n"
         'data: {"phase": "tool_running", "message": "Running create_page…", "tool_call_id": "abc123", "step": 1}\n\n'
         "event: tool_result\n"
@@ -601,6 +604,8 @@ def test_chat_emits_every_event_type_the_client_switches_on(client, cm):
         "destructive",
         "requires_approval",
         "source",
+        "system_gated",
+        "auto_approved",
     }
     assert set(by_name["tool_result"]) == {"id", "name", "status", "summary", "result", "error"}
     assert set(by_name["elicitation"]) == {"id", "name", "message", "requested_schema", "allow_free_text"}
@@ -650,10 +655,43 @@ def test_chat_forwards_every_context_block_to_the_streamer(client, cm):
     assert seen["provider_id"] == "p1"
     assert seen["model"] == "test-model"
     assert seen["resume"] is None
+    # Approval policy (#2021): the install setting and the request flag both
+    # reach the loop; neither is sent, so both are at their "ask" defaults.
+    assert seen["approval_mode"] == "ask"
+    assert seen["auto_approve_destructive"] is False
     # The loop gets the tool backend and the provider gate from the route;
     # both are the route's to wire, never the client's to choose.
     assert hasattr(seen["backend"], "call_tool")
     assert seen["provider_gate"] is not None
+
+
+def test_chat_forwards_the_approval_setting_and_the_request_flag_to_the_loop(client, cm):
+    """The setting comes from the AI block, never from the client; the
+    per-conversation flag comes from the client, never from the block."""
+    seen: dict[str, Any] = {}
+
+    async def stream(**kwargs):
+        seen.update(kwargs)
+        yield {
+            "event": "done",
+            "data": {"model_used": "m", "provider_id": "p", "usage": {}, "reason": "complete", "steps": 1},
+        }
+
+    cm.set_ai_providers({"approval_mode": "auto"})
+    with patch(TURN, stream):
+        res = client.post(
+            "/pages/ai/chat",
+            json={**CHAT_BODY, "approval": {"auto_approve_destructive": True}},
+        )
+    assert res.status_code == 200
+    assert seen["approval_mode"] == "auto"
+    assert seen["auto_approve_destructive"] is True
+
+
+def test_chat_rejects_a_malformed_approval_block(client, cm):
+    with patch(TURN, _fake_stream([])):
+        res = client.post("/pages/ai/chat", json={**CHAT_BODY, "approval": {"auto_approve_destructive": "yes"}})
+    assert res.status_code == 422
 
 
 def test_chat_defaults_surface_to_global_for_clients_that_omit_it(client, cm):
