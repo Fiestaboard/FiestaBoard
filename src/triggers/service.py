@@ -7,17 +7,15 @@ set of *active* triggers, and exposes the highest-priority one so the
 display loop can override the normal schedule/manual page.
 """
 
-import json
 import logging
-import threading
 from dataclasses import dataclass, field
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any
 
-from src.atomic_io import write_json_atomic
 from src.paths import get_data_dir
 from src.plugins.base import PluginBase, TriggerResult
+from src.storage.json_store import JsonStore, SchemaTooNewError
 from src.time_service import get_time_service
 
 logger = logging.getLogger(__name__)
@@ -129,20 +127,29 @@ class TriggerService:
 
         # Suppressed dismissals persist across restarts (#1850): before this,
         # a reboot brought every dismissed trigger straight back — the one
-        # real restart loss in the trigger platform. The store is a minimal
-        # schema-versioned JSON file written atomically (src.atomic_io) whose
-        # location resolves through the data-dir seam (src.paths).
+        # real restart loss in the trigger platform. The store sits on the
+        # storage kernel (#1848): a schema-versioned JSON file, written
+        # atomically under the store's lock, whose default location resolves
+        # through the data-dir seam (src.paths).
         if dismissals_file is None:
             dismissals_file = _default_dismissals_file()
-        self._dismissals_file = Path(dismissals_file)
+        self._store = JsonStore(
+            Path(dismissals_file),
+            current_schema_version=DISMISSALS_SCHEMA_VERSION,
+            label="Trigger dismissals",
+        )
+        self._dismissals_file = self._store.path
         # Guards BOTH the in-memory trigger state (_active_triggers /
         # _suppressed_until / _dismissed_at) and the dismissal-store write
         # (#1871 review): the engine tick prunes these dicts while API
         # threads dismiss/activate, so an unguarded snapshot or iteration
         # races a concurrent mutation (RuntimeError into the caller), and
-        # two unserialized saves could persist the staler snapshot.
-        # Reentrant: dismiss/clear paths hold it across mutation + save.
-        self._state_lock = threading.RLock()
+        # two unserialized saves could persist the staler snapshot. It IS
+        # the kernel store's re-entrant lock — public for exactly this, so a
+        # composing service extends the critical section around its own
+        # read-modify-write — and dismiss/clear paths hold it across
+        # mutation + save.
+        self._state_lock = self._store.lock
         # When each persisted suppression was created (metadata only; the
         # behavioral horizon lives in ``_suppressed_until``).
         self._dismissed_at: dict[str, datetime] = {}
@@ -166,22 +173,25 @@ class TriggerService:
         """Restore persisted suppressions, pruning any that already lapsed.
 
         A corrupt or unreadable store degrades to the pre-#1850 behavior
-        (empty suppressions) rather than blocking service startup.
+        (empty suppressions) rather than blocking service startup. So does a
+        store written by a newer build: the kernel refuses to read it, and —
+        unlike the pre-kernel loader, which ignored an unknown
+        ``schema_version`` and then let the next save overwrite it — refuses
+        to write over it too (see ``SchemaTooNewError``).
         """
         with self._state_lock:  # mutations guarded (#1871 review)
             try:
-                if not self._dismissals_file.exists():
-                    return
-                data = json.loads(self._dismissals_file.read_text(encoding="utf-8"))
+                data = self._store.load()
+            except SchemaTooNewError as e:
+                logger.warning("%s - ignoring the persisted dismissals", e)
+                return
             except Exception as e:
                 logger.warning("Could not load trigger dismissals from %s: %s", self._dismissals_file, e)
                 return
-            if not isinstance(data, dict) or data.get("schema_version") != DISMISSALS_SCHEMA_VERSION:
-                logger.warning(
-                    "Trigger dismissal store %s has unsupported schema_version %r - ignoring it",
-                    self._dismissals_file,
-                    data.get("schema_version") if isinstance(data, dict) else None,
-                )
+            if data is None:
+                return
+            if not isinstance(data, dict):
+                logger.warning("Trigger dismissal store %s is not a JSON object - ignoring it", self._dismissals_file)
                 return
             now = _now()
             entries = data.get("dismissals")
@@ -204,14 +214,14 @@ class TriggerService:
                     len(self._suppressed_until),
                     ", ".join(sorted(self._suppressed_until)),
                 )
-            if pruned:
+            if pruned or self._store.migrated:
                 # Housekeeping only — rewrite the store without the entries
-                # that had already lapsed. best_effort because this runs during
-                # __init__: refusing to construct the service because a purely
-                # cosmetic prune could not be written would take the whole app
-                # down over state that is already correct in memory. Every
-                # write that carries a *user decision* goes through the
-                # raising path below.
+                # that had already lapsed (or with the kernel's schema stamp).
+                # best_effort because this runs during __init__: refusing to
+                # construct the service because a purely cosmetic prune could
+                # not be written would take the whole app down over state that
+                # is already correct in memory. Every write that carries a
+                # *user decision* goes through the raising path below.
                 self._save_dismissals(best_effort=True)
 
     def _save_dismissals(self, *, best_effort: bool = False) -> None:
@@ -257,9 +267,9 @@ class TriggerService:
                     if until > now
                 }
                 payload = {"schema_version": DISMISSALS_SCHEMA_VERSION, "dismissals": dismissals}
-                if not dismissals and not self._dismissals_file.exists():
+                if not dismissals and not self._store.exists():
                     return  # nothing durable and nothing on disk to clear
-                write_json_atomic(self._dismissals_file, payload)
+                self._store.save(payload)
         except Exception as e:
             logger.error("Could not persist trigger dismissals to %s: %s", self._dismissals_file, e)
             if not best_effort:

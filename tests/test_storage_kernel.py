@@ -395,6 +395,47 @@ class TestGoldenOnDiskFormat:
         SettingsService(settings_file=str(path))._save_to_file()
         assert path.read_bytes() == golden
 
+    def test_system_update_state_json_round_trips_byte_identical(self, tmp_path, monkeypatch):
+        from src.system import update_service
+
+        path, golden = _pin(tmp_path, "system_update_state.json")
+        monkeypatch.setattr(update_service, "SYSTEM_UPDATE_STATE_FILE", path)
+        update_service._system_update_state_save(update_service._system_update_state_load())
+        assert path.read_bytes() == golden
+
+    def test_system_update_state_pre_versioning_file_reads_back_identically_and_is_stamped(self, tmp_path, monkeypatch):
+        """An existing install's ``.system-update.json`` predates schema
+        versioning (the #1745-era writer). It must load with every key/value
+        intact, and the v0->v1 migration may add nothing but the
+        ``schema_version`` stamp — so the file becomes the v1 golden
+        byte-for-byte, with the pre-migration bytes kept as the backup."""
+        from src.system import update_service
+
+        path, golden = _pin(tmp_path, "system_update_state_pre_versioning.json")
+        monkeypatch.setattr(update_service, "SYSTEM_UPDATE_STATE_FILE", path)
+        before = json.loads(golden)
+        assert "schema_version" not in before, "the fixture is supposed to be pre-versioning"
+
+        state = update_service._system_update_state_load()
+
+        assert {k: state[k] for k in before} == before, "a key an existing install relies on changed on the way in"
+        assert state["schema_version"] == 1
+        assert path.read_bytes() == (GOLDEN / "system_update_state.json").read_bytes()
+        assert path.with_suffix(".json.v0_backup").read_bytes() == golden
+
+    def test_trigger_dismissals_json_round_trips_byte_identical(self, tmp_path, monkeypatch):
+        from datetime import UTC, datetime
+
+        from src.triggers.service import TriggerService
+        from tests.fake_clock import FakeClock, install_fake_time_service
+
+        # The fixture's suppressions are live at this instant; the store prunes
+        # lapsed entries on the way through, so the clock is part of the pin.
+        install_fake_time_service(monkeypatch, FakeClock(datetime(2026, 7, 15, 9, 0, tzinfo=UTC)))
+        path, golden = _pin(tmp_path, "trigger_dismissals.json")
+        TriggerService(dismissals_file=path)._save_dismissals()
+        assert path.read_bytes() == golden
+
 
 # ═══════════════════════════════════════════════════════════════════════════
 # 3. Concurrent writers
@@ -519,6 +560,54 @@ class TestConcurrentWriters:
         reloaded = PanelStorage(storage_file=str(tmp_path / "panels.json"))
         assert reloaded.get("panel-1").name == "First Updated"
         assert reloaded.get("panel-2").name == "Second Updated"
+
+    def test_system_update_state_two_threads_updating_disjoint_fields_both_survive(self, tmp_path, monkeypatch):
+        """``POST /system/update/auto`` writes ``auto_update_interval`` while
+        the hourly loop writes ``last_check`` (#1745); both are load -> mutate
+        -> save on the same file, now serialised by the kernel's lock."""
+        from src.system import update_service
+
+        path = tmp_path / ".system-update.json"
+        monkeypatch.setattr(update_service, "SYSTEM_UPDATE_STATE_FILE", path)
+        update_service._system_update_state_save({"auto_update_interval": "manual", "last_check": "stale"})
+
+        _force_write_overlap(monkeypatch)
+        errors = _run_pair(
+            lambda: update_service._system_update_state_update(auto_update_interval="weekly"),
+            lambda: update_service._system_update_state_update(last_check="2026-01-01T00:00:00+00:00"),
+        )
+
+        assert errors == []
+        persisted = json.loads(path.read_text())
+        assert persisted["auto_update_interval"] == "weekly"
+        assert persisted["last_check"] == "2026-01-01T00:00:00+00:00"
+
+    def test_trigger_dismissals_two_threads_dismissing_disjoint_triggers_both_survive(self, tmp_path, monkeypatch):
+        from datetime import UTC, datetime
+
+        from src.plugins.base import TriggerResult
+        from src.triggers.service import TriggerService
+        from tests.fake_clock import FakeClock, install_fake_time_service
+
+        install_fake_time_service(monkeypatch, FakeClock(datetime(2026, 7, 15, 9, 0, tzinfo=UTC)))
+        path = tmp_path / "trigger_dismissals.json"
+        svc = TriggerService(dismissals_file=path)
+        for tid in ("door-open", "garage-open"):
+            svc.activate_trigger(
+                "stub_plugin",
+                TriggerResult(triggered=True, trigger_id=tid, message=tid.upper(), priority=5, duration_seconds=3600),
+            )
+
+        _force_write_overlap(monkeypatch)
+        errors = _run_pair(
+            lambda: svc.dismiss_trigger("door-open", suppress=True),
+            lambda: svc.dismiss_trigger("garage-open", suppress=True),
+        )
+
+        assert errors == []
+        assert set(json.loads(path.read_text())["dismissals"]) == {"door-open", "garage-open"}
+        reloaded = TriggerService(dismissals_file=path)
+        assert set(reloaded._suppressed_until) == {"door-open", "garage-open"}
 
     def test_settings_two_concurrent_puts_to_different_sections_both_survive(self, tmp_path, monkeypatch):
         """The #1848 headline bug: SettingsService rewrites ALL sections from

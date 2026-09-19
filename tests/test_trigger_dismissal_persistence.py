@@ -257,13 +257,17 @@ def test_engine_prune_during_dismissal_save_neither_raises_nor_loses_the_write(m
 
 
 def _break_store_writes(monkeypatch):
-    """Make every dismissal-store write fail the way a full/read-only disk does."""
-    import src.triggers.service as trigger_service_module
+    """Make every dismissal-store write fail the way a full/read-only disk does.
+
+    The dismissal store sits on the storage kernel (#1848), so the write is
+    ``src.storage.json_store.write_json_atomic`` — patched where it lives.
+    """
+    import src.storage.json_store as json_store_module
 
     def boom(*args, **kwargs):
         raise OSError("[Errno 28] No space left on device")
 
-    monkeypatch.setattr(trigger_service_module, "write_json_atomic", boom)
+    monkeypatch.setattr(json_store_module, "write_json_atomic", boom)
 
 
 def test_a_suppressed_dismissal_that_cannot_be_persisted_surfaces_to_the_caller(monkeypatch, tmp_path):
@@ -396,3 +400,33 @@ def test_the_default_store_path_honors_the_data_dir_seam(monkeypatch, tmp_path):
 
     assert not resolved.is_relative_to(repo_root / "data"), f"leaked into the repo data/: {resolved}"
     assert resolved.is_relative_to(get_data_dir().resolve())
+
+
+def test_a_store_from_a_newer_build_is_refused_and_never_overwritten(monkeypatch, tmp_path):
+    """The kernel's forward-only rule applies to dismissals too (#1848/#1850).
+
+    Before the adapter swap an unknown ``schema_version`` was *ignored*: the
+    service started empty and the next dismissal overwrote the newer file with
+    a v1 payload — destroying the only evidence the data came from somewhere
+    newer. On the kernel the load degrades the same way (empty suppressions,
+    service still constructs), but the write is refused and the file is left
+    exactly as it was.
+    """
+    import pytest
+
+    from src.storage.json_store import SchemaTooNewError
+
+    clock = FakeClock(T0)
+    install_fake_time_service(monkeypatch, clock)
+    store = tmp_path / "trigger_dismissals.json"
+    newer = json.dumps({"schema_version": 99, "dismissals": {}, "from_the_future": True}, indent=2)
+    store.write_text(newer, encoding="utf-8")
+
+    svc = TriggerService(dismissals_file=store)  # degrades, must not raise
+    assert svc._suppressed_until == {}
+
+    svc.activate_trigger("stub_plugin", _result())
+    with pytest.raises(SchemaTooNewError):
+        svc.dismiss_trigger("door-open", suppress=True)
+
+    assert store.read_text(encoding="utf-8") == newer, "the newer file was overwritten"

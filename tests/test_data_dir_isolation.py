@@ -105,6 +105,12 @@ def test_trigger_dismissal_store_default_is_isolated(isolated_env):
     _assert_isolated(TriggerService()._dismissals_file, isolated_env, "TriggerService dismissal store")
 
 
+def test_system_update_state_store_default_is_isolated(isolated_env):
+    from src.system.update_service import _system_update_store
+
+    _assert_isolated(_system_update_store().path, isolated_env, "system-update state store")
+
+
 def test_external_plugins_dir_default_is_isolated(isolated_env):
     from src.plugins.sources import get_external_plugins_dir
 

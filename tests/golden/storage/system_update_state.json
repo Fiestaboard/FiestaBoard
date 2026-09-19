@@ -1,0 +1,9 @@
+{
+  "auto_update_enabled": true,
+  "auto_update_interval": "weekly",
+  "last_check": "2026-09-01T03:00:00+00:00",
+  "last_update": "2026-08-20T03:05:12+00:00",
+  "channel": "beta",
+  "channel_join_snapshot": "pre-update-20260820T030000.000Z.json",
+  "schema_version": 1
+}
