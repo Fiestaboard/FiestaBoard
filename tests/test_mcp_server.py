@@ -212,6 +212,7 @@ def mock_schedule_service():
     svc.list_schedules.return_value = [entry]
     svc.create_schedule.return_value = entry
     svc.update_schedule.return_value = entry
+    svc.get_default_page.return_value = None
     return svc
 
 
@@ -403,6 +404,16 @@ EXPECTED_TOOLS = {
     "list_plugin_options",
     "get_plugin_manifest",
     "list_plugin_errors",
+    # Schedules-page and Home-page coverage
+    "validate_schedules",
+    "set_default_page",
+    "get_temporary_override",
+    "set_temporary_override",
+    "cancel_temporary_override",
+    "force_refresh",
+    "get_silence_status",
+    "pause_board",
+    "resume_board",
 }
 
 
@@ -916,12 +927,18 @@ class TestRenderPagePreview:
 
 
 class TestListSchedules:
-    def test_returns_schedule_list(self, mcp, mock_schedule_service):
+    def test_returns_the_schedules_page_shape(self, mcp, mock_schedule_service):
+        """The ScheduleListResponse shape, not a bare list: entries with
+        today's resolved times plus the per-board default page and
+        schedule-mode flag the Schedules page shows."""
         with patch("src.schedules.service.get_schedule_service", return_value=mock_schedule_service):
             result = _call_tool(mcp, "list_schedules")
-        data = result
-        assert isinstance(data, list)
-        assert data[0]["id"] == "sched-001"
+        assert isinstance(result, dict)
+        assert result["total"] == 1
+        assert result["schedules"][0]["id"] == "sched-001"
+        assert result["schedules"][0]["resolved_start_time"] == "08:00"
+        assert result["schedules"][0]["resolved_end_time"] is None
+        assert "default_page_id" in result and "schedule_enabled" in result
 
 
 class TestCreateSchedule:
@@ -1273,6 +1290,10 @@ class TestToolErrorResilience:
             ("get_settings_summary", {}),
             ("set_active_page", {"page_id": "x"}),
             ("set_schedule_mode", {"enabled": True}),
+            ("validate_schedules", {}),
+            ("set_default_page", {"page_id": "x"}),
+            ("pause_board", {"board_id": "x"}),
+            ("resume_board", {"board_id": "x"}),
         ],
     )
     def test_tool_fails_as_a_protocol_error_without_a_traceback(self, mcp, tool_name: str, kwargs: dict):

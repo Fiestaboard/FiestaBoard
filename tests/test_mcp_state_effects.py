@@ -118,6 +118,16 @@ COVERED = {
     "list_plugin_options",
     "get_plugin_manifest",
     "list_plugin_errors",
+    # Schedules-page and Home-page coverage
+    "validate_schedules",
+    "set_default_page",
+    "get_temporary_override",
+    "set_temporary_override",
+    "cancel_temporary_override",
+    "force_refresh",
+    "get_silence_status",
+    "pause_board",
+    "resume_board",
 }
 
 #: Tools not yet covered here, each with the reason. Not an exemption list.
@@ -602,7 +612,7 @@ def _make_page(mcp, name: str = "Scheduled") -> str:
 def test_create_schedule_persists_and_is_visible_to_list_schedules(mcp, services):
     page_id = _make_page(mcp)
     before = assert_ok(call(mcp, "list_schedules"), "list_schedules")
-    before_ids = {s["id"] for s in before}
+    before_ids = {s["id"] for s in before["schedules"]}
 
     assert_ok(
         call(mcp, "create_schedule", page_id=page_id, start_time="08:00", day_pattern="all"),
@@ -610,7 +620,7 @@ def test_create_schedule_persists_and_is_visible_to_list_schedules(mcp, services
     )
 
     after = assert_ok(call(mcp, "list_schedules"), "list_schedules")
-    assert len(({s["id"] for s in after}) - before_ids) == 1
+    assert len(({s["id"] for s in after["schedules"]}) - before_ids) == 1
 
 
 def test_update_schedule_changes_the_stored_start_time(mcp, services):
@@ -624,7 +634,7 @@ def test_update_schedule_changes_the_stored_start_time(mcp, services):
     assert_ok(call(mcp, "update_schedule", schedule_id=schedule_id, start_time="09:30"), "update_schedule")
 
     after = assert_ok(call(mcp, "list_schedules"), "list_schedules")
-    stored = next(s for s in after if s["id"] == schedule_id)
+    stored = next(s for s in after["schedules"] if s["id"] == schedule_id)
     assert stored["start_time"] == "09:30", "update_schedule reported success but start_time did not change"
 
 
@@ -641,7 +651,7 @@ def test_update_schedule_preserves_end_time_on_partial_update(mcp, services):
     assert_ok(call(mcp, "update_schedule", schedule_id=schedule_id, start_time="09:30"), "update_schedule")
 
     after = assert_ok(call(mcp, "list_schedules"), "list_schedules")
-    stored = next(s for s in after if s["id"] == schedule_id)
+    stored = next(s for s in after["schedules"] if s["id"] == schedule_id)
     assert stored["end_time"] == "17:00", "a partial update wiped end_time"
 
 
@@ -666,7 +676,7 @@ def test_update_schedule_clear_end_time_makes_the_entry_open_ended(mcp, services
     )
 
     after = assert_ok(call(mcp, "list_schedules"), "list_schedules")
-    stored = next(s for s in after if s["id"] == schedule_id)
+    stored = next(s for s in after["schedules"] if s["id"] == schedule_id)
     assert stored.get("end_time") is None, "clear_end_time=True did not clear the stored end_time"
 
 
@@ -695,7 +705,7 @@ def test_update_schedule_clear_custom_days_drops_the_stale_day_list(mcp, service
     )
 
     after = assert_ok(call(mcp, "list_schedules"), "list_schedules")
-    stored = next(s for s in after if s["id"] == schedule_id)
+    stored = next(s for s in after["schedules"] if s["id"] == schedule_id)
     assert stored["day_pattern"] == "all"
     assert not stored.get("custom_days"), "clear_custom_days=True left the stale custom day list behind"
 
@@ -711,7 +721,7 @@ def test_delete_schedule_removes_it(mcp, services):
     assert_ok(call(mcp, "delete_schedule", schedule_id=schedule_id), "delete_schedule")
 
     after = assert_ok(call(mcp, "list_schedules"), "list_schedules")
-    assert schedule_id not in {s["id"] for s in after}
+    assert schedule_id not in {s["id"] for s in after["schedules"]}
 
 
 # ---------------------------------------------------------------------------
@@ -2682,3 +2692,731 @@ def test_restore_board_snaps_the_board_back_to_its_active_page(mcp, services, tr
 def test_restore_board_without_an_active_page_is_an_error(mcp, services, transition_lab):
     assert "no active page" in call_expect_error(mcp, "restore_board").lower()
     assert transition_lab.vb_client.rendered == []
+
+
+# ---------------------------------------------------------------------------
+# Schedules — every field the Schedules page's entry form saves
+#
+# The tools used to accept five of the sixteen ScheduleCreate fields, so the
+# chat could not build an annual, one-off, sunrise/sunset or per-board entry
+# at all. Each test re-reads the stored entry through the real service.
+# ---------------------------------------------------------------------------
+
+
+def _stored_schedule(services, schedule_id: str):
+    entry = services["schedules"].get_schedule(schedule_id)
+    assert entry is not None, f"schedule {schedule_id} is not in the store"
+    return entry
+
+
+def test_create_schedule_persists_the_annual_recurrence_fields(mcp, services):
+    page_id = _make_page(mcp)
+
+    created = assert_ok(
+        call(
+            mcp,
+            "create_schedule",
+            page_id=page_id,
+            start_time="08:00",
+            end_time="20:00",
+            recurrence_type="annual_date",
+            annual_date="12-24",
+            annual_end_date="12-26",
+        ),
+        "create_schedule",
+    )
+
+    stored = _stored_schedule(services, created["schedule_id"])
+    assert stored.recurrence_type == "annual_date"
+    assert (stored.annual_date, stored.annual_end_date) == ("12-24", "12-26")
+
+
+def test_create_schedule_persists_a_one_off_date_window(mcp, services):
+    page_id = _make_page(mcp)
+
+    created = assert_ok(
+        call(
+            mcp,
+            "create_schedule",
+            page_id=page_id,
+            start_time="09:00",
+            recurrence_type="one_off_date",
+            one_off_date="2030-07-04",
+            one_off_end_date="2030-07-05",
+        ),
+        "create_schedule",
+    )
+
+    stored = _stored_schedule(services, created["schedule_id"])
+    assert stored.recurrence_type == "one_off_date"
+    assert (stored.one_off_date, stored.one_off_end_date) == ("2030-07-04", "2030-07-05")
+
+
+def test_create_schedule_persists_sun_times_and_custom_days(mcp, services):
+    page_id = _make_page(mcp)
+
+    created = assert_ok(
+        call(
+            mcp,
+            "create_schedule",
+            page_id=page_id,
+            start_time="06:00",
+            end_time="21:00",
+            day_pattern="custom",
+            custom_days=["monday", "friday"],
+            start_type="sunrise",
+            start_sun_offset=-30,
+            end_type="sunset",
+            end_sun_offset=45,
+        ),
+        "create_schedule",
+    )
+
+    stored = _stored_schedule(services, created["schedule_id"])
+    assert stored.custom_days == ["monday", "friday"]
+    assert (stored.start_type, stored.start_sun_offset) == ("sunrise", -30)
+    assert (stored.end_type, stored.end_sun_offset) == ("sunset", 45)
+
+
+def test_create_schedule_with_board_id_parents_the_entry_to_that_board(mcp, services, two_boards):
+    page = assert_ok(
+        call(mcp, "create_page", name="Note", template_lines=NOTE_TEMPLATE, device_type="note"),
+        "create_page",
+    )
+
+    created = assert_ok(
+        call(mcp, "create_schedule", page_id=page["page_id"], start_time="08:00", board_id="board-note"),
+        "create_schedule",
+    )
+
+    assert _stored_schedule(services, created["schedule_id"]).board_id == "board-note"
+    listed = assert_ok(call(mcp, "list_schedules", board_id="board-note"), "list_schedules")
+    assert [s["id"] for s in listed["schedules"]] == [created["schedule_id"]]
+    primary = assert_ok(call(mcp, "list_schedules"), "list_schedules")
+    assert created["schedule_id"] not in {s["id"] for s in primary["schedules"]}
+
+
+def test_create_schedule_reports_an_unknown_board_and_stores_nothing(mcp, services, two_boards):
+    page_id = _make_page(mcp)
+
+    message = call_expect_error(mcp, "create_schedule", page_id=page_id, start_time="08:00", board_id="no-such-board")
+
+    assert "no-such-board" in message
+    assert services["schedules"].list_schedules(board_id="*") == []
+
+
+def test_update_schedule_changes_recurrence_and_sun_fields(mcp, services):
+    page_id = _make_page(mcp)
+    created = assert_ok(
+        call(mcp, "create_schedule", page_id=page_id, start_time="08:00", end_time="17:00"),
+        "create_schedule",
+    )
+    schedule_id = created["schedule_id"]
+
+    assert_ok(
+        call(
+            mcp,
+            "update_schedule",
+            schedule_id=schedule_id,
+            recurrence_type="annual_date",
+            annual_date="01-01",
+            end_type="sunset",
+            end_sun_offset=-15,
+        ),
+        "update_schedule",
+    )
+
+    stored = _stored_schedule(services, schedule_id)
+    assert (stored.recurrence_type, stored.annual_date) == ("annual_date", "01-01")
+    assert (stored.end_type, stored.end_sun_offset) == ("sunset", -15)
+    assert stored.end_time == "17:00", "the untouched fallback end_time was wiped by a partial update"
+
+
+def test_update_schedule_clear_annual_end_date_makes_it_a_single_day(mcp, services):
+    page_id = _make_page(mcp)
+    created = assert_ok(
+        call(
+            mcp,
+            "create_schedule",
+            page_id=page_id,
+            start_time="08:00",
+            recurrence_type="annual_date",
+            annual_date="12-24",
+            annual_end_date="12-26",
+        ),
+        "create_schedule",
+    )
+    schedule_id = created["schedule_id"]
+
+    assert_ok(call(mcp, "update_schedule", schedule_id=schedule_id, clear_annual_end_date=True), "update_schedule")
+
+    stored = _stored_schedule(services, schedule_id)
+    assert stored.annual_end_date is None, "clear_annual_end_date=True left the range end behind"
+    assert stored.annual_date == "12-24"
+
+
+def test_update_schedule_clear_one_off_end_date_makes_it_a_single_day(mcp, services):
+    page_id = _make_page(mcp)
+    created = assert_ok(
+        call(
+            mcp,
+            "create_schedule",
+            page_id=page_id,
+            start_time="08:00",
+            recurrence_type="one_off_date",
+            one_off_date="2030-07-04",
+            one_off_end_date="2030-07-05",
+        ),
+        "create_schedule",
+    )
+    schedule_id = created["schedule_id"]
+
+    assert_ok(call(mcp, "update_schedule", schedule_id=schedule_id, clear_one_off_end_date=True), "update_schedule")
+
+    assert _stored_schedule(services, schedule_id).one_off_end_date is None
+
+
+# -- list_schedules: the Schedules page's view ---------------------------------
+
+
+def test_list_schedules_reports_the_boards_default_page_and_schedule_mode(mcp, services, two_boards):
+    page_id = _make_page(mcp)
+    assert_ok(call(mcp, "set_default_page", page_id=page_id), "set_default_page")
+    assert_ok(call(mcp, "set_schedule_mode", enabled=True), "set_schedule_mode")
+
+    result = assert_ok(call(mcp, "list_schedules"), "list_schedules")
+
+    assert result["board_id"] == "board-main"
+    assert result["default_page_id"] == page_id
+    assert result["schedule_enabled"] is True
+    other = assert_ok(call(mcp, "list_schedules", board_id="board-note"), "list_schedules")
+    assert other["default_page_id"] is None
+    assert other["schedule_enabled"] is False
+
+
+def test_list_schedules_resolves_a_sunrise_entry_to_todays_time(mcp, services, two_boards):
+    """The stored start_time of a sun entry is only a fallback; the page
+    shows the computed time, and so must the tool (resolved_start_time)."""
+    # A public landmark, never a personal location: the Statue of Liberty.
+    two_boards.update_location_settings({"latitude": 40.6892, "longitude": -74.0445})
+    page_id = _make_page(mcp)
+    created = assert_ok(
+        call(mcp, "create_schedule", page_id=page_id, start_time="00:01", start_type="sunrise"),
+        "create_schedule",
+    )
+
+    result = assert_ok(call(mcp, "list_schedules"), "list_schedules")
+
+    entry = next(s for s in result["schedules"] if s["id"] == created["schedule_id"])
+    assert entry["start_time"] == "00:01", "the stored fallback must still be reported as start_time"
+    assert entry["start_type"] == "sunrise"
+    assert entry["resolved_start_time"] != "00:01", "resolved_start_time must be today's sunrise, not the fallback"
+    assert entry["resolved_end_time"] is None
+
+
+def test_list_schedules_for_every_board_has_no_per_board_fields(mcp, services, two_boards):
+    page_id = _make_page(mcp)
+    assert_ok(call(mcp, "set_default_page", page_id=page_id), "set_default_page")
+
+    result = assert_ok(call(mcp, "list_schedules", board_id="*"), "list_schedules")
+
+    assert result["board_id"] == "*"
+    assert result["default_page_id"] is None and result["schedule_enabled"] is None
+
+
+def test_list_schedules_reports_an_unknown_board(mcp, services, two_boards):
+    message = call_expect_error(mcp, "list_schedules", board_id="no-such-board")
+    assert "no-such-board" in message
+
+
+# -- validate_schedules ---------------------------------------------------------
+
+
+def test_validate_schedules_reports_an_overlap_between_two_entries(mcp, services):
+    page_id = _make_page(mcp)
+    first = assert_ok(
+        call(mcp, "create_schedule", page_id=page_id, start_time="08:00", end_time="12:00"),
+        "create_schedule",
+    )
+    second = assert_ok(
+        call(mcp, "create_schedule", page_id=page_id, start_time="11:00", end_time="13:00"),
+        "create_schedule",
+    )
+
+    result = assert_ok(call(mcp, "validate_schedules"), "validate_schedules")
+
+    assert result["valid"] is False
+    pairs = {frozenset((o["schedule1_id"], o["schedule2_id"])) for o in result["overlaps"]}
+    assert pairs == {frozenset((first["schedule_id"], second["schedule_id"]))}
+    assert result["gaps"], "the uncovered hours must be reported as gaps"
+
+
+def test_validate_schedules_is_clean_for_non_overlapping_entries(mcp, services):
+    page_id = _make_page(mcp)
+    assert_ok(call(mcp, "create_schedule", page_id=page_id, start_time="08:00", end_time="12:00"), "create_schedule")
+    assert_ok(call(mcp, "create_schedule", page_id=page_id, start_time="12:00", end_time="18:00"), "create_schedule")
+
+    result = assert_ok(call(mcp, "validate_schedules"), "validate_schedules")
+
+    assert result["valid"] is True
+    assert result["overlaps"] == []
+
+
+# -- set_default_page -----------------------------------------------------------
+
+
+def test_set_default_page_is_stored_per_board(mcp, services, two_boards):
+    page_id = _make_page(mcp)
+    note = assert_ok(
+        call(mcp, "create_page", name="Note", template_lines=NOTE_TEMPLATE, device_type="note"),
+        "create_page",
+    )
+
+    assert_ok(call(mcp, "set_default_page", page_id=page_id), "set_default_page (primary)")
+    assert_ok(call(mcp, "set_default_page", page_id=note["page_id"], board_id="board-note"), "set_default_page")
+
+    assert services["schedules"].get_default_page(board_id="board-main") == page_id
+    assert services["schedules"].get_default_page(board_id="board-note") == note["page_id"]
+
+
+def test_set_default_page_null_clears_it(mcp, services, two_boards):
+    page_id = _make_page(mcp)
+    assert_ok(call(mcp, "set_default_page", page_id=page_id), "set_default_page")
+
+    result = assert_ok(call(mcp, "set_default_page", page_id=None), "set_default_page (clear)")
+
+    assert result["default_page_id"] is None
+    assert services["schedules"].get_default_page(board_id="board-main") is None
+    assert assert_ok(call(mcp, "list_schedules"), "list_schedules")["default_page_id"] is None
+
+
+def test_set_default_page_accepts_a_collection(mcp, services, two_boards):
+    page_id = _make_page(mcp)
+    coll = assert_ok(call(mcp, "create_collection", name="Gaps", page_ids=[page_id]), "create_collection")
+
+    assert_ok(call(mcp, "set_default_page", page_id=coll["collection_id"]), "set_default_page")
+
+    assert services["schedules"].get_default_page(board_id="board-main") == coll["collection_id"]
+
+
+def test_set_default_page_rejects_an_unknown_page_and_stores_nothing(mcp, services, two_boards):
+    message = call_expect_error(mcp, "set_default_page", page_id="no-such-page")
+
+    assert "no-such-page" in message
+    assert services["schedules"].get_default_page(board_id="board-main") is None
+
+
+def test_set_default_page_reports_an_unknown_board(mcp, services, two_boards):
+    page_id = _make_page(mcp)
+    message = call_expect_error(mcp, "set_default_page", page_id=page_id, board_id="no-such-board")
+    assert "no-such-board" in message
+
+
+# -- update_setting('schedule_behavior') ---------------------------------------
+
+
+def test_update_setting_schedule_behavior_persists_defer_on_reenable(mcp, services, two_boards, tmp_path):
+    assert two_boards.get_schedule_settings().defer_on_reenable is False
+
+    result = assert_ok(
+        call(mcp, "update_setting", category="schedule_behavior", values={"defer_on_reenable": True}),
+        "update_setting",
+    )
+
+    assert result["defer_on_reenable"] is True
+    assert two_boards.get_schedule_settings().defer_on_reenable is True
+    assert _reloaded_settings(tmp_path).get_schedule_settings().defer_on_reenable is True, "not persisted"
+
+
+def test_update_setting_schedule_behavior_rejects_a_non_boolean(mcp, services, two_boards):
+    """StrictBool on purpose: "yes" must not silently become True."""
+    message = call_expect_error(
+        mcp, "update_setting", category="schedule_behavior", values={"defer_on_reenable": "yes"}
+    )
+
+    assert "schedule_behavior" in message
+    assert two_boards.get_schedule_settings().defer_on_reenable is False
+
+
+# ---------------------------------------------------------------------------
+# Collections — random mode and merge-on-update
+# ---------------------------------------------------------------------------
+
+
+def _stored_collection(services, collection_id: str):
+    collection = services["collections"].get_collection(collection_id)
+    assert collection is not None, f"collection {collection_id} is not in the store"
+    return collection
+
+
+def _variable_collection(mcp, services) -> tuple[str, str, str]:
+    """A variable-mode collection with one rule; returns (collection_id, p1, p2)."""
+    p1 = _make_page(mcp, "Rule Target")
+    p2 = _make_page(mcp, "Fallback")
+    created = assert_ok(
+        call(
+            mcp,
+            "create_collection",
+            name="Var",
+            page_ids=[p1, p2],
+            selection_mode="variable",
+            rules=[{"expression": "1", "page_id": p1}],
+            default_page_id=p2,
+            poll_seconds=10,
+        ),
+        "create_collection",
+    )
+    return created["collection_id"], p1, p2
+
+
+def test_create_collection_random_mode_stores_the_random_block(mcp, services):
+    p1 = _make_page(mcp, "R1")
+    p2 = _make_page(mcp, "R2")
+
+    created = assert_ok(
+        call(mcp, "create_collection", name="Shuffle", page_ids=[p1, p2], selection_mode="random", interval_seconds=45),
+        "create_collection",
+    )
+
+    stored = _stored_collection(services, created["collection_id"])
+    assert stored.selection_mode == "random"
+    assert stored.random is not None and stored.random.interval_seconds == 45
+    listed = next(c for c in call(mcp, "list_collections") if c["id"] == created["collection_id"])
+    assert listed["random"] == {"interval_seconds": 45}
+
+
+def test_update_collection_poll_seconds_alone_keeps_rules_and_default_page(mcp, services):
+    """The old tool demanded default_page_id on every variable-mode touch;
+    the form lets you change the poll cadence by itself."""
+    collection_id, p1, p2 = _variable_collection(mcp, services)
+
+    assert_ok(call(mcp, "update_collection", collection_id=collection_id, poll_seconds=30), "update_collection")
+
+    stored = _stored_collection(services, collection_id)
+    assert stored.variable.poll_seconds == 30
+    assert stored.variable.default_page_id == p2, "a poll-only update wiped default_page_id"
+    assert [r.page_id for r in stored.variable.rules] == [p1], "a poll-only update wiped the rules"
+
+
+def test_update_collection_rules_alone_keeps_default_page_and_poll(mcp, services):
+    collection_id, _p1, p2 = _variable_collection(mcp, services)
+
+    assert_ok(
+        call(mcp, "update_collection", collection_id=collection_id, rules=[{"expression": "0", "page_id": p2}]),
+        "update_collection",
+    )
+
+    stored = _stored_collection(services, collection_id)
+    assert [(r.expression, r.page_id) for r in stored.variable.rules] == [("0", p2)]
+    assert stored.variable.default_page_id == p2
+    assert stored.variable.poll_seconds == 10
+
+
+def test_update_collection_switch_to_random_carries_the_interval_over(mcp, services):
+    p1 = _make_page(mcp, "T1")
+    p2 = _make_page(mcp, "T2")
+    created = assert_ok(
+        call(mcp, "create_collection", name="Rot", page_ids=[p1, p2], interval_seconds=20),
+        "create_collection",
+    )
+
+    assert_ok(call(mcp, "update_collection", collection_id=created["collection_id"], selection_mode="random"), "update")
+
+    stored = _stored_collection(services, created["collection_id"])
+    assert stored.selection_mode == "random"
+    assert stored.random is not None and stored.random.interval_seconds == 20
+
+
+def test_update_collection_interval_in_random_mode_updates_the_random_block(mcp, services):
+    p1 = _make_page(mcp, "S1")
+    p2 = _make_page(mcp, "S2")
+    created = assert_ok(
+        call(mcp, "create_collection", name="Shuffle", page_ids=[p1, p2], selection_mode="random", interval_seconds=30),
+        "create_collection",
+    )
+
+    assert_ok(call(mcp, "update_collection", collection_id=created["collection_id"], interval_seconds=90), "update")
+
+    stored = _stored_collection(services, created["collection_id"])
+    assert stored.selection_mode == "random"
+    assert stored.random.interval_seconds == 90, "the interval landed somewhere random mode does not read"
+
+
+def test_update_collection_switch_to_variable_still_needs_a_default_page(mcp, services):
+    p1 = _make_page(mcp, "V1")
+    created = assert_ok(call(mcp, "create_collection", name="Rot", page_ids=[p1]), "create_collection")
+
+    message = call_expect_error(
+        mcp, "update_collection", collection_id=created["collection_id"], selection_mode="variable"
+    )
+
+    assert "default_page_id" in message
+    assert _stored_collection(services, created["collection_id"]).selection_mode == "time"
+
+
+# ---------------------------------------------------------------------------
+# Board state — the Home page's controls
+# ---------------------------------------------------------------------------
+
+
+def _reloaded_settings(tmp_path):
+    """A fresh SettingsService over the same file: persisted, not just cached."""
+    import src.settings.service as settings_module
+
+    return settings_module.SettingsService(settings_file=str(tmp_path / "settings.json"))
+
+
+# -- temporary override ---------------------------------------------------------
+
+
+def test_set_temporary_override_with_a_saved_page_is_read_back(mcp, services, two_boards, tmp_path):
+    page_id = _make_page(mcp)
+
+    result = assert_ok(
+        call(mcp, "set_temporary_override", page_id=page_id, duration_minutes=15),
+        "set_temporary_override",
+    )
+
+    assert result["override"]["active"] is True
+    status = assert_ok(call(mcp, "get_temporary_override"), "get_temporary_override")
+    assert status["active"] is True
+    assert status["page_id"] == page_id
+    assert 0 < status["remaining_seconds"] <= 15 * 60
+    assert status["revert_mode"] == "schedule"
+    stored = _reloaded_settings(tmp_path).get_temporary_override()
+    assert stored is not None and stored.page_id == page_id, "the override was not persisted to settings.json"
+
+
+def test_set_temporary_override_with_one_off_lines_is_never_a_page(mcp, services, two_boards):
+    before = {p.id for p in services["pages"].list_pages()}
+
+    assert_ok(
+        call(
+            mcp,
+            "set_temporary_override",
+            template_lines=["BACK AT 3", "", ""],
+            device_type="note",
+            line_metadata=[{"alignment": "center"}],
+        ),
+        "set_temporary_override",
+    )
+
+    status = assert_ok(call(mcp, "get_temporary_override"), "get_temporary_override")
+    assert status["active"] is True
+    assert status["page_id"] is None
+    assert status["template"] == ["BACK AT 3", "", ""]
+    assert status["device_type"] == "note"
+    assert status["line_metadata"] == [{"alignment": "center"}]
+    assert status["expires_at"] is None and status["remaining_seconds"] is None, "no duration = indefinite"
+    assert {p.id for p in services["pages"].list_pages()} == before, "a one-off must not be persisted as a page"
+
+
+def test_get_active_page_reports_the_temporary_override(mcp, services, two_boards):
+    page_id = _make_page(mcp)
+    assert assert_ok(call(mcp, "get_active_page"), "get_active_page")["temporary_override"]["active"] is False
+
+    assert_ok(call(mcp, "set_temporary_override", page_id=page_id, duration_minutes=5), "set_temporary_override")
+
+    active = assert_ok(call(mcp, "get_active_page"), "get_active_page")
+    assert active["temporary_override"]["active"] is True
+    assert active["temporary_override"]["page_id"] == page_id
+
+
+def test_set_temporary_override_rejects_both_forms_and_stores_nothing(mcp, services, two_boards):
+    page_id = _make_page(mcp)
+
+    message = call_expect_error(mcp, "set_temporary_override", page_id=page_id, template_lines=FLAGSHIP_TEMPLATE)
+
+    assert "not both" in message
+    assert two_boards.get_temporary_override() is None
+
+
+def test_set_temporary_override_rejects_an_unknown_page(mcp, services, two_boards):
+    message = call_expect_error(mcp, "set_temporary_override", page_id="no-such-page", duration_minutes=5)
+
+    assert "no-such-page" in message
+    assert two_boards.get_temporary_override() is None
+
+
+def test_set_temporary_override_rejects_an_out_of_range_duration(mcp, services, two_boards):
+    page_id = _make_page(mcp)
+
+    message = call_expect_error(mcp, "set_temporary_override", page_id=page_id, duration_minutes=481)
+
+    assert "480" in message
+    assert two_boards.get_temporary_override() is None
+
+
+def test_cancel_temporary_override_clears_it_and_applies_a_page_revert(mcp, services, two_boards):
+    shown = _make_page(mcp, "Shown")
+    after = _make_page(mcp, "After")
+    assert_ok(
+        call(
+            mcp,
+            "set_temporary_override",
+            page_id=shown,
+            duration_minutes=30,
+            revert_mode="page",
+            revert_page_id=after,
+        ),
+        "set_temporary_override",
+    )
+
+    result = assert_ok(call(mcp, "cancel_temporary_override"), "cancel_temporary_override")
+
+    assert result["was_active"] is True and result["revert_mode"] == "page"
+    assert two_boards.get_temporary_override() is None
+    assert two_boards.get_active_page_id() == after, "the 'page' revert must be applied on cancel"
+    assert assert_ok(call(mcp, "get_temporary_override"), "get_temporary_override")["active"] is False
+
+
+def test_cancel_temporary_override_with_nothing_active_is_a_reported_no_op(mcp, services, two_boards):
+    result = assert_ok(call(mcp, "cancel_temporary_override"), "cancel_temporary_override")
+
+    assert result["was_active"] is False and result["revert_mode"] is None
+
+
+# -- force_refresh ----------------------------------------------------------------
+
+
+class _FakeCacheClient:
+    def __init__(self):
+        self.cache_cleared = False
+
+    def clear_cache(self):
+        self.cache_cleared = True
+
+
+class _FakeRefreshEngine:
+    """Just the DisplayService surface POST /force-refresh touches."""
+
+    def __init__(self, sent: bool = True, error: str | None = None):
+        self.vb_client = _FakeCacheClient()
+        self.board_clients = {"board-note": _FakeCacheClient()}
+        self.invalidated = False
+        self.passes = 0
+        self._outcome = (sent, error)
+
+    def invalidate_all_board_content(self):
+        self.invalidated = True
+
+    def check_and_send_active_page_with_status(self):
+        self.passes += 1
+        return self._outcome
+
+
+def test_force_refresh_clears_every_cache_and_drives_one_send_pass(mcp, services, two_boards, monkeypatch):
+    fake = _FakeRefreshEngine(sent=True)
+    monkeypatch.setattr("src.display_runtime.get_service", lambda: fake)
+
+    result = assert_ok(call(mcp, "force_refresh"), "force_refresh")
+
+    assert result["sent"] is True
+    assert fake.invalidated, "the display loop's dedupe guard was not invalidated (#1794)"
+    assert fake.vb_client.cache_cleared and fake.board_clients["board-note"].cache_cleared, (
+        "every board client's cache must be cleared, not just the primary's"
+    )
+    assert fake.passes == 1
+
+
+def test_force_refresh_reports_when_nothing_was_sent(mcp, services, two_boards, monkeypatch):
+    monkeypatch.setattr("src.display_runtime.get_service", lambda: _FakeRefreshEngine(sent=False))
+
+    result = assert_ok(call(mcp, "force_refresh"), "force_refresh")
+
+    assert result["sent"] is False
+
+
+def test_force_refresh_surfaces_a_send_failure_as_an_error(mcp, services, two_boards, monkeypatch):
+    monkeypatch.setattr(
+        "src.display_runtime.get_service", lambda: _FakeRefreshEngine(sent=False, error="board offline")
+    )
+
+    message = call_expect_error(mcp, "force_refresh")
+
+    assert "board offline" in message
+
+
+def test_force_refresh_without_a_display_service_is_an_error(mcp, services, two_boards, monkeypatch):
+    monkeypatch.setattr("src.display_runtime.get_service", lambda: None)
+
+    message = call_expect_error(mcp, "force_refresh")
+
+    assert "not initialized" in message
+
+
+# -- get_silence_status ------------------------------------------------------------
+
+
+def test_get_silence_status_reads_the_window_update_setting_wrote(mcp, services, two_boards):
+    before = assert_ok(call(mcp, "get_silence_status"), "get_silence_status")
+    assert before["enabled"] is False and before["active"] is False
+    assert before["board_id"] == "board-main", "omitted board_id must resolve to the primary board"
+
+    assert_ok(
+        call(
+            mcp,
+            "update_setting",
+            category="silence_schedule",
+            values={
+                "enabled": True,
+                "start_time": "22:00+00:00",
+                "end_time": "07:00+00:00",
+                "board_id": "board-note",
+            },
+        ),
+        "update_setting",
+    )
+
+    note = assert_ok(call(mcp, "get_silence_status", board_id="board-note"), "get_silence_status")
+    assert note["enabled"] is True
+    assert note["board_id"] == "board-note"
+    assert (note["start_time_utc"], note["end_time_utc"]) == ("22:00+00:00", "07:00+00:00")
+    assert note["mode"] == "freeze"
+    assert isinstance(note["seconds_until_next_change"], int)
+    primary = assert_ok(call(mcp, "get_silence_status"), "get_silence_status")
+    assert primary["enabled"] is False, "a per-board window must not leak onto the primary board"
+
+
+# -- pause_board / resume_board -------------------------------------------------------
+
+
+def test_pause_board_persists_and_blocks_sends_until_resumed(mcp, services, engine, two_boards):
+    result = assert_ok(call(mcp, "pause_board", board_id="board-note"), "pause_board")
+
+    assert result["paused"] is True and result["board_id"] == "board-note"
+    assert two_boards.is_paused(board_id="board-note") is True
+    assert two_boards.is_paused(board_id="board-main") is False, "pausing one board must not pause another"
+    blocked = call(mcp, "send_message", text="HI", board_id="board-note")
+    assert blocked.get("status") == "blocked" and blocked.get("paused") is True
+    assert engine.runtimes["board-note"].client.rendered == []
+
+    resumed = assert_ok(call(mcp, "resume_board", board_id="board-note"), "resume_board")
+
+    assert resumed["paused"] is False
+    assert two_boards.is_paused(board_id="board-note") is False
+    assert_ok(call(mcp, "send_message", text="HI", board_id="board-note"), "send_message after resume")
+    assert len(engine.runtimes["board-note"].client.rendered) == 1
+
+
+def test_pause_board_without_board_id_targets_the_primary_board(mcp, services, two_boards, tmp_path):
+    assert_ok(call(mcp, "pause_board"), "pause_board")
+
+    assert two_boards.is_paused(board_id="board-main") is True
+    assert two_boards.is_paused(board_id="board-note") is False
+    assert _reloaded_settings(tmp_path).is_paused(board_id="board-main") is True, "not persisted to settings.json"
+    boards = {b["id"]: b for b in assert_ok(call(mcp, "get_settings_summary"), "get_settings_summary")["boards"]}
+    assert boards["board-main"]["paused"] is True
+
+
+def test_pause_board_reports_an_unknown_board_and_pauses_nothing(mcp, services, two_boards):
+    message = call_expect_error(mcp, "pause_board", board_id="no-such-board")
+
+    assert "no-such-board" in message
+    assert two_boards.is_paused(board_id="board-main") is False
+    assert two_boards.is_paused(board_id="board-note") is False
+
+
+def test_resume_board_reports_an_unknown_board(mcp, services, two_boards):
+    message = call_expect_error(mcp, "resume_board", board_id="no-such-board")
+    assert "no-such-board" in message
