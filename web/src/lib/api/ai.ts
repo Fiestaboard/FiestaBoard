@@ -18,10 +18,18 @@ export interface AIProvider {
   headers?: Record<string, string>;
 }
 
+/**
+ * How the in-app chat handles destructive tools. `ask` pauses on every one
+ * (the default); `auto` runs them without asking. Restart, shutdown and
+ * update ask in both modes.
+ */
+export type AiApprovalMode = "ask" | "auto";
+
 export interface AISettings {
   enabled: boolean;
   providers: AIProvider[];
   default_provider_id: string | null;
+  approval_mode: AiApprovalMode;
 }
 
 export interface AITestResult {

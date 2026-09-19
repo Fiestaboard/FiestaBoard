@@ -424,7 +424,8 @@ export function AiSettings() {
     });
   };
 
-  const current: AISettings = draft ?? data ?? { enabled: false, providers: [], default_provider_id: null };
+  const current: AISettings = draft ??
+    data ?? { enabled: false, providers: [], default_provider_id: null, approval_mode: "ask" };
 
   const saveMutation = useMutation({
     mutationFn: (next: AISettings) => api.updateAiSettings(next),

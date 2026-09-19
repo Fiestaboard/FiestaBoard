@@ -2024,6 +2024,16 @@
     "defaultModel": "Predefinito",
     "stepsAriaLabel": "Passaggi in corso",
     "stepsHeading": "{done} di {total} passaggi",
+    "approvalMode": {
+      "label": "Modalità di approvazione",
+      "ask": "Chiedi",
+      "auto": "Auto",
+      "autoNote": "Auto esegue eliminazioni e altre azioni distruttive senza chiedere. Riavvio, spegnimento e aggiornamento chiedono sempre."
+    },
+    "autoApproved": {
+      "badge": "auto",
+      "tooltip": "Eseguito senza chiedere: la modalità di approvazione è Auto oppure hai scelto «non chiedere più» per questa chat."
+    },
     "toolInput": "Argomenti",
     "toolOutput": "Risultato",
     "toolStates": {
@@ -2211,6 +2221,7 @@
     "approve": "Approva",
     "deny": "Nega",
     "working": "In corso…",
+    "approveAll": "Approva e non chiedere più in questa chat",
     "description": {
       "deletePage": "Rimuove definitivamente la pagina \"{detail}\". Programmazioni e raccolte che la usano la perderanno.",
       "deleteSchedule": "Rimuove definitivamente la programmazione \"{detail}\". Non può essere annullato.",

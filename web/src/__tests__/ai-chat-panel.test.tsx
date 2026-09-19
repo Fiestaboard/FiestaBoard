@@ -36,12 +36,14 @@ const defaultHookResult: UseAiChatResult = {
   stop: mockStop,
   retryLast: mockRetryLast,
   reset: mockReset,
+  autoApprove: false,
 };
 
 const CONFIGURED = {
   enabled: true,
   providers: [] as unknown[],
   default_provider_id: "p1",
+  approval_mode: "ask",
 };
 
 const CREATE_PAGE_CALL = {
@@ -559,5 +561,139 @@ describe("AiChatPanel", () => {
         name: enMessages.aiChatPanel.closePanelAriaLabel,
       }),
     ).toBeInTheDocument();
+  });
+
+  // -- Approval modes (#2021) --
+
+  function configuredWith(approval_mode: "ask" | "auto") {
+    server.use(
+      http.get(`${API_BASE}/settings/ai`, () =>
+        HttpResponse.json({ ...CONFIGURED, providers: [CONFIGURED_PROVIDER], approval_mode }),
+      ),
+    );
+  }
+
+  it("the header mode toggle reads the install's approval_mode", async () => {
+    configuredWith("auto");
+    render(<AiChatPanel {...defaultProps} />, { wrapper: Wrapper });
+    const group = await screen.findByRole("radiogroup", { name: enMessages.aiChatPanel.approvalMode.label });
+    expect(group).toBeInTheDocument();
+    await waitFor(() =>
+      expect(screen.getByRole("radio", { name: enMessages.aiChatPanel.approvalMode.auto })).toBeChecked(),
+    );
+    expect(screen.getByRole("radio", { name: enMessages.aiChatPanel.approvalMode.ask })).not.toBeChecked();
+  });
+
+  it("choosing Auto writes approval_mode through PUT /settings/ai and shows the one-line note", async () => {
+    configuredWith("ask");
+    const puts: unknown[] = [];
+    server.use(
+      http.put(`${API_BASE}/settings/ai`, async ({ request }) => {
+        const body = (await request.json()) as Record<string, unknown>;
+        puts.push(body);
+        return HttpResponse.json({ ...CONFIGURED, providers: [CONFIGURED_PROVIDER], ...body });
+      }),
+    );
+    const user = userEvent.setup();
+    render(<AiChatPanel {...defaultProps} />, { wrapper: Wrapper });
+    const ask = await screen.findByRole("radio", { name: enMessages.aiChatPanel.approvalMode.ask });
+    await waitFor(() => expect(ask).toBeChecked());
+    expect(screen.queryByText(enMessages.aiChatPanel.approvalMode.autoNote)).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole("radio", { name: enMessages.aiChatPanel.approvalMode.auto }));
+
+    await waitFor(() => expect(puts).toEqual([{ approval_mode: "auto" }]));
+    expect(await screen.findByText(enMessages.aiChatPanel.approvalMode.autoNote)).toBeInTheDocument();
+    await waitFor(() =>
+      expect(screen.getByRole("radio", { name: enMessages.aiChatPanel.approvalMode.auto })).toBeChecked(),
+    );
+  });
+
+  it("the approval card's 'don't ask again' approves with the conversation flag", async () => {
+    configuredWith("ask");
+    const pending = {
+      ...CREATE_PAGE_CALL,
+      id: "tc2",
+      name: "delete_page",
+      args: { page_id: "p1" },
+      destructive: true,
+      requires_approval: true,
+      system_gated: false,
+    };
+    hookResult = {
+      ...defaultHookResult,
+      status: "awaiting_approval",
+      pendingApproval: pending,
+      messages: [
+        { role: "user", content: "delete it" },
+        { role: "assistant", content: "Deleting.", toolCalls: [{ ...pending, phase: "awaiting_approval" }] },
+      ],
+    };
+    const user = userEvent.setup();
+    render(<AiChatPanel {...defaultProps} />, { wrapper: Wrapper });
+    await user.click(await screen.findByRole("button", { name: enMessages.aiApprovalCard.approveAll }));
+    expect(mockApprove).toHaveBeenCalledWith("tc2", "approve", { autoApproveConversation: true });
+  });
+
+  it("the approval card hides 'don't ask again' for a system-gated call", async () => {
+    configuredWith("auto");
+    const pending = {
+      ...CREATE_PAGE_CALL,
+      id: "tc3",
+      name: "restart_system",
+      args: {},
+      title: "Restart system",
+      destructive: true,
+      requires_approval: true,
+      system_gated: true,
+    };
+    hookResult = {
+      ...defaultHookResult,
+      status: "awaiting_approval",
+      pendingApproval: pending,
+      messages: [
+        { role: "user", content: "restart" },
+        { role: "assistant", content: "Restarting.", toolCalls: [{ ...pending, phase: "awaiting_approval" }] },
+      ],
+    };
+    render(<AiChatPanel {...defaultProps} />, { wrapper: Wrapper });
+    expect(await screen.findByRole("button", { name: "Approve" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: enMessages.aiApprovalCard.approveAll })).not.toBeInTheDocument();
+  });
+
+  it("the timeline badges a call that ran without asking", async () => {
+    configuredWith("auto");
+    hookResult = {
+      ...defaultHookResult,
+      status: "streaming",
+      messages: [
+        { role: "user", content: "delete it" },
+        {
+          role: "assistant",
+          content: "",
+          pending: true,
+          status: { phase: "thinking", toolCallId: null },
+          toolCalls: [
+            {
+              ...CREATE_PAGE_CALL,
+              id: "tc2",
+              name: "delete_page",
+              args: { page_id: "p1" },
+              destructive: true,
+              requires_approval: true,
+              auto_approved: true,
+              phase: "ok",
+            },
+            { ...CREATE_PAGE_CALL, id: "tc4", phase: "ok" },
+          ],
+        },
+      ],
+    };
+    render(<AiChatPanel {...defaultProps} />, { wrapper: Wrapper });
+    const timeline = await screen.findByTestId("ai-step-timeline");
+    const badges = timeline.querySelectorAll('[data-testid="ai-auto-approved-badge"]');
+    expect(badges).toHaveLength(1);
+    expect(badges[0]).toHaveTextContent(enMessages.aiChatPanel.autoApproved.badge);
+    expect(badges[0]).toHaveAttribute("aria-label", enMessages.aiChatPanel.autoApproved.tooltip);
   });
 });

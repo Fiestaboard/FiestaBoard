@@ -66,7 +66,11 @@ const DONE = {
 };
 
 function lastBody() {
-  return capturedBodies[capturedBodies.length - 1] as { messages: unknown[]; resume?: unknown };
+  return capturedBodies[capturedBodies.length - 1] as {
+    messages: unknown[];
+    resume?: unknown;
+    approval?: { auto_approve_destructive: boolean };
+  };
 }
 
 beforeEach(() => {
@@ -478,6 +482,90 @@ describe("useAiChat", () => {
     });
     expect(result.current.error).toBe("provider down");
     expect(result.current.status).toBe("error");
+  });
+
+  // -- Approval modes (#2021): "Approve and don't ask again in this chat" --
+
+  async function pauseOnDelete(result: { current: ReturnType<typeof useAiChat> }) {
+    act(() => {
+      result.current.send("delete it");
+    });
+    await act(async () => {
+      capturedHandlers?.onToolCall?.(DELETE_PAGE);
+      capturedHandlers?.onDone?.({ ...DONE, reason: "awaiting_approval", pending_tool_call_id: "tc2" });
+      resolveStream?.();
+    });
+  }
+
+  it("a plain send carries no approval block and autoApprove is off", () => {
+    const { result } = renderHook(() => useAiChat(makeOpts()));
+    act(() => {
+      result.current.send("hi");
+    });
+    expect(result.current.autoApprove).toBe(false);
+    expect(lastBody().approval).toBeUndefined();
+  });
+
+  it("a plain approve does not turn on autoApprove", async () => {
+    const { result } = renderHook(() => useAiChat(makeOpts()));
+    await pauseOnDelete(result);
+    act(() => {
+      result.current.approve("tc2", "approve");
+    });
+    expect(result.current.autoApprove).toBe(false);
+    expect(lastBody().approval).toBeUndefined();
+  });
+
+  it("approve with autoApproveConversation approves this call and flags the resume", async () => {
+    const { result } = renderHook(() => useAiChat(makeOpts()));
+    await pauseOnDelete(result);
+    act(() => {
+      result.current.approve("tc2", "approve", { autoApproveConversation: true });
+    });
+    expect(result.current.autoApprove).toBe(true);
+    expect(lastBody().resume).toEqual({ tool_call_id: "tc2", decision: "approve" });
+    expect(lastBody().approval).toEqual({ auto_approve_destructive: true });
+  });
+
+  it("after 'don't ask again' every later send in the conversation carries the flag", async () => {
+    const { result } = renderHook(() => useAiChat(makeOpts()));
+    await pauseOnDelete(result);
+    act(() => {
+      result.current.approve("tc2", "approve", { autoApproveConversation: true });
+    });
+    await act(async () => {
+      // The server confirms the approved call is running, then finishes it
+      // (no tool_call frame is re-sent for an approved call).
+      capturedHandlers?.onStatus?.({ phase: "tool_running", message: "Running…", tool_call_id: "tc2", step: 1 });
+      capturedHandlers?.onToolResult?.({ ...OK, id: "tc2", name: "delete_page" });
+      capturedHandlers?.onDone?.({ ...DONE, reason: "complete", pending_tool_call_id: null });
+      resolveStream?.();
+    });
+    expect(result.current.pendingApproval).toBeNull();
+    act(() => {
+      result.current.send("now delete the other one");
+    });
+    expect(lastBody().resume).toBeUndefined();
+    expect(lastBody().approval).toEqual({ auto_approve_destructive: true });
+  });
+
+  it("reset() (New chat) forgets 'don't ask again'", async () => {
+    const { result } = renderHook(() => useAiChat(makeOpts()));
+    await pauseOnDelete(result);
+    act(() => {
+      result.current.approve("tc2", "approve", { autoApproveConversation: true });
+    });
+    await act(async () => {
+      resolveStream?.();
+    });
+    act(() => {
+      result.current.reset();
+    });
+    expect(result.current.autoApprove).toBe(false);
+    act(() => {
+      result.current.send("hi again");
+    });
+    expect(lastBody().approval).toBeUndefined();
   });
 
   it("reset() clears everything", async () => {

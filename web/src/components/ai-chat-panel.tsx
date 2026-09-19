@@ -21,6 +21,8 @@ import {
   PromptInputTextarea,
   PromptInputToolbar,
   PromptInputTools,
+  SegmentedControl,
+  SegmentedControlItem,
   Select,
   SelectContent,
   SelectItem,
@@ -38,9 +40,10 @@ import {
   type ToolState,
 } from "@fiestaboard/ui";
 import { Spinner } from "@fiestaboard/ui/components/feedback/spinner";
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { AlertCircle, RotateCcw, Sparkles, Trash2, X } from "lucide-react";
-import { memo, useCallback, useMemo, useState } from "react";
+import { memo, useCallback, useMemo, useRef, useState } from "react";
+import { toast } from "sonner";
 
 import { AiApprovalCard } from "@/components/ai-approval-card";
 import { AiQuestionCard } from "@/components/ai-question-card";
@@ -61,8 +64,8 @@ import type {
   ToolPhase,
   ToolResult,
 } from "@/lib/ai-chat-types";
-import { type AISettings, api } from "@/lib/api";
-import { type StopReason, useAiChat } from "@/lib/use-ai-chat";
+import { type AiApprovalMode, type AISettings, api } from "@/lib/api";
+import { type ApproveOptions, type StopReason, useAiChat } from "@/lib/use-ai-chat";
 
 export interface AiChatPanelProps {
   /** Per-turn context (device type, current page snapshot, what exists). */
@@ -95,10 +98,39 @@ export function AiChatPanel({
   const [model, setModel] = useState<string>("");
   const [draft, setDraft] = useState("");
 
+  const queryClient = useQueryClient();
   const { data: settings } = useQuery<AISettings>({
     queryKey: ["ai-settings"],
     queryFn: () => api.getAiSettings(),
   });
+
+  // Ask / Auto is the install's setting (PUT /settings/ai), read and written
+  // through the same query the Settings page uses. Optimistic while the PUT
+  // is in flight so the pill moves on click, not on the round trip.
+  const modeMutation = useMutation({
+    mutationFn: (approval_mode: AiApprovalMode) => api.updateAiSettings({ approval_mode }),
+    onSuccess: (saved) => queryClient.setQueryData(["ai-settings"], saved),
+    onError: (err: Error) => toast.error(err.message),
+  });
+  const approvalMode: AiApprovalMode =
+    modeMutation.isPending && modeMutation.variables ? modeMutation.variables : (settings?.approval_mode ?? "ask");
+  // The one-line explanation of Auto, shown the first time it is chosen in
+  // this panel and taken down again when the user goes back to Ask.
+  const [autoNote, setAutoNote] = useState(false);
+  const autoNoteSeenRef = useRef(false);
+  const handleModeChange = useCallback(
+    (value: string) => {
+      const next: AiApprovalMode = value === "auto" ? "auto" : "ask";
+      if (next === approvalMode) return;
+      if (next === "auto" && !autoNoteSeenRef.current) {
+        autoNoteSeenRef.current = true;
+        setAutoNote(true);
+      }
+      if (next === "ask") setAutoNote(false);
+      modeMutation.mutate(next);
+    },
+    [approvalMode, modeMutation],
+  );
 
   const providers = settings?.providers ?? [];
   const selectedProvider =
@@ -168,42 +200,63 @@ export function AiChatPanel({
   return (
     <Flex direction="col" className="h-full min-h-0 w-full">
       <Card className="flex flex-1 min-h-0 w-full flex-col gap-0 overflow-hidden py-0">
-        {/* Header */}
-        <Flex align="center" justify="between" gap="2" className="flex-shrink-0 border-b px-4 py-3">
-          <Flex align="center" gap="2" className="min-w-0">
-            <Sparkles className="h-4 w-4 shrink-0 text-brand-emphasis" aria-hidden="true" />
-            <Text as="span" size="sm" weight="semibold" className="truncate">
-              {t("panelTitle")}
-            </Text>
-            {streaming && <Spinner size="sm" className="text-muted-foreground" label={null} />}
-          </Flex>
-          <Flex align="center" gap="1">
-            {messages.length > 0 && (
+        {/* Header. The Ask / Auto approval mode lives here, not in the
+            composer toolbar: it is a property of the whole chat, not of the
+            next message. */}
+        <Box className="flex-shrink-0 border-b px-4 py-3">
+          <Flex align="center" justify="between" gap="2">
+            <Flex align="center" gap="2" className="min-w-0">
+              <Sparkles className="h-4 w-4 shrink-0 text-brand-emphasis" aria-hidden="true" />
+              <Text as="span" size="sm" weight="semibold" className="truncate">
+                {t("panelTitle")}
+              </Text>
+              {streaming && <Spinner size="sm" className="text-muted-foreground" label={null} />}
+            </Flex>
+            <Flex align="center" gap="1">
+              <SegmentedControl
+                aria-label={t("approvalMode.label")}
+                size="sm"
+                value={approvalMode}
+                onValueChange={handleModeChange}
+                disabled={!settings || modeMutation.isPending}
+                className="mr-1"
+                data-testid="ai-approval-mode"
+              >
+                <SegmentedControlItem value="ask">{t("approvalMode.ask")}</SegmentedControlItem>
+                <SegmentedControlItem value="auto">{t("approvalMode.auto")}</SegmentedControlItem>
+              </SegmentedControl>
+              {messages.length > 0 && (
+                <Button
+                  type="button"
+                  size="icon"
+                  variant="ghost"
+                  className="h-7 w-7"
+                  onClick={reset}
+                  title={t("clearConversationAriaLabel")}
+                  aria-label={t("clearConversationAriaLabel")}
+                >
+                  <Trash2 className="h-3.5 w-3.5" />
+                </Button>
+              )}
               <Button
                 type="button"
                 size="icon"
                 variant="ghost"
                 className="h-7 w-7"
-                onClick={reset}
-                title={t("clearConversationAriaLabel")}
-                aria-label={t("clearConversationAriaLabel")}
+                onClick={onClose}
+                title={t("closePanelAriaLabel")}
+                aria-label={t("closePanelAriaLabel")}
               >
-                <Trash2 className="h-3.5 w-3.5" />
+                <X className="h-4 w-4" />
               </Button>
-            )}
-            <Button
-              type="button"
-              size="icon"
-              variant="ghost"
-              className="h-7 w-7"
-              onClick={onClose}
-              title={t("closePanelAriaLabel")}
-              aria-label={t("closePanelAriaLabel")}
-            >
-              <X className="h-4 w-4" />
-            </Button>
+            </Flex>
           </Flex>
-        </Flex>
+          {autoNote ? (
+            <Text size="xs" tone="muted" className="mt-2" data-testid="ai-approval-mode-note">
+              {t("approvalMode.autoNote")}
+            </Text>
+          ) : null}
+        </Box>
 
         {/* Observed steps of the current turn — outside the log so each is announced once. */}
         {currentTurn && (lastEntry?.pending || status === "awaiting_approval" || status === "awaiting_input") ? (
@@ -486,7 +539,7 @@ function AssistantTurn({
   pendingApproval: ToolCall | null;
   pendingElicitation: Elicitation | null;
   busy: boolean;
-  onApprove: (id: string, decision: ApprovalDecision) => void;
+  onApprove: (id: string, decision: ApprovalDecision, options?: ApproveOptions) => void;
   onAnswer: (id: string, answer: ElicitationAnswer) => void;
 }) {
   return (
@@ -537,7 +590,7 @@ const AssistantEntry = memo(function AssistantEntry({
   pendingApproval: ToolCall | null;
   pendingElicitation: Elicitation | null;
   busy: boolean;
-  onApprove: (id: string, decision: ApprovalDecision) => void;
+  onApprove: (id: string, decision: ApprovalDecision, options?: ApproveOptions) => void;
   onAnswer: (id: string, answer: ElicitationAnswer) => void;
 }) {
   return (
@@ -558,6 +611,7 @@ const AssistantEntry = memo(function AssistantEntry({
                 busy={busy}
                 onApprove={() => onApprove(call.id, "approve")}
                 onDeny={() => onApprove(call.id, "deny")}
+                onApproveAll={() => onApprove(call.id, "approve", { autoApproveConversation: true })}
               />
             ) : null}
           </Stack>

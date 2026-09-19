@@ -2024,6 +2024,16 @@
     "defaultModel": "默认",
     "stepsAriaLabel": "进行中的步骤",
     "stepsHeading": "{total} 步中的第 {done} 步",
+    "approvalMode": {
+      "label": "审批模式",
+      "ask": "询问",
+      "auto": "自动",
+      "autoNote": "自动模式会在不询问的情况下执行删除等破坏性操作。重启、关机和更新始终会询问。"
+    },
+    "autoApproved": {
+      "badge": "自动",
+      "tooltip": "未经询问即执行：审批模式为自动，或您已为本次对话选择“不再询问”。"
+    },
     "toolInput": "参数",
     "toolOutput": "结果",
     "toolStates": {
@@ -2211,6 +2221,7 @@
     "approve": "批准",
     "deny": "拒绝",
     "working": "处理中…",
+    "approveAll": "批准并在本次对话中不再询问",
     "description": {
       "deletePage": "永久删除页面“{detail}”。使用它的排程和合集将失去该页面。",
       "deleteSchedule": "永久删除排程“{detail}”。此操作无法撤销。",

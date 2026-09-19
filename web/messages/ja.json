@@ -2024,6 +2024,16 @@
     "defaultModel": "デフォルト",
     "stepsAriaLabel": "進行中のステップ",
     "stepsHeading": "{total} ステップ中 {done}",
+    "approvalMode": {
+      "label": "承認モード",
+      "ask": "確認",
+      "auto": "自動",
+      "autoNote": "自動では削除などの破壊的な操作を確認なしで実行します。再起動・シャットダウン・更新は常に確認します。"
+    },
+    "autoApproved": {
+      "badge": "自動",
+      "tooltip": "確認なしで実行されました：承認モードが自動か、このチャットで「今後確認しない」を選択しています。"
+    },
     "toolInput": "引数",
     "toolOutput": "結果",
     "toolStates": {
@@ -2211,6 +2221,7 @@
     "approve": "承認",
     "deny": "拒否",
     "working": "処理中…",
+    "approveAll": "承認して、このチャットでは今後確認しない",
     "description": {
       "deletePage": "ページ「{detail}」を完全に削除します。使用中のスケジュールとコレクションから外れます。",
       "deleteSchedule": "スケジュール「{detail}」を完全に削除します。元に戻せません。",

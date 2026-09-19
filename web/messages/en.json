@@ -2024,6 +2024,16 @@
     "defaultModel": "Default",
     "stepsAriaLabel": "Steps in progress",
     "stepsHeading": "{done} of {total} steps",
+    "approvalMode": {
+      "label": "Approval mode",
+      "ask": "Ask",
+      "auto": "Auto",
+      "autoNote": "Auto runs deletions and other destructive actions without asking. Restarting, shutting down and updating always ask."
+    },
+    "autoApproved": {
+      "badge": "auto",
+      "tooltip": "Ran without asking: approval mode is Auto, or you chose “don't ask again” for this chat."
+    },
     "toolInput": "Arguments",
     "toolOutput": "Result",
     "toolStates": {
@@ -2211,6 +2221,7 @@
     "approve": "Approve",
     "deny": "Deny",
     "working": "Working…",
+    "approveAll": "Approve and don't ask again in this chat",
     "description": {
       "deletePage": "Permanently removes page \"{detail}\". Schedules and collections that use it lose it.",
       "deleteSchedule": "Permanently removes schedule \"{detail}\". This cannot be undone.",
