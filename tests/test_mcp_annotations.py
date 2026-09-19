@@ -68,6 +68,14 @@ READ_ONLY = {
     "validate_schedules",
     "get_temporary_override",
     "get_silence_status",
+    # Settings-page coverage: reads that observe hardware, panels or the
+    # outside world without changing anything here.
+    "detect_board_size",
+    "list_panels",
+    "check_for_update",
+    "export_backup",
+    "test_ai_provider",
+    "run_network_diagnostics",
 }
 
 #: Tools whose effect cannot be undone by calling another tool. These are
@@ -80,10 +88,21 @@ APPROVAL_GATED = {
     "delete_collection",
     "uninstall_plugin",
     "delete_plugin_instance",
+    # Settings-page coverage. Removing a board or panel drops credentials /
+    # a virtual board; the network and system actions cut the user's own
+    # connection or restart/power off the host.
+    "remove_board",
+    "delete_panel",
+    "forget_wifi_network",
+    "disconnect_wifi",
+    "trigger_system_update",
+    "restart_system",
+    "shutdown_system",
 }
 
 #: Tools that touch something outside this install (the plugin registry
-#: over the network, a git remote, a plugin's upstream API).
+#: over the network, a git remote, a plugin's upstream API, the release
+#: registries, a third-party AI endpoint, the public internet).
 OPEN_WORLD = {
     "list_registry_plugins",
     "get_plugin_data",
@@ -92,6 +111,10 @@ OPEN_WORLD = {
     "list_plugin_options",
     "check_plugin_updates",
     "update_all_plugins",
+    "check_for_update",
+    "trigger_system_update",
+    "test_ai_provider",
+    "run_network_diagnostics",
 }
 
 #: Calling these twice with the same arguments leaves the same state as
@@ -118,6 +141,13 @@ IDEMPOTENT = READ_ONLY | {
     "force_refresh",
     "pause_board",
     "resume_board",
+    "update_board",
+    "identify_tile",
+    "update_panel",
+    "blank_board",
+    "fill_board",
+    "show_board_debug_info",
+    "clear_board_cache",
 }
 
 
@@ -168,7 +198,15 @@ def test_approval_gated_destructive_tools_are_exactly_the_pinned_set(annotations
 
 
 def test_update_tools_are_not_approval_gated(annotations):
-    for name in ("update_page", "update_schedule", "update_collection", "update_plugin", "update_setting"):
+    for name in (
+        "update_page",
+        "update_schedule",
+        "update_collection",
+        "update_plugin",
+        "update_setting",
+        "update_board",
+        "update_panel",
+    ):
         assert annotations[name]["destructiveHint"] is False, f"{name} must not pause the chat for approval"
 
 

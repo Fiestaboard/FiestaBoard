@@ -60,7 +60,11 @@ from src.schedules.storage import ScheduleStorage
 # Tool coverage ledger
 # ---------------------------------------------------------------------------
 
-#: Tools with a state-effect or shape assertion in this module.
+#: Tools with a state-effect or shape assertion in this module — or, for the
+#: Settings-page tools (boards, panels, network, system, debug), in the
+#: sibling module ``tests/test_mcp_state_effects_settings.py``, which reuses
+#: the fixtures below and pins the same rule: every assertion is on state
+#: read back, or on the call that crossed a patched hardware/sidecar boundary.
 COVERED = {
     "list_pages",
     "get_page",
@@ -128,6 +132,29 @@ COVERED = {
     "get_silence_status",
     "pause_board",
     "resume_board",
+    # Settings-page coverage — tests/test_mcp_state_effects_settings.py
+    "update_board",
+    "add_board",
+    "remove_board",
+    "detect_board_size",
+    "identify_tile",
+    "list_panels",
+    "create_panel",
+    "update_panel",
+    "delete_panel",
+    "disconnect_wifi",
+    "forget_wifi_network",
+    "check_for_update",
+    "trigger_system_update",
+    "restart_system",
+    "shutdown_system",
+    "export_backup",
+    "test_ai_provider",
+    "blank_board",
+    "fill_board",
+    "show_board_debug_info",
+    "run_network_diagnostics",
+    "clear_board_cache",
 }
 
 #: Tools not yet covered here, each with the reason. Not an exemption list.
@@ -844,8 +871,10 @@ def test_update_setting_active_page_is_the_same_selection_set_active_page_makes(
 
 
 def test_update_setting_rejects_an_unknown_category(mcp, services, two_boards):
-    message = call_expect_error(mcp, "update_setting", category="mqtt", values={"host": "broker"})
-    assert "mqtt" in message
+    # ``mqtt`` used to be the example here; it is a real category now (see
+    # tests/test_mcp_state_effects_settings.py), so the unknown one is wifi.
+    message = call_expect_error(mcp, "update_setting", category="wifi", values={"ssid": "HomeNet"})
+    assert "wifi" in message
 
 
 # -- read-only honesty --------------------------------------------------------
@@ -884,7 +913,16 @@ def test_read_only_tools_leave_every_store_untouched(mcp, services, plugins, eng
         "get_plugin_manifest": {"plugin_id": PLUGIN_ID},
         "list_plugin_options": {"plugin_id": PLUGIN_ID, "options_id": "stations"},
     }
-    skipped = {"list_registry_plugins"}  # network-backed registry
+    skipped = {
+        "list_registry_plugins",  # network-backed registry
+        # Answered by board hardware / the release registries / a third-party
+        # AI endpoint / the public internet. Their honesty is checked with
+        # patched boundaries in tests/test_mcp_state_effects_settings.py.
+        "detect_board_size",
+        "check_for_update",
+        "test_ai_provider",
+        "run_network_diagnostics",
+    }
     # get_plugin_data reads a plugin's live values, which needs it enabled
     # and configured — writes that belong BEFORE the snapshot. Likewise
     # get_current_display needs an active page and list_transition_plugins

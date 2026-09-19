@@ -223,15 +223,19 @@ browser drawer ──POST /pages/ai/chat (SSE)──► src/ai/agent.py (server-
 - `src/ai/transcript.py` — the client replays a structured transcript
   (assistant `tool_calls`, `tool` outcomes); this renders it for the model
   exactly as the loop rendered its own steps.
-- `src/ai/chat_tools.py` — two chat-only tools that are deliberately not
-  MCP: `ask_user` (answered in the browser) and `trigger_system_update`.
+- `src/ai/chat_tools.py` — the one chat-only tool that is deliberately not
+  MCP: `ask_user` (answered in the browser). `trigger_system_update` used to
+  live here; it is a real MCP tool now, next to `restart_system` and
+  `shutdown_system`.
 - `src/ops/executors.py` — still the one implementation per write
   operation; MCP tools call them. `src/ops/teaching.py` generates the
   instruction text from the defining modules so it cannot rot.
 
 The MCP tool **annotations** decide policy, not a list in the chat:
 `readOnlyHint` tools run freely mid-turn; `destructiveHint` tools
-(`delete_*`, `uninstall_plugin`, plus the chat-only `trigger_system_update`)
+(`delete_*`, `uninstall_plugin`, `remove_board`, `delete_panel`, the Wi-Fi
+disconnect/forget tools and the system actions `trigger_system_update` / `restart_system` /
+`shutdown_system`)
 end the stream with `done{reason: "awaiting_approval"}` and run only when the
 client re-POSTs a `resume` approving them. `ask_user` ends it with
 `awaiting_input`. `tests/test_mcp_annotations.py` pins the sets.

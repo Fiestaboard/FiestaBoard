@@ -87,11 +87,11 @@ def test_switch_parser_sees_the_text_event():
 def test_every_known_tool_name_is_a_real_tool():
     """The client may know a subset of the tools, never a tool that does not exist."""
     pytest.importorskip("mcp", reason="mcp package not installed")
-    from src.ai.chat_tools import ASK_USER, TRIGGER_SYSTEM_UPDATE
+    from src.ai.chat_tools import ASK_USER
     from src.mcp_server import _build_mcp_server
 
     mcp = _build_mcp_server()
-    real = set(mcp._tool_manager._tools) | {ASK_USER, TRIGGER_SYSTEM_UPDATE}
+    real = set(mcp._tool_manager._tools) | {ASK_USER}
     phantom = sorted(set(_ts_known_tool_names()) - real)
     assert phantom == [], f"ai-chat-types.ts names tools the server does not have: {phantom}"
 
