@@ -118,10 +118,34 @@ test.describe("HA Ingress", () => {
     await page.goto(`${PREFIX}/`);
     await expect(page.getByRole("heading", { name: "Dashboard" })).toBeVisible({ timeout: 15_000 });
 
-    for (const [link, heading, path] of [
-      ["Pages", "Pages", "pages"],
-      ["Settings", "Settings", "settings"],
-    ] as const) {
+    // Settings is reached from the rail's footer menu rather than a nav
+    // link (@fiestaboard/ui 7.0.0 took it out of the list), so each target
+    // carries HOW to get there. What the test is actually about is
+    // unchanged: both are lazy routes, and Settings is the heavy one whose
+    // chunks the prefix rewriting has to reach.
+    const targets: { open: () => Promise<void>; heading: string; path: string }[] = [
+      {
+        open: () => page.getByRole("link", { name: "Pages" }).first().click(),
+        heading: "Pages",
+        path: "pages",
+      },
+      {
+        open: async () => {
+          // Idempotent, because the retry wrapper below re-runs this: a
+          // menu left open by a failed attempt would be TOGGLED SHUT by the
+          // next click on the trigger, so dismiss anything open first.
+          await page.keyboard.press("Escape");
+          // `aside [...]`, not `.first()`: the mobile copy of the trigger is
+          // in the DOM and invisible above `lg`.
+          await page.locator('aside [data-slot="sidebar-settings-trigger"]').click();
+          await page.getByRole("menuitem", { name: "Settings" }).click();
+        },
+        heading: "Settings",
+        path: "settings",
+      },
+    ];
+
+    for (const { open, heading, path } of targets) {
       // The click can land before the app is interactive — the dashboard is
       // still fetching its board display at this point — and a half-landed
       // click leaves the app on the previous route. That shows up two ways:
@@ -134,7 +158,7 @@ test.describe("HA Ingress", () => {
       // appears however many times we click, and the violation assertions
       // below are untouched.
       await expect(async () => {
-        await page.getByRole("link", { name: link }).first().click();
+        await open();
         await page.waitForURL(`**${PREFIX}/${path}`, { timeout: 5_000 });
         await expect(page.getByRole("heading", { name: heading, exact: true })).toBeVisible({ timeout: 10_000 });
       }).toPass({ timeout: 30_000 });
