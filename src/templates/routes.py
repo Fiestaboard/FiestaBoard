@@ -179,11 +179,18 @@ async def render_template(request: TemplateRenderRequest):
     """
     template = request.template
     device_type = request.device_type
+    notes_wide = request.notes_wide
+    notes_tall = request.notes_tall
 
-    # Determine line count from device type
-    from src.devices import DEFAULT_DEVICE_TYPE, DEVICE_DIMENSIONS
+    # Row count must come from the same geometry ``render_lines`` renders at.
+    # A ``DEVICE_DIMENSIONS`` lookup cannot: it has no ``note_array`` key, so
+    # an array fell through to flagship's 6 rows on the blank path below while
+    # the body rendered 3 rows of one note (issue #2032). ``board_context_for``
+    # resolves every device type, arrays included, and falls back to the
+    # default for an unknown one exactly as ``render_lines`` does.
+    from src.devices import DEFAULT_DEVICE_TYPE, board_context_for
 
-    dims = DEVICE_DIMENSIONS.get(device_type or DEFAULT_DEVICE_TYPE, DEVICE_DIMENSIONS[DEFAULT_DEVICE_TYPE])
+    dims = board_context_for(device_type or DEFAULT_DEVICE_TYPE, notes_wide, notes_tall)
     num_rows = dims.rows
 
     # Early return for empty templates to avoid unnecessary processing
@@ -204,7 +211,12 @@ async def render_template(request: TemplateRenderRequest):
         if isinstance(template, list):
             logger.info(f"Rendering template lines: {template}")
             rendered = await asyncio.to_thread(
-                template_engine.render_lines, template, line_metadata=line_metadata, device_type=device_type
+                template_engine.render_lines,
+                template,
+                line_metadata=line_metadata,
+                device_type=device_type,
+                notes_wide=notes_wide,
+                notes_tall=notes_tall,
             )
         else:
             logger.info(f"Rendering template string: {template}")
@@ -235,11 +247,15 @@ async def render_template_live(request: TemplateRenderLiveRequest):
     settings_service = get_settings_service()
     line_metadata = request.line_metadata
     device_type = request.device_type
+    notes_wide = request.notes_wide
+    notes_tall = request.notes_tall
 
-    # Determine line count from device type
-    from src.devices import DEFAULT_DEVICE_TYPE, DEVICE_DIMENSIONS
+    # Same note-array-aware resolution as ``render_template`` above (#2032):
+    # ``DEVICE_DIMENSIONS`` has no ``note_array`` key, so the blank path used
+    # to answer flagship rows for an array.
+    from src.devices import DEFAULT_DEVICE_TYPE, board_context_for
 
-    dims = DEVICE_DIMENSIONS.get(device_type or DEFAULT_DEVICE_TYPE, DEVICE_DIMENSIONS[DEFAULT_DEVICE_TYPE])
+    dims = board_context_for(device_type or DEFAULT_DEVICE_TYPE, notes_wide, notes_tall)
     num_rows = dims.rows
 
     # Render the template
@@ -254,7 +270,12 @@ async def render_template_live(request: TemplateRenderLiveRequest):
                     board_id=board_id,
                 )
             rendered = await asyncio.to_thread(
-                template_engine.render_lines, template, line_metadata=line_metadata, device_type=device_type
+                template_engine.render_lines,
+                template,
+                line_metadata=line_metadata,
+                device_type=device_type,
+                notes_wide=notes_wide,
+                notes_tall=notes_tall,
             )
         else:
             if not template.strip():

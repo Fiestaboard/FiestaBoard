@@ -109,8 +109,10 @@ export function ComposePageDialog({
   const previewLines = useMemo(() => (debouncedText === "" ? [] : debouncedText.split("\n")), [debouncedText]);
 
   const { data: preview } = useQuery({
-    queryKey: ["composePreview", previewLines, deviceType],
-    queryFn: () => api.renderTemplate(previewLines, undefined, deviceType),
+    // The note-array geometry is part of the key and the request: without it
+    // the server previews every array as one 3x15 Note (issue #2032).
+    queryKey: ["composePreview", previewLines, deviceType, notesWide, notesTall],
+    queryFn: () => api.renderTemplate(previewLines, undefined, deviceType, notesWide, notesTall),
     enabled: open && previewLines.length > 0,
     staleTime: 10_000,
   });

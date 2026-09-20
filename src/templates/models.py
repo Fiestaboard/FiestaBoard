@@ -16,7 +16,7 @@ from typing import Any
 
 from pydantic import BaseModel, Field
 
-from src.devices import DeviceType
+from src.devices import MAX_NOTES_PER_AXIS, DeviceType
 
 
 class TemplateVariablesResponse(BaseModel):
@@ -81,10 +81,20 @@ class TemplateRenderRequest(BaseModel):
     ``device_type`` is the ``DeviceType`` Literal, not a bare string: the
     renderer falls back to flagship geometry for anything it does not know,
     so a typo used to render at the wrong size and answer 200.
+
+    ``notes_wide``/``notes_tall`` size a ``note_array``, whose grid is not
+    fixed: ``15·notes_wide`` columns by ``3·notes_tall`` rows. Without them
+    the preview rendered every array as a single 3x15 Note, so a
+    ``{{filled:-}}`` line stopped one note short of the board the same page
+    filled correctly when sent (issue #2032). Bounds match
+    :class:`src.pages.models.Page` so a page and its preview accept exactly
+    the same geometry; both are ignored for ``flagship`` and ``note``.
     """
 
     template: str | list[str]
     device_type: DeviceType | None = None
+    notes_wide: int = Field(default=1, ge=1, le=MAX_NOTES_PER_AXIS)
+    notes_tall: int = Field(default=1, ge=1, le=MAX_NOTES_PER_AXIS)
     line_metadata: list[dict[str, Any]] | None = None
 
 

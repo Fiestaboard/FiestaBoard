@@ -95,13 +95,26 @@ export const templatesApi = {
       method: "POST",
       body: JSON.stringify({ template }),
     }),
-  renderTemplate: (template: string | string[], lineMetadata?: LineMetadata[], deviceType?: string) =>
+  // `notesWide`/`notesTall` are what size a `note_array` preview: its grid is
+  // 15·notesWide by 3·notesTall, so omitting them made the server render every
+  // array as one 3x15 Note and a `{{filled:-}}` line stopped a note short of
+  // the board the same page filled correctly when sent (issue #2032). Ignored
+  // by the server for `flagship` and `note`.
+  renderTemplate: (
+    template: string | string[],
+    lineMetadata?: LineMetadata[],
+    deviceType?: string,
+    notesWide?: number,
+    notesTall?: number,
+  ) =>
     fetchApi<TemplateRenderResponse>("/templates/render", {
       method: "POST",
       body: JSON.stringify({
         template,
         ...(lineMetadata && { line_metadata: lineMetadata }),
         ...(deviceType && { device_type: deviceType }),
+        ...(notesWide != null && { notes_wide: notesWide }),
+        ...(notesTall != null && { notes_tall: notesTall }),
       }),
     }),
   renderTemplateLive: (
@@ -109,6 +122,8 @@ export const templatesApi = {
     boardId?: string,
     lineMetadata?: LineMetadata[],
     deviceType?: string,
+    notesWide?: number,
+    notesTall?: number,
     signal?: AbortSignal,
   ) =>
     fetchApi<TemplateRenderLiveResponse>("/templates/render/live", {
@@ -118,6 +133,8 @@ export const templatesApi = {
         ...(boardId && { board_id: boardId }),
         ...(lineMetadata && { line_metadata: lineMetadata }),
         ...(deviceType && { device_type: deviceType }),
+        ...(notesWide != null && { notes_wide: notesWide }),
+        ...(notesTall != null && { notes_tall: notesTall }),
       }),
       signal,
     }),
