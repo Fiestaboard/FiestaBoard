@@ -5,7 +5,14 @@ import { api } from "@/lib/api";
 import type { PanelTarget } from "@/lib/panel-page-fit";
 import { panelTargets } from "@/lib/panel-page-fit";
 
-/** Shared with DisplaySettings and FiestaPanelSettings, so one fetch serves all. */
+/**
+ * The one panel-list cache key. DisplaySettings and FiestaPanelSettings import
+ * this rather than spelling `["panels"]` themselves: FiestaPanelSettings
+ * invalidates it after a create / rename / delete, and the picker and the
+ * "fits" label read through it. Two files agreeing on a literal by coincidence
+ * is not a contract — rename or scope this key and a private copy would leave
+ * the picker showing a panel that no longer exists.
+ */
 export const PANELS_QUERY_KEY = ["panels"] as const;
 
 /**

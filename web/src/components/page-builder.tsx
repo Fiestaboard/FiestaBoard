@@ -110,6 +110,7 @@ import { MAX_NOTES_PER_AXIS, resolveDimensions } from "@/lib/board-dimensions";
 import { applyLineOpInPlace } from "@/lib/line-ops";
 import { onLiveOutputMessageChange, writeLiveOutputMessage } from "@/lib/live-output-channel";
 import { getDraftKey } from "@/lib/page-draft";
+import { panelsFittingGrid } from "@/lib/panel-page-fit";
 import { clearPreviewCacheForPage } from "@/lib/preview-cache";
 
 // Lazy-loaded — TipTap + ProseMirror + CodeMirror + the lucide-react icon
@@ -318,6 +319,19 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
     },
     [panelTargets],
   );
+
+  /**
+   * What the size picker's trigger shows, and which row is highlighted when it
+   * reopens. Derived from the geometry rather than held as its own state: a
+   * panel choice resolves to note_array + a grid, so a picker controlled by
+   * ``deviceType`` alone would snap to "Note Array" the instant a panel was
+   * chosen and forget it had been. Naming the panel whose board this grid
+   * matches is also simply truer — that IS the page's shape.
+   */
+  const sizeSelectValue = useMemo(() => {
+    const [fit] = panelsFittingGrid(panelTargets, deviceType, notesWide, notesTall);
+    return fit ? `panel:${fit.id}` : deviceType;
+  }, [panelTargets, deviceType, notesWide, notesTall]);
   const tipTapRef = useRef<TipTapTemplateEditorHandle>(null);
   // Metadata history keyed to stroke boundaries: done/undone mirror the
   // editor's stroke undo/redo stacks (reported via onDrawHistoryEvent).
@@ -2096,7 +2110,7 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
                           pages can change board size. Converting a saved page is
                           lossy (shrinks truncate), so saving a shrinking retarget
                           asks for confirmation first. */}
-                      <Select value={deviceType} onValueChange={handleSizeChange}>
+                      <Select value={sizeSelectValue} onValueChange={handleSizeChange}>
                         <SelectTrigger
                           className="h-7 w-auto gap-1 px-2 text-xs"
                           aria-label={t("deviceTypeSwitcherAriaLabel")}

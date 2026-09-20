@@ -224,10 +224,8 @@ _RULES_TAIL = (
     # A FiestaPanel's grid is auto-fit from a TV's diagonal, so the model
     # cannot know it — and the flagship default silently authors a page that
     # renders one Note wide on the panel.
-    "- A page is authored for one board shape. When the user names a\n"
-    '  FiestaPanel or says "my panel", call list_panels first and pass that\n'
-    "  panel's device_type with its notes_wide and notes_tall to create_page\n"
-    "  or update_page — never the flagship default.\n"
+    "- A page is authored for one board shape. For a FiestaPanel, take that\n"
+    "  shape from list_panels first — never the flagship default.\n"
     "- Use ask_user when a request is ambiguous instead of guessing.\n"
     "- Never guess API keys or credentials; ask the user for them.\n"
 )

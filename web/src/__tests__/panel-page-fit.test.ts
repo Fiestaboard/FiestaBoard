@@ -36,7 +36,15 @@ function panel(overrides: Partial<Panel> & Pick<Panel, "id" | "name">): Panel {
 describe("panelTargets", () => {
   it("reads the note grid the API reports rather than dividing rows and cols", () => {
     const [target] = panelTargets([panel({ id: "p1", name: "Kitchen TV" })]);
-    expect(target).toEqual({ id: "p1", name: "Kitchen TV", notesWide: 2, notesTall: 4, rows: 12, cols: 30 });
+    expect(target).toEqual({
+      id: "p1",
+      name: "Kitchen TV",
+      deviceType: "note_array",
+      notesWide: 2,
+      notesTall: 4,
+      rows: 12,
+      cols: 30,
+    });
   });
 
   it("skips a panel whose board was deleted out from under it", () => {
@@ -90,11 +98,26 @@ describe("panelsFittingGrid", () => {
     expect(panelsFittingGrid([kitchen, office], "flagship", 2, 4)).toEqual([]);
   });
 
-  it("matches a single-Note page against a 1×1 panel, because the grid is the same board", () => {
+  // A 1×1 panel is easy to get: compute_autofit_grid returns 1×1 for screens
+  // under about 25 inches. Both a plain Note page and a 1×1 note-array page
+  // resolve to 3×15 flaps, but the platform's own compatibility rule
+  // (sizeKey / pagesCompatibleWithBoard, mirrored in src/devices.py) is
+  // FAMILY-aware and refuses the first — page-grid-selector filters that page
+  // out for the panel's board and schedule-entry-form warns about it. The
+  // label has to agree with the rest of the app, not promise a fit the app
+  // then refuses.
+  it("does not match a plain Note page against a 1×1 panel, because the families differ", () => {
     const tiny = panelTargets([
       panel({ id: "p4", name: "Tiny TV", rows: 3, cols: 15, notes_wide: 1, notes_tall: 1 }),
     ])[0];
-    expect(panelsFittingGrid([tiny], "note", 1, 1)).toEqual([tiny]);
+    expect(panelsFittingGrid([tiny], "note", 1, 1)).toEqual([]);
+  });
+
+  it("matches a 1×1 note-array page against a 1×1 panel", () => {
+    const tiny = panelTargets([
+      panel({ id: "p4", name: "Tiny TV", rows: 3, cols: 15, notes_wide: 1, notes_tall: 1 }),
+    ])[0];
+    expect(panelsFittingGrid([tiny], "note_array", 1, 1)).toEqual([tiny]);
   });
 
   it("is empty when the install has no panels", () => {

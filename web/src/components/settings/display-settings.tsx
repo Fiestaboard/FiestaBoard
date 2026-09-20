@@ -53,6 +53,7 @@ import { toast } from "sonner";
 
 import { BoardSizeIndicator } from "@/components/board-size-indicator";
 import { queryKeys, useBoardSettings, useStatus } from "@/hooks/use-board";
+import { PANELS_QUERY_KEY } from "@/hooks/use-panel-targets";
 import { useTranslations } from "@/i18n/translations";
 import type { BoardInstance, Code62Glyph, DeviceType } from "@/lib/api";
 import { api } from "@/lib/api";
@@ -530,7 +531,7 @@ export function DisplaySettings() {
   // card must not offer credentials, and removing it out from under a live
   // panel (blanking the TV) is blocked — the panel editor owns that board.
   const { data: panelsData } = useQuery({
-    queryKey: ["panels"],
+    queryKey: PANELS_QUERY_KEY,
     queryFn: () => api.listPanels(),
   });
   const panelNameByBoardId = new Map((panelsData?.panels ?? []).map((p) => [p.board_id, p.name]));

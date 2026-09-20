@@ -173,6 +173,29 @@ describe("PageBuilder size picker — FiestaPanels", () => {
     expect(screen.getByRole("img", { name: /12 rows by 30 columns/ })).toBeInTheDocument();
   });
 
+  it("keeps naming the chosen panel on the trigger, not the generic device type", async () => {
+    // The Select is controlled, and a panel resolves to note_array + a grid.
+    // If the value were the raw deviceType, the trigger would snap to
+    // "Note Array" the instant the panel was chosen and reopening would
+    // highlight the generic row — the picker would forget what was picked.
+    servePanels(panel("p1", "Kitchen TV", 2, 4));
+    const user = userEvent.setup();
+    render(<PageBuilder onClose={vi.fn()} onSave={vi.fn()} />, { wrapper: TestWrapper });
+
+    await openSizePicker(user);
+    await user.click(await screen.findByRole("option", { name: "Kitchen TV · 2×4 notes" }));
+
+    const switcher = await screen.findByLabelText("Change board size");
+    await waitFor(() => expect(switcher).toHaveTextContent("Kitchen TV · 2×4 notes"));
+
+    // Reopening shows the panel as the selected option, not "Note Array".
+    await user.click(switcher);
+    await waitFor(() =>
+      expect(screen.getByRole("option", { name: "Kitchen TV · 2×4 notes" })).toHaveAttribute("aria-selected", "true"),
+    );
+    expect(screen.getByRole("option", { name: "Note Array" })).toHaveAttribute("aria-selected", "false");
+  });
+
   it("shows no panels group at all on an install with no panels", async () => {
     servePanels();
     const user = userEvent.setup();
