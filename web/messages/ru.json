@@ -1997,13 +1997,13 @@
   },
   "aiChatPanel": {
     "messagesAriaLabel": "Сообщения чата",
-    "closePanelAriaLabel": "Закрыть FiestaBot (Beta)",
+    "closePanelAriaLabel": "Закрыть FiestaBot",
     "newChatAriaLabel": "Новый чат",
     "historyAriaLabel": "История",
     "backAriaLabel": "Назад",
     "providerSelectAriaLabel": "Провайдер",
     "modelSelectAriaLabel": "Модель",
-    "panelTitle": "FiestaBot (Beta)",
+    "panelTitle": "FiestaBot",
     "retryButton": "Повторить",
     "messageLabel": "Сообщение",
     "stopButton": "Остановить",
@@ -2126,6 +2126,37 @@
       "loadFailed": "Не удалось загрузить эту беседу.",
       "deleted": "Беседа удалена",
       "cleared": "Все беседы удалены"
+    },
+    "beta": "Бета",
+    "sendShortcut": "Enter — отправить, Shift+Enter — новая строка",
+    "resizeHandle": "Изменить ширину панели FiestaBot",
+    "showJson": "Показать JSON",
+    "resultFields": "{count, plural, one {# поле} few {# поля} many {# полей} other {# поля}}",
+    "dayPattern": {
+      "all": "каждый день",
+      "weekdays": "по будням",
+      "weekends": "по выходным",
+      "custom": "выбранные дни"
+    },
+    "argLabel": {
+      "page": "Страница",
+      "time": "Время",
+      "days": "Дни",
+      "board": "Табло",
+      "duration": "Длительность",
+      "lines": "Строки",
+      "name": "Название",
+      "setting": "Настройка",
+      "message": "Сообщение",
+      "plugin": "Плагин",
+      "collection": "Коллекция",
+      "scheduleMode": "Режим расписания"
+    },
+    "argValue": {
+      "on": "Вкл.",
+      "off": "Выкл.",
+      "lineCount": "{count, plural, one {# строка} few {# строки} many {# строк} other {# строки}}",
+      "durationSeconds": "{count} с"
     }
   },
   "boardSizeIndicator": {

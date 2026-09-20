@@ -1997,13 +1997,13 @@
   },
   "aiChatPanel": {
     "messagesAriaLabel": "チャットメッセージ",
-    "closePanelAriaLabel": "FiestaBot (Beta) を閉じる",
+    "closePanelAriaLabel": "FiestaBot を閉じる",
     "newChatAriaLabel": "新しいチャット",
     "historyAriaLabel": "履歴",
     "backAriaLabel": "戻る",
     "providerSelectAriaLabel": "プロバイダー",
     "modelSelectAriaLabel": "モデル",
-    "panelTitle": "FiestaBot (Beta)",
+    "panelTitle": "FiestaBot",
     "retryButton": "再試行",
     "messageLabel": "メッセージ",
     "stopButton": "停止",
@@ -2126,6 +2126,37 @@
       "loadFailed": "その会話を読み込めませんでした。",
       "deleted": "会話を削除しました",
       "cleared": "すべての会話を削除しました"
+    },
+    "beta": "ベータ",
+    "sendShortcut": "Enter で送信、Shift+Enter で改行",
+    "resizeHandle": "FiestaBot パネルの幅を変更",
+    "showJson": "JSON を表示",
+    "resultFields": "{count, plural, other {# 個の項目}}",
+    "dayPattern": {
+      "all": "毎日",
+      "weekdays": "平日",
+      "weekends": "週末",
+      "custom": "選択した曜日"
+    },
+    "argLabel": {
+      "page": "ページ",
+      "time": "時刻",
+      "days": "曜日",
+      "board": "ボード",
+      "duration": "表示時間",
+      "lines": "行数",
+      "name": "名前",
+      "setting": "設定",
+      "message": "メッセージ",
+      "plugin": "プラグイン",
+      "collection": "コレクション",
+      "scheduleMode": "スケジュールモード"
+    },
+    "argValue": {
+      "on": "オン",
+      "off": "オフ",
+      "lineCount": "{count, plural, other {# 行}}",
+      "durationSeconds": "{count} 秒"
     }
   },
   "boardSizeIndicator": {

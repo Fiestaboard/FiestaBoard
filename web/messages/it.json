@@ -1997,13 +1997,13 @@
   },
   "aiChatPanel": {
     "messagesAriaLabel": "Messaggi della chat",
-    "closePanelAriaLabel": "Chiudi FiestaBot (Beta)",
+    "closePanelAriaLabel": "Chiudi FiestaBot",
     "newChatAriaLabel": "Nuova chat",
     "historyAriaLabel": "Cronologia",
     "backAriaLabel": "Indietro",
     "providerSelectAriaLabel": "Fornitore",
     "modelSelectAriaLabel": "Modello",
-    "panelTitle": "FiestaBot (Beta)",
+    "panelTitle": "FiestaBot",
     "retryButton": "Riprova",
     "messageLabel": "Messaggio",
     "stopButton": "Interrompi",
@@ -2126,6 +2126,37 @@
       "loadFailed": "Impossibile caricare la conversazione.",
       "deleted": "Conversazione eliminata",
       "cleared": "Tutte le conversazioni sono state eliminate"
+    },
+    "beta": "Beta",
+    "sendShortcut": "Invio per inviare, Maiusc+Invio per andare a capo",
+    "resizeHandle": "Ridimensiona il pannello FiestaBot",
+    "showJson": "Mostra JSON",
+    "resultFields": "{count, plural, one {# campo} other {# campi}}",
+    "dayPattern": {
+      "all": "tutti i giorni",
+      "weekdays": "nei giorni feriali",
+      "weekends": "nei fine settimana",
+      "custom": "giorni selezionati"
+    },
+    "argLabel": {
+      "page": "Pagina",
+      "time": "Ora",
+      "days": "Giorni",
+      "board": "Tabellone",
+      "duration": "Durata",
+      "lines": "Righe",
+      "name": "Nome",
+      "setting": "Impostazione",
+      "message": "Messaggio",
+      "plugin": "Plugin",
+      "collection": "Raccolta",
+      "scheduleMode": "Modalità programmazione"
+    },
+    "argValue": {
+      "on": "Attivo",
+      "off": "Disattivo",
+      "lineCount": "{count, plural, one {# riga} other {# righe}}",
+      "durationSeconds": "{count} s"
     }
   },
   "boardSizeIndicator": {
