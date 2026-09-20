@@ -92,6 +92,28 @@ function Wrapper({ children }: { children: React.ReactNode }) {
   return <QueryClientProvider client={qc}>{children}</QueryClientProvider>;
 }
 
+/**
+ * The panel decides its own layout from its measured width (the composer
+ * hint, in particular), and jsdom measures everything as zero. Give it a
+ * width for the duration of one test.
+ */
+function withPanelWidth(width: number) {
+  vi.spyOn(Element.prototype, "getBoundingClientRect").mockReturnValue({
+    width,
+    height: 600,
+    top: 0,
+    left: 0,
+    right: width,
+    bottom: 600,
+    x: 0,
+    y: 0,
+    toJSON: () => ({}),
+  } as DOMRect);
+}
+
+/** Wide enough for the composer to keep the keyboard hint in the toolbar. */
+const ROOMY = 600;
+
 const noop = () => {};
 const defaultProps = {
   getTurnContext: () => ({
@@ -119,9 +141,14 @@ describe("AiChatPanel", () => {
     );
   });
 
-  it("renders the FiestaBot (Beta) header", async () => {
+  it("names itself FiestaBot, with Beta as a badge rather than part of the name", async () => {
     render(<AiChatPanel {...defaultProps} />, { wrapper: Wrapper });
-    expect(await screen.findByText("FiestaBot (Beta)")).toBeInTheDocument();
+    // One string was "FiestaBot (Be…" at drawer width (#2024): the badge is
+    // a separate element, so the NAME is what survives a narrow panel.
+    expect(await screen.findByText("FiestaBot")).toBeInTheDocument();
+    const badge = screen.getByText(enMessages.aiChatPanel.beta);
+    expect(badge).toBeInTheDocument();
+    expect(badge).not.toHaveTextContent("FiestaBot");
   });
 
   it("shows close button that calls onClose", async () => {
@@ -241,6 +268,7 @@ describe("AiChatPanel", () => {
     });
 
     it("renders Enter to send and Shift+Enter for a new line as keycaps beside Send", async () => {
+      withPanelWidth(ROOMY);
       render(<AiChatPanel {...defaultProps} />, { wrapper: Wrapper });
       await screen.findByRole("textbox");
 
@@ -254,6 +282,7 @@ describe("AiChatPanel", () => {
     });
 
     it("keeps the hint decorative: hidden from assistive tech and on coarse pointers", async () => {
+      withPanelWidth(ROOMY);
       render(<AiChatPanel {...defaultProps} />, { wrapper: Wrapper });
       await screen.findByRole("textbox");
 
@@ -261,6 +290,43 @@ describe("AiChatPanel", () => {
       expect(hint).toHaveAttribute("aria-hidden", "true");
       // Touch keyboards have no Shift+Enter; the hint would only mislead.
       expect(hint).toHaveClass("pointer-coarse:hidden");
+    });
+
+    it("gives the hint up at drawer width and puts it on the Send button instead", async () => {
+      withPanelWidth(384);
+      render(<AiChatPanel {...defaultProps} />, { wrapper: Wrapper });
+      await screen.findByRole("textbox");
+
+      // 384px is the drawer's default width, where #2024 had the hint
+      // painted over the provider and model pickers.
+      expect(screen.queryByTestId("ai-chat-send-hint")).not.toBeInTheDocument();
+      expect(screen.getByRole("button", { name: /send/i })).toHaveAttribute(
+        "title",
+        enMessages.aiChatPanel.sendShortcut,
+      );
+    });
+
+    it("keeps the hint once the panel is wide enough to hold it", async () => {
+      withPanelWidth(ROOMY);
+      render(<AiChatPanel {...defaultProps} />, { wrapper: Wrapper });
+      await screen.findByRole("textbox");
+
+      expect(screen.getByTestId("ai-chat-send-hint")).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: /send/i })).not.toHaveAttribute("title");
+    });
+
+    it("lets every control in the composer row shrink except Send", async () => {
+      withPanelWidth(384);
+      const { container } = render(<AiChatPanel {...defaultProps} />, { wrapper: Wrapper });
+      await screen.findByRole("textbox");
+
+      // The collision in #2024 was structural: a `shrink-0` hint beside a
+      // `flex-wrap` tools group. Nothing in the row may refuse to shrink
+      // apart from the button that sends.
+      const tools = container.querySelector('[data-slot="prompt-input-tools"]');
+      expect(tools).toHaveClass("min-w-0", "flex-1", "flex-nowrap", "overflow-hidden");
+      expect(tools).not.toHaveClass("flex-wrap");
+      expect(screen.getByRole("button", { name: /send/i })).toHaveClass("shrink-0");
     });
 
     it("advertises Enter on the send button through aria-keyshortcuts", async () => {
@@ -332,7 +398,7 @@ describe("AiChatPanel", () => {
       ),
     );
     render(<AiChatPanel {...defaultProps} />, { wrapper: Wrapper });
-    await screen.findByText("FiestaBot (Beta)");
+    await screen.findByText("FiestaBot");
     expect(screen.getByRole("button", { name: enMessages.aiChatPanel.newChatAriaLabel })).toBeDisabled();
   });
 
