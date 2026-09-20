@@ -2226,7 +2226,11 @@
     "hdmiHelp": "Visar skärmpanelen på en skärm ansluten till Pi:ns HDMI-port. Aktivering installerar en liten kioskwebbläsare (tar några minuter).",
     "hdmiInstalling": "Ställer in HDMI-kiosken — en webbläsare installeras på Pi:n, det kan ta några minuter…",
     "hdmiEnabledHint": "HDMI-skärmen visar panelen med ”Skärmutgång” aktiverad ovan.",
-    "hdmiFailed": "Den senaste HDMI-kioskändringen misslyckades. Försök igen eller starta om Pi:n."
+    "hdmiFailed": "Den senaste HDMI-kioskändringen misslyckades. Försök igen eller starta om Pi:n.",
+    "yourPanelsGroupLabel": "Dina paneler",
+    "panelSizeOption": "{name} · {wide}×{tall} Note-block",
+    "fitsPanel": "Passar {name}",
+    "fitsPanelAndMore": "Passar {name} +{count} till"
   },
   "releaseChannel": {
     "title": "Release channel",

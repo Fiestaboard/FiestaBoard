@@ -35,6 +35,7 @@ import { toast } from "sonner";
 
 import { TvPreview } from "@/components/panel/tv-preview";
 import { TimePicker } from "@/components/ui/time-picker";
+import { PANELS_QUERY_KEY } from "@/hooks/use-panel-targets";
 import { useTranslations } from "@/i18n/translations";
 import { anchorProps } from "@/lib/ai-choreography/anchors";
 import { api, type HdmiKioskStatus, type Panel } from "@/lib/api";
@@ -57,7 +58,6 @@ const DIAGONAL_MAX = 200;
 const ASPECT_MIN = 1;
 const ASPECT_MAX = 100;
 
-const PANELS_QUERY_KEY = ["panels"] as const;
 const HDMI_QUERY_KEY = ["hdmi-kiosk"] as const;
 
 /** How long to keep polling for the sidecar's "in_progress" after an enable. */

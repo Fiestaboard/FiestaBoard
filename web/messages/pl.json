@@ -2226,7 +2226,11 @@
     "hdmiHelp": "Wyświetla panel na ekranie podłączonym do portu HDMI tego Pi. Włączenie instaluje małą przeglądarkę w trybie kiosku (kilka minut).",
     "hdmiInstalling": "Konfigurowanie kiosku HDMI — na Pi instalowana jest przeglądarka, może to potrwać kilka minut…",
     "hdmiEnabledHint": "Ekran HDMI pokazuje panel z włączonym powyżej „Wyjściem ekranowym”.",
-    "hdmiFailed": "Ostatnia zmiana kiosku HDMI nie powiodła się. Spróbuj ponownie lub uruchom Pi ponownie."
+    "hdmiFailed": "Ostatnia zmiana kiosku HDMI nie powiodła się. Spróbuj ponownie lub uruchom Pi ponownie.",
+    "yourPanelsGroupLabel": "Twoje panele",
+    "panelSizeOption": "{name} · {wide}×{tall} bloki Note",
+    "fitsPanel": "Pasuje do {name}",
+    "fitsPanelAndMore": "Pasuje do {name} +{count} więcej"
   },
   "releaseChannel": {
     "title": "Release channel",

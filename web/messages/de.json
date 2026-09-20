@@ -2226,7 +2226,11 @@
     "hdmiHelp": "Zeigt das Display-Panel auf einem am HDMI-Anschluss dieses Pi angeschlossenen Bildschirm. Beim Aktivieren wird ein kleiner Kiosk-Browser installiert (dauert einige Minuten).",
     "hdmiInstalling": "HDMI-Kiosk wird eingerichtet — dabei wird ein Browser auf dem Pi installiert, das kann einige Minuten dauern…",
     "hdmiEnabledHint": "Der HDMI-Bildschirm zeigt das Panel, bei dem oben „Display-Ausgabe“ aktiviert ist.",
-    "hdmiFailed": "Die letzte HDMI-Kiosk-Änderung ist fehlgeschlagen. Versuche es erneut oder starte den Pi neu."
+    "hdmiFailed": "Die letzte HDMI-Kiosk-Änderung ist fehlgeschlagen. Versuche es erneut oder starte den Pi neu.",
+    "yourPanelsGroupLabel": "Ihre Panels",
+    "panelSizeOption": "{name} · {wide}×{tall} Note-Blöcke",
+    "fitsPanel": "Passt zu {name}",
+    "fitsPanelAndMore": "Passt zu {name} +{count} weitere"
   },
   "releaseChannel": {
     "title": "Release channel",

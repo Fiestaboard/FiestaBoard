@@ -218,3 +218,39 @@ def test_addendum_for_the_real_server_stays_under_the_size_budget():
         text = ToolCatalog(descriptors).render_addendum("global", skip_destructive_pause=skip)
         assert len(text.encode()) < 40_000, f"addendum is {len(text.encode())} bytes; trim descriptions"
     assert len(descriptors) >= 34
+
+
+# ---------------------------------------------------------------------------
+# Panel-sized pages (#2032 follow-up)
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.parametrize("surface", ["editor", "global"])
+@pytest.mark.parametrize("skip_destructive_pause", [False, True])
+def test_addendum_sends_the_model_to_list_panels_for_a_panel_sized_page(catalog, surface, skip_destructive_pause):
+    """A page is authored for one board shape, so "make a page for my panel"
+    has to read the panel's shape instead of falling back to the flagship
+    default. The rule lives in the shared tail, so it is taught on every
+    surface and in both approval modes. Which FIELDS to read is pinned on
+    list_panels' own description instead of restated here — see
+    test_list_panels_advertises_the_note_grid_it_is_meant_to_be_read_for."""
+    text = catalog.render_addendum(surface, skip_destructive_pause=skip_destructive_pause)
+    assert "list_panels" in text
+    assert "never the flagship default" in text
+
+
+def test_list_panels_advertises_the_note_grid_it_is_meant_to_be_read_for():
+    """The rule above sends the model to list_panels() for notes_wide/notes_tall,
+    so list_panels' own description has to name them. A model planning from a
+    description that lists only rows/cols divides cols by 15 itself — the exact
+    guesswork the two fields exist to remove."""
+    pytest.importorskip("mcp", reason="mcp package not installed")
+    import asyncio
+
+    from src.ai.chat_tools import ChatExtensionBackend
+    from src.ai.mcp_bridge import CompositeToolBackend, McpToolBackend
+
+    descriptors = asyncio.run(CompositeToolBackend(McpToolBackend(), ChatExtensionBackend()).list_tools())
+    text = ToolCatalog(descriptors).render_addendum("global")
+    section = text.split("### list_panels")[1].split("### ")[0]
+    assert "notes_wide" in section and "notes_tall" in section

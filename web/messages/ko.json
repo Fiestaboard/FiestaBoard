@@ -2226,7 +2226,11 @@
     "hdmiHelp": "이 Pi의 HDMI 포트에 연결된 화면에 디스플레이 패널을 표시합니다. 활성화하면 작은 키오스크 브라우저가 설치됩니다(몇 분 소요).",
     "hdmiInstalling": "HDMI 키오스크 설정 중 — Pi에 브라우저를 설치하고 있으며 몇 분 걸릴 수 있습니다…",
     "hdmiEnabledHint": "HDMI 화면에는 위에서 “디스플레이 출력”을 켠 패널이 표시됩니다.",
-    "hdmiFailed": "마지막 HDMI 키오스크 변경이 실패했습니다. 다시 시도하거나 Pi를 재부팅하세요."
+    "hdmiFailed": "마지막 HDMI 키오스크 변경이 실패했습니다. 다시 시도하거나 Pi를 재부팅하세요.",
+    "yourPanelsGroupLabel": "내 패널",
+    "panelSizeOption": "{name} · {wide}×{tall} Note 블록",
+    "fitsPanel": "{name}에 맞음",
+    "fitsPanelAndMore": "{name} 외 {count}개에 맞음"
   },
   "releaseChannel": {
     "title": "Release channel",

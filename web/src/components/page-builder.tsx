@@ -35,7 +35,9 @@ import {
   ScrollArea,
   Select,
   SelectContent,
+  SelectGroup,
   SelectItem,
+  SelectLabel,
   SelectTrigger,
   SelectValue,
   Skeleton,
@@ -67,6 +69,7 @@ import { BoardSizeIndicator } from "@/components/board-size-indicator";
 import { useCurrentBoard } from "@/components/current-board-context";
 import type { StrokeCell } from "@/components/drawable-board-preview";
 import { DrawableBoardPreview } from "@/components/drawable-board-preview";
+import { PanelFitNote } from "@/components/panel-fit-note";
 import { PlainTextEditor } from "@/components/plain-text-editor";
 import { ScaledBoardDisplay } from "@/components/scaled-board-display";
 import type {
@@ -87,6 +90,7 @@ import {
   resolveCode62Glyph,
   useBoardSettings,
 } from "@/hooks/use-board";
+import { usePanelTargets } from "@/hooks/use-panel-targets";
 import { useRouter } from "@/hooks/use-router";
 import { useTranslations } from "@/i18n/translations";
 import type { CurrentPageSnapshot, EditorToolCall } from "@/lib/ai-chat-types";
@@ -107,6 +111,7 @@ import { MAX_NOTES_PER_AXIS, resolveDimensions } from "@/lib/board-dimensions";
 import { applyLineOpInPlace } from "@/lib/line-ops";
 import { onLiveOutputMessageChange, writeLiveOutputMessage } from "@/lib/live-output-channel";
 import { getDraftKey } from "@/lib/page-draft";
+import { panelsFittingGrid } from "@/lib/panel-page-fit";
 import { clearPreviewCacheForPage } from "@/lib/preview-cache";
 
 // Lazy-loaded — TipTap + ProseMirror + CodeMirror + the lucide-react icon
@@ -230,6 +235,7 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
   const t = useTranslations("pageBuilder");
   const tCommon = useTranslations("common");
   const tDisplaySettings = useTranslations("displaySettings");
+  const tPanels = useTranslations("fiestaPanels");
   // Shared with the global transition settings card so both surfaces label the
   // built-in strategies identically.
   const tTransitions = useTranslations("transitionSettings");
@@ -248,6 +254,12 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
   // (new page), or an AI sync — see the effects below.
   const [notesWide, setNotesWide] = useState(1);
   const [notesTall, setNotesTall] = useState(1);
+  // Set when the user picks a FiestaPanel by name in the size picker: the
+  // panel's grid is the explicit choice, so the board-seeding effect below
+  // must not overwrite it with the selected board's shape. Cleared again when
+  // a generic device is chosen, so the seed is back in charge.
+  const [panelSizedGrid, setPanelSizedGrid] = useState(false);
+  const panelTargets = usePanelTargets();
   const dims = resolveDimensions(deviceType, notesWide, notesTall);
   const numLines = dims.rows;
   // Latest numLines for effects that need it without becoming reactive to it
@@ -292,7 +304,45 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
   // below for how a painted stroke flows back into templateLines.
   const [drawMode, setDrawMode] = useState(false);
   const [drawBrush, setDrawBrush] = useState<DrawBrush>({ kind: "color", color: "red" });
+
   const [strokePreviewCells, setStrokePreviewCells] = useState<StrokeCell[]>([]);
+
+  /**
+   * The size picker offers two kinds of choice: a generic device type, and a
+   * FiestaPanel by name (``panel:<id>``). A panel resolves to a note_array
+   * page plus that panel's grid — a panel's board IS a note array, so there is
+   * no fourth device type and nothing is stored on the page to say which panel
+   * it was made for. The grid is the whole relationship.
+   */
+  const handleSizeChange = useCallback(
+    (value: string) => {
+      const panel = value.startsWith("panel:") ? panelTargets.find((p) => `panel:${p.id}` === value) : undefined;
+      if (panel) {
+        setDeviceType("note_array");
+        setNotesWide(panel.notesWide);
+        setNotesTall(panel.notesTall);
+        setPanelSizedGrid(true);
+      } else {
+        setDeviceType(value as DeviceType);
+        setPanelSizedGrid(false);
+      }
+      setDrawMode(false);
+    },
+    [panelTargets],
+  );
+
+  /**
+   * What the size picker's trigger shows, and which row is highlighted when it
+   * reopens. Derived from the geometry rather than held as its own state: a
+   * panel choice resolves to note_array + a grid, so a picker controlled by
+   * ``deviceType`` alone would snap to "Note Array" the instant a panel was
+   * chosen and forget it had been. Naming the panel whose board this grid
+   * matches is also simply truer — that IS the page's shape.
+   */
+  const sizeSelectValue = useMemo(() => {
+    const [fit] = panelsFittingGrid(panelTargets, deviceType, notesWide, notesTall);
+    return fit ? `panel:${fit.id}` : deviceType;
+  }, [panelTargets, deviceType, notesWide, notesTall]);
   const tipTapRef = useRef<TipTapTemplateEditorHandle>(null);
   // Metadata history keyed to stroke boundaries: done/undone mirror the
   // editor's stroke undo/redo stacks (reported via onDrawHistoryEvent).
@@ -921,15 +971,17 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
 
   // Seed note-array grid dimensions for a NEW note_array page from the
   // configured note_array board, so the editor previews at the board's real
-  // size before the page has ever been saved. The currently selected board
-  // wins when it IS a note array — with several note-array boards (e.g. a
+  // size before the page has ever been saved. Skipped once the user has picked
+  // a FiestaPanel by name (``panelSizedGrid``): that grid was chosen, not
+  // inferred. The currently selected board wins when it IS a note array —
+  // with several note-array boards (e.g. a
   // physical array plus a FiestaPanel's virtual board), seeding from the
   // first match would author a page sized for a different board than the
   // one the user is looking at. Existing pages source their dims from the
   // load effect above; flagship/note pages never run this branch and stay
   // 1×1 (which resolves to their fixed device size).
   useEffect(() => {
-    if (pageId || deviceType !== "note_array" || !boardSettings?.boards) return;
+    if (pageId || panelSizedGrid || deviceType !== "note_array" || !boardSettings?.boards) return;
     const boards = boardSettings.boards;
     const board =
       boards.find((b) => b.id === currentBoardId && b.device_type === "note_array") ??
@@ -937,7 +989,7 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
     if (!board) return;
     setNotesWide(board.notes_wide ?? 1);
     setNotesTall(board.notes_tall ?? 1);
-  }, [pageId, deviceType, boardSettings?.boards, currentBoardId]);
+  }, [pageId, panelSizedGrid, deviceType, boardSettings?.boards, currentBoardId]);
 
   useEffect(() => {
     const timeoutId = setTimeout(() => {
@@ -2153,17 +2205,12 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
                         notesTall={notesTall}
                         className="ml-1"
                       />
+                      <PanelFitNote deviceType={deviceType} notesWide={notesWide} notesTall={notesTall} />
                       {/* Device/size retarget (issue #1250): both new AND saved
                           pages can change board size. Converting a saved page is
                           lossy (shrinks truncate), so saving a shrinking retarget
                           asks for confirmation first. */}
-                      <Select
-                        value={deviceType}
-                        onValueChange={(v) => {
-                          setDeviceType(v as DeviceType);
-                          setDrawMode(false);
-                        }}
-                      >
+                      <Select value={sizeSelectValue} onValueChange={handleSizeChange}>
                         <SelectTrigger
                           {...anchorProps("page-editor.device")}
                           className="h-7 w-auto gap-1 px-2 text-xs"
@@ -2172,6 +2219,25 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
+                          {/* FiestaPanels first: a panel's grid is auto-fit from
+                              its TV size, so nobody can pick it out of the
+                              generic Notes-wide/tall selects below. Absent on an
+                              install with no panels, leaving the picker exactly
+                              the three sizes it has always been. */}
+                          {panelTargets.length > 0 && (
+                            <SelectGroup>
+                              <SelectLabel>{tPanels("yourPanelsGroupLabel")}</SelectLabel>
+                              {panelTargets.map((panel) => (
+                                <SelectItem key={panel.id} value={`panel:${panel.id}`} className="text-xs">
+                                  {tPanels("panelSizeOption", {
+                                    name: panel.name,
+                                    wide: panel.notesWide,
+                                    tall: panel.notesTall,
+                                  })}
+                                </SelectItem>
+                              ))}
+                            </SelectGroup>
+                          )}
                           <SelectItem value="flagship" className="text-xs">
                             {tDisplaySettings("flagshipLabel")}
                           </SelectItem>

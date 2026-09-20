@@ -37,7 +37,7 @@ from src.api_errors import errors
 from src.board_chars import characters_to_message
 from src.board_guards import _board_dims, _find_board
 from src.board_state import read_board_state
-from src.devices import resolve_dimensions
+from src.devices import NOTE_COLS, NOTE_ROWS, is_note_array, resolve_dimensions
 from src.display_runtime import get_service, reinitialize_board_clients
 from src.pages.service import find_incompatible_board_references
 from src.settings.service import get_settings_service
@@ -69,15 +69,31 @@ def _panel_not_found_detail(ref: str) -> str:
 
 
 def _panel_board_fields(board: dict | None) -> dict:
-    """Board-derived fields attached to panel payloads (orphan-aware)."""
+    """Board-derived fields attached to panel payloads (orphan-aware).
+
+    Reports the grid twice — in flaps (``rows``/``cols``, which the TV viewer
+    scales from) and in Notes (``notes_wide``/``notes_tall``, which is what a
+    page authored for this panel needs. Both come from the same resolved
+    dimensions so they cannot drift apart.
+    """
     if board is None:
-        return {"device_type": None, "board_missing": True, "rows": None, "cols": None}
+        return {
+            "device_type": None,
+            "board_missing": True,
+            "rows": None,
+            "cols": None,
+            "notes_wide": None,
+            "notes_tall": None,
+        }
     dims = _board_dims(board)
+    array = is_note_array(board.get("device_type") or "")
     return {
         "device_type": board.get("device_type"),
         "board_missing": False,
         "rows": dims.rows,
         "cols": dims.cols,
+        "notes_wide": dims.cols // NOTE_COLS if array else None,
+        "notes_tall": dims.rows // NOTE_ROWS if array else None,
     }
 
 
@@ -227,30 +243,18 @@ async def get_panel_public(panel_id: str):
         raise HTTPException(status_code=404, detail=_panel_not_found_detail(panel_id))
     out = panel.model_dump(mode="json")
     board = _find_board(panel.board_id)
+    # One source for the board-derived block, so the viewer and the app can
+    # never be told different geometry for the same panel.
+    out.update(_panel_board_fields(board))
     if board is None:
-        out.update(
-            {
-                "device_type": None,
-                "board_missing": True,
-                "rows": None,
-                "cols": None,
-                "board_color": None,
-                "code62_glyph": None,
-            }
-        )
+        out.update({"board_color": None, "code62_glyph": None})
         return PanelPublicResponse.model_validate(out)
     from src.devices import BoardInstance
 
-    dims = _board_dims(board)
-    instance = BoardInstance.from_dict(board)
     out.update(
         {
-            "device_type": board.get("device_type"),
-            "board_missing": False,
-            "rows": dims.rows,
-            "cols": dims.cols,
             "board_color": board.get("board_color") or "black",
-            "code62_glyph": instance.effective_code62_glyph,
+            "code62_glyph": BoardInstance.from_dict(board).effective_code62_glyph,
         }
     )
     return PanelPublicResponse.model_validate(out)

@@ -82,6 +82,36 @@ def test_listing_attaches_the_backing_board_geometry_to_each_panel(client, panel
     assert (listed["rows"], listed["cols"]) == (12, 15)
 
 
+def test_listing_reports_the_note_grid_so_a_client_never_divides(client, panel):
+    """Every panel payload carries notes_wide/notes_tall alongside rows/cols.
+
+    A panel's board IS a note-array grid, and the app sizes pages to it. Before
+    this, every consumer had to divide cols by 15 and rows by 3 itself; the two
+    fields are derived from the same resolved dimensions, so they can never
+    disagree with rows/cols.
+    """
+    (listed,) = client.get("/panels").json()["panels"]
+    assert (listed["notes_wide"], listed["notes_tall"]) == (1, 4), 'a 55" 16:9 screen auto-fits to 1x4 Notes'
+    assert listed["notes_wide"] * 15 == listed["cols"]
+    assert listed["notes_tall"] * 3 == listed["rows"]
+
+
+def test_a_panel_whose_board_is_gone_reports_a_null_note_grid(client, panel):
+    """An orphaned panel keys off the value, not the key: the fields are
+    present and null, exactly like rows/cols."""
+    import src.panels.routes as panel_routes
+
+    original = panel_routes._find_board
+    panel_routes._find_board = lambda _board_id: None
+    try:
+        (listed,) = client.get("/panels").json()["panels"]
+    finally:
+        panel_routes._find_board = original
+    assert listed["board_missing"] is True
+    assert listed["notes_wide"] is None
+    assert listed["notes_tall"] is None
+
+
 # ---------------------------------------------------------------------------
 # POST /panels
 # ---------------------------------------------------------------------------
@@ -104,6 +134,7 @@ def test_creating_a_panel_returns_it_with_an_auto_fit_board(client):
     assert (created["rows"], created["cols"]) == (12, 15)
     assert created["device_type"] == "note_array"
     assert created["board_missing"] is False
+    assert (created["notes_wide"], created["notes_tall"]) == (1, 4)
 
 
 def test_creating_a_panel_co_creates_its_virtual_board(client, panel):
@@ -184,6 +215,7 @@ def test_the_public_config_is_the_panel_plus_the_board_presentation(client, pane
     assert (body["rows"], body["cols"]) == (12, 15)
     assert body["device_type"] == "note_array"
     assert body["board_missing"] is False
+    assert (body["notes_wide"], body["notes_tall"]) == (1, 4)
     assert body["board_color"] == "black"
     assert body["code62_glyph"] in ("degree", "heart")
 

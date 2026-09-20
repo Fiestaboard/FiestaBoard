@@ -1027,7 +1027,8 @@ def _build_mcp_server() -> Any:
                             the number of rows for the device_type
                             (6 for flagship, 3 for note, 3·notes_tall for
                             note_array).
-            device_type: 'flagship' (default), 'note', or 'note_array'.
+            device_type: 'flagship' (default), 'note', or 'note_array'. For a
+                         FiestaPanel, take it from list_panels().
             duration_seconds: How long to show this page in a time-mode collection (default: 300).
             line_metadata: Optional per-line dicts with "alignment"
                            ('left'/'center'/'right') and "wrap" (bool), one
@@ -2647,14 +2648,22 @@ def _build_mcp_server() -> Any:
 
     @_tool(read_only=True)
     async def list_panels() -> dict[str, Any]:
-        """List the FiestaPanels (TV viewers) and the virtual board behind each.
+        """List the FiestaPanels (TV viewers) and each one's board — its
+        device_type + notes_wide / notes_tall size a page for that panel.
+
+        The note grid belongs in the first paragraph because the chat surface
+        only ever shows that much: ToolCatalog._compact_description keeps the
+        first paragraph plus an ``Args:`` block, and this tool has no Args. A
+        rule telling the model to read notes_wide/notes_tall from here is no
+        use if the description it plans from never mentions them.
 
         Each entry has id (use it for update_panel() / delete_panel()), name,
         board_id (the virtual board — appears in the boards list too and can
         be targeted like any board), screen_diagonal_inches, screen_aspect_w /
         _h, calibration_scale, animations_enabled, is_display (the panel the
         FiestaPi HDMI kiosk shows at /p/display), backdrop, auto_dim, and the
-        board's device_type / rows / cols. short_code is the number the TV
+        board's device_type / rows / cols / notes_wide / notes_tall — never
+        divide rows/cols by 15/3 yourself. short_code is the number the TV
         types into /p/<code>.
         """
         from .panels.routes import list_panels as _rest_list_panels

@@ -221,6 +221,11 @@ _RULE_DESTRUCTIVE_AUTO = (
 _RULES_TAIL = (
     '- "interrupted" means the user stopped you while that tool was running;\n'
     "  check with a read-only tool before repeating a non-idempotent call.\n"
+    # A FiestaPanel's grid is auto-fit from a TV's diagonal, so the model
+    # cannot know it — and the flagship default silently authors a page that
+    # renders one Note wide on the panel.
+    "- A page is authored for one board shape. For a FiestaPanel, take that\n"
+    "  shape from list_panels first — never the flagship default.\n"
     "- Use ask_user when a request is ambiguous instead of guessing.\n"
     "- Never guess API keys or credentials; ask the user for them.\n"
 )

@@ -25,6 +25,18 @@ A panel is a **virtual board**: FiestaBoard drives it exactly like a physical bo
 
 That's it. The TV shows a blank board until the first frame arrives.
 
+## Making Pages for a Panel
+
+A panel's grid is auto-fit from your TV size, so it is almost never one of the stock board shapes — which means a page has to be authored for *that panel*, not for "a note array".
+
+You never have to work that out yourself:
+
+- **In the page editor**, the board-size picker beside the preview lists your panels by name at the top — "Kitchen TV · 3×5 notes". Pick one and the page is sized to that panel in one step. The generic Flagship / Note / Note Array choices stay below for real hardware.
+- **Everywhere pages are listed**, a page whose grid matches a panel shows a quiet "Fits Kitchen TV" line, so you can tell at a glance which page belongs on which screen. Two panels the same size both fit the same page, and the label says so.
+- **Ask FiestaBot.** "Make a page for my Kitchen TV panel" reads the panel's real grid before it builds anything.
+
+A page is matched to a panel purely by its shape — nothing is stored to tie the two together. So a page fits every panel of that size, and re-fitting a panel (by changing its TV size) leaves pages authored for the old grid behind: the app warns you which ones when it happens.
+
 ## Display Options
 
 Edit a panel any time — changes reach the TV within about 10 seconds, no reload needed:
