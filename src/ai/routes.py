@@ -82,9 +82,12 @@ async def _dispatch(op_name: str, args: dict[str, Any]) -> dict[str, Any]:
     ``trigger_system_update``) are awaited directly.
     """
     operation = registry.get_operation(op_name)
+    # This endpoint IS the chat grammar (the handler 404s any other spelling),
+    # so it says so: the registry validates against the chat schema because
+    # the caller used chat, not because the name happens to match (#1849).
     if inspect.iscoroutinefunction(operation.executor):
-        return await registry.execute(op_name, args)
-    return await asyncio.to_thread(registry.execute_sync, op_name, args)
+        return await registry.execute(op_name, args, grammar="chat")
+    return await asyncio.to_thread(registry.execute_sync, op_name, args, grammar="chat")
 
 
 @router.post(

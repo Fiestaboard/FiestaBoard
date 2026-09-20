@@ -15,6 +15,7 @@ Cloud API Reference:
 
 import json
 import logging
+import math
 import os
 import re
 import threading
@@ -23,6 +24,8 @@ from collections.abc import Callable
 from typing import Any, Literal, Optional
 
 import requests
+
+from .send_outcome import SendOutcome
 
 logger = logging.getLogger(__name__)
 
@@ -217,6 +220,35 @@ class TransitionRenderMixin:
         # fall back to a plain send (logged warning).
         self._transition_runner: Any | None = None
 
+    def _floor_seconds(self) -> int | None:
+        """The per-type send floor in whole seconds, or ``None`` when unfloored."""
+        floor = getattr(self, "_min_send_interval", 0) or 0
+        return max(1, math.ceil(floor)) if floor > 0 else None
+
+    def _outcome(
+        self,
+        success: bool,
+        was_sent: bool,
+        *,
+        with_outcome: bool,
+        throttled: bool = False,
+        retry_after: int | None = None,
+    ) -> Any:
+        """The send's return value: the legacy pair, or the full per-call verdict.
+
+        ``with_outcome=False`` (every pre-existing caller) gets exactly the
+        ``(success, was_sent)`` tuple it always did.
+        """
+        if not with_outcome:
+            return (success, was_sent)
+        return SendOutcome(
+            success,
+            was_sent,
+            throttled=throttled,
+            retry_after_seconds=retry_after if throttled else None,
+            floor_seconds=self._floor_seconds(),
+        )
+
     def set_transition_runner(self, runner: Any | None) -> None:
         """Attach (or detach) the transition runner used by :meth:`render`.
 
@@ -252,7 +284,8 @@ class TransitionRenderMixin:
         force: bool = False,
         device_type: str | None = None,
         transition_config: dict | None = None,
-    ) -> tuple[bool, bool]:
+        with_outcome: bool = False,
+    ) -> Any:
         """High-level send that understands transition-plugin strategies.
 
         Behaves identically to :meth:`send_characters` for built-in
@@ -272,9 +305,12 @@ class TransitionRenderMixin:
             transition_config: Optional per-run plugin config override
                 forwarded to the transition runner (used by the Transition
                 Lab's live test).  *None* keeps the plugin's bound config.
+            with_outcome: Return a :class:`~src.send_outcome.SendOutcome`
+                (the per-call throttle verdict included) instead of the pair.
 
         Returns:
-            ``(success, was_sent)`` mirroring :meth:`send_characters`.
+            ``(success, was_sent)`` mirroring :meth:`send_characters`, or the
+            :class:`~src.send_outcome.SendOutcome` when ``with_outcome``.
         """
         is_plugin = isinstance(strategy, str) and strategy.startswith(TRANSITION_PLUGIN_PREFIX)
 
@@ -292,6 +328,18 @@ class TransitionRenderMixin:
             run_cancel_event = threading.Event()
             self._cancel_transition = run_cancel_event
 
+            # This render's verdict starts clean. A plugin transition that is
+            # preempted before its first frame returns without ever entering
+            # send_*, which is where the flag used to be reset — so the
+            # previous call's throttle leaked into this call's answer.
+            self._last_send_throttled = False
+            self._last_send_retry_after = None
+
+            # Forward the keyword only when asked for, so every pre-existing
+            # caller (and every test double asserting the call) sees exactly
+            # the send_characters call shape it always did.
+            outcome_kw: dict[str, bool] = {"with_outcome": True} if with_outcome else {}
+
             if not is_plugin:
                 return self.send_characters(
                     characters,
@@ -299,6 +347,7 @@ class TransitionRenderMixin:
                     step_interval_ms=step_interval_ms,
                     step_size=step_size,
                     force=force,
+                    **outcome_kw,
                 )
 
             plugin_id = strategy[len(TRANSITION_PLUGIN_PREFIX) :].strip()
@@ -307,7 +356,7 @@ class TransitionRenderMixin:
                     "render: empty transition plugin id in strategy %r; sending as-is",
                     strategy,
                 )
-                return self.send_characters(characters, strategy=None, force=force)
+                return self.send_characters(characters, strategy=None, force=force, **outcome_kw)
 
             # Defense in depth: if the operator toggled the beta flag off
             # after pages were saved with a plugin: strategy, the runtime
@@ -319,7 +368,7 @@ class TransitionRenderMixin:
                     "render: transition_plugins beta is off; plugin:%s ignored, snapping to target",
                     plugin_id,
                 )
-                return self.send_characters(characters, strategy=None, force=force)
+                return self.send_characters(characters, strategy=None, force=force, **outcome_kw)
 
             runner = self._transition_runner
             if runner is None:
@@ -327,15 +376,25 @@ class TransitionRenderMixin:
                     "render: no transition runner attached; plugin:%s ignored, snapping to target grid",
                     plugin_id,
                 )
-                return self.send_characters(characters, strategy=None, force=force)
+                return self.send_characters(characters, strategy=None, force=force, **outcome_kw)
 
-            return runner.run(
+            success, was_sent = runner.run(
                 plugin_id=plugin_id,
                 to_grid=characters,
                 board_client=self,
                 cancel_event=run_cancel_event,
                 device_type=device_type,
                 config=transition_config,
+            )
+            # Still under the send lock: the only sends that could have set
+            # the flag since the reset above are this run's own frames, so
+            # reading it here is per-call, not a race.
+            return self._outcome(
+                success,
+                was_sent,
+                with_outcome=with_outcome,
+                throttled=getattr(self, "_last_send_throttled", False),
+                retry_after=getattr(self, "_last_send_retry_after", None),
             )
 
 
@@ -436,6 +495,7 @@ class BoardClient(TransitionRenderMixin):
         # Whether the most recent send_characters call was dropped by the
         # note-array rate limit (see the last_send_throttled property).
         self._last_send_throttled: bool = False
+        self._last_send_retry_after: int | None = None
 
         # Transition-plugin render state (lock, cancel event, runner slot).
         self._init_transition_state()
@@ -450,6 +510,12 @@ class BoardClient(TransitionRenderMixin):
         throttle it never left. Callers that cache "what the board is
         showing" must not do so on a throttle, or the board stays stale
         forever because nothing re-attempts unchanged content (issue #1794).
+
+        This is the *last* call's verdict on this client, whoever made it.
+        A caller that needs its OWN call's verdict passes ``with_outcome=True``
+        and reads the returned :class:`~src.send_outcome.SendOutcome`
+        instead — the flag can be rewritten by a concurrent sender between
+        the call returning and the caller reading it (#1931 review).
         """
         return self._last_send_throttled
 
@@ -497,7 +563,7 @@ class BoardClient(TransitionRenderMixin):
         else:
             self._last_send_monotonic = value
 
-    def _admit_send(self, is_unchanged: Callable[[], bool]) -> tuple[str, float | None, float | None]:
+    def _admit_send(self, is_unchanged: Callable[[], bool]) -> tuple[str, float | None, float | None, int | None]:
         """Atomically decide whether a send may proceed, reserving its slot.
 
         Under the throttle lock: apply the per-type min-send-interval floor,
@@ -509,9 +575,12 @@ class BoardClient(TransitionRenderMixin):
         must give the slot back via :meth:`_release_send_slot`.
 
         Returns:
-            ``(verdict, prev_last, now)`` where verdict is ``"send"``,
-            ``"throttled"`` (floor hit; ``last_send_throttled`` was set), or
-            ``"unchanged"`` (cache hit; nothing reserved).
+            ``(verdict, prev_last, now, retry_after)`` where verdict is
+            ``"send"``, ``"throttled"`` (floor hit; ``last_send_throttled``
+            was set), or ``"unchanged"`` (cache hit; nothing reserved).
+            ``retry_after`` is the REMAINING window in whole seconds
+            (rounded up, never 0) for a throttled verdict, else ``None`` —
+            the per-call number a caller reports as ``Retry-After``.
         """
         floor = self._min_send_interval
         with self._throttle_state_lock():
@@ -522,6 +591,7 @@ class BoardClient(TransitionRenderMixin):
                 if prev_last is not None:
                     elapsed = now - prev_last
                     if elapsed < floor:
+                        retry_after = max(1, math.ceil(floor - elapsed))
                         logger.warning(
                             "%s send throttled: %.1fs since last send (min %.0fs); skipping.",
                             "Note-array" if self._is_note_array else "Cloud",
@@ -529,12 +599,13 @@ class BoardClient(TransitionRenderMixin):
                             floor,
                         )
                         self._last_send_throttled = True
-                        return ("throttled", prev_last, now)
+                        self._last_send_retry_after = retry_after
+                        return ("throttled", prev_last, now, retry_after)
             if is_unchanged():
-                return ("unchanged", prev_last, now)
+                return ("unchanged", prev_last, now, None)
             if floor > 0:
                 self._set_last_send_locked(now)
-            return ("send", prev_last, now)
+            return ("send", prev_last, now, None)
 
     def _release_send_slot(self, prev_last: float | None, now: float | None) -> None:
         """Roll back a reservation made by :meth:`_admit_send` after a failed POST.
@@ -587,7 +658,7 @@ class BoardClient(TransitionRenderMixin):
         """Headers for the note-array Cloud API (X-Vestaboard-Token auth)."""
         return {"X-Vestaboard-Token": self._note_array_token, "Content-Type": "application/json"}
 
-    def send_text(self, text: str, force: bool = False) -> tuple[bool, bool]:
+    def send_text(self, text: str, force: bool = False, *, with_outcome: bool = False) -> Any:
         """
         Send plain text message to the board.
 
@@ -600,6 +671,8 @@ class BoardClient(TransitionRenderMixin):
         Args:
             text: Plain text message to display (will be uppercased, color markers stripped)
             force: If True, send even if message unchanged (default: False)
+            with_outcome: Return a :class:`~src.send_outcome.SendOutcome`
+                carrying the per-call throttle verdict instead of the pair.
 
         Returns:
             Tuple of (success, was_sent):
@@ -610,25 +683,26 @@ class BoardClient(TransitionRenderMixin):
         # no text endpoint. Fail clearly instead of POSTing to the wrong (RW) URL.
         if self._is_note_array:
             logger.error("send_text is not supported for note-array boards; use send_characters()")
-            return (False, False)
+            return self._outcome(False, False, with_outcome=with_outcome)
 
         # Strip color markers and convert to uppercase (board requirement)
         clean_text = strip_color_markers(text).upper()
 
         self._last_send_throttled = False
+        self._last_send_retry_after = None
 
         # Per-type send floor + unchanged-content cache, atomically (see
         # _admit_send). A throttled send returns without sending and sets
         # last_send_throttled so callers don't cache content that never
         # reached the board (issue #1794).
-        verdict, prev_last, reserved_at = self._admit_send(
+        verdict, prev_last, reserved_at, retry_after = self._admit_send(
             lambda: self.skip_unchanged and not force and self._last_text == clean_text
         )
         if verdict == "throttled":
-            return (True, False)
+            return self._outcome(True, False, with_outcome=with_outcome, throttled=True, retry_after=retry_after)
         if verdict == "unchanged":
             logger.debug("Message unchanged, skipping send")
-            return (True, False)
+            return self._outcome(True, False, with_outcome=with_outcome)
 
         # Build payload - text mode doesn't support transitions in Local API
         payload = {"text": clean_text}
@@ -641,14 +715,14 @@ class BoardClient(TransitionRenderMixin):
             self._last_characters = None
             api_type = "Cloud API" if self.use_cloud else "Local API"
             logger.info(f"Message sent successfully to board via {api_type}")
-            return (True, True)
+            return self._outcome(True, True, with_outcome=with_outcome)
 
         except requests.exceptions.RequestException as e:
             self._release_send_slot(prev_last, reserved_at)
             logger.error(f"Failed to send message to board: {e}")
             if hasattr(e, "response") and e.response is not None:
                 logger.error(f"Response: {e.response.text}")
-            return (False, False)
+            return self._outcome(False, False, with_outcome=with_outcome)
 
     def send_characters(
         self,
@@ -657,7 +731,9 @@ class BoardClient(TransitionRenderMixin):
         step_interval_ms: int | None = None,
         step_size: int | None = None,
         force: bool = False,
-    ) -> tuple[bool, bool]:
+        *,
+        with_outcome: bool = False,
+    ) -> Any:
         """
         Send message using character array format with optional transitions.
 
@@ -675,6 +751,8 @@ class BoardClient(TransitionRenderMixin):
             step_interval_ms: Delay between animation steps (ms). None = as fast as possible.
             step_size: How many rows/columns animate at once. None = 1 at a time.
             force: If True, send even if characters unchanged (default: False)
+            with_outcome: Return a :class:`~src.send_outcome.SendOutcome`
+                carrying the per-call throttle verdict instead of the pair.
 
         Returns:
             Tuple of (success, was_sent):
@@ -686,12 +764,12 @@ class BoardClient(TransitionRenderMixin):
             num_rows = len(characters) if isinstance(characters, list) else 0
             num_cols = len(characters[0]) if num_rows > 0 and isinstance(characters[0], list) else 0
             logger.error(f"Invalid grid: {num_rows}x{num_cols} is not a supported device size.")
-            return (False, False)
+            return self._outcome(False, False, with_outcome=with_outcome)
 
         # Validate strategy if provided
         if strategy is not None and strategy not in VALID_STRATEGIES:
             logger.error(f"Invalid strategy: {strategy}. Must be one of {VALID_STRATEGIES}")
-            return (False, False)
+            return self._outcome(False, False, with_outcome=with_outcome)
 
         # Note-array boards do not support transitions; strip and warn. Guard on
         # ANY transition param (not just strategy) so a caller passing only
@@ -720,20 +798,21 @@ class BoardClient(TransitionRenderMixin):
         # never the other way round.
         with self._send_lock:
             self._last_send_throttled = False
+            self._last_send_retry_after = None
 
             # Per-type min-send-interval floor (note arrays and RW Cloud; local
             # is unfloored) + unchanged-content cache, checked atomically under
             # the throttle lock. The slot is reserved *before* the POST so
             # concurrent per-board send workers (#1755) can't double-send inside
             # the window; a failed POST releases it below.
-            verdict, prev_last, reserved_at = self._admit_send(
+            verdict, prev_last, reserved_at, retry_after = self._admit_send(
                 lambda: self.skip_unchanged and not force and self._last_characters == characters
             )
             if verdict == "throttled":
-                return (True, False)
+                return self._outcome(True, False, with_outcome=with_outcome, throttled=True, retry_after=retry_after)
             if verdict == "unchanged":
                 logger.debug("Character array unchanged, skipping send")
-                return (True, False)
+                return self._outcome(True, False, with_outcome=with_outcome)
 
             # Build payload - format differs by API type
             if self._is_note_array:
@@ -774,14 +853,14 @@ class BoardClient(TransitionRenderMixin):
                         transition_info += f" ({step_interval_ms}ms interval)"
 
                 logger.info(f"Character array sent successfully to board{transition_info}")
-                return (True, True)
+                return self._outcome(True, True, with_outcome=with_outcome)
 
             except requests.exceptions.RequestException as e:
                 self._release_send_slot(prev_last, reserved_at)
                 logger.error(f"Failed to send character array to board: {e}")
                 if hasattr(e, "response") and e.response is not None:
                     logger.error(f"Response: {e.response.text}")
-                return (False, False)
+                return self._outcome(False, False, with_outcome=with_outcome)
 
     def read_current_message(self, sync_cache: bool = False) -> list[list[int]] | None:
         """

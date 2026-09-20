@@ -2354,7 +2354,10 @@ def _build_mcp_server() -> Any:
         up until the active page next changes or the display refreshes.
 
         A paused board or active silence mode returns status "blocked"
-        (deliberate policy — relay it to the user, don't retry).
+        (deliberate policy — relay it to the user, don't retry). A message
+        sent inside the board's minimum send interval is DROPPED by the
+        board, not queued: that is an error whose text names the window
+        (e.g. "at most one message every 15s") — wait it out, then retry.
 
         Args:
             text: The message text to display.

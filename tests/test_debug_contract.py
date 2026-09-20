@@ -123,13 +123,18 @@ def _settings(*, send_to_board=True, paused=False):
 
 
 def _board_client(*, sent=(True, True), connected=True, throttled=False):
+    from src.send_outcome import SendOutcome
+
     board = Mock()
-    board.send_characters.return_value = sent
+    # The throttle verdict travels with the send (#1931 review): a throttled
+    # stub answers with the outcome a real client fresh into its 15s floor
+    # returns, not with a flag set on the instance.
+    board.send_characters.return_value = (
+        SendOutcome(sent[0], sent[1], throttled=True, retry_after_seconds=15, floor_seconds=15) if throttled else sent
+    )
     board.test_connection.return_value = connected
     board.clear_cache.return_value = None
     board.get_cache_status.return_value = dict(CACHE_STATUS)
-    board.last_send_throttled = throttled
-    board.min_send_interval_ms = 15000
     return board
 
 
@@ -157,7 +162,9 @@ def test_blank_sends_an_all_space_grid_sized_to_the_board(client, board):
     assert response.json() == {"message": "Board blanked successfully"}
     grid = board.send_characters.call_args.args[0]
     assert grid == [[0] * FLAGSHIP_COLS for _ in range(FLAGSHIP_ROWS)]
-    assert board.send_characters.call_args.kwargs == {"force": True}
+    # ``with_outcome``: the route asks the client for this call's own throttle
+    # verdict rather than reading the instance flag afterwards (#1931 review).
+    assert board.send_characters.call_args.kwargs == {"force": True, "with_outcome": True}
 
 
 def test_blank_without_a_configured_board_is_a_400(client):

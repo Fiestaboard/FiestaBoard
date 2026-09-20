@@ -32,12 +32,14 @@ import ipaddress
 import logging
 import re
 import socket
+from typing import Any
 
 from fastapi import HTTPException
 
 from . import settings as _settings_pkg  # noqa: F401  (ensures the submodule is importable)
 from .config import Config
 from .devices import resolve_dimensions
+from .send_outcome import SendOutcome
 
 logger = logging.getLogger(__name__)
 
@@ -283,27 +285,64 @@ def raise_if_paused(board_id: str | None = None, *, what: str = "manual send") -
         raise HTTPException(status_code=409, detail=PAUSED_DETAIL)
 
 
-def raise_if_throttled(board_client) -> None:
+def throttle_retry_after(outcome: Any) -> int | None:
+    """Seconds until the board's send floor admits another write, or ``None``.
+
+    ``outcome`` is the per-call :class:`~src.send_outcome.SendOutcome` the
+    send returned (``with_outcome=True``); a bare ``(success, was_sent)``
+    pair is accepted and read as "not throttled", because nobody said it
+    was. It is the call's own verdict, decided under the send lock, not the
+    client's ``last_send_throttled`` flag — that flag is whatever the *last*
+    sender on the client left there, and a concurrent engine tick or send
+    worker can rewrite it between a send returning and its caller looking
+    (#1931 review).
+
+    ``None`` means the write was not throttled: either it went out, or it
+    was the unchanged-content skip that reports the same ``(True, False)``
+    but leaves the board showing what was asked (#1794).
+
+    The number is the REMAINING window, rounded up to whole seconds and
+    never 0 — not the board's whole floor. A client that reports a throttle
+    without a remaining window (a double) falls back to its floor, or to
+    the 15s cloud floor when it has none.
+
+    Shared by the HTTP guard below and the ops executors
+    (:func:`src.ops.executors.send_message`), so every surface computes the
+    same retry hint (#1931).
+    """
+    outcome = SendOutcome.of(outcome)
+    if not outcome.throttled:
+        return None
+    return outcome.retry_after_seconds or outcome.floor_seconds or 15
+
+
+def throttled_detail(retry_after: int, floor_seconds: int | None = None) -> str:
+    """The one sentence every surface uses for a write the send floor dropped.
+
+    Names both numbers a caller needs: the board's floor (why it happened)
+    and the remaining window (when to retry — the same value the HTTP
+    surfaces put in ``Retry-After``, for the MCP text-only error path).
+    """
+    floor = floor_seconds or retry_after
+    return f"Send skipped: the board accepts at most one message every {floor}s. Retry in {retry_after}s."
+
+
+def raise_if_throttled(outcome: Any) -> None:
     """A write dropped by the client-side send floor is a 429 (#1868, #1754).
 
     Cloud boards and note arrays enforce a minimum interval between sends; a
-    send inside that window returns ``(True, False)`` with
-    ``last_send_throttled`` set — the content was DROPPED, not delivered, and
-    unlike the engine tick (which retries next pass) these manual endpoints
-    never retry.
-
-    The ``is True`` guard keeps Mock clients, whose attributes are all truthy,
-    on the delivered path unless a test opts in.
+    send inside that window returns ``(True, False)`` — the content was
+    DROPPED, not delivered, and unlike the engine tick (which retries next
+    pass) these manual endpoints never retry. ``outcome`` is that send's
+    :class:`~src.send_outcome.SendOutcome`; see :func:`throttle_retry_after`
+    for why it is the outcome and not the client.
     """
-    if getattr(board_client, "last_send_throttled", False) is not True:
+    outcome = SendOutcome.of(outcome)
+    retry_after = throttle_retry_after(outcome)
+    if retry_after is None:
         return
-    try:
-        floor_ms = int(getattr(board_client, "min_send_interval_ms", 0))
-    except (TypeError, ValueError):
-        floor_ms = 0
-    retry_after = max(1, -(-floor_ms // 1000)) if floor_ms else 15
     raise HTTPException(
         status_code=429,
-        detail=f"Send skipped: the board accepts at most one message every {retry_after}s. Retry shortly.",
+        detail=throttled_detail(retry_after, outcome.floor_seconds),
         headers={"Retry-After": str(retry_after)},
     )

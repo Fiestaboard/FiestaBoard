@@ -543,7 +543,7 @@ def test_send_message_reports_a_write_dropped_by_the_send_floor_as_429(client, w
     now["t"] += 5.0  # inside the 15s cloud window: the write is DROPPED, not skipped
     resp = client.post("/send-message", json={"text": "WORLD"})
     assert resp.status_code == 429
-    assert resp.headers["Retry-After"] == "15"
+    assert resp.headers["Retry-After"] == "10", "Retry-After is the REMAINING window, not the whole floor"
     assert wired.call_count == 1
 
 

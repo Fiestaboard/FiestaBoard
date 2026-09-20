@@ -222,7 +222,52 @@ def test_execute_validates_chat_args_with_the_chat_schema():
     """A chat-grammar call goes through the same validation parse_tool_call
     applies — bad args fail before any executor runs."""
     with pytest.raises(ToolCallValidationError):
-        _run(execute("update_plugin_config", {"config": {}}))  # plugin_id missing
+        _run(execute("update_plugin_config", {"config": {}}, grammar="chat"))  # plugin_id missing
+
+
+def test_execute_validates_a_shared_spelling_with_the_chat_schema_when_the_caller_used_chat():
+    """#1849 item 2, the other direction: ``update_schedule`` is spelled the
+    same in both grammars, and a caller who says it used the chat grammar
+    gets the chat schema — not a canonical passthrough."""
+    with pytest.raises(ToolCallValidationError):
+        _run(execute("update_schedule", {"start_time": "08:00"}, grammar="chat"))  # schedule_id missing
+
+
+def test_execute_refuses_a_chat_only_spelling_under_the_canonical_grammar():
+    """The default grammar is canonical, and ``update_plugin_config`` is not a
+    canonical name — the call must fail on the name, not fall back to a
+    name-equality guess about which schema to apply."""
+    with pytest.raises(KeyError):
+        _run(execute("update_plugin_config", {"plugin_id": "x", "config": {}}))
+
+
+def test_execute_refuses_a_canonical_only_spelling_under_the_chat_grammar():
+    with pytest.raises(KeyError):
+        _run(execute("create_page", {"name": "P", "template_lines": ["HELLO"]}, grammar="chat"))
+
+
+def test_execute_rejects_a_grammar_it_does_not_know():
+    """An unknown grammar must not quietly become canonical passthrough."""
+    with pytest.raises(ValueError, match="grammar"):
+        _run(execute("create_page", {"name": "P", "template_lines": ["HELLO"]}, grammar="mcp"))
+
+
+def test_operation_aliases_are_the_union_of_its_grammar_spellings():
+    """One list of spelling fields: ``names_in`` partitions them, ``aliases``
+    is their union, so a new spelling field cannot reach one and not the other."""
+    shared = get_operation("update_schedule")
+    assert shared.names_in("canonical") == {"update_schedule"}
+    assert shared.names_in("chat") == {"update_schedule"}
+
+    chat_only = get_operation("update_plugin_config")
+    assert chat_only.names_in("chat") == {"update_plugin_config"}
+    assert "update_plugin_config" not in chat_only.names_in("canonical")
+
+    mcp_only = get_operation("create_page")
+    assert mcp_only.names_in("chat") == set()
+
+    for op in OPERATIONS:
+        assert op.aliases == op.names_in("canonical") | op.names_in("chat"), op.name
 
 
 def test_execute_unknown_name_raises_key_error():
@@ -285,13 +330,48 @@ def test_execute_update_schedule_via_chat_name_changes_only_supplied_fields(serv
         execute(
             "create_schedule",
             {"page_id": page["page_id"], "start_time": "07:00", "end_time": "09:00", "day_pattern": "weekdays"},
+            grammar="chat",
         )
     )
     assert created["status"] == "success"
 
-    updated = _run(execute("update_schedule", {"schedule_id": created["schedule_id"], "start_time": "08:00"}))
+    updated = _run(
+        execute("update_schedule", {"schedule_id": created["schedule_id"], "start_time": "08:00"}, grammar="chat")
+    )
     assert updated["status"] == "success"
 
     stored = next(s for s in services["schedules"].list_schedules() if s.id == created["schedule_id"])
     assert stored.start_time == "08:00"
     assert stored.end_time == "09:00", "a partial update must not wipe end_time (#1764 divergence 3)"
+
+
+def test_execute_by_canonical_name_passes_a_canonical_only_kwarg_to_the_executor(services):
+    """#1849 item 2: validation must key on the grammar the caller used.
+
+    ``create_schedule`` is spelled identically in the chat grammar and the
+    canonical/MCP one. ``execute()`` used to decide "this is a chat call"
+    from that name equality alone, so a canonical caller's ``board_id`` — a
+    kwarg the executor takes and the chat schema does not know — was run
+    through the chat schema and silently dropped: the schedule landed on
+    the default board and the call reported success.
+    """
+    from src.settings.service import get_settings_service
+
+    stored_boards = get_settings_service().set_boards(
+        [{"device_type": "flagship", "name": "Kitchen"}, {"device_type": "note", "name": "Hallway"}]
+    )
+    note_id = stored_boards.boards[1]["id"]
+    # A note-sized page: the executor refuses a page that does not fit the
+    # target board, which is itself proof the board_id arrived.
+    page = _run(execute("create_page", {"name": "P", "template_lines": ["HELLO", "", ""], "device_type": "note"}))
+
+    created = _run(execute("create_schedule", {"page_id": page["page_id"], "start_time": "07:00", "board_id": note_id}))
+    assert created["status"] == "success", created
+
+    # get_schedule, not list_schedules: the latter lists the default board only.
+    stored = services["schedules"].get_schedule(created["schedule_id"])
+    assert stored is not None, "the schedule the executor reported was not persisted"
+    assert stored.board_id == note_id, (
+        f"board_id was dropped on the way to the executor (stored {stored.board_id!r}): "
+        "the canonical spelling was validated against the chat schema"
+    )

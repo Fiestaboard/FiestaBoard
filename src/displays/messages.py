@@ -30,10 +30,14 @@ def render_message(
     step_interval_ms: int,
     step_size: int,
     force: bool = False,
-) -> tuple[bool, bool]:
+    with_outcome: bool = False,
+) -> Any:
     """Wrap ``text`` to a ``rows``×``cols`` grid and render it through ``client``.
 
-    Returns the client's ``(success, was_sent)`` pair unchanged.
+    Returns the client's ``(success, was_sent)`` pair unchanged — or, with
+    ``with_outcome``, its :class:`~src.send_outcome.SendOutcome`, the per-call
+    throttle verdict included (the only race-free way to learn whether a
+    ``(True, False)`` was dropped or merely unchanged).
 
     ``force`` bypasses the client's unchanged-content dedupe, so an identical
     message is re-flapped rather than skipped. It defaults to False — the
@@ -48,4 +52,5 @@ def render_message(
         step_interval_ms=step_interval_ms,
         step_size=step_size,
         force=force,
+        with_outcome=with_outcome,
     )

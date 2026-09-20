@@ -547,19 +547,80 @@ def test_the_silence_window_refuses_the_write(client, boards, board_client):
     board_client.render.assert_not_called()
 
 
-def test_a_write_the_send_floor_dropped_is_a_429(client, boards):
-    client_stub = _board_client(render=(True, False), throttled=True)
+def _throttled_service():
+    """A REAL cloud client one send into a fresh 15s window, behind a stubbed service.
+
+    Real rather than a Mock with the flag set: the throttle verdict is per
+    call (tests/test_send_outcome.py), so a stub would have to fake the
+    outcome type — and then these tests would pin the stub, not the gate.
+    """
+    from tests.test_send_outcome import throttled_cloud_client
+
+    real = throttled_cloud_client({"t": 1000.0})
     service = Mock()
-    service.get_board_client.return_value = client_stub
-    service.vb_client = client_stub
+    service.get_board_client.return_value = real
+    service.vb_client = real
+    return service
+
+
+def test_a_write_the_send_floor_dropped_is_a_429(client, boards):
+    service = _throttled_service()
     with patch(SERVICE, return_value=service), patch(RUNTIME_SERVICE, return_value=service):
         response = client.post("/v1/boards/primary/message", json={"text": "Hello"})
 
     assert response.status_code == 429
-    assert response.json() == {
-        "detail": "Send skipped: the board accepts at most one message every 15s. Retry shortly."
-    }
+    assert response.json() == {"detail": "Send skipped: the board accepts at most one message every 15s. Retry in 15s."}
     assert response.headers["Retry-After"] == "15"
+
+
+def test_a_raw_grid_the_send_floor_dropped_is_a_429(client, boards):
+    """The ``characters`` form goes through ``executors.send_characters``,
+    which must carry the same throttle gate as the text form."""
+    service = _throttled_service()
+    with patch(SERVICE, return_value=service), patch(RUNTIME_SERVICE, return_value=service):
+        response = client.post("/v1/boards/primary/message", json={"characters": BLANK_FLAGSHIP})
+
+    assert response.status_code == 429
+    assert response.headers["Retry-After"] == "15"
+
+
+def test_a_throttled_timed_message_arms_no_override(client, boards):
+    """#1931 review: ``duration_minutes`` used to arm and persist the
+    temporary override BEFORE the executor ran, and a 429 never rolled it
+    back — so the refused content still landed on the next display tick,
+    for the full duration. The override is armed only once the write is in."""
+    service = _throttled_service()
+    with patch(SERVICE, return_value=service), patch(RUNTIME_SERVICE, return_value=service):
+        response = client.post("/v1/boards/primary/message", json={"text": "Back soon", "duration_minutes": 20})
+
+    assert response.status_code == 429
+    stored = client.get("/settings/temporary-override").json()
+    assert stored["active"] is False, f"a refused write armed an override: {stored}"
+    assert stored["template"] is None
+
+
+def test_the_executor_throttle_refusal_maps_to_429_not_500():
+    """#1931: the executor now refuses a throttled write itself, as an error
+    envelope carrying ``retry_after_seconds``. The v1 front door must turn
+    that into the 429 + ``Retry-After`` it already promised — not the 500
+    every other executor error gets — so fixing the MCP side cannot
+    regress the REST contract pinned just above.
+    """
+    from fastapi import HTTPException
+
+    from src.v1.routes_boards import _raise_for_executor
+
+    envelope = {
+        "status": "error",
+        "error": "Send skipped: the board accepts at most one message every 15s. Retry in 15s.",
+        "retry_after_seconds": 15,
+    }
+    with pytest.raises(HTTPException) as refused:
+        _raise_for_executor(envelope)
+
+    assert refused.value.status_code == 429
+    assert refused.value.detail == envelope["error"]
+    assert refused.value.headers == {"Retry-After": "15"}
 
 
 def test_a_refused_send_is_a_500_with_an_unstuttered_detail(client, boards):

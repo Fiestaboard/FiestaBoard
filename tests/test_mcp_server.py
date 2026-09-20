@@ -1549,3 +1549,34 @@ class TestProtocolIsError:
 
         assert not result.get("isError"), f"a policy block was flagged as a protocol error: {result}"
         assert result["structuredContent"]["status"] == "blocked"
+
+    def test_a_write_the_send_floor_dropped_is_an_error_with_the_retry_hint_in_its_text(self, rpc):
+        """#1931: unlike silence/pause, a write the board's send floor dropped
+        is NOT policy to relay — the content never left the process. It is
+        an ``isError`` result, and because the error path is text-only (no
+        ``structuredContent``, and MCP has no ``Retry-After`` header) the
+        retry window travels in the text."""
+        from src.settings.service import SettingsService
+
+        settings = create_autospec(SettingsService, instance=True)
+        settings.get_primary_board_id.return_value = "b1"
+        settings.get_board_settings.return_value = SimpleNamespace(boards=[{"id": "b1", "device_type": "flagship"}])
+        settings.is_paused.return_value = False
+        settings.get_transition_settings.return_value = SimpleNamespace(strategy=None, step_interval_ms=0, step_size=1)
+        from tests.test_send_outcome import throttled_cloud_client
+
+        board_client = throttled_cloud_client({"t": 1000.0})  # a REAL client, fresh into its window
+        service = MagicMock()
+        service.vb_client = board_client
+        with (
+            patch("src.api_server.get_service", return_value=service),
+            patch("src.settings.service.get_settings_service", return_value=settings),
+            patch("src.config.Config.is_silence_mode_active", return_value=False),
+        ):
+            result = rpc("send_message", {"text": "HI"})
+
+        assert result.get("isError") is True, f"a dropped write was reported as delivered: {result}"
+        assert "structuredContent" not in result
+        text = self._text(result)
+        assert "every 15s" in text, text
+        assert "Retry in 15s" in text, text

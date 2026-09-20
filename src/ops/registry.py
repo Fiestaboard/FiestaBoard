@@ -24,11 +24,12 @@ Three kinds of operation live here:
   describes the *whole* grammar, but carry no executor;
   ``POST /ai/operations`` refuses them with a 4xx.
 
-``execute()`` is the chat-grammar entry point: given a chat op name it
-validates the args against the op's chat schema (the same models
-``parse_tool_call`` uses) before adapting them onto the executor. MCP
-tools call the executors directly — their argument shape already is the
-canonical one.
+``execute()`` runs an operation in whichever grammar the caller says it
+used: ``grammar="chat"`` validates the args against the op's chat schema
+(the same models ``parse_tool_call`` uses) before adapting them onto the
+executor; the canonical grammar passes them through as executor kwargs.
+MCP tools call the executors directly — their argument shape already is
+the canonical one.
 """
 
 from __future__ import annotations
@@ -37,13 +38,19 @@ import asyncio
 import inspect
 from collections.abc import Callable
 from dataclasses import dataclass, field
-from typing import Any
+from typing import Any, Literal, get_args
 
 from . import executors
 
 
 class ClientSideOperationError(LookupError):
     """Raised when execute() is asked to run an op that only the web UI applies."""
+
+
+#: Which grammar a caller spelled an operation in. ``"canonical"`` covers the
+#: canonical name and the MCP tool name (they are the same set today);
+#: ``"chat"`` is the streaming chat's fenced-block spelling.
+Grammar = Literal["canonical", "chat"]
 
 
 @dataclass(frozen=True)
@@ -62,9 +69,22 @@ class Operation:
     #: True for ops the web UI applies client-side (no server effect).
     client_side: bool = field(default=False)
 
+    def names_in(self, grammar: Grammar) -> set[str]:
+        """The spellings of this operation in one grammar.
+
+        The single place the spelling fields are partitioned by grammar:
+        :attr:`aliases` is the union, and :func:`execute` checks a name
+        against the grammar the caller claims. A new spelling field goes
+        here and nowhere else.
+        """
+        if grammar == "chat":
+            return {self.chat_name} if self.chat_name else set()
+        return {n for n in (self.name, self.mcp_tool) if n}
+
     @property
     def aliases(self) -> set[str]:
-        return {n for n in (self.name, self.chat_name, self.mcp_tool) if n}
+        """Every spelling the registry resolves for this operation."""
+        return self.names_in("canonical") | self.names_in("chat")
 
 
 def _model_fields(args: Any, *names: str) -> dict[str, Any]:
@@ -326,22 +346,39 @@ def operation_names() -> set[str]:
     return set(_BY_ALIAS)
 
 
-async def execute(name: str, args: dict[str, Any]) -> dict[str, Any]:
-    """Execute an operation by chat-grammar or canonical name.
+async def execute(name: str, args: dict[str, Any], *, grammar: Grammar = "canonical") -> dict[str, Any]:
+    """Execute an operation, validating ``args`` the way ``grammar`` demands.
 
-    Chat names are validated against the chat-op schema first (the exact
-    validation ``parse_tool_call`` applies), then adapted onto the
-    canonical executor. Canonical/MCP names pass ``args`` straight through
-    as executor kwargs.
+    ``grammar`` is the grammar the *caller* used, and it — not the name —
+    decides how ``args`` are treated (#1849 review, item 2):
+
+    - ``"chat"``: ``args`` are validated against the chat-op schema (the
+      exact validation ``parse_tool_call`` applies) and adapted onto the
+      canonical executor's kwargs.
+    - ``"canonical"`` (the default): ``args`` pass straight through as
+      executor kwargs.
+
+    It used to be inferred from name equality — "this is a chat call if the
+    name is the op's chat name" — and for a dozen ops the canonical name
+    *is* the chat name, so a canonical caller's kwargs were pushed through
+    the chat schema and any kwarg the schema did not know was silently
+    dropped (``extra="ignore"``). A name that is not a spelling of the
+    operation in the given grammar is a ``KeyError``, the same verdict an
+    unknown name gets; a grammar this registry does not know is a
+    ``ValueError`` rather than a silent canonical passthrough.
     """
+    if grammar not in get_args(Grammar):
+        raise ValueError(f"unknown grammar {grammar!r}; expected one of {get_args(Grammar)}")
     op = get_operation(name)
+    if name not in op.names_in(grammar):
+        raise KeyError(f"{name!r} is not a {grammar}-grammar spelling of operation {op.name!r}")
     if op.client_side:
         raise ClientSideOperationError(
             f"operation {name!r} is applied client-side by the web UI and has no server executor"
         )
     assert op.executor is not None
 
-    if op.chat_name is not None and name == op.chat_name:
+    if grammar == "chat":
         from .grammar import parse_tool_call
 
         validated = parse_tool_call({"op": name, "args": args})
@@ -356,6 +393,6 @@ async def execute(name: str, args: dict[str, Any]) -> dict[str, Any]:
     return result
 
 
-def execute_sync(name: str, args: dict[str, Any]) -> dict[str, Any]:
+def execute_sync(name: str, args: dict[str, Any], *, grammar: Grammar = "canonical") -> dict[str, Any]:
     """Blocking convenience wrapper around :func:`execute`."""
-    return asyncio.run(execute(name, args))
+    return asyncio.run(execute(name, args, grammar=grammar))

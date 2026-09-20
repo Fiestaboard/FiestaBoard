@@ -220,6 +220,21 @@ Two things deliberately stay ordinary results:
   `isError: false` with `structuredContent.status == "blocked"`. They are
   policy for the model to relay, not failures. Do not treat them as errors.
 
+One thing that looks like a policy block is not one. A `send_message` inside
+the board's minimum send interval is **dropped by the board**, not queued, so
+it comes back as `isError: true` — the same verdict `POST /send-message`
+gives with 429. MCP has no `Retry-After` header and the error path carries no
+`structuredContent` (next section), so the retry window is in the text:
+
+```text
+Error executing tool send_message: Send skipped: the board accepts at most one message every 15s. Retry in 10s.
+```
+
+The first number is the board's send floor; the second is the window
+*remaining* at the time of the call — the same value the HTTP surfaces put in
+`Retry-After`. Wait it out, then retry. (Before this contract the tool
+answered `{"status": "success", "skipped": true}` for the same write.)
+
 ### 2. `structuredContent` is absent on the failure path
 
 The old error result carried the machine-readable envelope:

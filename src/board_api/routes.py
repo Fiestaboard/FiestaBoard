@@ -13,10 +13,10 @@ The two senders used to answer **200** for three different non-deliveries:
 ``{"status": "blocked", "paused": true}`` for a paused board, and
 ``{"status": "throttled", ...}`` for a write the client-side send floor
 dropped. A client that checks only the status code read all three as "sent".
-They are now **409**, **409** and **429** — the same verdicts, and the same
-Retry-After arithmetic, that ``src/debug/routes.py`` adopted in the debug
-slice. The three senders in this codebase now give one answer to "did that
-work".
+They are now **409**, **409** and **429** — the same verdicts, computed by
+the same guards (``src/board_guards.py``, home of the 429 and its Retry-After
+arithmetic), that ``src/debug/routes.py`` uses. The three senders in this
+codebase now give one answer to "did that work".
 
 The ``except Exception`` around each send also used to swallow the handler's
 own ``HTTPException`` and re-raise it as ``HTTPException(500, str(e))`` —
@@ -37,14 +37,15 @@ primary-only, #1243). Omitting ``board_id`` reproduces the previous behaviour
 exactly.
 
 The handlers are still separate rather than the REST route delegating to the
-executor, because the two do not answer the same way and one of them is
-right: the executor returns ``{"status": "blocked"}``/``{"status": "error"}``
-dicts by design (an MCP tool relays policy to a model, it does not raise), and
-it has no equivalent of ``_raise_if_throttled`` — a write the send floor
-dropped comes back from the executor as ``ok(skipped=True)``. That is the
-REST side's #1868 bug, fixed here and still open there; folding this handler
-into the executor would have re-introduced it. Tracked for the executor
-separately rather than changed in a REST slice.
+executor, because the two do not answer in the same shape: the executor
+returns ``{"status": "blocked"}``/``{"status": "error"}`` dicts by design (an
+MCP tool relays policy to a model, it does not raise), and this router
+raises. The gates themselves are the same on both sides — no service (503),
+unknown board (404), silence (409), pause (409), no client (503), and the
+send-floor throttle (429): the executor answers a dropped write with an
+error envelope carrying ``retry_after_seconds`` (#1931), computed by the
+same ``src.board_guards`` arithmetic ``_raise_if_throttled`` uses here, and
+``/v1`` maps that envelope to this router's 429.
 
 ``GET /board/current-message`` is unchanged by value. Issue #1912 tracks
 collapsing its cache-selection logic with the two other copies
@@ -72,6 +73,7 @@ from src.board_guards import raise_if_throttled as _raise_if_throttled
 from src.board_send_executor import run_board_send
 from src.config_manager import get_config_manager
 from src.devices import resolve_dimensions
+from src.send_outcome import SendOutcome
 from src.text_to_board import text_to_board_array
 
 from .models import BoardCurrentMessageResponse, MessageRequest, SendResponse
@@ -278,14 +280,17 @@ async def send_message(request: MessageRequest):
     from src.displays.messages import render_message
 
     try:
-        success, was_sent = render_message(
-            board_client,
-            request.text,
-            rows=dims.rows,
-            cols=dims.cols,
-            strategy=transition.strategy,
-            step_interval_ms=transition.step_interval_ms,
-            step_size=transition.step_size,
+        outcome = SendOutcome.of(
+            render_message(
+                board_client,
+                request.text,
+                rows=dims.rows,
+                cols=dims.cols,
+                strategy=transition.strategy,
+                step_interval_ms=transition.step_interval_ms,
+                step_size=transition.step_size,
+                with_outcome=True,
+            )
         )
     except Exception as e:
         logger.error(f"Error sending message: {e}")
@@ -295,12 +300,13 @@ async def send_message(request: MessageRequest):
     # handler's own except caught its own HTTPException and re-raised it as
     # HTTPException(500, str(e)) — which is how the served detail came to read
     # "500: Failed to send message".
-    if not success:
+    if not outcome.success:
         raise HTTPException(status_code=500, detail="Failed to send message")
-    if not was_sent:
+    if not outcome.was_sent:
         # A not-sent "success" can also mean the send floor dropped the write
-        # entirely (#1868 review) — that is not "unchanged".
-        _raise_if_throttled(board_client)
+        # entirely (#1868 review) — that is not "unchanged". The verdict is
+        # this call's own outcome, not the client's flag (#1931 review).
+        _raise_if_throttled(outcome)
         return SendResponse(message="Message unchanged, no update needed", sent=False)
 
     # Flag the out-of-band write and push fresh MQTT state so HA reflects the
@@ -369,24 +375,27 @@ async def send_welcome_message():
     try:
         # Board network I/O goes on the dedicated bounded send pool, never
         # inline on the event loop (#1878) — see src/board_send_executor.py.
-        success, was_sent = await run_board_send(
-            board_client.render,
-            board_array,
-            strategy=transition.strategy,
-            step_interval_ms=transition.step_interval_ms,
-            step_size=transition.step_size,
-            force=True,  # Force send even if cached
-            device_type=device_type,
+        outcome = SendOutcome.of(
+            await run_board_send(
+                board_client.render,
+                board_array,
+                strategy=transition.strategy,
+                step_interval_ms=transition.step_interval_ms,
+                step_size=transition.step_size,
+                force=True,  # Force send even if cached
+                device_type=device_type,
+                with_outcome=True,
+            )
         )
     except Exception as e:
         logger.error(f"Error sending welcome message: {e}")
         raise HTTPException(status_code=500, detail=f"Failed to send welcome message: {e!s}") from e
 
-    if not success:
+    if not outcome.success:
         raise HTTPException(status_code=500, detail="Failed to send welcome message")
-    if not was_sent:
+    if not outcome.was_sent:
         # Dropped by the send floor, not unchanged (#1868 review).
-        _raise_if_throttled(board_client)
+        _raise_if_throttled(outcome)
         return SendResponse(message="Welcome message unchanged", sent=False)
 
     logger.info("Welcome message sent to board")
