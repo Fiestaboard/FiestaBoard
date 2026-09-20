@@ -2,7 +2,7 @@
 
 import { Box } from "@fiestaboard/ui";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef } from "react";
 import { toast } from "sonner";
 
 import { type AiChatController, AiChatPanel } from "@/components/ai-chat-panel";
@@ -11,6 +11,7 @@ import { labelForTool } from "@/components/ai-tool-labels";
 import { useGlobalAiPanel } from "@/components/global-ai-panel-context";
 import { usePageEditorBridge } from "@/components/page-editor-bridge-context";
 import { useScheduleEditorBridge } from "@/components/schedule-editor-bridge-context";
+import { useReducedMotion } from "@/hooks/use-reduced-motion";
 import { useRouter } from "@/hooks/use-router";
 import { useTranslations } from "@/i18n/translations";
 import type { ChatTurnContext, ToolCall, ToolResult } from "@/lib/ai-chat-types";
@@ -448,6 +449,14 @@ export function GlobalAiChatDrawer() {
     pendingApprovalRef.current = null;
     choreographer.onTurnEnd();
   }, [choreographer]);
+  // Opening a saved conversation (History → Continue, or the reload
+  // restore) replaces the live turn: whatever the walkthrough was in the
+  // middle of belongs to the chat being put away, so it stops here rather
+  // than settling against the transcript that just arrived.
+  const handleConversationLoaded = useCallback(() => {
+    pendingApprovalRef.current = null;
+    choreographer.onAbort();
+  }, [choreographer]);
 
   // Stop ends the stream, but a tool that was already running finishes on
   // the server without a result reaching us. Refresh what it may have
@@ -524,24 +533,11 @@ export function GlobalAiChatDrawer() {
         onToolResult={handleToolResult}
         onAwaitingApproval={handleAwaitingApproval}
         onTurnComplete={handleTurnComplete}
+        onConversationLoaded={handleConversationLoaded}
         onStopped={handleStopped}
         onClose={close}
         controllerRef={controllerRef}
       />
     </Box>
   );
-}
-
-/** True when the user asked the OS for less motion; tracks the preference live. */
-function useReducedMotion(): boolean {
-  const [reduced, setReduced] = useState(false);
-  useEffect(() => {
-    if (typeof window === "undefined" || !window.matchMedia) return;
-    const query = window.matchMedia("(prefers-reduced-motion: reduce)");
-    const update = () => setReduced(query.matches);
-    update();
-    query.addEventListener("change", update);
-    return () => query.removeEventListener("change", update);
-  }, []);
-  return reduced;
 }

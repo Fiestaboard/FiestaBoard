@@ -92,7 +92,15 @@ def test_no_handle_callback_survives_for_a_tool():
     """``const handleEnablePlugin = ...`` is the shape of the old dispatcher."""
     # The stream's lifecycle handlers are allowed: they are named for a
     # frame or a phase, never for a tool.
-    lifecycle = {"ToolCall", "ToolStreaming", "ToolResult", "AwaitingApproval", "TurnComplete", "Stopped"}
+    lifecycle = {
+        "ToolCall",
+        "ToolStreaming",
+        "ToolResult",
+        "AwaitingApproval",
+        "TurnComplete",
+        "ConversationLoaded",
+        "Stopped",
+    }
     offenders = sorted(set(re.findall(r"const handle([A-Z][A-Za-z]+) = ", DRAWER_SOURCE)) - lifecycle)
     assert offenders == [], f"tools must not have their own browser handler: {offenders}"
 

@@ -794,6 +794,25 @@ describe("conversation history (#2022)", () => {
     expect(result.current.conversationId).not.toBe(first);
   });
 
+  it("a restored conversation shows no block still being written", async () => {
+    // A turn cut short mid-block is saved with the draft on it. Restoring it
+    // must not leave a "Preparing…" card on screen for a call that will
+    // never arrive, nor hand the walkthrough a stale block to act on.
+    const withDraft = {
+      ...SAVED,
+      messages: [
+        SAVED.messages[0],
+        { ...SAVED.messages[1], draft: { op: "create_page", text: '{"op": "create_page", "args": {"name": "Mo' } },
+      ],
+    };
+    server.use(http.get(`${API_BASE}/ai/conversations/${SAVED_ID}`, () => HttpResponse.json(withDraft)));
+    const { result } = renderHook(() => useAiChat(makeOpts()));
+    await act(async () => {
+      await result.current.loadConversation(SAVED_ID);
+    });
+    expect(result.current.messages[1].draft).toBeUndefined();
+  });
+
   it("loadConversation(id) replaces the live transcript with the saved one and makes it live", async () => {
     server.use(http.get(`${API_BASE}/ai/conversations/${SAVED_ID}`, () => HttpResponse.json(SAVED)));
     const { result } = renderHook(() => useAiChat(makeOpts()));

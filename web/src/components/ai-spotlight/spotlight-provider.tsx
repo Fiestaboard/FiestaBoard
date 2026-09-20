@@ -145,7 +145,35 @@ function SpotlightOverlay({
 }) {
   const t = useTranslations("aiSpotlight");
   const ringRef = useRef<HTMLDivElement>(null);
+  const captionRef = useRef<HTMLDivElement>(null);
   const ghostRefs = useRef(new Map<number, HTMLElement>());
+
+  // The narration never moves focus. But the caption's own buttons can hold
+  // it — Stop is the one the user is most likely to press — and the caption
+  // then unmounts under them, which would drop focus to <body>. Give it
+  // back to whatever had it before the user reached into the caption.
+  const focusBeforeCaptionRef = useRef<HTMLElement | null>(null);
+  const focusEnteredCaptionRef = useRef(false);
+  const shown = state !== null;
+  useLayoutEffect(() => {
+    if (!shown) return;
+    focusEnteredCaptionRef.current = false;
+    focusBeforeCaptionRef.current = (document.activeElement as HTMLElement | null) ?? null;
+    const caption = captionRef.current;
+    const onFocusIn = () => {
+      focusEnteredCaptionRef.current = true;
+    };
+    caption?.addEventListener("focusin", onFocusIn);
+    return () => {
+      caption?.removeEventListener("focusin", onFocusIn);
+      // Only when the caption really held focus and losing it dropped focus
+      // to the document — otherwise putting it back would be moving it.
+      if (!focusEnteredCaptionRef.current) return;
+      if (document.activeElement && document.activeElement !== document.body) return;
+      const back = focusBeforeCaptionRef.current;
+      if (back && back.isConnected) back.focus?.();
+    };
+  }, [shown]);
 
   // One measurement loop for the ring and every ghost, alive only while
   // something is shown. Writes go to the elements, not to React.
@@ -252,20 +280,25 @@ function SpotlightOverlay({
           data-anchor={g.anchor}
           className="fixed left-0 top-0 flex items-center opacity-0"
         >
-          <GhostValue value={g.value} progress={g.progress} variant={g.variant} />
+          {/* `relative` keeps the value in flow so the box it is measured
+              against has the value's own size; the primitive is `absolute`. */}
+          <GhostValue className="relative" value={g.value} progress={g.progress} variant={g.variant} />
         </Box>
       ))}
       {state ? (
-        <Box
-          role="status"
-          aria-live="polite"
-          className="pointer-events-auto fixed bottom-6 left-1/2 z-[61] -translate-x-1/2"
+        // The caption positions itself: it is the primitive that carries
+        // `role="status"`, so wrapping it in a second live region would
+        // announce every change twice — and an `absolute` child inside a
+        // shrink-to-fit wrapper leaves the wrapper with no box at all.
+        <SpotlightCaption
+          ref={captionRef}
+          tone={state.tone}
+          controls={controls}
           data-testid="ai-spotlight-caption"
+          className="pointer-events-auto fixed bottom-6 left-1/2 z-[61] -translate-x-1/2"
         >
-          <SpotlightCaption tone={state.tone} controls={controls}>
-            {state.caption}
-          </SpotlightCaption>
-        </Box>
+          {state.caption}
+        </SpotlightCaption>
       ) : null}
     </Box>,
     document.body,

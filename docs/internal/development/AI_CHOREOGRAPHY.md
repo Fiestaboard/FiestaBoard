@@ -78,7 +78,10 @@ To do better:
 
 1. Stamp anchors with `anchorProps("<id>")` on the elements the tool
    touches. Ids are dotted paths; a settings key is
-   `settings.<category>.<key>` and falls back to its card `settings.<category>`.
+   `settings.<category>.<key>` and falls back to its card
+   `settings.<category>`. The fallback happens in `resolveAnchor`, against
+   the live DOM — a script is built before its own `navigate` has run, so
+   it can never ask whether a control is on screen.
 2. Add a script under `scripts/` returning steps for `narrate`, `settle`,
    optionally `fail`, `stop`, `draft` and `approvalAnchor`, and register it in
    `registry.ts`.
@@ -96,5 +99,23 @@ choreography change at once.
 While a walkthrough is driving, the chat drawer is not modal: the focus trap
 is released, focus is never moved by the narration, Escape stops the
 assistant, and the caption is a `role="status"` region so screen readers hear
-what is happening once. Under `prefers-reduced-motion` every reveal is
-instant and pauses are a blink; nothing intermediate is shown.
+what is happening once — exactly once: the caption *is* that region, never a
+region wrapping another. Its Stop / Approve / Deny buttons can take focus
+when the user tabs to them, and the caption hands focus back where it came
+from when it disappears under them.
+
+Reveals are instant and pauses a blink when the user has asked for less
+motion — either through the OS (`prefers-reduced-motion: reduce`) or through
+FiestaBoard's own Reduce motion setting, which `useReducedMotion` watches as
+the class `ReduceMotionApplier` puts on `<html>`. Nothing intermediate is
+shown.
+
+## History
+
+Opening a saved conversation (#2030) replaces the live turn, so the
+walkthrough stops rather than settling against a transcript that is not its
+own. A saved transcript never restores a `tool_streaming` block either:
+`settleSavedTranscript` drops it with the status, so a turn cut short
+mid-block does not come back as a call being prepared that will never
+arrive. Old calls in a loaded transcript are transcript, not events — the
+choreographer is fed only by the live stream, and never replays them.

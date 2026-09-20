@@ -67,6 +67,8 @@ export interface AiChatPanelProps {
   onToolStreaming?: (draft: SSEToolStreamingData) => void;
   /** The turn ended with nothing pending. */
   onTurnComplete?: () => void;
+  /** A saved conversation replaced the live one; the walkthrough is over. */
+  onConversationLoaded?: () => void;
   /** The user stopped the turn with these calls still running server-side. */
   onStopped?: (unresolved: ToolCall[], reason: StopReason) => void;
   /**
@@ -104,6 +106,7 @@ export function AiChatPanel({
   onStatus,
   onToolStreaming,
   onTurnComplete,
+  onConversationLoaded,
   onStopped,
   onClose,
   controllerRef,
@@ -165,10 +168,14 @@ export function AiChatPanel({
   // A saved conversation carries the provider and model it was had with;
   // continuing it picks them back up (a provider that has since gone falls
   // through to the default above).
-  const handleConversationLoaded = useCallback((conversation: SavedConversation) => {
-    setProviderId(conversation.provider_id ?? "");
-    setModel(conversation.model ?? "");
-  }, []);
+  const handleConversationLoaded = useCallback(
+    (conversation: SavedConversation) => {
+      setProviderId(conversation.provider_id ?? "");
+      setModel(conversation.model ?? "");
+      onConversationLoaded?.();
+    },
+    [onConversationLoaded],
+  );
   // Every autosave makes the History list and the open review stale; the
   // app's query staleTime would otherwise show a minute-old list.
   const handleSaved = useCallback(

@@ -149,7 +149,9 @@ describe("runSteps", () => {
 
   it("navigates only when the path changes, and always for a query", async () => {
     const { ctx, navigated } = makeCtx({ pathname: () => "/pages" });
-    await runSteps(
+    // Every navigate lets the router commit on a timer, so the promise is
+    // held until the fake clock runs — awaiting it first would deadlock.
+    const run = runSteps(
       [
         { kind: "navigate", href: "/pages" },
         { kind: "navigate", href: "/pages/new?fresh=1" },
@@ -157,8 +159,9 @@ describe("runSteps", () => {
       ],
       ctx,
       { signal: new AbortController().signal, isFast: () => true },
-    ).then(undefined, () => undefined);
+    );
     await vi.runAllTimersAsync();
+    await run;
     expect(navigated).toEqual(["/pages/new?fresh=1", "/schedule"]);
   });
 

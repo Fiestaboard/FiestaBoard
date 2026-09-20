@@ -34,7 +34,14 @@ export function homeFor(call: Pick<ToolCall, "name" | "args">): { href: string; 
     const pid = id("plugin_id");
     return { href: "/integrations", anchor: pid ? `plugin.${pid}` : "integrations.root" };
   }
-  if (/panel|hdmi|board_size|identify_tile|_board$|^add_board|^remove_board|^update_board/.test(name)) {
+  if (/^setting|_setting/.test(name)) {
+    const category = id("category") ?? "general";
+    return { href: settingsHref(category), anchor: `settings.${category}` };
+  }
+  // A board *device* the hardware tab configures — not every tool whose
+  // name happens to end in `_board` (blank_board, pause_board, … are board
+  // state, and land on the dashboard or the debug tab below).
+  if (/panel|hdmi|board_size|identify_tile|^add_board|^remove_board|^update_board/.test(name)) {
     return { href: settingsHref("boards"), anchor: name.includes("panel") ? "settings.panels" : "settings.boards" };
   }
   if (/wifi|network/.test(name)) return { href: "/settings?section=network", anchor: "settings.network" };
@@ -44,11 +51,23 @@ export function homeFor(call: Pick<ToolCall, "name" | "args">): { href: string; 
   if (/debug|blank_board|fill_board|clear_board_cache|diagnostics/.test(name)) {
     return { href: "/settings?section=advanced", anchor: "settings.debug" };
   }
-  if (/active_page|override|send_message|force_refresh|pause_board|resume_board|silence|board_content/.test(name)) {
+  if (
+    /active_page|override|send_message|force_refresh|pause_board|resume_board|restore_board|silence|board_content/.test(
+      name,
+    )
+  ) {
     return { href: "/", anchor: "home.active-display" };
   }
   if (/transition/.test(name)) return { href: "/transitions", anchor: "transitions.root" };
   if (/staff_pick/.test(name)) return { href: "/picks", anchor: "picks.root" };
+  // A tool whose name says nothing still names what it touches in its
+  // arguments; that is how a tool shipped after this file gets a home.
+  const plugin = id("plugin_id");
+  if (plugin) return { href: "/integrations", anchor: `plugin.${plugin}` };
+  const collection = id("collection_id");
+  if (collection) return { href: "/collections", anchor: `collection.${collection}` };
+  const schedule = id("schedule_id");
+  if (schedule) return { href: "/schedule", anchor: `schedule.row.${schedule}` };
   const pid = id("page_id");
   return { href: "/pages", anchor: pid ? `page.${pid}` : "pages.root" };
 }

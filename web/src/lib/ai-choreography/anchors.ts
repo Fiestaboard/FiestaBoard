@@ -61,18 +61,38 @@ const LEGACY_SELECTORS: Record<string, readonly string[]> = {
 
 /** Every selector that may resolve `id`, most specific first. */
 export function anchorSelectors(id: string): string[] {
-  const escaped =
-    typeof CSS !== "undefined" && CSS.escape ? CSS.escape(id) : id.replace(/\\/g, "\\\\").replace(/"/g, '\\"');
+  // The id sits inside a quoted attribute value, so only a backslash and a
+  // double quote need escaping — not `CSS.escape`, which escapes for an
+  // identifier position and would turn every dotted path into `a\.b`.
+  const escaped = id.replace(/\\/g, "\\\\").replace(/"/g, '\\"');
   return [`[${ANCHOR_ATTR}="${escaped}"]`, ...(LEGACY_SELECTORS[id] ?? [])];
 }
 
-/** The element for `id`, or null when nothing on the page carries it. */
+/**
+ * The element for `id`, or null when nothing on the page carries it.
+ *
+ * A settings control falls back to the card that owns it
+ * (`settings.general.instance_name` → `settings.general`), so a key whose
+ * input has no anchor of its own still has somewhere to point. The fallback
+ * is resolved here, against the live DOM, rather than when a script is
+ * built — a script is built before its `navigate` has even run, when
+ * nothing the tool touches is on screen yet.
+ */
 export function resolveAnchor(id: string, root: ParentNode = document): HTMLElement | null {
   for (const selector of anchorSelectors(id)) {
     const el = root.querySelector<HTMLElement>(selector);
     if (el) return el;
   }
-  return null;
+  const card = settingCardFor(id);
+  return card ? resolveAnchor(card, root) : null;
+}
+
+/** The card anchor behind a `settings.<category>.<key>` id, if it is one. */
+function settingCardFor(id: string): string | null {
+  const parts = id.split(".");
+  if (parts.length < 3 || parts[0] !== "settings") return null;
+  const card = SETTING_SECTIONS[parts[1]]?.card ?? `settings.${parts[1]}`;
+  return card === id ? null : card;
 }
 
 /** JSX spread that stamps an element as an anchor: `{...anchorProps("pages.new")}`. */

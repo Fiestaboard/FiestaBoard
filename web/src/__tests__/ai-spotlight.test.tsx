@@ -1,6 +1,6 @@
 import { act, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { SpotlightProvider, useSpotlight } from "@/components/ai-spotlight/spotlight-provider";
 import { ANCHOR_ATTR } from "@/lib/ai-choreography/anchors";
@@ -25,6 +25,12 @@ function renderWithAnchor() {
 }
 
 describe("SpotlightProvider", () => {
+  // An assertion that throws would otherwise leave its anchor in the body,
+  // where the next test's identical anchor resolves to the stale one.
+  afterEach(() => {
+    for (const el of document.querySelectorAll(`[${ANCHOR_ATTR}]`)) el.remove();
+  });
+
   it("shows a ring on the anchor and a live caption, and hides both", () => {
     const { anchor } = renderWithAnchor();
     act(() => api!.show({ anchor: "settings.general.instance_name", caption: "Renaming…" }));
@@ -53,6 +59,29 @@ describe("SpotlightProvider", () => {
     await user.click(screen.getByRole("button", { name: "Approve" }));
     expect(handlers.onDeny).toHaveBeenCalled();
     expect(handlers.onApprove).toHaveBeenCalled();
+    anchor.remove();
+  });
+
+  it("announces the caption once, not twice", () => {
+    // The primitive is already a `role="status"` live region; a wrapper that
+    // is another one makes every caption change speak twice.
+    const { anchor } = renderWithAnchor();
+    act(() => api!.show({ anchor: "settings.general.instance_name", caption: "Renaming…" }));
+    expect(screen.getAllByRole("status")).toHaveLength(1);
+    anchor.remove();
+  });
+
+  it("gives focus back when the caption it was in goes away", async () => {
+    const user = userEvent.setup();
+    const { anchor } = renderWithAnchor();
+    const opener = document.createElement("button");
+    document.body.appendChild(opener);
+    opener.focus();
+    act(() => api!.show({ anchor: "settings.general.instance_name", caption: "Working", controls: "stop" }));
+    await user.click(screen.getByRole("button", { name: "Stop" }));
+    act(() => api!.hide());
+    expect(document.activeElement).toBe(opener);
+    opener.remove();
     anchor.remove();
   });
 

@@ -940,7 +940,10 @@ function clearStoredConversationId(): void {
 export function settleSavedTranscript(saved: ChatMessage[]): ChatMessage[] {
   return saved.map((m) => {
     if (m.role !== "assistant") return { role: "user", content: m.content };
-    const { status: _status, ...rest } = m;
+    // `draft` goes with `status`: a turn cut short mid-block was saved with
+    // the block on it, and a restored transcript must not show a call
+    // being prepared that will never arrive.
+    const { status: _status, draft: _draft, ...rest } = m;
     return {
       ...rest,
       pending: false,

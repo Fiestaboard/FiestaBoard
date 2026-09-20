@@ -23,7 +23,10 @@ function makeCtx(): ChoreographyContext & { navigated: string[] } {
   return {
     navigated,
     navigate: (href) => navigated.push(href),
-    pathname: () => "/",
+    // The router really does move, so the stub does too: the engine skips a
+    // navigate to the path it is already on, and a fixed pathname would hide
+    // the second call's navigation behind the first's.
+    pathname: () => navigated.at(-1)?.split("?")[0] ?? "/",
     spotlight: { show: vi.fn(), caption: vi.fn(), pulse: vi.fn(), hide: vi.fn(), ghost: vi.fn(), clearGhosts: vi.fn() },
     pageEditor: {
       isMounted: () => false,
@@ -185,6 +188,49 @@ describe("useChoreographer", () => {
     });
     expect(ctx.pageEditor.discard).toHaveBeenCalled();
     expect(result.current.driving).toBe(false);
+  });
+
+  it("walks a destructive call that ran without a pause", async () => {
+    // Auto mode, or "don't ask again": no `awaiting_approval` frame ever
+    // arrives, and the walkthrough must still show where the change landed.
+    const ctx = makeCtx();
+    const { result } = renderHook(() => useChoreographer(ctx));
+    const del = {
+      ...CALL,
+      id: "tc7",
+      name: "delete_page",
+      args: { page_id: "p1" },
+      destructive: true,
+      requires_approval: true,
+      auto_approved: true,
+    };
+    act(() => result.current.onToolCall(del));
+    await act(async () => {
+      await vi.runAllTimersAsync();
+    });
+    expect(ctx.navigated).toEqual(["/pages"]);
+    expect(ctx.spotlight.show).toHaveBeenCalledWith(expect.objectContaining({ anchor: "page.p1" }));
+  });
+
+  it("does not say a paused call is done before the user has decided", async () => {
+    const ctx = makeCtx();
+    const { result } = renderHook(() => useChoreographer(ctx));
+    const del = {
+      ...CALL,
+      id: "tc8",
+      name: "delete_page",
+      args: { page_id: "p1" },
+      destructive: true,
+      requires_approval: true,
+    };
+    act(() => result.current.onToolCall(del));
+    act(() => result.current.onAwaitingApproval(del));
+    await act(async () => {
+      await vi.runAllTimersAsync();
+    });
+    expect(ctx.spotlight.pulse).not.toHaveBeenCalled();
+    expect(ctx.spotlight.hide).not.toHaveBeenCalled();
+    expect(result.current.driving).toBe(true);
   });
 
   it("shows Approve/Deny at the call's anchor while the server waits", async () => {

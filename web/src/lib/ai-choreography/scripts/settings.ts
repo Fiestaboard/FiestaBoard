@@ -5,7 +5,7 @@
 
 import type { UpdateSettingArgs } from "@/lib/ai-chat-types";
 
-import { resolveAnchor, settingAnchors, settingsHref } from "../anchors";
+import { settingAnchors, settingsHref } from "../anchors";
 import type { ChoreographyScript, Step } from "../types";
 import { failed, landed } from "./fallback";
 
@@ -35,8 +35,9 @@ const updateSetting: ChoreographyScript = {
       },
     ];
     for (const key of keys) {
-      const { control, card } = settingAnchors(a.category, key);
-      const anchor = resolveAnchor(control) ? control : card;
+      // The control's anchor, always: `resolveAnchor` falls back to the
+      // card at play time, which is the only time the tab is on screen.
+      const anchor = settingAnchors(a.category, key).control;
       steps.push({
         kind: "spotlight",
         anchor,
