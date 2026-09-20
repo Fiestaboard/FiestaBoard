@@ -58,7 +58,7 @@ That means: when you later update with `docker compose pull && docker compose up
 :::
 
 :::tip Accessing from another device?
-FiestaBoard advertises itself on your local network via mDNS/Bonjour. From any device on the same network you can use **http://fiestaboard.local:4420**. If `.local` addresses don't work on your network, use your server's IP address instead (e.g. `http://192.168.1.50:4420`).
+With the default Docker bridge setup, use your server's LAN IP address, for example `http://192.168.1.50:4420`. The FiestaPi image also provides `http://fiestapi.local:4420` through host Avahi. Other Docker installs need a separately configured host-level mDNS service to advertise a `.local` name.
 :::
 
 ### Option 2: Clone and use the install wizard

@@ -14,10 +14,10 @@ This page walks through wiring each client up to a self-hosted FiestaBoard.
 > **Hostname tip:** The default `docker-compose.yml` uses bridge networking
 > (`4420:3000`), which does **not** advertise `fiestaboard.local` — use
 > `localhost:4420` or the host's LAN IP instead. The `fiestaboard.local` name
-> only resolves if you enable **Option B: Host networking**
-> (`network_mode: host`, commented out in `docker-compose.yml`) *and* your host
-> has an mDNS/Bonjour resolver. The FiestaPi image ships avahi, so it advertises
-> as `fiestapi.local` out of the box. The examples below use `fiestaboard.local`;
+> needs a host-level mDNS service. Host networking can expose the container's
+> own advertisement, but nginx then listens on port 3000, so set
+> `MDNS_PORT=3000` or provide a separate port 4420 proxy. The FiestaPi image
+> ships Avahi and advertises as `fiestapi.local`. The examples below use `fiestaboard.local`;
 > substitute whatever address matches your install.
 
 ## Token via environment variable

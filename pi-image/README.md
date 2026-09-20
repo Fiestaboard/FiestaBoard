@@ -16,7 +16,7 @@ A flashable Raspberry Pi OS image with FiestaBoard pre-installed and self-updati
 - FiestaBoard, pre-pulled and configured to start on boot
 - `fiestaupdater` sidecar enabled by default — Settings → Update Now works immediately
 - 1 GB swap file
-- mDNS hostname `fiestapi.local`
+- mDNS hostname `fiestapi.local` and a host-level Bonjour HTTP service on port 4420
 - `FIESTABOARD_PROFILE=pi` env baked in (flips the in-app auto-update toggle to default ON, and seeds the instance name to "FiestaPi" on first boot)
 - First-boot script that generates a unique `FIESTAUPDATER_TOKEN`
 - **HDMI kiosk (opt-in):** drop an empty `fiestapi-hdmi.txt` on the boot partition and
@@ -45,8 +45,9 @@ The output `.img.xz` lands in `pi-gen/deploy/`.
 
 ## CI
 
-Built by `.github/workflows/build-fiestapi.yml` on three triggers:
+Built by `.github/workflows/build-fiestapi.yml` on four triggers:
 
+- **After an app release** — the image is attached to that release when its build passes.
 - **Major-version tags** (`v5.0.0`, `v6.0.0`, …) — attached to the GitHub Release.
 - **Weekly schedule** (Tuesdays 06:00 UTC) — keeps base packages fresh between releases.
 - **Manual dispatch** — Actions tab → *Build FiestaPi image* → *Run workflow*, or:
@@ -86,9 +87,29 @@ pi-image/
         └── files/
             ├── docker-compose.yml
             ├── env.template
+            ├── fiestaboard-http.service  ← Avahi advertises the host's mapped HTTP port
             ├── fiestaboard.service
             ├── fiestapi-heal-mdns.service
             ├── fiestapi-heal-mdns.timer
             ├── firstboot.sh
             └── heal-mdns.sh
 ```
+
+The HTTP service is installed into `/etc/avahi/services` when the image is
+built. Updating only the FiestaBoard Docker container on an older FiestaPi
+does not add this host file; a newly built image or a manual host install is
+needed for Bonjour service browsing. Older images still resolve
+`fiestapi.local`, which clients can probe directly.
+
+To add Bonjour service browsing to an already flashed FiestaPi without
+reflashing, copy `stage-fiestaboard/01-install-fiestaboard/files/fiestaboard-http.service`
+onto the Pi, then run on the Pi:
+
+```bash
+sudo install -m 0644 fiestaboard-http.service /etc/avahi/services/
+sudo systemctl enable --now avahi-daemon.service
+sudo systemctl restart avahi-daemon.service
+```
+
+The container updater cannot install this host file. A fresh image includes
+it automatically.

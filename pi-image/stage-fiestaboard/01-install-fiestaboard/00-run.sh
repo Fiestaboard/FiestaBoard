@@ -11,6 +11,12 @@ install -m 0644 files/env.template       "${INSTALL_DIR}/env.template"
 install -m 0755 files/firstboot.sh       "${INSTALL_DIR}/firstboot.sh"
 install -m 0755 files/heal-mdns.sh       "${INSTALL_DIR}/heal-mdns.sh"
 
+# Publish the host's mapped HTTP port. The app container uses bridge
+# networking, so its own zeroconf advertisement cannot reach the LAN.
+install -d -m 0755 "${ROOTFS_DIR}/etc/avahi/services"
+install -m 0644 files/fiestaboard-http.service \
+    "${ROOTFS_DIR}/etc/avahi/services/fiestaboard-http.service"
+
 # systemd units
 install -m 0644 files/fiestaboard.service \
     "${ROOTFS_DIR}/etc/systemd/system/fiestaboard.service"
@@ -37,6 +43,7 @@ apt-get install -y --no-install-recommends \
 # Enable Docker and FiestaBoard to start on boot.
 systemctl enable docker
 systemctl enable fiestaboard.service
+systemctl enable avahi-daemon.service
 
 # Periodic self-heal for the fiestapi.local mDNS hostname.  See heal-mdns.sh
 # for why this is needed (avahi never retries the bare name after a rename).

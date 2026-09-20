@@ -20,9 +20,10 @@ services:
     # Option A (default): Bridge networking with port mapping
     ports:
       - "4420:3000"
-    # Option B: Host networking – required for mDNS / Bonjour support
-    #           (allows access via http://fiestaboard.local:4420).
-    #           Uncomment the line below and remove/comment the 'ports' block.
+    # Option B: Host networking exposes the container's mDNS advertisement.
+    #           nginx then listens on port 3000, so set MDNS_PORT=3000 in .env
+    #           and use http://fiestaboard.local:3000, or add a host proxy on
+    #           port 4420. Remove/comment the 'ports' block if enabling this.
     # network_mode: host
     volumes:
       # Persist data (including config) to local filesystem.
