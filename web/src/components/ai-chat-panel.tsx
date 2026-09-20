@@ -3,7 +3,6 @@
 import {
   Alert,
   AlertDescription,
-  Badge,
   Box,
   Button,
   Card,
@@ -358,17 +357,6 @@ export function AiChatPanel({
               <Text as="span" size="sm" weight="semibold" className="truncate">
                 {headerTitle}
               </Text>
-              {/* "Beta" is a state of the product, not part of its name:
-                  as a badge it stops eating the title's width on a phone
-                  (#2024 showed "FiestaBot (Be…"), and screen readers read a
-                  name and a qualifier instead of one odd string. Badge, not
-                  Chip — a Chip is operable by definition in this package,
-                  and this labels nothing you can do. */}
-              {mode.kind === "chat" ? (
-                <Badge variant="outline" className="shrink-0 px-1.5 py-0 text-[10px] font-medium">
-                  {t("beta")}
-                </Badge>
-              ) : null}
               {streaming && (
                 <Text as="span" className="inline-flex" data-testid="ai-chat-streaming">
                   <Spinner size="sm" className="text-muted-foreground" label={null} />
