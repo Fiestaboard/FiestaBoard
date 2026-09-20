@@ -203,6 +203,9 @@ _RULES_HEAD = (
     '  "[Tool result]". It is automated, not a new request: read it and\n'
     "  continue the task or summarise what was done. Do not narrate every\n"
     "  step.\n"
+    # The other half of #2042: a turn that only *says* it will act leaves
+    # the user with a promise and nothing done. Act first, report after.
+    "- Never say you will act and then stop: emit the block in that reply.\n"
 )
 
 _RULE_DESTRUCTIVE_ASK = (
@@ -248,12 +251,24 @@ def _render_tool(d: ToolDescriptor, skip_destructive_pause: bool = False) -> str
         marker = "[writes: runs immediately; the user sees it happen]"
     description = _compact_description(d.description)
     signature = _signature_line(d.input_schema)
-    lines = [f"### {d.name} — {d.title}", marker]
+    lines = [f"### {d.name}" if _title_restates_the_name(d) else f"### {d.name} — {d.title}", marker]
     if description:
         lines.append(description)
     if signature:
         lines.append(f"Args: {signature}")
     return "\n".join(lines) + "\n"
+
+
+def _title_restates_the_name(d: ToolDescriptor) -> bool:
+    """Whether a tool's MCP title only re-spells its name.
+
+    85 of the server's 86 titles do ("create_page" → "Create page"), and
+    printing them costs ~1.8 kB of the 40 kB addendum budget (#2036) to
+    tell the model nothing it cannot read off the name. The one that says
+    something ("ask_user" → "Ask the user") still gets its header.
+    """
+    title = (d.title or "").strip().lower()
+    return not title or title == d.name.replace("_", " ").strip().lower()
 
 
 def _compact_description(description: str) -> str:

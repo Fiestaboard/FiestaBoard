@@ -271,3 +271,44 @@ def test_list_panels_advertises_the_note_grid_it_is_meant_to_be_read_for():
     text = ToolCatalog(descriptors).render_addendum("global")
     section = text.split("### list_panels")[1].split("### ")[0]
     assert "notes_wide" in section and "notes_tall" in section
+
+
+# ---------------------------------------------------------------------------
+# Acting instead of announcing (#2042)
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.parametrize("surface", ["editor", "global"])
+@pytest.mark.parametrize("skip_destructive_pause", [False, True])
+def test_the_rules_tell_the_model_to_act_in_the_reply_that_announces_it(catalog, surface, skip_destructive_pause):
+    """Prevention for #2042. A reply that says "I'll create that page" and
+    emits no block leaves the user with a promise and nothing done; the
+    agent loop asks about it afterwards, and this rule is what stops it
+    happening. It lives in the shared head, so it is taught on every
+    surface and in both approval modes."""
+    text = catalog.render_addendum(surface, skip_destructive_pause=skip_destructive_pause)
+    assert "Never say you will act and then stop" in text
+
+
+def test_a_title_that_only_respells_the_tool_name_is_not_printed():
+    """MCP titles are mostly the name re-spelled, and the addendum is paid
+    for on every turn (#2036). Repeating "create_page — Create page" buys
+    the model nothing."""
+    text = ToolCatalog([_d("create_page")]).render_addendum("global")
+    assert "### create_page\n" in text
+    assert "Create page" not in text
+
+
+def test_a_title_that_says_something_the_name_does_not_is_kept():
+    descriptor = ToolDescriptor(
+        name="ask_user",
+        title="Ask the user",
+        description="Ask.",
+        input_schema={"type": "object", "properties": {}},
+        read_only=True,
+        destructive=False,
+        idempotent=True,
+        open_world=False,
+        source="chat",
+    )
+    assert "### ask_user — Ask the user" in ToolCatalog([descriptor]).render_addendum("global")
