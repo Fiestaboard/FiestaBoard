@@ -2,10 +2,37 @@
 
 import { Spinner } from "@fiestaboard/ui/components/feedback/spinner";
 import { CircleCheckIcon, InfoIcon, OctagonXIcon, TriangleAlertIcon } from "lucide-react";
+import { useSyncExternalStore } from "react";
 import { Toaster as Sonner, type ToasterProps } from "sonner";
 
+import { useOptionalGlobalAiPanel } from "@/components/global-ai-panel-context";
 import { useTheme } from "@/hooks/use-theme";
 import { useTranslations } from "@/i18n/translations";
+
+/** Where the drawer stops being a panel beside the page and becomes the page. */
+const DESKTOP_QUERY = "(min-width: 1024px)";
+
+/**
+ * Read through `useSyncExternalStore` rather than an effect: the value is
+ * external state, so React reads it during render on the client and uses
+ * the server snapshot (false) while hydrating — no cascading re-render on
+ * mount, and no hydration mismatch.
+ */
+function subscribeToDesktop(onChange: () => void): () => void {
+  if (typeof window === "undefined" || typeof window.matchMedia !== "function") return () => {};
+  const query = window.matchMedia(DESKTOP_QUERY);
+  query.addEventListener("change", onChange);
+  return () => query.removeEventListener("change", onChange);
+}
+
+function isDesktopNow(): boolean {
+  if (typeof window === "undefined" || typeof window.matchMedia !== "function") return false;
+  return window.matchMedia(DESKTOP_QUERY).matches;
+}
+
+function useMatchesDesktop(): boolean {
+  return useSyncExternalStore(subscribeToDesktop, isDesktopNow, () => false);
+}
 
 /**
  * App-wide Sonner wrapper.
@@ -31,11 +58,26 @@ const Toaster = ({ containerAriaLabel, ...props }: ToasterProps) => {
   const t = useTranslations("common");
   const ariaLabel = containerAriaLabel ?? t("notificationsRegionLabel");
 
+  // Toasts and the FiestaBot drawer both live in the bottom-right corner,
+  // so a "Schedule created · Undo" landed on top of the composer the user
+  // was still typing in (#2024). While the drawer is open the toasts step
+  // out of its way: beside it on a wide screen, where there is room, and to
+  // the top of the screen on a phone, where the drawer IS the screen.
+  const aiPanel = useOptionalGlobalAiPanel();
+  const isDesktop = useMatchesDesktop();
+  const drawerOpen = aiPanel?.isOpen ?? false;
+  const position: ToasterProps["position"] =
+    drawerOpen && !isDesktop ? "top-center" : (props.position ?? "bottom-right");
+  // The drawer's live width plus its inset and a gap of the same size.
+  const offset = drawerOpen && isDesktop ? { right: "calc(var(--ai-drawer-width, 384px) + 1.5rem)" } : props.offset;
+
   return (
     <Sonner
       theme={theme as ToasterProps["theme"]}
       className="toaster group"
       containerAriaLabel={ariaLabel}
+      position={position}
+      offset={offset}
       icons={{
         success: <CircleCheckIcon className="size-4" />,
         info: <InfoIcon className="size-4" />,
