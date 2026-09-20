@@ -24,6 +24,7 @@ import { AiAutoApprovedBadge } from "@/components/ai-auto-approved-badge";
 import { AiQuestionCard } from "@/components/ai-question-card";
 import { AiToolArguments, AiToolResultSummary } from "@/components/ai-tool-detail";
 import { labelForTool } from "@/components/ai-tool-labels";
+import { AiToolRun, groupToolCalls } from "@/components/ai-tool-runs";
 import { ChatMarkdown } from "@/components/chat-markdown";
 import { InlineBoardPreview } from "@/components/inline-board-preview";
 import { useToolDetail } from "@/hooks/use-target-caches";
@@ -234,22 +235,28 @@ const AssistantEntry = memo(function AssistantEntry({
           <ChatMarkdown>{message.content}</ChatMarkdown>
         </Box>
       )}
-      {message.toolCalls
-        ?.filter((call) => call.name !== "ask_user")
-        .map((call) => (
-          <Stack key={call.id} gap="1.5">
-            <ToolCallCard call={call} />
-            {isLastEntry && pendingApproval?.id === call.id && call.phase === "awaiting_approval" ? (
+      {groupToolCalls((message.toolCalls ?? []).filter((call) => call.name !== "ask_user")).map((group) =>
+        group.kind === "run" ? (
+          <AiToolRun key={group.calls[0].id} group={group}>
+            {group.calls.map((call) => (
+              <ToolCallCard key={call.id} call={call} />
+            ))}
+          </AiToolRun>
+        ) : (
+          <Stack key={group.call.id} gap="1.5">
+            <ToolCallCard call={group.call} />
+            {isLastEntry && pendingApproval?.id === group.call.id && group.call.phase === "awaiting_approval" ? (
               <AiApprovalCard
-                call={call}
+                call={group.call}
                 busy={busy}
-                onApprove={() => onApprove(call.id, "approve")}
-                onDeny={() => onApprove(call.id, "deny")}
-                onApproveAll={() => onApprove(call.id, "approve", { autoApproveConversation: true })}
+                onApprove={() => onApprove(group.call.id, "approve")}
+                onDeny={() => onApprove(group.call.id, "deny")}
+                onApproveAll={() => onApprove(group.call.id, "approve", { autoApproveConversation: true })}
               />
             ) : null}
           </Stack>
-        ))}
+        ),
+      )}
       {message.draft ? <DraftToolCard draft={message.draft} /> : null}
       {message.elicitation ? (
         <AiQuestionCard

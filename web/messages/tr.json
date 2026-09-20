@@ -2127,7 +2127,6 @@
       "deleted": "Sohbet silindi",
       "cleared": "Tüm sohbetler silindi"
     },
-    "beta": "Beta",
     "sendShortcut": "Göndermek için Enter, yeni satır için Shift+Enter",
     "resizeHandle": "FiestaBot panelini yeniden boyutlandır",
     "showJson": "JSON'u göster",
@@ -2157,7 +2156,8 @@
       "off": "Kapalı",
       "lineCount": "{count, plural, one {# satır} other {# satır}}",
       "durationSeconds": "{count} sn"
-    }
+    },
+    "toolRun": "{tool} · {count, plural, one {# kez} other {# kez}}"
   },
   "boardSizeIndicator": {
     "custom": "Özel",

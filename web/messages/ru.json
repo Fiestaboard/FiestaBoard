@@ -2127,7 +2127,6 @@
       "deleted": "Беседа удалена",
       "cleared": "Все беседы удалены"
     },
-    "beta": "Бета",
     "sendShortcut": "Enter — отправить, Shift+Enter — новая строка",
     "resizeHandle": "Изменить ширину панели FiestaBot",
     "showJson": "Показать JSON",
@@ -2157,7 +2156,8 @@
       "off": "Выкл.",
       "lineCount": "{count, plural, one {# строка} few {# строки} many {# строк} other {# строки}}",
       "durationSeconds": "{count} с"
-    }
+    },
+    "toolRun": "{tool} · {count, plural, one {# раз} few {# раза} many {# раз} other {# раза}}"
   },
   "boardSizeIndicator": {
     "custom": "Пользовательский",

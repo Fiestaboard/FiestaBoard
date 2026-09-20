@@ -2127,7 +2127,6 @@
       "deleted": "대화가 삭제되었습니다",
       "cleared": "모든 대화가 삭제되었습니다"
     },
-    "beta": "베타",
     "sendShortcut": "Enter로 보내기, Shift+Enter로 줄 바꾸기",
     "resizeHandle": "FiestaBot 패널 크기 조절",
     "showJson": "JSON 보기",
@@ -2157,7 +2156,8 @@
       "off": "꺼짐",
       "lineCount": "{count, plural, other {#줄}}",
       "durationSeconds": "{count}초"
-    }
+    },
+    "toolRun": "{tool} · {count, plural, other {#회}}"
   },
   "boardSizeIndicator": {
     "custom": "사용자 지정",

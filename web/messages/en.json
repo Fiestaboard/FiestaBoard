@@ -2127,7 +2127,6 @@
       "deleted": "Conversation deleted",
       "cleared": "All conversations deleted"
     },
-    "beta": "Beta",
     "sendShortcut": "Enter to send, Shift+Enter for a new line",
     "dayPattern": {
       "all": "every day",
@@ -2157,7 +2156,8 @@
       "lineCount": "{count, plural, one {# line} other {# lines}}",
       "durationSeconds": "{count}s"
     },
-    "resizeHandle": "Resize FiestaBot panel"
+    "resizeHandle": "Resize FiestaBot panel",
+    "toolRun": "{tool} · {count, plural, one {# time} other {# times}}"
   },
   "boardSizeIndicator": {
     "custom": "Custom",

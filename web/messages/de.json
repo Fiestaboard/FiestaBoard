@@ -2127,7 +2127,6 @@
       "deleted": "Unterhaltung gelöscht",
       "cleared": "Alle Unterhaltungen gelöscht"
     },
-    "beta": "Beta",
     "sendShortcut": "Enter zum Senden, Umschalt+Enter für eine neue Zeile",
     "resizeHandle": "FiestaBot-Panel skalieren",
     "showJson": "JSON anzeigen",
@@ -2157,7 +2156,8 @@
       "off": "Aus",
       "lineCount": "{count, plural, one {# Zeile} other {# Zeilen}}",
       "durationSeconds": "{count} s"
-    }
+    },
+    "toolRun": "{tool} · {count, plural, one {# Mal} other {# Mal}}"
   },
   "boardSizeIndicator": {
     "custom": "Benutzerdefiniert",

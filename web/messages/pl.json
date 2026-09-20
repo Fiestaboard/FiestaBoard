@@ -2127,7 +2127,6 @@
       "deleted": "Rozmowa usunięta",
       "cleared": "Wszystkie rozmowy usunięte"
     },
-    "beta": "Beta",
     "sendShortcut": "Enter wysyła, Shift+Enter dodaje nowy wiersz",
     "resizeHandle": "Zmień szerokość panelu FiestaBot",
     "showJson": "Pokaż JSON",
@@ -2157,7 +2156,8 @@
       "off": "Wyłączony",
       "lineCount": "{count, plural, one {# wiersz} few {# wiersze} many {# wierszy} other {# wiersza}}",
       "durationSeconds": "{count} s"
-    }
+    },
+    "toolRun": "{tool} · {count, plural, one {# raz} few {# razy} many {# razy} other {# raza}}"
   },
   "boardSizeIndicator": {
     "custom": "Niestandardowy",

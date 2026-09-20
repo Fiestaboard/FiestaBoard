@@ -2127,7 +2127,6 @@
       "deleted": "Gesprek verwijderd",
       "cleared": "Alle gesprekken verwijderd"
     },
-    "beta": "Bèta",
     "sendShortcut": "Enter om te versturen, Shift+Enter voor een nieuwe regel",
     "resizeHandle": "FiestaBot-paneel verkleinen of vergroten",
     "showJson": "JSON tonen",
@@ -2157,7 +2156,8 @@
       "off": "Uit",
       "lineCount": "{count, plural, one {# regel} other {# regels}}",
       "durationSeconds": "{count} s"
-    }
+    },
+    "toolRun": "{tool} · {count, plural, one {# keer} other {# keer}}"
   },
   "boardSizeIndicator": {
     "custom": "Aangepast",

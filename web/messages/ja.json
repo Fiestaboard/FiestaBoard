@@ -2127,7 +2127,6 @@
       "deleted": "会話を削除しました",
       "cleared": "すべての会話を削除しました"
     },
-    "beta": "ベータ",
     "sendShortcut": "Enter で送信、Shift+Enter で改行",
     "resizeHandle": "FiestaBot パネルの幅を変更",
     "showJson": "JSON を表示",
@@ -2157,7 +2156,8 @@
       "off": "オフ",
       "lineCount": "{count, plural, other {# 行}}",
       "durationSeconds": "{count} 秒"
-    }
+    },
+    "toolRun": "{tool} · {count, plural, other {# 回}}"
   },
   "boardSizeIndicator": {
     "custom": "カスタム",

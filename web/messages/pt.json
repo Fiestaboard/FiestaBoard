@@ -2127,7 +2127,6 @@
       "deleted": "Conversa eliminada",
       "cleared": "Todas as conversas foram eliminadas"
     },
-    "beta": "Beta",
     "sendShortcut": "Enter para enviar, Shift+Enter para uma nova linha",
     "resizeHandle": "Redimensionar o painel do FiestaBot",
     "showJson": "Mostrar JSON",
@@ -2157,7 +2156,8 @@
       "off": "Desligado",
       "lineCount": "{count, plural, one {# linha} other {# linhas}}",
       "durationSeconds": "{count} s"
-    }
+    },
+    "toolRun": "{tool} · {count, plural, one {# vez} other {# vezes}}"
   },
   "boardSizeIndicator": {
     "custom": "Personalizado",

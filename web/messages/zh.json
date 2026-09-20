@@ -2127,7 +2127,6 @@
       "deleted": "对话已删除",
       "cleared": "所有对话已删除"
     },
-    "beta": "测试版",
     "sendShortcut": "按 Enter 发送，Shift+Enter 换行",
     "resizeHandle": "调整 FiestaBot 面板宽度",
     "showJson": "显示 JSON",
@@ -2157,7 +2156,8 @@
       "off": "关闭",
       "lineCount": "{count, plural, other {# 行}}",
       "durationSeconds": "{count} 秒"
-    }
+    },
+    "toolRun": "{tool} · {count, plural, other {# 次}}"
   },
   "boardSizeIndicator": {
     "custom": "自定义",

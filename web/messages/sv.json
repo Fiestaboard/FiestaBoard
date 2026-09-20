@@ -2127,7 +2127,6 @@
       "deleted": "Konversationen togs bort",
       "cleared": "Alla konversationer togs bort"
     },
-    "beta": "Beta",
     "sendShortcut": "Enter skickar, Skift+Enter ger ny rad",
     "resizeHandle": "Ändra bredd på FiestaBot-panelen",
     "showJson": "Visa JSON",
@@ -2157,7 +2156,8 @@
       "off": "Av",
       "lineCount": "{count, plural, one {# rad} other {# rader}}",
       "durationSeconds": "{count} s"
-    }
+    },
+    "toolRun": "{tool} · {count, plural, one {# gång} other {# gånger}}"
   },
   "boardSizeIndicator": {
     "custom": "Anpassad",
