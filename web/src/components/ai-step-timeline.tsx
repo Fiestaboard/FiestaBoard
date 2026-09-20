@@ -4,7 +4,8 @@ import { Box, Shimmer, Task, TaskContent, TaskItem, TaskTrigger } from "@fiestab
 import { useEffect, useState } from "react";
 
 import { AiAutoApprovedBadge } from "@/components/ai-auto-approved-badge";
-import { detailForTool, labelForTool, type TranslateFn } from "@/components/ai-tool-labels";
+import { labelForTool, type TranslateFn } from "@/components/ai-tool-labels";
+import { rememberedToolDetail, useTargetCaches } from "@/hooks/use-target-caches";
 import { useTranslations } from "@/i18n/translations";
 import type { ChatMessage, ToolCall, ToolPhase } from "@/lib/ai-chat-types";
 import { parseToolDraft } from "@/lib/ai-choreography/draft";
@@ -43,6 +44,9 @@ export function currentTurnEntries(messages: ChatMessage[]): ChatMessage[] {
  */
 export function AiStepTimeline({ messages }: { messages: ChatMessage[] }) {
   const t = useTranslations("aiChatPanel");
+  // Read once for the whole list: the rows are a map, and a hook per row
+  // would be a hook in a loop.
+  const caches = useTargetCaches();
   const entries = currentTurnEntries(messages);
   // A question is answered by the person, not run by the server; its card
   // is the question itself, so it is not a step here.
@@ -68,7 +72,7 @@ export function AiStepTimeline({ messages }: { messages: ChatMessage[] }) {
           <TaskTrigger title={t("stepsHeading", { done: doneCount, total: calls.length })} className="px-1 py-1" />
           <TaskContent className="border-0 px-1 pb-1 pt-0">
             {calls.map((call) => {
-              const detail = detailForTool(call);
+              const detail = rememberedToolDetail(call, caches, t);
               return (
                 <TaskItem key={call.id} status={STATUS_FOR_PHASE[call.phase]}>
                   {labelForTool(call, t)}
