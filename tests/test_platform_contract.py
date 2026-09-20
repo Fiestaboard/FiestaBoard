@@ -461,7 +461,9 @@ def test_current_message_returns_a_secondary_boards_geometry_before_its_first_se
     """A never-written secondary board answers nulls plus its dimensions (#1247)."""
     service = Mock()
     service.vb_client = Mock(use_cloud=False, _last_characters=None)
-    runtime = Mock(client=Mock(use_cloud=False, _last_characters=None), polled_characters=None, polled_at=None)
+    runtime = Mock(
+        client=Mock(use_cloud=False, is_virtual=False, _last_characters=None), polled_characters=None, polled_at=None
+    )
     service.get_runtime.return_value = runtime
     ss = _settings_service()
     ss.get_primary_board_id.return_value = "b1"

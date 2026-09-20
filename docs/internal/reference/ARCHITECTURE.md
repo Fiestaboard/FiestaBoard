@@ -290,6 +290,23 @@ gate, so "tidying" it would delete a security gate rather than a duplication.
 `pyproject.toml` gives every file lifted out of `api_server` that module's
 ruff ignore set for the same reason.
 
+`src/board_state.py` is the same idea one level up. Three surfaces answer
+"what is on the board" — `GET /board/current-message`, the unauthenticated
+`GET /panel/{panel_id}/frame` a TV polls every 2s, and the MCP
+`get_board_content` tool — and each used to carry its own copy of the cache
+selection, drifting in small ways (only one could live-read, only one
+reported a source, only one honoured the virtual board's shape guard).
+`read_board_state(board_id, allow_live=..., force_live=...)` is now the
+single selection: the poll cache, else a live read where the caller permits
+one, else a virtual board's own memory, else what the client last sent, else
+empty — with the `source` that says which. The routes and the tool keep only
+presentation (field names, error transport, which timestamp their contract
+publishes), and nothing outside that module reads `_polled_characters` or
+`_last_characters`. `GET /pages/current-display` is *not* a fourth copy: it
+answers which page should be showing (intent), not what the flaps show
+(state). `tests/test_board_state_contract.py` pins every value each surface
+answers, recorded before the consolidation.
+
 ## Where the tests draw the lines
 
 | Corpus | Pins |

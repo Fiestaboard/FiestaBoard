@@ -2354,6 +2354,7 @@ class TestBoardCurrentMessagePerBoard:
     def _make_runtime(last_sent=None, polled=None, polled_at=None, use_cloud=False):
         rt = Mock()
         rt.client = Mock()
+        rt.client.is_virtual = False
         rt.client._last_characters = last_sent
         rt.client.use_cloud = use_cloud
         rt.polled_characters = polled
