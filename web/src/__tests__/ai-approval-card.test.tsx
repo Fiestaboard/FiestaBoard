@@ -1,7 +1,9 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { render as rtlRender, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+
+import { clearRememberedToolDetails } from "@/hooks/use-target-caches";
 
 import { AiApprovalCard } from "@/components/ai-approval-card";
 import type { ToolCall } from "@/lib/ai-chat-types";
@@ -76,6 +78,12 @@ const RESTART_SYSTEM: ToolCall = {
 const APPROVE_ALL = /approve and don.t ask again in this chat/i;
 
 describe("AiApprovalCard", () => {
+  beforeEach(() => {
+    // Resolved names are remembered per tool-call id for the session, so a
+    // test that wants the cold-cache reading must not inherit one.
+    clearRememberedToolDetails();
+  });
+
   it("names the call and puts focus on Deny, the safe answer", () => {
     render(<AiApprovalCard call={DELETE_PAGE} onApprove={vi.fn()} onDeny={vi.fn()} />);
     expect(screen.getByRole("group", { name: /needs your approval/i })).toBeInTheDocument();
@@ -130,7 +138,10 @@ describe("AiApprovalCard", () => {
   });
 
   it("falls back to the id when the caches cannot name the target", () => {
-    render(<AiApprovalCard call={DELETE_SCHEDULE} onApprove={vi.fn()} onDeny={vi.fn()} />);
+    // A call this session has never resolved: its own id, as a real second
+    // call would have.
+    const unseen = { ...DELETE_SCHEDULE, id: "c-unseen" };
+    render(<AiApprovalCard call={unseen} onApprove={vi.fn()} onDeny={vi.fn()} />);
     expect(screen.getAllByText(new RegExp(SCHEDULE_ID)).length).toBeGreaterThan(0);
   });
 

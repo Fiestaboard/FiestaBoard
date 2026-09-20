@@ -12,6 +12,7 @@ import {
   Tool,
   ToolContent,
   ToolHeader,
+  ToolInput,
   ToolOutput,
   type ToolState,
 } from "@fiestaboard/ui";
