@@ -164,13 +164,18 @@ USER = [{"role": "user", "content": "hello"}]
 
 
 def test_prose_only_turn_streams_text_then_done_complete():
-    provider = ScriptedProvider(_sse("Hi there."))
+    provider = ScriptedProvider(_sse("Hi there."), _sse("NONE"))
     events = _run_turn(provider, FakeBackend(), USER)
     assert _names(events)[0] == "status"
     assert "".join(d["delta"] for d in _only(events, "text")) == "Hi there."
     done = _only(events, "done")[0]
     assert done["reason"] == "complete" and done["pending_tool_call_id"] is None and done["steps"] == 1
-    assert len(provider.requests) == 1
+    # Two provider calls, one visible turn: the second is the silent
+    # follow-through question (#2042), which a turn that changed nothing
+    # always pays for. What reaches the browser is unchanged — pinned
+    # byte-for-byte by
+    # test_a_model_that_confirms_no_action_leaves_the_turn_byte_identical.
+    assert len(provider.requests) == 2
 
 
 def test_no_provider_configured_is_an_error_event():
@@ -195,12 +200,17 @@ def test_the_system_prompt_teaches_the_backends_tools_not_the_old_grammar():
 
 
 def test_read_only_tool_runs_in_loop_and_model_is_called_again():
-    provider = ScriptedProvider(_sse("Let me look. " + _block("list_pages", {})), _sse("You have no pages."))
+    provider = ScriptedProvider(
+        _sse("Let me look. " + _block("list_pages", {})), _sse("You have no pages."), _sse("NONE")
+    )
     backend = FakeBackend({"list_pages": ToolOutcome(status="ok", result=[])})
     events = _run_turn(provider, backend, USER)
 
     assert backend.calls == [("list_pages", {})]
-    assert len(provider.requests) == 2
+    # Three provider calls for two visible steps: reading and then
+    # answering changes nothing, so the turn still pays for the silent
+    # follow-through question (#2042).
+    assert len(provider.requests) == 3
     names = _names(events)
     assert names.index("tool_call") < names.index("tool_result") < names.index("done")
     call = _only(events, "tool_call")[0]
@@ -646,3 +656,145 @@ def test_replayed_transcript_renders_identically_to_in_loop_transcript():
     _run_turn(provider2, FakeBackend(), replay)
     replayed = provider2.messages_of(0)
     assert replayed[1:] == in_loop[1:]
+
+
+# ---------------------------------------------------------------------------
+# Following through on a stated intention (#2042)
+#
+# A turn whose reply says "I'll create that page" and emits no tool block
+# used to end right there: no grammar warning, no calls, turn over, promise
+# unkept. The loop now asks the model once — silently — whether it meant to
+# act. Nothing about that question reads the reply's language: the answer is
+# a tool block or the absence of one.
+# ---------------------------------------------------------------------------
+
+
+def test_a_stated_intention_with_no_tool_block_is_nudged_into_acting():
+    """The reported bug (#2042): prose promising an action, no block, turn over."""
+    provider = ScriptedProvider(
+        _sse("I'll create that page for you."),
+        _sse(_block("create_page", {"name": "Morning"})),
+        _sse("Created it."),
+    )
+    backend = FakeBackend()
+    events = _run_turn(provider, backend, USER)
+
+    assert backend.calls == [("create_page", {"name": "Morning"})]
+    assert _only(events, "done")[0]["reason"] == "complete"
+    # The model was asked, in a user turn, and the ask is not language-specific.
+    assert "[No action]" in provider.messages_of(1)[-1]["content"]
+    # A probe that acts reaches the client as an ordinary step — its
+    # thinking status is released with it, so the tool frames are not
+    # announced under a step the client never saw begin.
+    assert [s["step"] for s in _only(events, "status") if s["phase"] == "thinking"] == [1, 2, 3]
+
+
+def test_the_nudge_is_asked_in_any_language_because_it_reads_no_prose():
+    """Same turn in Spanish. Detection is "no tool block", not a phrase list."""
+    provider = ScriptedProvider(
+        _sse("Claro, voy a crear esa página ahora mismo."),
+        _sse(_block("create_page", {"name": "Mañana"})),
+        _sse("Listo."),
+    )
+    backend = FakeBackend()
+    _run_turn(provider, backend, USER)
+    assert backend.calls == [("create_page", {"name": "Mañana"})]
+
+
+def test_a_model_that_confirms_no_action_leaves_the_turn_byte_identical():
+    """The half that must not regress: answering a question ends exactly as
+    it does today — one thinking status, one reply, one done at step 1. The
+    probe's own words never reach the browser."""
+    provider = ScriptedProvider(_sse("A template is a list of rows."), _sse("NONE"))
+    backend = FakeBackend()
+    events = _run_turn(provider, backend, USER)
+
+    assert backend.calls == []
+    assert _names(events) == ["status", "text", "text", "done"]
+    assert "".join(d["delta"] for d in _only(events, "text")) == "A template is a list of rows."
+    done = _only(events, "done")[0]
+    assert done["reason"] == "complete" and done["steps"] == 1
+
+
+def test_the_nudge_fires_at_most_once_so_a_model_that_never_acts_terminates():
+    """Bounded: a model that answers prose forever gets asked once, not in a loop."""
+    provider = ScriptedProvider(*[_sse("I am still not going to do that.")] * 6)
+    events = _run_turn(provider, FakeBackend(), USER)
+    assert len(provider.requests) == 2
+    assert _only(events, "done")[0]["reason"] == "complete"
+    assert "tool_call" not in _names(events)
+
+
+def test_a_turn_that_already_wrote_something_is_not_nudged():
+    """Prose after a write is a report, not a promise."""
+    provider = ScriptedProvider(_sse(_block("create_page", {"name": "A"})), _sse("Created it."))
+    events = _run_turn(provider, FakeBackend(), USER)
+    assert len(provider.requests) == 2
+    assert _only(events, "done")[0]["reason"] == "complete"
+
+
+def test_an_approval_pause_is_not_mistaken_for_a_missing_tool_call():
+    """A destructive call legitimately ends the turn with its work undone.
+    Nudging there would ask the model to act while the user is being asked."""
+    provider = ScriptedProvider(_sse("I'll delete it. " + _block("delete_page", {"page_id": "p1"})))
+    backend = FakeBackend()
+    events = _run_turn(provider, backend, USER)
+    assert len(provider.requests) == 1
+    assert backend.calls == []
+    assert _only(events, "done")[0]["reason"] == "awaiting_approval"
+
+
+def test_a_question_to_the_user_is_not_nudged():
+    provider = ScriptedProvider(_sse(_block("ask_user", {"question": "Which board?"})))
+    events = _run_turn(provider, FakeBackend(), USER)
+    assert len(provider.requests) == 1
+    assert _only(events, "done")[0]["reason"] == "awaiting_input"
+
+
+def test_a_denied_call_is_never_nudged_into_retrying():
+    """The user said no. Asking the model to follow through anyway would
+    turn a refusal into a retry."""
+    call = {"id": "c1", "name": "delete_page", "args": {"page_id": "p1"}}
+    provider = ScriptedProvider(_sse("Okay, leaving it."))
+    backend = FakeBackend()
+    _run_turn(provider, backend, _pending_transcript(call), resume={"tool_call_id": "c1", "decision": "deny"})
+    assert len(provider.requests) == 1
+    assert backend.calls == []
+
+
+def test_a_malformed_block_self_corrects_instead_of_being_nudged():
+    """The two recoveries do not stack: a parser complaint is answered with
+    the parser's own message, not with the follow-through question."""
+    provider = ScriptedProvider(_sse(_block("nope", {})), _sse("Right: " + _block("list_pages", {})), _sse("Done."))
+    backend = FakeBackend()
+    _run_turn(provider, backend, USER)
+    assert "[Tool error]" in provider.messages_of(1)[-1]["content"]
+    assert "[No action]" not in provider.messages_of(1)[-1]["content"]
+
+
+def test_a_spent_self_correction_budget_does_not_fall_through_to_the_nudge():
+    """A model that keeps fumbling the block has already shown it means to
+    act; the question would only ask it to fumble again. Once the parser
+    has complained, the turn ends when self-correction runs out."""
+    provider = ScriptedProvider(*[_sse(_block("nope", {}))] * 4)
+    events = _run_turn(provider, FakeBackend(), USER, limits=TurnLimits(max_self_corrections=0))
+    assert len(provider.requests) == 1
+    assert _only(events, "done")[0]["reason"] == "complete"
+
+
+def test_a_provider_failure_during_the_nudge_is_hidden_from_the_user():
+    """The visible turn already succeeded; a failed silent probe must not
+    turn it into an error frame."""
+    provider = ScriptedProvider(_sse("Here is what a template is."), 503)
+    events = _run_turn(provider, FakeBackend(), USER)
+    assert "error" not in _names(events)
+    done = _only(events, "done")[0]
+    assert done["reason"] == "complete" and done["steps"] == 1
+
+
+def test_the_nudge_respects_the_model_call_budget():
+    """The probe is a model call like any other and never exceeds the cap."""
+    provider = ScriptedProvider(_sse("I'll do that."), _sse(_block("create_page", {"name": "A"})))
+    events = _run_turn(provider, FakeBackend(), USER, limits=TurnLimits(max_model_calls=1))
+    assert len(provider.requests) == 1
+    assert _only(events, "done")[0]["reason"] == "complete"

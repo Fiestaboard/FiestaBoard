@@ -213,6 +213,36 @@ def test_a_scripted_create_page_lands_in_the_page_store_through_mcp(client, cm, 
     assert '"op": "replace_page"' not in system
 
 
+def test_a_promise_with_no_tool_block_is_followed_through_to_a_real_page(client, cm, mock_llm):
+    """#2042, end to end: the model says it will make the page and emits no
+    block. Before the fix the turn ended there and the page store stayed
+    empty. Now one silent question later the page is a real row, reachable
+    over REST, and the user saw only the reply and the work."""
+    mock_llm.script(
+        [
+            {"prose": "Sure — I'll create that page for you."},
+            {
+                "prose": "",
+                "ops": [_block("create_page", {"name": "E2E Follow Through", "template_lines": ["HELLO"]})],
+            },
+            {"prose": "Done."},
+        ]
+    )
+
+    frames = _chat(client, USER)
+
+    result = _only(frames, "tool_result")[0]
+    assert result["status"] == "ok", result
+    assert _page_names(client)[result["result"]["page_id"]] == "E2E Follow Through"
+    assert _only(frames, "done")[0]["reason"] == "complete"
+    # The question went out as a user turn on the second call, and the
+    # browser saw the model's own words — never the question.
+    assert "[No action]" in mock_llm.history()[1]["messages"][-1]["content"]
+    text = "".join(d["delta"] for d in _only(frames, "text"))
+    assert text.startswith("Sure — I'll create that page for you.")
+    assert "[No action]" not in text
+
+
 def test_read_only_tools_run_mid_turn_without_pausing(client, cm, mock_llm):
     mock_llm.script(
         [
@@ -366,7 +396,11 @@ def test_a_question_to_the_user_pauses_and_the_answer_reaches_the_model(client, 
         },
     )
     assert _only(answered, "done")[0]["reason"] == "complete"
-    assert "[User's answer to your question] Kitchen" in mock_llm.history()[-1]["messages"][-1]["content"]
+    # The turn's last provider call is the silent follow-through question
+    # (#2042) — answering a question and then stopping is exactly the shape
+    # that gets asked. The answer reached the model on the call before it.
+    assert "[No action]" in mock_llm.history()[-1]["messages"][-1]["content"]
+    assert "[User's answer to your question] Kitchen" in mock_llm.history()[-2]["messages"][-1]["content"]
 
 
 def test_a_retired_op_is_corrected_once_and_the_turn_still_completes(client, cm, mock_llm):

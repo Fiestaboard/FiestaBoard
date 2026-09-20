@@ -18,6 +18,15 @@ re-POSTing the transcript with a ``resume`` decision.
 
 Design points worth knowing before editing:
 
+- **A turn that promises and does nothing is asked once whether it
+  meant it (#2042).** The self-correction below only fires when the
+  parser complained; a reply that simply forgot to emit a block produced
+  no warning and ended the turn. So when a turn is about to end having
+  changed nothing, the loop appends one ``[No action]`` question and
+  calls the model again with the whole probe suppressed — no status, no
+  text, no warning reaches the browser unless that call produces a tool
+  block. Nothing about this reads the reply's prose, which is written in
+  the user's language; the signal is a tool block or its absence.
 - **Read-only tools run freely, destructive tools wait.** The MCP tool
   annotations decide which is which (``ToolDescriptor.requires_approval``);
   this module keeps no list of its own. Two switches relax the wait
@@ -72,6 +81,20 @@ logger = logging.getLogger(__name__)
 #: tighter cap (:data:`src.ai.transcript.MAX_RESULT_CHARS`).
 MAX_WIRE_RESULT_CHARS = 16_000
 
+#: Asked once, as a user turn, when a turn is about to end having changed
+#: nothing (#2042). Deliberately not a phrase detector: the model is the
+#: only thing that knows whether its own reply was a promise or an answer,
+#: and it answers in the one language this module can read — a tool block,
+#: or none. The escape hatch keeps a legitimate answer cheap; whatever the
+#: model says here is discarded unless it calls a tool.
+FOLLOW_THROUGH_NUDGE = (
+    "[No action] Your last reply called no tool. If it said, or implied, "
+    "that you would do something, emit the tool block for it now and do "
+    "it. If you were answering, asking, or declining, reply with NONE and "
+    "nothing else. This message is automated and your reply to it is not "
+    "shown to the user unless it calls a tool."
+)
+
 
 @dataclass(frozen=True)
 class TurnLimits:
@@ -80,6 +103,9 @@ class TurnLimits:
     max_model_calls: int = 8
     max_tool_calls: int = 12
     max_self_corrections: int = 2
+    #: How many times one turn may be asked to follow through on a stated
+    #: intention (#2042). One: the question is a safety net, not a loop.
+    max_follow_through_nudges: int = 1
 
 
 async def run_chat_turn(
@@ -155,6 +181,13 @@ async def _run_chat_turn(
     steps = 0
     tool_calls_made = 0
     self_corrections = 0
+    writes_made = 0
+    nudges = 0
+    denied = False
+    # True for the one model call that answers FOLLOW_THROUGH_NUDGE. That
+    # call's events are collected instead of yielded, and are released only
+    # if it produced a tool block.
+    probing = False
 
     # -- a decision the client is sending back -------------------------------
     if resume is not None:
@@ -178,12 +211,16 @@ async def _run_chat_turn(
                 backend.call_tool(pending["name"], pending.get("args") or {}), pending["name"]
             )
             tool_calls_made += 1
+            # A call that waited for approval is never read-only, so the
+            # turn has changed something and its closing prose is a report.
+            writes_made += 1
             yield {"event": "tool_result", "data": _tool_result_data(pending["id"], pending["name"], outcome)}
             _record_outcome(transcript, pending["id"], _tool_message(pending, outcome))
         elif decision == "deny":
-            denied = ToolOutcome(status="denied")
-            yield {"event": "tool_result", "data": _tool_result_data(pending["id"], pending["name"], denied)}
-            _record_outcome(transcript, pending["id"], _tool_message(pending, denied))
+            denied = True
+            refusal = ToolOutcome(status="denied")
+            yield {"event": "tool_result", "data": _tool_result_data(pending["id"], pending["name"], refusal)}
+            _record_outcome(transcript, pending["id"], _tool_message(pending, refusal))
         elif decision == "answer":
             _record_outcome(transcript, pending["id"], _answer_message(pending, resume.get("answer") or {}))
         else:
@@ -217,10 +254,19 @@ async def _run_chat_turn(
     # -- the loop ----------------------------------------------------------------
     while steps < limits.max_model_calls:
         steps += 1
-        yield {
+        # Everything a probing call would emit, held back until it is known
+        # whether the probe turned into action. Its "thinking" status goes
+        # in too, so a probe that does act reaches the client as an ordinary
+        # step rather than tool frames with no step announced.
+        held: list[dict[str, Any]] = []
+        thinking = {
             "event": "status",
             "data": {"phase": "thinking", "message": "Thinking…", "tool_call_id": None, "step": steps},
         }
+        if probing:
+            held.append(thinking)
+        else:
+            yield thinking
 
         rendered = render_transcript(transcript)
         provider_messages = [system_message, *rendered[:-1], *([page_note] if page_note else []), rendered[-1]]
@@ -243,21 +289,28 @@ async def _run_chat_turn(
                 timeout_seconds=timeout_seconds,
             ):
                 kind = event["event"]
+                if kind == "tool_call":
+                    calls.append(event["data"])
+                    continue
                 if kind == "text":
                     text_parts.append(event["data"]["delta"])
-                    yield event
-                elif kind == "tool_call":
-                    calls.append(event["data"])
-                elif kind == "tool_streaming":
-                    yield event
                 elif kind == "warning":
                     grammar_warnings.append(event["data"]["message"])
-                    yield event
-                else:  # error — fatal by contract, stream ends
-                    yield event
+                elif kind != "tool_streaming":  # error — fatal by contract, stream ends
                     fatal = True
+                if probing:
+                    held.append(event)
+                else:
+                    yield event
+                if fatal:
                     break
         if fatal:
+            if probing:
+                # The visible turn already finished cleanly; a silent probe
+                # that could not reach the provider must not retroactively
+                # turn it into an error frame.
+                logger.info("AI chat: the follow-through question failed; keeping the reply as it stood")
+                yield {"event": "done", "data": _done(chosen_model, provider, usage, "complete", None, steps - 1)}
             return
         _absorb_usage(usage, call_usage)
 
@@ -268,6 +321,18 @@ async def _run_chat_turn(
                 "tool_calls": [{"id": c["id"], "name": c["name"], "args": c["args"]} for c in calls] or None,
             }
         )
+
+        if probing:
+            probing = False
+            if not calls:
+                # The model was asked and did not act, so the reply it gave
+                # before the question was the whole turn. Report the step it
+                # ended on, not the one the question cost.
+                yield {"event": "done", "data": _done(chosen_model, provider, usage, "complete", None, steps - 1)}
+                return
+            # It did mean to act. Release what it said on the way there.
+            for withheld in held:
+                yield withheld
 
         if not calls:
             if grammar_warnings and self_corrections < limits.max_self_corrections:
@@ -283,6 +348,18 @@ async def _run_chat_turn(
                         + " Fix the block and try again, or reply in prose.",
                     }
                 )
+                continue
+            if _should_ask_for_follow_through(
+                grammar_warnings=grammar_warnings,
+                writes_made=writes_made,
+                denied=denied,
+                nudges=nudges,
+                steps=steps,
+                limits=limits,
+            ):
+                nudges += 1
+                probing = True
+                transcript.append({"role": "user", "content": FOLLOW_THROUGH_NUDGE})
                 continue
             yield {"event": "done", "data": _done(chosen_model, provider, usage, "complete", None, steps)}
             return
@@ -345,6 +422,8 @@ async def _run_chat_turn(
             }
             outcome = await _run_shielded(backend.call_tool(call["name"], call["args"]), call["name"])
             tool_calls_made += 1
+            if not descriptor.read_only:
+                writes_made += 1
             yield {"event": "tool_result", "data": _tool_result_data(call["id"], call["name"], outcome)}
             transcript.append(_tool_message(call, outcome))
 
@@ -355,6 +434,42 @@ async def _run_chat_turn(
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
+
+
+def _should_ask_for_follow_through(
+    *,
+    grammar_warnings: list[str],
+    writes_made: int,
+    denied: bool,
+    nudges: int,
+    steps: int,
+    limits: TurnLimits,
+) -> bool:
+    """Whether a turn about to end with no tool call should be questioned.
+
+    Every clause is a reason *not* to ask, and none of them reads prose:
+
+    - ``grammar_warnings`` — the model did try to act and fumbled the
+      block. Self-correction above owns that case; the two must not stack.
+    - ``writes_made`` — something already changed, so the closing prose is
+      a report of work done, not a promise of work to come. A turn that
+      only *read* is still asked: "I have looked, now I'll fix it" stalls
+      exactly like the first-reply case. That is the deliberate cost of
+      this fix — a turn that answers a question without changing anything
+      pays one extra model call before its ``done`` frame, while what the
+      browser receives stays byte for byte what it was.
+    - ``denied`` — the user refused a call this turn. Asking the model to
+      follow through would turn their "no" into a retry.
+    - ``nudges`` / ``steps`` — the budgets. One question per turn, and
+      never one that would exceed the turn's model-call cap.
+    """
+    return (
+        not grammar_warnings
+        and writes_made == 0
+        and not denied
+        and nudges < limits.max_follow_through_nudges
+        and steps < limits.max_model_calls
+    )
 
 
 def _gate(semaphore: asyncio.Semaphore | None) -> Any:
@@ -537,4 +652,4 @@ def _ignored(count: int, name: str, why: str) -> str:
     return f"Ignored {count} further tool block(s) after {name}, which is waiting on {why}; they can be re-issued next turn."
 
 
-__all__ = ["TurnLimits", "run_chat_turn"]
+__all__ = ["FOLLOW_THROUGH_NUDGE", "TurnLimits", "run_chat_turn"]
