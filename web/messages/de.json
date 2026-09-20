@@ -1997,8 +1997,10 @@
   },
   "aiChatPanel": {
     "messagesAriaLabel": "Chat-Nachrichten",
-    "clearConversationAriaLabel": "Konversation löschen",
     "closePanelAriaLabel": "FiestaBot (Beta) schließen",
+    "newChatAriaLabel": "Neuer Chat",
+    "historyAriaLabel": "Verlauf",
+    "backAriaLabel": "Zurück",
     "providerSelectAriaLabel": "Anbieter",
     "modelSelectAriaLabel": "Modell",
     "panelTitle": "FiestaBot (Beta)",
@@ -2095,7 +2097,34 @@
       "getActivePage": "Aktive Seite prüfen",
       "getBoardContent": "Board lesen"
     },
-    "previewUnavailable": "(Vorschau nicht verfügbar)"
+    "previewUnavailable": "(Vorschau nicht verfügbar)",
+    "history": {
+      "title": "Verlauf",
+      "searchPlaceholder": "Unterhaltungen durchsuchen…",
+      "searchAriaLabel": "Unterhaltungen nach Titel durchsuchen",
+      "empty": "Noch keine gespeicherten Unterhaltungen",
+      "emptyDescription": "Chats werden automatisch gespeichert, während du schreibst.",
+      "noMatches": "Keine Unterhaltung passt zu deiner Suche.",
+      "messageCount": "{count, plural, one {# Nachricht} other {# Nachrichten}}",
+      "open": "{title} öffnen",
+      "rename": "Umbenennen",
+      "renameAriaLabel": "{title} umbenennen",
+      "renameLabel": "Titel der Unterhaltung",
+      "saveTitle": "Titel speichern",
+      "cancel": "Abbrechen",
+      "delete": "Löschen",
+      "deleteAriaLabel": "{title} löschen",
+      "clearAll": "Alle löschen",
+      "clearAllTitle": "Alle Unterhaltungen löschen?",
+      "clearAllDescription": "Dadurch werden alle gespeicherten Chats auf diesem FiestaBoard entfernt. Das kann nicht rückgängig gemacht werden.",
+      "clearAllConfirm": "Alle löschen",
+      "continue": "Fortsetzen",
+      "export": "Als JSON exportieren",
+      "readOnly": "Du siehst eine gespeicherte Unterhaltung. Mit Fortsetzen nimmst du sie wieder auf.",
+      "loadFailed": "Diese Unterhaltung konnte nicht geladen werden.",
+      "deleted": "Unterhaltung gelöscht",
+      "cleared": "Alle Unterhaltungen gelöscht"
+    }
   },
   "boardSizeIndicator": {
     "custom": "Benutzerdefiniert",

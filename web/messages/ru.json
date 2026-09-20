@@ -1997,8 +1997,10 @@
   },
   "aiChatPanel": {
     "messagesAriaLabel": "Сообщения чата",
-    "clearConversationAriaLabel": "Очистить разговор",
     "closePanelAriaLabel": "Закрыть FiestaBot (Beta)",
+    "newChatAriaLabel": "Новый чат",
+    "historyAriaLabel": "История",
+    "backAriaLabel": "Назад",
     "providerSelectAriaLabel": "Провайдер",
     "modelSelectAriaLabel": "Модель",
     "panelTitle": "FiestaBot (Beta)",
@@ -2095,7 +2097,34 @@
       "getActivePage": "Проверить активную страницу",
       "getBoardContent": "Прочитать доску"
     },
-    "previewUnavailable": "(предпросмотр недоступен)"
+    "previewUnavailable": "(предпросмотр недоступен)",
+    "history": {
+      "title": "История",
+      "searchPlaceholder": "Поиск по беседам…",
+      "searchAriaLabel": "Искать беседы по названию",
+      "empty": "Сохранённых бесед пока нет",
+      "emptyDescription": "Чаты сохраняются автоматически по ходу общения.",
+      "noMatches": "Ни одна беседа не соответствует запросу.",
+      "messageCount": "{count, plural, one {# сообщение} few {# сообщения} many {# сообщений} other {# сообщений}}",
+      "open": "Открыть {title}",
+      "rename": "Переименовать",
+      "renameAriaLabel": "Переименовать {title}",
+      "renameLabel": "Название беседы",
+      "saveTitle": "Сохранить название",
+      "cancel": "Отмена",
+      "delete": "Удалить",
+      "deleteAriaLabel": "Удалить {title}",
+      "clearAll": "Очистить всё",
+      "clearAllTitle": "Удалить все беседы?",
+      "clearAllDescription": "Все сохранённые чаты на этом FiestaBoard будут удалены. Это действие нельзя отменить.",
+      "clearAllConfirm": "Удалить всё",
+      "continue": "Продолжить",
+      "export": "Экспорт в JSON",
+      "readOnly": "Вы просматриваете сохранённую беседу. Нажмите «Продолжить», чтобы вернуться к ней.",
+      "loadFailed": "Не удалось загрузить эту беседу.",
+      "deleted": "Беседа удалена",
+      "cleared": "Все беседы удалены"
+    }
   },
   "boardSizeIndicator": {
     "custom": "Пользовательский",

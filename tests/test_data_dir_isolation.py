@@ -111,6 +111,12 @@ def test_system_update_state_store_default_is_isolated(isolated_env):
     _assert_isolated(_system_update_store().path, isolated_env, "system-update state store")
 
 
+def test_ai_conversation_storage_default_is_isolated(isolated_env):
+    from src.ai.conversations.storage import ConversationStorage
+
+    _assert_isolated(ConversationStorage().storage_file, isolated_env, "ConversationStorage")
+
+
 def test_external_plugins_dir_default_is_isolated(isolated_env):
     from src.plugins.sources import get_external_plugins_dir
 

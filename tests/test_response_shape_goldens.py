@@ -114,6 +114,17 @@ SYSTEM_ROUTES = {
     ("POST", "/system/shutdown"),
 }
 
+# The saved-chat store behind the FiestaBot drawer's History view (#2022).
+AI_CONVERSATIONS_ROUTES = {
+    ("GET", "/ai/conversations"),
+    ("DELETE", "/ai/conversations"),
+    ("GET", "/ai/conversations/{conversation_id}"),
+    ("PUT", "/ai/conversations/{conversation_id}"),
+    ("PATCH", "/ai/conversations/{conversation_id}"),
+    ("DELETE", "/ai/conversations/{conversation_id}"),
+    ("GET", "/ai/conversations/{conversation_id}/export"),
+}
+
 PLUGINS_ROUTES = {
     ("GET", "/plugins"),
     ("GET", "/plugins/variables/all"),
@@ -557,6 +568,101 @@ def test_collections_response_shapes():
     )
 
     _assert_matches_golden("collections", rec, COLLECTIONS_ROUTES)
+
+
+def test_ai_conversations_response_shapes():
+    client = TestClient(app)
+    rec = Recorder(client)
+
+    conv_id = "11111111-1111-4111-8111-111111111111"
+    rec.id_map = {conv_id: "<conversation_id>", MISSING_ID: "<missing_id>"}
+    transcript = [
+        {"role": "user", "content": "Golden chat"},
+        {"role": "assistant", "content": "Done.", "toolCalls": [{"id": "t1", "name": "list_pages", "args": {}}]},
+    ]
+    body = {"provider_id": "p1", "model": "m", "approval": False, "messages": transcript}
+
+    rec.hit("list_conversations_empty", "GET", "/ai/conversations")
+    rec.hit(
+        "upsert_conversation_create",
+        "PUT",
+        "/ai/conversations/{conversation_id}",
+        path_params={"conversation_id": conv_id},
+        json_body=body,
+    )
+    rec.hit(
+        "upsert_conversation_update",
+        "PUT",
+        "/ai/conversations/{conversation_id}",
+        path_params={"conversation_id": conv_id},
+        json_body=body,
+    )
+    rec.hit(
+        "upsert_conversation_invalid",
+        "PUT",
+        "/ai/conversations/{conversation_id}",
+        path_params={"conversation_id": conv_id},
+        json_body={"messages": []},
+    )
+    rec.hit("list_conversations", "GET", "/ai/conversations")
+    rec.hit("list_conversations_search", "GET", "/ai/conversations", params={"q": "golden"})
+    rec.hit(
+        "get_conversation_ok", "GET", "/ai/conversations/{conversation_id}", path_params={"conversation_id": conv_id}
+    )
+    rec.hit(
+        "get_conversation_missing",
+        "GET",
+        "/ai/conversations/{conversation_id}",
+        path_params={"conversation_id": MISSING_ID},
+    )
+    rec.hit(
+        "rename_conversation_ok",
+        "PATCH",
+        "/ai/conversations/{conversation_id}",
+        path_params={"conversation_id": conv_id},
+        json_body={"title": "Renamed"},
+    )
+    rec.hit(
+        "rename_conversation_invalid",
+        "PATCH",
+        "/ai/conversations/{conversation_id}",
+        path_params={"conversation_id": conv_id},
+        json_body={"title": ""},
+    )
+    rec.hit(
+        "rename_conversation_missing",
+        "PATCH",
+        "/ai/conversations/{conversation_id}",
+        path_params={"conversation_id": MISSING_ID},
+        json_body={"title": "x"},
+    )
+    rec.hit(
+        "export_conversation_ok",
+        "GET",
+        "/ai/conversations/{conversation_id}/export",
+        path_params={"conversation_id": conv_id},
+    )
+    rec.hit(
+        "export_conversation_missing",
+        "GET",
+        "/ai/conversations/{conversation_id}/export",
+        path_params={"conversation_id": MISSING_ID},
+    )
+    rec.hit(
+        "delete_conversation_ok",
+        "DELETE",
+        "/ai/conversations/{conversation_id}",
+        path_params={"conversation_id": conv_id},
+    )
+    rec.hit(
+        "delete_conversation_missing",
+        "DELETE",
+        "/ai/conversations/{conversation_id}",
+        path_params={"conversation_id": MISSING_ID},
+    )
+    rec.hit("clear_conversations", "DELETE", "/ai/conversations")
+
+    _assert_matches_golden("ai_conversations", rec, AI_CONVERSATIONS_ROUTES)
 
 
 # ---------------------------------------------------------------------------

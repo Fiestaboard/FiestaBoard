@@ -1997,8 +1997,10 @@
   },
   "aiChatPanel": {
     "messagesAriaLabel": "Chattmeddelanden",
-    "clearConversationAriaLabel": "Rensa konversation",
     "closePanelAriaLabel": "Stäng FiestaBot (Beta)",
+    "newChatAriaLabel": "Ny chatt",
+    "historyAriaLabel": "Historik",
+    "backAriaLabel": "Tillbaka",
     "providerSelectAriaLabel": "Leverantör",
     "modelSelectAriaLabel": "Modell",
     "panelTitle": "FiestaBot (Beta)",
@@ -2095,7 +2097,34 @@
       "getActivePage": "Kontrollera aktiv sida",
       "getBoardContent": "Läs tavlan"
     },
-    "previewUnavailable": "(förhandsvisning inte tillgänglig)"
+    "previewUnavailable": "(förhandsvisning inte tillgänglig)",
+    "history": {
+      "title": "Historik",
+      "searchPlaceholder": "Sök konversationer…",
+      "searchAriaLabel": "Sök konversationer efter titel",
+      "empty": "Inga sparade konversationer ännu",
+      "emptyDescription": "Chattar sparas automatiskt medan du skriver.",
+      "noMatches": "Inga konversationer matchar din sökning.",
+      "messageCount": "{count, plural, one {# meddelande} other {# meddelanden}}",
+      "open": "Öppna {title}",
+      "rename": "Byt namn",
+      "renameAriaLabel": "Byt namn på {title}",
+      "renameLabel": "Konversationens titel",
+      "saveTitle": "Spara titel",
+      "cancel": "Avbryt",
+      "delete": "Ta bort",
+      "deleteAriaLabel": "Ta bort {title}",
+      "clearAll": "Rensa allt",
+      "clearAllTitle": "Ta bort alla konversationer?",
+      "clearAllDescription": "Detta tar bort alla sparade chattar från den här FiestaBoard. Det går inte att ångra.",
+      "clearAllConfirm": "Ta bort alla",
+      "continue": "Fortsätt",
+      "export": "Exportera JSON",
+      "readOnly": "Du visar en sparad konversation. Välj Fortsätt för att ta upp den igen.",
+      "loadFailed": "Konversationen kunde inte läsas in.",
+      "deleted": "Konversationen togs bort",
+      "cleared": "Alla konversationer togs bort"
+    }
   },
   "boardSizeIndicator": {
     "custom": "Anpassad",

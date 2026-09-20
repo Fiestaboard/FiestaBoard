@@ -34,6 +34,7 @@ ROUTERS = [
     ("src.plugin_support.routes", "plugin-support"),
     ("src.ai.routes", "ai"),
     ("src.ai.page_routes", "ai"),
+    ("src.ai.conversations.routes", "ai"),
 ]
 
 

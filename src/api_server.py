@@ -272,9 +272,7 @@ async def lifespan(app: FastAPI):
     try:
         from .system.update_service import reassert_release_channel
 
-        threading.Thread(
-            target=reassert_release_channel, name="channel-reassert", daemon=True
-        ).start()
+        threading.Thread(target=reassert_release_channel, name="channel-reassert", daemon=True).start()
     except Exception as e:
         logger.warning(f"Could not start the release-channel check: {e}")
 
@@ -489,18 +487,27 @@ OPENAPI_TAGS = [
     {"name": "service", "description": "The display loop itself: health, status, start/stop/refresh."},
     {"name": "board", "description": "Write to a board out of band, and read back what is physically on it."},
     {"name": "pages", "description": "Pages — the unit of content. CRUD, preview, send, import/export."},
-    {"name": "templates", "description": "Render and validate template text; list the variables and formula functions it can use."},
+    {
+        "name": "templates",
+        "description": "Render and validate template text; list the variables and formula functions it can use.",
+    },
     {"name": "displays", "description": "Device shapes and raw character-code grids."},
     {"name": "schedules", "description": "Time-of-day rules choosing which page a board shows."},
     {"name": "collections", "description": "Ordered groups of pages that rotate as one."},
     {"name": "triggers", "description": "Event-driven page interrupts, and the ones currently firing."},
     {"name": "transitions", "description": "Transition plugins (beta): preview, test and restore board animations."},
-    {"name": "plugins", "description": "Install, configure, enable and inspect the data-source plugins that fill template variables."},
+    {
+        "name": "plugins",
+        "description": "Install, configure, enable and inspect the data-source plugins that fill template variables.",
+    },
     {"name": "plugin-support", "description": "Platform helpers that back a plugin's configuration form."},
     {"name": "staff-picks", "description": "Curated example pages shipped with the app."},
     {"name": "panels", "description": "FiestaPanel — the read-only browser view of a board."},
     {"name": "ai", "description": "AI page generation, chat editing and the operation grammar shared with MCP."},
-    {"name": "settings", "description": "Install settings: boards, display, location, polling, output, MQTT, AI, beta flags."},
+    {
+        "name": "settings",
+        "description": "Install settings: boards, display, location, polling, output, MQTT, AI, beta flags.",
+    },
     {"name": "config", "description": "Board connection configuration and its validation/discovery helpers."},
     {"name": "backup", "description": "Export and import the whole install as one file."},
     {"name": "mqtt", "description": "MQTT / Home Assistant discovery status and republish."},
@@ -903,11 +910,14 @@ def _apply_mqtt_config(mqtt_cfg) -> None:
 #
 # The /pages/ai routes (context, generate, chat) live in the sibling
 # src/ai/page_routes.py — a different URL prefix, the same `ai` domain.
+# /ai/conversations (the drawer's saved-chat store, #2022) is the third.
+from .ai.conversations.routes import router as ai_conversations_router  # noqa: E402
 from .ai.page_routes import router as ai_page_router  # noqa: E402
 from .ai.routes import router as ai_router  # noqa: E402
 
 app.include_router(ai_router)
 app.include_router(ai_page_router)
+app.include_router(ai_conversations_router)
 
 
 # =============================================================================

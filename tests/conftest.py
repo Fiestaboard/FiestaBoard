@@ -97,6 +97,7 @@ def _drop_all_singletons() -> None:
     import src.schedules.service as schedule_service_module
     import src.settings.service as settings_service_module
     import src.templates.engine as engine_module
+    from src.ai.conversations.service import reset_conversation_service
     from src.config_manager import ConfigManager
     from src.displays.service import reset_display_service
     from src.plugins.registry import reset_plugin_registry
@@ -120,6 +121,7 @@ def _drop_all_singletons() -> None:
     auth_service_module._reset_for_tests()
     reset_trigger_service()
     reset_time_service()
+    reset_conversation_service()
 
     # The DisplayService singleton. The comment that used to sit here named
     # `src.api_server._service`, an attribute that has not existed since the

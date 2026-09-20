@@ -1997,8 +1997,10 @@
   },
   "aiChatPanel": {
     "messagesAriaLabel": "Messaggi della chat",
-    "clearConversationAriaLabel": "Cancella conversazione",
     "closePanelAriaLabel": "Chiudi FiestaBot (Beta)",
+    "newChatAriaLabel": "Nuova chat",
+    "historyAriaLabel": "Cronologia",
+    "backAriaLabel": "Indietro",
     "providerSelectAriaLabel": "Fornitore",
     "modelSelectAriaLabel": "Modello",
     "panelTitle": "FiestaBot (Beta)",
@@ -2095,7 +2097,34 @@
       "getActivePage": "Verifica pagina attiva",
       "getBoardContent": "Leggi board"
     },
-    "previewUnavailable": "(anteprima non disponibile)"
+    "previewUnavailable": "(anteprima non disponibile)",
+    "history": {
+      "title": "Cronologia",
+      "searchPlaceholder": "Cerca conversazioni…",
+      "searchAriaLabel": "Cerca conversazioni per titolo",
+      "empty": "Nessuna conversazione salvata",
+      "emptyDescription": "Le chat vengono salvate automaticamente mentre scrivi.",
+      "noMatches": "Nessuna conversazione corrisponde alla ricerca.",
+      "messageCount": "{count, plural, one {# messaggio} other {# messaggi}}",
+      "open": "Apri {title}",
+      "rename": "Rinomina",
+      "renameAriaLabel": "Rinomina {title}",
+      "renameLabel": "Titolo della conversazione",
+      "saveTitle": "Salva titolo",
+      "cancel": "Annulla",
+      "delete": "Elimina",
+      "deleteAriaLabel": "Elimina {title}",
+      "clearAll": "Cancella tutto",
+      "clearAllTitle": "Eliminare tutte le conversazioni?",
+      "clearAllDescription": "Questa operazione rimuove tutte le chat salvate da questo FiestaBoard. Non può essere annullata.",
+      "clearAllConfirm": "Elimina tutto",
+      "continue": "Continua",
+      "export": "Esporta JSON",
+      "readOnly": "Stai visualizzando una conversazione salvata. Premi Continua per riprenderla.",
+      "loadFailed": "Impossibile caricare la conversazione.",
+      "deleted": "Conversazione eliminata",
+      "cleared": "Tutte le conversazioni sono state eliminate"
+    }
   },
   "boardSizeIndicator": {
     "custom": "Personalizzato",

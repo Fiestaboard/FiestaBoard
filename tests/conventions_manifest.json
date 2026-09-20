@@ -27,6 +27,11 @@
   ],
   "exceptions": [
     {
+      "route": "DELETE /ai/conversations",
+      "rule": "declared_errors",
+      "reason": "Idempotent clear-all with no path or body parameters. Clearing an empty store is a success with deleted=0 — the caller's intent (no saved chats) is satisfied either way — so there is no status it refuses at, and the handler raises nothing. The same reasoning as DELETE /settings/temporary-override."
+    },
+    {
       "route": "DELETE /config/board",
       "rule": "declared_errors",
       "reason": "Reset is unconditional and idempotent: no board id to miss, no state in which it refuses, and its one internal failure path is swallowed and logged on purpose so a broken settings store cannot block the wizard reset. Nothing to declare at any status."

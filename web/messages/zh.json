@@ -1997,8 +1997,10 @@
   },
   "aiChatPanel": {
     "messagesAriaLabel": "聊天消息",
-    "clearConversationAriaLabel": "清除对话",
     "closePanelAriaLabel": "关闭 FiestaBot (Beta)",
+    "newChatAriaLabel": "新对话",
+    "historyAriaLabel": "历史记录",
+    "backAriaLabel": "返回",
     "providerSelectAriaLabel": "提供商",
     "modelSelectAriaLabel": "模型",
     "panelTitle": "FiestaBot (Beta)",
@@ -2095,7 +2097,34 @@
       "getActivePage": "检查当前页面",
       "getBoardContent": "读取板内容"
     },
-    "previewUnavailable": "（预览不可用）"
+    "previewUnavailable": "（预览不可用）",
+    "history": {
+      "title": "历史记录",
+      "searchPlaceholder": "搜索对话…",
+      "searchAriaLabel": "按标题搜索对话",
+      "empty": "还没有保存的对话",
+      "emptyDescription": "聊天内容会在进行中自动保存。",
+      "noMatches": "没有与搜索匹配的对话。",
+      "messageCount": "{count, plural, other {# 条消息}}",
+      "open": "打开 {title}",
+      "rename": "重命名",
+      "renameAriaLabel": "重命名 {title}",
+      "renameLabel": "对话标题",
+      "saveTitle": "保存标题",
+      "cancel": "取消",
+      "delete": "删除",
+      "deleteAriaLabel": "删除 {title}",
+      "clearAll": "全部清除",
+      "clearAllTitle": "删除所有对话？",
+      "clearAllDescription": "这将移除此 FiestaBoard 上保存的所有聊天记录，且无法撤销。",
+      "clearAllConfirm": "全部删除",
+      "continue": "继续",
+      "export": "导出 JSON",
+      "readOnly": "正在查看已保存的对话。点击“继续”即可接着聊。",
+      "loadFailed": "无法加载该对话。",
+      "deleted": "对话已删除",
+      "cleared": "所有对话已删除"
+    }
   },
   "boardSizeIndicator": {
     "custom": "自定义",

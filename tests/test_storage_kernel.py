@@ -388,6 +388,13 @@ class TestGoldenOnDiskFormat:
         PanelStorage(storage_file=str(path))._save()
         assert path.read_bytes() == golden
 
+    def test_ai_conversations_json_round_trips_byte_identical(self, tmp_path):
+        from src.ai.conversations.storage import ConversationStorage
+
+        path, golden = _pin(tmp_path, "ai_conversations.json")
+        ConversationStorage(storage_file=str(path))._save()
+        assert path.read_bytes() == golden
+
     def test_settings_json_round_trips_byte_identical(self, tmp_path):
         from src.settings.service import SettingsService
 
@@ -608,6 +615,27 @@ class TestConcurrentWriters:
         assert set(json.loads(path.read_text())["dismissals"]) == {"door-open", "garage-open"}
         reloaded = TriggerService(dismissals_file=path)
         assert set(reloaded._suppressed_until) == {"door-open", "garage-open"}
+
+    def test_ai_conversations_two_threads_upserting_disjoint_conversations_both_survive(self, tmp_path, monkeypatch):
+        from src.ai.conversations.models import Conversation, ConversationMessage
+        from src.ai.conversations.storage import ConversationStorage
+
+        storage = ConversationStorage(storage_file=str(tmp_path / "ai_conversations.json"))
+
+        def conv(cid: str, text: str) -> Conversation:
+            return Conversation(id=cid, title=text, messages=[ConversationMessage(role="user", content=text)])
+
+        _force_write_overlap(monkeypatch)
+        errors = _run_pair(
+            lambda: storage.upsert(conv("c1", "first")),
+            lambda: storage.upsert(conv("c2", "second")),
+        )
+        monkeypatch.undo()
+
+        assert errors == []
+        reloaded = ConversationStorage(storage_file=str(tmp_path / "ai_conversations.json"))
+        assert reloaded.get("c1").title == "first"
+        assert reloaded.get("c2").title == "second"
 
     def test_settings_two_concurrent_puts_to_different_sections_both_survive(self, tmp_path, monkeypatch):
         """The #1848 headline bug: SettingsService rewrites ALL sections from

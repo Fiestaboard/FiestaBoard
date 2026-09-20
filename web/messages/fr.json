@@ -1997,8 +1997,10 @@
   },
   "aiChatPanel": {
     "messagesAriaLabel": "Messages du chat",
-    "clearConversationAriaLabel": "Effacer la conversation",
     "closePanelAriaLabel": "Fermer FiestaBot (Beta)",
+    "newChatAriaLabel": "Nouvelle discussion",
+    "historyAriaLabel": "Historique",
+    "backAriaLabel": "Retour",
     "providerSelectAriaLabel": "Fournisseur",
     "modelSelectAriaLabel": "Modèle",
     "panelTitle": "FiestaBot (Beta)",
@@ -2095,7 +2097,34 @@
       "getActivePage": "Vérifier la page active",
       "getBoardContent": "Lire le tableau"
     },
-    "previewUnavailable": "(aperçu indisponible)"
+    "previewUnavailable": "(aperçu indisponible)",
+    "history": {
+      "title": "Historique",
+      "searchPlaceholder": "Rechercher des conversations…",
+      "searchAriaLabel": "Rechercher des conversations par titre",
+      "empty": "Aucune conversation enregistrée pour l’instant",
+      "emptyDescription": "Les discussions sont enregistrées automatiquement au fil de l’eau.",
+      "noMatches": "Aucune conversation ne correspond à votre recherche.",
+      "messageCount": "{count, plural, one {# message} other {# messages}}",
+      "open": "Ouvrir {title}",
+      "rename": "Renommer",
+      "renameAriaLabel": "Renommer {title}",
+      "renameLabel": "Titre de la conversation",
+      "saveTitle": "Enregistrer le titre",
+      "cancel": "Annuler",
+      "delete": "Supprimer",
+      "deleteAriaLabel": "Supprimer {title}",
+      "clearAll": "Tout effacer",
+      "clearAllTitle": "Supprimer toutes les conversations ?",
+      "clearAllDescription": "Cela supprime toutes les discussions enregistrées sur ce FiestaBoard. Cette action est irréversible.",
+      "clearAllConfirm": "Tout supprimer",
+      "continue": "Continuer",
+      "export": "Exporter en JSON",
+      "readOnly": "Vous consultez une conversation enregistrée. Cliquez sur Continuer pour la reprendre.",
+      "loadFailed": "Impossible de charger cette conversation.",
+      "deleted": "Conversation supprimée",
+      "cleared": "Toutes les conversations ont été supprimées"
+    }
   },
   "boardSizeIndicator": {
     "custom": "Personnalisé",

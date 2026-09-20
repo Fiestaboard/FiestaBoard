@@ -10,6 +10,62 @@
       "kind": "APIRoute"
     },
     {
+      "path": "/ai/conversations",
+      "methods": [
+        "DELETE"
+      ],
+      "name": "clear_conversations",
+      "kind": "APIRoute"
+    },
+    {
+      "path": "/ai/conversations",
+      "methods": [
+        "GET"
+      ],
+      "name": "list_conversations",
+      "kind": "APIRoute"
+    },
+    {
+      "path": "/ai/conversations/{conversation_id}",
+      "methods": [
+        "DELETE"
+      ],
+      "name": "delete_conversation",
+      "kind": "APIRoute"
+    },
+    {
+      "path": "/ai/conversations/{conversation_id}",
+      "methods": [
+        "GET"
+      ],
+      "name": "get_conversation",
+      "kind": "APIRoute"
+    },
+    {
+      "path": "/ai/conversations/{conversation_id}",
+      "methods": [
+        "PATCH"
+      ],
+      "name": "rename_conversation",
+      "kind": "APIRoute"
+    },
+    {
+      "path": "/ai/conversations/{conversation_id}",
+      "methods": [
+        "PUT"
+      ],
+      "name": "upsert_conversation",
+      "kind": "APIRoute"
+    },
+    {
+      "path": "/ai/conversations/{conversation_id}/export",
+      "methods": [
+        "GET"
+      ],
+      "name": "export_conversation",
+      "kind": "APIRoute"
+    },
+    {
       "path": "/ai/operations",
       "methods": [
         "POST"

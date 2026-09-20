@@ -1997,8 +1997,10 @@
   },
   "aiChatPanel": {
     "messagesAriaLabel": "Chatberichten",
-    "clearConversationAriaLabel": "Gesprek wissen",
     "closePanelAriaLabel": "FiestaBot (Beta) sluiten",
+    "newChatAriaLabel": "Nieuwe chat",
+    "historyAriaLabel": "Geschiedenis",
+    "backAriaLabel": "Terug",
     "providerSelectAriaLabel": "Provider",
     "modelSelectAriaLabel": "Model",
     "panelTitle": "FiestaBot (Beta)",
@@ -2095,7 +2097,34 @@
       "getActivePage": "Actieve pagina controleren",
       "getBoardContent": "Bord lezen"
     },
-    "previewUnavailable": "(voorbeeld niet beschikbaar)"
+    "previewUnavailable": "(voorbeeld niet beschikbaar)",
+    "history": {
+      "title": "Geschiedenis",
+      "searchPlaceholder": "Gesprekken zoeken…",
+      "searchAriaLabel": "Gesprekken zoeken op titel",
+      "empty": "Nog geen opgeslagen gesprekken",
+      "emptyDescription": "Chats worden automatisch opgeslagen terwijl je typt.",
+      "noMatches": "Geen gesprekken komen overeen met je zoekopdracht.",
+      "messageCount": "{count, plural, one {# bericht} other {# berichten}}",
+      "open": "{title} openen",
+      "rename": "Hernoemen",
+      "renameAriaLabel": "{title} hernoemen",
+      "renameLabel": "Titel van het gesprek",
+      "saveTitle": "Titel opslaan",
+      "cancel": "Annuleren",
+      "delete": "Verwijderen",
+      "deleteAriaLabel": "{title} verwijderen",
+      "clearAll": "Alles wissen",
+      "clearAllTitle": "Alle gesprekken verwijderen?",
+      "clearAllDescription": "Dit verwijdert elke opgeslagen chat van dit FiestaBoard. Dit kan niet ongedaan worden gemaakt.",
+      "clearAllConfirm": "Alles verwijderen",
+      "continue": "Doorgaan",
+      "export": "JSON exporteren",
+      "readOnly": "Je bekijkt een opgeslagen gesprek. Kies Doorgaan om het weer op te pakken.",
+      "loadFailed": "Dat gesprek kon niet worden geladen.",
+      "deleted": "Gesprek verwijderd",
+      "cleared": "Alle gesprekken verwijderd"
+    }
   },
   "boardSizeIndicator": {
     "custom": "Aangepast",
