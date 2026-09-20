@@ -2028,7 +2028,8 @@
       "label": "Modalità di approvazione",
       "ask": "Chiedi",
       "auto": "Auto",
-      "autoNote": "Auto esegue eliminazioni e altre azioni distruttive senza chiedere. Riavvio, spegnimento e aggiornamento chiedono sempre."
+      "autoNote": "Auto esegue eliminazioni e altre azioni distruttive senza chiedere. Riavvio, spegnimento e aggiornamento chiedono sempre.",
+      "thisChat": "Auto per questa chat: scegli «Chiedi» per essere interpellato di nuovo."
     },
     "autoApproved": {
       "badge": "auto",

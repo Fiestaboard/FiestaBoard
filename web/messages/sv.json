@@ -2028,7 +2028,8 @@
       "label": "Godkännandeläge",
       "ask": "Fråga",
       "auto": "Auto",
-      "autoNote": "Auto utför raderingar och andra destruktiva åtgärder utan att fråga. Omstart, avstängning och uppdatering frågar alltid."
+      "autoNote": "Auto utför raderingar och andra destruktiva åtgärder utan att fråga. Omstart, avstängning och uppdatering frågar alltid.",
+      "thisChat": "Auto för den här chatten – välj ”Fråga” för att bli tillfrågad igen."
     },
     "autoApproved": {
       "badge": "auto",

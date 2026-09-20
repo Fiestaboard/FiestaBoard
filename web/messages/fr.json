@@ -2028,7 +2028,8 @@
       "label": "Mode d'approbation",
       "ask": "Demander",
       "auto": "Auto",
-      "autoNote": "Auto exécute les suppressions et autres actions destructrices sans demander. Redémarrer, éteindre et mettre à jour demandent toujours."
+      "autoNote": "Auto exécute les suppressions et autres actions destructrices sans demander. Redémarrer, éteindre et mettre à jour demandent toujours.",
+      "thisChat": "Auto pour cette discussion — choisissez « Demander » pour être à nouveau consulté."
     },
     "autoApproved": {
       "badge": "auto",

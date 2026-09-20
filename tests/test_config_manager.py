@@ -1466,3 +1466,60 @@ def test_silence_migration_does_not_hold_the_singleton_construction_lock(tmp_pat
     probes = _migrate_with_a_lock_probe(tmp_path, mock_time_service, lambda cm: ConfigManager._lock)
 
     assert all(probes), "the migration held the singleton construction lock while doing disk I/O"
+
+
+# --- AI providers: approval_mode (#2021) ---
+
+
+def test_get_ai_providers_coerces_a_hand_edited_approval_mode_to_ask(tmp_path, caplog):
+    """A value outside {ask, auto} in config.json must not 500 the API or
+    split the readers: GET/PUT /settings/ai validate the response and the
+    chat loop keys on the same block, so both must see "ask".
+
+    ConfigManager is a singleton (reset per test by conftest), so the file
+    is written first and the one construction below is the load.
+    """
+    config_path = tmp_path / "config.json"
+    config_path.write_text(
+        json.dumps(
+            {
+                "board": {},
+                "features": {},
+                "general": {},
+                "ai_providers": {
+                    "enabled": False,
+                    "providers": [],
+                    "default_provider_id": None,
+                    "approval_mode": "yolo",
+                },
+            }
+        )
+    )
+    with caplog.at_level("WARNING", logger="src.config_manager"):
+        cm = ConfigManager(config_path=str(config_path))
+        assert cm._config["ai_providers"]["approval_mode"] == "yolo", (
+            "the loader keeps the raw value; the reader coerces"
+        )
+        assert cm.get_ai_providers()["approval_mode"] == "ask"
+        assert cm.get_ai_providers()["approval_mode"] == "ask"
+    warnings = [r for r in caplog.records if "approval_mode" in r.getMessage()]
+    assert len(warnings) == 1, "the coercion is logged once, not on every read"
+
+
+def test_approval_mode_survives_a_reload_from_disk(tmp_path):
+    """The loader merges config.json against DEFAULT_CONFIG; a saved "auto"
+    must come back from disk, not only from the instance that wrote it."""
+    config_path = tmp_path / "config.json"
+    cm = ConfigManager(config_path=str(config_path))
+    cm.set_ai_providers({"approval_mode": "auto"})
+    assert json.loads(config_path.read_text())["ai_providers"]["approval_mode"] == "auto"
+    cm.reload()
+    assert cm.get_ai_providers()["approval_mode"] == "auto"
+
+
+def test_set_ai_providers_coerces_an_unknown_approval_mode_to_ask(tmp_path):
+    cm = ConfigManager(config_path=str(tmp_path / "config.json"))
+    cm.set_ai_providers({"approval_mode": "auto"})
+    assert cm.get_ai_providers()["approval_mode"] == "auto"
+    cm.set_ai_providers({"approval_mode": "yolo"})
+    assert cm.get_ai_providers()["approval_mode"] == "ask", "an unknown mode falls back to asking, like on read"

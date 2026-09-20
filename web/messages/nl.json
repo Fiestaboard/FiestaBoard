@@ -2028,7 +2028,8 @@
       "label": "Goedkeuringsmodus",
       "ask": "Vragen",
       "auto": "Auto",
-      "autoNote": "Auto voert verwijderingen en andere onomkeerbare acties uit zonder te vragen. Herstarten, afsluiten en bijwerken vragen altijd."
+      "autoNote": "Auto voert verwijderingen en andere onomkeerbare acties uit zonder te vragen. Herstarten, afsluiten en bijwerken vragen altijd.",
+      "thisChat": "Auto voor deze chat – kies ‘Vragen’ om weer gevraagd te worden."
     },
     "autoApproved": {
       "badge": "auto",

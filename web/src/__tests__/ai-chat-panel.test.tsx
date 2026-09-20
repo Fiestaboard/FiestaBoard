@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { http, HttpResponse } from "msw";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -20,6 +20,7 @@ const mockAnswer = vi.fn();
 const mockStop = vi.fn();
 const mockReset = vi.fn();
 const mockRetryLast = vi.fn();
+const mockDisableAutoApprove = vi.fn();
 
 // Typed against the real hook contract: without it the inferred literal
 // types (`status: "idle"`, `messages: never[]`, `error: null`) reject the
@@ -37,6 +38,7 @@ const defaultHookResult: UseAiChatResult = {
   retryLast: mockRetryLast,
   reset: mockReset,
   autoApprove: false,
+  disableAutoApprove: mockDisableAutoApprove,
 };
 
 const CONFIGURED = {
@@ -691,9 +693,110 @@ describe("AiChatPanel", () => {
     };
     render(<AiChatPanel {...defaultProps} />, { wrapper: Wrapper });
     const timeline = await screen.findByTestId("ai-step-timeline");
-    const badges = timeline.querySelectorAll('[data-testid="ai-auto-approved-badge"]');
+    const badges = within(timeline).getAllByRole("button", { name: enMessages.aiChatPanel.autoApproved.badge });
     expect(badges).toHaveLength(1);
-    expect(badges[0]).toHaveTextContent(enMessages.aiChatPanel.autoApproved.badge);
-    expect(badges[0]).toHaveAttribute("aria-label", enMessages.aiChatPanel.autoApproved.tooltip);
+    expect(badges[0]).not.toHaveAttribute("aria-label");
+  });
+
+  it("the persistent tool-call card badges an auto-approved call too, as plain text with the explanation", async () => {
+    configuredWith("auto");
+    hookResult = {
+      ...defaultHookResult,
+      status: "idle",
+      messages: [
+        { role: "user", content: "delete it" },
+        {
+          role: "assistant",
+          content: "Gone.",
+          toolCalls: [
+            {
+              ...CREATE_PAGE_CALL,
+              id: "tc2",
+              name: "delete_page",
+              args: { page_id: "p1" },
+              destructive: true,
+              requires_approval: true,
+              auto_approved: true,
+              phase: "ok",
+            },
+            { ...CREATE_PAGE_CALL, id: "tc4", phase: "ok" },
+          ],
+        },
+      ],
+    };
+    render(<AiChatPanel {...defaultProps} />, { wrapper: Wrapper });
+    expect(screen.queryByTestId("ai-step-timeline")).not.toBeInTheDocument();
+    const deleteCard = await screen.findByTestId("ai-tool-delete_page");
+    expect(deleteCard).toHaveTextContent(enMessages.aiChatPanel.autoApproved.badge);
+    expect(deleteCard).toHaveTextContent(enMessages.aiChatPanel.autoApproved.tooltip);
+    // A card's header is one button (the collapsible trigger): the badge
+    // there is text, never a nested control.
+    expect(within(deleteCard).queryByRole("button", { name: enMessages.aiChatPanel.autoApproved.badge })).toBeNull();
+    expect(screen.getByTestId("ai-tool-create_page")).not.toHaveTextContent(enMessages.aiChatPanel.autoApproved.badge);
+  });
+
+  it("after 'don't ask again' the pill reads Auto with a this-chat caption, and Ask turns it back off", async () => {
+    configuredWith("ask");
+    const puts: unknown[] = [];
+    server.use(
+      http.put(`${API_BASE}/settings/ai`, async ({ request }) => {
+        puts.push(await request.json());
+        return HttpResponse.json({ ...CONFIGURED, providers: [CONFIGURED_PROVIDER] });
+      }),
+    );
+    hookResult = { ...defaultHookResult, autoApprove: true, messages: [{ role: "user", content: "hi" }] };
+    const user = userEvent.setup();
+    render(<AiChatPanel {...defaultProps} />, { wrapper: Wrapper });
+    await waitFor(() =>
+      expect(screen.getByRole("radio", { name: enMessages.aiChatPanel.approvalMode.auto })).toBeChecked(),
+    );
+    // The caption waits for the install setting to load (it is "this chat
+    // only" relative to that setting).
+    expect(await screen.findByText(enMessages.aiChatPanel.approvalMode.thisChat)).toBeInTheDocument();
+
+    await user.click(screen.getByRole("radio", { name: enMessages.aiChatPanel.approvalMode.ask }));
+
+    expect(mockDisableAutoApprove).toHaveBeenCalledTimes(1);
+    // The install setting is already Ask: nothing to PUT.
+    expect(puts).toEqual([]);
+  });
+
+  it("with the install in Auto, 'don't ask again' shows no this-chat caption", async () => {
+    configuredWith("auto");
+    hookResult = { ...defaultHookResult, autoApprove: true };
+    render(<AiChatPanel {...defaultProps} />, { wrapper: Wrapper });
+    // Wait until the settings GET has landed (the composer unlocks on it),
+    // so the absence below is judged against the loaded install setting.
+    await waitFor(() => expect(screen.getByRole("textbox")).toBeEnabled());
+    expect(screen.getByRole("radio", { name: enMessages.aiChatPanel.approvalMode.auto })).toBeChecked();
+    expect(screen.queryByText(enMessages.aiChatPanel.approvalMode.thisChat)).not.toBeInTheDocument();
+  });
+
+  it("a failed PUT shows no Auto note and leaves the pill on Ask", async () => {
+    configuredWith("ask");
+    server.use(http.put(`${API_BASE}/settings/ai`, () => HttpResponse.json({ detail: "nope" }, { status: 500 })));
+    const user = userEvent.setup();
+    render(<AiChatPanel {...defaultProps} />, { wrapper: Wrapper });
+    const ask = await screen.findByRole("radio", { name: enMessages.aiChatPanel.approvalMode.ask });
+    await waitFor(() => expect(ask).toBeChecked());
+    await user.click(screen.getByRole("radio", { name: enMessages.aiChatPanel.approvalMode.auto }));
+    await waitFor(() =>
+      expect(screen.getByRole("radio", { name: enMessages.aiChatPanel.approvalMode.ask })).toBeChecked(),
+    );
+    expect(screen.queryByText(enMessages.aiChatPanel.approvalMode.autoNote)).not.toBeInTheDocument();
+  });
+
+  it("the pill stays enabled while the PUT is in flight so the activated radio keeps focus", async () => {
+    configuredWith("ask");
+    server.use(http.put(`${API_BASE}/settings/ai`, () => new Promise<never>(() => {})));
+    const user = userEvent.setup();
+    render(<AiChatPanel {...defaultProps} />, { wrapper: Wrapper });
+    const ask = await screen.findByRole("radio", { name: enMessages.aiChatPanel.approvalMode.ask });
+    await waitFor(() => expect(ask).toBeChecked());
+    const auto = screen.getByRole("radio", { name: enMessages.aiChatPanel.approvalMode.auto });
+    await user.click(auto);
+    expect(auto).toBeChecked();
+    expect(auto).not.toBeDisabled();
+    expect(auto).toHaveFocus();
   });
 });

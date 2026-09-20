@@ -46,6 +46,7 @@ import { memo, useCallback, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 
 import { AiApprovalCard } from "@/components/ai-approval-card";
+import { AiAutoApprovedBadge } from "@/components/ai-auto-approved-badge";
 import { AiQuestionCard } from "@/components/ai-question-card";
 import { AiStepTimeline } from "@/components/ai-step-timeline";
 import { detailForTool, labelForTool } from "@/components/ai-tool-labels";
@@ -107,30 +108,29 @@ export function AiChatPanel({
   // Ask / Auto is the install's setting (PUT /settings/ai), read and written
   // through the same query the Settings page uses. Optimistic while the PUT
   // is in flight so the pill moves on click, not on the round trip.
-  const modeMutation = useMutation({
-    mutationFn: (approval_mode: AiApprovalMode) => api.updateAiSettings({ approval_mode }),
-    onSuccess: (saved) => queryClient.setQueryData(["ai-settings"], saved),
-    onError: (err: Error) => toast.error(err.message),
-  });
-  const approvalMode: AiApprovalMode =
-    modeMutation.isPending && modeMutation.variables ? modeMutation.variables : (settings?.approval_mode ?? "ask");
-  // The one-line explanation of Auto, shown the first time it is chosen in
-  // this panel and taken down again when the user goes back to Ask.
+  // The one-line explanation of Auto, shown the first time it is saved from
+  // this panel and taken down again when the user goes back to Ask. Both
+  // commit on the PUT's success: a failed save shows no note.
   const [autoNote, setAutoNote] = useState(false);
   const autoNoteSeenRef = useRef(false);
-  const handleModeChange = useCallback(
-    (value: string) => {
-      const next: AiApprovalMode = value === "auto" ? "auto" : "ask";
-      if (next === approvalMode) return;
-      if (next === "auto" && !autoNoteSeenRef.current) {
-        autoNoteSeenRef.current = true;
-        setAutoNote(true);
+  const modeMutation = useMutation({
+    mutationFn: (approval_mode: AiApprovalMode) => api.updateAiSettings({ approval_mode }),
+    onSuccess: (saved, requested) => {
+      queryClient.setQueryData(["ai-settings"], saved);
+      if (requested === "auto") {
+        if (!autoNoteSeenRef.current) {
+          autoNoteSeenRef.current = true;
+          setAutoNote(true);
+        }
+      } else {
+        setAutoNote(false);
       }
-      if (next === "ask") setAutoNote(false);
-      modeMutation.mutate(next);
     },
-    [approvalMode, modeMutation],
-  );
+    onError: (err: Error) => toast.error(err.message),
+  });
+  const { mutate: setApprovalMode } = modeMutation;
+  const approvalMode: AiApprovalMode =
+    modeMutation.isPending && modeMutation.variables ? modeMutation.variables : (settings?.approval_mode ?? "ask");
 
   const providers = settings?.providers ?? [];
   const selectedProvider =
@@ -159,6 +159,8 @@ export function AiChatPanel({
     stop,
     retryLast,
     reset,
+    autoApprove,
+    disableAutoApprove,
   } = useAiChat({
     getTurnContext,
     onToolCall,
@@ -173,6 +175,27 @@ export function AiChatPanel({
 
   const streaming = status === "streaming";
   const composerStatus = streaming ? "streaming" : status === "error" ? "error" : "ready";
+
+  // What the pill shows: "don't ask again" reads as Auto for this chat even
+  // while the install stays on Ask. Choosing Ask turns the conversation
+  // flag off (and, if the install is in Auto, saves Ask); choosing Auto
+  // saves the install setting.
+  const effectiveMode: AiApprovalMode = autoApprove ? "auto" : approvalMode;
+  // Not claimed until the install setting is known: before the GET resolves
+  // the fallback "ask" would flash the caption for an install that is in Auto.
+  const autoForThisChatOnly = autoApprove && settings !== undefined && approvalMode === "ask";
+  const handleModeChange = useCallback(
+    (value: string) => {
+      const next: AiApprovalMode = value === "auto" ? "auto" : "ask";
+      if (next === "ask") {
+        if (autoApprove) disableAutoApprove();
+        if (approvalMode !== "ask") setApprovalMode("ask");
+        return;
+      }
+      if (approvalMode !== "auto") setApprovalMode("auto");
+    },
+    [approvalMode, autoApprove, disableAutoApprove, setApprovalMode],
+  );
 
   // Consecutive assistant entries (one per model call; a resume starts a
   // new one) read as one turn on screen.
@@ -216,9 +239,9 @@ export function AiChatPanel({
               <SegmentedControl
                 aria-label={t("approvalMode.label")}
                 size="sm"
-                value={approvalMode}
+                value={effectiveMode}
                 onValueChange={handleModeChange}
-                disabled={!settings || modeMutation.isPending}
+                disabled={!settings}
                 className="mr-1"
                 data-testid="ai-approval-mode"
               >
@@ -254,6 +277,11 @@ export function AiChatPanel({
           {autoNote ? (
             <Text size="xs" tone="muted" className="mt-2" data-testid="ai-approval-mode-note">
               {t("approvalMode.autoNote")}
+            </Text>
+          ) : null}
+          {autoForThisChatOnly ? (
+            <Text size="xs" tone="muted" className="mt-2" data-testid="ai-approval-mode-this-chat">
+              {t("approvalMode.thisChat")}
             </Text>
           ) : null}
         </Box>
@@ -695,7 +723,19 @@ function ToolCallCard({ call }: { call: ToolCallDisplay }) {
         },
       }}
     >
-      <ToolHeader title={labelForTool(call, t)} detail={detailForTool(call)} />
+      <ToolHeader
+        title={labelForTool(call, t)}
+        detail={
+          call.auto_approved ? (
+            <>
+              {detailForTool(call)}
+              <AiAutoApprovedBadge interactive={false} />
+            </>
+          ) : (
+            detailForTool(call)
+          )
+        }
+      />
       <ToolContent>
         <ToolInput input={call.args} />
         <ToolOutput output={output} errorText={errorText} />

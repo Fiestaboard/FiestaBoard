@@ -49,12 +49,13 @@ import json
 import logging
 from collections.abc import AsyncIterator, Awaitable
 from dataclasses import dataclass
-from typing import Any, Literal
+from typing import Any
 
 import httpx
 
 from src.devices import DeviceType
 from src.ops.registry import SYSTEM_GATED
+from src.settings.models import AiApprovalMode
 
 from .chat import _DEFAULT_TIMEOUT_SECONDS, _FenceParser, stream_model
 from .chat_tools import ASK_USER
@@ -70,11 +71,6 @@ logger = logging.getLogger(__name__)
 #: Longest ``result`` payload put on the wire. The transcript has its own,
 #: tighter cap (:data:`src.ai.transcript.MAX_RESULT_CHARS`).
 MAX_WIRE_RESULT_CHARS = 16_000
-
-#: The install-level approval policy (``PUT /settings/ai`` ``approval_mode``).
-#: ``ask`` pauses on every destructive tool; ``auto`` pauses only on the
-#: system tier.
-ApprovalMode = Literal["ask", "auto"]
 
 
 @dataclass(frozen=True)
@@ -129,7 +125,7 @@ async def _run_chat_turn(
     client: httpx.AsyncClient | None = None,
     timeout_seconds: float = _DEFAULT_TIMEOUT_SECONDS,
     limits: TurnLimits = TurnLimits(),
-    approval_mode: ApprovalMode = "ask",
+    approval_mode: AiApprovalMode = "ask",
     auto_approve_destructive: bool = False,
 ) -> AsyncIterator[dict[str, Any]]:
     """Run one user turn to completion or to a pause. Yields stream events.
@@ -209,7 +205,11 @@ async def _run_chat_turn(
         registry_plugins=registry_plugins,
         mode="chat",
     )
-    system_message = {"role": "system", "content": context.system_prompt + catalog.render_addendum(surface)}
+    system_message = {
+        "role": "system",
+        "content": context.system_prompt
+        + catalog.render_addendum(surface, skip_destructive_pause=skip_destructive_pause),
+    }
     # ``to_messages`` puts the "refining an existing page" note just before
     # the prompt; keep that placement so the draft stays adjacent to the ask.
     page_note = context.to_messages()[1] if current_page is not None else None

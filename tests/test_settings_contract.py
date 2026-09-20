@@ -95,6 +95,16 @@ class TestAiProviders:
         client.put("/settings/ai", json={"approval_mode": "auto"})
         assert client.put("/settings/ai", json={"enabled": True}).json()["approval_mode"] == "auto"
 
+    def test_get_survives_a_hand_edited_approval_mode_and_reads_it_as_ask(self, client):
+        from src.config_manager import get_config_manager
+
+        cm = get_config_manager()
+        cm.set_ai_providers({"enabled": True})
+        cm._config["ai_providers"]["approval_mode"] = "yolo"  # what a hand edit of config.json produces
+        response = client.get("/settings/ai")
+        assert response.status_code == 200
+        assert response.json()["approval_mode"] == "ask"
+
     def test_put_422s_on_an_unknown_approval_mode(self, client):
         response = client.put("/settings/ai", json={"approval_mode": "yolo"})
         assert response.status_code == 422

@@ -2028,7 +2028,8 @@
       "label": "Freigabemodus",
       "ask": "Fragen",
       "auto": "Auto",
-      "autoNote": "Auto führt Löschungen und andere unwiderrufliche Aktionen ohne Nachfrage aus. Neustart, Herunterfahren und Aktualisieren fragen immer nach."
+      "autoNote": "Auto führt Löschungen und andere unwiderrufliche Aktionen ohne Nachfrage aus. Neustart, Herunterfahren und Aktualisieren fragen immer nach.",
+      "thisChat": "Auto für diesen Chat – wähle „Fragen“, um wieder gefragt zu werden."
     },
     "autoApproved": {
       "badge": "auto",

@@ -28,6 +28,8 @@ from collections.abc import Iterable
 from dataclasses import dataclass
 from typing import Any, Literal
 
+from src.ops.registry import SYSTEM_GATED
+
 from .mcp_bridge import ToolDescriptor
 
 ChatSurface = Literal["editor", "global"]
@@ -136,16 +138,26 @@ class ToolCatalog:
 
     # -- the taught text ----------------------------------------------------
 
-    def render_addendum(self, surface: ChatSurface) -> str:
-        """The system-prompt section that teaches the tools."""
+    def render_addendum(self, surface: ChatSurface, *, skip_destructive_pause: bool = False) -> str:
+        """The system-prompt section that teaches the tools.
+
+        ``skip_destructive_pause`` is the effective approval policy (#2021):
+        the install is in Auto, or the conversation said "don't ask again".
+        The model is then told destructive tools run immediately — except
+        the system tier, which is described as gated in every mode — so it
+        does not narrate a pause that will not happen.
+        """
         intro = _EDITOR_SURFACE_INTRO if surface == "editor" else _GLOBAL_SURFACE_INTRO
-        sections = [_render_tool(d) for d in self._by_name.values()]
+        sections = [_render_tool(d, skip_destructive_pause) for d in self._by_name.values()]
         retired = ", ".join(RETIRED_OPS)
+        destructive_rule = _RULE_DESTRUCTIVE_AUTO if skip_destructive_pause else _RULE_DESTRUCTIVE_ASK
         return (
             "\n\nCHAT MODE — TOOLS\n\n"
             + intro
             + _HOW_TO_CALL
-            + _RULES
+            + _RULES_HEAD
+            + destructive_rule
+            + _RULES_TAIL
             + f"\nRETIRED (never emit these): {retired}.\n"
             + "\nAVAILABLE TOOLS\n\n"
             + "\n".join(sections)
@@ -182,7 +194,7 @@ _HOW_TO_CALL = (
     "```\n"
 )
 
-_RULES = (
+_RULES_HEAD = (
     "\nRULES\n"
     "- One tool block per response, unless the tool is read-only — then you\n"
     "  may call several. Read-only tools are free: call them before guessing\n"
@@ -191,8 +203,22 @@ _RULES = (
     '  "[Tool result]". It is automated, not a new request: read it and\n'
     "  continue the task or summarise what was done. Do not narrate every\n"
     "  step.\n"
-    "- Tools marked DESTRUCTIVE pause until the user approves. A result of\n"
-    '  "denied" means do not retry; ask how to proceed.\n'
+)
+
+_RULE_DESTRUCTIVE_ASK = (
+    "- Tools marked DESTRUCTIVE pause until the user approves. Tools marked\n"
+    '  SYSTEM always do. A result of "denied" means do not retry; ask how\n'
+    "  to proceed.\n"
+)
+
+_RULE_DESTRUCTIVE_AUTO = (
+    "- Tools marked DESTRUCTIVE run immediately in this conversation: the\n"
+    "  user chose not to be asked. Tools marked SYSTEM (restart, shutdown,\n"
+    '  update) still pause until the user approves. A result of "denied"\n'
+    "  means do not retry; ask how to proceed.\n"
+)
+
+_RULES_TAIL = (
     '- "interrupted" means the user stopped you while that tool was running;\n'
     "  check with a read-only tool before repeating a non-idempotent call.\n"
     "- Use ask_user when a request is ambiguous instead of guessing.\n"
@@ -200,9 +226,13 @@ _RULES = (
 )
 
 
-def _render_tool(d: ToolDescriptor) -> str:
+def _render_tool(d: ToolDescriptor, skip_destructive_pause: bool = False) -> str:
     if d.read_only:
         marker = "[read-only: runs immediately]"
+    elif d.requires_approval and d.name in SYSTEM_GATED:
+        marker = "[DESTRUCTIVE, SYSTEM: the user must approve before it runs, in every mode]"
+    elif d.requires_approval and skip_destructive_pause:
+        marker = "[DESTRUCTIVE: runs immediately — the user chose not to be asked; they see it happen]"
     elif d.requires_approval:
         marker = "[DESTRUCTIVE: the user must approve before it runs]"
     else:

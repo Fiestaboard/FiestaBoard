@@ -80,24 +80,27 @@ export function AiApprovalCard({ call, onApprove, onDeny, onApproveAll, busy = f
         </Text>
       </Box>
       <Flex gap="2" align="center" justify="end" className="flex-wrap">
-        {offerApproveAll ? (
-          <Button
-            type="button"
-            size="sm"
-            variant="ghost"
-            className="mr-auto text-xs text-muted-foreground"
-            onClick={onApproveAll}
-            disabled={busy}
-          >
-            {t("approveAll")}
-          </Button>
-        ) : null}
         <Button ref={denyRef} type="button" size="sm" variant="outline" onClick={onDeny} disabled={busy}>
           {t("deny")}
         </Button>
         <Button type="button" size="sm" variant="destructive" onClick={onApprove} disabled={busy}>
           {busy ? t("working") : t("approve")}
         </Button>
+        {/* Last in DOM order — Shift+Tab from the mount-focused Deny must
+            not land on the strongest approval — but shown first, at the
+            left, by CSS order. */}
+        {offerApproveAll ? (
+          <Button
+            type="button"
+            size="sm"
+            variant="ghost"
+            className="order-first mr-auto text-xs text-muted-foreground"
+            onClick={onApproveAll}
+            disabled={busy}
+          >
+            {t("approveAll")}
+          </Button>
+        ) : null}
       </Flex>
     </Card>
   );

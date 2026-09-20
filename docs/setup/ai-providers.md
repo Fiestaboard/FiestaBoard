@@ -183,9 +183,11 @@ any FiestaBoard-hosted service.
 - No image/vision input.
 - FiestaBot acts through the same tools as the MCP server and shows
   each action as it happens. Creating, editing and configuring apply
-  immediately. Destructive actions — deleting a page, schedule,
-  collection, board or panel, uninstalling a plugin, forgetting or
-  disconnecting Wi-Fi — follow the chat's **approval mode**, the
+  immediately. Destructive actions — every tool the MCP server marks
+  destructive except the system tier: deleting a page, schedule,
+  collection, plugin instance, board or panel, uninstalling a plugin,
+  forgetting or disconnecting Wi-Fi — follow the chat's **approval
+  mode**, the
   Ask / Auto toggle in the panel header. In **Ask** (the default) each
   one pauses for your Approve / Deny; in **Auto** they run without
   asking and are marked *auto* in the step list. The approval card's

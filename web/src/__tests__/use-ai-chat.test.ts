@@ -549,6 +549,50 @@ describe("useAiChat", () => {
     expect(lastBody().approval).toEqual({ auto_approve_destructive: true });
   });
 
+  it("a resume that fails rolls 'don't ask again' back", async () => {
+    const { result } = renderHook(() => useAiChat(makeOpts()));
+    await pauseOnDelete(result);
+    act(() => {
+      result.current.approve("tc2", "approve", { autoApproveConversation: true });
+    });
+    expect(lastBody().approval).toEqual({ auto_approve_destructive: true });
+    await act(async () => {
+      // A rejected resume (4xx) or a dropped connection: an error frame and
+      // no done frame. The call is still pending, so nothing was approved.
+      capturedHandlers?.onError?.("No tool call 'tc2' is awaiting a decision.");
+      resolveStream?.();
+    });
+    expect(result.current.autoApprove).toBe(false);
+    expect(result.current.pendingApproval?.id).toBe("tc2");
+    act(() => {
+      result.current.approve("tc2", "approve");
+    });
+    expect(lastBody().approval).toBeUndefined();
+  });
+
+  it("disableAutoApprove() turns 'don't ask again' off for the rest of the conversation", async () => {
+    const { result } = renderHook(() => useAiChat(makeOpts()));
+    await pauseOnDelete(result);
+    act(() => {
+      result.current.approve("tc2", "approve", { autoApproveConversation: true });
+    });
+    await act(async () => {
+      capturedHandlers?.onStatus?.({ phase: "tool_running", message: "Running…", tool_call_id: "tc2", step: 1 });
+      capturedHandlers?.onToolResult?.({ ...OK, id: "tc2", name: "delete_page" });
+      capturedHandlers?.onDone?.({ ...DONE, reason: "complete", pending_tool_call_id: null });
+      resolveStream?.();
+    });
+    expect(result.current.autoApprove).toBe(true);
+    act(() => {
+      result.current.disableAutoApprove();
+    });
+    expect(result.current.autoApprove).toBe(false);
+    act(() => {
+      result.current.send("and the next one");
+    });
+    expect(lastBody().approval).toBeUndefined();
+  });
+
   it("reset() (New chat) forgets 'don't ask again'", async () => {
     const { result } = renderHook(() => useAiChat(makeOpts()));
     await pauseOnDelete(result);

@@ -2028,7 +2028,8 @@
       "label": "Modo de aprobación",
       "ask": "Preguntar",
       "auto": "Auto",
-      "autoNote": "Auto ejecuta eliminaciones y otras acciones destructivas sin preguntar. Reiniciar, apagar y actualizar siempre preguntan."
+      "autoNote": "Auto ejecuta eliminaciones y otras acciones destructivas sin preguntar. Reiniciar, apagar y actualizar siempre preguntan.",
+      "thisChat": "Auto para este chat: elige «Preguntar» para que se te vuelva a preguntar."
     },
     "autoApproved": {
       "badge": "auto",

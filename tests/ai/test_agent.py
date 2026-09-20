@@ -344,6 +344,29 @@ def test_request_flag_does_not_bypass_the_system_tier():
     assert _only(events, "done")[0]["reason"] == "awaiting_approval"
 
 
+def test_auto_mode_teaches_the_model_that_destructive_tools_run_immediately():
+    provider = ScriptedProvider(_sse("Hi."))
+    _run_turn(provider, FakeBackend(), USER, approval_mode="auto")
+    system = provider.messages_of(0)[0]["content"]
+    assert "not to be asked" in system
+    assert "runs immediately" in system.split("### delete_page")[1].split("### ")[0]
+    assert "must approve" in system.split("### restart_system")[1].split("### ")[0]
+
+
+def test_ask_mode_teaches_the_model_that_destructive_tools_pause():
+    provider = ScriptedProvider(_sse("Hi."))
+    _run_turn(provider, FakeBackend(), USER, approval_mode="ask")
+    system = provider.messages_of(0)[0]["content"]
+    assert "pause until the user approves" in system
+    assert "must approve" in system.split("### delete_page")[1].split("### ")[0]
+
+
+def test_the_conversation_flag_teaches_the_model_the_same_as_auto_mode():
+    provider = ScriptedProvider(_sse("Hi."))
+    _run_turn(provider, FakeBackend(), USER, approval_mode="ask", auto_approve_destructive=True)
+    assert "not to be asked" in provider.messages_of(0)[0]["content"]
+
+
 def test_a_non_destructive_call_is_never_reported_as_auto_approved():
     provider = ScriptedProvider(_sse(_block("create_page", {"name": "A"})), _sse("Made it."))
     events = _run_turn(provider, FakeBackend(), USER, approval_mode="auto")

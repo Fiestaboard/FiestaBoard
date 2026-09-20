@@ -2028,7 +2028,8 @@
       "label": "Approval mode",
       "ask": "Ask",
       "auto": "Auto",
-      "autoNote": "Auto runs deletions and other destructive actions without asking. Restarting, shutting down and updating always ask."
+      "autoNote": "Auto runs deletions and other destructive actions without asking. Restarting, shutting down and updating always ask.",
+      "thisChat": "Auto for this chat — choose Ask to be asked again."
     },
     "autoApproved": {
       "badge": "auto",

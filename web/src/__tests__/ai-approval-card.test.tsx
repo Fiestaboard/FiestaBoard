@@ -99,4 +99,19 @@ describe("AiApprovalCard", () => {
     render(<AiApprovalCard call={DELETE_PAGE} onApprove={vi.fn()} onDeny={vi.fn()} onApproveAll={vi.fn()} busy />);
     expect(screen.getByRole("button", { name: APPROVE_ALL })).toBeDisabled();
   });
+
+  it("Tab order from the mount-focused Deny is Approve, then 'don't ask again' — never the other way", async () => {
+    const user = userEvent.setup();
+    render(<AiApprovalCard call={DELETE_PAGE} onApprove={vi.fn()} onDeny={vi.fn()} onApproveAll={vi.fn()} />);
+    expect(screen.getByRole("button", { name: "Deny" })).toHaveFocus();
+    await user.tab();
+    expect(screen.getByRole("button", { name: "Approve" })).toHaveFocus();
+    await user.tab();
+    expect(screen.getByRole("button", { name: APPROVE_ALL })).toHaveFocus();
+    // Shift+Tab from Deny leaves the card: nothing approving sits before it.
+    screen.getByRole("button", { name: "Deny" }).focus();
+    await user.tab({ shift: true });
+    expect(screen.queryByRole("button", { name: APPROVE_ALL })).not.toHaveFocus();
+    expect(screen.getByRole("button", { name: "Approve" })).not.toHaveFocus();
+  });
 });

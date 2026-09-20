@@ -618,7 +618,8 @@ async def chat_ai_page(request: AIChatRequest) -> StreamingResponse:
     providers_block = cm.get_ai_providers()
     # The install's policy comes from the AI block, never from the client;
     # the conversation's "don't ask again" comes from the client alone.
-    approval_mode = "auto" if providers_block.get("approval_mode") == "auto" else "ask"
+    # ``get_ai_providers`` has already coerced anything unknown to "ask".
+    approval_mode = providers_block.get("approval_mode", "ask")
     auto_approve_destructive = request.approval.auto_approve_destructive if request.approval is not None else False
     variables = _collect_ai_variables()
     demos = _collect_plugin_demos()

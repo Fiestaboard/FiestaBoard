@@ -2028,7 +2028,8 @@
       "label": "Onay modu",
       "ask": "Sor",
       "auto": "Otomatik",
-      "autoNote": "Otomatik, silme ve diğer geri alınamaz işlemleri sormadan çalıştırır. Yeniden başlatma, kapatma ve güncelleme her zaman sorar."
+      "autoNote": "Otomatik, silme ve diğer geri alınamaz işlemleri sormadan çalıştırır. Yeniden başlatma, kapatma ve güncelleme her zaman sorar.",
+      "thisChat": "Bu sohbet için Otomatik — yeniden sorulması için “Sor”u seçin."
     },
     "autoApproved": {
       "badge": "oto",

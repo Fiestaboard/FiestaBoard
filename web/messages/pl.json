@@ -2028,7 +2028,8 @@
       "label": "Tryb zatwierdzania",
       "ask": "Pytaj",
       "auto": "Auto",
-      "autoNote": "Auto wykonuje usuwanie i inne nieodwracalne działania bez pytania. Restart, wyłączenie i aktualizacja zawsze pytają."
+      "autoNote": "Auto wykonuje usuwanie i inne nieodwracalne działania bez pytania. Restart, wyłączenie i aktualizacja zawsze pytają.",
+      "thisChat": "Auto w tym czacie — wybierz „Pytaj”, aby znów otrzymywać pytania."
     },
     "autoApproved": {
       "badge": "auto",

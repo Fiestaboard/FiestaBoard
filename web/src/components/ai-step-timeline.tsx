@@ -1,19 +1,8 @@
 "use client";
 
-import {
-  Badge,
-  Box,
-  Shimmer,
-  Task,
-  TaskContent,
-  TaskItem,
-  TaskTrigger,
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@fiestaboard/ui";
+import { Box, Shimmer, Task, TaskContent, TaskItem, TaskTrigger } from "@fiestaboard/ui";
 
+import { AiAutoApprovedBadge } from "@/components/ai-auto-approved-badge";
 import { detailForTool, labelForTool, type TranslateFn } from "@/components/ai-tool-labels";
 import { useTranslations } from "@/i18n/translations";
 import type { ChatMessage, ToolPhase, TurnStatus } from "@/lib/ai-chat-types";
@@ -72,52 +61,24 @@ export function AiStepTimeline({ messages }: { messages: ChatMessage[] }) {
       data-testid="ai-step-timeline"
     >
       {calls.length > 0 ? (
-        <TooltipProvider>
-          <Task className="border-0 bg-transparent">
-            <TaskTrigger title={t("stepsHeading", { done: doneCount, total: calls.length })} className="px-1 py-1" />
-            <TaskContent className="border-0 px-1 pb-1 pt-0">
-              {calls.map((call) => {
-                const detail = detailForTool(call);
-                return (
-                  <TaskItem key={call.id} status={STATUS_FOR_PHASE[call.phase]}>
-                    {labelForTool(call, t)}
-                    {detail ? ` · ${detail}` : ""}
-                    {call.auto_approved ? <AutoApprovedBadge t={t} /> : null}
-                  </TaskItem>
-                );
-              })}
-            </TaskContent>
-          </Task>
-        </TooltipProvider>
+        <Task className="border-0 bg-transparent">
+          <TaskTrigger title={t("stepsHeading", { done: doneCount, total: calls.length })} className="px-1 py-1" />
+          <TaskContent className="border-0 px-1 pb-1 pt-0">
+            {calls.map((call) => {
+              const detail = detailForTool(call);
+              return (
+                <TaskItem key={call.id} status={STATUS_FOR_PHASE[call.phase]}>
+                  {labelForTool(call, t)}
+                  {detail ? ` · ${detail}` : ""}
+                  {call.auto_approved ? <AiAutoApprovedBadge /> : null}
+                </TaskItem>
+              );
+            })}
+          </TaskContent>
+        </Task>
       ) : null}
       {statusLine ? <Shimmer className="block px-1 pt-1 text-xs">{statusLine}</Shimmer> : null}
     </Box>
-  );
-}
-
-/**
- * A destructive call that ran without a pause — the install is in Auto, or
- * the user chose "don't ask again" for this chat. The badge is focusable so
- * the tooltip opens from the keyboard too; its accessible name is the full
- * explanation, not the three-letter glyph.
- */
-function AutoApprovedBadge({ t }: { t: TranslateFn }) {
-  const tooltip = t("autoApproved.tooltip");
-  return (
-    <Tooltip>
-      <TooltipTrigger asChild>
-        <Badge
-          variant="outline"
-          tabIndex={0}
-          aria-label={tooltip}
-          data-testid="ai-auto-approved-badge"
-          className="ml-1.5 px-1 py-0 text-[10px] uppercase tracking-wide"
-        >
-          {t("autoApproved.badge")}
-        </Badge>
-      </TooltipTrigger>
-      <TooltipContent>{tooltip}</TooltipContent>
-    </Tooltip>
   );
 }
 

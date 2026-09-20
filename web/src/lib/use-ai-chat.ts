@@ -86,6 +86,8 @@ export interface UseAiChatResult {
   reset: () => void;
   /** True once the user chose "don't ask again" in this conversation. */
   autoApprove: boolean;
+  /** Turn "don't ask again" back off; later destructive calls pause again. */
+  disableAutoApprove: () => void;
 }
 
 export interface ApproveOptions {
@@ -105,6 +107,13 @@ interface RunOptions {
    * must leave the decision pending, not pretend the tool ran.
    */
   keepApproval?: boolean;
+  /**
+   * Arm "don't ask again" for this request and the rest of the conversation.
+   * Set before the POST (the request itself carries the flag) and rolled
+   * back if the stream does not reach `done` — a rejected resume or a
+   * dropped connection approved nothing, so it must not leave the flag on.
+   */
+  autoApproveConversation?: boolean;
 }
 
 /** Why a turn ended without a result for every call it started. */
@@ -146,6 +155,10 @@ export function useAiChat(opts: UseAiChatOptions): UseAiChatResult {
       const controller = new AbortController();
       abortRef.current = controller;
       setStatus("streaming");
+      if (options.autoApproveConversation) {
+        autoApproveRef.current = true;
+        setAutoApprove(true);
+      }
       if (!options.keepApproval) setPendingApproval(null);
       setPendingElicitation(null);
       setError(null);
@@ -278,6 +291,11 @@ export function useAiChat(opts: UseAiChatOptions): UseAiChatResult {
         // caller may still refresh what a call could have changed, but it
         // must not tell the user they stopped anything.
         if (!ended && unresolved.length > 0) onStopped?.(unresolved, streamHadError ? "error" : "stopped");
+        if (options.autoApproveConversation && !ended) {
+          // The approval never happened; "don't ask again" goes with it.
+          autoApproveRef.current = false;
+          setAutoApprove(false);
+        }
         setStatus((current) => {
           if (streamHadError) return "error";
           if (current === "streaming") return "idle";
@@ -353,14 +371,13 @@ export function useAiChat(opts: UseAiChatOptions): UseAiChatResult {
         void runStream(next, { resume: { tool_call_id: toolCallId, decision } });
         return;
       }
-      if (options.autoApproveConversation) {
-        // Set before the resume goes out so this very request carries it.
-        autoApproveRef.current = true;
-        setAutoApprove(true);
-      }
       // The card stays "awaiting approval" until the server says the call
       // is running (a status frame); a rejected resume leaves it pending.
-      void runStream(current, { resume: { tool_call_id: toolCallId, decision }, keepApproval: true });
+      void runStream(current, {
+        resume: { tool_call_id: toolCallId, decision },
+        keepApproval: true,
+        autoApproveConversation: options.autoApproveConversation === true,
+      });
     },
     [runStream],
   );
@@ -377,6 +394,11 @@ export function useAiChat(opts: UseAiChatOptions): UseAiChatResult {
 
   const stop = useCallback(() => {
     abortRef.current?.abort();
+  }, []);
+
+  const disableAutoApprove = useCallback(() => {
+    autoApproveRef.current = false;
+    setAutoApprove(false);
   }, []);
 
   const retryLast = useCallback(() => {
@@ -427,6 +449,7 @@ export function useAiChat(opts: UseAiChatOptions): UseAiChatResult {
     retryLast,
     reset,
     autoApprove,
+    disableAutoApprove,
   };
 }
 

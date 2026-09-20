@@ -1586,6 +1586,11 @@ AI_PROVIDER_PUBLIC_KEYS: tuple[str, ...] = ("id", "name", "protocol", "base_url"
 #: The MQTT keys the tool accepts, in the request model's spelling.
 MQTT_SETTING_KEYS: tuple[str, ...] = ("enabled", "broker_host", "broker_port", "external_url")
 
+#: The ``ai`` keys the tool accepts. ``approval_mode`` is deliberately absent
+#: (refused by name in :func:`update_setting`) so the unknown-key hint never
+#: advertises a key the tool will not set.
+AI_SETTING_KEYS: tuple[str, ...] = ("enabled", "providers", "default_provider_id")
+
 #: Spellings the MQTT category also accepts for the broker address.
 _MQTT_KEY_ALIASES = {"host": "broker_host", "port": "broker_port"}
 
@@ -1743,7 +1748,7 @@ async def update_setting(category: str, values: dict[str, Any]) -> dict[str, Any
             allowed = MQTT_SETTING_KEYS
             handler = lambda: api.update_mqtt_settings(models.MqttSettingsUpdate(**body))  # noqa: E731
         elif category == "ai":
-            allowed = models.AiProvidersUpdate.model_fields
+            allowed = AI_SETTING_KEYS
             handler = lambda: api.update_ai_settings(models.AiProvidersUpdate(**body))  # noqa: E731
         elif category == "release_channel":
             from src.system.models import ReleaseChannelRequest

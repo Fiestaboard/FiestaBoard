@@ -2067,6 +2067,10 @@ def _build_mcp_server() -> Any:
             for provider in ai.get("providers", []) or []:
                 if isinstance(provider, dict):
                     provider.pop("headers", None)  # may carry an Authorization header
+            # The chat's approval policy is the user's, not the assistant's
+            # to read back and act on (update_setting refuses it); the loop's
+            # system prompt already says how destructive tools behave.
+            ai.pop("approval_mode", None)
             summary["ai"] = ai
             mqtt = _mask_settings_block(cm, svc.get_mqtt_settings())
             if mqtt.get("username"):
