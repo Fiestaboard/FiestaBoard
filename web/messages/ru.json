@@ -2050,7 +2050,9 @@
     },
     "status": {
       "thinking": "Думаю…",
-      "running": "Выполняется: {tool}…"
+      "running": "Выполняется: {tool}…",
+      "preparing": "Готовлю: {tool}…",
+      "elapsed": "{seconds} с"
     },
     "question": {
       "skip": "Пропустить",
@@ -2260,5 +2262,40 @@
       "triggerSystemUpdate": "Скачивает и устанавливает последнее обновление FiestaBoard. Система ненадолго перезапустится.",
       "generic": "Это действие нельзя отменить другим инструментом."
     }
+  },
+  "aiSpotlight": {
+    "stop": "Стоп",
+    "approve": "Разрешить",
+    "deny": "Отклонить"
+  },
+  "aiChoreography": {
+    "working": "{tool}…",
+    "done": "{tool} — готово",
+    "failed": "{tool}: ошибка",
+    "awaitingApproval": "{tool} — ждёт вашего разрешения",
+    "openingNewPage": "Открываю новую страницу…",
+    "typingName": "Задаю имя страницы…",
+    "typingLines": "Пишу строки…",
+    "creatingPage": "Создаю «{name}»…",
+    "pageCreated": "Страница создана",
+    "pageUpdated": "Страница обновлена",
+    "pageFailed": "Не удалось сохранить страницу",
+    "updatingBehindEdits": "Обновляю сохранённую страницу — ваши несохранённые правки остаются",
+    "changingDevice": "Меняю размер доски…",
+    "aboutToDeletePage": "Сейчас удалю эту страницу",
+    "pageDeleted": "Страница удалена",
+    "openingScheduleForm": "Открываю форму расписания…",
+    "fillingSchedule": "Заполняю расписание…",
+    "savingSchedule": "Сохраняю расписание…",
+    "scheduleCreated": "Расписание добавлено",
+    "scheduleUpdated": "Расписание обновлено",
+    "scheduleFailed": "Не удалось сохранить расписание",
+    "aboutToDeleteSchedule": "Сейчас удалю это расписание",
+    "scheduleDeleted": "Расписание удалено",
+    "changingSetting": "{tool}…",
+    "settingSaved": "Настройка сохранена",
+    "settingFailed": "Не удалось сохранить настройку",
+    "on": "Вкл",
+    "off": "Выкл"
   }
 }

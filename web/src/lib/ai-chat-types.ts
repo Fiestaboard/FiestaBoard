@@ -198,6 +198,10 @@ export interface CreatePageArgs {
   template_lines: string[];
   device_type?: DeviceType;
   duration_seconds?: number;
+  notes_wide?: number;
+  notes_tall?: number;
+  line_metadata?: LineMetadata[];
+  transition_strategy?: string | null;
 }
 
 export interface UpdatePageArgs {
@@ -205,6 +209,11 @@ export interface UpdatePageArgs {
   name?: string | null;
   template_lines?: string[] | null;
   duration_seconds?: number | null;
+  device_type?: DeviceType | null;
+  notes_wide?: number | null;
+  notes_tall?: number | null;
+  line_metadata?: LineMetadata[] | null;
+  transition_strategy?: string | null;
 }
 
 export interface CreateScheduleArgs {
@@ -278,6 +287,8 @@ export interface ChatMessage {
   toolCalls?: ToolCallDisplay[];
   /** The last `status` frame the server sent while this entry was live. */
   status?: TurnStatus;
+  /** The tool block being written right now (cleared when it becomes a call). */
+  draft?: SSEToolStreamingData;
   /** The question this entry asked, with the answer once given. */
   elicitation?: Elicitation & { answer?: ElicitationAnswer };
   warnings?: string[];
@@ -400,6 +411,13 @@ export interface ChatRequestBody {
 
 export interface SSETextData {
   delta: string;
+}
+
+/** One `tool_streaming` frame: a tool block the model is still writing. */
+export interface SSEToolStreamingData {
+  op: string | null;
+  /** The whole block so far, not a delta. */
+  text: string;
 }
 
 export interface SSEStatusData {

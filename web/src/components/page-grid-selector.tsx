@@ -27,6 +27,7 @@ import Link from "@/components/smart-link";
 import { StaticBoardDisplay } from "@/components/static-board-display";
 import { getEffectiveBoardColor, useBoardSettings, useCollections, usePages } from "@/hooks/use-board";
 import { useTranslations } from "@/i18n/translations";
+import { anchorProps } from "@/lib/ai-choreography/anchors";
 import type { Collection, DeviceType, Page, PagePreviewBatchEntry, PagePreviewResponse } from "@/lib/api";
 import { api, isCollectionId } from "@/lib/api";
 import { pagesCompatibleWithBoard } from "@/lib/board-dimensions";
@@ -236,6 +237,7 @@ const PageButton = memo(
         className={buttonClassName}
         type="button"
         aria-pressed={isActive}
+        {...anchorProps(`page.${page.id}`)}
       >
         <Flex align="center" gap="2.5" className="min-w-0">
           <TypeIcon className={iconClassName} aria-hidden="true" />
@@ -334,6 +336,7 @@ const PageListItem = memo(
         className={buttonClassName}
         type="button"
         aria-pressed={isActive}
+        {...anchorProps(`page.${page.id}`)}
       >
         <LayoutTemplate className={iconClassName} aria-hidden="true" />
         <Text as="span" className={nameClassName}>

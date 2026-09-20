@@ -38,7 +38,16 @@ import { AiConversationReview, AiHistoryList, CONVERSATIONS_QUERY_KEY } from "@/
 import { groupTurns, TranscriptTurns } from "@/components/ai-chat-transcript";
 import { AiStepTimeline } from "@/components/ai-step-timeline";
 import { useTranslations } from "@/i18n/translations";
-import type { ChatTurnContext, Elicitation, SSEStatusData, ToolCall, ToolResult } from "@/lib/ai-chat-types";
+import type {
+  ApprovalDecision,
+  ChatTurnContext,
+  Elicitation,
+  ElicitationAnswer,
+  SSEStatusData,
+  SSEToolStreamingData,
+  ToolCall,
+  ToolResult,
+} from "@/lib/ai-chat-types";
 import { type AiApprovalMode, type AISettings, api, type SavedConversation } from "@/lib/api";
 import { type StopReason, useAiChat } from "@/lib/use-ai-chat";
 
@@ -54,8 +63,19 @@ export interface AiChatPanelProps {
   onAwaitingApproval?: (call: ToolCall) => void;
   onElicitation?: (elicitation: Elicitation) => void;
   onStatus?: (status: SSEStatusData) => void;
+  /** The model is writing a tool block; the walkthrough can start moving. */
+  onToolStreaming?: (draft: SSEToolStreamingData) => void;
+  /** The turn ended with nothing pending. */
+  onTurnComplete?: () => void;
+  /** A saved conversation replaced the live one; the walkthrough is over. */
+  onConversationLoaded?: () => void;
   /** The user stopped the turn with these calls still running server-side. */
   onStopped?: (unresolved: ToolCall[], reason: StopReason) => void;
+  /**
+   * The drawer's spotlight shows Stop and Approve/Deny next to the control
+   * being changed; this ref lets those buttons reach the conversation.
+   */
+  controllerRef?: React.MutableRefObject<AiChatController | null>;
   /** Close button hides the panel without losing the existing layout. */
   onClose: () => void;
 }
@@ -67,6 +87,16 @@ export interface AiChatPanelProps {
  */
 type PanelMode = { kind: "chat" } | { kind: "history" } | { kind: "review"; id: string; title: string | null };
 
+/**
+ * The drawer's spotlight shows Stop and Approve/Deny beside the control being
+ * changed; this is how those buttons reach the conversation.
+ */
+export interface AiChatController {
+  approve: (toolCallId: string, decision: ApprovalDecision) => void;
+  answer: (toolCallId: string, answer: ElicitationAnswer) => void;
+  stop: () => void;
+}
+
 export function AiChatPanel({
   getTurnContext,
   onToolCall,
@@ -74,8 +104,12 @@ export function AiChatPanel({
   onAwaitingApproval,
   onElicitation,
   onStatus,
+  onToolStreaming,
+  onTurnComplete,
+  onConversationLoaded,
   onStopped,
   onClose,
+  controllerRef,
 }: AiChatPanelProps) {
   const t = useTranslations("aiChatPanel");
   const [providerId, setProviderId] = useState<string>("");
@@ -134,10 +168,14 @@ export function AiChatPanel({
   // A saved conversation carries the provider and model it was had with;
   // continuing it picks them back up (a provider that has since gone falls
   // through to the default above).
-  const handleConversationLoaded = useCallback((conversation: SavedConversation) => {
-    setProviderId(conversation.provider_id ?? "");
-    setModel(conversation.model ?? "");
-  }, []);
+  const handleConversationLoaded = useCallback(
+    (conversation: SavedConversation) => {
+      setProviderId(conversation.provider_id ?? "");
+      setModel(conversation.model ?? "");
+      onConversationLoaded?.();
+    },
+    [onConversationLoaded],
+  );
   // Every autosave makes the History list and the open review stale; the
   // app's query staleTime would otherwise show a minute-old list.
   const handleSaved = useCallback(
@@ -169,12 +207,19 @@ export function AiChatPanel({
     onAwaitingApproval,
     onElicitation,
     onStatus,
+    onToolStreaming,
+    onTurnComplete,
     onStopped,
     onConversationLoaded: handleConversationLoaded,
     onSaved: handleSaved,
     providerId: effectiveProviderId || undefined,
     model: effectiveModel || undefined,
   });
+
+  // Slot-ref pattern: keep the drawer's ref pointed at the latest controller.
+  useEffect(() => {
+    if (controllerRef) controllerRef.current = { approve, answer, stop };
+  }, [controllerRef, approve, answer, stop]);
 
   const streaming = status === "streaming";
   const composerStatus = streaming ? "streaming" : status === "error" ? "error" : "ready";

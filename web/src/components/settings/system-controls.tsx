@@ -21,6 +21,7 @@ import { useEffect, useState } from "react";
 
 import { useUpdate } from "@/components/update-context";
 import { useTranslations } from "@/i18n/translations";
+import { anchorProps } from "@/lib/ai-choreography/anchors";
 import { api } from "@/lib/api";
 
 /**
@@ -83,7 +84,7 @@ export function SystemControls() {
 
   return (
     <>
-      <PageSection icon={<Cpu />} title={t("title")} description={t("description")}>
+      <PageSection icon={<Cpu />} title={t("title")} description={t("description")} {...anchorProps("settings.system")}>
         <Flex wrap gap="2">
           <Button
             variant={updateAvailable ? "default" : "outline"}

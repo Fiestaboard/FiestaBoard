@@ -5,6 +5,7 @@ import { useMemo } from "react";
 import type { EventProps } from "react-big-calendar";
 
 import { useTranslations } from "@/i18n/translations";
+import { anchorProps } from "@/lib/ai-choreography/anchors";
 import {
   type CalendarEvent,
   formatDayPattern,
@@ -77,6 +78,7 @@ function RegularScheduleEvent({ event }: { event: ScheduleCalendarEvent }) {
     <Box
       className="schedule-event-content h-full w-full overflow-hidden rounded px-1.5 py-1"
       data-testid={`calendar-event-${resource.scheduleId}`}
+      {...anchorProps(`schedule.row.${resource.scheduleId}`)}
       data-schedule-id={resource.scheduleId}
       data-enabled={resource.enabled ? "true" : "false"}
       data-split={resource.isMidnightSplit ? resource.splitPart : "none"}

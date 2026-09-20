@@ -378,6 +378,23 @@ def _pending_transcript(call):
     return [*USER, {"role": "assistant", "content": "Deleting.", "tool_calls": [call]}]
 
 
+def test_tool_drafts_reach_the_client_before_the_call():
+    """The loop forwards the parser's ``tool_streaming`` frames as they
+    come, ahead of the ``tool_call`` they precede."""
+    text = _block("create_page", {"name": "Morning", "template_lines": ["HELLO"]})
+    lines = [
+        "data: " + json.dumps({"choices": [{"delta": {"content": text[i : i + 4]}}]}) for i in range(0, len(text), 4)
+    ]
+    provider = ScriptedProvider(("\n".join([*lines, "data: [DONE]"]) + "\n").encode())
+    backend = FakeBackend({"create_page": ToolOutcome(status="ok", result={"page_id": "p1"})})
+    events = _run_turn(provider, backend, USER)
+    names = _names(events)
+    assert "tool_streaming" in names
+    assert names.index("tool_streaming") < names.index("tool_call")
+    drafts = _only(events, "tool_streaming")
+    assert drafts[-1]["op"] == "create_page"
+
+
 def test_resume_approve_executes_then_continues():
     call = {"id": "c1", "name": "delete_page", "args": {"page_id": "p1"}}
     provider = ScriptedProvider(_sse("Gone."))

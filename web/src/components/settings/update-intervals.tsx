@@ -7,6 +7,7 @@ import { useDeferredValue, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 
 import { useTranslations } from "@/i18n/translations";
+import { anchorProps } from "@/lib/ai-choreography/anchors";
 import { api } from "@/lib/api";
 
 export function UpdateIntervals() {
@@ -96,6 +97,7 @@ export function UpdateIntervals() {
       title={t("updateIntervalsTitle")}
       description={t("updateIntervalsDescription")}
       contentClassName="space-y-6"
+      {...anchorProps("settings.polling")}
     >
       {isLoading || !initialized ? (
         <Stack gap="6">

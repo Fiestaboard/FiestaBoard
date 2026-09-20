@@ -2050,7 +2050,9 @@
     },
     "status": {
       "thinking": "Sto pensando…",
-      "running": "Esecuzione di {tool}…"
+      "running": "Esecuzione di {tool}…",
+      "preparing": "Preparazione di {tool}…",
+      "elapsed": "{seconds} s"
     },
     "question": {
       "skip": "Salta",
@@ -2260,5 +2262,40 @@
       "triggerSystemUpdate": "Scarica e installa l'ultimo aggiornamento di FiestaBoard. Il sistema si riavvierà brevemente.",
       "generic": "Questa azione non può essere annullata da un altro strumento."
     }
+  },
+  "aiSpotlight": {
+    "stop": "Ferma",
+    "approve": "Approva",
+    "deny": "Nega"
+  },
+  "aiChoreography": {
+    "working": "{tool}…",
+    "done": "{tool} — fatto",
+    "failed": "{tool} non riuscito",
+    "awaitingApproval": "{tool} — in attesa della tua approvazione",
+    "openingNewPage": "Apertura di una nuova pagina…",
+    "typingName": "Assegnazione del nome…",
+    "typingLines": "Scrittura delle righe…",
+    "creatingPage": "Creazione di “{name}”…",
+    "pageCreated": "Pagina creata",
+    "pageUpdated": "Pagina aggiornata",
+    "pageFailed": "Impossibile salvare la pagina",
+    "updatingBehindEdits": "Aggiornamento della pagina salvata — le tue modifiche non salvate restano",
+    "changingDevice": "Modifica della dimensione della board…",
+    "aboutToDeletePage": "Questa pagina sta per essere eliminata",
+    "pageDeleted": "Pagina eliminata",
+    "openingScheduleForm": "Apertura del modulo programmazione…",
+    "fillingSchedule": "Compilazione della programmazione…",
+    "savingSchedule": "Salvataggio della programmazione…",
+    "scheduleCreated": "Programmazione aggiunta",
+    "scheduleUpdated": "Programmazione aggiornata",
+    "scheduleFailed": "Impossibile salvare la programmazione",
+    "aboutToDeleteSchedule": "Questa programmazione sta per essere eliminata",
+    "scheduleDeleted": "Programmazione eliminata",
+    "changingSetting": "{tool}…",
+    "settingSaved": "Impostazione salvata",
+    "settingFailed": "Impossibile salvare l'impostazione",
+    "on": "Attivo",
+    "off": "Disattivo"
   }
 }

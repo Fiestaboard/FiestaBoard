@@ -30,6 +30,7 @@ import { useState } from "react";
 import { toast } from "sonner";
 
 import { useTranslations } from "@/i18n/translations";
+import { anchorProps } from "@/lib/ai-choreography/anchors";
 import type { AIProvider, AISettings } from "@/lib/api";
 import { api } from "@/lib/api";
 
@@ -499,6 +500,7 @@ export function AiSettings() {
       icon={<Sparkles />}
       title={t("cardTitle")}
       description={t("cardDescription")}
+      {...anchorProps("settings.ai")}
       action={
         <Flex align="center" gap="2" className="pt-1">
           <Label htmlFor="ai-enabled" className="text-xs">

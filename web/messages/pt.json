@@ -2050,7 +2050,9 @@
     },
     "status": {
       "thinking": "A pensar…",
-      "running": "A executar {tool}…"
+      "running": "A executar {tool}…",
+      "preparing": "A preparar {tool}…",
+      "elapsed": "{seconds} s"
     },
     "question": {
       "skip": "Saltar",
@@ -2260,5 +2262,40 @@
       "triggerSystemUpdate": "Transfere e instala a atualização mais recente do FiestaBoard. O sistema reinicia brevemente.",
       "generic": "Esta ação não pode ser anulada por outra ferramenta."
     }
+  },
+  "aiSpotlight": {
+    "stop": "Parar",
+    "approve": "Aprovar",
+    "deny": "Recusar"
+  },
+  "aiChoreography": {
+    "working": "{tool}…",
+    "done": "{tool} — concluído",
+    "failed": "{tool} falhou",
+    "awaitingApproval": "{tool} — à espera da sua aprovação",
+    "openingNewPage": "A abrir uma página nova…",
+    "typingName": "A dar nome à página…",
+    "typingLines": "A escrever as linhas…",
+    "creatingPage": "A criar “{name}”…",
+    "pageCreated": "Página criada",
+    "pageUpdated": "Página atualizada",
+    "pageFailed": "Não foi possível guardar a página",
+    "updatingBehindEdits": "A atualizar a página guardada — as suas alterações por guardar mantêm-se",
+    "changingDevice": "A alterar o tamanho do painel…",
+    "aboutToDeletePage": "Prestes a eliminar esta página",
+    "pageDeleted": "Página eliminada",
+    "openingScheduleForm": "A abrir o formulário do horário…",
+    "fillingSchedule": "A preencher o horário…",
+    "savingSchedule": "A guardar o horário…",
+    "scheduleCreated": "Horário adicionado",
+    "scheduleUpdated": "Horário atualizado",
+    "scheduleFailed": "Não foi possível guardar o horário",
+    "aboutToDeleteSchedule": "Prestes a eliminar este horário",
+    "scheduleDeleted": "Horário eliminado",
+    "changingSetting": "{tool}…",
+    "settingSaved": "Definição guardada",
+    "settingFailed": "Não foi possível guardar a definição",
+    "on": "Ligado",
+    "off": "Desligado"
   }
 }

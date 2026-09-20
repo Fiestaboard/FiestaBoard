@@ -2,19 +2,24 @@
 
 import { Box } from "@fiestaboard/ui";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useCallback, useEffect, useRef } from "react";
+import { useCallback, useEffect, useMemo, useRef } from "react";
 import { toast } from "sonner";
 
-import { AiChatPanel } from "@/components/ai-chat-panel";
+import { type AiChatController, AiChatPanel } from "@/components/ai-chat-panel";
+import { useSpotlight } from "@/components/ai-spotlight/spotlight-provider";
+import { labelForTool } from "@/components/ai-tool-labels";
 import { useGlobalAiPanel } from "@/components/global-ai-panel-context";
 import { usePageEditorBridge } from "@/components/page-editor-bridge-context";
+import { useScheduleEditorBridge } from "@/components/schedule-editor-bridge-context";
+import { useReducedMotion } from "@/hooks/use-reduced-motion";
 import { useRouter } from "@/hooks/use-router";
 import { useTranslations } from "@/i18n/translations";
 import type { ChatTurnContext, ToolCall, ToolResult } from "@/lib/ai-chat-types";
 import { queryKeysForTool } from "@/lib/ai-choreography/query-keys";
+import type { ChoreographyContext } from "@/lib/ai-choreography/types";
+import { useChoreographer } from "@/lib/ai-choreography/use-choreographer";
 import { type AISettings, api, type ScheduleEntry } from "@/lib/api";
 import { isChromelessPath } from "@/lib/chromeless";
-import { getDraftKey } from "@/lib/page-draft";
 import type { StopReason } from "@/lib/use-ai-chat";
 import { cn } from "@/lib/utils";
 
@@ -41,7 +46,46 @@ export function GlobalAiChatDrawer() {
   const openerRef = useRef<HTMLElement | null>(null);
   const queryClient = useQueryClient();
   const router = useRouter();
-  const { getEditorSnapshot } = usePageEditorBridge();
+  const { getEditorSnapshot, staging: pageStaging } = usePageEditorBridge();
+  const { staging: scheduleStaging } = useScheduleEditorBridge();
+  const spotlight = useSpotlight();
+  const tPanel = useTranslations("aiChatPanel");
+  const tChoreography = useTranslations("aiChoreography");
+  const controllerRef = useRef<AiChatController | null>(null);
+  // The call the server paused on, for the spotlight's Approve/Deny.
+  const pendingApprovalRef = useRef<string | null>(null);
+  const reducedMotion = useReducedMotion();
+
+  // The walkthrough: where each call lands on screen, played in order.
+  const choreographyCtx = useMemo<ChoreographyContext>(
+    () => ({
+      navigate: (href) => router.push(href),
+      pathname: () => (typeof window === "undefined" ? "/" : window.location.pathname),
+      spotlight,
+      pageEditor: pageStaging,
+      schedule: scheduleStaging,
+      t: tChoreography,
+      label: (call) => labelForTool(call, tPanel),
+      reducedMotion,
+    }),
+    [router, spotlight, pageStaging, scheduleStaging, tChoreography, tPanel, reducedMotion],
+  );
+  const choreographer = useChoreographer(choreographyCtx);
+  const driving = choreographer.driving;
+
+  useEffect(() => {
+    spotlight.setHandlers({
+      onStop: () => controllerRef.current?.stop(),
+      onApprove: () => {
+        const id = pendingApprovalRef.current;
+        if (id) controllerRef.current?.approve(id, "approve");
+      },
+      onDeny: () => {
+        const id = pendingApprovalRef.current;
+        if (id) controllerRef.current?.approve(id, "deny");
+      },
+    });
+  }, [spotlight]);
 
   // The browser-side loop's chaining preference has no meaning any more;
   // clear it so a downgrade cannot resurrect it either.
@@ -92,13 +136,28 @@ export function GlobalAiChatDrawer() {
     enabled: isOpen,
   });
 
-  // Modal focus management: trap Tab focus inside the panel while open,
-  // close on Escape, and restore focus to the opener when it closes.
+  // Remember what had focus when the panel opened; give it back on close.
   useEffect(() => {
     if (!isOpen) return;
-
-    // Remember what had focus so we can restore it on close.
     openerRef.current = document.activeElement as HTMLElement | null;
+    return () => {
+      openerRef.current?.focus?.();
+    };
+  }, [isOpen]);
+
+  // Modal focus management: trap Tab focus inside the panel while open and
+  // close on Escape. While the walkthrough is driving the screen the panel
+  // is not modal: the trap is released, focus is left alone, and Escape
+  // stops the assistant instead of closing the panel.
+  useEffect(() => {
+    if (!isOpen) return;
+    if (driving) {
+      const stopOnEscape = (e: KeyboardEvent) => {
+        if (e.key === "Escape") controllerRef.current?.stop();
+      };
+      window.addEventListener("keydown", stopOnEscape);
+      return () => window.removeEventListener("keydown", stopOnEscape);
+    }
 
     const getFocusable = (): HTMLElement[] => {
       const panel = panelRef.current;
@@ -147,10 +206,8 @@ export function GlobalAiChatDrawer() {
     return () => {
       window.clearTimeout(focusTimer);
       window.removeEventListener("keydown", handler);
-      // Restore focus to whatever opened the panel.
-      openerRef.current?.focus?.();
     };
-  }, [isOpen, close]);
+  }, [isOpen, driving, close]);
 
   // Auto-close when AI is disabled so the drawer doesn't trap users who
   // navigate to the AI panel and then toggle AI off in Settings (issue #806).
@@ -367,27 +424,39 @@ export function GlobalAiChatDrawer() {
               .getQueryData<{ schedules?: ScheduleEntry[] }>(["schedules"])
               ?.schedules?.find((s) => s.id === call.args.schedule_id)
           : undefined;
-      void invalidateFor(call).then(() => {
-        toastForToolResult(call, result, previousSchedule);
-        // The prompt promises that a created page is opened for the user.
-        // If it grew out of the editor's unsaved draft, the draft is done
-        // with: drop it so /pages/new does not offer to restore it later.
-        const pageId = result.status === "ok" ? (result.result as { page_id?: unknown } | null)?.page_id : undefined;
-        if (call.name === "create_page" && typeof pageId === "string") {
-          const editing = getEditorSnapshot();
-          if (editing && !editing.id) {
-            try {
-              localStorage.removeItem(getDraftKey());
-            } catch {
-              /* storage may be unavailable */
-            }
-          }
-          router.push(`/pages/edit/${pageId}`);
-        }
-      });
+      if (pendingApprovalRef.current === result.id) pendingApprovalRef.current = null;
+      // The walkthrough settles the call on screen (a created page is
+      // opened there); the caches refresh so what it points at is real.
+      choreographer.onToolResult(result);
+      void invalidateFor(call).then(() => toastForToolResult(call, result, previousSchedule));
     },
-    [getEditorSnapshot, invalidateFor, queryClient, router, toastForToolResult],
+    [choreographer, invalidateFor, queryClient, toastForToolResult],
   );
+
+  const handleToolCall = useCallback((call: ToolCall) => choreographer.onToolCall(call), [choreographer]);
+  const handleToolStreaming = useCallback(
+    (draft: { text: string }) => choreographer.onDraft(draft.text),
+    [choreographer],
+  );
+  const handleAwaitingApproval = useCallback(
+    (call: ToolCall) => {
+      pendingApprovalRef.current = call.id;
+      choreographer.onAwaitingApproval(call);
+    },
+    [choreographer],
+  );
+  const handleTurnComplete = useCallback(() => {
+    pendingApprovalRef.current = null;
+    choreographer.onTurnEnd();
+  }, [choreographer]);
+  // Opening a saved conversation (History → Continue, or the reload
+  // restore) replaces the live turn: whatever the walkthrough was in the
+  // middle of belongs to the chat being put away, so it stops here rather
+  // than settling against the transcript that just arrived.
+  const handleConversationLoaded = useCallback(() => {
+    pendingApprovalRef.current = null;
+    choreographer.onAbort();
+  }, [choreographer]);
 
   // Stop ends the stream, but a tool that was already running finishes on
   // the server without a result reaching us. Refresh what it may have
@@ -406,6 +475,8 @@ export function GlobalAiChatDrawer() {
   }, []);
   const handleStopped = useCallback(
     (unresolved: ToolCall[], reason: StopReason) => {
+      pendingApprovalRef.current = null;
+      choreographer.onAbort();
       if (unresolved.length === 0) return;
       if (reason === "stopped") toast.info(t("toast.stopped"));
       const refresh = () => {
@@ -419,7 +490,7 @@ export function GlobalAiChatDrawer() {
         refreshTimersRef.current.push(id);
       }
     },
-    [invalidateFor, t],
+    [choreographer, invalidateFor, t],
   );
 
   const hasProviders = (aiSettings?.providers?.length ?? 0) > 0;
@@ -431,7 +502,8 @@ export function GlobalAiChatDrawer() {
     <Box
       ref={panelRef}
       role="dialog"
-      aria-modal="true"
+      aria-modal={!driving}
+      data-driving={driving ? "" : undefined}
       aria-label={t("panelAriaLabel")}
       tabIndex={-1}
       className={cn(
@@ -456,9 +528,15 @@ export function GlobalAiChatDrawer() {
     >
       <AiChatPanel
         getTurnContext={getTurnContext}
+        onToolCall={handleToolCall}
+        onToolStreaming={handleToolStreaming}
         onToolResult={handleToolResult}
+        onAwaitingApproval={handleAwaitingApproval}
+        onTurnComplete={handleTurnComplete}
+        onConversationLoaded={handleConversationLoaded}
         onStopped={handleStopped}
         onClose={close}
+        controllerRef={controllerRef}
       />
     </Box>
   );

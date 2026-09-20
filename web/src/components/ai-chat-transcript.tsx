@@ -17,7 +17,7 @@ import {
   type ToolState,
 } from "@fiestaboard/ui";
 import { AlertCircle, Sparkles } from "lucide-react";
-import { memo } from "react";
+import { memo, useMemo } from "react";
 
 import { AiApprovalCard } from "@/components/ai-approval-card";
 import { AiAutoApprovedBadge } from "@/components/ai-auto-approved-badge";
@@ -31,10 +31,12 @@ import type {
   ChatMessage,
   Elicitation,
   ElicitationAnswer,
+  SSEToolStreamingData,
   ToolCall,
   ToolCallDisplay,
   ToolPhase,
 } from "@/lib/ai-chat-types";
+import { parseToolDraft } from "@/lib/ai-choreography/draft";
 import type { ApproveOptions } from "@/lib/use-ai-chat";
 
 // The transcript as the panel draws it: user turns, assistant turns (one
@@ -215,6 +217,7 @@ const AssistantEntry = memo(function AssistantEntry({
             ) : null}
           </Stack>
         ))}
+      {message.draft ? <DraftToolCard draft={message.draft} /> : null}
       {message.elicitation ? (
         <AiQuestionCard
           elicitation={message.elicitation}
@@ -235,6 +238,49 @@ const AssistantEntry = memo(function AssistantEntry({
     </Stack>
   );
 });
+
+/**
+ * The tool block the model is still writing, as a card in the
+ * `input-streaming` state with whatever arguments can be read so far — so a
+ * six-line page is visible as it is composed, not only once it closes.
+ */
+function DraftToolCard({ draft }: { draft: SSEToolStreamingData }) {
+  const t = useTranslations("aiChatPanel");
+  const parsed = useMemo(() => parseToolDraft(draft.text), [draft.text]);
+  const name = draft.op ?? parsed.name;
+  const input: Record<string, unknown> = { ...parsed.strings, ...parsed.lists };
+  if (parsed.partial) {
+    const { key, index, value } = parsed.partial;
+    if (index === undefined) input[key] = value + "…";
+    else input[key] = [...((input[key] as string[] | undefined) ?? []), value + "…"];
+  }
+  const label = name ? labelForTool({ ...DRAFT_CALL, name, title: name }, t) : t("status.thinking");
+  return (
+    <Tool
+      state="input-streaming"
+      data-testid="ai-tool-draft"
+      labels={{
+        input: t("toolInput"),
+        output: t("toolOutput"),
+        states: { "input-streaming": t("toolStates.inputStreaming") },
+      }}
+    >
+      <ToolHeader title={label} />
+      <ToolContent>{Object.keys(input).length > 0 ? <ToolInput input={input} /> : null}</ToolContent>
+    </Tool>
+  );
+}
+
+const DRAFT_CALL: ToolCall = {
+  id: "draft",
+  name: "",
+  args: {},
+  title: "",
+  read_only: false,
+  destructive: false,
+  requires_approval: false,
+  source: "mcp",
+};
 
 const TOOL_STATE_FOR_PHASE: Record<ToolPhase, ToolState> = {
   running: "input-available",

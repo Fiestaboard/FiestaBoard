@@ -45,6 +45,7 @@ import { TransitionGridDisplay } from "@/components/transitions/transition-grid-
 import { useDepsChanged } from "@/hooks/use-deps-changed";
 import { useRouter } from "@/hooks/use-router";
 import { useTranslations } from "@/i18n/translations";
+import { anchorProps } from "@/lib/ai-choreography/anchors";
 import type { DeviceType, TransitionPreviewResponse } from "@/lib/api";
 import { api } from "@/lib/api";
 
@@ -293,6 +294,7 @@ export default function TransitionsLabPage() {
         <PageCard>
           <PageHeader icon={FlaskConical} title={t("title")} description={t("description")} />
           <PageSection
+            {...anchorProps("transitions.root")}
             title={
               <Flex align="center" gap="2">
                 {t("betaGateTitle")}
@@ -315,7 +317,10 @@ export default function TransitionsLabPage() {
 
         {/* One section holding both panels, so the split is a vertical rule
             rather than two more borders inside the page card. */}
-        <PageSection className="grid gap-6 lg:grid-cols-[400px_1fr] lg:gap-0 lg:divide-x lg:divide-border">
+        <PageSection
+          className="grid gap-6 lg:grid-cols-[400px_1fr] lg:gap-0 lg:divide-x lg:divide-border"
+          {...anchorProps("transitions.root")}
+        >
           <Box className="space-y-4 lg:pr-6">
             <Stack gap="1" className="mb-4">
               <CardTitle size="base">{t("setupTitle")}</CardTitle>

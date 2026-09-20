@@ -26,6 +26,7 @@ import { useState } from "react";
 import { toast } from "sonner";
 
 import { useTranslations } from "@/i18n/translations";
+import { anchorProps } from "@/lib/ai-choreography/anchors";
 import type { SavedWifiNetwork, WifiNetwork } from "@/lib/api";
 import { api } from "@/lib/api";
 
@@ -146,6 +147,7 @@ export function NetworkSettings() {
         title={t("currentConnection")}
         description={t("description")}
         contentClassName="space-y-3"
+        {...anchorProps("settings.network")}
       >
         {statusQuery.isLoading ? (
           <Spinner className="text-muted-foreground" label={tCommon("loading")} />

@@ -90,7 +90,18 @@ def test_the_operations_endpoint_is_gone_from_the_drawer():
 
 def test_no_handle_callback_survives_for_a_tool():
     """``const handleEnablePlugin = ...`` is the shape of the old dispatcher."""
-    offenders = sorted(set(re.findall(r"const handle([A-Z][A-Za-z]+) = ", DRAWER_SOURCE)) - {"ToolResult", "Stopped"})
+    # The stream's lifecycle handlers are allowed: they are named for a
+    # frame or a phase, never for a tool.
+    lifecycle = {
+        "ToolCall",
+        "ToolStreaming",
+        "ToolResult",
+        "AwaitingApproval",
+        "TurnComplete",
+        "ConversationLoaded",
+        "Stopped",
+    }
+    offenders = sorted(set(re.findall(r"const handle([A-Z][A-Za-z]+) = ", DRAWER_SOURCE)) - lifecycle)
     assert offenders == [], f"tools must not have their own browser handler: {offenders}"
 
 

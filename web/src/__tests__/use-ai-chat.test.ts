@@ -170,6 +170,32 @@ describe("useAiChat", () => {
     expect(onToolResult).toHaveBeenCalledWith(OK, CREATE_PAGE);
   });
 
+  it("keeps the block the model is writing on the entry until it becomes a call", async () => {
+    const onToolStreaming = vi.fn();
+    const onTurnComplete = vi.fn();
+    const { result } = renderHook(() => useAiChat(makeOpts({ onToolStreaming, onTurnComplete })));
+    act(() => {
+      result.current.send("make a page");
+    });
+    const draft = { op: "create_page", text: '{"op": "create_page", "args": {"name": "Mo' };
+    await act(async () => {
+      capturedHandlers?.onToolStreaming?.(draft);
+    });
+    expect(result.current.messages[1].draft).toEqual(draft);
+    expect(onToolStreaming).toHaveBeenCalledWith(draft);
+    await act(async () => {
+      capturedHandlers?.onToolCall?.(CREATE_PAGE);
+    });
+    expect(result.current.messages[1].draft).toBeUndefined();
+    expect(onTurnComplete).not.toHaveBeenCalled();
+    await act(async () => {
+      capturedHandlers?.onToolResult?.(OK);
+      capturedHandlers?.onDone?.({ ...DONE, reason: "complete", pending_tool_call_id: null });
+      resolveStream?.();
+    });
+    expect(onTurnComplete).toHaveBeenCalledTimes(1);
+  });
+
   it("status frames set the turn's status line and clear it on a result", async () => {
     const { result } = renderHook(() => useAiChat(makeOpts()));
     act(() => {
@@ -766,6 +792,25 @@ describe("conversation history (#2022)", () => {
     });
     expect(result.current.conversationId).toMatch(UUID);
     expect(result.current.conversationId).not.toBe(first);
+  });
+
+  it("a restored conversation shows no block still being written", async () => {
+    // A turn cut short mid-block is saved with the draft on it. Restoring it
+    // must not leave a "Preparing…" card on screen for a call that will
+    // never arrive, nor hand the walkthrough a stale block to act on.
+    const withDraft = {
+      ...SAVED,
+      messages: [
+        SAVED.messages[0],
+        { ...SAVED.messages[1], draft: { op: "create_page", text: '{"op": "create_page", "args": {"name": "Mo' } },
+      ],
+    };
+    server.use(http.get(`${API_BASE}/ai/conversations/${SAVED_ID}`, () => HttpResponse.json(withDraft)));
+    const { result } = renderHook(() => useAiChat(makeOpts()));
+    await act(async () => {
+      await result.current.loadConversation(SAVED_ID);
+    });
+    expect(result.current.messages[1].draft).toBeUndefined();
   });
 
   it("loadConversation(id) replaces the live transcript with the saved one and makes it live", async () => {

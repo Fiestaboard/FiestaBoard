@@ -268,6 +268,20 @@ class ChatStreamTextData(BaseModel):
     delta: str
 
 
+class ChatStreamToolStreamingData(BaseModel):
+    """``event: tool_streaming`` — a tool block the model is still writing.
+
+    ``text`` is the whole block so far (not a delta), ``op`` the tool name
+    once it can be read from it. Purely advisory: the validated call
+    follows as ``tool_call`` when the block closes, or a ``warning`` if it
+    was malformed. The client uses it to show what is being prepared and
+    to start moving to where the change will land.
+    """
+
+    op: str | None = None
+    text: str
+
+
 class ChatStreamStatusData(BaseModel):
     """``event: status`` — what the loop is doing, for the step timeline."""
 
@@ -358,6 +372,7 @@ class ChatStreamDoneData(BaseModel):
 CHAT_STREAM_EVENTS: dict[str, type[BaseModel]] = {
     "text": ChatStreamTextData,
     "status": ChatStreamStatusData,
+    "tool_streaming": ChatStreamToolStreamingData,
     "tool_call": ChatStreamToolCallData,
     "tool_result": ChatStreamToolResultData,
     "elicitation": ChatStreamElicitationData,
