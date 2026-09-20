@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it } from "vitest";
 
 import { clearRememberedToolDetails, rememberedToolDetail } from "@/hooks/use-target-caches";
 import type { ToolCall } from "@/lib/ai-chat-types";
-import { resolveToolDetail,type TargetCaches } from "@/lib/ai-target-names";
+import { resolveToolDetail, type TargetCaches } from "@/lib/ai-target-names";
 
 import enMessages from "../../messages/en.json";
 

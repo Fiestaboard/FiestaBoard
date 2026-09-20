@@ -374,7 +374,10 @@ function ToolCallCard({ call }: { call: ToolCallDisplay }) {
           384px drawer beat one line that says "Add sched… Goodnight · 21:0…". */}
       <ToolHeader
         title={
-          <Text as="span" className="inline-flex min-w-0 max-w-full flex-wrap items-baseline gap-x-1.5 whitespace-normal">
+          <Text
+            as="span"
+            className="inline-flex min-w-0 max-w-full flex-wrap items-baseline gap-x-1.5 whitespace-normal"
+          >
             <Text as="span" className="shrink-0">
               {labelForTool(call, t)}
             </Text>
