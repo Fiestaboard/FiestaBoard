@@ -1189,7 +1189,7 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
         };
       }
 
-      return api.renderTemplate(cleanedLines, metadata, deviceType);
+      return api.renderTemplate(cleanedLines, metadata, deviceType, notesWide, notesTall);
     },
     onSuccess: (data) => {
       if (shouldIgnoreNextResponse.current) {
@@ -1252,6 +1252,9 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
 
   // Auto-preview when debounced template lines or alignments change (debounced)
   // Skipped when live mode is on — the live fast path handles preview updates directly.
+  // notesWide/notesTall are tracked too so widening a note array re-previews at
+  // the new width (issue #2032): a notesTall change already resizes
+  // templateLines, but a width change leaves the row count untouched.
   useEffect(() => {
     if (liveOutputEnabled) {
       needsRePreview.current = false;
@@ -1308,7 +1311,14 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
         transitionTimeoutRef.current = null;
       }
     };
-  }, [debouncedTemplateLines, debouncedLineAlignments, debouncedLineWrapEnabled, liveOutputEnabled]);
+  }, [
+    debouncedTemplateLines,
+    debouncedLineAlignments,
+    debouncedLineWrapEnabled,
+    liveOutputEnabled,
+    notesWide,
+    notesTall,
+  ]);
 
   // Live output mutation - sends rendered preview to the board
   const liveSendMutation = useMutation({
@@ -1318,7 +1328,14 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
         debouncedLineAlignments,
         debouncedLineWrapEnabled,
       );
-      return api.renderTemplateLive(cleanedLines, selectedBoardId || undefined, metadata, deviceType);
+      return api.renderTemplateLive(
+        cleanedLines,
+        selectedBoardId || undefined,
+        metadata,
+        deviceType,
+        notesWide,
+        notesTall,
+      );
     },
     onSuccess: (data) => {
       if (data.sent_to_board) {
@@ -1401,6 +1418,8 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
           selectedBoardId || undefined,
           metadata,
           deviceType,
+          notesWide,
+          notesTall,
           controller.signal,
         );
 
@@ -1431,7 +1450,17 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
         liveAbortRef.current = null;
       }
     };
-  }, [liveOutputEnabled, templateLines, lineAlignments, lineWrapEnabled, selectedBoardId, deviceType, queryClient]);
+  }, [
+    liveOutputEnabled,
+    templateLines,
+    lineAlignments,
+    lineWrapEnabled,
+    selectedBoardId,
+    deviceType,
+    notesWide,
+    notesTall,
+    queryClient,
+  ]);
 
   // Initialize selected board to first board when settings load
   useEffect(() => {
