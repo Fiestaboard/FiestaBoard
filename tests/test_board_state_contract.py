@@ -1,29 +1,31 @@
-"""Value-level goldens for the three "what is on the board" surfaces (issue #1912).
+"""Value-level goldens for the four "what is on the board" surfaces (issue #1912).
 
-Three readers answer the same question — the board's actual flap grid,
+Four readers answer the same question — the board's actual flap grid,
 selected from FiestaBoard's own caches or, on one surface, a live read:
 
 * ``GET /board/current-message`` — authenticated; poll cache, or a live read
   with ``?force=true`` (primary board only).
-* ``GET /panel/{panel_id}/frame`` — unauthenticated TV viewer; **never** a
+* ``GET /panel/{panel_id}/frame`` — unauthenticated TV viewer; answers what
+  FiestaBoard last displayed/sent, immediately, and **never** performs a
   network read (a viewer polls every 2s and must not hammer a misconfigured
   physical board).
 * MCP ``get_board_content`` — same grid plus a ``source`` field, ``ToolError``
   on failure.
+* ``GET /v1/boards/{board}`` — the public API's merged board read.
 
 #1912 folds their cache-selection logic into ``src/board_state.py``. That is
-a behaviour-touching refactor across three transports — one pointed at
+a behaviour-touching refactor across four transports — one pointed at
 customers' wall displays — so these goldens were RECORDED ON THE UNCHANGED
 TREE FIRST and must stay byte-identical through the consolidation. They are
 *values*, not shapes: the shape goldens in ``tests/golden/responses/`` cannot
 see a ``cached_at`` that silently moved from the poll time to the send time,
 or a ``source`` that flipped from ``polled`` to ``last_sent``.
 
-Every scenario drives the real route / tool through a deterministic fake of
-the ``DisplayService`` surface the readers consult (``vb_client``, the primary
-poll cache, per-board runtimes) and real board clients where the client's own
-logic matters (``VirtualBoardClient``'s shape guard). Timestamps are fixed so
-the ISO strings are exact.
+Every scenario drives the real route / tool through the deterministic fakes
+in ``tests/board_state_fakes.py`` and real board clients where the client's
+own logic matters (``VirtualBoardClient``'s shape guard). Timestamps are
+fixed so the ISO strings are exact. One scenario per test, so a drift names
+the exact behaviour that moved.
 
 Regenerating the golden file
 ----------------------------
@@ -39,6 +41,7 @@ from __future__ import annotations
 import asyncio
 import json
 import os
+from collections.abc import Callable
 from pathlib import Path
 from typing import Any
 from unittest.mock import Mock, patch
@@ -47,14 +50,14 @@ import pytest
 from fastapi.testclient import TestClient
 
 from src.panels.models import Panel
-from src.virtual_board_client import VirtualBoardClient
+from tests.board_state_fakes import FLAGSHIP, NOTE, PhysicalClient, Runtime, Service, grid, virtual
 
 GOLDEN_PATH = Path(__file__).parent / "golden" / "responses" / "board_state.json"
 RECORD = os.environ.get("RECORD_BOARD_STATE_GOLDEN") == "1"
 
 REGENERATE_HINT = (
     "Board-state values drifted from tests/golden/responses/board_state.json. "
-    "The three readers must keep answering exactly what they answered before "
+    "The readers must keep answering exactly what they answered before "
     "#1912 — fix the code. If the change is intentional, regenerate with:\n"
     "    RECORD_BOARD_STATE_GOLDEN=1 pytest tests/test_board_state_contract.py\n"
     "then review `git diff tests/golden/responses/board_state.json` line by line."
@@ -65,107 +68,11 @@ DISPLAY_SERVICE = "src.display_runtime.get_service"
 PANELS_SERVICE = "src.panels.routes.get_service"
 PANEL_SERVICE = "src.panels.routes.get_panel_service"
 MCP_SERVICE = "src.api_server.get_service"
+V1_SERVICE = "src.api_server.get_service"
 
 # Fixed clocks: 2023-11-14T22:13:20+00:00 and one minute later.
 POLLED_AT = 1_700_000_000.0
 SENT_AT = 1_700_000_060.0
-
-FLAGSHIP = (6, 22)
-NOTE = (3, 15)
-
-
-def _grid(shape: tuple[int, int], code: int) -> list[list[int]]:
-    rows, cols = shape
-    return [[code] * cols for _ in range(rows)]
-
-
-# ---------------------------------------------------------------------------
-# Deterministic stand-ins for the DisplayService surface the readers consult
-# ---------------------------------------------------------------------------
-
-
-class _PhysicalClient:
-    """A physical board client: last-sent cache plus a scripted live read."""
-
-    is_virtual = False
-
-    def __init__(self, *, last_sent=None, live=None, use_cloud=False):
-        self._last_characters = last_sent
-        self.use_cloud = use_cloud
-        self._live = live
-        self.live_reads = 0
-
-    def read_current_message(self, sync_cache: bool = False):
-        self.live_reads += 1
-        return self._live
-
-
-class _Runtime:
-    def __init__(self, client=None, polled=None, polled_at=None):
-        self.client = client
-        self.polled_characters = polled
-        self.polled_at = polled_at
-
-
-class _Service:
-    """Just the DisplayService surface the three readers touch.
-
-    ``runtimes`` is keyed the way a real install keys it — by settings board
-    id, or by the legacy ``__primary__`` sentinel for the primary board on
-    installs that predate per-board runtimes.
-    """
-
-    def __init__(self, runtimes: dict[str, _Runtime], primary_key: str):
-        self.runtimes = runtimes
-        self._primary_key = primary_key
-
-    @property
-    def vb_client(self):
-        rt = self.runtimes.get(self._primary_key)
-        return rt.client if rt is not None else None
-
-    @property
-    def _polled_characters(self):
-        rt = self.runtimes.get(self._primary_key)
-        return rt.polled_characters if rt is not None else None
-
-    @_polled_characters.setter
-    def _polled_characters(self, value):
-        self.runtimes[self._primary_key].polled_characters = value
-
-    @property
-    def _polled_at(self):
-        rt = self.runtimes.get(self._primary_key)
-        return rt.polled_at if rt is not None else None
-
-    @_polled_at.setter
-    def _polled_at(self, value):
-        self.runtimes[self._primary_key].polled_at = value
-
-    def get_runtime(self, board_id):
-        return self.runtimes.get(board_id)
-
-    def get_board_client(self, board_id):
-        rt = self.runtimes.get(board_id)
-        return rt.client if rt is not None else None
-
-
-def _virtual(shape_device: str, *, frame=None, displayed=None):
-    """An anonymous (instance-local state) virtual client with a fixed send time."""
-    client = VirtualBoardClient(device_type=shape_device)
-    if frame is not None:
-        ok, sent = client.send_characters(frame)
-        assert (ok, sent) == (True, True), "seed frame never landed"
-        client._state.last_sent_at = SENT_AT
-    if displayed is not None:
-        # Simulate a re-fit that left an old-shape frame behind.
-        client._state.displayed_characters = displayed
-    return client
-
-
-# ---------------------------------------------------------------------------
-# Settings: one real service, three boards, patched at the shared singleton
-# ---------------------------------------------------------------------------
 
 BOARDS = [
     {"id": "b1", "name": "Living Room", "device_type": "flagship", "api_mode": "local"},
@@ -176,6 +83,7 @@ BOARDS = [
 
 @pytest.fixture
 def settings(tmp_path, monkeypatch):
+    """One real settings service, three boards, patched at the shared singleton."""
     import src.settings.service as settings_module
 
     svc = settings_module.SettingsService(settings_file=str(tmp_path / "settings.json"))
@@ -197,138 +105,156 @@ def client(settings):
 # ---------------------------------------------------------------------------
 
 
-def _check_or_record(surface: str, records: list[dict[str, Any]]) -> None:
-    """Compare *records* for one surface with the golden file (or record them)."""
+def _load_golden() -> dict[str, dict[str, Any]]:
+    if not GOLDEN_PATH.exists():
+        return {}
+    with GOLDEN_PATH.open(encoding="utf-8") as fh:
+        return json.load(fh)["surfaces"]
+
+
+def _check_or_record(surface: str, label: str, record: dict[str, Any]) -> None:
+    """Compare one scenario's record with the golden file (or record it)."""
     if RECORD:
-        GOLDEN_PATH.parent.mkdir(parents=True, exist_ok=True)
-        existing: dict[str, Any] = {}
-        if GOLDEN_PATH.exists():
-            with GOLDEN_PATH.open(encoding="utf-8") as fh:
-                existing = json.load(fh).get("surfaces", {})
-        existing[surface] = records
+        surfaces = _load_golden()
+        surfaces.setdefault(surface, {})[label] = record
         payload = {
             "_comment": (
-                "Value-level goldens for the three 'what is on the board' readers "
+                "Value-level goldens for the 'what is on the board' readers "
                 "(issue #1912). Recorded on the tree BEFORE the consolidation. Do not "
                 "hand-edit: regenerate with "
                 "`RECORD_BOARD_STATE_GOLDEN=1 pytest tests/test_board_state_contract.py` "
                 "and review the diff."
             ),
-            "surfaces": {key: existing[key] for key in sorted(existing)},
+            "surfaces": {s: dict(sorted(surfaces[s].items())) for s in sorted(surfaces)},
         }
+        GOLDEN_PATH.parent.mkdir(parents=True, exist_ok=True)
         with GOLDEN_PATH.open("w", encoding="utf-8") as fh:
             json.dump(payload, fh, indent=2, ensure_ascii=False)
             fh.write("\n")
         return
-    if not GOLDEN_PATH.exists():
-        pytest.fail(f"Missing golden file {GOLDEN_PATH}.\n{REGENERATE_HINT}")
-    with GOLDEN_PATH.open(encoding="utf-8") as fh:
-        golden = json.load(fh)["surfaces"][surface]
-    golden_by_label = {r["label"]: r for r in golden}
-    current_by_label = {r["label"]: r for r in records}
-    assert list(current_by_label) == list(golden_by_label), REGENERATE_HINT
-    for label, current in current_by_label.items():
-        assert current == golden_by_label[label], (
-            f"[{surface}] {label}: value drifted.\n"
-            f"golden:  {json.dumps(golden_by_label[label], indent=2, sort_keys=True)}\n"
-            f"current: {json.dumps(current, indent=2, sort_keys=True)}\n"
-            f"{REGENERATE_HINT}"
-        )
+    golden = _load_golden().get(surface, {})
+    if label not in golden:
+        pytest.fail(f"[{surface}] {label}: no golden record.\n{REGENERATE_HINT}")
+    assert record == golden[label], (
+        f"[{surface}] {label}: value drifted.\n"
+        f"golden:  {json.dumps(golden[label], indent=2, sort_keys=True)}\n"
+        f"current: {json.dumps(record, indent=2, sort_keys=True)}\n"
+        f"{REGENERATE_HINT}"
+    )
 
 
-def _http(label: str, response, **extra: Any) -> dict[str, Any]:
-    return {"label": label, "status": response.status_code, "body": response.json(), **extra}
+def _http(response, **extra: Any) -> dict[str, Any]:
+    return {"status": response.status_code, "body": response.json(), **extra}
+
+
+def _primary(**client_kwargs) -> Service:
+    return Service({"b1": Runtime(PhysicalClient(last_sent=grid(FLAGSHIP, 1), **client_kwargs))})
+
+
+def _with_polled(service: Service, shape=FLAGSHIP, code=2) -> Service:
+    service.runtimes["b1"].polled_characters = grid(shape, code)
+    service.runtimes["b1"].polled_at = POLLED_AT
+    return service
+
+
+def _secondary(rt: Runtime) -> Service:
+    return Service({"b1": Runtime(PhysicalClient(live=grid(FLAGSHIP, 3))), "b2": rt})
 
 
 # ---------------------------------------------------------------------------
 # Surface 1 — GET /board/current-message
 # ---------------------------------------------------------------------------
 
+Scenario = Callable[[], tuple[Service, str]]
 
-def test_current_message_values(client):
-    records: list[dict[str, Any]] = []
-
-    def run(label: str, service: _Service, query: str = "") -> _Service:
-        with patch(DISPLAY_SERVICE, return_value=service):
-            response = client.get(f"/board/current-message{query}")
-        primary = service.vb_client
-        records.append(
-            _http(
-                label,
-                response,
-                live_reads=getattr(primary, "live_reads", 0),
-                cache_after=service._polled_characters,
+CURRENT_MESSAGE: dict[str, Scenario] = {
+    "primary.polled_cache": lambda: (_with_polled(_primary(live=grid(FLAGSHIP, 3))), ""),
+    "primary.polled_cache.by_board_id": lambda: (_with_polled(_primary(live=grid(FLAGSHIP, 3))), "?board_id=b1"),
+    "primary.force_live_read_primes_cache": lambda: (
+        _with_polled(_primary(live=grid(FLAGSHIP, 3), use_cloud=True)),
+        "?force=true",
+    ),
+    "primary.no_cache_falls_to_live_read": lambda: (_primary(live=grid(FLAGSHIP, 3)), ""),
+    "primary.live_read_failure": lambda: (_primary(live=None), ""),
+    "primary.force_live_read_failure_despite_cache": lambda: (_with_polled(_primary(live=None)), "?force=true"),
+    "primary.virtual_board_live_read": lambda: (
+        Service({"b1": Runtime(virtual("flagship", frame=grid(FLAGSHIP, 4), sent_at=SENT_AT))}),
+        "",
+    ),
+    # A virtual primary whose memory refuses (nothing displayed yet) is not a
+    # failed network read: it answers empty + geometry, never a 503.
+    "primary.virtual_board_nothing_displayed": lambda: (Service({"b1": Runtime(virtual("flagship"))}), ""),
+    "primary.virtual_board_nothing_displayed.force": lambda: (
+        Service({"b1": Runtime(virtual("flagship"))}),
+        "?force=true",
+    ),
+    "primary.virtual_board_stale_shape_frame.force": lambda: (
+        Service({"b1": Runtime(virtual("flagship", frame=grid(FLAGSHIP, 4), displayed=grid(NOTE, 4)))}),
+        "?force=true",
+    ),
+    "primary.sentinel_keyed_runtime.by_board_id": lambda: (
+        Service({"__primary__": Runtime(PhysicalClient(live=grid(FLAGSHIP, 3)))}, primary_key="__primary__"),
+        "?board_id=b1",
+    ),
+    "secondary.polled_cache_wins_over_last_sent": lambda: (
+        _secondary(
+            Runtime(
+                PhysicalClient(last_sent=grid(NOTE, 5), live=grid(NOTE, 6)), polled=grid(NOTE, 7), polled_at=POLLED_AT
             )
-        )
-        return service
+        ),
+        "?board_id=b2",
+    ),
+    "secondary.last_sent_cache": lambda: (
+        _secondary(Runtime(PhysicalClient(last_sent=grid(NOTE, 5), live=grid(NOTE, 6), use_cloud=True))),
+        "?board_id=b2",
+    ),
+    "secondary.force_is_ignored_never_live_reads": lambda: (
+        _secondary(Runtime(PhysicalClient(last_sent=grid(NOTE, 5), live=grid(NOTE, 6)))),
+        "?board_id=b2&force=true",
+    ),
+    "secondary.nothing_sent_yet_is_geometry": lambda: (_secondary(Runtime(PhysicalClient())), "?board_id=b2"),
+    "secondary.no_runtime_is_geometry": lambda: (
+        Service({"b1": Runtime(PhysicalClient(live=grid(FLAGSHIP, 3)))}),
+        "?board_id=b2",
+    ),
+    "secondary.virtual_board_frame": lambda: (
+        Service(
+            {
+                "b1": Runtime(PhysicalClient(live=grid(FLAGSHIP, 3))),
+                "vb": Runtime(virtual("note", frame=grid(NOTE, 8), sent_at=SENT_AT)),
+            }
+        ),
+        "?board_id=vb",
+    ),
+    "secondary.virtual_board_stale_shape_frame": lambda: (
+        Service(
+            {
+                "b1": Runtime(PhysicalClient(live=grid(FLAGSHIP, 3))),
+                "vb": Runtime(virtual("note", frame=grid(NOTE, 8), displayed=grid(FLAGSHIP, 8), sent_at=SENT_AT)),
+            }
+        ),
+        "?board_id=vb",
+    ),
+    "unknown_board": lambda: (_secondary(Runtime(PhysicalClient())), "?board_id=nope"),
+    "no_board_client": lambda: (Service({}), ""),
+}
 
-    def primary(**client_kwargs) -> _Service:
-        return _Service(
-            {"b1": _Runtime(_PhysicalClient(last_sent=_grid(FLAGSHIP, 1), **client_kwargs))},
-            primary_key="b1",
-        )
 
-    # -- primary board ------------------------------------------------------
-    svc = primary(live=_grid(FLAGSHIP, 3))
-    svc._polled_characters, svc._polled_at = _grid(FLAGSHIP, 2), POLLED_AT
-    run("primary.polled_cache", svc)
-
-    svc = primary(live=_grid(FLAGSHIP, 3))
-    svc._polled_characters, svc._polled_at = _grid(FLAGSHIP, 2), POLLED_AT
-    run("primary.polled_cache.by_board_id", svc, "?board_id=b1")
-
-    svc = primary(live=_grid(FLAGSHIP, 3), use_cloud=True)
-    svc._polled_characters, svc._polled_at = _grid(FLAGSHIP, 2), POLLED_AT
-    run("primary.force_live_read_primes_cache", svc, "?force=true")
-
-    run("primary.no_cache_falls_to_live_read", primary(live=_grid(FLAGSHIP, 3)))
-
-    run("primary.live_read_failure", primary(live=None))
-
-    svc = primary(live=None)
-    svc._polled_characters, svc._polled_at = _grid(FLAGSHIP, 2), POLLED_AT
-    run("primary.force_live_read_failure_despite_cache", svc, "?force=true")
-
-    svc = _Service({"b1": _Runtime(_virtual("flagship", frame=_grid(FLAGSHIP, 4)))}, primary_key="b1")
-    run("primary.virtual_board_live_read", svc)
-
-    svc = _Service({"__primary__": _Runtime(_PhysicalClient(live=_grid(FLAGSHIP, 3)))}, primary_key="__primary__")
-    run("primary.sentinel_keyed_runtime.by_board_id", svc, "?board_id=b1")
-
-    # -- secondary board ----------------------------------------------------
-    def secondary(rt: _Runtime) -> _Service:
-        return _Service({"b1": _Runtime(_PhysicalClient(live=_grid(FLAGSHIP, 3))), "b2": rt}, primary_key="b1")
-
-    b2 = _PhysicalClient(last_sent=_grid(NOTE, 5), live=_grid(NOTE, 6))
-    svc = secondary(_Runtime(b2, polled=_grid(NOTE, 7), polled_at=POLLED_AT))
-    run("secondary.polled_cache_wins_over_last_sent", svc, "?board_id=b2")
-
-    b2 = _PhysicalClient(last_sent=_grid(NOTE, 5), live=_grid(NOTE, 6), use_cloud=True)
-    run("secondary.last_sent_cache", secondary(_Runtime(b2)), "?board_id=b2")
-
-    b2 = _PhysicalClient(last_sent=_grid(NOTE, 5), live=_grid(NOTE, 6))
-    svc = secondary(_Runtime(b2))
-    run("secondary.force_is_ignored_never_live_reads", svc, "?board_id=b2&force=true")
-    records[-1]["secondary_live_reads"] = b2.live_reads
-
-    run("secondary.nothing_sent_yet_is_geometry", secondary(_Runtime(_PhysicalClient())), "?board_id=b2")
-
-    svc = _Service({"b1": _Runtime(_PhysicalClient(live=_grid(FLAGSHIP, 3)))}, primary_key="b1")
-    run("secondary.no_runtime_is_geometry", svc, "?board_id=b2")
-
-    svc = secondary(_Runtime(_PhysicalClient(live=_grid(FLAGSHIP, 3))))
-    svc.runtimes["vb"] = _Runtime(_virtual("note", frame=_grid(NOTE, 8)))
-    run("secondary.virtual_board_frame", svc, "?board_id=vb")
-
-    svc.runtimes["vb"] = _Runtime(_virtual("note", frame=_grid(NOTE, 8), displayed=_grid(FLAGSHIP, 8)))
-    run("secondary.virtual_board_stale_shape_frame", svc, "?board_id=vb")
-
-    run("unknown_board", secondary(_Runtime(_PhysicalClient())), "?board_id=nope")
-
-    # -- no client at all ---------------------------------------------------
-    run("no_board_client", _Service({}, primary_key="b1"))
-
-    _check_or_record("GET /board/current-message", records)
+@pytest.mark.parametrize("label", sorted(CURRENT_MESSAGE))
+def test_current_message(client, label):
+    service, query = CURRENT_MESSAGE[label]()
+    with patch(DISPLAY_SERVICE, return_value=service):
+        response = client.get(f"/board/current-message{query}")
+    primary_rt = service.runtimes.get(service._primary_key)
+    _check_or_record(
+        "GET /board/current-message",
+        label,
+        _http(
+            response,
+            live_reads=service.live_reads(),
+            cache_after=primary_rt.polled_characters if primary_rt is not None else None,
+        ),
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -336,51 +262,84 @@ def test_current_message_values(client):
 # ---------------------------------------------------------------------------
 
 
-def test_panel_frame_values(client):
-    records: list[dict[str, Any]] = []
+def _primary_rt() -> Runtime:
+    return Runtime(PhysicalClient(last_sent=grid(FLAGSHIP, 1), live=grid(FLAGSHIP, 3)))
 
-    def run(label: str, service: _Service | None, board_id: str | None) -> None:
-        panels = Mock()
-        panels.get_panel_by_ref.return_value = (
-            Panel(name="Hall TV", board_id=board_id) if board_id is not None else None
-        )
-        with patch(PANEL_SERVICE, return_value=panels), patch(PANELS_SERVICE, return_value=service):
-            response = client.get("/panel/abc123def456/frame")
-        live_reads = 0
-        if service is not None:
-            live_reads = sum(getattr(rt.client, "live_reads", 0) for rt in service.runtimes.values())
-        records.append(_http(label, response, physical_live_reads=live_reads))
 
-    primary_rt = _Runtime(_PhysicalClient(last_sent=_grid(FLAGSHIP, 1), live=_grid(FLAGSHIP, 3)))
+PANEL_FRAME: dict[str, Callable[[], tuple[Service | None, str | None]]] = {
+    "virtual.frame": lambda: (
+        Service({"b1": _primary_rt(), "vb": Runtime(virtual("note", frame=grid(NOTE, 8), sent_at=SENT_AT))}),
+        "vb",
+    ),
+    "virtual.nothing_sent_yet_is_geometry": lambda: (
+        Service({"b1": _primary_rt(), "vb": Runtime(virtual("note"))}),
+        "vb",
+    ),
+    "virtual.stale_shape_frame_is_null_not_last_sent": lambda: (
+        Service(
+            {
+                "b1": _primary_rt(),
+                "vb": Runtime(virtual("note", frame=grid(NOTE, 8), displayed=grid(FLAGSHIP, 8), sent_at=SENT_AT)),
+            }
+        ),
+        "vb",
+    ),
+    # The viewer shows what FiestaBoard last displayed, immediately — a panel
+    # on the primary board must not lag behind the 30s/180s poll cache.
+    "virtual.primary_ignores_a_stale_poll_cache": lambda: (
+        Service(
+            {
+                "b1": Runtime(
+                    virtual("flagship", frame=grid(FLAGSHIP, 8), sent_at=SENT_AT),
+                    polled=grid(FLAGSHIP, 9),
+                    polled_at=POLLED_AT,
+                )
+            }
+        ),
+        "b1",
+    ),
+    "physical.primary_ignores_a_stale_poll_cache": lambda: (
+        Service(
+            {
+                "b1": Runtime(
+                    PhysicalClient(last_sent=grid(FLAGSHIP, 1), live=grid(FLAGSHIP, 3)),
+                    polled=grid(FLAGSHIP, 9),
+                    polled_at=POLLED_AT,
+                )
+            }
+        ),
+        "b1",
+    ),
+    "physical.last_sent_cache_never_live_reads": lambda: (
+        Service({"b1": _primary_rt(), "b2": Runtime(PhysicalClient(last_sent=grid(NOTE, 5), live=grid(NOTE, 6)))}),
+        "b2",
+    ),
+    "physical.nothing_sent_yet_is_geometry": lambda: (
+        Service({"b1": _primary_rt(), "b2": Runtime(PhysicalClient(live=grid(NOTE, 6)))}),
+        "b2",
+    ),
+    "physical.primary_under_legacy_sentinel_falls_back_to_vb_client": lambda: (
+        Service({"__primary__": _primary_rt()}, primary_key="__primary__"),
+        "b1",
+    ),
+    "board_missing_from_settings_is_flagship_geometry": lambda: (Service({"b1": _primary_rt()}), "gone"),
+    "no_display_service": lambda: (None, "vb"),
+    "unknown_panel": lambda: (Service({"b1": _primary_rt()}), None),
+}
 
-    svc = _Service({"b1": primary_rt, "vb": _Runtime(_virtual("note", frame=_grid(NOTE, 8)))}, primary_key="b1")
-    run("virtual.frame", svc, "vb")
 
-    svc = _Service({"b1": primary_rt, "vb": _Runtime(_virtual("note"))}, primary_key="b1")
-    run("virtual.nothing_sent_yet_is_geometry", svc, "vb")
-
-    stale = _virtual("note", frame=_grid(NOTE, 8), displayed=_grid(FLAGSHIP, 8))
-    svc = _Service({"b1": primary_rt, "vb": _Runtime(stale)}, primary_key="b1")
-    run("virtual.stale_shape_frame_is_null_not_last_sent", svc, "vb")
-
-    b2 = _PhysicalClient(last_sent=_grid(NOTE, 5), live=_grid(NOTE, 6))
-    svc = _Service({"b1": primary_rt, "b2": _Runtime(b2)}, primary_key="b1")
-    run("physical.last_sent_cache_never_live_reads", svc, "b2")
-
-    svc = _Service({"b1": primary_rt, "b2": _Runtime(_PhysicalClient(live=_grid(NOTE, 6)))}, primary_key="b1")
-    run("physical.nothing_sent_yet_is_geometry", svc, "b2")
-
-    svc = _Service({"__primary__": primary_rt}, primary_key="__primary__")
-    run("physical.primary_under_legacy_sentinel_falls_back_to_vb_client", svc, "b1")
-
-    svc = _Service({"b1": primary_rt}, primary_key="b1")
-    run("board_missing_from_settings_is_flagship_geometry", svc, "gone")
-
-    run("no_display_service", None, "vb")
-
-    run("unknown_panel", _Service({"b1": primary_rt}, primary_key="b1"), None)
-
-    _check_or_record("GET /panel/{panel_id}/frame", records)
+@pytest.mark.parametrize("label", sorted(PANEL_FRAME))
+def test_panel_frame(client, label):
+    service, board_id = PANEL_FRAME[label]()
+    panels = Mock()
+    panels.get_panel_by_ref.return_value = Panel(name="Hall TV", board_id=board_id) if board_id is not None else None
+    with patch(PANEL_SERVICE, return_value=panels), patch(PANELS_SERVICE, return_value=service):
+        response = client.get("/panel/abc123def456/frame")
+    _check_or_record(
+        "GET /panel/{panel_id}/frame",
+        label,
+        _http(response, physical_live_reads=service.live_reads() if service is not None else 0),
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -401,73 +360,141 @@ def _call_tool(mcp: Any, **kwargs: Any) -> dict[str, Any]:
     return {"result": result}
 
 
-def test_mcp_get_board_content_values(settings):
+def _mcp_primary(**client_kwargs) -> Service:
+    return Service({"b1": Runtime(PhysicalClient(**client_kwargs))})
+
+
+def _mcp_secondary(rt: Runtime) -> Service:
+    return Service({"b1": Runtime(PhysicalClient()), "b2": rt})
+
+
+MCP_CONTENT: dict[str, Callable[[], tuple[Service | None, dict[str, Any]]]] = {
+    "primary.polled_cache": lambda: (
+        _with_polled(_mcp_primary(last_sent=grid(FLAGSHIP, 1), live=grid(FLAGSHIP, 3))),
+        {},
+    ),
+    "primary.polled_cache.by_board_id": lambda: (
+        _with_polled(_mcp_primary(last_sent=grid(FLAGSHIP, 1), live=grid(FLAGSHIP, 3))),
+        {"board_id": "b1"},
+    ),
+    "primary.last_sent_cache": lambda: (_mcp_primary(last_sent=grid(FLAGSHIP, 1), live=grid(FLAGSHIP, 3)), {}),
+    "primary.nothing_observed_is_null": lambda: (_mcp_primary(live=grid(FLAGSHIP, 3)), {}),
+    "primary.sentinel_keyed_runtime.by_board_id": lambda: (
+        Service({"__primary__": Runtime(PhysicalClient(last_sent=grid(FLAGSHIP, 1)))}, primary_key="__primary__"),
+        {"board_id": "b1"},
+    ),
+    "secondary.polled_cache_wins_over_last_sent": lambda: (
+        _mcp_secondary(
+            Runtime(
+                PhysicalClient(last_sent=grid(NOTE, 5), live=grid(NOTE, 6)), polled=grid(NOTE, 7), polled_at=POLLED_AT
+            )
+        ),
+        {"board_id": "b2"},
+    ),
+    "secondary.last_sent_cache": lambda: (
+        _mcp_secondary(Runtime(PhysicalClient(last_sent=grid(NOTE, 5), live=grid(NOTE, 6)))),
+        {"board_id": "b2"},
+    ),
+    "secondary.nothing_sent_yet_is_null": lambda: (_mcp_secondary(Runtime(PhysicalClient())), {"board_id": "b2"}),
+    "secondary.no_runtime_is_null": lambda: (Service({"b1": Runtime(PhysicalClient())}), {"board_id": "b2"}),
+    "secondary.virtual_board_frame": lambda: (
+        Service({"b1": Runtime(PhysicalClient()), "vb": Runtime(virtual("note", frame=grid(NOTE, 8)))}),
+        {"board_id": "vb"},
+    ),
+    "secondary.virtual_board_stale_shape_frame": lambda: (
+        Service(
+            {
+                "b1": Runtime(PhysicalClient()),
+                "vb": Runtime(virtual("note", frame=grid(NOTE, 8), displayed=grid(FLAGSHIP, 8))),
+            }
+        ),
+        {"board_id": "vb"},
+    ),
+    "unknown_board": lambda: (Service({"b1": Runtime(PhysicalClient())}), {"board_id": "nope"}),
+    "no_display_service": lambda: (None, {}),
+}
+
+
+@pytest.fixture(scope="module")
+def mcp():
     pytest.importorskip("mcp", reason="mcp package not installed")
     from src.mcp_server import _build_mcp_server
 
-    mcp = _build_mcp_server()
-    assert mcp is not None
-    records: list[dict[str, Any]] = []
+    instance = _build_mcp_server()
+    assert instance is not None
+    return instance
 
-    def run(label: str, service: _Service | None, **kwargs: Any) -> None:
-        with patch(MCP_SERVICE, return_value=service):
-            outcome = _call_tool(mcp, **kwargs)
-        live_reads = 0
-        if service is not None:
-            live_reads = sum(getattr(rt.client, "live_reads", 0) for rt in service.runtimes.values())
-        records.append({"label": label, **outcome, "live_reads": live_reads})
 
-    def primary(**client_kwargs) -> _Service:
-        return _Service({"b1": _Runtime(_PhysicalClient(**client_kwargs))}, primary_key="b1")
-
-    svc = primary(last_sent=_grid(FLAGSHIP, 1), live=_grid(FLAGSHIP, 3))
-    svc._polled_characters, svc._polled_at = _grid(FLAGSHIP, 2), POLLED_AT
-    run("primary.polled_cache", svc)
-    run("primary.polled_cache.by_board_id", svc, board_id="b1")
-
-    run("primary.last_sent_cache", primary(last_sent=_grid(FLAGSHIP, 1), live=_grid(FLAGSHIP, 3)))
-
-    run("primary.nothing_observed_is_null", primary(live=_grid(FLAGSHIP, 3)))
-
-    svc = _Service({"__primary__": _Runtime(_PhysicalClient(last_sent=_grid(FLAGSHIP, 1)))}, primary_key="__primary__")
-    run("primary.sentinel_keyed_runtime.by_board_id", svc, board_id="b1")
-
-    b2 = _PhysicalClient(last_sent=_grid(NOTE, 5), live=_grid(NOTE, 6))
-    svc = _Service(
-        {"b1": _Runtime(_PhysicalClient()), "b2": _Runtime(b2, polled=_grid(NOTE, 7), polled_at=POLLED_AT)},
-        primary_key="b1",
-    )
-    run("secondary.polled_cache_wins_over_last_sent", svc, board_id="b2")
-
-    b2 = _PhysicalClient(last_sent=_grid(NOTE, 5), live=_grid(NOTE, 6))
-    run(
-        "secondary.last_sent_cache",
-        _Service({"b1": _Runtime(_PhysicalClient()), "b2": _Runtime(b2)}, primary_key="b1"),
-        board_id="b2",
+@pytest.mark.parametrize("label", sorted(MCP_CONTENT))
+def test_mcp_get_board_content(settings, mcp, label):
+    service, kwargs = MCP_CONTENT[label]()
+    with patch(MCP_SERVICE, return_value=service):
+        outcome = _call_tool(mcp, **kwargs)
+    _check_or_record(
+        "MCP get_board_content",
+        label,
+        {**outcome, "live_reads": service.live_reads() if service is not None else 0},
     )
 
-    run(
-        "secondary.nothing_sent_yet_is_null",
-        _Service({"b1": _Runtime(_PhysicalClient()), "b2": _Runtime(_PhysicalClient())}, primary_key="b1"),
-        board_id="b2",
+
+# ---------------------------------------------------------------------------
+# Surface 4 — GET /v1/boards/{board} (the board-content half only)
+# ---------------------------------------------------------------------------
+
+V1_KEYS = ("characters", "text", "expected_characters", "read_at")
+
+V1_BOARD: dict[str, Callable[[], tuple[Service, str]]] = {
+    "primary.polled_cache": lambda: (
+        _with_polled(_mcp_primary(last_sent=grid(FLAGSHIP, 1), live=grid(FLAGSHIP, 3))),
+        "primary",
+    ),
+    "primary.last_sent_cache": lambda: (_mcp_primary(last_sent=grid(FLAGSHIP, 1), live=grid(FLAGSHIP, 3)), "b1"),
+    "primary.nothing_observed_is_null": lambda: (_mcp_primary(live=grid(FLAGSHIP, 3)), "primary"),
+    "primary.sentinel_keyed_runtime.by_board_id": lambda: (
+        Service({"__primary__": Runtime(PhysicalClient(last_sent=grid(FLAGSHIP, 1)))}, primary_key="__primary__"),
+        "b1",
+    ),
+    "secondary.polled_cache_wins_over_last_sent": lambda: (
+        _mcp_secondary(
+            Runtime(
+                PhysicalClient(last_sent=grid(NOTE, 5), live=grid(NOTE, 6)), polled=grid(NOTE, 7), polled_at=POLLED_AT
+            )
+        ),
+        "b2",
+    ),
+    "secondary.last_sent_cache": lambda: (
+        _mcp_secondary(Runtime(PhysicalClient(last_sent=grid(NOTE, 5), live=grid(NOTE, 6)))),
+        "b2",
+    ),
+    "secondary.no_runtime_is_null": lambda: (Service({"b1": Runtime(PhysicalClient())}), "b2"),
+    "secondary.virtual_board_frame": lambda: (
+        Service({"b1": Runtime(PhysicalClient()), "vb": Runtime(virtual("note", frame=grid(NOTE, 8)))}),
+        "vb",
+    ),
+}
+
+
+@pytest.mark.parametrize("label", sorted(V1_BOARD))
+def test_v1_board_content(client, label):
+    service, board = V1_BOARD[label]()
+    with patch(V1_SERVICE, return_value=service), patch(DISPLAY_SERVICE, return_value=service):
+        response = client.get(f"/v1/boards/{board}")
+    assert response.status_code == 200, response.text
+    body = response.json()
+    _check_or_record(
+        "GET /v1/boards/{board}",
+        label,
+        {"status": response.status_code, "body": {k: body[k] for k in V1_KEYS}, "live_reads": service.live_reads()},
     )
 
-    run("secondary.no_runtime_is_null", _Service({"b1": _Runtime(_PhysicalClient())}, primary_key="b1"), board_id="b2")
 
-    svc = _Service(
-        {"b1": _Runtime(_PhysicalClient()), "vb": _Runtime(_virtual("note", frame=_grid(NOTE, 8)))}, primary_key="b1"
-    )
-    run("secondary.virtual_board_frame", svc, board_id="vb")
-
-    stale = _virtual("note", frame=_grid(NOTE, 8), displayed=_grid(FLAGSHIP, 8))
-    run(
-        "secondary.virtual_board_stale_shape_frame",
-        _Service({"b1": _Runtime(_PhysicalClient()), "vb": _Runtime(stale)}, primary_key="b1"),
-        board_id="vb",
-    )
-
-    run("unknown_board", _Service({"b1": _Runtime(_PhysicalClient())}, primary_key="b1"), board_id="nope")
-
-    run("no_display_service", None)
-
-    _check_or_record("MCP get_board_content", records)
+def test_every_golden_record_still_has_a_scenario():
+    """A scenario that was deleted must take its golden record with it."""
+    expected = {
+        "GET /board/current-message": set(CURRENT_MESSAGE),
+        "GET /panel/{panel_id}/frame": set(PANEL_FRAME),
+        "MCP get_board_content": set(MCP_CONTENT),
+        "GET /v1/boards/{board}": set(V1_BOARD),
+    }
+    recorded = {surface: set(records) for surface, records in _load_golden().items()}
+    assert recorded == expected, REGENERATE_HINT

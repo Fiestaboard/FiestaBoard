@@ -87,6 +87,7 @@ def board_client():
     runtime.client = client
     runtime.last_active_page_content = None
     service.get_runtime.return_value = runtime
+    service.runtime_for.return_value = runtime
     with patch(SERVICE, return_value=service), patch(RUNTIME_SERVICE, return_value=service):
         yield client
 
@@ -312,12 +313,34 @@ def test_get_board_reports_the_flaps_currently_on_it(client, boards):
     runtime.polled_at = 1_700_000_000.0
     runtime.client = _board_client()
     service.get_runtime.return_value = runtime
+    service.runtime_for.return_value = runtime
     with patch(SERVICE, return_value=service), patch(RUNTIME_SERVICE, return_value=service):
         response = client.get("/v1/boards/primary")
 
     assert response.status_code == 200
     assert response.json()["characters"] == grid
     assert response.json()["read_at"] == "2023-11-14T22:13:20+00:00"
+
+
+def test_get_board_answers_the_primary_by_its_own_id_on_a_sentinel_keyed_install(client, boards):
+    """Legacy installs key the primary runtime under ``__primary__`` rather than
+    its settings id. Asked for the primary by its own id, v1 answered nulls
+    while ``/board/current-message`` and the MCP tool answered the grid —
+    the same reader now serves all of them."""
+    primary_id, _ = boards
+    sent = [[63] * FLAGSHIP_COLS for _ in range(FLAGSHIP_ROWS)]
+    board_client = _board_client()
+    board_client._last_characters = sent
+    runtime = Mock(client=board_client, polled_characters=None, polled_at=None)
+    service = Mock()
+    service.get_runtime.return_value = None  # nothing keyed under the settings id
+    service.runtime_for.return_value = runtime  # DisplayService.runtime_for resolves the sentinel
+    with patch(SERVICE, return_value=service), patch(RUNTIME_SERVICE, return_value=service):
+        response = client.get(f"/v1/boards/{primary_id}")
+
+    assert response.status_code == 200
+    assert response.json()["characters"] == sent
+    assert response.json()["expected_characters"] == sent
 
 
 # ── boards: patch ───────────────────────────────────────────────────────────
@@ -1130,6 +1153,7 @@ def test_get_board_reports_what_was_sent_next_to_what_is_shown(client, boards):
     runtime.polled_at = 1_700_000_000.0
     runtime.client = board_client
     service.get_runtime.return_value = runtime
+    service.runtime_for.return_value = runtime
 
     with patch(SERVICE, return_value=service), patch(RUNTIME_SERVICE, return_value=service):
         response = client.get("/v1/boards/primary")
