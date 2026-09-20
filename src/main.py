@@ -356,6 +356,27 @@ class DisplayService:
         """Return the runtime for a board id, or None."""
         return self.runtimes.get(board_id)
 
+    def runtime_for(self, board_id: str | None) -> BoardRuntime | None:
+        """Runtime for a board id, or None; ``None`` means the primary board.
+
+        The id's own runtime wins. The settings primary's id falls back to
+        the primary runtime only when nothing is keyed under that id —
+        legacy installs key it under the fallback sentinel (#1874 review) —
+        so a window in which the settings primary and ``_primary_board_id``
+        disagree (a board deleted, a rebuild in flight) never serves one
+        board's content under another board's id. A settings failure
+        propagates: it is the caller's error to report, not a reason to
+        guess.
+        """
+        if board_id is None:
+            return self._primary_runtime()
+        rt = self.runtimes.get(board_id)
+        if rt is not None:
+            return rt
+        if board_id == get_settings_service().get_primary_board_id():
+            return self._primary_runtime()
+        return None
+
     def get_last_send_error(self, board_id=None) -> str | None:
         """Failure reason for a board's most recent active-page send attempt.
 

@@ -1,61 +1,75 @@
 """One reader for "what is on the board" (issue #1912).
 
-Three surfaces answer the same question — the grid of flap codes a board is
-actually showing — from the same caches:
+Four surfaces answer the same question — the grid of flap codes a board is
+showing — from the same caches:
 
 * ``GET /board/current-message`` (``src/board_api/routes.py``), which may
   also read the board live;
 * ``GET /panel/{panel_id}/frame`` (``src/panels/routes.py``), the
   unauthenticated TV viewer, which must never read a physical board live;
 * the MCP ``get_board_content`` tool (``src/mcp_server.py``), which reports
-  which cache answered.
+  which cache answered;
+* ``GET /v1/boards/{board}`` (``src/v1/routes_boards.py``).
 
-Each used to carry its own copy of the selection ("the poll cache, else what
-the client last sent, else ..."), and the copies had drifted: only one could
-live-read, only one reported a source, only one respected the virtual
-board's shape guard. This module is the single implementation. The routes
-and the tool decide *presentation* (field names, error transport, which
-timestamp their contract publishes); the *selection* lives here, and nothing
-outside this module reads ``_polled_characters`` / ``_last_characters``.
+Each used to carry its own copy of the selection, and the copies had
+drifted. This module is the single implementation. The routes and the tool
+decide *presentation* (field names, error transport, which timestamp their
+contract publishes); the *selection* lives here, and nothing outside this
+module reads ``_polled_characters`` / ``_last_characters``.
+
+Two intents
+-----------
+The surfaces do not all ask the same question, and the difference is real:
+
+``want="board"``
+    What the board *shows*. The background poll cache answers first — it is
+    the only evidence of the physical flaps — then the fallbacks below.
+
+``want="sent"``
+    What FiestaBoard last *displayed or sent*, immediately. The panel viewer
+    asks this: a write that never refreshes the poll cache (MQTT, a direct
+    send, a transition restore) must reach the TV now, not after the next
+    30 s / 3 min poll. The poll cache is never consulted.
 
 Selection order
 ---------------
-Given the board's runtime (its client plus the per-board poll cache):
+1. ``want="board"`` only: the poll cache, when populated — ``"polled"``,
+   stamped with the poll time.
+2. A **virtual** board reads from its own memory: that memory *is* the
+   board, the read is a mutex and a copy, and it refuses a frame whose
+   shape no longer matches the board (a re-fit left it behind). ``"live"``
+   — or ``"empty"`` when it refuses, deliberately *not* falling through to
+   the last-sent cache, which would serve the stale-shape frame the guard
+   exists to hide. A refusal is never an error.
+3. What the client last sent — ``"last_sent"``.
+4. ``"empty"``.
 
-1. ``force_live`` — read the board now, prime the poll cache, ``"live"``.
-   A read that answers nothing raises :class:`BoardReadError`; the caller's
-   contract decides what that means (a 503, say).
-2. The poll cache, when populated — ``"polled"``, stamped with the poll
-   time.
-3. ``allow_live`` and no poll cache — as (1).
-4. A **virtual** board reads from its own memory: that memory *is* the
-   board, the read is not I/O, and it refuses a frame whose shape no longer
-   matches the board (a re-fit left it behind). ``"live"`` — or ``"empty"``
-   when it refuses, deliberately *not* falling through to the last-sent
-   cache, which would serve the stale-shape frame the guard exists to hide.
-5. What the client last sent — ``"last_sent"``.
-6. ``"empty"``.
+:func:`read_board_state` does no I/O. :func:`read_board_state_live` is the
+``want="board"`` read plus a network read of a physical board where the poll
+cache cannot answer (or on ``force``), run off the event loop only then.
 
-``board_id`` ``None`` means the primary board. The primary is always served
-from the primary caches (``service.vb_client`` and the primary poll cache)
-even when asked for by its own id, because legacy installs key the primary
-runtime under a sentinel rather than its settings id (#1874 review).
+``board_id`` ``None`` means the primary board; ids resolve through
+``DisplayService.runtime_for`` — the id's own runtime first, the primary
+runtime for the settings primary's id only when nothing is keyed under it
+(legacy installs key it under a sentinel, #1874 review).
 """
 
 from __future__ import annotations
 
+import asyncio
 import logging
 import time
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from typing import Any, Literal
 
 logger = logging.getLogger(__name__)
 
 Source = Literal["polled", "last_sent", "live", "empty"]
+Want = Literal["board", "sent"]
 
 
 class BoardReadError(RuntimeError):
-    """A live read was asked for and the board answered nothing."""
+    """A live read of a physical board was attempted and it answered nothing."""
 
     def __init__(self, board_id: str | None):
         super().__init__(f"Failed to read current board message (board_id={board_id})")
@@ -66,21 +80,20 @@ class BoardReadError(RuntimeError):
 class BoardState:
     """What one board shows, and where that answer came from.
 
-    ``timestamp`` is when the grid was observed: the poll time for
-    ``"polled"``, the moment of the read for ``"live"``, the send time for
-    ``"last_sent"`` (only virtual clients track one), ``None`` for
-    ``"empty"``. ``last_sent_at`` is published separately because the panel
-    viewer reports it whatever the source. ``expected_characters`` is what
-    the client last sent — the other half of drift detection.
+    ``polled_at`` is set only when the poll cache answered (``source ==
+    "polled"``). ``last_sent_at`` is when the client last stored a frame
+    (only virtual clients track one) and is published whatever answered,
+    because the panel viewer reports it regardless. ``expected_characters``
+    is what the client last sent — the other half of drift detection.
     """
 
     board_id: str | None
     characters: list[list[int]] | None
     source: Source
-    timestamp: float | None
+    polled_at: float | None
     last_sent_at: float | None
     expected_characters: list[list[int]] | None
-    client: Any | None
+    api_mode: Literal["local", "cloud"]
 
     @property
     def rows(self) -> int:
@@ -91,121 +104,136 @@ class BoardState:
         return len(self.characters[0]) if self.characters else 0
 
 
-#: Default for ``read_board_state(service=...)``: resolve the display service
-#: at call time. Distinct from ``None`` so a caller that already resolved it
-#: (and got nothing) can say so instead of triggering a second resolution.
-_RESOLVE_SERVICE: Any = object()
-
-
-def _primary_board_id() -> str | None:
-    """The settings-declared primary board id, or None when unknowable."""
-    from . import display_runtime
-
-    try:
-        return display_runtime.get_settings_service().get_primary_board_id()
-    except Exception as exc:  # settings unreadable → treat every id as secondary
-        logger.debug("Could not resolve the primary board id: %s", exc)
-        return None
-
-
 def _empty(board_id: str | None) -> BoardState:
     return BoardState(
         board_id=board_id,
         characters=None,
         source="empty",
-        timestamp=None,
+        polled_at=None,
         last_sent_at=None,
         expected_characters=None,
-        client=None,
+        api_mode="local",
     )
 
 
-def read_board_state(
-    board_id: str | None = None,
-    *,
-    allow_live: bool = False,
-    force_live: bool = False,
-    service: Any = _RESOLVE_SERVICE,
-) -> BoardState:
+def _is_virtual(client: Any) -> bool:
+    # ``VirtualBoardClient`` sets ``is_virtual = True``; a hardware client
+    # has no such attribute. Tested with ``is True`` (main.py's convention)
+    # so a Mock or proxy client's auto-attribute never earns a memory read.
+    return getattr(client, "is_virtual", False) is True
+
+
+def _polled_pair(rt: Any) -> tuple[list[list[int]] | None, float | None]:
+    """The poll cache as one ``(characters, polled_at)`` pair.
+
+    The poll thread writes the two fields in two statements. Reading
+    ``polled_at`` on both sides of ``polled_characters`` and retrying when it
+    moved keeps a poll landing mid-read from pairing new flaps with an old
+    timestamp.
+    """
+    at = rt.polled_at
+    for _ in range(3):
+        characters = rt.polled_characters
+        again = rt.polled_at
+        if again == at:
+            return characters, at
+        at = again
+    return rt.polled_characters, at
+
+
+def _prime(rt: Any, characters: list[list[int]], at: float) -> None:
+    rt.polled_characters = characters
+    rt.polled_at = at
+
+
+def _select(rt: Any, board_id: str | None, *, want: Want, skip_poll_cache: bool = False) -> BoardState:
+    """The selection order above, over one resolved runtime. No I/O."""
+    client = rt.client
+    base = BoardState(
+        board_id=board_id,
+        characters=None,
+        source="empty",
+        polled_at=None,
+        last_sent_at=getattr(client, "_last_sent_at", None) if client is not None else None,
+        expected_characters=getattr(client, "_last_characters", None) if client is not None else None,
+        api_mode="cloud" if getattr(client, "use_cloud", False) else "local",
+    )
+
+    if want == "board" and not skip_poll_cache:
+        polled, polled_at = _polled_pair(rt)
+        if polled is not None:
+            return replace(base, characters=polled, source="polled", polled_at=polled_at)
+
+    if _is_virtual(client):
+        displayed = client.read_current_message()
+        if displayed is None:
+            return base
+        return replace(base, characters=displayed, source="live")
+
+    if base.expected_characters is not None:
+        return replace(base, characters=base.expected_characters, source="last_sent")
+
+    return base
+
+
+def read_board_state(board_id: str | None, *, want: Want, service: Any) -> BoardState:
     """Select what *board_id* is showing from the display service's caches.
 
     Args:
-        board_id: Board to read; ``None`` (or the primary's own id) means
-            the primary board. An id with no runtime answers ``"empty"`` —
-            whether the board *exists* is the caller's verdict to make
-            (``_require_board`` → 404, ``ToolError``, ...).
-        allow_live: Permit a live ``read_current_message()`` on the board's
-            client when the poll cache is empty. Network I/O on a physical
-            board; leave it off on any surface a viewer polls unattended.
-        force_live: Read the board now even if the poll cache is populated.
-            Implies ``allow_live``.
-        service: The ``DisplayService`` to read from. Defaults to resolving
-            it at call time; pass what you already resolved (even ``None``)
-            so one request never resolves it twice.
+        board_id: Board to read; ``None`` means the primary board. An id with
+            no runtime answers ``"empty"`` — whether the board *exists* is
+            the caller's verdict to make (``_require_board`` → 404,
+            ``ToolError``, ...).
+        want: ``"board"`` (what the flaps show; poll cache first) or
+            ``"sent"`` (what FiestaBoard last displayed/sent; never the poll
+            cache). See the module docstring.
+        service: The ``DisplayService`` the caller already resolved — its
+            ``None`` answers ``"empty"``. Passed explicitly because every
+            surface resolves it through its own seam.
 
-    Raises:
-        BoardReadError: a live read was attempted and returned nothing.
+    Never performs I/O: a virtual board's memory read is a mutex and a
+    copy, and a physical board is only ever served from its caches.
     """
-    if service is _RESOLVE_SERVICE:
-        from . import display_runtime
-
-        service = display_runtime.get_service()
     if service is None:
         return _empty(board_id)
+    rt = service.runtime_for(board_id)
+    if rt is None:
+        return _empty(board_id)
+    return _select(rt, board_id, want=want)
 
-    if board_id is None or board_id == _primary_board_id():
-        client = service.vb_client
-        polled = service._polled_characters
-        polled_at = service._polled_at
 
-        def prime(characters: list[list[int]], at: float) -> None:
-            service._polled_characters = characters
-            service._polled_at = at
+async def read_board_state_live(board_id: str | None, *, force: bool = False, service: Any) -> BoardState:
+    """``want="board"``, plus a live read of a physical board where the poll
+    cache cannot answer.
 
-    else:
-        rt = service.get_runtime(board_id)
-        if rt is None:
-            return _empty(board_id)
-        client = rt.client
-        polled = rt.polled_characters
-        polled_at = rt.polled_at
+    The network read runs on a worker thread, and only when it happens: a
+    populated poll cache (unless ``force``) and a virtual board's memory are
+    served inline. A live read that succeeds primes the poll cache, so the
+    next request is fast; a virtual board's memory read primes it too, as
+    the poll thread would.
 
-        def prime(characters: list[list[int]], at: float) -> None:
-            rt.polled_characters = characters
-            rt.polled_at = at
+    Raises:
+        BoardReadError: the physical board was read and answered nothing. A
+            virtual board's refusal (nothing displayed, or a stale-shape
+            frame) is ``"empty"``, never an error.
+    """
+    if service is None:
+        return _empty(board_id)
+    rt = service.runtime_for(board_id)
+    if rt is None:
+        return _empty(board_id)
 
-    expected = getattr(client, "_last_characters", None) if client is not None else None
-    last_sent_at = getattr(client, "_last_sent_at", None) if client is not None else None
+    state = _select(rt, board_id, want="board", skip_poll_cache=force)
+    client = rt.client
+    if state.source == "polled" or client is None:
+        return state
+    if _is_virtual(client):
+        if state.characters is not None:
+            _prime(rt, state.characters, time.time())
+        return state
 
-    def state(characters: list[list[int]] | None, source: Source, timestamp: float | None) -> BoardState:
-        return BoardState(
-            board_id=board_id,
-            characters=characters,
-            source=source,
-            timestamp=timestamp,
-            last_sent_at=last_sent_at,
-            expected_characters=expected,
-            client=client,
-        )
-
-    if client is not None and (force_live or (allow_live and polled is None)):
-        characters = client.read_current_message()
-        if characters is None:
-            raise BoardReadError(board_id)
-        now = time.time()
-        prime(characters, now)
-        return state(characters, "live", now)
-
-    if polled is not None:
-        return state(polled, "polled", polled_at)
-
-    if client is not None and getattr(client, "is_virtual", False):
-        characters = client.read_current_message()
-        if characters is None:
-            return state(None, "empty", None)
-        return state(characters, "live", time.time())
-
-    if expected is not None:
-        return state(expected, "last_sent", last_sent_at)
-
-    return state(None, "empty", None)
+    characters = await asyncio.to_thread(client.read_current_message)
+    if characters is None:
+        raise BoardReadError(board_id)
+    _prime(rt, characters, time.time())
+    return replace(state, characters=characters, source="live", polled_at=None)

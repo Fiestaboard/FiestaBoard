@@ -36,7 +36,6 @@ from fastapi import APIRouter, HTTPException
 from src.api_errors import errors
 from src.board_chars import characters_to_message
 from src.board_guards import _board_dims, _find_board
-from src.board_send_executor import run_board_send
 from src.board_state import read_board_state
 from src.devices import resolve_dimensions
 from src.display_runtime import get_service, reinitialize_board_clients
@@ -263,7 +262,8 @@ async def get_panel_frame(panel_id: str):
 
     Never triggers a live HTTP read — a panel misconfigured onto a physical
     board serves that board's last-sent cache instead of hammering it at the
-    viewer's 2s poll cadence.
+    viewer's 2s poll cadence. Never consults the poll cache either: the
+    viewer shows what FiestaBoard last displayed, immediately.
     """
     panel = get_panel_service().get_panel_by_ref(panel_id)
     if panel is None:
@@ -271,16 +271,16 @@ async def get_panel_frame(panel_id: str):
     board = _find_board(panel.board_id)
     dims = _board_dims(board) if board is not None else resolve_dimensions("flagship")
 
-    # No ``allow_live``: a virtual board answers from memory regardless, and
-    # a physical one is served from its caches. The read is kept off the
-    # loop either way (#1878).
-    state = await run_board_send(read_board_state, panel.board_id, service=get_service())
+    # ``want="sent"``: what FiestaBoard last displayed/sent, now — never the
+    # poll cache (a write that skips the poll refresh must still reach the
+    # TV), never a network read. The reader does no I/O, so it runs inline.
+    state = read_board_state(panel.board_id, want="sent", service=get_service())
 
     # The viewer's ``updated_at`` is when the frame was last stored,
     # whatever answered the read — a refused stale-shape frame still
     # reports when it was sent.
     updated_at = None
-    if state.last_sent_at:
+    if state.last_sent_at is not None:
         updated_at = datetime.fromtimestamp(state.last_sent_at, tz=UTC).isoformat()
 
     if state.characters is None:

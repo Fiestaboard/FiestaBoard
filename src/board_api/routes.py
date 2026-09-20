@@ -55,7 +55,6 @@ deliberately *not* attempted here.
 
 from __future__ import annotations
 
-import asyncio
 import logging
 from datetime import UTC, datetime
 
@@ -66,11 +65,11 @@ from src.api_deprecation import V1_BOARD_MESSAGE_SUCCESSOR, deprecation_notice
 from src.api_errors import errors
 from src.board_chars import characters_to_message
 from src.board_client import board_client_from_board_dict
-from src.board_guards import _board_dims, _require_board, _silence_active
+from src.board_guards import _board_dims, _require_board, _silence_active, primary_board_entry
 from src.board_guards import raise_if_paused as _raise_if_paused
 from src.board_guards import raise_if_throttled as _raise_if_throttled
 from src.board_send_executor import run_board_send
-from src.board_state import BoardReadError, read_board_state
+from src.board_state import BoardReadError, read_board_state, read_board_state_live
 from src.config_manager import get_config_manager
 from src.devices import resolve_dimensions
 from src.send_outcome import SendOutcome
@@ -152,22 +151,18 @@ async def get_board_current_message(force: bool = False, board_id: str | None = 
     # cache whatever ``force`` says.
     is_primary = board is None or board_id == runtime.get_settings_service().get_primary_board_id()
 
-    try:
-        state = await asyncio.to_thread(
-            read_board_state,
-            board_id,
-            allow_live=is_primary,
-            force_live=force and is_primary,
-            service=service,
-        )
-    except BoardReadError:
-        raise HTTPException(status_code=503, detail="Failed to read current board message") from None
+    if is_primary:
+        try:
+            state = await read_board_state_live(board_id, force=force, service=service)
+        except BoardReadError:
+            raise HTTPException(status_code=503, detail="Failed to read current board message") from None
+    else:
+        state = read_board_state(board_id, want="board", service=service)
 
-    api_mode = "cloud" if getattr(state.client, "use_cloud", False) else "local"
     if state.characters is None:
-        # Nothing sent to this board yet — return its geometry so the UI can
+        # Nothing on this board yet — return its geometry so the UI can
         # degrade gracefully (render the active page instead).
-        dims = _board_dims(board or {})
+        dims = _board_dims(board or primary_board_entry() or {})
         return BoardCurrentMessageResponse(
             characters=None,
             message=None,
@@ -175,15 +170,9 @@ async def get_board_current_message(force: bool = False, board_id: str | None = 
             cols=dims.cols,
             expected_characters=None,
             cached_at=None,
-            api_mode=api_mode,
+            api_mode=state.api_mode,
             board_id=board_id,
         )
-
-    # ``cached_at`` is the poll time and nothing else: a live read is not a
-    # cache hit, and the last-sent fallback carries no observation time.
-    cached_at = None
-    if state.source == "polled" and state.timestamp is not None:
-        cached_at = datetime.fromtimestamp(state.timestamp, tz=UTC).isoformat()
 
     return BoardCurrentMessageResponse(
         characters=state.characters,
@@ -191,8 +180,9 @@ async def get_board_current_message(force: bool = False, board_id: str | None = 
         rows=state.rows,
         cols=state.cols,
         expected_characters=state.expected_characters,
-        cached_at=cached_at,
-        api_mode=api_mode,
+        # The poll time and nothing else: a live read is not a cache hit.
+        cached_at=datetime.fromtimestamp(state.polled_at, tz=UTC).isoformat() if state.polled_at is not None else None,
+        api_mode=state.api_mode,
         board_id=board_id,
     )
 

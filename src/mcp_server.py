@@ -2297,20 +2297,17 @@ def _build_mcp_server() -> Any:
         # seam get_system_status uses; no REST handler is called.
         from .api_server import get_service
         from .board_chars import characters_to_message
+        from .board_guards import _find_board
         from .board_state import read_board_state
 
         service = get_service()
         if not service:
             raise ToolError("Display service not initialized.")
 
-        if board_id is not None:
-            from .settings.service import get_settings_service
+        if board_id is not None and _find_board(board_id) is None:
+            raise ToolError(f"Board not found: {board_id}")
 
-            boards = get_settings_service().get_board_settings().boards or []
-            if not any(isinstance(b, dict) and b.get("id") == board_id for b in boards):
-                raise ToolError(f"Board not found: {board_id}")
-
-        state = read_board_state(board_id, service=service)
+        state = read_board_state(board_id, want="board", service=service)
         if state.characters is None:
             return {"characters": None, "message": None, "rows": 0, "cols": 0, "source": None, "board_id": board_id}
         return {
