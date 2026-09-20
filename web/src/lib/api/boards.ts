@@ -67,6 +67,12 @@ export interface Panel {
   board_missing?: boolean;
   rows?: number | null;
   cols?: number | null;
+  /** The same grid counted in Notes — what a page authored for this panel
+   * needs for its `notes_wide`/`notes_tall`. Derived server-side from
+   * rows/cols, so the two can never disagree. Null when the board is gone;
+   * absent on a payload cached before the fields existed. */
+  notes_wide?: number | null;
+  notes_tall?: number | null;
 }
 
 export interface PanelCreateRequest {

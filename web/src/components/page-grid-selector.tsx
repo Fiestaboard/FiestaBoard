@@ -22,6 +22,7 @@ import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { BoardSizeIndicator } from "@/components/board-size-indicator";
 import { useCurrentBoard } from "@/components/current-board-context";
+import { PanelFitNote } from "@/components/panel-fit-note";
 import { ScaledBoardDisplay } from "@/components/scaled-board-display";
 import Link from "@/components/smart-link";
 import { StaticBoardDisplay } from "@/components/static-board-display";
@@ -250,6 +251,15 @@ const PageButton = memo(
           />
         </Flex>
 
+        {/* Which FiestaPanel this page's grid fits, if any — the auto-fit
+            dimensions beside it mean nothing to a panel owner on their own. */}
+        <PanelFitNote
+          deviceType={page.device_type || "flagship"}
+          notesWide={page.notes_wide}
+          notesTall={page.notes_tall}
+          className="-mt-2 block truncate"
+        />
+
         <Box className="hover-stable">
           <PageButtonPreview
             preview={preview}
@@ -339,6 +349,12 @@ const PageListItem = memo(
         <Text as="span" className={nameClassName}>
           {page.name}
         </Text>
+        <PanelFitNote
+          deviceType={page.device_type || "flagship"}
+          notesWide={page.notes_wide}
+          notesTall={page.notes_tall}
+          className="shrink-0 truncate"
+        />
         <BoardSizeIndicator
           deviceType={page.device_type || "flagship"}
           notesWide={page.notes_wide}

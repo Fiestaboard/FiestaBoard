@@ -115,6 +115,15 @@ class PanelBoardFields(BaseModel):
     board_missing: bool = False
     rows: int | None = None
     cols: int | None = None
+    # The same grid counted in Notes. A panel's board is always a note array
+    # (auto-fit from the TV's diagonal), and a page authored for that panel is
+    # a note_array page with these exact counts — so every consumer wanting to
+    # size a page to a panel was dividing cols by 15 and rows by 3 itself.
+    # Derived from the resolved dimensions, so they can never disagree with
+    # rows/cols. Null on the same terms as rows/cols: the board is gone, or
+    # (defensively) is not a note array.
+    notes_wide: int | None = None
+    notes_tall: int | None = None
 
 
 class PanelResponse(Panel, PanelBoardFields):

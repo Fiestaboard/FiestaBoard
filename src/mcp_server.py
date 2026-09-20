@@ -1027,7 +1027,10 @@ def _build_mcp_server() -> Any:
                             the number of rows for the device_type
                             (6 for flagship, 3 for note, 3·notes_tall for
                             note_array).
-            device_type: 'flagship' (default), 'note', or 'note_array'.
+            device_type: 'flagship' (default), 'note', or 'note_array'. For a
+                         FiestaPanel, call list_panels() and use that panel's
+                         device_type / notes_wide / notes_tall — a panel's grid
+                         is auto-fit from its TV size and is never the default.
             duration_seconds: How long to show this page in a time-mode collection (default: 300).
             line_metadata: Optional per-line dicts with "alignment"
                            ('left'/'center'/'right') and "wrap" (bool), one

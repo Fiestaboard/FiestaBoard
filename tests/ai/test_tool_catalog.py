@@ -218,3 +218,20 @@ def test_addendum_for_the_real_server_stays_under_the_size_budget():
         text = ToolCatalog(descriptors).render_addendum("global", skip_destructive_pause=skip)
         assert len(text.encode()) < 40_000, f"addendum is {len(text.encode())} bytes; trim descriptions"
     assert len(descriptors) >= 34
+
+
+# ---------------------------------------------------------------------------
+# Panel-sized pages (#2032 follow-up)
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.parametrize("surface", ["editor", "global"])
+@pytest.mark.parametrize("skip_destructive_pause", [False, True])
+def test_addendum_tells_the_model_to_size_a_page_to_a_named_panel(catalog, surface, skip_destructive_pause):
+    """A page is authored for one board shape, so "make a page for my panel"
+    has to read the panel's grid instead of falling back to the flagship
+    default. The rule lives in the shared tail, so it is taught on every
+    surface and in both approval modes."""
+    text = catalog.render_addendum(surface, skip_destructive_pause=skip_destructive_pause)
+    assert "list_panels" in text
+    assert "notes_wide" in text and "notes_tall" in text

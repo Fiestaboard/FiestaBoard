@@ -2224,7 +2224,11 @@
     "hdmiHelp": "Mostra il pannello display su uno schermo collegato alla porta HDMI di questo Pi. L'attivazione installa un piccolo browser in modalità chiosco (richiede qualche minuto).",
     "hdmiInstalling": "Configurazione del chiosco HDMI — sul Pi viene installato un browser, può richiedere qualche minuto…",
     "hdmiEnabledHint": "Lo schermo HDMI mostra il pannello con «Uscita display» attivata qui sopra.",
-    "hdmiFailed": "L'ultima modifica del chiosco HDMI non è riuscita. Riprova o riavvia il Pi."
+    "hdmiFailed": "L'ultima modifica del chiosco HDMI non è riuscita. Riprova o riavvia il Pi.",
+    "yourPanelsGroupLabel": "I tuoi pannelli",
+    "panelSizeOption": "{name} · {wide}×{tall} blocchi Note",
+    "fitsPanel": "Adatta a {name}",
+    "fitsPanelAndMore": "Adatta a {name} +{count} altri"
   },
   "releaseChannel": {
     "title": "Release channel",

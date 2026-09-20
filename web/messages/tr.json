@@ -2224,7 +2224,11 @@
     "hdmiHelp": "Bu Pi'nin HDMI bağlantı noktasına bağlı ekranda görüntü panelini gösterir. Etkinleştirme küçük bir kiosk tarayıcısı kurar (birkaç dakika sürer).",
     "hdmiInstalling": "HDMI kiosk kuruluyor — Pi'ye bir tarayıcı yükleniyor, birkaç dakika sürebilir…",
     "hdmiEnabledHint": "HDMI ekranı, yukarıda “Ekran çıkışı” açık olan paneli gösterir.",
-    "hdmiFailed": "Son HDMI kiosk değişikliği başarısız oldu. Yeniden deneyin veya Pi'yi yeniden başlatın."
+    "hdmiFailed": "Son HDMI kiosk değişikliği başarısız oldu. Yeniden deneyin veya Pi'yi yeniden başlatın.",
+    "yourPanelsGroupLabel": "Panelleriniz",
+    "panelSizeOption": "{name} · {wide}×{tall} Note bloğu",
+    "fitsPanel": "{name} ile uyumlu",
+    "fitsPanelAndMore": "{name} +{count} panel ile uyumlu"
   },
   "releaseChannel": {
     "title": "Release channel",
