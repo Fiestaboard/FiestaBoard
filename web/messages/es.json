@@ -83,6 +83,39 @@
     "unnamedBoard": "Tablero sin nombre",
     "transitions": "Laboratorio de transiciones"
   },
+  "settingsMenu": {
+    "trigger": "Configuración",
+    "settings": "Configuración",
+    "appearance": "Apariencia",
+    "light": "Claro",
+    "dark": "Oscuro",
+    "system": "Sistema",
+    "about": "Acerca de FiestaBoard",
+    "signOut": "Cerrar sesión"
+  },
+  "aboutDialog": {
+    "description": "Información de versión y del sistema de este FiestaBoard.",
+    "devSuffix": "compilación de desarrollo",
+    "channel": "Canal",
+    "channelStable": "Estable",
+    "channelBeta": "Beta",
+    "platform": "Plataforma",
+    "platformDocker": "Docker",
+    "platformPi": "Raspberry Pi",
+    "hardware": "Hardware",
+    "updates": "Actualizaciones",
+    "updatesDaily": "Automáticas, a diario",
+    "updatesWeekly": "Automáticas, semanales",
+    "updatesMonthly": "Automáticas, mensuales",
+    "updatesManual": "Manuales",
+    "updatesManaged": "Gestionadas externamente",
+    "updatesUnavailable": "Actualizador no disponible",
+    "updateAvailable": "Actualización disponible: {version}",
+    "board": "Tablero",
+    "license": "Licencia MIT",
+    "copyright": "© {year} {holder}",
+    "sourceCode": "Código fuente en GitHub"
+  },
   "network": {
     "title": "Wi-Fi",
     "description": "Gestiona la conexión inalámbrica de tu FiestaPi.",
@@ -1212,14 +1245,6 @@
     "toastBoardReadIntervalFailed": "Error al actualizar el intervalo de lectura: {error}",
     "updateIntervalsTitle": "Intervalos de actualización",
     "updateIntervalsDescription": "Con qué frecuencia el tablero consulta nuevo contenido y vuelve a leer su estado actual"
-  },
-  "themeToggle": {
-    "toggleTheme": "Cambiar tema"
-  },
-  "versionDisplay": {
-    "devSuffix": "(dev)",
-    "updateAvailableAriaLabel": "Actualización disponible: v{version}",
-    "updateAvailableTooltip": "Actualización disponible: v{version}"
   },
   "serviceControls": {
     "title": "Control del servicio",

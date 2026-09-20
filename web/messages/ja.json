@@ -83,6 +83,39 @@
     "unnamedBoard": "名前のないボード",
     "transitions": "トランジションラボ"
   },
+  "settingsMenu": {
+    "trigger": "設定",
+    "settings": "設定",
+    "appearance": "外観",
+    "light": "ライト",
+    "dark": "ダーク",
+    "system": "システム",
+    "about": "FiestaBoard について",
+    "signOut": "サインアウト"
+  },
+  "aboutDialog": {
+    "description": "この FiestaBoard のバージョンとシステム情報。",
+    "devSuffix": "開発ビルド",
+    "channel": "チャンネル",
+    "channelStable": "安定版",
+    "channelBeta": "ベータ版",
+    "platform": "プラットフォーム",
+    "platformDocker": "Docker",
+    "platformPi": "Raspberry Pi",
+    "hardware": "ハードウェア",
+    "updates": "アップデート",
+    "updatesDaily": "自動（毎日）",
+    "updatesWeekly": "自動（毎週）",
+    "updatesMonthly": "自動（毎月）",
+    "updatesManual": "手動",
+    "updatesManaged": "外部で管理",
+    "updatesUnavailable": "アップデーターを利用できません",
+    "updateAvailable": "アップデートがあります: {version}",
+    "board": "ボード",
+    "license": "MIT ライセンス",
+    "copyright": "© {year} {holder}",
+    "sourceCode": "GitHub のソースコード"
+  },
   "network": {
     "title": "Wi-Fi",
     "description": "FiestaPi のワイヤレス接続を管理します。",
@@ -1212,14 +1245,6 @@
     "toastBoardReadIntervalFailed": "ボード読み取り間隔の更新に失敗: {error}",
     "updateIntervalsTitle": "更新間隔",
     "updateIntervalsDescription": "ボードが新しいコンテンツを取得し、現在の状態を再読み込みする頻度"
-  },
-  "themeToggle": {
-    "toggleTheme": "テーマを切り替え"
-  },
-  "versionDisplay": {
-    "devSuffix": "（開発版）",
-    "updateAvailableAriaLabel": "アップデートがあります: v{version}",
-    "updateAvailableTooltip": "アップデートがあります: v{version}"
   },
   "serviceControls": {
     "title": "サービス制御",

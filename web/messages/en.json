@@ -83,6 +83,39 @@
     "unnamedBoard": "Unnamed board",
     "transitions": "Transition Lab"
   },
+  "settingsMenu": {
+    "trigger": "Settings",
+    "settings": "Settings",
+    "appearance": "Appearance",
+    "light": "Light",
+    "dark": "Dark",
+    "system": "System",
+    "about": "About FiestaBoard",
+    "signOut": "Sign out"
+  },
+  "aboutDialog": {
+    "description": "Version and system information for this FiestaBoard.",
+    "devSuffix": "dev build",
+    "channel": "Channel",
+    "channelStable": "Stable",
+    "channelBeta": "Beta",
+    "platform": "Platform",
+    "platformDocker": "Docker",
+    "platformPi": "Raspberry Pi",
+    "hardware": "Hardware",
+    "updates": "Updates",
+    "updatesDaily": "Automatic, daily",
+    "updatesWeekly": "Automatic, weekly",
+    "updatesMonthly": "Automatic, monthly",
+    "updatesManual": "Manual",
+    "updatesManaged": "Managed externally",
+    "updatesUnavailable": "Updater unavailable",
+    "updateAvailable": "Update available: {version}",
+    "board": "Board",
+    "license": "MIT License",
+    "copyright": "© {year} {holder}",
+    "sourceCode": "Source on GitHub"
+  },
   "home": {
     "title": "Dashboard",
     "description": "Monitor your board display and system activity",
@@ -1168,14 +1201,6 @@
     "reduceMotionDescription": "Disable animations and transitions in the interface",
     "toastDisplaySaved": "Display settings saved",
     "toastDisplaySaveFailed": "Failed to save display settings: {error}"
-  },
-  "themeToggle": {
-    "toggleTheme": "Toggle theme"
-  },
-  "versionDisplay": {
-    "devSuffix": "(dev)",
-    "updateAvailableAriaLabel": "Update available: v{version}",
-    "updateAvailableTooltip": "Update available: v{version}"
   },
   "serviceControls": {
     "title": "Service Control",

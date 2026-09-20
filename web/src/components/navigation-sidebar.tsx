@@ -2,24 +2,12 @@
 
 import { BoardSelector, Sidebar, type SidebarLinkProps, type SidebarNavItem } from "@fiestaboard/ui";
 import { useQuery } from "@tanstack/react-query";
-import {
-  Award,
-  Calendar,
-  FileText,
-  FlaskConical,
-  GalleryHorizontalEnd,
-  HelpCircle,
-  Home,
-  Puzzle,
-  Settings,
-} from "lucide-react";
+import { Award, Calendar, FileText, FlaskConical, GalleryHorizontalEnd, HelpCircle, Home, Puzzle } from "lucide-react";
 
 import { useCurrentBoard } from "@/components/current-board-context";
 import { useGlobalAiPanel } from "@/components/global-ai-panel-context";
-import { SidebarAccount } from "@/components/sidebar-account";
 import { useSidebar } from "@/components/sidebar-context";
-import { ThemeToggle } from "@/components/theme-toggle";
-import { VersionDisplay } from "@/components/version-display";
+import { SidebarSettingsMenu } from "@/components/sidebar-settings-menu";
 import { ViewTransitionLink } from "@/components/view-transition-link";
 import { usePrefetchPagesData } from "@/hooks/use-board";
 import { usePathname } from "@/hooks/use-router";
@@ -47,10 +35,12 @@ const primaryItems: NavItemDef[] = [
 // `showTransitionsLab` below) — the whole feature is invisible otherwise.
 const transitionsLabItem: NavItemDef = { key: "transitions", href: "/transitions", icon: FlaskConical };
 
+// Settings is NOT here. It is reachable from the footer menu, which is also
+// where sign-out, the theme and the version live — the rail's list is for
+// places you can BE, and a menu of preferences is not one of them.
 const secondaryItems: NavItemDef[] = [
   { key: "picks", href: "/picks", icon: Award },
   { key: "helpDocs", href: "https://fiestaboard.app/docs/intro", icon: HelpCircle, external: true },
-  { key: "settings", href: "/settings", icon: Settings },
 ];
 
 /**
@@ -129,8 +119,10 @@ export function NavigationSidebar() {
         collapseSidebar: t("collapseSidebar"),
         aiAssistant: t("aiAssistant"),
       }}
-      primaryItems={navPrimaryItems.map(toNavItem)}
-      secondaryItems={secondaryItems.map(toNavItem)}
+      // One flat list, in reading order. `primaryItems`/`secondaryItems` are
+      // deprecated in @fiestaboard/ui and expressed a split the rail stopped
+      // rendering several releases ago.
+      items={[...navPrimaryItems, ...secondaryItems].map(toNavItem)}
       renderLink={renderLink}
       collapsed={collapsed}
       transitioning={transitioning}
@@ -159,11 +151,7 @@ export function NavigationSidebar() {
           />
         ) : undefined
       }
-      renderAccount={({ variant, collapsed: isCollapsed }) =>
-        variant === "mobile" ? <SidebarAccount variant="mobile" /> : <SidebarAccount collapsed={isCollapsed} />
-      }
-      versionSlot={<VersionDisplay />}
-      themeToggleSlot={<ThemeToggle />}
+      renderSettingsMenu={({ collapsed: isCollapsed }) => <SidebarSettingsMenu collapsed={isCollapsed} />}
       maxWidth={MAX_APP_WIDTH}
       sidebarInset={SIDEBAR_INSET}
     />

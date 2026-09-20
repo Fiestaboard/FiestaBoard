@@ -83,6 +83,39 @@
     "unnamedBoard": "Naamloos board",
     "transitions": "Transitielab"
   },
+  "settingsMenu": {
+    "trigger": "Instellingen",
+    "settings": "Instellingen",
+    "appearance": "Weergave",
+    "light": "Licht",
+    "dark": "Donker",
+    "system": "Systeem",
+    "about": "Over FiestaBoard",
+    "signOut": "Afmelden"
+  },
+  "aboutDialog": {
+    "description": "Versie- en systeeminformatie van dit FiestaBoard.",
+    "devSuffix": "ontwikkelbuild",
+    "channel": "Kanaal",
+    "channelStable": "Stabiel",
+    "channelBeta": "Bèta",
+    "platform": "Platform",
+    "platformDocker": "Docker",
+    "platformPi": "Raspberry Pi",
+    "hardware": "Hardware",
+    "updates": "Updates",
+    "updatesDaily": "Automatisch, dagelijks",
+    "updatesWeekly": "Automatisch, wekelijks",
+    "updatesMonthly": "Automatisch, maandelijks",
+    "updatesManual": "Handmatig",
+    "updatesManaged": "Extern beheerd",
+    "updatesUnavailable": "Updater niet beschikbaar",
+    "updateAvailable": "Update beschikbaar: {version}",
+    "board": "Bord",
+    "license": "MIT-licentie",
+    "copyright": "© {year} {holder}",
+    "sourceCode": "Broncode op GitHub"
+  },
   "network": {
     "title": "Wi-Fi",
     "description": "Beheer de draadloze verbinding van je FiestaPi.",
@@ -1212,14 +1245,6 @@
     "toastBoardReadIntervalFailed": "Bijwerken van board-uitleesinterval mislukt: {error}",
     "updateIntervalsTitle": "Update-intervallen",
     "updateIntervalsDescription": "Hoe vaak het bord nieuwe inhoud ophaalt en zijn huidige status opnieuw leest"
-  },
-  "themeToggle": {
-    "toggleTheme": "Thema wisselen"
-  },
-  "versionDisplay": {
-    "devSuffix": "(dev)",
-    "updateAvailableAriaLabel": "Update beschikbaar: v{version}",
-    "updateAvailableTooltip": "Update beschikbaar: v{version}"
   },
   "serviceControls": {
     "title": "Servicebeheer",

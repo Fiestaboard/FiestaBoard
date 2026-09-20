@@ -83,6 +83,39 @@
     "unnamedBoard": "Доска без названия",
     "transitions": "Лаборатория переходов"
   },
+  "settingsMenu": {
+    "trigger": "Настройки",
+    "settings": "Настройки",
+    "appearance": "Оформление",
+    "light": "Светлая",
+    "dark": "Тёмная",
+    "system": "Системная",
+    "about": "О FiestaBoard",
+    "signOut": "Выйти"
+  },
+  "aboutDialog": {
+    "description": "Сведения о версии и системе этого FiestaBoard.",
+    "devSuffix": "сборка для разработки",
+    "channel": "Канал",
+    "channelStable": "Стабильный",
+    "channelBeta": "Бета",
+    "platform": "Платформа",
+    "platformDocker": "Docker",
+    "platformPi": "Raspberry Pi",
+    "hardware": "Оборудование",
+    "updates": "Обновления",
+    "updatesDaily": "Автоматически, ежедневно",
+    "updatesWeekly": "Автоматически, еженедельно",
+    "updatesMonthly": "Автоматически, ежемесячно",
+    "updatesManual": "Вручную",
+    "updatesManaged": "Управляется извне",
+    "updatesUnavailable": "Обновление недоступно",
+    "updateAvailable": "Доступно обновление: {version}",
+    "board": "Табло",
+    "license": "Лицензия MIT",
+    "copyright": "© {year} {holder}",
+    "sourceCode": "Исходный код на GitHub"
+  },
   "network": {
     "title": "Wi-Fi",
     "description": "Управляйте беспроводным соединением вашего FiestaPi.",
@@ -1212,14 +1245,6 @@
     "toastBoardReadIntervalFailed": "Не удалось обновить интервал чтения board: {error}",
     "updateIntervalsTitle": "Интервалы обновления",
     "updateIntervalsDescription": "Как часто табло запрашивает новый контент и перечитывает свое текущее состояние"
-  },
-  "themeToggle": {
-    "toggleTheme": "Переключить тему"
-  },
-  "versionDisplay": {
-    "devSuffix": "(dev)",
-    "updateAvailableAriaLabel": "Доступно обновление: v{version}",
-    "updateAvailableTooltip": "Доступно обновление: v{version}"
   },
   "serviceControls": {
     "title": "Управление сервисом",

@@ -83,6 +83,39 @@
     "unnamedBoard": "Adsız pano",
     "transitions": "Geçiş Laboratuvarı"
   },
+  "settingsMenu": {
+    "trigger": "Ayarlar",
+    "settings": "Ayarlar",
+    "appearance": "Görünüm",
+    "light": "Açık",
+    "dark": "Koyu",
+    "system": "Sistem",
+    "about": "FiestaBoard hakkında",
+    "signOut": "Oturumu kapat"
+  },
+  "aboutDialog": {
+    "description": "Bu FiestaBoard'un sürüm ve sistem bilgileri.",
+    "devSuffix": "geliştirme sürümü",
+    "channel": "Kanal",
+    "channelStable": "Kararlı",
+    "channelBeta": "Beta",
+    "platform": "Platform",
+    "platformDocker": "Docker",
+    "platformPi": "Raspberry Pi",
+    "hardware": "Donanım",
+    "updates": "Güncellemeler",
+    "updatesDaily": "Otomatik, günlük",
+    "updatesWeekly": "Otomatik, haftalık",
+    "updatesMonthly": "Otomatik, aylık",
+    "updatesManual": "Elle",
+    "updatesManaged": "Harici olarak yönetiliyor",
+    "updatesUnavailable": "Güncelleyici kullanılamıyor",
+    "updateAvailable": "Güncelleme mevcut: {version}",
+    "board": "Pano",
+    "license": "MIT Lisansı",
+    "copyright": "© {year} {holder}",
+    "sourceCode": "GitHub'daki kaynak kodu"
+  },
   "network": {
     "title": "Wi-Fi",
     "description": "FiestaPi'nizin kablosuz bağlantısını yönetin.",
@@ -1212,14 +1245,6 @@
     "toastBoardReadIntervalFailed": "Board okuma aralığı güncellenemedi: {error}",
     "updateIntervalsTitle": "Güncelleme Aralıkları",
     "updateIntervalsDescription": "Panonun yeni içerik için ne sıklıkla sorgulama yaptığı ve mevcut durumunu yeniden okuduğu"
-  },
-  "themeToggle": {
-    "toggleTheme": "Temayı değiştir"
-  },
-  "versionDisplay": {
-    "devSuffix": "(geliştirme)",
-    "updateAvailableAriaLabel": "Güncelleme mevcut: v{version}",
-    "updateAvailableTooltip": "Güncelleme mevcut: v{version}"
   },
   "serviceControls": {
     "title": "Hizmet Kontrolü",

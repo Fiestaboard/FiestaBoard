@@ -83,6 +83,39 @@
     "unnamedBoard": "Namnlös tavla",
     "transitions": "Övergångslabb"
   },
+  "settingsMenu": {
+    "trigger": "Inställningar",
+    "settings": "Inställningar",
+    "appearance": "Utseende",
+    "light": "Ljust",
+    "dark": "Mörkt",
+    "system": "System",
+    "about": "Om FiestaBoard",
+    "signOut": "Logga ut"
+  },
+  "aboutDialog": {
+    "description": "Versions- och systeminformation för den här FiestaBoard.",
+    "devSuffix": "utvecklingsbygge",
+    "channel": "Kanal",
+    "channelStable": "Stabil",
+    "channelBeta": "Beta",
+    "platform": "Plattform",
+    "platformDocker": "Docker",
+    "platformPi": "Raspberry Pi",
+    "hardware": "Hårdvara",
+    "updates": "Uppdateringar",
+    "updatesDaily": "Automatiskt, dagligen",
+    "updatesWeekly": "Automatiskt, varje vecka",
+    "updatesMonthly": "Automatiskt, varje månad",
+    "updatesManual": "Manuellt",
+    "updatesManaged": "Hanteras externt",
+    "updatesUnavailable": "Uppdateraren är inte tillgänglig",
+    "updateAvailable": "Uppdatering tillgänglig: {version}",
+    "board": "Tavla",
+    "license": "MIT-licens",
+    "copyright": "© {year} {holder}",
+    "sourceCode": "Källkod på GitHub"
+  },
   "network": {
     "title": "Wi-Fi",
     "description": "Hantera din FiestaPi:s trådlösa anslutning.",
@@ -1212,14 +1245,6 @@
     "toastBoardReadIntervalFailed": "Kunde inte uppdatera board-läsintervall: {error}",
     "updateIntervalsTitle": "Uppdateringsintervall",
     "updateIntervalsDescription": "Hur ofta tavlan söker efter nytt innehåll och läser om sitt aktuella tillstånd"
-  },
-  "themeToggle": {
-    "toggleTheme": "Växla tema"
-  },
-  "versionDisplay": {
-    "devSuffix": "(dev)",
-    "updateAvailableAriaLabel": "Uppdatering tillgänglig: v{version}",
-    "updateAvailableTooltip": "Uppdatering tillgänglig: v{version}"
   },
   "serviceControls": {
     "title": "Tjänststyrning",

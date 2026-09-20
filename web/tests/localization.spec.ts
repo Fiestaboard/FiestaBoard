@@ -21,7 +21,7 @@ test.describe("Localization", () => {
     await expect(html).toHaveAttribute("lang", "en");
 
     await expect(page.getByRole("link", { name: "Pages" }).first()).toBeVisible();
-    await expect(page.getByRole("link", { name: "Settings" }).first()).toBeVisible();
+    await expect(page.getByRole("link", { name: "Collections" }).first()).toBeVisible();
   });
 
   test("language selector is visible and shows English by default", async ({ page }) => {
