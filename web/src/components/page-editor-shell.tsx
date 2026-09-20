@@ -1,7 +1,7 @@
 "use client";
 
 import { Flex, Stack } from "@fiestaboard/ui";
-import { useCallback, useEffect, useRef } from "react";
+import { useEffect, useRef } from "react";
 
 import { PageBuilder, type PageBuilderHandle } from "@/components/page-builder";
 import { usePageEditorBridge } from "@/components/page-editor-bridge-context";
@@ -26,24 +26,23 @@ export function PageEditorShell({ pageId, deviceType, skipDraft, onClose, onSave
   const builderRef = useRef<PageBuilderHandle>(null);
   const { register, unregister } = usePageEditorBridge();
 
-  const getSnapshot = useCallback(() => builderRef.current?.getCurrentPage() ?? null, []);
-
-  const applyOp = useCallback((call: Parameters<NonNullable<PageBuilderHandle["applyToolCall"]>>[0]) => {
-    builderRef.current?.applyToolCall(call);
-  }, []);
-
-  const getCanUndo = useCallback(() => builderRef.current?.canUndo() ?? false, []);
-
-  const undo = useCallback(() => {
-    builderRef.current?.undo();
-  }, []);
-
-  const save = useCallback(() => builderRef.current?.save() ?? Promise.resolve(null), []);
+  const call = <K extends keyof PageBuilderHandle>(key: K): PageBuilderHandle[K] | undefined =>
+    builderRef.current?.[key];
 
   useEffect(() => {
-    register({ getSnapshot, applyOp, save, getCanUndo, undo });
+    register({
+      getSnapshot: () => call("getCurrentPage")?.() ?? null,
+      getPageId: () => pageId,
+      hasUnsavedChanges: () => call("hasUnsavedChanges")?.() ?? false,
+      beginStaging: () => call("beginStaging")?.(),
+      stageName: (value) => call("stageName")?.(value),
+      stageLine: (index, value) => call("stageLine")?.(index, value),
+      stageDeviceType: (value) => call("stageDeviceType")?.(value),
+      discardStaging: () => call("discardStaging")?.(),
+      reloadFromServer: () => call("reloadFromServer")?.() ?? Promise.resolve(),
+    });
     return () => unregister();
-  }, [register, unregister, getSnapshot, applyOp, save, getCanUndo, undo]);
+  }, [register, unregister, pageId]);
 
   return (
     <Flex className="flex-1 min-h-0 w-full overflow-hidden bg-background">

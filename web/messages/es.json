@@ -2050,7 +2050,9 @@
     },
     "status": {
       "thinking": "Pensando…",
-      "running": "Ejecutando {tool}…"
+      "running": "Ejecutando {tool}…",
+      "preparing": "Preparando {tool}…",
+      "elapsed": "{seconds} s"
     },
     "question": {
       "skip": "Omitir",
@@ -2260,5 +2262,40 @@
       "triggerSystemUpdate": "Descarga e instala la última actualización de FiestaBoard. El sistema se reiniciará brevemente.",
       "generic": "Esta acción no la puede deshacer otra herramienta."
     }
+  },
+  "aiSpotlight": {
+    "stop": "Detener",
+    "approve": "Aprobar",
+    "deny": "Denegar"
+  },
+  "aiChoreography": {
+    "working": "{tool}…",
+    "done": "{tool} — listo",
+    "failed": "{tool} falló",
+    "awaitingApproval": "{tool} — esperando tu aprobación",
+    "openingNewPage": "Abriendo una página nueva…",
+    "typingName": "Poniendo nombre a la página…",
+    "typingLines": "Escribiendo las líneas…",
+    "creatingPage": "Creando «{name}»…",
+    "pageCreated": "Página creada",
+    "pageUpdated": "Página actualizada",
+    "pageFailed": "No se pudo guardar la página",
+    "updatingBehindEdits": "Actualizando la página guardada; tus cambios sin guardar se mantienen",
+    "changingDevice": "Cambiando el tamaño del tablero…",
+    "aboutToDeletePage": "A punto de eliminar esta página",
+    "pageDeleted": "Página eliminada",
+    "openingScheduleForm": "Abriendo el formulario de programación…",
+    "fillingSchedule": "Rellenando la programación…",
+    "savingSchedule": "Guardando la programación…",
+    "scheduleCreated": "Programación añadida",
+    "scheduleUpdated": "Programación actualizada",
+    "scheduleFailed": "No se pudo guardar la programación",
+    "aboutToDeleteSchedule": "A punto de eliminar esta programación",
+    "scheduleDeleted": "Programación eliminada",
+    "changingSetting": "{tool}…",
+    "settingSaved": "Ajuste guardado",
+    "settingFailed": "No se pudo guardar el ajuste",
+    "on": "Activado",
+    "off": "Desactivado"
   }
 }

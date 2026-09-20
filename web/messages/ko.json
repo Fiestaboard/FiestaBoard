@@ -2050,7 +2050,9 @@
     },
     "status": {
       "thinking": "생각 중…",
-      "running": "{tool} 실행 중…"
+      "running": "{tool} 실행 중…",
+      "preparing": "{tool} 준비 중…",
+      "elapsed": "{seconds}초"
     },
     "question": {
       "skip": "건너뛰기",
@@ -2260,5 +2262,40 @@
       "triggerSystemUpdate": "최신 FiestaBoard 업데이트를 다운로드하고 설치합니다. 시스템이 잠시 재시작됩니다.",
       "generic": "이 작업은 다른 도구로 되돌릴 수 없습니다."
     }
+  },
+  "aiSpotlight": {
+    "stop": "중지",
+    "approve": "승인",
+    "deny": "거부"
+  },
+  "aiChoreography": {
+    "working": "{tool}…",
+    "done": "{tool} — 완료",
+    "failed": "{tool} 실패",
+    "awaitingApproval": "{tool} — 승인을 기다리는 중",
+    "openingNewPage": "새 페이지를 여는 중…",
+    "typingName": "페이지 이름 입력 중…",
+    "typingLines": "줄을 작성하는 중…",
+    "creatingPage": "“{name}” 만드는 중…",
+    "pageCreated": "페이지를 만들었습니다",
+    "pageUpdated": "페이지를 업데이트했습니다",
+    "pageFailed": "페이지를 저장하지 못했습니다",
+    "updatingBehindEdits": "저장된 페이지를 업데이트 중 — 저장하지 않은 편집은 그대로 유지됩니다",
+    "changingDevice": "보드 크기 변경 중…",
+    "aboutToDeletePage": "이 페이지를 삭제하려고 합니다",
+    "pageDeleted": "페이지를 삭제했습니다",
+    "openingScheduleForm": "일정 양식을 여는 중…",
+    "fillingSchedule": "일정을 입력하는 중…",
+    "savingSchedule": "일정을 저장하는 중…",
+    "scheduleCreated": "일정을 추가했습니다",
+    "scheduleUpdated": "일정을 업데이트했습니다",
+    "scheduleFailed": "일정을 저장하지 못했습니다",
+    "aboutToDeleteSchedule": "이 일정을 삭제하려고 합니다",
+    "scheduleDeleted": "일정을 삭제했습니다",
+    "changingSetting": "{tool}…",
+    "settingSaved": "설정을 저장했습니다",
+    "settingFailed": "설정을 저장하지 못했습니다",
+    "on": "켬",
+    "off": "끔"
   }
 }

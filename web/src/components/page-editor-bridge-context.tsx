@@ -1,16 +1,25 @@
 "use client";
 
-import { createContext, useCallback, useContext, useRef, useState } from "react";
+import { createContext, useCallback, useContext, useMemo, useRef, useState } from "react";
 
-import type { CurrentPageSnapshot, EditorToolCall } from "@/lib/ai-chat-types";
+import type { CurrentPageSnapshot } from "@/lib/ai-chat-types";
+import type { PageEditorStaging } from "@/lib/ai-choreography/types";
 
-interface EditorHandlers {
+/**
+ * What a mounted page editor lends to the rest of the app: a snapshot of
+ * the draft for the AI's context, and the staging controls the walkthrough
+ * uses to type a page in for real while the server creates it.
+ */
+export interface EditorHandlers {
   getSnapshot: () => CurrentPageSnapshot | null;
-  applyOp: (call: EditorToolCall) => void;
-  /** Persist the current editor state to the API without closing. */
-  save: () => Promise<{ id: string } | null>;
-  getCanUndo: () => boolean;
-  undo: () => void;
+  getPageId: () => string | undefined;
+  hasUnsavedChanges: () => boolean;
+  beginStaging: () => void;
+  stageName: (value: string) => void;
+  stageLine: (index: number, value: string) => void;
+  stageDeviceType: (value: string) => void;
+  discardStaging: () => void;
+  reloadFromServer: () => Promise<void>;
 }
 
 interface PageEditorBridgeContextValue {
@@ -18,25 +27,8 @@ interface PageEditorBridgeContextValue {
   hasEditor: boolean;
   /** Get the current page snapshot from the editor. Called lazily at turn time. */
   getEditorSnapshot: () => CurrentPageSnapshot | null;
-  /** Apply a page-editing op to the mounted editor. */
-  applyEditorOp: (call: EditorToolCall) => void;
-  /**
-   * Persist the current editor content to the API without closing the editor.
-   * Used by the AI chaining layer to save before navigating away.
-   * Resolves with `{ id }` on success, `null` on failure or no editor.
-   */
-  saveEditor: () => Promise<{ id: string } | null>;
-  /** Whether the editor can undo its last AI change. */
-  canEditorUndo: () => boolean;
-  /** Trigger undo in the editor. */
-  editorUndo: () => void;
-  /**
-   * Resolves once a page editor is mounted (either already, or after the next
-   * `register()` call). Resolves `true` on success and `false` on timeout so
-   * a caller never stalls. Used to wait out a route transition before
-   * driving the editor.
-   */
-  waitForEditor: (timeoutMs?: number) => Promise<boolean>;
+  /** The staging surface the walkthrough drives; every method is safe with no editor. */
+  staging: PageEditorStaging;
   /** Called by the page editor to register itself. */
   register: (handlers: EditorHandlers) => void;
   /** Called by the page editor when it unmounts. */
@@ -45,90 +37,65 @@ interface PageEditorBridgeContextValue {
 
 const PageEditorBridgeContext = createContext<PageEditorBridgeContextValue | null>(null);
 
+const DEFAULT_WAIT_MS = 4000;
+
 export function PageEditorBridgeProvider({ children }: { children: React.ReactNode }) {
   const [hasEditor, setHasEditor] = useState(false);
-  // Incremented each time the AI applies a mutation so consumers
-  // re-read canUndo() reactively after each change.
-  const [mutationPulse, setMutationPulse] = useState(0);
   const handlersRef = useRef<EditorHandlers | null>(null);
-  // Pending waiters resolved when the next editor registers. The AI chaining
-  // loop uses these to wait out the route transition after navigate_to_page.
-  const pendingWaitersRef = useRef<Array<(ok: boolean) => void>>([]);
+  // Resolved when the next editor registers, so a walkthrough can wait out
+  // the route transition it just started.
+  const waitersRef = useRef<Array<(ok: boolean) => void>>([]);
 
   const register = useCallback((handlers: EditorHandlers) => {
     handlersRef.current = handlers;
     setHasEditor(true);
-    if (pendingWaitersRef.current.length > 0) {
-      const waiters = pendingWaitersRef.current;
-      pendingWaitersRef.current = [];
-      for (const resolve of waiters) resolve(true);
-    }
+    const waiters = waitersRef.current;
+    waitersRef.current = [];
+    for (const resolve of waiters) resolve(true);
   }, []);
 
   const unregister = useCallback(() => {
     handlersRef.current = null;
     setHasEditor(false);
-    setMutationPulse(0);
-  }, []);
-
-  const waitForEditor = useCallback((timeoutMs: number = 3000): Promise<boolean> => {
-    if (handlersRef.current) return Promise.resolve(true);
-    return new Promise<boolean>((resolve) => {
-      let settled = false;
-      const onReady = (ok: boolean) => {
-        if (settled) return;
-        settled = true;
-        clearTimeout(timer);
-        resolve(ok);
-      };
-      const timer = setTimeout(() => {
-        // Remove this waiter so a late register() doesn't double-resolve.
-        pendingWaitersRef.current = pendingWaitersRef.current.filter((w) => w !== onReady);
-        onReady(false);
-      }, timeoutMs);
-      pendingWaitersRef.current.push(onReady);
-    });
   }, []);
 
   const getEditorSnapshot = useCallback(() => handlersRef.current?.getSnapshot() ?? null, []);
 
-  const applyEditorOp = useCallback((call: EditorToolCall) => {
-    handlersRef.current?.applyOp(call);
-    setMutationPulse((p) => p + 1);
-  }, []);
-
-  const saveEditor = useCallback(() => handlersRef.current?.save() ?? Promise.resolve(null), []);
-
-  // mutationPulse is listed as a dep so callers re-read this after
-  // each AI mutation.
-  const canEditorUndo = useCallback(
-    () => handlersRef.current?.getCanUndo() ?? false,
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [mutationPulse],
+  const staging = useMemo<PageEditorStaging>(
+    () => ({
+      isMounted: () => handlersRef.current !== null,
+      pageId: () => handlersRef.current?.getPageId(),
+      hasUnsavedChanges: () => handlersRef.current?.hasUnsavedChanges() ?? false,
+      begin: () => handlersRef.current?.beginStaging(),
+      setName: (value) => handlersRef.current?.stageName(value),
+      setLine: (index, value) => handlersRef.current?.stageLine(index, value),
+      setDeviceType: (value) => handlersRef.current?.stageDeviceType(value),
+      discard: () => handlersRef.current?.discardStaging(),
+      reload: () => handlersRef.current?.reloadFromServer() ?? Promise.resolve(),
+      waitFor: (timeoutMs = DEFAULT_WAIT_MS) => {
+        if (handlersRef.current) return Promise.resolve(true);
+        return new Promise<boolean>((resolve) => {
+          const timer = window.setTimeout(() => {
+            waitersRef.current = waitersRef.current.filter((w) => w !== done);
+            resolve(false);
+          }, timeoutMs);
+          const done = (ok: boolean) => {
+            window.clearTimeout(timer);
+            resolve(ok);
+          };
+          waitersRef.current.push(done);
+        });
+      },
+    }),
+    [],
   );
 
-  const editorUndo = useCallback(() => {
-    handlersRef.current?.undo();
-    setMutationPulse((p) => p + 1);
-  }, []);
-
-  return (
-    <PageEditorBridgeContext.Provider
-      value={{
-        hasEditor,
-        getEditorSnapshot,
-        applyEditorOp,
-        saveEditor,
-        canEditorUndo,
-        editorUndo,
-        waitForEditor,
-        register,
-        unregister,
-      }}
-    >
-      {children}
-    </PageEditorBridgeContext.Provider>
+  const value = useMemo<PageEditorBridgeContextValue>(
+    () => ({ hasEditor, getEditorSnapshot, staging, register, unregister }),
+    [hasEditor, getEditorSnapshot, staging, register, unregister],
   );
+
+  return <PageEditorBridgeContext.Provider value={value}>{children}</PageEditorBridgeContext.Provider>;
 }
 
 export function usePageEditorBridge(): PageEditorBridgeContextValue {

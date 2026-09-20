@@ -2050,7 +2050,9 @@
     },
     "status": {
       "thinking": "Réflexion…",
-      "running": "Exécution de {tool}…"
+      "running": "Exécution de {tool}…",
+      "preparing": "Préparation de {tool}…",
+      "elapsed": "{seconds} s"
     },
     "question": {
       "skip": "Passer",
@@ -2260,5 +2262,40 @@
       "triggerSystemUpdate": "Télécharge et installe la dernière mise à jour de FiestaBoard. Le système redémarrera brièvement.",
       "generic": "Aucun autre outil ne peut annuler cette action."
     }
+  },
+  "aiSpotlight": {
+    "stop": "Arrêter",
+    "approve": "Approuver",
+    "deny": "Refuser"
+  },
+  "aiChoreography": {
+    "working": "{tool}…",
+    "done": "{tool} — terminé",
+    "failed": "{tool} a échoué",
+    "awaitingApproval": "{tool} — en attente de ton accord",
+    "openingNewPage": "Ouverture d'une nouvelle page…",
+    "typingName": "Nom de la page…",
+    "typingLines": "Écriture des lignes…",
+    "creatingPage": "Création de « {name} »…",
+    "pageCreated": "Page créée",
+    "pageUpdated": "Page mise à jour",
+    "pageFailed": "La page n'a pas pu être enregistrée",
+    "updatingBehindEdits": "Mise à jour de la page enregistrée — tes modifications non enregistrées restent",
+    "changingDevice": "Changement de la taille du tableau…",
+    "aboutToDeletePage": "Cette page va être supprimée",
+    "pageDeleted": "Page supprimée",
+    "openingScheduleForm": "Ouverture du formulaire de programmation…",
+    "fillingSchedule": "Remplissage de la programmation…",
+    "savingSchedule": "Enregistrement de la programmation…",
+    "scheduleCreated": "Programmation ajoutée",
+    "scheduleUpdated": "Programmation mise à jour",
+    "scheduleFailed": "La programmation n'a pas pu être enregistrée",
+    "aboutToDeleteSchedule": "Cette programmation va être supprimée",
+    "scheduleDeleted": "Programmation supprimée",
+    "changingSetting": "{tool}…",
+    "settingSaved": "Paramètre enregistré",
+    "settingFailed": "Le paramètre n'a pas pu être enregistré",
+    "on": "Activé",
+    "off": "Désactivé"
   }
 }

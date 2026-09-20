@@ -20,12 +20,14 @@ import {
   Text,
 } from "@fiestaboard/ui";
 import { AlertCircle, AlertTriangle, GalleryHorizontalEnd, Sunrise, Sunset, Trash2 } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { forwardRef, useEffect, useImperativeHandle, useMemo, useState } from "react";
 
 import { BoardSizeIndicator } from "@/components/board-size-indicator";
 import { useCurrentBoard } from "@/components/current-board-context";
 import { DaySelector } from "@/components/day-selector";
+import type { ScheduleFormHandle } from "@/components/schedule-editor-bridge-context";
 import { useTranslations } from "@/i18n/translations";
+import { anchorProps } from "@/lib/ai-choreography/anchors";
 import type {
   Collection,
   DayPattern,
@@ -114,19 +116,22 @@ const timeToMinutes = (time: string): number => {
   return h * 60 + m;
 };
 
-export function ScheduleEntryForm({
-  schedule,
-  pages,
-  collections = [],
-  onSubmit,
-  onCancel,
-  onDelete,
-  prefillPageId,
-  prefillStartTime,
-  prefillEndTime,
-  prefillDayPattern,
-  prefillCustomDays,
-}: ScheduleEntryFormProps) {
+export const ScheduleEntryForm = forwardRef<ScheduleFormHandle, ScheduleEntryFormProps>(function ScheduleEntryForm(
+  {
+    schedule,
+    pages,
+    collections = [],
+    onSubmit,
+    onCancel,
+    onDelete,
+    prefillPageId,
+    prefillStartTime,
+    prefillEndTime,
+    prefillDayPattern,
+    prefillCustomDays,
+  },
+  ref,
+) {
   const t = useTranslations("schedule");
   const tc = useTranslations("common");
   const isEdit = Boolean(schedule);
@@ -165,6 +170,57 @@ export function ScheduleEntryForm({
 
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // The AI walkthrough fills the form field by field through this handle;
+  // it sets the same state the controls do, so the user sees exactly what
+  // a hand would have done and can take over at any point.
+  useImperativeHandle(
+    ref,
+    (): ScheduleFormHandle => ({
+      setField: (field, value) => {
+        switch (field) {
+          case "page_id":
+            setPageId(String(value ?? ""));
+            break;
+          case "start_time":
+            if (typeof value === "string") setStartTime(value);
+            break;
+          case "end_time":
+            if (value === null) setHasEndTime(false);
+            else if (typeof value === "string") {
+              setHasEndTime(true);
+              setEndTime(value);
+            }
+            break;
+          case "day_pattern":
+            if (typeof value === "string") setDayPattern(value as DayPattern);
+            break;
+          case "custom_days":
+            if (Array.isArray(value)) setCustomDays(value.map(String));
+            break;
+          case "enabled":
+            setEnabled(Boolean(value));
+            break;
+          case "recurrence_type":
+            if (typeof value === "string") setRecurrenceType(value as RecurrenceType);
+            break;
+          case "start_type":
+            if (typeof value === "string") setStartType(value as TimeType);
+            break;
+          case "start_sun_offset":
+            if (typeof value === "number") setStartSunOffset(value);
+            break;
+          case "end_type":
+            if (typeof value === "string") setEndType(value as TimeType);
+            break;
+          case "end_sun_offset":
+            if (typeof value === "number") setEndSunOffset(value);
+            break;
+        }
+      },
+    }),
+    [],
+  );
 
   // Only pages whose size matches the current board are offered (issue #1249).
   // The currently selected page is always kept so editing an existing entry
@@ -415,7 +471,11 @@ export function ScheduleEntryForm({
           <Label htmlFor="start-time">{t("scheduleEntryForm.startTime")}</Label>
           <Flex gap="2">
             <Select value={startType} onValueChange={(v) => setStartType(v as TimeType)}>
-              <SelectTrigger className="w-[140px]" aria-label={t("scheduleEntryForm.startTimeType")}>
+              <SelectTrigger
+                className="w-[140px]"
+                aria-label={t("scheduleEntryForm.startTimeType")}
+                {...anchorProps("schedule.form.start-type")}
+              >
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -454,6 +514,7 @@ export function ScheduleEntryForm({
                   }}
                   className="w-20"
                   aria-label={t("scheduleEntryForm.sunOffset")}
+                  {...anchorProps("schedule.form.start-sun-offset")}
                 />
                 <Text as="span" size="xs" tone="muted" className="whitespace-nowrap">
                   {t("scheduleEntryForm.sunOffsetHint")}
@@ -475,7 +536,11 @@ export function ScheduleEntryForm({
             <Label htmlFor="end-time">{t("scheduleEntryForm.endTime")}</Label>
             <Flex gap="2">
               <Select value={endType} onValueChange={(v) => setEndType(v as TimeType)}>
-                <SelectTrigger className="w-[140px]" aria-label={t("scheduleEntryForm.endTimeType")}>
+                <SelectTrigger
+                  className="w-[140px]"
+                  aria-label={t("scheduleEntryForm.endTimeType")}
+                  {...anchorProps("schedule.form.end-type")}
+                >
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -514,6 +579,7 @@ export function ScheduleEntryForm({
                     }}
                     className="w-20"
                     aria-label={t("scheduleEntryForm.sunOffset")}
+                    {...anchorProps("schedule.form.end-sun-offset")}
                   />
                   <Text as="span" size="xs" tone="muted" className="whitespace-nowrap">
                     {t("scheduleEntryForm.sunOffsetHint")}
@@ -567,7 +633,9 @@ export function ScheduleEntryForm({
       </Stack>
 
       {recurrenceType === "weekly" && (
-        <DaySelector value={dayPattern} customDays={customDays} onChange={handleDayChange} />
+        <Box {...anchorProps("schedule.form.day-pattern")}>
+          <DaySelector value={dayPattern} customDays={customDays} onChange={handleDayChange} />
+        </Box>
       )}
 
       {recurrenceType === "annual_date" && (
@@ -730,4 +798,4 @@ export function ScheduleEntryForm({
       </Flex>
     </Box>
   );
-}
+});

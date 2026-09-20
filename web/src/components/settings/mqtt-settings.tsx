@@ -24,6 +24,7 @@ import { useState } from "react";
 import { toast } from "sonner";
 
 import { useTranslations } from "@/i18n/translations";
+import { anchorProps } from "@/lib/ai-choreography/anchors";
 import type { MqttSettings } from "@/lib/api";
 import { api } from "@/lib/api";
 
@@ -96,6 +97,7 @@ export function MqttSettingsCard() {
       icon={<Radio />}
       title={t("title")}
       description={t("description")}
+      {...anchorProps("settings.mqtt")}
       action={
         <Flex align="center" gap="3">
           {isEnabled &&

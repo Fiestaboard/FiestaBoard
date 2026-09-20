@@ -57,13 +57,14 @@ import { toast } from "sonner";
 
 import { useCurrentBoard } from "@/components/current-board-context";
 import { ScheduleListView } from "@/components/schedule";
-import { useScheduleEditorBridge } from "@/components/schedule-editor-bridge-context";
+import { type ScheduleFormHandle, useScheduleEditorBridge } from "@/components/schedule-editor-bridge-context";
 import { ScheduleEntryForm } from "@/components/schedule-entry-form";
 import Link from "@/components/smart-link";
 import { queryKeys } from "@/hooks/use-board";
 import { useCollections } from "@/hooks/use-board";
 import { useRouter, useSearchParams } from "@/hooks/use-router";
 import { useTranslations } from "@/i18n/translations";
+import { anchorProps } from "@/lib/ai-choreography/anchors";
 import {
   api,
   type DayPattern,
@@ -180,24 +181,40 @@ export default function SchedulePage() {
   // Register with the schedule editor bridge so the AI drawer can open the
   // form directly when the user is already on this page.
   const { register, unregister } = useScheduleEditorBridge();
+  // A fresh key per walkthrough-opened form so nothing from a previous
+  // edit lingers in the fields.
+  const [formInstance, setFormInstance] = useState(0);
+  const formRef = useRef<ScheduleFormHandle | null>(null);
 
   useEffect(() => {
-    register((prefill) => {
-      setPrefillData(
-        prefill
-          ? {
-              pageId: prefill.page_id,
-              startTime: prefill.start_time,
-              endTime: prefill.end_time ?? undefined,
-              dayPattern: prefill.day_pattern,
-              customDays: prefill.custom_days,
-            }
-          : null,
-      );
-      setShowForm(true);
+    register({
+      openEmpty: () => {
+        setEditingSchedule(null);
+        setPrefillData(null);
+        setFormInstance((n) => n + 1);
+        setShowForm(true);
+      },
+      openEntry: (scheduleId) => {
+        // The list query is declared further down; read the cache instead.
+        const entry = queryClient
+          .getQueriesData<{ schedules?: ScheduleEntry[] }>({ queryKey: ["schedules"] })
+          .flatMap(([, data]) => data?.schedules ?? [])
+          .find((s) => s.id === scheduleId);
+        if (!entry) return;
+        setEditingSchedule(entry);
+        setPrefillData(null);
+        setFormInstance((n) => n + 1);
+        setShowForm(true);
+      },
+      close: () => {
+        setShowForm(false);
+        setEditingSchedule(null);
+        setPrefillData(null);
+      },
+      getForm: () => formRef.current,
     });
     return () => unregister();
-  }, [register, unregister]);
+  }, [register, unregister, queryClient]);
 
   // The AI drawer navigates here with prefill_* query params. `urlPrefill` was
   // read in the state initializer above; all that is left is scrubbing the
@@ -558,6 +575,7 @@ export default function SchedulePage() {
                       data-testid="schedule-enabled-toggle"
                       role="switch"
                       aria-checked={scheduleEnabled}
+                      {...anchorProps("schedule.mode")}
                       aria-label={scheduleEnabled ? t("disableScheduleMode") : t("enableScheduleMode")}
                       disabled={toggleSchedule.isPending}
                       onClick={() => !toggleSchedule.isPending && toggleSchedule.mutate(!scheduleEnabled)}
@@ -601,6 +619,7 @@ export default function SchedulePage() {
                   <Tooltip>
                     <TooltipTrigger asChild>
                       <SelectTrigger
+                        {...anchorProps("schedule.default-page")}
                         data-testid="gap-default-select"
                         className="h-8 w-[150px] text-xs"
                         aria-label={t("gapDefaultTooltip")}
@@ -718,7 +737,13 @@ export default function SchedulePage() {
                   </DropdownMenu>
                 )}
 
-                <Button variant="brand" size="sm" onClick={handleAdd} className="btn-lift">
+                <Button
+                  variant="brand"
+                  size="sm"
+                  onClick={handleAdd}
+                  className="btn-lift"
+                  {...anchorProps("schedule.add")}
+                >
                   <Plus className="h-4 w-4 mr-1" />
                   {t("addSchedule")}
                 </Button>
@@ -746,7 +771,7 @@ export default function SchedulePage() {
         )}
 
         {/* ── Schedule View ── */}
-        <PageSection fill={isCalendarMode} scrollLabel={t("scheduleCalendar")}>
+        <PageSection fill={isCalendarMode} scrollLabel={t("scheduleCalendar")} {...anchorProps("schedule.root")}>
           {viewMode === "list" ? (
             <ScheduleListView
               schedules={schedules}
@@ -791,7 +816,7 @@ export default function SchedulePage() {
           if (!open) handleCloseForm();
         }}
       >
-        <SheetContent className="w-full sm:max-w-xl overflow-y-auto">
+        <SheetContent className="w-full sm:max-w-xl overflow-y-auto" {...anchorProps("schedule.form")}>
           <SheetHeader>
             <SheetTitle>{editingSchedule ? t("editScheduleTitle") : t("addScheduleTitle")}</SheetTitle>
             <SheetDescription>
@@ -800,6 +825,8 @@ export default function SchedulePage() {
           </SheetHeader>
           {pagesData && (
             <ScheduleEntryForm
+              key={formInstance}
+              ref={formRef}
               schedule={editingSchedule || undefined}
               pages={pagesData.pages}
               collections={collectionsData?.collections}

@@ -248,6 +248,8 @@ async def _run_chat_turn(
                     yield event
                 elif kind == "tool_call":
                     calls.append(event["data"])
+                elif kind == "tool_streaming":
+                    yield event
                 elif kind == "warning":
                     grammar_warnings.append(event["data"]["message"])
                     yield event

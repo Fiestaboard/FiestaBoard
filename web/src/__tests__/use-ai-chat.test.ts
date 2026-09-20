@@ -170,6 +170,32 @@ describe("useAiChat", () => {
     expect(onToolResult).toHaveBeenCalledWith(OK, CREATE_PAGE);
   });
 
+  it("keeps the block the model is writing on the entry until it becomes a call", async () => {
+    const onToolStreaming = vi.fn();
+    const onTurnComplete = vi.fn();
+    const { result } = renderHook(() => useAiChat(makeOpts({ onToolStreaming, onTurnComplete })));
+    act(() => {
+      result.current.send("make a page");
+    });
+    const draft = { op: "create_page", text: '{"op": "create_page", "args": {"name": "Mo' };
+    await act(async () => {
+      capturedHandlers?.onToolStreaming?.(draft);
+    });
+    expect(result.current.messages[1].draft).toEqual(draft);
+    expect(onToolStreaming).toHaveBeenCalledWith(draft);
+    await act(async () => {
+      capturedHandlers?.onToolCall?.(CREATE_PAGE);
+    });
+    expect(result.current.messages[1].draft).toBeUndefined();
+    expect(onTurnComplete).not.toHaveBeenCalled();
+    await act(async () => {
+      capturedHandlers?.onToolResult?.(OK);
+      capturedHandlers?.onDone?.({ ...DONE, reason: "complete", pending_tool_call_id: null });
+      resolveStream?.();
+    });
+    expect(onTurnComplete).toHaveBeenCalledTimes(1);
+  });
+
   it("status frames set the turn's status line and clear it on a result", async () => {
     const { result } = renderHook(() => useAiChat(makeOpts()));
     act(() => {

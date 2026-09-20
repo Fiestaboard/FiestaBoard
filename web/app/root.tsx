@@ -19,6 +19,7 @@ import { useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import { Links, Meta, Outlet, Scripts, ScrollRestoration } from "react-router";
 
+import { SpotlightProvider } from "@/components/ai-spotlight/spotlight-provider";
 import { BootGate } from "@/components/boot-gate";
 import { GlobalAiChatDrawer } from "@/components/global-ai-chat-drawer";
 import { GlobalAiPanelProvider } from "@/components/global-ai-panel-context";
@@ -148,20 +149,22 @@ function RootBody() {
         <BootGate>
           <ScheduleEditorBridgeProvider>
             <PageEditorBridgeProvider>
-              <GlobalAiPanelProvider>
-                <WizardProvider>
-                  <SkipToContent />
-                  <NavigationSidebar />
-                  <GlobalAiChatDrawer />
-                  <MainContent>
-                    <PageFadeWrapper>
-                      <Outlet />
-                    </PageFadeWrapper>
-                  </MainContent>
-                  <Toaster />
-                  <InstallPrompt />
-                </WizardProvider>
-              </GlobalAiPanelProvider>
+              <SpotlightProvider>
+                <GlobalAiPanelProvider>
+                  <WizardProvider>
+                    <SkipToContent />
+                    <NavigationSidebar />
+                    <GlobalAiChatDrawer />
+                    <MainContent>
+                      <PageFadeWrapper>
+                        <Outlet />
+                      </PageFadeWrapper>
+                    </MainContent>
+                    <Toaster />
+                    <InstallPrompt />
+                  </WizardProvider>
+                </GlobalAiPanelProvider>
+              </SpotlightProvider>
             </PageEditorBridgeProvider>
           </ScheduleEditorBridgeProvider>
         </BootGate>

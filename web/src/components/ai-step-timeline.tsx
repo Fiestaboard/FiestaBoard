@@ -1,11 +1,13 @@
 "use client";
 
 import { Box, Shimmer, Task, TaskContent, TaskItem, TaskTrigger } from "@fiestaboard/ui";
+import { useEffect, useState } from "react";
 
 import { AiAutoApprovedBadge } from "@/components/ai-auto-approved-badge";
 import { detailForTool, labelForTool, type TranslateFn } from "@/components/ai-tool-labels";
 import { useTranslations } from "@/i18n/translations";
-import type { ChatMessage, ToolPhase, TurnStatus } from "@/lib/ai-chat-types";
+import type { ChatMessage, ToolCall, ToolPhase } from "@/lib/ai-chat-types";
+import { parseToolDraft } from "@/lib/ai-choreography/draft";
 import { findCall } from "@/lib/use-ai-chat";
 
 type ItemStatus = "pending" | "running" | "done" | "error";
@@ -47,7 +49,8 @@ export function AiStepTimeline({ messages }: { messages: ChatMessage[] }) {
   const calls = entries.flatMap((m) => m.toolCalls ?? []).filter((c) => c.name !== "ask_user");
   const last = entries[entries.length - 1];
   const doneCount = calls.filter((c) => c.phase === "ok").length;
-  const statusLine = last?.pending && last.status ? statusText(last.status, messages, t) : null;
+  const seconds = useElapsedSeconds(Boolean(last?.pending));
+  const statusLine = last?.pending ? statusText(last, messages, seconds, t) : null;
 
   if (calls.length === 0 && !statusLine) return null;
 
@@ -82,11 +85,54 @@ export function AiStepTimeline({ messages }: { messages: ChatMessage[] }) {
   );
 }
 
-function statusText(status: TurnStatus, messages: ChatMessage[], t: TranslateFn): string {
-  if (status.phase === "thinking") return t("status.thinking");
+/**
+ * The status line, from the frame's phase and tool id — never its English
+ * `message`. While the model writes a tool block the line names that tool;
+ * a long think shows how long it has been thinking, so the wait is never a
+ * black box.
+ */
+function statusText(entry: ChatMessage, messages: ChatMessage[], seconds: number, t: TranslateFn): string | null {
+  const suffix = seconds >= 3 ? ` · ${t("status.elapsed", { seconds })}` : "";
+  if (entry.draft) {
+    const parsed = parseToolDraft(entry.draft.text);
+    const name = entry.draft.op ?? parsed.name;
+    const tool = name ? labelForTool({ ...DRAFT_CALL, name, title: name }, t) : "";
+    return name ? t("status.preparing", { tool }) + suffix : t("status.thinking") + suffix;
+  }
+  const status = entry.status;
+  if (!status) return entry.pending ? t("status.thinking") + suffix : null;
+  if (status.phase === "thinking") return t("status.thinking") + suffix;
   // The call may sit in an earlier entry (an approved call is resumed from
   // the entry that proposed it), so look across the whole transcript.
   const call = status.toolCallId ? findCall(messages, status.toolCallId) : undefined;
   const tool = call ? labelForTool(call, t) : "";
   return t("status.running", { tool });
 }
+
+/** Whole seconds since `active` became true; 0 while inactive. */
+function useElapsedSeconds(active: boolean): number {
+  const [seconds, setSeconds] = useState(0);
+  useEffect(() => {
+    if (!active) return;
+    const started = Date.now();
+    // The first tick resets the count for this wait; later ticks count up.
+    const timer = window.setInterval(() => setSeconds(Math.floor((Date.now() - started) / 1000)), 1000);
+    const reset = window.setTimeout(() => setSeconds(0), 0);
+    return () => {
+      window.clearInterval(timer);
+      window.clearTimeout(reset);
+    };
+  }, [active]);
+  return active ? seconds : 0;
+}
+
+const DRAFT_CALL: ToolCall = {
+  id: "draft",
+  name: "",
+  args: {},
+  title: "",
+  read_only: false,
+  destructive: false,
+  requires_approval: false,
+  source: "mcp",
+};

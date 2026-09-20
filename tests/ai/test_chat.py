@@ -578,6 +578,29 @@ def test_fence_parser_repairs_create_page_filled_color():
     assert "green" in warnings[0]["data"]["message"]
 
 
+def test_fence_parser_streams_drafts_while_a_block_is_open():
+    """While the model is still inside a fence the parser emits
+    ``tool_streaming`` frames — the block so far plus the tool name once it
+    is legible — so the UI can move before the call completes. The frames
+    stop at the close, and the validated ``tool_call`` follows."""
+    body = json.dumps({"op": "create_page", "args": {"name": "Morning", "template_lines": ["HELLO", "WORLD"]}})
+    text = "Sure.\n```fiestaboard\n" + body + "\n```\nDone."
+    parser = _parser()
+    events: list[dict[str, Any]] = []
+    for i in range(0, len(text), 5):
+        events.extend(parser.feed(text[i : i + 5]))
+    events.extend(parser.flush())
+    drafts = [e["data"] for e in events if e["event"] == "tool_streaming"]
+    assert len(drafts) >= 3, [e["event"] for e in events]
+    assert drafts[0]["text"].startswith("{")
+    assert body.startswith(drafts[-1]["text"]), "every draft is a prefix of the block"
+    assert drafts[-1]["op"] == "create_page"
+    assert any(d["op"] is None for d in drafts), "the name is unknown until it has been written"
+    kinds = [e["event"] for e in events]
+    assert kinds.index("tool_call") > kinds.index("tool_streaming")
+    assert "tool_streaming" not in kinds[kinds.index("tool_call") :]
+
+
 def test_fence_parser_leaves_a_read_only_preview_unrepaired():
     """render_page_preview carries template_lines like create_page does, but
     it is a viewer, not a writer: it renders what the model wrote."""
