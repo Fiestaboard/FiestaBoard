@@ -25,6 +25,7 @@ from fastapi import HTTPException
 from src import display_runtime as runtime
 from src.api_errors import errors
 from src.board_chars import characters_to_message
+from src.board_state import read_board_state
 from src.ops import executors
 from src.text_to_board import text_to_board_array, wrap_message_text
 
@@ -126,23 +127,14 @@ async def get_board(board: str) -> BoardDetail:
     primary_id = settings_service.get_primary_board_id()
     base = _summary(entry, primary_id)
 
-    service = runtime.get_service()
-    characters: list[list[int]] | None = None
-    expected_characters: list[list[int]] | None = None
-    read_at: str | None = None
-    if service is not None:
-        rt = service.get_runtime(board_id)
-        if rt is not None:
-            # What was *sent* and what the board *shows* are two different
-            # facts, and the difference is the only way a caller can notice
-            # the board has drifted — a flap that did not turn, or another
-            # writer. GET /board/current-message publishes both; so does this.
-            expected_characters = getattr(rt.client, "_last_characters", None) if rt.client is not None else None
-            characters = rt.polled_characters
-            if characters is not None and rt.polled_at is not None:
-                read_at = datetime.fromtimestamp(rt.polled_at, tz=UTC).isoformat()
-            if characters is None:
-                characters = expected_characters
+    # What was *sent* and what the board *shows* are two different facts,
+    # and the difference is the only way a caller can notice the board has
+    # drifted — a flap that did not turn, or another writer. GET
+    # /board/current-message publishes both; so does this.
+    state = read_board_state(board_id, want="board", service=runtime.get_service())
+    characters = state.characters
+    expected_characters = state.expected_characters
+    read_at = datetime.fromtimestamp(state.polled_at, tz=UTC).isoformat() if state.polled_at is not None else None
 
     active_page_id = settings_service.get_active_page_id(board_id=board_id)
     scheduled_page_id = None

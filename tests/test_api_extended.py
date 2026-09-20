@@ -394,6 +394,32 @@ def mock_service():
         # Board-state poll cache starts empty so tests hit the live-call fallback
         svc._polled_characters = None
         svc._polled_at = None
+
+        class _PrimaryRuntime:
+            """What ``runtime_for(None)`` answers: the fixture's primary caches, live."""
+
+            client = property(lambda self: svc.vb_client)
+            polled_characters = property(
+                lambda self: svc._polled_characters, lambda self, v: setattr(svc, "_polled_characters", v)
+            )
+            polled_at = property(lambda self: svc._polled_at, lambda self, v: setattr(svc, "_polled_at", v))
+
+        primary_runtime = _PrimaryRuntime()
+        svc.get_runtime.return_value = None
+
+        def runtime_for(board_id=None):
+            # Mirrors DisplayService.runtime_for: the id's own runtime first,
+            # the primary runtime for the settings primary's id otherwise.
+            if board_id is None:
+                return primary_runtime
+            rt = svc.get_runtime(board_id)
+            if rt is not None:
+                return rt
+            from src.display_runtime import get_settings_service
+
+            return primary_runtime if board_id == get_settings_service().get_primary_board_id() else None
+
+        svc.runtime_for = runtime_for
         mock_get.return_value = svc
         routes_get.return_value = svc
         displays_get.return_value = svc
@@ -2354,6 +2380,7 @@ class TestBoardCurrentMessagePerBoard:
     def _make_runtime(last_sent=None, polled=None, polled_at=None, use_cloud=False):
         rt = Mock()
         rt.client = Mock()
+        rt.client.is_virtual = False
         rt.client._last_characters = last_sent
         rt.client.use_cloud = use_cloud
         rt.polled_characters = polled

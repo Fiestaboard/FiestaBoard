@@ -36,7 +36,7 @@ from fastapi import APIRouter, HTTPException
 from src.api_errors import errors
 from src.board_chars import characters_to_message
 from src.board_guards import _board_dims, _find_board
-from src.board_send_executor import run_board_send
+from src.board_state import read_board_state
 from src.devices import resolve_dimensions
 from src.display_runtime import get_service, reinitialize_board_clients
 from src.pages.service import find_incompatible_board_references
@@ -168,13 +168,13 @@ async def update_panel(panel_id: str, data: PanelUpdate):
                 target["notes_tall"] = notes_tall
                 settings_service.set_boards(boards)
                 # Drop the old-shape frame BEFORE rebuilding the client.
-                # read_current_message already refuses to serve a frame whose
-                # shape no longer matches the board, but `_last_characters` is
-                # read unguarded by /board/current-message (both the secondary
-                # branch and the primary's `expected_characters`), which would
-                # keep rendering the old grid — the exact stale-shape bug this
-                # reshape path exists to prevent. Releasing the shared state
-                # clears `displayed_characters` and `last_characters` together.
+                # Every reader now goes through read_board_state, which
+                # honours read_current_message's refusal to serve a frame
+                # whose shape no longer matches the board — but the
+                # `expected_characters` half of /board/current-message is
+                # still the raw last-sent grid, and a client rebuilt onto
+                # the same shared state would inherit it. Releasing the
+                # state clears the displayed and last-sent frames together.
                 release_virtual_board_state(panel.board_id)
                 reinitialize_board_clients()
                 # The grid changed shape: pages authored for the old grid stay
@@ -262,7 +262,8 @@ async def get_panel_frame(panel_id: str):
 
     Never triggers a live HTTP read — a panel misconfigured onto a physical
     board serves that board's last-sent cache instead of hammering it at the
-    viewer's 2s poll cadence.
+    viewer's 2s poll cadence. Never consults the poll cache either: the
+    viewer shows what FiestaBoard last displayed, immediately.
     """
     panel = get_panel_service().get_panel_by_ref(panel_id)
     if panel is None:
@@ -270,29 +271,19 @@ async def get_panel_frame(panel_id: str):
     board = _find_board(panel.board_id)
     dims = _board_dims(board) if board is not None else resolve_dimensions("flagship")
 
-    service = get_service()
-    client = service.get_board_client(panel.board_id) if service is not None else None
-    if client is None and service is not None:
-        # Primary runtimes may be keyed under a legacy sentinel rather than
-        # the settings board id; fall back to the primary client.
-        with contextlib.suppress(Exception):
-            if panel.board_id == get_settings_service().get_primary_board_id():
-                client = service.vb_client
+    # ``want="sent"``: what FiestaBoard last displayed/sent, now — never the
+    # poll cache (a write that skips the poll refresh must still reach the
+    # TV), never a network read. The reader does no I/O, so it runs inline.
+    state = read_board_state(panel.board_id, want="sent", service=get_service())
 
-    characters = None
+    # The viewer's ``updated_at`` is when the frame was last stored,
+    # whatever answered the read — a refused stale-shape frame still
+    # reports when it was sent.
     updated_at = None
-    if client is not None:
-        if getattr(client, "is_virtual", False):
-            # A virtual board reads from memory, but the same call on a real
-            # client is network I/O; keep it off the loop either way (#1878).
-            characters = await run_board_send(client.read_current_message)
-        else:
-            characters = getattr(client, "_last_characters", None)
-        ts = getattr(client, "_last_sent_at", None)
-        if ts:
-            updated_at = datetime.fromtimestamp(ts, tz=UTC).isoformat()
+    if state.last_sent_at is not None:
+        updated_at = datetime.fromtimestamp(state.last_sent_at, tz=UTC).isoformat()
 
-    if characters is None:
+    if state.characters is None:
         return PanelFrameResponse(
             characters=None,
             message=None,
@@ -301,9 +292,9 @@ async def get_panel_frame(panel_id: str):
             updated_at=updated_at,
         )
     return PanelFrameResponse(
-        characters=characters,
-        message=characters_to_message(characters),
-        rows=len(characters),
-        cols=len(characters[0]) if characters else 0,
+        characters=state.characters,
+        message=characters_to_message(state.characters),
+        rows=state.rows,
+        cols=state.cols,
         updated_at=updated_at,
     )

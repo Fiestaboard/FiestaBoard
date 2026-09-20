@@ -290,6 +290,28 @@ gate, so "tidying" it would delete a security gate rather than a duplication.
 `pyproject.toml` gives every file lifted out of `api_server` that module's
 ruff ignore set for the same reason.
 
+`src/board_state.py` is the same idea one level up. Four surfaces answer
+"what is on the board" — `GET /board/current-message`, the unauthenticated
+`GET /panel/{panel_id}/frame` a TV polls every 2s, the MCP
+`get_board_content` tool and `GET /v1/boards/{board}` — and each used to
+carry its own copy of the cache selection, drifting in small ways (only one
+could live-read, only one reported a source, only one honoured the virtual
+board's shape guard). `read_board_state(board_id, want=...)` is now the
+single selection, and it answers two intents: `want="board"` (what the flaps
+show — the poll cache first) and `want="sent"` (what FiestaBoard last
+displayed or sent, immediately — the panel viewer's question, which never
+consults the poll cache). After that: a virtual board's own memory, else what
+the client last sent, else empty — with the `source` that says which.
+`read_board_state_live` adds the network read `/board/current-message` may
+do, off the loop only when it actually happens. Boards resolve through
+`DisplayService.runtime_for` (the id's own runtime first, the sentinel-keyed
+primary only for the settings primary's id). The routes and the tool keep
+only presentation, and nothing outside that module reads
+`_polled_characters` or `_last_characters`. `GET /pages/current-display` is
+*not* a fifth copy: it answers which page should be showing (intent), not
+what the flaps show (state). `tests/test_board_state_contract.py` pins every
+value each surface answers, recorded before the consolidation.
+
 ## Where the tests draw the lines
 
 | Corpus | Pins |

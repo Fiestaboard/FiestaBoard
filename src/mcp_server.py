@@ -2288,63 +2288,34 @@ def _build_mcp_server() -> Any:
                       cache — board-state polling is primary-only.
 
         Returns: {characters (2-D grid of flap codes or null), message
-        (formatted string or null), rows, cols, source ('polled' or
-        'last_sent' or null), board_id}.
+        (formatted string or null), rows, cols, source ('polled' = the
+        background poll cache, 'last_sent' = what FiestaBoard last sent,
+        'live' = a virtual board read from its own memory — never network
+        I/O — or null when nothing is known), board_id}.
         """
         # get_service is the DisplayService singleton accessor — the same
         # seam get_system_status uses; no REST handler is called.
-        from .api_server import _characters_to_message, get_service
+        from .api_server import get_service
+        from .board_chars import characters_to_message
+        from .board_guards import _find_board
+        from .board_state import read_board_state
 
         service = get_service()
         if not service:
             raise ToolError("Display service not initialized.")
 
-        characters = None
-        source = None
-        if board_id is None:
-            characters = service._polled_characters
-            source = "polled" if characters is not None else None
-            if characters is None and service.vb_client is not None:
-                characters = getattr(service.vb_client, "_last_characters", None)
-                source = "last_sent" if characters is not None else None
-        else:
-            from .settings.service import get_settings_service
+        if board_id is not None and _find_board(board_id) is None:
+            raise ToolError(f"Board not found: {board_id}")
 
-            settings = get_settings_service()
-            boards = settings.get_board_settings().boards or []
-            if not any(isinstance(b, dict) and b.get("id") == board_id for b in boards):
-                raise ToolError(f"Board not found: {board_id}")
-            rt = service.get_runtime(board_id)
-            if rt is None:
-                # Legacy installs may key the primary runtime under the
-                # fallback sentinel rather than its settings board id — route
-                # the primary's own id to the primary caches (mirrors
-                # DisplayService.mark_showing_out_of_band, #1874 review).
-                try:
-                    primary_id = settings.get_primary_board_id()
-                except Exception:
-                    primary_id = None
-                if board_id == primary_id:
-                    characters = service._polled_characters
-                    source = "polled" if characters is not None else None
-                    if characters is None and service.vb_client is not None:
-                        characters = getattr(service.vb_client, "_last_characters", None)
-                        source = "last_sent" if characters is not None else None
-            if rt is not None:
-                characters = rt.polled_characters
-                source = "polled" if characters is not None else None
-                if characters is None and rt.client is not None:
-                    characters = getattr(rt.client, "_last_characters", None)
-                    source = "last_sent" if characters is not None else None
-
-        if characters is None:
+        state = read_board_state(board_id, want="board", service=service)
+        if state.characters is None:
             return {"characters": None, "message": None, "rows": 0, "cols": 0, "source": None, "board_id": board_id}
         return {
-            "characters": _serialize(characters),
-            "message": _characters_to_message(characters),
-            "rows": len(characters),
-            "cols": len(characters[0]) if characters else 0,
-            "source": source,
+            "characters": _serialize(state.characters),
+            "message": characters_to_message(state.characters),
+            "rows": state.rows,
+            "cols": state.cols,
+            "source": state.source,
             "board_id": board_id,
         }
 

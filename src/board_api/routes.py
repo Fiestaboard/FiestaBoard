@@ -55,9 +55,7 @@ deliberately *not* attempted here.
 
 from __future__ import annotations
 
-import asyncio
 import logging
-import time
 from datetime import UTC, datetime
 
 from fastapi import APIRouter, HTTPException
@@ -67,10 +65,11 @@ from src.api_deprecation import V1_BOARD_MESSAGE_SUCCESSOR, deprecation_notice
 from src.api_errors import errors
 from src.board_chars import characters_to_message
 from src.board_client import board_client_from_board_dict
-from src.board_guards import _board_dims, _require_board, _silence_active
+from src.board_guards import _board_dims, _require_board, _silence_active, primary_board_entry
 from src.board_guards import raise_if_paused as _raise_if_paused
 from src.board_guards import raise_if_throttled as _raise_if_throttled
 from src.board_send_executor import run_board_send
+from src.board_state import BoardReadError, read_board_state, read_board_state_live
 from src.config_manager import get_config_manager
 from src.devices import resolve_dimensions
 from src.send_outcome import SendOutcome
@@ -146,69 +145,44 @@ async def get_board_current_message(force: bool = False, board_id: str | None = 
     if not service or not service.vb_client:
         raise HTTPException(status_code=503, detail="Board client not initialized")
 
-    if board_id is not None:
-        board = _require_board(board_id)
-        if board_id != runtime.get_settings_service().get_primary_board_id():
-            # Secondary board: serve from its runtime cache. No live read —
-            # the poll thread only tracks the primary board (issue #1243).
-            rt = service.get_runtime(board_id)
-            rt_client = rt.client if rt is not None else None
-            last_sent = getattr(rt_client, "_last_characters", None) if rt_client is not None else None
-            polled = rt.polled_characters if rt is not None else None
-            characters = polled if polled is not None else last_sent
-            cached_at = None
-            if polled is not None and rt is not None and rt.polled_at is not None:
-                cached_at = datetime.fromtimestamp(rt.polled_at, tz=UTC).isoformat()
-            board_api_mode = "cloud" if getattr(rt_client, "use_cloud", False) else "local"
-            if characters is None:
-                # Nothing sent to this board yet — return its geometry so the
-                # UI can degrade gracefully (render the active page instead).
-                dims = _board_dims(board)
-                return BoardCurrentMessageResponse(
-                    characters=None,
-                    message=None,
-                    rows=dims.rows,
-                    cols=dims.cols,
-                    expected_characters=None,
-                    cached_at=None,
-                    api_mode=board_api_mode,
-                    board_id=board_id,
-                )
-            return BoardCurrentMessageResponse(
-                characters=characters,
-                message=characters_to_message(characters),
-                rows=len(characters),
-                cols=len(characters[0]) if characters else 0,
-                expected_characters=last_sent,
-                cached_at=cached_at,
-                api_mode=board_api_mode,
-                board_id=board_id,
-            )
+    board = _require_board(board_id) if board_id is not None else None
+    # Live reads are primary-only: the poll thread tracks only the primary
+    # board (issue #1243), and a secondary board is served from its runtime
+    # cache whatever ``force`` says.
+    is_primary = board is None or board_id == runtime.get_settings_service().get_primary_board_id()
 
-    api_mode = "cloud" if getattr(service.vb_client, "use_cloud", False) else "local"
-    expected_characters = service.vb_client._last_characters
-
-    if force or service._polled_characters is None:
-        # No cached data yet (startup) or caller wants a live read — hit the board directly
-        characters = await asyncio.to_thread(service.vb_client.read_current_message)
-        if characters is None:
-            raise HTTPException(status_code=503, detail="Failed to read current board message")
-        # Prime the cache so subsequent requests are fast
-        service._polled_characters = characters
-        service._polled_at = time.time()
-        cached_at = None
+    if is_primary:
+        try:
+            state = await read_board_state_live(board_id, force=force, service=service)
+        except BoardReadError:
+            raise HTTPException(status_code=503, detail="Failed to read current board message") from None
     else:
-        characters = service._polled_characters
-        cached_at = datetime.fromtimestamp(service._polled_at, tz=UTC).isoformat()
+        state = read_board_state(board_id, want="board", service=service)
+
+    if state.characters is None:
+        # Nothing on this board yet — return its geometry so the UI can
+        # degrade gracefully (render the active page instead).
+        dims = _board_dims(board or primary_board_entry() or {})
+        return BoardCurrentMessageResponse(
+            characters=None,
+            message=None,
+            rows=dims.rows,
+            cols=dims.cols,
+            expected_characters=None,
+            cached_at=None,
+            api_mode=state.api_mode,
+            board_id=board_id,
+        )
 
     return BoardCurrentMessageResponse(
-        characters=characters,
-        message=characters_to_message(characters),
-        rows=len(characters),
-        cols=len(characters[0]) if characters else 0,
-        expected_characters=expected_characters,
-        cached_at=cached_at,
-        api_mode=api_mode,
+        characters=state.characters,
+        message=characters_to_message(state.characters),
+        rows=state.rows,
+        cols=state.cols,
+        expected_characters=state.expected_characters,
+        # The poll time and nothing else: a live read is not a cache hit.
+        cached_at=datetime.fromtimestamp(state.polled_at, tz=UTC).isoformat() if state.polled_at is not None else None,
+        api_mode=state.api_mode,
         board_id=board_id,
     )
 

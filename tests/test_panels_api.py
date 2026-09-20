@@ -142,7 +142,7 @@ class TestPublicPanelEndpoints:
         vclient.send_characters(grid)
         board = {"id": "vboard-1", "device_type": "note", "api_mode": "virtual"}
         display = Mock()
-        display.get_board_client.return_value = vclient
+        display.runtime_for.return_value = SimpleNamespace(client=vclient, polled_characters=None, polled_at=None)
         with (
             patch("src.panels.routes._find_board", return_value=board),
             patch("src.panels.routes.get_service", return_value=display),
@@ -160,7 +160,7 @@ class TestPublicPanelEndpoints:
         vclient = VirtualBoardClient(device_type="flagship")
         board = {"id": "vboard-1", "device_type": "flagship", "api_mode": "virtual"}
         display = Mock()
-        display.get_board_client.return_value = vclient
+        display.runtime_for.return_value = SimpleNamespace(client=vclient, polled_characters=None, polled_at=None)
         with (
             patch("src.panels.routes._find_board", return_value=board),
             patch("src.panels.routes.get_service", return_value=display),
@@ -180,7 +180,7 @@ class TestPublicPanelEndpoints:
         physical = Mock(spec=["read_current_message", "_last_characters"])
         physical._last_characters = None
         display = Mock()
-        display.get_board_client.return_value = physical
+        display.runtime_for.return_value = SimpleNamespace(client=physical, polled_characters=None, polled_at=None)
         with (
             patch("src.panels.routes._find_board", return_value=board),
             patch("src.panels.routes.get_service", return_value=display),

@@ -1949,12 +1949,27 @@ class _FakeEngine:
         self._primary_id = board_ids[0]
         self.out_of_band: list = []
         self.refreshes = 0
-        self._polled_characters = None
-        self._polled_at = None
 
     @property
     def vb_client(self):
         return self.runtimes[self._primary_id].client
+
+    # The primary poll cache lives on the primary runtime, as on DisplayService.
+    @property
+    def _polled_characters(self):
+        return self.runtimes[self._primary_id].polled_characters
+
+    @_polled_characters.setter
+    def _polled_characters(self, value):
+        self.runtimes[self._primary_id].polled_characters = value
+
+    @property
+    def _polled_at(self):
+        return self.runtimes[self._primary_id].polled_at
+
+    @_polled_at.setter
+    def _polled_at(self, value):
+        self.runtimes[self._primary_id].polled_at = value
 
     def get_board_client(self, board_id):
         rt = self.runtimes.get(board_id)
@@ -1962,6 +1977,20 @@ class _FakeEngine:
 
     def get_runtime(self, board_id):
         return self.runtimes.get(board_id)
+
+    def runtime_for(self, board_id):
+        """Mirror DisplayService.runtime_for: the id's own runtime first, then
+        the primary runtime for the settings primary's id (sentinel installs)."""
+        from src.settings.service import get_settings_service
+
+        if board_id is None:
+            return self.runtimes[self._primary_id]
+        rt = self.runtimes.get(board_id)
+        if rt is not None:
+            return rt
+        if board_id == get_settings_service().get_primary_board_id():
+            return self.runtimes[self._primary_id]
+        return None
 
     def mark_showing_out_of_band(self, board_id=None):
         self.out_of_band.append(board_id)
@@ -2194,6 +2223,16 @@ def test_get_board_content_serves_the_primary_by_its_own_id_when_sentinel_keyed(
     assert result["characters"] == grid, "the primary's own id missed the sentinel-keyed cache"
     assert result["source"] == "polled"
     assert result["board_id"] == "board-main"
+
+
+def test_get_board_content_checks_the_roster_through_the_shared_board_lookup(mcp, services, engine, monkeypatch):
+    """The unknown-board verdict is made in one place (board_guards._find_board),
+    not by a comprehension of its own over the settings store."""
+    monkeypatch.setattr("src.board_guards._find_board", lambda board_id: None)
+
+    message = call_expect_error(mcp, "get_board_content", board_id="board-note")
+
+    assert message == "Board not found: board-note"
 
 
 # -- preview_saved_page -----------------------------------------------------
