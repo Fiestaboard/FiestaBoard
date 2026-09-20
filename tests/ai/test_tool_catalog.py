@@ -181,6 +181,23 @@ def test_addendum_in_ask_mode_says_destructive_tools_pause(catalog):
     assert "must approve" in text.split("### delete_page")[1].split("### ")[0]
 
 
+def test_addendum_in_ask_mode_forbids_narrating_a_destructive_call_as_done(catalog):
+    # #2024: the model printed "I've removed the Goodnight schedule entry"
+    # while the approval card was still waiting for an answer, so the
+    # transcript claimed something that had not happened and might not.
+    text = catalog.render_addendum("global")
+    assert "Do not say you have done it" in text
+    assert "stop after the call" in text
+
+
+def test_addendum_does_not_forbid_narration_when_nothing_will_pause():
+    # In Auto the call runs immediately, so "stop and wait" would be wrong
+    # advice — the rule belongs only to the mode that actually pauses.
+    catalog = _with_system_tier([_d("delete_page", destructive=True)])
+    text = catalog.render_addendum("global", skip_destructive_pause=True)
+    assert "Do not say you have done it" not in text
+
+
 def test_addendum_when_destructive_pauses_are_skipped_says_they_run_immediately():
     catalog = _with_system_tier(
         [

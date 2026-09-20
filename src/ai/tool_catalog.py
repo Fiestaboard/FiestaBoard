@@ -209,6 +209,10 @@ _RULE_DESTRUCTIVE_ASK = (
     "- Tools marked DESTRUCTIVE pause until the user approves. Tools marked\n"
     '  SYSTEM always do. A result of "denied" means do not retry; ask how\n'
     "  to proceed.\n"
+    "- When you emit a DESTRUCTIVE or SYSTEM call, stop after the call.\n"
+    "  Say what you are about to do and why. Do not say you have done it:\n"
+    "  nothing has run yet, and the user may say no. Report what actually\n"
+    "  happened once the result comes back.\n"
 )
 
 _RULE_DESTRUCTIVE_AUTO = (

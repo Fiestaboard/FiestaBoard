@@ -12,13 +12,20 @@ walks the whole document before it is stored.
 
 from __future__ import annotations
 
+import re
 from datetime import UTC, datetime
 from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
-#: Longest title, derived or typed.
+#: Longest title a person may type.
 TITLE_MAX_LENGTH = 80
+
+#: Longest title derived from what the user asked for. Shorter than a typed
+#: one on purpose: a derived title is scanned in a list, not read, and the
+#: History rows truncate around here anyway — better to cut at a word with
+#: an ellipsis than to let the list cut mid-word.
+TITLE_DERIVED_MAX_LENGTH = 48
 
 ConversationRole = Literal["user", "assistant", "system", "tool"]
 
@@ -138,11 +145,51 @@ class ConversationClearResponse(BaseModel):
     deleted: int
 
 
+#: A sentence or clause ends here — but only when what follows is a space or
+#: the end of the line, so "7:00" and "v1.2" are not boundaries.
+_CLAUSE_END = re.compile(r"[.?!;:](?=\s|$)")
+
+#: Quotes a request often opens with, and the punctuation a title never ends on.
+_WRAPPING_QUOTES = "\"'\u201c\u201d\u2018\u2019\u00ab\u00bb"
+_TRAILING_PUNCTUATION = " .,;:!?-\u2013\u2014"
+
+_UNTITLED = "Untitled chat"
+
+
+def _title_from_line(line: str) -> str:
+    """One line of a request, as a title: first clause, unquoted, trimmed."""
+    boundary = _CLAUSE_END.search(line)
+    if boundary:
+        line = line[: boundary.start()]
+    line = line.strip().strip(_WRAPPING_QUOTES).strip().rstrip(_TRAILING_PUNCTUATION).strip()
+    if not line:
+        return ""
+    if len(line) <= TITLE_DERIVED_MAX_LENGTH:
+        return line
+
+    # Cut between words where there is one, and mark the cut.
+    cut = line[: TITLE_DERIVED_MAX_LENGTH - 1].rstrip()
+    last_space = cut.rfind(" ")
+    if last_space > 0:
+        cut = cut[:last_space]
+    return cut.rstrip(_TRAILING_PUNCTUATION) + "\u2026"
+
+
 def derive_title(messages: list[ConversationMessage]) -> str:
-    """The first non-blank user line, cut to :data:`TITLE_MAX_LENGTH`."""
+    """What to call this conversation, from the first thing the user asked.
+
+    The whole first line used to become the title, opening quote and all,
+    cut at 80 characters mid-word (#2024). A title is scanned rather than
+    read: the first sentence or clause of the request, without its quotes
+    or its trailing punctuation, is what tells someone which chat this was.
+    """
     for message in messages:
-        if message.role == "user":
-            line = message.content.strip().splitlines()[0].strip() if message.content.strip() else ""
-            if line:
-                return line[:TITLE_MAX_LENGTH]
-    return "Untitled chat"
+        if message.role != "user":
+            continue
+        content = message.content.strip()
+        if not content:
+            continue
+        title = _title_from_line(content.splitlines()[0].strip())
+        if title:
+            return title
+    return _UNTITLED
