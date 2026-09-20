@@ -610,7 +610,7 @@ describe("useAiChat", () => {
     expect(lastBody().approval).toBeUndefined();
   });
 
-  it("reset() (New chat) forgets 'don't ask again'", async () => {
+  it("newConversation() forgets 'don't ask again'", async () => {
     const { result } = renderHook(() => useAiChat(makeOpts()));
     await pauseOnDelete(result);
     act(() => {
@@ -620,7 +620,7 @@ describe("useAiChat", () => {
       resolveStream?.();
     });
     act(() => {
-      result.current.reset();
+      result.current.newConversation();
     });
     expect(result.current.autoApprove).toBe(false);
     act(() => {
@@ -629,7 +629,7 @@ describe("useAiChat", () => {
     expect(lastBody().approval).toBeUndefined();
   });
 
-  it("reset() clears everything", async () => {
+  it("newConversation() clears everything", async () => {
     const { result } = renderHook(() => useAiChat(makeOpts()));
     act(() => {
       result.current.send("hi");
@@ -638,7 +638,7 @@ describe("useAiChat", () => {
       resolveStream?.();
     });
     act(() => {
-      result.current.reset();
+      result.current.newConversation();
     });
     expect(result.current.messages).toHaveLength(0);
     expect(result.current.status).toBe("idle");
@@ -790,6 +790,160 @@ describe("conversation history (#2022)", () => {
     expect(lastBody().messages[0]).toEqual({ role: "user", content: "Saved question" });
     expect(lastBody().approval).toEqual({ auto_approve_destructive: true });
     await waitFor(() => expect(savedBodies.some((s) => s.id === SAVED_ID)).toBe(true));
+  });
+
+  it("disableAutoApprove() saves at once, so a reload does not carry the flag", async () => {
+    server.use(http.get(`${API_BASE}/ai/conversations/${SAVED_ID}`, () => HttpResponse.json(SAVED)));
+    const first = renderHook(() => useAiChat(makeOpts()));
+    await act(async () => {
+      await first.result.current.loadConversation(SAVED_ID);
+    });
+    expect(first.result.current.autoApprove).toBe(true);
+
+    act(() => {
+      first.result.current.disableAutoApprove();
+    });
+    await waitFor(() => expect(savedBodies.some((s) => s.id === SAVED_ID && s.body.approval === false)).toBe(true));
+    first.unmount();
+
+    // Reload: the server holds what was just saved.
+    const stored = savedBodies[savedBodies.length - 1].body;
+    server.use(http.get(`${API_BASE}/ai/conversations/${SAVED_ID}`, () => HttpResponse.json({ ...SAVED, ...stored })));
+    localStorage.setItem(CONVERSATION_ID_STORAGE_KEY, SAVED_ID);
+    const second = renderHook(() => useAiChat(makeOpts()));
+    await waitFor(() => expect(second.result.current.conversationId).toBe(SAVED_ID));
+    expect(second.result.current.autoApprove).toBe(false);
+    act(() => {
+      second.result.current.send("continue");
+    });
+    expect(lastBody().approval).toBeUndefined();
+  });
+
+  it("a stream superseded by loadConversation touches nothing when it finally ends", async () => {
+    server.use(http.get(`${API_BASE}/ai/conversations/${SAVED_ID}`, () => HttpResponse.json(SAVED)));
+    const onStopped = vi.fn();
+    const { result } = renderHook(() => useAiChat(makeOpts({ onStopped })));
+    act(() => {
+      result.current.send("hi");
+    });
+    await act(async () => {
+      capturedHandlers?.onToolCall?.(CREATE_PAGE);
+    });
+    await act(async () => {
+      await result.current.loadConversation(SAVED_ID);
+    });
+    expect(result.current.autoApprove).toBe(true);
+
+    // The old turn's stream ends now (its abort resolved it late).
+    await act(async () => {
+      resolveStream?.();
+    });
+    expect(onStopped).not.toHaveBeenCalled();
+    expect(result.current.messages[0]).toEqual({ role: "user", content: "Saved question" });
+    expect(result.current.autoApprove).toBe(true);
+    expect(result.current.status).toBe("idle");
+  });
+
+  it("a send while the restore is still in flight wins over the restore", async () => {
+    localStorage.setItem(CONVERSATION_ID_STORAGE_KEY, SAVED_ID);
+    let release!: () => void;
+    const gate = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    server.use(
+      http.get(`${API_BASE}/ai/conversations/${SAVED_ID}`, async () => {
+        await gate;
+        return HttpResponse.json(SAVED);
+      }),
+    );
+    const { result } = renderHook(() => useAiChat(makeOpts()));
+    act(() => {
+      result.current.send("hi");
+    });
+    const fresh = result.current.conversationId;
+    expect(fresh).toMatch(UUID);
+    expect(fresh).not.toBe(SAVED_ID);
+
+    await act(async () => {
+      release();
+      await new Promise((resolve) => setTimeout(resolve, 50));
+    });
+    expect(result.current.conversationId).toBe(fresh);
+    expect(result.current.messages[0]).toEqual({ role: "user", content: "hi" });
+    expect(result.current.status).toBe("streaming");
+    expect(localStorage.getItem(CONVERSATION_ID_STORAGE_KEY)).toBe(fresh);
+  });
+
+  it("loading a conversation does not autosave it straight back", async () => {
+    server.use(http.get(`${API_BASE}/ai/conversations/${SAVED_ID}`, () => HttpResponse.json(SAVED)));
+    const { result } = renderHook(() => useAiChat(makeOpts()));
+    await act(async () => {
+      await result.current.loadConversation(SAVED_ID);
+    });
+    // Past the streaming debounce: nothing may have been written.
+    await new Promise((resolve) => setTimeout(resolve, 1300));
+    expect(savedBodies.filter((s) => s.id === SAVED_ID)).toEqual([]);
+  });
+
+  it("autosave leaves provider and model out while the panel has none", async () => {
+    const { result } = renderHook(() => useAiChat(makeOpts()));
+    await completeTurn(result, "hi");
+    await waitFor(() => expect(savedBodies.length).toBeGreaterThan(0));
+    const body = savedBodies[savedBodies.length - 1].body;
+    expect("provider_id" in body).toBe(false);
+    expect("model" in body).toBe(false);
+  });
+
+  it("forgetConversation() keeps the transcript, drops the id, and never saves to the old id again", async () => {
+    const { result } = renderHook(() => useAiChat(makeOpts()));
+    await completeTurn(result, "hi");
+    const old = result.current.conversationId as string;
+    await waitFor(() => expect(savedBodies.some((s) => s.id === old)).toBe(true));
+
+    act(() => {
+      result.current.forgetConversation();
+    });
+    expect(result.current.messages).toHaveLength(2);
+    expect(result.current.conversationId).toBeNull();
+    expect(localStorage.getItem(CONVERSATION_ID_STORAGE_KEY)).toBeNull();
+
+    const before = savedBodies.length;
+    await completeTurn(result, "more");
+    const fresh = result.current.conversationId;
+    expect(fresh).toMatch(UUID);
+    expect(fresh).not.toBe(old);
+    await waitFor(() => expect(savedBodies.length).toBeGreaterThan(before));
+    expect(savedBodies.slice(before).every((s) => s.id === fresh)).toBe(true);
+    expect(savedBodies[savedBodies.length - 1].body.messages).toHaveLength(4);
+  });
+
+  it("newConversation() still delivers a turn-end save queued behind an in-flight PUT", async () => {
+    let release!: () => void;
+    const gate = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    server.use(
+      http.put(`${API_BASE}/ai/conversations/:id`, async ({ params, request }) => {
+        const body = (await request.json()) as Record<string, unknown>;
+        savedBodies.push({ id: String(params.id), body });
+        await gate; // every PUT hangs until the test lets go
+        return HttpResponse.json({ id: params.id, title: "t", created_at: "", updated_at: "", ...body });
+      }),
+    );
+    const { result } = renderHook(() => useAiChat(makeOpts()));
+    await completeTurn(result, "first");
+    await waitFor(() => expect(savedBodies).toHaveLength(1));
+    await completeTurn(result, "second"); // its turn-end save waits behind the hanging PUT
+    const old = result.current.conversationId;
+
+    act(() => {
+      result.current.newConversation();
+    });
+    release();
+
+    await waitFor(() => expect(savedBodies).toHaveLength(2));
+    expect(savedBodies[1].id).toBe(old);
+    expect(savedBodies[1].body.messages).toHaveLength(4);
   });
 
   it("loadConversation(id) answers null for a conversation the server does not have", async () => {

@@ -97,24 +97,18 @@ class ConversationListResponse(BaseModel):
 class ConversationUpsert(BaseModel):
     """Body of ``PUT /ai/conversations/{id}`` — the panel's autosave.
 
-    ``title`` is optional: left out, the server derives it from the first
-    user line on create and keeps whatever the record already has on update
-    (so an autosave never undoes a rename).
+    The title is never posted here: it is derived from the first user line
+    on create and kept on update (so an autosave never undoes a rename);
+    ``PATCH`` is the only way to change it. ``provider_id`` / ``model``
+    left *out* of the body keep what the record already has — the panel
+    saves before ``/settings/ai`` has answered — while an explicit ``null``
+    clears them.
     """
 
-    title: str | None = Field(default=None, max_length=TITLE_MAX_LENGTH)
     provider_id: str | None = None
     model: str | None = None
     approval: bool = False
     messages: list[ConversationMessage] = Field(min_length=1)
-
-    @field_validator("title")
-    @classmethod
-    def _blank_title_means_absent(cls, value: str | None) -> str | None:
-        if value is None:
-            return None
-        stripped = value.strip()
-        return stripped or None
 
 
 class ConversationRename(BaseModel):

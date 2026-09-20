@@ -23,15 +23,16 @@ import {
   TextLink,
 } from "@fiestaboard/ui";
 import { Spinner } from "@fiestaboard/ui/components/feedback/spinner";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { AlertCircle, Check, Download, History, Pencil, Play, Trash2, X } from "lucide-react";
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
 
 import { ReadOnlyTranscript } from "@/components/ai-chat-transcript";
 import { useLocale, useTranslations } from "@/i18n/translations";
 import { api, type ConversationSummary } from "@/lib/api";
 import { formatRelativeTime } from "@/lib/relative-time";
+import { settleSavedTranscript } from "@/lib/use-ai-chat";
 
 // The History view of the FiestaBot drawer (#2022): the list of saved
 // conversations, and one conversation opened read-only with a Continue
@@ -41,7 +42,29 @@ import { formatRelativeTime } from "@/lib/relative-time";
 
 export const CONVERSATIONS_QUERY_KEY = ["ai-conversations"] as const;
 
-export function AiHistoryList({ onOpen }: { onOpen: (id: string) => void }) {
+/** How long the search box waits after the last keystroke before asking. */
+const SEARCH_DEBOUNCE_MS = 250;
+
+function useDebounced<T>(value: T, delayMs: number): T {
+  const [debounced, setDebounced] = useState(value);
+  useEffect(() => {
+    const timer = window.setTimeout(() => setDebounced(value), delayMs);
+    return () => window.clearTimeout(timer);
+  }, [value, delayMs]);
+  return debounced;
+}
+
+export function AiHistoryList({
+  onOpen,
+  onDeleted,
+  onCleared,
+}: {
+  onOpen: (id: string) => void;
+  /** A conversation was deleted (the panel drops it if it is the live one). */
+  onDeleted?: (id: string) => void;
+  /** Every conversation was deleted. */
+  onCleared?: () => void;
+}) {
   const t = useTranslations("aiChatPanel");
   const locale = useLocale();
   const queryClient = useQueryClient();
@@ -49,10 +72,14 @@ export function AiHistoryList({ onOpen }: { onOpen: (id: string) => void }) {
   const [confirmClear, setConfirmClear] = useState(false);
   const [renamingId, setRenamingId] = useState<string | null>(null);
 
-  const trimmed = query.trim();
+  // The list follows the search box a beat behind it, and keeps the last
+  // rows on screen while the next answer is on its way, so typing never
+  // blanks the list.
+  const trimmed = useDebounced(query.trim(), SEARCH_DEBOUNCE_MS);
   const list = useQuery({
     queryKey: [...CONVERSATIONS_QUERY_KEY, trimmed],
     queryFn: () => api.listConversations(trimmed || undefined),
+    placeholderData: keepPreviousData,
   });
   const invalidate = useCallback(
     () => queryClient.invalidateQueries({ queryKey: CONVERSATIONS_QUERY_KEY }),
@@ -61,8 +88,9 @@ export function AiHistoryList({ onOpen }: { onOpen: (id: string) => void }) {
 
   const remove = useMutation({
     mutationFn: (id: string) => api.deleteConversation(id),
-    onSuccess: () => {
+    onSuccess: (_result, id) => {
       toast.success(t("history.deleted"));
+      onDeleted?.(id);
       void invalidate();
     },
     onError: (err: Error) => toast.error(err.message),
@@ -80,6 +108,7 @@ export function AiHistoryList({ onOpen }: { onOpen: (id: string) => void }) {
     onSuccess: () => {
       setConfirmClear(false);
       toast.success(t("history.cleared"));
+      onCleared?.();
       void invalidate();
     },
     onError: (err: Error) => toast.error(err.message),
@@ -201,64 +230,9 @@ function HistoryRow({
   onDelete: () => void;
 }) {
   const t = useTranslations("aiChatPanel");
-  const [draft, setDraft] = useState(row.title);
-  const submitRename = () => {
-    const next = draft.trim();
-    if (!next || next === row.title) {
-      onCancelRename();
-      return;
-    }
-    onRename(next);
-  };
 
   if (renaming) {
-    return (
-      <Flex align="center" gap="1" className="rounded-md border px-2 py-1.5">
-        <Label htmlFor={`ai-history-rename-${row.id}`} className="sr-only">
-          {t("history.renameLabel")}
-        </Label>
-        <Input
-          id={`ai-history-rename-${row.id}`}
-          value={draft}
-          maxLength={80}
-          autoFocus
-          onChange={(e) => setDraft(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === "Enter") {
-              e.preventDefault();
-              submitRename();
-            } else if (e.key === "Escape") {
-              e.preventDefault();
-              onCancelRename();
-            }
-          }}
-          className="h-7 min-w-0 flex-1 text-sm"
-        />
-        <Button
-          type="button"
-          size="icon"
-          variant="ghost"
-          className="h-7 w-7"
-          onClick={submitRename}
-          disabled={busy}
-          aria-label={t("history.saveTitle")}
-          title={t("history.saveTitle")}
-        >
-          <Check className="h-3.5 w-3.5" />
-        </Button>
-        <Button
-          type="button"
-          size="icon"
-          variant="ghost"
-          className="h-7 w-7"
-          onClick={onCancelRename}
-          aria-label={t("history.cancel")}
-          title={t("history.cancel")}
-        >
-          <X className="h-3.5 w-3.5" />
-        </Button>
-      </Flex>
-    );
+    return <RenameEditor row={row} busy={busy} onRename={onRename} onCancel={onCancelRename} />;
   }
 
   const meta = `${formatRelativeTime(row.updated_at, locale)} · ${t("history.messageCount", { count: row.message_count })}`;
@@ -301,6 +275,84 @@ function HistoryRow({
         title={t("history.delete")}
       >
         <Trash2 className="h-3.5 w-3.5" />
+      </Button>
+    </Flex>
+  );
+}
+
+/**
+ * The inline title editor. Its own component so the draft is seeded from
+ * the row's title every time editing starts — a cancelled or failed rename
+ * leaves nothing behind for the next one.
+ */
+function RenameEditor({
+  row,
+  busy,
+  onRename,
+  onCancel,
+}: {
+  row: ConversationSummary;
+  busy: boolean;
+  onRename: (title: string) => void;
+  onCancel: () => void;
+}) {
+  const t = useTranslations("aiChatPanel");
+  const [draft, setDraft] = useState(row.title);
+  const submit = () => {
+    const next = draft.trim();
+    if (!next || next === row.title) {
+      onCancel();
+      return;
+    }
+    onRename(next);
+  };
+  return (
+    <Flex align="center" gap="1" className="rounded-md border px-2 py-1.5">
+      <Label htmlFor={`ai-history-rename-${row.id}`} className="sr-only">
+        {t("history.renameLabel")}
+      </Label>
+      <Input
+        id={`ai-history-rename-${row.id}`}
+        value={draft}
+        maxLength={80}
+        autoFocus
+        onChange={(e) => setDraft(e.target.value)}
+        onKeyDown={(e) => {
+          if (e.key === "Enter") {
+            e.preventDefault();
+            submit();
+          } else if (e.key === "Escape") {
+            // Escape cancels the rename and goes no further: the drawer
+            // closes on Escape too, and the user meant the field.
+            e.preventDefault();
+            e.stopPropagation();
+            onCancel();
+          }
+        }}
+        className="h-7 min-w-0 flex-1 text-sm"
+      />
+      <Button
+        type="button"
+        size="icon"
+        variant="ghost"
+        className="h-7 w-7"
+        onClick={submit}
+        disabled={busy}
+        aria-label={t("history.saveTitle")}
+        title={t("history.saveTitle")}
+      >
+        <Check className="h-3.5 w-3.5" />
+      </Button>
+      <Button
+        type="button"
+        size="icon"
+        variant="ghost"
+        className="h-7 w-7"
+        onClick={onCancel}
+        aria-label={t("history.cancel")}
+        title={t("history.cancel")}
+      >
+        <X className="h-3.5 w-3.5" />
       </Button>
     </Flex>
   );
@@ -353,7 +405,7 @@ export function AiConversationReview({
     <Flex direction="col" className="min-h-0 flex-1">
       <ScrollArea className="min-h-0 flex-1">
         <Stack gap="2" className="px-4 py-4">
-          <ReadOnlyTranscript messages={conversation.data.messages} />
+          <ReadOnlyTranscript messages={settleSavedTranscript(conversation.data.messages)} />
         </Stack>
       </ScrollArea>
       <Box className="flex-shrink-0 border-t bg-card px-3 py-3">

@@ -120,6 +120,38 @@ def test_put_rejects_a_message_with_an_unknown_role_with_422(client):
     assert response.status_code == 422
 
 
+def test_put_omitting_provider_and_model_keeps_the_stored_ones(client):
+    # The panel autosaves before /settings/ai has answered; an omitted
+    # provider/model must not blank what an earlier save recorded.
+    client.put(f"/ai/conversations/{CONV_A}", json=_body(provider_id="p1", model="m1"))
+    body = {"approval": False, "messages": _transcript()}
+    response = client.put(f"/ai/conversations/{CONV_A}", json=body)
+    assert response.status_code == 200, response.text
+    assert response.json()["provider_id"] == "p1"
+    assert response.json()["model"] == "m1"
+    listed = client.get("/ai/conversations").json()["conversations"][0]
+    assert (listed["provider_id"], listed["model"]) == ("p1", "m1")
+
+
+def test_an_explicit_null_provider_still_clears_it(client):
+    client.put(f"/ai/conversations/{CONV_A}", json=_body(provider_id="p1", model="m1"))
+    response = client.put(f"/ai/conversations/{CONV_A}", json=_body(provider_id=None, model=None))
+    assert response.json()["provider_id"] is None
+    assert response.json()["model"] is None
+
+
+def test_ids_are_case_insensitive(client):
+    # Hex letters, not digits only: an all-digit id upper-cases to itself.
+    lower = "aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee"
+    upper = lower.upper()
+    assert upper != lower
+    assert client.put(f"/ai/conversations/{upper}", json=_body()).json()["id"] == lower
+    assert client.get(f"/ai/conversations/{lower}").status_code == 200
+    assert client.put(f"/ai/conversations/{lower}", json=_body()).status_code == 200
+    assert client.get("/ai/conversations").json()["total"] == 1
+    assert client.delete(f"/ai/conversations/{upper}").json() == {"id": lower}
+
+
 def test_put_rejects_an_id_that_is_not_a_uuid_with_422(client):
     response = client.put("/ai/conversations/not-a-uuid", json=_body())
     assert response.status_code == 422
@@ -161,13 +193,100 @@ def test_a_posted_api_key_never_reaches_disk(client):
     assert response.json()["messages"][1]["toolCalls"][0]["args"]["config"]["api_key"] == "***"
 
 
-def test_an_already_masked_secret_stays_masked(client):
+def test_an_already_masked_secret_stays_masked_beside_a_live_one(client):
+    # A masked value and a live one in the same args: both come out as the
+    # mask, so the scrub is proven to run (an identity scrub leaves "real").
     messages = [
         {"role": "user", "content": "x"},
-        {"role": "assistant", "content": "", "toolCalls": [{"id": "t", "name": "n", "args": {"password": "***"}}]},
+        {
+            "role": "assistant",
+            "content": "",
+            "toolCalls": [{"id": "t", "name": "n", "args": {"password": "***", "token": "real-secret-value"}}],
+        },
     ]
     response = client.put(f"/ai/conversations/{CONV_A}", json=_body(messages=messages))
-    assert response.json()["messages"][1]["toolCalls"][0]["args"]["password"] == "***"
+    assert response.json()["messages"][1]["toolCalls"][0]["args"] == {"password": "***", "token": "***"}
+    assert "real-secret-value" not in _store_path().read_text()
+
+
+def _everywhere(client, conversation_id: str) -> str:
+    """Every byte a secret could leak through: disk, the list, the record, the export."""
+    return "\n".join(
+        [
+            _store_path().read_text(),
+            client.get("/ai/conversations").text,
+            client.get(f"/ai/conversations/{conversation_id}").text,
+            client.get(f"/ai/conversations/{conversation_id}/export").text,
+        ]
+    )
+
+
+def test_a_configure_plugin_access_token_never_reaches_disk_list_or_export(client):
+    # ConfigManager.SENSITIVE_FIELDS names, not only the update_setting refusal list.
+    messages = [
+        {"role": "user", "content": "connect my calendar"},
+        {
+            "role": "assistant",
+            "content": "",
+            "toolCalls": [
+                {
+                    "id": "tc1",
+                    "name": "configure_plugin",
+                    "args": {
+                        "plugin_id": "calendar",
+                        "config": {
+                            "access_token": "tok-live-0123456789",
+                            "client_id": "client-abc",
+                            "Finnhub_API_Key": "fh-9876543210",
+                            "webhook_secret_url": "https://example.test/hook/xyz",
+                            "city": "NYC",
+                        },
+                    },
+                    "phase": "ok",
+                }
+            ],
+        },
+    ]
+    assert client.put(f"/ai/conversations/{CONV_A}", json=_body(messages=messages)).status_code == 201
+    leaked = _everywhere(client, CONV_A)
+    for secret in ("tok-live-0123456789", "client-abc", "fh-9876543210", "example.test/hook/xyz"):
+        assert secret not in leaked, secret
+    stored = json.loads(_store_path().read_text())["conversations"][0]["messages"][1]["toolCalls"][0]["args"]["config"]
+    assert stored["city"] == "NYC"
+    assert stored["access_token"] == "***"
+    assert stored["Finnhub_API_Key"] == "***"
+
+
+def test_a_key_pasted_into_free_text_is_masked_in_content_title_list_and_export(client):
+    pasted = "sk-live-AbCdEfGhIjKlMnOpQrStUvWxYz0123456789"
+    jwt = "eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJ1c2VyIn0.abcDEF123_-xyz"
+    hexrun = "0123456789abcdef0123456789abcdef0123456789abcdef"
+    messages = [
+        {"role": "user", "content": f"use {pasted} for the weather plugin"},
+        {"role": "assistant", "content": f"Set. The token was {jwt} and the hash {hexrun}.", "toolCalls": []},
+    ]
+    response = client.put(f"/ai/conversations/{CONV_A}", json=_body(messages=messages))
+    assert response.status_code == 201, response.text
+    body = response.json()
+    assert body["title"] == "use *** for the weather plugin"
+    assert body["messages"][0]["content"] == "use *** for the weather plugin"
+    assert body["messages"][1]["content"] == "Set. The token was *** and the hash ***."
+    leaked = _everywhere(client, CONV_A)
+    for secret in (pasted, jwt, hexrun):
+        assert secret not in leaked, secret
+
+
+def test_ordinary_prose_and_template_text_survive_the_pattern_scrub(client):
+    content = "Show {{weather.temp}} on line 2, right-aligned, with the date 2026-09-19 and a UUID 11111111-1111-4111-8111-111111111111."
+    response = client.put(f"/ai/conversations/{CONV_A}", json=_body(messages=_transcript(content)))
+    assert response.json()["messages"][0]["content"] == content
+
+
+def test_a_rename_to_a_pasted_key_is_masked(client):
+    client.put(f"/ai/conversations/{CONV_A}", json=_body())
+    response = client.patch(f"/ai/conversations/{CONV_A}", json={"title": "key sk-live-AbCdEfGhIjKlMnOpQrStUvWxYz01"})
+    assert response.json()["title"] == "key ***"
+    assert "sk-live-" not in _everywhere(client, CONV_A)
 
 
 # ---------------------------------------------------------------------------

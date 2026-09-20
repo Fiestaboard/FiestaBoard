@@ -17,14 +17,15 @@ are Pydantic models; failures are never 200. Two shapes worth naming:
   attached to a bug report. It keeps the ``response_model`` — the body *is*
   the response model — and only adds the header.
 
-The id is validated as a UUID in the path so a stray string never becomes a
-record. Nothing here is reachable from the MCP tools: the assistant cannot
+The id is parsed as a UUID in the path so a stray string never becomes a
+record, and normalised through ``str()`` so ids are case-insensitive. Nothing here is reachable from the MCP tools: the assistant cannot
 read, rewrite or delete its own history.
 """
 
 from __future__ import annotations
 
 from typing import Annotated
+from uuid import UUID
 
 from fastapi import APIRouter, HTTPException, Path, Query, Response
 
@@ -43,15 +44,12 @@ from .service import get_conversation_service
 
 router = APIRouter(prefix="/ai/conversations", tags=["ai"])
 
-_UUID_PATTERN = r"^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$"
-
-ConversationId = Annotated[
-    str,
-    Path(pattern=_UUID_PATTERN, description="The conversation's id — a UUID the client generated."),
-]
+#: Parsed as a UUID so a stray string never becomes a record, and rendered
+#: back through ``str()`` so ``ABCD…`` and ``abcd…`` are the same chat.
+ConversationId = Annotated[UUID, Path(description="The conversation's id — a UUID the client generated.")]
 
 
-def _not_found(conversation_id: str) -> HTTPException:
+def _not_found(conversation_id: UUID) -> HTTPException:
     return HTTPException(status_code=404, detail=f"Conversation not found: {conversation_id}")
 
 
@@ -89,7 +87,7 @@ async def clear_conversations() -> ConversationClearResponse:
     summary="Read one saved conversation with its transcript",
 )
 async def get_conversation(conversation_id: ConversationId) -> ConversationResponse:
-    conversation = get_conversation_service().get(conversation_id)
+    conversation = get_conversation_service().get(str(conversation_id))
     if conversation is None:
         raise _not_found(conversation_id)
     return conversation
@@ -109,7 +107,7 @@ async def upsert_conversation(
     Secret-keyed values anywhere in the transcript are stored as ``***``
     (see :func:`src.ai.conversations.service.scrub_secrets`).
     """
-    conversation, created = get_conversation_service().upsert(conversation_id, data)
+    conversation, created = get_conversation_service().upsert(str(conversation_id), data)
     if created:
         response.status_code = 201
     return conversation
@@ -122,7 +120,7 @@ async def upsert_conversation(
     summary="Rename a saved conversation",
 )
 async def rename_conversation(conversation_id: ConversationId, data: ConversationRename) -> ConversationResponse:
-    conversation = get_conversation_service().rename(conversation_id, data)
+    conversation = get_conversation_service().rename(str(conversation_id), data)
     if conversation is None:
         raise _not_found(conversation_id)
     return conversation
@@ -135,9 +133,9 @@ async def rename_conversation(conversation_id: ConversationId, data: Conversatio
     summary="Delete one saved conversation",
 )
 async def delete_conversation(conversation_id: ConversationId) -> ConversationDeleteResponse:
-    if not get_conversation_service().delete(conversation_id):
+    if not get_conversation_service().delete(str(conversation_id)):
         raise _not_found(conversation_id)
-    return ConversationDeleteResponse(id=conversation_id)
+    return ConversationDeleteResponse(id=str(conversation_id))
 
 
 @router.get(
@@ -148,7 +146,7 @@ async def delete_conversation(conversation_id: ConversationId) -> ConversationDe
 )
 async def export_conversation(conversation_id: ConversationId, response: Response) -> ConversationResponse:
     """``GET /{id}`` with a ``Content-Disposition`` so the browser saves it."""
-    conversation = get_conversation_service().get(conversation_id)
+    conversation = get_conversation_service().get(str(conversation_id))
     if conversation is None:
         raise _not_found(conversation_id)
     response.headers["Content-Disposition"] = f'attachment; filename="fiestabot-conversation-{conversation_id}.json"'

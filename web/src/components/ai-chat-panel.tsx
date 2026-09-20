@@ -31,10 +31,10 @@ import {
 import { Spinner } from "@fiestaboard/ui/components/feedback/spinner";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { AlertCircle, ArrowLeft, History, RotateCcw, Sparkles, SquarePen, X } from "lucide-react";
-import { useCallback, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 
-import { AiConversationReview, AiHistoryList } from "@/components/ai-chat-history";
+import { AiConversationReview, AiHistoryList, CONVERSATIONS_QUERY_KEY } from "@/components/ai-chat-history";
 import { groupTurns, TranscriptTurns } from "@/components/ai-chat-transcript";
 import { AiStepTimeline } from "@/components/ai-step-timeline";
 import { useTranslations } from "@/i18n/translations";
@@ -138,6 +138,12 @@ export function AiChatPanel({
     setProviderId(conversation.provider_id ?? "");
     setModel(conversation.model ?? "");
   }, []);
+  // Every autosave makes the History list and the open review stale; the
+  // app's query staleTime would otherwise show a minute-old list.
+  const handleSaved = useCallback(
+    () => void queryClient.invalidateQueries({ queryKey: CONVERSATIONS_QUERY_KEY }),
+    [queryClient],
+  );
 
   const {
     messages,
@@ -152,8 +158,10 @@ export function AiChatPanel({
     retryLast,
     autoApprove,
     disableAutoApprove,
+    conversationId,
     newConversation,
     loadConversation,
+    forgetConversation,
   } = useAiChat({
     getTurnContext,
     onToolCall,
@@ -163,12 +171,16 @@ export function AiChatPanel({
     onStatus,
     onStopped,
     onConversationLoaded: handleConversationLoaded,
+    onSaved: handleSaved,
     providerId: effectiveProviderId || undefined,
     model: effectiveModel || undefined,
   });
 
   const streaming = status === "streaming";
   const composerStatus = streaming ? "streaming" : status === "error" ? "error" : "ready";
+  // History hides the live transcript, so it waits while a turn is running
+  // or paused on a card only the live chat can answer.
+  const turnBusy = streaming || pendingApproval !== null || pendingElicitation !== null;
 
   // What the pill shows: "don't ask again" reads as Auto for this chat even
   // while the install stays on Ask. Choosing Ask turns the conversation
@@ -230,6 +242,29 @@ export function AiChatPanel({
   const headerTitle =
     mode.kind === "chat" ? t("panelTitle") : mode.kind === "history" ? t("history.title") : (mode.title ?? "");
 
+  // Back (and Continue) move focus to where the user lands: the composer in
+  // the chat, the search box in History. Not on mount — only on a change.
+  const prevModeRef = useRef<PanelMode["kind"] | null>(null);
+  useEffect(() => {
+    const previous = prevModeRef.current;
+    prevModeRef.current = mode.kind;
+    if (previous === null || previous === mode.kind) return;
+    if (mode.kind === "chat") document.getElementById("ai-chat-input")?.focus();
+    else if (mode.kind === "history") document.getElementById("ai-history-search")?.focus();
+  }, [mode.kind]);
+
+  // The live conversation's record was deleted from History: the hook drops
+  // its id so the next autosave does not resurrect it (the transcript stays).
+  const handleDeleted = useCallback(
+    (id: string) => {
+      if (id === conversationId) forgetConversation();
+    },
+    [conversationId, forgetConversation],
+  );
+  const handleCleared = useCallback(() => {
+    if (conversationId) forgetConversation();
+  }, [conversationId, forgetConversation]);
+
   return (
     <Flex direction="col" className="h-full min-h-0 w-full">
       <Card className="flex flex-1 min-h-0 w-full flex-col gap-0 overflow-hidden py-0">
@@ -258,8 +293,10 @@ export function AiChatPanel({
               <Text as="span" size="sm" weight="semibold" className="truncate">
                 {headerTitle}
               </Text>
-              {mode.kind === "chat" && streaming && (
-                <Spinner size="sm" className="text-muted-foreground" label={null} />
+              {streaming && (
+                <Text as="span" className="inline-flex" data-testid="ai-chat-streaming">
+                  <Spinner size="sm" className="text-muted-foreground" label={null} />
+                </Text>
               )}
             </Flex>
             <Flex align="center" gap="1">
@@ -283,6 +320,7 @@ export function AiChatPanel({
                     variant="ghost"
                     className="h-7 w-7"
                     onClick={() => setMode({ kind: "history" })}
+                    disabled={turnBusy}
                     title={t("historyAriaLabel")}
                     aria-label={t("historyAriaLabel")}
                   >
@@ -328,7 +366,11 @@ export function AiChatPanel({
         </Box>
 
         {mode.kind === "history" ? (
-          <AiHistoryList onOpen={(id) => setMode({ kind: "review", id, title: null })} />
+          <AiHistoryList
+            onOpen={(id) => setMode({ kind: "review", id, title: null })}
+            onDeleted={handleDeleted}
+            onCleared={handleCleared}
+          />
         ) : mode.kind === "review" ? (
           <AiConversationReview
             id={mode.id}

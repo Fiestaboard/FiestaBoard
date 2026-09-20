@@ -1,11 +1,11 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { render, screen, waitFor, within } from "@testing-library/react";
+import { act, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { http, HttpResponse } from "msw";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { AiChatPanel } from "@/components/ai-chat-panel";
-import type { UseAiChatResult } from "@/lib/use-ai-chat";
+import type { UseAiChatOptions, UseAiChatResult } from "@/lib/use-ai-chat";
 
 import enMessages from "../../messages/en.json";
 import { server } from "./mocks/server";
@@ -18,11 +18,11 @@ const mockSend = vi.fn();
 const mockApprove = vi.fn();
 const mockAnswer = vi.fn();
 const mockStop = vi.fn();
-const mockReset = vi.fn();
 const mockRetryLast = vi.fn();
 const mockDisableAutoApprove = vi.fn();
 const mockNewConversation = vi.fn();
 const mockLoadConversation = vi.fn();
+const mockForgetConversation = vi.fn();
 
 // Typed against the real hook contract: without it the inferred literal
 // types (`status: "idle"`, `messages: never[]`, `error: null`) reject the
@@ -38,12 +38,12 @@ const defaultHookResult: UseAiChatResult = {
   answer: mockAnswer,
   stop: mockStop,
   retryLast: mockRetryLast,
-  reset: mockReset,
   autoApprove: false,
   disableAutoApprove: mockDisableAutoApprove,
   conversationId: null,
   newConversation: mockNewConversation,
   loadConversation: mockLoadConversation,
+  forgetConversation: mockForgetConversation,
 };
 
 const CONFIGURED = {
@@ -65,10 +65,15 @@ const CREATE_PAGE_CALL = {
 };
 
 let hookResult: UseAiChatResult = { ...defaultHookResult };
+// The options the panel hands the hook, so a test can fire its callbacks.
+let capturedHookOpts: UseAiChatOptions | null = null;
 
 vi.mock("@/lib/use-ai-chat", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/lib/use-ai-chat")>()),
-  useAiChat: () => hookResult,
+  useAiChat: (opts: UseAiChatOptions) => {
+    capturedHookOpts = opts;
+    return hookResult;
+  },
 }));
 
 const CONFIGURED_PROVIDER = {
@@ -101,6 +106,7 @@ describe("AiChatPanel", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     hookResult = { ...defaultHookResult };
+    capturedHookOpts = null;
     // Default: no providers configured.
     server.use(
       http.get(`${API_BASE}/settings/ai`, () =>
@@ -638,7 +644,14 @@ describe("AiChatPanel", () => {
         return HttpResponse.json({ deleted: cleared });
       }),
     );
-    return { deletes, patches, cleared: () => cleared };
+    return {
+      deletes,
+      patches,
+      cleared: () => cleared,
+      add: (row: (typeof SUMMARIES)[number]) => {
+        current = [row, ...current];
+      },
+    };
   }
 
   async function openHistory() {
@@ -740,6 +753,145 @@ describe("AiChatPanel", () => {
 
     await waitFor(() => expect(h.cleared()).toBe(2));
     expect(await screen.findByText(enMessages.aiChatPanel.history.empty)).toBeInTheDocument();
+  });
+
+  it("deleting the live conversation tells the hook to forget its id", async () => {
+    withHistory();
+    hookResult = { ...defaultHookResult, conversationId: CONV_B, messages: [{ role: "user", content: "hi" }] };
+    const user = await openHistory();
+    await user.click(await screen.findByRole("button", { name: /delete stock ticker/i }));
+    await waitFor(() => expect(mockForgetConversation).toHaveBeenCalledOnce());
+  });
+
+  it("deleting another conversation leaves the live id alone", async () => {
+    const { deletes } = withHistory();
+    hookResult = { ...defaultHookResult, conversationId: CONV_A, messages: [{ role: "user", content: "hi" }] };
+    const user = await openHistory();
+    await user.click(await screen.findByRole("button", { name: /delete stock ticker/i }));
+    await waitFor(() => expect(deletes).toEqual([CONV_B]));
+    expect(mockForgetConversation).not.toHaveBeenCalled();
+  });
+
+  it("Clear all forgets the live id too", async () => {
+    const h = withHistory();
+    hookResult = { ...defaultHookResult, conversationId: CONV_A, messages: [{ role: "user", content: "hi" }] };
+    const user = await openHistory();
+    await screen.findByRole("button", { name: /open stock ticker/i });
+    await user.click(screen.getByRole("button", { name: enMessages.aiChatPanel.history.clearAll }));
+    const dialog = await screen.findByRole("alertdialog");
+    await user.click(within(dialog).getByRole("button", { name: enMessages.aiChatPanel.history.clearAllConfirm }));
+    await waitFor(() => expect(h.cleared()).toBe(2));
+    await waitFor(() => expect(mockForgetConversation).toHaveBeenCalledOnce());
+  });
+
+  it("a successful autosave refreshes History even inside the query staleTime", async () => {
+    const h = withHistory([SUMMARIES[1]]);
+    const user = userEvent.setup();
+    const qc = new QueryClient({ defaultOptions: { queries: { retry: false, staleTime: 60_000 } } });
+    render(
+      <QueryClientProvider client={qc}>
+        <AiChatPanel {...defaultProps} />
+      </QueryClientProvider>,
+    );
+    await user.click(await screen.findByRole("button", { name: enMessages.aiChatPanel.historyAriaLabel }));
+    await screen.findByRole("button", { name: /open stock ticker/i });
+    expect(screen.queryByRole("button", { name: /open weather for the commute/i })).not.toBeInTheDocument();
+
+    // The server gains a row; the hook reports a save landed.
+    h.add(SUMMARIES[0]);
+    expect(capturedHookOpts?.onSaved).toBeTypeOf("function");
+    act(() => {
+      capturedHookOpts?.onSaved?.(CONV_A);
+    });
+    expect(await screen.findByRole("button", { name: /open weather for the commute/i })).toBeInTheDocument();
+  });
+
+  it("Escape in the rename field cancels the rename without reaching the drawer", async () => {
+    withHistory();
+    const onWindowKey = vi.fn();
+    window.addEventListener("keydown", onWindowKey);
+    try {
+      const user = await openHistory();
+      await screen.findByRole("button", { name: /open stock ticker/i });
+      await user.click(screen.getByRole("button", { name: /rename stock ticker/i }));
+      const field = screen.getByRole("textbox", { name: enMessages.aiChatPanel.history.renameLabel });
+      await user.type(field, "x{Escape}");
+      expect(
+        screen.queryByRole("textbox", { name: enMessages.aiChatPanel.history.renameLabel }),
+      ).not.toBeInTheDocument();
+      const keys = onWindowKey.mock.calls.map(([event]) => (event as KeyboardEvent).key);
+      expect(keys).toContain("x"); // the listener works …
+      expect(keys).not.toContain("Escape"); // … and Escape stayed in the field
+    } finally {
+      window.removeEventListener("keydown", onWindowKey);
+    }
+  });
+
+  it("a cancelled rename does not leak its text into the next rename", async () => {
+    withHistory();
+    const user = await openHistory();
+    await screen.findByRole("button", { name: /open stock ticker/i });
+    await user.click(screen.getByRole("button", { name: /rename stock ticker/i }));
+    const field = screen.getByRole("textbox", { name: enMessages.aiChatPanel.history.renameLabel });
+    await user.clear(field);
+    await user.type(field, "junk");
+    await user.click(screen.getByRole("button", { name: enMessages.aiChatPanel.history.cancel }));
+
+    await user.click(screen.getByRole("button", { name: /rename stock ticker/i }));
+    expect(screen.getByRole("textbox", { name: enMessages.aiChatPanel.history.renameLabel })).toHaveValue(
+      "Stock ticker",
+    );
+  });
+
+  it("Back from History moves focus to the composer", async () => {
+    withHistory();
+    const user = await openHistory();
+    await screen.findByRole("button", { name: /open stock ticker/i });
+    await user.click(screen.getByRole("button", { name: enMessages.aiChatPanel.backAriaLabel }));
+    const composer = await screen.findByLabelText(enMessages.aiChatPanel.messageLabel);
+    await waitFor(() => expect(composer).toHaveFocus());
+  });
+
+  it("Back from a review moves focus to the History search", async () => {
+    withHistory();
+    const user = await openHistory();
+    await user.click(await screen.findByRole("button", { name: /open weather for the commute/i }));
+    await screen.findByText("Here is your commute page.");
+    await user.click(screen.getByRole("button", { name: enMessages.aiChatPanel.backAriaLabel }));
+    const search = await screen.findByRole("searchbox", { name: enMessages.aiChatPanel.history.searchAriaLabel });
+    await waitFor(() => expect(search).toHaveFocus());
+  });
+
+  it("History is unavailable while a turn is paused on approval", async () => {
+    configuredWith("ask");
+    hookResult = {
+      ...defaultHookResult,
+      status: "awaiting_approval",
+      pendingApproval: {
+        ...CREATE_PAGE_CALL,
+        id: "tc2",
+        name: "delete_page",
+        destructive: true,
+        requires_approval: true,
+      },
+      messages: [{ role: "user", content: "delete it" }],
+    };
+    render(<AiChatPanel {...defaultProps} />, { wrapper: Wrapper });
+    expect(await screen.findByRole("button", { name: enMessages.aiChatPanel.historyAriaLabel })).toBeDisabled();
+  });
+
+  it("the streaming spinner stays visible in History", async () => {
+    withHistory();
+    hookResult = { ...defaultHookResult, messages: [{ role: "user", content: "hi" }] };
+    const user = userEvent.setup();
+    const { rerender } = render(<AiChatPanel {...defaultProps} />, { wrapper: Wrapper });
+    await user.click(await screen.findByRole("button", { name: enMessages.aiChatPanel.historyAriaLabel }));
+    await screen.findByRole("button", { name: /open stock ticker/i });
+    expect(screen.queryByTestId("ai-chat-streaming")).not.toBeInTheDocument();
+
+    hookResult = { ...hookResult, status: "streaming" };
+    rerender(<AiChatPanel {...defaultProps} />);
+    expect(await screen.findByTestId("ai-chat-streaming")).toBeInTheDocument();
   });
 
   it("Back returns from History to the live chat", async () => {

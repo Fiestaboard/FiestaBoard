@@ -125,9 +125,6 @@ class ConversationStorage:
     def get(self, conversation_id: str) -> Conversation | None:
         return self._conversations.get(conversation_id)
 
-    def exists(self, conversation_id: str) -> bool:
-        return conversation_id in self._conversations
-
     def upsert(self, conversation: Conversation) -> bool:
         """Store *conversation* under its id. Returns True when it is new.
 
@@ -168,6 +165,3 @@ class ConversationStorage:
             self._save()
         logger.info(f"Cleared {count} AI conversation(s)")
         return count
-
-    def count(self) -> int:
-        return len(self._conversations)

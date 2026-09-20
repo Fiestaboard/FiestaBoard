@@ -107,9 +107,12 @@ export interface SavedConversation extends Omit<ConversationSummary, "message_co
   messages: ChatMessage[];
 }
 
-/** Body of the autosave `PUT /ai/conversations/{id}`. */
+/**
+ * Body of the autosave `PUT /ai/conversations/{id}`. The title is never
+ * posted (PATCH renames); `provider_id` / `model` left out keep what the
+ * server already has, an explicit null clears them.
+ */
 export interface ConversationUpsert {
-  title?: string;
   provider_id?: string | null;
   model?: string | null;
   approval: boolean;
