@@ -18,6 +18,12 @@ import type { GhostVariant, SpotlightApi, SpotlightControls } from "@/lib/ai-cho
  * something is shown and written straight to the DOM through refs — never
  * through state — so scrolling, resizing and the 500 ms view transition
  * all keep the ring on its target without re-rendering the app.
+ *
+ * A frame is cheap by construction (#2041): it takes every measurement
+ * before it writes any style, so however many ghosts are on screen the
+ * browser is asked for at most one layout; the resolved anchor elements and
+ * a replica's computed text metrics are held between frames rather than
+ * queried again; and a frame in which nothing moved writes nothing at all.
  */
 
 interface SpotlightState {
@@ -143,6 +149,29 @@ export function useOptionalSpotlight(): SpotlightContextValue | null {
 
 const RING_PAD = 6;
 
+/**
+ * How long a resolved anchor — or a replica's copied text metrics — is
+ * trusted before being looked up again. An element that leaves the document
+ * is re-resolved at once; this only bounds the slower kind of staleness (the
+ * id now belongs to a different element, the theme changed the font under a
+ * ghost) without paying for a DOM query and a style recalculation sixty
+ * times a second.
+ */
+const REVALIDATE_MS = 250;
+
+/** The text metrics a replica ghost copies from the input it sits over. */
+interface ReplicaMetrics {
+  font: string;
+  paddingLeft: number;
+}
+
+/** One ghost, measured. Filled in the read pass, consumed in the write pass. */
+interface GhostReading {
+  node: HTMLElement;
+  rect: DOMRect | null;
+  metrics: ReplicaMetrics | null;
+}
+
 function SpotlightOverlay({
   state,
   ghosts,
@@ -186,49 +215,124 @@ function SpotlightOverlay({
 
   // One measurement loop for the ring and every ghost, alive only while
   // something is shown. Writes go to the elements, not to React.
-  const anchorId = state?.anchor ?? null;
+  //
+  // Held between frames so a frame costs a browser as little as possible:
+  // the element behind each anchor id, the computed text metrics of a
+  // replica's target, and the last thing written to each node.
+  const anchorCache = useRef(new Map<string, { el: HTMLElement; at: number }>());
+  const metricsCache = useRef(new WeakMap<HTMLElement, { metrics: ReplicaMetrics; at: number }>());
+  const writtenCache = useRef(new WeakMap<HTMLElement, string>());
+  const readings = useRef<GhostReading[]>([]);
+
+  // The ghost list is read through a ref so that typing a value — which
+  // republishes it up to 24 times a field — does not tear the loop down and
+  // rebuild its caches on every keystroke.
+  const ghostsRef = useRef(ghosts);
   useLayoutEffect(() => {
-    if (!anchorId && ghosts.length === 0) return;
+    ghostsRef.current = ghosts;
+  }, [ghosts]);
+
+  const anchorId = state?.anchor ?? null;
+  const running = anchorId !== null || ghosts.length > 0;
+  useLayoutEffect(() => {
+    if (!running) {
+      anchorCache.current.clear();
+      return;
+    }
+
+    const anchorFor = (id: string, now: number): HTMLElement | null => {
+      const hit = anchorCache.current.get(id);
+      if (hit && hit.el.isConnected && now - hit.at < REVALIDATE_MS) return hit.el;
+      const el = resolveAnchor(id);
+      if (el) anchorCache.current.set(id, { el, at: now });
+      else anchorCache.current.delete(id);
+      return el;
+    };
+
+    const metricsFor = (el: HTMLElement, now: number): ReplicaMetrics => {
+      const hit = metricsCache.current.get(el);
+      if (hit && now - hit.at < REVALIDATE_MS) return hit.metrics;
+      const cs = window.getComputedStyle(el);
+      const metrics = { font: cs.font, paddingLeft: parseFloat(cs.paddingLeft || "0") || 0 };
+      metricsCache.current.set(el, { metrics, at: now });
+      return metrics;
+    };
+
+    // A style write dirties layout, so the cheapest frame is the one that
+    // writes nothing. `signature` is everything the write depends on.
+    const write = (node: HTMLElement, signature: string, apply: (style: CSSStyleDeclaration) => void) => {
+      if (writtenCache.current.get(node) === signature) return;
+      writtenCache.current.set(node, signature);
+      apply(node.style);
+    };
+
     let frame = 0;
-    const tick = () => {
+    const tick = (now: number) => {
+      // Read pass: every measurement happens before any write, so the frame
+      // asks the browser for one layout however many ghosts are on screen.
       const ring = ringRef.current;
-      if (ring && anchorId) {
-        const el = resolveAnchor(anchorId);
-        if (el) {
-          const r = el.getBoundingClientRect();
-          ring.style.opacity = "1";
-          ring.style.transform = `translate(${r.left - RING_PAD}px, ${r.top - RING_PAD}px)`;
-          ring.style.width = `${r.width + RING_PAD * 2}px`;
-          ring.style.height = `${r.height + RING_PAD * 2}px`;
-        } else {
-          ring.style.opacity = "0";
-        }
-      }
-      for (const g of ghosts) {
+      const ringEl = ring && anchorId ? anchorFor(anchorId, now) : null;
+      const ringRect = ringEl ? ringEl.getBoundingClientRect() : null;
+
+      const reads = readings.current;
+      reads.length = 0;
+      for (const g of ghostsRef.current) {
         const node = ghostRefs.current.get(g.id);
-        const el = resolveAnchor(g.anchor);
         if (!node) continue;
-        if (!el) {
-          node.style.opacity = "0";
-          continue;
-        }
-        const r = el.getBoundingClientRect();
-        node.style.opacity = "1";
-        if (g.variant === "replica") {
-          const cs = window.getComputedStyle(el);
-          node.style.transform = `translate(${r.left + parseFloat(cs.paddingLeft || "0")}px, ${r.top}px)`;
-          node.style.height = `${r.height}px`;
-          node.style.font = cs.font;
-          node.style.lineHeight = `${r.height}px`;
+        const el = anchorFor(g.anchor, now);
+        reads.push({
+          node,
+          rect: el ? el.getBoundingClientRect() : null,
+          metrics: el && g.variant === "replica" ? metricsFor(el, now) : null,
+        });
+      }
+
+      // Write pass.
+      if (ring) {
+        if (ringRect) {
+          const x = ringRect.left - RING_PAD;
+          const y = ringRect.top - RING_PAD;
+          const w = ringRect.width + RING_PAD * 2;
+          const h = ringRect.height + RING_PAD * 2;
+          write(ring, `on:${x}:${y}:${w}:${h}`, (style) => {
+            style.opacity = "1";
+            style.transform = `translate(${x}px, ${y}px)`;
+            style.width = `${w}px`;
+            style.height = `${h}px`;
+          });
         } else {
-          node.style.transform = `translate(${r.right + 8}px, ${r.top + r.height / 2}px) translateY(-50%)`;
+          write(ring, "off", (style) => {
+            style.opacity = "0";
+          });
         }
       }
+      for (const { node, rect, metrics } of reads) {
+        if (!rect) {
+          write(node, "off", (style) => {
+            style.opacity = "0";
+          });
+        } else if (metrics) {
+          const x = rect.left + metrics.paddingLeft;
+          write(node, `replica:${x}:${rect.top}:${rect.height}:${metrics.font}`, (style) => {
+            style.opacity = "1";
+            style.transform = `translate(${x}px, ${rect.top}px)`;
+            style.height = `${rect.height}px`;
+            style.font = metrics.font;
+            style.lineHeight = `${rect.height}px`;
+          });
+        } else {
+          write(node, `badge:${rect.right}:${rect.top}:${rect.height}`, (style) => {
+            style.opacity = "1";
+            style.transform = `translate(${rect.right + 8}px, ${rect.top + rect.height / 2}px) translateY(-50%)`;
+          });
+        }
+      }
+
       frame = window.requestAnimationFrame(tick);
     };
     frame = window.requestAnimationFrame(tick);
     return () => window.cancelAnimationFrame(frame);
-  }, [anchorId, ghosts]);
+  }, [running, anchorId]);
 
   if (typeof document === "undefined" || (!state && ghosts.length === 0)) return null;
 
@@ -267,7 +371,7 @@ function SpotlightOverlay({
     ) : undefined;
 
   return createPortal(
-    <Box data-ai-spotlight="" className="pointer-events-none fixed inset-0 z-[60]" aria-hidden={false}>
+    <Box data-ai-spotlight="" className="pointer-events-none fixed inset-0 z-[var(--z-spotlight)]" aria-hidden={false}>
       {state ? (
         <SpotlightRing
           ref={ringRef}
@@ -304,7 +408,7 @@ function SpotlightOverlay({
           tone={state.tone}
           controls={controls}
           data-testid="ai-spotlight-caption"
-          className="pointer-events-auto fixed bottom-6 left-1/2 z-[61] -translate-x-1/2"
+          className="pointer-events-auto fixed bottom-6 left-1/2 z-10 -translate-x-1/2"
         >
           {state.caption}
         </SpotlightCaption>
