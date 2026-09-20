@@ -298,3 +298,26 @@
     transition-property: transform, width;
   }
 }
+
+/* ---------------------------------------------------------------------------
+   Spotlight layer (#2040)
+
+   The AI walkthrough's ring, ghosts and caption are drawn *on* chrome, not
+   beside it: the control they point at can be in the mobile header, in the
+   open mobile menu, in a sheet, in a Select popup or in a dialog. A hardcoded
+   z-60 put the ring under all of those, so a highlight on a phone came out
+   underneath the thing it was highlighting. Sit one step below the tooltip —
+   which explains the control the ring is drawn around, and so stays on top —
+   and above everything else on @fiestaboard/ui's ladder:
+
+     --z-popover 135  <  --z-spotlight 138  <  --z-tooltip 140
+
+   This lives here rather than in @fiestaboard/ui because the spotlight is
+   this app's feature; the package has no spotlight of its own to layer.
+   `web/src/__tests__/ai-spotlight-frames.test.tsx` pins the relationship
+   against the package's tokens so a future ladder change cannot silently
+   drop the ring back under the header.
+   --------------------------------------------------------------------------- */
+:root {
+  --z-spotlight: 138;
+}
