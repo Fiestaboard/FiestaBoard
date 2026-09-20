@@ -97,7 +97,11 @@ export function fieldsForCall(
     }
     case "delete_schedule": {
       const entry = caches.schedules?.schedules?.find((s) => s.id === args.schedule_id);
-      if (!entry) return [{ label: t("argLabel.name"), value: String(args.schedule_id ?? ""), mono: true }];
+      // The delete removed its own target from the cache, so there are no
+      // fields left to describe. Better nothing than a row labelled "Name"
+      // holding a uuid — the header still carries the remembered name, and
+      // the raw payload is one disclosure away.
+      if (!entry) return [];
       return scheduleFields(
         { pageId: entry.page_id, start: entry.start_time, end: entry.end_time, pattern: entry.day_pattern },
         caches,

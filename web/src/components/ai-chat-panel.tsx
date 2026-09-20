@@ -57,11 +57,16 @@ export { groupTurns } from "@/components/ai-chat-transcript";
 
 /**
  * Panel width below which the Enter/Shift+Enter hint gives up its place in
- * the composer toolbar and becomes a tooltip on Send. The toolbar needs
- * roughly 440px to hold the model pickers and the hint without one sliding
- * over the other; the panel is that plus its own padding.
+ * the composer toolbar and rides on the Send button instead.
+ *
+ * The row carries the approval mode, the provider and model pickers, the
+ * hint and Send. Measured against the real controls: the mode control is
+ * ~92px, the model pill ~140, the hint ~180, Send ~36, plus gaps — so the
+ * hint only fits once the panel is around 560px, which is wider than the
+ * drawer's default. That is the intended outcome: at the default width the
+ * pickers get the room and the hint becomes the Send button's title.
  */
-export const COMPOSER_HINT_WIDTH = 464;
+export const COMPOSER_HINT_WIDTH = 560;
 
 export interface AiChatPanelProps {
   /** Per-turn context (device type, current page snapshot, what exists). */
@@ -515,7 +520,10 @@ export function AiChatPanel({
                       value={effectiveMode}
                       onValueChange={handleModeChange}
                       disabled={!settings}
-                      className="min-w-0 shrink"
+                      // Shrinks with the row, but never stacks: a two-item
+                      // control that wraps into two lines is as broken as
+                      // the overlap this row was fixed for.
+                      className="min-w-0 shrink flex-nowrap whitespace-nowrap"
                       data-testid="ai-approval-mode"
                     >
                       <SegmentedControlItem value="ask">{t("approvalMode.ask")}</SegmentedControlItem>

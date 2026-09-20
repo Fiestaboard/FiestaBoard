@@ -50,34 +50,50 @@ export function AiDrawerResizeHandle({
   // move is clamped at an end of the range.
   const originRef = useRef<{ x: number; width: number } | null>(null);
 
+  // Detaching the listeners this drag installed, if any.
+  const releaseRef = useRef<(() => void) | null>(null);
+  // Read at event time, so the listeners installed below never close over a
+  // stale callback.
+  const onResizeRef = useRef(onResize);
+  useEffect(() => {
+    onResizeRef.current = onResize;
+  }, [onResize]);
+
   const stopDragging = useCallback(() => {
+    releaseRef.current?.();
+    releaseRef.current = null;
     originRef.current = null;
     setDragging(false);
     onDraggingChange?.(false);
   }, [onDraggingChange]);
 
-  useEffect(() => {
-    if (!dragging) return;
-
-    const move = (event: PointerEvent) => {
-      const origin = originRef.current;
-      if (!origin) return;
-      // The drawer is anchored right: the edge moving LEFT makes it wider.
-      onResize(origin.width + (origin.x - event.clientX));
-    };
-    window.addEventListener("pointermove", move);
-    window.addEventListener("pointerup", stopDragging);
-    window.addEventListener("pointercancel", stopDragging);
-    return () => {
-      window.removeEventListener("pointermove", move);
-      window.removeEventListener("pointerup", stopDragging);
-      window.removeEventListener("pointercancel", stopDragging);
-    };
-  }, [dragging, onResize, stopDragging]);
+  // A drag that ends while this is unmounting must not leave listeners behind.
+  useEffect(() => () => releaseRef.current?.(), []);
 
   const handlePointerDown = (event: React.PointerEvent<HTMLElement>) => {
     if (event.button !== 0 && event.pointerType === "mouse") return;
     originRef.current = { x: event.clientX, width };
+
+    // Installed here rather than in an effect keyed on `dragging`: an effect
+    // runs a commit later, and a pointer that starts moving inside that first
+    // frame would have its first move dropped — the drag would visibly lag
+    // its own start.
+    const move = (moveEvent: PointerEvent) => {
+      const origin = originRef.current;
+      if (!origin) return;
+      // The drawer is anchored right: the edge moving LEFT makes it wider.
+      onResizeRef.current(origin.width + (origin.x - moveEvent.clientX));
+    };
+    const end = () => stopDragging();
+    window.addEventListener("pointermove", move);
+    window.addEventListener("pointerup", end);
+    window.addEventListener("pointercancel", end);
+    releaseRef.current = () => {
+      window.removeEventListener("pointermove", move);
+      window.removeEventListener("pointerup", end);
+      window.removeEventListener("pointercancel", end);
+    };
+
     setDragging(true);
     onDraggingChange?.(true);
   };
