@@ -294,6 +294,13 @@ export interface ChatMessage {
   warnings?: string[];
   /** True while the server is still working on this entry. */
   pending?: boolean;
+  /**
+   * When this entry began, ISO 8601 — what the turn's byline reads as a
+   * relative time. Set on assistant entries as the panel creates them;
+   * absent on user turns (their bubble carries no byline) and on entries
+   * saved before the field existed, which simply show no time.
+   */
+  at?: string;
 }
 
 // ---------------------------------------------------------------------------
