@@ -2,8 +2,8 @@
 
 import { useQueryClient } from "@tanstack/react-query";
 
-import { detailForTool } from "@/components/ai-tool-labels";
 import type { TranslateFn } from "@/components/ai-tool-labels";
+import { detailForTool } from "@/components/ai-tool-labels";
 import { useTranslations } from "@/i18n/translations";
 import type { ToolCall } from "@/lib/ai-chat-types";
 import { resolveToolDetail, type TargetCaches } from "@/lib/ai-target-names";

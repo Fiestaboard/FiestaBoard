@@ -3,9 +3,8 @@ import { render as rtlRender, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { clearRememberedToolDetails } from "@/hooks/use-target-caches";
-
 import { AiApprovalCard } from "@/components/ai-approval-card";
+import { clearRememberedToolDetails } from "@/hooks/use-target-caches";
 import type { ToolCall } from "@/lib/ai-chat-types";
 
 // The card names its target from the app's query caches (#2024), so it
