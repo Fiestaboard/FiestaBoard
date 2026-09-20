@@ -5,6 +5,7 @@ import { CircleCheckIcon, InfoIcon, OctagonXIcon, TriangleAlertIcon } from "luci
 import { useSyncExternalStore } from "react";
 import { Toaster as Sonner, type ToasterProps } from "sonner";
 
+import { useOptionalSpotlight } from "@/components/ai-spotlight/spotlight-provider";
 import { useOptionalGlobalAiPanel } from "@/components/global-ai-panel-context";
 import { useTheme } from "@/hooks/use-theme";
 import { useTranslations } from "@/i18n/translations";
@@ -66,10 +67,21 @@ const Toaster = ({ containerAriaLabel, ...props }: ToasterProps) => {
   const aiPanel = useOptionalGlobalAiPanel();
   const isDesktop = useMatchesDesktop();
   const drawerOpen = aiPanel?.isOpen ?? false;
+
+  // A walkthrough's caption is fixed at the bottom centre and carries the
+  // Stop button that ends it (#2010). Stepping left of the drawer puts a
+  // toast exactly there, and a toast over Stop takes away the only way out
+  // of a walkthrough — so while one is on screen the toasts go to the top
+  // and leave the bottom to it.
+  const walkthroughOnScreen = useOptionalSpotlight()?.active ?? false;
+
   const position: ToasterProps["position"] =
-    drawerOpen && !isDesktop ? "top-center" : (props.position ?? "bottom-right");
+    walkthroughOnScreen || (drawerOpen && !isDesktop) ? "top-center" : (props.position ?? "bottom-right");
   // The drawer's live width plus its inset and a gap of the same size.
-  const offset = drawerOpen && isDesktop ? { right: "calc(var(--ai-drawer-width, 384px) + 1.5rem)" } : props.offset;
+  const offset =
+    drawerOpen && isDesktop && !walkthroughOnScreen
+      ? { right: "calc(var(--ai-drawer-width, 384px) + 1.5rem)" }
+      : props.offset;
 
   return (
     <Sonner

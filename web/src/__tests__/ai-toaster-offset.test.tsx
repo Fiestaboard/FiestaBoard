@@ -3,6 +3,7 @@ import { useEffect } from "react";
 import { toast } from "sonner";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import { SpotlightProvider, useSpotlight } from "@/components/ai-spotlight/spotlight-provider";
 import { GlobalAiPanelProvider, useGlobalAiPanel } from "@/components/global-ai-panel-context";
 import { Toaster } from "@/components/ui/sonner";
 
@@ -13,6 +14,13 @@ import { Toaster } from "@/components/ui/sonner";
 function OpenTheDrawer() {
   const { open } = useGlobalAiPanel();
   useEffect(() => open(), [open]);
+  return null;
+}
+
+/** Puts a walkthrough on screen, the way the choreography engine starts one. */
+function StartWalkthrough() {
+  const { show } = useSpotlight();
+  useEffect(() => show({ anchor: "#page-name", caption: "Naming the page…" }), [show]);
   return null;
 }
 
@@ -83,6 +91,25 @@ describe("Toaster beside the FiestaBot drawer", () => {
       </GlobalAiPanelProvider>,
     );
     const element = await toaster();
+    expect(element).toHaveAttribute("data-y-position", "top");
+    expect(element.style.getPropertyValue("--offset-right")).toBe(DEFAULT_OFFSET);
+  });
+
+  it("goes to the top while a walkthrough is on screen, whose caption owns the bottom centre", async () => {
+    render(
+      <SpotlightProvider>
+        <GlobalAiPanelProvider>
+          <OpenTheDrawer />
+          <StartWalkthrough />
+          <Toaster />
+        </GlobalAiPanelProvider>
+      </SpotlightProvider>,
+    );
+    const element = await toaster();
+    // The spotlight caption is fixed at bottom-centre with its own Stop
+    // button; a toast offset left of the drawer lands exactly on it (#2024
+    // over #2010), and a toast that covers Stop is a toast that cancels the
+    // only way out of a walkthrough.
     expect(element).toHaveAttribute("data-y-position", "top");
     expect(element.style.getPropertyValue("--offset-right")).toBe(DEFAULT_OFFSET);
   });

@@ -132,6 +132,15 @@ export function useSpotlight(): SpotlightContextValue {
   return ctx;
 }
 
+/**
+ * The spotlight where there may not be a provider — the Toaster reads it to
+ * keep out of the caption's way, and is also rendered on its own in
+ * Storybook. Returns null rather than throwing.
+ */
+export function useOptionalSpotlight(): SpotlightContextValue | null {
+  return useContext(SpotlightContext);
+}
+
 const RING_PAD = 6;
 
 function SpotlightOverlay({
