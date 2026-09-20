@@ -4,11 +4,11 @@ import {
   Alert,
   AlertDescription,
   Box,
-  JsonTree,
+  Flex,
   Message,
-  MessageAvatar,
   MessageContent,
   Stack,
+  Text,
   Tool,
   ToolContent,
   ToolHeader,
@@ -22,10 +22,13 @@ import { memo, useMemo } from "react";
 import { AiApprovalCard } from "@/components/ai-approval-card";
 import { AiAutoApprovedBadge } from "@/components/ai-auto-approved-badge";
 import { AiQuestionCard } from "@/components/ai-question-card";
-import { detailForTool, labelForTool } from "@/components/ai-tool-labels";
+import { AiToolArguments, AiToolResultSummary } from "@/components/ai-tool-detail";
+import { labelForTool } from "@/components/ai-tool-labels";
+import { AiToolRun, groupToolCalls } from "@/components/ai-tool-runs";
 import { ChatMarkdown } from "@/components/chat-markdown";
 import { InlineBoardPreview } from "@/components/inline-board-preview";
-import { useTranslations } from "@/i18n/translations";
+import { useToolDetail } from "@/hooks/use-target-caches";
+import { useLocale, useTranslations } from "@/i18n/translations";
 import type {
   ApprovalDecision,
   ChatMessage,
@@ -37,6 +40,7 @@ import type {
   ToolPhase,
 } from "@/lib/ai-chat-types";
 import { parseToolDraft } from "@/lib/ai-choreography/draft";
+import { formatRelativeTime } from "@/lib/relative-time";
 import type { ApproveOptions } from "@/lib/use-ai-chat";
 
 // The transcript as the panel draws it: user turns, assistant turns (one
@@ -93,7 +97,12 @@ export function TranscriptTurns({
       {turns.map((turn, i) =>
         turn.role === "user" ? (
           <Message key={turn.index} from="user">
-            <MessageContent className="whitespace-pre-wrap break-words">{turn.message.content}</MessageContent>
+            {/* 92%, not the primitive's 85%: with the assistant's avatar
+                gutter gone the column is wider, and a hard 85% left a ragged
+                margin on the one element that is meant to hug the right. */}
+            <MessageContent className="max-w-[92%] whitespace-pre-wrap break-words">
+              {turn.message.content}
+            </MessageContent>
           </Message>
         ) : (
           <AssistantTurn
@@ -145,11 +154,9 @@ function AssistantTurn({
 }) {
   return (
     <Message from="assistant">
-      <MessageAvatar>
-        <Sparkles />
-      </MessageAvatar>
       <MessageContent>
         <Stack gap="2">
+          <AssistantByline at={entries[0]?.at} />
           {entries.map((message, i) => {
             const isLastEntry = isLast && i === entries.length - 1;
             return (
@@ -168,6 +175,33 @@ function AssistantTurn({
         </Stack>
       </MessageContent>
     </Message>
+  );
+}
+
+/**
+ * Who is speaking, once per run of assistant entries.
+ *
+ * The avatar this replaces was a 32px gutter down the whole turn, which is
+ * what pushed tool cards, board previews and the approval card into ~85% of
+ * an already narrow drawer. A byline says the same thing in one 20px row
+ * and gives the work the full column. Four tool calls and the sentence that
+ * follows them are one piece of work, so they get one byline, not five.
+ */
+function AssistantByline({ at }: { at?: string }) {
+  const t = useTranslations("aiChatPanel");
+  const locale = useLocale();
+  return (
+    <Flex align="center" gap="1.5" className="h-5 min-w-0" data-testid="ai-assistant-byline">
+      <Sparkles className="size-3.5 shrink-0 text-brand-emphasis" aria-hidden="true" />
+      <Text as="span" size="xs" tone="muted" weight="medium">
+        {t("panelTitle")}
+      </Text>
+      {at ? (
+        <Text as="span" size="xs" tone="muted" className="truncate">
+          {`· ${formatRelativeTime(at, locale)}`}
+        </Text>
+      ) : null}
+    </Flex>
   );
 }
 
@@ -201,22 +235,28 @@ const AssistantEntry = memo(function AssistantEntry({
           <ChatMarkdown>{message.content}</ChatMarkdown>
         </Box>
       )}
-      {message.toolCalls
-        ?.filter((call) => call.name !== "ask_user")
-        .map((call) => (
-          <Stack key={call.id} gap="1.5">
-            <ToolCallCard call={call} />
-            {isLastEntry && pendingApproval?.id === call.id && call.phase === "awaiting_approval" ? (
+      {groupToolCalls((message.toolCalls ?? []).filter((call) => call.name !== "ask_user")).map((group) =>
+        group.kind === "run" ? (
+          <AiToolRun key={group.calls[0].id} group={group}>
+            {group.calls.map((call) => (
+              <ToolCallCard key={call.id} call={call} />
+            ))}
+          </AiToolRun>
+        ) : (
+          <Stack key={group.call.id} gap="1.5">
+            <ToolCallCard call={group.call} />
+            {isLastEntry && pendingApproval?.id === group.call.id && group.call.phase === "awaiting_approval" ? (
               <AiApprovalCard
-                call={call}
+                call={group.call}
                 busy={busy}
-                onApprove={() => onApprove(call.id, "approve")}
-                onDeny={() => onApprove(call.id, "deny")}
-                onApproveAll={() => onApprove(call.id, "approve", { autoApproveConversation: true })}
+                onApprove={() => onApprove(group.call.id, "approve")}
+                onDeny={() => onApprove(group.call.id, "deny")}
+                onApproveAll={() => onApprove(group.call.id, "approve", { autoApproveConversation: true })}
               />
             ) : null}
           </Stack>
-        ))}
+        ),
+      )}
       {message.draft ? <DraftToolCard draft={message.draft} /> : null}
       {message.elicitation ? (
         <AiQuestionCard
@@ -294,6 +334,7 @@ const TOOL_STATE_FOR_PHASE: Record<ToolPhase, ToolState> = {
 
 function ToolCallCard({ call }: { call: ToolCallDisplay }) {
   const t = useTranslations("aiChatPanel");
+  const detail = useToolDetail(call);
   const deviceType = call.deviceType ?? "flagship";
   const state = TOOL_STATE_FOR_PHASE[call.phase];
   const result = call.result;
@@ -311,14 +352,7 @@ function ToolCallCard({ call }: { call: ToolCallDisplay }) {
     preview || hasResult ? (
       <Stack gap="2">
         {preview}
-        {hasResult ? (
-          <Box
-            className="max-h-48 overflow-auto rounded-md bg-muted p-2 font-mono text-xs"
-            data-testid="ai-tool-result"
-          >
-            <JsonTree data={result.result} />
-          </Box>
-        ) : null}
+        {hasResult ? <AiToolResultSummary result={result.result} /> : null}
       </Stack>
     ) : undefined;
 
@@ -340,21 +374,32 @@ function ToolCallCard({ call }: { call: ToolCallDisplay }) {
         },
       }}
     >
+      {/* Title and detail are composed here rather than passed as the
+          primitive's two strings, and they WRAP. The primitive puts both on
+          one truncating line, which at drawer width cut the interesting half
+          off every card ("Add schedule 07:00–09…", #2024) — and cut the
+          label instead once the detail became a real name. Two lines in a
+          384px drawer beat one line that says "Add sched… Goodnight · 21:0…". */}
       <ToolHeader
-        title={labelForTool(call, t)}
-        detail={
-          call.auto_approved ? (
-            <>
-              {detailForTool(call)}
-              <AiAutoApprovedBadge interactive={false} />
-            </>
-          ) : (
-            detailForTool(call)
-          )
+        title={
+          <Text
+            as="span"
+            className="inline-flex min-w-0 max-w-full flex-wrap items-baseline gap-x-1.5 whitespace-normal"
+          >
+            <Text as="span" className="shrink-0">
+              {labelForTool(call, t)}
+            </Text>
+            {detail ? (
+              <Text as="span" tone="muted" className="min-w-0 break-words font-normal">
+                {detail}
+              </Text>
+            ) : null}
+            {call.auto_approved ? <AiAutoApprovedBadge interactive={false} /> : null}
+          </Text>
         }
       />
       <ToolContent>
-        <ToolInput input={call.args} />
+        <AiToolArguments call={call} />
         <ToolOutput output={output} errorText={errorText} />
       </ToolContent>
     </Tool>

@@ -85,10 +85,13 @@ def test_put_derives_the_title_from_the_first_user_line(client):
     assert response.json()["title"] == "Build a weather page"
 
 
-def test_put_truncates_a_derived_title_to_80_characters(client):
-    long_line = "x" * 200
+def test_put_shortens_a_derived_title_to_a_scannable_phrase(client):
+    # The derivation itself is pinned in tests/ai/test_conversation_titles.py;
+    # this is the endpoint honouring it rather than storing the raw line.
+    long_line = "Please build me a page that shows the weather and the transit times and the stocks"
     response = client.put(f"/ai/conversations/{CONV_A}", json=_body(messages=_transcript(long_line)))
-    assert response.json()["title"] == "x" * 80
+    title = response.json()["title"]
+    assert title == "Please build me a page that shows the weather\u2026"
 
 
 def test_put_again_updates_in_place_with_200_and_keeps_created_at(client):

@@ -1997,13 +1997,13 @@
   },
   "aiChatPanel": {
     "messagesAriaLabel": "채팅 메시지",
-    "closePanelAriaLabel": "FiestaBot (Beta) 닫기",
+    "closePanelAriaLabel": "FiestaBot 닫기",
     "newChatAriaLabel": "새 채팅",
     "historyAriaLabel": "기록",
     "backAriaLabel": "뒤로",
     "providerSelectAriaLabel": "제공자",
     "modelSelectAriaLabel": "모델",
-    "panelTitle": "FiestaBot (Beta)",
+    "panelTitle": "FiestaBot",
     "retryButton": "다시 시도",
     "messageLabel": "메시지",
     "stopButton": "중지",
@@ -2126,7 +2126,38 @@
       "loadFailed": "해당 대화를 불러올 수 없습니다.",
       "deleted": "대화가 삭제되었습니다",
       "cleared": "모든 대화가 삭제되었습니다"
-    }
+    },
+    "sendShortcut": "Enter로 보내기, Shift+Enter로 줄 바꾸기",
+    "resizeHandle": "FiestaBot 패널 크기 조절",
+    "showJson": "JSON 보기",
+    "resultFields": "{count, plural, other {항목 #개}}",
+    "dayPattern": {
+      "all": "매일",
+      "weekdays": "평일",
+      "weekends": "주말",
+      "custom": "선택한 요일"
+    },
+    "argLabel": {
+      "page": "페이지",
+      "time": "시간",
+      "days": "요일",
+      "board": "보드",
+      "duration": "표시 시간",
+      "lines": "줄 수",
+      "name": "이름",
+      "setting": "설정",
+      "message": "메시지",
+      "plugin": "플러그인",
+      "collection": "컬렉션",
+      "scheduleMode": "일정 모드"
+    },
+    "argValue": {
+      "on": "켜짐",
+      "off": "꺼짐",
+      "lineCount": "{count, plural, other {#줄}}",
+      "durationSeconds": "{count}초"
+    },
+    "toolRun": "{tool} · {count, plural, other {#회}}"
   },
   "boardSizeIndicator": {
     "custom": "사용자 지정",

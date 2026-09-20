@@ -92,6 +92,28 @@ function Wrapper({ children }: { children: React.ReactNode }) {
   return <QueryClientProvider client={qc}>{children}</QueryClientProvider>;
 }
 
+/**
+ * The panel decides its own layout from its measured width (the composer
+ * hint, in particular), and jsdom measures everything as zero. Give it a
+ * width for the duration of one test.
+ */
+function withPanelWidth(width: number) {
+  vi.spyOn(Element.prototype, "getBoundingClientRect").mockReturnValue({
+    width,
+    height: 600,
+    top: 0,
+    left: 0,
+    right: width,
+    bottom: 600,
+    x: 0,
+    y: 0,
+    toJSON: () => ({}),
+  } as DOMRect);
+}
+
+/** Wide enough for the composer to keep the keyboard hint in the toolbar. */
+const ROOMY = 600;
+
 const noop = () => {};
 const defaultProps = {
   getTurnContext: () => ({
@@ -119,9 +141,17 @@ describe("AiChatPanel", () => {
     );
   });
 
-  it("renders the FiestaBot (Beta) header", async () => {
-    render(<AiChatPanel {...defaultProps} />, { wrapper: Wrapper });
-    expect(await screen.findByText("FiestaBot (Beta)")).toBeInTheDocument();
+  it("names itself FiestaBot, with no Beta anywhere in the header", async () => {
+    const { container } = render(<AiChatPanel {...defaultProps} />, { wrapper: Wrapper });
+    expect(await screen.findByText("FiestaBot")).toBeInTheDocument();
+
+    // It shipped as "FiestaBot (Beta)" and then as a name plus a Beta badge;
+    // it is out of beta now. This fails whichever way Beta comes back — in
+    // the title string, or as a badge beside it.
+    const header = container.querySelector('[data-slot="card"] > div');
+    expect(header).not.toBeNull();
+    expect(header!.textContent).toContain("FiestaBot");
+    expect(header!.textContent).not.toMatch(/beta/i);
   });
 
   it("shows close button that calls onClose", async () => {
@@ -241,6 +271,7 @@ describe("AiChatPanel", () => {
     });
 
     it("renders Enter to send and Shift+Enter for a new line as keycaps beside Send", async () => {
+      withPanelWidth(ROOMY);
       render(<AiChatPanel {...defaultProps} />, { wrapper: Wrapper });
       await screen.findByRole("textbox");
 
@@ -254,6 +285,7 @@ describe("AiChatPanel", () => {
     });
 
     it("keeps the hint decorative: hidden from assistive tech and on coarse pointers", async () => {
+      withPanelWidth(ROOMY);
       render(<AiChatPanel {...defaultProps} />, { wrapper: Wrapper });
       await screen.findByRole("textbox");
 
@@ -261,6 +293,43 @@ describe("AiChatPanel", () => {
       expect(hint).toHaveAttribute("aria-hidden", "true");
       // Touch keyboards have no Shift+Enter; the hint would only mislead.
       expect(hint).toHaveClass("pointer-coarse:hidden");
+    });
+
+    it("gives the hint up at drawer width and puts it on the Send button instead", async () => {
+      withPanelWidth(384);
+      render(<AiChatPanel {...defaultProps} />, { wrapper: Wrapper });
+      await screen.findByRole("textbox");
+
+      // 384px is the drawer's default width, where #2024 had the hint
+      // painted over the provider and model pickers.
+      expect(screen.queryByTestId("ai-chat-send-hint")).not.toBeInTheDocument();
+      expect(screen.getByRole("button", { name: /send/i })).toHaveAttribute(
+        "title",
+        enMessages.aiChatPanel.sendShortcut,
+      );
+    });
+
+    it("keeps the hint once the panel is wide enough to hold it", async () => {
+      withPanelWidth(ROOMY);
+      render(<AiChatPanel {...defaultProps} />, { wrapper: Wrapper });
+      await screen.findByRole("textbox");
+
+      expect(screen.getByTestId("ai-chat-send-hint")).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: /send/i })).not.toHaveAttribute("title");
+    });
+
+    it("lets every control in the composer row shrink except Send", async () => {
+      withPanelWidth(384);
+      const { container } = render(<AiChatPanel {...defaultProps} />, { wrapper: Wrapper });
+      await screen.findByRole("textbox");
+
+      // The collision in #2024 was structural: a `shrink-0` hint beside a
+      // `flex-wrap` tools group. Nothing in the row may refuse to shrink
+      // apart from the button that sends.
+      const tools = container.querySelector('[data-slot="prompt-input-tools"]');
+      expect(tools).toHaveClass("min-w-0", "flex-1", "flex-nowrap", "overflow-hidden");
+      expect(tools).not.toHaveClass("flex-wrap");
+      expect(screen.getByRole("button", { name: /send/i })).toHaveClass("shrink-0");
     });
 
     it("advertises Enter on the send button through aria-keyshortcuts", async () => {
@@ -332,7 +401,7 @@ describe("AiChatPanel", () => {
       ),
     );
     render(<AiChatPanel {...defaultProps} />, { wrapper: Wrapper });
-    await screen.findByText("FiestaBot (Beta)");
+    await screen.findByText("FiestaBot");
     expect(screen.getByRole("button", { name: enMessages.aiChatPanel.newChatAriaLabel })).toBeDisabled();
   });
 
@@ -468,6 +537,73 @@ describe("AiChatPanel", () => {
     const timeline = await screen.findByTestId("ai-step-timeline");
     expect(timeline).toHaveTextContent("1 of 1 steps");
     expect(timeline).toHaveTextContent(enMessages.aiChatPanel.status.thinking);
+  });
+
+  it("collapses a run of the same successful action into one row that opens to the cards", async () => {
+    server.use(
+      http.get(`${API_BASE}/settings/ai`, () => HttpResponse.json({ ...CONFIGURED, providers: [CONFIGURED_PROVIDER] })),
+    );
+    const schedule = (id: string, start: string) => ({
+      ...CREATE_PAGE_CALL,
+      id,
+      name: "create_schedule",
+      args: { page_id: "p1", start_time: start, end_time: "09:00", day_pattern: "all" },
+      phase: "ok" as const,
+    });
+    hookResult = {
+      ...defaultHookResult,
+      messages: [
+        { role: "user", content: "set up my day" },
+        {
+          role: "assistant",
+          content: "Done.",
+          toolCalls: [
+            schedule("s1", "07:00"),
+            schedule("s2", "09:00"),
+            schedule("s3", "17:00"),
+            schedule("s4", "21:00"),
+          ],
+        },
+      ],
+    };
+
+    const user = userEvent.setup();
+    render(<AiChatPanel {...defaultProps} />, { wrapper: Wrapper });
+
+    // Four two-line cards became one row that says how many there were.
+    const run = await screen.findByTestId("ai-tool-run-create_schedule");
+    expect(run).toHaveTextContent("4");
+    expect(screen.queryAllByTestId("ai-tool-create_schedule")).toHaveLength(0);
+
+    // And the cards are still there, a click away — nothing is hidden.
+    await user.click(within(run).getAllByRole("button")[0]);
+    expect(screen.getAllByTestId("ai-tool-create_schedule")).toHaveLength(4);
+  });
+
+  it("leaves a call that needed approval as its own card, never inside a run", async () => {
+    server.use(
+      http.get(`${API_BASE}/settings/ai`, () => HttpResponse.json({ ...CONFIGURED, providers: [CONFIGURED_PROVIDER] })),
+    );
+    const deletion = (id: string) => ({
+      ...CREATE_PAGE_CALL,
+      id,
+      name: "delete_schedule",
+      args: { schedule_id: id },
+      destructive: true,
+      requires_approval: true,
+      phase: "ok" as const,
+    });
+    hookResult = {
+      ...defaultHookResult,
+      messages: [
+        { role: "user", content: "delete those two" },
+        { role: "assistant", content: "Done.", toolCalls: [deletion("d1"), deletion("d2")] },
+      ],
+    };
+
+    render(<AiChatPanel {...defaultProps} />, { wrapper: Wrapper });
+    expect(await screen.findAllByTestId("ai-tool-delete_schedule")).toHaveLength(2);
+    expect(screen.queryByTestId("ai-tool-run-delete_schedule")).not.toBeInTheDocument();
   });
 
   it("shows Approve / Deny for the pending destructive call and forwards the decision", async () => {

@@ -37,6 +37,7 @@ import { toast } from "sonner";
 import { AiConversationReview, AiHistoryList, CONVERSATIONS_QUERY_KEY } from "@/components/ai-chat-history";
 import { groupTurns, TranscriptTurns } from "@/components/ai-chat-transcript";
 import { AiStepTimeline } from "@/components/ai-step-timeline";
+import { useElementWidth } from "@/hooks/use-element-width";
 import { useTranslations } from "@/i18n/translations";
 import type {
   ApprovalDecision,
@@ -52,6 +53,19 @@ import { type AiApprovalMode, type AISettings, api, type SavedConversation } fro
 import { type StopReason, useAiChat } from "@/lib/use-ai-chat";
 
 export { groupTurns } from "@/components/ai-chat-transcript";
+
+/**
+ * Panel width below which the Enter/Shift+Enter hint gives up its place in
+ * the composer toolbar and rides on the Send button instead.
+ *
+ * The row carries the approval mode, the provider and model pickers, the
+ * hint and Send. Measured against the real controls: the mode control is
+ * ~92px, the model pill ~140, the hint ~180, Send ~36, plus gaps — so the
+ * hint only fits once the panel is around 560px, which is wider than the
+ * drawer's default. That is the intended outcome: at the default width the
+ * pickers get the room and the hint becomes the Send button's title.
+ */
+export const COMPOSER_HINT_WIDTH = 560;
 
 export interface AiChatPanelProps {
   /** Per-turn context (device type, current page snapshot, what exists). */
@@ -112,6 +126,11 @@ export function AiChatPanel({
   controllerRef,
 }: AiChatPanelProps) {
   const t = useTranslations("aiChatPanel");
+  // The panel measures itself: its width is the drawer's choice, not the
+  // viewport's, so a media query would answer the wrong question.
+  const panelRef = useRef<HTMLDivElement>(null);
+  const panelWidth = useElementWidth(panelRef);
+  const showSendHint = panelWidth >= COMPOSER_HINT_WIDTH;
   const [providerId, setProviderId] = useState<string>("");
   const [model, setModel] = useState<string>("");
   const [draft, setDraft] = useState("");
@@ -311,7 +330,7 @@ export function AiChatPanel({
   }, [conversationId, forgetConversation]);
 
   return (
-    <Flex direction="col" className="h-full min-h-0 w-full">
+    <Flex ref={panelRef} direction="col" className="h-full min-h-0 w-full">
       <Card className="flex flex-1 min-h-0 w-full flex-col gap-0 overflow-hidden py-0">
         {/* Header. The Ask / Auto approval mode lives here, not in the
             composer toolbar: it is a property of the whole chat, not of the
@@ -344,21 +363,9 @@ export function AiChatPanel({
                 </Text>
               )}
             </Flex>
-            <Flex align="center" gap="1">
+            <Flex align="center" gap="1" className="shrink-0">
               {mode.kind === "chat" ? (
                 <>
-                  <SegmentedControl
-                    aria-label={t("approvalMode.label")}
-                    size="sm"
-                    value={effectiveMode}
-                    onValueChange={handleModeChange}
-                    disabled={!settings}
-                    className="mr-1"
-                    data-testid="ai-approval-mode"
-                  >
-                    <SegmentedControlItem value="ask">{t("approvalMode.ask")}</SegmentedControlItem>
-                    <SegmentedControlItem value="auto">{t("approvalMode.auto")}</SegmentedControlItem>
-                  </SegmentedControl>
                   <Button
                     type="button"
                     size="icon"
@@ -398,16 +405,6 @@ export function AiChatPanel({
               </Button>
             </Flex>
           </Flex>
-          {mode.kind === "chat" && autoNote ? (
-            <Text size="xs" tone="muted" className="mt-2" data-testid="ai-approval-mode-note">
-              {t("approvalMode.autoNote")}
-            </Text>
-          ) : null}
-          {mode.kind === "chat" && autoForThisChatOnly ? (
-            <Text size="xs" tone="muted" className="mt-2" data-testid="ai-approval-mode-this-chat">
-              {t("approvalMode.thisChat")}
-            </Text>
-          ) : null}
         </Box>
 
         {mode.kind === "history" ? (
@@ -459,9 +456,27 @@ export function AiChatPanel({
               <ConversationScrollButton />
             </Conversation>
 
-            {/* Composer. The provider + model pills sit below the input: the
-            model is a property of the next turn, not chrome at the top. */}
+            {/* Composer. Everything that shapes the NEXT send lives here —
+            the approval mode, the provider and model, the hint — because
+            that is what the row above Send is for. The header is identity
+            and navigation only.
+
+            The row's geometry is the fix for #2024's collision: `Tools` is
+            the only flexible child (`min-w-0 flex-1`), it does not wrap,
+            every control inside it can shrink, and Send is the single
+            `shrink-0` item. Nothing in this row can paint over anything
+            else at any width. */}
             <Box className="flex-shrink-0 border-t bg-card px-3 py-3">
+              {mode.kind === "chat" && autoNote ? (
+                <Text size="xs" tone="muted" className="mb-2" data-testid="ai-approval-mode-note">
+                  {t("approvalMode.autoNote")}
+                </Text>
+              ) : null}
+              {mode.kind === "chat" && autoForThisChatOnly ? (
+                <Text size="xs" tone="muted" className="mb-2" data-testid="ai-approval-mode-this-chat">
+                  {t("approvalMode.thisChat")}
+                </Text>
+              ) : null}
               <Label htmlFor="ai-chat-input" className="sr-only">
                 {t("messageLabel")}
               </Label>
@@ -479,7 +494,29 @@ export function AiChatPanel({
                   minRows={2}
                 />
                 <PromptInputToolbar>
-                  <PromptInputTools className="min-w-0 flex-wrap">
+                  {/* Every child of this row shrinks. `Tools` is the flexible
+                      one (min-w-0, no wrapping, clipped rather than
+                      overflowing); the hint group shrinks too; only Send is
+                      shrink-0. That is the whole fix for #2024's collision —
+                      the hint used to be `shrink-0` beside a `flex-wrap`
+                      tools group, so at 384px the model pill was painted
+                      underneath it. */}
+                  <PromptInputTools className="min-w-0 flex-1 flex-nowrap gap-1.5 overflow-hidden">
+                    <SegmentedControl
+                      aria-label={t("approvalMode.label")}
+                      size="sm"
+                      value={effectiveMode}
+                      onValueChange={handleModeChange}
+                      disabled={!settings}
+                      // Shrinks with the row, but never stacks: a two-item
+                      // control that wraps into two lines is as broken as
+                      // the overlap this row was fixed for.
+                      className="min-w-0 shrink flex-nowrap whitespace-nowrap"
+                      data-testid="ai-approval-mode"
+                    >
+                      <SegmentedControlItem value="ask">{t("approvalMode.ask")}</SegmentedControlItem>
+                      <SegmentedControlItem value="auto">{t("approvalMode.auto")}</SegmentedControlItem>
+                    </SegmentedControl>
                     <ModelPill
                       providers={providers}
                       providerId={effectiveProviderId}
@@ -492,28 +529,44 @@ export function AiChatPanel({
                       onModelChange={setModel}
                     />
                   </PromptInputTools>
-                  <Flex align="center" gap="2" className="shrink-0">
+                  <Flex align="center" gap="2" className="min-w-0 shrink">
                     {/* Sighted pointer users get the bindings from this hint;
                     screen readers get them from `aria-keyshortcuts` on the
                     button, so the hint stays out of the accessibility tree.
                     Touch keyboards have no Shift+Enter, so coarse pointers
                     do not see it at all. Keycap glyphs are never translated;
-                    the verbs are. */}
-                    <Text
-                      as="span"
-                      size="xs"
-                      tone="muted"
-                      aria-hidden="true"
-                      data-testid="ai-chat-send-hint"
-                      className="inline-flex items-center gap-1.5 whitespace-nowrap pointer-coarse:hidden"
-                    >
-                      <Kbd keys={["Enter"]} />
-                      {t("enterToSend")}
-                      <Kbd keys={["Shift", "Enter"]} />
-                      {t("shiftEnterNewline")}
-                    </Text>
+                    the verbs are. It renders only when the row is wide
+                    enough to hold it beside the pickers; below that it is
+                    the Send button's tooltip — same information, no
+                    overlap. */}
+                    {showSendHint ? (
+                      <Text
+                        as="span"
+                        size="xs"
+                        tone="muted"
+                        aria-hidden="true"
+                        data-testid="ai-chat-send-hint"
+                        className="inline-flex min-w-0 shrink items-center gap-1.5 truncate pointer-coarse:hidden"
+                      >
+                        <Kbd keys={["Enter"]} />
+                        {t("enterToSend")}
+                        <Kbd keys={["Shift", "Enter"]} />
+                        {t("shiftEnterNewline")}
+                      </Text>
+                    ) : null}
+                    {/* The hint's information, for the widths where the hint
+                        itself does not fit. A `title` rather than the design
+                        system's Tooltip on purpose: TooltipTrigger's `asChild`
+                        overrides the child's own `onClick` (it clones the
+                        element with its own handlers), which silently broke
+                        Stop — the composer's most important button while a
+                        turn is running. Flagged for the package in the PR;
+                        `aria-keyshortcuts` is what assistive tech reads
+                        either way. */}
                     <PromptInputSubmit
+                      className="shrink-0"
                       aria-keyshortcuts="Enter"
+                      title={showSendHint ? undefined : t("sendShortcut")}
                       onStop={stop}
                       disabled={blocked || (!streaming && !draft.trim())}
                     />
@@ -590,7 +643,9 @@ function EmptyState({
           {t("emptyStateDescription")}
         </Text>
       </Box>
-      <Suggestions className="justify-center">
+      {/* Wrapped, not a sideways scroller: three starters in a 384px drawer
+          became a scrollbar with two chips half off the edge (#2024). */}
+      <Suggestions className="flex-wrap justify-center overflow-x-visible whitespace-normal">
         {starters.map((s) => (
           <Suggestion key={s} suggestion={s} onClick={onPick} />
         ))}

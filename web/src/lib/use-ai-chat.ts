@@ -222,7 +222,7 @@ export function useAiChat(opts: UseAiChatOptions): UseAiChatResult {
     async (history: ChatMessage[], options: RunOptions = {}) => {
       // Every request starts a new assistant entry — a resume too, since the
       // server appends a fresh assistant message after the tool outcome.
-      setMessages((prev) => [...prev, { role: "assistant", content: "", pending: true }]);
+      setMessages((prev) => [...prev, { role: "assistant", content: "", pending: true, at: new Date().toISOString() }]);
 
       const controller = new AbortController();
       abortRef.current = controller;

@@ -1,10 +1,12 @@
 "use client";
 
 import { Box, Shimmer, Task, TaskContent, TaskItem, TaskTrigger } from "@fiestaboard/ui";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import { AiAutoApprovedBadge } from "@/components/ai-auto-approved-badge";
-import { detailForTool, labelForTool, type TranslateFn } from "@/components/ai-tool-labels";
+import { labelForTool, type TranslateFn } from "@/components/ai-tool-labels";
+import { useReducedMotion } from "@/hooks/use-reduced-motion";
+import { rememberedToolDetail, useTargetCaches } from "@/hooks/use-target-caches";
 import { useTranslations } from "@/i18n/translations";
 import type { ChatMessage, ToolCall, ToolPhase } from "@/lib/ai-chat-types";
 import { parseToolDraft } from "@/lib/ai-choreography/draft";
@@ -43,12 +45,31 @@ export function currentTurnEntries(messages: ChatMessage[]): ChatMessage[] {
  */
 export function AiStepTimeline({ messages }: { messages: ChatMessage[] }) {
   const t = useTranslations("aiChatPanel");
+  // Read once for the whole list: the rows are a map, and a hook per row
+  // would be a hook in a loop.
+  const caches = useTargetCaches();
   const entries = currentTurnEntries(messages);
   // A question is answered by the person, not run by the server; its card
   // is the question itself, so it is not a step here.
   const calls = entries.flatMap((m) => m.toolCalls ?? []).filter((c) => c.name !== "ask_user");
   const last = entries[entries.length - 1];
   const doneCount = calls.filter((c) => c.phase === "ok").length;
+  // The step the turn is on, and the row that shows it. Kept in view as the
+  // turn advances so a capped list still reads as progress rather than as a
+  // box that stopped updating.
+  const activeId = calls.find((c) => c.phase === "running" || c.phase === "awaiting_approval")?.id ?? null;
+  const activeRowRef = useRef<HTMLLIElement>(null);
+  const reducedMotion = useReducedMotion();
+  const listRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const row = activeRowRef.current;
+    const list = listRef.current;
+    if (!row || !list) return;
+    // Only when the list actually overflows: a two-step turn fits, and
+    // scrolling it would move a box the eye is already on.
+    if (list.scrollHeight <= list.clientHeight) return;
+    row.scrollIntoView({ block: "nearest", behavior: reducedMotion ? "auto" : "smooth" });
+  }, [activeId, reducedMotion]);
   const seconds = useElapsedSeconds(Boolean(last?.pending));
   const statusLine = last?.pending ? statusText(last, messages, seconds, t) : null;
 
@@ -66,11 +87,24 @@ export function AiStepTimeline({ messages }: { messages: ChatMessage[] }) {
       {calls.length > 0 ? (
         <Task className="border-0 bg-transparent">
           <TaskTrigger title={t("stepsHeading", { done: doneCount, total: calls.length })} className="px-1 py-1" />
-          <TaskContent className="border-0 px-1 pb-1 pt-0">
+          {/* Capped at about three rows and scrolled, not grown: this box is
+              pinned above the conversation, and a twenty-step turn used to
+              take twenty rows off the transcript for as long as it ran. The
+              heading still counts every step, and expanding still shows
+              them all. */}
+          <TaskContent
+            ref={listRef}
+            data-testid="ai-step-list"
+            className="max-h-[4.75rem] overflow-y-auto overscroll-contain border-0 px-1 pb-1 pt-0"
+          >
             {calls.map((call) => {
-              const detail = detailForTool(call);
+              const detail = rememberedToolDetail(call, caches, t);
               return (
-                <TaskItem key={call.id} status={STATUS_FOR_PHASE[call.phase]}>
+                <TaskItem
+                  key={call.id}
+                  ref={call.id === activeId ? activeRowRef : undefined}
+                  status={STATUS_FOR_PHASE[call.phase]}
+                >
                   {labelForTool(call, t)}
                   {detail ? ` · ${detail}` : ""}
                   {call.auto_approved ? <AiAutoApprovedBadge /> : null}

@@ -26,6 +26,15 @@ export function GlobalAiPanelProvider({ children }: { children: React.ReactNode 
   );
 }
 
+/**
+ * The panel state where there may not be a provider — the Toaster reads it
+ * to step out of the drawer's way, and it is also rendered on its own in
+ * Storybook. Returns null rather than throwing.
+ */
+export function useOptionalGlobalAiPanel(): GlobalAiPanelContextValue | null {
+  return useContext(GlobalAiPanelContext);
+}
+
 export function useGlobalAiPanel(): GlobalAiPanelContextValue {
   const ctx = useContext(GlobalAiPanelContext);
   if (!ctx) {

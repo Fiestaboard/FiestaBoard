@@ -4,7 +4,8 @@ import { Box, Button, Card, Flex, Text } from "@fiestaboard/ui";
 import { Hand } from "lucide-react";
 import { useEffect, useRef } from "react";
 
-import { detailForTool, labelForTool } from "@/components/ai-tool-labels";
+import { labelForTool } from "@/components/ai-tool-labels";
+import { useToolDetail } from "@/hooks/use-target-caches";
 import { useTranslations } from "@/i18n/translations";
 import type { ToolCall } from "@/lib/ai-chat-types";
 
@@ -48,7 +49,11 @@ export function AiApprovalCard({ call, onApprove, onDeny, onApproveAll, busy = f
     denyRef.current?.focus();
   }, []);
 
-  const detail = detailForTool(call);
+  // "Delete schedule · Goodnight · 21:00–23:00 · every day", not a uuid:
+  // a destructive decision is exactly where the user must recognise the
+  // thing being destroyed. The description sentence below takes the same
+  // resolved name, so the card never names the target two ways.
+  const detail = useToolDetail(call);
   const descriptionKey = DESCRIPTION_KEYS[call.name];
   const offerApproveAll = onApproveAll !== undefined && !call.system_gated;
 
@@ -94,7 +99,10 @@ export function AiApprovalCard({ call, onApprove, onDeny, onApproveAll, busy = f
             type="button"
             size="sm"
             variant="ghost"
-            className="order-first mr-auto text-xs text-muted-foreground"
+            // Its own row above the decision, not squeezed beside it: at
+            // drawer width this sentence and two buttons cannot share a
+            // line, and the wrap left Approve stranded on a line of its own.
+            className="order-first basis-full justify-start px-0 text-xs text-muted-foreground"
             onClick={onApproveAll}
             disabled={busy}
           >

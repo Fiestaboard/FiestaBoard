@@ -6,11 +6,13 @@ import { useCallback, useEffect, useMemo, useRef } from "react";
 import { toast } from "sonner";
 
 import { type AiChatController, AiChatPanel } from "@/components/ai-chat-panel";
+import { AiDrawerResizeHandle } from "@/components/ai-drawer-resize-handle";
 import { useSpotlight } from "@/components/ai-spotlight/spotlight-provider";
 import { labelForTool } from "@/components/ai-tool-labels";
 import { useGlobalAiPanel } from "@/components/global-ai-panel-context";
 import { usePageEditorBridge } from "@/components/page-editor-bridge-context";
 import { useScheduleEditorBridge } from "@/components/schedule-editor-bridge-context";
+import { useAiDrawerWidth } from "@/hooks/use-ai-drawer-width";
 import { useReducedMotion } from "@/hooks/use-reduced-motion";
 import { useRouter } from "@/hooks/use-router";
 import { useTranslations } from "@/i18n/translations";
@@ -39,6 +41,10 @@ const LEGACY_CHAINING_MODE_KEY = "fiestaboard:ai-chaining-mode";
 export function GlobalAiChatDrawer() {
   const { isOpen, close } = useGlobalAiPanel();
   const t = useTranslations("globalAiChatDrawer");
+  // The drawer's width is the viewer's, dragged or nudged from the left
+  // edge; `MainContent`'s reservation follows it through a CSS custom
+  // property (see globals.css), including mid-drag.
+  const { width, minWidth, maxWidth, setWidth, toggleWidth, resetWidth, setDragging } = useAiDrawerWidth(isOpen);
 
   // Focus-management refs for the modal slide-in panel.
   const panelRef = useRef<HTMLDivElement>(null);
@@ -507,14 +513,16 @@ export function GlobalAiChatDrawer() {
       aria-label={t("panelAriaLabel")}
       tabIndex={-1}
       className={cn(
-        // A floating card on the same 12px inset the rail sits on — MainContent
-        // already reserves 396px (384 panel + 12 inset) for exactly this
-        // geometry. The card chrome itself (bg, border, radius, shadow) lives
-        // on AiChatPanel's Card; this Box only places and slides it.
+        // A floating card on the same 12px inset the rail sits on. Its width
+        // is the viewer's choice, published as --ai-drawer-width; MainContent
+        // reserves that plus the inset (globals.css) so the page never sits
+        // under it. The card chrome itself (bg, border, radius, shadow) lives
+        // on AiChatPanel's Card; this Box only sizes, places and slides it.
         // Below lg it clears the floating mobile header the same way the nav
         // menu does, and the maxWidth clamp keeps the card inside a phone
-        // viewport (384 + the 12px inset overflows a 390px screen).
-        "fixed right-3 bottom-3 top-[calc(var(--mobile-header-height,56px)+16px)] lg:top-3 z-40 w-96 flex flex-col overflow-hidden",
+        // viewport (the drawer is full-bleed there, and unresizable).
+        "fixed right-3 bottom-3 top-[calc(var(--mobile-header-height,56px)+16px)] lg:top-3 z-40 flex w-96 flex-col",
+        "lg:w-[var(--ai-drawer-width,384px)] ai-drawer-width-transition",
         "transition-transform duration-300 ease-in-out sidebar-transition",
       )}
       // Inline rather than a Tailwind arbitrary class: translate-x-full alone
@@ -538,6 +546,21 @@ export function GlobalAiChatDrawer() {
         onClose={close}
         controllerRef={controllerRef}
       />
+      {/* After the panel in DOM order, not before: the drawer moves focus to
+          its first focusable child on open, and that should be the composer,
+          not the resize handle. Position is absolute, so this costs nothing
+          visually and keeps the handle late in the tab order. */}
+      {isOpen ? (
+        <AiDrawerResizeHandle
+          width={width}
+          minWidth={minWidth}
+          maxWidth={maxWidth}
+          onResize={setWidth}
+          onToggle={toggleWidth}
+          onReset={resetWidth}
+          onDraggingChange={setDragging}
+        />
+      ) : null}
     </Box>
   );
 }

@@ -1997,13 +1997,13 @@
   },
   "aiChatPanel": {
     "messagesAriaLabel": "Chat messages",
-    "closePanelAriaLabel": "Close FiestaBot (Beta)",
+    "closePanelAriaLabel": "Close FiestaBot",
     "newChatAriaLabel": "New chat",
     "historyAriaLabel": "History",
     "backAriaLabel": "Back",
     "providerSelectAriaLabel": "Provider",
     "modelSelectAriaLabel": "Model",
-    "panelTitle": "FiestaBot (Beta)",
+    "panelTitle": "FiestaBot",
     "retryButton": "Retry",
     "messageLabel": "Message",
     "stopButton": "Stop",
@@ -2126,7 +2126,38 @@
       "loadFailed": "Could not load that conversation.",
       "deleted": "Conversation deleted",
       "cleared": "All conversations deleted"
-    }
+    },
+    "sendShortcut": "Enter to send, Shift+Enter for a new line",
+    "dayPattern": {
+      "all": "every day",
+      "weekdays": "weekdays",
+      "weekends": "weekends",
+      "custom": "selected days"
+    },
+    "showJson": "Show JSON",
+    "resultFields": "{count, plural, one {# field} other {# fields}}",
+    "argLabel": {
+      "page": "Page",
+      "time": "Time",
+      "days": "Days",
+      "board": "Board",
+      "duration": "Duration",
+      "lines": "Lines",
+      "name": "Name",
+      "setting": "Setting",
+      "message": "Message",
+      "plugin": "Plugin",
+      "collection": "Collection",
+      "scheduleMode": "Schedule mode"
+    },
+    "argValue": {
+      "on": "On",
+      "off": "Off",
+      "lineCount": "{count, plural, one {# line} other {# lines}}",
+      "durationSeconds": "{count}s"
+    },
+    "resizeHandle": "Resize FiestaBot panel",
+    "toolRun": "{tool} · {count, plural, one {# time} other {# times}}"
   },
   "boardSizeIndicator": {
     "custom": "Custom",

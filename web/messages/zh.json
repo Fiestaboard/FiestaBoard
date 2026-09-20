@@ -1997,13 +1997,13 @@
   },
   "aiChatPanel": {
     "messagesAriaLabel": "聊天消息",
-    "closePanelAriaLabel": "关闭 FiestaBot (Beta)",
+    "closePanelAriaLabel": "关闭 FiestaBot",
     "newChatAriaLabel": "新对话",
     "historyAriaLabel": "历史记录",
     "backAriaLabel": "返回",
     "providerSelectAriaLabel": "提供商",
     "modelSelectAriaLabel": "模型",
-    "panelTitle": "FiestaBot (Beta)",
+    "panelTitle": "FiestaBot",
     "retryButton": "重试",
     "messageLabel": "消息",
     "stopButton": "停止",
@@ -2126,7 +2126,38 @@
       "loadFailed": "无法加载该对话。",
       "deleted": "对话已删除",
       "cleared": "所有对话已删除"
-    }
+    },
+    "sendShortcut": "按 Enter 发送，Shift+Enter 换行",
+    "resizeHandle": "调整 FiestaBot 面板宽度",
+    "showJson": "显示 JSON",
+    "resultFields": "{count, plural, other {# 个字段}}",
+    "dayPattern": {
+      "all": "每天",
+      "weekdays": "工作日",
+      "weekends": "周末",
+      "custom": "所选日期"
+    },
+    "argLabel": {
+      "page": "页面",
+      "time": "时间",
+      "days": "星期",
+      "board": "展示板",
+      "duration": "时长",
+      "lines": "行数",
+      "name": "名称",
+      "setting": "设置",
+      "message": "消息",
+      "plugin": "插件",
+      "collection": "合集",
+      "scheduleMode": "排程模式"
+    },
+    "argValue": {
+      "on": "开启",
+      "off": "关闭",
+      "lineCount": "{count, plural, other {# 行}}",
+      "durationSeconds": "{count} 秒"
+    },
+    "toolRun": "{tool} · {count, plural, other {# 次}}"
   },
   "boardSizeIndicator": {
     "custom": "自定义",
