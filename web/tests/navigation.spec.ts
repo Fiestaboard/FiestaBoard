@@ -47,11 +47,12 @@ test.describe("Navigation", () => {
     await page.goto("/");
     await expect(page.getByRole("heading", { name: "Dashboard" })).toBeVisible({ timeout: 15_000 });
 
+    // Settings is not in this list any more — it left the rail for the
+    // footer menu, and "reach it from the menu" is its own test below.
     const sections = [
       { link: "Pages", heading: "Pages" },
       { link: "Schedule", heading: "Schedule" },
       { link: "Integrations", heading: /integrations/i },
-      { link: "Settings", heading: "Settings" },
     ];
 
     for (const { link, heading } of sections) {
@@ -69,55 +70,65 @@ test.describe("Navigation", () => {
     await expect(page.getByRole("heading", { name: "Dashboard" })).toBeVisible({ timeout: 10_000 });
   });
 
-  test("theme toggle switches between light and dark mode", async ({ page }) => {
+  test("Settings is reachable from the footer menu", async ({ page }) => {
+    await page.setViewportSize({ width: 1280, height: 720 });
     await page.goto("/");
     await expect(page.getByRole("heading", { name: "Dashboard" })).toBeVisible({ timeout: 15_000 });
 
-    // Find theme toggle button
-    const themeToggle = page.getByRole("button", { name: /theme|dark|light|toggle/i }).first();
+    await page.locator('aside [data-slot="sidebar-settings-trigger"]').click();
+    await page.getByRole("menuitem", { name: "Settings" }).click();
 
-    if (await themeToggle.isVisible({ timeout: 5_000 }).catch(() => false)) {
-      // Get initial state
-      const htmlEl = page.locator("html");
-      const initialClass = await htmlEl.getAttribute("class");
-
-      // Click toggle
-      await themeToggle.click();
-      await page.waitForTimeout(500);
-
-      // Class should have changed
-      const newClass = await htmlEl.getAttribute("class");
-      // At minimum the toggle should not crash the page
-      await expect(page.getByRole("heading", { name: "Dashboard" })).toBeVisible();
-
-      // Toggle back
-      await themeToggle.click();
-      await page.waitForTimeout(500);
-
-      const restoredClass = await htmlEl.getAttribute("class");
-      // Should be back to (roughly) the initial state. Adding then removing
-      // the "dark" class leaves an empty class attribute, so treat a missing
-      // attribute and an empty one as equivalent.
-      expect(restoredClass ?? "").toBe(initialClass ?? "");
-    }
+    await expect(page.getByRole("heading", { name: "Settings", exact: true })).toBeVisible({ timeout: 10_000 });
   });
 
-  test("version is displayed in sidebar", async ({ page }) => {
+  test("theme switches between light and dark from the footer menu", async ({ page }) => {
+    await page.setViewportSize({ width: 1280, height: 720 });
     await page.goto("/");
     await expect(page.getByRole("heading", { name: "Dashboard" })).toBeVisible({ timeout: 15_000 });
 
-    // Look for a version string (e.g., "v1.2.3" or "1.2.3")
-    const versionText = page.getByText(/v?\d+\.\d+\.\d+/).first();
-    const hasVersion = await versionText.isVisible({ timeout: 5_000 }).catch(() => false);
+    const htmlEl = page.locator("html");
 
-    if (!hasVersion) {
-      // Version might be in a collapsed section or only on desktop
-      // Just verify via API
-      const res = await fetch(`${API_URL}/version`);
-      expect(res.ok).toBe(true);
-      const data = await res.json();
-      expect(data).toHaveProperty("package_version");
-    }
+    // One open, three choices. A radio group does not close its menu on
+    // pick — that is the point of it, and re-clicking the trigger between
+    // choices would close the menu rather than reopen it, then race the
+    // exit animation. Each assertion names the state it expects rather
+    // than "whatever the other one was", which a two-state toggle could
+    // only ever do.
+    await page.locator('aside [data-slot="sidebar-settings-trigger"]').click();
+
+    await page.getByRole("menuitemradio", { name: "Dark" }).click();
+    await expect(htmlEl).toHaveClass(/\bdark\b/);
+
+    await page.getByRole("menuitemradio", { name: "Light" }).click();
+    await expect(htmlEl).not.toHaveClass(/\bdark\b/);
+
+    // System is what a fresh install runs on, and what the toggle this
+    // replaces had no way to express.
+    await page.getByRole("menuitemradio", { name: "System" }).click();
+    await expect(page.getByRole("menuitemradio", { name: "System" })).toHaveAttribute("aria-checked", "true");
+  });
+
+  test("the About box reports the version the API reports", async ({ page }) => {
+    await page.setViewportSize({ width: 1280, height: 720 });
+    await page.goto("/");
+    await expect(page.getByRole("heading", { name: "Dashboard" })).toBeVisible({ timeout: 15_000 });
+
+    const res = await fetch(`${API_URL}/version`);
+    expect(res.ok).toBe(true);
+    const { running_version: runningVersion } = await res.json();
+
+    await page.locator('aside [data-slot="sidebar-settings-trigger"]').click();
+    await page.getByRole("menuitem", { name: /About FiestaBoard/ }).click();
+
+    const about = page.getByRole("dialog");
+    await expect(about).toBeVisible();
+    // The number on screen is the number the server is running, not a
+    // build-time constant baked into the bundle.
+    await expect(about.getByText(runningVersion, { exact: false }).first()).toBeVisible();
+    await expect(about.getByText("MIT License")).toBeVisible();
+
+    await page.keyboard.press("Escape");
+    await expect(about).not.toBeVisible();
   });
 
   test("sidebar shows Fiesta gradient (red, orange, yellow, purple)", async ({ page }) => {
@@ -150,9 +161,12 @@ test.describe("Navigation", () => {
     // no "Secondary navigation" landmark left to find.
     await expect(sidebar.getByLabel("Secondary navigation")).toHaveCount(0);
 
-    // Settings is a row of that one list now, below the primary destinations.
-    const settingsLink = nav.getByRole("link", { name: "Settings" });
-    await expect(settingsLink).toBeVisible();
+    // The list is destinations only: Settings and the assistant both left it
+    // in @fiestaboard/ui 7.0.0, which is what stopped the rail highlighting
+    // two rows at once whenever the AI drawer was open.
+    await expect(nav.getByRole("link", { name: "Settings" })).toHaveCount(0);
+    await expect(nav.getByRole("button", { name: "AI Assistant" })).toHaveCount(0);
+    await expect(sidebar.locator('[data-slot="sidebar-settings-trigger"]')).toBeVisible();
   });
 
   test("Collections is a direct link in primary navigation", async ({ page }) => {

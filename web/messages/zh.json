@@ -83,6 +83,39 @@
     "unnamedBoard": "未命名的板",
     "transitions": "过渡实验室"
   },
+  "settingsMenu": {
+    "trigger": "设置",
+    "settings": "设置",
+    "appearance": "外观",
+    "light": "浅色",
+    "dark": "深色",
+    "system": "跟随系统",
+    "about": "关于 FiestaBoard",
+    "signOut": "退出登录"
+  },
+  "aboutDialog": {
+    "description": "此 FiestaBoard 的版本与系统信息。",
+    "devSuffix": "开发版本",
+    "channel": "渠道",
+    "channelStable": "稳定版",
+    "channelBeta": "测试版",
+    "platform": "平台",
+    "platformDocker": "Docker",
+    "platformPi": "Raspberry Pi",
+    "hardware": "硬件",
+    "updates": "更新",
+    "updatesDaily": "自动，每天",
+    "updatesWeekly": "自动，每周",
+    "updatesMonthly": "自动，每月",
+    "updatesManual": "手动",
+    "updatesManaged": "由外部管理",
+    "updatesUnavailable": "更新程序不可用",
+    "updateAvailable": "有可用更新：{version}",
+    "board": "板",
+    "license": "MIT 许可证",
+    "copyright": "© {year} {holder}",
+    "sourceCode": "GitHub 上的源代码"
+  },
   "network": {
     "title": "Wi-Fi",
     "description": "管理您的 FiestaPi 无线连接。",
@@ -1212,14 +1245,6 @@
     "toastBoardReadIntervalFailed": "更新 board 读取间隔失败:{error}",
     "updateIntervalsTitle": "更新间隔",
     "updateIntervalsDescription": "看板查询新内容和重新读取当前状态的频率"
-  },
-  "themeToggle": {
-    "toggleTheme": "切换主题"
-  },
-  "versionDisplay": {
-    "devSuffix": "（开发版）",
-    "updateAvailableAriaLabel": "有可用更新：v{version}",
-    "updateAvailableTooltip": "有可用更新：v{version}"
   },
   "serviceControls": {
     "title": "服务控制",

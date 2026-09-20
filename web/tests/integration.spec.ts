@@ -142,8 +142,9 @@ test.describe("Navigation", () => {
     await page.getByRole("link", { name: "Schedule" }).first().click();
     await expect(page.getByRole("heading", { name: "Schedule", exact: true })).toBeVisible({ timeout: 10_000 });
 
-    // Navigate to Settings
-    await page.getByRole("link", { name: "Settings" }).first().click();
+    // Navigate to Settings — from the rail's footer menu, not the nav list.
+    await page.locator('aside [data-slot="sidebar-settings-trigger"]').click();
+    await page.getByRole("menuitem", { name: "Settings" }).click();
     await expect(page.getByRole("heading", { name: "Settings", exact: true })).toBeVisible({ timeout: 10_000 });
 
     // Navigate back to Dashboard

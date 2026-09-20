@@ -83,6 +83,39 @@
     "unnamedBoard": "이름 없는 보드",
     "transitions": "전환 실험실"
   },
+  "settingsMenu": {
+    "trigger": "설정",
+    "settings": "설정",
+    "appearance": "모양",
+    "light": "라이트",
+    "dark": "다크",
+    "system": "시스템",
+    "about": "FiestaBoard 정보",
+    "signOut": "로그아웃"
+  },
+  "aboutDialog": {
+    "description": "이 FiestaBoard의 버전 및 시스템 정보입니다.",
+    "devSuffix": "개발 빌드",
+    "channel": "채널",
+    "channelStable": "안정",
+    "channelBeta": "베타",
+    "platform": "플랫폼",
+    "platformDocker": "Docker",
+    "platformPi": "Raspberry Pi",
+    "hardware": "하드웨어",
+    "updates": "업데이트",
+    "updatesDaily": "자동, 매일",
+    "updatesWeekly": "자동, 매주",
+    "updatesMonthly": "자동, 매월",
+    "updatesManual": "수동",
+    "updatesManaged": "외부에서 관리",
+    "updatesUnavailable": "업데이터를 사용할 수 없음",
+    "updateAvailable": "업데이트 사용 가능: {version}",
+    "board": "보드",
+    "license": "MIT 라이선스",
+    "copyright": "© {year} {holder}",
+    "sourceCode": "GitHub 소스 코드"
+  },
   "network": {
     "title": "Wi-Fi",
     "description": "FiestaPi의 무선 연결을 관리합니다.",
@@ -1212,14 +1245,6 @@
     "toastBoardReadIntervalFailed": "보드 읽기 간격 업데이트 실패: {error}",
     "updateIntervalsTitle": "업데이트 간격",
     "updateIntervalsDescription": "보드가 새 콘텐츠를 가져오고 현재 상태를 다시 읽는 빈도"
-  },
-  "themeToggle": {
-    "toggleTheme": "테마 전환"
-  },
-  "versionDisplay": {
-    "devSuffix": "(개발)",
-    "updateAvailableAriaLabel": "업데이트 가능: v{version}",
-    "updateAvailableTooltip": "업데이트 가능: v{version}"
   },
   "serviceControls": {
     "title": "서비스 제어",

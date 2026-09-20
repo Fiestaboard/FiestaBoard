@@ -83,6 +83,39 @@
     "unnamedBoard": "Unbenanntes Board",
     "transitions": "Übergangs-Labor"
   },
+  "settingsMenu": {
+    "trigger": "Einstellungen",
+    "settings": "Einstellungen",
+    "appearance": "Darstellung",
+    "light": "Hell",
+    "dark": "Dunkel",
+    "system": "System",
+    "about": "Über FiestaBoard",
+    "signOut": "Abmelden"
+  },
+  "aboutDialog": {
+    "description": "Versions- und Systeminformationen zu diesem FiestaBoard.",
+    "devSuffix": "Dev-Build",
+    "channel": "Kanal",
+    "channelStable": "Stabil",
+    "channelBeta": "Beta",
+    "platform": "Plattform",
+    "platformDocker": "Docker",
+    "platformPi": "Raspberry Pi",
+    "hardware": "Hardware",
+    "updates": "Updates",
+    "updatesDaily": "Automatisch, täglich",
+    "updatesWeekly": "Automatisch, wöchentlich",
+    "updatesMonthly": "Automatisch, monatlich",
+    "updatesManual": "Manuell",
+    "updatesManaged": "Extern verwaltet",
+    "updatesUnavailable": "Updater nicht verfügbar",
+    "updateAvailable": "Update verfügbar: {version}",
+    "board": "Board",
+    "license": "MIT-Lizenz",
+    "copyright": "© {year} {holder}",
+    "sourceCode": "Quellcode auf GitHub"
+  },
   "network": {
     "title": "WLAN",
     "description": "Verwalte die drahtlose Verbindung deines FiestaPi.",
@@ -1212,14 +1245,6 @@
     "toastBoardReadIntervalFailed": "Aktualisierung des Board-Leseintervalls fehlgeschlagen: {error}",
     "updateIntervalsTitle": "Aktualisierungsintervalle",
     "updateIntervalsDescription": "Wie oft das Board nach neuen Inhalten sucht und seinen aktuellen Zustand erneut liest"
-  },
-  "themeToggle": {
-    "toggleTheme": "Design wechseln"
-  },
-  "versionDisplay": {
-    "devSuffix": "(dev)",
-    "updateAvailableAriaLabel": "Update verfügbar: v{version}",
-    "updateAvailableTooltip": "Update verfügbar: v{version}"
   },
   "serviceControls": {
     "title": "Dienststeuerung",

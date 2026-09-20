@@ -83,6 +83,39 @@
     "unnamedBoard": "Tableau sans nom",
     "transitions": "Labo des transitions"
   },
+  "settingsMenu": {
+    "trigger": "Paramètres",
+    "settings": "Paramètres",
+    "appearance": "Apparence",
+    "light": "Clair",
+    "dark": "Sombre",
+    "system": "Système",
+    "about": "À propos de FiestaBoard",
+    "signOut": "Se déconnecter"
+  },
+  "aboutDialog": {
+    "description": "Informations de version et de système de ce FiestaBoard.",
+    "devSuffix": "version de développement",
+    "channel": "Canal",
+    "channelStable": "Stable",
+    "channelBeta": "Bêta",
+    "platform": "Plateforme",
+    "platformDocker": "Docker",
+    "platformPi": "Raspberry Pi",
+    "hardware": "Matériel",
+    "updates": "Mises à jour",
+    "updatesDaily": "Automatiques, quotidiennes",
+    "updatesWeekly": "Automatiques, hebdomadaires",
+    "updatesMonthly": "Automatiques, mensuelles",
+    "updatesManual": "Manuelles",
+    "updatesManaged": "Gérées en externe",
+    "updatesUnavailable": "Outil de mise à jour indisponible",
+    "updateAvailable": "Mise à jour disponible : {version}",
+    "board": "Tableau",
+    "license": "Licence MIT",
+    "copyright": "© {year} {holder}",
+    "sourceCode": "Code source sur GitHub"
+  },
   "network": {
     "title": "Wi-Fi",
     "description": "Gérez la connexion sans fil de votre FiestaPi.",
@@ -1212,14 +1245,6 @@
     "toastBoardReadIntervalFailed": "Échec de la mise à jour de l'intervalle de lecture : {error}",
     "updateIntervalsTitle": "Intervalles de mise à jour",
     "updateIntervalsDescription": "À quelle fréquence le tableau récupère le nouveau contenu et relit son état actuel"
-  },
-  "themeToggle": {
-    "toggleTheme": "Changer de thème"
-  },
-  "versionDisplay": {
-    "devSuffix": "(dev)",
-    "updateAvailableAriaLabel": "Mise à jour disponible : v{version}",
-    "updateAvailableTooltip": "Mise à jour disponible : v{version}"
   },
   "serviceControls": {
     "title": "Contrôle du service",
