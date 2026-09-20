@@ -1997,8 +1997,10 @@
   },
   "aiChatPanel": {
     "messagesAriaLabel": "Sohbet mesajları",
-    "clearConversationAriaLabel": "Konuşmayı temizle",
     "closePanelAriaLabel": "FiestaBot (Beta)'yı kapat",
+    "newChatAriaLabel": "Yeni sohbet",
+    "historyAriaLabel": "Geçmiş",
+    "backAriaLabel": "Geri",
     "providerSelectAriaLabel": "Sağlayıcı",
     "modelSelectAriaLabel": "Model",
     "panelTitle": "FiestaBot (Beta)",
@@ -2095,7 +2097,34 @@
       "getActivePage": "Etkin sayfayı kontrol et",
       "getBoardContent": "Panoyu oku"
     },
-    "previewUnavailable": "(önizleme kullanılamıyor)"
+    "previewUnavailable": "(önizleme kullanılamıyor)",
+    "history": {
+      "title": "Geçmiş",
+      "searchPlaceholder": "Sohbetlerde ara…",
+      "searchAriaLabel": "Sohbetleri başlığa göre ara",
+      "empty": "Henüz kayıtlı sohbet yok",
+      "emptyDescription": "Sohbetler siz yazdıkça otomatik olarak kaydedilir.",
+      "noMatches": "Aramanızla eşleşen sohbet yok.",
+      "messageCount": "{count, plural, one {# mesaj} other {# mesaj}}",
+      "open": "{title} sohbetini aç",
+      "rename": "Yeniden adlandır",
+      "renameAriaLabel": "{title} sohbetini yeniden adlandır",
+      "renameLabel": "Sohbet başlığı",
+      "saveTitle": "Başlığı kaydet",
+      "cancel": "İptal",
+      "delete": "Sil",
+      "deleteAriaLabel": "{title} sohbetini sil",
+      "clearAll": "Tümünü temizle",
+      "clearAllTitle": "Tüm sohbetler silinsin mi?",
+      "clearAllDescription": "Bu işlem bu FiestaBoard’daki tüm kayıtlı sohbetleri kaldırır. Geri alınamaz.",
+      "clearAllConfirm": "Tümünü sil",
+      "continue": "Devam et",
+      "export": "JSON olarak dışa aktar",
+      "readOnly": "Kayıtlı bir sohbeti görüntülüyorsunuz. Kaldığınız yerden sürdürmek için Devam et’e basın.",
+      "loadFailed": "Bu sohbet yüklenemedi.",
+      "deleted": "Sohbet silindi",
+      "cleared": "Tüm sohbetler silindi"
+    }
   },
   "boardSizeIndicator": {
     "custom": "Özel",

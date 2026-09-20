@@ -1997,8 +1997,10 @@
   },
   "aiChatPanel": {
     "messagesAriaLabel": "チャットメッセージ",
-    "clearConversationAriaLabel": "会話をクリア",
     "closePanelAriaLabel": "FiestaBot (Beta) を閉じる",
+    "newChatAriaLabel": "新しいチャット",
+    "historyAriaLabel": "履歴",
+    "backAriaLabel": "戻る",
     "providerSelectAriaLabel": "プロバイダー",
     "modelSelectAriaLabel": "モデル",
     "panelTitle": "FiestaBot (Beta)",
@@ -2095,7 +2097,34 @@
       "getActivePage": "アクティブなページを確認",
       "getBoardContent": "ボードを読む"
     },
-    "previewUnavailable": "（プレビューを利用できません）"
+    "previewUnavailable": "（プレビューを利用できません）",
+    "history": {
+      "title": "履歴",
+      "searchPlaceholder": "会話を検索…",
+      "searchAriaLabel": "タイトルで会話を検索",
+      "empty": "保存された会話はまだありません",
+      "emptyDescription": "チャットは入力中に自動的に保存されます。",
+      "noMatches": "検索に一致する会話はありません。",
+      "messageCount": "{count, plural, other {# 件のメッセージ}}",
+      "open": "{title} を開く",
+      "rename": "名前を変更",
+      "renameAriaLabel": "{title} の名前を変更",
+      "renameLabel": "会話のタイトル",
+      "saveTitle": "タイトルを保存",
+      "cancel": "キャンセル",
+      "delete": "削除",
+      "deleteAriaLabel": "{title} を削除",
+      "clearAll": "すべて消去",
+      "clearAllTitle": "すべての会話を削除しますか？",
+      "clearAllDescription": "この FiestaBoard に保存されたすべてのチャットが削除されます。元に戻すことはできません。",
+      "clearAllConfirm": "すべて削除",
+      "continue": "続ける",
+      "export": "JSON をエクスポート",
+      "readOnly": "保存された会話を表示しています。「続ける」で再開できます。",
+      "loadFailed": "その会話を読み込めませんでした。",
+      "deleted": "会話を削除しました",
+      "cleared": "すべての会話を削除しました"
+    }
   },
   "boardSizeIndicator": {
     "custom": "カスタム",

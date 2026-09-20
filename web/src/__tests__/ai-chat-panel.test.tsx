@@ -21,6 +21,8 @@ const mockStop = vi.fn();
 const mockReset = vi.fn();
 const mockRetryLast = vi.fn();
 const mockDisableAutoApprove = vi.fn();
+const mockNewConversation = vi.fn();
+const mockLoadConversation = vi.fn();
 
 // Typed against the real hook contract: without it the inferred literal
 // types (`status: "idle"`, `messages: never[]`, `error: null`) reject the
@@ -39,6 +41,9 @@ const defaultHookResult: UseAiChatResult = {
   reset: mockReset,
   autoApprove: false,
   disableAutoApprove: mockDisableAutoApprove,
+  conversationId: null,
+  newConversation: mockNewConversation,
+  loadConversation: mockLoadConversation,
 };
 
 const CONFIGURED = {
@@ -310,7 +315,7 @@ describe("AiChatPanel", () => {
     expect(mockStop).toHaveBeenCalledOnce();
   });
 
-  it("clear conversation button is hidden with no messages", async () => {
+  it("the New chat button is disabled with no messages", async () => {
     server.use(
       http.get(`${API_BASE}/settings/ai`, () =>
         HttpResponse.json({
@@ -322,10 +327,10 @@ describe("AiChatPanel", () => {
     );
     render(<AiChatPanel {...defaultProps} />, { wrapper: Wrapper });
     await screen.findByText("FiestaBot (Beta)");
-    expect(screen.queryByRole("button", { name: /clear conversation/i })).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: enMessages.aiChatPanel.newChatAriaLabel })).toBeDisabled();
   });
 
-  it("clear conversation button is visible with messages and calls reset()", async () => {
+  it("New chat with messages calls newConversation()", async () => {
     server.use(
       http.get(`${API_BASE}/settings/ai`, () =>
         HttpResponse.json({
@@ -343,8 +348,8 @@ describe("AiChatPanel", () => {
     const user = userEvent.setup();
     render(<AiChatPanel {...defaultProps} />, { wrapper: Wrapper });
 
-    await user.click(await screen.findByRole("button", { name: /clear conversation/i }));
-    expect(mockReset).toHaveBeenCalledOnce();
+    await user.click(await screen.findByRole("button", { name: enMessages.aiChatPanel.newChatAriaLabel }));
+    expect(mockNewConversation).toHaveBeenCalledOnce();
   });
 
   it("shows error alert when status is error", async () => {
@@ -555,7 +560,12 @@ describe("AiChatPanel", () => {
 
     expect(
       await screen.findByRole("button", {
-        name: enMessages.aiChatPanel.clearConversationAriaLabel,
+        name: enMessages.aiChatPanel.newChatAriaLabel,
+      }),
+    ).toBeInTheDocument();
+    expect(
+      await screen.findByRole("button", {
+        name: enMessages.aiChatPanel.historyAriaLabel,
       }),
     ).toBeInTheDocument();
     expect(
@@ -563,6 +573,181 @@ describe("AiChatPanel", () => {
         name: enMessages.aiChatPanel.closePanelAriaLabel,
       }),
     ).toBeInTheDocument();
+  });
+
+  // -- Conversation history (#2022) --
+
+  const CONV_A = "11111111-1111-4111-8111-111111111111";
+  const CONV_B = "22222222-2222-4222-8222-222222222222";
+  const SUMMARIES = [
+    {
+      id: CONV_A,
+      title: "Weather for the commute",
+      created_at: "2026-09-19T10:00:00+00:00",
+      updated_at: new Date(Date.now() - 5 * 60_000).toISOString(),
+      message_count: 3,
+      provider_id: "p1",
+      model: "test-model",
+    },
+    {
+      id: CONV_B,
+      title: "Stock ticker",
+      created_at: "2026-09-10T10:00:00+00:00",
+      updated_at: new Date(Date.now() - 3 * 24 * 3600_000).toISOString(),
+      message_count: 1,
+      provider_id: "p1",
+      model: "test-model",
+    },
+  ];
+  const CONV_A_FULL = {
+    ...SUMMARIES[0],
+    approval: false,
+    messages: [
+      { role: "user", content: "Weather for the commute" },
+      { role: "assistant", content: "Here is your commute page." },
+    ],
+  };
+
+  function withHistory(summaries = SUMMARIES) {
+    let current = [...summaries];
+    const deletes: string[] = [];
+    const patches: Array<{ id: string; title: string }> = [];
+    let cleared = 0;
+    server.use(
+      http.get(`${API_BASE}/settings/ai`, () => HttpResponse.json({ ...CONFIGURED, providers: [CONFIGURED_PROVIDER] })),
+      http.get(`${API_BASE}/ai/conversations`, ({ request }) => {
+        const q = (new URL(request.url).searchParams.get("q") ?? "").toLowerCase();
+        const rows = q ? current.filter((c) => c.title.toLowerCase().includes(q)) : current;
+        return HttpResponse.json({ conversations: rows, total: rows.length });
+      }),
+      http.get(`${API_BASE}/ai/conversations/${CONV_A}`, () => HttpResponse.json(CONV_A_FULL)),
+      http.patch(`${API_BASE}/ai/conversations/:id`, async ({ params, request }) => {
+        const body = (await request.json()) as { title: string };
+        patches.push({ id: String(params.id), title: body.title });
+        current = current.map((c) => (c.id === params.id ? { ...c, title: body.title } : c));
+        return HttpResponse.json({ ...CONV_A_FULL, id: params.id, title: body.title });
+      }),
+      http.delete(`${API_BASE}/ai/conversations/:id`, ({ params }) => {
+        deletes.push(String(params.id));
+        current = current.filter((c) => c.id !== params.id);
+        return HttpResponse.json({ id: params.id });
+      }),
+      http.delete(`${API_BASE}/ai/conversations`, () => {
+        cleared += current.length;
+        current = [];
+        return HttpResponse.json({ deleted: cleared });
+      }),
+    );
+    return { deletes, patches, cleared: () => cleared };
+  }
+
+  async function openHistory() {
+    const user = userEvent.setup();
+    render(<AiChatPanel {...defaultProps} />, { wrapper: Wrapper });
+    await user.click(await screen.findByRole("button", { name: enMessages.aiChatPanel.historyAriaLabel }));
+    return user;
+  }
+
+  it("History lists the saved conversations newest first with a relative time and message count", async () => {
+    withHistory();
+    await openHistory();
+
+    const rows = await screen.findAllByRole("button", { name: /^open /i });
+    expect(rows.map((r) => r.textContent)).toEqual([
+      expect.stringContaining("Weather for the commute"),
+      expect.stringContaining("Stock ticker"),
+    ]);
+    expect(rows[0].textContent).toMatch(/5 minutes ago/);
+    expect(rows[0].textContent).toMatch(/3 messages/);
+    expect(rows[1].textContent).toMatch(/3 days ago/);
+    expect(rows[1].textContent).toMatch(/1 message\b/);
+  });
+
+  it("History shows an empty state when nothing is saved", async () => {
+    withHistory([]);
+    await openHistory();
+    expect(await screen.findByText(enMessages.aiChatPanel.history.empty)).toBeInTheDocument();
+  });
+
+  it("the search box filters the list by title", async () => {
+    withHistory();
+    const user = await openHistory();
+    await screen.findByRole("button", { name: /open weather for the commute/i });
+    await user.type(screen.getByRole("searchbox", { name: enMessages.aiChatPanel.history.searchAriaLabel }), "stock");
+    await waitFor(() =>
+      expect(screen.queryByRole("button", { name: /open weather for the commute/i })).not.toBeInTheDocument(),
+    );
+    expect(screen.getByRole("button", { name: /open stock ticker/i })).toBeInTheDocument();
+  });
+
+  it("opening a saved conversation shows it read-only, and Continue makes it the live chat", async () => {
+    withHistory();
+    mockLoadConversation.mockResolvedValue(CONV_A_FULL);
+    const user = await openHistory();
+
+    await user.click(await screen.findByRole("button", { name: /open weather for the commute/i }));
+    expect(await screen.findByText("Here is your commute page.")).toBeInTheDocument();
+    expect(screen.getByText(enMessages.aiChatPanel.history.readOnly)).toBeInTheDocument();
+    // Read-only: no composer while reviewing.
+    expect(screen.queryByLabelText(enMessages.aiChatPanel.messageLabel)).not.toBeInTheDocument();
+    const exportLink = screen.getByRole("link", { name: enMessages.aiChatPanel.history.export });
+    expect(exportLink).toHaveAttribute("href", `/api/ai/conversations/${CONV_A}/export`);
+
+    await user.click(screen.getByRole("button", { name: enMessages.aiChatPanel.history.continue }));
+    expect(mockLoadConversation).toHaveBeenCalledWith(CONV_A);
+    // Back in the live chat: the composer is up and the review banner is gone.
+    expect(await screen.findByLabelText(enMessages.aiChatPanel.messageLabel)).toBeInTheDocument();
+    expect(screen.queryByText(enMessages.aiChatPanel.history.readOnly)).not.toBeInTheDocument();
+  });
+
+  it("delete removes the conversation from the list", async () => {
+    const { deletes } = withHistory();
+    const user = await openHistory();
+    await screen.findByRole("button", { name: /open stock ticker/i });
+
+    await user.click(screen.getByRole("button", { name: /delete stock ticker/i }));
+
+    await waitFor(() => expect(deletes).toEqual([CONV_B]));
+    await waitFor(() => expect(screen.queryByRole("button", { name: /open stock ticker/i })).not.toBeInTheDocument());
+    expect(screen.getByRole("button", { name: /open weather for the commute/i })).toBeInTheDocument();
+  });
+
+  it("rename saves the new title through PATCH", async () => {
+    const { patches } = withHistory();
+    const user = await openHistory();
+    await screen.findByRole("button", { name: /open stock ticker/i });
+
+    await user.click(screen.getByRole("button", { name: /rename stock ticker/i }));
+    const field = screen.getByRole("textbox", { name: enMessages.aiChatPanel.history.renameLabel });
+    await user.clear(field);
+    await user.type(field, "Ticker board{Enter}");
+
+    await waitFor(() => expect(patches).toEqual([{ id: CONV_B, title: "Ticker board" }]));
+    expect(await screen.findByRole("button", { name: /open ticker board/i })).toBeInTheDocument();
+  });
+
+  it("Clear all asks for confirmation, then empties the list", async () => {
+    const h = withHistory();
+    const user = await openHistory();
+    await screen.findByRole("button", { name: /open stock ticker/i });
+
+    await user.click(screen.getByRole("button", { name: enMessages.aiChatPanel.history.clearAll }));
+    const dialog = await screen.findByRole("alertdialog");
+    expect(dialog).toHaveTextContent(enMessages.aiChatPanel.history.clearAllTitle);
+    expect(h.cleared()).toBe(0);
+
+    await user.click(within(dialog).getByRole("button", { name: enMessages.aiChatPanel.history.clearAllConfirm }));
+
+    await waitFor(() => expect(h.cleared()).toBe(2));
+    expect(await screen.findByText(enMessages.aiChatPanel.history.empty)).toBeInTheDocument();
+  });
+
+  it("Back returns from History to the live chat", async () => {
+    withHistory();
+    const user = await openHistory();
+    await screen.findByRole("button", { name: /open stock ticker/i });
+    await user.click(screen.getByRole("button", { name: enMessages.aiChatPanel.backAriaLabel }));
+    expect(await screen.findByLabelText(enMessages.aiChatPanel.messageLabel)).toBeInTheDocument();
   });
 
   // -- Approval modes (#2021) --

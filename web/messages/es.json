@@ -1997,8 +1997,10 @@
   },
   "aiChatPanel": {
     "messagesAriaLabel": "Mensajes del chat",
-    "clearConversationAriaLabel": "Borrar conversación",
     "closePanelAriaLabel": "Cerrar FiestaBot (Beta)",
+    "newChatAriaLabel": "Nuevo chat",
+    "historyAriaLabel": "Historial",
+    "backAriaLabel": "Atrás",
     "providerSelectAriaLabel": "Proveedor",
     "modelSelectAriaLabel": "Modelo",
     "panelTitle": "FiestaBot (Beta)",
@@ -2095,7 +2097,34 @@
       "getActivePage": "Comprobar página activa",
       "getBoardContent": "Leer tablero"
     },
-    "previewUnavailable": "(vista previa no disponible)"
+    "previewUnavailable": "(vista previa no disponible)",
+    "history": {
+      "title": "Historial",
+      "searchPlaceholder": "Buscar conversaciones…",
+      "searchAriaLabel": "Buscar conversaciones por título",
+      "empty": "Aún no hay conversaciones guardadas",
+      "emptyDescription": "Los chats se guardan automáticamente mientras escribes.",
+      "noMatches": "Ninguna conversación coincide con tu búsqueda.",
+      "messageCount": "{count, plural, one {# mensaje} other {# mensajes}}",
+      "open": "Abrir {title}",
+      "rename": "Renombrar",
+      "renameAriaLabel": "Renombrar {title}",
+      "renameLabel": "Título de la conversación",
+      "saveTitle": "Guardar título",
+      "cancel": "Cancelar",
+      "delete": "Eliminar",
+      "deleteAriaLabel": "Eliminar {title}",
+      "clearAll": "Borrar todo",
+      "clearAllTitle": "¿Eliminar todas las conversaciones?",
+      "clearAllDescription": "Esto elimina todos los chats guardados de este FiestaBoard. No se puede deshacer.",
+      "clearAllConfirm": "Eliminar todo",
+      "continue": "Continuar",
+      "export": "Exportar JSON",
+      "readOnly": "Estás viendo una conversación guardada. Pulsa Continuar para retomarla.",
+      "loadFailed": "No se pudo cargar esa conversación.",
+      "deleted": "Conversación eliminada",
+      "cleared": "Todas las conversaciones eliminadas"
+    }
   },
   "boardSizeIndicator": {
     "custom": "Personalizado",

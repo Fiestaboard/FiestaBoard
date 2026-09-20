@@ -1997,8 +1997,10 @@
   },
   "aiChatPanel": {
     "messagesAriaLabel": "Chat messages",
-    "clearConversationAriaLabel": "Clear conversation",
     "closePanelAriaLabel": "Close FiestaBot (Beta)",
+    "newChatAriaLabel": "New chat",
+    "historyAriaLabel": "History",
+    "backAriaLabel": "Back",
     "providerSelectAriaLabel": "Provider",
     "modelSelectAriaLabel": "Model",
     "panelTitle": "FiestaBot (Beta)",
@@ -2095,7 +2097,34 @@
       "getActivePage": "Check active page",
       "getBoardContent": "Read board"
     },
-    "previewUnavailable": "(preview unavailable)"
+    "previewUnavailable": "(preview unavailable)",
+    "history": {
+      "title": "History",
+      "searchPlaceholder": "Search conversations…",
+      "searchAriaLabel": "Search conversations by title",
+      "empty": "No saved conversations yet",
+      "emptyDescription": "Chats are saved automatically as you go.",
+      "noMatches": "No conversations match your search.",
+      "messageCount": "{count, plural, one {# message} other {# messages}}",
+      "open": "Open {title}",
+      "rename": "Rename",
+      "renameAriaLabel": "Rename {title}",
+      "renameLabel": "Conversation title",
+      "saveTitle": "Save title",
+      "cancel": "Cancel",
+      "delete": "Delete",
+      "deleteAriaLabel": "Delete {title}",
+      "clearAll": "Clear all",
+      "clearAllTitle": "Delete all conversations?",
+      "clearAllDescription": "This removes every saved chat from this FiestaBoard. It cannot be undone.",
+      "clearAllConfirm": "Delete all",
+      "continue": "Continue",
+      "export": "Export JSON",
+      "readOnly": "Viewing a saved conversation. Continue to pick it up again.",
+      "loadFailed": "Could not load that conversation.",
+      "deleted": "Conversation deleted",
+      "cleared": "All conversations deleted"
+    }
   },
   "boardSizeIndicator": {
     "custom": "Custom",

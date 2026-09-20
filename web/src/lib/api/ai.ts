@@ -1,6 +1,7 @@
 // AI domain: BYO-LLM provider settings and one-shot page generation.
 // The chat SSE stream lives in lib/api-stream.ts.
 
+import type { ChatMessage } from "../ai-chat-types";
 import { apiUrl } from "../base-path";
 import { fetchApi } from "./core";
 import type { DeviceType, LineMetadata } from "./shared";
@@ -80,6 +81,46 @@ export interface AIGenerateResult {
   };
 }
 
+// ---------------------------------------------------------------------------
+// Saved conversations (#2022). Mirrors src/ai/conversations/models.py.
+// ---------------------------------------------------------------------------
+
+/** One row of `GET /ai/conversations` — no transcript. */
+export interface ConversationSummary {
+  id: string;
+  title: string;
+  created_at: string;
+  updated_at: string;
+  message_count: number;
+  provider_id: string | null;
+  model: string | null;
+}
+
+/**
+ * A saved conversation. `messages` is the panel's own transcript shape,
+ * stored as posted (the server pins `role` / `content` and passes the
+ * rest through), with every secret-keyed value replaced by `***`.
+ */
+export interface SavedConversation extends Omit<ConversationSummary, "message_count"> {
+  /** The conversation's "don't ask again" flag (#2021). */
+  approval: boolean;
+  messages: ChatMessage[];
+}
+
+/** Body of the autosave `PUT /ai/conversations/{id}`. */
+export interface ConversationUpsert {
+  title?: string;
+  provider_id?: string | null;
+  model?: string | null;
+  approval: boolean;
+  messages: ChatMessage[];
+}
+
+export interface ConversationListResponse {
+  conversations: ConversationSummary[];
+  total: number;
+}
+
 export const aiApi = {
   // AI page-generation ("Gen AI" button) settings + endpoints. BYO-LLM:
   // users supply their own OpenAI-compatible endpoint and key. The API
@@ -131,4 +172,30 @@ export const aiApi = {
     }
     return (await res.json()) as AIGenerateResult;
   },
+
+  // Saved conversations. The id is client-generated; PUT is an upsert the
+  // panel fires as autosave after every turn.
+  listConversations: (q?: string) =>
+    fetchApi<ConversationListResponse>(`/ai/conversations${q ? `?q=${encodeURIComponent(q)}` : ""}`),
+
+  getConversation: (id: string) => fetchApi<SavedConversation>(`/ai/conversations/${id}`),
+
+  saveConversation: (id: string, body: ConversationUpsert) =>
+    fetchApi<SavedConversation>(`/ai/conversations/${id}`, {
+      method: "PUT",
+      body: JSON.stringify(body),
+    }),
+
+  renameConversation: (id: string, title: string) =>
+    fetchApi<SavedConversation>(`/ai/conversations/${id}`, {
+      method: "PATCH",
+      body: JSON.stringify({ title }),
+    }),
+
+  deleteConversation: (id: string) => fetchApi<{ id: string }>(`/ai/conversations/${id}`, { method: "DELETE" }),
+
+  clearConversations: () => fetchApi<{ deleted: number }>("/ai/conversations", { method: "DELETE" }),
+
+  /** A download link (`Content-Disposition: attachment`) for one conversation. */
+  exportConversationUrl: (id: string) => apiUrl(`/ai/conversations/${id}/export`),
 };

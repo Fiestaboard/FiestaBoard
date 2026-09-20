@@ -1,9 +1,12 @@
-import { act, renderHook } from "@testing-library/react";
+import { act, renderHook, waitFor } from "@testing-library/react";
+import { http, HttpResponse } from "msw";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { ChatMessage, ToolCall, ToolResult } from "@/lib/ai-chat-types";
 import type * as apiStreamModule from "@/lib/api-stream";
-import { computeAppliedSnapshot, toWireMessages, useAiChat } from "@/lib/use-ai-chat";
+import { computeAppliedSnapshot, CONVERSATION_ID_STORAGE_KEY, toWireMessages, useAiChat } from "@/lib/use-ai-chat";
+
+import { server } from "./mocks/server";
 
 // Control streamChat from tests via captured references.
 let capturedHandlers: Parameters<(typeof apiStreamModule)["streamChat"]>[1] | null = null;
@@ -73,11 +76,25 @@ function lastBody() {
   };
 }
 
+// Every completed turn autosaves through PUT /ai/conversations/{id}; the
+// default handler accepts it so the older tests below stay quiet about it.
+const API_BASE = "/api";
+let savedBodies: Array<{ id: string; body: Record<string, unknown> }> = [];
+
 beforeEach(() => {
   capturedHandlers = null;
   capturedBodies = [];
   resolveStream = null;
+  savedBodies = [];
+  localStorage.clear();
   vi.clearAllMocks();
+  server.use(
+    http.put(`${API_BASE}/ai/conversations/:id`, async ({ params, request }) => {
+      const body = (await request.json()) as Record<string, unknown>;
+      savedBodies.push({ id: String(params.id), body });
+      return HttpResponse.json({ id: params.id, title: "t", created_at: "", updated_at: "", ...body }, { status: 201 });
+    }),
+  );
 });
 
 describe("useAiChat", () => {
@@ -642,6 +659,152 @@ describe("useAiChat", () => {
     expect(result.current.messages[0]).toMatchObject({ role: "user", content: "first" });
     expect(result.current.status).toBe("streaming");
     expect(capturedBodies).toHaveLength(2);
+  });
+});
+
+describe("conversation history (#2022)", () => {
+  const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
+  const SAVED_ID = "33333333-3333-4333-8333-333333333333";
+  const SAVED = {
+    id: SAVED_ID,
+    title: "Saved chat",
+    created_at: "2026-09-19T10:00:00+00:00",
+    updated_at: "2026-09-19T10:05:00+00:00",
+    provider_id: "p1",
+    model: "m1",
+    approval: true,
+    messages: [
+      { role: "user", content: "Saved question" },
+      {
+        role: "assistant",
+        content: "Saved answer",
+        pending: true,
+        toolCalls: [{ ...CREATE_PAGE, phase: "running" }],
+      },
+    ],
+  };
+
+  async function completeTurn(result: { current: ReturnType<typeof useAiChat> }, text: string) {
+    act(() => {
+      result.current.send(text);
+    });
+    await act(async () => {
+      capturedHandlers?.onText?.("hello");
+      capturedHandlers?.onDone?.({ ...DONE, reason: "complete", pending_tool_call_id: null });
+      resolveStream?.();
+    });
+  }
+
+  it("a completed turn autosaves the transcript under a fresh conversation id", async () => {
+    const { result } = renderHook(() => useAiChat(makeOpts({ providerId: "p1", model: "m1" })));
+    expect(result.current.conversationId).toBeNull();
+
+    await completeTurn(result, "hi");
+
+    const id = result.current.conversationId;
+    expect(id).toMatch(UUID);
+    await waitFor(() => expect(savedBodies.length).toBeGreaterThan(0));
+    const last = savedBodies[savedBodies.length - 1];
+    expect(last.id).toBe(id);
+    expect(last.body.provider_id).toBe("p1");
+    expect(last.body.model).toBe("m1");
+    expect(last.body.approval).toBe(false);
+    expect(last.body.messages).toEqual([
+      { role: "user", content: "hi" },
+      expect.objectContaining({ role: "assistant", content: "hello", pending: false }),
+    ]);
+    expect(localStorage.getItem(CONVERSATION_ID_STORAGE_KEY)).toBe(id);
+  });
+
+  it("the id stored in localStorage restores the conversation on mount", async () => {
+    localStorage.setItem(CONVERSATION_ID_STORAGE_KEY, SAVED_ID);
+    server.use(http.get(`${API_BASE}/ai/conversations/${SAVED_ID}`, () => HttpResponse.json(SAVED)));
+
+    const { result } = renderHook(() => useAiChat(makeOpts()));
+
+    await waitFor(() => expect(result.current.messages).toHaveLength(2));
+    expect(result.current.conversationId).toBe(SAVED_ID);
+    expect(result.current.messages[0]).toEqual({ role: "user", content: "Saved question" });
+    // A turn that was mid-stream when the page went away is settled, not
+    // left spinning: the entry is no longer pending and the call is stopped.
+    expect(result.current.messages[1]).toMatchObject({ content: "Saved answer", pending: false });
+    expect(result.current.messages[1].toolCalls?.[0].phase).toBe("stopped");
+    expect(result.current.autoApprove).toBe(true);
+    expect(result.current.status).toBe("idle");
+  });
+
+  it("a stored id the server no longer has is forgotten", async () => {
+    localStorage.setItem(CONVERSATION_ID_STORAGE_KEY, SAVED_ID);
+    server.use(
+      http.get(`${API_BASE}/ai/conversations/${SAVED_ID}`, () =>
+        HttpResponse.json({ detail: "Conversation not found" }, { status: 404 }),
+      ),
+    );
+
+    const { result } = renderHook(() => useAiChat(makeOpts()));
+
+    await waitFor(() => expect(localStorage.getItem(CONVERSATION_ID_STORAGE_KEY)).toBeNull());
+    expect(result.current.messages).toHaveLength(0);
+    expect(result.current.conversationId).toBeNull();
+  });
+
+  it("newConversation() forgets the id so the next send starts a new one", async () => {
+    const { result } = renderHook(() => useAiChat(makeOpts()));
+    await completeTurn(result, "first chat");
+    const first = result.current.conversationId;
+    expect(first).toMatch(UUID);
+
+    act(() => {
+      result.current.newConversation();
+    });
+    expect(result.current.conversationId).toBeNull();
+    expect(result.current.messages).toHaveLength(0);
+    expect(localStorage.getItem(CONVERSATION_ID_STORAGE_KEY)).toBeNull();
+
+    act(() => {
+      result.current.send("second chat");
+    });
+    expect(result.current.conversationId).toMatch(UUID);
+    expect(result.current.conversationId).not.toBe(first);
+  });
+
+  it("loadConversation(id) replaces the live transcript with the saved one and makes it live", async () => {
+    server.use(http.get(`${API_BASE}/ai/conversations/${SAVED_ID}`, () => HttpResponse.json(SAVED)));
+    const { result } = renderHook(() => useAiChat(makeOpts()));
+    await completeTurn(result, "something else");
+    expect(result.current.messages[0]).toMatchObject({ content: "something else" });
+
+    let loaded: unknown;
+    await act(async () => {
+      loaded = await result.current.loadConversation(SAVED_ID);
+    });
+    expect(loaded).toMatchObject({ id: SAVED_ID, title: "Saved chat" });
+    expect(result.current.conversationId).toBe(SAVED_ID);
+    expect(result.current.messages[0]).toEqual({ role: "user", content: "Saved question" });
+    expect(localStorage.getItem(CONVERSATION_ID_STORAGE_KEY)).toBe(SAVED_ID);
+
+    // Live: the next send continues the saved transcript under its id.
+    act(() => {
+      result.current.send("continue");
+    });
+    expect(lastBody().messages[0]).toEqual({ role: "user", content: "Saved question" });
+    expect(lastBody().approval).toEqual({ auto_approve_destructive: true });
+    await waitFor(() => expect(savedBodies.some((s) => s.id === SAVED_ID)).toBe(true));
+  });
+
+  it("loadConversation(id) answers null for a conversation the server does not have", async () => {
+    server.use(
+      http.get(`${API_BASE}/ai/conversations/${SAVED_ID}`, () =>
+        HttpResponse.json({ detail: "Conversation not found" }, { status: 404 }),
+      ),
+    );
+    const { result } = renderHook(() => useAiChat(makeOpts()));
+    let loaded: unknown = "unset";
+    await act(async () => {
+      loaded = await result.current.loadConversation(SAVED_ID);
+    });
+    expect(loaded).toBeNull();
+    expect(result.current.conversationId).toBeNull();
   });
 });
 

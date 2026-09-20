@@ -1997,8 +1997,10 @@
   },
   "aiChatPanel": {
     "messagesAriaLabel": "채팅 메시지",
-    "clearConversationAriaLabel": "대화 지우기",
     "closePanelAriaLabel": "FiestaBot (Beta) 닫기",
+    "newChatAriaLabel": "새 채팅",
+    "historyAriaLabel": "기록",
+    "backAriaLabel": "뒤로",
     "providerSelectAriaLabel": "제공자",
     "modelSelectAriaLabel": "모델",
     "panelTitle": "FiestaBot (Beta)",
@@ -2095,7 +2097,34 @@
       "getActivePage": "활성 페이지 확인",
       "getBoardContent": "보드 읽기"
     },
-    "previewUnavailable": "(미리보기를 사용할 수 없음)"
+    "previewUnavailable": "(미리보기를 사용할 수 없음)",
+    "history": {
+      "title": "기록",
+      "searchPlaceholder": "대화 검색…",
+      "searchAriaLabel": "제목으로 대화 검색",
+      "empty": "저장된 대화가 아직 없습니다",
+      "emptyDescription": "채팅은 진행하는 동안 자동으로 저장됩니다.",
+      "noMatches": "검색과 일치하는 대화가 없습니다.",
+      "messageCount": "{count, plural, other {메시지 #개}}",
+      "open": "{title} 열기",
+      "rename": "이름 바꾸기",
+      "renameAriaLabel": "{title} 이름 바꾸기",
+      "renameLabel": "대화 제목",
+      "saveTitle": "제목 저장",
+      "cancel": "취소",
+      "delete": "삭제",
+      "deleteAriaLabel": "{title} 삭제",
+      "clearAll": "모두 지우기",
+      "clearAllTitle": "모든 대화를 삭제할까요?",
+      "clearAllDescription": "이 FiestaBoard에 저장된 모든 채팅이 삭제됩니다. 되돌릴 수 없습니다.",
+      "clearAllConfirm": "모두 삭제",
+      "continue": "계속하기",
+      "export": "JSON 내보내기",
+      "readOnly": "저장된 대화를 보고 있습니다. 계속하기를 눌러 다시 이어가세요.",
+      "loadFailed": "해당 대화를 불러올 수 없습니다.",
+      "deleted": "대화가 삭제되었습니다",
+      "cleared": "모든 대화가 삭제되었습니다"
+    }
   },
   "boardSizeIndicator": {
     "custom": "사용자 지정",

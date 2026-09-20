@@ -992,6 +992,19 @@ export const handlers = [
     });
   }),
 
+  // Saved FiestaBot conversations (#2022). Empty store, accepting writes,
+  // so a component that autosaves or lists history renders without a
+  // per-test handler; tests that care about the rows override these.
+  http.get(`${API_BASE}/ai/conversations`, () => HttpResponse.json({ conversations: [], total: 0 })),
+  http.put(`${API_BASE}/ai/conversations/:id`, async ({ params, request }) => {
+    const body = (await request.json()) as Record<string, unknown>;
+    return HttpResponse.json(
+      { id: params.id, title: "Chat", created_at: "", updated_at: "", ...body },
+      { status: 201 },
+    );
+  }),
+  http.delete(`${API_BASE}/ai/conversations`, () => HttpResponse.json({ deleted: 0 })),
+
   http.post(`${API_BASE}/settings/ai/test`, () => {
     return HttpResponse.json({
       ok: true,

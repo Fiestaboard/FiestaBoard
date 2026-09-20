@@ -1997,8 +1997,10 @@
   },
   "aiChatPanel": {
     "messagesAriaLabel": "Wiadomości czatu",
-    "clearConversationAriaLabel": "Wyczyść rozmowę",
     "closePanelAriaLabel": "Zamknij FiestaBot (Beta)",
+    "newChatAriaLabel": "Nowy czat",
+    "historyAriaLabel": "Historia",
+    "backAriaLabel": "Wstecz",
     "providerSelectAriaLabel": "Dostawca",
     "modelSelectAriaLabel": "Model",
     "panelTitle": "FiestaBot (Beta)",
@@ -2095,7 +2097,34 @@
       "getActivePage": "Sprawdź aktywną stronę",
       "getBoardContent": "Odczytaj tablicę"
     },
-    "previewUnavailable": "(podgląd niedostępny)"
+    "previewUnavailable": "(podgląd niedostępny)",
+    "history": {
+      "title": "Historia",
+      "searchPlaceholder": "Szukaj rozmów…",
+      "searchAriaLabel": "Szukaj rozmów po tytule",
+      "empty": "Brak zapisanych rozmów",
+      "emptyDescription": "Czaty są zapisywane automatycznie w trakcie pisania.",
+      "noMatches": "Żadna rozmowa nie pasuje do wyszukiwania.",
+      "messageCount": "{count, plural, one {# wiadomość} few {# wiadomości} many {# wiadomości} other {# wiadomości}}",
+      "open": "Otwórz {title}",
+      "rename": "Zmień nazwę",
+      "renameAriaLabel": "Zmień nazwę {title}",
+      "renameLabel": "Tytuł rozmowy",
+      "saveTitle": "Zapisz tytuł",
+      "cancel": "Anuluj",
+      "delete": "Usuń",
+      "deleteAriaLabel": "Usuń {title}",
+      "clearAll": "Wyczyść wszystko",
+      "clearAllTitle": "Usunąć wszystkie rozmowy?",
+      "clearAllDescription": "Spowoduje to usunięcie wszystkich zapisanych czatów z tego FiestaBoard. Nie można tego cofnąć.",
+      "clearAllConfirm": "Usuń wszystko",
+      "continue": "Kontynuuj",
+      "export": "Eksportuj JSON",
+      "readOnly": "Przeglądasz zapisaną rozmowę. Wybierz Kontynuuj, aby ją wznowić.",
+      "loadFailed": "Nie udało się wczytać tej rozmowy.",
+      "deleted": "Rozmowa usunięta",
+      "cleared": "Wszystkie rozmowy usunięte"
+    }
   },
   "boardSizeIndicator": {
     "custom": "Niestandardowy",

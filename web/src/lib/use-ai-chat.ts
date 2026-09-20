@@ -15,6 +15,14 @@
 // `reset()` (New chat) forgets it. The install-level Ask / Auto setting is
 // the server's to read — it never travels in the request.
 //
+// The conversation is persisted (#2022): the first send mints a UUID, and
+// every change to the transcript is autosaved under it through
+// `PUT /ai/conversations/{id}` — debounced while a turn streams, at once
+// when a turn ends or a decision is recorded. The id also sits in
+// localStorage so a reload lands back in the same chat; `loadConversation`
+// swaps a saved transcript in as the live one and `newConversation` starts
+// a fresh id.
+//
 // The hook is UI-framework-neutral — it doesn't render anything and
 // doesn't execute tools. Callers observe what the server is doing through
 // the `onToolCall` / `onToolResult` callbacks.
@@ -38,8 +46,14 @@ import type {
   UpdatePageArgs,
   WireMessage,
 } from "./ai-chat-types";
-import type { DeviceType } from "./api";
+import { api, ApiError, type ConversationUpsert, type DeviceType, type SavedConversation } from "./api";
 import { streamChat } from "./api-stream";
+
+/** Where the live conversation's id is remembered between page loads. */
+export const CONVERSATION_ID_STORAGE_KEY = "fiestaboard:ai-conversation-id";
+
+/** Debounce for the autosave while a turn is streaming. */
+const AUTOSAVE_DEBOUNCE_MS = 1000;
 
 export type ChatStatus = "idle" | "streaming" | "awaiting_approval" | "awaiting_input" | "error";
 
@@ -61,6 +75,14 @@ export interface UseAiChatOptions {
   onStatus?: (status: SSEStatusData) => void;
   /** The user stopped the turn while these calls had no result yet. */
   onStopped?: (unresolved: ToolCall[], reason: StopReason) => void;
+  /** A saved conversation became the live one (Continue, or the reload restore). */
+  onConversationLoaded?: (conversation: SavedConversation) => void;
+  /**
+   * On mount, reopen the conversation whose id is in localStorage if the
+   * server still has it. On by default; off for a panel that must start
+   * empty.
+   */
+  restoreOnMount?: boolean;
   providerId?: string;
   model?: string;
 }
@@ -83,11 +105,21 @@ export interface UseAiChatResult {
   /** End the turn. A tool already running on the server still finishes. */
   stop: () => void;
   retryLast: () => void;
+  /** Same as `newConversation`; kept for callers that predate history. */
   reset: () => void;
   /** True once the user chose "don't ask again" in this conversation. */
   autoApprove: boolean;
   /** Turn "don't ask again" back off; later destructive calls pause again. */
   disableAutoApprove: () => void;
+  /** The id the transcript is saved under; null until the first send. */
+  conversationId: string | null;
+  /** Drop the live transcript and its id; the next send starts a new chat. */
+  newConversation: () => void;
+  /**
+   * Make a saved conversation the live one. Resolves with it, or null when
+   * the server no longer has it (nothing changes then).
+   */
+  loadConversation: (id: string) => Promise<SavedConversation | null>;
 }
 
 export interface ApproveOptions {
@@ -121,7 +153,7 @@ export type StopReason = "stopped" | "error";
 
 export function useAiChat(opts: UseAiChatOptions): UseAiChatResult {
   const { getTurnContext, onToolCall, onToolResult, onAwaitingApproval, onElicitation, onStatus, onStopped } = opts;
-  const { providerId, model } = opts;
+  const { onConversationLoaded, restoreOnMount = true, providerId, model } = opts;
 
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [status, setStatus] = useState<ChatStatus>("idle");
@@ -133,6 +165,16 @@ export function useAiChat(opts: UseAiChatOptions): UseAiChatResult {
   // has re-rendered.
   const [autoApprove, setAutoApprove] = useState(false);
   const autoApproveRef = useRef(false);
+  // The id the transcript is saved under. State for the UI, a ref so
+  // send() can mint one and use it in the same tick.
+  const [conversationId, setConversationId] = useState<string | null>(null);
+  const conversationIdRef = useRef<string | null>(null);
+  const adoptConversationId = useCallback((id: string | null) => {
+    conversationIdRef.current = id;
+    setConversationId(id);
+    if (id) writeStoredConversationId(id);
+    else clearStoredConversationId();
+  }, []);
 
   // The abort controller lives in a ref so stop() works without a
   // re-render, and so a stale render doesn't leak the controller.
@@ -145,6 +187,14 @@ export function useAiChat(opts: UseAiChatOptions): UseAiChatResult {
   // arrives right after the elicitation frame and needs it without waiting
   // for React state to catch up.
   const elicitationRef = useRef<Elicitation | null>(null);
+  // Autosave bookkeeping (see the Autosave section below): the next
+  // transcript change is saved without the debounce when `saveAtOnceRef`
+  // is set (a turn ended, a decision was recorded); the timer, the
+  // coalesced payload and the in-order chain of PUTs.
+  const saveAtOnceRef = useRef(false);
+  const saveTimerRef = useRef<number | null>(null);
+  const queuedSaveRef = useRef<{ id: string; body: ConversationUpsert } | null>(null);
+  const saveChainRef = useRef<Promise<void>>(Promise.resolve());
 
   const runStream = useCallback(
     async (history: ChatMessage[], options: RunOptions = {}) => {
@@ -273,6 +323,9 @@ export function useAiChat(opts: UseAiChatOptions): UseAiChatResult {
         // changed anyway; the transcript renders them as interrupted.
         const unresolved = [...callsRef.current.values()].filter((c) => !resolvedRef.current.has(c.id));
         const stillRunning = new Set(unresolved.map((c) => c.id));
+        // The turn is over: the settled transcript below is saved at once,
+        // not after the streaming debounce.
+        saveAtOnceRef.current = true;
         setMessages((prev) => {
           const settled = patchLastAssistant(prev, (m) => ({ ...m, pending: false, status: undefined }));
           if (ended) return settled;
@@ -329,6 +382,7 @@ export function useAiChat(opts: UseAiChatOptions): UseAiChatResult {
       const trimmed = text.trim();
       if (!trimmed) return;
       const current = messagesRef.current;
+      if (!conversationIdRef.current) adoptConversationId(newConversationId());
 
       if (pendingElicitation) {
         // The composer is the answer channel while a question is pending.
@@ -358,12 +412,14 @@ export function useAiChat(opts: UseAiChatOptions): UseAiChatResult {
       }
       void runStream(next);
     },
-    [runStream, pendingApproval, pendingElicitation],
+    [runStream, pendingApproval, pendingElicitation, adoptConversationId],
   );
 
   const approve = useCallback(
     (toolCallId: string, decision: ApprovalDecision, options: ApproveOptions = {}) => {
       const current = messagesRef.current;
+      // A decision is worth keeping even if the resume never lands.
+      saveAtOnceRef.current = true;
       if (decision === "deny") {
         const next = patchCallById(current, toolCallId, (c) => ({ ...c, phase: "denied" }));
         setMessages(next);
@@ -384,6 +440,7 @@ export function useAiChat(opts: UseAiChatOptions): UseAiChatResult {
 
   const answer = useCallback(
     (toolCallId: string, given: ElicitationAnswer) => {
+      saveAtOnceRef.current = true;
       const next = recordAnswer(messagesRef.current, toolCallId, given);
       setMessages(next);
       setPendingElicitation(null);
@@ -418,8 +475,15 @@ export function useAiChat(opts: UseAiChatOptions): UseAiChatResult {
     void runStream(next);
   }, [runStream]);
 
-  const reset = useCallback(() => {
+  const newConversation = useCallback(() => {
     abortRef.current?.abort();
+    // Whatever was queued for the old id is done with; a save that was
+    // already in flight completes under that id, harmlessly.
+    if (saveTimerRef.current !== null) {
+      window.clearTimeout(saveTimerRef.current);
+      saveTimerRef.current = null;
+    }
+    queuedSaveRef.current = null;
     setMessages([]);
     setStatus("idle");
     setPendingApproval(null);
@@ -428,7 +492,118 @@ export function useAiChat(opts: UseAiChatOptions): UseAiChatResult {
     // "Don't ask again" was for that conversation; a new chat asks again.
     autoApproveRef.current = false;
     setAutoApprove(false);
+    adoptConversationId(null);
+  }, [adoptConversationId]);
+
+  // -------------------------------------------------------------------------
+  // Autosave. Saves are queued so they reach the server in order, and
+  // coalesced so a burst of streamed deltas costs one PUT, not one each.
+  // A failed save is dropped silently: autosave must never interrupt the
+  // chat, and the next change retries with a fuller transcript anyway.
+  // -------------------------------------------------------------------------
+  const optsRef = useRef({ providerId, model });
+  useEffect(() => {
+    optsRef.current = { providerId, model };
+  }, [providerId, model]);
+
+  const flushSave = useCallback(() => {
+    saveTimerRef.current = null;
+    saveChainRef.current = saveChainRef.current.then(async () => {
+      const queued = queuedSaveRef.current;
+      queuedSaveRef.current = null;
+      if (!queued) return;
+      try {
+        await api.saveConversation(queued.id, queued.body);
+      } catch {
+        /* see above: never interrupt the chat over a failed autosave */
+      }
+    });
   }, []);
+
+  useEffect(() => {
+    const id = conversationIdRef.current;
+    if (!id || messages.length === 0) return;
+    queuedSaveRef.current = {
+      id,
+      body: {
+        provider_id: optsRef.current.providerId ?? null,
+        model: optsRef.current.model ?? null,
+        approval: autoApproveRef.current,
+        messages,
+      },
+    };
+    const atOnce = saveAtOnceRef.current;
+    saveAtOnceRef.current = false;
+    if (saveTimerRef.current !== null) window.clearTimeout(saveTimerRef.current);
+    if (atOnce) {
+      flushSave();
+      return;
+    }
+    saveTimerRef.current = window.setTimeout(flushSave, AUTOSAVE_DEBOUNCE_MS);
+  }, [messages, flushSave]);
+
+  useEffect(() => {
+    return () => {
+      // Unmount: send whatever is still waiting rather than lose it.
+      if (saveTimerRef.current !== null) {
+        window.clearTimeout(saveTimerRef.current);
+        flushSave();
+      }
+    };
+  }, [flushSave]);
+
+  // -------------------------------------------------------------------------
+  // Loading a saved conversation, and reopening the last one on mount.
+  // -------------------------------------------------------------------------
+  const loadConversation = useCallback(
+    async (id: string): Promise<SavedConversation | null> => {
+      let conversation: SavedConversation;
+      try {
+        conversation = await api.getConversation(id);
+      } catch (err) {
+        if (err instanceof ApiError && err.status === 404) return null;
+        throw err;
+      }
+      abortRef.current?.abort();
+      const history = settleSavedTranscript(conversation.messages);
+      const last = history[history.length - 1];
+      const awaiting = last?.role === "assistant" ? last.toolCalls?.find((c) => c.phase === "awaiting_approval") : null;
+      const question =
+        last?.role === "assistant" && last.elicitation && !last.elicitation.answer ? last.elicitation : null;
+      setMessages(history);
+      setStatus("idle");
+      setError(null);
+      setPendingApproval(awaiting ?? null);
+      setPendingElicitation(question ?? null);
+      autoApproveRef.current = conversation.approval;
+      setAutoApprove(conversation.approval);
+      adoptConversationId(conversation.id);
+      onConversationLoaded?.(conversation);
+      return conversation;
+    },
+    [adoptConversationId, onConversationLoaded],
+  );
+
+  const loadConversationRef = useRef(loadConversation);
+  useEffect(() => {
+    loadConversationRef.current = loadConversation;
+  }, [loadConversation]);
+
+  useEffect(() => {
+    if (!restoreOnMount) return;
+    const stored = readStoredConversationId();
+    if (!stored) return;
+    void loadConversationRef.current(stored).then(
+      (found) => {
+        if (!found) clearStoredConversationId();
+      },
+      () => {
+        /* the server is unreachable right now; keep the id for next time */
+      },
+    );
+  }, [restoreOnMount]);
+
+  const reset = newConversation;
 
   // A pause is derived, not stored: the stream's own bookkeeping lands on
   // "idle" when it closes, and the pending call/question says what the turn
@@ -450,6 +625,9 @@ export function useAiChat(opts: UseAiChatOptions): UseAiChatResult {
     reset,
     autoApprove,
     disableAutoApprove,
+    conversationId,
+    newConversation,
+    loadConversation,
   };
 }
 
@@ -608,4 +786,67 @@ export function computeAppliedSnapshot(
     };
   }
   return undefined;
+}
+
+// ---------------------------------------------------------------------------
+// Persistence helpers
+// ---------------------------------------------------------------------------
+
+/** A v4 UUID; `crypto.randomUUID` where it exists, a manual v4 otherwise. */
+export function newConversationId(): string {
+  const c = globalThis.crypto;
+  if (c && typeof c.randomUUID === "function") return c.randomUUID();
+  const bytes = new Uint8Array(16);
+  if (c && typeof c.getRandomValues === "function") c.getRandomValues(bytes);
+  else for (let i = 0; i < 16; i++) bytes[i] = Math.floor(Math.random() * 256);
+  bytes[6] = (bytes[6] & 0x0f) | 0x40;
+  bytes[8] = (bytes[8] & 0x3f) | 0x80;
+  const hex = [...bytes].map((b) => b.toString(16).padStart(2, "0")).join("");
+  return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`;
+}
+
+// localStorage is a per-browser convenience, not the record: every read and
+// write is guarded, and a missing or unreadable value means "no live chat".
+function readStoredConversationId(): string | null {
+  try {
+    return localStorage.getItem(CONVERSATION_ID_STORAGE_KEY);
+  } catch {
+    return null;
+  }
+}
+
+function writeStoredConversationId(id: string): void {
+  try {
+    localStorage.setItem(CONVERSATION_ID_STORAGE_KEY, id);
+  } catch {
+    /* storage may be unavailable */
+  }
+}
+
+function clearStoredConversationId(): void {
+  try {
+    localStorage.removeItem(CONVERSATION_ID_STORAGE_KEY);
+  } catch {
+    /* storage may be unavailable */
+  }
+}
+
+/**
+ * Pure: a saved transcript made safe to show as the live one. A save can
+ * land mid-turn (the debounce, or a reload while streaming), so an entry
+ * may still say `pending` and a call may still be `running`; nothing is
+ * coming for them any more, so they are settled — the same rendering as a
+ * turn the user stopped. A call awaiting approval and an unanswered
+ * question are kept as they are: the resume that answers them still works.
+ */
+export function settleSavedTranscript(saved: ChatMessage[]): ChatMessage[] {
+  return saved.map((m) => {
+    if (m.role !== "assistant") return { role: "user", content: m.content };
+    const { status: _status, ...rest } = m;
+    return {
+      ...rest,
+      pending: false,
+      toolCalls: m.toolCalls?.map((c) => (c.phase === "running" ? { ...c, phase: "stopped" } : c)),
+    };
+  });
 }

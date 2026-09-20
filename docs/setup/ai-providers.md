@@ -170,6 +170,34 @@ configured:
 API keys are stored locally in `data/config.json` and never sent to
 any FiestaBoard-hosted service.
 
+## Chat history
+
+Every FiestaBot conversation is saved on your FiestaBoard as you go —
+there is nothing to click. Closing the drawer or reloading the page
+brings you back to the chat you were in, and the **History** button
+in the panel header (the clock icon) lists everything you have talked
+about, newest first, with a search box for the title.
+
+- **Review** — open any conversation to read it back, including the
+  actions FiestaBot took and what each one returned. Nothing runs
+  while you are reading.
+- **Continue** — picks a saved conversation up again as the live chat.
+  Its provider, model and "don't ask again" choice come back with it.
+- **New chat** (the pencil icon) starts a fresh conversation; the old
+  one stays in History.
+- **Rename** and **Delete** sit on each row. **Clear all** at the
+  bottom removes every saved chat after a confirmation.
+- **Export JSON** on an open conversation downloads that thread as a
+  file, handy for attaching to a bug report.
+
+The title is the first thing you typed, trimmed to 80 characters;
+rename it whenever you like. FiestaBoard keeps the 200 most recently
+used conversations and drops the oldest when a new one arrives.
+Credentials never end up in a saved chat: any API key, password or
+token that passes through a tool is stored as `***`, the same masking
+the tools themselves apply. History lives in `data/ai_conversations.json`
+and is not part of the settings backup.
+
 ## Limitations
 
 - Two protocols supported: OpenAI-compatible chat completions

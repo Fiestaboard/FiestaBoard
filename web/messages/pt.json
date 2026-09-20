@@ -1997,8 +1997,10 @@
   },
   "aiChatPanel": {
     "messagesAriaLabel": "Mensagens do chat",
-    "clearConversationAriaLabel": "Limpar conversa",
     "closePanelAriaLabel": "Fechar FiestaBot (Beta)",
+    "newChatAriaLabel": "Nova conversa",
+    "historyAriaLabel": "Histórico",
+    "backAriaLabel": "Voltar",
     "providerSelectAriaLabel": "Fornecedor",
     "modelSelectAriaLabel": "Modelo",
     "panelTitle": "FiestaBot (Beta)",
@@ -2095,7 +2097,34 @@
       "getActivePage": "Verificar página ativa",
       "getBoardContent": "Ler painel"
     },
-    "previewUnavailable": "(pré-visualização indisponível)"
+    "previewUnavailable": "(pré-visualização indisponível)",
+    "history": {
+      "title": "Histórico",
+      "searchPlaceholder": "Pesquisar conversas…",
+      "searchAriaLabel": "Pesquisar conversas por título",
+      "empty": "Ainda não há conversas guardadas",
+      "emptyDescription": "As conversas são guardadas automaticamente enquanto escreve.",
+      "noMatches": "Nenhuma conversa corresponde à sua pesquisa.",
+      "messageCount": "{count, plural, one {# mensagem} other {# mensagens}}",
+      "open": "Abrir {title}",
+      "rename": "Renomear",
+      "renameAriaLabel": "Renomear {title}",
+      "renameLabel": "Título da conversa",
+      "saveTitle": "Guardar título",
+      "cancel": "Cancelar",
+      "delete": "Eliminar",
+      "deleteAriaLabel": "Eliminar {title}",
+      "clearAll": "Limpar tudo",
+      "clearAllTitle": "Eliminar todas as conversas?",
+      "clearAllDescription": "Isto remove todas as conversas guardadas neste FiestaBoard. Não é possível anular.",
+      "clearAllConfirm": "Eliminar tudo",
+      "continue": "Continuar",
+      "export": "Exportar JSON",
+      "readOnly": "Está a ver uma conversa guardada. Toque em Continuar para a retomar.",
+      "loadFailed": "Não foi possível carregar essa conversa.",
+      "deleted": "Conversa eliminada",
+      "cleared": "Todas as conversas foram eliminadas"
+    }
   },
   "boardSizeIndicator": {
     "custom": "Personalizado",
