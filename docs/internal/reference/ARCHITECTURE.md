@@ -240,6 +240,18 @@ end the stream with `done{reason: "awaiting_approval"}` and run only when the
 client re-POSTs a `resume` approving them. `ask_user` ends it with
 `awaiting_input`. `tests/test_mcp_annotations.py` pins the sets.
 
+Two switches relax that pause (#2021): the install's `approval_mode`
+setting on the AI block (`PUT /settings/ai`, `"ask"` | `"auto"`) and the
+request's `approval.auto_approve_destructive` flag (the conversation's
+"don't ask again"). Either lets a destructive call run without pausing —
+its `tool_call` frame then carries `auto_approved: true` — except for the
+**system tier**, `SYSTEM_GATED` in `src/ops/registry.py` (`restart_system`,
+`shutdown_system`, `trigger_system_update`), which pauses in every mode and
+is flagged `system_gated: true` on the wire so the client can hide the
+"don't ask again" action. The `update_setting` executor refuses
+`approval_mode` outright: the assistant cannot change its own approval
+policy.
+
 The previous design — a hand-written chat op grammar, six browser-side ops
 (`replace_page`, `apply_patch`, `navigate_to_*`, …) and `POST /ai/operations`
 as the execution seam — is retired in favour of this; the endpoint and

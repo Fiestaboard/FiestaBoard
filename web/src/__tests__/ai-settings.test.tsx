@@ -327,4 +327,46 @@ describe("AiSettings", () => {
     // Draft should now exist — Save/Discard appear.
     expect(await screen.findByRole("button", { name: /save changes/i })).toBeInTheDocument();
   });
+
+  it("Save never sends approval_mode: the page has no control for it and must not revert the chat pill", async () => {
+    server.use(
+      http.get(`${API_BASE}/settings/ai`, () =>
+        HttpResponse.json({
+          enabled: true,
+          providers: [
+            {
+              id: "p1",
+              name: "Test",
+              base_url: "https://example.test/v1",
+              api_key: "***",
+              models: ["test-model"],
+              default_model: "test-model",
+            },
+          ],
+          default_provider_id: "p1",
+          approval_mode: "auto",
+        }),
+      ),
+    );
+    const receivedBodies: Record<string, unknown>[] = [];
+    server.use(
+      http.put(`${API_BASE}/settings/ai`, async ({ request }) => {
+        const body = (await request.json()) as Record<string, unknown>;
+        receivedBodies.push(body);
+        return HttpResponse.json({ ...body, approval_mode: "auto" });
+      }),
+    );
+
+    render(<AiSettings />, { wrapper: Wrapper });
+    const user = userEvent.setup();
+    await user.click(await screen.findByText("Test"));
+    const nameInput = await screen.findByLabelText(/^Name$/);
+    await user.clear(nameInput);
+    await user.type(nameInput, "Renamed");
+    await user.click(screen.getByRole("button", { name: /save changes/i }));
+
+    await waitFor(() => expect(receivedBodies).toHaveLength(1));
+    expect(receivedBodies[0]).not.toHaveProperty("approval_mode");
+    expect(receivedBodies[0]).toHaveProperty("providers");
+  });
 });

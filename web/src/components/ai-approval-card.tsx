@@ -13,6 +13,12 @@ export interface AiApprovalCardProps {
   call: ToolCall;
   onApprove: () => void;
   onDeny: () => void;
+  /**
+   * "Approve and don't ask again in this chat". Offered only when given AND
+   * the call is not system-gated: restart, shutdown and update ask every
+   * time, whatever the user chose for the rest of the conversation.
+   */
+  onApproveAll?: () => void;
   /** True while the resume request is in flight. */
   busy?: boolean;
 }
@@ -33,7 +39,7 @@ const DESCRIPTION_KEYS: Record<string, string> = {
  * Deny takes focus when the card mounts: the safe answer is one keypress
  * away, and a stray Enter on the composer cannot approve a delete.
  */
-export function AiApprovalCard({ call, onApprove, onDeny, busy = false }: AiApprovalCardProps) {
+export function AiApprovalCard({ call, onApprove, onDeny, onApproveAll, busy = false }: AiApprovalCardProps) {
   const t = useTranslations("aiApprovalCard");
   const tools = useTranslations("aiChatPanel");
   const denyRef = useRef<HTMLButtonElement>(null);
@@ -44,6 +50,7 @@ export function AiApprovalCard({ call, onApprove, onDeny, busy = false }: AiAppr
 
   const detail = detailForTool(call);
   const descriptionKey = DESCRIPTION_KEYS[call.name];
+  const offerApproveAll = onApproveAll !== undefined && !call.system_gated;
 
   return (
     <Card
@@ -72,13 +79,28 @@ export function AiApprovalCard({ call, onApprove, onDeny, busy = false }: AiAppr
           {descriptionKey ? t(descriptionKey, { detail: detail ?? "" }) : t("description.generic")}
         </Text>
       </Box>
-      <Flex gap="2" justify="end">
+      <Flex gap="2" align="center" justify="end" className="flex-wrap">
         <Button ref={denyRef} type="button" size="sm" variant="outline" onClick={onDeny} disabled={busy}>
           {t("deny")}
         </Button>
         <Button type="button" size="sm" variant="destructive" onClick={onApprove} disabled={busy}>
           {busy ? t("working") : t("approve")}
         </Button>
+        {/* Last in DOM order — Shift+Tab from the mount-focused Deny must
+            not land on the strongest approval — but shown first, at the
+            left, by CSS order. */}
+        {offerApproveAll ? (
+          <Button
+            type="button"
+            size="sm"
+            variant="ghost"
+            className="order-first mr-auto text-xs text-muted-foreground"
+            onClick={onApproveAll}
+            disabled={busy}
+          >
+            {t("approveAll")}
+          </Button>
+        ) : null}
       </Flex>
     </Card>
   );

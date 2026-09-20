@@ -132,6 +132,14 @@ export interface ToolCall {
   destructive: boolean;
   requires_approval: boolean;
   source: ToolSource;
+  /**
+   * The system tier (restart / shutdown / update): pauses for approval in
+   * every mode, so the card never offers "don't ask again" for it. Decided
+   * by the server (`SYSTEM_GATED`); the client keeps no list of its own.
+   */
+  system_gated?: boolean;
+  /** True when a destructive call ran without a pause (Auto mode, or "don't ask again"). */
+  auto_approved?: boolean;
 }
 
 export type ToolResultStatus = "ok" | "blocked" | "error" | "denied";
@@ -362,9 +370,19 @@ export interface ChatTurnContext {
   registryPlugins?: RegistryPluginRef[];
 }
 
+/**
+ * Per-conversation approval override. Sent on every request after the user
+ * chose "Approve and don't ask again in this chat"; the install's own
+ * `approval_mode` setting is read server-side and never travels here.
+ */
+export interface ChatApprovalOptions {
+  auto_approve_destructive: boolean;
+}
+
 export interface ChatRequestBody {
   messages: WireMessage[];
   resume?: ResumePayload;
+  approval?: ChatApprovalOptions;
   device_type: DeviceType;
   surface?: ChatSurface;
   current_page?: CurrentPageSnapshot;

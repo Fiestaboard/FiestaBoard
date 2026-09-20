@@ -135,10 +135,20 @@ Execution model:
 - **Writes run immediately too** (creating a page, adding a schedule,
   changing a setting). The panel shows the call, then the result; the
   change is real, not a draft.
-- **Destructive tools wait for you** — `delete_page`, `delete_schedule`,
-  `delete_collection`, `uninstall_plugin`, and the system update. The
-  turn pauses with an Approve/Deny prompt and nothing runs until you
-  approve.
+- **Destructive tools follow the approval mode** (#2021). Every tool the
+  MCP server annotates `destructiveHint` — `delete_page`,
+  `delete_schedule`, `delete_collection`, `delete_plugin_instance`,
+  `uninstall_plugin`, `remove_board`, `delete_panel`,
+  `forget_wifi_network`, `disconnect_wifi` — pauses the turn with an
+  Approve/Deny prompt in **Ask** (the default) and runs without asking in
+  **Auto** (the pill in the panel header, `approval_mode` on
+  `PUT /settings/ai`). "Approve and don't ask again in this chat" on the
+  card is Auto for one conversation. Calls that ran unasked are badged
+  *auto*.
+- **The system tier always waits** — `restart_system`, `shutdown_system`,
+  `trigger_system_update` (`SYSTEM_GATED` in `src/ops/registry.py`) pause
+  in every mode, and the assistant cannot change the approval mode itself
+  (`update_setting` refuses `approval_mode`).
 - **Questions** — when a request is ambiguous FiestaBot asks (with
   one-click choices where it can) and waits for the answer.
 - **Stop** ends the turn; a tool that was already running finishes so

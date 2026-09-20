@@ -2024,6 +2024,17 @@
     "defaultModel": "Standard",
     "stepsAriaLabel": "Pågående steg",
     "stepsHeading": "{done} av {total} steg",
+    "approvalMode": {
+      "label": "Godkännandeläge",
+      "ask": "Fråga",
+      "auto": "Auto",
+      "autoNote": "Auto utför raderingar och andra destruktiva åtgärder utan att fråga. Omstart, avstängning och uppdatering frågar alltid.",
+      "thisChat": "Auto för den här chatten – välj ”Fråga” för att bli tillfrågad igen."
+    },
+    "autoApproved": {
+      "badge": "auto",
+      "tooltip": "Kördes utan att fråga: godkännandeläget är Auto, eller så valde du ”fråga inte igen” för den här chatten."
+    },
     "toolInput": "Argument",
     "toolOutput": "Resultat",
     "toolStates": {
@@ -2211,6 +2222,7 @@
     "approve": "Godkänn",
     "deny": "Neka",
     "working": "Arbetar…",
+    "approveAll": "Godkänn och fråga inte igen i den här chatten",
     "description": {
       "deletePage": "Tar bort sidan \"{detail}\" permanent. Scheman och samlingar som använder den förlorar den.",
       "deleteSchedule": "Tar bort schemat \"{detail}\" permanent. Det går inte att ångra.",

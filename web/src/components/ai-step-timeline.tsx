@@ -2,6 +2,7 @@
 
 import { Box, Shimmer, Task, TaskContent, TaskItem, TaskTrigger } from "@fiestaboard/ui";
 
+import { AiAutoApprovedBadge } from "@/components/ai-auto-approved-badge";
 import { detailForTool, labelForTool, type TranslateFn } from "@/components/ai-tool-labels";
 import { useTranslations } from "@/i18n/translations";
 import type { ChatMessage, ToolPhase, TurnStatus } from "@/lib/ai-chat-types";
@@ -69,6 +70,7 @@ export function AiStepTimeline({ messages }: { messages: ChatMessage[] }) {
                 <TaskItem key={call.id} status={STATUS_FOR_PHASE[call.phase]}>
                   {labelForTool(call, t)}
                   {detail ? ` · ${detail}` : ""}
+                  {call.auto_approved ? <AiAutoApprovedBadge /> : null}
                 </TaskItem>
               );
             })}

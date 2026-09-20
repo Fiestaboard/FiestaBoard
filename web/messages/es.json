@@ -2024,6 +2024,17 @@
     "defaultModel": "Predeterminado",
     "stepsAriaLabel": "Pasos en curso",
     "stepsHeading": "{done} de {total} pasos",
+    "approvalMode": {
+      "label": "Modo de aprobación",
+      "ask": "Preguntar",
+      "auto": "Auto",
+      "autoNote": "Auto ejecuta eliminaciones y otras acciones destructivas sin preguntar. Reiniciar, apagar y actualizar siempre preguntan.",
+      "thisChat": "Auto para este chat: elige «Preguntar» para que se te vuelva a preguntar."
+    },
+    "autoApproved": {
+      "badge": "auto",
+      "tooltip": "Se ejecutó sin preguntar: el modo de aprobación es Auto o elegiste «no volver a preguntar» en este chat."
+    },
     "toolInput": "Argumentos",
     "toolOutput": "Resultado",
     "toolStates": {
@@ -2211,6 +2222,7 @@
     "approve": "Aprobar",
     "deny": "Denegar",
     "working": "Trabajando…",
+    "approveAll": "Aprobar y no volver a preguntar en este chat",
     "description": {
       "deletePage": "Elimina permanentemente la página \"{detail}\". Las programaciones y colecciones que la usan la perderán.",
       "deleteSchedule": "Elimina permanentemente la programación \"{detail}\". No se puede deshacer.",

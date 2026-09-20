@@ -424,10 +424,19 @@ export function AiSettings() {
     });
   };
 
-  const current: AISettings = draft ?? data ?? { enabled: false, providers: [], default_provider_id: null };
+  const current: AISettings = draft ??
+    data ?? { enabled: false, providers: [], default_provider_id: null, approval_mode: "ask" };
 
   const saveMutation = useMutation({
-    mutationFn: (next: AISettings) => api.updateAiSettings(next),
+    // Only the fields this page edits. `approval_mode` is the chat panel's
+    // pill; sending a snapshot of it here would silently revert a mode the
+    // user changed in the chat meanwhile.
+    mutationFn: (next: AISettings) =>
+      api.updateAiSettings({
+        enabled: next.enabled,
+        providers: next.providers,
+        default_provider_id: next.default_provider_id,
+      }),
     onSuccess: (saved) => {
       queryClient.setQueryData(["ai-settings"], saved);
       setDraft(null);

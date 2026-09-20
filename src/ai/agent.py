@@ -20,7 +20,13 @@ Design points worth knowing before editing:
 
 - **Read-only tools run freely, destructive tools wait.** The MCP tool
   annotations decide which is which (``ToolDescriptor.requires_approval``);
-  this module keeps no list of its own.
+  this module keeps no list of its own. Two switches relax the wait
+  (#2021): the install's ``approval_mode`` setting (``"auto"``) and the
+  request's ``auto_approve_destructive`` flag (the conversation's "don't
+  ask again"). Either lets a destructive call run without a pause — the
+  ``tool_call`` frame then carries ``auto_approved: true`` — except for
+  the system tier (:data:`src.ops.registry.SYSTEM_GATED`), which pauses
+  whatever the switches say.
 - **The provider gate is held only around the model call.** The semaphore
   ``page_routes`` shares with ``/generate`` used to be held for a whole
   stream; a slow plugin install inside the loop would have starved the
@@ -48,6 +54,8 @@ from typing import Any
 import httpx
 
 from src.devices import DeviceType
+from src.ops.registry import SYSTEM_GATED
+from src.settings.models import AiApprovalMode
 
 from .chat import _DEFAULT_TIMEOUT_SECONDS, _FenceParser, stream_model
 from .chat_tools import ASK_USER
@@ -117,8 +125,16 @@ async def _run_chat_turn(
     client: httpx.AsyncClient | None = None,
     timeout_seconds: float = _DEFAULT_TIMEOUT_SECONDS,
     limits: TurnLimits = TurnLimits(),
+    approval_mode: AiApprovalMode = "ask",
+    auto_approve_destructive: bool = False,
 ) -> AsyncIterator[dict[str, Any]]:
-    """Run one user turn to completion or to a pause. Yields stream events."""
+    """Run one user turn to completion or to a pause. Yields stream events.
+
+    ``approval_mode`` is the install's setting; ``auto_approve_destructive``
+    is this conversation's "don't ask again" flag. Either one lets a
+    destructive tool run without pausing, unless it is system-gated.
+    """
+    skip_destructive_pause = approval_mode == "auto" or auto_approve_destructive
     try:
         provider = _resolve_provider(providers_block, provider_id)
         chosen_model = _resolve_model(provider, model)
@@ -189,7 +205,11 @@ async def _run_chat_turn(
         registry_plugins=registry_plugins,
         mode="chat",
     )
-    system_message = {"role": "system", "content": context.system_prompt + catalog.render_addendum(surface)}
+    system_message = {
+        "role": "system",
+        "content": context.system_prompt
+        + catalog.render_addendum(surface, skip_destructive_pause=skip_destructive_pause),
+    }
     # ``to_messages`` puts the "refining an existing page" note just before
     # the prompt; keep that placement so the draft stays adjacent to the ask.
     page_note = context.to_messages()[1] if current_page is not None else None
@@ -286,14 +306,22 @@ async def _run_chat_turn(
                 return
 
             if descriptor.requires_approval:
-                yield {"event": "tool_call", "data": wire}
-                if remaining:
-                    yield {"event": "warning", "data": {"message": _ignored(remaining, call["name"], "approval")}}
-                yield {
-                    "event": "done",
-                    "data": _done(chosen_model, provider, usage, "awaiting_approval", call["id"], steps),
-                }
-                return
+                if skip_destructive_pause and not wire["system_gated"]:
+                    # Auto mode / "don't ask again": the call runs like a
+                    # write tool below, but the frame says nobody was asked.
+                    wire["auto_approved"] = True
+                else:
+                    yield {"event": "tool_call", "data": wire}
+                    if remaining:
+                        yield {
+                            "event": "warning",
+                            "data": {"message": _ignored(remaining, call["name"], "approval")},
+                        }
+                    yield {
+                        "event": "done",
+                        "data": _done(chosen_model, provider, usage, "awaiting_approval", call["id"], steps),
+                    }
+                    return
 
             if tool_calls_made >= limits.max_tool_calls:
                 yield {
@@ -390,6 +418,11 @@ def _tool_call_data(call: dict[str, Any], descriptor: ToolDescriptor) -> dict[st
         "destructive": descriptor.destructive,
         "requires_approval": descriptor.requires_approval,
         "source": descriptor.source,
+        # The system tier never runs without a pause; the client hides its
+        # "don't ask again" action for these rather than keeping its own list.
+        "system_gated": call["name"] in SYSTEM_GATED,
+        # Set to True by the loop when a destructive call ran without asking.
+        "auto_approved": False,
     }
 
 

@@ -2024,6 +2024,17 @@
     "defaultModel": "Predefinido",
     "stepsAriaLabel": "Passos em curso",
     "stepsHeading": "{done} de {total} passos",
+    "approvalMode": {
+      "label": "Modo de aprovação",
+      "ask": "Perguntar",
+      "auto": "Auto",
+      "autoNote": "Auto executa exclusões e outras ações destrutivas sem perguntar. Reiniciar, desligar e atualizar sempre perguntam.",
+      "thisChat": "Auto para este chat — escolha “Perguntar” para voltar a ser perguntado."
+    },
+    "autoApproved": {
+      "badge": "auto",
+      "tooltip": "Executado sem perguntar: o modo de aprovação é Auto ou você escolheu “não perguntar novamente” neste chat."
+    },
     "toolInput": "Argumentos",
     "toolOutput": "Resultado",
     "toolStates": {
@@ -2211,6 +2222,7 @@
     "approve": "Aprovar",
     "deny": "Recusar",
     "working": "A trabalhar…",
+    "approveAll": "Aprovar e não perguntar novamente neste chat",
     "description": {
       "deletePage": "Remove permanentemente a página \"{detail}\". Os agendamentos e coleções que a usam perdem-na.",
       "deleteSchedule": "Remove permanentemente o agendamento \"{detail}\". Não pode ser anulado.",

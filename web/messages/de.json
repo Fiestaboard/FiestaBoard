@@ -2024,6 +2024,17 @@
     "defaultModel": "Standard",
     "stepsAriaLabel": "Laufende Schritte",
     "stepsHeading": "{done} von {total} Schritten",
+    "approvalMode": {
+      "label": "Freigabemodus",
+      "ask": "Fragen",
+      "auto": "Auto",
+      "autoNote": "Auto führt Löschungen und andere unwiderrufliche Aktionen ohne Nachfrage aus. Neustart, Herunterfahren und Aktualisieren fragen immer nach.",
+      "thisChat": "Auto für diesen Chat – wähle „Fragen“, um wieder gefragt zu werden."
+    },
+    "autoApproved": {
+      "badge": "auto",
+      "tooltip": "Ohne Nachfrage ausgeführt: Der Freigabemodus ist „Auto“ oder du hast für diesen Chat „nicht mehr fragen“ gewählt."
+    },
     "toolInput": "Argumente",
     "toolOutput": "Ergebnis",
     "toolStates": {
@@ -2211,6 +2222,7 @@
     "approve": "Freigeben",
     "deny": "Ablehnen",
     "working": "Läuft…",
+    "approveAll": "Freigeben und in diesem Chat nicht mehr fragen",
     "description": {
       "deletePage": "Entfernt die Seite „{detail}“ dauerhaft. Zeitpläne und Sammlungen, die sie nutzen, verlieren sie.",
       "deleteSchedule": "Entfernt den Zeitplan „{detail}“ dauerhaft. Das lässt sich nicht rückgängig machen.",

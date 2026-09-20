@@ -2024,6 +2024,17 @@
     "defaultModel": "기본값",
     "stepsAriaLabel": "진행 중인 단계",
     "stepsHeading": "{total}단계 중 {done}단계",
+    "approvalMode": {
+      "label": "승인 모드",
+      "ask": "확인",
+      "auto": "자동",
+      "autoNote": "자동 모드에서는 삭제 등 되돌릴 수 없는 작업을 확인 없이 실행합니다. 재시작, 종료, 업데이트는 항상 확인합니다.",
+      "thisChat": "이 채팅에서는 자동 — 다시 확인받으려면 ‘확인’을 선택하세요."
+    },
+    "autoApproved": {
+      "badge": "자동",
+      "tooltip": "확인 없이 실행됨: 승인 모드가 자동이거나 이 채팅에서 ‘다시 묻지 않기’를 선택했습니다."
+    },
     "toolInput": "인수",
     "toolOutput": "결과",
     "toolStates": {
@@ -2211,6 +2222,7 @@
     "approve": "승인",
     "deny": "거부",
     "working": "처리 중…",
+    "approveAll": "승인하고 이 채팅에서 다시 묻지 않기",
     "description": {
       "deletePage": "페이지 \"{detail}\"을(를) 영구 삭제합니다. 이를 사용하는 일정과 컬렉션에서 제거됩니다.",
       "deleteSchedule": "일정 \"{detail}\"을(를) 영구 삭제합니다. 되돌릴 수 없습니다.",

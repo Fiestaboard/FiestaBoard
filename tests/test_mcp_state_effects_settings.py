@@ -268,6 +268,36 @@ def test_update_setting_ai_new_provider_is_saved_without_a_key(mcp, services, tw
     assert services["config"].get_ai_provider("p1")["api_key"] == "test_key_1"
 
 
+def test_update_setting_ai_refuses_the_approval_mode(mcp, services, two_boards):
+    """The assistant must not be able to loosen its own approval policy
+    (#2021): ``approval_mode`` is the user's to set, in the chat panel."""
+    message = call_expect_error(mcp, "update_setting", category="ai", values={"approval_mode": "auto"})
+    assert "approval_mode" in message and "approval policy" in message
+    assert services["config"].get_ai_providers()["approval_mode"] == "ask", "a refused call must change nothing"
+
+
+def test_update_setting_ai_refuses_the_approval_mode_even_alongside_allowed_keys(mcp, services, two_boards):
+    message = call_expect_error(mcp, "update_setting", category="ai", values={"enabled": True, "approval_mode": "auto"})
+    assert "approval_mode" in message
+    block = services["config"].get_ai_providers()
+    assert block["enabled"] is False and block["approval_mode"] == "ask"
+
+
+def test_update_setting_ai_unknown_key_hint_never_advertises_the_approval_mode(mcp, services, two_boards):
+    message = call_expect_error(mcp, "update_setting", category="ai", values={"bogus": True})
+    assert "Unknown keys" in message and "bogus" in message
+    assert "approval_mode" not in message, "a refused key must not be listed as valid"
+    assert "enabled" in message and "default_provider_id" in message
+
+
+def test_get_settings_summary_omits_the_approval_mode(mcp, services, two_boards):
+    """The mode is not the assistant's to read back and change; the loop's
+    system prompt already tells it how destructive tools behave."""
+    services["config"].set_ai_providers({"approval_mode": "auto"})
+    summary = assert_ok(call(mcp, "get_settings_summary"), "get_settings_summary")
+    assert "approval_mode" not in summary["ai"]
+
+
 def test_update_setting_ai_enabled_flag_persists(mcp, services, two_boards):
     assert_ok(call(mcp, "update_setting", category="ai", values={"enabled": True}), "ai")
     assert services["config"].get_ai_providers()["enabled"] is True

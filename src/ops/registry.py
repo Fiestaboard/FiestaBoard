@@ -52,6 +52,15 @@ class ClientSideOperationError(LookupError):
 #: ``"chat"`` is the streaming chat's fenced-block spelling.
 Grammar = Literal["canonical", "chat"]
 
+#: The system tier of destructive tools (#2021). The in-app chat pauses for
+#: approval on every ``destructiveHint`` tool by default; the install's
+#: ``approval_mode`` setting ("auto") and a conversation's "don't ask again"
+#: flag let the loop skip that pause — except for these, which restart, power
+#: off or update the host and so cut the user's own session. They always
+#: pause. Pinned by ``tests/test_mcp_annotations.py`` next to the annotation
+#: sets; the loop reads it from here so the chat keeps no roster of its own.
+SYSTEM_GATED: frozenset[str] = frozenset({"restart_system", "shutdown_system", "trigger_system_update"})
+
 
 @dataclass(frozen=True)
 class Operation:

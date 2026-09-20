@@ -183,9 +183,19 @@ any FiestaBoard-hosted service.
 - No image/vision input.
 - FiestaBot acts through the same tools as the MCP server and shows
   each action as it happens. Creating, editing and configuring apply
-  immediately; deleting a page, schedule or collection, uninstalling a
-  plugin, and updating the system always wait for your approval, and
-  **Stop** ends a turn at any time.
+  immediately. Destructive actions — every tool the MCP server marks
+  destructive except the system tier: deleting a page, schedule,
+  collection, plugin instance, board or panel, uninstalling a plugin,
+  forgetting or disconnecting Wi-Fi — follow the chat's **approval
+  mode**, the
+  Ask / Auto toggle in the panel header. In **Ask** (the default) each
+  one pauses for your Approve / Deny; in **Auto** they run without
+  asking and are marked *auto* in the step list. The approval card's
+  "Approve and don't ask again in this chat" is the same thing for one
+  conversation, until you start a new chat. Restarting, shutting down
+  and updating the system always ask, in every mode, and FiestaBot
+  cannot change the approval mode itself. **Stop** ends a turn at any
+  time.
 - A modest per-process rate limit applies to page generation requests
   to protect against runaway clients (1 second between calls, 2
   concurrent).

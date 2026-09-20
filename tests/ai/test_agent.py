@@ -105,6 +105,8 @@ class FakeBackend:
             _d("list_pages", read_only=True),
             _d("create_page", required=("name",)),
             _d("delete_page", destructive=True, required=("page_id",)),
+            # System tier: destructive AND always gated, whatever the mode.
+            _d("restart_system", destructive=True),
             _d("ask_user", read_only=True, source="chat", required=("question",)),
         ]
         self.outcomes = outcomes or {}
@@ -275,6 +277,101 @@ def test_further_tool_blocks_after_a_pause_are_dropped_with_warning():
     assert len(_only(events, "tool_call")) == 1
     assert backend.calls == []
     assert any("ignored" in w["message"].lower() for w in _only(events, "warning"))
+
+
+# ---------------------------------------------------------------------------
+# Approval modes (#2021): the install-level setting and the per-conversation
+# request flag decide whether a destructive call pauses; the system tier
+# pauses regardless of either.
+# ---------------------------------------------------------------------------
+
+
+def test_auto_mode_runs_a_destructive_call_without_pausing_and_flags_it():
+    provider = ScriptedProvider(_sse("Deleting. " + _block("delete_page", {"page_id": "p1"})), _sse("Gone."))
+    backend = FakeBackend()
+    events = _run_turn(provider, backend, USER, approval_mode="auto")
+
+    assert backend.calls == [("delete_page", {"page_id": "p1"})]
+    call = _only(events, "tool_call")[0]
+    assert call["requires_approval"] is True, "the annotation is unchanged; only the pause is skipped"
+    assert call["auto_approved"] is True
+    assert call["system_gated"] is False
+    names = _names(events)
+    assert names.index("tool_call") < names.index("tool_result")
+    assert _only(events, "done")[0]["reason"] == "complete"
+
+
+def test_ask_mode_still_pauses_a_destructive_call():
+    provider = ScriptedProvider(_sse("Deleting. " + _block("delete_page", {"page_id": "p1"})))
+    backend = FakeBackend()
+    events = _run_turn(provider, backend, USER, approval_mode="ask")
+
+    assert backend.calls == []
+    call = _only(events, "tool_call")[0]
+    assert call["auto_approved"] is False
+    assert _only(events, "done")[0]["reason"] == "awaiting_approval"
+
+
+def test_system_tier_pauses_even_in_auto_mode():
+    provider = ScriptedProvider(_sse("Restarting. " + _block("restart_system", {})))
+    backend = FakeBackend()
+    events = _run_turn(provider, backend, USER, approval_mode="auto")
+
+    assert backend.calls == []
+    call = _only(events, "tool_call")[0]
+    assert call["system_gated"] is True
+    assert call["auto_approved"] is False
+    done = _only(events, "done")[0]
+    assert done["reason"] == "awaiting_approval" and done["pending_tool_call_id"] == call["id"]
+
+
+def test_request_flag_runs_a_destructive_call_when_the_setting_is_ask():
+    provider = ScriptedProvider(_sse("Deleting. " + _block("delete_page", {"page_id": "p1"})), _sse("Gone."))
+    backend = FakeBackend()
+    events = _run_turn(provider, backend, USER, approval_mode="ask", auto_approve_destructive=True)
+
+    assert backend.calls == [("delete_page", {"page_id": "p1"})]
+    assert _only(events, "tool_call")[0]["auto_approved"] is True
+    assert _only(events, "done")[0]["reason"] == "complete"
+
+
+def test_request_flag_does_not_bypass_the_system_tier():
+    provider = ScriptedProvider(_sse("Restarting. " + _block("restart_system", {})))
+    backend = FakeBackend()
+    events = _run_turn(provider, backend, USER, approval_mode="auto", auto_approve_destructive=True)
+
+    assert backend.calls == []
+    assert _only(events, "done")[0]["reason"] == "awaiting_approval"
+
+
+def test_auto_mode_teaches_the_model_that_destructive_tools_run_immediately():
+    provider = ScriptedProvider(_sse("Hi."))
+    _run_turn(provider, FakeBackend(), USER, approval_mode="auto")
+    system = provider.messages_of(0)[0]["content"]
+    assert "not to be asked" in system
+    assert "runs immediately" in system.split("### delete_page")[1].split("### ")[0]
+    assert "must approve" in system.split("### restart_system")[1].split("### ")[0]
+
+
+def test_ask_mode_teaches_the_model_that_destructive_tools_pause():
+    provider = ScriptedProvider(_sse("Hi."))
+    _run_turn(provider, FakeBackend(), USER, approval_mode="ask")
+    system = provider.messages_of(0)[0]["content"]
+    assert "pause until the user approves" in system
+    assert "must approve" in system.split("### delete_page")[1].split("### ")[0]
+
+
+def test_the_conversation_flag_teaches_the_model_the_same_as_auto_mode():
+    provider = ScriptedProvider(_sse("Hi."))
+    _run_turn(provider, FakeBackend(), USER, approval_mode="ask", auto_approve_destructive=True)
+    assert "not to be asked" in provider.messages_of(0)[0]["content"]
+
+
+def test_a_non_destructive_call_is_never_reported_as_auto_approved():
+    provider = ScriptedProvider(_sse(_block("create_page", {"name": "A"})), _sse("Made it."))
+    events = _run_turn(provider, FakeBackend(), USER, approval_mode="auto")
+    call = _only(events, "tool_call")[0]
+    assert call["requires_approval"] is False and call["auto_approved"] is False
 
 
 def _pending_transcript(call):

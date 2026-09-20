@@ -171,6 +171,41 @@ def test_editor_and_global_surfaces_differ_only_in_the_surface_intro(catalog):
     assert "create_page" in global_.split("### ")[0]
 
 
+def _with_system_tier(catalog_descriptors):
+    return ToolCatalog([*catalog_descriptors, _d("restart_system", destructive=True)])
+
+
+def test_addendum_in_ask_mode_says_destructive_tools_pause(catalog):
+    text = catalog.render_addendum("global")
+    assert "pause until the user approves" in text
+    assert "must approve" in text.split("### delete_page")[1].split("### ")[0]
+
+
+def test_addendum_when_destructive_pauses_are_skipped_says_they_run_immediately():
+    catalog = _with_system_tier(
+        [
+            _d("list_pages", read_only=True),
+            _d("delete_page", destructive=True),
+            _d("ask_user", read_only=True, source="chat"),
+        ]
+    )
+    text = catalog.render_addendum("global", skip_destructive_pause=True)
+    section = lambda n: text.split(f"### {n}")[1].split("### ")[0]  # noqa: E731
+    assert "runs immediately" in section("delete_page")
+    assert "must approve" not in section("delete_page")
+    assert "not to be asked" in text
+    # The system tier is described, and still pauses.
+    assert "SYSTEM" in section("restart_system")
+    assert "must approve" in section("restart_system")
+
+
+def test_addendum_in_ask_mode_still_marks_the_system_tier_as_gated():
+    catalog = _with_system_tier([_d("delete_page", destructive=True)])
+    text = catalog.render_addendum("global")
+    assert "SYSTEM" in text.split("### restart_system")[1]
+    assert "must approve" in text.split("### restart_system")[1]
+
+
 def test_addendum_for_the_real_server_stays_under_the_size_budget():
     pytest.importorskip("mcp", reason="mcp package not installed")
     import asyncio
@@ -179,6 +214,7 @@ def test_addendum_for_the_real_server_stays_under_the_size_budget():
     from src.ai.mcp_bridge import CompositeToolBackend, McpToolBackend
 
     descriptors = asyncio.run(CompositeToolBackend(McpToolBackend(), ChatExtensionBackend()).list_tools())
-    text = ToolCatalog(descriptors).render_addendum("global")
-    assert len(text.encode()) < 40_000, f"addendum is {len(text.encode())} bytes; trim descriptions"
+    for skip in (False, True):
+        text = ToolCatalog(descriptors).render_addendum("global", skip_destructive_pause=skip)
+        assert len(text.encode()) < 40_000, f"addendum is {len(text.encode())} bytes; trim descriptions"
     assert len(descriptors) >= 34

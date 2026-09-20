@@ -1203,7 +1203,7 @@ class ConfigManager:
         (use ``get_ai_providers_masked``).
         """
         with self._file_lock:
-            return self._deep_copy(
+            block = self._deep_copy(
                 self._config.get(
                     "ai_providers",
                     {
@@ -1213,6 +1213,25 @@ class ConfigManager:
                     },
                 )
             )
+        # Installs that predate #2021 have no approval_mode; they ask, as
+        # they always did. A hand-edited value outside {ask, auto} is also
+        # read as "ask" (logged once) so GET /settings/ai and the chat loop
+        # never disagree — the response model would otherwise 500.
+        block["approval_mode"] = self._coerce_approval_mode(block.get("approval_mode"))
+        return block
+
+    #: The only approval modes; mirrors ``AiApprovalMode`` in src/settings/models.py.
+    _AI_APPROVAL_MODES = ("ask", "auto")
+    _warned_bad_approval_mode = False
+
+    def _coerce_approval_mode(self, value: Any) -> str:
+        """``value`` if it is a known mode, else ``"ask"`` (warned once per process)."""
+        if value in self._AI_APPROVAL_MODES:
+            return value
+        if value is not None and not self._warned_bad_approval_mode:
+            logger.warning("ai_providers.approval_mode %r is not 'ask' or 'auto'; treating it as 'ask'", value)
+            self._warned_bad_approval_mode = True
+        return "ask"
 
     def get_ai_providers_masked(self) -> dict[str, Any]:
         """Get the AI providers config with each provider's api_key masked."""
@@ -1230,7 +1249,9 @@ class ConfigManager:
         """Update the AI providers configuration block.
 
         Accepts a partial dict with any of: ``enabled`` (bool),
-        ``providers`` (list of provider dicts), ``default_provider_id``.
+        ``providers`` (list of provider dicts), ``default_provider_id``,
+        ``approval_mode`` (``"ask"`` | ``"auto"``; anything else is stored as
+        ``"ask"``, the same coercion the reader applies).
 
         For ``providers``, the list replaces the stored list, but for any
         provider whose ``api_key`` field is the mask placeholder ``"***"``
@@ -1255,6 +1276,10 @@ class ConfigManager:
             if "default_provider_id" in settings:
                 value = settings["default_provider_id"]
                 existing["default_provider_id"] = value if value else None
+
+            if "approval_mode" in settings:
+                # Same rule as the read side: anything unknown means "ask".
+                existing["approval_mode"] = self._coerce_approval_mode(settings["approval_mode"])
 
             if "providers" in settings and isinstance(settings["providers"], list):
                 cleaned: list[dict[str, Any]] = []

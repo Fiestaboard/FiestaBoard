@@ -9,6 +9,12 @@
 // which re-POST the transcript with a `resume` decision and keep appending
 // to the same assistant message.
 //
+// "Approve and don't ask again in this chat" (#2021) is an approve that
+// also sets a per-conversation flag; every later request of the
+// conversation carries it as `approval.auto_approve_destructive`, and
+// `reset()` (New chat) forgets it. The install-level Ask / Auto setting is
+// the server's to read — it never travels in the request.
+//
 // The hook is UI-framework-neutral — it doesn't render anything and
 // doesn't execute tools. Callers observe what the server is doing through
 // the `onToolCall` / `onToolResult` callbacks.
@@ -72,12 +78,25 @@ export interface UseAiChatResult {
    * While an approval is pending, the call is denied and the text sent.
    */
   send: (text: string) => void;
-  approve: (toolCallId: string, decision: ApprovalDecision) => void;
+  approve: (toolCallId: string, decision: ApprovalDecision, options?: ApproveOptions) => void;
   answer: (toolCallId: string, answer: ElicitationAnswer) => void;
   /** End the turn. A tool already running on the server still finishes. */
   stop: () => void;
   retryLast: () => void;
   reset: () => void;
+  /** True once the user chose "don't ask again" in this conversation. */
+  autoApprove: boolean;
+  /** Turn "don't ask again" back off; later destructive calls pause again. */
+  disableAutoApprove: () => void;
+}
+
+export interface ApproveOptions {
+  /**
+   * Approve this call AND stop asking for the rest of the conversation:
+   * every later request carries `approval.auto_approve_destructive`.
+   * Meaningless with a `deny`.
+   */
+  autoApproveConversation?: boolean;
 }
 
 interface RunOptions {
@@ -88,6 +107,13 @@ interface RunOptions {
    * must leave the decision pending, not pretend the tool ran.
    */
   keepApproval?: boolean;
+  /**
+   * Arm "don't ask again" for this request and the rest of the conversation.
+   * Set before the POST (the request itself carries the flag) and rolled
+   * back if the stream does not reach `done` — a rejected resume or a
+   * dropped connection approved nothing, so it must not leave the flag on.
+   */
+  autoApproveConversation?: boolean;
 }
 
 /** Why a turn ended without a result for every call it started. */
@@ -102,6 +128,11 @@ export function useAiChat(opts: UseAiChatOptions): UseAiChatResult {
   const [pendingApproval, setPendingApproval] = useState<ToolCall | null>(null);
   const [pendingElicitation, setPendingElicitation] = useState<Elicitation | null>(null);
   const [error, setError] = useState<string | null>(null);
+  // "Don't ask again in this chat". State for the UI, a ref for the request
+  // body: approve() sets both and re-POSTs in the same tick, before React
+  // has re-rendered.
+  const [autoApprove, setAutoApprove] = useState(false);
+  const autoApproveRef = useRef(false);
 
   // The abort controller lives in a ref so stop() works without a
   // re-render, and so a stale render doesn't leak the controller.
@@ -124,6 +155,10 @@ export function useAiChat(opts: UseAiChatOptions): UseAiChatResult {
       const controller = new AbortController();
       abortRef.current = controller;
       setStatus("streaming");
+      if (options.autoApproveConversation) {
+        autoApproveRef.current = true;
+        setAutoApprove(true);
+      }
       if (!options.keepApproval) setPendingApproval(null);
       setPendingElicitation(null);
       setError(null);
@@ -150,6 +185,7 @@ export function useAiChat(opts: UseAiChatOptions): UseAiChatResult {
           {
             messages: toWireMessages(history, options.resume?.tool_call_id),
             resume: options.resume,
+            approval: autoApproveRef.current ? { auto_approve_destructive: true } : undefined,
             device_type: ctx.deviceType,
             surface: ctx.surface,
             current_page: ctx.currentPage,
@@ -255,6 +291,11 @@ export function useAiChat(opts: UseAiChatOptions): UseAiChatResult {
         // caller may still refresh what a call could have changed, but it
         // must not tell the user they stopped anything.
         if (!ended && unresolved.length > 0) onStopped?.(unresolved, streamHadError ? "error" : "stopped");
+        if (options.autoApproveConversation && !ended) {
+          // The approval never happened; "don't ask again" goes with it.
+          autoApproveRef.current = false;
+          setAutoApprove(false);
+        }
         setStatus((current) => {
           if (streamHadError) return "error";
           if (current === "streaming") return "idle";
@@ -321,7 +362,7 @@ export function useAiChat(opts: UseAiChatOptions): UseAiChatResult {
   );
 
   const approve = useCallback(
-    (toolCallId: string, decision: ApprovalDecision) => {
+    (toolCallId: string, decision: ApprovalDecision, options: ApproveOptions = {}) => {
       const current = messagesRef.current;
       if (decision === "deny") {
         const next = patchCallById(current, toolCallId, (c) => ({ ...c, phase: "denied" }));
@@ -332,7 +373,11 @@ export function useAiChat(opts: UseAiChatOptions): UseAiChatResult {
       }
       // The card stays "awaiting approval" until the server says the call
       // is running (a status frame); a rejected resume leaves it pending.
-      void runStream(current, { resume: { tool_call_id: toolCallId, decision }, keepApproval: true });
+      void runStream(current, {
+        resume: { tool_call_id: toolCallId, decision },
+        keepApproval: true,
+        autoApproveConversation: options.autoApproveConversation === true,
+      });
     },
     [runStream],
   );
@@ -349,6 +394,11 @@ export function useAiChat(opts: UseAiChatOptions): UseAiChatResult {
 
   const stop = useCallback(() => {
     abortRef.current?.abort();
+  }, []);
+
+  const disableAutoApprove = useCallback(() => {
+    autoApproveRef.current = false;
+    setAutoApprove(false);
   }, []);
 
   const retryLast = useCallback(() => {
@@ -375,6 +425,9 @@ export function useAiChat(opts: UseAiChatOptions): UseAiChatResult {
     setPendingApproval(null);
     setPendingElicitation(null);
     setError(null);
+    // "Don't ask again" was for that conversation; a new chat asks again.
+    autoApproveRef.current = false;
+    setAutoApprove(false);
   }, []);
 
   // A pause is derived, not stored: the stream's own bookkeeping lands on
@@ -395,6 +448,8 @@ export function useAiChat(opts: UseAiChatOptions): UseAiChatResult {
     stop,
     retryLast,
     reset,
+    autoApprove,
+    disableAutoApprove,
   };
 }
 

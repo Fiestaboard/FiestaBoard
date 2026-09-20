@@ -2024,6 +2024,17 @@
     "defaultModel": "Varsayılan",
     "stepsAriaLabel": "Devam eden adımlar",
     "stepsHeading": "{total} adımdan {done}",
+    "approvalMode": {
+      "label": "Onay modu",
+      "ask": "Sor",
+      "auto": "Otomatik",
+      "autoNote": "Otomatik, silme ve diğer geri alınamaz işlemleri sormadan çalıştırır. Yeniden başlatma, kapatma ve güncelleme her zaman sorar.",
+      "thisChat": "Bu sohbet için Otomatik — yeniden sorulması için “Sor”u seçin."
+    },
+    "autoApproved": {
+      "badge": "oto",
+      "tooltip": "Sorulmadan çalıştırıldı: onay modu Otomatik veya bu sohbet için “bir daha sorma” seçildi."
+    },
     "toolInput": "Argümanlar",
     "toolOutput": "Sonuç",
     "toolStates": {
@@ -2211,6 +2222,7 @@
     "approve": "Onayla",
     "deny": "Reddet",
     "working": "Çalışıyor…",
+    "approveAll": "Onayla ve bu sohbette bir daha sorma",
     "description": {
       "deletePage": "\"{detail}\" sayfasını kalıcı olarak siler. Onu kullanan zamanlamalar ve koleksiyonlar onu kaybeder.",
       "deleteSchedule": "\"{detail}\" zamanlamasını kalıcı olarak siler. Geri alınamaz.",

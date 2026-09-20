@@ -100,6 +100,18 @@ APPROVAL_GATED = {
     "shutdown_system",
 }
 
+#: The system tier (#2021): destructive tools that ALWAYS pause the in-app
+#: chat for approval, whatever the install's ``approval_mode`` and whatever
+#: the conversation's "don't ask again" flag say. Restarting, powering off or
+#: updating the host cuts the user's own session; no mode may skip that ask.
+#: Pinned here like the other sets, and mirrored by the loop's
+#: ``src.ops.registry.SYSTEM_GATED``.
+SYSTEM_GATED = {
+    "restart_system",
+    "shutdown_system",
+    "trigger_system_update",
+}
+
 #: Tools that touch something outside this install (the plugin registry
 #: over the network, a git remote, a plugin's upstream API, the release
 #: registries, a third-party AI endpoint, the public internet).
@@ -240,3 +252,27 @@ def test_annotations_are_visible_through_list_tools_by_alias(mcp, annotations):
         got = by_name[name].annotations
         assert got is not None, f"{name} lost its annotations on the wire"
         assert got.model_dump(by_alias=True, exclude_none=True) == expected
+
+
+# ---------------------------------------------------------------------------
+# The system tier
+# ---------------------------------------------------------------------------
+
+
+def test_system_gated_tools_are_exactly_the_pinned_set():
+    from src.ops.registry import SYSTEM_GATED as live
+
+    assert set(live) == SYSTEM_GATED
+
+
+def test_every_system_gated_tool_is_a_destructive_approval_gated_tool(annotations):
+    """The tier is a subset, never a third annotation: a system tool that
+    lost its ``destructiveHint`` would run freely for external clients."""
+    assert SYSTEM_GATED <= APPROVAL_GATED
+    for name in SYSTEM_GATED:
+        assert annotations[name]["destructiveHint"] is True, f"{name} must stay destructive"
+
+
+def test_every_system_gated_tool_is_a_registered_tool(annotations):
+    unknown = sorted(SYSTEM_GATED - set(annotations))
+    assert unknown == [], f"SYSTEM_GATED names tools the server does not have: {unknown}"

@@ -2024,6 +2024,17 @@
     "defaultModel": "Standaard",
     "stepsAriaLabel": "Stappen in uitvoering",
     "stepsHeading": "{done} van {total} stappen",
+    "approvalMode": {
+      "label": "Goedkeuringsmodus",
+      "ask": "Vragen",
+      "auto": "Auto",
+      "autoNote": "Auto voert verwijderingen en andere onomkeerbare acties uit zonder te vragen. Herstarten, afsluiten en bijwerken vragen altijd.",
+      "thisChat": "Auto voor deze chat – kies ‘Vragen’ om weer gevraagd te worden."
+    },
+    "autoApproved": {
+      "badge": "auto",
+      "tooltip": "Uitgevoerd zonder te vragen: de goedkeuringsmodus is Auto, of je koos ‘niet meer vragen’ voor deze chat."
+    },
     "toolInput": "Argumenten",
     "toolOutput": "Resultaat",
     "toolStates": {
@@ -2211,6 +2222,7 @@
     "approve": "Goedkeuren",
     "deny": "Weigeren",
     "working": "Bezig…",
+    "approveAll": "Goedkeuren en niet meer vragen in deze chat",
     "description": {
       "deletePage": "Verwijdert pagina \"{detail}\" definitief. Schema's en collecties die hem gebruiken, verliezen hem.",
       "deleteSchedule": "Verwijdert schema \"{detail}\" definitief. Dit kan niet ongedaan worden gemaakt.",

@@ -2024,6 +2024,17 @@
     "defaultModel": "Domyślny",
     "stepsAriaLabel": "Kroki w toku",
     "stepsHeading": "{done} z {total} kroków",
+    "approvalMode": {
+      "label": "Tryb zatwierdzania",
+      "ask": "Pytaj",
+      "auto": "Auto",
+      "autoNote": "Auto wykonuje usuwanie i inne nieodwracalne działania bez pytania. Restart, wyłączenie i aktualizacja zawsze pytają.",
+      "thisChat": "Auto w tym czacie — wybierz „Pytaj”, aby znów otrzymywać pytania."
+    },
+    "autoApproved": {
+      "badge": "auto",
+      "tooltip": "Wykonano bez pytania: tryb zatwierdzania to Auto lub wybrano „nie pytaj ponownie” w tym czacie."
+    },
     "toolInput": "Argumenty",
     "toolOutput": "Wynik",
     "toolStates": {
@@ -2211,6 +2222,7 @@
     "approve": "Zatwierdź",
     "deny": "Odrzuć",
     "working": "Trwa…",
+    "approveAll": "Zatwierdź i nie pytaj ponownie w tym czacie",
     "description": {
       "deletePage": "Trwale usuwa stronę „{detail}”. Harmonogramy i kolekcje, które jej używają, ją stracą.",
       "deleteSchedule": "Trwale usuwa harmonogram „{detail}”. Nie można tego cofnąć.",

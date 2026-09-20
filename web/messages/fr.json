@@ -2024,6 +2024,17 @@
     "defaultModel": "Par défaut",
     "stepsAriaLabel": "Étapes en cours",
     "stepsHeading": "{done} étapes sur {total}",
+    "approvalMode": {
+      "label": "Mode d'approbation",
+      "ask": "Demander",
+      "auto": "Auto",
+      "autoNote": "Auto exécute les suppressions et autres actions destructrices sans demander. Redémarrer, éteindre et mettre à jour demandent toujours.",
+      "thisChat": "Auto pour cette discussion — choisissez « Demander » pour être à nouveau consulté."
+    },
+    "autoApproved": {
+      "badge": "auto",
+      "tooltip": "Exécuté sans demander : le mode d'approbation est Auto, ou vous avez choisi « ne plus demander » pour cette discussion."
+    },
     "toolInput": "Arguments",
     "toolOutput": "Résultat",
     "toolStates": {
@@ -2211,6 +2222,7 @@
     "approve": "Approuver",
     "deny": "Refuser",
     "working": "En cours…",
+    "approveAll": "Approuver et ne plus demander dans cette discussion",
     "description": {
       "deletePage": "Supprime définitivement la page « {detail} ». Les programmations et collections qui l'utilisent la perdent.",
       "deleteSchedule": "Supprime définitivement la programmation « {detail} ». Irréversible.",
