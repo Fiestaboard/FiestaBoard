@@ -268,3 +268,33 @@
   overflow: hidden !important;
   background: #000 !important;
 }
+
+/* ---------------------------------------------------------------------------
+   FiestaBot drawer width (#2024)
+
+   The drawer is resizable, and its width lives on <html> as
+   --ai-drawer-width (web/src/hooks/use-ai-drawer-width.ts). Two things have
+   to follow it:
+
+   1. The page's reservation. @fiestaboard/ui's MainContent reserves a fixed
+      `lg:pr-[396px]` whenever the AI panel is open, which was right when the
+      drawer was always 384px wide. This rule wins on specificity and
+      reserves the live width instead, so the dashboard never ends up under
+      the drawer — including mid-drag, since a custom property changes
+      without React re-rendering the page.
+
+   2. The drawer itself, which animates its width only when the viewer is
+      not dragging it (a transition during a drag lags the pointer) and only
+      when they have not asked for less motion.
+   --------------------------------------------------------------------------- */
+@media (min-width: 1024px) {
+  html.ai-drawer-open main.content-root {
+    padding-right: calc(var(--ai-drawer-width, 384px) + 0.75rem);
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  html:not(.ai-drawer-dragging) .ai-drawer-width-transition {
+    transition-property: transform, width;
+  }
+}
