@@ -1,9 +1,9 @@
 [Unit]
-Description=Periodically heal fiestapi.local mDNS hostname
+Description=Periodically check FiestaPi mDNS health
 
 [Timer]
 OnBootSec=2min
-OnUnitActiveSec=1h
+OnUnitActiveSec=5min
 Persistent=true
 Unit=fiestapi-heal-mdns.service
 

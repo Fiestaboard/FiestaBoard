@@ -17,6 +17,12 @@ install -d -m 0755 "${ROOTFS_DIR}/etc/avahi/services"
 install -m 0644 files/fiestaboard-http.service \
     "${ROOTFS_DIR}/etc/avahi/services/fiestaboard-http.service"
 
+# Debian's Avahi unit has no Restart policy. Recover from daemon crashes so
+# the hostname and HTTP service remain discoverable without intervention.
+install -d -m 0755 "${ROOTFS_DIR}/etc/systemd/system/avahi-daemon.service.d"
+install -m 0644 files/avahi-daemon-restart.conf \
+    "${ROOTFS_DIR}/etc/systemd/system/avahi-daemon.service.d/restart.conf"
+
 # systemd units
 install -m 0644 files/fiestaboard.service \
     "${ROOTFS_DIR}/etc/systemd/system/fiestaboard.service"

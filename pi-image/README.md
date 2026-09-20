@@ -17,6 +17,7 @@ A flashable Raspberry Pi OS image with FiestaBoard pre-installed and self-updati
 - `fiestaupdater` sidecar enabled by default — Settings → Update Now works immediately
 - 1 GB swap file
 - mDNS hostname `fiestapi.local` and a host-level Bonjour HTTP service on port 4420
+- Avahi crash recovery through systemd, with a five-minute health check for unresponsive or renamed mDNS
 - `FIESTABOARD_PROFILE=pi` env baked in (flips the in-app auto-update toggle to default ON, and seeds the instance name to "FiestaPi" on first boot)
 - First-boot script that generates a unique `FIESTAUPDATER_TOKEN`
 - **HDMI kiosk (opt-in):** drop an empty `fiestapi-hdmi.txt` on the boot partition and
@@ -85,6 +86,7 @@ pi-image/
         ├── 00-packages    ← apt packages installed in the chroot
         ├── 00-run.sh      ← installs docker-ce + FiestaBoard in chroot
         └── files/
+            ├── avahi-daemon-restart.conf  ← restart Avahi after a crash
             ├── docker-compose.yml
             ├── env.template
             ├── fiestaboard-http.service  ← Avahi advertises the host's mapped HTTP port
@@ -113,3 +115,7 @@ sudo systemctl restart avahi-daemon.service
 
 The container updater cannot install this host file. A fresh image includes
 it automatically.
+
+The Avahi restart policy and faster health check are also host-level image
+changes. They take effect on a newly built image; updating the FiestaBoard
+container alone does not apply them to an already flashed Pi.
