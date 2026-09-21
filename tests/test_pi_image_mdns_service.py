@@ -55,19 +55,14 @@ def test_pi_image_checks_avahi_health_every_five_minutes():
         ("fiestapi.local", 1, True),
     ],
 )
-def test_mdns_healer_restarts_only_when_unhealthy(
-    tmp_path, response, dbus_exit_code, expected_restart
-):
+def test_mdns_healer_restarts_only_when_unhealthy(tmp_path, response, dbus_exit_code, expected_restart):
     fake_bin = tmp_path / "bin"
     fake_bin.mkdir()
     (fake_bin / "hostname").write_text("#!/bin/sh\necho fiestapi\n")
     (fake_bin / "dbus-send").write_text(
-        "#!/bin/sh\nprintf '   string \"%s\"\\n' \"$FAKE_AVAHI_FQDN\"\n"
-        "exit \"$FAKE_DBUS_EXIT_CODE\"\n"
+        '#!/bin/sh\nprintf \'   string "%s"\\n\' "$FAKE_AVAHI_FQDN"\nexit "$FAKE_DBUS_EXIT_CODE"\n'
     )
-    (fake_bin / "systemctl").write_text(
-        "#!/bin/sh\nprintf '%s\\n' \"$*\" >> \"$FAKE_SYSTEMCTL_LOG\"\n"
-    )
+    (fake_bin / "systemctl").write_text('#!/bin/sh\nprintf \'%s\\n\' "$*" >> "$FAKE_SYSTEMCTL_LOG"\n')
     (fake_bin / "logger").write_text("#!/bin/sh\nexit 0\n")
     for command in fake_bin.iterdir():
         command.chmod(0o755)
