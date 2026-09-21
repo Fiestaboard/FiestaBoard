@@ -90,6 +90,8 @@
     "light": "Ljust",
     "dark": "Mörkt",
     "system": "System",
+    "devSuffix": "utvecklingsbygge",
+    "updateAvailable": "Uppdatering tillgänglig: {version}",
     "about": "Om FiestaBoard",
     "signOut": "Logga ut"
   },
@@ -604,7 +606,14 @@
       "apiKeyLabel": "API-nyckel",
       "modelsLabel": "Modeller",
       "defaultModelLabel": "Standardmodell",
-      "testConnectionButton": "Testa anslutning"
+      "testConnectionButton": "Testa anslutning",
+      "turnLimits": {
+        "heading": "Gränser per tur",
+        "description": "Ett skyddsnät mot en modell som fastnat i en loop, inte en arbetsbudget. När en gräns nås pausas turen och chatten erbjuder att fortsätta. Lämna tomt för serverns standardvärden.",
+        "modelCallsLabel": "Modellanrop per tur",
+        "toolCallsLabel": "Verktygsanrop per tur",
+        "serverDefault": "Serverns standard"
+      }
     },
     "backup": {
       "cardTitle": "Säkerhetskopiering & återställning",
@@ -2182,7 +2191,15 @@
       "lineCount": "{count, plural, one {# rad} other {# rader}}",
       "durationSeconds": "{count} s"
     },
-    "toolRun": "{tool} · {count, plural, one {# gång} other {# gånger}}"
+    "toolRun": "{tool} · {count, plural, one {# gång} other {# gånger}}",
+    "composerSettings": {
+      "triggerAriaLabel": "Chattinställningar: godkännande {mode}, modell {model}",
+      "popoverLabel": "Chattinställningar"
+    },
+    "keepGoing": {
+      "prompt": "Assistenten pausade under en lång tur. Inget har gått förlorat.",
+      "action": "Fortsätt"
+    }
   },
   "boardSizeIndicator": {
     "custom": "Anpassad",

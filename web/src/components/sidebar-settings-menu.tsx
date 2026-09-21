@@ -27,9 +27,10 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
   SidebarSettingsTrigger,
+  Text,
 } from "@fiestaboard/ui";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Info, LogOut, Monitor, Moon, Settings, Sun } from "lucide-react";
+import { ArrowUpCircle, Info, LogOut, Monitor, Moon, Settings, Sun } from "lucide-react";
 import { useState } from "react";
 
 import { AboutDialog } from "@/components/about-dialog";
@@ -59,6 +60,35 @@ export function SidebarSettingsMenu({ collapsed = false }: SidebarSettingsMenuPr
 
   const signedIn = Boolean(authStatus?.enabled && authStatus.authenticated);
   const username = signedIn ? (authStatus?.username ?? null) : null;
+
+  // Shared cache keys with AboutDialog, so opening either usually costs no
+  // request. Not gated on the menu being open, unlike About's copies: the
+  // whole point of an update indicator is that it is there before you go
+  // looking for it.
+  const { data: version } = useQuery({
+    queryKey: ["version"],
+    queryFn: () => api.getVersion(),
+    staleTime: Infinity,
+    retry: false,
+  });
+  const { data: updateStatus } = useQuery({
+    queryKey: ["update-status"],
+    queryFn: () => api.getUpdateStatus(),
+    staleTime: 1000 * 30,
+    retry: false,
+  });
+  const { data: updateCheck } = useQuery({
+    queryKey: ["update-check"],
+    queryFn: () => api.checkForUpdate(),
+    staleTime: 1000 * 60 * 60,
+    retry: false,
+  });
+
+  // Same rule as AboutDialog, and it is not cosmetic: when an external
+  // supervisor owns updates (the Home Assistant add-on) FiestaBoard cannot
+  // apply one, so pointing at it would be an offer it cannot honour.
+  const updateAvailable =
+    !updateStatus?.managed_externally && updateCheck?.update_available ? updateCheck.latest_version : null;
 
   // The trigger says who you are when the install knows, and what the menu
   // is when it doesn't. An install with auth off has no name to show and
@@ -129,6 +159,39 @@ export function SidebarSettingsMenu({ collapsed = false }: SidebarSettingsMenuPr
           </DropdownMenuGroup>
 
           <DropdownMenuSeparator />
+
+          {/* The version, stated here rather than only inside About. About
+              is one click further away, and the build number is the thing
+              people come to this menu to read — so it earns its line even
+              though About repeats it. #2038 moved the version off the rail
+              (where the collapsed state could only render it wrongly); this
+              puts it back where there is room for it. */}
+          {version && (
+            <DropdownMenuLabel className="flex items-center justify-between gap-2 font-normal text-muted-foreground">
+              <Text as="span" className="truncate">
+                {version.running_version}
+                {version.is_dev && ` · ${t("devSuffix")}`}
+              </Text>
+              {updateAvailable && (
+                <Text
+                  as="span"
+                  className="inline-flex shrink-0 items-center gap-1 text-brand-emphasis"
+                  data-testid="settings-menu-update-badge"
+                >
+                  <ArrowUpCircle className="h-3.5 w-3.5" aria-hidden="true" />
+                  {/* The icon carries the meaning for sighted readers and
+                      the version number sits beside it; assistive tech gets
+                      the whole sentence instead of "arrow, 8.39.0". */}
+                  <Text as="span" className="sr-only">
+                    {t("updateAvailable", { version: updateAvailable })}
+                  </Text>
+                  <Text as="span" aria-hidden="true">
+                    {updateAvailable}
+                  </Text>
+                </Text>
+              )}
+            </DropdownMenuLabel>
+          )}
 
           <DropdownMenuItem onClick={() => setAboutOpen(true)}>
             <Info aria-hidden="true" />

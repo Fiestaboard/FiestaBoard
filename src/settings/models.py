@@ -26,7 +26,7 @@ from __future__ import annotations
 
 from typing import Any, Literal
 
-from pydantic import BaseModel, ConfigDict, Field, StrictBool
+from pydantic import BaseModel, ConfigDict, Field, StrictBool, StrictInt
 
 from src.config import SilenceMode
 from src.devices import DeviceType
@@ -70,6 +70,12 @@ class MqttSettingsUpdate(BaseModel):
 AiApprovalMode = Literal["ask", "auto"]
 
 
+#: Bounds for the per-turn caps below; mirrors ``MIN_TURN_CAP`` /
+#: ``MAX_TURN_CAP`` in src/ai/agent.py.
+AI_TURN_CAP_MIN = 1
+AI_TURN_CAP_MAX = 10_000
+
+
 class AiProvidersResponse(BaseModel):
     """AI provider configuration with every ``api_key`` masked."""
 
@@ -77,6 +83,11 @@ class AiProvidersResponse(BaseModel):
     providers: list[dict[str, Any]]
     default_provider_id: str | None = None
     approval_mode: AiApprovalMode = "ask"
+    #: Per-turn runaway caps (#2045). ``None`` means the install has no
+    #: opinion and the agent's own defaults apply, so the UI can show the
+    #: effective number without this block having to restate it.
+    max_model_calls: int | None = None
+    max_tool_calls: int | None = None
 
 
 class AiProvidersUpdate(BaseModel):
@@ -93,6 +104,13 @@ class AiProvidersUpdate(BaseModel):
     providers: list[dict[str, Any]] | None = None
     default_provider_id: str | None = None
     approval_mode: AiApprovalMode | None = None
+    #: Per-turn runaway caps (#2045). Bounded here rather than only clamped
+    #: in the config manager so a bad value is a 422 the caller can see
+    #: instead of a silent adjustment. ``StrictInt`` for the same reason
+    #: ``enabled`` is a ``StrictBool``: a JSON ``"40"`` where a number belongs
+    #: is a caller bug, and lax coercion would hide it.
+    max_model_calls: StrictInt | None = Field(default=None, ge=AI_TURN_CAP_MIN, le=AI_TURN_CAP_MAX)
+    max_tool_calls: StrictInt | None = Field(default=None, ge=AI_TURN_CAP_MIN, le=AI_TURN_CAP_MAX)
 
 
 class AiTestRequest(BaseModel):

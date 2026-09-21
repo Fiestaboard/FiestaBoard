@@ -90,6 +90,8 @@
     "light": "浅色",
     "dark": "深色",
     "system": "跟随系统",
+    "devSuffix": "开发版本",
+    "updateAvailable": "有可用更新：{version}",
     "about": "关于 FiestaBoard",
     "signOut": "退出登录"
   },
@@ -604,7 +606,14 @@
       "apiKeyLabel": "API 密钥",
       "modelsLabel": "模型",
       "defaultModelLabel": "默认模型",
-      "testConnectionButton": "测试连接"
+      "testConnectionButton": "测试连接",
+      "turnLimits": {
+        "heading": "单轮上限",
+        "description": "这是对陷入循环的模型的兜底保护，而不是工作预算。达到上限时该轮会暂停，聊天会询问是否继续。留空则使用服务器默认值。",
+        "modelCallsLabel": "每轮模型调用次数",
+        "toolCallsLabel": "每轮工具调用次数",
+        "serverDefault": "服务器默认值"
+      }
     },
     "backup": {
       "cardTitle": "备份与恢复",
@@ -2182,7 +2191,15 @@
       "lineCount": "{count, plural, other {# 行}}",
       "durationSeconds": "{count} 秒"
     },
-    "toolRun": "{tool} · {count, plural, other {# 次}}"
+    "toolRun": "{tool} · {count, plural, other {# 次}}",
+    "composerSettings": {
+      "triggerAriaLabel": "聊天设置：审批 {mode}，模型 {model}",
+      "popoverLabel": "聊天设置"
+    },
+    "keepGoing": {
+      "prompt": "助手在长回合中暂停。已完成的工作均已保留。",
+      "action": "继续"
+    }
   },
   "boardSizeIndicator": {
     "custom": "自定义",

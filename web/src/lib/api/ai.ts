@@ -26,11 +26,23 @@ export interface AIProvider {
  */
 export type AiApprovalMode = "ask" | "auto";
 
+/**
+ * Per-turn runaway caps, mirroring `TurnLimits` in `src/ai/agent.py`.
+ *
+ * `null` means this install states no policy and the server's own defaults
+ * apply — so the UI shows a placeholder, never a fabricated number. Bounds
+ * mirror `AI_TURN_CAP_MIN` / `AI_TURN_CAP_MAX`; a value outside them is a 422.
+ */
+export const AI_TURN_CAP_MIN = 1;
+export const AI_TURN_CAP_MAX = 10_000;
+
 export interface AISettings {
   enabled: boolean;
   providers: AIProvider[];
   default_provider_id: string | null;
   approval_mode: AiApprovalMode;
+  max_model_calls: number | null;
+  max_tool_calls: number | null;
 }
 
 export interface AITestResult {

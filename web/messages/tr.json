@@ -90,6 +90,8 @@
     "light": "Açık",
     "dark": "Koyu",
     "system": "Sistem",
+    "devSuffix": "geliştirme sürümü",
+    "updateAvailable": "Güncelleme mevcut: {version}",
     "about": "FiestaBoard hakkında",
     "signOut": "Oturumu kapat"
   },
@@ -604,7 +606,14 @@
       "apiKeyLabel": "API Anahtarı",
       "modelsLabel": "Modeller",
       "defaultModelLabel": "Varsayılan model",
-      "testConnectionButton": "Bağlantıyı test et"
+      "testConnectionButton": "Bağlantıyı test et",
+      "turnLimits": {
+        "heading": "Tur sınırları",
+        "description": "Bir döngüde takılan modele karşı emniyet, iş bütçesi değil. Sınıra ulaşıldığında tur duraklatılır ve sohbet devam etmeyi önerir. Sunucu varsayılanlarını kullanmak için boş bırakın.",
+        "modelCallsLabel": "Tur başına model çağrısı",
+        "toolCallsLabel": "Tur başına araç çağrısı",
+        "serverDefault": "Sunucu varsayılanı"
+      }
     },
     "backup": {
       "cardTitle": "Yedekleme ve Geri Yükleme",
@@ -2182,7 +2191,15 @@
       "lineCount": "{count, plural, one {# satır} other {# satır}}",
       "durationSeconds": "{count} sn"
     },
-    "toolRun": "{tool} · {count, plural, one {# kez} other {# kez}}"
+    "toolRun": "{tool} · {count, plural, one {# kez} other {# kez}}",
+    "composerSettings": {
+      "triggerAriaLabel": "Sohbet ayarları: onay {mode}, model {model}",
+      "popoverLabel": "Sohbet ayarları"
+    },
+    "keepGoing": {
+      "prompt": "Asistan uzun bir turda duraklattı. Hiçbir şey kaybolmadı.",
+      "action": "Devam et"
+    }
   },
   "boardSizeIndicator": {
     "custom": "Özel",

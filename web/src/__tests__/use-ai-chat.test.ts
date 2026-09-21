@@ -1125,3 +1125,83 @@ describe("computeAppliedSnapshot", () => {
     expect(computeAppliedSnapshot({ name: "list_pages", args: {} }, undefined)).toBeUndefined();
   });
 });
+
+// ---------------------------------------------------------------------------
+// Continuing past a per-turn cap (#2045)
+// ---------------------------------------------------------------------------
+
+describe("useAiChat: pausing at a per-turn cap", () => {
+  /** Send one message and end the turn with `reason`. */
+  function turnEndingWith(reason: "complete" | "step_limit") {
+    const { result } = renderHook(() => useAiChat(makeOpts()));
+    act(() => {
+      result.current.send("build me a page");
+    });
+    act(() => {
+      capturedHandlers?.onDone?.({ ...DONE, reason, pending_tool_call_id: null });
+      resolveStream?.();
+    });
+    return result;
+  }
+
+  it("flags a turn that stopped at the cap", async () => {
+    const result = turnEndingWith("step_limit");
+    await waitFor(() => expect(result.current.pausedAtLimit).toBe(true));
+  });
+
+  it("does not flag a turn that finished normally", async () => {
+    const result = turnEndingWith("complete");
+    await waitFor(() => expect(result.current.status).toBe("idle"));
+    expect(result.current.pausedAtLimit).toBe(false);
+  });
+
+  it("continueTurn re-sends the same transcript with no resume and no new message", async () => {
+    const result = turnEndingWith("step_limit");
+    await waitFor(() => expect(result.current.pausedAtLimit).toBe(true));
+    // Snapshotted before the call: starting a stream appends a fresh pending
+    // assistant message, so comparing against the post-call state would be
+    // comparing against a transcript the request never saw.
+    const sentTranscript = toWireMessages(result.current.messages);
+
+    act(() => {
+      result.current.continueTurn();
+    });
+
+    // The whole point: the model gets called again over exactly the history
+    // it already has. A `resume` would name a tool call nobody is waiting
+    // on, and an extra user message would put words in the transcript that
+    // the user never typed.
+    expect(lastBody().resume).toBeUndefined();
+    expect(lastBody().messages).toEqual(sentTranscript);
+    expect(result.current.messages.filter((m) => m.role === "user")).toEqual([
+      { role: "user", content: "build me a page" },
+    ]);
+  });
+
+  it("takes the offer down once the continuation starts", async () => {
+    const result = turnEndingWith("step_limit");
+    await waitFor(() => expect(result.current.pausedAtLimit).toBe(true));
+    act(() => {
+      result.current.continueTurn();
+    });
+    expect(result.current.pausedAtLimit).toBe(false);
+  });
+
+  it("takes the offer down when the user types instead", async () => {
+    const result = turnEndingWith("step_limit");
+    await waitFor(() => expect(result.current.pausedAtLimit).toBe(true));
+    act(() => {
+      result.current.send("actually, do this instead");
+    });
+    expect(result.current.pausedAtLimit).toBe(false);
+  });
+
+  it("takes the offer down on a new chat", async () => {
+    const result = turnEndingWith("step_limit");
+    await waitFor(() => expect(result.current.pausedAtLimit).toBe(true));
+    act(() => {
+      result.current.newConversation();
+    });
+    expect(result.current.pausedAtLimit).toBe(false);
+  });
+});

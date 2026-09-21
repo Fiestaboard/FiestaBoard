@@ -355,6 +355,12 @@ class ChatStreamDoneData(BaseModel):
     ``awaiting_approval`` (a destructive tool waits on the user — resume
     with approve/deny), ``awaiting_input`` (an ``ask_user`` question waits —
     resume with an answer), or ``step_limit`` (runaway protection).
+
+    ``step_limit`` is a **pause, not a failure**: the caps it reports are
+    high enough that reaching one means the turn was very long, and every
+    tool result so far is already in the transcript. Continuing is an
+    ordinary next turn over the same history, which is what the client's
+    "Keep going?" affordance sends — no ``resume`` payload is involved.
     """
 
     model_used: str
@@ -642,7 +648,11 @@ async def chat_ai_page(request: AIChatRequest) -> StreamingResponse:
     # Imported here, not at module scope: ``agent`` pulls in the MCP bridge,
     # and the ``mcp`` package must stay out of the boot path
     # (tests/test_mcp_lazy_mount.py). The first chat turn pays the import.
-    from .agent import run_chat_turn
+    from .agent import TurnLimits, run_chat_turn
+
+    # The per-turn caps are the install's, like ``approval_mode`` — never the
+    # client's, which would let a caller raise its own ceiling.
+    limits = TurnLimits.from_providers_block(providers_block)
 
     backend = _tool_backend()
 
@@ -669,6 +679,7 @@ async def chat_ai_page(request: AIChatRequest) -> StreamingResponse:
                 provider_gate=_AI_GENERATE_SEMAPHORE,
                 approval_mode=approval_mode,
                 auto_approve_destructive=auto_approve_destructive,
+                limits=limits,
             ):
                 yield _format_sse_event(evt["event"], evt["data"])
         except Exception:

@@ -1218,11 +1218,40 @@ class ConfigManager:
         # read as "ask" (logged once) so GET /settings/ai and the chat loop
         # never disagree — the response model would otherwise 500.
         block["approval_mode"] = self._coerce_approval_mode(block.get("approval_mode"))
+        # Per-turn runaway caps (#2045). Absent on every install that predates
+        # them, which is what the None means: the agent keeps its own
+        # defaults rather than inventing a number here.
+        for key in ("max_model_calls", "max_tool_calls"):
+            block[key] = self._coerce_turn_cap(key, block.get(key))
         return block
 
     #: The only approval modes; mirrors ``AiApprovalMode`` in src/settings/models.py.
     _AI_APPROVAL_MODES = ("ask", "auto")
     _warned_bad_approval_mode = False
+
+    #: Bounds for the per-turn caps; mirrors ``MIN_TURN_CAP`` / ``MAX_TURN_CAP``
+    #: in src/ai/agent.py. A cap of 0 would end every turn before its first
+    #: model call, so the floor is 1.
+    _AI_TURN_CAP_MIN = 1
+    _AI_TURN_CAP_MAX = 10_000
+    _warned_bad_turn_cap: set[str] = set()
+
+    def _coerce_turn_cap(self, key: str, value: Any) -> int | None:
+        """``value`` clamped into the cap bounds, or None when unset/unusable.
+
+        None is meaningful: it means "this install has no opinion", and the
+        agent's own default applies. Anything non-integer (or a bool, which
+        is an int in Python and would silently read as 1) is warned about
+        once per key per process and then treated as unset.
+        """
+        if value is None:
+            return None
+        if isinstance(value, bool) or not isinstance(value, int):
+            if key not in self._warned_bad_turn_cap:
+                logger.warning("ai_providers.%s %r is not an integer; ignoring it", key, value)
+                self._warned_bad_turn_cap.add(key)
+            return None
+        return max(self._AI_TURN_CAP_MIN, min(value, self._AI_TURN_CAP_MAX))
 
     def _coerce_approval_mode(self, value: Any) -> str:
         """``value`` if it is a known mode, else ``"ask"`` (warned once per process)."""
@@ -1280,6 +1309,16 @@ class ConfigManager:
             if "approval_mode" in settings:
                 # Same rule as the read side: anything unknown means "ask".
                 existing["approval_mode"] = self._coerce_approval_mode(settings["approval_mode"])
+
+            # Same clamp as the read side. An explicit null clears the
+            # override and hands the turn back to the agent's defaults.
+            for cap_key in ("max_model_calls", "max_tool_calls"):
+                if cap_key in settings:
+                    coerced = self._coerce_turn_cap(cap_key, settings[cap_key])
+                    if coerced is None:
+                        existing.pop(cap_key, None)
+                    else:
+                        existing[cap_key] = coerced
 
             if "providers" in settings and isinstance(settings["providers"], list):
                 cleaned: list[dict[str, Any]] = []

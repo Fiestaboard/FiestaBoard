@@ -90,6 +90,8 @@
     "light": "Светлая",
     "dark": "Тёмная",
     "system": "Системная",
+    "devSuffix": "сборка для разработки",
+    "updateAvailable": "Доступно обновление: {version}",
     "about": "О FiestaBoard",
     "signOut": "Выйти"
   },
@@ -604,7 +606,14 @@
       "apiKeyLabel": "API-ключ",
       "modelsLabel": "Модели",
       "defaultModelLabel": "Модель по умолчанию",
-      "testConnectionButton": "Проверить подключение"
+      "testConnectionButton": "Проверить подключение",
+      "turnLimits": {
+        "heading": "Ограничения хода",
+        "description": "Это страховка от модели, застрявшей в цикле, а не бюджет на работу. При достижении предела ход приостанавливается, и чат предлагает продолжить. Оставьте пустым, чтобы использовать значения сервера по умолчанию.",
+        "modelCallsLabel": "Вызовов модели за ход",
+        "toolCallsLabel": "Вызовов инструментов за ход",
+        "serverDefault": "Значение сервера"
+      }
     },
     "backup": {
       "cardTitle": "Резервное копирование и восстановление",
@@ -2182,7 +2191,15 @@
       "lineCount": "{count, plural, one {# строка} few {# строки} many {# строк} other {# строки}}",
       "durationSeconds": "{count} с"
     },
-    "toolRun": "{tool} · {count, plural, one {# раз} few {# раза} many {# раз} other {# раза}}"
+    "toolRun": "{tool} · {count, plural, one {# раз} few {# раза} many {# раз} other {# раза}}",
+    "composerSettings": {
+      "triggerAriaLabel": "Настройки чата: подтверждение {mode}, модель {model}",
+      "popoverLabel": "Настройки чата"
+    },
+    "keepGoing": {
+      "prompt": "Ассистент остановился на длинном шаге. Ничего не потеряно.",
+      "action": "Продолжить"
+    }
   },
   "boardSizeIndicator": {
     "custom": "Пользовательский",

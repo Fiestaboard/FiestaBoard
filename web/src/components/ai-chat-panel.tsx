@@ -12,6 +12,9 @@ import {
   Flex,
   Kbd,
   Label,
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
   PromptInput,
   PromptInputSubmit,
   PromptInputTextarea,
@@ -30,7 +33,7 @@ import {
 } from "@fiestaboard/ui";
 import { Spinner } from "@fiestaboard/ui/components/feedback/spinner";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { AlertCircle, ArrowLeft, History, RotateCcw, Sparkles, SquarePen, X } from "lucide-react";
+import { AlertCircle, ArrowLeft, History, RotateCcw, SlidersHorizontal, Sparkles, SquarePen, X } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 
@@ -58,14 +61,17 @@ export { groupTurns } from "@/components/ai-chat-transcript";
  * Panel width below which the Enter/Shift+Enter hint gives up its place in
  * the composer toolbar and rides on the Send button instead.
  *
- * The row carries the approval mode, the provider and model pickers, the
- * hint and Send. Measured against the real controls: the mode control is
- * ~92px, the model pill ~140, the hint ~180, Send ~36, plus gaps — so the
- * hint only fits once the panel is around 560px, which is wider than the
- * drawer's default. That is the intended outcome: at the default width the
- * pickers get the room and the hint becomes the Send button's title.
+ * The row now carries three things, not five: the settings pill, the hint and
+ * Send. Measured against the real controls — pill ~120px (it truncates), hint
+ * ~180, Send ~36, ~14 of gaps and 40 of padding — the hint needs about 390px,
+ * so 440 is that with a margin rather than a number tuned to the pixel. It
+ * used to be 560, when the row also held a segmented control and two selects.
+ *
+ * Still above the drawer's 384px default, and deliberately: below this the
+ * hint becomes the Send button's `title`, which says the same thing without
+ * competing for the row.
  */
-export const COMPOSER_HINT_WIDTH = 560;
+export const COMPOSER_HINT_WIDTH = 440;
 
 export interface AiChatPanelProps {
   /** Per-turn context (device type, current page snapshot, what exists). */
@@ -213,6 +219,8 @@ export function AiChatPanel({
     answer,
     stop,
     retryLast,
+    pausedAtLimit,
+    continueTurn,
     autoApprove,
     disableAutoApprove,
     conversationId,
@@ -332,10 +340,12 @@ export function AiChatPanel({
   return (
     <Flex ref={panelRef} direction="col" className="h-full min-h-0 w-full">
       <Card className="flex flex-1 min-h-0 w-full flex-col gap-0 overflow-hidden py-0">
-        {/* Header. The Ask / Auto approval mode lives here, not in the
-            composer toolbar: it is a property of the whole chat, not of the
-            next message. In History / Review the left side becomes a Back
-            button and the title names the view. */}
+        {/* Header: identity and navigation only. Ask / Auto is NOT here — it
+            is in the composer's settings pill, with the provider and model,
+            because everything that shapes the next send belongs above Send.
+            (An older comment here claimed the opposite; the control moved and
+            the comment did not.) In History / Review the left side becomes a
+            Back button and the title names the view. */}
         <Box className="flex-shrink-0 border-b px-4 py-3">
           <Flex align="center" justify="between" gap="2">
             <Flex align="center" gap="2" className="min-w-0">
@@ -461,21 +471,47 @@ export function AiChatPanel({
             that is what the row above Send is for. The header is identity
             and navigation only.
 
-            The row's geometry is the fix for #2024's collision: `Tools` is
-            the only flexible child (`min-w-0 flex-1`), it does not wrap,
-            every control inside it can shrink, and Send is the single
-            `shrink-0` item. Nothing in this row can paint over anything
-            else at any width. */}
+            #2024 fixed a collision in this row by making every control
+            shrinkable, which stopped the *painting* but left the cause: four
+            controls competing for ~340px at the drawer's default width, the
+            two pickers clipped to illegibility and two caption lines under
+            them. #2047 removes the competition instead. The mode, the
+            provider and the model now live behind one pill that states the
+            two that matter ("Auto · sonnet-4"), so the row holds two items —
+            pill and Send — and cannot collide at any width. The captions
+            move inside the pill's popover, next to the control that
+            produces them, which is where an explanation of Auto belongs
+            anyway: at the moment of choosing, not below the composer
+            afterwards. */}
             <Box className="flex-shrink-0 border-t bg-card px-3 py-3">
-              {mode.kind === "chat" && autoNote ? (
-                <Text size="xs" tone="muted" className="mb-2" data-testid="ai-approval-mode-note">
-                  {t("approvalMode.autoNote")}
-                </Text>
-              ) : null}
-              {mode.kind === "chat" && autoForThisChatOnly ? (
-                <Text size="xs" tone="muted" className="mb-2" data-testid="ai-approval-mode-this-chat">
-                  {t("approvalMode.thisChat")}
-                </Text>
+              {/* A turn that hit a per-turn cap stopped mid-work with
+                  everything it had done already saved in the transcript.
+                  Offering to carry on is the difference between a checkpoint
+                  and a dead end — without it the only way forward is to
+                  guess that typing "continue" works. */}
+              {mode.kind === "chat" && pausedAtLimit ? (
+                <Flex
+                  align="center"
+                  justify="between"
+                  gap="2"
+                  className="mb-2 rounded-md border border-border/60 bg-muted/40 px-2.5 py-2"
+                  data-testid="ai-keep-going"
+                >
+                  <Text size="xs" tone="muted" className="min-w-0">
+                    {t("keepGoing.prompt")}
+                  </Text>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    className="h-7 shrink-0"
+                    onClick={continueTurn}
+                    disabled={streaming}
+                    data-testid="ai-keep-going-button"
+                  >
+                    {t("keepGoing.action")}
+                  </Button>
+                </Flex>
               ) : null}
               <Label htmlFor="ai-chat-input" className="sr-only">
                 {t("messageLabel")}
@@ -494,30 +530,19 @@ export function AiChatPanel({
                   minRows={2}
                 />
                 <PromptInputToolbar>
-                  {/* Every child of this row shrinks. `Tools` is the flexible
-                      one (min-w-0, no wrapping, clipped rather than
-                      overflowing); the hint group shrinks too; only Send is
-                      shrink-0. That is the whole fix for #2024's collision —
-                      the hint used to be `shrink-0` beside a `flex-wrap`
-                      tools group, so at 384px the model pill was painted
-                      underneath it. */}
+                  {/* Two items in this row, and only one of them flexible:
+                      the pill (min-w-0, truncating) and Send (shrink-0).
+                      Keep it that way — every past collision here came from
+                      a third control arriving to compete for the same
+                      ~340px. New chat-scoped settings belong inside the
+                      pill's popover, not beside it. */}
                   <PromptInputTools className="min-w-0 flex-1 flex-nowrap gap-1.5 overflow-hidden">
-                    <SegmentedControl
-                      aria-label={t("approvalMode.label")}
-                      size="sm"
-                      value={effectiveMode}
-                      onValueChange={handleModeChange}
-                      disabled={!settings}
-                      // Shrinks with the row, but never stacks: a two-item
-                      // control that wraps into two lines is as broken as
-                      // the overlap this row was fixed for.
-                      className="min-w-0 shrink flex-nowrap whitespace-nowrap"
-                      data-testid="ai-approval-mode"
-                    >
-                      <SegmentedControlItem value="ask">{t("approvalMode.ask")}</SegmentedControlItem>
-                      <SegmentedControlItem value="auto">{t("approvalMode.auto")}</SegmentedControlItem>
-                    </SegmentedControl>
-                    <ModelPill
+                    <ComposerSettingsPill
+                      approvalMode={effectiveMode}
+                      onApprovalModeChange={handleModeChange}
+                      approvalModeDisabled={!settings}
+                      autoNote={autoNote}
+                      autoForThisChatOnly={autoForThisChatOnly}
                       providers={providers}
                       providerId={effectiveProviderId}
                       onProviderChange={(v) => {
@@ -654,11 +679,33 @@ function EmptyState({
   );
 }
 
+/** The model name without its vendor prefix — `anthropic/sonnet-4` → `sonnet-4`. */
+function shortModelName(model: string): string {
+  return model.split("/").slice(-1)[0] || model;
+}
+
 /**
- * Compact model picker rendered in the composer toolbar — same pattern
- * as ChatGPT/Claude/etc. Shows a single pill with `provider · model`.
+ * Everything that shapes the next send, behind one pill in the composer
+ * toolbar: the approval mode, the provider and the model.
+ *
+ * The pill's face is the two facts worth reading at a glance — the mode and
+ * the model — and the popover is where they change. That trade is the point
+ * (#2047): the row it sits in is ~340px wide at the drawer's default, which
+ * is not enough for a segmented control plus two selects, and the previous
+ * attempt to make them all shrink produced a row of clipped, unreadable
+ * controls with the mode's `whitespace-nowrap` labels painting over the
+ * model pill beside them.
+ *
+ * The trigger is a real `<button>` (no `asChild`), so nothing clones it and
+ * drops the handler that opens it — the failure mode already recorded on
+ * `PromptInputSubmit` below.
  */
-function ModelPill({
+function ComposerSettingsPill({
+  approvalMode,
+  onApprovalModeChange,
+  approvalModeDisabled,
+  autoNote,
+  autoForThisChatOnly,
   providers,
   providerId,
   onProviderChange,
@@ -666,6 +713,13 @@ function ModelPill({
   model,
   onModelChange,
 }: {
+  approvalMode: AiApprovalMode;
+  /** Takes the raw value: `SegmentedControl` emits `string`, and the panel's
+      handler is what narrows it to a mode. */
+  onApprovalModeChange: (value: string) => void;
+  approvalModeDisabled: boolean;
+  autoNote: boolean;
+  autoForThisChatOnly: boolean;
   providers: AISettings["providers"];
   providerId: string;
   onProviderChange: (id: string) => void;
@@ -675,46 +729,103 @@ function ModelPill({
 }) {
   const t = useTranslations("aiChatPanel");
   const onlyOneProvider = providers.length <= 1;
-  const shortModel = model ? model.split("/").slice(-1)[0] || model : t("defaultModel");
+  const shortModel = model ? shortModelName(model) : t("defaultModel");
+  const modeLabel = t(`approvalMode.${approvalMode}`);
   return (
-    <Flex align="center" gap="1">
-      {!onlyOneProvider && (
-        <Select value={providerId} onValueChange={onProviderChange}>
-          <SelectTrigger
-            className="h-6 gap-1 rounded-full border-border/60 bg-muted/40 px-2 text-[11px] shadow-none hover:bg-muted/70"
-            aria-label={t("providerSelectAriaLabel")}
-          >
-            <SelectValue placeholder={t("defaultModel")} />
-          </SelectTrigger>
-          <SelectContent>
-            {providers.map((p) => (
-              <SelectItem key={p.id} value={p.id} className="text-xs">
-                {p.name || p.id}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      )}
-      <Select value={model} onValueChange={onModelChange} disabled={models.length === 0}>
-        <SelectTrigger
-          className="h-6 max-w-[180px] gap-1 truncate rounded-full border-border/60 bg-muted/40 px-2 font-mono text-[11px] shadow-none hover:bg-muted/70"
-          aria-label={t("modelSelectAriaLabel")}
-          title={model}
-        >
-          <SelectValue>
-            <Text as="span" className="truncate font-mono text-[11px]">
-              {shortModel}
+    <Popover>
+      {/* `min-w-0` + a truncating label: the pill yields width to Send
+          rather than pushing it off the row. */}
+      <PopoverTrigger
+        className="inline-flex h-7 min-w-0 shrink items-center gap-1.5 rounded-full border border-border/60 bg-muted/40 px-2.5 text-[11px] text-foreground transition-colors hover:bg-muted/70 focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 focus-visible:outline-none"
+        aria-label={t("composerSettings.triggerAriaLabel", { mode: modeLabel, model: shortModel })}
+        data-testid="ai-composer-settings"
+      >
+        <SlidersHorizontal className="h-3.5 w-3.5 shrink-0 text-muted-foreground" aria-hidden="true" />
+        <Text as="span" className="truncate text-[11px]" aria-hidden="true">
+          {modeLabel} ·{" "}
+          <Text as="span" className="font-mono text-[11px]">
+            {shortModel}
+          </Text>
+        </Text>
+      </PopoverTrigger>
+      <PopoverContent align="start" side="top" className="w-72 p-3" label={t("composerSettings.popoverLabel")}>
+        <Flex direction="col" gap="3">
+          <Flex direction="col" gap="1.5">
+            {/* Not a <Label>: a radiogroup takes its name from
+                `aria-label` (below), and a <label for> pointing at one
+                names nothing. This is the visible heading only. */}
+            <Text as="span" size="xs" weight="medium" aria-hidden="true">
+              {t("approvalMode.label")}
             </Text>
-          </SelectValue>
-        </SelectTrigger>
-        <SelectContent>
-          {models.map((m) => (
-            <SelectItem key={m} value={m} className="font-mono text-xs">
-              {m}
-            </SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
-    </Flex>
+            <SegmentedControl
+              aria-label={t("approvalMode.label")}
+              size="sm"
+              layout="grid"
+              columns="2"
+              value={approvalMode}
+              onValueChange={onApprovalModeChange}
+              disabled={approvalModeDisabled}
+              data-testid="ai-approval-mode"
+            >
+              <SegmentedControlItem value="ask">{t("approvalMode.ask")}</SegmentedControlItem>
+              <SegmentedControlItem value="auto">{t("approvalMode.auto")}</SegmentedControlItem>
+            </SegmentedControl>
+            {/* What Auto means, shown where Auto is chosen. */}
+            {autoNote ? (
+              <Text size="xs" tone="muted" data-testid="ai-approval-mode-note">
+                {t("approvalMode.autoNote")}
+              </Text>
+            ) : null}
+            {autoForThisChatOnly ? (
+              <Text size="xs" tone="muted" data-testid="ai-approval-mode-this-chat">
+                {t("approvalMode.thisChat")}
+              </Text>
+            ) : null}
+          </Flex>
+
+          {!onlyOneProvider && (
+            <Flex direction="col" gap="1.5">
+              <Label htmlFor="ai-provider-select" className="text-xs">
+                {t("providerSelectAriaLabel")}
+              </Label>
+              <Select value={providerId} onValueChange={onProviderChange}>
+                <SelectTrigger id="ai-provider-select" className="h-8 text-xs">
+                  <SelectValue placeholder={t("defaultModel")} />
+                </SelectTrigger>
+                <SelectContent>
+                  {providers.map((p) => (
+                    <SelectItem key={p.id} value={p.id} className="text-xs">
+                      {p.name || p.id}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </Flex>
+          )}
+
+          <Flex direction="col" gap="1.5">
+            <Label htmlFor="ai-model-select" className="text-xs">
+              {t("modelSelectAriaLabel")}
+            </Label>
+            <Select value={model} onValueChange={onModelChange} disabled={models.length === 0}>
+              <SelectTrigger id="ai-model-select" className="h-8 font-mono text-xs" title={model}>
+                <SelectValue>
+                  <Text as="span" className="truncate font-mono text-xs">
+                    {shortModel}
+                  </Text>
+                </SelectValue>
+              </SelectTrigger>
+              <SelectContent>
+                {models.map((m) => (
+                  <SelectItem key={m} value={m} className="font-mono text-xs">
+                    {m}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </Flex>
+        </Flex>
+      </PopoverContent>
+    </Popover>
   );
 }

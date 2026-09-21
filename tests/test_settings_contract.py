@@ -77,11 +77,16 @@ class TestAiProviders:
     def test_get_returns_the_empty_provider_block(self, client):
         # CHANGED (#2021): the block carries the chat's approval mode,
         # defaulting to "ask" (today's behaviour) on every install.
+        # CHANGED (#2045): and the two per-turn caps, null until an operator
+        # sets one — null means the agent's own defaults apply, so a fresh
+        # install states no policy of its own here.
         assert client.get("/settings/ai").json() == {
             "enabled": False,
             "providers": [],
             "default_provider_id": None,
             "approval_mode": "ask",
+            "max_model_calls": None,
+            "max_tool_calls": None,
         }
 
     def test_put_persists_the_approval_mode_and_get_reads_it_back(self, client):
@@ -109,6 +114,23 @@ class TestAiProviders:
         response = client.put("/settings/ai", json={"approval_mode": "yolo"})
         assert response.status_code == 422
         assert client.get("/settings/ai").json()["approval_mode"] == "ask"
+
+    def test_put_persists_the_turn_caps_and_get_reads_them_back(self, client):
+        body = client.put("/settings/ai", json={"max_model_calls": 40, "max_tool_calls": 90}).json()
+        assert body["max_model_calls"] == 40 and body["max_tool_calls"] == 90
+        read = client.get("/settings/ai").json()
+        assert read["max_model_calls"] == 40 and read["max_tool_calls"] == 90
+
+    def test_put_of_another_key_leaves_the_turn_caps_alone(self, client):
+        client.put("/settings/ai", json={"max_model_calls": 40})
+        assert client.put("/settings/ai", json={"enabled": True}).json()["max_model_calls"] == 40
+
+    @pytest.mark.parametrize("bad", [0, -1, 10_001, "40", 1.5])
+    def test_put_422s_on_a_turn_cap_outside_the_bounds(self, client, bad):
+        """A bad cap is a visible rejection, not a silent adjustment."""
+        response = client.put("/settings/ai", json={"max_model_calls": bad})
+        assert response.status_code == 422
+        assert client.get("/settings/ai").json()["max_model_calls"] is None
 
     def test_put_persists_enabled_and_returns_the_masked_block(self, client):
         body = client.put("/settings/ai", json={"enabled": True}).json()
