@@ -163,6 +163,6 @@ will switch from inside the app (Pi) or the HA add-on store (Home Assistant).
 
 **The Update Now button isn't showing** — Check the status panel just below the button area in Settings → System. It will say whether the updater sidecar is reachable. Most common cause: `COMPOSE_PROFILES=fiestaupdater` isn't set in `.env`, or the sidecar container isn't running.
 
-**Update started but the page never came back** — Open `http://fiestaboard.local:4420` (or `localhost:4420`) again after a minute. If it's still down, check logs: `docker logs fiestaboard`. As a last resort, `docker compose up -d` will bring you back online.
+**Update started but the page never came back** — Open `http://localhost:4420` on the Docker host, or `http://fiestapi.local:4420` on a FiestaPi, again after a minute. From another device on a standard Docker install, use the host's IP address. If it's still down, check logs: `docker logs fiestaboard`. As a last resort, `docker compose up -d` will bring you back online.
 
 **I want to roll back** — Pin the previous image tag in `docker-compose.yml`, then `docker compose up -d`. Automated rollback is planned for a future release.

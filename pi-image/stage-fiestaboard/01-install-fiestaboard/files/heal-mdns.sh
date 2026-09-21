@@ -1,6 +1,6 @@
 #!/bin/bash
-# Reclaim our base mDNS hostname if avahi-daemon has renamed itself due to a
-# past conflict (e.g. advertising as fiestapi-2.local instead of fiestapi.local).
+# Recover an unresponsive avahi-daemon and reclaim our base mDNS hostname if
+# it has renamed itself due to a past conflict (e.g. fiestapi-2.local).
 #
 # Why this exists: avahi auto-renames on hostname collision (common when a
 # previously-flashed FiestaPi held the name and then disappeared, or during
@@ -16,13 +16,21 @@ EXPECTED="$(hostname).local"
 # Ask avahi over D-Bus what FQDN it's currently advertising.  This is more
 # reliable than parsing `systemctl status` output and avoids needing
 # avahi-utils (avahi-resolve) on the image.
-CURRENT="$(dbus-send --system --print-reply --reply-timeout=5000 \
+REPLY="$(dbus-send --system --print-reply --reply-timeout=5000 \
     --dest=org.freedesktop.Avahi / \
-    org.freedesktop.Avahi.Server.GetHostNameFqdn 2>/dev/null \
-    | awk -F'"' '/string/ {print $2; exit}')"
+    org.freedesktop.Avahi.Server.GetHostNameFqdn 2>/dev/null)" || REPLY=""
+CURRENT="$(printf '%s\n' "$REPLY" | awk -F'"' '/string/ {print $2; exit}')"
 
-# If we couldn't read avahi's state, do nothing rather than restart blindly.
-if [ -z "$CURRENT" ] || [ "$CURRENT" = "$EXPECTED" ]; then
+# An empty reply means the daemon is absent or not answering D-Bus. Restart
+# it so systemd can bring its hostname and static service records back.
+if [ -z "$CURRENT" ]; then
+    logger -t fiestapi-heal-mdns \
+        "avahi did not report its hostname — restarting"
+    systemctl restart avahi-daemon
+    exit 0
+fi
+
+if [ "$CURRENT" = "$EXPECTED" ]; then
     exit 0
 fi
 

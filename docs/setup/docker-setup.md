@@ -74,16 +74,12 @@ docker compose -f docker-compose.hub.yml up -d
 | Service | URL | Description |
 |---------|-----|-------------|
 | Web UI | http://localhost:4420 | Main application interface (from the same machine) |
-| Web UI (network) | http://fiestaboard.local:4420 | Access from other devices via mDNS/Bonjour |
+| Web UI (network) | http://&lt;host-ip&gt;:4420 | Access from other devices with the default bridge setup |
 | API | http://localhost:4420/api | API access (via nginx proxy) |
 | API Docs | http://localhost:4420/api/docs | Interactive FastAPI documentation |
 
 :::tip Accessing from other devices
-FiestaBoard registers itself on your local network using mDNS (also called Bonjour), so you can reach it at **http://fiestaboard.local:4420** from any device on the same network — phones, tablets, other computers, etc. This works on most home networks automatically.
-
-If `.local` addresses don't resolve on your network, use the server's IP address directly (e.g. `http://192.168.1.50:4420`).
-
-To change the advertised hostname, set `MDNS_HOSTNAME` in your `.env` file (default: `fiestaboard`, which becomes `fiestaboard.local`).
+The default Docker bridge publishes port 4420 but does not publish its mDNS records onto your LAN. Use the host's IP address, for example `http://192.168.1.50:4420`. The FiestaPi image separately advertises `fiestapi.local` from the host. On other installations, configure a host-level mDNS service for Bonjour discovery. Host networking can expose the container advertisement, but nginx then listens on port 3000, so set `MDNS_PORT=3000` unless you provide a separate port 4420 proxy.
 :::
 
 ## Key API Endpoints

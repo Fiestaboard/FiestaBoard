@@ -109,10 +109,10 @@ REFRESH_INTERVAL_SECONDS=60
 
 Once FiestaBoard is running on your Pi, you can access it from any device on the same network:
 
-- **http://fiestaboard.local:4420** — works on most home networks via mDNS/Bonjour. No need to remember the Pi's IP address.
-- **http://&lt;pi-ip-address&gt;:4420** — use this if `.local` addresses don't work on your network. Find your Pi's IP with `hostname -I`.
+- **http://&lt;pi-ip-address&gt;:4420** — works with the default Docker bridge setup. Find your Pi's IP with `hostname -I`.
+- **http://fiestapi.local:4420** — available on the FiestaPi image, whose host runs Avahi. Newly built images also announce FiestaBoard as a Bonjour HTTP service.
 
-To change the advertised hostname, set `MDNS_HOSTNAME` in your `.env` file (default: `fiestaboard`, which becomes `fiestaboard.local`).
+For a separate Docker install, `MDNS_HOSTNAME` changes the container's advertised name only when it can reach the LAN. A bridge container cannot announce that name to the LAN. If you switch to host networking, nginx listens on port 3000; set `MDNS_PORT=3000` or provide a separate port 4420 proxy.
 
 ## Next Steps
 
