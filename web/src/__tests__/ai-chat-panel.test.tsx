@@ -1089,6 +1089,47 @@ describe("AiChatPanel", () => {
     expect(trigger).toHaveTextContent("test-model");
   });
 
+  it("picks a model from inside the pill's popover", async () => {
+    // A Select nested in a Popover is two stacked Base UI popups, and this
+    // package has had async-mount trouble with exactly that shape. The mode
+    // radios above prove the popover mounts; only this proves the picker
+    // inside it still opens and commits a choice.
+    configuredWith("ask");
+    server.use(
+      http.get(`${API_BASE}/settings/ai`, () =>
+        HttpResponse.json({
+          ...CONFIGURED,
+          approval_mode: "ask",
+          providers: [{ ...CONFIGURED_PROVIDER, models: ["test-model", "other-model"] }],
+        }),
+      ),
+    );
+    const user = userEvent.setup();
+    render(<AiChatPanel {...defaultProps} />, { wrapper: Wrapper });
+    await openComposerSettings(user);
+
+    await user.click(await screen.findByRole("combobox", { name: enMessages.aiChatPanel.modelSelectAriaLabel }));
+    await user.click(await screen.findByRole("option", { name: "other-model" }));
+
+    // The pill's face is the readback: the chosen model is what the next
+    // send will use.
+    await waitFor(() => expect(screen.getByTestId("ai-composer-settings")).toHaveTextContent("other-model"));
+  });
+
+  it("offers the provider picker only when there is more than one provider", async () => {
+    configuredWith("ask");
+    const user = userEvent.setup();
+    render(<AiChatPanel {...defaultProps} />, { wrapper: Wrapper });
+    await openComposerSettings(user);
+
+    // One provider needs no choosing, and a one-item select is noise in a
+    // popover whose whole purpose is to hold fewer things.
+    await screen.findByRole("combobox", { name: enMessages.aiChatPanel.modelSelectAriaLabel });
+    expect(
+      screen.queryByRole("combobox", { name: enMessages.aiChatPanel.providerSelectAriaLabel }),
+    ).not.toBeInTheDocument();
+  });
+
   it("choosing Auto writes approval_mode through PUT /settings/ai and shows the one-line note", async () => {
     configuredWith("ask");
     const puts: unknown[] = [];
