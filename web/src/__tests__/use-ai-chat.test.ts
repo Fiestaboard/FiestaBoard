@@ -1127,7 +1127,7 @@ describe("computeAppliedSnapshot", () => {
 });
 
 // ---------------------------------------------------------------------------
-// Continuing past a per-turn cap (#2045)
+// Continuing past a per-turn cap
 // ---------------------------------------------------------------------------
 
 describe("useAiChat: pausing at a per-turn cap", () => {

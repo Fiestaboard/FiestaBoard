@@ -527,7 +527,7 @@ def test_step_limit_ends_with_warning_and_done():
 def test_the_model_call_cap_reads_as_a_pause_the_user_can_continue():
     """The cap's warning has to say the work survives, or it reads as failure.
 
-    The client turns this frame into "Keep going?" (#2045); a message that
+    The client turns this frame into "Keep going?"; a message that
     only said "Stopped" would tell the user the opposite of the truth.
     """
     provider = ScriptedProvider(*[_sse(_block("list_pages", {}))] * 3)
@@ -547,7 +547,7 @@ def test_the_tool_call_cap_reads_as_a_pause_too():
 
 
 def test_the_default_caps_clear_a_long_legitimate_turn():
-    """8 model calls used to end a real build mid-way (#2045).
+    """8 model calls used to end a real build mid-way.
 
     Pinned as a number rather than a behavior on purpose: the whole point of
     the change is that the ceiling is far above what real work needs, and a

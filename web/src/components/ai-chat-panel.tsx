@@ -475,7 +475,7 @@ export function AiChatPanel({
             shrinkable, which stopped the *painting* but left the cause: four
             controls competing for ~340px at the drawer's default width, the
             two pickers clipped to illegibility and two caption lines under
-            them. #2047 removes the competition instead. The mode, the
+            them. This removes the competition instead. The mode, the
             provider and the model now live behind one pill that states the
             two that matter ("Auto · sonnet-4"), so the row holds two items —
             pill and Send — and cannot collide at any width. The captions
@@ -690,7 +690,7 @@ function shortModelName(model: string): string {
  *
  * The pill's face is the two facts worth reading at a glance — the mode and
  * the model — and the popover is where they change. That trade is the point
- * (#2047): the row it sits in is ~340px wide at the drawer's default, which
+ * the row it sits in is ~340px wide at the drawer's default, which
  * is not enough for a segmented control plus two selects, and the previous
  * attempt to make them all shrink produced a row of clipped, unreadable
  * controls with the mode's `whitespace-nowrap` labels painting over the

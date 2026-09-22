@@ -370,7 +370,7 @@ describe("AiSettings", () => {
     expect(receivedBodies[0]).toHaveProperty("providers");
   });
 
-  // -- Per-turn caps (#2045) --
+  // -- Per-turn caps --
 
   describe("turn limits", () => {
     /** The stored block, with whatever caps the install has set. */

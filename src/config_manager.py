@@ -1218,7 +1218,7 @@ class ConfigManager:
         # read as "ask" (logged once) so GET /settings/ai and the chat loop
         # never disagree — the response model would otherwise 500.
         block["approval_mode"] = self._coerce_approval_mode(block.get("approval_mode"))
-        # Per-turn runaway caps (#2045). Absent on every install that predates
+        # Per-turn runaway caps. Absent on every install that predates
         # them, which is what the None means: the agent keeps its own
         # defaults rather than inventing a number here.
         for key in ("max_model_calls", "max_tool_calls"):

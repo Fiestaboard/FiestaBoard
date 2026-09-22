@@ -1525,7 +1525,7 @@ def test_set_ai_providers_coerces_an_unknown_approval_mode_to_ask(tmp_path):
     assert cm.get_ai_providers()["approval_mode"] == "ask", "an unknown mode falls back to asking, like on read"
 
 
-# --- AI providers: per-turn caps (#2045) ---
+# --- AI providers: per-turn caps ---
 
 
 def test_get_ai_providers_reports_no_cap_when_the_install_has_none(tmp_path):

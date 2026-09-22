@@ -568,7 +568,7 @@ export function AiSettings() {
         </Stack>
       )}
 
-      {/* Per-turn runaway caps (#2045). Blank means "no opinion" — the
+      {/* Per-turn runaway caps. Blank means "no opinion" — the
           server's own defaults apply — so the placeholder says that rather
           than restating a number this page would then have to keep in sync
           with `TurnLimits`. Reaching a cap pauses the turn and the chat

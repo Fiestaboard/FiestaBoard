@@ -77,7 +77,7 @@ class TestAiProviders:
     def test_get_returns_the_empty_provider_block(self, client):
         # CHANGED (#2021): the block carries the chat's approval mode,
         # defaulting to "ask" (today's behaviour) on every install.
-        # CHANGED (#2045): and the two per-turn caps, null until an operator
+        # CHANGED: and the two per-turn caps, null until an operator
         # sets one — null means the agent's own defaults apply, so a fresh
         # install states no policy of its own here.
         assert client.get("/settings/ai").json() == {

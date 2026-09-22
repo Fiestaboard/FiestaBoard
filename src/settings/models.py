@@ -83,7 +83,7 @@ class AiProvidersResponse(BaseModel):
     providers: list[dict[str, Any]]
     default_provider_id: str | None = None
     approval_mode: AiApprovalMode = "ask"
-    #: Per-turn runaway caps (#2045). ``None`` means the install has no
+    #: Per-turn runaway caps. ``None`` means the install has no
     #: opinion and the agent's own defaults apply, so the UI can show the
     #: effective number without this block having to restate it.
     max_model_calls: int | None = None
@@ -104,7 +104,7 @@ class AiProvidersUpdate(BaseModel):
     providers: list[dict[str, Any]] | None = None
     default_provider_id: str | None = None
     approval_mode: AiApprovalMode | None = None
-    #: Per-turn runaway caps (#2045). Bounded here rather than only clamped
+    #: Per-turn runaway caps. Bounded here rather than only clamped
     #: in the config manager so a bad value is a 422 the caller can see
     #: instead of a silent adjustment. ``StrictInt`` for the same reason
     #: ``enabled`` is a ``StrictBool``: a JSON ``"40"`` where a number belongs

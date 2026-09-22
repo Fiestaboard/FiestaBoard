@@ -1053,7 +1053,7 @@ describe("AiChatPanel", () => {
 
   /**
    * Open the composer's settings pill, where the approval mode, the provider
-   * and the model live (#2047).
+   * and the model live.
    *
    * They used to sit directly in the composer row; the pill is what stopped
    * four controls fighting over ~340px. Everything these tests assert about
@@ -1337,7 +1337,7 @@ describe("AiChatPanel", () => {
     expect(screen.queryByText(enMessages.aiChatPanel.approvalMode.autoNote)).not.toBeInTheDocument();
   });
 
-  // -- Keeping going past a per-turn cap (#2045) --
+  // -- Keeping going past a per-turn cap --
 
   describe("keep going", () => {
     it("offers to continue a turn that stopped at a per-turn cap", async () => {
