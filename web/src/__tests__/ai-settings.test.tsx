@@ -369,4 +369,86 @@ describe("AiSettings", () => {
     expect(receivedBodies[0]).not.toHaveProperty("approval_mode");
     expect(receivedBodies[0]).toHaveProperty("providers");
   });
+
+  // -- Per-turn caps --
+
+  describe("turn limits", () => {
+    /** The stored block, with whatever caps the install has set. */
+    function withCaps(caps: { max_model_calls: number | null; max_tool_calls: number | null }) {
+      server.use(
+        http.get(`${API_BASE}/settings/ai`, () =>
+          HttpResponse.json({
+            enabled: true,
+            providers: [],
+            default_provider_id: null,
+            approval_mode: "ask",
+            ...caps,
+          }),
+        ),
+      );
+    }
+
+    it("leaves the fields blank when the install has no override", async () => {
+      withCaps({ max_model_calls: null, max_tool_calls: null });
+      render(<AiSettings />, { wrapper: Wrapper });
+
+      const field = await screen.findByLabelText(/Model calls per turn/i);
+      // Blank, with the placeholder saying where the number comes from — not
+      // a number this page invented and would have to keep in sync.
+      expect(field).toHaveValue(null);
+      expect(field).toHaveAttribute("placeholder", "Server default");
+    });
+
+    it("shows the stored caps", async () => {
+      withCaps({ max_model_calls: 40, max_tool_calls: 90 });
+      render(<AiSettings />, { wrapper: Wrapper });
+
+      expect(await screen.findByLabelText(/Model calls per turn/i)).toHaveValue(40);
+      expect(screen.getByLabelText(/Tool calls per turn/i)).toHaveValue(90);
+    });
+
+    it("saves an edited cap", async () => {
+      withCaps({ max_model_calls: null, max_tool_calls: null });
+      const receivedBodies: Record<string, unknown>[] = [];
+      server.use(
+        http.put(`${API_BASE}/settings/ai`, async ({ request }) => {
+          const body = (await request.json()) as Record<string, unknown>;
+          receivedBodies.push(body);
+          return HttpResponse.json({ enabled: true, providers: [], default_provider_id: null, ...body });
+        }),
+      );
+      render(<AiSettings />, { wrapper: Wrapper });
+      const user = userEvent.setup();
+
+      const field = await screen.findByLabelText(/Model calls per turn/i);
+      await user.type(field, "40");
+      await user.click(screen.getByRole("button", { name: /save changes/i }));
+
+      await waitFor(() => expect(receivedBodies).toHaveLength(1));
+      expect(receivedBodies[0].max_model_calls).toBe(40);
+    });
+
+    it("clearing a cap sends null, handing the turn back to the server defaults", async () => {
+      withCaps({ max_model_calls: 40, max_tool_calls: null });
+      const receivedBodies: Record<string, unknown>[] = [];
+      server.use(
+        http.put(`${API_BASE}/settings/ai`, async ({ request }) => {
+          const body = (await request.json()) as Record<string, unknown>;
+          receivedBodies.push(body);
+          return HttpResponse.json({ enabled: true, providers: [], default_provider_id: null, ...body });
+        }),
+      );
+      render(<AiSettings />, { wrapper: Wrapper });
+      const user = userEvent.setup();
+
+      const field = await screen.findByLabelText(/Model calls per turn/i);
+      await user.clear(field);
+      await user.click(screen.getByRole("button", { name: /save changes/i }));
+
+      await waitFor(() => expect(receivedBodies).toHaveLength(1));
+      // Explicitly null, not absent: the config manager clears the override
+      // on a null and ignores a missing key.
+      expect(receivedBodies[0].max_model_calls).toBeNull();
+    });
+  });
 });

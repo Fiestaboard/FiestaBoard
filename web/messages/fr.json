@@ -90,6 +90,8 @@
     "light": "Clair",
     "dark": "Sombre",
     "system": "Système",
+    "devSuffix": "version de développement",
+    "updateAvailable": "Mise à jour disponible : {version}",
     "about": "À propos de FiestaBoard",
     "signOut": "Se déconnecter"
   },
@@ -604,7 +606,14 @@
       "apiKeyLabel": "Clé API",
       "modelsLabel": "Modèles",
       "defaultModelLabel": "Modèle par défaut",
-      "testConnectionButton": "Tester la connexion"
+      "testConnectionButton": "Tester la connexion",
+      "turnLimits": {
+        "heading": "Limites par tour",
+        "description": "Un garde-fou contre un modèle bloqué dans une boucle, pas un budget de travail. Lorsqu'une limite est atteinte, le tour est mis en pause et le chat propose de continuer. Laissez vide pour les valeurs par défaut du serveur.",
+        "modelCallsLabel": "Appels au modèle par tour",
+        "toolCallsLabel": "Appels d'outils par tour",
+        "serverDefault": "Valeur par défaut du serveur"
+      }
     },
     "backup": {
       "cardTitle": "Sauvegarde et restauration",
@@ -2182,7 +2191,15 @@
       "lineCount": "{count, plural, one {# ligne} other {# lignes}}",
       "durationSeconds": "{count} s"
     },
-    "toolRun": "{tool} · {count, plural, one {# fois} other {# fois}}"
+    "toolRun": "{tool} · {count, plural, one {# fois} other {# fois}}",
+    "composerSettings": {
+      "triggerAriaLabel": "Paramètres du chat : approbation {mode}, modèle {model}",
+      "popoverLabel": "Paramètres du chat"
+    },
+    "keepGoing": {
+      "prompt": "L'assistant s'est arrêté sur un tour long. Rien n'est perdu.",
+      "action": "Continuer"
+    }
   },
   "boardSizeIndicator": {
     "custom": "Personnalisé",

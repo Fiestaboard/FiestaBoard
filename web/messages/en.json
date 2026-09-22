@@ -90,6 +90,8 @@
     "light": "Light",
     "dark": "Dark",
     "system": "System",
+    "devSuffix": "dev build",
+    "updateAvailable": "Update available: {version}",
     "about": "About FiestaBoard",
     "signOut": "Sign out"
   },
@@ -560,7 +562,14 @@
       "apiKeyLabel": "API Key",
       "modelsLabel": "Models",
       "defaultModelLabel": "Default model",
-      "testConnectionButton": "Test connection"
+      "testConnectionButton": "Test connection",
+      "turnLimits": {
+        "heading": "Turn limits",
+        "description": "A backstop against a model stuck in a loop, not a work budget. Reaching one pauses the turn and the chat offers to keep going. Leave blank to use the server defaults.",
+        "modelCallsLabel": "Model calls per turn",
+        "toolCallsLabel": "Tool calls per turn",
+        "serverDefault": "Server default"
+      }
     },
     "backup": {
       "cardTitle": "Backup & Restore",
@@ -2182,7 +2191,15 @@
       "durationSeconds": "{count}s"
     },
     "resizeHandle": "Resize FiestaBot panel",
-    "toolRun": "{tool} · {count, plural, one {# time} other {# times}}"
+    "toolRun": "{tool} · {count, plural, one {# time} other {# times}}",
+    "composerSettings": {
+      "triggerAriaLabel": "Chat settings: approval {mode}, model {model}",
+      "popoverLabel": "Chat settings"
+    },
+    "keepGoing": {
+      "prompt": "The assistant paused on a long turn. Nothing is lost.",
+      "action": "Keep going"
+    }
   },
   "boardSizeIndicator": {
     "custom": "Custom",

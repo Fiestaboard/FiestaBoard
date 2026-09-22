@@ -112,6 +112,14 @@ export interface UseAiChatResult {
   /** End the turn. A tool already running on the server still finishes. */
   stop: () => void;
   retryLast: () => void;
+  /**
+   * The last turn stopped by reaching a per-turn cap rather than by
+   * finishing. Nothing is lost when this is true — the composer offers to
+   * carry on rather than leaving a dead end.
+   */
+  pausedAtLimit: boolean;
+  /** Resume a turn that stopped at a per-turn cap, with a fresh budget. */
+  continueTurn: () => void;
   /** True once the user chose "don't ask again" in this conversation. */
   autoApprove: boolean;
   /** Turn "don't ask again" back off; later destructive calls pause again. */
@@ -172,6 +180,12 @@ export function useAiChat(opts: UseAiChatOptions): UseAiChatResult {
   const [pendingApproval, setPendingApproval] = useState<ToolCall | null>(null);
   const [pendingElicitation, setPendingElicitation] = useState<Elicitation | null>(null);
   const [error, setError] = useState<string | null>(null);
+  /**
+   * The last turn ended by reaching a per-turn cap rather than by finishing.
+   * Drives the composer's "Keep going?" offer; cleared by anything that moves
+   * the conversation on (a continue, a new message, a new/loaded chat).
+   */
+  const [pausedAtLimit, setPausedAtLimit] = useState(false);
   // "Don't ask again in this chat". State for the UI, a ref for the request
   // body: approve() sets both and re-POSTs in the same tick, before React
   // has re-rendered.
@@ -326,6 +340,13 @@ export function useAiChat(opts: UseAiChatOptions): UseAiChatResult {
               ended = true;
               patch((m) => ({ ...m, draft: undefined }));
               if (info.reason === "complete" || info.reason === "step_limit") onTurnComplete?.();
+              // A turn that hit a per-turn cap has not failed and has lost
+              // nothing: every tool result is already in the transcript, so
+              // continuing is an ordinary next turn over the same history
+              // (which ends in a tool result, so the server accepts it with
+              // no `resume`). Offering that beats making the user retype
+              // "carry on" — see `continueTurn`.
+              setPausedAtLimit(info.reason === "step_limit");
               if (info.reason === "awaiting_approval" && info.pending_tool_call_id) {
                 const id = info.pending_tool_call_id;
                 const call = callsRef.current.get(id);
@@ -502,6 +523,9 @@ export function useAiChat(opts: UseAiChatOptions): UseAiChatResult {
     (text: string) => {
       const trimmed = text.trim();
       if (!trimmed) return;
+      // Typing is its own answer to "Keep going?" — the offer comes down
+      // whether or not the new message is a request to carry on.
+      setPausedAtLimit(false);
       const current = messagesRef.current;
       if (!conversationIdRef.current) adoptConversationId(newConversationId());
 
@@ -582,6 +606,19 @@ export function useAiChat(opts: UseAiChatOptions): UseAiChatResult {
     queueSave(true);
   }, [queueSave]);
 
+  /**
+   * Resume a turn that stopped at a per-turn cap.
+   *
+   * No `resume` payload and no synthetic user message: the transcript already
+   * ends in a tool result, which is one of the endings `POST /chat` accepts,
+   * so the model simply gets called again with everything it had. The budget
+   * is per turn, so the continuation starts with a fresh one.
+   */
+  const continueTurn = useCallback(() => {
+    setPausedAtLimit(false);
+    void runStream(messagesRef.current);
+  }, [runStream]);
+
   const retryLast = useCallback(() => {
     const current = messagesRef.current;
     let lastUserIdx = -1;
@@ -596,6 +633,8 @@ export function useAiChat(opts: UseAiChatOptions): UseAiChatResult {
     setMessages(next);
     setPendingApproval(null);
     setPendingElicitation(null);
+    // Retrying rewinds past the turn that hit the cap; its offer goes too.
+    setPausedAtLimit(false);
     void runStream(next);
   }, [runStream]);
 
@@ -611,6 +650,7 @@ export function useAiChat(opts: UseAiChatOptions): UseAiChatResult {
     setPendingApproval(null);
     setPendingElicitation(null);
     setError(null);
+    setPausedAtLimit(false);
     // "Don't ask again" was for that conversation; a new chat asks again.
     autoApproveRef.current = false;
     setAutoApprove(false);
@@ -648,6 +688,7 @@ export function useAiChat(opts: UseAiChatOptions): UseAiChatResult {
       setMessages(history);
       setStatus("idle");
       setError(null);
+      setPausedAtLimit(false);
       setPendingApproval(awaiting ?? null);
       setPendingElicitation(question ?? null);
       autoApproveRef.current = conversation.approval;
@@ -720,6 +761,8 @@ export function useAiChat(opts: UseAiChatOptions): UseAiChatResult {
     answer,
     stop,
     retryLast,
+    pausedAtLimit,
+    continueTurn,
     autoApprove,
     disableAutoApprove,
     conversationId,

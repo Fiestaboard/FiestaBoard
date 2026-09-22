@@ -95,17 +95,63 @@ FOLLOW_THROUGH_NUDGE = (
     "shown to the user unless it calls a tool."
 )
 
+#: Appended to both cap warnings. A turn that hits a cap has not failed and
+#: has lost nothing — every tool result so far is in the transcript, so
+#: continuing is just another turn over the same history. Saying so is what
+#: makes the cap a checkpoint instead of a wall; the client turns this frame
+#: into a "Keep going?" button (``step_limit`` in ``DoneReason``).
+LIMIT_PAUSE_HINT = "Nothing is lost — continue to pick up where this left off."
+
+
+#: Floor and ceiling for the two configurable caps. The floor is 1 — a cap
+#: of 0 would end every turn before its first model call — and the ceiling
+#: keeps a hand-edited config from turning the backstop off entirely.
+MIN_TURN_CAP = 1
+MAX_TURN_CAP = 10_000
+
 
 @dataclass(frozen=True)
 class TurnLimits:
-    """Runaway protection for one turn. Each is a count, not a budget."""
+    """Runaway protection for one turn. Each is a count, not a budget.
 
-    max_model_calls: int = 8
-    max_tool_calls: int = 12
+    ``max_model_calls`` and ``max_tool_calls`` are deliberately high: a turn
+    that builds a page, installs a few plugins and schedules it legitimately
+    spends dozens of calls, and stopping such a turn mid-way reads as a bug
+    rather than as protection. They are the backstop against a model stuck in
+    a loop, not a work budget — and reaching one is a *pause*, not a failure:
+    the turn ends with ``step_limit`` and the client offers to keep going
+    (see :data:`LIMIT_PAUSE_HINT`). Both are overridable per install from the
+    AI settings block, so an operator who wants a tighter leash can have one.
+    """
+
+    max_model_calls: int = 600
+    max_tool_calls: int = 1000
     max_self_corrections: int = 2
     #: How many times one turn may be asked to follow through on a stated
     #: intention (#2042). One: the question is a safety net, not a loop.
     max_follow_through_nudges: int = 1
+
+    @classmethod
+    def from_providers_block(cls, block: dict[str, Any]) -> TurnLimits:
+        """Build the turn's limits from the stored ``ai_providers`` block.
+
+        Absent keys keep the class defaults; the config manager has already
+        clamped any stored value into [``MIN_TURN_CAP``, ``MAX_TURN_CAP``].
+        A value that is somehow still not a positive int is ignored rather
+        than allowed to end every turn at zero steps.
+        """
+        defaults = cls()
+
+        def cap(key: str, fallback: int) -> int:
+            value = block.get(key)
+            if not isinstance(value, int) or isinstance(value, bool) or value < MIN_TURN_CAP:
+                return fallback
+            return min(value, MAX_TURN_CAP)
+
+        return cls(
+            max_model_calls=cap("max_model_calls", defaults.max_model_calls),
+            max_tool_calls=cap("max_tool_calls", defaults.max_tool_calls),
+        )
 
 
 async def run_chat_turn(
@@ -405,7 +451,11 @@ async def _run_chat_turn(
             if tool_calls_made >= limits.max_tool_calls:
                 yield {
                     "event": "warning",
-                    "data": {"message": f"Stopped after {tool_calls_made} tool calls (the per-turn limit)."},
+                    "data": {
+                        "message": (
+                            f"Paused after {tool_calls_made} tool calls (the per-turn limit). {LIMIT_PAUSE_HINT}"
+                        )
+                    },
                 }
                 yield {"event": "done", "data": _done(chosen_model, provider, usage, "step_limit", None, steps)}
                 return
@@ -427,7 +477,10 @@ async def _run_chat_turn(
             yield {"event": "tool_result", "data": _tool_result_data(call["id"], call["name"], outcome)}
             transcript.append(_tool_message(call, outcome))
 
-    yield {"event": "warning", "data": {"message": f"Stopped after {steps} model calls (the per-turn limit)."}}
+    yield {
+        "event": "warning",
+        "data": {"message": f"Paused after {steps} model calls (the per-turn limit). {LIMIT_PAUSE_HINT}"},
+    }
     yield {"event": "done", "data": _done(chosen_model, provider, usage, "step_limit", None, steps)}
 
 

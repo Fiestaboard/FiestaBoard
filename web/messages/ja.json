@@ -90,6 +90,8 @@
     "light": "ライト",
     "dark": "ダーク",
     "system": "システム",
+    "devSuffix": "開発ビルド",
+    "updateAvailable": "アップデートがあります: {version}",
     "about": "FiestaBoard について",
     "signOut": "サインアウト"
   },
@@ -604,7 +606,14 @@
       "apiKeyLabel": "API キー",
       "modelsLabel": "モデル",
       "defaultModelLabel": "デフォルトモデル",
-      "testConnectionButton": "接続テスト"
+      "testConnectionButton": "接続テスト",
+      "turnLimits": {
+        "heading": "ターンの上限",
+        "description": "作業量の割り当てではなく、ループに陥ったモデルへの安全装置です。上限に達するとターンは一時停止し、チャットが続行を提案します。空欄にするとサーバーの既定値を使います。",
+        "modelCallsLabel": "1ターンあたりのモデル呼び出し数",
+        "toolCallsLabel": "1ターンあたりのツール呼び出し数",
+        "serverDefault": "サーバーの既定値"
+      }
     },
     "backup": {
       "cardTitle": "バックアップと復元",
@@ -2182,7 +2191,15 @@
       "lineCount": "{count, plural, other {# 行}}",
       "durationSeconds": "{count} 秒"
     },
-    "toolRun": "{tool} · {count, plural, other {# 回}}"
+    "toolRun": "{tool} · {count, plural, other {# 回}}",
+    "composerSettings": {
+      "triggerAriaLabel": "チャット設定: 承認 {mode}、モデル {model}",
+      "popoverLabel": "チャット設定"
+    },
+    "keepGoing": {
+      "prompt": "長いターンの途中で停止しました。作業内容は保持されています。",
+      "action": "続ける"
+    }
   },
   "boardSizeIndicator": {
     "custom": "カスタム",

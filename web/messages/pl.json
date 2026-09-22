@@ -90,6 +90,8 @@
     "light": "Jasny",
     "dark": "Ciemny",
     "system": "Systemowy",
+    "devSuffix": "kompilacja deweloperska",
+    "updateAvailable": "Dostępna aktualizacja: {version}",
     "about": "O FiestaBoard",
     "signOut": "Wyloguj się"
   },
@@ -604,7 +606,14 @@
       "apiKeyLabel": "Klucz API",
       "modelsLabel": "Modele",
       "defaultModelLabel": "Model domyślny",
-      "testConnectionButton": "Testuj połączenie"
+      "testConnectionButton": "Testuj połączenie",
+      "turnLimits": {
+        "heading": "Limity tury",
+        "description": "Zabezpieczenie przed modelem utkniętym w pętli, a nie budżet pracy. Osiągnięcie limitu wstrzymuje turę, a czat proponuje kontynuację. Pozostaw puste, aby użyć wartości domyślnych serwera.",
+        "modelCallsLabel": "Wywołania modelu na turę",
+        "toolCallsLabel": "Wywołania narzędzi na turę",
+        "serverDefault": "Domyślne serwera"
+      }
     },
     "backup": {
       "cardTitle": "Kopia zapasowa i przywracanie",
@@ -2182,7 +2191,15 @@
       "lineCount": "{count, plural, one {# wiersz} few {# wiersze} many {# wierszy} other {# wiersza}}",
       "durationSeconds": "{count} s"
     },
-    "toolRun": "{tool} · {count, plural, one {# raz} few {# razy} many {# razy} other {# raza}}"
+    "toolRun": "{tool} · {count, plural, one {# raz} few {# razy} many {# razy} other {# raza}}",
+    "composerSettings": {
+      "triggerAriaLabel": "Ustawienia czatu: zatwierdzanie {mode}, model {model}",
+      "popoverLabel": "Ustawienia czatu"
+    },
+    "keepGoing": {
+      "prompt": "Asystent zatrzymał się w trakcie długiej tury. Nic nie zostało utracone.",
+      "action": "Kontynuuj"
+    }
   },
   "boardSizeIndicator": {
     "custom": "Niestandardowy",

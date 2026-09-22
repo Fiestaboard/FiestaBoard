@@ -20,7 +20,7 @@ from typing import Any
 import httpx
 import pytest
 
-from src.ai.agent import TurnLimits, run_chat_turn
+from src.ai.agent import LIMIT_PAUSE_HINT, MAX_TURN_CAP, TurnLimits, run_chat_turn
 from src.ai.mcp_bridge import ToolDescriptor, ToolOutcome
 
 # ---------------------------------------------------------------------------
@@ -522,6 +522,64 @@ def test_step_limit_ends_with_warning_and_done():
     assert done["reason"] == "step_limit" and done["steps"] == 3
     assert any("limit" in w["message"] for w in _only(events, "warning"))
     assert len(provider.requests) == 3
+
+
+def test_the_model_call_cap_reads_as_a_pause_the_user_can_continue():
+    """The cap's warning has to say the work survives, or it reads as failure.
+
+    The client turns this frame into "Keep going?"; a message that
+    only said "Stopped" would tell the user the opposite of the truth.
+    """
+    provider = ScriptedProvider(*[_sse(_block("list_pages", {}))] * 3)
+    events = _run_turn(provider, FakeBackend(), USER, limits=TurnLimits(max_model_calls=2))
+    message = _only(events, "warning")[-1]["message"]
+    assert "Paused after 2 model calls" in message
+    assert LIMIT_PAUSE_HINT in message
+
+
+def test_the_tool_call_cap_reads_as_a_pause_too():
+    provider = ScriptedProvider(*[_sse(_block("list_pages", {}))] * 3)
+    events = _run_turn(provider, FakeBackend(), USER, limits=TurnLimits(max_tool_calls=1))
+    message = _only(events, "warning")[-1]["message"]
+    assert "Paused after 1 tool calls" in message
+    assert LIMIT_PAUSE_HINT in message
+    assert _only(events, "done")[0]["reason"] == "step_limit"
+
+
+def test_the_default_caps_clear_a_long_legitimate_turn():
+    """8 model calls used to end a real build mid-way.
+
+    Pinned as a number rather than a behavior on purpose: the whole point of
+    the change is that the ceiling is far above what real work needs, and a
+    regression that quietly lowered it would otherwise pass every other test
+    in this file.
+    """
+    assert TurnLimits().max_model_calls >= 100
+    assert TurnLimits().max_tool_calls >= 100
+
+
+class TestTurnLimitsFromProvidersBlock:
+    """The install's caps, read off the stored ``ai_providers`` block."""
+
+    def test_an_absent_cap_keeps_the_default(self):
+        limits = TurnLimits.from_providers_block({})
+        assert limits.max_model_calls == TurnLimits().max_model_calls
+        assert limits.max_tool_calls == TurnLimits().max_tool_calls
+
+    def test_a_stored_cap_overrides_the_default(self):
+        limits = TurnLimits.from_providers_block({"max_model_calls": 12, "max_tool_calls": 20})
+        assert limits.max_model_calls == 12
+        assert limits.max_tool_calls == 20
+
+    def test_a_cap_above_the_ceiling_is_clamped(self):
+        limits = TurnLimits.from_providers_block({"max_model_calls": MAX_TURN_CAP + 5_000})
+        assert limits.max_model_calls == MAX_TURN_CAP
+
+    @pytest.mark.parametrize("bad", [0, -1, None, "12", 1.5, True])
+    def test_an_unusable_cap_falls_back_rather_than_stalling_every_turn(self, bad):
+        """A cap of 0 (or a bool, or a string) must not end turns at zero steps."""
+        limits = TurnLimits.from_providers_block({"max_model_calls": bad})
+        assert limits.max_model_calls == TurnLimits().max_model_calls
 
 
 def test_unknown_tool_is_fed_back_once_for_self_correction():

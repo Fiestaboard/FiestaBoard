@@ -245,6 +245,89 @@ describe("SidebarSettingsMenu contents", () => {
   });
 });
 
+describe("SidebarSettingsMenu version row", () => {
+  beforeEach(() => {
+    pushMock.mockReset();
+    replaceMock.mockReset();
+    localStorage.clear();
+    mockAuth(SIGNED_IN);
+    server.use(
+      http.get("/api/version", () =>
+        HttpResponse.json({
+          package_version: "8.38.9",
+          build_version: "8.38.9",
+          running_version: "8.38.9",
+          is_dev: false,
+          hardware_model: null,
+        }),
+      ),
+    );
+  });
+
+  /** An update is waiting, and this install is the one that can apply it. */
+  function mockUpdate({ available, managedExternally = false }: { available: boolean; managedExternally?: boolean }) {
+    server.use(
+      http.get("/api/system/update/status", () =>
+        HttpResponse.json({ update_available: available, managed_externally: managedExternally }),
+      ),
+      http.get("/api/system/update-check", () =>
+        HttpResponse.json({ update_available: available, latest_version: available ? "8.39.0" : null }),
+      ),
+    );
+  }
+
+  it("states the running version in the menu, without opening About", async () => {
+    mockUpdate({ available: false });
+    const user = userEvent.setup();
+    render(<SidebarSettingsMenu />, { wrapper: TestWrapper });
+    await screen.findByText("casa");
+
+    const menu = await openMenu(user);
+
+    // The whole point of the row: the build number without a second click.
+    expect(await within(menu).findByText("8.38.9")).toBeInTheDocument();
+  });
+
+  it("marks an available update in the menu", async () => {
+    mockUpdate({ available: true });
+    const user = userEvent.setup();
+    render(<SidebarSettingsMenu />, { wrapper: TestWrapper });
+    await screen.findByText("casa");
+
+    const menu = await openMenu(user);
+    const badge = await within(menu).findByTestId("settings-menu-update-badge");
+    // The waiting version, and a name screen readers can read.
+    expect(badge).toHaveTextContent("8.39.0");
+    expect(within(badge).getByText("Update available: 8.39.0")).toBeInTheDocument();
+  });
+
+  it("shows no update marker when the install is current", async () => {
+    mockUpdate({ available: false });
+    const user = userEvent.setup();
+    render(<SidebarSettingsMenu />, { wrapper: TestWrapper });
+    await screen.findByText("casa");
+
+    const menu = await openMenu(user);
+    // Anchored on the version row being rendered, so the absence is judged
+    // against a row that exists rather than a menu that never loaded.
+    await within(menu).findByText("8.38.9");
+    expect(within(menu).queryByTestId("settings-menu-update-badge")).not.toBeInTheDocument();
+  });
+
+  it("stays quiet when an external supervisor owns updates", async () => {
+    // The Home Assistant add-on case: FiestaBoard cannot apply the update,
+    // so pointing at one would be an offer it cannot honour.
+    mockUpdate({ available: true, managedExternally: true });
+    const user = userEvent.setup();
+    render(<SidebarSettingsMenu />, { wrapper: TestWrapper });
+    await screen.findByText("casa");
+
+    const menu = await openMenu(user);
+    await within(menu).findByText("8.38.9");
+    expect(within(menu).queryByTestId("settings-menu-update-badge")).not.toBeInTheDocument();
+  });
+});
+
 describe("SidebarSettingsMenu About box", () => {
   beforeEach(() => {
     pushMock.mockReset();

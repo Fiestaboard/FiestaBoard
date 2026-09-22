@@ -90,6 +90,8 @@
     "light": "Claro",
     "dark": "Escuro",
     "system": "Sistema",
+    "devSuffix": "compilação de desenvolvimento",
+    "updateAvailable": "Atualização disponível: {version}",
     "about": "Sobre o FiestaBoard",
     "signOut": "Terminar sessão"
   },
@@ -604,7 +606,14 @@
       "apiKeyLabel": "Chave API",
       "modelsLabel": "Modelos",
       "defaultModelLabel": "Modelo predefinido",
-      "testConnectionButton": "Testar ligação"
+      "testConnectionButton": "Testar ligação",
+      "turnLimits": {
+        "heading": "Limites por turno",
+        "description": "Uma proteção contra um modelo preso num ciclo, não um orçamento de trabalho. Ao atingir um limite, o turno é pausado e o chat oferece continuar. Deixe em branco para usar os valores predefinidos do servidor.",
+        "modelCallsLabel": "Chamadas ao modelo por turno",
+        "toolCallsLabel": "Chamadas a ferramentas por turno",
+        "serverDefault": "Predefinição do servidor"
+      }
     },
     "backup": {
       "cardTitle": "Backup e restauro",
@@ -2182,7 +2191,15 @@
       "lineCount": "{count, plural, one {# linha} other {# linhas}}",
       "durationSeconds": "{count} s"
     },
-    "toolRun": "{tool} · {count, plural, one {# vez} other {# vezes}}"
+    "toolRun": "{tool} · {count, plural, one {# vez} other {# vezes}}",
+    "composerSettings": {
+      "triggerAriaLabel": "Configurações do chat: aprovação {mode}, modelo {model}",
+      "popoverLabel": "Configurações do chat"
+    },
+    "keepGoing": {
+      "prompt": "O assistente pausou num turno longo. Nada foi perdido.",
+      "action": "Continuar"
+    }
   },
   "boardSizeIndicator": {
     "custom": "Personalizado",

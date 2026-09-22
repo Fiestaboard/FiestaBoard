@@ -1523,3 +1523,80 @@ def test_set_ai_providers_coerces_an_unknown_approval_mode_to_ask(tmp_path):
     assert cm.get_ai_providers()["approval_mode"] == "auto"
     cm.set_ai_providers({"approval_mode": "yolo"})
     assert cm.get_ai_providers()["approval_mode"] == "ask", "an unknown mode falls back to asking, like on read"
+
+
+# --- AI providers: per-turn caps ---
+
+
+def test_get_ai_providers_reports_no_cap_when_the_install_has_none(tmp_path):
+    """An install predating the caps must not get a number invented for it.
+
+    None is the signal that the agent's own defaults apply; a 0 or a made-up
+    ceiling here would silently become that install's policy.
+    """
+    cm = ConfigManager(config_path=str(tmp_path / "config.json"))
+    block = cm.get_ai_providers()
+    assert block["max_model_calls"] is None
+    assert block["max_tool_calls"] is None
+
+
+def test_turn_caps_survive_a_reload_from_disk(tmp_path):
+    config_path = tmp_path / "config.json"
+    cm = ConfigManager(config_path=str(config_path))
+    cm.set_ai_providers({"max_model_calls": 40, "max_tool_calls": 90})
+    cm.reload()
+    assert cm.get_ai_providers()["max_model_calls"] == 40
+    assert cm.get_ai_providers()["max_tool_calls"] == 90
+
+
+def test_a_turn_cap_of_zero_is_clamped_up_rather_than_stalling_every_turn(tmp_path):
+    """0 would end every turn before its first model call — an unusable install."""
+    cm = ConfigManager(config_path=str(tmp_path / "config.json"))
+    cm.set_ai_providers({"max_model_calls": 0})
+    assert cm.get_ai_providers()["max_model_calls"] == 1
+
+
+def test_a_turn_cap_above_the_ceiling_is_clamped_down(tmp_path):
+    cm = ConfigManager(config_path=str(tmp_path / "config.json"))
+    cm.set_ai_providers({"max_model_calls": 999_999})
+    assert cm.get_ai_providers()["max_model_calls"] == 10_000
+
+
+def test_setting_a_turn_cap_to_null_clears_the_override(tmp_path):
+    cm = ConfigManager(config_path=str(tmp_path / "config.json"))
+    cm.set_ai_providers({"max_model_calls": 40})
+    assert cm.get_ai_providers()["max_model_calls"] == 40
+    cm.set_ai_providers({"max_model_calls": None})
+    assert cm.get_ai_providers()["max_model_calls"] is None, "an explicit null hands the turn back to the defaults"
+
+
+def test_get_ai_providers_ignores_a_hand_edited_non_integer_turn_cap(tmp_path, caplog):
+    config_path = tmp_path / "config.json"
+    config_path.write_text(
+        json.dumps(
+            {
+                "board": {},
+                "features": {},
+                "general": {},
+                "ai_providers": {
+                    "enabled": False,
+                    "providers": [],
+                    "default_provider_id": None,
+                    "max_model_calls": "lots",
+                },
+            }
+        )
+    )
+    with caplog.at_level("WARNING", logger="src.config_manager"):
+        cm = ConfigManager(config_path=str(config_path))
+        assert cm.get_ai_providers()["max_model_calls"] is None
+        assert cm.get_ai_providers()["max_model_calls"] is None
+    warnings = [r for r in caplog.records if "max_model_calls" in r.getMessage()]
+    assert len(warnings) == 1, "the coercion is logged once, not on every read"
+
+
+def test_a_boolean_turn_cap_is_rejected_rather_than_read_as_one(tmp_path):
+    """True is an int in Python; read as a cap it would mean one model call."""
+    cm = ConfigManager(config_path=str(tmp_path / "config.json"))
+    cm.set_ai_providers({"max_model_calls": True})
+    assert cm.get_ai_providers()["max_model_calls"] is None

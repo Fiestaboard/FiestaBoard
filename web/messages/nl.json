@@ -90,6 +90,8 @@
     "light": "Licht",
     "dark": "Donker",
     "system": "Systeem",
+    "devSuffix": "ontwikkelbuild",
+    "updateAvailable": "Update beschikbaar: {version}",
     "about": "Over FiestaBoard",
     "signOut": "Afmelden"
   },
@@ -604,7 +606,14 @@
       "apiKeyLabel": "API-sleutel",
       "modelsLabel": "Modellen",
       "defaultModelLabel": "Standaardmodel",
-      "testConnectionButton": "Verbinding testen"
+      "testConnectionButton": "Verbinding testen",
+      "turnLimits": {
+        "heading": "Limieten per ronde",
+        "description": "Een vangnet tegen een model dat in een lus vastzit, geen werkbudget. Bij het bereiken van een limiet pauzeert de ronde en biedt de chat aan door te gaan. Laat leeg voor de standaardwaarden van de server.",
+        "modelCallsLabel": "Modelaanroepen per ronde",
+        "toolCallsLabel": "Toolaanroepen per ronde",
+        "serverDefault": "Standaard van server"
+      }
     },
     "backup": {
       "cardTitle": "Back-up & herstel",
@@ -2182,7 +2191,15 @@
       "lineCount": "{count, plural, one {# regel} other {# regels}}",
       "durationSeconds": "{count} s"
     },
-    "toolRun": "{tool} · {count, plural, one {# keer} other {# keer}}"
+    "toolRun": "{tool} · {count, plural, one {# keer} other {# keer}}",
+    "composerSettings": {
+      "triggerAriaLabel": "Chatinstellingen: goedkeuring {mode}, model {model}",
+      "popoverLabel": "Chatinstellingen"
+    },
+    "keepGoing": {
+      "prompt": "De assistent pauzeerde tijdens een lange ronde. Niets is verloren.",
+      "action": "Doorgaan"
+    }
   },
   "boardSizeIndicator": {
     "custom": "Aangepast",

@@ -23,6 +23,7 @@ const mockDisableAutoApprove = vi.fn();
 const mockNewConversation = vi.fn();
 const mockLoadConversation = vi.fn();
 const mockForgetConversation = vi.fn();
+const mockContinueTurn = vi.fn();
 
 // Typed against the real hook contract: without it the inferred literal
 // types (`status: "idle"`, `messages: never[]`, `error: null`) reject the
@@ -38,6 +39,8 @@ const defaultHookResult: UseAiChatResult = {
   answer: mockAnswer,
   stop: mockStop,
   retryLast: mockRetryLast,
+  pausedAtLimit: false,
+  continueTurn: mockContinueTurn,
   autoApprove: false,
   disableAutoApprove: mockDisableAutoApprove,
   conversationId: null,
@@ -1048,15 +1051,83 @@ describe("AiChatPanel", () => {
     );
   }
 
-  it("the header mode toggle reads the install's approval_mode", async () => {
+  /**
+   * Open the composer's settings pill, where the approval mode, the provider
+   * and the model live.
+   *
+   * They used to sit directly in the composer row; the pill is what stopped
+   * four controls fighting over ~340px. Everything these tests assert about
+   * the mode is unchanged — only the click that reveals it is new, so each
+   * test below opens the popover first rather than dropping the assertion.
+   */
+  async function openComposerSettings(user: ReturnType<typeof userEvent.setup>) {
+    const trigger = await screen.findByTestId("ai-composer-settings");
+    await user.click(trigger);
+    return trigger;
+  }
+
+  it("the composer settings pill reads the install's approval_mode", async () => {
     configuredWith("auto");
+    const user = userEvent.setup();
     render(<AiChatPanel {...defaultProps} />, { wrapper: Wrapper });
+    await openComposerSettings(user);
     const group = await screen.findByRole("radiogroup", { name: enMessages.aiChatPanel.approvalMode.label });
     expect(group).toBeInTheDocument();
     await waitFor(() =>
       expect(screen.getByRole("radio", { name: enMessages.aiChatPanel.approvalMode.auto })).toBeChecked(),
     );
     expect(screen.getByRole("radio", { name: enMessages.aiChatPanel.approvalMode.ask })).not.toBeChecked();
+  });
+
+  it("states the mode and model on the pill's face, so the row reads without opening it", async () => {
+    configuredWith("auto");
+    render(<AiChatPanel {...defaultProps} />, { wrapper: Wrapper });
+    const trigger = await screen.findByTestId("ai-composer-settings");
+    // The two facts worth a glance; the point of collapsing the row was not
+    // to hide the approval mode.
+    await waitFor(() => expect(trigger).toHaveTextContent(enMessages.aiChatPanel.approvalMode.auto));
+    expect(trigger).toHaveTextContent("test-model");
+  });
+
+  it("picks a model from inside the pill's popover", async () => {
+    // A Select nested in a Popover is two stacked Base UI popups, and this
+    // package has had async-mount trouble with exactly that shape. The mode
+    // radios above prove the popover mounts; only this proves the picker
+    // inside it still opens and commits a choice.
+    configuredWith("ask");
+    server.use(
+      http.get(`${API_BASE}/settings/ai`, () =>
+        HttpResponse.json({
+          ...CONFIGURED,
+          approval_mode: "ask",
+          providers: [{ ...CONFIGURED_PROVIDER, models: ["test-model", "other-model"] }],
+        }),
+      ),
+    );
+    const user = userEvent.setup();
+    render(<AiChatPanel {...defaultProps} />, { wrapper: Wrapper });
+    await openComposerSettings(user);
+
+    await user.click(await screen.findByRole("combobox", { name: enMessages.aiChatPanel.modelSelectAriaLabel }));
+    await user.click(await screen.findByRole("option", { name: "other-model" }));
+
+    // The pill's face is the readback: the chosen model is what the next
+    // send will use.
+    await waitFor(() => expect(screen.getByTestId("ai-composer-settings")).toHaveTextContent("other-model"));
+  });
+
+  it("offers the provider picker only when there is more than one provider", async () => {
+    configuredWith("ask");
+    const user = userEvent.setup();
+    render(<AiChatPanel {...defaultProps} />, { wrapper: Wrapper });
+    await openComposerSettings(user);
+
+    // One provider needs no choosing, and a one-item select is noise in a
+    // popover whose whole purpose is to hold fewer things.
+    await screen.findByRole("combobox", { name: enMessages.aiChatPanel.modelSelectAriaLabel });
+    expect(
+      screen.queryByRole("combobox", { name: enMessages.aiChatPanel.providerSelectAriaLabel }),
+    ).not.toBeInTheDocument();
   });
 
   it("choosing Auto writes approval_mode through PUT /settings/ai and shows the one-line note", async () => {
@@ -1071,6 +1142,7 @@ describe("AiChatPanel", () => {
     );
     const user = userEvent.setup();
     render(<AiChatPanel {...defaultProps} />, { wrapper: Wrapper });
+    await openComposerSettings(user);
     const ask = await screen.findByRole("radio", { name: enMessages.aiChatPanel.approvalMode.ask });
     await waitFor(() => expect(ask).toBeChecked());
     expect(screen.queryByText(enMessages.aiChatPanel.approvalMode.autoNote)).not.toBeInTheDocument();
@@ -1220,6 +1292,7 @@ describe("AiChatPanel", () => {
     hookResult = { ...defaultHookResult, autoApprove: true, messages: [{ role: "user", content: "hi" }] };
     const user = userEvent.setup();
     render(<AiChatPanel {...defaultProps} />, { wrapper: Wrapper });
+    await openComposerSettings(user);
     await waitFor(() =>
       expect(screen.getByRole("radio", { name: enMessages.aiChatPanel.approvalMode.auto })).toBeChecked(),
     );
@@ -1237,10 +1310,14 @@ describe("AiChatPanel", () => {
   it("with the install in Auto, 'don't ask again' shows no this-chat caption", async () => {
     configuredWith("auto");
     hookResult = { ...defaultHookResult, autoApprove: true };
+    const user = userEvent.setup();
     render(<AiChatPanel {...defaultProps} />, { wrapper: Wrapper });
     // Wait until the settings GET has landed (the composer unlocks on it),
     // so the absence below is judged against the loaded install setting.
     await waitFor(() => expect(screen.getByRole("textbox")).toBeEnabled());
+    // Inside the popover: an absence assertion is only meaningful where the
+    // caption would actually render.
+    await openComposerSettings(user);
     expect(screen.getByRole("radio", { name: enMessages.aiChatPanel.approvalMode.auto })).toBeChecked();
     expect(screen.queryByText(enMessages.aiChatPanel.approvalMode.thisChat)).not.toBeInTheDocument();
   });
@@ -1250,6 +1327,7 @@ describe("AiChatPanel", () => {
     server.use(http.put(`${API_BASE}/settings/ai`, () => HttpResponse.json({ detail: "nope" }, { status: 500 })));
     const user = userEvent.setup();
     render(<AiChatPanel {...defaultProps} />, { wrapper: Wrapper });
+    await openComposerSettings(user);
     const ask = await screen.findByRole("radio", { name: enMessages.aiChatPanel.approvalMode.ask });
     await waitFor(() => expect(ask).toBeChecked());
     await user.click(screen.getByRole("radio", { name: enMessages.aiChatPanel.approvalMode.auto }));
@@ -1259,11 +1337,59 @@ describe("AiChatPanel", () => {
     expect(screen.queryByText(enMessages.aiChatPanel.approvalMode.autoNote)).not.toBeInTheDocument();
   });
 
+  // -- Keeping going past a per-turn cap --
+
+  describe("keep going", () => {
+    it("offers to continue a turn that stopped at a per-turn cap", async () => {
+      configuredWith("ask");
+      hookResult = { ...defaultHookResult, pausedAtLimit: true, messages: [{ role: "user", content: "build it" }] };
+      render(<AiChatPanel {...defaultProps} />, { wrapper: Wrapper });
+      expect(await screen.findByTestId("ai-keep-going")).toHaveTextContent(enMessages.aiChatPanel.keepGoing.prompt);
+    });
+
+    it("continues the turn rather than sending a message", async () => {
+      configuredWith("ask");
+      hookResult = { ...defaultHookResult, pausedAtLimit: true, messages: [{ role: "user", content: "build it" }] };
+      const user = userEvent.setup();
+      render(<AiChatPanel {...defaultProps} />, { wrapper: Wrapper });
+
+      await user.click(await screen.findByTestId("ai-keep-going-button"));
+
+      expect(mockContinueTurn).toHaveBeenCalledTimes(1);
+      // A continue is not a new prompt: sending "continue" as a user message
+      // would put words in the transcript the user never typed.
+      expect(mockSend).not.toHaveBeenCalled();
+    });
+
+    it("shows nothing when the turn ended normally", async () => {
+      configuredWith("ask");
+      hookResult = { ...defaultHookResult, pausedAtLimit: false, messages: [{ role: "user", content: "hi" }] };
+      render(<AiChatPanel {...defaultProps} />, { wrapper: Wrapper });
+      // Anchored on the composer being present, so the absence is judged
+      // against a rendered panel rather than an empty one.
+      await screen.findByLabelText(enMessages.aiChatPanel.messageLabel);
+      expect(screen.queryByTestId("ai-keep-going")).not.toBeInTheDocument();
+    });
+
+    it("cannot be clicked while a turn is streaming", async () => {
+      configuredWith("ask");
+      hookResult = {
+        ...defaultHookResult,
+        pausedAtLimit: true,
+        status: "streaming",
+        messages: [{ role: "user", content: "build it" }],
+      };
+      render(<AiChatPanel {...defaultProps} />, { wrapper: Wrapper });
+      expect(await screen.findByTestId("ai-keep-going-button")).toBeDisabled();
+    });
+  });
+
   it("the pill stays enabled while the PUT is in flight so the activated radio keeps focus", async () => {
     configuredWith("ask");
     server.use(http.put(`${API_BASE}/settings/ai`, () => new Promise<never>(() => {})));
     const user = userEvent.setup();
     render(<AiChatPanel {...defaultProps} />, { wrapper: Wrapper });
+    await openComposerSettings(user);
     const ask = await screen.findByRole("radio", { name: enMessages.aiChatPanel.approvalMode.ask });
     await waitFor(() => expect(ask).toBeChecked());
     const auto = screen.getByRole("radio", { name: enMessages.aiChatPanel.approvalMode.auto });

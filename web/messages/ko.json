@@ -90,6 +90,8 @@
     "light": "라이트",
     "dark": "다크",
     "system": "시스템",
+    "devSuffix": "개발 빌드",
+    "updateAvailable": "업데이트 사용 가능: {version}",
     "about": "FiestaBoard 정보",
     "signOut": "로그아웃"
   },
@@ -604,7 +606,14 @@
       "apiKeyLabel": "API 키",
       "modelsLabel": "모델",
       "defaultModelLabel": "기본 모델",
-      "testConnectionButton": "연결 테스트"
+      "testConnectionButton": "연결 테스트",
+      "turnLimits": {
+        "heading": "턴 제한",
+        "description": "작업 예산이 아니라 루프에 갇힌 모델에 대한 안전장치입니다. 제한에 도달하면 턴이 일시 중지되고 채팅이 계속할지 제안합니다. 비워 두면 서버 기본값을 사용합니다.",
+        "modelCallsLabel": "턴당 모델 호출 수",
+        "toolCallsLabel": "턴당 도구 호출 수",
+        "serverDefault": "서버 기본값"
+      }
     },
     "backup": {
       "cardTitle": "백업 및 복원",
@@ -2182,7 +2191,15 @@
       "lineCount": "{count, plural, other {#줄}}",
       "durationSeconds": "{count}초"
     },
-    "toolRun": "{tool} · {count, plural, other {#회}}"
+    "toolRun": "{tool} · {count, plural, other {#회}}",
+    "composerSettings": {
+      "triggerAriaLabel": "채팅 설정: 승인 {mode}, 모델 {model}",
+      "popoverLabel": "채팅 설정"
+    },
+    "keepGoing": {
+      "prompt": "긴 작업 도중 일시 중지되었습니다. 진행 내용은 유지됩니다.",
+      "action": "계속하기"
+    }
   },
   "boardSizeIndicator": {
     "custom": "사용자 지정",

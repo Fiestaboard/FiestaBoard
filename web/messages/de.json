@@ -90,6 +90,8 @@
     "light": "Hell",
     "dark": "Dunkel",
     "system": "System",
+    "devSuffix": "Dev-Build",
+    "updateAvailable": "Update verfügbar: {version}",
     "about": "Über FiestaBoard",
     "signOut": "Abmelden"
   },
@@ -604,7 +606,14 @@
       "apiKeyLabel": "API-Schlüssel",
       "modelsLabel": "Modelle",
       "defaultModelLabel": "Standardmodell",
-      "testConnectionButton": "Verbindung testen"
+      "testConnectionButton": "Verbindung testen",
+      "turnLimits": {
+        "heading": "Vorgangslimits",
+        "description": "Eine Absicherung gegen ein Modell in einer Endlosschleife, kein Arbeitsbudget. Wird ein Limit erreicht, pausiert der Vorgang und der Chat bietet an, fortzufahren. Leer lassen für die Server-Standardwerte.",
+        "modelCallsLabel": "Modellaufrufe pro Vorgang",
+        "toolCallsLabel": "Tool-Aufrufe pro Vorgang",
+        "serverDefault": "Server-Standard"
+      }
     },
     "backup": {
       "cardTitle": "Sicherung & Wiederherstellung",
@@ -2182,7 +2191,15 @@
       "lineCount": "{count, plural, one {# Zeile} other {# Zeilen}}",
       "durationSeconds": "{count} s"
     },
-    "toolRun": "{tool} · {count, plural, one {# Mal} other {# Mal}}"
+    "toolRun": "{tool} · {count, plural, one {# Mal} other {# Mal}}",
+    "composerSettings": {
+      "triggerAriaLabel": "Chat-Einstellungen: Genehmigung {mode}, Modell {model}",
+      "popoverLabel": "Chat-Einstellungen"
+    },
+    "keepGoing": {
+      "prompt": "Der Assistent hat bei einem langen Vorgang angehalten. Nichts ist verloren.",
+      "action": "Weitermachen"
+    }
   },
   "boardSizeIndicator": {
     "custom": "Benutzerdefiniert",
