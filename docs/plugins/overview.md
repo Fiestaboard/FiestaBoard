@@ -71,6 +71,7 @@ These plugins need an API key from a service with a generous free tier:
 |--------|--------------|---------------------|-----------|
 | **Traffic** | Travel time to destinations with live traffic | [Google Cloud Console](https://console.cloud.google.com/) (Routes API) | Free tier ([current terms](https://developers.google.com/maps/documentation/routes/usage-and-billing)) |
 | **Home Assistant** | Smart home status (doors, garage, locks, etc.) | Your Home Assistant instance | Self-hosted |
+| **Plex Now Playing** | Movies, TV episodes, and music playing on your Plex server | Your Plex server ([X-Plex-Token](/docs/plugins/plex#1-find-your-plex-token)) | Self-hosted |
 | **Air Quality & Fog** | AQI and fog conditions | PurpleAir or OpenWeatherMap | Varies |
 
 ## Optional API Key
