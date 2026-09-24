@@ -821,6 +821,41 @@
         }
       ]
     },
+    "plex": {
+      "teaser": "{65} BREAKING BAD",
+      "previews": [
+        {
+          "device_type": "flagship",
+          "rows": [
+            "      {66} PLAYING",
+            "     BREAKING BAD",
+            "    {65}{65} S05 E14 {65}{65}",
+            "      OZYMANDIAS",
+            "",
+            "    LIVING ROOM TV"
+          ]
+        },
+        {
+          "device_type": "note",
+          "rows": [
+            " BREAKING BAD",
+            " {65}{65} S05 E14 {65}{65}",
+            "  OZYMANDIAS"
+          ]
+        },
+        {
+          "label": "Note Array (2 wide)",
+          "device_type": "note_array",
+          "notes_wide": 2,
+          "notes_tall": 1,
+          "rows": [
+            "  THE MARVELOUS MRS. MAISEL",
+            "        {65}{65} S01 E01 {65}{65}",
+            "            PILOT"
+          ]
+        }
+      ]
+    },
     "price_list": {
       "teaser": "LATTE ... $4.50",
       "previews": [

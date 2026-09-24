@@ -708,6 +708,17 @@
       "icon": "grid-3x3",
       "category": "art",
       "added": "2026-09-13"
+    },
+    {
+      "id": "plex",
+      "name": "Plex Now Playing",
+      "description": "Show what's playing on your Plex Media Server: movies, TV episodes and music, laid out to fit any board",
+      "repository": "https://github.com/Fiestaboard/fiestaboard-plugin--plex",
+      "author": "FiestaBoard Team",
+      "fiestaboard_version": ">=2.10.0",
+      "icon": "tv",
+      "category": "entertainment",
+      "added": "2026-09-24"
     }
   ]
 }
