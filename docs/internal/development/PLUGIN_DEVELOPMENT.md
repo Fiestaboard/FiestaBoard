@@ -1555,11 +1555,14 @@ Open a pull request against the FiestaBoard repository that adds one entry to th
   "author": "Your Name",
   "fiestaboard_version": ">=2.10.0",
   "icon": "puzzle",
-  "category": "utility"
+  "category": "utility",
+  "added": "2026-09-14"
 }
 ```
 
 Set `fiestaboard_version` to the minimum FiestaBoard version your plugin requires. Use an existing `category` value (`art`, `data`, `entertainment`, `home`, `transit`, `utility`, `weather`).
+
+`added` is the date your entry lands, as `YYYY-MM-DD`. The marketplace's **Added** column sorts by it, so users can find what is new in a catalogue too large to read end to end. `scripts/extract_plugin.py` stamps it for you when it publishes a plugin, and carries the original date forward if that plugin is ever re-published — leave it alone after the first time, or the plugin will resurface as new. An entry without one still loads; it just sorts last.
 
 #### `fiestaboard_version` gates auto-update
 

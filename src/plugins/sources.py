@@ -138,6 +138,11 @@ class RegistryEntry:
     #: omit the key entirely, so the default has to be the data plugin.
     plugin_type: str = "data"
 
+    #: ISO date (``YYYY-MM-DD``) the plugin became installable from the
+    #: registry, so the marketplace can sort by newness.  Empty for an entry
+    #: that predates the field; the UI sorts those last rather than guessing.
+    added: str = ""
+
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> "RegistryEntry":
         return cls(
@@ -151,6 +156,7 @@ class RegistryEntry:
             icon=data.get("icon", "puzzle"),
             category=data.get("category", "utility"),
             plugin_type=data.get("plugin_type", "data"),
+            added=data.get("added", ""),
         )
 
 

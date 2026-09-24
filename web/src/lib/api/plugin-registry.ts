@@ -17,6 +17,12 @@ export interface RegistryEntry {
   category: string;
   installed: boolean;
   /**
+   * ISO date (YYYY-MM-DD) the plugin became installable from the registry.
+   * Empty on payloads that predate the field; the marketplace sorts those
+   * last rather than guessing a date for them.
+   */
+  added?: string;
+  /**
    * "data" (a plugin that publishes template variables) or "transition" (a
    * frame-by-frame board animation). Absent on registry payloads that predate
    * the field — treat missing as "data".

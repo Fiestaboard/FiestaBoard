@@ -493,6 +493,7 @@
     "categoryColumn": "Категория",
     "statusColumn": "Статус",
     "authorColumn": "Автор",
+    "addedColumn": "Добавлен",
     "noInstalledMatch": "Ни один установленный плагин не соответствует «{query}»",
     "noPluginsInstalled": "Плагины ещё не установлены",
     "headToMarketplace": "Перейдите на вкладку Marketplace, чтобы найти и установить плагины.",

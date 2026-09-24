@@ -585,6 +585,30 @@
         }
       ]
     },
+    "mlb": {
+      "teaser": "{67}CUBS  6",
+      "previews": [
+        {
+          "device_type": "flagship",
+          "rows": [
+            "3RD      R H E",
+            "{67}CUBS    3 6 0",
+            "{68}ROCKIES 0 0 0",
+            "",
+            "",
+            ""
+          ]
+        },
+        {
+          "device_type": "note",
+          "rows": [
+            "3RD      R H E",
+            "{67}CUBS    3 6 0",
+            "{68}ROCKIES 0 0 0"
+          ]
+        }
+      ]
+    },
     "moon_phase": {
       "teaser": "WAXING 42% LIT",
       "previews": [

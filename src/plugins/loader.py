@@ -6,6 +6,7 @@ as well as external plugin directories (registry and custom git sources).
 
 import importlib.util
 import logging
+import os
 import re
 import sys
 import threading
@@ -644,6 +645,36 @@ class PluginLoader:
 
         return removed
 
+    def _evict_plugin_modules(self, plugin_id: str) -> None:
+        """Drop every ``sys.modules`` entry that belongs to *plugin_id*.
+
+        Removing ``plugins.<id>`` alone is not enough. A plugin whose
+        ``__init__.py`` puts its own directory on ``sys.path`` -- the flattened
+        repo layout -- imports its siblings under bare top-level names
+        (``word_of_day``, ``words``), and those entries outlive the reload.
+        The re-executed ``__init__`` then binds the *stale* module object, so
+        an updated plugin keeps serving its old code until the process
+        restarts, all while reporting the new manifest version because the
+        manifest is re-read from disk. Anything whose ``__file__`` resolves
+        inside the plugin's own directory is therefore evicted too.
+        """
+        sys.modules.pop(f"plugins.{plugin_id}", None)
+
+        plugin_dir = self._resolve_plugin_dir(plugin_id)
+        if plugin_dir is None:
+            return
+
+        for name, module in list(sys.modules.items()):
+            file_path = getattr(module, "__file__", None)
+            if not file_path:
+                continue
+            try:
+                Path(os.path.realpath(file_path)).relative_to(plugin_dir)
+            except ValueError:
+                continue
+            del sys.modules[name]
+            logger.debug("Evicted stale module %s for plugin %s", name, plugin_id)
+
     def reload_plugin(self, plugin_id: str) -> AnyPlugin | None:
         """Reload a plugin (unload and load again).
 
@@ -662,9 +693,7 @@ class PluginLoader:
                 retire_plugin_object(plugin_id, old_plugin, what="replaced instance of plugin")
 
                 # Remove from sys.modules to force reimport
-                module_name = f"plugins.{plugin_id}"
-                if module_name in sys.modules:
-                    del sys.modules[module_name]
+                self._evict_plugin_modules(plugin_id)
 
             # Load again
             return self.load_plugin(plugin_id)
@@ -687,9 +716,7 @@ class PluginLoader:
             retire_plugin_object(plugin_id, plugin, what="replaced instance of plugin")
 
             # Remove from sys.modules
-            module_name = f"plugins.{plugin_id}"
-            if module_name in sys.modules:
-                del sys.modules[module_name]
+            self._evict_plugin_modules(plugin_id)
 
         logger.info(f"Unloaded plugin: {plugin_id}")
         return True

@@ -493,6 +493,7 @@
     "categoryColumn": "カテゴリ",
     "statusColumn": "ステータス",
     "authorColumn": "作者",
+    "addedColumn": "追加日",
     "noInstalledMatch": "「{query}」に一致するインストール済みプラグインはありません",
     "noPluginsInstalled": "プラグインはまだインストールされていません",
     "headToMarketplace": "マーケットプレイスタブからプラグインを探してインストールできます。",

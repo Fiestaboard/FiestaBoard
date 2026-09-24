@@ -493,6 +493,7 @@
     "categoryColumn": "Kategorie",
     "statusColumn": "Status",
     "authorColumn": "Autor",
+    "addedColumn": "Hinzugefügt",
     "noInstalledMatch": "Keine installierten Plugins passen zu \"{query}\"",
     "noPluginsInstalled": "Noch keine Plugins installiert",
     "headToMarketplace": "Wechsle zum Marktplatz-Tab, um Plugins zu entdecken und zu installieren.",

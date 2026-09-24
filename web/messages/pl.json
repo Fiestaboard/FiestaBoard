@@ -493,6 +493,7 @@
     "categoryColumn": "Kategoria",
     "statusColumn": "Status",
     "authorColumn": "Autor",
+    "addedColumn": "Dodano",
     "noInstalledMatch": "Żadna zainstalowana wtyczka nie pasuje do „{query}\"",
     "noPluginsInstalled": "Nie zainstalowano jeszcze żadnych wtyczek",
     "headToMarketplace": "Przejdź do zakładki Marketplace, aby odkryć i zainstalować wtyczki.",
