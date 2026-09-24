@@ -95,46 +95,63 @@ jobs:
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
-            // Get the most recent merged PR
-            const { data: prs } = await github.rest.pulls.list({
+            // The PR that produced THIS commit — asked for by SHA, not guessed
+            // from a clock.
+            //
+            // This used to list the 10 most recently *updated* closed PRs and
+            // take whichever had merged in the previous 60 seconds. That window
+            // starts when this step runs, i.e. after runner queue + checkout +
+            // setup-node. Overrun it and no PR is found, the bump silently
+            // falls back to `patch`, and a release labelled `major` ships as a
+            // patch with nothing failing — the version is simply wrong, and the
+            // tag, the GitHub release and the Docker tag are all wrong with it.
+            // A busy queue was all it took. It could also read the labels off
+            // an unrelated PR that merged in the same minute.
+            //
+            // Associating by commit removes the race: a squash merge's commit
+            // and a merge commit are both associated with their PR, so the
+            // answer does not depend on how long the runner waited.
+            const { data: associated } = await github.rest.repos.listPullRequestsAssociatedWithCommit({
               owner: context.repo.owner,
               repo: context.repo.repo,
-              state: 'closed',
-              sort: 'updated',
-              direction: 'desc',
-              per_page: 10
+              commit_sha: context.sha,
             });
-            
-            // Find the most recently merged PR
-            const mergedPR = prs.find(pr => 
-              pr.merged_at && 
-              new Date(pr.merged_at) > new Date(Date.now() - 60000) // Within last minute
-            );
-            
-            let bumpType = 'patch'; // default
-            
-            if (mergedPR) {
-              console.log(`Found merged PR #${mergedPR.number}: ${mergedPR.title}`);
-              
-              const labels = mergedPR.labels.map(l => l.name);
-              console.log(`PR labels: ${labels.join(', ')}`);
-              
+
+            // Prefer the PR this commit IS the merge of; otherwise any merged
+            // PR that claims it. Unmerged PRs are ignored — a commit can be
+            // associated with an open PR that merely contains it.
+            const merged = associated.filter((pr) => pr.merged_at);
+            const exact = merged.find((pr) => pr.merge_commit_sha === context.sha);
+            const pr = exact ?? merged[0];
+
+            let bumpType = 'patch'; // default: a direct push to main
+
+            if (pr) {
+              console.log(`Commit ${context.sha} belongs to PR #${pr.number}: ${pr.title}`);
+              if (!exact) {
+                console.log('(matched by association rather than merge_commit_sha)');
+              }
+              const labels = pr.labels.map((l) => l.name);
+              console.log(`PR labels: ${labels.join(', ') || '(none)'}`);
+
               if (labels.includes('major')) {
                 bumpType = 'major';
               } else if (labels.includes('minor')) {
                 bumpType = 'minor';
               } else if (labels.includes('patch')) {
                 bumpType = 'patch';
+              } else {
+                console.log('No bump label on the PR, using default: patch');
               }
             } else {
-              console.log('No recently merged PR found, using default: patch');
+              console.log(`No merged PR is associated with ${context.sha}, using default: patch`);
             }
-            
+
             console.log(`Version bump type: ${bumpType}`);
-            
+
             // Set outputs
             core.setOutput('bump_type', bumpType);
-            
+
             return bumpType;
           result-encoding: string
 
