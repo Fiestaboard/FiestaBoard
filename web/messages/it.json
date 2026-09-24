@@ -92,6 +92,7 @@
     "system": "Sistema",
     "devSuffix": "build di sviluppo",
     "updateAvailable": "Aggiornamento disponibile: {version}",
+    "updateTo": "Aggiorna alla {version}",
     "about": "Informazioni su FiestaBoard",
     "signOut": "Esci"
   },

@@ -92,6 +92,7 @@
     "system": "시스템",
     "devSuffix": "개발 빌드",
     "updateAvailable": "업데이트 사용 가능: {version}",
+    "updateTo": "{version}(으)로 업데이트",
     "about": "FiestaBoard 정보",
     "signOut": "로그아웃"
   },

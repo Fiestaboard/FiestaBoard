@@ -92,6 +92,7 @@
     "system": "Sistem",
     "devSuffix": "geliştirme sürümü",
     "updateAvailable": "Güncelleme mevcut: {version}",
+    "updateTo": "{version} sürümüne güncelle",
     "about": "FiestaBoard hakkında",
     "signOut": "Oturumu kapat"
   },
