@@ -92,6 +92,7 @@
     "system": "System",
     "devSuffix": "utvecklingsbygge",
     "updateAvailable": "Uppdatering tillgänglig: {version}",
+    "updateTo": "Uppdatera till {version}",
     "about": "Om FiestaBoard",
     "signOut": "Logga ut"
   },

@@ -151,7 +151,12 @@ export function NavigationSidebar() {
           />
         ) : undefined
       }
-      renderSettingsMenu={({ collapsed: isCollapsed }) => <SidebarSettingsMenu collapsed={isCollapsed} />}
+      // `variant` matters as much as `collapsed`: the drawer wants inline rows,
+      // not the rail's dropdown. Dropping it here is what shipped the desktop
+      // shape to mobile.
+      renderSettingsMenu={({ variant, collapsed: isCollapsed }) => (
+        <SidebarSettingsMenu variant={variant} collapsed={isCollapsed} />
+      )}
       maxWidth={MAX_APP_WIDTH}
       sidebarInset={SIDEBAR_INSET}
     />

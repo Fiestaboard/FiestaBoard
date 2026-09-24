@@ -36,26 +36,36 @@ test.describe("regression: settings.general", () => {
     await page.goto("/settings?section=general");
     await expect(page.getByRole("heading", { name: "Settings", exact: true })).toBeVisible({ timeout: 15_000 });
 
+    // Scoped to <main>, not the whole page. These assertions are about the
+    // settings page's cards, but a page-wide getByText().first() also reaches
+    // the chrome — and the chrome keeps its mobile drawer in the DOM at
+    // desktop widths, merely hidden. The rail's settings menu grew an
+    // "Appearance" label there, which sits earlier in the DOM than the card,
+    // so `.first()` started resolving to a hidden element and this test failed
+    // while the page itself was perfectly correct. Naming the region is what
+    // the test meant all along.
+    const main = page.getByRole("main");
+
     // Instance Name card — the input is keyed by id="instance-name".
-    await expect(page.locator("#instance-name")).toBeVisible({ timeout: 10_000 });
+    await expect(main.locator("#instance-name")).toBeVisible({ timeout: 10_000 });
 
     // Appearance — Theme group exposes role="radiogroup" or label "Theme".
     // The card title "Appearance" must be present.
-    await expect(page.getByText(/appearance/i).first()).toBeVisible();
+    await expect(main.getByText(/appearance/i).first()).toBeVisible();
 
     // Language card — header "Language" surfaces a select.
-    await expect(page.getByText(/^language$/i).first()).toBeVisible();
+    await expect(main.getByText(/^language$/i).first()).toBeVisible();
 
     // Time & Date card — must show a "Timezone" label/heading.
-    await expect(page.getByText(/time.*date|timezone/i).first()).toBeVisible();
+    await expect(main.getByText(/time.*date|timezone/i).first()).toBeVisible();
 
     // Location card — latitude/longitude inputs are stable selectors.
-    await expect(page.locator("#latitude")).toBeVisible();
-    await expect(page.locator("#longitude")).toBeVisible();
+    await expect(main.locator("#latitude")).toBeVisible();
+    await expect(main.locator("#longitude")).toBeVisible();
 
     // Accessibility + Animation cards — assert by visible heading text.
-    await expect(page.getByText(/accessibility/i).first()).toBeVisible();
-    await expect(page.getByText(/animation/i).first()).toBeVisible();
+    await expect(main.getByText(/accessibility/i).first()).toBeVisible();
+    await expect(main.getByText(/animation/i).first()).toBeVisible();
   });
 
   /**

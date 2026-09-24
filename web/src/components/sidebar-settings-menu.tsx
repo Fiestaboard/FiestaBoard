@@ -14,9 +14,24 @@
  * theme toggle, and the sign-out row — none of which was worth the width it
  * took, and one of which (the version) could only render wrongly on the
  * collapsed rail.
+ *
+ * **Two shapes, one set of facts.** On the desktop rail the footer slot is a
+ * narrow column, so the contents belong in a dropdown. In the mobile drawer
+ * they do not: the drawer is already an overlay, its footer trigger is
+ * full-width, and a 224px popup hanging off it — a second thing to dismiss,
+ * over a panel the user just opened — was the whole of what "doesn't look
+ * great on mobile" meant. So `variant="mobile"` renders the same facts as
+ * inline rows instead. FiestaUI has always passed the variant into this slot;
+ * the app simply threw it away.
+ *
+ * Inline rows are not a menu, which is why the mobile theme control can be a
+ * real `SegmentedControl` while the desktop one stays three
+ * `DropdownMenuRadioItem`s: inside a menu, arrow keys move between items, and
+ * a radiogroup embedded there would break that contract.
  */
 
 import {
+  Button,
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuGroup,
@@ -26,11 +41,15 @@ import {
   DropdownMenuRadioItem,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
+  Flex,
+  SegmentedControl,
+  SegmentedControlItem,
   SidebarSettingsTrigger,
+  Stack,
   Text,
 } from "@fiestaboard/ui";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { ArrowUpCircle, Info, LogOut, Monitor, Moon, Settings, Sun } from "lucide-react";
+import { ArrowUpCircle, ChevronRight, Info, LogOut, Monitor, Moon, Settings, Sun } from "lucide-react";
 import { useState } from "react";
 
 import { AboutDialog } from "@/components/about-dialog";
@@ -40,11 +59,17 @@ import { useTranslations } from "@/i18n/translations";
 import { api } from "@/lib/api";
 
 interface SidebarSettingsMenuProps {
-  /** Icon-only trigger, matching the 64px rail. */
+  /** Icon-only trigger, matching the 64px rail. Desktop only. */
   collapsed?: boolean;
+  /**
+   * Which chrome is hosting the slot. `"mobile"` is the drawer, where the
+   * rows render inline; `"desktop"` is the rail, where they live in a
+   * dropdown. Comes straight from FiestaUI's `renderSettingsMenu` context.
+   */
+  variant?: "mobile" | "desktop";
 }
 
-export function SidebarSettingsMenu({ collapsed = false }: SidebarSettingsMenuProps) {
+export function SidebarSettingsMenu({ collapsed = false, variant = "desktop" }: SidebarSettingsMenuProps) {
   const t = useTranslations("settingsMenu");
   const { theme, setTheme } = useTheme();
   const router = useRouter();
@@ -107,6 +132,112 @@ export function SidebarSettingsMenu({ collapsed = false }: SidebarSettingsMenuPr
     router.replace("/login");
   };
 
+  const openSettings = () => router.push("/settings");
+
+  // An update is something you act on, not a fact you read. `SystemUpdate`
+  // renders at the top of /settings — above the tab strip, and nothing at all
+  // when the install is current — so /settings with no anchor lands the reader
+  // on the button that applies it. This replaces the passive badge that named
+  // the waiting version and then left you to go find the updater.
+  const updateLabel = updateAvailable ? t("updateTo", { version: updateAvailable }) : null;
+
+  const versionLine = version ? `${version.running_version}${version.is_dev ? ` · ${t("devSuffix")}` : ""}` : null;
+
+  if (variant === "mobile") {
+    return (
+      <>
+        {/* The drawer's footer is `shrink-0` inside an `overflow-hidden`
+            panel, so this block cannot rely on the panel to scroll it — too
+            tall and it is clipped, not scrolled. Hence the compact shape
+            (label beside control, About and Sign out sharing a row) and its
+            own scroll ceiling as a backstop on very short viewports. */}
+        <Stack gap="0.5" className="max-h-[60dvh] overflow-y-auto">
+          {username && (
+            <Text size="xs" tone="muted" className="truncate px-2 py-1">
+              {username}
+            </Text>
+          )}
+
+          <Button variant="ghost" className="h-11 w-full justify-start gap-2 px-2" onClick={openSettings}>
+            <Settings className="h-4 w-4 shrink-0" aria-hidden="true" />
+            {t("settings")}
+          </Button>
+
+          <Flex align="center" justify="between" gap="2" className="px-2 py-1">
+            <Text size="xs" tone="muted" className="shrink-0">
+              {t("appearance")}
+            </Text>
+            {/* Icon-only with real labels: three words plus a heading do not
+                fit a 366px row, and sun/moon/monitor is the one icon set
+                every reader already knows. `size="md"` is a 32px target
+                rather than the 28px `sm` the desktop rail can afford. */}
+            <SegmentedControl
+              aria-label={t("appearance")}
+              size="md"
+              value={theme}
+              onValueChange={(value) => setTheme(value as "light" | "dark" | "system")}
+            >
+              <SegmentedControlItem value="light" aria-label={t("light")} title={t("light")}>
+                <Sun aria-hidden="true" />
+              </SegmentedControlItem>
+              <SegmentedControlItem value="dark" aria-label={t("dark")} title={t("dark")}>
+                <Moon aria-hidden="true" />
+              </SegmentedControlItem>
+              <SegmentedControlItem value="system" aria-label={t("system")} title={t("system")}>
+                <Monitor aria-hidden="true" />
+              </SegmentedControlItem>
+            </SegmentedControl>
+          </Flex>
+
+          {versionLine && (
+            <Text size="xs" tone="muted" className="truncate px-2 py-1">
+              {versionLine}
+            </Text>
+          )}
+
+          {updateLabel && (
+            <Button
+              variant="ghost"
+              className="h-11 w-full justify-start gap-2 px-2 text-brand-emphasis"
+              onClick={openSettings}
+            >
+              <ArrowUpCircle className="h-4 w-4 shrink-0" aria-hidden="true" />
+              <Text as="span" className="truncate">
+                {updateLabel}
+              </Text>
+              <ChevronRight className="ml-auto h-4 w-4 shrink-0" aria-hidden="true" />
+            </Button>
+          )}
+
+          {/* Secondary, so they share a row rather than each taking 44px of a
+              drawer that still has to show the nav above it. */}
+          <Flex align="center" gap="1">
+            <Button
+              variant="ghost"
+              className="h-11 min-w-0 flex-1 justify-start gap-2 px-2"
+              onClick={() => setAboutOpen(true)}
+            >
+              <Info className="h-4 w-4 shrink-0" aria-hidden="true" />
+              <Text as="span" className="truncate">
+                {t("about")}
+              </Text>
+            </Button>
+            {signedIn && (
+              <Button variant="ghost" className="h-11 min-w-0 flex-1 justify-start gap-2 px-2" onClick={handleSignOut}>
+                <LogOut className="h-4 w-4 shrink-0" aria-hidden="true" />
+                <Text as="span" className="truncate">
+                  {t("signOut")}
+                </Text>
+              </Button>
+            )}
+          </Flex>
+        </Stack>
+
+        <AboutDialog open={aboutOpen} onOpenChange={setAboutOpen} />
+      </>
+    );
+  }
+
   return (
     <>
       <DropdownMenu>
@@ -166,31 +297,23 @@ export function SidebarSettingsMenu({ collapsed = false }: SidebarSettingsMenuPr
               though About repeats it. #2038 moved the version off the rail
               (where the collapsed state could only render it wrongly); this
               puts it back where there is room for it. */}
-          {version && (
-            <DropdownMenuLabel className="flex items-center justify-between gap-2 font-normal text-muted-foreground">
+          {versionLine && (
+            <DropdownMenuLabel className="font-normal text-muted-foreground">
               <Text as="span" className="truncate">
-                {version.running_version}
-                {version.is_dev && ` · ${t("devSuffix")}`}
+                {versionLine}
               </Text>
-              {updateAvailable && (
-                <Text
-                  as="span"
-                  className="inline-flex shrink-0 items-center gap-1 text-brand-emphasis"
-                  data-testid="settings-menu-update-badge"
-                >
-                  <ArrowUpCircle className="h-3.5 w-3.5" aria-hidden="true" />
-                  {/* The icon carries the meaning for sighted readers and
-                      the version number sits beside it; assistive tech gets
-                      the whole sentence instead of "arrow, 8.39.0". */}
-                  <Text as="span" className="sr-only">
-                    {t("updateAvailable", { version: updateAvailable })}
-                  </Text>
-                  <Text as="span" aria-hidden="true">
-                    {updateAvailable}
-                  </Text>
-                </Text>
-              )}
             </DropdownMenuLabel>
+          )}
+
+          {/* The version line above states what is running; this states what
+              to do about it. It replaced a badge on that line which named the
+              waiting version and went nowhere — two mentions of 8.39.0 in a
+              224px menu, neither of them clickable. */}
+          {updateLabel && (
+            <DropdownMenuItem onClick={openSettings} className="text-brand-emphasis">
+              <ArrowUpCircle aria-hidden="true" />
+              {updateLabel}
+            </DropdownMenuItem>
           )}
 
           <DropdownMenuItem onClick={() => setAboutOpen(true)}>

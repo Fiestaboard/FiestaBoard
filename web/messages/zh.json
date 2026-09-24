@@ -92,6 +92,7 @@
     "system": "跟随系统",
     "devSuffix": "开发版本",
     "updateAvailable": "有可用更新：{version}",
+    "updateTo": "更新到 {version}",
     "about": "关于 FiestaBoard",
     "signOut": "退出登录"
   },

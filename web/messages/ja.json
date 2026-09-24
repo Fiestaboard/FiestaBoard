@@ -92,6 +92,7 @@
     "system": "システム",
     "devSuffix": "開発ビルド",
     "updateAvailable": "アップデートがあります: {version}",
+    "updateTo": "{version} に更新",
     "about": "FiestaBoard について",
     "signOut": "サインアウト"
   },

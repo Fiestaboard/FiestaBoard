@@ -245,6 +245,173 @@ describe("SidebarSettingsMenu contents", () => {
   });
 });
 
+describe("SidebarSettingsMenu on mobile", () => {
+  beforeEach(() => {
+    pushMock.mockReset();
+    replaceMock.mockReset();
+    localStorage.clear();
+    mockAuth(SIGNED_IN);
+    server.use(
+      http.get("/api/version", () =>
+        HttpResponse.json({
+          package_version: "8.38.9",
+          build_version: "8.38.9",
+          running_version: "8.38.9",
+          is_dev: false,
+          hardware_model: null,
+        }),
+      ),
+      http.get("/api/system/update/status", () =>
+        HttpResponse.json({ update_available: false, managed_externally: false }),
+      ),
+      http.get("/api/system/update-check", () => HttpResponse.json({ update_available: false, latest_version: null })),
+    );
+  });
+
+  it("renders its rows inline rather than behind a second overlay", async () => {
+    render(<SidebarSettingsMenu variant="mobile" />, { wrapper: TestWrapper });
+
+    // The drawer is already an overlay. A dropdown on top of it is two
+    // dismissal layers and a 224px popup under a full-width button, which is
+    // what this variant exists to avoid.
+    expect(await screen.findByRole("button", { name: "Settings" })).toBeInTheDocument();
+    expect(screen.queryByRole("menu")).not.toBeInTheDocument();
+    expect(document.querySelector('[data-slot="sidebar-settings-trigger"]')).toBeNull();
+  });
+
+  it("switches the theme from a segmented control, with no menu to open first", async () => {
+    const user = userEvent.setup();
+    render(<SidebarSettingsMenu variant="mobile" />, { wrapper: TestWrapper });
+
+    // Not a menuitemradio: inline rows are not a menu, so the three-way
+    // choice can be the control it should have been all along.
+    const dark = await screen.findByRole("radio", { name: "Dark" });
+    await user.click(dark);
+
+    await waitFor(() => expect(document.documentElement).toHaveClass("dark"));
+    expect(localStorage.getItem("theme")).toBe("dark");
+  });
+
+  it("reaches Settings in one tap", async () => {
+    const user = userEvent.setup();
+    render(<SidebarSettingsMenu variant="mobile" />, { wrapper: TestWrapper });
+
+    await user.click(await screen.findByRole("button", { name: "Settings" }));
+
+    expect(pushMock).toHaveBeenCalledWith("/settings");
+  });
+
+  it("states the running version", async () => {
+    render(<SidebarSettingsMenu variant="mobile" />, { wrapper: TestWrapper });
+    expect(await screen.findByText("8.38.9")).toBeInTheDocument();
+  });
+
+  it("offers About and Sign out", async () => {
+    const user = userEvent.setup();
+    render(<SidebarSettingsMenu variant="mobile" />, { wrapper: TestWrapper });
+
+    expect(await screen.findByRole("button", { name: "About FiestaBoard" })).toBeInTheDocument();
+    // Awaited, not fetched synchronously: About renders unconditionally and so
+    // resolves as soon as the component mounts, while Sign out waits on the
+    // auth query that decides whether anyone is signed in.
+    await user.click(await screen.findByRole("button", { name: "Sign out" }));
+    await waitFor(() => expect(replaceMock).toHaveBeenCalledWith("/login"));
+  });
+
+  it("keeps the dropdown on desktop", async () => {
+    const user = userEvent.setup();
+    render(<SidebarSettingsMenu variant="desktop" />, { wrapper: TestWrapper });
+    await screen.findByText("casa");
+
+    // The desktop rail has one narrow footer slot and a working arrow-key
+    // contract; only the mobile drawer changes shape.
+    const menu = await openMenu(user);
+    expect(within(menu).getByRole("menuitemradio", { name: "Dark" })).toBeInTheDocument();
+  });
+});
+
+describe("SidebarSettingsMenu update action", () => {
+  beforeEach(() => {
+    pushMock.mockReset();
+    replaceMock.mockReset();
+    localStorage.clear();
+    mockAuth(SIGNED_IN);
+    server.use(
+      http.get("/api/version", () =>
+        HttpResponse.json({
+          package_version: "8.38.9",
+          build_version: "8.38.9",
+          running_version: "8.38.9",
+          is_dev: false,
+          hardware_model: null,
+        }),
+      ),
+      http.get("/api/system/update/status", () =>
+        HttpResponse.json({ update_available: true, managed_externally: false }),
+      ),
+      http.get("/api/system/update-check", () =>
+        HttpResponse.json({ update_available: true, latest_version: "8.39.0" }),
+      ),
+    );
+  });
+
+  it("takes you to the updater from the desktop menu", async () => {
+    const user = userEvent.setup();
+    render(<SidebarSettingsMenu />, { wrapper: TestWrapper });
+    await screen.findByText("casa");
+
+    const menu = await openMenu(user);
+    // A badge that announces 8.39.0 and then leaves you to go find the
+    // updater yourself is a dead end; SystemUpdate renders at the top of
+    // /settings whenever one is waiting.
+    await user.click(await within(menu).findByRole("menuitem", { name: /Update to 8\.39\.0/ }));
+
+    expect(pushMock).toHaveBeenCalledWith("/settings");
+  });
+
+  it("takes you to the updater from the mobile rows", async () => {
+    const user = userEvent.setup();
+    render(<SidebarSettingsMenu variant="mobile" />, { wrapper: TestWrapper });
+
+    await user.click(await screen.findByRole("button", { name: /Update to 8\.39\.0/ }));
+
+    expect(pushMock).toHaveBeenCalledWith("/settings");
+  });
+
+  it("offers nothing to click when the install is current", async () => {
+    server.use(
+      http.get("/api/system/update/status", () =>
+        HttpResponse.json({ update_available: false, managed_externally: false }),
+      ),
+      http.get("/api/system/update-check", () => HttpResponse.json({ update_available: false, latest_version: null })),
+    );
+    const user = userEvent.setup();
+    render(<SidebarSettingsMenu />, { wrapper: TestWrapper });
+    await screen.findByText("casa");
+
+    const menu = await openMenu(user);
+    await within(menu).findByText("8.38.9");
+    expect(within(menu).queryByRole("menuitem", { name: /Update to/ })).not.toBeInTheDocument();
+  });
+
+  it("offers nothing to click when an external supervisor owns updates", async () => {
+    // The Home Assistant add-on case: FiestaBoard cannot apply the update, so
+    // routing someone to a button that cannot work is worse than silence.
+    server.use(
+      http.get("/api/system/update/status", () =>
+        HttpResponse.json({ update_available: true, managed_externally: true }),
+      ),
+    );
+    const user = userEvent.setup();
+    render(<SidebarSettingsMenu />, { wrapper: TestWrapper });
+    await screen.findByText("casa");
+
+    const menu = await openMenu(user);
+    await within(menu).findByText("8.38.9");
+    expect(within(menu).queryByRole("menuitem", { name: /Update to/ })).not.toBeInTheDocument();
+  });
+});
+
 describe("SidebarSettingsMenu version row", () => {
   beforeEach(() => {
     pushMock.mockReset();
@@ -288,43 +455,19 @@ describe("SidebarSettingsMenu version row", () => {
     expect(await within(menu).findByText("8.38.9")).toBeInTheDocument();
   });
 
-  it("marks an available update in the menu", async () => {
+  it("keeps the version line to one mention of the number", async () => {
+    // The line states what is running; the actionable row below it (see the
+    // "update action" block) states what to do about it. The badge that used
+    // to sit on this line named the waiting version and went nowhere, so a
+    // menu 224px wide carried 8.39.0 twice with neither one clickable.
     mockUpdate({ available: true });
     const user = userEvent.setup();
     render(<SidebarSettingsMenu />, { wrapper: TestWrapper });
     await screen.findByText("casa");
 
     const menu = await openMenu(user);
-    const badge = await within(menu).findByTestId("settings-menu-update-badge");
-    // The waiting version, and a name screen readers can read.
-    expect(badge).toHaveTextContent("8.39.0");
-    expect(within(badge).getByText("Update available: 8.39.0")).toBeInTheDocument();
-  });
-
-  it("shows no update marker when the install is current", async () => {
-    mockUpdate({ available: false });
-    const user = userEvent.setup();
-    render(<SidebarSettingsMenu />, { wrapper: TestWrapper });
-    await screen.findByText("casa");
-
-    const menu = await openMenu(user);
-    // Anchored on the version row being rendered, so the absence is judged
-    // against a row that exists rather than a menu that never loaded.
     await within(menu).findByText("8.38.9");
-    expect(within(menu).queryByTestId("settings-menu-update-badge")).not.toBeInTheDocument();
-  });
-
-  it("stays quiet when an external supervisor owns updates", async () => {
-    // The Home Assistant add-on case: FiestaBoard cannot apply the update,
-    // so pointing at one would be an offer it cannot honour.
-    mockUpdate({ available: true, managedExternally: true });
-    const user = userEvent.setup();
-    render(<SidebarSettingsMenu />, { wrapper: TestWrapper });
-    await screen.findByText("casa");
-
-    const menu = await openMenu(user);
-    await within(menu).findByText("8.38.9");
-    expect(within(menu).queryByTestId("settings-menu-update-badge")).not.toBeInTheDocument();
+    expect(within(menu).getAllByText(/8\.39\.0/)).toHaveLength(1);
   });
 });
 

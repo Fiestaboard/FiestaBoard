@@ -92,6 +92,7 @@
     "system": "Systeem",
     "devSuffix": "ontwikkelbuild",
     "updateAvailable": "Update beschikbaar: {version}",
+    "updateTo": "Bijwerken naar {version}",
     "about": "Over FiestaBoard",
     "signOut": "Afmelden"
   },
