@@ -81,7 +81,7 @@ Run these in order; stop and report on first failure:
 docker compose -f docker-compose.dev.yml exec fiestaboard python -c "from src.<feature> import service; print('import ok')"
 docker compose -f docker-compose.dev.yml exec fiestaboard ruff check src/<feature>/
 docker compose -f docker-compose.dev.yml exec fiestaboard pytest tests/test_<feature>.py -x
-docker compose -f docker-compose.dev.yml run --rm --profile test web sh -c "cd /app && npx tsc --noEmit"
+docker compose -f docker-compose.dev.yml --profile test run --rm web sh -c "cd /app && npm run typecheck"
 ```
 
 If any fails, **fix and re-run** rather than reporting failure. Most likely cause is a snake_case/camelCase mismatch or a missing import in `__init__.py`.

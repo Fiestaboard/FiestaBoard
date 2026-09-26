@@ -115,7 +115,7 @@ services:
 
   # Storybook - Component development and testing (opt-in via profile)
   fiestaboard-storybook:
-    image: node:20-alpine
+    image: node:24-alpine
     container_name: fiestaboard-storybook
     working_dir: /app
     volumes:
