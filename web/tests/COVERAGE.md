@@ -177,7 +177,7 @@ cd web && RUN_AI_TESTS=1 npx playwright test tests/mcp.spec.ts
 ### Unit Tests (Vitest)
 
 ```bash
-docker compose -f docker-compose.dev.yml run --rm --profile test web sh -c "npm ci && npm test"
+docker compose -f docker-compose.dev.yml --profile test run --rm web sh -c "npm ci --legacy-peer-deps && npm test"
 ```
 
 ---

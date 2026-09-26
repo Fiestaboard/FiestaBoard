@@ -55,7 +55,7 @@ services:
 
   # Web - Used only for running npm test: docker-compose run --rm web npm test
   web:
-    image: node:20-alpine
+    image: node:24-alpine
     container_name: fiestaboard-web-test
     working_dir: /app
     volumes:
