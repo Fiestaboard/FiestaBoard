@@ -115,7 +115,7 @@ services:
 
   # Storybook - Component development and testing (opt-in via profile)
   fiestaboard-storybook:
-    image: node:20-alpine
+    image: node:24-alpine
     container_name: fiestaboard-storybook
     working_dir: /app
     volumes:
@@ -125,7 +125,7 @@ services:
       - "6006:6006"
     environment:
       - WATCHPACK_POLLING=true
-    command: sh -c 'rm -f package-lock.json && npm install --force && npm run storybook -- --host 0.0.0.0'
+    command: sh -c 'npm ci --legacy-peer-deps && npm run storybook -- --host 0.0.0.0'
     networks:
       - fiestaboard-dev
     profiles:

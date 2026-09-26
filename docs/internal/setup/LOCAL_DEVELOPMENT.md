@@ -48,7 +48,7 @@ The development Docker Compose mounts source directories as volumes — `./src`,
 Storybook is an **opt-in** service for interactive component development. It does not start when you run `docker compose up` — it only runs when you explicitly request it.
 
 ```bash
-# Start Storybook (runs npm install on every startup — first launch takes a minute)
+# Start Storybook (runs npm ci on every startup — each launch takes a minute)
 docker compose -f docker-compose.dev.yml up fiestaboard-storybook
 
 # Or use the profile flag to start core services + Storybook together
@@ -57,7 +57,7 @@ docker compose -f docker-compose.dev.yml --profile storybook up
 
 Once running, Storybook is available at **http://localhost:6006**.
 
-> **Note:** The Storybook service's startup command runs `rm -f package-lock.json && npm install --force` on every start, so it reinstalls dependencies each boot. It uses its own dedicated `node_modules` volume (`fiestaboard-storybook-node-modules`) and shares only the `./web` source with the main container — the reinstall comes from the command, not from a shared `node_modules`. The first run may take a minute; subsequent starts are faster.
+> **Note:** The Storybook service's startup command runs `npm ci --legacy-peer-deps` on every start, so it reinstalls dependencies from the committed `web/package-lock.json` each boot without modifying it. It uses its own dedicated `node_modules` volume (`fiestaboard-storybook-node-modules`) and shares only the `./web` source with the main container — the reinstall comes from the command, not from a shared `node_modules`. Each start may take a minute.
 
 ### Stopping Services
 
