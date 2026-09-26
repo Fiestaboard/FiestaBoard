@@ -79,7 +79,7 @@ docker compose -f docker-compose.dev.yml up --build
 docker compose -f docker-compose.dev.yml exec fiestaboard pytest
 
 # Run web tests (one-off container with profile test)
-docker compose -f docker-compose.dev.yml run --rm --profile test web sh -c "npm ci && npm test"
+docker compose -f docker-compose.dev.yml --profile test run --rm web sh -c "npm ci --legacy-peer-deps && npm test"
 ```
 
 ## Testing API Endpoints
@@ -153,7 +153,7 @@ The repo ships a `.devcontainer/` with `devcontainer.json`, a build `Dockerfile`
 | Stop dev environment | `docker compose -f docker-compose.dev.yml down` |
 | Rebuild containers | `docker compose -f docker-compose.dev.yml up --build` |
 | Run API tests | `docker compose -f docker-compose.dev.yml exec fiestaboard pytest` |
-| Run web tests | `docker compose -f docker-compose.dev.yml run --rm --profile test web sh -c "npm ci && npm test"` |
+| Run web tests | `docker compose -f docker-compose.dev.yml --profile test run --rm web sh -c "npm ci --legacy-peer-deps && npm test"` |
 | View logs | `docker compose -f docker-compose.dev.yml logs -f` |
 | View API docs | http://localhost:4420/api/docs |
 | View Web UI | http://localhost:4420 |

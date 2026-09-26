@@ -54,7 +54,7 @@ Tests run inside the Docker container during local development:
 docker compose -f docker-compose.dev.yml exec fiestaboard pytest
 
 # Run web UI tests (one-off container)
-docker compose -f docker-compose.dev.yml run --rm --profile test web sh -c "npm ci && npm test"
+docker compose -f docker-compose.dev.yml --profile test run --rm web sh -c "npm ci --legacy-peer-deps && npm test"
 ```
 
 In CI, tests run directly on the GitHub Actions host for speed (not in Docker).
