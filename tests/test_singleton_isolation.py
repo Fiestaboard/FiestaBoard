@@ -102,23 +102,32 @@ def test_a_dropped_services_poll_thread_stops_rebuilding_the_settings_singleton(
     )
 
 
-def test_a_log_record_during_time_service_construction_does_not_recurse(monkeypatch):
-    """The third CI shape: an unraisable RecursionError charged to a bystander.
+def test_timestamping_a_log_record_reads_no_configuration(monkeypatch):
+    """The third CI shape: a log record that reaches back into the config.
 
-    ``Config.GENERAL_TIMEZONE`` is ``""`` whenever ``general.timezone`` is
-    unset — which every stub config manager in the suite leaves it — and
-    ``TimeService.__init__`` logs a warning for a timezone it cannot resolve.
-    ``src.log_store``'s handler timestamps that warning by calling
-    ``get_time_service()``, which, with the singleton still unassigned, started
-    construction over, warned again, and recursed to the interpreter's limit.
+    ``src.log_store``'s handlers timestamp every record they format. That
+    timestamp used to come from ``get_time_service()``, whose construction
+    resolves ``Config.GENERAL_TIMEZONE`` — a ConfigManager read. So every log
+    record carried a config read (and its file lock), and two things went wrong:
 
-    ``LogBufferHandler.emit`` swallows the ``RecursionError``, so the count of
-    constructions — not an exception — is what makes this test fail without the
-    guard. On CI the same recursion escaped on a background thread and failed
-    ``tests/test_tick_shared_context.py::TestSilenceWindowCache::
-    test_sixty_probes_at_idle_parse_the_window_once`` with ``RuntimeError:
-    Failed to process unraisable exception``, a test that never touches the
-    time service.
+    * ``Config.GENERAL_TIMEZONE`` is ``""`` whenever ``general.timezone`` is
+      unset, ``TimeService.__init__`` logs a warning for a timezone it cannot
+      resolve, and timestamping *that* warning started construction over. The
+      recursion hit the interpreter's limit; ``LogBufferHandler.emit`` swallowed
+      the ``RecursionError``, and on CI the same recursion escaped on a
+      background thread and failed
+      ``tests/test_tick_shared_context.py::TestSilenceWindowCache::
+      test_sixty_probes_at_idle_parse_the_window_once`` with ``RuntimeError:
+      Failed to process unraisable exception`` — a test that never touches the
+      time service.
+    * A record logged from inside ``ConfigManager.__init__`` re-entered that
+      constructor, which rebinds ``_config_path`` to the default data dir and
+      reloads from there. That is the #2031 flake: a manager answering from a
+      config file its caller never named.
+
+    Both are the same root fact — the logging path read configuration — so this
+    pins the fact, not either symptom. ``_create_log_entry`` takes the
+    config-free bootstrap service, which is why no read happens here.
     """
     import logging
 
@@ -131,27 +140,33 @@ def test_a_log_record_during_time_service_construction_does_not_recurse(monkeypa
     monkeypatch.setattr("src.config_manager.get_config_manager", lambda: config_manager)
     time_service_module.reset_time_service()
 
-    constructions: list[str] = []
-    real_init = time_service_module.TimeService.__init__
-
-    def counting_init(self, default_timezone="America/Los_Angeles"):
-        constructions.append(default_timezone)
-        real_init(self, default_timezone=default_timezone)
-
-    monkeypatch.setattr(time_service_module.TimeService, "__init__", counting_init)
+    # Non-vacuity: reading the config through this stub really would yield an
+    # unresolvable timezone, so a construction here really would log.
+    assert time_service_module._get_configured_timezone() == ""
+    config_manager.get_general.reset_mock()
 
     handler = LogBufferHandler()
-    root = logging.getLogger()
-    root.addHandler(handler)
-    try:
-        # Non-vacuity: the timezone really is unresolvable, so __init__ really
-        # does log while the singleton is still unassigned.
-        assert time_service_module._get_configured_timezone() == ""
-        service = time_service_module.get_time_service()
-    finally:
-        root.removeHandler(handler)
+    handler.setFormatter(logging.Formatter("%(message)s"))
+    record = logging.LogRecord(
+        name="src.config_manager",
+        level=logging.WARNING,
+        pathname=__file__,
+        lineno=1,
+        msg="a record logged from inside a config load",
+        args=(),
+        exc_info=None,
+    )
 
-    assert service is time_service_module._time_service
-    # The configured (empty) timezone, plus at most the one-off UTC bootstrap
-    # handed to the re-entrant log record.
-    assert len(constructions) <= 2, f"get_time_service() re-entered its own construction {len(constructions)} times"
+    handler.handle(record)
+
+    # The record was timestamped...
+    from src.log_store import _log_buffer
+
+    assert _log_buffer[-1]["message"] == "a record logged from inside a config load"
+    assert _log_buffer[-1]["timestamp"].endswith("+00:00")
+    # ...without reading configuration, and without assigning the configured
+    # singleton on the way.
+    assert config_manager.get_general.call_count == 0, (
+        "timestamping a log record read the config; a record logged from inside ConfigManager.__init__ will re-enter it"
+    )
+    assert time_service_module._time_service is None, "timestamping a log record built the configured time service"
