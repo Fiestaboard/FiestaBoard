@@ -20,7 +20,13 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
-from .previews import BoardPreview, parse_previews, validate_previews, validate_teaser
+from .previews import (
+    MAX_PREVIEW_NOTES_PER_AXIS,
+    BoardPreview,
+    parse_previews,
+    validate_previews,
+    validate_teaser,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -406,14 +412,14 @@ MANIFEST_SCHEMA = {
                     "notes_wide": {
                         "type": "integer",
                         "minimum": 1,
-                        "maximum": 4,
+                        "maximum": MAX_PREVIEW_NOTES_PER_AXIS,
                         "default": 1,
                         "description": "Notes wide (note_array only)",
                     },
                     "notes_tall": {
                         "type": "integer",
                         "minimum": 1,
-                        "maximum": 4,
+                        "maximum": MAX_PREVIEW_NOTES_PER_AXIS,
                         "default": 1,
                         "description": "Notes tall (note_array only)",
                     },

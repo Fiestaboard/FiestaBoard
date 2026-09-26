@@ -196,37 +196,110 @@ The **`POST /generic-data/test-fetch`** endpoint applies the same built-in inter
 
 ## Board awareness (`self.board`)
 
-FiestaBoard runs on more than one board size — a Flagship is 22×6 tiles, a Note is 15×3. A single plugin instance can be shown on several boards at once, so plugins can **read the board they're currently rendering on** and adapt their content. There is no per-board configuration and no need for separate instances — the same setup adjusts itself per board.
+FiestaBoard renders a plugin onto whatever board the user owns, and that is a
+**range of shapes, not two sizes**:
 
-Inside `fetch_data()` (or `get_formatted_display()`), read `self.board`:
+| Device type | Geometry |
+|---|---|
+| `flagship` | 22×6 tiles (fixed) |
+| `note` | 15×3 tiles (fixed) |
+| `note_array` | any grid of 15×3 Notes, 1–8 per axis — **15×3 up to 120×24** |
+
+A **FiestaPanel is a `note_array`**: a virtual board auto-fitted to a TV, so a
+65″ screen is 30×12 and an 85″ is 45×18. There is no separate panel API —
+handling arbitrary `note_array` geometry *is* panel support.
+
+A single plugin instance can be shown on several of these at once, so a plugin
+**reads the board it is currently rendering on** and adapts. There is no
+per-board configuration and no separate instances — one setup adjusts itself.
+
+### Arrays are not simply "bigger"
+
+This is the assumption that breaks plugins. A note array can be **narrower**
+than a Flagship and much taller, or wider and shorter:
+
+| Array | Geometry | vs Flagship (22×6) |
+|---|---|---|
+| 1 wide × 4 tall | **15×12** | 7 columns *narrower*, twice as tall |
+| 8 wide × 1 tall | **120×3** | 5× wider, *half* the height |
+| 2 wide × 4 tall | 30×12 | a 65″ FiestaPanel |
+| 8 wide × 8 tall | 120×24 | 2,880 tiles |
+
+So `if cols >= 22` is not "is this a Flagship" — it is true for every array
+from 30 to 120 columns wide, and those boards then get a 22-tile layout with
+up to 98 columns left blank. **Derive dimensions; do not branch on a
+threshold.**
+
+Inside `fetch_data()`, read `self.board`:
 
 ```python
 def fetch_data(self) -> PluginResult:
     board = self.board                      # BoardContext | None
-    width = board.width if board else 22    # cols: 22 flagship / 15 note
-    height = board.height if board else 6   # rows: 6 flagship / 3 note
+    width = board.width if board else 22    # cols
+    height = board.height if board else 6   # rows
 
-    # Pick content that fits the board.
-    title = "Friday, August 27" if width >= 22 else "Fri, Aug 27"
-    return PluginResult(available=True, data={"title": title})
+    # Size the layout from the board, in both axes.
+    rows_for_items = max(0, height - 1)          # one row for the header
+    items = self._items()[:rows_for_items]       # more rows => more items
+    lines = [self._title().center(width)]
+    lines += [self._line(item, width) for item in items]  # wider => more label
+
+    return PluginResult(available=True, data={...}, formatted_lines=lines)
 ```
 
-`BoardContext` is a small read-only object with:
+`BoardContext` is a small read-only object:
 
 | Attribute | Meaning |
 |---|---|
-| `device_type` | `"flagship"`, `"note"`, … |
+| `device_type` | `"flagship"`, `"note"`, `"note_array"` |
 | `cols` / `width` | board width in tiles (aliases) |
 | `rows` / `height` | board height in tiles (aliases) |
 
-Notes:
+### Rules
 
-- **`self.board` is `None` outside a board-scoped render** (e.g. unit tests, or callers that don't pass a board). Always provide a sensible default — assume the Flagship 22×6 when it's `None`. Existing plugins that never touch `self.board` keep working unchanged.
-- **Results are cached per board size.** A Flagship render and a Note render are cached separately, so adapting your output per board is safe and won't serve one board's content to another.
-- Use `width`/`height` (or `cols`/`rows`, whichever reads better) to size `.center()`, truncation, and line counts instead of hard-coding `22` / `6`.
+- **Derive every width and height from `board.cols` / `board.rows`.** No `22`,
+  `6`, `15` or `3` literals on a layout path.
+- **Never emit more than `board.rows` rows, or a row wider than `board.cols`.**
+  Width is counted in **tiles, not characters** — `{66}` is one tile and four
+  characters. Use `src.text_to_board.count_tiles`.
+- **Reflow, don't truncate.** More rows means more list items; more columns
+  means longer labels; fewer of either means abbreviate.
+- **Don't cap content independently of the board.** A fixed `MAX_ITEMS = 10` or
+  a fixed character budget leaves a 24-row panel mostly blank. Size the cap
+  from `board.rows`.
+- **`self.board` is `None` outside a board-scoped render** (unit tests, legacy
+  callers). Default to the Flagship 22×6 — never crash.
+- **Don't ask the user for the board size.** A settings field for device type
+  or width is always wrong: the platform already knows, and one config has to
+  serve every board the user owns.
+- **Key any cache of your own by geometry.** `PluginBase.get_data()` already
+  caches results per geometry (`note_array:{cols}x{rows}`), but a cache or
+  simulation state you hold yourself must include rows and cols, or one board's
+  frame is served to another.
 
-The bundled **Date & Time** and **Countdown** plugins use this to spell things out on a Flagship but abbreviate on a Note — see `plugins/date_time/__init__.py` for a worked example.
+### Prove it with the conformance suite
 
+`src/plugins/geometry_conformance.py` renders a plugin across every shape above
+— including the awkward 15×12 and 120×3 cases — and checks the rules on this
+page. Plugin repositories get FiestaBoard core on `PYTHONPATH` in CI, so they
+import it directly:
+
+```python
+from src.plugins.geometry_conformance import assert_board_conformance
+
+def test_board_conformance():
+    assert_board_conformance(make_plugin, manifest=MANIFEST, strict_growth=True)
+```
+
+`strict_growth=True` additionally requires that a taller board render more
+rows whenever the shorter one was full — the objective form of "don't leave a
+panel empty". Pass `require_note_array_preview=True` once the manifest ships a
+`note_array` preview.
+
+The bundled **Date & Time** and **Countdown** plugins are worked examples of
+reading `self.board` — see `plugins/date_time/__init__.py`.
+
+---
 ---
 
 ## Organizing with Groups
@@ -1192,7 +1265,7 @@ Both `PluginResult.formatted_lines` and the `get_formatted_display()` method app
 
 **`PluginResult.formatted_lines` is the correct approach for new plugins.** Set it inside `fetch_data()` when you want the platform to render pre-formatted lines instead of passing raw data through the template engine.
 
-The number of lines must match the target board's row count — 6 for the Flagship (22×6) and 3 for the Note (15×3). `src/displays/service.py` joins the list with `\n`; no truncation to the board height happens at the platform level. Read `self.board.height` to produce the right count (see [Board awareness](#board-awareness-selfboard)):
+The number of lines must match the target board's row count, which ranges from 3 (a Note, or a 1×1 array) to 24 (an 8×8 array) — see [Board awareness](#board-awareness-selfboard). `src/displays/service.py` joins the list with `\n`; **no truncation to the board height happens at the platform level**, so emitting more lines than the board has is the plugin's bug to avoid. Read `self.board.height` to produce the right count:
 
 ```python
 def fetch_data(self) -> PluginResult:
@@ -1301,7 +1374,7 @@ The `TriggerResult` fields are defined in `src/plugins/base.py`:
 | `duration_seconds` | int | `30` | How long the trigger stays active before auto-expiring. |
 | `data` | dict \| None | `None` | Template context exposed as `{{<plugin_id>.*}}` when rendering `trigger_page_id`. |
 | `message` | str \| None | `None` | Plain-text fallback sent to the board if no `trigger_page_id` is configured. |
-| `formatted_lines` | list[str] \| None | `None` | Pre-formatted board content; takes precedence over `message`. Line count must match the board height (6 for Flagship, 3 for Note) — use `self.board.height if self.board else 6`. |
+| `formatted_lines` | list[str] \| None | `None` | Pre-formatted board content; takes precedence over `message`. Line count must match the board height (3–24 depending on the board) — use `self.board.height if self.board else 6`. |
 
 #### Priority scale: `TriggerPriority`
 
