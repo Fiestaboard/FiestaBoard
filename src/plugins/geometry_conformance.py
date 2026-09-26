@@ -358,6 +358,25 @@ def check_growth(
     fixed character budget stays flat here while the board grows, which is
     the "mostly empty panel" failure stated as an objective invariant rather
     than an arbitrary fill percentage.
+
+    **What this cannot catch, by construction.** The rule fires only when a
+    rung was filled to its last row, which proves more content existed than
+    fit. A cap that lands just *under* a rung's capacity escapes: a plugin
+    limited to 10 items renders 3 -> 11 -> 11 on this ladder, and 11 of 12
+    rows is not saturation.
+
+    That gap cannot be closed from out here. "Capped at 10" and "only has 7
+    things to show" produce identical row counts, and the suite has no way to
+    see how much content the plugin's upstream actually had -- widening the
+    rule to catch the first misreports every plugin whose test fixture or
+    ``maxItems`` config is legitimately small. An earlier attempt to gate on
+    the shortest rung did exactly that, flagging four correct plugins whose
+    output was bounded by their own config.
+
+    So a data cap must be pinned by a test inside the plugin, which is the
+    only place that knows what was available -- assert the cap itself scales
+    with the board (``MAX_ITEMS == MAX_BOARD_ROWS - 1``) rather than
+    asserting a rendered row count.
     """
     plugin = factory()
     counts: dict[str, int] = {}
@@ -397,6 +416,7 @@ def check_growth(
                     f"independently of the board",
                 )
             )
+
     return violations, counts
 
 
