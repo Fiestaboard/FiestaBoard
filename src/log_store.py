@@ -62,10 +62,20 @@ _log_lock = threading.Lock()
 
 
 def _create_log_entry(record: logging.LogRecord, formatted_message: str) -> dict[str, Any]:
-    """Create a structured log entry from a log record with UTC timestamp."""
-    from .time_service import get_time_service
+    """Create a structured log entry from a log record with UTC timestamp.
 
-    time_service = get_time_service()
+    Deliberately the *bootstrap* time service, not ``get_time_service()``. The
+    timestamp is ``datetime.now(UTC).isoformat()`` either way — this function
+    has never wanted the user's timezone — but ``get_time_service()`` reads
+    ``Config.GENERAL_TIMEZONE``, which builds a ``ConfigManager``. That put a
+    config read (and its lock) behind every single log record, and reached it
+    from inside ``ConfigManager.__init__`` itself, whose re-entrant path
+    rebinds ``_config_path`` to the default data dir (#2031).
+    ``_bootstrap_time_service()`` reads no configuration at all.
+    """
+    from .time_service import _bootstrap_time_service
+
+    time_service = _bootstrap_time_service()
 
     return {
         "timestamp": time_service.create_utc_timestamp(),

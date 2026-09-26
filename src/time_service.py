@@ -312,13 +312,15 @@ def _get_configured_timezone() -> str:
 #: construction step. See that function for why re-entry is reachable.
 _building = threading.local()
 
-#: A plain UTC service handed to callers that re-enter during construction.
-#: It reads no configuration, so it needs no per-test reset.
+#: A plain UTC service for callers that must not read configuration: the ones
+#: that re-enter ``get_time_service()`` during its construction, and
+#: ``src.log_store``, which timestamps every log record. It reads no
+#: configuration, so it needs no per-test reset.
 _bootstrap: TimeService | None = None
 
 
 def _bootstrap_time_service() -> TimeService:
-    """A UTC ``TimeService`` for callers that re-enter during construction.
+    """A UTC ``TimeService`` for callers that must not read configuration.
 
     ``TimeService("UTC")`` always resolves, so building this one cannot log
     and cannot re-enter.
@@ -335,24 +337,22 @@ def get_time_service() -> TimeService:
     Uses the user-configured timezone from Config.GENERAL_TIMEZONE
     instead of hardcoding a default.
 
-    Construction is re-entrant, and until this guard it recursed until the
-    interpreter died. ``Config.GENERAL_TIMEZONE`` defaults to the empty string
-    when ``general.timezone`` is unset, ``TimeService.__init__`` logs a warning
-    for a timezone it cannot resolve, and the log handler in
-    :mod:`src.log_store` calls *this* function to timestamp every record. With
-    the global still unassigned that warning re-entered construction, warned
-    again, and so on:
+    Construction reads configuration, so it can re-enter through anything the
+    config path logs or builds, and the ``_building`` guard below is what keeps
+    that finite. Two callers have reached it:
 
-        src/log_store.py:82  in emit -> _create_log_entry
-        src/time_service.py       in get_time_service
-        src/time_service.py:50    in __init__ -> logger.warning(...)
-        RecursionError: maximum recursion depth exceeded
-
-    Under pytest that surfaces as an unraisable exception charged to whatever
-    test happened to be running when a background thread logged — observed on
-    CI as ``tests/test_tick_shared_context.py::TestSilenceWindowCache::
-    test_sixty_probes_at_idle_parse_the_window_once - RuntimeError: Failed to
-    process unraisable exception``.
+    * ``TimeService.__init__`` itself. ``Config.GENERAL_TIMEZONE`` is the empty
+      string whenever ``general.timezone`` is unset, ``__init__`` logs a
+      warning for a timezone it cannot resolve, and :mod:`src.log_store`'s
+      handler used to timestamp that warning by calling *this* function — which
+      recursed to ``RecursionError`` before the guard. ``_create_log_entry``
+      now takes ``_bootstrap_time_service()`` directly (#2031), so the log
+      handler is no longer a route back in; the guard still covers any other
+      caller that logs, or builds a time service, from under the config read.
+    * ``ConfigManager.__init__``, whose own re-entrant path rebinds
+      ``_config_path`` to the default data dir. Same #2031 fix: the logging
+      path no longer reads config, so a log record from inside a config load
+      cannot swap the config out from under it.
 
     Returns:
         The global TimeService instance
