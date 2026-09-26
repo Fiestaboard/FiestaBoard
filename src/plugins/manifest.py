@@ -187,6 +187,15 @@ def _inject_trigger_page_id(settings_schema: dict[str, Any]) -> dict[str, Any]:
     return enriched
 
 
+# An array's item_fields take the same two shapes as variables.simple: a list
+# of names, or a map of name -> metadata (description, type, max_length, ...).
+_ITEM_FIELDS_SCHEMA = {
+    "oneOf": [
+        {"type": "array", "items": {"type": "string"}},
+        {"type": "object", "additionalProperties": {"type": "object"}},
+    ],
+}
+
 # JSON Schema for validating manifest.json files
 MANIFEST_SCHEMA = {
     "type": "object",
@@ -247,7 +256,7 @@ MANIFEST_SCHEMA = {
                         "type": "object",
                         "properties": {
                             "label_field": {"type": "string"},
-                            "item_fields": {"type": "array", "items": {"type": "string"}},
+                            "item_fields": _ITEM_FIELDS_SCHEMA,
                             "sub_arrays": {
                                 "type": "object",
                                 "additionalProperties": {
@@ -255,7 +264,7 @@ MANIFEST_SCHEMA = {
                                     "properties": {
                                         "key_type": {"type": "string", "enum": ["index", "dynamic"]},
                                         "key_field": {"type": "string"},
-                                        "item_fields": {"type": "array", "items": {"type": "string"}},
+                                        "item_fields": _ITEM_FIELDS_SCHEMA,
                                     },
                                 },
                             },
@@ -449,6 +458,29 @@ class VariableMetadata:
     example: str = ""
 
 
+def _metadata_from_dict(meta_dict: dict[str, Any]) -> VariableMetadata:
+    return VariableMetadata(
+        description=meta_dict.get("description", ""),
+        type=meta_dict.get("type", "string"),
+        max_length=meta_dict.get("max_length"),
+        group=meta_dict.get("group", ""),
+        example=meta_dict.get("example", ""),
+    )
+
+
+def _parse_item_fields(raw: Any, path_prefix: str, metadata: dict[str, VariableMetadata]) -> list[str]:
+    """Return an array's item field names from either the list or dict form.
+
+    Dict-form metadata is recorded in *metadata* under ``<path_prefix>.<field>``
+    (e.g. ``games.*.team1``), the same key plugins use in ``max_lengths``.
+    """
+    if isinstance(raw, dict):
+        for name, meta_dict in raw.items():
+            if isinstance(meta_dict, dict):
+                metadata[f"{path_prefix}.{name}"] = _metadata_from_dict(meta_dict)
+    return list(raw)
+
+
 @dataclass
 class Screenshot:
     """A plugin screenshot entry for galleries, docs, and the registry."""
@@ -595,13 +627,7 @@ class PluginManifest:
             for var_name, meta_dict in simple_raw.items():
                 simple_names.append(var_name)
                 if isinstance(meta_dict, dict):
-                    var_metadata[var_name] = VariableMetadata(
-                        description=meta_dict.get("description", ""),
-                        type=meta_dict.get("type", "string"),
-                        max_length=meta_dict.get("max_length"),
-                        group=meta_dict.get("group", ""),
-                        example=meta_dict.get("example", ""),
-                    )
+                    var_metadata[var_name] = _metadata_from_dict(meta_dict)
 
         # --- parse groups ---
         groups_raw = variables_data.get("groups", {})
@@ -633,7 +659,9 @@ class PluginManifest:
                 sub_arrays[sub_name] = VariableArraySchema(
                     name=sub_name,
                     label_field=sub_data.get("label_field", ""),
-                    item_fields=sub_data.get("item_fields", []),
+                    item_fields=_parse_item_fields(
+                        sub_data.get("item_fields", []), f"{array_name}.*.{sub_name}.*", var_metadata
+                    ),
                     key_type=sub_data.get("key_type", "index"),
                     key_field=sub_data.get("key_field"),
                 )
@@ -641,7 +669,7 @@ class PluginManifest:
             variables.arrays[array_name] = VariableArraySchema(
                 name=array_name,
                 label_field=array_data.get("label_field", ""),
-                item_fields=array_data.get("item_fields", []),
+                item_fields=_parse_item_fields(array_data.get("item_fields", []), f"{array_name}.*", var_metadata),
                 sub_arrays=sub_arrays,
             )
 
@@ -1083,6 +1111,20 @@ def validate_settings_schema_ui(settings_schema: dict[str, Any]) -> list[str]:
     return errors
 
 
+def _validate_item_fields(item_fields: Any, path: str) -> list[str]:
+    """Check an array's item_fields is a list of names or a name -> metadata map."""
+    if isinstance(item_fields, list):
+        if all(isinstance(f, str) for f in item_fields):
+            return []
+    elif isinstance(item_fields, dict):
+        return [
+            f"{path}.item_fields.{name} must be an object"
+            for name, meta in item_fields.items()
+            if not isinstance(meta, dict)
+        ]
+    return [f"{path}.item_fields must be an array of strings or an object"]
+
+
 def validate_manifest(data: dict[str, Any]) -> tuple[bool, list[str]]:
     """Validate a manifest dictionary against the schema.
 
@@ -1167,6 +1209,20 @@ def validate_manifest(data: dict[str, Any]) -> tuple[bool, list[str]]:
                         errors.append(f"variables.arrays.{array_name} must be an object")
                     elif "item_fields" not in array_schema:
                         errors.append(f"variables.arrays.{array_name} missing item_fields")
+                    else:
+                        errors.extend(
+                            _validate_item_fields(array_schema["item_fields"], f"variables.arrays.{array_name}")
+                        )
+                        sub_arrays = array_schema.get("sub_arrays", {})
+                        if isinstance(sub_arrays, dict):
+                            for sub_name, sub_schema in sub_arrays.items():
+                                if isinstance(sub_schema, dict) and "item_fields" in sub_schema:
+                                    errors.extend(
+                                        _validate_item_fields(
+                                            sub_schema["item_fields"],
+                                            f"variables.arrays.{array_name}.sub_arrays.{sub_name}",
+                                        )
+                                    )
 
     # Validate max_lengths if present
     max_lengths = data.get("max_lengths", {})

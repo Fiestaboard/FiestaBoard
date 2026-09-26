@@ -994,6 +994,88 @@ class TestFromDictEdgeCases:
         assert stops.key_field == "stop_id"
         assert stops.item_fields == ["stop_name", "arrival"]
 
+    def test_from_dict_parses_dict_form_item_fields_into_names_and_metadata(self):
+        """from_dict accepts item_fields as a name -> metadata map, keyed like max_lengths."""
+        from src.plugins.manifest import PluginManifest
+
+        data = {
+            "id": "test",
+            "name": "Test",
+            "version": "1.0.0",
+            "variables": {
+                "arrays": {
+                    "games": {
+                        "label_field": "formatted",
+                        "item_fields": {
+                            "formatted": {"description": "Summary line"},
+                            "minutes_until_game": {
+                                "description": "Minutes until first pitch",
+                                "type": "number",
+                                "group": "game",
+                                "example": "15",
+                            },
+                        },
+                    }
+                }
+            },
+        }
+        manifest = PluginManifest.from_dict(data)
+        games = manifest.variables.arrays["games"]
+        assert games.item_fields == ["formatted", "minutes_until_game"]
+        meta = manifest.variables.get_variable_metadata("games.*.minutes_until_game")
+        assert meta.description == "Minutes until first pitch"
+        assert meta.type == "number"
+        assert meta.group == "game"
+        assert meta.example == "15"
+        assert "games.*.minutes_until_game" in manifest.variables.get_all_variable_names("test")
+
+    def test_from_dict_parses_dict_form_sub_array_item_fields(self):
+        """Sub-array dict-form item_fields are keyed under the nested wildcard path."""
+        from src.plugins.manifest import PluginManifest
+
+        data = {
+            "id": "test",
+            "name": "Test",
+            "version": "1.0.0",
+            "variables": {
+                "arrays": {
+                    "stops": {
+                        "label_field": "stop_name",
+                        "item_fields": ["stop_name"],
+                        "sub_arrays": {
+                            "lines": {"item_fields": {"next_arrival": {"description": "Minutes to next bus"}}}
+                        },
+                    }
+                }
+            },
+        }
+        manifest = PluginManifest.from_dict(data)
+        assert manifest.variables.arrays["stops"].sub_arrays["lines"].item_fields == ["next_arrival"]
+        meta = manifest.variables.get_variable_metadata("stops.*.lines.*.next_arrival")
+        assert meta.description == "Minutes to next bus"
+
+    def test_from_dict_merges_item_field_max_length_into_max_lengths(self):
+        """A dict-form item field's max_length lands in max_lengths without overriding an explicit entry."""
+        from src.plugins.manifest import PluginManifest
+
+        data = {
+            "id": "test",
+            "name": "Test",
+            "version": "1.0.0",
+            "variables": {
+                "arrays": {
+                    "games": {
+                        "label_field": "team1",
+                        "item_fields": {"team1": {"max_length": 10}, "score1": {"max_length": 3}},
+                    }
+                }
+            },
+            "max_lengths": {"games.*.team1": 8},
+        }
+        manifest = PluginManifest.from_dict(data)
+        assert manifest.max_lengths["games.*.score1"] == 3
+        assert manifest.max_lengths["games.*.team1"] == 8
+
 
 class TestToDictSerialization:
     """Tests for PluginManifest.to_dict serialization."""
@@ -1251,6 +1333,71 @@ class TestValidateManifestEdgeCases:
         is_valid, errors = validate_manifest(data)
         assert not is_valid
         assert any("missing item_fields" in e for e in errors)
+
+    def test_variables_array_item_fields_dict_form_is_valid(self):
+        """validate_manifest accepts item_fields as a name -> metadata map."""
+        from src.plugins.manifest import validate_manifest
+
+        data = {
+            "id": "test",
+            "name": "Test",
+            "version": "1.0.0",
+            "variables": {
+                "arrays": {"games": {"label_field": "team1", "item_fields": {"team1": {"description": "Home"}}}}
+            },
+        }
+        is_valid, errors = validate_manifest(data)
+        assert is_valid, errors
+
+    def test_variables_array_item_fields_wrong_type(self):
+        """validate_manifest rejects item_fields that is neither a list of names nor an object."""
+        from src.plugins.manifest import validate_manifest
+
+        data = {
+            "id": "test",
+            "name": "Test",
+            "version": "1.0.0",
+            "variables": {"arrays": {"games": {"label_field": "team1", "item_fields": "team1"}}},
+        }
+        is_valid, errors = validate_manifest(data)
+        assert not is_valid
+        assert "variables.arrays.games.item_fields must be an array of strings or an object" in errors
+
+    def test_variables_array_item_fields_dict_entry_not_object(self):
+        """validate_manifest rejects a dict-form item field whose metadata is not an object."""
+        from src.plugins.manifest import validate_manifest
+
+        data = {
+            "id": "test",
+            "name": "Test",
+            "version": "1.0.0",
+            "variables": {"arrays": {"games": {"label_field": "team1", "item_fields": {"team1": "Home team"}}}},
+        }
+        is_valid, errors = validate_manifest(data)
+        assert not is_valid
+        assert "variables.arrays.games.item_fields.team1 must be an object" in errors
+
+    def test_variables_sub_array_item_fields_wrong_type(self):
+        """validate_manifest checks sub-array item_fields too."""
+        from src.plugins.manifest import validate_manifest
+
+        data = {
+            "id": "test",
+            "name": "Test",
+            "version": "1.0.0",
+            "variables": {
+                "arrays": {
+                    "stops": {
+                        "label_field": "stop_name",
+                        "item_fields": ["stop_name"],
+                        "sub_arrays": {"lines": {"item_fields": [1, 2]}},
+                    }
+                }
+            },
+        }
+        is_valid, errors = validate_manifest(data)
+        assert not is_valid
+        assert "variables.arrays.stops.sub_arrays.lines.item_fields must be an array of strings or an object" in errors
 
     def test_max_lengths_not_dict(self):
         """validate_manifest rejects non-dict max_lengths."""

@@ -293,6 +293,27 @@ In templates, arrays are accessed by index:
 
 The editor shows an expandable list of items with their label field as the heading.
 
+`item_fields` also accepts the same rich dict format as `simple`, so array fields can carry a description, type, max length and group:
+
+```json
+"arrays": {
+    "games": {
+        "label_field": "formatted",
+        "item_fields": {
+            "formatted": { "description": "One-line game summary", "group": "game" },
+            "minutes_until_game": {
+                "description": "Minutes until first pitch",
+                "type": "number",
+                "max_length": 4,
+                "group": "game"
+            }
+        }
+    }
+}
+```
+
+The parser keys this metadata by wildcard path (`games.*.minutes_until_game`), the same key plugins use in `max_lengths`. A field's `max_length` merges into `max_lengths` unless that key is already set there. Sub-array `item_fields` accept either form too.
+
 ### Sub-arrays (nested)
 
 For deeply nested data (e.g., transit stops with multiple lines):
