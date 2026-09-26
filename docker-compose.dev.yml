@@ -125,7 +125,7 @@ services:
       - "6006:6006"
     environment:
       - WATCHPACK_POLLING=true
-    command: sh -c 'rm -f package-lock.json && npm install --force && npm run storybook -- --host 0.0.0.0'
+    command: sh -c 'npm ci --legacy-peer-deps && npm run storybook -- --host 0.0.0.0'
     networks:
       - fiestaboard-dev
     profiles:
