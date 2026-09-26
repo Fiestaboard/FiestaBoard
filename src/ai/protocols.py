@@ -191,7 +191,23 @@ def _anthropic_body(
         "temperature": temperature,
     }
     if system:
-        body["system"] = system
+        # Send the system prompt as a single cacheable text block, not a bare
+        # string. The chat loop rebuilds a byte-identical system prompt (the
+        # base prompt plus the ~9k-token tool-catalog addendum) for every
+        # model call of a turn — up to ``max_model_calls`` of them — and
+        # without a cache breakpoint Anthropic charges full input price for
+        # that repeated prefix on every call (#2070). A bare string cannot
+        # carry ``cache_control``; the breakpoint can only attach to a block,
+        # so the whole system prefix is wrapped in one text block marked
+        # ``ephemeral``. OpenAI-compatible providers cache a stable prefix
+        # automatically and need no equivalent change.
+        body["system"] = [
+            {
+                "type": "text",
+                "text": system,
+                "cache_control": {"type": "ephemeral"},
+            }
+        ]
     return body
 
 
