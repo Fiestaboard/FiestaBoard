@@ -6,6 +6,7 @@ pages/schedules/general settings are preserved.
 """
 
 import json
+import logging
 from pathlib import Path
 
 import pytest
@@ -16,6 +17,33 @@ from src.config_manager import (
     MIGRATION_EXCLUDED_FIELDS,
     ConfigManager,
 )
+from src.log_store import _log_buffer
+from tests.conftest import _drop_all_singletons
+
+
+@pytest.fixture(autouse=True)
+def _config_dir_is_tmp_path(tmp_path, monkeypatch):
+    """Make ``get_data_dir()`` resolve to the directory these tests write to.
+
+    conftest's autouse ``_isolated_data_dir`` points ``FIESTABOARD_DATA_DIR``
+    at ``tmp_path / "data"``, while every test in this file hands
+    ``ConfigManager`` a path of ``tmp_path / "config.json"`` — one level above
+    it. So anything that resolves ``get_data_dir() / "config.json"`` reads a
+    *different* file than the one under test, and a ConfigManager built that
+    way answers from defaults instead of from the fixture (#2031).
+
+    Re-pointing the data dir at ``tmp_path`` makes the two the same file, for
+    all of this module's tests at once — including the dozen that build their
+    config path inline and never touch ``v1_config_path``. It is function
+    scoped and declared here rather than in conftest so it runs *after*
+    ``_isolated_data_dir`` (same scope, conftest fixtures first) and therefore
+    wins the env var; the singleton drop is repeated because the conftest one
+    ran against the previous value.
+    """
+    monkeypatch.setenv("FIESTABOARD_DATA_DIR", str(tmp_path))
+    _drop_all_singletons()
+    yield tmp_path
+    _drop_all_singletons()
 
 
 @pytest.fixture(autouse=True)
@@ -527,3 +555,59 @@ class TestPluginIdRename:
         assert lyft["refresh_seconds"] == 75
         assert "station_id" not in lyft
         assert "station_name" not in lyft
+
+
+class TestALogRecordDuringInitDoesNotStealTheConfig:
+    """The #2031 flake: a log record emitted *during* ``ConfigManager.__init__``.
+
+    ``ConfigManager.__init__`` returns early only once ``_initialized`` is set,
+    at the very end. Anything that calls ``ConfigManager()`` *while* the first
+    init is still running therefore re-enters a full ``__init__`` — with no
+    ``config_path``, so ``src/config_manager.py`` rebinds ``_config_path`` to
+    ``get_data_dir() / "config.json"`` and reloads ``_config`` from there.
+
+    The caller that does this is the logging path: ``src.log_store``'s handlers
+    timestamp every record through the time service, and building the time
+    service reads ``Config.GENERAL_TIMEZONE`` — a ConfigManager read. So one
+    ``logger.info`` from inside ``__init__`` was enough to make the manager
+    read a different file than the one it was handed.
+
+    In the suite that turned into an xdist-ordering flake: the handler is
+    installed at import time by ``src.api_server``, and the record only clears
+    the ``src.config_manager`` logger when something has lowered its level to
+    INFO — both of which depend on which tests already ran in the worker.
+    """
+
+    def test_the_config_path_survives_a_log_record_emitted_during_init(self, v1_config_path):
+        from src.log_store import LogBufferHandler
+        from src.time_service import reset_time_service
+
+        # The two conditions a neighbouring test supplies in a full run.
+        _log_buffer.clear()
+        handler = LogBufferHandler()
+        handler.setFormatter(logging.Formatter("%(message)s"))
+        root = logging.getLogger()
+        root.addHandler(handler)
+        cm_logger = logging.getLogger("src.config_manager")
+        previous_level = cm_logger.level
+        cm_logger.setLevel(logging.INFO)
+        # No time service yet, exactly as conftest leaves every test.
+        reset_time_service()
+        _reset_singleton()
+
+        try:
+            cm = ConfigManager(config_path=v1_config_path)
+        finally:
+            cm_logger.setLevel(previous_level)
+            root.removeHandler(handler)
+
+        # Non-vacuity: the init really did emit a record through the handler.
+        assert any("Loaded config from" in entry["message"] for entry in list(_log_buffer)), (
+            "precondition: ConfigManager.__init__ logged nothing, so nothing could re-enter it"
+        )
+
+        # The symptom the flake reported: the manager answers from a config
+        # file the test never wrote.
+        assert cm.get_board()["local_api_key"] == "test-key-123"
+        # The mechanism behind that symptom.
+        assert Path(cm._config_path) == Path(v1_config_path), "a log record rebound the manager's config path"
