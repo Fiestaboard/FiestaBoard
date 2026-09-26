@@ -995,7 +995,7 @@ The display loop itself: health, status, start/stop/refresh.
 
 :::warning Deprecated
 
-`POST /refresh` is deprecated and answers with `Deprecation`, `Sunset` and
+`POST /refresh` is deprecated and answers with `Deprecation` and
 `Link: rel="successor-version"` headers. Use `DELETE /v1/boards/{board}/message` instead.
 
 :::
@@ -1042,7 +1042,7 @@ Write to a board out of band, and read back what is physically on it.
 
 :::warning Deprecated
 
-`POST /send-message` is deprecated and answers with `Deprecation`, `Sunset` and
+`POST /send-message` is deprecated and answers with `Deprecation` and
 `Link: rel="successor-version"` headers. Use `POST /v1/boards/{board}/message` instead.
 
 :::
