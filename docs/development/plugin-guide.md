@@ -386,6 +386,32 @@ Indexed collections. Users reference items as `{{my_plugin.locations.0.temperatu
 - `label_field` - the field used as a human-readable label in the UI.
 - `item_fields` - all fields available on each array item.
 
+Like `simple`, `item_fields` can also be an object that maps each field to its metadata (`description`, `type`, `max_length`, `group`, `example`):
+
+```json
+{
+  "variables": {
+    "groups": { "game": { "label": "Game" } },
+    "arrays": {
+      "games": {
+        "label_field": "formatted",
+        "item_fields": {
+          "formatted": { "description": "One-line game summary", "group": "game" },
+          "minutes_until_game": {
+            "description": "Minutes until first pitch",
+            "type": "number",
+            "max_length": 4,
+            "group": "game"
+          }
+        }
+      }
+    }
+  }
+}
+```
+
+The editor shows each `description` as a tooltip in the variable picker and in the plugin's Template Variables table, and the table sorts fields into their `group`. A field's `max_length` counts as a `max_lengths` entry for `games.*.minutes_until_game`. If you also set that key in `max_lengths`, the `max_lengths` value wins. The same object form works for `item_fields` inside `sub_arrays`.
+
 #### Nested Arrays (Arrays within Arrays)
 
 For data like transit stops that contain multiple lines. Users reference them as `{{my_plugin.stops.0.lines.N.next_arrival}}`.

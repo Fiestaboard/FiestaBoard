@@ -32,6 +32,7 @@ import { useDeferredValue, useMemo, useState } from "react";
 import { useTranslations } from "@/i18n/translations";
 import type { PluginManifest } from "@/lib/api";
 import { api } from "@/lib/api";
+import { itemFieldMeta, itemFieldNames } from "@/lib/plugin-variables";
 
 interface VariablePickerContentProps {
   onInsert: (variable: string) => void;
@@ -152,7 +153,7 @@ function renderSubArraySection(
   const subArraySchema = manifest.variables.arrays?.[parentArrayName]?.sub_arrays?.[subArrayName];
   if (!subArraySchema) return null;
 
-  const itemFields = subArraySchema.item_fields || [];
+  const itemFields = itemFieldNames(subArraySchema.item_fields);
   const keyType = subArraySchema.key_type || "index";
   const keyField = subArraySchema.key_field;
   const labelField = subArraySchema.label_field;
@@ -218,7 +219,13 @@ function renderSubArraySection(
                     {filteredFields.map((field: string) => {
                       const varValue = `{{${pluginId}.${parentArrayName}.${parentIndex}.${subArrayName}.${key}.${field}}}`;
                       return (
-                        <VariablePill key={field} label={field} value={varValue} onInsert={() => onInsert(varValue)} />
+                        <VariablePill
+                          key={field}
+                          label={field}
+                          value={varValue}
+                          description={itemFieldMeta(subArraySchema.item_fields, field)?.description}
+                          onInsert={() => onInsert(varValue)}
+                        />
                       );
                     })}
                   </Flex>
@@ -266,7 +273,7 @@ function renderArraySection(
   if (!arraySchema) return null;
 
   const labelField = arraySchema.label_field || "name";
-  const itemFields = arraySchema.item_fields || [];
+  const itemFields = itemFieldNames(arraySchema.item_fields);
   const subArrays = arraySchema.sub_arrays || {};
 
   const filteredArrayData = showAll
@@ -356,6 +363,7 @@ function renderArraySection(
                               key={field}
                               label={field}
                               value={varValue}
+                              description={itemFieldMeta(arraySchema.item_fields, field)?.description}
                               onInsert={() => onInsert(varValue)}
                             />
                           );
@@ -518,7 +526,7 @@ export function VariablePickerContent({
             const itemLabel = String(item[arraySchema.label_field || "name"] || "");
             return (
               matchesSearch(itemLabel, searchQuery) ||
-              arraySchema.item_fields.some((f: string) => matchesSearch(f, searchQuery))
+              itemFieldNames(arraySchema.item_fields).some((f: string) => matchesSearch(f, searchQuery))
             );
           });
           if (hasMatch) return true;
@@ -595,7 +603,7 @@ export function VariablePickerContent({
                       const label = String(item[arraySchema.label_field || "name"] || "");
                       return (
                         matchesSearch(label, searchQuery) ||
-                        arraySchema.item_fields.some((f: string) => matchesSearch(f, searchQuery))
+                        itemFieldNames(arraySchema.item_fields).some((f: string) => matchesSearch(f, searchQuery))
                       );
                     });
                   });
