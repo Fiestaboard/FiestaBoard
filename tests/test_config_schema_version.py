@@ -89,10 +89,45 @@ def config_file(tmp_path) -> Path:
     return path
 
 
+class _PrivateBoot(ConfigManager):
+    """``ConfigManager`` with its own singleton slot, for :func:`_boot` only.
+
+    ``_boot`` cannot construct through ``ConfigManager()`` itself: while the
+    instance is mid-``__init__`` it is already published as
+    ``ConfigManager._instance`` with ``_initialized`` still False, so any other
+    ``ConfigManager()`` call re-runs ``__init__`` on it with the *default*
+    path and the migrated config lands in ``<data>/config.json`` instead of
+    ``config_file``. Two callers were observed doing that in a full xdist run:
+
+    * a log record reaching the api_server ``LogBufferHandler`` that earlier
+      tests leave on the root logger — it timestamps the record through
+      ``get_time_service()`` -> ``Config.GENERAL_TIMEZONE`` ->
+      ``get_config_manager()`` (the same hazard ``captured_config_logs``
+      documents);
+    * a background thread an earlier test left running, calling
+      ``get_config_manager()`` at the wrong moment — or building the
+      singleton between ``_boot``'s reset and its constructor call, so
+      ``config_path`` is ignored outright. This one is timing-dependent,
+      which is why CI failed a single test in the file rather than all of
+      them (``KeyError: 'schema_version'`` on the first assertion).
+
+    Nothing outside this module calls ``_PrivateBoot()``, so neither can reach
+    the instance under construction. ``__new__`` and ``__init__`` are the real
+    ones, so boot behaviour under test is unchanged.
+    """
+
+    _instance = None
+
+
 def _boot(config_file: Path) -> ConfigManager:
     """Construct a ConfigManager as a fresh process would."""
     ConfigManager._instance = None  # type: ignore[attr-defined]
-    return ConfigManager(config_path=str(config_file))
+    _PrivateBoot._instance = None
+    cm = _PrivateBoot(config_path=str(config_file))
+    # Publish only once initialised, so a re-entrant ConfigManager() during
+    # a later reload() finds this instance and returns early.
+    ConfigManager._instance = cm  # type: ignore[attr-defined]
+    return cm
 
 
 def _on_disk(config_file: Path) -> dict:
