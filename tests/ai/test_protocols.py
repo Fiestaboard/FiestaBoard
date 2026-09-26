@@ -168,7 +168,7 @@ def test_anthropic_body_lifts_system_to_top_level():
     assert body["model"] == "claude-3-5-sonnet-20241022"
     assert body["max_tokens"] == 200
     assert body["temperature"] == 0.5
-    assert body["system"] == "be brief"
+    assert body["system"] == [{"type": "text", "text": "be brief", "cache_control": {"type": "ephemeral"}}]
     # ``messages`` must not contain a system role.
     roles = [m["role"] for m in body["messages"]]
     assert "system" not in roles
@@ -185,7 +185,31 @@ def test_anthropic_body_concatenates_multiple_systems():
         {"role": "user", "content": "go"},
     ]
     body = proto.build_body("claude", messages, 0.0, 50)
-    assert body["system"] == "rule 1\n\nrule 2"
+    assert body["system"] == [
+        {"type": "text", "text": "rule 1\n\nrule 2", "cache_control": {"type": "ephemeral"}}
+    ]
+
+
+def test_anthropic_body_marks_system_prompt_for_prompt_caching():
+    """The system prefix is rebuilt byte-identically for every model call of a
+    turn (up to 600). It must be a cacheable block carrying a ``cache_control``
+    breakpoint so Anthropic serves the repeated prefix from its prompt cache
+    instead of charging full input price each call (#2070). A bare string
+    cannot carry the breakpoint.
+    """
+    proto = PROTOCOLS["anthropic"]
+    messages = [
+        {"role": "system", "content": "be brief"},
+        {"role": "user", "content": "hi"},
+    ]
+    body = proto.build_body("claude", messages, 0.0, 50)
+    system = body["system"]
+    assert isinstance(system, list)
+    assert len(system) == 1
+    block = system[0]
+    assert block["type"] == "text"
+    assert block["text"] == "be brief"
+    assert block["cache_control"] == {"type": "ephemeral"}
 
 
 def test_anthropic_body_omits_system_when_none():

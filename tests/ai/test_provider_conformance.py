@@ -111,6 +111,35 @@ def test_anthropic_rejects_system_role_in_messages():
     assert "role" in exc.value.message
 
 
+def test_anthropic_accepts_cacheable_system_block():
+    """The block form of ``system`` — the one that carries a ``cache_control``
+    prompt-cache breakpoint (#2070) — must be a legal shape."""
+    AnthropicEmulator().validate(
+        {
+            "model": "m",
+            "messages": [{"role": "user", "content": "hi"}],
+            "max_tokens": 10,
+            "system": [{"type": "text", "text": "be brief", "cache_control": {"type": "ephemeral"}}],
+        },
+        ANTHROPIC_HEADERS,
+    )
+
+
+def test_anthropic_rejects_malformed_system_block():
+    """The emulator is not a pass-through for the block form: a block missing
+    its text is rejected, so the caching test above is not vacuous."""
+    with pytest.raises(ProviderRejection):
+        AnthropicEmulator().validate(
+            {
+                "model": "m",
+                "messages": [{"role": "user", "content": "hi"}],
+                "max_tokens": 10,
+                "system": [{"type": "text", "cache_control": {"type": "ephemeral"}}],
+            },
+            ANTHROPIC_HEADERS,
+        )
+
+
 def test_anthropic_rejects_response_format():
     with pytest.raises(ProviderRejection):
         AnthropicEmulator().validate(
@@ -189,7 +218,9 @@ def test_anthropic_generator_body_is_accepted():
 def test_anthropic_body_moves_system_out_of_messages():
     """Guards the split that keeps the Anthropic body legal."""
     body = PROTOCOLS["anthropic"].build_body("claude-test", MESSAGES, 0.7, 1200)
-    assert body["system"] == "You are a board designer."
+    assert body["system"] == [
+        {"type": "text", "text": "You are a board designer.", "cache_control": {"type": "ephemeral"}}
+    ]
     assert [m["role"] for m in body["messages"]] == ["user"]
 
 
