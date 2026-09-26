@@ -181,6 +181,36 @@ class TestDataCaps:
         report = run_conformance(TwoLinePlugin, strict_growth=True)
         assert report.ok, report.summary()
 
+    def test_cap_just_below_capacity_is_a_known_blind_spot(self):
+        # Pins a limit rather than a feature, so nobody assumes this is covered.
+        # A cap of 10 renders 3 -> 11 -> 11: 11 of 12 rows is not saturation,
+        # so no growth is required at the next rung and the cap passes.
+        #
+        # This is not fixable from here. "Capped at 10" and "only had 7 things
+        # to show" give identical row counts, and the suite cannot see how much
+        # content the plugin's upstream had. Widening the rule to catch the
+        # first misreports every plugin whose fixture or maxItems config is
+        # legitimately small -- when tried, it flagged four correct plugins.
+        # A data cap belongs in a plugin's own test, asserting the cap scales
+        # with the board rather than asserting a rendered row count.
+        class CappedAt10(_Base):
+            def fetch_data(self) -> PluginResult:
+                board = self.board
+                rows = board.rows if board else 6
+                cols = board.cols if board else 22
+                items = [f"ITEM{n}"[:cols] for n in range(min(10, max(0, rows - 1)))]
+                return PluginResult(
+                    available=True, data={}, formatted_lines=["HDR".center(cols), *items]
+                )
+
+        violations, counts = check_growth(CappedAt10)
+        assert counts == {"15x3": 3, "15x12": 11, "15x24": 11}, counts
+        assert violations == [], (
+            "documented blind spot: if this now reports a violation the suite "
+            "got stricter, which is good -- verify it does not also flag a "
+            "plugin whose content is legitimately short, then update this test"
+        )
+
     def test_growth_ladder_holds_width_constant(self):
         widths = {g.cols for g in GROWTH_LADDER}
         assert widths == {15}, "growth must vary height alone to avoid confounding"
