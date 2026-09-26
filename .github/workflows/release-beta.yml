@@ -68,12 +68,21 @@ jobs:
         env:
           # The stable release `next` is heading for. Declared, not derived.
           #
-          # 9.0.0 because `next` is a breaking-change branch: MCP tool errors
-          # became protocol `isError` (#1874), GET /plugins dropped previews to
-          # opt-in, and GET /logs `total` became a lower bound rather than an
-          # exact count. Those are real contract breaks for existing clients.
+          # 9.1.0 now that 9.0.0 has shipped. It was 9.0.0 for the whole of that
+          # cycle — `next` was a breaking-change branch (MCP tool errors became
+          # protocol `isError` (#1874), GET /plugins dropped previews to opt-in,
+          # GET /logs `total` became a lower bound) and betas ran up to
+          # 9.0.0-beta.43 before the release. The guard below fails the build the
+          # moment stable reaches the target, so leaving this at 9.0.0 would have
+          # broken the beta publish on every push to `next` from the release
+          # onward.
           #
-          # It is declared rather than derived for two reasons:
+          # 9.1.0 rather than 10.0.0 because nothing on `next` breaks a contract
+          # yet. Raise it to 10.0.0 as soon as something does — a beta that
+          # undersells a breaking change is worse than one that oversells it,
+          # since installs graduate off betas by version comparison (#1992).
+          #
+          # It stays declared rather than derived for two reasons:
           #
           #   1. Deriving it would get it WRONG. The repo infers bump type from
           #      conventional-commit titles (pr-label.yml:54-57 looks for `!:`
@@ -86,8 +95,10 @@ jobs:
           #      shipped — and any beta already published under the old number
           #      would then sort BELOW the stable release that took it.
           #
-          # Change this when `next` starts aiming at a different release.
-          BETA_TARGET_VERSION: "9.0.0"
+          # Change this when `next` starts aiming at a different release. The
+          # guard below is what tells you it is overdue: it fails loudly rather
+          # than publishing a beta that sorts at or below a real release.
+          BETA_TARGET_VERSION: "9.1.0"
         run: |
           set -euo pipefail
           if ! printf '%s' "$BETA_TARGET_VERSION" | grep -qE '^[0-9]+\.[0-9]+\.[0-9]+$'; then
