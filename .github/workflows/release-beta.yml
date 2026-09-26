@@ -62,49 +62,80 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v7
+        with:
+          # Tags are the input to the derivation below. `fetch-tags` rather than
+          # `fetch-depth: 0`: the newest stable tag is all this needs, not the
+          # whole history.
+          fetch-tags: true
 
       - name: Compute the beta version
         id: version
         env:
-          # The stable release `next` is heading for. Declared, not derived.
+          # Normally empty. Set it only when the next release breaks a contract:
+          # the derivation below can add a minor, never a major, so a breaking
+          # cycle has to say so explicitly (`"10.0.0"`). Clear it again once
+          # that release ships.
           #
-          # 9.0.0 because `next` is a breaking-change branch: MCP tool errors
-          # became protocol `isError` (#1874), GET /plugins dropped previews to
-          # opt-in, and GET /logs `total` became a lower bound rather than an
-          # exact count. Those are real contract breaks for existing clients.
-          #
-          # It is declared rather than derived for two reasons:
-          #
-          #   1. Deriving it would get it WRONG. The repo infers bump type from
-          #      conventional-commit titles (pr-label.yml:54-57 looks for `!:`
-          #      or a BREAKING CHANGE footer). Not one PR merged into `next`
-          #      carries a major label, because the breaking changes landed
-          #      under plain `feat:`/`refactor:` titles. The history undercounts
-          #      what actually happened to the API.
-          #   2. Deriving from package.json drifts. `next` tracks `main`, so a
-          #      "bump the minor" rule would silently retarget the moment main
-          #      shipped — and any beta already published under the old number
-          #      would then sort BELOW the stable release that took it.
-          #
-          # Change this when `next` starts aiming at a different release.
-          BETA_TARGET_VERSION: "9.0.0"
+          # An understated target is not cosmetic — installs graduate off betas
+          # by version comparison (#1992), so betas numbered 9.1.0-beta.N ahead
+          # of a 10.0.0 release describe the wrong thing to every beta box.
+          BETA_TARGET_OVERRIDE: ""
         run: |
           set -euo pipefail
+
+          # The target is DERIVED from the newest stable release tag, one minor
+          # ahead. Nothing to bump by hand each cycle, and no window where the
+          # target has gone stale.
+          #
+          # From tags, deliberately, NOT from package.json. This file used to
+          # carry a hardcoded target and a comment rejecting derivation partly
+          # because "deriving from package.json drifts" — which was right. On
+          # `next`, package.json lags `main` between a stable release and the
+          # next main -> next sync: the moment 9.0.0 shipped, next's
+          # package.json still said 8.38.12, and a minor bump off that would
+          # have targeted 8.39.0 and published betas sorting BELOW the
+          # 9.0.0-beta.43 that already existed. Tags are the shipped truth and
+          # do not lag a branch.
+          #
+          # The other documented objection — that conventional-commit titles
+          # undercount breaking changes — is why BETA_TARGET_OVERRIDE exists
+          # above rather than being inferred from commit history.
+          if [ -n "$BETA_TARGET_OVERRIDE" ]; then
+            BETA_TARGET_VERSION="$BETA_TARGET_OVERRIDE"
+            SOURCE="override"
+          else
+            # Stable tags only. Prereleases carry a hyphen and are excluded:
+            # betas aim past 9.0.0, not past 9.0.0-beta.43.
+            # The anchored pattern is the prerelease filter: `9.0.0-beta.43`
+            # fails the trailing `$`. Betas aim past 9.0.0, not past its betas.
+            STABLE=$(git tag --list 'v[0-9]*' | sed 's/^v//' \
+              | grep -E '^[0-9]+\.[0-9]+\.[0-9]+$' | sort -V | tail -1 || true)
+            if [ -z "$STABLE" ]; then
+              echo "::error::No stable vX.Y.Z tag found — cannot derive the beta target. Is fetch-tags set on the checkout?"
+              exit 1
+            fi
+            MAJOR=${STABLE%%.*}
+            MINOR=${STABLE#*.}
+            MINOR=${MINOR%%.*}
+            BETA_TARGET_VERSION="${MAJOR}.$((MINOR + 1)).0"
+            SOURCE="derived from stable $STABLE"
+          fi
+
           if ! printf '%s' "$BETA_TARGET_VERSION" | grep -qE '^[0-9]+\.[0-9]+\.[0-9]+$'; then
             echo "::error::BETA_TARGET_VERSION '$BETA_TARGET_VERSION' is not X.Y.Z"
             exit 1
           fi
 
-          STABLE=$(node -p "require('./package.json').version")
-
-          # Guard the drift case explicitly rather than trusting the target to
-          # stay ahead: if `main` ever ships at or past the target, every beta
-          # from here would sort at or below a real release, and the update
-          # checker would happily offer a "newer" beta that is actually older.
-          # Fail loudly at build time instead of publishing that.
-          NEWEST=$(printf '%s\n%s\n' "$STABLE" "$BETA_TARGET_VERSION" | sort -V | tail -1)
-          if [ "$NEWEST" != "$BETA_TARGET_VERSION" ] || [ "$STABLE" = "$BETA_TARGET_VERSION" ]; then
-            echo "::error::stable is $STABLE but betas target $BETA_TARGET_VERSION — main has caught up. Raise BETA_TARGET_VERSION in .github/workflows/release-beta.yml."
+          # Kept as a sanity assert on the derivation, not as drift detection —
+          # drift is what deriving removes. A beta at or below a real release
+          # would have the update checker offering a "newer" build that is
+          # actually older, so fail loudly rather than publish it. This also
+          # catches an override someone left pointing at the past.
+          NEWEST_TAG=$(git tag --list 'v[0-9]*' | sed 's/^v//' \
+            | grep -E '^[0-9]+\.[0-9]+\.[0-9]+$' | sort -V | tail -1 || true)
+          NEWEST=$(printf '%s\n%s\n' "$NEWEST_TAG" "$BETA_TARGET_VERSION" | sort -V | tail -1)
+          if [ "$NEWEST" != "$BETA_TARGET_VERSION" ] || [ "$NEWEST_TAG" = "$BETA_TARGET_VERSION" ]; then
+            echo "::error::betas target $BETA_TARGET_VERSION but $NEWEST_TAG is already released. Clear or raise BETA_TARGET_OVERRIDE."
             exit 1
           fi
 
@@ -113,8 +144,8 @@ jobs:
           # string sort would get that backwards).
           VERSION="${BETA_TARGET_VERSION}-beta.${{ github.run_number }}"
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
-          echo "Stable on this trunk: $STABLE"
-          echo "Betas target:         $BETA_TARGET_VERSION"
+          echo "Newest stable tag:    $NEWEST_TAG"
+          echo "Betas target:         $BETA_TARGET_VERSION ($SOURCE)"
           echo "Publishing beta:      $VERSION"
 
   build:
