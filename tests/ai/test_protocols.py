@@ -185,9 +185,7 @@ def test_anthropic_body_concatenates_multiple_systems():
         {"role": "user", "content": "go"},
     ]
     body = proto.build_body("claude", messages, 0.0, 50)
-    assert body["system"] == [
-        {"type": "text", "text": "rule 1\n\nrule 2", "cache_control": {"type": "ephemeral"}}
-    ]
+    assert body["system"] == [{"type": "text", "text": "rule 1\n\nrule 2", "cache_control": {"type": "ephemeral"}}]
 
 
 def test_anthropic_body_marks_system_prompt_for_prompt_caching():
