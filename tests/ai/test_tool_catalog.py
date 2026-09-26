@@ -223,7 +223,25 @@ def test_addendum_in_ask_mode_still_marks_the_system_tier_as_gated():
     assert "must approve" in text.split("### restart_system")[1]
 
 
-def test_addendum_for_the_real_server_stays_under_the_size_budget():
+#: Byte ceiling for one rendered addendum, raised 40,000 -> 41,000 for #2036.
+#: The extra kilobyte buys room for destructive preconditions ("the last board
+#: cannot be removed", "needs the updater sidecar") to sit in the first
+#: paragraph, which is the only part of a docstring the chat surface renders.
+#: Bytes are a tokenizer-free proxy for the real cost: measured just before
+#: this change, 38,137 B of addendum was ~9,032 cl100k tokens.
+ADDENDUM_BYTE_BUDGET = 41_000
+
+
+@pytest.mark.parametrize("surface", ["editor", "global"])
+@pytest.mark.parametrize("skip_destructive_pause", [False, True])
+def test_addendum_for_the_real_server_stays_under_the_size_budget(surface, skip_destructive_pause):
+    """Every surface/mode combination, not just the cheapest one.
+
+    ``editor`` renders more than ``global`` and ``auto`` more than ``ask``, so
+    checking only ``global``/``ask`` measures 302 B less than the largest thing
+    actually shipped. Sizes at the time of writing: editor/auto 38,452 ·
+    editor/ask 38,286 · global/auto 38,316 · global/ask 38,150.
+    """
     pytest.importorskip("mcp", reason="mcp package not installed")
     import asyncio
 
@@ -231,10 +249,58 @@ def test_addendum_for_the_real_server_stays_under_the_size_budget():
     from src.ai.mcp_bridge import CompositeToolBackend, McpToolBackend
 
     descriptors = asyncio.run(CompositeToolBackend(McpToolBackend(), ChatExtensionBackend()).list_tools())
-    for skip in (False, True):
-        text = ToolCatalog(descriptors).render_addendum("global", skip_destructive_pause=skip)
-        assert len(text.encode()) < 40_000, f"addendum is {len(text.encode())} bytes; trim descriptions"
-    assert len(descriptors) >= 34
+    text = ToolCatalog(descriptors).render_addendum(surface, skip_destructive_pause=skip_destructive_pause)
+    size = len(text.encode())
+    assert size < ADDENDUM_BYTE_BUDGET, (
+        f"{surface}/{'auto' if skip_destructive_pause else 'ask'} addendum is {size} bytes, "
+        f"over the {ADDENDUM_BYTE_BUDGET} budget; trim descriptions"
+    )
+    # A ratchet, not a target: it catches a backend that silently stops
+    # publishing tools. 86 today.
+    assert len(descriptors) >= 80
+
+
+# ---------------------------------------------------------------------------
+# Destructive preconditions reach the chat surface (#2036)
+# ---------------------------------------------------------------------------
+
+
+def _real_server_addendum(surface="global", *, skip_destructive_pause=False):
+    """The addendum rendered from the live MCP + chat descriptors."""
+    pytest.importorskip("mcp", reason="mcp package not installed")
+    import asyncio
+
+    from src.ai.chat_tools import ChatExtensionBackend
+    from src.ai.mcp_bridge import CompositeToolBackend, McpToolBackend
+
+    descriptors = asyncio.run(CompositeToolBackend(McpToolBackend(), ChatExtensionBackend()).list_tools())
+    return ToolCatalog(descriptors).render_addendum(surface, skip_destructive_pause=skip_destructive_pause)
+
+
+@pytest.mark.parametrize(
+    ("tool", "precondition"),
+    [
+        (
+            "remove_board",
+            "The last board cannot be removed, and a board driven by a FiestaPanel "
+            "must be removed via delete_panel() instead",
+        ),
+        ("restart_system", "Needs the updater sidecar (get_system_status() → update.updater_available)"),
+        ("trigger_system_update", "Needs the updater sidecar (get_system_status() → update.updater_available)"),
+    ],
+)
+def test_a_destructive_tools_precondition_is_in_the_paragraph_chat_renders(tool, precondition):
+    """A hard precondition has to be in the docstring's FIRST paragraph.
+
+    ``_compact_description`` keeps that paragraph plus ``Args:`` and drops
+    everything after, so a precondition parked in a later WARNING paragraph is
+    invisible to the in-app chat: the model proposes the call, the user approves
+    it, and the API refuses. These three are refusals, not consequences — the
+    model can avoid them if it is told, which is why they pay for their bytes
+    where the seven remaining WARNING paragraphs do not.
+    """
+    section = _real_server_addendum().split(f"### {tool}")[1].split("### ")[0]
+    assert precondition in section, f"{tool} renders as:\n{section}"
 
 
 # ---------------------------------------------------------------------------
