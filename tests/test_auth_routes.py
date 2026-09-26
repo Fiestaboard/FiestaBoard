@@ -348,6 +348,93 @@ def test_preference_rejected_after_setup(client, enabled):
     assert r.status_code == 409
 
 
+# --- Stored-MCP-token possession gate (#1880) ------------------------------
+#
+# On a preference-disabled install (no env pin, no user) that has a *stored*
+# MCP token, a drive-by must not be able to flip auth on / provision the first
+# admin and thereby hijack that token. Two unauthenticated requests
+# (``/auth/preference {enabled:true}`` -> ``/auth/setup``, or ``/auth/setup``
+# alone, which also flips the preference) would otherwise be enough. The stored
+# token must guard both provisioning paths.
+
+_STORED_TOKEN = "stored-mcp-token-abc123"
+
+
+def _disabled_with_stored_token():
+    """Persist a 'disabled' preference + a stored MCP token on the fresh service."""
+    svc = auth_service.get_auth_service()
+    svc.set_auth_preference("disabled")
+    svc.set_stored_mcp_token(_STORED_TOKEN)
+    return svc
+
+
+def test_preference_enable_blocked_when_stored_token_and_no_possession(client, undecided):
+    _disabled_with_stored_token()
+    r = client.post("/auth/preference", json={"enabled": True})
+    assert r.status_code == 403
+    # The install is not opened up.
+    assert client.get("/auth/status").json()["mode"] == "disabled"
+
+
+def test_preference_enable_allowed_when_stored_token_presented(client, undecided):
+    _disabled_with_stored_token()
+    r = client.post(
+        "/auth/preference",
+        json={"enabled": True},
+        headers={"Authorization": f"Bearer {_STORED_TOKEN}"},
+    )
+    assert r.status_code == 200
+    assert client.get("/auth/status").json()["mode"] == "enabled"
+
+
+def test_preference_enable_rejected_when_wrong_token_presented(client, undecided):
+    _disabled_with_stored_token()
+    r = client.post(
+        "/auth/preference",
+        json={"enabled": True},
+        headers={"Authorization": "Bearer not-the-token"},
+    )
+    assert r.status_code == 403
+    assert client.get("/auth/status").json()["mode"] == "disabled"
+
+
+def test_preference_disable_not_gated_by_stored_token(client, undecided):
+    _disabled_with_stored_token()
+    # Disabling is never a takeover, so no token is required.
+    r = client.post("/auth/preference", json={"enabled": False})
+    assert r.status_code == 200
+
+
+def test_setup_blocked_when_stored_token_and_no_possession(client, undecided):
+    """/auth/setup alone flips a disabled install on — gate it too."""
+    _disabled_with_stored_token()
+    r = client.post("/auth/setup", json={"username": "attacker", "password": "supersecret"})
+    assert r.status_code == 403
+    status_body = client.get("/auth/status").json()
+    # No admin was provisioned and the install stays disabled.
+    assert status_body["mode"] == "disabled"
+    assert status_body["setup_required"] is False
+
+
+def test_setup_allowed_when_stored_token_presented(client, undecided):
+    _disabled_with_stored_token()
+    r = client.post(
+        "/auth/setup",
+        json={"username": "owner", "password": "supersecret"},
+        headers={"Authorization": f"Bearer {_STORED_TOKEN}"},
+    )
+    assert r.status_code == 201
+    assert client.get("/auth/status").json()["mode"] == "enabled"
+
+
+def test_provisioning_unaffected_without_stored_token(client, undecided):
+    """Regression: the common first-run case (no stored token) still works."""
+    r = client.post("/auth/preference", json={"enabled": True})
+    assert r.status_code == 200
+    r2 = client.post("/auth/setup", json={"username": "owner", "password": "supersecret"})
+    assert r2.status_code == 201
+
+
 # --- /auth/change-username -------------------------------------------------
 
 

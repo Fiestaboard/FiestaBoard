@@ -39,6 +39,7 @@ import { useEffectiveBoardColor } from "@/hooks/use-effective-board-color";
 import { useEffectiveCode62Glyph } from "@/hooks/use-effective-code62-glyph";
 import { useParams, useRouter } from "@/hooks/use-router";
 import { useTranslations } from "@/i18n/translations";
+import { anchorProps } from "@/lib/ai-choreography/anchors";
 import { api } from "@/lib/api";
 import { fetchPluginReadme, rewriteMarkdownImageUrls, rewriteMarkdownRepoLinks } from "@/lib/github";
 import { cn } from "@/lib/utils";
@@ -150,7 +151,7 @@ export default function PluginDetailPage() {
         </Button>
       </Box>
 
-      <Stack gap="6" className="max-w-3xl mx-auto animate-card-fade-in">
+      <Stack gap="6" className="max-w-3xl mx-auto animate-card-fade-in" {...anchorProps(`plugin.${pluginId}`)}>
         {/* Board hero — what this plugin actually puts on a board, the same
             way the public directory leads at fiestaboard.app/plugins. Absent
             for plugins that predate the previews contract, in which case the

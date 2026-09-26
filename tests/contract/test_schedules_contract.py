@@ -4,6 +4,10 @@ Validates that the Python backend returns responses that conform to the
 schema the Next.js frontend expects.
 
 Issue: #502
+
+Patch targets are ``src.schedules.routes.<name>``: the router binds its
+collaborators at import time since the Phase 2 conventions pass (§2.3), so it
+no longer resolves them through ``src.api_server``.
 """
 
 from unittest.mock import Mock, patch
@@ -43,8 +47,8 @@ def sample_schedule():
 class TestListSchedulesContract:
     def test_returns_200(self, client):
         with (
-            patch("src.api_server.get_schedule_service") as mock_svc,
-            patch("src.api_server.get_settings_service") as mock_settings,
+            patch("src.schedules.routes.get_schedule_service") as mock_svc,
+            patch("src.schedules.routes.get_settings_service") as mock_settings,
         ):
             svc = Mock()
             svc.list_schedules.return_value = []
@@ -61,8 +65,8 @@ class TestListSchedulesContract:
 
     def test_response_has_required_keys(self, client):
         with (
-            patch("src.api_server.get_schedule_service") as mock_svc,
-            patch("src.api_server.get_settings_service") as mock_settings,
+            patch("src.schedules.routes.get_schedule_service") as mock_svc,
+            patch("src.schedules.routes.get_settings_service") as mock_settings,
         ):
             svc = Mock()
             svc.list_schedules.return_value = []
@@ -81,8 +85,8 @@ class TestListSchedulesContract:
 
     def test_schedules_is_list(self, client):
         with (
-            patch("src.api_server.get_schedule_service") as mock_svc,
-            patch("src.api_server.get_settings_service") as mock_settings,
+            patch("src.schedules.routes.get_schedule_service") as mock_svc,
+            patch("src.schedules.routes.get_settings_service") as mock_settings,
         ):
             svc = Mock()
             svc.list_schedules.return_value = []
@@ -99,8 +103,8 @@ class TestListSchedulesContract:
 
     def test_total_matches_schedules_length(self, client, sample_schedule):
         with (
-            patch("src.api_server.get_schedule_service") as mock_svc,
-            patch("src.api_server.get_settings_service") as mock_settings,
+            patch("src.schedules.routes.get_schedule_service") as mock_svc,
+            patch("src.schedules.routes.get_settings_service") as mock_settings,
         ):
             svc = Mock()
             svc.list_schedules.return_value = [sample_schedule]
@@ -118,8 +122,8 @@ class TestListSchedulesContract:
 
     def test_schedule_item_has_required_fields(self, client, sample_schedule):
         with (
-            patch("src.api_server.get_schedule_service") as mock_svc,
-            patch("src.api_server.get_settings_service") as mock_settings,
+            patch("src.schedules.routes.get_schedule_service") as mock_svc,
+            patch("src.schedules.routes.get_settings_service") as mock_settings,
         ):
             svc = Mock()
             svc.list_schedules.return_value = [sample_schedule]
@@ -141,8 +145,8 @@ class TestListSchedulesContract:
 
     def test_schedule_time_format_is_hhmm(self, client, sample_schedule):
         with (
-            patch("src.api_server.get_schedule_service") as mock_svc,
-            patch("src.api_server.get_settings_service") as mock_settings,
+            patch("src.schedules.routes.get_schedule_service") as mock_svc,
+            patch("src.schedules.routes.get_settings_service") as mock_settings,
         ):
             svc = Mock()
             svc.list_schedules.return_value = [sample_schedule]
@@ -164,8 +168,8 @@ class TestListSchedulesContract:
     def test_wildcard_board_id_returns_no_default_or_enabled(self, client, sample_schedule):
         """board_id=* returns schedules without enabled/default_page_id semantics."""
         with (
-            patch("src.api_server.get_schedule_service") as mock_svc,
-            patch("src.api_server.get_settings_service") as mock_settings,
+            patch("src.schedules.routes.get_schedule_service") as mock_svc,
+            patch("src.schedules.routes.get_settings_service") as mock_settings,
         ):
             svc = Mock()
             svc.list_schedules.return_value = [sample_schedule]
@@ -179,7 +183,9 @@ class TestListSchedulesContract:
         data = resp.json()
         assert "schedules" in data
         assert "total" in data
-        assert data["enabled"] is False  # wildcard sets enabled=False
+        # Both per-board fields are null on the cross-board listing; `enabled`
+        # used to be hardcoded False, which read as "off on every board".
+        assert data["enabled"] is None
         assert data["default_page_id"] is None
 
 
@@ -190,7 +196,7 @@ class TestListSchedulesContract:
 
 class TestCreateScheduleContract:
     def test_returns_200_on_valid_input(self, client, sample_schedule):
-        with patch("src.api_server.get_schedule_service") as mock_svc:
+        with patch("src.schedules.routes.get_schedule_service") as mock_svc:
             svc = Mock()
             svc.create_schedule.return_value = sample_schedule
             mock_svc.return_value = svc
@@ -205,10 +211,10 @@ class TestCreateScheduleContract:
                 },
             )
 
-        assert resp.status_code == 200
+        assert resp.status_code == 201  # 201 since the conventions pass
 
     def test_created_schedule_has_required_fields(self, client, sample_schedule):
-        with patch("src.api_server.get_schedule_service") as mock_svc:
+        with patch("src.schedules.routes.get_schedule_service") as mock_svc:
             svc = Mock()
             svc.create_schedule.return_value = sample_schedule
             mock_svc.return_value = svc
@@ -231,7 +237,7 @@ class TestCreateScheduleContract:
         assert "day_pattern" in data
 
     def test_returns_400_on_invalid_input(self, client):
-        with patch("src.api_server.get_schedule_service") as mock_svc:
+        with patch("src.schedules.routes.get_schedule_service") as mock_svc:
             svc = Mock()
             svc.create_schedule.side_effect = ValueError("Missing page_id")
             mock_svc.return_value = svc
@@ -252,7 +258,7 @@ class TestCreateScheduleContract:
             end_time="06:00",
             day_pattern="all",
         )
-        with patch("src.api_server.get_schedule_service") as mock_svc:
+        with patch("src.schedules.routes.get_schedule_service") as mock_svc:
             svc = Mock()
             svc.create_schedule.return_value = overnight
             mock_svc.return_value = svc
@@ -267,7 +273,7 @@ class TestCreateScheduleContract:
                 },
             )
 
-        assert resp.status_code == 200
+        assert resp.status_code == 201  # 201 since the conventions pass
         data = resp.json()
         assert data["start_time"] == "22:00"
         assert data["end_time"] == "06:00"
@@ -280,7 +286,7 @@ class TestCreateScheduleContract:
 
 class TestSchedulesEnabledContract:
     def test_returns_200(self, client):
-        with patch("src.api_server.get_settings_service") as mock_settings:
+        with patch("src.schedules.routes.get_settings_service") as mock_settings:
             ss = Mock()
             ss.is_schedule_enabled.return_value = False
             mock_settings.return_value = ss
@@ -290,7 +296,7 @@ class TestSchedulesEnabledContract:
         assert resp.status_code == 200
 
     def test_response_has_enabled_field(self, client):
-        with patch("src.api_server.get_settings_service") as mock_settings:
+        with patch("src.schedules.routes.get_settings_service") as mock_settings:
             ss = Mock()
             ss.is_schedule_enabled.return_value = True
             mock_settings.return_value = ss
@@ -302,7 +308,7 @@ class TestSchedulesEnabledContract:
         assert isinstance(data["enabled"], bool)
 
     def test_enabled_false_validates(self, client):
-        with patch("src.api_server.get_settings_service") as mock_settings:
+        with patch("src.schedules.routes.get_settings_service") as mock_settings:
             ss = Mock()
             ss.is_schedule_enabled.return_value = False
             mock_settings.return_value = ss
@@ -313,7 +319,7 @@ class TestSchedulesEnabledContract:
         assert parsed.enabled is False
 
     def test_enabled_true_validates(self, client):
-        with patch("src.api_server.get_settings_service") as mock_settings:
+        with patch("src.schedules.routes.get_settings_service") as mock_settings:
             ss = Mock()
             ss.is_schedule_enabled.return_value = True
             mock_settings.return_value = ss
@@ -331,7 +337,7 @@ class TestSchedulesEnabledContract:
 
 class TestDefaultPageContract:
     def test_returns_200(self, client):
-        with patch("src.api_server.get_schedule_service") as mock_svc:
+        with patch("src.schedules.routes.get_schedule_service") as mock_svc:
             svc = Mock()
             svc.get_default_page.return_value = None
             mock_svc.return_value = svc
@@ -341,7 +347,7 @@ class TestDefaultPageContract:
         assert resp.status_code == 200
 
     def test_response_has_default_page_id(self, client):
-        with patch("src.api_server.get_schedule_service") as mock_svc:
+        with patch("src.schedules.routes.get_schedule_service") as mock_svc:
             svc = Mock()
             svc.get_default_page.return_value = None
             mock_svc.return_value = svc
@@ -352,7 +358,7 @@ class TestDefaultPageContract:
         assert "default_page_id" in data
 
     def test_null_default_page_is_valid(self, client):
-        with patch("src.api_server.get_schedule_service") as mock_svc:
+        with patch("src.schedules.routes.get_schedule_service") as mock_svc:
             svc = Mock()
             svc.get_default_page.return_value = None
             mock_svc.return_value = svc
@@ -363,7 +369,7 @@ class TestDefaultPageContract:
         assert parsed.page_id is None
 
     def test_set_default_page_id_reflects_in_response(self, client):
-        with patch("src.api_server.get_schedule_service") as mock_svc:
+        with patch("src.schedules.routes.get_schedule_service") as mock_svc:
             svc = Mock()
             svc.get_default_page.return_value = "my-default-page"
             mock_svc.return_value = svc

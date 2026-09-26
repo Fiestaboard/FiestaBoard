@@ -1,24 +1,16 @@
 """nginx must outwait the backend on the API proxy (issue #1886).
 
-A ``wait``-mode send (``/refresh``, ``/force-refresh``, ``/pages/{id}/send``,
-``PUT /settings/active-page``) runs the board send synchronously inside the
-HTTP request, and that send may drive a transition animation: the runner in
-``src/transitions/runner.py`` honors the manifest cap ``max_runtime_seconds``
-(default 120s), and cloud note-array boards additionally pace every frame —
-including the final snap-to-target — ``NOTE_ARRAY_MIN_SEND_INTERVAL`` (15s)
-apart. Minute-plus sends are therefore routine, not pathological.
-
-nginx's API proxy was on the stock ``proxy_read_timeout 60s`` /
-``proxy_send_timeout 30s``, so any send that legitimately ran longer than a
-minute returned 504 to the browser while the backend went on working for
-up to twice as long: the UI reported failure for a send that succeeded, and
-because /api 502/504s fall through to ``@api_starting``, the real JSON was
-replaced by "Service is starting up".
+``src.main.SEND_WAIT_TIMEOUT`` is how long a ``wait=True`` send blocks for its
+board job — 240s, sized in #1868 for a 120s transition ahead of us in the queue
+plus 15s cloud frame pacing plus our own paced send. nginx's API proxy was
+still on the stock ``proxy_read_timeout 60s``, so every send that legitimately
+took longer than a minute returned 504 to the browser while the backend went on
+working for up to four times as long: the UI reported failure for a send that
+succeeded, and the "please wait, the service is starting" body replaced the
+real JSON.
 
 That drift is the bug, so this test pins the RELATIONSHIP rather than the
-numbers: raising the backend's send budget without raising nginx fails here.
-(On the ``next`` rework branch the budget is ``src.main.SEND_WAIT_TIMEOUT`` =
-240s; the 300s the configs carry already outwaits that too.)
+numbers. Raising SEND_WAIT_TIMEOUT without raising nginx fails here.
 """
 
 import re
@@ -26,17 +18,7 @@ from pathlib import Path
 
 import pytest
 
-from src.board_client import NOTE_ARRAY_MIN_SEND_INTERVAL
-from src.plugins.manifest import MANIFEST_SCHEMA
-
-# Worst-case wall clock for one in-request board send: a transition running to
-# its default manifest cap, plus the paced final snap-to-target on a cloud
-# note-array board. Derived from the real constants, not restated, so the
-# assertion moves when the backend budget moves.
-_TRANSITION_RUNTIME_CAP = float(
-    MANIFEST_SCHEMA["properties"]["transition_settings"]["properties"]["max_runtime_seconds"]["default"]
-)
-BACKEND_SEND_BUDGET = _TRANSITION_RUNTIME_CAP + NOTE_ARRAY_MIN_SEND_INTERVAL
+from src.main import SEND_WAIT_TIMEOUT
 
 CONFIGS = ("nginx.conf", "nginx.https.conf", "nginx-dev.conf")
 API_LOCATIONS = ("/api/mcp", "/api/")
@@ -82,11 +64,9 @@ def test_api_proxy_outwaits_the_backend_send_budget(config_name: str, location: 
     body = _location_body((REPO_ROOT / config_name).read_text(encoding="utf-8"), location)
     value = _directive(body, directive)
 
-    assert value > BACKEND_SEND_BUDGET, (
-        f"{config_name} `location {location}` has {directive} {value:g}s but a wait-mode "
-        f"board send can legitimately run {BACKEND_SEND_BUDGET:g}s (transition "
-        f"max_runtime_seconds default {_TRANSITION_RUNTIME_CAP:g}s + {NOTE_ARRAY_MIN_SEND_INTERVAL:g}s "
-        f"cloud frame pacing for the final snap): the browser gets 504 while the backend is "
-        "still working (issue #1886). Raise the nginx timeout whenever the backend send "
-        "budget rises."
+    assert value > SEND_WAIT_TIMEOUT, (
+        f"{config_name} `location {location}` has {directive} {value:g}s but "
+        f"src.main.SEND_WAIT_TIMEOUT is {SEND_WAIT_TIMEOUT:g}s: a wait-mode send that runs "
+        f"longer than {value:g}s returns 504 to the browser while the backend is still working. "
+        "Raise the nginx timeout whenever SEND_WAIT_TIMEOUT rises."
     )

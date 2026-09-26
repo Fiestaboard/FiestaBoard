@@ -283,6 +283,7 @@ import { useEffectiveBoardColor } from "@/hooks/use-effective-board-color";
 import { useEffectiveCode62Glyph } from "@/hooks/use-effective-code62-glyph";
 import { useSearchParams } from "@/hooks/use-router";
 import { useTranslations } from "@/i18n/translations";
+import { anchorProps } from "@/lib/ai-choreography/anchors";
 import type { PluginInfo, RegistryEntry } from "@/lib/api";
 import { api } from "@/lib/api";
 import type { FiestaboardColorName } from "@/lib/board-colors";
@@ -1056,15 +1057,17 @@ function InstalledPluginRow({
     enabled: isConfigOpen,
   });
 
-  // Fetch current variable values (raw display data) for the Template Variables table.
-  // Polls while the sheet is open so users can watch values update during troubleshooting.
+  // Fetch current variable values (the plugin's raw data) for the Template
+  // Variables table. Polls while the sheet is open so users can watch values
+  // update during troubleshooting. Reads GET /v1/plugins/{id}/data, the
+  // successor of the deprecated GET /displays/{type}/raw (#1911).
   const {
-    data: rawDisplay,
-    isLoading: isLoadingRawDisplay,
-    isFetching: isFetchingRawDisplay,
+    data: pluginData,
+    isLoading: isLoadingPluginData,
+    isFetching: isFetchingPluginData,
   } = useQuery({
-    queryKey: ["plugin-display-raw", plugin.id],
-    queryFn: () => api.getDisplayRaw(plugin.id),
+    queryKey: ["plugin-data", plugin.id],
+    queryFn: () => api.getPluginData(plugin.id),
     enabled: isConfigOpen && plugin.enabled,
     refetchInterval: 15_000,
   });
@@ -1102,7 +1105,7 @@ function InstalledPluginRow({
       // that actually satisfied the requirements.
       queryClient.invalidateQueries({ queryKey: ["plugin", plugin.id] });
       queryClient.invalidateQueries({ queryKey: ["plugin-displays-batch"] });
-      queryClient.invalidateQueries({ queryKey: ["plugin-display-raw", plugin.id] });
+      queryClient.invalidateQueries({ queryKey: ["plugin-data", plugin.id] });
       queryClient.invalidateQueries({ queryKey: ["pagePreview"] });
       setIsConfigOpen(false);
     } catch (error) {
@@ -1116,7 +1119,7 @@ function InstalledPluginRow({
     setIsCreatingDemo(true);
     try {
       const result = await api.createPluginDemoPage(plugin.id);
-      const verb = result.status === "recreated" ? "recreated" : "created";
+      const verb = result.recreated ? "recreated" : "created";
       toast.success(`Demo page ${verb} for ${plugin.name}`);
       queryClient.invalidateQueries({ queryKey: ["plugin", plugin.id] });
       queryClient.invalidateQueries({ queryKey: ["pages"] });
@@ -1162,7 +1165,7 @@ function InstalledPluginRow({
   const renderVariableRow = (variable: PluginVariableRow) => {
     const resolved = formatCurrentValue(
       variable.name,
-      rawDisplay?.available ? (rawDisplay.data as Record<string, unknown>) : undefined,
+      pluginData?.available ? (pluginData.data as Record<string, unknown>) : undefined,
     );
     return (
       <TableRow
@@ -1188,9 +1191,9 @@ function InstalledPluginRow({
             <Text as="span" tone="muted">
               —
             </Text>
-          ) : isLoadingRawDisplay ? (
+          ) : isLoadingPluginData ? (
             <Skeleton className="h-3 w-16" />
-          ) : rawDisplay && rawDisplay.available === false ? (
+          ) : pluginData && pluginData.available === false ? (
             <Text as="span" tone="muted" className="italic">
               {t("valueUnavailable")}
             </Text>
@@ -1381,10 +1384,10 @@ function InstalledPluginRow({
                         {t("enablePluginForLiveValues")}
                       </Text>
                     )}
-                    {plugin.enabled && rawDisplay && rawDisplay.available === false && (
+                    {plugin.enabled && pluginData && pluginData.available === false && (
                       <Text size="xs" tone="warning">
-                        {rawDisplay.error
-                          ? t("liveValuesUnavailableWithError", { error: rawDisplay.error })
+                        {pluginData.error
+                          ? t("liveValuesUnavailableWithError", { error: pluginData.error })
                           : t("liveValuesUnavailable")}
                       </Text>
                     )}
@@ -1400,7 +1403,7 @@ function InstalledPluginRow({
                             </TableHead>
                             <TableHead className="text-left px-3 py-2 font-medium h-auto">
                               {t("currentValueColumn")}
-                              {plugin.enabled && isFetchingRawDisplay && !isLoadingRawDisplay && (
+                              {plugin.enabled && isFetchingPluginData && !isLoadingPluginData && (
                                 <Text as="span" size="xs" tone="muted" className="ml-1.5 text-[10px] font-normal">
                                   ({t("refreshingValues")})
                                 </Text>
@@ -1537,6 +1540,7 @@ function InstalledPluginRow({
   const rows = (
     <>
       <TableRow
+        {...anchorProps(`plugin.${plugin.id}`)}
         className={cn(
           "border-b last:border-b-0 transition-colors",
           isActive ? "hover:bg-muted/30" : "opacity-60 hover:opacity-80 hover:bg-muted/20",
@@ -1834,40 +1838,42 @@ function RegistryPluginCard({
   const code62Glyph = useEffectiveCode62Glyph();
 
   return (
-    <PluginCard
-      className="animate-card-fade-in"
-      style={{ animationDelay: `${index * 60}ms` }}
-      name={entry.name}
-      description={entry.description}
-      authorLabel={t("byAuthor", { author: entry.author })}
-      teaser={entry.teaser}
-      boardType={boardColor}
-      code62Glyph={code62Glyph}
-      renderLink={({ className, children }) => (
-        <Link href={`/integrations/${entry.id}`} className={className}>
-          {children}
-        </Link>
-      )}
-      action={
-        isInstalled ? (
-          <Badge variant="secondary" className="text-xs gap-1">
-            <CheckCircle className="h-3 w-3" />
-            {t("installedBadge")}
-          </Badge>
-        ) : (
-          <Button
-            size="sm"
-            variant="outline"
-            className="h-8 text-xs"
-            onClick={() => onInstall(entry.id)}
-            disabled={isInstalling}
-          >
-            <ArrowDownToLine className={cn("h-3 w-3 mr-1", isInstalling && "animate-bounce")} />
-            {isInstalling ? t("installing") : t("installAction")}
-          </Button>
-        )
-      }
-    />
+    <Box {...anchorProps(`plugin.${entry.id}`)}>
+      <PluginCard
+        className="animate-card-fade-in"
+        style={{ animationDelay: `${index * 60}ms` }}
+        name={entry.name}
+        description={entry.description}
+        authorLabel={t("byAuthor", { author: entry.author })}
+        teaser={entry.teaser}
+        boardType={boardColor}
+        code62Glyph={code62Glyph}
+        renderLink={({ className, children }) => (
+          <Link href={`/integrations/${entry.id}`} className={className}>
+            {children}
+          </Link>
+        )}
+        action={
+          isInstalled ? (
+            <Badge variant="secondary" className="text-xs gap-1">
+              <CheckCircle className="h-3 w-3" />
+              {t("installedBadge")}
+            </Badge>
+          ) : (
+            <Button
+              size="sm"
+              variant="outline"
+              className="h-8 text-xs"
+              onClick={() => onInstall(entry.id)}
+              disabled={isInstalling}
+            >
+              <ArrowDownToLine className={cn("h-3 w-3 mr-1", isInstalling && "animate-bounce")} />
+              {isInstalling ? t("installing") : t("installAction")}
+            </Button>
+          )
+        }
+      />
+    </Box>
   );
 }
 
@@ -1899,7 +1905,10 @@ function RegistryPluginRow({
   }, [entry.added]);
   const Icon = ICON_MAP[normalizePluginIconKey(entry.icon)] ?? Puzzle;
   return (
-    <TableRow className="border-b last:border-b-0 hover:bg-muted/30 transition-colors">
+    <TableRow
+      className="border-b last:border-b-0 hover:bg-muted/30 transition-colors"
+      {...anchorProps(`plugin.${entry.id}`)}
+    >
       <TableCell className="px-4 py-2.5">
         <Link href={`/integrations/${entry.id}`} className="flex items-center gap-3 group">
           <Box className="p-1.5 rounded-md bg-muted text-muted-foreground shrink-0">
@@ -2454,7 +2463,7 @@ export default function IntegrationsPage() {
             </Box>
           </PageToolbar>
 
-          <PageSection>
+          <PageSection {...anchorProps("integrations.root")}>
             {/* ── Installed Tab ── */}
             <TabsContent value="installed" className="mt-0">
               {isLoading ? (

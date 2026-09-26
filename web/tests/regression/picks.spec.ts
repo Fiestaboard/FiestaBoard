@@ -285,12 +285,11 @@ test.describe("regression: picks.card", () => {
     await page.route("**/api/pages/import", async (route) => {
       await gate;
       await route.fulfill({
-        status: 200,
+        // 201 + the bare page, matching POST /pages/import since the Phase 2
+        // conventions pass — picks.tsx reads `data.name` straight off it.
+        status: 201,
         contentType: "application/json",
-        body: JSON.stringify({
-          status: "ok",
-          page: { id: "imported-1", name: "Import Pending Pick" },
-        }),
+        body: JSON.stringify({ id: "imported-1", name: "Import Pending Pick" }),
       });
     });
 

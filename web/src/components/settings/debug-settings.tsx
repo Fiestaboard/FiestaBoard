@@ -44,7 +44,8 @@ import { useState } from "react";
 import { toast } from "sonner";
 
 import { useTranslations } from "@/i18n/translations";
-import type { NetworkDiagnosticsResult } from "@/lib/api";
+import { anchorProps } from "@/lib/ai-choreography/anchors";
+import type { DiagnosticStepResult, NetworkDiagnosticsResult, VestaboardDiagnostics } from "@/lib/api";
 import { api } from "@/lib/api";
 
 // Character code definitions matching board_chars.py
@@ -161,10 +162,9 @@ export function DebugSettings() {
 
   // Network diagnostics mutation
   const networkDiagnosticsMutation = useMutation({
-    mutationFn: async () => {
-      const response = await api.getNetworkDiagnostics();
-      return response.diagnostics;
-    },
+    // GET /debug/network-diagnostics returns the verdict itself since the
+    // Phase 2 debug slice — there is no { status, diagnostics } envelope.
+    mutationFn: () => api.getNetworkDiagnostics(),
     onSuccess: (data: NetworkDiagnosticsResult) => {
       if (data.overall_ok) {
         toast.success(t("toastNetworkSuccess"));
@@ -201,7 +201,7 @@ export function DebugSettings() {
 
   return (
     <Collapsible open={open} onOpenChange={setOpen}>
-      <PageSection>
+      <PageSection {...anchorProps("settings.debug")}>
         {/* -mx-6 -my-6 …: the whole section is the trigger's hit area, so it
             bleeds back out over the block padding the page card supplies and
             restates it, rather than assuming a card of its own. */}
@@ -639,7 +639,7 @@ function DiagnosticRow({
 }: {
   icon: React.ReactNode;
   label: string;
-  result: { ok: boolean; latency_ms?: number };
+  result: DiagnosticStepResult;
   detail: string;
 }) {
   const t = useTranslations("debugSettings");
@@ -664,26 +664,7 @@ function DiagnosticRow({
   );
 }
 
-function VestaboardDiagnosticRow({
-  vestaboard,
-}: {
-  vestaboard: {
-    ok: boolean;
-    mode: "local" | "cloud" | null;
-    steps: Record<
-      string,
-      {
-        ok: boolean;
-        latency_ms?: number;
-        status_code?: number | null;
-        error?: string;
-        hostname?: string;
-        port?: number;
-      }
-    >;
-    error?: string;
-  };
-}) {
+function VestaboardDiagnosticRow({ vestaboard }: { vestaboard: VestaboardDiagnostics }) {
   const t = useTranslations("debugSettings");
   if (vestaboard.mode === null) {
     return (

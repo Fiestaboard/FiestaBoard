@@ -8,6 +8,7 @@ import { toast } from "sonner";
 
 import { useDepsChanged } from "@/hooks/use-deps-changed";
 import { useTranslations } from "@/i18n/translations";
+import { anchorProps } from "@/lib/ai-choreography/anchors";
 import { api } from "@/lib/api";
 
 export function InstanceNameCard() {
@@ -43,7 +44,12 @@ export function InstanceNameCard() {
   }, [instanceName, allSettings?.general?.instance_name, updateGeneralMutation]);
 
   return (
-    <PageSection icon={<Tag />} title={t("instanceNameTitle")} description={t("instanceNameDescription")}>
+    <PageSection
+      icon={<Tag />}
+      title={t("instanceNameTitle")}
+      description={t("instanceNameDescription")}
+      {...anchorProps("settings.general")}
+    >
       {isLoading ? (
         <Skeleton className="h-10 w-full max-w-sm" />
       ) : (

@@ -6,6 +6,7 @@ import { Puzzle, RefreshCw } from "lucide-react";
 import { toast } from "sonner";
 
 import { useTranslations } from "@/i18n/translations";
+import { anchorProps } from "@/lib/ai-choreography/anchors";
 import { api } from "@/lib/api";
 import { cn } from "@/lib/utils";
 
@@ -56,7 +57,13 @@ export function PluginSettingsCard() {
   }
 
   return (
-    <PageSection icon={<Puzzle />} title={t("title")} description={t("description")} contentClassName="space-y-3">
+    <PageSection
+      icon={<Puzzle />}
+      title={t("title")}
+      description={t("description")}
+      contentClassName="space-y-3"
+      {...anchorProps("settings.plugins")}
+    >
       <Flex align="start" justify="between" gap="4" className="rounded-md border p-4">
         <Stack gap="1">
           <Text as="span" weight="medium">
@@ -65,7 +72,8 @@ export function PluginSettingsCard() {
           <Text tone="muted">{t("autoUpdateDescription")}</Text>
         </Stack>
         <Switch
-          checked={data.settings.auto_update}
+          checked={data.auto_update}
+          {...anchorProps("settings.plugins.auto_update")}
           disabled={mutation.isPending}
           onCheckedChange={(checked) => mutation.mutate(checked)}
           aria-label={t("autoUpdateLabel")}

@@ -1,0 +1,76 @@
+// Which cached queries a tool's result makes stale.
+//
+// The server reports what a tool did (`tool_result`), not which of the
+// browser's caches that touches — the query keys are a web concern, and the
+// MCP server must not learn them. This is the web-side mirror of the tool
+// list: one entry per tool that writes, keyed by the MCP tool name, plus a
+// broad fallback for a tool this map does not know so a new server tool
+// still refreshes the screen.
+
+import type { SettingCategory, ToolCall, UpdateSettingArgs } from "@/lib/ai-chat-types";
+
+type Keys = readonly (readonly string[])[];
+
+const PLUGINS: Keys = [["plugins"], ["registry-plugins"]];
+
+/** Keys per tool. Prefix keys: `["schedules"]` matches `["schedules", boardId]` too. */
+export const TOOL_QUERY_KEYS: Record<string, Keys> = {
+  create_page: [["pages"], ["pagePreview"]],
+  update_page: [["pages"], ["page"], ["pagePreview"], ["activePage"], ["status"]],
+  delete_page: [["pages"], ["schedules"], ["collections"], ["activePage"]],
+  create_schedule: [["schedules"]],
+  update_schedule: [["schedules"]],
+  delete_schedule: [["schedules"]],
+  create_collection: [["collections"]],
+  update_collection: [["collections"]],
+  delete_collection: [["collections"], ["schedules"]],
+  install_plugin: PLUGINS,
+  enable_plugin: PLUGINS,
+  disable_plugin: PLUGINS,
+  uninstall_plugin: PLUGINS,
+  configure_plugin: PLUGINS,
+  update_plugin: PLUGINS,
+  set_active_page: [["activePage"], ["status"], ["board-current-message"]],
+  set_schedule_mode: [["schedules"], ["status"]],
+  send_message: [["board-current-message"], ["status"]],
+  // A system update recreates the container; nothing local is worth refetching.
+  trigger_system_update: [],
+};
+
+/**
+ * update_setting refreshes the category it touched. Most settings cards
+ * read from the one `all-settings` query; the two categories with their
+ * own query get it as well. Every key here must be a queryKey prefix some
+ * component actually uses — tests/test_ops_wiring.py checks the source.
+ */
+export const SETTING_QUERY_KEYS: Record<SettingCategory, Keys> = {
+  display: [["all-settings"], ["status"]],
+  transitions: [["all-settings"]],
+  output: [["all-settings"]],
+  polling: [["polling-settings"], ["all-settings"]],
+  location: [["location-settings"], ["settings", "location"], ["all-settings"]],
+  silence_schedule: [["all-settings"], ["status"]],
+  active_page: [["activePage"], ["status"], ["board-current-message"]],
+};
+
+/**
+ * Read-only tools touch nothing; a writer this map does not know refreshes
+ * everything any known writer touches. A new server tool must never leave a
+ * cache stale just because the web side has not learned its name yet.
+ */
+const BROAD: Keys = [
+  ...new Map(
+    [...Object.values(TOOL_QUERY_KEYS), ...Object.values(SETTING_QUERY_KEYS)]
+      .flat()
+      .map((key) => [key.join("/"), key] as const),
+  ).values(),
+];
+
+export function queryKeysForTool(call: Pick<ToolCall, "name" | "args" | "read_only">): Keys {
+  if (call.read_only) return [];
+  if (call.name === "update_setting") {
+    const category = (call.args as unknown as UpdateSettingArgs).category;
+    return SETTING_QUERY_KEYS[category] ?? [["all-settings"]];
+  }
+  return TOOL_QUERY_KEYS[call.name] ?? BROAD;
+}

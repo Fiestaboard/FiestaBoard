@@ -395,10 +395,11 @@ test.describe("MCP", () => {
       const pages = (await callTool(request, sessionId, "list_pages", {}, 101)) as Array<Record<string, unknown>>;
       expect(pages.some((p) => p.id === pageId)).toBe(true);
 
-      const schedules = (await callTool(request, sessionId, "list_schedules", {}, 102)) as Array<
-        Record<string, unknown>
-      >;
-      const mine = schedules.find((s) => s.id === scheduleId);
+      // list_schedules returns the Schedules-page shape, not a bare array.
+      const listed = (await callTool(request, sessionId, "list_schedules", {}, 102)) as {
+        schedules: Array<Record<string, unknown>>;
+      };
+      const mine = listed.schedules.find((s) => s.id === scheduleId);
       expect(mine, "schedule vanished between create and list").toBeTruthy();
       expect(mine!.page_id).toBe(pageId);
       expect(mine!.start_time).toBe("07:30");

@@ -35,7 +35,9 @@ import {
   ScrollArea,
   Select,
   SelectContent,
+  SelectGroup,
   SelectItem,
+  SelectLabel,
   SelectTrigger,
   SelectValue,
   Skeleton,
@@ -67,6 +69,7 @@ import { BoardSizeIndicator } from "@/components/board-size-indicator";
 import { useCurrentBoard } from "@/components/current-board-context";
 import type { StrokeCell } from "@/components/drawable-board-preview";
 import { DrawableBoardPreview } from "@/components/drawable-board-preview";
+import { PanelFitNote } from "@/components/panel-fit-note";
 import { PlainTextEditor } from "@/components/plain-text-editor";
 import { ScaledBoardDisplay } from "@/components/scaled-board-display";
 import type {
@@ -87,14 +90,17 @@ import {
   resolveCode62Glyph,
   useBoardSettings,
 } from "@/hooks/use-board";
+import { usePanelTargets } from "@/hooks/use-panel-targets";
 import { useRouter } from "@/hooks/use-router";
 import { useTranslations } from "@/i18n/translations";
-import type { CurrentPageSnapshot, ToolCall } from "@/lib/ai-chat-types";
+import type { CurrentPageSnapshot, EditorToolCall } from "@/lib/ai-chat-types";
+import { anchorProps } from "@/lib/ai-choreography/anchors";
 import type {
   BoardInstance,
   DeviceType,
   LineAlignment,
   LineMetadata,
+  Page,
   PageCreate,
   PageType,
   PageUpdate,
@@ -104,6 +110,8 @@ import { api } from "@/lib/api";
 import { MAX_NOTES_PER_AXIS, resolveDimensions } from "@/lib/board-dimensions";
 import { applyLineOpInPlace } from "@/lib/line-ops";
 import { onLiveOutputMessageChange, writeLiveOutputMessage } from "@/lib/live-output-channel";
+import { getDraftKey } from "@/lib/page-draft";
+import { panelsFittingGrid } from "@/lib/panel-page-fit";
 import { clearPreviewCacheForPage } from "@/lib/preview-cache";
 
 // Lazy-loaded — TipTap + ProseMirror + CodeMirror + the lucide-react icon
@@ -134,14 +142,24 @@ interface PageBuilderProps {
 export interface PageBuilderHandle {
   getCurrentPage: () => CurrentPageSnapshot | undefined;
   getDeviceType: () => DeviceType;
-  applyToolCall: (call: ToolCall) => void;
-  /**
-   * Persist the current editor content to the API without closing.
-   * Used by the AI chaining layer to auto-save before navigating away.
-   */
+  applyToolCall: (call: EditorToolCall) => void;
+  /** Persist the current editor content to the API without closing. */
   save: () => Promise<{ id: string } | null>;
   undo: () => void;
   canUndo: () => boolean;
+  hasUnsavedChanges: () => boolean;
+  /**
+   * The AI walkthrough types a page in for real while the server writes
+   * it. Staging takes one snapshot, suspends the draft autosave and locks
+   * Save; `discardStaging` restores the snapshot, `reloadFromServer`
+   * re-seeds from the saved page. Neither leaves a "Draft restored" behind.
+   */
+  beginStaging: () => void;
+  stageName: (value: string) => void;
+  stageLine: (index: number, value: string) => void;
+  stageDeviceType: (value: string) => void;
+  discardStaging: () => void;
+  reloadFromServer: () => Promise<void>;
 }
 
 interface PageSnapshot {
@@ -168,11 +186,6 @@ const UNDO_STACK_LIMIT = 5;
 
 // 1..MAX_NOTES_PER_AXIS choices for the note-array W×H selectors.
 const NOTE_AXIS_OPTIONS = Array.from({ length: MAX_NOTES_PER_AXIS }, (_, i) => i + 1);
-
-// Draft storage key helper
-function getDraftKey(pageId?: string): string {
-  return `fiestaboard-page-draft-${pageId || "new"}`;
-}
 
 const EDITOR_MODE_KEY = "fiestaboard_editor_mode";
 
@@ -222,6 +235,7 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
   const t = useTranslations("pageBuilder");
   const tCommon = useTranslations("common");
   const tDisplaySettings = useTranslations("displaySettings");
+  const tPanels = useTranslations("fiestaPanels");
   // Shared with the global transition settings card so both surfaces label the
   // built-in strategies identically.
   const tTransitions = useTranslations("transitionSettings");
@@ -240,6 +254,12 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
   // (new page), or an AI sync — see the effects below.
   const [notesWide, setNotesWide] = useState(1);
   const [notesTall, setNotesTall] = useState(1);
+  // Set when the user picks a FiestaPanel by name in the size picker: the
+  // panel's grid is the explicit choice, so the board-seeding effect below
+  // must not overwrite it with the selected board's shape. Cleared again when
+  // a generic device is chosen, so the seed is back in charge.
+  const [panelSizedGrid, setPanelSizedGrid] = useState(false);
+  const panelTargets = usePanelTargets();
   const dims = resolveDimensions(deviceType, notesWide, notesTall);
   const numLines = dims.rows;
   // Latest numLines for effects that need it without becoming reactive to it
@@ -284,7 +304,45 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
   // below for how a painted stroke flows back into templateLines.
   const [drawMode, setDrawMode] = useState(false);
   const [drawBrush, setDrawBrush] = useState<DrawBrush>({ kind: "color", color: "red" });
+
   const [strokePreviewCells, setStrokePreviewCells] = useState<StrokeCell[]>([]);
+
+  /**
+   * The size picker offers two kinds of choice: a generic device type, and a
+   * FiestaPanel by name (``panel:<id>``). A panel resolves to a note_array
+   * page plus that panel's grid — a panel's board IS a note array, so there is
+   * no fourth device type and nothing is stored on the page to say which panel
+   * it was made for. The grid is the whole relationship.
+   */
+  const handleSizeChange = useCallback(
+    (value: string) => {
+      const panel = value.startsWith("panel:") ? panelTargets.find((p) => `panel:${p.id}` === value) : undefined;
+      if (panel) {
+        setDeviceType("note_array");
+        setNotesWide(panel.notesWide);
+        setNotesTall(panel.notesTall);
+        setPanelSizedGrid(true);
+      } else {
+        setDeviceType(value as DeviceType);
+        setPanelSizedGrid(false);
+      }
+      setDrawMode(false);
+    },
+    [panelTargets],
+  );
+
+  /**
+   * What the size picker's trigger shows, and which row is highlighted when it
+   * reopens. Derived from the geometry rather than held as its own state: a
+   * panel choice resolves to note_array + a grid, so a picker controlled by
+   * ``deviceType`` alone would snap to "Note Array" the instant a panel was
+   * chosen and forget it had been. Naming the panel whose board this grid
+   * matches is also simply truer — that IS the page's shape.
+   */
+  const sizeSelectValue = useMemo(() => {
+    const [fit] = panelsFittingGrid(panelTargets, deviceType, notesWide, notesTall);
+    return fit ? `panel:${fit.id}` : deviceType;
+  }, [panelTargets, deviceType, notesWide, notesTall]);
   const tipTapRef = useRef<TipTapTemplateEditorHandle>(null);
   // Metadata history keyed to stroke boundaries: done/undone mirror the
   // editor's stroke undo/redo stacks (reported via onDrawHistoryEvent).
@@ -390,13 +448,16 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
     setDebouncedLineWrapEnabled(snap.lineWrapEnabled);
   }, []);
 
-  /** Apply one structured AI tool call to the editor state. */
+  /**
+   * Apply one editor-local edit to the draft. The AI chat no longer drives
+   * this directly (its tools write through the server); it stays as the
+   * editor bridge's apply path until the staged-typing work replaces it.
+   */
   const applyToolCall = useCallback(
-    (call: ToolCall) => {
-      // `suggest_variables` is read-only (surfaced in the chat UI); every
-      // other op is handled by the global AI drawer (navigation, plugins,
-      // schedules) and must never fall through to the apply_patch branch
-      // below, which would read `.changes` off the wrong args shape.
+    (call: EditorToolCall) => {
+      // Only the two editor-local ops are applied here; anything else must
+      // never fall through to the apply_patch branch below, which would
+      // read `.changes` off the wrong args shape.
       if (call.op !== "replace_page" && call.op !== "apply_patch") {
         return;
       }
@@ -454,6 +515,9 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
     const lines = templateLinesRef.current;
     if (!nameRef.current && !lines.some((l) => l)) return undefined;
     return {
+      // The id tells the assistant whether update_page can target this
+      // page; an unsaved draft has none and is created instead.
+      ...(pageId ? { id: pageId } : {}),
       name: nameRef.current,
       template: lines,
       line_metadata: lines.map((_, i) => ({
@@ -461,11 +525,74 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
         wrap: lineWrapEnabledRef.current[i] ?? false,
       })),
     };
+  }, [pageId]);
+
+  const takeSnapshot = useCallback(
+    (): PageSnapshot => ({
+      name: nameRef.current,
+      deviceType: deviceTypeRef.current,
+      templateLines: [...templateLinesRef.current],
+      lineAlignments: [...lineAlignmentsRef.current],
+      lineWrapEnabled: [...lineWrapEnabledRef.current],
+    }),
+    [],
+  );
+
+  const beginStaging = useCallback(() => {
+    if (stagingSnapshotRef.current) return;
+    stagingSnapshotRef.current = takeSnapshot();
+    setStagingActive(true);
+  }, [takeSnapshot]);
+
+  const stageName = useCallback((value: string) => {
+    setName(value);
   }, []);
+
+  const stageLine = useCallback((index: number, value: string) => {
+    skipNextPreviewDebounceRef.current = true;
+    setTemplateLines((prev) => {
+      const next = [...prev];
+      while (next.length <= index) next.push("");
+      next[index] = value;
+      return next;
+    });
+  }, []);
+
+  const stageDeviceType = useCallback((value: string) => {
+    setDeviceType(value as DeviceType);
+    setDrawMode(false);
+  }, []);
+
+  const discardStaging = useCallback(() => {
+    const snap = stagingSnapshotRef.current;
+    stagingSnapshotRef.current = null;
+    setStagingActive(false);
+    if (snap) applySnapshot(snap);
+    try {
+      localStorage.removeItem(getDraftKey(pageId));
+    } catch {
+      /* storage may be unavailable */
+    }
+  }, [applySnapshot, pageId]);
+
+  const reloadFromServer = useCallback(async () => {
+    stagingSnapshotRef.current = null;
+    setStagingActive(false);
+    if (!pageId) return;
+    forceReseedRef.current = true;
+    await queryClient.invalidateQueries({ queryKey: ["page", pageId] });
+  }, [pageId, queryClient]);
 
   useImperativeHandle(
     ref,
     (): PageBuilderHandle => ({
+      hasUnsavedChanges: () => hasUnsavedChangesRef.current,
+      beginStaging,
+      stageName,
+      stageLine,
+      stageDeviceType,
+      discardStaging,
+      reloadFromServer,
       getCurrentPage: getCurrentPageSnapshot,
       getDeviceType: () => deviceTypeRef.current,
       applyToolCall,
@@ -480,32 +607,35 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
             deviceTypeRef.current === "note_array"
               ? { notes_wide: notesWideRef.current, notes_tall: notesTallRef.current }
               : {};
-          let result: { page: { id: string } };
-          if (pageId) {
-            result = await api.updatePage(pageId, {
-              name: nameRef.current,
-              device_type: deviceTypeRef.current,
-              template: cleanedLines,
-              line_metadata: metadata,
-              ...noteArrayDims,
-            });
-          } else {
-            result = await api.createPage({
-              name: nameRef.current,
-              type: "template" as PageType,
-              device_type: deviceTypeRef.current,
-              template: cleanedLines,
-              line_metadata: metadata,
-              ...noteArrayDims,
-            });
-          }
+          // The two endpoints no longer share a shape: PUT answers
+          // { page, incompatible_references }, POST answers the bare page at
+          // 201. Narrow to the saved page here so everything below reads one
+          // thing.
+          const saved: Page = pageId
+            ? (
+                await api.updatePage(pageId, {
+                  name: nameRef.current,
+                  device_type: deviceTypeRef.current,
+                  template: cleanedLines,
+                  line_metadata: metadata,
+                  ...noteArrayDims,
+                })
+              ).page
+            : await api.createPage({
+                name: nameRef.current,
+                type: "template" as PageType,
+                device_type: deviceTypeRef.current,
+                template: cleanedLines,
+                line_metadata: metadata,
+                ...noteArrayDims,
+              });
           // Invalidate the pages list and this page's preview, but don't close.
           queryClient.invalidateQueries({ queryKey: queryKeys.pages, refetchType: "active" });
           queryClient.invalidateQueries({
-            queryKey: queryKeys.pagePreview(result.page.id),
+            queryKey: queryKeys.pagePreview(saved.id),
             refetchType: "active",
           });
-          return { id: result.page.id };
+          return { id: saved.id };
         } catch {
           return null;
         }
@@ -517,7 +647,20 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
     // when the stack changes (the function returned by canUndo always
     // sees the latest ref, but consumers may render gates off it).
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [getCurrentPageSnapshot, applyToolCall, handleUndoAi, undoVersion, pageId, queryClient],
+    [
+      getCurrentPageSnapshot,
+      applyToolCall,
+      handleUndoAi,
+      undoVersion,
+      pageId,
+      queryClient,
+      beginStaging,
+      stageName,
+      stageLine,
+      stageDeviceType,
+      discardStaging,
+      reloadFromServer,
+    ],
   );
 
   const handleEditorModeChange = useCallback((mode: "rich" | "plain") => {
@@ -712,9 +855,31 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
   const isShrinkingRetarget =
     !!pageId && !!originalDims && (dims.rows < originalDims.rows || dims.cols < originalDims.cols);
 
+  // Refetches of the page (the AI drawer invalidates ["page"] after an
+  // update_page) must not overwrite what the user is typing: seed once per
+  // page, and re-seed later only while the editor is clean. Read through a
+  // ref so the effect does not re-run on every keystroke.
+  const hasUnsavedChangesRef = useRef(false);
+  useEffect(() => {
+    hasUnsavedChangesRef.current = hasUnsavedChanges;
+  }, [hasUnsavedChanges]);
+  const seededPageIdRef = useRef<string | null>(null);
+  // A reload the walkthrough asked for re-seeds even though staging left
+  // the editor looking dirty.
+  const forceReseedRef = useRef(false);
+  // While the walkthrough stages values: the snapshot to restore, and a
+  // flag the autosave and Save button read.
+  const stagingSnapshotRef = useRef<PageSnapshot | null>(null);
+  const [stagingActive, setStagingActive] = useState(false);
+
   // Load draft or existing page data
   useEffect(() => {
     if (existingPage) {
+      if (seededPageIdRef.current === existingPage.id && hasUnsavedChangesRef.current && !forceReseedRef.current) {
+        return;
+      }
+      forceReseedRef.current = false;
+      seededPageIdRef.current = existingPage.id;
       // Clear draft when loading existing page
       const draftKey = getDraftKey(pageId);
       localStorage.removeItem(draftKey);
@@ -806,15 +971,17 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
 
   // Seed note-array grid dimensions for a NEW note_array page from the
   // configured note_array board, so the editor previews at the board's real
-  // size before the page has ever been saved. The currently selected board
-  // wins when it IS a note array — with several note-array boards (e.g. a
+  // size before the page has ever been saved. Skipped once the user has picked
+  // a FiestaPanel by name (``panelSizedGrid``): that grid was chosen, not
+  // inferred. The currently selected board wins when it IS a note array —
+  // with several note-array boards (e.g. a
   // physical array plus a FiestaPanel's virtual board), seeding from the
   // first match would author a page sized for a different board than the
   // one the user is looking at. Existing pages source their dims from the
   // load effect above; flagship/note pages never run this branch and stay
   // 1×1 (which resolves to their fixed device size).
   useEffect(() => {
-    if (pageId || deviceType !== "note_array" || !boardSettings?.boards) return;
+    if (pageId || panelSizedGrid || deviceType !== "note_array" || !boardSettings?.boards) return;
     const boards = boardSettings.boards;
     const board =
       boards.find((b) => b.id === currentBoardId && b.device_type === "note_array") ??
@@ -822,7 +989,7 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
     if (!board) return;
     setNotesWide(board.notes_wide ?? 1);
     setNotesTall(board.notes_tall ?? 1);
-  }, [pageId, deviceType, boardSettings?.boards, currentBoardId]);
+  }, [pageId, panelSizedGrid, deviceType, boardSettings?.boards, currentBoardId]);
 
   useEffect(() => {
     const timeoutId = setTimeout(() => {
@@ -853,6 +1020,10 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
     if (existingPage) {
       return;
     }
+    // A staged reveal is not the user's draft.
+    if (stagingActive) {
+      return;
+    }
 
     // Debounce draft saving
     const timeoutId = setTimeout(() => {
@@ -872,7 +1043,7 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
     }, 1000); // Save draft 1 second after last change
 
     return () => clearTimeout(timeoutId);
-  }, [name, templateLines, lineAlignments, lineWrapEnabled, pageId, existingPage]);
+  }, [name, templateLines, lineAlignments, lineWrapEnabled, pageId, existingPage, stagingActive]);
 
   // Auto-resize textareas when content changes
   useEffect(() => {
@@ -972,8 +1143,11 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
 
   // Save mutation
   const saveMutation = useMutation({
-    // Create and update share the `{ status, page }` envelope; only update can
-    // carry `incompatible_references`, which is optional on the shared type.
+    // Since the Phase 2 conventions pass the two endpoints answer differently:
+    // PUT gives `{ page, incompatible_references }`, POST gives the bare page
+    // at 201. Both are normalized to PageUpdateResponse here so `onSuccess`
+    // reads one shape — a create simply reports no stale references, which is
+    // true: a brand-new page cannot have any.
     mutationFn: async (): Promise<PageUpdateResponse> => {
       const { cleanedLines, metadata } = processLinesWithPrefixes(templateLines, lineAlignments, lineWrapEnabled);
       if (pageId) {
@@ -999,14 +1173,14 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
           transition_strategy: transitionStrategy,
           ...(deviceType === "note_array" ? { notes_wide: notesWide, notes_tall: notesTall } : {}),
         };
-        return api.createPage(payload);
+        const created = await api.createPage(payload);
+        return { page: created, incompatible_references: [] };
       }
     },
     onSuccess: (data) => {
-      // Both POST /pages and PUT /pages/{id} answer with `{ status, page }`,
-      // so the saved id is `data.page.id` — reading `data.id` here was always
-      // undefined and silently skipped every id-keyed cleanup below when
-      // creating a new page (issue #1586).
+      // The saved page is always `data.page` after the normalization in
+      // mutationFn — reading `data.id` here was undefined and silently skipped
+      // every id-keyed cleanup below when creating a new page (issue #1586).
       const targetPageId = pageId || data.page.id;
 
       // Clear draft on successful save
@@ -1045,7 +1219,7 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
       // it no longer fits. Non-blocking — the save already succeeded and
       // nothing is auto-removed.
       const incompatibleRefs = data.incompatible_references;
-      if (incompatibleRefs && incompatibleRefs.length > 0) {
+      if (incompatibleRefs.length > 0) {
         const list = incompatibleRefs
           .map(
             (ref) =>
@@ -1166,7 +1340,7 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
         };
       }
 
-      return api.renderTemplate(cleanedLines, metadata, deviceType);
+      return api.renderTemplate(cleanedLines, metadata, deviceType, notesWide, notesTall);
     },
     onSuccess: (data) => {
       if (shouldIgnoreNextResponse.current) {
@@ -1229,6 +1403,9 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
 
   // Auto-preview when debounced template lines or alignments change (debounced)
   // Skipped when live mode is on — the live fast path handles preview updates directly.
+  // notesWide/notesTall are tracked too so widening a note array re-previews at
+  // the new width (issue #2032): a notesTall change already resizes
+  // templateLines, but a width change leaves the row count untouched.
   useEffect(() => {
     if (liveOutputEnabled) {
       needsRePreview.current = false;
@@ -1285,7 +1462,14 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
         transitionTimeoutRef.current = null;
       }
     };
-  }, [debouncedTemplateLines, debouncedLineAlignments, debouncedLineWrapEnabled, liveOutputEnabled]);
+  }, [
+    debouncedTemplateLines,
+    debouncedLineAlignments,
+    debouncedLineWrapEnabled,
+    liveOutputEnabled,
+    notesWide,
+    notesTall,
+  ]);
 
   // Live output mutation - sends rendered preview to the board
   const liveSendMutation = useMutation({
@@ -1295,7 +1479,14 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
         debouncedLineAlignments,
         debouncedLineWrapEnabled,
       );
-      return api.renderTemplateLive(cleanedLines, selectedBoardId || undefined, metadata, deviceType);
+      return api.renderTemplateLive(
+        cleanedLines,
+        selectedBoardId || undefined,
+        metadata,
+        deviceType,
+        notesWide,
+        notesTall,
+      );
     },
     onSuccess: (data) => {
       if (data.sent_to_board) {
@@ -1378,6 +1569,8 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
           selectedBoardId || undefined,
           metadata,
           deviceType,
+          notesWide,
+          notesTall,
           controller.signal,
         );
 
@@ -1408,7 +1601,17 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
         liveAbortRef.current = null;
       }
     };
-  }, [liveOutputEnabled, templateLines, lineAlignments, lineWrapEnabled, selectedBoardId, deviceType, queryClient]);
+  }, [
+    liveOutputEnabled,
+    templateLines,
+    lineAlignments,
+    lineWrapEnabled,
+    selectedBoardId,
+    deviceType,
+    notesWide,
+    notesTall,
+    queryClient,
+  ]);
 
   // Initialize selected board to first board when settings load
   useEffect(() => {
@@ -1739,6 +1942,7 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
                         variant="brand"
                         size="sm"
                         className="h-8 gap-1.5 px-3 text-xs"
+                        {...anchorProps("page-editor.save")}
                         onClick={() => {
                           // A shrinking retarget loses content — confirm first.
                           if (isShrinkingRetarget) {
@@ -1747,7 +1951,7 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
                             saveMutation.mutate();
                           }
                         }}
-                        disabled={!name.trim() || saveMutation.isPending}
+                        disabled={!name.trim() || saveMutation.isPending || stagingActive}
                         aria-label={t("savePageAriaLabel")}
                       >
                         <Save className="h-3.5 w-3.5" />
@@ -1853,7 +2057,7 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
                   </Flex>
                 </Flex>
                 {editorMode === "rich" ? (
-                  <Box>
+                  <Box {...anchorProps("page-editor.template")}>
                     {/* Template editor with device-specific dimensions */}
                     <Suspense fallback={<Skeleton className="h-48 w-full rounded-md" />}>
                       <TipTapTemplateEditor
@@ -1944,7 +2148,7 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
                     </Suspense>
                   </Box>
                 ) : (
-                  <Box>
+                  <Box {...anchorProps("page-editor.template")}>
                     <PlainTextEditor
                       value={templateLines.join("\n")}
                       onChange={(newValue) => {
@@ -2001,24 +2205,39 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
                         notesTall={notesTall}
                         className="ml-1"
                       />
+                      <PanelFitNote deviceType={deviceType} notesWide={notesWide} notesTall={notesTall} />
                       {/* Device/size retarget (issue #1250): both new AND saved
                           pages can change board size. Converting a saved page is
                           lossy (shrinks truncate), so saving a shrinking retarget
                           asks for confirmation first. */}
-                      <Select
-                        value={deviceType}
-                        onValueChange={(v) => {
-                          setDeviceType(v as DeviceType);
-                          setDrawMode(false);
-                        }}
-                      >
+                      <Select value={sizeSelectValue} onValueChange={handleSizeChange}>
                         <SelectTrigger
+                          {...anchorProps("page-editor.device")}
                           className="h-7 w-auto gap-1 px-2 text-xs"
                           aria-label={t("deviceTypeSwitcherAriaLabel")}
                         >
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
+                          {/* FiestaPanels first: a panel's grid is auto-fit from
+                              its TV size, so nobody can pick it out of the
+                              generic Notes-wide/tall selects below. Absent on an
+                              install with no panels, leaving the picker exactly
+                              the three sizes it has always been. */}
+                          {panelTargets.length > 0 && (
+                            <SelectGroup>
+                              <SelectLabel>{tPanels("yourPanelsGroupLabel")}</SelectLabel>
+                              {panelTargets.map((panel) => (
+                                <SelectItem key={panel.id} value={`panel:${panel.id}`} className="text-xs">
+                                  {tPanels("panelSizeOption", {
+                                    name: panel.name,
+                                    wide: panel.notesWide,
+                                    tall: panel.notesTall,
+                                  })}
+                                </SelectItem>
+                              ))}
+                            </SelectGroup>
+                          )}
                           <SelectItem value="flagship" className="text-xs">
                             {tDisplaySettings("flagshipLabel")}
                           </SelectItem>

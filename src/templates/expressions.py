@@ -30,23 +30,8 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from typing import Any
 
-# --------------------------------------------------------------------------- #
-# Color tile names -- duplicated from engine.py to keep this module dependency
-# free. Kept in sync with ``COLOR_CODES`` there.
-# --------------------------------------------------------------------------- #
-_COLOR_CODES: dict[str, int] = {
-    "red": 63,
-    "orange": 64,
-    "yellow": 65,
-    "green": 66,
-    "blue": 67,
-    "violet": 68,
-    "purple": 68,
-    "white": 69,
-    "black": 70,
-    "filled": 71,
-}
-
+from .colors import COLOR_CODES as _COLOR_CODES
+from .colors import is_color_code as _is_color_code
 
 # --------------------------------------------------------------------------- #
 # Error model
@@ -1112,7 +1097,7 @@ def _fn_color(args: list[Any]) -> Any:
             if mapped is None:
                 return ErrorValue("#VALUE")
             code = mapped
-    if not 63 <= code <= 71:
+    if not _is_color_code(code):
         return ErrorValue("#VALUE")
     # Single-brace marker matches the format produced by ``_normalize_colors``.
     return f"{{{code}}}"

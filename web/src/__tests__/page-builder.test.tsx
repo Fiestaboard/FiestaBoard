@@ -165,7 +165,7 @@ describe("PageBuilder — note-array dimensions", () => {
     // Editing a 2×2 note array page (persisted notes_wide/notes_tall) →
     // 2*15 = 30 cols × 2*3 = 6 rows → "6 × 30".
     server.use(
-      http.get(`${API_BASE}/pages/:id`, () => {
+      http.get(`${API_BASE}/v1/pages/:id`, () => {
         return HttpResponse.json({
           id: "na-page",
           name: "My Note Array Page",

@@ -56,6 +56,7 @@ import { toast } from "sonner";
 import { VariableRuleRow } from "@/components/variable-rule-row";
 import { queryKeys } from "@/hooks/use-board";
 import { useTranslations } from "@/i18n/translations";
+import { anchorProps } from "@/lib/ai-choreography/anchors";
 import type {
   Collection,
   CollectionCreate,
@@ -912,6 +913,7 @@ export default function CollectionsPage() {
                 setShowForm(true);
               }}
               className="btn-lift"
+              {...anchorProps("collections.new")}
             >
               <Plus className="h-4 w-4 mr-1" />
               {t("newCollection")}
@@ -921,7 +923,7 @@ export default function CollectionsPage() {
 
         {/* Collections list. The tiles below keep their borders — a collection
           card is a thing you open, so its border is the click target. */}
-        <PageSection>
+        <PageSection {...anchorProps("collections.root")}>
           {collections.length === 0 ? (
             <Box className="py-8">
               <EmptyState
@@ -948,6 +950,7 @@ export default function CollectionsPage() {
               {collections.map((collection, idx) => (
                 <Card
                   key={collection.id}
+                  {...anchorProps(`collection.${collection.id}`)}
                   className="animate-card-fade-in card-interactive"
                   style={{ animationDelay: `${idx * 50}ms` }}
                 >

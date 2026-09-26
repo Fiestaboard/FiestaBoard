@@ -84,7 +84,7 @@ test.describe("API – Pages (extended)", () => {
       }),
     });
     const data = await res.json();
-    testPageId = data.page.id;
+    testPageId = data.id;
   });
 
   test.afterAll(async () => {
@@ -109,7 +109,9 @@ test.describe("API – Pages (extended)", () => {
     });
     expect(res.ok).toBe(true);
     const data = await res.json();
-    expect(data.status).toBe("success");
+    // The {"status": "success"} key is gone; the page is the payload.
+    expect(data.page.name).toBe("Updated Page Name");
+    expect(data.incompatible_references).toEqual([]);
   });
 
   test("can preview a page", async () => {
@@ -129,7 +131,8 @@ test.describe("API – Pages (extended)", () => {
     });
     expect(res.ok).toBe(true);
     const data = await res.json();
-    expect(data).toHaveProperty("status");
+    // "status" is gone from the send body since the Phase 2 conventions pass.
+    expect(data).toHaveProperty("sent_to_board");
     expect(data).toHaveProperty("page_id");
   });
 
@@ -166,7 +169,7 @@ test.describe("API – Schedules (extended)", () => {
       }),
     });
     const pData = await pRes.json();
-    pageId = pData.page.id;
+    pageId = pData.id;
 
     const sRes = await fetch(`${API()}/schedules`, {
       method: "POST",
@@ -229,7 +232,7 @@ test.describe("API – Schedules (extended)", () => {
     });
     expect(res.ok).toBe(true);
     const data = await res.json();
-    expect(data.status).toBe("success");
+    // Phase 2 conventions: unwrapped body, no status envelope.
     expect(data.default_page_id).toBe(pageId);
   });
 
@@ -295,8 +298,10 @@ test.describe("API – Plugins (extended)", () => {
     });
     if (res.ok) {
       const data = await res.json();
-      expect(data.status).toBe("success");
+      // No "status" envelope since the plugins conventions pass; the 200
+      // carries that, and the body is the plugin id plus its masked config.
       expect(data.plugin_id).toBe("date_time");
+      expect(data).toHaveProperty("config");
     } else {
       expect(res.status).toBe(503);
     }
@@ -343,7 +348,8 @@ test.describe("API – Settings (extended)", () => {
     });
     expect(res.ok).toBe(true);
     const data = await res.json();
-    expect(data.status).toBe("success");
+    // Bare TransitionSettings since the conventions pass (Phase 2, Task 8).
+    expect(data.strategy).toBe(target);
 
     // Restore original
     await fetch(`${API()}/settings/transitions`, {
@@ -364,7 +370,7 @@ test.describe("API – Settings (extended)", () => {
       }),
     });
     const pData = await pRes.json();
-    const pageId = pData.page.id;
+    const pageId = pData.id;
 
     const setRes = await fetch(`${API()}/settings/active-page`, {
       method: "PUT",
@@ -396,7 +402,8 @@ test.describe("API – Settings (extended)", () => {
     });
     expect(res.ok).toBe(true);
     const data = await res.json();
-    expect(data.status).toBe("success");
+    // Bare BoardSettings since the conventions pass (Phase 2, Task 8).
+    expect(data.board_type).toBe("black");
   });
 
   test("board settings include boards and devices arrays", async () => {
@@ -417,10 +424,10 @@ test.describe("API – Settings (extended)", () => {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ device_type: "note", name: "My Note" }),
     });
-    expect(addRes.ok).toBe(true);
+    // 201 + bare BoardSettings since the conventions pass (Phase 2, Task 8).
+    expect(addRes.status).toBe(201);
     const addData = await addRes.json();
-    expect(addData.status).toBe("success");
-    const noteBoard = addData.settings.boards.find((b: { device_type: string }) => b.device_type === "note");
+    const noteBoard = addData.boards.find((b: { device_type: string }) => b.device_type === "note");
     expect(noteBoard).toBeDefined();
     expect(noteBoard.name).toBe("My Note");
     const boardId = noteBoard.id;
@@ -430,8 +437,7 @@ test.describe("API – Settings (extended)", () => {
     });
     expect(delRes.ok).toBe(true);
     const delData = await delRes.json();
-    expect(delData.status).toBe("success");
-    const stillThere = delData.settings.boards.find((b: { id: string }) => b.id === boardId);
+    const stillThere = delData.boards.find((b: { id: string }) => b.id === boardId);
     expect(stillThere).toBeUndefined();
   });
 
@@ -443,9 +449,8 @@ test.describe("API – Settings (extended)", () => {
     });
     expect(res.ok).toBe(true);
     const data = await res.json();
-    expect(data.status).toBe("success");
-    expect(data.settings.devices).toContain("flagship");
-    expect(data.settings.devices).toContain("note");
+    expect(data.devices).toContain("flagship");
+    expect(data.devices).toContain("note");
 
     // Reset to flagship only
     await fetch(`${API()}/settings/board`, {

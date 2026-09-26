@@ -186,7 +186,7 @@ jobs:
     - name: Verify imports
       run: |
         python -c "import sys; sys.path.insert(0, '.'); from src import config, board_client, board_chars; print('✅ Core imports successful')"
-        python -c "import sys; sys.path.insert(0, '.'); from src.utils import weather, datetime, home_assistant, star_trek_quotes; print('✅ Utils imports successful')"
+        python -c "import sys; sys.path.insert(0, '.'); from src.utils import datetime, home_assistant; print('✅ Utils imports successful')"
         python -c "import sys; sys.path.insert(0, '.'); from src.formatters import message_formatter; print('✅ Formatter imports successful')"
         python -c "import sys; sys.path.insert(0, '.'); from src.main import FiestaBoardDisplayService; print('✅ Main module imports successful')"
         python -c "
@@ -211,6 +211,14 @@ jobs:
         # ruff format replaces black; same output, one tool.
         ruff format --check src/ plugins/ tests/ scripts/
     
+    - name: Snapshot data/ before tests
+      run: |
+        # Isolation guard (#1762): the suite must never write the checkout's
+        # data/ directory — every test runs against a tmp_path via the
+        # FIESTABOARD_DATA_DIR seam. Checksum whatever exists now; the step
+        # after the tests re-checksums and diffs.
+        find data -type f 2>/dev/null | sort | xargs -r shasum > /tmp/data-before.txt || true
+
     - name: Run platform tests with coverage
       run: |
         # Exclude integration tests (network-dependent, run in a separate step).
@@ -227,6 +235,18 @@ jobs:
       env:
         BOARD_READ_WRITE_KEY: test_key
         WEATHER_API_KEY: test_key
+
+    - name: Verify tests did not write data/
+      run: |
+        # Isolation guard (#1762), second half: any new, changed, or deleted
+        # file under data/ means a test escaped the FIESTABOARD_DATA_DIR seam.
+        # A plain step (not `if: always()`) on purpose — if the tests failed,
+        # that failure is the signal; this guard only needs to gate green runs.
+        find data -type f 2>/dev/null | sort | xargs -r shasum > /tmp/data-after.txt || true
+        if ! diff -u /tmp/data-before.txt /tmp/data-after.txt; then
+          echo "::error::Platform tests wrote to the repo data/ directory (#1762 isolation regression)"
+          exit 1
+        fi
 
     - name: Write coverage summary
       if: always()
@@ -900,14 +920,19 @@ jobs:
         # since mcp 2.0 a GET opens a never-ending SSE listen stream, so a
         # plain curl GET hangs until the job timeout. An empty POST returns
         # a JSON-RPC validation error (400) immediately.
+        #
+        # 503 counts as a failure too: the mount is registered eagerly and the
+        # mcp package imported on first request, so a broken install now shows
+        # up as "MCP server unavailable" from the mount rather than a 404 from
+        # a missing route. This is the request that pays that first import.
         run: |
           STATUS=$(curl -s -o /dev/null -w "%{http_code}" -m 15 \
             -X POST -H "Content-Type: application/json" \
             -H "Accept: application/json, text/event-stream" \
             -d '{}' "$BASE_URL/api/mcp/" || echo "000")
           echo "POST /api/mcp/ -> $STATUS"
-          if [ "$STATUS" = "404" ]; then
-            echo "❌ MCP endpoint returned 404 — mcp package likely missing or mount failed"
+          if [ "$STATUS" = "404" ] || [ "$STATUS" = "503" ]; then
+            echo "❌ MCP endpoint returned $STATUS — mcp package likely missing or activation failed"
             docker logs fiestaboard-ai | grep -i mcp | tail -20
             exit 1
           fi
@@ -1256,18 +1281,29 @@ jobs:
         done
         echo "✅ All plugin structures valid"
 
-  # Docs quality gate: spell-check, markdown-lint, frontmatter-lint, and the
-  # docs contract check over all repository markdown (config: cspell.json,
-  # .markdownlint-cli2.jsonc). The contract check (lint-docs-contract.mjs)
-  # guards what the site repo's Docusaurus build depends on — this repo no
-  # longer builds the site, so without it a malformed doc would only fail
-  # two repos later. Runs on Node 24 because cspell 10 requires Node >= 22.18.
+  # Docs quality gate: spell-check, markdown-lint, frontmatter-lint, the docs
+  # contract check over all repository markdown (config: cspell.json,
+  # .markdownlint-cli2.jsonc), and the generated API reference's staleness
+  # check. The contract check (lint-docs-contract.mjs) guards what the site
+  # repo's Docusaurus build depends on — this repo no longer builds the site,
+  # so without it a malformed doc would only fail two repos later. Runs on
+  # Node 24 because cspell 10 requires Node >= 22.18, plus Python because
+  # docs/reference/api-endpoints.md is generated from the app's own OpenAPI
+  # document.
+  #
+  # `api` is in the condition alongside `markdown` on purpose: the API
+  # reference goes stale when a *route* changes, not when markdown changes,
+  # so gating this job on markdown alone would let every schema change
+  # through unchecked.
   lint-markdown:
     name: Lint Markdown
     runs-on: ubuntu-latest
     needs: detect-changes
-    if: needs.detect-changes.outputs.markdown == 'true' || needs.detect-changes.outputs.shared == 'true'
-    timeout-minutes: 5
+    if: >-
+      needs.detect-changes.outputs.markdown == 'true'
+      || needs.detect-changes.outputs.api == 'true'
+      || needs.detect-changes.outputs.shared == 'true'
+    timeout-minutes: 10
 
     steps:
     - uses: actions/checkout@v7
@@ -1293,6 +1329,20 @@ jobs:
 
     - name: Spell check
       run: npm run docs:lint:spell
+
+    - name: Set up Python deps
+      uses: ./.github/actions/setup-python-deps
+
+    # `--check` the way a formatter's `--check` runs: regenerate
+    # docs/reference/api-endpoints.md from `app.openapi()` and fail with a
+    # diff if the committed page differs. Without this the generator is a
+    # script somebody ran once, and the published reference starts rotting
+    # again the same day.
+    - name: Check the generated API reference is current
+      run: python scripts/generate_api_reference.py --check
+      env:
+        BOARD_READ_WRITE_KEY: test_key
+        WEATHER_API_KEY: test_key
 
   # Repo-wide broken-link check for the GitHub-rendered markdown
   # (docs/internal/**, plugins/**, root *.md). The published docs source

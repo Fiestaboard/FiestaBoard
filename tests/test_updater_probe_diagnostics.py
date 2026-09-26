@@ -24,7 +24,7 @@ from unittest.mock import patch
 import pytest
 import requests
 
-import src.api_server as api_server
+import src.system.update_service as api_server
 
 
 @pytest.fixture(autouse=True)
@@ -38,8 +38,8 @@ def _reset_probe_state():
 class TestTheProbeLeavesATrail:
     def test_a_failing_probe_is_logged(self, caplog):
         with (
-            patch("src.api_server.requests.get", side_effect=requests.ConnectionError("nope")),
-            caplog.at_level(logging.WARNING, logger="src.api_server"),
+            patch("src.system.update_service.requests.get", side_effect=requests.ConnectionError("nope")),
+            caplog.at_level(logging.WARNING, logger="src.system.update_service"),
         ):
             assert api_server._updater_probe() is False
 
@@ -52,8 +52,8 @@ class TestTheProbeLeavesATrail:
     def test_the_failure_is_logged_once_not_once_per_poll(self, caplog):
         """The settings page polls this every 30 seconds."""
         with (
-            patch("src.api_server.requests.get", side_effect=requests.ConnectionError("nope")),
-            caplog.at_level(logging.WARNING, logger="src.api_server"),
+            patch("src.system.update_service.requests.get", side_effect=requests.ConnectionError("nope")),
+            caplog.at_level(logging.WARNING, logger="src.system.update_service"),
         ):
             for _ in range(5):
                 api_server._updater_probe()
@@ -66,15 +66,15 @@ class TestTheProbeLeavesATrail:
 
     def test_recovery_is_logged_too(self, caplog):
         """Coming back matters as much as going away when you are debugging."""
-        with patch("src.api_server.requests.get", side_effect=requests.ConnectionError("nope")):
+        with patch("src.system.update_service.requests.get", side_effect=requests.ConnectionError("nope")):
             api_server._updater_probe()
 
         class _Ok:
             status_code = 200
 
         with (
-            patch("src.api_server.requests.get", return_value=_Ok()),
-            caplog.at_level(logging.INFO, logger="src.api_server"),
+            patch("src.system.update_service.requests.get", return_value=_Ok()),
+            caplog.at_level(logging.INFO, logger="src.system.update_service"),
         ):
             assert api_server._updater_probe() is True
 
@@ -88,8 +88,8 @@ class TestTheProbeLeavesATrail:
             status_code = 200
 
         with (
-            patch("src.api_server.requests.get", return_value=_Ok()),
-            caplog.at_level(logging.INFO, logger="src.api_server"),
+            patch("src.system.update_service.requests.get", return_value=_Ok()),
+            caplog.at_level(logging.INFO, logger="src.system.update_service"),
         ):
             for _ in range(3):
                 assert api_server._updater_probe() is True
@@ -105,8 +105,8 @@ class TestTheProbeLeavesATrail:
             status_code = 503
 
         with (
-            patch("src.api_server.requests.get", return_value=_Bad()),
-            caplog.at_level(logging.WARNING, logger="src.api_server"),
+            patch("src.system.update_service.requests.get", return_value=_Bad()),
+            caplog.at_level(logging.WARNING, logger="src.system.update_service"),
         ):
             assert api_server._updater_probe() is False
         assert [r for r in caplog.records if r.levelno >= logging.WARNING]

@@ -14,7 +14,7 @@ You are the FiestaBoard **ts-sync-validator** agent. The codebase hand-syncs Pyd
 ## Preconditions
 
 1. Confirm `src/api_server.py` and `web/src/lib/api.ts` both exist.
-2. Confirm the dev container is up at `http://localhost:4420` — you'll fetch the live OpenAPI schema as ground truth (`curl -s http://localhost:4420/api/openapi.json`). If the container is down, fall back to AST parsing of `models.py` files and warn the user that endpoint-level coverage is incomplete.
+2. Confirm the dev container is up at `http://localhost:4420` — you'll fetch the live OpenAPI schema as ground truth (`curl -s http://localhost:4420/api/internal/openapi.json`). Use the **internal** document: `/api/openapi.json` publishes only the 33 consumer-facing `/v1` operations since `src/v1/visibility.py` hid the internal surface, and the models this check compares live behind the hidden paths. Fetching the public document instead would produce a clean report that checked almost nothing. If the container is down, fall back to AST parsing of `models.py` files and warn the user that endpoint-level coverage is incomplete.
 
 ## Process
 

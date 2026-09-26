@@ -311,9 +311,19 @@ class TestSettingsServiceInit:
         assert "output" in data
         assert "board" in data
 
-    def test_save_to_file_handles_io_error(self, settings_service):
-        with patch("builtins.open", side_effect=OSError("write error")):
-            settings_service._save_to_file()  # Should not raise
+    def test_save_to_file_propagates_io_error(self, settings_service):
+        """A refused write must reach the caller (Phase 2 Task 10b).
+
+        This asserted "should not raise" until #1887: swallowing it made ~20
+        endpoints answer HTTP 200 having persisted nothing.
+        """
+        # The pending save must be a REAL one: an unchanged save is now
+        # correctly skipped as a no-op (write_json_atomic if_changed), and a
+        # save that never opens the file cannot observe a refused open.
+        settings_service._polling.interval_seconds += 5
+
+        with patch("builtins.open", side_effect=OSError("write error")), pytest.raises(OSError):
+            settings_service._save_to_file()
 
     def test_save_to_file_is_atomic_on_mid_write_crash(self, settings_service, settings_file, monkeypatch):
         """Regression for #1313 (mirrors #1304): a crash inside _save_to_file()
@@ -324,6 +334,12 @@ class TestSettingsServiceInit:
         settings_service._save_to_file()
         original_bytes = Path(settings_file).read_bytes()
 
+        # The pending save must be a REAL one: an unchanged save is now
+        # correctly skipped as a no-op (write_json_atomic if_changed), so a
+        # crash test that re-saves identical bytes would never reach the
+        # crash it exists to test.
+        settings_service._polling.interval_seconds += 5
+
         real_dump = json.dump
 
         def crashing_dump(obj, fh, *args, **kwargs):
@@ -332,7 +348,10 @@ class TestSettingsServiceInit:
             raise OSError("Simulated crash mid-write")
 
         monkeypatch.setattr(service_module.json, "dump", crashing_dump)
-        settings_service._save_to_file()  # swallows OSError; must not corrupt file
+        # The OSError now propagates (Phase 2 Task 10b); the point of this
+        # test is unchanged — the live file must survive the failed write.
+        with pytest.raises(OSError):
+            settings_service._save_to_file()
         monkeypatch.setattr(service_module.json, "dump", real_dump)
 
         assert Path(settings_file).read_bytes() == original_bytes
@@ -381,9 +400,6 @@ class TestSettingsServiceOutput:
     def test_should_send_to_board_ui_target(self, settings_service):
         settings_service.set_output_target("ui")
         assert settings_service.should_send_to_board() is False
-
-    def test_should_send_to_ui_always_true(self, settings_service):
-        assert settings_service.should_send_to_ui() is True
 
 
 class TestSettingsServiceActivePage:
@@ -587,9 +603,17 @@ class TestSettingsServiceLoadFromFile:
 
 
 class TestSettingsServiceMigration:
-    """Test _apply_global_connection migration."""
+    """Legacy config.json board connection import (schema migration v2 -> v3).
 
-    def test_apply_global_connection_migrates_when_first_board_empty(self, settings_file, mock_config):
+    Issue #1760: the copy-on-every-boot ``_apply_global_connection`` seam was
+    replaced by a one-time, schema-versioned migration (plus a first-boot
+    seed when no board section exists yet). These tests exercise the
+    migration path: pre-versioned settings files with a credential-less
+    board. tests/test_board_credentials_unification.py covers version
+    gating, precedence, and the divergence contract.
+    """
+
+    def test_migration_imports_legacy_connection_when_first_board_empty(self, settings_file, mock_config):
         Path(settings_file).write_text(
             json.dumps(
                 {
@@ -611,7 +635,7 @@ class TestSettingsServiceMigration:
             svc = SettingsService(settings_file=settings_file)
         assert svc._board.boards[0]["local_api_key"] == "migrated-key"
 
-    def test_apply_global_connection_skips_when_board_has_keys(self, settings_file, mock_config):
+    def test_migration_skips_when_board_has_keys(self, settings_file, mock_config):
         Path(settings_file).write_text(
             json.dumps(
                 {
@@ -625,7 +649,7 @@ class TestSettingsServiceMigration:
             SettingsService(settings_file=settings_file)
             mock_get.assert_not_called()
 
-    def test_apply_global_connection_skips_when_global_empty(self, settings_file, mock_config):
+    def test_migration_skips_when_legacy_config_empty(self, settings_file, mock_config):
         Path(settings_file).write_text(json.dumps({"board": {"boards": [{"name": "B", "device_type": "flagship"}]}}))
         mock_cm = MagicMock()
         mock_cm.get_board.return_value = {"local_api_key": "", "cloud_key": ""}
@@ -633,7 +657,7 @@ class TestSettingsServiceMigration:
             svc = SettingsService(settings_file=settings_file)
         assert svc._board.boards[0].get("local_api_key", "") == ""
 
-    def test_apply_global_connection_handles_exception(self, settings_file, mock_config):
+    def test_migration_handles_config_manager_exception(self, settings_file, mock_config):
         Path(settings_file).write_text(json.dumps({"board": {"boards": [{"name": "B", "device_type": "flagship"}]}}))
         with patch("src.config_manager.get_config_manager", side_effect=Exception("err")):
             svc = SettingsService(settings_file=settings_file)
@@ -980,3 +1004,72 @@ class TestLocalArrayTileMasking:
         tiles = {(t["row"], t["col"]): t for t in settings_service._board.boards[0]["tiles"]}
         assert tiles[(0, 0)]["host"] == "10.0.0.77"
         assert tiles[(0, 0)]["local_api_key"] == "secret-a"
+
+
+class TestSettingsRefusesAFutureSchema:
+    """settings.json written by a NEWER build must not be read as ours.
+
+    ``SettingsService`` does not load through ``JsonStore.load()`` — it
+    pre-reads the file itself in ``_migrate_if_needed`` (an artifact of the
+    migration machinery predating the storage kernel), so the kernel's
+    :class:`SchemaTooNewError` guard does not cover it. That matters more
+    here than anywhere else: ``settings.json`` is the one store whose schema
+    has actually diverged across a release boundary (v2 on the stable line,
+    v3 on ``next``), so it is the file a downgrading user is guaranteed to
+    hit.
+
+    Without this the old build reads v3 content as v2 and the next save
+    stamps ``schema_version: 2`` back onto it.
+    """
+
+    def _seed(self, tmp_path, version_offset):
+        import json
+
+        from src.settings.service import CURRENT_SETTINGS_SCHEMA_VERSION
+
+        path = tmp_path / "settings.json"
+        payload = {
+            "schema_version": CURRENT_SETTINGS_SCHEMA_VERSION + version_offset,
+            "general": {"instance_name": "From the future"},
+        }
+        path.write_text(json.dumps(payload))
+        return path, json.dumps(payload)
+
+    def test_a_newer_settings_file_is_refused(self, tmp_path, monkeypatch):
+        import pytest
+
+        from src.storage.json_store import SchemaTooNewError
+
+        path, _ = self._seed(tmp_path, +1)
+        monkeypatch.setenv("FIESTABOARD_DATA_DIR", str(tmp_path))
+
+        from src.settings.service import SettingsService
+
+        with pytest.raises(SchemaTooNewError) as excinfo:
+            SettingsService(settings_file=path)
+
+        assert "settings" in str(excinfo.value).lower()
+
+    def test_the_refused_settings_file_is_not_rewritten(self, tmp_path, monkeypatch):
+        import contextlib
+
+        from src.storage.json_store import SchemaTooNewError
+
+        path, original = self._seed(tmp_path, +1)
+        monkeypatch.setenv("FIESTABOARD_DATA_DIR", str(tmp_path))
+
+        from src.settings.service import SettingsService
+
+        with contextlib.suppress(SchemaTooNewError):
+            SettingsService(settings_file=path)
+
+        assert path.read_text() == original
+
+    def test_a_current_settings_file_still_loads(self, tmp_path, monkeypatch):
+        """The guard fires on strictly-newer only."""
+        path, _ = self._seed(tmp_path, 0)
+        monkeypatch.setenv("FIESTABOARD_DATA_DIR", str(tmp_path))
+
+        from src.settings.service import SettingsService
+
+        SettingsService(settings_file=path)  # must not raise

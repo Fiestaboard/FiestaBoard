@@ -32,7 +32,7 @@ test.describe("regression: schedule.list", () => {
   /** UX node: schedule.list.loading */
   test("schedule.list.loading — pending query shows skeleton", async ({ page }) => {
     let release: () => void = () => {};
-    await page.route("**/api/schedules*", async (route) => {
+    await page.route("**/api/v1/schedules*", async (route) => {
       if (route.request().method() === "GET") {
         await new Promise<void>((r) => {
           release = r;
@@ -82,7 +82,7 @@ test.describe("regression: schedule.list", () => {
     page,
   }) => {
     // Mock /schedules to inject a synthetic row whose page_id resolves to a collection.
-    await page.route("**/api/schedules*", (route) => {
+    await page.route("**/api/v1/schedules*", (route) => {
       if (route.request().method() !== "GET") return route.continue();
       return route.fulfill({
         status: 200,
@@ -102,7 +102,7 @@ test.describe("regression: schedule.list", () => {
         }),
       });
     });
-    await page.route("**/api/collections", (route) => {
+    await page.route("**/api/v1/collections", (route) => {
       if (route.request().method() !== "GET") return route.continue();
       return route.fulfill({
         status: 200,
@@ -119,7 +119,7 @@ test.describe("regression: schedule.list", () => {
 
   /** UX node: schedule.list.row-sun-schedule */
   test("schedule.list.row-sun-schedule — sun-based schedule rows render via mocked payload", async ({ page }) => {
-    await page.route("**/api/schedules*", (route) => {
+    await page.route("**/api/v1/schedules*", (route) => {
       if (route.request().method() !== "GET") return route.continue();
       return route.fulfill({
         status: 200,

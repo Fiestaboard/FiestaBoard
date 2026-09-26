@@ -49,7 +49,7 @@ function mockLab() {
       HttpResponse.json({ settings: { transition_plugins_enabled: true }, available: [] }),
     ),
     http.get(`${API_BASE}/transitions/plugins`, () => HttpResponse.json({ plugins: [PLUGIN] })),
-    http.get(`${API_BASE}/pages`, () => HttpResponse.json({ pages: PAGES })),
+    http.get(`${API_BASE}/v1/pages`, () => HttpResponse.json({ pages: PAGES })),
     http.post(`${API_BASE}/transitions/preview`, () =>
       HttpResponse.json({ frames: FRAMES, frame_count: FRAMES.length, capped: false }),
     ),

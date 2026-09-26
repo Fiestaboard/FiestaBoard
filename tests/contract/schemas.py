@@ -64,11 +64,8 @@ class PagesListResponse(BaseModel):
     total: int
 
 
-class CreatePageResponse(BaseModel):
-    """POST /pages"""
-
-    status: str  # "success"
-    page: PageSchema
+class CreatePageResponse(PageSchema):
+    """POST /pages — 201 with the bare page (Phase 2 conventions pass)."""
 
 
 class GetPageResponse(PageSchema):
@@ -76,16 +73,19 @@ class GetPageResponse(PageSchema):
 
 
 class UpdatePageResponse(BaseModel):
-    """PUT /pages/{page_id}"""
+    """PUT /pages/{page_id} — the page plus its retarget warnings."""
 
-    status: str  # "success"
     page: PageSchema
+    incompatible_references: list[dict]
 
 
 class DeletePageResponse(BaseModel):
-    """DELETE /pages/{page_id}"""
+    """DELETE /pages/{page_id} — the deleted id and what else moved."""
 
-    status: str  # "success" | "not_found"
+    id: str
+    message: str
+    default_page_created: bool
+    active_page_updated: bool
 
 
 # ---------------------------------------------------------------------------

@@ -83,6 +83,42 @@
     "unnamedBoard": "Namnlös tavla",
     "transitions": "Övergångslabb"
   },
+  "settingsMenu": {
+    "trigger": "Inställningar",
+    "settings": "Inställningar",
+    "appearance": "Utseende",
+    "light": "Ljust",
+    "dark": "Mörkt",
+    "system": "System",
+    "devSuffix": "utvecklingsbygge",
+    "updateAvailable": "Uppdatering tillgänglig: {version}",
+    "updateTo": "Uppdatera till {version}",
+    "about": "Om FiestaBoard",
+    "signOut": "Logga ut"
+  },
+  "aboutDialog": {
+    "description": "Versions- och systeminformation för den här FiestaBoard.",
+    "devSuffix": "utvecklingsbygge",
+    "channel": "Kanal",
+    "channelStable": "Stabil",
+    "channelBeta": "Beta",
+    "platform": "Plattform",
+    "platformDocker": "Docker",
+    "platformPi": "Raspberry Pi",
+    "hardware": "Hårdvara",
+    "updates": "Uppdateringar",
+    "updatesDaily": "Automatiskt, dagligen",
+    "updatesWeekly": "Automatiskt, varje vecka",
+    "updatesMonthly": "Automatiskt, varje månad",
+    "updatesManual": "Manuellt",
+    "updatesManaged": "Hanteras externt",
+    "updatesUnavailable": "Uppdateraren är inte tillgänglig",
+    "updateAvailable": "Uppdatering tillgänglig: {version}",
+    "board": "Tavla",
+    "license": "MIT-licens",
+    "copyright": "© {year} {holder}",
+    "sourceCode": "Källkod på GitHub"
+  },
   "network": {
     "title": "Wi-Fi",
     "description": "Hantera din FiestaPi:s trådlösa anslutning.",
@@ -132,6 +168,9 @@
     "description": "Övervaka din tavlas visning och systemaktivitet",
     "noBoardConfigured": "Ingen tavla konfigurerad",
     "noBoardDescription": "Din tavla är inte inställd ännu. Anslut din tavla för att börja visa innehåll.",
+    "boardInitErrorTitle": "{boardName} är inte tillgänglig",
+    "boardInitErrorTitleUnnamed": "En tavla är inte tillgänglig",
+    "boardInitErrorOpenSettings": "Öppna tavlans inställningar",
     "runSetupWizard": "Kör installationsguiden",
     "silenceImminentTitle": "Silence starts in {minutes, plural, =0 {less than a minute} one {# minute} other {# minutes}}",
     "silenceImminentDescription": "Switch to “{pageName}” now so you don't have to wait for the schedule to catch up.",
@@ -569,7 +608,14 @@
       "apiKeyLabel": "API-nyckel",
       "modelsLabel": "Modeller",
       "defaultModelLabel": "Standardmodell",
-      "testConnectionButton": "Testa anslutning"
+      "testConnectionButton": "Testa anslutning",
+      "turnLimits": {
+        "heading": "Gränser per tur",
+        "description": "Ett skyddsnät mot en modell som fastnat i en loop, inte en arbetsbudget. När en gräns nås pausas turen och chatten erbjuder att fortsätta. Lämna tomt för serverns standardvärden.",
+        "modelCallsLabel": "Modellanrop per tur",
+        "toolCallsLabel": "Verktygsanrop per tur",
+        "serverDefault": "Serverns standard"
+      }
     },
     "backup": {
       "cardTitle": "Säkerhetskopiering & återställning",
@@ -937,6 +983,11 @@
       "badge": "Paused",
       "tooltip": "When paused, FiestaBoard does not push anything to this board — scheduled pages, manual sends, plugin triggers, and MQTT commands are all blocked until you resume."
     },
+    "initError": {
+      "badge": "Otillgänglig",
+      "title": "Den här tavlan kunde inte initieras",
+      "hint": "Rätta till anslutningsuppgifterna nedan — när du sparar görs ett nytt anslutningsförsök."
+    },
     "deviceTypeAriaLabel": "Tavlans typ och storlek",
     "deviceGroupLabel": "Enheter",
     "noteArrayGroupLabel": "Note-matriser",
@@ -1206,14 +1257,6 @@
     "updateIntervalsTitle": "Uppdateringsintervall",
     "updateIntervalsDescription": "Hur ofta tavlan söker efter nytt innehåll och läser om sitt aktuella tillstånd"
   },
-  "themeToggle": {
-    "toggleTheme": "Växla tema"
-  },
-  "versionDisplay": {
-    "devSuffix": "(dev)",
-    "updateAvailableAriaLabel": "Uppdatering tillgänglig: v{version}",
-    "updateAvailableTooltip": "Uppdatering tillgänglig: v{version}"
-  },
   "serviceControls": {
     "title": "Tjänststyrning",
     "contentAutoSent": "Innehåll skickas automatiskt till den fysiska tavlan"
@@ -1310,75 +1353,6 @@
       "failure": "Det gick inte att aktivera inloggning"
     }
   },
-  "aiActionConfirmation": {
-    "deny": "Neka",
-    "allow": "Tillåt",
-    "working": "Arbetar…",
-    "done": "Klar",
-    "denied": "Nekad",
-    "noChanges": "inga ändringar",
-    "noValues": "inga värden",
-    "noChangesSpecified": "Inga ändringar angivna.",
-    "openEnd": "öppet",
-    "label": {
-      "installPlugin": "Installera plugin: {id}",
-      "updatePluginConfig": "Konfigurera plugin: {id}",
-      "updatePlugin": "Uppdatera plugin: {id}",
-      "enablePlugin": "Aktivera plugin: {id}",
-      "disablePlugin": "Inaktivera plugin: {id}",
-      "uninstallPlugin": "Avinstallera plugin: {id}",
-      "updateSetting": "Ändra inställning: {category}",
-      "createCollection": "Skapa samling: \"{name}\"",
-      "updateCollection": "Uppdatera samling",
-      "createSchedule": "Skapa schema",
-      "updateSchedule": "Uppdatera schema",
-      "deleteSchedule": "Ta bort schema",
-      "triggerSystemUpdate": "Systemuppdatering"
-    },
-    "description": {
-      "installPlugin": "Installerar \"{id}\" från det officiella registret.",
-      "installPluginEnable": "Installerar \"{id}\" från det officiella registret och aktiverar det.",
-      "updatePluginConfig": "Uppdaterar konfigurationen för \"{id}\": {keys}.",
-      "updatePlugin": "Laddar ner och installerar den senaste registerversionen av \"{id}\".",
-      "enablePlugin": "Aktiverar \"{id}\" så att det kan leverera data till dina tavlor.",
-      "disablePlugin": "Inaktiverar \"{id}\" utan att ta bort det. Det kan aktiveras igen senare.",
-      "uninstallPlugin": "Tar bort \"{id}\" permanent. Detta kan inte ångras.",
-      "updateSetting": "Ställer in {values} i inställningarna för {category}.",
-      "createCollection": "Skapar en samling med {count, plural, one {# sida} other {# sidor}}, som växlar var {interval}:e sekund.",
-      "createSchedule": "Visar sidan \"{page}\" från {time} på {days}-dagar.",
-      "deleteSchedule": "Tar bort schemat \"{id}\" permanent. Detta kan inte ångras.",
-      "triggerSystemUpdate": "Laddar ner och installerar den senaste FiestaBoard-uppdateringen. Systemet startar om en kort stund."
-    },
-    "change": {
-      "rename": "byt namn till \"{name}\"",
-      "setPages": "ange {count, plural, one {# sida} other {# sidor}}",
-      "interval": "intervall → {interval}s",
-      "page": "sida → {page}",
-      "start": "start → {start}",
-      "end": "slut → {end}",
-      "days": "dagar → {days}",
-      "enable": "aktivera",
-      "disable": "inaktivera"
-    }
-  },
-  "chainingModePicker": {
-    "menuTitle": "AI-kedjeläge",
-    "triggerAriaLabel": "AI-kedjeläge: {mode}",
-    "modes": {
-      "manual": {
-        "label": "Manuell",
-        "description": "Jag frågar igen efter varje åtgärd"
-      },
-      "autoContinue": {
-        "label": "Fortsätt automatiskt",
-        "description": "Kedjar åtgärder, bekräftar varje steg"
-      },
-      "autonomous": {
-        "label": "Autonom",
-        "description": "Kör till slutet, hoppar över bekräftelser"
-      }
-    }
-  },
   "bootGate": {
     "waiting": "Väntar på start…",
     "errorHeading": "Det gick inte att ansluta till FiestaBoard",
@@ -1390,7 +1364,31 @@
     "updateErrorDescription": "Uppdateringen är klar, men appen startar fortfarande om. Vänta en stund och uppdatera sedan sidan."
   },
   "globalAiChatDrawer": {
-    "panelAriaLabel": "FiestaBot AI-chatt"
+    "panelAriaLabel": "FiestaBot AI-chatt",
+    "toast": {
+      "undo": "Ångra",
+      "pageCreated": "Sida skapad.",
+      "pageUpdated": "Sida uppdaterad.",
+      "pageDeleted": "Sida borttagen.",
+      "scheduleCreated": "Schema skapat.",
+      "scheduleUpdated": "Schema uppdaterat.",
+      "scheduleDeleted": "Schema borttaget.",
+      "pluginInstalled": "Plugin \"{id}\" installerat.",
+      "pluginConfigured": "Plugin \"{id}\" konfigurerat.",
+      "pluginUpdated": "Plugin \"{id}\" uppdaterat.",
+      "pluginEnabled": "Plugin \"{id}\" aktiverat.",
+      "pluginDisabled": "Plugin \"{id}\" inaktiverat.",
+      "pluginUninstalled": "Plugin \"{id}\" avinstallerat.",
+      "settingUpdated": "Inställning uppdaterad.",
+      "collectionCreated": "Samlingen \"{name}\" skapad.",
+      "collectionUpdated": "Samling uppdaterad.",
+      "collectionDeleted": "Samling borttagen.",
+      "activePageSet": "Tavlan uppdaterad.",
+      "messageSent": "Meddelande skickat till tavlan.",
+      "systemUpdate": "Systemuppdatering påbörjad. Tavlan startar om strax.",
+      "toolFailed": "{tool} misslyckades: {error}",
+      "stopped": "Stoppat. Det som redan körs slutförs ändå."
+    }
   },
   "plainTextEditor": {
     "placeholder": "Skriv din malltext...",
@@ -2035,27 +2033,175 @@
   },
   "aiChatPanel": {
     "messagesAriaLabel": "Chattmeddelanden",
-    "taskStatusAriaLabel": "Uppgiftsförlopp",
-    "taskProgressAriaLabel": "AI-uppgifters förlopp",
-    "clearConversationAriaLabel": "Rensa konversation",
-    "closePanelAriaLabel": "Stäng FiestaBot (Beta)",
+    "closePanelAriaLabel": "Stäng FiestaBot",
+    "newChatAriaLabel": "Ny chatt",
+    "historyAriaLabel": "Historik",
+    "backAriaLabel": "Tillbaka",
     "providerSelectAriaLabel": "Leverantör",
     "modelSelectAriaLabel": "Modell",
-    "showBoardTooltip": "Visa board-förhandsvisning",
-    "hideBoardTooltip": "Dölj board-förhandsvisning",
-    "undoTooltip": "Ångra senaste AI-ändringen",
-    "panelTitle": "FiestaBot (Beta)",
+    "panelTitle": "FiestaBot",
     "retryButton": "Försök igen",
     "messageLabel": "Meddelande",
     "stopButton": "Stoppa",
     "sendButton": "Skicka",
-    "tasksHeading": "Uppgifter ({done}/{total})",
+    "enterToSend": "för att skicka",
+    "shiftEnterNewline": "för ny rad",
     "emptyStateTitle": "Hur kan jag hjälpa till?",
     "emptyStateDescription": "Beskriv vad du vill bygga eller ändra.",
-    "showBoardButton": "Visa board",
-    "undoButton": "Ångra",
-    "renameSummary": "→ byt namn till ”{name}”",
-    "previewUnavailable": "(förhandsvisning inte tillgänglig)"
+    "placeholderEmpty": "Beskriv sidan du vill ha eller be om ändringar…",
+    "placeholderRefine": "Förfina, fråga eller be om en annan ändring…",
+    "placeholderAnswer": "Skriv ditt svar…",
+    "blockedAiDisabled": "AI är avstängt. Aktivera det under Inställningar → AI-leverantörer.",
+    "blockedNoProviders": "Ställ in en AI-leverantör med minst en modell under Inställningar → AI-leverantörer.",
+    "suggestions": {
+      "weather": "Bygg en väder- och kollektivtrafiksida för min morgonpendling",
+      "date": "Ersätt rad 2 med dagens datum",
+      "variables": "Vilka pluginvariabler kan jag använda på den här sidan?"
+    },
+    "jumpToLatest": "Hoppa till senaste",
+    "defaultModel": "Standard",
+    "stepsAriaLabel": "Pågående steg",
+    "stepsHeading": "{done} av {total} steg",
+    "approvalMode": {
+      "label": "Godkännandeläge",
+      "ask": "Fråga",
+      "auto": "Auto",
+      "autoNote": "Auto utför raderingar och andra destruktiva åtgärder utan att fråga. Omstart, avstängning och uppdatering frågar alltid.",
+      "thisChat": "Auto för den här chatten – välj ”Fråga” för att bli tillfrågad igen."
+    },
+    "autoApproved": {
+      "badge": "auto",
+      "tooltip": "Kördes utan att fråga: godkännandeläget är Auto, eller så valde du ”fråga inte igen” för den här chatten."
+    },
+    "toolInput": "Argument",
+    "toolOutput": "Resultat",
+    "toolStates": {
+      "inputStreaming": "Förbereder",
+      "inputAvailable": "Körs",
+      "outputAvailable": "Klart",
+      "outputError": "Misslyckades",
+      "approvalRequested": "Väntar på ditt godkännande",
+      "denied": "Inte kört",
+      "stopped": "Stoppat"
+    },
+    "status": {
+      "thinking": "Tänker…",
+      "running": "Kör {tool}…",
+      "preparing": "Förbereder {tool}…",
+      "elapsed": "{seconds} s"
+    },
+    "question": {
+      "skip": "Hoppa över",
+      "typeAnswer": "Eller skriv ett svar nedan.",
+      "answered": "Du svarade: {answer}",
+      "declined": "(överhoppat)",
+      "cancelled": "(avbrutet)"
+    },
+    "tool": {
+      "createPage": "Skapa sida",
+      "updatePage": "Uppdatera sida",
+      "deletePage": "Ta bort sida",
+      "createSchedule": "Lägg till schema",
+      "updateSchedule": "Uppdatera schema",
+      "deleteSchedule": "Ta bort schema",
+      "createCollection": "Skapa samling",
+      "updateCollection": "Uppdatera samling",
+      "deleteCollection": "Ta bort samling",
+      "installPlugin": "Installera plugin",
+      "enablePlugin": "Aktivera plugin",
+      "disablePlugin": "Inaktivera plugin",
+      "uninstallPlugin": "Avinstallera plugin",
+      "configurePlugin": "Konfigurera plugin",
+      "updatePlugin": "Uppdatera plugin",
+      "setActivePage": "Visa sida på tavlan",
+      "setScheduleMode": "Ställ in schemaläge",
+      "sendMessage": "Skicka meddelande till tavlan",
+      "updateSetting": "Ändra inställning",
+      "triggerSystemUpdate": "Systemuppdatering",
+      "askUser": "Fråga",
+      "listPages": "Slå upp sidor",
+      "getPage": "Läs sida",
+      "listSchedules": "Slå upp scheman",
+      "listCollections": "Slå upp samlingar",
+      "listInstalledPlugins": "Slå upp installerade plugins",
+      "listRegistryPlugins": "Bläddra i pluginregistret",
+      "getTemplateVariables": "Slå upp mallvariabler",
+      "getPluginData": "Läs plugindata",
+      "renderPagePreview": "Förhandsgranska mall",
+      "previewSavedPage": "Förhandsgranska sida",
+      "validateTemplate": "Kontrollera mall",
+      "getSystemStatus": "Kontrollera systemstatus",
+      "getSettingsSummary": "Läs inställningar",
+      "getActivePage": "Kontrollera aktiv sida",
+      "getBoardContent": "Läs tavlan"
+    },
+    "previewUnavailable": "(förhandsvisning inte tillgänglig)",
+    "history": {
+      "title": "Historik",
+      "searchPlaceholder": "Sök konversationer…",
+      "searchAriaLabel": "Sök konversationer efter titel",
+      "empty": "Inga sparade konversationer ännu",
+      "emptyDescription": "Chattar sparas automatiskt medan du skriver.",
+      "noMatches": "Inga konversationer matchar din sökning.",
+      "messageCount": "{count, plural, one {# meddelande} other {# meddelanden}}",
+      "open": "Öppna {title}",
+      "rename": "Byt namn",
+      "renameAriaLabel": "Byt namn på {title}",
+      "renameLabel": "Konversationens titel",
+      "saveTitle": "Spara titel",
+      "cancel": "Avbryt",
+      "delete": "Ta bort",
+      "deleteAriaLabel": "Ta bort {title}",
+      "clearAll": "Rensa allt",
+      "clearAllTitle": "Ta bort alla konversationer?",
+      "clearAllDescription": "Detta tar bort alla sparade chattar från den här FiestaBoard. Det går inte att ångra.",
+      "clearAllConfirm": "Ta bort alla",
+      "continue": "Fortsätt",
+      "export": "Exportera JSON",
+      "readOnly": "Du visar en sparad konversation. Välj Fortsätt för att ta upp den igen.",
+      "loadFailed": "Konversationen kunde inte läsas in.",
+      "deleted": "Konversationen togs bort",
+      "cleared": "Alla konversationer togs bort"
+    },
+    "sendShortcut": "Enter skickar, Skift+Enter ger ny rad",
+    "resizeHandle": "Ändra bredd på FiestaBot-panelen",
+    "showJson": "Visa JSON",
+    "resultFields": "{count, plural, one {# fält} other {# fält}}",
+    "dayPattern": {
+      "all": "varje dag",
+      "weekdays": "vardagar",
+      "weekends": "helger",
+      "custom": "valda dagar"
+    },
+    "argLabel": {
+      "page": "Sida",
+      "time": "Tid",
+      "days": "Dagar",
+      "board": "Tavla",
+      "duration": "Längd",
+      "lines": "Rader",
+      "name": "Namn",
+      "setting": "Inställning",
+      "message": "Meddelande",
+      "plugin": "Tillägg",
+      "collection": "Samling",
+      "scheduleMode": "Schemaläge"
+    },
+    "argValue": {
+      "on": "På",
+      "off": "Av",
+      "lineCount": "{count, plural, one {# rad} other {# rader}}",
+      "durationSeconds": "{count} s"
+    },
+    "toolRun": "{tool} · {count, plural, one {# gång} other {# gånger}}",
+    "composerSettings": {
+      "triggerAriaLabel": "Chattinställningar: godkännande {mode}, modell {model}",
+      "popoverLabel": "Chattinställningar"
+    },
+    "keepGoing": {
+      "prompt": "Assistenten pausade under en lång tur. Inget har gått förlorat.",
+      "action": "Fortsätt"
+    }
   },
   "boardSizeIndicator": {
     "custom": "Anpassad",
@@ -2094,7 +2240,11 @@
     "claudeWebDescription": "<label>claude.ai web (Connectors):</label> stöds inte för självhostad FiestaBoard. Connectors-flödet kräver en publik HTTPS-URL och dynamisk OAuth 2.1-klientregistrering, och en värd i LAN kan inte tillhandahålla något av detta. Använd Desktop eller Code i stället.",
     "savedItButton": "Jag har sparat den",
     "toastTokenRevoked": "MCP-token återkallad",
-    "toastCopyFailed": "Kunde inte kopiera till urklipp"
+    "toastCopyFailed": "Kunde inte kopiera till urklipp",
+    "lockedDescription": "Inloggning är avstängd på den här installationen, så den aktuella MCP-token är i sig behörigheten för att hantera tokens. Ange den nedan för att låsa upp rotation och återkallelse.",
+    "lockedTokenLabel": "Aktuell MCP-token",
+    "unlockButton": "Lås upp",
+    "unlockFailedToast": "Den token matchar inte den konfigurerade MCP-token."
   },
   "fiestaPanels": {
     "title": "FiestaPanel",
@@ -2151,7 +2301,11 @@
     "hdmiHelp": "Visar skärmpanelen på en skärm ansluten till Pi:ns HDMI-port. Aktivering installerar en liten kioskwebbläsare (tar några minuter).",
     "hdmiInstalling": "Ställer in HDMI-kiosken — en webbläsare installeras på Pi:n, det kan ta några minuter…",
     "hdmiEnabledHint": "HDMI-skärmen visar panelen med ”Skärmutgång” aktiverad ovan.",
-    "hdmiFailed": "Den senaste HDMI-kioskändringen misslyckades. Försök igen eller starta om Pi:n."
+    "hdmiFailed": "Den senaste HDMI-kioskändringen misslyckades. Försök igen eller starta om Pi:n.",
+    "yourPanelsGroupLabel": "Dina paneler",
+    "panelSizeOption": "{name} · {wide}×{tall} Note-block",
+    "fitsPanel": "Passar {name}",
+    "fitsPanelAndMore": "Passar {name} +{count} till"
   },
   "releaseChannel": {
     "title": "Release channel",
@@ -2167,6 +2321,60 @@
     "confirmCta": "Join the beta",
     "cancel": "Cancel",
     "switching": "Switching…",
-    "switchFailedToast": "Could not switch channel: {error}"
+    "switchFailedToast": "Could not switch channel: {error}",
+    "leaveCta": "Lämna betan",
+    "leaveConfirmTitle": "Lämna betakanalen?",
+    "leaveConfirmBody": "Detta tar dig tillbaka till den aktuella stabila versionen, som är äldre än betan du kör. Dina inställningar och sidor återställs till säkerhetskopian som togs när du gick med — allt du ändrat under betan går förlorat. FiestaBoard startar om på den stabila versionen. Vill du behålla dina ändringar, vänta i stället: när nästa stabila version passerar din beta tar «Uppdatera nu» dig dit utan att något går förlorat.",
+    "leaveConfirmCta": "Lämna betan"
+  },
+  "aiApprovalCard": {
+    "heading": "Kräver ditt godkännande",
+    "approve": "Godkänn",
+    "deny": "Neka",
+    "working": "Arbetar…",
+    "approveAll": "Godkänn och fråga inte igen i den här chatten",
+    "description": {
+      "deletePage": "Tar bort sidan \"{detail}\" permanent. Scheman och samlingar som använder den förlorar den.",
+      "deleteSchedule": "Tar bort schemat \"{detail}\" permanent. Det går inte att ångra.",
+      "deleteCollection": "Tar bort samlingen \"{detail}\" permanent. Det går inte att ångra.",
+      "uninstallPlugin": "Tar bort pluginet \"{detail}\" och dess konfiguration permanent.",
+      "triggerSystemUpdate": "Laddar ner och installerar den senaste FiestaBoard-uppdateringen. Systemet startar om kort.",
+      "generic": "Den här åtgärden kan inte ångras av ett annat verktyg."
+    }
+  },
+  "aiSpotlight": {
+    "stop": "Stoppa",
+    "approve": "Godkänn",
+    "deny": "Neka"
+  },
+  "aiChoreography": {
+    "working": "{tool}…",
+    "done": "{tool} — klart",
+    "failed": "{tool} misslyckades",
+    "awaitingApproval": "{tool} — väntar på ditt godkännande",
+    "openingNewPage": "Öppnar en ny sida…",
+    "typingName": "Namnger sidan…",
+    "typingLines": "Skriver raderna…",
+    "creatingPage": "Skapar ”{name}”…",
+    "pageCreated": "Sidan skapad",
+    "pageUpdated": "Sidan uppdaterad",
+    "pageFailed": "Sidan kunde inte sparas",
+    "updatingBehindEdits": "Uppdaterar den sparade sidan — dina osparade ändringar är kvar",
+    "changingDevice": "Ändrar tavlans storlek…",
+    "aboutToDeletePage": "Den här sidan tas snart bort",
+    "pageDeleted": "Sidan borttagen",
+    "openingScheduleForm": "Öppnar schemaformuläret…",
+    "fillingSchedule": "Fyller i schemat…",
+    "savingSchedule": "Sparar schemat…",
+    "scheduleCreated": "Schema tillagt",
+    "scheduleUpdated": "Schema uppdaterat",
+    "scheduleFailed": "Schemat kunde inte sparas",
+    "aboutToDeleteSchedule": "Det här schemat tas snart bort",
+    "scheduleDeleted": "Schema borttaget",
+    "changingSetting": "{tool}…",
+    "settingSaved": "Inställning sparad",
+    "settingFailed": "Inställningen kunde inte sparas",
+    "on": "På",
+    "off": "Av"
   }
 }

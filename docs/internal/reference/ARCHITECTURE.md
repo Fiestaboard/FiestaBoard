@@ -1,0 +1,338 @@
+# Backend architecture
+
+Internal engineering reference for the reworked backend. Not published to
+fiestaboard.app.
+
+The 2026-09 audit of the rework counted the cost honestly: request hops from
+entry to disk went from 1 to 4, and the number of concepts a contributor has
+to hold in their head went from about six to about twenty. Those are real
+costs and they are not going away — the single 11k-line module they replaced
+was cheap to read and impossible to change safely. What *was* missing is this
+document. Everything below is a concept you will meet in the first week.
+
+## The shape of a request
+
+```text
+HTTP request
+   │
+   ▼
+src/api_server.py ─── the app object, middleware, lifespan, and the
+   │                  eleven deprecated plugin-specific handlers
+   ▼
+src/<domain>/routes.py ─── APIRouter(tags=["<domain>"]); HTTP concerns only:
+   │                       status codes, response_model, HTTPException
+   ▼
+src/<domain>/service.py ─── the domain's behaviour; raises *domain* errors,
+   │                        never fastapi.HTTPException
+   ▼
+src/<domain>/storage.py ─── a JsonStore over one file under data/
+   │
+   ▼
+data/<domain>.json
+```
+
+Four hops, one responsibility each. Three rules keep them honest, and
+`tests/test_layering_ratchet.py` enforces all three **for the domains listed
+in `tests/layering_manifest.json`, and only those**:
+
+| Rule | id | What it checks |
+| --- | --- | --- |
+| A service may not import `fastapi` | `service_no_fastapi` | No module in `src/<domain>/` other than `routes.py` / `*_routes.py` / `middleware.py` imports `fastapi` or `starlette` |
+| A router may not open a file | `router_no_file_io` | No `open()`, `Path.read_*`/`write_*`, `json.load`/`dump`, `os`/`shutil` filesystem verb, or import of a storage module / `src.atomic_io` / `src.paths` in a transport module |
+| A router may not hold domain logic | `router_no_domain_logic` | A **size proxy**: every module-level function in a transport module stays within 15 body statements and cyclomatic complexity 8 |
+
+Enforced today: **`auth`, `backup`, `config_api`, `mqtt`, `network`,
+`schedules`, `system`, `transitions`, `triggers`**. Everything else —
+including `pages`, `collections`, `panels`, `settings`, `board_api` — is
+**unenforced**, and most of it does not currently comply: the 2026-09 audit
+counted ~1,600 lines of domain logic living in thirteen routers. A domain
+joins the list in the PR that makes it comply, never by loosening a rule
+until it passes. The ratchet is a floor that only moves up.
+
+`config_api`, `system` and `transitions` joined by moving ~790 lines out of
+their routers: `src/config_api/service.py` is new (the domain had no service
+module at all), the transition frame loops and board routing went to
+`src/transitions/service.py`, and the update-apply and rollback workflows went
+to `src/system/update_service.py`, which also stopped importing `fastapi`.
+No rule was loosened and no exception was recorded to admit any of them.
+
+The third rule is a proxy and its docstring says plainly what it does and
+does not catch — logic sharded across ten small helpers passes; a dense
+one-line comprehension passes. Read it before trusting a green run as proof
+of good layering.
+
+`src/plugins/` is a special case: it keeps rule 1 (via
+`tests/test_plugins_decoupled.py`, which calls the shared checker) but is not
+in the manifest, because its router still fails rule 3.
+
+## The layers, one paragraph each
+
+**`src/api_server.py`** builds the FastAPI app, mounts every router and owns
+the lifespan (start the display service, start MQTT, start the update poller).
+As of the `/pages/ai` slice it holds **no** handler for a live domain: every
+non-deprecated route in the app now belongs to a tagged router under the
+conventions ratchet. Nothing else should import it — see *Seams* below.
+
+Two kinds of thing legitimately stay in it. The **background-loop state** —
+the `_service_running` flag, the thread handle, `_shutting_down`,
+`run_service_background` — is server lifecycle, and `mock.patch` sets the
+attribute on the module you name, so relocating a module global would kill
+~30 live patch sites for nothing. `src/display_runtime.py` owns the *seam*
+instead: a probe reads the flag, `set_loop_controls` registers the writers,
+and `src/service_api/routes.py` never sees the state. The other is the
+**eleven deprecated plugin-specific routes** (`/baywheels/*`, `/muni/*`,
+`/stocks/*`, `/traffic/*`, `/transit/cache/status`) — routes that serve one
+plugin each, which CLAUDE.md says must not be in `src/` at all. They have no
+consumer, they are `deprecated=True` in the schema, and #1915 tracks removing
+them; extracting a router for code we intend to delete would be motion, not
+progress. When #1915 lands, `api_server.py` stops serving routes entirely.
+
+**Routers (`src/<domain>/routes.py`)** are the only place HTTP appears.
+Every route declares `response_model=`, a typed request body, the error
+statuses it can raise, and `201` when it creates something. Those four rules
+are enforced per domain by `tests/test_api_conventions_ratchet.py`; see
+[API_CONVENTIONS.md](API_CONVENTIONS.md). What a router must *not* do —
+persistence, and decision-making — is a separate per-domain ratchet,
+`tests/test_layering_ratchet.py`, with its own manifest and its own opt-in
+list.
+
+**Services (`src/<domain>/service.py`)** hold the behaviour and are callable
+from anywhere — a route, an MCP tool, the display loop, a test. They raise
+domain exceptions (`PageNotFound`, `PluginError`) which the router maps to
+status codes through one table per domain, and they never import `fastapi` —
+`service_no_fastapi` above is what stops that regressing in an enforced
+domain.
+
+**Storage (`src/storage/`)** is one kernel: `JsonStore` gives every store an
+`RLock`, an atomic write, and ordered `schema_version` migrations. Every
+default path resolves through `src.paths.get_data_dir()`, the single seam
+that honours `FIESTABOARD_DATA_DIR`. See
+[PERSISTENCE.md](PERSISTENCE.md) for the write contract and for why there is
+deliberately no cross-process lock.
+
+## The display engine
+
+The engine is a 1 Hz loop that *decides*, and per-board workers that *send*.
+This split is the single most consequential change in the rework: before it,
+one board's 120-second transition froze the loop, the silence detector and
+every other board.
+
+```text
+tick thread (1 Hz)                      per-board send workers
+──────────────────                      ──────────────────────
+resolve what each board should show
+   │
+fetch only the plugins that are
+referenced or drive a trigger
+   │
+render (skipped when nothing the
+template depends on has changed)
+   │
+diff against what the board shows
+   │
+enqueue ──────────────────────────────► board 1 worker ── latest-wins queue
+   │                                     board 2 worker ── independent
+returns in ~0.1 ms
+```
+
+Names you will meet:
+
+- **`BoardRuntime`** — per-board state: its client, its worker, its last
+  render memo.
+- **`BoardSendWorker`** — one thread per board with a **latest-wins** queue:
+  a newer frame supersedes a queued older one, and callers waiting on the
+  superseded frame are adopted onto the newer one. Never bypass it; a direct
+  send races the worker.
+- **The dedupe cache** — what each board is currently showing. The tick reads
+  it to decide whether to send at all. It is written by the worker *before*
+  the in-flight key is retired, and the tick snapshots the in-flight key set
+  once per pass, so a job completing mid-pass can never make both guards read
+  stale (#1900).
+- **The render memo** — `(fingerprint, content, page_id)`. The fingerprint
+  covers the referenced plugins' data and the config generation, so an
+  unchanged tick skips the render entirely. It re-checks its own content
+  against the live dedupe cache before it is trusted, which is why every
+  existing cache-invalidation site invalidates the memo for free.
+  The fingerprint enters each plugin's payload as a hash computed once on the
+  `PluginResult` that `PluginBase` cached, not by re-encoding the
+  payload, and the fingerprint itself is memoised per board **size** inside
+  the per-tick context cache. Both matter: without them, deciding "nothing
+  changed" cost one full `json.dumps` of every referenced payload per board
+  per tick. The memo is per-size and never global, because board-aware plugins
+  legitimately return different data per geometry.
+- **Silence and pause** are per board, resolved through `src/board_guards.py`.
+  Every send path asks; both guards degrade to "not blocked" and log rather
+  than raising, because a guard that raises turns an unrelated failure into a
+  blackout.
+
+## Plugins
+
+Plugins are data sources. `PluginRegistry` loads them, `PluginService`
+orchestrates them, and the engine fetches only the ones a rendered template
+actually references (plus any that drive a trigger).
+
+Two properties are load-bearing and easy to break:
+
+- **The registry lock is never held across the fetch fan-out.** The registry
+  snapshots its enabled-plugin list, releases, and then fetches.
+  `tests/test_registry_lock_discipline.py` fails if that inverts — it is a
+  deadlock, and no other test would see it.
+- **A wedged plugin cannot starve the healthy ones.** Fetches run on one
+  shared bounded pool, in-flight dedupe caps each plugin at one worker, and a
+  circuit breaker takes a repeatedly-timing-out plugin out of rotation.
+  Without the breaker, eight distinct wedged plugins were enough to block
+  every plugin's data. The breaker, the in-flight dedupe and the fetch itself
+  are all keyed by `(plugin_id, board_key)` — one plugin on one geometry —
+  and they must stay that way: keyed by `plugin_id` alone, two boards charged
+  two timeouts per tick and one healthy geometry cleared the streak a wedged
+  one was accumulating.
+- **`CONTEXT_BUILD_TIMEOUT_SECONDS` must stay below the poll interval.**
+  `build_template_context` blocks the service thread that also runs the 1 Hz
+  silence-boundary detector, so a budget equal to the tick period lets one
+  slow plugin consume a whole tick *and* delay silence entry by that long.
+- **An already-cached plugin is read on the calling thread**, not dispatched
+  to the pool. A fully cached tick therefore never enters `futures_wait` and
+  can never pay the fetch budget for a plugin it was not going to talk to.
+
+## Operations: the chat drives the MCP server
+
+`src/ops/` is the named operation set, and `src/mcp_server.py` is the one
+place every operation is described and served. The in-app chat does not
+have tools of its own: it calls the in-process MCP server through
+`src/ai/mcp_bridge.py`, so external MCP clients and FiestaBot use the same
+tool names, arguments, descriptions and annotations.
+
+```text
+browser drawer ──POST /pages/ai/chat (SSE)──► src/ai/agent.py (server-side loop)
+                                              │  model call: src/ai/chat.py stream_model
+                                              │  tool catalog + execution: src/ai/mcp_bridge.py
+                                              ▼
+                                     src/mcp_server.py  list_tools() / call_tool()  ◄── /api/mcp/ (external clients)
+                                              ▼
+                                     src/ops/executors.py ──► services
+```
+
+- `src/ai/agent.py` — one user turn: as many model calls and tool
+  executions as it needs, streamed as one SSE stream. A `tool_call` frame is
+  emitted *before* a tool runs and a `tool_result` after, which is what the
+  web app narrates.
+- `src/ai/mcp_bridge.py` — the only chat-side module that imports `mcp`;
+  descriptors in, outcomes out. Lazy, so boot never pays the import.
+- `src/ai/tool_catalog.py` — the prose the model is taught, generated from
+  the MCP tool list; and the validator the fence parser runs.
+- `src/ai/transcript.py` — the client replays a structured transcript
+  (assistant `tool_calls`, `tool` outcomes); this renders it for the model
+  exactly as the loop rendered its own steps.
+- `src/ai/chat_tools.py` — the one chat-only tool that is deliberately not
+  MCP: `ask_user` (answered in the browser). `trigger_system_update` used to
+  live here; it is a real MCP tool now, next to `restart_system` and
+  `shutdown_system`.
+- `src/ops/executors.py` — still the one implementation per write
+  operation; MCP tools call them. `src/ops/teaching.py` generates the
+  instruction text from the defining modules so it cannot rot.
+
+The MCP tool **annotations** decide policy, not a list in the chat:
+`readOnlyHint` tools run freely mid-turn; `destructiveHint` tools
+(`delete_*`, `uninstall_plugin`, `remove_board`, `delete_panel`, the Wi-Fi
+disconnect/forget tools and the system actions `trigger_system_update` / `restart_system` /
+`shutdown_system`)
+end the stream with `done{reason: "awaiting_approval"}` and run only when the
+client re-POSTs a `resume` approving them. `ask_user` ends it with
+`awaiting_input`. `tests/test_mcp_annotations.py` pins the sets.
+
+Two switches relax that pause (#2021): the install's `approval_mode`
+setting on the AI block (`PUT /settings/ai`, `"ask"` | `"auto"`) and the
+request's `approval.auto_approve_destructive` flag (the conversation's
+"don't ask again"). Either lets a destructive call run without pausing —
+its `tool_call` frame then carries `auto_approved: true` — except for the
+**system tier**, `SYSTEM_GATED` in `src/ops/registry.py` (`restart_system`,
+`shutdown_system`, `trigger_system_update`), which pauses in every mode and
+is flagged `system_gated: true` on the wire so the client can hide the
+"don't ask again" action. The `update_setting` executor refuses
+`approval_mode` outright: the assistant cannot change its own approval
+policy.
+
+The previous design — a hand-written chat op grammar, six browser-side ops
+(`replace_page`, `apply_patch`, `navigate_to_*`, …) and `POST /ai/operations`
+as the execution seam — is retired in favour of this; the endpoint and
+`src/ops/grammar.py` remain only until the web client stops calling them.
+
+## Seams: why `src.api_server` imports are counted
+
+Historically, tests patched `src.api_server.<name>` for everything, so an
+extracted router had to import `src.api_server` *inside each handler* to keep
+those patches steering it. Serving one request then dragged the whole app
+module back into the process, and the audit counted those call-time imports
+rising 4.2× through Phase 1.
+
+The fix is per domain: move the collaborator to a real module
+(`src/board_guards.py`, `src/display_runtime.py`, `src/log_store.py`), have
+both the router and `api_server` import it, and repoint the tests. Two rules
+follow from that:
+
+1. **A shared accessor cannot be deleted until its last consumer converts.**
+   Until then, a fixture stubs *both* paths rather than picking one.
+2. **New collaborators get a real module, never parameter-passing.** Extend
+   the three above rather than inventing a fourth pattern.
+
+Each converted domain carries a `tests/test_<domain>_decoupled.py` that fails
+if the router regains an `api_server` import (the last six share
+`tests/test_tail_routers_decoupled.py`).
+
+Not every collaborator has a router to move with. Three had to be given a
+home of their own by the last slice: `characters_to_message` went to
+`src/board_chars.py` (three callers in three modules asked the app module for
+a pure formatting function), the welcome card to `src/board_api/welcome.py`,
+and the SSRF URL guard to `src/plugin_support/url_guard.py`. That last one
+moved **byte-for-byte on purpose**: CodeQL's `py/full-ssrf` query recognizes
+the exact shape of its scheme allowlist, `ipaddress` check and `is_global`
+gate, so "tidying" it would delete a security gate rather than a duplication.
+`pyproject.toml` gives every file lifted out of `api_server` that module's
+ruff ignore set for the same reason.
+
+`src/board_state.py` is the same idea one level up. Four surfaces answer
+"what is on the board" — `GET /board/current-message`, the unauthenticated
+`GET /panel/{panel_id}/frame` a TV polls every 2s, the MCP
+`get_board_content` tool and `GET /v1/boards/{board}` — and each used to
+carry its own copy of the cache selection, drifting in small ways (only one
+could live-read, only one reported a source, only one honoured the virtual
+board's shape guard). `read_board_state(board_id, want=...)` is now the
+single selection, and it answers two intents: `want="board"` (what the flaps
+show — the poll cache first) and `want="sent"` (what FiestaBoard last
+displayed or sent, immediately — the panel viewer's question, which never
+consults the poll cache). After that: a virtual board's own memory, else what
+the client last sent, else empty — with the `source` that says which.
+`read_board_state_live` adds the network read `/board/current-message` may
+do, off the loop only when it actually happens. Boards resolve through
+`DisplayService.runtime_for` (the id's own runtime first, the sentinel-keyed
+primary only for the settings primary's id). The routes and the tool keep
+only presentation, and nothing outside that module reads
+`_polled_characters` or `_last_characters`. `GET /pages/current-display` is
+*not* a fifth copy: it answers which page should be showing (intent), not
+what the flaps show (state). `tests/test_board_state_contract.py` pins every
+value each surface answers, recorded before the consolidation.
+
+## Where the tests draw the lines
+
+| Corpus | Pins |
+| --- | --- |
+| `tests/golden/engine/` | Exact send sequences for scripted scenarios — value-level, so a duplicate or reordered send fails |
+| `tests/golden/responses/` | Response *shapes* per domain |
+| `tests/test_<domain>_contract.py` | Response *values* — ids, ordering, error strings. Shape goldens provably missed a secret-masking regression; these exist because of it |
+| `tests/golden/storage/` | On-disk bytes per store |
+| `tests/golden/api_routes.json` | The route table, so a "pure move" can be proven to move nothing |
+| `tests/conventions_manifest.json` | Which domains the four API rules are enforced on |
+| `tests/test_data_dir_isolation.py` | That the suite never writes to the real `data/` |
+
+A pure move must leave `api_routes.json` byte-identical. A conversion updates
+the contract file deliberately, with a comment naming each change.
+
+## Reading order for a new contributor
+
+1. This file.
+2. [API_CONVENTIONS.md](API_CONVENTIONS.md) — the four rules and how they are
+   enforced.
+3. `src/collections/` — the smallest fully-converted domain; routes, service,
+   storage and contract test all fit in one sitting.
+4. [PERSISTENCE.md](PERSISTENCE.md) — the write contract.
+5. `src/main.py::check_and_send_for_board` — one pass of the engine.

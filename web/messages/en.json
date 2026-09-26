@@ -83,11 +83,50 @@
     "unnamedBoard": "Unnamed board",
     "transitions": "Transition Lab"
   },
+  "settingsMenu": {
+    "trigger": "Settings",
+    "settings": "Settings",
+    "appearance": "Appearance",
+    "light": "Light",
+    "dark": "Dark",
+    "system": "System",
+    "devSuffix": "dev build",
+    "updateAvailable": "Update available: {version}",
+    "updateTo": "Update to {version}",
+    "about": "About FiestaBoard",
+    "signOut": "Sign out"
+  },
+  "aboutDialog": {
+    "description": "Version and system information for this FiestaBoard.",
+    "devSuffix": "dev build",
+    "channel": "Channel",
+    "channelStable": "Stable",
+    "channelBeta": "Beta",
+    "platform": "Platform",
+    "platformDocker": "Docker",
+    "platformPi": "Raspberry Pi",
+    "hardware": "Hardware",
+    "updates": "Updates",
+    "updatesDaily": "Automatic, daily",
+    "updatesWeekly": "Automatic, weekly",
+    "updatesMonthly": "Automatic, monthly",
+    "updatesManual": "Manual",
+    "updatesManaged": "Managed externally",
+    "updatesUnavailable": "Updater unavailable",
+    "updateAvailable": "Update available: {version}",
+    "board": "Board",
+    "license": "MIT License",
+    "copyright": "© {year} {holder}",
+    "sourceCode": "Source on GitHub"
+  },
   "home": {
     "title": "Dashboard",
     "description": "Monitor your board display and system activity",
     "noBoardConfigured": "No board configured",
     "noBoardDescription": "Your board is not set up yet. Connect your board to start displaying content.",
+    "boardInitErrorTitle": "{boardName} is unavailable",
+    "boardInitErrorTitleUnnamed": "A board is unavailable",
+    "boardInitErrorOpenSettings": "Open board settings",
     "runSetupWizard": "Run Setup Wizard",
     "silenceImminentTitle": "Silence starts in {minutes, plural, =0 {less than a minute} one {# minute} other {# minutes}}",
     "silenceImminentDescription": "Switch to “{pageName}” now so you don't have to wait for the schedule to catch up.",
@@ -525,7 +564,14 @@
       "apiKeyLabel": "API Key",
       "modelsLabel": "Models",
       "defaultModelLabel": "Default model",
-      "testConnectionButton": "Test connection"
+      "testConnectionButton": "Test connection",
+      "turnLimits": {
+        "heading": "Turn limits",
+        "description": "A backstop against a model stuck in a loop, not a work budget. Reaching one pauses the turn and the chat offers to keep going. Leave blank to use the server defaults.",
+        "modelCallsLabel": "Model calls per turn",
+        "toolCallsLabel": "Tool calls per turn",
+        "serverDefault": "Server default"
+      }
     },
     "backup": {
       "cardTitle": "Backup & Restore",
@@ -885,6 +931,11 @@
       "badge": "Paused",
       "tooltip": "When paused, FiestaBoard does not push anything to this board — scheduled pages, manual sends, plugin triggers, and MQTT commands are all blocked until you resume."
     },
+    "initError": {
+      "badge": "Unavailable",
+      "title": "This board failed to initialize",
+      "hint": "Fix the connection details below — saving retries the connection."
+    },
     "blackAriaLabel": "Black",
     "whiteAriaLabel": "White",
     "boardNameLabel": "Name",
@@ -1162,14 +1213,6 @@
     "toastDisplaySaved": "Display settings saved",
     "toastDisplaySaveFailed": "Failed to save display settings: {error}"
   },
-  "themeToggle": {
-    "toggleTheme": "Toggle theme"
-  },
-  "versionDisplay": {
-    "devSuffix": "(dev)",
-    "updateAvailableAriaLabel": "Update available: v{version}",
-    "updateAvailableTooltip": "Update available: v{version}"
-  },
   "serviceControls": {
     "title": "Service Control",
     "contentAutoSent": "Content is automatically sent to the physical board"
@@ -1266,75 +1309,6 @@
       "failure": "Could not enable login"
     }
   },
-  "aiActionConfirmation": {
-    "deny": "Deny",
-    "allow": "Allow",
-    "working": "Working…",
-    "done": "Done",
-    "denied": "Denied",
-    "noChanges": "no changes",
-    "noValues": "no values",
-    "noChangesSpecified": "No changes specified.",
-    "openEnd": "open",
-    "label": {
-      "installPlugin": "Install plugin: {id}",
-      "updatePluginConfig": "Configure plugin: {id}",
-      "updatePlugin": "Update plugin: {id}",
-      "enablePlugin": "Enable plugin: {id}",
-      "disablePlugin": "Disable plugin: {id}",
-      "uninstallPlugin": "Uninstall plugin: {id}",
-      "updateSetting": "Change setting: {category}",
-      "createCollection": "Create collection: \"{name}\"",
-      "updateCollection": "Update collection",
-      "createSchedule": "Create schedule",
-      "updateSchedule": "Update schedule",
-      "deleteSchedule": "Delete schedule",
-      "triggerSystemUpdate": "System update"
-    },
-    "description": {
-      "installPlugin": "Installs \"{id}\" from the official registry.",
-      "installPluginEnable": "Installs \"{id}\" from the official registry and enables it.",
-      "updatePluginConfig": "Updates configuration for \"{id}\": {keys}.",
-      "updatePlugin": "Downloads and installs the latest registry version of \"{id}\".",
-      "enablePlugin": "Enables \"{id}\" so it can provide data to your boards.",
-      "disablePlugin": "Disables \"{id}\" without removing it. It can be re-enabled later.",
-      "uninstallPlugin": "Permanently removes \"{id}\". This cannot be undone.",
-      "updateSetting": "Sets {values} in {category} settings.",
-      "createCollection": "Creates a collection with {count, plural, one {# page} other {# pages}}, rotating every {interval}s.",
-      "createSchedule": "Shows page \"{page}\" from {time} on {days} days.",
-      "deleteSchedule": "Permanently removes schedule \"{id}\". This cannot be undone.",
-      "triggerSystemUpdate": "Downloads and installs the latest FiestaBoard update. The system will restart briefly."
-    },
-    "change": {
-      "rename": "rename to \"{name}\"",
-      "setPages": "set {count, plural, one {# page} other {# pages}}",
-      "interval": "interval → {interval}s",
-      "page": "page → {page}",
-      "start": "start → {start}",
-      "end": "end → {end}",
-      "days": "days → {days}",
-      "enable": "enable",
-      "disable": "disable"
-    }
-  },
-  "chainingModePicker": {
-    "menuTitle": "AI chaining mode",
-    "triggerAriaLabel": "AI chaining mode: {mode}",
-    "modes": {
-      "manual": {
-        "label": "Manual",
-        "description": "I'll re-prompt after each action"
-      },
-      "autoContinue": {
-        "label": "Auto-continue",
-        "description": "Chain actions, confirm each step"
-      },
-      "autonomous": {
-        "label": "Autonomous",
-        "description": "Run to completion, skip confirmations"
-      }
-    }
-  },
   "bootGate": {
     "waiting": "Waiting to start…",
     "errorHeading": "Couldn't connect to FiestaBoard",
@@ -1346,7 +1320,31 @@
     "updateErrorDescription": "The update finished, but the app is still restarting. Give it another moment, then refresh."
   },
   "globalAiChatDrawer": {
-    "panelAriaLabel": "FiestaBot AI chat"
+    "panelAriaLabel": "FiestaBot AI chat",
+    "toast": {
+      "undo": "Undo",
+      "pageCreated": "Page created.",
+      "pageUpdated": "Page updated.",
+      "pageDeleted": "Page deleted.",
+      "scheduleCreated": "Schedule created.",
+      "scheduleUpdated": "Schedule updated.",
+      "scheduleDeleted": "Schedule deleted.",
+      "pluginInstalled": "Plugin \"{id}\" installed.",
+      "pluginConfigured": "Plugin \"{id}\" configured.",
+      "pluginUpdated": "Plugin \"{id}\" updated.",
+      "pluginEnabled": "Plugin \"{id}\" enabled.",
+      "pluginDisabled": "Plugin \"{id}\" disabled.",
+      "pluginUninstalled": "Plugin \"{id}\" uninstalled.",
+      "settingUpdated": "Setting updated.",
+      "collectionCreated": "Collection \"{name}\" created.",
+      "collectionUpdated": "Collection updated.",
+      "collectionDeleted": "Collection deleted.",
+      "activePageSet": "Board updated.",
+      "messageSent": "Message sent to the board.",
+      "systemUpdate": "System update started. The board will restart shortly.",
+      "toolFailed": "{tool} failed: {error}",
+      "stopped": "Stopped. Anything already running will still finish."
+    }
   },
   "plainTextEditor": {
     "placeholder": "Type your template text...",
@@ -2035,27 +2033,175 @@
   },
   "aiChatPanel": {
     "messagesAriaLabel": "Chat messages",
-    "taskStatusAriaLabel": "Task progress",
-    "taskProgressAriaLabel": "AI task progress",
-    "clearConversationAriaLabel": "Clear conversation",
-    "closePanelAriaLabel": "Close FiestaBot (Beta)",
+    "closePanelAriaLabel": "Close FiestaBot",
+    "newChatAriaLabel": "New chat",
+    "historyAriaLabel": "History",
+    "backAriaLabel": "Back",
     "providerSelectAriaLabel": "Provider",
     "modelSelectAriaLabel": "Model",
-    "showBoardTooltip": "Show board preview",
-    "hideBoardTooltip": "Hide board preview",
-    "undoTooltip": "Undo last AI change",
-    "panelTitle": "FiestaBot (Beta)",
+    "panelTitle": "FiestaBot",
     "retryButton": "Retry",
     "messageLabel": "Message",
     "stopButton": "Stop",
     "sendButton": "Send",
-    "tasksHeading": "Tasks ({done}/{total})",
+    "enterToSend": "to send",
+    "shiftEnterNewline": "for a new line",
     "emptyStateTitle": "How can I help?",
     "emptyStateDescription": "Describe what you'd like to build or change.",
-    "showBoardButton": "Show board",
-    "undoButton": "Undo",
-    "renameSummary": "→ rename to \"{name}\"",
-    "previewUnavailable": "(preview unavailable)"
+    "placeholderEmpty": "Describe the page you want, or ask for changes…",
+    "placeholderRefine": "Refine, ask, or request another change…",
+    "placeholderAnswer": "Type your answer…",
+    "blockedAiDisabled": "AI is disabled. Enable it in Settings → AI Providers.",
+    "blockedNoProviders": "Configure an AI provider with at least one model in Settings → AI Providers.",
+    "suggestions": {
+      "weather": "Build a weather + transit page for my morning commute",
+      "date": "Replace line 2 with today’s date",
+      "variables": "What plugin variables can I use on this page?"
+    },
+    "jumpToLatest": "Jump to latest",
+    "defaultModel": "Default",
+    "stepsAriaLabel": "Steps in progress",
+    "stepsHeading": "{done} of {total} steps",
+    "approvalMode": {
+      "label": "Approval mode",
+      "ask": "Ask",
+      "auto": "Auto",
+      "autoNote": "Auto runs deletions and other destructive actions without asking. Restarting, shutting down and updating always ask.",
+      "thisChat": "Auto for this chat — choose Ask to be asked again."
+    },
+    "autoApproved": {
+      "badge": "auto",
+      "tooltip": "Ran without asking: approval mode is Auto, or you chose “don't ask again” for this chat."
+    },
+    "toolInput": "Arguments",
+    "toolOutput": "Result",
+    "toolStates": {
+      "inputStreaming": "Preparing",
+      "inputAvailable": "Running",
+      "outputAvailable": "Done",
+      "outputError": "Failed",
+      "approvalRequested": "Waiting for your approval",
+      "denied": "Not run",
+      "stopped": "Stopped"
+    },
+    "status": {
+      "thinking": "Thinking…",
+      "running": "Running {tool}…",
+      "preparing": "Preparing {tool}…",
+      "elapsed": "{seconds}s"
+    },
+    "question": {
+      "skip": "Skip",
+      "typeAnswer": "Or type an answer below.",
+      "answered": "You answered: {answer}",
+      "declined": "(skipped)",
+      "cancelled": "(cancelled)"
+    },
+    "tool": {
+      "createPage": "Create page",
+      "updatePage": "Update page",
+      "deletePage": "Delete page",
+      "createSchedule": "Add schedule",
+      "updateSchedule": "Update schedule",
+      "deleteSchedule": "Delete schedule",
+      "createCollection": "Create collection",
+      "updateCollection": "Update collection",
+      "deleteCollection": "Delete collection",
+      "installPlugin": "Install plugin",
+      "enablePlugin": "Enable plugin",
+      "disablePlugin": "Disable plugin",
+      "uninstallPlugin": "Uninstall plugin",
+      "configurePlugin": "Configure plugin",
+      "updatePlugin": "Update plugin",
+      "setActivePage": "Show page on board",
+      "setScheduleMode": "Set schedule mode",
+      "sendMessage": "Send message to board",
+      "updateSetting": "Change setting",
+      "triggerSystemUpdate": "System update",
+      "askUser": "Question",
+      "listPages": "Look up pages",
+      "getPage": "Read page",
+      "listSchedules": "Look up schedules",
+      "listCollections": "Look up collections",
+      "listInstalledPlugins": "Look up installed plugins",
+      "listRegistryPlugins": "Browse plugin registry",
+      "getTemplateVariables": "Look up template variables",
+      "getPluginData": "Read plugin data",
+      "renderPagePreview": "Preview template",
+      "previewSavedPage": "Preview page",
+      "validateTemplate": "Check template",
+      "getSystemStatus": "Check system status",
+      "getSettingsSummary": "Read settings",
+      "getActivePage": "Check active page",
+      "getBoardContent": "Read board"
+    },
+    "previewUnavailable": "(preview unavailable)",
+    "history": {
+      "title": "History",
+      "searchPlaceholder": "Search conversations…",
+      "searchAriaLabel": "Search conversations by title",
+      "empty": "No saved conversations yet",
+      "emptyDescription": "Chats are saved automatically as you go.",
+      "noMatches": "No conversations match your search.",
+      "messageCount": "{count, plural, one {# message} other {# messages}}",
+      "open": "Open {title}",
+      "rename": "Rename",
+      "renameAriaLabel": "Rename {title}",
+      "renameLabel": "Conversation title",
+      "saveTitle": "Save title",
+      "cancel": "Cancel",
+      "delete": "Delete",
+      "deleteAriaLabel": "Delete {title}",
+      "clearAll": "Clear all",
+      "clearAllTitle": "Delete all conversations?",
+      "clearAllDescription": "This removes every saved chat from this FiestaBoard. It cannot be undone.",
+      "clearAllConfirm": "Delete all",
+      "continue": "Continue",
+      "export": "Export JSON",
+      "readOnly": "Viewing a saved conversation. Continue to pick it up again.",
+      "loadFailed": "Could not load that conversation.",
+      "deleted": "Conversation deleted",
+      "cleared": "All conversations deleted"
+    },
+    "sendShortcut": "Enter to send, Shift+Enter for a new line",
+    "dayPattern": {
+      "all": "every day",
+      "weekdays": "weekdays",
+      "weekends": "weekends",
+      "custom": "selected days"
+    },
+    "showJson": "Show JSON",
+    "resultFields": "{count, plural, one {# field} other {# fields}}",
+    "argLabel": {
+      "page": "Page",
+      "time": "Time",
+      "days": "Days",
+      "board": "Board",
+      "duration": "Duration",
+      "lines": "Lines",
+      "name": "Name",
+      "setting": "Setting",
+      "message": "Message",
+      "plugin": "Plugin",
+      "collection": "Collection",
+      "scheduleMode": "Schedule mode"
+    },
+    "argValue": {
+      "on": "On",
+      "off": "Off",
+      "lineCount": "{count, plural, one {# line} other {# lines}}",
+      "durationSeconds": "{count}s"
+    },
+    "resizeHandle": "Resize FiestaBot panel",
+    "toolRun": "{tool} · {count, plural, one {# time} other {# times}}",
+    "composerSettings": {
+      "triggerAriaLabel": "Chat settings: approval {mode}, model {model}",
+      "popoverLabel": "Chat settings"
+    },
+    "keepGoing": {
+      "prompt": "The assistant paused on a long turn. Nothing is lost.",
+      "action": "Keep going"
+    }
   },
   "boardSizeIndicator": {
     "custom": "Custom",
@@ -2094,7 +2240,11 @@
     "claudeWebDescription": "<label>claude.ai web (Connectors):</label> not supported for self-hosted FiestaBoard. The Connectors flow requires a public HTTPS URL and OAuth 2.1 dynamic client registration, neither of which a LAN host can provide. Use Desktop or Code instead.",
     "savedItButton": "I've saved it",
     "toastTokenRevoked": "MCP token revoked",
-    "toastCopyFailed": "Couldn't copy to clipboard"
+    "toastCopyFailed": "Couldn't copy to clipboard",
+    "lockedDescription": "Login is turned off on this install, so the current MCP token is itself the credential for managing tokens. Enter it below to unlock rotating or revoking.",
+    "lockedTokenLabel": "Current MCP token",
+    "unlockButton": "Unlock",
+    "unlockFailedToast": "That token doesn't match the configured MCP token."
   },
   "fiestaPanels": {
     "title": "FiestaPanel",
@@ -2151,7 +2301,11 @@
     "hdmiHelp": "Show the display panel on a screen connected to this Pi's HDMI port. Enabling installs a small kiosk browser (takes a few minutes).",
     "hdmiInstalling": "Setting up the HDMI kiosk — this installs a browser on the Pi and can take a few minutes…",
     "hdmiEnabledHint": "The HDMI screen shows whichever panel has “Display output” turned on above.",
-    "hdmiFailed": "The last HDMI kiosk change failed. Try again, or reboot the Pi and retry."
+    "hdmiFailed": "The last HDMI kiosk change failed. Try again, or reboot the Pi and retry.",
+    "yourPanelsGroupLabel": "Your panels",
+    "panelSizeOption": "{name} · {wide}×{tall} notes",
+    "fitsPanel": "Fits {name}",
+    "fitsPanelAndMore": "Fits {name} +{count} more"
   },
   "releaseChannel": {
     "title": "Release channel",
@@ -2167,6 +2321,60 @@
     "confirmCta": "Join the beta",
     "cancel": "Cancel",
     "switching": "Switching…",
-    "switchFailedToast": "Could not switch channel: {error}"
+    "switchFailedToast": "Could not switch channel: {error}",
+    "leaveCta": "Leave the beta",
+    "leaveConfirmTitle": "Leave the beta channel?",
+    "leaveConfirmBody": "This moves you back to the current stable release, which is an older version than the beta you are running. Your settings and pages will be rolled back to the backup taken when you joined — anything you changed while on the beta will be lost. FiestaBoard will restart onto the stable build. If you would rather keep your changes, wait instead: when the next stable release passes your beta, Update Now moves you onto it with nothing lost.",
+    "leaveConfirmCta": "Leave the beta"
+  },
+  "aiApprovalCard": {
+    "heading": "Needs your approval",
+    "approve": "Approve",
+    "deny": "Deny",
+    "working": "Working…",
+    "approveAll": "Approve and don't ask again in this chat",
+    "description": {
+      "deletePage": "Permanently removes page \"{detail}\". Schedules and collections that use it lose it.",
+      "deleteSchedule": "Permanently removes schedule \"{detail}\". This cannot be undone.",
+      "deleteCollection": "Permanently removes collection \"{detail}\". This cannot be undone.",
+      "uninstallPlugin": "Permanently removes plugin \"{detail}\" and its configuration.",
+      "triggerSystemUpdate": "Downloads and installs the latest FiestaBoard update. The system will restart briefly.",
+      "generic": "This action cannot be undone by another tool."
+    }
+  },
+  "aiSpotlight": {
+    "stop": "Stop",
+    "approve": "Approve",
+    "deny": "Deny"
+  },
+  "aiChoreography": {
+    "working": "{tool}…",
+    "done": "{tool} — done",
+    "failed": "{tool} failed",
+    "awaitingApproval": "{tool} — waiting for your approval",
+    "openingNewPage": "Opening a new page…",
+    "typingName": "Naming the page…",
+    "typingLines": "Writing the lines…",
+    "creatingPage": "Creating “{name}”…",
+    "pageCreated": "Page created",
+    "pageUpdated": "Page updated",
+    "pageFailed": "The page could not be saved",
+    "updatingBehindEdits": "Updating the saved page — your unsaved edits stay as they are",
+    "changingDevice": "Changing the board size…",
+    "aboutToDeletePage": "About to delete this page",
+    "pageDeleted": "Page deleted",
+    "openingScheduleForm": "Opening the schedule form…",
+    "fillingSchedule": "Filling in the schedule…",
+    "savingSchedule": "Saving the schedule…",
+    "scheduleCreated": "Schedule added",
+    "scheduleUpdated": "Schedule updated",
+    "scheduleFailed": "The schedule could not be saved",
+    "aboutToDeleteSchedule": "About to delete this schedule",
+    "scheduleDeleted": "Schedule deleted",
+    "changingSetting": "{tool}…",
+    "settingSaved": "Setting saved",
+    "settingFailed": "The setting could not be saved",
+    "on": "On",
+    "off": "Off"
   }
 }

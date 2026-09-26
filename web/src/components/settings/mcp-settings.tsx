@@ -20,6 +20,8 @@ import {
   DialogHeader,
   DialogTitle,
   Flex,
+  Input,
+  Label,
   PageSection,
   Skeleton,
   Stack,
@@ -27,12 +29,14 @@ import {
   TextLink,
 } from "@fiestaboard/ui";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { AlertTriangle, Bot, Check, Copy, KeyRound, Loader2, RefreshCw, Trash2 } from "lucide-react";
-import { type ReactNode, useMemo, useState } from "react";
+import { AlertTriangle, Bot, Check, Copy, KeyRound, Loader2, Lock, RefreshCw, Trash2 } from "lucide-react";
+import { type ReactNode, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 
 import { useTranslations } from "@/i18n/translations";
-import { api } from "@/lib/api";
+import { api, ApiError } from "@/lib/api";
+import { appUrl, stripBasePath } from "@/lib/base-path";
+import { isPanelPath } from "@/lib/chromeless";
 
 /** Env var that pins the MCP token when set — never translated. */
 const MCP_TOKEN_ENV_VAR = "FIESTABOARD_MCP_TOKEN";
@@ -79,6 +83,15 @@ function buildClaudeDesktopConfig(token: string): string {
   return JSON.stringify(config, null, 2);
 }
 
+/**
+ * True when an error is the backend's "present the current MCP token"
+ * 401 challenge (#1825) — auth-disabled installs answer it on every
+ * /auth/mcp-token call once a token is configured.
+ */
+function isLockedError(err: unknown): boolean {
+  return err instanceof ApiError && err.status === 401;
+}
+
 export function McpSettings() {
   const t = useTranslations("mcpSettings");
   const tCommon = useTranslations("common");
@@ -87,17 +100,75 @@ export function McpSettings() {
   const [confirmingRotate, setConfirmingRotate] = useState(false);
   const [confirmingClear, setConfirmingClear] = useState(false);
   const [copied, setCopied] = useState<"token" | "config" | null>(null);
+  const [tokenInput, setTokenInput] = useState("");
 
-  const { data: status, isLoading } = useQuery({
+  // On auth-disabled installs the backend gates token management behind
+  // the *current* token once one exists (#1825). After a successful
+  // unlock the token is held here and passed as a bearer on every
+  // management call. A ref (not state) so the invalidation-triggered
+  // refetch inside mutation callbacks always sees the freshest value —
+  // a state closure would still hold the pre-rotate token.
+  const heldTokenRef = useRef<string | null>(null);
+
+  const { data: authStatus } = useQuery({
+    queryKey: ["auth-status"],
+    queryFn: api.getAuthStatus,
+    staleTime: 30_000,
+    retry: false,
+  });
+
+  const {
+    data: status,
+    isLoading,
+    error: statusError,
+  } = useQuery({
     queryKey: ["mcp-token-status"],
-    queryFn: () => api.getMcpTokenStatus(),
+    queryFn: () => api.getMcpTokenStatus(heldTokenRef.current ?? undefined),
+    // 401 means "locked" here, not a transient failure — don't retry it.
+    retry: (failureCount, err) => !isLockedError(err) && failureCount < 3,
+  });
+
+  const isLocked = authStatus?.mode === "disabled" && isLockedError(statusError);
+
+  // The token calls skip fetchApi's automatic login redirect because a
+  // 401 means "locked" on auth-disabled installs. When auth is ENABLED,
+  // though, a 401 here is a plain expired session — without this the
+  // component would sit on a skeleton forever. Mirror the shared
+  // redirect helper in @/lib/api (same guards, same redirect target).
+  const sessionExpired = authStatus !== undefined && authStatus.mode !== "disabled" && isLockedError(statusError);
+  useEffect(() => {
+    if (!sessionExpired) return;
+    if (typeof window === "undefined") return;
+    if (stripBasePath(window.location.pathname).startsWith("/login")) return;
+    if (isPanelPath(window.location.pathname)) return;
+    const target = encodeURIComponent(stripBasePath(window.location.pathname) + window.location.search);
+    window.location.assign(appUrl(`/login?redirect=${target}`));
+  }, [sessionExpired]);
+
+  const unlockMutation = useMutation({
+    mutationFn: (token: string) => api.getMcpTokenStatus(token),
+    onSuccess: (data, token) => {
+      heldTokenRef.current = token;
+      setTokenInput("");
+      queryClient.setQueryData(["mcp-token-status"], data);
+    },
+    onError: (err: Error) => {
+      toast.error(isLockedError(err) ? t("unlockFailedToast") : err.message);
+    },
   });
 
   const rotateMutation = useMutation({
-    mutationFn: () => api.rotateMcpToken(),
+    mutationFn: () => api.rotateMcpToken(heldTokenRef.current ?? undefined),
     onSuccess: ({ token }) => {
       setRevealedToken(token);
       setConfirmingRotate(false);
+      // Hold the fresh token unconditionally. In the locked flow the old
+      // bearer just became invalid; on a FIRST mint (auth disabled, no
+      // token yet, nothing held) the status refetch below would 401 and
+      // flip into the locked view — unmounting the reveal dialog before
+      // the user can copy the token. When session auth is doing the work
+      // the extra bearer is simply ignored by the backend.
+      heldTokenRef.current = token;
       queryClient.invalidateQueries({ queryKey: ["mcp-token-status"] });
     },
     onError: (err: Error) => {
@@ -107,10 +178,12 @@ export function McpSettings() {
   });
 
   const clearMutation = useMutation({
-    mutationFn: () => api.clearMcpToken(),
+    mutationFn: () => api.clearMcpToken(heldTokenRef.current ?? undefined),
     onSuccess: () => {
       toast.success(t("toastTokenRevoked"));
       setConfirmingClear(false);
+      // No token configured any more — management is open again.
+      heldTokenRef.current = null;
       queryClient.invalidateQueries({ queryKey: ["mcp-token-status"] });
     },
     onError: (err: Error) => {
@@ -130,6 +203,34 @@ export function McpSettings() {
   };
 
   const configSnippet = useMemo(() => (revealedToken ? buildClaudeDesktopConfig(revealedToken) : ""), [revealedToken]);
+
+  if (isLocked) {
+    return (
+      <PageSection icon={<Lock />} title={t("title")} description={t("lockedDescription")} className="space-y-4">
+        <Stack gap="2" className="max-w-md">
+          <Label htmlFor="mcp-current-token">{t("lockedTokenLabel")}</Label>
+          <Flex gap="2">
+            <Input
+              id="mcp-current-token"
+              type="password"
+              autoComplete="off"
+              value={tokenInput}
+              onChange={(e) => setTokenInput(e.target.value)}
+              disabled={unlockMutation.isPending}
+            />
+            <Button
+              onClick={() => unlockMutation.mutate(tokenInput.trim())}
+              disabled={unlockMutation.isPending || !tokenInput.trim()}
+              className="gap-2"
+            >
+              {unlockMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+              {t("unlockButton")}
+            </Button>
+          </Flex>
+        </Stack>
+      </PageSection>
+    );
+  }
 
   if (isLoading || !status) {
     return (

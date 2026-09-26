@@ -2,146 +2,106 @@
 
 import { Box } from "@fiestaboard/ui";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef } from "react";
 import { toast } from "sonner";
 
-import { AiActionConfirmation } from "@/components/ai-action-confirmation";
-import { AiChatPanel } from "@/components/ai-chat-panel";
+import { type AiChatController, AiChatPanel } from "@/components/ai-chat-panel";
+import { AiDrawerResizeHandle } from "@/components/ai-drawer-resize-handle";
+import { useSpotlight } from "@/components/ai-spotlight/spotlight-provider";
+import { labelForTool } from "@/components/ai-tool-labels";
 import { useGlobalAiPanel } from "@/components/global-ai-panel-context";
 import { usePageEditorBridge } from "@/components/page-editor-bridge-context";
 import { useScheduleEditorBridge } from "@/components/schedule-editor-bridge-context";
+import { useAiDrawerWidth } from "@/hooks/use-ai-drawer-width";
+import { useReducedMotion } from "@/hooks/use-reduced-motion";
 import { useRouter } from "@/hooks/use-router";
 import { useTranslations } from "@/i18n/translations";
-import type {
-  ChainingMode,
-  ChatTurnContext,
-  CreateCollectionArgs,
-  CreateScheduleArgs,
-  DeleteScheduleArgs,
-  DisablePluginArgs,
-  EnablePluginArgs,
-  InstallPluginArgs,
-  TaskItem,
-  ToolCall,
-  UninstallPluginArgs,
-  UpdateCollectionArgs,
-  UpdatePluginArgs,
-  UpdatePluginConfigArgs,
-  UpdateScheduleArgs,
-  UpdateSettingArgs,
-} from "@/lib/ai-chat-types";
-import { type AISettings, api } from "@/lib/api";
+import type { ChatTurnContext, ToolCall, ToolResult } from "@/lib/ai-chat-types";
+import { queryKeysForTool } from "@/lib/ai-choreography/query-keys";
+import type { ChoreographyContext } from "@/lib/ai-choreography/types";
+import { useChoreographer } from "@/lib/ai-choreography/use-choreographer";
+import { type AISettings, api, type ScheduleEntry } from "@/lib/api";
 import { isChromelessPath } from "@/lib/chromeless";
+import type { StopReason } from "@/lib/use-ai-chat";
 import { cn } from "@/lib/utils";
 
-// ---------------------------------------------------------------------------
-// Helpers for building tool-result chain messages
-// ---------------------------------------------------------------------------
+/** The chaining-mode preference of the browser-side loop; gone with it. */
+const LEGACY_CHAINING_MODE_KEY = "fiestaboard:ai-chaining-mode";
 
-function buildToolResultText(call: ToolCall, success: boolean, errorMsg?: string): string {
-  const status = success ? "Success" : `Failed: ${errorMsg ?? "unknown error"}`;
-  switch (call.op) {
-    case "install_plugin": {
-      const a = call.args as InstallPluginArgs;
-      return `[Tool result: install_plugin for "${a.plugin_id}" → ${status}.${success ? " Plugin installed and enabled. Continue with any remaining steps." : ""}]`;
-    }
-    case "update_plugin_config": {
-      const a = call.args as UpdatePluginConfigArgs;
-      return `[Tool result: update_plugin_config for "${a.plugin_id}" → ${status}.${success ? " Configuration saved. Continue with any remaining steps." : ""}]`;
-    }
-    case "update_plugin": {
-      const a = call.args as UpdatePluginArgs;
-      return `[Tool result: update_plugin for "${a.plugin_id}" → ${status}.]`;
-    }
-    case "enable_plugin": {
-      const a = call.args as EnablePluginArgs;
-      return `[Tool result: enable_plugin for "${a.plugin_id}" → ${status}.]`;
-    }
-    case "disable_plugin": {
-      const a = call.args as DisablePluginArgs;
-      return `[Tool result: disable_plugin for "${a.plugin_id}" → ${status}.]`;
-    }
-    case "uninstall_plugin": {
-      const a = call.args as UninstallPluginArgs;
-      return `[Tool result: uninstall_plugin for "${a.plugin_id}" → ${status}.]`;
-    }
-    case "update_setting": {
-      const a = call.args as UpdateSettingArgs;
-      return `[Tool result: update_setting (${a.category}) → ${status}.${success ? " Setting applied. Continue with any remaining steps." : ""}]`;
-    }
-    case "create_collection": {
-      const a = call.args as CreateCollectionArgs;
-      return `[Tool result: create_collection "${a.name}" → ${status}.${success ? " Collection created. Continue with any remaining steps." : ""}]`;
-    }
-    case "update_collection":
-      return `[Tool result: update_collection → ${status}.]`;
-    case "create_schedule": {
-      const a = call.args as CreateScheduleArgs;
-      return `[Tool result: create_schedule at ${a.start_time} → ${status}.${success ? " Schedule created. Continue with any remaining steps." : ""}]`;
-    }
-    case "update_schedule":
-      return `[Tool result: update_schedule → ${status}.]`;
-    case "delete_schedule":
-      return `[Tool result: delete_schedule → ${status}.]`;
-    case "trigger_system_update":
-      return `[Tool result: trigger_system_update → ${status}.]`;
-    case "navigate_to_page": {
-      if (!success) return `[Tool result: navigate_to_page → ${status}.]`;
-      const isNew = call.args.page_id === "new";
-      return `[Tool result: navigate_to_page → Success. ${
-        isNew
-          ? "Blank page editor is now mounted. Surface is 'editor' — use replace_page to ship the template you described, then continue with any remaining steps (schedules, integrations, etc.)."
-          : "Page editor is now mounted. Use apply_patch for incremental edits or replace_page to rewrite, then continue with any remaining steps."
-      }]`;
-    }
-    case "navigate_to_schedule":
-      return `[Tool result: navigate_to_schedule → ${status}.${success ? " Schedule form is open. Continue with create_schedule (or update_schedule) to commit the change." : ""}]`;
-    case "replace_page":
-      return `[Tool result: replace_page → ${status}.${success ? " Page template applied. Continue with any remaining steps." : ' Hint: emit navigate_to_page with page_id="new" first if no editor is mounted.'}]`;
-    case "apply_patch":
-      return `[Tool result: apply_patch → ${status}.${success ? " Patch applied. Continue with any remaining steps." : " Hint: emit navigate_to_page first if no editor is mounted."}]`;
-    case "suggest_variables":
-      return `[Tool result: suggest_variables → ${status}.${success ? " Suggestions surfaced. Continue with any remaining steps." : ""}]`;
-    default:
-      return `[Tool result: ${(call as ToolCall).op} → ${status}.]`;
-  }
-}
-
+/**
+ * The global AI drawer: a floating card on every screen that hosts the chat
+ * panel and reacts to what the server-side loop did.
+ *
+ * Every tool now runs on the server through the MCP server; the browser's
+ * job here is to keep the screen honest afterwards — invalidate the caches a
+ * tool made stale, toast the outcome, keep the schedule Undo affordances —
+ * and to hand the panel the context each turn starts from. Navigation and
+ * the on-screen walkthrough of each call are the next PR (the choreography).
+ */
 export function GlobalAiChatDrawer() {
   const { isOpen, close } = useGlobalAiPanel();
   const t = useTranslations("globalAiChatDrawer");
-  const router = useRouter();
+  // The drawer's width is the viewer's, dragged or nudged from the left
+  // edge; `MainContent`'s reservation follows it through a CSS custom
+  // property (see globals.css), including mid-drag.
+  const { width, minWidth, maxWidth, setWidth, toggleWidth, resetWidth, setDragging } = useAiDrawerWidth(isOpen);
 
   // Focus-management refs for the modal slide-in panel.
   const panelRef = useRef<HTMLDivElement>(null);
   // The element that had focus when the panel opened, so we can restore it on close.
   const openerRef = useRef<HTMLElement | null>(null);
   const queryClient = useQueryClient();
-  const { getEditorSnapshot, applyEditorOp, saveEditor, hasEditor, canEditorUndo, editorUndo, waitForEditor } =
-    usePageEditorBridge();
-  const { hasScheduleEditor, openScheduleForm } = useScheduleEditorBridge();
+  const router = useRouter();
+  const { getEditorSnapshot, staging: pageStaging } = usePageEditorBridge();
+  const { staging: scheduleStaging } = useScheduleEditorBridge();
+  const spotlight = useSpotlight();
+  const tPanel = useTranslations("aiChatPanel");
+  const tChoreography = useTranslations("aiChoreography");
+  const controllerRef = useRef<AiChatController | null>(null);
+  // The call the server paused on, for the spotlight's Approve/Deny.
+  const pendingApprovalRef = useRef<string | null>(null);
+  const reducedMotion = useReducedMotion();
 
-  // ---------------------------------------------------------------------------
-  // AI chaining mode
-  // ---------------------------------------------------------------------------
-  const [chainingMode, setChainingMode] = useState<ChainingMode>(() => {
-    if (typeof window !== "undefined") {
-      const stored = localStorage.getItem("fiestaboard:ai-chaining-mode");
-      if (stored === "auto-continue" || stored === "autonomous") return stored;
-    }
-    return "manual";
-  });
+  // The walkthrough: where each call lands on screen, played in order.
+  const choreographyCtx = useMemo<ChoreographyContext>(
+    () => ({
+      navigate: (href) => router.push(href),
+      pathname: () => (typeof window === "undefined" ? "/" : window.location.pathname),
+      spotlight,
+      pageEditor: pageStaging,
+      schedule: scheduleStaging,
+      t: tChoreography,
+      label: (call) => labelForTool(call, tPanel),
+      reducedMotion,
+    }),
+    [router, spotlight, pageStaging, scheduleStaging, tChoreography, tPanel, reducedMotion],
+  );
+  const choreographer = useChoreographer(choreographyCtx);
+  const driving = choreographer.driving;
 
   useEffect(() => {
-    localStorage.setItem("fiestaboard:ai-chaining-mode", chainingMode);
-  }, [chainingMode]);
+    spotlight.setHandlers({
+      onStop: () => controllerRef.current?.stop(),
+      onApprove: () => {
+        const id = pendingApprovalRef.current;
+        if (id) controllerRef.current?.approve(id, "approve");
+      },
+      onDeny: () => {
+        const id = pendingApprovalRef.current;
+        if (id) controllerRef.current?.approve(id, "deny");
+      },
+    });
+  }, [spotlight]);
 
-  // Slot ref: AiChatPanel writes its resume() fn here so this component can
-  // trigger re-streaming after tool execution without prop-drilling.
-  const resumeFnRef = useRef<((text: string) => void) | null>(null);
-
-  // Task list state — updated by update_task_list ops from the AI.
-  const [taskList, setTaskList] = useState<TaskItem[]>([]);
+  // The browser-side loop's chaining preference has no meaning any more;
+  // clear it so a downgrade cannot resurrect it either.
+  useEffect(() => {
+    try {
+      localStorage.removeItem(LEGACY_CHAINING_MODE_KEY);
+    } catch {
+      /* storage may be unavailable; nothing to clear */
+    }
+  }, []);
 
   // The FiestaPanel TV viewer must not fire this authenticated query — see
   // CurrentBoardProvider for why this reads window.location, not useLocation().
@@ -182,13 +142,28 @@ export function GlobalAiChatDrawer() {
     enabled: isOpen,
   });
 
-  // Modal focus management: trap Tab focus inside the panel while open,
-  // close on Escape, and restore focus to the opener when it closes.
+  // Remember what had focus when the panel opened; give it back on close.
   useEffect(() => {
     if (!isOpen) return;
-
-    // Remember what had focus so we can restore it on close.
     openerRef.current = document.activeElement as HTMLElement | null;
+    return () => {
+      openerRef.current?.focus?.();
+    };
+  }, [isOpen]);
+
+  // Modal focus management: trap Tab focus inside the panel while open and
+  // close on Escape. While the walkthrough is driving the screen the panel
+  // is not modal: the trap is released, focus is left alone, and Escape
+  // stops the assistant instead of closing the panel.
+  useEffect(() => {
+    if (!isOpen) return;
+    if (driving) {
+      const stopOnEscape = (e: KeyboardEvent) => {
+        if (e.key === "Escape") controllerRef.current?.stop();
+      };
+      window.addEventListener("keydown", stopOnEscape);
+      return () => window.removeEventListener("keydown", stopOnEscape);
+    }
 
     const getFocusable = (): HTMLElement[] => {
       const panel = panelRef.current;
@@ -237,10 +212,8 @@ export function GlobalAiChatDrawer() {
     return () => {
       window.clearTimeout(focusTimer);
       window.removeEventListener("keydown", handler);
-      // Restore focus to whatever opened the panel.
-      openerRef.current?.focus?.();
     };
-  }, [isOpen, close]);
+  }, [isOpen, driving, close]);
 
   // Auto-close when AI is disabled so the drawer doesn't trap users who
   // navigate to the AI panel and then toggle AI off in Settings (issue #806).
@@ -285,8 +258,8 @@ export function GlobalAiChatDrawer() {
     return {
       deviceType: "flagship",
       // "editor" when the user is actively editing a page (so the AI
-      // should bias toward in-place edits of that page); "global"
-      // otherwise (so the AI biases toward navigation / config).
+      // should bias toward updating THAT page); "global" otherwise (so the
+      // AI biases toward creating things the app then opens).
       surface: editorSnapshot ? "editor" : "global",
       currentPage: editorSnapshot ?? undefined,
       availablePages: pages,
@@ -297,526 +270,233 @@ export function GlobalAiChatDrawer() {
     };
   }, [pagesData, pluginsData, schedulesData, collectionsData, registryData, getEditorSnapshot]);
 
-  const handleCreateSchedule = useCallback(
-    async (args: CreateScheduleArgs) => {
-      const created = await api.createSchedule({
-        page_id: args.page_id,
-        start_time: args.start_time,
-        end_time: args.end_time ?? null,
-        day_pattern: args.day_pattern,
-        custom_days: args.custom_days ?? undefined,
-        enabled: args.enabled,
-      });
-      await queryClient.invalidateQueries({ queryKey: ["schedules"] });
-      toast.success("Schedule created.", {
-        action: {
-          label: "Undo",
-          onClick: () => {
-            void (async () => {
-              await api.deleteSchedule(created.id);
-              await queryClient.invalidateQueries({ queryKey: ["schedules"] });
-            })();
-          },
-        },
-        duration: 8000,
-      });
-    },
-    [queryClient],
-  );
-
-  const handleUpdateSchedule = useCallback(
-    async (args: UpdateScheduleArgs) => {
-      const { schedule_id, ...update } = args;
-      const oldSchedule = schedulesData?.schedules?.find((s) => s.id === schedule_id);
-      await api.updateSchedule(schedule_id, {
-        ...(update.page_id != null && { page_id: update.page_id }),
-        ...(update.start_time != null && { start_time: update.start_time }),
-        ...("end_time" in update && { end_time: update.end_time ?? null }),
-        ...(update.day_pattern != null && { day_pattern: update.day_pattern }),
-        ...(update.custom_days != null && { custom_days: update.custom_days }),
-        ...(update.enabled != null && { enabled: update.enabled }),
-      });
-      await queryClient.invalidateQueries({ queryKey: ["schedules"] });
-      toast.success("Schedule updated.", {
-        action: oldSchedule
-          ? {
-              label: "Undo",
-              onClick: () => {
-                void (async () => {
-                  await api.updateSchedule(schedule_id, {
-                    page_id: oldSchedule.page_id,
-                    start_time: oldSchedule.start_time,
-                    end_time: oldSchedule.end_time ?? null,
-                    day_pattern: oldSchedule.day_pattern,
-                    custom_days: oldSchedule.custom_days,
-                    enabled: oldSchedule.enabled,
-                  });
-                  await queryClient.invalidateQueries({ queryKey: ["schedules"] });
-                })();
-              },
-            }
-          : undefined,
-        duration: 8000,
-      });
-    },
-    [queryClient, schedulesData],
-  );
-
-  const handleDeleteSchedule = useCallback(
-    async (args: DeleteScheduleArgs) => {
-      const schedule = schedulesData?.schedules?.find((s) => s.id === args.schedule_id);
-      await api.deleteSchedule(args.schedule_id);
-      await queryClient.invalidateQueries({ queryKey: ["schedules"] });
-      toast.success("Schedule deleted.", {
-        action: schedule
-          ? {
-              label: "Undo",
-              onClick: () => {
-                void (async () => {
-                  await api.createSchedule({
-                    page_id: schedule.page_id,
-                    start_time: schedule.start_time,
-                    end_time: schedule.end_time ?? null,
-                    day_pattern: schedule.day_pattern,
-                    custom_days: schedule.custom_days,
-                    enabled: schedule.enabled,
-                    start_type: schedule.start_type,
-                    start_sun_offset: schedule.start_sun_offset,
-                    end_type: schedule.end_type,
-                    end_sun_offset: schedule.end_sun_offset,
-                  });
-                  await queryClient.invalidateQueries({ queryKey: ["schedules"] });
-                })();
-              },
-            }
-          : undefined,
-        duration: 8000,
-      });
-    },
-    [queryClient, schedulesData],
-  );
-
   // ---------------------------------------------------------------------------
-  // Chaining: wrap each handler so that on completion (success or failure),
-  // a `[Tool result: ...]` message is injected and the AI re-streams if the
-  // current mode is auto-continue or autonomous.
-  // Declared before handleToolCall so the callback can reference it directly.
+  // After a tool ran: the toast, and for schedules the same Undo affordances
+  // as before. Undo goes over the plain REST client: the MCP create_schedule
+  // has no `start_type` / `*_sun_offset` fields, so restoring a deleted
+  // sunrise/sunset schedule through it would silently downgrade the entry to
+  // a fixed clock time.
   // ---------------------------------------------------------------------------
-  const chainAfter = useCallback(
-    (call: ToolCall, handler: () => Promise<void>): (() => Promise<void>) =>
-      async () => {
-        try {
-          await handler();
-          if (chainingMode === "manual") return;
-          resumeFnRef.current?.(buildToolResultText(call, true));
-        } catch (e) {
-          if (chainingMode !== "manual") {
-            resumeFnRef.current?.(buildToolResultText(call, false, String(e)));
-          }
-        }
-      },
-    [chainingMode],
-  );
-
-  const handleToolCall = useCallback(
-    (call: ToolCall): void => {
-      switch (call.op) {
-        case "navigate_to_page": {
-          void chainAfter(call, async () => {
-            // Auto-save any in-progress page before navigating so AI-written
-            // content isn't lost when the editor unmounts (supports multi-page
-            // creation flows where the AI navigates away after replace_page).
-            if (hasEditor) {
-              await saveEditor().catch(() => {});
-            }
-            const { page_id, device_type } = call.args;
-            if (page_id === "new") {
-              const params = new URLSearchParams();
-              if (device_type) params.set("device", device_type);
-              params.set("fresh", "1");
-              router.push(`/pages/new?${params.toString()}`);
-            } else {
-              router.push(`/pages/edit/${page_id}`);
-            }
-            // Wait out the route transition so the destination editor is
-            // mounted before the chain resumes; otherwise a follow-up
-            // replace_page would race the mount and silently no-op.
-            await waitForEditor();
-          })();
+  const toastForToolResult = useCallback(
+    (call: ToolCall, result: ToolResult, previousSchedule?: ScheduleEntry) => {
+      const refreshSchedules = () => queryClient.invalidateQueries({ queryKey: ["schedules"] });
+      if (result.status === "denied") return;
+      if (result.status !== "ok") {
+        toast.error(t("toast.toolFailed", { tool: call.title || call.name, error: result.error ?? result.summary }));
+        return;
+      }
+      const payload = (result.result ?? {}) as Record<string, unknown>;
+      switch (call.name) {
+        case "create_schedule": {
+          const createdId = payload.schedule_id;
+          toast.success(t("toast.scheduleCreated"), {
+            action:
+              typeof createdId === "string"
+                ? {
+                    label: t("toast.undo"),
+                    onClick: () => {
+                      void (async () => {
+                        await api.deleteSchedule(createdId);
+                        await refreshSchedules();
+                      })();
+                    },
+                  }
+                : undefined,
+            duration: 8000,
+          });
           break;
         }
-
-        case "navigate_to_schedule": {
-          void chainAfter(call, async () => {
-            const { prefill } = call.args;
-            if (hasScheduleEditor) {
-              openScheduleForm(prefill ?? undefined);
-            } else {
-              const params = new URLSearchParams();
-              if (prefill?.page_id) params.set("prefill_page_id", prefill.page_id);
-              if (prefill?.start_time) params.set("prefill_start", prefill.start_time);
-              if (prefill?.end_time) params.set("prefill_end", prefill.end_time);
-              if (prefill?.day_pattern) params.set("prefill_days", prefill.day_pattern);
-              const qs = params.size ? `?${params.toString()}` : "";
-              router.push(`/schedule${qs}`);
-            }
-          })();
-          break;
-        }
-
-        case "update_task_list":
-          // Status-only op — update the task panel, do NOT chain or call resume.
-          setTaskList(call.args.tasks);
-          break;
-
-        case "replace_page":
-        case "apply_patch":
-        case "suggest_variables":
-          void chainAfter(call, async () => {
-            // Wait on the live handlersRef rather than the closure-captured
-            // `hasEditor` state. When the model emits navigate_to_page and
-            // replace_page in the same stream turn, both handlers share the
-            // pre-navigation closure (hasEditor === false). waitForEditor
-            // resolves as soon as the new editor registers, regardless of
-            // when the React state catches up.
-            const ready = await waitForEditor();
-            if (!ready) {
-              // Surface the missing editor so the AI can recover (e.g. by
-              // first emitting navigate_to_page) instead of the call being
-              // silently dropped.
-              throw new Error("no page editor mounted");
-            }
-            applyEditorOp(call);
-            // Auto-save after every AI page edit so the content is persisted
-            // immediately (supports chaining: the next navigate_to_page won't
-            // lose unsaved work, and the user doesn't need to click Save).
-            if (call.op !== "suggest_variables") {
-              await saveEditor().catch(() => {});
-            }
-          })();
-          break;
-
-        case "create_schedule":
-          void chainAfter(call, () => handleCreateSchedule(call.args))();
-          break;
-
         case "update_schedule":
-          void chainAfter(call, () => handleUpdateSchedule(call.args))();
+          toast.success(t("toast.scheduleUpdated"), {
+            action: previousSchedule
+              ? {
+                  label: t("toast.undo"),
+                  onClick: () => {
+                    void (async () => {
+                      await api.updateSchedule(previousSchedule.id, {
+                        page_id: previousSchedule.page_id,
+                        start_time: previousSchedule.start_time,
+                        end_time: previousSchedule.end_time ?? null,
+                        day_pattern: previousSchedule.day_pattern,
+                        custom_days: previousSchedule.custom_days,
+                        enabled: previousSchedule.enabled,
+                      });
+                      await refreshSchedules();
+                    })();
+                  },
+                }
+              : undefined,
+            duration: 8000,
+          });
           break;
-
         case "delete_schedule":
-          void chainAfter(call, () => handleDeleteSchedule(call.args))();
+          toast.success(t("toast.scheduleDeleted"), {
+            action: previousSchedule
+              ? {
+                  label: t("toast.undo"),
+                  onClick: () => {
+                    void (async () => {
+                      await api.createSchedule({
+                        page_id: previousSchedule.page_id,
+                        start_time: previousSchedule.start_time,
+                        end_time: previousSchedule.end_time ?? null,
+                        day_pattern: previousSchedule.day_pattern,
+                        custom_days: previousSchedule.custom_days,
+                        enabled: previousSchedule.enabled,
+                        start_type: previousSchedule.start_type,
+                        start_sun_offset: previousSchedule.start_sun_offset,
+                        end_type: previousSchedule.end_type,
+                        end_sun_offset: previousSchedule.end_sun_offset,
+                      });
+                      await refreshSchedules();
+                    })();
+                  },
+                }
+              : undefined,
+            duration: 8000,
+          });
           break;
-
+        case "create_page":
+          toast.success(t("toast.pageCreated"));
+          break;
+        case "update_page":
+          toast.success(t("toast.pageUpdated"));
+          break;
+        case "delete_page":
+          toast.success(t("toast.pageDeleted"));
+          break;
         case "install_plugin":
-        case "update_plugin_config":
+          toast.success(t("toast.pluginInstalled", { id: String(call.args.plugin_id ?? "") }));
+          break;
+        case "configure_plugin":
+          toast.success(t("toast.pluginConfigured", { id: String(call.args.plugin_id ?? "") }));
+          break;
         case "update_plugin":
-        case "update_setting":
-        case "create_collection":
-        case "update_collection":
+          toast.success(t("toast.pluginUpdated", { id: String(call.args.plugin_id ?? "") }));
+          break;
         case "enable_plugin":
+          toast.success(t("toast.pluginEnabled", { id: String(call.args.plugin_id ?? "") }));
+          break;
         case "disable_plugin":
+          toast.success(t("toast.pluginDisabled", { id: String(call.args.plugin_id ?? "") }));
+          break;
         case "uninstall_plugin":
+          toast.success(t("toast.pluginUninstalled", { id: String(call.args.plugin_id ?? "") }));
+          break;
+        case "update_setting":
+          toast.success(t("toast.settingUpdated"));
+          break;
+        case "create_collection":
+          toast.success(t("toast.collectionCreated", { name: String(call.args.name ?? "") }));
+          break;
+        case "update_collection":
+          toast.success(t("toast.collectionUpdated"));
+          break;
+        case "delete_collection":
+          toast.success(t("toast.collectionDeleted"));
+          break;
+        case "set_active_page":
+          toast.success(t("toast.activePageSet"));
+          break;
+        case "send_message":
+          toast.success(t("toast.messageSent"));
+          break;
         case "trigger_system_update":
-          // Handled declaratively via AiActionConfirmation in the chat
-          // thread (see renderToolCallSupplement).
+          toast.success(t("toast.systemUpdate"));
           break;
-
         default:
+          // Read-only tools and anything this list does not know: no toast.
           break;
       }
     },
-    [
-      router,
-      hasEditor,
-      applyEditorOp,
-      saveEditor,
-      waitForEditor,
-      hasScheduleEditor,
-      openScheduleForm,
-      handleCreateSchedule,
-      handleUpdateSchedule,
-      handleDeleteSchedule,
-      chainAfter,
-    ],
+    [queryClient, t],
   );
 
-  const handleInstallPlugin = useCallback(
-    async (args: InstallPluginArgs) => {
-      await api.installRegistryPlugin(args.plugin_id);
-      if (args.auto_enable !== false) {
-        await api.enablePlugin(args.plugin_id);
-      }
-      if (args.initial_config && Object.keys(args.initial_config).length > 0) {
-        await api.updatePluginConfig(args.plugin_id, args.initial_config);
-      }
-      await queryClient.invalidateQueries({ queryKey: ["plugins"] });
-      toast.success(`Plugin "${args.plugin_id}" installed successfully.`);
+  const invalidateFor = useCallback(
+    async (call: ToolCall) => {
+      await Promise.all(queryKeysForTool(call).map((key) => queryClient.invalidateQueries({ queryKey: [...key] })));
     },
     [queryClient],
   );
 
-  const handleUpdatePluginConfig = useCallback(
-    async (args: UpdatePluginConfigArgs) => {
-      await api.updatePluginConfig(args.plugin_id, args.config);
-      await queryClient.invalidateQueries({ queryKey: ["plugins"] });
-      toast.success(`Plugin "${args.plugin_id}" configuration updated.`);
+  const handleToolResult = useCallback(
+    (result: ToolResult, call: ToolCall) => {
+      // Undo needs the pre-mutation entry. Read it from the cache now, not
+      // from a render-time snapshot: this handler is captured for the whole
+      // turn, and an earlier call in the same turn may have refreshed it.
+      const previousSchedule =
+        call.name === "update_schedule" || call.name === "delete_schedule"
+          ? queryClient
+              .getQueryData<{ schedules?: ScheduleEntry[] }>(["schedules"])
+              ?.schedules?.find((s) => s.id === call.args.schedule_id)
+          : undefined;
+      if (pendingApprovalRef.current === result.id) pendingApprovalRef.current = null;
+      // The walkthrough settles the call on screen (a created page is
+      // opened there); the caches refresh so what it points at is real.
+      choreographer.onToolResult(result);
+      void invalidateFor(call).then(() => toastForToolResult(call, result, previousSchedule));
     },
-    [queryClient],
+    [choreographer, invalidateFor, queryClient, toastForToolResult],
   );
 
-  const handleUpdatePlugin = useCallback(
-    async (args: UpdatePluginArgs) => {
-      await api.updatePlugin(args.plugin_id);
-      await queryClient.invalidateQueries({ queryKey: ["plugins"] });
-      toast.success(`Plugin "${args.plugin_id}" updated successfully.`);
-    },
-    [queryClient],
+  const handleToolCall = useCallback((call: ToolCall) => choreographer.onToolCall(call), [choreographer]);
+  const handleToolStreaming = useCallback(
+    (draft: { text: string }) => choreographer.onDraft(draft.text),
+    [choreographer],
   );
-
-  const handleEnablePlugin = useCallback(
-    async (args: EnablePluginArgs) => {
-      await api.enablePlugin(args.plugin_id);
-      await queryClient.invalidateQueries({ queryKey: ["plugins"] });
-      toast.success(`Plugin "${args.plugin_id}" enabled.`);
-    },
-    [queryClient],
-  );
-
-  const handleDisablePlugin = useCallback(
-    async (args: DisablePluginArgs) => {
-      await api.disablePlugin(args.plugin_id);
-      await queryClient.invalidateQueries({ queryKey: ["plugins"] });
-      toast.success(`Plugin "${args.plugin_id}" disabled.`);
-    },
-    [queryClient],
-  );
-
-  const handleUninstallPlugin = useCallback(
-    async (args: UninstallPluginArgs) => {
-      await api.uninstallPlugin(args.plugin_id);
-      await queryClient.invalidateQueries({ queryKey: ["plugins"] });
-      toast.success(`Plugin "${args.plugin_id}" uninstalled.`);
-    },
-    [queryClient],
-  );
-
-  const handleUpdateSetting = useCallback(
-    async (args: UpdateSettingArgs) => {
-      switch (args.category) {
-        case "display":
-          await api.updateDisplaySettings(args.values as Parameters<typeof api.updateDisplaySettings>[0]);
-          await queryClient.invalidateQueries({ queryKey: ["display-settings"] });
-          break;
-        case "transitions":
-          await api.updateTransitionSettings(args.values as Parameters<typeof api.updateTransitionSettings>[0]);
-          await queryClient.invalidateQueries({ queryKey: ["transition-settings"] });
-          break;
-        case "output": {
-          const target = (args.values as { target?: string }).target;
-          if (target === "ui" || target === "board" || target === "both") {
-            await api.updateOutputSettings(target);
-            await queryClient.invalidateQueries({ queryKey: ["output-settings"] });
-          }
-          break;
-        }
-        case "polling": {
-          const interval = (args.values as { interval_seconds?: number }).interval_seconds;
-          if (typeof interval === "number") {
-            // PUT /settings/polling takes an object of settings keys; passing
-            // the bare number serialized the body as `5` and the endpoint
-            // rejected it (issue #1586).
-            await api.updatePollingSettings({ interval_seconds: interval });
-            await queryClient.invalidateQueries({ queryKey: ["polling-settings"] });
-          }
-          break;
-        }
-        case "location":
-          await api.updateLocationSettings(args.values as Parameters<typeof api.updateLocationSettings>[0]);
-          await queryClient.invalidateQueries({ queryKey: ["location-settings"] });
-          break;
-        case "silence_schedule":
-          await api.updateSilenceSchedule(args.values as Parameters<typeof api.updateSilenceSchedule>[0]);
-          await queryClient.invalidateQueries({ queryKey: ["silence-schedule"] });
-          break;
-        case "active_page": {
-          const pageId = (args.values as { page_id?: string }).page_id ?? null;
-          await api.setActivePage(pageId);
-          await queryClient.invalidateQueries({ queryKey: ["active-page"] });
-          break;
-        }
-      }
-      toast.success("Setting updated.");
-    },
-    [queryClient],
-  );
-
-  const handleCreateCollection = useCallback(
-    async (args: CreateCollectionArgs) => {
-      await api.createCollection({
-        name: args.name,
-        page_ids: args.page_ids,
-        selection_mode: "time",
-        time: { interval_seconds: args.interval_seconds },
-      });
-      await queryClient.invalidateQueries({ queryKey: ["collections"] });
-      toast.success(`Collection "${args.name}" created.`);
-    },
-    [queryClient],
-  );
-
-  const handleUpdateCollection = useCallback(
-    async (args: UpdateCollectionArgs) => {
-      const { collection_id, ...update } = args;
-      await api.updateCollection(collection_id, {
-        ...(update.name != null && { name: update.name }),
-        ...(update.page_ids != null && { page_ids: update.page_ids }),
-        ...(update.interval_seconds != null && {
-          selection_mode: "time",
-          time: { interval_seconds: update.interval_seconds },
-        }),
-      });
-      await queryClient.invalidateQueries({ queryKey: ["collections"] });
-      toast.success("Collection updated.");
-    },
-    [queryClient],
-  );
-
-  const handleTriggerSystemUpdate = useCallback(async () => {
-    await api.applyUpdate();
-    toast.success("System update started. The board will restart shortly.");
-  }, []);
-
-  const renderToolCallSupplement = useCallback(
+  const handleAwaitingApproval = useCallback(
     (call: ToolCall) => {
-      if (call.op === "navigate_to_page") return null;
-      if (call.op === "navigate_to_schedule") return null;
-      if (call.op === "replace_page" || call.op === "apply_patch" || call.op === "suggest_variables") return null;
-
-      const isDestructive =
-        call.op === "delete_schedule" || call.op === "trigger_system_update" || call.op === "uninstall_plugin";
-
-      const autoAllow = chainingMode === "autonomous" && !isDestructive;
-
-      if (call.op === "install_plugin") {
-        return (
-          <AiActionConfirmation
-            call={call}
-            onAllow={chainAfter(call, () => handleInstallPlugin(call.args as InstallPluginArgs))}
-            onDeny={() => {}}
-            autoAllow={autoAllow}
-          />
-        );
-      }
-      if (call.op === "update_plugin_config") {
-        return (
-          <AiActionConfirmation
-            call={call}
-            onAllow={chainAfter(call, () => handleUpdatePluginConfig(call.args as UpdatePluginConfigArgs))}
-            onDeny={() => {}}
-            autoAllow={autoAllow}
-          />
-        );
-      }
-      if (call.op === "update_plugin") {
-        return (
-          <AiActionConfirmation
-            call={call}
-            onAllow={chainAfter(call, () => handleUpdatePlugin(call.args as UpdatePluginArgs))}
-            onDeny={() => {}}
-            autoAllow={autoAllow}
-          />
-        );
-      }
-      if (call.op === "enable_plugin") {
-        return (
-          <AiActionConfirmation
-            call={call}
-            onAllow={chainAfter(call, () => handleEnablePlugin(call.args as EnablePluginArgs))}
-            onDeny={() => {}}
-            autoAllow={autoAllow}
-          />
-        );
-      }
-      if (call.op === "disable_plugin") {
-        return (
-          <AiActionConfirmation
-            call={call}
-            onAllow={chainAfter(call, () => handleDisablePlugin(call.args as DisablePluginArgs))}
-            onDeny={() => {}}
-            autoAllow={autoAllow}
-          />
-        );
-      }
-      if (call.op === "uninstall_plugin") {
-        return (
-          <AiActionConfirmation
-            call={call}
-            onAllow={chainAfter(call, () => handleUninstallPlugin(call.args as UninstallPluginArgs))}
-            onDeny={() => {}}
-            autoAllow={autoAllow}
-          />
-        );
-      }
-      if (call.op === "update_setting") {
-        return (
-          <AiActionConfirmation
-            call={call}
-            onAllow={chainAfter(call, () => handleUpdateSetting(call.args as UpdateSettingArgs))}
-            onDeny={() => {}}
-            autoAllow={autoAllow}
-          />
-        );
-      }
-      if (call.op === "create_collection") {
-        return (
-          <AiActionConfirmation
-            call={call}
-            onAllow={chainAfter(call, () => handleCreateCollection(call.args as CreateCollectionArgs))}
-            onDeny={() => {}}
-            autoAllow={autoAllow}
-          />
-        );
-      }
-      if (call.op === "update_collection") {
-        return (
-          <AiActionConfirmation
-            call={call}
-            onAllow={chainAfter(call, () => handleUpdateCollection(call.args as UpdateCollectionArgs))}
-            onDeny={() => {}}
-            autoAllow={autoAllow}
-          />
-        );
-      }
-      if (call.op === "create_schedule" || call.op === "update_schedule" || call.op === "delete_schedule") {
-        return null;
-      }
-      if (call.op === "trigger_system_update") {
-        return (
-          <AiActionConfirmation
-            call={call}
-            onAllow={chainAfter(call, () => handleTriggerSystemUpdate())}
-            onDeny={() => {}}
-            autoAllow={autoAllow} // always false because isDestructive
-          />
-        );
-      }
-      return null;
+      pendingApprovalRef.current = call.id;
+      choreographer.onAwaitingApproval(call);
     },
-    [
-      chainingMode,
-      chainAfter,
-      handleInstallPlugin,
-      handleUpdatePluginConfig,
-      handleUpdatePlugin,
-      handleEnablePlugin,
-      handleDisablePlugin,
-      handleUninstallPlugin,
-      handleUpdateSetting,
-      handleCreateCollection,
-      handleUpdateCollection,
-      handleTriggerSystemUpdate,
-    ],
+    [choreographer],
+  );
+  const handleTurnComplete = useCallback(() => {
+    pendingApprovalRef.current = null;
+    choreographer.onTurnEnd();
+  }, [choreographer]);
+  // Opening a saved conversation (History → Continue, or the reload
+  // restore) replaces the live turn: whatever the walkthrough was in the
+  // middle of belongs to the chat being put away, so it stops here rather
+  // than settling against the transcript that just arrived.
+  const handleConversationLoaded = useCallback(() => {
+    pendingApprovalRef.current = null;
+    choreographer.onAbort();
+  }, [choreographer]);
+
+  // Stop ends the stream, but a tool that was already running finishes on
+  // the server without a result reaching us. Refresh what it may have
+  // changed on two ticks — once soon, once after a slow one (a plugin
+  // install) has had time to land — the same two-tick idea as
+  // scheduleBoardStateInvalidations in use-board.ts.
+  //
+  // A fatal stream error leaves calls unresolved too; those get the same
+  // refresh but no "Stopped" toast — the panel shows the error itself.
+  const refreshTimersRef = useRef<number[]>([]);
+  useEffect(() => {
+    const timers = refreshTimersRef.current;
+    return () => {
+      for (const id of timers) window.clearTimeout(id);
+    };
+  }, []);
+  const handleStopped = useCallback(
+    (unresolved: ToolCall[], reason: StopReason) => {
+      pendingApprovalRef.current = null;
+      choreographer.onAbort();
+      if (unresolved.length === 0) return;
+      if (reason === "stopped") toast.info(t("toast.stopped"));
+      const refresh = () => {
+        for (const call of unresolved) void invalidateFor(call);
+      };
+      for (const delay of [1000, 5000]) {
+        const id = window.setTimeout(() => {
+          refreshTimersRef.current = refreshTimersRef.current.filter((t) => t !== id);
+          refresh();
+        }, delay);
+        refreshTimersRef.current.push(id);
+      }
+    },
+    [choreographer, invalidateFor, t],
   );
 
   const hasProviders = (aiSettings?.providers?.length ?? 0) > 0;
@@ -828,18 +508,21 @@ export function GlobalAiChatDrawer() {
     <Box
       ref={panelRef}
       role="dialog"
-      aria-modal="true"
+      aria-modal={!driving}
+      data-driving={driving ? "" : undefined}
       aria-label={t("panelAriaLabel")}
       tabIndex={-1}
       className={cn(
-        // A floating card on the same 12px inset the rail sits on — MainContent
-        // already reserves 396px (384 panel + 12 inset) for exactly this
-        // geometry. The card chrome itself (bg, border, radius, shadow) lives
-        // on AiChatPanel's Card; this Box only places and slides it.
+        // A floating card on the same 12px inset the rail sits on. Its width
+        // is the viewer's choice, published as --ai-drawer-width; MainContent
+        // reserves that plus the inset (globals.css) so the page never sits
+        // under it. The card chrome itself (bg, border, radius, shadow) lives
+        // on AiChatPanel's Card; this Box only sizes, places and slides it.
         // Below lg it clears the floating mobile header the same way the nav
         // menu does, and the maxWidth clamp keeps the card inside a phone
-        // viewport (384 + the 12px inset overflows a 390px screen).
-        "fixed right-3 bottom-3 top-[calc(var(--mobile-header-height,56px)+16px)] lg:top-3 z-40 w-96 flex flex-col overflow-hidden",
+        // viewport (the drawer is full-bleed there, and unresizable).
+        "fixed right-3 bottom-3 top-[calc(var(--mobile-header-height,56px)+16px)] lg:top-3 z-40 flex w-96 flex-col",
+        "lg:w-[var(--ai-drawer-width,384px)] ai-drawer-width-transition",
         "transition-transform duration-300 ease-in-out sidebar-transition",
       )}
       // Inline rather than a Tailwind arbitrary class: translate-x-full alone
@@ -854,16 +537,30 @@ export function GlobalAiChatDrawer() {
       <AiChatPanel
         getTurnContext={getTurnContext}
         onToolCall={handleToolCall}
+        onToolStreaming={handleToolStreaming}
+        onToolResult={handleToolResult}
+        onAwaitingApproval={handleAwaitingApproval}
+        onTurnComplete={handleTurnComplete}
+        onConversationLoaded={handleConversationLoaded}
+        onStopped={handleStopped}
         onClose={close}
-        renderToolCallSupplement={renderToolCallSupplement}
-        canUndo={hasEditor && canEditorUndo()}
-        onUndo={hasEditor ? editorUndo : undefined}
-        resumeFnRef={resumeFnRef}
-        chainingMode={chainingMode}
-        onChainingModeChange={setChainingMode}
-        taskList={taskList}
-        onConversationReset={() => setTaskList([])}
+        controllerRef={controllerRef}
       />
+      {/* After the panel in DOM order, not before: the drawer moves focus to
+          its first focusable child on open, and that should be the composer,
+          not the resize handle. Position is absolute, so this costs nothing
+          visually and keeps the handle late in the tab order. */}
+      {isOpen ? (
+        <AiDrawerResizeHandle
+          width={width}
+          minWidth={minWidth}
+          maxWidth={maxWidth}
+          onResize={setWidth}
+          onToggle={toggleWidth}
+          onReset={resetWidth}
+          onDraggingChange={setDragging}
+        />
+      ) : null}
     </Box>
   );
 }

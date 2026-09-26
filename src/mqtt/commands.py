@@ -97,7 +97,7 @@ class CommandHandler:
         ``None`` targets the primary board.
         """
         service = self._display_service()
-        if service is None or not hasattr(service, "invalidate_board_content"):
+        if service is None:
             return
         try:
             if board_id is None:
@@ -117,7 +117,7 @@ class CommandHandler:
         primary board. No-op when no DisplayService exists yet.
         """
         service = self._display_service()
-        if service is None or not hasattr(service, "mark_showing_out_of_band"):
+        if service is None:
             return
         try:
             service.mark_showing_out_of_band(board_id)
@@ -148,8 +148,8 @@ class CommandHandler:
             return
         try:
             self._invalidate_board_content(board_id)
-            if board_id is not None and hasattr(service, "check_and_send_for_board"):
-                rt = service.get_runtime(board_id) if hasattr(service, "get_runtime") else None
+            if board_id is not None:
+                rt = service.get_runtime(board_id)
                 if rt is not None:
                     is_primary = False
                     try:
@@ -161,8 +161,7 @@ class CommandHandler:
                     _bid, board = self._resolve_board(board_id)
                     service.check_and_send_for_board(board_id, rt, is_primary=is_primary, board=board)
                     return
-            if hasattr(service, "check_and_send_active_page"):
-                service.check_and_send_active_page()
+            service.check_and_send_active_page()
         except Exception as e:
             logger.warning("MQTT active_page: immediate send failed: %s", e)
 
@@ -368,8 +367,8 @@ class CommandHandler:
         sent = False
         if service and board_ref:
             board_id, board = self._resolve_board(board_ref)
-            rt = service.get_runtime(board_id) if (board_id and hasattr(service, "get_runtime")) else None
-            if rt is not None and hasattr(service, "check_and_send_for_board"):
+            rt = service.get_runtime(board_id) if board_id else None
+            if rt is not None:
                 is_primary = False
                 try:
                     from src.settings.service import get_settings_service
@@ -379,10 +378,10 @@ class CommandHandler:
                     logger.debug("Primary board lookup failed: %s", e)
                 self._invalidate_service_boards(service, board_id)
                 sent = service.check_and_send_for_board(board_id, rt, is_primary=is_primary, board=board)
-            elif hasattr(service, "check_and_send_active_page"):
+            else:
                 self._invalidate_service_boards(service)
                 sent = service.check_and_send_active_page()
-        elif service and hasattr(service, "check_and_send_active_page"):
+        elif service:
             self._invalidate_service_boards(service)
             sent = service.check_and_send_active_page()
         if sent:
@@ -393,9 +392,9 @@ class CommandHandler:
     def _invalidate_service_boards(service, board_id: str | None = None) -> None:
         """Drop the dedupe caches for one board (or all) ahead of a force refresh."""
         try:
-            if board_id is not None and hasattr(service, "invalidate_board_content"):
+            if board_id is not None:
                 service.invalidate_board_content(board_id)
-            elif board_id is None and hasattr(service, "invalidate_all_board_content"):
+            else:
                 service.invalidate_all_board_content()
         except Exception as e:
             logger.debug("Board content invalidation failed: %s", e)

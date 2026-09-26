@@ -188,7 +188,6 @@ def text_to_board_array(text: str, use_color_tiles: bool = True, rows: int = 6, 
     # Initialize empty board (all spaces)
     board = [[BoardChars.SPACE] * cols for _ in range(rows)]
 
-    # Split into lines (max rows)
     lines = text.split("\n")[:rows]
 
     # Process each line

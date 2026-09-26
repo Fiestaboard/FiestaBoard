@@ -4,8 +4,8 @@ Historically each store resolved ``<repo>/data`` on its own via
 ``Path(__file__)`` gymnastics — eleven independent copies — so nothing short
 of rebinding every constructor kept the test suite off the developer's real
 ``data/`` directory. ``src.paths.get_data_dir()`` is the one seam: it honors
-``FIESTABOARD_DATA_DIR``, which ``pytest_configure`` in ``tests/conftest.py``
-points at a per-worker throwaway directory before collection (#1894).
+``FIESTABOARD_DATA_DIR``, which the autouse ``_isolated_data_dir`` fixture in
+``tests/conftest.py`` points at a throwaway ``tmp_path``.
 
 This test constructs each store with **defaults** (no explicit path kwarg)
 and asserts the resulting path landed under the isolated temp dir, not under
@@ -34,8 +34,7 @@ def isolated_env(tmp_path, monkeypatch):
     """Point the seam at a throwaway dir and drop the ConfigManager singleton.
 
     Self-contained on purpose: this file is the guard for the seam itself, so
-    it must not silently depend on the session-level conftest hook it exists
-    to verify.
+    it must not silently depend on the conftest fixture it exists to verify.
     """
     from src.config_manager import ConfigManager
 
@@ -100,6 +99,24 @@ def test_auth_service_default_is_isolated(isolated_env):
     _assert_isolated(AuthService()._path, isolated_env, "AuthService")
 
 
+def test_trigger_dismissal_store_default_is_isolated(isolated_env):
+    from src.triggers.service import TriggerService
+
+    _assert_isolated(TriggerService()._dismissals_file, isolated_env, "TriggerService dismissal store")
+
+
+def test_system_update_state_store_default_is_isolated(isolated_env):
+    from src.system.update_service import _system_update_store
+
+    _assert_isolated(_system_update_store().path, isolated_env, "system-update state store")
+
+
+def test_ai_conversation_storage_default_is_isolated(isolated_env):
+    from src.ai.conversations.storage import ConversationStorage
+
+    _assert_isolated(ConversationStorage().storage_file, isolated_env, "ConversationStorage")
+
+
 def test_external_plugins_dir_default_is_isolated(isolated_env):
     from src.plugins.sources import get_external_plugins_dir
 
@@ -109,17 +126,17 @@ def test_external_plugins_dir_default_is_isolated(isolated_env):
 class TestSessionDataDirFloor:
     """``FIESTABOARD_DATA_DIR`` is set for the whole session, not just per test (#1894).
 
-    Function-scoped fixtures leave two windows uncovered — collection time
-    (module-level ``TestClient(app)`` in four test modules imports
-    ``src.api_server`` before any fixture runs) and the moment after a test's
-    ``monkeypatch`` teardown (background threads a test started keep running
-    and re-enter ``ConfigManager()``). In either window an unset variable
-    sent ``get_data_dir()`` at the checkout's ``data/``, writing
-    ``config.json`` into the repo.
+    The autouse ``_isolated_data_dir`` fixture is function-scoped, so it leaves
+    two windows uncovered — collection time (``src/api_server.py`` resolves the
+    auth file while it is being imported) and the moment after a test's
+    ``monkeypatch`` teardown (background threads a test started keep logging,
+    and the log handler re-enters ``ConfigManager()``). In either window an
+    unset variable sent ``get_data_dir()`` at the checkout's ``data/``, writing
+    ``config.json`` and ``logs/app.log`` into the repo.
 
     These assertions are the non-vacuous half of this file: they fail if the
-    ``pytest_configure`` hook in ``tests/conftest.py`` is removed, even
-    though per-test isolation could still be in place.
+    ``pytest_configure`` hook in ``tests/conftest.py`` is removed, even though
+    the function-scoped fixture would still be in place.
     """
 
     def test_env_is_already_set_when_test_modules_are_imported(self):
@@ -130,16 +147,15 @@ class TestSessionDataDirFloor:
         assert not Path(ENV_AT_IMPORT_TIME).resolve().is_relative_to(REPO_ROOT)
 
     def test_a_floor_remains_when_no_function_fixture_is_active(self, tmp_path):
-        """The session-wide value must survive to the very end of the run.
+        """The value ``monkeypatch`` restores to must be a temp dir, not "unset".
 
-        This is the window a function-scoped fixture cannot cover: a
-        background thread a test started keeps running after that test's
-        teardown, re-enters ``ConfigManager()`` and resolves the data dir
-        with nothing patched. Measured for real — a nested pytest session
-        runs one test from this file with ``FIESTABOARD_DATA_DIR`` scrubbed
-        from its environment, and a ``-p`` plugin records the surviving value
-        from ``pytest_sessionfinish``, after every function fixture is
-        finalized.
+        This is the window the function-scoped fixture cannot cover: a
+        background thread a test started keeps logging after that test's
+        teardown, re-enters ``ConfigManager()`` and resolves the data dir with
+        nothing patched. Measured for real — a nested pytest session runs one
+        test from this file with ``FIESTABOARD_DATA_DIR`` scrubbed from its
+        environment, and a ``-p`` plugin records the surviving value from
+        ``pytest_sessionfinish``, after every function fixture is finalized.
         """
         probe = tmp_path / "floor_probe.py"
         out = tmp_path / "floor.txt"
@@ -195,3 +211,24 @@ class TestSessionDataDirFloor:
         from src.paths import get_data_dir
 
         assert not get_data_dir().resolve().is_relative_to(REPO_ROOT)
+
+
+class TestAbsoluteContainerPathsGoThroughTheSeam:
+    """Paths that used to be hard-coded ``/app/data/...`` now follow the seam (#1881)."""
+
+    def test_log_dir_follows_the_data_dir_seam(self):
+        from src import api_server, log_store
+        from src.paths import get_data_dir
+
+        assert log_store.LOG_DIR is None, "production must leave the LOG_DIR seam unset"
+        assert api_server._log_dir() == get_data_dir() / "logs"
+        assert api_server._log_file() == get_data_dir() / "logs" / "app.log"
+        assert not api_server._log_dir().resolve().is_relative_to(REPO_ROOT)
+
+    def test_cert_dir_follows_the_data_dir_seam(self, monkeypatch):
+        from src.paths import get_data_dir
+        from src.system import https_certs
+
+        monkeypatch.delenv("FIESTABOARD_CERT_DIR", raising=False)
+        assert https_certs._cert_dir() == get_data_dir() / "certs"
+        assert not https_certs._cert_dir().resolve().is_relative_to(REPO_ROOT)

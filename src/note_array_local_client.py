@@ -244,14 +244,3 @@ class NoteArrayLocalClient(TransitionRenderMixin):
     def test_connection(self) -> bool:
         """True if at least one tile responds (the array is partially usable)."""
         return any(client.test_connection() for client in self.tile_clients.values())
-
-    def test_all_tiles(self) -> dict[tuple[int, int], bool]:
-        """Per-tile connectivity map for diagnostics."""
-
-        def test_tile(pos: tuple[int, int]):
-            return pos, self.tile_clients[pos].test_connection()
-
-        if not self.tile_clients:
-            return {}
-        with ThreadPoolExecutor(max_workers=min(MAX_TILE_WORKERS, len(self.tile_clients))) as pool:
-            return dict(pool.map(test_tile, sorted(self.tile_clients)))

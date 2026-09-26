@@ -55,7 +55,7 @@ async function ensureLocalArrayBoard(): Promise<string> {
   });
   if (!res.ok) throw new Error(`ensureLocalArrayBoard failed: ${res.status} ${await res.text()}`);
   const data = await res.json();
-  const id = data.settings?.boards?.[0]?.id;
+  const id = data.boards?.[0]?.id;
   if (!id) throw new Error("ensureLocalArrayBoard: no board id returned");
   return id;
 }
@@ -69,7 +69,7 @@ async function createArrayPage(name: string, template: string[]): Promise<string
   });
   if (!res.ok) throw new Error(`createArrayPage failed: ${res.status} ${await res.text()}`);
   const data = await res.json();
-  return data.page.id;
+  return data.id;
 }
 
 async function sendPageToBoard(pageId: string): Promise<void> {

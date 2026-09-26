@@ -8,12 +8,16 @@
  * re-renders the pre-save config and the button stays disabled even though the
  * requirement is now satisfied on disk.
  *
- * Reported against the Horoscope plugin: its only required field is `sign`, so a
+ * Reported against the Horoscope plugin: its only required field was `sign`, so a
  * user who picked a sign and saved still saw "Configure the required settings
  * below before creating a demo page".
  *
  * The QueryClient here mirrors the production staleTime deliberately — with the
  * library default of 0 every remount refetches and the bug cannot reproduce.
+ *
+ * Both the legacy (`GET /plugins/{id}`, `PUT /plugins/{id}/config`) and v1
+ * (`GET`/`PATCH /v1/plugins/{id}`, issue #1930) routes are mocked, so the same
+ * assertions run against either routing generation.
  */
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { render, screen, waitFor } from "@testing-library/react";
@@ -42,13 +46,46 @@ const SETTINGS_SCHEMA = {
 };
 
 /**
- * One installed plugin whose stored config starts empty and gains `sign` once
- * the config PUT lands — the real backend behaviour, where defaults are not
- * materialised into config until something is saved.
+ * One installed plugin whose stored config starts empty and gains `sign` once a
+ * save lands — the real backend behaviour, where schema defaults are not
+ * materialised into the stored config until something is written.
  */
 function mockHoroscope() {
   let config: Record<string, unknown> = {};
   let detailRequests = 0;
+
+  const detail = () => ({
+    id: "horoscope",
+    name: "Horoscope",
+    version: "1.0.0",
+    description: "Horoscope description",
+    author: "FiestaBoard",
+    icon: "sparkles",
+    category: "entertainment",
+    plugin_type: "data",
+    enabled: true,
+    config,
+    settings_schema: SETTINGS_SCHEMA,
+    variables: {},
+    max_lengths: {},
+    env_vars: [],
+    documentation: "README.md",
+    has_demo: true,
+    demo_page_id: null,
+    instance_label: null,
+    base_plugin_id: "horoscope",
+    instances: [],
+  });
+
+  const readDetail = () => {
+    detailRequests += 1;
+    return HttpResponse.json(detail());
+  };
+
+  const writeConfig = async (request: Request) => {
+    const body = (await request.json()) as { config: Record<string, unknown> };
+    config = body.config;
+  };
 
   server.use(
     http.get(`${API_BASE}/plugins`, () =>
@@ -78,34 +115,18 @@ function mockHoroscope() {
       }),
     ),
     http.get(`${API_BASE}/plugins/registry`, () => HttpResponse.json({ entries: [] })),
-    http.get(`${API_BASE}/plugins/horoscope`, () => {
-      detailRequests += 1;
-      return HttpResponse.json({
-        id: "horoscope",
-        name: "Horoscope",
-        version: "1.0.0",
-        description: "Horoscope description",
-        author: "FiestaBoard",
-        icon: "sparkles",
-        category: "entertainment",
-        plugin_type: "data",
-        enabled: true,
-        config,
-        settings_schema: SETTINGS_SCHEMA,
-        variables: {},
-        max_lengths: {},
-        env_vars: [],
-        documentation: "README.md",
-        has_demo: true,
-        demo_page_id: null,
-        instance_label: null,
-        base_plugin_id: "horoscope",
-        instances: [],
-      });
+
+    // v1 routes (next)
+    http.get(`${API_BASE}/v1/plugins/horoscope`, () => readDetail()),
+    http.patch(`${API_BASE}/v1/plugins/horoscope`, async ({ request }) => {
+      await writeConfig(request);
+      return HttpResponse.json(detail());
     }),
+
+    // legacy routes (main)
+    http.get(`${API_BASE}/plugins/horoscope`, () => readDetail()),
     http.put(`${API_BASE}/plugins/horoscope/config`, async ({ request }) => {
-      const body = (await request.json()) as { config: Record<string, unknown> };
-      config = body.config;
+      await writeConfig(request);
       return HttpResponse.json({ status: "success", config });
     }),
   );

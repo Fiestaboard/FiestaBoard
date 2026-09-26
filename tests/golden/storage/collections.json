@@ -1,0 +1,21 @@
+{
+  "schema_version": 1,
+  "collections": [
+    {
+      "id": "collection:golden-1",
+      "name": "Golden Collection",
+      "page_ids": [
+        "page-golden-1",
+        "page-golden-2"
+      ],
+      "selection_mode": "time",
+      "time": {
+        "interval_seconds": 30
+      },
+      "variable": null,
+      "random": null,
+      "created_at": "2026-01-02T03:04:05+00:00",
+      "updated_at": "2026-01-02T03:04:05+00:00"
+    }
+  ]
+}

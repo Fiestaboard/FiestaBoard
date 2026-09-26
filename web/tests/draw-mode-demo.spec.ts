@@ -223,7 +223,7 @@ test("pencil draw mode on an 8x8 note array", async ({ page }) => {
     }),
   });
   expect(pageRes.ok).toBe(true);
-  const pageId = (await pageRes.json()).page.id;
+  const pageId = (await pageRes.json()).id;
 
   // --- Open the editor: the 24×120 preview fills the card ---
   await page.goto(`/pages/edit/${pageId}`);

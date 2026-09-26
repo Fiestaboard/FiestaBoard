@@ -86,8 +86,8 @@ async def test_a_slow_registry_install_does_not_block_the_event_loop():
         registry = Mock()
         registry.install_from_registry = _blocking(release, [])
         with (
-            patch("src.api_server.PLUGIN_SYSTEM_AVAILABLE", True),
-            patch("src.api_server.get_plugin_registry", return_value=registry),
+            patch("src.plugins.routes.PLUGIN_SYSTEM_AVAILABLE", True),
+            patch("src.plugins.routes.get_plugin_registry", return_value=registry),
         ):
             return await ac.post("/plugins/registry/dad_jokes/install")
 
@@ -103,8 +103,8 @@ async def test_a_slow_git_install_does_not_block_the_event_loop():
         registry = Mock()
         registry.install_from_git = _blocking(release, [])
         with (
-            patch("src.api_server.PLUGIN_SYSTEM_AVAILABLE", True),
-            patch("src.api_server.get_plugin_registry", return_value=registry),
+            patch("src.plugins.routes.PLUGIN_SYSTEM_AVAILABLE", True),
+            patch("src.plugins.routes.get_plugin_registry", return_value=registry),
             patch("src.plugins.sources.repo_name_from_url", return_value="fiestaboard-plugin--x"),
             patch("src.plugins.sources.plugin_id_from_repo_name", return_value="x"),
         ):
@@ -124,8 +124,8 @@ async def test_a_slow_plugin_update_does_not_block_the_event_loop():
         registry.reload_plugin.return_value = Mock()
         registry._update_status = {}
         with (
-            patch("src.api_server.PLUGIN_SYSTEM_AVAILABLE", True),
-            patch("src.api_server.get_plugin_registry", return_value=registry),
+            patch("src.plugins.routes.PLUGIN_SYSTEM_AVAILABLE", True),
+            patch("src.plugins.routes.get_plugin_registry", return_value=registry),
             patch("pathlib.Path.is_dir", return_value=True),
             patch("src.plugins.sources.get_external_plugins_dir", return_value=Path("/fake")),
             patch("src.plugins.sources.clone_or_update_repo", _blocking(release, (True, ""))),
@@ -147,8 +147,8 @@ async def test_a_slow_bulk_update_does_not_block_the_event_loop():
         registry.reload_plugin.return_value = Mock()
         registry._update_status = {"plugin_a": True}
         with (
-            patch("src.api_server.PLUGIN_SYSTEM_AVAILABLE", True),
-            patch("src.api_server.get_plugin_registry", return_value=registry),
+            patch("src.plugins.routes.PLUGIN_SYSTEM_AVAILABLE", True),
+            patch("src.plugins.routes.get_plugin_registry", return_value=registry),
             patch("pathlib.Path.is_dir", return_value=True),
             patch("src.plugins.sources.get_external_plugins_dir", return_value=Path("/fake")),
             patch("src.plugins.sources.clone_or_update_repo", _blocking(release, (True, ""))),

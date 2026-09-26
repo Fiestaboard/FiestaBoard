@@ -477,6 +477,12 @@ class TestScheduleStorage:
         assert storage.count() == 1
         original_bytes = Path(temp_storage_file).read_bytes()
 
+        # The pending save must be a REAL one: an unchanged save is now
+        # correctly skipped as a no-op (write_json_atomic if_changed), so a
+        # crash test that re-saves identical bytes would never reach the
+        # crash it exists to test.
+        storage._schedules["keep-me"] = schedule.model_copy(update={"end_time": "18:00"})
+
         # Simulate mid-write crash: json.dump writes a truncated prefix
         # then raises before the file is fully serialized.
         real_dump = json.dump

@@ -117,25 +117,48 @@ service — there is no FiestaBoard AI proxy.
 ## AI Chat
 
 Beyond the one-shot **Gen AI** button, FiestaBoard has an **AI Chat**
-assistant for back-and-forth page building. Open it from the
-assistant button in the sidebar to get a chat drawer, or use the
-inline chat panel inside the page editor.
+assistant (FiestaBot) for back-and-forth work. Open it from the assistant
+button in the sidebar; it is available on every screen.
 
-Type a request like "make a weather page for the morning" and the
-reply appears token-by-token as the model generates it — AI Chat
-**streams** responses in real time instead of waiting for the whole
-answer. It can draft and edit page templates, and (from the global
-drawer) take broader actions such as installing a plugin or
-navigating the app.
+Type a request like "make a weather page for the morning" and the reply
+streams token-by-token. To act, FiestaBot calls **the same tools the MCP
+server exposes to external clients** — `create_page`, `create_schedule`,
+`configure_plugin`, `update_setting`, and the read tools (`list_pages`,
+`get_plugin_data`, `render_page_preview`, …). One turn can run several
+tools in a row: each call is shown in the panel before it runs and its
+result after, and the app walks you to the screen where the change lands.
+
+Execution model:
+
+- **Read-only tools run immediately** and freely (listing, previewing,
+  validating).
+- **Writes run immediately too** (creating a page, adding a schedule,
+  changing a setting). The panel shows the call, then the result; the
+  change is real, not a draft.
+- **Destructive tools follow the approval mode** (#2021). Every tool the
+  MCP server annotates `destructiveHint` — `delete_page`,
+  `delete_schedule`, `delete_collection`, `delete_plugin_instance`,
+  `uninstall_plugin`, `remove_board`, `delete_panel`,
+  `forget_wifi_network`, `disconnect_wifi` — pauses the turn with an
+  Approve/Deny prompt in **Ask** (the default) and runs without asking in
+  **Auto** (the pill in the panel header, `approval_mode` on
+  `PUT /settings/ai`). "Approve and don't ask again in this chat" on the
+  card is Auto for one conversation. Calls that ran unasked are badged
+  *auto*.
+- **The system tier always waits** — `restart_system`, `shutdown_system`,
+  `trigger_system_update` (`SYSTEM_GATED` in `src/ops/registry.py`) pause
+  in every mode, and the assistant cannot change the approval mode itself
+  (`update_setting` refuses `approval_mode`).
+- **Questions** — when a request is ambiguous FiestaBot asks (with
+  one-click choices where it can) and waits for the answer.
+- **Stop** ends the turn; a tool that was already running finishes so
+  nothing is left half-applied.
 
 AI Chat uses the **same configured provider and model** as the Gen AI
-button — whatever you set up in **Settings → AI Providers**. There's
-no separate configuration.
-
-> **Note:** Like the Gen AI button, AI Chat never saves anything on
-> its own. Proposed page edits are applied to your working draft
-> locally; you still review and click **Save**. Other actions surface
-> a confirmation step before they run.
+button. The tool list is generated from the MCP server's own tool
+descriptions, so it costs more context than a plain prompt (roughly
+25 KB); `GET /pages/ai/context?include_tools=1` shows exactly what the
+model is taught.
 
 ## Limitations
 
@@ -143,8 +166,8 @@ no separate configuration.
   the Anthropic Messages API. Other native APIs (Google Gemini,
   Cohere, …) can be reached today through OpenRouter, or added by
   registering a new entry in `src/ai/protocols.py`.
-- No automatic page creation or scheduling — you always review and
-  click **Save**.
+- The Gen AI button never saves; AI Chat's writes are real, with the
+  destructive ones behind an approval step.
 - No image/vision input.
 - A modest per-process rate limit applies to `/pages/ai/generate` to
   protect against runaway clients (1 second between calls, 2

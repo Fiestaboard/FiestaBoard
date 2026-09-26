@@ -1,0 +1,278 @@
+"""Contract test: every MCP tool declares standard ``ToolAnnotations``.
+
+MCP tool annotations (``readOnlyHint``, ``destructiveHint``,
+``idempotentHint``, ``openWorldHint``) are the protocol's own way for a
+server to tell a client what a tool does to the world. Clients use them for
+two things that matter here:
+
+- **External clients** (Claude Desktop, Claude Code) decide whether to ask
+  the user before running a tool. A missing annotation is read as "may be
+  destructive", so every delete prompts — and so does every read.
+- **The in-app chat** (from the agent-loop work that follows this) treats
+  ``readOnlyHint`` tools as free to call mid-turn and pauses only on
+  ``destructiveHint`` tools. It never keeps its own list; the server is the
+  source of truth, so chat and MCP cannot disagree about which tools need
+  approval.
+
+The sets below are pinned on purpose. Adding a tool without deciding its
+annotations fails ``test_every_tool_declares_annotations``; changing a
+tool's blast radius without updating the pin fails the set tests. Both are
+one-line fixes once the decision is made — the point is that it *is* made.
+
+Reading annotations goes through ``model_dump(by_alias=True)`` and the wire
+names (``readOnlyHint``), never attribute access: the SDK renamed the Python
+attributes between 2.1 (``readOnlyHint``) and 2.2 (``read_only_hint``), and
+the aliases are the stable contract.
+"""
+
+from __future__ import annotations
+
+import asyncio
+from typing import Any
+
+import pytest
+
+pytest.importorskip("mcp", reason="mcp package not installed")
+
+from src.mcp_server import _build_mcp_server
+
+#: Tools that only observe. They run immediately in the chat loop and no
+#: client should confirm them.
+READ_ONLY = {
+    "list_installed_plugins",
+    "list_registry_plugins",
+    "get_template_variables",
+    "get_plugin_data",
+    "list_pages",
+    "get_page",
+    "render_page_preview",
+    "preview_saved_page",
+    "validate_template",
+    "list_schedules",
+    "list_collections",
+    "get_system_status",
+    "get_settings_summary",
+    "get_active_page",
+    "get_board_content",
+    "export_page",
+    "list_staff_picks",
+    "get_current_display",
+    "list_transition_plugins",
+    "list_formula_functions",
+    "list_plugin_instances",
+    "get_plugin_demo_page",
+    "list_pending_plugin_updates",
+    "list_plugin_options",
+    "get_plugin_manifest",
+    "list_plugin_errors",
+    "validate_schedules",
+    "get_temporary_override",
+    "get_silence_status",
+    # Settings-page coverage: reads that observe hardware, panels or the
+    # outside world without changing anything here.
+    "detect_board_size",
+    "list_panels",
+    "check_for_update",
+    "export_backup",
+    "test_ai_provider",
+    "run_network_diagnostics",
+}
+
+#: Tools whose effect cannot be undone by calling another tool. These are
+#: the only ones the in-app chat pauses on. ``update_*`` tools overwrite, but
+#: they are the everyday editing path and the previous state is one
+#: ``get_*`` away, so they are deliberately NOT here.
+APPROVAL_GATED = {
+    "delete_page",
+    "delete_schedule",
+    "delete_collection",
+    "uninstall_plugin",
+    "delete_plugin_instance",
+    # Settings-page coverage. Removing a board or panel drops credentials /
+    # a virtual board; the network and system actions cut the user's own
+    # connection or restart/power off the host.
+    "remove_board",
+    "delete_panel",
+    "forget_wifi_network",
+    "disconnect_wifi",
+    "trigger_system_update",
+    "restart_system",
+    "shutdown_system",
+}
+
+#: The system tier (#2021): destructive tools that ALWAYS pause the in-app
+#: chat for approval, whatever the install's ``approval_mode`` and whatever
+#: the conversation's "don't ask again" flag say. Restarting, powering off or
+#: updating the host cuts the user's own session; no mode may skip that ask.
+#: Pinned here like the other sets, and mirrored by the loop's
+#: ``src.ops.registry.SYSTEM_GATED``.
+SYSTEM_GATED = {
+    "restart_system",
+    "shutdown_system",
+    "trigger_system_update",
+}
+
+#: Tools that touch something outside this install (the plugin registry
+#: over the network, a git remote, a plugin's upstream API, the release
+#: registries, a third-party AI endpoint, the public internet).
+OPEN_WORLD = {
+    "list_registry_plugins",
+    "get_plugin_data",
+    "install_plugin",
+    "update_plugin",
+    "list_plugin_options",
+    "check_plugin_updates",
+    "update_all_plugins",
+    "check_for_update",
+    "trigger_system_update",
+    "test_ai_provider",
+    "run_network_diagnostics",
+}
+
+#: Calling these twice with the same arguments leaves the same state as
+#: calling them once. ``set_temporary_override`` is deliberately absent: a
+#: second call restarts the expiry clock, so the state after two calls is
+#: not the state after one.
+IDEMPOTENT = READ_ONLY | {
+    "enable_plugin",
+    "disable_plugin",
+    "configure_plugin",
+    "update_plugin",
+    "set_active_page",
+    "set_schedule_mode",
+    "update_setting",
+    "update_page",
+    "update_schedule",
+    "update_collection",
+    # Snapping a board back to its active page twice leaves it where once did.
+    "restore_board",
+    "check_plugin_updates",
+    "update_all_plugins",
+    "set_default_page",
+    "cancel_temporary_override",
+    "force_refresh",
+    "pause_board",
+    "resume_board",
+    "update_board",
+    "identify_tile",
+    "update_panel",
+    "blank_board",
+    "fill_board",
+    "show_board_debug_info",
+    "clear_board_cache",
+}
+
+
+@pytest.fixture(scope="module")
+def mcp():
+    instance = _build_mcp_server()
+    assert instance is not None, "mcp installed but _build_mcp_server() returned None"
+    return instance
+
+
+@pytest.fixture(scope="module")
+def annotations(mcp) -> dict[str, dict[str, Any] | None]:
+    """``{tool_name: annotations-as-wire-dict | None}`` for every tool."""
+    out: dict[str, dict[str, Any] | None] = {}
+    for name, tool in mcp._tool_manager._tools.items():
+        ann = getattr(tool, "annotations", None)
+        out[name] = ann.model_dump(by_alias=True, exclude_none=True) if ann is not None else None
+    return out
+
+
+def _names_where(annotations: dict[str, dict[str, Any] | None], key: str, value: bool) -> set[str]:
+    return {name for name, ann in annotations.items() if ann is not None and ann.get(key) is value}
+
+
+def test_every_tool_declares_annotations(annotations):
+    missing = sorted(name for name, ann in annotations.items() if ann is None)
+    assert not missing, f"tools registered without ToolAnnotations: {missing}"
+
+
+def test_every_tool_sets_all_four_hints_explicitly(annotations):
+    """No hint is left to the client's default. The spec default for a
+    missing ``destructiveHint`` is *true*, so an omitted hint is not neutral."""
+    hints = ("readOnlyHint", "destructiveHint", "idempotentHint", "openWorldHint")
+    incomplete = {
+        name: sorted(set(hints) - set(ann))
+        for name, ann in annotations.items()
+        if ann is not None and set(hints) - set(ann)
+    }
+    assert not incomplete, f"tools with unset hints: {incomplete}"
+
+
+def test_read_only_tools_are_exactly_the_pinned_set(annotations):
+    assert _names_where(annotations, "readOnlyHint", True) == READ_ONLY
+
+
+def test_approval_gated_destructive_tools_are_exactly_the_pinned_set(annotations):
+    assert _names_where(annotations, "destructiveHint", True) == APPROVAL_GATED
+
+
+def test_update_tools_are_not_approval_gated(annotations):
+    for name in (
+        "update_page",
+        "update_schedule",
+        "update_collection",
+        "update_plugin",
+        "update_setting",
+        "update_board",
+        "update_panel",
+    ):
+        assert annotations[name]["destructiveHint"] is False, f"{name} must not pause the chat for approval"
+
+
+def test_no_read_only_tool_is_marked_destructive(annotations):
+    contradictions = sorted(
+        _names_where(annotations, "readOnlyHint", True) & _names_where(annotations, "destructiveHint", True)
+    )
+    assert not contradictions, f"read-only AND destructive: {contradictions}"
+
+
+def test_open_world_tools_are_exactly_the_pinned_set(annotations):
+    assert _names_where(annotations, "openWorldHint", True) == OPEN_WORLD
+
+
+def test_idempotent_tools_are_exactly_the_pinned_set(annotations):
+    assert _names_where(annotations, "idempotentHint", True) == IDEMPOTENT
+
+
+def test_every_tool_has_a_human_title(annotations):
+    untitled = sorted(name for name, ann in annotations.items() if ann is not None and not ann.get("title"))
+    assert not untitled, f"tools without a title: {untitled}"
+
+
+def test_annotations_are_visible_through_list_tools_by_alias(mcp, annotations):
+    """What an MCP client actually receives — ``tools/list`` — carries the
+    same hints under the wire names, for every tool."""
+    listed = asyncio.run(mcp.list_tools())
+    by_name = {t.name: t for t in listed}
+    assert set(by_name) == set(annotations)
+    for name, expected in annotations.items():
+        got = by_name[name].annotations
+        assert got is not None, f"{name} lost its annotations on the wire"
+        assert got.model_dump(by_alias=True, exclude_none=True) == expected
+
+
+# ---------------------------------------------------------------------------
+# The system tier
+# ---------------------------------------------------------------------------
+
+
+def test_system_gated_tools_are_exactly_the_pinned_set():
+    from src.ops.registry import SYSTEM_GATED as live
+
+    assert set(live) == SYSTEM_GATED
+
+
+def test_every_system_gated_tool_is_a_destructive_approval_gated_tool(annotations):
+    """The tier is a subset, never a third annotation: a system tool that
+    lost its ``destructiveHint`` would run freely for external clients."""
+    assert SYSTEM_GATED <= APPROVAL_GATED
+    for name in SYSTEM_GATED:
+        assert annotations[name]["destructiveHint"] is True, f"{name} must stay destructive"
+
+
+def test_every_system_gated_tool_is_a_registered_tool(annotations):
+    unknown = sorted(SYSTEM_GATED - set(annotations))
+    assert unknown == [], f"SYSTEM_GATED names tools the server does not have: {unknown}"

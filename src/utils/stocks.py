@@ -357,7 +357,6 @@ class StocksSource:
             # Note: No parentheses around percentage to save 2 tiles for prices > $1000
             formatted = f"{symbol}{color_tile} ${current_price_str} {change_percent_str}"
 
-            # Get company name if available
             company_name = info.get("longName") or info.get("shortName") or symbol
 
             return {
@@ -410,7 +409,6 @@ class StocksSource:
             if current_price is None:
                 return {"valid": False, "symbol": symbol, "error": "No price data available"}
 
-            # Get company name
             company_name = info.get("longName") or info.get("shortName") or symbol
 
             return {"valid": True, "symbol": symbol, "name": company_name}
@@ -441,7 +439,6 @@ class StocksSource:
 
         results = []
 
-        # Try Finnhub API if key is provided
         if finnhub_api_key:
             try:
                 import finnhub
@@ -478,31 +475,3 @@ class StocksSource:
                 results.append({"symbol": symbol, "name": name})
 
         return results[:limit]
-
-
-# Singleton instance
-_stocks_source: StocksSource | None = None
-
-
-def get_stocks_source() -> StocksSource | None:
-    """Get or create the stocks source singleton."""
-    global _stocks_source
-    from src.config import Config
-
-    if not Config.STOCKS_ENABLED:
-        return None
-
-    if _stocks_source is None:
-        _stocks_source = StocksSource(
-            symbols=Config.STOCKS_SYMBOLS,
-            time_window=Config.STOCKS_TIME_WINDOW,
-            finnhub_api_key=Config.FINNHUB_API_KEY if Config.FINNHUB_API_KEY else None,
-        )
-
-    return _stocks_source
-
-
-def reset_stocks_source() -> None:
-    """Reset the stocks source singleton."""
-    global _stocks_source
-    _stocks_source = None

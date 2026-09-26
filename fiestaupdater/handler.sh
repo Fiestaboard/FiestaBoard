@@ -213,14 +213,31 @@ handle_last_update() {
     respond 200 OK '{"status":"none"}'
 }
 
+# What this handler.sh can do. Read by the app so it can tell the user their
+# sidecar is behind, rather than leaving them to infer it.
+#
+# Nothing on a running box refreshes the sidecar: handle_update and
+# handle_install recreate only ${SERVICE}, and the Pi pulls the sidecar just
+# once per boot. So a box that has not rebooted since an image shipped is
+# still running the old handler, silently, with no way to find out. That is
+# how #1977's `--pull never` failed to reach a live Pi for hours after it
+# published: every channel switch kept clobbering its own retag, healed
+# itself through a stable interlude, and said nothing.
+#
+# An older sidecar simply omits this field, and absence is exactly the
+# signal the app needs — no version negotiation required. Add an entry here
+# when a change to this file is something the app must be able to detect.
+CAPABILITIES='["install","pull-never"]'
+
 # ---------------------------------------------------------------------------
-# GET /version — current digest of the running fiestaboard container.
+# GET /version — current digest of the running fiestaboard container, plus
+# what this sidecar is capable of.
 # ---------------------------------------------------------------------------
 handle_version() {
     local image digest
     image=$(docker inspect --format '{{.Config.Image}}' "$SERVICE" 2>/dev/null || echo "")
     digest=$(docker inspect --format '{{.Image}}' "$SERVICE" 2>/dev/null || echo "")
-    respond 200 OK "{\"service\":\"${SERVICE}\",\"image\":\"${image}\",\"digest\":\"${digest}\"}"
+    respond 200 OK "{\"service\":\"${SERVICE}\",\"image\":\"${image}\",\"digest\":\"${digest}\",\"capabilities\":${CAPABILITIES}}"
 }
 
 # ---------------------------------------------------------------------------

@@ -88,7 +88,7 @@ page itself, and the OpenAPI docs keep working:
 
 - `GET /`, `GET /health`
 - `GET/POST /auth/*`
-- `GET /openapi.json`, `/docs`, `/redoc`
+- `GET /openapi.json`, `/internal/openapi.json`, `/docs`, `/redoc`
 
 Everything else (status, config, pages, plugins, etc.) requires a valid
 session cookie.
@@ -115,15 +115,28 @@ stay open.
 as before.
 :::
 
-On an install where you chose *Continue without login*, prefer
-`FIESTABOARD_MCP_TOKEN` over a token generated on the Settings page. Token
-management is part of the API (`POST` / `DELETE /auth/mcp-token`), and with
-the login disabled there is no session for those routes to check — so
-anyone who can reach the port can rotate or revoke a Settings-stored token
-and re-open `/api/mcp/`. A Settings-stored token protects against accidents
-there, not against an attacker who can already reach FiestaBoard. While
-`FIESTABOARD_MCP_TOKEN` is set, both routes refuse with `409` and the token
-cannot be changed over the network.
+On an install where you chose *Continue without login* there is no session
+for the token-management routes (`GET` / `POST` / `DELETE
+/auth/mcp-token`) to check, so possession of the current token stands in
+for one: once a token exists, managing it requires sending that token as an
+`Authorization: Bearer` header, and requests without it get a `401`. Only
+the first mint is open — until a token exists the whole API is open anyway,
+so gating it would protect nothing. (Earlier releases left these routes
+fully open on such installs, so anyone who could reach the port could
+rotate or revoke a Settings-stored token — fixed in
+Fiestaboard/FiestaBoard#1825.) The stored token also guards the one way
+around that gate. With the login disabled by preference, re-enabling it
+(`POST /auth/preference` with `enabled: true`) and registering the first
+admin (`POST /auth/setup`) would each hand out a session that can rotate or
+revoke the token — so while a stored token exists, both of those requests
+must present it as an `Authorization: Bearer` header too, and are refused
+with a `403` otherwise (Fiestaboard/FiestaBoard#1880). Turning the login
+*off* is never gated; it cannot take anything over. If you chose *Continue
+without login* and later want to add one, send the token with the request
+or clear it in **Settings → Integrations** first. A token pinned by
+`FIESTABOARD_MCP_TOKEN` is not gated this way because there is nothing to
+hijack: while it is set, both mutating routes refuse with `409` and the
+token cannot be changed over the network at all.
 
 ## Cross-origin browser access (CORS)
 
@@ -178,10 +191,3 @@ The corresponding API endpoints are also available:
 
 Stop the container, delete `data/auth.json`, and restart. The next visit
 to the UI will walk you through the first-run picker again.
-
-## Secret encryption at rest
-
-Independent of the login feature, FiestaBoard supports encrypting
-sensitive values (API keys, board keys, plugin credentials) before
-writing them to `data/config.json`. See
-[Secret encryption](./secret-encryption.md) for details.

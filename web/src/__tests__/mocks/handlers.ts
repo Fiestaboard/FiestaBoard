@@ -3,10 +3,8 @@ import { http, HttpResponse } from "msw";
 import type {
   ConfigSummary,
   CurrentDisplayResponse,
-  DisplayRawResponse,
-  DisplayResponse,
+  DisplayRawBatchResponse,
   DisplaySettings,
-  DisplaysResponse,
   GeneralConfig,
   OutputSettings,
   Page,
@@ -51,39 +49,6 @@ export const mockConfig: ConfigSummary = {
   guest_wifi_enabled: false,
   star_trek_quotes_enabled: true,
   rotation_enabled: true,
-};
-
-export const mockDisplays: DisplaysResponse = {
-  displays: [
-    { type: "weather", available: true, description: "Current weather conditions" },
-    { type: "datetime", available: true, description: "Current date and time" },
-    { type: "weather_datetime", available: true, description: "Combined weather and datetime" },
-    { type: "home_assistant", available: false, description: "Home Assistant status" },
-    { type: "star_trek", available: true, description: "Star Trek quotes" },
-    { type: "guest_wifi", available: false, description: "Guest WiFi credentials" },
-  ],
-  total: 7,
-  available_count: 5,
-};
-
-export const mockWeatherDisplay: DisplayResponse = {
-  display_type: "weather",
-  message: "San Francisco: * Sunny\nTemp: 72°F",
-  lines: ["San Francisco: * Sunny", "Temp: 72°F"],
-  line_count: 2,
-  available: true,
-};
-
-export const mockWeatherRaw: DisplayRawResponse = {
-  display_type: "weather",
-  data: {
-    temperature: 72,
-    condition: "Sunny",
-    location: "San Francisco",
-    humidity: 45,
-  },
-  available: true,
-  error: null,
 };
 
 export const mockTransitionSettings: TransitionSettings = {
@@ -224,12 +189,14 @@ export const mockTemplateVariables: TemplateVariables = {
   },
 };
 
+// The shape GET /cache-status actually serves (src/debug/models.py CacheStatus).
+// It previously invented cached/last_message_hash/cache_hits fields the API has
+// never returned.
 export const mockCacheStatus = {
-  cached: true,
-  last_message_hash: "abc123",
-  last_sent_at: "2024-01-01T12:00:00Z",
-  cache_hits: 5,
-  total_sends: 10,
+  has_cached_text: true,
+  has_cached_characters: true,
+  skip_unchanged_enabled: true,
+  cached_text_preview: "HELLO WORLD",
 };
 
 // General config mock
@@ -258,12 +225,14 @@ export const mockSilenceSchedulePlugin: PluginDetailResponse = {
   author: "FiestaBoard",
   icon: "moon",
   category: "utility",
+  plugin_type: "data",
   enabled: true,
   config: {
     enabled: false,
     start_time: "04:00+00:00",
     end_time: "15:00+00:00",
   },
+  env_overridden_keys: [],
   settings_schema: {
     type: "object",
     properties: {
@@ -278,6 +247,9 @@ export const mockSilenceSchedulePlugin: PluginDetailResponse = {
   documentation: "",
   has_demo: false,
   demo_page_id: null,
+  instance_label: null,
+  base_plugin_id: "silence_schedule",
+  instances: [],
 };
 
 // Store for tracking request bodies in tests
@@ -309,9 +281,39 @@ const inactiveTemporaryOverride = {
 };
 
 // Handlers with request validation
+/** The `PluginDetail` body `GET`/`PATCH /v1/plugins/{id}` both answer with. */
+function pluginDetailFor(pluginId: string) {
+  if (pluginId === "silence_schedule") {
+    return mockSilenceSchedulePlugin;
+  }
+  return {
+    id: pluginId,
+    name: pluginId,
+    version: "1.0.0",
+    description: "",
+    author: "Unknown",
+    icon: "puzzle",
+    category: "utility",
+    plugin_type: "data",
+    enabled: false,
+    config: {},
+    env_overridden_keys: [],
+    settings_schema: {},
+    variables: {},
+    max_lengths: {},
+    env_vars: [],
+    documentation: "",
+    has_demo: false,
+    demo_page_id: null,
+    instance_label: null,
+    base_plugin_id: pluginId,
+    instances: [],
+  };
+}
+
 export const handlers = [
   // Core status endpoints
-  http.get(`${API_BASE}/status`, () => {
+  http.get(`${API_BASE}/v1/status`, () => {
     return HttpResponse.json(mockStatus);
   }),
 
@@ -334,11 +336,11 @@ export const handlers = [
   }),
 
   http.post(`${API_BASE}/start`, () => {
-    return HttpResponse.json({ status: "started", message: "Service started successfully" });
+    return HttpResponse.json({ running: true, changed: true, message: "Service started successfully" });
   }),
 
   http.post(`${API_BASE}/stop`, () => {
-    return HttpResponse.json({ status: "stopped", message: "Service stopped successfully" });
+    return HttpResponse.json({ running: false, changed: true, message: "Service stopped successfully" });
   }),
 
   http.post(`${API_BASE}/publish-preview`, () => {
@@ -349,33 +351,13 @@ export const handlers = [
   }),
 
   // Display endpoints
-  http.get(`${API_BASE}/displays`, () => {
-    return HttpResponse.json(mockDisplays);
-  }),
-
-  http.get(`${API_BASE}/displays/:type`, ({ params }) => {
-    const { type } = params;
-    if (type === "weather") {
-      return HttpResponse.json(mockWeatherDisplay);
-    }
-    const response: DisplayResponse = {
-      display_type: String(type),
-      message: `${type} display`,
-      lines: [`${type} display`],
-      line_count: 1,
-      available: true,
-    };
-    return HttpResponse.json(response);
-  }),
-
   http.post(`${API_BASE}/displays/raw/batch`, async ({ request }) => {
     const body = (await request.json()) as { display_types?: string[] };
     const displayTypes = body.display_types || [];
-    const displays: Record<string, DisplayRawResponse> = {};
+    const displays: DisplayRawBatchResponse["displays"] = {};
 
     displayTypes.forEach((type: string) => {
       displays[type] = {
-        display_type: type,
         data: {},
         available: true,
         error: null,
@@ -383,31 +365,6 @@ export const handlers = [
     });
 
     return HttpResponse.json({ displays });
-  }),
-
-  http.get(`${API_BASE}/displays/:type/raw`, ({ params }) => {
-    const { type } = params;
-    if (type === "weather") {
-      return HttpResponse.json(mockWeatherRaw);
-    }
-    const response: DisplayRawResponse = {
-      display_type: String(type),
-      data: {},
-      available: true,
-      error: null,
-    };
-    return HttpResponse.json(response);
-  }),
-
-  http.post(`${API_BASE}/displays/:type/send`, ({ params }) => {
-    const { type } = params;
-    return HttpResponse.json({
-      status: "success",
-      display_type: type,
-      message: `${type} sent`,
-      sent_to_board: true,
-      target: "board",
-    });
   }),
 
   // Settings endpoints
@@ -418,16 +375,18 @@ export const handlers = [
   http.put(`${API_BASE}/settings/transitions`, async ({ request }) => {
     const body = (await request.json()) as Partial<TransitionSettings>;
     requestStore.lastTransitionUpdate = body;
+    // Key presence, not nullishness: the real handler treats an explicit
+    // null as "clear this field" and an absent key as "leave it alone"
+    // (PUT /settings/transitions, exclude_unset). `??` collapsed the two,
+    // so a reset test could not tell them apart.
     const response: TransitionSettings = {
-      strategy: body.strategy ?? mockTransitionSettings.strategy,
-      step_interval_ms: body.step_interval_ms ?? mockTransitionSettings.step_interval_ms,
-      step_size: body.step_size ?? mockTransitionSettings.step_size,
+      strategy: "strategy" in body ? (body.strategy ?? null) : mockTransitionSettings.strategy,
+      step_interval_ms:
+        "step_interval_ms" in body ? (body.step_interval_ms ?? null) : mockTransitionSettings.step_interval_ms,
+      step_size: "step_size" in body ? (body.step_size ?? null) : mockTransitionSettings.step_size,
       available_strategies: mockTransitionSettings.available_strategies,
     };
-    return HttpResponse.json({
-      status: "success",
-      settings: response,
-    });
+    return HttpResponse.json(response);
   }),
 
   http.get(`${API_BASE}/settings/output`, () => {
@@ -437,30 +396,33 @@ export const handlers = [
   http.put(`${API_BASE}/settings/output`, async ({ request }) => {
     const body = (await request.json()) as { target: string };
     requestStore.lastOutputUpdate = body;
-    return HttpResponse.json({
-      status: "success",
-      settings: { target: body.target },
-    });
+    return HttpResponse.json({ target: body.target });
   }),
 
   // Active page settings
   http.get(`${API_BASE}/settings/active-page`, () => {
     return HttpResponse.json({
       page_id: "page-1",
+      resolved_page_id: "page-1",
+      resolved_next_check_seconds: null,
+      board_id: null,
     });
   }),
 
   http.put(`${API_BASE}/settings/active-page`, async ({ request }) => {
     const body = (await request.json()) as { page_id: string | null };
     return HttpResponse.json({
-      status: "success",
       page_id: body.page_id,
       sent_to_board: true,
+      paused: false,
+      board_id: null,
+      error: null,
+      warnings: [],
     });
   }),
 
   // Pages endpoints
-  http.get(`${API_BASE}/pages`, () => {
+  http.get(`${API_BASE}/v1/pages`, () => {
     return HttpResponse.json(mockPages);
   }),
 
@@ -480,7 +442,7 @@ export const handlers = [
     });
   }),
 
-  http.get(`${API_BASE}/pages/:id`, ({ params }) => {
+  http.get(`${API_BASE}/v1/pages/:id`, ({ params }) => {
     const { id } = params;
     if (id === "page-1") {
       return HttpResponse.json(mockPage);
@@ -491,7 +453,7 @@ export const handlers = [
     return HttpResponse.json(mockPage);
   }),
 
-  http.post(`${API_BASE}/pages`, async ({ request }) => {
+  http.post(`${API_BASE}/v1/pages`, async ({ request }) => {
     const body = (await request.json()) as PageCreate;
     requestStore.lastPageCreate = body;
 
@@ -506,13 +468,11 @@ export const handlers = [
       duration_seconds: body.duration_seconds ?? 300,
       created_at: new Date().toISOString(),
     };
-    return HttpResponse.json({
-      status: "success",
-      page: newPage,
-    });
+    // 201 + the bare page since the Phase 2 conventions pass.
+    return HttpResponse.json(newPage, { status: 201 });
   }),
 
-  http.put(`${API_BASE}/pages/:id`, async ({ request, params }) => {
+  http.put(`${API_BASE}/v1/pages/:id`, async ({ request, params }) => {
     const body = (await request.json()) as Partial<Page>;
     const { id } = params;
     const updatedPage: Page = {
@@ -521,14 +481,18 @@ export const handlers = [
       ...body,
       updated_at: new Date().toISOString(),
     };
-    return HttpResponse.json({
-      status: "success",
-      page: updatedPage,
-    });
+    return HttpResponse.json({ page: updatedPage, incompatible_references: [] });
   }),
 
-  http.delete(`${API_BASE}/pages/:id`, () => {
-    return HttpResponse.json({ status: "success", message: "Page deleted" });
+  http.delete(`${API_BASE}/v1/pages/:id`, ({ params }) => {
+    return HttpResponse.json({
+      id: params.id,
+      message: "Page deleted",
+      default_page_created: false,
+      new_page_id: null,
+      active_page_updated: false,
+      new_active_page_id: null,
+    });
   }),
 
   http.post(`${API_BASE}/pages/:id/preview`, ({ params }) => {
@@ -643,7 +607,7 @@ export const handlers = [
       duration_seconds: 300,
       created_at: new Date().toISOString(),
     };
-    return HttpResponse.json({ status: "success", page: newPage });
+    return HttpResponse.json(newPage, { status: 201 });
   }),
 
   http.post(`${API_BASE}/pages/import/preview`, async ({ request }) => {
@@ -660,19 +624,8 @@ export const handlers = [
     });
   }),
 
-  http.post(`${API_BASE}/pages/:id/send`, ({ params }) => {
-    const { id } = params;
-    return HttpResponse.json({
-      status: "success",
-      page_id: id,
-      message: "Page sent",
-      sent_to_board: true,
-      target: "board",
-    });
-  }),
-
   // Template endpoints
-  http.get(`${API_BASE}/templates/variables`, () => {
+  http.get(`${API_BASE}/v1/variables`, () => {
     return HttpResponse.json(mockTemplateVariables);
   }),
 
@@ -704,6 +657,7 @@ export const handlers = [
       lines: template ? template.split("\n") : [""],
       line_count: template ? template.split("\n").length : 1,
       sent_to_board: true,
+      paused: false,
       board_id: body.board_id || "default",
     });
   }),
@@ -714,17 +668,11 @@ export const handlers = [
   }),
 
   http.post(`${API_BASE}/clear-cache`, () => {
-    return HttpResponse.json({
-      status: "success",
-      message: "Cache cleared",
-    });
+    return HttpResponse.json({ message: "Cache cleared" });
   }),
 
   http.post(`${API_BASE}/force-refresh`, () => {
-    return HttpResponse.json({
-      status: "success",
-      message: "Display force-refreshed",
-    });
+    return HttpResponse.json({ message: "Display force-refreshed", sent: true });
   }),
 
   // General config endpoints
@@ -745,27 +693,34 @@ export const handlers = [
   }),
 
   // Plugin config endpoints
-  http.get(`${API_BASE}/plugins/:pluginId`, ({ params }) => {
-    const { pluginId } = params;
-    if (pluginId === "silence_schedule") {
-      return HttpResponse.json(mockSilenceSchedulePlugin);
-    }
-    // Return generic plugin response for other plugins
+  http.get(`${API_BASE}/v1/plugins/:pluginId`, ({ params }) => {
+    return HttpResponse.json(pluginDetailFor(String(params.pluginId)));
+  }),
+
+  // `GET /v1/plugins/{id}/data` replaced GET /displays/{type}/raw (#1911).
+  http.get(`${API_BASE}/v1/plugins/:pluginId/data`, ({ params }) => {
+    const pluginId = String(params.pluginId);
+    const data = pluginId === "weather" ? { temperature: 72, condition: "Sunny", humidity: 45 } : {};
     return HttpResponse.json({
-      id: pluginId,
-      name: String(pluginId),
-      version: "1.0.0",
-      description: "",
-      author: "Unknown",
-      icon: "puzzle",
-      category: "utility",
-      enabled: false,
-      config: {},
-      settings_schema: {},
-      variables: {},
-      max_lengths: {},
-      env_vars: [],
-      documentation: "",
+      plugin_id: pluginId,
+      available: true,
+      data,
+      lines: [],
+      text: "",
+      error: null,
+    });
+  }),
+
+  // `PATCH /v1/plugins/{id}` replaced PUT /plugins/{id}/config, POST
+  // .../enable and POST .../disable, and answers with the plugin's detail
+  // instead of `{plugin_id, config}` / `{plugin_id, enabled}`.
+  http.patch(`${API_BASE}/v1/plugins/:pluginId`, async ({ request, params }) => {
+    const body = (await request.json()) as { config?: Record<string, unknown>; enabled?: boolean };
+    const detail = pluginDetailFor(String(params.pluginId));
+    return HttpResponse.json({
+      ...detail,
+      ...(body.config !== undefined && { config: body.config }),
+      ...(body.enabled !== undefined && { enabled: body.enabled }),
     });
   }),
 
@@ -811,32 +766,13 @@ export const handlers = [
     });
   }),
 
-  http.post(`${API_BASE}/plugins/:pluginId/config`, async ({ request, params }) => {
-    const { pluginId } = params;
-    const body = (await request.json()) as { config: Record<string, unknown> };
-    return HttpResponse.json({
-      status: "success",
-      plugin_id: pluginId,
-      config: body.config,
-    });
-  }),
-
-  http.put(`${API_BASE}/plugins/:pluginId/config`, async ({ request, params }) => {
-    const { pluginId } = params;
-    const body = (await request.json()) as { config: Record<string, unknown> };
-    return HttpResponse.json({
-      status: "success",
-      plugin_id: pluginId,
-      config: body.config,
-    });
-  }),
-
   // Plugin instance endpoints
   http.get(`${API_BASE}/plugins/:pluginId/instances`, ({ params }) => {
     const { pluginId } = params;
     return HttpResponse.json({
       plugin_id: pluginId,
       instances: [],
+      total: 0,
     });
   }),
 
@@ -844,24 +780,23 @@ export const handlers = [
     const { pluginId } = params;
     const body = (await request.json()) as { label: string };
     const instanceKey = `${pluginId}:${body.label}`;
-    return HttpResponse.json({
-      status: "success",
-      plugin_id: pluginId,
-      instance_label: body.label,
-      instance_key: instanceKey,
-      message: `Instance "${body.label}" created for plugin "${pluginId}".`,
-    });
+    return HttpResponse.json(
+      {
+        plugin_id: pluginId,
+        instance_label: body.label,
+        instance_key: instanceKey,
+      },
+      { status: 201 },
+    );
   }),
 
   http.delete(`${API_BASE}/plugins/:pluginId/instances/:instanceLabel`, ({ params }) => {
     const { pluginId, instanceLabel } = params;
     const instanceKey = `${pluginId}:${instanceLabel}`;
     return HttpResponse.json({
-      status: "success",
       plugin_id: pluginId,
       instance_label: instanceLabel,
       instance_key: instanceKey,
-      message: `Instance "${instanceLabel}" of plugin "${pluginId}" deleted.`,
     });
   }),
 
@@ -881,14 +816,13 @@ export const handlers = [
       board_id?: string;
     };
     return HttpResponse.json({
-      status: "success",
       config: body,
       board_id: body.board_id ?? null,
     });
   }),
 
   // Collection endpoints
-  http.get(`${API_BASE}/collections`, () => {
+  http.get(`${API_BASE}/v1/collections`, () => {
     return HttpResponse.json({
       collections: [],
       total: 0,
@@ -896,7 +830,7 @@ export const handlers = [
   }),
 
   // Schedule endpoints (for active-page-display)
-  http.get(`${API_BASE}/schedules`, ({ request }) => {
+  http.get(`${API_BASE}/v1/schedules`, ({ request }) => {
     const url = new URL(request.url);
     const boardId = url.searchParams.get("board_id");
     return HttpResponse.json({
@@ -1002,7 +936,7 @@ export const handlers = [
 
   http.put(`${API_BASE}/settings/display`, async ({ request }) => {
     const body = (await request.json()) as Record<string, unknown>;
-    return HttpResponse.json({ status: "success", settings: { ...mockDisplaySettings, ...body } });
+    return HttpResponse.json({ ...mockDisplaySettings, ...body });
   }),
 
   // MQTT settings endpoints
@@ -1058,6 +992,19 @@ export const handlers = [
     });
   }),
 
+  // Saved FiestaBot conversations (#2022). Empty store, accepting writes,
+  // so a component that autosaves or lists history renders without a
+  // per-test handler; tests that care about the rows override these.
+  http.get(`${API_BASE}/ai/conversations`, () => HttpResponse.json({ conversations: [], total: 0 })),
+  http.put(`${API_BASE}/ai/conversations/:id`, async ({ params, request }) => {
+    const body = (await request.json()) as Record<string, unknown>;
+    return HttpResponse.json(
+      { id: params.id, title: "Chat", created_at: "", updated_at: "", ...body },
+      { status: 201 },
+    );
+  }),
+  http.delete(`${API_BASE}/ai/conversations`, () => HttpResponse.json({ deleted: 0 })),
+
   http.post(`${API_BASE}/settings/ai/test`, () => {
     return HttpResponse.json({
       ok: true,
@@ -1078,6 +1025,17 @@ export const handlers = [
           wrap: false,
         })),
         duration_seconds: 60,
+        // Present-as-null since the route declares AIGenerateResponse: the
+        // PageCreate fields the generator did not set are serialized rather
+        // than omitted.
+        display_type: null,
+        rows: null,
+        transition_strategy: null,
+        transition_interval_ms: null,
+        transition_step_size: null,
+        demo_plugin_id: null,
+        notes_wide: null,
+        notes_tall: null,
       },
       model_used: "test-model",
       provider_id: "p1",
@@ -1168,13 +1126,46 @@ export const handlers = [
   http.put(`${API_BASE}/settings/polling`, async ({ request }) => {
     const body = (await request.json()) as { interval_seconds: number };
     return HttpResponse.json({
-      status: "success",
-      settings: { interval_seconds: body.interval_seconds },
+      interval_seconds: body.interval_seconds,
+      board_read_interval_local: 30,
+      board_read_interval_cloud: 180,
       requires_restart: false,
     });
   }),
 
   // Board settings endpoints
+  // `PATCH /v1/boards/{board}` — where pausing, schedule mode and the
+  // schedule's fallback page moved (was POST /settings/board/{id}/pause,
+  // PUT /schedules/enabled, PUT /schedules/default-page). `primary` is the
+  // alias for "the board an id-less internal call meant".
+  http.patch(`${API_BASE}/v1/boards/:board`, async ({ request, params }) => {
+    const body = (await request.json()) as {
+      paused?: boolean;
+      schedule_enabled?: boolean;
+      default_page_id?: string | null;
+      name?: string;
+    };
+    return HttpResponse.json({
+      id: String(params.board),
+      name: body.name ?? String(params.board),
+      device_type: "flagship",
+      rows: 6,
+      cols: 22,
+      is_primary: true,
+      paused: body.paused ?? false,
+      schedule_enabled: body.schedule_enabled ?? false,
+      characters: null,
+      text: null,
+      read_at: null,
+      active_page_id: null,
+      scheduled_page_id: null,
+      resolved_page_id: null,
+      source: "none",
+      default_page_id: body.default_page_id ?? null,
+      override_expires_at: null,
+    });
+  }),
+
   http.get(`${API_BASE}/settings/board`, () => {
     return HttpResponse.json({
       board_type: "black",
@@ -1190,12 +1181,9 @@ export const handlers = [
       boards?: object[];
     };
     return HttpResponse.json({
-      status: "success",
-      settings: {
-        board_type: body.board_type ?? "black",
-        boards: body.boards ?? [{ id: "default", name: "Flagship", device_type: "flagship", board_color: "black" }],
-        devices: body.devices ?? ["flagship"],
-      },
+      board_type: body.board_type ?? "black",
+      boards: body.boards ?? [{ id: "default", name: "Flagship", device_type: "flagship", board_color: "black" }],
+      devices: body.devices ?? ["flagship"],
     });
   }),
 
@@ -1206,9 +1194,8 @@ export const handlers = [
       board_color?: string;
       code62_glyph?: string;
     };
-    return HttpResponse.json({
-      status: "success",
-      settings: {
+    return HttpResponse.json(
+      {
         board_type: "black",
         boards: [
           { id: "default", name: "Flagship", device_type: "flagship", board_color: "black" },
@@ -1222,17 +1209,15 @@ export const handlers = [
         ],
         devices: ["flagship", body.device_type],
       },
-    });
+      { status: 201 },
+    );
   }),
 
   http.delete(`${API_BASE}/settings/board/:boardId`, () => {
     return HttpResponse.json({
-      status: "success",
-      settings: {
-        board_type: "black",
-        boards: [{ id: "default", name: "Flagship", device_type: "flagship", board_color: "black" }],
-        devices: ["flagship"],
-      },
+      board_type: "black",
+      boards: [{ id: "default", name: "Flagship", device_type: "flagship", board_color: "black" }],
+      devices: ["flagship"],
     });
   }),
 
@@ -1267,11 +1252,8 @@ export const handlers = [
   http.put(`${API_BASE}/settings/location`, async ({ request }) => {
     const body = (await request.json()) as { latitude: number | null; longitude: number | null };
     return HttpResponse.json({
-      status: "success",
-      settings: {
-        latitude: body.latitude,
-        longitude: body.longitude,
-      },
+      latitude: body.latitude,
+      longitude: body.longitude,
     });
   }),
 

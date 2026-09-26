@@ -14,8 +14,9 @@
  * the mock-llm container reachable at MOCK_LLM_URL — only the dedicated CI
  * job (`ai-mcp-e2e-tests`) starts that container.
  *
- * Streaming /chat is intentionally NOT covered here — it's unit-tested and
- * Playwright SSE handling is complex enough to warrant its own PR.
+ * The chat is a server-side agent loop over the in-process MCP server: the
+ * "model" here is the mock, scripted per test (`/mock/script` with `steps`
+ * for multi-round turns), and every tool it calls runs for real.
  */
 import { type APIRequestContext, expect, test } from "@playwright/test";
 
@@ -98,6 +99,10 @@ async function getMockState(): Promise<{
  * window if we hit a 429. The endpoint rejects calls landing less than
  * _AI_GENERATE_MIN_INTERVAL_SECONDS (1s) after the previous one — tests
  * that run back-to-back trip it without this.
+ *
+ * The throttle runs after body validation since the conventions pass, so a
+ * malformed body answers 422 and is returned straight through rather than
+ * retried.
  */
 async function callGenerate(
   request: APIRequestContext,
@@ -133,7 +138,15 @@ async function setMockProvider(provider: string): Promise<void> {
  * Stage exactly what the "model" emits on the next chat completion: prose
  * plus one fenced tool block per op. Arms the "script" scenario.
  */
-async function setMockScript(script: { prose?: string; ops: Array<Record<string, unknown>> }): Promise<void> {
+type MockStep = { prose?: string; ops?: Array<Record<string, unknown>> };
+
+/**
+ * Stage what the "model" says. A single script is returned for every
+ * completion; `steps` hands out one entry per model call, which is how a
+ * turn that runs a tool and then replies is driven (the loop calls the
+ * model again with the tool result).
+ */
+async function setMockScript(script: MockStep | { steps: MockStep[] }): Promise<void> {
   const res = await fetch(`${MOCK_LLM_CONTROL_URL}/mock/script`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -202,9 +215,12 @@ test.describe("AI", () => {
       expect(data).toHaveProperty("user_prompt");
     });
 
-    test("rejects bogus device_type with 400", async ({ request }) => {
+    // 422, not 400: the Phase 2 conventions pass made device_type a typed
+    // Literal query parameter, so the rejection is FastAPI's own schema
+    // validation rather than a hand-rolled membership check in the handler.
+    test("rejects bogus device_type with 422", async ({ request }) => {
       const res = await request.get(`${API_URL}/pages/ai/context?device_type=potato`);
-      expect(res.status()).toBe(400);
+      expect(res.status()).toBe(422);
     });
   });
 
@@ -341,12 +357,15 @@ test.describe("AI", () => {
       expect(String(data.detail || "")).toMatch(/not enabled|no .* provider/i);
     });
 
-    test("returns 400 when prompt is missing", async ({ request }) => {
+    // 422, not 400: `prompt` is a required field on the AIGenerateRequest
+    // model since the conventions pass, so a missing one never reaches the
+    // handler. The 400 below — the generator's own message — is unchanged.
+    test("returns 422 when prompt is missing", async ({ request }) => {
       await configureMockProvider(request);
       const { status } = await callGenerate(request, {
         device_type: "flagship",
       });
-      expect(status).toBe(400);
+      expect(status).toBe(422);
     });
 
     test("happy path round-trips through the mock and returns a valid page", async ({ request }) => {
@@ -525,32 +544,51 @@ test.describe("AI", () => {
       expect(done!.data.model_used).toBe(PROVIDER_MODEL);
     });
 
-    test("a fenced tool block becomes a validated tool_call frame", async ({ request }) => {
+    test("a fenced tool block runs through MCP and comes back as tool_call + tool_result", async ({ request }) => {
       await configureMockProvider(request);
       await setMockScript({
-        prose: "Creating that page.",
-        ops: [
+        steps: [
           {
-            op: "replace_page",
-            args: {
-              name: "Scripted Page",
-              template: ["SCRIPTED", "", "", "", "", ""],
-              duration_seconds: 300,
-            },
+            prose: "Creating that page.",
+            ops: [
+              {
+                op: "create_page",
+                args: {
+                  name: "Scripted Page",
+                  template_lines: ["SCRIPTED", "", "", "", "", ""],
+                  device_type: "flagship",
+                },
+              },
+            ],
           },
+          { prose: "Done." },
         ],
       });
 
       const frames = await callChat(request, {
         messages: [{ role: "user", content: "make a page" }],
         device_type: "flagship",
-        surface: "editor",
+        surface: "global",
       });
 
       const call = frames.find((f) => f.event === "tool_call");
       expect(call, `no tool_call frame in: ${JSON.stringify(frames)}`).toBeTruthy();
-      expect(call!.data.op).toBe("replace_page");
+      expect(call!.data.name).toBe("create_page");
+      expect(call!.data.requires_approval).toBe(false);
       expect((call!.data.args as Record<string, unknown>).name).toBe("Scripted Page");
+
+      const result = frames.find((f) => f.event === "tool_result");
+      expect(result, "the loop never ran the tool").toBeTruthy();
+      expect(result!.data.status).toBe("ok");
+      const pageId = (result!.data.result as Record<string, unknown>).page_id as string;
+
+      // The page is real, over REST.
+      const pages = await (await request.get(`${API_URL}/pages`)).json();
+      const list = (Array.isArray(pages) ? pages : pages.pages || []) as Array<Record<string, unknown>>;
+      expect(list.some((p) => p.id === pageId && p.name === "Scripted Page")).toBe(true);
+
+      const done = frames.find((f) => f.event === "done");
+      expect(done!.data.reason).toBe("complete");
     });
 
     test("tool blocks are parsed across SSE delta boundaries", async ({ request }) => {
@@ -559,8 +597,7 @@ test.describe("AI", () => {
       // fences would pass the test above and fail here.
       await configureMockProvider(request);
       await setMockScript({
-        prose: "x".repeat(200),
-        ops: [{ op: "navigate_to_page", args: { page_id: "new" } }],
+        steps: [{ prose: "x".repeat(200), ops: [{ op: "list_pages", args: {} }] }, { prose: "ok" }],
       });
 
       const frames = await callChat(request, {
@@ -572,7 +609,8 @@ test.describe("AI", () => {
       expect(frames.filter((f) => f.event === "text").length).toBeGreaterThan(1);
       const call = frames.find((f) => f.event === "tool_call");
       expect(call, "fence split across deltas was not reassembled").toBeTruthy();
-      expect(call!.data.op).toBe("navigate_to_page");
+      expect(call!.data.name).toBe("list_pages");
+      expect(call!.data.read_only).toBe(true);
     });
 
     test("an unknown op is reported as a warning, not a tool_call", async ({ request }) => {
@@ -590,9 +628,9 @@ test.describe("AI", () => {
     });
 
     test("a malformed op is rejected rather than passed through", async ({ request }) => {
-      // replace_page requires a non-empty name and a template.
+      // create_page requires template_lines.
       await configureMockProvider(request);
-      await setMockScript({ ops: [{ op: "replace_page", args: { name: "" } }] });
+      await setMockScript({ ops: [{ op: "create_page", args: { name: "" } }] });
 
       const frames = await callChat(request, {
         messages: [{ role: "user", content: "break it" }],
@@ -604,12 +642,63 @@ test.describe("AI", () => {
       expect(frames.some((f) => f.event === "warning" || f.event === "error")).toBe(true);
     });
 
+    test("a destructive tool pauses for approval and runs only on approve", async ({ request }) => {
+      await configureMockProvider(request);
+      const pageRes = await request.post(`${API_URL}/pages`, {
+        data: {
+          name: "Doomed",
+          type: "template",
+          device_type: "flagship",
+          template: ["X", "", "", "", "", ""],
+          duration_seconds: 300,
+        },
+      });
+      const pageId = (await pageRes.json()).id as string;
+
+      await setMockScript({ prose: "Deleting it.", ops: [{ op: "delete_page", args: { page_id: pageId } }] });
+      const ask = [{ role: "user", content: "delete the doomed page" }];
+      const frames = await callChat(request, { messages: ask, device_type: "flagship" });
+
+      const call = frames.find((f) => f.event === "tool_call")!;
+      expect(call.data.requires_approval).toBe(true);
+      const done = frames.find((f) => f.event === "done")!;
+      expect(done.data.reason).toBe("awaiting_approval");
+      expect(frames.find((f) => f.event === "tool_result")).toBeFalsy();
+
+      const transcript = [
+        ...ask,
+        {
+          role: "assistant",
+          content: "Deleting it.",
+          tool_calls: [{ id: call.data.id, name: "delete_page", args: call.data.args }],
+        },
+      ];
+      await setMockScript({ prose: "Gone." });
+      const approved = await callChat(request, {
+        messages: transcript,
+        device_type: "flagship",
+        resume: { tool_call_id: call.data.id, decision: "approve" },
+      });
+      expect(approved.find((f) => f.event === "tool_result")!.data.status).toBe("ok");
+
+      const pages = await (await request.get(`${API_URL}/pages`)).json();
+      const list = (Array.isArray(pages) ? pages : pages.pages || []) as Array<Record<string, unknown>>;
+      expect(list.some((p) => p.id === pageId)).toBe(false);
+    });
+
+    // Both 422 rather than 400 since the conventions pass typed the chat
+    // body: `messages` has min_length 1 and `surface` is a Literal, so both
+    // rejections are FastAPI's schema validation. What still matters — and
+    // is still asserted — is that a rejected request comes back as a JSON
+    // error and never as a 200 event-stream the drawer would render as an
+    // empty assistant turn.
     test("rejects an empty messages array", async ({ request }) => {
       await configureMockProvider(request);
       const res = await request.post(`${API_URL}/pages/ai/chat`, {
         data: { messages: [], device_type: "flagship" },
       });
-      expect(res.status()).toBe(400);
+      expect(res.status()).toBe(422);
+      expect(res.headers()["content-type"]).toContain("application/json");
     });
 
     test("rejects an invalid surface", async ({ request }) => {
@@ -621,7 +710,8 @@ test.describe("AI", () => {
           surface: "nonsense",
         },
       });
-      expect(res.status()).toBe(400);
+      expect(res.status()).toBe(422);
+      expect(res.headers()["content-type"]).toContain("application/json");
     });
   });
 
@@ -659,7 +749,7 @@ test.describe("AI", () => {
       await page.getByRole("button", { name: "Send", exact: true }).click();
     }
 
-    test("a scripted create_schedule op reaches the server", async ({ page, request }) => {
+    test("a scripted create_schedule runs on the server and the panel shows the step", async ({ page, request }) => {
       await configureMockProvider(request);
       await stubBoard(request);
 
@@ -674,67 +764,250 @@ test.describe("AI", () => {
         },
       });
       expect(pageRes.ok(), await pageRes.text()).toBe(true);
-      // POST /pages wraps the page: {status, page: {...}}.
-      const pageId = (await pageRes.json()).page.id as string;
+      const pageId = (await pageRes.json()).id as string;
       expect(pageId, "page id missing from POST /pages response").toBeTruthy();
 
       const before = await (await request.get(`${API_URL}/schedules`)).json();
       const beforeCount = (Array.isArray(before) ? before : before.schedules || []).length;
 
       await setMockScript({
-        prose: "Scheduling that for you.",
-        ops: [
+        steps: [
           {
-            op: "create_schedule",
-            args: { page_id: pageId, start_time: "06:45", day_pattern: "all" },
+            prose: "Scheduling that for you.",
+            ops: [{ op: "create_schedule", args: { page_id: pageId, start_time: "06:45", day_pattern: "all" } }],
           },
+          { prose: "Scheduled for 06:45 every day." },
         ],
       });
 
       await openDrawer(page);
       await sendMessage(page, "schedule my page for the morning");
 
-      // The drawer renders a card per applied call; wait on the effect, not
-      // the chrome, then confirm against the server.
-      await expect
-        .poll(
-          async () => {
-            const res = await request.get(`${API_URL}/schedules`);
-            const body = await res.json();
-            const list = (Array.isArray(body) ? body : body.schedules || []) as Array<Record<string, unknown>>;
-            return list.filter((s) => s.page_id === pageId && s.start_time === "06:45").length;
-          },
-          {
-            message: "the drawer never applied create_schedule to the server",
-            timeout: 15_000,
-          },
-        )
-        .toBeGreaterThan(0);
+      const dialog = page.getByRole("dialog", { name: /FiestaBot/i });
+      // The tool card is the observed step: it appears before the result
+      // and settles to Done once the server has run the tool.
+      await expect(dialog.getByTestId("ai-tool-create_schedule")).toBeVisible({ timeout: 15_000 });
+      await expect(dialog.getByTestId("ai-tool-create_schedule")).toHaveAttribute("data-state", "output-available", {
+        timeout: 15_000,
+      });
+      await expect(dialog.getByText(/Scheduled for 06:45/)).toBeVisible();
 
       const after = await (await request.get(`${API_URL}/schedules`)).json();
-      const afterCount = (Array.isArray(after) ? after : after.schedules || []).length;
-      expect(afterCount).toBe(beforeCount + 1);
+      const list = (Array.isArray(after) ? after : after.schedules || []) as Array<Record<string, unknown>>;
+      expect(list.filter((s) => s.page_id === pageId && s.start_time === "06:45").length).toBeGreaterThan(0);
+      expect(list.length).toBe(beforeCount + 1);
     });
 
-    test("a tool_call card is rendered for an op the panel must label", async ({ page, request }) => {
-      // navigate_to_schedule is one of the four ops labelFor() used to fall
-      // through on, returning undefined from a function typed string.
+    test("a destructive tool waits for Approve in the panel, and Deny leaves the page alone", async ({
+      page,
+      request,
+    }) => {
       await configureMockProvider(request);
       await stubBoard(request);
+      const pageRes = await request.post(`${API_URL}/pages`, {
+        data: {
+          name: "Keep Me",
+          type: "template",
+          device_type: "flagship",
+          template: ["KEEP", "", "", "", "", ""],
+          duration_seconds: 300,
+        },
+      });
+      const pageId = (await pageRes.json()).id as string;
 
       await setMockScript({
-        prose: "Opening the schedule form.",
-        ops: [{ op: "navigate_to_schedule", args: { prefill: { start_time: "09:00" } } }],
+        steps: [
+          { prose: "Deleting it.", ops: [{ op: "delete_page", args: { page_id: pageId } }] },
+          { prose: "Okay, leaving it." },
+        ],
       });
-
       await openDrawer(page);
-      await sendMessage(page, "open the schedule editor");
+      await sendMessage(page, "delete the keep me page");
 
       const dialog = page.getByRole("dialog", { name: /FiestaBot/i });
-      // The assistant's reply must render — an unlabelled op used to produce
-      // an empty card here.
-      await expect(dialog.getByText(/Opening the schedule form/i)).toBeVisible({ timeout: 15_000 });
-      await expect(dialog.getByText(/schedule/i).first()).toBeVisible();
+      const approval = dialog.getByTestId("ai-approval-card");
+      await expect(approval).toBeVisible({ timeout: 15_000 });
+      // Nothing ran: the page is still there while the card is up.
+      let pages = await (await request.get(`${API_URL}/pages`)).json();
+      let list = (Array.isArray(pages) ? pages : pages.pages || []) as Array<Record<string, unknown>>;
+      expect(list.some((p) => p.id === pageId)).toBe(true);
+
+      await approval.getByRole("button", { name: "Deny" }).click();
+      await expect(dialog.getByText(/leaving it/i)).toBeVisible({ timeout: 15_000 });
+      await expect(dialog.getByTestId("ai-tool-delete_page")).toHaveAttribute("data-state", "denied");
+
+      pages = await (await request.get(`${API_URL}/pages`)).json();
+      list = (Array.isArray(pages) ? pages : pages.pages || []) as Array<Record<string, unknown>>;
+      expect(list.some((p) => p.id === pageId)).toBe(true);
+    });
+
+    test("a question renders chips and choosing one resumes the conversation", async ({ page, request }) => {
+      await configureMockProvider(request);
+      await stubBoard(request);
+      await setMockScript({
+        steps: [
+          { prose: "", ops: [{ op: "ask_user", args: { question: "Which board?", options: ["Kitchen", "Hall"] } }] },
+          { prose: "Kitchen it is." },
+        ],
+      });
+      await openDrawer(page);
+      await sendMessage(page, "put the weather on a board");
+
+      const dialog = page.getByRole("dialog", { name: /FiestaBot/i });
+      const question = dialog.getByTestId("ai-question-card");
+      await expect(question).toBeVisible({ timeout: 15_000 });
+      await question.getByRole("button", { name: "Kitchen" }).click();
+
+      await expect(dialog.getByText(/Kitchen it is/)).toBeVisible({ timeout: 15_000 });
+      await expect(dialog.getByTestId("ai-question-answered")).toContainText("Kitchen");
+    });
+  });
+
+  test.describe("walkthrough", () => {
+    async function stubBoard(request: APIRequestContext): Promise<void> {
+      const res = await request.put(`${API_URL}/config/board`, {
+        data: { api_mode: "local", host: "127.0.0.1", local_api_key: "test-key" },
+      });
+      expect(res.ok(), await res.text()).toBe(true);
+    }
+
+    async function openDrawer(page: import("@playwright/test").Page, path = "/"): Promise<void> {
+      await page.goto(path);
+      await page.getByRole("button", { name: "AI Assistant" }).first().click();
+      await expect(page.getByRole("dialog", { name: /FiestaBot/i })).toBeVisible();
+    }
+
+    async function sendMessage(page: import("@playwright/test").Page, text: string): Promise<void> {
+      const box = page
+        .getByRole("dialog", { name: /FiestaBot/i })
+        .getByRole("textbox")
+        .first();
+      await box.fill(text);
+      await page.getByRole("button", { name: "Send", exact: true }).click();
+    }
+
+    test("the stream announces a tool block while the model is still writing it", async ({ request }) => {
+      await configureMockProvider(request);
+      await setMockScript({
+        prose: "Making it.",
+        ops: [
+          { op: "create_page", args: { name: "Streamed Page", template_lines: ["HELLO STREAM", "", "", "", "", ""] } },
+        ],
+      });
+      const frames = await callChat(request, {
+        messages: [{ role: "user", content: "make a page called Streamed Page" }],
+        device_type: "flagship",
+      });
+      const kinds = frames.map((f) => f.event);
+      expect(kinds).toContain("tool_streaming");
+      expect(kinds.indexOf("tool_streaming")).toBeLessThan(kinds.indexOf("tool_call"));
+      const drafts = frames.filter((f) => f.event === "tool_streaming");
+      expect(drafts[drafts.length - 1].data.op).toBe("create_page");
+      const pageId = (frames.find((f) => f.event === "tool_result")!.data.result as { page_id: string }).page_id;
+      await request.delete(`${API_URL}/pages/${pageId}`);
+    });
+
+    test("create_page walks to a fresh editor, types the page, and lands on the saved page", async ({
+      page,
+      request,
+    }) => {
+      await configureMockProvider(request);
+      await stubBoard(request);
+      await setMockScript({
+        steps: [
+          {
+            prose: "Building it.",
+            ops: [
+              {
+                op: "create_page",
+                args: { name: "Walked Page", template_lines: ["GOOD MORNING", "", "", "", "", ""] },
+              },
+            ],
+          },
+          { prose: "Done, it is open." },
+        ],
+      });
+      await openDrawer(page, "/settings");
+      await sendMessage(page, "make me a page called Walked Page");
+
+      // The spotlight narrates on screen, outside the chat dialog.
+      const caption = page.getByTestId("ai-spotlight-caption");
+      await expect(caption).toBeVisible({ timeout: 15_000 });
+      // The editor opens (via the Pages list) and the name is typed for real.
+      await expect(page).toHaveURL(/\/pages\/(new|edit\/)/, { timeout: 15_000 });
+      await expect(page.getByLabel(/page name/i)).toHaveValue("Walked Page", { timeout: 15_000 });
+      // It settles on the saved page, and the server has it.
+      await expect(page).toHaveURL(/\/pages\/edit\/[0-9a-f-]+/, { timeout: 20_000 });
+      await expect(caption).toHaveText(/Page created/i, { timeout: 15_000 });
+      const pages = await (await request.get(`${API_URL}/pages`)).json();
+      const list = (Array.isArray(pages) ? pages : pages.pages || []) as Array<Record<string, unknown>>;
+      const created = list.find((p) => p.name === "Walked Page");
+      expect(created).toBeTruthy();
+      // The staged draft left nothing behind for /pages/new to restore.
+      await page.goto("/pages/new");
+      await expect(page.getByText(/draft restored/i)).toHaveCount(0);
+      await request.delete(`${API_URL}/pages/${created!.id}`);
+    });
+
+    test("update_setting goes to the tab, ghosts the value over its control, and pulses the card", async ({
+      page,
+      request,
+    }) => {
+      await configureMockProvider(request);
+      await stubBoard(request);
+      await setMockScript({
+        steps: [
+          {
+            prose: "Renaming.",
+            ops: [{ op: "update_setting", args: { category: "general", values: { instance_name: "Kitchen Board" } } }],
+          },
+          { prose: "Renamed." },
+        ],
+      });
+      await openDrawer(page, "/pages");
+      await sendMessage(page, "rename my board to Kitchen Board");
+
+      await expect(page).toHaveURL(/\/settings\?section=general/, { timeout: 15_000 });
+      const ghost = page.getByTestId("ai-ghost");
+      await expect(ghost.first()).toBeVisible({ timeout: 15_000 });
+      await expect(ghost.first()).toContainText("Kitchen Board");
+      await expect(page.getByTestId("ai-spotlight-caption")).toHaveText(/Setting saved/i, { timeout: 15_000 });
+      // The real value landed on the control the ghost pointed at.
+      await expect(page.locator("#instance-name")).toHaveValue("Kitchen Board", { timeout: 15_000 });
+      // The ring is gone once the walkthrough settles.
+      await expect(page.getByTestId("ai-spotlight-ring")).toHaveCount(0, { timeout: 10_000 });
+    });
+
+    test("Stop mid-walkthrough discards the staged page and leaves the editor clean", async ({ page, request }) => {
+      await configureMockProvider(request);
+      await stubBoard(request);
+      // A slow tool: the create waits on approval-free but the mock delays the model's next turn.
+      await setMockScript({
+        steps: [
+          {
+            prose: "Building it.",
+            ops: [
+              {
+                op: "create_page",
+                args: { name: "Stopped Page", template_lines: ["ONE", "TWO", "THREE", "FOUR", "FIVE", "SIX"] },
+              },
+            ],
+          },
+          { prose: "Anything else?" },
+        ],
+      });
+      await openDrawer(page, "/settings");
+      await sendMessage(page, "make a page called Stopped Page");
+      await expect(page).toHaveURL(/\/pages\/(new|edit\/)/, { timeout: 15_000 });
+      // Stop as soon as the walkthrough is on screen.
+      await page.getByTestId("ai-spotlight-caption").getByRole("button", { name: "Stop" }).click({ timeout: 15_000 });
+      await expect(page.getByTestId("ai-spotlight-ring")).toHaveCount(0, { timeout: 10_000 });
+      // Whatever was staged is gone: nothing typed lingers in a draft.
+      await page.goto("/pages/new");
+      await expect(page.getByText(/draft restored/i)).toHaveCount(0);
+      const pages = await (await request.get(`${API_URL}/pages`)).json();
+      const list = (Array.isArray(pages) ? pages : pages.pages || []) as Array<Record<string, unknown>>;
+      for (const p of list.filter((p) => p.name === "Stopped Page")) await request.delete(`${API_URL}/pages/${p.id}`);
     });
   });
 });

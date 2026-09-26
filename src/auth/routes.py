@@ -3,11 +3,15 @@
 from __future__ import annotations
 
 import logging
+import secrets
 import time
 
 from fastapi import APIRouter, HTTPException, Request, Response, status
 from pydantic import BaseModel, Field
 
+from src.api_errors import errors
+
+from .middleware import _bearer_from
 from .service import (
     SESSION_COOKIE_NAME,
     AlreadySetup,
@@ -19,6 +23,7 @@ from .service import (
     generate_mcp_token,
     get_auth_service,
     mcp_token_source,
+    verify_mcp_bearer,
 )
 
 logger = logging.getLogger(__name__)
@@ -179,6 +184,51 @@ def _clear_failures(ip: str) -> None:
     _FAILED_ATTEMPTS.pop(ip, None)
 
 
+# --- Stored-MCP-token possession gate --------------------------------------
+
+
+def _bearer_token(request: Request) -> str | None:
+    """Return the token from an ``Authorization: Bearer <token>`` header, else None."""
+    header = request.headers.get("authorization", "")
+    scheme, _, value = header.partition(" ")
+    if scheme.lower() == "bearer" and value.strip():
+        return value.strip()
+    return None
+
+
+def _guard_stored_mcp_token(request: Request, svc) -> None:
+    """Refuse to adopt an unclaimed install while a stored MCP token exists.
+
+    On a login-disabled install, provisioning the first admin
+    (``POST /auth/setup``) or flipping the preference back on
+    (``POST /auth/preference {"enabled": true}``) both hand the caller a
+    session that can rotate or revoke the stored MCP token — hijacking a
+    credential the operator deliberately configured. Two unauthenticated
+    requests from anyone who can reach the port would otherwise be enough.
+
+    When a stored token is present, require the caller to prove possession of
+    it (``Authorization: Bearer <token>``) before either provisioning path
+    succeeds, so the stored token also guards the takeover path. Installs with
+    no stored token — the common first-run case — are unaffected.
+
+    An env-pinned token (``FIESTABOARD_MCP_TOKEN``) is *not* a stored token:
+    it cannot be rotated or revoked from the UI (those endpoints 409), so
+    there is nothing to hijack and it is not gated here.
+    """
+    stored = svc.get_stored_mcp_token()
+    if stored is None:
+        return
+    supplied = _bearer_token(request)
+    if not supplied or not secrets.compare_digest(stored, supplied):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=(
+                "This install has a stored MCP token. Present it as a Bearer "
+                "token to enable login, or clear the token first."
+            ),
+        )
+
+
 # --- Endpoints -------------------------------------------------------------
 
 
@@ -204,8 +254,8 @@ async def auth_status(request: Request) -> StatusResponse:
     )
 
 
-@router.post("/preference", response_model=SimpleResponse)
-async def auth_preference(payload: PreferenceRequest) -> SimpleResponse:
+@router.post("/preference", response_model=SimpleResponse, responses=errors(403, 409))
+async def auth_preference(payload: PreferenceRequest, request: Request) -> SimpleResponse:
     """Record the admin's first-run auth on/off choice.
 
     Only valid when:
@@ -214,6 +264,10 @@ async def auth_preference(payload: PreferenceRequest) -> SimpleResponse:
     * No user has been provisioned yet — once an account exists the
       decision is "enabled" and disabling must go through a future
       password-gated endpoint to avoid drive-by lockouts.
+
+    Enabling is additionally gated by possession of any stored MCP token —
+    see :func:`_guard_stored_mcp_token` — so a drive-by can't flip the
+    install on and then hijack that token.
     """
     env_raw = _auth_env_override()
     if env_raw is not None:
@@ -227,11 +281,15 @@ async def auth_preference(payload: PreferenceRequest) -> SimpleResponse:
             status_code=status.HTTP_409_CONFLICT,
             detail=("A user already exists. Sign in and use the account settings to change preferences."),
         )
+    # Only the enable direction opens the install up; disabling can't be a
+    # takeover, so it stays ungated.
+    if payload.enabled:
+        _guard_stored_mcp_token(request, svc)
     svc.set_auth_preference("enabled" if payload.enabled else "disabled")
     return SimpleResponse(status="ok")
 
 
-@router.post("/setup", response_model=SimpleResponse, status_code=201)
+@router.post("/setup", response_model=SimpleResponse, status_code=201, responses=errors(400, 403, 409))
 async def auth_setup(payload: SetupRequest, request: Request, response: Response) -> SimpleResponse:
     """Create the first user. Only callable when no user exists yet."""
     svc = get_auth_service()
@@ -240,6 +298,11 @@ async def auth_setup(payload: SetupRequest, request: Request, response: Response
             status_code=status.HTTP_409_CONFLICT,
             detail="A user has already been created. Use /auth/login.",
         )
+    # Creating the first admin flips a disabled install to "enabled" and hands
+    # back a session — the same takeover /auth/preference guards. Provisioning
+    # is an independent path to it, so gate it on the same stored-MCP-token
+    # possession check rather than leaving a bypass open.
+    _guard_stored_mcp_token(request, svc)
     try:
         svc.create_initial_user(payload.username, payload.password)
     except AlreadySetup:
@@ -255,7 +318,7 @@ async def auth_setup(payload: SetupRequest, request: Request, response: Response
     return SimpleResponse(status="ok", username=payload.username)
 
 
-@router.post("/login", response_model=SimpleResponse)
+@router.post("/login", response_model=SimpleResponse, responses=errors(401, 409, 429))
 async def auth_login(payload: LoginRequest, request: Request, response: Response) -> SimpleResponse:
     """Verify credentials and issue a session cookie."""
     ip = _client_ip(request)
@@ -286,7 +349,7 @@ async def auth_logout(response: Response) -> SimpleResponse:
     return SimpleResponse(status="ok")
 
 
-@router.post("/change-password", response_model=SimpleResponse)
+@router.post("/change-password", response_model=SimpleResponse, responses=errors(400, 401))
 async def auth_change_password(payload: ChangePasswordRequest, request: Request, response: Response) -> SimpleResponse:
     """Change the logged-in user's password."""
     svc = get_auth_service()
@@ -311,7 +374,7 @@ async def auth_change_password(payload: ChangePasswordRequest, request: Request,
     return SimpleResponse(status="ok", username=username)
 
 
-@router.post("/change-username", response_model=SimpleResponse)
+@router.post("/change-username", response_model=SimpleResponse, responses=errors(400, 401))
 async def auth_change_username(payload: ChangeUsernameRequest, request: Request, response: Response) -> SimpleResponse:
     """Rename the logged-in user, gated by their current password."""
     svc = get_auth_service()
@@ -335,7 +398,7 @@ async def auth_change_username(payload: ChangeUsernameRequest, request: Request,
     return SimpleResponse(status="ok", username=new_username)
 
 
-@router.post("/disable", response_model=SimpleResponse)
+@router.post("/disable", response_model=SimpleResponse, responses=errors(401, 409))
 async def auth_disable(payload: DisableAuthRequest, request: Request, response: Response) -> SimpleResponse:
     """Turn off auth enforcement after a password check.
 
@@ -372,7 +435,12 @@ async def auth_disable(payload: DisableAuthRequest, request: Request, response: 
 # pre-shared bearer token that external MCP clients (Claude Desktop, Claude
 # Code) use to authenticate. The plaintext token is only returned by
 # ``POST /auth/mcp-token`` and never read back — the UI is responsible for
-# showing it to the user at rotation time.
+# showing it to the user at rotation time. When auth is disabled there is
+# no session; once a token is configured, every management route (status
+# included — it leaks the token's source) requires presenting the *current*
+# token as a Bearer (possession is the credential — #1825). Only the first
+# mint stays open, so Settings → Integrations can still bootstrap a token
+# on an install with the login off.
 
 
 def _require_admin(request: Request) -> str:
@@ -380,12 +448,14 @@ def _require_admin(request: Request) -> str:
 
     When auth is explicitly *disabled* (``FIESTABOARD_AUTH_ENABLED=0`` or the
     persisted preference is ``disabled``) there is no admin concept and no
-    session cookie ever gets issued — return a sentinel so MCP token
-    management remains reachable. Without this the Settings → Integrations
-    page hits a 401, the web client redirects to ``/login``, the login page
-    sees auth is disabled and bounces back, and the user is stuck in an
-    infinite reload loop. ``undecided`` mode (first-run, secure-by-default)
-    still requires a session.
+    session cookie ever gets issued — return a sentinel instead of a 401.
+    Without this the Settings → Integrations page hits a 401, the web client
+    redirects to ``/login``, the login page sees auth is disabled and bounces
+    back, and the user is stuck in an infinite reload loop. The MCP token
+    routes reach this only through :func:`_require_admin_or_mcp_token`, which
+    limits the sentinel to the no-token-configured case — once a token
+    exists, management demands it (#1825). ``undecided`` mode (first-run,
+    secure-by-default) still requires a session.
     """
     if auth_mode() == "disabled":
         return "anonymous"
@@ -397,10 +467,35 @@ def _require_admin(request: Request) -> str:
     return username
 
 
-@router.get("/mcp-token", response_model=McpTokenStatusResponse)
+def _require_admin_or_mcp_token(request: Request) -> str:
+    """Gate for MCP-token management.
+
+    In ``enabled`` / ``undecided`` modes this is :func:`_require_admin`.
+    When auth is disabled there is no session concept, so possession of
+    the *current* token is the credential: if a token is configured
+    (stored or env-pinned), the caller must present it as a Bearer; if
+    none is configured yet, management stays open — with auth disabled the
+    whole REST surface is open, so gating the first mint would protect
+    nothing (#1825).
+    """
+    if auth_mode() != "disabled":
+        return _require_admin(request)
+    if mcp_token_source() == "none":
+        return "anonymous"
+    supplied = _bearer_from(request)
+    if supplied and verify_mcp_bearer(supplied):
+        return "mcp-token-holder"
+    raise HTTPException(
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        detail="MCP token management requires the current token when auth is disabled",
+        headers={"WWW-Authenticate": 'Bearer realm="FiestaBoard MCP token management"'},
+    )
+
+
+@router.get("/mcp-token", response_model=McpTokenStatusResponse, responses=errors(401))
 async def auth_mcp_token_status(request: Request) -> McpTokenStatusResponse:
     """Report whether an MCP bearer token is configured, and from where."""
-    _require_admin(request)
+    _require_admin_or_mcp_token(request)
     source = mcp_token_source()
     return McpTokenStatusResponse(configured=source != "none", source=source)
 
@@ -409,6 +504,7 @@ async def auth_mcp_token_status(request: Request) -> McpTokenStatusResponse:
     "/mcp-token",
     response_model=McpTokenRotateResponse,
     status_code=status.HTTP_201_CREATED,
+    responses=errors(401, 409),
 )
 async def auth_mcp_token_rotate(request: Request) -> McpTokenRotateResponse:
     """Generate a fresh MCP bearer token, persist it, and return it ONCE.
@@ -417,7 +513,7 @@ async def auth_mcp_token_rotate(request: Request) -> McpTokenRotateResponse:
     in :func:`~src.auth.service.mcp_token` resolution — a UI rotation
     would silently have no effect and confuse the admin.
     """
-    username = _require_admin(request)
+    username = _require_admin_or_mcp_token(request)
     if mcp_token_source() == "env":
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
@@ -432,7 +528,7 @@ async def auth_mcp_token_rotate(request: Request) -> McpTokenRotateResponse:
     return McpTokenRotateResponse(token=token)
 
 
-@router.delete("/mcp-token", response_model=SimpleResponse)
+@router.delete("/mcp-token", response_model=SimpleResponse, responses=errors(401, 409))
 async def auth_mcp_token_clear(request: Request) -> SimpleResponse:
     """Revoke the stored MCP bearer token.
 
@@ -440,7 +536,7 @@ async def auth_mcp_token_clear(request: Request) -> SimpleResponse:
     their next request. (If ``FIESTABOARD_MCP_TOKEN`` is set, this only
     clears the stored fallback — the env var continues to be active.)
     """
-    username = _require_admin(request)
+    username = _require_admin_or_mcp_token(request)
     if mcp_token_source() == "env":
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,

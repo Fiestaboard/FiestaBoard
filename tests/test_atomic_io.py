@@ -48,11 +48,23 @@ def competing_writer(monkeypatch):
     monkeypatch.undo()
 
 
-def test_staging_path_is_scoped_to_the_process():
-    """Two processes must never pick the same staging filename."""
-    import os
+def test_staging_path_is_unique_per_call_and_scoped_to_the_process():
+    """No two writers — across processes or within one — may share a staging name.
 
-    assert staging_path(Path("/data/pages.json")) == Path(f"/data/pages.json.{os.getpid()}.tmp")
+    The name carries the pid (cross-process uniqueness) plus a per-process
+    monotonic counter, so two threads staging the same target in the same
+    process (a settings PUT racing a restore, #1860) can never open each
+    other's staging file.
+    """
+    import os
+    import re
+
+    first = staging_path(Path("/data/pages.json"))
+    second = staging_path(Path("/data/pages.json"))
+
+    assert re.fullmatch(rf"/data/pages\.json\.{os.getpid()}\.\d+\.tmp", str(first))
+    assert first != second, "two calls shared a staging name"
+    assert first.parent == Path("/data"), "staging file must stay a sibling of the target"
 
 
 def _saved_without_error(save, target: Path, competing_writer) -> dict:

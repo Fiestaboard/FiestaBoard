@@ -30,6 +30,7 @@ import Link from "@/components/smart-link";
 import { queryKeys, useBoardSettings } from "@/hooks/use-board";
 import { useViewTransition } from "@/hooks/use-view-transition";
 import { useTranslations } from "@/i18n/translations";
+import { anchorProps } from "@/lib/ai-choreography/anchors";
 import { api, type DeviceType, type StaffPick } from "@/lib/api";
 
 // ---------------------------------------------------------------------------
@@ -52,8 +53,8 @@ function PickCard({ pick, enabledPluginIds }: { pick: StaffPick; enabledPluginId
     },
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: queryKeys.pages, refetchType: "active" });
-      toast.success(t("toastImported", { name: data.page.name }));
-      push(`/pages/edit/${data.page.id}`, { transitionType: "slide-up" });
+      toast.success(t("toastImported", { name: data.name }));
+      push(`/pages/edit/${data.id}`, { transitionType: "slide-up" });
     },
     onError: (err: Error) => {
       toast.error(err.message);
@@ -244,7 +245,7 @@ export default function PicksPage() {
       <PageCard>
         <PageHeader icon={Sparkles} title={t("title")} description={t("description")} />
 
-        <PageSection>
+        <PageSection {...anchorProps("picks.root")}>
           <Flex align="center" gap="2" className="mb-6 -mt-2">
             <Text as="span" size="xs" tone="muted" className="italic">
               {t("byline")}

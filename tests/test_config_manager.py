@@ -35,34 +35,11 @@ def reset_singleton(tmp_path, monkeypatch):
     monkeypatch.delenv("BOARD_HOST", raising=False)
     monkeypatch.delenv("FB_HOST", raising=False)
 
-    ConfigManager._instance = None
-    ConfigManager._lock = threading.Lock()
-
-    # Pre-seed ConfigManager singleton with an empty tmp config so that
-    # SettingsService._apply_global_connection() doesn't migrate the real
-    # global config from data/config.json into the fresh settings instance.
-    empty_config_path = tmp_path / "_empty_config.json"
-    empty_config_path.write_text('{"board": {}, "features": {}, "general": {}}')
-    ConfigManager(config_path=str(empty_config_path))
-
-    # Reset SettingsService singleton and point it at an empty tmp settings
-    # file so validate() doesn't pick up a real configured board from data/
-    # (e.g. when tests run inside a populated dev container).
-    import src.settings.service as settings_service_module
-
-    settings_service_module._settings_service = settings_service_module.SettingsService(
-        settings_file=str(tmp_path / "settings.json")
-    )
-
-    # Now clear the ConfigManager singleton so each test can pin its own
-    # config_path via ConfigManager(config_path=...).
-    ConfigManager._instance = None
-    ConfigManager._lock = threading.Lock()
-
+    # Singleton + SettingsService isolation is handled by conftest's autouse
+    # ``_isolated_data_dir`` fixture (#1762): every default path resolves into
+    # this test's tmp dir and all singletons are dropped on both sides, so the
+    # old pre-seeding against the developer's real ``data/`` is gone.
     yield tmp_path
-
-    ConfigManager._instance = None
-    settings_service_module._settings_service = None
 
 
 # --- __init__ and _load_or_create ---
@@ -156,9 +133,11 @@ def test_merges_loaded_config_with_defaults_adds_missing_keys(tmp_path):
     board = cm.get_board()
     assert board["host"] == "192.168.1.1"
     assert "local_api_key" in board
+    # #1761: legacy feature blocks are no longer seeded from defaults, but a
+    # stored legacy block is preserved verbatim (the migration reads it).
     weather = cm.get_feature("weather")
     assert weather["enabled"] is True
-    assert "api_key" in weather
+    assert "api_key" not in weather
 
 
 # --- _deep_copy ---
@@ -400,21 +379,6 @@ def test_apply_env_overrides_invalid_int_value(monkeypatch, tmp_path):
     assert board.get("transition_interval_ms") is None
 
 
-def test_apply_env_overrides_invalid_float_value(monkeypatch, tmp_path):
-    """Handles invalid float env var values."""
-    monkeypatch.setenv("SURF_LATITUDE", "not_a_float")
-    config_path = tmp_path / "config.json"
-    config_data = {
-        "board": {},
-        "features": {"surf": {"latitude": None}},
-        "general": {},
-    }
-    config_path.write_text(json.dumps(config_data))
-    cm = ConfigManager(config_path=str(config_path))
-    surf = cm.get_feature("surf")
-    assert surf.get("latitude") != "not_a_float"
-
-
 # --- get_all and get_all_masked ---
 
 
@@ -523,23 +487,25 @@ def test_set_board_ignores_fields_not_in_default(tmp_path):
 
 
 def test_get_feature_returns_feature_config(tmp_path):
-    """get_feature returns feature config."""
+    """get_feature returns the silence_schedule system feature config."""
     config_path = tmp_path / "config.json"
     cm = ConfigManager(config_path=str(config_path))
-    weather = cm.get_feature("weather")
-    assert weather is not None
-    assert "enabled" in weather
-    assert "api_key" in weather
+    silence = cm.get_feature("silence_schedule")
+    assert silence is not None
+    assert "enabled" in silence
+    assert "start_time" in silence
 
 
 def test_get_feature_returns_default_if_not_in_config(tmp_path):
-    """get_feature returns default if feature not in config but in defaults."""
+    """get_feature falls back to defaults only for the silence_schedule feature."""
     config_path = tmp_path / "config.json"
     config_path.write_text(json.dumps({"board": {}, "features": {}, "general": {}}))
     cm = ConfigManager(config_path=str(config_path))
-    weather = cm.get_feature("weather")
-    assert weather is not None
-    assert weather["provider"] == "weatherapi"
+    silence = cm.get_feature("silence_schedule")
+    assert silence is not None
+    assert silence["mode"] == "freeze"
+    # Retired legacy feature blocks have no defaults anymore (#1761).
+    assert not cm.get_feature("weather")
 
 
 def test_get_feature_returns_none_for_unknown_feature(tmp_path):
@@ -553,14 +519,15 @@ def test_set_feature_updates_only_provided_fields(tmp_path):
     """set_feature updates only provided fields."""
     config_path = tmp_path / "config.json"
     cm = ConfigManager(config_path=str(config_path))
-    cm.set_feature("weather", {"enabled": True, "location": "Boston, MA"})
-    weather = cm.get_feature("weather")
-    assert weather["enabled"] is True
-    assert weather["location"] == "Boston, MA"
+    cm.set_feature("silence_schedule", {"enabled": True, "indicator_text": "SHUSH"})
+    silence = cm.get_feature("silence_schedule")
+    assert silence["enabled"] is True
+    assert silence["indicator_text"] == "SHUSH"
+    assert silence["mode"] == "freeze"  # untouched field keeps its default
 
 
-def test_set_feature_preserves_masked_sensitive_fields(tmp_path):
-    """set_feature preserves masked *** sensitive fields."""
+def test_set_feature_rejects_retired_legacy_features(tmp_path):
+    """set_feature refuses writes to retired legacy feature blocks (#1761)."""
     config_path = tmp_path / "config.json"
     config_data = {
         "board": {},
@@ -569,7 +536,7 @@ def test_set_feature_preserves_masked_sensitive_fields(tmp_path):
     }
     config_path.write_text(json.dumps(config_data))
     cm = ConfigManager(config_path=str(config_path))
-    cm.set_feature("weather", {"api_key": "***"})
+    assert cm.set_feature("weather", {"api_key": "new-key"}) is False
     full = cm.get_all()
     assert full["features"]["weather"]["api_key"] == "real-weather-key"
 
@@ -603,44 +570,20 @@ def test_set_general_updates_fields_preserves_masked(tmp_path):
     assert cm.get_general()["timezone"] == "Europe/Paris"
 
 
-# --- is_feature_enabled ---
-
-
-def test_is_feature_enabled_true(tmp_path):
-    """is_feature_enabled returns True when enabled."""
-    config_path = tmp_path / "config.json"
-    cm = ConfigManager(config_path=str(config_path))
-    cm.set_feature("weather", {"enabled": True})
-    assert cm.is_feature_enabled("weather") is True
-
-
-def test_is_feature_enabled_false(tmp_path):
-    """is_feature_enabled returns False when disabled."""
-    config_path = tmp_path / "config.json"
-    cm = ConfigManager(config_path=str(config_path))
-    cm.set_feature("weather", {"enabled": False})
-    assert cm.is_feature_enabled("weather") is False
-
-
-# --- get_feature_list ---
-
-
-def test_get_feature_list_returns_feature_names(tmp_path):
-    """get_feature_list returns list of feature names."""
-    config_path = tmp_path / "config.json"
-    cm = ConfigManager(config_path=str(config_path))
-    features = cm.get_feature_list()
-    assert "weather" in features
-    assert "date_time" in features
-    assert "guest_wifi" in features
-
-
 # --- get_color_rules ---
 
 
 def test_get_color_rules_returns_rules_for_feature_field(tmp_path):
-    """get_color_rules returns rules for feature/field."""
+    """get_color_rules still reads legacy color_rules stored in the config file."""
     config_path = tmp_path / "config.json"
+    config_data = {
+        "board": {},
+        "features": {
+            "weather": {"color_rules": {"temp": [{"condition": ">=", "value": 90, "color": "red"}]}},
+        },
+        "general": {},
+    }
+    config_path.write_text(json.dumps(config_data))
     cm = ConfigManager(config_path=str(config_path))
     rules = cm.get_color_rules("weather", "temp")
     assert isinstance(rules, list)
@@ -771,56 +714,6 @@ def test_validate_local_config_fails_when_multi_board_also_empty(tmp_path, monke
     assert any("host" in e for e in errors)
 
 
-def test_validate_enabled_weather_without_api_key(tmp_path):
-    """Enabled weather without api_key."""
-    config_path = tmp_path / "config.json"
-    config_data = {
-        "board": {"api_mode": "local", "local_api_key": "k", "host": "h"},
-        "features": {"weather": {"enabled": True, "api_key": ""}},
-        "general": {},
-    }
-    config_path.write_text(json.dumps(config_data))
-    cm = ConfigManager(config_path=str(config_path))
-    valid, errors = cm.validate()
-    assert valid is False
-    assert any("Weather" in e for e in errors)
-
-
-def test_validate_enabled_home_assistant_without_base_url_or_token(tmp_path):
-    """Enabled home_assistant without base_url or access_token."""
-    config_path = tmp_path / "config.json"
-    config_data = {
-        "board": {"api_mode": "local", "local_api_key": "k", "host": "h"},
-        "features": {
-            "home_assistant": {"enabled": True, "base_url": "", "access_token": ""},
-        },
-        "general": {},
-    }
-    config_path.write_text(json.dumps(config_data))
-    cm = ConfigManager(config_path=str(config_path))
-    valid, errors = cm.validate()
-    assert valid is False
-    assert any("base_url" in e or "access_token" in e for e in errors)
-
-
-def test_validate_enabled_guest_wifi_without_ssid_or_password(monkeypatch, tmp_path):
-    """Enabled guest_wifi without ssid or password."""
-    # Clear env vars that might fill in ssid/password (e.g. in Docker)
-    for key in ("GUEST_WIFI_SSID", "GUEST_WIFI_PASSWORD"):
-        monkeypatch.delenv(key, raising=False)
-    config_path = tmp_path / "config.json"
-    config_data = {
-        "board": {"api_mode": "local", "local_api_key": "k", "host": "h"},
-        "features": {"guest_wifi": {"enabled": True, "ssid": "", "password": ""}},
-        "general": {},
-    }
-    config_path.write_text(json.dumps(config_data))
-    cm = ConfigManager(config_path=str(config_path))
-    valid, errors = cm.validate()
-    assert valid is False
-    assert any("SSID" in e or "password" in e for e in errors)
-
-
 # --- Plugin config methods ---
 
 
@@ -898,23 +791,6 @@ def test_get_enabled_plugins(tmp_path):
     enabled = cm.get_enabled_plugins()
     assert "weather" in enabled
     assert "stocks" not in enabled
-
-
-def test_migrate_feature_to_plugin(tmp_path):
-    """migrate_feature_to_plugin copies feature to plugin."""
-    config_path = tmp_path / "config.json"
-    config_data = {
-        "board": {},
-        "features": {"weather": {"enabled": True, "api_key": "key", "location": "SF"}},
-        "general": {},
-    }
-    config_path.write_text(json.dumps(config_data))
-    cm = ConfigManager(config_path=str(config_path))
-    result = cm.migrate_feature_to_plugin("weather", "weather")
-    assert result is True
-    plugin_cfg = cm.get_plugin_config("weather")
-    assert plugin_cfg["enabled"] is True
-    assert plugin_cfg["api_key"] == "key"
 
 
 # --- reload ---
@@ -1361,6 +1237,11 @@ def test_save_internal_is_atomic_on_mid_write_crash(tmp_path, monkeypatch):
     cm._save_internal()  # normalize on-disk content
     original_bytes = config_path.read_bytes()
 
+    # The pending save must be a REAL one: an unchanged save is now correctly
+    # skipped as a no-op (write_json_atomic if_changed), so a crash test that
+    # re-saves identical bytes would never reach the crash it exists to test.
+    cm._config.setdefault("general", {})["instance_name"] = "Changed in memory only"
+
     real_dump = json.dump
 
     def crashing_dump(obj, fh, *args, **kwargs):
@@ -1381,13 +1262,18 @@ def test_save_internal_is_atomic_on_mid_write_crash(tmp_path, monkeypatch):
 def test_save_internal_survives_a_concurrent_process_saving_the_same_config(tmp_path, monkeypatch):
     """A second process saving the same config must not break our save.
 
-    ``_file_lock`` is a ``threading.Lock``, so it serialises threads and
-    nothing else. Under ``pytest -n auto`` every xdist worker is its own
-    process sharing one ``data/`` directory, and in production the API
-    server, MQTT bridge and CLI scripts all construct a ConfigManager. If
-    every one of them stages through the same fixed ``config.json.tmp``,
-    the process that renames second finds its source already gone and
-    ``os.replace`` raises ENOENT.
+    ``_file_lock`` is a ``threading.RLock``, so it serialises threads and
+    nothing else. If two writers stage through the same fixed
+    ``config.json.tmp``, the one that renames second finds its source
+    already gone and ``os.replace`` raises ENOENT — which is why the
+    staging name carries the pid.
+
+    NOTE (Phase 2 audit): this docstring used to claim xdist workers, "the
+    MQTT bridge" and CLI scripts as current multi-process writers. They are
+    not — see ``docs/internal/reference/PERSISTENCE.md``. The test still
+    earns its place: it pins the staging-name property that makes the
+    single-writer assumption safe to *break* later, and the same collision
+    is reachable between threads.
 
     Simulated deterministically here: a competing writer completes a full
     save — same naming scheme, tmp staged then renamed into place — in the
@@ -1580,3 +1466,137 @@ def test_silence_migration_does_not_hold_the_singleton_construction_lock(tmp_pat
     probes = _migrate_with_a_lock_probe(tmp_path, mock_time_service, lambda cm: ConfigManager._lock)
 
     assert all(probes), "the migration held the singleton construction lock while doing disk I/O"
+
+
+# --- AI providers: approval_mode (#2021) ---
+
+
+def test_get_ai_providers_coerces_a_hand_edited_approval_mode_to_ask(tmp_path, caplog):
+    """A value outside {ask, auto} in config.json must not 500 the API or
+    split the readers: GET/PUT /settings/ai validate the response and the
+    chat loop keys on the same block, so both must see "ask".
+
+    ConfigManager is a singleton (reset per test by conftest), so the file
+    is written first and the one construction below is the load.
+    """
+    config_path = tmp_path / "config.json"
+    config_path.write_text(
+        json.dumps(
+            {
+                "board": {},
+                "features": {},
+                "general": {},
+                "ai_providers": {
+                    "enabled": False,
+                    "providers": [],
+                    "default_provider_id": None,
+                    "approval_mode": "yolo",
+                },
+            }
+        )
+    )
+    with caplog.at_level("WARNING", logger="src.config_manager"):
+        cm = ConfigManager(config_path=str(config_path))
+        assert cm._config["ai_providers"]["approval_mode"] == "yolo", (
+            "the loader keeps the raw value; the reader coerces"
+        )
+        assert cm.get_ai_providers()["approval_mode"] == "ask"
+        assert cm.get_ai_providers()["approval_mode"] == "ask"
+    warnings = [r for r in caplog.records if "approval_mode" in r.getMessage()]
+    assert len(warnings) == 1, "the coercion is logged once, not on every read"
+
+
+def test_approval_mode_survives_a_reload_from_disk(tmp_path):
+    """The loader merges config.json against DEFAULT_CONFIG; a saved "auto"
+    must come back from disk, not only from the instance that wrote it."""
+    config_path = tmp_path / "config.json"
+    cm = ConfigManager(config_path=str(config_path))
+    cm.set_ai_providers({"approval_mode": "auto"})
+    assert json.loads(config_path.read_text())["ai_providers"]["approval_mode"] == "auto"
+    cm.reload()
+    assert cm.get_ai_providers()["approval_mode"] == "auto"
+
+
+def test_set_ai_providers_coerces_an_unknown_approval_mode_to_ask(tmp_path):
+    cm = ConfigManager(config_path=str(tmp_path / "config.json"))
+    cm.set_ai_providers({"approval_mode": "auto"})
+    assert cm.get_ai_providers()["approval_mode"] == "auto"
+    cm.set_ai_providers({"approval_mode": "yolo"})
+    assert cm.get_ai_providers()["approval_mode"] == "ask", "an unknown mode falls back to asking, like on read"
+
+
+# --- AI providers: per-turn caps ---
+
+
+def test_get_ai_providers_reports_no_cap_when_the_install_has_none(tmp_path):
+    """An install predating the caps must not get a number invented for it.
+
+    None is the signal that the agent's own defaults apply; a 0 or a made-up
+    ceiling here would silently become that install's policy.
+    """
+    cm = ConfigManager(config_path=str(tmp_path / "config.json"))
+    block = cm.get_ai_providers()
+    assert block["max_model_calls"] is None
+    assert block["max_tool_calls"] is None
+
+
+def test_turn_caps_survive_a_reload_from_disk(tmp_path):
+    config_path = tmp_path / "config.json"
+    cm = ConfigManager(config_path=str(config_path))
+    cm.set_ai_providers({"max_model_calls": 40, "max_tool_calls": 90})
+    cm.reload()
+    assert cm.get_ai_providers()["max_model_calls"] == 40
+    assert cm.get_ai_providers()["max_tool_calls"] == 90
+
+
+def test_a_turn_cap_of_zero_is_clamped_up_rather_than_stalling_every_turn(tmp_path):
+    """0 would end every turn before its first model call — an unusable install."""
+    cm = ConfigManager(config_path=str(tmp_path / "config.json"))
+    cm.set_ai_providers({"max_model_calls": 0})
+    assert cm.get_ai_providers()["max_model_calls"] == 1
+
+
+def test_a_turn_cap_above_the_ceiling_is_clamped_down(tmp_path):
+    cm = ConfigManager(config_path=str(tmp_path / "config.json"))
+    cm.set_ai_providers({"max_model_calls": 999_999})
+    assert cm.get_ai_providers()["max_model_calls"] == 10_000
+
+
+def test_setting_a_turn_cap_to_null_clears_the_override(tmp_path):
+    cm = ConfigManager(config_path=str(tmp_path / "config.json"))
+    cm.set_ai_providers({"max_model_calls": 40})
+    assert cm.get_ai_providers()["max_model_calls"] == 40
+    cm.set_ai_providers({"max_model_calls": None})
+    assert cm.get_ai_providers()["max_model_calls"] is None, "an explicit null hands the turn back to the defaults"
+
+
+def test_get_ai_providers_ignores_a_hand_edited_non_integer_turn_cap(tmp_path, caplog):
+    config_path = tmp_path / "config.json"
+    config_path.write_text(
+        json.dumps(
+            {
+                "board": {},
+                "features": {},
+                "general": {},
+                "ai_providers": {
+                    "enabled": False,
+                    "providers": [],
+                    "default_provider_id": None,
+                    "max_model_calls": "lots",
+                },
+            }
+        )
+    )
+    with caplog.at_level("WARNING", logger="src.config_manager"):
+        cm = ConfigManager(config_path=str(config_path))
+        assert cm.get_ai_providers()["max_model_calls"] is None
+        assert cm.get_ai_providers()["max_model_calls"] is None
+    warnings = [r for r in caplog.records if "max_model_calls" in r.getMessage()]
+    assert len(warnings) == 1, "the coercion is logged once, not on every read"
+
+
+def test_a_boolean_turn_cap_is_rejected_rather_than_read_as_one(tmp_path):
+    """True is an int in Python; read as a cap it would mean one model call."""
+    cm = ConfigManager(config_path=str(tmp_path / "config.json"))
+    cm.set_ai_providers({"max_model_calls": True})
+    assert cm.get_ai_providers()["max_model_calls"] is None

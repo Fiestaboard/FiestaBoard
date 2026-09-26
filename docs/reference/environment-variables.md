@@ -110,7 +110,7 @@ These variables belong to plugins you install from the [registry](/docs/plugins/
 
 | Variable | Description | Default |
 |----------|-------------|---------|
-| `MDNS_HOSTNAME` | Hostname advertised via mDNS/Bonjour (without `.local` suffix). Devices on the same network can reach FiestaBoard at `http://<hostname>.local:4420`. Set to empty to disable mDNS. | `fiestaboard` |
+| `MDNS_HOSTNAME` | Container mDNS hostname without `.local`. Reachable from the LAN only with host networking; the default Docker bridge does not forward multicast. FiestaPi uses its host Avahi name, `fiestapi.local`, independently of this setting. | `fiestaboard` |
 
 ## System Configuration
 

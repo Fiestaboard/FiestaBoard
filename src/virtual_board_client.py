@@ -18,6 +18,7 @@ evaporates before any viewer polls it.
 import logging
 import threading
 import time
+from typing import Any
 
 from .board_client import (
     VALID_STRATEGIES,
@@ -145,10 +146,10 @@ class VirtualBoardClient(TransitionRenderMixin):
     def _last_sent_at(self) -> float | None:
         return self._state.last_sent_at
 
-    def send_text(self, text: str, force: bool = False) -> tuple[bool, bool]:
+    def send_text(self, text: str, force: bool = False, *, with_outcome: bool = False) -> Any:
         """Virtual boards are characters-only; mirror the note-array refusal."""
         logger.error("send_text is not supported for virtual boards; use send_characters()")
-        return (False, False)
+        return self._outcome(False, False, with_outcome=with_outcome)
 
     def send_characters(
         self,
@@ -157,7 +158,9 @@ class VirtualBoardClient(TransitionRenderMixin):
         step_interval_ms: int | None = None,
         step_size: int | None = None,
         force: bool = False,
-    ) -> tuple[bool, bool]:
+        *,
+        with_outcome: bool = False,
+    ) -> Any:
         """Store the frame in the board's shared state.
 
         Transition params are accepted for interface parity but ignored —
@@ -180,24 +183,24 @@ class VirtualBoardClient(TransitionRenderMixin):
                 self.rows,
                 self.cols,
             )
-            return (False, False)
+            return self._outcome(False, False, with_outcome=with_outcome)
 
         if strategy is not None and strategy not in VALID_STRATEGIES:
             logger.error(f"Invalid strategy: {strategy}. Must be one of {VALID_STRATEGIES}")
-            return (False, False)
+            return self._outcome(False, False, with_outcome=with_outcome)
 
         state = self._state
         with state.lock:
             if self.skip_unchanged and not force and state.last_characters == characters:
                 logger.debug("Character array unchanged, skipping virtual send")
-                return (True, False)
+                return self._outcome(True, False, with_outcome=with_outcome)
 
             state.last_characters = [row[:] for row in characters]
             state.displayed_characters = [row[:] for row in characters]
             state.last_text = None
             state.last_sent_at = time.time()
         logger.debug("Virtual board frame stored (%d×%d)", self.rows, self.cols)
-        return (True, True)
+        return self._outcome(True, True, with_outcome=with_outcome)
 
     def read_current_message(self, sync_cache: bool = False) -> list[list[int]] | None:
         """Return a copy of the displayed frame; the memory IS the board.

@@ -78,14 +78,14 @@ class _FakeRegistry:
 @pytest.fixture
 def registry(monkeypatch):
     """Install a fake plugin registry and reset the route's module state."""
-    from src import api_server
+    from src.plugins import options_runtime, routes
 
     fake = _FakeRegistry()
-    monkeypatch.setattr(api_server, "PLUGIN_SYSTEM_AVAILABLE", True)
-    monkeypatch.setattr(api_server, "get_plugin_registry", lambda: fake)
+    monkeypatch.setattr(routes, "PLUGIN_SYSTEM_AVAILABLE", True)
+    monkeypatch.setattr(routes, "get_plugin_registry", lambda: fake)
     # Both caches are process-global; give every test its own.
-    monkeypatch.setattr(api_server, "_PLUGIN_OPTIONS_CACHE", {})
-    monkeypatch.setattr(api_server, "_plugin_options_last_refresh", {})
+    monkeypatch.setattr(options_runtime, "_PLUGIN_OPTIONS_CACHE", {})
+    monkeypatch.setattr(options_runtime, "_plugin_options_last_refresh", {})
     return fake
 
 
@@ -115,9 +115,9 @@ def test_unknown_plugin_is_a_404(registry, client):
 
 def test_plugin_system_unavailable_is_a_503(registry, client, monkeypatch):
     """No plugin system at all is an infrastructure problem, not a bad request."""
-    from src import api_server
+    from src.plugins import routes
 
-    monkeypatch.setattr(api_server, "PLUGIN_SYSTEM_AVAILABLE", False)
+    monkeypatch.setattr(routes, "PLUGIN_SYSTEM_AVAILABLE", False)
 
     response = _post(client)
 
@@ -262,9 +262,9 @@ def _blocking_provider(release: threading.Event, seconds: float = 1.0):
 
 def test_a_plugin_that_hangs_gets_cut_off_with_a_504(registry, client, monkeypatch):
     """A settings dialog cannot wait on an unbounded upstream call."""
-    from src import api_server
+    from src.plugins import routes
 
-    monkeypatch.setattr(api_server, "PLUGIN_OPTIONS_TIMEOUT_SECONDS", 0.2)
+    monkeypatch.setattr(routes, "PLUGIN_OPTIONS_TIMEOUT_SECONDS", 0.2)
     release = threading.Event()
     registry.result = _blocking_provider(release)
 
@@ -286,9 +286,9 @@ async def test_a_slow_plugin_does_not_block_the_event_loop(registry, monkeypatch
     bug continuous rather than occasional. Assert directly on the symptom: a
     cheap endpoint must answer *while* a slow options lookup is in flight.
     """
-    from src import api_server
+    from src.plugins import routes
 
-    monkeypatch.setattr(api_server, "PLUGIN_OPTIONS_TIMEOUT_SECONDS", 2.0)
+    monkeypatch.setattr(routes, "PLUGIN_OPTIONS_TIMEOUT_SECONDS", 2.0)
     release = threading.Event()
     registry.result = _blocking_provider(release, seconds=2.0)
 
@@ -405,10 +405,10 @@ def test_a_failing_refresh_falls_back_to_the_last_good_answer(registry, client):
 def test_a_timeout_after_a_good_answer_also_serves_stale(registry, client, monkeypatch):
     """Same reasoning as a failing refresh: a hung upstream is not a reason to
     throw away a list we already have."""
-    from src import api_server
+    from src.plugins import routes
 
     good = _post(client)
-    monkeypatch.setattr(api_server, "PLUGIN_OPTIONS_TIMEOUT_SECONDS", 0.2)
+    monkeypatch.setattr(routes, "PLUGIN_OPTIONS_TIMEOUT_SECONDS", 0.2)
     release = threading.Event()
     registry.result = _blocking_provider(release)
 
@@ -592,7 +592,7 @@ def test_an_unmasked_secret_in_draft_config_is_passed_through(registry, client):
 def test_draft_config_values_are_never_logged(registry, client, caplog):
     """Debug logging around a settings dialog is exactly where credentials
     leak. Key names are useful; values are not worth the risk."""
-    with caplog.at_level(logging.DEBUG, logger="src.api_server"):
+    with caplog.at_level(logging.DEBUG, logger="src.plugins.routes"):
         _post(client, draft_config={"api_key": "s3cr3t-do-not-log", "exchange": "NASDAQ"})
 
     assert "s3cr3t-do-not-log" not in caplog.text
@@ -624,10 +624,10 @@ async def test_concurrent_lookups_cannot_exhaust_the_thread_pool(registry, monke
     """``asyncio.to_thread`` shares one bounded default executor with the rest
     of the process. Without a cap, a plugin that is merely slow would let a
     settings dialog starve every other background call."""
-    from src import api_server
+    from src.plugins import options_runtime, routes
 
-    monkeypatch.setattr(api_server, "_PLUGIN_OPTIONS_SEMAPHORE", asyncio.Semaphore(2))
-    monkeypatch.setattr(api_server, "PLUGIN_OPTIONS_TIMEOUT_SECONDS", 10.0)
+    monkeypatch.setattr(options_runtime, "_PLUGIN_OPTIONS_SEMAPHORE", asyncio.Semaphore(2))
+    monkeypatch.setattr(routes, "PLUGIN_OPTIONS_TIMEOUT_SECONDS", 10.0)
 
     counter_lock = threading.Lock()
     state = {"in_flight": 0, "peak": 0}
@@ -662,10 +662,10 @@ async def test_a_timed_out_lookup_holds_its_slot_until_the_thread_really_ends(re
     fresh threads forever, which is precisely the exhaustion the cap exists to
     prevent.
     """
-    from src import api_server
+    from src.plugins import options_runtime, routes
 
-    monkeypatch.setattr(api_server, "_PLUGIN_OPTIONS_SEMAPHORE", asyncio.Semaphore(1))
-    monkeypatch.setattr(api_server, "PLUGIN_OPTIONS_TIMEOUT_SECONDS", 0.2)
+    monkeypatch.setattr(options_runtime, "_PLUGIN_OPTIONS_SEMAPHORE", asyncio.Semaphore(1))
+    monkeypatch.setattr(routes, "PLUGIN_OPTIONS_TIMEOUT_SECONDS", 0.2)
     release = threading.Event()
     registry.result = _blocking_provider(release, seconds=3.0)
 
@@ -712,13 +712,13 @@ def test_a_plugin_with_no_manifest_declares_no_providers(registry, client):
 def test_the_caches_are_bounded(registry, client, monkeypatch):
     """A settings search box makes one cache entry per keystroke, and this
     process runs for months."""
-    from src import api_server
+    from src.plugins import options_runtime
 
-    monkeypatch.setattr(api_server, "PLUGIN_OPTIONS_CACHE_MAX_ENTRIES", 3)
+    monkeypatch.setattr(options_runtime, "PLUGIN_OPTIONS_CACHE_MAX_ENTRIES", 3)
 
     for i in range(8):
         _post(client, query=f"q{i}")
         _post(client, query=f"q{i}", refresh=True)
 
-    assert len(api_server._PLUGIN_OPTIONS_CACHE) <= 3
-    assert len(api_server._plugin_options_last_refresh) <= 4
+    assert len(options_runtime._PLUGIN_OPTIONS_CACHE) <= 3
+    assert len(options_runtime._plugin_options_last_refresh) <= 4

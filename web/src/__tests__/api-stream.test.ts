@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { streamChat } from "@/lib/api-stream";
 
@@ -48,15 +48,84 @@ describe("streamChat", () => {
   it("fires onToolCall handler for 'tool_call' events", async () => {
     const payload = {
       id: "tc1",
-      op: "replace_page",
-      args: { name: "p", template: [], line_metadata: [], duration_seconds: 300 },
+      name: "create_page",
+      args: { name: "p", template_lines: ["HI"] },
+      title: "Create page",
+      read_only: false,
+      destructive: false,
+      requires_approval: false,
+      source: "mcp",
     };
     mockFES.mockImplementation(async (_url: string, opts: any) => {
       opts.onmessage?.({ event: "tool_call", data: JSON.stringify(payload), id: "", retry: undefined });
     });
     const onToolCall = vi.fn();
     await streamChat(BASE_BODY, { onToolCall });
-    expect(onToolCall).toHaveBeenCalledWith({ id: "tc1", op: "replace_page", args: payload.args });
+    expect(onToolCall).toHaveBeenCalledWith(payload);
+  });
+
+  it("fires onToolStreaming for 'tool_streaming' events", async () => {
+    const payload = { op: "create_page", text: '{"op": "create_page", "args": {"name": "Mo' };
+    mockFES.mockImplementation(async (_url: string, opts: any) => {
+      opts.onmessage?.({ event: "tool_streaming", data: JSON.stringify(payload), id: "", retry: undefined });
+    });
+    const onToolStreaming = vi.fn();
+    await streamChat(BASE_BODY, { onToolStreaming });
+    expect(onToolStreaming).toHaveBeenCalledWith(payload);
+  });
+
+  it("fires onStatus for 'status' events", async () => {
+    const payload = { phase: "tool_running", message: "Running create_page…", tool_call_id: "tc1", step: 1 };
+    mockFES.mockImplementation(async (_url: string, opts: any) => {
+      opts.onmessage?.({ event: "status", data: JSON.stringify(payload), id: "", retry: undefined });
+    });
+    const onStatus = vi.fn();
+    await streamChat(BASE_BODY, { onStatus });
+    expect(onStatus).toHaveBeenCalledWith(payload);
+  });
+
+  it("fires onToolResult for 'tool_result' events", async () => {
+    const payload = {
+      id: "tc1",
+      name: "create_page",
+      status: "ok",
+      summary: "Page created.",
+      result: { page_id: "p9" },
+      error: null,
+    };
+    mockFES.mockImplementation(async (_url: string, opts: any) => {
+      opts.onmessage?.({ event: "tool_result", data: JSON.stringify(payload), id: "", retry: undefined });
+    });
+    const onToolResult = vi.fn();
+    await streamChat(BASE_BODY, { onToolResult });
+    expect(onToolResult).toHaveBeenCalledWith(payload);
+  });
+
+  it("fires onElicitation for 'elicitation' events", async () => {
+    const payload = {
+      id: "q1",
+      name: "ask_user",
+      message: "Which board?",
+      requested_schema: {
+        type: "object",
+        properties: { answer: { type: "string", enum: ["A", "B"] } },
+        required: ["answer"],
+      },
+      allow_free_text: true,
+    };
+    mockFES.mockImplementation(async (_url: string, opts: any) => {
+      opts.onmessage?.({ event: "elicitation", data: JSON.stringify(payload), id: "", retry: undefined });
+    });
+    const onElicitation = vi.fn();
+    await streamChat(BASE_BODY, { onElicitation });
+    expect(onElicitation).toHaveBeenCalledWith(payload);
+  });
+
+  it("sends the resume decision in the POST body", async () => {
+    mockFES.mockResolvedValue(undefined);
+    const body = { ...BASE_BODY, resume: { tool_call_id: "tc1", decision: "approve" as const } };
+    await streamChat(body, {});
+    expect(mockFES).toHaveBeenCalledWith("/api/pages/ai/chat", expect.objectContaining({ body: JSON.stringify(body) }));
   });
 
   it("fires onWarning handler for 'warning' events", async () => {
@@ -175,6 +244,26 @@ describe("streamChat", () => {
     await expect(streamChat(BASE_BODY, {}, ctrl.signal)).resolves.toBeUndefined();
   });
 
+  it("serializes a FastAPI validation detail rather than reporting only the status", async () => {
+    // POST /pages/ai/chat takes a typed body since the Phase 2 conventions
+    // pass, so a malformed request comes back as a 422 whose `detail` is a
+    // list of field errors, not a string. Reporting "Server returned 422."
+    // there hides which field the drawer got wrong.
+    mockFES.mockImplementation(async (_url: string, opts: any) => {
+      const response = {
+        ok: false,
+        status: 422,
+        headers: { get: () => null },
+        json: async () => ({ detail: [{ loc: ["body", "messages"], msg: "Field required" }] }),
+      };
+      await opts.onopen?.(response);
+    });
+    const onError = vi.fn();
+    await streamChat(BASE_BODY, { onError });
+    expect(onError).toHaveBeenCalledWith(expect.stringContaining("messages"));
+    expect(onError).not.toHaveBeenCalledWith("Server returned 422.");
+  });
+
   it("falls back to status text when server JSON has no detail field", async () => {
     mockFES.mockImplementation(async (_url: string, opts: any) => {
       const response = {
@@ -188,6 +277,63 @@ describe("streamChat", () => {
     const onError = vi.fn();
     await streamChat(BASE_BODY, { onError });
     expect(onError).toHaveBeenCalledWith("Server returned 503.");
+  });
+
+  describe("shared auth redirect", () => {
+    // The SSE path must go through the same 401/409 login-redirect logic
+    // as fetchApi (lib/api/core.ts) — a chat opened on an expired session
+    // should land on /login, not silently error in the drawer.
+    let originalLocation: Location;
+    let assignMock: ReturnType<typeof vi.fn>;
+
+    beforeEach(() => {
+      assignMock = vi.fn();
+      originalLocation = window.location;
+      Object.defineProperty(window, "location", {
+        configurable: true,
+        value: { ...originalLocation, pathname: "/", search: "", assign: assignMock },
+      });
+    });
+
+    afterEach(() => {
+      Object.defineProperty(window, "location", {
+        configurable: true,
+        value: originalLocation,
+      });
+    });
+
+    it("routes a 401 response through the shared login redirect", async () => {
+      mockFES.mockImplementation(async (_url: string, opts: any) => {
+        const response = {
+          ok: false,
+          status: 401,
+          headers: { get: () => null },
+          json: async () => ({ detail: "Not authenticated" }),
+        };
+        await opts.onopen?.(response);
+      });
+      const onError = vi.fn();
+      await streamChat(BASE_BODY, { onError });
+      expect(assignMock).toHaveBeenCalledWith(expect.stringMatching(/^\/login\?redirect=/));
+      // The stream error still surfaces so the chat UI can stop cleanly.
+      expect(onError).toHaveBeenCalledWith("Not authenticated");
+    });
+
+    it("does not redirect on a plain 500 error", async () => {
+      mockFES.mockImplementation(async (_url: string, opts: any) => {
+        const response = {
+          ok: false,
+          status: 500,
+          headers: { get: () => null },
+          json: async () => ({ detail: "internal error" }),
+        };
+        await opts.onopen?.(response);
+      });
+      const onError = vi.fn();
+      await streamChat(BASE_BODY, { onError });
+      expect(assignMock).not.toHaveBeenCalled();
+      expect(onError).toHaveBeenCalledWith("internal error");
+    });
   });
 
   it("handles a server error response whose JSON cannot be parsed", async () => {

@@ -22,11 +22,13 @@ import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { BoardSizeIndicator } from "@/components/board-size-indicator";
 import { useCurrentBoard } from "@/components/current-board-context";
+import { PanelFitNote } from "@/components/panel-fit-note";
 import { ScaledBoardDisplay } from "@/components/scaled-board-display";
 import Link from "@/components/smart-link";
 import { StaticBoardDisplay } from "@/components/static-board-display";
 import { getEffectiveBoardColor, useBoardSettings, useCollections, usePages } from "@/hooks/use-board";
 import { useTranslations } from "@/i18n/translations";
+import { anchorProps } from "@/lib/ai-choreography/anchors";
 import type { Collection, DeviceType, Page, PagePreviewBatchEntry, PagePreviewResponse } from "@/lib/api";
 import { api, isCollectionId } from "@/lib/api";
 import { pagesCompatibleWithBoard } from "@/lib/board-dimensions";
@@ -236,6 +238,7 @@ const PageButton = memo(
         className={buttonClassName}
         type="button"
         aria-pressed={isActive}
+        {...anchorProps(`page.${page.id}`)}
       >
         <Flex align="center" gap="2.5" className="min-w-0">
           <TypeIcon className={iconClassName} aria-hidden="true" />
@@ -249,6 +252,15 @@ const PageButton = memo(
             className="ml-auto shrink-0"
           />
         </Flex>
+
+        {/* Which FiestaPanel this page's grid fits, if any — the auto-fit
+            dimensions beside it mean nothing to a panel owner on their own. */}
+        <PanelFitNote
+          deviceType={page.device_type || "flagship"}
+          notesWide={page.notes_wide}
+          notesTall={page.notes_tall}
+          className="-mt-2 block truncate"
+        />
 
         <Box className="hover-stable">
           <PageButtonPreview
@@ -334,11 +346,18 @@ const PageListItem = memo(
         className={buttonClassName}
         type="button"
         aria-pressed={isActive}
+        {...anchorProps(`page.${page.id}`)}
       >
         <LayoutTemplate className={iconClassName} aria-hidden="true" />
         <Text as="span" className={nameClassName}>
           {page.name}
         </Text>
+        <PanelFitNote
+          deviceType={page.device_type || "flagship"}
+          notesWide={page.notes_wide}
+          notesTall={page.notes_tall}
+          className="shrink-0 truncate"
+        />
         <BoardSizeIndicator
           deviceType={page.device_type || "flagship"}
           notesWide={page.notes_wide}

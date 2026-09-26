@@ -6,7 +6,7 @@ import { useState } from "react";
 
 import { useTranslations } from "@/i18n/translations";
 import type { Code62Glyph } from "@/lib/api";
-import { api } from "@/lib/api";
+import { api, ApiError } from "@/lib/api";
 import { cn } from "@/lib/utils";
 
 import type { WizardPluginConfig } from "./step-easy-plugins";
@@ -73,18 +73,18 @@ export function StepWelcome({ boardConfig, pluginConfig, onComplete, isLoading, 
 
       // Send the welcome message
       const result = await api.sendWelcomeMessage();
-
-      if (result.status === "success") {
-        setSendStatus("success");
-        setSendMessage(result.message);
-      } else if (result.status === "blocked") {
+      setSendStatus("success");
+      setSendMessage(result.message);
+    } catch (error) {
+      // A quiet-hours window (or a paused board) refuses the send with a 409
+      // since the Phase 2 Task 8 conventions pass — it used to be a 200
+      // carrying `status: "blocked"`. It is still a *success* for the wizard:
+      // the board is reachable and configured, it just must not be woken.
+      if (error instanceof ApiError && error.status === 409) {
         setSendStatus("success");
         setSendMessage(t("boardInQuietHours"));
-      } else {
-        setSendStatus("error");
-        setSendMessage(result.message || t("failedToSend"));
+        return;
       }
-    } catch (error) {
       setSendStatus("error");
       setSendMessage(error instanceof Error ? error.message : t("failedToSend"));
     } finally {

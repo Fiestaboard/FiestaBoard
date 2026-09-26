@@ -83,6 +83,42 @@
     "unnamedBoard": "Tablica bez nazwy",
     "transitions": "Laboratorium przejść"
   },
+  "settingsMenu": {
+    "trigger": "Ustawienia",
+    "settings": "Ustawienia",
+    "appearance": "Wygląd",
+    "light": "Jasny",
+    "dark": "Ciemny",
+    "system": "Systemowy",
+    "devSuffix": "kompilacja deweloperska",
+    "updateAvailable": "Dostępna aktualizacja: {version}",
+    "updateTo": "Zaktualizuj do {version}",
+    "about": "O FiestaBoard",
+    "signOut": "Wyloguj się"
+  },
+  "aboutDialog": {
+    "description": "Informacje o wersji i systemie tego FiestaBoard.",
+    "devSuffix": "kompilacja deweloperska",
+    "channel": "Kanał",
+    "channelStable": "Stabilny",
+    "channelBeta": "Beta",
+    "platform": "Platforma",
+    "platformDocker": "Docker",
+    "platformPi": "Raspberry Pi",
+    "hardware": "Sprzęt",
+    "updates": "Aktualizacje",
+    "updatesDaily": "Automatyczne, codziennie",
+    "updatesWeekly": "Automatyczne, co tydzień",
+    "updatesMonthly": "Automatyczne, co miesiąc",
+    "updatesManual": "Ręczne",
+    "updatesManaged": "Zarządzane zewnętrznie",
+    "updatesUnavailable": "Aktualizator niedostępny",
+    "updateAvailable": "Dostępna aktualizacja: {version}",
+    "board": "Tablica",
+    "license": "Licencja MIT",
+    "copyright": "© {year} {holder}",
+    "sourceCode": "Kod źródłowy na GitHubie"
+  },
   "network": {
     "title": "Wi-Fi",
     "description": "Zarządzaj połączeniem bezprzewodowym FiestaPi.",
@@ -132,6 +168,9 @@
     "description": "Monitoruj wyświetlacz tablicy i aktywność systemu",
     "noBoardConfigured": "Tablica nie skonfigurowana",
     "noBoardDescription": "Twoja tablica nie jest jeszcze skonfigurowana. Połącz tablicę, aby zacząć wyświetlać treści.",
+    "boardInitErrorTitle": "{boardName} jest niedostępna",
+    "boardInitErrorTitleUnnamed": "Jedna z tablic jest niedostępna",
+    "boardInitErrorOpenSettings": "Otwórz ustawienia tablicy",
     "runSetupWizard": "Uruchom kreator konfiguracji",
     "silenceImminentTitle": "Silence starts in {minutes, plural, =0 {less than a minute} one {# minute} other {# minutes}}",
     "silenceImminentDescription": "Switch to “{pageName}” now so you don't have to wait for the schedule to catch up.",
@@ -569,7 +608,14 @@
       "apiKeyLabel": "Klucz API",
       "modelsLabel": "Modele",
       "defaultModelLabel": "Model domyślny",
-      "testConnectionButton": "Testuj połączenie"
+      "testConnectionButton": "Testuj połączenie",
+      "turnLimits": {
+        "heading": "Limity tury",
+        "description": "Zabezpieczenie przed modelem utkniętym w pętli, a nie budżet pracy. Osiągnięcie limitu wstrzymuje turę, a czat proponuje kontynuację. Pozostaw puste, aby użyć wartości domyślnych serwera.",
+        "modelCallsLabel": "Wywołania modelu na turę",
+        "toolCallsLabel": "Wywołania narzędzi na turę",
+        "serverDefault": "Domyślne serwera"
+      }
     },
     "backup": {
       "cardTitle": "Kopia zapasowa i przywracanie",
@@ -937,6 +983,11 @@
       "badge": "Paused",
       "tooltip": "When paused, FiestaBoard does not push anything to this board — scheduled pages, manual sends, plugin triggers, and MQTT commands are all blocked until you resume."
     },
+    "initError": {
+      "badge": "Niedostępna",
+      "title": "Nie udało się zainicjować tej tablicy",
+      "hint": "Popraw dane połączenia poniżej — zapisanie ponawia próbę połączenia."
+    },
     "deviceTypeAriaLabel": "Typ i rozmiar tablicy",
     "deviceGroupLabel": "Urządzenia",
     "noteArrayGroupLabel": "Macierze Note",
@@ -1206,14 +1257,6 @@
     "updateIntervalsTitle": "Interwały aktualizacji",
     "updateIntervalsDescription": "Jak często tablica sprawdza nową treść i ponownie odczytuje swój aktualny stan"
   },
-  "themeToggle": {
-    "toggleTheme": "Przełącz motyw"
-  },
-  "versionDisplay": {
-    "devSuffix": "(dev)",
-    "updateAvailableAriaLabel": "Dostępna aktualizacja: v{version}",
-    "updateAvailableTooltip": "Dostępna aktualizacja: v{version}"
-  },
   "serviceControls": {
     "title": "Kontrola usługi",
     "contentAutoSent": "Treść jest automatycznie wysyłana na fizyczną tablicę"
@@ -1310,75 +1353,6 @@
       "failure": "Nie udało się włączyć logowania"
     }
   },
-  "aiActionConfirmation": {
-    "deny": "Odmów",
-    "allow": "Zezwól",
-    "working": "Trwa…",
-    "done": "Gotowe",
-    "denied": "Odmówiono",
-    "noChanges": "brak zmian",
-    "noValues": "brak wartości",
-    "noChangesSpecified": "Nie określono zmian.",
-    "openEnd": "otwarte",
-    "label": {
-      "installPlugin": "Zainstaluj wtyczkę: {id}",
-      "updatePluginConfig": "Skonfiguruj wtyczkę: {id}",
-      "updatePlugin": "Zaktualizuj wtyczkę: {id}",
-      "enablePlugin": "Włącz wtyczkę: {id}",
-      "disablePlugin": "Wyłącz wtyczkę: {id}",
-      "uninstallPlugin": "Odinstaluj wtyczkę: {id}",
-      "updateSetting": "Zmień ustawienie: {category}",
-      "createCollection": "Utwórz kolekcję: \"{name}\"",
-      "updateCollection": "Zaktualizuj kolekcję",
-      "createSchedule": "Utwórz harmonogram",
-      "updateSchedule": "Zaktualizuj harmonogram",
-      "deleteSchedule": "Usuń harmonogram",
-      "triggerSystemUpdate": "Aktualizacja systemu"
-    },
-    "description": {
-      "installPlugin": "Instaluje \"{id}\" z oficjalnego rejestru.",
-      "installPluginEnable": "Instaluje \"{id}\" z oficjalnego rejestru i włącza ją.",
-      "updatePluginConfig": "Aktualizuje konfigurację \"{id}\": {keys}.",
-      "updatePlugin": "Pobiera i instaluje najnowszą wersję \"{id}\" z rejestru.",
-      "enablePlugin": "Włącza \"{id}\", aby mogła dostarczać dane do Twoich tablic.",
-      "disablePlugin": "Wyłącza \"{id}\" bez usuwania. Można ją później ponownie włączyć.",
-      "uninstallPlugin": "Trwale usuwa \"{id}\". Tej operacji nie można cofnąć.",
-      "updateSetting": "Ustawia {values} w ustawieniach {category}.",
-      "createCollection": "Tworzy kolekcję z {count, plural, one {# stroną} other {# stronami}}, zmieniając co {interval}s.",
-      "createSchedule": "Pokazuje stronę \"{page}\" od {time} w dni {days}.",
-      "deleteSchedule": "Trwale usuwa harmonogram \"{id}\". Tej operacji nie można cofnąć.",
-      "triggerSystemUpdate": "Pobiera i instaluje najnowszą aktualizację FiestaBoard. System na chwilę uruchomi się ponownie."
-    },
-    "change": {
-      "rename": "zmień nazwę na \"{name}\"",
-      "setPages": "ustaw {count, plural, one {# stronę} other {# stron}}",
-      "interval": "interwał → {interval}s",
-      "page": "strona → {page}",
-      "start": "początek → {start}",
-      "end": "koniec → {end}",
-      "days": "dni → {days}",
-      "enable": "włącz",
-      "disable": "wyłącz"
-    }
-  },
-  "chainingModePicker": {
-    "menuTitle": "Tryb łączenia AI",
-    "triggerAriaLabel": "Tryb łączenia AI: {mode}",
-    "modes": {
-      "manual": {
-        "label": "Ręczny",
-        "description": "Zapytam ponownie po każdej akcji"
-      },
-      "autoContinue": {
-        "label": "Automatyczna kontynuacja",
-        "description": "Łączy akcje, potwierdza każdy krok"
-      },
-      "autonomous": {
-        "label": "Autonomiczny",
-        "description": "Wykonuje do końca, pomija potwierdzenia"
-      }
-    }
-  },
   "bootGate": {
     "waiting": "Oczekiwanie na uruchomienie…",
     "errorHeading": "Nie można połączyć się z FiestaBoard",
@@ -1390,7 +1364,31 @@
     "updateErrorDescription": "Aktualizacja się zakończyła, ale aplikacja nadal się uruchamia. Poczekaj chwilę i odśwież stronę."
   },
   "globalAiChatDrawer": {
-    "panelAriaLabel": "Czat AI FiestaBot"
+    "panelAriaLabel": "Czat AI FiestaBot",
+    "toast": {
+      "undo": "Cofnij",
+      "pageCreated": "Utworzono stronę.",
+      "pageUpdated": "Zaktualizowano stronę.",
+      "pageDeleted": "Usunięto stronę.",
+      "scheduleCreated": "Utworzono harmonogram.",
+      "scheduleUpdated": "Zaktualizowano harmonogram.",
+      "scheduleDeleted": "Usunięto harmonogram.",
+      "pluginInstalled": "Zainstalowano wtyczkę „{id}”.",
+      "pluginConfigured": "Skonfigurowano wtyczkę „{id}”.",
+      "pluginUpdated": "Zaktualizowano wtyczkę „{id}”.",
+      "pluginEnabled": "Włączono wtyczkę „{id}”.",
+      "pluginDisabled": "Wyłączono wtyczkę „{id}”.",
+      "pluginUninstalled": "Odinstalowano wtyczkę „{id}”.",
+      "settingUpdated": "Zaktualizowano ustawienie.",
+      "collectionCreated": "Utworzono kolekcję „{name}”.",
+      "collectionUpdated": "Zaktualizowano kolekcję.",
+      "collectionDeleted": "Usunięto kolekcję.",
+      "activePageSet": "Zaktualizowano tablicę.",
+      "messageSent": "Wysłano wiadomość na tablicę.",
+      "systemUpdate": "Rozpoczęto aktualizację systemu. Tablica wkrótce się zrestartuje.",
+      "toolFailed": "{tool} nie powiodło się: {error}",
+      "stopped": "Zatrzymano. To, co już trwa, zostanie dokończone."
+    }
   },
   "plainTextEditor": {
     "placeholder": "Wpisz tekst szablonu...",
@@ -2035,27 +2033,175 @@
   },
   "aiChatPanel": {
     "messagesAriaLabel": "Wiadomości czatu",
-    "taskStatusAriaLabel": "Postęp zadań",
-    "taskProgressAriaLabel": "Postęp zadań AI",
-    "clearConversationAriaLabel": "Wyczyść rozmowę",
-    "closePanelAriaLabel": "Zamknij FiestaBot (Beta)",
+    "closePanelAriaLabel": "Zamknij FiestaBot",
+    "newChatAriaLabel": "Nowy czat",
+    "historyAriaLabel": "Historia",
+    "backAriaLabel": "Wstecz",
     "providerSelectAriaLabel": "Dostawca",
     "modelSelectAriaLabel": "Model",
-    "showBoardTooltip": "Pokaż podgląd boarda",
-    "hideBoardTooltip": "Ukryj podgląd boarda",
-    "undoTooltip": "Cofnij ostatnią zmianę AI",
-    "panelTitle": "FiestaBot (Beta)",
+    "panelTitle": "FiestaBot",
     "retryButton": "Ponów",
     "messageLabel": "Wiadomość",
     "stopButton": "Zatrzymaj",
     "sendButton": "Wyślij",
-    "tasksHeading": "Zadania ({done}/{total})",
+    "enterToSend": "aby wysłać",
+    "shiftEnterNewline": "aby dodać nową linię",
     "emptyStateTitle": "W czym mogę pomóc?",
     "emptyStateDescription": "Opisz, co chcesz zbudować lub zmienić.",
-    "showBoardButton": "Pokaż board",
-    "undoButton": "Cofnij",
-    "renameSummary": "→ zmień nazwę na „{name}”",
-    "previewUnavailable": "(podgląd niedostępny)"
+    "placeholderEmpty": "Opisz stronę, którą chcesz, lub poproś o zmiany…",
+    "placeholderRefine": "Dopracuj, zapytaj lub poproś o kolejną zmianę…",
+    "placeholderAnswer": "Wpisz odpowiedź…",
+    "blockedAiDisabled": "AI jest wyłączona. Włącz ją w Ustawienia → Dostawcy AI.",
+    "blockedNoProviders": "Skonfiguruj dostawcę AI z co najmniej jednym modelem w Ustawienia → Dostawcy AI.",
+    "suggestions": {
+      "weather": "Zbuduj stronę z pogodą i komunikacją na poranny dojazd",
+      "date": "Zamień wiersz 2 na dzisiejszą datę",
+      "variables": "Jakich zmiennych wtyczek mogę użyć na tej stronie?"
+    },
+    "jumpToLatest": "Przejdź do najnowszego",
+    "defaultModel": "Domyślny",
+    "stepsAriaLabel": "Kroki w toku",
+    "stepsHeading": "{done} z {total} kroków",
+    "approvalMode": {
+      "label": "Tryb zatwierdzania",
+      "ask": "Pytaj",
+      "auto": "Auto",
+      "autoNote": "Auto wykonuje usuwanie i inne nieodwracalne działania bez pytania. Restart, wyłączenie i aktualizacja zawsze pytają.",
+      "thisChat": "Auto w tym czacie — wybierz „Pytaj”, aby znów otrzymywać pytania."
+    },
+    "autoApproved": {
+      "badge": "auto",
+      "tooltip": "Wykonano bez pytania: tryb zatwierdzania to Auto lub wybrano „nie pytaj ponownie” w tym czacie."
+    },
+    "toolInput": "Argumenty",
+    "toolOutput": "Wynik",
+    "toolStates": {
+      "inputStreaming": "Przygotowywanie",
+      "inputAvailable": "Trwa",
+      "outputAvailable": "Gotowe",
+      "outputError": "Niepowodzenie",
+      "approvalRequested": "Czeka na Twoją zgodę",
+      "denied": "Nie uruchomiono",
+      "stopped": "Zatrzymano"
+    },
+    "status": {
+      "thinking": "Myślę…",
+      "running": "Wykonywanie: {tool}…",
+      "preparing": "Przygotowywanie: {tool}…",
+      "elapsed": "{seconds} s"
+    },
+    "question": {
+      "skip": "Pomiń",
+      "typeAnswer": "Albo wpisz odpowiedź poniżej.",
+      "answered": "Odpowiedź: {answer}",
+      "declined": "(pominięto)",
+      "cancelled": "(anulowano)"
+    },
+    "tool": {
+      "createPage": "Utwórz stronę",
+      "updatePage": "Zaktualizuj stronę",
+      "deletePage": "Usuń stronę",
+      "createSchedule": "Dodaj harmonogram",
+      "updateSchedule": "Zaktualizuj harmonogram",
+      "deleteSchedule": "Usuń harmonogram",
+      "createCollection": "Utwórz kolekcję",
+      "updateCollection": "Zaktualizuj kolekcję",
+      "deleteCollection": "Usuń kolekcję",
+      "installPlugin": "Zainstaluj wtyczkę",
+      "enablePlugin": "Włącz wtyczkę",
+      "disablePlugin": "Wyłącz wtyczkę",
+      "uninstallPlugin": "Odinstaluj wtyczkę",
+      "configurePlugin": "Skonfiguruj wtyczkę",
+      "updatePlugin": "Zaktualizuj wtyczkę",
+      "setActivePage": "Pokaż stronę na tablicy",
+      "setScheduleMode": "Ustaw tryb harmonogramu",
+      "sendMessage": "Wyślij wiadomość na tablicę",
+      "updateSetting": "Zmień ustawienie",
+      "triggerSystemUpdate": "Aktualizacja systemu",
+      "askUser": "Pytanie",
+      "listPages": "Sprawdź strony",
+      "getPage": "Odczytaj stronę",
+      "listSchedules": "Sprawdź harmonogramy",
+      "listCollections": "Sprawdź kolekcje",
+      "listInstalledPlugins": "Sprawdź zainstalowane wtyczki",
+      "listRegistryPlugins": "Przeglądaj rejestr wtyczek",
+      "getTemplateVariables": "Sprawdź zmienne szablonu",
+      "getPluginData": "Odczytaj dane wtyczki",
+      "renderPagePreview": "Podgląd szablonu",
+      "previewSavedPage": "Podgląd strony",
+      "validateTemplate": "Sprawdź szablon",
+      "getSystemStatus": "Sprawdź stan systemu",
+      "getSettingsSummary": "Odczytaj ustawienia",
+      "getActivePage": "Sprawdź aktywną stronę",
+      "getBoardContent": "Odczytaj tablicę"
+    },
+    "previewUnavailable": "(podgląd niedostępny)",
+    "history": {
+      "title": "Historia",
+      "searchPlaceholder": "Szukaj rozmów…",
+      "searchAriaLabel": "Szukaj rozmów po tytule",
+      "empty": "Brak zapisanych rozmów",
+      "emptyDescription": "Czaty są zapisywane automatycznie w trakcie pisania.",
+      "noMatches": "Żadna rozmowa nie pasuje do wyszukiwania.",
+      "messageCount": "{count, plural, one {# wiadomość} few {# wiadomości} many {# wiadomości} other {# wiadomości}}",
+      "open": "Otwórz {title}",
+      "rename": "Zmień nazwę",
+      "renameAriaLabel": "Zmień nazwę {title}",
+      "renameLabel": "Tytuł rozmowy",
+      "saveTitle": "Zapisz tytuł",
+      "cancel": "Anuluj",
+      "delete": "Usuń",
+      "deleteAriaLabel": "Usuń {title}",
+      "clearAll": "Wyczyść wszystko",
+      "clearAllTitle": "Usunąć wszystkie rozmowy?",
+      "clearAllDescription": "Spowoduje to usunięcie wszystkich zapisanych czatów z tego FiestaBoard. Nie można tego cofnąć.",
+      "clearAllConfirm": "Usuń wszystko",
+      "continue": "Kontynuuj",
+      "export": "Eksportuj JSON",
+      "readOnly": "Przeglądasz zapisaną rozmowę. Wybierz Kontynuuj, aby ją wznowić.",
+      "loadFailed": "Nie udało się wczytać tej rozmowy.",
+      "deleted": "Rozmowa usunięta",
+      "cleared": "Wszystkie rozmowy usunięte"
+    },
+    "sendShortcut": "Enter wysyła, Shift+Enter dodaje nowy wiersz",
+    "resizeHandle": "Zmień szerokość panelu FiestaBot",
+    "showJson": "Pokaż JSON",
+    "resultFields": "{count, plural, one {# pole} few {# pola} many {# pól} other {# pola}}",
+    "dayPattern": {
+      "all": "codziennie",
+      "weekdays": "w dni robocze",
+      "weekends": "w weekendy",
+      "custom": "wybrane dni"
+    },
+    "argLabel": {
+      "page": "Strona",
+      "time": "Godzina",
+      "days": "Dni",
+      "board": "Tablica",
+      "duration": "Czas trwania",
+      "lines": "Wiersze",
+      "name": "Nazwa",
+      "setting": "Ustawienie",
+      "message": "Wiadomość",
+      "plugin": "Wtyczka",
+      "collection": "Kolekcja",
+      "scheduleMode": "Tryb harmonogramu"
+    },
+    "argValue": {
+      "on": "Włączony",
+      "off": "Wyłączony",
+      "lineCount": "{count, plural, one {# wiersz} few {# wiersze} many {# wierszy} other {# wiersza}}",
+      "durationSeconds": "{count} s"
+    },
+    "toolRun": "{tool} · {count, plural, one {# raz} few {# razy} many {# razy} other {# raza}}",
+    "composerSettings": {
+      "triggerAriaLabel": "Ustawienia czatu: zatwierdzanie {mode}, model {model}",
+      "popoverLabel": "Ustawienia czatu"
+    },
+    "keepGoing": {
+      "prompt": "Asystent zatrzymał się w trakcie długiej tury. Nic nie zostało utracone.",
+      "action": "Kontynuuj"
+    }
   },
   "boardSizeIndicator": {
     "custom": "Niestandardowy",
@@ -2094,7 +2240,11 @@
     "claudeWebDescription": "<label>claude.ai web (Connectors):</label> nieobsługiwane w samodzielnie hostowanym FiestaBoard. Przepływ Connectors wymaga publicznego adresu HTTPS i dynamicznej rejestracji klienta OAuth 2.1, a host w sieci LAN nie zapewnia żadnej z tych rzeczy. Użyj zamiast tego Desktop lub Code.",
     "savedItButton": "Zapisane",
     "toastTokenRevoked": "Token MCP odwołany",
-    "toastCopyFailed": "Nie udało się skopiować do schowka"
+    "toastCopyFailed": "Nie udało się skopiować do schowka",
+    "lockedDescription": "Logowanie jest wyłączone w tej instalacji, więc bieżący token MCP sam w sobie jest poświadczeniem do zarządzania tokenami. Wpisz go poniżej, aby odblokować wymianę i odwoływanie.",
+    "lockedTokenLabel": "Bieżący token MCP",
+    "unlockButton": "Odblokuj",
+    "unlockFailedToast": "Ten token nie zgadza się ze skonfigurowanym tokenem MCP."
   },
   "fiestaPanels": {
     "title": "FiestaPanel",
@@ -2151,7 +2301,11 @@
     "hdmiHelp": "Wyświetla panel na ekranie podłączonym do portu HDMI tego Pi. Włączenie instaluje małą przeglądarkę w trybie kiosku (kilka minut).",
     "hdmiInstalling": "Konfigurowanie kiosku HDMI — na Pi instalowana jest przeglądarka, może to potrwać kilka minut…",
     "hdmiEnabledHint": "Ekran HDMI pokazuje panel z włączonym powyżej „Wyjściem ekranowym”.",
-    "hdmiFailed": "Ostatnia zmiana kiosku HDMI nie powiodła się. Spróbuj ponownie lub uruchom Pi ponownie."
+    "hdmiFailed": "Ostatnia zmiana kiosku HDMI nie powiodła się. Spróbuj ponownie lub uruchom Pi ponownie.",
+    "yourPanelsGroupLabel": "Twoje panele",
+    "panelSizeOption": "{name} · {wide}×{tall} bloki Note",
+    "fitsPanel": "Pasuje do {name}",
+    "fitsPanelAndMore": "Pasuje do {name} +{count} więcej"
   },
   "releaseChannel": {
     "title": "Release channel",
@@ -2167,6 +2321,60 @@
     "confirmCta": "Join the beta",
     "cancel": "Cancel",
     "switching": "Switching…",
-    "switchFailedToast": "Could not switch channel: {error}"
+    "switchFailedToast": "Could not switch channel: {error}",
+    "leaveCta": "Opuść wersję beta",
+    "leaveConfirmTitle": "Opuścić kanał beta?",
+    "leaveConfirmBody": "Spowoduje to powrót do bieżącej wersji stabilnej, która jest starsza niż używana wersja beta. Ustawienia i strony zostaną przywrócone z kopii zapasowej utworzonej przy dołączeniu — wszystko, co zmieniono w trakcie bety, zostanie utracone. FiestaBoard uruchomi się ponownie w wersji stabilnej. Jeśli wolisz zachować zmiany, poczekaj: gdy kolejna wersja stabilna wyprzedzi twoją betę, „Aktualizuj teraz” przeniesie cię na nią bez strat.",
+    "leaveConfirmCta": "Opuść wersję beta"
+  },
+  "aiApprovalCard": {
+    "heading": "Wymaga Twojej zgody",
+    "approve": "Zatwierdź",
+    "deny": "Odrzuć",
+    "working": "Trwa…",
+    "approveAll": "Zatwierdź i nie pytaj ponownie w tym czacie",
+    "description": {
+      "deletePage": "Trwale usuwa stronę „{detail}”. Harmonogramy i kolekcje, które jej używają, ją stracą.",
+      "deleteSchedule": "Trwale usuwa harmonogram „{detail}”. Nie można tego cofnąć.",
+      "deleteCollection": "Trwale usuwa kolekcję „{detail}”. Nie można tego cofnąć.",
+      "uninstallPlugin": "Trwale usuwa wtyczkę „{detail}” i jej konfigurację.",
+      "triggerSystemUpdate": "Pobiera i instaluje najnowszą aktualizację FiestaBoard. System na chwilę się zrestartuje.",
+      "generic": "Tej akcji nie da się cofnąć innym narzędziem."
+    }
+  },
+  "aiSpotlight": {
+    "stop": "Zatrzymaj",
+    "approve": "Zatwierdź",
+    "deny": "Odrzuć"
+  },
+  "aiChoreography": {
+    "working": "{tool}…",
+    "done": "{tool} — gotowe",
+    "failed": "{tool} nie powiodło się",
+    "awaitingApproval": "{tool} — czeka na Twoją zgodę",
+    "openingNewPage": "Otwieranie nowej strony…",
+    "typingName": "Nadawanie nazwy stronie…",
+    "typingLines": "Pisanie wierszy…",
+    "creatingPage": "Tworzenie „{name}”…",
+    "pageCreated": "Strona utworzona",
+    "pageUpdated": "Strona zaktualizowana",
+    "pageFailed": "Nie udało się zapisać strony",
+    "updatingBehindEdits": "Aktualizacja zapisanej strony — Twoje niezapisane zmiany pozostają",
+    "changingDevice": "Zmiana rozmiaru tablicy…",
+    "aboutToDeletePage": "Ta strona zostanie usunięta",
+    "pageDeleted": "Strona usunięta",
+    "openingScheduleForm": "Otwieranie formularza harmonogramu…",
+    "fillingSchedule": "Wypełnianie harmonogramu…",
+    "savingSchedule": "Zapisywanie harmonogramu…",
+    "scheduleCreated": "Harmonogram dodany",
+    "scheduleUpdated": "Harmonogram zaktualizowany",
+    "scheduleFailed": "Nie udało się zapisać harmonogramu",
+    "aboutToDeleteSchedule": "Ten harmonogram zostanie usunięty",
+    "scheduleDeleted": "Harmonogram usunięty",
+    "changingSetting": "{tool}…",
+    "settingSaved": "Ustawienie zapisane",
+    "settingFailed": "Nie udało się zapisać ustawienia",
+    "on": "Wł.",
+    "off": "Wył."
   }
 }

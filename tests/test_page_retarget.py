@@ -55,12 +55,23 @@ def env(monkeypatch, tmp_path):
     monkeypatch.setattr("src.collections.service.get_collection_service", lambda: collection_service)
     monkeypatch.setattr("src.schedules.service.get_schedule_service", lambda: schedule_service)
     monkeypatch.setattr("src.schedules.service.get_settings_service", lambda: settings)
+    # PUT /pages/{id} is served by src/pages/routes.py, which binds its
+    # collaborators at import time since Phase 2 slice 3.
+    monkeypatch.setattr("src.pages.routes.get_page_service", lambda: page_service)
+    monkeypatch.setattr("src.pages.routes.get_settings_service", lambda: settings)
+    monkeypatch.setattr("src.pages.routes.get_collection_service", lambda: collection_service)
+    monkeypatch.setattr("src.pages.routes.get_schedule_service", lambda: schedule_service)
+    monkeypatch.setattr("src.pages.routes.get_service", lambda: None)
     monkeypatch.setattr("src.api_server.get_page_service", lambda: page_service)
     monkeypatch.setattr("src.api_server.get_settings_service", lambda: settings)
     monkeypatch.setattr("src.api_server.get_collection_service", lambda: collection_service)
-    monkeypatch.setattr("src.api_server.get_schedule_service", lambda: schedule_service)
     monkeypatch.setattr("src.api_server.get_service", lambda: None)
+    monkeypatch.setattr("src.board_guards.get_settings_service", lambda: settings)
+    # Both bindings: `api_server` imports the flag but keeps its own local
+    # name for the handlers still in that module, and the plugins router
+    # reads the source.
     monkeypatch.setattr("src.api_server.PLUGIN_SYSTEM_AVAILABLE", False)
+    monkeypatch.setattr("src.plugins.routes.PLUGIN_SYSTEM_AVAILABLE", False)
 
     flagship_page = page_service.create_page(PageCreate(name="Flag Page", type="template", template=["a"]))
 
@@ -316,12 +327,19 @@ class TestUpdatePageRoute:
         assert response.status_code == 200
         assert response.json()["incompatible_references"] == []
 
-    def test_no_size_change_omits_key(self, client, env):
+    def test_no_size_change_reports_no_references(self, client, env):
+        """An edit that keeps the size never reports a stale reference.
+
+        The key used to be absent entirely; since the Phase 2 conventions pass
+        the response is one typed shape and the list is simply empty. The
+        behavior under test is the same: a rename must not warn about the
+        schedule entry that still points at this page.
+        """
         page = env["flagship_page"]
         _schedule(env, page.id)
         response = client.put(f"/pages/{page.id}", json={"name": "Renamed"})
         assert response.status_code == 200
-        assert "incompatible_references" not in response.json()
+        assert response.json()["incompatible_references"] == []
 
     def test_references_not_mutated(self, client, env):
         """Warn-only: the stale schedule entry and active page are untouched."""

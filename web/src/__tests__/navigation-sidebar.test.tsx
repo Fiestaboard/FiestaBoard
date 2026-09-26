@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { http, HttpResponse } from "msw";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -158,11 +158,10 @@ describe("NavigationSidebar mobile menu", () => {
 
 /*
  * @fiestaboard/ui v5.12 collapsed the rail's two nav landmarks into one flat
- * list: Picks, Help & Docs, Settings and the account row are now rows in the
- * same list as Home and Pages rather than a section fenced off below it.
- * "Secondary navigation" is gone — these tests assert the list's CONTENTS,
- * which is what the app actually promises, and no longer the shape of the
- * container they happen to sit in.
+ * list; 7.0.0 then took the assistant and Settings OUT of it. The list is
+ * destinations only — places you can be — so these tests assert its
+ * CONTENTS, which is what the app actually promises, and no longer the shape
+ * of the container they happen to sit in.
  */
 describe("NavigationSidebar nav list", () => {
   beforeEach(() => {
@@ -186,11 +185,27 @@ describe("NavigationSidebar nav list", () => {
     expect(collectionsLinks.length).toBeGreaterThan(0);
   });
 
-  it("shows Settings in the nav list", () => {
+  it("keeps Settings out of the nav list", () => {
+    // Settings moved to the footer menu. A nav row for it made the rail
+    // claim you could "be on" your own preferences, and it competed for
+    // height with the destinations that actually scroll.
     render(<NavigationSidebar />, { wrapper: TestWrapper });
 
-    const settingsLinks = screen.getAllByText("Settings");
-    expect(settingsLinks.length).toBeGreaterThan(0);
+    for (const nav of screen.getAllByLabelText("Primary navigation")) {
+      expect(within(nav).queryByRole("link", { name: "Settings" })).not.toBeInTheDocument();
+    }
+  });
+
+  it("reaches Settings from the footer menu instead", async () => {
+    const user = userEvent.setup();
+    render(<NavigationSidebar />, { wrapper: TestWrapper });
+
+    const triggers = document.querySelectorAll<HTMLElement>('[data-slot="sidebar-settings-trigger"]');
+    expect(triggers.length).toBeGreaterThan(0);
+    await user.click(triggers[0]);
+
+    const menu = await screen.findByRole("menu");
+    expect(within(menu).getByRole("menuitem", { name: "Settings" })).toBeInTheDocument();
   });
 
   it("shows Help & Docs in the nav list", () => {
@@ -269,7 +284,7 @@ describe("NavigationSidebar AI Assistant visibility (issue #806)", () => {
     render(<NavigationSidebar />, { wrapper: TestWrapper });
 
     await waitFor(() => {
-      expect(screen.queryByText("AI Assistant")).not.toBeInTheDocument();
+      expect(screen.queryByRole("button", { name: "AI Assistant" })).not.toBeInTheDocument();
     });
   });
 
@@ -296,8 +311,41 @@ describe("NavigationSidebar AI Assistant visibility (issue #806)", () => {
     render(<NavigationSidebar />, { wrapper: TestWrapper });
 
     await waitFor(() => {
-      expect(screen.getAllByText("AI Assistant").length).toBeGreaterThan(0);
+      expect(screen.getAllByRole("button", { name: "AI Assistant" }).length).toBeGreaterThan(0);
     });
+  });
+
+  it("keeps the assistant out of the nav list entirely", async () => {
+    // The dual-highlight bug: as a nav row, opening the drawer over /pages
+    // lit Pages AND AI Assistant at once. Out of the list, the route
+    // highlight is the only thing the list can say.
+    server.use(
+      http.get(`${API_BASE}/settings/ai`, () =>
+        HttpResponse.json({
+          enabled: true,
+          providers: [
+            {
+              id: "p1",
+              name: "OpenRouter",
+              base_url: "https://openrouter.ai/api/v1",
+              api_key: "sk-test",
+              models: ["openai/gpt-4o-mini"],
+              default_model: "openai/gpt-4o-mini",
+            },
+          ],
+          default_provider_id: "p1",
+        }),
+      ),
+    );
+
+    render(<NavigationSidebar />, { wrapper: TestWrapper });
+
+    await waitFor(() => {
+      expect(screen.getAllByRole("button", { name: "AI Assistant" }).length).toBeGreaterThan(0);
+    });
+    for (const nav of screen.getAllByLabelText("Primary navigation")) {
+      expect(within(nav).queryByRole("button", { name: "AI Assistant" })).not.toBeInTheDocument();
+    }
   });
 
   it("hides AI Assistant button when AI is enabled but no providers configured", async () => {
@@ -314,7 +362,7 @@ describe("NavigationSidebar AI Assistant visibility (issue #806)", () => {
     render(<NavigationSidebar />, { wrapper: TestWrapper });
 
     await waitFor(() => {
-      expect(screen.queryByText("AI Assistant")).not.toBeInTheDocument();
+      expect(screen.queryByRole("button", { name: "AI Assistant" })).not.toBeInTheDocument();
     });
   });
 });

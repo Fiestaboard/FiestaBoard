@@ -72,29 +72,36 @@ class TestApiSendGuards:
         """POST /send-message drives the primary board's client (issue #1788)."""
         service = MagicMock()
         service.vb_client.render.return_value = (True, True)
+        settings = _settings()
         with (
             _board_aware_silence(),
             patch("src.api_server.get_service", return_value=service),
-            patch("src.api_server.get_settings_service", return_value=_settings()),
+            patch("src.api_server.get_settings_service", return_value=settings),
+            # The send guards moved to src/board_guards.py (Phase 2 slice 3).
+            patch("src.board_guards.get_settings_service", return_value=settings),
         ):
             response = client.post("/send-message", json={"text": "HELLO"})
 
-        assert response.status_code == 200, response.text
-        assert response.json()["status"] == "blocked"
-        assert response.json()["silence_mode"] is True
+        # Phase 2 Task 8: the refusal is a 409, matching the /pages and /debug
+        # senders, instead of a 200 carrying the word "blocked".
+        assert response.status_code == 409, response.text
+        assert "silence mode" in response.json()["detail"]
         service.vb_client.render.assert_not_called()
 
     def test_send_welcome_message_respects_the_primary_boards_window(self, client):
+        settings = _settings()
         with (
             _board_aware_silence(),
-            patch("src.api_server.get_settings_service", return_value=_settings()),
+            patch("src.api_server.get_settings_service", return_value=settings),
+            # The send guards moved to src/board_guards.py (Phase 2 slice 3).
+            patch("src.board_guards.get_settings_service", return_value=settings),
             patch("src.board_client.BoardClient") as board_client,
         ):
             board_client.return_value.render.return_value = (True, True)
             response = client.post("/send-welcome-message")
 
-        assert response.status_code == 200, response.text
-        assert response.json()["status"] == "blocked"
+        assert response.status_code == 409, response.text
+        assert "silence mode" in response.json()["detail"]
         board_client.return_value.render.assert_not_called()
 
     def test_page_send_respects_the_target_boards_window(self, client):
@@ -102,18 +109,24 @@ class TestApiSendGuards:
         page = MagicMock(transition_strategy=None, transition_interval_ms=None, transition_step_size=None)
         page_service = MagicMock()
         page_service.get_page.return_value = page
-        page_service.preview_page.return_value = MagicMock(available=True, error=None)
+        # ``formatted`` is a real string now that PageSendResponse types the
+        # body — a bare MagicMock no longer serializes.
+        page_service.preview_page.return_value = MagicMock(available=True, error=None, formatted="HELLO")
         service = MagicMock()
         board_client = MagicMock()
         board_client.render.return_value = (True, True)
         service.get_board_client.return_value = board_client
 
+        settings = _settings(primary=LOUD_BOARD)
+        # POST /pages/{id}/send is served by src/pages/routes.py, which since
+        # Phase 2 slice 3 binds its collaborators at import time — so the stubs
+        # go where that module looks them up, not on api_server.
         with (
             _board_aware_silence(),
-            patch("src.api_server.get_page_service", return_value=page_service),
-            patch("src.api_server.get_settings_service", return_value=_settings(primary=LOUD_BOARD)),
-            patch("src.api_server.get_service", return_value=service),
-            patch("src.api_server._find_board", return_value=BOARDS[0]),
+            patch("src.pages.routes.get_page_service", return_value=page_service),
+            patch("src.pages.routes.get_settings_service", return_value=settings),
+            patch("src.pages.routes.get_service", return_value=service),
+            patch("src.pages.routes._require_board", return_value=BOARDS[0]),
         ):
             response = client.post(f"/pages/page-1/send?board_id={SILENCED_BOARD}")
 
@@ -127,10 +140,10 @@ class TestApiSendGuards:
 
         with (
             _board_aware_silence(),
-            patch("src.api_server._ensure_transition_plugins_beta"),
-            patch("src.plugins.registry.get_plugin_registry", return_value=registry),
-            patch("src.api_server._resolve_live_board_client", return_value=(BOARDS[0], MagicMock())),
-            patch("src.api_server.get_settings_service", return_value=_settings(primary=LOUD_BOARD)),
+            patch("src.transitions.routes._ensure_transition_plugins_beta"),
+            patch("src.transitions.service.get_plugin_registry", return_value=registry),
+            patch("src.transitions.service._resolve_live_board_client", return_value=(BOARDS[0], MagicMock())),
+            patch("src.transitions.service.get_settings_service", return_value=_settings(primary=LOUD_BOARD)),
         ):
             response = client.post(
                 "/transitions/test-live",
@@ -145,9 +158,9 @@ class TestApiSendGuards:
     def test_transition_restore_respects_the_target_boards_window(self, client):
         with (
             _board_aware_silence(),
-            patch("src.api_server._ensure_transition_plugins_beta"),
-            patch("src.api_server._resolve_live_board_client", return_value=(BOARDS[0], MagicMock())),
-            patch("src.api_server.get_settings_service", return_value=_settings(primary=LOUD_BOARD)),
+            patch("src.transitions.routes._ensure_transition_plugins_beta"),
+            patch("src.transitions.service._resolve_live_board_client", return_value=(BOARDS[0], MagicMock())),
+            patch("src.transitions.service.get_settings_service", return_value=_settings(primary=LOUD_BOARD)),
         ):
             response = client.post("/transitions/restore", json={"board_id": SILENCED_BOARD})
 

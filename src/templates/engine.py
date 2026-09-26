@@ -37,22 +37,11 @@ from src.devices import DEFAULT_DEVICE_TYPE, BoardContext, resolve_dimensions
 from src.plugins import get_plugin_registry
 from src.text_utils import extract_alignment_from_line
 
+from .colors import COLOR_CODES
+from .colors import is_color_code as _is_color_code
 from .expressions import find_formulas, render_expressions, validate_expression
 
 logger = logging.getLogger(__name__)
-
-# Color name to code mapping
-COLOR_CODES = {
-    "red": 63,
-    "orange": 64,
-    "yellow": 65,
-    "green": 66,
-    "blue": 67,
-    "violet": 68,
-    "purple": 68,  # alias
-    "white": 69,
-    "black": 70,
-}
 
 # Symbol name to character mapping
 SYMBOL_CHARS = {
@@ -69,19 +58,61 @@ SYMBOL_CHARS = {
     "x": "X",
 }
 
-
 # Regex patterns
 # Note: ``[^}{]+`` (rather than ``[^}]+``) prevents overlapping matches and
 # eliminates polynomial backtracking on inputs like ``{{{{{{...``.  Variable
 # expressions never contain ``{`` themselves.
 VAR_PATTERN = re.compile(r"\{\{([^}{]+)\}\}")  # {{source.field}} or {{source.field|filter}}
 COLOR_PATTERN = re.compile(
-    r"\{\{(red|orange|yellow|green|blue|violet|purple|white|black|6[3-9]|7[01])\}\}", re.IGNORECASE
+    r"\{\{(red|orange|yellow|green|blue|violet|purple|white|black|filled|6[3-9]|7[01])\}\}", re.IGNORECASE
 )
 SYMBOL_PATTERN = re.compile(r"\{(sun|star|cloud|rain|snow|storm|fog|partly|heart|check|x)\}", re.IGNORECASE)
 FILL_SPACE_PATTERN = re.compile(r"\{\{fill_space\}\}", re.IGNORECASE)
 FILL_SPACE_REPEAT_PATTERN = re.compile(r"\{\{fill_space_repeat:(.+?)\}\}", re.IGNORECASE)
 FILLED_PATTERN = re.compile(r"\{\{filled:(.+?)\}\}", re.IGNORECASE)
+
+
+def extract_template_plugin_ids(template_lines: "list[str] | str | None") -> set[str] | None:
+    """Statically extract the plugin ids a template's variables reference.
+
+    A plain ``{{source.field...}}`` variable resolves against the template
+    context by its root: ``source`` is the plugin id (or instance key like
+    ``weather:sf``), exactly as ``_get_variable_value`` looks it up. That
+    makes the fetch set of a template statically computable, so a render
+    can fetch only the plugins it will actually read (issue #1751).
+
+    Returns ``None`` when the set CANNOT be determined statically — today
+    that is any ``{{= ... }}`` formula expression, whose variable references
+    live inside an expression grammar this scan does not parse. ``None``
+    tells the caller to fall back to fetching every enabled plugin, which
+    is always safe (it is the pre-#1751 behavior).
+
+    Expressions that never read plugin data are skipped: color markers
+    (``{{red}}``), ``fill_space`` / ``filled:`` / ``fill_space_repeat:``
+    specials, and dotless or empty roots (all of which render without a
+    context lookup). Roots that don't name an enabled plugin are harmless
+    to include — the registry intersects with the enabled set.
+    """
+    if template_lines is None:
+        return set()
+    lines = [template_lines] if isinstance(template_lines, str) else list(template_lines)
+
+    refs: set[str] = set()
+    for line in lines:
+        if not line:
+            continue
+        for match in VAR_PATTERN.finditer(line):
+            expr = match.group(1).strip()
+            if expr.startswith("="):
+                return None  # formula: variable owners are not statically known
+            var_part = expr.split("|", 1)[0].strip().lower()
+            if var_part == "fill_space" or var_part.startswith(("filled:", "fill_space_repeat:")):
+                continue
+            root, sep, rest = var_part.partition(".")
+            if not sep or not root or not rest:
+                continue  # colors, invalid or dotless expressions: no context lookup
+            refs.add(root)
+    return refs
 
 
 @dataclass
@@ -157,7 +188,11 @@ class TemplateEngine:
             Rendered string with all substitutions applied
         """
         if context is None:
-            context = self._build_context()
+            # Demand-driven, exactly as PageService.render_page already is
+            # (#1751): fetch only the plugins this template's variables name.
+            # ``extract_template_plugin_ids`` returns None for a formula page,
+            # which keeps the safe fetch-everything fallback.
+            context = self._build_context(plugin_ids=extract_template_plugin_ids(template))
 
         result = template
 
@@ -202,7 +237,7 @@ class TemplateEngine:
                     # Check if it's a color code (numeric 63-71 or named)
                     if content.isdigit():
                         code = int(content)
-                        if 63 <= code <= 71:
+                        if _is_color_code(code):
                             # Numeric color code like {66}, {70}, or {71}
                             tile_count += 1
                             i = closing_brace + 1
@@ -247,7 +282,7 @@ class TemplateEngine:
                     # Check if it's a color code (numeric 63-71 or named)
                     if content.isdigit():
                         code = int(content)
-                        if 63 <= code <= 71:
+                        if _is_color_code(code):
                             # Numeric color code like {66}, {70}, or {71}
                             result.append(text[i : closing_brace + 1])
                             tile_count += 1
@@ -322,7 +357,10 @@ class TemplateEngine:
         # Build the BoardContext from the resolved dims so plugins receive the true
         # board size — including note arrays (no fixed DEVICE_DIMENSIONS entry).
         if context is None:
-            context = self._build_context(BoardContext(render_device_type, rows=dims.rows, cols=dims.cols))
+            context = self._build_context(
+                BoardContext(render_device_type, rows=dims.rows, cols=dims.cols),
+                plugin_ids=extract_template_plugin_ids(template_lines),
+            )
         num_rows = dims.rows
         board_width = dims.cols
 
@@ -517,7 +555,6 @@ class TemplateEngine:
             # Subsequent lines have full width
             subsequent_width = board_width
 
-            # Word-wrap the value
             wrapped = self._word_wrap(value, first_line_width, subsequent_width, max_lines)
 
             # Build result lines
@@ -608,8 +645,7 @@ class TemplateEngine:
                 closing_brace = text.find("}", i)
                 if closing_brace != -1:
                     content = text[i + 1 : closing_brace]
-                    # Check if it's a color code
-                    if content.isdigit() and 63 <= int(content) <= 70:
+                    if content.isdigit() and _is_color_code(int(content)):
                         # It's a numeric color marker
                         tokens.append(text[i : closing_brace + 1])
                         i = closing_brace + 1
@@ -661,8 +697,7 @@ class TemplateEngine:
                 closing_brace = text.find("}", i)
                 if closing_brace != -1:
                     content = text[i + 1 : closing_brace]
-                    # Check if it's a color code
-                    if content.isdigit() and 63 <= int(content) <= 70:
+                    if content.isdigit() and _is_color_code(int(content)):
                         # It's a color marker - add to current word
                         current_word += text[i : closing_brace + 1]
                         i = closing_brace + 1
@@ -714,7 +749,6 @@ class TemplateEngine:
                             tokens_to_take += 1
 
                         if tokens_to_take > 0:
-                            # Reconstruct the line from tokens
                             current_line = "".join(tokens[:tokens_to_take])
                             remaining_word = "".join(tokens[tokens_to_take:])
                             lines.append(current_line)
@@ -735,7 +769,6 @@ class TemplateEngine:
                                 current_width = subsequent_width
                             else:
                                 break
-                    # Set current_line to any remaining part
                     current_line = remaining_word if remaining_word else ""
             elif current_line_tiles + 1 + word_tiles <= current_width:
                 # Word fits on current line
@@ -767,7 +800,6 @@ class TemplateEngine:
                             tokens_to_take += 1
 
                         if tokens_to_take > 0:
-                            # Reconstruct the line from tokens
                             current_line = "".join(tokens[:tokens_to_take])
                             remaining_word = "".join(tokens[tokens_to_take:])
                             lines.append(current_line)
@@ -798,12 +830,16 @@ class TemplateEngine:
 
         return lines
 
-    def _build_context(self, board: BoardContext | None = None) -> dict[str, Any]:
-        """Build context by fetching all available data from enabled plugins.
+    def _build_context(self, board: BoardContext | None = None, plugin_ids: "set[str] | None" = None) -> dict[str, Any]:
+        """Build context by fetching data from enabled plugins.
 
         Args:
             board: Board being rendered on, forwarded to plugins so board-aware
                 ones can adapt their data. ``None`` keeps board-agnostic behavior.
+            plugin_ids: Fetch only these plugins (plus trigger plugins, which
+                the registry adds itself). ``None`` fetches everything — the
+                safe fallback for a template whose variable owners cannot be
+                determined statically.
 
         Returns:
             Dictionary mapping plugin_id to plugin data
@@ -811,7 +847,9 @@ class TemplateEngine:
         if not self._plugin_registry:
             return {}
 
-        return self._plugin_registry.build_template_context(board)
+        if plugin_ids is None:
+            return self._plugin_registry.build_template_context(board)
+        return self._plugin_registry.build_template_context(board, plugin_ids=plugin_ids)
 
     def _render_variables(self, template: str, context: dict[str, Any]) -> str:
         """Replace {{source.field}} variables with values from context.
@@ -839,7 +877,7 @@ class TemplateEngine:
                 color_code_match = re.match(r"^\{(\d+)\}$", value)
                 if color_code_match:
                     code = int(color_code_match.group(1))
-                    if 63 <= code <= 70:
+                    if _is_color_code(code):
                         # Already a valid color code, return as-is
                         return value
                 # If value already starts with a color code (e.g. {66}RISE), do not add
@@ -1014,7 +1052,6 @@ class TemplateEngine:
             entity_id_part = parts[1]
             attribute = parts[2]
 
-            # Get home_assistant context data first
             ha_data = context.get("home_assistant", {})
 
             # Smart entity_id conversion: try different underscore positions
@@ -1421,7 +1458,7 @@ class TemplateEngine:
         lines = template.split("\n")
 
         # Get available sources based on system mode
-        available_sources = self._get_all_known_sources()
+        available_sources = self.get_all_known_sources()
 
         for line_num, line in enumerate(lines, 1):
             # Check for unclosed variable braces
@@ -1430,7 +1467,6 @@ class TemplateEngine:
             if open_count != close_count:
                 errors.append(TemplateError(line=line_num, column=0, message="Mismatched variable braces {{}}"))
 
-            # Calculate max possible line length
             max_length = self._calculate_max_line_length(line, cols=cols)
             if max_length > cols:
                 errors.append(
@@ -1474,11 +1510,15 @@ class TemplateEngine:
 
         return errors
 
-    def _get_all_known_sources(self) -> set:
+    def get_all_known_sources(self) -> set:
         """Get all known plugin IDs (for validation).
 
         Includes all plugins, not just enabled ones, so templates
         can be validated even if not all plugins are enabled.
+
+        Public because routers validate payloads against it — reaching into
+        another object's ``_private`` members from a route is exactly what
+        ``docs/internal/reference/API_CONVENTIONS.md`` bans.
         """
         if not self._plugin_registry:
             return set()
@@ -1523,7 +1563,6 @@ class TemplateEngine:
         # Get max lengths from appropriate source
         max_lengths = self._get_max_lengths_for_validation()
 
-        # Replace variables with their max length
         def replace_with_max_length(match):
             expr = match.group(1).strip()
             # Remove filters for lookup
@@ -1568,7 +1607,9 @@ class TemplateEngine:
             return {}
 
         max_lengths: dict[str, int] = {}
-        for plugin_id, manifest in self._plugin_registry._manifests.items():
+        # list() snapshots atomically, so a concurrent plugin install can't
+        # mutate the manifests dict mid-iteration (#1828).
+        for plugin_id, manifest in list(self._plugin_registry._manifests.items()):
             for var_name, max_len in manifest.max_lengths.items():
                 full_name = f"{plugin_id}.{var_name}"
                 max_lengths[full_name] = max_len

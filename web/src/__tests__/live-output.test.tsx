@@ -118,24 +118,23 @@ describe("Live Output Mode", () => {
       lines: ["test preview"],
       line_count: 1,
       sent_to_board: true,
+      paused: false,
       board_id: "board-1",
     });
+    // createPage answers the bare page since the Phase 2 conventions pass.
     vi.mocked(api.createPage).mockResolvedValue({
-      status: "success",
-      page: {
-        id: "test-page-id",
-        name: "Test Page",
-        type: "template",
-        device_type: "flagship",
-        template: ["", "", "", "", "", ""],
-        duration_seconds: 300,
-        created_at: new Date().toISOString(),
-      },
+      id: "test-page-id",
+      name: "Test Page",
+      type: "template",
+      device_type: "flagship",
+      template: ["", "", "", "", "", ""],
+      duration_seconds: 300,
+      created_at: new Date().toISOString(),
     });
     vi.mocked(api.getBoardSettings).mockResolvedValue(defaultBoardSettings);
     vi.mocked(api.forceRefresh).mockResolvedValue({
-      status: "success",
       message: "Display force-refreshed successfully",
+      sent: true,
     });
   });
 
@@ -321,24 +320,23 @@ describe("Live Output - Board Selector Interaction", () => {
       lines: ["test"],
       line_count: 1,
       sent_to_board: true,
+      paused: false,
       board_id: "board-1",
     });
     vi.mocked(api.getBoardSettings).mockResolvedValue(multiBoardSettings);
     vi.mocked(api.forceRefresh).mockResolvedValue({
-      status: "success",
       message: "Display force-refreshed successfully",
+      sent: true,
     });
+    // createPage answers the bare page since the Phase 2 conventions pass.
     vi.mocked(api.createPage).mockResolvedValue({
-      status: "success",
-      page: {
-        id: "test-page-id",
-        name: "Test Page",
-        type: "template",
-        device_type: "flagship",
-        template: ["", "", "", "", "", ""],
-        duration_seconds: 300,
-        created_at: new Date().toISOString(),
-      },
+      id: "test-page-id",
+      name: "Test Page",
+      type: "template",
+      device_type: "flagship",
+      template: ["", "", "", "", "", ""],
+      duration_seconds: 300,
+      created_at: new Date().toISOString(),
     });
   });
 
@@ -392,24 +390,23 @@ describe("Live Output - Auto-timeout", () => {
       lines: ["test"],
       line_count: 1,
       sent_to_board: true,
+      paused: false,
       board_id: "board-1",
     });
     vi.mocked(api.getBoardSettings).mockResolvedValue(defaultBoardSettings);
     vi.mocked(api.forceRefresh).mockResolvedValue({
-      status: "success",
       message: "Display force-refreshed successfully",
+      sent: true,
     });
+    // createPage answers the bare page since the Phase 2 conventions pass.
     vi.mocked(api.createPage).mockResolvedValue({
-      status: "success",
-      page: {
-        id: "test-page-id",
-        name: "Test Page",
-        type: "template",
-        device_type: "flagship",
-        template: ["", "", "", "", "", ""],
-        duration_seconds: 300,
-        created_at: new Date().toISOString(),
-      },
+      id: "test-page-id",
+      name: "Test Page",
+      type: "template",
+      device_type: "flagship",
+      template: ["", "", "", "", "", ""],
+      duration_seconds: 300,
+      created_at: new Date().toISOString(),
     });
   });
 
@@ -526,12 +523,13 @@ describe("Live Output - Cleanup on unmount", () => {
       lines: ["test"],
       line_count: 1,
       sent_to_board: true,
+      paused: false,
       board_id: "board-1",
     });
     vi.mocked(api.getBoardSettings).mockResolvedValue(defaultBoardSettings);
     vi.mocked(api.forceRefresh).mockResolvedValue({
-      status: "success",
       message: "Display force-refreshed successfully",
+      sent: true,
     });
   });
 
@@ -566,8 +564,8 @@ describe("Live Output - Cleanup on unmount", () => {
 
   it("calls forceRefresh on unmount when live output was enabled", async () => {
     vi.mocked(api.forceRefresh).mockResolvedValue({
-      status: "success",
       message: "Display force-refreshed successfully",
+      sent: true,
     });
     const user = userEvent.setup();
     const { unmount } = render(<PageBuilder onClose={mockOnClose} onSave={mockOnSave} />, { wrapper: TestWrapper });
@@ -590,8 +588,8 @@ describe("Live Output - Cleanup on unmount", () => {
 
   it("does not call forceRefresh on unmount when live output was not enabled", async () => {
     vi.mocked(api.forceRefresh).mockResolvedValue({
-      status: "success",
       message: "Display force-refreshed successfully",
+      sent: true,
     });
     const { unmount } = render(<PageBuilder onClose={mockOnClose} onSave={mockOnSave} />, { wrapper: TestWrapper });
 

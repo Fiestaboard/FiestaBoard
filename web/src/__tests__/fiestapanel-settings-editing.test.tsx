@@ -52,7 +52,10 @@ function Wrapper({ children }: { children: React.ReactNode }) {
   return <QueryClientProvider client={client}>{children}</QueryClientProvider>;
 }
 
-function mockList(panels: Panel[] = [PANEL], hdmi: object = { supported: false, status: "unsupported" }) {
+function mockList(
+  panels: Panel[] = [PANEL],
+  hdmi: object = { supported: false, status: "unsupported", enabled: null },
+) {
   server.use(
     http.get("/api/panels", () => HttpResponse.json({ panels, total: panels.length })),
     http.get("/api/settings/hdmi-kiosk", () => HttpResponse.json(hdmi)),
@@ -86,7 +89,7 @@ describe("FiestaPanelSettings — edit dialog", () => {
     server.use(
       http.patch("/api/panels/abc123def456", () => {
         patched = true;
-        return HttpResponse.json({ status: "success", panel: PANEL });
+        return HttpResponse.json({ ...PANEL, incompatible_references: null });
       }),
     );
     const user = userEvent.setup();
@@ -113,8 +116,8 @@ describe("FiestaPanelSettings — edit dialog", () => {
     server.use(
       http.patch("/api/panels/abc123def456", () =>
         HttpResponse.json({
-          status: "success",
-          panel: { ...PANEL, screen_diagonal_inches: 85 },
+          ...PANEL,
+          screen_diagonal_inches: 85,
           incompatible_references: [
             { page_id: "p1", page_name: "Morning Board", surface: "schedule", schedule_id: "s1" },
             { page_id: "p1", page_name: "Morning Board", surface: "active_page", schedule_id: null },
@@ -141,7 +144,7 @@ describe("FiestaPanelSettings — edit dialog", () => {
     server.use(
       http.patch("/api/panels/abc123def456", async ({ request }) => {
         patchBody = (await request.json()) as Record<string, unknown>;
-        return HttpResponse.json({ status: "success", panel: PANEL });
+        return HttpResponse.json({ ...PANEL, incompatible_references: null });
       }),
     );
     const user = userEvent.setup();
@@ -178,7 +181,7 @@ describe("FiestaPanelSettings — edit dialog", () => {
     mockList();
     server.use(
       http.patch("/api/panels/abc123def456", () =>
-        HttpResponse.json({ status: "success", panel: { ...PANEL, name: "Lounge TV" } }),
+        HttpResponse.json({ ...PANEL, name: "Lounge TV", incompatible_references: null }),
       ),
     );
     const user = userEvent.setup();
@@ -199,7 +202,7 @@ describe("FiestaPanelSettings — HDMI install kickoff", () => {
     // The sidecar responds "queued" but the status query still reports
     // "disabled" for a while (apt install hasn't started). The switch must
     // not snap back to off with the install running invisibly.
-    mockList([PANEL], { supported: true, status: "disabled" });
+    mockList([PANEL], { supported: true, status: "disabled", enabled: false });
     server.use(
       http.post("/api/settings/hdmi-kiosk", () => HttpResponse.json({ status: "queued", action: "hdmi_enable" })),
     );

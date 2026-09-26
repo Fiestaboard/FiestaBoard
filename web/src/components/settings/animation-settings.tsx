@@ -20,6 +20,7 @@ import { BoardDisplay } from "@/components/board-display";
 import { useBoardAnimationsEnabled } from "@/hooks/use-board-animations";
 import { useDepsChanged } from "@/hooks/use-deps-changed";
 import { useTranslations } from "@/i18n/translations";
+import { anchorProps } from "@/lib/ai-choreography/anchors";
 import { api, type BoardAnimationsMode, type DisplaySettings, type SiteAnimationsMode } from "@/lib/api";
 
 const BOARD_OPTIONS: BoardAnimationsMode[] = ["on", "desktop", "off"];
@@ -149,6 +150,7 @@ export function AnimationSettings() {
       title={t("animationsTitle")}
       description={t("animationsDescription")}
       contentClassName="space-y-5"
+      {...anchorProps("settings.display")}
     >
       {isLoading ? (
         <Skeleton className="h-20 w-full" />
@@ -161,7 +163,13 @@ export function AnimationSettings() {
                 {t("boardAnimationsHint")}
               </Text>
             </Box>
-            <Flex wrap gap="2" role="radiogroup" aria-label={t("boardAnimationsLabel")}>
+            <Flex
+              wrap
+              gap="2"
+              role="radiogroup"
+              aria-label={t("boardAnimationsLabel")}
+              {...anchorProps("settings.display.board_animations")}
+            >
               {BOARD_OPTIONS.map((option) => {
                 const selected = boardMode === option;
                 return (
@@ -195,7 +203,13 @@ export function AnimationSettings() {
                 {t("flapSpeedHint")}
               </Text>
             </Box>
-            <Flex wrap gap="2" role="radiogroup" aria-label={t("flapSpeedLabel")}>
+            <Flex
+              wrap
+              gap="2"
+              role="radiogroup"
+              aria-label={t("flapSpeedLabel")}
+              {...anchorProps("settings.display.board_flap_speed")}
+            >
               {FLAP_SPEED_OPTIONS.map((option) => {
                 const selected = flapSpeed === option;
                 return (
@@ -260,7 +274,13 @@ export function AnimationSettings() {
                 {t("siteAnimationsHint")}
               </Text>
             </Box>
-            <Flex wrap gap="2" role="radiogroup" aria-label={t("siteAnimationsLabel")}>
+            <Flex
+              wrap
+              gap="2"
+              role="radiogroup"
+              aria-label={t("siteAnimationsLabel")}
+              {...anchorProps("settings.display.site_animations")}
+            >
               {SITE_OPTIONS.map((option) => {
                 const selected = siteMode === option;
                 return (

@@ -554,6 +554,13 @@ class TestCollectionStorage:
         assert storage.count() == 1
         original_bytes = path.read_bytes()
 
+        # The pending save must be a REAL one: an unchanged save is now
+        # correctly skipped as a no-op (write_json_atomic if_changed), so a
+        # crash test that re-saves identical bytes would never reach the
+        # crash it exists to test.
+        only = next(iter(storage._collections))
+        storage._collections[only] = storage._collections[only].model_copy(update={"name": "Renamed"})
+
         real_dump = json.dump
 
         def crashing_dump(obj, fh, *args, **kwargs):

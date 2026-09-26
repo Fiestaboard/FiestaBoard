@@ -7,6 +7,10 @@ on the stable line, which is this file.
 Switching is one-way here on purpose. Joining the beta lands you on 9.x,
 which carries the leave half — there is no reason to write that twice.
 
+On this trunk the routes live in ``src/system/`` and the domain logic in
+``src/system/update_service.py``; the tests patch the service module, per
+that package's documented seam.
+
 Mechanically the app never edits a compose file (it cannot: the sidecar
 mounts it read-only and the Pi image's app container does not mount it at
 all). It asks the sidecar to pull a named tag and retag it onto whatever
@@ -46,12 +50,12 @@ def sidecar(monkeypatch):
         return resp
 
     with (
-        patch("src.api_server._updater_probe", return_value=True),
+        patch("src.system.update_service._updater_probe", return_value=True),
         patch(
-            "src.api_server._updater_version",
+            "src.system.update_service._updater_version",
             return_value={"image": "fiestaboard/fiestaboard:latest", "digest": "sha256:abc"},
         ),
-        patch("src.api_server._updater_post", side_effect=fake_post),
+        patch("src.system.update_service._updater_post", side_effect=fake_post),
     ):
         yield posted
 
@@ -104,7 +108,7 @@ class TestJoiningTheBeta:
     def test_it_snapshots_before_switching(self, client, sidecar, monkeypatch):
         """The snapshot IS the way back. It has to exist before we move."""
         monkeypatch.setenv("VERSION", "8.35.5")
-        with patch("src.api_server._take_settings_snapshot") as snap:
+        with patch("src.system.update_service._take_settings_snapshot") as snap:
             snap.return_value = {"name": "pre-update-x.json"}
             client.post("/system/channel", json={"channel": "beta"})
         assert snap.called, "switched channel without taking a snapshot first"
@@ -126,8 +130,8 @@ class TestJoiningTheBeta:
             return resp
 
         with (
-            patch("src.api_server._take_settings_snapshot", side_effect=snap),
-            patch("src.api_server._updater_post", side_effect=post),
+            patch("src.system.update_service._take_settings_snapshot", side_effect=snap),
+            patch("src.system.update_service._updater_post", side_effect=post),
         ):
             client.post("/system/channel", json={"channel": "beta"})
         assert order == ["snapshot", "install"], order
@@ -156,13 +160,13 @@ class TestJoiningTheBeta:
         resp404.text = '{"error":"not_found"}'
 
         with (
-            patch("src.api_server._updater_probe", return_value=True),
+            patch("src.system.update_service._updater_probe", return_value=True),
             patch(
-                "src.api_server._updater_version",
+                "src.system.update_service._updater_version",
                 return_value={"image": "fiestaboard/fiestaboard:latest", "digest": "d"},
             ),
-            patch("src.api_server._updater_post", return_value=resp404),
-            patch("src.api_server._take_settings_snapshot", return_value=None),
+            patch("src.system.update_service._updater_post", return_value=resp404),
+            patch("src.system.update_service._take_settings_snapshot", return_value=None),
         ):
             response = client.post("/system/channel", json={"channel": "beta"})
 

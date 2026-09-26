@@ -18,9 +18,11 @@ with the target grid and a cancellation event.  The runner:
    so the board lands on the exact target.
 
 The runner is intentionally synchronous -- it runs on the caller's thread
-holding the board's send lock.  Long transitions therefore block the
-caller; this is by design so rotation / triggers / manual sends serialize
-naturally.  Callers that need fire-and-forget should spawn a thread.
+holding the board's send lock, so all of one board's sends (rotation,
+triggers, manual API writes) still serialize per board.  Since issue #1755
+the engine's caller is the board's dedicated send worker rather than the
+shared tick thread, so a long transition blocks only its own board's queue
+-- never the other boards, the silence detector, or collection rotation.
 """
 
 from __future__ import annotations
@@ -39,6 +41,33 @@ logger = logging.getLogger(__name__)
 
 
 TransitionResolver = Callable[[str], TransitionPluginBase | None]
+
+
+def unpack_frame(frame: Any) -> tuple[list[list[int]] | None, int]:
+    """Coerce a plugin's yielded value into ``(grid, delay_ms)``.
+
+    Accepts ``(grid, delay)`` tuples and bare grids (treated as zero delay).
+    Returns ``(None, 0)`` on shapes we can't make sense of, leaving the caller
+    to decide what that means — :meth:`TransitionRunner._drive_generator`
+    aborts the run, while ``/transitions/preview`` skips the frame.
+
+    Module level, not a method, because both callers are outside this class:
+    ``src/transitions/service.py`` open-coded a byte-for-byte copy of this
+    coercion until the router→service move gave the two loops one definition
+    of what a frame is.
+    """
+    if isinstance(frame, tuple) and len(frame) == 2:
+        grid, delay = frame
+        try:
+            delay_int = int(delay)
+        except (TypeError, ValueError):
+            delay_int = 0
+        if isinstance(grid, list) and grid and isinstance(grid[0], list):
+            return grid, delay_int
+        return None, 0
+    if isinstance(frame, list) and frame and isinstance(frame[0], list):
+        return frame, 0
+    return None, 0
 
 
 @dataclass
@@ -264,6 +293,14 @@ class TransitionRunner:
         min_interval_ms = int(caps.get("min_interval_ms", 50))
         max_frames = int(caps.get("max_frames", 500))
         max_runtime_s = int(caps.get("max_runtime_seconds", 120))
+        # interruptible:false means this transition IGNORES the cancel event —
+        # including the one the engine sets at ENQUEUE time to preempt an
+        # in-flight send with a newer frame (#1755). Such a transition runs to
+        # its runtime cap no matter what is queued behind it, which is why
+        # max_runtime_seconds is manifest-clamped to 120s for non-interruptible
+        # transitions and the engine's SEND_WAIT_TIMEOUT budgets that full cap
+        # for the executing job (#1868). Interruptible transitions may run
+        # long (quiet_library: 1800s) precisely because they honor the cancel.
         respect_cancel = bool(caps.get("interruptible", True))
         # Throttled clients (cloud note arrays) silently skip sends inside
         # their minimum interval; pace frames so each one actually lands.
@@ -324,7 +361,7 @@ class TransitionRunner:
                 reason = "cancelled by concurrent send"
                 break
 
-            grid, delay_ms = self._unpack_frame(frame)
+            grid, delay_ms = unpack_frame(frame)
             if grid is None:
                 reason = "plugin yielded malformed frame"
                 break
@@ -361,26 +398,3 @@ class TransitionRunner:
             reason=reason,
             last_send_monotonic=last_send,
         )
-
-    @staticmethod
-    def _unpack_frame(
-        frame: Any,
-    ) -> tuple[list[list[int]] | None, int]:
-        """Coerce a plugin's yielded value into ``(grid, delay_ms)``.
-
-        Accepts ``(grid, delay)`` tuples and bare grids (treated as zero
-        delay).  Returns ``(None, 0)`` on shapes we can't make sense of so
-        the caller aborts the run with a logged reason.
-        """
-        if isinstance(frame, tuple) and len(frame) == 2:
-            grid, delay = frame
-            try:
-                delay_int = int(delay)
-            except (TypeError, ValueError):
-                delay_int = 0
-            if isinstance(grid, list) and grid and isinstance(grid[0], list):
-                return grid, delay_int
-            return None, 0
-        if isinstance(frame, list) and frame and isinstance(frame[0], list):
-            return frame, 0
-        return None, 0

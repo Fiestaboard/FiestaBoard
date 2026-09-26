@@ -29,7 +29,10 @@ def client():
 @pytest.fixture
 def silence_store():
     """Config manager backed by a real dict, with per-board write support."""
-    with patch("src.api_server.get_config_manager") as mock_get:
+    with (
+        patch("src.api_server.get_config_manager") as mock_get,
+        patch("src.service_api.routes.get_config_manager", new=mock_get),
+    ):
         cm = Mock()
         store = {
             "enabled": True,
@@ -70,11 +73,16 @@ def silence_store():
 @pytest.fixture
 def boards():
     """Two boards of different sizes registered with the settings service."""
-    with patch("src.api_server.get_settings_service") as mock_get:
+    with (
+        patch("src.api_server.get_settings_service") as mock_get,
+        # _require_board lives in src/board_guards.py since Phase 2 slice 3.
+        patch("src.board_guards.get_settings_service") as guard_get,
+    ):
         svc = Mock()
         svc.get_board_settings.return_value = Mock(boards=[FLAGSHIP, NOTE])
         svc.get_primary_board_id.return_value = FLAGSHIP["id"]
         mock_get.return_value = svc
+        guard_get.return_value = svc
         yield svc
 
 
@@ -182,14 +190,26 @@ class TestPutSilenceSchedulePerBoard:
         assert "by_board" not in data["config"]
 
     def test_normalisation_rules_still_apply_per_board(self, client, silence_store, boards):
+        # CHANGED (w0/schema-honesty): mode="garbage" moved out of this case.
+        # It is now a 422 (see the sibling test below), so it can no longer
+        # ride along in a request whose subject is text/position normalisation
+        # — that normalisation is unchanged and still pinned here.
         data = client.put(
             "/settings/silence-schedule",
-            json=self._body(board_id="note-1", mode="garbage", indicator_text="  hush  ", indicator_position="up"),
+            json=self._body(board_id="note-1", indicator_text="  hush  ", indicator_position="up"),
         ).json()
 
         assert data["config"]["mode"] == "freeze"
         assert data["config"]["indicator_text"] == "HUSH"
         assert data["config"]["indicator_position"] == "center"
+
+    # CHANGED (w0/schema-honesty): 200-with-"freeze" -> 422, per board too.
+    def test_an_unknown_mode_is_refused_per_board(self, client, silence_store, boards):
+        response = client.put(
+            "/settings/silence-schedule",
+            json=self._body(board_id="note-1", mode="garbage"),
+        )
+        assert response.status_code == 422
 
     def test_page_mode_without_page_id_still_400s_per_board(self, client, silence_store, boards):
         response = client.put("/settings/silence-schedule", json=self._body(board_id="note-1", mode="page"))

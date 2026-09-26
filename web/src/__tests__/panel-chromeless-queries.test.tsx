@@ -9,6 +9,7 @@ import { render, screen } from "@testing-library/react";
 import { http, HttpResponse } from "msw";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
+import { SpotlightProvider } from "@/components/ai-spotlight/spotlight-provider";
 import { CurrentBoardProvider } from "@/components/current-board-context";
 import { GlobalAiPanelProvider } from "@/components/global-ai-panel-context";
 import { PageEditorBridgeProvider } from "@/components/page-editor-bridge-context";
@@ -39,19 +40,21 @@ function Wrapper({ children }: { children: React.ReactNode }) {
     <QueryClientProvider client={queryClient}>
       <ScheduleEditorBridgeProvider>
         <PageEditorBridgeProvider>
-          <GlobalAiPanelProvider>
-            <SidebarProvider>
-              <CurrentBoardProvider>
-                <ConfigOverridesProvider>
-                  <FormatPreferencesProvider>
-                    <ThemeProvider attribute="class" defaultTheme="light">
-                      {children}
-                    </ThemeProvider>
-                  </FormatPreferencesProvider>
-                </ConfigOverridesProvider>
-              </CurrentBoardProvider>
-            </SidebarProvider>
-          </GlobalAiPanelProvider>
+          <SpotlightProvider>
+            <GlobalAiPanelProvider>
+              <SidebarProvider>
+                <CurrentBoardProvider>
+                  <ConfigOverridesProvider>
+                    <FormatPreferencesProvider>
+                      <ThemeProvider attribute="class" defaultTheme="light">
+                        {children}
+                      </ThemeProvider>
+                    </FormatPreferencesProvider>
+                  </ConfigOverridesProvider>
+                </CurrentBoardProvider>
+              </SidebarProvider>
+            </GlobalAiPanelProvider>
+          </SpotlightProvider>
         </PageEditorBridgeProvider>
       </ScheduleEditorBridgeProvider>
     </QueryClientProvider>

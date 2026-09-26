@@ -25,9 +25,9 @@ The new endpoint also changes failure mode. It returns HTTP **503** whenever plu
 
 | Endpoint | Deprecated Since | Planned Removal |
 |----------|-----------------|-----------------|
-| `GET /displays/{display_type}/raw` | v1.x | TBD |
+| `GET /displays/{display_type}/raw` | v1.x | `Sunset: Tue, 01 Dec 2026 00:00:00 GMT` (#1941) |
 
-> **Note:** No removal version has been scheduled. The endpoint remains active for backward compatibility with external integrations. When a removal window is decided, set a new target version in the table above and update the [API Migration Guide](./API_MIGRATION.md) before cutting the release.
+> **Note:** The route sends the shared `Sunset` date on every response (it is in `SUPERSEDED_BY_V1`, `src/api_deprecation.py`) and is deleted with the rest of that cohort in #1941, not before. The `Link` header names `/api/v1/plugins/{plugin_id}/data` as the successor; `/plugins/{plugin_id}/data` is itself in the same cohort.
 
 ---
 

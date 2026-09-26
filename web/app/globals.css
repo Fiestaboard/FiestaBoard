@@ -140,6 +140,12 @@
   animation: settings-anchor-pulse 2.2s ease-in-out;
 }
 
+/* The AI walkthrough's "landed" flash: the same pulse the settings deep-link
+   uses, on whatever element the assistant just changed. */
+.ai-anchor-pulse {
+  animation: settings-anchor-pulse 2.2s ease-in-out;
+}
+
 /* Micro-interaction: subtle lift for primary CTAs (respects prefers-reduced-motion via transition) */
 .btn-lift {
   @apply transition-transform duration-150 ease-out;
@@ -261,4 +267,57 @@
 .panel-mode body {
   overflow: hidden !important;
   background: #000 !important;
+}
+
+/* ---------------------------------------------------------------------------
+   FiestaBot drawer width (#2024)
+
+   The drawer is resizable, and its width lives on <html> as
+   --ai-drawer-width (web/src/hooks/use-ai-drawer-width.ts). Two things have
+   to follow it:
+
+   1. The page's reservation. @fiestaboard/ui's MainContent reserves a fixed
+      `lg:pr-[396px]` whenever the AI panel is open, which was right when the
+      drawer was always 384px wide. This rule wins on specificity and
+      reserves the live width instead, so the dashboard never ends up under
+      the drawer — including mid-drag, since a custom property changes
+      without React re-rendering the page.
+
+   2. The drawer itself, which animates its width only when the viewer is
+      not dragging it (a transition during a drag lags the pointer) and only
+      when they have not asked for less motion.
+   --------------------------------------------------------------------------- */
+@media (min-width: 1024px) {
+  html.ai-drawer-open main.content-root {
+    padding-right: calc(var(--ai-drawer-width, 384px) + 0.75rem);
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  html:not(.ai-drawer-dragging) .ai-drawer-width-transition {
+    transition-property: transform, width;
+  }
+}
+
+/* ---------------------------------------------------------------------------
+   Spotlight layer (#2040)
+
+   The AI walkthrough's ring, ghosts and caption are drawn *on* chrome, not
+   beside it: the control they point at can be in the mobile header, in the
+   open mobile menu, in a sheet, in a Select popup or in a dialog. A hardcoded
+   z-60 put the ring under all of those, so a highlight on a phone came out
+   underneath the thing it was highlighting. Sit one step below the tooltip —
+   which explains the control the ring is drawn around, and so stays on top —
+   and above everything else on @fiestaboard/ui's ladder:
+
+     --z-popover 135  <  --z-spotlight 138  <  --z-tooltip 140
+
+   This lives here rather than in @fiestaboard/ui because the spotlight is
+   this app's feature; the package has no spotlight of its own to layer.
+   `web/src/__tests__/ai-spotlight-frames.test.tsx` pins the relationship
+   against the package's tokens so a future ladder change cannot silently
+   drop the ring back under the header.
+   --------------------------------------------------------------------------- */
+:root {
+  --z-spotlight: 138;
 }

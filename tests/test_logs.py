@@ -63,31 +63,33 @@ def mock_api_server(test_log_dir, sample_log_entries):
     """Create a test client with mocked log directory."""
     # Patch the log directory before importing
     with patch.dict(os.environ, {"PRODUCTION": "true"}):
-        with patch("src.api_server.LOG_DIR", test_log_dir):
-            with patch("src.api_server.LOG_FILE", test_log_dir / "app.log"):
-                # Create log file
-                log_file = test_log_dir / "app.log"
-                with open(log_file, "w") as f:
-                    for entry in sample_log_entries:
-                        f.write(json.dumps(entry) + "\n")
+        # ``LOG_DIR`` is the test seam (in src.log_store since Phase 2 Task 8);
+        # ``_log_file()`` reads it back at call
+        # time, so patching the directory alone redirects both.
+        with patch("src.log_store.LOG_DIR", test_log_dir):
+            # Create log file
+            log_file = test_log_dir / "app.log"
+            with open(log_file, "w") as f:
+                for entry in sample_log_entries:
+                    f.write(json.dumps(entry) + "\n")
 
-                # Also populate the in-memory buffer
-                from src import api_server
+            # Also populate the in-memory buffer
+            from src import api_server
 
-                with api_server._log_lock:
-                    api_server._log_buffer.clear()
-                    for entry in sample_log_entries:
-                        api_server._log_buffer.append(entry)
+            with api_server._log_lock:
+                api_server._log_buffer.clear()
+                for entry in sample_log_entries:
+                    api_server._log_buffer.append(entry)
 
-                # Create test client
-                from src.api_server import app
+            # Create test client
+            from src.api_server import app
 
-                client = TestClient(app)
-                yield client
+            client = TestClient(app)
+            yield client
 
-                # Cleanup
-                with api_server._log_lock:
-                    api_server._log_buffer.clear()
+            # Cleanup
+            with api_server._log_lock:
+                api_server._log_buffer.clear()
 
 
 class TestLogsEndpoint:

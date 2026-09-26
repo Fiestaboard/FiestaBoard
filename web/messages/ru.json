@@ -83,6 +83,42 @@
     "unnamedBoard": "Доска без названия",
     "transitions": "Лаборатория переходов"
   },
+  "settingsMenu": {
+    "trigger": "Настройки",
+    "settings": "Настройки",
+    "appearance": "Оформление",
+    "light": "Светлая",
+    "dark": "Тёмная",
+    "system": "Системная",
+    "devSuffix": "сборка для разработки",
+    "updateAvailable": "Доступно обновление: {version}",
+    "updateTo": "Обновить до {version}",
+    "about": "О FiestaBoard",
+    "signOut": "Выйти"
+  },
+  "aboutDialog": {
+    "description": "Сведения о версии и системе этого FiestaBoard.",
+    "devSuffix": "сборка для разработки",
+    "channel": "Канал",
+    "channelStable": "Стабильный",
+    "channelBeta": "Бета",
+    "platform": "Платформа",
+    "platformDocker": "Docker",
+    "platformPi": "Raspberry Pi",
+    "hardware": "Оборудование",
+    "updates": "Обновления",
+    "updatesDaily": "Автоматически, ежедневно",
+    "updatesWeekly": "Автоматически, еженедельно",
+    "updatesMonthly": "Автоматически, ежемесячно",
+    "updatesManual": "Вручную",
+    "updatesManaged": "Управляется извне",
+    "updatesUnavailable": "Обновление недоступно",
+    "updateAvailable": "Доступно обновление: {version}",
+    "board": "Табло",
+    "license": "Лицензия MIT",
+    "copyright": "© {year} {holder}",
+    "sourceCode": "Исходный код на GitHub"
+  },
   "network": {
     "title": "Wi-Fi",
     "description": "Управляйте беспроводным соединением вашего FiestaPi.",
@@ -132,6 +168,9 @@
     "description": "Отслеживайте отображение доски и активность системы",
     "noBoardConfigured": "Доска не настроена",
     "noBoardDescription": "Ваша доска ещё не настроена. Подключите доску, чтобы начать отображать контент.",
+    "boardInitErrorTitle": "{boardName} недоступна",
+    "boardInitErrorTitleUnnamed": "Одна из досок недоступна",
+    "boardInitErrorOpenSettings": "Открыть настройки доски",
     "runSetupWizard": "Запустить мастер настройки",
     "silenceImminentTitle": "Silence starts in {minutes, plural, =0 {less than a minute} one {# minute} other {# minutes}}",
     "silenceImminentDescription": "Switch to “{pageName}” now so you don't have to wait for the schedule to catch up.",
@@ -569,7 +608,14 @@
       "apiKeyLabel": "API-ключ",
       "modelsLabel": "Модели",
       "defaultModelLabel": "Модель по умолчанию",
-      "testConnectionButton": "Проверить подключение"
+      "testConnectionButton": "Проверить подключение",
+      "turnLimits": {
+        "heading": "Ограничения хода",
+        "description": "Это страховка от модели, застрявшей в цикле, а не бюджет на работу. При достижении предела ход приостанавливается, и чат предлагает продолжить. Оставьте пустым, чтобы использовать значения сервера по умолчанию.",
+        "modelCallsLabel": "Вызовов модели за ход",
+        "toolCallsLabel": "Вызовов инструментов за ход",
+        "serverDefault": "Значение сервера"
+      }
     },
     "backup": {
       "cardTitle": "Резервное копирование и восстановление",
@@ -937,6 +983,11 @@
       "badge": "Paused",
       "tooltip": "When paused, FiestaBoard does not push anything to this board — scheduled pages, manual sends, plugin triggers, and MQTT commands are all blocked until you resume."
     },
+    "initError": {
+      "badge": "Недоступна",
+      "title": "Не удалось инициализировать эту доску",
+      "hint": "Исправьте данные подключения ниже — при сохранении подключение будет выполнено повторно."
+    },
     "deviceTypeAriaLabel": "Тип и размер табло",
     "deviceGroupLabel": "Устройства",
     "noteArrayGroupLabel": "Массивы Note",
@@ -1206,14 +1257,6 @@
     "updateIntervalsTitle": "Интервалы обновления",
     "updateIntervalsDescription": "Как часто табло запрашивает новый контент и перечитывает свое текущее состояние"
   },
-  "themeToggle": {
-    "toggleTheme": "Переключить тему"
-  },
-  "versionDisplay": {
-    "devSuffix": "(dev)",
-    "updateAvailableAriaLabel": "Доступно обновление: v{version}",
-    "updateAvailableTooltip": "Доступно обновление: v{version}"
-  },
   "serviceControls": {
     "title": "Управление сервисом",
     "contentAutoSent": "Контент автоматически отправляется на физическую доску"
@@ -1310,75 +1353,6 @@
       "failure": "Не удалось включить вход"
     }
   },
-  "aiActionConfirmation": {
-    "deny": "Отклонить",
-    "allow": "Разрешить",
-    "working": "Выполняется…",
-    "done": "Готово",
-    "denied": "Отклонено",
-    "noChanges": "без изменений",
-    "noValues": "без значений",
-    "noChangesSpecified": "Изменения не указаны.",
-    "openEnd": "открыто",
-    "label": {
-      "installPlugin": "Установить плагин: {id}",
-      "updatePluginConfig": "Настроить плагин: {id}",
-      "updatePlugin": "Обновить плагин: {id}",
-      "enablePlugin": "Включить плагин: {id}",
-      "disablePlugin": "Отключить плагин: {id}",
-      "uninstallPlugin": "Удалить плагин: {id}",
-      "updateSetting": "Изменить настройку: {category}",
-      "createCollection": "Создать коллекцию: \"{name}\"",
-      "updateCollection": "Обновить коллекцию",
-      "createSchedule": "Создать расписание",
-      "updateSchedule": "Обновить расписание",
-      "deleteSchedule": "Удалить расписание",
-      "triggerSystemUpdate": "Обновление системы"
-    },
-    "description": {
-      "installPlugin": "Устанавливает \"{id}\" из официального реестра.",
-      "installPluginEnable": "Устанавливает \"{id}\" из официального реестра и включает его.",
-      "updatePluginConfig": "Обновляет конфигурацию \"{id}\": {keys}.",
-      "updatePlugin": "Загружает и устанавливает последнюю версию \"{id}\" из реестра.",
-      "enablePlugin": "Включает \"{id}\", чтобы он мог предоставлять данные для ваших досок.",
-      "disablePlugin": "Отключает \"{id}\" без удаления. Его можно снова включить позже.",
-      "uninstallPlugin": "Безвозвратно удаляет \"{id}\". Это действие нельзя отменить.",
-      "updateSetting": "Устанавливает {values} в настройках {category}.",
-      "createCollection": "Создаёт коллекцию из {count, plural, one {# страницы} other {# страниц}}, чередуя каждые {interval}с.",
-      "createSchedule": "Показывает страницу \"{page}\" с {time} по дням: {days}.",
-      "deleteSchedule": "Безвозвратно удаляет расписание \"{id}\". Это действие нельзя отменить.",
-      "triggerSystemUpdate": "Загружает и устанавливает последнее обновление FiestaBoard. Система ненадолго перезапустится."
-    },
-    "change": {
-      "rename": "переименовать в \"{name}\"",
-      "setPages": "задать {count, plural, one {# страницу} other {# страниц}}",
-      "interval": "интервал → {interval}с",
-      "page": "страница → {page}",
-      "start": "начало → {start}",
-      "end": "конец → {end}",
-      "days": "дни → {days}",
-      "enable": "включить",
-      "disable": "отключить"
-    }
-  },
-  "chainingModePicker": {
-    "menuTitle": "Режим цепочки ИИ",
-    "triggerAriaLabel": "Режим цепочки ИИ: {mode}",
-    "modes": {
-      "manual": {
-        "label": "Ручной",
-        "description": "Буду переспрашивать после каждого действия"
-      },
-      "autoContinue": {
-        "label": "Автопродолжение",
-        "description": "Связывает действия, подтверждает каждый шаг"
-      },
-      "autonomous": {
-        "label": "Автономный",
-        "description": "Выполняет до конца, пропускает подтверждения"
-      }
-    }
-  },
   "bootGate": {
     "waiting": "Ожидание запуска…",
     "errorHeading": "Не удалось подключиться к FiestaBoard",
@@ -1390,7 +1364,31 @@
     "updateErrorDescription": "Обновление завершено, но приложение всё ещё перезапускается. Подождите немного и обновите страницу."
   },
   "globalAiChatDrawer": {
-    "panelAriaLabel": "ИИ-чат FiestaBot"
+    "panelAriaLabel": "ИИ-чат FiestaBot",
+    "toast": {
+      "undo": "Отменить",
+      "pageCreated": "Страница создана.",
+      "pageUpdated": "Страница обновлена.",
+      "pageDeleted": "Страница удалена.",
+      "scheduleCreated": "Расписание создано.",
+      "scheduleUpdated": "Расписание обновлено.",
+      "scheduleDeleted": "Расписание удалено.",
+      "pluginInstalled": "Плагин «{id}» установлен.",
+      "pluginConfigured": "Плагин «{id}» настроен.",
+      "pluginUpdated": "Плагин «{id}» обновлён.",
+      "pluginEnabled": "Плагин «{id}» включён.",
+      "pluginDisabled": "Плагин «{id}» отключён.",
+      "pluginUninstalled": "Плагин «{id}» удалён.",
+      "settingUpdated": "Настройка обновлена.",
+      "collectionCreated": "Коллекция «{name}» создана.",
+      "collectionUpdated": "Коллекция обновлена.",
+      "collectionDeleted": "Коллекция удалена.",
+      "activePageSet": "Доска обновлена.",
+      "messageSent": "Сообщение отправлено на доску.",
+      "systemUpdate": "Обновление системы запущено. Доска скоро перезапустится.",
+      "toolFailed": "{tool}: ошибка — {error}",
+      "stopped": "Остановлено. Уже запущенные действия будут завершены."
+    }
   },
   "plainTextEditor": {
     "placeholder": "Введите текст шаблона...",
@@ -2035,27 +2033,175 @@
   },
   "aiChatPanel": {
     "messagesAriaLabel": "Сообщения чата",
-    "taskStatusAriaLabel": "Ход выполнения задач",
-    "taskProgressAriaLabel": "Прогресс задач ИИ",
-    "clearConversationAriaLabel": "Очистить разговор",
-    "closePanelAriaLabel": "Закрыть FiestaBot (Beta)",
+    "closePanelAriaLabel": "Закрыть FiestaBot",
+    "newChatAriaLabel": "Новый чат",
+    "historyAriaLabel": "История",
+    "backAriaLabel": "Назад",
     "providerSelectAriaLabel": "Провайдер",
     "modelSelectAriaLabel": "Модель",
-    "showBoardTooltip": "Показать предпросмотр доски",
-    "hideBoardTooltip": "Скрыть предпросмотр доски",
-    "undoTooltip": "Отменить последнее изменение ИИ",
-    "panelTitle": "FiestaBot (Beta)",
+    "panelTitle": "FiestaBot",
     "retryButton": "Повторить",
     "messageLabel": "Сообщение",
     "stopButton": "Остановить",
     "sendButton": "Отправить",
-    "tasksHeading": "Задачи ({done}/{total})",
+    "enterToSend": "чтобы отправить",
+    "shiftEnterNewline": "для новой строки",
     "emptyStateTitle": "Чем я могу помочь?",
     "emptyStateDescription": "Опишите, что вы хотите создать или изменить.",
-    "showBoardButton": "Показать доску",
-    "undoButton": "Отменить",
-    "renameSummary": "→ переименовать в «{name}»",
-    "previewUnavailable": "(предпросмотр недоступен)"
+    "placeholderEmpty": "Опишите нужную страницу или попросите внести изменения…",
+    "placeholderRefine": "Уточните, спросите или попросите ещё одно изменение…",
+    "placeholderAnswer": "Введите ответ…",
+    "blockedAiDisabled": "ИИ отключён. Включите его в Настройки → Провайдеры ИИ.",
+    "blockedNoProviders": "Настройте провайдера ИИ хотя бы с одной моделью в Настройки → Провайдеры ИИ.",
+    "suggestions": {
+      "weather": "Сделай страницу с погодой и транспортом для утренней поездки",
+      "date": "Замени строку 2 на сегодняшнюю дату",
+      "variables": "Какие переменные плагинов можно использовать на этой странице?"
+    },
+    "jumpToLatest": "К последнему",
+    "defaultModel": "По умолчанию",
+    "stepsAriaLabel": "Текущие шаги",
+    "stepsHeading": "{done} из {total} шагов",
+    "approvalMode": {
+      "label": "Режим подтверждения",
+      "ask": "Спрашивать",
+      "auto": "Авто",
+      "autoNote": "В режиме «Авто» удаление и другие необратимые действия выполняются без подтверждения. Перезапуск, выключение и обновление всегда требуют подтверждения.",
+      "thisChat": "«Авто» для этого чата — выберите «Спрашивать», чтобы снова получать запросы."
+    },
+    "autoApproved": {
+      "badge": "авто",
+      "tooltip": "Выполнено без подтверждения: включён режим «Авто» или вы выбрали «больше не спрашивать» для этого чата."
+    },
+    "toolInput": "Аргументы",
+    "toolOutput": "Результат",
+    "toolStates": {
+      "inputStreaming": "Подготовка",
+      "inputAvailable": "Выполняется",
+      "outputAvailable": "Готово",
+      "outputError": "Ошибка",
+      "approvalRequested": "Ожидает вашего подтверждения",
+      "denied": "Не выполнено",
+      "stopped": "Остановлено"
+    },
+    "status": {
+      "thinking": "Думаю…",
+      "running": "Выполняется: {tool}…",
+      "preparing": "Готовлю: {tool}…",
+      "elapsed": "{seconds} с"
+    },
+    "question": {
+      "skip": "Пропустить",
+      "typeAnswer": "Или введите ответ ниже.",
+      "answered": "Ваш ответ: {answer}",
+      "declined": "(пропущено)",
+      "cancelled": "(отменено)"
+    },
+    "tool": {
+      "createPage": "Создать страницу",
+      "updatePage": "Обновить страницу",
+      "deletePage": "Удалить страницу",
+      "createSchedule": "Добавить расписание",
+      "updateSchedule": "Обновить расписание",
+      "deleteSchedule": "Удалить расписание",
+      "createCollection": "Создать коллекцию",
+      "updateCollection": "Обновить коллекцию",
+      "deleteCollection": "Удалить коллекцию",
+      "installPlugin": "Установить плагин",
+      "enablePlugin": "Включить плагин",
+      "disablePlugin": "Отключить плагин",
+      "uninstallPlugin": "Удалить плагин",
+      "configurePlugin": "Настроить плагин",
+      "updatePlugin": "Обновить плагин",
+      "setActivePage": "Показать страницу на доске",
+      "setScheduleMode": "Установить режим расписания",
+      "sendMessage": "Отправить сообщение на доску",
+      "updateSetting": "Изменить настройку",
+      "triggerSystemUpdate": "Обновление системы",
+      "askUser": "Вопрос",
+      "listPages": "Просмотреть страницы",
+      "getPage": "Прочитать страницу",
+      "listSchedules": "Просмотреть расписания",
+      "listCollections": "Просмотреть коллекции",
+      "listInstalledPlugins": "Просмотреть установленные плагины",
+      "listRegistryPlugins": "Просмотреть реестр плагинов",
+      "getTemplateVariables": "Просмотреть переменные шаблона",
+      "getPluginData": "Прочитать данные плагина",
+      "renderPagePreview": "Предпросмотр шаблона",
+      "previewSavedPage": "Предпросмотр страницы",
+      "validateTemplate": "Проверить шаблон",
+      "getSystemStatus": "Проверить состояние системы",
+      "getSettingsSummary": "Прочитать настройки",
+      "getActivePage": "Проверить активную страницу",
+      "getBoardContent": "Прочитать доску"
+    },
+    "previewUnavailable": "(предпросмотр недоступен)",
+    "history": {
+      "title": "История",
+      "searchPlaceholder": "Поиск по беседам…",
+      "searchAriaLabel": "Искать беседы по названию",
+      "empty": "Сохранённых бесед пока нет",
+      "emptyDescription": "Чаты сохраняются автоматически по ходу общения.",
+      "noMatches": "Ни одна беседа не соответствует запросу.",
+      "messageCount": "{count, plural, one {# сообщение} few {# сообщения} many {# сообщений} other {# сообщений}}",
+      "open": "Открыть {title}",
+      "rename": "Переименовать",
+      "renameAriaLabel": "Переименовать {title}",
+      "renameLabel": "Название беседы",
+      "saveTitle": "Сохранить название",
+      "cancel": "Отмена",
+      "delete": "Удалить",
+      "deleteAriaLabel": "Удалить {title}",
+      "clearAll": "Очистить всё",
+      "clearAllTitle": "Удалить все беседы?",
+      "clearAllDescription": "Все сохранённые чаты на этом FiestaBoard будут удалены. Это действие нельзя отменить.",
+      "clearAllConfirm": "Удалить всё",
+      "continue": "Продолжить",
+      "export": "Экспорт в JSON",
+      "readOnly": "Вы просматриваете сохранённую беседу. Нажмите «Продолжить», чтобы вернуться к ней.",
+      "loadFailed": "Не удалось загрузить эту беседу.",
+      "deleted": "Беседа удалена",
+      "cleared": "Все беседы удалены"
+    },
+    "sendShortcut": "Enter — отправить, Shift+Enter — новая строка",
+    "resizeHandle": "Изменить ширину панели FiestaBot",
+    "showJson": "Показать JSON",
+    "resultFields": "{count, plural, one {# поле} few {# поля} many {# полей} other {# поля}}",
+    "dayPattern": {
+      "all": "каждый день",
+      "weekdays": "по будням",
+      "weekends": "по выходным",
+      "custom": "выбранные дни"
+    },
+    "argLabel": {
+      "page": "Страница",
+      "time": "Время",
+      "days": "Дни",
+      "board": "Табло",
+      "duration": "Длительность",
+      "lines": "Строки",
+      "name": "Название",
+      "setting": "Настройка",
+      "message": "Сообщение",
+      "plugin": "Плагин",
+      "collection": "Коллекция",
+      "scheduleMode": "Режим расписания"
+    },
+    "argValue": {
+      "on": "Вкл.",
+      "off": "Выкл.",
+      "lineCount": "{count, plural, one {# строка} few {# строки} many {# строк} other {# строки}}",
+      "durationSeconds": "{count} с"
+    },
+    "toolRun": "{tool} · {count, plural, one {# раз} few {# раза} many {# раз} other {# раза}}",
+    "composerSettings": {
+      "triggerAriaLabel": "Настройки чата: подтверждение {mode}, модель {model}",
+      "popoverLabel": "Настройки чата"
+    },
+    "keepGoing": {
+      "prompt": "Ассистент остановился на длинном шаге. Ничего не потеряно.",
+      "action": "Продолжить"
+    }
   },
   "boardSizeIndicator": {
     "custom": "Пользовательский",
@@ -2094,7 +2240,11 @@
     "claudeWebDescription": "<label>claude.ai web (Connectors):</label> не поддерживается для самостоятельно размещённого FiestaBoard. Процесс Connectors требует публичного HTTPS-адреса и динамической регистрации клиента OAuth 2.1, а хост в LAN не может обеспечить ни того, ни другого. Используйте вместо этого Desktop или Code.",
     "savedItButton": "Я сохранил его",
     "toastTokenRevoked": "Токен MCP отозван",
-    "toastCopyFailed": "Не удалось скопировать в буфер обмена"
+    "toastCopyFailed": "Не удалось скопировать в буфер обмена",
+    "lockedDescription": "Вход отключён в этой установке, поэтому текущий токен MCP сам служит учётными данными для управления токенами. Введите его ниже, чтобы разблокировать смену и отзыв токена.",
+    "lockedTokenLabel": "Текущий токен MCP",
+    "unlockButton": "Разблокировать",
+    "unlockFailedToast": "Этот токен не совпадает с настроенным токеном MCP."
   },
   "fiestaPanels": {
     "title": "FiestaPanel",
@@ -2151,7 +2301,11 @@
     "hdmiHelp": "Показывает панель на экране, подключённом к HDMI-порту этого Pi. При включении устанавливается небольшой киоск-браузер (несколько минут).",
     "hdmiInstalling": "Настройка HDMI-киоска — на Pi устанавливается браузер, это может занять несколько минут…",
     "hdmiEnabledHint": "HDMI-экран показывает панель, у которой выше включён «Вывод на дисплей».",
-    "hdmiFailed": "Последнее изменение HDMI-киоска не удалось. Повторите попытку или перезагрузите Pi."
+    "hdmiFailed": "Последнее изменение HDMI-киоска не удалось. Повторите попытку или перезагрузите Pi.",
+    "yourPanelsGroupLabel": "Ваши панели",
+    "panelSizeOption": "{name} · {wide}×{tall} блоков Note",
+    "fitsPanel": "Подходит для {name}",
+    "fitsPanelAndMore": "Подходит для {name} +{count}"
   },
   "releaseChannel": {
     "title": "Release channel",
@@ -2167,6 +2321,60 @@
     "confirmCta": "Join the beta",
     "cancel": "Cancel",
     "switching": "Switching…",
-    "switchFailedToast": "Could not switch channel: {error}"
+    "switchFailedToast": "Could not switch channel: {error}",
+    "leaveCta": "Выйти из бета-версии",
+    "leaveConfirmTitle": "Выйти из бета-канала?",
+    "leaveConfirmBody": "Вы вернётесь к текущей стабильной версии, которая старее используемой бета-версии. Настройки и страницы будут восстановлены из резервной копии, созданной при подключении, — всё, что вы изменили во время беты, будет потеряно. FiestaBoard перезапустится на стабильной сборке. Если хотите сохранить изменения, подождите: когда следующий стабильный выпуск обгонит вашу бету, «Обновить сейчас» переведёт вас на него без потерь.",
+    "leaveConfirmCta": "Выйти из бета-версии"
+  },
+  "aiApprovalCard": {
+    "heading": "Требуется ваше подтверждение",
+    "approve": "Подтвердить",
+    "deny": "Отклонить",
+    "working": "Выполняется…",
+    "approveAll": "Разрешить и больше не спрашивать в этом чате",
+    "description": {
+      "deletePage": "Навсегда удаляет страницу «{detail}». Расписания и коллекции, использующие её, потеряют её.",
+      "deleteSchedule": "Навсегда удаляет расписание «{detail}». Это нельзя отменить.",
+      "deleteCollection": "Навсегда удаляет коллекцию «{detail}». Это нельзя отменить.",
+      "uninstallPlugin": "Навсегда удаляет плагин «{detail}» и его настройки.",
+      "triggerSystemUpdate": "Скачивает и устанавливает последнее обновление FiestaBoard. Система ненадолго перезапустится.",
+      "generic": "Это действие нельзя отменить другим инструментом."
+    }
+  },
+  "aiSpotlight": {
+    "stop": "Стоп",
+    "approve": "Разрешить",
+    "deny": "Отклонить"
+  },
+  "aiChoreography": {
+    "working": "{tool}…",
+    "done": "{tool} — готово",
+    "failed": "{tool}: ошибка",
+    "awaitingApproval": "{tool} — ждёт вашего разрешения",
+    "openingNewPage": "Открываю новую страницу…",
+    "typingName": "Задаю имя страницы…",
+    "typingLines": "Пишу строки…",
+    "creatingPage": "Создаю «{name}»…",
+    "pageCreated": "Страница создана",
+    "pageUpdated": "Страница обновлена",
+    "pageFailed": "Не удалось сохранить страницу",
+    "updatingBehindEdits": "Обновляю сохранённую страницу — ваши несохранённые правки остаются",
+    "changingDevice": "Меняю размер доски…",
+    "aboutToDeletePage": "Сейчас удалю эту страницу",
+    "pageDeleted": "Страница удалена",
+    "openingScheduleForm": "Открываю форму расписания…",
+    "fillingSchedule": "Заполняю расписание…",
+    "savingSchedule": "Сохраняю расписание…",
+    "scheduleCreated": "Расписание добавлено",
+    "scheduleUpdated": "Расписание обновлено",
+    "scheduleFailed": "Не удалось сохранить расписание",
+    "aboutToDeleteSchedule": "Сейчас удалю это расписание",
+    "scheduleDeleted": "Расписание удалено",
+    "changingSetting": "{tool}…",
+    "settingSaved": "Настройка сохранена",
+    "settingFailed": "Не удалось сохранить настройку",
+    "on": "Вкл",
+    "off": "Выкл"
   }
 }

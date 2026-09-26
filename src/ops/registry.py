@@ -1,0 +1,407 @@
+"""The named operation set — one grammar for chat ops and MCP tools.
+
+Issue #1764: ``src/ai/chat_ops.py`` and ``src/mcp_server.py`` grew two
+parallel grammars for the same actions (``update_plugin_config`` vs
+``configure_plugin``), each with its own implementation. This registry maps
+*both* name sets onto one canonical executor per operation
+(:mod:`src.ops.executors`), so the surfaces cannot diverge in behavior.
+Retiring the duplicate names is #1766-style follow-up work; here both
+grammars stay valid.
+
+Phase 2 Task 11 made this load-bearing on the chat side too:
+``POST /ai/operations`` (:mod:`src.ai.routes`) executes chat ops through
+:func:`execute`, so the web drawer no longer re-implements one per REST
+endpoint.
+
+Three kinds of operation live here:
+
+- shared ops — a chat name and an MCP tool name resolving to one executor;
+- single-surface server ops — only one grammar names them today
+  (``delete_page``, ``update_board``, ``restart_system`` … are MCP-only);
+- client-side chat ops — applied inside the web UI with no server-side
+  effect (``replace_page`` and ``apply_patch`` edit the editor's draft,
+  ``navigate_to_page`` routes). They are registered so the registry
+  describes the *whole* grammar, but carry no executor;
+  ``POST /ai/operations`` refuses them with a 4xx.
+
+``execute()`` runs an operation in whichever grammar the caller says it
+used: ``grammar="chat"`` validates the args against the op's chat schema
+(the same models ``parse_tool_call`` uses) before adapting them onto the
+executor; the canonical grammar passes them through as executor kwargs.
+MCP tools call the executors directly — their argument shape already is
+the canonical one.
+"""
+
+from __future__ import annotations
+
+import asyncio
+import inspect
+from collections.abc import Callable
+from dataclasses import dataclass, field
+from typing import Any, Literal, get_args
+
+from . import executors
+
+
+class ClientSideOperationError(LookupError):
+    """Raised when execute() is asked to run an op that only the web UI applies."""
+
+
+#: Which grammar a caller spelled an operation in. ``"canonical"`` covers the
+#: canonical name and the MCP tool name (they are the same set today);
+#: ``"chat"`` is the streaming chat's fenced-block spelling.
+Grammar = Literal["canonical", "chat"]
+
+#: The system tier of destructive tools (#2021). The in-app chat pauses for
+#: approval on every ``destructiveHint`` tool by default; the install's
+#: ``approval_mode`` setting ("auto") and a conversation's "don't ask again"
+#: flag let the loop skip that pause — except for these, which restart, power
+#: off or update the host and so cut the user's own session. They always
+#: pause. Pinned by ``tests/test_mcp_annotations.py`` next to the annotation
+#: sets; the loop reads it from here so the chat keeps no roster of its own.
+SYSTEM_GATED: frozenset[str] = frozenset({"restart_system", "shutdown_system", "trigger_system_update"})
+
+
+@dataclass(frozen=True)
+class Operation:
+    """One named operation: canonical name, aliases, validator, executor."""
+
+    name: str
+    #: Canonical executor. ``None`` only for client-side chat ops.
+    executor: Callable[..., Any] | None = None
+    #: The chat-grammar spelling, when the chat surface has one.
+    chat_name: str | None = None
+    #: The MCP tool spelling, when the MCP surface has one.
+    mcp_tool: str | None = None
+    #: Maps validated chat args (a pydantic model) onto executor kwargs.
+    adapt_chat_args: Callable[[Any], dict[str, Any]] | None = None
+    #: True for ops the web UI applies client-side (no server effect).
+    client_side: bool = field(default=False)
+
+    def names_in(self, grammar: Grammar) -> set[str]:
+        """The spellings of this operation in one grammar.
+
+        The single place the spelling fields are partitioned by grammar:
+        :attr:`aliases` is the union, and :func:`execute` checks a name
+        against the grammar the caller claims. A new spelling field goes
+        here and nowhere else.
+        """
+        if grammar == "chat":
+            return {self.chat_name} if self.chat_name else set()
+        return {n for n in (self.name, self.mcp_tool) if n}
+
+    @property
+    def aliases(self) -> set[str]:
+        """Every spelling the registry resolves for this operation."""
+        return self.names_in("canonical") | self.names_in("chat")
+
+
+def _model_fields(args: Any, *names: str) -> dict[str, Any]:
+    """Executor kwargs from the named chat-args fields, skipping ``None``s."""
+    out: dict[str, Any] = {}
+    for name in names:
+        value = getattr(args, name)
+        if value is not None:
+            out[name] = value
+    return out
+
+
+def _adapt_install_plugin(args: Any) -> dict[str, Any]:
+    kwargs: dict[str, Any] = {"plugin_id": args.plugin_id, "auto_enable": args.auto_enable}
+    if args.initial_config:
+        kwargs["initial_config"] = args.initial_config
+    return kwargs
+
+
+OPERATIONS: tuple[Operation, ...] = (
+    # -- pages ------------------------------------------------------------
+    Operation(name="create_page", executor=executors.create_page, mcp_tool="create_page"),
+    Operation(name="update_page", executor=executors.update_page, mcp_tool="update_page"),
+    Operation(name="delete_page", executor=executors.delete_page, mcp_tool="delete_page"),
+    Operation(name="set_active_page", executor=executors.set_active_page, mcp_tool="set_active_page"),
+    # MCP-only server ops for the page editor's sibling features (share
+    # strings and the staff-picks gallery). The chat grammar has no
+    # spelling for them — the in-app chat reaches them as MCP tools.
+    Operation(name="import_page", executor=executors.import_page, mcp_tool="import_page"),
+    Operation(name="import_staff_pick", executor=executors.import_staff_pick, mcp_tool="import_staff_pick"),
+    # -- Transition Lab (beta) --------------------------------------------
+    Operation(name="test_transition_live", executor=executors.test_transition_live, mcp_tool="test_transition_live"),
+    Operation(name="restore_board", executor=executors.restore_board, mcp_tool="restore_board"),
+    # -- schedules --------------------------------------------------------
+    Operation(
+        name="create_schedule",
+        executor=executors.create_schedule,
+        chat_name="create_schedule",
+        mcp_tool="create_schedule",
+        adapt_chat_args=lambda a: {
+            "page_id": a.page_id,
+            "start_time": a.start_time,
+            "end_time": a.end_time,
+            "day_pattern": a.day_pattern,
+            "enabled": a.enabled,
+            **({"custom_days": a.custom_days} if a.custom_days is not None else {}),
+        },
+    ),
+    Operation(
+        name="update_schedule",
+        executor=executors.update_schedule,
+        chat_name="update_schedule",
+        mcp_tool="update_schedule",
+        adapt_chat_args=lambda a: {
+            "schedule_id": a.schedule_id,
+            **_model_fields(a, "page_id", "start_time", "end_time", "day_pattern", "custom_days", "enabled"),
+        },
+    ),
+    Operation(
+        name="delete_schedule",
+        executor=executors.delete_schedule,
+        chat_name="delete_schedule",
+        mcp_tool="delete_schedule",
+        adapt_chat_args=lambda a: {"schedule_id": a.schedule_id},
+    ),
+    Operation(name="set_schedule_mode", executor=executors.set_schedule_mode, mcp_tool="set_schedule_mode"),
+    # The schedule-gap fallback page — PATCH /v1/boards/{board} default_page_id.
+    Operation(name="set_default_page", executor=executors.set_default_page, mcp_tool="set_default_page"),
+    # -- board messages ---------------------------------------------------
+    # MCP-only server op (#1765): the ad-hoc send the REST surface has as
+    # POST /send-message. The chat grammar has no spelling for it today.
+    Operation(name="send_message", executor=executors.send_message, mcp_tool="send_message"),
+    # -- board state (the Home page's controls) ---------------------------
+    # MCP-only server ops. Pause/resume are one executor behind two tool
+    # spellings because the registry names one MCP tool per operation, and
+    # "pause" vs "resume" is the whole meaning of the call.
+    Operation(name="pause_board", executor=executors.pause_board, mcp_tool="pause_board"),
+    Operation(name="resume_board", executor=executors.resume_board, mcp_tool="resume_board"),
+    Operation(
+        name="set_temporary_override",
+        executor=executors.set_temporary_override,
+        mcp_tool="set_temporary_override",
+    ),
+    Operation(
+        name="cancel_temporary_override",
+        executor=executors.cancel_temporary_override,
+        mcp_tool="cancel_temporary_override",
+    ),
+    Operation(name="force_refresh", executor=executors.force_refresh, mcp_tool="force_refresh"),
+    # -- collections ------------------------------------------------------
+    Operation(
+        name="create_collection",
+        executor=executors.create_collection,
+        chat_name="create_collection",
+        mcp_tool="create_collection",
+        adapt_chat_args=lambda a: {
+            "name": a.name,
+            "page_ids": a.page_ids,
+            "interval_seconds": a.interval_seconds,
+        },
+    ),
+    Operation(
+        name="update_collection",
+        executor=executors.update_collection,
+        chat_name="update_collection",
+        mcp_tool="update_collection",
+        adapt_chat_args=lambda a: {
+            "collection_id": a.collection_id,
+            **_model_fields(a, "name", "page_ids", "interval_seconds"),
+        },
+    ),
+    Operation(name="delete_collection", executor=executors.delete_collection, mcp_tool="delete_collection"),
+    # -- plugins ----------------------------------------------------------
+    Operation(
+        name="install_plugin",
+        executor=executors.install_plugin,
+        chat_name="install_plugin",
+        mcp_tool="install_plugin",
+        adapt_chat_args=_adapt_install_plugin,
+    ),
+    Operation(
+        name="configure_plugin",
+        executor=executors.configure_plugin,
+        chat_name="update_plugin_config",
+        mcp_tool="configure_plugin",
+        adapt_chat_args=lambda a: {"plugin_id": a.plugin_id, "config": a.config},
+    ),
+    Operation(
+        name="enable_plugin",
+        executor=executors.enable_plugin,
+        chat_name="enable_plugin",
+        mcp_tool="enable_plugin",
+        adapt_chat_args=lambda a: {"plugin_id": a.plugin_id},
+    ),
+    Operation(
+        name="disable_plugin",
+        executor=executors.disable_plugin,
+        chat_name="disable_plugin",
+        mcp_tool="disable_plugin",
+        adapt_chat_args=lambda a: {"plugin_id": a.plugin_id},
+    ),
+    Operation(
+        name="uninstall_plugin",
+        executor=executors.uninstall_plugin,
+        chat_name="uninstall_plugin",
+        mcp_tool="uninstall_plugin",
+        adapt_chat_args=lambda a: {"plugin_id": a.plugin_id},
+    ),
+    Operation(
+        name="update_plugin",
+        executor=executors.update_plugin,
+        chat_name="update_plugin",
+        mcp_tool="update_plugin",
+        adapt_chat_args=lambda a: {"plugin_id": a.plugin_id},
+    ),
+    # MCP-only plugin ops covering the rest of the Integrations page —
+    # instances, demo pages, bulk update checks. The chat grammar has no
+    # spelling for them; the in-app chat reaches them as MCP tools.
+    Operation(
+        name="create_plugin_instance",
+        executor=executors.create_plugin_instance,
+        mcp_tool="create_plugin_instance",
+    ),
+    Operation(
+        name="delete_plugin_instance",
+        executor=executors.delete_plugin_instance,
+        mcp_tool="delete_plugin_instance",
+    ),
+    Operation(
+        name="create_plugin_demo_page",
+        executor=executors.create_plugin_demo_page,
+        mcp_tool="create_plugin_demo_page",
+    ),
+    Operation(name="check_plugin_updates", executor=executors.check_plugin_updates, mcp_tool="check_plugin_updates"),
+    Operation(name="update_all_plugins", executor=executors.update_all_plugins, mcp_tool="update_all_plugins"),
+    # -- settings / system ------------------------------------------------
+    Operation(
+        name="update_setting",
+        executor=executors.update_setting,
+        chat_name="update_setting",
+        mcp_tool="update_setting",
+        adapt_chat_args=lambda a: {"category": a.category, "values": a.values},
+    ),
+    Operation(
+        name="trigger_system_update",
+        executor=executors.trigger_system_update,
+        chat_name="trigger_system_update",
+        mcp_tool="trigger_system_update",
+        adapt_chat_args=lambda a: {},
+    ),
+    # MCP-only server ops covering the rest of the Settings page (secrets
+    # excluded by design — see executors.SECRET_SETTING_KEYS). The chat
+    # grammar has no spelling for them; the in-app chat reaches them through
+    # the MCP catalog.
+    Operation(name="restart_system", executor=executors.restart_system, mcp_tool="restart_system"),
+    Operation(name="shutdown_system", executor=executors.shutdown_system, mcp_tool="shutdown_system"),
+    # -- board hardware ---------------------------------------------------
+    Operation(name="update_board", executor=executors.update_board, mcp_tool="update_board"),
+    Operation(name="add_board", executor=executors.add_board, mcp_tool="add_board"),
+    Operation(name="remove_board", executor=executors.remove_board, mcp_tool="remove_board"),
+    Operation(name="identify_tile", executor=executors.identify_tile, mcp_tool="identify_tile"),
+    # -- FiestaPanel ------------------------------------------------------
+    Operation(name="create_panel", executor=executors.create_panel, mcp_tool="create_panel"),
+    Operation(name="update_panel", executor=executors.update_panel, mcp_tool="update_panel"),
+    Operation(name="delete_panel", executor=executors.delete_panel, mcp_tool="delete_panel"),
+    # -- network ----------------------------------------------------------
+    Operation(name="disconnect_wifi", executor=executors.disconnect_wifi, mcp_tool="disconnect_wifi"),
+    Operation(name="forget_wifi_network", executor=executors.forget_wifi_network, mcp_tool="forget_wifi_network"),
+    # -- debug board actions ----------------------------------------------
+    Operation(name="blank_board", executor=executors.blank_board, mcp_tool="blank_board"),
+    Operation(name="fill_board", executor=executors.fill_board, mcp_tool="fill_board"),
+    Operation(name="show_board_debug_info", executor=executors.show_board_debug_info, mcp_tool="show_board_debug_info"),
+    Operation(name="clear_board_cache", executor=executors.clear_board_cache, mcp_tool="clear_board_cache"),
+    # -- client-side chat ops (no server effect) --------------------------
+    # ``replace_page`` is an EDITOR op, not "create a page" (Phase 2 Task 11).
+    # #1764 aliased it onto ``create_page``, but nothing on the chat path ever
+    # called the registry, so the mis-mapping never showed: the browser has
+    # always applied it to the page mounted in the editor, exactly like
+    # ``apply_patch``, and the system prompt teaches it that way — "use when
+    # the user asks for ... a full rewrite" of the page being edited,
+    # "replace_page is destructive", and the global drawer is told to
+    # navigate to the editor first rather than "write template content
+    # remotely". Executing it server-side would create a second page and
+    # leave the open editor untouched. ``create_page`` above keeps the
+    # executor for the MCP tool of that name.
+    Operation(name="replace_page", chat_name="replace_page", client_side=True),
+    Operation(name="apply_patch", chat_name="apply_patch", client_side=True),
+    Operation(name="suggest_variables", chat_name="suggest_variables", client_side=True),
+    Operation(name="navigate_to_page", chat_name="navigate_to_page", client_side=True),
+    Operation(name="navigate_to_schedule", chat_name="navigate_to_schedule", client_side=True),
+    Operation(name="update_task_list", chat_name="update_task_list", client_side=True),
+)
+
+
+def _build_alias_map() -> dict[str, Operation]:
+    by_alias: dict[str, Operation] = {}
+    for op in OPERATIONS:
+        for alias in op.aliases:
+            existing = by_alias.get(alias)
+            if existing is not None and existing is not op:
+                raise ValueError(f"operation alias collision: {alias!r} names both {existing.name} and {op.name}")
+            by_alias[alias] = op
+    return by_alias
+
+
+_BY_ALIAS: dict[str, Operation] = _build_alias_map()
+
+
+def get_operation(name: str) -> Operation:
+    """Resolve either grammar's spelling to its operation."""
+    op = _BY_ALIAS.get(name)
+    if op is None:
+        raise KeyError(f"unknown operation: {name!r}")
+    return op
+
+
+def operation_names() -> set[str]:
+    """Every name the registry resolves (canonical + both grammars)."""
+    return set(_BY_ALIAS)
+
+
+async def execute(name: str, args: dict[str, Any], *, grammar: Grammar = "canonical") -> dict[str, Any]:
+    """Execute an operation, validating ``args`` the way ``grammar`` demands.
+
+    ``grammar`` is the grammar the *caller* used, and it — not the name —
+    decides how ``args`` are treated (#1849 review, item 2):
+
+    - ``"chat"``: ``args`` are validated against the chat-op schema (the
+      exact validation ``parse_tool_call`` applies) and adapted onto the
+      canonical executor's kwargs.
+    - ``"canonical"`` (the default): ``args`` pass straight through as
+      executor kwargs.
+
+    It used to be inferred from name equality — "this is a chat call if the
+    name is the op's chat name" — and for a dozen ops the canonical name
+    *is* the chat name, so a canonical caller's kwargs were pushed through
+    the chat schema and any kwarg the schema did not know was silently
+    dropped (``extra="ignore"``). A name that is not a spelling of the
+    operation in the given grammar is a ``KeyError``, the same verdict an
+    unknown name gets; a grammar this registry does not know is a
+    ``ValueError`` rather than a silent canonical passthrough.
+    """
+    if grammar not in get_args(Grammar):
+        raise ValueError(f"unknown grammar {grammar!r}; expected one of {get_args(Grammar)}")
+    op = get_operation(name)
+    if name not in op.names_in(grammar):
+        raise KeyError(f"{name!r} is not a {grammar}-grammar spelling of operation {op.name!r}")
+    if op.client_side:
+        raise ClientSideOperationError(
+            f"operation {name!r} is applied client-side by the web UI and has no server executor"
+        )
+    assert op.executor is not None
+
+    if grammar == "chat":
+        from .grammar import parse_tool_call
+
+        validated = parse_tool_call({"op": name, "args": args})
+        assert op.adapt_chat_args is not None, f"chat-named op {name!r} has no args adapter"
+        kwargs = op.adapt_chat_args(validated.args)
+    else:
+        kwargs = dict(args)
+
+    result = op.executor(**kwargs)
+    if inspect.isawaitable(result):
+        result = await result
+    return result
+
+
+def execute_sync(name: str, args: dict[str, Any], *, grammar: Grammar = "canonical") -> dict[str, Any]:
+    """Blocking convenience wrapper around :func:`execute`."""
+    return asyncio.run(execute(name, args, grammar=grammar))

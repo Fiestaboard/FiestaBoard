@@ -33,19 +33,21 @@ describe("panels API client", () => {
     expect(result.panels[0].name).toBe("Living Room TV");
   });
 
-  it("createPanel POSTs the name and screen size", async () => {
+  it("createPanel POSTs the name and screen size and returns the created panel", async () => {
     let body: unknown;
     server.use(
       http.post("/api/panels", async ({ request }) => {
         body = await request.json();
-        return HttpResponse.json({ status: "success", panel: PANEL });
+        // 201 with the bare panel (Phase 2 slice 8).
+        return HttpResponse.json(PANEL, { status: 201 });
       }),
     );
     const result = await api.createPanel({
       name: "Living Room TV",
       screen_diagonal_inches: 55,
     });
-    expect(result.status).toBe("success");
+    expect(result.id).toBe("abc123def456");
+    expect(result.name).toBe("Living Room TV");
     expect(body).toEqual({
       name: "Living Room TV",
       screen_diagonal_inches: 55,
@@ -57,23 +59,26 @@ describe("panels API client", () => {
     server.use(
       http.patch("/api/panels/abc123def456", async ({ request }) => {
         body = await request.json();
-        return HttpResponse.json({ status: "success", panel: PANEL });
+        return HttpResponse.json({ ...PANEL, incompatible_references: null });
       }),
     );
-    await api.updatePanel("abc123def456", { calibration_scale: 1.05 });
+    const result = await api.updatePanel("abc123def456", { calibration_scale: 1.05 });
     expect(body).toEqual({ calibration_scale: 1.05 });
+    expect(result.id).toBe("abc123def456");
+    expect(result.incompatible_references).toBeNull();
   });
 
-  it("deletePanel DELETEs the panel", async () => {
+  it("deletePanel DELETEs the panel and reports the id that is gone", async () => {
     let called = false;
     server.use(
       http.delete("/api/panels/abc123def456", () => {
         called = true;
-        return HttpResponse.json({ status: "success" });
+        return HttpResponse.json({ id: "abc123def456" });
       }),
     );
-    await api.deletePanel("abc123def456");
+    const result = await api.deletePanel("abc123def456");
     expect(called).toBe(true);
+    expect(result.id).toBe("abc123def456");
   });
 
   it("getPanel GETs the public viewer config", async () => {

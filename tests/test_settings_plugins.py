@@ -67,13 +67,12 @@ class TestGetPluginSettings:
     def test_default_auto_update_is_true(self):
         response = client.get("/settings/plugins")
         body = response.json()
-        assert "settings" in body
-        assert body["settings"]["auto_update"] is True
+        assert body["auto_update"] is True
 
     def test_reflects_disabled_state(self):
         get_settings_service().update_plugin_settings({"auto_update": False})
         response = client.get("/settings/plugins")
-        assert response.json()["settings"]["auto_update"] is False
+        assert response.json()["auto_update"] is False
 
 
 # ---------------------------------------------------------------------------
@@ -89,19 +88,18 @@ class TestPutPluginSettings:
         response = client.put("/settings/plugins", json={"auto_update": False})
         assert response.status_code == 200
         body = response.json()
-        assert body["status"] == "success"
-        assert body["settings"]["auto_update"] is False
+        assert body["auto_update"] is False
 
     def test_enable_auto_update(self):
         get_settings_service().update_plugin_settings({"auto_update": False})
         response = client.put("/settings/plugins", json={"auto_update": True})
         assert response.status_code == 200
-        assert response.json()["settings"]["auto_update"] is True
+        assert response.json()["auto_update"] is True
 
     def test_persisted_across_get(self):
         client.put("/settings/plugins", json={"auto_update": False})
         response = client.get("/settings/plugins")
-        assert response.json()["settings"]["auto_update"] is False
+        assert response.json()["auto_update"] is False
 
     def test_empty_body_does_not_error(self):
         response = client.put("/settings/plugins", json={})
@@ -126,7 +124,7 @@ def test_settings_all_plugins_consistent_with_dedicated_endpoint():
     _reset_plugin_settings()
     all_data = client.get("/settings/all").json()
     plugin_data = client.get("/settings/plugins").json()
-    assert all_data["plugins"]["auto_update"] == plugin_data["settings"]["auto_update"]
+    assert all_data["plugins"]["auto_update"] == plugin_data["auto_update"]
 
 
 # ---------------------------------------------------------------------------
@@ -165,6 +163,9 @@ def test_auto_apply_updates_external_plugin(tmp_path):
     registry.get_plugin_source.return_value = source
     registry.reload_plugin.return_value = MagicMock()
     registry._update_status = {plugin_id: True}
+    # The auto-apply loop clears the flag through the public locked method
+    # (#1828); mirror the real registry's behavior on this mock.
+    registry.clear_update_status.side_effect = lambda pid: registry._update_status.pop(pid, None)
 
     with (
         patch("src.plugins.sources.get_external_plugins_dir", return_value=tmp_path),
@@ -235,6 +236,7 @@ def test_auto_apply_handles_git_fetch_failure(tmp_path):
     source.local_path = str(plugin_dir)
     registry.get_plugin_source.return_value = source
     registry._update_status = {plugin_id: True}
+    registry.clear_update_status.side_effect = lambda pid: registry._update_status.pop(pid, None)
 
     with (
         patch("src.plugins.sources.get_external_plugins_dir", return_value=tmp_path),
@@ -258,6 +260,7 @@ def test_auto_apply_handles_reload_failure(tmp_path):
     registry.get_plugin_source.return_value = source
     registry.reload_plugin.return_value = None  # reload failed
     registry._update_status = {plugin_id: True}
+    registry.clear_update_status.side_effect = lambda pid: registry._update_status.pop(pid, None)
 
     with (
         patch("src.plugins.sources.get_external_plugins_dir", return_value=tmp_path),
@@ -290,6 +293,7 @@ def test_auto_apply_multiple_plugins_partial_success(tmp_path):
     registry.get_plugin_source.side_effect = get_source
     registry.reload_plugin.return_value = MagicMock()
     registry._update_status = {good_id: True, bad_id: True}
+    registry.clear_update_status.side_effect = lambda pid: registry._update_status.pop(pid, None)
 
     def fake_clone(url, pid, external_dir):
         return (True, "") if pid == good_id else (False, "fetch error")

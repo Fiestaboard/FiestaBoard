@@ -4,19 +4,22 @@ This service allows runtime modification of settings like transition
 animations and output targets, which can be controlled from the UI.
 """
 
-import contextlib
+import functools
 import json
 import logging
 import os
 import shutil
+import threading
 from collections.abc import Callable
 from dataclasses import asdict, dataclass, field
 from datetime import UTC, datetime
-from pathlib import Path
-from typing import Literal, Optional
+from typing import Literal, Optional, TypeVar, get_args
 
-from src.atomic_io import staging_path
-from src.paths import get_data_dir
+from pydantic import BaseModel
+
+from src.storage.json_store import JsonStore, SchemaTooNewError
+
+_Section = TypeVar("_Section")
 
 logger = logging.getLogger(__name__)
 
@@ -24,9 +27,18 @@ logger = logging.getLogger(__name__)
 # transitions use the ``plugin:<id>`` form and are validated dynamically
 # against the transition-plugin registry rather than this list.
 VALID_STRATEGIES = ["column", "reverse-column", "edges-to-center", "row", "diagonal", "random"]
-VALID_OUTPUT_TARGETS = ["ui", "board", "both"]
 
+#: Where rendered content goes. The Literal is the definition and the list is
+#: derived from it, so a request model annotated ``target: OutputTarget``
+#: publishes exactly the set ``set_output_target`` enforces — they used to be
+#: two hand-copied spellings of the same three words.
 OutputTarget = Literal["ui", "board", "both"]
+VALID_OUTPUT_TARGETS = list(get_args(OutputTarget))
+
+#: The six BUILT-IN strategies. Deliberately NOT the whole vocabulary and so
+#: deliberately not a wire enum: ``is_valid_strategy`` also accepts any
+#: ``plugin:<id>`` reference, so a closed enum on the wire would refuse every
+#: transition plugin.
 TransitionStrategy = Literal["column", "reverse-column", "edges-to-center", "row", "diagonal", "random"]
 
 # Prefix that marks a strategy string as referring to a transition plugin
@@ -361,6 +373,70 @@ class TemporaryOverride:
         )
 
 
+class TemporaryOverrideStatus(BaseModel):
+    """The wire shape of a :class:`TemporaryOverride`, or of "there isn't one".
+
+    One shape is shared by ``GET``/``POST /settings/temporary-override`` and by
+    the inline block on ``GET /schedules/active/page``, so the three can never
+    drift. Declared as a model (rather than assembled ad hoc) so routers can
+    name it in ``response_model=`` — see
+    ``docs/internal/reference/API_CONVENTIONS.md``.
+
+    ``remaining_seconds`` is None both when there is no override and when the
+    override is indefinite (issue #1787).
+    """
+
+    active: bool
+    page_id: str | None = None
+    expires_at: str | None = None
+    remaining_seconds: float | None = None
+    revert_mode: str | None = None
+    revert_page_id: str | None = None
+    template: list[str] | None = None
+    line_metadata: list[dict] | None = None
+    device_type: str | None = None
+    notes_wide: int | None = None
+    notes_tall: int | None = None
+
+
+def temporary_override_payload(override: "TemporaryOverride | None") -> dict:
+    """Serialize a TemporaryOverride (or None) for the API.
+
+    Lived in ``src/api_server.py`` until Phase 2 §2.3. It reads nothing but the
+    override, so it belongs next to the model it serializes — and the schedules
+    router can now import it instead of reaching into the app module at call
+    time.
+    """
+    if override is None:
+        return {
+            "active": False,
+            "page_id": None,
+            "expires_at": None,
+            "remaining_seconds": None,
+            "revert_mode": None,
+            "revert_page_id": None,
+            "template": None,
+            "line_metadata": None,
+            "device_type": None,
+            "notes_wide": None,
+            "notes_tall": None,
+        }
+    remaining = override.remaining_seconds()
+    return {
+        "active": True,
+        "page_id": override.page_id,
+        "expires_at": override.expires_at,
+        "remaining_seconds": round(remaining, 1) if remaining is not None else None,
+        "revert_mode": override.revert_mode,
+        "revert_page_id": override.revert_page_id,
+        "template": override.template,
+        "line_metadata": override.line_metadata,
+        "device_type": override.device_type,
+        "notes_wide": override.notes_wide,
+        "notes_tall": override.notes_tall,
+    }
+
+
 @dataclass
 class ScheduleSettings:
     """Schedule system settings.
@@ -590,7 +666,7 @@ class MQTTSettings:
 # pre-migration file is written to ``settings.json.v{N}_backup`` before the
 # first migration runs.
 
-CURRENT_SETTINGS_SCHEMA_VERSION = 2
+CURRENT_SETTINGS_SCHEMA_VERSION = 3
 
 _LEGACY_CAROUSEL_PREFIX = "carousel:"
 _COLLECTION_PREFIX = "collection:"
@@ -718,10 +794,153 @@ def _migrate_v1_to_v2(data: dict) -> int:
     return 1
 
 
+# Board-connection fields copied from the legacy config.json board block into
+# a credential-less settings board (v2 -> v3 migration and first-boot seed).
+_LEGACY_CONNECTION_FIELDS = ("api_mode", "host", "local_api_key", "cloud_key", "note_array_token")
+
+
+def _board_dict_has_credentials(board: dict) -> bool:
+    """True when a raw board dict already carries any connection credential.
+
+    Credentials are the local API key, the cloud read/write key, the
+    note-array token, or configured local-array tiles. A virtual board
+    (FiestaPanel) counts too: carrying no credential fields is its nature,
+    not an unconfigured state — mirroring
+    ``BoardInstance.has_connection_attempt`` — so stale physical credentials
+    never flip its ``api_mode`` (#1866 review). A board matching any of
+    these is a *maintained* copy and must never be overwritten by the legacy
+    config.json block (issue #1760 precedence rule).
+    """
+    if board.get("api_mode") == "virtual":
+        return True
+    if board.get("local_api_key") or board.get("cloud_key") or board.get("note_array_token"):
+        return True
+    tiles = board.get("tiles")
+    return isinstance(tiles, list) and len(tiles) > 0
+
+
+def _read_legacy_board_connection() -> dict | None:
+    """Read the legacy ``config.json -> board.*`` connection block.
+
+    Returns a dict of :data:`_LEGACY_CONNECTION_FIELDS`, or None when the
+    legacy block carries no credential worth importing. A *failure* to read
+    it propagates instead of masquerading as "no credentials": swallowing it
+    let a transient config read failure stamp the new schema version with
+    nothing imported (#1866 review). The migration runner aborts the run so
+    schema_version stays pre-migration and the import retries next boot.
+    This is the ONLY remaining read of board credentials from config.json;
+    everything at runtime goes through the settings store (issue #1760).
+    """
+    from src.config_manager import get_config_manager
+
+    legacy = get_config_manager().get_board()
+    if not (legacy.get("local_api_key") or legacy.get("cloud_key") or legacy.get("note_array_token")):
+        return None
+    return {
+        "api_mode": legacy.get("api_mode", "local") or "local",
+        "host": legacy.get("host", "") or "",
+        "local_api_key": legacy.get("local_api_key", "") or "",
+        "cloud_key": legacy.get("cloud_key", "") or "",
+        "note_array_token": legacy.get("note_array_token", "") or "",
+    }
+
+
+def _connection_fields_for_board(legacy: dict, board: dict) -> dict | None:
+    """Restrict an imported legacy connection to fields the target board can use.
+
+    A note-array token only ever drives a note-array board. Importing it onto
+    a flagship/note primary satisfied ``has_connection_attempt`` — the setup
+    wizard never appeared — while no client could ever be built from it
+    (#1866 review). For non-array targets the token is dropped; if no real
+    credential remains, nothing imports and the wizard shows as it did
+    pre-#1760.
+    """
+    from src.devices import is_note_array
+
+    if is_note_array(board.get("device_type", "flagship")):
+        return legacy
+    fields = dict(legacy)
+    fields["note_array_token"] = ""
+    if not (fields.get("local_api_key") or fields.get("cloud_key")):
+        return None
+    return fields
+
+
+def _migrate_v2_to_v3(data: dict) -> int:
+    """Migration 2 -> 3 (idempotent; operates on the raw settings dict).
+
+    Unify board credentials on settings.json (issue #1760): import the legacy
+    ``config.json -> board.*`` connection block into the primary settings
+    board — once, gated on schema_version, replacing the old copy-on-every-boot
+    seam that kept resurrecting stale config.json keys (#948/#1102).
+
+    Precedence: settings is the maintained copy. Only a credential-less
+    primary board inherits from config.json; a board that already carries any
+    credential (local key, cloud key, note-array token, or local-array tiles)
+    is left untouched. config.json itself is not modified — its board block
+    stays on disk as a rollback copy for older versions but is no longer read
+    at runtime.
+
+    Returns 1 when the primary board inherited the legacy connection,
+    0 otherwise.
+    """
+    board = data.get("board")
+    if not isinstance(board, dict):
+        return 0
+    boards = board.get("boards")
+    materialize = False
+    if not isinstance(boards, list) or not boards or not isinstance(boards[0], dict):
+        # Devices-era file: a raw ``board`` dict without a ``boards`` list
+        # (e.g. {"board_type": "black", "devices": ["flagship"]}) — a shape
+        # BoardSettings.from_dict still parses. Gating only on a raw
+        # boards[0] let these installs slip between the migration and the
+        # first-boot seed: schema stamped v3 with the credentials stranded
+        # in config.json (#1866 review). Run the import against the
+        # POST-PARSE board list instead, and materialize it on import.
+        parsed = BoardSettings.from_dict(board)
+        boards = [b for b in parsed.boards if isinstance(b, dict)]
+        if not boards:
+            return 0
+        materialize = True
+    first = boards[0]
+    if _board_dict_has_credentials(first):
+        return 0
+    legacy = _read_legacy_board_connection()
+    if legacy is None:
+        return 0
+    importable = _connection_fields_for_board(legacy, first)
+    if importable is None:
+        return 0
+    first.update(importable)
+    if materialize:
+        board["boards"] = boards
+    logger.info("Imported legacy config.json board connection into the primary settings board")
+    return 1
+
+
 MIGRATIONS: list[tuple[int, Callable[[dict], int]]] = [
     (1, _migrate_v0_to_v1),
     (2, _migrate_v1_to_v2),
+    (3, _migrate_v2_to_v3),
 ]
+
+
+def _locked(method):
+    """Run *method* under the settings store lock.
+
+    Every mutating method is a read-modify-write over the shared in-memory
+    sections followed by a full-file save; without one lock around the whole
+    thing, two concurrent PUTs race the save and one silently overwrites the
+    other's section with a stale snapshot (#1848). The lock is the JsonStore's
+    RLock, so nested ``_save_to_file`` calls re-enter cleanly.
+    """
+
+    @functools.wraps(method)
+    def wrapper(self, *args, **kwargs):
+        with self._store.lock:
+            return method(self, *args, **kwargs)
+
+    return wrapper
 
 
 class SettingsService:
@@ -737,11 +956,17 @@ class SettingsService:
         Args:
             settings_file: Path to settings JSON file. Defaults to data/settings.json
         """
-        if settings_file is None:
-            # Default to the central data directory (src/paths.py seam)
-            self.settings_file = get_data_dir() / "settings.json"
-        else:
-            self.settings_file = Path(settings_file)
+        # The storage kernel owns the lock and the atomic write. Migrations
+        # stay domain-run in _run_migrations below (they must execute before
+        # any _load_* reads sections, and settings' error semantics — swallow
+        # unreadable files, skip non-dict payloads — predate the kernel), so
+        # no migrations are handed to the store.
+        self._store = JsonStore(
+            "settings.json" if settings_file is None else settings_file,
+            current_schema_version=CURRENT_SETTINGS_SCHEMA_VERSION,
+            label="Settings",
+        )
+        self.settings_file = self._store.path
 
         # Run ordered schema migrations on the raw settings file BEFORE any
         # subsystem reads, so every _load_* sees fully migrated values. This
@@ -749,26 +974,48 @@ class SettingsService:
         # v0->v1 migration) plus per-board active-page / schedule_enabled moves.
         self._run_migrations()
 
-        # Load initial settings from env/file
-        self._transition = self._load_transition_settings()
-        self._output = self._load_output_settings()
-        self._active_page = self._load_active_page_settings()
-        self._polling = self._load_polling_settings()
-        self._board = self._load_board_settings()
-        self._schedule = self._load_schedule_settings()
-        self._mqtt = self._load_mqtt_settings()
-        self._display = self._load_display_settings()
-        self._location = self._load_location_settings()
-        self._beta = self._load_beta_settings()
-        self._plugins = self._load_plugin_settings()
-        self._temporary_override: TemporaryOverride | None = self._load_temporary_override()
+        # Load initial settings from env/file. settings.json is read and
+        # parsed ONCE here and handed to every section loader. Each loader
+        # used to call _load_from_file() itself, so constructing the service
+        # opened and fully parsed the same file 12 times (13 with the
+        # migration pass above) — on a 15 KB file that is ~200 KB read and
+        # ~185 KB parsed per construction, on the Pi boot path.
+        file_data = self._load_from_file()
+        self._transition = self._load_transition_settings(file_data)
+        self._output = self._load_output_settings(file_data)
+        self._active_page = self._load_section(file_data, "active_page", ActivePageSettings)
+        self._polling = self._load_section(file_data, "polling", PollingSettings)
+        self._board = self._load_board_settings(file_data)
+        self._schedule = self._load_section(file_data, "schedule", ScheduleSettings)
+        self._mqtt = self._load_mqtt_settings(file_data)
+        self._display = self._load_section(file_data, "display", DisplaySettings)
+        self._location = self._load_section(file_data, "location", LocationSettings)
+        self._beta = self._load_section(file_data, "beta", BetaSettings)
+        self._plugins = self._load_section(file_data, "plugins", PluginSettings)
+        self._temporary_override: TemporaryOverride | None = self._load_temporary_override(file_data)
 
-        if getattr(self, "_needs_migration_save", False):
-            self._save_to_file()
-            self._needs_migration_save = False
+        if getattr(self, "_needs_seed_save", False):
+            try:
+                self._save_to_file()
+            except OSError as e:
+                # Boot path, not a request path: refusing to construct the
+                # service would take the whole process down over a seed
+                # write. Running with in-memory defaults and an unwritable
+                # data dir is strictly better, and the next setter call —
+                # which *is* a request — will surface the same OSError to
+                # the caller as a 5xx.
+                logger.error(f"Could not persist seeded settings at startup: {e}")
+            self._needs_seed_save = False
 
         logger.info(f"SettingsService initialized (file: {self.settings_file})")
 
+    @property
+    def lock(self) -> threading.RLock:
+        """The kernel store's lock, for out-of-band writers of settings.json
+        (the backup restore, #1860) to serialise against normal saves."""
+        return self._store.lock
+
+    @_locked
     def _run_migrations(self) -> None:
         """Run pending settings schema migrations on the raw settings file.
 
@@ -797,6 +1044,20 @@ class SettingsService:
         if not isinstance(current_version, int):
             current_version = 0
 
+        if current_version > CURRENT_SETTINGS_SCHEMA_VERSION:
+            # Written by a newer build. Migrations are forward-only, so
+            # there is nothing to run and no way to read this correctly.
+            # Falling through would read v(N+1) content as vN and the next
+            # save would stamp vN back onto it. This file is the one store
+            # whose schema has actually diverged across a release boundary,
+            # so it is what a downgrading user hits first.
+            raise SchemaTooNewError(
+                label="settings",
+                path=self.settings_file,
+                found=current_version,
+                supported=CURRENT_SETTINGS_SCHEMA_VERSION,
+            )
+
         if current_version >= CURRENT_SETTINGS_SCHEMA_VERSION:
             return
 
@@ -808,12 +1069,25 @@ class SettingsService:
             except OSError as e:
                 logger.warning(f"Could not create settings backup: {e}")
 
-        for target_version, migrate_fn in MIGRATIONS:
-            if current_version >= target_version:
-                continue
-            count = migrate_fn(data)
-            logger.info(f"Settings schema migration v{current_version}->v{target_version}: {count} change(s) applied")
-            current_version = target_version
+        try:
+            for target_version, migrate_fn in MIGRATIONS:
+                if current_version >= target_version:
+                    continue
+                count = migrate_fn(data)
+                logger.info(
+                    f"Settings schema migration v{current_version}->v{target_version}: {count} change(s) applied"
+                )
+                current_version = target_version
+        except Exception:
+            # Abort the whole run without saving: schema_version on disk stays
+            # pre-migration (no half-stamp — nothing mutated reaches disk) and
+            # every pending migration re-runs on the next boot. Migrations are
+            # idempotent by contract, so the retry is safe (#1866 review).
+            logger.exception(
+                f"Settings schema migration to v{CURRENT_SETTINGS_SCHEMA_VERSION} failed — "
+                "leaving schema_version unstamped; will retry next boot"
+            )
+            return
 
         data["schema_version"] = CURRENT_SETTINGS_SCHEMA_VERSION
 
@@ -824,22 +1098,13 @@ class SettingsService:
             logger.warning(f"Could not write migrated settings: {e}")
 
     def _atomic_write_json(self, data: dict) -> None:
-        """Write *data* to ``settings_file`` atomically (tmp + os.replace).
+        """Write *data* to ``settings_file`` atomically via the storage kernel.
 
         A mid-write crash (OOM, SIGKILL, power loss) never truncates the real
-        file — it stays untouched until the temp file is fully written and
-        renamed over it (see #1304). Uses builtins.open on the tmp path so
-        existing tests can patch builtins.open to inject write errors.
+        file — it stays untouched until the staged file is fully written and
+        renamed over it (see #1304).
         """
-        tmp_path = staging_path(self.settings_file)
-        try:
-            with open(tmp_path, "w") as f:  # noqa: PTH123
-                json.dump(data, f, indent=2)
-            tmp_path.replace(self.settings_file)
-        except BaseException:
-            with contextlib.suppress(OSError):
-                tmp_path.unlink(missing_ok=True)
-            raise
+        self._store.save(data)
 
     def _load_from_file(self) -> dict:
         """Load settings from JSON file."""
@@ -853,8 +1118,20 @@ class SettingsService:
                 logger.warning(f"Failed to load settings file: {e}")
         return {}
 
+    @_locked
     def _save_to_file(self) -> None:
-        """Save current settings to JSON file."""
+        """Save current settings to JSON file.
+
+        Write errors **propagate**, matching every other store in the
+        codebase (pages, collections, schedules, panels, config_manager all
+        log and re-raise). This used to log and return, so a full disk or a
+        read-only ``data/`` produced ~20 endpoints that answered HTTP 200
+        having persisted nothing and reverted on the next restart.
+
+        The two callers that must survive a failed write — the boot-time
+        seed save and the override expiry GC — catch ``OSError`` at their
+        own call site, each with a comment saying why.
+        """
         try:
             data = {
                 "schema_version": CURRENT_SETTINGS_SCHEMA_VERSION,
@@ -875,11 +1152,24 @@ class SettingsService:
             logger.debug("Settings saved to file")
         except OSError as e:
             logger.error(f"Failed to save settings file: {e}")
+            raise
 
-    def _load_transition_settings(self) -> TransitionSettings:
-        """Load transition settings from file or env."""
-        # Try file first
-        file_data = self._load_from_file()
+    def _load_section(self, file_data: dict, key: str, cls: type[_Section]) -> _Section:
+        """Read one settings section, or fall back to the dataclass default.
+
+        Seven sections (active_page, polling, schedule, display, location,
+        beta, plugins) are exactly this and nothing else — they had seven
+        six-line methods, one caller each. The two sections with an env-var
+        fallback (transitions, output), the one that seeds from legacy
+        config.json (board), the one with env fallbacks (mqtt) and the one
+        with expiry (temporary_override) keep their own loaders below.
+        """
+        if key in file_data:
+            return cls.from_dict(file_data[key])
+        return cls()
+
+    def _load_transition_settings(self, file_data: dict) -> TransitionSettings:
+        """Load transition settings from the parsed file, or env."""
         if "transitions" in file_data:
             return TransitionSettings.from_dict(file_data["transitions"])
 
@@ -892,10 +1182,8 @@ class SettingsService:
             step_size=Config.FB_TRANSITION_STEP_SIZE,
         )
 
-    def _load_output_settings(self) -> OutputSettings:
-        """Load output settings from file or env."""
-        # Try file first
-        file_data = self._load_from_file()
+    def _load_output_settings(self, file_data: dict) -> OutputSettings:
+        """Load output settings from the parsed file, or env."""
         if "output" in file_data:
             return OutputSettings.from_dict(file_data["output"])
 
@@ -904,76 +1192,57 @@ class SettingsService:
 
         return OutputSettings(target=Config.OUTPUT_TARGET)
 
-    def _load_active_page_settings(self) -> ActivePageSettings:
-        """Load active page settings from file."""
-        file_data = self._load_from_file()
-        if "active_page" in file_data:
-            return ActivePageSettings.from_dict(file_data["active_page"])
-        return ActivePageSettings()
+    def _load_board_settings(self, file_data: dict) -> BoardSettings:
+        """Load board settings from the parsed file.
 
-    def _load_polling_settings(self) -> PollingSettings:
-        """Load polling settings from file."""
-        file_data = self._load_from_file()
-        if "polling" in file_data:
-            return PollingSettings.from_dict(file_data["polling"])
-        return PollingSettings()  # Default to 60 seconds
+        Existing files: the schema migrations (run before any ``_load_*``)
+        already imported the legacy config.json connection where appropriate,
+        so the section is used as-is — a maintained board is never re-seeded
+        from config.json (issue #1760).
 
-    def _load_board_settings(self) -> BoardSettings:
-        """Load board settings from file.
-
-        If the first board has no connection settings, migrate them from
-        the global board config (config.json) so existing setups keep working.
-        Migration is deferred -- _migrate_global_connection sets a flag,
-        and the actual save happens after all settings are fully initialized.
+        First boot only (no board section on disk yet): the freshly created
+        default board inherits the legacy ``config.json -> board.*``
+        connection, which is where env vars like ``BOARD_READ_WRITE_KEY``
+        seed credentials. The seed is persisted after init via
+        ``_needs_seed_save``.
         """
-        file_data = self._load_from_file()
         if "board" in file_data:
-            settings = BoardSettings.from_dict(file_data["board"])
-        else:
-            settings = BoardSettings()
+            return BoardSettings.from_dict(file_data["board"])
 
-        self._needs_migration_save = self._apply_global_connection(settings)
+        settings = BoardSettings()
+        self._needs_seed_save = self._seed_connection_from_legacy_config(settings)
         return settings
 
-    def _apply_global_connection(self, settings: BoardSettings) -> bool:
-        """Copy global board connection config into board instances that lack one.
+    @staticmethod
+    def _seed_connection_from_legacy_config(settings: BoardSettings) -> bool:
+        """First-boot seed: copy the legacy config.json connection into the
+        default board when it carries no credential of its own.
 
         Returns True if settings were modified and need saving.
         """
         if not settings.boards:
             return False
-
         first = settings.boards[0]
-        if first.get("local_api_key") or first.get("cloud_key"):
+        if _board_dict_has_credentials(first):
             return False
-
         try:
-            from src.config_manager import get_config_manager
-
-            global_cfg = get_config_manager().get_board()
+            legacy = _read_legacy_board_connection()
         except Exception:
+            # First boot has no schema-version retry lever; skip the seed and
+            # leave the board section unsaved so the next boot tries again.
+            logger.warning("Could not read legacy board connection for first-boot seed", exc_info=True)
             return False
-
-        if not global_cfg.get("local_api_key") and not global_cfg.get("cloud_key"):
+        if legacy is None:
             return False
-
-        first["api_mode"] = global_cfg.get("api_mode", "local")
-        first["host"] = global_cfg.get("host", "")
-        first["local_api_key"] = global_cfg.get("local_api_key", "")
-        first["cloud_key"] = global_cfg.get("cloud_key", "")
-        logger.info("Migrated global board connection to first board instance")
+        importable = _connection_fields_for_board(legacy, first)
+        if importable is None:
+            return False
+        first.update(importable)
+        logger.info("Seeded first-boot board connection from legacy config.json")
         return True
 
-    def _load_schedule_settings(self) -> ScheduleSettings:
-        """Load schedule settings from file."""
-        file_data = self._load_from_file()
-        if "schedule" in file_data:
-            return ScheduleSettings.from_dict(file_data["schedule"])
-        return ScheduleSettings()
-
-    def _load_mqtt_settings(self) -> "MQTTSettings":
-        """Load MQTT settings from file, falling back to env vars."""
-        file_data = self._load_from_file()
+    def _load_mqtt_settings(self, file_data: dict) -> "MQTTSettings":
+        """Load MQTT settings from the parsed file, falling back to env vars."""
         if "mqtt" in file_data:
             return MQTTSettings.from_dict(file_data["mqtt"])
         # Fall back to env vars so existing env-based setups continue to work
@@ -987,37 +1256,8 @@ class SettingsService:
             external_url=os.environ.get("FIESTABOARD_EXTERNAL_URL", "") or "",
         )
 
-    def _load_display_settings(self) -> "DisplaySettings":
-        """Load display settings from file."""
-        file_data = self._load_from_file()
-        if "display" in file_data:
-            return DisplaySettings.from_dict(file_data["display"])
-        return DisplaySettings()
-
-    def _load_location_settings(self) -> "LocationSettings":
-        """Load location settings from file."""
-        file_data = self._load_from_file()
-        if "location" in file_data:
-            return LocationSettings.from_dict(file_data["location"])
-        return LocationSettings()
-
-    def _load_beta_settings(self) -> "BetaSettings":
-        """Load beta-feature settings from file."""
-        file_data = self._load_from_file()
-        if "beta" in file_data:
-            return BetaSettings.from_dict(file_data["beta"])
-        return BetaSettings()
-
-    def _load_plugin_settings(self) -> "PluginSettings":
-        """Load plugin system settings from file."""
-        file_data = self._load_from_file()
-        if "plugins" in file_data:
-            return PluginSettings.from_dict(file_data["plugins"])
-        return PluginSettings()
-
-    def _load_temporary_override(self) -> Optional["TemporaryOverride"]:
-        """Load temporary override from file, returning None if absent or expired."""
-        file_data = self._load_from_file()
+    def _load_temporary_override(self, file_data: dict) -> Optional["TemporaryOverride"]:
+        """Load temporary override from the parsed file; None if absent or expired."""
         raw = file_data.get("temporary_override")
         if not raw:
             return None
@@ -1034,6 +1274,7 @@ class SettingsService:
         """Get current transition settings."""
         return self._transition
 
+    @_locked
     def update_transition_settings(
         self, strategy: str | None = ..., step_interval_ms: int | None = ..., step_size: int | None = ...
     ) -> TransitionSettings:
@@ -1079,6 +1320,7 @@ class SettingsService:
         """Get current output settings."""
         return self._output
 
+    @_locked
     def set_output_target(self, target: OutputTarget) -> OutputSettings:
         """Set the output target.
 
@@ -1099,10 +1341,6 @@ class SettingsService:
     def should_send_to_board(self) -> bool:
         """Determine if message should be sent to board based on output target."""
         return self._output.target in ["board", "both"]
-
-    def should_send_to_ui(self) -> bool:
-        """Determine if message should be sent to UI."""
-        return True
 
     # Active page settings (per-board)
     def get_active_page_id(self, board_id: str | None = None) -> str | None:
@@ -1128,6 +1366,7 @@ class SettingsService:
             return self._active_page.page_id
         return None
 
+    @_locked
     def set_active_page_id(self, page_id: str | None, board_id: str | None = None) -> ActivePageSettings:
         """Set the active (manual) page ID for a board.
 
@@ -1140,9 +1379,19 @@ class SettingsService:
 
         Returns:
             Updated ActivePageSettings
+
+        Raises:
+            ValueError: ``board_id`` names a board that does not exist.
+                Defense in depth (#1888): unreachable over HTTP today, but
+                the write is otherwise unconditional, so an unknown id used
+                to add a phantom ``by_board`` entry that nothing ever reads
+                and nothing reports.
         """
         primary_id = self.get_primary_board_id()
         bid = board_id if board_id is not None else primary_id
+
+        if board_id and not any(b.get("id") == board_id for b in self._board.boards):
+            raise ValueError(f"Board not found: {board_id}")
 
         if bid is not None:
             if page_id:
@@ -1150,8 +1399,8 @@ class SettingsService:
             else:
                 self._active_page.by_board.pop(bid, None)
 
-        # Keep the legacy primary mirror in sync (also covers the no-boards case
-        # where bid is None and we only have the mirror to write to).
+        # Keep the legacy primary mirror in sync (also covers the no-boards
+        # case where bid is None and we only have the mirror to write to).
         if board_id is None or bid is None or bid == primary_id:
             self._active_page.page_id = page_id
 
@@ -1176,6 +1425,7 @@ class SettingsService:
         """
         return self._polling.interval_seconds
 
+    @_locked
     def set_polling_interval(self, interval_seconds: int) -> PollingSettings:
         """Set the polling interval.
 
@@ -1193,6 +1443,7 @@ class SettingsService:
         logger.info(f"Polling interval set to: {interval_seconds} seconds")
         return self._polling
 
+    @_locked
     def set_board_read_intervals(
         self,
         local_seconds: int | None = None,
@@ -1249,6 +1500,7 @@ class SettingsService:
             return bid if bid else None
         return None
 
+    @_locked
     def set_board_type(self, board_type: Literal["black", "white"] | None) -> BoardSettings:
         """Set the board type for UI rendering.
 
@@ -1266,6 +1518,7 @@ class SettingsService:
         logger.info(f"Board type set to: {board_type}")
         return self._board
 
+    @_locked
     def set_devices(self, devices: list[str]) -> BoardSettings:
         """Set the configured device types (backward-compatible).
 
@@ -1315,6 +1568,7 @@ class SettingsService:
         logger.info(f"Configured devices set to: {valid_devices}")
         return self._board
 
+    @_locked
     def set_boards(self, boards: list[dict]) -> BoardSettings:
         """Set the configured board instances.
 
@@ -1378,6 +1632,7 @@ class SettingsService:
         logger.info(f"Configured boards set to: {[b.get('name') for b in validated]}")
         return self._board
 
+    @_locked
     def add_board(self, board: dict) -> BoardSettings:
         """Add a new board instance.
 
@@ -1407,6 +1662,7 @@ class SettingsService:
             n += 1
         return f"My Board {n}"
 
+    @_locked
     def remove_board(self, board_id: str) -> BoardSettings:
         """Remove a board instance by ID.
 
@@ -1461,6 +1717,7 @@ class SettingsService:
             return bool(self._board.boards[0].get("paused", False))
         return False
 
+    @_locked
     def set_paused(self, paused: bool, board_id: str | None = None) -> bool:
         """Pause or resume a board (or the first board when board_id is None).
 
@@ -1475,8 +1732,11 @@ class SettingsService:
                     self._save_to_file()
                     logger.info(f"Board {board_id} {'paused' if paused else 'resumed'}")
                     return paused
-            logger.warning(f"Board {board_id} not found for set_paused")
-            return False
+            # Defense in depth (#1888): unreachable over HTTP today — every
+            # route that gets here validates the board first, or 404s on its
+            # own path parameter — but returning False for an unknown board
+            # is indistinguishable from "resumed successfully".
+            raise ValueError(f"Board not found: {board_id}")
         if self._board.boards:
             self._board.boards[0]["paused"] = paused
             self._save_to_file()
@@ -1510,6 +1770,7 @@ class SettingsService:
         # No boards configured: fall back to the deprecated global mirror.
         return self._schedule.enabled
 
+    @_locked
     def set_schedule_enabled(self, enabled: bool, board_id: str | None = None) -> ScheduleSettings:
         """Enable or disable schedule mode for a board.
 
@@ -1553,6 +1814,7 @@ class SettingsService:
         """Return current MQTT integration settings."""
         return self._mqtt
 
+    @_locked
     def set_mqtt_settings(self, updates: dict) -> "MQTTSettings":
         """Persist MQTT settings and return updated object.
 
@@ -1579,6 +1841,7 @@ class SettingsService:
         """Return current web UI display settings."""
         return self._display
 
+    @_locked
     def update_display_settings(self, updates: dict) -> "DisplaySettings":
         """Update display settings and persist.
 
@@ -1600,6 +1863,7 @@ class SettingsService:
         """Return current location settings for sun-based schedules."""
         return self._location
 
+    @_locked
     def update_location_settings(self, updates: dict) -> "LocationSettings":
         """Update location settings and persist.
 
@@ -1619,6 +1883,7 @@ class SettingsService:
         """Return current beta-feature settings."""
         return self._beta
 
+    @_locked
     def update_beta_settings(self, updates: dict) -> "BetaSettings":
         """Update beta-feature settings and persist.
 
@@ -1639,6 +1904,7 @@ class SettingsService:
         """Return current plugin system settings."""
         return self._plugins
 
+    @_locked
     def update_plugin_settings(self, updates: dict) -> "PluginSettings":
         """Update plugin settings and persist. Only keys present in *updates* are changed."""
         if "auto_update" in updates:
@@ -1648,6 +1914,7 @@ class SettingsService:
         return self._plugins
 
     # Temporary override
+    @_locked
     def get_temporary_override(self) -> TemporaryOverride | None:
         """Return the active temporary override, or None if absent or expired.
 
@@ -1658,10 +1925,19 @@ class SettingsService:
             return None
         if self._temporary_override.is_expired():
             self._temporary_override = None
-            self._save_to_file()
+            try:
+                self._save_to_file()
+            except OSError as e:
+                # Background GC on a read path (the display loop calls this
+                # every tick). The override is already expired in memory, so
+                # the caller's answer is correct either way; failing the read
+                # would stall the loop over a write that will be retried on
+                # the next expiry.
+                logger.error(f"Could not persist temporary-override expiry: {e}")
             return None
         return self._temporary_override
 
+    @_locked
     def consume_temporary_override(self) -> TemporaryOverride | None:
         """Return the current temporary override (live or expired) and clear it if expired.
 
@@ -1675,9 +1951,16 @@ class SettingsService:
             return None
         if raw.is_expired():
             self._temporary_override = None
-            self._save_to_file()
+            try:
+                self._save_to_file()
+            except OSError as e:
+                # Same background-GC reasoning as get_temporary_override:
+                # the display loop must still receive the expired override
+                # so it can apply revert_mode.
+                logger.error(f"Could not persist temporary-override expiry: {e}")
         return raw
 
+    @_locked
     def set_temporary_override(self, override: TemporaryOverride) -> TemporaryOverride:
         """Persist a new temporary override, replacing any existing one."""
         self._temporary_override = override
@@ -1690,6 +1973,7 @@ class SettingsService:
         )
         return override
 
+    @_locked
     def clear_temporary_override(self) -> None:
         """Remove the temporary override without applying any revert logic."""
         if self._temporary_override is not None:

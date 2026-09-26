@@ -24,8 +24,8 @@ describe("API Contract Tests", () => {
 
       const result = await api.createPage(page);
 
-      expect(result.status).toBe("success");
-      expect(result.page).toBeDefined();
+      // 201 with the bare page since the Phase 2 conventions pass.
+      expect(result.id).toBeDefined();
       expect(requestStore.lastPageCreate).toEqual(page);
       expect(requestStore.lastPageCreate?.type).toBe("single");
       expect(requestStore.lastPageCreate?.display_type).toBe("weather");
@@ -47,7 +47,7 @@ describe("API Contract Tests", () => {
 
       const result = await api.createPage(page);
 
-      expect(result.status).toBe("success");
+      expect(result.id).toBeDefined();
       expect(requestStore.lastPageCreate).toEqual(page);
       expect(requestStore.lastPageCreate?.type).toBe("composite");
       expect(requestStore.lastPageCreate?.rows).toHaveLength(3);
@@ -69,7 +69,7 @@ describe("API Contract Tests", () => {
 
       const result = await api.createPage(page);
 
-      expect(result.status).toBe("success");
+      expect(result.id).toBeDefined();
       expect(requestStore.lastPageCreate?.type).toBe("template");
       expect(requestStore.lastPageCreate?.template).toHaveLength(6);
       expect(requestStore.lastPageCreate?.template?.[0]).toBe("{{weather.temperature}}");
@@ -99,14 +99,6 @@ describe("API Contract Tests", () => {
       expect(Array.isArray(result.lines)).toBe(true);
       expect(result.display_type).toBeDefined();
     });
-
-    it("sendPage returns send result", async () => {
-      const result = await api.sendPage("page-1");
-
-      expect(result.status).toBe("success");
-      expect(result.page_id).toBe("page-1");
-      expect(typeof result.sent_to_board).toBe("boolean");
-    });
   });
 
   describe("Settings API", () => {
@@ -119,8 +111,8 @@ describe("API Contract Tests", () => {
 
       const result = await api.updateTransitionSettings(settings);
 
-      expect(result.status).toBe("success");
-      expect(result.settings).toBeDefined();
+      // Bare TransitionSettings since the conventions pass (Phase 2, Task 8).
+      expect(result.strategy).toBe("column");
       expect(requestStore.lastTransitionUpdate).toEqual(settings);
     });
 
@@ -133,7 +125,7 @@ describe("API Contract Tests", () => {
 
       const result = await api.updateTransitionSettings(settings);
 
-      expect(result.status).toBe("success");
+      expect(result.strategy).toBeNull();
       expect(requestStore.lastTransitionUpdate?.strategy).toBeNull();
       expect(requestStore.lastTransitionUpdate?.step_interval_ms).toBeNull();
     });
@@ -141,7 +133,8 @@ describe("API Contract Tests", () => {
     it("updateOutputSettings sends target correctly", async () => {
       const result = await api.updateOutputSettings("both");
 
-      expect(result.status).toBe("success");
+      // Bare OutputSettings since the conventions pass (Phase 2, Task 8).
+      expect(result.target).toBe("both");
       expect(requestStore.lastOutputUpdate?.target).toBe("both");
     });
 
@@ -193,49 +186,6 @@ describe("API Contract Tests", () => {
       expect(result.rendered).toBeDefined();
       expect(Array.isArray(result.lines)).toBe(true);
       expect(typeof result.line_count).toBe("number");
-    });
-  });
-
-  describe("Display API", () => {
-    it("getDisplays returns display list with availability", async () => {
-      const result = await api.getDisplays();
-
-      expect(result.displays).toBeDefined();
-      expect(Array.isArray(result.displays)).toBe(true);
-      expect(typeof result.total).toBe("number");
-      expect(typeof result.available_count).toBe("number");
-
-      // Check display structure
-      if (result.displays.length > 0) {
-        const display = result.displays[0];
-        expect(display.type).toBeDefined();
-        expect(typeof display.available).toBe("boolean");
-        expect(display.description).toBeDefined();
-      }
-    });
-
-    it("getDisplay returns formatted message", async () => {
-      const result = await api.getDisplay("weather");
-
-      expect(result.display_type).toBe("weather");
-      expect(result.message).toBeDefined();
-      expect(Array.isArray(result.lines)).toBe(true);
-      expect(typeof result.line_count).toBe("number");
-      expect(typeof result.available).toBe("boolean");
-    });
-
-    it("getDisplayRaw returns raw data", async () => {
-      const result = await api.getDisplayRaw("weather");
-
-      expect(result.display_type).toBe("weather");
-      expect(result.data).toBeDefined();
-      expect(typeof result.available).toBe("boolean");
-    });
-
-    it("sendDisplay returns send result", async () => {
-      const result = await api.sendDisplay("weather", "board");
-
-      expect(result.status).toBe("success");
     });
   });
 });

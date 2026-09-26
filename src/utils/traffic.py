@@ -7,8 +7,6 @@ import logging
 
 import requests
 
-from src.config import Config
-
 logger = logging.getLogger(__name__)
 
 
@@ -258,11 +256,9 @@ class TrafficSource:
             static_duration = self._parse_duration(route.get("staticDuration", "0s"))
             route_token = route.get("routeToken", "")
 
-            # If static duration is 0, use duration as fallback
             if static_duration == 0:
                 static_duration = duration_in_traffic
 
-            # Calculate traffic index
             traffic_index = self.calculate_traffic_index(duration_in_traffic, static_duration)
             traffic_status, traffic_color = self.get_traffic_status(traffic_index)
 
@@ -274,7 +270,6 @@ class TrafficSource:
             duration_minutes = round(duration_in_traffic / 60)
             static_duration_minutes = round(static_duration / 60)
 
-            # Format message
             formatted_message = self.format_message(destination_name, duration_minutes, delay_minutes)
 
             return {
@@ -332,32 +327,3 @@ class TrafficSource:
 
         # Default to address
         return {"address": location}
-
-
-def get_traffic_source() -> TrafficSource | None:
-    """Get configured traffic source instance."""
-    api_key = Config.GOOGLE_ROUTES_API_KEY if hasattr(Config, "GOOGLE_ROUTES_API_KEY") else ""
-
-    if not api_key:
-        logger.warning("Google Routes API key not configured")
-        return None
-
-    # Support both new (TRAFFIC_ROUTES list) and old (TRAFFIC_ORIGIN/DESTINATION) config
-    routes = getattr(Config, "TRAFFIC_ROUTES", None)
-
-    if not routes:
-        # Fall back to single route (backward compatibility)
-        origin = Config.TRAFFIC_ORIGIN if hasattr(Config, "TRAFFIC_ORIGIN") else ""
-        destination = Config.TRAFFIC_DESTINATION if hasattr(Config, "TRAFFIC_DESTINATION") else ""
-        destination_name = (
-            Config.TRAFFIC_DESTINATION_NAME if hasattr(Config, "TRAFFIC_DESTINATION_NAME") else "DOWNTOWN"
-        )
-
-        if origin and destination:
-            routes = [{"origin": origin, "destination": destination, "destination_name": destination_name}]
-        else:
-            # No routes configured yet, but return source anyway so variables show in UI
-            routes = []
-
-    # Return source even with empty routes so template variables are available
-    return TrafficSource(api_key=api_key, routes=routes)

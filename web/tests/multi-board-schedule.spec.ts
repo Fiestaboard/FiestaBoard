@@ -65,10 +65,15 @@ test.describe("Multi-Board and Schedule", () => {
 
     const switchEl = page.locator("section, div").filter({ hasText: "Schedule Mode" }).getByRole("switch").first();
     if (await switchEl.isVisible({ timeout: 5_000 }).catch(() => false)) {
-      const apiResponse = page.waitForResponse((r) => r.url().includes("/schedules/enabled") && r.status() === 200);
+      // `PUT /schedules/enabled` is now `PATCH /v1/boards/{board}`.
+      const apiResponse = page.waitForResponse(
+        (r) => r.url().includes("/api/v1/boards/") && r.request().method() === "PATCH" && r.status() === 200,
+      );
       await switchEl.click();
       await apiResponse;
-      const revertResponse = page.waitForResponse((r) => r.url().includes("/schedules/enabled") && r.status() === 200);
+      const revertResponse = page.waitForResponse(
+        (r) => r.url().includes("/api/v1/boards/") && r.request().method() === "PATCH" && r.status() === 200,
+      );
       await switchEl.click();
       await revertResponse;
     }

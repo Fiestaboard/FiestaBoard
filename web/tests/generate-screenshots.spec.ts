@@ -138,7 +138,7 @@ async function createPage(name: string, template: string[]): Promise<string> {
   });
   if (!res.ok) throw new Error(`createPage failed: ${res.status}`);
   const data = await res.json();
-  return data.page.id;
+  return data.id;
 }
 
 async function createCollection(name: string, pageIds: string[], intervalSeconds = 30): Promise<string> {
@@ -152,8 +152,9 @@ async function createCollection(name: string, pageIds: string[], intervalSeconds
     }),
   });
   if (!res.ok) throw new Error(`createCollection failed: ${res.status}`);
+  // 201 + bare resource since the collections conventions pass.
   const data = await res.json();
-  return data.collection.id;
+  return data.id;
 }
 
 async function deleteAllCollections() {

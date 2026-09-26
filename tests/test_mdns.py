@@ -1,4 +1,17 @@
-"""Tests for mDNS/Bonjour service (src.system.mdns)."""
+"""Tests for mDNS/Bonjour service (src.system.mdns).
+
+Never simulate a missing dependency with ``patch("builtins.__import__")``.
+It swaps in a process-global mock that *records every call*, so any import
+performed by any live background thread — the display service's init retry
+loop, the update checkers, anything a previously-run test left running —
+is appended to its ``call_args_list`` until the interpreter is OOM-killed.
+The failure lands on whichever test holds the patch, which is never the
+test that started the thread, so it reads as an unrelated hang.
+
+``patch.dict("sys.modules", {"<name>": None})`` blocks the import on its
+own — ``None`` in ``sys.modules`` is CPython's own marker for it — and
+touches no global machinery. Use that instead.
+"""
 
 from unittest.mock import MagicMock, patch
 
@@ -131,10 +144,15 @@ class TestMDNSServiceLifecycle:
         from src.system.mdns import MDNSService
 
         svc = MDNSService()
+        # `None` in sys.modules is CPython's own "this import is blocked"
+        # marker, so `from zeroconf import ...` raises ImportError on its
+        # own. Patching builtins.__import__ as well used to do the same job,
+        # but that installs a process-global *recording* mock: every import
+        # any live background thread performs is appended to its call list,
+        # which grows without bound and kills the interpreter. See the
+        # module docstring.
         with patch.dict("sys.modules", {"zeroconf": None}):
-            # Force ImportError by patching the import inside start()
-            with patch("builtins.__import__", side_effect=ImportError("no zeroconf")):
-                result = svc.start()
+            result = svc.start()
 
         assert result is False
         assert svc.is_running is False
@@ -239,6 +257,68 @@ class TestModuleSingletonHelpers:
 
         stop_mdns()  # should not raise
         self._reset()
+
+
+class TestStartMdnsBackground:
+    """``start_mdns_background`` hands the *whole* registration to a thread (#1955).
+
+    ``tests/test_mdns_startup_is_not_blocking.py`` pins the symptom at the
+    lifespan level by replacing ``start_mdns`` wholesale. This pins the
+    mechanism one layer down, through the real ``MDNSService.start()``:
+    it is ``zeroconf.register_service`` itself — the call that blocks for
+    its whole internal timeout when multicast reaches no responder — that
+    is gated here, so a regression that moved only part of ``start()`` off
+    the caller's thread would still be caught.
+    """
+
+    def _reset(self):
+        import src.system.mdns as mod
+
+        mod._mdns_service = None
+
+    def test_returns_while_register_service_is_still_blocked(self):
+        import threading
+        import time
+
+        from src.system.mdns import get_mdns_service, start_mdns_background
+
+        self._reset()
+        entered = threading.Event()  # register_service has been called
+        release = threading.Event()  # held by the test until it has asserted
+        announced: list[str] = []
+
+        mock_zc = MagicMock()
+
+        def blocking_register(_info):
+            entered.set()
+            assert release.wait(timeout=3.0), "the test never released the registration"
+
+        mock_zc.register_service.side_effect = blocking_register
+
+        try:
+            with patch("zeroconf.Zeroconf", return_value=mock_zc), patch("zeroconf.ServiceInfo", MagicMock()):
+                started = time.perf_counter()
+                thread = start_mdns_background(on_registered=announced.append)
+                elapsed = time.perf_counter() - started
+
+                assert elapsed < 1.0, f"start_mdns_background took {elapsed:.2f}s: it waited for the registration"
+                assert entered.wait(timeout=3.0), "the registration never ran at all"
+                # The registration is (still) blocked inside register_service,
+                # yet the caller already has control back.
+                assert not release.is_set()
+                assert thread.is_alive(), "the registration finished before the test released it"
+                assert announced == [], "announced the .local URL before the registration completed"
+                assert get_mdns_service().is_running is False
+
+                release.set()
+                thread.join(timeout=3.0)
+                assert not thread.is_alive()
+
+            assert get_mdns_service().is_running is True
+            assert announced == [get_mdns_service().local_url]
+        finally:
+            release.set()
+            self._reset()
 
 
 # ---------- Board scanning / discovery tests ----------
@@ -373,7 +453,7 @@ class TestScanForBoards:
         from src.system.mdns import scan_for_boards
 
         with (
-            patch("builtins.__import__", side_effect=ImportError("no zeroconf")),
+            patch.dict("sys.modules", {"zeroconf": None}),
             patch("src.system.mdns._get_local_ip", return_value="127.0.0.1"),
         ):
             result = scan_for_boards(timeout=0.1)

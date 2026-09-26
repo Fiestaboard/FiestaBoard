@@ -207,11 +207,9 @@ class TestIsSilenceModeActivePerBoard:
 
 @pytest.fixture
 def cm(tmp_path: Path):
-    ConfigManager._instance = None
+    # Singleton reset on both sides by conftest's ``_isolated_data_dir`` (#1762).
     path = tmp_path / "config.json"
-    manager = ConfigManager(config_path=str(path))
-    yield manager
-    ConfigManager._instance = None
+    yield ConfigManager(config_path=str(path))
 
 
 class TestPerBoardStorageRoundTrip:

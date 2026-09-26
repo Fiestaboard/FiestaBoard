@@ -13,6 +13,7 @@ import { Home as HomeIcon, Info } from "lucide-react";
 import { useEffect, useState } from "react";
 
 import { ActivePageDisplay } from "@/components/active-page-display";
+import { BoardInitErrorBanner } from "@/components/board-init-error-banner";
 import { SilenceImminentBanner } from "@/components/silence-imminent-banner";
 import { useWizard } from "@/components/wizard-provider";
 import { useTranslations } from "@/i18n/translations";
@@ -61,6 +62,7 @@ export default function Home() {
         )}
 
         <PageSection>
+          <BoardInitErrorBanner />
           <SilenceImminentBanner />
           <ActivePageDisplay />
         </PageSection>

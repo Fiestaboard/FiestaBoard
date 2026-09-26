@@ -420,7 +420,7 @@ def test_writing_the_masked_api_key_back_over_mcp_preserves_the_stored_secret(cl
 def test_creating_an_instance_registers_it_under_the_compound_key(client):
     """The instance is addressable as ``<base><SEPARATOR><label>``."""
     created = client.post(f"/plugins/{HEALTHY}/instances", json={"label": "sf"})
-    assert created.status_code == 200, created.text
+    assert created.status_code == 201, created.text
 
     listed = client.get(f"/plugins/{HEALTHY}/instances")
     assert listed.status_code == 200, listed.text
@@ -430,7 +430,7 @@ def test_creating_an_instance_registers_it_under_the_compound_key(client):
 def test_an_instance_config_is_independent_of_the_base_plugin_config(client, plugin_env):
     """Configuring one must not overwrite the other."""
     instance = f"{HEALTHY}{INSTANCE_SEPARATOR}sf"
-    assert client.post(f"/plugins/{HEALTHY}/instances", json={"label": "sf"}).status_code == 200
+    assert client.post(f"/plugins/{HEALTHY}/instances", json={"label": "sf"}).status_code == 201
 
     _put_config(client, HEALTHY, {"label": "base"})
     _put_config(client, instance, {"label": "san francisco"})
@@ -442,7 +442,7 @@ def test_an_instance_config_is_independent_of_the_base_plugin_config(client, plu
 def test_an_instance_secret_is_masked_independently_of_the_base(client):
     """Masking follows the compound key, not the base id."""
     instance = f"{HEALTHY}{INSTANCE_SEPARATOR}sf"
-    assert client.post(f"/plugins/{HEALTHY}/instances", json={"label": "sf"}).status_code == 200
+    assert client.post(f"/plugins/{HEALTHY}/instances", json={"label": "sf"}).status_code == 201
     _put_config(client, instance, {"api_key": SECRET})
 
     response = client.get(f"/plugins/{instance}")
@@ -454,7 +454,7 @@ def test_an_instance_secret_is_masked_independently_of_the_base(client):
 def test_an_instance_renders_under_its_own_template_namespace(client):
     """``{{base:label.var}}`` resolves to the instance's own data."""
     instance = f"{HEALTHY}{INSTANCE_SEPARATOR}sf"
-    assert client.post(f"/plugins/{HEALTHY}/instances", json={"label": "sf"}).status_code == 200
+    assert client.post(f"/plugins/{HEALTHY}/instances", json={"label": "sf"}).status_code == 201
     _put_config(client, instance, {"api_key": SECRET})
     _enable(client, instance)
 
@@ -464,7 +464,7 @@ def test_an_instance_renders_under_its_own_template_namespace(client):
 def test_deleting_an_instance_purges_its_stored_config(client, plugin_env):
     """A deleted instance must not leave configuration behind to be adopted."""
     instance = f"{HEALTHY}{INSTANCE_SEPARATOR}sf"
-    assert client.post(f"/plugins/{HEALTHY}/instances", json={"label": "sf"}).status_code == 200
+    assert client.post(f"/plugins/{HEALTHY}/instances", json={"label": "sf"}).status_code == 201
     _put_config(client, instance, {"api_key": SECRET})
 
     deleted = client.delete(f"/plugins/{HEALTHY}/instances/sf")
@@ -475,7 +475,7 @@ def test_deleting_an_instance_purges_its_stored_config(client, plugin_env):
 
 def test_deleting_an_instance_leaves_the_base_plugin_config_alone(client, plugin_env):
     """Prefix-based purging must not swallow the base plugin's own entry."""
-    assert client.post(f"/plugins/{HEALTHY}/instances", json={"label": "sf"}).status_code == 200
+    assert client.post(f"/plugins/{HEALTHY}/instances", json={"label": "sf"}).status_code == 201
     _put_config(client, HEALTHY, {"label": "base"})
 
     assert client.delete(f"/plugins/{HEALTHY}/instances/sf").status_code == 200
@@ -489,7 +489,7 @@ def test_deleting_an_instance_leaves_the_base_plugin_config_alone(client, plugin
 def test_installing_from_the_registry_makes_the_plugin_configurable(client, plugin_env):
     """The freshly installed plugin accepts and stores a config."""
     installed = client.post(f"/plugins/registry/{EXTERNAL}/install")
-    assert installed.status_code == 200, installed.text
+    assert installed.status_code == 201, installed.text
 
     _put_config(client, EXTERNAL, {"label": "fresh", "api_key": SECRET})
 
@@ -497,7 +497,7 @@ def test_installing_from_the_registry_makes_the_plugin_configurable(client, plug
 
 
 def test_uninstalling_removes_the_plugin_from_the_listing(client):
-    assert client.post(f"/plugins/registry/{EXTERNAL}/install").status_code == 200
+    assert client.post(f"/plugins/registry/{EXTERNAL}/install").status_code == 201
 
     uninstalled = client.delete(f"/plugins/{EXTERNAL}/uninstall")
     assert uninstalled.status_code == 200, uninstalled.text
@@ -507,7 +507,7 @@ def test_uninstalling_removes_the_plugin_from_the_listing(client):
 
 def test_uninstalling_purges_the_plugin_config(client, plugin_env):
     """#948/#1102: a stale config resurrects the plugin on the next upgrade."""
-    assert client.post(f"/plugins/registry/{EXTERNAL}/install").status_code == 200
+    assert client.post(f"/plugins/registry/{EXTERNAL}/install").status_code == 201
     _put_config(client, EXTERNAL, {"label": "fresh", "api_key": SECRET})
 
     assert client.delete(f"/plugins/{EXTERNAL}/uninstall").status_code == 200
@@ -518,8 +518,8 @@ def test_uninstalling_purges_the_plugin_config(client, plugin_env):
 def test_uninstalling_purges_the_configs_of_its_instances_too(client, plugin_env):
     """Instance keys are separate config entries and must go with the base."""
     instance = f"{EXTERNAL}{INSTANCE_SEPARATOR}sf"
-    assert client.post(f"/plugins/registry/{EXTERNAL}/install").status_code == 200
-    assert client.post(f"/plugins/{EXTERNAL}/instances", json={"label": "sf"}).status_code == 200
+    assert client.post(f"/plugins/registry/{EXTERNAL}/install").status_code == 201
+    assert client.post(f"/plugins/{EXTERNAL}/instances", json={"label": "sf"}).status_code == 201
     _put_config(client, instance, {"api_key": SECRET})
 
     assert client.delete(f"/plugins/{EXTERNAL}/uninstall").status_code == 200
@@ -528,7 +528,7 @@ def test_uninstalling_purges_the_configs_of_its_instances_too(client, plugin_env
 
 
 def test_uninstalling_removes_the_plugin_directory_from_disk(client, plugin_env):
-    assert client.post(f"/plugins/registry/{EXTERNAL}/install").status_code == 200
+    assert client.post(f"/plugins/registry/{EXTERNAL}/install").status_code == 201
     assert (plugin_env["external_dir"] / EXTERNAL).is_dir()
 
     assert client.delete(f"/plugins/{EXTERNAL}/uninstall").status_code == 200
@@ -552,7 +552,7 @@ def test_uninstalling_a_builtin_plugin_is_refused(client, plugin_env):
 def test_the_fixture_keeps_plugin_writes_out_of_the_repo_data_dir(client, plugin_env):
     """Guard for #1762: no stub plugin may land in the developer's data/."""
     repo_data = Path(__file__).resolve().parent.parent / "data"
-    assert client.post(f"/plugins/registry/{EXTERNAL}/install").status_code == 200
+    assert client.post(f"/plugins/registry/{EXTERNAL}/install").status_code == 201
     _put_config(client, HEALTHY, {"label": "base", "api_key": SECRET})
 
     assert (plugin_env["external_dir"] / EXTERNAL).is_dir(), "the fixture never redirected the external dir"
@@ -591,3 +591,115 @@ def test_monkeypatching_the_config_manager_singleton_outlives_a_fixture(tmp_path
     finally:
         monkeypatch.undo()
         ConfigManager._instance = original  # type: ignore[attr-defined]
+
+
+# ── env-var overlay vs. the registry and API (issue #1761 review) ───────────
+#
+# The overlay contract: env values are visible in LIVE plugin config and
+# never persisted; stored config on disk (and everything echoed back into a
+# save) stays env-free. These tests drive the real registry + real
+# ConfigManager + real HTTP routes, with a synthetic override wired to the
+# stub plugin so no real plugin env var is involved.
+
+ENV_SECRET = "test_env_secret_zz99"
+
+
+@pytest.fixture
+def stub_env_secret(monkeypatch):
+    """Route a synthetic env var onto the healthy stub's api_key."""
+    from src.config_manager import ENV_PLUGIN_OVERRIDES
+
+    monkeypatch.setitem(ENV_PLUGIN_OVERRIDES, "STUB_OK_API_KEY", (HEALTHY, "api_key", str))
+    monkeypatch.setenv("STUB_OK_API_KEY", ENV_SECRET)
+    return ENV_SECRET
+
+
+class TestEnvOverlayRoundTrip:
+    def test_initialize_never_persists_env_overlay_values(self, plugin_env, stub_env_secret):
+        """Registry startup must not write env secrets into config.json.
+
+        ``initialize()`` used to read ``get_all_plugin_configs()`` WITH the
+        overlay and ``_restore_instances`` persists mixed-case instance keys
+        back via ``set_plugin_config`` — a third write path that froze the
+        env secret onto disk (#1761 review, finding on #1864).
+        """
+        registry = plugin_env["registry"]
+        cm = ConfigManager()
+        # A mixed-case instance label forces the one initialize path that
+        # writes back to config.json (lowercase normalization).
+        cm.set_plugin_config(HEALTHY, {"enabled": True, "api_key": "stored_base_key"})
+        cm.set_plugin_config(
+            f"{HEALTHY}{INSTANCE_SEPARATOR}Office",
+            {"enabled": False, "api_key": "stored_instance_key"},
+        )
+
+        registry.initialize(force=True)
+
+        raw = plugin_env["config_path"].read_text(encoding="utf-8")
+        assert ENV_SECRET not in raw, "registry startup persisted an env secret to config.json"
+        migrated = json.loads(raw)["plugins"][f"{HEALTHY}{INSTANCE_SEPARATOR}office"]
+        assert migrated["api_key"] == "stored_instance_key"
+        # The other half of the contract: the LIVE base plugin runs with the
+        # overlay applied.
+        assert registry.get_plugin_config(HEALTHY)["api_key"] == ENV_SECRET
+
+    def test_config_save_keeps_a_live_env_credential(self, client, plugin_env, stub_env_secret):
+        """Saving unrelated settings must not kill a working env credential.
+
+        The PUT persists env-free (correct), but it also installed that
+        env-free dict as the LIVE registry config — so the env-supplied
+        api_key the plugin had been running with died until restart. The
+        handler must re-seed live config from the overlaid read after
+        persisting.
+        """
+        registry = plugin_env["registry"]
+
+        response = client.put(f"/plugins/{HEALTHY}/config", json={"config": {"label": "Kitchen"}})
+        assert response.status_code == 200, response.text
+
+        live = registry.get_plugin_config(HEALTHY)
+        assert live["label"] == "Kitchen"
+        assert live.get("api_key") == ENV_SECRET, "live config lost the env credential after a save"
+        # ...while disk stays env-free.
+        stored = _stored_config(plugin_env["config_path"], HEALTHY)
+        assert ENV_SECRET not in json.dumps(stored)
+
+    def test_masked_roundtrip_with_env_var_persists_stored_secret(self, client, plugin_env, stub_env_secret):
+        """VALUE-level pin on the unmask path (#1865 review, HIGH).
+
+        A client that echoes "***" back must be unmasked against the STORED
+        secret. Unmasking against the overlaid read resolves "***" to the
+        ENV secret and persists it — an env credential written to
+        config.json by an ordinary settings save.
+        """
+        cm = ConfigManager()
+        cm.set_plugin_config(HEALTHY, {"enabled": True, "api_key": "stored_base_key"})
+
+        response = client.put(f"/plugins/{HEALTHY}/config", json={"config": {"api_key": MASK, "label": "Desk"}})
+        assert response.status_code == 200, response.text
+
+        stored = _stored_config(plugin_env["config_path"], HEALTHY)
+        assert stored["api_key"] == "stored_base_key", "the masked round-trip persisted the ENV secret"
+        # The live plugin keeps running on the env override.
+        assert plugin_env["registry"].get_plugin_config(HEALTHY)["api_key"] == ENV_SECRET
+
+    def test_get_plugin_serves_stored_config_not_the_overlay(self, client, plugin_env, monkeypatch):
+        """The settings form must see STORED values, not env-effective ones.
+
+        GET /plugins/{id} feeds the settings form; serving the overlay-laced
+        config means any save freezes a non-sensitive env value (e.g. a
+        location) into config.json, falsifying "never persisted / unset
+        reverts". Effective-value hints belong in env_overridden_keys.
+        """
+        from src.config_manager import ENV_PLUGIN_OVERRIDES
+
+        monkeypatch.setitem(ENV_PLUGIN_OVERRIDES, "STUB_OK_LABEL", (HEALTHY, "label", str))
+        monkeypatch.setenv("STUB_OK_LABEL", "Env Label")
+        cm = ConfigManager()
+        cm.set_plugin_config(HEALTHY, {"enabled": True, "label": "Stored Label", "api_key": SECRET})
+
+        body = client.get(f"/plugins/{HEALTHY}").json()
+
+        assert body["config"]["label"] == "Stored Label", "GET served the env overlay to the settings form"
+        assert body["config"]["api_key"] == MASK
+        assert body["env_overridden_keys"] == ["label"]

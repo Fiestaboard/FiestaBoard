@@ -53,7 +53,7 @@ function setupHandlers(opts: {
       }),
     ),
     http.get(`${API_BASE}/settings/active-page`, () => HttpResponse.json({ page_id: opts.manualPageId ?? null })),
-    http.get(`${API_BASE}/pages`, () =>
+    http.get(`${API_BASE}/v1/pages`, () =>
       HttpResponse.json({
         pages: opts.pages ?? [{ id: "page-quiet", name: "Quiet" }],
         total: (opts.pages ?? [{ id: "page-quiet", name: "Quiet" }]).length,
@@ -71,7 +71,7 @@ function setupHandlers(opts: {
         revert_page_id: null,
       });
     }),
-    http.post(`${API_BASE}/force-refresh`, () => HttpResponse.json({ status: "ok" })),
+    http.post(`${API_BASE}/force-refresh`, () => HttpResponse.json({ message: "Refreshed", sent: true })),
   );
 }
 

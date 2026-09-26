@@ -1,0 +1,1697 @@
+"""System-update service: version checks, sidecar client, snapshots, state (issue #1758).
+
+Everything here moved verbatim out of ``src/api_server.py``: the Docker Hub /
+GitHub Releases version comparison (newest-of-both-sources, #1430), the
+fiestaupdater sidecar HTTP client, pre-update settings snapshots with
+retention pruning, and the ``.system-update.json`` state machine. That state
+file sits on the storage kernel (:class:`src.storage.json_store.JsonStore`,
+#1848): the lock + atomic-write semantics it gained in #1745 are now the
+kernel's, and it carries a ``schema_version`` like every other store.
+
+This module is the canonical home for every one of those names — including
+the two path overrides ``SYSTEM_UPDATE_STATE_FILE`` / ``SETTINGS_SNAPSHOT_DIR``
+and the post-upgrade regression hint, both of which used to live on
+``api_server``. Nothing here imports ``src.api_server``, at module level or at
+call time (Phase 2 slice: system). Tests patch the name where it lives:
+``patch("src.system.update_service.<name>")``.
+
+Nor does it import a web framework. It used to, for two ``HTTPException``
+raises, which is what ``tests/test_layering_ratchet.py``'s
+``service_no_fastapi`` rule flags: a domain module has to stay callable from
+MQTT, MCP, the display loop and a test without dragging a framework's error
+model along. Refusals are raised as :class:`SidecarError` instead, and
+``src/system/routes.py`` translates it back into the exact status/detail pairs
+the endpoints have always answered (``tests/test_system_contract.py`` pins all
+of them by value).
+"""
+
+from __future__ import annotations
+
+import asyncio
+import json
+import logging
+import os
+import re
+import threading
+from datetime import UTC, datetime
+from pathlib import Path
+from typing import Any
+
+import requests
+
+from src import __version__
+from src.atomic_io import write_text_atomic
+from src.config_manager import get_config_manager
+from src.paths import get_data_dir
+from src.storage.json_store import JsonStore, Migration, SchemaTooNewError
+
+from .models import (
+    RollbackRequest,
+    RollbackResponse,
+    SystemActionResponse,
+    UpdateApplyResponse,
+    UpdateCheckResponse,
+)
+
+logger = logging.getLogger(__name__)
+
+
+class SidecarError(Exception):
+    """A system-update operation refused, or failed, with the answer to give.
+
+    ``status_code`` and ``detail`` are handed to ``HTTPException`` verbatim by
+    the router. They are this domain's recorded contract
+    (``tests/test_system_contract.py``), not a transport detail — which is why
+    they live on the exception rather than being re-derived upstairs.
+    """
+
+    def __init__(self, status_code: int, detail: str):
+        super().__init__(detail)
+        self.status_code = status_code
+        self.detail = detail
+
+
+def _detect_hardware_model() -> str | None:
+    """Return the host hardware model string, or None if undetectable.
+
+    Reads ``/proc/device-tree/model``, which on Raspberry Pi devices contains a
+    null-terminated string such as ``"Raspberry Pi 5 Model B Rev 1.0"``. The
+    file is absent on most non-Pi hosts (generic Docker, macOS, etc.), so the
+    UI suppresses the row when this returns None.
+    """
+    try:
+        with open("/proc/device-tree/model", "rb") as f:
+            raw = f.read(256)
+    except (FileNotFoundError, PermissionError, OSError):
+        return None
+    model = raw.decode("utf-8", errors="replace").rstrip("\x00").strip()
+    return model or None
+
+
+GITHUB_RELEASES_URL = "https://github.com/Fiestaboard/FiestaBoard/releases"
+GITHUB_PACKAGE_URL = f"{GITHUB_RELEASES_URL}/latest"
+GITHUB_RELEASES_API = "https://api.github.com/repos/Fiestaboard/FiestaBoard/releases/latest"
+DOCKERHUB_TAGS_URL = "https://hub.docker.com/v2/repositories/fiestaboard/fiestaboard/tags"
+
+
+def _release_notes_url(version: str | None) -> str:
+    """Build the release-notes URL for a specific version.
+
+    Pinning to ``/releases/tag/v{version}`` guarantees the link goes to the
+    same release we surfaced in the banner — ``/releases/latest`` redirects
+    to whichever release GitHub currently has flagged Latest, which can lag
+    behind the Docker Hub tag we detected (or trail a newer GitHub release
+    that hasn't been flipped yet).
+    """
+    if not version:
+        return GITHUB_PACKAGE_URL
+    return f"{GITHUB_RELEASES_URL}/tag/v{version}"
+
+
+#: How many Docker Hub tag pages to follow. The registry paginates, and the
+#: newest tag is not guaranteed to be on page one once the list grows. Ten
+#: pages is far more than this repo will ever need and still bounds a boot
+#: against a registry that keeps claiming another page.
+DOCKERHUB_MAX_PAGES = 10
+
+
+def _check_dockerhub_for_latest(channel: str = "stable") -> str | None:
+    """Check Docker Hub for the newest version tag on *channel*.
+
+    On ``stable`` this keeps the original behaviour exactly: only tags whose
+    dot-separated parts are all digits are considered, so a prerelease can
+    never be offered to someone who did not ask for one. That filter is the
+    protection, not an accident.
+
+    On ``beta`` prerelease tags are considered too, ordered by
+    :func:`_parse_version`, which compares numeric prerelease identifiers
+    numerically — so ``beta.10`` is newer than ``beta.9``, and the final
+    ``9.0.0`` is newer than every ``9.0.0-beta.N``. Without this a beta
+    install could never see another beta: it was a one-way door.
+
+    Returns the newest version string, or None if the check fails.
+    """
+    try:
+        best: tuple | None = None
+        best_str: str | None = None
+        url: str | None = DOCKERHUB_TAGS_URL
+        for _ in range(DOCKERHUB_MAX_PAGES):
+            if not url:
+                break
+            resp = requests.get(url, timeout=4)
+            resp.raise_for_status()
+            data = resp.json()
+
+            for result in data.get("results", []):
+                tag = result.get("name")
+                if not tag:
+                    continue
+                core = tag.partition("-")[0]
+                parts = core.split(".")
+                if len(parts) < 2 or not all(p.isdigit() for p in parts):
+                    continue  # "latest", "beta", and anything unparseable
+                if "-" in tag and channel != "beta":
+                    continue  # prereleases are invisible on the stable channel
+                try:
+                    parsed = _parse_version(tag)
+                except ValueError:
+                    continue
+                if best is None or parsed > best:
+                    best, best_str = parsed, tag
+
+            url = data.get("next")
+
+        return best_str
+    except Exception as e:
+        logger.debug(f"Docker Hub version check failed: {e}")
+        return None
+
+
+def _check_github_releases_for_latest(channel: str = "stable") -> str | None:
+    """Check the GitHub Releases API for the newest version on *channel*.
+
+    ``stable`` keeps using ``/releases/latest``, which GitHub itself defines
+    as excluding prereleases and drafts. That endpoint IS the stable filter,
+    so it is left exactly as it was.
+
+    ``beta`` lists releases instead and takes the newest entry, prereleases
+    included — drafts never, since they are not published to anyone.
+
+    Returns the newest version string, or None if the check fails.
+    """
+    try:
+        if channel != "beta":
+            resp = requests.get(
+                GITHUB_RELEASES_API,
+                headers={"Accept": "application/vnd.github.v3+json"},
+                timeout=4,
+            )
+            resp.raise_for_status()
+            tag_name = resp.json().get("tag_name", "")
+            return tag_name.lstrip("v") if tag_name else None
+
+        resp = requests.get(
+            f"{GITHUB_RELEASES_API.rsplit('/', 1)[0]}?per_page=20",
+            headers={"Accept": "application/vnd.github.v3+json"},
+            timeout=4,
+        )
+        resp.raise_for_status()
+        best: tuple | None = None
+        best_str: str | None = None
+        for release in resp.json() or []:
+            if release.get("draft"):
+                continue
+            tag = (release.get("tag_name") or "").lstrip("v")
+            if not tag:
+                continue
+            try:
+                parsed = _parse_version(tag)
+            except ValueError:
+                continue
+            if best is None or parsed > best:
+                best, best_str = parsed, tag
+        return best_str
+    except Exception as e:
+        logger.debug(f"GitHub releases check failed: {e}")
+        return None
+
+
+#: Sorts below every real prerelease identifier, so a final release compares
+#: above its own prereleases. semver: "1.0.0-beta < 1.0.0".
+_RELEASE_RANK = (1,)
+_PRERELEASE_RANK = (0,)
+
+
+def _parse_version(v: str) -> tuple:
+    """Parse a version string into a comparable tuple, prereleases included.
+
+    ``a.b.c`` and ``a.b.c-beta.N`` both parse. The release/prerelease rank is
+    appended so ordering follows semver rather than string order:
+
+        8.35.5  <  9.0.0-beta.1  <  9.0.0-beta.2  <  9.0.0-beta.10  <  9.0.0
+
+    Prerelease identifiers compare numerically when they are numeric, which
+    is what puts ``beta.10`` above ``beta.9``; a plain string sort would get
+    that backwards and silently strand testers on an older build.
+
+    Raises ``ValueError`` for anything else (a stray ``v`` prefix, ``dev``,
+    build metadata), so callers keep failing closed on junk.
+    """
+    core, _, prerelease = v.partition("-")
+    parts = core.split(".")
+    if not parts or not all(p.isdigit() for p in parts):
+        raise ValueError(f"Invalid version: {v}")
+    numbers = tuple(int(x) for x in parts)
+
+    if not prerelease:
+        return (numbers, _RELEASE_RANK)
+
+    identifiers: list[tuple[int, object]] = []
+    for chunk in prerelease.split("."):
+        if not chunk:
+            raise ValueError(f"Invalid version: {v}")
+        # Numeric identifiers rank below alphanumeric ones and compare as
+        # numbers (semver §11.4.1); the leading int keeps the two kinds from
+        # being compared against each other and raising TypeError.
+        identifiers.append((0, int(chunk)) if chunk.isdigit() else (1, chunk))
+    return (numbers, _PRERELEASE_RANK, tuple(identifiers))
+
+
+def running_version() -> str:
+    """The version this process should compare against when checking updates.
+
+    Normally ``__version__`` from ``src/__init__.py``. On a beta build that
+    is the *stable* number the branch forked from — the beta's own version
+    exists only in the ``VERSION`` build-arg, because committing a prerelease
+    string into package.json would break ``scripts/version-sync.js`` on the
+    next stable release.
+
+    So when ``VERSION`` carries a parseable prerelease, it is the truthful
+    answer and wins. Anything else (``dev``, a plain release, junk, unset)
+    leaves the committed version in charge.
+
+    Without this a beta install believes it is on stable, and once ``main``
+    ships past that number the checker offers the beta a *stable* build as an
+    upgrade — walking the user backwards across a schema the older build
+    refuses to read.
+    """
+    build = os.getenv("VERSION", "").strip()
+    if "-" in build:
+        try:
+            _parse_version(build)
+        except ValueError:
+            return __version__
+        return build
+    return __version__
+
+
+def _pick_latest_version(*candidates: str | None) -> str | None:
+    """Return the newest parseable version among the given candidates.
+
+    Update availability is sourced from more than one place (Docker Hub tags
+    and the GitHub Releases API). Those sources can disagree or lag — Docker
+    Hub's tag-listing metadata sometimes trails a release that GitHub already
+    publishes. Taking the highest version any source reports (rather than
+    preferring one source and only falling back when it is empty) surfaces a
+    real release as soon as either source sees it. Empty or unparseable
+    candidates are ignored.
+    """
+    best_parsed: tuple[int, ...] | None = None
+    best_str: str | None = None
+    for candidate in candidates:
+        if not candidate:
+            continue
+        try:
+            parsed = _parse_version(candidate)
+        except (ValueError, AttributeError):
+            continue
+        if best_parsed is None or parsed > best_parsed:
+            best_parsed = parsed
+            best_str = candidate
+    return best_str
+
+
+async def _perform_update_check() -> UpdateCheckResponse:
+    """Run the actual update check against Docker Hub / GitHub Releases.
+
+    Extracted from the HTTP handler so the background scheduler (auto-update
+    interval) can reuse it without going through the network stack.  Records
+    ``last_check`` in the system update state file on every successful query.
+    Both source checks run in parallel to halve worst-case latency.
+    """
+    is_production = os.getenv("PRODUCTION", "false").lower() == "true"
+
+    try:
+        # Run both source checks in parallel and take the newest version either
+        # reports. Trusting one source and only falling back when it is empty
+        # lets a lagging source (e.g. Docker Hub tag metadata that has not yet
+        # registered a freshly published release) mask a real update the other
+        # source already sees.
+        # Which channel this install follows decides what "newest" even
+        # means: a beta must be able to see a newer beta, and a stable
+        # install must never be shown one.
+        channel = current_channel()
+        latest_version = await _latest_for_channel(channel)
+
+        if latest_version:
+            update_available = _is_newer_version(latest_version, running_version())
+            try:
+                _system_update_state_update(last_check=datetime.now(UTC).isoformat())
+            except Exception as e:
+                logger.debug("Could not persist update-check result (non-fatal): %s", e, exc_info=True)
+            return UpdateCheckResponse(
+                current_version=running_version(),
+                latest_version=latest_version,
+                update_available=update_available,
+                package_url=_release_notes_url(latest_version),
+                is_production=is_production,
+            )
+
+        raise RuntimeError("Both Docker Hub and GitHub Releases checks failed")
+    except Exception as e:
+        logger.warning(f"Failed to check for updates: {e}")
+        return UpdateCheckResponse(
+            current_version=running_version(),
+            latest_version=None,
+            update_available=False,
+            package_url=GITHUB_PACKAGE_URL,
+            error=f"Could not check for updates: {e}",
+            is_production=is_production,
+        )
+
+
+def _is_newer_version(latest: str, current: str) -> bool:
+    """Compare two semver-style version strings.
+
+    Returns True if latest is strictly newer than current.
+    Handles version strings with varying component counts (e.g. "2.0" vs "2.0.1").
+    """
+    try:
+        return _parse_version(latest) > _parse_version(current)
+    except (ValueError, AttributeError):
+        return False
+
+
+# Path to the small JSON file that persists the auto-update toggle and
+# bookkeeping (last check, last update).  Kept separate from settings.json
+# because this state is system-level, not display-level.
+#
+# ``SYSTEM_UPDATE_STATE_FILE`` is a *test seam*: production leaves it ``None``
+# and ``_system_update_state_file()`` resolves lazily through
+# ``src.paths.get_data_dir()`` (honoring ``FIESTABOARD_DATA_DIR``, #1762).
+# Tests that need a specific file monkeypatch this module attribute —
+# ``monkeypatch.setattr("src.system.update_service.SYSTEM_UPDATE_STATE_FILE", ...)``
+# — and the resolver below reads it back at call time.
+SYSTEM_UPDATE_STATE_FILE: Path | None = None
+
+
+def _system_update_state_file() -> Path:
+    """Resolve the system-update state file path at call time."""
+    if SYSTEM_UPDATE_STATE_FILE is not None:
+        return Path(SYSTEM_UPDATE_STATE_FILE)
+    return get_data_dir() / ".system-update.json"
+
+
+# The state file's schema. Version 1 is the #1745-era payload unchanged
+# (``auto_update_enabled`` / ``auto_update_interval`` / ``last_check`` /
+# ``last_update`` / ``channel`` / ``channel_join_snapshot``) plus the stamp;
+# the v0->v1 migration exists so a file an existing install wrote before
+# versioning is stamped once, with a ``.v0_backup`` kept, and so any later
+# change to the payload has a version to key on (CLAUDE.md: never heuristics).
+SYSTEM_UPDATE_STATE_SCHEMA_VERSION = 1
+
+
+def _migrate_system_update_state_v0_to_v1(state: dict[str, Any]) -> int:
+    """Migration 0 -> 1: adopt schema versioning. The payload is untouched."""
+    return 0
+
+
+SYSTEM_UPDATE_STATE_MIGRATIONS: list[Migration] = [
+    (1, _migrate_system_update_state_v0_to_v1),
+]
+
+# The kernel store for the state file. Three writers share the file — the
+# hourly auto-update loop, ``POST /system/update`` and
+# ``POST /system/update/auto`` — and each does load -> mutate -> save; the
+# store's re-entrant lock serialises them so neither writer's read goes stale
+# (#1745), and its atomic write means a crash mid-save never truncates the
+# file. Resolved at call time rather than at import because the path is a test
+# seam (``SYSTEM_UPDATE_STATE_FILE``) and the data dir can move under
+# ``FIESTABOARD_DATA_DIR``; the store is rebuilt only when the resolved path
+# changes, which in production is never.
+_SYSTEM_UPDATE_STORE: JsonStore | None = None
+_SYSTEM_UPDATE_STORE_GUARD = threading.Lock()
+
+
+def _system_update_store() -> JsonStore:
+    """The storage-kernel store for ``.system-update.json``, for the current path."""
+    global _SYSTEM_UPDATE_STORE
+    path = _system_update_state_file()
+    with _SYSTEM_UPDATE_STORE_GUARD:
+        store = _SYSTEM_UPDATE_STORE
+        if store is None or store.path != path:
+            store = JsonStore(
+                path,
+                current_schema_version=SYSTEM_UPDATE_STATE_SCHEMA_VERSION,
+                migrations=SYSTEM_UPDATE_STATE_MIGRATIONS,
+                label="System update state",
+            )
+            _SYSTEM_UPDATE_STORE = store
+        return store
+
+
+def _system_update_state_load() -> dict[str, Any]:
+    """Read the system-update state file.  Returns a fresh dict on any error.
+
+    Always reads the disk (never the store's cached copy), exactly as before
+    the kernel: the auto-update loop and the API threads each want the other's
+    latest write. A file written before schema versioning is migrated on the
+    way through and the stamp is written back at once, so the migration (and
+    its one-time backup) runs once per install rather than on every read.
+    """
+    store = _system_update_store()
+    with store.lock:
+        try:
+            data = store.load()
+        except SchemaTooNewError as e:
+            # Written by a newer build. Read nothing rather than misinterpret
+            # it; the store latches so the save below cannot overwrite it.
+            logger.warning(str(e))
+            return {}
+        except Exception as e:
+            logger.debug(f"Failed to read {store.path}: {e}")
+            return {}
+        if not isinstance(data, dict):
+            return {}
+        if store.migrated:
+            _system_update_state_save(data)
+        return data
+
+
+def _system_update_state_save(state: dict[str, Any]) -> None:
+    """Persist the system-update state file atomically (stamping ``schema_version``).
+
+    A truncating ``open("w")`` here used to leave a half-written file behind on
+    a crash; the loader swallows the resulting JSON error and returns ``{}``,
+    which silently resets the auto-update toggle to its default (#1745).
+    """
+    store = _system_update_store()
+    try:
+        store.save(state)
+    except Exception as e:
+        logger.warning(f"Failed to write {store.path}: {e}")
+
+
+def _system_update_state_update(**changes: Any) -> dict[str, Any]:
+    """Merge *changes* into the state file as one locked read-modify-write."""
+    store = _system_update_store()
+    with store.lock:
+        state = _system_update_state_load()
+        state.update(changes)
+        _system_update_state_save(state)
+        return state
+
+
+def _is_update_check_due(state: dict[str, Any], period_days: int) -> bool:
+    """Return True if ``last_check`` is older than ``period_days`` (or missing).
+
+    Used by the background scheduler to decide whether to call
+    ``_perform_update_check`` on a given tick.  Period of 0 always returns
+    False (manual mode).
+    """
+    if period_days <= 0:
+        return False
+    raw = state.get("last_check")
+    if not raw:
+        return True
+    try:
+        last = datetime.fromisoformat(raw)
+        if last.tzinfo is None:
+            last = last.replace(tzinfo=UTC)
+    except (ValueError, TypeError):
+        return True
+    elapsed = datetime.now(UTC) - last
+    return elapsed.total_seconds() >= period_days * 86400
+
+
+def _fiestaboard_profile() -> str:
+    """Return the install profile: "pi" if running on the FiestaPi flashable
+    image, else "docker".  Determined by a build-time env var baked in by the
+    pi-gen recipe.
+    """
+    return os.getenv("FIESTABOARD_PROFILE", "docker").strip().lower() or "docker"
+
+
+def _managed_externally() -> bool:
+    """True when FiestaBoard's lifecycle is owned by an external supervisor
+    that ships its own update mechanism — currently the Home Assistant add-on.
+
+    Under HA, add-on updates come from the Supervisor's add-on store;
+    FiestaBoard cannot update itself and the Supervisor already surfaces its
+    own "update available" notice.  Ours would be a duplicate pointing the
+    user at an action they can't take, so the UI hides every update
+    notification and the periodic Docker Hub poll is skipped when this is set.
+
+    Detection signals (any one flips it on):
+      * ``FIESTABOARD_MANAGED_EXTERNALLY`` — explicit opt-in the add-on shim
+        can set unambiguously (accepts true/1/yes; false/0/no forces off).
+      * ``SUPERVISOR_TOKEN`` — injected by HA Supervisor into every add-on
+        container.  Present whether the UI is reached through Ingress or the
+        add-on's directly-published port, so it also covers direct access.
+    """
+    explicit = os.getenv("FIESTABOARD_MANAGED_EXTERNALLY", "").strip().lower()
+    if explicit in ("true", "1", "yes"):
+        return True
+    if explicit in ("false", "0", "no"):
+        return False
+    return bool(os.getenv("SUPERVISOR_TOKEN", "").strip())
+
+
+# Valid values for ``auto_update_interval``, mapped to their period in days.
+# ``manual`` (0) disables the periodic check entirely; the user can still hit
+# the Refresh button on Settings → System to trigger an on-demand check.
+AUTO_UPDATE_INTERVALS: dict[str, int] = {
+    "daily": 1,
+    "weekly": 7,
+    "monthly": 30,
+    "manual": 0,
+}
+
+
+def _auto_update_default_interval() -> str:
+    """Default interval when the user hasn't set one.
+
+    Pi installs default to ``daily`` (matching the prior auto-update-on
+    behavior); Docker installs default to ``weekly`` so users get nudged
+    about updates without having to remember to check Settings.
+    """
+    return "daily" if _fiestaboard_profile() == "pi" else "weekly"
+
+
+def _resolve_auto_update_interval(state: dict[str, Any]) -> str:
+    """Read the configured interval from state, falling back to legacy bool.
+
+    Order of precedence:
+      1. ``auto_update_interval`` if set to a valid value
+      2. legacy ``auto_update_enabled`` bool: True → default interval, False → "manual"
+      3. profile-aware default
+    """
+    raw = state.get("auto_update_interval")
+    if isinstance(raw, str) and raw in AUTO_UPDATE_INTERVALS:
+        return raw
+    if "auto_update_enabled" in state:
+        return _auto_update_default_interval() if bool(state["auto_update_enabled"]) else "manual"
+    return _auto_update_default_interval()
+
+
+def _updater_url() -> str:
+    """Base URL of the fiestaupdater sidecar on the compose network."""
+    return os.getenv("FIESTAUPDATER_URL", "http://fiestaupdater:8765").rstrip("/")
+
+
+def _updater_token() -> str:
+    """Shared bearer token for the sidecar."""
+    return os.getenv("FIESTAUPDATER_TOKEN", "")
+
+
+#: Last known reachability of the sidecar, so the probe can log the two
+#: TRANSITIONS rather than every poll. ``None`` until the first probe.
+_updater_probe_last_ok: bool | None = None
+
+
+def _updater_probe() -> bool:
+    """Return True when the sidecar's /healthz responds 200.  Short timeout
+    because this is called on every status query from the UI.
+
+    Logs when reachability CHANGES, in either direction. This used to be
+    entirely silent, which meant a sidecar that stopped answering produced
+    no evidence anywhere: the Update Now button vanished and that was the
+    only symptom. Found on a FiestaPi that had been unable to update for
+    four days, whose logs contained no occurrence of "updater", "sidecar"
+    or "fiestaupdater" at all.
+
+    Edge-triggered on purpose. The settings page polls the status endpoint
+    every 30 seconds, so logging each failure would bury the journal faster
+    than silence hid the problem.
+    """
+    global _updater_probe_last_ok
+    reason = ""
+    try:
+        resp = requests.get(f"{_updater_url()}/healthz", timeout=2)
+        ok = resp.status_code == 200
+        if not ok:
+            reason = f"HTTP {resp.status_code}"
+    except Exception as e:
+        ok = False
+        reason = f"{type(e).__name__}: {e}"
+
+    if ok != _updater_probe_last_ok:
+        if ok:
+            logger.info("fiestaupdater sidecar is reachable again at %s", _updater_url())
+        else:
+            logger.warning(
+                "fiestaupdater sidecar is not reachable at %s (%s) — in-app updates "
+                "are unavailable until it is running. On Docker: check "
+                "COMPOSE_PROFILES=fiestaupdater in .env. On FiestaPi: "
+                "`cd /opt/fiestaboard && docker compose up -d`.",
+                _updater_url(),
+                reason,
+            )
+        _updater_probe_last_ok = ok
+    return ok
+
+
+def _updater_last_update() -> dict[str, Any]:
+    """Return the sidecar's view of the most recent /update attempt.
+
+    The sidecar persists this in ``/var/lib/fiestaupdater/last-update.json``
+    and exposes it (no auth, read-only) via ``GET /last-update``.  Returns
+    an empty dict on any error so callers can ``data.get(...)`` without
+    extra branching.
+    """
+    try:
+        resp = requests.get(f"{_updater_url()}/last-update", timeout=3)
+        if resp.status_code == 200:
+            body = resp.json()
+            if isinstance(body, dict):
+                return body
+    except Exception as e:
+        logger.debug("fiestaupdater /last-update fetch failed: %s", e)
+    return {}
+
+
+def _updater_version() -> dict[str, Any]:
+    """Return the sidecar's view of the running container's image+digest.
+
+    Used by /system/update to label the pre-update snapshot with the exact
+    image we're rolling back *from*, so a later /system/update/rollback
+    can pair the restored settings with the matching image.  Returns an
+    empty dict on any failure — the snapshot is still useful without it,
+    just less informative for the UI.
+    """
+    try:
+        resp = requests.get(f"{_updater_url()}/version", timeout=3)
+        if resp.status_code == 200:
+            body = resp.json()
+            if isinstance(body, dict):
+                return body
+    except Exception as e:
+        logger.debug("fiestaupdater /version fetch failed: %s", e)
+    return {}
+
+
+# The capability whose absence produces the four-restart channel switch.
+# Without `--pull never` (#1977), `pull_policy: always` re-pulls :latest
+# straight over the retag, so the box comes up on stable and only reaches the
+# chosen channel once reassert_release_channel notices and tries again.
+CAPABILITY_PULL_NEVER = "pull-never"
+
+# State what is verifiable — that this sidecar predates the fix — and stop
+# there. An earlier draft promised the symptom ("will take several restarts
+# and pass through a stable build"), which a measured beta.9 -> beta.11
+# upgrade on a box reporting exactly this staleness did not exhibit: it
+# landed in one restart. Whether a given retag survives depends on timing and
+# on what the registry serves, so naming a symptom the user may never see
+# teaches them to ignore the warning.
+_STALE_SIDECAR_REMEDY = (
+    "Your fiestaupdater sidecar predates the fix for retags being undone on "
+    "recreate (#1977), so channel switches and rollbacks may not stick. On a "
+    "FiestaPi, reboot to pick up the current sidecar; with Docker, run "
+    "'docker compose pull fiestaupdater && docker compose up -d'."
+)
+
+
+def updater_capabilities() -> list[str]:
+    """What the sidecar says it can do, or ``[]`` if it does not say.
+
+    A sidecar older than #1977 has no ``capabilities`` key at all, and that
+    absence is the whole signal — there is no version to negotiate and no
+    release date to reason about. A malformed value is treated the same way:
+    the status path must never turn a bad payload into a crash.
+    """
+    body = _updater_version()
+    caps = body.get("capabilities")
+    if not isinstance(caps, list):
+        return []
+    return [c for c in caps if isinstance(c, str)]
+
+
+def updater_is_stale() -> bool:
+    """Whether the sidecar is too old to make a retag stick.
+
+    An unreachable sidecar is deliberately *not* stale: that is a different
+    problem, already reported by ``_updater_probe``, and with a different
+    remedy. Conflating them sends the user to fix the wrong thing.
+    """
+    if not _updater_probe():
+        return False
+    return CAPABILITY_PULL_NEVER not in updater_capabilities()
+
+
+def _updater_post(path: str, json: dict[str, Any] | None = None) -> requests.Response:
+    """POST to the fiestaupdater sidecar and return the response.
+    Raises on network-level failures; callers handle HTTP errors.
+    """
+    url = f"{_updater_url()}/{path.lstrip('/')}"
+    headers = {"Authorization": f"Bearer {_updater_token()}"}
+    return requests.post(url, headers=headers, json=json, timeout=(5, 30))
+
+
+def _require_updater_token():
+    """Raise 503 if FIESTAUPDATER_TOKEN is not configured."""
+    if not _updater_token():
+        raise SidecarError(
+            503,
+            (
+                "FIESTAUPDATER_TOKEN is not set. Add COMPOSE_PROFILES=fiestaupdater to your .env "
+                "and run 'docker compose up -d' to enable sidecar features."
+            ),
+        )
+
+
+def _handle_updater_response(resp: requests.Response, action: str) -> SystemActionResponse:
+    """Translate a sidecar HTTP response into a SystemActionResponse or raise."""
+    if resp.status_code == 401:
+        raise SidecarError(
+            500,
+            "fiestaupdater rejected our token; check FIESTAUPDATER_TOKEN matches in both services",
+        )
+    if resp.status_code >= 400:
+        raise SidecarError(502, f"fiestaupdater returned {resp.status_code}: {resp.text[:200]}")
+    return SystemActionResponse(status="queued", action=action)
+
+
+async def perform_sidecar_action(action: str) -> SystemActionResponse:
+    """Ask the sidecar to *action* (``restart`` / ``shutdown``) and report.
+
+    The connection drops while the sidecar acts on us, so this only reports
+    that the request was accepted; clients poll ``/health`` for the rest.
+    """
+    _require_updater_token()
+    try:
+        resp = await asyncio.to_thread(_updater_post, f"/{action}")
+    except requests.exceptions.ConnectionError:
+        raise SidecarError(503, "Could not reach the fiestaupdater sidecar.") from None
+    except Exception as e:
+        logger.warning("fiestaupdater %s call failed: %s", action, e)
+        raise SidecarError(502, f"fiestaupdater {action} call failed: {e}") from e
+    return _handle_updater_response(resp, action)
+
+
+# ── Settings snapshots (used by the rollback flow) ──────────────────────────
+
+# Where pre-update settings snapshots live.  Each snapshot is a single JSON
+# document (the same format the BackupService uses for hand-rolled backups)
+# named ``pre-update-<timestamp>.json``.  Kept under data/ so they survive
+# container recreates via the ``./data:/app/data`` bind mount.
+#
+# ``SETTINGS_SNAPSHOT_DIR`` is a *test seam*: production leaves it ``None``
+# and ``_settings_snapshot_dir()`` resolves lazily through
+# ``src.paths.get_data_dir()`` (honoring ``FIESTABOARD_DATA_DIR``, #1762).
+# Tests point it at a tmp dir with
+# ``monkeypatch.setattr("src.system.update_service.SETTINGS_SNAPSHOT_DIR", ...)``.
+SETTINGS_SNAPSHOT_DIR: Path | None = None
+
+
+def _settings_snapshot_dir() -> Path:
+    """Resolve the settings-snapshot directory at call time."""
+    if SETTINGS_SNAPSHOT_DIR is not None:
+        return Path(SETTINGS_SNAPSHOT_DIR)
+    return get_data_dir() / "update-backups"
+
+
+# How many pre-update snapshots to retain.  Older ones are pruned after each
+# successful snapshot.  Five mirrors the user's ".json.bak" rotation request.
+SETTINGS_SNAPSHOT_RETENTION = 5
+
+#: Strict allow-list for snapshot filenames coming in from the API.  We only
+#: accept the exact ``pre-update-YYYYMMDDTHHMMSS[.fff]Z.json`` shape we
+#: produce (sub-second component optional for back-compat), so the restore
+#: endpoint cannot be coaxed into reading arbitrary files.
+_SETTINGS_SNAPSHOT_NAME_RE = re.compile(r"^pre-update-\d{8}T\d{6}(?:\.\d{3})?Z\.json$")
+
+
+def _snapshot_has_content(document: str | None) -> bool:
+    """Whether *document* is a backup worth keeping.
+
+    Anything that would restore nothing — empty, whitespace, ``null``, or an
+    object with no keys — is not a restore point. Unparseable text is treated
+    as content on purpose: this guard exists to catch the empty case, not to
+    second-guess a format BackupService may extend.
+    """
+    if not document or not document.strip():
+        return False
+    try:
+        parsed = json.loads(document)
+    except (ValueError, TypeError):
+        return True
+    if parsed is None:
+        return False
+    if isinstance(parsed, dict | list) and not parsed:
+        return False
+    return True
+
+
+def _take_settings_snapshot(
+    previous_digest: str | None = None,
+    previous_image: str | None = None,
+) -> dict[str, Any] | None:
+    """Snapshot ``data/*.json`` to ``data/update-backups/pre-update-<ts>.json``.
+
+    Uses :class:`~src.backup.service.BackupService` so the snapshot is the
+    same self-contained document the user could hand-restore later.  Returns
+    a small metadata dict (``{"name", "path", "created_at", "bytes",
+    "previous_digest", "previous_image"}``) or ``None`` if a backup could
+    not be produced — the update is allowed to proceed even when
+    snapshotting fails, since the user can still roll the image back via
+    the sidecar's /rollback alone.
+
+    Args:
+        previous_digest: image digest of the running container at the
+            moment the snapshot is taken.  Stored inside the snapshot
+            JSON so a future /system/update/rollback knows which image
+            to revert to alongside the settings.
+        previous_image: image reference (``repo:tag``) of the running
+            container at the moment the snapshot is taken.
+    """
+    try:
+        from src.backup.service import get_backup_service
+
+        service = get_backup_service()
+        document = service.export_to_json()
+    except Exception:
+        logger.exception("Failed to build pre-update settings snapshot")
+        return None
+
+    # An export that produced nothing must not become a restore point.
+    #
+    # Seen on a real FiestaPi mid-channel-switch: while the box was briefly
+    # running an 8.x build against data a 9.x build had migrated, the
+    # forward-compat guard (#1961) correctly refused to read the
+    # future-schema settings, so there was nothing to export. The empty
+    # result was written anyway — two 0-byte files among five snapshots.
+    #
+    # The second-order effect is the damaging one: _prune_settings_snapshots
+    # keeps the newest SETTINGS_SNAPSHOT_RETENTION files by mtime and does
+    # not look inside them, so each empty snapshot evicts a real one. Enough
+    # churn and every genuine restore point is gone.
+    #
+    # "Could not snapshot" is already a supported outcome — this function
+    # returns None and every caller proceeds — so route "produced nothing"
+    # there rather than persisting the nothing.
+    if not _snapshot_has_content(document):
+        logger.warning(
+            "Pre-update settings snapshot came back empty; not writing it. "
+            "This usually means the running build could not read the stored "
+            "configuration (e.g. a stable build looking at beta-migrated data)."
+        )
+        return None
+
+    # Embed the pre-update image identity so a later rollback can pair the
+    # restored settings with the matching image without us having to keep
+    # a separate index file in sync.  We splice it into the existing JSON
+    # document under a ``_fiestaupdater`` key so we don't collide with any
+    # existing field that BackupService might add.
+    if previous_digest or previous_image:
+        try:
+            doc = json.loads(document)
+            if isinstance(doc, dict):
+                # Store ``None`` (not "") for missing values so the
+                # round-trip through ``_read_snapshot_metadata`` is
+                # symmetric — that helper normalises empty strings to
+                # ``None`` when reading, so we may as well write ``None``
+                # in the first place.
+                doc["_fiestaupdater"] = {
+                    "previous_digest": previous_digest or None,
+                    "previous_image": previous_image or None,
+                }
+                document = json.dumps(doc, indent=2)
+        except (ValueError, TypeError):
+            logger.warning(
+                "Could not annotate snapshot with previous image metadata; "
+                "rollback will fall back to the sidecar's last-update record."
+            )
+
+    try:
+        snapshot_dir = _settings_snapshot_dir()
+        snapshot_dir.mkdir(parents=True, exist_ok=True)
+        # Millisecond precision so multiple snapshots within the same
+        # second (e.g. tests, or a user retrying immediately) don't
+        # collide on filename and silently overwrite each other.
+        now = datetime.now(UTC)
+        ts = now.strftime("%Y%m%dT%H%M%S") + f".{now.microsecond // 1000:03d}Z"
+        target = snapshot_dir / f"pre-update-{ts}.json"
+        # Belt-and-braces against same-millisecond collisions: bump the
+        # millisecond field forward until we find a free name.  1000 is
+        # the natural upper bound (one full second of ms slots); we treat
+        # exhaustion as a fatal-but-non-fatal "snapshot unavailable".
+        _MAX_MS_SLOTS = 1000
+        for bump in range(1, _MAX_MS_SLOTS + 1):
+            if not target.exists():
+                break
+            ms = (now.microsecond // 1000 + bump) % _MAX_MS_SLOTS
+            ts = now.strftime("%Y%m%dT%H%M%S") + f".{ms:03d}Z"
+            target = snapshot_dir / f"pre-update-{ts}.json"
+        else:  # pragma: no cover - effectively unreachable
+            logger.warning("Could not find a free snapshot filename")
+            return None
+        # Atomic staged write (process-scoped staging name) so a crash
+        # mid-write can't leave a truncated snapshot, and a concurrent
+        # process can't collide on a fixed .tmp name.
+        write_text_atomic(target, document)
+    except OSError:
+        logger.exception("Failed to write pre-update settings snapshot")
+        return None
+
+    _prune_settings_snapshots()
+    try:
+        size = target.stat().st_size
+    except OSError:
+        size = 0
+    return {
+        "name": target.name,
+        "path": str(target),
+        # Use the same wall-clock value that's encoded in the filename so
+        # the metadata returned to callers matches the on-disk artifact.
+        "created_at": now.isoformat(),
+        "bytes": size,
+        "previous_digest": previous_digest or None,
+        "previous_image": previous_image or None,
+    }
+
+
+def _read_snapshot_metadata(path: Path) -> dict[str, str | None]:
+    """Return ``{previous_digest, previous_image}`` recorded inside a snapshot.
+
+    Snapshots produced before this metadata was added (or that failed to
+    annotate cleanly) return ``{"previous_digest": None, "previous_image": None}``.
+    """
+    try:
+        raw = path.read_text(encoding="utf-8")
+        doc = json.loads(raw)
+    except (OSError, ValueError, TypeError):
+        return {"previous_digest": None, "previous_image": None}
+    meta = doc.get("_fiestaupdater") if isinstance(doc, dict) else None
+    if not isinstance(meta, dict):
+        return {"previous_digest": None, "previous_image": None}
+    return {
+        "previous_digest": meta.get("previous_digest") or None,
+        "previous_image": meta.get("previous_image") or None,
+    }
+
+
+def _list_settings_snapshots() -> list[dict[str, Any]]:
+    """Return metadata for every snapshot currently on disk, newest first.
+
+    Each entry includes the recorded ``previous_digest`` / ``previous_image``
+    so the UI can label snapshots with the version they will roll back to.
+    """
+    snapshot_dir = _settings_snapshot_dir()
+    if not snapshot_dir.exists():
+        return []
+    out: list[dict[str, Any]] = []
+    try:
+        entries = sorted(snapshot_dir.iterdir(), reverse=True)
+    except OSError:
+        return []
+    for entry in entries:
+        if not entry.is_file():
+            continue
+        if not _SETTINGS_SNAPSHOT_NAME_RE.fullmatch(entry.name):
+            continue
+        try:
+            stat = entry.stat()
+        except OSError:
+            continue
+        meta = _read_snapshot_metadata(entry)
+        out.append(
+            {
+                "name": entry.name,
+                "bytes": stat.st_size,
+                "created_at": datetime.fromtimestamp(stat.st_mtime, tz=UTC).isoformat(),
+                "previous_digest": meta["previous_digest"],
+                "previous_image": meta["previous_image"],
+            }
+        )
+    return out
+
+
+def _prune_settings_snapshots() -> None:
+    """Delete all but the ``SETTINGS_SNAPSHOT_RETENTION`` newest snapshots.
+
+    The snapshot taken when the box joined the beta is exempt. Retention is
+    by mtime, so it is the oldest and would go first — and it is the only
+    configuration a stable build is guaranteed to be able to read, which is
+    what makes leaving the beta survivable. Weeks of beta updates would
+    otherwise quietly delete the way back.
+    """
+    keep = _channel_join_snapshot_name()
+    snapshots = [s for s in _list_settings_snapshots() if s["name"] != keep]
+    if len(snapshots) <= SETTINGS_SNAPSHOT_RETENTION:
+        return
+    for stale in snapshots[SETTINGS_SNAPSHOT_RETENTION:]:
+        path = _settings_snapshot_dir() / stale["name"]
+        try:
+            path.unlink()
+        except OSError:
+            logger.warning("Could not prune old settings snapshot %s", path)
+
+
+def prune_snapshot_dir(directory: Path) -> int:
+    """Apply the same retention to a snapshot directory named explicitly.
+
+    ``ConfigManager`` writes a pre-init snapshot on every version change, into
+    its own ``<config dir>/update-backups`` rather than through this module,
+    and had no retention at all — 58 files / 1.3 MB observed on a live
+    instance. It cannot call :func:`_prune_settings_snapshots` because that
+    resolves the directory from ``get_data_dir()``, which need not be the
+    directory its config lives in.
+
+    Returns the number of files deleted.
+    """
+    try:
+        candidates = sorted(
+            (p for p in directory.glob("pre-update-*.json") if _SETTINGS_SNAPSHOT_NAME_RE.match(p.name)),
+            key=lambda p: p.name,
+            reverse=True,
+        )
+    except OSError:
+        return 0
+    deleted = 0
+    for stale in candidates[SETTINGS_SNAPSHOT_RETENTION:]:
+        try:
+            stale.unlink()
+            deleted += 1
+        except OSError:
+            logger.warning("Could not prune old settings snapshot %s", stale)
+    return deleted
+
+
+def _resolve_snapshot_name(name: str | None) -> Path | None:
+    """Return the absolute path of the named snapshot, or the newest one
+    if *name* is None.  Returns ``None`` when no valid snapshot exists.
+
+    The resolved path is constrained to ``SETTINGS_SNAPSHOT_DIR`` and the
+    filename must match :data:`_SETTINGS_SNAPSHOT_NAME_RE`, so a caller
+    cannot pass ``../../etc/passwd`` or any other path outside the
+    snapshot directory.
+    """
+    if name is None:
+        snaps = _list_settings_snapshots()
+        if not snaps:
+            return None
+        name = snaps[0]["name"]
+    if not _SETTINGS_SNAPSHOT_NAME_RE.fullmatch(name):
+        return None
+    snapshot_dir = _settings_snapshot_dir()
+    candidate = (snapshot_dir / name).resolve()
+    base = snapshot_dir.resolve()
+    try:
+        candidate.relative_to(base)
+    except ValueError:
+        return None
+    if not candidate.is_file():
+        return None
+    return candidate
+
+
+# ── Strict shape constraints for /rollback's image+digest fields ────────────
+# These mirror the patterns enforced inside the sidecar's handler.sh and
+# act as a defense-in-depth check on the API side: if a digest looks
+# valid but the image reference doesn't (or vice versa), we refuse to
+# call the sidecar at all.
+_DIGEST_RE = re.compile(r"^sha256:[a-f0-9]{64}$")
+_IMAGE_REF_RE = re.compile(r"^[a-z0-9][a-z0-9._/-]{0,199}(:[a-zA-Z0-9._-]{1,128})?$")
+
+
+# ── Post-upgrade regression hint (#948) ────────────────────────────────────
+# Lived on ``api_server`` until the system slice; it is a snapshot-reader,
+# so its home is here next to the snapshot helpers it calls.
+
+
+def _detect_post_upgrade_regression() -> dict[str, Any] | None:
+    """Return a hint payload when the live config looks regressed against the
+    newest pre-update snapshot.
+
+    Signals an upgrade is likely to have dropped user state (issue #948 —
+    "integrations lost on upgrade"). We compare the snapshot's enabled
+    plugin set to the current one; if the snapshot enabled strictly more
+    plugins, point the user at /system/update/rollback so they don't have
+    to discover the recovery path on their own.
+
+    Returns ``None`` when:
+      * there are no snapshots,
+      * the newest snapshot is unreadable,
+      * the snapshot has <= 0 enabled plugins (nothing to recover),
+      * the live config has at least as many enabled plugins as the
+        snapshot (no regression detected).
+    """
+    snapshots = _list_settings_snapshots()
+    if not snapshots:
+        return None
+    newest = _resolve_snapshot_name(snapshots[0]["name"])
+    if newest is None:
+        return None
+    try:
+        snap_doc = json.loads(newest.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return None
+
+    snap_plugins_raw = ((snap_doc.get("data") or {}).get("config") or {}).get("plugins") or {}
+    snap_enabled = {pid for pid, cfg in snap_plugins_raw.items() if isinstance(cfg, dict) and cfg.get("enabled")}
+    if not snap_enabled:
+        return None
+
+    try:
+        live = get_config_manager().get_all_plugin_configs()
+    except Exception:  # pragma: no cover - defensive
+        return None
+    live_enabled = {pid for pid, cfg in live.items() if isinstance(cfg, dict) and cfg.get("enabled")}
+
+    missing = sorted(snap_enabled - live_enabled)
+    if not missing:
+        return None
+
+    return {
+        "snapshot_name": newest.name,
+        "snapshot_enabled_count": len(snap_enabled),
+        "current_enabled_count": len(live_enabled),
+        "missing_plugin_ids": missing,
+        "snapshot_app_version": (snap_doc.get("app_version") if isinstance(snap_doc, dict) else None),
+        "rollback_hint": (
+            "POST /system/update/rollback with snapshot=" + newest.name + " and restore_settings=true to recover."
+        ),
+    }
+
+
+async def run_system_update_check_if_due() -> None:
+    """One tick of the scheduled system-update check.
+
+    Body of the hourly loop in api_server's lifespan (the loop shell stays
+    there): read the user-configured interval from the state file and, when
+    it has elapsed since ``last_check``, refresh via
+    :func:`_perform_update_check` so the in-app banner can show
+    "Update Available" without the user opening Settings.
+    """
+    state = _system_update_state_load()
+    interval_name = _resolve_auto_update_interval(state)
+    period_days = AUTO_UPDATE_INTERVALS.get(interval_name, 0)
+    if period_days > 0 and _is_update_check_due(state, period_days):
+        logger.info(
+            "Auto-update check (interval=%s): checking for new version",
+            interval_name,
+        )
+        await _perform_update_check()
+
+
+# ── The two multi-step update workflows ─────────────────────────────────────
+#
+# Both were handler bodies in ``src/system/routes.py`` until the layering
+# ratchet (#1933) flagged them: 23 and 51 statements of sidecar bookkeeping
+# with nothing HTTP about them beyond the status codes, which now travel on
+# :class:`SidecarError`. ``apply_update`` in particular open-coded the
+# ``requests.post`` its siblings do through :func:`_updater_post`; it uses the
+# shared helper now, so there is one place a sidecar call is made.
+
+
+async def _latest_for_channel(channel: str) -> str | None:
+    """Newest version published on *channel*, across both discovery sources.
+
+    Extracted so the apply path can install the exact version the check just
+    reported, rather than a moving tag that may mean something else by the
+    time the user presses the button.
+    """
+    dh_version, gh_version = await asyncio.gather(
+        asyncio.to_thread(_check_dockerhub_for_latest, channel),
+        asyncio.to_thread(_check_github_releases_for_latest, channel),
+    )
+    return _pick_latest_version(dh_version, gh_version)
+
+
+async def apply_update() -> UpdateApplyResponse:
+    """Trigger an in-place update via the fiestaupdater sidecar.
+
+    The sidecar answers 202 almost immediately; the container recreation that
+    kills this process happens shortly after, so the caller should expect its
+    connection to drop and poll ``/health`` for the new version.
+
+    A settings snapshot is taken *before* the sidecar is asked to do anything,
+    tagged with the currently-running image's digest and reference so
+    :func:`rollback` knows which image to pair with the restored settings. A
+    snapshot failure is non-fatal — the user can still roll the image back by
+    hand.
+    """
+    if not _updater_token():
+        raise SidecarError(
+            503,
+            (
+                "FIESTAUPDATER_TOKEN is not set. Add COMPOSE_PROFILES=fiestaupdater to your .env "
+                "and run 'docker compose up -d' to enable in-app updates."
+            ),
+        )
+
+    version = await asyncio.to_thread(_updater_version)
+    snapshot = await asyncio.to_thread(_take_settings_snapshot, version.get("digest"), version.get("image"))
+
+    # Which request updates this box depends on its channel.
+    #
+    # "/update" asks the sidecar to `docker compose pull` the user's own
+    # compose file. On stable that is exactly right — it is what keeps a
+    # Docker user who edited their `image:` tag on the tag they chose.
+    #
+    # On beta it is the bug: every shipped compose file says
+    # `fiestaboard/fiestaboard:latest`, and the app cannot rewrite it (the
+    # sidecar mounts it read-only, the Pi's app container does not mount it
+    # at all). So the "update" pulls stable over a 9.x box. Measured on a
+    # real Pi: beta.7 -> 8.37.5 -> (three recreations later) beta.8, once
+    # reassert_release_channel() noticed and undid it. Naming the tag
+    # through "/install" (#1969) gets there in one step instead of four,
+    # and never runs an 8.x build against 9.x data on the way.
+    channel = current_channel()
+    endpoint, payload = "/update", None
+    if channel != "stable":
+        image_ref = version.get("image") or ""
+        # The sidecar wants repository and tag separately; sending "repo:tag"
+        # as the image would ask it for "repo:tag:beta".
+        repository = image_ref.rsplit(":", 1)[0] if ":" in image_ref.rsplit("/", 1)[-1] else image_ref
+        if not repository:
+            raise SidecarError(502, "could not determine the running image reference")
+        # Install the version the update check actually reported, not the
+        # moving channel tag.
+        #
+        # `:beta` means "newest beta". Once 9.0.0 ships it is no longer the
+        # newest thing published, so a box shown "9.0.0 available" that then
+        # got `:beta` would be handed back the older beta it is already
+        # running — told one thing, given another, with no way forward.
+        #
+        # Naming the exact version also graduates the box off the beta for
+        # free: current_channel() reads the running build, so landing on a
+        # release with no prerelease identifier reports stable from then on.
+        tag = CHANNEL_TAGS[channel]
+        discovered = await _latest_for_channel(channel)
+        if discovered and _is_newer_version(discovered, running_version()):
+            # _is_newer_version fails closed on anything unparseable, and
+            # rejects a candidate that is not strictly newer — so a stale or
+            # wrong discovery result cannot walk a box backwards across a
+            # major. Leaving the beta is a deliberate act, not something
+            # Update Now does by accident.
+            tag = discovered
+        endpoint, payload = "/install", {"image": repository, "tag": tag}
+
+    try:
+        resp = await asyncio.to_thread(_updater_post, endpoint, payload)
+    except requests.exceptions.ConnectionError:
+        raise SidecarError(
+            503,
+            (
+                "Could not reach the fiestaupdater sidecar. Run 'docker compose pull && docker compose up -d' "
+                "from your install directory to update manually."
+            ),
+        ) from None
+    except Exception as e:
+        logger.warning(f"fiestaupdater update call failed: {e}")
+        raise SidecarError(502, f"fiestaupdater update call failed: {e}") from e
+
+    if resp.status_code == 401:
+        raise SidecarError(
+            500,
+            "fiestaupdater rejected our token; check FIESTAUPDATER_TOKEN matches in both services",
+        )
+    if resp.status_code == 404 and endpoint == "/install":
+        # A sidecar predating #1969. "Broken" is the wrong story; the only
+        # useful thing to say is that it needs pulling.
+        raise SidecarError(
+            503,
+            "This updater sidecar is too old to update a beta install. Run "
+            "'docker compose pull fiestaupdater && docker compose up -d' to "
+            "update it, then try again.",
+        )
+    if resp.status_code >= 400:
+        raise SidecarError(502, f"fiestaupdater returned {resp.status_code}: {resp.text[:200]}")
+
+    # Record bookkeeping so the UI can show "last update".
+    body = {}
+    try:
+        body = resp.json()
+    except ValueError as e:
+        # fiestaupdater may return a non-JSON body (e.g. plain-text on error); fall back to empty dict.
+        logger.debug("fiestaupdater response is not JSON, using empty body (non-fatal): %s", e)
+    _system_update_state_update(last_update=datetime.now(UTC).isoformat())
+
+    return UpdateApplyResponse(
+        status="queued",
+        mode="sidecar",
+        previous_digest=body.get("previous_digest"),
+        settings_snapshot=snapshot,
+    )
+
+
+async def _restore_settings_from_snapshot(path: Path) -> dict[str, Any]:
+    """Restore configuration from the snapshot at *path*.
+
+    Returns the summary the rollback response carries. Raises
+    :class:`SidecarError` with 400 for a snapshot this cannot use and 500 when
+    the environment (unwritable data dir, full disk) aborted the restore —
+    the distinction Phase 2 Task 10d drew.
+    """
+    try:
+        raw = await asyncio.to_thread(path.read_text, "utf-8")
+    except OSError as e:
+        logger.warning("Could not read snapshot %s: %s", path, e)
+        raise SidecarError(400, f"Could not read snapshot: {e}") from e
+    try:
+        from src.backup.service import BackupError, BackupRestoreAborted, get_backup_service
+    except Exception as e:  # pragma: no cover - import error is exceptional
+        logger.exception("BackupService unavailable")
+        raise SidecarError(500, f"Backup service unavailable: {e}") from e
+
+    service = get_backup_service()
+    try:
+        # Don't reinstall plugins from a settings-only snapshot: the user is
+        # rolling back configuration, not reshaping their plugin set.
+        result = await asyncio.to_thread(service.import_from_json, raw, reinstall_plugins=False)
+    except BackupRestoreAborted as e:
+        # Environment failure (unwritable data dir, full disk), not a bad
+        # snapshot — see Phase 2 Task 10d.
+        logger.error("Settings rollback aborted: %s", e)
+        raise SidecarError(500, str(e)) from e
+    except BackupError as e:
+        raise SidecarError(400, str(e)) from e
+    return {
+        "restored_from": path.name,
+        "restored_files": result.get("restored_files", []),
+        "skipped_files": result.get("skipped_files", []),
+        "pre_restore_backup_suffix": result.get("pre_restore_backup_suffix", ""),
+        "reload_errors": result.get("reload_errors", []),
+    }
+
+
+async def _roll_image_back(snapshot_meta: dict[str, str | None], warnings: list[str]) -> dict[str, Any] | None:
+    """Ask the sidecar to retag the snapshot's recorded digest and recreate.
+
+    Returns the image-rollback summary, or *None* after appending a warning:
+    a snapshot with no usable image identity, or a missing sidecar token, is
+    *partial success* — the settings were already restored — not a failure.
+    """
+    digest = snapshot_meta.get("previous_digest")
+    image_ref = snapshot_meta.get("previous_image")
+    if not digest or not image_ref:
+        # Old snapshot taken before we started annotating.  We can't
+        # safely guess the digest, so report partial success rather
+        # than guessing.
+        warnings.append("Snapshot does not record a previous image digest; image was not rolled back.")
+        return None
+    if not _DIGEST_RE.fullmatch(digest) or not _IMAGE_REF_RE.fullmatch(image_ref):
+        warnings.append("Snapshot's recorded image identity is malformed; image was not rolled back.")
+        return None
+    if not _updater_token():
+        warnings.append(
+            "FIESTAUPDATER_TOKEN is not set; image rollback is unavailable. "
+            "Settings have been restored but the image is unchanged."
+        )
+        return None
+
+    url = f"{_updater_url()}/rollback"
+    headers = {
+        "Authorization": f"Bearer {_updater_token()}",
+        "Content-Type": "application/json",
+    }
+    payload = {"digest": digest, "image": image_ref}
+
+    def _post():
+        return requests.post(url, headers=headers, json=payload, timeout=(5, 30))
+
+    try:
+        resp = await asyncio.to_thread(_post)
+    except requests.exceptions.ConnectionError:
+        raise SidecarError(503, "Could not reach the fiestaupdater sidecar; image rollback unavailable.") from None
+    except Exception as e:
+        logger.warning("fiestaupdater rollback call failed: %s", e)
+        raise SidecarError(502, f"fiestaupdater rollback call failed: {e}") from e
+
+    if resp.status_code == 401:
+        raise SidecarError(500, "fiestaupdater rejected our token")
+    if resp.status_code >= 400:
+        raise SidecarError(502, f"fiestaupdater returned {resp.status_code}: {resp.text[:200]}")
+
+    return {
+        "target_digest": digest,
+        "target_image": image_ref,
+        "queued": True,
+    }
+
+
+async def rollback(req: RollbackRequest) -> RollbackResponse:
+    """Roll the running instance back to a previous version.
+
+    The user selects a snapshot — the most recent by default — and this:
+
+    1. Looks up the snapshot's recorded ``previous_digest`` /
+       ``previous_image`` (captured the moment the snapshot was taken).
+    2. (When ``restore_settings=True``, the default) restores configuration
+       from the snapshot via :class:`~src.backup.service.BackupService`.
+    3. (When ``restore_image=True``, the default) asks the sidecar's
+       ``POST /rollback`` to retag that digest back onto the original image
+       reference and force-recreate the container.
+
+    Settings are restored *before* the image flip so that when the container
+    comes back up on the previous image, it reads the matching configuration.
+    """
+    if not req.restore_settings and not req.restore_image:
+        raise SidecarError(400, "At least one of restore_settings, restore_image must be true.")
+
+    path = await asyncio.to_thread(_resolve_snapshot_name, req.snapshot)
+    if path is None:
+        raise SidecarError(404, "No matching settings snapshot was found.")
+
+    snapshot_meta = await asyncio.to_thread(_read_snapshot_metadata, path)
+
+    warnings: list[str] = []
+    settings_result: dict[str, Any] | None = None
+    image_result: dict[str, Any] | None = None
+
+    if req.restore_settings:
+        settings_result = await _restore_settings_from_snapshot(path)
+
+    if req.restore_image:
+        image_result = await _roll_image_back(snapshot_meta, warnings)
+
+    overall = "success" if not warnings else "partial"
+    return RollbackResponse(
+        status=overall,
+        snapshot=path.name,
+        image_rollback=image_result,
+        settings_rollback=settings_result,
+        warnings=warnings,
+    )
+
+
+# ── release channel (#1955) ────────────────────────────────────────────
+#
+# Beta builds come from `next` and publish as `fiestaboard/fiestaboard:beta`.
+# The app never edits a compose file to switch — it cannot: the sidecar
+# mounts it read-only and the Pi image's app container does not mount it at
+# all. It asks the sidecar to pull a tag and retag it onto whatever
+# reference the compose file already names (`POST /install`, #1969).
+
+#: Docker tag per channel.
+CHANNEL_TAGS = {"stable": "latest", "beta": "beta"}
+
+
+def current_channel() -> str:
+    """Which channel this build came from.
+
+    Derived from the build version rather than stored, so there is no state
+    that can disagree with the image actually running. A beta carries a
+    prerelease identifier; a stable release never does.
+    """
+    build = os.getenv("VERSION", "").strip()
+    core, _, prerelease = build.partition("-")
+    if prerelease and all(part.isdigit() for part in core.split(".") if part):
+        return "beta"
+    return "stable"
+
+
+def channel_switch_blocker() -> str | None:
+    """Why this install cannot change channel, or None if it can."""
+    if _managed_externally():
+        return (
+            "This install is managed by Home Assistant, which controls updates "
+            "through the add-on store. Install the beta add-on there instead."
+        )
+    if not _updater_token():
+        return (
+            "The updater sidecar is not enabled. Add COMPOSE_PROFILES=fiestaupdater "
+            "to your .env and run 'docker compose up -d'."
+        )
+    if not _updater_probe():
+        return "The updater sidecar is not reachable."
+    return None
+
+
+def _channel_join_snapshot_name() -> str | None:
+    """Name of the snapshot taken when this box joined the beta, if any."""
+    try:
+        return _system_update_state_load().get("channel_join_snapshot") or None
+    except Exception:  # pragma: no cover - state file unreadable
+        return None
+
+
+async def leave_beta() -> dict[str, Any]:
+    """Return to stable, restoring the configuration captured at join time.
+
+    The ordinary way off a beta is to wait for the release to overtake it —
+    same data generation, an ordinary update, handled by apply_update. This
+    is the escape hatch for leaving *before* that: a downgrade across a
+    major, onto a build that refuses to read data the beta migrated (#1961).
+
+    Settings are restored *before* the image flips, the same ordering
+    :func:`rollback` uses and for the same reason — the older container has
+    to come up on configuration it understands.
+
+    A box with no recorded join snapshot is still allowed to leave. Refusing
+    would strand someone on a beta they want off; instead the caller is told
+    the restore did not happen so they can restore a backup by hand.
+    """
+    blocker = channel_switch_blocker()
+    if blocker:
+        raise SidecarError(503, blocker)
+
+    running = _updater_version() or {}
+    image_ref = running.get("image") or ""
+    repository = image_ref.rsplit(":", 1)[0] if ":" in image_ref.rsplit("/", 1)[-1] else image_ref
+    if not repository:
+        raise SidecarError(502, "could not determine the running image reference")
+
+    name = _channel_join_snapshot_name()
+    path = await asyncio.to_thread(_resolve_snapshot_name, name) if name else None
+
+    settings_restored = False
+    warning: str | None = None
+    if path is not None:
+        await _restore_settings_from_snapshot(path)
+        settings_restored = True
+    else:
+        warning = (
+            "No join snapshot was available, so your settings were not rolled "
+            "back. The stable build may refuse to read configuration this beta "
+            "migrated — restore a backup from Settings → System → Backup if it "
+            "comes up empty."
+        )
+        logger.warning("Leaving the beta without a join snapshot (recorded=%r)", name)
+
+    try:
+        resp = await asyncio.to_thread(_updater_post, "/install", {"image": repository, "tag": CHANNEL_TAGS["stable"]})
+    except requests.RequestException as e:
+        raise SidecarError(503, f"updater sidecar unreachable: {e}") from e
+
+    if resp.status_code == 404:
+        raise SidecarError(
+            503,
+            "This updater sidecar is too old to switch channels. Run "
+            "'docker compose pull fiestaupdater && docker compose up -d' to "
+            "update it, then try again.",
+        )
+    if resp.status_code >= 400:
+        raise SidecarError(502, f"fiestaupdater returned {resp.status_code}: {resp.text[:200]}")
+
+    # Only now: the sidecar accepting is the earliest honest moment. Recording
+    # stable also stops reassert_release_channel dragging the box back to beta
+    # on the next boot.
+    _system_update_state_update(channel="stable", channel_join_snapshot=None)
+
+    return {
+        "status": "queued",
+        "channel": "stable",
+        "tag": CHANNEL_TAGS["stable"],
+        "settings_restored": settings_restored,
+        "warning": warning,
+    }
+
+
+def switch_channel(channel: str) -> dict[str, Any]:
+    """Snapshot, then ask the sidecar to install *channel*'s tag.
+
+    The snapshot comes FIRST and is the way back: a beta may migrate data to
+    a schema the stable build refuses to read (#1961), so one taken after the
+    swap is worthless.
+
+    Raises :class:`SidecarError` for every failure the caller should surface.
+    """
+    tag = CHANNEL_TAGS[channel]
+    running = _updater_version() or {}
+    image_ref = running.get("image") or ""
+    # The sidecar wants repository and tag separately; sending "repo:tag" as
+    # the image would ask it for "repo:tag:beta".
+    repository = image_ref.rsplit(":", 1)[0] if ":" in image_ref.rsplit("/", 1)[-1] else image_ref
+    if not repository:
+        raise SidecarError(502, "could not determine the running image reference")
+
+    caps = running.get("capabilities")
+    if not isinstance(caps, list) or CAPABILITY_PULL_NEVER not in caps:
+        # Proceed anyway — reassert_release_channel gets there in the end —
+        # but say why it is about to look broken. Without this the user sees
+        # a switch "succeed", the box land on stable, and the beta reappear
+        # minutes later, with nothing anywhere connecting the three.
+        logger.warning(_STALE_SIDECAR_REMEDY)
+
+    snapshot = _take_settings_snapshot(running.get("digest"), image_ref)
+
+    try:
+        resp = _updater_post("/install", {"image": repository, "tag": tag})
+    except requests.RequestException as e:
+        raise SidecarError(503, f"updater sidecar unreachable: {e}") from e
+
+    if resp.status_code == 404:
+        # The sidecar predates /install (#1969). "Broken" is the wrong story;
+        # the only useful thing to say is that it needs pulling.
+        raise SidecarError(
+            503,
+            "This updater sidecar is too old to switch channels. Run "
+            "'docker compose pull fiestaupdater && docker compose up -d' to "
+            "update it, then try again.",
+        )
+    if resp.status_code == 401:
+        raise SidecarError(
+            500,
+            "fiestaupdater rejected our token; check FIESTAUPDATER_TOKEN matches in both services",
+        )
+    if resp.status_code >= 400:
+        raise SidecarError(502, f"fiestaupdater returned {resp.status_code}: {resp.text[:200]}")
+
+    # Record the choice only now. The sidecar answering 202 is the earliest
+    # honest moment — it means the work was accepted. Persisting before the
+    # call meant a refused switch (bad token, sidecar too old, registry down)
+    # still wrote the channel, so every subsequent boot would re-attempt the
+    # same doomed install with the recorded channel permanently disagreeing
+    # with the running one.
+    # Record which snapshot is the way back out, not just that we joined.
+    # Leaving the beta before the release catches up is a downgrade across a
+    # major, and this file is what makes it survivable.
+    extra: dict[str, Any] = {"channel": channel}
+    if channel == "beta" and isinstance(snapshot, dict) and snapshot.get("name"):
+        extra["channel_join_snapshot"] = snapshot["name"]
+    _system_update_state_update(**extra)
+
+    return {"status": "queued", "channel": channel, "tag": tag, "settings_snapshot": snapshot}
+
+
+def reassert_release_channel() -> None:
+    """Put the box back on its chosen channel after a boot that overrode it.
+
+    A channel switch is a local retag, and the Pi's systemd unit runs
+    ``docker compose pull`` before ``up -d`` on every boot. With
+    ``pull_policy: always`` that pull fetches whatever ``:latest`` means in
+    the registry and overwrites the retag, so a rebooted Pi silently comes
+    back on stable. Measured end to end: 8.37.2 -> switch -> 9.0.0-beta.4 ->
+    reboot -> 8.37.2.
+
+    Rewriting the compose file would fix it at the source, but nothing
+    updates ``/opt/fiestaboard/docker-compose.yml`` on an app update and the
+    sidecar mounts it read-only, so that cannot reach installs that already
+    exist. The data dir can, so the choice lives there and is re-applied
+    here.
+
+    Never raises: a boot must not be taken down by an unreachable registry.
+    Silent when the running build already matches, which is every boot after
+    the first on a given channel — the reinstall costs one restart, and only
+    when the boot actually overrode the choice.
+    """
+    wanted = None
+    try:
+        wanted = _system_update_state_load().get("channel")
+        if wanted not in CHANNEL_TAGS:
+            return  # never opted in, or a value we do not recognise
+        if current_channel() == wanted:
+            return  # the boot came up where it should
+        if channel_switch_blocker():
+            # HA-managed, or no sidecar. Not ours to correct.
+            return
+        logger.info(
+            "Boot came up on the %s channel but %s was chosen; re-applying it.",
+            current_channel(),
+            wanted,
+        )
+        switch_channel(wanted)
+    except Exception as e:  # noqa: BLE001 - startup must survive anything here
+        logger.warning("Could not re-apply the %s release channel: %s", wanted or "?", e)

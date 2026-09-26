@@ -208,7 +208,8 @@ test.describe("Note Display — 3×15 Grid Enforcement", () => {
 
     expect(res.ok).toBe(true);
     const data = await res.json();
-    expect(data.status).toBe("success");
+    // "status" is gone from the send body since the Phase 2 conventions pass.
+    expect(data.sent_to_board).toBe(false);
   });
 });
 

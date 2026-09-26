@@ -39,6 +39,7 @@
     "\\w*&[a-z]+;\\w*"
   ],
   "words": [
+    "acked",
     "automations",
     "avahi",
     "balena",
@@ -60,7 +61,10 @@
     "fiestaupdater",
     "finnhub",
     "frameless",
+    "fsyncs",
+    "goldens",
     "groq",
+    "gunicorn",
     "hacs",
     "haos",
     "headlessly",
@@ -82,13 +86,19 @@
     "noaa",
     "OLED",
     "ollama",
+    "oneshot",
     "organise",
+    "pidfile",
+    "Pydantic",
     "pylint",
     "pytest",
     "QLOCKTWO",
+    "repoint",
     "rescan",
     "retags",
+    "retarget",
     "rfkill",
+    "rootdir",
     "rounddown",
     "sanitisation",
     "scrobbling",
@@ -110,6 +120,7 @@
     "wlan",
     "wonkybutt",
     "wsdot",
+    "xdist",
     "zigbee"
   ]
 }

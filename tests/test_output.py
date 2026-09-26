@@ -181,9 +181,11 @@ class TestOutputAPIEndpoints:
     def mock_services(self):
         """Mock the services."""
         with (
-            patch("src.api_server.get_display_service") as mock_display,
+            patch("src.displays.routes.get_display_service") as mock_display,
             patch("src.api_server.get_settings_service") as mock_settings,
+            patch("src.displays.routes.get_settings_service") as mock_settings_routes,
             patch("src.api_server.get_service") as mock_main,
+            patch("src.displays.routes.get_service") as mock_main_routes,
         ):
             # Setup display service mock
             mock_display_svc = Mock()
@@ -197,12 +199,14 @@ class TestOutputAPIEndpoints:
             mock_settings_svc.get_output_settings.return_value = OutputSettings(target="board")
             mock_settings_svc.should_send_to_board.return_value = True
             mock_settings.return_value = mock_settings_svc
+            mock_settings_routes.return_value = mock_settings_svc
 
             # Setup main service mock
             mock_main_svc = Mock()
             mock_main_svc.vb_client = Mock()
             mock_main_svc.vb_client.send_text.return_value = (True, True)
             mock_main.return_value = mock_main_svc
+            mock_main_routes.return_value = mock_main_svc
 
             yield {"display": mock_display_svc, "settings": mock_settings_svc, "main": mock_main_svc}
 
@@ -225,8 +229,8 @@ class TestOutputAPIEndpoints:
         response = client.put("/settings/transitions", json={"strategy": "row", "step_interval_ms": 1000})
 
         assert response.status_code == 200
-        data = response.json()
-        assert data["status"] == "success"
+        # Bare TransitionSettings since the conventions pass (Phase 2, Task 8).
+        assert response.json()["strategy"] == "row"
 
     def test_get_output_settings(self, client, mock_services):
         """Test GET /settings/output."""
@@ -244,14 +248,15 @@ class TestOutputAPIEndpoints:
         response = client.put("/settings/output", json={"target": "both"})
 
         assert response.status_code == 200
-        data = response.json()
-        assert data["status"] == "success"
+        # Bare OutputSettings since the conventions pass (Phase 2, Task 8).
+        assert response.json()["target"] == "both"
 
     def test_update_output_missing_target(self, client, mock_services):
         """Test PUT /settings/output without target."""
         response = client.put("/settings/output", json={})
 
-        assert response.status_code == 400
+        # 422 since the conventions pass typed the body (Phase 2, Task 8).
+        assert response.status_code == 422
 
     def test_update_output_invalidates_every_board_content_cache(self, client, mock_services):
         """Switching ui -> board must resync the hardware (issue #1748).
@@ -281,4 +286,5 @@ class TestOutputAPIEndpoints:
         response = client.put("/settings/output", json={"target": "board"})
 
         assert response.status_code == 200
-        assert response.json()["status"] == "success"
+        # Bare OutputSettings since the conventions pass (Phase 2, Task 8).
+        assert response.json()["target"] == "board"

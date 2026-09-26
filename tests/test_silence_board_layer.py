@@ -176,7 +176,7 @@ def page_service(specs: dict[str, str]) -> MagicMock:
 
     svc = MagicMock()
     svc.get_page.side_effect = _page
-    svc.preview_page.side_effect = lambda pid, force_refresh=False: SimpleNamespace(
+    svc.preview_page.side_effect = lambda pid, force_refresh=False, **_kwargs: SimpleNamespace(
         available=pid in specs, formatted=specs.get(pid, ""), error=None
     )
     svc.list_pages.return_value = [_page(pid) for pid in specs]

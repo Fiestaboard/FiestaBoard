@@ -47,7 +47,7 @@ async function ensurePage(): Promise<string> {
     }),
   });
   const created = await createRes.json();
-  return created.page.id;
+  return created.id;
 }
 
 // ---------------------------------------------------------------------------

@@ -105,7 +105,7 @@ The wizard collects your board API key, starts the server, and opens the setup p
 
 > **Accessing from other devices:** From another device on the same network, open FiestaBoard at your server's IP address — for example `http://192.168.1.50:4420`. This works on a default Docker install.
 >
-> The shorter `http://fiestaboard.local:4420` only resolves when you run with host networking (`network_mode: host`, commented out in `docker-compose.yml`) *and* your host has an mDNS/Bonjour resolver — the default `docker-compose.yml` uses bridge networking (`4420:3000`) and does **not** advertise `fiestaboard.local`. The FiestaPi image ships avahi and advertises as `fiestapi.local` out of the box. See [MCP clients — Hostname tip](docs/internal/setup/MCP_CLIENTS.md) for details.
+> The default `docker-compose.yml` uses bridge networking (`4420:3000`) and does **not** advertise `fiestaboard.local`. A generic Docker host needs a separately configured host-level mDNS service for a `.local` name. The FiestaPi image ships Avahi and advertises as `fiestapi.local`; newly built FiestaPi images also publish an HTTP service that Bonjour apps can discover. See [MCP clients — Hostname tip](docs/internal/setup/MCP_CLIENTS.md) for details.
 
 ---
 

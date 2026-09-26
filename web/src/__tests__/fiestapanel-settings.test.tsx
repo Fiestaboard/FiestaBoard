@@ -36,7 +36,9 @@ function Wrapper({ children }: { children: React.ReactNode }) {
 function mockList(panels: Panel[] = [PANEL]) {
   server.use(
     http.get("/api/panels", () => HttpResponse.json({ panels, total: panels.length })),
-    http.get("/api/settings/hdmi-kiosk", () => HttpResponse.json({ supported: false, status: "unsupported" })),
+    http.get("/api/settings/hdmi-kiosk", () =>
+      HttpResponse.json({ supported: false, status: "unsupported", enabled: null }),
+    ),
   );
 }
 
@@ -55,7 +57,7 @@ describe("FiestaPanelSettings", () => {
     server.use(
       http.post("/api/panels", async ({ request }) => {
         body = await request.json();
-        return HttpResponse.json({ status: "success", panel: PANEL });
+        return HttpResponse.json(PANEL, { status: 201 });
       }),
     );
     const user = userEvent.setup();
@@ -82,7 +84,7 @@ describe("FiestaPanelSettings", () => {
     server.use(
       http.patch("/api/panels/abc123def456", async ({ request }) => {
         body = await request.json();
-        return HttpResponse.json({ status: "success", panel: { ...PANEL, is_display: true } });
+        return HttpResponse.json({ ...PANEL, is_display: true, incompatible_references: null });
       }),
     );
     const user = userEvent.setup();
@@ -100,7 +102,11 @@ describe("FiestaPanelSettings", () => {
 
   it("enables the HDMI kiosk from the app on a FiestaPi", async () => {
     mockList();
-    server.use(http.get("/api/settings/hdmi-kiosk", () => HttpResponse.json({ supported: true, status: "disabled" })));
+    server.use(
+      http.get("/api/settings/hdmi-kiosk", () =>
+        HttpResponse.json({ supported: true, status: "disabled", enabled: false }),
+      ),
+    );
     let body: unknown;
     server.use(
       http.post("/api/settings/hdmi-kiosk", async ({ request }) => {
@@ -120,7 +126,7 @@ describe("FiestaPanelSettings", () => {
     server.use(
       http.delete("/api/panels/abc123def456", () => {
         deleted = true;
-        return HttpResponse.json({ status: "success" });
+        return HttpResponse.json({ id: "abc123def456" });
       }),
     );
     const user = userEvent.setup();

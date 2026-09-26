@@ -111,8 +111,11 @@ test.describe("regression: integrations.plugin (config sheet + lifecycle)", () =
     await page.goto("/integrations");
     await expect(page.getByRole("heading", { name: /integrations/i })).toBeVisible({ timeout: 15_000 });
 
-    // Throttle the plugin details endpoint so the loading state is observable
-    await page.route(`**/api/plugins/${TEST_PLUGIN_ID}`, async (route) => {
+    // Throttle the plugin details endpoint so the loading state is observable.
+    // `GET /v1/plugins/{id}` shares its URL with the write PATCH, so guard on
+    // the method to keep this the read-only throttle it always was.
+    await page.route(`**/api/v1/plugins/${TEST_PLUGIN_ID}`, async (route) => {
+      if (route.request().method() !== "GET") return route.continue();
       await new Promise((r) => setTimeout(r, 1500));
       await route.continue();
     });
@@ -144,8 +147,11 @@ test.describe("regression: integrations.plugin (config sheet + lifecycle)", () =
     await page.goto("/integrations");
     await expect(page.getByRole("heading", { name: /integrations/i })).toBeVisible({ timeout: 15_000 });
 
-    // Intercept plugin details and return a payload with no settings_schema and no variables
-    await page.route(`**/api/plugins/${TEST_PLUGIN_ID}`, async (route) => {
+    // Intercept plugin details and return a payload with no settings_schema and
+    // no variables. Method-guarded: `GET /v1/plugins/{id}` now shares its URL
+    // with the write PATCH.
+    await page.route(`**/api/v1/plugins/${TEST_PLUGIN_ID}`, async (route) => {
+      if (route.request().method() !== "GET") return route.continue();
       const response = await route.fetch();
       const data = await response.json();
       // Wipe everything that would render config UI
@@ -182,9 +188,12 @@ test.describe("regression: integrations.plugin (config sheet + lifecycle)", () =
     await expect(saveBtn).toBeVisible({ timeout: 15_000 });
     await expect(saveBtn).toBeEnabled({ timeout: 15_000 });
 
-    // Throttle PUT /plugins/{id}/config to make Saving... observable
-    await page.route(`**/api/plugins/${TEST_PLUGIN_ID}/config`, async (route) => {
-      if (route.request().method() === "PUT") {
+    // Throttle the config write to make Saving... observable. `PUT
+    // /plugins/{id}/config` is now `PATCH /v1/plugins/{id} {config}`, which
+    // shares its URL with the detail GET and the enable/disable PATCH — hence
+    // the method + body-key guard.
+    await page.route(`**/api/v1/plugins/${TEST_PLUGIN_ID}`, async (route) => {
+      if (route.request().method() === "PATCH" && "config" in (route.request().postDataJSON() ?? {})) {
         await new Promise((r) => setTimeout(r, 1200));
       }
       await route.continue();
@@ -238,11 +247,11 @@ test.describe("regression: integrations.plugin (config sheet + lifecycle)", () =
    * Route: /integrations (sheet)
    * Preconditions: plugin:enabled, plugin:exposes-variables
    * Expected: Template Variables table shows a "Current Value" column populated
-   *   with the live value returned by /displays/{plugin}/raw.
+   *   with the live value returned by /v1/plugins/{plugin}/data.
    * Issue: https://github.com/Fiestaboard/FiestaBoard/issues/936
    */
   test("integrations.plugin.config-sheet.template-vars — Current Value column shows live value", async ({ page }) => {
-    // The raw-display endpoint only refreshes on the plugin scheduler tick,
+    // The plugin-data endpoint only refreshes on the plugin scheduler tick,
     // which on a cold CI container can take >20s for date_time's first cycle.
     // Triple the default 30s budget so the assertion has room to wait it out.
     test.slow();
@@ -262,7 +271,7 @@ test.describe("regression: integrations.plugin (config sheet + lifecycle)", () =
     await expect(timeRow).toBeVisible({ timeout: 5_000 });
 
     // The "Current Value" cell is the 3rd column. Wait until it renders the live
-    // value — date_time.time always contains a digit (HH:MM). The displays-raw
+    // value — date_time.time always contains a digit (HH:MM). The plugin-data
     // endpoint can take a moment to warm up on a cold container, so allow 30s.
     const valueCell = timeRow.locator("td").nth(2);
     await expect(valueCell).toContainText(/\d/, { timeout: 30_000 });
@@ -300,7 +309,7 @@ test.describe("regression: integrations.plugin (config sheet + lifecycle)", () =
   /**
    * UX node: integrations.plugin.config-sheet.template-vars.unconfigured
    * Route: /integrations (sheet)
-   * Preconditions: plugin:enabled, raw-display:unavailable (missing config / fetch error)
+   * Preconditions: plugin:enabled, plugin-data:unavailable (missing config / fetch error)
    * Expected:
    *   - sheet still renders without crashing
    *   - "Unavailable" message visible above the table
@@ -309,17 +318,19 @@ test.describe("regression: integrations.plugin (config sheet + lifecycle)", () =
    * Issue: https://github.com/Fiestaboard/FiestaBoard/issues/936
    */
   test("integrations.plugin.config-sheet.template-vars — handles unconfigured plugin gracefully", async ({ page }) => {
-    // Simulate an unconfigured plugin: the raw-display endpoint reports the
+    // Simulate an unconfigured plugin: GET /v1/plugins/{id}/data reports the
     // plugin's data isn't available. This is what a plugin like `weather`
     // returns when its API key isn't set.
-    await page.route(`**/api/displays/${TEST_PLUGIN_ID}/raw`, async (route) => {
+    await page.route(`**/api/v1/plugins/${TEST_PLUGIN_ID}/data`, async (route) => {
       await route.fulfill({
         status: 200,
         contentType: "application/json",
         body: JSON.stringify({
-          display_type: TEST_PLUGIN_ID,
+          plugin_id: TEST_PLUGIN_ID,
           data: {},
           available: false,
+          lines: [],
+          text: "",
           error: "Plugin not configured",
         }),
       });

@@ -1,5 +1,8 @@
 """A release channel must survive a reboot (#1955 follow-on).
 
+On this trunk the logic lives in ``src/system/update_service.py`` and the
+tests patch that module, per the package's documented seam.
+
 Switching channel retags the chosen image onto the reference the compose
 file names. That is the only mechanism available — the app cannot edit the
 compose file, and on a FiestaPi it does not even mount it.
@@ -29,9 +32,9 @@ from __future__ import annotations
 from unittest.mock import MagicMock, patch
 
 import pytest
-from fastapi import HTTPException
 
-import src.api_server as api_server
+import src.system.update_service as api_server
+from src.system.update_service import SidecarError
 
 
 @pytest.fixture
@@ -40,9 +43,9 @@ def sidecar_ready(monkeypatch):
     monkeypatch.delenv("SUPERVISOR_TOKEN", raising=False)
     monkeypatch.delenv("FIESTABOARD_MANAGED_EXTERNALLY", raising=False)
     with (
-        patch("src.api_server._updater_probe", return_value=True),
+        patch("src.system.update_service._updater_probe", return_value=True),
         patch(
-            "src.api_server._updater_version",
+            "src.system.update_service._updater_version",
             return_value={"image": "fiestaboard/fiestaboard:latest", "digest": "sha256:abc"},
         ),
     ):
@@ -55,10 +58,10 @@ class TestRememberingTheChoice:
         monkeypatch.setenv("VERSION", "8.37.2")
         resp = MagicMock(status_code=202, text="{}")
         with (
-            patch("src.api_server._updater_post", return_value=resp),
-            patch("src.api_server._take_settings_snapshot", return_value=None),
+            patch("src.system.update_service._updater_post", return_value=resp),
+            patch("src.system.update_service._take_settings_snapshot", return_value=None),
         ):
-            api_server._switch_channel_sync("beta")
+            api_server.switch_channel("beta")
         assert api_server._system_update_state_load().get("channel") == "beta"
 
 
@@ -74,10 +77,10 @@ class TestReassertingAtBoot:
             return MagicMock(status_code=202, text="{}")
 
         with (
-            patch("src.api_server._updater_post", side_effect=post),
-            patch("src.api_server._take_settings_snapshot", return_value=None),
+            patch("src.system.update_service._updater_post", side_effect=post),
+            patch("src.system.update_service._take_settings_snapshot", return_value=None),
         ):
-            api_server._reassert_release_channel()
+            api_server.reassert_release_channel()
 
         assert calls, "the persisted beta choice was not re-asserted after the reboot"
         path, payload = calls[-1]
@@ -88,8 +91,8 @@ class TestReassertingAtBoot:
         """The common case: it came up on the channel we asked for."""
         monkeypatch.setenv("VERSION", "9.0.0-beta.4")
         api_server._system_update_state_update(channel="beta")
-        with patch("src.api_server._updater_post") as post:
-            api_server._reassert_release_channel()
+        with patch("src.system.update_service._updater_post") as post:
+            api_server.reassert_release_channel()
         assert not post.called, "reinstalled a channel the running build already is"
 
     def test_it_does_nothing_when_no_choice_was_ever_made(self, sidecar_ready, monkeypatch):
@@ -98,8 +101,8 @@ class TestReassertingAtBoot:
         state = api_server._system_update_state_load()
         state.pop("channel", None)
         api_server._system_update_state_save(state)
-        with patch("src.api_server._updater_post") as post:
-            api_server._reassert_release_channel()
+        with patch("src.system.update_service._updater_post") as post:
+            api_server.reassert_release_channel()
         assert not post.called
 
     def test_a_home_assistant_install_is_never_touched(self, monkeypatch):
@@ -117,23 +120,23 @@ class TestReassertingAtBoot:
         monkeypatch.setenv("VERSION", "8.37.2")
         api_server._system_update_state_update(channel="beta")
         with (
-            patch("src.api_server._updater_probe", return_value=True),
+            patch("src.system.update_service._updater_probe", return_value=True),
             patch(
-                "src.api_server._updater_version",
+                "src.system.update_service._updater_version",
                 return_value={"image": "fiestaboard/fiestaboard:latest", "digest": "sha256:abc"},
             ),
-            patch("src.api_server._take_settings_snapshot", return_value=None),
-            patch("src.api_server._updater_post") as post,
+            patch("src.system.update_service._take_settings_snapshot", return_value=None),
+            patch("src.system.update_service._updater_post") as post,
         ):
-            api_server._reassert_release_channel()
+            api_server.reassert_release_channel()
         assert not post.called, "a Home Assistant install had its channel re-asserted"
 
     def test_no_sidecar_means_no_attempt(self, monkeypatch):
         monkeypatch.setenv("FIESTAUPDATER_TOKEN", "")
         monkeypatch.setenv("VERSION", "8.37.2")
         api_server._system_update_state_update(channel="beta")
-        with patch("src.api_server._updater_post") as post:
-            api_server._reassert_release_channel()
+        with patch("src.system.update_service._updater_post") as post:
+            api_server.reassert_release_channel()
         assert not post.called
 
     def test_a_failed_reassert_does_not_raise(self, sidecar_ready, monkeypatch):
@@ -141,20 +144,20 @@ class TestReassertingAtBoot:
         monkeypatch.setenv("VERSION", "8.37.2")
         api_server._system_update_state_update(channel="beta")
         with (
-            patch("src.api_server._updater_post", side_effect=RuntimeError("boom")),
-            patch("src.api_server._take_settings_snapshot", return_value=None),
+            patch("src.system.update_service._updater_post", side_effect=RuntimeError("boom")),
+            patch("src.system.update_service._take_settings_snapshot", return_value=None),
         ):
-            api_server._reassert_release_channel()  # must not raise
+            api_server.reassert_release_channel()  # must not raise
 
     def test_switching_back_to_stable_is_remembered_too(self, sidecar_ready, monkeypatch):
         """Leaving beta must not leave 'beta' persisted, or boot would undo it."""
         monkeypatch.setenv("VERSION", "9.0.0-beta.4")
         resp = MagicMock(status_code=202, text="{}")
         with (
-            patch("src.api_server._updater_post", return_value=resp),
-            patch("src.api_server._take_settings_snapshot", return_value=None),
+            patch("src.system.update_service._updater_post", return_value=resp),
+            patch("src.system.update_service._take_settings_snapshot", return_value=None),
         ):
-            api_server._switch_channel_sync("stable")
+            api_server.switch_channel("stable")
         assert api_server._system_update_state_load().get("channel") == "stable"
 
 
@@ -184,11 +187,11 @@ class TestAFailedSwitchIsNotRemembered:
 
         resp = MagicMock(status_code=status, text="nope")
         with (
-            patch("src.api_server._updater_post", return_value=resp),
-            patch("src.api_server._take_settings_snapshot", return_value=None),
-            pytest.raises(HTTPException),
+            patch("src.system.update_service._updater_post", return_value=resp),
+            patch("src.system.update_service._take_settings_snapshot", return_value=None),
+            pytest.raises(SidecarError),
         ):
-            api_server._switch_channel_sync("beta")
+            api_server.switch_channel("beta")
 
         assert api_server._system_update_state_load().get("channel") is None, (
             f"a switch the sidecar refused ({why}) was recorded anyway; every boot would retry it"
@@ -203,10 +206,10 @@ class TestAFailedSwitchIsNotRemembered:
         api_server._system_update_state_save(state)
 
         with (
-            patch("src.api_server._updater_post", side_effect=_requests.ConnectionError("down")),
-            patch("src.api_server._take_settings_snapshot", return_value=None),
-            pytest.raises(HTTPException),
+            patch("src.system.update_service._updater_post", side_effect=_requests.ConnectionError("down")),
+            patch("src.system.update_service._take_settings_snapshot", return_value=None),
+            pytest.raises(SidecarError),
         ):
-            api_server._switch_channel_sync("beta")
+            api_server.switch_channel("beta")
 
         assert api_server._system_update_state_load().get("channel") is None

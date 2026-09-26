@@ -118,7 +118,7 @@ describe("ActivePageDisplay", () => {
       http.get(`${API_BASE}/settings/active-page`, () =>
         HttpResponse.json({ page_id: "collection:test-collection-id" }),
       ),
-      http.get(`${API_BASE}/collections`, () =>
+      http.get(`${API_BASE}/v1/collections`, () =>
         HttpResponse.json({
           collections: [
             {
@@ -154,7 +154,7 @@ describe("ActivePageDisplay", () => {
       http.get(`${API_BASE}/settings/active-page`, () =>
         HttpResponse.json({ page_id: "collection:test-collection-id", resolved_page_id: "page-1" }),
       ),
-      http.get(`${API_BASE}/collections`, () =>
+      http.get(`${API_BASE}/v1/collections`, () =>
         HttpResponse.json({
           collections: [
             {
@@ -394,7 +394,7 @@ describe("ActivePageDisplay", () => {
       http.get(`${API_BASE}/settings/active-page`, () =>
         HttpResponse.json({ page_id: "collection:test-collection-id" }),
       ),
-      http.get(`${API_BASE}/collections`, () =>
+      http.get(`${API_BASE}/v1/collections`, () =>
         HttpResponse.json({
           collections: [
             {

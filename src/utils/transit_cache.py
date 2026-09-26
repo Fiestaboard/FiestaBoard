@@ -128,7 +128,6 @@ class TransitCache:
             except Exception as e:
                 logger.error(f"Error in TransitCache refresh loop: {e}", exc_info=True)
 
-            # Wait for next refresh interval (or until stop event)
             self._stop_event.wait(self._refresh_interval)
 
         logger.info("TransitCache refresh loop stopped")
@@ -155,7 +154,6 @@ class TransitCache:
 
             data = json.loads(content)
 
-            # Parse and index the data
             self._parse_and_index(data)
 
             # Update cache metadata
@@ -283,7 +281,6 @@ class TransitCache:
             if age > self.STALE_WARNING_THRESHOLD:
                 logger.warning(f"TransitCache is stale (age: {age:.0f}s). Data may be outdated.")
 
-            # Get agency data
             agency_data = self._stops_by_agency.get(agency, {})
 
             # Filter by requested stop codes

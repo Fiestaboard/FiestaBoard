@@ -30,8 +30,9 @@ import { useState } from "react";
 import { toast } from "sonner";
 
 import { useTranslations } from "@/i18n/translations";
+import { anchorProps } from "@/lib/ai-choreography/anchors";
 import type { AIProvider, AISettings } from "@/lib/api";
-import { api } from "@/lib/api";
+import { AI_TURN_CAP_MAX, AI_TURN_CAP_MIN, api } from "@/lib/api";
 
 type ProviderPreset = {
   label: string;
@@ -424,10 +425,46 @@ export function AiSettings() {
     });
   };
 
-  const current: AISettings = draft ?? data ?? { enabled: false, providers: [], default_provider_id: null };
+  const current: AISettings = draft ??
+    data ?? {
+      enabled: false,
+      providers: [],
+      default_provider_id: null,
+      approval_mode: "ask",
+      // null, not a number: "no override, use the server's defaults".
+      max_model_calls: null,
+      max_tool_calls: null,
+    };
+
+  /**
+   * A turn cap as typed: a whole number, or null for "no override".
+   *
+   * Cleared field → null, which is what lets someone go back to the server's
+   * defaults after setting a number. Anything unparseable is also null rather
+   * than NaN, which would serialize as JSON `null` anyway but only after
+   * rendering the field blank-but-dirty on the way there.
+   */
+  const parseCap = (raw: string): number | null => {
+    const trimmed = raw.trim();
+    if (!trimmed) return null;
+    const value = Number(trimmed);
+    return Number.isInteger(value) ? value : null;
+  };
 
   const saveMutation = useMutation({
-    mutationFn: (next: AISettings) => api.updateAiSettings(next),
+    // Only the fields this page edits. `approval_mode` is the chat panel's
+    // pill; sending a snapshot of it here would silently revert a mode the
+    // user changed in the chat meanwhile.
+    mutationFn: (next: AISettings) =>
+      api.updateAiSettings({
+        enabled: next.enabled,
+        providers: next.providers,
+        default_provider_id: next.default_provider_id,
+        // Edited only here, so a snapshot is safe — unlike `approval_mode`.
+        // An explicit null is meaningful: it clears the override.
+        max_model_calls: next.max_model_calls,
+        max_tool_calls: next.max_tool_calls,
+      }),
     onSuccess: (saved) => {
       queryClient.setQueryData(["ai-settings"], saved);
       setDraft(null);
@@ -490,6 +527,7 @@ export function AiSettings() {
       icon={<Sparkles />}
       title={t("cardTitle")}
       description={t("cardDescription")}
+      {...anchorProps("settings.ai")}
       action={
         <Flex align="center" gap="2" className="pt-1">
           <Label htmlFor="ai-enabled" className="text-xs">
@@ -529,6 +567,52 @@ export function AiSettings() {
           ))}
         </Stack>
       )}
+
+      {/* Per-turn runaway caps. Blank means "no opinion" — the
+          server's own defaults apply — so the placeholder says that rather
+          than restating a number this page would then have to keep in sync
+          with `TurnLimits`. Reaching a cap pauses the turn and the chat
+          offers to keep going, so these are a backstop, not a work budget. */}
+      <Stack gap="2" className="rounded-md border border-dashed p-3">
+        <Text size="sm" weight="medium">
+          {t("turnLimits.heading")}
+        </Text>
+        <Text size="xs" tone="muted">
+          {t("turnLimits.description")}
+        </Text>
+        <Flex wrap gap="3">
+          <Stack gap="1" className="min-w-0 flex-1">
+            <Label htmlFor="ai-max-model-calls" className="text-xs">
+              {t("turnLimits.modelCallsLabel")}
+            </Label>
+            <Input
+              id="ai-max-model-calls"
+              type="number"
+              inputMode="numeric"
+              min={AI_TURN_CAP_MIN}
+              max={AI_TURN_CAP_MAX}
+              value={current.max_model_calls ?? ""}
+              placeholder={t("turnLimits.serverDefault")}
+              onChange={(e) => setDraft({ ...current, max_model_calls: parseCap(e.target.value) })}
+            />
+          </Stack>
+          <Stack gap="1" className="min-w-0 flex-1">
+            <Label htmlFor="ai-max-tool-calls" className="text-xs">
+              {t("turnLimits.toolCallsLabel")}
+            </Label>
+            <Input
+              id="ai-max-tool-calls"
+              type="number"
+              inputMode="numeric"
+              min={AI_TURN_CAP_MIN}
+              max={AI_TURN_CAP_MAX}
+              value={current.max_tool_calls ?? ""}
+              placeholder={t("turnLimits.serverDefault")}
+              onChange={(e) => setDraft({ ...current, max_tool_calls: parseCap(e.target.value) })}
+            />
+          </Stack>
+        </Flex>
+      </Stack>
 
       <Flex wrap align="center" justify="between" gap="2" className="pt-1">
         <Button type="button" variant="outline" size="sm" className="gap-1.5" onClick={addProvider}>

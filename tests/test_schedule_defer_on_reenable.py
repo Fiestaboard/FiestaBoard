@@ -348,11 +348,26 @@ class TestScheduleSettingsEndpoint:
 
         assert api_client.get("/schedules/settings").json()["defer_on_reenable"] is True
 
+    # DELIBERATE CONTRACT CHANGE, made when this feature was ported onto the
+    # `next` trunk. On `main` the handler took a bare ``dict`` and hand-rolled
+    # its validation, answering 400. `schedules` is in
+    # tests/conventions_manifest.json::converted_domains, where a bare-dict
+    # body is a ratchet failure, so the body is now a typed
+    # ``ScheduleBehaviorUpdate`` and FastAPI answers 422 — the same status
+    # every other converted domain returns for an unparseable body (#1925).
+    # The *rejection* is unchanged, and is what these tests exist to pin:
+    # ``defer_on_reenable`` is a StrictBool, so "yes" is still refused rather
+    # than coerced to True the way Pydantic's lax mode would.
     def test_put_rejects_a_missing_field(self, api_client):
-        assert api_client.put("/schedules/settings", json={}).status_code == 400
+        assert api_client.put("/schedules/settings", json={}).status_code == 422
 
     def test_put_rejects_a_non_boolean(self, api_client):
-        assert api_client.put("/schedules/settings", json={"defer_on_reenable": "yes"}).status_code == 400
+        assert api_client.put("/schedules/settings", json={"defer_on_reenable": "yes"}).status_code == 422
+
+    def test_a_non_boolean_is_refused_rather_than_coerced(self, api_client):
+        """The status moved 400 -> 422; the behaviour must not have moved."""
+        api_client.put("/schedules/settings", json={"defer_on_reenable": "yes"})
+        assert api_client.get("/schedules/settings").json()["defer_on_reenable"] is False
 
     def test_settings_route_is_not_shadowed_by_the_schedule_id_route(self, api_client):
         """`/schedules/{schedule_id}` must not swallow `/schedules/settings`."""

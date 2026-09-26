@@ -83,6 +83,42 @@
     "unnamedBoard": "이름 없는 보드",
     "transitions": "전환 실험실"
   },
+  "settingsMenu": {
+    "trigger": "설정",
+    "settings": "설정",
+    "appearance": "모양",
+    "light": "라이트",
+    "dark": "다크",
+    "system": "시스템",
+    "devSuffix": "개발 빌드",
+    "updateAvailable": "업데이트 사용 가능: {version}",
+    "updateTo": "{version}(으)로 업데이트",
+    "about": "FiestaBoard 정보",
+    "signOut": "로그아웃"
+  },
+  "aboutDialog": {
+    "description": "이 FiestaBoard의 버전 및 시스템 정보입니다.",
+    "devSuffix": "개발 빌드",
+    "channel": "채널",
+    "channelStable": "안정",
+    "channelBeta": "베타",
+    "platform": "플랫폼",
+    "platformDocker": "Docker",
+    "platformPi": "Raspberry Pi",
+    "hardware": "하드웨어",
+    "updates": "업데이트",
+    "updatesDaily": "자동, 매일",
+    "updatesWeekly": "자동, 매주",
+    "updatesMonthly": "자동, 매월",
+    "updatesManual": "수동",
+    "updatesManaged": "외부에서 관리",
+    "updatesUnavailable": "업데이터를 사용할 수 없음",
+    "updateAvailable": "업데이트 사용 가능: {version}",
+    "board": "보드",
+    "license": "MIT 라이선스",
+    "copyright": "© {year} {holder}",
+    "sourceCode": "GitHub 소스 코드"
+  },
   "network": {
     "title": "Wi-Fi",
     "description": "FiestaPi의 무선 연결을 관리합니다.",
@@ -132,6 +168,9 @@
     "description": "보드 표시 상태 및 시스템 활동을 모니터링하세요",
     "noBoardConfigured": "보드가 설정되지 않았습니다",
     "noBoardDescription": "보드가 아직 설정되지 않았습니다. 보드를 연결하여 콘텐츠 표시를 시작하세요.",
+    "boardInitErrorTitle": "{boardName}을(를) 사용할 수 없습니다",
+    "boardInitErrorTitleUnnamed": "사용할 수 없는 보드가 있습니다",
+    "boardInitErrorOpenSettings": "보드 설정 열기",
     "runSetupWizard": "설정 마법사 실행",
     "silenceImminentTitle": "Silence starts in {minutes, plural, =0 {less than a minute} one {# minute} other {# minutes}}",
     "silenceImminentDescription": "Switch to “{pageName}” now so you don't have to wait for the schedule to catch up.",
@@ -569,7 +608,14 @@
       "apiKeyLabel": "API 키",
       "modelsLabel": "모델",
       "defaultModelLabel": "기본 모델",
-      "testConnectionButton": "연결 테스트"
+      "testConnectionButton": "연결 테스트",
+      "turnLimits": {
+        "heading": "턴 제한",
+        "description": "작업 예산이 아니라 루프에 갇힌 모델에 대한 안전장치입니다. 제한에 도달하면 턴이 일시 중지되고 채팅이 계속할지 제안합니다. 비워 두면 서버 기본값을 사용합니다.",
+        "modelCallsLabel": "턴당 모델 호출 수",
+        "toolCallsLabel": "턴당 도구 호출 수",
+        "serverDefault": "서버 기본값"
+      }
     },
     "backup": {
       "cardTitle": "백업 및 복원",
@@ -937,6 +983,11 @@
       "badge": "Paused",
       "tooltip": "When paused, FiestaBoard does not push anything to this board — scheduled pages, manual sends, plugin triggers, and MQTT commands are all blocked until you resume."
     },
+    "initError": {
+      "badge": "사용 불가",
+      "title": "이 보드를 초기화하지 못했습니다",
+      "hint": "아래 연결 정보를 수정하세요. 저장하면 연결을 다시 시도합니다."
+    },
     "deviceTypeAriaLabel": "보드 유형 및 크기",
     "deviceGroupLabel": "기기",
     "noteArrayGroupLabel": "Note 어레이",
@@ -1206,14 +1257,6 @@
     "updateIntervalsTitle": "업데이트 간격",
     "updateIntervalsDescription": "보드가 새 콘텐츠를 가져오고 현재 상태를 다시 읽는 빈도"
   },
-  "themeToggle": {
-    "toggleTheme": "테마 전환"
-  },
-  "versionDisplay": {
-    "devSuffix": "(개발)",
-    "updateAvailableAriaLabel": "업데이트 가능: v{version}",
-    "updateAvailableTooltip": "업데이트 가능: v{version}"
-  },
   "serviceControls": {
     "title": "서비스 제어",
     "contentAutoSent": "콘텐츠가 자동으로 실제 보드에 전송됩니다"
@@ -1310,75 +1353,6 @@
       "failure": "로그인을 활성화할 수 없습니다"
     }
   },
-  "aiActionConfirmation": {
-    "deny": "거부",
-    "allow": "허용",
-    "working": "처리 중…",
-    "done": "완료",
-    "denied": "거부됨",
-    "noChanges": "변경 없음",
-    "noValues": "값 없음",
-    "noChangesSpecified": "지정된 변경 사항이 없습니다.",
-    "openEnd": "미지정",
-    "label": {
-      "installPlugin": "플러그인 설치: {id}",
-      "updatePluginConfig": "플러그인 구성: {id}",
-      "updatePlugin": "플러그인 업데이트: {id}",
-      "enablePlugin": "플러그인 활성화: {id}",
-      "disablePlugin": "플러그인 비활성화: {id}",
-      "uninstallPlugin": "플러그인 제거: {id}",
-      "updateSetting": "설정 변경: {category}",
-      "createCollection": "컬렉션 만들기: \"{name}\"",
-      "updateCollection": "컬렉션 업데이트",
-      "createSchedule": "일정 만들기",
-      "updateSchedule": "일정 업데이트",
-      "deleteSchedule": "일정 삭제",
-      "triggerSystemUpdate": "시스템 업데이트"
-    },
-    "description": {
-      "installPlugin": "공식 레지스트리에서 \"{id}\"을(를) 설치합니다.",
-      "installPluginEnable": "공식 레지스트리에서 \"{id}\"을(를) 설치하고 활성화합니다.",
-      "updatePluginConfig": "\"{id}\"의 구성을 업데이트합니다: {keys}.",
-      "updatePlugin": "\"{id}\"의 최신 레지스트리 버전을 다운로드하여 설치합니다.",
-      "enablePlugin": "\"{id}\"을(를) 활성화하여 보드에 데이터를 제공할 수 있도록 합니다.",
-      "disablePlugin": "\"{id}\"을(를) 제거하지 않고 비활성화합니다. 나중에 다시 활성화할 수 있습니다.",
-      "uninstallPlugin": "\"{id}\"을(를) 영구적으로 제거합니다. 이 작업은 취소할 수 없습니다.",
-      "updateSetting": "{category} 설정에서 {values}을(를) 설정합니다.",
-      "createCollection": "{count, plural, other {# 페이지}}로 컬렉션을 만들고 {interval}초마다 전환합니다.",
-      "createSchedule": "\"{page}\" 페이지를 {days} 요일에 {time}에 표시합니다.",
-      "deleteSchedule": "일정 \"{id}\"을(를) 영구적으로 제거합니다. 이 작업은 취소할 수 없습니다.",
-      "triggerSystemUpdate": "최신 FiestaBoard 업데이트를 다운로드하여 설치합니다. 시스템이 잠시 다시 시작됩니다."
-    },
-    "change": {
-      "rename": "\"{name}\"(으)로 이름 변경",
-      "setPages": "{count, plural, other {# 페이지}} 설정",
-      "interval": "간격 → {interval}초",
-      "page": "페이지 → {page}",
-      "start": "시작 → {start}",
-      "end": "종료 → {end}",
-      "days": "요일 → {days}",
-      "enable": "활성화",
-      "disable": "비활성화"
-    }
-  },
-  "chainingModePicker": {
-    "menuTitle": "AI 체이닝 모드",
-    "triggerAriaLabel": "AI 체이닝 모드: {mode}",
-    "modes": {
-      "manual": {
-        "label": "수동",
-        "description": "각 작업 후에 다시 확인합니다"
-      },
-      "autoContinue": {
-        "label": "자동 계속",
-        "description": "작업을 연결하고 각 단계를 확인합니다"
-      },
-      "autonomous": {
-        "label": "자율",
-        "description": "완료될 때까지 실행하며 확인을 건너뜁니다"
-      }
-    }
-  },
   "bootGate": {
     "waiting": "시작을 기다리는 중…",
     "errorHeading": "FiestaBoard에 연결할 수 없습니다",
@@ -1390,7 +1364,31 @@
     "updateErrorDescription": "업데이트는 끝났지만 앱이 아직 다시 시작 중입니다. 잠시 후 새로고침하세요."
   },
   "globalAiChatDrawer": {
-    "panelAriaLabel": "FiestaBot AI 채팅"
+    "panelAriaLabel": "FiestaBot AI 채팅",
+    "toast": {
+      "undo": "실행 취소",
+      "pageCreated": "페이지를 만들었습니다.",
+      "pageUpdated": "페이지를 업데이트했습니다.",
+      "pageDeleted": "페이지를 삭제했습니다.",
+      "scheduleCreated": "일정을 만들었습니다.",
+      "scheduleUpdated": "일정을 업데이트했습니다.",
+      "scheduleDeleted": "일정을 삭제했습니다.",
+      "pluginInstalled": "플러그인 \"{id}\"을(를) 설치했습니다.",
+      "pluginConfigured": "플러그인 \"{id}\"을(를) 구성했습니다.",
+      "pluginUpdated": "플러그인 \"{id}\"을(를) 업데이트했습니다.",
+      "pluginEnabled": "플러그인 \"{id}\"을(를) 활성화했습니다.",
+      "pluginDisabled": "플러그인 \"{id}\"을(를) 비활성화했습니다.",
+      "pluginUninstalled": "플러그인 \"{id}\"을(를) 제거했습니다.",
+      "settingUpdated": "설정을 업데이트했습니다.",
+      "collectionCreated": "컬렉션 \"{name}\"을(를) 만들었습니다.",
+      "collectionUpdated": "컬렉션을 업데이트했습니다.",
+      "collectionDeleted": "컬렉션을 삭제했습니다.",
+      "activePageSet": "보드를 업데이트했습니다.",
+      "messageSent": "보드에 메시지를 보냈습니다.",
+      "systemUpdate": "시스템 업데이트를 시작했습니다. 보드가 곧 재시작됩니다.",
+      "toolFailed": "{tool} 실패: {error}",
+      "stopped": "중지했습니다. 이미 실행 중인 작업은 완료됩니다."
+    }
   },
   "plainTextEditor": {
     "placeholder": "템플릿 텍스트를 입력하세요...",
@@ -2035,27 +2033,175 @@
   },
   "aiChatPanel": {
     "messagesAriaLabel": "채팅 메시지",
-    "taskStatusAriaLabel": "작업 진행 상황",
-    "taskProgressAriaLabel": "AI 작업 진행률",
-    "clearConversationAriaLabel": "대화 지우기",
-    "closePanelAriaLabel": "FiestaBot (Beta) 닫기",
+    "closePanelAriaLabel": "FiestaBot 닫기",
+    "newChatAriaLabel": "새 채팅",
+    "historyAriaLabel": "기록",
+    "backAriaLabel": "뒤로",
     "providerSelectAriaLabel": "제공자",
     "modelSelectAriaLabel": "모델",
-    "showBoardTooltip": "보드 미리보기 표시",
-    "hideBoardTooltip": "보드 미리보기 숨기기",
-    "undoTooltip": "마지막 AI 변경 실행 취소",
-    "panelTitle": "FiestaBot (Beta)",
+    "panelTitle": "FiestaBot",
     "retryButton": "다시 시도",
     "messageLabel": "메시지",
     "stopButton": "중지",
     "sendButton": "보내기",
-    "tasksHeading": "작업 ({done}/{total})",
+    "enterToSend": "전송",
+    "shiftEnterNewline": "줄 바꿈",
     "emptyStateTitle": "무엇을 도와드릴까요?",
     "emptyStateDescription": "만들거나 변경하고 싶은 내용을 설명하세요.",
-    "showBoardButton": "보드 표시",
-    "undoButton": "실행 취소",
-    "renameSummary": "→ \"{name}\"(으)로 이름 변경",
-    "previewUnavailable": "(미리보기를 사용할 수 없음)"
+    "placeholderEmpty": "원하는 페이지를 설명하거나 변경을 요청하세요…",
+    "placeholderRefine": "다듬거나 질문하거나 다른 변경을 요청하세요…",
+    "placeholderAnswer": "답변을 입력하세요…",
+    "blockedAiDisabled": "AI가 비활성화되어 있습니다. 설정 → AI 제공자에서 활성화하세요.",
+    "blockedNoProviders": "설정 → AI 제공자에서 모델이 하나 이상 있는 제공자를 구성하세요.",
+    "suggestions": {
+      "weather": "아침 출근용 날씨 + 교통 페이지를 만들어 줘",
+      "date": "2번째 줄을 오늘 날짜로 바꿔 줘",
+      "variables": "이 페이지에서 사용할 수 있는 플러그인 변수는?"
+    },
+    "jumpToLatest": "최신으로 이동",
+    "defaultModel": "기본값",
+    "stepsAriaLabel": "진행 중인 단계",
+    "stepsHeading": "{total}단계 중 {done}단계",
+    "approvalMode": {
+      "label": "승인 모드",
+      "ask": "확인",
+      "auto": "자동",
+      "autoNote": "자동 모드에서는 삭제 등 되돌릴 수 없는 작업을 확인 없이 실행합니다. 재시작, 종료, 업데이트는 항상 확인합니다.",
+      "thisChat": "이 채팅에서는 자동 — 다시 확인받으려면 ‘확인’을 선택하세요."
+    },
+    "autoApproved": {
+      "badge": "자동",
+      "tooltip": "확인 없이 실행됨: 승인 모드가 자동이거나 이 채팅에서 ‘다시 묻지 않기’를 선택했습니다."
+    },
+    "toolInput": "인수",
+    "toolOutput": "결과",
+    "toolStates": {
+      "inputStreaming": "준비 중",
+      "inputAvailable": "실행 중",
+      "outputAvailable": "완료",
+      "outputError": "실패",
+      "approvalRequested": "승인 대기 중",
+      "denied": "실행되지 않음",
+      "stopped": "중지됨"
+    },
+    "status": {
+      "thinking": "생각 중…",
+      "running": "{tool} 실행 중…",
+      "preparing": "{tool} 준비 중…",
+      "elapsed": "{seconds}초"
+    },
+    "question": {
+      "skip": "건너뛰기",
+      "typeAnswer": "또는 아래에 답변을 입력하세요.",
+      "answered": "답변: {answer}",
+      "declined": "(건너뜀)",
+      "cancelled": "(취소됨)"
+    },
+    "tool": {
+      "createPage": "페이지 만들기",
+      "updatePage": "페이지 업데이트",
+      "deletePage": "페이지 삭제",
+      "createSchedule": "일정 추가",
+      "updateSchedule": "일정 업데이트",
+      "deleteSchedule": "일정 삭제",
+      "createCollection": "컬렉션 만들기",
+      "updateCollection": "컬렉션 업데이트",
+      "deleteCollection": "컬렉션 삭제",
+      "installPlugin": "플러그인 설치",
+      "enablePlugin": "플러그인 활성화",
+      "disablePlugin": "플러그인 비활성화",
+      "uninstallPlugin": "플러그인 제거",
+      "configurePlugin": "플러그인 구성",
+      "updatePlugin": "플러그인 업데이트",
+      "setActivePage": "보드에 페이지 표시",
+      "setScheduleMode": "일정 모드 설정",
+      "sendMessage": "보드에 메시지 보내기",
+      "updateSetting": "설정 변경",
+      "triggerSystemUpdate": "시스템 업데이트",
+      "askUser": "질문",
+      "listPages": "페이지 조회",
+      "getPage": "페이지 읽기",
+      "listSchedules": "일정 조회",
+      "listCollections": "컬렉션 조회",
+      "listInstalledPlugins": "설치된 플러그인 조회",
+      "listRegistryPlugins": "플러그인 레지스트리 탐색",
+      "getTemplateVariables": "템플릿 변수 조회",
+      "getPluginData": "플러그인 데이터 읽기",
+      "renderPagePreview": "템플릿 미리보기",
+      "previewSavedPage": "페이지 미리보기",
+      "validateTemplate": "템플릿 검사",
+      "getSystemStatus": "시스템 상태 확인",
+      "getSettingsSummary": "설정 읽기",
+      "getActivePage": "활성 페이지 확인",
+      "getBoardContent": "보드 읽기"
+    },
+    "previewUnavailable": "(미리보기를 사용할 수 없음)",
+    "history": {
+      "title": "기록",
+      "searchPlaceholder": "대화 검색…",
+      "searchAriaLabel": "제목으로 대화 검색",
+      "empty": "저장된 대화가 아직 없습니다",
+      "emptyDescription": "채팅은 진행하는 동안 자동으로 저장됩니다.",
+      "noMatches": "검색과 일치하는 대화가 없습니다.",
+      "messageCount": "{count, plural, other {메시지 #개}}",
+      "open": "{title} 열기",
+      "rename": "이름 바꾸기",
+      "renameAriaLabel": "{title} 이름 바꾸기",
+      "renameLabel": "대화 제목",
+      "saveTitle": "제목 저장",
+      "cancel": "취소",
+      "delete": "삭제",
+      "deleteAriaLabel": "{title} 삭제",
+      "clearAll": "모두 지우기",
+      "clearAllTitle": "모든 대화를 삭제할까요?",
+      "clearAllDescription": "이 FiestaBoard에 저장된 모든 채팅이 삭제됩니다. 되돌릴 수 없습니다.",
+      "clearAllConfirm": "모두 삭제",
+      "continue": "계속하기",
+      "export": "JSON 내보내기",
+      "readOnly": "저장된 대화를 보고 있습니다. 계속하기를 눌러 다시 이어가세요.",
+      "loadFailed": "해당 대화를 불러올 수 없습니다.",
+      "deleted": "대화가 삭제되었습니다",
+      "cleared": "모든 대화가 삭제되었습니다"
+    },
+    "sendShortcut": "Enter로 보내기, Shift+Enter로 줄 바꾸기",
+    "resizeHandle": "FiestaBot 패널 크기 조절",
+    "showJson": "JSON 보기",
+    "resultFields": "{count, plural, other {항목 #개}}",
+    "dayPattern": {
+      "all": "매일",
+      "weekdays": "평일",
+      "weekends": "주말",
+      "custom": "선택한 요일"
+    },
+    "argLabel": {
+      "page": "페이지",
+      "time": "시간",
+      "days": "요일",
+      "board": "보드",
+      "duration": "표시 시간",
+      "lines": "줄 수",
+      "name": "이름",
+      "setting": "설정",
+      "message": "메시지",
+      "plugin": "플러그인",
+      "collection": "컬렉션",
+      "scheduleMode": "일정 모드"
+    },
+    "argValue": {
+      "on": "켜짐",
+      "off": "꺼짐",
+      "lineCount": "{count, plural, other {#줄}}",
+      "durationSeconds": "{count}초"
+    },
+    "toolRun": "{tool} · {count, plural, other {#회}}",
+    "composerSettings": {
+      "triggerAriaLabel": "채팅 설정: 승인 {mode}, 모델 {model}",
+      "popoverLabel": "채팅 설정"
+    },
+    "keepGoing": {
+      "prompt": "긴 작업 도중 일시 중지되었습니다. 진행 내용은 유지됩니다.",
+      "action": "계속하기"
+    }
   },
   "boardSizeIndicator": {
     "custom": "사용자 지정",
@@ -2094,7 +2240,11 @@
     "claudeWebDescription": "<label>claude.ai 웹 (Connectors):</label> 자체 호스팅 FiestaBoard에서는 지원되지 않습니다. Connectors 방식은 공개 HTTPS URL과 OAuth 2.1 동적 클라이언트 등록을 요구하는데, LAN 호스트는 둘 다 제공할 수 없습니다. 대신 Desktop이나 Code를 사용하세요.",
     "savedItButton": "저장했습니다",
     "toastTokenRevoked": "MCP 토큰이 해지되었습니다",
-    "toastCopyFailed": "클립보드에 복사하지 못했습니다"
+    "toastCopyFailed": "클립보드에 복사하지 못했습니다",
+    "lockedDescription": "이 설치에서는 로그인이 꺼져 있어 현재 MCP 토큰 자체가 토큰 관리를 위한 자격 증명입니다. 교체와 해지를 잠금 해제하려면 아래에 입력하세요.",
+    "lockedTokenLabel": "현재 MCP 토큰",
+    "unlockButton": "잠금 해제",
+    "unlockFailedToast": "해당 토큰이 설정된 MCP 토큰과 일치하지 않습니다."
   },
   "fiestaPanels": {
     "title": "FiestaPanel",
@@ -2151,7 +2301,11 @@
     "hdmiHelp": "이 Pi의 HDMI 포트에 연결된 화면에 디스플레이 패널을 표시합니다. 활성화하면 작은 키오스크 브라우저가 설치됩니다(몇 분 소요).",
     "hdmiInstalling": "HDMI 키오스크 설정 중 — Pi에 브라우저를 설치하고 있으며 몇 분 걸릴 수 있습니다…",
     "hdmiEnabledHint": "HDMI 화면에는 위에서 “디스플레이 출력”을 켠 패널이 표시됩니다.",
-    "hdmiFailed": "마지막 HDMI 키오스크 변경이 실패했습니다. 다시 시도하거나 Pi를 재부팅하세요."
+    "hdmiFailed": "마지막 HDMI 키오스크 변경이 실패했습니다. 다시 시도하거나 Pi를 재부팅하세요.",
+    "yourPanelsGroupLabel": "내 패널",
+    "panelSizeOption": "{name} · {wide}×{tall} Note 블록",
+    "fitsPanel": "{name}에 맞음",
+    "fitsPanelAndMore": "{name} 외 {count}개에 맞음"
   },
   "releaseChannel": {
     "title": "Release channel",
@@ -2167,6 +2321,60 @@
     "confirmCta": "Join the beta",
     "cancel": "Cancel",
     "switching": "Switching…",
-    "switchFailedToast": "Could not switch channel: {error}"
+    "switchFailedToast": "Could not switch channel: {error}",
+    "leaveCta": "베타 나가기",
+    "leaveConfirmTitle": "베타 채널을 나가시겠습니까?",
+    "leaveConfirmBody": "현재 안정 버전으로 돌아갑니다. 안정 버전은 사용 중인 베타보다 이전 버전입니다. 설정과 페이지는 참여할 때 만든 백업으로 되돌아가며, 베타 사용 중 변경한 내용은 사라집니다. FiestaBoard가 안정 버전으로 다시 시작됩니다. 변경 사항을 유지하려면 기다리세요. 다음 안정 버전이 베타를 앞지르면 '지금 업데이트'로 아무것도 잃지 않고 이동할 수 있습니다.",
+    "leaveConfirmCta": "베타 나가기"
+  },
+  "aiApprovalCard": {
+    "heading": "승인이 필요합니다",
+    "approve": "승인",
+    "deny": "거부",
+    "working": "처리 중…",
+    "approveAll": "승인하고 이 채팅에서 다시 묻지 않기",
+    "description": {
+      "deletePage": "페이지 \"{detail}\"을(를) 영구 삭제합니다. 이를 사용하는 일정과 컬렉션에서 제거됩니다.",
+      "deleteSchedule": "일정 \"{detail}\"을(를) 영구 삭제합니다. 되돌릴 수 없습니다.",
+      "deleteCollection": "컬렉션 \"{detail}\"을(를) 영구 삭제합니다. 되돌릴 수 없습니다.",
+      "uninstallPlugin": "플러그인 \"{detail}\"과(와) 구성을 영구 삭제합니다.",
+      "triggerSystemUpdate": "최신 FiestaBoard 업데이트를 다운로드하고 설치합니다. 시스템이 잠시 재시작됩니다.",
+      "generic": "이 작업은 다른 도구로 되돌릴 수 없습니다."
+    }
+  },
+  "aiSpotlight": {
+    "stop": "중지",
+    "approve": "승인",
+    "deny": "거부"
+  },
+  "aiChoreography": {
+    "working": "{tool}…",
+    "done": "{tool} — 완료",
+    "failed": "{tool} 실패",
+    "awaitingApproval": "{tool} — 승인을 기다리는 중",
+    "openingNewPage": "새 페이지를 여는 중…",
+    "typingName": "페이지 이름 입력 중…",
+    "typingLines": "줄을 작성하는 중…",
+    "creatingPage": "“{name}” 만드는 중…",
+    "pageCreated": "페이지를 만들었습니다",
+    "pageUpdated": "페이지를 업데이트했습니다",
+    "pageFailed": "페이지를 저장하지 못했습니다",
+    "updatingBehindEdits": "저장된 페이지를 업데이트 중 — 저장하지 않은 편집은 그대로 유지됩니다",
+    "changingDevice": "보드 크기 변경 중…",
+    "aboutToDeletePage": "이 페이지를 삭제하려고 합니다",
+    "pageDeleted": "페이지를 삭제했습니다",
+    "openingScheduleForm": "일정 양식을 여는 중…",
+    "fillingSchedule": "일정을 입력하는 중…",
+    "savingSchedule": "일정을 저장하는 중…",
+    "scheduleCreated": "일정을 추가했습니다",
+    "scheduleUpdated": "일정을 업데이트했습니다",
+    "scheduleFailed": "일정을 저장하지 못했습니다",
+    "aboutToDeleteSchedule": "이 일정을 삭제하려고 합니다",
+    "scheduleDeleted": "일정을 삭제했습니다",
+    "changingSetting": "{tool}…",
+    "settingSaved": "설정을 저장했습니다",
+    "settingFailed": "설정을 저장하지 못했습니다",
+    "on": "켬",
+    "off": "끔"
   }
 }

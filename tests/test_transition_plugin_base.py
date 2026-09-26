@@ -16,7 +16,7 @@ from src.plugins.base import (
     TransitionPluginBase,
 )
 from src.plugins.loader import PluginLoader
-from src.plugins.manifest import PluginManifest, validate_manifest
+from src.plugins.manifest import MAX_TRANSITION_RUNTIME_SECONDS, PluginManifest, validate_manifest
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -433,3 +433,48 @@ class Plugin(PluginBase):
     assert plugin is None
     errors = loader.load_errors["broken"]
     assert any("TransitionPluginBase" in e for e in errors)
+
+
+def test_transition_settings_clamps_uninterruptible_max_runtime_to_the_ceiling():
+    """#1868 review: interruptible:false ignores enqueue-time preemption, so
+    an uncapped max_runtime_seconds lets one transition hold a board's send
+    worker past every timeout budget. The merged settings clamp it to 120s."""
+    plugin = _FakeTransition(_manifest(transition_settings={"interruptible": False, "max_runtime_seconds": 600}))
+    assert plugin.transition_settings["max_runtime_seconds"] == MAX_TRANSITION_RUNTIME_SECONDS
+    assert MAX_TRANSITION_RUNTIME_SECONDS == 120
+
+
+def test_interruptible_long_transition_is_not_clamped():
+    """An interruptible transition is preempted at enqueue time, so a long
+    ambient runtime is legitimate (quiet_library ships 1800s) and must
+    survive both the merged settings and manifest validation unclamped."""
+    settings = {"interruptible": True, "max_runtime_seconds": 1800}
+    plugin = _FakeTransition(_manifest(transition_settings=dict(settings)))
+    assert plugin.transition_settings["max_runtime_seconds"] == 1800
+
+    data = _manifest(transition_settings=dict(settings))
+    ok, errors = validate_manifest(data)
+    assert ok and errors == []
+    assert data["transition_settings"]["max_runtime_seconds"] == 1800
+
+
+def test_validate_manifest_clamps_oversized_max_runtime_with_a_warning(caplog):
+    """An over-ceiling max_runtime_seconds on a NON-interruptible transition
+    is clamped (warned), never rejected, so already-published transition
+    plugins keep loading."""
+    data = _manifest(transition_settings={"interruptible": False, "max_runtime_seconds": 600})
+    with caplog.at_level("WARNING", logger="src.plugins.manifest"):
+        ok, errors = validate_manifest(data)
+    assert ok
+    assert errors == []
+    assert data["transition_settings"]["max_runtime_seconds"] == MAX_TRANSITION_RUNTIME_SECONDS
+    assert "max_runtime_seconds" in caplog.text
+
+
+def test_validate_manifest_leaves_in_range_max_runtime_alone(caplog):
+    data = _manifest(transition_settings={"interruptible": False, "max_runtime_seconds": 90})
+    with caplog.at_level("WARNING", logger="src.plugins.manifest"):
+        ok, _errors = validate_manifest(data)
+    assert ok
+    assert data["transition_settings"]["max_runtime_seconds"] == 90
+    assert "max_runtime_seconds" not in caplog.text

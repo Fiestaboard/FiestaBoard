@@ -396,7 +396,7 @@ class TestCloneOrUpdateRepo:
 
     @mock.patch("src.plugins.sources.subprocess.run")
     def test_rejects_path_traversal_via_plugin_id(self, mock_run, tmp_path):
-        """A plugin_id that would escape via '..' is caught by _safe_external_dest."""
+        """A plugin_id that would escape via '..' is rejected before any subprocess runs."""
         ext_dir = tmp_path / "external_plugins"
         ext_dir.mkdir()
         ok, _err = clone_or_update_repo("https://github.com/Org/repo", "../../escaped", external_dir=ext_dir)

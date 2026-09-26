@@ -55,8 +55,11 @@ class _FakeRegistry:
 
 
 class _FakeConfigManager:
-    def get_plugin_config(self, plugin_id: str) -> dict[str, Any] | None:
+    def get_plugin_config(self, plugin_id: str, include_env_overrides: bool = True) -> dict[str, Any] | None:
         return None
+
+    def get_plugin_env_overrides(self, plugin_id: str) -> dict[str, Any]:
+        return {}
 
     def _mask_sensitive(self, config: dict[str, Any]) -> dict[str, Any]:
         return config
@@ -67,8 +70,8 @@ def client_for(request):
     """Build a TestClient whose registry reports *plugin_type*."""
 
     def _build(plugin_type: str) -> TestClient:
-        registry_patch = patch("src.api_server.get_plugin_registry", return_value=_FakeRegistry(plugin_type))
-        config_patch = patch("src.api_server.get_config_manager", return_value=_FakeConfigManager())
+        registry_patch = patch("src.plugins.routes.get_plugin_registry", return_value=_FakeRegistry(plugin_type))
+        config_patch = patch("src.plugins.routes.get_config_manager", return_value=_FakeConfigManager())
         registry_patch.start()
         config_patch.start()
         request.addfinalizer(registry_patch.stop)

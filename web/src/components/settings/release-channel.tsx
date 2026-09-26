@@ -22,6 +22,7 @@ import { toast } from "sonner";
 
 import { useUpdate } from "@/components/update-context";
 import { useTranslations } from "@/i18n/translations";
+import { anchorProps } from "@/lib/ai-choreography/anchors";
 import { api } from "@/lib/api";
 
 /**
@@ -50,8 +51,12 @@ export function ReleaseChannelCard() {
 
   const switchMutation = useMutation({
     mutationFn: (channel: "stable" | "beta") => api.setReleaseChannel(channel),
-    onSuccess: () => {
+    onSuccess: (result) => {
       setConfirming(false);
+      // A leave that could not roll settings back is not a failure, but the
+      // user has to know: the stable build may refuse to read what the beta
+      // migrated, and the fix is a manual backup restore.
+      if (result?.warning) toast.warning(result.warning);
       queryClient.invalidateQueries({ queryKey: ["system", "channel"] });
       // The container is about to be recreated. Hand off to the same
       // overlay the Update Now button uses so the reconnect is handled
@@ -71,7 +76,12 @@ export function ReleaseChannelCard() {
   const onBeta = data.channel === "beta";
 
   return (
-    <PageSection icon={<FlaskConical />} title={t("title")} description={t("description")}>
+    <PageSection
+      icon={<FlaskConical />}
+      title={t("title")}
+      description={t("description")}
+      {...anchorProps("settings.release_channel")}
+    >
       <Flex align="start" justify="between" gap="4" className="rounded-md border p-4">
         <Flex direction="col" gap="1" className="min-w-0">
           <Flex align="center" gap="2">
@@ -99,9 +109,14 @@ export function ReleaseChannelCard() {
           )}
         </Flex>
 
-        {data.can_switch && !onBeta && (
-          <Button variant="outline" onClick={() => setConfirming(true)} disabled={switchMutation.isPending}>
-            {t("joinCta")}
+        {data.can_switch && (
+          <Button
+            variant="outline"
+            onClick={() => setConfirming(true)}
+            disabled={switchMutation.isPending}
+            {...anchorProps("settings.release_channel.channel")}
+          >
+            {onBeta ? t("leaveCta") : t("joinCta")}
           </Button>
         )}
       </Flex>
@@ -112,19 +127,22 @@ export function ReleaseChannelCard() {
             <AlertDialogTitle>
               <Flex align="center" gap="2">
                 <AlertTriangle className="text-warning h-5 w-5" aria-hidden="true" />
-                {t("confirmTitle")}
+                {onBeta ? t("leaveConfirmTitle") : t("confirmTitle")}
               </Flex>
             </AlertDialogTitle>
             {/* The data warning is the whole point of the confirm step. A
                 beta can migrate settings and pages to a schema the stable
                 build refuses to read, so the snapshot taken on the way in
                 is the way back. Say that before the switch, not after. */}
-            <AlertDialogDescription>{t("confirmBody")}</AlertDialogDescription>
+            <AlertDialogDescription>{onBeta ? t("leaveConfirmBody") : t("confirmBody")}</AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel disabled={switchMutation.isPending}>{t("cancel")}</AlertDialogCancel>
-            <AlertDialogAction onClick={() => switchMutation.mutate("beta")} disabled={switchMutation.isPending}>
-              {switchMutation.isPending ? t("switching") : t("confirmCta")}
+            <AlertDialogAction
+              onClick={() => switchMutation.mutate(onBeta ? "stable" : "beta")}
+              disabled={switchMutation.isPending}
+            >
+              {switchMutation.isPending ? t("switching") : onBeta ? t("leaveConfirmCta") : t("confirmCta")}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

@@ -167,7 +167,7 @@ def page_service(specs) -> MagicMock:
 
     svc = MagicMock()
     svc.get_page.side_effect = _page
-    svc.preview_page.side_effect = lambda pid, force_refresh=False: SimpleNamespace(
+    svc.preview_page.side_effect = lambda pid, force_refresh=False, **_kwargs: SimpleNamespace(
         available=pid in specs, formatted=_content(pid) if pid in specs else "", error=None
     )
     svc.list_pages.return_value = [_page(pid) for pid in specs]
@@ -196,9 +196,20 @@ class LoopHarness:
         self.ticks += 1
         if self.ticks > self.max_ticks:
             raise AssertionError(f"run() slept {self.ticks} times without reaching {self.run_until}")
+        self._settle()
         self.clock.advance(seconds)
         if self.clock.utc > self.run_until:
             self.service.running = False
+
+    def _settle(self) -> None:
+        """Wait (real time) for the per-board send workers to drain (#1755).
+
+        Sends now run on worker threads while the clock only moves here, so
+        each simulated second ends only after its sends completed — keeping
+        every recorded send instant equal to the tick that produced it.
+        """
+        if not self.service.wait_until_idle(timeout=10.0):
+            raise AssertionError("send workers did not go idle within 10s")
 
 
 @pytest.fixture(autouse=True)
@@ -249,6 +260,7 @@ def loop(monkeypatch):
             patch.object(service, "request_board_refresh"),
         ):
             service.run()
+            harness._settle()
 
         return client
 

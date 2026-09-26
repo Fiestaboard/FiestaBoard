@@ -73,7 +73,12 @@ class TestDetectSizeSuccess:
         assert data["device_type"] == "flagship"
         assert data["rows"] == 6
         assert data["cols"] == 22
-        assert "notes_wide" not in data
+        # Always present, null for a non-array board (Phase 2, Task 8): the
+        # field used to be absent for flagship/note, which made "not an
+        # array" and "this build does not report geometry" the same answer.
+        assert data["notes_wide"] is None
+        assert data["notes_tall"] is None
+        assert data["matched_preset"] is None
 
     @patch("src.api_server.get_settings_service")
     @patch("src.board_client.BoardClient.read_current_message")

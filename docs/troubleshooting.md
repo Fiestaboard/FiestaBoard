@@ -168,7 +168,7 @@ docker compose restart
 4. Check the logs: `docker compose logs -f fiestaboard`
 
 :::tip Accessing from another device?
-`localhost` only works on the machine running FiestaBoard. From other devices on the same network, use **http://fiestaboard.local:4420** (mDNS/Bonjour) or your server's IP address (e.g. `http://192.168.1.50:4420`).
+`localhost` only works on the machine running FiestaBoard. From other devices on the same network, use your server's IP address, for example `http://192.168.1.50:4420`. The FiestaPi image also provides `http://fiestapi.local:4420`; the default Docker bridge does not advertise `fiestaboard.local`.
 :::
 
 ### Changes not saving

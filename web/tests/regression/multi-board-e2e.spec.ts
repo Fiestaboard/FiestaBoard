@@ -60,7 +60,7 @@ async function createFlagshipPage(name: string, token: string): Promise<string> 
   });
   if (!res.ok) throw new Error(`createFlagshipPage failed: ${res.status} ${await res.text()}`);
   const data = await res.json();
-  return data.page.id;
+  return data.id;
 }
 
 /** Create a note_array page sized to ARRAY_NOTES_WIDE x ARRAY_NOTES_TALL and return its id. */
@@ -80,7 +80,7 @@ async function createArrayPage(name: string, token: string): Promise<string> {
   });
   if (!res.ok) throw new Error(`createArrayPage failed: ${res.status} ${await res.text()}`);
   const data = await res.json();
-  return data.page.id;
+  return data.id;
 }
 
 /** Configure a Flagship board ("Kitchen") + a Note Array board ("Office"), both manual mode. */
@@ -116,7 +116,7 @@ async function configureMixedFleet(): Promise<{ kitchenId: string; officeId: str
   });
   if (!res.ok) throw new Error(`configureMixedFleet failed: ${res.status} ${await res.text()}`);
   const data = await res.json();
-  const boards = data.settings?.boards ?? [];
+  const boards = data.boards ?? [];
   if (boards.length < 2) throw new Error("configureMixedFleet: expected 2 boards");
   return { kitchenId: boards[0].id, officeId: boards[1].id };
 }

@@ -42,7 +42,7 @@ async function createPageAuthed(name: string, template: string[] = ["TEST", "", 
   });
   if (!res.ok) throw new Error(`createPage failed: ${res.status} ${await res.text()}`);
   const data = await res.json();
-  return data.page.id;
+  return data.id;
 }
 
 /** Sorted ids of every saved page, for before/after comparison. */

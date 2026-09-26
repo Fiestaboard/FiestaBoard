@@ -42,8 +42,14 @@ class TestCertPaths:
     def test_cert_paths_default_without_override(self, monkeypatch):
         monkeypatch.delenv("FIESTABOARD_CERT_DIR", raising=False)
         cert, key = https_certs.cert_paths()
-        assert cert == https_certs.DEFAULT_CERT_DIR / "fiestaboard.crt"
-        assert key == https_certs.DEFAULT_CERT_DIR / "fiestaboard.key"
+        assert cert == https_certs.default_cert_dir() / "fiestaboard.crt"
+        assert key == https_certs.default_cert_dir() / "fiestaboard.key"
+
+    def test_cert_default_dir_follows_the_data_dir_seam(self, monkeypatch, tmp_path):
+        """The default lands under ``<data>/certs``, not a hard-coded /app path (#1881)."""
+        monkeypatch.delenv("FIESTABOARD_CERT_DIR", raising=False)
+        monkeypatch.setenv("FIESTABOARD_DATA_DIR", str(tmp_path / "somewhere"))
+        assert https_certs.default_cert_dir() == tmp_path / "somewhere" / "certs"
 
     def test_cert_exists_false_initially(self, cert_dir):
         assert https_certs.cert_exists() is False

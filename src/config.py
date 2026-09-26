@@ -5,6 +5,7 @@ ConfigManager (JSON file-based storage).
 """
 
 import logging
+from typing import Literal, get_args
 
 from .config_manager import get_config_manager
 
@@ -22,7 +23,12 @@ _SILENCE_KEYS = (
 )
 
 SILENCE_INDICATOR_POSITIONS = ("center", "top-left", "top-right", "bottom-left", "bottom-right")
-SILENCE_MODES = ("indicator", "freeze", "page")
+#: What the board does while the silence window is open. Defined once and
+#: derived, so ``SilenceScheduleRequest.mode`` publishes exactly the set
+#: ``resolve_silence_schedule`` enforces.
+SilenceMode = Literal["indicator", "freeze", "page"]
+
+SILENCE_MODES: tuple[str, ...] = get_args(SilenceMode)
 
 
 def resolve_silence_schedule(feature: dict | None, board_id: str | None = None) -> dict:
@@ -97,8 +103,22 @@ class Config:
     Values are read from the ConfigManager which persists to config.json.
     """
 
-    # Valid transition strategies
     VALID_TRANSITION_STRATEGIES = ["column", "reverse-column", "edges-to-center", "row", "diagonal", "random"]
+
+    # Parsed silence-window cache (issue #1752). The 1 Hz silence boundary
+    # probe in the display loop calls silence_config_for()/is_silence_mode_active()
+    # once per board per second; before this cache each call took the config
+    # manager's file lock and deep-copied the feature dict. Entries are keyed
+    # by board_id and hold (config_manager, generation, resolved) — the ``is``
+    # check on the manager plus the generation match make a cache hit valid
+    # only for the exact manager instance and write-state it was built from.
+    # Config managers without a ``config_generation`` (test doubles) bypass
+    # the cache entirely, keeping the always-fresh behavior.
+    _silence_cache: dict = {}
+    # (config_manager, generation) after the silence migrations last ran —
+    # they are idempotent no-ops once applied, so re-run them only when the
+    # config has actually been written since (see is_silence_mode_active).
+    _silence_migrations_ran: tuple | None = None
 
     @classmethod
     def _get_cm(cls):
@@ -204,69 +224,6 @@ class Config:
         """Output target: 'ui', 'board', or 'both'."""
         return cls._get_general().get("output_target", "board")
 
-    # ==================== Weather Configuration ====================
-
-    @classproperty
-    def WEATHER_API_KEY(cls) -> str:
-        """Weather API key."""
-        return cls._get_feature("weather").get("api_key", "")
-
-    @classproperty
-    def WEATHER_PROVIDER(cls) -> str:
-        """Weather provider: 'weatherapi' or 'openweathermap'."""
-        return cls._get_feature("weather").get("provider", "weatherapi")
-
-    @classproperty
-    def WEATHER_LOCATION(cls) -> str:
-        """Weather location."""
-        return cls._get_feature("weather").get("location", "")
-
-    @classproperty
-    def WEATHER_LOCATIONS(cls) -> list[dict[str, str]]:
-        """Weather locations to monitor (list of dicts with location and name)."""
-        feature_config = cls._get_feature("weather")
-
-        # Check for new locations array format
-        locations = feature_config.get("locations")
-        if locations:
-            if isinstance(locations, list):
-                return locations
-            return [locations]
-
-        # Fallback to old single location format
-        location = feature_config.get("location", "")
-        if location:
-            return [
-                {
-                    "location": location,
-                    "name": "HOME",  # Default name
-                }
-            ]
-
-        return []
-
-    @classproperty
-    def WEATHER_ENABLED(cls) -> bool:
-        """Whether weather is enabled."""
-        return cls._get_feature("weather").get("enabled", False)
-
-    @classproperty
-    def WEATHER_REFRESH_SECONDS(cls) -> int:
-        """Weather data refresh interval in seconds."""
-        return cls._get_feature("weather").get("refresh_seconds", 300)
-
-    # ==================== DateTime Configuration ====================
-
-    @classproperty
-    def TIMEZONE(cls) -> str:
-        """Timezone for datetime display."""
-        return cls._get_feature("date_time").get("timezone", "")
-
-    @classproperty
-    def DATETIME_ENABLED(cls) -> bool:
-        """Whether datetime is enabled."""
-        return cls._get_feature("date_time").get("enabled", True)
-
     # ==================== General Configuration ====================
 
     @classproperty
@@ -278,307 +235,6 @@ class Config:
     def REFRESH_INTERVAL_SECONDS(cls) -> int:
         """Refresh interval in seconds."""
         return cls._get_general().get("refresh_interval_seconds", 300)
-
-    # ==================== Star Trek Quotes Configuration ====================
-
-    @classproperty
-    def STAR_TREK_QUOTES_ENABLED(cls) -> bool:
-        """Whether Star Trek quotes are enabled."""
-        return cls._get_feature("star_trek_quotes").get("enabled", False)
-
-    @classproperty
-    def STAR_TREK_QUOTES_RATIO(cls) -> str:
-        """Star Trek quotes ratio (TNG:Voyager:DS9)."""
-        return cls._get_feature("star_trek_quotes").get("ratio", "3:5:9")
-
-    # ==================== Surf Configuration ====================
-
-    @classproperty
-    def SURF_ENABLED(cls) -> bool:
-        """Whether surf data is enabled."""
-        return cls._get_feature("surf").get("enabled", False)
-
-    @classproperty
-    def SURF_LATITUDE(cls) -> float:
-        """Surf location latitude (default: Ocean Beach, SF)."""
-        return cls._get_feature("surf").get("latitude", 37.7599)
-
-    @classproperty
-    def SURF_LONGITUDE(cls) -> float:
-        """Surf location longitude (default: Ocean Beach, SF)."""
-        return cls._get_feature("surf").get("longitude", -122.5121)
-
-    @classproperty
-    def SURF_REFRESH_SECONDS(cls) -> int:
-        """Surf data refresh interval in seconds."""
-        return cls._get_feature("surf").get("refresh_seconds", 600)
-
-    # ==================== Guest WiFi Configuration ====================
-
-    @classproperty
-    def GUEST_WIFI_ENABLED(cls) -> bool:
-        """Whether Guest WiFi display is enabled."""
-        return cls._get_feature("guest_wifi").get("enabled", False)
-
-    @classproperty
-    def GUEST_WIFI_SSID(cls) -> str:
-        """Guest WiFi SSID."""
-        return cls._get_feature("guest_wifi").get("ssid", "")
-
-    @classproperty
-    def GUEST_WIFI_PASSWORD(cls) -> str:
-        """Guest WiFi password."""
-        return cls._get_feature("guest_wifi").get("password", "")
-
-    @classproperty
-    def GUEST_WIFI_REFRESH_SECONDS(cls) -> int:
-        """Guest WiFi refresh interval."""
-        return cls._get_feature("guest_wifi").get("refresh_seconds", 60)
-
-    # ==================== Home Assistant Configuration ====================
-
-    @classproperty
-    def HOME_ASSISTANT_ENABLED(cls) -> bool:
-        """Whether Home Assistant is enabled."""
-        return cls._get_feature("home_assistant").get("enabled", False)
-
-    @classproperty
-    def HOME_ASSISTANT_BASE_URL(cls) -> str:
-        """Home Assistant base URL."""
-        return cls._get_feature("home_assistant").get("base_url", "")
-
-    @classproperty
-    def HOME_ASSISTANT_ACCESS_TOKEN(cls) -> str:
-        """Home Assistant access token."""
-        return cls._get_feature("home_assistant").get("access_token", "")
-
-    @classproperty
-    def HOME_ASSISTANT_ENTITIES(cls) -> str:
-        """Home Assistant entities (JSON string for compatibility)."""
-        entities = cls._get_feature("home_assistant").get("entities", [])
-        import json
-
-        return json.dumps(entities)
-
-    @classproperty
-    def HOME_ASSISTANT_TIMEOUT(cls) -> int:
-        """Home Assistant request timeout."""
-        return cls._get_feature("home_assistant").get("timeout", 5)
-
-    @classproperty
-    def HOME_ASSISTANT_REFRESH_SECONDS(cls) -> int:
-        """Home Assistant refresh interval."""
-        return cls._get_feature("home_assistant").get("refresh_seconds", 30)
-
-    # ==================== Air Quality / Fog Configuration ====================
-
-    @classproperty
-    def AIR_FOG_ENABLED(cls) -> bool:
-        """Whether air quality/fog monitoring is enabled."""
-        return cls._get_feature("air_fog").get("enabled", False)
-
-    @classproperty
-    def PURPLEAIR_API_KEY(cls) -> str:
-        """PurpleAir API key for air quality data."""
-        return cls._get_feature("air_fog").get("purpleair_api_key", "")
-
-    @classproperty
-    def PURPLEAIR_SENSOR_ID(cls) -> str | None:
-        """Optional specific PurpleAir sensor ID."""
-        return cls._get_feature("air_fog").get("purpleair_sensor_id")
-
-    @classproperty
-    def OPENWEATHERMAP_API_KEY(cls) -> str:
-        """OpenWeatherMap API key for visibility/fog data."""
-        return cls._get_feature("air_fog").get("openweathermap_api_key", "")
-
-    @classproperty
-    def AIR_FOG_LATITUDE(cls) -> float:
-        """Latitude for air/fog monitoring."""
-        return cls._get_feature("air_fog").get("latitude", 37.7749)
-
-    @classproperty
-    def AIR_FOG_LONGITUDE(cls) -> float:
-        """Longitude for air/fog monitoring."""
-        return cls._get_feature("air_fog").get("longitude", -122.4194)
-
-    @classproperty
-    def AIR_FOG_REFRESH_SECONDS(cls) -> int:
-        """Air/fog data refresh interval in seconds."""
-        return cls._get_feature("air_fog").get("refresh_seconds", 300)
-
-    # ==================== Muni Transit Configuration ====================
-
-    @classproperty
-    def MUNI_ENABLED(cls) -> bool:
-        """Whether Muni transit is enabled."""
-        return cls._get_feature("muni").get("enabled", False)
-
-    @classproperty
-    def MUNI_API_KEY(cls) -> str:
-        """511.org API key."""
-        return cls._get_feature("muni").get("api_key", "")
-
-    @classproperty
-    def MUNI_STOP_CODE(cls) -> str:
-        """Muni stop code to monitor (backward compatibility - returns first code)."""
-        stop_codes = cls.MUNI_STOP_CODES
-        if stop_codes:
-            return stop_codes[0] if isinstance(stop_codes, list) else stop_codes
-        # Fallback to old config format
-        return cls._get_feature("muni").get("stop_code", "")
-
-    @classproperty
-    def MUNI_STOP_CODES(cls) -> list[str]:
-        """Muni stop codes to monitor (list)."""
-        feature_config = cls._get_feature("muni")
-
-        # Check for new stop_codes array format
-        stop_codes = feature_config.get("stop_codes")
-        if stop_codes:
-            if isinstance(stop_codes, list):
-                return stop_codes
-            return [stop_codes]
-
-        # Fallback to old single stop_code format
-        stop_code = feature_config.get("stop_code", "")
-        if stop_code:
-            return [stop_code]
-
-        return []
-
-    @classproperty
-    def MUNI_STOP_NAMES(cls) -> list[str]:
-        """Muni stop names for display (list)."""
-        feature_config = cls._get_feature("muni")
-        stop_names = feature_config.get("stop_names", [])
-        if isinstance(stop_names, list):
-            return stop_names
-        return []
-
-    @classproperty
-    def MUNI_LINE_NAME(cls) -> str:
-        """Optional line name filter (e.g., 'N' for N-Judah)."""
-        return cls._get_feature("muni").get("line_name", "")
-
-    @classproperty
-    def MUNI_REFRESH_SECONDS(cls) -> int:
-        """Muni data refresh interval in seconds."""
-        return cls._get_feature("muni").get("refresh_seconds", 60)
-
-    @classproperty
-    def TRANSIT_CACHE_ENABLED(cls) -> bool:
-        """Whether regional transit cache is enabled."""
-        return cls._get_feature("muni").get("transit_cache_enabled", True)
-
-    @classproperty
-    def TRANSIT_CACHE_REFRESH_SECONDS(cls) -> int:
-        """Regional transit cache refresh interval in seconds."""
-        return cls._get_feature("muni").get("transit_cache_refresh_seconds", 90)
-
-    # ==================== Bay Wheels Configuration ====================
-
-    @classproperty
-    def BAYWHEELS_ENABLED(cls) -> bool:
-        """Whether Bay Wheels integration is enabled."""
-        return cls._get_feature("baywheels").get("enabled", False)
-
-    @classproperty
-    def BAYWHEELS_STATION_ID(cls) -> str:
-        """Bay Wheels station ID to monitor (backward compatibility - returns first ID)."""
-        station_ids = cls.BAYWHEELS_STATION_IDS
-        if station_ids:
-            return station_ids[0] if isinstance(station_ids, list) else station_ids
-        # Fallback to old config format
-        return cls._get_feature("baywheels").get("station_id", "")
-
-    @classproperty
-    def BAYWHEELS_STATION_IDS(cls) -> list[str]:
-        """Bay Wheels station IDs to monitor (list)."""
-        feature_config = cls._get_feature("baywheels")
-
-        # Check for new station_ids array format
-        station_ids = feature_config.get("station_ids")
-        if station_ids:
-            if isinstance(station_ids, list):
-                return station_ids
-            if isinstance(station_ids, str):
-                return [station_ids]
-
-        # Fallback to old station_id format for backward compatibility
-        station_id = feature_config.get("station_id", "")
-        if station_id:
-            # Migrate single station_id to array format
-            if isinstance(station_id, list):
-                return station_id
-            if isinstance(station_id, str):
-                return [station_id]
-
-        return []
-
-    @classproperty
-    def BAYWHEELS_STATION_NAME(cls) -> str:
-        """Display name for the Bay Wheels station (backward compatibility)."""
-        return cls._get_feature("baywheels").get("station_name", "19TH")
-
-    @classproperty
-    def BAYWHEELS_REFRESH_SECONDS(cls) -> int:
-        """Bay Wheels data refresh interval in seconds."""
-        return cls._get_feature("baywheels").get("refresh_seconds", 60)
-
-    # ==================== Traffic Configuration ====================
-
-    @classproperty
-    def TRAFFIC_ENABLED(cls) -> bool:
-        """Whether traffic monitoring is enabled."""
-        return cls._get_feature("traffic").get("enabled", False)
-
-    @classproperty
-    def GOOGLE_ROUTES_API_KEY(cls) -> str:
-        """Google Routes API key."""
-        return cls._get_feature("traffic").get("api_key", "")
-
-    @classproperty
-    def TRAFFIC_ORIGIN(cls) -> str:
-        """Traffic route origin (address or lat,lng)."""
-        return cls._get_feature("traffic").get("origin", "")
-
-    @classproperty
-    def TRAFFIC_DESTINATION(cls) -> str:
-        """Traffic route destination (address or lat,lng)."""
-        return cls._get_feature("traffic").get("destination", "")
-
-    @classproperty
-    def TRAFFIC_DESTINATION_NAME(cls) -> str:
-        """Display name for traffic destination."""
-        return cls._get_feature("traffic").get("destination_name", "DOWNTOWN")
-
-    @classproperty
-    def TRAFFIC_ROUTES(cls) -> list[dict[str, str]]:
-        """Traffic routes to monitor (list of dicts with origin, destination, destination_name)."""
-        feature_config = cls._get_feature("traffic")
-
-        # Check for new routes array format
-        routes = feature_config.get("routes")
-        if routes:
-            if isinstance(routes, list):
-                return routes
-            return [routes]
-
-        # Fallback to old single route format
-        origin = feature_config.get("origin", "")
-        destination = feature_config.get("destination", "")
-        destination_name = feature_config.get("destination_name", "DOWNTOWN")
-
-        if origin and destination:
-            return [{"origin": origin, "destination": destination, "destination_name": destination_name}]
-
-        return []
-
-    @classproperty
-    def TRAFFIC_REFRESH_SECONDS(cls) -> int:
-        """Traffic data refresh interval in seconds."""
-        return cls._get_feature("traffic").get("refresh_seconds", 300)
 
     # ==================== Silence Schedule Configuration ====================
 
@@ -605,8 +261,28 @@ class Config:
         Returns:
             A normalized dict with exactly the seven silence keys. Never
             contains ``by_board``.
+
+        The parsed result is cached per board and invalidated by the config
+        manager's write generation (issue #1752), so the display loop's 1 Hz
+        boundary probe stops taking the config lock and deep-copying the
+        feature dict every second. Callers get a fresh shallow copy — all
+        seven values are scalars — so mutating a result never corrupts the
+        cache.
         """
-        return resolve_silence_schedule(cls._get_feature("silence_schedule"), board_id)
+        cm = cls._get_cm()
+        generation = getattr(cm, "config_generation", None)
+        if generation is None:
+            # Config-manager doubles without a write generation cannot signal
+            # invalidation — keep the always-fresh pre-cache behavior.
+            return resolve_silence_schedule(cls._get_feature("silence_schedule"), board_id)
+
+        cached = cls._silence_cache.get(board_id)
+        if cached is not None and cached[0] is cm and cached[1] == generation:
+            return dict(cached[2])
+
+        resolved = resolve_silence_schedule(cls._get_feature("silence_schedule"), board_id)
+        cls._silence_cache[board_id] = (cm, generation, resolved)
+        return dict(resolved)
 
     @classproperty
     def SILENCE_SCHEDULE_ENABLED(cls) -> bool:
@@ -669,10 +345,24 @@ class Config:
 
             config_manager = get_config_manager()
             # Seed per-board overrides first (issue #1788) so the UTC migration
-            # below converts them in the same pass. Both are cheap no-ops once
-            # they have run.
-            config_manager.migrate_silence_schedule_to_per_board()
-            config_manager.migrate_silence_schedule_to_utc()
+            # below converts them in the same pass. Both are idempotent no-ops
+            # once they have run — but each no-op still takes the config file
+            # lock, and this method backs the display loop's 1 Hz boundary
+            # probe. Gate them on the write generation (issue #1752): re-run
+            # only when the config has been saved since they last ran (or for
+            # generation-less test doubles, every call, as before).
+            generation = getattr(config_manager, "config_generation", None)
+            ran = cls._silence_migrations_ran
+            if generation is None or ran is None or ran[0] is not config_manager or ran[1] != generation:
+                config_manager.migrate_silence_schedule_to_per_board()
+                config_manager.migrate_silence_schedule_to_utc()
+                if generation is not None:
+                    # Record the POST-migration generation: a migration that
+                    # rewrote the window saved config and bumped it.
+                    cls._silence_migrations_ran = (
+                        config_manager,
+                        getattr(config_manager, "config_generation", generation),
+                    )
 
             # Re-resolve: the migration may have rewritten the window in place.
             silence = cls.silence_config_for(board_id)
@@ -688,57 +378,7 @@ class Config:
             logger.warning(f"Invalid silence schedule time format: {e}")
             return False
 
-    # ==================== Stocks Configuration ====================
-
-    @classproperty
-    def STOCKS_ENABLED(cls) -> bool:
-        """Whether stocks monitoring is enabled."""
-        return cls._get_feature("stocks").get("enabled", False)
-
-    @classproperty
-    def FINNHUB_API_KEY(cls) -> str:
-        """Finnhub API key for stock symbol search (optional)."""
-        return cls._get_feature("stocks").get("finnhub_api_key", "")
-
-    @classproperty
-    def STOCKS_SYMBOLS(cls) -> list[str]:
-        """List of stock symbols to monitor (max 5)."""
-        feature_config = cls._get_feature("stocks")
-        symbols = feature_config.get("symbols", [])
-        if isinstance(symbols, list):
-            # Limit to 5 symbols max
-            return symbols[:5]
-        if isinstance(symbols, str):
-            return [symbols] if symbols else []
-        return []
-
-    @classproperty
-    def STOCKS_TIME_WINDOW(cls) -> str:
-        """Time window for price comparison (human-readable format)."""
-        return cls._get_feature("stocks").get("time_window", "1 Day")
-
-    @classproperty
-    def STOCKS_REFRESH_SECONDS(cls) -> int:
-        """Stocks data refresh interval in seconds."""
-        return cls._get_feature("stocks").get("refresh_seconds", 300)
-
-    # ==================== Legacy/Unused Configuration ====================
-
-    # These are kept for backward compatibility but not actively used
-    USER_LATITUDE: float = 37.7749
-    USER_LONGITUDE: float = -122.4194
-    MAX_DISTANCE_MILES: float = 2.0
-    WAYMO_ENABLED: bool = False
-
     # ==================== Helper Methods ====================
-
-    @classmethod
-    def get_ha_entities(cls) -> list[dict[str, str]]:
-        """Parse Home Assistant entities from config."""
-        entities = cls._get_feature("home_assistant").get("entities", [])
-        if isinstance(entities, list):
-            return entities
-        return []
 
     @classmethod
     def get_transition_settings(cls) -> dict:
@@ -771,33 +411,64 @@ class Config:
 
     @classmethod
     def get_summary(cls) -> dict:
-        """Get a summary of configuration (without sensitive keys)."""
+        """Get a summary of configuration (without sensitive keys).
+
+        Since #1761 the per-integration values come from the plugin system
+        (``plugins.*``), not the retired legacy ``features.*`` blocks. The
+        key set is unchanged so existing consumers keep working; the
+        ``*_enabled`` flags now report plugin enablement.
+
+        Since #1760 the board connection fields report the primary settings
+        board — the connection the runtime actually uses — not the vestigial
+        config.json board block.
+        """
+        cm = cls._get_cm()
+        weather = cm.get_plugin_config("weather") or {}
+        board = cls._primary_settings_board()
+        board_api_mode = (board.get("api_mode") or "local").lower() if board else "local"
         return {
-            "weather_provider": cls.WEATHER_PROVIDER,
-            "weather_location": cls.WEATHER_LOCATION,
-            "timezone": cls.TIMEZONE,
+            "weather_provider": weather.get("provider", "weatherapi"),
+            "weather_location": weather.get("location", ""),
+            "timezone": cls.GENERAL_TIMEZONE,
             "refresh_interval_seconds": cls.REFRESH_INTERVAL_SECONDS,
             # Service enabled flags (for UI display)
-            "datetime_enabled": cls.DATETIME_ENABLED,
-            "weather_enabled": cls.WEATHER_ENABLED and bool(cls.WEATHER_API_KEY),
-            "guest_wifi_enabled": cls.GUEST_WIFI_ENABLED,
-            "home_assistant_enabled": cls.HOME_ASSISTANT_ENABLED,
-            "star_trek_quotes_enabled": cls.STAR_TREK_QUOTES_ENABLED,
-            "air_fog_enabled": cls.AIR_FOG_ENABLED,
-            "muni_enabled": cls.MUNI_ENABLED,
-            "surf_enabled": cls.SURF_ENABLED,
-            "baywheels_enabled": cls.BAYWHEELS_ENABLED,
-            "traffic_enabled": cls.TRAFFIC_ENABLED,
-            "stocks_enabled": cls.STOCKS_ENABLED,
-            # Board config
-            "board_api_mode": cls.BOARD_API_MODE,
-            "board_host": cls.BOARD_HOST if cls.BOARD_API_MODE.lower() == "local" else "cloud",
-            "board_key_set": bool(cls.get_board_api_key()),
-            "weather_key_set": bool(cls.WEATHER_API_KEY),
+            "datetime_enabled": cm.is_plugin_enabled("date_time"),
+            "weather_enabled": cm.is_plugin_enabled("weather") and bool(weather.get("api_key")),
+            "guest_wifi_enabled": cm.is_plugin_enabled("guest_wifi"),
+            "home_assistant_enabled": cm.is_plugin_enabled("home_assistant"),
+            "star_trek_quotes_enabled": cm.is_plugin_enabled("star_trek_quotes"),
+            "air_fog_enabled": cm.is_plugin_enabled("air_fog"),
+            "muni_enabled": cm.is_plugin_enabled("muni"),
+            "surf_enabled": cm.is_plugin_enabled("surf"),
+            "baywheels_enabled": cm.is_plugin_enabled("lyft_bike_share"),
+            "traffic_enabled": cm.is_plugin_enabled("traffic"),
+            "stocks_enabled": cm.is_plugin_enabled("stocks"),
+            # Board config (from the primary settings board, issue #1760)
+            "board_api_mode": board_api_mode,
+            "board_host": (board.get("host") or "") if board_api_mode == "local" else "cloud",
+            "board_key_set": bool(board.get("cloud_key") if board_api_mode == "cloud" else board.get("local_api_key")),
+            "weather_key_set": bool(weather.get("api_key")),
             # Transition settings (only available in Local API mode)
-            "transition_strategy": cls.BOARD_TRANSITION_STRATEGY if cls.BOARD_API_MODE.lower() == "local" else None,
-            "transition_interval_ms": cls.BOARD_TRANSITION_INTERVAL_MS
-            if cls.BOARD_API_MODE.lower() == "local"
-            else None,
-            "transition_step_size": cls.BOARD_TRANSITION_STEP_SIZE if cls.BOARD_API_MODE.lower() == "local" else None,
+            "transition_strategy": cls.BOARD_TRANSITION_STRATEGY if board_api_mode == "local" else None,
+            "transition_interval_ms": cls.BOARD_TRANSITION_INTERVAL_MS if board_api_mode == "local" else None,
+            "transition_step_size": cls.BOARD_TRANSITION_STEP_SIZE if board_api_mode == "local" else None,
         }
+
+    @staticmethod
+    def _primary_settings_board() -> dict:
+        """Connection fields of the primary settings board (issue #1760).
+
+        Board credentials are unified on settings.json; summaries must report
+        the connection the runtime actually uses, not the vestigial
+        config.json board block. Returns {} when the settings service is
+        unavailable (early startup, broken store).
+        """
+        try:
+            from .settings.service import get_settings_service
+
+            boards = get_settings_service().get_board_settings().boards or []
+            if boards and isinstance(boards[0], dict):
+                return boards[0]
+        except Exception:  # pragma: no cover - defensive
+            pass
+        return {}

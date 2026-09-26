@@ -155,7 +155,6 @@ def _validate_and_repair(
 
     page: dict[str, Any] = {}
 
-    # name
     name = raw.get("name")
     if not isinstance(name, str) or not name.strip():
         page["name"] = "AI Page"
@@ -194,7 +193,6 @@ def _validate_and_repair(
         warnings.append(f"Model returned {len(template)} lines; truncated to {dims.rows} for {device_type}.")
         template = template[: dims.rows]
 
-    # line_metadata
     raw_meta = raw.get("line_metadata")
     line_metadata: list[dict[str, Any]] = []
     if isinstance(raw_meta, list):

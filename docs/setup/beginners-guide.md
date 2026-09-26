@@ -196,7 +196,7 @@ The wizard will:
 <AppShot name="dashboard-running" alt="Dashboard with active page displayed on the board" />
 
 :::tip Accessing from a phone or another computer?
-FiestaBoard automatically advertises itself on your local network. Try **http://fiestaboard.local:4420** from any device on the same WiFi. If that doesn't work, use the IP address of the computer running FiestaBoard (e.g. `http://192.168.1.50:4420`).
+For the default Docker setup, use the IP address of the computer running FiestaBoard, for example `http://192.168.1.50:4420`. Docker bridge networking does not advertise the container's Bonjour service on your Wi-Fi network. The FiestaPi image also supports `http://fiestapi.local:4420`.
 :::
 
 :::info Don't see anything?

@@ -60,7 +60,7 @@ def _page_service(specs):
             return None
         return _page(pid, spec.get("device_type", "flagship"), spec.get("notes_wide", 1), spec.get("notes_tall", 1))
 
-    def _preview(pid, force_refresh=False):
+    def _preview(pid, force_refresh=False, **_kwargs):
         spec = specs.get(pid)
         if spec is None:
             return SimpleNamespace(available=False, formatted="", error="missing")

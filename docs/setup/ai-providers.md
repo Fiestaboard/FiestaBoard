@@ -170,6 +170,34 @@ configured:
 API keys are stored locally in `data/config.json` and never sent to
 any FiestaBoard-hosted service.
 
+## Chat history
+
+Every FiestaBot conversation is saved on your FiestaBoard as you go —
+there is nothing to click. Closing the drawer or reloading the page
+brings you back to the chat you were in, and the **History** button
+in the panel header (the clock icon) lists everything you have talked
+about, newest first, with a search box for the title.
+
+- **Review** — open any conversation to read it back, including the
+  actions FiestaBot took and what each one returned. Nothing runs
+  while you are reading.
+- **Continue** — picks a saved conversation up again as the live chat.
+  Its provider, model and "don't ask again" choice come back with it.
+- **New chat** (the pencil icon) starts a fresh conversation; the old
+  one stays in History.
+- **Rename** and **Delete** sit on each row. **Clear all** at the
+  bottom removes every saved chat after a confirmation.
+- **Export JSON** on an open conversation downloads that thread as a
+  file, handy for attaching to a bug report.
+
+The title is the first thing you typed, trimmed to 80 characters;
+rename it whenever you like. FiestaBoard keeps the 200 most recently
+used conversations and drops the oldest when a new one arrives.
+Credentials never end up in a saved chat: any API key, password or
+token that passes through a tool is stored as `***`, the same masking
+the tools themselves apply. History lives in `data/ai_conversations.json`
+and is not part of the settings backup.
+
 ## Limitations
 
 - Two protocols supported: OpenAI-compatible chat completions
@@ -181,9 +209,21 @@ any FiestaBoard-hosted service.
   manually (some don't strictly honor JSON mode), or by registering a
   new entry in `src/ai/protocols.py`.
 - No image/vision input.
-- FiestaBot never saves pages, installs plugins, or changes settings
-  without showing a confirmation step first — you always have the
-  final say.
+- FiestaBot acts through the same tools as the MCP server and shows
+  each action as it happens. Creating, editing and configuring apply
+  immediately. Destructive actions — every tool the MCP server marks
+  destructive except the system tier: deleting a page, schedule,
+  collection, plugin instance, board or panel, uninstalling a plugin,
+  forgetting or disconnecting Wi-Fi — follow the chat's **approval
+  mode**, the
+  Ask / Auto toggle in the panel header. In **Ask** (the default) each
+  one pauses for your Approve / Deny; in **Auto** they run without
+  asking and are marked *auto* in the step list. The approval card's
+  "Approve and don't ask again in this chat" is the same thing for one
+  conversation, until you start a new chat. Restarting, shutting down
+  and updating the system always ask, in every mode, and FiestaBot
+  cannot change the approval mode itself. **Stop** ends a turn at any
+  time.
 - A modest per-process rate limit applies to page generation requests
   to protect against runaway clients (1 second between calls, 2
   concurrent).

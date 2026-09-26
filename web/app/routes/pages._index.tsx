@@ -32,6 +32,7 @@ import { queryKeys } from "@/hooks/use-board";
 import { useDepsChanged } from "@/hooks/use-deps-changed";
 import { useViewTransition } from "@/hooks/use-view-transition";
 import { useTranslations } from "@/i18n/translations";
+import { anchorProps } from "@/lib/ai-choreography/anchors";
 import type { DeviceType } from "@/lib/api";
 import { api } from "@/lib/api";
 
@@ -86,9 +87,9 @@ export function ImportPageDialog({ open, onOpenChange }: { open: boolean; onOpen
     mutationFn: () => api.importPage(shareString.trim()),
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: queryKeys.pages, refetchType: "active" });
-      toast.success(t("toastImported", { name: data.page.name }));
+      toast.success(t("toastImported", { name: data.name }));
       onOpenChange(false);
-      push(`/pages/edit/${data.page.id}`, { transitionType: "slide-up" });
+      push(`/pages/edit/${data.id}`, { transitionType: "slide-up" });
     },
     onError: (err: Error) => {
       toast.error(err.message);
@@ -221,7 +222,13 @@ export default function PagesPage() {
           }
           right={
             <Flex align="center" gap="2">
-              <Button variant="brand" size="sm" onClick={handleCreateNew} className="h-9 sm:h-8 px-3 text-xs btn-lift">
+              <Button
+                variant="brand"
+                size="sm"
+                onClick={handleCreateNew}
+                className="h-9 sm:h-8 px-3 text-xs btn-lift"
+                {...anchorProps("pages.new")}
+              >
                 <Plus className="h-4 w-4 sm:h-3 sm:w-3 mr-1" />
                 {t("newPage")}
               </Button>
@@ -238,7 +245,7 @@ export default function PagesPage() {
           }
         />
 
-        <PageSection>
+        <PageSection {...anchorProps("pages.root")}>
           {hasMultipleDevices ? (
             <Tabs value={activeTab ?? availableDevices[0]} onValueChange={(v) => setActiveTab(v as DeviceType)}>
               {/* No inset any more: the section's own padding puts this strip on

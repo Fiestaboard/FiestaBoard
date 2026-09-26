@@ -1,54 +1,168 @@
-"""Naming for the staging files used by FiestaBoard's atomic JSON writes.
+"""Atomic file writes for FiestaBoard's JSON stores.
 
 Every long-lived store under ``data/`` (config, settings, pages, schedules,
-collections, auth) writes by staging a temp file next to the target and then
-``os.replace``-ing it into place, so a mid-write crash never truncates the
+collections, panels, auth) writes by staging a temp file next to the target and
+then ``os.replace``-ing it into place, so a mid-write crash never truncates the
 real file (see #1304).
 
-That pattern is only safe if each writer owns its staging file. The in-process
-locks guarding these stores are ``threading.Lock``, so they serialise threads
-and nothing else — and ``data/`` is routinely shared by more than one process:
-every ``pytest -n auto`` xdist worker, the API server alongside a CLI script or
-the MQTT bridge. With one fixed ``<file>.tmp`` name, the process that renames
-second finds its source already renamed away and ``os.replace`` fails with
-``ENOENT``, taking the save (and, in tests, an unrelated request) down with it.
+That pattern is only safe if each writer owns its staging file. Within one
+process that is a live concern: two threads writing the same target (a
+settings PUT racing a backup restore, #1860) each need their own staging file,
+or one truncates or adopts the other's half-written temp. The per-process
+monotonic counter gives them that; the pid in the name extends the same
+guarantee to any second process that ever appears, without which the process
+that renames second would find its source already renamed away and
+``os.replace`` would fail with ``ENOENT``. Both keep staging file and target
+siblings, so the rename stays a same-filesystem rename.
 
-Scoping the staging name to the process removes the collision. The write stays
-atomic: staging file and target are still siblings, so the rename is still a
-same-filesystem rename.
+(An earlier version of this note named ``pytest -n auto`` workers, "the MQTT
+bridge" and "CLI scripts" as *current* multi-process writers. Measured against
+this tree in the Phase 2 audit, none of them are: xdist workers each get their
+own data dir from ``tests/conftest.py``, MQTT is a daemon thread inside the
+API process, and no shipped script under ``scripts/`` writes the data dir. The
+pid scoping is defence for a topology that does not exist today — see
+``docs/internal/reference/PERSISTENCE.md``.)
+
+Unique staging names make the *rename* safe, not the *data*: last rename still
+wins, so writers that must not lose each other's updates still serialise their
+saves. The stores built on :class:`src.storage.json_store.JsonStore` do this
+with the store's ``RLock``; stores with their own locking (``ConfigManager``)
+hold that lock across the write. Those locks are in-process only — there is
+deliberately no cross-process file lock; see PERSISTENCE.md for why. This
+module itself is lock-free — it provides the atomic write, not the
+serialisation.
 """
 
 import contextlib
+import itertools
 import json
 import os
+import stat
 from pathlib import Path
-from typing import Any
+from typing import Any, TextIO
+
+#: Per-process monotonic counter folded into every staging name so that no two
+#: calls — even from different threads staging the same target — ever share a
+#: staging file (#1860).
+_staging_counter = itertools.count()
 
 
 def staging_path(target: Path) -> Path:
-    """Return the process-scoped staging path to write before renaming onto *target*.
+    """Return a unique staging path to write before renaming onto *target*.
 
-    ``data/pages.json`` becomes ``data/pages.json.<pid>.tmp``.
+    ``data/pages.json`` becomes ``data/pages.json.<pid>.<n>.tmp`` where
+    ``<n>`` is a per-process monotonic counter. Every call returns a fresh
+    path: unique across processes (the pid) and across calls within one
+    process (the counter), so concurrent writers can never open, truncate,
+    or rename each other's staging file.
     """
-    return target.with_suffix(f"{target.suffix}.{os.getpid()}.tmp")
+    return target.with_suffix(f"{target.suffix}.{os.getpid()}.{next(_staging_counter)}.tmp")
 
 
-def write_json_atomic(target: Path, data: Any, *, indent: int | None = 2) -> None:
+def _open_staging(tmp_path: Path, private: bool) -> TextIO:
+    """Open *tmp_path* for writing.
+
+    ``private=True`` creates the file with owner-only (0600) permissions via
+    ``os.open`` so a credential store is never world-readable, even briefly.
+    The default path uses builtins ``open`` — deliberately, so existing tests
+    that patch ``builtins.open`` to inject I/O errors keep working.
+    """
+    if private:
+        fd = os.open(
+            str(tmp_path),
+            os.O_WRONLY | os.O_CREAT | os.O_TRUNC,
+            stat.S_IRUSR | stat.S_IWUSR,
+        )
+        return os.fdopen(fd, "w", encoding="utf-8")
+    return open(tmp_path, "w", encoding="utf-8")  # noqa: PTH123
+
+
+def write_json_atomic(
+    target: Path,
+    data: Any,
+    *,
+    indent: int | None = 2,
+    private: bool = False,
+    if_changed: bool = False,
+) -> bool:
     """Serialise *data* as JSON onto *target* without ever truncating it.
 
-    Stages the JSON in the process-scoped sibling from :func:`staging_path` and
-    ``os.replace``s it into place. A crash (OOM, SIGKILL, power loss) partway
-    through the write leaves the previous contents of *target* fully intact, and
-    the partial staging file is removed on any failure rather than leaked.
+    Stages the JSON in the process-scoped sibling from :func:`staging_path`,
+    fsyncs, and ``os.replace``s it into place. A crash (OOM, SIGKILL, power
+    loss) partway through the write leaves the previous contents of *target*
+    fully intact, and the partial staging file is removed on any failure
+    rather than leaked.
 
-    Parent directories are created if missing. Exceptions propagate — the caller
-    decides whether a failed save is fatal.
+    Parent directories are created if missing. ``private=True`` creates the
+    file owner-only (0600). Exceptions propagate — the caller decides whether
+    a failed save is fatal.
+
+    ``if_changed=True`` reads the existing file first and does nothing when
+    the bytes would be identical. An SD card is not worn out by writes that
+    change something; it is worn out by writes, and a rewrite of identical
+    content is the one class of write with no upside at all. The cost of the
+    check is a read of a file we were about to rewrite anyway plus one
+    in-memory serialisation, against an fsync we then skip entirely.
+
+    It is deliberately opt-in. A caller that writes to signal liveness (a
+    heartbeat, a mtime other code reads) must keep writing, and only the
+    caller knows that.
+
+    Returns True when the file was written, False when an ``if_changed`` write
+    was skipped as a no-op.
+    """
+    target.parent.mkdir(parents=True, exist_ok=True)
+    if if_changed and _matches(target, json.dumps(data, indent=indent)):
+        return False
+    tmp_path = staging_path(target)
+    try:
+        # ``json.dump`` streams into the staging file rather than building the
+        # whole document first. That is load-bearing, not incidental: a
+        # serialisation failure partway through must leave a partial STAGING
+        # file that gets unlinked below, never a partial target
+        # (tests/test_storage_kernel.py crashes json.dump to prove it). The
+        # ``if_changed`` comparison above therefore serialises separately
+        # instead of reusing this write's output.
+        with _open_staging(tmp_path, private) as fh:
+            json.dump(data, fh, indent=indent)
+            fh.flush()
+            os.fsync(fh.fileno())
+        tmp_path.replace(target)
+    except BaseException:
+        with contextlib.suppress(OSError):
+            tmp_path.unlink(missing_ok=True)
+        raise
+    return True
+
+
+def _matches(target: Path, payload: str) -> bool:
+    """True when *target* already holds exactly *payload*.
+
+    Any problem reading it — missing, unreadable, wrong encoding — answers
+    False, so an ``if_changed`` write degrades to an ordinary write rather
+    than to a silent skip. The failure mode has to be "wrote when it did not
+    need to", never "did not write when it did".
+    """
+    try:
+        return target.read_text(encoding="utf-8") == payload
+    except (OSError, UnicodeDecodeError):
+        return False
+
+
+def write_text_atomic(target: Path, text: str, *, private: bool = False) -> None:
+    """Write pre-serialised *text* onto *target* with the same guarantees as
+    :func:`write_json_atomic` (staging sibling, fsync, ``os.replace``).
+
+    For callers that already hold serialised content (e.g. an annotated
+    settings snapshot) and only need the atomic install.
     """
     target.parent.mkdir(parents=True, exist_ok=True)
     tmp_path = staging_path(target)
     try:
-        with tmp_path.open("w", encoding="utf-8") as fh:
-            json.dump(data, fh, indent=indent)
+        with _open_staging(tmp_path, private) as fh:
+            fh.write(text)
+            fh.flush()
+            os.fsync(fh.fileno())
         tmp_path.replace(target)
     except BaseException:
         with contextlib.suppress(OSError):

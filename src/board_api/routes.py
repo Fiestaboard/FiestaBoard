@@ -1,0 +1,376 @@
+"""FastAPI router for the out-of-band board read and the two manual senders.
+
+Three route-methods: ``GET /board/current-message`` (the canonical "what is on
+the board" read), ``POST /send-message`` and ``POST /send-welcome-message``.
+
+Phase 2, Task 8 — the last untagged routes. Moved out of ``src/api_server.py``
+and converted to ``docs/internal/reference/API_CONVENTIONS.md``.
+
+What the conventions pass changed here
+--------------------------------------
+The two senders used to answer **200** for three different non-deliveries:
+``{"status": "blocked", "silence_mode": true}`` for the silence window,
+``{"status": "blocked", "paused": true}`` for a paused board, and
+``{"status": "throttled", ...}`` for a write the client-side send floor
+dropped. A client that checks only the status code read all three as "sent".
+They are now **409**, **409** and **429** — the same verdicts, computed by
+the same guards (``src/board_guards.py``, home of the 429 and its Retry-After
+arithmetic), that ``src/debug/routes.py`` uses. The three senders in this
+codebase now give one answer to "did that work".
+
+The ``except Exception`` around each send also used to swallow the handler's
+own ``HTTPException`` and re-raise it as ``HTTPException(500, str(e))`` —
+and ``str(HTTPException)`` is ``"500: <detail>"``, which is why a refused send
+served the stuttering detail ``"500: Failed to send message"``. The guards now
+raise outside that ``try``.
+
+Board targeting
+---------------
+``POST /send-message`` takes an optional ``board_id``. It did not before, so
+on a multi-board install board 2 was unreachable over HTTP — while the MCP
+``send_message`` executor (``src/ops/executors.py``) had accepted one since
+#1765. The two now apply the same policy: 404 on an unknown board, the
+*target* board's silence window and pause state, geometry from the target
+board, out-of-band bookkeeping against the target board, and the adaptive
+post-send refresh only when the target is the primary (board-state polling is
+primary-only, #1243). Omitting ``board_id`` reproduces the previous behaviour
+exactly.
+
+The handlers are still separate rather than the REST route delegating to the
+executor, because the two do not answer in the same shape: the executor
+returns ``{"status": "blocked"}``/``{"status": "error"}`` dicts by design (an
+MCP tool relays policy to a model, it does not raise), and this router
+raises. The gates themselves are the same on both sides — no service (503),
+unknown board (404), silence (409), pause (409), no client (503), and the
+send-floor throttle (429): the executor answers a dropped write with an
+error envelope carrying ``retry_after_seconds`` (#1931), computed by the
+same ``src.board_guards`` arithmetic ``_raise_if_throttled`` uses here, and
+``/v1`` maps that envelope to this router's 429.
+
+``GET /board/current-message`` is unchanged by value. Issue #1912 tracks
+collapsing its cache-selection logic with the two other copies
+(``src/mcp_server.py`` and the panel frame endpoint); that consolidation is
+deliberately *not* attempted here.
+"""
+
+from __future__ import annotations
+
+import logging
+from datetime import UTC, datetime
+
+from fastapi import APIRouter, HTTPException
+
+from src import display_runtime as runtime
+from src.api_deprecation import V1_BOARD_MESSAGE_SUCCESSOR, deprecation_notice
+from src.api_errors import errors
+from src.board_chars import characters_to_message
+from src.board_client import board_client_from_board_dict
+from src.board_guards import _board_dims, _require_board, _silence_active, primary_board_entry
+from src.board_guards import raise_if_paused as _raise_if_paused
+from src.board_guards import raise_if_throttled as _raise_if_throttled
+from src.board_send_executor import run_board_send
+from src.board_state import BoardReadError, read_board_state, read_board_state_live
+from src.config_manager import get_config_manager
+from src.devices import resolve_dimensions
+from src.send_outcome import SendOutcome
+from src.text_to_board import text_to_board_array
+
+from .models import BoardCurrentMessageResponse, MessageRequest, SendResponse
+from .welcome import build_welcome_template
+
+logger = logging.getLogger(__name__)
+
+router = APIRouter(tags=["board"])
+
+SILENCE_DETAIL = "Manual sends are blocked during silence mode to prevent waking the board."
+
+
+def _raise_if_silenced(board_id: str | None = None) -> None:
+    """The silence window refuses every manual send (issue #1788).
+
+    Silence is per board, so the guard resolves the window of the board it is
+    about to touch. ``board_id`` omitted resolves the primary board, which is
+    what this path meant before it could target one.
+    """
+    if _silence_active(board_id):
+        logger.info("Silence mode is active - blocking manual send to prevent wake-up")
+        raise HTTPException(status_code=409, detail=SILENCE_DETAIL)
+
+
+def _primary_geometry(settings_service):
+    """Grid size of the active (first) board, defaulting to a flagship."""
+    device_type = "flagship"
+    notes_wide = 1
+    notes_tall = 1
+    board_settings = settings_service.get_board_settings()
+    boards = getattr(board_settings, "boards", None) or []
+    if boards:
+        first = boards[0]
+        if isinstance(first, dict):
+            device_type = first.get("device_type", "flagship")
+            notes_wide = first.get("notes_wide", 1)
+            notes_tall = first.get("notes_tall", 1)
+        else:
+            device_type = getattr(first, "device_type", "flagship")
+            notes_wide = getattr(first, "notes_wide", 1)
+            notes_tall = getattr(first, "notes_tall", 1)
+    if device_type not in ("flagship", "note", "note_array"):
+        device_type = "flagship"
+    return device_type, notes_wide, notes_tall
+
+
+# ---------------------------------------------------------------------------
+# Reading the board
+# ---------------------------------------------------------------------------
+
+
+@router.get("/board/current-message", response_model=BoardCurrentMessageResponse, responses=errors(404, 503))
+async def get_board_current_message(force: bool = False, board_id: str | None = None):
+    """Return the current state of the physical board.
+
+    Normally serves from the cached result of the background poll thread
+    (updated every 30 s local / 3 min cloud) so callers don't hammer the
+    Vestaboard API.  Pass ?force=true to trigger a live read instead.
+
+    Args:
+        force: Trigger a live board read instead of serving the poll cache.
+            Only honored for the primary board.
+        board_id: Optional board to read (issue #1247). Omitted or the
+            primary board → legacy live-polled behavior. A secondary board is
+            served from its runtime cache (last-sent/polled content) because
+            board-state polling is primary-only by design; ``characters`` /
+            ``message`` are null when nothing has been sent to it yet.
+    """
+    service = runtime.get_service()
+    if not service or not service.vb_client:
+        raise HTTPException(status_code=503, detail="Board client not initialized")
+
+    board = _require_board(board_id) if board_id is not None else None
+    # Live reads are primary-only: the poll thread tracks only the primary
+    # board (issue #1243), and a secondary board is served from its runtime
+    # cache whatever ``force`` says.
+    is_primary = board is None or board_id == runtime.get_settings_service().get_primary_board_id()
+
+    if is_primary:
+        try:
+            state = await read_board_state_live(board_id, force=force, service=service)
+        except BoardReadError:
+            raise HTTPException(status_code=503, detail="Failed to read current board message") from None
+    else:
+        state = read_board_state(board_id, want="board", service=service)
+
+    if state.characters is None:
+        # Nothing on this board yet — return its geometry so the UI can
+        # degrade gracefully (render the active page instead).
+        dims = _board_dims(board or primary_board_entry() or {})
+        return BoardCurrentMessageResponse(
+            characters=None,
+            message=None,
+            rows=dims.rows,
+            cols=dims.cols,
+            expected_characters=None,
+            cached_at=None,
+            api_mode=state.api_mode,
+            board_id=board_id,
+        )
+
+    return BoardCurrentMessageResponse(
+        characters=state.characters,
+        message=characters_to_message(state.characters),
+        rows=state.rows,
+        cols=state.cols,
+        expected_characters=state.expected_characters,
+        # The poll time and nothing else: a live read is not a cache hit.
+        cached_at=datetime.fromtimestamp(state.polled_at, tz=UTC).isoformat() if state.polled_at is not None else None,
+        api_mode=state.api_mode,
+        board_id=board_id,
+    )
+
+
+# ---------------------------------------------------------------------------
+# Writing to the board
+# ---------------------------------------------------------------------------
+
+
+# One of the two legacy operations that stay in the published consumer schema
+# (``src/v1/visibility.py``). It is what ``docs/reference/api-endpoints.md``
+# and the front page of ``/api/docs`` have told readers to call for years, so
+# hiding it would break a documented path; instead it is flagged deprecated and
+# names its successor on every response. No ``Sunset``: no removal date has
+# been agreed for it, and an unbacked one teaches integrators to ignore the
+# header.
+@router.post(
+    "/send-message",
+    response_model=SendResponse,
+    responses=errors(404, 409, 429, 500, 503),
+    deprecated=True,
+    dependencies=[deprecation_notice(successor=V1_BOARD_MESSAGE_SUCCESSOR)],
+)
+async def send_message(request: MessageRequest):
+    """Deprecated: use ``POST /v1/boards/{board}/message`` instead.
+
+    Send a custom message to a board.
+
+    ``board_id`` (optional) targets one board; omitted → the primary board,
+    which is what every caller got before this endpoint could address a
+    second one (issue #1247). Gate for gate this is the same policy the MCP
+    executor applies — see ``src/ops/executors.py``.
+
+    The v1 successor takes the board in the path, so it cannot be forgotten,
+    and reports whether flaps actually moved rather than only that the
+    request was accepted.
+    """
+    service = runtime.get_service()
+    if not service:
+        raise HTTPException(status_code=503, detail="Service not initialized")
+
+    # Writes 404 on an unknown board (API_CONVENTIONS.md, #1888). Resolved
+    # before the send gates so an unknown id never reads as "silenced".
+    board_id = request.board_id
+    board = _require_board(board_id) if board_id is not None else None
+
+    _raise_if_silenced(board_id)
+    _raise_if_paused(board_id)
+
+    board_client = service.get_board_client(board_id) if board_id is not None else service.vb_client
+    if not board_client:
+        detail = "Board client not initialized" if board_id is None else f"Board client not initialized: {board_id}"
+        raise HTTPException(status_code=503, detail=detail)
+
+    settings_service = runtime.get_settings_service()
+    transition = settings_service.get_transition_settings()
+    # Size the grid to the board actually being written to, so a manual send
+    # to a note array uses its real geometry instead of a default flagship
+    # 22×6. With no board_id that is the active (first) board, unchanged.
+    if board is not None:
+        dims = _board_dims(board)
+    else:
+        device_type, notes_wide, notes_tall = _primary_geometry(settings_service)
+        dims = resolve_dimensions(device_type, notes_wide, notes_tall)
+    # Word-wrap/convert/render is the shared message core (#1765): the
+    # MCP send_message executor calls the same function, so the two
+    # surfaces cannot render a message differently. See
+    # src/displays/messages.py for the #1793 newline/backslash notes.
+    from src.displays.messages import render_message
+
+    try:
+        outcome = SendOutcome.of(
+            render_message(
+                board_client,
+                request.text,
+                rows=dims.rows,
+                cols=dims.cols,
+                strategy=transition.strategy,
+                step_interval_ms=transition.step_interval_ms,
+                step_size=transition.step_size,
+                with_outcome=True,
+            )
+        )
+    except Exception as e:
+        logger.error(f"Error sending message: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to send message: {e!s}") from e
+
+    # Every raise below sits OUTSIDE the try above on purpose: inside it, the
+    # handler's own except caught its own HTTPException and re-raised it as
+    # HTTPException(500, str(e)) — which is how the served detail came to read
+    # "500: Failed to send message".
+    if not outcome.success:
+        raise HTTPException(status_code=500, detail="Failed to send message")
+    if not outcome.was_sent:
+        # A not-sent "success" can also mean the send floor dropped the write
+        # entirely (#1868 review) — that is not "unchanged". The verdict is
+        # this call's own outcome, not the client's flag (#1931 review).
+        _raise_if_throttled(outcome)
+        return SendResponse(message="Message unchanged, no update needed", sent=False)
+
+    # Flag the out-of-band write and push fresh MQTT state so HA reflects the
+    # update (issues #1794/#1831). The display loop's dedupe cache is
+    # deliberately left alone: invalidating it here made the message
+    # self-destruct on the next engine tick (<=15s). Restoring the active page
+    # is a pull — /force-refresh, MQTT Refresh Display, re-selecting a page,
+    # or an actual content change (issue #1794).
+    runtime._note_out_of_band_write(board_id)
+    # The adaptive post-send refresh polls the PRIMARY board only (board-state
+    # polling tracks one board by design, issue #1243), so a send aimed at a
+    # secondary must not ask for one. Same rule the executor applies.
+    if board_id is None or board_id == settings_service.get_primary_board_id():
+        service.request_board_refresh()
+    return SendResponse(message="Message sent successfully", sent=True)
+
+
+@router.post("/send-welcome-message", response_model=SendResponse, responses=errors(409, 429, 500, 503))
+async def send_welcome_message():
+    """Send a colorful welcome message to the board.
+
+    Used by the setup wizard to confirm the board is working.
+
+    Note: This creates a fresh board client from the settings boards store
+    so any recent credential changes (setup wizard or Settings) are used.
+    """
+    # Check silence mode for the board this actually writes to (the primary
+    # board — the wizard has no board picker).
+    _raise_if_silenced()
+    _raise_if_paused()
+
+    # Create a fresh board client from the primary settings board so recent
+    # credential edits are always used. Board credentials are unified on
+    # settings.json (issue #1760): the legacy config.json copy is never read.
+    board = runtime._primary_board_entry()
+    try:
+        board_client = board_client_from_board_dict(board) if board is not None else None
+    except ValueError as e:
+        logger.error(f"Failed to create board client: {e}")
+        raise HTTPException(status_code=503, detail=f"Board not configured: {e!s}") from e
+    if board_client is None:
+        raise HTTPException(status_code=503, detail="Board not configured: no board with a usable connection")
+    board_client.skip_unchanged = False  # Always send the welcome message
+
+    # Use custom welcome message if set, otherwise use the default
+    custom_msg = (get_config_manager().get_general().get("welcome_message") or "").strip()
+
+    settings_service = runtime.get_settings_service()
+    transition = settings_service.get_transition_settings()
+
+    # Determine device type and array dimensions from configured boards
+    # (defaults to flagship 6×22). Note arrays use notes_wide/notes_tall
+    # to compute the actual grid size.
+    try:
+        device_type, notes_wide, notes_tall = _primary_geometry(settings_service)
+    except Exception as exc:  # pragma: no cover - defensive
+        logger.debug("Could not determine device type for welcome message: %s", exc)
+        device_type, notes_wide, notes_tall = "flagship", 1, 1
+
+    welcome_template = build_welcome_template(device_type, custom_msg, notes_wide=notes_wide, notes_tall=notes_tall)
+
+    # Convert template to board array sized for the target device
+    dims = resolve_dimensions(device_type, notes_wide=notes_wide, notes_tall=notes_tall)
+    board_array = text_to_board_array("\n".join(welcome_template), rows=dims.rows, cols=dims.cols)
+
+    try:
+        # Board network I/O goes on the dedicated bounded send pool, never
+        # inline on the event loop (#1878) — see src/board_send_executor.py.
+        outcome = SendOutcome.of(
+            await run_board_send(
+                board_client.render,
+                board_array,
+                strategy=transition.strategy,
+                step_interval_ms=transition.step_interval_ms,
+                step_size=transition.step_size,
+                force=True,  # Force send even if cached
+                device_type=device_type,
+                with_outcome=True,
+            )
+        )
+    except Exception as e:
+        logger.error(f"Error sending welcome message: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to send welcome message: {e!s}") from e
+
+    if not outcome.success:
+        raise HTTPException(status_code=500, detail="Failed to send welcome message")
+    if not outcome.was_sent:
+        # Dropped by the send floor, not unchanged (#1868 review).
+        _raise_if_throttled(outcome)
+        return SendResponse(message="Welcome message unchanged", sent=False)
+
+    logger.info("Welcome message sent to board")
+    return SendResponse(message="Welcome message sent to your board!", sent=True)

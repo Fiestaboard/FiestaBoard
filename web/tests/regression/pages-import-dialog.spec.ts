@@ -212,9 +212,10 @@ test.describe("regression: pages.import-dialog", () => {
     await dialog.getByRole("button", { name: "Import", exact: true }).click();
     const resp = await importResponse;
     expect(resp.ok()).toBe(true);
-    const body = (await resp.json()) as { status: string; page: { id: string; name: string } };
-    expect(body.status).toBe("success");
-    const newPageId = body.page.id;
+    // 201 + the bare page since the Phase 2 conventions pass.
+    const body = (await resp.json()) as { id: string; name: string };
+    expect(resp.status()).toBe(201);
+    const newPageId = body.id;
 
     // Dialog auto-closes on success.
     await expect(dialog).toBeHidden({ timeout: 15_000 });

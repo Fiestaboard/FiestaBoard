@@ -41,13 +41,17 @@ test.describe("Schedule Management", () => {
     const toggleEl = page.getByTestId("schedule-enabled-toggle");
     await expect(toggleEl).toBeVisible({ timeout: 10_000 });
 
-    // Toggle on
-    const apiResponse = page.waitForResponse((r) => r.url().includes("/schedules/enabled") && r.status() === 200);
+    // Toggle on. `PUT /schedules/enabled` is now `PATCH /v1/boards/{board}`.
+    const apiResponse = page.waitForResponse(
+      (r) => r.url().includes("/api/v1/boards/") && r.request().method() === "PATCH" && r.status() === 200,
+    );
     await toggleEl.click();
     await apiResponse;
 
     // Toggle back off
-    const revertResponse = page.waitForResponse((r) => r.url().includes("/schedules/enabled") && r.status() === 200);
+    const revertResponse = page.waitForResponse(
+      (r) => r.url().includes("/api/v1/boards/") && r.request().method() === "PATCH" && r.status() === 200,
+    );
     await toggleEl.click();
     await revertResponse;
   });

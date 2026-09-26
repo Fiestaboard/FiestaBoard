@@ -1,0 +1,41 @@
+{
+  "scenario": "silence_window_indicator",
+  "sends": [
+    {
+      "t": "2026-07-15T09:00:30+00:00",
+      "board": "board-1",
+      "rows": [
+        "GOOD MORNING          ",
+        "                      ",
+        "                      ",
+        "                      ",
+        "                      ",
+        "                      "
+      ]
+    },
+    {
+      "t": "2026-07-15T09:01:00+00:00",
+      "board": "board-1",
+      "rows": [
+        "                      ",
+        "                      ",
+        "                      ",
+        "       SNOOZING       ",
+        "                      ",
+        "                      "
+      ]
+    },
+    {
+      "t": "2026-07-15T09:02:01+00:00",
+      "board": "board-1",
+      "rows": [
+        "GOOD MORNING          ",
+        "                      ",
+        "                      ",
+        "                      ",
+        "                      ",
+        "                      "
+      ]
+    }
+  ]
+}

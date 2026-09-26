@@ -50,7 +50,7 @@ def get_builtin_variables(timezone: str | None = None) -> dict[str, str]:
 
     Args:
         timezone: Optional IANA timezone name.  Falls back to the
-                  system-configured timezone via ``Config.TIMEZONE``
+                  system-configured timezone via ``Config.GENERAL_TIMEZONE``
                   or ``"America/Los_Angeles"`` as a last resort.
 
     Returns:

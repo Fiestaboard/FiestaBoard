@@ -1,0 +1,29 @@
+{
+  "scenario": "temporary_override_inline",
+  "sends": [
+    {
+      "t": "2026-07-15T09:00:00+00:00",
+      "board": "board-1",
+      "rows": [
+        "ONE OFF               ",
+        "                      ",
+        "                      ",
+        "                      ",
+        "                      ",
+        "                      "
+      ]
+    },
+    {
+      "t": "2026-07-15T09:00:15+00:00",
+      "board": "board-1",
+      "rows": [
+        "HELLO HOME            ",
+        "                      ",
+        "                      ",
+        "                      ",
+        "                      ",
+        "                      "
+      ]
+    }
+  ]
+}

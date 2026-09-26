@@ -9,6 +9,7 @@ restore it on a new instance.
 from .service import (
     BACKUP_SCHEMA_VERSION,
     BackupError,
+    BackupRestoreAborted,
     BackupService,
     get_backup_service,
 )
@@ -16,6 +17,7 @@ from .service import (
 __all__ = [
     "BACKUP_SCHEMA_VERSION",
     "BackupError",
+    "BackupRestoreAborted",
     "BackupService",
     "get_backup_service",
 ]

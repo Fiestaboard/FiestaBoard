@@ -23,7 +23,12 @@ def client():
 @pytest.fixture
 def mock_config_manager_for_silence():
     """Mock config manager with a working silence_schedule feature."""
-    with patch("src.api_server.get_config_manager") as mock_get:
+    # Both bindings: PUT /settings/silence-schedule still resolves through
+    # api_server, GET /silence-status resolves through the service router.
+    with (
+        patch("src.api_server.get_config_manager") as mock_get,
+        patch("src.service_api.routes.get_config_manager", new=mock_get),
+    ):
         cm = Mock()
         store = {"enabled": False, "start_time": "04:00+00:00", "end_time": "15:00+00:00"}
 
@@ -60,7 +65,7 @@ class TestUpdateSilenceScheduleEndpoint:
 
         assert response.status_code == 200
         data = response.json()
-        assert data["status"] == "success"
+        # "status" dropped by the conventions pass (Phase 2, Task 8).
         assert data["config"]["enabled"] is True
         assert data["config"]["start_time"] == "04:00+00:00"
         assert data["config"]["end_time"] == "15:00+00:00"
@@ -212,7 +217,11 @@ class TestSilenceScheduleModes:
         assert config["page_id"] == "page-abc"
         assert store["page_id"] == "page-abc"
 
-    def test_invalid_mode_falls_back_to_freeze(self, client, mock_config_manager_for_silence):
+    # CHANGED (w0/schema-honesty): 200-with-"freeze" -> 422. `mode` now
+    # declares its vocabulary (src.config.SilenceMode), so an unknown mode is
+    # refused instead of silently becoming "freeze" — a client that asked for
+    # "indicater" used to get a frozen board and a 200 saying it worked.
+    def test_invalid_mode_is_refused(self, client, mock_config_manager_for_silence):
         response = client.put(
             "/settings/silence-schedule",
             json={
@@ -221,6 +230,14 @@ class TestSilenceScheduleModes:
                 "end_time": "15:00+00:00",
                 "mode": "garbage",
             },
+        )
+        assert response.status_code == 422
+
+    def test_omitting_mode_still_defaults_to_freeze(self, client, mock_config_manager_for_silence):
+        """The fallback that remains: absent is not the same as invalid."""
+        response = client.put(
+            "/settings/silence-schedule",
+            json={"enabled": True, "start_time": "04:00+00:00", "end_time": "15:00+00:00"},
         )
         assert response.status_code == 200
         assert response.json()["config"]["mode"] == "freeze"

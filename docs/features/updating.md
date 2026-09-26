@@ -187,7 +187,7 @@ what you want, wait — it is being worked on.
 
 **The Update Now button isn't showing** — Check the status panel just below the button area in Settings → System. It will say whether the updater sidecar is reachable. Most common cause: `COMPOSE_PROFILES=fiestaupdater` isn't set in `.env`, or the sidecar container isn't running.
 
-**Update started but the page never came back** — Open `http://fiestaboard.local:4420` (or `localhost:4420`) again after a minute. If it's still down, check logs: `docker logs fiestaboard`. As a last resort, `docker compose up -d` will bring you back online.
+**Update started but the page never came back** — Open `http://localhost:4420` on the Docker host, or `http://fiestapi.local:4420` on a FiestaPi, again after a minute. From another device on a standard Docker install, use the host's IP address. If it's still down, check logs: `docker logs fiestaboard`. As a last resort, `docker compose up -d` will bring you back online.
 
 **I joined the beta but came back on stable** — The switch works by pointing
 the image name in your compose file at the beta build, and an out-of-date

@@ -117,7 +117,7 @@ test.describe("regression: integrations.detail", () => {
   /** UX node: integrations.detail.loading */
   test("integrations.detail.loading — pending detail query keeps body mounted", async ({ page }) => {
     let release: () => void = () => {};
-    await page.route("**/api/plugins/date_time", async (route) => {
+    await page.route("**/api/v1/plugins/date_time", async (route) => {
       if (route.request().method() === "GET") {
         await new Promise<void>((r) => {
           release = r;

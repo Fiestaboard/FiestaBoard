@@ -63,7 +63,6 @@ describe("Plugin Instance API", () => {
   describe("createPluginInstance", () => {
     it("creates an instance and returns correct shape", async () => {
       const result = await api.createPluginInstance("weather", "sf");
-      expect(result.status).toBe("success");
       expect(result.plugin_id).toBe("weather");
       expect(result.instance_label).toBe("sf");
       expect(result.instance_key).toBe("weather:sf");
@@ -75,13 +74,14 @@ describe("Plugin Instance API", () => {
         http.post(`${API_BASE}/plugins/:pluginId/instances`, async ({ request, params }) => {
           capturedBody = await request.json();
           const body = capturedBody as { label: string };
-          return HttpResponse.json({
-            status: "success",
-            plugin_id: params.pluginId,
-            instance_label: body.label,
-            instance_key: `${params.pluginId}:${body.label}`,
-            message: "created",
-          });
+          return HttpResponse.json(
+            {
+              plugin_id: params.pluginId,
+              instance_label: body.label,
+              instance_key: `${params.pluginId}:${body.label}`,
+            },
+            { status: 201 },
+          );
         }),
       );
       await api.createPluginInstance("weather", "prod");
@@ -118,7 +118,6 @@ describe("Plugin Instance API", () => {
   describe("deletePluginInstance", () => {
     it("deletes an instance and returns correct shape", async () => {
       const result = await api.deletePluginInstance("weather", "sf");
-      expect(result.status).toBe("success");
       expect(result.plugin_id).toBe("weather");
       expect(result.instance_label).toBe("sf");
       expect(result.instance_key).toBe("weather:sf");

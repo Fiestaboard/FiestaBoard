@@ -227,7 +227,7 @@ class TestSilenceModeDispatch:
                 return silence_page
             return active_page
 
-        def _preview(pid, force_refresh=False):
+        def _preview(pid, force_refresh=False, **_kwargs):
             if pid == "silence-page":
                 return silence_result
             return Mock(available=True, formatted="WEATHER\nTEMP")
@@ -405,7 +405,7 @@ class TestTemporaryOverrideDuringSilence:
         def _get_page(pid):
             return override_page if pid == "override-page" else active_page
 
-        def _preview(pid, force_refresh=False):
+        def _preview(pid, force_refresh=False, **_kwargs):
             return override_result if pid == "override-page" else active_result
 
         page_service = Mock()

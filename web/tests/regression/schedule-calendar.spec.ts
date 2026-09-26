@@ -173,7 +173,7 @@ test.describe("regression: schedule.calendar", () => {
       localStorage.setItem("schedule-view-mode", "calendar");
     });
     let mutationCalled = false;
-    await page.route("**/api/schedules/*", async (route) => {
+    await page.route("**/api/v1/schedules/*", async (route) => {
       if (route.request().method() === "PUT") {
         mutationCalled = true;
       }
@@ -203,7 +203,7 @@ test.describe("regression: schedule.calendar", () => {
     await page.addInitScript(() => {
       localStorage.setItem("schedule-view-mode", "calendar");
     });
-    await page.route("**/api/schedules/*", (route) => {
+    await page.route("**/api/v1/schedules/*", (route) => {
       if (route.request().method() === "PUT") {
         return route.fulfill({ status: 500, body: '{"detail":"boom"}' });
       }

@@ -335,7 +335,7 @@ test.describe("Draw mode", () => {
       }),
     });
     expect(pageRes.ok).toBe(true);
-    const pageId = (await pageRes.json()).page.id;
+    const pageId = (await pageRes.json()).id;
 
     await gotoEditPage(page, pageId);
     await enterDrawMode(page);
@@ -422,7 +422,7 @@ test.describe("Draw mode", () => {
       }),
     });
     expect(pageRes.ok).toBe(true);
-    const pageId = (await pageRes.json()).page.id;
+    const pageId = (await pageRes.json()).id;
 
     await gotoEditPage(page, pageId);
     await enterDrawMode(page);

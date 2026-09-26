@@ -120,10 +120,12 @@ class TestMDNSServiceStart:
 
     def test_start_returns_false_when_zeroconf_missing(self):
         svc = MDNSService()
+        # `None` in sys.modules blocks the import on its own; patching
+        # builtins.__import__ too would install a process-global recording
+        # mock that accumulates every import made by any live background
+        # thread until the interpreter dies.
         with patch.dict("sys.modules", {"zeroconf": None}):
-            with patch("builtins.__import__", side_effect=ImportError("no module")):
-                # Simulate ImportError when zeroconf is not installed
-                result = svc.start()
+            result = svc.start()
         # Should return False gracefully
         assert result is False or isinstance(result, bool)
 

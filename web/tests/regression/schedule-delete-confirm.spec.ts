@@ -76,7 +76,7 @@ test.describe("regression: schedule.delete-confirm", () => {
   /** UX node: schedule.delete-confirm.delete-error */
   test("schedule.delete-confirm.delete-error — failed delete keeps editor reachable", async ({ page }) => {
     await seedScheduleAndOpen(page);
-    await page.route("**/api/schedules/*", (route) => {
+    await page.route("**/api/v1/schedules/*", (route) => {
       if (route.request().method() === "DELETE") {
         return route.fulfill({ status: 500, body: '{"detail":"boom"}' });
       }
