@@ -71,8 +71,6 @@ jobs:
       - name: Compute the beta version
         id: version
         env:
-          # The stable release `next` is heading for. Declared, not derived.
-          #
           # Normally empty. Set it only when the next release breaks a contract:
           # the derivation below can add a minor, never a major, so a breaking
           # cycle has to say so explicitly (`"10.0.0"`). Clear it again once
@@ -108,8 +106,10 @@ jobs:
           else
             # Stable tags only. Prereleases carry a hyphen and are excluded:
             # betas aim past 9.0.0, not past 9.0.0-beta.43.
-            STABLE=$(git tag --list 'v[0-9]*' | grep -v -- '-' | sed 's/^v//' \
-              | grep -E '^[0-9]+\.[0-9]+\.[0-9]+$' | sort -V | tail -1)
+            # The anchored pattern is the prerelease filter: `9.0.0-beta.43`
+            # fails the trailing `$`. Betas aim past 9.0.0, not past its betas.
+            STABLE=$(git tag --list 'v[0-9]*' | sed 's/^v//' \
+              | grep -E '^[0-9]+\.[0-9]+\.[0-9]+$' | sort -V | tail -1 || true)
             if [ -z "$STABLE" ]; then
               echo "::error::No stable vX.Y.Z tag found — cannot derive the beta target. Is fetch-tags set on the checkout?"
               exit 1
@@ -131,8 +131,8 @@ jobs:
           # would have the update checker offering a "newer" build that is
           # actually older, so fail loudly rather than publish it. This also
           # catches an override someone left pointing at the past.
-          NEWEST_TAG=$(git tag --list 'v[0-9]*' | grep -v -- '-' | sed 's/^v//' \
-            | grep -E '^[0-9]+\.[0-9]+\.[0-9]+$' | sort -V | tail -1)
+          NEWEST_TAG=$(git tag --list 'v[0-9]*' | sed 's/^v//' \
+            | grep -E '^[0-9]+\.[0-9]+\.[0-9]+$' | sort -V | tail -1 || true)
           NEWEST=$(printf '%s\n%s\n' "$NEWEST_TAG" "$BETA_TARGET_VERSION" | sort -V | tail -1)
           if [ "$NEWEST" != "$BETA_TARGET_VERSION" ] || [ "$NEWEST_TAG" = "$BETA_TARGET_VERSION" ]; then
             echo "::error::betas target $BETA_TARGET_VERSION but $NEWEST_TAG is already released. Clear or raise BETA_TARGET_OVERRIDE."
