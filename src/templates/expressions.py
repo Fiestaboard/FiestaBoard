@@ -26,8 +26,10 @@ from __future__ import annotations
 
 import math
 import re
+from calendar import monthrange
 from collections.abc import Callable
 from dataclasses import dataclass
+from datetime import date, datetime, timedelta
 from typing import Any
 
 from .colors import COLOR_CODES as _COLOR_CODES
@@ -514,7 +516,22 @@ def _to_bool(value: Any) -> bool:
 
 
 def _to_string(value: Any) -> str:
-    """Render a value the way the rest of the template engine would."""
+    """Render a value the way the rest of the template engine would.
+
+    Arrays and objects have no sensible board rendering — before they were
+    rejected here, ``{{= plugin.games }}`` put a Python repr
+    (``[{'team1': 'SF'}]``) on the board. They must go through ``COUNT``,
+    ``AT``, ``JOIN`` or ``FOREACH`` instead.
+    """
+    if isinstance(value, list | dict):
+        raise FormulaError(
+            "#VALUE",
+            "An array cannot be rendered directly — use COUNT, AT, JOIN or FOREACH",
+        )
+    if isinstance(value, datetime):
+        return value.strftime(_DATE_RENDER_FORMAT)
+    if isinstance(value, date):
+        return value.strftime("%Y-%m-%d")
     if value is None:
         return ""
     if isinstance(value, bool):
@@ -546,6 +563,10 @@ def _looks_numeric(value: Any) -> bool:
 
 def _compare(left: Any, right: Any) -> int:
     """Three-way compare with Excel-ish coercion. -1/0/1."""
+    # Two dates compare chronologically, not as text.
+    if isinstance(left, datetime) and isinstance(right, datetime):
+        a_dt, b_dt = _align_awareness(left, right)
+        return (a_dt > b_dt) - (a_dt < b_dt)
     # Both numeric-ish -> numeric compare.
     if _looks_numeric(left) and _looks_numeric(right):
         a = _to_number(left)
@@ -1115,7 +1136,471 @@ def _math_ceil(x: float) -> float:
     return float(math.ceil(x))
 
 
+# --------------------------------------------------------------------------- #
+# Dates and times
+#
+# The language had no date support, so "days until launch" or "after 5pm?"
+# needed a purpose-built plugin no matter what data was already on the board.
+#
+# Dates are ``datetime`` values inside an expression and render as
+# ``YYYY-MM-DD HH:MM``; ``FORMATDATE`` exists for anything else. "Now" comes
+# from the context key ``__now__`` when the caller provides one (the engine
+# does, so every formula in one render sees the same instant and tests can
+# pin the clock) and otherwise from the app's configured-timezone clock.
+# --------------------------------------------------------------------------- #
+
+
+#: Reserved context key holding the instant this render started.
+_NOW_KEY = "__now__"
+
+_DATE_RENDER_FORMAT = "%Y-%m-%d %H:%M"
+
+#: ``DATEDIFF``/``DATEADD`` units. Months are handled separately (calendar
+#: arithmetic, not a fixed number of seconds).
+_DATE_UNIT_SECONDS: dict[str, float] = {
+    "seconds": 1.0,
+    "minutes": 60.0,
+    "hours": 3600.0,
+    "days": 86400.0,
+    "weeks": 604800.0,
+}
+
+_MONTH_ABBR = ("JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "SEP", "OCT", "NOV", "DEC")
+_WEEKDAY_ABBR = ("MON", "TUE", "WED", "THU", "FRI", "SAT", "SUN")
+
+
+def _current_datetime(context: dict[str, Any]) -> datetime:
+    """The instant to treat as "now".
+
+    Prefers the caller-supplied ``__now__`` so a whole render shares one
+    instant. Falls back to the app's time service (configured timezone), and
+    to naive local time if that is unavailable — a bare ``NOW()`` must never
+    fail just because configuration could not be read.
+    """
+    injected = context.get(_NOW_KEY)
+    if isinstance(injected, datetime):
+        return injected
+    try:
+        from src.time_service import get_time_service
+
+        return get_time_service().get_current_time()
+    except Exception:  # pragma: no cover - configuration/import failure
+        return datetime.now()
+
+
+def _coerce_date(name: str, value: Any) -> datetime:
+    """Coerce a value to a ``datetime`` or raise ``#VALUE``.
+
+    Accepts a ``datetime`` unchanged, a ``date``, and the ISO-8601 strings
+    plugins actually expose (``2026-12-25``, ``2026-12-25T08:15:00``, with or
+    without a trailing ``Z``).
+    """
+    if isinstance(value, datetime):
+        return value
+    if isinstance(value, date):
+        return datetime(value.year, value.month, value.day)
+    if isinstance(value, str):
+        text = value.strip()
+        if text:
+            try:
+                return datetime.fromisoformat(text.replace("Z", "+00:00"))
+            except ValueError:
+                pass
+    raise FormulaError("#VALUE", f"{name}: {value!r} is not a date")
+
+
+def _date_unit(name: str, args: list[Any], index: int, default: str = "days") -> str:
+    unit = (_to_string(args[index]).strip().lower() if len(args) > index else default) or default
+    if not unit.endswith("s"):
+        unit += "s"
+    if unit != "months" and unit not in _DATE_UNIT_SECONDS:
+        raise FormulaError("#VALUE", f"{name}: unknown unit {unit!r}")
+    return unit
+
+
+def _add_months(moment: datetime, count: int) -> datetime:
+    """Shift by calendar months, clamping to the last valid day.
+
+    ``2026-01-31 + 1 month`` is ``2026-02-28``: the alternative (rolling into
+    March) surprises everyone who has ever written a monthly countdown.
+    """
+    total = moment.month - 1 + count
+    year = moment.year + total // 12
+    month = total % 12 + 1
+    day = min(moment.day, monthrange(year, month)[1])
+    return moment.replace(year=year, month=month, day=day)
+
+
+def _fn_date(args: list[Any]) -> Any:
+    _expect_args("DATE", args, 1, 1)
+    err = _propagate(*args)
+    if err is not None:
+        return err
+    return _coerce_date("DATE", args[0])
+
+
+def _date_part(name: str, extract: Callable[[datetime], int]) -> Callable[[list[Any]], Any]:
+    """Build ``YEAR``/``MONTH``/``DAY``/``HOUR``/``MINUTE``/``WEEKDAY``."""
+
+    def _fn(args: list[Any]) -> Any:
+        _expect_args(name, args, 1, 1)
+        err = _propagate(*args)
+        if err is not None:
+            return err
+        return float(extract(_coerce_date(name, args[0])))
+
+    return _fn
+
+
+def _fn_datediff(args: list[Any]) -> Any:
+    _expect_args("DATEDIFF", args, 2, 3)
+    err = _propagate(*args)
+    if err is not None:
+        return err
+    start = _coerce_date("DATEDIFF", args[0])
+    end = _coerce_date("DATEDIFF", args[1])
+    unit = _date_unit("DATEDIFF", args, 2)
+    if unit == "months":
+        months = (end.year - start.year) * 12 + (end.month - start.month)
+        if end.day < start.day:
+            months -= 1
+        return float(months)
+    start, end = _align_awareness(start, end)
+    delta = (end - start).total_seconds() / _DATE_UNIT_SECONDS[unit]
+    # Truncate toward zero: 1.9 days until a deadline is "1 day" left, and a
+    # deadline 1.9 days past is "-1".
+    return float(int(delta))
+
+
+def _align_awareness(a: datetime, b: datetime) -> tuple[datetime, datetime]:
+    """Make two datetimes safe to subtract.
+
+    Plugin data mixes naive strings (``2026-12-25``) with aware ones
+    (``...+00:00``); subtracting across that raises in Python. The naive side
+    is assumed to be in the aware side's zone, which is what a user writing
+    ``DATEDIFF(TODAY(), DATE(plugin.when))`` means.
+    """
+    if (a.tzinfo is None) == (b.tzinfo is None):
+        return a, b
+    if a.tzinfo is None:
+        return a.replace(tzinfo=b.tzinfo), b
+    return a, b.replace(tzinfo=a.tzinfo)
+
+
+def _fn_dateadd(args: list[Any]) -> Any:
+    _expect_args("DATEADD", args, 2, 3)
+    err = _propagate(*args)
+    if err is not None:
+        return err
+    moment = _coerce_date("DATEADD", args[0])
+    amount = _to_number(args[1])
+    unit = _date_unit("DATEADD", args, 2)
+    if unit == "months":
+        return _add_months(moment, int(amount))
+    return moment + timedelta(seconds=amount * _DATE_UNIT_SECONDS[unit])
+
+
+def _fn_formatdate(args: list[Any]) -> Any:
+    """``FORMATDATE(date, pattern)`` with board-friendly tokens.
+
+    Deliberately not ``strftime``: ``%`` patterns are a poor fit for a
+    spreadsheet-shaped language, and the token set below is what a board
+    actually needs. Longest tokens match first so ``MMM`` beats ``MM``.
+    """
+    _expect_args("FORMATDATE", args, 2, 2)
+    err = _propagate(*args)
+    if err is not None:
+        return err
+    moment = _coerce_date("FORMATDATE", args[0])
+    pattern = _to_string(args[1])
+
+    hour12 = moment.hour % 12 or 12
+    tokens: list[tuple[str, str]] = [
+        ("YYYY", f"{moment.year:04d}"),
+        ("YY", f"{moment.year % 100:02d}"),
+        ("MMM", _MONTH_ABBR[moment.month - 1]),
+        ("MM", f"{moment.month:02d}"),
+        ("DD", f"{moment.day:02d}"),
+        ("ddd", _WEEKDAY_ABBR[moment.weekday()]),
+        ("HH", f"{moment.hour:02d}"),
+        ("hh", str(hour12)),
+        ("mm", f"{moment.minute:02d}"),
+        ("ss", f"{moment.second:02d}"),
+        ("AP", "AM" if moment.hour < 12 else "PM"),
+    ]
+
+    out: list[str] = []
+    i = 0
+    while i < len(pattern):
+        for token, replacement in tokens:
+            if pattern.startswith(token, i):
+                out.append(replacement)
+                i += len(token)
+                break
+        else:
+            out.append(pattern[i])
+            i += 1
+    return "".join(out)
+
+
+def _lazy_now(nodes: list[_Node], context: dict[str, Any]) -> Any:
+    """``NOW()`` — needs the context, so it is registered as a lazy builtin."""
+    if nodes:
+        raise FormulaError("#VALUE", "NOW: expected no arguments")
+    return _current_datetime(context)
+
+
+def _lazy_today(nodes: list[_Node], context: dict[str, Any]) -> Any:
+    """``TODAY()`` — local midnight of the current day."""
+    if nodes:
+        raise FormulaError("#VALUE", "TODAY: expected no arguments")
+    return _current_datetime(context).replace(hour=0, minute=0, second=0, microsecond=0)
+
+
+# --------------------------------------------------------------------------- #
+# Arrays / collections (issue #2050)
+#
+# Plugins declare arrays in their manifest (``variables.arrays``) and a template
+# could only ever index one item at a time, with no way to ask how many items
+# existed. Authors hand-unrolled a line per possible item and wrapped each in an
+# ``IF`` to hide the ``???`` from indexes that weren't there.
+#
+# Arrays are real values inside an expression — they can be passed between
+# functions — but they cannot be rendered (see ``_to_string``). ``FOREACH``
+# turns one into text: newline-joined rows, which ``TemplateEngine.render_lines``
+# already spills down the board the same way ``|wrap`` overflow does.
+# --------------------------------------------------------------------------- #
+
+
+#: Reserved context key holding the loop locals (``item``, ``index``).
+_LOCALS_KEY = "__locals__"
+
+#: Names that resolve as loop locals rather than plugin sources. Used by
+#: ``validate_expression`` so an editor doesn't flag ``item.team1`` as an
+#: unknown plugin.
+LOOP_LOCAL_NAMES = frozenset({"item", "index"})
+
+
+def _require_array(name: str, value: Any) -> list[Any]:
+    """Coerce ``value`` to a list or raise ``#VALUE``."""
+    if isinstance(value, list):
+        return value
+    raise FormulaError("#VALUE", f"{name}: expected an array, got {type(value).__name__}")
+
+
+def _item_field(item: Any, field: str | None) -> Any:
+    """Read ``field`` from one array item.
+
+    Items are usually dicts (``{"team1": "SF"}``); a plugin may also expose a
+    plain list of scalars, in which case the field is omitted and the item
+    itself is the value. A missing field is blank rather than an error so the
+    hand-unrolled pattern this replaces doesn't need an ``IF`` per line.
+    """
+    if not field:
+        return "" if isinstance(item, dict | list) else item
+    if isinstance(item, dict):
+        if field in item:
+            return item[field]
+        return item.get(field.lower(), "")
+    return ""
+
+
+def _child_context(context: dict[str, Any], item: Any, index: int) -> dict[str, Any]:
+    """A context with ``item``/``index`` bound for one iteration.
+
+    ``index`` is 1-based (it is shown to users, e.g. ``index & ". " & item.name``)
+    and is also injected into dict items as ``item.index``. An item's own
+    ``index`` field wins, so a plugin that exposes one keeps its meaning.
+    """
+    inner = dict(context.get(_LOCALS_KEY) or {})
+    inner["item"] = {"index": index, **item} if isinstance(item, dict) else item
+    inner["index"] = index
+    return {**context, _LOCALS_KEY: inner}
+
+
+def _sort_key(value: Any) -> tuple[int, float, str]:
+    """Order numerically when possible, lexically otherwise.
+
+    Returns a tuple so mixed arrays can't raise: numbers sort before strings.
+    """
+    if isinstance(value, bool):
+        return (0, 1.0 if value else 0.0, "")
+    if isinstance(value, int | float):
+        return (0, float(value), "")
+    text = _to_string(value) if not isinstance(value, list | dict) else ""
+    try:
+        return (0, float(text.strip()), "")
+    except (ValueError, AttributeError):
+        return (1, 0.0, text.lower())
+
+
+def _fn_count(args: list[Any]) -> Any:
+    _expect_args("COUNT", args, 1, 1)
+    err = _propagate(*args)
+    if err is not None:
+        return err
+    return len(_require_array("COUNT", args[0]))
+
+
+def _fn_at(args: list[Any]) -> Any:
+    _expect_args("AT", args, 2, 3)
+    err = _propagate(*args)
+    if err is not None:
+        return err
+    items = _require_array("AT", args[0])
+    index = int(_to_number(args[1]))
+    if index < 0 or index >= len(items):
+        return ""
+    field = _to_string(args[2]) if len(args) == 3 else None
+    return _item_field(items[index], field)
+
+
+def _fn_sort(args: list[Any]) -> Any:
+    _expect_args("SORT", args, 1, 3)
+    err = _propagate(*args)
+    if err is not None:
+        return err
+    items = _require_array("SORT", args[0])
+    field = _to_string(args[1]) if len(args) >= 2 else ""
+    descending = len(args) >= 3 and _to_string(args[2]).strip().lower() in ("desc", "descending", "-1")
+    return sorted(items, key=lambda it: _sort_key(_item_field(it, field or None)), reverse=descending)
+
+
+def _fn_slice(args: list[Any]) -> Any:
+    _expect_args("SLICE", args, 2, 3)
+    err = _propagate(*args)
+    if err is not None:
+        return err
+    items = _require_array("SLICE", args[0])
+    start = max(0, int(_to_number(args[1])))
+    if len(args) == 3:
+        count = int(_to_number(args[2]))
+        if count <= 0:
+            return []
+        return items[start : start + count]
+    return items[start:]
+
+
+def _fn_join(args: list[Any]) -> Any:
+    _expect_args("JOIN", args, 1, 3)
+    err = _propagate(*args)
+    if err is not None:
+        return err
+    items = _require_array("JOIN", args[0])
+    sep = _to_string(args[1]) if len(args) >= 2 else ""
+    field = _to_string(args[2]) if len(args) == 3 else None
+    return sep.join(_to_string(_item_field(it, field)) for it in items)
+
+
+def _aggregate(name: str, reducer: Callable[[list[float]], float]) -> Callable[[list[Any]], Any]:
+    """Build ``SUMOF``/``AVGOF``/``MINOF``/``MAXOF`` over one field of an array."""
+
+    def _fn(args: list[Any]) -> Any:
+        _expect_args(name, args, 1, 2)
+        err = _propagate(*args)
+        if err is not None:
+            return err
+        items = _require_array(name, args[0])
+        field = _to_string(args[1]) if len(args) == 2 else None
+        numbers = [_to_number(_item_field(it, field)) for it in items]
+        if not numbers:
+            return 0.0
+        return reducer(numbers)
+
+    return _fn
+
+
+def _lazy_foreach(nodes: list[_Node], context: dict[str, Any]) -> Any:
+    """``FOREACH(array, rowExpr[, limit])`` — one rendered row per item.
+
+    ``rowExpr`` is evaluated once per item with ``item`` bound, which is why
+    this is a lazy builtin: its second argument must not be evaluated in the
+    caller's context (there is no ``item`` there).
+    """
+    if not 2 <= len(nodes) <= 3:
+        raise FormulaError("#VALUE", f"FOREACH: expected 2-3 args, got {len(nodes)}")
+
+    array = _eval_node(nodes[0], context)
+    if _is_error(array):
+        return array
+    items = _require_array("FOREACH", array)
+
+    limit: int | None = None
+    if len(nodes) == 3:
+        limit_value = _eval_node(nodes[2], context)
+        if _is_error(limit_value):
+            return limit_value
+        limit = int(_to_number(limit_value))
+        if limit <= 0:
+            return ""
+
+    rows: list[str] = []
+    for i, item in enumerate(items):
+        if limit is not None and i >= limit:
+            break
+        row = _eval_node(nodes[1], _child_context(context, item, i + 1))
+        if _is_error(row):
+            return row
+        rows.append(_to_string(row))
+    return "\n".join(rows)
+
+
+def _lazy_filter(nodes: list[_Node], context: dict[str, Any]) -> Any:
+    """``FILTER(array, condition)`` — the items whose condition is truthy.
+
+    Lazy for the same reason as ``FOREACH``: the condition reads ``item``.
+    Returns an array, so it composes (``COUNT(FILTER(...))``).
+    """
+    if len(nodes) != 2:
+        raise FormulaError("#VALUE", f"FILTER: expected 2 args, got {len(nodes)}")
+
+    array = _eval_node(nodes[0], context)
+    if _is_error(array):
+        return array
+    items = _require_array("FILTER", array)
+
+    kept: list[Any] = []
+    for i, item in enumerate(items):
+        verdict = _eval_node(nodes[1], _child_context(context, item, i + 1))
+        if _is_error(verdict):
+            return verdict
+        if _to_bool(verdict):
+            kept.append(item)
+    return kept
+
+
+#: Builtins that receive their *unevaluated* argument nodes plus the context,
+#: because they bind names (``item``) that only exist while they run.
+_LAZY_BUILTINS: dict[str, Callable[[list[_Node], dict[str, Any]], Any]] = {
+    "FOREACH": _lazy_foreach,
+    "FILTER": _lazy_filter,
+    "NOW": _lazy_now,
+    "TODAY": _lazy_today,
+}
+
+
 _BUILTINS: dict[str, Callable[[list[Any]], Any]] = {
+    # Dates
+    "DATE": _fn_date,
+    "YEAR": _date_part("YEAR", lambda d: d.year),
+    "MONTH": _date_part("MONTH", lambda d: d.month),
+    "DAY": _date_part("DAY", lambda d: d.day),
+    "HOUR": _date_part("HOUR", lambda d: d.hour),
+    "MINUTE": _date_part("MINUTE", lambda d: d.minute),
+    "WEEKDAY": _date_part("WEEKDAY", lambda d: d.isoweekday()),
+    "DATEDIFF": _fn_datediff,
+    "DATEADD": _fn_dateadd,
+    "FORMATDATE": _fn_formatdate,
+    # Arrays
+    "COUNT": _fn_count,
+    "AT": _fn_at,
+    "SORT": _fn_sort,
+    "SLICE": _fn_slice,
+    "JOIN": _fn_join,
+    "SUMOF": _aggregate("SUMOF", lambda ns: math.fsum(ns)),
+    "AVGOF": _aggregate("AVGOF", lambda ns: math.fsum(ns) / len(ns)),
+    "MINOF": _aggregate("MINOF", min),
+    "MAXOF": _aggregate("MAXOF", max),
     # Logic
     "IF": _fn_if,
     "IFS": _fn_ifs,
@@ -1181,6 +1666,31 @@ _BUILTINS: dict[str, Callable[[list[Any]], Any]] = {
 # is intentionally simple and stable; it is part of the public API surface.
 
 _SIGNATURES: dict[str, tuple[str, str, str]] = {
+    # Dates
+    "NOW": ("date", "NOW()", "Current date and time, board timezone"),
+    "TODAY": ("date", "TODAY()", "Midnight today, board timezone"),
+    "DATE": ("date", "DATE(text)", "Parse an ISO date/datetime string"),
+    "YEAR": ("date", "YEAR(d)", "Year number"),
+    "MONTH": ("date", "MONTH(d)", "Month number, 1-12"),
+    "DAY": ("date", "DAY(d)", "Day of month"),
+    "HOUR": ("date", "HOUR(d)", "Hour, 0-23"),
+    "MINUTE": ("date", "MINUTE(d)", "Minute, 0-59"),
+    "WEEKDAY": ("date", "WEEKDAY(d)", "Day of week, Monday=1 to Sunday=7"),
+    "DATEDIFF": ("date", "DATEDIFF(start, end[, unit])", "Whole units from start to end (default days)"),
+    "DATEADD": ("date", "DATEADD(d, amount[, unit])", "Shift a date; negative amounts go back"),
+    "FORMATDATE": ("date", 'FORMATDATE(d, "MMM DD")', "Format with YYYY YY MMM MM DD ddd HH hh mm ss AP"),
+    # Arrays
+    "COUNT": ("array", "COUNT(array)", "How many items an array holds"),
+    "AT": ("array", "AT(array, index[, field])", "Item field by 0-based index; blank if absent"),
+    "FOREACH": ("array", "FOREACH(array, rowExpr[, limit])", "One board row per item; rowExpr may use item"),
+    "FILTER": ("array", "FILTER(array, condition)", "Items whose condition is true (uses item)"),
+    "SORT": ("array", 'SORT(array[, field][, "desc"])', "Array sorted by a field"),
+    "SLICE": ("array", "SLICE(array, start[, count])", "A window of an array"),
+    "JOIN": ("array", "JOIN(array, sep[, field])", "Join items into one line of text"),
+    "SUMOF": ("array", "SUMOF(array[, field])", "Sum a field across items"),
+    "AVGOF": ("array", "AVGOF(array[, field])", "Average a field across items"),
+    "MINOF": ("array", "MINOF(array[, field])", "Smallest value of a field"),
+    "MAXOF": ("array", "MAXOF(array[, field])", "Largest value of a field"),
     # Logic
     "IF": ("logic", "IF(cond, then[, else])", "Conditional value"),
     "IFS": ("logic", "IFS(c1, v1, c2, v2, ...[, def])", "First matching condition's value"),
@@ -1257,6 +1767,15 @@ def _lookup_variable(path: str, context: dict[str, Any]) -> Any:
     as ``engine._get_variable_value`` does for plain ``{{ }}`` substitution.
     """
     parts = path.split(".")
+
+    # Loop locals (``item``, ``index``) shadow everything else and are the only
+    # single-segment names that resolve. They live under a reserved context key
+    # rather than at the top level so a plugin whose id is literally ``item``
+    # cannot be mistaken for the loop binding.
+    locals_map = context.get(_LOCALS_KEY)
+    if isinstance(locals_map, dict) and parts[0].lower() in locals_map:
+        return _traverse(locals_map[parts[0].lower()], parts[1:])
+
     if len(parts) < 2:
         return ErrorValue("#REF")
 
@@ -1295,7 +1814,16 @@ def _lookup_variable(path: str, context: dict[str, Any]) -> Any:
         value = entity_data
         start_idx = 2  # entity segment already consumed
 
-    for part in parts[start_idx:]:
+    return _traverse(value, parts[start_idx:])
+
+
+def _traverse(value: Any, parts: list[str]) -> Any:
+    """Walk ``parts`` into ``value``, returning ``#REF`` on any missing segment.
+
+    Dicts resolve by key (case-insensitively as a fallback); lists resolve by
+    zero-based numeric index. Shared by plugin paths and loop locals.
+    """
+    for part in parts:
         if isinstance(value, dict):
             if part in value:
                 value = value[part]
@@ -1405,6 +1933,15 @@ def _eval_node(node: _Node, context: dict[str, Any]) -> Any:
         return ErrorValue("#SYNTAX")
 
     if isinstance(node, _Call):
+        lazy = _LAZY_BUILTINS.get(node.name)
+        if lazy is not None:
+            # Receives unevaluated nodes: these functions bind ``item`` for
+            # their own arguments, so the caller's context is not enough.
+            try:
+                return lazy(node.args, context)
+            except FormulaError as exc:
+                return ErrorValue(exc.code)
+
         fn = _BUILTINS.get(node.name)
         if fn is None:
             return ErrorValue("#NAME?")
@@ -1444,7 +1981,11 @@ def evaluate(expression: str, context: dict[str, Any] | None = None) -> str:
         return exc.code
     if _is_error(result):
         return result.code
-    return _to_string(result)
+    try:
+        return _to_string(result)
+    except FormulaError as exc:
+        # An expression whose *result* is an array (``{{= plugin.games }}``).
+        return exc.code
 
 
 @dataclass(frozen=True)
@@ -1481,7 +2022,7 @@ def validate_expression(
 
     def _walk(node: _Node) -> None:
         if isinstance(node, _Call):
-            if node.name not in _BUILTINS:
+            if node.name not in _BUILTINS and node.name not in _LAZY_BUILTINS:
                 issues.append(
                     ExpressionIssue(
                         "#NAME?",
@@ -1496,6 +2037,10 @@ def validate_expression(
         elif isinstance(node, _Var):
             if known_sources is not None:
                 source = node.path.split(".", 1)[0].split(":", 1)[0].lower()
+                # ``item``/``index`` are bound by FOREACH/FILTER at render time,
+                # not plugin sources — the editor must not flag them.
+                if source in LOOP_LOCAL_NAMES:
+                    return
                 if source not in known_sources:
                     issues.append(
                         ExpressionIssue(
@@ -1519,6 +2064,29 @@ def validate_expression(
 # accept any number of arguments (we still rely on runtime ``_expect_args``
 # checks for the strict variants).
 _ARITY: dict[str, tuple[int, int | None]] = {
+    "NOW": (0, 0),
+    "TODAY": (0, 0),
+    "DATE": (1, 1),
+    "YEAR": (1, 1),
+    "MONTH": (1, 1),
+    "DAY": (1, 1),
+    "HOUR": (1, 1),
+    "MINUTE": (1, 1),
+    "WEEKDAY": (1, 1),
+    "DATEDIFF": (2, 3),
+    "DATEADD": (2, 3),
+    "FORMATDATE": (2, 2),
+    "COUNT": (1, 1),
+    "AT": (2, 3),
+    "FOREACH": (2, 3),
+    "FILTER": (2, 2),
+    "SORT": (1, 3),
+    "SLICE": (2, 3),
+    "JOIN": (1, 3),
+    "SUMOF": (1, 2),
+    "AVGOF": (1, 2),
+    "MINOF": (1, 2),
+    "MAXOF": (1, 2),
     "IF": (2, 3),
     "NOT": (1, 1),
     "IFERROR": (2, 2),
@@ -1633,7 +2201,7 @@ def find_formulas(template: str) -> list[tuple[int, int, str]]:
 
 def list_builtins() -> tuple[str, ...]:
     """Return a stable, sorted tuple of all built-in formula function names."""
-    return tuple(sorted(_BUILTINS.keys()))
+    return tuple(sorted(set(_BUILTINS) | set(_LAZY_BUILTINS)))
 
 
 def function_signatures() -> dict[str, dict[str, str]]:
