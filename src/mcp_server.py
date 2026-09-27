@@ -54,6 +54,20 @@ them: external clients decide whether to confirm a call, and the in-app
 chat runs ``readOnlyHint`` tools freely mid-turn while pausing only on
 ``destructiveHint`` ones. ``tests/test_mcp_annotations.py`` pins the sets,
 so a new tool has to declare its flags rather than inherit a default.
+
+Docstrings
+----------
+External MCP clients get the whole docstring as the tool description, but
+the in-app chat does not: ``ToolCatalog._compact_description``
+(``src/ai/tool_catalog.py``) renders only the **first paragraph** plus the
+``Args:`` block, because the full text of 86 tools does not fit the chat
+addendum's byte budget (#2036). So anything the model must know to call a
+tool correctly — preconditions, which other tool to use instead, which
+field to read — goes in the first paragraph or in ``Args:``. Everything
+else (return shapes, WARNING consequences aimed at the human approving the
+call, usage tips) may sit in later paragraphs, where only external clients
+and human readers will see it. Later paragraphs are silently dropped in
+chat: a rule written there is a rule the model never reads.
 """
 
 from __future__ import annotations
@@ -2591,12 +2605,12 @@ def _build_mcp_server() -> Any:
 
     @_tool(destructive=True)
     async def remove_board(board_id: str) -> dict[str, Any]:
-        """Remove a board from this install permanently.
+        """Remove a board from this install permanently. The last board cannot
+        be removed, and a board driven by a FiestaPanel must be removed via
+        delete_panel() instead.
 
         WARNING: cannot be undone — the board's credentials go with it and
-        the user has to re-enter them to add it back. The last board cannot be
-        removed, and a board driven by a FiestaPanel must be removed via
-        delete_panel() instead.
+        the user has to re-enter them to add it back.
 
         Args:
             board_id: The board to remove (from the boards list in get_settings_summary()).
@@ -2650,12 +2664,6 @@ def _build_mcp_server() -> Any:
     async def list_panels() -> dict[str, Any]:
         """List the FiestaPanels (TV viewers) and each one's board — its
         device_type + notes_wide / notes_tall size a page for that panel.
-
-        The note grid belongs in the first paragraph because the chat surface
-        only ever shows that much: ToolCatalog._compact_description keeps the
-        first paragraph plus an ``Args:`` block, and this tool has no Args. A
-        rule telling the model to read notes_wide/notes_tall from here is no
-        use if the description it plans from never mentions them.
 
         Each entry has id (use it for update_panel() / delete_panel()), name,
         board_id (the virtual board — appears in the boards list too and can
@@ -2802,24 +2810,24 @@ def _build_mcp_server() -> Any:
 
     @_tool(destructive=True, open_world=True)
     async def trigger_system_update() -> dict[str, Any]:
-        """Pull the latest FiestaBoard release and restart onto it.
+        """Pull the latest FiestaBoard release and restart onto it. Needs the
+        updater sidecar (get_system_status() → update.updater_available);
+        otherwise the error carries the manual-update instructions to relay.
 
         WARNING: the container restarts and the web UI (and this connection)
         drop for a minute. A settings snapshot is taken first so the update
-        can be rolled back from Settings → System. Needs the updater sidecar
-        (get_system_status() → update.updater_available); otherwise the error
-        carries the manual-update instructions to relay. Only call this when
-        the user explicitly asks to update.
+        can be rolled back from Settings → System. Only call this when the
+        user explicitly asks to update.
         """
         return await ops_executors.trigger_system_update()
 
     @_tool(destructive=True)
     async def restart_system() -> dict[str, Any]:
-        """Restart the FiestaBoard container via the updater sidecar.
+        """Restart the FiestaBoard container. Needs the updater sidecar
+        (get_system_status() → update.updater_available).
 
         WARNING: the web UI and this connection drop for ~5 seconds. Needed
-        after enabling HTTPS (beta) or changing the polling interval. Needs
-        the updater sidecar (get_system_status() → update.updater_available).
+        after enabling HTTPS (beta) or changing the polling interval.
         """
         return await ops_executors.restart_system()
 

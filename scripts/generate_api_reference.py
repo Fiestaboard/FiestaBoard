@@ -432,16 +432,21 @@ def render_operation(
 
     if operation.get("deprecated"):
         successor = successor_of(operation)
-        replacement = f" Use `{successor}` instead." if successor else ""
-        lines += [
-            ":::warning Deprecated",
-            "",
-            f"`{signature}` is deprecated and answers with `Deprecation`, `Sunset` and",
-            f'`Link: rel="successor-version"` headers.{replacement}',
-            "",
-            ":::",
-            "",
-        ]
+        # Name only the headers the operation actually sends. ``Sunset`` is
+        # never one of them here: no removal date has been agreed for either
+        # published deprecated operation, and ``src/api_deprecation.py``
+        # declines to stamp an unbacked one because that "teaches integrators
+        # that the header is noise". ``Link: rel="successor-version"`` goes
+        # out only where a successor exists, which is exactly where
+        # ``successor_of`` finds one, so it is named only then.
+        if successor:
+            notice = [
+                f"`{signature}` is deprecated and answers with `Deprecation` and",
+                f'`Link: rel="successor-version"` headers. Use `{successor}` instead.',
+            ]
+        else:
+            notice = [f"`{signature}` is deprecated and answers with a `Deprecation` header."]
+        lines += [":::warning Deprecated", "", *notice, "", ":::", ""]
 
     lines += [f"**{cell(summary)}**", ""]
 

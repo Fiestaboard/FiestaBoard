@@ -29,6 +29,7 @@ from src.config_manager import (
     SCHEMA_VERSION_KEY,
     ConfigManager,
 )
+from tests.conftest import _drop_all_singletons
 
 PRE_VERSIONING_FIXTURE = Path(__file__).parent / "golden" / "storage" / "config_pre_versioning.json"
 
@@ -70,6 +71,28 @@ def captured_config_logs():
         logger.removeHandler(handler)
         logger.setLevel(old_level)
         logger.propagate = old_propagate
+
+
+@pytest.fixture(autouse=True)
+def _config_dir_is_tmp_path(tmp_path, monkeypatch):
+    """Make ``get_data_dir()`` resolve to the directory these tests write to.
+
+    conftest's autouse ``_isolated_data_dir`` points ``FIESTABOARD_DATA_DIR``
+    at ``tmp_path / "data"``, but every test here boots a config at
+    ``tmp_path / "config.json"`` — one level above it. Anything that resolves
+    ``get_data_dir() / "config.json"`` therefore reads a different file than
+    the one under test (#2031). Same fixture as
+    ``tests/test_config_migration.py``; see its copy for why it lives in the
+    module rather than in conftest.
+
+    ``captured_config_logs`` below is the narrow version of this guard — it
+    keeps records off the root logger so the re-entrancy cannot fire. This
+    fixture covers the tests in this file that do *not* capture logs.
+    """
+    monkeypatch.setenv("FIESTABOARD_DATA_DIR", str(tmp_path))
+    _drop_all_singletons()
+    yield tmp_path
+    _drop_all_singletons()
 
 
 @pytest.fixture(autouse=True)
