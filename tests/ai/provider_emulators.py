@@ -227,6 +227,23 @@ class AnthropicEmulator(ProviderEmulator):
             if role not in ("user", "assistant"):
                 self.reject(400, f"messages.{i}.role: must be 'user' or 'assistant'")
 
+        # ``system`` is optional and may be either a plain string or a list of
+        # content blocks; the block form is what carries a ``cache_control``
+        # prompt-cache breakpoint (#2070). Source: Anthropic Messages API and
+        # prompt-caching reference.
+        system = body.get("system")
+        if system is not None and not isinstance(system, str):
+            if not isinstance(system, list) or not system:
+                self.reject(400, "system: must be a string or a non-empty list of content blocks")
+            for i, block in enumerate(system):
+                if not isinstance(block, dict) or block.get("type") != "text":
+                    self.reject(400, f"system.{i}: content block must have type 'text'")
+                if not isinstance(block.get("text"), str):
+                    self.reject(400, f"system.{i}.text: field required")
+                cache = block.get("cache_control")
+                if cache is not None and (not isinstance(cache, dict) or "type" not in cache):
+                    self.reject(400, f"system.{i}.cache_control: must be an object with a 'type'")
+
         if "response_format" in body:
             self.reject(400, "response_format: extra fields not permitted")
 
