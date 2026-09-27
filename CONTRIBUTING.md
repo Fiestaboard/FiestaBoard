@@ -64,7 +64,7 @@ docker compose -f docker-compose.dev.yml up -d
 docker compose -f docker-compose.dev.yml exec fiestaboard pytest
 
 # Web UI tests (runs in a one-shot container with the test profile)
-docker compose -f docker-compose.dev.yml run --rm --profile test web sh -c "npm ci && npm test"
+docker compose -f docker-compose.dev.yml --profile test run --rm web sh -c "npm ci --legacy-peer-deps && npm test"
 
 # Plugin validation (if you changed plugins)
 docker compose -f docker-compose.dev.yml exec fiestaboard python scripts/validate_plugins.py --verbose

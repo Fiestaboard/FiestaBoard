@@ -4,6 +4,8 @@ import {
   buildVariablesList,
   getVariableGroups,
   groupVariableRows,
+  itemFieldMeta,
+  itemFieldNames,
   type PluginVariableRow,
   type VariablesBlock,
 } from "@/lib/plugin-variables";
@@ -64,13 +66,66 @@ describe("buildVariablesList", () => {
       },
     };
 
-    const rows = buildVariablesList(variables, { "forecast.high": 4 });
+    const rows = buildVariablesList(variables, { "forecast.*.high": 4 });
 
     expect(rows).toEqual([
       { name: "forecast.{index}.day", description: "forecast label", maxChars: 22, group: undefined },
       { name: "forecast.{index}.high", description: "forecast high", maxChars: 4, group: undefined },
       { name: "forecast.{index}.low", description: "forecast low", maxChars: 22, group: undefined },
     ]);
+  });
+
+  it("carries description, group and max_length from map-form item_fields", () => {
+    const variables: VariablesBlock = {
+      groups: { game: { label: "Game" } },
+      arrays: {
+        games: {
+          label_field: "formatted",
+          item_fields: {
+            formatted: { description: "Summary line", group: "game" },
+            minutes_until_game: { description: "Minutes until first pitch", max_length: 4, group: "game" },
+            venue: {},
+          },
+        },
+      },
+    };
+
+    const rows = buildVariablesList(variables, undefined);
+
+    expect(rows).toEqual([
+      { name: "games.{index}.formatted", description: "Summary line", maxChars: 22, group: "game" },
+      {
+        name: "games.{index}.minutes_until_game",
+        description: "Minutes until first pitch",
+        maxChars: 4,
+        group: "game",
+      },
+      { name: "games.{index}.venue", description: "games venue", maxChars: 22, group: undefined },
+    ]);
+  });
+
+  it("prefers max_lengths over an item field's own max_length", () => {
+    const variables: VariablesBlock = {
+      arrays: { games: { label_field: "team1", item_fields: { team1: { max_length: 10 } } } },
+    };
+
+    const rows = buildVariablesList(variables, { "games.*.team1": 8 });
+
+    expect(rows[0].maxChars).toBe(8);
+  });
+});
+
+describe("itemFieldNames / itemFieldMeta", () => {
+  it("reads names from either form, in declared order", () => {
+    expect(itemFieldNames(["a", "b"])).toEqual(["a", "b"]);
+    expect(itemFieldNames({ a: {}, b: { description: "B" } })).toEqual(["a", "b"]);
+    expect(itemFieldNames(undefined)).toEqual([]);
+  });
+
+  it("returns metadata only for the map form", () => {
+    expect(itemFieldMeta({ a: { description: "A" } }, "a")).toEqual({ description: "A" });
+    expect(itemFieldMeta(["a"], "a")).toBeUndefined();
+    expect(itemFieldMeta({ a: {} }, "missing")).toBeUndefined();
   });
 });
 

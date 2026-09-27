@@ -74,6 +74,10 @@ For an API key: a `string` property with `"ui:widget": "password"` plus a matchi
 - Each `simple` variable becomes the template token `{{<plugin_id>.<name>}}`.
 - Every variable needs a `description` and a valid `group` (the tests enforce both).
 - Array fields are referenced as `{{<id>.items.0.name}}`, `{{<id>.items.1.value}}`, etc.
+- `item_fields` also accepts the dict form, like `simple`:
+  `"item_fields": {"name": {"description": "...", "max_length": 10, "group": "main"}, ...}`.
+  Prefer it so array fields get descriptions in the editor too. The field's `max_length`
+  merges into `max_lengths` as `items.*.name`.
 - Keep `simple` keys in lockstep with the keys your `fetch_data` returns in `data`.
 
 ## demo

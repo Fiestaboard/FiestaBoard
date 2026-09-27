@@ -111,14 +111,14 @@ export interface PluginManifest {
       string,
       {
         label_field: string;
-        item_fields: string[];
+        item_fields: string[] | Record<string, VariableMetadataEntry>;
         sub_arrays?: Record<
           string,
           {
             key_type?: "index" | "dynamic";
             key_field?: string;
             label_field?: string;
-            item_fields: string[];
+            item_fields: string[] | Record<string, VariableMetadataEntry>;
           }
         >;
       }

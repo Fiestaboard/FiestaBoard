@@ -1,9 +1,12 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { http, HttpResponse } from "msw";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { VariablePickerContent } from "@/components/tiptap-template-editor/components/VariablePickerContent";
+
+import { server } from "./mocks/server";
 
 function TestWrapper({ children }: { children: React.ReactNode }) {
   const queryClient = new QueryClient({
@@ -199,5 +202,56 @@ describe("VariablePickerContent", () => {
       expect(screen.getByText("time")).toBeInTheDocument();
       expect(screen.getByText("date")).toBeInTheDocument();
     });
+  });
+
+  it("renders array item fields declared in the map form, with their descriptions", async () => {
+    server.use(
+      http.get("/api/v1/variables", () =>
+        HttpResponse.json({ variables: { mlb: ["games", "games.*.minutes_until_game"] }, max_lengths: {} }),
+      ),
+      http.get("/api/plugins/mlb/manifest", () =>
+        HttpResponse.json({
+          id: "mlb",
+          name: "MLB",
+          version: "1.0.0",
+          description: "",
+          author: "FiestaBoard",
+          settings_schema: {},
+          max_lengths: {},
+          variables: {
+            arrays: {
+              games: {
+                label_field: "formatted",
+                item_fields: {
+                  formatted: { description: "Summary line" },
+                  minutes_until_game: { description: "Minutes until first pitch", type: "number" },
+                },
+              },
+            },
+          },
+        }),
+      ),
+      http.post("/api/displays/raw/batch", () =>
+        HttpResponse.json({
+          displays: {
+            mlb: {
+              data: { games: [{ formatted: "NYY @ BOS", minutes_until_game: 15 }] },
+              available: true,
+              error: null,
+            },
+          },
+        }),
+      ),
+    );
+    const user = userEvent.setup();
+    render(<VariablePickerContent onInsert={mockOnInsert} />, { wrapper: TestWrapper });
+
+    await user.click(await screen.findByText("NYY @ BOS"));
+    const pill = await screen.findByRole("button", { name: "minutes_until_game" });
+    await user.hover(pill);
+
+    expect((await screen.findAllByText("Minutes until first pitch")).length).toBeGreaterThan(0);
+    await user.click(pill);
+    expect(mockOnInsert).toHaveBeenCalledWith("{{mlb.games.0.minutes_until_game}}");
   });
 });
