@@ -1271,11 +1271,30 @@ class PluginRegistry:
             var_dict: dict[str, dict[str, Any]] = {}
 
             for name in var_names:
-                # Skip array path patterns (e.g. "stops.*.field")
+                # Skip array path patterns (e.g. "stops.*.field"): the array
+                # entry below carries the same information as ``item_fields``.
                 if ".*." in name:
                     continue
-                # Skip array aggregate names (they match an array key)
+
+                # An array gets one entry describing what its items hold. It
+                # used to be skipped entirely, which left every consumer of
+                # this catalog — the chat prompt above all — unable to name a
+                # single array a plugin exposed (issue #2050).
                 if manifest and name in manifest.variables.arrays:
+                    array_schema = manifest.variables.arrays[name]
+                    array_meta = manifest.variables.get_variable_metadata(name)
+                    items = plugin_data.get(name)
+                    var_dict[name] = {
+                        "description": array_meta.description,
+                        "type": "array",
+                        "item_fields": list(array_schema.item_fields),
+                        "label_field": array_schema.label_field,
+                        "sub_arrays": sorted(array_schema.sub_arrays),
+                        "max_length": array_meta.max_length,
+                        "group": array_meta.group,
+                        "example": array_meta.example,
+                        "item_count": len(items) if isinstance(items, list) else None,
+                    }
                     continue
 
                 meta = manifest.variables.get_variable_metadata(name) if manifest else VariableMetadata()

@@ -1907,6 +1907,8 @@
     "categoryText": "텍스트",
     "categoryConversion": "변환",
     "categoryColor": "색상",
+    "categoryArray": "배열",
+    "categoryDate": "날짜",
     "clickToEditFormula": "클릭하여 수식 편집",
     "newFormula": "새 수식",
     "loading": "로드 중…"

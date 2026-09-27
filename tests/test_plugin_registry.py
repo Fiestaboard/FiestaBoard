@@ -834,6 +834,56 @@ def test_get_all_variables_with_metadata(registry, mock_loader, mock_plugin):
     assert meta["test_plugin"]["temp"]["preview"] == "72"
 
 
+def test_get_all_variables_with_metadata_describes_arrays(registry, mock_loader, mock_plugin):
+    """An array is catalogued with its item fields and live length.
+
+    It used to be skipped entirely (both the aggregate name and the
+    ``name.*.field`` patterns), so every consumer of this catalog — the chat
+    system prompt above all — could not name a single array a plugin exposed.
+    That is the discoverability half of issue #2050.
+    """
+    from src.plugins.manifest import VariableArraySchema, VariableMetadata, VariablesSchema
+
+    manifest = MagicMock(spec=PluginManifest)
+    manifest.id = "test_plugin"
+    manifest.name = "Test"
+    manifest.version = "1.0.0"
+    manifest.description = ""
+    manifest.author = ""
+    manifest.icon = "puzzle"
+    manifest.category = "utility"
+    manifest.fiestaboard_version = ""
+    manifest.max_lengths = {}
+    manifest.raw = {}
+    manifest.variables = VariablesSchema(
+        simple=["updated"],
+        arrays={"games": VariableArraySchema(name="games", label_field="team1", item_fields=["team1", "score1"])},
+        auto_discover=False,
+        metadata={"games": VariableMetadata(description="Today's games")},
+    )
+
+    mock_loader.load_all_plugins.return_value = {"test_plugin": mock_plugin}
+    mock_loader.get_manifest.side_effect = lambda pid: manifest if pid == "test_plugin" else None
+    mock_plugin.get_data.return_value = PluginResult(
+        available=True,
+        data={"updated": "5m", "games": [{"team1": "SF", "score1": 4}, {"team1": "NY", "score1": 1}]},
+    )
+    with patch("src.config_manager.get_config_manager") as mock_cm:
+        mock_cm.return_value.get_all_plugin_configs.return_value = {"test_plugin": {"enabled": True}}
+        registry.initialize()
+
+    entry = registry.get_all_variables_with_metadata()["test_plugin"]["games"]
+    assert entry["type"] == "array"
+    assert entry["item_fields"] == ["team1", "score1"]
+    assert entry["label_field"] == "team1"
+    assert entry["item_count"] == 2
+    assert entry["description"] == "Today's games"
+
+    # The documented ``games.*.field`` patterns stay out — item_fields carries
+    # the same information without one entry per field.
+    assert not [name for name in registry.get_all_variables_with_metadata()["test_plugin"] if ".*." in name]
+
+
 def test_clear_discovered_cache(registry, mock_loader, mock_plugin):
     """clear_discovered_cache resets the auto-discovery cache."""
     manifest = _make_autodiscover_manifest(auto_discover=True, simple=[])

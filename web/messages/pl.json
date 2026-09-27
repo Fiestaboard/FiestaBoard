@@ -1907,6 +1907,8 @@
     "categoryText": "Tekst",
     "categoryConversion": "Konwersja",
     "categoryColor": "Kolor",
+    "categoryArray": "Listy",
+    "categoryDate": "Data",
     "clickToEditFormula": "Kliknij, aby edytować formułę",
     "newFormula": "nowa formuła",
     "loading": "Ładowanie…"

@@ -1907,6 +1907,8 @@
     "categoryText": "Текст",
     "categoryConversion": "Преобразование",
     "categoryColor": "Цвет",
+    "categoryArray": "Списки",
+    "categoryDate": "Дата",
     "clickToEditFormula": "Нажмите для редактирования формулы",
     "newFormula": "новая формула",
     "loading": "Загрузка…"

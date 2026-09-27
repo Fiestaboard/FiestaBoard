@@ -1907,6 +1907,8 @@
     "categoryText": "文本",
     "categoryConversion": "转换",
     "categoryColor": "颜色",
+    "categoryArray": "数组",
+    "categoryDate": "日期",
     "clickToEditFormula": "点击以编辑公式",
     "newFormula": "新公式",
     "loading": "加载中…"

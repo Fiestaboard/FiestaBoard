@@ -1907,6 +1907,8 @@
     "categoryText": "Text",
     "categoryConversion": "Konvertering",
     "categoryColor": "Färg",
+    "categoryArray": "Listor",
+    "categoryDate": "Datum",
     "clickToEditFormula": "Klicka för att redigera formel",
     "newFormula": "ny formel",
     "loading": "Laddar…"
