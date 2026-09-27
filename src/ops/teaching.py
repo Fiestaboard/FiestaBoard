@@ -13,7 +13,7 @@ Everything here is derived from the modules that define the behavior:
 
 - dimensions from :data:`src.devices.DEVICE_DIMENSIONS`
 - color tokens from :data:`src.templates.engine.COLOR_CODES`
-- filters from :data:`TEMPLATE_FILTERS` below, which
+- filters from :data:`src.templates.filters.TEMPLATE_FILTERS`, which
   ``tests/test_ops_teaching.py`` verifies against the engine's actual
   ``_apply_filter``/``|wrap`` implementation so this table cannot rot
 - formula functions from :func:`src.templates.expressions.function_signatures`
@@ -24,6 +24,8 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 from src.devices import DEVICE_DIMENSIONS, get_dimensions
+from src.templates.filters import FILTER_NAMES as _FILTER_NAMES
+from src.templates.filters import TEMPLATE_FILTERS as _TEMPLATE_FILTERS
 
 
 @dataclass(frozen=True)
@@ -67,22 +69,12 @@ LANGUAGE_CONSTRUCTS: tuple[LanguageConstruct, ...] = (
     LanguageConstruct("reuse", 'LET(t, weather.temperature, t & "F/" & t)', "name a value once and reuse it"),
 )
 
-#: The template filter chain the engine actually implements.
-#: (spelling as written in a template, one-line teaching summary)
-#: Kept in lock-step with ``TemplateEngine._apply_filter`` and the special
-#: ``|wrap`` handling by tests/test_ops_teaching.py.
-TEMPLATE_FILTERS: tuple[tuple[str, str], ...] = (
-    ("upper", "uppercase the value"),
-    ("lower", "lowercase the value"),
-    ("pad:N", "right-pad the value with spaces to N chars"),
-    ("truncate:N", "cut the value to N chars"),
-    ("zeropad:N", "left-pad the value with zeros to N chars"),
-    ("wrap", "let a long value flow into the empty lines below"),
-)
-
-#: Filter names the engine accepts, for validation. Derived from the roster
-#: above so a filter cannot be implemented, taught, and still rejected.
-FILTER_NAMES: frozenset[str] = frozenset(spelling.split(":")[0] for spelling, _ in TEMPLATE_FILTERS)
+#: Re-exported from :mod:`src.templates.filters`, which owns the roster because
+#: the engine implements and validates it — teaching derives from the engine,
+#: never the other way round, which is also why the imports below are lazy.
+#: Re-exporting keeps ``teaching.TEMPLATE_FILTERS`` working for its consumers.
+TEMPLATE_FILTERS = _TEMPLATE_FILTERS
+FILTER_NAMES = _FILTER_NAMES
 
 
 def dimensions_phrase(device_type: str) -> str:

@@ -9,8 +9,9 @@ Template syntax:
 - Symbols: {sun}, {cloud}, {rain}
 - Formatting: {{value|pad:3}}, {{value|zeropad:2}}, {{value|truncate:3}},
   {{value|upper}}, {{value|lower}}, {{value|wrap}} — chainable left to right
-  ({{value|upper|truncate:3}}). The roster lives in ``src.ops.teaching``
-  (``TEMPLATE_FILTERS``); ``validate_template`` reports anything else.
+  ({{value|upper|truncate:3}}). The roster lives in
+  ``src.templates.filters.TEMPLATE_FILTERS``; ``validate_template`` reports
+  anything else.
 
 Color tiles (each produces one solid color tile):
 - {{red}} or {{63}} - Red tile
@@ -37,13 +38,13 @@ from dataclasses import dataclass
 from typing import Any
 
 from src.devices import DEFAULT_DEVICE_TYPE, BoardContext, resolve_dimensions
-from src.ops.teaching import FILTER_NAMES
 from src.plugins import get_plugin_registry
 from src.text_utils import extract_alignment_from_line
 
 from .colors import COLOR_CODES
 from .colors import is_color_code as _is_color_code
 from .expressions import find_formulas, render_expressions, validate_expression
+from .filters import FILTER_NAMES
 
 logger = logging.getLogger(__name__)
 

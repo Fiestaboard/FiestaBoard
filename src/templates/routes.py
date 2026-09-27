@@ -24,13 +24,13 @@ from src.board_client import board_client_from_board_dict
 from src.board_guards import _board_is_paused, _require_board
 from src.board_send_executor import run_board_preview
 from src.devices import resolve_dimensions
-from src.ops.teaching import TEMPLATE_FILTERS
 from src.plugins.registry import get_plugin_registry
 from src.settings.service import get_settings_service
 from src.text_to_board import text_to_board_array
 
 from .engine import get_template_engine
 from .expressions import function_signatures
+from .filters import TEMPLATE_FILTERS
 from .models import (
     FormulaFunctionsResponse,
     TemplateRenderLiveRequest,
