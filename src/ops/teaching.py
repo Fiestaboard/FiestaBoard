@@ -28,11 +28,17 @@ from src.devices import DEVICE_DIMENSIONS, get_dimensions
 #: Kept in lock-step with ``TemplateEngine._apply_filter`` and the special
 #: ``|wrap`` handling by tests/test_ops_teaching.py.
 TEMPLATE_FILTERS: tuple[tuple[str, str], ...] = (
+    ("upper", "uppercase the value"),
+    ("lower", "lowercase the value"),
     ("pad:N", "right-pad the value with spaces to N chars"),
     ("truncate:N", "cut the value to N chars"),
     ("zeropad:N", "left-pad the value with zeros to N chars"),
     ("wrap", "let a long value flow into the empty lines below"),
 )
+
+#: Filter names the engine accepts, for validation. Derived from the roster
+#: above so a filter cannot be implemented, taught, and still rejected.
+FILTER_NAMES: frozenset[str] = frozenset(spelling.split(":")[0] for spelling, _ in TEMPLATE_FILTERS)
 
 
 def dimensions_phrase(device_type: str) -> str:

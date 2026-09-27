@@ -24,6 +24,7 @@ from src.board_client import board_client_from_board_dict
 from src.board_guards import _board_is_paused, _require_board
 from src.board_send_executor import run_board_preview
 from src.devices import resolve_dimensions
+from src.ops.teaching import TEMPLATE_FILTERS
 from src.plugins.registry import get_plugin_registry
 from src.settings.service import get_settings_service
 from src.text_to_board import text_to_board_array
@@ -97,7 +98,10 @@ async def get_template_variables():
                 "black": 70,
             },
             "symbols": ["sun", "star", "cloud", "rain", "snow", "storm", "fog", "partly", "heart", "check", "x"],
-            "filters": ["pad:N", "truncate:N", "wrap"],
+            # From the one roster the engine, the MCP instructions and the chat
+            # prompt all read, so the editor cannot advertise a different set
+            # (this list used to omit the real ``zeropad:N``).
+            "filters": [spelling for spelling, _summary in TEMPLATE_FILTERS],
             "formatting": {
                 "fill_space": {
                     "syntax": "{{fill_space}}",
