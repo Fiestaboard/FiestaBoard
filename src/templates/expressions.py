@@ -30,6 +30,7 @@ from calendar import monthrange
 from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import date, datetime, timedelta
+from functools import lru_cache
 from typing import Any
 
 from .colors import COLOR_CODES as _COLOR_CODES
@@ -1137,6 +1138,93 @@ def _math_ceil(x: float) -> float:
 
 
 # --------------------------------------------------------------------------- #
+# Text splitting and regular expressions
+#
+# Plugins expose composite strings ("72F / Sunny") that a template had no way
+# to take apart. SPLIT returns an array, so it composes with the array
+# functions below.
+#
+# The regex trio accepts a user-written pattern, and a template render drives
+# hardware on a loop -- a pattern with catastrophic backtracking would hang
+# that loop. ``_compile_user_pattern`` therefore caps the pattern length and
+# refuses nested quantifiers (the ``(a+)+`` shape), which is conservative: a
+# few legitimate patterns are rejected in exchange for a bounded render.
+# --------------------------------------------------------------------------- #
+
+
+_MAX_PATTERN_LENGTH = 120
+
+#: A quantifier applied to a group that itself contains one -- the classic
+#: exponential-backtracking shape.
+_NESTED_QUANTIFIER_RE = re.compile(r"\([^()]*[+*][^()]*\)\s*[+*{]")
+
+
+@lru_cache(maxsize=128)
+def _compile_user_pattern(pattern: str) -> re.Pattern[str]:
+    """Compile a user-supplied regex, refusing the dangerous shapes."""
+    if len(pattern) > _MAX_PATTERN_LENGTH:
+        raise FormulaError("#VALUE", f"pattern longer than {_MAX_PATTERN_LENGTH} characters")
+    if _NESTED_QUANTIFIER_RE.search(pattern):
+        raise FormulaError("#VALUE", "pattern nests quantifiers, which can hang a render")
+    try:
+        return re.compile(pattern)
+    except re.error as exc:
+        raise FormulaError("#VALUE", f"invalid pattern: {exc}") from exc
+
+
+def _fn_split(args: list[Any]) -> Any:
+    """``SPLIT(text[, separator])`` — an array of pieces.
+
+    With no separator, splits on runs of whitespace (the common case for a
+    plugin string like ``"72F / Sunny"``).
+    """
+    _expect_args("SPLIT", args, 1, 2)
+    err = _propagate(*args)
+    if err is not None:
+        return err
+    text = _to_string(args[0])
+    if len(args) == 1:
+        return text.split()
+    separator = _to_string(args[1])
+    if separator == "":
+        return list(text)
+    return text.split(separator)
+
+
+def _fn_regexmatch(args: list[Any]) -> Any:
+    _expect_args("REGEXMATCH", args, 2, 2)
+    err = _propagate(*args)
+    if err is not None:
+        return err
+    return _compile_user_pattern(_to_string(args[1])).search(_to_string(args[0])) is not None
+
+
+def _fn_regexextract(args: list[Any]) -> Any:
+    """``REGEXEXTRACT(text, pattern[, group])`` — blank when nothing matches."""
+    _expect_args("REGEXEXTRACT", args, 2, 3)
+    err = _propagate(*args)
+    if err is not None:
+        return err
+    match = _compile_user_pattern(_to_string(args[1])).search(_to_string(args[0]))
+    if match is None:
+        return ""
+    group = int(_to_number(args[2])) if len(args) == 3 else 0
+    try:
+        return match.group(group) or ""
+    except IndexError as exc:
+        raise FormulaError("#VALUE", f"REGEXEXTRACT: no capture group {group}") from exc
+
+
+def _fn_regexreplace(args: list[Any]) -> Any:
+    _expect_args("REGEXREPLACE", args, 3, 3)
+    err = _propagate(*args)
+    if err is not None:
+        return err
+    pattern = _compile_user_pattern(_to_string(args[1]))
+    return pattern.sub(_to_string(args[2]).replace("\\", "\\\\"), _to_string(args[0]))
+
+
+# --------------------------------------------------------------------------- #
 # Dates and times
 #
 # The language had no date support, so "days until launch" or "after 5pm?"
@@ -1569,11 +1657,39 @@ def _lazy_filter(nodes: list[_Node], context: dict[str, Any]) -> Any:
     return kept
 
 
+def _lazy_let(nodes: list[_Node], context: dict[str, Any]) -> Any:
+    """``LET(name, value, ..., body)`` — name a subexpression and reuse it.
+
+    Lazy because the bound names only exist while the body runs, and because
+    each value expression may refer to names bound before it. Bindings live in
+    the same reserved locals map as ``item``, so they disappear with the body
+    (``IFERROR(t, ...)`` outside a ``LET`` still sees ``#REF``).
+    """
+    if len(nodes) < 3 or len(nodes) % 2 == 0:
+        raise FormulaError("#VALUE", "LET: expected name/value pairs followed by one body expression")
+
+    scope = dict(context.get(_LOCALS_KEY) or {})
+    working = {**context, _LOCALS_KEY: scope}
+
+    for i in range(0, len(nodes) - 1, 2):
+        name_node = nodes[i]
+        if not isinstance(name_node, _Var) or "." in name_node.path:
+            raise FormulaError("#VALUE", "LET: binding names must be bare identifiers")
+        value = _eval_node(nodes[i + 1], working)
+        if _is_error(value):
+            return value
+        scope[name_node.path.lower()] = value
+        working = {**context, _LOCALS_KEY: scope}
+
+    return _eval_node(nodes[-1], working)
+
+
 #: Builtins that receive their *unevaluated* argument nodes plus the context,
 #: because they bind names (``item``) that only exist while they run.
 _LAZY_BUILTINS: dict[str, Callable[[list[_Node], dict[str, Any]], Any]] = {
     "FOREACH": _lazy_foreach,
     "FILTER": _lazy_filter,
+    "LET": _lazy_let,
     "NOW": _lazy_now,
     "TODAY": _lazy_today,
 }
@@ -1650,6 +1766,10 @@ _BUILTINS: dict[str, Callable[[list[Any]], Any]] = {
     "PADLEFT": _fn_padleft,
     "ZEROPAD": _fn_zeropad,
     "CENTER": _fn_center,
+    "SPLIT": _fn_split,
+    "REGEXMATCH": _fn_regexmatch,
+    "REGEXEXTRACT": _fn_regexextract,
+    "REGEXREPLACE": _fn_regexreplace,
     # Conversion / format
     "TEXT": _fn_text,
     "NUM": _fn_num,
@@ -1692,6 +1812,7 @@ _SIGNATURES: dict[str, tuple[str, str, str]] = {
     "MINOF": ("array", "MINOF(array[, field])", "Smallest value of a field"),
     "MAXOF": ("array", "MAXOF(array[, field])", "Largest value of a field"),
     # Logic
+    "LET": ("logic", "LET(name, value, ..., body)", "Name a value once and reuse it in body"),
     "IF": ("logic", "IF(cond, then[, else])", "Conditional value"),
     "IFS": ("logic", "IFS(c1, v1, c2, v2, ...[, def])", "First matching condition's value"),
     "SWITCH": ("logic", "SWITCH(x, m1, r1, ...[, def])", "Match value against options"),
@@ -1740,6 +1861,10 @@ _SIGNATURES: dict[str, tuple[str, str, str]] = {
     "PADLEFT": ("text", "PADLEFT(s, width)", "Left-pad to width"),
     "ZEROPAD": ("text", "ZEROPAD(s, width)", "Left-pad with zeros to width (e.g. 1 -> 01)"),
     "CENTER": ("text", "CENTER(s, width)", "Center within width"),
+    "SPLIT": ("text", "SPLIT(text[, sep])", "Split text into an array (default: whitespace)"),
+    "REGEXMATCH": ("text", "REGEXMATCH(text, pattern)", "True if the pattern matches"),
+    "REGEXEXTRACT": ("text", "REGEXEXTRACT(text, pattern[, group])", "First match or capture group; blank if none"),
+    "REGEXREPLACE": ("text", "REGEXREPLACE(text, pattern, repl)", "Replace every match"),
     # Conversion
     "TEXT": ("convert", "TEXT(x)", "Convert to string"),
     "NUM": ("convert", "NUM(x)", "Convert to number"),
@@ -2020,7 +2145,7 @@ def validate_expression(
         issues.append(ExpressionIssue(exc.code, exc.message, exc.pos))
         return issues
 
-    def _walk(node: _Node) -> None:
+    def _walk(node: _Node, bound: set[str]) -> None:
         if isinstance(node, _Call):
             if node.name not in _BUILTINS and node.name not in _LAZY_BUILTINS:
                 issues.append(
@@ -2032,14 +2157,28 @@ def validate_expression(
                 )
             else:
                 _check_arity(node, issues)
+            if node.name == "LET":
+                # Names LET binds are not plugin sources. Each value expression
+                # sees the names bound before it; the body sees them all.
+                names: set[str] = set()
+                for i in range(0, max(len(node.args) - 1, 0), 2):
+                    if i + 1 < len(node.args):
+                        _walk(node.args[i + 1], bound | names)
+                    target = node.args[i]
+                    if isinstance(target, _Var) and "." not in target.path:
+                        names.add(target.path.lower())
+                if node.args:
+                    _walk(node.args[-1], bound | names)
+                return
             for child in node.args:
-                _walk(child)
+                _walk(child, bound)
         elif isinstance(node, _Var):
             if known_sources is not None:
                 source = node.path.split(".", 1)[0].split(":", 1)[0].lower()
-                # ``item``/``index`` are bound by FOREACH/FILTER at render time,
-                # not plugin sources — the editor must not flag them.
-                if source in LOOP_LOCAL_NAMES:
+                # ``item``/``index`` are bound by FOREACH/FILTER at render time
+                # and LET binds its own names — none are plugin sources, so the
+                # editor must not flag them.
+                if source in LOOP_LOCAL_NAMES or source in bound:
                     return
                 if source not in known_sources:
                     issues.append(
@@ -2050,12 +2189,12 @@ def validate_expression(
                         )
                     )
         elif isinstance(node, _Unary):
-            _walk(node.operand)
+            _walk(node.operand, bound)
         elif isinstance(node, _Binary):
-            _walk(node.left)
-            _walk(node.right)
+            _walk(node.left, bound)
+            _walk(node.right, bound)
 
-    _walk(tree)
+    _walk(tree, set())
     return issues
 
 
@@ -2076,6 +2215,11 @@ _ARITY: dict[str, tuple[int, int | None]] = {
     "DATEDIFF": (2, 3),
     "DATEADD": (2, 3),
     "FORMATDATE": (2, 2),
+    "LET": (3, None),
+    "SPLIT": (1, 2),
+    "REGEXMATCH": (2, 2),
+    "REGEXEXTRACT": (2, 3),
+    "REGEXREPLACE": (3, 3),
     "COUNT": (1, 1),
     "AT": (2, 3),
     "FOREACH": (2, 3),
