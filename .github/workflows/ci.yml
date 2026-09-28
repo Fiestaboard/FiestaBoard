@@ -138,7 +138,8 @@ jobs:
           # do NOT silently allow all licenses.
           allow-licenses: >-
             MIT, Apache-2.0, BSD-2-Clause, BSD-3-Clause, ISC, 0BSD,
-            CC0-1.0, Unlicense, Python-2.0, MPL-2.0, Zlib, BlueOak-1.0.0
+            CC0-1.0, Unlicense, Python-2.0, MPL-2.0, Zlib, BlueOak-1.0.0,
+            CNRI-Python
           # Per-package exceptions for deps whose license isn't on the
           # general allow-list but which we've reviewed and accepted.
           # - caniuse-lite ships browser-compat *data* under CC-BY-4.0 (the
@@ -150,6 +151,9 @@ jobs:
           #   by Google Fonts; the JS wrapper / package metadata is MIT.
           #   Self-hosted (HA-Ingress-safe) via @fiestaboard/ui, which
           #   replaced Geist with these faces in v5.0.0.
+          # - regex is dual-licensed under Apache-2.0 and CNRI-Python (the
+          #   historical CNRI Python license used before Python 2.0). Both
+          #   are permissive open-source licenses.
           # - zeroconf is LGPL-2.1-only. It has shipped in requirements.txt
           #   since well before this allow-list existed; Dependency Review
           #   only flags it when the pin moves, because a version change
@@ -160,6 +164,7 @@ jobs:
           #   made in practice rather than granting anything new.
           allow-dependencies-licenses: >-
             pkg:pypi/zeroconf,
+            pkg:pypi/regex,
             pkg:npm/caniuse-lite,
             pkg:npm/%40fontsource-variable/archivo,
             pkg:npm/%40fontsource-variable/spline-sans-mono
