@@ -256,6 +256,22 @@ def test_prompt_teaches_iteration_not_only_indexing():
     assert "one line\n  per possible item" in sp or "per possible item" in sp
 
 
+def test_prompt_names_both_array_printing_failures():
+    """Printing an array fails differently in each syntax; the model needs both.
+
+    `{{= mlb.games }}` short-circuits to `#VALUE`, but plain substitution
+    `{{mlb.games}}` goes through TemplateEngine._get_variable_value, which
+    returns `???` for a list or dict. The prompt used to name only `#VALUE`,
+    leaving plain substitution looking like the way to print an array.
+    """
+    sp = build_prompt("x", "flagship").system_prompt
+    # Each syntax must be named next to the marker it actually produces. A bare
+    # `"#VALUE" in sp` proves nothing — the prompt already used that token twice
+    # before this teaching existed.
+    assert "`{{= mlb.games }}`\n    renders `#VALUE`" in sp
+    assert "`{{mlb.games}}` renders `???`" in sp
+
+
 def test_prompt_scope_message_calls_out_current_instance():
     # The variables block should make it clear to the model that the
     # listed plugins are the ones enabled on THIS instance, not the

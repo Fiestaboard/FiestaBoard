@@ -1202,6 +1202,76 @@ class TestMCPResources:
         assert "temperature" in result
         assert "openweather" in result
 
+    def test_variables_resource_does_not_offer_arrays_as_substitutions(self, mcp, mock_registry):
+        """An array variable is not printable, so the resource must not offer it as one.
+
+        `{{mlb.games}}` renders the literal "???" (TemplateEngine returns that
+        for a list or dict) and `{{= mlb.games }}` renders "#VALUE". The
+        resource used to walk the catalog generically and advertise every entry
+        — arrays included — as a `{{plugin.variable}}` substitution.
+        """
+        mock_registry.get_all_variables_with_metadata.return_value = {
+            "mlb": {
+                "games": {
+                    "type": "array",
+                    "description": "Today's games",
+                    "item_fields": ["score1", "team1"],
+                    "label_field": "team1",
+                },
+                "team_name": {"description": "Followed team", "example": "Giants"},
+            }
+        }
+        with patch("src.plugins.get_plugin_registry", return_value=mock_registry):
+            result = _call_resource(mcp, "fiestaboard://variables")
+
+        assert "{{mlb.games}}" not in result
+        # Both functions, not "either" — a disjunction lets half the line rot.
+        assert "COUNT(mlb.games)" in result
+        assert "FOREACH(mlb.games" in result
+        assert "Today's games" in result
+        # The plain variable alongside it is still a substitution.
+        assert "{{mlb.team_name}}" in result
+
+    def test_variables_resource_iterates_an_arrays_label_field(self, mcp, mock_registry):
+        """The FOREACH example must use the manifest's label_field.
+
+        `label_field` is the field the plugin considers an item's headline, so
+        it is the one worth showing. Sorting the item fields and taking the
+        first would pick `away_team` here, which teaches the model to iterate
+        an arbitrary column.
+        """
+        mock_registry.get_all_variables_with_metadata.return_value = {
+            "mlb": {
+                "games": {
+                    "type": "array",
+                    "description": "Today's games",
+                    "item_fields": ["away_team", "team1"],
+                    "label_field": "team1",
+                }
+            }
+        }
+        with patch("src.plugins.get_plugin_registry", return_value=mock_registry):
+            result = _call_resource(mcp, "fiestaboard://variables")
+
+        assert "FOREACH(mlb.games, item.team1, 4)" in result
+        assert "item.away_team" not in result
+
+    def test_variables_resource_treats_item_fields_alone_as_an_array(self, mcp, mock_registry):
+        """`type` is absent for an array a plugin declared without one.
+
+        The branch is `type == "array" or item_fields` precisely so a catalog
+        entry carrying item fields but no explicit type is still not offered as
+        a substitution.
+        """
+        mock_registry.get_all_variables_with_metadata.return_value = {
+            "mlb": {"games": {"description": "Today's games", "item_fields": ["team1"]}}
+        }
+        with patch("src.plugins.get_plugin_registry", return_value=mock_registry):
+            result = _call_resource(mcp, "fiestaboard://variables")
+
+        assert "{{mlb.games}}" not in result
+        assert "COUNT(mlb.games)" in result
+
     def test_schedules_resource(self, mcp, mock_schedule_service):
         with patch("src.schedules.service.get_schedule_service", return_value=mock_schedule_service):
             result = _call_resource(mcp, "fiestaboard://schedules")

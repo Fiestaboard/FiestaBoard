@@ -574,8 +574,8 @@ def build_prompt(
         "    Inside `FOREACH`/`FILTER`, `item` is the current item and\n"
         "    `index` its 1-based position. `FILTER`, `SORT`, `SLICE`,\n"
         "    `JOIN` and `SUMOF`/`AVGOF`/`MINOF`/`MAXOF` compose with it.\n"
-        "    An array can never be printed directly — that renders\n"
-        "    `#VALUE`.\n"
+        "    An array can never be printed directly: `{{= mlb.games }}`\n"
+        "    renders `#VALUE` and `{{mlb.games}}` renders `???`.\n"
         "- DATES. `NOW()`/`TODAY()` are the board's clock;\n"
         "  `DATEDIFF(TODAY(), DATE(x))` counts whole days, and\n"
         '  `FORMATDATE(d, "ddd MMM DD")` formats one. Prefer these over\n'
