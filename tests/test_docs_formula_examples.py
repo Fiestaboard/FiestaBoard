@@ -185,7 +185,9 @@ CTX = {
         # Text section
         ('JOIN(SPLIT(weather.summary), "|")', "72F|/|Sunny"),
         ('REGEXEXTRACT(weather.summary, "[0-9]+")', "72"),
-        ('REGEXMATCH(weather.summary, "(a+)+b")', "#VALUE"),
+        # The page no longer claims a pattern is refused for its shape: this
+        # one is simply run, and on a short subject it finishes and answers.
+        ('REGEXMATCH(weather.summary, "(a+)+b")', "No"),
         # Cookbook
         ('COUNT(mlb.games) & " GAMES"', "3 GAMES"),
         (

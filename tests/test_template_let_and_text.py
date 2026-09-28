@@ -7,7 +7,9 @@ plugins expose composite strings (``"72F / Sunny"``) that a template had no
 way to take apart.
 """
 
-from src.templates.expressions import evaluate, validate_expression
+import time
+
+from src.templates.expressions import _MATCH_TIMEOUT_SECONDS, evaluate, validate_expression
 
 CTX = {
     "weather": {"summary": "72F / Sunny", "temp": 72},
@@ -91,60 +93,82 @@ class TestRegex:
     def test_invalid_pattern_is_a_value_error(self):
         assert evaluate('REGEXMATCH(board.tags, "([")', CTX) == "#VALUE"
 
-    def test_nested_quantifier_pattern_is_refused(self):
-        # A render drives hardware on a loop; catastrophic backtracking is
-        # refused up front rather than hung on.
-        assert evaluate('REGEXMATCH(board.tags, "(a+)+b")', CTX) == "#VALUE"
+    def test_a_catastrophic_pattern_is_abandoned_rather_than_run_forever(self):
+        # A render drives hardware on a loop. This pattern backtracks
+        # exponentially on a long run of ``a``; the match is abandoned at the
+        # timeout and reported as #VALUE instead of stalling the loop.
+        assert evaluate('REGEXMATCH(p.t, "(a+)+$")', {"p": {"t": "a" * 4096 + "!"}}) == "#VALUE"
+
+    def test_the_same_pattern_on_a_short_subject_just_answers(self):
+        # Nothing is refused for its shape any more, so a pattern that happens
+        # to finish returns its real answer.
+        assert evaluate('REGEXMATCH(board.tags, "(a+)+b")', CTX) == "No"
 
     def test_overlong_pattern_is_refused(self):
         long_pattern = "a" * 200
         assert evaluate(f'REGEXMATCH(board.tags, "{long_pattern}")', CTX) == "#VALUE"
 
 
-class TestRegexBacktrackingGuard:
-    """Every shape that backtracks exponentially is refused, not run.
+class TestCatastrophicPatternsAreBounded:
+    """No pattern can run longer than the match timeout, whatever its shape.
 
-    The guard originally only recognised a quantifier *nested inside* a
-    group (``(a+)+``), so the alternation shapes below compiled and ran —
-    ``REGEXMATCH(p.s, "(a|a)+b")`` against 32 ``a``s never returned.
+    This used to be a blacklist of dangerous pattern shapes, and it was proved
+    unsound three times: refusing a nested quantifier missed ``(a|a)+b``;
+    refusing any quantified group missed ``((a)|(a))*$`` and the group-free
+    ``a*a*a*a*a*a*a*a*a*b``. Every widening also refused more legitimate
+    patterns. The bound is now on the work — ``regex`` abandons a match past
+    ``_MATCH_TIMEOUT_SECONDS`` — so the shape no longer matters.
     """
 
-    #: Each of these ran to exponential time against ``"a" * 32`` at some point
-    #: in this guard's life. The last four are the families that survived the
-    #: first widening: nesting hides the quantified group one level down, and
-    #: the sequential-quantifier shapes have no group for the rule to match.
+    #: Each of these defeated some earlier version of the shape blacklist.
     CATASTROPHIC = (
-        "(a+)+b",
-        "(a|a)+b",
-        "(a|ab)*c",
-        "(?:a|a)+b",
+        "(a+)+$",
+        "(a|a)+$",
+        "(a|ab)*$",
+        "(?:a|a)+$",
         "((a)|(a))*$",
         "((a|a))*$",
-        "a*a*a*a*a*a*a*a*a*b",
-        "^[a-z]*[a-z]*[a-z]*[a-z]*[a-z]*$",
     )
 
-    def test_every_catastrophic_shape_is_refused(self):
-        for pattern in self.CATASTROPHIC:
-            assert evaluate(f'REGEXMATCH(board.tags, "{pattern}")', CTX) == "#VALUE", pattern
+    #: Long enough that every pattern above backtracks past the timeout. A
+    #: plugin returning a long text blob is ordinary, so this is not exotic.
+    SUBJECT = "a" * 4096 + "!"
 
-    def test_refusal_precedes_the_match_on_a_pathological_input(self):
-        # The refusal has to happen at compile time: on this input the
-        # patterns below take exponential time to report "no match".
-        ctx = {"p": {"s": "a" * 32}}
+    def test_every_catastrophic_shape_is_abandoned_at_the_timeout(self):
         for pattern in self.CATASTROPHIC:
-            assert evaluate(f'REGEXMATCH(p.s, "{pattern}")', ctx) == "#VALUE", pattern
+            assert evaluate(f'REGEXMATCH(p.t, "{pattern}")', {"p": {"t": self.SUBJECT}}) == "#VALUE", pattern
+
+    def test_abandoning_takes_about_the_timeout_not_forever(self):
+        """Pins that the cost is the budget, not that it merely terminates.
+
+        Without a bound these patterns do not finish at all, so a plain
+        assertion that the loop returned would be satisfied by any
+        implementation that eventually completes — including one that takes
+        minutes.
+        """
+        budget = len(self.CATASTROPHIC) * _MATCH_TIMEOUT_SECONDS
+        start = time.perf_counter()
+        for pattern in self.CATASTROPHIC:
+            evaluate(f'REGEXMATCH(p.t, "{pattern}")', {"p": {"t": self.SUBJECT}})
+        elapsed = time.perf_counter() - start
+        assert elapsed < budget * 3, (
+            f"{len(self.CATASTROPHIC)} abandoned matches took {elapsed:.2f}s; each should cost about "
+            f"{_MATCH_TIMEOUT_SECONDS}s. The timeout in src/templates/expressions.py is not being applied."
+        )
 
     def test_a_group_without_a_quantifier_still_compiles(self):
         assert evaluate('REGEXEXTRACT(weather.summary, "([0-9]+)F", 1)', CTX) == "72"
 
-    def test_patterns_a_board_actually_needs_are_not_collateral(self):
-        """The rules are blunt; they must not be blunt enough to be useless.
+    def test_patterns_the_old_shape_blacklist_refused_now_work(self):
+        r"""The cost of guessing from shape: these are ordinary and were banned.
 
-        Every pattern here is one a plugin string realistically wants, and each
-        sits just inside a rule: two capture groups (neither quantified), and
-        three quantifiers (the cap).
+        ``(ab)+`` is a repeated group and ``\d+/\d+/\d+`` carries more
+        quantifiers than the old cap allowed. Neither can backtrack badly.
         """
+        assert evaluate('REGEXMATCH("abab", "^(ab)+$")', CTX) == "Yes"
+        assert evaluate('REGEXEXTRACT("on 12/25/2026 ok", "\\\\d+/\\\\d+/\\\\d+")', CTX) == "12/25/2026"
+
+    def test_patterns_a_board_actually_needs_are_not_collateral(self):
         assert evaluate('REGEXEXTRACT("72F / Sunny", "([0-9]+)F / (\\\\w+)", 2)', CTX) == "Sunny"
         assert evaluate('REGEXMATCH("ABC-123", "^[A-Z]{3}-[0-9]+$")', CTX) == "Yes"
         assert evaluate('REGEXREPLACE("a  b   c", "\\\\s+", " ")', CTX) == "a b c"

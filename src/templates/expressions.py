@@ -33,6 +33,8 @@ from datetime import date, datetime, timedelta
 from functools import lru_cache
 from typing import Any
 
+import regex as _regex
+
 from .colors import COLOR_CODES as _COLOR_CODES
 from .colors import is_color_code as _is_color_code
 
@@ -1145,53 +1147,60 @@ def _math_ceil(x: float) -> float:
 # functions below.
 #
 # The regex trio accepts a user-written pattern, and a template render drives
-# hardware on a loop -- a pattern with catastrophic backtracking would stall
-# that loop. ``_compile_user_pattern`` refuses the two shapes that produce it:
+# hardware on a loop -- a pattern that backtracks catastrophically would stall
+# that loop forever.
 #
-# * **a quantifier applied to a group.** ``(a+)+b`` is the textbook case, but
-#   the alternation forms ``(a|a)+b`` and ``(a|ab)*c`` blow up just as hard
-#   without nesting a quantifier, and ``((a)|(a))*$`` hides the whole thing one
-#   level down. Matching the closing paren rather than the group's contents
-#   catches all of them. Blunt on purpose -- a harmless ``(ab)+`` goes too.
-# * **more than a few quantifiers in sequence.** ``a*a*a*a*a*a*a*a*a*b`` has no
-#   group at all, so the rule above cannot see it; the cost is exponential in
-#   the number of adjacent quantifiers. Three is past anything a board line
-#   needs and keeps the worst accepted pattern under a second.
+# This used to be defended with a blacklist of dangerous pattern *shapes*.
+# That approach is unsound and was repeatedly proved so: refusing a nested
+# quantifier (``(a+)+b``) missed the alternation forms (``(a|a)+b``); refusing
+# any quantified group missed nesting (``((a)|(a))*$``) and the shapes with no
+# group at all (``a*a*a*a*a*a*a*a*a*b``). Each widening also refused more
+# legitimate patterns, and none of them could ever be a proof -- the next
+# unenumerated shape still hung the board.
 #
-# This is a shape blacklist, not a proof: ``re`` has no timeout, so the only
-# real bound would be the third-party ``regex`` module's ``timeout=``. What the
-# rules below buy is that every exponential family we could construct or fuzz
-# out (63k generated patterns against a 200-char subject) is refused. Say
-# "refuses the known exponential shapes", never "cannot hang".
+# So the bound is now on the WORK, not the pattern: ``regex`` (unlike the
+# stdlib ``re``) accepts ``timeout=``, and abandons a match that exceeds it.
+# Any pattern at all is allowed to compile; one that cannot finish in
+# ``_MATCH_TIMEOUT_SECONDS`` yields ``#VALUE`` instead of running forever.
+# ``regex`` is a superset of ``re``, so every pattern that worked still does.
 # --------------------------------------------------------------------------- #
 
 
 _MAX_PATTERN_LENGTH = 120
 
-#: More quantifiers than this in one pattern is refused. See above.
-_MAX_QUANTIFIERS = 3
-
-#: A quantifier applied to a group -- matched on the closing paren, so a group
-#: nesting other groups is caught too.
-_QUANTIFIED_GROUP_RE = re.compile(r"\)\s*[+*{]")
-
-#: Unbounded/counted repetition. ``?`` is excluded: it cannot blow up.
-_QUANTIFIER_RE = re.compile(r"[+*]|\{\d+(?:,\d*)?\}")
+#: Wall-clock a single user regex may spend before it is abandoned. A render
+#: may run several (``FOREACH`` evaluates its row expression per item), so this
+#: is deliberately far below a render's budget rather than a comfortable slice
+#: of it. Nothing legitimate comes close: the patterns a board needs finish in
+#: microseconds.
+_MATCH_TIMEOUT_SECONDS = 0.1
 
 
 @lru_cache(maxsize=128)
-def _compile_user_pattern(pattern: str) -> re.Pattern[str]:
-    """Compile a user-supplied regex, refusing the known exponential shapes."""
+def _compile_user_pattern(pattern: str) -> _regex.Pattern[str]:
+    """Compile a user-supplied regex. Only the length is judged up front."""
     if len(pattern) > _MAX_PATTERN_LENGTH:
         raise FormulaError("#VALUE", f"pattern longer than {_MAX_PATTERN_LENGTH} characters")
-    if _QUANTIFIED_GROUP_RE.search(pattern):
-        raise FormulaError("#VALUE", "pattern repeats a group, which can stall a render")
-    if len(_QUANTIFIER_RE.findall(pattern)) > _MAX_QUANTIFIERS:
-        raise FormulaError("#VALUE", f"pattern uses more than {_MAX_QUANTIFIERS} quantifiers, which can stall a render")
     try:
-        return re.compile(pattern)
-    except re.error as exc:
+        return _regex.compile(pattern)
+    except _regex.error as exc:
         raise FormulaError("#VALUE", f"invalid pattern: {exc}") from exc
+
+
+def _search_bounded(pattern: _regex.Pattern[str], text: str) -> Any:
+    """``pattern.search(text)``, abandoned if it backtracks past the budget."""
+    try:
+        return pattern.search(text, timeout=_MATCH_TIMEOUT_SECONDS)
+    except TimeoutError as exc:
+        raise FormulaError("#VALUE", f"pattern took longer than {_MATCH_TIMEOUT_SECONDS}s to match") from exc
+
+
+def _sub_bounded(pattern: _regex.Pattern[str], replacement: str, text: str) -> str:
+    """``pattern.sub(...)``, abandoned if it backtracks past the budget."""
+    try:
+        return pattern.sub(replacement, text, timeout=_MATCH_TIMEOUT_SECONDS)
+    except TimeoutError as exc:
+        raise FormulaError("#VALUE", f"pattern took longer than {_MATCH_TIMEOUT_SECONDS}s to match") from exc
 
 
 def _fn_split(args: list[Any]) -> Any:
@@ -1218,7 +1227,7 @@ def _fn_regexmatch(args: list[Any]) -> Any:
     err = _propagate(*args)
     if err is not None:
         return err
-    return _compile_user_pattern(_to_string(args[1])).search(_to_string(args[0])) is not None
+    return _search_bounded(_compile_user_pattern(_to_string(args[1])), _to_string(args[0])) is not None
 
 
 def _fn_regexextract(args: list[Any]) -> Any:
@@ -1227,7 +1236,7 @@ def _fn_regexextract(args: list[Any]) -> Any:
     err = _propagate(*args)
     if err is not None:
         return err
-    match = _compile_user_pattern(_to_string(args[1])).search(_to_string(args[0]))
+    match = _search_bounded(_compile_user_pattern(_to_string(args[1])), _to_string(args[0]))
     if match is None:
         return ""
     group = int(_to_number(args[2])) if len(args) == 3 else 0
@@ -1243,7 +1252,7 @@ def _fn_regexreplace(args: list[Any]) -> Any:
     if err is not None:
         return err
     pattern = _compile_user_pattern(_to_string(args[1]))
-    return pattern.sub(_to_string(args[2]).replace("\\", "\\\\"), _to_string(args[0]))
+    return _sub_bounded(pattern, _to_string(args[2]).replace("\\", "\\\\"), _to_string(args[0]))
 
 
 # --------------------------------------------------------------------------- #

@@ -22,6 +22,7 @@ from unittest.mock import patch
 import pytest
 
 from src.templates.engine import TemplateEngine
+from src.templates.expressions import _MATCH_TIMEOUT_SECONDS
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 
@@ -206,33 +207,38 @@ class TestFiltersOnAWrappedVariable:
         ]
 
 
-#: Patterns whose only defence is the guard in ``_compile_user_pattern``:
-#: every one of them backtracks exponentially if it is ever compiled and run
-#: against ``ADVERSARIAL_SUBJECT``.
+#: Patterns that backtrack exponentially against ``ADVERSARIAL_SUBJECT``.
+#: Nothing refuses them for their shape any more — each one is started and
+#: then abandoned at the match timeout.
 ADVERSARIAL_EXPRESSIONS = [
     'REGEXMATCH(plugin.text, "(a+)+$")',
     'REGEXMATCH(plugin.text, "(a|a)*$")',
     'REGEXMATCH(plugin.text, "(a|aa)+$")',
     'REGEXMATCH(plugin.text, "(?:a|a)*$")',
-    'REGEXMATCH(plugin.text, "^(a?){24}a{24}$")',
-    'REGEXEXTRACT(plugin.text, "^(a|ab)*$")',
     'REGEXREPLACE(plugin.text, "(a*)*$", "x")',
-    # Nesting puts the quantified group one level down, where a rule that
-    # inspected a group's contents could not see it.
+    # Nesting put the quantified group one level down, out of reach of a rule
+    # that inspected a group's contents.
     'REGEXMATCH(plugin.text, "((a)|(a))*$")',
     'REGEXMATCH(plugin.text, "((a|a))*$")',
-    # No group at all: the cost is in the run of adjacent quantifiers.
-    'REGEXMATCH(plugin.text, "a*a*a*a*a*a*a*a*a*b")',
-    'REGEXMATCH(plugin.text, "^[a-z]*[a-z]*[a-z]*[a-z]*[a-z]*$")',
 ]
 
-#: 64 a's and a final character that cannot match — the shape that forces a
-#: backtracking engine to try every partition of the run.
-ADVERSARIAL_SUBJECT = "a" * 64 + "!"
+#: Shapes that defeated the old shape blacklist but that ``regex`` optimises
+#: away, so they finish instantly and cannot exercise the timeout:
+#: ``a*a*a*a*a*a*a*a*a*b``, ``^(a?){24}a{24}$``, ``^(a|ab)*$``,
+#: ``^[a-z]*[a-z]*[a-z]*[a-z]*[a-z]*$``. They are covered as ordinary
+#: expressions by tests/test_template_let_and_text.py; asserting they are
+#: abandoned here would pin an implementation detail of the regex engine.
 
-#: Evaluated in a child process so a runaway regex can be killed. A signal
-#: alarm would not do: ``re`` matches in C without releasing the GIL, so
-#: neither a handler nor a watchdog thread runs until the match returns.
+#: A long run of a's and a final character that cannot match — the shape that
+#: forces a backtracking engine to try every partition of the run. Long enough
+#: that each pattern above exceeds the timeout rather than finishing early.
+ADVERSARIAL_SUBJECT = "a" * 4096 + "!"
+
+#: Evaluated in a child process so a runaway regex can be killed. The timeout
+#: should make that unnecessary — reaching the kill IS the failure — but if it
+#: ever stops being applied, this is what keeps the suite from hanging. A
+#: signal alarm would not do: matching happens in C without releasing the GIL,
+#: so neither a handler nor a watchdog thread runs until the match returns.
 _TIMING_PROBE = """
 import json
 import sys
@@ -253,19 +259,18 @@ print(json.dumps({"seconds": time.perf_counter() - start, "results": results}))
 REGEX_HARD_TIMEOUT_SECONDS = 30.0
 
 
-class TestKnownExponentialPatternsAreRefusedNotRun:
-    """Every pattern below is refused before the regex engine sees it.
+class TestUserRegexesAreTimeBounded:
+    """A user regex cannot outrun its budget, whatever shape it is.
 
-    Read the scope carefully: this is NOT a proof that a user regex cannot
-    stall a render. ``re`` has no timeout, the guard in
-    ``_compile_user_pattern`` is a shape blacklist, and a shape nobody has
-    thought of would sail past it. What this pins is that each family we know
-    backtracks exponentially — including the nested and sequential-quantifier
-    ones that a narrower rule let through — is still refused at compile time,
-    so re-narrowing the guard fails here instead of stalling a board.
+    The name is now literal. This used to head a shape blacklist, where it was
+    a lie: the blacklist was proved incomplete three separate times, so the
+    class asserted a property the code did not have. ``regex`` takes a
+    ``timeout=``, so the bound is real and the assertions below say what they
+    mean — each pattern is *started* and then abandoned, costing about the
+    timeout rather than never returning.
     """
 
-    def test_adversarial_patterns_are_refused_before_they_can_run(self):
+    def test_adversarial_patterns_are_abandoned_rather_than_run_to_completion(self):
         try:
             probe = subprocess.run(
                 [sys.executable, "-c", _TIMING_PROBE, json.dumps(ADVERSARIAL_EXPRESSIONS), ADVERSARIAL_SUBJECT],
@@ -297,10 +302,21 @@ class TestKnownExponentialPatternsAreRefusedNotRun:
         # because each pattern was REFUSED, not because it happened to match
         # early. A wall-clock budget here would be dead code — a refusal costs
         # microseconds, so any threshold loose enough not to flake is unreachable.
-        refused = [result for result in report["results"] if result == "#VALUE"]
-        assert len(refused) == len(ADVERSARIAL_EXPRESSIONS), (
-            "every known-exponential pattern must be refused with #VALUE at compile time; got "
-            f"{report['results']}. A pattern that returned a match result reached the regex "
-            "engine, which means the guard in src/templates/expressions.py stopped covering "
-            "its shape — the next subject string could stall a board render."
+        abandoned = [result for result in report["results"] if result == "#VALUE"]
+        assert len(abandoned) == len(ADVERSARIAL_EXPRESSIONS), (
+            f"every pattern here backtracks exponentially on a {len(ADVERSARIAL_SUBJECT)}-character "
+            f"subject and must be abandoned as #VALUE; got {report['results']}. A pattern that "
+            "returned a match result finished, which means it is no longer adversarial and this "
+            "test has stopped exercising the timeout."
+        )
+
+        # The bound itself, not merely that the loop ended. Each abandoned match
+        # costs about the timeout, so the total has a predictable ceiling; a
+        # timeout that stopped being applied blows through it long before the
+        # child's hard kill would fire.
+        ceiling = len(ADVERSARIAL_EXPRESSIONS) * _MATCH_TIMEOUT_SECONDS * 3
+        assert report["seconds"] < ceiling, (
+            f"{len(ADVERSARIAL_EXPRESSIONS)} abandoned matches took {report['seconds']:.2f}s, over the "
+            f"{ceiling:.2f}s ceiling. The timeout in src/templates/expressions.py is not bounding "
+            "user-supplied patterns any more."
         )
