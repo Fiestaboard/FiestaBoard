@@ -192,9 +192,7 @@ class TestDataCaps:
                 rows = board.rows if board else 6
                 cols = board.cols if board else 22
                 items = [f"ITEM{n}"[:cols] for n in range(min(10, max(0, rows - 1)))]
-                return PluginResult(
-                    available=True, data={}, formatted_lines=["HDR".center(cols), *items]
-                )
+                return PluginResult(available=True, data={}, formatted_lines=["HDR".center(cols), *items])
 
         violations, counts = check_growth(CappedAt10)
         assert counts == {"15x3": 3, "15x12": 11, "15x24": 11}, counts
