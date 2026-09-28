@@ -770,7 +770,7 @@ class TestFunctionSignatures:
             assert set(info.keys()) == {"category", "signature", "summary"}
             assert info["signature"].startswith(name)
             assert info["summary"]
-            assert info["category"] in {"logic", "math", "text", "convert", "color"}
+            assert info["category"] in {"logic", "math", "text", "convert", "color", "date", "array"}
 
     def test_categories_balance(self):
         from src.templates.expressions import function_signatures

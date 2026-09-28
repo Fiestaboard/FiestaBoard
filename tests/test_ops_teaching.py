@@ -28,6 +28,9 @@ from src.templates.expressions import function_signatures
         ("pad:5", "7", "7    "),
         ("truncate:2", "SUNNY", "SU"),
         ("zeropad:3", "7", "007"),
+        ("upper", "sunny", "SUNNY"),
+        ("lower", "SUNNY", "sunny"),
+        ("upper|truncate:3", "sunny", "SUN"),
     ],
 )
 def test_advertised_value_filters_are_implemented_by_the_engine(spelling, value, expected):
@@ -40,15 +43,17 @@ def test_advertised_wrap_filter_is_recognized_by_the_engine():
     assert found is not None, "the teaching text advertises |wrap but the engine no longer detects it"
 
 
-def test_the_filters_the_old_mcp_copy_invented_still_do_not_exist():
-    """``|upper`` and ``|lower`` were taught by the stale MCP text but were
-    never implemented — a value passes through them unchanged. If the engine
-    ever grows them, TEMPLATE_FILTERS (and this test) must be updated."""
+def test_a_filter_nobody_implements_is_still_a_no_op():
+    """``|upper``/``|lower`` were taught by the stale MCP text before they
+    existed; they are implemented now (and advertised). Anything else still
+    passes a value through untouched — ``validate_template`` is what tells the
+    author about it, not a rendered error on the board."""
     engine = TemplateEngine.__new__(TemplateEngine)
-    assert engine._apply_filter("sunny", "upper:1") == "sunny"
+    assert engine._apply_filter("sunny", "shout") == "sunny"
+    assert engine._apply_filter("sunny", "upper:1") == "sunny"  # upper takes no argument
+
     advertised = {spelling.split(":")[0] for spelling, _ in teaching.TEMPLATE_FILTERS}
-    assert "upper" not in advertised
-    assert "lower" not in advertised
+    assert {"upper", "lower"} <= advertised
 
 
 def test_every_advertised_filter_appears_in_the_syntax_block():

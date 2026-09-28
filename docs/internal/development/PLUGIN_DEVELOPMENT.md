@@ -357,12 +357,27 @@ For plugins that expose lists of items (transit stops, stock tickers, locations)
 }
 ```
 
-In templates, arrays are accessed by index:
+In templates, one item is reached by index:
 
 ```jinja
-{{my_plugin.locations.0.name}}: {{my_plugin.locations.0.temperature}}°F
-{{my_plugin.locations.1.name}}: {{my_plugin.locations.1.temperature}}°F
+{{my_plugin.locations.0.name}}: {{my_plugin.locations.0.temperature}}F
 ```
+
+But page authors mostly consume the whole array through the formula functions,
+which means **what you declare here is what they can use**:
+
+```jinja
+{{= COUNT(my_plugin.locations) }} SITES
+{{= FOREACH(my_plugin.locations, item.name & PADLEFT(item.temperature, 4), 4) }}
+```
+
+Two consequences for a plugin author:
+
+- **Declare the array.** An undeclared list is skipped by auto-discovery, so it
+  reaches no template, no autocomplete, and no AI surface.
+- **Set `label_field`.** It is the field the editor uses as an item's heading
+  and the one FiestaBot puts in the `FOREACH` example it is shown, so make it
+  the field that identifies an item.
 
 The editor shows an expandable list of items with their label field as the heading.
 

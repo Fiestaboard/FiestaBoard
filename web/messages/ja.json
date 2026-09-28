@@ -1907,6 +1907,8 @@
     "categoryText": "テキスト",
     "categoryConversion": "変換",
     "categoryColor": "色",
+    "categoryArray": "配列",
+    "categoryDate": "日付",
     "clickToEditFormula": "クリックして数式を編集",
     "newFormula": "新しい数式",
     "loading": "読み込み中…"

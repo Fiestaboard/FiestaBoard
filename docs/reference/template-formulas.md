@@ -174,6 +174,103 @@ Custom user‑defined functions are intentionally **not supported**.
 | `ZEROPAD(s, w)` | Left‑pad to `w` chars with zeros (e.g. `ZEROPAD(1, 2)` → `"01"`). A leading `-` sign is preserved (`ZEROPAD(-1, 3)` → `"-01"`). Values longer than `w` are returned unchanged. |
 | `CENTER(s, w)` | Center within `w` chars. |
 
+### Arrays
+
+Some plugins expose a **list** of things rather than a single value — today's
+games, the next few departures, a five-day forecast. You can still reach one
+item by index (`{{transit.stops.0.eta}}`), but these functions let you ask how
+many there are and lay them out without writing a line per possible item.
+
+| Function | Description |
+|----------|-------------|
+| `COUNT(array)` | How many items the array currently holds. `#VALUE` if the value isn't an array. |
+| `AT(array, index [, field])` | The item's `field` at a zero-based `index`. **Blank, not an error**, when the index or field isn't there — so you don't need an `IF` around every line. |
+| `FOREACH(array, rowExpr [, limit])` | One board row per item. See below. |
+| `FILTER(array, condition)` | The items whose `condition` is true. |
+| `SORT(array [, field] [, "desc"])` | The array sorted by `field` (omit `field` for a list of plain values). |
+| `SLICE(array, start [, count])` | A window of the array. |
+| `JOIN(array, sep [, field])` | Items joined into one line of text. |
+| `SUMOF` / `AVGOF` / `MINOF` / `MAXOF` `(array [, field])` | Aggregate one field across every item. |
+
+An array is a value you pass **between** functions — it can never be printed
+directly. `{{= mlb.games }}` renders `#VALUE`; use `COUNT`, `AT`, `JOIN` or
+`FOREACH`.
+
+#### `FOREACH` — one row per item
+
+`FOREACH` is the only function that produces **more than one line**. It
+evaluates `rowExpr` once per item and returns the rows joined by newlines,
+which the renderer then spreads down the board — exactly how a `|wrap` line
+overflows into the rows beneath it.
+
+```text
+SCORES ({{= COUNT(mlb.games) }})
+{{= FOREACH(mlb.games, item.team1 & " " & item.score1, 4) }}
+```
+
+On a flagship that renders as:
+
+```text
+SCORES (3)
+SF 4
+NY 1
+CHC 3
+```
+
+Three rules worth knowing:
+
+- **Leave the rows below it empty.** `FOREACH` fills them.
+- **Always pass a `limit`.** Without one, a plugin that suddenly returns 40
+  items will run off the board. Pick a number that fits the rows you left.
+- Inside `rowExpr`, **`item`** is the current item and **`index`** its position
+  starting at 1. `item.field` reads a field; for an array of plain values
+  (numbers, strings), `item` *is* the value.
+
+Anything that returns an array composes in front of it:
+
+```text
+{{= FOREACH(SLICE(SORT(FILTER(mlb.games, item.final), "score1", "desc"), 0, 3), item.team1 & PADLEFT(item.score1, 3)) }}
+```
+
+— the three highest-scoring finished games, biggest first.
+
+### Dates and times
+
+Dates are values, like numbers. `NOW()` and `TODAY()` read the clock in your
+board's configured timezone; `DATE()` parses the ISO strings plugins expose.
+
+| Function | Description |
+|----------|-------------|
+| `NOW()` | Current date and time. |
+| `TODAY()` | Midnight today. |
+| `DATE(text)` | Parse `2026-12-25` or `2026-12-25T08:15:00`. `#VALUE` if it isn't a date. |
+| `YEAR` / `MONTH` / `DAY` / `HOUR` / `MINUTE` `(d)` | One part, as a number. |
+| `WEEKDAY(d)` | Day of week, **Monday = 1** through Sunday = 7. |
+| `DATEDIFF(start, end [, unit])` | Whole units from `start` to `end`; negative when `end` is earlier. `unit` is `days` (default), `seconds`, `minutes`, `hours`, `weeks` or `months`. |
+| `DATEADD(d, amount [, unit])` | Shift a date. Negative `amount` goes back. Adding months clamps to the month's last day (Jan 31 + 1 month = Feb 28). |
+| `FORMATDATE(d, pattern)` | Format with `YYYY`, `YY`, `MMM`, `MM`, `DD`, `ddd`, `HH` (24h), `hh` (12h), `mm`, `ss`, `AP`. Anything else is literal text. |
+
+```text
+{{= DATEDIFF(TODAY(), DATE(launch.day)) }} DAYS TO GO
+{{= FORMATDATE(NOW(), "ddd hh:mm AP") }}
+{{= IF(HOUR(NOW()) >= 17, "EVENING", "DAY") }}
+```
+
+Every date function in one render sees the same instant, so a line can't
+disagree with the line above it.
+
+### Reuse
+
+| Function | Description |
+|----------|-------------|
+| `LET(name, value, ..., body)` | Compute `value` once, then use `name` inside `body`. Takes several name/value pairs; a later value may use an earlier name. |
+
+```text
+{{= LET(done, FILTER(mlb.games, item.final), COUNT(done) & " FINAL: " & JOIN(done, " ", "team1")) }}
+```
+
+Names bound by `LET` exist only inside its `body`.
+
 ### Conversion / formatting
 
 | Function | Description |
@@ -181,6 +278,28 @@ Custom user‑defined functions are intentionally **not supported**.
 | `TEXT(x)` | Convert to string using the engine's standard rendering. |
 | `NUM(x)` | Convert to number. `#VALUE` on failure. |
 | `FIXED(x [, n])` | Format with `n` decimals (default `2`). Returns a string. |
+| `SPLIT(text [, sep])` | Split text into an **array** (default separator: whitespace). Pairs with the array functions. |
+| `REGEXMATCH(text, pattern)` | `TRUE` if the pattern matches. |
+| `REGEXEXTRACT(text, pattern [, group])` | The first match, or a capture group. Blank when nothing matches. |
+| `REGEXREPLACE(text, pattern, repl)` | Replace every match. |
+
+Patterns are limited on purpose, because a template render happens on the loop
+that drives your board. Three rules, all reported as `#VALUE`:
+
+- **At most 120 characters.**
+- **No repeated group** — a `+`, `*` or `{n,m}` right after `(...)`. `(a+)+b`,
+  `(a|a)+b` and `(a|ab)*c` all take exponential time, and only the first one
+  advertises it; the alternation shapes look ordinary. The rule refuses every
+  repeated group rather than guess, so a harmless `(ab)+` goes with them.
+- **At most three `+`/`*`/`{n,m}` quantifiers.** `a*a*a*a*a*a*a*a*a*b` has no
+  group to catch it — the cost is in the run of quantifiers itself.
+
+Patterns a board actually needs fit comfortably: `([0-9]+)F / (\w+)`,
+`^[A-Z]{3}-[0-9]+$`, `\s+`.
+
+These rules are a list of shapes known to explode, not a guarantee. Python's
+regex engine has no timeout, so a pathological pattern nobody has catalogued
+could still make a render crawl. Keep patterns simple.
 
 ### Color (FiestaBoard‑specific)
 
@@ -259,18 +378,24 @@ isn't an error, `NULL`, or blank wins:
 Two equivalent ways:
 
 ```text
-{{= IF(t > 90, "HOT", IF(t > 70, "WARM", IF(t > 40, "COOL", "COLD"))) }}
+{{= IF(weather.temperature > 90, "HOT", IF(weather.temperature > 70, "WARM", "COOL")) }}
 ```
 
 ```text
-{{= IFS(t > 90, "HOT", t > 70, "WARM", t > 40, "COOL", "COLD") }}
+{{= IFS(weather.temperature > 90, "HOT", weather.temperature > 70, "WARM", "COOL") }}
 ```
+
+`IFS` stays flat however many rungs you add; nested `IF`s don't.
 
 ### Switch on a discrete value
 
 ```text
-{{= SWITCH(weather.condition, "Sunny", "{sun}", "Rainy", "{rain}", "Cloudy", "{cloud}", "?") }}
+{{= SWITCH(weather.condition, "Sunny", "CLEAR", "Rainy", "WET", "Cloudy", "CLOUD", "?") }}
 ```
+
+A symbol like `{sun}` can't be the result: braces end a formula, so they can't
+appear in a string literal. Put the symbol in the template around the formula,
+or use `COLOR(...)` when a color tile will do.
 
 ### Color a value based on a threshold
 
@@ -320,6 +445,34 @@ Two equivalent ways:
 {{= IF(AND(weather.temperature >= 65, weather.temperature <= 75), "perfect", "meh") }}
 ```
 
+### Show a list, however long it is
+
+```text
+{{= COUNT(mlb.games) }} GAMES
+{{= FOREACH(mlb.games, item.team1 & "-" & item.team2, 4) }}
+```
+
+No line-per-item guesswork: one row per game, up to four rows.
+
+### Say so when the list is empty
+
+```text
+{{= IF(COUNT(transit.stops) = 0, "NO SERVICE", FOREACH(SLICE(transit.stops, 0, 3), item.eta & " " & item.name)) }}
+```
+
+### Countdown without a countdown plugin
+
+```text
+{{= DATEDIFF(TODAY(), DATE(launch.day)) }} DAYS
+```
+
+### A header row and a filtered body
+
+```text
+{{= LET(live, FILTER(mlb.games, NOT(item.final)), COUNT(live) & " IN PROGRESS") }}
+{{= FOREACH(FILTER(mlb.games, NOT(item.final)), item.team1 & PADLEFT(item.score1, 3), 4) }}
+```
+
 ---
 
 ## How it interacts with the rest of the template engine
@@ -334,10 +487,14 @@ normalization and plain variable substitution:
 5. Filters (`|wrap`, `|pad:N`, etc.), alignment, fill space, and tile counting
    run as usual on the final string.
 
-Two practical consequences:
+Three practical consequences:
 
 - `COLOR("blue")` produces the same `{67}` marker that `{{blue}}` would, so
   it interacts correctly with alignment, truncation, and word wrapping.
+- A formula that returns several lines — which only `FOREACH` does — has each
+  line laid into the board row below, and each gets its own alignment and fill
+  space. That is the same machinery `|wrap` overflow uses, so a `FOREACH` needs
+  the rows beneath it to be empty.
 - A formula that returns a string containing `{{plugin.field}}` will have
   that variable resolved on the next pass — but this is rarely useful, and
   not recommended.
@@ -346,10 +503,11 @@ Two practical consequences:
 
 ## What's intentionally not included
 
-- **User‑defined functions / `LET` / lambdas.** Out of scope for this version.
-  If you need re‑use, repeat the expression — boards are short.
-- **Loops, `MAP`, `REDUCE`, array formulas.** A board cell is one line of
-  output; loops would just truncate.
+- **User‑defined functions and lambdas.** `LET` covers re‑use; defining your own
+  functions is still out of scope.
+- **`REDUCE` and general array formulas.** `FOREACH` walks an array and the
+  `SUMOF`/`AVGOF`/`MINOF`/`MAXOF` family aggregates one, which covers what a
+  board needs; arbitrary folds do not.
 - **Side effects** (HTTP calls, time advance, mutations). Expressions are a
   pure expression language. Use plugins to bring data in.
 - **Access to Python or the OS.** Formulas run in a small interpreter, not

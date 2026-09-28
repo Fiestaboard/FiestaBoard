@@ -1907,6 +1907,8 @@
     "categoryText": "Metin",
     "categoryConversion": "Dönüşüm",
     "categoryColor": "Renk",
+    "categoryArray": "Diziler",
+    "categoryDate": "Tarih",
     "clickToEditFormula": "Formülü düzenlemek için tıklayın",
     "newFormula": "yeni formül",
     "loading": "Yükleniyor…"

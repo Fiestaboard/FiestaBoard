@@ -1863,6 +1863,8 @@
     "categoryText": "Text",
     "categoryConversion": "Conversion",
     "categoryColor": "Color",
+    "categoryArray": "Arrays",
+    "categoryDate": "Date",
     "clickToEditFormula": "Click to edit formula",
     "newFormula": "new formula",
     "loading": "Loading…"

@@ -79,6 +79,19 @@ formula language inside `{{= ... }}` blocks:
 {{= IF(stocks.AAPL.change >= 0, COLOR("green"), COLOR("red")) }} AAPL
 ```
 
+Formulas also handle the two things plain variables can't:
+
+```text
+{{= COUNT(mlb.games) }} GAMES
+{{= FOREACH(mlb.games, item.team1 & " " & item.score1, 4) }}
+{{= DATEDIFF(TODAY(), DATE(launch.day)) }} DAYS TO GO
+```
+
+When a plugin gives you a **list** — today's games, the next departures — use
+`COUNT` and `FOREACH` rather than writing one line per possible item.
+`FOREACH` returns one board row per item and fills the rows below it, so leave
+those rows empty and give it a limit that fits.
+
 See the [Template Formulas reference](/docs/reference/template-formulas) for
 the complete syntax, function list, and recipes.
 

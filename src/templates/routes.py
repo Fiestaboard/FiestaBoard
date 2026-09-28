@@ -30,6 +30,7 @@ from src.text_to_board import text_to_board_array
 
 from .engine import get_template_engine
 from .expressions import function_signatures
+from .filters import TEMPLATE_FILTERS
 from .models import (
     FormulaFunctionsResponse,
     TemplateRenderLiveRequest,
@@ -97,7 +98,10 @@ async def get_template_variables():
                 "black": 70,
             },
             "symbols": ["sun", "star", "cloud", "rain", "snow", "storm", "fog", "partly", "heart", "check", "x"],
-            "filters": ["pad:N", "truncate:N", "wrap"],
+            # From the one roster the engine, the MCP instructions and the chat
+            # prompt all read, so the editor cannot advertise a different set
+            # (this list used to omit the real ``zeropad:N``).
+            "filters": [spelling for spelling, _summary in TEMPLATE_FILTERS],
             "formatting": {
                 "fill_space": {
                     "syntax": "{{fill_space}}",
