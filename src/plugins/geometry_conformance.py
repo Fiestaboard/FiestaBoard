@@ -359,24 +359,11 @@ def check_growth(
     the "mostly empty panel" failure stated as an objective invariant rather
     than an arbitrary fill percentage.
 
-    **What this cannot catch, by construction.** The rule fires only when a
-    rung was filled to its last row, which proves more content existed than
-    fit. A cap that lands just *under* a rung's capacity escapes: a plugin
-    limited to 10 items renders 3 -> 11 -> 11 on this ladder, and 11 of 12
-    rows is not saturation.
-
-    That gap cannot be closed from out here. "Capped at 10" and "only has 7
-    things to show" produce identical row counts, and the suite has no way to
-    see how much content the plugin's upstream actually had -- widening the
-    rule to catch the first misreports every plugin whose test fixture or
-    ``maxItems`` config is legitimately small. An earlier attempt to gate on
-    the shortest rung did exactly that, flagging four correct plugins whose
-    output was bounded by their own config.
-
-    So a data cap must be pinned by a test inside the plugin, which is the
-    only place that knows what was available -- assert the cap itself scales
-    with the board (``MAX_ITEMS == MAX_BOARD_ROWS - 1``) rather than
-    asserting a rendered row count.
+    The primary rule fires when a rung was filled to its last row, which
+    proves more content existed than fit. A second, narrower guard catches the
+    common cap bug where growth stalls one row below a taller rung's capacity
+    (for example 3 -> 11 -> 11 on this ladder): once a 12+ row rung is at
+    ``rows - 1``, the next rung is still expected to grow.
     """
     plugin = factory()
     counts: dict[str, int] = {}
@@ -403,9 +390,7 @@ def check_growth(
 
         # Saturation is what makes this decidable. If the shorter board was
         # filled to its last row the plugin had more to say than would fit,
-        # so a taller board must show strictly more. If it was not full the
-        # plugin simply ran out of content, which is legitimate -- a clock
-        # has two lines to give and no board makes it a list.
+        # so a taller board must show strictly more.
         if short_count == shorter.rows and tall_count <= short_count:
             violations.append(
                 Violation(
@@ -413,6 +398,16 @@ def check_growth(
                     taller.label,
                     f"{shorter.label} was full ({short_count}/{shorter.rows} rows) but "
                     f"{taller.label} still renders {tall_count} rows -- output is capped "
+                    f"independently of the board",
+                )
+            )
+        elif shorter.rows >= 12 and short_count == shorter.rows - 1 and tall_count <= short_count:
+            violations.append(
+                Violation(
+                    "DID_NOT_GROW",
+                    taller.label,
+                    f"{shorter.label} was near full ({short_count}/{shorter.rows} rows) but "
+                    f"{taller.label} still renders {tall_count} rows -- output is likely capped "
                     f"independently of the board",
                 )
             )
