@@ -296,6 +296,10 @@ rows whenever the shorter one was full — the objective form of "don't leave a
 panel empty". Pass `require_note_array_preview=True` once the manifest ships a
 `note_array` preview.
 
+If your fixture is intentionally over-provisioned (you know it contains more
+than a 12-row board can show), pass `near_full_slack_rows=1` to also fail the
+common `3 -> 11 -> 11` cap shape.
+
 The bundled **Date & Time** and **Countdown** plugins are worked examples of
 reading `self.board` — see `plugins/date_time/__init__.py`.
 

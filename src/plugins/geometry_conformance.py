@@ -350,6 +350,8 @@ def check_unbound_board(factory: PluginFactory) -> list[Violation]:
 def check_growth(
     factory: PluginFactory,
     ladder: Sequence[Geometry] = GROWTH_LADDER,
+    *,
+    near_full_slack_rows: int = 0,
 ) -> tuple[list[Violation], dict[str, int]]:
     """Taller boards must not render fewer rows than shorter ones.
 
@@ -361,10 +363,12 @@ def check_growth(
 
     The primary rule fires when a rung was filled to its last row, which
     proves more content existed than fit.
-    A second, narrower signal catches the common cap bug where growth stalls
-    one row below a taller rung's capacity (for example 3 -> 11 -> 11 on this
-    ladder): once a 12+ row rung is at ``rows - 1``, the next rung is expected
-    to grow, so a plateau is reported as *possible* capping.
+
+    ``near_full_slack_rows`` is an opt-in extension for plugin-specific tests
+    that *already know* their fixture has enough content to grow. With
+    ``near_full_slack_rows=1``, a 12-row rung at 11/12 is treated as evidence
+    of truncation and the next rung must grow. Left at ``0`` (default), the
+    shared suite keeps the strict "only full means proven truncation" rule.
     """
     plugin = factory()
     counts: dict[str, int] = {}
@@ -402,13 +406,18 @@ def check_growth(
                     f"independently of the board",
                 )
             )
-        elif shorter.rows >= 12 and short_count == shorter.rows - 1 and tall_count <= short_count:
+        elif (
+            near_full_slack_rows > 0
+            and shorter.rows >= 12
+            and short_count >= max(0, shorter.rows - near_full_slack_rows)
+            and tall_count <= short_count
+        ):
             violations.append(
                 Violation(
-                    "POSSIBLE_DID_NOT_GROW",
+                    "DID_NOT_GROW",
                     taller.label,
                     f"{shorter.label} was near full ({short_count}/{shorter.rows} rows) but "
-                    f"{taller.label} still renders {tall_count} rows -- output is likely capped "
+                    f"{taller.label} still renders {tall_count} rows -- output is capped "
                     f"independently of the board",
                 )
             )
@@ -460,17 +469,17 @@ def run_conformance(
     manifest: dict | None = None,
     geometries: Sequence[Geometry] = STANDARD_GEOMETRIES,
     strict_growth: bool = False,
+    near_full_slack_rows: int = 0,
     require_note_array_preview: bool = False,
 ) -> ConformanceReport:
     """Run every conformance check and return a combined report."""
     report = check_geometries(factory, geometries, declared_max_lengths=(manifest or {}).get("max_lengths"))
     report.violations.extend(check_unbound_board(factory))
 
-    growth_violations, counts = check_growth(factory)
+    growth_violations, counts = check_growth(factory, near_full_slack_rows=near_full_slack_rows)
     report.rows_by_geometry.update(counts)
     if strict_growth:
-        report.violations.extend(v for v in growth_violations if v.code != "POSSIBLE_DID_NOT_GROW")
-        report.warnings.extend(v for v in growth_violations if v.code == "POSSIBLE_DID_NOT_GROW")
+        report.violations.extend(growth_violations)
     else:
         report.warnings.extend(growth_violations)
 
@@ -490,6 +499,7 @@ def assert_board_conformance(
     manifest: dict | None = None,
     geometries: Sequence[Geometry] = STANDARD_GEOMETRIES,
     strict_growth: bool = False,
+    near_full_slack_rows: int = 0,
     require_note_array_preview: bool = False,
 ) -> ConformanceReport:
     """Assert a plugin renders correctly on every supported board shape.
@@ -502,6 +512,7 @@ def assert_board_conformance(
         manifest=manifest,
         geometries=geometries,
         strict_growth=strict_growth,
+        near_full_slack_rows=near_full_slack_rows,
         require_note_array_preview=require_note_array_preview,
     )
     assert report.ok, "\n" + report.summary()
