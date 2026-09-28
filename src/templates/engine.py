@@ -425,28 +425,36 @@ class TemplateEngine:
 
             has_wrap = wrap_enabled or "|wrap}}" in content or "|wrap|" in content
 
-            if has_wrap:
-                # Wrap region: count how many lines below this one are
-                # available for overflow. A line is "available" if it is
-                # literally empty, has wrap=True (explicit opt-in to the
-                # region), or renders to whitespace (e.g. {{plugin.var}}
-                # where var resolves to ""). A wrap=False line that renders
-                # to visible content hard-stops the region — this protects
-                # footers/decorations a user intentionally placed below.
-                empty_count = 1  # the wrap line itself
-                for j in range(i + 1, num_rows):
+            def _overflow_budget(start: int) -> int:
+                """Rows an overflowing line at ``start`` may fill, itself included.
+
+                A row is available if it is literally empty, opts into the
+                region with wrap=True, or renders to whitespace (e.g.
+                ``{{plugin.var}}`` where var resolves to ""). A wrap=False row
+                that renders visible content hard-stops the overflow — that is
+                what protects a footer the author put below.
+
+                Both overflow paths share this: ``|wrap`` and a row-emitting
+                formula spill the same way, so they must stop the same way.
+                """
+                available = 1  # the overflowing line itself
+                for j in range(start + 1, num_rows):
                     if contents[j].strip() == "":
-                        empty_count += 1
+                        available += 1
                         continue
                     if wraps[j] or "|wrap}}" in contents[j] or "|wrap|" in contents[j]:
-                        empty_count += 1
+                        available += 1
                         continue
                     if _render_cached(j).strip() == "":
-                        empty_count += 1
+                        available += 1
                         continue
                     break
+                return available
 
-                wrapped_lines = self._render_with_wrap(content, context, max_lines=empty_count, board_width=board_width)
+            if has_wrap:
+                wrapped_lines = self._render_with_wrap(
+                    content, context, max_lines=_overflow_budget(i), board_width=board_width
+                )
 
                 for k, wrapped_line in enumerate(wrapped_lines):
                     if i + k < num_rows:
@@ -458,7 +466,12 @@ class TemplateEngine:
                 rendered_line = _render_cached(i)
 
                 if "\n" in rendered_line:
-                    split_lines = rendered_line.split("\n")
+                    # A row-emitting formula (FOREACH) spills into the rows
+                    # below exactly as |wrap overflow does, so it stops where
+                    # |wrap would. Without this it wrote straight over a
+                    # footer, and the footer was not pushed down or shown
+                    # anywhere — it was simply gone.
+                    split_lines = rendered_line.split("\n")[: _overflow_budget(i)]
                     for line_idx, split_line in enumerate(split_lines):
                         if i + line_idx >= num_rows:
                             break

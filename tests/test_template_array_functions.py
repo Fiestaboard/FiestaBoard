@@ -223,11 +223,14 @@ class TestForeachOutputThatDoesNotFit:
         assert "BOS" not in rendered
         assert "STL" not in rendered
 
-    def test_a_line_below_a_foreach_is_silently_destroyed_by_its_output(self):
-        # Design question, pinned as-is: ``|wrap`` stops its overflow at the
-        # first line below that renders visible content, so a footer survives.
-        # FOREACH has no such guard — it writes over the footer and the footer
-        # is not pushed down or shown anywhere, it is simply gone.
+    def test_a_line_below_a_foreach_stops_its_overflow_and_survives(self):
+        """A footer the author placed below is content, not free space.
+
+        ``|wrap`` has always stopped its overflow at the first line below that
+        renders visible content. FOREACH spills through the same machinery and
+        now stops the same way: it fills the rows that are actually free and
+        is truncated there, rather than writing over the footer and losing it.
+        """
         engine = TemplateEngine()
         rendered = engine.render_lines(
             ["{{= FOREACH(mlb.games, item.team1, 3) }}", "FOOTER", "", "", "", ""],
@@ -235,5 +238,19 @@ class TestForeachOutputThatDoesNotFit:
             device_type="flagship",
         )
         lines = [line.strip() for line in rendered.split("\n")]
-        assert lines[:3] == ["SF", "NY", "CHC"]
-        assert "FOOTER" not in rendered
+        assert lines[0] == "SF"
+        assert lines[1] == "FOOTER"
+        # Truncated at the footer rather than written through it.
+        assert "NY" not in rendered
+        assert "CHC" not in rendered
+
+    def test_a_foreach_fills_the_free_rows_up_to_a_footer(self):
+        """Truncation is at the first occupied row, not at the first row."""
+        engine = TemplateEngine()
+        rendered = engine.render_lines(
+            ["{{= FOREACH(mlb.games, item.team1, 5) }}", "", "", "FOOTER", "", ""],
+            context=CROWDED_CTX,
+            device_type="flagship",
+        )
+        lines = [line.strip() for line in rendered.split("\n")]
+        assert lines[:4] == ["SF", "NY", "CHC", "FOOTER"]

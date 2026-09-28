@@ -219,7 +219,9 @@ CHC 3
 
 Three rules worth knowing:
 
-- **Leave the rows below it empty.** `FOREACH` fills them.
+- **Leave the rows below it empty.** `FOREACH` fills them, and stops at the
+  first row that already has visible content — so a footer you put underneath
+  survives, and the list is truncated there instead.
 - **Always pass a `limit`.** Without one, a plugin that suddenly returns 40
   items will run off the board. Pick a number that fits the rows you left.
 - Inside `rowExpr`, **`item`** is the current item and **`index`** its position
@@ -283,23 +285,11 @@ Names bound by `LET` exist only inside its `body`.
 | `REGEXEXTRACT(text, pattern [, group])` | The first match, or a capture group. Blank when nothing matches. |
 | `REGEXREPLACE(text, pattern, repl)` | Replace every match. |
 
-Patterns are limited on purpose, because a template render happens on the loop
-that drives your board. Three rules, all reported as `#VALUE`:
-
-- **At most 120 characters.**
-- **No repeated group** — a `+`, `*` or `{n,m}` right after `(...)`. `(a+)+b`,
-  `(a|a)+b` and `(a|ab)*c` all take exponential time, and only the first one
-  advertises it; the alternation shapes look ordinary. The rule refuses every
-  repeated group rather than guess, so a harmless `(ab)+` goes with them.
-- **At most three `+`/`*`/`{n,m}` quantifiers.** `a*a*a*a*a*a*a*a*a*b` has no
-  group to catch it — the cost is in the run of quantifiers itself.
-
-Patterns a board actually needs fit comfortably: `([0-9]+)F / (\w+)`,
-`^[A-Z]{3}-[0-9]+$`, `\s+`.
-
-These rules are a list of shapes known to explode, not a guarantee. Python's
-regex engine has no timeout, so a pathological pattern nobody has catalogued
-could still make a render crawl. Keep patterns simple.
+A user-written pattern can backtrack catastrophically — `(a+)+$` against a long
+run of `a`s never finishes — and a template render happens on the loop that
+drives your board. So a match that runs longer than **0.1 seconds** is
+abandoned and the formula yields `#VALUE`. Patterns themselves are limited only
+by length (120 characters); no pattern is rejected for its shape.
 
 ### Color (FiestaBoard‑specific)
 
