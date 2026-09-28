@@ -181,6 +181,30 @@ class TestDataCaps:
         report = run_conformance(TwoLinePlugin, strict_growth=True)
         assert report.ok, report.summary()
 
+    def test_cap_just_below_capacity_needs_opt_in_signal(self):
+        # A cap of 10 renders 3 -> 11 -> 11. By default this is ambiguous
+        # ("capped" vs "only had 10 items"), so the shared check stays silent.
+        # Plugin-specific tests can opt in when fixture content is known to be
+        # abundant enough that near-full should still grow.
+        class CappedAt10(_Base):
+            def fetch_data(self) -> PluginResult:
+                board = self.board
+                rows = board.rows if board else 6
+                cols = board.cols if board else 22
+                items = [f"ITEM{n}"[:cols] for n in range(min(10, max(0, rows - 1)))]
+                return PluginResult(available=True, data={}, formatted_lines=["HDR".center(cols), *items])
+
+        violations, counts = check_growth(CappedAt10)
+        assert counts == {"15x3": 3, "15x12": 11, "15x24": 11}, counts
+        assert violations == []
+
+        strict_violations, _ = check_growth(CappedAt10, near_full_slack_rows=1)
+        assert [v.code for v in strict_violations] == ["DID_NOT_GROW"]
+
+        report = run_conformance(CappedAt10, strict_growth=True, near_full_slack_rows=1)
+        assert not report.ok
+        assert "DID_NOT_GROW" in codes(report)
+
     def test_growth_ladder_holds_width_constant(self):
         widths = {g.cols for g in GROWTH_LADDER}
         assert widths == {15}, "growth must vary height alone to avoid confounding"
