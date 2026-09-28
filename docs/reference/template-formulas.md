@@ -283,10 +283,23 @@ Names bound by `LET` exist only inside its `body`.
 | `REGEXEXTRACT(text, pattern [, group])` | The first match, or a capture group. Blank when nothing matches. |
 | `REGEXREPLACE(text, pattern, repl)` | Replace every match. |
 
-Patterns are limited on purpose: at most 120 characters, and a pattern that
-nests quantifiers (the `(a+)+` shape) is refused with `#VALUE`. Those patterns
-can take exponential time, and a template render happens on the loop that
-drives your board.
+Patterns are limited on purpose, because a template render happens on the loop
+that drives your board. Three rules, all reported as `#VALUE`:
+
+- **At most 120 characters.**
+- **No repeated group** — a `+`, `*` or `{n,m}` right after `(...)`. `(a+)+b`,
+  `(a|a)+b` and `(a|ab)*c` all take exponential time, and only the first one
+  advertises it; the alternation shapes look ordinary. The rule refuses every
+  repeated group rather than guess, so a harmless `(ab)+` goes with them.
+- **At most three `+`/`*`/`{n,m}` quantifiers.** `a*a*a*a*a*a*a*a*a*b` has no
+  group to catch it — the cost is in the run of quantifiers itself.
+
+Patterns a board actually needs fit comfortably: `([0-9]+)F / (\w+)`,
+`^[A-Z]{3}-[0-9]+$`, `\s+`.
+
+These rules are a list of shapes known to explode, not a guarantee. Python's
+regex engine has no timeout, so a pathological pattern nobody has catalogued
+could still make a render crawl. Keep patterns simple.
 
 ### Color (FiestaBoard‑specific)
 
@@ -365,18 +378,24 @@ isn't an error, `NULL`, or blank wins:
 Two equivalent ways:
 
 ```text
-{{= IF(t > 90, "HOT", IF(t > 70, "WARM", IF(t > 40, "COOL", "COLD"))) }}
+{{= IF(weather.temperature > 90, "HOT", IF(weather.temperature > 70, "WARM", "COOL")) }}
 ```
 
 ```text
-{{= IFS(t > 90, "HOT", t > 70, "WARM", t > 40, "COOL", "COLD") }}
+{{= IFS(weather.temperature > 90, "HOT", weather.temperature > 70, "WARM", "COOL") }}
 ```
+
+`IFS` stays flat however many rungs you add; nested `IF`s don't.
 
 ### Switch on a discrete value
 
 ```text
-{{= SWITCH(weather.condition, "Sunny", "{sun}", "Rainy", "{rain}", "Cloudy", "{cloud}", "?") }}
+{{= SWITCH(weather.condition, "Sunny", "CLEAR", "Rainy", "WET", "Cloudy", "CLOUD", "?") }}
 ```
+
+A symbol like `{sun}` can't be the result: braces end a formula, so they can't
+appear in a string literal. Put the symbol in the template around the formula,
+or use `COLOR(...)` when a color tile will do.
 
 ### Color a value based on a threshold
 

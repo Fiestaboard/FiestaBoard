@@ -1,18 +1,144 @@
-"""Every formula example in the published reference must actually evaluate.
+"""The published formula reference must not promise formulas the engine rejects.
 
 ``docs/reference/template-formulas.md`` is user-facing, and this repo has a long
 tail of docs-drift issues (#1640, #2058, …) where a published example did not
-work. These tests run the examples the array/date/reuse sections added, so the
-page cannot promise a formula the engine rejects.
+work. These tests **read that page**: every ``{{= ... }}`` example in its code
+fences and inline code spans is pulled out and checked against the engine — the
+formula matcher has to recognize it, ``validate_expression`` has to accept it,
+and the sources it names have to be ones the page itself introduces. Nothing is
+hand-mirrored, so an example added or edited on the page is covered the day it
+lands.
+
+Examples whose *output* the page publishes are additionally evaluated for that
+exact value, by the parametrized table further down.
 """
 
+import re
 from datetime import datetime
+from pathlib import Path
 from zoneinfo import ZoneInfo
 
 import pytest
 
 from src.templates.engine import TemplateEngine
-from src.templates.expressions import evaluate
+from src.templates.expressions import evaluate, find_formulas, validate_expression
+
+DOC_PATH = Path(__file__).resolve().parents[1] / "docs" / "reference" / "template-formulas.md"
+
+#: Plugin-style sources the page introduces in its examples. Keeping this
+#: explicit is the point: an example that names something else is either a typo
+#: or a deliberate new example, and both deserve a human look.
+#: ``test_the_source_allowlist_matches_the_page`` keeps it from rotting.
+DOC_SOURCES = frozenset(
+    {
+        "baywheels",
+        "home_assistant",
+        "launch",
+        "mlb",
+        "stocks",
+        "transit",
+        "weather",
+    }
+)
+
+#: The page writes ``{{= ... }}`` in prose when it means "a formula, any
+#: formula". That is the marker, not an example.
+_MARKER_PLACEHOLDER = "..."
+
+#: Deliberately looser than the engine's own matcher: an example that the
+#: engine would *not* recognize as a formula still has to be caught, not
+#: skipped. ``test_every_published_example_is_a_formula_the_engine_recognizes``
+#: is what closes the gap between the two.
+_LOOSE_FORMULA = re.compile(r"\{\{=(.*?)\}\}", re.DOTALL)
+
+_FENCE = "```"
+
+
+def _code_regions(markdown: str) -> list[tuple[int, str]]:
+    """Return ``(first line number, text)`` for each code region of the page.
+
+    A region is a fenced block (whole, so multi-line examples survive) or one
+    inline code span. Prose outside code is skipped: the page discusses ``{{=``
+    and ``}}`` as separate spans of prose, which is not an example.
+    """
+    regions: list[tuple[int, str]] = []
+    fence_start = 0
+    fence_lines: list[str] = []
+    in_fence = False
+
+    for number, line in enumerate(markdown.splitlines(), start=1):
+        if line.lstrip().startswith(_FENCE):
+            if in_fence:
+                regions.append((fence_start, "\n".join(fence_lines)))
+                fence_lines = []
+            else:
+                fence_start = number + 1
+            in_fence = not in_fence
+            continue
+        if in_fence:
+            fence_lines.append(line)
+        else:
+            for span in re.finditer(r"`([^`\n]+)`", line):
+                regions.append((number, span.group(1)))
+
+    if in_fence:  # pragma: no cover - an unclosed fence is a broken page
+        regions.append((fence_start, "\n".join(fence_lines)))
+    return regions
+
+
+def published_examples(markdown: str) -> list[tuple[int, str, str]]:
+    """Return ``(line number, raw ``{{= }}`` text, body)`` for each example."""
+    found: list[tuple[int, str, str]] = []
+    for start, region in _code_regions(markdown):
+        for match in _LOOSE_FORMULA.finditer(region):
+            body = match.group(1).strip()
+            if body == _MARKER_PLACEHOLDER:
+                continue
+            found.append((start + region[: match.start()].count("\n"), match.group(0), body))
+    return found
+
+
+EXAMPLES = published_examples(DOC_PATH.read_text(encoding="utf-8"))
+EXAMPLE_IDS = [f"L{line}-{body[:40]}" for line, _, body in EXAMPLES]
+
+
+def _sources_named(body: str) -> set[str]:
+    """Sources ``body`` reads, via the public validator's own #REF reports."""
+    return {
+        issue.message.split(": ", 1)[1]
+        for issue in validate_expression(body, known_sources=frozenset())
+        if issue.code == "#REF"
+    }
+
+
+def test_the_extractor_finds_the_pages_examples():
+    """A scanner that silently matched nothing would make every test below vacuous."""
+    assert len(EXAMPLES) >= 15, f"only {len(EXAMPLES)} examples found in {DOC_PATH.name}"
+
+
+@pytest.mark.parametrize(("line", "raw", "body"), EXAMPLES, ids=EXAMPLE_IDS)
+def test_every_published_example_is_a_formula_the_engine_recognizes(line, raw, body):
+    """The engine's own matcher has to see what the page calls a formula.
+
+    It is stricter than it looks: ``{`` and ``}`` cannot appear inside a
+    formula, so an example that puts a ``{sun}`` symbol in a string literal
+    renders as its own source text on a real board.
+    """
+    assert find_formulas(raw) == [(0, len(raw), body)], f"line {line}: not a formula the engine will run"
+
+
+@pytest.mark.parametrize(("line", "raw", "body"), EXAMPLES, ids=EXAMPLE_IDS)
+def test_every_published_example_parses_and_validates(line, raw, body):
+    """Parse errors, unknown functions, wrong arity, unknown sources — all caught."""
+    issues = [(issue.code, issue.message) for issue in validate_expression(body, known_sources=DOC_SOURCES)]
+    assert issues == [], f"line {line}: {body}"
+
+
+def test_the_source_allowlist_matches_the_page():
+    """Every allowed source is used, and every used source was allowed on purpose."""
+    used = set().union(*(_sources_named(body) for _, _, body in EXAMPLES))
+    assert used == set(DOC_SOURCES)
+
 
 NOW = datetime(2026, 9, 24, 17, 30, tzinfo=ZoneInfo("America/Los_Angeles"))
 
