@@ -1200,12 +1200,30 @@ async def _latest_for_channel(channel: str) -> str | None:
     Extracted so the apply path can install the exact version the check just
     reported, rather than a moving tag that may mean something else by the
     time the user presses the button.
+
+    The two sources are queried concurrently because this one sits in front of
+    a user waiting on an update check. :func:`_newest_on_channel` is the same
+    question asked from a thread with no event loop.
     """
     dh_version, gh_version = await asyncio.gather(
         asyncio.to_thread(_check_dockerhub_for_latest, channel),
         asyncio.to_thread(_check_github_releases_for_latest, channel),
     )
     return _pick_latest_version(dh_version, gh_version)
+
+
+def _newest_on_channel(channel: str) -> str | None:
+    """Blocking twin of :func:`_latest_for_channel`.
+
+    ``reassert_release_channel`` runs on a bare boot thread with no event
+    loop, and starting one there to ask a question answered by two synchronous
+    HTTP calls buys nothing. Sequential rather than concurrent: nobody is
+    waiting on a boot thread.
+    """
+    return _pick_latest_version(
+        _check_dockerhub_for_latest(channel),
+        _check_github_releases_for_latest(channel),
+    )
 
 
 async def apply_update() -> UpdateApplyResponse:
@@ -1687,6 +1705,36 @@ def reassert_release_channel() -> None:
         if channel_switch_blocker():
             # HA-managed, or no sidecar. Not ours to correct.
             return
+
+        # A build NEWER than anything the chosen channel publishes is not a
+        # boot that overrode the choice — it is the release train having
+        # overtaken the beta, which is the ordinary and intended way off one.
+        # Reinstalling the channel tag here is what pinned a real Pi to
+        # 9.3.0-beta.50 while every update to 9.3.1 reported success: install,
+        # boot, reassert, back to the beta, offer 9.3.1 again, forever.
+        #
+        # Record the graduation rather than merely skipping the switch. Left
+        # disagreeing, the stored preference still says "beta" — the next boot
+        # re-runs this comparison, and every other reader of the stored value
+        # still believes this box wants a beta it is already ahead of.
+        #
+        # Fails closed: discovery returning nothing must not read as "the
+        # channel is empty, graduate", or a registry outage would quietly
+        # convert a beta tester to stable with no way back.
+        newest = _newest_on_channel(wanted)
+        if newest and _is_newer_version(running_version(), newest):
+            logger.info(
+                "Running %s, which is newer than the newest %s build (%s); "
+                "recording the %s channel instead of re-applying %s.",
+                running_version(),
+                wanted,
+                newest,
+                current_channel(),
+                wanted,
+            )
+            _system_update_state_update(channel=current_channel())
+            return
+
         logger.info(
             "Boot came up on the %s channel but %s was chosen; re-applying it.",
             current_channel(),
