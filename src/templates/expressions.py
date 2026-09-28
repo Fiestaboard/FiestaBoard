@@ -1145,27 +1145,49 @@ def _math_ceil(x: float) -> float:
 # functions below.
 #
 # The regex trio accepts a user-written pattern, and a template render drives
-# hardware on a loop -- a pattern with catastrophic backtracking would hang
-# that loop. ``_compile_user_pattern`` therefore caps the pattern length and
-# refuses nested quantifiers (the ``(a+)+`` shape), which is conservative: a
-# few legitimate patterns are rejected in exchange for a bounded render.
+# hardware on a loop -- a pattern with catastrophic backtracking would stall
+# that loop. ``_compile_user_pattern`` refuses the two shapes that produce it:
+#
+# * **a quantifier applied to a group.** ``(a+)+b`` is the textbook case, but
+#   the alternation forms ``(a|a)+b`` and ``(a|ab)*c`` blow up just as hard
+#   without nesting a quantifier, and ``((a)|(a))*$`` hides the whole thing one
+#   level down. Matching the closing paren rather than the group's contents
+#   catches all of them. Blunt on purpose -- a harmless ``(ab)+`` goes too.
+# * **more than a few quantifiers in sequence.** ``a*a*a*a*a*a*a*a*a*b`` has no
+#   group at all, so the rule above cannot see it; the cost is exponential in
+#   the number of adjacent quantifiers. Three is past anything a board line
+#   needs and keeps the worst accepted pattern under a second.
+#
+# This is a shape blacklist, not a proof: ``re`` has no timeout, so the only
+# real bound would be the third-party ``regex`` module's ``timeout=``. What the
+# rules below buy is that every exponential family we could construct or fuzz
+# out (63k generated patterns against a 200-char subject) is refused. Say
+# "refuses the known exponential shapes", never "cannot hang".
 # --------------------------------------------------------------------------- #
 
 
 _MAX_PATTERN_LENGTH = 120
 
-#: A quantifier applied to a group that itself contains one -- the classic
-#: exponential-backtracking shape.
-_NESTED_QUANTIFIER_RE = re.compile(r"\([^()]*[+*][^()]*\)\s*[+*{]")
+#: More quantifiers than this in one pattern is refused. See above.
+_MAX_QUANTIFIERS = 3
+
+#: A quantifier applied to a group -- matched on the closing paren, so a group
+#: nesting other groups is caught too.
+_QUANTIFIED_GROUP_RE = re.compile(r"\)\s*[+*{]")
+
+#: Unbounded/counted repetition. ``?`` is excluded: it cannot blow up.
+_QUANTIFIER_RE = re.compile(r"[+*]|\{\d+(?:,\d*)?\}")
 
 
 @lru_cache(maxsize=128)
 def _compile_user_pattern(pattern: str) -> re.Pattern[str]:
-    """Compile a user-supplied regex, refusing the dangerous shapes."""
+    """Compile a user-supplied regex, refusing the known exponential shapes."""
     if len(pattern) > _MAX_PATTERN_LENGTH:
         raise FormulaError("#VALUE", f"pattern longer than {_MAX_PATTERN_LENGTH} characters")
-    if _NESTED_QUANTIFIER_RE.search(pattern):
-        raise FormulaError("#VALUE", "pattern nests quantifiers, which can hang a render")
+    if _QUANTIFIED_GROUP_RE.search(pattern):
+        raise FormulaError("#VALUE", "pattern repeats a group, which can stall a render")
+    if len(_QUANTIFIER_RE.findall(pattern)) > _MAX_QUANTIFIERS:
+        raise FormulaError("#VALUE", f"pattern uses more than {_MAX_QUANTIFIERS} quantifiers, which can stall a render")
     try:
         return re.compile(pattern)
     except re.error as exc:
@@ -1238,8 +1260,11 @@ def _fn_regexreplace(args: list[Any]) -> Any:
 # --------------------------------------------------------------------------- #
 
 
-#: Reserved context key holding the instant this render started.
-_NOW_KEY = "__now__"
+#: Reserved context key holding the instant this render started. Public so the
+#: engine (and tests) can pin the clock without reaching into a private name.
+RENDER_CLOCK_KEY = "__now__"
+
+_NOW_KEY = RENDER_CLOCK_KEY
 
 _DATE_RENDER_FORMAT = "%Y-%m-%d %H:%M"
 
@@ -1274,6 +1299,22 @@ def _current_datetime(context: dict[str, Any]) -> datetime:
         return get_time_service().get_current_time()
     except Exception:  # pragma: no cover - configuration/import failure
         return datetime.now()
+
+
+def ensure_render_clock(context: dict[str, Any]) -> dict[str, Any]:
+    """Return a context pinned to a single instant for the whole render.
+
+    Without this, every ``NOW()``/``TODAY()`` in a board resolves the clock
+    on its own, so two lines of one render can straddle a minute — or a
+    midnight — boundary.
+
+    Never mutates the argument: callers hand in the shared plugin context.
+    A context that already carries the key is returned unchanged, so an
+    outer render that pinned the clock wins and nested renders inherit it.
+    """
+    if RENDER_CLOCK_KEY in context:
+        return context
+    return {**context, RENDER_CLOCK_KEY: _current_datetime({})}
 
 
 def _coerce_date(name: str, value: Any) -> datetime:
@@ -2361,9 +2402,11 @@ def function_signatures() -> dict[str, dict[str, str]]:
 
 
 __all__ = [
+    "RENDER_CLOCK_KEY",
     "ErrorValue",
     "ExpressionIssue",
     "FormulaError",
+    "ensure_render_clock",
     "evaluate",
     "find_formulas",
     "function_signatures",

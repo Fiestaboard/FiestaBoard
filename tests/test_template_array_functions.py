@@ -185,3 +185,55 @@ class TestForeachRendersAcrossBoardRows:
         engine = TemplateEngine()
         errors = engine.validate_template('{{= FOREACH(mlb.games, item.team1 & " " & item.score1) }}', cols=22)
         assert [e.message for e in errors if "too long" in e.message] == []
+
+
+#: Five games — more rows than a Note board (15x3) has.
+CROWDED_CTX = {
+    "mlb": {
+        "games": [
+            {"team1": "SF"},
+            {"team1": "NY"},
+            {"team1": "CHC"},
+            {"team1": "BOS"},
+            {"team1": "STL"},
+        ]
+    }
+}
+
+
+class TestForeachOutputThatDoesNotFit:
+    """What a row-emitting formula does when its output runs out of board.
+
+    FOREACH spills its newline-joined rows into the lines beneath it, but
+    unlike ``|wrap`` it does not first count how much room is free. These
+    tests pin the two consequences.
+    """
+
+    def test_rows_past_the_last_board_row_are_dropped(self):
+        engine = TemplateEngine()
+        rendered = engine.render_lines(
+            ["{{= FOREACH(mlb.games, item.team1) }}", "", ""],
+            context=CROWDED_CTX,
+            device_type="note",
+        )
+        lines = rendered.split("\n")
+        # The board keeps its shape: five emitted rows, three rows of Note.
+        assert len(lines) == 3
+        assert [line.strip() for line in lines] == ["SF", "NY", "CHC"]
+        assert "BOS" not in rendered
+        assert "STL" not in rendered
+
+    def test_a_line_below_a_foreach_is_silently_destroyed_by_its_output(self):
+        # Design question, pinned as-is: ``|wrap`` stops its overflow at the
+        # first line below that renders visible content, so a footer survives.
+        # FOREACH has no such guard — it writes over the footer and the footer
+        # is not pushed down or shown anywhere, it is simply gone.
+        engine = TemplateEngine()
+        rendered = engine.render_lines(
+            ["{{= FOREACH(mlb.games, item.team1, 3) }}", "FOOTER", "", "", "", ""],
+            context=CROWDED_CTX,
+            device_type="flagship",
+        )
+        lines = [line.strip() for line in rendered.split("\n")]
+        assert lines[:3] == ["SF", "NY", "CHC"]
+        assert "FOOTER" not in rendered

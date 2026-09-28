@@ -99,3 +99,52 @@ class TestRegex:
     def test_overlong_pattern_is_refused(self):
         long_pattern = "a" * 200
         assert evaluate(f'REGEXMATCH(board.tags, "{long_pattern}")', CTX) == "#VALUE"
+
+
+class TestRegexBacktrackingGuard:
+    """Every shape that backtracks exponentially is refused, not run.
+
+    The guard originally only recognised a quantifier *nested inside* a
+    group (``(a+)+``), so the alternation shapes below compiled and ran —
+    ``REGEXMATCH(p.s, "(a|a)+b")`` against 32 ``a``s never returned.
+    """
+
+    #: Each of these ran to exponential time against ``"a" * 32`` at some point
+    #: in this guard's life. The last four are the families that survived the
+    #: first widening: nesting hides the quantified group one level down, and
+    #: the sequential-quantifier shapes have no group for the rule to match.
+    CATASTROPHIC = (
+        "(a+)+b",
+        "(a|a)+b",
+        "(a|ab)*c",
+        "(?:a|a)+b",
+        "((a)|(a))*$",
+        "((a|a))*$",
+        "a*a*a*a*a*a*a*a*a*b",
+        "^[a-z]*[a-z]*[a-z]*[a-z]*[a-z]*$",
+    )
+
+    def test_every_catastrophic_shape_is_refused(self):
+        for pattern in self.CATASTROPHIC:
+            assert evaluate(f'REGEXMATCH(board.tags, "{pattern}")', CTX) == "#VALUE", pattern
+
+    def test_refusal_precedes_the_match_on_a_pathological_input(self):
+        # The refusal has to happen at compile time: on this input the
+        # patterns below take exponential time to report "no match".
+        ctx = {"p": {"s": "a" * 32}}
+        for pattern in self.CATASTROPHIC:
+            assert evaluate(f'REGEXMATCH(p.s, "{pattern}")', ctx) == "#VALUE", pattern
+
+    def test_a_group_without_a_quantifier_still_compiles(self):
+        assert evaluate('REGEXEXTRACT(weather.summary, "([0-9]+)F", 1)', CTX) == "72"
+
+    def test_patterns_a_board_actually_needs_are_not_collateral(self):
+        """The rules are blunt; they must not be blunt enough to be useless.
+
+        Every pattern here is one a plugin string realistically wants, and each
+        sits just inside a rule: two capture groups (neither quantified), and
+        three quantifiers (the cap).
+        """
+        assert evaluate('REGEXEXTRACT("72F / Sunny", "([0-9]+)F / (\\\\w+)", 2)', CTX) == "Sunny"
+        assert evaluate('REGEXMATCH("ABC-123", "^[A-Z]{3}-[0-9]+$")', CTX) == "Yes"
+        assert evaluate('REGEXREPLACE("a  b   c", "\\\\s+", " ")', CTX) == "a b c"

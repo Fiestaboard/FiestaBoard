@@ -43,7 +43,7 @@ from src.text_utils import extract_alignment_from_line
 
 from .colors import COLOR_CODES
 from .colors import is_color_code as _is_color_code
-from .expressions import find_formulas, render_expressions, validate_expression
+from .expressions import ensure_render_clock, find_formulas, render_expressions, validate_expression
 from .filters import FILTER_NAMES
 
 logger = logging.getLogger(__name__)
@@ -198,6 +198,11 @@ class TemplateEngine:
             # ``extract_template_plugin_ids`` returns None for a formula page,
             # which keeps the safe fetch-everything fallback.
             context = self._build_context(plugin_ids=extract_template_plugin_ids(template))
+
+        # Pin one instant for this render so NOW()/TODAY() in different
+        # formulas cannot straddle a minute or midnight boundary. A no-op
+        # when render_lines (or any outer caller) already pinned it.
+        context = ensure_render_clock(context)
 
         result = template
 
@@ -366,6 +371,11 @@ class TemplateEngine:
                 BoardContext(render_device_type, rows=dims.rows, cols=dims.cols),
                 plugin_ids=extract_template_plugin_ids(template_lines),
             )
+        # Pin the clock once for the whole board: every line's render()
+        # inherits this instant instead of re-reading the clock, so row 1 and
+        # row 6 can never disagree about what time it is.
+        context = ensure_render_clock(context)
+
         num_rows = dims.rows
         board_width = dims.cols
 

@@ -8,10 +8,11 @@ Every test injects ``__now__`` so the clock is deterministic; at render time the
 engine injects the board's configured timezone instead.
 """
 
-from datetime import datetime
+from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo
 
-from src.templates.expressions import evaluate
+from src.templates.engine import TemplateEngine
+from src.templates.expressions import ensure_render_clock, evaluate
 
 LA = ZoneInfo("America/Los_Angeles")
 
@@ -158,3 +159,63 @@ class TestDatesInsideArrayFunctions:
         }
         out = evaluate('FOREACH(cal.events, item.name & " IN " & DATEDIFF(TODAY(), DATE(item.when)))', ctx)
         assert out == "A IN 3"
+
+
+class TestRenderClockIsPinnedPerRender:
+    """One board render sees one instant.
+
+    Each date function resolves "now" independently, so before the engine
+    pinned the clock two rows of the same board could land on either side of
+    a minute — or a midnight — boundary.
+    """
+
+    @staticmethod
+    def _advancing_clock(monkeypatch):
+        """Make the app clock report a later instant on every single call."""
+        ticks = iter(NOW + timedelta(days=i, minutes=i) for i in range(1, 100))
+
+        class _Clock:
+            def get_current_time(self):
+                return next(ticks)
+
+        monkeypatch.setattr("src.time_service.get_time_service", lambda: _Clock())
+
+    def test_every_line_of_one_render_shares_the_same_instant(self, monkeypatch):
+        self._advancing_clock(monkeypatch)
+
+        rendered = TemplateEngine().render_lines(
+            [
+                "{{= NOW() }}",
+                "{{= NOW() }}",
+                "{{= TODAY() }}",
+                '{{= FORMATDATE(NOW(), "DD MMM") }}',
+            ],
+            {},
+        )
+        lines = [line.strip() for line in rendered.split("\n")]
+
+        # The first tick is 2026-09-25 17:31; a second reading of the clock
+        # would be a day and a minute later.
+        assert lines[0] == "2026-09-25 17:31"
+        assert lines[1] == lines[0]
+        assert lines[2] == "2026-09-25 00:00"
+        assert lines[3] == "25 SEP"
+
+    def test_direct_render_also_pins_one_instant(self, monkeypatch):
+        self._advancing_clock(monkeypatch)
+
+        assert TemplateEngine().render("{{= NOW() }}|{{= NOW() }}", {}) == "2026-09-25 17:31|2026-09-25 17:31"
+
+    def test_ensure_render_clock_leaves_the_callers_context_alone(self, monkeypatch):
+        self._advancing_clock(monkeypatch)
+        context: dict = {"weather": {"temp": 72}}
+
+        pinned = ensure_render_clock(context)
+
+        assert context == {"weather": {"temp": 72}}
+        assert isinstance(pinned["__now__"], datetime)
+
+    def test_an_already_pinned_context_is_returned_unchanged(self):
+        context = {"__now__": NOW}
+
+        assert ensure_render_clock(context) is context
