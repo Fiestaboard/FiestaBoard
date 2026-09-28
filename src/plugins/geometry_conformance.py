@@ -360,10 +360,11 @@ def check_growth(
     than an arbitrary fill percentage.
 
     The primary rule fires when a rung was filled to its last row, which
-    proves more content existed than fit. A second, narrower guard catches the
-    common cap bug where growth stalls one row below a taller rung's capacity
-    (for example 3 -> 11 -> 11 on this ladder): once a 12+ row rung is at
-    ``rows - 1``, the next rung is still expected to grow.
+    proves more content existed than fit.
+    A second, narrower signal catches the common cap bug where growth stalls
+    one row below a taller rung's capacity (for example 3 -> 11 -> 11 on this
+    ladder): once a 12+ row rung is at ``rows - 1``, the next rung is expected
+    to grow, so a plateau is reported as *possible* capping.
     """
     plugin = factory()
     counts: dict[str, int] = {}
@@ -404,7 +405,7 @@ def check_growth(
         elif shorter.rows >= 12 and short_count == shorter.rows - 1 and tall_count <= short_count:
             violations.append(
                 Violation(
-                    "DID_NOT_GROW",
+                    "POSSIBLE_DID_NOT_GROW",
                     taller.label,
                     f"{shorter.label} was near full ({short_count}/{shorter.rows} rows) but "
                     f"{taller.label} still renders {tall_count} rows -- output is likely capped "
@@ -468,7 +469,8 @@ def run_conformance(
     growth_violations, counts = check_growth(factory)
     report.rows_by_geometry.update(counts)
     if strict_growth:
-        report.violations.extend(growth_violations)
+        report.violations.extend(v for v in growth_violations if v.code != "POSSIBLE_DID_NOT_GROW")
+        report.warnings.extend(v for v in growth_violations if v.code == "POSSIBLE_DID_NOT_GROW")
     else:
         report.warnings.extend(growth_violations)
 

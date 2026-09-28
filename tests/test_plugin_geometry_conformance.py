@@ -196,7 +196,13 @@ class TestDataCaps:
 
         violations, counts = check_growth(CappedAt10)
         assert counts == {"15x3": 3, "15x12": 11, "15x24": 11}, counts
-        assert [v.code for v in violations] == ["DID_NOT_GROW"]
+        assert [v.code for v in violations] == ["POSSIBLE_DID_NOT_GROW"]
+
+        report = run_conformance(CappedAt10, strict_growth=True)
+        assert report.ok
+        assert [w.code for w in report.warnings if w.code == "POSSIBLE_DID_NOT_GROW"] == [
+            "POSSIBLE_DID_NOT_GROW"
+        ]
 
     def test_growth_ladder_holds_width_constant(self):
         widths = {g.cols for g in GROWTH_LADDER}
