@@ -1355,6 +1355,23 @@ class ConfigManager:
         color_rules = feature.get("color_rules", {})
         return color_rules.get(field_name, [])
 
+    def get_instance_color_rules(self, plugin_id: str) -> dict[str, list]:
+        """Rules saved for one plugin instance by the web UI's Dynamic Colors editor."""
+        rules = (self.get_plugin_config(plugin_id) or {}).get("color_rules")
+        return rules if isinstance(rules, dict) else {}
+
+    def get_effective_color_rules(
+        self,
+        plugin_id: str,
+        base_plugin_id: str,
+        field_name: str,
+        instance_rules: dict[str, list] | None = None,
+    ) -> list:
+        """The instance's rules for a field, else the legacy per-feature rules."""
+        if instance_rules is None:
+            instance_rules = self.get_instance_color_rules(plugin_id)
+        return instance_rules.get(field_name) or self.get_color_rules(base_plugin_id, field_name)
+
     def validate(self) -> tuple[bool, list[str]]:
         """Validate the current configuration.
 

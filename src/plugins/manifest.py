@@ -576,6 +576,12 @@ class VariablesSchema:
         return self.metadata.get(var_name, VariableMetadata())
 
 
+def manifest_default_color_rules(manifest: Any, field_name: str) -> list:
+    """The manifest's static ``default_rules`` for a field, or ``[]``."""
+    schema = (manifest.color_rules_schema or {}).get(field_name)
+    return schema.get("default_rules", []) if isinstance(schema, dict) else []
+
+
 @dataclass
 class PluginManifest:
     """Parsed and validated plugin manifest."""

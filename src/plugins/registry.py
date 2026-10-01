@@ -23,7 +23,7 @@ from src.devices import BoardContext
 
 from .base import OptionsRequest, OptionsResult, PluginBase, PluginResult, normalise
 from .loader import PluginLoader, retire_plugin_object
-from .manifest import PluginManifest, VariableMetadata
+from .manifest import PluginManifest, VariableMetadata, manifest_default_color_rules
 from .previews import load_preview_seed
 from .sources import (
     PluginSource,
@@ -1223,7 +1223,12 @@ class PluginRegistry:
         Returns:
             Dictionary mapping plugin_id to list of variable names
         """
+        return self._collect_variables()[0]
+
+    def _collect_variables(self) -> tuple[dict[str, list[str]], dict[str, set[str]]]:
+        """Variable names per plugin, plus the ``<field>_color`` names added for color rules."""
         variables: dict[str, list[str]] = {}
+        synthetic: dict[str, set[str]] = {}
 
         # Snapshot under the lock, iterate the snapshot: _discover_variables
         # below may call plugin code, which must never run while the lock is
@@ -1249,9 +1254,35 @@ class PluginRegistry:
                         var_names.append(name)
 
             if var_names:
+                # The engine resolves "<field>_color" for any field with rules; list it so the picker offers it.
+                existing = set(var_names)
+                added = {
+                    f"{field}_color"
+                    for field in self._fields_with_color_rules(plugin_id, manifest)
+                    if field in existing and f"{field}_color" not in existing
+                }
+                if added:
+                    var_names.extend(sorted(added))
+                    synthetic[plugin_id] = added
+
                 variables[plugin_id] = var_names
 
-        return variables
+        return variables, synthetic
+
+    def _fields_with_color_rules(self, plugin_id: str, manifest: PluginManifest) -> set[str]:
+        """Fields with a color rule from any source, resolved as the template engine does."""
+        from src.config_manager import get_config_manager
+
+        config_manager = get_config_manager()
+        base_plugin_id = plugin_id.split(":", 1)[0]
+        instance_rules = config_manager.get_instance_color_rules(plugin_id)
+        candidates = set(manifest.color_rules_schema or {}) | set(instance_rules)
+        return {
+            field
+            for field in candidates
+            if config_manager.get_effective_color_rules(plugin_id, base_plugin_id, field, instance_rules)
+            or manifest_default_color_rules(manifest, field)
+        }
 
     def get_all_variables_with_metadata(
         self,
@@ -1261,7 +1292,7 @@ class PluginRegistry:
         Returns:
             ``{plugin_id: {var_name: {description, type, max_length, group, example, preview}}}``
         """
-        all_vars = self.get_all_variables()
+        all_vars, synthetic = self._collect_variables()
         context = self.build_template_context()
         result: dict[str, dict[str, dict[str, Any]]] = {}
 
@@ -1294,6 +1325,20 @@ class PluginRegistry:
                         "group": array_meta.group,
                         "example": array_meta.example,
                         "item_count": len(items) if isinstance(items, list) else None,
+                    }
+                    continue
+
+                if manifest and name in synthetic.get(plugin_id, ()):
+                    # Borrow the base field's group so the entry sits next to it in the picker.
+                    base_field = name[: -len("_color")]
+                    base_meta = manifest.variables.get_variable_metadata(base_field)
+                    var_dict[name] = {
+                        "description": f"Color tile for {base_meta.description or base_field}",
+                        "type": "color",
+                        "max_length": 1,
+                        "group": base_meta.group,
+                        "example": "",
+                        "preview": "",
                     }
                     continue
 
