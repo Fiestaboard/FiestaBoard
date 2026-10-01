@@ -719,6 +719,17 @@
       "icon": "tv",
       "category": "entertainment",
       "added": "2026-09-24"
+    },
+    {
+      "id": "shopify",
+      "name": "Shopify",
+      "description": "Show your Shopify store's sales, orders, latest order and low-stock alerts, with a new-order alert page.",
+      "repository": "https://github.com/Fiestaboard/fiestaboard-plugin--shopify",
+      "author": "FiestaBoard Team",
+      "fiestaboard_version": ">=9.0.0",
+      "icon": "shopping-bag",
+      "category": "data",
+      "added": "2026-10-01"
     }
   ]
 }

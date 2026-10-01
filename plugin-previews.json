@@ -1410,6 +1410,42 @@
         }
       ]
     },
+    "shopify": {
+      "teaser": "{66} TODAY $1,284",
+      "previews": [
+        {
+          "device_type": "flagship",
+          "rows": [
+            "    MY TEST STORE",
+            "",
+            "  {66} TODAY $1,284",
+            " 23 ORDERS AVG $56",
+            " #1042 $86 12M AGO",
+            "     4 LOW STOCK"
+          ]
+        },
+        {
+          "device_type": "note",
+          "rows": [
+            "{66} TODAY $1,284",
+            "   23 ORDERS",
+            " #1042 12M AGO"
+          ]
+        },
+        {
+          "label": "New order alert",
+          "device_type": "flagship",
+          "rows": [
+            "",
+            "   {66} NEW ORDER {66}",
+            "",
+            "        #1042",
+            "         $86",
+            "    TODAY $1,284"
+          ]
+        }
+      ]
+    },
     "solar_activity": {
       "teaser": "7 SUNSPOTS",
       "previews": [
