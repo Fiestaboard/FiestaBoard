@@ -31,7 +31,7 @@ The plugin signs in with a small, read-only app that you create for your own sto
 
 1. Go to the [Shopify Dev Dashboard](https://dev.shopify.com/dashboard/) and sign in with the account that owns your store
 2. Open **Apps** and create a new app, for example `FiestaBoard`
-3. In the app's version configuration, select the **Admin API access scopes** `read_orders`, and `read_products` if you want low-stock tracking
+3. In the app's version configuration, select the **Admin API access scope** `read_orders` (and `read_products` if you want low-stock tracking)
 4. **Release** the version so the scopes take effect
 5. **Install** the app on your store
 6. Open the app's **Settings** and copy the **Client ID** and **Client secret**
