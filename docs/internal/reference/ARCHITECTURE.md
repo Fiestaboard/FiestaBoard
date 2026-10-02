@@ -41,7 +41,7 @@ in `tests/layering_manifest.json`, and only those**:
 | A router may not open a file | `router_no_file_io` | No `open()`, `Path.read_*`/`write_*`, `json.load`/`dump`, `os`/`shutil` filesystem verb, or import of a storage module / `src.atomic_io` / `src.paths` in a transport module |
 | A router may not hold domain logic | `router_no_domain_logic` | A **size proxy**: every module-level function in a transport module stays within 15 body statements and cyclomatic complexity 8 |
 
-Enforced today: **`auth`, `backup`, `config_api`, `mqtt`, `network`,
+Enforced today: **`auth`, `backup`, `config_api`, `mqtt`, `network`, `oauth`,
 `schedules`, `system`, `transitions`, `triggers`**. Everything else —
 including `pages`, `collections`, `panels`, `settings`, `board_api` — is
 **unenforced**, and most of it does not currently comply: the 2026-09 audit

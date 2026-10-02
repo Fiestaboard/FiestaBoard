@@ -12,6 +12,8 @@ Public paths (no auth required):
       reason ``/openapi.json`` is and because it is exactly what
       ``/openapi.json`` published before the internal surface was hidden.
       Gating it now would be a new restriction dressed up as a refactor.
+    * ``/oauth/callback`` — the OAuth relay's return leg, authenticated by
+      its signed ``state`` rather than a cookie
     * CORS preflight (``OPTIONS``) requests
 
 Bearer-token paths (``/mcp/*`` and ``/v1/*``):
@@ -70,7 +72,15 @@ _PUBLIC_PREFIXES: tuple = (
 # whole ``/v1`` surface unusable as the one a consumer is pointed at. Both
 # nginx regimes are listed because ``/api`` is stripped from most traffic and
 # left intact on some paths — the same double form ``_is_v1_path`` handles.
-_PUBLIC_EXACT: frozenset = frozenset({"/", "/auth", "/health", "/v1/health", "/api/v1/health"})
+#
+# ``/oauth/callback`` is where the OAuth relay page sends the browser after a
+# provider sign-in. It arrives by cross-site navigation, so it cannot rely on
+# the session cookie; what authenticates it is the signed, single-use
+# ``state`` of a flow that an authenticated user started (src/oauth/state.py).
+# Only the callback is public — every other ``/oauth`` route needs a session.
+_PUBLIC_EXACT: frozenset = frozenset(
+    {"/", "/auth", "/health", "/v1/health", "/api/v1/health", "/oauth/callback", "/api/oauth/callback"}
+)
 
 
 def _is_public_path(path: str) -> bool:

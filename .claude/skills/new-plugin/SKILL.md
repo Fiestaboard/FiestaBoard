@@ -96,11 +96,13 @@ Richer shapes — **art** (color-tile grids), **trigger** (push a page on an eve
 Read `references/plugin-types.md` when the idea is one of those.
 
 **Auth matters more than it looks — ask about it now.** FiestaBoard usually runs as a LAN
-appliance with no public domain, so **redirect-based OAuth typically can't complete** (no
-reachable `redirect_uri`). Before committing to an integration, confirm there's a viable
-path: an API key / token the user pastes in (a `password`-widget setting + `env_vars` entry;
-never hardcode it), an OAuth **device-authorization flow**, or a long-lived token. If the
-service only offers redirect OAuth, surface that now — it's a poor fit. The auth section of
+appliance with no public domain, so a plugin cannot receive an OAuth redirect by itself.
+Before committing to an integration, confirm the path: an API key / token the user pastes in
+(a `password`-widget setting + `env_vars` entry; never hardcode it), a long-lived token, or
+OAuth through the platform. For OAuth, declare an `oauth` block in the manifest and call
+`self.get_oauth_token()`; the platform runs the device flow or the redirect flow (through the
+shared relay at fiestaboard.app) and keeps the tokens. Never hand-roll an OAuth flow in a
+plugin, and never put a client secret in a manifest. The auth section of
 `references/design-guidance.md` covers the patterns.
 
 ### Step 2 — Scaffold

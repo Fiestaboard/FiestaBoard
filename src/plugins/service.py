@@ -121,6 +121,12 @@ class PluginService:
 
         return get_settings_service()
 
+    @property
+    def oauth_service(self) -> Any:
+        from src.oauth.service import get_oauth_service  # canonical home; resolved per call so tests can patch it
+
+        return get_oauth_service()
+
     # -- the one orchestration tail -----------------------------------------
 
     def reset_runtime(self) -> None:
@@ -560,6 +566,8 @@ class PluginService:
         config_manager = self.config_manager
         config_manager.delete_plugin_config(compound_key)
         config_manager.mark_plugin_removed(compound_key)
+        # An instance's OAuth connection is its own; it goes with it.
+        self.oauth_service.forget(compound_key)
 
         self.reset_runtime()
 
@@ -646,9 +654,14 @@ class PluginService:
         # auto-migration would see the leftover entry as orphaned on the next
         # boot and silently reinstall the plugin the user just deleted (#937).
         config_manager = self.config_manager
+        oauth_service = self.oauth_service
         for compound_key in instance_keys:
             config_manager.delete_plugin_config(compound_key)
+            oauth_service.forget(compound_key)
         config_manager.delete_plugin_config(plugin_id)
+        # Tokens for a plugin that is gone are credentials nobody can see or
+        # revoke from the UI; do not leave them on disk.
+        oauth_service.forget(plugin_id)
 
     def _validated_update_path(self, plugin_id: str) -> None:
         """Guard an external plugin's local path before letting it near git.

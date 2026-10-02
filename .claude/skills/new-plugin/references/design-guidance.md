@@ -12,25 +12,29 @@ FiestaBoard usually runs as a **LAN appliance with no public domain and no inbou
 — a Docker container on someone's home or office network at something like
 `http://192.168.1.50:4420`. That breaks the assumption most "Log in with X" flows make.
 
-- **Redirect / authorization-code OAuth is a poor fit.** It needs a registered, reachable
-  `redirect_uri` (often https + a verified domain), and the consent round-trip has to land
-  back on the appliance. A domain-less box on a LAN usually can't satisfy that, and it's
-  fragile across providers and remote access. **Don't design around it.**
+- **A plugin cannot receive an OAuth redirect by itself.** Redirect OAuth needs a registered,
+  reachable `redirect_uri` (https + a real domain), and a box on a LAN has neither. The
+  platform solves this once, for every plugin: declare an `oauth` block in the manifest and
+  the platform runs the flow, through a shared static relay at
+  `https://fiestaboard.app/auth/oauth/redirect.html` that hands the browser back to the
+  board. **Never hand-roll an OAuth flow inside a plugin.** See "Signing In With OAuth" in
+  `docs/internal/development/PLUGIN_DEVELOPMENT.md`.
 - **Prefer these, in order:**
   1. **API key / personal access token the user pastes in.** Simplest and most robust. A
      `settings_schema` string with `"ui:widget": "password"` + a matching `env_vars` entry,
      read as `self.config.get("api_key") or os.getenv("MY_PLUGIN_API_KEY")`. In the SETUP
      guide, document *exactly* where the user generates the key.
-  2. **OAuth 2.0 Device Authorization Grant ("device flow").** The OAuth profile designed for
-     input-/domain-constrained devices — supported by Google, GitHub, Spotify, Twitch, and
-     others. The user gets a short code, authorizes on a phone/laptop, and the plugin polls
-     for the token — **no redirect URI needed.** Store the refresh token in config and
-     refresh as needed.
+  2. **OAuth through the platform.** Declare `oauth` in the manifest and call
+     `self.get_oauth_token()` in `fetch_data`. Use the `device` flow where the provider
+     supports it for the scopes you need (the user types a short code; no redirect), and the
+     `relay` flow otherwise (works with any provider; the user registers the shared relay URL
+     as their app's redirect URI). The platform stores and refreshes the tokens. The plugin
+     never stores a token and never ships a client secret.
   3. **Long-lived / self-issued tokens** — e.g. a Home Assistant long-lived access token, or
      a service's "personal token". User generates it once and pastes it in.
-- **If a service only supports redirect OAuth**, treat it as a red flag. Find a token or
-  device-flow path, or tell the user up front it isn't a clean fit — don't ship an auth flow
-  that can't complete on their board.
+- **OAuth usually means each user registers their own app** with the provider and pastes in
+  a client ID. Say so in the SETUP guide, with the exact redirect URI to enter, and check the
+  provider's limits on unreviewed apps before assuming a shared client ID would work.
 - **Inbound webhooks** (the `webhook` plugin type) assume something on the internet can reach
   the appliance — often it can't without a tunnel. If you use them, say so in the setup docs.
 

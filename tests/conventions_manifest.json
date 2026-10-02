@@ -11,6 +11,7 @@
     "displays",
     "mqtt",
     "network",
+    "oauth",
     "pages",
     "panels",
     "plugin-support",
@@ -340,6 +341,21 @@
       "route": "PUT /settings/mqtt",
       "rule": "declared_errors",
       "reason": "Its only failure is request-body validation. It used to declare 422 by hand, which is worse than declaring nothing: a hand-written 422 entry REPLACES the HTTPValidationError body FastAPI publishes automatically, so the schema announced a 422 with an empty body. The entry is gone and FastAPI's own 422 is published instead. The handler persists a validated model and raises no HTTPException of its own, so there is no other status it deliberately returns."
+    },
+    {
+      "route": "GET /oauth/callback",
+      "rule": "declared_errors",
+      "reason": "The caller is a browser arriving by redirect from a sign-in provider, mid-flow. Every outcome, including a forged, expired or reused state and a failed code exchange, is a 302 back to the Integrations page with the reason in the query string, because a JSON error body would strand the person on a blank page. The handler raises nothing; tests/test_oauth_routes.py pins the redirect for each failure."
+    },
+    {
+      "route": "GET /oauth/callback",
+      "rule": "response_model",
+      "reason": "Answers a 302 with no body; there is no document for a model to describe. The route declares response_class=RedirectResponse and documents the 302."
+    },
+    {
+      "route": "GET /oauth/connections",
+      "rule": "declared_errors",
+      "reason": "A read over installed plugins with no path or body parameters. No plugin declaring OAuth is an empty list, not a failure, so there is no status it refuses at and the handler raises nothing."
     }
   ]
 }

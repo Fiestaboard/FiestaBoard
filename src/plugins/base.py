@@ -847,6 +847,23 @@ class PluginBase(ABC):
         """
         return self._manifest.get("env_vars", [])
 
+    def get_oauth_token(self) -> str | None:
+        """Return an access token for the provider in the manifest's ``oauth`` block.
+
+        The platform runs the sign-in and keeps the token fresh; a plugin only
+        ever asks for the current one, each time it fetches. ``None`` means the
+        user has not connected (or has to reconnect), in which case return
+        ``PluginResult(available=False, error=...)`` instead of calling the
+        provider. Each plugin instance has its own connection.
+
+        Returns:
+            The access token to send as ``Authorization: Bearer <token>``, or
+            ``None``.
+        """
+        from src.oauth.service import get_oauth_service
+
+        return get_oauth_service().access_token_for(self)
+
 
 # Defaults for transition plugin manifest's transition_settings block.
 DEFAULT_TRANSITION_INTERRUPTIBLE = True
