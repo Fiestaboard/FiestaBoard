@@ -171,6 +171,7 @@ FiestaBoard has a catalog of **50+ plugins** covering weather, finance, transit,
 | [Reddit Hot](https://github.com/Fiestaboard/fiestaboard-plugin--reddit-hot) | Top post from any subreddit | No |
 | [River Flow](https://github.com/Fiestaboard/fiestaboard-plugin--river-flow) | Real-time USGS streamflow data | No |
 | [Santa Tracker](https://github.com/Fiestaboard/fiestaboard-plugin--santa-tracker) | Track Santa's journey on Christmas | No |
+| [Shopify](https://github.com/Fiestaboard/fiestaboard-plugin--shopify) | Sales, orders, latest order and low stock from your Shopify store | Yes (Shopify app credentials) |
 | [Solar Activity](https://github.com/Fiestaboard/fiestaboard-plugin--solar-activity) | Sunspot count and solar flare data | No |
 | [Spacecraft Launches](https://github.com/Fiestaboard/fiestaboard-plugin--spacecraft-launches) | Upcoming rocket launch countdowns | No |
 | [Sports Scores](https://github.com/Fiestaboard/fiestaboard-plugin--sports-scores) | NFL, Soccer, NHL, NBA scores | Optional |
