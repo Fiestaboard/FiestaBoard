@@ -20,7 +20,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
-from src.oauth.provider import validate_oauth_block
+from src.oauth.provider import validate_provider_block
 
 from .previews import (
     MAX_PREVIEW_NOTES_PER_AXIS,
@@ -401,7 +401,7 @@ MANIFEST_SCHEMA = {
             "description": (
                 "OAuth provider this plugin signs in to. The platform runs the flow and stores the "
                 "tokens; the plugin calls self.get_oauth_token(). Validated by "
-                "src/oauth/provider.py::validate_oauth_block."
+                "src/oauth/provider.py::validate_provider_block."
             ),
         },
         "teaser": {
@@ -1335,7 +1335,7 @@ def validate_manifest(data: dict[str, Any]) -> tuple[bool, list[str]]:
         if data.get("plugin_type", "data") == "transition":
             errors.append("oauth is not supported for transition plugins — they fetch no data")
         else:
-            errors.extend(validate_oauth_block(data["oauth"]))
+            errors.extend(validate_provider_block(data["oauth"]))
 
     # Validate board previews when present.
     #

@@ -20,7 +20,7 @@ from src.oauth.errors import (
     InvalidBoardUrl,
     ProviderError,
 )
-from src.oauth.provider import parse_oauth_block
+from src.oauth.provider import parse_provider_block
 from src.oauth.service import (
     DEFAULT_REDIRECT_URI,
     MAX_PENDING_AUTHORIZATIONS,
@@ -67,7 +67,7 @@ class FakeSource:
             plugin_id=plugin_id,
             instance_label=label or None,
             plugin_name=name,
-            provider=parse_oauth_block(block, name),
+            provider=parse_provider_block(block, name),
             config=config if config is not None else {"client_id": "client-abc"},
         )
         self.plugins[connection_id] = object()

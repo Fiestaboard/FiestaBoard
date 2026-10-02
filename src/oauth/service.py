@@ -48,7 +48,7 @@ from .errors import (
     ProviderError,
     TokenEndpointError,
 )
-from .provider import FLOW_DEVICE, FLOW_RELAY, OAuthProvider, parse_oauth_block
+from .provider import FLOW_DEVICE, FLOW_RELAY, OAuthProvider, parse_provider_block
 from .state import STATE_TTL_SECONDS, StatePayload, StateSigner, load_state_key
 from .tokens import TokenSet, TokenStore
 
@@ -161,7 +161,7 @@ class RegistryConnectionSource:
         manifest = registry.get_manifest(connection_id)
         if manifest is None:
             return None
-        provider = parse_oauth_block(manifest.raw.get("oauth"), manifest.name)
+        provider = parse_provider_block(manifest.raw.get("oauth"), manifest.name)
         if provider is None:
             return None
         plugin_id, instance_label = registry.parse_instance_key(connection_id)

@@ -825,8 +825,8 @@ secret exchange, a refresh token, or a redirect.
 "oauth": {
   "provider_name": "Example Music",
   "flows": ["relay"],
-  "authorization_url": "https://accounts.example.com/authorize",
-  "token_url": "https://accounts.example.com/api/token",
+  "authorization_url": "https://example.com/oauth/authorize",
+  "token_url": "https://example.com/oauth/token",
   "scopes": ["user-read-currently-playing"],
   "client_id_setting": "client_id"
 },

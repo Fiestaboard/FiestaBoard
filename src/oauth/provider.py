@@ -17,6 +17,10 @@ provider here; the platform runs the flow and stores the tokens. Nothing in
 
 This module is pure (no I/O, no imports from the rest of ``src``) so
 ``src/plugins/manifest.py`` can validate the block at load time.
+
+Validation messages are fixed text. They name the rule that was broken and
+never repeat a value from the block, so nothing a manifest contains can reach
+a log line through them.
 """
 
 from __future__ import annotations
@@ -108,10 +112,11 @@ def _endpoint_error(key: str, value: Any) -> str | None:
 def _flows_errors(flows: Any) -> list[str]:
     if not isinstance(flows, list) or not flows:
         return [f"oauth.flows must be a non-empty array of: {', '.join(FLOWS)}"]
-    errors = [f"oauth.flows contains unknown flow {flow!r}" for flow in flows if flow not in FLOWS]
-    if len(set(map(str, flows))) != len(flows):
-        errors.append("oauth.flows must not repeat a flow")
-    return errors
+    if any(flow not in FLOWS for flow in flows):
+        return [f"oauth.flows contains an unknown flow; the flows are: {', '.join(FLOWS)}"]
+    if len(set(flows)) != len(flows):
+        return ["oauth.flows must not repeat a flow"]
+    return []
 
 
 def _scopes_errors(scopes: Any) -> list[str]:
@@ -127,9 +132,9 @@ def _authorization_params_errors(params: Any) -> list[str]:
         not isinstance(key, str) or not isinstance(value, str) for key, value in params.items()
     ):
         return ["oauth.authorization_params must be an object of string values"]
-    reserved = sorted(RESERVED_AUTHORIZATION_PARAMS.intersection(params))
-    if reserved:
-        return [f"oauth.authorization_params may not set {', '.join(reserved)}; the platform sets those"]
+    if not RESERVED_AUTHORIZATION_PARAMS.isdisjoint(params):
+        reserved = ", ".join(sorted(RESERVED_AUTHORIZATION_PARAMS))
+        return [f"oauth.authorization_params may not set any of: {reserved}; the platform sets those"]
     return []
 
 
@@ -150,14 +155,14 @@ def _credential_errors(raw: dict[str, Any]) -> list[str]:
     return errors
 
 
-def validate_oauth_block(raw: Any) -> list[str]:
+def validate_provider_block(raw: Any) -> list[str]:
     """Return every problem with a manifest's ``oauth`` block (empty when valid)."""
     if not isinstance(raw, dict):
         return ["oauth must be an object"]
 
     errors = _credential_errors(raw)
-    unknown = sorted(set(raw) - _KNOWN_KEYS - {"client_secret"})
-    errors.extend(f"oauth.{key} is not a recognised field" for key in unknown)
+    if set(raw) - _KNOWN_KEYS - {"client_secret"}:
+        errors.append(f"oauth has a field that is not recognised; the fields are: {', '.join(sorted(_KNOWN_KEYS))}")
 
     flow_errors = _flows_errors(raw.get("flows"))
     errors.extend(flow_errors)
@@ -183,14 +188,14 @@ def validate_oauth_block(raw: Any) -> list[str]:
     return errors
 
 
-def parse_oauth_block(raw: Any, fallback_name: str) -> OAuthProvider | None:
+def parse_provider_block(raw: Any, fallback_name: str) -> OAuthProvider | None:
     """Parse a manifest's ``oauth`` block, or ``None`` when absent or invalid.
 
     Invalid blocks never get this far in production — ``validate_manifest``
     refuses to load the plugin — so ``None`` here means "this plugin has no
     OAuth connection".
     """
-    if raw is None or validate_oauth_block(raw):
+    if raw is None or validate_provider_block(raw):
         return None
     return OAuthProvider(
         name=str(raw.get("provider_name") or fallback_name).strip(),
