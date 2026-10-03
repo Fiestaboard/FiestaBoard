@@ -11,6 +11,7 @@ from src.plugins.base import PluginBase, PluginResult
 from src.plugins.manifest import PluginManifest, load_manifest
 from src.plugins.previews import BoardPreview
 from src.plugins.registry import (
+    DISCOVERY_RETRY_SECONDS,
     PluginRegistry,
     get_plugin_registry,
     reset_plugin_registry,
@@ -898,6 +899,67 @@ def test_clear_discovered_cache(registry, mock_loader, mock_plugin):
     assert "test_plugin" in registry._discovered_vars
     registry.clear_discovered_cache("test_plugin")
     assert "test_plugin" not in registry._discovered_vars
+
+
+def _init_autodiscover(registry, mock_loader, mock_plugin):
+    manifest = _make_autodiscover_manifest(auto_discover=True, simple=[])
+    mock_loader.load_all_plugins.return_value = {"test_plugin": mock_plugin}
+    mock_loader.get_manifest.side_effect = lambda pid: manifest if pid == "test_plugin" else None
+    with patch("src.config_manager.get_config_manager") as mock_cm:
+        mock_cm.return_value.get_all_plugin_configs.return_value = {"test_plugin": {"enabled": True}}
+        registry.initialize()
+
+
+def test_saving_config_rediscovers_variables(registry, mock_loader, mock_plugin):
+    """A config change can change what a plugin returns, so discovery runs again."""
+    _init_autodiscover(registry, mock_loader, mock_plugin)
+    mock_plugin.get_data.return_value = PluginResult(available=True, data={"sensor_a": "on"})
+    assert registry.get_all_variables()["test_plugin"] == ["sensor_a"]
+
+    mock_plugin.get_data.return_value = PluginResult(available=True, data={"sensor_a": "on", "sensor_b": "off"})
+    assert registry.set_plugin_config("test_plugin", {"entities": ["a", "b"]}) == []
+
+    assert registry.get_all_variables()["test_plugin"] == ["sensor_a", "sensor_b"]
+
+
+def test_restoring_an_invalid_stored_config_rediscovers_variables(registry, mock_loader, mock_plugin):
+    """apply_stored_config keeps a config that fails validation; it still changes the data."""
+    _init_autodiscover(registry, mock_loader, mock_plugin)
+    mock_plugin.get_data.return_value = PluginResult(available=True, data={"sensor_a": "on"})
+    registry.get_all_variables()
+
+    mock_plugin.validate_config.return_value = ["missing field"]
+    mock_plugin.get_data.return_value = PluginResult(available=True, data={"sensor_b": "off"})
+    assert registry.apply_stored_config("test_plugin", {"entities": ["b"]}) == ["missing field"]
+
+    assert registry.get_all_variables()["test_plugin"] == ["sensor_b"]
+
+
+def test_failed_discovery_is_retried_after_the_retry_window(registry, mock_loader, mock_plugin):
+    """An upstream that is down at first discovery must not hide its variables until restart."""
+    _init_autodiscover(registry, mock_loader, mock_plugin)
+    mock_plugin.get_data.return_value = PluginResult(available=False, error="unreachable")
+
+    with patch("src.plugins.registry.time.monotonic", return_value=1000.0):
+        assert registry.get_all_variables() == {}
+
+    mock_plugin.get_data.return_value = PluginResult(available=True, data={"sensor_a": "on"})
+    with patch("src.plugins.registry.time.monotonic", return_value=1000.0 + DISCOVERY_RETRY_SECONDS):
+        assert registry.get_all_variables()["test_plugin"] == ["sensor_a"]
+
+
+def test_failed_discovery_is_not_refetched_within_the_retry_window(registry, mock_loader, mock_plugin):
+    """Every picker load must not pay a dead upstream's timeout again."""
+    _init_autodiscover(registry, mock_loader, mock_plugin)
+    mock_plugin.get_data.return_value = PluginResult(available=False, error="unreachable")
+
+    with patch("src.plugins.registry.time.monotonic", return_value=1000.0):
+        registry.get_all_variables()
+    calls = mock_plugin.get_data.call_count
+    with patch("src.plugins.registry.time.monotonic", return_value=1000.0 + DISCOVERY_RETRY_SECONDS - 1):
+        registry.get_all_variables()
+
+    assert mock_plugin.get_data.call_count == calls
 
 
 # --- check_for_updates / get_update_status ---

@@ -443,7 +443,8 @@ Template usage:
 2. It inspects `PluginResult.data` for top-level keys
 3. Scalar values (string, int, float, bool) become simple variables
 4. Lists and dicts are skipped (those should be declared as arrays in the manifest)
-5. Results are cached per plugin lifecycle
+5. A successful result is cached until the plugin's config is saved or the plugin is reloaded, so keys that depend on config (e.g. one per configured entity) appear as soon as the user saves
+6. A failed fetch is retried after `DISCOVERY_RETRY_SECONDS` (60s), so a data source that was down at startup still gets its variables listed
 
 ### Mixing declared and undeclared variables
 

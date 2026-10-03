@@ -107,6 +107,12 @@ PLUGIN_FETCH_MAX_WORKERS = 8
 PLUGIN_FETCH_BREAKER_THRESHOLD = 3
 PLUGIN_FETCH_BREAKER_COOLDOWN_SECONDS = 300.0
 
+# How long a failed auto-discovery fetch is remembered before the next
+# variable listing tries again. Caching the failure keeps every picker load
+# from paying a dead upstream's timeout; expiring it means a data source
+# that was down when FiestaBoard started still gets its variables listed.
+DISCOVERY_RETRY_SECONDS = 60.0
+
 # Reserved capacity, the other half of #1884. Quarantining a plugin stops the
 # *next* fetch; the one already running keeps its worker until the plugin
 # returns, which for a truly wedged data source is never. Those workers are
@@ -239,6 +245,8 @@ class PluginRegistry:
 
         # Auto-discovery cache: maps plugin_id -> discovered variable names
         self._discovered_vars: dict[str, list[str]] = {}
+        # plugin_id -> time.monotonic() of its last failed discovery fetch
+        self._discovery_failed_at: dict[str, float] = {}
 
         # In-flight fetch registry (issue #1862 review): maps
         # (plugin_id, board key) -> the pending Future for that fetch.
@@ -390,6 +398,7 @@ class PluginRegistry:
             self._enabled.pop(compound_key, None)
             self._configs.pop(compound_key, None)
             self._discovered_vars.pop(compound_key, None)
+            self._discovery_failed_at.pop(compound_key, None)
 
         retire_plugin_object(compound_key, instance, what="removed plugin")
 
@@ -1014,6 +1023,8 @@ class PluginRegistry:
             # released — the config setter fires clear_cache() and
             # on_config_change(), plugin-authored code that may block (#1854).
             self._configs[plugin_id] = config
+            # New config can mean new data keys (e.g. entities added to watch).
+            self.clear_discovered_cache(plugin_id)
 
         plugin.config = config
 
@@ -1044,6 +1055,7 @@ class PluginRegistry:
                 if plugin is None:
                     return errors
                 self._configs[plugin_id] = config
+                self.clear_discovered_cache(plugin_id)
             # Setter fires plugin-authored callbacks — run it unlocked (#1854).
             plugin.config = config
         return errors
@@ -1181,13 +1193,16 @@ class PluginRegistry:
 
         Only scalar values (str, int, float, bool) are surfaced; lists and
         dicts are skipped (those should be declared as arrays in the manifest).
-        Results are cached so the discovery fetch only happens once per
-        plugin lifecycle.
+        A successful result is cached until the plugin's config changes or it
+        is reloaded; a failed fetch is retried after DISCOVERY_RETRY_SECONDS.
         """
         with self._lock:
             cached = self._discovered_vars.get(plugin_id)
+            failed_at = self._discovery_failed_at.get(plugin_id)
         if cached is not None:
             return cached
+        if failed_at is not None and time.monotonic() - failed_at < DISCOVERY_RETRY_SECONDS:
+            return []
 
         # The discovery fetch runs unlocked — it calls plugin code that may
         # block on the network.
@@ -1197,12 +1212,13 @@ class PluginRegistry:
                 discovered = [key for key, val in result.data.items() if isinstance(val, str | int | float | bool)]
                 with self._lock:
                     self._discovered_vars[plugin_id] = discovered
+                    self._discovery_failed_at.pop(plugin_id, None)
                 return discovered
         except Exception:
             logger.debug("Auto-discovery fetch failed for %s", plugin_id)
 
         with self._lock:
-            self._discovered_vars[plugin_id] = []
+            self._discovery_failed_at[plugin_id] = time.monotonic()
         return []
 
     def clear_discovered_cache(self, plugin_id: str | None = None) -> None:
@@ -1210,8 +1226,10 @@ class PluginRegistry:
         with self._lock:
             if plugin_id:
                 self._discovered_vars.pop(plugin_id, None)
+                self._discovery_failed_at.pop(plugin_id, None)
             else:
                 self._discovered_vars.clear()
+                self._discovery_failed_at.clear()
 
     def get_all_variables(self) -> dict[str, list[str]]:
         """Get all template variables from enabled plugins.
@@ -1810,6 +1828,7 @@ class PluginRegistry:
                 self._enabled.pop(compound_key, None)
                 self._configs.pop(compound_key, None)
                 self._discovered_vars.pop(compound_key, None)
+                self._discovery_failed_at.pop(compound_key, None)
                 logger.info("Removed instance on uninstall: %s", compound_key)
 
             # Disable and unload base plugin
