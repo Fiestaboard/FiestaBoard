@@ -28,9 +28,16 @@ from .errors import (
     FlowNotSupported,
     InvalidBoardUrl,
     OAuthError,
+    PastedCodeRejected,
     ProviderError,
 )
-from .models import OAuthAuthorizationStart, OAuthAuthorizeRequest, OAuthConnection, OAuthConnectionList
+from .models import (
+    OAuthAuthorizationStart,
+    OAuthAuthorizeRequest,
+    OAuthCompleteRequest,
+    OAuthConnection,
+    OAuthConnectionList,
+)
 from .service import CallbackOutcome, get_oauth_service
 
 logger = logging.getLogger(__name__)
@@ -43,6 +50,7 @@ _STATUS_BY_ERROR: tuple[tuple[type[OAuthError], int], ...] = (
     (ConnectionNotConfigured, 400),
     (FlowNotSupported, 400),
     (InvalidBoardUrl, 400),
+    (PastedCodeRejected, 400),
     (ProviderError, 502),
 )
 
@@ -96,6 +104,23 @@ async def authorize_oauth_connection(connection_id: str, request: OAuthAuthorize
     # The device flow calls the provider, so this cannot run on the event loop.
     start = await asyncio.to_thread(get_oauth_service().start, connection_id, request.flow, request.board_url)
     return OAuthAuthorizationStart.model_validate(asdict(start))
+
+
+@router.post(
+    "/oauth/connections/{connection_id}/complete",
+    response_model=OAuthConnection,
+    responses=errors(400, 404, 502),
+)
+@oauth_errors_to_http
+async def complete_oauth_connection(connection_id: str, request: OAuthCompleteRequest) -> OAuthConnection:
+    """Finish a sign-in from the address or code the user pasted.
+
+    For when the browser did not come back on its own: the relay page could
+    not reach the board, or the provider shows a code instead of redirecting.
+    Needs a session, unlike ``/oauth/callback``.
+    """
+    status = await asyncio.to_thread(get_oauth_service().complete_pasted, connection_id, request.pasted)
+    return OAuthConnection.model_validate(asdict(status))
 
 
 @router.delete("/oauth/connections/{connection_id}", response_model=OAuthConnection, responses=errors(404))

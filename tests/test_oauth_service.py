@@ -1114,3 +1114,140 @@ def test_a_missing_or_public_http_base_is_not_configured(service, source, base):
 def test_a_lan_base_is_configured(service, source):
     source.add("ha", HA_BLOCK, config={"base_url": "http://192.168.1.20:8123"})
     assert service.get_connection("ha").configured is True
+
+
+# ── Paste what the provider showed you ──────────────────────────────────────
+
+from src.oauth.errors import PastedCodeRejected  # noqa: E402
+
+
+def _relay_state(service, connection_id="music"):
+    return _begin_relay(service, connection_id)["state"]
+
+
+def _reject_reason(service, connection_id, pasted):
+    with pytest.raises(PastedCodeRejected) as caught:
+        service.complete_pasted(connection_id, pasted)
+    return caught.value.reason
+
+
+def test_pasting_the_full_address_connects(service, source, provider, store):
+    source.add("music", RELAY_BLOCK)
+    state = _relay_state(service)
+    provider.reply(TOKENS)
+
+    status = service.complete_pasted("music", f"https://relay.example/oauth/redirect.html?code=code-1&state={state}")
+
+    assert status.status == "connected"
+    assert provider.calls[0][1]["code"] == "code-1"
+    assert store.get("music").access_token == "access-1"
+    assert source.invalidated == ["music"]
+
+
+def test_pasting_an_address_with_a_fragment_connects(service, source, provider):
+    source.add("music", RELAY_BLOCK)
+    state = _relay_state(service)
+    provider.reply(TOKENS)
+    assert service.complete_pasted("music", f"https://x.example/cb#code=code-1&state={state}").status == "connected"
+
+
+def test_a_bare_code_cannot_finish_a_relay_flow(service, source, provider):
+    source.add("music", RELAY_BLOCK)
+    _relay_state(service)
+    assert _reject_reason(service, "music", "code-12345") == "no_pending"
+    assert provider.calls == []
+
+
+def test_a_paste_for_another_connection_is_refused(service, source, provider):
+    source.add("music", RELAY_BLOCK)
+    source.add("other", RELAY_BLOCK)
+    state = _relay_state(service, "music")
+    assert _reject_reason(service, "other", f"https://x.example/cb?code=c-1&state={state}") == "invalid_state"
+    assert provider.calls == []
+
+
+def test_a_paste_for_another_connection_does_not_spend_the_state(service, source, provider):
+    source.add("music", RELAY_BLOCK)
+    source.add("other", RELAY_BLOCK)
+    state = _relay_state(service, "music")
+    _reject_reason(service, "other", f"https://x.example/cb?code=c-1&state={state}")
+    provider.reply(TOKENS)
+    assert service.complete_pasted("music", f"https://x.example/cb?code=c-1&state={state}").status == "connected"
+
+
+def test_a_pasted_state_is_single_use_and_shared_with_the_callback(service, source, provider):
+    source.add("music", RELAY_BLOCK)
+    state = _relay_state(service)
+    provider.reply(TOKENS)
+    service.complete_pasted("music", f"https://x.example/cb?code=c-1&state={state}")
+    assert _reject_reason(service, "music", f"https://x.example/cb?code=c-1&state={state}") == "invalid_state"
+    assert service.complete_authorization(state=state, code="c-1", error=None).reason == "invalid_state"
+
+
+def test_a_tampered_pasted_state_is_refused(service, source):
+    source.add("music", RELAY_BLOCK)
+    _relay_state(service)
+    assert _reject_reason(service, "music", "https://x.example/cb?code=c-1&state=forged.sig") == "invalid_state"
+
+
+def test_an_expired_pasted_state_is_refused(service, source, clock):
+    source.add("music", RELAY_BLOCK)
+    state = _relay_state(service)
+    clock.now += STATE_TTL_SECONDS + 1
+    assert _reject_reason(service, "music", f"https://x.example/cb?code=c-1&state={state}") == "expired"
+
+
+def test_a_pasted_denial_is_reported(service, source, provider):
+    source.add("music", RELAY_BLOCK)
+    state = _relay_state(service)
+    assert _reject_reason(service, "music", f"https://x.example/cb?error=access_denied&state={state}") == "access_denied"
+    assert provider.calls == []
+
+
+def test_a_failed_exchange_after_paste_is_reported(service, source, provider, store):
+    source.add("music", RELAY_BLOCK)
+    state = _relay_state(service)
+    provider.reply({"error": "invalid_grant"}, status=400)
+    assert _reject_reason(service, "music", f"https://x.example/cb?code=c-1&state={state}") == "exchange_failed"
+    assert store.get("music") is None
+
+
+def test_unreadable_paste_is_refused(service, source):
+    source.add("music", RELAY_BLOCK)
+    assert _reject_reason(service, "music", "not a code") == "unreadable"
+
+
+def test_pasting_for_an_unknown_connection_is_not_found(service):
+    with pytest.raises(ConnectionNotFound):
+        service.complete_pasted("nope", "code-12345")
+
+
+def test_a_relay_from_a_url_address_ignores_a_client_id_in_the_paste(service, source, provider, store):
+    source.add("music", RELAY_BLOCK)
+    state = _relay_state(service)
+    provider.reply(TOKENS)
+    service.complete_pasted("music", f"https://x.example/cb?code=c-1&state={state}&client_id=evil")
+    assert provider.calls[0][1]["client_id"] == "client-abc"
+    assert store.get("music").client_id == ""
+
+
+# ── Token records ───────────────────────────────────────────────────────────
+
+
+def test_a_9_8_token_record_loads_with_the_new_fields_defaulted(tmp_path):
+    path = tmp_path / "oauth_tokens.json"
+    path.write_text(json.dumps({"schema_version": 1, "connections": {"music": {
+        "access_token": "access-1", "token_type": "Bearer", "refresh_token": "refresh-1",
+        "expires_at": NOW, "scopes": ["a"], "obtained_at": NOW, "needs_reauthorization": False}}}))
+    tokens = TokenStore(path).get("music")
+    assert (tokens.client_id, tokens.reauth_reason) == ("", "")
+    assert tokens.access_token == "access-1"
+
+
+def test_refresh_prefers_a_client_id_issued_at_sign_in(service, source, store, provider):
+    source.add("music", RELAY_BLOCK)
+    _connected(store, expires_at=NOW, client_id="issued-client-1")
+    provider.reply({"access_token": "access-2", "expires_in": 3600})
+    assert service.get_access_token("music") == "access-2"
+    assert provider.calls[0][1]["client_id"] == "issued-client-1"
+    assert store.get("music").client_id == "issued-client-1"

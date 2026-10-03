@@ -683,6 +683,14 @@
       "kind": "APIRoute"
     },
     {
+      "path": "/oauth/connections/{connection_id}/complete",
+      "methods": [
+        "POST"
+      ],
+      "name": "complete_oauth_connection",
+      "kind": "APIRoute"
+    },
+    {
       "path": "/openapi.json",
       "methods": [
         "GET",

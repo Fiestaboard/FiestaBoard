@@ -41,6 +41,12 @@ class TokenSet:
     obtained_at: float = 0.0
     #: Set when a refresh was refused; the user has to connect again.
     needs_reauthorization: bool = False
+    #: Why reconnecting is needed: ``refresh_refused`` or ``rejected`` (the
+    #: plugin reported the provider refused the token). Empty when unknown.
+    reauth_reason: str = ""
+    #: A client ID the provider issued at sign-in, used for refresh instead of
+    #: the plugin's own. Empty for every provider with a fixed client.
+    client_id: str = ""
 
     @classmethod
     def from_record(cls, record: dict[str, Any]) -> TokenSet:
@@ -52,6 +58,8 @@ class TokenSet:
             scopes=tuple(record.get("scopes", ())),
             obtained_at=float(record.get("obtained_at", 0.0)),
             needs_reauthorization=bool(record.get("needs_reauthorization", False)),
+            reauth_reason=str(record.get("reauth_reason", "")),
+            client_id=str(record.get("client_id", "")),
         )
 
     def to_record(self) -> dict[str, Any]:

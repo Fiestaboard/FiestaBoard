@@ -10,7 +10,7 @@ from typing import Literal
 
 from pydantic import BaseModel, Field
 
-Flow = Literal["relay", "device"]
+Flow = Literal["relay", "device", "key_exchange", "plex_pin"]
 
 
 class OAuthDeviceStatus(BaseModel):
@@ -50,6 +50,13 @@ class OAuthConnection(BaseModel):
     )
     app_setup_url: str = Field(default="", description="The provider's developer page, where a user creates their app.")
     status: Literal["connected", "disconnected", "reauthorization_required"]
+    status_reason: str = Field(
+        default="",
+        description=(
+            "Why reconnecting is needed, when status is reauthorization_required: "
+            "'refresh_refused' or 'rejected' (the provider stopped accepting the sign-in)."
+        ),
+    )
     scopes: list[str] = Field(description="Scopes granted when connected, otherwise the scopes that will be requested.")
     expires_at: float | None = Field(default=None, description="Epoch seconds when the access token expires.")
     connected_at: float | None = Field(default=None, description="Epoch seconds when the connection was made.")
@@ -75,6 +82,10 @@ class OAuthAuthorizeRequest(BaseModel):
             "Required for the relay flow: it is where the sign-in returns to."
         ),
     )
+    headless: bool = Field(
+        default=False,
+        description="key_exchange: sign in without a redirect back; the user pastes the code the provider shows.",
+    )
 
 
 class OAuthAuthorizationStart(BaseModel):
@@ -83,3 +94,15 @@ class OAuthAuthorizationStart(BaseModel):
     flow: Flow
     authorization_url: str = Field(default="", description="relay: send the browser here.")
     device: OAuthDeviceStatus | None = Field(default=None, description="device: show this code to the user.")
+    paste_expected: bool = Field(
+        default=False, description="The sign-in will not come back on its own: show the paste box straight away."
+    )
+    paste_hint: str = Field(default="", description="What to paste, when the provider needs explaining.")
+
+
+class OAuthCompleteRequest(BaseModel):
+    """Finish a sign-in from what the provider showed the user."""
+
+    pasted: str = Field(
+        max_length=4096, description="The whole address the sign-in ended on, or the code the provider showed."
+    )

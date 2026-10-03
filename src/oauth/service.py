@@ -45,10 +45,12 @@ from .errors import (
     FlowNotSupported,
     InvalidBoardUrl,
     InvalidState,
+    PastedCodeRejected,
     ProviderError,
     TokenEndpointError,
 )
 from .provider import CLIENT_ID_FLOWS, FLOW_DEVICE, FLOW_RELAY, Endpoints, OAuthProvider, parse_provider_block
+from .paste import parse_pasted
 from .state import STATE_TTL_SECONDS, StatePayload, StateSigner, load_state_key
 from .tokens import TokenSet, TokenStore
 
@@ -274,6 +276,10 @@ class AuthorizationStart:
     flow: str
     authorization_url: str = ""
     device: DeviceStatus | None = None
+    #: The sign-in will not come back on its own; the user pastes what the
+    #: provider shows them (``complete_pasted``).
+    paste_expected: bool = False
+    paste_hint: str = ""
 
 
 @dataclass(frozen=True)
@@ -301,6 +307,15 @@ class _PendingAuthorization:
     scopes: tuple[str, ...]
     expires_at: float
     client_id_param: str = "client_id"
+    flow: str = FLOW_RELAY
+    #: Whether a pasted code with no ``state`` may finish this flow. Only a
+    #: flow that never sent a ``state`` (headless key_exchange) sets it.
+    allow_bare_code: bool = False
+    #: Whether a ``client_id`` in the pasted address replaces ours (providers
+    #: that issue a client during sign-in). Never from a callback query.
+    accept_issued_client_id: bool = False
+    #: Extra fields for the code exchange (a ``resource`` indicator, say).
+    extra_token_params: dict[str, str] = field(default_factory=dict)
 
 
 @dataclass
@@ -557,26 +572,88 @@ class OAuthService:
             return CallbackOutcome(connected=False, connection_id=connection_id, reason="provider_error")
 
         try:
-            response = self._client.exchange_code(
-                pending.token_url,
-                code=code,
-                redirect_uri=pending.redirect_uri,
-                client_id=pending.client_id,
-                code_verifier=pending.code_verifier,
-                client_secret=pending.client_secret,
-                client_id_param=pending.client_id_param,
-            )
+            self._finish_pending(pending, code)
         except (TokenEndpointError, ProviderError) as exc:
             logger.error("OAuth code exchange for %s failed: %s", connection_id, exc)
             return CallbackOutcome(connected=False, connection_id=connection_id, reason="exchange_failed")
-
-        self._store_tokens(connection_id, response, pending.scopes, previous=None)
-        self._source.invalidate(connection_id)
-        logger.info("OAuth connection established for %s", connection_id)
         return CallbackOutcome(connected=True, connection_id=connection_id)
 
+    def _finish_pending(self, pending: _PendingAuthorization, code: str, issued_client_id: str = "") -> None:
+        """Trade *code* for tokens and store them. Raises the provider's error."""
+        connection_id = pending.connection_id
+        issued = issued_client_id if pending.accept_issued_client_id else ""
+        response = self._client.exchange_code(
+            pending.token_url,
+            code=code,
+            redirect_uri=pending.redirect_uri,
+            client_id=issued or pending.client_id,
+            code_verifier=pending.code_verifier,
+            client_secret=pending.client_secret,
+            client_id_param=pending.client_id_param,
+            extra_form=pending.extra_token_params,
+        )
+        self._store_tokens(connection_id, response, pending.scopes, previous=None, client_id=issued)
+        self._source.invalidate(connection_id)
+        logger.info("OAuth connection established for %s", connection_id)
+
+    # ── finishing from a paste ──────────────────────────────────────────
+
+    def complete_pasted(self, connection_id: str, pasted: str) -> ConnectionStatus:
+        """Finish a flow for *connection_id* from the address or code the user pasted.
+
+        Raises :class:`PastedCodeRejected` with a reason slug when it cannot.
+        """
+        target = self._target(connection_id)
+        parsed = parse_pasted(pasted)
+        pending = self._take_pending_for_paste(connection_id, parsed.state)
+        if parsed.error:
+            reason = "access_denied" if parsed.error == "access_denied" else "provider_error"
+            logger.info("OAuth sign-in for %s was not completed: %s", connection_id, reason)
+            raise PastedCodeRejected(reason, f"{target.provider.name} did not complete the sign-in.")
+        try:
+            self._finish_pending(pending, parsed.code, parsed.issued_client_id)
+        except (TokenEndpointError, ProviderError) as exc:
+            logger.error("OAuth code exchange for %s failed: %s", connection_id, exc)
+            raise PastedCodeRejected(
+                "exchange_failed", f"{target.provider.name} did not accept that code. Start the sign-in again."
+            ) from exc
+        return self._status(target)
+
+    def _take_pending_for_paste(self, connection_id: str, state: str) -> _PendingAuthorization:
+        """Pop the started flow a paste belongs to, or raise :class:`PastedCodeRejected`."""
+        now = self._clock()
+        if state:
+            try:
+                payload = self._signer.verify(state, now)
+            except InvalidState as exc:
+                raise PastedCodeRejected("expired" if exc.reason == "expired" else "invalid_state", str(exc)) from exc
+            mismatch = PastedCodeRejected(
+                "invalid_state", "That address belongs to a different or finished sign-in. Start again."
+            )
+            if payload.connection_id != connection_id:
+                raise mismatch
+            with self._lock:
+                pending = self._pending.pop(payload.nonce, None)
+            if pending is None or pending.connection_id != connection_id:
+                raise mismatch
+            return pending
+        with self._lock:
+            # Newest first: a user who started twice pastes the latest code.
+            for nonce, pending in reversed(list(self._pending.items())):
+                if pending.connection_id == connection_id and pending.allow_bare_code and now < pending.expires_at:
+                    del self._pending[nonce]
+                    return pending
+        raise PastedCodeRejected(
+            "no_pending", "There is no sign-in waiting for a code. Paste the whole address, or start again."
+        )
+
     def _store_tokens(
-        self, connection_id: str, response: TokenResponse, requested: tuple[str, ...], previous: TokenSet | None
+        self,
+        connection_id: str,
+        response: TokenResponse,
+        requested: tuple[str, ...],
+        previous: TokenSet | None,
+        client_id: str = "",
     ) -> TokenSet:
         now = self._clock()
         tokens = TokenSet(
@@ -587,6 +664,7 @@ class OAuthService:
             expires_at=now + response.expires_in if response.expires_in else None,
             scopes=response.scopes or (previous.scopes if previous else requested),
             obtained_at=previous.obtained_at if previous else now,
+            client_id=client_id or (previous.client_id if previous else ""),
         )
         self._store.put(connection_id, tokens)
         with self._lock:
@@ -717,7 +795,8 @@ class OAuthService:
 
     def _refresh(self, connection_id: str, tokens: TokenSet) -> str | None:
         target = self._source.get(connection_id)
-        if target is None or not target.client_id:
+        client_id = tokens.client_id or (target.client_id if target else "")
+        if target is None or not client_id:
             return self._still_valid(tokens)
         try:
             token_url = target.endpoints().token_url
@@ -728,7 +807,7 @@ class OAuthService:
             response = self._client.refresh(
                 token_url,
                 refresh_token=tokens.refresh_token,
-                client_id=target.client_id,
+                client_id=client_id,
                 client_secret=target.client_secret,
                 client_id_param=target.provider.client_id_param,
             )
