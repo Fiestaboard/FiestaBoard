@@ -22,12 +22,7 @@ and the ``requests``-patching approach used in ``tests/test_board_client.py``.
 import json as _json
 from unittest.mock import Mock, patch
 
-import pytest
-
-from src.board_client import (
-    BoardClient,
-    _note_array_last_send,
-)
+from src.board_client import BoardClient
 
 # Note-array geometry under test: a 4-wide single row → 3 rows × 60 cols.
 NOTES_WIDE = 4
@@ -38,14 +33,6 @@ TOKEN = "e2e-note-array-token"
 
 CLOUD_NOTE_ARRAY_URL = BoardClient.CLOUD_NOTE_ARRAY_API_URL
 RW_CLOUD_URL = BoardClient.CLOUD_API_URL
-
-
-@pytest.fixture(autouse=True)
-def _reset_throttle():
-    """Reset the module-level note-array throttle so each test is isolated."""
-    _note_array_last_send.clear()
-    yield
-    _note_array_last_send.clear()
 
 
 def _make_grid(fill: int = 0) -> list[list[int]]:

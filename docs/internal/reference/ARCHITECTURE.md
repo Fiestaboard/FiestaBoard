@@ -160,6 +160,17 @@ Names you will meet:
   cache mean someone else wrote the board. Sub-unit caches stay in the
   driver: a local note array keeps one per tile so a retry re-posts only
   the tiles that failed.
+- **The send floor** (`src/outputs/floor.py`) — the minimum spacing between
+  writes to one *device* (15 s for Vestaboard's RW and note-array Cloud
+  APIs; local boards are unfloored). A driver declares the length
+  (`min_send_interval_ms`) and its identity (`device_key()`: host+port, or
+  a hash of the cloud credential — never the credential); core keeps one
+  process-wide registry keyed by that identity. So a board re-save, which
+  rebuilds the client, does not reset the window, and a throwaway client an
+  API route builds for the same board (welcome, live render) sees it too.
+  A slot is reserved before the write and given back if the write fails —
+  except an upstream HTTP 429, which is reported as throttled (with its
+  `Retry-After`, else the floor) and keeps the device closed.
 - **`BoardSendWorker`** — one thread per board with a **latest-wins** queue:
   a newer frame supersedes a queued older one, and callers waiting on the
   superseded frame are adopted onto the newer one. Never bypass it; a direct

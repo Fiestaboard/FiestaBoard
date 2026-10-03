@@ -357,6 +357,22 @@ def _reset_silence_window_cache():
     Config._silence_migrations_ran = None
 
 
+@pytest.fixture(autouse=True)
+def _reset_send_floors():
+    """Isolate the send floor per test.
+
+    The floor registry (``src/outputs/floor.py``) is process-wide and keyed
+    by device, by design: a window must outlive the client that opened it.
+    Tests reuse the same fake keys and tokens, so without this one test's
+    send would throttle an unrelated test's first send.
+    """
+    from src.outputs.floor import send_floors
+
+    send_floors().clear()
+    yield
+    send_floors().clear()
+
+
 # Shared fixtures for test helpers
 @pytest.fixture
 def mock_board_client():

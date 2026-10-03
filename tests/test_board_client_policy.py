@@ -35,16 +35,7 @@ from src.board_client import (
     SEND_MAX_ATTEMPTS,
     SEND_RETRY_BACKOFF_SECONDS,
     BoardClient,
-    _note_array_last_send,
 )
-
-
-@pytest.fixture(autouse=True)
-def _reset_note_array_throttle():
-    """Clear module-level note-array throttle state around each test."""
-    _note_array_last_send.clear()
-    yield
-    _note_array_last_send.clear()
 
 
 def _clock(*values):

@@ -1,6 +1,6 @@
 {
   "scenario": "upstream_429_rw_cloud",
-  "description": "The cloud answering HTTP 429: no retry, (False, False), and the floor slot is released so an immediate resend goes out.",
+  "description": "The cloud answering HTTP 429 (no Retry-After): no retry, reported as throttled with the 15 s floor as retry_after, and the floor slot is kept, so a resend 1 s later is throttled locally (no request) and the window reopens at 15 s.",
   "seam": "board_client_from_board_dict(rw_cloud).render(..., with_outcome=True)",
   "steps": [
     {
@@ -26,15 +26,27 @@
       ],
       "result": {
         "type": "SendOutcome",
-        "success": false,
+        "success": true,
         "was_sent": false,
-        "throttled": false,
-        "retry_after_seconds": null,
+        "throttled": true,
+        "retry_after_seconds": 15,
         "floor_seconds": 15
       }
     },
     {
-      "action": "t=1001 render HELLO (cloud answers 200)",
+      "action": "t=1001 render HELLO (throttled locally)",
+      "requests": [],
+      "result": {
+        "type": "SendOutcome",
+        "success": true,
+        "was_sent": false,
+        "throttled": true,
+        "retry_after_seconds": 14,
+        "floor_seconds": 15
+      }
+    },
+    {
+      "action": "t=1015 render HELLO (cloud answers 200)",
       "requests": [
         {
           "method": "POST",
