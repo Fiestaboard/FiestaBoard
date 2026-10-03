@@ -56,6 +56,7 @@ from .models import (
     ERROR_502,
     ActivePageResponse,
     AddBoardRequest,
+    AiModelsResponse,
     AiProvidersResponse,
     AiProvidersUpdate,
     AiTestRequest,
@@ -229,7 +230,40 @@ async def update_ai_settings(request: AiProvidersUpdate):
     masked-secret pattern.
     """
     cm = get_config_manager()
-    return cm.set_ai_providers(request.model_dump(exclude_unset=True))
+    before = cm.get_ai_providers()
+    updated = cm.set_ai_providers(request.model_dump(exclude_unset=True))
+    # A provider that was signed in and is now gone (or back on an API key)
+    # leaves no tokens behind.
+    from src.ai.sign_in import forget_removed_providers
+
+    forget_removed_providers(before, cm.get_ai_providers())
+    return updated
+
+
+@router.get(
+    "/settings/ai/providers/{provider_id}/models",
+    response_model=AiModelsResponse,
+    responses={**ERROR_404, **ERROR_502},
+)
+async def list_ai_provider_models(provider_id: str):
+    """The models a configured provider offers (``GET {base_url}/models``).
+
+    Uses the provider's sign-in token or API key, so a signed-in ChatGPT
+    provider lists the models its subscription can use. 404 for an unknown
+    provider; 502 when the provider cannot be asked, refuses, or the sign-in
+    must be redone (``detail`` says which).
+    """
+    from src.ai import generator
+    from src.ai.generator import AIGenerationError
+
+    provider = get_config_manager().get_ai_provider(provider_id)
+    if provider is None:
+        raise HTTPException(status_code=404, detail=f"AI provider {provider_id!r} not found.")
+    try:
+        models = await generator.list_models(provider)
+    except AIGenerationError as exc:
+        raise HTTPException(status_code=502, detail=str(exc)) from exc
+    return {"models": models}
 
 
 @router.post(

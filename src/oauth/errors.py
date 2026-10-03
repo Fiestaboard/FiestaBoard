@@ -55,3 +55,15 @@ class TokenEndpointError(OAuthError):
         super().__init__(f"{error}: {description}" if description else error)
         self.error = error
         self.description = description
+
+
+class PastedCodeRejected(OAuthError):
+    """A pasted sign-in address or code could not finish a flow.
+
+    ``reason`` is one of ``unreadable``, ``invalid_state``, ``expired``,
+    ``access_denied``, ``exchange_failed`` or ``no_pending``.
+    """
+
+    def __init__(self, reason: str, message: str) -> None:
+        super().__init__(message)
+        self.reason = reason

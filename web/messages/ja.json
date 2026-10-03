@@ -467,6 +467,8 @@
       "setupOpenGuide": "手順ガイド",
       "setupStepRedirect": "このリダイレクト URI をアプリに登録する",
       "setupStepDetails": "アプリの情報をここに入力する",
+      "ownAppToggle": "自分のアプリを使う（任意）",
+      "ownAppDescription": "これがなくてもサインインできます。代わりに自分の {provider} アプリでサインインするには、アプリを作成して詳細をここに入力してください。",
       "clientIdLabel": "クライアント ID",
       "clientSecretLabel": "クライアント シークレット",
       "showSecret": "クライアント シークレットを表示",
@@ -485,7 +487,16 @@
         "access_denied": "サインインが拒否されたため、何も接続されませんでした。",
         "exchange_failed": "プロバイダーがサインインを拒否しました。プラグインの設定でクライアント ID とシークレットを確認してから、もう一度接続してください。",
         "provider_error": "プロバイダーから問題が報告されました。もう一度接続してみてください。"
-      }
+      },
+      "rejectedDescription": "{provider} がサインインを受け付けなくなりました。もう一度サインインしてください。",
+      "approvalWaiting": "{provider} のタブで FiestaBoard を承認してください。自動で更新されます。",
+      "startAgainButton": "やり直す",
+      "headlessButton": "ブラウザーのリダイレクトなしでサインイン",
+      "pasteToggle": "サインインが戻ってきませんか？アドレスまたはコードを貼り付けてください",
+      "pasteLabel": "アドレスまたはコード",
+      "pasteDescription": "サインインが止まったタブのアドレス全体、またはプロバイダーが表示したコードをコピーしてください。",
+      "pasteSubmit": "サインインを完了",
+      "pasteOpenAgain": "サインインページをもう一度開く"
     },
     "templateVariablesSection": "テンプレート変数",
     "templateVariablesClickToCopy": "クリックでコピー",
@@ -654,6 +665,10 @@
       "quickPresetsLabel": "クイックプリセット",
       "apiKeyLabel": "API キー",
       "modelsLabel": "モデル",
+      "loadModels": "モデルを読み込む",
+      "pickModel": "プロバイダーのモデルを追加",
+      "noModelMatches": "一致するモデルはありません",
+      "loadModelsFailed": "モデルを読み込めませんでした。",
       "defaultModelLabel": "デフォルトモデル",
       "testConnectionButton": "接続テスト",
       "turnLimits": {
@@ -662,6 +677,15 @@
         "modelCallsLabel": "1ターンあたりのモデル呼び出し数",
         "toolCallsLabel": "1ターンあたりのツール呼び出し数",
         "serverDefault": "サーバーの既定値"
+      },
+      "protocolResponsesOption": "OpenAI Responses（ChatGPT サインイン）",
+      "signIn": {
+        "choicesLabel": "または API キーの代わりにサインイン",
+        "button": "{provider} でサインイン",
+        "activeDescription": "このプロバイダーは {provider} でサインインします。この方法でサインインしている間、上の API キーは使われません。",
+        "useApiKey": "代わりに API キーを使う",
+        "saveFirst": "変更を保存してから、ここで {provider} にサインインしてください。",
+        "panelTitle": "{provider} サインイン"
       }
     },
     "backup": {

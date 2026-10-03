@@ -3,6 +3,7 @@ export {
   findOAuthConnection,
   OAUTH_CONNECTIONS_QUERY_KEY,
   oauthAppFieldKeys,
+  OAuthConnectionPanel,
   OAuthConnectionSection,
   oauthReturnErrorKey,
   readOAuthReturn,

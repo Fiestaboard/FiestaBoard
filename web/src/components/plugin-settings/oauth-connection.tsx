@@ -5,11 +5,19 @@
  * platform runs the sign-in (src/oauth/service.py); this shows where it
  * stands and starts or ends it.
  *
- * Two flows, chosen by the plugin:
+ * Flows, chosen by the plugin (or an AI sign-in preset):
  *  - relay: the browser leaves for the provider and comes back through the
  *    static relay page (https://github.com/Fiestaboard/auth), which is told
  *    this board's address when the flow starts.
+ *  - key_exchange: like relay (OpenRouter), or headless: the provider shows a
+ *    code and the user pastes it here.
  *  - device: the user types a short code on another device while this polls.
+ *  - plex_pin: the provider opens in another tab and this polls; no code.
+ *
+ * When a sign-in may not find its own way back (the relay could not reach
+ * this board, or the provider only redirects to a loopback address), the
+ * panel offers a paste box: the user copies the address they landed on, or
+ * the code they were shown, and the board finishes the sign-in with it.
  *
  * Layout: one quiet panel, in the same recipe as the sheet's "Demo page"
  * section, so the connection reads as one object among the plugin's other
@@ -23,12 +31,21 @@
  * sign-in button can save it and start the sign-in in one press. The sheet
  * owns the form values (`appFields`) and leaves those fields out of the
  * general settings form below.
+ *
+ * A plugin that ships its own app and also lets users swap in theirs
+ * (`shared_app` with `user_app`) leads with a plain sign-in instead: the
+ * same setup steps sit in a collapsed, optional "Use your own app" section,
+ * open from the start only when the user already saved an app of their own.
  */
 import {
   Alert,
   AlertDescription,
+  Box,
   Button,
   Code,
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
   CopyButton,
   Field,
   Flex,
@@ -45,7 +62,7 @@ import {
 } from "@fiestaboard/ui";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { CircleAlert, ExternalLink, Info, TimerOff } from "lucide-react";
-import { type ReactNode, useId, useState } from "react";
+import { type FormEvent, type ReactNode, useId, useState } from "react";
 import { toast } from "sonner";
 
 import { useTranslations } from "@/i18n/translations";
@@ -56,8 +73,59 @@ export const OAUTH_CONNECTIONS_QUERY_KEY = ["oauth-connections"] as const;
 /** How often to re-read the connection while a device code awaits approval. */
 const DEVICE_POLL_INTERVAL_MS = 3000;
 
-function findConnection(connections: OAuthConnection[] | undefined, pluginId: string): OAuthConnection | undefined {
-  return connections?.find((connection) => connection.id === pluginId);
+/** How long after a sign-in starts the paste box stays on offer. */
+const PASTE_WINDOW_MS = 10 * 60 * 1000;
+
+function findConnection(connections: OAuthConnection[] | undefined, id: string): OAuthConnection | undefined {
+  return connections?.find((connection) => connection.id === id);
+}
+
+/**
+ * A sign-in that may need finishing by hand. Kept in sessionStorage as well
+ * as state: a relay sign-in leaves this page, and the user comes back to it
+ * (a fresh load) with the address they need to paste.
+ */
+interface PasteOffer {
+  /** Epoch ms the sign-in started (this browser's clock: only for expiring the offer). */
+  started: number;
+  /**
+   * The board's `connected_at` when the sign-in started. A different one
+   * later means the sign-in came back. Compared with the board's own stamp,
+   * never this browser's clock, which may not agree with the board's.
+   */
+  connectedAt?: number | null;
+  /** Open the box straight away: the sign-in cannot come back on its own. */
+  open: boolean;
+  /** What to paste, when the provider needs explaining. */
+  hint: string;
+  /** The provider's page, to open again from the box. Empty when it was a same-tab redirect. */
+  url: string;
+}
+
+const pasteStorageKey = (connectionId: string) => `fiestaboard.oauth.paste.${connectionId}`;
+
+function readPasteOffer(connectionId: string): PasteOffer | null {
+  try {
+    const raw = window.sessionStorage.getItem(pasteStorageKey(connectionId));
+    if (!raw) return null;
+    const offer = JSON.parse(raw) as PasteOffer;
+    if (typeof offer?.started !== "number" || Date.now() - offer.started > PASTE_WINDOW_MS) {
+      window.sessionStorage.removeItem(pasteStorageKey(connectionId));
+      return null;
+    }
+    return offer;
+  } catch {
+    return null;
+  }
+}
+
+function writePasteOffer(connectionId: string, offer: PasteOffer | null) {
+  try {
+    if (offer) window.sessionStorage.setItem(pasteStorageKey(connectionId), JSON.stringify(offer));
+    else window.sessionStorage.removeItem(pasteStorageKey(connectionId));
+  } catch {
+    // Private windows and blocked storage: the offer lives in state only.
+  }
 }
 
 /**
@@ -81,39 +149,91 @@ export function oauthAppFieldKeys(connection: OAuthConnection | undefined): stri
   return [connection.client_id_setting, connection.client_secret_setting].filter((key): key is string => !!key);
 }
 
+/** A plugin's connection. FiestaBot's AI connections (`kind: "ai"`) are never a plugin's. */
 export function findOAuthConnection(
   connections: OAuthConnection[] | undefined,
   pluginId: string,
 ): OAuthConnection | undefined {
-  return findConnection(connections, pluginId);
+  const connection = findConnection(connections, pluginId);
+  return connection?.kind === "ai" ? undefined : connection;
 }
 
 export function OAuthConnectionSection({ pluginId, appFields }: { pluginId: string; appFields?: OAuthAppFields }) {
+  return <OAuthConnectionPanel connectionId={pluginId} appFields={appFields} />;
+}
+
+/**
+ * One connection's panel, by its id: a plugin's (`plugin_id` or
+ * `plugin_id:label`) or a FiestaBot AI provider's (`ai.<provider id>`).
+ */
+export function OAuthConnectionPanel({
+  connectionId,
+  appFields,
+  title,
+}: {
+  connectionId: string;
+  appFields?: OAuthAppFields;
+  /** The panel's heading. Defaults to "Account connection". */
+  title?: string;
+}) {
   const t = useTranslations("integrations.oauth");
   const tCommon = useTranslations("common");
   const queryClient = useQueryClient();
   const hintId = useId();
   const [isSavingApp, setIsSavingApp] = useState(false);
+  const [pasteOffer, setPasteOfferState] = useState<PasteOffer | null>(() => readPasteOffer(connectionId));
+  const [pasteOpen, setPasteOpen] = useState(() => pasteOffer?.open ?? false);
+  const [pasted, setPasted] = useState("");
+  // null until the user toggles it: then it follows whether they saved an app.
+  const [ownAppToggled, setOwnAppToggled] = useState<boolean | null>(null);
+
+  const setPasteOffer = (offer: PasteOffer | null) => {
+    writePasteOffer(connectionId, offer);
+    setPasteOfferState(offer);
+    if (offer?.open) setPasteOpen(true);
+  };
 
   const { data } = useQuery({
     queryKey: OAUTH_CONNECTIONS_QUERY_KEY,
     queryFn: api.listOAuthConnections,
     refetchInterval: (query) =>
-      findConnection(query.state.data?.connections, pluginId)?.device?.status === "pending"
+      findConnection(query.state.data?.connections, connectionId)?.device?.status === "pending"
         ? DEVICE_POLL_INTERVAL_MS
         : false,
   });
 
-  const connection = findConnection(data?.connections, pluginId);
+  const connection = findConnection(data?.connections, connectionId);
+
+  const refreshAfterChange = () => {
+    queryClient.invalidateQueries({ queryKey: OAUTH_CONNECTIONS_QUERY_KEY });
+    queryClient.invalidateQueries({ queryKey: ["plugin-data", connectionId] });
+  };
 
   const connectMutation = useMutation({
-    mutationFn: () => api.startOAuthConnection(pluginId),
+    mutationFn: (options: { headless?: boolean }) => api.startOAuthConnection(connectionId, options),
     onSuccess: (start) => {
-      if (start.flow === "relay") {
-        // A full navigation: the provider's sign-in page replaces this app,
-        // and the relay brings the browser back to /integrations.
-        window.location.assign(start.authorization_url);
-        return;
+      // Anything that goes by way of the provider's page may need finishing
+      // by hand, so the paste box is on offer from now on.
+      if (start.flow !== "device" && start.flow !== "plex_pin") {
+        setPasteOffer({
+          started: Date.now(),
+          connectedAt: connection?.connected_at ?? null,
+          open: !!start.paste_expected,
+          hint: start.paste_hint ?? "",
+          url: start.paste_expected ? start.authorization_url : "",
+        });
+      }
+      if (start.authorization_url) {
+        if (start.paste_expected || start.flow === "plex_pin") {
+          // The user comes back to this tab (to paste, or while it polls),
+          // so the provider opens in another one.
+          window.open(start.authorization_url, "_blank", "noopener,noreferrer");
+        } else {
+          // A full navigation: the provider's sign-in page replaces this app,
+          // and the relay brings the browser back to /integrations.
+          window.location.assign(start.authorization_url);
+          return;
+        }
       }
       queryClient.invalidateQueries({ queryKey: OAUTH_CONNECTIONS_QUERY_KEY });
     },
@@ -122,12 +242,22 @@ export function OAuthConnectionSection({ pluginId, appFields }: { pluginId: stri
     },
   });
 
+  const completeMutation = useMutation({
+    mutationFn: (text: string) => api.completeOAuthConnection(connectionId, text),
+    onSuccess: () => {
+      setPasteOffer(null);
+      setPasteOpen(false);
+      setPasted("");
+      toast.success(t("toastConnected"));
+      refreshAfterChange();
+    },
+  });
+
   const disconnectMutation = useMutation({
-    mutationFn: () => api.disconnectOAuthConnection(pluginId),
+    mutationFn: () => api.disconnectOAuthConnection(connectionId),
     onSuccess: () => {
       toast.success(t("toastDisconnected", { provider: connection?.provider_name ?? "" }));
-      queryClient.invalidateQueries({ queryKey: OAUTH_CONNECTIONS_QUERY_KEY });
-      queryClient.invalidateQueries({ queryKey: ["plugin-data", pluginId] });
+      refreshAfterChange();
     },
     onError: (err) => {
       toast.error(t("toastDisconnectFailed", { error: err instanceof Error ? err.message : tCommon("unknownError") }));
@@ -140,20 +270,42 @@ export function OAuthConnectionSection({ pluginId, appFields }: { pluginId: stri
   const isConnected = connection.status === "connected";
   const needsReconnect = connection.status === "reauthorization_required";
   const usesRelay = connection.flows[0] === "relay";
+  const returnsByRelay = usesRelay || connection.flows[0] === "key_exchange";
+  const offersHeadless = connection.flows.includes("key_exchange");
   const device = connection.device;
   const awaitingCode = device?.status === "pending";
+  // plex_pin: approval happens in the provider's tab; there is no code to type.
+  const awaitingApproval = awaitingCode && !device?.user_code;
+  // A sign-in that completed after the offer was made needs no paste.
+  const connectedSinceOffer =
+    isConnected &&
+    (pasteOffer && pasteOffer.connectedAt !== undefined
+      ? connection.connected_at != null && connection.connected_at !== pasteOffer.connectedAt
+      : (connection.connected_at ?? 0) * 1000 >= (pasteOffer?.started ?? 0));
+  const showPaste = !!pasteOffer && !awaitingCode && !connectedSinceOffer;
 
   // Guided setup: the user brings their own app, and is not connected yet.
   const showSetup = connection.user_app && !isConnected && !awaitingCode;
   const clientIdKey = connection.client_id_setting;
   const clientSecretKey = connection.client_secret_setting;
   const fieldValue = (key: string | null) => (key && appFields ? String(appFields.values[key] ?? "") : "");
+  const hasOwnClientId = fieldValue(clientIdKey).trim() !== "";
+  // The plugin's shipped app signs in; the user's own app is an optional override.
+  const ownAppOptional = connection.shared_app && connection.user_app;
+  const ownAppOpen = ownAppToggled ?? hasOwnClientId;
   // With the field in this panel, a typed-but-unsaved Client ID is enough to
   // press the button: pressing it saves first.
-  const canConnect = appFields && clientIdKey ? fieldValue(clientIdKey).trim() !== "" : connection.configured;
+  const canConnect = ownAppOptional
+    ? connection.configured || hasOwnClientId
+    : appFields && clientIdKey
+      ? hasOwnClientId
+      : connection.configured;
+  // Save the app fields before signing in, unless they sit untouched in the
+  // closed optional section (nothing there to save).
+  const savesAppFirst = connection.user_app && !!appFields && !isConnected && (!ownAppOptional || ownAppOpen);
 
   const connect = async () => {
-    if (connection.user_app && appFields && !isConnected) {
+    if (savesAppFirst && appFields) {
       setIsSavingApp(true);
       try {
         await appFields.save();
@@ -164,7 +316,13 @@ export function OAuthConnectionSection({ pluginId, appFields }: { pluginId: stri
         setIsSavingApp(false);
       }
     }
-    connectMutation.mutate();
+    connectMutation.mutate({});
+  };
+
+  const submitPasted = (event: FormEvent) => {
+    event.preventDefault();
+    const text = pasted.trim();
+    if (text) completeMutation.mutate(text);
   };
 
   // The one line that says where things stand. It is a live region so the
@@ -180,21 +338,92 @@ export function OAuthConnectionSection({ pluginId, appFields }: { pluginId: stri
   const description = isConnected
     ? t("connectedDescription", { provider })
     : needsReconnect
-      ? t("reconnectDescription", { provider })
-      : connection.user_app && !connection.configured
+      ? connection.status_reason === "rejected"
+        ? t("rejectedDescription", { provider })
+        : t("reconnectDescription", { provider })
+      : connection.user_app && !connection.configured && !ownAppOptional
         ? t("setupIntro", { provider })
         : t("disconnectedDescription", { provider });
 
-  const connectLabel = awaitingCode
-    ? t("newCodeButton")
-    : isConnected || needsReconnect
-      ? t("reconnectButton")
-      : t("connectButton", { provider });
+  const connectLabel = awaitingApproval
+    ? t("startAgainButton")
+    : awaitingCode
+      ? t("newCodeButton")
+      : isConnected || needsReconnect
+        ? t("reconnectButton")
+        : t("connectButton", { provider });
+
+  const setupSteps = (
+    <List as="ol" marker="decimal" gap="4" className="text-sm" data-testid="oauth-setup-steps">
+      <ListItem>
+        <Stack gap="1.5">
+          <Text as="span" weight="medium">
+            {t("setupStepCreate", { provider })}
+          </Text>
+          {(connection.app_setup_url || appFields?.setupGuideUrl) && (
+            <Flex gap="4" wrap>
+              {connection.app_setup_url && (
+                <SetupLink href={connection.app_setup_url}>{t("setupOpenDeveloperPage", { provider })}</SetupLink>
+              )}
+              {appFields?.setupGuideUrl && (
+                <SetupLink href={appFields.setupGuideUrl}>{t("setupOpenGuide")}</SetupLink>
+              )}
+            </Flex>
+          )}
+        </Stack>
+      </ListItem>
+      {usesRelay && (
+        <ListItem>
+          <Stack gap="1.5">
+            <Text as="span" weight="medium">
+              {t("setupStepRedirect")}
+            </Text>
+            <Flex align="center" gap="1" className="rounded-md border bg-background py-1 pl-2.5 pr-1">
+              <Code className="min-w-0 flex-1 break-all bg-transparent px-0 py-0">{data.redirect_uri}</Code>
+              <CopyButton
+                value={data.redirect_uri}
+                labels={{ copy: t("copyRedirectUri"), copied: t("copied") }}
+              />
+            </Flex>
+          </Stack>
+        </ListItem>
+      )}
+      {appFields && clientIdKey && (
+        <ListItem>
+          <Stack gap="2">
+            <Text as="span" weight="medium">
+              {t("setupStepDetails")}
+            </Text>
+            <Field label={t("clientIdLabel")}>
+              <Input
+                value={fieldValue(clientIdKey)}
+                onChange={(event) => appFields.onChange(clientIdKey, event.target.value)}
+                autoComplete="off"
+                spellCheck={false}
+                className="font-mono"
+              />
+            </Field>
+            {clientSecretKey && (
+              <Field label={t("clientSecretLabel")}>
+                <SecretInput
+                  value={fieldValue(clientSecretKey)}
+                  onChange={(event) => appFields.onChange(clientSecretKey, event.target.value)}
+                  autoComplete="off"
+                  showLabel={t("showSecret")}
+                  hideLabel={t("hideSecret")}
+                />
+              </Field>
+            )}
+          </Stack>
+        </ListItem>
+      )}
+    </List>
+  );
 
   return (
     <Stack gap="3" data-testid="oauth-connection">
       <Heading level={4} size="sm" className="font-medium text-muted-foreground">
-        {t("sectionTitle")}
+        {title ?? t("sectionTitle")}
       </Heading>
 
       <Stack gap="4" className="rounded-lg border bg-muted/30 p-4">
@@ -210,7 +439,13 @@ export function OAuthConnectionSection({ pluginId, appFields }: { pluginId: stri
           </Text>
         </Stack>
 
-        {device && awaitingCode && (
+        {device && awaitingApproval && (
+          <Flex align="center" gap="2" className="rounded-md border bg-background p-3">
+            <Spinner size="sm" label={null} />
+            <Text size="sm">{t("approvalWaiting", { provider })}</Text>
+          </Flex>
+        )}
+        {device && awaitingCode && !awaitingApproval && (
           <Stack gap="3" className="rounded-md border bg-background p-3">
             <Text size="sm">{t.rich("deviceInstructions", { url: () => <DeviceLink device={device} /> })}</Text>
             <Flex align="center" gap="2" wrap>
@@ -248,71 +483,23 @@ export function OAuthConnectionSection({ pluginId, appFields }: { pluginId: stri
           </Alert>
         )}
 
-        {showSetup && (
-          <List as="ol" marker="decimal" gap="4" className="text-sm" data-testid="oauth-setup-steps">
-            <ListItem>
-              <Stack gap="1.5">
-                <Text as="span" weight="medium">
-                  {t("setupStepCreate", { provider })}
+        {showSetup && !ownAppOptional && setupSteps}
+        {showSetup && ownAppOptional && (
+          <Collapsible open={ownAppOpen} onOpenChange={setOwnAppToggled}>
+            <CollapsibleTrigger asChild>
+              <Button size="sm" variant="link" className="h-auto px-0">
+                {t("ownAppToggle")}
+              </Button>
+            </CollapsibleTrigger>
+            <CollapsibleContent>
+              <Stack gap="3" className="pt-2">
+                <Text size="sm" tone="muted">
+                  {t("ownAppDescription", { provider })}
                 </Text>
-                {(connection.app_setup_url || appFields?.setupGuideUrl) && (
-                  <Flex gap="4" wrap>
-                    {connection.app_setup_url && (
-                      <SetupLink href={connection.app_setup_url}>{t("setupOpenDeveloperPage", { provider })}</SetupLink>
-                    )}
-                    {appFields?.setupGuideUrl && (
-                      <SetupLink href={appFields.setupGuideUrl}>{t("setupOpenGuide")}</SetupLink>
-                    )}
-                  </Flex>
-                )}
+                {setupSteps}
               </Stack>
-            </ListItem>
-            {usesRelay && (
-              <ListItem>
-                <Stack gap="1.5">
-                  <Text as="span" weight="medium">
-                    {t("setupStepRedirect")}
-                  </Text>
-                  <Flex align="center" gap="1" className="rounded-md border bg-background py-1 pl-2.5 pr-1">
-                    <Code className="min-w-0 flex-1 break-all bg-transparent px-0 py-0">{data.redirect_uri}</Code>
-                    <CopyButton
-                      value={data.redirect_uri}
-                      labels={{ copy: t("copyRedirectUri"), copied: t("copied") }}
-                    />
-                  </Flex>
-                </Stack>
-              </ListItem>
-            )}
-            {appFields && clientIdKey && (
-              <ListItem>
-                <Stack gap="2">
-                  <Text as="span" weight="medium">
-                    {t("setupStepDetails")}
-                  </Text>
-                  <Field label={t("clientIdLabel")}>
-                    <Input
-                      value={fieldValue(clientIdKey)}
-                      onChange={(event) => appFields.onChange(clientIdKey, event.target.value)}
-                      autoComplete="off"
-                      spellCheck={false}
-                      className="font-mono"
-                    />
-                  </Field>
-                  {clientSecretKey && (
-                    <Field label={t("clientSecretLabel")}>
-                      <SecretInput
-                        value={fieldValue(clientSecretKey)}
-                        onChange={(event) => appFields.onChange(clientSecretKey, event.target.value)}
-                        autoComplete="off"
-                        showLabel={t("showSecret")}
-                        hideLabel={t("hideSecret")}
-                      />
-                    </Field>
-                  )}
-                </Stack>
-              </ListItem>
-            )}
-          </List>
+            </CollapsibleContent>
+          </Collapsible>
         )}
 
         <Stack gap="2">
@@ -339,6 +526,17 @@ export function OAuthConnectionSection({ pluginId, appFields }: { pluginId: stri
               </Button>
             )}
           </Flex>
+          {offersHeadless && !isConnected && !awaitingCode && (
+            <Button
+              size="sm"
+              variant="link"
+              className="h-auto self-start px-0"
+              disabled={connectMutation.isPending || disconnectMutation.isPending}
+              onClick={() => connectMutation.mutate({ headless: true })}
+            >
+              {t("headlessButton")}
+            </Button>
+          )}
           {!canConnect && (
             <Flex align="start" gap="1.5" id={hintId}>
               <Info className="mt-0.5 size-3.5 shrink-0 text-muted-foreground" aria-hidden="true" />
@@ -348,15 +546,59 @@ export function OAuthConnectionSection({ pluginId, appFields }: { pluginId: stri
             </Flex>
           )}
           {/* What the trip back looks like, for anyone about to make it. */}
-          {usesRelay && !isConnected && (
+          {returnsByRelay && !isConnected && (
             <Text size="xs" tone="muted">
               {t("relayHint")}
             </Text>
           )}
         </Stack>
+
+        {showPaste && pasteOffer && (
+          <Collapsible open={pasteOpen} onOpenChange={setPasteOpen}>
+            <CollapsibleTrigger asChild>
+              <Button size="sm" variant="link" className="h-auto px-0">
+                {t("pasteToggle")}
+              </Button>
+            </CollapsibleTrigger>
+            <CollapsibleContent>
+              <Box as="form" onSubmit={submitPasted} className="pt-2">
+                <Stack gap="2">
+                  <Field
+                    label={t("pasteLabel")}
+                    description={pasteOffer.hint || t("pasteDescription")}
+                    error={
+                      completeMutation.error ? errorMessage(completeMutation.error, tCommon("unknownError")) : undefined
+                    }
+                  >
+                    <Input
+                      value={pasted}
+                      onChange={(event) => {
+                        setPasted(event.target.value);
+                        if (completeMutation.isError) completeMutation.reset();
+                      }}
+                      autoComplete="off"
+                      spellCheck={false}
+                      className="font-mono"
+                    />
+                  </Field>
+                  <Flex align="center" gap="3" wrap>
+                    <Button type="submit" size="sm" loading={completeMutation.isPending} disabled={!pasted.trim()}>
+                      {t("pasteSubmit")}
+                    </Button>
+                    {pasteOffer.url && <SetupLink href={pasteOffer.url}>{t("pasteOpenAgain")}</SetupLink>}
+                  </Flex>
+                </Stack>
+              </Box>
+            </CollapsibleContent>
+          </Collapsible>
+        )}
       </Stack>
     </Stack>
   );
+}
+
+function errorMessage(err: unknown, fallback: string): string {
+  return err instanceof Error && err.message ? err.message : fallback;
 }
 
 function SetupLink({ href, children }: { href: string; children: ReactNode }) {

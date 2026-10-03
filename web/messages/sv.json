@@ -467,6 +467,8 @@
       "setupOpenGuide": "Steg-för-steg-guide",
       "setupStepRedirect": "Ge appen den här omdirigerings-URI:n",
       "setupStepDetails": "Kopiera appens uppgifter hit",
+      "ownAppToggle": "Använd en egen app (valfritt)",
+      "ownAppDescription": "Inloggningen fungerar utan detta. Vill du i stället logga in via en egen app hos {provider} skapar du en och fyller i dess uppgifter här.",
       "clientIdLabel": "Klient-ID",
       "clientSecretLabel": "Klienthemlighet",
       "showSecret": "Visa klienthemligheten",
@@ -485,7 +487,16 @@
         "access_denied": "Inloggningen nekades, så inget anslöts.",
         "exchange_failed": "Leverantören avvisade inloggningen. Kontrollera klient-ID och klienthemlighet i pluginens inställningar och anslut sedan igen.",
         "provider_error": "Leverantören rapporterade ett problem. Försök ansluta igen."
-      }
+      },
+      "rejectedDescription": "{provider} accepterar inte längre inloggningen. Logga in igen.",
+      "approvalWaiting": "Godkänn FiestaBoard i fliken för {provider}. Det uppdateras av sig självt.",
+      "startAgainButton": "Börja om",
+      "headlessButton": "Logga in utan omdirigering i webbläsaren",
+      "pasteToggle": "Kom inloggningen inte tillbaka? Klistra in adressen eller koden",
+      "pasteLabel": "Adress eller kod",
+      "pasteDescription": "Kopiera hela adressen från fliken där inloggningen stannade, eller koden som leverantören visade.",
+      "pasteSubmit": "Slutför inloggningen",
+      "pasteOpenAgain": "Öppna inloggningssidan igen"
     },
     "templateVariablesSection": "Mallvariabler",
     "templateVariablesClickToCopy": "klicka för att kopiera",
@@ -654,6 +665,10 @@
       "quickPresetsLabel": "Snabbval",
       "apiKeyLabel": "API-nyckel",
       "modelsLabel": "Modeller",
+      "loadModels": "Hämta modeller",
+      "pickModel": "Lägg till en modell från leverantören",
+      "noModelMatches": "Inga matchande modeller",
+      "loadModelsFailed": "Det gick inte att hämta modellerna.",
       "defaultModelLabel": "Standardmodell",
       "testConnectionButton": "Testa anslutning",
       "turnLimits": {
@@ -662,6 +677,15 @@
         "modelCallsLabel": "Modellanrop per tur",
         "toolCallsLabel": "Verktygsanrop per tur",
         "serverDefault": "Serverns standard"
+      },
+      "protocolResponsesOption": "OpenAI Responses (ChatGPT-inloggning)",
+      "signIn": {
+        "choicesLabel": "Eller logga in i stället för att använda en API-nyckel",
+        "button": "Logga in med {provider}",
+        "activeDescription": "Den här leverantören loggar in med {provider}. API-nyckeln ovan används inte så länge du loggar in så här.",
+        "useApiKey": "Använd API-nyckeln i stället",
+        "saveFirst": "Spara ändringarna och logga sedan in på {provider} här.",
+        "panelTitle": "Inloggning för {provider}"
       }
     },
     "backup": {

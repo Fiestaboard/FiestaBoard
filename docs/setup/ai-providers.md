@@ -119,6 +119,53 @@ If you configure more than one provider, mark one as the default
 using the **Make default** button. FiestaBot will use the default
 provider unless you pick another from the dropdown in the chat panel.
 
+## Signing in instead of using an API key
+
+Three providers also let you **sign in** with your account instead of
+pasting a key. This is an extra choice, not a replacement: a provider
+set up with an API key keeps working exactly as before, and you can
+switch back at any time.
+
+| Sign in with | Where requests go | What you need |
+| ------------ | ----------------- | ------------- |
+| OpenRouter   | `https://openrouter.ai/api/v1` | An OpenRouter account. Signing in creates an API key for FiestaBoard in your account. |
+| Hugging Face | `https://router.huggingface.co/v1` | A Hugging Face account. FiestaBoard asks only for permission to call inference. |
+| ChatGPT      | `https://api.openai.com/v1` (OpenAI Responses) | A ChatGPT account. Requests use the OpenAI Responses protocol, which is set for you. |
+
+To sign in:
+
+1. Open **Settings → AI Providers** and add (or open) a provider.
+2. Under **Or sign in instead of using an API key**, press **Sign in
+   with OpenRouter**, **Hugging Face**, or **ChatGPT**. This fills in the
+   base URL and protocol. Your API key field is left as it is.
+3. Press **Save changes**. The provider then shows a sign-in panel.
+4. Press the sign-in button in that panel and approve FiestaBoard on the
+   provider's page. You come back to Settings with the provider
+   signed in.
+
+**ChatGPT** cannot send you straight back to your board. After you
+approve, your browser lands on a page that does not load. Copy that
+page's whole address from the address bar and paste it into the box
+the panel opens for it, then press **Finish sign-in**. The same box
+rescues any sign-in that does not come back by itself.
+
+**OpenRouter** can also be signed in without a browser redirect:
+choose **Sign in without a browser redirect**, approve, and paste the
+code OpenRouter shows.
+
+While a provider signs in, its API key is not used. Press **Use the
+API key instead** to go back to the key; nothing you typed there was
+removed. Removing a provider, or switching it back to a key, deletes
+the sign-in FiestaBoard was holding for it.
+
+Sign-ins are stored like plugin sign-ins: in `data/oauth_tokens.json`
+on your board, never in `data/config.json`, never sent to your
+browser, and not part of backups. After restoring a backup onto a new
+board, sign in again. If a provider stops accepting the sign-in,
+FiestaBot says "Sign in to *provider* again in Settings → AI." and
+sends nothing until you do. See [Connecting Accounts](/docs/features/connecting-accounts)
+for how the sign-in itself works.
+
 ## Recommended models
 
 These all work well with the FiestaBoard prompt format. Where a

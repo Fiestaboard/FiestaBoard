@@ -1791,3 +1791,17 @@ To contribute a plugin to the FiestaBoard repository:
 - [ ] `docs/board-display.png` exists (primary screenshot)
 - [ ] No hardcoded secrets or personal information
 - [ ] Plugin added to main README.md "Available Plugins" list (alphabetical order)
+
+## Calling a Language Model (`ai_complete`, 9.11.0)
+
+A plugin that needs an LLM never carries its own AI setup or sign-in. It calls
+`self.ai_complete(messages, *, provider_id=None, model=None, temperature=None,
+max_tokens=None, json=False)`, which goes through the providers in
+**Settings → AI Providers** exactly as FiestaBot does (`src/ai/plugin_api.py`):
+same provider resolution, protocols, sign-in tokens, and `enabled: false`
+honoured. Errors are `AINotConfiguredError`, `AIRejectedError`, and
+`AIProviderError`, all `AIError` (= `AIGenerationError`). A settings field with
+`"ui:widget": "remote-options"` and `"options_id": "ai_providers"` is answered by
+`PluginBase.get_options` itself. A plugin's own saved `api_key` keeps working and
+wins when set. Published guide:
+[`docs/development/plugin-ai.md`](../../development/plugin-ai.md).

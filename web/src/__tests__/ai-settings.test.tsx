@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { http, HttpResponse } from "msw";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -449,6 +449,244 @@ describe("AiSettings", () => {
       // Explicitly null, not absent: the config manager clears the override
       // on a null and ignores a missing key.
       expect(receivedBodies[0].max_model_calls).toBeNull();
+    });
+  });
+
+  describe("signing in instead of pasting an API key", () => {
+    const SAVED = {
+      id: "p1",
+      name: "Test",
+      base_url: "https://example.test/v1",
+      api_key: "***",
+      models: ["test-model"],
+      default_model: "test-model",
+    };
+
+    function serveSettings(...providers: Record<string, unknown>[]) {
+      server.use(
+        http.get(`${API_BASE}/settings/ai`, () =>
+          HttpResponse.json({ enabled: true, providers, default_provider_id: "p1" }),
+        ),
+      );
+    }
+
+    function captureSaves(): Record<string, unknown>[] {
+      const bodies: Record<string, unknown>[] = [];
+      server.use(
+        http.put(`${API_BASE}/settings/ai`, async ({ request }) => {
+          const body = (await request.json()) as Record<string, unknown>;
+          bodies.push(body);
+          return HttpResponse.json(body);
+        }),
+      );
+      return bodies;
+    }
+
+    it("offers OpenRouter, Hugging Face and ChatGPT sign-in beside the API key field, which stays", async () => {
+      render(<AiSettings />, { wrapper: Wrapper });
+      const user = userEvent.setup();
+      await screen.findByText(/no providers configured yet/i);
+      await user.click(screen.getByRole("button", { name: /add provider/i }));
+
+      expect(screen.getByLabelText(/API Key/)).toBeInTheDocument();
+      const choices = screen.getByRole("group", { name: "Or sign in instead of using an API key" });
+      expect(within(choices).getByRole("button", { name: "Sign in with OpenRouter" })).toBeInTheDocument();
+      expect(within(choices).getByRole("button", { name: "Sign in with Hugging Face" })).toBeInTheDocument();
+      expect(within(choices).getByRole("button", { name: "Sign in with ChatGPT" })).toBeInTheDocument();
+    });
+
+    it("choosing a sign-in saves its preset and the matching endpoint, and leaves the API key alone", async () => {
+      serveSettings(SAVED);
+      const bodies = captureSaves();
+      render(<AiSettings />, { wrapper: Wrapper });
+      const user = userEvent.setup();
+      await user.click(await screen.findByText("Test"));
+      await user.click(screen.getByRole("button", { name: "Sign in with Hugging Face" }));
+      await user.click(screen.getByRole("button", { name: /save changes/i }));
+
+      await waitFor(() => expect(bodies).toHaveLength(1));
+      const [provider] = bodies[0].providers as Array<Record<string, unknown>>;
+      expect(provider.sign_in).toEqual({ preset: "huggingface" });
+      expect(provider.base_url).toBe("https://router.huggingface.co/v1");
+      expect(provider.protocol).toBe("openai");
+      expect(provider.api_key).toBe("***");
+      expect(provider.name).toBe("Test");
+    });
+
+    it("ChatGPT sign-in uses the Responses protocol", async () => {
+      serveSettings(SAVED);
+      const bodies = captureSaves();
+      render(<AiSettings />, { wrapper: Wrapper });
+      const user = userEvent.setup();
+      await user.click(await screen.findByText("Test"));
+      await user.click(screen.getByRole("button", { name: "Sign in with ChatGPT" }));
+      await user.click(screen.getByRole("button", { name: /save changes/i }));
+
+      await waitFor(() => expect(bodies).toHaveLength(1));
+      const [provider] = bodies[0].providers as Array<Record<string, unknown>>;
+      expect(provider.sign_in).toEqual({ preset: "openai_chatgpt" });
+      expect(provider.base_url).toBe("https://api.openai.com/v1");
+      expect(provider.protocol).toBe("openai_responses");
+    });
+
+    it("asks to save before signing in, since the board only knows saved providers", async () => {
+      serveSettings(SAVED);
+      render(<AiSettings />, { wrapper: Wrapper });
+      const user = userEvent.setup();
+      await user.click(await screen.findByText("Test"));
+      await user.click(screen.getByRole("button", { name: "Sign in with OpenRouter" }));
+      expect(screen.getByText("Save changes, then sign in to OpenRouter here.")).toBeInTheDocument();
+      expect(screen.queryByTestId("oauth-connection")).not.toBeInTheDocument();
+    });
+
+    it("shows the account connection of a saved signed-in provider", async () => {
+      serveSettings({ ...SAVED, sign_in: { preset: "openrouter" } });
+      server.use(
+        http.get(`${API_BASE}/oauth/connections`, () =>
+          HttpResponse.json({
+            redirect_uri: "https://fiestaboard.app/auth/oauth/redirect",
+            connections: [
+              {
+                id: "ai.p1",
+                kind: "ai",
+                plugin_id: "ai",
+                instance_label: null,
+                plugin_name: "Test (FiestaBot)",
+                provider_name: "OpenRouter",
+                flows: ["key_exchange"],
+                configured: true,
+                user_app: false,
+                shared_app: false,
+                client_id_setting: null,
+                client_secret_setting: null,
+                app_setup_url: "",
+                status: "reauthorization_required",
+                status_reason: "rejected",
+                scopes: [],
+                expires_at: null,
+                connected_at: null,
+                device: null,
+              },
+            ],
+          }),
+        ),
+      );
+      render(<AiSettings />, { wrapper: Wrapper });
+      const user = userEvent.setup();
+      await user.click(await screen.findByText("Test"));
+
+      const panel = await screen.findByTestId("oauth-connection");
+      expect(within(panel).getByText("Reconnect needed")).toBeInTheDocument();
+      expect(within(panel).getByText("OpenRouter stopped accepting the sign-in. Sign in again.")).toBeInTheDocument();
+      // The key field stays, and says it is not used while sign-in is on.
+      expect(screen.getByLabelText(/API Key/)).toBeInTheDocument();
+      expect(screen.getByText(/not used while you sign in/)).toBeInTheDocument();
+    });
+
+    it("can go back to the API key, which drops the sign-in on save", async () => {
+      serveSettings({ ...SAVED, sign_in: { preset: "openrouter" } });
+      const bodies = captureSaves();
+      render(<AiSettings />, { wrapper: Wrapper });
+      const user = userEvent.setup();
+      await user.click(await screen.findByText("Test"));
+      await user.click(screen.getByRole("button", { name: "Use the API key instead" }));
+      await user.click(screen.getByRole("button", { name: /save changes/i }));
+
+      await waitFor(() => expect(bodies).toHaveLength(1));
+      const [provider] = bodies[0].providers as Array<Record<string, unknown>>;
+      expect(provider).not.toHaveProperty("sign_in");
+      expect(provider.api_key).toBe("***");
+    });
+
+    it("an API-key provider saves exactly as before, with no sign_in", async () => {
+      serveSettings(SAVED);
+      const bodies = captureSaves();
+      render(<AiSettings />, { wrapper: Wrapper });
+      const user = userEvent.setup();
+      await user.click(await screen.findByText("Test"));
+      const name = screen.getByLabelText(/^Name$/);
+      await user.clear(name);
+      await user.type(name, "Renamed");
+      await user.click(screen.getByRole("button", { name: /save changes/i }));
+
+      await waitFor(() => expect(bodies).toHaveLength(1));
+      const [provider] = bodies[0].providers as Array<Record<string, unknown>>;
+      expect(provider).toEqual({ ...SAVED, name: "Renamed" });
+    });
+  });
+
+  describe("picking a model from the provider", () => {
+    const SAVED = {
+      id: "p1",
+      name: "Test",
+      base_url: "https://example.test/v1",
+      api_key: "***",
+      models: ["test-model"],
+      default_model: "test-model",
+    };
+
+    function serveSettings() {
+      server.use(
+        http.get(`${API_BASE}/settings/ai`, () =>
+          HttpResponse.json({ enabled: true, providers: [SAVED], default_provider_id: "p1" }),
+        ),
+      );
+    }
+
+    it("loads the saved provider's models and adds the one picked", async () => {
+      serveSettings();
+      let asked = "";
+      server.use(
+        http.get(`${API_BASE}/settings/ai/providers/:id/models`, ({ params }) => {
+          asked = String(params.id);
+          return HttpResponse.json({
+            models: [
+              { id: "test-model", name: "Test Model" },
+              { id: "test-other", name: "Test Other" },
+            ],
+          });
+        }),
+      );
+      render(<AiSettings />, { wrapper: Wrapper });
+      const user = userEvent.setup();
+      await user.click(await screen.findByText("Test"));
+      await user.click(screen.getByRole("button", { name: "Load models" }));
+
+      const picker = await screen.findByRole("combobox", { name: "Add a model from the provider" });
+      expect(asked).toBe("p1");
+      await user.click(picker);
+      // A model already in the list is not offered again.
+      expect(screen.queryByRole("option", { name: /Test Model/ })).not.toBeInTheDocument();
+      await user.click(await screen.findByRole("option", { name: /Test Other/ }));
+
+      expect(await screen.findByRole("button", { name: "Remove model test-other" })).toBeInTheDocument();
+      // Typing a model by hand still works beside the picker.
+      expect(screen.getByPlaceholderText("openai/gpt-4o-mini")).toBeInTheDocument();
+    });
+
+    it("says why when the provider cannot list its models", async () => {
+      serveSettings();
+      server.use(
+        http.get(`${API_BASE}/settings/ai/providers/:id/models`, () =>
+          HttpResponse.json({ detail: "AI provider returned 401 when asked for its models." }, { status: 502 }),
+        ),
+      );
+      render(<AiSettings />, { wrapper: Wrapper });
+      const user = userEvent.setup();
+      await user.click(await screen.findByText("Test"));
+      await user.click(screen.getByRole("button", { name: "Load models" }));
+
+      expect(await screen.findByText(/returned 401 when asked for its models/)).toBeInTheDocument();
+      expect(screen.queryByRole("combobox", { name: "Add a model from the provider" })).not.toBeInTheDocument();
+    });
+
+    it("offers no model list for a provider that is not saved yet", async () => {
+      render(<AiSettings />, { wrapper: Wrapper });
+      const user = userEvent.setup();
+      await screen.findByText(/no providers configured yet/i);
+      await user.click(screen.getByRole("button", { name: /add provider/i }));
+
+      expect(screen.queryByRole("button", { name: "Load models" })).not.toBeInTheDocument();
     });
   });
 });

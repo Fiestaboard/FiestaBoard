@@ -467,6 +467,8 @@
       "setupOpenGuide": "단계별 안내",
       "setupStepRedirect": "이 리디렉션 URI를 앱에 등록하기",
       "setupStepDetails": "앱 정보를 여기에 입력하기",
+      "ownAppToggle": "내 앱 사용(선택 사항)",
+      "ownAppDescription": "이 설정 없이도 로그인할 수 있습니다. 대신 내 {provider} 앱으로 로그인하려면 앱을 만들고 여기에 세부 정보를 입력하세요.",
       "clientIdLabel": "클라이언트 ID",
       "clientSecretLabel": "클라이언트 시크릿",
       "showSecret": "클라이언트 시크릿 표시",
@@ -485,7 +487,16 @@
         "access_denied": "로그인이 거부되어 아무것도 연결되지 않았습니다.",
         "exchange_failed": "제공업체에서 로그인을 거부했습니다. 플러그인 설정에서 클라이언트 ID와 시크릿을 확인한 후 다시 연결하세요.",
         "provider_error": "제공업체에서 문제가 있다고 알려 왔습니다. 다시 연결해 보세요."
-      }
+      },
+      "rejectedDescription": "{provider}에서 더 이상 로그인을 받지 않습니다. 다시 로그인하세요.",
+      "approvalWaiting": "{provider} 탭에서 FiestaBoard를 승인하세요. 자동으로 업데이트됩니다.",
+      "startAgainButton": "다시 시작",
+      "headlessButton": "브라우저 리디렉션 없이 로그인",
+      "pasteToggle": "로그인이 돌아오지 않았나요? 주소나 코드를 붙여넣으세요",
+      "pasteLabel": "주소 또는 코드",
+      "pasteDescription": "로그인이 멈춘 탭의 전체 주소나 제공자가 보여준 코드를 복사하세요.",
+      "pasteSubmit": "로그인 완료",
+      "pasteOpenAgain": "로그인 페이지 다시 열기"
     },
     "templateVariablesSection": "템플릿 변수",
     "templateVariablesClickToCopy": "클릭하여 복사",
@@ -654,6 +665,10 @@
       "quickPresetsLabel": "빠른 프리셋",
       "apiKeyLabel": "API 키",
       "modelsLabel": "모델",
+      "loadModels": "모델 불러오기",
+      "pickModel": "제공자의 모델 추가",
+      "noModelMatches": "일치하는 모델 없음",
+      "loadModelsFailed": "모델을 불러올 수 없습니다.",
       "defaultModelLabel": "기본 모델",
       "testConnectionButton": "연결 테스트",
       "turnLimits": {
@@ -662,6 +677,15 @@
         "modelCallsLabel": "턴당 모델 호출 수",
         "toolCallsLabel": "턴당 도구 호출 수",
         "serverDefault": "서버 기본값"
+      },
+      "protocolResponsesOption": "OpenAI Responses (ChatGPT 로그인)",
+      "signIn": {
+        "choicesLabel": "또는 API 키 대신 로그인",
+        "button": "{provider}(으)로 로그인",
+        "activeDescription": "이 제공자는 {provider}(으)로 로그인합니다. 이 방식으로 로그인하는 동안 위의 API 키는 사용되지 않습니다.",
+        "useApiKey": "대신 API 키 사용",
+        "saveFirst": "변경 사항을 저장한 다음 여기에서 {provider}에 로그인하세요.",
+        "panelTitle": "{provider} 로그인"
       }
     },
     "backup": {
