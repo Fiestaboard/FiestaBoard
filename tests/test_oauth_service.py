@@ -1251,3 +1251,272 @@ def test_refresh_prefers_a_client_id_issued_at_sign_in(service, source, store, p
     assert service.get_access_token("music") == "access-2"
     assert provider.calls[0][1]["client_id"] == "issued-client-1"
     assert store.get("music").client_id == "issued-client-1"
+
+
+# ── key_exchange (OpenRouter-style) ─────────────────────────────────────────
+
+from src.oauth import plex  # noqa: E402
+
+KEY_BLOCK = {
+    "provider_name": "OpenRouter",
+    "flows": ["key_exchange"],
+    "authorization_url": "https://or.example.com/auth",
+    "token_url": "https://or.example.com/api/v1/auth/keys",
+}
+
+
+class FakeHttp:
+    """A scripted JSON endpoint: records (method, url, headers, form, json)."""
+
+    def __init__(self):
+        self.calls = []
+        self.replies = []
+
+    def reply(self, body, status=200):
+        self.replies.append((status, body))
+        return self
+
+    def fail(self, exc):
+        self.replies.append(exc)
+        return self
+
+    def __call__(self, method, url, *, headers, form=None, json_body=None):
+        self.calls.append((method, url, dict(headers), form, json_body))
+        assert self.replies, f"unexpected http call to {url}"
+        reply = self.replies.pop(0)
+        if isinstance(reply, Exception):
+            raise reply
+        return reply
+
+
+@pytest.fixture
+def http():
+    return FakeHttp()
+
+
+@pytest.fixture
+def xservice(source, store, signer, provider, http, clock):
+    return OAuthService(
+        source=source,
+        store=store,
+        signer=signer,
+        client=ProviderClient(provider, http=http),
+        clock=clock,
+        redirect_uri="https://relay.example/oauth/redirect.html",
+        poll_in_background=False,
+        plex_client_identifier=lambda: "test-install-id",
+    )
+
+
+def test_key_exchange_start_sends_pkce_and_the_relay_as_callback(xservice, source):
+    source.add("openrouter", KEY_BLOCK, config={})
+    start = xservice.start("openrouter", board_url=BOARD)
+    assert start.flow == "key_exchange"
+    assert start.paste_expected is False
+    assert start.authorization_url.startswith("https://or.example.com/auth?")
+    query = _query(start.authorization_url)
+    assert query["callback_url"] == "https://relay.example/oauth/redirect.html"
+    assert query["code_challenge_method"] == "S256"
+    assert query["code_challenge"]
+    assert query["state"]
+    assert "client_id" not in query
+
+
+def test_key_exchange_needs_no_client_id(xservice, source):
+    source.add("openrouter", KEY_BLOCK, config={})
+    assert xservice.get_connection("openrouter").configured is True
+
+
+def test_key_exchange_callback_posts_json_and_stores_a_non_expiring_key(xservice, source, http, store, provider):
+    source.add("openrouter", KEY_BLOCK, config={})
+    start = xservice.start("openrouter", board_url=BOARD)
+    query = _query(start.authorization_url)
+    http.reply({"key": "sk-or-test-key", "user_id": "user_test"})
+
+    outcome = xservice.complete_authorization(state=query["state"], code="code-1", error=None)
+
+    assert outcome.connected
+    method, url, headers, form, body = http.calls[0]
+    assert (method, url, form) == ("POST", "https://or.example.com/api/v1/auth/keys", None)
+    assert set(body) == {"code", "code_verifier", "code_challenge_method"}
+    assert body["code"] == "code-1"
+    assert body["code_challenge_method"] == "S256"
+    assert pkce.challenge_for(body["code_verifier"]) == query["code_challenge"]
+    assert provider.calls == []
+    tokens = store.get("openrouter")
+    assert (tokens.access_token, tokens.expires_at, tokens.refresh_token) == ("sk-or-test-key", None, "")
+
+
+def test_a_stored_key_is_handed_out_forever(xservice, source, http, clock):
+    source.add("openrouter", KEY_BLOCK, config={})
+    query = _query(xservice.start("openrouter", board_url=BOARD).authorization_url)
+    http.reply({"key": "sk-or-test-key"})
+    xservice.complete_authorization(state=query["state"], code="code-1", error=None)
+    clock.now += 10 * 365 * 86400
+    assert xservice.get_access_token("openrouter") == "sk-or-test-key"
+
+
+def test_headless_key_exchange_omits_callback_and_state_and_expects_a_paste(xservice, source):
+    source.add("openrouter", KEY_BLOCK, config={})
+    start = xservice.start("openrouter", headless=True)
+    query = _query(start.authorization_url)
+    assert "callback_url" not in query and "state" not in query
+    assert start.paste_expected is True
+    assert start.paste_hint
+
+
+def test_a_bare_code_finishes_a_headless_key_exchange_once(xservice, source, http, store):
+    source.add("openrouter", KEY_BLOCK, config={})
+    query = _query(xservice.start("openrouter", headless=True).authorization_url)
+    http.reply({"key": "sk-or-test-key"})
+
+    status = xservice.complete_pasted("openrouter", "  code-abc-123 ")
+
+    assert status.status == "connected"
+    body = http.calls[0][4]
+    assert body["code"] == "code-abc-123"
+    assert pkce.challenge_for(body["code_verifier"]) == query["code_challenge"]
+    with pytest.raises(PastedCodeRejected) as caught:
+        xservice.complete_pasted("openrouter", "code-abc-123")
+    assert caught.value.reason == "no_pending"
+
+
+def test_a_bare_code_uses_the_newest_headless_start(xservice, source, http):
+    source.add("openrouter", KEY_BLOCK, config={})
+    xservice.start("openrouter", headless=True)
+    newest = _query(xservice.start("openrouter", headless=True).authorization_url)
+    http.reply({"key": "sk-or-test-key"})
+    xservice.complete_pasted("openrouter", "code-abc-123")
+    assert pkce.challenge_for(http.calls[0][4]["code_verifier"]) == newest["code_challenge"]
+
+
+def test_a_bare_code_cannot_finish_a_key_exchange_started_with_a_callback(xservice, source):
+    source.add("openrouter", KEY_BLOCK, config={})
+    xservice.start("openrouter", board_url=BOARD)
+    with pytest.raises(PastedCodeRejected) as caught:
+        xservice.complete_pasted("openrouter", "code-abc-123")
+    assert caught.value.reason == "no_pending"
+
+
+@pytest.mark.parametrize("reply", [(200, {"nokey": 1}), (400, {"error": "invalid_code"}), (500, {})])
+def test_a_key_exchange_without_a_key_stores_nothing(xservice, source, http, store, reply):
+    source.add("openrouter", KEY_BLOCK, config={})
+    xservice.start("openrouter", headless=True)
+    http.reply(reply[1], status=reply[0])
+    with pytest.raises(PastedCodeRejected) as caught:
+        xservice.complete_pasted("openrouter", "code-abc-123")
+    assert caught.value.reason == "exchange_failed"
+    assert store.get("openrouter") is None
+
+
+# ── plex_pin ────────────────────────────────────────────────────────────────
+
+PLEX_BLOCK = {"provider_name": "Plex", "flows": ["plex_pin"], "plex_product": "FiestaBoard Test"}
+PIN = {"id": 4242, "code": "pin-code-1", "expiresIn": 900, "authToken": None}
+
+
+@pytest.fixture
+def plexconn(source):
+    source.add("plex", PLEX_BLOCK, config={}, name="Plex")
+    return "plex"
+
+
+def test_plex_start_creates_a_strong_pin_and_sends_the_browser_to_plex(xservice, plexconn, http):
+    http.reply(PIN, status=201)
+    start = xservice.start(plexconn, board_url=BOARD)
+
+    method, url, headers, form, body = http.calls[0]
+    assert (method, url) == ("POST", "https://plex.tv/api/v2/pins?strong=true")
+    assert headers["Accept"] == "application/json"
+    assert headers["X-Plex-Client-Identifier"] == "test-install-id"
+    assert headers["X-Plex-Product"] == "FiestaBoard Test"
+    assert start.flow == "plex_pin"
+    assert start.authorization_url.startswith("https://app.plex.tv/auth#?")
+    fragment = parse_qs(start.authorization_url.split("#?", 1)[1])
+    assert fragment["clientID"] == ["test-install-id"]
+    assert fragment["code"] == ["pin-code-1"]
+    assert fragment["forwardUrl"] == [f"{BOARD}/integrations?plugin=plex"]
+    assert fragment["context[device][product]"] == ["FiestaBoard Test"]
+    assert start.device.status == "pending"
+    assert start.device.user_code == ""
+    assert start.device.expires_at == NOW + 900
+
+
+def test_plex_start_without_a_board_omits_the_forward_url(xservice, plexconn, http):
+    http.reply(PIN)
+    start = xservice.start(plexconn)
+    assert "forwardUrl" not in parse_qs(start.authorization_url.split("#?", 1)[1])
+
+
+def test_plex_needs_no_client_id(xservice, plexconn):
+    assert xservice.get_connection(plexconn).configured is True
+
+
+def test_plex_poll_waits_then_stores_a_non_expiring_token(xservice, plexconn, http, store):
+    http.reply(PIN)
+    xservice.start(plexconn)
+    http.reply(PIN)
+    assert xservice.poll_device(plexconn) is True
+    http.reply({**PIN, "authToken": "plex-test-token"})
+    assert xservice.poll_device(plexconn) is False
+
+    method, url, headers, _, _ = http.calls[1]
+    assert (method, url) == ("GET", "https://plex.tv/api/v2/pins/4242")
+    assert headers["X-Plex-Client-Identifier"] == "test-install-id"
+    tokens = store.get(plexconn)
+    assert (tokens.access_token, tokens.expires_at, tokens.refresh_token) == ("plex-test-token", None, "")
+    status = xservice.get_connection(plexconn)
+    assert (status.status, status.device) == ("connected", None)
+
+
+def test_a_vanished_plex_pin_expires_the_flow(xservice, plexconn, http, store):
+    http.reply(PIN)
+    xservice.start(plexconn)
+    http.reply({"errors": [{"code": 1020}]}, status=404)
+    assert xservice.poll_device(plexconn) is False
+    assert xservice.get_connection(plexconn).device.status == "expired"
+    assert store.get(plexconn) is None
+
+
+def test_a_plex_pin_past_its_lifetime_expires_without_asking(xservice, plexconn, http, clock):
+    http.reply(PIN)
+    xservice.start(plexconn)
+    clock.now += 901
+    assert xservice.poll_device(plexconn) is False
+    assert len(http.calls) == 1
+    assert xservice.get_connection(plexconn).device.status == "expired"
+
+
+def test_a_network_failure_while_polling_plex_is_retried(xservice, plexconn, http):
+    http.reply(PIN)
+    xservice.start(plexconn)
+    http.fail(ProviderError("unreachable"))
+    assert xservice.poll_device(plexconn) is True
+    assert xservice.get_connection(plexconn).device.status == "pending"
+
+
+def test_plex_polls_every_two_seconds(source, store, signer, provider, http, clock, plexconn):
+    slept = []
+    built = OAuthService(
+        source=source, store=store, signer=signer, client=ProviderClient(provider, http=http), clock=clock,
+        sleep=slept.append, poll_in_background=False, plex_client_identifier=lambda: "test-install-id",
+    )
+    http.reply(PIN)
+    built.start(plexconn)
+    http.reply({**PIN, "authToken": "plex-test-token"})
+    built._poll_device_until_done(built._device[plexconn])
+    assert slept == [2]
+
+
+def test_a_plex_pin_answer_without_an_id_is_a_provider_error(xservice, plexconn, http):
+    http.reply({"code": "x"})
+    with pytest.raises(ProviderError):
+        xservice.start(plexconn)
+
+
+def test_the_install_client_identifier_is_created_once_and_private(tmp_path):
+    first = plex.load_client_identifier(tmp_path)
+    assert first == plex.load_client_identifier(tmp_path)
+    path = tmp_path / ".oauth_client_identifier"
+    assert path.read_text() == first
+    assert stat.S_IMODE(path.stat().st_mode) == 0o600

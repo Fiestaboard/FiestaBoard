@@ -48,6 +48,52 @@ def post_form(url: str, form: dict[str, str]) -> tuple[int, Any]:
         raise ProviderError(f"The sign-in provider answered HTTP {response.status_code} without JSON.") from exc
 
 
+class HttpTransport(Protocol):
+    """Send a JSON-answering request and return ``(status_code, parsed JSON body)``.
+
+    For providers that do not speak the RFC 6749 form protocol: a JSON body
+    (OpenRouter's key exchange) or custom headers and GET (Plex PINs).
+    """
+
+    def __call__(
+        self,
+        method: str,
+        url: str,
+        *,
+        headers: dict[str, str],
+        form: dict[str, str] | None = None,
+        json_body: dict[str, Any] | None = None,
+    ) -> tuple[int, Any]:
+        """Send the request; raise :class:`ProviderError` if it cannot be reached."""
+
+
+def request_json(
+    method: str,
+    url: str,
+    *,
+    headers: dict[str, str],
+    form: dict[str, str] | None = None,
+    json_body: dict[str, Any] | None = None,
+) -> tuple[int, Any]:
+    """The production :class:`HttpTransport`."""
+    try:
+        response = requests.request(
+            method,
+            url,
+            data=form,
+            json=json_body,
+            headers=headers,
+            timeout=REQUEST_TIMEOUT_SECONDS,
+            allow_redirects=False,
+        )
+    except requests.RequestException as exc:
+        raise ProviderError(f"Could not reach the sign-in provider ({type(exc).__name__}).") from exc
+    try:
+        return response.status_code, response.json()
+    except ValueError as exc:
+        raise ProviderError(f"The sign-in provider answered HTTP {response.status_code} without JSON.") from exc
+
+
 @dataclass(frozen=True)
 class TokenResponse:
     """A successful token-endpoint answer."""
@@ -105,8 +151,29 @@ def _raise_for_oauth_error(status: int, body: Any) -> dict[str, Any]:
 class ProviderClient:
     """Speaks to one provider's endpoints over an injectable transport."""
 
-    def __init__(self, transport: Transport = post_form) -> None:
+    def __init__(self, transport: Transport = post_form, http: HttpTransport = request_json) -> None:
         self._transport = transport
+        self.http = http
+
+    def exchange_key(self, token_url: str, *, code: str, code_verifier: str) -> TokenResponse:
+        """Trade a code for an API key (the ``key_exchange`` flow): JSON in, ``{"key"}`` out.
+
+        The key does not expire and there is no refresh token.
+        """
+        status, body = self.http(
+            "POST",
+            token_url,
+            headers={"Accept": "application/json"},
+            json_body={"code": code, "code_verifier": code_verifier, "code_challenge_method": "S256"},
+        )
+        if isinstance(body, dict) and "error" in body and not isinstance(body["error"], str):
+            # OpenRouter nests its error: {"error": {"code": 400, "message": "..."}}.
+            raise TokenEndpointError("key_exchange_failed")
+        body = _raise_for_oauth_error(status, body)
+        key = body.get("key")
+        if not isinstance(key, str) or not key:
+            raise ProviderError("The sign-in provider answered without a key.")
+        return TokenResponse(access_token=key, token_type="Bearer", refresh_token="", expires_in=None, scopes=())
 
     def _token_request(self, token_url: str, form: dict[str, str], client_secret: str) -> TokenResponse:
         if client_secret:

@@ -102,7 +102,9 @@ async def authorize_oauth_connection(connection_id: str, request: OAuthAuthorize
     see it complete.
     """
     # The device flow calls the provider, so this cannot run on the event loop.
-    start = await asyncio.to_thread(get_oauth_service().start, connection_id, request.flow, request.board_url)
+    start = await asyncio.to_thread(
+        get_oauth_service().start, connection_id, request.flow, request.board_url, request.headless
+    )
     return OAuthAuthorizationStart.model_validate(asdict(start))
 
 

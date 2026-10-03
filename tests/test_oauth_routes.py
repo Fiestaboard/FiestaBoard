@@ -607,3 +607,15 @@ def test_authorize_start_reports_no_paste_expected_for_relay(client):
     body = client.post("/oauth/connections/music/authorize", json=BOARD).json()
     assert body["paste_expected"] is False
     assert body["paste_hint"] == ""
+
+
+def test_authorize_passes_headless_through(client, registry):
+    registry.add(
+        "openrouter",
+        "OpenRouter",
+        {"flows": ["key_exchange"], "authorization_url": "https://or.example.com/auth",
+         "token_url": "https://or.example.com/api/v1/auth/keys"},
+    )
+    body = client.post("/oauth/connections/openrouter/authorize", json={"headless": True}).json()
+    assert body["flow"] == "key_exchange"
+    assert body["paste_expected"] is True

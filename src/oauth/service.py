@@ -37,7 +37,7 @@ from urllib.parse import urlencode, urlsplit, urlunsplit
 
 from src.paths import get_data_dir
 
-from . import pkce
+from . import pkce, plex
 from .client import ProviderClient, TokenResponse
 from .errors import (
     ConnectionNotConfigured,
@@ -49,7 +49,16 @@ from .errors import (
     ProviderError,
     TokenEndpointError,
 )
-from .provider import CLIENT_ID_FLOWS, FLOW_DEVICE, FLOW_RELAY, Endpoints, OAuthProvider, parse_provider_block
+from .provider import (
+    CLIENT_ID_FLOWS,
+    FLOW_DEVICE,
+    FLOW_KEY_EXCHANGE,
+    FLOW_PLEX_PIN,
+    FLOW_RELAY,
+    Endpoints,
+    OAuthProvider,
+    parse_provider_block,
+)
 from .paste import parse_pasted
 from .state import STATE_TTL_SECONDS, StatePayload, StateSigner, load_state_key
 from .tokens import TokenSet, TokenStore
@@ -338,6 +347,10 @@ class _DeviceFlow:
     client_id_param: str = "client_id"
     #: Extra fields every token poll sends (Twitch: the scopes again).
     poll_form: dict[str, str] = field(default_factory=dict)
+    #: ``device`` (RFC 8628) or ``plex_pin`` (``device_code`` is the PIN id,
+    #: ``client_id`` the install's Plex client identifier).
+    kind: str = FLOW_DEVICE
+    plex_product: str = ""
 
     def to_status(self) -> DeviceStatus:
         return DeviceStatus(
@@ -364,6 +377,7 @@ class OAuthService:
         sleep: Callable[[float], None] = time.sleep,
         redirect_uri: str | None = None,
         poll_in_background: bool = True,
+        plex_client_identifier: Callable[[], str] | None = None,
     ) -> None:
         self._source = source
         self._store = store
@@ -373,6 +387,9 @@ class OAuthService:
         self._sleep = sleep
         self._redirect_uri = redirect_uri
         self._poll_in_background = poll_in_background
+        self._plex_client_identifier = plex_client_identifier or (
+            lambda: plex.load_client_identifier(get_data_dir())
+        )
         self._lock = threading.RLock()
         self._pending: dict[str, _PendingAuthorization] = {}
         self._device: dict[str, _DeviceFlow] = {}
@@ -433,12 +450,19 @@ class OAuthService:
 
     # ── starting a flow ─────────────────────────────────────────────────
 
-    def start(self, connection_id: str, flow: str | None = None, board_url: str | None = None) -> AuthorizationStart:
+    def start(
+        self,
+        connection_id: str,
+        flow: str | None = None,
+        board_url: str | None = None,
+        headless: bool = False,
+    ) -> AuthorizationStart:
         """Start connecting *connection_id*, with its preferred flow unless told otherwise.
 
         *board_url* is the address the user is browsing this board at. The
         relay flow needs it (it is where the browser must come back to); the
-        device flow ignores it.
+        device flow ignores it. ``key_exchange`` without one, or with
+        *headless*, asks the provider to show a code for the user to paste.
         """
         target = self._target(connection_id)
         chosen = flow or target.provider.flows[0]
@@ -452,6 +476,11 @@ class OAuthService:
         endpoints = target.endpoints()
         if chosen == FLOW_DEVICE:
             return self._start_device(target, endpoints)
+        if chosen == FLOW_KEY_EXCHANGE:
+            headless = headless or board_url is None
+            return self._start_key_exchange(target, None if headless else normalize_board_url(board_url), endpoints)
+        if chosen == FLOW_PLEX_PIN:
+            return self._start_plex(target, normalize_board_url(board_url) if board_url else "")
         return self._start_relay(target, normalize_board_url(board_url), endpoints)
 
     def _start_relay(self, target: ConnectionTarget, board_url: str, endpoints: Endpoints) -> AuthorizationStart:
@@ -490,6 +519,88 @@ class OAuthService:
             params["scope"] = provider.joined_scopes()
         return AuthorizationStart(flow=FLOW_RELAY, authorization_url=_with_query(endpoints.authorization_url, params))
 
+    def _start_key_exchange(
+        self, target: ConnectionTarget, board_url: str | None, endpoints: Endpoints
+    ) -> AuthorizationStart:
+        """PKCE for an API key (OpenRouter). No client ID; *board_url* ``None`` means headless."""
+        now = self._clock()
+        verifier = pkce.generate_verifier()
+        nonce = secrets.token_urlsafe(16)
+        expires_at = int(now) + STATE_TTL_SECONDS
+        headless = board_url is None
+        pending = _PendingAuthorization(
+            connection_id=target.connection_id,
+            code_verifier=verifier,
+            redirect_uri=self.redirect_uri,
+            token_url=endpoints.token_url,
+            client_id="",
+            client_secret="",
+            scopes=(),
+            expires_at=expires_at,
+            flow=FLOW_KEY_EXCHANGE,
+            allow_bare_code=headless,
+        )
+        with self._lock:
+            self._prune_pending(now)
+            self._pending[nonce] = pending
+
+        params = dict(target.provider.authorization_params)
+        if not headless:
+            params["callback_url"] = self.redirect_uri
+        params["code_challenge"] = pkce.challenge_for(verifier)
+        params["code_challenge_method"] = pkce.CHALLENGE_METHOD
+        if not headless:
+            params["state"] = self._signer.sign(StatePayload(nonce, target.connection_id, expires_at, board_url))
+        return AuthorizationStart(
+            flow=FLOW_KEY_EXCHANGE,
+            authorization_url=_with_query(endpoints.authorization_url, params),
+            paste_expected=headless,
+            paste_hint=(
+                f"After you approve, {target.provider.name} shows a code. Copy it and paste it here."
+                if headless
+                else ""
+            ),
+        )
+
+    def _start_plex(self, target: ConnectionTarget, board_url: str) -> AuthorizationStart:
+        """Create a Plex PIN, send the browser to approve it, and poll for its token."""
+        client_identifier = self._plex_client_identifier()
+        product = target.provider.plex_product
+        now = self._clock()
+        pin = plex.create_pin(self._client.http, client_identifier, product, now)
+        forward_url = f"{board_url}/integrations?{urlencode({'plugin': target.connection_id})}" if board_url else ""
+        url = plex.auth_url(client_identifier, pin.code, product, forward_url)
+        flow = _DeviceFlow(
+            connection_id=target.connection_id,
+            device_code=pin.id,
+            user_code="",
+            verification_uri=url,
+            verification_uri_complete="",
+            token_url="",
+            client_id=client_identifier,
+            client_secret="",
+            scopes=(),
+            expires_at=now + pin.expires_in,
+            interval=plex.POLL_INTERVAL_SECONDS,
+            kind=FLOW_PLEX_PIN,
+            plex_product=product,
+        )
+        self._begin_polling(flow)
+        return AuthorizationStart(flow=FLOW_PLEX_PIN, authorization_url=url, device=flow.to_status())
+
+    def _begin_polling(self, flow: _DeviceFlow) -> None:
+        with self._lock:
+            # Replacing the entry retires any earlier flow: its poller sees it
+            # is no longer the current one and stops.
+            self._device[flow.connection_id] = flow
+        if self._poll_in_background:
+            threading.Thread(
+                target=self._poll_device_until_done,
+                args=(flow,),
+                name=f"oauth-device-{flow.connection_id}",
+                daemon=True,
+            ).start()
+
     def _prune_pending(self, now: float) -> None:
         """Drop expired flows, then the oldest beyond the cap. Caller holds the lock."""
         for nonce in [n for n, p in self._pending.items() if now >= p.expires_at]:
@@ -527,17 +638,7 @@ class OAuthService:
             client_id_param=provider.client_id_param,
             poll_form=poll_form,
         )
-        with self._lock:
-            # Replacing the entry retires any earlier flow: its poller sees it
-            # is no longer the current one and stops.
-            self._device[target.connection_id] = flow
-        if self._poll_in_background:
-            threading.Thread(
-                target=self._poll_device_until_done,
-                args=(flow,),
-                name=f"oauth-device-{target.connection_id}",
-                daemon=True,
-            ).start()
+        self._begin_polling(flow)
         return AuthorizationStart(flow=FLOW_DEVICE, device=flow.to_status())
 
     # ── finishing the relay flow ────────────────────────────────────────
@@ -582,16 +683,19 @@ class OAuthService:
         """Trade *code* for tokens and store them. Raises the provider's error."""
         connection_id = pending.connection_id
         issued = issued_client_id if pending.accept_issued_client_id else ""
-        response = self._client.exchange_code(
-            pending.token_url,
-            code=code,
-            redirect_uri=pending.redirect_uri,
-            client_id=issued or pending.client_id,
-            code_verifier=pending.code_verifier,
-            client_secret=pending.client_secret,
-            client_id_param=pending.client_id_param,
-            extra_form=pending.extra_token_params,
-        )
+        if pending.flow == FLOW_KEY_EXCHANGE:
+            response = self._client.exchange_key(pending.token_url, code=code, code_verifier=pending.code_verifier)
+        else:
+            response = self._client.exchange_code(
+                pending.token_url,
+                code=code,
+                redirect_uri=pending.redirect_uri,
+                client_id=issued or pending.client_id,
+                code_verifier=pending.code_verifier,
+                client_secret=pending.client_secret,
+                client_id_param=pending.client_id_param,
+                extra_form=pending.extra_token_params,
+            )
         self._store_tokens(connection_id, response, pending.scopes, previous=None, client_id=issued)
         self._source.invalidate(connection_id)
         logger.info("OAuth connection established for %s", connection_id)
@@ -700,6 +804,8 @@ class OAuthService:
             return False
         if self._clock() >= flow.expires_at:
             return self._finish_device(flow, DEVICE_EXPIRED)
+        if flow.kind == FLOW_PLEX_PIN:
+            return self._poll_plex(flow)
 
         try:
             response = self._client.poll_device_token(
@@ -728,14 +834,32 @@ class OAuthService:
             logger.warning("OAuth device poll for %s failed, will retry: %s", connection_id, exc)
             return True
 
+        return self._device_approved(flow, response)
+
+    def _device_approved(self, flow: _DeviceFlow, response: TokenResponse) -> bool:
         with self._lock:
-            if self._device.get(connection_id) is not flow:
+            if self._device.get(flow.connection_id) is not flow:
                 # Superseded or disconnected while the request was in flight.
                 return False
-        self._store_tokens(connection_id, response, flow.scopes, previous=None)
-        self._source.invalidate(connection_id)
-        logger.info("OAuth connection established for %s", connection_id)
+        self._store_tokens(flow.connection_id, response, flow.scopes, previous=None)
+        self._source.invalidate(flow.connection_id)
+        logger.info("OAuth connection established for %s", flow.connection_id)
         return False
+
+    def _poll_plex(self, flow: _DeviceFlow) -> bool:
+        try:
+            token = plex.check_pin(self._client.http, flow.device_code, flow.client_id, flow.plex_product)
+        except plex.PinGone:
+            return self._finish_device(flow, DEVICE_EXPIRED)
+        except ProviderError as exc:
+            logger.warning("Plex PIN poll for %s failed, will retry: %s", flow.connection_id, exc)
+            return True
+        if not token:
+            return True
+        # Plex tokens do not expire and there is no refresh.
+        return self._device_approved(
+            flow, TokenResponse(access_token=token, token_type="Bearer", refresh_token="", expires_in=None, scopes=())
+        )
 
     # ── disconnecting ───────────────────────────────────────────────────
 
