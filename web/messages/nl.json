@@ -55,7 +55,7 @@
   },
   "metadata": {
     "appTitle": "FiestaBoard-bediening",
-    "appDescription": "Bedieningscentrum voor je FiestaBoard-display"
+    "appDescription": "Bedieningscentrum voor je split-flap-display"
   },
   "navigation": {
     "home": "Start",
@@ -1298,7 +1298,7 @@
     "boardReadIntervalLocalLabel": "Board-status verversen (lokaal)",
     "boardReadIntervalLocalDescription": "Hoe vaak de werkelijke board-status via het lokale netwerk wordt uitgelezen (seconden). Minimum 20.",
     "boardReadIntervalCloudLabel": "Board-status verversen (cloud)",
-    "boardReadIntervalCloudDescription": "Hoe vaak de werkelijke board-status via de Vestaboard cloud API wordt uitgelezen (seconden). Minimum 20. Lagere waarden kunnen invloed hebben op Vestaboard's servers.",
+    "boardReadIntervalCloudDescription": "Hoe vaak de werkelijke board-status via de Vestaboard cloud API wordt uitgelezen (seconden). Minimum 20, om binnen de API-limieten van Vestaboard te blijven.",
     "boardReadIntervalWarning": "Een waarde onder 60 seconden instellen kan Vestaboard overmatig belasten.",
     "toastBoardReadIntervalUpdated": "Board-uitleesinterval bijgewerkt",
     "toastBoardReadIntervalFailed": "Bijwerken van board-uitleesinterval mislukt: {error}",
@@ -1551,12 +1551,12 @@
     "animationsReduceMotionOverride": "\"Beweging verminderen\" is ingeschakeld en overschrijft deze instellingen.",
     "flapSpeedLabel": "Omklapsnelheid",
     "flapSpeedHint": "Hoe lang elke tegel één teken toont terwijl het board tot rust komt",
-    "flapSpeed_hardware": "Hardware",
+    "flapSpeed_hardware": "Snelst",
     "flapSpeed_quick": "Snel",
     "flapSpeed_standard": "Standaard",
     "flapSpeed_standardWithDefault": "Standaard (standaardinstelling)",
     "flapSpeed_relaxed": "Rustig",
-    "flapSpeed_hardwareHint": "{ms} ms — het tempo van het echte apparaat. Ongeveer één frame per teken, dus een board dat tot rust komt oogt wazig in plaats van leesbaar.",
+    "flapSpeed_hardwareHint": "{ms} ms — de snelste instelling. Ongeveer één frame per teken, dus een board dat tot rust komt oogt wazig in plaats van leesbaar.",
     "flapSpeed_quickHint": "{ms} ms — sneller dan standaard, tekens blijven tijdens het omklappen leesbaar.",
     "flapSpeed_standardHint": "{ms} ms — de standaard, en wat FiestaBoard altijd heeft gebruikt.",
     "flapSpeed_relaxedHint": "{ms} ms — een traag, bedachtzaam omklappen voor sfeerschermen.",

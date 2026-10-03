@@ -55,7 +55,7 @@
   },
   "metadata": {
     "appTitle": "Painel FiestaBoard",
-    "appDescription": "Centro de controlo do seu ecrã FiestaBoard"
+    "appDescription": "Centro de controlo do seu ecrã split-flap"
   },
   "navigation": {
     "home": "Início",
@@ -1298,7 +1298,7 @@
     "boardReadIntervalLocalLabel": "Atualização de estado do board (local)",
     "boardReadIntervalLocalDescription": "Com que frequência ler o estado real do board pela rede local (segundos). Mínimo 20.",
     "boardReadIntervalCloudLabel": "Atualização de estado do board (cloud)",
-    "boardReadIntervalCloudDescription": "Com que frequência ler o estado real do board pela Vestaboard cloud API (segundos). Mínimo 20. Valores mais baixos podem afetar os servidores da Vestaboard.",
+    "boardReadIntervalCloudDescription": "Com que frequência ler o estado real do board pela Vestaboard cloud API (segundos). Mínimo 20, para respeitar os limites de pedidos da API da Vestaboard.",
     "boardReadIntervalWarning": "Definir abaixo de 60 segundos pode sobrecarregar a Vestaboard.",
     "toastBoardReadIntervalUpdated": "Intervalo de leitura do board atualizado",
     "toastBoardReadIntervalFailed": "Falha ao atualizar intervalo de leitura do board: {error}",
@@ -1551,12 +1551,12 @@
     "animationsReduceMotionOverride": "«Reduzir movimento» está ativado, o que substitui estas definições.",
     "flapSpeedLabel": "Velocidade de viragem",
     "flapSpeedHint": "Quanto tempo cada mosaico mostra um carácter enquanto o board estabiliza",
-    "flapSpeed_hardware": "Hardware",
+    "flapSpeed_hardware": "Mais rápida",
     "flapSpeed_quick": "Rápida",
     "flapSpeed_standard": "Padrão",
     "flapSpeed_standardWithDefault": "Padrão (predefinida)",
     "flapSpeed_relaxed": "Calma",
-    "flapSpeed_hardwareHint": "{ms} ms — o ritmo do aparelho real. Cerca de um fotograma por carácter, pelo que um board a estabilizar aparece desfocado em vez de legível.",
+    "flapSpeed_hardwareHint": "{ms} ms — a definição mais rápida. Cerca de um fotograma por carácter, pelo que um board a estabilizar aparece desfocado em vez de legível.",
     "flapSpeed_quickHint": "{ms} ms — mais rápida do que a predefinição, com os caracteres ainda legíveis durante a viragem.",
     "flapSpeed_standardHint": "{ms} ms — a predefinição, e o que o FiestaBoard sempre usou.",
     "flapSpeed_relaxedHint": "{ms} ms — uma viragem lenta e deliberada para ecrãs de ambiente.",

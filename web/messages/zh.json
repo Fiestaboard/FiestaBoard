@@ -55,7 +55,7 @@
   },
   "metadata": {
     "appTitle": "FiestaBoard 控制台",
-    "appDescription": "您的 FiestaBoard 显示屏控制中心"
+    "appDescription": "您的翻牌显示屏控制中心"
   },
   "navigation": {
     "home": "首页",
@@ -1298,7 +1298,7 @@
     "boardReadIntervalLocalLabel": "Board 状态刷新(本地)",
     "boardReadIntervalLocalDescription": "通过本地网络读取实际 board 状态的频率(秒)。最小 20。",
     "boardReadIntervalCloudLabel": "Board 状态刷新(云)",
-    "boardReadIntervalCloudDescription": "通过 Vestaboard cloud API 读取实际 board 状态的频率(秒)。最小 20。较低的值可能会影响 Vestaboard 的服务器。",
+    "boardReadIntervalCloudDescription": "通过 Vestaboard cloud API 读取实际 board 状态的频率(秒)。最小 20,以符合 Vestaboard 的 API 速率限制。",
     "boardReadIntervalWarning": "设置低于 60 秒可能会给 Vestaboard 带来过多负载。",
     "toastBoardReadIntervalUpdated": "Board 读取间隔已更新",
     "toastBoardReadIntervalFailed": "更新 board 读取间隔失败:{error}",
@@ -1551,12 +1551,12 @@
     "animationsReduceMotionOverride": "\"减少动态效果\" 已启用,它会覆盖这些设置。",
     "flapSpeedLabel": "翻转速度",
     "flapSpeedHint": "board 稳定之前，每个瓦片停留在一个字符上的时长",
-    "flapSpeed_hardware": "硬件",
+    "flapSpeed_hardware": "最快",
     "flapSpeed_quick": "快速",
     "flapSpeed_standard": "标准",
     "flapSpeed_standardWithDefault": "标准（默认）",
     "flapSpeed_relaxed": "舒缓",
-    "flapSpeed_hardwareHint": "{ms} 毫秒 — 实机本身的速度。每个字符大约只有一帧，因此正在稳定的 board 看起来是一片模糊，而不是逐个翻动的字母。",
+    "flapSpeed_hardwareHint": "{ms} 毫秒 — 最快的设置。每个字符大约只有一帧，因此正在稳定的 board 看起来是一片模糊，而不是逐个翻动的字母。",
     "flapSpeed_quickHint": "{ms} 毫秒 — 比默认更快，翻转过程中字符仍可辨认。",
     "flapSpeed_standardHint": "{ms} 毫秒 — 默认值，也是 FiestaBoard 一直使用的速度。",
     "flapSpeed_relaxedHint": "{ms} 毫秒 — 缓慢而从容的翻转，适合氛围展示。",
