@@ -10,25 +10,11 @@ from src.board_client import (
     VALID_STRATEGIES,
     BoardClient,
     _is_valid_character_grid,
-    _note_array_last_send,
     board_client_from_board_dict,
     is_successful_board_read_response,
     parse_read_message_payload,
     strip_color_markers,
 )
-
-
-@pytest.fixture(autouse=True)
-def _reset_note_array_throttle():
-    """Clear the module-level note-array throttle state before each test.
-
-    ``_note_array_last_send`` persists for the process lifetime by design, so
-    without this reset a timestamp left by one test would throttle the first
-    send of an unrelated test that reuses the same token.
-    """
-    _note_array_last_send.clear()
-    yield
-    _note_array_last_send.clear()
 
 
 class TestStripColorMarkers:
@@ -1214,7 +1200,7 @@ class TestNoteArrayConstraints:
     @patch("src.board_client.requests.post")
     def test_note_array_first_send_always_goes_through(self, mock_post, note_array_client_with_clock, valid_3x60_grid):
         mock_post.return_value.raise_for_status = Mock()
-        # Token never previously seen in _note_array_last_send.
+        # Token never previously seen by the core send floor.
         client = note_array_client_with_clock(_clock(100.0), "na-throttle-first")
 
         assert client.send_characters(valid_3x60_grid) == (True, True)

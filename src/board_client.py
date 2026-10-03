@@ -13,6 +13,7 @@ Cloud API Reference:
 - GET https://rw.vestaboard.com/ - Read current display
 """
 
+import email.utils
 import json
 import logging
 import math
@@ -21,11 +22,13 @@ import re
 import threading
 import time as _time_module
 from collections.abc import Callable
+from datetime import UTC, datetime
 from typing import Any, Literal, Optional
 
 import requests
 
 from .output_allowlist import check_output_url
+from .outputs.floor import Admission, credential_digest
 from .outputs.frames import FrameCache
 from .outputs.runtime import OutputRuntime
 from .send_outcome import SendOutcome
@@ -77,13 +80,15 @@ TransitionStrategy = Literal[
 
 VALID_STRATEGIES = ["column", "reverse-column", "edges-to-center", "row", "diagonal", "random"]
 
-# Minimum interval (seconds) between note-array sends enforced client-side.
+# The send floors this driver declares (min_send_interval_ms); core enforces
+# them per device (src/outputs/floor.py), keyed by device_key().
+#
+# Note-array Cloud API: one message per 15 seconds.
 NOTE_ARRAY_MIN_SEND_INTERVAL: float = 15.0
 
-# Minimum interval (seconds) between RW Cloud API sends enforced client-side.
-# Vestaboard's documented Read/Write API limit is one message per 15 seconds
-# (docs/setup/cloud-api.md). The Local API has no documented limit, so local
-# boards stay unfloored.
+# RW Cloud API: Vestaboard's documented Read/Write API limit is one message
+# per 15 seconds (docs/setup/cloud-api.md). The Local API has no documented
+# limit, so local boards stay unfloored.
 CLOUD_MIN_SEND_INTERVAL: float = 15.0
 
 # Connection-level send retry policy: retry once after a short backoff, but
@@ -119,13 +124,26 @@ def _is_retryable_send_error(exc: BaseException) -> bool:
 LOCAL_REQUEST_TIMEOUT: tuple[float, float] = (3.0, 10.0)
 CLOUD_REQUEST_TIMEOUT: tuple[float, float] = (5.0, 10.0)
 
-# Module-level per-board throttle state. Key = note_array_token (board id proxy).
-# Persists across BoardClient recreations within a process (a tested contract:
-# reinitializing the client must not reset the 15s window). Guarded by
-# _note_array_throttle_lock -- concurrent per-board send workers (#1755) may
-# share a token across client instances.
-_note_array_last_send: dict[str, float] = {}
-_note_array_throttle_lock = threading.Lock()
+
+def _retry_after_seconds(response: Any, fallback: int | None) -> int | None:
+    """Whole seconds a ``Retry-After`` header asks for, else *fallback*.
+
+    Accepts both forms RFC 9110 allows: delta-seconds and an HTTP-date.
+    """
+    value = (getattr(response, "headers", None) or {}).get("Retry-After")
+    if value:
+        value = value.strip()
+        if value.isdigit():
+            return max(1, int(value))
+        try:
+            when = email.utils.parsedate_to_datetime(value)
+        except (TypeError, ValueError):
+            when = None
+        if when is not None:
+            if when.tzinfo is None:
+                when = when.replace(tzinfo=UTC)
+            return max(1, math.ceil((when - datetime.now(UTC)).total_seconds()))
+    return fallback
 
 
 def _valid_grid_dimensions() -> set:
@@ -538,12 +556,6 @@ class BoardClient(TransitionRenderMixin):
         # (connect, read) timeout for every request this client makes.
         self._request_timeout: tuple[float, float] = CLOUD_REQUEST_TIMEOUT if use_cloud else LOCAL_REQUEST_TIMEOUT
 
-        # Per-instance min-send-interval floor state (RW Cloud). Note arrays
-        # use the module-level _note_array_last_send registry instead so the
-        # window survives client recreation.
-        self._last_send_monotonic: float | None = None
-        self._throttle_lock = threading.Lock()
-
         # Note-array state. Note arrays are constructed with use_cloud=True, so
         # base_url/headers above point at the RW Cloud API — but when
         # _is_note_array is True the send/read paths OVERRIDE both with the new
@@ -554,7 +566,7 @@ class BoardClient(TransitionRenderMixin):
         self._notes_wide: int = notes_wide
         self._notes_tall: int = notes_tall
         self._is_note_array: bool = bool(note_array_token)
-        # Injectable monotonic clock for the note-array send throttle (tests).
+        # Injectable monotonic clock the core send floor reads (tests).
         self._time_func: Callable[[], float] = _time_func if _time_func is not None else _time_module.monotonic
         # Whether the most recent send_characters call was dropped by the
         # note-array rate limit (see the last_send_throttled property).
@@ -603,85 +615,58 @@ class BoardClient(TransitionRenderMixin):
             return CLOUD_MIN_SEND_INTERVAL
         return 0.0
 
-    def _throttle_state_lock(self) -> threading.Lock:
-        """Lock guarding this client's last-send timestamp.
+    def device_key(self) -> str:
+        """The device this client drives, for state that must outlive it.
 
-        Note arrays share a module-level registry (and therefore a module
-        lock) keyed by token; everything else uses per-instance state.
+        The send floor is keyed by it, so a rebuilt client — or a throwaway
+        one an API route builds for the same board — shares the window. Never
+        carries a credential: cloud boards are keyed by a hash of theirs.
         """
-        return _note_array_throttle_lock if self._is_note_array else self._throttle_lock
-
-    def _get_last_send_locked(self) -> float | None:
-        """Read the last-send timestamp. Caller holds _throttle_state_lock()."""
         if self._is_note_array:
-            return _note_array_last_send.get(self._note_array_token)
-        return self._last_send_monotonic
+            return f"vestaboard-note-array-cloud:{credential_digest(self._note_array_token)}"
+        if self.use_cloud:
+            return f"vestaboard-rw-cloud:{credential_digest(self.api_key)}"
+        return f"vestaboard-local:{self.host}:{self._port}"
 
-    def _set_last_send_locked(self, value: float | None) -> None:
-        """Write the last-send timestamp. Caller holds _throttle_state_lock()."""
-        if self._is_note_array:
-            if value is None:
-                _note_array_last_send.pop(self._note_array_token, None)
-            else:
-                _note_array_last_send[self._note_array_token] = value
-        else:
-            self._last_send_monotonic = value
+    def _admit(self, is_unchanged: Callable[[], bool]) -> Admission:
+        """Ask core whether this send may go: the device's floor, then dedupe.
 
-    def _admit_send(self, is_unchanged: Callable[[], bool]) -> tuple[str, float | None, float | None, int | None]:
-        """Atomically decide whether a send may proceed, reserving its slot.
-
-        Under the throttle lock: apply the per-type min-send-interval floor,
-        then the unchanged-content cache check, and -- only if the send will
-        actually go out -- record ``now`` as the last-send timestamp *before*
-        the POST.  Reserving up front is what makes the floor race-free: a
-        concurrent sender is throttled while the first POST is still in
-        flight instead of double-sending inside the window.  A failed POST
-        must give the slot back via :meth:`_release_send_slot`.
-
-        Returns:
-            ``(verdict, prev_last, now, retry_after)`` where verdict is
-            ``"send"``, ``"throttled"`` (floor hit; ``last_send_throttled``
-            was set), or ``"unchanged"`` (cache hit; nothing reserved).
-            ``retry_after`` is the REMAINING window in whole seconds
-            (rounded up, never 0) for a throttled verdict, else ``None`` —
-            the per-call number a caller reports as ``Retry-After``.
+        A throttled verdict sets ``last_send_throttled`` so callers don't
+        cache content that never reached the board (issue #1794).
         """
-        floor = self._min_send_interval
-        with self._throttle_state_lock():
-            now = self._time_func() if floor > 0 else None
-            prev_last: float | None = None
-            if floor > 0:
-                prev_last = self._get_last_send_locked()
-                if prev_last is not None:
-                    elapsed = now - prev_last
-                    if elapsed < floor:
-                        retry_after = max(1, math.ceil(floor - elapsed))
-                        logger.warning(
-                            "%s send throttled: %.1fs since last send (min %.0fs); skipping.",
-                            "Note-array" if self._is_note_array else "Cloud",
-                            elapsed,
-                            floor,
-                        )
-                        self._last_send_throttled = True
-                        self._last_send_retry_after = retry_after
-                        return ("throttled", prev_last, now, retry_after)
-            if is_unchanged():
-                return ("unchanged", prev_last, now, None)
-            if floor > 0:
-                self._set_last_send_locked(now)
-            return ("send", prev_last, now, None)
+        admission = self._output_runtime.admit_send(
+            self.device_key(), self._min_send_interval, self._time_func, is_unchanged
+        )
+        if admission.verdict == "throttled":
+            self._last_send_throttled = True
+            self._last_send_retry_after = admission.retry_after
+        return admission
 
-    def _release_send_slot(self, prev_last: float | None, now: float | None) -> None:
-        """Roll back a reservation made by :meth:`_admit_send` after a failed POST.
+    def _send_failed(
+        self, exc: requests.exceptions.RequestException, admission: Admission, with_outcome: bool, what: str
+    ) -> Any:
+        """The outcome of a write that raised, and what happens to its floor slot.
 
-        Only restores the previous timestamp if our reservation is still the
-        current value, so a slot legitimately taken afterwards isn't clobbered.
+        A cloud board answering HTTP 429 is the device's own floor: the send
+        is reported as throttled — with the ``Retry-After`` it sent, else the
+        declared floor — and the slot is kept (pushed out to ``Retry-After``
+        when that is longer), so an immediate retry is throttled here instead
+        of being POSTed into the same limit. Anything else gives the slot back.
         """
-        if now is None:
-            return
-        with self._throttle_state_lock():
-            if self._get_last_send_locked() == now:
-                self._set_last_send_locked(prev_last)
+        response = getattr(exc, "response", None)
+        if self.use_cloud and response is not None and response.status_code == 429:
+            retry_after = _retry_after_seconds(response, self._floor_seconds())
+            if retry_after is not None:
+                self._output_runtime.hold_send(admission, self._min_send_interval, retry_after)
+            logger.warning("%s answered HTTP 429 (rate limited); holding sends for %ss", self.device_key(), retry_after)
+            self._last_send_throttled = True
+            self._last_send_retry_after = retry_after
+            return self._outcome(True, False, with_outcome=with_outcome, throttled=True, retry_after=retry_after)
+        self._output_runtime.release_send(admission)
+        logger.error(f"Failed to send {what} to board: {exc}")
+        if response is not None:
+            logger.error(f"Response: {response.text}")
+        return self._outcome(False, False, with_outcome=with_outcome)
 
     def _post_with_retry(self, url: str, headers: dict[str, str], payload: Any) -> requests.Response:
         """POST with a single connection-level retry after a short backoff.
@@ -758,16 +743,14 @@ class BoardClient(TransitionRenderMixin):
         self._last_send_throttled = False
         self._last_send_retry_after = None
 
-        # Per-type send floor + unchanged-content cache, atomically (see
-        # _admit_send). A throttled send returns without sending and sets
-        # last_send_throttled so callers don't cache content that never
-        # reached the board (issue #1794).
-        verdict, prev_last, reserved_at, retry_after = self._admit_send(
-            lambda: self.skip_unchanged and not force and self._frames.matches_text(clean_text)
-        )
-        if verdict == "throttled":
-            return self._outcome(True, False, with_outcome=with_outcome, throttled=True, retry_after=retry_after)
-        if verdict == "unchanged":
+        # The device's send floor + unchanged-content cache, atomically (see
+        # src/outputs/floor.py). A throttled send returns without sending.
+        admission = self._admit(lambda: self.skip_unchanged and not force and self._frames.matches_text(clean_text))
+        if admission.verdict == "throttled":
+            return self._outcome(
+                True, False, with_outcome=with_outcome, throttled=True, retry_after=admission.retry_after
+            )
+        if admission.verdict == "unchanged":
             logger.debug("Message unchanged, skipping send")
             return self._outcome(True, False, with_outcome=with_outcome)
 
@@ -784,11 +767,7 @@ class BoardClient(TransitionRenderMixin):
             return self._outcome(True, True, with_outcome=with_outcome)
 
         except requests.exceptions.RequestException as e:
-            self._release_send_slot(prev_last, reserved_at)
-            logger.error(f"Failed to send message to board: {e}")
-            if hasattr(e, "response") and e.response is not None:
-                logger.error(f"Response: {e.response.text}")
-            return self._outcome(False, False, with_outcome=with_outcome)
+            return self._send_failed(e, admission, with_outcome, "message")
 
     def send_characters(
         self,
@@ -859,24 +838,23 @@ class BoardClient(TransitionRenderMixin):
         # send_characters directly — and since #1826 moved handlers onto
         # worker threads, those calls run concurrently with renders. Without
         # the lock they interleave: crossed _last_characters writes and a
-        # double-posted send-floor window. The throttle lock taken inside
-        # _admit_send/_release_send_slot is always acquired under this one,
-        # never the other way round.
+        # double-posted send-floor window. The core floor registry's lock is
+        # always acquired under this one, never the other way round.
         with self._output_runtime.send_lock:
             self._last_send_throttled = False
             self._last_send_retry_after = None
 
-            # Per-type min-send-interval floor (note arrays and RW Cloud; local
-            # is unfloored) + unchanged-content cache, checked atomically under
-            # the throttle lock. The slot is reserved *before* the POST so
-            # concurrent per-board send workers (#1755) can't double-send inside
-            # the window; a failed POST releases it below.
-            verdict, prev_last, reserved_at, retry_after = self._admit_send(
-                lambda: self.skip_unchanged and not force and self._frames.matches(characters)
-            )
-            if verdict == "throttled":
-                return self._outcome(True, False, with_outcome=with_outcome, throttled=True, retry_after=retry_after)
-            if verdict == "unchanged":
+            # The device's send floor (note arrays and RW Cloud; local is
+            # unfloored) + unchanged-content cache, checked atomically in core.
+            # The slot is reserved *before* the POST so concurrent per-board
+            # send workers (#1755) can't double-send inside the window; a failed
+            # POST releases it below.
+            admission = self._admit(lambda: self.skip_unchanged and not force and self._frames.matches(characters))
+            if admission.verdict == "throttled":
+                return self._outcome(
+                    True, False, with_outcome=with_outcome, throttled=True, retry_after=admission.retry_after
+                )
+            if admission.verdict == "unchanged":
                 logger.debug("Character array unchanged, skipping send")
                 return self._outcome(True, False, with_outcome=with_outcome)
 
@@ -921,11 +899,7 @@ class BoardClient(TransitionRenderMixin):
                 return self._outcome(True, True, with_outcome=with_outcome)
 
             except requests.exceptions.RequestException as e:
-                self._release_send_slot(prev_last, reserved_at)
-                logger.error(f"Failed to send character array to board: {e}")
-                if hasattr(e, "response") and e.response is not None:
-                    logger.error(f"Response: {e.response.text}")
-                return self._outcome(False, False, with_outcome=with_outcome)
+                return self._send_failed(e, admission, with_outcome, "character array")
 
     def read_current_message(self, sync_cache: bool = False) -> list[list[int]] | None:
         """

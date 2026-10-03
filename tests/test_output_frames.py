@@ -20,7 +20,7 @@ from unittest.mock import Mock, patch
 import pytest
 import requests
 
-from src.board_client import BoardClient, _note_array_last_send
+from src.board_client import BoardClient
 from src.main import BoardRuntime
 from src.note_array_local_client import NoteArrayLocalClient
 from src.outputs import FrameCache, OutputRuntime
@@ -32,13 +32,6 @@ FLAGSHIP = (6, 22)
 def _grid(fill: int, shape: tuple[int, int] = FLAGSHIP) -> list[list[int]]:
     rows, cols = shape
     return [[fill] * cols for _ in range(rows)]
-
-
-@pytest.fixture(autouse=True)
-def _clean_floor_registry():
-    _note_array_last_send.clear()
-    yield
-    _note_array_last_send.clear()
 
 
 def _ok_response() -> Mock:
