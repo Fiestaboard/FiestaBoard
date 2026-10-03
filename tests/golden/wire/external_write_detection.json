@@ -1,0 +1,96 @@
+{
+  "scenario": "external_write_detection",
+  "description": "Poll reads are GETs of the send URL; two consecutive mismatching reads against the same last-sent grid mark the board out-of-band.",
+  "seam": "DisplayService._poll_board_state_once (the board-state poll thread's body)",
+  "steps": [
+    {
+      "action": "send OURS",
+      "requests": [
+        {
+          "method": "POST",
+          "url": "http://192.168.0.10:7000/local-api/message",
+          "headers": {
+            "X-Vestaboard-Local-Api-Key": "test_local_key",
+            "Content-Type": "application/json"
+          },
+          "json": {
+            "characters": [
+              [15, 21, 18, 19, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+              [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+              [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+              [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+              [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+              [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+            ]
+          },
+          "timeout": [3.0, 10.0]
+        }
+      ],
+      "result": {
+        "send": {
+          "type": "tuple",
+          "value": [
+            true,
+            true
+          ]
+        },
+        "showing_out_of_band": false,
+        "suspect_baseline_set": false
+      }
+    },
+    {
+      "action": "poll: board shows OURS",
+      "requests": [
+        {
+          "method": "GET",
+          "url": "http://192.168.0.10:7000/local-api/message",
+          "headers": {
+            "X-Vestaboard-Local-Api-Key": "test_local_key",
+            "Content-Type": "application/json"
+          },
+          "timeout": [3.0, 10.0]
+        }
+      ],
+      "result": {
+        "showing_out_of_band": false,
+        "suspect_baseline_set": false
+      }
+    },
+    {
+      "action": "poll: board shows THEIRS (first mismatch)",
+      "requests": [
+        {
+          "method": "GET",
+          "url": "http://192.168.0.10:7000/local-api/message",
+          "headers": {
+            "X-Vestaboard-Local-Api-Key": "test_local_key",
+            "Content-Type": "application/json"
+          },
+          "timeout": [3.0, 10.0]
+        }
+      ],
+      "result": {
+        "showing_out_of_band": false,
+        "suspect_baseline_set": true
+      }
+    },
+    {
+      "action": "poll: board still shows THEIRS (confirmed)",
+      "requests": [
+        {
+          "method": "GET",
+          "url": "http://192.168.0.10:7000/local-api/message",
+          "headers": {
+            "X-Vestaboard-Local-Api-Key": "test_local_key",
+            "Content-Type": "application/json"
+          },
+          "timeout": [3.0, 10.0]
+        }
+      ],
+      "result": {
+        "showing_out_of_band": true,
+        "suspect_baseline_set": false
+      }
+    }
+  ]
+}
