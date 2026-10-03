@@ -197,7 +197,26 @@ class TransitionRenderMixin:
     The host class must provide ``send_characters(grid, strategy=None,
     step_interval_ms=None, step_size=None, force=False)`` and call
     :meth:`_init_transition_state` from its ``__init__``.
+
+    Also supplies the :class:`~src.outputs.OutputDriver` defaults an
+    unfloored, physical client reports: not virtual, never throttled, no
+    send floor. :class:`BoardClient` and
+    :class:`~src.virtual_board_client.VirtualBoardClient` override what
+    differs. Callers used to ``getattr`` these with exactly these fallbacks.
     """
+
+    # VirtualBoardClient sets True on the instance.
+    is_virtual: bool = False
+
+    @property
+    def last_send_throttled(self) -> bool:
+        """True when the most recent send was dropped by the send floor."""
+        return bool(getattr(self, "_last_send_throttled", False))
+
+    @property
+    def min_send_interval_ms(self) -> int:
+        """The send floor in milliseconds; 0 when the client is unfloored."""
+        return int((getattr(self, "_min_send_interval", 0) or 0) * 1000)
 
     def _init_transition_state(self) -> None:
         # Per-board lock serializing sends.  Used by the transition runner to
