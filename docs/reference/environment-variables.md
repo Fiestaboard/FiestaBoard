@@ -15,7 +15,7 @@ This reference is useful for:
 - **Troubleshooting** - understanding what each variable controls
 
 :::tip
-**Plugin API keys should be entered through the web UI**, not `.env`. The Integrations page provides setup instructions and validates your keys. Environment variables listed below for plugins are supported for backward compatibility but the web UI is the recommended way to configure them.
+**Plugin API keys should be entered through the web UI**, not `.env`. The Integrations page provides setup instructions and validates your keys. Environment variables listed below for plugins are supported for backward compatibility but the web UI is the recommended way to configure them. A plugin variable that is set overrides the value saved in the UI until you remove it; see [A plugin ignores the settings saved in the UI](/docs/troubleshooting#plugin-ignores-ui-settings).
 :::
 
 ## Board Connection

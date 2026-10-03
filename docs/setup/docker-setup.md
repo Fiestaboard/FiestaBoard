@@ -175,7 +175,9 @@ docker compose up -d --build
 
 ## Environment Variables
 
-All configuration is done through the `.env` file. See the [Environment Variables](/docs/reference/environment-variables) reference for the complete list.
+The `.env` file holds the board connection and system settings. See the [Environment Variables](/docs/reference/environment-variables) reference for the complete list.
+
+Configure plugins in the web UI. A plugin variable that is set in `.env` (for example `HOME_ASSISTANT_BASE_URL`) overrides the value saved in the UI for as long as it is set, and FiestaBoard logs a warning when it does. The plugin lines in `env.example` are commented out for this reason. Leave them that way unless you want the environment to win. To go back to the UI value, delete the line and recreate the container with `docker compose up -d`. A `restart` does not reload `.env`.
 
 ## Next Steps
 
