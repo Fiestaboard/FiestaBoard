@@ -36,7 +36,8 @@ class _VirtualBoardState:
     def __init__(self) -> None:
         # Guards every field mutation/read below. The state is shared across
         # client instances by design (display loop + throwaway live-render
-        # clients), and each instance's transition lock is instance-local, so
+        # clients), and a throwaway client's send lock is not the display
+        # loop's (only the engine's client is bound to the board's runtime), so
         # without this a live-edit send racing the loop can desync the dedupe
         # cache from the displayed frame — after which a real send is skipped
         # as "unchanged" and the TV sticks on the wrong frame.

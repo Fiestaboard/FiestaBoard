@@ -26,7 +26,10 @@ exposes them (a bare annotation is invisible to ``dir()``, hence to ``spec``).
 
 from __future__ import annotations
 
-from typing import Any, Protocol, runtime_checkable
+from typing import TYPE_CHECKING, Any, Protocol, runtime_checkable
+
+if TYPE_CHECKING:
+    from .runtime import OutputRuntime
 
 
 @runtime_checkable
@@ -100,6 +103,10 @@ class OutputDriver(Protocol):
 
     def set_transition_runner(self, runner: Any | None) -> None:
         """Attach (or detach) the runner that drives plugin transitions."""
+        ...
+
+    def set_output_runtime(self, runtime: OutputRuntime) -> None:
+        """Take the send lock and cancel token from the board's core runtime."""
         ...
 
     # --- reads and cache ---------------------------------------------------------

@@ -480,19 +480,20 @@ class TestEngineTickInFlightDedupe:
         assert svc.wait_until_idle(timeout=5)
         assert clients["b1"].render.call_count == 1
 
-    def test_enqueue_signals_the_clients_cancel_event_immediately(self):
+    def test_enqueue_signals_the_boards_cancel_token_immediately(self):
         """Enqueuing a newer frame preempts a running transition at once.
 
-        A plain render() call sets the client's ``_cancel_transition`` event
-        before taking the send lock; with the queue in between, the dispatch
-        must mirror that at ENQUEUE time — otherwise an in-flight transition
-        would only learn about the newer frame when the worker dequeued it.
+        A plain render() call signals the board's cancel token (owned by its
+        ``OutputRuntime``) before taking the send lock; with the queue in
+        between, the dispatch must mirror that at ENQUEUE time — otherwise an
+        in-flight transition would only learn about the newer frame when the
+        worker dequeued it.
         """
         boards = [_board("b1", "Primary", schedule_enabled=False)]
         svc, clients = _service_with_runtimes(boards)
         started, release = self._blocked_client(clients, "b1")
         cancel = threading.Event()
-        clients["b1"]._cancel_transition = cancel
+        svc.runtimes["b1"].output.cancel_event = cancel
         settings = _settings_service(boards, schedule_off=("b1",), manual={"b1": "page-1"})
         pages = _page_service({"page-1": {"content": "HELLO"}, "page-2": {"content": "WORLD"}})
         try:
