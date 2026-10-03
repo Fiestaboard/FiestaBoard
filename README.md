@@ -175,6 +175,7 @@ FiestaBoard has a catalog of **50+ plugins** covering weather, finance, transit,
 | [Solar Activity](https://github.com/Fiestaboard/fiestaboard-plugin--solar-activity) | Sunspot count and solar flare data | No |
 | [Spacecraft Launches](https://github.com/Fiestaboard/fiestaboard-plugin--spacecraft-launches) | Upcoming rocket launch countdowns | No |
 | [Sports Scores](https://github.com/Fiestaboard/fiestaboard-plugin--sports-scores) | NFL, Soccer, NHL, NBA scores | Optional |
+| [Spotify](https://github.com/Fiestaboard/fiestaboard-plugin--spotify) | What's playing on your Spotify account, with progress and up next | Yes (your own Spotify app; Premium) |
 | [Star Trek Quotes](https://github.com/Fiestaboard/fiestaboard-plugin--star-trek-quotes) | Quotes from TNG, Voyager, DS9 | No |
 | [Stardate](https://github.com/Fiestaboard/fiestaboard-plugin--stardate) | Current TNG-era stardate | No |
 | [Stocks](https://github.com/Fiestaboard/fiestaboard-plugin--stocks) | Stock prices with color indicators | Optional |
