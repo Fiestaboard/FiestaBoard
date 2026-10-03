@@ -1792,7 +1792,7 @@ To contribute a plugin to the FiestaBoard repository:
 - [ ] No hardcoded secrets or personal information
 - [ ] Plugin added to main README.md "Available Plugins" list (alphabetical order)
 
-## Calling a Language Model (`ai_complete`, 9.9.0)
+## Calling a Language Model (`ai_complete`, 9.11.0)
 
 A plugin that needs an LLM never carries its own AI setup or sign-in. It calls
 `self.ai_complete(messages, *, provider_id=None, model=None, temperature=None,

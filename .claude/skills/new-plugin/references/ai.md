@@ -7,7 +7,7 @@ Providers** (the same ones FiestaBot uses: OpenAI-compatible, Anthropic, OpenAI 
 pasted key or a sign-in with OpenRouter, Hugging Face, or ChatGPT). Full guide:
 `docs/development/plugin-ai.md` in the core repo.
 
-## The call (FiestaBoard 9.9.0)
+## The call (FiestaBoard 9.11.0)
 
 ```python
 from src.plugins.base import AIError, AINotConfiguredError, AIRejectedError
@@ -58,5 +58,5 @@ any plugin-level OpenRouter (or other AI) OAuth sign-in.
 - Patch the instance: `plugin.ai_complete = lambda *a, **k: AICompletion(text="HI",
   model="test-model", provider_id="test")` (`from src.ai.plugin_api import AICompletion`).
   Cover each exception → unavailable result, and that a saved `api_key` still takes the old path.
-- `"fiestaboard_version": ">=9.9.0"` and CI pinned to match, or guard with
+- `"fiestaboard_version": ">=9.11.0"` and CI pinned to match, or guard with
   `getattr(self, "ai_complete", None)` and import the exceptions inside that guard.

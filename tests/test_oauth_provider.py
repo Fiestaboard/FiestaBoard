@@ -300,7 +300,7 @@ def test_a_transition_plugin_may_not_declare_oauth():
     assert errors == ["oauth is not supported for transition plugins — they fetch no data"]
 
 
-# ── 9.9.0 fields ────────────────────────────────────────────────────────────
+# ── 9.11.0 fields ────────────────────────────────────────────────────────────
 
 from src.oauth.errors import ConnectionNotConfigured  # noqa: E402
 from src.oauth.provider import Endpoints, _base_url_error  # noqa: E402

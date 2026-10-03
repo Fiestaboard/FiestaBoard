@@ -1006,7 +1006,7 @@ def test_the_token_file_has_a_schema_version(store, tmp_path):
     assert json.loads((tmp_path / "oauth_tokens.json").read_text())["schema_version"] == 1
 
 
-# ── 9.9.0 manifest fields ───────────────────────────────────────────────────
+# ── 9.11.0 manifest fields ───────────────────────────────────────────────────
 
 TIKTOK_BLOCK = {**RELAY_BLOCK, "client_id_param": "client_key", "scope_separator": ","}
 TWITCH_BLOCK = {

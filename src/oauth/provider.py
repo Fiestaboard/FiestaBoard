@@ -71,7 +71,7 @@ _KNOWN_KEYS = frozenset(
         "client_secret_setting",
         "authorization_params",
         "app_setup_url",
-        # 9.9.0
+        # 9.11.0
         "client_id_param",
         "scope_separator",
         "device_scope_param",

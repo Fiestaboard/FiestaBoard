@@ -8,7 +8,7 @@ keywords: [FiestaBoard AI plugin, ai_complete, FiestaBot providers, LLM plugin, 
 
 A plugin that writes text with a language model does not need its own API key, endpoint, or sign-in. It calls `self.ai_complete(...)`, and FiestaBoard sends the request through the AI providers the user already set up in **Settings → AI Providers**, the same ones FiestaBot uses. That covers every protocol FiestaBoard speaks (OpenAI-compatible, Anthropic, and OpenAI Responses) and every way of connecting: a pasted key, or a sign-in with OpenRouter, Hugging Face, or ChatGPT.
 
-**Requires FiestaBoard 9.9.0 or later.** Set `"fiestaboard_version": ">=9.9.0"`, or guard the call as shown in [Older FiestaBoard](#older-fiestaboard).
+**Requires FiestaBoard 9.11.0 or later.** Set `"fiestaboard_version": ">=9.11.0"`, or guard the call as shown in [Older FiestaBoard](#older-fiestaboard).
 
 ## The Short Version
 
@@ -123,7 +123,7 @@ def test_rejected_sign_in_is_unavailable(plugin):
 
 ## Older FiestaBoard {#older-fiestaboard}
 
-Before 9.9.0 there is no `ai_complete`. A plugin that must load on older cores checks first:
+Before 9.11.0 there is no `ai_complete`. A plugin that must load on older cores checks first:
 
 ```python
 complete = getattr(self, "ai_complete", None)
@@ -131,4 +131,4 @@ if complete is None:
     return PluginResult(available=False, error="Needs FiestaBoard 9.9 or later, or an API key in this plugin's settings.")
 ```
 
-Import the exceptions inside the same guard, since `src.plugins.base` has no `AIError` before 9.9.0.
+Import the exceptions inside the same guard, since `src.plugins.base` has no `AIError` before 9.11.0.

@@ -2,7 +2,7 @@
 
 Status: shipped in 9.5.0 (Fiestaboard/FiestaBoard#2093). First consumer:
 [fiestaboard-plugin--spotify](https://github.com/Fiestaboard/fiestaboard-plugin--spotify).
-9.9.0 adds provider quirk fields, the `key_exchange` and `plex_pin` flows,
+9.11.0 adds provider quirk fields, the `key_exchange` and `plex_pin` flows,
 paste-to-finish, `report_oauth_rejected()`, and FiestaBot AI sign-in through
 the same service.
 
@@ -45,7 +45,7 @@ Two flows, chosen per plugin in its manifest:
 - **`device`**: device authorization grant (RFC 8628). No redirect at all; the
   board polls. Only where the provider supports it for the needed scopes.
 
-Two more since 9.9.0, for providers that are not standard OAuth:
+Two more since 9.11.0, for providers that are not standard OAuth:
 
 - **`key_exchange`**: OpenRouter's PKCE exchange. No client ID; the return
   address goes in `callback_url`, and the token endpoint takes JSON and
@@ -156,7 +156,7 @@ plugin that ships an ID and offers no field cannot have it replaced. The
 connection API reports `user_app`, and the UI hides app-setup help when it is
 false.
 
-**Provider quirks are manifest fields, not code.** (9.9.0) `client_id_param`,
+**Provider quirks are manifest fields, not code.** (9.11.0) `client_id_param`,
 `scope_separator`, `device_scope_param`, `device_poll_scope`,
 `endpoint_base_setting`, `plex_product`, `token_auth_method` and
 `refresh_params` keep "no provider named in `src/`" true for TikTok, Strava,
@@ -173,14 +173,14 @@ the only place endpoints are read, so a settings-based base URL applies to
 every flow at once.
 
 **Settings-based endpoints allow plain http only on the home network.**
-(9.9.0) For `endpoint_base_setting`, `_base_url_error` accepts `https` to any
+(9.11.0) For `endpoint_base_setting`, `_base_url_error` accepts `https` to any
 host, and `http` only to a host judged local from its name alone (RFC 1918,
 loopback, link-local, CGNAT, IPv6 ULA, single-label names, `.local`, `.lan`,
 `.home.arpa`, `.internal`). No DNS lookup, so a name cannot be made to look
 local. This is a different rule from the relay's local-address rule and
 answers a different question: where the board may send a client secret.
 
-**Paste to finish.** (9.9.0) A relay can fail to reach the board (another
+**Paste to finish.** (9.11.0) A relay can fail to reach the board (another
 device, a blocked redirect), and some providers show a code instead of
 redirecting. `POST /oauth/connections/{id}/complete` takes the pasted address
 or code. Unlike the callback it needs a session. A pasted `state` must be one this
@@ -188,14 +188,14 @@ board issued, for this connection, and unused. A code with no `state` (a bare
 code, or an address without one) is accepted only by a pending flow that opted
 in (a headless `key_exchange`), because nothing else binds it to a flow. Refusals are `PastedCodeRejected` (400) with a reason slug.
 
-**Plugins can report a rejected token.** (9.9.0, closes Known Gap 1)
+**Plugins can report a rejected token.** (9.11.0, closes Known Gap 1)
 `report_oauth_rejected()` forces one refresh, at most once per 60 seconds per
 connection (`FORCED_REFRESH_COOLDOWN_SECONDS`), and returns the new token. With
 no refresh possible, the connection is marked for reauthorization with
 `reauth_reason="rejected"`, which the API reports as `status_reason` so the UI
 can say the provider stopped accepting the sign-in.
 
-**FiestaBot AI providers are connections too.** (9.9.0) An AI provider in
+**FiestaBot AI providers are connections too.** (9.11.0) An AI provider in
 `config.json` with `"sign_in": {"preset": "..."}` is a connection with id
 `ai.<provider id>` and `kind: "ai"`, served by `AiProviderConnectionSource`
 next to the plugin registry (`CompositeConnectionSource`). Its tokens live in
@@ -207,7 +207,7 @@ set fields no manifest can (`redirect_uri_override`, `token_params`,
 `accept_issued_client_id`, `first_sign_in_params`) for ChatGPT's loopback
 redirect and issued client. The ChatGPT `id_token` is discarded unread.
 
-**Plugins may swap and renew their own token.** (9.9.0) Meta hands out a
+**Plugins may swap and renew their own token.** (9.11.0) Meta hands out a
 1-hour token at sign-in that the app trades for a 60-day one and renews with
 its own call, not a refresh token. Rather than a Meta-shaped manifest option
 or a general plugin key-value store, `PluginBase` has two optional hooks,
@@ -302,7 +302,7 @@ The relay has its own tests (`npm test`, `npm run test:dist`) in its repo.
 Raised while building the Spotify plugin. None is a bug; each is a candidate
 for follow-up.
 
-1. ~~**A plugin cannot report a rejected token.**~~ Closed in 9.9.0 by
+1. ~~**A plugin cannot report a rejected token.**~~ Closed in 9.11.0 by
    `report_oauth_rejected()`. Plugins that do not call it still show
    Connected until the next refresh fails.
 2. **`get_oauth_token()` returns `None` for both "never signed in" and
@@ -315,5 +315,5 @@ for follow-up.
    `fiestaboard_version` is the guard.
 5. **Nothing shows a device code on the board itself.**
 6. ~~**The mock provider covers only `relay` and `device`.**~~ Closed in
-   9.9.0: it serves every flow, and `FIESTABOARD_OAUTH_URL_OVERRIDES` reaches
+   9.11.0: it serves every flow, and `FIESTABOARD_OAUTH_URL_OVERRIDES` reaches
    the constant URLs.

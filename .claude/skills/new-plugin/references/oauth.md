@@ -21,9 +21,9 @@ ChatGPT…) gets no `oauth` block and no key of its own: it uses `self.ai_comple
      need*. The user types a short code. Preferred when available.
    - `relay`: everything else. Authorization code with PKCE, returning through
      `https://fiestaboard.app/auth/oauth/redirect`. Every provider supports it.
-   - `key_exchange` (9.9.0): the provider trades the code for a long-lived API key instead
+   - `key_exchange` (9.11.0): the provider trades the code for a long-lived API key instead
      of tokens (OpenRouter style). No client ID.
-   - `plex_pin` (9.9.0): Plex only. No endpoints in the block.
+   - `plex_pin` (9.11.0): Plex only. No endpoints in the block.
 3. **Whose app signs in?** Ask the user; do not guess.
    - **Each user registers their own app** (default): a `client_id` settings field, and a
      SETUP guide that walks through creating the app and pasting the redirect URI.
@@ -68,7 +68,7 @@ Scaffold with `--type http` as usual. The generator has no OAuth mode; make thes
   declare the field, so with no field the shipped one is always used.
 - Remove the scaffold's `api_key` setting and its `env_vars` entry if nothing else needs them.
 - Endpoints must be `https://`. No `client_secret` key, ever: the manifest is refused.
-- Provider quirks (all **9.9.0**, so they need `"fiestaboard_version": ">=9.9.0"`; the full
+- Provider quirks (all **9.11.0**, so they need `"fiestaboard_version": ">=9.11.0"`; the full
   table is in `plugin-oauth.md` under "Provider Quirks"):
   - `client_id_param`: the client ID parameter's name (TikTok: `client_key`).
   - `scope_separator`: `" "` (default) or `","` (Strava, TikTok, Todoist).
@@ -110,13 +110,13 @@ Rules that are easy to get wrong:
   off briefly on `5xx`/timeouts, and do not hammer after `401`/`403`.
 - Results are cached **per board shape**. For a rate-limited API, keep one shared snapshot
   for a few seconds so a Flagship and a Note are served by one request.
-- `401` → call `self.report_oauth_rejected()` (9.9.0; guard with
+- `401` → call `self.report_oauth_rejected()` (9.11.0; guard with
   `getattr(self, "report_oauth_rejected", None)`). It returns a refreshed token: retry the
   request **once** with it. `None` → "rejected the sign-in, press Reconnect", no more
   requests. `403` → say what the user can do about it (often an account that is not allowed
   to use the app).
 
-**Token hooks (9.9.0, optional).** Override only for a provider whose tokens need it:
+**Token hooks (9.11.0, optional).** Override only for a provider whose tokens need it:
 
 - `exchange_oauth_token(self, token)`: called once after each sign-in with
   `{"access_token", "refresh_token", "expires_at", "scopes"}`. Return `None` to keep it, or
@@ -186,8 +186,8 @@ real sign-in is theirs to do before the registry PR leaves draft.
 - [ ] `oauth` block validates; no `client_secret` anywhere in the repo or its history
 - [ ] `fiestaboard_version` `>=9.5.0` in manifest and registry entry; CI pinned to match
 - [ ] `get_oauth_token()` called every fetch; nothing stored; `None` makes no request
-- [ ] `401` → `report_oauth_rejected()` and one retry; `fiestaboard_version` `>=9.9.0` if any
-      9.9.0 flow, quirk field, or hook is used
+- [ ] `401` → `report_oauth_rejected()` and one retry; `fiestaboard_version` `>=9.11.0` if any
+      9.11.0 flow, quirk field, or hook is used
 - [ ] Cooldowns for `401`/`403`/`429`/`5xx`; one request shared across board shapes if rate limited
 - [ ] SETUP.md covers permissions, app creation (if any), sign-in, limits, troubleshooting
 - [ ] The user knows a real sign-in test is still theirs to do

@@ -16,7 +16,7 @@ Failures are one of three :class:`AIError` subclasses a plugin can catch:
 - :class:`AIProviderError`: unreachable, an error answer, or an empty or
   unparseable reply.
 
-Added in FiestaBoard 9.9.0.
+Added in FiestaBoard 9.11.0.
 """
 
 from __future__ import annotations

@@ -882,7 +882,7 @@ class PluginBase(ABC):
         """
         return self._manifest.get("env_vars", [])
 
-    # ── FiestaBot's AI providers (FiestaBoard 9.9.0) ──────────────────────────
+    # ── FiestaBot's AI providers (FiestaBoard 9.11.0) ──────────────────────────
 
     def ai_complete(
         self,
@@ -929,7 +929,7 @@ class PluginBase(ABC):
 
         All three errors subclass ``AIError``; import them from
         ``src.plugins.base`` or ``src.ai.plugin_api``. A plugin that must run on
-        cores before 9.9.0 guards with ``getattr(self, "ai_complete", None)``.
+        cores before 9.11.0 guards with ``getattr(self, "ai_complete", None)``.
         """
         from src.ai import plugin_api
 
@@ -1012,7 +1012,7 @@ class PluginBase(ABC):
         request once with it. ``None`` means the user has to sign in again
         (the settings say so); return ``PluginResult(available=False, ...)``.
 
-        Added in FiestaBoard 9.9.0. A plugin that must also run on older cores
+        Added in FiestaBoard 9.11.0. A plugin that must also run on older cores
         guards the call with ``getattr(self, "report_oauth_rejected", None)``.
 
         Args:
@@ -1038,7 +1038,7 @@ class PluginBase(ABC):
         ``refresh_token`` keeps the provider's. An exception keeps the
         sign-in token. Must not call :meth:`get_oauth_token`.
 
-        Added in FiestaBoard 9.9.0; older cores never call it.
+        Added in FiestaBoard 9.11.0; older cores never call it.
         """
         return None
 
@@ -1054,7 +1054,7 @@ class PluginBase(ABC):
         token is served until it expires. Must not call
         :meth:`get_oauth_token`.
 
-        Added in FiestaBoard 9.9.0; older cores never call it.
+        Added in FiestaBoard 9.11.0; older cores never call it.
         """
         return None
 
