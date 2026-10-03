@@ -26,7 +26,7 @@ FiestaBoard has a catalog of **50+ plugins**, and many of them work without any 
 ## How It Works
 
 1. **Install FiestaBoard** on any computer with Docker (your laptop, a Raspberry Pi, a home server)
-2. **Connect your board** by entering your board's API key in the web UI
+2. **Connect your board** by entering your board's API key in the web UI. FiestaBoard talks to the board only through Vestaboard's official [Local API](/docs/setup/api-keys) or [Cloud API](/docs/setup/cloud-api) — the same APIs any developer can use.
 3. **Enable plugins** to pull in the data you care about (weather, stocks, transit, etc.)
 4. **Create pages** using the visual editor to design exactly what your board displays — or describe a page in natural language and let an LLM draft it for you with the optional [Gen AI page drafts](/docs/setup/ai-providers) feature (bring your own API key)
 5. **Set a schedule** so different pages show at different times of day (optional)
@@ -37,7 +37,7 @@ Everything after the initial install is done through a web interface at **http:/
 
 - **A Vestaboard** (Flagship or Note) or compatible split-flap display, already set up and working
 - **Your board's API key** ([how to find it](/docs/setup/api-keys))
-- **A Raspberry Pi** (recommended — easiest path), **or** a computer with Docker installed
+- **A Raspberry Pi** (recommended — easiest path), **or** a computer with Docker installed, to run the FiestaBoard software. This is a separate device on your network; nothing gets installed on the board itself.
 
 That's it. No other API keys or configuration are needed to get started. Plugins that connect to external services (weather, traffic, etc.) can be enabled and configured later through the web UI.
 
@@ -118,3 +118,7 @@ If you've already got FiestaBoard installed and running, check out **[Your First
 | **[Plugin Development](/docs/development/plugin-guide)** | Creating your own plugins |
 
 <!-- sync-canary: cutover round trip, 2026-08-15 -->
+
+## About Vestaboard
+
+FiestaBoard is an independent, open-source project. It isn't affiliated with, sponsored by, or endorsed by Vestaboard, Inc. "Vestaboard" is a trademark of Vestaboard, Inc. FiestaBoard is software that sends messages to compatible boards through Vestaboard's official APIs. For questions about the board hardware itself, see [Vestaboard's own documentation](https://docs.vestaboard.com/).

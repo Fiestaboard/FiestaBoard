@@ -267,7 +267,9 @@ def _build_mcp_server() -> Any:
     mcp = MCPServer(
         "FiestaBoard",
         instructions=(
-            "FiestaBoard is a smart LED matrix display controller. You can:\n"
+            "FiestaBoard is open-source software that sends content to Vestaboard\n"
+            "split-flap boards through Vestaboard's official APIs. It is not made by\n"
+            "or affiliated with Vestaboard, Inc. You can:\n"
             "  • Manage plugins/integrations (weather, stocks, transit, etc.)\n"
             "  • Create and edit display pages using template variables from plugins\n"
             "  • Schedule which page shows at which time of day\n"

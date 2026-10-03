@@ -55,7 +55,7 @@
   },
   "metadata": {
     "appTitle": "FiestaBoard-Steuerung",
-    "appDescription": "Zentrale für Ihr FiestaBoard-Display"
+    "appDescription": "Zentrale für Ihr Split-Flap-Display"
   },
   "navigation": {
     "home": "Startseite",
@@ -1298,7 +1298,7 @@
     "boardReadIntervalLocalLabel": "Board-Statusaktualisierung (lokal)",
     "boardReadIntervalLocalDescription": "Wie oft der tatsächliche Board-Status über das lokale Netzwerk gelesen wird (Sekunden). Mindestens 20.",
     "boardReadIntervalCloudLabel": "Board-Statusaktualisierung (Cloud)",
-    "boardReadIntervalCloudDescription": "Wie oft der tatsächliche Board-Status über die Vestaboard-Cloud-API gelesen wird (Sekunden). Mindestens 20. Niedrigere Werte können die Vestaboard-Server belasten.",
+    "boardReadIntervalCloudDescription": "Wie oft der tatsächliche Board-Status über die Vestaboard-Cloud-API gelesen wird (Sekunden). Mindestens 20, um innerhalb der API-Ratenlimits von Vestaboard zu bleiben.",
     "boardReadIntervalWarning": "Werte unter 60 Sekunden können Vestaboard übermäßig belasten.",
     "toastBoardReadIntervalUpdated": "Board-Leseintervall aktualisiert",
     "toastBoardReadIntervalFailed": "Aktualisierung des Board-Leseintervalls fehlgeschlagen: {error}",
@@ -1551,12 +1551,12 @@
     "animationsReduceMotionOverride": "„Bewegung reduzieren\" ist aktiviert und überschreibt diese Einstellungen.",
     "flapSpeedLabel": "Umklappgeschwindigkeit",
     "flapSpeedHint": "Wie lange jede Kachel ein Zeichen zeigt, während das Board sich einpendelt",
-    "flapSpeed_hardware": "Hardware",
+    "flapSpeed_hardware": "Am schnellsten",
     "flapSpeed_quick": "Schnell",
     "flapSpeed_standard": "Standard",
     "flapSpeed_standardWithDefault": "Standard (Voreinstellung)",
     "flapSpeed_relaxed": "Gemächlich",
-    "flapSpeed_hardwareHint": "{ms} ms – das Tempo des echten Geräts. Etwa ein Bild pro Zeichen, ein einlaufendes Board wirkt daher verschwommen statt lesbar.",
+    "flapSpeed_hardwareHint": "{ms} ms – die schnellste Einstellung. Etwa ein Bild pro Zeichen, ein einlaufendes Board wirkt daher verschwommen statt lesbar.",
     "flapSpeed_quickHint": "{ms} ms – schneller als der Standard, Zeichen bleiben während des Umklappens lesbar.",
     "flapSpeed_standardHint": "{ms} ms – der Standard und das, was FiestaBoard schon immer verwendet hat.",
     "flapSpeed_relaxedHint": "{ms} ms – ein langsames, bewusstes Umklappen für ruhige Displays.",

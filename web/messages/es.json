@@ -55,7 +55,7 @@
   },
   "metadata": {
     "appTitle": "Panel de FiestaBoard",
-    "appDescription": "Centro de control para tu pantalla FiestaBoard"
+    "appDescription": "Centro de control para tu pantalla split-flap"
   },
   "navigation": {
     "home": "Inicio",
@@ -1298,7 +1298,7 @@
     "boardReadIntervalLocalLabel": "Actualización de estado (local)",
     "boardReadIntervalLocalDescription": "Frecuencia con la que se lee el estado real de la pantalla por la red local (segundos). Mínimo 20.",
     "boardReadIntervalCloudLabel": "Actualización de estado (nube)",
-    "boardReadIntervalCloudDescription": "Frecuencia con la que se lee el estado real de la pantalla mediante la API en la nube de Vestaboard (segundos). Mínimo 20. Valores bajos pueden afectar los servidores de Vestaboard.",
+    "boardReadIntervalCloudDescription": "Frecuencia con la que se lee el estado real de la pantalla mediante la API en la nube de Vestaboard (segundos). Mínimo 20, para respetar los límites de frecuencia de la API de Vestaboard.",
     "boardReadIntervalWarning": "Establecer este valor por debajo de 60 segundos puede sobrecargar Vestaboard.",
     "toastBoardReadIntervalUpdated": "Intervalo de lectura actualizado",
     "toastBoardReadIntervalFailed": "Error al actualizar el intervalo de lectura: {error}",
@@ -1551,12 +1551,12 @@
     "animationsReduceMotionOverride": "Reducir movimiento está activado, lo que anula estos ajustes.",
     "flapSpeedLabel": "Velocidad de giro",
     "flapSpeedHint": "Cuánto tiempo muestra cada casilla un carácter mientras la pantalla se asienta",
-    "flapSpeed_hardware": "Hardware",
+    "flapSpeed_hardware": "La más rápida",
     "flapSpeed_quick": "Rápida",
     "flapSpeed_standard": "Estándar",
     "flapSpeed_standardWithDefault": "Estándar (predeterminada)",
     "flapSpeed_relaxed": "Pausada",
-    "flapSpeed_hardwareHint": "{ms} ms: el ritmo del aparato real. Aproximadamente un fotograma por carácter, así que la pantalla se ve borrosa en vez de mostrar letras girando.",
+    "flapSpeed_hardwareHint": "{ms} ms: el ajuste más rápido. Aproximadamente un fotograma por carácter, así que la pantalla se ve borrosa en vez de mostrar letras girando.",
     "flapSpeed_quickHint": "{ms} ms: más rápida que la predeterminada, con los caracteres aún legibles durante el giro.",
     "flapSpeed_standardHint": "{ms} ms: la predeterminada, y la que FiestaBoard siempre ha usado.",
     "flapSpeed_relaxedHint": "{ms} ms: un giro lento y deliberado para pantallas ambientales.",

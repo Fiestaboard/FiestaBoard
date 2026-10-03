@@ -41,7 +41,7 @@ That's it — FiestaBoard starts on every boot and updates itself with one click
 
 **→ [Full Raspberry Pi setup guide](docs/internal/setup/RASPBERRY_PI.md)** with detailed flashing instructions, headless Wi-Fi setup, and troubleshooting.
 
-> **Why we recommend this path:** The Pi is inexpensive, low-power, runs 24/7, and is purpose-built to be a reliable always-on display controller. Even users who have never touched a Raspberry Pi before can complete this in under 15 minutes.
+> **Why we recommend this path:** The Pi is inexpensive, low-power, and runs 24/7, which makes it a reliable always-on home for the FiestaBoard software. The Pi runs FiestaBoard only — it sits on your network and sends messages to your board through the board's official API. It doesn't go inside, replace, or modify your board. Even users who have never touched a Raspberry Pi before can complete this in under 15 minutes.
 
 ### Already running Home Assistant? Use the HA add-on (beta)
 
@@ -198,7 +198,7 @@ FiestaBoard has a catalog of **50+ plugins** covering weather, finance, transit,
 
 > ⚠️ **Experimental.** Enable in Settings → Beta. The plugin SDK is not yet stable — APIs and manifest fields may change before general availability.
 
-Transition plugins drive **frame-by-frame board animations** that aren't possible with Vestaboard's built-in hardware transitions. They're picked per-page (or as the system default) and animate the change from one display to the next. Preview any transition without a real board at `/transitions` (Transition Lab).
+Transition plugins drive **frame-by-frame board animations** that go beyond the built-in flip patterns offered by Vestaboard's Local API. They're picked per-page (or as the system default) and animate the change from one display to the next. Preview any transition without a real board at `/transitions` (Transition Lab).
 
 <!-- Sorted alphabetically -->
 | Plugin | What It Does |
@@ -236,7 +236,7 @@ Create pages for both Vestaboard Flagship (22x6) and Note (15x3). The editor and
 
 ### FiestaPanel (Virtual Boards)
 
-Turn any TV or screen with a web browser into a split-flap display that fills the screen — no Vestaboard hardware required. A FiestaPanel is a virtual board sized automatically to your screen (every flap at real Vestaboard scale, borderless edge to edge), driven by the same pages, schedules, and plugins as a physical board; the TV just opens a URL and shows it, with an optional full flip animation. See the [FiestaPanel guide](docs/features/fiestapanel.md).
+Turn any TV or screen with a web browser into a split-flap display that fills the screen — no Vestaboard hardware required. A FiestaPanel is a virtual board sized automatically to your screen (flaps drawn at a true-to-life split-flap size, borderless edge to edge), driven by the same pages, schedules, and plugins as a physical board; the TV just opens a URL and shows it, with an optional full flip animation. See the [FiestaPanel guide](docs/features/fiestapanel.md).
 
 ### AI Page Drafts (Optional)
 

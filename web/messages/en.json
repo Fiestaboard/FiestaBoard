@@ -55,7 +55,7 @@
   },
   "metadata": {
     "appTitle": "FiestaBoard Control",
-    "appDescription": "Home hub for your FiestaBoard display"
+    "appDescription": "Home hub for your split-flap display"
   },
   "navigation": {
     "home": "Home",
@@ -1216,7 +1216,7 @@
     "boardReadIntervalLocalLabel": "Board State Refresh (Local)",
     "boardReadIntervalLocalDescription": "How often to read the actual board state over the local network (seconds). Minimum 20.",
     "boardReadIntervalCloudLabel": "Board State Refresh (Cloud)",
-    "boardReadIntervalCloudDescription": "How often to read the actual board state via the Vestaboard cloud API (seconds). Minimum 20. Lower values may impact Vestaboard's servers.",
+    "boardReadIntervalCloudDescription": "How often to read the actual board state via the Vestaboard cloud API (seconds). Minimum 20, to stay within Vestaboard's API rate limits.",
     "boardReadIntervalWarning": "Setting this below 60 seconds may put excessive load on Vestaboard.",
     "toastBoardReadIntervalUpdated": "Board read interval updated",
     "toastBoardReadIntervalFailed": "Failed to update board read interval: {error}",
@@ -1487,12 +1487,12 @@
     "animationsReduceMotionOverride": "Reduce motion is enabled, which overrides these settings.",
     "flapSpeedLabel": "Flip speed",
     "flapSpeedHint": "How long each tile holds one character while the board settles",
-    "flapSpeed_hardware": "Hardware",
+    "flapSpeed_hardware": "Fastest",
     "flapSpeed_quick": "Quick",
     "flapSpeed_standard": "Standard",
     "flapSpeed_standardWithDefault": "Standard (default)",
     "flapSpeed_relaxed": "Relaxed",
-    "flapSpeed_hardwareHint": "{ms}ms — the physical unit's own rate. About one frame per character, so a settling board reads as a blur rather than as letters turning over.",
+    "flapSpeed_hardwareHint": "{ms}ms — the fastest setting. About one frame per character, so a settling board reads as a blur rather than as letters turning over.",
     "flapSpeed_quickHint": "{ms}ms — faster than the default, with characters still readable mid-flip.",
     "flapSpeed_standardHint": "{ms}ms — the default, and what FiestaBoard has always used.",
     "flapSpeed_relaxedHint": "{ms}ms — a slow, deliberate flip for ambient displays.",

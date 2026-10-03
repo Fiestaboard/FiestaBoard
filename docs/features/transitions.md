@@ -14,7 +14,7 @@ FiestaBoard has **two different kinds of transitions**, and they behave differen
 
 | | Built-in flip strategies | Transition plugins (beta) |
 |---|---|---|
-| **Who animates** | The Vestaboard itself | FiestaBoard, by sending many frames |
+| **Who animates** | The board, via the Vestaboard Local API | FiestaBoard, by sending many frames |
 | **Works on** | Local API connections only | Any board connection (Local or Cloud) |
 | **Examples** | Wave, Drift, Curtain, Row, Diagonal, Random | Typewriter, Simple Dissolve, Slot Machine, Quiet Library |
 | **Where to turn on** | Always available | **Settings → Advanced → Beta Features → Transition Plugins** |
@@ -23,7 +23,7 @@ FiestaBoard has **two different kinds of transitions**, and they behave differen
 
 ## Built-in Flip Strategies
 
-Built-in strategies are a **Vestaboard Local API** feature. FiestaBoard sends the new message plus the name of a flip pattern, and the board hardware performs the animation itself.
+Built-in strategies are a **Vestaboard Local API** feature. FiestaBoard sends the new message plus the name of a flip pattern through the API, and the board handles the animation.
 
 Set the default in **Settings → Behavior → Board Transitions**:
 
