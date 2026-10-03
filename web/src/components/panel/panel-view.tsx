@@ -185,8 +185,12 @@ export function PanelView({ panelId, frameIntervalMs, configIntervalMs }: PanelV
         message={frame.data?.message ?? null}
         animationsEnabled={config.data.animations_enabled ?? false}
         deviceType={deviceType}
+        // A legacy panel board is a note array (fit in whole Notes); a re-fit
+        // one is a "panel" whose rows × cols are its character grid.
         notesWide={deviceType === "note_array" ? Math.max(1, Math.round(cols / 15)) : 1}
         notesTall={deviceType === "note_array" ? Math.max(1, Math.round(rows / 3)) : 1}
+        gridRows={deviceType === "panel" ? rows : undefined}
+        gridCols={deviceType === "panel" ? cols : undefined}
         rows={rows}
         cols={cols}
         boardColor={config.data.board_color ?? "black"}

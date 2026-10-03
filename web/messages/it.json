@@ -190,6 +190,7 @@
     "flagshipTab": "Flagship",
     "noteTab": "Note",
     "noteArrayTab": "Note Array",
+    "panelTab": "Pannello",
     "noPagesTitle": "Nessuna pagina ancora creata.",
     "noPagesDescription": "Crea la tua prima pagina da visualizzare sulla bacheca.",
     "createFirstPage": "Crea la tua prima pagina",
@@ -1709,6 +1710,7 @@
     "deviceFlagship": "Flagship (6×22)",
     "deviceNote": "Note (3×15)",
     "deviceNoteArray": "Array di Note",
+    "devicePanel": "Pannello ({rows}×{cols})",
     "notesWideLabel": "Note in larghezza",
     "notesTallLabel": "Note in altezza",
     "fromPageLabel": "Pagina di partenza",
@@ -2245,6 +2247,7 @@
   },
   "boardSizeIndicator": {
     "custom": "Personalizzato",
+    "panel": "Pannello",
     "ariaLabel": "{rows} righe per {cols} colonne",
     "ariaLabelWithLayout": "{rows} righe per {cols} colonne, {layout}"
   },
@@ -2299,7 +2302,7 @@
     "aspectWidthLabel": "Larghezza del rapporto",
     "aspectHeightLabel": "Altezza del rapporto",
     "tvPreviewLabel": "Sul tuo schermo",
-    "tvPreviewMeta": "{cols} × {rows} palette · {wide} × {tall} blocchi Note",
+    "tvPreviewMeta": "{cols} × {rows} palette a grandezza naturale",
     "screenMeta": "schermo da {inches}\"",
     "autoDim": "Attenuazione automatica notturna",
     "autoDimStart": "Attenua dalle",
@@ -2343,7 +2346,8 @@
     "hdmiEnabledHint": "Lo schermo HDMI mostra il pannello con «Uscita display» attivata qui sopra.",
     "hdmiFailed": "L'ultima modifica del chiosco HDMI non è riuscita. Riprova o riavvia il Pi.",
     "yourPanelsGroupLabel": "I tuoi pannelli",
-    "panelSizeOption": "{name} · {wide}×{tall} blocchi Note",
+    "panelSizeOption": "{name} · {cols}×{rows}",
+    "panelGridOption": "Pannello · {cols}×{rows}",
     "fitsPanel": "Adatta a {name}",
     "fitsPanelAndMore": "Adatta a {name} +{count} altri"
   },

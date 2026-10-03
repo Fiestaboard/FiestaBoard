@@ -107,6 +107,10 @@ export const mockCurrentDisplay: CurrentDisplayResponse = {
   page_name: "Weather Page",
   page_type: "single",
   device_type: "flagship",
+  notes_wide: 1,
+  notes_tall: 1,
+  grid_rows: null,
+  grid_cols: null,
   template: ["72°F Sunny", "Humidity 45%", "", "", "", ""],
   line_metadata: null,
 };

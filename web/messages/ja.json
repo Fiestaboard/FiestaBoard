@@ -190,6 +190,7 @@
     "flagshipTab": "Flagship",
     "noteTab": "Note",
     "noteArrayTab": "Note Array",
+    "panelTab": "パネル",
     "noPagesTitle": "ページがまだありません",
     "noPagesDescription": "最初のページを作成してボードに表示しましょう。",
     "createFirstPage": "最初のページを作成",
@@ -1709,6 +1710,7 @@
     "deviceFlagship": "Flagship（6×22）",
     "deviceNote": "Note（3×15）",
     "deviceNoteArray": "Noteアレイ",
+    "devicePanel": "パネル ({rows}×{cols})",
     "notesWideLabel": "横のNote数",
     "notesTallLabel": "縦のNote数",
     "fromPageLabel": "開始ページ",
@@ -2245,6 +2247,7 @@
   },
   "boardSizeIndicator": {
     "custom": "カスタム",
+    "panel": "パネル",
     "ariaLabel": "{rows}行×{cols}列",
     "ariaLabelWithLayout": "{rows}行×{cols}列、{layout}"
   },
@@ -2299,7 +2302,7 @@
     "aspectWidthLabel": "アスペクト比（幅）",
     "aspectHeightLabel": "アスペクト比（高さ）",
     "tvPreviewLabel": "画面上の表示",
-    "tvPreviewMeta": "{cols} × {rows} フラップ · {wide} × {tall} Noteブロック",
+    "tvPreviewMeta": "実寸大で {cols} × {rows} フラップ",
     "screenMeta": "{inches} インチ画面",
     "autoDim": "夜間の自動減光",
     "autoDimStart": "減光開始",
@@ -2343,7 +2346,8 @@
     "hdmiEnabledHint": "HDMI 画面には、上で「ディスプレイ出力」をオンにしたパネルが表示されます。",
     "hdmiFailed": "前回の HDMI キオスクの変更に失敗しました。再試行するか、Pi を再起動してください。",
     "yourPanelsGroupLabel": "あなたのパネル",
-    "panelSizeOption": "{name} · {wide}×{tall} Noteブロック",
+    "panelSizeOption": "{name} · {cols}×{rows}",
+    "panelGridOption": "パネル · {cols}×{rows}",
     "fitsPanel": "{name} に適合",
     "fitsPanelAndMore": "{name} ほか{count}件に適合"
   },

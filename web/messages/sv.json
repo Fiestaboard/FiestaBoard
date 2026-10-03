@@ -190,6 +190,7 @@
     "flagshipTab": "Flagship",
     "noteTab": "Note",
     "noteArrayTab": "Note Array",
+    "panelTab": "Panel",
     "noPagesTitle": "Inga sidor skapade ännu.",
     "noPagesDescription": "Skapa din första sida att visa på tavlan.",
     "createFirstPage": "Skapa din första sida",
@@ -1709,6 +1710,7 @@
     "deviceFlagship": "Flagship (6×22)",
     "deviceNote": "Note (3×15)",
     "deviceNoteArray": "Note-matris",
+    "devicePanel": "Panel ({rows}×{cols})",
     "notesWideLabel": "Notes i bredd",
     "notesTallLabel": "Notes i höjd",
     "fromPageLabel": "Från-sida",
@@ -2245,6 +2247,7 @@
   },
   "boardSizeIndicator": {
     "custom": "Anpassad",
+    "panel": "Panel",
     "ariaLabel": "{rows} rader gånger {cols} kolumner",
     "ariaLabelWithLayout": "{rows} rader gånger {cols} kolumner, {layout}"
   },
@@ -2299,7 +2302,7 @@
     "aspectWidthLabel": "Förhållandets bredd",
     "aspectHeightLabel": "Förhållandets höjd",
     "tvPreviewLabel": "På din skärm",
-    "tvPreviewMeta": "{cols} × {rows} flikar · {wide} × {tall} Note-block",
+    "tvPreviewMeta": "{cols} × {rows} flikar i naturlig storlek",
     "screenMeta": "{inches}\"-skärm",
     "autoDim": "Dimma automatiskt på natten",
     "autoDimStart": "Dimma från",
@@ -2343,7 +2346,8 @@
     "hdmiEnabledHint": "HDMI-skärmen visar panelen med ”Skärmutgång” aktiverad ovan.",
     "hdmiFailed": "Den senaste HDMI-kioskändringen misslyckades. Försök igen eller starta om Pi:n.",
     "yourPanelsGroupLabel": "Dina paneler",
-    "panelSizeOption": "{name} · {wide}×{tall} Note-block",
+    "panelSizeOption": "{name} · {cols}×{rows}",
+    "panelGridOption": "Panel · {cols}×{rows}",
     "fitsPanel": "Passar {name}",
     "fitsPanelAndMore": "Passar {name} +{count} till"
   },

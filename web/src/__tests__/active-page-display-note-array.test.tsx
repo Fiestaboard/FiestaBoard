@@ -211,3 +211,86 @@ describe("ActivePageDisplay on a panel's note-array board", () => {
     expect(puts).toHaveLength(1);
   });
 });
+
+/** A per-character FiestaPanel board: 12 × 29 is not a whole number of Notes. */
+const BOARDS_WITH_GRID_PANEL = {
+  board_type: "black",
+  boards: [
+    { id: "board-1", name: "Living Room", device_type: "flagship", board_color: "black", enabled: true },
+    {
+      id: "board-panel",
+      name: "Den TV (Panel)",
+      device_type: "panel",
+      api_mode: "virtual",
+      grid_rows: 12,
+      grid_cols: 29,
+      board_color: "black",
+      enabled: true,
+    },
+  ],
+  devices: ["flagship", "panel"],
+};
+
+const GRID_PANEL_PAGE = {
+  id: "grid-panel-page",
+  name: "Grid Panel Page",
+  type: "template",
+  device_type: "panel",
+  grid_rows: 12,
+  grid_cols: 29,
+  template: ["HI"],
+  duration_seconds: 300,
+  created_at: "2026-08-25T00:00:00+00:00",
+};
+
+describe("ActivePageDisplay on a per-character panel board", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    localStorage.clear();
+    localStorage.setItem("fiestaboard_current_board", "board-panel");
+  });
+
+  function useGridPanelBoard() {
+    const puts = usePanelBoard({ pages: [FLAGSHIP_PAGE, GRID_PANEL_PAGE], activePageId: null, boardMessage: null });
+    server.use(
+      http.get(`${API_BASE}/settings/board`, () => HttpResponse.json(BOARDS_WITH_GRID_PANEL)),
+      http.get(`${API_BASE}/board/current-message`, () =>
+        HttpResponse.json({
+          characters: [],
+          message: "PANEL CONTENT",
+          rows: 12,
+          cols: 29,
+          expected_characters: null,
+          cached_at: null,
+          api_mode: "virtual",
+          board_id: "board-panel",
+        }),
+      ),
+    );
+    return puts;
+  }
+
+  it("renders the preview at the panel's character grid, which is no Note multiple", async () => {
+    useGridPanelBoard();
+
+    render(<ActivePageDisplay />, { wrapper: TestWrapper });
+
+    await waitFor(
+      () => {
+        expect(document.querySelector('[data-testid="char-tile-11-28"]')).not.toBeNull();
+      },
+      { timeout: 3000 },
+    );
+    expect(document.querySelector('[data-testid="char-tile-0-29"]')).toBeNull();
+    expect(document.querySelector('[data-testid="char-tile-12-0"]')).toBeNull();
+  });
+
+  it("auto-selects the panel page whose grid matches the panel board", async () => {
+    const puts = useGridPanelBoard();
+
+    render(<ActivePageDisplay />, { wrapper: TestWrapper });
+
+    await waitFor(() => expect(puts.length).toBeGreaterThan(0), { timeout: 3000 });
+    expect(puts[0].page_id).toBe("grid-panel-page");
+  });
+});

@@ -108,6 +108,17 @@ describe("BoardSizeIndicator", () => {
     });
   });
 
+  // ── panel (FiestaPanel, fit per character) ────────────────────────────────────
+  describe("panel", () => {
+    it("renders the panel's character grid as rows × cols with a Panel label", () => {
+      render(<BoardSizeIndicator deviceType="panel" gridRows={12} gridCols={29} />);
+      const el = screen.getByRole("img");
+      expect(el).toHaveTextContent("12 × 29");
+      expect(el).toHaveTextContent("Panel");
+      expect(el).toHaveAttribute("aria-label", "12 rows by 29 columns, Panel");
+    });
+  });
+
   // ── className prop forwarding ─────────────────────────────────────────────────
   describe("className prop", () => {
     it("forwards extra className to wrapper element", () => {

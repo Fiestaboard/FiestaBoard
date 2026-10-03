@@ -190,6 +190,7 @@
     "flagshipTab": "Flagship",
     "noteTab": "Note",
     "noteArrayTab": "Note Array",
+    "panelTab": "Panel",
     "noPagesTitle": "Noch keine Seiten erstellt.",
     "noPagesDescription": "Erstellen Sie Ihre erste Seite zur Anzeige auf dem Board.",
     "createFirstPage": "Erste Seite erstellen",
@@ -1709,6 +1710,7 @@
     "deviceFlagship": "Flagship (6×22)",
     "deviceNote": "Note (3×15)",
     "deviceNoteArray": "Note-Array",
+    "devicePanel": "Panel ({rows}×{cols})",
     "notesWideLabel": "Notes breit",
     "notesTallLabel": "Notes hoch",
     "fromPageLabel": "Von-Seite",
@@ -2245,6 +2247,7 @@
   },
   "boardSizeIndicator": {
     "custom": "Benutzerdefiniert",
+    "panel": "Panel",
     "ariaLabel": "{rows} Zeilen mal {cols} Spalten",
     "ariaLabelWithLayout": "{rows} Zeilen mal {cols} Spalten, {layout}"
   },
@@ -2299,7 +2302,7 @@
     "aspectWidthLabel": "Verhältnis Breite",
     "aspectHeightLabel": "Verhältnis Höhe",
     "tvPreviewLabel": "Auf deinem Bildschirm",
-    "tvPreviewMeta": "{cols} × {rows} Klappen · {wide} × {tall} Note-Blöcke",
+    "tvPreviewMeta": "{cols} × {rows} Klappen in Lebensgröße",
     "screenMeta": "{inches}\"-Bildschirm",
     "autoDim": "Nachts automatisch dimmen",
     "autoDimStart": "Dimmen ab",
@@ -2343,7 +2346,8 @@
     "hdmiEnabledHint": "Der HDMI-Bildschirm zeigt das Panel, bei dem oben „Display-Ausgabe“ aktiviert ist.",
     "hdmiFailed": "Die letzte HDMI-Kiosk-Änderung ist fehlgeschlagen. Versuche es erneut oder starte den Pi neu.",
     "yourPanelsGroupLabel": "Ihre Panels",
-    "panelSizeOption": "{name} · {wide}×{tall} Note-Blöcke",
+    "panelSizeOption": "{name} · {cols}×{rows}",
+    "panelGridOption": "Panel · {cols}×{rows}",
     "fitsPanel": "Passt zu {name}",
     "fitsPanelAndMore": "Passt zu {name} +{count} weitere"
   },

@@ -67,10 +67,12 @@ export interface Panel {
   board_missing?: boolean;
   rows?: number | null;
   cols?: number | null;
-  /** The same grid counted in Notes — what a page authored for this panel
-   * needs for its `notes_wide`/`notes_tall`. Derived server-side from
-   * rows/cols, so the two can never disagree. Null when the board is gone;
-   * absent on a payload cached before the fields existed. */
+  /** The same grid counted in Notes. Only set for a legacy `note_array`
+   * panel board (fit in whole Note blocks); null for a `panel` board, which
+   * is fit per character and generally not a whole number of Notes — a page
+   * for it is a `panel` page with `grid_rows`/`grid_cols` = rows/cols. Null
+   * when the board is gone; absent on a payload cached before the fields
+   * existed. */
   notes_wide?: number | null;
   notes_tall?: number | null;
 }
@@ -205,6 +207,10 @@ export interface BoardInstance {
   notes_wide?: number;
   /** Number of Notes arranged vertically (note_array only; default 1). */
   notes_tall?: number;
+  /** Rows of characters (panel only — a FiestaPanel's auto-fit grid). */
+  grid_rows?: number | null;
+  /** Columns of characters (panel only — a FiestaPanel's auto-fit grid). */
+  grid_cols?: number | null;
   /**
    * Local array mode (note_array + api_mode "local"): per-tile Local API
    * endpoints. Out-of-range tiles are preserved server-side across W×H

@@ -204,10 +204,14 @@ FiestaBoard renders a plugin onto whatever board the user owns, and that is a
 | `flagship` | 22×6 tiles (fixed) |
 | `note` | 15×3 tiles (fixed) |
 | `note_array` | any grid of 15×3 Notes, 1–8 per axis — **15×3 up to 120×24** |
+| `panel` | **any** grid of characters — **15×3 up to 128×96**, not a multiple of anything |
 
-A **FiestaPanel is a `note_array`**: a virtual board auto-fitted to a TV, so a
-65″ screen is 30×12 and an 85″ is 45×18. There is no separate panel API —
-handling arbitrary `note_array` geometry *is* panel support.
+A **FiestaPanel is a `panel`**: a virtual board auto-fitted to a TV one
+character at a time, so a 32″ screen is 17×7, a 55″ is 29×12, a 65″ is 34×14,
+a 55″ in portrait is 16×21 and a 200″ is 106×44. Widths like 17 and 29 and
+heights like 7 are normal. There is no separate panel API — a plugin that
+derives its layout from `board.cols` / `board.rows` (and never assumes a
+multiple of 15 or 3) already supports panels.
 
 A single plugin instance can be shown on several of these at once, so a plugin
 **reads the board it is currently rendering on** and adapts. There is no
@@ -251,7 +255,7 @@ def fetch_data(self) -> PluginResult:
 
 | Attribute | Meaning |
 |---|---|
-| `device_type` | `"flagship"`, `"note"`, `"note_array"` |
+| `device_type` | `"flagship"`, `"note"`, `"note_array"`, `"panel"` |
 | `cols` / `width` | board width in tiles (aliases) |
 | `rows` / `height` | board height in tiles (aliases) |
 
@@ -273,15 +277,16 @@ def fetch_data(self) -> PluginResult:
   or width is always wrong: the platform already knows, and one config has to
   serve every board the user owns.
 - **Key any cache of your own by geometry.** `PluginBase.get_data()` already
-  caches results per geometry (`note_array:{cols}x{rows}`), but a cache or
+  caches results per geometry (`note_array:{cols}x{rows}`, `panel:{cols}x{rows}`), but a cache or
   simulation state you hold yourself must include rows and cols, or one board's
   frame is served to another.
 
 ### Prove it with the conformance suite
 
 `src/plugins/geometry_conformance.py` renders a plugin across every shape above
-— including the awkward 15×12 and 120×3 cases — and checks the rules on this
-page. Plugin repositories get FiestaBoard core on `PYTHONPATH` in CI, so they
+— including the awkward 15×12 and 120×3 arrays and real per-character panel
+fits (15×5, 17×7, 29×12, a 16×21 portrait TV and 106×44) — and checks the rules
+on this page. Plugin repositories get FiestaBoard core on `PYTHONPATH` in CI, so they
 import it directly:
 
 ```python

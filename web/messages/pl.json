@@ -190,6 +190,7 @@
     "flagshipTab": "Flagship",
     "noteTab": "Note",
     "noteArrayTab": "Note Array",
+    "panelTab": "Panel",
     "noPagesTitle": "Nie utworzono jeszcze żadnych stron.",
     "noPagesDescription": "Utwórz pierwszą stronę do wyświetlenia na tablicy.",
     "createFirstPage": "Utwórz pierwszą stronę",
@@ -1709,6 +1710,7 @@
     "deviceFlagship": "Flagship (6×22)",
     "deviceNote": "Note (3×15)",
     "deviceNoteArray": "Macierz Note",
+    "devicePanel": "Panel ({rows}×{cols})",
     "notesWideLabel": "Notes w poziomie",
     "notesTallLabel": "Notes w pionie",
     "fromPageLabel": "Strona początkowa",
@@ -2245,6 +2247,7 @@
   },
   "boardSizeIndicator": {
     "custom": "Niestandardowy",
+    "panel": "Panel",
     "ariaLabel": "{rows} wierszy na {cols} kolumn",
     "ariaLabelWithLayout": "{rows} wierszy na {cols} kolumn, {layout}"
   },
@@ -2299,7 +2302,7 @@
     "aspectWidthLabel": "Szerokość proporcji",
     "aspectHeightLabel": "Wysokość proporcji",
     "tvPreviewLabel": "Na Twoim ekranie",
-    "tvPreviewMeta": "{cols} × {rows} klapek · {wide} × {tall} bloki Note",
+    "tvPreviewMeta": "{cols} × {rows} klapek w rzeczywistym rozmiarze",
     "screenMeta": "ekran {inches}\"",
     "autoDim": "Automatyczne przyciemnianie w nocy",
     "autoDimStart": "Przyciemniaj od",
@@ -2343,7 +2346,8 @@
     "hdmiEnabledHint": "Ekran HDMI pokazuje panel z włączonym powyżej „Wyjściem ekranowym”.",
     "hdmiFailed": "Ostatnia zmiana kiosku HDMI nie powiodła się. Spróbuj ponownie lub uruchom Pi ponownie.",
     "yourPanelsGroupLabel": "Twoje panele",
-    "panelSizeOption": "{name} · {wide}×{tall} bloki Note",
+    "panelSizeOption": "{name} · {cols}×{rows}",
+    "panelGridOption": "Panel · {cols}×{rows}",
     "fitsPanel": "Pasuje do {name}",
     "fitsPanelAndMore": "Pasuje do {name} +{count} więcej"
   },

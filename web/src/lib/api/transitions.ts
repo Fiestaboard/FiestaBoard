@@ -52,6 +52,9 @@ export interface TransitionPreviewRequest {
   device_type?: DeviceType;
   notes_wide?: number;
   notes_tall?: number;
+  /** Panel only (required for a panel): its rows × cols of characters. */
+  grid_rows?: number;
+  grid_cols?: number;
   config?: Record<string, unknown>;
 }
 

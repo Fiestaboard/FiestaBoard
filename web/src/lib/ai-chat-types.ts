@@ -11,7 +11,7 @@
 // (src/ai/page_routes.py) and the request models beside them.
 // tests/test_ai_stream_contract.py holds the two sides together.
 
-import type { DeviceType, LineMetadata } from "./api";
+import type { DeviceType, GridSize, LineMetadata } from "./api";
 
 // ---------------------------------------------------------------------------
 // Editor-local ops. These never cross the wire any more: the page editor's
@@ -200,6 +200,9 @@ export interface CreatePageArgs {
   duration_seconds?: number;
   notes_wide?: number;
   notes_tall?: number;
+  /** Panel only: rows × cols of characters. */
+  grid_rows?: number;
+  grid_cols?: number;
   line_metadata?: LineMetadata[];
   transition_strategy?: string | null;
 }
@@ -212,6 +215,8 @@ export interface UpdatePageArgs {
   device_type?: DeviceType | null;
   notes_wide?: number | null;
   notes_tall?: number | null;
+  grid_rows?: number | null;
+  grid_cols?: number | null;
   line_metadata?: LineMetadata[] | null;
   transition_strategy?: string | null;
 }
@@ -261,6 +266,9 @@ export type ToolCallDisplay = ToolCall & {
    */
   appliedSnapshot?: CurrentPageSnapshot;
   deviceType?: DeviceType;
+  /** A panel page's character grid, when the call names one (the render
+   * endpoint refuses a panel preview without it). */
+  previewGrid?: GridSize;
 };
 
 /** The server's last `status` frame for a segment, rendered with t() by phase. */

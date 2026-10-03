@@ -146,6 +146,7 @@
     "flagshipTab": "Flagship",
     "noteTab": "Note",
     "noteArrayTab": "Note Array",
+    "panelTab": "Panel",
     "noPagesTitle": "No pages created yet.",
     "noPagesDescription": "Create your first page to display on the board.",
     "createFirstPage": "Create your first page",
@@ -1665,6 +1666,7 @@
     "deviceFlagship": "Flagship (6×22)",
     "deviceNote": "Note (3×15)",
     "deviceNoteArray": "Note array",
+    "devicePanel": "Panel ({rows}×{cols})",
     "notesWideLabel": "Notes wide",
     "notesTallLabel": "Notes tall",
     "fromPageLabel": "From page",
@@ -2245,6 +2247,7 @@
   },
   "boardSizeIndicator": {
     "custom": "Custom",
+    "panel": "Panel",
     "ariaLabel": "{rows} rows by {cols} columns",
     "ariaLabelWithLayout": "{rows} rows by {cols} columns, {layout}"
   },
@@ -2304,7 +2307,7 @@
     "aspectWidthLabel": "Aspect width",
     "aspectHeightLabel": "Aspect height",
     "tvPreviewLabel": "On your screen",
-    "tvPreviewMeta": "{cols} × {rows} flaps · {wide} × {tall} Note blocks",
+    "tvPreviewMeta": "{cols} × {rows} flaps at life size",
     "screenMeta": "{inches}\" screen",
     "autoDim": "Auto-dim at night",
     "autoDimStart": "Dim from",
@@ -2343,7 +2346,8 @@
     "hdmiEnabledHint": "The HDMI screen shows whichever panel has “Display output” turned on above.",
     "hdmiFailed": "The last HDMI kiosk change failed. Try again, or reboot the Pi and retry.",
     "yourPanelsGroupLabel": "Your panels",
-    "panelSizeOption": "{name} · {wide}×{tall} notes",
+    "panelSizeOption": "{name} · {cols}×{rows}",
+    "panelGridOption": "Panel · {cols}×{rows}",
     "fitsPanel": "Fits {name}",
     "fitsPanelAndMore": "Fits {name} +{count} more"
   },

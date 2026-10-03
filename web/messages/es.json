@@ -190,6 +190,7 @@
     "flagshipTab": "Flagship",
     "noteTab": "Note",
     "noteArrayTab": "Note Array",
+    "panelTab": "Panel",
     "noPagesTitle": "Aún no se han creado páginas.",
     "noPagesDescription": "Crea tu primera página para mostrarla en el tablero.",
     "createFirstPage": "Crea tu primera página",
@@ -1709,6 +1710,7 @@
     "deviceFlagship": "Flagship (6×22)",
     "deviceNote": "Note (3×15)",
     "deviceNoteArray": "Matriz de Notes",
+    "devicePanel": "Panel ({rows}×{cols})",
     "notesWideLabel": "Notes de ancho",
     "notesTallLabel": "Notes de alto",
     "fromPageLabel": "Página de origen",
@@ -2245,6 +2247,7 @@
   },
   "boardSizeIndicator": {
     "custom": "Personalizado",
+    "panel": "Panel",
     "ariaLabel": "{rows} filas por {cols} columnas",
     "ariaLabelWithLayout": "{rows} filas por {cols} columnas, {layout}"
   },
@@ -2299,7 +2302,7 @@
     "aspectWidthLabel": "Ancho de la relación",
     "aspectHeightLabel": "Alto de la relación",
     "tvPreviewLabel": "En tu pantalla",
-    "tvPreviewMeta": "{cols} × {rows} paletas · {wide} × {tall} bloques Note",
+    "tvPreviewMeta": "{cols} × {rows} paletas a tamaño real",
     "screenMeta": "pantalla de {inches}\"",
     "autoDim": "Atenuar automáticamente de noche",
     "autoDimStart": "Atenuar desde",
@@ -2343,7 +2346,8 @@
     "hdmiEnabledHint": "La pantalla HDMI muestra el panel que tenga activada «Salida de pantalla» arriba.",
     "hdmiFailed": "El último cambio del quiosco HDMI falló. Inténtalo de nuevo o reinicia el Pi.",
     "yourPanelsGroupLabel": "Tus paneles",
-    "panelSizeOption": "{name} · {wide}×{tall} bloques Note",
+    "panelSizeOption": "{name} · {cols}×{rows}",
+    "panelGridOption": "Panel · {cols}×{rows}",
     "fitsPanel": "Encaja en {name}",
     "fitsPanelAndMore": "Encaja en {name} +{count} más"
   },

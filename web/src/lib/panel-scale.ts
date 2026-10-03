@@ -5,6 +5,7 @@
  * All lengths are CSS pixels. `window.screen.width/height` report CSS px
  * for the full screen, so devicePixelRatio cancels out of the ppi math.
  */
+import { type BoardDimensions, panelDimensions } from "@/lib/board-dimensions";
 
 /**
  * Real Vestaboard unit widths in inches (bezel included), from the
@@ -37,13 +38,6 @@ export function screenPpi(screenWidthPx: number, screenHeightPx: number, diagona
 export const NOTE_COL_PITCH_IN = 24.5 / 15;
 export const NOTE_ROW_PITCH_IN = NOTE_COL_PITCH_IN * (1.145 / 0.845);
 
-/** One auto-fit building block: a 15×3 Note at physical pitch. */
-export const BLOCK_WIDTH_IN = 15 * NOTE_COL_PITCH_IN;
-export const BLOCK_HEIGHT_IN = 3 * NOTE_ROW_PITCH_IN;
-
-/** Grid axes never exceed this many Note blocks (mirrors src/devices.py). */
-const MAX_NOTES_PER_AXIS = 8;
-
 /**
  * (width, height) in inches of an aspectW:aspectH screen with the given
  * diagonal. Mirrors src/panels/autofit.py screen_dimensions_in().
@@ -57,23 +51,16 @@ export function screenDimensionsIn(diagonalInches: number, aspectW = 16, aspectH
 }
 
 /**
- * (notesWide, notesTall) of the largest true-scale grid that fits the
- * screen. Mirrors src/panels/autofit.py compute_autofit_grid() — the panel
- * editor previews the grid live with this, and the backend computes the
- * board it actually creates with the Python twin; their tests share the
- * same example cases so drift fails loudly.
+ * (rows, cols) of the largest true-scale character grid that fits the
+ * screen — fit per character, not in whole Note blocks. Each axis is clamped
+ * into [MIN_GRID_*, MAX_GRID_*]. Mirrors src/panels/autofit.py
+ * compute_autofit_grid() — the panel editor previews the grid live with this,
+ * and the backend computes the board it actually creates with the Python
+ * twin; their tests share the same example cases so drift fails loudly.
  */
-export function computeAutofitGrid(
-  diagonalInches: number,
-  aspectW = 16,
-  aspectH = 9,
-): { notesWide: number; notesTall: number } {
+export function computeAutofitGrid(diagonalInches: number, aspectW = 16, aspectH = 9): BoardDimensions {
   const [widthIn, heightIn] = screenDimensionsIn(diagonalInches, aspectW, aspectH);
-  const clamp = (blocks: number) => Math.max(1, Math.min(MAX_NOTES_PER_AXIS, blocks));
-  return {
-    notesWide: clamp(Math.floor(widthIn / BLOCK_WIDTH_IN)),
-    notesTall: clamp(Math.floor(heightIn / BLOCK_HEIGHT_IN)),
-  };
+  return panelDimensions(Math.floor(heightIn / NOTE_ROW_PITCH_IN), Math.floor(widthIn / NOTE_COL_PITCH_IN));
 }
 
 /** Max stretch beyond true flap size allowed to close the gap to the screen edge. */
@@ -100,8 +87,8 @@ export interface PanelAutofitScaleOptions {
  *
  * Never shrinks below true size to fill — EXCEPT when the grid overflows
  * the screen at true size. Auto-fit always picks a grid that fits, so that
- * only happens on a screen smaller than one Note block (the 3" pocket
- * displays panels support): there the whole block shrinks to fit instead
+ * only happens on a screen smaller than the minimum (Note-sized) grid (the
+ * 3" pocket displays panels support): there the whole block shrinks to fit instead
  * of showing a life-size crop of its top-left corner.
  */
 export function panelAutofitScale(opts: PanelAutofitScaleOptions): number {
