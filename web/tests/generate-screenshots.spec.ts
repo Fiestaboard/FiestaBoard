@@ -238,6 +238,12 @@ async function createSchedule(pageId: string, startTime: string, endTime: string
   return data.id;
 }
 
+// /schedule opens in list view, so a calendar shot has to switch views itself.
+async function showScheduleCalendar(page: Page) {
+  await page.getByRole("button", { name: "Calendar", exact: true }).click();
+  await page.waitForTimeout(1000);
+}
+
 async function setScheduleEnabled(enabled: boolean) {
   await fetch(`${API_URL}/schedules/enabled`, {
     method: "PUT",
@@ -982,6 +988,7 @@ test.describe("Web UI Full-Page Screenshots", () => {
 
     await page.goto("/schedule");
     await page.waitForTimeout(3000);
+    await showScheduleCalendar(page);
 
     await screenshotPage(page, path.join(DOCS_IMG, "schedule-calendar.png"));
     copyToRootImages("schedule-calendar.png");
@@ -1308,6 +1315,7 @@ test.describe("Getting Started Workflow Screenshots", () => {
 
     await page.goto("/schedule");
     await page.waitForTimeout(3000);
+    await showScheduleCalendar(page);
 
     await screenshotPage(page, path.join(GUIDES_IMG, "schedule-calendar-populated.png"));
 
