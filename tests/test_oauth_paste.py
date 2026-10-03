@@ -42,7 +42,16 @@ def test_a_bare_code_is_accepted(code):
 
 @pytest.mark.parametrize(
     "text",
-    ["", "   ", "abc", "has space in it", "x" * 2049, "<script>", "https://example.com/cb", "https://example.com/cb?foo=1"],
+    [
+        "",
+        "   ",
+        "abc",
+        "has space in it",
+        "x" * 2049,
+        "<script>",
+        "https://example.com/cb",
+        "https://example.com/cb?foo=1",
+    ],
 )
 def test_anything_else_is_unreadable(text):
     with pytest.raises(PastedCodeRejected) as caught:

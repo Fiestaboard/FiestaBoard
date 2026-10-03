@@ -386,8 +386,11 @@ def test_authorization_params_may_not_set_the_custom_client_id_param():
 
 
 def test_key_exchange_needs_authorization_and_token_urls_but_no_client_id():
-    block = {"flows": ["key_exchange"], "authorization_url": "https://or.example.com/auth",
-             "token_url": "https://or.example.com/api/v1/auth/keys"}
+    block = {
+        "flows": ["key_exchange"],
+        "authorization_url": "https://or.example.com/auth",
+        "token_url": "https://or.example.com/api/v1/auth/keys",
+    }
     assert validate_provider_block(block) == []
     assert validate_provider_block(_without(block, "authorization_url"))
 
