@@ -1,6 +1,6 @@
 ---
 sidebar_position: 2
-description: "Get FiestaBoard running on your Vestaboard in minutes. Flash a Raspberry Pi (easiest), use Docker Hub, or run the install wizard."
+description: "Get FiestaBoard running in minutes and connect it to your Vestaboard through Vestaboard's official API. Run it on a Raspberry Pi (easiest), with Docker Hub, or with the install wizard."
 keywords: [FiestaBoard quick start, FiestaPi, Docker setup, getting started, Vestaboard setup, Vestaboard quick start, Vestaboard Docker, split-flap dashboard]
 ---
 
@@ -17,7 +17,7 @@ Have a Raspberry Pi 3B or newer? Flash a microSD card with our pre-built **Fiest
 
 **→ [FiestaPi Quick Start](/docs/setup/raspberry-pi)** — Download, flash, boot, done.
 
-This is what we recommend for almost everyone — including users who have never used Docker, a terminal, or a Pi before. The Pi is inexpensive, low-power, runs 24/7, and is purpose-built to be a reliable always-on display controller.
+This is what we recommend for almost everyone — including users who have never used Docker, a terminal, or a Pi before. The Pi is inexpensive, low-power, and runs 24/7, which makes it a reliable always-on home for the FiestaBoard software. The Pi runs FiestaBoard only — it sits on your network and sends messages to your board through the board's official API. It doesn't go inside, replace, or modify your board.
 
 :::tip Don't have a Pi yet?
 Any Raspberry Pi 3B / 3B+ / Zero 2 W / 4 / 5 with 1 GB+ RAM works. Pi 4 and Pi 5 are great choices and have been thoroughly tested.

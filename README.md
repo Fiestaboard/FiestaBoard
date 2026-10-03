@@ -41,7 +41,7 @@ That's it — FiestaBoard starts on every boot and updates itself with one click
 
 **→ [Full Raspberry Pi setup guide](docs/internal/setup/RASPBERRY_PI.md)** with detailed flashing instructions, headless Wi-Fi setup, and troubleshooting.
 
-> **Why we recommend this path:** The Pi is inexpensive, low-power, runs 24/7, and is purpose-built to be a reliable always-on display controller. Even users who have never touched a Raspberry Pi before can complete this in under 15 minutes.
+> **Why we recommend this path:** The Pi is inexpensive, low-power, and runs 24/7, which makes it a reliable always-on home for the FiestaBoard software. The Pi runs FiestaBoard only — it sits on your network and sends messages to your board through the board's official API. It doesn't go inside, replace, or modify your board. Even users who have never touched a Raspberry Pi before can complete this in under 15 minutes.
 
 ### Already running Home Assistant? Use the HA add-on (beta)
 
