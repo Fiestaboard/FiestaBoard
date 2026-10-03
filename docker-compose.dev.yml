@@ -29,6 +29,12 @@ services:
       # registered & exercised by hand in dev — its live board UI is at
       # http://localhost:19200/ui. Unset this to talk to the real Vestaboard Cloud.
       - VESTABOARD_CLOUD_API_URL=http://fiestaboard-mock-cloud:9200/
+      # Fence board traffic to the bundled mocks, so a data/ directory that
+      # still points at a real Vestaboard can't reach it from dev. To drive a
+      # real board (or a real LED matrix) from dev, add its host in .env, e.g.
+      #   FIESTABOARD_OUTPUTS_ALLOW_HOSTS=fiestaboard-mock-board,fiestaboard-mock-cloud,192.168.1.50
+      # Set it empty to allow every host.
+      - FIESTABOARD_OUTPUTS_ALLOW_HOSTS=${FIESTABOARD_OUTPUTS_ALLOW_HOSTS-fiestaboard-mock-board,fiestaboard-mock-cloud,localhost,127.0.0.1}
     volumes:
       - ./data:/app/data
       - ./src:/app/src
