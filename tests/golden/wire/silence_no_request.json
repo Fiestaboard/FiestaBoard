@@ -1,0 +1,17 @@
+{
+  "scenario": "silence_no_request",
+  "description": "Inside the silence window a manual send is refused with 409 and nothing goes on the wire. (The window itself is forced on via Config.is_silence_mode_active; its schedule math is not under test.)",
+  "seam": "POST /send-message",
+  "steps": [
+    {
+      "action": "send SHH",
+      "requests": [],
+      "result": {
+        "status": 409,
+        "body": {
+          "detail": "Manual sends are blocked during silence mode to prevent waking the board."
+        }
+      }
+    }
+  ]
+}

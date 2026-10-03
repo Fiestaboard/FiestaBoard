@@ -1,0 +1,77 @@
+{
+  "scenario": "plugin_transition_local",
+  "description": "render(strategy='plugin:wire_fake') with the beta on: each plugin frame, then the snap to target, each a forced Local-API POST with no native strategy.",
+  "seam": "BoardClient.render(..., strategy='plugin:<id>', with_outcome=True)",
+  "steps": [
+    {
+      "action": "render TARGET via plugin:wire_fake",
+      "requests": [
+        {
+          "method": "POST",
+          "url": "http://192.168.0.10:7000/local-api/message",
+          "headers": {
+            "X-Vestaboard-Local-Api-Key": "test_local_key",
+            "Content-Type": "application/json"
+          },
+          "json": {
+            "characters": [
+              [6, 18, 1, 13, 5, 0, 15, 14, 5, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+              [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+              [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+              [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+              [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+              [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+            ]
+          },
+          "timeout": [3.0, 10.0]
+        },
+        {
+          "method": "POST",
+          "url": "http://192.168.0.10:7000/local-api/message",
+          "headers": {
+            "X-Vestaboard-Local-Api-Key": "test_local_key",
+            "Content-Type": "application/json"
+          },
+          "json": {
+            "characters": [
+              [6, 18, 1, 13, 5, 0, 20, 23, 15, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+              [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+              [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+              [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+              [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+              [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+            ]
+          },
+          "timeout": [3.0, 10.0]
+        },
+        {
+          "method": "POST",
+          "url": "http://192.168.0.10:7000/local-api/message",
+          "headers": {
+            "X-Vestaboard-Local-Api-Key": "test_local_key",
+            "Content-Type": "application/json"
+          },
+          "json": {
+            "characters": [
+              [20, 1, 18, 7, 5, 20, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+              [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+              [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+              [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+              [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+              [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+            ]
+          },
+          "timeout": [3.0, 10.0]
+        }
+      ],
+      "result": {
+        "type": "SendOutcome",
+        "success": true,
+        "was_sent": true,
+        "throttled": false,
+        "retry_after_seconds": null,
+        "floor_seconds": null
+      }
+    }
+  ]
+}

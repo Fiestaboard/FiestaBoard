@@ -1,0 +1,67 @@
+{
+  "scenario": "upstream_429_rw_cloud",
+  "description": "The cloud answering HTTP 429: no retry, (False, False), and the floor slot is released so an immediate resend goes out.",
+  "seam": "board_client_from_board_dict(rw_cloud).render(..., with_outcome=True)",
+  "steps": [
+    {
+      "action": "t=1000 render HELLO (cloud answers 429)",
+      "requests": [
+        {
+          "method": "POST",
+          "url": "https://rw.vestaboard.com/",
+          "headers": {
+            "X-Vestaboard-Read-Write-Key": "test_rw_key",
+            "Content-Type": "application/json"
+          },
+          "json": [
+            [8, 5, 12, 12, 15, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+            [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+            [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+            [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+            [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+            [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+          ],
+          "timeout": [5.0, 10.0]
+        }
+      ],
+      "result": {
+        "type": "SendOutcome",
+        "success": false,
+        "was_sent": false,
+        "throttled": false,
+        "retry_after_seconds": null,
+        "floor_seconds": 15
+      }
+    },
+    {
+      "action": "t=1001 render HELLO (cloud answers 200)",
+      "requests": [
+        {
+          "method": "POST",
+          "url": "https://rw.vestaboard.com/",
+          "headers": {
+            "X-Vestaboard-Read-Write-Key": "test_rw_key",
+            "Content-Type": "application/json"
+          },
+          "json": [
+            [8, 5, 12, 12, 15, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+            [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+            [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+            [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+            [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+            [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+          ],
+          "timeout": [5.0, 10.0]
+        }
+      ],
+      "result": {
+        "type": "SendOutcome",
+        "success": true,
+        "was_sent": true,
+        "throttled": false,
+        "retry_after_seconds": null,
+        "floor_seconds": 15
+      }
+    }
+  ]
+}

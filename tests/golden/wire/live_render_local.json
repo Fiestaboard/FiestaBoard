@@ -1,0 +1,49 @@
+{
+  "scenario": "live_render_local",
+  "description": "Live editor: a fresh client per request, forced, plain grid POST.",
+  "seam": "POST /templates/render/live",
+  "steps": [
+    {
+      "action": "live-render ['LIVE EDIT']",
+      "requests": [
+        {
+          "method": "POST",
+          "url": "http://192.168.0.10:7000/local-api/message",
+          "headers": {
+            "X-Vestaboard-Local-Api-Key": "test_local_key",
+            "Content-Type": "application/json"
+          },
+          "json": {
+            "characters": [
+              [12, 9, 22, 5, 0, 5, 4, 9, 20, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+              [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+              [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+              [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+              [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+              [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+            ]
+          },
+          "timeout": [3.0, 10.0]
+        }
+      ],
+      "result": {
+        "status": 200,
+        "body": {
+          "rendered": "LIVE EDIT             \n                      \n                      \n                      \n                      \n                      ",
+          "lines": [
+            "LIVE EDIT             ",
+            "                      ",
+            "                      ",
+            "                      ",
+            "                      ",
+            "                      "
+          ],
+          "line_count": 6,
+          "sent_to_board": true,
+          "paused": false,
+          "board_id": "wire-local"
+        }
+      }
+    }
+  ]
+}

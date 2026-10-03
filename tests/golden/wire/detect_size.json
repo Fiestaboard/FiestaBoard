@@ -1,0 +1,57 @@
+{
+  "scenario": "detect_size",
+  "description": "Detect-size is one GET over the board's own transport (local flagship; cloud note array).",
+  "seam": "POST /settings/board/{board_id}/detect-size",
+  "steps": [
+    {
+      "action": "detect the local flagship",
+      "requests": [
+        {
+          "method": "GET",
+          "url": "http://192.168.0.10:7000/local-api/message",
+          "headers": {
+            "X-Vestaboard-Local-Api-Key": "test_local_key",
+            "Content-Type": "application/json"
+          },
+          "timeout": [3.0, 10.0]
+        }
+      ],
+      "result": {
+        "status": 200,
+        "body": {
+          "device_type": "flagship",
+          "rows": 6,
+          "cols": 22,
+          "notes_wide": null,
+          "notes_tall": null,
+          "matched_preset": null
+        }
+      }
+    },
+    {
+      "action": "detect the cloud note array",
+      "requests": [
+        {
+          "method": "GET",
+          "url": "https://cloud.vestaboard.com/",
+          "headers": {
+            "X-Vestaboard-Token": "test_array_token",
+            "Content-Type": "application/json"
+          },
+          "timeout": [5.0, 10.0]
+        }
+      ],
+      "result": {
+        "status": 200,
+        "body": {
+          "device_type": "note_array",
+          "rows": 3,
+          "cols": 30,
+          "notes_wide": 2,
+          "notes_tall": 1,
+          "matched_preset": "2 side-by-side"
+        }
+      }
+    }
+  ]
+}

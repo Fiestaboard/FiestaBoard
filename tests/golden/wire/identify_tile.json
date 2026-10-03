@@ -1,0 +1,41 @@
+{
+  "scenario": "identify_tile",
+  "description": "Identify flash on local note-array tile (0,1): one forced POST of its slot pattern to that tile only.",
+  "seam": "POST /settings/board/{board_id}/identify",
+  "steps": [
+    {
+      "action": "identify tile row 0 col 1",
+      "requests": [
+        {
+          "method": "POST",
+          "url": "http://192.168.0.21:7000/local-api/message",
+          "headers": {
+            "X-Vestaboard-Local-Api-Key": "test_tile_key_b",
+            "Content-Type": "application/json"
+          },
+          "json": {
+            "characters": [
+              [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+              [16, 15, 19, 9, 20, 9, 15, 14, 0, 28, 0, 0, 0, 0, 0],
+              [18, 27, 0, 3, 28, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+            ]
+          },
+          "timeout": [3.0, 10.0]
+        }
+      ],
+      "result": {
+        "status": 200,
+        "body": {
+          "board_id": "wire-tiles",
+          "results": [
+            {
+              "row": 0,
+              "col": 1,
+              "success": true
+            }
+          ]
+        }
+      }
+    }
+  ]
+}
