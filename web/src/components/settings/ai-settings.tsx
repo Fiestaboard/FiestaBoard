@@ -26,12 +26,19 @@ import {
 import { SecretInput } from "@fiestaboard/ui/components/forms/secret-input";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { CheckCircle2, ChevronDown, KeyRound, Loader2, Plus, Sparkles, Trash2, XCircle } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import { toast } from "sonner";
 
+import {
+  OAUTH_CONNECTIONS_QUERY_KEY,
+  OAuthConnectionPanel,
+  oauthReturnErrorKey,
+  readOAuthReturn,
+} from "@/components/plugin-settings";
+import { useRouter, useSearchParams } from "@/hooks/use-router";
 import { useTranslations } from "@/i18n/translations";
 import { anchorProps } from "@/lib/ai-choreography/anchors";
-import type { AIProvider, AISettings } from "@/lib/api";
+import type { AIProvider, AIProviderProtocol, AISettings, AISignInPreset } from "@/lib/api";
 import { AI_TURN_CAP_MAX, AI_TURN_CAP_MIN, api } from "@/lib/api";
 
 type ProviderPreset = {
@@ -64,6 +71,93 @@ const PROVIDER_PRESETS: ProviderPreset[] = [
   { label: "vLLM", base_url: "http://localhost:8000/v1", protocol: "openai", group: "local" },
 ];
 
+// Providers that offer a sign-in instead of a pasted API key. The board runs
+// the sign-in (src/ai/sign_in.py PRESETS); choosing one here only records
+// `sign_in.preset` and points the provider at the matching endpoint. The
+// API key field stays: removing the sign-in falls back to it.
+const SIGN_IN_PRESETS: {
+  preset: AISignInPreset;
+  label: string;
+  base_url: string;
+  protocol: AIProviderProtocol;
+}[] = [
+  { preset: "openrouter", label: "OpenRouter", base_url: "https://openrouter.ai/api/v1", protocol: "openai" },
+  { preset: "huggingface", label: "Hugging Face", base_url: "https://router.huggingface.co/v1", protocol: "openai" },
+  { preset: "openai_chatgpt", label: "ChatGPT", base_url: "https://api.openai.com/v1", protocol: "openai_responses" },
+];
+
+/** The OAuth connection id of a signed-in AI provider. */
+const aiConnectionId = (providerId: string) => `ai.${providerId}`;
+
+function SignInChoice({
+  provider,
+  saved,
+  onChange,
+}: {
+  provider: AIProvider;
+  /** Whether the board already has this sign-in saved, so it can run it. */
+  saved: boolean;
+  onChange: (next: AIProvider) => void;
+}) {
+  const t = useTranslations("settings.ai.signIn");
+  const labelId = useId();
+
+  if (!provider.sign_in) {
+    return (
+      <Stack gap="1.5" role="group" aria-labelledby={labelId}>
+        <Text id={labelId} size="xs" tone="muted">
+          {t("choicesLabel")}
+        </Text>
+        <Flex wrap gap="1.5">
+          {SIGN_IN_PRESETS.map((preset) => (
+            <Button
+              key={preset.preset}
+              type="button"
+              size="sm"
+              variant="outline"
+              className="h-7 text-xs"
+              onClick={() =>
+                onChange({
+                  ...provider,
+                  sign_in: { preset: preset.preset },
+                  base_url: preset.base_url,
+                  protocol: preset.protocol,
+                  name: provider.name.trim() ? provider.name : preset.label,
+                })
+              }
+            >
+              {t("button", { provider: preset.label })}
+            </Button>
+          ))}
+        </Flex>
+      </Stack>
+    );
+  }
+
+  const label = SIGN_IN_PRESETS.find((p) => p.preset === provider.sign_in?.preset)?.label ?? provider.sign_in.preset;
+  const useApiKey = () => {
+    const next = { ...provider };
+    delete next.sign_in;
+    onChange(next);
+  };
+
+  return (
+    <Stack gap="2" className="rounded-md border border-dashed p-3">
+      <Text size="xs" tone="muted">
+        {t("activeDescription", { provider: label })}
+      </Text>
+      {saved ? (
+        <OAuthConnectionPanel connectionId={aiConnectionId(provider.id)} title={t("panelTitle", { provider: label })} />
+      ) : (
+        <Text size="xs">{t("saveFirst", { provider: label })}</Text>
+      )}
+      <Button type="button" size="sm" variant="link" className="h-auto self-start px-0 text-xs" onClick={useApiKey}>
+        {t("useApiKey")}
+      </Button>
+    </Stack>
+  );
+}
+
 function emptyProvider(): AIProvider {
   return {
     id: `provider-${Math.random().toString(36).slice(2, 10)}`,
@@ -79,6 +173,8 @@ function emptyProvider(): AIProvider {
 
 interface ProviderRowProps {
   provider: AIProvider;
+  /** Whether this provider's sign-in, if any, is saved on the board. */
+  signInSaved: boolean;
   isDefault: boolean;
   expanded: boolean;
   onToggleExpanded: (open: boolean) => void;
@@ -89,6 +185,7 @@ interface ProviderRowProps {
 
 function ProviderRow({
   provider,
+  signInSaved,
   isDefault,
   expanded,
   onToggleExpanded,
@@ -226,7 +323,7 @@ function ProviderRow({
               onValueChange={(value) =>
                 onChange({
                   ...provider,
-                  protocol: value as "openai" | "anthropic",
+                  protocol: value as AIProviderProtocol,
                 })
               }
             >
@@ -236,6 +333,9 @@ function ProviderRow({
               <SelectContent>
                 <SelectItem value="openai">{t("protocolOpenaiOption")}</SelectItem>
                 <SelectItem value="anthropic">{t("protocolAnthropicOption")}</SelectItem>
+                {provider.protocol === "openai_responses" && (
+                  <SelectItem value="openai_responses">{t("protocolResponsesOption")}</SelectItem>
+                )}
               </SelectContent>
             </Select>
           </Stack>
@@ -306,6 +406,8 @@ function ProviderRow({
               />
             </Box>
           </Stack>
+
+          <SignInChoice provider={provider} saved={signInSaved} onChange={onChange} />
 
           <Stack gap="1.5">
             <Label className="text-xs">{t("modelsLabel")}</Label>
@@ -409,6 +511,9 @@ export function AiSettings() {
   });
 
   const [draft, setDraft] = useState<AISettings | null>(null);
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const tOAuth = useTranslations("integrations.oauth");
   // Per-row expansion. Empty by default — providers start collapsed and
   // show only their summary line, matching the MQTT settings card.
   const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
@@ -424,6 +529,27 @@ export function AiSettings() {
       return next;
     });
   };
+
+  // A FiestaBot sign-in lands back on Settings with its outcome in the query
+  // (src/oauth/routes.py: ?oauth=…&connection=ai.<id>). Report it once, open
+  // that provider's row, and clean the URL so a reload does not repeat it.
+  const [aiReturn] = useState(() => {
+    const outcome = readOAuthReturn(searchParams);
+    const connection = searchParams.get("connection") ?? "";
+    return outcome && connection.startsWith("ai.") ? { ...outcome, providerId: connection.slice(3) } : null;
+  });
+  const aiReturnReported = useRef(false);
+  useEffect(() => {
+    if (!aiReturn || aiReturnReported.current) return;
+    aiReturnReported.current = true;
+    if (aiReturn.outcome === "connected") {
+      toast.success(tOAuth("toastConnected"));
+    } else {
+      toast.error(tOAuth(oauthReturnErrorKey(aiReturn.reason)));
+    }
+    setExpandedIds((prev) => new Set(prev).add(aiReturn.providerId));
+    router.replace("/settings?section=integrations", { scroll: false });
+  }, [aiReturn, router, tOAuth]);
 
   const current: AISettings = draft ??
     data ?? {
@@ -467,6 +593,8 @@ export function AiSettings() {
       }),
     onSuccess: (saved) => {
       queryClient.setQueryData(["ai-settings"], saved);
+      // A provider that gained or lost a sign-in gains or loses its connection.
+      queryClient.invalidateQueries({ queryKey: OAUTH_CONNECTIONS_QUERY_KEY });
       setDraft(null);
       toast.success("AI provider settings saved");
     },
@@ -557,6 +685,9 @@ export function AiSettings() {
             <ProviderRow
               key={p.id}
               provider={p}
+              signInSaved={
+                !!p.sign_in && data?.providers.find((saved) => saved.id === p.id)?.sign_in?.preset === p.sign_in.preset
+              }
               isDefault={p.id === current.default_provider_id}
               expanded={expandedIds.has(p.id)}
               onToggleExpanded={(open) => setRowExpanded(p.id, open)}

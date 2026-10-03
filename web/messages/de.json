@@ -485,7 +485,16 @@
         "access_denied": "Die Anmeldung wurde abgelehnt, daher wurde nichts verbunden.",
         "exchange_failed": "Der Anbieter hat die Anmeldung abgelehnt. Prüfen Sie Client-ID und Client-Secret in den Einstellungen des Plugins und verbinden Sie sich dann erneut.",
         "provider_error": "Der Anbieter hat ein Problem gemeldet. Versuchen Sie erneut, die Verbindung herzustellen."
-      }
+      },
+      "rejectedDescription": "{provider} akzeptiert die Anmeldung nicht mehr. Melde dich erneut an.",
+      "approvalWaiting": "Bestätige FiestaBoard im {provider}-Tab. Dies aktualisiert sich von selbst.",
+      "startAgainButton": "Neu starten",
+      "headlessButton": "Ohne Browser-Weiterleitung anmelden",
+      "pasteToggle": "Anmeldung nicht zurückgekehrt? Adresse oder Code einfügen",
+      "pasteLabel": "Adresse oder Code",
+      "pasteDescription": "Kopiere die vollständige Adresse aus dem Tab, in dem die Anmeldung stehen blieb, oder den Code, den der Anbieter angezeigt hat.",
+      "pasteSubmit": "Anmeldung abschließen",
+      "pasteOpenAgain": "Anmeldeseite erneut öffnen"
     },
     "templateVariablesSection": "Vorlagenvariablen",
     "templateVariablesClickToCopy": "Klicken zum Kopieren",
@@ -662,6 +671,15 @@
         "modelCallsLabel": "Modellaufrufe pro Vorgang",
         "toolCallsLabel": "Tool-Aufrufe pro Vorgang",
         "serverDefault": "Server-Standard"
+      },
+      "protocolResponsesOption": "OpenAI Responses (ChatGPT-Anmeldung)",
+      "signIn": {
+        "choicesLabel": "Oder statt eines API-Schlüssels anmelden",
+        "button": "Mit {provider} anmelden",
+        "activeDescription": "Dieser Anbieter meldet sich über {provider} an. Der API-Schlüssel oben wird dabei nicht verwendet.",
+        "useApiKey": "Stattdessen den API-Schlüssel verwenden",
+        "saveFirst": "Speichere die Änderungen und melde dich dann hier bei {provider} an.",
+        "panelTitle": "Anmeldung bei {provider}"
       }
     },
     "backup": {

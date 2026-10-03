@@ -441,7 +441,16 @@
         "access_denied": "The sign-in was declined, so nothing was connected.",
         "exchange_failed": "The provider rejected the sign-in. Check the client ID and secret in the plugin's settings, then connect again.",
         "provider_error": "The provider reported a problem. Try connecting again."
-      }
+      },
+      "rejectedDescription": "{provider} stopped accepting the sign-in. Sign in again.",
+      "approvalWaiting": "Approve FiestaBoard in the {provider} tab. This updates on its own.",
+      "startAgainButton": "Start again",
+      "headlessButton": "Sign in without a browser redirect",
+      "pasteToggle": "Sign-in didn't come back? Paste the address or code",
+      "pasteLabel": "Address or code",
+      "pasteDescription": "Copy the whole address from the tab where the sign-in stopped, or the code the provider showed you.",
+      "pasteSubmit": "Finish sign-in",
+      "pasteOpenAgain": "Open the sign-in page again"
     },
     "templateVariablesSection": "Template Variables",
     "templateVariablesClickToCopy": "click to copy",
@@ -618,6 +627,15 @@
         "modelCallsLabel": "Model calls per turn",
         "toolCallsLabel": "Tool calls per turn",
         "serverDefault": "Server default"
+      },
+      "protocolResponsesOption": "OpenAI Responses (ChatGPT sign-in)",
+      "signIn": {
+        "choicesLabel": "Or sign in instead of using an API key",
+        "button": "Sign in with {provider}",
+        "activeDescription": "This provider signs in with {provider}. The API key above is not used while you sign in this way.",
+        "useApiKey": "Use the API key instead",
+        "saveFirst": "Save changes, then sign in to {provider} here.",
+        "panelTitle": "{provider} sign-in"
       }
     },
     "backup": {

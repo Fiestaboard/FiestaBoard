@@ -485,7 +485,16 @@
         "access_denied": "Logowanie zostało odrzucone, więc nic nie zostało połączone.",
         "exchange_failed": "Dostawca odrzucił logowanie. Sprawdź identyfikator klienta i sekret w ustawieniach wtyczki, a następnie połącz ponownie.",
         "provider_error": "Dostawca zgłosił problem. Spróbuj połączyć ponownie."
-      }
+      },
+      "rejectedDescription": "{provider} przestał akceptować logowanie. Zaloguj się ponownie.",
+      "approvalWaiting": "Zatwierdź FiestaBoard na karcie {provider}. Odświeży się samo.",
+      "startAgainButton": "Zacznij od nowa",
+      "headlessButton": "Zaloguj bez przekierowania w przeglądarce",
+      "pasteToggle": "Logowanie nie wróciło? Wklej adres lub kod",
+      "pasteLabel": "Adres lub kod",
+      "pasteDescription": "Skopiuj cały adres z karty, na której zatrzymało się logowanie, albo kod pokazany przez dostawcę.",
+      "pasteSubmit": "Dokończ logowanie",
+      "pasteOpenAgain": "Otwórz ponownie stronę logowania"
     },
     "templateVariablesSection": "Zmienne szablonów",
     "templateVariablesClickToCopy": "kliknij, aby skopiować",
@@ -662,6 +671,15 @@
         "modelCallsLabel": "Wywołania modelu na turę",
         "toolCallsLabel": "Wywołania narzędzi na turę",
         "serverDefault": "Domyślne serwera"
+      },
+      "protocolResponsesOption": "OpenAI Responses (logowanie ChatGPT)",
+      "signIn": {
+        "choicesLabel": "Albo zaloguj się zamiast używać klucza API",
+        "button": "Zaloguj przez {provider}",
+        "activeDescription": "Ten dostawca loguje się przez {provider}. Klucz API powyżej nie jest używany, dopóki logujesz się w ten sposób.",
+        "useApiKey": "Użyj jednak klucza API",
+        "saveFirst": "Zapisz zmiany, a potem zaloguj się tutaj do {provider}.",
+        "panelTitle": "Logowanie {provider}"
       }
     },
     "backup": {

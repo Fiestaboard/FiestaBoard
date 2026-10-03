@@ -485,7 +485,16 @@
         "access_denied": "L'accesso è stato rifiutato, quindi non è stato connesso nulla.",
         "exchange_failed": "Il provider ha rifiutato l'accesso. Controlla l'ID client e il secret nelle impostazioni del plugin, poi connettiti di nuovo.",
         "provider_error": "Il provider ha segnalato un problema. Prova a connetterti di nuovo."
-      }
+      },
+      "rejectedDescription": "{provider} non accetta più l'accesso. Accedi di nuovo.",
+      "approvalWaiting": "Approva FiestaBoard nella scheda di {provider}. Si aggiorna da solo.",
+      "startAgainButton": "Ricomincia",
+      "headlessButton": "Accedi senza reindirizzamento del browser",
+      "pasteToggle": "L'accesso non è tornato? Incolla l'indirizzo o il codice",
+      "pasteLabel": "Indirizzo o codice",
+      "pasteDescription": "Copia l'indirizzo completo dalla scheda in cui l'accesso si è fermato, oppure il codice mostrato dal provider.",
+      "pasteSubmit": "Completa l'accesso",
+      "pasteOpenAgain": "Riapri la pagina di accesso"
     },
     "templateVariablesSection": "Variabili template",
     "templateVariablesClickToCopy": "clicca per copiare",
@@ -662,6 +671,15 @@
         "modelCallsLabel": "Chiamate al modello per turno",
         "toolCallsLabel": "Chiamate agli strumenti per turno",
         "serverDefault": "Predefinito del server"
+      },
+      "protocolResponsesOption": "OpenAI Responses (accesso ChatGPT)",
+      "signIn": {
+        "choicesLabel": "Oppure accedi invece di usare una chiave API",
+        "button": "Accedi con {provider}",
+        "activeDescription": "Questo provider accede con {provider}. La chiave API qui sopra non viene usata finché accedi in questo modo.",
+        "useApiKey": "Usa invece la chiave API",
+        "saveFirst": "Salva le modifiche, poi accedi a {provider} qui.",
+        "panelTitle": "Accesso a {provider}"
       }
     },
     "backup": {

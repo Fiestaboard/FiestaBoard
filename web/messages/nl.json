@@ -485,7 +485,16 @@
         "access_denied": "Het inloggen is geweigerd, dus er is niets verbonden.",
         "exchange_failed": "De aanbieder heeft het inloggen afgewezen. Controleer de client-ID en het secret in de instellingen van de plugin en verbind daarna opnieuw.",
         "provider_error": "De aanbieder meldde een probleem. Probeer opnieuw te verbinden."
-      }
+      },
+      "rejectedDescription": "{provider} accepteert de aanmelding niet meer. Meld je opnieuw aan.",
+      "approvalWaiting": "Keur FiestaBoard goed in het tabblad van {provider}. Dit werkt zichzelf bij.",
+      "startAgainButton": "Opnieuw beginnen",
+      "headlessButton": "Aanmelden zonder doorverwijzing in de browser",
+      "pasteToggle": "Kwam de aanmelding niet terug? Plak het adres of de code",
+      "pasteLabel": "Adres of code",
+      "pasteDescription": "Kopieer het volledige adres van het tabblad waar de aanmelding stopte, of de code die de provider liet zien.",
+      "pasteSubmit": "Aanmelding voltooien",
+      "pasteOpenAgain": "Aanmeldpagina opnieuw openen"
     },
     "templateVariablesSection": "Sjabloonvariabelen",
     "templateVariablesClickToCopy": "klik om te kopiëren",
@@ -662,6 +671,15 @@
         "modelCallsLabel": "Modelaanroepen per ronde",
         "toolCallsLabel": "Toolaanroepen per ronde",
         "serverDefault": "Standaard van server"
+      },
+      "protocolResponsesOption": "OpenAI Responses (ChatGPT-aanmelding)",
+      "signIn": {
+        "choicesLabel": "Of meld je aan in plaats van een API-sleutel te gebruiken",
+        "button": "Aanmelden met {provider}",
+        "activeDescription": "Deze provider meldt zich aan met {provider}. De API-sleutel hierboven wordt niet gebruikt zolang je zo aanmeldt.",
+        "useApiKey": "Toch de API-sleutel gebruiken",
+        "saveFirst": "Sla de wijzigingen op en meld je hier aan bij {provider}.",
+        "panelTitle": "Aanmelding bij {provider}"
       }
     },
     "backup": {

@@ -485,7 +485,16 @@
         "access_denied": "Вход был отклонён, поэтому ничего не подключено.",
         "exchange_failed": "Провайдер отклонил вход. Проверьте идентификатор клиента и секрет в настройках плагина, затем подключитесь снова.",
         "provider_error": "Провайдер сообщил о проблеме. Попробуйте подключиться снова."
-      }
+      },
+      "rejectedDescription": "{provider} больше не принимает вход. Войдите снова.",
+      "approvalWaiting": "Подтвердите FiestaBoard во вкладке {provider}. Обновится автоматически.",
+      "startAgainButton": "Начать заново",
+      "headlessButton": "Войти без перенаправления браузера",
+      "pasteToggle": "Вход не вернулся? Вставьте адрес или код",
+      "pasteLabel": "Адрес или код",
+      "pasteDescription": "Скопируйте полный адрес из вкладки, где остановился вход, или код, который показал провайдер.",
+      "pasteSubmit": "Завершить вход",
+      "pasteOpenAgain": "Снова открыть страницу входа"
     },
     "templateVariablesSection": "Шаблонные переменные",
     "templateVariablesClickToCopy": "нажмите, чтобы скопировать",
@@ -662,6 +671,15 @@
         "modelCallsLabel": "Вызовов модели за ход",
         "toolCallsLabel": "Вызовов инструментов за ход",
         "serverDefault": "Значение сервера"
+      },
+      "protocolResponsesOption": "OpenAI Responses (вход через ChatGPT)",
+      "signIn": {
+        "choicesLabel": "Или войдите вместо использования API-ключа",
+        "button": "Войти через {provider}",
+        "activeDescription": "Этот провайдер входит через {provider}. API-ключ выше не используется, пока вы входите так.",
+        "useApiKey": "Использовать API-ключ",
+        "saveFirst": "Сохраните изменения, затем войдите в {provider} здесь.",
+        "panelTitle": "Вход в {provider}"
       }
     },
     "backup": {

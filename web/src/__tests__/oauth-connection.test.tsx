@@ -9,7 +9,12 @@ import { http, HttpResponse } from "msw";
 import { useState } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { OAuthConnectionSection, oauthReturnErrorKey, readOAuthReturn } from "@/components/plugin-settings";
+import {
+  OAuthConnectionPanel,
+  OAuthConnectionSection,
+  oauthReturnErrorKey,
+  readOAuthReturn,
+} from "@/components/plugin-settings";
 import { boardAddress, type OAuthConnection } from "@/lib/api";
 
 import { server } from "./mocks/server";
@@ -97,6 +102,7 @@ type WindowWithRouterContext = Window & { __reactRouterContext?: { basename?: st
 
 afterEach(() => {
   vi.unstubAllGlobals();
+  window.sessionStorage.clear();
   delete (window as WindowWithRouterContext).__reactRouterContext;
 });
 
@@ -422,6 +428,193 @@ describe("OAuthConnectionSection", () => {
     renderSection("music:kitchen");
     await userEvent.setup().click(await screen.findByRole("button", { name: "Sign in with Example Music" }));
     await waitFor(() => expect(requested).toEqual(["music:kitchen"]));
+  });
+});
+
+describe("finishing a sign-in by pasting what the provider showed", () => {
+  const PASTE_TOGGLE = "Sign-in didn't come back? Paste the address or code";
+
+  function serveStart(start: Record<string, unknown>, bodies: unknown[] = []) {
+    server.use(
+      http.post(`${API_BASE}/oauth/connections/:id/authorize`, async ({ request }) => {
+        bodies.push(await request.json());
+        return HttpResponse.json({ device: null, authorization_url: "", ...start });
+      }),
+    );
+  }
+
+  it("has no paste box before any sign-in started", async () => {
+    serveConnections(RELAY);
+    renderSection("music");
+    await screen.findByRole("button", { name: "Sign in with Example Music" });
+    expect(screen.queryByRole("button", { name: PASTE_TOGGLE })).not.toBeInTheDocument();
+  });
+
+  it("offers the paste box after a relay sign-in starts, and finishes the sign-in from the pasted address", async () => {
+    serveConnections(RELAY);
+    vi.stubGlobal("location", { ...window.location, origin: window.location.origin, assign: vi.fn() });
+    serveStart({ flow: "relay", authorization_url: "https://accounts.example.com/a" });
+    const pasted: unknown[] = [];
+    server.use(
+      http.post(`${API_BASE}/oauth/connections/music/complete`, async ({ request }) => {
+        pasted.push(await request.json());
+        return HttpResponse.json({ ...RELAY, status: "connected" });
+      }),
+    );
+    const user = userEvent.setup();
+    renderSection("music");
+    await user.click(await screen.findByRole("button", { name: "Sign in with Example Music" }));
+
+    const toggle = await screen.findByRole("button", { name: PASTE_TOGGLE });
+    expect(toggle).toHaveAttribute("aria-expanded", "false");
+    await user.click(toggle);
+    const address = "https://fiestaboard.app/auth/oauth/redirect?code=test_code&state=test_state";
+    await user.type(screen.getByLabelText("Address or code"), address);
+    await user.click(screen.getByRole("button", { name: "Finish sign-in" }));
+
+    await waitFor(() => expect(pasted).toEqual([{ pasted: address }]));
+  });
+
+  it("still offers the paste box when the page is opened again after leaving for the provider", async () => {
+    serveConnections(RELAY);
+    vi.stubGlobal("location", { ...window.location, origin: window.location.origin, assign: vi.fn() });
+    serveStart({ flow: "relay", authorization_url: "https://accounts.example.com/a" });
+    const first = renderSection("music");
+    await userEvent.setup().click(await screen.findByRole("button", { name: "Sign in with Example Music" }));
+    await screen.findByRole("button", { name: PASTE_TOGGLE });
+    first.unmount();
+
+    renderSection("music");
+    expect(await screen.findByRole("button", { name: PASTE_TOGGLE })).toBeInTheDocument();
+  });
+
+  it("opens the paste box straight away when the sign-in cannot come back on its own", async () => {
+    serveConnections(RELAY);
+    const open = vi.fn();
+    vi.stubGlobal("open", open);
+    serveStart({
+      flow: "relay",
+      authorization_url: "https://auth.example.com/authorize?x=1",
+      paste_expected: true,
+      paste_hint: "Copy the whole address from the tab that shows 127.0.0.1:1455",
+    });
+    const user = userEvent.setup();
+    renderSection("music");
+    await user.click(await screen.findByRole("button", { name: "Sign in with Example Music" }));
+
+    expect(await screen.findByLabelText("Address or code")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: PASTE_TOGGLE })).toHaveAttribute("aria-expanded", "true");
+    expect(screen.getByText("Copy the whole address from the tab that shows 127.0.0.1:1455")).toBeInTheDocument();
+    // The board stays open in this tab, so the provider opens in another.
+    expect(open).toHaveBeenCalledWith("https://auth.example.com/authorize?x=1", "_blank", "noopener,noreferrer");
+    expect(screen.getByRole("link", { name: /Open the sign-in page again/ })).toHaveAttribute(
+      "href",
+      "https://auth.example.com/authorize?x=1",
+    );
+  });
+
+  it("says why a pasted address was refused", async () => {
+    serveConnections(RELAY);
+    vi.stubGlobal("open", vi.fn());
+    serveStart({ flow: "relay", authorization_url: "https://auth.example.com/a", paste_expected: true });
+    server.use(
+      http.post(`${API_BASE}/oauth/connections/music/complete`, () =>
+        HttpResponse.json({ detail: "That sign-in has expired. Start again." }, { status: 400 }),
+      ),
+    );
+    const user = userEvent.setup();
+    renderSection("music");
+    await user.click(await screen.findByRole("button", { name: "Sign in with Example Music" }));
+    await user.type(await screen.findByLabelText("Address or code"), "test_code_1234");
+    await user.click(screen.getByRole("button", { name: "Finish sign-in" }));
+    expect(await screen.findByText("That sign-in has expired. Start again.")).toBeInTheDocument();
+  });
+
+  it("will not send an empty paste", async () => {
+    serveConnections(RELAY);
+    vi.stubGlobal("open", vi.fn());
+    serveStart({ flow: "relay", authorization_url: "https://auth.example.com/a", paste_expected: true });
+    const user = userEvent.setup();
+    renderSection("music");
+    await user.click(await screen.findByRole("button", { name: "Sign in with Example Music" }));
+    expect(await screen.findByRole("button", { name: "Finish sign-in" })).toBeDisabled();
+  });
+
+  it("offers a sign-in without a redirect for a key-exchange provider, and asks for the code", async () => {
+    const KEYS: OAuthConnection = { ...RELAY, flows: ["key_exchange"], user_app: false, client_id_setting: null };
+    serveConnections(KEYS);
+    vi.stubGlobal("open", vi.fn());
+    const bodies: unknown[] = [];
+    serveStart(
+      { flow: "key_exchange", authorization_url: "https://keys.example.com/auth", paste_expected: true },
+      bodies,
+    );
+    const user = userEvent.setup();
+    renderSection("music");
+    await user.click(await screen.findByRole("button", { name: "Sign in without a browser redirect" }));
+
+    await waitFor(() => expect(bodies).toEqual([{ board_url: window.location.origin, headless: true }]));
+    expect(await screen.findByLabelText("Address or code")).toBeInTheDocument();
+  });
+
+  it("waits for a Plex-style approval without showing a code", async () => {
+    serveConnections({
+      ...RELAY,
+      flows: ["plex_pin"],
+      user_app: false,
+      client_id_setting: null,
+      device: { ...PENDING_DEVICE, user_code: "", verification_uri: "", verification_uri_complete: "" },
+    });
+    renderSection("music");
+    expect(await screen.findByText("Waiting for approval")).toBeInTheDocument();
+    expect(screen.getByText(/Approve FiestaBoard in the Example Music tab/)).toBeInTheDocument();
+    expect(screen.queryByTestId("oauth-user-code")).not.toBeInTheDocument();
+  });
+
+  it("opens a Plex-style sign-in in another tab so this page keeps watching", async () => {
+    serveConnections({ ...RELAY, flows: ["plex_pin"], user_app: false, client_id_setting: null });
+    const open = vi.fn();
+    vi.stubGlobal("open", open);
+    serveStart({
+      flow: "plex_pin",
+      authorization_url: "https://app.example.com/auth#?code=abc",
+      device: { ...PENDING_DEVICE, user_code: "" },
+    });
+    renderSection("music");
+    await userEvent.setup().click(await screen.findByRole("button", { name: "Sign in with Example Music" }));
+    await waitFor(() =>
+      expect(open).toHaveBeenCalledWith("https://app.example.com/auth#?code=abc", "_blank", "noopener,noreferrer"),
+    );
+  });
+
+  it("says the provider stopped accepting the sign-in when the plugin reported it", async () => {
+    serveConnections({ ...RELAY, status: "reauthorization_required", status_reason: "rejected" });
+    renderSection("music");
+    expect(await screen.findByText("Reconnect needed")).toBeInTheDocument();
+    expect(screen.getByText("Example Music stopped accepting the sign-in. Sign in again.")).toBeInTheDocument();
+  });
+});
+
+describe("OAuthConnectionPanel", () => {
+  it("shows any connection by its id, under the title it is given", async () => {
+    serveConnections({
+      ...RELAY,
+      id: "ai.p1",
+      kind: "ai",
+      plugin_id: "ai",
+      provider_name: "OpenRouter",
+      flows: ["key_exchange"],
+      user_app: false,
+      client_id_setting: null,
+    });
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    render(
+      <QueryClientProvider client={queryClient}>
+        <OAuthConnectionPanel connectionId="ai.p1" title="OpenRouter sign-in" />
+      </QueryClientProvider>,
+    );
+    expect(await screen.findByRole("heading", { name: "OpenRouter sign-in" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Sign in with OpenRouter" })).toBeEnabled();
   });
 });
 

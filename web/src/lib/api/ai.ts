@@ -6,7 +6,10 @@ import { apiUrl } from "../base-path";
 import { fetchApi } from "./core";
 import type { DeviceType, LineMetadata } from "./shared";
 
-export type AIProviderProtocol = "openai" | "anthropic";
+export type AIProviderProtocol = "openai" | "anthropic" | "openai_responses";
+
+/** A built-in sign-in (src/ai/sign_in.py PRESETS), used instead of a pasted API key. */
+export type AISignInPreset = "openrouter" | "huggingface" | "openai_chatgpt";
 
 export interface AIProvider {
   id: string;
@@ -17,6 +20,8 @@ export interface AIProvider {
   models: string[];
   default_model?: string;
   headers?: Record<string, string>;
+  /** Present when the provider signs in instead of using `api_key`. Its tokens live in the OAuth store as `ai.<id>`. */
+  sign_in?: { preset: AISignInPreset };
 }
 
 /**

@@ -485,7 +485,16 @@
         "access_denied": "O início de sessão foi recusado, por isso nada foi conectado.",
         "exchange_failed": "O fornecedor rejeitou o início de sessão. Verifique o ID de cliente e o segredo nas configurações do plugin e conecte novamente.",
         "provider_error": "O fornecedor comunicou um problema. Tente conectar novamente."
-      }
+      },
+      "rejectedDescription": "{provider} deixou de aceitar o login. Entre novamente.",
+      "approvalWaiting": "Aprove o FiestaBoard na aba do {provider}. Isso se atualiza sozinho.",
+      "startAgainButton": "Começar de novo",
+      "headlessButton": "Entrar sem redirecionamento do navegador",
+      "pasteToggle": "O login não voltou? Cole o endereço ou o código",
+      "pasteLabel": "Endereço ou código",
+      "pasteDescription": "Copie o endereço completo da aba onde o login parou, ou o código que o provedor mostrou.",
+      "pasteSubmit": "Concluir login",
+      "pasteOpenAgain": "Abrir a página de login novamente"
     },
     "templateVariablesSection": "Variáveis de Template",
     "templateVariablesClickToCopy": "clique para copiar",
@@ -662,6 +671,15 @@
         "modelCallsLabel": "Chamadas ao modelo por turno",
         "toolCallsLabel": "Chamadas a ferramentas por turno",
         "serverDefault": "Predefinição do servidor"
+      },
+      "protocolResponsesOption": "OpenAI Responses (login do ChatGPT)",
+      "signIn": {
+        "choicesLabel": "Ou entre em vez de usar uma chave de API",
+        "button": "Entrar com {provider}",
+        "activeDescription": "Este provedor entra com {provider}. A chave de API acima não é usada enquanto você entrar assim.",
+        "useApiKey": "Usar a chave de API",
+        "saveFirst": "Salve as alterações e depois entre no {provider} aqui.",
+        "panelTitle": "Login do {provider}"
       }
     },
     "backup": {
