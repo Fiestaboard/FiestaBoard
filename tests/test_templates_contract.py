@@ -27,6 +27,8 @@ from __future__ import annotations
 import pytest
 from fastapi.testclient import TestClient
 
+from src.ops.teaching import TEMPLATE_FILTERS
+
 
 @pytest.fixture
 def client(_isolated_data_dir):
@@ -87,7 +89,11 @@ def test_variables_advertises_the_symbol_and_filter_catalogs(client):
         "check",
         "x",
     ]
-    assert body["filters"] == ["pad:N", "truncate:N", "wrap"]
+    # The editor's filter list is the one roster the engine and both AI
+    # teaching surfaces read, so it cannot drift from what actually works.
+    # (It used to be a separate literal here that omitted the real zeropad:N.)
+    assert body["filters"] == [spelling for spelling, _summary in TEMPLATE_FILTERS]
+    assert "zeropad:N" in body["filters"]
 
 
 def test_variables_documents_the_fill_space_syntax_the_editor_inserts(client):

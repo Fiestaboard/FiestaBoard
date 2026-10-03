@@ -100,6 +100,7 @@ def _drop_all_singletons() -> None:
     from src.ai.conversations.service import reset_conversation_service
     from src.config_manager import ConfigManager
     from src.displays.service import reset_display_service
+    from src.oauth.service import reset_oauth_service
     from src.plugins.registry import reset_plugin_registry
     from src.time_service import reset_time_service
     from src.triggers.service import reset_trigger_service
@@ -122,6 +123,8 @@ def _drop_all_singletons() -> None:
     reset_trigger_service()
     reset_time_service()
     reset_conversation_service()
+    # Holds a TokenStore bound to the data dir it was built against.
+    reset_oauth_service()
 
     # The DisplayService singleton. The comment that used to sit here named
     # `src.api_server._service`, an attribute that has not existed since the

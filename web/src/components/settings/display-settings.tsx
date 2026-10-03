@@ -758,7 +758,7 @@ export function DisplaySettings() {
                   {isPaused && (
                     <BadgeUI
                       variant="default"
-                      className="text-[10px] h-5 bg-amber-500 text-white"
+                      className="text-[10px] h-5 bg-warning text-warning-foreground"
                       data-testid="board-paused-badge"
                       title={t("pause.tooltip")}
                     >

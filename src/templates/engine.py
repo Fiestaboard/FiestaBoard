@@ -7,7 +7,11 @@ Template syntax:
   the user-facing reference docs at ``docs/reference/template-formulas.md``.
 - Colors: {{red}}, {{blue}}, etc. - Single colored tile (not text wrapping)
 - Symbols: {sun}, {cloud}, {rain}
-- Formatting: {{value|pad:3}}, {{value|zeropad:2}}, {{value|upper}}, {{value|lower}}, {{value|wrap}}
+- Formatting: {{value|pad:3}}, {{value|zeropad:2}}, {{value|truncate:3}},
+  {{value|upper}}, {{value|lower}}, {{value|wrap}} — chainable left to right
+  ({{value|upper|truncate:3}}). The roster lives in
+  ``src.templates.filters.TEMPLATE_FILTERS``; ``validate_template`` reports
+  anything else.
 
 Color tiles (each produces one solid color tile):
 - {{red}} or {{63}} - Red tile
@@ -39,7 +43,8 @@ from src.text_utils import extract_alignment_from_line
 
 from .colors import COLOR_CODES
 from .colors import is_color_code as _is_color_code
-from .expressions import find_formulas, render_expressions, validate_expression
+from .expressions import ensure_render_clock, find_formulas, render_expressions, validate_expression
+from .filters import FILTER_NAMES
 
 logger = logging.getLogger(__name__)
 
@@ -193,6 +198,11 @@ class TemplateEngine:
             # ``extract_template_plugin_ids`` returns None for a formula page,
             # which keeps the safe fetch-everything fallback.
             context = self._build_context(plugin_ids=extract_template_plugin_ids(template))
+
+        # Pin one instant for this render so NOW()/TODAY() in different
+        # formulas cannot straddle a minute or midnight boundary. A no-op
+        # when render_lines (or any outer caller) already pinned it.
+        context = ensure_render_clock(context)
 
         result = template
 
@@ -361,6 +371,11 @@ class TemplateEngine:
                 BoardContext(render_device_type, rows=dims.rows, cols=dims.cols),
                 plugin_ids=extract_template_plugin_ids(template_lines),
             )
+        # Pin the clock once for the whole board: every line's render()
+        # inherits this instant instead of re-reading the clock, so row 1 and
+        # row 6 can never disagree about what time it is.
+        context = ensure_render_clock(context)
+
         num_rows = dims.rows
         board_width = dims.cols
 
@@ -410,28 +425,36 @@ class TemplateEngine:
 
             has_wrap = wrap_enabled or "|wrap}}" in content or "|wrap|" in content
 
-            if has_wrap:
-                # Wrap region: count how many lines below this one are
-                # available for overflow. A line is "available" if it is
-                # literally empty, has wrap=True (explicit opt-in to the
-                # region), or renders to whitespace (e.g. {{plugin.var}}
-                # where var resolves to ""). A wrap=False line that renders
-                # to visible content hard-stops the region — this protects
-                # footers/decorations a user intentionally placed below.
-                empty_count = 1  # the wrap line itself
-                for j in range(i + 1, num_rows):
+            def _overflow_budget(start: int) -> int:
+                """Rows an overflowing line at ``start`` may fill, itself included.
+
+                A row is available if it is literally empty, opts into the
+                region with wrap=True, or renders to whitespace (e.g.
+                ``{{plugin.var}}`` where var resolves to ""). A wrap=False row
+                that renders visible content hard-stops the overflow — that is
+                what protects a footer the author put below.
+
+                Both overflow paths share this: ``|wrap`` and a row-emitting
+                formula spill the same way, so they must stop the same way.
+                """
+                available = 1  # the overflowing line itself
+                for j in range(start + 1, num_rows):
                     if contents[j].strip() == "":
-                        empty_count += 1
+                        available += 1
                         continue
                     if wraps[j] or "|wrap}}" in contents[j] or "|wrap|" in contents[j]:
-                        empty_count += 1
+                        available += 1
                         continue
                     if _render_cached(j).strip() == "":
-                        empty_count += 1
+                        available += 1
                         continue
                     break
+                return available
 
-                wrapped_lines = self._render_with_wrap(content, context, max_lines=empty_count, board_width=board_width)
+            if has_wrap:
+                wrapped_lines = self._render_with_wrap(
+                    content, context, max_lines=_overflow_budget(i), board_width=board_width
+                )
 
                 for k, wrapped_line in enumerate(wrapped_lines):
                     if i + k < num_rows:
@@ -443,7 +466,12 @@ class TemplateEngine:
                 rendered_line = _render_cached(i)
 
                 if "\n" in rendered_line:
-                    split_lines = rendered_line.split("\n")
+                    # A row-emitting formula (FOREACH) spills into the rows
+                    # below exactly as |wrap overflow does, so it stops where
+                    # |wrap would. Without this it wrote straight over a
+                    # footer, and the footer was not pushed down or shown
+                    # anywhere — it was simply gone.
+                    split_lines = rendered_line.split("\n")[: _overflow_budget(i)]
                     for line_idx, split_line in enumerate(split_lines):
                         if i + line_idx >= num_rows:
                             break
@@ -1168,6 +1196,12 @@ class TemplateEngine:
             return "Yes" if value else "No"
         if isinstance(value, int | float):
             return str(int(value) if float(value).is_integer() else round(value, 1))
+        if isinstance(value, list | dict):
+            # A container has no board rendering — this used to emit a Python
+            # repr ("[{'high': 70}]"). Arrays are reached with an index, or with
+            # COUNT/AT/JOIN/FOREACH in a formula.
+            logger.debug("Variable %s resolved to a %s; not renderable", expr, type(value).__name__)
+            return "???"
         return str(value)
 
     def _get_color_only(self, plugin_id: str, field: str, context: dict[str, Any]) -> str:
@@ -1246,14 +1280,39 @@ class TemplateEngine:
         return field
 
     def _apply_filter(self, value: str, filter_expr: str) -> str:
-        """Apply a filter to a value.
+        """Apply a filter chain to a value.
+
+        ``filter_expr`` is everything after the first ``|``, so it may hold
+        several filters (``upper|truncate:3``); they apply left to right. The
+        chain was documented from the start but used to be parsed as one filter
+        name, which made every chain a silent no-op.
 
         Supported filters:
+        - upper / lower - Change case
         - pad:N - Right-pad with spaces to N characters
         - truncate:N - Truncate to N characters
         - zeropad:N - Left-pad with zeros to N characters (e.g., 1 -> 01).
           For numeric values, a leading '-' sign is preserved (e.g., -1 -> -01).
+        - wrap - Handled by the wrap machinery in ``render_lines``; a no-op here.
+
+        An unrecognised filter leaves the value untouched (the board must still
+        show something); ``validate_template`` reports it so the author can see
+        why nothing happened.
         """
+        for single in filter_expr.split("|"):
+            value = self._apply_single_filter(value, single.strip())
+        return value
+
+    def _apply_single_filter(self, value: str, filter_expr: str) -> str:
+        """Apply one filter (see :meth:`_apply_filter` for the roster)."""
+        if ":" not in filter_expr:
+            name = filter_expr.lower()
+            if name == "upper":
+                return value.upper()
+            if name == "lower":
+                return value.lower()
+            return value
+
         if ":" in filter_expr:
             filter_name, arg = filter_expr.split(":", 1)
             filter_name = filter_name.lower()
@@ -1459,6 +1518,7 @@ class TemplateEngine:
 
         # Get available sources based on system mode
         available_sources = self.get_all_known_sources()
+        known_fields = self._known_fields()
 
         for line_num, line in enumerate(lines, 1):
             # Check for unclosed variable braces
@@ -1479,11 +1539,23 @@ class TemplateEngine:
 
             # Check for invalid variable references
             for match in VAR_PATTERN.finditer(line):
-                expr = match.group(1).split("|")[0].strip()
+                body = match.group(1)
+                expr = body.split("|")[0].strip()
                 # Skip formula bodies -- they're validated in the separate
                 # ``find_formulas`` loop below.
                 if expr.startswith("="):
                     continue
+
+                for filter_name in self._filter_names_in(body):
+                    if filter_name not in FILTER_NAMES:
+                        errors.append(
+                            TemplateError(
+                                line=line_num,
+                                column=match.start(),
+                                message=f"Unknown filter: {filter_name} (value renders unchanged)",
+                            )
+                        )
+
                 parts = expr.split(".")
                 if len(parts) >= 2:
                     source = parts[0].lower()
@@ -1491,6 +1563,16 @@ class TemplateEngine:
                         errors.append(
                             TemplateError(line=line_num, column=match.start(), message=f"Unknown source: {source}")
                         )
+                    else:
+                        unknown_field = self._unknown_field(source, parts[1:], known_fields)
+                        if unknown_field:
+                            errors.append(
+                                TemplateError(
+                                    line=line_num,
+                                    column=match.start(),
+                                    message=f"Unknown field: {source}.{unknown_field} (renders as ???)",
+                                )
+                            )
 
             # Validate inline formulas ({{= ... }}). This surfaces parse
             # errors, unknown function names, unknown variable sources,
@@ -1509,6 +1591,64 @@ class TemplateEngine:
                     )
 
         return errors
+
+    @staticmethod
+    def _filter_names_in(body: str) -> list[str]:
+        """The filter names used by one ``{{...}}`` body, lowercased."""
+        if "|" not in body:
+            return []
+        return [segment.strip().split(":", 1)[0].lower() for segment in body.split("|")[1:] if segment.strip()]
+
+    def _known_fields(self) -> dict[str, set[str]]:
+        """``{plugin_id: {declared field names}}`` for field validation.
+
+        Built from the same catalog the editor autocompletes on, so a field the
+        picker offers can never be flagged as unknown.
+        """
+        try:
+            catalog = self.get_available_variables()
+            return {source.lower(): {name.lower() for name in names} for source, names in catalog.items()}
+        except Exception:
+            # No catalog means no field validation — never a failed validate.
+            logger.debug("Variable catalog unavailable for validation", exc_info=True)
+            return {}
+
+    def _unknown_field(self, source: str, path: list[str], known_fields: dict[str, set[str]]) -> str | None:
+        """The field name to report as unknown, or ``None`` when it looks fine.
+
+        Deliberately conservative — it only judges the FIRST path segment, so a
+        deep path into a declared array (``forecast.0.high``) or a dynamic
+        sub-array key is never flagged. It exists to catch the plain typo
+        (``weather.temperatur``) that used to validate clean and render ``???``.
+
+        Returns ``None`` without judging when:
+
+        * the plugin declares no variables at all — an ``auto_discover`` plugin
+          whose discovery fetch failed has an empty catalog, and guessing there
+          would flag every field it exposes;
+        * the source is ``home_assistant``, whose paths are entity ids resolved
+          at render time rather than declared names.
+        """
+        if not path:
+            return None
+        base_source = source.split(":", 1)[0]
+        if base_source == "home_assistant":
+            return None
+
+        fields = known_fields.get(source) or known_fields.get(base_source)
+        if not fields:
+            return None
+
+        first = path[0].lower()
+        candidates = {first}
+        if first.endswith("_color"):
+            candidates.add(first[: -len("_color")])
+        if candidates & fields:
+            return None
+        # An array's documented pattern is stored as ``name.*.field``.
+        if any(name.split(".", 1)[0] in candidates for name in fields):
+            return None
+        return path[0]
 
     def get_all_known_sources(self) -> set:
         """Get all known plugin IDs (for validation).
@@ -1543,6 +1683,13 @@ class TemplateEngine:
         # If line has |wrap, it handles overflow automatically
         if "|wrap}}" in line or "|wrap|" in line:
             return cols  # Wrap ensures lines don't overflow
+
+        # A row-emitting formula (FOREACH) returns newline-joined rows that
+        # render_lines spreads down the board, so its width is per row, not the
+        # sum. Measuring it as one line reported every such template as too
+        # long.
+        if any("FOREACH(" in body.upper() for _start, _end, body in find_formulas(line)):
+            return cols
 
         # Start with the line
         result = line

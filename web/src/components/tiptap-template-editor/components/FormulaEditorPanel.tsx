@@ -38,11 +38,13 @@ import { useQuery } from "@tanstack/react-query";
 import type { LucideIcon } from "lucide-react";
 import {
   ArrowLeftRight,
+  CalendarClock,
   CheckCircle2,
   ChevronDown,
   ChevronRight,
   GitBranch,
   Hash,
+  List as ListIcon,
   Palette,
   Type as TypeIcon,
   XCircle,
@@ -52,6 +54,8 @@ import { lazy, Suspense, useCallback, useEffect, useRef, useState } from "react"
 import { useTranslations } from "@/i18n/translations";
 import { api } from "@/lib/api";
 import { cn } from "@/lib/utils";
+
+import { categoriesToRender } from "./formula-categories";
 
 // Lazy-loaded — see TemplateEditorToolbar.tsx for why: it pulls in
 // lucide-react's full `icons` barrel. Dynamically importing it here too
@@ -204,10 +208,10 @@ const formulaBaseTheme = EditorView.theme({
 
 // ─── Category metadata ────────────────────────────────────────────────────────
 
-const CATEGORY_ORDER = ["logic", "math", "text", "convert", "color"];
-
 const CATEGORY_META: Record<string, { icon: LucideIcon; text: string; border: string }> = {
   logic: { icon: GitBranch, text: "text-violet-400", border: "border-l-violet-400/60" },
+  array: { icon: ListIcon, text: "text-orange-400", border: "border-l-orange-400/60" },
+  date: { icon: CalendarClock, text: "text-teal-400", border: "border-l-teal-400/60" },
   math: { icon: Hash, text: "text-emerald-400", border: "border-l-emerald-400/60" },
   text: { icon: TypeIcon, text: "text-sky-400", border: "border-l-sky-400/60" },
   convert: { icon: ArrowLeftRight, text: "text-amber-400", border: "border-l-amber-400/60" },
@@ -237,6 +241,8 @@ export function FormulaEditorPanel({ initialExpr = "", mode, onConfirm, onCancel
     text: t("categoryText"),
     convert: t("categoryConversion"),
     color: t("categoryColor"),
+    array: t("categoryArray"),
+    date: t("categoryDate"),
   };
   const [expr, setExpr] = useState(initialExpr);
   const [validationState, setValidationState] = useState<"idle" | "validating" | "valid" | "invalid">(
@@ -538,7 +544,7 @@ export function FormulaEditorPanel({ initialExpr = "", mode, onConfirm, onCancel
               )}
               {/* Parent column (desktop) or modal (mobile) scrolls — don't nest a scroll here. */}
               <Stack gap="1" className="px-2 pb-2">
-                {CATEGORY_ORDER.filter((cat) => grouped[cat]?.length).map((cat) => {
+                {categoriesToRender(grouped).map((cat) => {
                   const isCollapsed = collapsedCategories.has(cat);
                   const fns = grouped[cat] ?? [];
                   const meta = CATEGORY_META[cat];

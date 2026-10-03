@@ -102,6 +102,65 @@ class TestGraduatingOntoTheRelease:
         assert update_service.current_channel() == "beta"
 
 
+class TestGraduationIsRemembered:
+    """Graduating must also update the channel the box *chose*.
+
+    ``reassert_release_channel`` re-applies the recorded channel at every
+    boot. A box that joined the beta has ``channel: beta`` written down, so
+    when Update Now installed the release, the next boot saw a stable build,
+    decided the boot had overridden the choice, and reinstalled ``:beta``.
+    Measured on a FiestaPi: 9.3.0-beta.50 -> 9.5.0 -> 9.3.0-beta.50, every
+    time, with the update check still offering the release.
+    """
+
+    @pytest.mark.asyncio
+    async def test_installing_the_release_records_the_stable_channel(self, sidecar, monkeypatch):
+        monkeypatch.setenv("VERSION", "9.0.0-beta.12")
+        update_service._system_update_state_update(channel="beta", channel_join_snapshot="join.json")
+        with _discovers("9.0.0"):
+            await update_service.apply_update()
+        assert update_service._system_update_state_load().get("channel") == "stable"
+
+    @pytest.mark.asyncio
+    async def test_the_boot_after_graduating_does_not_reinstall_the_beta(self, sidecar, monkeypatch):
+        monkeypatch.setenv("VERSION", "9.0.0-beta.12")
+        update_service._system_update_state_update(channel="beta")
+        with _discovers("9.0.0"):
+            await update_service.apply_update()
+        posted_before_boot = len(sidecar)
+
+        monkeypatch.setenv("VERSION", "9.0.0")  # the release came up
+        update_service.reassert_release_channel()
+
+        assert sidecar[posted_before_boot:] == [], "the boot dragged the graduated box back onto :beta"
+
+    @pytest.mark.asyncio
+    async def test_a_beta_to_beta_update_keeps_the_beta_channel(self, sidecar, monkeypatch):
+        monkeypatch.setenv("VERSION", "9.0.0-beta.12")
+        update_service._system_update_state_update(channel="beta")
+        with _discovers("9.0.0-beta.13"):
+            await update_service.apply_update()
+        assert update_service._system_update_state_load().get("channel") == "beta"
+
+    @pytest.mark.asyncio
+    async def test_a_refused_install_does_not_change_the_channel(self, monkeypatch):
+        monkeypatch.setenv("FIESTAUPDATER_TOKEN", "test-token")
+        monkeypatch.setenv("VERSION", "9.0.0-beta.12")
+        update_service._system_update_state_update(channel="beta")
+        with (
+            patch(
+                "src.system.update_service._updater_version",
+                return_value={"image": "fiestaboard/fiestaboard:latest", "digest": "sha256:abc"},
+            ),
+            patch("src.system.update_service._updater_post", return_value=MagicMock(status_code=500, text="boom")),
+            patch("src.system.update_service._take_settings_snapshot", return_value=None),
+            _discovers("9.0.0"),
+            pytest.raises(update_service.SidecarError),
+        ):
+            await update_service.apply_update()
+        assert update_service._system_update_state_load().get("channel") == "beta"
+
+
 class TestFallingBackSafely:
     @pytest.mark.asyncio
     async def test_the_moving_tag_is_used_when_discovery_fails(self, sidecar, monkeypatch):

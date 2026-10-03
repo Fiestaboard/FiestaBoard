@@ -227,6 +227,36 @@ def _raise_error_envelope(result: Any) -> Any:
     return result
 
 
+def _format_array_entry(
+    plugin_id: str,
+    var_name: str,
+    description: str,
+    item_fields: list[str],
+    meta: Any,
+) -> str:
+    """One `fiestaboard://variables` line for an array variable.
+
+    Arrays are not substitutable: `{{plugin.array}}` renders "???" and
+    `{{= plugin.array }}` renders "#VALUE". The line therefore names the
+    item fields and shows the array functions that do consume it, mirroring
+    what the chat prompt teaches (src.ai.prompt_builder._format_array_variable).
+    """
+    path = f"{plugin_id}.{var_name}"
+    label_field = str((meta or {}).get("label_field") or "")
+    example_field = label_field if label_field in item_fields else (sorted(item_fields)[0] if item_fields else "name")
+    header = f"- `{path}` (ARRAY"
+    if item_fields:
+        header += f"; item fields: {', '.join(sorted(item_fields))}"
+    header += ")"
+    parts = [header]
+    if description:
+        parts.append(f"— {description}")
+    parts.append(
+        f"— not printable; use `{{{{= COUNT({path}) }}}}` or `{{{{= FOREACH({path}, item.{example_field}, 4) }}}}`"
+    )
+    return " ".join(parts)
+
+
 def _build_mcp_server() -> Any:
     """Construct and return the MCPServer instance.
 
@@ -3033,6 +3063,13 @@ def _build_mcp_server() -> Any:
                 lines.append(f"\n## {plugin_id}")
                 for var_name, meta in vars_dict.items():
                     desc = meta.get("description", "")
+                    item_fields = [str(f) for f in (meta.get("item_fields") or [])]
+                    if meta.get("type") == "array" or item_fields:
+                        # An array is not a printable variable: `{{plugin.array}}`
+                        # renders "???" and `{{= plugin.array }}` renders "#VALUE".
+                        # Advertise it as what the array functions consume instead.
+                        lines.append(_format_array_entry(plugin_id, var_name, desc, item_fields, meta))
+                        continue
                     example = meta.get("example", "")
                     example_str = f" (e.g. `{example}`)" if example else ""
                     lines.append(f"- `{{{{{plugin_id}.{var_name}}}}}` — {desc}{example_str}")

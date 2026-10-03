@@ -15,7 +15,7 @@ from dataclasses import dataclass, field
 from typing import Any, Literal
 
 from src.devices import DeviceType, get_dimensions
-from src.ops.teaching import dimensions_phrase
+from src.ops.teaching import TEMPLATE_FILTERS, construct_lines, dimensions_phrase
 from src.templates.expressions import function_signatures
 
 # Which caller is building the prompt. The shared core (device limits,
@@ -188,7 +188,7 @@ def _format_builtins() -> str:
     by_cat: dict[str, list[str]] = {}
     for _name, info in sigs.items():
         by_cat.setdefault(info["category"], []).append(f"  {info['signature']:<40} — {info['summary']}")
-    order = ["logic", "math", "text", "convert", "color"]
+    order = ["logic", "array", "date", "math", "text", "convert", "color"]
     lines: list[str] = []
     for cat in order:
         rows = by_cat.get(cat)
@@ -203,6 +203,14 @@ def _format_builtins() -> str:
         lines.append(f"  [{cat}]")
         lines.extend(sorted(rows))
     return "\n".join(lines)
+
+
+def _format_filters(indent: str = "") -> str:
+    """The filter roster, from the one table the engine validates against."""
+    width = max(len(spelling) for spelling, _summary in TEMPLATE_FILTERS) + 4
+    return "\n".join(
+        f"{indent}{'`{{var|' + spelling + '}}`':<{width + 10}} {summary}" for spelling, summary in TEMPLATE_FILTERS
+    )
 
 
 def _format_variables(
@@ -220,6 +228,24 @@ def _format_variables(
             desc = meta.get("description") or ""
             example = meta.get("example") or meta.get("preview") or ""
             max_len = meta.get("max_length")
+            item_fields = [str(f) for f in (meta.get("item_fields") or [])]
+
+            if meta.get("type") == "array" or item_fields:
+                # An array is not a printable variable — teach it as the thing
+                # the array functions consume, with the fields an item has.
+                # Arrays used to be dropped from this catalog entirely, so the
+                # model could not name a single real one (issue #2050).
+                lines.append(
+                    _format_array_variable(
+                        plugin_id,
+                        var_name,
+                        desc,
+                        item_fields,
+                        label_field=str(meta.get("label_field") or ""),
+                    )
+                )
+                continue
+
             parts = [f"  {{{{{plugin_id}.{var_name}}}}}"]
             if desc:
                 parts.append(f"— {desc}")
@@ -232,6 +258,32 @@ def _format_variables(
                 parts.append(f"({'; '.join(extras)})")
             lines.append(" ".join(parts))
     return "\n".join(lines).strip()
+
+
+def _format_array_variable(
+    plugin_id: str,
+    var_name: str,
+    description: str,
+    item_fields: list[str],
+    label_field: str = "",
+) -> str:
+    """One catalog entry for an array variable, with a ready-to-use example.
+
+    The example iterates on the array's ``label_field`` when the manifest names
+    one, since that is the field the plugin considers an item's headline.
+    """
+    path = f"{plugin_id}.{var_name}"
+    header = f"  {path} (ARRAY"
+    if item_fields:
+        header += f"; item fields: {', '.join(sorted(item_fields))}"
+    header += ")"
+
+    example_field = label_field if label_field in item_fields else (sorted(item_fields)[0] if item_fields else "name")
+    parts = [header]
+    if description:
+        parts.append(f"— {description}")
+    parts.append(f"— use: {{{{= COUNT({path}) }}}} or {{{{= FOREACH({path}, item.{example_field}, 4) }}}}")
+    return " ".join(parts)
 
 
 def _select_exemplars(
@@ -463,18 +515,14 @@ def build_prompt(
 
     template_syntax = (
         "TEMPLATE SYNTAX\n"
-        "- Variable substitution: `{{plugin_id.field}}`, e.g.\n"
-        "  `{{weather.temperature}}` or `{{date_time.time_12h}}`.\n"
-        "- Array indexing (zero-based) for plugins that expose arrays:\n"
-        "  `{{plugin_id.array.0.field}}`, e.g. `{{transit.stops.0.eta}}`.\n"
-        "- Color suffix: `{{plugin_id.field_color}}` returns just the\n"
-        "  color tile that the plugin's color rules selected for that\n"
-        "  field (no value text). Use it as a status dot in front of a\n"
-        "  value, e.g.\n"
-        "  `{{weather.temperature_color}} {{weather.temperature}}F`.\n"
-        "- Filters (chain with `|`):\n"
-        "    `{{var|pad:N}}`      right-pad value to N chars (space-fill)\n"
-        "    `{{var|truncate:N}}` cut value to N chars\n"
+        "- Every form the template language accepts (generated from the\n"
+        "  language itself, so this list is never behind the engine):\n"
+        + "\n".join(construct_lines(indent="    "))
+        + "\n"
+        "- Filters chain left to right and are exactly these:\n" + _format_filters(indent="    ") + "\n"
+        "- A color suffix (`{{plugin.field_color}}`) is the color tile the\n"
+        "  plugin's color rules chose, with no value text — use it as a\n"
+        "  status dot: `{{weather.temperature_color}} {{weather.temperature}}F`.\n"
         "- Spacing helpers:\n"
         "    `{{fill_space}}` expands to fill the rest of the line; use\n"
         "      for left/right alignment: `Left{{fill_space}}Right`.\n"
@@ -515,10 +563,29 @@ def build_prompt(
         '    `{{= IFERROR(weather.temperature, "--") }}`\n'
         "    `{{= UPPER(LEFT(weather.condition, 6)) }}`\n"
         '    `{{= COLOR(IF(weather.temperature > 80, "red", "blue")) }}`\n'
-        "- Limitations: no user-defined functions, no loops, no\n"
-        "  arbitrary code. Prefer plain `{{plugin.field}}` substitution\n"
-        "  when no logic is required — only reach for `{{= ... }}` when\n"
-        "  you actually need a condition or computation.\n"
+        "- ARRAYS. When a plugin exposes an array, do NOT write one line\n"
+        "  per possible item guarded by `IF`. Use the array functions:\n"
+        "    `{{= COUNT(mlb.games) }}` — how many items there are\n"
+        '    `{{= AT(mlb.games, 0, "team1") }}` — one item, blank if absent\n'
+        '    `{{= FOREACH(mlb.games, item.team1 & " " & item.score1, 4) }}`\n'
+        "      — ONE ROW PER ITEM. It returns up to `limit` rows and fills\n"
+        "      the template rows BELOW it, exactly like a wrapped line, so\n"
+        "      leave those rows empty and set a limit that fits the board.\n"
+        "    Inside `FOREACH`/`FILTER`, `item` is the current item and\n"
+        "    `index` its 1-based position. `FILTER`, `SORT`, `SLICE`,\n"
+        "    `JOIN` and `SUMOF`/`AVGOF`/`MINOF`/`MAXOF` compose with it.\n"
+        "    An array can never be printed directly: `{{= mlb.games }}`\n"
+        "    renders `#VALUE` and `{{mlb.games}}` renders `???`.\n"
+        "- DATES. `NOW()`/`TODAY()` are the board's clock;\n"
+        "  `DATEDIFF(TODAY(), DATE(x))` counts whole days, and\n"
+        '  `FORMATDATE(d, "ddd MMM DD")` formats one. Prefer these over\n'
+        "  asking for a countdown plugin.\n"
+        "- REUSE. `LET(name, value, ..., body)` names a value once instead\n"
+        "  of repeating a long subexpression on every row.\n"
+        "- Limitations: no user-defined functions and no arbitrary code.\n"
+        "  Prefer plain `{{plugin.field}}` substitution when no logic is\n"
+        "  required — only reach for `{{= ... }}` when you actually need a\n"
+        "  condition, a computation, or an array.\n"
     )
 
     if mode == "generate":

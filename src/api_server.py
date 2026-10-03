@@ -512,6 +512,10 @@ OPENAPI_TAGS = [
     {"name": "backup", "description": "Export and import the whole install as one file."},
     {"name": "mqtt", "description": "MQTT / Home Assistant discovery status and republish."},
     {"name": "auth", "description": "Optional login, password/username management and MCP bearer tokens."},
+    {
+        "name": "oauth",
+        "description": "OAuth sign-in for plugins: connection status, starting a flow, and the relay callback.",
+    },
     {"name": "network", "description": "Wi-Fi configuration for the appliance."},
     {"name": "system", "description": "Version, update checks, updates and rollback, restart and shutdown."},
     {"name": "debug", "description": "Diagnostics: logs, caches, connection tests and board fill/blank probes."},
@@ -2158,6 +2162,12 @@ app.include_router(plugin_support_router)
 from .backup.routes import router as backup_router  # noqa: E402
 
 app.include_router(backup_router)
+
+# OAuth sign-in for plugins: connection status, flow start, and the callback
+# the relay page forwards to. See src/oauth/service.py.
+from .oauth.routes import router as oauth_router  # noqa: E402
+
+app.include_router(oauth_router)
 
 # The consumer-facing API. Mounted last, and imported here rather than at the
 # top of the module, because src/v1 imports the domain routers it adapts —

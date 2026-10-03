@@ -89,6 +89,7 @@
     "oneshot",
     "organise",
     "pidfile",
+    "pkce",
     "Pydantic",
     "pylint",
     "pytest",

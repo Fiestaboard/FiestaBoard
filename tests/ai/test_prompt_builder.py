@@ -236,9 +236,40 @@ def test_prompt_explains_line_metadata_alignment_and_wrap():
 def test_prompt_documents_array_indexing_and_color_suffix():
     ctx = build_prompt("x", "flagship")
     sp = ctx.system_prompt
-    assert "{{plugin_id.array.0.field}}" in sp
+    # Array indexing is taught with a concrete path (it used to be the
+    # placeholder "{{plugin_id.array.0.field}}"); the examples are generated
+    # from src.ops.teaching.LANGUAGE_CONSTRUCTS.
+    assert "{{transit.stops.0.eta}}" in sp
     assert "_color" in sp
     assert "{{filled:X}}" in sp or "filled:" in sp
+
+
+def test_prompt_teaches_iteration_not_only_indexing():
+    """Indexing alone is what made the model hand-unroll a line per item.
+
+    Issue #2050: the prompt described array *indexing* and nothing else, so the
+    best a model could do was guess how many items existed.
+    """
+    sp = build_prompt("x", "flagship").system_prompt
+    assert "FOREACH" in sp
+    assert "COUNT" in sp
+    assert "one line\n  per possible item" in sp or "per possible item" in sp
+
+
+def test_prompt_names_both_array_printing_failures():
+    """Printing an array fails differently in each syntax; the model needs both.
+
+    `{{= mlb.games }}` short-circuits to `#VALUE`, but plain substitution
+    `{{mlb.games}}` goes through TemplateEngine._get_variable_value, which
+    returns `???` for a list or dict. The prompt used to name only `#VALUE`,
+    leaving plain substitution looking like the way to print an array.
+    """
+    sp = build_prompt("x", "flagship").system_prompt
+    # Each syntax must be named next to the marker it actually produces. A bare
+    # `"#VALUE" in sp` proves nothing — the prompt already used that token twice
+    # before this teaching existed.
+    assert "`{{= mlb.games }}`\n    renders `#VALUE`" in sp
+    assert "`{{mlb.games}}` renders `???`" in sp
 
 
 def test_prompt_scope_message_calls_out_current_instance():

@@ -13,7 +13,7 @@ Everything here is derived from the modules that define the behavior:
 
 - dimensions from :data:`src.devices.DEVICE_DIMENSIONS`
 - color tokens from :data:`src.templates.engine.COLOR_CODES`
-- filters from :data:`TEMPLATE_FILTERS` below, which
+- filters from :data:`src.templates.filters.TEMPLATE_FILTERS`, which
   ``tests/test_ops_teaching.py`` verifies against the engine's actual
   ``_apply_filter``/``|wrap`` implementation so this table cannot rot
 - formula functions from :func:`src.templates.expressions.function_signatures`
@@ -21,18 +21,60 @@ Everything here is derived from the modules that define the behavior:
 
 from __future__ import annotations
 
-from src.devices import DEVICE_DIMENSIONS, get_dimensions
+from dataclasses import dataclass
 
-#: The template filter chain the engine actually implements.
-#: (spelling as written in a template, one-line teaching summary)
-#: Kept in lock-step with ``TemplateEngine._apply_filter`` and the special
-#: ``|wrap`` handling by tests/test_ops_teaching.py.
-TEMPLATE_FILTERS: tuple[tuple[str, str], ...] = (
-    ("pad:N", "right-pad the value with spaces to N chars"),
-    ("truncate:N", "cut the value to N chars"),
-    ("zeropad:N", "left-pad the value with zeros to N chars"),
-    ("wrap", "let a long value flow into the empty lines below"),
+from src.devices import DEVICE_DIMENSIONS, get_dimensions
+from src.templates.filters import FILTER_NAMES as _FILTER_NAMES
+from src.templates.filters import TEMPLATE_FILTERS as _TEMPLATE_FILTERS
+
+
+@dataclass(frozen=True)
+class LanguageConstruct:
+    """One thing a template author can write, and how to teach it.
+
+    Functions were always generated from the live registry, so a new one
+    reached every AI surface for free. Syntax was hand-written prose in two
+    places, which is how one copy came to advertise filters that did not exist
+    (#1764). Registering constructs here makes syntax behave like functions:
+    ``tests/test_teaching_surface_parity.py`` fails when a construct is missing
+    from any surface.
+    """
+
+    name: str
+    example: str
+    summary: str
+
+
+#: Every construct the template language offers, in teaching order.
+LANGUAGE_CONSTRUCTS: tuple[LanguageConstruct, ...] = (
+    LanguageConstruct("variable", "{{weather.temperature}}", "substitute a plugin variable"),
+    LanguageConstruct("array index", "{{transit.stops.0.eta}}", "one item of an array, zero-based"),
+    LanguageConstruct("color suffix", "{{weather.temperature_color}}", "just the color tile for a value"),
+    LanguageConstruct("filter", "{{weather.condition|upper|truncate:6}}", "transform a value, chainable"),
+    LanguageConstruct("fill space", "Left{{fill_space}}Right", "push content to both edges of a line"),
+    LanguageConstruct("filled", "Title{{filled:-}}99", "fill the gap with a character or color"),
+    LanguageConstruct("formula", '{{= IF(weather.temperature > 80, "HOT", "OK") }}', "Excel-like logic"),
+    LanguageConstruct("count", "{{= COUNT(mlb.games) }}", "how many items an array holds"),
+    LanguageConstruct("safe item", '{{= AT(mlb.games, 2, "team1") }}', "an item field, blank when absent"),
+    LanguageConstruct(
+        "iteration",
+        '{{= FOREACH(mlb.games, item.team1 & " " & item.score1, 4) }}',
+        "one board row per item; fills the rows below",
+    ),
+    LanguageConstruct(
+        "array pipeline", 'SORT(FILTER(mlb.games, item.final), "score1")', "filter/sort before iterating"
+    ),
+    LanguageConstruct("date maths", "{{= DATEDIFF(TODAY(), DATE(launch.day)) }}", "whole days between two dates"),
+    LanguageConstruct("date format", '{{= FORMATDATE(NOW(), "ddd hh:mm AP") }}', "render a date your way"),
+    LanguageConstruct("reuse", 'LET(t, weather.temperature, t & "F/" & t)', "name a value once and reuse it"),
 )
+
+#: Re-exported from :mod:`src.templates.filters`, which owns the roster because
+#: the engine implements and validates it — teaching derives from the engine,
+#: never the other way round, which is also why the imports below are lazy.
+#: Re-exporting keeps ``teaching.TEMPLATE_FILTERS`` working for its consumers.
+TEMPLATE_FILTERS = _TEMPLATE_FILTERS
+FILTER_NAMES = _FILTER_NAMES
 
 
 def dimensions_phrase(device_type: str) -> str:
@@ -123,8 +165,30 @@ def template_syntax_block() -> str:
         "                Functions include:",
         *_wrap_roster(function_roster, indent=" " * 16, width=76),
         '                Example: {{= IF(weather.temp_f > 80, "HOT", "OK")}}',
+        "  • Constructs: every form the language accepts —",
+        *construct_lines(indent=" " * 16),
+        "                FOREACH returns one row per item and fills the rows",
+        "                BELOW it, exactly as |wrap overflow does — leave them",
+        "                empty, and cap it with a limit so it cannot outgrow",
+        "                the board.",
+        "                Inside FOREACH/FILTER, `item` is the current item and",
+        "                `index` its 1-based position; `item.field` reads a",
+        "                field. An array cannot be printed directly.",
     ]
     return "\n".join(lines)
+
+
+def construct_lines(indent: str = "") -> list[str]:
+    """One teaching line per :data:`LANGUAGE_CONSTRUCTS` entry.
+
+    Shared verbatim by the MCP instructions and the chat system prompt so the
+    two cannot describe different languages.
+    """
+    width = max(len(construct.name) for construct in LANGUAGE_CONSTRUCTS) + 1
+    return [
+        f"{indent}{construct.name + ':':<{width}} {construct.example}   — {construct.summary}"
+        for construct in LANGUAGE_CONSTRUCTS
+    ]
 
 
 def _wrap_roster(roster: str, indent: str, width: int) -> list[str]:

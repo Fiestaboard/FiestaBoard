@@ -1249,6 +1249,7 @@ async def apply_update() -> UpdateApplyResponse:
     # and never runs an 8.x build against 9.x data on the way.
     channel = current_channel()
     endpoint, payload = "/update", None
+    graduating = False
     if channel != "stable":
         image_ref = version.get("image") or ""
         # The sidecar wants repository and tag separately; sending "repo:tag"
@@ -1266,7 +1267,8 @@ async def apply_update() -> UpdateApplyResponse:
         #
         # Naming the exact version also graduates the box off the beta for
         # free: current_channel() reads the running build, so landing on a
-        # release with no prerelease identifier reports stable from then on.
+        # release with no prerelease identifier reports stable from then on —
+        # provided the recorded channel follows it (see `graduating` below).
         tag = CHANNEL_TAGS[channel]
         discovered = await _latest_for_channel(channel)
         if discovered and _is_newer_version(discovered, running_version()):
@@ -1276,6 +1278,7 @@ async def apply_update() -> UpdateApplyResponse:
             # major. Leaving the beta is a deliberate act, not something
             # Update Now does by accident.
             tag = discovered
+            graduating = "-" not in discovered
         endpoint, payload = "/install", {"image": repository, "tag": tag}
 
     try:
@@ -1316,7 +1319,16 @@ async def apply_update() -> UpdateApplyResponse:
     except ValueError as e:
         # fiestaupdater may return a non-JSON body (e.g. plain-text on error); fall back to empty dict.
         logger.debug("fiestaupdater response is not JSON, using empty body (non-fatal): %s", e)
-    _system_update_state_update(last_update=datetime.now(UTC).isoformat())
+    changes: dict[str, Any] = {"last_update": datetime.now(UTC).isoformat()}
+    if graduating:
+        # The recorded channel is what reassert_release_channel() re-applies
+        # at boot. Left on "beta", the boot after this install sees a stable
+        # build, treats it as the boot overriding the choice, and reinstalls
+        # :beta — measured on a Pi: 9.3.0-beta.50 -> 9.5.0 -> 9.3.0-beta.50,
+        # every time. Same bookkeeping as leave_beta(). Only written once the
+        # sidecar accepted the install, so a refused one leaves the box on beta.
+        changes.update(channel="stable", channel_join_snapshot=None)
+    _system_update_state_update(**changes)
 
     return UpdateApplyResponse(
         status="queued",

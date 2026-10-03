@@ -635,6 +635,46 @@
       "kind": "APIRoute"
     },
     {
+      "path": "/oauth/callback",
+      "methods": [
+        "GET"
+      ],
+      "name": "oauth_callback",
+      "kind": "APIRoute"
+    },
+    {
+      "path": "/oauth/connections",
+      "methods": [
+        "GET"
+      ],
+      "name": "list_oauth_connections",
+      "kind": "APIRoute"
+    },
+    {
+      "path": "/oauth/connections/{connection_id}",
+      "methods": [
+        "DELETE"
+      ],
+      "name": "disconnect_oauth_connection",
+      "kind": "APIRoute"
+    },
+    {
+      "path": "/oauth/connections/{connection_id}",
+      "methods": [
+        "GET"
+      ],
+      "name": "get_oauth_connection",
+      "kind": "APIRoute"
+    },
+    {
+      "path": "/oauth/connections/{connection_id}/authorize",
+      "methods": [
+        "POST"
+      ],
+      "name": "authorize_oauth_connection",
+      "kind": "APIRoute"
+    },
+    {
       "path": "/openapi.json",
       "methods": [
         "GET",

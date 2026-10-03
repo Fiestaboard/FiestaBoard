@@ -273,15 +273,22 @@ import {
   Zap,
 } from "lucide-react";
 import type { ReactNode } from "react";
-import { Fragment, useEffect, useMemo, useState } from "react";
+import { Fragment, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 
-import { asJSONSchema, SchemaForm } from "@/components/plugin-settings";
+import {
+  asJSONSchema,
+  OAUTH_CONNECTIONS_QUERY_KEY,
+  OAuthConnectionSection,
+  oauthReturnErrorKey,
+  readOAuthReturn,
+  SchemaForm,
+} from "@/components/plugin-settings";
 import Link from "@/components/smart-link";
 import { useDepsChanged } from "@/hooks/use-deps-changed";
 import { useEffectiveBoardColor } from "@/hooks/use-effective-board-color";
 import { useEffectiveCode62Glyph } from "@/hooks/use-effective-code62-glyph";
-import { useSearchParams } from "@/hooks/use-router";
+import { useRouter, useSearchParams } from "@/hooks/use-router";
 import { useTranslations } from "@/i18n/translations";
 import { anchorProps } from "@/lib/ai-choreography/anchors";
 import type { PluginInfo, RegistryEntry } from "@/lib/api";
@@ -1013,6 +1020,8 @@ interface InstalledPluginRowProps {
   onUpdate?: (pluginId: string) => void;
   isUninstalling?: boolean;
   isUpdating?: boolean;
+  /** Open the settings sheet on mount: the row an OAuth sign-in just returned to. */
+  initiallyOpen?: boolean;
 }
 
 function InstalledPluginRow({
@@ -1024,8 +1033,9 @@ function InstalledPluginRow({
   onUpdate,
   isUninstalling,
   isUpdating,
+  initiallyOpen = false,
 }: InstalledPluginRowProps) {
-  const [isConfigOpen, setIsConfigOpen] = useState(false);
+  const [isConfigOpen, setIsConfigOpen] = useState(initiallyOpen);
   const [configValues, setConfigValues] = useState<Record<string, unknown>>({});
   const [isSaving, setIsSaving] = useState(false);
   const [copiedVar, setCopiedVar] = useState<string | null>(null);
@@ -1104,6 +1114,8 @@ function InstalledPluginRow({
       // reads the old values and Create Demo Page stays disabled after a save
       // that actually satisfied the requirements.
       queryClient.invalidateQueries({ queryKey: ["plugin", plugin.id] });
+      // A saved client ID is what makes an OAuth plugin connectable.
+      queryClient.invalidateQueries({ queryKey: OAUTH_CONNECTIONS_QUERY_KEY });
       queryClient.invalidateQueries({ queryKey: ["plugin-displays-batch"] });
       queryClient.invalidateQueries({ queryKey: ["plugin-data", plugin.id] });
       queryClient.invalidateQueries({ queryKey: ["pagePreview"] });
@@ -1350,6 +1362,9 @@ function InstalledPluginRow({
                   )}
                 </Stack>
               )}
+
+              {/* Renders nothing unless the plugin's manifest declares OAuth. */}
+              <OAuthConnectionSection pluginId={plugin.id} />
 
               {/* Settings Section */}
               {Object.keys(settingsSchema.properties).length > 0 && (
@@ -1977,6 +1992,23 @@ export default function IntegrationsPage() {
   const categoryLabels = useCategoryLabels();
   const queryClient = useQueryClient();
   const searchParams = useSearchParams();
+  const router = useRouter();
+  const tOAuth = useTranslations("integrations.oauth");
+  // An OAuth sign-in lands back here with its outcome in the query string
+  // (src/oauth/routes.py). Read once, report it, then clean the URL so a
+  // reload does not report it again.
+  const [oauthReturn] = useState(() => readOAuthReturn(searchParams));
+  const oauthReturnReported = useRef(false);
+  useEffect(() => {
+    if (!oauthReturn || oauthReturnReported.current) return;
+    oauthReturnReported.current = true;
+    if (oauthReturn.outcome === "connected") {
+      toast.success(tOAuth("toastConnected"));
+    } else {
+      toast.error(tOAuth(oauthReturnErrorKey(oauthReturn.reason)));
+    }
+    router.replace("/integrations?tab=installed", { scroll: false });
+  }, [oauthReturn, router, tOAuth]);
   const [activeTab, setActiveTab] = useState(() => {
     const tab = searchParams.get("tab");
     return tab === "marketplace" || tab === "installed" ? tab : "installed";
@@ -2610,6 +2642,7 @@ export default function IntegrationsPage() {
                             onUpdate={handleUpdate}
                             isUninstalling={uninstallingId === plugin.id}
                             isUpdating={updatingId === plugin.id}
+                            initiallyOpen={oauthReturn?.pluginId === plugin.id}
                           />
                         ))}
                       </TableBody>
