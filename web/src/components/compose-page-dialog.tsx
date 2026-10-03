@@ -41,6 +41,9 @@ interface ComposePageDialogProps {
   deviceType?: DeviceType;
   notesWide?: number;
   notesTall?: number;
+  /** A panel board's character grid (only used when deviceType === "panel"). */
+  gridRows?: number | null;
+  gridCols?: number | null;
   boardColor?: "black" | "white";
   code62Glyph?: "degree" | "heart";
   /**
@@ -70,6 +73,8 @@ export function ComposePageDialog({
   deviceType = "flagship",
   notesWide = 1,
   notesTall = 1,
+  gridRows = null,
+  gridCols = null,
   boardColor = "black",
   code62Glyph,
   targetBoardName,
@@ -94,7 +99,19 @@ export function ComposePageDialog({
     setPageName("");
   }
 
-  const dims = useMemo(() => resolveDimensions(deviceType, notesWide, notesTall), [deviceType, notesWide, notesTall]);
+  const dims = useMemo(
+    () => resolveDimensions(deviceType, notesWide, notesTall, gridRows, gridCols),
+    [deviceType, notesWide, notesTall, gridRows, gridCols],
+  );
+  // The geometry fields a request needs beyond device_type: notes for a note
+  // array, the character grid for a panel (the server rejects a panel without
+  // it), nothing for a flagship or Note.
+  const geometryFields = useMemo(() => {
+    if (deviceType === "note_array") return { notes_wide: notesWide, notes_tall: notesTall };
+    if (deviceType === "panel") return { grid_rows: dims.rows, grid_cols: dims.cols };
+    return {};
+  }, [deviceType, notesWide, notesTall, dims.rows, dims.cols]);
+  const panelGrid = deviceType === "panel" ? { rows: dims.rows, cols: dims.cols } : null;
 
   const lines = useMemo(() => (text === "" ? [] : text.split("\n")), [text]);
   const isEmpty = lines.every((line) => line.trim() === "");
@@ -111,8 +128,8 @@ export function ComposePageDialog({
   const { data: preview } = useQuery({
     // The note-array geometry is part of the key and the request: without it
     // the server previews every array as one 3x15 Note (issue #2032).
-    queryKey: ["composePreview", previewLines, deviceType, notesWide, notesTall],
-    queryFn: () => api.renderTemplate(previewLines, undefined, deviceType, notesWide, notesTall),
+    queryKey: ["composePreview", previewLines, deviceType, notesWide, notesTall, gridRows, gridCols],
+    queryFn: () => api.renderTemplate(previewLines, undefined, deviceType, notesWide, notesTall, panelGrid),
     enabled: open && previewLines.length > 0,
     staleTime: 10_000,
   });
@@ -151,9 +168,9 @@ export function ComposePageDialog({
       // Deliberately no duration_minutes: a one-off stays until it is
       // cancelled. In manual mode a message that silently vanishes after N
       // minutes is not what was asked for.
-      ...(deviceType === "note_array" && { notes_wide: notesWide, notes_tall: notesTall }),
+      ...geometryFields,
     });
-  }, [canSend, lines, deviceType, notesWide, notesTall, sendMutation]);
+  }, [canSend, lines, deviceType, geometryFields, sendMutation]);
 
   const handleSave = useCallback(() => {
     if (isEmpty || pageName.trim() === "") return;
@@ -162,9 +179,9 @@ export function ComposePageDialog({
       type: "template",
       device_type: deviceType,
       template: lines,
-      ...(deviceType === "note_array" && { notes_wide: notesWide, notes_tall: notesTall }),
+      ...geometryFields,
     });
-  }, [isEmpty, pageName, lines, deviceType, notesWide, notesTall, saveMutation]);
+  }, [isEmpty, pageName, lines, deviceType, geometryFields, saveMutation]);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -213,6 +230,10 @@ export function ComposePageDialog({
               size="sm"
               boardType={boardColor}
               deviceType={deviceType}
+              notesWide={notesWide}
+              notesTall={notesTall}
+              gridRows={panelGrid?.rows}
+              gridCols={panelGrid?.cols}
               code62Glyph={code62Glyph}
             />
           </Stack>

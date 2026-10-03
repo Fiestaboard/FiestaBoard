@@ -955,16 +955,39 @@ class TestGetColorForValue:
 
     def test_rules_from_config(self, engine):
         mock_config = Mock()
-        mock_config.get_color_rules.return_value = [
+        mock_config.get_effective_color_rules.return_value = [
             {"condition": ">", "value": 80, "color": "red"},
         ]
         engine._config_manager = mock_config
         context = {"weather": {"aqi": 90}}
         assert engine._get_color_for_value("weather.aqi", context) == "{63} "
 
+    def test_instance_rules_looked_up_with_full_key(self, engine):
+        """Rules saved for a named instance are found under its full key, not just the base id."""
+        mock_config = Mock()
+        mock_config.get_effective_color_rules.return_value = [{"condition": ">=", "value": 20, "color": "black"}]
+        engine._config_manager = mock_config
+        context = {"date_time:world-time-pacific": {"hour": 21}}
+        assert engine._get_color_for_value("date_time:world-time-pacific.hour", context) == "{70} "
+        mock_config.get_effective_color_rules.assert_called_with("date_time:world-time-pacific", "date_time", "hour")
+
+    def test_user_rules_override_manifest_default(self, engine):
+        """A user-saved rule replaces the manifest's static default_rules entirely."""
+        mock_config = Mock()
+        mock_config.get_effective_color_rules.return_value = [{"condition": ">", "value": 0, "color": "green"}]
+        engine._config_manager = mock_config
+
+        mock_manifest = Mock()
+        mock_manifest.color_rules_schema = {"aqi": {"default_rules": [{"condition": ">", "value": 50, "color": "red"}]}}
+        engine._plugin_registry = Mock()
+        engine._plugin_registry.get_manifest.return_value = mock_manifest
+
+        context = {"weather": {"aqi": 60}}
+        assert engine._get_color_for_value("weather.aqi", context) == "{66} "
+
     def test_no_rules_returns_empty(self, engine):
         mock_config = Mock()
-        mock_config.get_color_rules.return_value = []
+        mock_config.get_effective_color_rules.return_value = []
         engine._config_manager = mock_config
         engine._plugin_registry = Mock()
         engine._plugin_registry.get_manifest.return_value = None
@@ -972,7 +995,7 @@ class TestGetColorForValue:
 
     def test_raw_value_none_returns_empty(self, engine):
         mock_config = Mock()
-        mock_config.get_color_rules.return_value = [
+        mock_config.get_effective_color_rules.return_value = [
             {"condition": ">", "value": 80, "color": "red"},
         ]
         engine._config_manager = mock_config
@@ -981,7 +1004,7 @@ class TestGetColorForValue:
 
     def test_rules_from_manifest(self, engine):
         mock_config = Mock()
-        mock_config.get_color_rules.return_value = []
+        mock_config.get_effective_color_rules.return_value = []
         engine._config_manager = mock_config
 
         mock_manifest = Mock()
@@ -994,7 +1017,7 @@ class TestGetColorForValue:
 
     def test_no_matching_rule_returns_empty(self, engine):
         mock_config = Mock()
-        mock_config.get_color_rules.return_value = [
+        mock_config.get_effective_color_rules.return_value = [
             {"condition": ">", "value": 100, "color": "red"},
         ]
         engine._config_manager = mock_config
@@ -1010,14 +1033,22 @@ class TestGetColorForValue:
 class TestGetColorOnly:
     def test_returns_color_tile(self, engine):
         mock_config = Mock()
-        mock_config.get_color_rules.return_value = [{"condition": ">=", "value": 0, "color": "green"}]
+        mock_config.get_effective_color_rules.return_value = [{"condition": ">=", "value": 0, "color": "green"}]
         engine._config_manager = mock_config
         context = {"test": {"val": 10}}
         assert engine._get_color_only("test", "val", context) == "{66}"
 
+    def test_instance_rules_looked_up_with_full_key(self, engine):
+        mock_config = Mock()
+        mock_config.get_effective_color_rules.return_value = [{"condition": "<", "value": 7, "color": "black"}]
+        engine._config_manager = mock_config
+        context = {"date_time:world-time-pacific": {"hour": 3}}
+        assert engine._get_color_only("date_time:world-time-pacific", "hour", context) == "{70}"
+        mock_config.get_effective_color_rules.assert_called_with("date_time:world-time-pacific", "date_time", "hour")
+
     def test_no_rules_returns_empty(self, engine):
         mock_config = Mock()
-        mock_config.get_color_rules.return_value = []
+        mock_config.get_effective_color_rules.return_value = []
         engine._config_manager = mock_config
         engine._plugin_registry = Mock()
         engine._plugin_registry.get_manifest.return_value = None
@@ -1025,14 +1056,14 @@ class TestGetColorOnly:
 
     def test_null_raw_value_returns_empty(self, engine):
         mock_config = Mock()
-        mock_config.get_color_rules.return_value = [{"condition": ">", "value": 0, "color": "red"}]
+        mock_config.get_effective_color_rules.return_value = [{"condition": ">", "value": 0, "color": "red"}]
         engine._config_manager = mock_config
         context = {"test": {}}
         assert engine._get_color_only("test", "val", context) == ""
 
     def test_rules_from_manifest_fallback(self, engine):
         mock_config = Mock()
-        mock_config.get_color_rules.return_value = []
+        mock_config.get_effective_color_rules.return_value = []
         engine._config_manager = mock_config
 
         mock_manifest = Mock()
@@ -1047,7 +1078,7 @@ class TestGetColorOnly:
 
     def test_no_matching_rule_returns_empty(self, engine):
         mock_config = Mock()
-        mock_config.get_color_rules.return_value = [
+        mock_config.get_effective_color_rules.return_value = [
             {"condition": ">", "value": 100, "color": "red"},
         ]
         engine._config_manager = mock_config
@@ -1226,7 +1257,25 @@ class TestCalculateMaxLineLength:
 
     def test_color_rules_exception_handled(self, engine):
         mock_config = Mock()
-        mock_config.get_color_rules.side_effect = Exception("config error")
+        mock_config.get_effective_color_rules.side_effect = Exception("config error")
         engine._config_manager = mock_config
         result = engine._calculate_max_line_length("{{weather.aqi}}")
         assert isinstance(result, int)
+
+    def test_instance_rules_add_color_prefix(self, engine):
+        """Rules on a named instance count the tile + space; the base id is used for the legacy lookup."""
+        mock_config = Mock()
+        mock_config.get_effective_color_rules.return_value = [{"condition": ">", "value": 0, "color": "red"}]
+        engine._config_manager = mock_config
+        engine._get_max_lengths_for_validation = lambda: {"date_time:pacific.hour": 2}
+        assert engine._calculate_max_line_length("{{date_time:pacific.hour}}") == 4
+        mock_config.get_effective_color_rules.assert_called_with("date_time:pacific", "date_time", "hour")
+
+    def test_undeclared_color_variable_counts_one_tile(self, engine):
+        mock_config = Mock()
+        mock_config.get_effective_color_rules.return_value = []
+        engine._config_manager = mock_config
+        engine._plugin_registry = Mock()
+        engine._plugin_registry.get_manifest.return_value = None
+        engine._get_max_lengths_for_validation = lambda: {"date_time.time": 5}
+        assert engine._calculate_max_line_length("{{date_time.hour_color}}{{date_time.time}}") == 6

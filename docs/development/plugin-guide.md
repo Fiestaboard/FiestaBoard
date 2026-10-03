@@ -166,6 +166,8 @@ These fields are not enforced by the manifest validator but should be included i
 | `documentation` | string | `"README.md"` | Path to documentation file relative to plugin directory. |
 | `env_vars` | array | `[]` | Environment variables the plugin can read (see [Environment Variables](#environment-variables)). |
 | `color_rules_schema` | object | `{}` | Schema for dynamic color rules (see [Color Rules](#color-rules)). |
+| `oauth` | object | - | The OAuth provider the plugin signs in to. The platform runs the sign-in and stores the tokens (see [Signing In with OAuth](/docs/development/plugin-oauth)). |
+| `fiestaboard_version` | string | - | Minimum FiestaBoard version, such as `">=9.5.0"`. Set it when you rely on a newer platform feature. |
 
 ### Board Previews {#board-previews}
 
@@ -542,6 +544,7 @@ Your plugin inherits these from `PluginBase`:
 | `get_max_lengths()` | method | Returns the `max_lengths` section from the manifest. |
 | `get_settings_schema()` | method | Returns the `settings_schema` section from the manifest. |
 | `get_env_vars()` | method | Returns environment variable definitions from the manifest. |
+| `get_oauth_token()` | method | Returns the current access token for the provider in the manifest's `oauth` block, or `None` if the user is not signed in. Call it on every fetch (see [Signing In with OAuth](/docs/development/plugin-oauth)). |
 
 ### PluginResult
 
@@ -1014,6 +1017,7 @@ logger.exception("Unexpected error with traceback")
 - **Never hardcode** API keys, tokens, or credentials.
 - **Never log** secrets - even at debug level.
 - Use `"ui:widget": "password"` in `settings_schema` for sensitive fields.
+- **Never write your own OAuth flow or store OAuth tokens.** Declare an `oauth` block and call `self.get_oauth_token()`; the platform does the rest. A client secret must never appear in a manifest. See [Signing In with OAuth](/docs/development/plugin-oauth).
 - Use generic example data in tests and documentation (e.g., `example@example.com`, well-known public coordinates).
 
 ---
@@ -1120,11 +1124,13 @@ Study these existing plugins as reference implementations:
 | **Muni Transit** | `plugins/muni/` | Nested arrays (stops → lines) |
 | **Home Assistant** | `plugins/home_assistant/` | Dynamic entity-based variables |
 | **Surf** | `plugins/surf/` | Location-based data, caching pattern |
+| **Spotify** | [fiestaboard-plugin--spotify](https://github.com/Fiestaboard/fiestaboard-plugin--spotify) | OAuth sign-in through the platform, rate-limit handling, one request shared by every board |
 
 ---
 
 ## Next Steps
 
+- [Signing In with OAuth](/docs/development/plugin-oauth) - Plugins that read a user's account on another service
 - [Contributing](/docs/development/contributing) - General contribution guidelines
 - [Testing Guide](/docs/development/testing) - Running and writing tests
 - [Local Development](/docs/setup/local-development) - Development environment setup

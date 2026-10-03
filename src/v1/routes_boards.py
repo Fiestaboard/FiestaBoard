@@ -26,6 +26,7 @@ from src import display_runtime as runtime
 from src.api_errors import errors
 from src.board_chars import characters_to_message
 from src.board_state import read_board_state
+from src.devices import geometry_of
 from src.ops import executors
 from src.text_to_board import text_to_board_array, wrap_message_text
 
@@ -448,9 +449,12 @@ async def _arm_temporary_override(board_id: str, request: MessageRequest, templa
     else:
         body["template"] = template_lines
         board = resolve_board(board_id)[1]
-        body["device_type"] = board.get("device_type") or "flagship"
-        body["notes_wide"] = board.get("notes_wide") or 1
-        body["notes_tall"] = board.get("notes_tall") or 1
+        geometry = geometry_of(board)
+        body["device_type"] = geometry.device_type
+        body["notes_wide"] = geometry.notes_wide
+        body["notes_tall"] = geometry.notes_tall
+        body["grid_rows"] = geometry.grid_rows
+        body["grid_cols"] = geometry.grid_cols
 
     await set_temporary_override(TemporaryOverrideRequest(**body))
     return (datetime.now(UTC) + timedelta(minutes=int(request.duration_minutes))).isoformat()

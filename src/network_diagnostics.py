@@ -318,7 +318,7 @@ def _build_recommendations(results: dict) -> list[dict]:
                     {
                         "summary": f"FiestaBoard cannot find your Vestaboard ({hostname}) on the network",
                         "steps": [
-                            "Make sure your Vestaboard is powered on (look for the LED on the back).",
+                            "Make sure your Vestaboard is powered on.",
                             "Make sure both FiestaBoard and the Vestaboard are on the same Wi-Fi network.",
                             "If you're using a name like 'vestaboard.local', try using the board's IP address instead — you can find it on your router's admin page or use FiestaBoard's network scan.",
                             "Restart FiestaBoard after updating the address.",

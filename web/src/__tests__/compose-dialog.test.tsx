@@ -114,6 +114,32 @@ describe("ComposePageDialog", () => {
     expect(capturedBody).toMatchObject({ device_type: "note" });
   });
 
+  it("sends a panel board's character grid with a panel one-off", async () => {
+    // The server refuses a panel override without grid_rows/grid_cols.
+    let capturedBody: Record<string, unknown> | null = null;
+    server.use(
+      http.post(`${API_BASE}/settings/temporary-override`, async ({ request }) => {
+        capturedBody = (await request.json()) as Record<string, unknown>;
+        return HttpResponse.json({ active: true, template: ["HI"], device_type: "panel" });
+      }),
+    );
+
+    renderDialog({ deviceType: "panel", gridRows: 12, gridCols: 29 });
+    typeMessage("HI");
+    await waitFor(() => expect(screen.getByRole("button", { name: /send to board/i })).toBeEnabled());
+    fireEvent.click(screen.getByRole("button", { name: /send to board/i }));
+
+    await waitFor(() => expect(capturedBody).not.toBeNull());
+    expect(capturedBody).toMatchObject({ device_type: "panel", grid_rows: 12, grid_cols: 29 });
+    expect(capturedBody).not.toHaveProperty("notes_wide");
+  });
+
+  it("lets a panel one-off use every row of the panel's grid", async () => {
+    renderDialog({ deviceType: "panel", gridRows: 12, gridCols: 29 });
+    typeMessage(Array.from({ length: 12 }, (_, i) => `LINE ${i}`).join("\n"));
+    await waitFor(() => expect(screen.getByRole("button", { name: /send to board/i })).toBeEnabled());
+  });
+
   it("closes the dialog after a successful send", async () => {
     const onOpenChange = vi.fn();
     server.use(

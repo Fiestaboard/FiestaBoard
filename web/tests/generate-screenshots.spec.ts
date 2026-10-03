@@ -16,7 +16,7 @@ import * as fs from "fs";
 import * as path from "path";
 import { fileURLToPath } from "url";
 
-import { CAPTURE_INSTANT, captureScreen, writeManifestEntry } from "./lib/dom-capture";
+import { CAPTURE_INSTANT, CAPTURE_VIEWPORTS, captureScreen, writeManifestEntry } from "./lib/dom-capture";
 
 // `__dirname` isn't defined in ESM; package.json sets `"type": "module"`.
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -238,6 +238,48 @@ async function createSchedule(pageId: string, startTime: string, endTime: string
   return data.id;
 }
 
+// /schedule opens in list view, so a calendar shot has to switch views itself.
+// The calendar opens at midnight; `scrollToHour` brings the day into frame
+// (the DOM capture bakes the offset in, so the docs site shows it too).
+async function showScheduleCalendar(page: Page, scrollToHour = 0) {
+  await page.getByRole("button", { name: "Calendar", exact: true }).click();
+  await page.waitForTimeout(1000);
+  if (scrollToHour) {
+    await page.evaluate((hour) => {
+      const content = document.querySelector<HTMLElement>(".rbc-time-content");
+      const groups = content?.querySelectorAll<HTMLElement>(".rbc-time-gutter .rbc-timeslot-group");
+      const target = groups?.[hour];
+      if (content && target) content.scrollTop = target.offsetTop;
+    }, scrollToHour);
+    await page.waitForTimeout(300);
+  }
+}
+
+async function setTimezone(timezone: string) {
+  const res = await fetch(`${API_URL}/config/general`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ timezone }),
+  });
+  if (!res.ok) throw new Error(`setTimezone failed: ${res.status}`);
+}
+
+// Times are sent as UTC; `seedFamilySchedule` pins the timezone so they read as-is.
+async function setSilenceSchedule(enabled: boolean, start: string, end: string) {
+  const res = await fetch(`${API_URL}/settings/silence-schedule`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      enabled,
+      start_time: `${start}+00:00`,
+      end_time: `${end}+00:00`,
+      mode: "indicator",
+      indicator_text: "SWEET DREAMS",
+    }),
+  });
+  if (!res.ok) throw new Error(`setSilenceSchedule failed: ${res.status}`);
+}
+
 async function setScheduleEnabled(enabled: boolean) {
   await fetch(`${API_URL}/schedules/enabled`, {
     method: "PUT",
@@ -321,8 +363,13 @@ async function waitForBoard(page: Page) {
  * Dark screenshots are also copied to the default (unthemed) path for
  * backward compatibility with existing documentation references.
  */
-async function screenshotPage(page: Page, baseFilePath: string) {
+async function screenshotPage(page: Page, baseFilePath: string, opts: { height?: number } = {}) {
   const theme = currentTheme();
+  if (opts.height) {
+    const { width } = page.viewportSize() ?? CAPTURE_VIEWPORTS.desktop;
+    await page.setViewportSize({ width, height: opts.height });
+    await page.waitForTimeout(300);
+  }
   const dir = path.dirname(baseFilePath);
   const file = path.basename(baseFilePath);
   const themedDir = path.join(dir, theme);
@@ -335,7 +382,7 @@ async function screenshotPage(page: Page, baseFilePath: string) {
     fs.copyFileSync(themedPath, baseFilePath);
   }
 
-  await captureDomOnce(page, file);
+  await captureDomOnce(page, file, undefined, opts.height);
 }
 
 /**
@@ -346,10 +393,13 @@ async function screenshotPage(page: Page, baseFilePath: string) {
  * light project is arbitrary but fixed, so a run always produces the same
  * files regardless of project ordering.
  */
-async function captureDomOnce(page: Page, file: string, frame?: string) {
+async function captureDomOnce(page: Page, file: string, frame?: string, height?: number) {
   if (isDark()) return;
   const name = file.replace(/\.png$/, "");
-  const entry = await captureScreen(page, CAPTURES_OUT, name, frame ? { frame } : {});
+  const entry = await captureScreen(page, CAPTURES_OUT, name, {
+    ...(frame ? { frame } : {}),
+    ...(height ? { height } : {}),
+  });
   writeManifestEntry(CAPTURES_OUT, name, entry);
 }
 
@@ -810,6 +860,168 @@ const DEMO_PAGES = {
   },
 };
 
+/**
+ * A family's week, for the schedule calendar shots: school mornings, the
+ * school run, markets during the day, homework, dinner and bedtime, with quiet
+ * hours overnight. Names are generic placeholders.
+ */
+const FAMILY_PAGES = {
+  riseAndShine: {
+    name: "Rise & Shine",
+    template: [
+      "GOOD MORNING FAMILY!",
+      "THURSDAY JAN 15",
+      "{yellow}SUNNY{/yellow} 48F  HIGH 61F",
+      "JACKETS ON - BRISK AM",
+      "",
+      "BREAKFAST IN 10 MIN",
+    ],
+  },
+  schoolRun: {
+    name: "School Run",
+    template: [
+      "{orange}SCHOOL RUN{/orange}",
+      "BUS 14 ARRIVES 7:52",
+      "LUNCH: TACO THURSDAY",
+      "MAYA: LIBRARY BOOKS",
+      "LEO: SOCCER CLEATS",
+      "{blue}10% RAIN{/blue} - NO UMBRELLA",
+    ],
+  },
+  afterSchool: {
+    name: "After School",
+    template: [
+      "AFTER SCHOOL",
+      "SNACK: APPLE SLICES",
+      "HOMEWORK FIRST!",
+      "MAYA: SPELLING LIST",
+      "LEO: MATH PAGE 42",
+      "{violet}PIANO AT 4:30{/violet}",
+    ],
+  },
+  dinnerTime: {
+    name: "Dinner Time",
+    template: [
+      "WHAT'S FOR DINNER",
+      "{orange}TACO NIGHT{/orange}",
+      "",
+      "SET TABLE: MAYA",
+      "DISHES: LEO",
+      "{blue}52F CLEAR TONIGHT{/blue}",
+    ],
+  },
+  bedtime: {
+    name: "Bedtime Routine",
+    template: [
+      "{violet}BEDTIME ROUTINE{/violet}",
+      "7:30 BATH TIME",
+      "7:50 PAJAMAS ON",
+      "8:00 BRUSH TEETH",
+      "8:10 STORY TIME",
+      "8:30 LIGHTS OUT",
+    ],
+  },
+  schoolLunch: {
+    name: "School Lunch",
+    template: [
+      "{green}SCHOOL LUNCH MENU{/green}",
+      "MON  PIZZA BAGELS",
+      "TUE  TACO BAR",
+      "WED  MAC & CHEESE",
+      "THU  CHICKEN WRAPS",
+      "FRI  BREAKFAST 4 LUNCH",
+    ],
+  },
+  familyCalendar: {
+    name: "Family Calendar",
+    template: [
+      "FAMILY CALENDAR",
+      "THU  DENTIST 3:45",
+      "FRI  PIZZA NIGHT",
+      "SAT  LEO SOCCER 10AM",
+      "SUN  GRANDMA VISITS",
+      "{red}MON  NO SCHOOL{/red}",
+    ],
+  },
+  pancakeMorning: {
+    name: "Pancake Morning",
+    template: [
+      "{yellow}PANCAKE SATURDAY{/yellow}",
+      "",
+      "PARK DAY AT 10",
+      "PACK SNACKS + HATS",
+      "",
+      "{yellow}SUNNY{/yellow} 58F  HIGH 66F",
+    ],
+  },
+  gameDay: {
+    name: "Game Day",
+    template: [
+      "{blue}GAME DAY{/blue}",
+      "LEO SOCCER  1:30 PM",
+      "FIELD 3 - BRING WATER",
+      "",
+      "HOME  2   AWAY  1",
+      "{green}GO TIGERS!{/green}",
+    ],
+  },
+  choreChart: {
+    name: "Chore Chart",
+    template: [
+      "{green}CHORE CHART{/green}",
+      "MAYA  FEED THE CAT",
+      "LEO   TAKE OUT TRASH",
+      "MOM   LAUNDRY",
+      "DAD   MOW THE LAWN",
+      "{yellow}ALLOWANCE DAY!{/yellow}",
+    ],
+  },
+};
+
+/**
+ * Seed the family week behind the schedule calendar shots.
+ *
+ * Back-to-back entries share boundaries without overlapping, so the calendar
+ * shows no conflict warnings. Returns a cleanup that undoes everything.
+ */
+async function seedFamilySchedule(): Promise<() => Promise<void>> {
+  const demo = await createDemoPages();
+  const family: Record<string, string> = {};
+  for (const [key, def] of Object.entries(FAMILY_PAGES)) {
+    family[key] = await createPage(def.name, def.template);
+  }
+  const markets = await createCollection("Markets & Weather", [demo.stockTicker, demo.weatherReport], 30);
+
+  // No entry runs longer than three hours, so the week shows many boards.
+  await createSchedule(family.riseAndShine, "06:30", "07:30", "weekdays");
+  await createSchedule(family.schoolRun, "07:30", "08:30", "weekdays");
+  await createSchedule(markets, "08:30", "11:30", "weekdays");
+  await createSchedule(family.schoolLunch, "11:30", "13:00", "weekdays");
+  await createSchedule(family.familyCalendar, "13:00", "15:00", "weekdays");
+  await createSchedule(family.afterSchool, "15:00", "17:30", "weekdays");
+  await createSchedule(family.pancakeMorning, "08:00", "10:00", "weekends");
+  await createSchedule(demo.weekendFun, "10:00", "13:00", "weekends");
+  await createSchedule(family.gameDay, "13:00", "15:30", "weekends");
+  await createSchedule(family.choreChart, "15:30", "17:30", "weekends");
+  await createSchedule(family.dinnerTime, "17:30", "19:30", "all");
+  await createSchedule(family.bedtime, "19:30", "21:00", "all");
+  // Silence is stored in UTC and shown in the configured timezone, so pin
+  // that to UTC; following a real zone would move the block with DST.
+  await setTimezone("UTC");
+  await setSilenceSchedule(true, "21:00", "06:30");
+
+  await setScheduleEnabled(true);
+
+  return async () => {
+    await setScheduleEnabled(false);
+    await setSilenceSchedule(false, "21:00", "06:30");
+    await setTimezone("America/Los_Angeles");
+    await deleteAllSchedules();
+    await deleteAllCollections();
+    await deleteAllPages();
+  };
+}
+
 /** Create all demo pages and return a map of key -> pageId. */
 async function createDemoPages(): Promise<Record<string, string>> {
   const ids: Record<string, string> = {};
@@ -967,29 +1179,16 @@ test.describe("Web UI Full-Page Screenshots", () => {
 
   test("schedule page", async ({ page }) => {
     await initPage(page);
-
-    const pages = await createDemoPages();
-
-    const collectionId = await createCollection("Work Rotation", [pages.stockTicker, pages.weatherReport], 30);
-
-    await createSchedule(pages.morningDashboard, "06:00", "09:00", "weekdays");
-    await createSchedule(`collection:${collectionId}`, "09:00", "17:00", "weekdays");
-    await createSchedule(pages.eveningWindDown, "17:00", "22:00", "all");
-    await createSchedule(pages.weekendFun, "08:00", "12:00", "weekends");
-    await createSchedule(pages.transitHub, "12:00", "17:00", "weekends");
-
-    await setScheduleEnabled(true);
+    const cleanup = await seedFamilySchedule();
 
     await page.goto("/schedule");
     await page.waitForTimeout(3000);
+    await showScheduleCalendar(page, 6);
 
-    await screenshotPage(page, path.join(DOCS_IMG, "schedule-calendar.png"));
+    await screenshotPage(page, path.join(DOCS_IMG, "schedule-calendar.png"), { height: 900 });
     copyToRootImages("schedule-calendar.png");
 
-    await setScheduleEnabled(false);
-    await deleteAllSchedules();
-    await deleteAllCollections();
-    await deleteAllPages();
+    await cleanup();
   });
 
   test("integrations page", async ({ page }) => {
@@ -1293,28 +1492,15 @@ test.describe("Getting Started Workflow Screenshots", () => {
 
   test("schedule calendar populated", async ({ page }) => {
     await initPage(page);
-
-    const pages = await createDemoPages();
-
-    const collectionId = await createCollection("Work Rotation", [pages.stockTicker, pages.weatherReport], 30);
-
-    await createSchedule(pages.morningDashboard, "06:00", "09:00", "weekdays");
-    await createSchedule(`collection:${collectionId}`, "09:00", "17:00", "weekdays");
-    await createSchedule(pages.eveningWindDown, "17:00", "22:00", "all");
-    await createSchedule(pages.weekendFun, "08:00", "12:00", "weekends");
-    await createSchedule(pages.transitHub, "12:00", "17:00", "weekends");
-
-    await setScheduleEnabled(true);
+    const cleanup = await seedFamilySchedule();
 
     await page.goto("/schedule");
     await page.waitForTimeout(3000);
+    await showScheduleCalendar(page, 6);
 
-    await screenshotPage(page, path.join(GUIDES_IMG, "schedule-calendar-populated.png"));
+    await screenshotPage(page, path.join(GUIDES_IMG, "schedule-calendar-populated.png"), { height: 900 });
 
-    await setScheduleEnabled(false);
-    await deleteAllSchedules();
-    await deleteAllCollections();
-    await deleteAllPages();
+    await cleanup();
   });
 
   test("ai settings", async ({ page }) => {

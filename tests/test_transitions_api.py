@@ -248,6 +248,37 @@ def test_preview_returns_frames_with_grid_and_delay(patched_registry):
     assert data.total_delay_ms == 50 + 25
 
 
+def test_preview_renders_frames_at_a_panel_grid(patched_registry):
+    """A FiestaPanel's per-character grid (here 12x29) previews at its size."""
+    data = _run(
+        _preview(
+            {
+                "plugin_id": "fake_typewriter",
+                "to_text": "HELLO",
+                "device_type": "panel",
+                "grid_rows": 12,
+                "grid_cols": 29,
+            }
+        )
+    )
+    assert data.device_type == "panel"
+    assert data.frames
+    for frame in data.frames:
+        assert len(frame.grid) == 12
+        assert all(len(row) == 29 for row in frame.grid)
+
+
+@pytest.mark.parametrize(
+    "grid",
+    [{}, {"grid_rows": 12}, {"grid_rows": "x", "grid_cols": 29}, {"grid_rows": 2, "grid_cols": 29}],
+    ids=["missing", "one-axis", "not-an-int", "below-a-note"],
+)
+def test_preview_of_a_panel_needs_a_valid_grid(patched_registry, grid):
+    with pytest.raises(HTTPException) as exc:
+        _run(_preview({"plugin_id": "fake_typewriter", "to_text": "HELLO", "device_type": "panel", **grid}))
+    assert exc.value.status_code == 400
+
+
 def test_preview_honors_max_frames_cap_and_sets_capped(patched_registry):
     """Forever plugin yields infinitely; preview caps at max_frames=3."""
     data = _run(

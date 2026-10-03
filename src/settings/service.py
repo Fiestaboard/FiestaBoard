@@ -305,6 +305,8 @@ class TemporaryOverride:
     device_type: str | None = None
     notes_wide: int | None = None
     notes_tall: int | None = None
+    grid_rows: int | None = None
+    grid_cols: int | None = None
 
     def __post_init__(self) -> None:
         has_page = bool(self.page_id)
@@ -356,6 +358,8 @@ class TemporaryOverride:
             "device_type": self.device_type,
             "notes_wide": self.notes_wide,
             "notes_tall": self.notes_tall,
+            "grid_rows": self.grid_rows,
+            "grid_cols": self.grid_cols,
         }
 
     @classmethod
@@ -370,6 +374,8 @@ class TemporaryOverride:
             device_type=data.get("device_type"),
             notes_wide=data.get("notes_wide"),
             notes_tall=data.get("notes_tall"),
+            grid_rows=data.get("grid_rows"),
+            grid_cols=data.get("grid_cols"),
         )
 
 
@@ -397,6 +403,8 @@ class TemporaryOverrideStatus(BaseModel):
     device_type: str | None = None
     notes_wide: int | None = None
     notes_tall: int | None = None
+    grid_rows: int | None = None
+    grid_cols: int | None = None
 
 
 def temporary_override_payload(override: "TemporaryOverride | None") -> dict:
@@ -420,6 +428,8 @@ def temporary_override_payload(override: "TemporaryOverride | None") -> dict:
             "device_type": None,
             "notes_wide": None,
             "notes_tall": None,
+            "grid_rows": None,
+            "grid_cols": None,
         }
     remaining = override.remaining_seconds()
     return {
@@ -434,6 +444,8 @@ def temporary_override_payload(override: "TemporaryOverride | None") -> dict:
         "device_type": override.device_type,
         "notes_wide": override.notes_wide,
         "notes_tall": override.notes_tall,
+        "grid_rows": override.grid_rows,
+        "grid_cols": override.grid_cols,
     }
 
 
@@ -769,7 +781,15 @@ def _migrate_v0_to_v1(data: dict) -> int:
     return changes
 
 
-_INLINE_OVERRIDE_KEYS = ("template", "line_metadata", "device_type", "notes_wide", "notes_tall")
+_INLINE_OVERRIDE_KEYS = (
+    "template",
+    "line_metadata",
+    "device_type",
+    "notes_wide",
+    "notes_tall",
+    "grid_rows",
+    "grid_cols",
+)
 
 
 def _migrate_v1_to_v2(data: dict) -> int:

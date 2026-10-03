@@ -39,6 +39,7 @@ from typing import Any
 
 from src.devices import DEFAULT_DEVICE_TYPE, BoardContext, resolve_dimensions
 from src.plugins import get_plugin_registry
+from src.plugins.manifest import resolve_color_rules
 from src.text_utils import extract_alignment_from_line
 
 from .colors import COLOR_CODES
@@ -324,6 +325,8 @@ class TemplateEngine:
         device_type: str | None = None,
         notes_wide: int = 1,
         notes_tall: int = 1,
+        grid_rows: int | None = None,
+        grid_cols: int | None = None,
     ) -> str:
         """Render a list of template lines (for template pages).
 
@@ -335,19 +338,22 @@ class TemplateEngine:
         Args:
             template_lines: List of template lines, padded or truncated to
                 match the device's row count (6 for flagship, 3 for note,
-                or notes_tall×3 for note_array).
+                notes_tall×3 for note_array, grid_rows for panel).
                 Pure content when line_metadata is provided; may contain
                 legacy prefixes otherwise.
             context: Optional pre-fetched context
             line_metadata: Optional per-line metadata dicts with 'alignment' and
                 'wrap' keys.  When provided, template_lines are treated as pure
                 content (no prefix parsing).
-            device_type: Device type ('flagship', 'note', or 'note_array') to
-                determine board dimensions. Defaults to flagship (22 cols, 6 rows).
+            device_type: Device type ('flagship', 'note', 'note_array' or
+                'panel') to determine board dimensions. Defaults to flagship
+                (22 cols, 6 rows).
             notes_wide: For 'note_array' device type, the number of notes side by
                 side (determines cols = notes_wide × 15). Ignored for other types.
             notes_tall: For 'note_array' device type, the number of notes stacked
                 vertically (determines rows = notes_tall × 3). Ignored for other types.
+            grid_rows / grid_cols: For 'panel', the explicit grid. Ignored for
+                other types.
 
         Returns:
             Rendered string with newlines
@@ -359,7 +365,7 @@ class TemplateEngine:
         # unknown type so a bad value never crashes a render.
         render_device_type = device_type or DEFAULT_DEVICE_TYPE
         try:
-            dims = resolve_dimensions(render_device_type, notes_wide, notes_tall)
+            dims = resolve_dimensions(render_device_type, notes_wide, notes_tall, grid_rows, grid_cols)
         except ValueError:
             render_device_type = DEFAULT_DEVICE_TYPE
             dims = resolve_dimensions(render_device_type, notes_wide, notes_tall)
@@ -919,6 +925,11 @@ class TemplateEngine:
 
         return VAR_PATTERN.sub(replace_var, template)
 
+    def _get_configured_color_rules(self, plugin_id: str, base_plugin_id: str, field: str) -> list:
+        """The rules that color ``plugin_id.field`` (see :func:`resolve_color_rules`)."""
+        manifest = self._plugin_registry.get_manifest(base_plugin_id) if self._plugin_registry else None
+        return resolve_color_rules(self.config_manager, plugin_id, field, manifest)
+
     def _get_color_for_value(self, expr: str, context: dict[str, Any]) -> str:
         """Get color tile prefix based on plugin color rules.
 
@@ -946,17 +957,7 @@ class TemplateEngine:
         if field in ("uv_index", "temperature"):
             return ""
 
-        # Try to get color rules from config manager first (for legacy features)
-        rules = self.config_manager.get_color_rules(base_plugin_id, field)
-
-        # If not found, try to get from plugin manifest
-        if not rules and self._plugin_registry:
-            manifest = self._plugin_registry.get_manifest(base_plugin_id)
-            if manifest and manifest.color_rules_schema:
-                field_schema = manifest.color_rules_schema.get(field)
-                if field_schema and isinstance(field_schema, dict):
-                    rules = field_schema.get("default_rules", [])
-
+        rules = self._get_configured_color_rules(plugin_id, base_plugin_id, field)
         if not rules:
             return ""
 
@@ -1219,17 +1220,7 @@ class TemplateEngine:
         # and manifests are registered under the base plugin ID only.
         base_plugin_id = plugin_id.split(":", 1)[0]
 
-        # Try to get color rules from config manager first (for legacy features)
-        rules = self.config_manager.get_color_rules(base_plugin_id, field)
-
-        # If not found, try to get from plugin manifest
-        if not rules and self._plugin_registry:
-            manifest = self._plugin_registry.get_manifest(base_plugin_id)
-            if manifest and manifest.color_rules_schema:
-                field_schema = manifest.color_rules_schema.get(field)
-                if field_schema and isinstance(field_schema, dict):
-                    rules = field_schema.get("default_rules", [])
-
+        rules = self._get_configured_color_rules(plugin_id, base_plugin_id, field)
         if not rules:
             return ""
 
@@ -1723,26 +1714,32 @@ class TemplateEngine:
                 field = parts[1]
                 # Check if plugin has color rules for this field
                 try:
-                    # Try to get color rules from config manager first (for legacy features)
-                    rules = self.config_manager.get_color_rules(plugin_id, field)
-
-                    # If not found, try to get from plugin manifest
-                    if not rules and self._plugin_registry:
-                        manifest = self._plugin_registry.get_manifest(plugin_id)
-                        if manifest and manifest.color_rules_schema:
-                            field_schema = manifest.color_rules_schema.get(field)
-                            if field_schema and isinstance(field_schema, dict):
-                                rules = field_schema.get("default_rules", [])
+                    base_plugin_id = plugin_id.split(":", 1)[0]
+                    rules = self._get_configured_color_rules(plugin_id, base_plugin_id, field)
                     if rules:
                         color_prefix_len = 2  # Color tile + space
                 except Exception:
                     logger.debug("Error getting color rules for variable %s", var_part, exc_info=True)
-            max_len = max_lengths.get(var_part, cols)  # Default to full board width
+            max_len = max_lengths.get(var_part)
+            if max_len is None:
+                max_len = 1 if self._renders_as_color_tile(parts) else cols
             return "X" * (max_len + color_prefix_len)
 
         result = VAR_PATTERN.sub(replace_with_max_length, result)
 
         return len(result)
+
+    @staticmethod
+    def _renders_as_color_tile(parts: list[str]) -> bool:
+        """Whether ``_get_variable_value`` resolves this path to a color tile (or nothing).
+
+        It treats ``source.<field>_color`` as a color lookup, except for Home
+        Assistant entity paths (``home_assistant.light_x.rgb_color``), which
+        return the raw attribute value.
+        """
+        if len(parts) < 2 or not parts[1].endswith("_color"):
+            return False
+        return not (parts[0] == "home_assistant" and len(parts) >= 3)
 
     def _get_max_lengths_for_validation(self) -> dict[str, int]:
         """Get max lengths for template validation.

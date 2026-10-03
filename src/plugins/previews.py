@@ -31,7 +31,7 @@ from pathlib import Path
 from typing import Any
 
 from src.board_chars import BoardChars
-from src.devices import DEVICE_DIMENSIONS, DeviceDimensions, resolve_dimensions
+from src.devices import DEVICE_DIMENSIONS, DeviceDimensions, dimensions_of, resolve_dimensions
 
 # count_tiles lives beside COLOR_MARKER_PATTERN in text_to_board and is
 # re-exported here, where it was originally defined, for existing importers.
@@ -146,7 +146,7 @@ class BoardPreview:
     @property
     def dimensions(self) -> DeviceDimensions:
         """Resolved ``(rows, cols)`` for this preview's declared shape."""
-        return resolve_dimensions(self.device_type, self.notes_wide, self.notes_tall)
+        return dimensions_of(self)
 
     def default_label(self) -> str:
         """A human label derived from the shape, used when none is declared."""

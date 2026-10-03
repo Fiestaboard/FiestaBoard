@@ -38,8 +38,32 @@ def _discover() -> list[str]:
 
 BUILTIN_PLUGIN_IDS = _discover()
 
+# A plugin with nothing configured may answer ``available=False`` and render
+# nothing, which passes conformance without checking a single row. Each
+# entry here is a config that makes the plugin actually draw, so its
+# formatted output is held to every geometry — including the per-character
+# panel grids. One case per distinct layout the plugin can produce.
+CONFORMANCE_CONFIGS: dict[str, dict[str, dict]] = {
+    "countdown": {
+        "counting down": {"event_name": "Launch Day", "target_datetime": "2099-01-01T00:00:00", "timezone": "UTC"},
+        "event passed": {"event_name": "Launch Day", "target_datetime": "2000-01-01T00:00:00", "timezone": "UTC"},
+        "counting up": {
+            "event_name": "Launch Day",
+            "target_datetime": "2000-01-01T00:00:00",
+            "timezone": "UTC",
+            "count_up": True,
+        },
+    },
+}
 
-def _load(plugin_id: str):
+BUILTIN_CASES = [
+    pytest.param(plugin_id, config, id=f"{plugin_id}[{label}]")
+    for plugin_id in BUILTIN_PLUGIN_IDS
+    for label, config in (CONFORMANCE_CONFIGS.get(plugin_id) or {"unconfigured": {}}).items()
+]
+
+
+def _load(plugin_id: str, config: dict | None = None):
     """Return ``(factory, manifest)`` for a bundled plugin, or skip."""
     manifest = json.loads((PLUGINS_DIR / plugin_id / "manifest.json").read_text())
     module = importlib.import_module(f"plugins.{plugin_id}")
@@ -50,6 +74,8 @@ def _load(plugin_id: str):
     def factory():
         plugin = plugin_class(manifest)
         plugin.enabled = True
+        if config:
+            plugin.config = dict(config)
         return plugin
 
     return factory, manifest
@@ -62,9 +88,21 @@ def test_discovery_found_the_bundled_plugins():
     assert "date_time" in BUILTIN_PLUGIN_IDS
 
 
-@pytest.mark.parametrize("plugin_id", BUILTIN_PLUGIN_IDS)
-def test_builtin_plugin_is_board_conformant(plugin_id):
-    """No bundled plugin may overflow, crash, or misdeclare on any board."""
-    factory, manifest = _load(plugin_id)
+@pytest.mark.parametrize(("plugin_id", "config"), BUILTIN_CASES)
+def test_builtin_plugin_is_board_conformant(plugin_id, config):
+    """No bundled plugin may overflow, crash, or misdeclare on any board —
+    flagship, Note, note arrays, or a per-character panel of any size."""
+    factory, manifest = _load(plugin_id, config)
     report = run_conformance(factory, manifest=manifest)
     assert report.ok, "\n" + report.summary()
+
+
+@pytest.mark.parametrize("plugin_id", sorted(CONFORMANCE_CONFIGS))
+def test_configured_conformance_cases_really_draw(plugin_id):
+    """A configured case must produce rows, or it checks nothing."""
+    from src.plugins.geometry_conformance import panel
+
+    for config in CONFORMANCE_CONFIGS[plugin_id].values():
+        factory, _ = _load(plugin_id, config)
+        result = factory().get_data(panel(12, 29))
+        assert result.available and result.formatted_lines, f"{plugin_id} {config} drew nothing"

@@ -13,8 +13,8 @@ A plugin that needs this has an **Account connection** section at the top of its
 ## Connecting
 
 1. Open **Integrations**, find the plugin, and open its settings.
-2. If the plugin asks for a **client ID** (and sometimes a secret), enter it and press **Save Changes**. The plugin's own setup guide says where to get one. See [Creating your own app](#creating-your-own-app) below.
-3. Press **Connect**.
+2. Some plugins bring their own app and need nothing else. Others ask for a **client ID** (and sometimes a secret): enter it and press **Save Changes**. The plugin's own setup guide says where to get one. See [Creating your own app](#creating-your-own-app) below.
+3. Press **Sign in with** and the service's name, such as **Sign in with Spotify**.
 
 What happens next depends on the plugin.
 
@@ -41,21 +41,27 @@ Some services let you approve from another device instead. The plugin's settings
 1. Open the address on your phone or computer.
 2. Enter the code and approve.
 
-The settings update by themselves within a few seconds. If the code expires before you approve it, press **Connect** again for a new one. While a code is still showing, **Get a new code** replaces it.
+The settings update by themselves within a few seconds. If the code expires before you approve it, press **Sign in with** again for a new one. While a code is still showing, **Get a new code** replaces it.
 
 ## Creating your own app
 
+Only needed for plugins whose settings ask for a client ID. If the settings show just a sign-in button, the plugin brings its own app; skip this section.
+
 Most services require an "app" or "client" registration before they will let anything sign in on your behalf. It is free and takes a few minutes in the service's developer settings. The plugin's setup guide links to the right page.
 
-When the service asks for a **redirect URI** (also called a callback URL), enter exactly:
+The plugin's **Account connection** section walks you through it in numbered steps:
 
-```text
-https://fiestaboard.app/auth/oauth/redirect.html
-```
+1. **Create the app.** The section links to the service's developer page and to the plugin's step-by-step guide.
+2. **Give the app the redirect URI** (also called a callback URL). Copy it from the section with the copy button. It looks like this:
 
-The same value is shown in the plugin's **Account connection** section so you can copy it. It is the same for every board and every plugin.
+   ```text
+   https://fiestaboard.app/auth/oauth/redirect
+   ```
 
-Then copy the **client ID** the service gives you into the plugin's settings. If the service also gives you a **client secret** and the plugin has a field for it, enter that too. The secret stays on your board.
+   Services compare this address exactly, so always copy the one your board shows. FiestaBoard 9.5 through 9.7 show it with `.html` on the end.
+3. **Copy the app's client ID into the section.** If the service also gives you a **client secret** and there is a field for it, enter that too. The secret stays on your board.
+
+Then press **Sign in with** and the service's name. It saves what you entered and starts the sign-in.
 
 ## Disconnecting
 
@@ -73,16 +79,22 @@ Uninstalling a plugin disconnects it.
 
 **"This sign-in can't be passed on."** You opened your board through a public address. Open it by its local address, such as `http://192.168.1.50:4420` or `http://fiestaboard.local:4420`, and connect from there.
 
-**"That sign-in did not start from this board, or was already used."** The return link was opened twice, or belongs to an earlier attempt. Press **Connect** again.
+**"That sign-in did not start from this board, or was already used."** The return link was opened twice, or belongs to an earlier attempt. Sign in again.
 
-**"The sign-in took too long."** You have ten minutes from pressing Connect. Press it again.
+**"The sign-in took too long."** You have ten minutes from pressing the sign-in button. Press it again.
 
-**"The provider rejected the sign-in."** The client ID or secret does not match the app you created, or the app's redirect URI is not exactly the one above. Fix it, save, and connect again.
+**"The provider rejected the sign-in."** The client ID or secret does not match the app you created, or the app's redirect URI is not exactly the one your board shows. Fix it and sign in again.
+
+**The service says the redirect URI is invalid or does not match.** The app must list exactly the address shown in the plugin's **Account connection** section. If you set the app up on an older FiestaBoard, add the new address to the app as well.
 
 **The browser shows "can't reach this page" after signing in.** The device you signed in on cannot reach your board at the address shown. Make sure it is on the same network as the board.
 
 **The plugin says "Reconnect needed".** The service stopped accepting the stored access, usually because you removed the app from your account or changed your password. Press **Reconnect**.
 
-**The Connect button is greyed out.** The plugin needs a client ID first. Enter it and save.
+**The sign-in button is greyed out.** The plugin needs a client ID first. Paste it into the **Account connection** section.
+
+**To use a different app**, press **Disconnect**. The setup steps and the client ID field come back.
+
+**Building a plugin that signs in?** See [Signing In with OAuth](/docs/development/plugin-oauth) in the developer docs.
 
 **To stop a browser passing sign-ins to a board without asking**, open [the list of remembered boards](https://fiestaboard.app/auth/oauth/boards.html) in that browser and press **Forget**.

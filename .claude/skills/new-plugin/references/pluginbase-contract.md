@@ -37,6 +37,10 @@ loader can find it.
   out of the schema's `minimum`/`maximum`. Call it from `validate_config`.
 - `self.resolve_config_variables(...)` / `self.get_url(...)` — interpolate `{{date_time.*}}`
   and other variables inside string settings (useful for templated API URLs).
+- `self.get_oauth_token()` — the current access token for the provider in the manifest's
+  `oauth` block, or `None` when the user is not signed in (or must sign in again). Call it on
+  every fetch and never store the result; the platform refreshes it. On `None`, return
+  `PluginResult(available=False, error=...)` without making a request. See `oauth.md`.
 
 Module constants in `base.py`: `DEFAULT_REFRESH_SECONDS = 300`, `MIN_REFRESH_SECONDS = 10`,
 `MAX_REFRESH_SECONDS = 86400`.

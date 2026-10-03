@@ -174,6 +174,37 @@ def grade_run(run_dir: Path, eval_name: str) -> dict:
         has_env = bool((manifest or {}).get("env_vars"))
         add("API key via password widget AND env_var", has_pw and has_env,
             f"password_widget={has_pw} env_vars={has_env}")
+    if "oauth" in eval_name:
+        block = (manifest or {}).get("oauth") or {}
+        tests_txt = "\n".join(p.read_text(errors="ignore") for p in (repo / "tests").rglob("*.py")) if (repo / "tests").is_dir() else ""
+        setup_txt = (repo / "docs" / "SETUP.md").read_text(errors="ignore") if (repo / "docs" / "SETUP.md").exists() else ""
+        ci_txt = (repo / ".github" / "workflows" / "ci.yml").read_text(errors="ignore") if (repo / ".github" / "workflows" / "ci.yml").exists() else ""
+        endpoints_ok = all(str(block.get(k, "")).startswith("https://") for k in ("authorization_url", "token_url"))
+        add("Manifest declares an oauth block (relay flow, https endpoints)",
+            block.get("flows") == ["relay"] and endpoints_ok,
+            f"flows={block.get('flows')} https_endpoints={endpoints_ok}")
+        whole_repo = blob + setup_txt + tests_txt
+        add("No client secret in the manifest or anywhere in the repo",
+            "client_secret" not in block and not re.search(r'client_secret["\']?\s*[=:]\s*["\'][^"\']{8,}', whole_repo),
+            f"oauth keys={sorted(block)}")
+        version = str((manifest or {}).get("fiestaboard_version", ""))
+        m = re.search(r"(\d+)\.(\d+)\.(\d+)", version)
+        add("fiestaboard_version is >=9.5.0",
+            version.startswith(">=") and bool(m) and tuple(map(int, m.groups())) >= (9, 5, 0), f"fiestaboard_version={version!r}")
+        add("fetch_data asks the platform for the token (get_oauth_token)",
+            "get_oauth_token" in entry_txt, "found" if "get_oauth_token" in entry_txt else "not called")
+        own_flow = re.search(r"grant_type|code_verifier|code_challenge|refresh_token|/oauth/token|authorization_code", entry_txt)
+        add("Plugin implements no OAuth flow of its own and stores no token", not own_flow,
+            "none found" if not own_flow else f"found {own_flow.group(0)!r} in the entry module")
+        add("Tests substitute get_oauth_token and cover the signed-out case",
+            "get_oauth_token" in tests_txt and bool(re.search(r"None", tests_txt)),
+            f"get_oauth_token_in_tests={'get_oauth_token' in tests_txt}")
+        add("SETUP.md gives the relay redirect URI",
+            "https://fiestaboard.app/auth/oauth/redirect" in setup_txt,
+            "present" if "fiestaboard.app/auth/oauth/redirect" in setup_txt else "missing")
+        pinned = re.search(r"repository:\s*Fiestaboard/FiestaBoard[\s\S]{0,400}?ref:\s*\S+", ci_txt)
+        add("CI pins the FiestaBoard checkout to a ref", bool(pinned),
+            "pinned" if pinned else "FiestaBoard checkout floats on the default branch")
     if "facts" in eval_name:
         # Board-safety: check string LITERALS in code (excluding docstrings/comments,
         # where stylistic unicode like em-dashes is harmless and never reaches the board).

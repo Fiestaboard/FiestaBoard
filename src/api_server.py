@@ -171,6 +171,12 @@ def _run_startup_migrations() -> None:
         get_config_manager().migrate_silence_schedule_to_utc()
     except Exception:
         logger.warning("Silence-schedule UTC migration failed on startup", exc_info=True)
+    # Re-fit panels fit by an older rule (Note blocks) to the per-character
+    # grid, before the service builds clients from the board list. Never
+    # raises (logs instead) — see src/panels/reconcile.py.
+    from .panels.reconcile import reconcile_panel_boards
+
+    reconcile_panel_boards()
 
 
 @asynccontextmanager

@@ -45,6 +45,8 @@ def build_welcome_template(
     custom_msg: str,
     notes_wide: int = 1,
     notes_tall: int = 1,
+    grid_rows: int | None = None,
+    grid_cols: int | None = None,
 ) -> list:
     """Build the welcome message template for a given device type.
 
@@ -53,14 +55,15 @@ def build_welcome_template(
     fit the device's column count.
 
     Args:
-        device_type: "flagship", "note", or "note_array"
+        device_type: "flagship", "note", "note_array" or "panel"
         custom_msg: Optional user-configured welcome message; when empty,
             a device-appropriate default is used.
         notes_wide: For note_array: number of notes side-by-side (default 1).
         notes_tall: For note_array: number of notes stacked (default 1).
+        grid_rows / grid_cols: For panel: the explicit grid.
     """
     try:
-        dims = resolve_dimensions(device_type, notes_wide=notes_wide, notes_tall=notes_tall)
+        dims = resolve_dimensions(device_type, notes_wide, notes_tall, grid_rows, grid_cols)
     except ValueError:
         dims = resolve_dimensions("flagship")
 
@@ -69,7 +72,9 @@ def build_welcome_template(
     if device_type == "note":
         default_msg = _DEFAULT_WELCOME_NOTE
         rows = list(_WELCOME_TEMPLATE_NOTE)
-    elif device_type == "note_array":
+    elif device_type in ("note_array", "panel"):
+        # Grids of any size: the fixed Note/Flagship layouts would land
+        # off-centre (or be cropped), so centre the text on the real grid.
         default_msg = _DEFAULT_WELCOME_NOTE
         # Generate a plain template: blank rows with center row carrying text
         center_idx = dims.rows // 2

@@ -73,6 +73,7 @@ These plugins need an API key from a service with a generous free tier:
 | **Home Assistant** | Smart home status (doors, garage, locks, etc.) | Your Home Assistant instance | Self-hosted |
 | **Plex Now Playing** | Movies, TV episodes, and music playing on your Plex server | Your Plex server ([X-Plex-Token](/docs/plugins/plex#1-find-your-plex-token)) | Self-hosted |
 | **Shopify** | Sales, orders, latest order, and low stock from your store | A [Dev Dashboard app](/docs/plugins/shopify#1-create-an-app-in-the-shopify-dev-dashboard) on your store | Included with Shopify |
+| **Spotify** | What's playing on your Spotify account, with progress and up next | Your own [Spotify app](/docs/plugins/spotify#1-create-a-spotify-app), then [Connect](/docs/features/connecting-accounts) | Needs Spotify Premium |
 | **Air Quality & Fog** | AQI and fog conditions | PurpleAir or OpenWeatherMap | Varies |
 
 ## Optional API Key

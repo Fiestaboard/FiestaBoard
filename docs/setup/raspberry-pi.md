@@ -101,8 +101,10 @@ On any device on the same network, open:
 
 You'll see the FiestaBoard setup wizard. Enter your board API key, choose your board type, and you're running.
 
-:::tip Can't reach `fiestapi.local`?
-`.local` addresses use mDNS. It works on Mac, iOS, Android, and most Linux systems out of the box. On **Windows**, you may need [Bonjour Print Services](https://support.apple.com/kb/DL999) if it's not already installed. As a fallback, find the Pi's IP address in your router's admin page and use that directly: `http://192.168.x.x:4420`.
+**Page won't load?** Go to **[fiestaboard.app/find](https://fiestaboard.app/find/)** on the same device and press **Search my network**. It finds your Pi and opens it. Use Chrome or Edge, and choose **Allow** when the browser asks about devices on your network.
+
+:::tip Why `fiestapi.local` might not load
+`.local` addresses use mDNS. It works on Mac, iOS, Android, and most Linux systems out of the box. On **Windows**, you may need [Bonjour Print Services](https://support.apple.com/kb/DL999) if it's not already installed. The find page works without it, because it also looks up the Pi by its IP address. You can also find that address in your router's list of connected devices and use it directly: `http://192.168.x.x:4420`.
 :::
 
 ## Updating FiestaBoard

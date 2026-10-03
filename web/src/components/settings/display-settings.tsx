@@ -728,6 +728,8 @@ export function DisplaySettings() {
                       deviceType={board.device_type}
                       notesWide={board.notes_wide}
                       notesTall={board.notes_tall}
+                      gridRows={board.grid_rows}
+                      gridCols={board.grid_cols}
                     />
                     <Text as="span" size="xs" tone="muted">
                       •

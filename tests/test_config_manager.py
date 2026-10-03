@@ -599,6 +599,62 @@ def test_get_color_rules_returns_empty_list_for_missing(tmp_path):
     assert rules == []
 
 
+# --- get_effective_color_rules ---
+
+
+def test_get_effective_color_rules_prefers_instance_config(tmp_path):
+    """Per-instance rules saved via the web UI (plugins.<id>.color_rules) win over legacy config."""
+    config_path = tmp_path / "config.json"
+    config_data = {
+        "board": {},
+        "features": {
+            "date_time": {"color_rules": {"hour": [{"condition": ">", "value": 100, "color": "red"}]}},
+        },
+        "plugins": {
+            "date_time:world-time-pacific": {
+                "color_rules": {"hour": [{"condition": ">=", "value": 20, "color": "black"}]}
+            },
+        },
+        "general": {},
+    }
+    config_path.write_text(json.dumps(config_data))
+    cm = ConfigManager(config_path=str(config_path))
+    rules = cm.get_effective_color_rules("date_time:world-time-pacific", "date_time", "hour")
+    assert rules == [{"condition": ">=", "value": 20, "color": "black"}]
+
+
+def test_get_effective_color_rules_falls_back_to_legacy(tmp_path):
+    """With no instance override, the legacy per-feature rules still apply."""
+    config_path = tmp_path / "config.json"
+    config_data = {
+        "board": {},
+        "features": {
+            "weather": {"color_rules": {"temp": [{"condition": ">=", "value": 90, "color": "red"}]}},
+        },
+        "plugins": {},
+        "general": {},
+    }
+    config_path.write_text(json.dumps(config_data))
+    cm = ConfigManager(config_path=str(config_path))
+    rules = cm.get_effective_color_rules("weather", "weather", "temp")
+    assert rules == [{"condition": ">=", "value": 90, "color": "red"}]
+
+
+def test_get_effective_color_rules_empty_when_none_configured(tmp_path):
+    """No instance config and no legacy rules returns an empty list."""
+    config_path = tmp_path / "config.json"
+    cm = ConfigManager(config_path=str(config_path))
+    assert cm.get_effective_color_rules("date_time", "date_time", "hour") == []
+
+
+def test_get_effective_color_rules_uses_supplied_instance_rules(tmp_path):
+    """Callers that already read the instance rules can pass them in instead of re-reading config."""
+    config_path = tmp_path / "config.json"
+    cm = ConfigManager(config_path=str(config_path))
+    supplied = {"hour": [{"condition": "<", "value": 7, "color": "black"}]}
+    assert cm.get_effective_color_rules("date_time", "date_time", "hour", supplied) == supplied["hour"]
+
+
 # --- validate ---
 
 

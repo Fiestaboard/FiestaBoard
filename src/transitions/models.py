@@ -69,6 +69,9 @@ class TransitionPreviewRequest(BaseModel):
     device_type: str = Field(default="flagship", json_schema_extra={"enum": list(DEVICE_TYPES)})
     notes_wide: Any = 1
     notes_tall: Any = 1
+    # Required when device_type is "panel" (an explicit per-character grid).
+    grid_rows: Any = None
+    grid_cols: Any = None
     config: dict[str, Any] | None = None
 
 

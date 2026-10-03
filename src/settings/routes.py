@@ -45,7 +45,7 @@ from src.board_guards import (
 )
 from src.board_send_executor import run_board_send
 from src.collections.service import resolve_active_page_id, resolve_next_check_seconds
-from src.devices import classify_dimensions
+from src.devices import classify_dimensions, geometry_of
 from src.display_runtime import reinitialize_board_clients
 
 from .models import (
@@ -637,7 +637,7 @@ async def set_active_page(request: SetActivePageRequest):
                     if board is not None:
                         dims = _board_dims(board)
                     else:
-                        dims = resolve_dimensions(page.device_type, page.notes_wide, page.notes_tall)
+                        dims = resolve_dimensions(*geometry_of(page))
                     board_array = text_to_board_array(result.formatted, rows=dims.rows, cols=dims.cols)
                     # render() serializes concurrent senders via the client's
                     # per-board _send_lock, so worker threads can't interleave.
@@ -705,8 +705,9 @@ async def set_temporary_override(request: TemporaryOverrideRequest):
       - line_metadata (list[dict], optional): Per-line alignment/wrap for the
         inline form
       - device_type (str, optional): Geometry the inline content was composed
-        for ("flagship" | "note" | "note_array"); defaults to flagship
+        for ("flagship" | "note" | "note_array" | "panel"); defaults to flagship
       - notes_wide / notes_tall (int, optional): note_array geometry
+      - grid_rows / grid_cols (int, required for "panel"): panel geometry
       - duration_minutes (int, optional): How long to show it (1–480). Omit for
         an indefinite override that lasts until the user cancels it.
       - revert_mode (str, optional): "schedule" | "blank" | "page" (default: "schedule")
@@ -717,7 +718,15 @@ async def set_temporary_override(request: TemporaryOverrideRequest):
     """
     from datetime import datetime, timedelta
 
-    from src.devices import DEFAULT_DEVICE_TYPE, DEVICE_TYPES, MAX_NOTES_PER_AXIS
+    from src.devices import (
+        DEFAULT_DEVICE_TYPE,
+        DEVICE_TYPES,
+        MAX_GRID_COLS,
+        MAX_GRID_ROWS,
+        MAX_NOTES_PER_AXIS,
+        MIN_GRID_COLS,
+        MIN_GRID_ROWS,
+    )
 
     from .service import (
         TEMPORARY_OVERRIDE_DURATION_MAX,
@@ -741,6 +750,8 @@ async def set_temporary_override(request: TemporaryOverrideRequest):
     line_metadata = None
     notes_wide = None
     notes_tall = None
+    grid_rows = None
+    grid_cols = None
 
     if template is not None:
         # --- Inline (one-off) form ---
@@ -773,7 +784,25 @@ async def set_temporary_override(request: TemporaryOverrideRequest):
             else:
                 notes_tall = value
 
-        dims = resolve_dimensions(device_type, notes_wide or 1, notes_tall or 1)
+        if device_type == "panel":
+            for key, raw, low, high in (
+                ("grid_rows", request.grid_rows, MIN_GRID_ROWS, MAX_GRID_ROWS),
+                ("grid_cols", request.grid_cols, MIN_GRID_COLS, MAX_GRID_COLS),
+            ):
+                if raw is None:
+                    raise HTTPException(status_code=422, detail=f"{key} is required for a panel")
+                try:
+                    value = int(raw)
+                except (TypeError, ValueError):
+                    raise HTTPException(status_code=422, detail=f"{key} must be an integer") from None
+                if not (low <= value <= high):
+                    raise HTTPException(status_code=422, detail=f"{key} must be between {low} and {high}")
+                if key == "grid_rows":
+                    grid_rows = value
+                else:
+                    grid_cols = value
+
+        dims = resolve_dimensions(device_type, notes_wide or 1, notes_tall or 1, grid_rows, grid_cols)
         if len(template) > dims.rows:
             raise HTTPException(
                 status_code=422,
@@ -825,6 +854,8 @@ async def set_temporary_override(request: TemporaryOverrideRequest):
         device_type=device_type,
         notes_wide=notes_wide,
         notes_tall=notes_tall,
+        grid_rows=grid_rows,
+        grid_cols=grid_cols,
     )
     settings_service.set_temporary_override(override)
 

@@ -1,8 +1,10 @@
 /**
  * Matching pages to FiestaPanels by geometry.
  *
- * A panel's board IS a note-array grid, so a "panel page" is a note_array
- * page whose grid equals the panel's board. Nothing is stored on the page to
+ * A panel's board is a `panel` grid fit per character (rows × cols), so a
+ * "panel page" is a `panel` page whose grid_rows × grid_cols equals the
+ * panel's board. Panels created before per-character fitting were note-array
+ * boards; those payloads are still accepted. Nothing is stored on the page to
  * say which panel it was made for — the grid is the whole relationship — so
  * these helpers are the one place that comparison lives.
  */
@@ -33,8 +35,13 @@ function panel(overrides: Partial<Panel> & Pick<Panel, "id" | "name">): Panel {
   };
 }
 
+/** A per-character `panel` board, as the API reports one after the re-fit. */
+function gridPanel(id: string, name: string, rows: number, cols: number): Panel {
+  return panel({ id, name, device_type: "panel", rows, cols, notes_wide: null, notes_tall: null });
+}
+
 describe("panelTargets", () => {
-  it("reads the note grid the API reports rather than dividing rows and cols", () => {
+  it("reads the note grid the API reports for a legacy note-array panel", () => {
     const [target] = panelTargets([panel({ id: "p1", name: "Kitchen TV" })]);
     expect(target).toEqual({
       id: "p1",
@@ -42,9 +49,31 @@ describe("panelTargets", () => {
       deviceType: "note_array",
       notesWide: 2,
       notesTall: 4,
+      gridRows: null,
+      gridCols: null,
       rows: 12,
       cols: 30,
     });
+  });
+
+  it("reads a panel board's character grid as its grid_rows × grid_cols", () => {
+    const [target] = panelTargets([gridPanel("p1", "Kitchen TV", 12, 29)]);
+    expect(target).toEqual({
+      id: "p1",
+      name: "Kitchen TV",
+      deviceType: "panel",
+      notesWide: 1,
+      notesTall: 1,
+      gridRows: 12,
+      gridCols: 29,
+      rows: 12,
+      cols: 29,
+    });
+  });
+
+  it("skips a panel board whose payload has no grid", () => {
+    const stale = panel({ id: "p1", name: "Kitchen TV", device_type: "panel", rows: null, cols: null });
+    expect(panelTargets([stale])).toEqual([]);
   });
 
   it("skips a panel whose board was deleted out from under it", () => {
@@ -122,5 +151,28 @@ describe("panelsFittingGrid", () => {
 
   it("is empty when the install has no panels", () => {
     expect(panelsFittingGrid([], "note_array", 2, 4)).toEqual([]);
+  });
+});
+
+describe("panelsFittingGrid — per-character panel boards", () => {
+  const living = panelTargets([gridPanel("p1", "Living Room TV", 12, 29)])[0];
+  const den = panelTargets([gridPanel("p2", "Den TV", 14, 34)])[0];
+
+  it("names the panel whose grid is exactly this panel page's grid", () => {
+    expect(panelsFittingGrid([living, den], "panel", 1, 1, 12, 29)).toEqual([living]);
+  });
+
+  it("matches nothing when the panel page is one column off", () => {
+    expect(panelsFittingGrid([living, den], "panel", 1, 1, 12, 30)).toEqual([]);
+  });
+
+  it("does not match a note-array page of the same dimensions against a panel board", () => {
+    const sixByThirty = panelTargets([gridPanel("p3", "Hall TV", 6, 30)])[0];
+    expect(panelsFittingGrid([sixByThirty], "note_array", 2, 2)).toEqual([]);
+  });
+
+  it("does not match a panel page without a grid against any panel", () => {
+    const noteSized = panelTargets([gridPanel("p4", "Tiny TV", 3, 15)])[0];
+    expect(panelsFittingGrid([noteSized], "panel")).toEqual([]);
   });
 });

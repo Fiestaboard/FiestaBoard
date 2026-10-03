@@ -21,6 +21,12 @@ _SHARE_FIELDS = (
     "name",
     "type",
     "device_type",
+    # Geometry beyond the device family: without these a shared note-array
+    # or panel page imported as the family's default size.
+    "notes_wide",
+    "notes_tall",
+    "grid_rows",
+    "grid_cols",
     "display_type",
     "rows",
     "template",

@@ -36,7 +36,9 @@ import { anchorProps } from "@/lib/ai-choreography/anchors";
 import type { DeviceType } from "@/lib/api";
 import { api } from "@/lib/api";
 
-const DEVICE_ORDER: DeviceType[] = ["flagship", "note", "note_array"];
+// "panel" last: FiestaPanel pages (fit per character to a TV) get their own
+// tab rather than hiding among note arrays they are not compatible with.
+const DEVICE_ORDER: DeviceType[] = ["flagship", "note", "note_array", "panel"];
 
 // Lazy load PageGridSelector so the header renders immediately
 const PageGridSelectorLazy = lazy(() =>
@@ -258,6 +260,7 @@ export default function PagesPage() {
                 {availableDevices.includes("note_array") && (
                   <TabsTrigger value="note_array">{t("noteArrayTab")}</TabsTrigger>
                 )}
+                {availableDevices.includes("panel") && <TabsTrigger value="panel">{t("panelTab")}</TabsTrigger>}
               </TabsList>
               {availableDevices.includes("flagship") && (
                 <TabsContent value="flagship">
@@ -291,6 +294,18 @@ export default function PagesPage() {
                     showActiveIndicator={false}
                     showCollections={false}
                     deviceTypeFilter="note_array"
+                    viewMode={viewMode}
+                  />
+                </TabsContent>
+              )}
+              {availableDevices.includes("panel") && (
+                <TabsContent value="panel">
+                  <PageGridSelector
+                    onSelectPage={handleSelectPage}
+                    label={null}
+                    showActiveIndicator={false}
+                    showCollections={false}
+                    deviceTypeFilter="panel"
                     viewMode={viewMode}
                   />
                 </TabsContent>

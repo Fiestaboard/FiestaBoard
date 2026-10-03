@@ -35,9 +35,10 @@ const primaryItems: NavItemDef[] = [
 // `showTransitionsLab` below) — the whole feature is invisible otherwise.
 const transitionsLabItem: NavItemDef = { key: "transitions", href: "/transitions", icon: FlaskConical };
 
-// Settings is NOT here. It is reachable from the footer menu, which is also
-// where sign-out, the theme and the version live — the rail's list is for
-// places you can BE, and a menu of preferences is not one of them.
+// Settings is NOT here. It lives in the footer twice over — a gear beside the
+// assistant (`settings` below) and an item of the account menu, which is also
+// where sign-out, the theme and the version live. The list is for the places
+// the app is about; a row for Settings competed with them for height.
 const secondaryItems: NavItemDef[] = [
   { key: "picks", href: "/picks", icon: Award },
   { key: "helpDocs", href: "https://fiestaboard.app/docs/intro", icon: HelpCircle, external: true },
@@ -129,6 +130,14 @@ export function NavigationSidebar() {
       onToggleCollapsed={toggle}
       onTransitionEnd={onTransitionEnd}
       ai={hasAiProviders ? { active: aiPanelOpen, onOpen: openAiPanel } : undefined}
+      // The gear left of the assistant. `active` matters more here than on a
+      // nav row: Settings has no row, so on /settings this is the only thing
+      // on the rail that says where you are.
+      settings={{
+        href: "/settings",
+        label: t("settings"),
+        active: pathname === "/settings" || pathname.startsWith("/settings/"),
+      }}
       boardSelector={
         boards.length > 1 ? (
           <BoardSelector

@@ -31,7 +31,7 @@ from src.api_errors import errors
 from src.board_guards import _board_dims, _board_is_paused, _require_board, _silence_active
 from src.collections.models import is_collection_id
 from src.collections.service import get_collection_service
-from src.devices import resolve_dimensions, size_key
+from src.devices import geometry_of, resolve_dimensions, size_key
 from src.display_runtime import get_service
 from src.schedules.service import get_schedule_service
 from src.settings.service import VALID_OUTPUT_TARGETS, get_settings_service
@@ -173,6 +173,10 @@ async def get_current_display():
         page_name=page.name,
         page_type=page.type,
         device_type=page.device_type,
+        notes_wide=page.notes_wide,
+        notes_tall=page.notes_tall,
+        grid_rows=page.grid_rows,
+        grid_cols=page.grid_cols,
         template=template,
         line_metadata=line_metadata,
     )
@@ -248,8 +252,8 @@ async def update_page(page_id: str, page_data: PageUpdate):
 
     incompatible: list[IncompatibleReference] = []
     if existing is not None:
-        old_size = size_key(existing.device_type, existing.notes_wide, existing.notes_tall)
-        new_size = size_key(page.device_type, page.notes_wide, page.notes_tall)
+        old_size = size_key(*geometry_of(existing))
+        new_size = size_key(*geometry_of(page))
         if old_size != new_size:
             incompatible = [IncompatibleReference(**ref) for ref in find_incompatible_references(page)]
     return PageUpdateResponse(page=page, incompatible_references=incompatible)
@@ -614,7 +618,7 @@ async def send_page(
                 if board is not None:
                     dims = _board_dims(board)
                 else:
-                    dims = resolve_dimensions(page.device_type, page.notes_wide, page.notes_tall)
+                    dims = resolve_dimensions(*geometry_of(page))
                 board_array = text_to_board_array(result.formatted, rows=dims.rows, cols=dims.cols)
                 # render() serializes concurrent senders via the client's
                 # per-board _send_lock, so worker threads can't interleave.

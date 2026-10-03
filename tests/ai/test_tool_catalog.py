@@ -316,17 +316,18 @@ def test_addendum_sends_the_model_to_list_panels_for_a_panel_sized_page(catalog,
     default. The rule lives in the shared tail, so it is taught on every
     surface and in both approval modes. Which FIELDS to read is pinned on
     list_panels' own description instead of restated here — see
-    test_list_panels_advertises_the_note_grid_it_is_meant_to_be_read_for."""
+    test_list_panels_advertises_the_page_grid_it_is_meant_to_be_read_for."""
     text = catalog.render_addendum(surface, skip_destructive_pause=skip_destructive_pause)
     assert "list_panels" in text
     assert "never the flagship default" in text
 
 
-def test_list_panels_advertises_the_note_grid_it_is_meant_to_be_read_for():
-    """The rule above sends the model to list_panels() for notes_wide/notes_tall,
-    so list_panels' own description has to name them. A model planning from a
-    description that lists only rows/cols divides cols by 15 itself — the exact
-    guesswork the two fields exist to remove."""
+def test_list_panels_advertises_the_page_grid_it_is_meant_to_be_read_for():
+    """The rule above sends the model to list_panels() for a panel's shape, so
+    list_panels' own description has to say how that shape becomes a page.
+    Panels are fit per character (device_type 'panel'), so the page fields are
+    grid_rows/grid_cols — a model still reaching for notes_wide/notes_tall
+    would author a Note-multiple page that fits no panel."""
     pytest.importorskip("mcp", reason="mcp package not installed")
     import asyncio
 
@@ -336,7 +337,7 @@ def test_list_panels_advertises_the_note_grid_it_is_meant_to_be_read_for():
     descriptors = asyncio.run(CompositeToolBackend(McpToolBackend(), ChatExtensionBackend()).list_tools())
     text = ToolCatalog(descriptors).render_addendum("global")
     section = text.split("### list_panels")[1].split("### ")[0]
-    assert "notes_wide" in section and "notes_tall" in section
+    assert "grid_rows" in section and "grid_cols" in section
 
 
 # ---------------------------------------------------------------------------

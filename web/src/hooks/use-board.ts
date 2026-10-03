@@ -229,11 +229,13 @@ export function getEffectiveBoardColor(
  *
  * Note and note-array hardware only ever carried the heart flap, so the stored
  * setting is not theirs to answer — a stale Flagship preference must not make a
- * Note preview a degree sign it does not physically have. An unset preference
- * means "degree", the glyph every Flagship had before Vestaboard changed it.
+ * Note preview a degree sign it does not physically have. A FiestaPanel
+ * ("panel") is a Note-pitch virtual board and draws the heart too. An unset
+ * preference means "degree", the glyph every Flagship had before Vestaboard
+ * changed it.
  */
 export function resolveCode62Glyph(deviceType: string | undefined, code62Glyph: Code62Glyph | undefined): Code62Glyph {
-  if (deviceType === "note" || deviceType === "note_array") return "heart";
+  if (deviceType === "note" || deviceType === "note_array" || deviceType === "panel") return "heart";
   return code62Glyph ?? "degree";
 }
 

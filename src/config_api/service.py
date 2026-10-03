@@ -299,7 +299,7 @@ def _verdict_for_connection_error(use_cloud: bool) -> dict:
         "message": "Could not connect to the board. The board may be off or not on the same network.",
         "error": "Connection error",
         "troubleshooting": [
-            "Make sure the Vestaboard is powered on (check for the LED on the back).",
+            "Make sure the Vestaboard is powered on.",
             "Make sure both FiestaBoard and the Vestaboard are on the same Wi-Fi network.",
             "Double-check the board's IP address — you can find it on your router's admin page or use FiestaBoard's network scan.",
             "Make sure the Local API is enabled on your board (see https://docs.vestaboard.com/docs/local-api/authentication).",

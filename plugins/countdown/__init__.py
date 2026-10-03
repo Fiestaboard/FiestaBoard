@@ -189,14 +189,18 @@ class CountdownPlugin(PluginBase):
             ]
 
         if is_expired and not is_count_up:
+            # 16 tiles: a 15-wide board taller than a Note (a 1x4 note array,
+            # a 15-column FiestaPanel) gets this layout but not the room.
+            passed = "EVENT HAS PASSED"
+            passed_rows = [passed] if len(passed) <= width else ["EVENT", "HAS PASSED"]
             lines = [
                 "COUNTDOWN",
                 event_name[:width].upper().center(width),
                 "",
-                "EVENT HAS PASSED".center(width),
+                *(row.center(width) for row in passed_rows),
                 "",
                 "",
-            ]
+            ][:6]
         else:
             days = data.get("days", "0")
             hours = data.get("hours", "0")
