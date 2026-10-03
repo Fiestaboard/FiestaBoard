@@ -133,29 +133,47 @@ class ProviderClient:
         client_id: str,
         code_verifier: str,
         client_secret: str = "",
+        client_id_param: str = "client_id",
+        extra_form: dict[str, str] | None = None,
     ) -> TokenResponse:
         """Trade an authorization code (plus PKCE verifier) for tokens."""
         form = {
             "grant_type": "authorization_code",
             "code": code,
             "redirect_uri": redirect_uri,
-            "client_id": client_id,
+            client_id_param: client_id,
             "code_verifier": code_verifier,
+            **(extra_form or {}),
         }
         return self._token_request(token_url, form, client_secret)
 
-    def refresh(self, token_url: str, *, refresh_token: str, client_id: str, client_secret: str = "") -> TokenResponse:
+    def refresh(
+        self,
+        token_url: str,
+        *,
+        refresh_token: str,
+        client_id: str,
+        client_secret: str = "",
+        client_id_param: str = "client_id",
+    ) -> TokenResponse:
         """Trade a refresh token for a new access token."""
-        form = {"grant_type": "refresh_token", "refresh_token": refresh_token, "client_id": client_id}
+        form = {"grant_type": "refresh_token", "refresh_token": refresh_token, client_id_param: client_id}
         return self._token_request(token_url, form, client_secret)
 
     def start_device_authorization(
-        self, device_authorization_url: str, *, client_id: str, scopes: tuple[str, ...]
+        self,
+        device_authorization_url: str,
+        *,
+        client_id: str,
+        scopes: tuple[str, ...],
+        client_id_param: str = "client_id",
+        scope_param: str = "scope",
+        scope_separator: str = " ",
     ) -> DeviceAuthorization:
         """Ask the provider for a device code and the code the user types."""
-        form = {"client_id": client_id}
+        form = {client_id_param: client_id}
         if scopes:
-            form["scope"] = " ".join(scopes)
+            form[scope_param] = scope_separator.join(scopes)
         body = _raise_for_oauth_error(*self._transport(device_authorization_url, form))
         device_code = body.get("device_code")
         user_code = body.get("user_code")
@@ -177,12 +195,20 @@ class ProviderClient:
         )
 
     def poll_device_token(
-        self, token_url: str, *, device_code: str, client_id: str, client_secret: str = ""
+        self,
+        token_url: str,
+        *,
+        device_code: str,
+        client_id: str,
+        client_secret: str = "",
+        client_id_param: str = "client_id",
+        extra_form: dict[str, str] | None = None,
     ) -> TokenResponse:
         """Ask whether the user has approved the device code yet.
 
         Raises :class:`TokenEndpointError` with ``authorization_pending`` or
         ``slow_down`` while they have not.
         """
-        form = {"grant_type": DEVICE_GRANT_TYPE, "device_code": device_code, "client_id": client_id}
+        form = {"grant_type": DEVICE_GRANT_TYPE, "device_code": device_code, client_id_param: client_id}
+        form.update(extra_form or {})
         return self._token_request(token_url, form, client_secret)

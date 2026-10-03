@@ -298,3 +298,221 @@ def test_a_transition_plugin_may_not_declare_oauth():
     valid, errors = validate_manifest({**MANIFEST, "plugin_type": "transition", "oauth": RELAY})
     assert valid is False
     assert errors == ["oauth is not supported for transition plugins — they fetch no data"]
+
+
+# ── 9.9.0 fields ────────────────────────────────────────────────────────────
+
+from src.oauth.errors import ConnectionNotConfigured  # noqa: E402
+from src.oauth.provider import Endpoints, _base_url_error  # noqa: E402
+
+HA = {
+    "provider_name": "Home Assistant",
+    "flows": ["relay"],
+    "endpoint_base_setting": "base_url",
+    "authorization_url": "/auth/authorize",
+    "token_url": "/auth/token",
+    "client_id": "https://fiestaboard.app/",
+}
+HA_SCHEMA = {"type": "object", "properties": {"base_url": {"type": "string"}}}
+
+
+@pytest.mark.parametrize(
+    "field,value",
+    [
+        ("client_id_param", "client_key"),
+        ("scope_separator", ","),
+        ("scope_separator", " "),
+        ("device_scope_param", "scopes"),
+        ("device_poll_scope", True),
+        ("plex_product", "FiestaBoard"),
+    ],
+)
+def test_new_fields_are_known_and_valid(field, value):
+    block = _with(RELAY, **{field: value})
+    assert validate_provider_block(block) == []
+    assert provider_block_warnings(block) == []
+
+
+@pytest.mark.parametrize(
+    "field,value",
+    [
+        ("client_id_param", "client-key"),
+        ("client_id_param", ""),
+        ("client_id_param", 3),
+        ("scope_separator", ";"),
+        ("scope_separator", ""),
+        ("device_scope_param", "a b"),
+        ("device_poll_scope", "yes"),
+        ("plex_product", ""),
+        ("endpoint_base_setting", "base-url"),
+    ],
+)
+def test_new_fields_refuse_bad_values(field, value):
+    errors = validate_provider_block(_with(RELAY, **{field: value}))
+    assert errors and all(field in error for error in errors)
+
+
+def test_defaults_match_9_8_behaviour():
+    provider = parse_provider_block(RELAY, "Music")
+    assert provider.client_id_param == "client_id"
+    assert provider.scope_separator == " "
+    assert provider.device_scope_param == "scope"
+    assert provider.device_poll_scope is False
+    assert provider.endpoint_base_setting == ""
+    assert provider.joined_scopes() == "user-read-currently-playing"
+
+
+def test_new_fields_are_parsed():
+    block = _with(
+        DEVICE,
+        scopes=["a", "b"],
+        client_id_param="client_key",
+        scope_separator=",",
+        device_scope_param="scopes",
+        device_poll_scope=True,
+    )
+    provider = parse_provider_block(block, "Twitch")
+    assert provider.client_id_param == "client_key"
+    assert provider.joined_scopes() == "a,b"
+    assert provider.device_scope_param == "scopes"
+    assert provider.device_poll_scope is True
+
+
+def test_authorization_params_may_not_set_the_custom_client_id_param():
+    errors = validate_provider_block(
+        _with(RELAY, client_id_param="client_key", authorization_params={"client_key": "x"})
+    )
+    assert errors
+
+
+def test_key_exchange_needs_authorization_and_token_urls_but_no_client_id():
+    block = {"flows": ["key_exchange"], "authorization_url": "https://or.example.com/auth",
+             "token_url": "https://or.example.com/api/v1/auth/keys"}
+    assert validate_provider_block(block) == []
+    assert validate_provider_block(_without(block, "authorization_url"))
+
+
+def test_plex_pin_needs_no_endpoints():
+    block = {"flows": ["plex_pin"], "provider_name": "Plex", "plex_product": "FiestaBoard"}
+    assert validate_provider_block(block) == []
+    provider = parse_provider_block(block, "Plex")
+    assert provider.flows == ("plex_pin",)
+    assert provider.plex_product == "FiestaBoard"
+    assert provider.needs_client_id is False
+
+
+def test_plex_product_defaults_to_fiestaboard():
+    provider = parse_provider_block({"flows": ["plex_pin"]}, "Plex")
+    assert provider.plex_product == "FiestaBoard"
+
+
+def test_relay_and_device_still_need_a_token_url_and_a_client_id():
+    assert parse_provider_block(RELAY, "x").needs_client_id is True
+    assert validate_provider_block(_without(DEVICE, "token_url"))
+
+
+# ── Endpoints from plugin settings ──────────────────────────────────────────
+
+
+def test_endpoint_base_setting_takes_absolute_paths():
+    assert validate_provider_block(HA, HA_SCHEMA) == []
+
+
+@pytest.mark.parametrize("path", ["auth/token", "//evil.example/token", "https://ha.example/auth/token", ""])
+def test_endpoint_base_setting_refuses_anything_but_a_path(path):
+    assert validate_provider_block(_with(HA, token_url=path), HA_SCHEMA)
+
+
+def test_endpoint_base_setting_must_name_a_declared_setting():
+    errors = validate_provider_block(HA, {"type": "object", "properties": {"other": {}}})
+    assert any("endpoint_base_setting" in error for error in errors)
+
+
+def test_a_manifest_validates_endpoint_base_setting_against_its_schema():
+    manifest = {
+        "id": "home_assistant_x",
+        "name": "HA",
+        "version": "1.0.0",
+        "settings_schema": {"type": "object", "properties": {"other": {"type": "string"}}},
+        "oauth": HA,
+    }
+    valid, errors = validate_manifest(manifest)
+    assert valid is False
+    assert any("endpoint_base_setting" in error for error in errors)
+
+
+def test_endpoints_resolve_from_the_setting():
+    provider = parse_provider_block(HA, "HA", HA_SCHEMA)
+    endpoints = provider.resolve_endpoints({"base_url": "http://homeassistant.local:8123/"})
+    assert endpoints == Endpoints(
+        authorization_url="http://homeassistant.local:8123/auth/authorize",
+        token_url="http://homeassistant.local:8123/auth/token",
+        device_authorization_url="",
+    )
+
+
+def test_fixed_endpoints_resolve_unchanged():
+    provider = parse_provider_block(RELAY, "Music")
+    endpoints = provider.resolve_endpoints({})
+    assert endpoints.authorization_url == RELAY["authorization_url"]
+    assert endpoints.token_url == RELAY["token_url"]
+
+
+@pytest.mark.parametrize("base", [None, "", "   ", "http://203.0.113.9:8123", "ftp://ha.local"])
+def test_unusable_base_is_not_configured(base):
+    provider = parse_provider_block(HA, "HA", HA_SCHEMA)
+    with pytest.raises(ConnectionNotConfigured):
+        provider.resolve_endpoints({"base_url": base})
+
+
+@pytest.mark.parametrize(
+    "url",
+    [
+        "https://ha.example.com",
+        "https://203.0.113.9",
+        "http://localhost:8123",
+        "http://127.0.0.1:8123",
+        "http://10.0.0.5:8123",
+        "http://172.16.4.2",
+        "http://172.31.255.1",
+        "http://192.168.1.20:8123",
+        "http://169.254.1.1",
+        "http://100.64.0.1",
+        "http://100.127.255.254",
+        "http://[::1]:8123",
+        "http://[fd00::5]:8123",
+        "http://[fe80::1]",
+        "http://homeassistant:8123",
+        "http://homeassistant.local:8123",
+        "http://ha.lan",
+        "http://ha.home.arpa",
+        "http://ha.internal",
+        "http://192.168.1.20:8123/prefix",
+    ],
+)
+def test_base_url_accepts_https_anywhere_and_http_on_a_home_network(url):
+    assert _base_url_error(url) is None
+
+
+@pytest.mark.parametrize(
+    "url",
+    [
+        "http://203.0.113.9",
+        "http://8.8.8.8",
+        "http://172.32.0.1",
+        "http://100.128.0.1",
+        "http://ha.example.com",
+        "http://[2001:db8::1]",
+        "https://user:pass@ha.example.com",
+        "http://user@192.168.1.2",
+        "https://ha.example.com?x=1",
+        "https://ha.example.com#frag",
+        "ha.local:8123",
+        "https://",
+        "javascript:alert(1)",
+        "",
+        None,
+    ],
+)
+def test_base_url_refuses_public_http_userinfo_query_and_junk(url):
+    assert _base_url_error(url)

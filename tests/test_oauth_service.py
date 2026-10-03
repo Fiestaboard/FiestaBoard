@@ -1000,3 +1000,117 @@ def test_a_corrupt_token_file_starts_empty_rather_than_crashing(tmp_path):
 def test_the_token_file_has_a_schema_version(store, tmp_path):
     _connected(store)
     assert json.loads((tmp_path / "oauth_tokens.json").read_text())["schema_version"] == 1
+
+
+# ── 9.9.0 manifest fields ───────────────────────────────────────────────────
+
+TIKTOK_BLOCK = {**RELAY_BLOCK, "client_id_param": "client_key", "scope_separator": ","}
+TWITCH_BLOCK = {**DEVICE_BLOCK, "scopes": ["user:read:email", "channel:read:subscriptions"],
+                "device_scope_param": "scopes", "device_poll_scope": True}
+HA_BLOCK = {
+    "provider_name": "Home Assistant",
+    "flows": ["relay"],
+    "endpoint_base_setting": "base_url",
+    "authorization_url": "/auth/authorize",
+    "token_url": "/auth/token",
+    "client_id": "https://fiestaboard.app/",
+}
+
+
+def test_a_custom_client_id_param_is_used_in_the_authorize_url(service, source):
+    source.add("tiktok", TIKTOK_BLOCK)
+    query = _begin_relay(service, "tiktok")
+    assert query["client_key"] == "client-abc"
+    assert "client_id" not in query
+
+
+def test_scopes_are_joined_with_the_declared_separator(service, source):
+    source.add("tiktok", TIKTOK_BLOCK)
+    assert _begin_relay(service, "tiktok")["scope"] == "read-playing,read-state"
+
+
+def test_default_scope_join_is_still_a_space(service, source):
+    source.add("music", RELAY_BLOCK)
+    assert _begin_relay(service)["scope"] == "read-playing read-state"
+
+
+def test_a_custom_client_id_param_is_used_in_the_code_exchange(service, source, provider):
+    source.add("tiktok", TIKTOK_BLOCK)
+    query = _begin_relay(service, "tiktok")
+    provider.reply(TOKENS)
+    assert service.complete_authorization(state=query["state"], code="code-1", error=None).connected
+    form = provider.calls[0][1]
+    assert form["client_key"] == "client-abc"
+    assert "client_id" not in form
+
+
+def test_a_custom_client_id_param_is_used_on_refresh(service, source, store, provider):
+    source.add("tiktok", TIKTOK_BLOCK)
+    _connected(store, "tiktok", expires_at=NOW)
+    provider.reply({"access_token": "access-2", "expires_in": 3600})
+    assert service.get_access_token("tiktok") == "access-2"
+    assert provider.calls[0][1] == {"grant_type": "refresh_token", "refresh_token": "refresh-1", "client_key": "client-abc"}
+
+
+def test_device_flow_uses_the_custom_client_id_and_scope_params(service, source, provider):
+    source.add("twitch", {**TWITCH_BLOCK, "client_id_param": "client_key"}, config={"client_id": "client-abc"})
+    provider.reply(DEVICE_ANSWER)
+    service.start("twitch")
+    assert provider.calls[0] == (
+        DEVICE_URL,
+        {"client_key": "client-abc", "scopes": "user:read:email channel:read:subscriptions"},
+    )
+
+
+def test_twitch_device_poll_sends_the_scopes(service, source, provider):
+    source.add("twitch", TWITCH_BLOCK, config={"client_id": "client-abc"})
+    provider.reply(DEVICE_ANSWER)
+    service.start("twitch")
+    provider.reply({"error": "authorization_pending"})
+    service.poll_device("twitch")
+    assert provider.calls[1][1] == {
+        "grant_type": DEVICE_GRANT_TYPE,
+        "device_code": "device-secret",
+        "client_id": "client-abc",
+        "scopes": "user:read:email channel:read:subscriptions",
+    }
+
+
+def test_a_plain_device_poll_sends_no_scope(service, device, provider):
+    provider.reply(DEVICE_ANSWER)
+    service.start(device)
+    provider.reply({"error": "authorization_pending"})
+    service.poll_device(device)
+    assert "scope" not in provider.calls[1][1]
+
+
+def test_endpoints_come_from_the_plugins_base_url_setting(service, source, provider):
+    source.add("ha", HA_BLOCK, config={"base_url": "http://homeassistant.local:8123/"})
+    url = service.start("ha", board_url=BOARD).authorization_url
+    assert url.startswith("http://homeassistant.local:8123/auth/authorize?")
+    query = _query(url)
+    assert query["client_id"] == "https://fiestaboard.app/"
+    provider.reply(TOKENS)
+    assert service.complete_authorization(state=query["state"], code="code-1", error=None).connected
+    assert provider.calls[0][0] == "http://homeassistant.local:8123/auth/token"
+
+
+def test_refresh_uses_the_settings_based_token_url(service, source, store, provider):
+    source.add("ha", HA_BLOCK, config={"base_url": "https://ha.example.com"})
+    _connected(store, "ha", expires_at=NOW)
+    provider.reply({"access_token": "access-2", "expires_in": 1800})
+    assert service.get_access_token("ha") == "access-2"
+    assert provider.calls[0][0] == "https://ha.example.com/auth/token"
+
+
+@pytest.mark.parametrize("base", [None, "", "http://203.0.113.9:8123"])
+def test_a_missing_or_public_http_base_is_not_configured(service, source, base):
+    source.add("ha", HA_BLOCK, config={"base_url": base})
+    assert service.get_connection("ha").configured is False
+    with pytest.raises(ConnectionNotConfigured, match="home network"):
+        service.start("ha", board_url=BOARD)
+
+
+def test_a_lan_base_is_configured(service, source):
+    source.add("ha", HA_BLOCK, config={"base_url": "http://192.168.1.20:8123"})
+    assert service.get_connection("ha").configured is True

@@ -48,7 +48,7 @@ from .errors import (
     ProviderError,
     TokenEndpointError,
 )
-from .provider import FLOW_DEVICE, FLOW_RELAY, OAuthProvider, parse_provider_block
+from .provider import CLIENT_ID_FLOWS, FLOW_DEVICE, FLOW_RELAY, Endpoints, OAuthProvider, parse_provider_block
 from .state import STATE_TTL_SECONDS, StatePayload, StateSigner, load_state_key
 from .tokens import TokenSet, TokenStore
 
@@ -115,6 +115,12 @@ def normalize_board_url(board_url: str | None) -> str:
     return urlunsplit((parts.scheme, parts.netloc, parts.path.rstrip("/"), "", ""))
 
 
+def _with_query(url: str, params: dict[str, str]) -> str:
+    """*url* with *params* appended, keeping any query it already has."""
+    separator = "&" if urlsplit(url).query else "?"
+    return f"{url}{separator}{urlencode(params)}"
+
+
 # ── What the service needs to know about plugins ────────────────────────────
 
 
@@ -136,6 +142,21 @@ class ConnectionTarget:
     @property
     def client_secret(self) -> str:
         return self.provider.resolve_client_secret(self.config)
+
+    def endpoints(self) -> Endpoints:
+        """The provider's endpoints for this instance; raises :class:`ConnectionNotConfigured`."""
+        return self.provider.resolve_endpoints(self.config)
+
+    @property
+    def configured(self) -> bool:
+        """Whether a flow can start: a client ID where one is needed, and usable endpoints."""
+        if self.provider.needs_client_id and not self.client_id:
+            return False
+        try:
+            self.endpoints()
+        except ConnectionNotConfigured:
+            return False
+        return True
 
 
 class ConnectionSource(Protocol):
@@ -279,6 +300,7 @@ class _PendingAuthorization:
     client_secret: str
     scopes: tuple[str, ...]
     expires_at: float
+    client_id_param: str = "client_id"
 
 
 @dataclass
@@ -298,6 +320,9 @@ class _DeviceFlow:
     interval: int
     status: str = DEVICE_PENDING
     detail: str = ""
+    client_id_param: str = "client_id"
+    #: Extra fields every token poll sends (Twitch: the scopes again).
+    poll_form: dict[str, str] = field(default_factory=dict)
 
     def to_status(self) -> DeviceStatus:
         return DeviceStatus(
@@ -368,7 +393,7 @@ class OAuthService:
             plugin_name=target.plugin_name,
             provider_name=target.provider.name,
             flows=target.provider.flows,
-            configured=bool(target.client_id),
+            configured=target.configured,
             user_app=target.provider.user_client_id,
             client_id_setting=target.provider.client_id_setting if target.provider.user_client_id else None,
             client_secret_setting=(
@@ -404,16 +429,17 @@ class OAuthService:
         chosen = flow or target.provider.flows[0]
         if chosen not in target.provider.flows:
             raise FlowNotSupported(f"{target.plugin_name} does not support the {chosen!r} sign-in flow.")
-        if not target.client_id:
+        if chosen in CLIENT_ID_FLOWS and not target.client_id:
             raise ConnectionNotConfigured(
                 f"{target.plugin_name} needs a client ID before it can connect. "
                 f"Enter one in the plugin's settings and save."
             )
+        endpoints = target.endpoints()
         if chosen == FLOW_DEVICE:
-            return self._start_device(target)
-        return self._start_relay(target, normalize_board_url(board_url))
+            return self._start_device(target, endpoints)
+        return self._start_relay(target, normalize_board_url(board_url), endpoints)
 
-    def _start_relay(self, target: ConnectionTarget, board_url: str) -> AuthorizationStart:
+    def _start_relay(self, target: ConnectionTarget, board_url: str, endpoints: Endpoints) -> AuthorizationStart:
         now = self._clock()
         verifier = pkce.generate_verifier()
         nonce = secrets.token_urlsafe(16)
@@ -425,11 +451,12 @@ class OAuthService:
             connection_id=target.connection_id,
             code_verifier=verifier,
             redirect_uri=redirect_uri,
-            token_url=provider.token_url,
+            token_url=endpoints.token_url,
             client_id=target.client_id,
             client_secret=target.client_secret,
             scopes=provider.scopes,
             expires_at=expires_at,
+            client_id_param=provider.client_id_param,
         )
         with self._lock:
             self._prune_pending(now)
@@ -438,19 +465,15 @@ class OAuthService:
         params = {
             **provider.authorization_params,
             "response_type": "code",
-            "client_id": target.client_id,
+            provider.client_id_param: target.client_id,
             "redirect_uri": redirect_uri,
             "state": self._signer.sign(StatePayload(nonce, target.connection_id, expires_at, board_url)),
             "code_challenge": pkce.challenge_for(verifier),
             "code_challenge_method": pkce.CHALLENGE_METHOD,
         }
         if provider.scopes:
-            params["scope"] = " ".join(provider.scopes)
-        separator = "&" if urlsplit(provider.authorization_url).query else "?"
-        return AuthorizationStart(
-            flow=FLOW_RELAY,
-            authorization_url=f"{provider.authorization_url}{separator}{urlencode(params)}",
-        )
+            params["scope"] = provider.joined_scopes()
+        return AuthorizationStart(flow=FLOW_RELAY, authorization_url=_with_query(endpoints.authorization_url, params))
 
     def _prune_pending(self, now: float) -> None:
         """Drop expired flows, then the oldest beyond the cap. Caller holds the lock."""
@@ -459,10 +482,20 @@ class OAuthService:
         while len(self._pending) >= MAX_PENDING_AUTHORIZATIONS:
             del self._pending[next(iter(self._pending))]
 
-    def _start_device(self, target: ConnectionTarget) -> AuthorizationStart:
+    def _start_device(self, target: ConnectionTarget, endpoints: Endpoints) -> AuthorizationStart:
         provider = target.provider
         authorization = self._client.start_device_authorization(
-            provider.device_authorization_url, client_id=target.client_id, scopes=provider.scopes
+            endpoints.device_authorization_url,
+            client_id=target.client_id,
+            scopes=provider.scopes,
+            client_id_param=provider.client_id_param,
+            scope_param=provider.device_scope_param,
+            scope_separator=provider.scope_separator,
+        )
+        poll_form = (
+            {provider.device_scope_param: provider.joined_scopes()}
+            if provider.device_poll_scope and provider.scopes
+            else {}
         )
         flow = _DeviceFlow(
             connection_id=target.connection_id,
@@ -470,12 +503,14 @@ class OAuthService:
             user_code=authorization.user_code,
             verification_uri=authorization.verification_uri,
             verification_uri_complete=authorization.verification_uri_complete,
-            token_url=provider.token_url,
+            token_url=endpoints.token_url,
             client_id=target.client_id,
             client_secret=target.client_secret,
             scopes=provider.scopes,
             expires_at=self._clock() + authorization.expires_in,
             interval=authorization.interval,
+            client_id_param=provider.client_id_param,
+            poll_form=poll_form,
         )
         with self._lock:
             # Replacing the entry retires any earlier flow: its poller sees it
@@ -529,6 +564,7 @@ class OAuthService:
                 client_id=pending.client_id,
                 code_verifier=pending.code_verifier,
                 client_secret=pending.client_secret,
+                client_id_param=pending.client_id_param,
             )
         except (TokenEndpointError, ProviderError) as exc:
             logger.error("OAuth code exchange for %s failed: %s", connection_id, exc)
@@ -593,6 +629,8 @@ class OAuthService:
                 device_code=flow.device_code,
                 client_id=flow.client_id,
                 client_secret=flow.client_secret,
+                client_id_param=flow.client_id_param,
+                extra_form=flow.poll_form,
             )
         except TokenEndpointError as exc:
             if exc.error == "authorization_pending":
@@ -682,11 +720,17 @@ class OAuthService:
         if target is None or not target.client_id:
             return self._still_valid(tokens)
         try:
+            token_url = target.endpoints().token_url
+        except ConnectionNotConfigured as exc:
+            logger.warning("OAuth refresh for %s skipped: %s", connection_id, exc)
+            return self._still_valid(tokens)
+        try:
             response = self._client.refresh(
-                target.provider.token_url,
+                token_url,
                 refresh_token=tokens.refresh_token,
                 client_id=target.client_id,
                 client_secret=target.client_secret,
+                client_id_param=target.provider.client_id_param,
             )
         except TokenEndpointError as exc:
             if exc.error in _REAUTHORIZE_ERRORS:
