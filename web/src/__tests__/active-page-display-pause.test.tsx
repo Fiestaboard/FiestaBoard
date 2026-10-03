@@ -120,6 +120,32 @@ describe("ActivePageDisplay pause toggle (issue #2051)", () => {
     expect(patches).toEqual([{ board: "board-2", body: { paused: false } }]);
   });
 
+  it("does not show the Paused badge while viewing a running board when another board is paused", async () => {
+    serveBoards([
+      { id: "board-1", name: "Living Room", paused: false },
+      { id: "board-2", name: "Kitchen", paused: true },
+    ]);
+    localStorage.setItem("fiestaboard_current_board", "board-1");
+    render(<ActivePageDisplay />, { wrapper: Wrapper });
+
+    // The toggle only renders once board settings have loaded, so the badge
+    // would be on screen by now if Kitchen's pause leaked onto Living Room.
+    await screen.findByRole("button", { name: "Pause sends" });
+
+    expect(screen.queryByTestId("board-paused-badge")).not.toBeInTheDocument();
+  });
+
+  it("shows the Paused badge without the board name when viewing the paused board", async () => {
+    serveBoards([
+      { id: "board-1", name: "Living Room", paused: false },
+      { id: "board-2", name: "Kitchen", paused: true },
+    ]);
+    localStorage.setItem("fiestaboard_current_board", "board-2");
+    render(<ActivePageDisplay />, { wrapper: Wrapper });
+
+    expect(await screen.findByTestId("board-paused-badge")).toHaveTextContent(/^Paused$/);
+  });
+
   it("explains what pausing does on the button itself", async () => {
     serveBoards([{ id: "default", name: "Flagship", paused: false }]);
     render(<ActivePageDisplay />, { wrapper: Wrapper });

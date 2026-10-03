@@ -283,15 +283,13 @@ export function ActivePageDisplay() {
   // Fetch board settings for display type
   const { data: boardSettings } = useBoardSettings();
 
-  // Surface per-board paused status on Home (issue #970). When a board is
-  // paused FiestaBoard does not push anything to it from any code path —
-  // mirror the settings-page badge here so users aren't confused by a board
-  // that appears "stuck" while paused.
-  const pausedBoards = useMemo(() => (boardSettings?.boards ?? []).filter((b) => b.paused === true), [boardSettings]);
-  const showBoardNameOnPauseBadge = (boardSettings?.boards?.length ?? 0) > 1;
-
   // Pause / resume from Home (issue #2051) — the same switch as Settings →
   // Hardware, for the board this display is showing.
+  //
+  // The Paused badge (issue #970) follows the same board: when it is paused
+  // FiestaBoard does not push anything to it from any code path, so the badge
+  // explains a board that appears "stuck". Another board's pause is not this
+  // board's state, and a badge states state — it never carries a board name.
   const pauseTargetBoard = currentBoard ?? boardSettings?.boards?.[0];
   const isTargetPaused = pauseTargetBoard?.paused === true;
   const pauseMutation = useMutation({
@@ -769,18 +767,17 @@ export function ActivePageDisplay() {
                 </Text>
               </Flex>
             )}
-            {pausedBoards.map((board) => (
+            {isTargetPaused && (
               <Badge
-                key={board.id}
                 variant="default"
                 className="text-xs gap-1 bg-warning text-warning-foreground hover:bg-warning"
                 data-testid="board-paused-badge"
                 title={tPause("tooltip")}
               >
                 <Pause className="h-3 w-3" aria-hidden="true" />
-                {showBoardNameOnPauseBadge ? `${tPause("badge")}: ${board.name}` : tPause("badge")}
+                {tPause("badge")}
               </Badge>
-            ))}
+            )}
           </Flex>
         </Stack>
 
