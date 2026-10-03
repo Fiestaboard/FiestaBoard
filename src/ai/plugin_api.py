@@ -214,13 +214,37 @@ async def complete_async(
     max_tokens: int | None = None,
     json: bool = False,
     timeout: float = DEFAULT_TIMEOUT_SECONDS,
-    providers_block: dict[str, Any] | None = None,
-    client: httpx.AsyncClient | None = None,
 ) -> AICompletion:
     """Ask one of FiestaBot's AI providers; see :meth:`PluginBase.ai_complete`.
 
-    ``providers_block`` and ``client`` are for tests; plugins leave them out.
+    Always reads Settings → AI Providers and sends with core's own HTTP
+    client: a plugin can neither hand in its own client (it would see the
+    key or sign-in token) nor its own settings (they would skip "AI is off").
     """
+    return await _complete_async(
+        messages,
+        provider_id=provider_id,
+        model=model,
+        temperature=temperature,
+        max_tokens=max_tokens,
+        json=json,
+        timeout=timeout,
+    )
+
+
+async def _complete_async(
+    messages: str | list[dict[str, str]],
+    *,
+    provider_id: str | None = None,
+    model: str | None = None,
+    temperature: float | None = None,
+    max_tokens: int | None = None,
+    json: bool = False,
+    timeout: float = DEFAULT_TIMEOUT_SECONDS,
+    providers_block: dict[str, Any] | None = None,
+    client: httpx.AsyncClient | None = None,
+) -> AICompletion:
+    """:func:`complete_async` with core-only test seams (settings and HTTP client)."""
     chat = _messages(messages)
     block = _providers_block() if providers_block is None else providers_block
     provider = _resolve_provider(block, provider_id)

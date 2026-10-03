@@ -109,7 +109,7 @@ class Provider:
 
 async def _complete(block: dict[str, Any], provider: Provider, messages: Any = "hi", **kwargs: Any) -> AICompletion:
     async with provider.client() as client:
-        return await plugin_api.complete_async(messages, providers_block=block, client=client, **kwargs)
+        return await plugin_api._complete_async(messages, providers_block=block, client=client, **kwargs)
 
 
 @pytest.fixture
@@ -445,3 +445,17 @@ def test_plugins_import_the_ai_names_from_plugin_base():
     assert base.AICompletion is AICompletion
     with pytest.raises(AttributeError):
         _ = base.NoSuchName
+
+
+# ── a plugin cannot reach a provider's key or token through the helper ─────
+
+
+@pytest.mark.parametrize("hook", ["client", "providers_block"])
+def test_public_helper_refuses_a_plugin_supplied_client_or_settings(hook):
+    # A plugin-supplied httpx client would see the Authorization header (a
+    # pasted key or a sign-in token), and a plugin-supplied settings block
+    # would skip "AI is off" and still spend a signed-in provider's token.
+    with pytest.raises(TypeError):
+        plugin_api.complete("hi", **{hook: None})
+    with pytest.raises(TypeError):
+        asyncio.run(plugin_api.complete_async("hi", **{hook: None}))
