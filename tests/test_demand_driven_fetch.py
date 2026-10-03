@@ -74,7 +74,7 @@ def _engine_with(registry) -> TemplateEngine:
     engine = TemplateEngine.__new__(TemplateEngine)
     engine._display_service = None
     cm = MagicMock()
-    cm.get_color_rules.return_value = []
+    cm.get_effective_color_rules.return_value = []
     engine._config_manager = cm
     engine._plugin_registry = registry
     return engine

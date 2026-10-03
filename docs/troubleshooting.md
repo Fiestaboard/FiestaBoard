@@ -231,6 +231,17 @@ See the [Traffic Plugin](/docs/plugins/traffic) guide for detailed setup.
 1. Is the Home Assistant URL correct and reachable from the computer running FiestaBoard?
 2. Is your long-lived access token still valid?
 3. If FiestaBoard runs in Docker and Home Assistant runs on the same machine, use your machine's local IP address (e.g., `192.168.1.100:8123`) instead of `localhost`
+4. If the error names an address you didn't enter in the UI, a `.env` variable is overriding it. See [A plugin ignores the settings saved in the UI](#plugin-ignores-ui-settings).
+
+### A plugin ignores the settings saved in the UI {#plugin-ignores-ui-settings}
+
+A plugin variable set in `.env` (such as `HOME_ASSISTANT_BASE_URL`, `WEATHER_LOCATION` or `STOCKS_SYMBOLS`) wins over the value saved in the UI while it is set. The Integrations page still shows the saved value, so the two can disagree.
+
+1. Check the logs for a warning naming the variable: `docker compose logs fiestaboard | grep "overrides the"`
+2. Delete or comment out that line in `.env`.
+3. Recreate the container with `docker compose up -d`. A `restart` does not reload `.env`.
+
+Values left unchanged from an old copy of `env.example` are ignored automatically.
 
 ### A plugin shows stale or outdated data
 

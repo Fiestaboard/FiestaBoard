@@ -1,5 +1,6 @@
 """Tests for PluginRegistry - manages loaded plugins."""
 
+import json
 import threading
 import time
 from pathlib import Path
@@ -84,6 +85,7 @@ def mock_manifest():
     manifest.variables.get_all_variable_names.return_value = ["var1", "var2"]
     manifest.max_lengths = {"var1": 10, "var2": 20}
     manifest.raw = {"variables": {"simple": ["var1", "var2"]}}
+    manifest.color_rules_schema = {}
     manifest.teaser = ""
     manifest.previews = []
     return manifest
@@ -423,6 +425,61 @@ def test_get_all_variables_excludes_disabled(registry, mock_loader, mock_plugin,
     assert variables == {}
 
 
+def test_get_all_variables_adds_color_field_from_manifest_default(registry, mock_loader, mock_plugin, mock_manifest):
+    """A field with manifest default_rules gets a `<field>_color` picker entry."""
+    mock_manifest.color_rules_schema = {"var1": {"default_rules": [{"condition": ">", "value": 50, "color": "red"}]}}
+    mock_loader.load_all_plugins.return_value = {"test_plugin": mock_plugin}
+    mock_loader.get_manifest.side_effect = lambda pid: mock_manifest if pid == "test_plugin" else None
+    with patch("src.config_manager.get_config_manager") as mock_cm:
+        mock_cm.return_value.get_all_plugin_configs.return_value = {"test_plugin": {"enabled": True}}
+        registry.initialize()
+
+    with patch("src.config_manager.get_config_manager") as mock_cm:
+        mock_cm.return_value.get_instance_color_rules.return_value = {}
+        mock_cm.return_value.get_effective_color_rules.return_value = []
+        variables = registry.get_all_variables()
+
+    assert "var1_color" in variables["test_plugin"]
+    assert "var2_color" not in variables["test_plugin"]
+
+
+def test_get_all_variables_adds_color_field_from_instance_config(registry, mock_loader, mock_plugin, mock_manifest):
+    """A field with no manifest schema still gets `<field>_color` from a rule saved in the web UI."""
+    mock_manifest.color_rules_schema = {}
+    mock_loader.load_all_plugins.return_value = {"test_plugin": mock_plugin}
+    mock_loader.get_manifest.side_effect = lambda pid: mock_manifest if pid == "test_plugin" else None
+    with patch("src.config_manager.get_config_manager") as mock_cm:
+        mock_cm.return_value.get_all_plugin_configs.return_value = {"test_plugin": {"enabled": True}}
+        registry.initialize()
+
+    instance_rules = {"var1": [{"condition": ">=", "value": 20, "color": "black"}]}
+    with patch("src.config_manager.get_config_manager") as mock_cm:
+        mock_cm.return_value.get_instance_color_rules.return_value = instance_rules
+        mock_cm.return_value.get_effective_color_rules.return_value = instance_rules["var1"]
+        variables = registry.get_all_variables()
+
+    assert "var1_color" in variables["test_plugin"]
+    mock_cm.return_value.get_effective_color_rules.assert_called_with(
+        "test_plugin", "test_plugin", "var1", instance_rules
+    )
+
+
+def test_get_all_variables_no_color_field_without_rules(registry, mock_loader, mock_plugin, mock_manifest):
+    """No `<field>_color` entries appear when nothing configured any rules."""
+    mock_manifest.color_rules_schema = {}
+    mock_loader.load_all_plugins.return_value = {"test_plugin": mock_plugin}
+    mock_loader.get_manifest.side_effect = lambda pid: mock_manifest if pid == "test_plugin" else None
+    with patch("src.config_manager.get_config_manager") as mock_cm:
+        mock_cm.return_value.get_all_plugin_configs.return_value = {"test_plugin": {"enabled": True}}
+        registry.initialize()
+
+    with patch("src.config_manager.get_config_manager") as mock_cm:
+        mock_cm.return_value.get_instance_color_rules.return_value = {}
+        variables = registry.get_all_variables()
+
+    assert variables["test_plugin"] == ["var1", "var2"]
+
+
 # --- get_all_max_lengths ---
 
 
@@ -728,6 +785,7 @@ def _make_autodiscover_manifest(auto_discover=True, simple=None):
     manifest.fiestaboard_version = ""
     manifest.max_lengths = {}
     manifest.raw = {}
+    manifest.color_rules_schema = {}
 
     vs = VariablesSchema(
         simple=simple or [],
@@ -812,6 +870,7 @@ def test_get_all_variables_with_metadata(registry, mock_loader, mock_plugin):
     manifest.fiestaboard_version = ""
     manifest.max_lengths = {}
     manifest.raw = {}
+    manifest.color_rules_schema = {}
 
     vs = VariablesSchema(
         simple=["temp"],
@@ -835,6 +894,69 @@ def test_get_all_variables_with_metadata(registry, mock_loader, mock_plugin):
     assert meta["test_plugin"]["temp"]["preview"] == "72"
 
 
+def test_get_all_variables_with_metadata_synthesizes_color_entry(registry, mock_loader, mock_plugin):
+    """A synthetic `<field>_color` entry borrows the base field's description/group."""
+    from src.plugins.manifest import VariableMetadata, VariablesSchema
+
+    manifest = MagicMock(spec=PluginManifest)
+    manifest.id = "test_plugin"
+    manifest.name = "Test"
+    manifest.version = "1.0.0"
+    manifest.description = ""
+    manifest.author = ""
+    manifest.icon = "puzzle"
+    manifest.category = "utility"
+    manifest.fiestaboard_version = ""
+    manifest.max_lengths = {}
+    manifest.raw = {}
+    manifest.color_rules_schema = {}
+    manifest.variables = VariablesSchema(
+        simple=["hour"],
+        auto_discover=False,
+        metadata={"hour": VariableMetadata(description="Current hour", type="number", group="time")},
+    )
+
+    mock_loader.load_all_plugins.return_value = {"test_plugin": mock_plugin}
+    mock_loader.get_manifest.side_effect = lambda pid: manifest if pid == "test_plugin" else None
+    mock_plugin.get_data.return_value = PluginResult(available=True, data={"hour": 21})
+    with patch("src.config_manager.get_config_manager") as mock_cm:
+        mock_cm.return_value.get_all_plugin_configs.return_value = {"test_plugin": {"enabled": True}}
+        registry.initialize()
+
+    with patch("src.config_manager.get_config_manager") as mock_cm:
+        mock_cm.return_value.get_instance_color_rules.return_value = {
+            "hour": [{"condition": ">=", "value": 20, "color": "black"}]
+        }
+        mock_cm.return_value.get_effective_color_rules.return_value = [
+            {"condition": ">=", "value": 20, "color": "black"}
+        ]
+        meta = registry.get_all_variables_with_metadata()
+
+    assert "hour_color" in meta["test_plugin"]
+    color_meta = meta["test_plugin"]["hour_color"]
+    assert color_meta["type"] == "color"
+    assert color_meta["group"] == "time"
+    assert "Current hour" in color_meta["description"]
+
+
+def test_get_all_variables_with_metadata_keeps_real_color_named_variable(registry, mock_loader, mock_plugin):
+    """A discovered variable that merely ends in `_color` keeps its own metadata."""
+    from src.plugins.manifest import VariablesSchema
+
+    manifest = _make_autodiscover_manifest(auto_discover=True, simple=[])
+    manifest.variables = VariablesSchema(simple=[], auto_discover=True)
+    mock_loader.load_all_plugins.return_value = {"test_plugin": mock_plugin}
+    mock_loader.get_manifest.side_effect = lambda pid: manifest if pid == "test_plugin" else None
+    mock_plugin.get_data.return_value = PluginResult(available=True, data={"bg_color": "teal"})
+    with patch("src.config_manager.get_config_manager") as mock_cm:
+        mock_cm.return_value.get_all_plugin_configs.return_value = {"test_plugin": {"enabled": True}}
+        registry.initialize()
+
+    entry = registry.get_all_variables_with_metadata()["test_plugin"]["bg_color"]
+    assert entry["type"] == "string"
+    assert entry["preview"] == "teal"
+
+
 def test_get_all_variables_with_metadata_describes_arrays(registry, mock_loader, mock_plugin):
     """An array is catalogued with its item fields and live length.
 
@@ -856,6 +978,7 @@ def test_get_all_variables_with_metadata_describes_arrays(registry, mock_loader,
     manifest.fiestaboard_version = ""
     manifest.max_lengths = {}
     manifest.raw = {}
+    manifest.color_rules_schema = {}
     manifest.variables = VariablesSchema(
         simple=["updated"],
         arrays={"games": VariableArraySchema(name="games", label_field="team1", item_fields=["team1", "score1"])},
@@ -2429,3 +2552,82 @@ def test_recreating_the_display_service_keeps_the_live_plugin_instance(registry,
             DisplayService()
 
     assert registry.get_plugin("beta") is live
+
+
+# --- color rules from a real ConfigManager (#2088) ---
+
+
+def _real_config_manager(tmp_path, config: dict):
+    from src.config_manager import ConfigManager
+
+    path = tmp_path / "config.json"
+    path.write_text(json.dumps(config))
+    return ConfigManager(config_path=str(path))
+
+
+def _initialized(registry, mock_loader, mock_plugin, mock_manifest):
+    mock_loader.load_all_plugins.return_value = {"test_plugin": mock_plugin}
+    mock_loader.get_manifest.side_effect = lambda pid: mock_manifest if pid == "test_plugin" else None
+    with patch("src.config_manager.get_config_manager") as mock_cm:
+        mock_cm.return_value.get_all_plugin_configs.return_value = {"test_plugin": {"enabled": True}}
+        registry.initialize()
+    return registry
+
+
+def test_picker_lists_color_field_for_legacy_feature_rules(tmp_path, registry, mock_loader, mock_plugin, mock_manifest):
+    """Rules kept under legacy features.<id>.color_rules color the field, so the picker offers it too."""
+    _initialized(registry, mock_loader, mock_plugin, mock_manifest)
+    cm = _real_config_manager(
+        tmp_path,
+        {
+            "plugins": {"test_plugin": {"enabled": True}},
+            "features": {"test_plugin": {"color_rules": {"var2": [{"condition": ">", "value": 0, "color": "red"}]}}},
+        },
+    )
+    with patch("src.config_manager.get_config_manager", return_value=cm):
+        variables = registry.get_all_variables()
+    assert "var2_color" in variables["test_plugin"]
+    assert "var1_color" not in variables["test_plugin"]
+
+
+def test_picker_matches_saved_rule_field_case_insensitively(
+    tmp_path, registry, mock_loader, mock_plugin, mock_manifest
+):
+    _initialized(registry, mock_loader, mock_plugin, mock_manifest)
+    cm = _real_config_manager(
+        tmp_path,
+        {
+            "plugins": {
+                "test_plugin": {
+                    "enabled": True,
+                    "color_rules": {"VAR1": [{"condition": ">", "value": 0, "color": "red"}]},
+                }
+            }
+        },
+    )
+    with patch("src.config_manager.get_config_manager", return_value=cm):
+        variables = registry.get_all_variables()
+    assert "var1_color" in variables["test_plugin"]
+
+
+def test_max_lengths_include_color_tile_for_fields_with_rules(
+    tmp_path, registry, mock_loader, mock_plugin, mock_manifest
+):
+    """/v1/variables clients size rows from max_lengths, so a rule's <field>_color tile is listed at 1."""
+    _initialized(registry, mock_loader, mock_plugin, mock_manifest)
+    cm = _real_config_manager(
+        tmp_path,
+        {
+            "plugins": {
+                "test_plugin": {
+                    "enabled": True,
+                    "color_rules": {"var1": [{"condition": ">", "value": 0, "color": "red"}]},
+                }
+            }
+        },
+    )
+    with patch("src.config_manager.get_config_manager", return_value=cm):
+        max_lengths = registry.get_all_max_lengths()
+    assert max_lengths["test_plugin.var1_color"] == 1
+    assert "test_plugin.var2_color" not in max_lengths
+    assert max_lengths["test_plugin.var1"] == 10

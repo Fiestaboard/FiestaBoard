@@ -1415,7 +1415,8 @@ class DisplayService:
           under-approximated, the render would already be printing ``???``,
           so the fingerprint is exactly as sound as the fetch it mirrors;
         * config-derived render inputs that are not in either — color rules
-          (``ConfigManager.get_color_rules``) and plugin manifests. Those move
+          (``plugins.<id>.color_rules`` and legacy ``features.<id>.color_rules``,
+          resolved by ``resolve_color_rules``) and plugin manifests. Those move
           only through a config save, which bumps ``config_generation``;
         * which branch of the pass we are on, so a tick that resolves the same
           page through a temporary override is never confused with one that

@@ -65,6 +65,9 @@ interface CurrentBoardContextValue {
   currentBoard: BoardInstance | undefined;
   /** The live list of board instances from board settings. */
   boards: BoardInstance[];
+  /** True until the first board settings response lands. `boards` is empty
+   *  meanwhile, which is not the same as having no boards. */
+  isLoading: boolean;
 }
 
 const CurrentBoardContext = createContext<CurrentBoardContextValue>({
@@ -72,6 +75,7 @@ const CurrentBoardContext = createContext<CurrentBoardContextValue>({
   setCurrentBoardId: () => {},
   currentBoard: undefined,
   boards: [],
+  isLoading: false,
 });
 
 function readStoredBoardId(): string | null {
@@ -89,7 +93,7 @@ export function CurrentBoardProvider({ children }: { children: React.ReactNode }
   // this provider is also rendered router-less in tests, and a TV's page
   // lifecycle never client-navigates between panel and app routes.
   const chromeless = typeof window !== "undefined" && isChromelessPath(window.location.pathname);
-  const { data: boardSettings } = useBoardSettings({ enabled: !chromeless });
+  const { data: boardSettings, isLoading } = useBoardSettings({ enabled: !chromeless });
 
   // Memoize so the boards array identity is stable between renders when the
   // query data is unchanged; downstream effects depend on it.
@@ -177,8 +181,8 @@ export function CurrentBoardProvider({ children }: { children: React.ReactNode }
   const currentBoard = useMemo(() => boards.find((b) => b.id === currentBoardId), [boards, currentBoardId]);
 
   const value = useMemo(
-    () => ({ currentBoardId, setCurrentBoardId, currentBoard, boards }),
-    [currentBoardId, setCurrentBoardId, currentBoard, boards],
+    () => ({ currentBoardId, setCurrentBoardId, currentBoard, boards, isLoading }),
+    [currentBoardId, setCurrentBoardId, currentBoard, boards, isLoading],
   );
 
   return <CurrentBoardContext.Provider value={value}>{children}</CurrentBoardContext.Provider>;

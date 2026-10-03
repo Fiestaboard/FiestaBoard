@@ -39,6 +39,7 @@ from typing import Any
 
 from src.devices import DEFAULT_DEVICE_TYPE, BoardContext, resolve_dimensions
 from src.plugins import get_plugin_registry
+from src.plugins.manifest import resolve_color_rules
 from src.text_utils import extract_alignment_from_line
 
 from .colors import COLOR_CODES
@@ -924,6 +925,11 @@ class TemplateEngine:
 
         return VAR_PATTERN.sub(replace_var, template)
 
+    def _get_configured_color_rules(self, plugin_id: str, base_plugin_id: str, field: str) -> list:
+        """The rules that color ``plugin_id.field`` (see :func:`resolve_color_rules`)."""
+        manifest = self._plugin_registry.get_manifest(base_plugin_id) if self._plugin_registry else None
+        return resolve_color_rules(self.config_manager, plugin_id, field, manifest)
+
     def _get_color_for_value(self, expr: str, context: dict[str, Any]) -> str:
         """Get color tile prefix based on plugin color rules.
 
@@ -951,17 +957,7 @@ class TemplateEngine:
         if field in ("uv_index", "temperature"):
             return ""
 
-        # Try to get color rules from config manager first (for legacy features)
-        rules = self.config_manager.get_color_rules(base_plugin_id, field)
-
-        # If not found, try to get from plugin manifest
-        if not rules and self._plugin_registry:
-            manifest = self._plugin_registry.get_manifest(base_plugin_id)
-            if manifest and manifest.color_rules_schema:
-                field_schema = manifest.color_rules_schema.get(field)
-                if field_schema and isinstance(field_schema, dict):
-                    rules = field_schema.get("default_rules", [])
-
+        rules = self._get_configured_color_rules(plugin_id, base_plugin_id, field)
         if not rules:
             return ""
 
@@ -1224,17 +1220,7 @@ class TemplateEngine:
         # and manifests are registered under the base plugin ID only.
         base_plugin_id = plugin_id.split(":", 1)[0]
 
-        # Try to get color rules from config manager first (for legacy features)
-        rules = self.config_manager.get_color_rules(base_plugin_id, field)
-
-        # If not found, try to get from plugin manifest
-        if not rules and self._plugin_registry:
-            manifest = self._plugin_registry.get_manifest(base_plugin_id)
-            if manifest and manifest.color_rules_schema:
-                field_schema = manifest.color_rules_schema.get(field)
-                if field_schema and isinstance(field_schema, dict):
-                    rules = field_schema.get("default_rules", [])
-
+        rules = self._get_configured_color_rules(plugin_id, base_plugin_id, field)
         if not rules:
             return ""
 
@@ -1728,26 +1714,32 @@ class TemplateEngine:
                 field = parts[1]
                 # Check if plugin has color rules for this field
                 try:
-                    # Try to get color rules from config manager first (for legacy features)
-                    rules = self.config_manager.get_color_rules(plugin_id, field)
-
-                    # If not found, try to get from plugin manifest
-                    if not rules and self._plugin_registry:
-                        manifest = self._plugin_registry.get_manifest(plugin_id)
-                        if manifest and manifest.color_rules_schema:
-                            field_schema = manifest.color_rules_schema.get(field)
-                            if field_schema and isinstance(field_schema, dict):
-                                rules = field_schema.get("default_rules", [])
+                    base_plugin_id = plugin_id.split(":", 1)[0]
+                    rules = self._get_configured_color_rules(plugin_id, base_plugin_id, field)
                     if rules:
                         color_prefix_len = 2  # Color tile + space
                 except Exception:
                     logger.debug("Error getting color rules for variable %s", var_part, exc_info=True)
-            max_len = max_lengths.get(var_part, cols)  # Default to full board width
+            max_len = max_lengths.get(var_part)
+            if max_len is None:
+                max_len = 1 if self._renders_as_color_tile(parts) else cols
             return "X" * (max_len + color_prefix_len)
 
         result = VAR_PATTERN.sub(replace_with_max_length, result)
 
         return len(result)
+
+    @staticmethod
+    def _renders_as_color_tile(parts: list[str]) -> bool:
+        """Whether ``_get_variable_value`` resolves this path to a color tile (or nothing).
+
+        It treats ``source.<field>_color`` as a color lookup, except for Home
+        Assistant entity paths (``home_assistant.light_x.rgb_color``), which
+        return the raw attribute value.
+        """
+        if len(parts) < 2 or not parts[1].endswith("_color"):
+            return False
+        return not (parts[0] == "home_assistant" and len(parts) >= 3)
 
     def _get_max_lengths_for_validation(self) -> dict[str, int]:
         """Get max lengths for template validation.
