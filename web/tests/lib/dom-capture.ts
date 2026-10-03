@@ -107,6 +107,23 @@ export function stripInertMarkup(root: Element, stripAttrs: readonly string[] = 
   // live page; this is the belt to that pair of braces.
   root.querySelectorAll("[data-sonner-toaster], [data-sonner-toast]").forEach((el) => el.remove());
 
+  // Markup carries no scroll position. `readScreen` marks every scrolled
+  // element with its offset; shifting the children by the same amount makes
+  // the docs site show what the app showed. Without it the schedule calendar,
+  // scrolled to the morning, re-rendered at midnight: a frame of empty night.
+  // Edited as attribute text rather than through `style.translate`, which
+  // jsdom's CSSOM does not know and would silently drop.
+  root.querySelectorAll("[data-capture-scroll]").forEach((el) => {
+    const [x, y] = (el.getAttribute("data-capture-scroll") ?? "").split(",").map(Number);
+    el.removeAttribute("data-capture-scroll");
+    if (!x && !y) return;
+    for (const child of Array.from(el.children)) {
+      const own = (child.getAttribute("style") ?? "").trim();
+      const sep = own && !own.endsWith(";") ? "; " : own ? " " : "";
+      child.setAttribute("style", `${own}${sep}translate: ${-x}px ${-y}px;`);
+    }
+  });
+
   const extra = new Set(stripAttrs.map((a) => a.toLowerCase()));
   const scrub = (el: Element) => {
     for (const name of el.getAttributeNames()) {
@@ -298,9 +315,17 @@ async function readScreen(page: Page, stripAttrs: readonly string[] = []) {
     RUNTIME_VARS as unknown as string[],
   );
 
-  const clone = await page.evaluateHandle(
-    () => (document.querySelector("#root") ?? document.body).cloneNode(true) as Element,
-  );
+  // Record inner scroll offsets on the live elements for `stripInertMarkup` to
+  // bake in, then take them off again once the clone carries them. The page
+  // itself (html/body) is outside the cloned root and stays unscrolled.
+  const clone = await page.evaluateHandle(() => {
+    const root = document.querySelector("#root") ?? document.body;
+    const scrolled = Array.from(root.querySelectorAll("*")).filter((el) => el.scrollTop || el.scrollLeft);
+    for (const el of scrolled) el.setAttribute("data-capture-scroll", `${el.scrollLeft},${el.scrollTop}`);
+    const copy = root.cloneNode(true) as Element;
+    for (const el of scrolled) el.removeAttribute("data-capture-scroll");
+    return copy;
+  });
   try {
     // `JSHandle.evaluate` calls the function in the page with the handle as its
     // first argument, so `stripInertMarkup` runs against a real Chrome DOM.
@@ -323,7 +348,7 @@ export async function captureScreen(
   page: Page,
   outDir: string,
   name: string,
-  opts: { frame?: string; stripAttrs?: readonly string[] } = {},
+  opts: { frame?: string; stripAttrs?: readonly string[]; height?: number } = {},
 ): Promise<CaptureEntry> {
   const original = page.viewportSize() ?? CAPTURE_VIEWPORTS.desktop;
 
@@ -380,7 +405,11 @@ export async function captureScreen(
     // content is taller than the screen anyway.
     if (label === "desktop") {
       await page.waitForTimeout(250);
-      const h = await fittedHeight(page, size.width, size.height);
+      // A screen that fills whatever height it is given (the schedule
+      // calendar) measures as the minimum, so the caller can pin one instead.
+      const h = opts.height
+        ? Math.min(900, Math.max(600, opts.height))
+        : await fittedHeight(page, size.width, size.height);
       if (h !== size.height) {
         await page.setViewportSize({ width: size.width, height: h });
         sizes[label] = { width: size.width, height: h };
