@@ -371,10 +371,13 @@ def create_page(
     transition_strategy: str | None = None,
     transition_interval_ms: int | None = None,
     transition_step_size: int | None = None,
+    grid_rows: int | None = None,
+    grid_cols: int | None = None,
 ) -> dict[str, Any]:
     """Create a new template page with every field the page editor saves.
 
-    ``notes_wide``/``notes_tall`` size a ``note_array`` page; ``line_metadata``
+    ``notes_wide``/``notes_tall`` size a ``note_array`` page and
+    ``grid_rows``/``grid_cols`` a ``panel`` page; ``line_metadata``
     is the per-line alignment + wrap the editor stores; the three
     ``transition_*`` fields are the per-page override of the system
     transition. Omitted fields take the model defaults, exactly like a REST
@@ -400,6 +403,8 @@ def create_page(
             "line_metadata": line_metadata,
             "notes_wide": notes_wide,
             "notes_tall": notes_tall,
+            "grid_rows": grid_rows,
+            "grid_cols": grid_cols,
             "transition_strategy": transition_strategy,
             "transition_interval_ms": transition_interval_ms,
             "transition_step_size": transition_step_size,
@@ -429,6 +434,8 @@ def update_page(
     transition_interval_ms: int | None = None,
     transition_step_size: int | None = None,
     clear_transition_override: bool = False,
+    grid_rows: int | None = None,
+    grid_cols: int | None = None,
 ) -> dict[str, Any]:
     """Update any of the fields the page editor saves. Only supplied fields change.
 
@@ -441,14 +448,15 @@ def update_page(
     to the system default — ``clear_transition_override=True`` is that
     escape hatch (the ``clear_end_time`` pattern from :func:`update_schedule`).
 
-    A device or size retarget (``device_type``/``notes_wide``/``notes_tall``)
+    A device or size retarget (``device_type``/``notes_wide``/``notes_tall``/
+    ``grid_rows``/``grid_cols``)
     answers ``incompatible_references`` exactly as ``PUT /pages/{id}`` does:
     the schedule entries, per-board active pages and silence pages that now
     point this page at a board it no longer fits. Warn-only — nothing is
     mutated — so the caller must relay the list rather than a bare success.
     """
     try:
-        from src.devices import size_key
+        from src.devices import geometry_of, size_key
         from src.pages.models import PageUpdate
         from src.pages.service import find_incompatible_references, get_page_service
 
@@ -464,6 +472,8 @@ def update_page(
             "device_type": device_type,
             "notes_wide": notes_wide,
             "notes_tall": notes_tall,
+            "grid_rows": grid_rows,
+            "grid_cols": grid_cols,
             "line_metadata": line_metadata,
             "transition_strategy": transition_strategy,
             "transition_interval_ms": transition_interval_ms,
@@ -477,7 +487,7 @@ def update_page(
         if not fields:
             return err(
                 "Nothing to update: pass at least one of name, template_lines, duration_seconds, "
-                "device_type, notes_wide, notes_tall, line_metadata, transition_strategy, "
+                "device_type, notes_wide, notes_tall, grid_rows, grid_cols, line_metadata, transition_strategy, "
                 "transition_interval_ms, transition_step_size, or clear_transition_override."
             )
 
@@ -488,8 +498,8 @@ def update_page(
 
         incompatible: list[dict[str, Any]] = []
         if existing is not None:
-            old_size = size_key(existing.device_type, existing.notes_wide, existing.notes_tall)
-            new_size = size_key(page.device_type, page.notes_wide, page.notes_tall)
+            old_size = size_key(*geometry_of(existing))
+            new_size = size_key(*geometry_of(page))
             if old_size != new_size:
                 incompatible = find_incompatible_references(page)
 
@@ -725,13 +735,9 @@ def _resolve_send_target(board_id: str | None) -> tuple[_SendTarget | None, dict
 
 def _target_dimensions(target: _SendTarget):
     """Rows/cols of the board this send targets."""
-    from src.devices import resolve_dimensions
+    from src.devices import dimensions_of
 
-    return resolve_dimensions(
-        target.board.get("device_type") or "flagship",
-        target.board.get("notes_wide") or 1,
-        target.board.get("notes_tall") or 1,
-    )
+    return dimensions_of(target.board)
 
 
 def _transition_for(target: _SendTarget, strategy, step_interval_ms, step_size):
@@ -1807,6 +1813,8 @@ async def set_temporary_override(
     duration_minutes: int | None = None,
     revert_mode: str = "schedule",
     revert_page_id: str | None = None,
+    grid_rows: int | None = None,
+    grid_cols: int | None = None,
 ) -> dict[str, Any]:
     """Show a saved page or a composed one-off on the primary board for a while.
 
@@ -1831,6 +1839,8 @@ async def set_temporary_override(
             device_type=device_type,
             notes_wide=notes_wide,
             notes_tall=notes_tall,
+            grid_rows=grid_rows,
+            grid_cols=grid_cols,
             duration_minutes=duration_minutes,
             revert_mode=revert_mode,
             revert_page_id=revert_page_id,
@@ -1959,6 +1969,11 @@ def _validate_board_fields(**fields: Any) -> dict[str, Any] | None:
         value = fields.get(key)
         if value is not None and value not in allowed:
             return err(f"{key} must be one of: {', '.join(allowed)} (got {value!r}).")
+    if fields.get("device_type") == "panel":
+        return err(
+            "device_type 'panel' belongs to FiestaPanel virtual boards and is sized from the TV — "
+            "use create_panel() / update_panel() instead."
+        )
     for key in ("notes_wide", "notes_tall"):
         value = fields.get(key)
         if value is None:

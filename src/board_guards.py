@@ -38,7 +38,7 @@ from fastapi import HTTPException
 
 from . import settings as _settings_pkg  # noqa: F401  (ensures the submodule is importable)
 from .config import Config
-from .devices import resolve_dimensions
+from .devices import geometry_of, resolve_dimensions
 from .send_outcome import SendOutcome
 
 logger = logging.getLogger(__name__)
@@ -108,14 +108,10 @@ def _board_dims(board: dict):
     """Resolved dimensions for a settings.boards entry (flagship fallback).
 
     Uses resolve_dimensions — never get_dimensions, which raises for
-    note_array boards. Safe to call from any endpoint — never raises.
+    note_array and panel boards. Safe to call from any endpoint — never raises.
     """
     try:
-        return resolve_dimensions(
-            board.get("device_type") or "flagship",
-            board.get("notes_wide") or 1,
-            board.get("notes_tall") or 1,
-        )
+        return resolve_dimensions(*geometry_of(board))
     except Exception as exc:
         logger.debug("Could not resolve board dims (using flagship default): %s", exc)
         return resolve_dimensions("flagship")

@@ -290,10 +290,14 @@ class TestDeclaredVocabularies:
         ("schema_name", "field", "expected"),
         [
             ("AddBoardRequest", "device_type", ["flagship", "note", "note_array"]),
-            ("TemplateRenderRequest", "device_type", ["flagship", "note", "note_array"]),
-            ("TemplateRenderLiveRequest", "device_type", ["flagship", "note", "note_array"]),
-            ("TemporaryOverrideRequest", "device_type", ["flagship", "note", "note_array"]),
-            ("TransitionPreviewRequest", "device_type", ["flagship", "note", "note_array"]),
+            # "panel" (FiestaPanel's per-character grid) renders, previews and
+            # overrides like any shape; it is not hardware, so the two
+            # hardware surfaces (AddBoardRequest, DetectBoardSizeResponse)
+            # do not publish it.
+            ("TemplateRenderRequest", "device_type", ["flagship", "note", "note_array", "panel"]),
+            ("TemplateRenderLiveRequest", "device_type", ["flagship", "note", "note_array", "panel"]),
+            ("TemporaryOverrideRequest", "device_type", ["flagship", "note", "note_array", "panel"]),
+            ("TransitionPreviewRequest", "device_type", ["flagship", "note", "note_array", "panel"]),
             ("DetectBoardSizeResponse", "device_type", ["flagship", "note", "note_array"]),
             ("PageSendRequest", "target", ["ui", "board", "both"]),
             ("OutputSettingsUpdate", "target", ["ui", "board", "both"]),
@@ -308,7 +312,7 @@ class TestDeclaredVocabularies:
     def test_device_type_was_already_declared_on_the_page_models(self, openapi):
         """The two that were right stay right — this is the shape being copied."""
         for schema_name in ("PageCreate", "PageUpdate"):
-            assert _field_enum(openapi, schema_name, "device_type") == ["flagship", "note", "note_array"]
+            assert _field_enum(openapi, schema_name, "device_type") == ["flagship", "note", "note_array", "panel"]
 
     def test_transition_strategy_stays_an_open_string(self, openapi):
         """Deliberately NOT an enum: the vocabulary is open.

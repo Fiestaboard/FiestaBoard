@@ -1,10 +1,12 @@
 """Auto-fit grid calculation for FiestaPanel.
 
 A panel's board is sized so each flap renders at real-world scale and the
-grid fills as much of the screen as possible. Grids come in note-array
-blocks (15 columns × 3 rows) because that is the shape every content tool
-in the platform — page editor, schedules, template slicing, the board
-renderer — already understands.
+grid fills as much of the screen as possible. The grid is fit per
+character: as many columns and rows as the screen holds at true flap pitch.
+(It used to be fit in whole 15 × 3 Note blocks, which threw away up to a
+Note's width of every screen — a 55" TV holds 29 columns but only one
+15-column block. Panels are a ``"panel"`` device type with an explicit
+rows × cols grid precisely so they need not be Note multiples.)
 
 Physical anchoring:
 
@@ -21,8 +23,10 @@ Physical anchoring:
 The screen's width/height are derived from the user-entered diagonal and
 aspect ratio (default 16:9 — the overwhelmingly common TV shape); the
 viewer's ±10% stretch-to-fill and the calibration nudge absorb small
-deviations. A screen smaller than one Note block still gets a 1×1 grid,
-which the viewer shrinks to fit (3" pocket displays).
+deviations. Each axis is clamped into [MIN_GRID_*, MAX_GRID_*]: a screen
+smaller than one Note still gets a Note-sized grid (every plugin is
+authored for at least 15 × 3), which the viewer shrinks to fit (3" pocket
+displays).
 
 ``compute_autofit_grid`` is mirrored in ``web/src/lib/panel-scale.ts``
 (computeAutofitGrid) so the panel editor can preview the grid live —
@@ -31,7 +35,7 @@ keep the two in lockstep (their tests share the same example cases).
 
 import math
 
-from src.devices import MAX_NOTES_PER_AXIS, NOTE_COLS, NOTE_ROWS
+from src.devices import NOTE_COLS, DeviceDimensions, clamp_grid
 
 # Real Vestaboard Note: 24.5" wide (frameless unit) for 15 columns.
 NOTE_UNIT_WIDTH_IN = 24.5
@@ -42,9 +46,6 @@ _ROW_PITCH_RATIO = 1.0 + 0.145  # tile height + gutter, in tile heights
 
 COL_PITCH_IN = NOTE_UNIT_WIDTH_IN / NOTE_COLS
 ROW_PITCH_IN = COL_PITCH_IN * (_ROW_PITCH_RATIO / _COL_PITCH_RATIO)
-
-BLOCK_WIDTH_IN = NOTE_COLS * COL_PITCH_IN
-BLOCK_HEIGHT_IN = NOTE_ROWS * ROW_PITCH_IN
 
 # Default screen aspect when only the diagonal is known.
 _ASPECT_W = 16
@@ -72,19 +73,10 @@ def compute_autofit_grid(
     diagonal_inches: float,
     aspect_w: float = _ASPECT_W,
     aspect_h: float = _ASPECT_H,
-) -> tuple[int, int]:
-    """(notes_wide, notes_tall) of the largest true-scale grid that fits.
+) -> DeviceDimensions:
+    """(rows, cols) of the largest true-scale character grid that fits.
 
-    Always returns at least 1×1 (a screen smaller than one Note block gets
-    a Note-sized grid that the viewer shrinks to fit) and at most
-    MAX_NOTES_PER_AXIS per axis.
+    Each axis is clamped into [MIN_GRID_*, MAX_GRID_*] (see src/devices.py).
     """
     width_in, height_in = screen_dimensions_in(diagonal_inches, aspect_w, aspect_h)
-
-    def clamp(blocks: int) -> int:
-        return max(1, min(MAX_NOTES_PER_AXIS, blocks))
-
-    return (
-        clamp(math.floor(width_in / BLOCK_WIDTH_IN)),
-        clamp(math.floor(height_in / BLOCK_HEIGHT_IN)),
-    )
+    return clamp_grid(math.floor(height_in / ROW_PITCH_IN), math.floor(width_in / COL_PITCH_IN))

@@ -104,7 +104,7 @@ class TestDeviceConstants:
 
     def test_device_types(self):
         """DEVICE_TYPES contains flagship, note, and note_array."""
-        assert DEVICE_TYPES == ("flagship", "note", "note_array")
+        assert DEVICE_TYPES == ("flagship", "note", "note_array", "panel")
         assert "flagship" in DEVICE_TYPES
         assert "note" in DEVICE_TYPES
         assert "note_array" in DEVICE_TYPES

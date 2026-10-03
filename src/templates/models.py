@@ -14,9 +14,16 @@ from __future__ import annotations
 
 from typing import Any
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 
-from src.devices import MAX_NOTES_PER_AXIS, DeviceType
+from src.devices import (
+    MAX_GRID_COLS,
+    MAX_GRID_ROWS,
+    MAX_NOTES_PER_AXIS,
+    MIN_GRID_COLS,
+    MIN_GRID_ROWS,
+    DeviceType,
+)
 
 
 class TemplateVariablesResponse(BaseModel):
@@ -89,13 +96,25 @@ class TemplateRenderRequest(BaseModel):
     filled correctly when sent (issue #2032). Bounds match
     :class:`src.pages.models.Page` so a page and its preview accept exactly
     the same geometry; both are ignored for ``flagship`` and ``note``.
+
+    ``grid_rows``/``grid_cols`` size a ``panel`` (a FiestaPanel's explicit
+    per-character grid) and are required for one: a panel has no implied
+    size, so rendering without them would silently answer flagship geometry.
     """
 
     template: str | list[str]
     device_type: DeviceType | None = None
     notes_wide: int = Field(default=1, ge=1, le=MAX_NOTES_PER_AXIS)
     notes_tall: int = Field(default=1, ge=1, le=MAX_NOTES_PER_AXIS)
+    grid_rows: int | None = Field(default=None, ge=MIN_GRID_ROWS, le=MAX_GRID_ROWS)
+    grid_cols: int | None = Field(default=None, ge=MIN_GRID_COLS, le=MAX_GRID_COLS)
     line_metadata: list[dict[str, Any]] | None = None
+
+    @model_validator(mode="after")
+    def _panel_needs_a_grid(self) -> TemplateRenderRequest:
+        if self.device_type == "panel" and (self.grid_rows is None or self.grid_cols is None):
+            raise ValueError("A panel render needs grid_rows and grid_cols")
+        return self
 
 
 class TemplateRenderResponse(BaseModel):

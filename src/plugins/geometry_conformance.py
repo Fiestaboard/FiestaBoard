@@ -56,6 +56,11 @@ def note_array(notes_wide: int, notes_tall: int) -> BoardContext:
     )
 
 
+def panel(rows: int, cols: int) -> BoardContext:
+    """Build a FiestaPanel :class:`BoardContext`: any rows × cols of characters."""
+    return BoardContext(device_type="panel", rows=rows, cols=cols)
+
+
 @dataclass(frozen=True)
 class Geometry:
     """A board shape the conformance suite renders against."""
@@ -72,18 +77,33 @@ class Geometry:
         return self.board.cols
 
 
+# FiestaPanel grids are fit per character to a TV, so they are NOT Note
+# multiples: a plugin that assumes widths of 15/22/30 or heights of 3/6 —
+# or that a row count divides by 3 — breaks on them. Real fits, labelled
+# cols x rows like the rest of the matrix: the narrowest panel (a 24" TV at
+# the 15-column floor) with an odd row count, a 32" TV, a 55" TV, a 55" TV
+# in portrait (taller than wide), and the largest TV a panel accepts.
+PANEL_GEOMETRIES: tuple[Geometry, ...] = (
+    Geometry('panel 15x5 (24")', panel(5, 15)),
+    Geometry('panel 17x7 (32")', panel(7, 17)),
+    Geometry('panel 29x12 (55")', panel(12, 29)),
+    Geometry('portrait panel 16x21 (55" 9:16)', panel(21, 16)),
+    Geometry('panel 106x44 (200")', panel(44, 106)),
+)
+
 # The standard matrix. Note arrays are not simply "bigger than a Flagship":
 # a 1-wide x 4-tall array is 15x12, NARROWER than a Flagship but twice as
 # tall, and a 8-wide x 1-tall array is 120x3, wider but shorter. Code that
 # assumes "not Flagship means smaller" fails one of those two, so both are
-# in the matrix on purpose.
+# in the matrix on purpose — as are the per-character panel grids above.
 STANDARD_GEOMETRIES: tuple[Geometry, ...] = (
     Geometry("flagship 22x6", BoardContext.from_device_type("flagship")),
     Geometry("note 15x3", BoardContext.from_device_type("note")),
-    Geometry("panel 30x12", note_array(2, 4)),
+    Geometry("array 30x12", note_array(2, 4)),
     Geometry("tall-narrow 15x12", note_array(1, 4)),
     Geometry("wide-short 120x3", note_array(8, 1)),
     Geometry("max array 120x24", note_array(8, 8)),
+    *PANEL_GEOMETRIES,
 )
 
 # Same width, increasing height. Holding width constant isolates the height

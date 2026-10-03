@@ -9,12 +9,16 @@ from collections.abc import Collection
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 
+from pydantic import ValidationError
+
 from src.devices import (
     DEFAULT_DEVICE_TYPE,
+    GEOMETRY_FIELDS,
     BoardContext,
     board_context_for,
+    dimensions_of,
+    geometry_of,
     pages_compatible_with_board,
-    resolve_dimensions,
     size_key,
 )
 from src.displays.service import DisplayResult, get_display_service
@@ -173,6 +177,8 @@ class PageService:
             # PageCreate leaves W×H optional (None) — default to a single Note.
             notes_wide=data.notes_wide or 1,
             notes_tall=data.notes_tall or 1,
+            grid_rows=data.grid_rows,
+            grid_cols=data.grid_cols,
             created_at=datetime.now(UTC),
         )
 
@@ -199,12 +205,18 @@ class PageService:
         # before persisting so a retarget can't strand an invalid config.
         # Lossy template truncation is accepted (handled at render time);
         # structural errors (composite rows out of range) are blocked.
-        if any(key in updates for key in ("device_type", "notes_wide", "notes_tall")):
+        if any(key in updates for key in GEOMETRY_FIELDS):
             existing = self.storage.get(page_id)
             if existing is not None:
                 # Mirror storage.update() semantics: None never overwrites the
                 # geometry fields, so validate with None values dropped.
-                prospective = Page(**{**existing.model_dump(), **{k: v for k, v in updates.items() if v is not None}})
+                try:
+                    prospective = Page(
+                        **{**existing.model_dump(), **{k: v for k, v in updates.items() if v is not None}}
+                    )
+                except ValidationError as exc:
+                    # e.g. a retarget to "panel" without a grid.
+                    raise ValueError(f"Cannot retarget page: {exc.errors()[0]['msg']}") from exc
                 errors = prospective.validate_config()
                 if errors:
                     raise ValueError(f"Cannot retarget page: {'; '.join(errors)}")
@@ -374,6 +386,8 @@ class PageService:
         device_type: str,
         notes_wide: int = 1,
         notes_tall: int = 1,
+        grid_rows: int | None = None,
+        grid_cols: int | None = None,
         plugin_ids: Collection[str] | None = None,
     ) -> dict | None:
         """Get-or-build the per-tick shared template context for one board size.
@@ -400,7 +414,8 @@ class PageService:
         """
         if contexts is None:
             return None
-        key = size_key(device_type or DEFAULT_DEVICE_TYPE, notes_wide or 1, notes_tall or 1)
+        geometry = (device_type or DEFAULT_DEVICE_TYPE, notes_wide or 1, notes_tall or 1, grid_rows, grid_cols)
+        key = size_key(*geometry)
         coverage_key = _CONTEXT_COVERAGE_PREFIX + key
         fingerprint_key = CONTEXT_FINGERPRINT_PREFIX + key
         try:
@@ -409,7 +424,7 @@ class PageService:
             registry = get_plugin_registry()
             context = contexts.get(key)
             if context is None:
-                board = board_context_for(device_type, notes_wide, notes_tall)
+                board = board_context_for(*geometry)
                 fingerprints: dict[str, str] = {}
                 if plugin_ids is None:
                     context = registry.build_template_context(board, fingerprints=fingerprints)
@@ -433,7 +448,7 @@ class PageService:
             if not missing:
                 return context
 
-            board = board_context_for(device_type, notes_wide, notes_tall)
+            board = board_context_for(*geometry)
             # Widening fetches EXACTLY the missing ids: the first build for
             # this size already fetched the trigger plugins (they are in
             # ``fetched``), so re-unioning them here would fetch each trigger
@@ -479,9 +494,7 @@ class PageService:
         if context is None and contexts is not None and page.type == "template":
             context = self.shared_context_for(
                 contexts,
-                page.device_type,
-                page.notes_wide,
-                page.notes_tall,
+                *geometry_of(page),
                 # Demand-driven fetch (issue #1751): only the plugins this
                 # page's template references. None (a formula page) keeps
                 # the fetch-all fallback.
@@ -504,7 +517,7 @@ class PageService:
         Resolves note-array geometry from the page's notes_wide/notes_tall so a
         note-array page's plugins receive the board's true size, not flagship's.
         """
-        return board_context_for(page.device_type, page.notes_wide, page.notes_tall)
+        return board_context_for(*geometry_of(page))
 
     @staticmethod
     def _board_key(page: Page) -> str:
@@ -514,7 +527,7 @@ class PageService:
         context sharing and page<->board compatibility use the same notion
         of "same board size". The key is opaque to its consumers.
         """
-        return size_key(page.device_type, page.notes_wide, page.notes_tall)
+        return size_key(*geometry_of(page))
 
     def _render_single(self, page: Page) -> DisplayResult:
         """Render a single-source page."""
@@ -551,7 +564,7 @@ class PageService:
                 error="Composite page missing row configuration",
             )
 
-        dims = resolve_dimensions(page.device_type, page.notes_wide, page.notes_tall)
+        dims = dimensions_of(page)
         display_service = get_display_service()
         board = self._board_for_page(page)
 
@@ -623,6 +636,8 @@ class PageService:
                 device_type=page.device_type,
                 notes_wide=page.notes_wide,
                 notes_tall=page.notes_tall,
+                grid_rows=page.grid_rows,
+                grid_cols=page.grid_cols,
             )
 
             # Note: We do NOT truncate/pad by character count here because:
@@ -745,7 +760,7 @@ class PageService:
                 continue
             key = self._board_key(p)
             if key not in boards:
-                boards[key] = board_context_for(p.device_type, p.notes_wide, p.notes_tall)
+                boards[key] = board_context_for(*geometry_of(p))
             refs = extract_template_plugin_ids(p.template)
             if key not in ids_by_board:
                 ids_by_board[key] = set(refs) if refs is not None else None
@@ -886,7 +901,7 @@ def check_ref_board_compatibility(page_ref: str | None, board_id: str | None) ->
         if board is None:
             return result
 
-        board_label = f"'{board.get('name') or board.get('id')}' ({size_key(*_board_geometry(board))})"
+        board_label = f"'{board.get('name') or board.get('id')}' ({size_key(*geometry_of(board))})"
         page_service = get_page_service()
 
         from src.collections.models import is_collection_id
@@ -908,7 +923,7 @@ def check_ref_board_compatibility(page_ref: str | None, board_id: str | None) ->
                 )
                 return result
             result.warnings = [
-                f"Page '{p.name}' ({size_key(p.device_type, p.notes_wide, p.notes_tall)}) in "
+                f"Page '{p.name}' ({size_key(*geometry_of(p))}) in "
                 f"collection '{collection.name}' does not fit board {board_label} and will be skipped."
                 for p in misfits
             ]
@@ -919,22 +934,13 @@ def check_ref_board_compatibility(page_ref: str | None, board_id: str | None) ->
             return result
         if not pages_compatible_with_board(page, board):
             result.error = (
-                f"Page '{page.name}' ({size_key(page.device_type, page.notes_wide, page.notes_tall)}) "
+                f"Page '{page.name}' ({size_key(*geometry_of(page))}) "
                 f"is not compatible with board {board_label}: page and board sizes must match exactly."
             )
         return result
     except Exception:  # pragma: no cover - defensive: never let validation crash a write
         logger.exception("Page/board compatibility check failed; allowing write")
         return BoardCompatibility()
-
-
-def _board_geometry(board: dict) -> tuple[str, int, int]:
-    """Board dict -> (device_type, notes_wide, notes_tall) with defaults."""
-    return (
-        board.get("device_type") or DEFAULT_DEVICE_TYPE,
-        board.get("notes_wide") or 1,
-        board.get("notes_tall") or 1,
-    )
 
 
 def silence_page_id_for_board(board_id: str | None) -> str | None:

@@ -239,7 +239,7 @@ class TestPanelOrchestration:
         )
 
     def test_create_panel_creates_autofit_virtual_board(self, client, tmp_path):
-        """The board's grid is computed from the TV size (65" 16:9 → 30×12)."""
+        """The board's grid is computed per character from the TV size (65" 16:9 → 14 rows × 34 cols)."""
         real_service = PanelService(storage=PanelStorage(storage_file=str(tmp_path / "p.json")))
         fake_settings = self._fake_settings_service()
         with (
@@ -257,8 +257,8 @@ class TestPanelOrchestration:
         assert len(fake_settings.boards) == 1
         board = fake_settings.boards[0]
         assert board["api_mode"] == "virtual"
-        assert board["device_type"] == "note_array"
-        assert (board["notes_wide"], board["notes_tall"]) == (2, 4)
+        assert board["device_type"] == "panel"
+        assert (board["grid_rows"], board["grid_cols"]) == (14, 34)
         assert board["id"] == panel["board_id"]
         assert reinit.called
         assert real_service.get_panel(panel["id"]) is not None
@@ -274,12 +274,12 @@ class TestPanelOrchestration:
         ):
             created = client.post("/panels", json={"name": "Hall TV", "screen_diagonal_inches": 43}).json()
             board = fake_settings.boards[0]
-            assert (board["notes_wide"], board["notes_tall"]) == (1, 3)
+            assert (board["grid_rows"], board["grid_cols"]) == (9, 22)
 
             response = client.patch(f"/panels/{created['id']}", json={"screen_diagonal_inches": 85})
         assert response.status_code == 200
         board = fake_settings.boards[0]
-        assert (board["notes_wide"], board["notes_tall"]) == (3, 6)
+        assert (board["grid_rows"], board["grid_cols"]) == (18, 45)
 
     def test_create_with_aspect_sizes_the_grid_and_round_trips(self, client, tmp_path):
         """The aspect must both size the board AND persist on the panel —
@@ -299,14 +299,14 @@ class TestPanelOrchestration:
         assert created["screen_aspect_w"] == 21
         assert created["screen_aspect_h"] == 9
         board = fake_settings.boards[0]
-        assert (board["notes_wide"], board["notes_tall"]) == (2, 3)
+        assert (board["grid_rows"], board["grid_cols"]) == (9, 30)
         stored = real_service.get_panel(created["id"])
         assert stored is not None
         assert (stored.screen_aspect_w, stored.screen_aspect_h) == (21, 9)
 
     def test_aspect_change_refits_the_grid(self, client, tmp_path):
         """Changing the aspect ratio re-fits the board like a size change:
-        a 55" 16:9 panel is 1×4; the same TV declared 21:9 fits 2×3."""
+        a 55" 16:9 panel is 12×29; the same TV declared 21:9 fits 9×30."""
         real_service = PanelService(storage=PanelStorage(storage_file=str(tmp_path / "p.json")))
         fake_settings = self._fake_settings_service()
         with (
@@ -316,13 +316,13 @@ class TestPanelOrchestration:
         ):
             created = client.post("/panels", json={"name": "Wide TV", "screen_diagonal_inches": 55}).json()
             board = fake_settings.boards[0]
-            assert (board["notes_wide"], board["notes_tall"]) == (1, 4)
+            assert (board["grid_rows"], board["grid_cols"]) == (12, 29)
 
             response = client.patch(f"/panels/{created['id']}", json={"screen_aspect_w": 21, "screen_aspect_h": 9})
         assert response.status_code == 200
         assert response.json()["screen_aspect_w"] == 21
         board = fake_settings.boards[0]
-        assert (board["notes_wide"], board["notes_tall"]) == (2, 3)
+        assert (board["grid_rows"], board["grid_cols"]) == (9, 30)
 
     def test_delete_panel_removes_virtual_board(self, client, tmp_path):
         real_service = PanelService(storage=PanelStorage(storage_file=str(tmp_path / "p.json")))
@@ -353,13 +353,11 @@ class TestPanelOrchestration:
             patch("src.panels.routes.reinitialize_board_clients"),
         ):
             created = client.post("/panels", json={"name": "Hall TV", "screen_diagonal_inches": 43}).json()
-            vclient = VirtualBoardClient(
-                device_type="note_array", board_id=created["board_id"], notes_wide=1, notes_tall=3
-            )
-            vclient.send_characters([[1] * 15 for _ in range(9)])
+            vclient = VirtualBoardClient(device_type="panel", board_id=created["board_id"], grid_rows=9, grid_cols=22)
+            vclient.send_characters([[1] * 22 for _ in range(9)])
             client.delete(f"/panels/{created['id']}")
 
-        fresh = VirtualBoardClient(device_type="note_array", board_id=created["board_id"], notes_wide=1, notes_tall=3)
+        fresh = VirtualBoardClient(device_type="panel", board_id=created["board_id"], grid_rows=9, grid_cols=22)
         assert fresh.read_current_message() is None
 
     def test_resize_drops_the_old_shape_frame(self, client, tmp_path):
@@ -380,18 +378,18 @@ class TestPanelOrchestration:
         ):
             created = client.post("/panels", json={"name": "Hall TV", "screen_diagonal_inches": 43}).json()
             board_id = created["board_id"]
-            # 43" auto-fits a 1x3 note array => 9 rows x 15 cols. Seed a frame
-            # at exactly that shape so the send lands (a mismatched seed would
-            # make this test pass vacuously).
-            old = VirtualBoardClient(device_type="note_array", board_id=board_id, notes_wide=1, notes_tall=3)
-            old.send_characters([[1] * 15 for _ in range(9)])
+            # 43" auto-fits 9 rows x 22 cols. Seed a frame at exactly that
+            # shape so the send lands (a mismatched seed would make this test
+            # pass vacuously).
+            old = VirtualBoardClient(device_type="panel", board_id=board_id, grid_rows=9, grid_cols=22)
+            old.send_characters([[1] * 22 for _ in range(9)])
             assert old.read_current_message() is not None, "seed frame never landed"
 
             assert client.patch(f"/panels/{created['id']}", json={"screen_diagonal_inches": 85}).status_code == 200
 
-        # 85" re-fits to 3x6 => 18 rows x 45 cols. Neither the displayed frame
-        # nor the dedupe cache may still carry the 9x15 grid.
-        fresh = VirtualBoardClient(device_type="note_array", board_id=board_id, notes_wide=3, notes_tall=6)
+        # 85" re-fits to 18 rows x 45 cols. Neither the displayed frame nor
+        # the dedupe cache may still carry the 9x22 grid.
+        fresh = VirtualBoardClient(device_type="panel", board_id=board_id, grid_rows=18, grid_cols=45)
         assert fresh.read_current_message() is None
         assert fresh._last_characters is None
 

@@ -85,8 +85,10 @@ def _page_mock() -> Mock:
     page.name = "Watchdog Page"
     page.type = "single"
     page.device_type = "flagship"
-    page.notes_wide = None
-    page.notes_tall = None
+    page.notes_wide = 1
+    page.notes_tall = 1
+    page.grid_rows = None
+    page.grid_cols = None
     page.template = None
     page.transition_strategy = None
     page.transition_interval_ms = None

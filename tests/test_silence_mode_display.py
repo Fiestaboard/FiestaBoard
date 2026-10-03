@@ -487,21 +487,46 @@ class TestTemporaryOverrideDuringSilence:
 class TestSendTriggerContent:
     """Tests for _send_trigger_content."""
 
-    def test_device_type_passed_to_get_dimensions(self, service):
-        """Regression #748: get_dimensions must receive device_type, not be called bare."""
+    @pytest.mark.parametrize(
+        ("board", "shape"),
+        [
+            ({"device_type": "note"}, (3, 15)),
+            ({"device_type": "note_array", "notes_wide": 2, "notes_tall": 2}, (6, 30)),
+            ({"device_type": "panel", "api_mode": "virtual", "grid_rows": 12, "grid_cols": 29}, (12, 29)),
+        ],
+        ids=["note", "note_array", "panel"],
+    )
+    def test_trigger_content_is_sized_to_the_board(self, service, board, shape):
+        """Regression #748, generalised: the frame matches the board's grid.
+
+        It used to take a flagship-or-Note type from the first board, so a
+        note array or a panel was sent a 6x22 frame.
+        """
         with (
             patch("src.main.get_settings_service") as mock_settings_svc,
-            patch("src.main.get_dimensions") as mock_get_dims,
-            patch.object(service, "_silence_device_type", return_value="note"),
+            patch.object(service, "_board_dict_for", return_value=board),
         ):
             mock_settings_svc.return_value.get_transition_settings.return_value = Mock(
                 strategy=None, step_interval_ms=500, step_size=1
             )
-            mock_get_dims.return_value = Mock(rows=3, cols=15)
-
             service._send_trigger_content("HELLO")
 
-        mock_get_dims.assert_called_once_with("note")
+        grid = service.vb_client.render.call_args[0][0]
+        assert (len(grid), len(grid[0])) == shape
+
+    def test_blank_on_expiry_is_sized_to_the_board(self, service):
+        board = {"device_type": "panel", "api_mode": "virtual", "grid_rows": 12, "grid_cols": 29}
+        with (
+            patch("src.main.get_settings_service") as mock_settings_svc,
+            patch.object(service, "_board_dict_for", return_value=board),
+        ):
+            mock_settings_svc.return_value.get_transition_settings.return_value = Mock(
+                strategy=None, step_interval_ms=500, step_size=1
+            )
+            service._send_blank_board()
+
+        grid = service.vb_client.render.call_args[0][0]
+        assert (len(grid), len(grid[0])) == (12, 29)
 
     def test_returns_false_when_no_client(self):
         svc = DisplayService()

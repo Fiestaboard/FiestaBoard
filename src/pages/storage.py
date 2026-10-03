@@ -18,7 +18,7 @@ from .models import Page
 
 logger = logging.getLogger(__name__)
 
-CURRENT_SCHEMA_VERSION = 4
+CURRENT_SCHEMA_VERSION = 5
 
 
 # Mapping from obsolete plugin id (used in template variable references,
@@ -193,6 +193,27 @@ def _migrate_v3_to_v4(pages_data: list[dict]) -> int:
     return migrated
 
 
+def _migrate_v4_to_v5(pages_data: list[dict]) -> int:
+    """Migration 4 -> 5: add the panel grid fields to all pages.
+
+    Panels (``device_type: "panel"``) are sized by an explicit
+    ``grid_rows`` × ``grid_cols`` rather than by Notes. No page before this
+    version can be a panel page, so every page gets ``None`` for both.
+
+    Idempotent: pages that already have both fields are skipped.
+    """
+    migrated = 0
+    for page_data in pages_data:
+        changed = False
+        for key in ("grid_rows", "grid_cols"):
+            if key not in page_data:
+                page_data[key] = None
+                changed = True
+        if changed:
+            migrated += 1
+    return migrated
+
+
 # Ordered list of (target_version, migration_function).
 # Each function receives the raw pages list and returns the number of pages affected.
 MIGRATIONS: list[tuple[int, Callable[[list[dict]], int]]] = [
@@ -200,6 +221,7 @@ MIGRATIONS: list[tuple[int, Callable[[list[dict]], int]]] = [
     (2, _migrate_v1_to_v2),
     (3, _migrate_v2_to_v3),
     (4, _migrate_v3_to_v4),
+    (5, _migrate_v4_to_v5),
 ]
 
 

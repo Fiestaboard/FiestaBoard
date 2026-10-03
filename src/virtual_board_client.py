@@ -83,7 +83,9 @@ class VirtualBoardClient(TransitionRenderMixin):
     """Renders frames into memory instead of a physical Vestaboard.
 
     Args:
-        device_type: "flagship" or "note" — fixes the accepted grid shape.
+        device_type: "flagship", "note", "note_array" or "panel" — with
+            notes_wide/notes_tall (note_array) or grid_rows/grid_cols
+            (panel), fixes the accepted grid shape.
         board_id: Settings board id; instances sharing it share frame state.
         skip_unchanged: Skip acknowledging a re-send of an identical grid.
     """
@@ -95,12 +97,14 @@ class VirtualBoardClient(TransitionRenderMixin):
         skip_unchanged: bool = True,
         notes_wide: int = 1,
         notes_tall: int = 1,
+        grid_rows: int | None = None,
+        grid_cols: int | None = None,
     ):
         self.device_type = device_type
         self.board_id = board_id
         self.notes_wide = notes_wide
         self.notes_tall = notes_tall
-        dims = resolve_dimensions(device_type, notes_wide, notes_tall)
+        dims = resolve_dimensions(device_type, notes_wide, notes_tall, grid_rows, grid_cols)
         self.rows = dims.rows
         self.cols = dims.cols
         # Duck-type surface shared with BoardClient
