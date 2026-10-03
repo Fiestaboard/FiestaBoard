@@ -409,7 +409,10 @@ class BoardClient(TransitionRenderMixin):
     """
 
     LOCAL_API_PORT = 7000
-    CLOUD_API_URL = "https://rw.vestaboard.com/"
+    # Read/Write Cloud API base URL. Overridable via VESTABOARD_RW_API_URL so a
+    # dev or test environment can point cloud boards somewhere other than the
+    # real Vestaboard Cloud; defaults to it in production.
+    CLOUD_API_URL = os.environ.get("VESTABOARD_RW_API_URL") or "https://rw.vestaboard.com/"
     # Note-array Cloud API base URL. Overridable via VESTABOARD_CLOUD_API_URL so a
     # local dev environment can point note-array boards at the mock Cloud server
     # (docker-compose.dev.yml sets it to the fiestaboard-mock-cloud service);

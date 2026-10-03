@@ -38,6 +38,7 @@ dev = [
     "pytest-cov>=6.0.0",
     "pytest-asyncio>=0.24.0",
     "pytest-xdist>=3.6.0",
+    "pytest-socket>=0.7.0",
     "coverage>=7.6.0",
     "ruff>=0.9.0",
 ]
@@ -65,6 +66,10 @@ addopts = [
     "--verbose",
     "--strict-markers",
     "--tb=short",
+    # Network fence (pytest-socket): tests may only connect to loopback, so a
+    # test that forgets to mock requests fails instead of reaching a real
+    # Vestaboard or any other external service. tests/test_network_fence.py.
+    "--allow-hosts=127.0.0.1,::1",
 ]
 markers = [
     "slow: marks tests as slow (deselect with '-m \"not slow\"')",
