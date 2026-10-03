@@ -11,7 +11,7 @@ from contextlib import contextmanager
 import schedule
 
 from .board_chars import BoardChars
-from .board_client import BoardClient, board_client_from_board_dict
+from .board_client import BoardClient, board_client_from_board_dict  # noqa: F401 - tests patch src.main.BoardClient
 from .collections.models import is_collection_id
 from .collections.service import get_collection_service
 from .config import Config
@@ -25,6 +25,7 @@ from .devices import (
     size_key,
 )
 from .displays.send_worker import BoardSendWorker, SendJob
+from .outputs import OutputDriver
 from .pages.models import LineMetadata, Page
 from .pages.service import (
     CONTEXT_FINGERPRINT_PREFIX,
@@ -115,9 +116,9 @@ class BoardRuntime:
     ``DisplayService.rebuild_board_clients``.
     """
 
-    def __init__(self, client: BoardClient | None, board_id):
+    def __init__(self, client: OutputDriver | None, board_id):
         self.board_id = board_id
-        self.client = client
+        self.client: OutputDriver | None = client
         self.config_signature = None
 
         # Active-page send cache (dedupes unchanged sends per board).
@@ -322,13 +323,13 @@ class DisplayService:
         return rt
 
     @property
-    def vb_client(self) -> BoardClient | None:
+    def vb_client(self) -> OutputDriver | None:
         """The primary board's client (kept for single-board code paths)."""
         rt = self._primary_runtime()
         return rt.client if rt is not None else None
 
     @vb_client.setter
-    def vb_client(self, client: BoardClient | None) -> None:
+    def vb_client(self, client: OutputDriver | None) -> None:
         key = self._resolve_primary_key()
         self._primary_board_id = key
         rt = self.runtimes.get(key)
@@ -342,7 +343,7 @@ class DisplayService:
         """Read-only view {board_id -> client} for callers that iterate boards."""
         return {bid: rt.client for bid, rt in self.runtimes.items() if rt.client is not None}
 
-    def get_board_client(self, board_id) -> BoardClient | None:
+    def get_board_client(self, board_id) -> OutputDriver | None:
         """Return the client for a board id, or None. Seam for per-board send routing (#1244)."""
         rt = self.runtimes.get(board_id)
         return rt.client if rt is not None else None
@@ -917,7 +918,7 @@ class DisplayService:
                     logger.warning(f"Could not sync cache with board: {e}")
 
     @staticmethod
-    def _attach_transition_runner(client: BoardClient) -> None:
+    def _attach_transition_runner(client: OutputDriver) -> None:
         """Attach the global transition runner so render("plugin:...") works.
 
         Imports are local so test scaffolding can build clients without
