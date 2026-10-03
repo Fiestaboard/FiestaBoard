@@ -40,6 +40,11 @@ export interface OAuthConnection {
    * client ID. False when the plugin brings its own app: nothing to set up.
    */
   user_app: boolean;
+  /**
+   * Whether the plugin ships its own client ID, so sign-in works without the
+   * user's own app. With `user_app` too, their own app is an optional override.
+   */
+  shared_app: boolean;
   /** The plugin settings that hold the user's client ID and secret, when the plugin offers them. */
   client_id_setting: string | null;
   client_secret_setting: string | null;

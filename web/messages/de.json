@@ -467,6 +467,8 @@
       "setupOpenGuide": "Schritt-für-Schritt-Anleitung",
       "setupStepRedirect": "Diese Redirect-URI in der App eintragen",
       "setupStepDetails": "Die Angaben der App hier eintragen",
+      "ownAppToggle": "Eigene App verwenden (optional)",
+      "ownAppDescription": "Die Anmeldung funktioniert auch ohne. Um sich stattdessen über eine eigene App bei {provider} anzumelden, erstellen Sie eine und tragen Sie ihre Angaben hier ein.",
       "clientIdLabel": "Client-ID",
       "clientSecretLabel": "Client-Secret",
       "showSecret": "Client-Secret anzeigen",

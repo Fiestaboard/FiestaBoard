@@ -423,6 +423,8 @@
       "setupOpenGuide": "Step-by-step guide",
       "setupStepRedirect": "Give the app this redirect URI",
       "setupStepDetails": "Copy the app's details here",
+      "ownAppToggle": "Use your own app (optional)",
+      "ownAppDescription": "Sign-in works without this. To sign in through an app of your own with {provider} instead, create one and enter its details here.",
       "clientIdLabel": "Client ID",
       "clientSecretLabel": "Client secret",
       "showSecret": "Show client secret",

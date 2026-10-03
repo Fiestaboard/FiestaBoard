@@ -288,6 +288,9 @@ class ConnectionStatus:
     #: Whether the user registers their own app with the provider (the plugin
     #: offers a client ID field). False when the plugin brings its own app.
     user_app: bool
+    #: Whether the plugin ships its own client ID (``oauth.client_id``), so a
+    #: user can sign in without creating an app; their own app is optional.
+    shared_app: bool
     #: The settings keys the user's client ID and secret are saved under, when
     #: the plugin offers those fields. The UI renders them inside the guided
     #: setup instead of the general settings form.
@@ -459,6 +462,7 @@ class OAuthService:
             flows=target.provider.flows,
             configured=target.configured,
             user_app=target.provider.user_client_id,
+            shared_app=bool(target.provider.client_id.strip()),
             client_id_setting=target.provider.client_id_setting if target.provider.user_client_id else None,
             client_secret_setting=(
                 target.provider.client_secret_setting

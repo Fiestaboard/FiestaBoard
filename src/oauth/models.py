@@ -51,6 +51,13 @@ class OAuthConnection(BaseModel):
             "False when the plugin brings its own app, so there is nothing for the user to set up."
         )
     )
+    shared_app: bool = Field(
+        default=False,
+        description=(
+            "Whether the plugin ships its own client ID, so sign-in works without the user's own app. "
+            "With user_app also true, the user's own app is an optional override."
+        ),
+    )
     client_id_setting: str | None = Field(
         default=None, description="The plugin setting that holds the user's client ID, when the plugin offers one."
     )

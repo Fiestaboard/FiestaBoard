@@ -154,7 +154,9 @@ client ID or secret saved in the plugin's config only counts if
 `settings_schema` declares that field (`OAuthProvider.user_client_id`), so a
 plugin that ships an ID and offers no field cannot have it replaced. The
 connection API reports `user_app`, and the UI hides app-setup help when it is
-false.
+false. It also reports `shared_app` (a shipped client ID): when both are true,
+the UI leads with a plain Sign in and offers the user's own app as an optional,
+collapsed "Use your own app" section.
 
 **Provider quirks are manifest fields, not code.** (9.11.0) `client_id_param`,
 `scope_separator`, `device_scope_param`, `device_poll_scope`,

@@ -467,6 +467,8 @@
       "setupOpenGuide": "Instrukcja krok po kroku",
       "setupStepRedirect": "Dodaj w aplikacji ten adres przekierowania (Redirect URI)",
       "setupStepDetails": "Skopiuj tutaj dane aplikacji",
+      "ownAppToggle": "Użyj własnej aplikacji (opcjonalnie)",
+      "ownAppDescription": "Logowanie działa bez tego. Aby zamiast tego logować się przez własną aplikację w {provider}, utwórz ją i wpisz tutaj jej dane.",
       "clientIdLabel": "Identyfikator klienta (Client ID)",
       "clientSecretLabel": "Sekret klienta (Client secret)",
       "showSecret": "Pokaż sekret klienta",

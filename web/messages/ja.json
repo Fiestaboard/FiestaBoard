@@ -467,6 +467,8 @@
       "setupOpenGuide": "手順ガイド",
       "setupStepRedirect": "このリダイレクト URI をアプリに登録する",
       "setupStepDetails": "アプリの情報をここに入力する",
+      "ownAppToggle": "自分のアプリを使う（任意）",
+      "ownAppDescription": "これがなくてもサインインできます。代わりに自分の {provider} アプリでサインインするには、アプリを作成して詳細をここに入力してください。",
       "clientIdLabel": "クライアント ID",
       "clientSecretLabel": "クライアント シークレット",
       "showSecret": "クライアント シークレットを表示",

@@ -467,6 +467,8 @@
       "setupOpenGuide": "Guide pas à pas",
       "setupStepRedirect": "Ajoutez cette URI de redirection à l'application",
       "setupStepDetails": "Copiez ici les informations de l'application",
+      "ownAppToggle": "Utiliser votre propre application (facultatif)",
+      "ownAppDescription": "La connexion fonctionne sans cela. Pour vous connecter plutôt via votre propre application {provider}, créez-en une et saisissez ses informations ici.",
       "clientIdLabel": "ID client",
       "clientSecretLabel": "Secret client",
       "showSecret": "Afficher le secret client",

@@ -143,6 +143,7 @@ def test_a_connection_reports_its_shape(client):
         "flows": ["relay"],
         "configured": True,
         "user_app": True,
+        "shared_app": False,
         "client_id_setting": "client_id",
         "client_secret_setting": None,
         "app_setup_url": "",
@@ -466,6 +467,24 @@ def test_a_plugin_may_ship_a_default_and_still_let_users_override_it(client, reg
     assert client.get("/oauth/connections/music_app").json()["user_app"] is True
     url = client.post("/oauth/connections/music_app/authorize", json=BOARD).json()["authorization_url"]
     assert parse_qs(urlsplit(url).query)["client_id"] == ["users-own"]
+
+
+def test_a_plugin_that_ships_an_overridable_client_id_reports_a_shared_app(client, registry):
+    """The UI leads with a plain Sign in and tucks the user's own app away as optional."""
+    registry.add("music_app", "Music App", {**RELAY_BLOCK, "client_id": "plugin-shipped-id"})
+    body = client.get("/oauth/connections/music_app").json()
+    assert (body["configured"], body["user_app"], body["shared_app"]) == (True, True, True)
+
+
+def test_a_plugin_that_ships_its_client_id_without_a_field_reports_a_shared_app(client, registry):
+    registry.add("music_app", "Music App", {**RELAY_BLOCK, "client_id": "plugin-shipped-id"}, settings=())
+    assert client.get("/oauth/connections/music_app").json()["shared_app"] is True
+
+
+def test_a_plugin_without_a_shipped_client_id_reports_no_shared_app(client, registry):
+    registry.add("cal", "Calendar", RELAY_BLOCK, settings=("client_id",))
+    body = client.get("/oauth/connections/cal").json()
+    assert (body["user_app"], body["shared_app"]) == (True, False)
 
 
 def test_a_saved_secret_is_ignored_when_the_plugin_offers_no_field_for_it(service, registry, provider):

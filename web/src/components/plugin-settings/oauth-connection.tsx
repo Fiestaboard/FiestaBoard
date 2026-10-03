@@ -31,6 +31,11 @@
  * sign-in button can save it and start the sign-in in one press. The sheet
  * owns the form values (`appFields`) and leaves those fields out of the
  * general settings form below.
+ *
+ * A plugin that ships its own app and also lets users swap in theirs
+ * (`shared_app` with `user_app`) leads with a plain sign-in instead: the
+ * same setup steps sit in a collapsed, optional "Use your own app" section,
+ * open from the start only when the user already saved an app of their own.
  */
 import {
   Alert,
@@ -179,6 +184,8 @@ export function OAuthConnectionPanel({
   const [pasteOffer, setPasteOfferState] = useState<PasteOffer | null>(() => readPasteOffer(connectionId));
   const [pasteOpen, setPasteOpen] = useState(() => pasteOffer?.open ?? false);
   const [pasted, setPasted] = useState("");
+  // null until the user toggles it: then it follows whether they saved an app.
+  const [ownAppToggled, setOwnAppToggled] = useState<boolean | null>(null);
 
   const setPasteOffer = (offer: PasteOffer | null) => {
     writePasteOffer(connectionId, offer);
@@ -282,12 +289,23 @@ export function OAuthConnectionPanel({
   const clientIdKey = connection.client_id_setting;
   const clientSecretKey = connection.client_secret_setting;
   const fieldValue = (key: string | null) => (key && appFields ? String(appFields.values[key] ?? "") : "");
+  const hasOwnClientId = fieldValue(clientIdKey).trim() !== "";
+  // The plugin's shipped app signs in; the user's own app is an optional override.
+  const ownAppOptional = connection.shared_app && connection.user_app;
+  const ownAppOpen = ownAppToggled ?? hasOwnClientId;
   // With the field in this panel, a typed-but-unsaved Client ID is enough to
   // press the button: pressing it saves first.
-  const canConnect = appFields && clientIdKey ? fieldValue(clientIdKey).trim() !== "" : connection.configured;
+  const canConnect = ownAppOptional
+    ? connection.configured || hasOwnClientId
+    : appFields && clientIdKey
+      ? hasOwnClientId
+      : connection.configured;
+  // Save the app fields before signing in, unless they sit untouched in the
+  // closed optional section (nothing there to save).
+  const savesAppFirst = connection.user_app && !!appFields && !isConnected && (!ownAppOptional || ownAppOpen);
 
   const connect = async () => {
-    if (connection.user_app && appFields && !isConnected) {
+    if (savesAppFirst && appFields) {
       setIsSavingApp(true);
       try {
         await appFields.save();
@@ -323,7 +341,7 @@ export function OAuthConnectionPanel({
       ? connection.status_reason === "rejected"
         ? t("rejectedDescription", { provider })
         : t("reconnectDescription", { provider })
-      : connection.user_app && !connection.configured
+      : connection.user_app && !connection.configured && !ownAppOptional
         ? t("setupIntro", { provider })
         : t("disconnectedDescription", { provider });
 
@@ -334,6 +352,73 @@ export function OAuthConnectionPanel({
       : isConnected || needsReconnect
         ? t("reconnectButton")
         : t("connectButton", { provider });
+
+  const setupSteps = (
+    <List as="ol" marker="decimal" gap="4" className="text-sm" data-testid="oauth-setup-steps">
+      <ListItem>
+        <Stack gap="1.5">
+          <Text as="span" weight="medium">
+            {t("setupStepCreate", { provider })}
+          </Text>
+          {(connection.app_setup_url || appFields?.setupGuideUrl) && (
+            <Flex gap="4" wrap>
+              {connection.app_setup_url && (
+                <SetupLink href={connection.app_setup_url}>{t("setupOpenDeveloperPage", { provider })}</SetupLink>
+              )}
+              {appFields?.setupGuideUrl && (
+                <SetupLink href={appFields.setupGuideUrl}>{t("setupOpenGuide")}</SetupLink>
+              )}
+            </Flex>
+          )}
+        </Stack>
+      </ListItem>
+      {usesRelay && (
+        <ListItem>
+          <Stack gap="1.5">
+            <Text as="span" weight="medium">
+              {t("setupStepRedirect")}
+            </Text>
+            <Flex align="center" gap="1" className="rounded-md border bg-background py-1 pl-2.5 pr-1">
+              <Code className="min-w-0 flex-1 break-all bg-transparent px-0 py-0">{data.redirect_uri}</Code>
+              <CopyButton
+                value={data.redirect_uri}
+                labels={{ copy: t("copyRedirectUri"), copied: t("copied") }}
+              />
+            </Flex>
+          </Stack>
+        </ListItem>
+      )}
+      {appFields && clientIdKey && (
+        <ListItem>
+          <Stack gap="2">
+            <Text as="span" weight="medium">
+              {t("setupStepDetails")}
+            </Text>
+            <Field label={t("clientIdLabel")}>
+              <Input
+                value={fieldValue(clientIdKey)}
+                onChange={(event) => appFields.onChange(clientIdKey, event.target.value)}
+                autoComplete="off"
+                spellCheck={false}
+                className="font-mono"
+              />
+            </Field>
+            {clientSecretKey && (
+              <Field label={t("clientSecretLabel")}>
+                <SecretInput
+                  value={fieldValue(clientSecretKey)}
+                  onChange={(event) => appFields.onChange(clientSecretKey, event.target.value)}
+                  autoComplete="off"
+                  showLabel={t("showSecret")}
+                  hideLabel={t("hideSecret")}
+                />
+              </Field>
+            )}
+          </Stack>
+        </ListItem>
+      )}
+    </List>
+  );
 
   return (
     <Stack gap="3" data-testid="oauth-connection">
@@ -398,71 +483,23 @@ export function OAuthConnectionPanel({
           </Alert>
         )}
 
-        {showSetup && (
-          <List as="ol" marker="decimal" gap="4" className="text-sm" data-testid="oauth-setup-steps">
-            <ListItem>
-              <Stack gap="1.5">
-                <Text as="span" weight="medium">
-                  {t("setupStepCreate", { provider })}
+        {showSetup && !ownAppOptional && setupSteps}
+        {showSetup && ownAppOptional && (
+          <Collapsible open={ownAppOpen} onOpenChange={setOwnAppToggled}>
+            <CollapsibleTrigger asChild>
+              <Button size="sm" variant="link" className="h-auto px-0">
+                {t("ownAppToggle")}
+              </Button>
+            </CollapsibleTrigger>
+            <CollapsibleContent>
+              <Stack gap="3" className="pt-2">
+                <Text size="sm" tone="muted">
+                  {t("ownAppDescription", { provider })}
                 </Text>
-                {(connection.app_setup_url || appFields?.setupGuideUrl) && (
-                  <Flex gap="4" wrap>
-                    {connection.app_setup_url && (
-                      <SetupLink href={connection.app_setup_url}>{t("setupOpenDeveloperPage", { provider })}</SetupLink>
-                    )}
-                    {appFields?.setupGuideUrl && (
-                      <SetupLink href={appFields.setupGuideUrl}>{t("setupOpenGuide")}</SetupLink>
-                    )}
-                  </Flex>
-                )}
+                {setupSteps}
               </Stack>
-            </ListItem>
-            {usesRelay && (
-              <ListItem>
-                <Stack gap="1.5">
-                  <Text as="span" weight="medium">
-                    {t("setupStepRedirect")}
-                  </Text>
-                  <Flex align="center" gap="1" className="rounded-md border bg-background py-1 pl-2.5 pr-1">
-                    <Code className="min-w-0 flex-1 break-all bg-transparent px-0 py-0">{data.redirect_uri}</Code>
-                    <CopyButton
-                      value={data.redirect_uri}
-                      labels={{ copy: t("copyRedirectUri"), copied: t("copied") }}
-                    />
-                  </Flex>
-                </Stack>
-              </ListItem>
-            )}
-            {appFields && clientIdKey && (
-              <ListItem>
-                <Stack gap="2">
-                  <Text as="span" weight="medium">
-                    {t("setupStepDetails")}
-                  </Text>
-                  <Field label={t("clientIdLabel")}>
-                    <Input
-                      value={fieldValue(clientIdKey)}
-                      onChange={(event) => appFields.onChange(clientIdKey, event.target.value)}
-                      autoComplete="off"
-                      spellCheck={false}
-                      className="font-mono"
-                    />
-                  </Field>
-                  {clientSecretKey && (
-                    <Field label={t("clientSecretLabel")}>
-                      <SecretInput
-                        value={fieldValue(clientSecretKey)}
-                        onChange={(event) => appFields.onChange(clientSecretKey, event.target.value)}
-                        autoComplete="off"
-                        showLabel={t("showSecret")}
-                        hideLabel={t("hideSecret")}
-                      />
-                    </Field>
-                  )}
-                </Stack>
-              </ListItem>
-            )}
-          </List>
+            </CollapsibleContent>
+          </Collapsible>
         )}
 
         <Stack gap="2">

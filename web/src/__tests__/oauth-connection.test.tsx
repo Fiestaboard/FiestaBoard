@@ -31,6 +31,7 @@ const RELAY: OAuthConnection = {
   flows: ["relay"],
   configured: true,
   user_app: true,
+  shared_app: false,
   client_id_setting: "client_id",
   client_secret_setting: null,
   app_setup_url: "",
@@ -272,6 +273,81 @@ describe("OAuthConnectionSection", () => {
     expect(screen.queryByLabelText("Client ID")).not.toBeInTheDocument();
     // What the trip back looks like still matters to anyone about to make it.
     expect(screen.getByText(/asks you to confirm it/)).toBeInTheDocument();
+  });
+
+  it("leads with a plain sign-in when the plugin ships an app the user may swap out", async () => {
+    serveConnections({ ...RELAY, shared_app: true, app_setup_url: "https://example.com/developers" });
+    renderSection("music", { values: {} });
+    expect(await screen.findByRole("button", { name: "Sign in with Example Music" })).toBeEnabled();
+    expect(screen.queryByText(/asks everyone to sign in through an app of their own/)).not.toBeInTheDocument();
+    expect(screen.queryByText("Paste the Client ID above to sign in.")).not.toBeInTheDocument();
+    const toggle = screen.getByRole("button", { name: "Use your own app (optional)" });
+    expect(toggle).toHaveAttribute("aria-expanded", "false");
+    expect(screen.queryByLabelText("Client ID")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("oauth-setup-steps")).not.toBeInTheDocument();
+  });
+
+  it("signs in with the shipped app without saving when no own app was entered", async () => {
+    serveConnections({ ...RELAY, shared_app: true });
+    const order: string[] = [];
+    vi.stubGlobal("location", { ...window.location, origin: window.location.origin, assign: vi.fn() });
+    server.use(
+      http.post(`${API_BASE}/oauth/connections/music/authorize`, () => {
+        order.push("authorize");
+        return HttpResponse.json({ flow: "relay", authorization_url: "https://accounts.example.com/a", device: null });
+      }),
+    );
+    const user = userEvent.setup();
+    renderSection("music", { values: {}, save: async () => void order.push("save") });
+    await user.click(await screen.findByRole("button", { name: "Sign in with Example Music" }));
+    await waitFor(() => expect(order).toEqual(["authorize"]));
+  });
+
+  it("keeps the own-app setup behind the optional section, and saves an ID typed there first", async () => {
+    serveConnections({ ...RELAY, shared_app: true, app_setup_url: "https://example.com/developers" });
+    const order: string[] = [];
+    vi.stubGlobal("location", { ...window.location, origin: window.location.origin, assign: vi.fn() });
+    server.use(
+      http.post(`${API_BASE}/oauth/connections/music/authorize`, () => {
+        order.push("authorize");
+        return HttpResponse.json({ flow: "relay", authorization_url: "https://accounts.example.com/a", device: null });
+      }),
+    );
+    const user = userEvent.setup();
+    renderSection("music", { values: {}, save: async () => void order.push("save") });
+
+    const toggle = await screen.findByRole("button", { name: "Use your own app (optional)" });
+    await user.click(toggle);
+    expect(toggle).toHaveAttribute("aria-expanded", "true");
+    const steps = within(screen.getByTestId("oauth-setup-steps")).getAllByRole("listitem");
+    expect(within(steps[0]).getByRole("link", { name: "Open Example Music's developer page" })).toHaveAttribute(
+      "href",
+      "https://example.com/developers",
+    );
+    expect(screen.getByText(REDIRECT_URI)).toBeInTheDocument();
+
+    await user.type(screen.getByLabelText("Client ID"), "my-own-app");
+    await user.click(screen.getByRole("button", { name: "Sign in with Example Music" }));
+    await waitFor(() => expect(order).toEqual(["save", "authorize"]));
+  });
+
+  it("opens the own-app section when the user already saved an app of their own", async () => {
+    serveConnections({ ...RELAY, shared_app: true });
+    renderSection("music");
+    expect(await screen.findByRole("button", { name: "Use your own app (optional)" })).toHaveAttribute(
+      "aria-expanded",
+      "true",
+    );
+    expect(screen.getByLabelText("Client ID")).toHaveValue("***");
+  });
+
+  it("keeps the guided setup in front for a plugin that ships no app", async () => {
+    serveConnections({ ...RELAY, configured: false });
+    renderSection("music", { values: {} });
+    expect(await screen.findByTestId("oauth-setup-steps")).toBeInTheDocument();
+    expect(screen.getByLabelText("Client ID")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Use your own app (optional)" })).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Sign in with Example Music" })).toBeDisabled();
   });
 
   it("does not mention the relay for a device-flow plugin", async () => {

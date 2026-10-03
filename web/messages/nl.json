@@ -467,6 +467,8 @@
       "setupOpenGuide": "Stap-voor-stap-handleiding",
       "setupStepRedirect": "Geef de app deze redirect-URI",
       "setupStepDetails": "Neem de gegevens van de app hier over",
+      "ownAppToggle": "Je eigen app gebruiken (optioneel)",
+      "ownAppDescription": "Inloggen werkt ook zonder. Wil je liever inloggen via een eigen app bij {provider}, maak er dan een aan en vul hier de gegevens in.",
       "clientIdLabel": "Client-ID",
       "clientSecretLabel": "Client secret",
       "showSecret": "Client secret tonen",

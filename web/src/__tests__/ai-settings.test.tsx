@@ -556,6 +556,7 @@ describe("AiSettings", () => {
                 flows: ["key_exchange"],
                 configured: true,
                 user_app: false,
+                shared_app: false,
                 client_id_setting: null,
                 client_secret_setting: null,
                 app_setup_url: "",

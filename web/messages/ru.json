@@ -467,6 +467,8 @@
       "setupOpenGuide": "Пошаговая инструкция",
       "setupStepRedirect": "Укажите в приложении этот Redirect URI",
       "setupStepDetails": "Скопируйте сюда данные приложения",
+      "ownAppToggle": "Использовать своё приложение (необязательно)",
+      "ownAppDescription": "Вход работает и без этого. Чтобы входить через собственное приложение {provider}, создайте его и укажите здесь его данные.",
       "clientIdLabel": "Идентификатор клиента (Client ID)",
       "clientSecretLabel": "Секрет клиента (Client secret)",
       "showSecret": "Показать секрет клиента",

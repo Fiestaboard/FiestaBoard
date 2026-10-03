@@ -467,6 +467,8 @@
       "setupOpenGuide": "Adım adım kılavuz",
       "setupStepRedirect": "Uygulamaya bu yönlendirme URI'sini ekleyin",
       "setupStepDetails": "Uygulamanın bilgilerini buraya kopyalayın",
+      "ownAppToggle": "Kendi uygulamanızı kullanın (isteğe bağlı)",
+      "ownAppDescription": "Oturum açma bu olmadan da çalışır. Bunun yerine {provider} üzerinde kendi uygulamanızla oturum açmak için bir uygulama oluşturun ve bilgilerini buraya girin.",
       "clientIdLabel": "İstemci kimliği (Client ID)",
       "clientSecretLabel": "İstemci gizli anahtarı",
       "showSecret": "İstemci gizli anahtarını göster",

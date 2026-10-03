@@ -467,6 +467,8 @@
       "setupOpenGuide": "分步指南",
       "setupStepRedirect": "将此重定向 URI 添加到应用",
       "setupStepDetails": "在此填写应用信息",
+      "ownAppToggle": "使用你自己的应用（可选）",
+      "ownAppDescription": "无需此项也能登录。如需改用你自己的 {provider} 应用登录，请创建一个应用并在此填写其信息。",
       "clientIdLabel": "客户端 ID",
       "clientSecretLabel": "客户端密钥",
       "showSecret": "显示客户端密钥",

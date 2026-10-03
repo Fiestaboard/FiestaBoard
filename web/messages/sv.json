@@ -467,6 +467,8 @@
       "setupOpenGuide": "Steg-för-steg-guide",
       "setupStepRedirect": "Ge appen den här omdirigerings-URI:n",
       "setupStepDetails": "Kopiera appens uppgifter hit",
+      "ownAppToggle": "Använd en egen app (valfritt)",
+      "ownAppDescription": "Inloggningen fungerar utan detta. Vill du i stället logga in via en egen app hos {provider} skapar du en och fyller i dess uppgifter här.",
       "clientIdLabel": "Klient-ID",
       "clientSecretLabel": "Klienthemlighet",
       "showSecret": "Visa klienthemligheten",
