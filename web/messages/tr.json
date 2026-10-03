@@ -2429,5 +2429,11 @@
     "settingFailed": "Ayar kaydedilemedi",
     "on": "Açık",
     "off": "Kapalı"
+  },
+  "settingsRestoreNotice": {
+    "title": "Ayarlar güncelleme öncesindeki haline geri yüklendi",
+    "description": "Bu sürüm, daha yeni bir FiestaBoard sürümünün kaydettiği ayarları okuyamadığı için o güncellemeden önceki kopyayı geri yükledi. Güncellemeden sonra yapılan değişiklikler aktarılmadı; şu dosyada saklanıyor:",
+    "dismiss": "Kapat",
+    "dismissFailed": "Kapatılamadı. Tekrar deneyin."
   }
 }

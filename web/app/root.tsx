@@ -31,6 +31,7 @@ import { PageFadeWrapper } from "@/components/page-fade-wrapper";
 import { Providers } from "@/components/providers";
 import { ReduceMotionApplier } from "@/components/reduce-motion-applier";
 import { ScheduleEditorBridgeProvider } from "@/components/schedule-editor-bridge-context";
+import { SettingsRestoredBanner } from "@/components/settings-restored-banner";
 import { SkipToContent } from "@/components/skip-to-content";
 import { ThemeColorMeta } from "@/components/theme-color-meta";
 import { Toaster } from "@/components/ui/sonner";
@@ -156,6 +157,7 @@ function RootBody() {
                     <NavigationSidebar />
                     <GlobalAiChatDrawer />
                     <MainContent>
+                      <SettingsRestoredBanner />
                       <PageFadeWrapper>
                         <Outlet />
                       </PageFadeWrapper>

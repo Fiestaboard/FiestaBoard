@@ -37,6 +37,7 @@ from typing import Any
 import requests
 from fastapi import APIRouter, HTTPException
 
+from src.api_errors import errors
 from src.board_guards import (
     validate_board_host as _validate_board_host,
 )
@@ -91,6 +92,7 @@ from .models import (
     PollingSettingsUpdate,
     SetActivePageRequest,
     SetActivePageResponse,
+    SettingsRestoreNoticeResponse,
     SilenceScheduleRequest,
     SilenceScheduleResponse,
     SunTimesResponse,
@@ -885,6 +887,42 @@ async def clear_temporary_override():
         svc._last_active_page_content = None
 
     return {"revert_mode": revert_mode}
+
+
+# ---------------------------------------------------------------------------
+# Downgrade bridge notice (output-plugins plan D8)
+# ---------------------------------------------------------------------------
+
+
+@router.get("/settings/restore-notice", response_model=SettingsRestoreNoticeResponse)
+async def get_settings_restore_notice():
+    """Whether this boot restored the pre-upgrade settings snapshot.
+
+    Set when a rollback found settings.json written by a newer FiestaBoard and
+    stepped back onto ``settings.json.v{N}_backup``. The notice names the file
+    the newer settings were moved to, so the web UI can tell the user where
+    changes made since the upgrade went. Stays set until dismissed.
+    """
+    return SettingsRestoreNoticeResponse(notice=get_settings_service().get_restore_notice())
+
+
+@router.delete(
+    "/settings/restore-notice",
+    response_model=SettingsRestoreNoticeResponse,
+    responses=errors(500),
+)
+async def dismiss_settings_restore_notice():
+    """Dismiss the restore notice. Idempotent; the set-aside file is kept.
+
+    Raises:
+        500 when the notice could not be removed from the data directory.
+    """
+    try:
+        get_settings_service().dismiss_restore_notice()
+    except OSError as e:
+        logger.error(f"Could not dismiss the settings restore notice: {e}")
+        raise HTTPException(status_code=500, detail="Could not dismiss the settings restore notice.") from e
+    return SettingsRestoreNoticeResponse(notice=None)
 
 
 @router.get("/settings/polling", response_model=PollingSettings)

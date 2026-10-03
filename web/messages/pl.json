@@ -2429,5 +2429,11 @@
     "settingFailed": "Nie udało się zapisać ustawienia",
     "on": "Wł.",
     "off": "Wył."
+  },
+  "settingsRestoreNotice": {
+    "title": "Przywrócono ustawienia sprzed aktualizacji",
+    "description": "Ta wersja nie mogła odczytać ustawień zapisanych przez nowszą wersję FiestaBoard, więc przywróciła kopię sprzed tej aktualizacji. Zmiany wprowadzone po aktualizacji nie zostały przeniesione; są zachowane w:",
+    "dismiss": "Zamknij",
+    "dismissFailed": "Nie udało się zamknąć. Spróbuj ponownie."
   }
 }

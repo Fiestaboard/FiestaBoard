@@ -2429,5 +2429,11 @@
     "settingFailed": "Die Einstellung konnte nicht gespeichert werden",
     "on": "An",
     "off": "Aus"
+  },
+  "settingsRestoreNotice": {
+    "title": "Einstellungen wurden auf den Stand vor dem Update zurückgesetzt",
+    "description": "Diese Version konnte die von einer neueren FiestaBoard-Version gespeicherten Einstellungen nicht lesen und hat deshalb die Kopie von vor diesem Update wiederhergestellt. Seit dem Update vorgenommene Änderungen wurden nicht übernommen; sie sind gespeichert in:",
+    "dismiss": "Schließen",
+    "dismissFailed": "Schließen fehlgeschlagen. Bitte erneut versuchen."
   }
 }

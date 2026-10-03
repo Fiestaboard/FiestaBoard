@@ -1461,6 +1461,22 @@
       "kind": "APIRoute"
     },
     {
+      "path": "/settings/restore-notice",
+      "methods": [
+        "DELETE"
+      ],
+      "name": "dismiss_settings_restore_notice",
+      "kind": "APIRoute"
+    },
+    {
+      "path": "/settings/restore-notice",
+      "methods": [
+        "GET"
+      ],
+      "name": "get_settings_restore_notice",
+      "kind": "APIRoute"
+    },
+    {
       "path": "/settings/silence-schedule",
       "methods": [
         "PUT"
