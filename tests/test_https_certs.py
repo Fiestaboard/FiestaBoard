@@ -20,6 +20,17 @@ OPENSSL_AVAILABLE = shutil.which("openssl") is not None
 requires_openssl = pytest.mark.skipif(not OPENSSL_AVAILABLE, reason="openssl CLI not available")
 
 
+@pytest.fixture(autouse=True)
+def fixed_lan_ip(monkeypatch):
+    """Pin LAN-IP detection, which otherwise asks the host's routing table.
+
+    ``_detect_lan_ips`` UDP-connects to 8.8.8.8 to find the default-route
+    interface; the network fence blocks that, and the result depended on the
+    machine running the suite anyway.
+    """
+    monkeypatch.setattr(https_certs, "_detect_lan_ips", lambda: ["10.0.0.5"])
+
+
 @pytest.fixture
 def cert_dir(tmp_path, monkeypatch):
     """Redirect cert generation to a tmp directory."""

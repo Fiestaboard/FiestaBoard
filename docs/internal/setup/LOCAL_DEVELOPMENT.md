@@ -82,6 +82,13 @@ docker compose -f docker-compose.dev.yml exec fiestaboard pytest
 docker compose -f docker-compose.dev.yml --profile test run --rm web sh -c "npm ci --legacy-peer-deps && npm test"
 ```
 
+The Python suite runs behind a network fence: `pytest-socket` with
+`--allow-hosts=127.0.0.1,::1` (set in `pyproject.toml`). A test that connects
+anywhere but loopback fails with `SocketConnectBlockedError`. That usually
+means a forgotten mock, so fix it by mocking the request rather than opening
+the fence. Tests that need the real network by design are marked
+`@pytest.mark.integration`, and `tests/conftest.py` exempts them.
+
 ## Testing API Endpoints
 
 ```bash

@@ -336,8 +336,14 @@ class TestProbeVestaboardPort:
     def test_returns_false_for_unreachable_host(self):
         from src.system.mdns import _probe_vestaboard_port
 
-        # Non-routable address should fail quickly
-        assert _probe_vestaboard_port("192.0.2.1", port=7000, timeout=0.2) is False
+        # A connect that times out (what a non-routable address does) reads as
+        # "no board here". Mocked: the suite may not leave loopback.
+        with patch("socket.socket") as mock_sock_cls:
+            mock_sock = MagicMock()
+            mock_sock.connect.side_effect = TimeoutError("timed out")
+            mock_sock_cls.return_value.__enter__ = MagicMock(return_value=mock_sock)
+            mock_sock_cls.return_value.__exit__ = MagicMock(return_value=False)
+            assert _probe_vestaboard_port("192.0.2.1", port=7000, timeout=0.2) is False
 
     def test_returns_true_when_connected(self):
         from src.system.mdns import _probe_vestaboard_port

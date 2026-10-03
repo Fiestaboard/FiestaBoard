@@ -48,6 +48,20 @@ def pytest_configure(config):
     os.environ["FIESTABOARD_DATA_DIR"] = str(_SESSION_DATA_ROOT / "data")
 
 
+def pytest_collection_modifyitems(config, items):
+    """Exempt ``integration`` tests from the network fence.
+
+    ``--allow-hosts`` in pyproject limits every test to loopback (see
+    ``tests/test_network_fence.py``). Integration tests are the ones that
+    reach the real network by design (plugin installs from GitHub), and
+    pytest-socket's ``enable_socket`` marker takes precedence over
+    ``--allow-hosts``. Everything else stays fenced.
+    """
+    for item in items:
+        if item.get_closest_marker("integration"):
+            item.add_marker(pytest.mark.enable_socket)
+
+
 def pytest_unconfigure(config):
     """Remove the session data dir created in ``pytest_configure``."""
     global _SESSION_DATA_ROOT
