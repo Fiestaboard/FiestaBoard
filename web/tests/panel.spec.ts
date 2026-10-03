@@ -13,11 +13,11 @@ interface CreatedPanel {
   board_id: string;
 }
 
-async function createPanel(name: string): Promise<CreatedPanel> {
+async function createPanel(name: string, diagonalInches = 43): Promise<CreatedPanel> {
   const res = await fetch(`${API_URL}/panels`, {
     method: "POST",
     headers: { "Content-Type": "application/json", ...authHeaders() },
-    body: JSON.stringify({ name, screen_diagonal_inches: 43 }),
+    body: JSON.stringify({ name, screen_diagonal_inches: diagonalInches }),
   });
   // 201 with the bare panel since Phase 2 slice 8 (was 200 + { panel }).
   expect(res.status).toBe(201);
@@ -64,12 +64,11 @@ test.describe("FiestaPanel viewer", () => {
       expect(new URL(page.url()).pathname).toContain(`/p/${panel.short_code}`);
       await expect(page.getByRole("navigation")).toHaveCount(0);
 
-      // Seamless grid: the renderer's note-array block seams are zeroed on
-      // the panel, so tiles sit at the normal gutter end to end. The 43"
-      // auto-fit board is 15×9 (3 notes tall) → row seams exist to check.
-      const seamTile = page.locator('[data-note-row-seam="true"]').first();
-      await expect(seamTile).toBeAttached();
-      await expect(seamTile).toHaveCSS("margin-top", "0px");
+      // Seamless grid: a panel is fit per character (the 43" board is 9×22,
+      // no Note multiple), so the renderer draws it with no Note-block
+      // seams at all — tiles sit at the normal gutter end to end.
+      await expect(page.locator('[data-testid="char-tile-8-21"]')).toBeAttached();
+      await expect(page.locator('[data-note-row-seam="true"], [data-note-col-seam="true"]')).toHaveCount(0);
     } finally {
       await deletePanel(panel.id);
     }
@@ -134,72 +133,94 @@ test.describe("FiestaPanel viewer", () => {
     }
   });
 
-  test("renders tiles at true physical scale with a visible, sane geometry", async ({ page }) => {
-    // Guards the class of bug the other assertions are blind to: a TV that
-    // is structurally "correct" (aria-label matches, elements attached) but
-    // visually broken — crop stuck transparent, scale collapsed to 0/1, or
-    // the life-size anchor wired to the wrong pitch. The expected pitch is
-    // derived from the SPEC (a real Note is 24.5" across 15 columns, at the
-    // screen's ppi, stretched ≤10% toward the nearest edge), not from the
-    // implementation, so it fails if the math itself regresses.
-    const panel = await createPanel("E2E Scale Panel"); // 43" 16:9
-    try {
-      await driveBoard(panel.board_id, ["SCALE CHECK", "", ""]);
-      await page.goto(`/p/${panel.short_code}`);
-      await expect(page.getByRole("img")).toHaveAttribute("aria-label", /SCALE CHECK/, { timeout: 15000 });
+  // 43" is 9x22 (fills the width once fit per character), 85" is 18x45, and
+  // 200" is 44x106 — wider unscaled than the window, so the board is shrunk
+  // to life size inside a flex scene that must not narrow it.
+  for (const diagonal of [43, 85, 200]) {
+    test(`renders tiles at true physical scale with a visible, sane geometry (${diagonal}")`, async ({ page }) => {
+      // Guards the class of bug the other assertions are blind to: a TV that
+      // is structurally "correct" (aria-label matches, elements attached) but
+      // visually broken — crop stuck transparent, scale collapsed to 0/1, or
+      // the life-size anchor wired to the wrong pitch. The expected pitch is
+      // derived from the SPEC (a real Note is 24.5" across 15 columns, at the
+      // screen's ppi, stretched ≤10% toward the nearest edge), not from the
+      // implementation, so it fails if the math itself regresses.
+      const panel = await createPanel(`E2E Scale Panel ${diagonal}`, diagonal); // 16:9
+      try {
+        await driveBoard(panel.board_id, ["SCALE CHECK", "", ""]);
+        await page.goto(`/p/${panel.short_code}`);
+        await expect(page.getByRole("img")).toHaveAttribute("aria-label", /SCALE CHECK/, { timeout: 15000 });
 
-      // Wait for measurement: the crop window sizes itself once the grid is
-      // measured; before that it is width:auto with opacity 0.
-      const crop = page.getByTestId("panel-board-crop");
-      await expect(async () => {
-        const width = await crop.evaluate((el) => (el as HTMLElement).style.width);
-        expect(width).not.toBe("");
-      }).toPass({ timeout: 10000 });
+        // Wait for measurement: the crop window sizes itself once the grid is
+        // measured; before that it is width:auto with opacity 0.
+        const crop = page.getByTestId("panel-board-crop");
+        await expect(async () => {
+          const width = await crop.evaluate((el) => (el as HTMLElement).style.width);
+          expect(width).not.toBe("");
+        }).toPass({ timeout: 10000 });
 
-      const metrics = await page.evaluate(() => {
-        const cropEl = document.querySelector<HTMLElement>('[data-testid="panel-board-crop"]');
-        const scaler = document.querySelector<HTMLElement>('[data-testid="panel-board-scaler"]');
-        const t0 = document.querySelector<HTMLElement>('[data-testid="char-tile-0-0"]');
-        const t1 = document.querySelector<HTMLElement>('[data-testid="char-tile-0-1"]');
-        const transform = scaler ? getComputedStyle(scaler).transform : "none";
-        const scale = transform === "none" ? 1 : new DOMMatrixReadOnly(transform).a;
-        const rect = t0?.getBoundingClientRect();
-        return {
-          cropOpacity: cropEl ? getComputedStyle(cropEl).opacity : null,
-          cropWidth: cropEl?.clientWidth ?? 0,
-          scale,
-          unscaledPitchPx: t0 && t1 ? t1.offsetLeft - t0.offsetLeft : 0,
-          firstTile: rect ? { x: rect.x, y: rect.y, width: rect.width } : null,
-          screenWidth: window.screen.width,
-          screenHeight: window.screen.height,
-        };
-      });
+        // Measure until the layout settles: the viewer re-measures after its
+        // first paint (fonts, ResizeObserver), so a single early read can catch
+        // a transient scale. A board that is really cropped never settles.
+        await expect(async () => {
+          const metrics = await page.evaluate(() => {
+            const cropEl = document.querySelector<HTMLElement>('[data-testid="panel-board-crop"]');
+            const scaler = document.querySelector<HTMLElement>('[data-testid="panel-board-scaler"]');
+            const t0 = document.querySelector<HTMLElement>('[data-testid="char-tile-0-0"]');
+            const t1 = document.querySelector<HTMLElement>('[data-testid="char-tile-0-1"]');
+            // DOM order is row-major, so the last tile is the bottom-right corner.
+            const tiles = document.querySelectorAll<HTMLElement>('[data-testid^="char-tile-"]');
+            const lastRect = tiles.length ? tiles[tiles.length - 1].getBoundingClientRect() : null;
+            const transform = scaler ? getComputedStyle(scaler).transform : "none";
+            const scale = transform === "none" ? 1 : new DOMMatrixReadOnly(transform).a;
+            const rect = t0?.getBoundingClientRect();
+            return {
+              cropOpacity: cropEl ? getComputedStyle(cropEl).opacity : null,
+              cropWidth: cropEl?.clientWidth ?? 0,
+              scale,
+              unscaledPitchPx: t0 && t1 ? t1.offsetLeft - t0.offsetLeft : 0,
+              firstTile: rect ? { x: rect.x, y: rect.y, width: rect.width } : null,
+              lastTile: lastRect ? { right: lastRect.right, bottom: lastRect.bottom } : null,
+              viewportWidth: window.innerWidth,
+              viewportHeight: window.innerHeight,
+              screenWidth: window.screen.width,
+              screenHeight: window.screen.height,
+            };
+          });
 
-      // The crop window is actually visible (a failed measurement leaves it
-      // transparent — the "silent black TV" failure mode).
-      expect(metrics.cropOpacity).toBe("1");
-      expect(metrics.cropWidth).toBeGreaterThan(0);
-      expect(metrics.scale).toBeGreaterThan(0);
+          // The crop window is actually visible (a failed measurement leaves it
+          // transparent — the "silent black TV" failure mode).
+          expect(metrics.cropOpacity).toBe("1");
+          expect(metrics.cropWidth).toBeGreaterThan(0);
+          expect(metrics.scale).toBeGreaterThan(0);
 
-      // Life-size invariant: rendered column pitch equals the physical pitch
-      // at this screen's ppi, within the allowed ≤10% fill stretch (plus a
-      // small rounding allowance).
-      const ppi = Math.hypot(metrics.screenWidth, metrics.screenHeight) / 43;
-      const physicalPitchPx = (24.5 / 15) * ppi;
-      const renderedPitchPx = metrics.unscaledPitchPx * metrics.scale;
-      expect(renderedPitchPx).toBeGreaterThanOrEqual(physicalPitchPx * 0.98);
-      expect(renderedPitchPx).toBeLessThanOrEqual(physicalPitchPx * 1.12);
+          // Life-size invariant: rendered column pitch equals the physical pitch
+          // at this screen's ppi, within the allowed ≤10% fill stretch (plus a
+          // small rounding allowance).
+          const ppi = Math.hypot(metrics.screenWidth, metrics.screenHeight) / diagonal;
+          const physicalPitchPx = (24.5 / 15) * ppi;
+          const renderedPitchPx = metrics.unscaledPitchPx * metrics.scale;
+          expect(renderedPitchPx).toBeGreaterThanOrEqual(physicalPitchPx * 0.98);
+          expect(renderedPitchPx).toBeLessThanOrEqual(physicalPitchPx * 1.12);
 
-      // The first tile really is on screen with a paintable area — content
-      // parked outside the viewport reads as a blank TV.
-      expect(metrics.firstTile).not.toBeNull();
-      expect(metrics.firstTile!.width).toBeGreaterThan(5);
-      expect(metrics.firstTile!.x).toBeGreaterThanOrEqual(0);
-      expect(metrics.firstTile!.y).toBeGreaterThanOrEqual(0);
-    } finally {
-      await deletePanel(panel.id);
-    }
-  });
+          // The first tile really is on screen with a paintable area — content
+          // parked outside the viewport reads as a blank TV.
+          expect(metrics.firstTile).not.toBeNull();
+          expect(metrics.firstTile!.width).toBeGreaterThan(5);
+          expect(metrics.firstTile!.x).toBeGreaterThanOrEqual(0);
+          expect(metrics.firstTile!.y).toBeGreaterThanOrEqual(0);
+          // ...and so is the last: the whole grid fits, not just its top-left.
+          // A per-character fit is width-bound, so a centring bug that pushes
+          // the board sideways crops the far edge too.
+          expect(metrics.lastTile).not.toBeNull();
+          expect(metrics.lastTile!.right).toBeLessThanOrEqual(metrics.viewportWidth);
+          expect(metrics.lastTile!.bottom).toBeLessThanOrEqual(metrics.viewportHeight);
+        }).toPass({ timeout: 10000 });
+      } finally {
+        await deletePanel(panel.id);
+      }
+    });
+  }
 
   test("shows the not-found state for an unknown panel", async ({ page }) => {
     await page.goto("/panel/doesnotexist000");
