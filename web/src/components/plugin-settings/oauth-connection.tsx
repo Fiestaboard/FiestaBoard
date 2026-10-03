@@ -16,9 +16,13 @@
  * sections rather than a page of its own. Inside it, top to bottom: the
  * status (a dot plus words, never colour alone), what that means, anything
  * in flight (a device code, or why the last one ended), then the action.
- * Setup help — the redirect URI to paste into the provider, and what the
- * trip back looks like — sits below a rule, because it only matters until
- * the first connection exists.
+ *
+ * Plugins where each user brings their own app with the provider get a
+ * guided setup until they are connected: numbered steps to create the app,
+ * the redirect URI to give it, and the Client ID field right here, so the
+ * sign-in button can save it and start the sign-in in one press. The sheet
+ * owns the form values (`appFields`) and leaves those fields out of the
+ * general settings form below.
  */
 import {
   Alert,
@@ -26,8 +30,13 @@ import {
   Button,
   Code,
   CopyButton,
+  Field,
   Flex,
   Heading,
+  Input,
+  List,
+  ListItem,
+  SecretInput,
   Spinner,
   Stack,
   StatusDot,
@@ -35,8 +44,8 @@ import {
   TextLink,
 } from "@fiestaboard/ui";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { CircleAlert, Info, TimerOff } from "lucide-react";
-import { useId } from "react";
+import { CircleAlert, ExternalLink, Info, TimerOff } from "lucide-react";
+import { type ReactNode, useId, useState } from "react";
 import { toast } from "sonner";
 
 import { useTranslations } from "@/i18n/translations";
@@ -51,11 +60,40 @@ function findConnection(connections: OAuthConnection[] | undefined, pluginId: st
   return connections?.find((connection) => connection.id === pluginId);
 }
 
-export function OAuthConnectionSection({ pluginId }: { pluginId: string }) {
+/**
+ * The plugin settings the guided setup edits. The settings sheet owns the
+ * values, so one save covers these and everything else on the form.
+ */
+export interface OAuthAppFields {
+  /** The sheet's current form values. */
+  values: Record<string, unknown>;
+  /** Change one setting, by its key. */
+  onChange: (key: string, value: string) => void;
+  /** Save the plugin's settings without closing the sheet. Rejects when the save is refused. */
+  save: () => Promise<void>;
+  /** The plugin's own setup guide, when it has one. */
+  setupGuideUrl?: string;
+}
+
+/** The settings keys the guided setup renders, so the sheet can leave them out of its form. */
+export function oauthAppFieldKeys(connection: OAuthConnection | undefined): string[] {
+  if (!connection?.user_app) return [];
+  return [connection.client_id_setting, connection.client_secret_setting].filter((key): key is string => !!key);
+}
+
+export function findOAuthConnection(
+  connections: OAuthConnection[] | undefined,
+  pluginId: string,
+): OAuthConnection | undefined {
+  return findConnection(connections, pluginId);
+}
+
+export function OAuthConnectionSection({ pluginId, appFields }: { pluginId: string; appFields?: OAuthAppFields }) {
   const t = useTranslations("integrations.oauth");
   const tCommon = useTranslations("common");
   const queryClient = useQueryClient();
   const hintId = useId();
+  const [isSavingApp, setIsSavingApp] = useState(false);
 
   const { data } = useQuery({
     queryKey: OAUTH_CONNECTIONS_QUERY_KEY,
@@ -105,6 +143,30 @@ export function OAuthConnectionSection({ pluginId }: { pluginId: string }) {
   const device = connection.device;
   const awaitingCode = device?.status === "pending";
 
+  // Guided setup: the user brings their own app, and is not connected yet.
+  const showSetup = connection.user_app && !isConnected && !awaitingCode;
+  const clientIdKey = connection.client_id_setting;
+  const clientSecretKey = connection.client_secret_setting;
+  const fieldValue = (key: string | null) => (key && appFields ? String(appFields.values[key] ?? "") : "");
+  // With the field in this panel, a typed-but-unsaved Client ID is enough to
+  // press the button: pressing it saves first.
+  const canConnect = appFields && clientIdKey ? fieldValue(clientIdKey).trim() !== "" : connection.configured;
+
+  const connect = async () => {
+    if (connection.user_app && appFields && !isConnected) {
+      setIsSavingApp(true);
+      try {
+        await appFields.save();
+      } catch (err) {
+        toast.error(t("toastSaveFailed", { error: err instanceof Error ? err.message : tCommon("unknownError") }));
+        return;
+      } finally {
+        setIsSavingApp(false);
+      }
+    }
+    connectMutation.mutate();
+  };
+
   // The one line that says where things stand. It is a live region so the
   // change is announced when a device code is approved, or after Disconnect.
   const status = awaitingCode
@@ -119,7 +181,9 @@ export function OAuthConnectionSection({ pluginId }: { pluginId: string }) {
     ? t("connectedDescription", { provider })
     : needsReconnect
       ? t("reconnectDescription", { provider })
-      : t("disconnectedDescription", { provider });
+      : connection.user_app && !connection.configured
+        ? t("setupIntro", { provider })
+        : t("disconnectedDescription", { provider });
 
   const connectLabel = awaitingCode
     ? t("newCodeButton")
@@ -184,15 +248,82 @@ export function OAuthConnectionSection({ pluginId }: { pluginId: string }) {
           </Alert>
         )}
 
+        {showSetup && (
+          <List as="ol" marker="decimal" gap="4" className="text-sm" data-testid="oauth-setup-steps">
+            <ListItem>
+              <Stack gap="1.5">
+                <Text as="span" weight="medium">
+                  {t("setupStepCreate", { provider })}
+                </Text>
+                {(connection.app_setup_url || appFields?.setupGuideUrl) && (
+                  <Flex gap="4" wrap>
+                    {connection.app_setup_url && (
+                      <SetupLink href={connection.app_setup_url}>{t("setupOpenDeveloperPage", { provider })}</SetupLink>
+                    )}
+                    {appFields?.setupGuideUrl && (
+                      <SetupLink href={appFields.setupGuideUrl}>{t("setupOpenGuide")}</SetupLink>
+                    )}
+                  </Flex>
+                )}
+              </Stack>
+            </ListItem>
+            {usesRelay && (
+              <ListItem>
+                <Stack gap="1.5">
+                  <Text as="span" weight="medium">
+                    {t("setupStepRedirect")}
+                  </Text>
+                  <Flex align="center" gap="1" className="rounded-md border bg-background py-1 pl-2.5 pr-1">
+                    <Code className="min-w-0 flex-1 break-all bg-transparent px-0 py-0">{data.redirect_uri}</Code>
+                    <CopyButton
+                      value={data.redirect_uri}
+                      labels={{ copy: t("copyRedirectUri"), copied: t("copied") }}
+                    />
+                  </Flex>
+                </Stack>
+              </ListItem>
+            )}
+            {appFields && clientIdKey && (
+              <ListItem>
+                <Stack gap="2">
+                  <Text as="span" weight="medium">
+                    {t("setupStepDetails")}
+                  </Text>
+                  <Field label={t("clientIdLabel")}>
+                    <Input
+                      value={fieldValue(clientIdKey)}
+                      onChange={(event) => appFields.onChange(clientIdKey, event.target.value)}
+                      autoComplete="off"
+                      spellCheck={false}
+                      className="font-mono"
+                    />
+                  </Field>
+                  {clientSecretKey && (
+                    <Field label={t("clientSecretLabel")}>
+                      <SecretInput
+                        value={fieldValue(clientSecretKey)}
+                        onChange={(event) => appFields.onChange(clientSecretKey, event.target.value)}
+                        autoComplete="off"
+                        showLabel={t("showSecret")}
+                        hideLabel={t("hideSecret")}
+                      />
+                    </Field>
+                  )}
+                </Stack>
+              </ListItem>
+            )}
+          </List>
+        )}
+
         <Stack gap="2">
           <Flex gap="2" wrap>
             <Button
               size="sm"
               variant={isConnected || awaitingCode ? "outline" : "default"}
-              loading={connectMutation.isPending}
-              disabled={!connection.configured || disconnectMutation.isPending}
-              aria-describedby={connection.configured ? undefined : hintId}
-              onClick={() => connectMutation.mutate()}
+              loading={connectMutation.isPending || isSavingApp}
+              disabled={!canConnect || disconnectMutation.isPending}
+              aria-describedby={canConnect ? undefined : hintId}
+              onClick={connect}
             >
               {connectLabel}
             </Button>
@@ -201,14 +332,14 @@ export function OAuthConnectionSection({ pluginId }: { pluginId: string }) {
                 size="sm"
                 variant="outline"
                 loading={disconnectMutation.isPending}
-                disabled={connectMutation.isPending}
+                disabled={connectMutation.isPending || isSavingApp}
                 onClick={() => disconnectMutation.mutate()}
               >
                 {t("disconnectButton")}
               </Button>
             )}
           </Flex>
-          {!connection.configured && (
+          {!canConnect && (
             <Flex align="start" gap="1.5" id={hintId}>
               <Info className="mt-0.5 size-3.5 shrink-0 text-muted-foreground" aria-hidden="true" />
               <Text size="xs" tone="muted">
@@ -216,31 +347,24 @@ export function OAuthConnectionSection({ pluginId }: { pluginId: string }) {
               </Text>
             </Flex>
           )}
-        </Stack>
-
-        {/* Only useful while setting up an app of your own: once connected it
-            is noise, and a plugin that brings its own app needs none. */}
-        {usesRelay && connection.user_app && !isConnected && (
-          <Stack gap="3" className="border-t pt-4">
-            <Stack gap="1.5">
-              <Text as="span" size="xs" weight="medium">
-                {t("redirectUriLabel")}
-              </Text>
-              <Flex align="center" gap="1" className="rounded-md border bg-background py-1 pl-2.5 pr-1">
-                <Code className="min-w-0 flex-1 break-all bg-transparent px-0 py-0">{data.redirect_uri}</Code>
-                <CopyButton value={data.redirect_uri} labels={{ copy: t("copyRedirectUri"), copied: t("copied") }} />
-              </Flex>
-              <Text size="xs" tone="muted">
-                {t("redirectUriHint", { provider })}
-              </Text>
-            </Stack>
+          {/* What the trip back looks like, for anyone about to make it. */}
+          {usesRelay && !isConnected && (
             <Text size="xs" tone="muted">
               {t("relayHint")}
             </Text>
-          </Stack>
-        )}
+          )}
+        </Stack>
       </Stack>
     </Stack>
+  );
+}
+
+function SetupLink({ href, children }: { href: string; children: ReactNode }) {
+  return (
+    <TextLink href={href} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1">
+      {children}
+      <ExternalLink className="size-3.5" aria-hidden="true" />
+    </TextLink>
   );
 }
 

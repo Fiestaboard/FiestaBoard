@@ -42,6 +42,13 @@ class OAuthConnection(BaseModel):
             "False when the plugin brings its own app, so there is nothing for the user to set up."
         )
     )
+    client_id_setting: str | None = Field(
+        default=None, description="The plugin setting that holds the user's client ID, when the plugin offers one."
+    )
+    client_secret_setting: str | None = Field(
+        default=None, description="The plugin setting that holds the user's client secret, when the plugin offers one."
+    )
+    app_setup_url: str = Field(default="", description="The provider's developer page, where a user creates their app.")
     status: Literal["connected", "disconnected", "reauthorization_required"]
     scopes: list[str] = Field(description="Scopes granted when connected, otherwise the scopes that will be requested.")
     expires_at: float | None = Field(default=None, description="Epoch seconds when the access token expires.")

@@ -1240,7 +1240,7 @@ export const handlers = [
   http.get(`${API_BASE}/oauth/connections`, () => {
     return HttpResponse.json({
       connections: [],
-      redirect_uri: "https://fiestaboard.app/auth/oauth/redirect.html",
+      redirect_uri: "https://fiestaboard.app/auth/oauth/redirect",
     });
   }),
 

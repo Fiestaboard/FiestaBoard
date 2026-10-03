@@ -50,6 +50,7 @@ _KNOWN_KEYS = frozenset(
         "client_id_setting",
         "client_secret_setting",
         "authorization_params",
+        "app_setup_url",
     }
 )
 
@@ -82,6 +83,9 @@ class OAuthProvider:
     #: users cannot swap that app out, through the UI or around it.
     user_client_id: bool = True
     user_client_secret: bool = True
+    #: Where a user creates their own app with the provider (its developer
+    #: dashboard). The settings link to it from the guided setup.
+    app_setup_url: str = ""
 
     def resolve_client_id(self, config: dict[str, Any]) -> str:
         """The client ID to use: the user's setting if the plugin offers one, else the manifest's."""
@@ -167,8 +171,6 @@ def validate_provider_block(raw: Any) -> list[str]:
         return ["oauth must be an object"]
 
     errors = _credential_errors(raw)
-    if set(raw) - _KNOWN_KEYS - {"client_secret"}:
-        errors.append(f"oauth has a field that is not recognised; the fields are: {', '.join(sorted(_KNOWN_KEYS))}")
 
     flow_errors = _flows_errors(raw.get("flows"))
     errors.extend(flow_errors)
@@ -191,7 +193,33 @@ def validate_provider_block(raw: Any) -> list[str]:
         errors.extend(_scopes_errors(raw["scopes"]))
     if "authorization_params" in raw:
         errors.extend(_authorization_params_errors(raw["authorization_params"]))
+    if "app_setup_url" in raw:
+        problem = _endpoint_error("app_setup_url", raw["app_setup_url"])
+        if problem:
+            errors.append(problem)
     return errors
+
+
+def provider_block_warnings(raw: Any) -> list[str]:
+    """The *non-fatal* findings in an ``oauth`` block: fields this core does not know.
+
+    Not an error, for the reason given at ``settings_schema_ui_warnings`` in
+    ``src/plugins/manifest.py``: plugins auto-update hourly and cores are
+    updated by hand, so a plugin routinely lands on a core older than the one
+    it was written against. Refusing a manifest for a field a newer core
+    added would uninstall the plugin from every board a release behind. The
+    field is ignored and the plugin loads; the warning surfaces through
+    ``GET /plugins/errors`` so a typo is still visible.
+
+    The message is fixed text and does not name the field, because nothing a
+    manifest contains may reach a log line through this module.
+    """
+    if not isinstance(raw, dict) or not (set(raw) - _KNOWN_KEYS - {"client_secret"}):
+        return []
+    return [
+        "oauth has a field this FiestaBoard does not recognise, which is ignored. Check the spelling; "
+        f"if it is spelled correctly it was added in a newer FiestaBoard. Known fields: {', '.join(sorted(_KNOWN_KEYS))}"
+    ]
 
 
 def _declared_settings(settings_schema: Any) -> set[str] | None:
@@ -231,4 +259,5 @@ def parse_provider_block(raw: Any, fallback_name: str, settings_schema: Any = No
         authorization_params=dict(raw.get("authorization_params", {})),
         user_client_id=declared is None or client_id_setting in declared,
         user_client_secret=declared is None or client_secret_setting in declared,
+        app_setup_url=raw.get("app_setup_url", ""),
     )

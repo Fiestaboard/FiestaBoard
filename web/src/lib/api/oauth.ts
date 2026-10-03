@@ -38,6 +38,11 @@ export interface OAuthConnection {
    * client ID. False when the plugin brings its own app: nothing to set up.
    */
   user_app: boolean;
+  /** The plugin settings that hold the user's client ID and secret, when the plugin offers them. */
+  client_id_setting: string | null;
+  client_secret_setting: string | null;
+  /** The provider's developer page, where a user creates their app. Empty when the plugin gives none. */
+  app_setup_url: string;
   status: "connected" | "disconnected" | "reauthorization_required";
   scopes: string[];
   expires_at: number | null;

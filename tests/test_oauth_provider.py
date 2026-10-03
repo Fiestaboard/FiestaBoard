@@ -2,7 +2,7 @@
 
 import pytest
 
-from src.oauth.provider import parse_provider_block, validate_provider_block
+from src.oauth.provider import parse_provider_block, provider_block_warnings, validate_provider_block
 from src.plugins.manifest import validate_manifest
 
 RELAY = {
@@ -102,10 +102,62 @@ def test_a_client_id_in_the_manifest_is_allowed():
     assert parse_provider_block(block, "x").client_id == "example-public-client-id"
 
 
-def test_an_unknown_field_is_refused_so_typos_do_not_pass_silently():
-    errors = validate_provider_block(_with(RELAY, scope=["x"]))
-    assert len(errors) == 1
-    assert errors[0].startswith("oauth has a field that is not recognised; the fields are: authorization_params, ")
+def test_an_unknown_field_is_a_warning_not_an_error():
+    """A newer FiestaBoard may add a field; a plugin using it must still load on this one."""
+    block = _with(RELAY, some_future_field="x")
+    assert validate_provider_block(block) == []
+    warnings = provider_block_warnings(block)
+    assert len(warnings) == 1
+    assert warnings[0].startswith("oauth has a field this FiestaBoard does not recognise, which is ignored.")
+    assert "app_setup_url" in warnings[0]  # the known fields are listed, so a typo can be spotted
+    assert "some_future_field" not in warnings[0]
+    assert parse_provider_block(block, "x").flows == ("relay",)
+
+
+def test_a_block_with_only_known_fields_has_no_warnings():
+    assert provider_block_warnings(RELAY) == []
+    assert provider_block_warnings(_with(RELAY, client_secret="example-secret-value")) == []
+    assert provider_block_warnings(None) == []
+
+
+def test_a_plugin_with_a_field_from_a_newer_core_still_loads_and_is_reported(tmp_path):
+    import json
+
+    from src.plugins.loader import PluginLoader
+
+    plugin_dir = tmp_path / "futureauth"
+    plugin_dir.mkdir()
+    manifest = {
+        "id": "futureauth",
+        "name": "Future Auth",
+        "version": "1.0.0",
+        "oauth": _with(RELAY, some_future_field=1),
+    }
+    (plugin_dir / "manifest.json").write_text(json.dumps(manifest))
+    (plugin_dir / "__init__.py").write_text(
+        "from src.plugins.base import PluginBase, PluginResult\n\n\n"
+        "class FutureAuthPlugin(PluginBase):\n"
+        "    @property\n"
+        "    def plugin_id(self) -> str:\n"
+        '        return "futureauth"\n\n'
+        "    def fetch_data(self) -> PluginResult:\n"
+        "        return PluginResult(available=True, data={})\n"
+    )
+    loader = PluginLoader(plugins_dir=tmp_path, external_dirs=[])
+
+    assert loader.load_plugin("futureauth") is not None, "the plugin must still load"
+    assert any("does not recognise" in e for e in loader.load_errors.get("futureauth", [])), loader.load_errors
+
+
+def test_app_setup_url_must_be_https():
+    assert validate_provider_block(_with(RELAY, app_setup_url="https://example.com/developers")) == []
+    assert validate_provider_block(_with(RELAY, app_setup_url="javascript:alert(1)")) == [
+        "oauth.app_setup_url must be an https:// URL"
+    ]
+    assert validate_provider_block(_with(RELAY, app_setup_url="")) == ["oauth.app_setup_url must be a non-empty string"]
+    assert parse_provider_block(_with(RELAY, app_setup_url="https://example.com/developers"), "x").app_setup_url == (
+        "https://example.com/developers"
+    )
 
 
 @pytest.mark.parametrize("scopes", ["a b", [""], ["has space"], [3]])

@@ -79,6 +79,9 @@ function mockInstall() {
             flows: ["relay"],
             configured: true,
             user_app: true,
+            client_id_setting: "client_id",
+            client_secret_setting: null,
+            app_setup_url: "",
             status: "connected",
             scopes: [],
             expires_at: null,
@@ -86,7 +89,7 @@ function mockInstall() {
             device: null,
           },
         ],
-        redirect_uri: "https://fiestaboard.app/auth/oauth/redirect.html",
+        redirect_uri: "https://fiestaboard.app/auth/oauth/redirect",
       }),
     ),
   );
