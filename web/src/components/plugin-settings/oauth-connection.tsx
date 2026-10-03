@@ -81,8 +81,14 @@ function findConnection(connections: OAuthConnection[] | undefined, id: string):
  * (a fresh load) with the address they need to paste.
  */
 interface PasteOffer {
-  /** Epoch ms the sign-in started. */
+  /** Epoch ms the sign-in started (this browser's clock: only for expiring the offer). */
   started: number;
+  /**
+   * The board's `connected_at` when the sign-in started. A different one
+   * later means the sign-in came back. Compared with the board's own stamp,
+   * never this browser's clock, which may not agree with the board's.
+   */
+  connectedAt?: number | null;
   /** Open the box straight away: the sign-in cannot come back on its own. */
   open: boolean;
   /** What to paste, when the provider needs explaining. */
@@ -204,6 +210,7 @@ export function OAuthConnectionPanel({
       if (start.flow !== "device" && start.flow !== "plex_pin") {
         setPasteOffer({
           started: Date.now(),
+          connectedAt: connection?.connected_at ?? null,
           open: !!start.paste_expected,
           hint: start.paste_hint ?? "",
           url: start.paste_expected ? start.authorization_url : "",
@@ -263,7 +270,11 @@ export function OAuthConnectionPanel({
   // plex_pin: approval happens in the provider's tab; there is no code to type.
   const awaitingApproval = awaitingCode && !device?.user_code;
   // A sign-in that completed after the offer was made needs no paste.
-  const connectedSinceOffer = isConnected && (connection.connected_at ?? 0) * 1000 >= (pasteOffer?.started ?? 0);
+  const connectedSinceOffer =
+    isConnected &&
+    (pasteOffer && pasteOffer.connectedAt !== undefined
+      ? connection.connected_at != null && connection.connected_at !== pasteOffer.connectedAt
+      : (connection.connected_at ?? 0) * 1000 >= (pasteOffer?.started ?? 0));
   const showPaste = !!pasteOffer && !awaitingCode && !connectedSinceOffer;
 
   // Guided setup: the user brings their own app, and is not connected yet.

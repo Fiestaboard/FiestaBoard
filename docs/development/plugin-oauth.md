@@ -189,7 +189,7 @@ A provider that runs on the user's own network (Home Assistant). The endpoints a
 }
 ```
 
-When the user signs in, the board joins the saved address to each path. It sends credentials only to an `https://` address, or to plain `http://` on the user's own network: a private or link-local IP address, `localhost`, a single-label name, or a name ending in `.local`, `.lan`, `.home.arpa`, or `.internal`. Anything else, an empty value, or an address with a query, fragment, or user name stops the sign-in with a message asking the user to check the address.
+When the user signs in, the board joins the saved address to each path. It sends credentials only to an `https://` address, or to plain `http://` on the user's own network: a private IP address, `localhost`, a single-label name, or a name ending in `.local`, `.lan`, `.home.arpa`, or `.docker.internal`. Link-local addresses (`169.254.x.x`), other `.internal` names, and cloud metadata hosts are refused. Anything else, an empty value, or an address with a query, fragment, or user name stops the sign-in with a message asking the user to check the address.
 
 A Plex sign-in. The block has no endpoints and no client ID:
 
@@ -349,6 +349,8 @@ if response.status_code == 401:
         return PluginResult(available=False, error="Example Music rejected the sign-in. Sign in again in this plugin's settings.")
     response = requests.get(url, headers={"Authorization": f"Bearer {new_token}"}, timeout=10)
 ```
+
+If several requests were in flight with the same token, each may report its own `401`: the platform knows which token it last gave the plugin, so a report about a token it has already replaced just returns the new one. A plugin that keeps tokens elsewhere can pass the refused one as `report_oauth_rejected(token=...)`.
 
 The forced refresh runs at most once a minute per connection, so a plugin that reports on every render does not hammer the provider. Report only a real rejection of the token, never a `403`, `429`, or outage.
 

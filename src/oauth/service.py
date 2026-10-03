@@ -344,12 +344,16 @@ class _PendingAuthorization:
     expires_at: float
     client_id_param: str = "client_id"
     flow: str = FLOW_RELAY
-    #: Whether a pasted code with no ``state`` may finish this flow. Only a
-    #: flow that never sent a ``state`` (headless key_exchange) sets it.
+    #: Whether a pasted code with no ``state`` may finish this flow. Only
+    #: key_exchange sets it: PKCE binds the code to this start, and the
+    #: provider may not send ``state`` back (or, headless, was never sent one).
     allow_bare_code: bool = False
     #: Whether a ``client_id`` in the pasted address replaces ours (providers
     #: that issue a client during sign-in). Never from a callback query.
     accept_issued_client_id: bool = False
+    #: The client a provider issued at an earlier sign-in, reused for this one.
+    #: Kept with the new tokens when the paste names no client.
+    reused_client_id: str = ""
     #: Extra fields for the code exchange (a ``resource`` indicator, say).
     extra_token_params: dict[str, str] = field(default_factory=dict)
     token_auth_method: str = AUTH_METHOD_POST
@@ -542,6 +546,7 @@ class OAuthService:
             expires_at=expires_at,
             client_id_param=provider.client_id_param,
             accept_issued_client_id=provider.accept_issued_client_id,
+            reused_client_id=issued,
             extra_token_params=dict(provider.token_params),
             token_auth_method=provider.token_auth_method,
         )
@@ -593,7 +598,7 @@ class OAuthService:
             scopes=(),
             expires_at=expires_at,
             flow=FLOW_KEY_EXCHANGE,
-            allow_bare_code=headless,
+            allow_bare_code=True,
         )
         with self._lock:
             self._prune_pending(now)
@@ -754,7 +759,9 @@ class OAuthService:
                 auth_method=pending.token_auth_method,
             )
         response = self._exchanged(connection_id, response)
-        self._store_tokens(connection_id, response, pending.scopes, previous=None, client_id=issued)
+        self._store_tokens(
+            connection_id, response, pending.scopes, previous=None, client_id=issued or pending.reused_client_id
+        )
         self._source.invalidate(connection_id)
         logger.info("OAuth connection established for %s", connection_id)
 
@@ -1112,8 +1119,12 @@ class OAuthService:
 
     # ── a plugin reports its token was rejected ─────────────────────────
 
-    def report_rejected(self, connection_id: str) -> str | None:
+    def report_rejected(self, connection_id: str, rejected_token: str | None = None) -> str | None:
         """The provider refused *connection_id*'s access token; try once to recover.
+
+        *rejected_token*, when given, is the token that was refused. If the
+        stored token is already a different one (another request refreshed it
+        meanwhile), that one is returned to retry with and nothing is marked.
 
         With a refresh token and no forced refresh in the last
         :data:`FORCED_REFRESH_COOLDOWN_SECONDS`, refresh now and return the new
@@ -1126,6 +1137,8 @@ class OAuthService:
             tokens = self._store.get(connection_id)
             if tokens is None or tokens.needs_reauthorization:
                 return None
+            if rejected_token and tokens.access_token and tokens.access_token != rejected_token:
+                return tokens.access_token
             now = self._clock()
             with self._lock:
                 last = self._forced_refresh_at.get(connection_id)
@@ -1144,10 +1157,10 @@ class OAuthService:
         self._source.invalidate(connection_id)
         return None
 
-    def report_rejected_for(self, plugin: object) -> str | None:
+    def report_rejected_for(self, plugin: object, rejected_token: str | None = None) -> str | None:
         """:meth:`report_rejected` for the given plugin object."""
         connection_id = self._source.id_for(plugin)
-        return self.report_rejected(connection_id) if connection_id else None
+        return self.report_rejected(connection_id, rejected_token) if connection_id else None
 
     def access_token_for(self, plugin: object) -> str | None:
         """A usable access token for the given plugin object, or ``None``."""

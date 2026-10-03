@@ -8,15 +8,13 @@ Plex identifies the app by a per-install ``X-Plex-Client-Identifier``.
 
 from __future__ import annotations
 
-import os
-import stat
-import uuid
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
 from typing import Any
 from urllib.parse import quote, urlencode
 
+from . import install_id
 from .client import HttpTransport
 from .errors import ProviderError
 from .overrides import override_url
@@ -31,14 +29,7 @@ _IDENTIFIER_FILENAME = ".oauth_client_identifier"
 
 def load_client_identifier(data_dir: Path) -> str:
     """The per-install client identifier Plex knows this board by, created on first use."""
-    path = Path(data_dir) / _IDENTIFIER_FILENAME
-    if path.exists():
-        return path.read_text(encoding="utf-8").strip()
-    identifier = str(uuid.uuid4())
-    fd = os.open(str(path), os.O_WRONLY | os.O_CREAT | os.O_EXCL, stat.S_IRUSR | stat.S_IWUSR)
-    with os.fdopen(fd, "w", encoding="utf-8") as handle:
-        handle.write(identifier)
-    return identifier
+    return install_id.load_or_create(Path(data_dir) / _IDENTIFIER_FILENAME)
 
 
 def headers(client_identifier: str, product: str) -> dict[str, str]:

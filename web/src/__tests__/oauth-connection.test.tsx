@@ -488,6 +488,36 @@ describe("finishing a sign-in by pasting what the provider showed", () => {
     expect(await screen.findByRole("button", { name: PASTE_TOGGLE })).toBeInTheDocument();
   });
 
+  it("puts the paste box away once the sign-in came back, even when the board's clock is behind", async () => {
+    serveConnections(RELAY);
+    vi.stubGlobal("location", { ...window.location, origin: window.location.origin, assign: vi.fn() });
+    serveStart({ flow: "relay", authorization_url: "https://accounts.example.com/a" });
+    const first = renderSection("music");
+    await userEvent.setup().click(await screen.findByRole("button", { name: "Sign in with Example Music" }));
+    await screen.findByRole("button", { name: PASTE_TOGGLE });
+    first.unmount();
+
+    // Back from the provider: connected, stamped by a board a minute slow.
+    serveConnections({ ...RELAY, status: "connected", connected_at: Math.floor(Date.now() / 1000) - 60 });
+    renderSection("music");
+    await screen.findByRole("button", { name: "Disconnect" });
+    expect(screen.queryByRole("button", { name: PASTE_TOGGLE })).not.toBeInTheDocument();
+  });
+
+  it("keeps the paste box when a reconnect has not come back yet", async () => {
+    const earlier = Math.floor(Date.now() / 1000) - 3600;
+    serveConnections({ ...RELAY, status: "connected", connected_at: earlier });
+    vi.stubGlobal("location", { ...window.location, origin: window.location.origin, assign: vi.fn() });
+    serveStart({ flow: "relay", authorization_url: "https://accounts.example.com/a" });
+    const first = renderSection("music");
+    await userEvent.setup().click(await screen.findByRole("button", { name: "Reconnect" }));
+    await screen.findByRole("button", { name: PASTE_TOGGLE });
+    first.unmount();
+
+    renderSection("music");
+    expect(await screen.findByRole("button", { name: PASTE_TOGGLE })).toBeInTheDocument();
+  });
+
   it("opens the paste box straight away when the sign-in cannot come back on its own", async () => {
     serveConnections(RELAY);
     const open = vi.fn();

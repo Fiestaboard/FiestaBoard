@@ -50,7 +50,9 @@ Two more since 9.9.0, for providers that are not standard OAuth:
 - **`key_exchange`**: OpenRouter's PKCE exchange. No client ID; the return
   address goes in `callback_url`, and the token endpoint takes JSON and
   returns a non-expiring key. A headless start sends neither `callback_url`
-  nor `state`, so the provider shows a bare code to paste.
+  nor `state`, so the provider shows a bare code to paste. Every
+  key_exchange start accepts a paste without `state` (PKCE binds the code),
+  so a callback that comes back without `state` can still be finished.
 - **`plex_pin`**: not OAuth. The board creates a strong PIN at plex.tv, sends
   the browser to app.plex.tv, and polls the PIN every 2 seconds on the device
   flow's thread machinery (`_DeviceFlow.kind`). Endpoints are constants in

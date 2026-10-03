@@ -5,6 +5,7 @@ plugins (frame-by-frame board animations) inherit from
 :class:`TransitionPluginBase` instead.
 """
 
+import contextlib
 import hashlib
 import json
 import logging
@@ -26,6 +27,15 @@ logger = logging.getLogger(__name__)
 # callers, unit tests, non-adopting plugins). Keeps the per-board cache dicts
 # uniform while preserving the historical board-agnostic behavior.
 _DEFAULT_CACHE_KEY = "__default__"
+_LAST_OAUTH_TOKEN_ATTR = "_fiestaboard_last_oauth_token"
+
+
+def _remember_oauth_token(plugin: object, token: str | None) -> None:
+    """Note the token a plugin was handed, so a later 401 report can name it."""
+    if token:
+        with contextlib.suppress(AttributeError):
+            setattr(plugin, _LAST_OAUTH_TOKEN_ATTR, token)
+
 
 DEFAULT_REFRESH_SECONDS = 300
 MIN_REFRESH_SECONDS = 10
@@ -863,9 +873,11 @@ class PluginBase(ABC):
         """
         from src.oauth.service import get_oauth_service
 
-        return get_oauth_service().access_token_for(self)
+        token = get_oauth_service().access_token_for(self)
+        _remember_oauth_token(self, token)
+        return token
 
-    def report_oauth_rejected(self) -> str | None:
+    def report_oauth_rejected(self, token: str | None = None) -> str | None:
         """Tell the platform the provider refused the token from :meth:`get_oauth_token`.
 
         Call it when the provider answers 401 (or its equivalent). The platform
@@ -875,10 +887,18 @@ class PluginBase(ABC):
 
         Added in FiestaBoard 9.9.0. A plugin that must also run on older cores
         guards the call with ``getattr(self, "report_oauth_rejected", None)``.
+
+        Args:
+            token: The token the refused request carried. Defaults to the one
+                this plugin was last given; when another request has already
+                replaced it, the newer token comes back and nothing is marked.
         """
         from src.oauth.service import get_oauth_service
 
-        return get_oauth_service().report_rejected_for(self)
+        sent = token or getattr(self, _LAST_OAUTH_TOKEN_ATTR, None)
+        new_token = get_oauth_service().report_rejected_for(self, sent)
+        _remember_oauth_token(self, new_token)
+        return new_token
 
     def exchange_oauth_token(self, token: dict[str, Any]) -> dict[str, Any] | None:
         """Optional hook: swap the token a sign-in produced before it is stored.

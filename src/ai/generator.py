@@ -382,7 +382,9 @@ async def _post_chat_completion(
         client = httpx.AsyncClient(timeout=timeout_seconds)
     try:
         if proto.stream_only:
-            return await _collect_stream(client, url, headers, payload, proto, signed_in_provider)
+            return await _collect_stream(
+                client, url, headers, payload, proto, signed_in_provider, provider.get("api_key")
+            )
         try:
             response = await client.post(url, headers=headers, json=payload)
         except httpx.HTTPError as exc:
@@ -392,7 +394,7 @@ async def _post_chat_completion(
             raise AIGenerationError("Could not reach AI provider.") from exc
         if response.status_code >= 400:
             if response.status_code == 401:
-                await report_provider_rejected(signed_in_provider)
+                await report_provider_rejected(signed_in_provider, provider.get("api_key"))
             # Try to surface the provider's own error message via the
             # protocol-specific error parser.
             err_msg: str | None = None
@@ -425,6 +427,7 @@ async def _collect_stream(
     payload: dict[str, Any],
     proto: Protocol,
     provider: dict[str, Any],
+    sent_token: str | None = None,
 ) -> dict[str, Any]:
     """Read a stream-only provider's answer to the end; return it in that protocol's response shape."""
     # Imported here: chat imports this module.
@@ -437,7 +440,7 @@ async def _collect_stream(
         async with client.stream("POST", url, headers=headers, json={**payload, "stream": True}) as response:
             if response.status_code >= 400:
                 if response.status_code == 401:
-                    await report_provider_rejected(provider)
+                    await report_provider_rejected(provider, sent_token)
                 err_msg = await _extract_error_message(response, proto)
                 raise AIGenerationError(f"AI provider returned {response.status_code}: {err_msg}")
             async for event in _iter_provider_stream(response, proto, usage):
@@ -570,7 +573,7 @@ async def list_models(
         if owns_client:
             await client.aclose()
     if response.status_code == 401:
-        await report_provider_rejected(signed_in_provider)
+        await report_provider_rejected(signed_in_provider, provider.get("api_key"))
     if response.status_code >= 400:
         raise AIGenerationError(f"AI provider returned {response.status_code} when asked for its models.")
     try:

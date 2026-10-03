@@ -102,14 +102,16 @@ _HOME_NETWORKS = tuple(
         "172.16.0.0/12",
         "192.168.0.0/16",
         "127.0.0.0/8",
-        "169.254.0.0/16",
         "100.64.0.0/10",
         "::1/128",
         "fe80::/10",
         "fc00::/7",
     )
 )
-_HOME_SUFFIXES = (".local", ".lan", ".home.arpa", ".internal")
+# Link-local (169.254/16) and ``.internal`` are left out on purpose: they are
+# where cloud metadata services live. Docker's name for its host stays in.
+_HOME_SUFFIXES = (".local", ".lan", ".home.arpa", ".docker.internal")
+_METADATA_HOSTS = frozenset({"metadata", ipaddress.ip_address("fd00:ec2::254")})
 
 
 @dataclass(frozen=True)
@@ -242,7 +244,11 @@ def _is_home_host(hostname: str) -> bool:
         address = ipaddress.ip_address(hostname)
     except ValueError:
         name = hostname.rstrip(".").lower()
+        if name in _METADATA_HOSTS:
+            return False
         return name == "localhost" or "." not in name or name.endswith(_HOME_SUFFIXES)
+    if address in _METADATA_HOSTS:
+        return False
     return any(address in network for network in _HOME_NETWORKS if network.version == address.version)
 
 

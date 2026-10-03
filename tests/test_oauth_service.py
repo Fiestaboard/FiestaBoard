@@ -1420,11 +1420,22 @@ def test_a_bare_code_uses_the_newest_headless_start(xservice, source, http):
     assert pkce.challenge_for(http.calls[0][4]["code_verifier"]) == newest["code_challenge"]
 
 
-def test_a_bare_code_cannot_finish_a_key_exchange_started_with_a_callback(xservice, source):
+def test_a_stateless_paste_finishes_a_key_exchange_started_with_a_callback(xservice, source, http):
+    # The provider may come back without state, which the relay cannot route:
+    # the paste box is the way back, and PKCE binds the code to this start.
     source.add("openrouter", KEY_BLOCK, config={})
-    xservice.start("openrouter", board_url=BOARD)
+    query = _query(xservice.start("openrouter", board_url=BOARD).authorization_url)
+    http.reply({"key": "sk-or-test-key"})
+    status = xservice.complete_pasted("openrouter", "https://fiestaboard.app/auth/oauth/redirect?code=code-abc-123")
+    assert status.status == "connected"
+    assert pkce.challenge_for(http.calls[0][4]["code_verifier"]) == query["code_challenge"]
+
+
+def test_a_bare_code_cannot_finish_a_relay_sign_in(service, source):
+    source.add("music", RELAY_BLOCK)
+    service.start("music", board_url=BOARD)
     with pytest.raises(PastedCodeRejected) as caught:
-        xservice.complete_pasted("openrouter", "code-abc-123")
+        service.complete_pasted("music", "code-abc-123")
     assert caught.value.reason == "no_pending"
 
 
@@ -1611,6 +1622,52 @@ def test_forced_refreshes_are_at_most_one_a_minute(service, source, store, provi
     assert len(provider.calls) == 1
     status = service.get_connection("music")
     assert (status.status, status.status_reason) == ("reauthorization_required", "rejected")
+
+
+def test_a_late_401_for_the_replaced_token_gets_the_new_one_not_a_reconnect(service, source, store, provider, clock):
+    source.add("music", RELAY_BLOCK)
+    _connected(store)
+    provider.reply({"access_token": "access-2", "expires_in": 3600, "refresh_token": "refresh-2"})
+    assert service.report_rejected("music", "access-1") == "access-2"
+
+    clock.now += 10  # a second call, still holding access-1, reports too
+    assert service.report_rejected("music", "access-1") == "access-2"
+
+    assert len(provider.calls) == 1
+    assert service.get_connection("music").status == "connected"
+
+
+def test_a_401_for_the_current_token_inside_the_cooldown_still_needs_reconnecting(
+    service, source, store, provider, clock
+):
+    source.add("music", RELAY_BLOCK)
+    _connected(store)
+    provider.reply({"access_token": "access-2", "expires_in": 3600, "refresh_token": "refresh-2"})
+    service.report_rejected("music", "access-1")
+    clock.now += 10
+    assert service.report_rejected("music", "access-2") is None
+    assert service.get_connection("music").status_reason == "rejected"
+
+
+def test_a_plugin_report_names_the_token_it_was_last_given(service, source, store, provider, clock, monkeypatch):
+    import types
+
+    import src.oauth.service as service_module
+    from src.plugins.base import PluginBase
+
+    plugin = source.add("music", RELAY_BLOCK, plugin=types.SimpleNamespace())
+    _connected(store)
+    monkeypatch.setattr(service_module, "get_oauth_service", lambda: service)
+    assert PluginBase.get_oauth_token(plugin) == "access-1"
+    provider.reply({"access_token": "access-2", "expires_in": 3600, "refresh_token": "refresh-2"})
+    assert PluginBase.report_oauth_rejected(plugin) == "access-2"
+    clock.now += 10
+    # A second request that went out with access-1 before the refresh.
+    assert PluginBase.report_oauth_rejected(plugin, token="access-1") == "access-2"
+    assert service.get_connection("music").status == "connected"
+    # The retry with access-2 is refused too: that one is real.
+    assert PluginBase.report_oauth_rejected(plugin) is None
+    assert service.get_connection("music").status_reason == "rejected"
 
 
 def test_after_the_cooldown_a_forced_refresh_is_tried_again(service, source, store, provider, clock):

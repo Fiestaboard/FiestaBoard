@@ -55,14 +55,16 @@ class FakeOAuth:
         self.refreshed = refreshed
         self.asked: list[str] = []
         self.rejected: list[str] = []
+        self.rejected_tokens: list[str | None] = []
         self.forgotten: list[str] = []
 
     def get_access_token(self, connection_id: str) -> str | None:
         self.asked.append(connection_id)
         return self.token
 
-    def report_rejected(self, connection_id: str) -> str | None:
+    def report_rejected(self, connection_id: str, rejected_token: str | None = None) -> str | None:
         self.rejected.append(connection_id)
+        self.rejected_tokens.append(rejected_token)
         return self.refreshed
 
     def forget(self, connection_id: str) -> bool:
@@ -182,10 +184,21 @@ def test_signed_in_provider_takes_base_url_and_protocol_from_the_preset_when_mis
     assert resolved["protocol"] == "openai"
 
 
-def test_signed_in_provider_keeps_its_own_base_url():
-    provider = _signed_in("huggingface", base_url="https://example.test/v1")
+def test_signed_in_provider_keeps_its_own_base_url_on_the_presets_host():
+    provider = _signed_in("huggingface", base_url="https://router.huggingface.co/v1/")
     resolved = resolve_provider_auth(provider, service=FakeOAuth())
-    assert resolved["base_url"] == "https://example.test/v1"
+    assert resolved["base_url"] == "https://router.huggingface.co/v1/"
+
+
+@pytest.mark.parametrize(
+    "base_url",
+    ["https://example.test/v1", "http://openrouter.ai/api/v1", "https://openrouter.ai.example.test/api/v1"],
+)
+def test_signed_in_token_is_never_sent_to_another_host(base_url):
+    fake = FakeOAuth(token="test_token")
+    with pytest.raises(AIGenerationError, match="only works with"):
+        resolve_provider_auth(_signed_in("openrouter", base_url=base_url), service=fake)
+    assert fake.asked == []
 
 
 def test_signed_out_provider_raises_a_sign_in_again_error():
@@ -237,6 +250,14 @@ def test_removing_a_provider_or_its_sign_in_forgets_its_tokens():
     assert sorted(fake.forgotten) == ["ai.a", "ai.b"]
 
 
+def test_switching_a_provider_to_another_sign_in_preset_forgets_its_tokens():
+    fake = FakeOAuth()
+    before = _block(_signed_in("openrouter", pid="p1"), _signed_in("huggingface", pid="p2"))
+    after = _block(_signed_in("huggingface", pid="p1"), _signed_in("huggingface", pid="p2"))
+    forget_removed_providers(before, after, service=fake)
+    assert fake.forgotten == ["ai.p1"]
+
+
 # ── presets through the real OAuth service ──────────────────────────────────
 
 
@@ -252,6 +273,16 @@ def test_openrouter_sign_in_needs_no_client_id_and_stores_the_key(service, provi
     assert status.status == "connected"
     assert status.kind == "ai"
     assert service.get_access_token("ai.or1") == "test_or_key"
+
+
+def test_openrouter_sign_in_finishes_from_a_pasted_address_without_state(service, providers_block, http):
+    # If OpenRouter returns without state the relay cannot route back; the
+    # paste box must still finish it (PKCE binds the code to this start).
+    providers_block["block"] = _block(_signed_in("openrouter"))
+    service.start("ai.or1", board_url=BOARD)
+    http.replies.append((200, {"key": "test_or_key"}))
+    status = service.complete_pasted("ai.or1", "https://fiestaboard.app/auth/oauth/redirect?code=test_code")
+    assert status.status == "connected"
 
 
 def test_huggingface_sign_in_uses_the_hosted_client_id_and_inference_scope(service, providers_block):
@@ -327,6 +358,16 @@ def test_chatgpt_sign_in_again_reuses_the_issued_client(service, providers_block
     assert "agent_name_hint" not in query
 
 
+def test_chatgpt_sign_in_again_keeps_the_issued_client_when_none_is_sent_back(service, providers_block, transport):
+    _chatgpt_connect(service, providers_block, transport)
+    state = _query(service.start("ai.gpt").authorization_url)["state"]
+    transport.reply({"access_token": "test_at2", "refresh_token": "test_rt2", "expires_in": 3600})
+    # OpenAI only names the client when it issues one (the first sign-in).
+    service.complete_pasted("ai.gpt", f"http://127.0.0.1:1455/auth/callback?code=test_code2&state={state}")
+    assert transport.calls[1][1]["client_id"] == "oaiapp_test"
+    assert service._store.get("ai.gpt").client_id == "oaiapp_test"
+
+
 def test_ai_connection_status_reports_kind_ai(service, providers_block):
     providers_block["block"] = _block(_signed_in("openrouter"))
     assert [c.kind for c in service.list_connections()] == ["ai"]
@@ -390,6 +431,20 @@ async def test_signed_in_401_reports_the_token_rejected(monkeypatch):
         with pytest.raises(AIGenerationError):
             await _post_chat_completion(_signed_in("openrouter"), {"model": "m"}, client=client)
     assert fake.rejected == ["ai.or1"]
+    assert fake.rejected_tokens == ["test_token"]
+
+
+@pytest.mark.asyncio
+async def test_a_draft_pointed_at_another_host_sends_nothing_and_reports_nothing(monkeypatch):
+    fake = FakeOAuth()
+    monkeypatch.setattr(sign_in, "_oauth", lambda: fake)
+    seen, client = _capture(401, {"error": {"message": "bad token"}})
+    async with client:
+        with pytest.raises(AIGenerationError):
+            await _post_chat_completion(
+                _signed_in("openrouter", base_url="https://example.test/v1"), {"model": "m"}, client=client
+            )
+    assert seen == [] and fake.asked == [] and fake.rejected == []
 
 
 @pytest.mark.asyncio
@@ -470,6 +525,7 @@ async def test_chat_stream_401_reports_the_token_rejected(monkeypatch):
     _, events = await _chat(_signed_in("openrouter"), status=401)
     assert events[-1]["event"] == "error"
     assert fake.rejected == ["ai.or1"]
+    assert fake.rejected_tokens == ["test_token"]
 
 
 @pytest.mark.asyncio

@@ -16,14 +16,13 @@ combined with the plugin registry by :class:`CompositeConnectionSource`.
 from __future__ import annotations
 
 import asyncio
-import os
-import stat
-import uuid
 from collections.abc import Callable
 from dataclasses import dataclass, replace
 from pathlib import Path
 from typing import Any
+from urllib.parse import urlsplit
 
+from src.oauth import install_id
 from src.oauth.overrides import override_url
 from src.oauth.provider import FLOW_KEY_EXCHANGE, FLOW_RELAY, OAuthProvider
 from src.oauth.service import AI_CONNECTION_PREFIX, ConnectionSource, ConnectionTarget
@@ -109,14 +108,7 @@ PRESETS: dict[str, Preset] = {
 
 def load_agent_host_id(data_dir: Path) -> str:
     """This install's id for OpenAI's ``ext_agent_host_id``, created on first use (0600)."""
-    path = Path(data_dir) / _AGENT_HOST_ID_FILENAME
-    if path.exists():
-        return path.read_text(encoding="utf-8").strip()
-    identifier = str(uuid.uuid4())
-    fd = os.open(str(path), os.O_WRONLY | os.O_CREAT | os.O_EXCL, stat.S_IRUSR | stat.S_IWUSR)
-    with os.fdopen(fd, "w", encoding="utf-8") as handle:
-        handle.write(identifier)
-    return identifier
+    return install_id.load_or_create(Path(data_dir) / _AGENT_HOST_ID_FILENAME)
 
 
 def connection_id_for(provider_id: str) -> str:
@@ -149,6 +141,12 @@ def resolve_provider_auth(provider: dict[str, Any], service: Any = None) -> dict
     if preset_name is None:
         return provider
     preset = PRESETS[preset_name]
+    if provider.get("base_url") and not _on_preset_host(str(provider["base_url"]), preset.base_url):
+        # The sign-in's token belongs to the preset's service, never another host.
+        raise AIGenerationError(
+            f"{preset.provider.name} sign-in only works with {override_url(preset.base_url)}. "
+            "Clear the base URL, or use an API key for this one."
+        )
     token = (service or _oauth()).get_access_token(connection_id_for(str(provider.get("id", ""))))
     if not token:
         name = provider.get("name") or preset.provider.name
@@ -169,24 +167,46 @@ async def resolve_provider_auth_async(provider: dict[str, Any]) -> dict[str, Any
     return await asyncio.to_thread(resolve_provider_auth, provider)
 
 
-async def report_provider_rejected(provider: dict[str, Any]) -> None:
-    """The provider answered 401: let the OAuth service refresh or mark the sign-in for redoing."""
+def _origin(url: str) -> tuple[str, str]:
+    parts = urlsplit(url.strip())
+    return parts.scheme.lower(), parts.netloc.lower()
+
+
+def _on_preset_host(base_url: str, preset_base_url: str) -> bool:
+    """Whether *base_url* is on the preset's own scheme and host (or its dev override's)."""
+    origin = _origin(base_url)
+    return origin in {_origin(preset_base_url), _origin(override_url(preset_base_url))}
+
+
+async def report_provider_rejected(provider: dict[str, Any], rejected_token: str | None = None) -> None:
+    """The provider answered 401 to *rejected_token*: let the OAuth service refresh or mark the sign-in.
+
+    *provider* is the stored (unresolved) provider; *rejected_token* is the
+    key that was actually sent, so a 401 for a token that has since been
+    replaced does not mark the new one rejected.
+    """
     if sign_in_preset(provider) is None:
         return
-    await asyncio.to_thread(_oauth().report_rejected, connection_id_for(str(provider.get("id", ""))))
+    await asyncio.to_thread(
+        _oauth().report_rejected, connection_id_for(str(provider.get("id", ""))), rejected_token or None
+    )
 
 
 def forget_removed_providers(before: dict[str, Any], after: dict[str, Any], service: Any = None) -> None:
-    """Drop the tokens of every provider that was signed in in *before* and is not in *after*."""
+    """Drop the tokens of every provider signed in in *before* that is not, with the same preset, in *after*.
 
-    def signed_in(block: dict[str, Any]) -> set[str]:
+    Switching a provider to another preset forgets too: the old service's
+    token must never be sent to the new one.
+    """
+
+    def signed_in(block: dict[str, Any]) -> set[tuple[str, str]]:
         return {
-            str(p["id"])
+            (str(p["id"]), str(sign_in_preset(p)))
             for p in block.get("providers") or []
             if isinstance(p, dict) and p.get("id") and sign_in_preset(p) is not None
         }
 
-    removed = signed_in(before) - signed_in(after)
+    removed = {provider_id for provider_id, _ in signed_in(before) - signed_in(after)}
     if not removed:
         return
     oauth = service or _oauth()

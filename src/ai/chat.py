@@ -108,7 +108,7 @@ async def stream_model(
             async with client.stream("POST", url, headers=headers, json=payload) as response:
                 if response.status_code >= 400:
                     if response.status_code == 401:
-                        await report_provider_rejected(signed_in_provider)
+                        await report_provider_rejected(signed_in_provider, provider.get("api_key"))
                     err_msg = await _extract_error_message(response, protocol)
                     yield {
                         "event": "error",
