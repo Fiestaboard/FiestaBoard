@@ -17,7 +17,7 @@ export interface FormattingVariable {
 
 export interface VariableMetadataEntry {
   description?: string;
-  type?: "string" | "number" | "boolean";
+  type?: "string" | "number" | "boolean" | "color";
   max_length?: number;
   group?: string;
   preview?: string;

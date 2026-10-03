@@ -120,8 +120,8 @@ class StubConfigManager:
     def get_board(self) -> dict:
         return {}
 
-    def get_color_rules(self, feature_name: str, field_name: str) -> list:
-        return self.color_rules.get((feature_name, field_name), [])
+    def get_effective_color_rules(self, plugin_id: str, base_plugin_id: str, field_name: str) -> list:
+        return self.color_rules.get((base_plugin_id, field_name), [])
 
     def migrate_silence_schedule_to_utc(self) -> bool:
         return False
