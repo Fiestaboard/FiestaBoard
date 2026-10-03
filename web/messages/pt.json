@@ -749,6 +749,7 @@
     "boardIndicator": "Mostrando {boardName}",
     "viewSchedule": "Ver Agenda",
     "changePage": "Alterar Página",
+    "moreOptionsAriaLabel": "Mais opções",
     "scheduleMode": "Modo Agenda",
     "manualMode": "Modo Manual",
     "collectionBadge": "Carrossel",

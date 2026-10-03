@@ -749,6 +749,7 @@
     "boardIndicator": "{boardName} 표시 중",
     "viewSchedule": "스케줄 보기",
     "changePage": "페이지 변경",
+    "moreOptionsAriaLabel": "추가 옵션",
     "scheduleMode": "스케줄 모드",
     "manualMode": "수동 모드",
     "collectionBadge": "캐러셀",

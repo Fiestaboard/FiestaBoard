@@ -749,6 +749,7 @@
     "boardIndicator": "{boardName} を表示中",
     "viewSchedule": "スケジュールを表示",
     "changePage": "ページを変更",
+    "moreOptionsAriaLabel": "その他のオプション",
     "scheduleMode": "スケジュールモード",
     "manualMode": "手動モード",
     "collectionBadge": "カルーセル",

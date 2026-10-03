@@ -749,6 +749,7 @@
     "boardIndicator": "{boardName} gösteriliyor",
     "viewSchedule": "Zamanlamayı Görüntüle",
     "changePage": "Sayfa Değiştir",
+    "moreOptionsAriaLabel": "Diğer seçenekler",
     "scheduleMode": "Zamanlama Modu",
     "manualMode": "Manuel Mod",
     "collectionBadge": "Döngü",

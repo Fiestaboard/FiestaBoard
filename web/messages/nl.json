@@ -749,6 +749,7 @@
     "boardIndicator": "Toont {boardName}",
     "viewSchedule": "Planning bekijken",
     "changePage": "Pagina wijzigen",
+    "moreOptionsAriaLabel": "Meer opties",
     "scheduleMode": "Planningsmodus",
     "manualMode": "Handmatige modus",
     "collectionBadge": "Carrousel",

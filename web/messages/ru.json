@@ -749,6 +749,7 @@
     "boardIndicator": "Показывается {boardName}",
     "viewSchedule": "Посмотреть расписание",
     "changePage": "Сменить страницу",
+    "moreOptionsAriaLabel": "Другие параметры",
     "scheduleMode": "Режим расписания",
     "manualMode": "Ручной режим",
     "collectionBadge": "Карусель",

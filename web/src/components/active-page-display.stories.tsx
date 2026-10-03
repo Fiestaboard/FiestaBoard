@@ -170,6 +170,27 @@ export const SilenceModeActive: Story = {
   ],
 };
 
+// A paused board: the badge plus the Resume toggle beside Change Page (issue #2051).
+export const BoardPaused: Story = {
+  decorators: [
+    (Story) => {
+      const client = createQueryClient("page-1", true);
+      client.setQueryData(["boardSettings"], {
+        board_type: "black",
+        boards: [{ id: "default", name: "Flagship", device_type: "flagship", board_color: "black", paused: true }],
+        devices: ["flagship"],
+      });
+      return (
+        <QueryClientProvider client={client}>
+          <div className="max-w-4xl">
+            <Story />
+          </div>
+        </QueryClientProvider>
+      );
+    },
+  ],
+};
+
 export const ScheduleGap: Story = {
   decorators: [
     (Story) => {
