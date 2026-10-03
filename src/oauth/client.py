@@ -7,9 +7,11 @@ Nothing here logs a request or response body.
 
 from __future__ import annotations
 
+import base64
 import logging
 from dataclasses import dataclass
 from typing import Any, Protocol
+from urllib.parse import quote_plus
 
 import requests
 
@@ -20,23 +22,41 @@ logger = logging.getLogger(__name__)
 REQUEST_TIMEOUT_SECONDS = 15
 DEVICE_GRANT_TYPE = "urn:ietf:params:oauth:grant-type:device_code"
 DEFAULT_DEVICE_INTERVAL_SECONDS = 5
+#: Client authentication at the token endpoint (RFC 6749 §2.3.1).
+AUTH_METHOD_POST = "post"
+AUTH_METHOD_BASIC = "basic"
+
+#: Twitch reports token-endpoint errors as ``{"status": 400, "message": ...}``
+#: with no ``error`` key. These messages map to the RFC 6749/8628 codes.
+_MESSAGE_ERRORS = {
+    "authorization_pending": "authorization_pending",
+    "slow_down": "slow_down",
+    "expired_token": "expired_token",
+    "access_denied": "access_denied",
+    "invalid device code": "expired_token",
+    "invalid refresh token": "invalid_grant",
+}
 
 
 class Transport(Protocol):
-    """POST a form and return ``(status_code, parsed JSON body)``."""
+    """POST a form and return ``(status_code, parsed JSON body)``.
+
+    ``headers`` is passed only when a request needs one (HTTP Basic client
+    authentication), so a two-argument transport keeps working for the rest.
+    """
 
     def __call__(self, url: str, form: dict[str, str]) -> tuple[int, Any]:
         """Send *form* to *url*; raise :class:`ProviderError` if it cannot be reached."""
 
 
-def post_form(url: str, form: dict[str, str]) -> tuple[int, Any]:
+def post_form(url: str, form: dict[str, str], headers: dict[str, str] | None = None) -> tuple[int, Any]:
     """The production :class:`Transport`."""
     try:
         response = requests.post(
             url,
             data=form,
             # GitHub answers form-encoded unless asked for JSON.
-            headers={"Accept": "application/json"},
+            headers={"Accept": "application/json", **(headers or {})},
             timeout=REQUEST_TIMEOUT_SECONDS,
             allow_redirects=False,
         )
@@ -119,7 +139,9 @@ class DeviceAuthorization:
 
 
 def _parse_scopes(raw: Any) -> tuple[str, ...]:
-    # RFC 6749 says space-delimited; GitHub sends commas.
+    # RFC 6749 says space-delimited; GitHub sends commas; Twitch a JSON array.
+    if isinstance(raw, list):
+        return tuple(part for part in raw if isinstance(part, str) and part)
     if not isinstance(raw, str):
         return ()
     return tuple(part for part in raw.replace(",", " ").split() if part)
@@ -141,6 +163,9 @@ def _raise_for_oauth_error(status: int, body: Any) -> dict[str, Any]:
     """
     if not isinstance(body, dict):
         raise ProviderError(f"The sign-in provider answered HTTP {status} with an unexpected body.")
+    message = body.get("message")
+    if isinstance(message, str) and message.strip().lower() in _MESSAGE_ERRORS:
+        raise TokenEndpointError(_MESSAGE_ERRORS[message.strip().lower()])
     if "error" in body:
         raise TokenEndpointError(str(body["error"]), str(body.get("error_description", "")))
     if status >= 400:
@@ -175,10 +200,32 @@ class ProviderClient:
             raise ProviderError("The sign-in provider answered without a key.")
         return TokenResponse(access_token=key, token_type="Bearer", refresh_token="", expires_in=None, scopes=())
 
-    def _token_request(self, token_url: str, form: dict[str, str], client_secret: str) -> TokenResponse:
-        if client_secret:
-            form = {**form, "client_secret": client_secret}
-        body = _raise_for_oauth_error(*self._transport(token_url, form))
+    def _token_request(
+        self,
+        token_url: str,
+        form: dict[str, str],
+        client_secret: str,
+        *,
+        client_id_param: str = "client_id",
+        auth_method: str = AUTH_METHOD_POST,
+    ) -> TokenResponse:
+        if client_secret and auth_method == AUTH_METHOD_BASIC:
+            # client_secret_basic: the credentials go in the header and nowhere
+            # else (one authentication method per request, RFC 6749 §2.3).
+            form = dict(form)
+            client_id = form.pop(client_id_param, "")
+            credentials = f"{quote_plus(client_id)}:{quote_plus(client_secret)}".encode()
+            headers = {"Authorization": "Basic " + base64.b64encode(credentials).decode("ascii")}
+            reply = self._transport(token_url, form, headers=headers)  # type: ignore[call-arg]
+        else:
+            if client_secret:
+                form = {**form, "client_secret": client_secret}
+            reply = self._transport(token_url, form)
+        body = _raise_for_oauth_error(*reply)
+        data = body.get("data")
+        if "access_token" not in body and isinstance(data, list) and data and isinstance(data[0], dict):
+            # Instagram wraps the code-exchange answer: {"data": [{...}]}.
+            body = data[0]
         access_token = body.get("access_token")
         if not isinstance(access_token, str) or not access_token:
             raise ProviderError("The sign-in provider answered without an access token.")
@@ -202,6 +249,7 @@ class ProviderClient:
         client_secret: str = "",
         client_id_param: str = "client_id",
         extra_form: dict[str, str] | None = None,
+        auth_method: str = AUTH_METHOD_POST,
     ) -> TokenResponse:
         """Trade an authorization code (plus PKCE verifier) for tokens."""
         form = {
@@ -212,7 +260,9 @@ class ProviderClient:
             "code_verifier": code_verifier,
             **(extra_form or {}),
         }
-        return self._token_request(token_url, form, client_secret)
+        return self._token_request(
+            token_url, form, client_secret, client_id_param=client_id_param, auth_method=auth_method
+        )
 
     def refresh(
         self,
@@ -222,10 +272,22 @@ class ProviderClient:
         client_id: str,
         client_secret: str = "",
         client_id_param: str = "client_id",
+        extra_form: dict[str, str] | None = None,
+        auth_method: str = AUTH_METHOD_POST,
     ) -> TokenResponse:
-        """Trade a refresh token for a new access token."""
-        form = {"grant_type": "refresh_token", "refresh_token": refresh_token, client_id_param: client_id}
-        return self._token_request(token_url, form, client_secret)
+        """Trade a refresh token for a new access token.
+
+        *extra_form* adds fields a provider wants on refresh (WHOOP: ``scope``).
+        """
+        form = {
+            **(extra_form or {}),
+            "grant_type": "refresh_token",
+            "refresh_token": refresh_token,
+            client_id_param: client_id,
+        }
+        return self._token_request(
+            token_url, form, client_secret, client_id_param=client_id_param, auth_method=auth_method
+        )
 
     def start_device_authorization(
         self,
@@ -270,6 +332,7 @@ class ProviderClient:
         client_secret: str = "",
         client_id_param: str = "client_id",
         extra_form: dict[str, str] | None = None,
+        auth_method: str = AUTH_METHOD_POST,
     ) -> TokenResponse:
         """Ask whether the user has approved the device code yet.
 
@@ -278,4 +341,6 @@ class ProviderClient:
         """
         form = {"grant_type": DEVICE_GRANT_TYPE, "device_code": device_code, client_id_param: client_id}
         form.update(extra_form or {})
-        return self._token_request(token_url, form, client_secret)
+        return self._token_request(
+            token_url, form, client_secret, client_id_param=client_id_param, auth_method=auth_method
+        )

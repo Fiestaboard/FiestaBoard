@@ -51,6 +51,12 @@ DEFAULT_SCOPE_SEPARATOR = " "
 SCOPE_SEPARATORS = (" ", ",")
 DEFAULT_DEVICE_SCOPE_PARAM = "scope"
 DEFAULT_PLEX_PRODUCT = "FiestaBoard"
+#: How the client authenticates at the token endpoint: the secret in the POST
+#: body (``client_secret_post``) or an HTTP Basic header (``client_secret_basic``).
+TOKEN_AUTH_METHODS = ("post", "basic")
+DEFAULT_TOKEN_AUTH_METHOD = "post"
+#: Refresh-form fields the platform sets itself; ``refresh_params`` may not set them.
+RESERVED_REFRESH_PARAMS = frozenset({"grant_type", "refresh_token", "client_id", "client_secret"})
 
 _KNOWN_KEYS = frozenset(
     {
@@ -72,6 +78,8 @@ _KNOWN_KEYS = frozenset(
         "device_poll_scope",
         "endpoint_base_setting",
         "plex_product",
+        "token_auth_method",
+        "refresh_params",
     }
 )
 
@@ -149,6 +157,10 @@ class OAuthProvider:
     endpoint_base_setting: str = ""
     #: ``X-Plex-Product`` for the plex_pin flow.
     plex_product: str = DEFAULT_PLEX_PRODUCT
+    #: ``post`` (secret in the form) or ``basic`` (HTTP Basic) at the token endpoint.
+    token_auth_method: str = DEFAULT_TOKEN_AUTH_METHOD
+    #: Extra fields sent with every refresh (WHOOP: ``{"scope": "offline"}``).
+    refresh_params: dict[str, str] = field(default_factory=dict)
     # The fields below are never read from a manifest: only built-in presets
     # (FiestaBot AI sign-in, ``src/ai/sign_in.py``) set them.
     #: A fixed redirect URI used instead of the relay (OpenAI's loopback
@@ -311,6 +323,20 @@ def _credential_errors(raw: dict[str, Any]) -> list[str]:
     return errors
 
 
+def _refresh_params_errors(params: Any, client_id_param: Any) -> list[str]:
+    if not isinstance(params, dict) or any(
+        not isinstance(key, str) or not isinstance(value, str) for key, value in params.items()
+    ):
+        return ["oauth.refresh_params must be an object of string values"]
+    reserved = RESERVED_REFRESH_PARAMS | ({client_id_param} if isinstance(client_id_param, str) else set())
+    if not reserved.isdisjoint(params):
+        return [
+            f"oauth.refresh_params may not set any of: {', '.join(sorted(RESERVED_REFRESH_PARAMS))} "
+            "or the client ID parameter; the platform sets those"
+        ]
+    return []
+
+
 def _new_field_errors(raw: dict[str, Any], settings_schema: Any) -> list[str]:
     errors: list[str] = []
     for key in ("client_id_param", "device_scope_param", "endpoint_base_setting"):
@@ -322,6 +348,10 @@ def _new_field_errors(raw: dict[str, Any], settings_schema: Any) -> list[str]:
         errors.append("oauth.device_poll_scope must be true or false")
     if "plex_product" in raw and not (isinstance(raw["plex_product"], str) and raw["plex_product"].strip()):
         errors.append("oauth.plex_product must be a non-empty string")
+    if "token_auth_method" in raw and raw["token_auth_method"] not in TOKEN_AUTH_METHODS:
+        errors.append('oauth.token_auth_method must be "post" or "basic"')
+    if "refresh_params" in raw:
+        errors.extend(_refresh_params_errors(raw["refresh_params"], raw.get("client_id_param")))
     base_setting = raw.get("endpoint_base_setting")
     declared = _declared_settings(settings_schema)
     if isinstance(base_setting, str) and declared is not None and base_setting not in declared:
@@ -444,4 +474,6 @@ def parse_provider_block(raw: Any, fallback_name: str, settings_schema: Any = No
         device_poll_scope=bool(raw.get("device_poll_scope", False)),
         endpoint_base_setting=raw.get("endpoint_base_setting", ""),
         plex_product=str(raw.get("plex_product") or DEFAULT_PLEX_PRODUCT).strip(),
+        token_auth_method=raw.get("token_auth_method", DEFAULT_TOKEN_AUTH_METHOD),
+        refresh_params=dict(raw.get("refresh_params", {})),
     )

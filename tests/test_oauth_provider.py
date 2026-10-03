@@ -325,6 +325,9 @@ HA_SCHEMA = {"type": "object", "properties": {"base_url": {"type": "string"}}}
         ("device_scope_param", "scopes"),
         ("device_poll_scope", True),
         ("plex_product", "FiestaBoard"),
+        ("token_auth_method", "post"),
+        ("token_auth_method", "basic"),
+        ("refresh_params", {"scope": "offline"}),
     ],
 )
 def test_new_fields_are_known_and_valid(field, value):
@@ -345,6 +348,13 @@ def test_new_fields_are_known_and_valid(field, value):
         ("device_poll_scope", "yes"),
         ("plex_product", ""),
         ("endpoint_base_setting", "base-url"),
+        ("token_auth_method", "jwt"),
+        ("token_auth_method", True),
+        ("refresh_params", {"scope": 1}),
+        ("refresh_params", ["scope"]),
+        ("refresh_params", {"grant_type": "x"}),
+        ("refresh_params", {"refresh_token": "x"}),
+        ("refresh_params", {"client_secret": "x"}),
     ],
 )
 def test_new_fields_refuse_bad_values(field, value):
@@ -360,6 +370,19 @@ def test_defaults_match_9_8_behaviour():
     assert provider.device_poll_scope is False
     assert provider.endpoint_base_setting == ""
     assert provider.joined_scopes() == "user-read-currently-playing"
+    assert provider.token_auth_method == "post"
+    assert provider.refresh_params == {}
+
+
+def test_refresh_params_may_not_override_a_custom_client_id_param():
+    errors = validate_provider_block(_with(RELAY, client_id_param="client_key", refresh_params={"client_key": "x"}))
+    assert errors and all("refresh_params" in error for error in errors)
+
+
+def test_auth_method_and_refresh_params_are_parsed():
+    provider = parse_provider_block(_with(RELAY, token_auth_method="basic", refresh_params={"scope": "offline"}), "X")
+    assert provider.token_auth_method == "basic"
+    assert provider.refresh_params == {"scope": "offline"}
 
 
 def test_new_fields_are_parsed():

@@ -38,7 +38,7 @@ from urllib.parse import urlencode, urlsplit, urlunsplit
 from src.paths import get_data_dir
 
 from . import pkce, plex
-from .client import ProviderClient, TokenResponse
+from .client import AUTH_METHOD_POST, ProviderClient, TokenResponse
 from .errors import (
     ConnectionNotConfigured,
     ConnectionNotFound,
@@ -49,6 +49,7 @@ from .errors import (
     ProviderError,
     TokenEndpointError,
 )
+from .overrides import override_url
 from .paste import parse_pasted
 from .provider import (
     CLIENT_ID_FLOWS,
@@ -159,6 +160,9 @@ class ConnectionTarget:
     config: dict[str, Any] = field(default_factory=dict)
     #: ``plugin``, or ``ai`` for a FiestaBot AI provider (``plugin_id`` is then ``"ai"``).
     kind: str = "plugin"
+    #: The plugin object, asked for its optional token hooks
+    #: (``exchange_oauth_token`` and ``refresh_oauth_token``). ``None`` for AI providers.
+    plugin: object | None = field(default=None, compare=False, repr=False)
 
     @property
     def client_id(self) -> str:
@@ -170,7 +174,12 @@ class ConnectionTarget:
 
     def endpoints(self) -> Endpoints:
         """The provider's endpoints for this instance; raises :class:`ConnectionNotConfigured`."""
-        return self.provider.resolve_endpoints(self.config)
+        resolved = self.provider.resolve_endpoints(self.config)
+        return Endpoints(
+            override_url(resolved.authorization_url),
+            override_url(resolved.token_url),
+            override_url(resolved.device_authorization_url),
+        )
 
     @property
     def configured(self) -> bool:
@@ -228,6 +237,7 @@ class RegistryConnectionSource:
             plugin_name=name,
             provider=provider,
             config=dict(registry.get_plugin_config(connection_id) or {}),
+            plugin=registry.plugins.get(connection_id),
         )
 
     def all(self) -> list[ConnectionTarget]:
@@ -342,6 +352,7 @@ class _PendingAuthorization:
     accept_issued_client_id: bool = False
     #: Extra fields for the code exchange (a ``resource`` indicator, say).
     extra_token_params: dict[str, str] = field(default_factory=dict)
+    token_auth_method: str = AUTH_METHOD_POST
 
 
 @dataclass
@@ -368,6 +379,7 @@ class _DeviceFlow:
     #: ``client_id`` the install's Plex client identifier).
     kind: str = FLOW_DEVICE
     plex_product: str = ""
+    token_auth_method: str = AUTH_METHOD_POST
 
     def to_status(self) -> DeviceStatus:
         return DeviceStatus(
@@ -531,6 +543,7 @@ class OAuthService:
             client_id_param=provider.client_id_param,
             accept_issued_client_id=provider.accept_issued_client_id,
             extra_token_params=dict(provider.token_params),
+            token_auth_method=provider.token_auth_method,
         )
         with self._lock:
             self._prune_pending(now)
@@ -679,6 +692,7 @@ class OAuthService:
             interval=authorization.interval,
             client_id_param=provider.client_id_param,
             poll_form=poll_form,
+            token_auth_method=provider.token_auth_method,
         )
         self._begin_polling(flow)
         return AuthorizationStart(flow=FLOW_DEVICE, device=flow.to_status())
@@ -737,7 +751,9 @@ class OAuthService:
                 client_secret=pending.client_secret,
                 client_id_param=pending.client_id_param,
                 extra_form=pending.extra_token_params,
+                auth_method=pending.token_auth_method,
             )
+        response = self._exchanged(connection_id, response)
         self._store_tokens(connection_id, response, pending.scopes, previous=None, client_id=issued)
         self._source.invalidate(connection_id)
         logger.info("OAuth connection established for %s", connection_id)
@@ -857,6 +873,7 @@ class OAuthService:
                 client_secret=flow.client_secret,
                 client_id_param=flow.client_id_param,
                 extra_form=flow.poll_form,
+                auth_method=flow.token_auth_method,
             )
         except TokenEndpointError as exc:
             if exc.error == "authorization_pending":
@@ -883,6 +900,7 @@ class OAuthService:
             if self._device.get(flow.connection_id) is not flow:
                 # Superseded or disconnected while the request was in flight.
                 return False
+        response = self._exchanged(flow.connection_id, response)
         self._store_tokens(flow.connection_id, response, flow.scopes, previous=None)
         self._source.invalidate(flow.connection_id)
         logger.info("OAuth connection established for %s", flow.connection_id)
@@ -946,7 +964,7 @@ class OAuthService:
             return None
         if self._is_fresh(tokens):
             return tokens.access_token
-        if not tokens.refresh_token:
+        if not tokens.refresh_token and not self._has_hook(connection_id, _REFRESH_HOOK):
             return self._still_valid(tokens)
 
         with self._refresh_lock(connection_id):
@@ -976,6 +994,9 @@ class OAuthService:
         A refusal marks the connection for reconnecting before returning.
         """
         target = self._source.get(connection_id)
+        hooked = self._hook_refresh(connection_id, target, tokens)
+        if hooked is not None:
+            return hooked
         client_id = tokens.client_id or (target.client_id if target else "")
         if target is None or not client_id or not tokens.refresh_token:
             return _REFRESH_UNAVAILABLE, None
@@ -991,6 +1012,8 @@ class OAuthService:
                 client_id=client_id,
                 client_secret=target.client_secret,
                 client_id_param=target.provider.client_id_param,
+                extra_form=target.provider.refresh_params,
+                auth_method=target.provider.token_auth_method,
             )
         except TokenEndpointError as exc:
             if exc.error in _REAUTHORIZE_ERRORS:
@@ -1004,6 +1027,86 @@ class OAuthService:
             return _REFRESH_FAILED, None
         except ProviderError as exc:
             logger.warning("OAuth refresh for %s failed, will retry: %s", connection_id, exc)
+            return _REFRESH_FAILED, None
+        return _REFRESHED, self._store_tokens(connection_id, response, tokens.scopes, previous=tokens).access_token
+
+    # ── plugin token hooks ──────────────────────────────────────────────
+    #
+    # A plugin may define ``exchange_oauth_token(token)`` (called once after
+    # each sign-in) and ``refresh_oauth_token(token)`` (called when the token
+    # is due for renewal, before the standard refresh). Each gets a dict
+    # ``{access_token, refresh_token, expires_at, scopes}`` and returns
+    # ``None`` to leave things as they are, or ``{access_token, expires_in?,
+    # refresh_token?}`` to store instead. Meta's long-lived tokens need this.
+
+    def _hook(self, target: ConnectionTarget | None, name: str) -> Callable[[dict[str, Any]], Any] | None:
+        hook = getattr(target.plugin, name, None) if target is not None and target.plugin is not None else None
+        return hook if callable(hook) else None
+
+    def _has_hook(self, connection_id: str, name: str) -> bool:
+        return self._hook(self._source.get(connection_id), name) is not None
+
+    @staticmethod
+    def _hook_result(result: Any) -> TokenResponse:
+        """A hook's answer as a :class:`TokenResponse`; raises ``ValueError`` when malformed."""
+        if not isinstance(result, dict):
+            raise ValueError("not a dict")
+        access_token = result.get("access_token")
+        if not isinstance(access_token, str) or not access_token:
+            raise ValueError("no access_token")
+        refresh_token = result.get("refresh_token")
+        expires_in = result.get("expires_in")
+        return TokenResponse(
+            access_token=access_token,
+            token_type=str(result.get("token_type") or "Bearer"),
+            refresh_token=refresh_token if isinstance(refresh_token, str) else "",
+            expires_in=int(expires_in) if isinstance(expires_in, int | float) and expires_in > 0 else None,
+            scopes=(),
+        )
+
+    def _exchanged(self, connection_id: str, response: TokenResponse) -> TokenResponse:
+        """*response* after the plugin's ``exchange_oauth_token`` hook, if it has one."""
+        hook = self._hook(self._source.get(connection_id), _EXCHANGE_HOOK)
+        if hook is None:
+            return response
+        given = {
+            "access_token": response.access_token,
+            "refresh_token": response.refresh_token,
+            "expires_at": self._clock() + response.expires_in if response.expires_in else None,
+            "scopes": list(response.scopes),
+        }
+        try:
+            result = hook(given)
+            if result is None:
+                return response
+            swapped = self._hook_result(result)
+        except Exception as exc:  # a plugin bug must not lose the sign-in
+            logger.warning(
+                "Token exchange hook for %s failed (%s); keeping the sign-in token", connection_id, type(exc).__name__
+            )
+            return response
+        return replace(swapped, refresh_token=swapped.refresh_token or response.refresh_token, scopes=response.scopes)
+
+    def _hook_refresh(
+        self, connection_id: str, target: ConnectionTarget | None, tokens: TokenSet
+    ) -> tuple[str, str | None] | None:
+        """Renew through the plugin's ``refresh_oauth_token`` hook; ``None`` when it has none or declines."""
+        hook = self._hook(target, _REFRESH_HOOK)
+        if hook is None:
+            return None
+        given = {
+            "access_token": tokens.access_token,
+            "refresh_token": tokens.refresh_token,
+            "expires_at": tokens.expires_at,
+            "scopes": list(tokens.scopes),
+        }
+        try:
+            result = hook(given)
+            if result is None:
+                return None
+            response = self._hook_result(result)
+        except Exception as exc:  # treated like an unreachable provider
+            logger.warning("Token refresh hook for %s failed: %s", connection_id, type(exc).__name__)
             return _REFRESH_FAILED, None
         return _REFRESHED, self._store_tokens(connection_id, response, tokens.scopes, previous=tokens).access_token
 
@@ -1056,6 +1159,8 @@ _REFRESHED = "refreshed"
 _REFRESH_REFUSED = "refused"
 _REFRESH_FAILED = "failed"
 _REFRESH_UNAVAILABLE = "unavailable"
+_EXCHANGE_HOOK = "exchange_oauth_token"
+_REFRESH_HOOK = "refresh_oauth_token"
 
 
 # ── Singleton ───────────────────────────────────────────────────────────────

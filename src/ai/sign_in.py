@@ -24,6 +24,7 @@ from dataclasses import dataclass, replace
 from pathlib import Path
 from typing import Any
 
+from src.oauth.overrides import override_url
 from src.oauth.provider import FLOW_KEY_EXCHANGE, FLOW_RELAY, OAuthProvider
 from src.oauth.service import AI_CONNECTION_PREFIX, ConnectionSource, ConnectionTarget
 from src.paths import get_data_dir
@@ -155,7 +156,7 @@ def resolve_provider_auth(provider: dict[str, Any], service: Any = None) -> dict
     resolved = dict(provider)
     resolved["api_key"] = token
     if not resolved.get("base_url"):
-        resolved["base_url"] = preset.base_url
+        resolved["base_url"] = override_url(preset.base_url)
     if not resolved.get("protocol"):
         resolved["protocol"] = preset.protocol
     return resolved

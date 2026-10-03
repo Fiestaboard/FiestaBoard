@@ -19,6 +19,7 @@ from urllib.parse import quote, urlencode
 
 from .client import HttpTransport
 from .errors import ProviderError
+from .overrides import override_url
 
 PINS_URL = "https://plex.tv/api/v2/pins"
 AUTH_URL = "https://app.plex.tv/auth#?"
@@ -76,7 +77,9 @@ def _lifetime(body: dict[str, Any], now: float) -> int:
 
 def create_pin(http: HttpTransport, client_identifier: str, product: str, now: float) -> Pin:
     """Ask plex.tv for a new strong PIN."""
-    status, body = http("POST", f"{PINS_URL}?strong=true", headers=headers(client_identifier, product), form={})
+    status, body = http(
+        "POST", f"{override_url(PINS_URL)}?strong=true", headers=headers(client_identifier, product), form={}
+    )
     if status >= 400 or not isinstance(body, dict):
         raise ProviderError(f"Plex answered HTTP {status} when asked for a sign-in PIN.")
     pin_id, code = body.get("id"), body.get("code")
@@ -90,7 +93,9 @@ def check_pin(http: HttpTransport, pin_id: str, client_identifier: str, product:
 
     Raises :class:`PinGone` when Plex no longer knows the PIN.
     """
-    status, body = http("GET", f"{PINS_URL}/{quote(pin_id, safe='')}", headers=headers(client_identifier, product))
+    status, body = http(
+        "GET", f"{override_url(PINS_URL)}/{quote(pin_id, safe='')}", headers=headers(client_identifier, product)
+    )
     if status == 404:
         raise PinGone("The Plex sign-in PIN expired.")
     if status >= 400 or not isinstance(body, dict):
@@ -105,4 +110,4 @@ def auth_url(client_identifier: str, code: str, product: str, forward_url: str =
     if forward_url:
         params["forwardUrl"] = forward_url
     params["context[device][product]"] = product
-    return AUTH_URL + urlencode(params)
+    return override_url(AUTH_URL) + urlencode(params)

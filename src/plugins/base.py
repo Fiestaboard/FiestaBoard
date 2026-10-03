@@ -880,6 +880,37 @@ class PluginBase(ABC):
 
         return get_oauth_service().report_rejected_for(self)
 
+    def exchange_oauth_token(self, token: dict[str, Any]) -> dict[str, Any] | None:
+        """Optional hook: swap the token a sign-in produced before it is stored.
+
+        Called once after every successful sign-in, with ``{"access_token",
+        "refresh_token", "expires_at", "scopes"}`` (``expires_at`` is epoch
+        seconds or ``None``). Return ``None`` to keep that token, or
+        ``{"access_token", "expires_in"?, "refresh_token"?}`` to store instead
+        (Meta: trade the 1-hour token for a 60-day one). A missing
+        ``refresh_token`` keeps the provider's. An exception keeps the
+        sign-in token. Must not call :meth:`get_oauth_token`.
+
+        Added in FiestaBoard 9.9.0; older cores never call it.
+        """
+        return None
+
+    def refresh_oauth_token(self, token: dict[str, Any]) -> dict[str, Any] | None:
+        """Optional hook: renew the stored token the provider's own way.
+
+        Called when the stored token is within a minute of ``expires_at``,
+        before the platform's standard ``refresh_token`` grant, with the same
+        dict as :meth:`exchange_oauth_token`. Return ``None`` to let the
+        platform refresh as usual (or, with no refresh token, keep serving the
+        token until it expires), or a replacement in the same shape that
+        hook returns. An exception counts as a failed refresh: the current
+        token is served until it expires. Must not call
+        :meth:`get_oauth_token`.
+
+        Added in FiestaBoard 9.9.0; older cores never call it.
+        """
+        return None
+
 
 # Defaults for transition plugin manifest's transition_settings block.
 DEFAULT_TRANSITION_INTERRUPTIBLE = True
