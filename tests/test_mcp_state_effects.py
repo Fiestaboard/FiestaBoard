@@ -49,6 +49,7 @@ from src.collections.service import CollectionService
 from src.collections.storage import CollectionStorage
 from src.config_manager import ConfigManager
 from src.mcp_server import _build_mcp_server
+from src.outputs import OutputRuntime
 from src.pages.service import PageService
 from src.pages.storage import PageStorage
 from src.plugins.loader import PluginLoader
@@ -1918,25 +1919,30 @@ class _FakeClient:
         self.rendered: list[list[list[int]]] = []
         self.render_kwargs: list[dict[str, Any]] = []
         self.snapped: list[list[list[int]]] = []
-        self._last_characters = None
+        self._output = OutputRuntime()
+
+    def set_output_runtime(self, runtime):
+        self._output = runtime
 
     def render(self, board_array, **kwargs):
         self.rendered.append(board_array)
         self.render_kwargs.append(kwargs)
-        self._last_characters = board_array
+        self._output.frames.record_sent(board_array)
         return (True, True)
 
     def send_characters(self, board_array, **kwargs):
         # The Transition Lab snaps the from-page onto the board plainly
         # before animating to the to-page.
         self.snapped.append(board_array)
-        self._last_characters = board_array
+        self._output.frames.record_sent(board_array)
         return True
 
 
 class _FakeRuntime:
     def __init__(self, client):
+        self.output = OutputRuntime()
         self.client = client
+        client.set_output_runtime(self.output)
         self.polled_characters = None
         self.polled_at = None
 
@@ -2197,7 +2203,7 @@ def test_get_board_content_reads_a_secondary_boards_runtime_cache(mcp, services,
 
     assert result["source"] == "last_sent"
     assert (result["rows"], result["cols"]) == (3, 15)
-    assert result["characters"] == engine.runtimes["board-note"].client._last_characters
+    assert result["characters"] == engine.runtimes["board-note"].output.frames.characters
 
 
 def test_get_board_content_is_null_when_nothing_was_ever_sent(mcp, services, engine):

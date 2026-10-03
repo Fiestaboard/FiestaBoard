@@ -10,6 +10,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 from src.api_server import app
+from src.outputs import OutputRuntime
 
 
 @pytest.fixture
@@ -387,7 +388,6 @@ def mock_service():
         }
         svc.vb_client.clear_cache.return_value = None
         svc.vb_client.use_cloud = False
-        svc.vb_client._last_characters = None
         svc.board_clients = {}
         svc.running = True
         svc.initialize.return_value = True
@@ -399,12 +399,16 @@ def mock_service():
             """What ``runtime_for(None)`` answers: the fixture's primary caches, live."""
 
             client = property(lambda self: svc.vb_client)
+            # The primary board's core runtime: its frame cache answers
+            # "what FiestaBoard last sent".
+            output = OutputRuntime()
             polled_characters = property(
                 lambda self: svc._polled_characters, lambda self, v: setattr(svc, "_polled_characters", v)
             )
             polled_at = property(lambda self: svc._polled_at, lambda self, v: setattr(svc, "_polled_at", v))
 
         primary_runtime = _PrimaryRuntime()
+        svc.primary_output = primary_runtime.output
         svc.get_runtime.return_value = None
 
         def runtime_for(board_id=None):
@@ -1817,7 +1821,7 @@ class TestBoardCurrentMessage:
         grid = [[0] * 22 for _ in range(6)]
         expected = [[5] * 22 for _ in range(6)]
         mock_service.vb_client.read_current_message.return_value = grid
-        mock_service.vb_client._last_characters = expected
+        mock_service.primary_output.frames.characters = expected
         response = client.get("/board/current-message")
         assert response.status_code == 200
         assert response.json()["expected_characters"] == expected
@@ -2379,9 +2383,10 @@ class TestBoardCurrentMessagePerBoard:
     @staticmethod
     def _make_runtime(last_sent=None, polled=None, polled_at=None, use_cloud=False):
         rt = Mock()
+        rt.output = OutputRuntime()
+        rt.output.frames.characters = last_sent
         rt.client = Mock()
         rt.client.is_virtual = False
-        rt.client._last_characters = last_sent
         rt.client.use_cloud = use_cloud
         rt.polled_characters = polled
         rt.polled_at = polled_at

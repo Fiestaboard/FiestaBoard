@@ -8,6 +8,7 @@ from unittest.mock import MagicMock
 import pytest
 
 from src.board_client import TRANSITION_PLUGIN_PREFIX, BoardClient
+from src.outputs import OutputRuntime
 from src.plugins.base import TransitionFrame, TransitionPluginBase
 from src.transitions.runner import TransitionRunner
 
@@ -182,7 +183,28 @@ def test_run_falls_back_to_blank_when_no_cache_or_read():
     assert captured and captured[0] == _grid(0)
 
 
-def test_run_uses_cached_grid_as_from():
+def test_run_starts_from_the_from_grid_it_is_given():
+    captured = []
+
+    class _CapturePlugin(TransitionPluginBase):
+        @property
+        def plugin_id(self):
+            return "cap"
+
+        def generate_frames(self, from_grid, to_grid, device, config):
+            captured.append(from_grid)
+            yield to_grid, 0
+
+    plugin = _CapturePlugin(_manifest("cap", min_interval_ms=0))
+    runner = TransitionRunner(lambda pid: plugin)
+    board = _FakeBoard()
+    runner.run(plugin_id="cap", to_grid=_grid(1), board_client=board, from_grid=_grid(7))
+    assert captured[0] == _grid(7)
+
+
+def test_run_never_reads_the_boards_private_cache():
+    """The starting grid is the caller's to give (render() passes the board
+    runtime's dedupe cache); the runner no longer peeks at the client."""
     captured = []
 
     class _CapturePlugin(TransitionPluginBase):
@@ -198,7 +220,7 @@ def test_run_uses_cached_grid_as_from():
     runner = TransitionRunner(lambda pid: plugin)
     board = _FakeBoard(cached=_grid(7))
     runner.run(plugin_id="cap", to_grid=_grid(1), board_client=board)
-    assert captured[0] == _grid(7)
+    assert captured[0] == _grid(0)
 
 
 def test_run_does_not_call_read_current_message_when_cache_empty():
@@ -410,11 +432,12 @@ def test_render_with_plugin_strategy_invokes_runner():
     captured = {}
 
     class _Runner:
-        def run(self, plugin_id, to_grid, board_client, cancel_event, device_type, config=None):
+        def run(self, plugin_id, to_grid, board_client, cancel_event, device_type, from_grid=None, config=None):
             captured["plugin_id"] = plugin_id
             captured["to_grid"] = to_grid
             captured["cancel"] = cancel_event
             captured["device_type"] = device_type
+            captured["from_grid"] = from_grid
             captured["config"] = config
             return (True, True)
 
@@ -428,8 +451,30 @@ def test_render_with_plugin_strategy_invokes_runner():
     assert captured["to_grid"] == _grid(2)
     assert captured["device_type"] == "flagship"
     assert isinstance(captured["cancel"], threading.Event)
+    # Nothing sent yet: no starting grid, so the runner starts from blank.
+    assert captured["from_grid"] is None
     # No override passed: the runner falls back to the plugin's bound config.
     assert captured["config"] is None
+
+
+def test_render_starts_the_transition_from_the_runtimes_dedupe_cache():
+    """What the board is known to show — the bound OutputRuntime's dedupe
+    cache — is the transition's starting grid."""
+    bc = _build_board_client()
+    runtime = OutputRuntime("b1")
+    bc.set_output_runtime(runtime)
+    runtime.frames.record_sent(_grid(7))
+
+    captured = {}
+
+    class _Runner:
+        def run(self, *, from_grid=None, **_kwargs):
+            captured["from_grid"] = from_grid
+            return (True, True)
+
+    bc.set_transition_runner(_Runner())
+    bc.render(_grid(2), strategy=f"{TRANSITION_PLUGIN_PREFIX}typewriter")
+    assert captured["from_grid"] == _grid(7)
 
 
 def test_render_forwards_transition_config_to_runner():
@@ -439,7 +484,7 @@ def test_render_forwards_transition_config_to_runner():
     captured = {}
 
     class _Runner:
-        def run(self, plugin_id, to_grid, board_client, cancel_event, device_type, config=None):
+        def run(self, plugin_id, to_grid, board_client, cancel_event, device_type, from_grid=None, config=None):
             captured["config"] = config
             return (True, True)
 
@@ -469,7 +514,7 @@ def test_render_sets_cancel_event_before_handing_off():
     events_seen: list[bool] = []
 
     class _Runner:
-        def run(self, plugin_id, to_grid, board_client, cancel_event, device_type, config=None):
+        def run(self, plugin_id, to_grid, board_client, cancel_event, device_type, from_grid=None, config=None):
             # The new render call should clear the event before invoking us.
             events_seen.append(cancel_event.is_set())
             return (True, True)
@@ -519,8 +564,8 @@ def test_a_stale_from_grid_reaches_the_plugin_reshaped_to_the_target(cached_shap
 
     plugin = _CapturePlugin(_manifest("cap", min_interval_ms=0))
     runner = TransitionRunner(lambda pid: plugin)
-    board = _FakeBoard(cached=_sized(7, *cached_shape))
-    runner.run(plugin_id="cap", to_grid=_sized(1, 12, 29), board_client=board)
+    board = _FakeBoard()
+    runner.run(plugin_id="cap", to_grid=_sized(1, 12, 29), board_client=board, from_grid=_sized(7, *cached_shape))
 
     from_grid = captured[0]
     assert (len(from_grid), {len(r) for r in from_grid}) == (12, {29}), label
