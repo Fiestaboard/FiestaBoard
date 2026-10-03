@@ -86,7 +86,7 @@ def test_board_falls_back_to_what_was_last_sent_without_a_poll_cache():
 
 def test_board_wants_a_virtual_boards_memory_before_its_last_sent_cache():
     vclient = virtual("note", frame=NOTE_FRAME)
-    vclient._state.last_characters = grid(NOTE, 1)  # dedupe cache drifted from the glass
+    vclient._state.characters = grid(NOTE, 1)  # dedupe cache drifted from the glass
     service = Service({"b1": Runtime(PhysicalClient()), "vb": Runtime(vclient)})
 
     state = read_board_state("vb", want="board", service=service)
@@ -153,8 +153,8 @@ def test_only_a_client_that_says_is_virtual_is_true_is_read_from_memory():
     not earn it a ``read_current_message`` call on the unauthenticated panel
     path."""
     proxy = Mock()
-    proxy._last_characters = SENT
     service = Service({"b1": Runtime(proxy)})
+    service.runtimes["b1"].output.frames.characters = SENT
 
     state = read_board_state(None, want="sent", service=service)
 

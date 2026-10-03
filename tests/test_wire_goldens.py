@@ -907,7 +907,7 @@ def test_external_write_detection(wire):
     def flags() -> dict:
         return {
             "showing_out_of_band": runtime.showing_out_of_band,
-            "suspect_baseline_set": runtime.external_change_suspect_baseline is not None,
+            "suspect_baseline_set": runtime.output.external_write_suspected,
         }
 
     s.step("send OURS", {"send": outcome_result(client.render(grid_of("OURS"))), **flags()})

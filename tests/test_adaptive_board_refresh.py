@@ -21,11 +21,17 @@ RETRY = 0.02
 MAX_TOTAL = 0.20
 
 
+def _sent(svc, characters):
+    """FiestaBoard sent *characters*: the board runtime's frame cache records it."""
+    svc._primary_runtime().output.frames.record_sent(characters)
+
+
 def _make_service_with_last(last_chars):
     svc = DisplayService()
     client = Mock()
-    client._last_characters = last_chars
     svc.vb_client = client
+    if last_chars is not None:
+        _sent(svc, last_chars)
     return svc, client
 
 
@@ -125,7 +131,7 @@ class TestAdaptiveRefresh:
         first_thread = svc._refresh_thread
 
         # Immediately update the client's last-sent and trigger a new refresh.
-        client._last_characters = sent_b
+        _sent(svc, sent_b)
         time.sleep(0.01)  # let the first thread start sleeping
         svc.request_board_refresh(
             initial_delay_seconds=INITIAL,
