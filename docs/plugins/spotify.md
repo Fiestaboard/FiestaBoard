@@ -25,28 +25,17 @@ It only reads your playback. It can't play, pause, or change anything in your ac
 
 ## Setup
 
-You connect the plugin to your Spotify account once, using a small app that you create for yourself in Spotify's developer settings. You need **Spotify Premium**: since February 2026, Spotify requires it for the owner of a developer app.
-
-### 1. Create a Spotify App
-
-1. Go to the [Spotify Developer Dashboard](https://developer.spotify.com/dashboard) and log in with your Spotify account
-2. Press **Create app** and give it any name and description, for example `FiestaBoard`
-3. Under **Redirect URIs**, paste exactly `https://fiestaboard.app/auth/oauth/redirect.html` and press **Add**
-4. Under **Which API/SDKs are you planning to use?**, tick **Web API**
-5. Agree to the terms and press **Save**
-6. Open the app's **Settings** and copy the **Client ID**. You don't need the client secret
-
-Spotify allows one app in Development Mode per developer account. If you already have one, add the redirect URI to it instead.
-
-To connect a different Spotify account than the one that owns the app, add that account under the app's **Settings** > **User Management** first. Development Mode apps allow up to five listed users.
-
-### 2. Connect in the Web UI
+There is nothing to create or paste: the plugin brings FiestaBoard's own Spotify app, and you only sign in.
 
 1. Open **http://localhost:4420**
 2. Go to the **Integrations** page and toggle **Spotify** on
-3. Paste the **Client ID** and click **Save Changes**
-4. In **Account connection**, press **Connect to Spotify**, sign in, and press **Agree**
+3. Click **Configure**, and in **Account connection** press **Sign in with Spotify**
+4. Sign in to Spotify and press **Agree**
 5. The first time, `fiestaboard.app` shows your board's address on the way back. Check it and press **Continue to my board**
+
+:::note Spotify accounts are added by hand for now
+FiestaBoard's Spotify app is in Spotify's Development Mode, which only lets accounts the app's owner has added (up to five) use it. Spotify does not offer a wider mode to open-source projects. If your account hasn't been added, signing in appears to work but the plugin then shows "Spotify refused access (403)".
+:::
 
 See [Connecting Accounts](/docs/features/connecting-accounts) for what happens during sign-in and where FiestaBoard keeps it.
 
