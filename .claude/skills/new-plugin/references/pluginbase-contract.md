@@ -41,6 +41,12 @@ loader can find it.
   `oauth` block, or `None` when the user is not signed in (or must sign in again). Call it on
   every fetch and never store the result; the platform refreshes it. On `None`, return
   `PluginResult(available=False, error=...)` without making a request. See `oauth.md`.
+- `self.report_oauth_rejected(token=None)` (9.9.0) — call on a `401`; returns a refreshed
+  token to retry once with, or `None` (the user must sign in again). See `oauth.md`.
+- `self.ai_complete(messages, *, provider_id=None, model=None, temperature=None,
+  max_tokens=None, json=False)` (9.9.0) — one completion from the AI providers set up in
+  Settings → AI Providers (any protocol, pasted key or sign-in). Never give a plugin its own
+  AI key or sign-in. See `ai.md`.
 
 Module constants in `base.py`: `DEFAULT_REFRESH_SECONDS = 300`, `MIN_REFRESH_SECONDS = 10`,
 `MAX_REFRESH_SECONDS = 86400`.

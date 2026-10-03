@@ -8,6 +8,8 @@ keywords: [FiestaBoard OAuth plugin, get_oauth_token, manifest oauth block, PKCE
 
 Some data lives behind a user's account on another service: what they're playing, their calendar, their orders. A plugin reaches that data with OAuth, and FiestaBoard does the hard part for you. You **declare** the provider in `manifest.json` and **ask for a token** in `fetch_data`. The platform runs the sign-in, stores the tokens, refreshes them, and draws the sign-in button in your plugin's settings.
 
+Calling a language model is not a reason to add OAuth: use [FiestaBoard's AI providers](/docs/development/plugin-ai) instead, which the user signs in to once in Settings.
+
 This page is the complete reference for plugin authors, human or AI. It assumes you have read the [Plugin Development Guide](/docs/development/plugin-guide). For what your users see, read [Connecting Accounts](/docs/features/connecting-accounts).
 
 **Requires FiestaBoard 9.5.0 or later.** Set `"fiestaboard_version": ">=9.5.0"` in your manifest. A plugin that uses anything marked **9.9.0** on this page (the `key_exchange` and `plex_pin` flows, the [provider quirk fields](#provider-quirks), or `report_oauth_rejected()`) sets `">=9.9.0"` instead.

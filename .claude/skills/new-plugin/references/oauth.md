@@ -8,6 +8,10 @@ Your plugin **declares** the provider and **asks for a token**. The full author'
 Reference implementation: `../fiestaboard-plugin--spotify` (also on GitHub under
 `Fiestaboard/`). Read its `manifest.json`, `__init__.py`, and `tests/` before writing yours.
 
+**Not for AI.** A plugin that calls a language model (OpenRouter, OpenAI, Hugging Face,
+ChatGPT…) gets no `oauth` block and no key of its own: it uses `self.ai_complete()`. See
+`ai.md`.
+
 ## Decide three things in the Step 1 interview
 
 1. **Is OAuth actually needed?** If the service offers an API key or a personal token, use
@@ -17,6 +21,9 @@ Reference implementation: `../fiestaboard-plugin--spotify` (also on GitHub under
      need*. The user types a short code. Preferred when available.
    - `relay`: everything else. Authorization code with PKCE, returning through
      `https://fiestaboard.app/auth/oauth/redirect`. Every provider supports it.
+   - `key_exchange` (9.9.0): the provider trades the code for a long-lived API key instead
+     of tokens (OpenRouter style). No client ID.
+   - `plex_pin` (9.9.0): Plex only. No endpoints in the block.
 3. **Whose app signs in?** Ask the user; do not guess.
    - **Each user registers their own app** (default): a `client_id` settings field, and a
      SETUP guide that walks through creating the app and pasting the redirect URI.
@@ -61,6 +68,17 @@ Scaffold with `--type http` as usual. The generator has no OAuth mode; make thes
   declare the field, so with no field the shipped one is always used.
 - Remove the scaffold's `api_key` setting and its `env_vars` entry if nothing else needs them.
 - Endpoints must be `https://`. No `client_secret` key, ever: the manifest is refused.
+- Provider quirks (all **9.9.0**, so they need `"fiestaboard_version": ">=9.9.0"`; the full
+  table is in `plugin-oauth.md` under "Provider Quirks"):
+  - `client_id_param`: the client ID parameter's name (TikTok: `client_key`).
+  - `scope_separator`: `" "` (default) or `","` (Strava, TikTok, Todoist).
+  - `device_scope_param` / `device_poll_scope`: Twitch's `scopes` name and scopes on the poll.
+  - `endpoint_base_setting`: a settings key holding the provider's base address, for a
+    provider on the user's own network (Home Assistant); the endpoints are then paths.
+  - `plex_product`: the product name `plex_pin` shows on Plex.
+  - `token_auth_method`: `"post"` (default) or `"basic"` (client secret as HTTP Basic, X).
+  - `refresh_params`: extra string fields sent with every refresh (WHOOP:
+    `{"scope": "offline"}`); may not set `grant_type`, `refresh_token`, or the client fields.
 - Scopes: the least that works. Read-only where the provider offers it.
 
 **`__init__.py`**
@@ -92,16 +110,31 @@ Rules that are easy to get wrong:
   off briefly on `5xx`/timeouts, and do not hammer after `401`/`403`.
 - Results are cached **per board shape**. For a rate-limited API, keep one shared snapshot
   for a few seconds so a Flagship and a Note are served by one request.
-- `401` → "rejected the sign-in, press Reconnect". `403` → say what the user can do about it
-  (often an account that is not allowed to use the app).
+- `401` → call `self.report_oauth_rejected()` (9.9.0; guard with
+  `getattr(self, "report_oauth_rejected", None)`). It returns a refreshed token: retry the
+  request **once** with it. `None` → "rejected the sign-in, press Reconnect", no more
+  requests. `403` → say what the user can do about it (often an account that is not allowed
+  to use the app).
+
+**Token hooks (9.9.0, optional).** Override only for a provider whose tokens need it:
+
+- `exchange_oauth_token(self, token)`: called once after each sign-in with
+  `{"access_token", "refresh_token", "expires_at", "scopes"}`. Return `None` to keep it, or
+  `{"access_token", "expires_in"?, "refresh_token"?}` to store instead (Meta: swap the
+  1-hour token for a 60-day one).
+- `refresh_oauth_token(self, token)`: called near `expires_at`, before the standard refresh.
+  Return `None` for the standard refresh, or a replacement in the same shape.
+- Both: an exception keeps the current token; never call `get_oauth_token()` or
+  `report_oauth_rejected()` inside them; set the timeout on every request.
 
 **`tests/`**
 
 - In the plugin fixture: `p.get_oauth_token = lambda: "test_access_token"`. Mock the
   provider's API with `requests` patches as for any `http` plugin.
 - Required cases: bearer header carries the token; `None` → unavailable **and no request
-  made**; `401`; `403`; `429` with `Retry-After`; timeout; a new token is used right after a
-  rejection.
+  made**; `401` reports the rejection and retries once with the returned token (and stops
+  when it returns `None`); `403`; `429` with `Retry-After`; timeout; a new token is used
+  right after a rejection. Patch `p.report_oauth_rejected` the same way as the token.
 - Validate the block with the platform's validator:
 
   ```python
@@ -153,6 +186,8 @@ real sign-in is theirs to do before the registry PR leaves draft.
 - [ ] `oauth` block validates; no `client_secret` anywhere in the repo or its history
 - [ ] `fiestaboard_version` `>=9.5.0` in manifest and registry entry; CI pinned to match
 - [ ] `get_oauth_token()` called every fetch; nothing stored; `None` makes no request
+- [ ] `401` → `report_oauth_rejected()` and one retry; `fiestaboard_version` `>=9.9.0` if any
+      9.9.0 flow, quirk field, or hook is used
 - [ ] Cooldowns for `401`/`403`/`429`/`5xx`; one request shared across board shapes if rate limited
 - [ ] SETUP.md covers permissions, app creation (if any), sign-in, limits, troubleshooting
 - [ ] The user knows a real sign-in test is still theirs to do
