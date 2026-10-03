@@ -138,11 +138,14 @@ class ConnectionTarget:
 class ConnectionSource(Protocol):
     """Where connection targets come from. Production reads the plugin registry."""
 
-    def get(self, connection_id: str) -> ConnectionTarget | None: ...
+    def get(self, connection_id: str) -> ConnectionTarget | None:
+        """The target for *connection_id*, or ``None`` if no plugin declares one."""
 
-    def all(self) -> list[ConnectionTarget]: ...
+    def all(self) -> list[ConnectionTarget]:
+        """Every installed plugin instance that declares an OAuth connection."""
 
-    def id_for(self, plugin: object) -> str | None: ...
+    def id_for(self, plugin: object) -> str | None:
+        """The registry key *plugin* is installed under, or ``None``."""
 
 
 class RegistryConnectionSource:

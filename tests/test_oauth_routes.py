@@ -347,7 +347,8 @@ def test_disconnect_deletes_the_tokens_and_reports_the_new_status(client, servic
 
 
 def test_disconnect_of_a_plugin_without_oauth_is_a_404(client):
-    assert client.delete("/oauth/connections/weather").status_code == 404
+    response = client.delete("/oauth/connections/weather")
+    assert response.status_code == 404
 
 
 # ── The auth boundary ───────────────────────────────────────────────────────

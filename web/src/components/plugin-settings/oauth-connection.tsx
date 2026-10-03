@@ -169,7 +169,11 @@ export function OAuthConnectionSection({ pluginId }: { pluginId: string }) {
         )}
         {device && !awaitingCode && (
           <Alert variant={device.status === "expired" ? "warning" : "destructive"}>
-            {device.status === "expired" ? <TimerOff className="size-4" /> : <CircleAlert className="size-4" />}
+            {device.status === "expired" ? (
+              <TimerOff className="size-4" aria-hidden="true" />
+            ) : (
+              <CircleAlert className="size-4" aria-hidden="true" />
+            )}
             <AlertDescription>
               {device.status === "expired"
                 ? t("deviceExpired")

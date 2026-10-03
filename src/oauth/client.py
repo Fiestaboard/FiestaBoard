@@ -25,7 +25,8 @@ DEFAULT_DEVICE_INTERVAL_SECONDS = 5
 class Transport(Protocol):
     """POST a form and return ``(status_code, parsed JSON body)``."""
 
-    def __call__(self, url: str, form: dict[str, str]) -> tuple[int, Any]: ...
+    def __call__(self, url: str, form: dict[str, str]) -> tuple[int, Any]:
+        """Send *form* to *url*; raise :class:`ProviderError` if it cannot be reached."""
 
 
 def post_form(url: str, form: dict[str, str]) -> tuple[int, Any]:
