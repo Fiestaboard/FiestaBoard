@@ -340,7 +340,7 @@ export function TileGridAssignment({
               {t("tileGrid.completeBadge", { total: totalSlots })}
             </BadgeUI>
           ) : (
-            <BadgeUI variant="default" className="text-[10px] h-5 bg-amber-500 text-white">
+            <BadgeUI variant="default" className="text-[10px] h-5 bg-warning text-warning-foreground">
               {t("tileGrid.partialBadge", { assigned: assignedCount, total: totalSlots })}
             </BadgeUI>
           )}
