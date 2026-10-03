@@ -6,9 +6,10 @@ takes its send lock and cancel token from here instead of owning them.
 
 It holds the **send lock**, the **cancel token**, the board's
 :class:`~src.outputs.frames.FrameCache` (frame dedupe and the last-frame
-store) and **external-write detection** over it. The rest of the policy the
-output-plugin program moves into core (the send floor, transition driving)
-still lives in the clients and moves in later layers.
+store), **external-write detection** over it, and the door to the **send
+floor** (:mod:`src.outputs.floor`), which is keyed by device rather than by
+runtime so it outlives any one client. Transition driving still lives in the
+clients and moves in a later layer.
 
 The contract, unchanged from when it lived in ``TransitionRenderMixin``:
 
@@ -32,6 +33,7 @@ import threading
 from collections.abc import Callable, Iterator
 from contextlib import contextmanager
 
+from .floor import Admission, send_floors
 from .frames import FrameCache, Grid
 
 
@@ -83,6 +85,30 @@ class OutputRuntime:
     def last_sent_at(self) -> float | None:
         """When :attr:`last_frame` was sent, in epoch seconds."""
         return self._frames.last_sent_at
+
+    # --- the send floor ----------------------------------------------------------
+
+    def admit_send(
+        self,
+        device_key: str,
+        floor_seconds: float,
+        clock: Callable[[], float],
+        is_unchanged: Callable[[], bool],
+    ) -> Admission:
+        """Floor, then dedupe, atomically; reserves the device's slot on "send".
+
+        The floor is the device's (``device_key``), so it holds across client
+        rebuilds and throwaway clients for the same board.
+        """
+        return send_floors().admit(device_key, floor_seconds, clock, is_unchanged)
+
+    def release_send(self, admission: Admission) -> None:
+        """The write failed: give the reserved slot back."""
+        send_floors().release(admission)
+
+    def hold_send(self, admission: Admission, floor_seconds: float, seconds: float) -> None:
+        """The device asked to wait *seconds* (HTTP 429): keep it closed that long."""
+        send_floors().hold(admission, floor_seconds, seconds)
 
     # --- external-write detection (#1946) ----------------------------------------
 

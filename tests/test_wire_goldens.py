@@ -37,8 +37,8 @@ Deliberate test-side controls (each documented where it is applied):
 * the RW-Cloud / note-array send floor reads ``src.board_client._time_module``
   ``.monotonic`` at client construction; scenarios that cross a floor swap
   that module for a fake clock (:class:`FakeMonotonic`);
-* the module-level note-array floor registry is replaced with an empty dict
-  per test so no other test's token leaks into a verdict;
+* the process-wide send-floor registry (``src/outputs/floor.py``) is
+  cleared per test so no other test's device leaks into a verdict;
 * the local note-array fan-out runs its tiles on a ``ThreadPoolExecutor``.
   Completion order there is a scheduler accident, so these goldens swap in a
   serial executor: tiles are POSTed in the order the code submits them
@@ -246,17 +246,18 @@ def wire(monkeypatch) -> WireRecorder:
 
 def install_wire_recorder(monkeypatch) -> WireRecorder:
     """The ``wire`` fixture's body, reusable by other modules' fixtures."""
-    import src.board_client as board_client
     import src.note_array_local_client as note_array_local_client
 
     recorder = WireRecorder()
     monkeypatch.setattr(requests, "post", recorder.post)
     monkeypatch.setattr(requests, "get", recorder.get)
     monkeypatch.delenv("FIESTABOARD_OUTPUTS_ALLOW_HOSTS", raising=False)
-    # Fresh note-array floor registry: it is module-level by design (it must
-    # survive client rebuilds), so without this one test's token would carry
-    # its window into another's verdict.
-    monkeypatch.setattr(board_client, "_note_array_last_send", {})
+    # Fresh send-floor registry: it is process-wide and keyed by device by
+    # design (it must survive client rebuilds), so without this one test's
+    # device would carry its window into another's verdict.
+    from src.outputs.floor import send_floors
+
+    send_floors().clear()
     monkeypatch.setattr(note_array_local_client, "ThreadPoolExecutor", _SerialExecutor)
     return recorder
 
@@ -653,7 +654,7 @@ def test_throttle_send_outcome(wire, clock, board):
     s.check()
 
 
-def test_upstream_429_releases_floor_slot(wire, clock):
+def test_upstream_429_holds_floor_slot(wire, clock):
     from src.board_client import board_client_from_board_dict
 
     client = board_client_from_board_dict(rw_cloud())
@@ -661,8 +662,9 @@ def test_upstream_429_releases_floor_slot(wire, clock):
     wire.respond = lambda method, url, kwargs: answers.pop(0) if answers else None
     s = Scenario(
         "upstream_429_rw_cloud",
-        "The cloud answering HTTP 429: no retry, (False, False), and the floor slot is released so an "
-        "immediate resend goes out.",
+        "The cloud answering HTTP 429 (no Retry-After): no retry, reported as throttled with the 15 s floor "
+        "as retry_after, and the floor slot is kept, so a resend 1 s later is throttled locally (no request) "
+        "and the window reopens at 15 s.",
         "board_client_from_board_dict(rw_cloud).render(..., with_outcome=True)",
         wire,
     )
@@ -671,7 +673,11 @@ def test_upstream_429_releases_floor_slot(wire, clock):
     )
     clock.t += 1.0
     s.step(
-        "t=1001 render HELLO (cloud answers 200)", outcome_result(client.render(grid_of("HELLO"), with_outcome=True))
+        "t=1001 render HELLO (throttled locally)", outcome_result(client.render(grid_of("HELLO"), with_outcome=True))
+    )
+    clock.t += 14.0
+    s.step(
+        "t=1015 render HELLO (cloud answers 200)", outcome_result(client.render(grid_of("HELLO"), with_outcome=True))
     )
     s.check()
 
@@ -697,14 +703,14 @@ def test_floor_survives_client_rebuild_note_array(wire, clock):
     s.check()
 
 
-def test_floor_rw_cloud_client_rebuild_current_behavior(wire, clock):
+def test_floor_survives_client_rebuild_rw_cloud(wire, clock):
     from src.board_client import board_client_from_board_dict
 
     cfg = rw_cloud()
     s = Scenario(
-        "floor_rebuild_rw_cloud_CURRENT",
-        "CURRENT BEHAVIOR, to change deliberately in layer A10: the RW Cloud floor is per client instance, "
-        "so a client rebuilt from the same saved board 5 s later is NOT throttled and POSTs inside the window.",
+        "floor_rebuild_rw_cloud",
+        "RW Cloud floor is core-owned and keyed by device (a hash of the RW key): a client rebuilt from the "
+        "same saved board 5 s later is still throttled.",
         "two board_client_from_board_dict(...) clients for one board",
         wire,
     )
@@ -806,6 +812,21 @@ def test_welcome_message(api, wire):
         wire,
     )
     s.step("send the welcome message", route_result(api.post("/send-welcome-message")))
+    s.check()
+
+
+def test_welcome_message_inside_the_engines_rw_cloud_floor(api, wire, clock):
+    Runtime([rw_cloud()])
+    s = Scenario(
+        "floor_throwaway_rw_cloud_welcome",
+        "The welcome route builds its own client for the board; the floor is the device's, so 5 s after the "
+        "engine's send it is throttled -> 429 + Retry-After, no request.",
+        "POST /send-message, then POST /send-welcome-message (frozen floor clock)",
+        wire,
+    )
+    s.step("t=1000 send FIRST", route_result(api.post("/send-message", json={"text": "FIRST"})))
+    clock.t += 5.0
+    s.step("t=1005 send the welcome message", route_result(api.post("/send-welcome-message")))
     s.check()
 
 

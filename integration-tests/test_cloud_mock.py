@@ -195,12 +195,14 @@ def board_client_module(monkeypatch: pytest.MonkeyPatch, mock_server: str):
     from src import board_client
 
     monkeypatch.setattr(board_client.BoardClient, "CLOUD_NOTE_ARRAY_API_URL", mock_server)
-    # Reset the module-level note-array send throttle so each test starts clean.
-    # Without this, a send in one test leaves a timestamp keyed by note_array_token
-    # that throttles the next test's send within the 15s window (the send→read
-    # roundtrip would then read a stale grid). Mirrors the autouse reset in
-    # tests/test_board_client.py.
-    board_client._note_array_last_send.clear()
+    # Reset the core send floor so each test starts clean. It is keyed by
+    # device (a hash of the note-array token here), so without this a send in
+    # one test throttles the next test's send within the 15s window (the
+    # send→read roundtrip would then read a stale grid). Mirrors the autouse
+    # reset in tests/conftest.py.
+    from src.outputs.floor import send_floors
+
+    send_floors().clear()
     return board_client
 
 
