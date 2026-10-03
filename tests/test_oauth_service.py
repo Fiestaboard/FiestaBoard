@@ -59,6 +59,7 @@ class FakeSource:
     def __init__(self):
         self.targets = {}
         self.plugins = {}
+        self.invalidated = []
 
     def add(self, connection_id, block, config=None, name="Music"):
         plugin_id, _, label = connection_id.partition(":")
@@ -81,6 +82,9 @@ class FakeSource:
 
     def id_for(self, plugin):
         return next((cid for cid, candidate in self.plugins.items() if candidate is plugin), None)
+
+    def invalidate(self, connection_id):
+        self.invalidated.append(connection_id)
 
 
 class FakeProvider:
@@ -225,7 +229,7 @@ def test_start_with_a_flow_the_plugin_does_not_declare_is_refused(service, sourc
 def test_redirect_uri_defaults_to_the_public_relay(source, store, signer, monkeypatch):
     monkeypatch.delenv("FIESTABOARD_OAUTH_REDIRECT_URI", raising=False)
     default = OAuthService(source=source, store=store, signer=signer)
-    assert default.redirect_uri == DEFAULT_REDIRECT_URI == "https://fiestaboard.app/auth/oauth/redirect.html"
+    assert default.redirect_uri == DEFAULT_REDIRECT_URI == "https://fiestaboard.app/auth/oauth/redirect"
 
 
 def test_redirect_uri_can_be_overridden_by_environment(source, store, signer, monkeypatch):
@@ -905,6 +909,47 @@ def test_disconnect_deletes_the_tokens(service, source, store):
     assert service.disconnect("music").status == "disconnected"
     assert store.get("music") is None
     assert service.get_access_token("music") is None
+
+
+def test_disconnect_drops_the_plugins_cached_results(service, source, store):
+    """Otherwise the board keeps showing the account's data until the cache expires."""
+    source.add("music", RELAY_BLOCK)
+    _connected(store)
+    service.disconnect("music")
+    assert source.invalidated == ["music"]
+
+
+def test_a_new_sign_in_drops_the_plugins_cached_results(service, source, provider):
+    """A reconnect to a different account must not keep serving the old account's data."""
+    source.add("music", RELAY_BLOCK)
+    query = _begin_relay(service)
+    provider.reply(TOKENS)
+    service.complete_authorization(state=query["state"], code="code-1", error=None)
+    assert source.invalidated == ["music"]
+
+
+def test_an_approved_device_code_drops_the_plugins_cached_results(service, device, source, provider):
+    provider.reply(DEVICE_ANSWER)
+    service.start(device)
+    provider.reply(TOKENS)
+    service.poll_device(device)
+    assert source.invalidated == [device]
+
+
+def test_a_token_refresh_leaves_the_plugins_cache_alone(service, source, store, provider):
+    """It happens inside the plugin's own fetch; the data is still the same account's."""
+    source.add("music", RELAY_BLOCK)
+    _connected(store, expires_at=NOW - 1)
+    provider.reply({"access_token": "access-2", "expires_in": 3600})
+    service.get_access_token("music")
+    assert source.invalidated == []
+
+
+def test_a_failed_sign_in_leaves_the_plugins_cache_alone(service, source):
+    source.add("music", RELAY_BLOCK)
+    state = _begin_relay(service)["state"]
+    service.complete_authorization(state=state, code=None, error="access_denied")
+    assert source.invalidated == []
 
 
 def test_disconnect_cancels_flows_in_progress(service, source, device, provider):

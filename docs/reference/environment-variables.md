@@ -118,7 +118,7 @@ These variables belong to plugins you install from the [registry](/docs/plugins/
 |----------|-------------|---------|
 | `REFRESH_INTERVAL_SECONDS` | Display update interval (seconds) | `300` |
 | `VERSION` | Build version (set automatically during Docker builds -- do not change) | `dev` |
-| `FIESTABOARD_OAUTH_REDIRECT_URI` | Redirect URI used when a plugin [connects an account](/docs/features/connecting-accounts). Change it only if you host your own copy of the sign-in relay. | `https://fiestaboard.app/auth/oauth/redirect.html` |
+| `FIESTABOARD_OAUTH_REDIRECT_URI` | Redirect URI used when a plugin [connects an account](/docs/features/connecting-accounts). Change it only if you host your own copy of the sign-in relay. | `https://fiestaboard.app/auth/oauth/redirect` |
 
 ## FiestaUpdater
 

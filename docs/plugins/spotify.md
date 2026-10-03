@@ -25,17 +25,24 @@ It only reads your playback. It can't play, pause, or change anything in your ac
 
 ## Setup
 
-There is nothing to create or paste: the plugin brings FiestaBoard's own Spotify app, and you only sign in.
+Spotify limits any one app to a handful of accounts, so you sign in through a free Spotify app of your own. Creating it takes about five minutes, once, and the plugin's settings walk you through it. You need **Spotify Premium**: Spotify requires it for the owner of a developer app.
 
-1. Open **http://localhost:4420**
-2. Go to the **Integrations** page and toggle **Spotify** on
-3. Click **Configure**, and in **Account connection** press **Sign in with Spotify**
-4. Sign in to Spotify and press **Agree**
-5. The first time, `fiestaboard.app` shows your board's address on the way back. Check it and press **Continue to my board**
+### 1. Create a Spotify App
 
-:::note Spotify accounts are added by hand for now
-FiestaBoard's Spotify app is in Spotify's Development Mode, which only lets accounts the app's owner has added (up to five) use it. Spotify does not offer a wider mode to open-source projects. If your account hasn't been added, signing in appears to work but the plugin then shows "Spotify refused access (403)".
-:::
+1. In FiestaBoard, go to **Integrations**, toggle **Spotify** on, and click **Configure**. The **Account connection** section lists these steps and has the redirect URI to copy
+2. Go to the [Spotify Developer Dashboard](https://developer.spotify.com/dashboard), log in, and press **Create app**. Give it any name and description, for example `FiestaBoard`
+3. Under **Redirect URIs**, paste the redirect URI copied from **Account connection** and press **Add**. Spotify compares it exactly, so copy the one your board shows
+4. Under **Which API/SDKs are you planning to use?**, tick **Web API**
+5. Agree to the terms and press **Save**
+6. Open the app's **Settings** and copy the **Client ID**. You don't need the client secret
+
+To sign in with a different Spotify account than the one that owns the app, add that account under the app's **Settings** > **User Management** first.
+
+### 2. Sign In
+
+1. Paste the **Client ID** into the **Account connection** section
+2. Press **Sign in with Spotify**, then **Agree** on Spotify's page
+3. The first time, `fiestaboard.app` shows your board's address on the way back. Check it and press **Continue to my board**
 
 See [Connecting Accounts](/docs/features/connecting-accounts) for what happens during sign-in and where FiestaBoard keeps it.
 

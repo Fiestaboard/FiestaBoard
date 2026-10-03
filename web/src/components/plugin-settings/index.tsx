@@ -1,6 +1,8 @@
 export { isJsonPathMapper, JsonPathMapperField, type JsonPathMapperUiOptions } from "./json-path-mapper-field";
 export {
+  findOAuthConnection,
   OAUTH_CONNECTIONS_QUERY_KEY,
+  oauthAppFieldKeys,
   OAuthConnectionSection,
   oauthReturnErrorKey,
   readOAuthReturn,

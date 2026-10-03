@@ -824,8 +824,7 @@ the plugin.
 A plugin that reads a user's account on another service declares the provider
 in its manifest and asks the platform for a token. The platform runs the
 sign-in, stores the tokens, refreshes them, and draws the **Account
-connection** section in the plugin's settings. The plugin never sees a client
-secret exchange, a refresh token, or a redirect.
+connection** section in the plugin's settings.
 
 ```json
 "oauth": {
@@ -833,14 +832,7 @@ secret exchange, a refresh token, or a redirect.
   "flows": ["relay"],
   "authorization_url": "https://example.com/oauth/authorize",
   "token_url": "https://example.com/oauth/token",
-  "scopes": ["user-read-currently-playing"],
-  "client_id_setting": "client_id"
-},
-"settings_schema": {
-  "type": "object",
-  "properties": {
-    "client_id": { "type": "string", "title": "Client ID" }
-  }
+  "scopes": ["user-read-currently-playing"]
 }
 ```
 
@@ -848,74 +840,34 @@ secret exchange, a refresh token, or a redirect.
 def fetch_data(self) -> PluginResult:
     token = self.get_oauth_token()
     if not token:
-        return PluginResult(available=False, error="Not connected. Open this plugin's settings and connect.")
+        return PluginResult(available=False, error="Not signed in. Open this plugin's settings and sign in.")
     response = requests.get(URL, headers={"Authorization": f"Bearer {token}"}, timeout=10)
     ...
 ```
 
-Call `self.get_oauth_token()` on every fetch and use what it returns; do not
-keep the token. It is refreshed for you shortly before it expires, and it
-returns `None` when the user has not connected or has to reconnect.
+The full author's guide is published, and is the one place the details live:
+[`docs/development/plugin-oauth.md`](../../development/plugin-oauth.md)
+(every field, the two flows, whose app signs in, error handling, testing with
+`scripts/mock_oauth_provider.py`, and a checklist). How the platform side
+works, and what must not change, is in
+[`docs/internal/reference/OAUTH.md`](../reference/OAUTH.md).
 
-### Fields
+The rules that are not negotiable:
 
-| Field | Required | Meaning |
-|---|---|---|
-| `flows` | yes | `["relay"]`, `["device"]`, or both. The first is the one the Connect button uses. |
-| `token_url` | yes | The provider's token endpoint. |
-| `authorization_url` | for `relay` | The provider's authorization endpoint. |
-| `device_authorization_url` | for `device` | The provider's device authorization endpoint (RFC 8628). |
-| `scopes` | no | Scopes to request. Ask for the least that works. |
-| `provider_name` | no | Shown in the UI ("Connect to Example Music"). Defaults to the plugin's name. |
-| `client_id_setting` | no | The `settings_schema` key holding the user's client ID. Default `client_id`. |
-| `client_secret_setting` | no | The `settings_schema` key holding the user's client secret, for providers that require one. Omit for a public (PKCE-only) client. |
-| `client_id` | no | A default client ID shipped with the plugin. See below before using it. |
-| `authorization_params` | no | Extra fixed query parameters for the authorization request, such as `{"access_type": "offline"}`. May not override the ones the platform sets. |
+- **Never hand-roll an OAuth flow or store a token in a plugin.** Call
+  `self.get_oauth_token()` on every fetch and use what it returns.
+- **Never a client secret in a manifest.** It is refused at load. A secret is
+  entered by the user through `client_secret_setting`.
+- **`None` means "not signed in or must sign in again".** Return
+  `PluginResult(available=False, ...)` and make no request.
+- **Set `"fiestaboard_version": ">=9.5.0"`**, and pin the plugin's CI to a
+  release that has OAuth.
+- **Handle `401`, `403`, and `429` with your own cooldown.** Unavailable
+  results are not cached, so without one the provider is called on every
+  render.
 
-Endpoints must be `https://`. An unknown field, or a malformed block, stops
-the plugin from loading with a message naming the problem.
-
-### Which flow
-
-- **`relay`** is the authorization-code flow with PKCE. A board on a home
-  network cannot be an OAuth redirect target, so the provider redirects to a
-  static page at `https://fiestaboard.app/auth/oauth/redirect.html`, which
-  hands the browser on to the board
-  ([Fiestaboard/auth](https://github.com/Fiestaboard/auth)). Every provider
-  that offers OAuth supports this. The user registers that URL as their app's
-  redirect URI; say so in your `docs/SETUP.md`.
-- **`device`** is the device authorization grant: the user types a short code
-  on another device and the board polls. No redirect at all. Prefer it when
-  the provider supports it *for the scopes you need* (some limit which scopes
-  a device client may request).
-
-### Credentials: what may go in a manifest
-
-Plugin repositories are public.
-
-- **Never a client secret.** A manifest containing `oauth.client_secret` is
-  refused. If the provider requires a secret, declare `client_secret_setting`
-  and give the user a password field for it. The names `client_id` and
-  `client_secret` are masked in API responses automatically.
-- **A client ID is not a secret**, and `oauth.client_id` may ship one as a
-  default that the user's own setting overrides. Think before doing it:
-  many providers cap an app they have not reviewed at a handful of named users, which a
-  shared ID will hit immediately; and a shared ID lends your app's name to
-  anyone who builds a sign-in link with it. The default expectation is that
-  each user creates their own app and pastes in their own client ID.
-
-### What the platform guarantees
-
-- One connection per plugin instance. Tokens are keyed by the instance's
-  registry key and are never visible to another plugin.
-- Tokens live in `data/oauth_tokens.json` (mode 0600), are never included
-  in an API response, and are not in backups.
-- The `state` on every relay flow is signed with a per-install key, expires
-  after ten minutes, and works once. The PKCE verifier never leaves the
-  board.
-- Uninstalling the plugin, or deleting the instance, deletes its tokens.
-
-The implementation is `src/oauth/`; start at `service.py`.
+The reference implementation is
+[fiestaboard-plugin--spotify](https://github.com/Fiestaboard/fiestaboard-plugin--spotify).
 
 ## Plugin Structure
 
@@ -1003,6 +955,7 @@ notice, and without a deprecation window.
 | `src.triggers` | `TriggerPriority` |
 | `src.config` | `Config`, for the handful of global settings a plugin legitimately reads (e.g. `Config.GENERAL_TIMEZONE`) |
 | `src.devices` | `BoardContext` — the board shape passed to `self.board` |
+| `src.oauth.provider` | `validate_provider_block`, `parse_provider_block` — tests only, to validate your manifest's `oauth` block |
 
 Anything not in that table — `src.utils.*`, `src.formatters.*`,
 `src.api_server`, `src.templates.*`, `src.pages.*`, the service singletons —
