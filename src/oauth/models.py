@@ -29,7 +29,16 @@ class OAuthDeviceStatus(BaseModel):
 class OAuthConnection(BaseModel):
     """One plugin's OAuth connection and whether it is currently usable."""
 
-    id: str = Field(description="The plugin's key: 'plugin_id', or 'plugin_id:label' for a named instance.")
+    id: str = Field(
+        description=(
+            "The plugin's key: 'plugin_id', or 'plugin_id:label' for a named instance. "
+            "'ai.<provider id>' for a FiestaBot AI provider."
+        )
+    )
+    kind: Literal["plugin", "ai"] = Field(
+        default="plugin",
+        description="'ai' for a FiestaBot AI provider's sign-in; the Integrations page lists 'plugin'.",
+    )
     plugin_id: str
     instance_label: str | None = None
     plugin_name: str

@@ -34,8 +34,8 @@ from typing import Any
 
 import httpx
 
-from .generator import _user_safe_error_message
-from .protocols import Protocol
+from .generator import AIGenerationError, _user_safe_error_message
+from .protocols import Protocol, responses_stream_event
 from .template_validator import repair_template_lines
 from .tool_catalog import ParsedToolCall, ToolCallValidationError
 
@@ -84,6 +84,16 @@ async def stream_model(
 
     last_warning: str | None = None
     try:
+        # A signed-in provider gets a fresh token per model call; an api_key
+        # provider comes back as the very same dict.
+        from .sign_in import report_provider_rejected, resolve_provider_auth_async
+
+        signed_in_provider = provider
+        try:
+            provider = await resolve_provider_auth_async(provider)
+        except AIGenerationError as exc:
+            yield {"event": "error", "data": {"message": _user_safe_error_message(exc)}}
+            return
         if not provider.get("base_url"):
             yield {"event": "error", "data": {"message": "AI provider has no base_url configured."}}
             return
@@ -97,6 +107,8 @@ async def stream_model(
         try:
             async with client.stream("POST", url, headers=headers, json=payload) as response:
                 if response.status_code >= 400:
+                    if response.status_code == 401:
+                        await report_provider_rejected(signed_in_provider)
                     err_msg = await _extract_error_message(response, protocol)
                     yield {
                         "event": "error",
@@ -110,6 +122,9 @@ async def stream_model(
                             yield emit
                     elif delta_event["kind"] == "warning":
                         last_warning = delta_event["message"]
+                    elif delta_event["kind"] == "error":
+                        yield {"event": "error", "data": {"message": delta_event["message"]}}
+                        return
 
                 for emit in parser.flush():
                     yield emit
@@ -169,6 +184,7 @@ async def _iter_provider_stream(
     skipped — we don't want a malformed keepalive to abort the stream.
     """
     proto_name = protocol.name
+    completed = False
     async for line in response.aiter_lines():
         if not line:
             continue
@@ -191,7 +207,17 @@ async def _iter_provider_stream(
         except json.JSONDecodeError:
             continue
 
-        if proto_name == "anthropic":
+        if proto_name == "openai_responses":
+            kind, value = responses_stream_event(event, usage)
+            if kind == "text":
+                yield {"kind": "text", "text": value}
+            elif kind == "error":
+                yield {"kind": "error", "message": value}
+                return
+            elif kind == "completed":
+                completed = True
+                break
+        elif proto_name == "anthropic":
             text = _anthropic_delta_text(event)
             if text:
                 yield {"kind": "text", "text": text}
@@ -201,6 +227,10 @@ async def _iter_provider_stream(
             if text:
                 yield {"kind": "text", "text": text}
             _absorb_openai_usage(event, usage)
+    if proto_name == "openai_responses" and not completed:
+        # The Responses API always ends with response.completed; without it
+        # the reply was cut off and must not pass for a whole one.
+        yield {"kind": "error", "message": "The AI provider ended its reply early."}
 
 
 def _openai_delta_text(event: dict[str, Any]) -> str:

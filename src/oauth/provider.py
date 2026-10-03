@@ -149,6 +149,18 @@ class OAuthProvider:
     endpoint_base_setting: str = ""
     #: ``X-Plex-Product`` for the plex_pin flow.
     plex_product: str = DEFAULT_PLEX_PRODUCT
+    # The fields below are never read from a manifest: only built-in presets
+    # (FiestaBot AI sign-in, ``src/ai/sign_in.py``) set them.
+    #: A fixed redirect URI used instead of the relay (OpenAI's loopback
+    #: address). The browser cannot come back, so the user pastes the address.
+    redirect_uri_override: str = ""
+    #: Extra fields for the authorization-code exchange (a ``resource``).
+    token_params: dict[str, str] = field(default_factory=dict)
+    #: The provider issues a client during sign-in, in the redirect address;
+    #: it is kept with the tokens and used for refresh and the next sign-in.
+    accept_issued_client_id: bool = False
+    #: Authorization parameters sent only before a client has been issued.
+    first_sign_in_params: dict[str, str] = field(default_factory=dict)
 
     @property
     def needs_client_id(self) -> bool:

@@ -89,6 +89,24 @@ class TestAiProviders:
             "max_tool_calls": None,
         }
 
+    def test_put_that_removes_a_signed_in_provider_forgets_its_tokens(self, client, monkeypatch):
+        from src.ai import sign_in
+
+        forgotten = []
+
+        class _FakeOAuth:
+            def forget(self, connection_id):
+                forgotten.append(connection_id)
+                return True
+
+        monkeypatch.setattr(sign_in, "_oauth", lambda: _FakeOAuth())
+        signed_in = {"id": "or1", "name": "Router", "models": ["m"], "sign_in": {"preset": "openrouter"}}
+        client.put("/settings/ai", json={"providers": [signed_in]})
+        assert client.get("/settings/ai").json()["providers"][0]["sign_in"] == {"preset": "openrouter"}
+        assert forgotten == []
+        client.put("/settings/ai", json={"providers": []})
+        assert forgotten == ["ai.or1"]
+
     def test_put_persists_the_approval_mode_and_get_reads_it_back(self, client):
         body = client.put("/settings/ai", json={"approval_mode": "auto"}).json()
         assert body["approval_mode"] == "auto"

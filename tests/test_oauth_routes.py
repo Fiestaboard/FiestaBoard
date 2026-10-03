@@ -135,6 +135,7 @@ def test_list_tells_the_ui_which_redirect_uri_to_register(client):
 def test_a_connection_reports_its_shape(client):
     assert client.get("/oauth/connections/music").json() == {
         "id": "music",
+        "kind": "plugin",
         "plugin_id": "music",
         "instance_label": None,
         "plugin_name": "Music",
@@ -642,3 +643,11 @@ def test_report_oauth_rejected_on_a_plugin_marks_that_instance_for_reconnecting(
     assert plugin.report_oauth_rejected() is None
     body = client.get("/oauth/connections/music").json()
     assert (body["status"], body["status_reason"]) == ("reauthorization_required", "rejected")
+
+
+def test_an_ai_sign_in_returns_to_the_ai_settings():
+    from src.oauth.routes import _return_location
+    from src.oauth.service import CallbackOutcome
+
+    location = _return_location(CallbackOutcome(connected=True, connection_id="ai.or1"))
+    assert location == "../../settings?section=integrations&oauth=connected&connection=ai.or1"

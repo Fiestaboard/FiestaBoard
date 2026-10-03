@@ -359,6 +359,13 @@ async def _post_chat_completion(
     if not supplied it is derived from ``provider['protocol']`` (default
     OpenAI-compatible).
     """
+    # Imported here: sign_in imports this module for AIGenerationError.
+    from .sign_in import report_provider_rejected, resolve_provider_auth_async
+
+    signed_in_provider = provider
+    # Unchanged (the same dict) for an api_key provider; a signed-in one gets
+    # its current token, and the preset's base_url/protocol if it lacks them.
+    provider = await resolve_provider_auth_async(provider)
     proto = protocol or get_protocol(provider.get("protocol"))
     base_url = (provider.get("base_url") or "").rstrip("/")
     if not base_url:
@@ -374,6 +381,8 @@ async def _post_chat_completion(
     if owns_client:
         client = httpx.AsyncClient(timeout=timeout_seconds)
     try:
+        if proto.stream_only:
+            return await _collect_stream(client, url, headers, payload, proto, signed_in_provider)
         try:
             response = await client.post(url, headers=headers, json=payload)
         except httpx.HTTPError as exc:
@@ -382,6 +391,8 @@ async def _post_chat_completion(
             logger.warning("AI provider HTTP error: %s", exc)
             raise AIGenerationError("Could not reach AI provider.") from exc
         if response.status_code >= 400:
+            if response.status_code == 401:
+                await report_provider_rejected(signed_in_provider)
             # Try to surface the provider's own error message via the
             # protocol-specific error parser.
             err_msg: str | None = None
@@ -405,6 +416,46 @@ async def _post_chat_completion(
     finally:
         if owns_client:
             await client.aclose()
+
+
+async def _collect_stream(
+    client: httpx.AsyncClient,
+    url: str,
+    headers: dict[str, str],
+    payload: dict[str, Any],
+    proto: Protocol,
+    provider: dict[str, Any],
+) -> dict[str, Any]:
+    """Read a stream-only provider's answer to the end; return it in that protocol's response shape."""
+    # Imported here: chat imports this module.
+    from .chat import _extract_error_message, _iter_provider_stream
+    from .sign_in import report_provider_rejected
+
+    usage: dict[str, int | None] = {"prompt_tokens": None, "completion_tokens": None, "total_tokens": None}
+    parts: list[str] = []
+    try:
+        async with client.stream("POST", url, headers=headers, json={**payload, "stream": True}) as response:
+            if response.status_code >= 400:
+                if response.status_code == 401:
+                    await report_provider_rejected(provider)
+                err_msg = await _extract_error_message(response, proto)
+                raise AIGenerationError(f"AI provider returned {response.status_code}: {err_msg}")
+            async for event in _iter_provider_stream(response, proto, usage):
+                if event["kind"] == "error":
+                    raise AIGenerationError(event["message"])
+                if event["kind"] == "text":
+                    parts.append(event["text"])
+    except httpx.HTTPError as exc:
+        logger.warning("AI provider HTTP error: %s", exc)
+        raise AIGenerationError("Could not reach AI provider.") from exc
+    return {
+        "output": [{"type": "message", "content": [{"type": "output_text", "text": "".join(parts)}]}],
+        "usage": {
+            "input_tokens": usage["prompt_tokens"],
+            "output_tokens": usage["completion_tokens"],
+            "total_tokens": usage["total_tokens"],
+        },
+    }
 
 
 def _extract_message_content(

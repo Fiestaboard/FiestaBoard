@@ -38,7 +38,7 @@ from .models import (
     OAuthConnection,
     OAuthConnectionList,
 )
-from .service import CallbackOutcome, get_oauth_service
+from .service import AI_CONNECTION_PREFIX, CallbackOutcome, get_oauth_service
 
 logger = logging.getLogger(__name__)
 
@@ -139,7 +139,14 @@ def _return_location(outcome: CallbackOutcome) -> str:
     ``<base>`` is empty for a direct install and a path prefix under Home
     Assistant ingress; two levels up is the app root in both.
     """
-    query = {"tab": "installed", "oauth": "connected" if outcome.connected else "error"}
+    outcome_value = "connected" if outcome.connected else "error"
+    if outcome.connection_id and outcome.connection_id.startswith(AI_CONNECTION_PREFIX):
+        # FiestaBot's AI providers sign in from Settings, not Integrations.
+        ai_query = {"section": "integrations", "oauth": outcome_value, "connection": outcome.connection_id}
+        if outcome.reason:
+            ai_query["reason"] = outcome.reason
+        return f"../../settings?{urlencode(ai_query)}"
+    query = {"tab": "installed", "oauth": outcome_value}
     if outcome.connection_id:
         query["plugin"] = outcome.connection_id
     if outcome.reason:

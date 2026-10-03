@@ -73,6 +73,10 @@ logger = logging.getLogger(__name__)
 DEFAULT_REDIRECT_URI = "https://fiestaboard.app/auth/oauth/redirect"
 REDIRECT_URI_ENV = "FIESTABOARD_OAUTH_REDIRECT_URI"
 
+#: Connection ids for FiestaBot's AI providers start with this. Plugin ids
+#: match ``^[a-z][a-z0-9_]*$`` and instance keys use ``:``, so it never collides.
+AI_CONNECTION_PREFIX = "ai."
+
 #: Refresh this long before the access token actually expires, so a plugin is
 #: never handed a token that dies mid-request.
 REFRESH_MARGIN_SECONDS = 60
@@ -145,7 +149,7 @@ def _with_query(url: str, params: dict[str, str]) -> str:
 
 @dataclass(frozen=True)
 class ConnectionTarget:
-    """One plugin instance that declares an OAuth connection."""
+    """One plugin instance (or FiestaBot AI provider) that declares an OAuth connection."""
 
     connection_id: str
     plugin_id: str
@@ -153,6 +157,8 @@ class ConnectionTarget:
     plugin_name: str
     provider: OAuthProvider
     config: dict[str, Any] = field(default_factory=dict)
+    #: ``plugin``, or ``ai`` for a FiestaBot AI provider (``plugin_id`` is then ``"ai"``).
+    kind: str = "plugin"
 
     @property
     def client_id(self) -> str:
@@ -286,6 +292,7 @@ class ConnectionStatus:
     device: DeviceStatus | None
     #: Why reconnecting is needed (``refresh_refused`` or ``rejected``), else "".
     status_reason: str = ""
+    kind: str = "plugin"
 
 
 @dataclass(frozen=True)
@@ -449,6 +456,7 @@ class OAuthService:
             connected_at=tokens.obtained_at if tokens else None,
             device=device,
             status_reason=tokens.reauth_reason if status == STATUS_REAUTHORIZE else "",
+            kind=target.kind,
         )
 
     def list_connections(self) -> list[ConnectionStatus]:
@@ -491,6 +499,9 @@ class OAuthService:
             return self._start_key_exchange(target, None if headless else normalize_board_url(board_url), endpoints)
         if chosen == FLOW_PLEX_PIN:
             return self._start_plex(target, normalize_board_url(board_url) if board_url else "")
+        if target.provider.redirect_uri_override and not board_url:
+            # The browser never comes back here, so the board's address is not needed.
+            return self._start_relay(target, "", endpoints)
         return self._start_relay(target, normalize_board_url(board_url), endpoints)
 
     def _start_relay(self, target: ConnectionTarget, board_url: str, endpoints: Endpoints) -> AuthorizationStart:
@@ -498,19 +509,28 @@ class OAuthService:
         verifier = pkce.generate_verifier()
         nonce = secrets.token_urlsafe(16)
         expires_at = int(now) + STATE_TTL_SECONDS
-        redirect_uri = self.redirect_uri
         provider = target.provider
+        redirect_uri = provider.redirect_uri_override or self.redirect_uri
+        # A provider that issues clients at sign-in (OpenAI) knows this board
+        # by the client it issued last time; first sign-ins get extra hints.
+        issued = ""
+        if provider.accept_issued_client_id:
+            previous = self._store.get(target.connection_id)
+            issued = previous.client_id if previous else ""
+        client_id = issued or target.client_id
 
         pending = _PendingAuthorization(
             connection_id=target.connection_id,
             code_verifier=verifier,
             redirect_uri=redirect_uri,
             token_url=endpoints.token_url,
-            client_id=target.client_id,
+            client_id=client_id,
             client_secret=target.client_secret,
             scopes=provider.scopes,
             expires_at=expires_at,
             client_id_param=provider.client_id_param,
+            accept_issued_client_id=provider.accept_issued_client_id,
+            extra_token_params=dict(provider.token_params),
         )
         with self._lock:
             self._prune_pending(now)
@@ -518,8 +538,9 @@ class OAuthService:
 
         params = {
             **provider.authorization_params,
+            **({} if issued else provider.first_sign_in_params),
             "response_type": "code",
-            provider.client_id_param: target.client_id,
+            provider.client_id_param: client_id,
             "redirect_uri": redirect_uri,
             "state": self._signer.sign(StatePayload(nonce, target.connection_id, expires_at, board_url)),
             "code_challenge": pkce.challenge_for(verifier),
@@ -527,7 +548,18 @@ class OAuthService:
         }
         if provider.scopes:
             params["scope"] = provider.joined_scopes()
-        return AuthorizationStart(flow=FLOW_RELAY, authorization_url=_with_query(endpoints.authorization_url, params))
+        url = _with_query(endpoints.authorization_url, params)
+        if provider.redirect_uri_override:
+            return AuthorizationStart(
+                flow=FLOW_RELAY,
+                authorization_url=url,
+                paste_expected=True,
+                paste_hint=(
+                    f"After you approve, {provider.name} sends your browser to a page that does not load. "
+                    "Copy that page's whole address and paste it here."
+                ),
+            )
+        return AuthorizationStart(flow=FLOW_RELAY, authorization_url=url)
 
     def _start_key_exchange(
         self, target: ConnectionTarget, board_url: str | None, endpoints: Endpoints
@@ -1037,8 +1069,12 @@ def get_oauth_service() -> OAuthService:
     global _service
     with _service_lock:
         if _service is None:
+            # Imported here: src.ai depends on this module, and src.oauth stays
+            # unaware of AI providers beyond the connection-id prefix.
+            from src.ai.sign_in import AiProviderConnectionSource, CompositeConnectionSource
+
             _service = OAuthService(
-                source=RegistryConnectionSource(),
+                source=CompositeConnectionSource(RegistryConnectionSource(), AiProviderConnectionSource()),
                 store=TokenStore(),
                 signer=StateSigner(load_state_key(get_data_dir())),
             )

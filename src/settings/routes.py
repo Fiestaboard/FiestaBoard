@@ -229,7 +229,14 @@ async def update_ai_settings(request: AiProvidersUpdate):
     masked-secret pattern.
     """
     cm = get_config_manager()
-    return cm.set_ai_providers(request.model_dump(exclude_unset=True))
+    before = cm.get_ai_providers()
+    updated = cm.set_ai_providers(request.model_dump(exclude_unset=True))
+    # A provider that was signed in and is now gone (or back on an API key)
+    # leaves no tokens behind.
+    from src.ai.sign_in import forget_removed_providers
+
+    forget_removed_providers(before, cm.get_ai_providers())
+    return updated
 
 
 @router.post(
