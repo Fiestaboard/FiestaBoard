@@ -141,21 +141,31 @@ Names you will meet:
   render memo.
 - **`OutputDriver`** (`src/outputs/driver.py`) — the Protocol every board
   client satisfies: the surface the engine and API routes actually use.
-  Reach for a member of it, not a client's private attribute;
-  `tests/test_output_driver_protocol.py` counts the private peeks that
-  remain and fails if one is added.
+  Reach for a member of it (or the board's `OutputRuntime`), never a
+  client's private attribute; `tests/test_output_driver_protocol.py` holds
+  the count of private peeks at zero.
 - **`OutputRuntime`** (`src/outputs/runtime.py`) — core-owned send policy for
   one board, created by its `BoardRuntime` and bound to the client. Today it
   holds the per-board **send lock** (re-entrant) and the **cancel token**: a
   new send signals the in-flight run's token *before* waiting on the lock,
   then installs a fresh token, so a running transition is preempted rather
   than waited out and a stale signal never cancels the next run. The engine
-  calls `preempt()` at enqueue time for the same reason.
+  calls `preempt()` at enqueue time for the same reason. It also owns the
+  board's **frame cache** (`src/outputs/frames.py`): the device-level dedupe
+  cache every client checks before a write (what the board is known to
+  show), and the **last-frame store** — the grid last actually sent and
+  when, written on every successful write and never cleared by a forced
+  re-send. **External-write detection** (#1946) is `observe_read()` over
+  that cache: two consecutive read-backs that disagree with an unchanged
+  cache mean someone else wrote the board. Sub-unit caches stay in the
+  driver: a local note array keeps one per tile so a retry re-posts only
+  the tiles that failed.
 - **`BoardSendWorker`** — one thread per board with a **latest-wins** queue:
   a newer frame supersedes a queued older one, and callers waiting on the
   superseded frame are adopted onto the newer one. Never bypass it; a direct
   send races the worker.
-- **The dedupe cache** — what each board is currently showing. The tick reads
+- **The dedupe cache** — the engine's own, one level up from the runtime's
+  frame cache: the rendered content and page id each board is showing. The tick reads
   it to decide whether to send at all. It is written by the worker *before*
   the in-flight key is retired, and the tick snapshots the in-flight key set
   once per pass, so a job completing mid-pass can never make both guards read

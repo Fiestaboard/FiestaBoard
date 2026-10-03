@@ -147,8 +147,11 @@ CLIENT_MODULES = {
 _CLIENT_RECEIVER = re.compile(r"(^|_)client$")
 
 # Peeks at board-client private attributes outside the client modules.
-# Lower this when a layer removes one; it must never go up.
-MAX_PRIVATE_PEEKS = 6
+# Lower this when a layer removes one; it must never go up. The frame-dedupe
+# layer moved the last six (the dedupe cache, external-write detection, the
+# post-send refresh baseline, the transition's starting grid and the panel's
+# send time) onto the OutputRuntime.
+MAX_PRIVATE_PEEKS = 0
 
 
 def _private_client_names() -> set[str]:
@@ -189,16 +192,15 @@ def _is_client_receiver(node: ast.AST) -> bool:
     return name is not None and name != "self" and bool(_CLIENT_RECEIVER.search(name))
 
 
-def _private_peeks() -> list[str]:
+def _private_peeks(roots: list[Path] | None = None) -> list[str]:
     private = _private_client_names()
     found: list[str] = []
-    roots = [REPO / "src", REPO / "plugins"]
-    for root in roots:
+    for root in roots if roots is not None else [REPO / "src", REPO / "plugins"]:
         for path in sorted(root.rglob("*.py")):
             if path in CLIENT_MODULES or "tests" in path.relative_to(root).parts:
                 continue
             tree = ast.parse(path.read_text())
-            rel = path.relative_to(REPO)
+            rel = path.relative_to(root.parent)
             for node in ast.walk(tree):
                 if isinstance(node, ast.Attribute) and node.attr in private and _is_client_receiver(node.value):
                     found.append(f"{rel}:{node.lineno} .{node.attr}")
@@ -228,8 +230,18 @@ def test_private_client_peeks_never_increase():
     )
 
 
-def test_ratchet_scanner_sees_a_known_peek():
-    """Guard the scanner itself: an empty walk would pass the ratchet vacuously."""
+def test_ratchet_scanner_sees_a_known_peek(tmp_path):
+    """Guard the scanner itself: at zero, an empty walk would pass vacuously.
+
+    The repo has no peeks left, so the scanner is pointed at a planted one.
+    """
     assert "_last_characters" in _private_client_names()
     assert "_cancel_transition" in _private_client_names()
-    assert _private_peeks(), "the ratchet scanner found nothing — it is not scanning"
+    planted = tmp_path / "src" / "planted.py"
+    planted.parent.mkdir()
+    planted.write_text(
+        "def peek(rt, board_client):\n"
+        "    rt.client._last_characters\n"
+        "    return getattr(board_client, '_cancel_transition', None)\n"
+    )
+    assert len(_private_peeks([planted.parent])) == 2, "the ratchet scanner missed a planted peek"

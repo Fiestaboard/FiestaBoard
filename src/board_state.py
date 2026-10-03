@@ -15,7 +15,8 @@ Each used to carry its own copy of the selection, and the copies had
 drifted. This module is the single implementation. The routes and the tool
 decide *presentation* (field names, error transport, which timestamp their
 contract publishes); the *selection* lives here, and nothing outside this
-module reads ``_polled_characters`` / ``_last_characters``.
+module reads the poll cache or the board's frame cache
+(``rt.output.frames``).
 
 Two intents
 -----------
@@ -81,8 +82,8 @@ class BoardState:
     """What one board shows, and where that answer came from.
 
     ``polled_at`` is set only when the poll cache answered (``source ==
-    "polled"``). ``last_sent_at`` is when the client last stored a frame
-    (only virtual clients track one) and is published whatever answered,
+    "polled"``). ``last_sent_at`` is when the board's runtime last stored a
+    frame (published for virtual boards only) and is published whatever answered,
     because the panel viewer reports it regardless. ``expected_characters``
     is what the client last sent — the other half of drift detection.
     """
@@ -149,13 +150,17 @@ def _prime(rt: Any, characters: list[list[int]], at: float) -> None:
 def _select(rt: Any, board_id: str | None, *, want: Want, skip_poll_cache: bool = False) -> BoardState:
     """The selection order above, over one resolved runtime. No I/O."""
     client = rt.client
+    frames = rt.output.frames if client is not None else None
     base = BoardState(
         board_id=board_id,
         characters=None,
         source="empty",
         polled_at=None,
-        last_sent_at=getattr(client, "_last_sent_at", None) if client is not None else None,
-        expected_characters=getattr(client, "_last_characters", None) if client is not None else None,
+        # The runtime stores a send time for every board, but only a virtual
+        # board's is published here today; serving every board's last frame
+        # (and its time) from the runtime is a later layer's change.
+        last_sent_at=frames.last_sent_at if frames is not None and _is_virtual(client) else None,
+        expected_characters=frames.characters if frames is not None else None,
         api_mode="cloud" if getattr(client, "use_cloud", False) else "local",
     )
 

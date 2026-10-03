@@ -62,6 +62,7 @@ from fastapi.testclient import TestClient
 from src import __version__
 from src.api_server import app
 from src.board_client import BoardClient
+from src.outputs import OutputRuntime
 
 # --- Seam targets ----------------------------------------------------------
 # Written as constants so the seam-retirement commit changes these lines and
@@ -404,17 +405,27 @@ def _grid(rows: int = 6, cols: int = 22, code: int = 0) -> list[list[int]]:
     return [[code] * cols for _ in range(rows)]
 
 
-def _service(vb_client, *, polled=None, polled_at=None):
+def _output(last_sent=None) -> OutputRuntime:
+    """A board's core runtime whose dedupe cache holds what FiestaBoard last sent."""
+    output = OutputRuntime()
+    output.frames.characters = last_sent
+    return output
+
+
+def _service(vb_client, *, last_sent=None, polled=None, polled_at=None):
     """A stubbed DisplayService whose primary runtime holds *vb_client* and the poll cache."""
     service = Mock()
     service.vb_client = vb_client
-    service.runtime_for.return_value = Mock(client=vb_client, polled_characters=polled, polled_at=polled_at)
+    service.runtime_for.return_value = Mock(
+        client=vb_client, output=_output(last_sent), polled_characters=polled, polled_at=polled_at
+    )
     return service
 
 
 def test_current_message_serves_the_poll_cache_with_its_timestamp(client):
     service = _service(
-        Mock(use_cloud=False, is_virtual=False, _last_characters=_grid(code=1)),
+        Mock(use_cloud=False, is_virtual=False),
+        last_sent=_grid(code=1),
         polled=_grid(code=2),
         polled_at=1_700_000_000.0,
     )
@@ -434,7 +445,7 @@ def test_current_message_serves_the_poll_cache_with_its_timestamp(client):
 
 def test_current_message_force_reads_the_board_and_primes_the_cache(client):
     live = _grid(code=3)
-    vb_client = Mock(use_cloud=True, is_virtual=False, _last_characters=None)
+    vb_client = Mock(use_cloud=True, is_virtual=False)
     vb_client.read_current_message.return_value = live
     service = _service(vb_client, polled=_grid(code=2), polled_at=1_700_000_000.0)
     with patch(SERVICE, return_value=service):
@@ -446,7 +457,7 @@ def test_current_message_force_reads_the_board_and_primes_the_cache(client):
 
 
 def test_current_message_is_503_when_the_live_read_fails(client):
-    vb_client = Mock(use_cloud=False, is_virtual=False, _last_characters=None)
+    vb_client = Mock(use_cloud=False, is_virtual=False)
     vb_client.read_current_message.return_value = None
     service = _service(vb_client)
     with patch(SERVICE, return_value=service):
@@ -466,9 +477,9 @@ def test_current_message_is_503_when_no_board_client_exists(client):
 
 def test_current_message_returns_a_secondary_boards_geometry_before_its_first_send(client):
     """A never-written secondary board answers nulls plus its dimensions (#1247)."""
-    service = _service(Mock(use_cloud=False, is_virtual=False, _last_characters=None))
+    service = _service(Mock(use_cloud=False, is_virtual=False))
     service.runtime_for.return_value = Mock(
-        client=Mock(use_cloud=False, is_virtual=False, _last_characters=None), polled_characters=None, polled_at=None
+        client=Mock(use_cloud=False, is_virtual=False), output=_output(), polled_characters=None, polled_at=None
     )
     ss = _settings_service()
     ss.get_primary_board_id.return_value = "b1"

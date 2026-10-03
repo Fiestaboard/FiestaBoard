@@ -26,6 +26,7 @@ from typing import Any, Literal, Optional
 import requests
 
 from .output_allowlist import check_output_url
+from .outputs.frames import FrameCache
 from .outputs.runtime import OutputRuntime
 from .send_outcome import SendOutcome
 
@@ -219,14 +220,15 @@ class TransitionRenderMixin:
         """The send floor in milliseconds; 0 when the client is unfloored."""
         return int((getattr(self, "_min_send_interval", 0) or 0) * 1000)
 
-    def _init_transition_state(self) -> None:
-        # The per-board send lock and cancel token live on an OutputRuntime
-        # (src/outputs/runtime.py), which owns their contract: preempt before
-        # the lock, a fresh token per run, a re-entrant lock. The engine's
-        # BoardRuntime binds its own via set_output_runtime(); until then — and
-        # for a throwaway client built outside the engine — this private one
-        # serves, exactly as the lock and event used to live on the instance.
-        self._output_runtime: OutputRuntime = OutputRuntime()
+    def _init_transition_state(self, frames: FrameCache | None = None) -> None:
+        # The per-board send lock, cancel token and frame cache (dedupe + last
+        # frame sent) live on an OutputRuntime (src/outputs/runtime.py), which
+        # owns their contract: preempt before the lock, a fresh token per run,
+        # a re-entrant lock. The engine's BoardRuntime binds its own via
+        # set_output_runtime(); until then — and for a throwaway client built
+        # outside the engine — this private one serves, exactly as the lock,
+        # event and cache used to live on the instance.
+        self._output_runtime: OutputRuntime = OutputRuntime(frames=frames)
 
         # Pluggable transition runner.  Set via set_transition_runner() by
         # the service layer at startup.  When None, "plugin:<id>" strategies
@@ -266,9 +268,38 @@ class TransitionRenderMixin:
         """Take the send lock and cancel token from the board's core runtime.
 
         Called by the engine's ``BoardRuntime`` when it adopts this client,
-        before any send.
+        before any send. The runtime adopts this client's frame cache, so
+        what the client knew about its board carries over unchanged.
         """
+        runtime.adopt_frames(self._output_runtime.frames)
         self._output_runtime = runtime
+
+    @property
+    def _frames(self) -> FrameCache:
+        """The bound runtime's frame cache: dedupe and last frame sent."""
+        return self._output_runtime.frames
+
+    # Test-facing aliases onto the runtime's dedupe cache. Nothing outside the
+    # client modules may read them (the private-peek ratchet counts both);
+    # production code goes through the OutputRuntime.
+    @property
+    def _last_characters(self) -> list[list[int]] | None:
+        return self._frames.characters
+
+    @_last_characters.setter
+    def _last_characters(self, value: list[list[int]] | None) -> None:
+        with self._frames.lock:
+            self._frames.characters = value
+            self._frames.generation += 1
+
+    @property
+    def _last_text(self) -> str | None:
+        return self._frames.text
+
+    @_last_text.setter
+    def _last_text(self, value: str | None) -> None:
+        with self._frames.lock:
+            self._frames.text = value
 
     @property
     def _cancel_transition(self) -> threading.Event:
@@ -407,12 +438,17 @@ class TransitionRenderMixin:
                 )
                 return self.send_characters(characters, strategy=None, force=force, **outcome_kw)
 
+            # The animation starts from what the board is known to show — the
+            # runtime's dedupe cache — read under the send lock, so no send can
+            # move it between here and the runner's first frame.
+            cached = self._frames.characters
             success, was_sent = runner.run(
                 plugin_id=plugin_id,
                 to_grid=characters,
                 board_client=self,
                 cancel_event=run_cancel_event,
                 device_type=device_type,
+                from_grid=cached if isinstance(cached, list) and cached else None,
                 config=transition_config,
             )
             # Still under the send lock: the only sends that could have set
@@ -501,10 +537,6 @@ class BoardClient(TransitionRenderMixin):
 
         # (connect, read) timeout for every request this client makes.
         self._request_timeout: tuple[float, float] = CLOUD_REQUEST_TIMEOUT if use_cloud else LOCAL_REQUEST_TIMEOUT
-
-        # Client-side cache to avoid sending unchanged messages
-        self._last_text: str | None = None
-        self._last_characters: list[list[int]] | None = None
 
         # Per-instance min-send-interval floor state (RW Cloud). Note arrays
         # use the module-level _note_array_last_send registry instead so the
@@ -731,7 +763,7 @@ class BoardClient(TransitionRenderMixin):
         # last_send_throttled so callers don't cache content that never
         # reached the board (issue #1794).
         verdict, prev_last, reserved_at, retry_after = self._admit_send(
-            lambda: self.skip_unchanged and not force and self._last_text == clean_text
+            lambda: self.skip_unchanged and not force and self._frames.matches_text(clean_text)
         )
         if verdict == "throttled":
             return self._outcome(True, False, with_outcome=with_outcome, throttled=True, retry_after=retry_after)
@@ -746,8 +778,7 @@ class BoardClient(TransitionRenderMixin):
             response = self._post_with_retry(self.base_url, self.headers, payload)
             response.raise_for_status()
 
-            self._last_text = clean_text
-            self._last_characters = None
+            self._frames.record_text_sent(clean_text)
             api_type = "Cloud API" if self.use_cloud else "Local API"
             logger.info(f"Message sent successfully to board via {api_type}")
             return self._outcome(True, True, with_outcome=with_outcome)
@@ -841,7 +872,7 @@ class BoardClient(TransitionRenderMixin):
             # concurrent per-board send workers (#1755) can't double-send inside
             # the window; a failed POST releases it below.
             verdict, prev_last, reserved_at, retry_after = self._admit_send(
-                lambda: self.skip_unchanged and not force and self._last_characters == characters
+                lambda: self.skip_unchanged and not force and self._frames.matches(characters)
             )
             if verdict == "throttled":
                 return self._outcome(True, False, with_outcome=with_outcome, throttled=True, retry_after=retry_after)
@@ -876,8 +907,7 @@ class BoardClient(TransitionRenderMixin):
                 response = self._post_with_retry(url, hdrs, payload)
                 response.raise_for_status()
 
-                self._last_characters = [row[:] for row in characters]
-                self._last_text = None
+                self._frames.record_sent(characters)
                 # The throttle slot was already reserved (at the same clock
                 # reading the old code stored here), so success keeps it.
 
@@ -924,8 +954,7 @@ class BoardClient(TransitionRenderMixin):
 
             # Optionally sync the cache with current board state
             if sync_cache and characters:
-                self._last_characters = [row[:] for row in characters]
-                self._last_text = None
+                self._frames.record_read(characters)
                 logger.info("Cache synced with current board state")
 
             return characters
@@ -935,20 +964,18 @@ class BoardClient(TransitionRenderMixin):
             return None
 
     def clear_cache(self) -> None:
-        """Clear the client-side message cache, forcing the next send to go through."""
-        self._last_text = None
-        self._last_characters = None
+        """Clear the dedupe cache, forcing the next send to go through."""
+        self._frames.forget()
         logger.debug("Message cache cleared")
 
     def get_cache_status(self) -> dict:
         """Get the current cache status for debugging/monitoring."""
+        text = self._frames.text
         return {
-            "has_cached_text": self._last_text is not None,
-            "has_cached_characters": self._last_characters is not None,
+            "has_cached_text": text is not None,
+            "has_cached_characters": self._frames.characters is not None,
             "skip_unchanged_enabled": self.skip_unchanged,
-            "cached_text_preview": self._last_text[:50] + "..."
-            if self._last_text and len(self._last_text) > 50
-            else self._last_text,
+            "cached_text_preview": text[:50] + "..." if text and len(text) > 50 else text,
         }
 
     def would_send(self, text: str | None = None, characters: list[list[int]] | None = None) -> bool:
@@ -968,9 +995,9 @@ class BoardClient(TransitionRenderMixin):
             return True
 
         if text is not None:
-            return self._last_text != text
+            return not self._frames.matches_text(text)
         if characters is not None:
-            return self._last_characters != characters
+            return not self._frames.matches(characters)
         return True
 
     def test_connection(self) -> bool:

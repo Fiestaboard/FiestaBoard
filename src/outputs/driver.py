@@ -16,8 +16,10 @@ inventoried from the callers — not what the clients happen to define:
   ``api_key``) are left out: only Vestaboard-specific code reads them, and
   they move behind ``test_connection`` / ``diagnostics`` in a later layer.
 - Private attributes (``_last_characters``, ``_cancel_transition``, …) are
-  never part of the seam. Callers that still peek at them are counted by
-  ``tests/test_output_driver_protocol.py``; that count only goes down.
+  never part of the seam. What callers used to peek at — the dedupe cache,
+  the last frame sent — lives on the board's
+  :class:`~src.outputs.runtime.OutputRuntime`;
+  ``tests/test_output_driver_protocol.py`` holds the peek count at zero.
 
 The Protocol is ``runtime_checkable`` so tests can assert conformance, and
 attribute members are declared as properties so ``Mock(spec=OutputDriver)``
@@ -112,7 +114,7 @@ class OutputDriver(Protocol):
     # --- reads and cache ---------------------------------------------------------
 
     def read_current_message(self, sync_cache: bool = False) -> list[list[int]] | None:
-        """Read back what the device shows, optionally syncing the dedupe cache."""
+        """Read back what the device shows, optionally syncing the runtime's dedupe cache."""
         ...
 
     def clear_cache(self) -> None:
