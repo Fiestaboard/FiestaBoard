@@ -21,15 +21,18 @@ class MessageFormatter:
     MAX_ROWS = 6
     MAX_COLS = 22
 
-    def __init__(self, rows: int = 6, cols: int = 22) -> None:
+    def __init__(self, rows: int = 6, cols: int = 22, *, extended_markup: bool = False) -> None:
         """Initialize message formatter.
 
         Args:
             rows: Number of rows for the target board (default 6 for flagship).
             cols: Number of columns for the target board (default 22 for flagship).
+            extended_markup: Measure and wrap colour spans and icons by the
+                tiles they draw (see :mod:`src.markup`). Off by default.
         """
         self._rows = rows
         self._cols = cols
+        self._extended_markup = extended_markup
 
     def split_into_lines(self, text: str, max_lines: int = MAX_ROWS) -> list[str]:
         """
@@ -54,8 +57,12 @@ class MessageFormatter:
         result: list[str] = []
 
         for line in text.split("\n")[:max_lines]:
-            if count_tiles(line) <= self._cols:
+            if count_tiles(line, extended_markup=self._extended_markup) <= self._cols:
                 result.append(line)
+            elif self._extended_markup:
+                from src.markup import wrap_line
+
+                result.extend(wrap_line(line, self._cols))
             else:
                 result.extend(self._wrap_line(line))
 
