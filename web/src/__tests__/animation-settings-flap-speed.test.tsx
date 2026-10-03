@@ -57,7 +57,7 @@ describe("AnimationSettings — board flip speed", () => {
 
     const group = await screen.findByRole("radiogroup", { name: "Flip speed" });
     const options = Array.from(group.querySelectorAll('[role="radio"]')).map((el) => el.textContent);
-    expect(options).toEqual(["Hardware", "Quick", "Standard (default)", "Relaxed"]);
+    expect(options).toEqual(["Fastest", "Quick", "Standard (default)", "Relaxed"]);
 
     await waitFor(() => {
       expect(screen.getByRole("radio", { name: "Quick" })).toHaveAttribute("aria-checked", "true");

@@ -1,7 +1,7 @@
 ---
 sidebar_position: 7
-description: "Turn any TV or screen with a web browser into a life-size virtual split-flap display — a FiestaPanel is a virtual board you drive with the same pages and schedules as a real Vestaboard."
-keywords: [FiestaPanel, virtual board, virtual Vestaboard, split-flap TV, split flap display, wall display, digital signage, life-size board]
+description: "Turn any TV or screen with a web browser into a life-size virtual split-flap display — a FiestaPanel is a virtual board you drive with the same pages and schedules as a physical board."
+keywords: [FiestaPanel, virtual board, virtual split-flap display, split-flap TV, split flap display, wall display, digital signage, life-size board]
 ---
 
 # FiestaPanel
@@ -12,7 +12,7 @@ A panel is a **virtual board**: FiestaBoard drives it exactly like a physical bo
 
 ## Overview
 
-- **Auto-fit, true to life.** Tell FiestaBoard your screen's diagonal size and it builds the largest board that fits: every flap renders at real Vestaboard size, and the grid grows with the screen one character at a time — a 55″ TV gets a 29×12 board (29 columns, 12 rows), a 65″ TV gets 34×14, an 85″ TV gets 45×18. The board is borderless and frameless, filling the screen edge to edge (with up to a 10% gentle stretch to close any remaining gap).
+- **Auto-fit, true to life.** Tell FiestaBoard your screen's diagonal size and it builds the largest board that fits: every flap renders at a true-to-life split-flap size, and the grid grows with the screen one character at a time — a 55″ TV gets a 29×12 board (29 columns, 12 rows), a 65″ TV gets 34×14, an 85″ TV gets 45×18. The board is borderless and frameless, filling the screen edge to edge (with up to a 10% gentle stretch to close any remaining gap).
 - **Live.** The panel polls for new frames every 2 seconds, so anything that drives the board — a schedule flipping pages, a plugin update, the page editor's Live Output — appears on the TV within moments (with a full mechanical flip animation when you turn it on).
 - **No login on the TV.** The panel URL works in any browser with no account or session. You configure everything in the FiestaBoard app; the TV just displays.
 

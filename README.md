@@ -198,7 +198,7 @@ FiestaBoard has a catalog of **50+ plugins** covering weather, finance, transit,
 
 > ⚠️ **Experimental.** Enable in Settings → Beta. The plugin SDK is not yet stable — APIs and manifest fields may change before general availability.
 
-Transition plugins drive **frame-by-frame board animations** that aren't possible with Vestaboard's built-in hardware transitions. They're picked per-page (or as the system default) and animate the change from one display to the next. Preview any transition without a real board at `/transitions` (Transition Lab).
+Transition plugins drive **frame-by-frame board animations** that go beyond the built-in flip patterns offered by Vestaboard's Local API. They're picked per-page (or as the system default) and animate the change from one display to the next. Preview any transition without a real board at `/transitions` (Transition Lab).
 
 <!-- Sorted alphabetically -->
 | Plugin | What It Does |
@@ -236,7 +236,7 @@ Create pages for both Vestaboard Flagship (22x6) and Note (15x3). The editor and
 
 ### FiestaPanel (Virtual Boards)
 
-Turn any TV or screen with a web browser into a split-flap display that fills the screen — no Vestaboard hardware required. A FiestaPanel is a virtual board sized automatically to your screen (every flap at real Vestaboard scale, borderless edge to edge), driven by the same pages, schedules, and plugins as a physical board; the TV just opens a URL and shows it, with an optional full flip animation. See the [FiestaPanel guide](docs/features/fiestapanel.md).
+Turn any TV or screen with a web browser into a split-flap display that fills the screen — no Vestaboard hardware required. A FiestaPanel is a virtual board sized automatically to your screen (flaps drawn at a true-to-life split-flap size, borderless edge to edge), driven by the same pages, schedules, and plugins as a physical board; the TV just opens a URL and shows it, with an optional full flip animation. See the [FiestaPanel guide](docs/features/fiestapanel.md).
 
 ### AI Page Drafts (Optional)
 
