@@ -8,8 +8,10 @@ It holds the **send lock**, the **cancel token**, the board's
 :class:`~src.outputs.frames.FrameCache` (frame dedupe and the last-frame
 store), **external-write detection** over it, and the door to the **send
 floor** (:mod:`src.outputs.floor`), which is keyed by device rather than by
-runtime so it outlives any one client. Transition driving still lives in the
-clients and moves in a later layer.
+runtime so it outlives any one client. It also **drives transitions**
+(:meth:`OutputRuntime.render`): native ones are forwarded to a driver that
+declares them, ``plugin:<id>`` ones are run frame by frame by the board's
+transition runner under the run's cancel token (:mod:`src.outputs.transitions`).
 
 The contract, unchanged from when it lived in ``TransitionRenderMixin``:
 
@@ -29,12 +31,54 @@ The contract, unchanged from when it lived in ``TransitionRenderMixin``:
 
 from __future__ import annotations
 
+import logging
+import math
 import threading
 from collections.abc import Callable, Iterator
 from contextlib import contextmanager
+from typing import TYPE_CHECKING, Any
+
+from src.send_outcome import SendOutcome
 
 from .floor import Admission, send_floors
 from .frames import FrameCache, Grid
+from .transitions import TRANSITION_PLUGIN_PREFIX, NativeTransition, transition_plugins_enabled
+
+if TYPE_CHECKING:
+    from .driver import OutputDriver
+
+logger = logging.getLogger(__name__)
+
+
+class _FrameSink:
+    """What a transition runner sends through: the driver's plain send.
+
+    Records each frame's throttle verdict as it lands, so the run's outcome is
+    its *own* — a run preempted before its first frame reports what it did
+    (nothing), never the previous call's flag. The runner paces frames by the
+    driver's declared floor, read here.
+    """
+
+    def __init__(self, driver: OutputDriver) -> None:
+        self._driver = driver
+        self.throttled = False
+        self.retry_after: int | None = None
+
+    @property
+    def min_send_interval_ms(self) -> int:
+        return int(self._driver.min_send_interval_ms or 0)
+
+    def send_characters(self, characters: Grid, strategy: Any | None = None, force: bool = False) -> Any:
+        result = self._driver.send_characters(characters, strategy=strategy, force=force)
+        self.throttled = bool(self._driver.last_send_throttled)
+        self.retry_after = self._driver.last_send_retry_after if self.throttled else None
+        return result
+
+
+def _floor_seconds(driver: OutputDriver) -> int | None:
+    """The driver's declared floor in whole seconds, or ``None`` when unfloored."""
+    floor_ms = int(driver.min_send_interval_ms or 0)
+    return max(1, math.ceil(floor_ms / 1000)) if floor_ms > 0 else None
 
 
 class OutputRuntime:
@@ -56,6 +100,10 @@ class OutputRuntime:
         # Generation of the dedupe cache the previous read-back mismatched
         # against, or None. See observe_read().
         self._external_suspect: int | None = None
+        # The TransitionRunner that drives "plugin:<id>" transitions on this
+        # board, attached by the service layer. None: such a request snaps
+        # to the target (logged).
+        self.transition_runner: Any | None = None
 
     # --- frames ------------------------------------------------------------------
 
@@ -184,3 +232,129 @@ class OutputRuntime:
             token = threading.Event()
             self._cancel = token
             yield token
+
+    # --- transitions ---------------------------------------------------------------
+
+    def render(
+        self,
+        driver: OutputDriver,
+        characters: Grid,
+        *,
+        strategy: str | None = None,
+        step_interval_ms: int | None = None,
+        step_size: int | None = None,
+        force: bool = False,
+        device_type: str | None = None,
+        transition_config: dict | None = None,
+        with_outcome: bool = False,
+        plugins_enabled: Callable[[], bool] | None = None,
+        on_run_start: Callable[[], None] | None = None,
+    ) -> Any:
+        """Write *characters* to *driver*, driving the requested transition.
+
+        One run (:meth:`run`): the in-flight run is preempted, the send lock
+        held, and a fresh cancel token installed for the whole write.
+
+        - No ``plugin:`` prefix: a :class:`NativeTransition`. Forwarded when
+          the driver declares the strategy; dropped (a plain write) when the
+          driver declares no native transitions; an unknown name is handed to
+          the driver, which refuses it as it always has.
+        - ``plugin:<id>``: when the beta flag is on, a runner is attached and
+          the driver can animate, the runner drives the plugin's frames
+          through the driver's plain send and lands on *characters*.
+          Otherwise the write snaps to *characters*.
+
+        Args:
+            driver: The board's driver (bound to this runtime).
+            plugins_enabled: The beta-flag check; the core one by default.
+                Drivers pass their own patchable seam.
+            on_run_start: Called under the lock once the run starts, before
+                any write (the driver resets its last-call verdict).
+
+        Returns:
+            The driver's ``(success, was_sent)`` pair, or a
+            :class:`~src.send_outcome.SendOutcome` when ``with_outcome``.
+        """
+        is_plugin = isinstance(strategy, str) and strategy.startswith(TRANSITION_PLUGIN_PREFIX)
+        with self.run() as token:
+            if on_run_start is not None:
+                on_run_start()
+            # Forward the keyword only when asked for, so every pre-existing
+            # caller (and every test double asserting the call) sees exactly
+            # the send_characters call shape it always did.
+            outcome_kw: dict[str, bool] = {"with_outcome": True} if with_outcome else {}
+
+            if not is_plugin:
+                native = self._native_for(driver, NativeTransition.of(strategy, step_interval_ms, step_size))
+                return driver.send_characters(
+                    characters,
+                    strategy=native.strategy if native else None,
+                    step_interval_ms=native.step_interval_ms if native else None,
+                    step_size=native.step_size if native else None,
+                    force=force,
+                    **outcome_kw,
+                )
+
+            plugin_id = strategy[len(TRANSITION_PLUGIN_PREFIX) :].strip()
+            if not plugin_id:
+                logger.warning("render: empty transition plugin id in strategy %r; sending as-is", strategy)
+                return driver.send_characters(characters, strategy=None, force=force, **outcome_kw)
+
+            # Defense in depth: if the operator toggled the beta flag off after
+            # pages were saved with a plugin: strategy, plugin code must not
+            # run anyway -- the API surface is gated, and so is execution.
+            if not (plugins_enabled or transition_plugins_enabled)():
+                logger.warning(
+                    "render: transition_plugins beta is off; plugin:%s ignored, snapping to target", plugin_id
+                )
+                return driver.send_characters(characters, strategy=None, force=force, **outcome_kw)
+
+            runner = self.transition_runner
+            if runner is None:
+                logger.warning(
+                    "render: no transition runner attached; plugin:%s ignored, snapping to target grid", plugin_id
+                )
+                return driver.send_characters(characters, strategy=None, force=force, **outcome_kw)
+
+            if driver.animation == "none":
+                logger.info("render: board %s cannot animate; plugin:%s snaps to target", self.board_id, plugin_id)
+                return driver.send_characters(characters, strategy=None, force=force, **outcome_kw)
+
+            # "stream" — and "sequence" until a driver implements
+            # write_sequence (the Pixoo): frames go one write at a time.
+            # The animation starts from what the board is known to show — this
+            # runtime's dedupe cache — read under the send lock, so no send can
+            # move it between here and the runner's first frame.
+            cached = self._frames.characters
+            sink = _FrameSink(driver)
+            success, was_sent = runner.run(
+                plugin_id=plugin_id,
+                to_grid=characters,
+                board_client=sink,
+                cancel_event=token,
+                device_type=device_type,
+                from_grid=cached if isinstance(cached, list) and cached else None,
+                config=transition_config,
+            )
+            if not with_outcome:
+                return (success, was_sent)
+            # Still under the send lock: the verdict is this run's own frames'.
+            return SendOutcome(
+                success,
+                was_sent,
+                throttled=sink.throttled,
+                retry_after_seconds=sink.retry_after if sink.throttled else None,
+                floor_seconds=_floor_seconds(driver),
+            )
+
+    @staticmethod
+    def _native_for(driver: OutputDriver, native: NativeTransition | None) -> NativeTransition | None:
+        """The native transition *driver* gets: as asked, or none at all."""
+        if native is None or not native.is_known:
+            # Nothing asked; or a name no device offers, which the driver
+            # refuses (and logs) exactly as it always has.
+            return native
+        if native.supported_by(driver.native_transitions):
+            return native
+        logger.debug("%r is not supported by this board and is ignored", native)
+        return None

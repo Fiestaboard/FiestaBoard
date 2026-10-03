@@ -3,8 +3,9 @@
 A :class:`TransitionRunner` is constructed once with a resolver callable
 that maps a plugin id to a loaded
 :class:`~src.plugins.base.TransitionPluginBase` instance.  At runtime the
-:class:`~src.board_client.BoardClient` invokes :meth:`TransitionRunner.run`
-with the target grid and a cancellation event.  The runner:
+board's :class:`~src.outputs.runtime.OutputRuntime` (which drives every
+transition) invokes :meth:`TransitionRunner.run` with the target grid, a
+frame sink over the board's driver, and the run's cancel token.  The runner:
 
 1. Resolves the plugin and reads its ``transition_settings`` caps.
 2. Determines the "from" grid (current board state or a blank fallback).
@@ -152,8 +153,11 @@ class TransitionRunner:
         Args:
             plugin_id: Transition plugin id to invoke.
             to_grid: Target grid the transition should end on.
-            board_client: Object with ``send_characters(grid, strategy=None,
-                force=False)`` and optional ``read_current_message()``.
+            board_client: Where frames go: an object with
+                ``send_characters(grid, strategy=None, force=False)`` and
+                ``min_send_interval_ms`` (the device's declared send floor,
+                which paces frames). The runtime passes a sink over the
+                board's driver.
             cancel_event: Threading event that, when set, asks the runner
                 to wind down at the next delay boundary.
             device_type: Optional ``"flagship"`` / ``"note"`` hint used to

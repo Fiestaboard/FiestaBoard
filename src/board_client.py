@@ -31,13 +31,12 @@ from .output_allowlist import check_output_url
 from .outputs.floor import Admission, credential_digest
 from .outputs.frames import FrameCache
 from .outputs.runtime import OutputRuntime
+
+# TRANSITION_PLUGIN_PREFIX is re-exported: callers import it from here.
+from .outputs.transitions import TRANSITION_PLUGIN_PREFIX, Animation, transition_plugins_enabled  # noqa: F401
 from .send_outcome import SendOutcome
 
 logger = logging.getLogger(__name__)
-
-# Sentinel prefix on the strategy string that routes a render() call through
-# a transition plugin instead of the hardware's built-in strategies.
-TRANSITION_PLUGIN_PREFIX = "plugin:"
 
 # Regex pattern to match color markers like {63}, {red}, {/}, {/red}
 COLOR_MARKER_PATTERN = re.compile(
@@ -209,18 +208,21 @@ def is_successful_board_read_response(data: Any) -> bool:
 
 
 class TransitionRenderMixin:
-    """Adds transition-plugin support on top of a ``send_characters`` client.
+    """The board clients' shared binding to their core :class:`~src.outputs.OutputRuntime`.
 
-    Shared by :class:`BoardClient` and
-    :class:`~src.note_array_local_client.NoteArrayLocalClient` so every
-    board type honors ``"plugin:<id>"`` strategies through one code path.
+    Shared by :class:`BoardClient`,
+    :class:`~src.note_array_local_client.NoteArrayLocalClient` and
+    :class:`~src.virtual_board_client.VirtualBoardClient`. ``render()`` is a
+    thin delegate: the runtime drives transitions (native vs
+    ``"plugin:<id>"``) and calls back into the host's ``send_characters``.
     The host class must provide ``send_characters(grid, strategy=None,
     step_interval_ms=None, step_size=None, force=False)`` and call
     :meth:`_init_transition_state` from its ``__init__``.
 
     Also supplies the :class:`~src.outputs.OutputDriver` defaults an
-    unfloored, physical client reports: not virtual, never throttled, no
-    send floor. :class:`BoardClient` and
+    unfloored, physical, local-Vestaboard-like client reports: not virtual,
+    never throttled, no send floor, every Vestaboard native strategy, and
+    frame-at-a-time animation. :class:`BoardClient` and
     :class:`~src.virtual_board_client.VirtualBoardClient` override what
     differs. Callers used to ``getattr`` these with exactly these fallbacks.
     """
@@ -229,9 +231,24 @@ class TransitionRenderMixin:
     is_virtual: bool = False
 
     @property
+    def native_transitions(self) -> frozenset[str]:
+        """The device-native strategies this client's device animates."""
+        return frozenset(VALID_STRATEGIES)
+
+    @property
+    def animation(self) -> Animation:
+        """Every client today takes a frame-driven transition one write at a time."""
+        return "stream"
+
+    @property
     def last_send_throttled(self) -> bool:
         """True when the most recent send was dropped by the send floor."""
         return bool(getattr(self, "_last_send_throttled", False))
+
+    @property
+    def last_send_retry_after(self) -> int | None:
+        """Seconds until the floor reopens, when :attr:`last_send_throttled`."""
+        return getattr(self, "_last_send_retry_after", None)
 
     @property
     def min_send_interval_ms(self) -> int:
@@ -246,12 +263,8 @@ class TransitionRenderMixin:
         # set_output_runtime(); until then — and for a throwaway client built
         # outside the engine — this private one serves, exactly as the lock,
         # event and cache used to live on the instance.
+        # The runtime also holds the transition runner (set_transition_runner).
         self._output_runtime: OutputRuntime = OutputRuntime(frames=frames)
-
-        # Pluggable transition runner.  Set via set_transition_runner() by
-        # the service layer at startup.  When None, "plugin:<id>" strategies
-        # fall back to a plain send (logged warning).
-        self._transition_runner: Any | None = None
 
     def _floor_seconds(self) -> int | None:
         """The per-type send floor in whole seconds, or ``None`` when unfloored."""
@@ -287,9 +300,13 @@ class TransitionRenderMixin:
 
         Called by the engine's ``BoardRuntime`` when it adopts this client,
         before any send. The runtime adopts this client's frame cache, so
-        what the client knew about its board carries over unchanged.
+        what the client knew about its board carries over unchanged, and
+        the transition runner attached before the bind (the engine attaches
+        it, then hands the client to its ``BoardRuntime``).
         """
         runtime.adopt_frames(self._output_runtime.frames)
+        if self._output_runtime.transition_runner is not None:
+            runtime.transition_runner = self._output_runtime.transition_runner
         self._output_runtime = runtime
 
     @property
@@ -334,29 +351,37 @@ class TransitionRenderMixin:
         self._output_runtime.cancel_event = event
 
     def set_transition_runner(self, runner: Any | None) -> None:
-        """Attach (or detach) the transition runner used by :meth:`render`.
+        """Attach (or detach) the runner that drives ``plugin:<id>`` transitions.
 
-        Decouples this module from the runner implementation; the service
-        layer injects the runner once both are constructed.
+        The runner belongs to the board's :class:`~src.outputs.OutputRuntime`,
+        which drives transitions; the service layer injects it once both are
+        constructed.
         """
-        self._transition_runner = runner
+        self._output_runtime.transition_runner = runner
+
+    @property
+    def _transition_runner(self) -> Any | None:
+        """Test-facing alias onto the bound runtime's transition runner."""
+        return self._output_runtime.transition_runner
 
     @staticmethod
     def _transition_plugins_beta_enabled() -> bool:
-        """Return whether the transition-plugin beta flag is currently on.
+        """Whether the transition-plugin beta flag is on (core's check).
 
-        Imported lazily so this module has no hard dependency on the
-        settings layer.  Failures default to *False* -- if the settings
-        service can't be reached, we'd rather fall back to a no-strategy
-        send than execute experimental code.
+        Kept as a per-class seam tests patch; :meth:`render` hands it to the
+        runtime.
         """
-        try:
-            from .settings.service import get_settings_service
+        return transition_plugins_enabled()
 
-            return bool(get_settings_service().get_beta_settings().transition_plugins_enabled)
-        except Exception as exc:  # pragma: no cover - defensive
-            logger.warning("render: could not read transition_plugins beta flag: %s", exc)
-            return False
+    def _reset_send_verdict(self) -> None:
+        """Start a render's verdict clean (called by the runtime under the lock).
+
+        A plugin transition preempted before its first frame never enters
+        ``send_*``, which is where the flag is otherwise reset — without this
+        the previous call's throttle leaks into ``last_send_throttled``.
+        """
+        self._last_send_throttled = False
+        self._last_send_retry_after = None
 
     def render(
         self,
@@ -370,13 +395,12 @@ class TransitionRenderMixin:
         transition_config: dict | None = None,
         with_outcome: bool = False,
     ) -> Any:
-        """High-level send that understands transition-plugin strategies.
+        """Write one grid with its transition — driven by the board's runtime.
 
-        Behaves identically to :meth:`send_characters` for built-in
-        strategies (``column``, ``edges-to-center``, etc. or *None*).  When
-        *strategy* starts with ``"plugin:"`` and a transition runner is
-        attached, the runner drives a frame-by-frame animation toward
-        *characters*; the final frame is always *characters* itself.
+        A thin delegate to :meth:`OutputRuntime.render
+        <src.outputs.runtime.OutputRuntime.render>`, which decides native
+        strategy vs ``"plugin:<id>"`` frame driving, checks the beta flag and
+        runs the transition runner under the run's cancel token.
 
         Args:
             characters: Target grid to render.
@@ -396,89 +420,19 @@ class TransitionRenderMixin:
             ``(success, was_sent)`` mirroring :meth:`send_characters`, or the
             :class:`~src.send_outcome.SendOutcome` when ``with_outcome``.
         """
-        is_plugin = isinstance(strategy, str) and strategy.startswith(TRANSITION_PLUGIN_PREFIX)
-
-        # The output runtime signals any in-flight transition to wind down
-        # *before* waiting on the send lock — without that, a built-in render()
-        # arriving during a plugin transition would block on the lock instead
-        # of preempting the animation — then installs a fresh token for this
-        # run, so a stale signal from the previous caller can't immediately
-        # cancel us. The runner of the just-cancelled transition still holds
-        # its own reference to the old token, so its cancellation isn't lost.
-        with self._output_runtime.run() as run_cancel_event:
-            # This render's verdict starts clean. A plugin transition that is
-            # preempted before its first frame returns without ever entering
-            # send_*, which is where the flag used to be reset — so the
-            # previous call's throttle leaked into this call's answer.
-            self._last_send_throttled = False
-            self._last_send_retry_after = None
-
-            # Forward the keyword only when asked for, so every pre-existing
-            # caller (and every test double asserting the call) sees exactly
-            # the send_characters call shape it always did.
-            outcome_kw: dict[str, bool] = {"with_outcome": True} if with_outcome else {}
-
-            if not is_plugin:
-                return self.send_characters(
-                    characters,
-                    strategy=strategy,
-                    step_interval_ms=step_interval_ms,
-                    step_size=step_size,
-                    force=force,
-                    **outcome_kw,
-                )
-
-            plugin_id = strategy[len(TRANSITION_PLUGIN_PREFIX) :].strip()
-            if not plugin_id:
-                logger.warning(
-                    "render: empty transition plugin id in strategy %r; sending as-is",
-                    strategy,
-                )
-                return self.send_characters(characters, strategy=None, force=force, **outcome_kw)
-
-            # Defense in depth: if the operator toggled the beta flag off
-            # after pages were saved with a plugin: strategy, the runtime
-            # must not execute plugin code anyway -- the API surface is
-            # gated, and so is the execution path.  Import locally to avoid
-            # a hard dependency from this module on settings.
-            if not self._transition_plugins_beta_enabled():
-                logger.warning(
-                    "render: transition_plugins beta is off; plugin:%s ignored, snapping to target",
-                    plugin_id,
-                )
-                return self.send_characters(characters, strategy=None, force=force, **outcome_kw)
-
-            runner = self._transition_runner
-            if runner is None:
-                logger.warning(
-                    "render: no transition runner attached; plugin:%s ignored, snapping to target grid",
-                    plugin_id,
-                )
-                return self.send_characters(characters, strategy=None, force=force, **outcome_kw)
-
-            # The animation starts from what the board is known to show — the
-            # runtime's dedupe cache — read under the send lock, so no send can
-            # move it between here and the runner's first frame.
-            cached = self._frames.characters
-            success, was_sent = runner.run(
-                plugin_id=plugin_id,
-                to_grid=characters,
-                board_client=self,
-                cancel_event=run_cancel_event,
-                device_type=device_type,
-                from_grid=cached if isinstance(cached, list) and cached else None,
-                config=transition_config,
-            )
-            # Still under the send lock: the only sends that could have set
-            # the flag since the reset above are this run's own frames, so
-            # reading it here is per-call, not a race.
-            return self._outcome(
-                success,
-                was_sent,
-                with_outcome=with_outcome,
-                throttled=getattr(self, "_last_send_throttled", False),
-                retry_after=getattr(self, "_last_send_retry_after", None),
-            )
+        return self._output_runtime.render(
+            self,
+            characters,
+            strategy=strategy,
+            step_interval_ms=step_interval_ms,
+            step_size=step_size,
+            force=force,
+            device_type=device_type,
+            transition_config=transition_config,
+            with_outcome=with_outcome,
+            plugins_enabled=self._transition_plugins_beta_enabled,
+            on_run_start=self._reset_send_verdict,
+        )
 
 
 class BoardClient(TransitionRenderMixin):
@@ -605,6 +559,13 @@ class BoardClient(TransitionRenderMixin):
         runner pace frames so every send actually lands.
         """
         return int(self._min_send_interval * 1000)
+
+    @property
+    def native_transitions(self) -> frozenset[str]:
+        """Only the Local API animates; both cloud APIs take a bare grid."""
+        if self.use_cloud or self._is_note_array:
+            return frozenset()
+        return frozenset(VALID_STRATEGIES)
 
     @property
     def _min_send_interval(self) -> float:

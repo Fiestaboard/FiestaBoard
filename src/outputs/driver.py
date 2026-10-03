@@ -9,8 +9,14 @@ note-array Cloud), :class:`~src.note_array_local_client.NoteArrayLocalClient`
 
 The surface is exactly what code *outside* the client modules uses today,
 inventoried from the callers — not what the clients happen to define —
-plus one member core declares for itself: ``device_key()``, the identity
-the send floor (:mod:`src.outputs.floor`) is keyed by.
+plus what core itself reads to make its decisions: ``device_key()``, the
+identity the send floor (:mod:`src.outputs.floor`) is keyed by;
+``native_transitions`` and ``animation``, which tell the runtime how a
+transition may be shown (:mod:`src.outputs.transitions`); and
+``last_send_retry_after``, the half of the last call's throttle verdict a
+transition's outcome reports. ``render()`` is a thin delegate to
+:meth:`OutputRuntime.render <src.outputs.runtime.OutputRuntime.render>`,
+kept because callers use it.
 
 - ``send_text`` and ``would_send`` are left out: no caller outside the
   clients uses either, and the output-plugin contract drops ``send_text``.
@@ -34,6 +40,7 @@ from typing import TYPE_CHECKING, Any, Protocol, runtime_checkable
 
 if TYPE_CHECKING:
     from .runtime import OutputRuntime
+    from .transitions import Animation
 
 
 @runtime_checkable
@@ -71,8 +78,33 @@ class OutputDriver(Protocol):
         ...
 
     @property
+    def last_send_retry_after(self) -> int | None:
+        """Whole seconds until the floor reopens, when the last send was throttled."""
+        ...
+
+    @property
     def min_send_interval_ms(self) -> int:
         """The device's send floor in milliseconds (0 = unfloored)."""
+        ...
+
+    # --- capabilities core decides by ----------------------------------------------
+
+    @property
+    def native_transitions(self) -> frozenset[str]:
+        """The device-native transition strategies this device animates.
+
+        Core forwards a :class:`~src.outputs.transitions.NativeTransition`
+        only when its strategy is declared here; empty = the device takes a
+        plain write and the parameters are dropped.
+        """
+        ...
+
+    @property
+    def animation(self) -> Animation:
+        """How the device shows a frame-driven (``plugin:<id>``) transition:
+        ``"stream"`` (frame-at-a-time writes, paced by core), ``"sequence"``
+        (one timed upload; not implemented by any driver yet) or ``"none"``
+        (snap to the target)."""
         ...
 
     # --- writes ------------------------------------------------------------------
@@ -102,11 +134,11 @@ class OutputDriver(Protocol):
         transition_config: dict | None = None,
         with_outcome: bool = False,
     ) -> Any:
-        """Write one grid, driving a ``"plugin:<id>"`` transition when asked."""
+        """Write one grid with its transition; delegates to the bound runtime."""
         ...
 
     def set_transition_runner(self, runner: Any | None) -> None:
-        """Attach (or detach) the runner that drives plugin transitions."""
+        """Attach (or detach) the bound runtime's plugin-transition runner."""
         ...
 
     def set_output_runtime(self, runtime: OutputRuntime) -> None:
