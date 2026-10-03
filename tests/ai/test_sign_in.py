@@ -478,3 +478,71 @@ async def test_chat_stream_signed_out_is_an_error_without_a_request(monkeypatch)
     seen, events = await _chat(_signed_in("openrouter"))
     assert seen == []
     assert "Sign in to Router again" in events[-1]["data"]["message"]
+
+
+# ── Model list (GET /settings/ai/providers/{id}/models) ─────────────────────
+
+
+def _models_client(status: int, body: Any):
+    seen: list[httpx.Request] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        seen.append(request)
+        return httpx.Response(status, json=body)
+
+    return seen, httpx.AsyncClient(transport=httpx.MockTransport(handler))
+
+
+@pytest.mark.asyncio
+async def test_model_list_uses_the_signed_in_token_and_keeps_listed_models(monkeypatch):
+    from src.ai.generator import list_models
+
+    monkeypatch.setattr(sign_in, "_oauth", lambda: FakeOAuth())
+    body = {
+        "data": [
+            {"slug": "gpt-test", "display_name": "GPT Test", "visibility": "list"},
+            {"slug": "gpt-hidden", "display_name": "Hidden", "visibility": "hide"},
+            {"id": "plain-model"},
+        ]
+    }
+    seen, client = _models_client(200, body)
+    async with client:
+        models = await list_models(_signed_in("openai_chatgpt"), client=client)
+    assert str(seen[0].url) == "https://api.openai.com/v1/models"
+    assert seen[0].headers["authorization"] == "Bearer test_token"
+    assert models == [{"id": "gpt-test", "name": "GPT Test"}, {"id": "plain-model", "name": "plain-model"}]
+
+
+@pytest.mark.asyncio
+async def test_model_list_works_for_an_api_key_provider():
+    from src.ai.generator import list_models
+
+    seen, client = _models_client(200, {"data": [{"id": "m1"}]})
+    async with client:
+        models = await list_models(API_KEY_PROVIDER, client=client)
+    assert str(seen[0].url) == "https://example.test/v1/models"
+    assert seen[0].headers["authorization"] == "Bearer test_key"
+    assert models == [{"id": "m1", "name": "m1"}]
+
+
+@pytest.mark.asyncio
+async def test_model_list_401_reports_the_sign_in_rejected(monkeypatch):
+    from src.ai.generator import list_models
+
+    fake = FakeOAuth()
+    monkeypatch.setattr(sign_in, "_oauth", lambda: fake)
+    _, client = _models_client(401, {"error": {"message": "bad"}})
+    async with client:
+        with pytest.raises(AIGenerationError):
+            await list_models(_signed_in("openai_chatgpt"), client=client)
+    assert fake.rejected == ["ai.or1"]
+
+
+@pytest.mark.asyncio
+async def test_model_list_rejects_an_unexpected_body():
+    from src.ai.generator import list_models
+
+    _, client = _models_client(200, {"nope": True})
+    async with client:
+        with pytest.raises(AIGenerationError):
+            await list_models(API_KEY_PROVIDER, client=client)

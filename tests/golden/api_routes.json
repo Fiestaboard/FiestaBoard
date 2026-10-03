@@ -1253,6 +1253,14 @@
       "kind": "APIRoute"
     },
     {
+      "path": "/settings/ai/providers/{provider_id}/models",
+      "methods": [
+        "GET"
+      ],
+      "name": "list_ai_provider_models",
+      "kind": "APIRoute"
+    },
+    {
       "path": "/settings/ai/test",
       "methods": [
         "POST"

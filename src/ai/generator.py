@@ -531,6 +531,67 @@ async def generate_page(
     }
 
 
+async def list_models(
+    provider: dict[str, Any],
+    *,
+    timeout_seconds: float = _DEFAULT_TIMEOUT_SECONDS,
+    client: httpx.AsyncClient | None = None,
+) -> list[dict[str, str]]:
+    """The models *provider* offers, from ``GET {base_url}/models``.
+
+    Returns ``[{"id", "name"}]``. Entries marked ``visibility`` other than
+    ``"list"`` are left out (ChatGPT lists hidden models too); ``slug`` and
+    ``display_name`` are preferred over ``id`` where present. Raises
+    :class:`AIGenerationError` when the provider cannot be asked or answers
+    something else. A 401 reports a signed-in provider's token as rejected.
+    """
+    from .sign_in import report_provider_rejected, resolve_provider_auth_async
+
+    signed_in_provider = provider
+    provider = await resolve_provider_auth_async(provider)
+    proto = get_protocol(provider.get("protocol"))
+    base_url = (provider.get("base_url") or "").rstrip("/")
+    if not base_url:
+        raise AIGenerationError("AI provider has no base_url configured.")
+    extra = provider.get("headers") or {}
+    headers = proto.build_headers(provider.get("api_key") or "", extra if isinstance(extra, dict) else {})
+    headers.pop("Content-Type", None)
+
+    owns_client = client is None
+    if owns_client:
+        client = httpx.AsyncClient(timeout=timeout_seconds)
+    try:
+        try:
+            response = await client.get(f"{base_url}/models", headers=headers)
+        except httpx.HTTPError as exc:
+            logger.warning("AI provider HTTP error listing models: %s", type(exc).__name__)
+            raise AIGenerationError("Could not reach AI provider.") from exc
+    finally:
+        if owns_client:
+            await client.aclose()
+    if response.status_code == 401:
+        await report_provider_rejected(signed_in_provider)
+    if response.status_code >= 400:
+        raise AIGenerationError(f"AI provider returned {response.status_code} when asked for its models.")
+    try:
+        body = response.json()
+    except ValueError as exc:
+        raise AIGenerationError("AI provider returned a non-JSON model list.") from exc
+    entries = body.get("data", body.get("models")) if isinstance(body, dict) else None
+    if not isinstance(entries, list):
+        raise AIGenerationError("AI provider returned an unexpected model list.")
+    models: list[dict[str, str]] = []
+    for entry in entries:
+        if not isinstance(entry, dict) or entry.get("visibility", "list") != "list":
+            continue
+        model_id = entry.get("slug") or entry.get("id")
+        if not isinstance(model_id, str) or not model_id:
+            continue
+        name = entry.get("display_name") or entry.get("name")
+        models.append({"id": model_id, "name": name if isinstance(name, str) and name else model_id})
+    return models
+
+
 async def test_provider(
     provider: dict[str, Any],
     *,

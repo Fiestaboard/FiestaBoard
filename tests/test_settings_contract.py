@@ -179,6 +179,40 @@ class TestAiProviders:
         assert response.status_code == 404
         assert response.json() == {"detail": "AI provider 'nope' not found."}
 
+    def test_models_404s_for_an_unknown_provider_id(self, client):
+        response = client.get("/settings/ai/providers/nope/models")
+        assert response.status_code == 404
+        assert response.json() == {"detail": "AI provider 'nope' not found."}
+
+    def test_models_returns_the_providers_list(self, client, monkeypatch):
+        from src.ai import generator
+
+        async def fake_list(provider, **_):
+            assert provider["id"] == "p1"
+            return [{"id": "m1", "name": "Model One"}]
+
+        monkeypatch.setattr(generator, "list_models", fake_list)
+        client.put("/settings/ai", json={"enabled": True, "providers": [_AI_PROVIDER]})
+        response = client.get("/settings/ai/providers/p1/models")
+        assert response.status_code == 200
+        assert response.json() == {"models": [{"id": "m1", "name": "Model One"}]}
+
+    def test_models_502s_with_the_reason_when_the_provider_cannot_answer(self, client, monkeypatch):
+        from src.ai import generator
+        from src.ai.generator import AIGenerationError
+
+        async def signed_out(provider, **_):
+            raise AIGenerationError("Sign in to P1 again in Settings → AI.")
+
+        monkeypatch.setattr(generator, "list_models", signed_out)
+        client.put("/settings/ai", json={"enabled": True, "providers": [_AI_PROVIDER]})
+        response = client.get("/settings/ai/providers/p1/models")
+        assert response.status_code == 502
+        assert response.json() == {"detail": "Sign in to P1 again in Settings → AI."}
+
+
+_AI_PROVIDER = {"id": "p1", "name": "P1", "base_url": "https://example.invalid", "api_key": "test_key"}
+
 
 # ---------------------------------------------------------------------------
 # Transitions
