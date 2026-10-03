@@ -35,7 +35,7 @@ If you have (or are willing to buy) a Raspberry Pi 3B or newer, this is by far t
 1. Open Raspberry Pi Imager → **Choose OS** → **Use custom** → pick the FiestaPi `.img.xz`.
 2. Choose your microSD card and click **Next** → **Edit Settings** to pre-fill your Wi-Fi and timezone, then **Write**.
 3. Insert the SD card into the Pi, plug in power, and wait 2–3 minutes for first boot.
-4. Open **http://fiestapi.local:4420** in any browser on the same network. The setup wizard takes it from there.
+4. Open **http://fiestapi.local:4420** in any browser on the same network. The setup wizard takes it from there. If it doesn't load, open **[fiestaboard.app/find](https://fiestaboard.app/find/)** in Chrome or Edge to search your network for the Pi.
 
 That's it — FiestaBoard starts on every boot and updates itself with one click in Settings.
 
@@ -103,7 +103,7 @@ The wizard collects your board API key, starts the server, and opens the setup p
 
 > **Use `http://`, not `https://`.** FiestaBoard runs on your local network and is served over plain HTTP — it has no SSL certificate. Type the address with `http://` (for example `http://localhost:4420`). If your browser shows a "connection is not secure" or `ERR_SSL_PROTOCOL_ERROR` page, it upgraded the address to `https://`; delete the `s` and reload. See [Can't reach the web UI](#cant-reach-the-web-ui) if it keeps happening.
 
-> **Accessing from other devices:** From another device on the same network, open FiestaBoard at your server's IP address — for example `http://192.168.1.50:4420`. This works on a default Docker install.
+> **Accessing from other devices:** From another device on the same network, open FiestaBoard at your server's IP address — for example `http://192.168.1.50:4420`. This works on a default Docker install. Don't know the address? **[fiestaboard.app/find](https://fiestaboard.app/find/)** searches your network for it (Chrome or Edge).
 >
 > The default `docker-compose.yml` uses bridge networking (`4420:3000`) and does **not** advertise `fiestaboard.local`. A generic Docker host needs a separately configured host-level mDNS service for a `.local` name. The FiestaPi image ships Avahi and advertises as `fiestapi.local`; newly built FiestaPi images also publish an HTTP service that Bonjour apps can discover. See [MCP clients — Hostname tip](docs/internal/setup/MCP_CLIENTS.md) for details.
 

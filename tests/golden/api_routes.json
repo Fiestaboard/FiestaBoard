@@ -418,6 +418,14 @@
       "kind": "APIRoute"
     },
     {
+      "path": "/discover",
+      "methods": [
+        "GET"
+      ],
+      "name": "discover",
+      "kind": "APIRoute"
+    },
+    {
       "path": "/displays",
       "methods": [
         "GET"

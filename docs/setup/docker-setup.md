@@ -75,6 +75,7 @@ docker compose -f docker-compose.hub.yml up -d
 |---------|-----|-------------|
 | Web UI | http://localhost:4420 | Main application interface (from the same machine) |
 | Web UI (network) | http://&lt;host-ip&gt;:4420 | Access from other devices with the default bridge setup |
+| Find it | https://fiestaboard.app/find/ | Searches your network for FiestaBoard when you don't know the host's IP |
 | API | http://localhost:4420/api | API access (via nginx proxy) |
 | API Docs | http://localhost:4420/api/docs | Interactive FastAPI documentation |
 

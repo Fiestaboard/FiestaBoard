@@ -171,6 +171,20 @@ docker compose restart
 `localhost` only works on the machine running FiestaBoard. From other devices on the same network, use your server's IP address, for example `http://192.168.1.50:4420`. The FiestaPi image also provides `http://fiestapi.local:4420`; the default Docker bridge does not advertise `fiestaboard.local`.
 :::
 
+### I don't know my board's address {#i-dont-know-my-boards-address}
+
+Open **[fiestaboard.app/find](https://fiestaboard.app/find/)** on a phone or computer on the same Wi-Fi as the board and press **Search my network**. In Chrome or Edge, choose **Allow** when the browser asks about devices on your network. The page lists every FiestaBoard it finds; select yours to open it.
+
+The search runs in your browser. Nothing about your network is sent anywhere.
+
+If nothing is found:
+
+1. Make sure the device is on the same network as the board, not a guest network.
+2. Wait a minute or two after starting the board.
+3. Find the board in your router's list of connected devices and type its address into the box at the bottom of the page. If your network uses an uncommon range, type the range instead, for example `192.168.7.x`.
+
+Safari and Firefox do not let websites look for devices on your network. In those browsers the page offers the usual addresses to try instead.
+
 ### Changes not saving
 
 **Possible causes:**
