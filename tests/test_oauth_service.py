@@ -1005,8 +1005,12 @@ def test_the_token_file_has_a_schema_version(store, tmp_path):
 # ── 9.9.0 manifest fields ───────────────────────────────────────────────────
 
 TIKTOK_BLOCK = {**RELAY_BLOCK, "client_id_param": "client_key", "scope_separator": ","}
-TWITCH_BLOCK = {**DEVICE_BLOCK, "scopes": ["user:read:email", "channel:read:subscriptions"],
-                "device_scope_param": "scopes", "device_poll_scope": True}
+TWITCH_BLOCK = {
+    **DEVICE_BLOCK,
+    "scopes": ["user:read:email", "channel:read:subscriptions"],
+    "device_scope_param": "scopes",
+    "device_poll_scope": True,
+}
 HA_BLOCK = {
     "provider_name": "Home Assistant",
     "flows": ["relay"],
@@ -1049,7 +1053,11 @@ def test_a_custom_client_id_param_is_used_on_refresh(service, source, store, pro
     _connected(store, "tiktok", expires_at=NOW)
     provider.reply({"access_token": "access-2", "expires_in": 3600})
     assert service.get_access_token("tiktok") == "access-2"
-    assert provider.calls[0][1] == {"grant_type": "refresh_token", "refresh_token": "refresh-1", "client_key": "client-abc"}
+    assert provider.calls[0][1] == {
+        "grant_type": "refresh_token",
+        "refresh_token": "refresh-1",
+        "client_key": "client-abc",
+    }
 
 
 def test_device_flow_uses_the_custom_client_id_and_scope_params(service, source, provider):
@@ -1200,7 +1208,9 @@ def test_an_expired_pasted_state_is_refused(service, source, clock):
 def test_a_pasted_denial_is_reported(service, source, provider):
     source.add("music", RELAY_BLOCK)
     state = _relay_state(service)
-    assert _reject_reason(service, "music", f"https://x.example/cb?error=access_denied&state={state}") == "access_denied"
+    assert (
+        _reject_reason(service, "music", f"https://x.example/cb?error=access_denied&state={state}") == "access_denied"
+    )
     assert provider.calls == []
 
 
@@ -1236,9 +1246,24 @@ def test_a_relay_from_a_url_address_ignores_a_client_id_in_the_paste(service, so
 
 def test_a_9_8_token_record_loads_with_the_new_fields_defaulted(tmp_path):
     path = tmp_path / "oauth_tokens.json"
-    path.write_text(json.dumps({"schema_version": 1, "connections": {"music": {
-        "access_token": "access-1", "token_type": "Bearer", "refresh_token": "refresh-1",
-        "expires_at": NOW, "scopes": ["a"], "obtained_at": NOW, "needs_reauthorization": False}}}))
+    path.write_text(
+        json.dumps(
+            {
+                "schema_version": 1,
+                "connections": {
+                    "music": {
+                        "access_token": "access-1",
+                        "token_type": "Bearer",
+                        "refresh_token": "refresh-1",
+                        "expires_at": NOW,
+                        "scopes": ["a"],
+                        "obtained_at": NOW,
+                        "needs_reauthorization": False,
+                    }
+                },
+            }
+        )
+    )
     tokens = TokenStore(path).get("music")
     assert (tokens.client_id, tokens.reauth_reason) == ("", "")
     assert tokens.access_token == "access-1"
@@ -1336,7 +1361,7 @@ def test_key_exchange_callback_posts_json_and_stores_a_non_expiring_key(xservice
     outcome = xservice.complete_authorization(state=query["state"], code="code-1", error=None)
 
     assert outcome.connected
-    method, url, headers, form, body = http.calls[0]
+    method, url, _headers, form, body = http.calls[0]
     assert (method, url, form) == ("POST", "https://or.example.com/api/v1/auth/keys", None)
     assert set(body) == {"code", "code_verifier", "code_challenge_method"}
     assert body["code"] == "code-1"
@@ -1425,7 +1450,7 @@ def test_plex_start_creates_a_strong_pin_and_sends_the_browser_to_plex(xservice,
     http.reply(PIN, status=201)
     start = xservice.start(plexconn, board_url=BOARD)
 
-    method, url, headers, form, body = http.calls[0]
+    method, url, headers, _form, _body = http.calls[0]
     assert (method, url) == ("POST", "https://plex.tv/api/v2/pins?strong=true")
     assert headers["Accept"] == "application/json"
     assert headers["X-Plex-Client-Identifier"] == "test-install-id"
@@ -1498,8 +1523,14 @@ def test_a_network_failure_while_polling_plex_is_retried(xservice, plexconn, htt
 def test_plex_polls_every_two_seconds(source, store, signer, provider, http, clock, plexconn):
     slept = []
     built = OAuthService(
-        source=source, store=store, signer=signer, client=ProviderClient(provider, http=http), clock=clock,
-        sleep=slept.append, poll_in_background=False, plex_client_identifier=lambda: "test-install-id",
+        source=source,
+        store=store,
+        signer=signer,
+        client=ProviderClient(provider, http=http),
+        clock=clock,
+        sleep=slept.append,
+        poll_in_background=False,
+        plex_client_identifier=lambda: "test-install-id",
     )
     http.reply(PIN)
     built.start(plexconn)
@@ -1520,3 +1551,101 @@ def test_the_install_client_identifier_is_created_once_and_private(tmp_path):
     path = tmp_path / ".oauth_client_identifier"
     assert path.read_text() == first
     assert stat.S_IMODE(path.stat().st_mode) == 0o600
+
+
+# ── A plugin reports the provider rejected its token ────────────────────────
+
+from src.oauth.service import FORCED_REFRESH_COOLDOWN_SECONDS  # noqa: E402
+
+
+def test_a_rejected_token_is_force_refreshed_and_the_new_one_returned(service, source, store, provider):
+    source.add("music", RELAY_BLOCK)
+    _connected(store)  # fresh by expiry, but the provider says no
+    provider.reply({"access_token": "access-2", "expires_in": 3600})
+
+    assert service.report_rejected("music") == "access-2"
+
+    assert provider.calls[0][1]["grant_type"] == "refresh_token"
+    assert store.get("music").access_token == "access-2"
+    assert service.get_connection("music").status == "connected"
+
+
+def test_a_refused_forced_refresh_needs_reconnecting(service, source, store, provider):
+    source.add("music", RELAY_BLOCK)
+    _connected(store)
+    provider.reply({"error": "invalid_grant"}, status=400)
+
+    assert service.report_rejected("music") is None
+
+    status = service.get_connection("music")
+    assert (status.status, status.status_reason) == ("reauthorization_required", "refresh_refused")
+    assert service.get_access_token("music") is None
+
+
+def test_a_rejected_token_without_a_refresh_token_needs_reconnecting(service, source, store, provider):
+    source.add("music", RELAY_BLOCK)
+    _connected(store, refresh_token="")
+
+    assert service.report_rejected("music") is None
+
+    assert provider.calls == []
+    status = service.get_connection("music")
+    assert (status.status, status.status_reason) == ("reauthorization_required", "rejected")
+    assert service.get_access_token("music") is None
+
+
+def test_forced_refreshes_are_at_most_one_a_minute(service, source, store, provider, clock):
+    source.add("music", RELAY_BLOCK)
+    _connected(store)
+    provider.reply({"access_token": "access-2", "expires_in": 3600, "refresh_token": "refresh-2"})
+    assert service.report_rejected("music") == "access-2"
+
+    clock.now += FORCED_REFRESH_COOLDOWN_SECONDS - 1
+    assert service.report_rejected("music") is None
+
+    assert len(provider.calls) == 1
+    status = service.get_connection("music")
+    assert (status.status, status.status_reason) == ("reauthorization_required", "rejected")
+
+
+def test_after_the_cooldown_a_forced_refresh_is_tried_again(service, source, store, provider, clock):
+    source.add("music", RELAY_BLOCK)
+    _connected(store)
+    provider.reply({"access_token": "access-2", "expires_in": 3600})
+    service.report_rejected("music")
+    clock.now += FORCED_REFRESH_COOLDOWN_SECONDS
+    provider.reply({"access_token": "access-3", "expires_in": 3600})
+    assert service.report_rejected("music") == "access-3"
+
+
+def test_an_unreachable_provider_on_forced_refresh_keeps_the_connection(service, source, store, provider):
+    source.add("music", RELAY_BLOCK)
+    _connected(store)
+    provider.fail(ProviderError("down"))
+    assert service.report_rejected("music") is None
+    assert service.get_connection("music").status == "connected"
+
+
+def test_reporting_for_a_connection_with_no_tokens_does_nothing(service, source, store):
+    source.add("music", RELAY_BLOCK)
+    assert service.report_rejected("music") is None
+    assert store.get("music") is None
+
+
+def test_reconnecting_clears_the_rejected_reason(service, source, store, provider):
+    source.add("music", RELAY_BLOCK)
+    _connected(store, refresh_token="")
+    service.report_rejected("music")
+    state = _relay_state(service)
+    provider.reply(TOKENS)
+    service.complete_authorization(state=state, code="c-1", error=None)
+    status = service.get_connection("music")
+    assert (status.status, status.status_reason) == ("connected", "")
+
+
+def test_report_rejected_for_maps_the_plugin_object(service, source, store):
+    plugin = source.add("music", RELAY_BLOCK)
+    _connected(store, refresh_token="")
+    assert service.report_rejected_for(plugin) is None
+    assert service.get_connection("music").status_reason == "rejected"
+    assert service.report_rejected_for(object()) is None

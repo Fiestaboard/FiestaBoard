@@ -49,6 +49,7 @@ from .errors import (
     ProviderError,
     TokenEndpointError,
 )
+from .paste import parse_pasted
 from .provider import (
     CLIENT_ID_FLOWS,
     FLOW_DEVICE,
@@ -59,7 +60,6 @@ from .provider import (
     OAuthProvider,
     parse_provider_block,
 )
-from .paste import parse_pasted
 from .state import STATE_TTL_SECONDS, StatePayload, StateSigner, load_state_key
 from .tokens import TokenSet, TokenStore
 
@@ -81,6 +81,14 @@ SLOW_DOWN_SECONDS = 5
 #: Started-but-unfinished relay flows kept at once. A person starts one at a
 #: time; the cap only bounds memory if something keeps starting them.
 MAX_PENDING_AUTHORIZATIONS = 50
+
+#: A plugin that reports its token rejected gets at most one forced refresh
+#: per connection in this window; a second report inside it means the fresh
+#: token was refused too, and only the user can fix that.
+FORCED_REFRESH_COOLDOWN_SECONDS = 60
+
+REAUTH_REFRESH_REFUSED = "refresh_refused"
+REAUTH_REJECTED = "rejected"
 
 #: Refresh failures that mean the grant is gone and only the user can fix it.
 _REAUTHORIZE_ERRORS = frozenset({"invalid_grant", "invalid_client", "unauthorized_client"})
@@ -276,6 +284,8 @@ class ConnectionStatus:
     expires_at: float | None
     connected_at: float | None
     device: DeviceStatus | None
+    #: Why reconnecting is needed (``refresh_refused`` or ``rejected``), else "".
+    status_reason: str = ""
 
 
 @dataclass(frozen=True)
@@ -387,13 +397,12 @@ class OAuthService:
         self._sleep = sleep
         self._redirect_uri = redirect_uri
         self._poll_in_background = poll_in_background
-        self._plex_client_identifier = plex_client_identifier or (
-            lambda: plex.load_client_identifier(get_data_dir())
-        )
+        self._plex_client_identifier = plex_client_identifier or (lambda: plex.load_client_identifier(get_data_dir()))
         self._lock = threading.RLock()
         self._pending: dict[str, _PendingAuthorization] = {}
         self._device: dict[str, _DeviceFlow] = {}
         self._refresh_locks: dict[str, threading.Lock] = {}
+        self._forced_refresh_at: dict[str, float] = {}
 
     # ── reads ───────────────────────────────────────────────────────────
 
@@ -439,6 +448,7 @@ class OAuthService:
             expires_at=tokens.expires_at if tokens else None,
             connected_at=tokens.obtained_at if tokens else None,
             device=device,
+            status_reason=tokens.reauth_reason if status == STATUS_REAUTHORIZE else "",
         )
 
     def list_connections(self) -> list[ConnectionStatus]:
@@ -867,6 +877,7 @@ class OAuthService:
         """Drop every trace of a connection. Safe for ids that no longer exist."""
         with self._lock:
             self._device.pop(connection_id, None)
+            self._forced_refresh_at.pop(connection_id, None)
             for nonce in [n for n, p in self._pending.items() if p.connection_id == connection_id]:
                 del self._pending[nonce]
         return self._store.delete(connection_id)
@@ -906,9 +917,7 @@ class OAuthService:
         if not tokens.refresh_token:
             return self._still_valid(tokens)
 
-        with self._lock:
-            refresh_lock = self._refresh_locks.setdefault(connection_id, threading.Lock())
-        with refresh_lock:
+        with self._refresh_lock(connection_id):
             # Another thread may have refreshed while this one waited.
             tokens = self._store.get(connection_id)
             if tokens is None or tokens.needs_reauthorization:
@@ -917,16 +926,32 @@ class OAuthService:
                 return tokens.access_token
             return self._refresh(connection_id, tokens)
 
+    def _refresh_lock(self, connection_id: str) -> threading.Lock:
+        with self._lock:
+            return self._refresh_locks.setdefault(connection_id, threading.Lock())
+
     def _refresh(self, connection_id: str, tokens: TokenSet) -> str | None:
+        outcome, new_token = self._try_refresh(connection_id, tokens)
+        if outcome == _REFRESHED:
+            return new_token
+        if outcome == _REFRESH_REFUSED:
+            return None
+        return self._still_valid(tokens)
+
+    def _try_refresh(self, connection_id: str, tokens: TokenSet) -> tuple[str, str | None]:
+        """Refresh *tokens* once: ``(outcome, new access token or None)``.
+
+        A refusal marks the connection for reconnecting before returning.
+        """
         target = self._source.get(connection_id)
         client_id = tokens.client_id or (target.client_id if target else "")
-        if target is None or not client_id:
-            return self._still_valid(tokens)
+        if target is None or not client_id or not tokens.refresh_token:
+            return _REFRESH_UNAVAILABLE, None
         try:
             token_url = target.endpoints().token_url
         except ConnectionNotConfigured as exc:
             logger.warning("OAuth refresh for %s skipped: %s", connection_id, exc)
-            return self._still_valid(tokens)
+            return _REFRESH_UNAVAILABLE, None
         try:
             response = self._client.refresh(
                 token_url,
@@ -938,19 +963,67 @@ class OAuthService:
         except TokenEndpointError as exc:
             if exc.error in _REAUTHORIZE_ERRORS:
                 logger.warning("OAuth refresh for %s was refused (%s); reconnect required", connection_id, exc.error)
-                self._store.put(connection_id, replace(tokens, needs_reauthorization=True))
-                return None
+                self._store.put(
+                    connection_id,
+                    replace(tokens, needs_reauthorization=True, reauth_reason=REAUTH_REFRESH_REFUSED),
+                )
+                return _REFRESH_REFUSED, None
             logger.error("OAuth refresh for %s failed: %s", connection_id, exc.error)
-            return self._still_valid(tokens)
+            return _REFRESH_FAILED, None
         except ProviderError as exc:
             logger.warning("OAuth refresh for %s failed, will retry: %s", connection_id, exc)
-            return self._still_valid(tokens)
-        return self._store_tokens(connection_id, response, tokens.scopes, previous=tokens).access_token
+            return _REFRESH_FAILED, None
+        return _REFRESHED, self._store_tokens(connection_id, response, tokens.scopes, previous=tokens).access_token
+
+    # ── a plugin reports its token was rejected ─────────────────────────
+
+    def report_rejected(self, connection_id: str) -> str | None:
+        """The provider refused *connection_id*'s access token; try once to recover.
+
+        With a refresh token and no forced refresh in the last
+        :data:`FORCED_REFRESH_COOLDOWN_SECONDS`, refresh now and return the new
+        token: the caller may retry its request once with it. Otherwise mark
+        the connection for reconnecting (``status_reason`` ``rejected``) and
+        return ``None``. A provider that cannot be reached returns ``None``
+        and leaves the connection as it is.
+        """
+        with self._refresh_lock(connection_id):
+            tokens = self._store.get(connection_id)
+            if tokens is None or tokens.needs_reauthorization:
+                return None
+            now = self._clock()
+            with self._lock:
+                last = self._forced_refresh_at.get(connection_id)
+                cooled_down = last is None or now - last >= FORCED_REFRESH_COOLDOWN_SECONDS
+                if tokens.refresh_token and cooled_down:
+                    self._forced_refresh_at[connection_id] = now
+            if tokens.refresh_token and cooled_down:
+                outcome, new_token = self._try_refresh(connection_id, tokens)
+                if outcome == _REFRESHED:
+                    logger.info("OAuth token for %s was rejected; refreshed it", connection_id)
+                    return new_token
+                if outcome in (_REFRESH_REFUSED, _REFRESH_FAILED):
+                    return None
+            logger.warning("OAuth token for %s was rejected by the provider; reconnect required", connection_id)
+            self._store.put(connection_id, replace(tokens, needs_reauthorization=True, reauth_reason=REAUTH_REJECTED))
+        self._source.invalidate(connection_id)
+        return None
+
+    def report_rejected_for(self, plugin: object) -> str | None:
+        """:meth:`report_rejected` for the given plugin object."""
+        connection_id = self._source.id_for(plugin)
+        return self.report_rejected(connection_id) if connection_id else None
 
     def access_token_for(self, plugin: object) -> str | None:
         """A usable access token for the given plugin object, or ``None``."""
         connection_id = self._source.id_for(plugin)
         return self.get_access_token(connection_id) if connection_id else None
+
+
+_REFRESHED = "refreshed"
+_REFRESH_REFUSED = "refused"
+_REFRESH_FAILED = "failed"
+_REFRESH_UNAVAILABLE = "unavailable"
 
 
 # ── Singleton ───────────────────────────────────────────────────────────────

@@ -613,9 +613,32 @@ def test_authorize_passes_headless_through(client, registry):
     registry.add(
         "openrouter",
         "OpenRouter",
-        {"flows": ["key_exchange"], "authorization_url": "https://or.example.com/auth",
-         "token_url": "https://or.example.com/api/v1/auth/keys"},
+        {
+            "flows": ["key_exchange"],
+            "authorization_url": "https://or.example.com/auth",
+            "token_url": "https://or.example.com/api/v1/auth/keys",
+        },
     )
     body = client.post("/oauth/connections/openrouter/authorize", json={"headless": True}).json()
     assert body["flow"] == "key_exchange"
     assert body["paste_expected"] is True
+
+
+def test_report_oauth_rejected_on_a_plugin_marks_that_instance_for_reconnecting(client, service, registry):
+    from src.plugins.base import PluginBase, PluginResult
+
+    class Music(PluginBase):
+        @property
+        def plugin_id(self):
+            return "music"
+
+        def fetch_data(self):
+            return PluginResult(available=True)
+
+    plugin = Music({"id": "music"})
+    registry.plugins["music"] = plugin
+    service._store.put("music", TokenSet(access_token="access-1"))
+
+    assert plugin.report_oauth_rejected() is None
+    body = client.get("/oauth/connections/music").json()
+    assert (body["status"], body["status_reason"]) == ("reauthorization_required", "rejected")

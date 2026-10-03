@@ -865,6 +865,21 @@ class PluginBase(ABC):
 
         return get_oauth_service().access_token_for(self)
 
+    def report_oauth_rejected(self) -> str | None:
+        """Tell the platform the provider refused the token from :meth:`get_oauth_token`.
+
+        Call it when the provider answers 401 (or its equivalent). The platform
+        refreshes the token once if it can and returns the new one: retry the
+        request once with it. ``None`` means the user has to sign in again
+        (the settings say so); return ``PluginResult(available=False, ...)``.
+
+        Added in FiestaBoard 9.9.0. A plugin that must also run on older cores
+        guards the call with ``getattr(self, "report_oauth_rejected", None)``.
+        """
+        from src.oauth.service import get_oauth_service
+
+        return get_oauth_service().report_rejected_for(self)
+
 
 # Defaults for transition plugin manifest's transition_settings block.
 DEFAULT_TRANSITION_INTERRUPTIBLE = True
