@@ -11,7 +11,18 @@ export interface ActionResponse {
 export type PageType = "single" | "composite" | "template";
 
 // Device types
-export type DeviceType = "flagship" | "note" | "note_array";
+/**
+ * Board hardware families. `"panel"` is a FiestaPanel (a virtual board on a
+ * TV) fit per character: an explicit `grid_rows` × `grid_cols` grid of any
+ * size within the MIN/MAX_GRID_* bounds, not a multiple of a Note.
+ */
+export type DeviceType = "flagship" | "note" | "note_array" | "panel";
+
+/** A panel's explicit character grid (`grid_rows` × `grid_cols` on the wire). */
+export interface GridSize {
+  rows: number;
+  cols: number;
+}
 
 /**
  * Which glyph a board's character-code-62 flap physically carries (issue #1657).

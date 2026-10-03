@@ -8,7 +8,7 @@ must fail with the right code.
 
 import pytest
 
-from src.devices import BoardContext
+from src.devices import NOTE_COLS, NOTE_ROWS, BoardContext
 from src.plugins.base import PluginBase, PluginResult
 from src.plugins.geometry_conformance import (
     GROWTH_LADDER,
@@ -18,6 +18,7 @@ from src.plugins.geometry_conformance import (
     check_manifest,
     check_unbound_board,
     note_array,
+    panel,
     run_conformance,
 )
 
@@ -256,6 +257,31 @@ class TestGeometryMatrix:
     def test_note_array_helper_matches_platform_geometry(self):
         assert note_array(2, 4) == BoardContext("note_array", rows=12, cols=30)
         assert note_array(8, 8) == BoardContext("note_array", rows=24, cols=120)
+
+    def test_matrix_covers_panel_grids_that_are_not_note_multiples(self):
+        """Panels are fit per character, so plugins must not assume Note multiples."""
+        panels = [g for g in STANDARD_GEOMETRIES if g.board.device_type == "panel"]
+        assert any(g.cols % NOTE_COLS for g in panels), "a width that is not a multiple of 15"
+        assert any(g.rows % NOTE_ROWS for g in panels), "a height that is not a multiple of 3"
+
+    def test_matrix_covers_a_portrait_panel(self):
+        assert any(g.board.device_type == "panel" and g.rows > g.cols for g in STANDARD_GEOMETRIES)
+
+    def test_matrix_panel_grids_are_real_autofit_results(self):
+        """Every panel geometry is what some TV actually fits to — not a made-up size."""
+        from src.panels.autofit import compute_autofit_grid
+
+        fits = {
+            tuple(compute_autofit_grid(d, aw, ah))
+            for d in range(3, 201)
+            for aw, ah in ((16, 9), (9, 16), (21, 9), (4, 3))
+        }
+        for g in STANDARD_GEOMETRIES:
+            if g.board.device_type == "panel":
+                assert (g.rows, g.cols) in fits, g.label
+
+    def test_panel_helper_builds_a_panel_context(self):
+        assert panel(12, 29) == BoardContext("panel", rows=12, cols=29)
 
 
 class TestManifestChecks:

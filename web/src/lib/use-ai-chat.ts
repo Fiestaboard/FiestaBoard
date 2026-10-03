@@ -47,7 +47,7 @@ import type {
   UpdatePageArgs,
   WireMessage,
 } from "./ai-chat-types";
-import { api, ApiError, type ConversationUpsert, type DeviceType, type SavedConversation } from "./api";
+import { api, ApiError, type ConversationUpsert, type DeviceType, type GridSize, type SavedConversation } from "./api";
 import { streamChat } from "./api-stream";
 
 /** Where the live conversation's id is remembered between page loads. */
@@ -314,6 +314,7 @@ export function useAiChat(opts: UseAiChatOptions): UseAiChatResult {
                 phase: "running",
                 appliedSnapshot: computeAppliedSnapshot(call, runningSnapshot),
                 deviceType: deviceTypeForCall(call, ctx.deviceType),
+                previewGrid: gridForCall(call),
               };
               if (display.appliedSnapshot) runningSnapshot = display.appliedSnapshot;
               patch((m) => ({ ...m, toolCalls: [...(m.toolCalls ?? []), display] }));
@@ -826,6 +827,16 @@ function deviceTypeForCall(call: ToolCall, fallback: DeviceType): DeviceType {
     if (typeof requested === "string") return requested;
   }
   return fallback;
+}
+
+/** The panel grid a create_page / update_page call sizes its page to, if any. */
+function gridForCall(call: ToolCall): GridSize | undefined {
+  if (call.name !== "create_page" && call.name !== "update_page") return undefined;
+  const args = call.args as unknown as { grid_rows?: number | null; grid_cols?: number | null };
+  if (typeof args.grid_rows === "number" && typeof args.grid_cols === "number") {
+    return { rows: args.grid_rows, cols: args.grid_cols };
+  }
+  return undefined;
 }
 
 /**

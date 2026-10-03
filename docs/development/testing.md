@@ -1,5 +1,5 @@
 ---
-sidebar_position: 3
+sidebar_position: 4
 description: "Run and write tests for FiestaBoard using pytest for Python and Vitest for TypeScript/React components."
 keywords: [FiestaBoard testing, pytest, Vitest, unit tests, integration tests, test guide, Python tests, TypeScript tests]
 ---

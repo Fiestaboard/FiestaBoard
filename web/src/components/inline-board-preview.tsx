@@ -6,11 +6,13 @@ import { useQuery } from "@tanstack/react-query";
 import { ScaledBoardDisplay } from "@/components/scaled-board-display";
 import { useTranslations } from "@/i18n/translations";
 import type { CurrentPageSnapshot } from "@/lib/ai-chat-types";
-import { api, type DeviceType } from "@/lib/api";
+import { api, type DeviceType, type GridSize } from "@/lib/api";
 
 export interface InlineBoardPreviewProps {
   snapshot: CurrentPageSnapshot;
   deviceType: DeviceType;
+  /** A panel page's character grid (only used when deviceType === "panel"). */
+  grid?: GridSize | null;
   /** Default `"sm"` keeps the tile grid small + fixed-size (no responsive
    *  scaling) so it sits comfortably inside a chat tool-call card. */
   size?: "sm" | "md";
@@ -41,11 +43,20 @@ export interface InlineBoardPreviewProps {
  * TanStack Query caches by template+metadata+deviceType, so identical
  * snapshots dedupe across multiple tool calls in the same session.
  */
-export function InlineBoardPreview({ snapshot, deviceType, size = "sm", className }: InlineBoardPreviewProps) {
+export function InlineBoardPreview({ snapshot, deviceType, grid, size = "sm", className }: InlineBoardPreviewProps) {
   const t = useTranslations("aiChatPanel");
+  const panelGrid = deviceType === "panel" ? (grid ?? null) : null;
   const { data, isLoading, isError } = useQuery({
-    queryKey: ["inline-preview-render", deviceType, snapshot.template, snapshot.line_metadata],
-    queryFn: () => api.renderTemplate(snapshot.template, snapshot.line_metadata, deviceType),
+    queryKey: [
+      "inline-preview-render",
+      deviceType,
+      panelGrid?.rows,
+      panelGrid?.cols,
+      snapshot.template,
+      snapshot.line_metadata,
+    ],
+    queryFn: () =>
+      api.renderTemplate(snapshot.template, snapshot.line_metadata, deviceType, undefined, undefined, panelGrid),
     // Renders are deterministic for a given input — keep them
     // around so quickly switching tool-call cards is instant.
     staleTime: 5 * 60 * 1000,
@@ -72,6 +83,8 @@ export function InlineBoardPreview({ snapshot, deviceType, size = "sm", classNam
       <ScaledBoardDisplay
         message={isLoading ? null : (data?.rendered ?? "")}
         deviceType={deviceType}
+        gridRows={panelGrid?.rows}
+        gridCols={panelGrid?.cols}
         size={size}
         boardType="black"
         isStatic

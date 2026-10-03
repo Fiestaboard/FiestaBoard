@@ -39,7 +39,12 @@ function panel(id: string, name: string, notesWide: number, notesTall: number) {
   };
 }
 
-function servePanels(...panels: ReturnType<typeof panel>[]) {
+/** A per-character `panel` board (notes_* are null for those). */
+function gridPanel(id: string, name: string, rows: number, cols: number) {
+  return { ...panel(id, name, 1, 1), device_type: "panel", rows, cols, notes_wide: null, notes_tall: null };
+}
+
+function servePanels(...panels: (ReturnType<typeof panel> | ReturnType<typeof gridPanel>)[]) {
   server.use(http.get(`${API_BASE}/panels`, () => HttpResponse.json({ panels, total: panels.length })));
 }
 
@@ -77,6 +82,12 @@ describe("PanelFitNote", () => {
     servePanels(panel("p1", "Kitchen TV", 2, 4), panel("p2", "Hallway TV", 2, 4), panel("p3", "Office TV", 2, 4));
     render(<PanelFitNote deviceType="note_array" notesWide={2} notesTall={4} />, { wrapper: Wrapper });
     expect(await screen.findByText("Fits Kitchen TV +2 more")).toBeInTheDocument();
+  });
+
+  it("names the panel board a panel page's grid matches", async () => {
+    servePanels(gridPanel("p1", "Living Room TV", 12, 29));
+    render(<PanelFitNote deviceType="panel" gridRows={12} gridCols={29} />, { wrapper: Wrapper });
+    expect(await screen.findByText("Fits Living Room TV")).toBeInTheDocument();
   });
 
   it("renders nothing on an install with no panels", async () => {

@@ -10,7 +10,7 @@ A transition plugin where each column "spins" through random characters like a s
 
 Slot Machine is a transition plugin -- it doesn't display its own content. When the active page changes, each column of the board spins through a sequence of random tile codes (mimicking a flap reel cycling) and then locks on the target. The stagger setting controls how much later each column starts locking than the previous one, producing a left-to-right cascade.
 
-This plugin plays to the unique nature of the Vestaboard's split-flap mechanism: where the built-in strategies like Wave or Edges to Center simply *move* the final state into place, Slot Machine animates the *flaps themselves* as if the board were a row of mechanical reels. Those built-in strategies are Local API features; Slot Machine is drawn frame by frame by FiestaBoard and sent as ordinary board updates, so it runs on any board connection.
+This plugin plays to the unique nature of split-flap displays: where the built-in strategies like Wave or Edges to Center simply *move* the final state into place, Slot Machine animates the *flaps themselves* as if the board were a row of mechanical reels. Those built-in strategies are Local API features; Slot Machine is drawn frame by frame by FiestaBoard and sent as ordinary board updates, so it runs on any board connection.
 
 ## Template Variables
 

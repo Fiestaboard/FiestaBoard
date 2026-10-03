@@ -214,6 +214,14 @@ jobs:
                  confuse the two — this was the cause of closed PRs #999
                  and #1001. If the diff renames Vestaboard → FiestaBoard
                  (or vice versa) anywhere, flag it loudly.
+               - **No claims about Vestaboard internals.** FiestaBoard is
+                 not Vestaboard, Inc. Docs describe what FiestaBoard does
+                 through Vestaboard's official APIs, never how the board
+                 is built or powered (chips, Raspberry Pi, motors, LEDs,
+                 flap timing, firmware). Flag any sentence that could be
+                 read as FiestaBoard or a Pi powering, controlling the
+                 internals of, or speaking for Vestaboard. Link to
+                 docs.vestaboard.com for hardware questions instead.
             4. Save edge nits for last; lead with substantive findings.
 
             ## Output — post a review with applicable `suggestion` blocks

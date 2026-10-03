@@ -46,7 +46,7 @@ from collections.abc import Callable
 
 from .board_guards import _board_is_paused  # noqa: F401  (re-export: pre-move patch target)
 from .board_guards import primary_board_entry as _primary_board_entry  # noqa: F401  (same)
-from .devices import resolve_dimensions
+from .devices import dimensions_of, resolve_dimensions
 from .main import DisplayService
 from .settings.service import get_settings_service
 
@@ -310,16 +310,7 @@ def _get_first_board_dims():
         board_settings = settings_service.get_board_settings()
         boards = getattr(board_settings, "boards", None) or []
         if boards:
-            first = boards[0]
-            if isinstance(first, dict):
-                dt = first.get("device_type", "flagship")
-                nw = first.get("notes_wide", 1)
-                nt = first.get("notes_tall", 1)
-            else:
-                dt = getattr(first, "device_type", "flagship")
-                nw = getattr(first, "notes_wide", 1)
-                nt = getattr(first, "notes_tall", 1)
-            return resolve_dimensions(dt, notes_wide=nw, notes_tall=nt)
+            return dimensions_of(boards[0])
     except Exception as exc:
         logger.debug("Could not resolve board dims (using flagship default): %s", exc)
     return resolve_dimensions("flagship")

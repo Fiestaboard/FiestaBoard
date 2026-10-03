@@ -113,6 +113,24 @@ describe("PanelView", () => {
     expect(await screen.findByText("No panel is set as the display output")).toBeInTheDocument();
   });
 
+  it("draws a panel board at its per-character grid", async () => {
+    // A 55" TV fits 12 × 29 characters — not a whole number of Notes.
+    mockPanel({ ...CONFIG, device_type: "panel", rows: 12, cols: 29, notes_wide: null, notes_tall: null });
+    render(<PanelView panelId="p1" />, { wrapper: Wrapper });
+    await screen.findByRole("img");
+    expect(screen.getByTestId("char-tile-11-28")).toBeInTheDocument();
+    expect(screen.queryByTestId("char-tile-12-0")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("char-tile-0-29")).not.toBeInTheDocument();
+  });
+
+  it("still draws a legacy note-array panel at its Note grid", async () => {
+    mockPanel();
+    render(<PanelView panelId="p1" />, { wrapper: Wrapper });
+    await screen.findByRole("img");
+    expect(screen.getByTestId("char-tile-5-29")).toBeInTheDocument();
+    expect(screen.queryByTestId("char-tile-6-0")).not.toBeInTheDocument();
+  });
+
   it("reports the orphaned-board state", async () => {
     mockPanel({ ...CONFIG, board_missing: true, device_type: null, rows: null, cols: null });
     render(<PanelView panelId="p1" />, { wrapper: Wrapper });

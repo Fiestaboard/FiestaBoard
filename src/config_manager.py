@@ -243,7 +243,11 @@ CURRENT_SCHEMA_VERSION = 2
 #
 # Semantics:
 #   * An env var wins over the stored value while it is set.
-#   * Placeholder values (``your_api_key_here`` etc.) are ignored.
+#   * Placeholder values (``your_api_key_here`` etc.) are ignored, and so are
+#     the sample values env.example used to ship (#2108, see
+#     ``ENV_EXAMPLE_SHIPPED_VALUES``).
+#   * Overriding a different saved value logs one WARNING per variable (not
+#     per read — the overlay is recomputed on every read).
 #   * Unparseable numeric/JSON values are ignored with a warning.
 #   * The overlay only augments plugins that already have a stored config
 #     entry — it never conjures a config for an uninstalled plugin.
@@ -310,6 +314,99 @@ ENV_PLUGIN_OVERRIDES: dict[str, tuple[str, str, Any]] = {
     "STOCKS_REFRESH_SECONDS": ("stocks", "refresh_seconds", int),
     "STOCKS_SYMBOLS": ("stocks", "symbols", _env_csv),
 }
+
+# The plugin sample values env.example shipped up to v9.10.0, verbatim: the
+# right-hand side of each line, inline comment included (#2108).
+#
+# Those lines were live, so ``cp env.example .env`` set every one of them, and
+# since #1761 each silently replaced the matching setting saved in the UI
+# (Home Assistant pointed at 192.168.1.100, the weather at San Francisco, ...).
+# env.example now ships them commented out, but .env files copied before that
+# still carry them, so a value equal to its shipped sample is treated like a
+# ``your_*_here`` placeholder and ignored.
+#
+# This is a frozen historical record, not derived from env.example: the file
+# no longer sets these, and the point is to recognise what OLD copies contain.
+# ``*_API_KEY`` placeholders are omitted — ``_is_placeholder`` covers them.
+#
+# The ``*_REFRESH_SECONDS`` / ``HOME_ASSISTANT_TIMEOUT`` samples are included
+# on purpose. They equal each plugin's own default, so ignoring them changes
+# nothing for an install that never touched the setting, while honouring them
+# would overwrite an interval the user chose in the UI. The cost is that
+# someone who deliberately sets, say, ``STOCKS_REFRESH_SECONDS=300`` to force
+# the default back has to do it in the UI instead; the ignore is logged once.
+ENV_EXAMPLE_SHIPPED_VALUES: dict[str, str] = {
+    "WEATHER_PROVIDER": "weatherapi  # Options: weatherapi, openweathermap",
+    "WEATHER_LOCATION": "San Francisco, CA",
+    "GUEST_WIFI_SSID": "GuestNetwork",
+    "GUEST_WIFI_PASSWORD": "YourPasswordHere",
+    "GUEST_WIFI_REFRESH_SECONDS": "60",
+    "HOME_ASSISTANT_BASE_URL": "http://192.168.1.100:8123",
+    "HOME_ASSISTANT_ENTITIES": (
+        '[{"entity_id": "binary_sensor.front_door", "name": "Front Door"}, '
+        '{"entity_id": "cover.garage_door", "name": "Garage"}]'
+    ),
+    "HOME_ASSISTANT_TIMEOUT": "5",
+    "HOME_ASSISTANT_REFRESH_SECONDS": "30",
+    "STAR_TREK_QUOTES_RATIO": "3:5:9",
+    "MUNI_REFRESH_SECONDS": "60",
+    "TRAFFIC_REFRESH_SECONDS": "300",
+    "BAYWHEELS_REFRESH_SECONDS": "60",
+    "SURF_LATITUDE": "37.7599  # Ocean Beach, SF (default)",
+    "SURF_LONGITUDE": "-122.5121  # Ocean Beach, SF (default)",
+    "SURF_REFRESH_SECONDS": "600  # 10 minutes",
+    # Empty value followed by a comment: Compose passes the comment text
+    # itself through as the value.
+    "PURPLEAIR_SENSOR_ID": "  # Optional: specific sensor ID",
+    "AIR_FOG_LATITUDE": "37.7749  # San Francisco (default)",
+    "AIR_FOG_LONGITUDE": "-122.4194  # San Francisco (default)",
+    "AIR_FOG_REFRESH_SECONDS": "300  # 5 minutes",
+    "STOCKS_SYMBOLS": 'GOOG  # Comma-separated list of stock symbols (max 5, e.g., "GOOG,AAPL,MSFT,TSLA,NVDA")',
+    "STOCKS_TIME_WINDOW": (
+        '1 Day  # Options: "1 Day", "5 Days", "1 Month", "3 Months", "6 Months", "1 Year", "2 Years", "5 Years", "ALL"'
+    ),
+    "STOCKS_REFRESH_SECONDS": "300  # How often to fetch stock data (default: 5 minutes)",
+}
+
+
+def _is_shipped_example_value(env_var: str, raw: str, parse: Any) -> bool:
+    """True if *raw* is the sample value env.example shipped for *env_var*.
+
+    Recognises the line as each loader delivers it: with the inline comment
+    dropped (Compose ``env_file``, python-dotenv), verbatim with the comment
+    (``docker run --env-file``), or — for an empty value followed by a
+    comment — the comment text itself. Values are also compared after
+    parsing, so ``37.77490`` or re-spaced entity JSON still match.
+    """
+    shipped = ENV_EXAMPLE_SHIPPED_VALUES.get(env_var)
+    if shipped is None:
+        return False
+    value = shipped.split(" #", 1)[0].strip()
+    if raw in (shipped.strip(), value):
+        return True
+    if not value:
+        return False
+    try:
+        return bool(parse(raw) == parse(value))
+    except (ValueError, json.JSONDecodeError):
+        return False
+
+
+# What has already been logged about the overlay, so a message appears once
+# per variable instead of on every config read. Keyed on the inputs that
+# make the message true (variable, its value and, for overrides, the saved
+# value it beats), so changing any of them logs again.
+_warned_env_overrides: set[tuple[str, ...]] = set()
+_warned_env_overrides_lock = threading.Lock()
+
+
+def _log_once(key: tuple[str, ...], level: int, message: str, *args: Any) -> None:
+    with _warned_env_overrides_lock:
+        if key in _warned_env_overrides:
+            return
+        _warned_env_overrides.add(key)
+    logger.log(level, message, *args)
+
 
 # Default configuration schema
 
@@ -1355,6 +1452,60 @@ class ConfigManager:
         color_rules = feature.get("color_rules", {})
         return color_rules.get(field_name, [])
 
+    @staticmethod
+    def _clean_color_rules(rules: Any) -> dict[str, list]:
+        """Usable rules from a stored ``color_rules`` block, keyed by lowercased field.
+
+        ``color_rules`` isn't shape-validated on save (API, MCP), and the engine
+        lowercases the field it looks up, so drop anything it can't evaluate
+        rather than let one bad value fail the whole render.
+        """
+        if not isinstance(rules, dict):
+            return {}
+        cleaned: dict[str, list] = {}
+        for field, field_rules in rules.items():
+            if not isinstance(field_rules, list):
+                continue
+            usable = [
+                dict(rule)
+                for rule in field_rules
+                if isinstance(rule, dict)
+                and isinstance(rule.get("color", ""), str)
+                and isinstance(rule.get("condition", "=="), str)
+            ]
+            if usable:
+                cleaned[str(field).lower()] = usable
+        return cleaned
+
+    def get_instance_color_rules(self, plugin_id: str) -> dict[str, list]:
+        """Rules saved for one plugin instance by the web UI's Dynamic Colors editor.
+
+        Reads only ``color_rules`` (no full-config copy, no env overlay, which
+        never carries rules): this runs for every colored variable on every render.
+        """
+        with self._file_lock:
+            rules = self._config.get("plugins", {}).get(plugin_id, {}).get("color_rules")
+            return self._clean_color_rules(rules)
+
+    def get_legacy_color_rules(self, base_plugin_id: str) -> dict[str, list]:
+        """Rules kept under the legacy ``features.<id>.color_rules`` block."""
+        with self._file_lock:
+            feature = self._config.get("features", {}).get(base_plugin_id)
+            return self._clean_color_rules(feature.get("color_rules") if isinstance(feature, dict) else None)
+
+    def get_effective_color_rules(
+        self,
+        plugin_id: str,
+        base_plugin_id: str,
+        field_name: str,
+        instance_rules: dict[str, list] | None = None,
+    ) -> list:
+        """The instance's rules for a field, else the legacy per-feature rules."""
+        if instance_rules is None:
+            instance_rules = self.get_instance_color_rules(plugin_id)
+        field = field_name.lower()
+        return instance_rules.get(field) or self.get_legacy_color_rules(base_plugin_id).get(field, [])
+
     def validate(self) -> tuple[bool, list[str]]:
         """Validate the current configuration.
 
@@ -1681,11 +1832,52 @@ class ConfigManager:
             if ConfigManager._is_placeholder(raw):
                 logger.debug(f"Ignoring placeholder value for {env_var}")
                 continue
+            if _is_shipped_example_value(env_var, raw, parse):
+                _log_once(
+                    ("example", env_var, raw),
+                    logging.INFO,
+                    "Ignoring %s: it is the sample value from env.example, not a setting. "
+                    "Remove it from .env, or set the value in the UI.",
+                    env_var,
+                )
+                continue
             try:
                 overrides[key] = parse(raw)
             except (ValueError, json.JSONDecodeError):
                 logger.warning(f"Invalid {env_var} value: {raw!r} — ignoring override")
         return overrides
+
+    @staticmethod
+    def _apply_plugin_env_overlay(plugin_id: str, config: dict[str, Any]) -> None:
+        """Layer the env overlay onto *config* in place, warning on overrides.
+
+        A variable that replaces a different value saved in the UI is the
+        #2108 trap — the UI shows one value while the plugin runs on another
+        — so it is logged as a WARNING, once per variable and saved value
+        (this runs on every read). Only names are logged, never values: the
+        key may be a secret.
+        """
+        overrides = ConfigManager._plugin_env_overrides(plugin_id)
+        for key, value in overrides.items():
+            if key not in config or config[key] == value:
+                continue
+            env_var = next(
+                var
+                for var, (target, target_key, _p) in ENV_PLUGIN_OVERRIDES.items()
+                if target == plugin_id and target_key == key
+            )
+            saved = json.dumps(config[key], sort_keys=True, default=str)
+            _log_once(
+                ("override", env_var, os.getenv(env_var, ""), saved),
+                logging.WARNING,
+                "%s is set in the environment and overrides the '%s' setting saved for plugin '%s'. "
+                "The saved value is ignored while the variable is set; remove it from .env and "
+                "recreate the container to use the value from the UI.",
+                env_var,
+                key,
+                plugin_id,
+            )
+        config.update(overrides)
 
     @staticmethod
     def get_plugin_env_overrides(plugin_id: str) -> dict[str, Any]:
@@ -1722,7 +1914,7 @@ class ConfigManager:
                 return None
             config = self._deep_copy(plugins[plugin_id])
         if include_env_overrides:
-            config.update(self._plugin_env_overrides(plugin_id))
+            self._apply_plugin_env_overlay(plugin_id, config)
         return config
 
     def set_plugin_config(self, plugin_id: str, config: dict[str, Any]) -> bool:
@@ -1834,7 +2026,7 @@ class ConfigManager:
         if include_env_overrides:
             for plugin_id, config in configs.items():
                 if isinstance(config, dict):
-                    config.update(self._plugin_env_overrides(plugin_id))
+                    self._apply_plugin_env_overlay(plugin_id, config)
         return configs
 
     def get_all_plugin_configs_masked(self) -> dict[str, dict[str, Any]]:

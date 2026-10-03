@@ -108,6 +108,24 @@ describe("stripInertMarkup", () => {
     expect(out).toContain('data-online="yes"');
     expect(out).toContain('aria-orientation="vertical"');
   });
+
+  it("bakes a recorded scroll offset into the scrolled element's children", () => {
+    // Serialised markup has no scroll position, so a calendar scrolled to 6am
+    // re-rendered at midnight on the docs site — a frame of empty night.
+    const out = stripInertMarkup(
+      parse(`<div data-capture-scroll="0,168"><div class="gutter">g</div><div class="day">d</div></div>`),
+    );
+
+    expect(out).not.toContain("data-capture-scroll");
+    expect(out).toContain('<div class="gutter" style="translate: 0px -168px;">g</div>');
+    expect(out).toContain('<div class="day" style="translate: 0px -168px;">d</div>');
+  });
+
+  it("keeps a child's own inline styles when baking a scroll offset", () => {
+    const out = stripInertMarkup(parse(`<div data-capture-scroll="12,0"><div style="color: red;">x</div></div>`));
+
+    expect(out).toContain('style="color: red; translate: -12px 0px;"');
+  });
 });
 
 describe("normaliseVolatileIds", () => {

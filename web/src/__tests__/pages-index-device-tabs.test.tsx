@@ -45,7 +45,7 @@ function renderPage() {
   );
 }
 
-type TestDevice = "flagship" | "note" | "note_array";
+type TestDevice = "flagship" | "note" | "note_array" | "panel";
 
 function mockBoardSettings(devices: TestDevice[]) {
   server.use(
@@ -59,7 +59,9 @@ function mockBoardSettings(devices: TestDevice[]) {
   );
 }
 
-function mockPages(pages: { id: string; name: string; device_type: TestDevice }[]) {
+function mockPages(
+  pages: { id: string; name: string; device_type: TestDevice; grid_rows?: number; grid_cols?: number }[],
+) {
   server.use(
     http.get(`${API_BASE}/v1/pages`, () =>
       HttpResponse.json({
@@ -158,6 +160,23 @@ describe("PagesPage device-type tabs", () => {
     await waitFor(() => expect(screen.getByRole("tab", { name: "Note Array" })).toBeInTheDocument());
     await user.click(screen.getByRole("tab", { name: "Note Array" }));
     await waitFor(() => expect(screen.getByText("Note Array Page")).toBeInTheDocument());
+  });
+
+  // FiestaPanel pages are their own device type ("panel", fit per character),
+  // so they need their own tab or they would be filtered out of every tab.
+  it("clicking the Panel tab reveals a panel page", async () => {
+    const user = userEvent.setup();
+    mockBoardSettings(["flagship"]);
+    mockPages([
+      { id: "p1", name: "My Flagship", device_type: "flagship" },
+      { id: "p2", name: "Living Room Panel Page", device_type: "panel", grid_rows: 12, grid_cols: 29 },
+    ]);
+
+    renderPage();
+
+    await waitFor(() => expect(screen.getByRole("tab", { name: "Panel" })).toBeInTheDocument());
+    await user.click(screen.getByRole("tab", { name: "Panel" }));
+    await waitFor(() => expect(screen.getByText("Living Room Panel Page")).toBeInTheDocument());
   });
 
   it("clicking the orphan flagship tab reveals the orphan page", async () => {

@@ -278,7 +278,9 @@ import { toast } from "sonner";
 
 import {
   asJSONSchema,
+  findOAuthConnection,
   OAUTH_CONNECTIONS_QUERY_KEY,
+  oauthAppFieldKeys,
   OAuthConnectionSection,
   oauthReturnErrorKey,
   readOAuthReturn,
@@ -1103,6 +1105,40 @@ function InstalledPluginRow({
     setConfigValues({ ...defaults, ...(pluginDetails.config ?? {}) });
   }
 
+  // A plugin whose users bring their own OAuth app has its Client ID (and
+  // secret) fields inside the Account connection panel's guided setup, not in
+  // the general settings form. Same query key as the panel, so one request.
+  const { data: oauthConnections } = useQuery({
+    queryKey: OAUTH_CONNECTIONS_QUERY_KEY,
+    queryFn: api.listOAuthConnections,
+    enabled: isConfigOpen,
+  });
+  const oauthFieldKeys = useMemo(
+    () => oauthAppFieldKeys(findOAuthConnection(oauthConnections?.connections, plugin.id)),
+    [oauthConnections, plugin.id],
+  );
+  const formSchema = useMemo(() => {
+    if (oauthFieldKeys.length === 0) return settingsSchema;
+    const properties = Object.fromEntries(
+      Object.entries(settingsSchema.properties).filter(([key]) => !oauthFieldKeys.includes(key)),
+    );
+    return { ...settingsSchema, properties };
+  }, [settingsSchema, oauthFieldKeys]);
+
+  // The guided setup's sign-in button saves first, so the Client ID just
+  // typed is the one the sign-in uses. Unlike Save Changes it keeps the sheet
+  // open and lets the caller report a failure.
+  const saveConfigForSignIn = async () => {
+    await api.updatePluginConfig(plugin.id, configValues);
+    onConfigUpdate();
+    queryClient.invalidateQueries({ queryKey: ["plugin", plugin.id] });
+    queryClient.invalidateQueries({ queryKey: OAUTH_CONNECTIONS_QUERY_KEY });
+  };
+  const repositoryUrl = plugin.source?.repository_url?.replace(/\.git$/, "");
+  const setupGuideUrl = repositoryUrl?.startsWith("https://github.com/")
+    ? `${repositoryUrl}/blob/HEAD/docs/SETUP.md`
+    : undefined;
+
   const handleSaveConfig = async () => {
     setIsSaving(true);
     try {
@@ -1364,16 +1400,24 @@ function InstalledPluginRow({
               )}
 
               {/* Renders nothing unless the plugin's manifest declares OAuth. */}
-              <OAuthConnectionSection pluginId={plugin.id} />
+              <OAuthConnectionSection
+                pluginId={plugin.id}
+                appFields={{
+                  values: configValues,
+                  onChange: (key, value) => setConfigValues((current) => ({ ...current, [key]: value })),
+                  save: saveConfigForSignIn,
+                  setupGuideUrl,
+                }}
+              />
 
               {/* Settings Section */}
-              {Object.keys(settingsSchema.properties).length > 0 && (
+              {Object.keys(formSchema.properties).length > 0 && (
                 <Stack gap="4">
                   <Heading level={4} size="sm" className="font-medium text-muted-foreground">
                     {t("settingsSection")}
                   </Heading>
                   <SchemaForm
-                    schema={settingsSchema}
+                    schema={formSchema}
                     values={configValues}
                     onChange={setConfigValues}
                     disabled={isSaving}

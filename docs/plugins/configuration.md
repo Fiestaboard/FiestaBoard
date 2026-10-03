@@ -20,6 +20,8 @@ The web UI is the recommended way to manage plugins:
 
 :::tip
 The Integrations page shows setup instructions for each plugin that needs an API key. You don't need to look anything up separately.
+
+Some plugins sign in to an online account instead of using an API key. Their settings have an **Account connection** section with a sign-in button. See [Connecting Accounts](/docs/features/connecting-accounts).
 :::
 
 <AppShot name="integrations-full" alt="Full Integrations page with plugin list and settings" />

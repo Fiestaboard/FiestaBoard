@@ -71,7 +71,7 @@ from src.board_guards import raise_if_throttled as _raise_if_throttled
 from src.board_send_executor import run_board_send
 from src.board_state import BoardReadError, read_board_state, read_board_state_live
 from src.config_manager import get_config_manager
-from src.devices import resolve_dimensions
+from src.devices import DEFAULT_DEVICE_TYPE, Geometry, geometry_of, resolve_dimensions
 from src.send_outcome import SendOutcome
 from src.text_to_board import text_to_board_array
 
@@ -97,26 +97,16 @@ def _raise_if_silenced(board_id: str | None = None) -> None:
         raise HTTPException(status_code=409, detail=SILENCE_DETAIL)
 
 
-def _primary_geometry(settings_service):
-    """Grid size of the active (first) board, defaulting to a flagship."""
-    device_type = "flagship"
-    notes_wide = 1
-    notes_tall = 1
+def _primary_geometry(settings_service) -> Geometry:
+    """Grid geometry of the active (first) board, defaulting to a flagship."""
     board_settings = settings_service.get_board_settings()
     boards = getattr(board_settings, "boards", None) or []
-    if boards:
-        first = boards[0]
-        if isinstance(first, dict):
-            device_type = first.get("device_type", "flagship")
-            notes_wide = first.get("notes_wide", 1)
-            notes_tall = first.get("notes_tall", 1)
-        else:
-            device_type = getattr(first, "device_type", "flagship")
-            notes_wide = getattr(first, "notes_wide", 1)
-            notes_tall = getattr(first, "notes_tall", 1)
-    if device_type not in ("flagship", "note", "note_array"):
-        device_type = "flagship"
-    return device_type, notes_wide, notes_tall
+    geometry = geometry_of(boards[0]) if boards else Geometry(DEFAULT_DEVICE_TYPE)
+    try:
+        resolve_dimensions(*geometry)
+    except ValueError:
+        return Geometry(DEFAULT_DEVICE_TYPE)
+    return geometry
 
 
 # ---------------------------------------------------------------------------
@@ -245,8 +235,7 @@ async def send_message(request: MessageRequest):
     if board is not None:
         dims = _board_dims(board)
     else:
-        device_type, notes_wide, notes_tall = _primary_geometry(settings_service)
-        dims = resolve_dimensions(device_type, notes_wide, notes_tall)
+        dims = resolve_dimensions(*_primary_geometry(settings_service))
     # Word-wrap/convert/render is the shared message core (#1765): the
     # MCP send_message executor calls the same function, so the two
     # surfaces cannot render a message differently. See
@@ -335,15 +324,23 @@ async def send_welcome_message():
     # (defaults to flagship 6×22). Note arrays use notes_wide/notes_tall
     # to compute the actual grid size.
     try:
-        device_type, notes_wide, notes_tall = _primary_geometry(settings_service)
+        geometry = _primary_geometry(settings_service)
     except Exception as exc:  # pragma: no cover - defensive
         logger.debug("Could not determine device type for welcome message: %s", exc)
-        device_type, notes_wide, notes_tall = "flagship", 1, 1
+        geometry = Geometry(DEFAULT_DEVICE_TYPE)
+    device_type = geometry.device_type
 
-    welcome_template = build_welcome_template(device_type, custom_msg, notes_wide=notes_wide, notes_tall=notes_tall)
+    welcome_template = build_welcome_template(
+        device_type,
+        custom_msg,
+        notes_wide=geometry.notes_wide,
+        notes_tall=geometry.notes_tall,
+        grid_rows=geometry.grid_rows,
+        grid_cols=geometry.grid_cols,
+    )
 
     # Convert template to board array sized for the target device
-    dims = resolve_dimensions(device_type, notes_wide=notes_wide, notes_tall=notes_tall)
+    dims = resolve_dimensions(*geometry)
     board_array = text_to_board_array("\n".join(welcome_template), rows=dims.rows, cols=dims.cols)
 
     try:

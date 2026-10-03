@@ -53,6 +53,7 @@ from .models import (
     PanelUpdate,
     PanelUpdateResponse,
 )
+from .reconcile import board_matches_grid, fit_board_to_grid
 from .service import get_panel_service
 
 logger = logging.getLogger(__name__)
@@ -71,10 +72,12 @@ def _panel_not_found_detail(ref: str) -> str:
 def _panel_board_fields(board: dict | None) -> dict:
     """Board-derived fields attached to panel payloads (orphan-aware).
 
-    Reports the grid twice — in flaps (``rows``/``cols``, which the TV viewer
-    scales from) and in Notes (``notes_wide``/``notes_tall``, which is what a
-    page authored for this panel needs. Both come from the same resolved
-    dimensions so they cannot drift apart.
+    ``rows``/``cols`` are the grid in flaps — what the TV viewer scales from
+    and what a page authored for this panel is sized to (a ``panel`` page
+    with ``grid_rows``/``grid_cols`` equal to them). ``notes_wide``/
+    ``notes_tall`` count the grid in Notes and are only non-null for a
+    note-array board: a panel is fit per character, so it is generally not a
+    whole number of Notes.
     """
     if board is None:
         return {
@@ -114,8 +117,9 @@ async def list_panels():
 async def create_panel(data: PanelCreate):
     """Create a panel and its backing auto-fit virtual board.
 
-    The board's grid (note-array blocks) is computed from the TV size so
-    each flap renders at real-world scale while filling the screen. The
+    The board's grid (a ``panel``: rows × cols of characters) is computed
+    from the TV size so each flap renders at real-world scale while filling
+    the screen. The
     virtual board is added first; if panel creation then fails the board
     is rolled back so no orphan is left behind.
     """
@@ -123,16 +127,14 @@ async def create_panel(data: PanelCreate):
 
     settings_service = get_settings_service()
     board_id = str(uuid.uuid4())
-    notes_wide, notes_tall = compute_autofit_grid(
-        data.screen_diagonal_inches, data.screen_aspect_w, data.screen_aspect_h
-    )
+    grid = compute_autofit_grid(data.screen_diagonal_inches, data.screen_aspect_w, data.screen_aspect_h)
     settings_service.add_board(
         {
             "id": board_id,
-            "device_type": "note_array",
+            "device_type": "panel",
             "api_mode": "virtual",
-            "notes_wide": notes_wide,
-            "notes_tall": notes_tall,
+            "grid_rows": grid.rows,
+            "grid_cols": grid.cols,
             "name": f"{data.name} (Panel)",
         }
     )
@@ -173,15 +175,9 @@ async def update_panel(panel_id: str, data: PanelUpdate):
         boards = [dict(b) for b in (settings_service.get_board_settings().boards or [])]
         target = next((b for b in boards if b.get("id") == panel.board_id), None)
         if target is not None and target.get("api_mode") == "virtual":
-            notes_wide, notes_tall = compute_autofit_grid(
-                panel.screen_diagonal_inches, panel.screen_aspect_w, panel.screen_aspect_h
-            )
-            if (target.get("notes_wide"), target.get("notes_tall")) != (notes_wide, notes_tall) or target.get(
-                "device_type"
-            ) != "note_array":
-                target["device_type"] = "note_array"
-                target["notes_wide"] = notes_wide
-                target["notes_tall"] = notes_tall
+            grid = compute_autofit_grid(panel.screen_diagonal_inches, panel.screen_aspect_w, panel.screen_aspect_h)
+            if not board_matches_grid(target, grid):
+                fit_board_to_grid(target, grid)
                 settings_service.set_boards(boards)
                 # Drop the old-shape frame BEFORE rebuilding the client.
                 # Every reader now goes through read_board_state, which

@@ -107,6 +107,10 @@ export const mockCurrentDisplay: CurrentDisplayResponse = {
   page_name: "Weather Page",
   page_type: "single",
   device_type: "flagship",
+  notes_wide: 1,
+  notes_tall: 1,
+  grid_rows: null,
+  grid_cols: null,
   template: ["72°F Sunny", "Humidity 45%", "", "", "", ""],
   line_metadata: null,
 };
@@ -1240,7 +1244,7 @@ export const handlers = [
   http.get(`${API_BASE}/oauth/connections`, () => {
     return HttpResponse.json({
       connections: [],
-      redirect_uri: "https://fiestaboard.app/auth/oauth/redirect.html",
+      redirect_uri: "https://fiestaboard.app/auth/oauth/redirect",
     });
   }),
 

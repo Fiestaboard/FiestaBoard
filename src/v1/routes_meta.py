@@ -13,7 +13,7 @@ from __future__ import annotations
 from fastapi import HTTPException, Query
 
 from src.api_errors import errors
-from src.devices import DeviceType
+from src.devices import HardwareDeviceType, geometry_of
 from src.plugins import routes as plugins_routes
 from src.service_api import routes as service_routes
 from src.service_api.models import HealthResponse, StatusResponse
@@ -97,7 +97,7 @@ async def render_template(
         default=None,
         description="Board id, or 'primary', whose geometry the template should be laid out for.",
     ),
-    device_type: DeviceType | None = Query(
+    device_type: HardwareDeviceType | None = Query(
         default=None,
         description=(
             "Board shape to lay the template out for, as an alternative to naming a board. Use this to preview "
@@ -114,14 +114,25 @@ async def render_template(
             status_code=400,
             detail="Send either board or device_type, not both — they can disagree about the geometry.",
         )
-    resolved: str | None = device_type
+    # device_type is a hardware shape (a panel has no implied size, so a
+    # panel is previewed through its board).
+    geometry = {"device_type": device_type}
     if board is not None:
-        resolved = resolve_board(board)[1].get("device_type") or "flagship"
+        # The board's whole geometry, not just its family: a note array or a
+        # panel previewed from its type alone rendered at the family default.
+        g = geometry_of(resolve_board(board)[1])
+        geometry = {
+            "device_type": g.device_type,
+            "notes_wide": g.notes_wide,
+            "notes_tall": g.notes_tall,
+            "grid_rows": g.grid_rows,
+            "grid_cols": g.grid_cols,
+        }
     return await templates_routes.render_template(
         TemplateRenderRequest(
             template=request.template,
-            device_type=resolved,
             line_metadata=request.line_metadata,
+            **geometry,
         )
     )
 

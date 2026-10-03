@@ -294,6 +294,9 @@ class TestTemporaryOverride:
             "device_type": None,
             "notes_wide": None,
             "notes_tall": None,
+            # Added with the "panel" device type (an explicit per-character grid).
+            "grid_rows": None,
+            "grid_cols": None,
         }
 
     def test_post_422s_when_neither_page_id_nor_template_is_supplied(self, client):

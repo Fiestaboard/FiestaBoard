@@ -2,6 +2,15 @@
 export const NOTE_ROWS = 3;
 export const NOTE_COLS = 15;
 export const MAX_NOTES_PER_AXIS = 8;
+/**
+ * Panel grid bounds (mirror src/devices.py). A "panel" (FiestaPanel, a virtual
+ * board on a TV) is sized per character, so its grid is any rows × cols in
+ * this range — never smaller than one Note.
+ */
+export const MIN_GRID_ROWS = NOTE_ROWS;
+export const MIN_GRID_COLS = NOTE_COLS;
+export const MAX_GRID_ROWS = 96;
+export const MAX_GRID_COLS = 128;
 /** Board display names are capped at storage time by BoardInstance.__post_init__. */
 export const MAX_BOARD_NAME_LENGTH = 64;
 
@@ -55,26 +64,64 @@ export function isNoteArray(deviceType: string): boolean {
 }
 
 /**
+ * Return true if device_type is "panel" (an explicit rows × cols grid).
+ * Mirrors Python is_panel().
+ */
+export function isPanel(deviceType: string): boolean {
+  return deviceType === "panel";
+}
+
+function clampAxis(value: number | null | undefined, min: number, max: number): number {
+  if (typeof value !== "number" || !Number.isFinite(value)) return min;
+  return Math.max(min, Math.min(max, Math.trunc(value)));
+}
+
+/**
+ * Dimensions of a panel grid, each axis clamped into [MIN_GRID_*, MAX_GRID_*].
+ * A missing axis resolves to its minimum (matching `@fiestaboard/ui`), where
+ * Python's panel_dimensions() raises — the UI must always draw something.
+ */
+export function panelDimensions(gridRows?: number | null, gridCols?: number | null): BoardDimensions {
+  return {
+    rows: clampAxis(gridRows, MIN_GRID_ROWS, MAX_GRID_ROWS),
+    cols: clampAxis(gridCols, MIN_GRID_COLS, MAX_GRID_COLS),
+  };
+}
+
+/**
  * Resolve board dimensions for any device type.
  *
- * - "flagship" | "note"  → looks up DEVICE_DIMENSIONS (w/h ignored)
+ * - "flagship" | "note"  → looks up DEVICE_DIMENSIONS (other args ignored)
  * - "note_array"         → computes from notes_wide × notes_tall
+ * - "panel"              → grid_rows × grid_cols, clamped (see panelDimensions)
  * - unknown              → falls back to flagship (matches Python board_html_renderer.py)
  *
  * Mirrors Python resolve_dimensions(), except unknown device types fall back
- * to flagship (matching board_html_renderer.py) rather than raising.
+ * to flagship (matching board_html_renderer.py) and a panel without a grid
+ * resolves to the minimum grid, rather than raising.
  *
- * @param deviceType  "flagship" | "note" | "note_array"
+ * @param deviceType  "flagship" | "note" | "note_array" | "panel"
  * @param notes_wide  Number of notes wide (only used for "note_array"; default 1)
  * @param notes_tall  Number of notes tall (only used for "note_array"; default 1)
+ * @param grid_rows   Rows of characters (only used for "panel")
+ * @param grid_cols   Columns of characters (only used for "panel")
  * @returns           { rows, cols }
  */
-export function resolveDimensions(deviceType: string, notes_wide = 1, notes_tall = 1): BoardDimensions {
+export function resolveDimensions(
+  deviceType: string,
+  notes_wide = 1,
+  notes_tall = 1,
+  grid_rows?: number | null,
+  grid_cols?: number | null,
+): BoardDimensions {
   if (deviceType in DEVICE_DIMENSIONS) {
     return DEVICE_DIMENSIONS[deviceType];
   }
   if (deviceType === "note_array") {
     return noteArrayDimensions(notes_wide, notes_tall);
+  }
+  if (deviceType === "panel") {
+    return panelDimensions(grid_rows, grid_cols);
   }
   // Unknown: fall back to flagship (matches Python fallback in board_html_renderer.py)
   return DEVICE_DIMENSIONS.flagship;
@@ -145,31 +192,68 @@ export interface SizedEntity {
   device_type?: string | null;
   notes_wide?: number | null;
   notes_tall?: number | null;
+  /** Panel only: rows × cols of characters. */
+  grid_rows?: number | null;
+  grid_cols?: number | null;
 }
 
 /**
  * Canonical family + resolved-size key for page<->board compatibility.
  * Mirrors Python size_key(): e.g. "flagship:6x22", "note:3x15",
- * "note_array:6x30" (a 2×2 note grid). The device family is part of the key
- * on purpose — a Note page is NOT compatible with a 1×1 note array even
- * though both resolve to 3×15. Unknown device types fall back to flagship
- * (family AND dimensions), matching the Python fallback.
+ * "note_array:6x30" (a 2×2 note grid), "panel:12x29". The device family is
+ * part of the key on purpose — a Note page is NOT compatible with a 1×1 note
+ * array even though both resolve to 3×15. Unknown device types fall back to
+ * flagship (family AND dimensions), matching the Python fallback.
+ *
+ * A panel with no grid has no size at all, so it gets a key no real board
+ * has ("panel:unsized") — it must neither match a real panel nor, as the
+ * Python fallback would make it, a flagship.
  */
-export function sizeKey(deviceType: string, notesWide = 1, notesTall = 1): string {
+export function sizeKey(
+  deviceType: string,
+  notesWide = 1,
+  notesTall = 1,
+  gridRows?: number | null,
+  gridCols?: number | null,
+): string {
+  if (isPanel(deviceType)) {
+    if (typeof gridRows !== "number" || typeof gridCols !== "number") return "panel:unsized";
+    const { rows, cols } = panelDimensions(gridRows, gridCols);
+    return `panel:${rows}x${cols}`;
+  }
   const family = deviceType in DEVICE_DIMENSIONS || isNoteArray(deviceType) ? deviceType : "flagship";
   const { rows, cols } = resolveDimensions(family, notesWide, notesTall);
   return `${family}:${rows}x${cols}`;
 }
 
+/** sizeKey() of a page/board/raw dict (missing geometry → a flagship). */
+export function sizeKeyOf(entity: SizedEntity): string {
+  return sizeKey(
+    entity.device_type || "flagship",
+    entity.notes_wide || 1,
+    entity.notes_tall || 1,
+    entity.grid_rows,
+    entity.grid_cols,
+  );
+}
+
+/** Resolved rows × cols of a page/board/raw dict (missing geometry → a flagship). */
+export function dimensionsOf(entity: SizedEntity): BoardDimensions {
+  return resolveDimensions(
+    entity.device_type || "flagship",
+    entity.notes_wide || 1,
+    entity.notes_tall || 1,
+    entity.grid_rows,
+    entity.grid_cols,
+  );
+}
+
 /**
  * True when a page renders 1:1 on a board: EXACT sizeKey() match.
  * Mirrors Python pages_compatible_with_board(). Family-aware: flagship ≠ note
- * even at identical dimensions, and note arrays must match the resolved W×H
- * grid exactly.
+ * even at identical dimensions, and note arrays and panels must match the
+ * resolved grid exactly.
  */
 export function pagesCompatibleWithBoard(page: SizedEntity, board: SizedEntity): boolean {
-  return (
-    sizeKey(page.device_type || "flagship", page.notes_wide || 1, page.notes_tall || 1) ===
-    sizeKey(board.device_type || "flagship", board.notes_wide || 1, board.notes_tall || 1)
-  );
+  return sizeKeyOf(page) === sizeKeyOf(board);
 }

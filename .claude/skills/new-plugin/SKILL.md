@@ -103,7 +103,9 @@ OAuth through the platform. For OAuth, declare an `oauth` block in the manifest 
 `self.get_oauth_token()`; the platform runs the device flow or the redirect flow (through the
 shared relay at fiestaboard.app) and keeps the tokens. Never hand-roll an OAuth flow in a
 plugin, and never put a client secret in a manifest. The auth section of
-`references/design-guidance.md` covers the patterns.
+`references/design-guidance.md` covers the patterns. **If the service needs a sign-in, read
+`references/oauth.md` now**: it adds two interview questions (which flow, and whose app
+signs in) and is the recipe for the manifest, code, tests, and docs.
 
 ### Step 2 — Scaffold
 
@@ -183,6 +185,10 @@ units, color tiles, graceful unavailable states) and a config a non-developer ca
   a test asserting every output string is board-safe — it's the failure mode reviewers hit.
 - Keep `plugin_id`, the manifest `id`, and the directory name identical.
 - Keep the module-level `Plugin = <Class>` export — the loader looks for it.
+- **Sign-in plugins:** follow `references/oauth.md`. The scaffold has no OAuth mode, so you
+  add the `oauth` block and swap the API-key read for `self.get_oauth_token()` by hand. Call
+  it on every fetch, store nothing, and when it returns `None` return an unavailable result
+  without making a request.
 
 Then make the tests *real*: for `http` plugins, mock `requests.get` with a realistic
 payload from the actual API and assert on the parsed values (model the dad-jokes/currency
@@ -266,6 +272,8 @@ validation rules. In short:
 - The repo URL and CI status.
 - The registry PR URL.
 - That `docs/board-display.png` still needs a real render (if not yet done).
+- For a sign-in plugin: that one sign-in against the real provider is still theirs to do
+  (you tested against the mock), and anything they must set up at the provider.
 - How a release happens: bump `version` in `manifest.json`, merge to `main`, and
   `release.yml` tags `v<version>` + cuts a GitHub Release automatically.
 
@@ -280,6 +288,10 @@ validation rules. In short:
 - **Category is one of the seven** — never invent one.
 - **Never use real personal data or API keys** anywhere (code, tests, docs). Author
   attribution is the only allowed real contact info.
+- **OAuth belongs to the platform.** Declare `oauth` in the manifest and call
+  `self.get_oauth_token()`. Never write a flow, store a token, or put a client secret in a
+  manifest, code, tests, or a commit. A client ID may ship only when the user chose the
+  plugin's-own-app model.
 - **Confirm before outward actions** — `gh repo create`, `git push`, and opening the
   registry PR. Approval for one isn't approval for the next.
 - **Never commit registry changes directly to `main`.** Branch + PR.
@@ -291,12 +303,14 @@ validation rules. In short:
 - `references/pluginbase-contract.md` — every method, `PluginResult`, the board-output format.
 - `references/manifest-reference.md` — full `manifest.json` field reference.
 - `references/design-guidance.md` — **auth on a domain-less appliance**, variable design, config UX.
+- `references/oauth.md` — **plugins that sign in**: flows, whose app, manifest, code, tests, docs.
 - `references/plugin-types.md` — simple / http / art / trigger / webhook variants.
 - `references/publishing-and-registry.md` — repo creation, the registry entry schema, validation.
 - Real examples next to this repo: `../fiestaboard-plugin--dad-jokes` (simple http, **root
   layout** like the scaffold), `../fiestaboard-plugin--weather` (http + API key via password
   widget + env_var), `../fiestaboard-plugin--sun-art` (art),
-  `../fiestaboard-plugin--calendar-sub` (triggers). And `plugins/_template/` for the canonical
+  `../fiestaboard-plugin--calendar-sub` (triggers), `../fiestaboard-plugin--spotify` (OAuth
+  sign-in, rate limits, one request shared by every board). And `plugins/_template/` for the canonical
   skeleton. Note `../fiestaboard-plugin--currency` uses the alternative **nested** layout
   (`plugins/<id>/` + root shim) — fine to read for fetch logic, but don't copy its structure
   for a root-layout scaffold.

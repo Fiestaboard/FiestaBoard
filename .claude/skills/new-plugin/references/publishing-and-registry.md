@@ -64,7 +64,7 @@ these eight fields (no more, no less — every existing entry uses all eight):
 | `description` | One sentence (matches the manifest). |
 | `repository` | `https://` GitHub URL; repo name must be `fiestaboard-plugin--<slug>`. |
 | `author` | Author name. |
-| `fiestaboard_version` | semver constraint `^(>=|>|<=|<|==|!=)\s*\d+\.\d+\.\d+$`, e.g. `">=4.2.0"`. |
+| `fiestaboard_version` | semver constraint `^(>=|>|<=|<|==|!=)\s*\d+\.\d+\.\d+$`, e.g. `">=4.2.0"`. A plugin with an `oauth` block needs `">=9.5.0"`, here and in its manifest. |
 | `icon` | Lucide icon name. |
 | `category` | One of the seven categories. |
 

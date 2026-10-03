@@ -786,8 +786,12 @@ export default function SchedulePage() {
           ) : (
             /* Calendar: grows to fill remaining space in the pinned layout. The
            border is gone — the page card is the surface now — but the flex
-           sizing is unchanged, and it is still the thing that scrolls. */
-            <Box className="flex flex-col overflow-hidden sm:flex-1 sm:min-h-0">
+           sizing is unchanged, and it is still the thing that scrolls.
+           `sm:h-full` because PageSection's scroller is not a flex
+           container, so `flex-1` alone left the height unbounded: the grid
+           grew to all 24 hours and the whole card scrolled, taking the day
+           headers with it, instead of the hours scrolling under them. */
+            <Box className="flex flex-col overflow-hidden sm:flex-1 sm:min-h-0 sm:h-full">
               <CardTitle size="base" className="flex-shrink-0 pb-3 hidden sm:block">
                 {t("scheduleCalendar")}
               </CardTitle>

@@ -46,7 +46,7 @@ import { useDepsChanged } from "@/hooks/use-deps-changed";
 import { useRouter } from "@/hooks/use-router";
 import { useTranslations } from "@/i18n/translations";
 import { anchorProps } from "@/lib/ai-choreography/anchors";
-import type { DeviceType, TransitionPreviewResponse } from "@/lib/api";
+import type { DeviceType, GridSize, TransitionPreviewResponse } from "@/lib/api";
 import { api } from "@/lib/api";
 
 const NOTE_COUNTS = [1, 2, 3, 4, 5, 6, 7, 8];
@@ -61,6 +61,10 @@ export default function TransitionsLabPage() {
   const [deviceType, setDeviceType] = useState<DeviceType>("flagship");
   const [notesWide, setNotesWide] = useState(2);
   const [notesTall, setNotesTall] = useState(1);
+  // A FiestaPanel page's character grid. Panels are fit per character, so
+  // there is no generic "panel" size to pick: the panel option is offered
+  // only when the target page is a panel page, at that page's grid.
+  const [panelGrid, setPanelGrid] = useState<GridSize | null>(null);
   const [configJson, setConfigJson] = useState<string>("{}");
   const [preview, setPreview] = useState<TransitionPreviewResponse | null>(null);
   const [previewError, setPreviewError] = useState<string | null>(null);
@@ -140,6 +144,11 @@ export default function TransitionsLabPage() {
       setNotesWide(toPage.notes_wide ?? 1);
       setNotesTall(toPage.notes_tall ?? 1);
     }
+    setPanelGrid(
+      toPage.device_type === "panel" && toPage.grid_rows && toPage.grid_cols
+        ? { rows: toPage.grid_rows, cols: toPage.grid_cols }
+        : null,
+    );
   }
 
   const stopPlayback = useCallback(() => {
@@ -218,6 +227,7 @@ export default function TransitionsLabPage() {
         to_text: toMessage,
         device_type: deviceType,
         ...(deviceType === "note_array" ? { notes_wide: notesWide, notes_tall: notesTall } : {}),
+        ...(deviceType === "panel" && panelGrid ? { grid_rows: panelGrid.rows, grid_cols: panelGrid.cols } : {}),
         config: parsedConfig,
       });
       setPreview(result);
@@ -226,7 +236,18 @@ export default function TransitionsLabPage() {
     } finally {
       setPreviewing(false);
     }
-  }, [configJson, deviceType, fromPageId, notesTall, notesWide, selectedPluginId, stopPlayback, t, toPageId]);
+  }, [
+    configJson,
+    deviceType,
+    fromPageId,
+    notesTall,
+    notesWide,
+    panelGrid,
+    selectedPluginId,
+    stopPlayback,
+    t,
+    toPageId,
+  ]);
 
   // Run the transition on the real board: the backend snaps the board to
   // the from-page, drives the plugin toward the to-page, and leaves the
@@ -363,6 +384,11 @@ export default function TransitionsLabPage() {
                   <SelectItem value="flagship">{t("deviceFlagship")}</SelectItem>
                   <SelectItem value="note">{t("deviceNote")}</SelectItem>
                   <SelectItem value="note_array">{t("deviceNoteArray")}</SelectItem>
+                  {panelGrid && (
+                    <SelectItem value="panel">
+                      {t("devicePanel", { rows: panelGrid.rows, cols: panelGrid.cols })}
+                    </SelectItem>
+                  )}
                 </SelectContent>
               </Select>
             </Stack>

@@ -105,11 +105,20 @@ const PageButtonPreview = memo(
     isLoading,
     boardType = "black",
     deviceType = "flagship",
+    notesWide,
+    notesTall,
+    gridRows,
+    gridCols,
   }: {
     preview: PagePreviewResponse | null;
     isLoading: boolean;
     boardType?: "black" | "white" | null;
     deviceType?: DeviceType;
+    /** The page's grid: notes for a note array, characters for a panel. */
+    notesWide?: number;
+    notesTall?: number;
+    gridRows?: number;
+    gridCols?: number;
   }) {
     const t = useTranslations("pageGridSelector");
     const ref = useRef<HTMLDivElement>(null);
@@ -168,6 +177,10 @@ const PageButtonPreview = memo(
             size="sm"
             boardType={boardType ?? "black"}
             deviceType={deviceType}
+            notesWide={notesWide}
+            notesTall={notesTall}
+            gridRows={gridRows}
+            gridCols={gridCols}
           />
         ) : (
           <Box className="w-full" style={{ height: deviceType === "note" ? 90 : 168 }} />
@@ -180,7 +193,11 @@ const PageButtonPreview = memo(
       prevProps.preview === nextProps.preview &&
       prevProps.isLoading === nextProps.isLoading &&
       prevProps.boardType === nextProps.boardType &&
-      prevProps.deviceType === nextProps.deviceType
+      prevProps.deviceType === nextProps.deviceType &&
+      prevProps.notesWide === nextProps.notesWide &&
+      prevProps.notesTall === nextProps.notesTall &&
+      prevProps.gridRows === nextProps.gridRows &&
+      prevProps.gridCols === nextProps.gridCols
     );
   },
 );
@@ -249,6 +266,8 @@ const PageButton = memo(
             deviceType={page.device_type || "flagship"}
             notesWide={page.notes_wide}
             notesTall={page.notes_tall}
+            gridRows={page.grid_rows}
+            gridCols={page.grid_cols}
             className="ml-auto shrink-0"
           />
         </Flex>
@@ -259,6 +278,8 @@ const PageButton = memo(
           deviceType={page.device_type || "flagship"}
           notesWide={page.notes_wide}
           notesTall={page.notes_tall}
+          gridRows={page.grid_rows}
+          gridCols={page.grid_cols}
           className="-mt-2 block truncate"
         />
 
@@ -268,6 +289,10 @@ const PageButton = memo(
             isLoading={isLoadingPreview}
             boardType={boardType}
             deviceType={page.device_type || "flagship"}
+            notesWide={page.notes_wide}
+            notesTall={page.notes_tall}
+            gridRows={page.grid_rows ?? undefined}
+            gridCols={page.grid_cols ?? undefined}
           />
         </Box>
 
@@ -356,12 +381,16 @@ const PageListItem = memo(
           deviceType={page.device_type || "flagship"}
           notesWide={page.notes_wide}
           notesTall={page.notes_tall}
+          gridRows={page.grid_rows}
+          gridCols={page.grid_cols}
           className="shrink-0 truncate"
         />
         <BoardSizeIndicator
           deviceType={page.device_type || "flagship"}
           notesWide={page.notes_wide}
           notesTall={page.notes_tall}
+          gridRows={page.grid_rows}
+          gridCols={page.grid_cols}
           className="ml-auto shrink-0"
         />
         {formattedDate && (
@@ -497,6 +526,10 @@ const CollectionButton = memo(
                       size="sm"
                       boardType={boardType ?? "black"}
                       deviceType={deviceType}
+                      notesWide={page?.notes_wide}
+                      notesTall={page?.notes_tall}
+                      gridRows={page?.grid_rows ?? undefined}
+                      gridCols={page?.grid_cols ?? undefined}
                     />
                   </Box>
                 );

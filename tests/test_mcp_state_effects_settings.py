@@ -571,7 +571,8 @@ def test_create_panel_persists_the_panel_and_its_virtual_board(mcp, services, tw
     assert panels["total"] == 1
     listed = panels["panels"][0]
     assert (listed["id"], listed["name"], listed["screen_diagonal_inches"]) == (result["panel_id"], "Den TV", 65.0)
-    assert listed["board_missing"] is False and listed["device_type"] == "note_array"
+    assert listed["board_missing"] is False and listed["device_type"] == "panel"
+    assert (listed["rows"], listed["cols"]) == (14, 34), 'a 65" 16:9 TV fits 14 x 34 characters'
 
     board = _board(two_boards, result["board_id"])
     assert (board["api_mode"], board["name"]) == ("virtual", "Den TV (Panel)")
@@ -622,7 +623,8 @@ def test_update_panel_screen_size_refits_the_virtual_board(mcp, services, two_bo
     assert_ok(call(mcp, "update_panel", panel_id=created["panel_id"], screen_diagonal_inches=85), "update_panel")
 
     after = _board(two_boards, created["board_id"])
-    assert (after["notes_wide"], after["notes_tall"]) != (before["notes_wide"], before["notes_tall"])
+    assert (before["grid_rows"], before["grid_cols"]) == (7, 17)
+    assert (after["grid_rows"], after["grid_cols"]) == (18, 45)
 
 
 def test_update_panel_reports_an_unknown_panel(mcp, services, two_boards, runtime):
