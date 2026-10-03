@@ -134,10 +134,10 @@ class Booted:
         return self.settings.get_board_settings().boards
 
 
-def boot(label: str, data_dir: Path) -> Booted:
+def boot(label: str, data_dir: Path, root: Path = FIXTURES) -> Booted:
     from tests.conftest import _drop_all_singletons
 
-    shutil.copytree(FIXTURES / label, data_dir, dirs_exist_ok=True)
+    shutil.copytree(root / label, data_dir, dirs_exist_ok=True)
     # Nothing may have opened a store before the fixture's files were there.
     _drop_all_singletons()
     return Booted(data_dir)

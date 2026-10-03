@@ -114,7 +114,29 @@ export interface AllSettingsResponse {
   };
 }
 
+/**
+ * Mirrors `SettingsRestoreNotice` in src/settings/service.py: set when this
+ * build booted by restoring its own pre-upgrade settings snapshot over a
+ * settings.json a newer version wrote (a rollback).
+ */
+export interface SettingsRestoreNotice {
+  aside_path: string;
+  aside_file: string;
+  found_version: number;
+  restored_version: number;
+  restored_at: string;
+}
+
+/** `GET`/`DELETE /settings/restore-notice`. */
+export interface SettingsRestoreNoticeResponse {
+  notice: SettingsRestoreNotice | null;
+}
+
 export const settingsApi = {
+  // Downgrade bridge notice
+  getSettingsRestoreNotice: () => fetchApi<SettingsRestoreNoticeResponse>("/settings/restore-notice"),
+  dismissSettingsRestoreNotice: () =>
+    fetchApi<SettingsRestoreNoticeResponse>("/settings/restore-notice", { method: "DELETE" }),
   // Settings endpoints
   getTransitionSettings: () => fetchApi<TransitionSettings>("/settings/transitions"),
   updateTransitionSettings: (settings: Partial<TransitionSettings>) =>

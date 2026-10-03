@@ -66,6 +66,30 @@ Both run once per process from `src.config` and keep structural guards. If
 either collaborator is ever decoupled from `ConfigManager`, they should move
 into `MIGRATIONS` and the guards should go.
 
+### Rolling back past a settings migration (the downgrade bridge)
+
+A store stamped newer than the running build is refused (`SchemaTooNewError`)
+rather than read as the wrong format. For `settings.json` that refusal would
+make "roll back one release" mean "the board goes dark", so
+`SettingsService._run_migrations` first tries to step back: if
+`settings.json.v{CURRENT}_backup` exists — the snapshot the newer build took of
+*this* build's file before migrating it — the too-new file is copied to
+`settings.json.v{found}_aside-<UTC timestamp>`, the backup is atomically
+replaced over `settings.json`, and the backup is **deleted**. Deleting it
+matters: a newer build writes its pre-migration backup only when none exists,
+so a leftover would make the next upgrade-then-rollback restore this one's
+stale snapshot. The swap writes `settings_restore_notice.json`, which
+`GET /settings/restore-notice` serves and the web app shows as a banner naming
+the aside file until `DELETE /settings/restore-notice` dismisses it. With no
+usable backup the refusal stands, and its message says what to do.
+
+This only works one release back: a build that predates the bridge still
+refuses the newer file, so a settings migration ships at least one release
+after the bridge (output-plugins plan D8). `tests/test_settings_downgrade_bridge.py`
+pins it, and `tests/fixtures/upgrade/` (booted by `tests/test_upgrade_fixtures.py`)
+holds real-shaped data directories from past releases that must keep booting to
+the same wire.
+
 ## 3. A failed write is never swallowed
 
 A store write that fails must surface. Silent partial success — the change

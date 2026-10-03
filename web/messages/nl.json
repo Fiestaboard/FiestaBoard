@@ -2429,5 +2429,11 @@
     "settingFailed": "De instelling kon niet worden opgeslagen",
     "on": "Aan",
     "off": "Uit"
+  },
+  "settingsRestoreNotice": {
+    "title": "Instellingen van vóór de update zijn hersteld",
+    "description": "Deze versie kon de instellingen die een nieuwere FiestaBoard-versie heeft opgeslagen niet lezen en heeft daarom de kopie van vóór die update hersteld. Wijzigingen sinds de update zijn niet meegenomen; ze staan in:",
+    "dismiss": "Sluiten",
+    "dismissFailed": "Sluiten mislukt. Probeer het opnieuw."
   }
 }

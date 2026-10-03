@@ -2429,5 +2429,11 @@
     "settingFailed": "Impossibile salvare l'impostazione",
     "on": "Attivo",
     "off": "Disattivo"
+  },
+  "settingsRestoreNotice": {
+    "title": "Impostazioni ripristinate a prima dell'aggiornamento",
+    "description": "Questa versione non è riuscita a leggere le impostazioni salvate da una versione più recente di FiestaBoard, quindi ha ripristinato la copia di prima di quell'aggiornamento. Le modifiche fatte dopo l'aggiornamento non sono state riportate; sono conservate in:",
+    "dismiss": "Chiudi",
+    "dismissFailed": "Impossibile chiudere. Riprova."
   }
 }

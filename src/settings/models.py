@@ -30,7 +30,7 @@ from pydantic import BaseModel, ConfigDict, Field, StrictBool, StrictInt
 
 from src.config import SilenceMode
 from src.devices import DeviceType, HardwareDeviceType
-from src.settings.service import VALID_OUTPUT_TARGETS
+from src.settings.service import VALID_OUTPUT_TARGETS, SettingsRestoreNotice
 
 # ---------------------------------------------------------------------------
 # MQTT
@@ -283,6 +283,22 @@ class ClearTemporaryOverrideResponse(BaseModel):
     """What the cancelled override was going to revert to."""
 
     revert_mode: str | None = None
+
+
+# ---------------------------------------------------------------------------
+# Downgrade bridge notice (output-plugins plan D8)
+# ---------------------------------------------------------------------------
+
+
+class SettingsRestoreNoticeResponse(BaseModel):
+    """``GET``/``DELETE /settings/restore-notice``.
+
+    ``notice`` is set when this build booted by restoring its own pre-upgrade
+    settings snapshot over a file a newer version wrote, and stays set until
+    the user dismisses it. Null otherwise — and always null after a dismiss.
+    """
+
+    notice: SettingsRestoreNotice | None = None
 
 
 # ---------------------------------------------------------------------------
