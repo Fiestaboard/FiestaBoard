@@ -102,7 +102,7 @@ jobs:
           # An understated target is not cosmetic — installs graduate off betas
           # by version comparison (#1992), so betas numbered 9.1.0-beta.N ahead
           # of a 10.0.0 release describe the wrong thing to every beta box.
-          BETA_TARGET_OVERRIDE: ""
+          BETA_TARGET_OVERRIDE: "10.0.0"
         run: |
           set -euo pipefail
 
