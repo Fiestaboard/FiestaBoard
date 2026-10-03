@@ -119,6 +119,22 @@ cp env.example .env
 # Edit .env with your API keys
 ```
 
+### Board traffic is fenced to the mocks
+
+The dev stack sets `FIESTABOARD_OUTPUTS_ALLOW_HOSTS` to the bundled mock board
+and mock cloud (plus `localhost`), so the app refuses to send to, read from, or
+probe any other board host, even when `data/` still holds a real board's
+settings. A refused request is logged as `Refused board request to ...`, and
+Settings → Test connection says which host it skipped.
+
+To drive a real board or device from dev, add its host in `.env`:
+
+```bash
+FIESTABOARD_OUTPUTS_ALLOW_HOSTS=fiestaboard-mock-board,fiestaboard-mock-cloud,192.168.1.50
+```
+
+Set it to an empty value to allow every host. In production it is unset.
+
 ## Debugging
 
 ### View Logs

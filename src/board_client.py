@@ -25,6 +25,7 @@ from typing import Any, Literal, Optional
 
 import requests
 
+from .output_allowlist import check_output_url
 from .send_outcome import SendOutcome
 
 logger = logging.getLogger(__name__)
@@ -636,6 +637,9 @@ class BoardClient(TransitionRenderMixin):
         Worst case: SEND_MAX_ATTEMPTS * connect timeout + read timeout +
         backoff, well under the send worker's wait bound.
         """
+        # Outside the retry loop: a refused host is a decision, not a flaky
+        # connection, so it is never retried.
+        check_output_url(url)
         last_exc: requests.exceptions.RequestException | None = None
         for attempt in range(1, SEND_MAX_ATTEMPTS + 1):
             try:
@@ -884,6 +888,7 @@ class BoardClient(TransitionRenderMixin):
             else:
                 url = self.base_url
                 hdrs = self.headers
+            check_output_url(url)
             response = requests.get(url, headers=hdrs, timeout=self._request_timeout)
             response.raise_for_status()
             data = response.json()

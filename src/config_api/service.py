@@ -39,6 +39,8 @@ import requests
 
 from src.board_guards import validate_board_host, validate_board_host_is_local_network
 from src.config_manager import get_config_manager
+from src.output_allowlist import ENV_VAR as OUTPUT_ALLOW_HOSTS_ENV
+from src.output_allowlist import OutputHostBlocked, check_output_host, check_output_url
 from src.settings.service import get_settings_service
 
 from .models import BoardTestRequest, ConfigValidationResponse, EnablementTokenRequest
@@ -281,6 +283,22 @@ def _verdict_for_unexpected_status(status_code: int, api_mode: str) -> dict:
     }
 
 
+def _verdict_for_blocked_host(host: str | None) -> dict:
+    """The verdict when FIESTABOARD_OUTPUTS_ALLOW_HOSTS refused the host.
+
+    Named plainly so a developer whose dev stack fenced off a real board sees
+    why, rather than a generic "could not connect".
+    """
+    return {
+        "success": False,
+        "message": f"Not contacted: {host} is not in {OUTPUT_ALLOW_HOSTS_ENV}.",
+        "error": "Host not allowed",
+        "troubleshooting": [
+            f"Add {host} to {OUTPUT_ALLOW_HOSTS_ENV}, or unset it to allow every host.",
+        ],
+    }
+
+
 def _verdict_for_connection_error(use_cloud: bool) -> dict:
     """The verdict when no socket could be opened at all."""
     if use_cloud:
@@ -359,6 +377,7 @@ async def probe_board_connection(request: BoardTestRequest) -> dict:
 
         # Test the connection directly so we can inspect HTTP status codes
         # (read_current_message() swallows errors and returns None, losing details)
+        check_output_url(client.base_url)
         response = await asyncio.to_thread(requests.get, client.base_url, headers=client.headers, timeout=10)
 
         if response.status_code == 200:
@@ -372,6 +391,8 @@ async def probe_board_connection(request: BoardTestRequest) -> dict:
         # no probe happened: a precondition failure, not a board verdict.
         logger.warning("Board connection test failed - invalid config", exc_info=True)
         raise BoardProbeError(400, "Board connection configuration is invalid.") from e
+    except OutputHostBlocked as e:
+        return _verdict_for_blocked_host(e.host)
     except requests.exceptions.ConnectionError as e:
         logger.error(f"Board connection test error: {e}")
         return _verdict_for_connection_error(use_cloud)
@@ -448,6 +469,14 @@ async def exchange_enablement_token(request: EnablementTokenRequest) -> dict:
 
     if not request.host:
         raise BoardProbeError(400, "Board IP address is required")
+
+    # Before the SSRF block below (which must stay contiguous): the allowlist
+    # is checked against the host the user typed, not the address derived
+    # from it, so a dev allow-list of hostnames still matches.
+    try:
+        check_output_host(request.host)
+    except OutputHostBlocked as e:
+        return _verdict_for_blocked_host(e.host)
 
     if not request.enablement_token:
         raise BoardProbeError(400, "Enablement token is required")
