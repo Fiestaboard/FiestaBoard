@@ -135,13 +135,13 @@ def test_the_stable_workflow_does_not_publish_a_beta_tag():
     assert not offenders, f"release.yml publishes to the beta tag: {offenders}"
 
 
-def _compute_beta_version(tags: list[str], tmp_path, *, override: str = "", run_number: int = 7):
+def _compute_beta_version(tags: list[str], tmp_path, *, override: str = "", registry_tags: tuple[str, ...] = ()):
     """Run the workflow's own beta-version script against a synthetic tag set.
 
     The script is extracted from `release-beta.yml` rather than reimplemented,
-    so this exercises the shell that actually ships. `${{ github.run_number }}`
-    is the one Actions expression in it and is substituted; nothing else is
-    rewritten.
+    so this exercises the shell that actually ships. It contains no Actions
+    expressions; the Docker Hub listing reaches it through the
+    `REGISTRY_BETA_TAGS` env var, which *registry_tags* stands in for.
 
     Returns `(returncode, version_or_None, combined_output)`.
     """
@@ -154,7 +154,7 @@ def _compute_beta_version(tags: list[str], tmp_path, *, override: str = "", run_
             if candidate.get("id") == "version":
                 step = candidate
     assert step, "no step with id 'version' in release-beta.yml"
-    script = step["run"].replace("${{ github.run_number }}", str(run_number))
+    script = step["run"]
     assert "${{" not in script, "unsubstituted Actions expression in the beta-version script"
 
     repo = tmp_path / "repo"
@@ -179,7 +179,12 @@ def _compute_beta_version(tags: list[str], tmp_path, *, override: str = "", run_
         cwd=repo,
         capture_output=True,
         text=True,
-        env={**os.environ, "BETA_TARGET_OVERRIDE": override, "GITHUB_OUTPUT": str(out_file)},
+        env={
+            **os.environ,
+            "BETA_TARGET_OVERRIDE": override,
+            "REGISTRY_BETA_TAGS": "\n".join(registry_tags),
+            "GITHUB_OUTPUT": str(out_file),
+        },
     )
     written = out_file.read_text()
     match = re.search(r"^version=(.+)$", written, re.M)
@@ -210,7 +215,7 @@ class TestBetaTargetDerivation:
     def test_it_targets_one_minor_past_the_newest_stable_release(self, tmp_path):
         code, version, output = _compute_beta_version(["v8.39.0", "v9.0.0"], tmp_path)
         assert code == 0, output
-        assert version == "9.1.0-beta.7"
+        assert version == "9.1.0-beta.1"
 
     def test_prereleases_are_not_mistaken_for_the_release_to_aim_past(self, tmp_path):
         """A prerelease is not a shipped version, so it is not the base.
@@ -224,19 +229,19 @@ class TestBetaTargetDerivation:
         """
         code, version, output = _compute_beta_version(["v9.0.0", "v9.1.0-beta.5"], tmp_path)
         assert code == 0, output
-        assert version == "9.1.0-beta.7"
+        assert version == "9.1.0-beta.6", "the counter continues from the existing 9.1.0 beta"
 
     def test_it_follows_a_major_release_rather_than_resetting(self, tmp_path):
         code, version, output = _compute_beta_version(["v9.1.0", "v10.0.0"], tmp_path)
         assert code == 0, output
-        assert version == "10.1.0-beta.7"
+        assert version == "10.1.0-beta.1"
 
     def test_minors_compare_numerically_not_lexically(self, tmp_path):
         # A string sort puts 9.9.0 above 9.10.0 and would target 9.10.0 again,
         # publishing a beta at a version already released.
         code, version, output = _compute_beta_version(["v9.9.0", "v9.10.0"], tmp_path)
         assert code == 0, output
-        assert version == "9.11.0-beta.7"
+        assert version == "9.11.0-beta.1"
 
     def test_an_override_wins_so_a_breaking_cycle_can_say_so(self, tmp_path):
         # A derivation can only add a minor. Installs graduate off betas by
@@ -244,7 +249,7 @@ class TestBetaTargetDerivation:
         # able to number its betas 10.0.0-beta.N.
         code, version, output = _compute_beta_version(["v9.0.0", "v9.1.0"], tmp_path, override="10.0.0")
         assert code == 0, output
-        assert version == "10.0.0-beta.7"
+        assert version == "10.0.0-beta.1"
 
     def test_a_stale_override_fails_loudly_rather_than_publishing_below_a_release(self, tmp_path):
         code, version, output = _compute_beta_version(["v9.0.0", "v9.1.0"], tmp_path, override="9.0.0")
@@ -294,6 +299,50 @@ class TestBetaTargetDerivation:
         assert any(
             (c.get("with") or {}).get("fetch-tags") or (c.get("with") or {}).get("fetch-depth") == 0 for c in checkouts
         ), f"job {owner} checks out without tags, so the beta target would derive from an empty tag list"
+
+
+class TestBetaCounter:
+    """The beta number counts from 1 within each target version.
+
+    It used to be `github.run_number`, which never resets, so the first beta
+    after 9.6.1 would have been 9.7.0-beta.51. The counter is now the highest
+    number already used for that target, plus one.
+    """
+
+    def test_the_first_beta_of_a_new_target_is_beta_1(self, tmp_path):
+        code, version, output = _compute_beta_version(["v9.6.1", "v9.3.0-beta.50"], tmp_path)
+        assert code == 0, output
+        assert version == "9.7.0-beta.1"
+
+    def test_it_counts_up_from_the_last_beta_of_the_same_target(self, tmp_path):
+        code, version, output = _compute_beta_version(["v9.6.1", "v9.7.0-beta.1", "v9.7.0-beta.2"], tmp_path)
+        assert code == 0, output
+        assert version == "9.7.0-beta.3"
+
+    def test_betas_of_other_targets_do_not_advance_the_counter(self, tmp_path):
+        code, version, output = _compute_beta_version(
+            ["v9.6.1", "v9.6.0-beta.40", "v9.7.0-beta.2", "v9.17.0-beta.30"], tmp_path
+        )
+        assert code == 0, output
+        assert version == "9.7.0-beta.3"
+
+    def test_numbers_compare_numerically_not_lexically(self, tmp_path):
+        # A string sort puts beta.9 above beta.10 and would publish beta.10 twice.
+        code, version, output = _compute_beta_version(["v9.6.1", "v9.7.0-beta.9", "v9.7.0-beta.10"], tmp_path)
+        assert code == 0, output
+        assert version == "9.7.0-beta.11"
+
+    def test_a_number_already_on_docker_hub_is_not_reused(self, tmp_path):
+        """The image is pushed before its git tag is created.
+
+        A run that failed between the two left `9.7.0-beta.3` on Docker Hub
+        with no git tag. Reusing the number would overwrite that image.
+        """
+        code, version, output = _compute_beta_version(
+            ["v9.6.1", "v9.7.0-beta.2"], tmp_path, registry_tags=("beta", "9.7.0-beta.3", "9.3.0-beta.50")
+        )
+        assert code == 0, output
+        assert version == "9.7.0-beta.4"
 
 
 def test_no_job_reads_the_version_from_a_step_it_does_not_own():
