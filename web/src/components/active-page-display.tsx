@@ -86,7 +86,7 @@ export function ActivePageDisplay() {
 
   // Current board selection (issue #1247). Queries are board-scoped only in
   // multi-board installs so single-board behavior is completely unchanged.
-  const { currentBoardId, currentBoard, boards } = useCurrentBoard();
+  const { currentBoardId, currentBoard, boards, isLoading: isLoadingBoards } = useCurrentBoard();
   const isMultiBoard = boards.length > 1;
   const scopedBoardId = isMultiBoard && currentBoardId ? currentBoardId : undefined;
   // Live board polling (and Live Output) only track the primary board.
@@ -348,6 +348,12 @@ export function ActivePageDisplay() {
     // Only auto-select a page in manual mode, not in schedule mode.
     // In schedule mode, null activePageId means a gap with no default (intentional)
     if (scheduleEnabled || isLoadingActivePage || isLoadingPages || activePageId || pages.length === 0) return;
+    // Until the board list lands there is no current board to check pages
+    // against, and pages[0] would be sent with no board_id. The flag comes
+    // from the board context, not this component's own useBoardSettings():
+    // the two observers can update in different renders, and only the
+    // context's flag is in step with `currentBoard`.
+    if (isLoadingBoards) return;
     const attemptKey = scopedBoardId ?? "";
     if (autoDefaultAttemptedForRef.current === attemptKey) return;
 
@@ -371,6 +377,7 @@ export function ActivePageDisplay() {
     scheduleEnabled,
     isLoadingActivePage,
     isLoadingPages,
+    isLoadingBoards,
     activePageId,
     pages,
     currentBoard,

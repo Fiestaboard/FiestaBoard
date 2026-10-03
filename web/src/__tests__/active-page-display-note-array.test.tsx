@@ -12,7 +12,7 @@
  */
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { render, screen, waitFor } from "@testing-library/react";
-import { http, HttpResponse } from "msw";
+import { delay, http, HttpResponse } from "msw";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { ActivePageDisplay } from "@/components/active-page-display";
@@ -97,6 +97,7 @@ function usePanelBoard({
   activePageId,
   boardMessage,
   putStatus = 200,
+  boardsDelayMs = 0,
 }: {
   pages: Array<Record<string, unknown>>;
   activePageId: string | null;
@@ -104,10 +105,15 @@ function usePanelBoard({
   /** Status for PUT /settings/active-page; 400 mimics the backend refusing
    *  a page the board cannot render, which is what used to retry forever. */
   putStatus?: number;
+  /** Hold the board list back so pages and the active page load first. */
+  boardsDelayMs?: number;
 }) {
   const puts: Array<{ page_id?: string | null; board_id?: string }> = [];
   server.use(
-    http.get(`${API_BASE}/settings/board`, () => HttpResponse.json(BOARDS_WITH_PANEL)),
+    http.get(`${API_BASE}/settings/board`, async () => {
+      if (boardsDelayMs) await delay(boardsDelayMs);
+      return HttpResponse.json(BOARDS_WITH_PANEL);
+    }),
     http.get(`${API_BASE}/v1/pages`, () => HttpResponse.json({ pages, total: pages.length })),
     http.get(`${API_BASE}/settings/active-page`, () => HttpResponse.json({ page_id: activePageId })),
     http.get(`${API_BASE}/schedules/active/page`, () =>
@@ -174,6 +180,24 @@ describe("ActivePageDisplay on a panel's note-array board", () => {
     );
     expect(puts[0].page_id).toBe("panel-page");
     expect(puts[0].board_id).toBe("board-panel");
+  });
+
+  it("waits for the board list before auto-selecting a page", async () => {
+    // Pages and the active page can land before the board list. Until it
+    // does there is no current board, and the effect used to fall back to
+    // pages[0] — here the flagship Welcome page, sent with no board_id.
+    const puts = usePanelBoard({
+      pages: [FLAGSHIP_PAGE, PANEL_PAGE],
+      activePageId: null,
+      boardMessage: null,
+      boardsDelayMs: 300,
+    });
+
+    render(<ActivePageDisplay />, { wrapper: TestWrapper });
+
+    await waitFor(() => expect(puts.length).toBeGreaterThan(0), { timeout: 3000 });
+    await new Promise((resolve) => setTimeout(resolve, 300));
+    expect(puts).toEqual([{ page_id: "panel-page", board_id: "board-panel" }]);
   });
 
   it("auto-selects nothing when no page fits the board", async () => {
