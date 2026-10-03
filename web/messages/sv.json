@@ -55,7 +55,7 @@
   },
   "metadata": {
     "appTitle": "FiestaBoard-styrning",
-    "appDescription": "Kontrollcentral för din FiestaBoard-skärm"
+    "appDescription": "Kontrollcentral för din split-flap-skärm"
   },
   "navigation": {
     "home": "Hem",
@@ -1298,7 +1298,7 @@
     "boardReadIntervalLocalLabel": "Uppdatering av board-tillstånd (lokal)",
     "boardReadIntervalLocalDescription": "Hur ofta det faktiska board-tillståndet läses via det lokala nätverket (sekunder). Minimum 20.",
     "boardReadIntervalCloudLabel": "Uppdatering av board-tillstånd (moln)",
-    "boardReadIntervalCloudDescription": "Hur ofta det faktiska board-tillståndet läses via Vestaboard cloud API (sekunder). Minimum 20. Lägre värden kan påverka Vestaboards servrar.",
+    "boardReadIntervalCloudDescription": "Hur ofta det faktiska board-tillståndet läses via Vestaboard cloud API (sekunder). Minimum 20, för att hålla sig inom Vestaboards API-gränser.",
     "boardReadIntervalWarning": "Att sätta detta under 60 sekunder kan belasta Vestaboard överdrivet.",
     "toastBoardReadIntervalUpdated": "Board-läsintervall uppdaterat",
     "toastBoardReadIntervalFailed": "Kunde inte uppdatera board-läsintervall: {error}",
@@ -1551,12 +1551,12 @@
     "animationsReduceMotionOverride": "”Minska rörelse” är aktiverat, vilket åsidosätter dessa inställningar.",
     "flapSpeedLabel": "Vändhastighet",
     "flapSpeedHint": "Hur länge varje ruta visar ett tecken medan boarden landar",
-    "flapSpeed_hardware": "Hårdvara",
+    "flapSpeed_hardware": "Snabbast",
     "flapSpeed_quick": "Snabb",
     "flapSpeed_standard": "Standard",
     "flapSpeed_standardWithDefault": "Standard (standardval)",
     "flapSpeed_relaxed": "Lugn",
-    "flapSpeed_hardwareHint": "{ms} ms — den riktiga enhetens eget tempo. Ungefär en bildruta per tecken, så en board som landar ser suddig ut i stället för läsbar.",
+    "flapSpeed_hardwareHint": "{ms} ms — den snabbaste inställningen. Ungefär en bildruta per tecken, så en board som landar ser suddig ut i stället för läsbar.",
     "flapSpeed_quickHint": "{ms} ms — snabbare än standard, tecknen går fortfarande att läsa under vändningen.",
     "flapSpeed_standardHint": "{ms} ms — standardvärdet, och det FiestaBoard alltid har använt.",
     "flapSpeed_relaxedHint": "{ms} ms — en långsam, medveten vändning för stämningsskärmar.",
