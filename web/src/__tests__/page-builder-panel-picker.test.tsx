@@ -211,6 +211,20 @@ describe("PageBuilder size picker — FiestaPanels", () => {
     expect(document.querySelector('[data-testid="char-tile-0-29"]')).toBeNull();
   });
 
+  it("draws the panel preview as one seamless surface, with no Note seams", async () => {
+    // A panel used to be previewed as a note array, which spaces the grid
+    // apart every 15 columns and 3 rows — gaps the TV itself never shows.
+    servePanels(panel("p1", "Kitchen TV", 12, 29));
+    const user = userEvent.setup();
+    render(<PageBuilder onClose={vi.fn()} onSave={vi.fn()} />, { wrapper: TestWrapper });
+
+    await openSizePicker(user);
+    await user.click(await screen.findByRole("option", { name: "Kitchen TV · 29×12" }));
+
+    await waitFor(() => expect(document.querySelector('[data-testid="char-tile-11-28"]')).not.toBeNull());
+    expect(document.querySelectorAll('[data-note-col-seam="true"], [data-note-row-seam="true"]')).toHaveLength(0);
+  });
+
   it("previews a panel page with the panel's grid", async () => {
     servePanels(panel("p1", "Kitchen TV", 12, 29));
     vi.mocked(api.getPage).mockResolvedValue(existingFlagshipPage);
