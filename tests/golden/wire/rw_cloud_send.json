@@ -1,0 +1,37 @@
+{
+  "scenario": "rw_cloud_send",
+  "description": "Read/Write Cloud API: the bare grid (no wrapper) to rw.vestaboard.com with the RW key header.",
+  "seam": "POST /send-message",
+  "steps": [
+    {
+      "action": "send text HELLO CLOUD",
+      "requests": [
+        {
+          "method": "POST",
+          "url": "https://rw.vestaboard.com/",
+          "headers": {
+            "X-Vestaboard-Read-Write-Key": "test_rw_key",
+            "Content-Type": "application/json"
+          },
+          "json": [
+            [8, 5, 12, 12, 15, 0, 3, 12, 15, 21, 4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+            [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+            [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+            [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+            [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+            [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+          ],
+          "timeout": [5.0, 10.0]
+        }
+      ],
+      "result": {
+        "status": 200,
+        "body": {
+          "message": "Message sent successfully",
+          "sent": true
+        },
+        "refresh_requests": 1
+      }
+    }
+  ]
+}

@@ -1,0 +1,48 @@
+{
+  "scenario": "floor_rebuild_note_array_cloud",
+  "description": "Note-array cloud floor is module-level keyed by token: a client rebuilt from the same saved board 5 s later is still throttled.",
+  "seam": "two board_client_from_board_dict(...) clients for one board",
+  "steps": [
+    {
+      "action": "t=1000 first client renders ONE",
+      "requests": [
+        {
+          "method": "POST",
+          "url": "https://cloud.vestaboard.com/",
+          "headers": {
+            "X-Vestaboard-Token": "test_array_token",
+            "Content-Type": "application/json"
+          },
+          "json": {
+            "characters": [
+              [15, 14, 5, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+              [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+              [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+            ]
+          },
+          "timeout": [5.0, 10.0]
+        }
+      ],
+      "result": {
+        "type": "SendOutcome",
+        "success": true,
+        "was_sent": true,
+        "throttled": false,
+        "retry_after_seconds": null,
+        "floor_seconds": 15
+      }
+    },
+    {
+      "action": "t=1005 rebuilt client renders TWO",
+      "requests": [],
+      "result": {
+        "type": "SendOutcome",
+        "success": true,
+        "was_sent": false,
+        "throttled": true,
+        "retry_after_seconds": 10,
+        "floor_seconds": 15
+      }
+    }
+  ]
+}

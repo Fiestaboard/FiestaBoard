@@ -1,0 +1,51 @@
+{
+  "scenario": "config_board_test",
+  "description": "Connection probe: one unsaved GET with timeout=10 (not the client's split timeout), local then cloud.",
+  "seam": "POST /config/board/test",
+  "steps": [
+    {
+      "action": "probe local",
+      "requests": [
+        {
+          "method": "GET",
+          "url": "http://192.168.0.10:7000/local-api/message",
+          "headers": {
+            "X-Vestaboard-Local-Api-Key": "test_probe_key",
+            "Content-Type": "application/json"
+          },
+          "timeout": 10
+        }
+      ],
+      "result": {
+        "status": 200,
+        "body": {
+          "success": true,
+          "message": "Successfully connected to your board!",
+          "api_mode": "local"
+        }
+      }
+    },
+    {
+      "action": "probe cloud",
+      "requests": [
+        {
+          "method": "GET",
+          "url": "https://rw.vestaboard.com/",
+          "headers": {
+            "X-Vestaboard-Read-Write-Key": "test_probe_rw",
+            "Content-Type": "application/json"
+          },
+          "timeout": 10
+        }
+      ],
+      "result": {
+        "status": 200,
+        "body": {
+          "success": true,
+          "message": "Successfully connected to your board!",
+          "api_mode": "cloud"
+        }
+      }
+    }
+  ]
+}

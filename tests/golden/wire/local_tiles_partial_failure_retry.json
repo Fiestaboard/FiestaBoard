@@ -1,0 +1,86 @@
+{
+  "scenario": "local_tiles_partial_failure_retry",
+  "description": "Local note array (2 tiles): tile (0,1) fails; the identical retry re-POSTs ONLY that tile.",
+  "seam": "POST /v1/boards/{board}/message",
+  "steps": [
+    {
+      "action": "send HELLO TILES while tile (0,1) answers 500",
+      "requests": [
+        {
+          "method": "POST",
+          "url": "http://192.168.0.20:7000/local-api/message",
+          "headers": {
+            "X-Vestaboard-Local-Api-Key": "test_tile_key_a",
+            "Content-Type": "application/json"
+          },
+          "json": {
+            "characters": [
+              [8, 5, 12, 12, 15, 0, 20, 9, 12, 5, 19, 0, 0, 0, 0],
+              [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+              [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+            ]
+          },
+          "timeout": [3.0, 10.0]
+        },
+        {
+          "method": "POST",
+          "url": "http://192.168.0.21:7000/local-api/message",
+          "headers": {
+            "X-Vestaboard-Local-Api-Key": "test_tile_key_b",
+            "Content-Type": "application/json"
+          },
+          "json": {
+            "characters": [
+              [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+              [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+              [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+            ]
+          },
+          "timeout": [3.0, 10.0]
+        }
+      ],
+      "result": {
+        "status": 500,
+        "body": {
+          "detail": "Failed to send message to the board."
+        }
+      }
+    },
+    {
+      "action": "send the same text again with every tile healthy",
+      "requests": [
+        {
+          "method": "POST",
+          "url": "http://192.168.0.21:7000/local-api/message",
+          "headers": {
+            "X-Vestaboard-Local-Api-Key": "test_tile_key_b",
+            "Content-Type": "application/json"
+          },
+          "json": {
+            "characters": [
+              [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+              [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+              [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+            ]
+          },
+          "timeout": [3.0, 10.0]
+        }
+      ],
+      "result": {
+        "status": 200,
+        "body": {
+          "sent": true,
+          "board_id": "wire-tiles",
+          "characters": [
+            [8, 5, 12, 12, 15, 0, 20, 9, 12, 5, 19, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+            [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+            [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+          ],
+          "text": "HELLO TILES",
+          "expires_at": null,
+          "reason": null
+        }
+      }
+    }
+  ]
+}

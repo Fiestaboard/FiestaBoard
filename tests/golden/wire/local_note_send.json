@@ -1,0 +1,36 @@
+{
+  "scenario": "local_note_send",
+  "description": "Local-API Note: a 3x15 grid, same endpoint shape as a Flagship.",
+  "seam": "POST /send-message",
+  "steps": [
+    {
+      "action": "send text HI NOTE",
+      "requests": [
+        {
+          "method": "POST",
+          "url": "http://192.168.0.11:7000/local-api/message",
+          "headers": {
+            "X-Vestaboard-Local-Api-Key": "test_note_key",
+            "Content-Type": "application/json"
+          },
+          "json": {
+            "characters": [
+              [8, 9, 0, 14, 15, 20, 5, 0, 0, 0, 0, 0, 0, 0, 0],
+              [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+              [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+            ]
+          },
+          "timeout": [3.0, 10.0]
+        }
+      ],
+      "result": {
+        "status": 200,
+        "body": {
+          "message": "Message sent successfully",
+          "sent": true
+        },
+        "refresh_requests": 1
+      }
+    }
+  ]
+}
