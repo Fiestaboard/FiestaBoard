@@ -15,6 +15,7 @@ import { authApi } from "./api/auth";
 import { boardsApi } from "./api/boards";
 import { collectionsApi } from "./api/collections";
 import { miscApi } from "./api/misc";
+import { oauthApi } from "./api/oauth";
 import { pagesApi } from "./api/pages";
 import { pluginRegistryApi } from "./api/plugin-registry";
 import { pluginsApi } from "./api/plugins";
@@ -31,6 +32,7 @@ export * from "./api/boards";
 export * from "./api/collections";
 export * from "./api/core";
 export * from "./api/misc";
+export * from "./api/oauth";
 export * from "./api/pages";
 export * from "./api/plugin-registry";
 export * from "./api/plugins";
@@ -59,4 +61,5 @@ export const api = {
   ...aiApi,
   ...authApi,
   ...miscApi,
+  ...oauthApi,
 };

@@ -20,6 +20,8 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
+from src.oauth.provider import validate_provider_block
+
 from .previews import (
     MAX_PREVIEW_NOTES_PER_AXIS,
     BoardPreview,
@@ -393,6 +395,14 @@ MANIFEST_SCHEMA = {
                 },
             },
             "description": "Demo page template that showcases the plugin's features",
+        },
+        "oauth": {
+            "type": "object",
+            "description": (
+                "OAuth provider this plugin signs in to. The platform runs the flow and stores the "
+                "tokens; the plugin calls self.get_oauth_token(). Validated by "
+                "src/oauth/provider.py::validate_provider_block."
+            ),
         },
         "teaser": {
             "type": "string",
@@ -1317,6 +1327,15 @@ def validate_manifest(data: dict[str, Any]) -> tuple[bool, list[str]]:
                     errors.append(f"demo.{key} missing required field: template")
                 elif not isinstance(entry["template"], list):
                     errors.append(f"demo.{key}.template must be an array of strings")
+
+    # Validate the OAuth block when present. A malformed one refuses the load:
+    # a plugin that cannot sign in is better reported at install time than as
+    # a Connect button that fails.
+    if "oauth" in data:
+        if data.get("plugin_type", "data") == "transition":
+            errors.append("oauth is not supported for transition plugins — they fetch no data")
+        else:
+            errors.extend(validate_provider_block(data["oauth"]))
 
     # Validate board previews when present.
     #

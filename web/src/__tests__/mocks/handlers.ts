@@ -1235,6 +1235,15 @@ export const handlers = [
     });
   }),
 
+  // OAuth connections: every plugin settings sheet asks whether its plugin
+  // signs in with OAuth. Default: none do; tests override per-case.
+  http.get(`${API_BASE}/oauth/connections`, () => {
+    return HttpResponse.json({
+      connections: [],
+      redirect_uri: "https://fiestaboard.app/auth/oauth/redirect.html",
+    });
+  }),
+
   // FiestaPanel panels: DisplaySettings queries the list to guard removal of
   // a panel's virtual board. Default: no panels; tests override per-case.
   http.get(`${API_BASE}/panels`, () => {
