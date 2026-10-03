@@ -15,11 +15,14 @@ from collections.abc import Iterator
 from contextlib import contextmanager
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from src.devices import BoardContext
 
 from .manifest import MAX_TRANSITION_RUNTIME_SECONDS
+
+if TYPE_CHECKING:
+    from src.ai.plugin_api import AICompletion
 
 logger = logging.getLogger(__name__)
 
@@ -28,6 +31,18 @@ logger = logging.getLogger(__name__)
 # uniform while preserving the historical board-agnostic behavior.
 _DEFAULT_CACHE_KEY = "__default__"
 _LAST_OAUTH_TOKEN_ATTR = "_fiestaboard_last_oauth_token"
+
+
+_AI_EXPORTS = frozenset({"AICompletion", "AIError", "AINotConfiguredError", "AIProviderError", "AIRejectedError"})
+
+
+def __getattr__(name: str) -> Any:
+    """``from src.plugins.base import AIError`` (and friends) without importing src.ai up front."""
+    if name in _AI_EXPORTS:
+        from src.ai import plugin_api
+
+        return getattr(plugin_api, name)
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
 
 
 def _remember_oauth_token(plugin: object, token: str | None) -> None:
@@ -774,7 +789,16 @@ class PluginBase(ABC):
         Raises:
             OptionsUnavailable: The plugin cannot answer right now.
             NotImplementedError: The plugin offers no remote options (default).
+
+        The default answers ``options_id == "ai_providers"`` with
+        :meth:`ai_provider_options`, so a manifest can offer FiestaBot's AI
+        providers without any code. An override that serves its own ids
+        returns ``super().get_options(request)`` for the rest.
         """
+        from src.ai.plugin_api import AI_PROVIDERS_OPTIONS_ID
+
+        if request.options_id == AI_PROVIDERS_OPTIONS_ID:
+            return self.ai_provider_options(request)
         raise NotImplementedError(f"Plugin {self.plugin_id} does not provide options")
 
     def check_triggers(self) -> list["TriggerResult"]:
@@ -857,6 +881,109 @@ class PluginBase(ABC):
             List of env var definitions with name, required, description.
         """
         return self._manifest.get("env_vars", [])
+
+    # ── FiestaBot's AI providers (FiestaBoard 9.9.0) ──────────────────────────
+
+    def ai_complete(
+        self,
+        messages: "str | list[dict[str, str]]",
+        *,
+        provider_id: str | None = None,
+        model: str | None = None,
+        temperature: float | None = None,
+        max_tokens: int | None = None,
+        json: bool = False,
+        timeout: float = 60.0,
+    ) -> "AICompletion":
+        """Ask one of the AI providers set up in Settings → AI Providers.
+
+        Uses what FiestaBot uses: the provider's protocol (``openai``,
+        ``anthropic``, ``openai_responses``), its pasted key or its sign-in
+        token (OpenRouter, Hugging Face, ChatGPT). A plugin never needs its own
+        AI setup. Blocks until the answer arrives; safe from ``fetch_data``.
+
+        Args:
+            messages: A prompt string (one user message), or a list of
+                ``{"role": "system"|"user"|"assistant", "content": str}``.
+            provider_id: A provider id (e.g. from an ``ai_providers`` picker
+                field); ``None`` or ``""`` means FiestaBot's default provider.
+            model: A model id; ``None`` means the provider's default model.
+            temperature: Defaults to 0.7.
+            max_tokens: Defaults to 1500.
+            json: Ask for one JSON object and parse it into ``result.data``.
+            timeout: Seconds to wait for the provider.
+
+        Returns:
+            An :class:`~src.ai.plugin_api.AICompletion`: ``.text``, ``.model``,
+            ``.provider_id``, ``.usage``, ``.data``; ``str(result)`` is the text.
+
+        Raises:
+            AINotConfiguredError: AI is turned off, no provider is set up, the
+                ``provider_id`` is unknown, or the provider has no model.
+            AIRejectedError: The key or sign-in was refused, or the user must
+                sign in again. A signed-in provider's 401 is retried once with
+                a refreshed token before this is raised.
+            AIProviderError: Unreachable, an error answer, an empty reply, or
+                (``json=True``) a reply that is not a JSON object.
+            ValueError: *messages* is malformed.
+
+        All three errors subclass ``AIError``; import them from
+        ``src.plugins.base`` or ``src.ai.plugin_api``. A plugin that must run on
+        cores before 9.9.0 guards with ``getattr(self, "ai_complete", None)``.
+        """
+        from src.ai import plugin_api
+
+        return plugin_api.complete(
+            messages,
+            provider_id=provider_id or None,
+            model=model or None,
+            temperature=temperature,
+            max_tokens=max_tokens,
+            json=json,
+            timeout=timeout,
+        )
+
+    async def ai_complete_async(
+        self,
+        messages: "str | list[dict[str, str]]",
+        *,
+        provider_id: str | None = None,
+        model: str | None = None,
+        temperature: float | None = None,
+        max_tokens: int | None = None,
+        json: bool = False,
+        timeout: float = 60.0,
+    ) -> "AICompletion":
+        """:meth:`ai_complete` for async code."""
+        from src.ai import plugin_api
+
+        return await plugin_api.complete_async(
+            messages,
+            provider_id=provider_id or None,
+            model=model or None,
+            temperature=temperature,
+            max_tokens=max_tokens,
+            json=json,
+            timeout=timeout,
+        )
+
+    def ai_providers(self) -> list[dict[str, Any]]:
+        """FiestaBot's AI providers without secrets; empty while AI is off.
+
+        Each is ``{id, name, protocol, model, models, default, sign_in}``.
+        """
+        from src.ai import plugin_api
+
+        return plugin_api.providers()
+
+    def ai_provider_options(self, request: "OptionsRequest") -> "OptionsResult":
+        """Options for an ``ai_providers`` picker field: every provider, every protocol.
+
+        Raises :class:`OptionsUnavailable` while AI is off or none is set up.
+        """
+        from src.ai import plugin_api
+
+        return plugin_api.provider_options(request)
 
     def get_oauth_token(self) -> str | None:
         """Return an access token for the provider in the manifest's ``oauth`` block.

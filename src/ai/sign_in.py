@@ -28,7 +28,7 @@ from src.oauth.provider import FLOW_KEY_EXCHANGE, FLOW_RELAY, OAuthProvider
 from src.oauth.service import AI_CONNECTION_PREFIX, ConnectionSource, ConnectionTarget
 from src.paths import get_data_dir
 
-from .generator import AIGenerationError
+from .generator import AINotConfiguredError, AIRejectedError
 
 PRESET_OPENROUTER = "openrouter"
 PRESET_HUGGINGFACE = "huggingface"
@@ -135,7 +135,8 @@ def resolve_provider_auth(provider: dict[str, Any], service: Any = None) -> dict
     """*provider* ready to send: unchanged without sign-in, else with the current token as ``api_key``.
 
     A pasted ``api_key`` is ignored while ``sign_in`` is set. Raises
-    :class:`AIGenerationError` when the sign-in is missing or must be redone.
+    :class:`AIRejectedError` when the sign-in is missing or must be redone
+    (:class:`AINotConfiguredError` when *provider* points it at another host).
     """
     preset_name = sign_in_preset(provider)
     if preset_name is None:
@@ -143,14 +144,14 @@ def resolve_provider_auth(provider: dict[str, Any], service: Any = None) -> dict
     preset = PRESETS[preset_name]
     if provider.get("base_url") and not _on_preset_host(str(provider["base_url"]), preset.base_url):
         # The sign-in's token belongs to the preset's service, never another host.
-        raise AIGenerationError(
+        raise AINotConfiguredError(
             f"{preset.provider.name} sign-in only works with {override_url(preset.base_url)}. "
             "Clear the base URL, or use an API key for this one."
         )
     token = (service or _oauth()).get_access_token(connection_id_for(str(provider.get("id", ""))))
     if not token:
         name = provider.get("name") or preset.provider.name
-        raise AIGenerationError(f"Sign in to {name} again in Settings → AI.")
+        raise AIRejectedError(f"Sign in to {name} again in Settings → AI.")
     resolved = dict(provider)
     resolved["api_key"] = token
     if not resolved.get("base_url"):
