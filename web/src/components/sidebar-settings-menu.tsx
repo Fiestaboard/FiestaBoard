@@ -1,14 +1,18 @@
 "use client";
 
 /**
- * The rail footer's settings menu — the app half of FiestaUI's
+ * The rail footer's account menu — the app half of FiestaUI's
  * `renderSettingsMenu` slot.
  *
  * Everything in here is app knowledge the design system has no business
  * holding: who is signed in, where `/settings` is, which theme is active,
  * and what the build number is. FiestaUI owns the trigger's paint
- * (`SidebarSettingsTrigger`) and the footer's layout; this owns the
- * contents.
+ * (`SidebarAccountTrigger` — avatar, name, chevrons) and the footer's
+ * layout; this owns the contents.
+ *
+ * Settings is an item in here AND a gear beside the trigger (the Sidebar's
+ * `settings` prop, wired in `navigation-sidebar.tsx`). Both on purpose: the
+ * menu is where you look for it, the gear is where you reach for it.
  *
  * It replaces three separate rail affordances — the version string, the
  * theme toggle, and the sign-out row — none of which was worth the width it
@@ -31,6 +35,7 @@
  */
 
 import {
+  Avatar,
   Button,
   DropdownMenu,
   DropdownMenuContent,
@@ -44,7 +49,7 @@ import {
   Flex,
   SegmentedControl,
   SegmentedControlItem,
-  SidebarSettingsTrigger,
+  SidebarAccountTrigger,
   Stack,
   Text,
 } from "@fiestaboard/ui";
@@ -59,7 +64,7 @@ import { useTranslations } from "@/i18n/translations";
 import { api } from "@/lib/api";
 
 interface SidebarSettingsMenuProps {
-  /** Icon-only trigger, matching the 64px rail. Desktop only. */
+  /** Avatar-only trigger, matching the 64px rail. Desktop only. */
   collapsed?: boolean;
   /**
    * Which chrome is hosting the slot. `"mobile"` is the drawer, where the
@@ -116,9 +121,10 @@ export function SidebarSettingsMenu({ collapsed = false, variant = "desktop" }: 
     !updateStatus?.managed_externally && updateCheck?.update_available ? updateCheck.latest_version : null;
 
   // The trigger says who you are when the install knows, and what the menu
-  // is when it doesn't. An install with auth off has no name to show and
-  // "Settings" is what is actually behind the gear, so the fallback is a
-  // description rather than a placeholder.
+  // is when it doesn't. An install with auth off has no name to show, so the
+  // fallback is "More" with an ellipsis in the avatar's place. Not
+  // "Settings": the gear beside the trigger is already that, and two
+  // adjacent controls with one name and different behaviour is a trap.
   const label = username ?? t("trigger");
 
   const handleSignOut = async () => {
@@ -152,10 +158,17 @@ export function SidebarSettingsMenu({ collapsed = false, variant = "desktop" }: 
             (label beside control, About and Sign out sharing a row) and its
             own scroll ceiling as a backstop on very short viewports. */}
         <Stack gap="0.5" className="max-h-[60dvh] overflow-y-auto">
+          {/* The drawer has no trigger, so this row is where the avatar and
+              name go. px-2 + gap-1 are measured, not chosen: they put the
+              24px avatar's centre on the icons' column below it and the name
+              on their labels' edge. */}
           {username && (
-            <Text size="xs" tone="muted" className="truncate px-2 py-1">
-              {username}
-            </Text>
+            <Flex align="center" gap="1" className="px-2 py-1">
+              <Avatar size="sm" name={username} />
+              <Text size="sm" className="min-w-0 truncate font-medium">
+                {username}
+              </Text>
+            </Flex>
           )}
 
           <Button variant="ghost" className="h-11 w-full justify-start gap-2 px-2" onClick={openSettings}>
@@ -242,7 +255,7 @@ export function SidebarSettingsMenu({ collapsed = false, variant = "desktop" }: 
     <>
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
-          <SidebarSettingsTrigger label={label} collapsed={collapsed} />
+          <SidebarAccountTrigger label={label} anonymous={!username} collapsed={collapsed} />
         </DropdownMenuTrigger>
         {/* side="top": the trigger is the bottom-most thing on the rail, so
             the menu has nowhere to go but up. align="start" keeps its left
@@ -251,7 +264,11 @@ export function SidebarSettingsMenu({ collapsed = false, variant = "desktop" }: 
         <DropdownMenuContent side="top" align="start" sideOffset={8} className="w-56">
           {username && (
             <>
-              <DropdownMenuLabel>{username}</DropdownMenuLabel>
+              {/* Text only — the avatar is on the trigger this menu hangs
+                  off. break-words, not truncate: the trigger shortens a long
+                  name and the collapsed rail shows none of it, so this is the
+                  one place it is always spelled out in full. */}
+              <DropdownMenuLabel className="break-words">{username}</DropdownMenuLabel>
               <DropdownMenuSeparator />
             </>
           )}

@@ -137,7 +137,7 @@ test.describe("HA Ingress", () => {
           await page.keyboard.press("Escape");
           // `aside [...]`, not `.first()`: the mobile copy of the trigger is
           // in the DOM and invisible above `lg`.
-          await page.locator('aside [data-slot="sidebar-settings-trigger"]').click();
+          await page.locator('aside [data-slot="sidebar-account-trigger"]').click();
           await page.getByRole("menuitem", { name: "Settings" }).click();
         },
         heading: "Settings",

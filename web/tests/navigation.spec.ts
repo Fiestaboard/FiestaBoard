@@ -75,10 +75,25 @@ test.describe("Navigation", () => {
     await page.goto("/");
     await expect(page.getByRole("heading", { name: "Dashboard" })).toBeVisible({ timeout: 15_000 });
 
-    await page.locator('aside [data-slot="sidebar-settings-trigger"]').click();
+    await page.locator('aside [data-slot="sidebar-account-trigger"]').click();
     await page.getByRole("menuitem", { name: "Settings" }).click();
 
     await expect(page.getByRole("heading", { name: "Settings", exact: true })).toBeVisible({ timeout: 10_000 });
+  });
+
+  test("Settings is one click away from the footer gear", async ({ page }) => {
+    await page.setViewportSize({ width: 1280, height: 720 });
+    await page.goto("/");
+    await expect(page.getByRole("heading", { name: "Dashboard" })).toBeVisible({ timeout: 15_000 });
+
+    const gear = page.locator('aside [data-slot="sidebar-settings-link"]');
+    await expect(gear).not.toHaveAttribute("aria-current", "page");
+    await gear.click();
+
+    await expect(page.getByRole("heading", { name: "Settings", exact: true })).toBeVisible({ timeout: 10_000 });
+    // Settings has no row in the nav list, so the gear is what says "you
+    // are here" once you arrive.
+    await expect(gear).toHaveAttribute("aria-current", "page");
   });
 
   test("theme switches between light and dark from the footer menu", async ({ page }) => {
@@ -94,7 +109,7 @@ test.describe("Navigation", () => {
     // exit animation. Each assertion names the state it expects rather
     // than "whatever the other one was", which a two-state toggle could
     // only ever do.
-    await page.locator('aside [data-slot="sidebar-settings-trigger"]').click();
+    await page.locator('aside [data-slot="sidebar-account-trigger"]').click();
 
     await page.getByRole("menuitemradio", { name: "Dark" }).click();
     await expect(htmlEl).toHaveClass(/\bdark\b/);
@@ -117,7 +132,7 @@ test.describe("Navigation", () => {
     expect(res.ok).toBe(true);
     const { running_version: runningVersion } = await res.json();
 
-    await page.locator('aside [data-slot="sidebar-settings-trigger"]').click();
+    await page.locator('aside [data-slot="sidebar-account-trigger"]').click();
     await page.getByRole("menuitem", { name: /About FiestaBoard/ }).click();
 
     const about = page.getByRole("dialog");
@@ -166,7 +181,7 @@ test.describe("Navigation", () => {
     // two rows at once whenever the AI drawer was open.
     await expect(nav.getByRole("link", { name: "Settings" })).toHaveCount(0);
     await expect(nav.getByRole("button", { name: "AI Assistant" })).toHaveCount(0);
-    await expect(sidebar.locator('[data-slot="sidebar-settings-trigger"]')).toBeVisible();
+    await expect(sidebar.locator('[data-slot="sidebar-account-trigger"]')).toBeVisible();
   });
 
   test("Collections is a direct link in primary navigation", async ({ page }) => {

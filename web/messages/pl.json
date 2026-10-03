@@ -84,7 +84,7 @@
     "transitions": "Laboratorium przejść"
   },
   "settingsMenu": {
-    "trigger": "Ustawienia",
+    "trigger": "Więcej",
     "settings": "Ustawienia",
     "appearance": "Wygląd",
     "light": "Jasny",

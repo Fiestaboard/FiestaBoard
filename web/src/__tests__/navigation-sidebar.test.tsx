@@ -186,9 +186,9 @@ describe("NavigationSidebar nav list", () => {
   });
 
   it("keeps Settings out of the nav list", () => {
-    // Settings moved to the footer menu. A nav row for it made the rail
-    // claim you could "be on" your own preferences, and it competed for
-    // height with the destinations that actually scroll.
+    // Settings lives in the footer — a gear and an account-menu item. A nav
+    // row for it competed for height with the destinations that actually
+    // scroll.
     render(<NavigationSidebar />, { wrapper: TestWrapper });
 
     for (const nav of screen.getAllByLabelText("Primary navigation")) {
@@ -196,11 +196,11 @@ describe("NavigationSidebar nav list", () => {
     }
   });
 
-  it("reaches Settings from the footer menu instead", async () => {
+  it("reaches Settings from the account menu", async () => {
     const user = userEvent.setup();
     render(<NavigationSidebar />, { wrapper: TestWrapper });
 
-    const triggers = document.querySelectorAll<HTMLElement>('[data-slot="sidebar-settings-trigger"]');
+    const triggers = document.querySelectorAll<HTMLElement>('[data-slot="sidebar-account-trigger"]');
     expect(triggers.length).toBeGreaterThan(0);
     await user.click(triggers[0]);
 
@@ -219,6 +219,38 @@ describe("NavigationSidebar nav list", () => {
     render(<NavigationSidebar />, { wrapper: TestWrapper });
 
     expect(screen.queryByText("Profile")).not.toBeInTheDocument();
+  });
+});
+
+describe("NavigationSidebar settings shortcut", () => {
+  /** The gear in the desktop rail's footer. The mobile drawer has no gear — it lists Settings inline. */
+  const gear = () =>
+    within(screen.getByRole("complementary", { name: "Main navigation" })).getByRole("link", { name: "Settings" });
+
+  it("links straight to /settings from the rail footer", () => {
+    mockPathname.mockReturnValue("/");
+    render(<NavigationSidebar />, { wrapper: TestWrapper });
+
+    expect(gear()).toHaveAttribute("href", "/settings");
+    expect(gear().closest('[data-slot="sidebar-footer"]')).not.toBeNull();
+  });
+
+  it("marks the gear as the current page on /settings", () => {
+    // Settings has no row in the nav list, so on /settings the gear is the
+    // only thing on the rail that can say where you are.
+    mockPathname.mockReturnValue("/settings");
+    render(<NavigationSidebar />, { wrapper: TestWrapper });
+
+    expect(gear()).toHaveAttribute("aria-current", "page");
+    expect(gear()).toHaveClass("nav-active");
+  });
+
+  it("leaves the gear unlit on every other route", () => {
+    mockPathname.mockReturnValue("/pages");
+    render(<NavigationSidebar />, { wrapper: TestWrapper });
+
+    expect(gear()).not.toHaveAttribute("aria-current");
+    expect(gear()).not.toHaveClass("nav-active");
   });
 });
 

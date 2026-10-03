@@ -84,7 +84,7 @@
     "transitions": "Transition Lab"
   },
   "settingsMenu": {
-    "trigger": "Settings",
+    "trigger": "More",
     "settings": "Settings",
     "appearance": "Appearance",
     "light": "Light",
