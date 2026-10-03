@@ -1540,6 +1540,53 @@
         }
       ]
     },
+    "spotify": {
+      "teaser": "{66} NEON HARBOR",
+      "previews": [
+        {
+          "device_type": "flagship",
+          "rows": [
+            "    {66} NOW PLAYING",
+            "     NEON HARBOR",
+            "    PAPER LANTERNS",
+            "    MIDNIGHT FERRY",
+            "     1:23 / 3:45",
+            "{66}{66}{66}{66}{66}{66}{66}{66}--------------"
+          ]
+        },
+        {
+          "device_type": "note",
+          "rows": [
+            "NEON HARBOR",
+            "PAPER LANTERNS",
+            "{66} 1:23 / 3:45"
+          ]
+        },
+        {
+          "label": "Up next",
+          "device_type": "flagship",
+          "rows": [
+            "    {66} NEON HARBOR",
+            "    PAPER LANTERNS",
+            "     1:23 / 3:45",
+            "",
+            "       UP NEXT",
+            "LOW TIDE - JUNE ARCADE"
+          ]
+        },
+        {
+          "label": "Note Array (2 wide)",
+          "device_type": "note_array",
+          "notes_wide": 2,
+          "notes_tall": 1,
+          "rows": [
+            " NEON HARBOR - PAPER LANTERNS",
+            "        MIDNIGHT FERRY",
+            "{66}{66}{66}{66}{66}{66}{66}{66}{66}{66}{66}-------------------"
+          ]
+        }
+      ]
+    },
     "star_trek_quotes": {
       "teaser": "MAKE IT SO.",
       "previews": [

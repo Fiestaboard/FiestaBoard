@@ -68,9 +68,32 @@ jobs:
           # whole history.
           fetch-tags: true
 
+      # The beta counter restarts at 1 for each target version, so it needs
+      # every number already used. Git tags are the main record, but the image
+      # is pushed BEFORE its tag is created (see "Create the prerelease"), so a
+      # run that died in between left a Docker Hub tag with no git tag. Reusing
+      # its number would overwrite an image a bug report may already name.
+      - name: List beta tags already on Docker Hub
+        id: registry
+        run: |
+          set -euo pipefail
+          URL="https://hub.docker.com/v2/repositories/fiestaboard/fiestaboard/tags?page_size=100&name=-beta."
+          : > /tmp/registry-beta-tags
+          while [ -n "$URL" ] && [ "$URL" != "null" ]; do
+            PAGE=$(curl -fsS --retry 3 "$URL")
+            echo "$PAGE" | jq -r '.results[].name' >> /tmp/registry-beta-tags
+            URL=$(echo "$PAGE" | jq -r '.next')
+          done
+          {
+            echo "tags<<EOF"
+            cat /tmp/registry-beta-tags
+            echo "EOF"
+          } >> "$GITHUB_OUTPUT"
+
       - name: Compute the beta version
         id: version
         env:
+          REGISTRY_BETA_TAGS: ${{ steps.registry.outputs.tags }}
           # Normally empty. Set it only when the next release breaks a contract:
           # the derivation below can add a minor, never a major, so a breaking
           # cycle has to say so explicitly (`"10.0.0"`). Clear it again once
@@ -139,10 +162,18 @@ jobs:
             exit 1
           fi
 
-          # run_number is monotonic per workflow, and semver compares numeric
-          # prerelease identifiers numerically, so beta.9 < beta.10 (a plain
-          # string sort would get that backwards).
-          VERSION="${BETA_TARGET_VERSION}-beta.${{ github.run_number }}"
+          # The counter restarts for each target: the first 9.7.0 beta is
+          # 9.7.0-beta.1, whatever came before it. Next number = highest used
+          # for this target, in git tags or on Docker Hub, plus one. The
+          # concurrency group above serialises runs, so two cannot pick the
+          # same number. Semver compares numeric prerelease identifiers
+          # numerically, so beta.9 < beta.10, and every 9.7.0 beta sorts above
+          # every 9.6.0 beta regardless of the counter.
+          LAST=$( { git tag --list "v${BETA_TARGET_VERSION}-beta.*" | sed 's/^v//'; \
+                    printf '%s\n' "${REGISTRY_BETA_TAGS:-}"; } \
+            | grep -E "^${BETA_TARGET_VERSION//./\\.}-beta\.[0-9]+$" \
+            | sed 's/.*-beta\.//' | sort -n | tail -1 || true)
+          VERSION="${BETA_TARGET_VERSION}-beta.$(( ${LAST:-0} + 1 ))"
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
           echo "Newest stable tag:    $NEWEST_TAG"
           echo "Betas target:         $BETA_TARGET_VERSION ($SOURCE)"

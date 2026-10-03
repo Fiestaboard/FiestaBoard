@@ -730,6 +730,17 @@
       "icon": "shopping-bag",
       "category": "data",
       "added": "2026-10-01"
+    },
+    {
+      "id": "spotify",
+      "name": "Spotify",
+      "description": "Show what's playing on Spotify: track, artist, progress, device and what's up next. Signs in to your own Spotify account.",
+      "repository": "https://github.com/Fiestaboard/fiestaboard-plugin--spotify",
+      "author": "FiestaBoard Team",
+      "fiestaboard_version": ">=9.5.0",
+      "icon": "music",
+      "category": "entertainment",
+      "added": "2026-10-02"
     }
   ]
 }
