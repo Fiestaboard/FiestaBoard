@@ -786,6 +786,7 @@
     "boardIndicator": "Visar {boardName}",
     "viewSchedule": "Visa schema",
     "changePage": "Byt sida",
+    "moreOptionsAriaLabel": "Fler alternativ",
     "scheduleMode": "Schemaläge",
     "manualMode": "Manuellt läge",
     "collectionBadge": "Karusell",

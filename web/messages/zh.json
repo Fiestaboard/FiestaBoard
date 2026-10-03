@@ -786,6 +786,7 @@
     "boardIndicator": "正在显示 {boardName}",
     "viewSchedule": "查看日程",
     "changePage": "切换页面",
+    "moreOptionsAriaLabel": "更多选项",
     "scheduleMode": "日程模式",
     "manualMode": "手动模式",
     "collectionBadge": "轮播",

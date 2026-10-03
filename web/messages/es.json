@@ -786,6 +786,7 @@
     "boardIndicator": "Mostrando {boardName}",
     "viewSchedule": "Ver horario",
     "changePage": "Cambiar página",
+    "moreOptionsAriaLabel": "Más opciones",
     "scheduleMode": "Modo de horario",
     "manualMode": "Modo manual",
     "collectionBadge": "Carrusel",

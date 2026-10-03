@@ -786,6 +786,7 @@
     "boardIndicator": "Affichage de {boardName}",
     "viewSchedule": "Voir la planification",
     "changePage": "Changer de page",
+    "moreOptionsAriaLabel": "Plus d'options",
     "scheduleMode": "Mode planification",
     "manualMode": "Mode manuel",
     "collectionBadge": "Carrousel",

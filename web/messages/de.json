@@ -786,6 +786,7 @@
     "boardIndicator": "Zeigt {boardName}",
     "viewSchedule": "Zeitplan anzeigen",
     "changePage": "Seite wechseln",
+    "moreOptionsAriaLabel": "Weitere Optionen",
     "scheduleMode": "Zeitplanmodus",
     "manualMode": "Manueller Modus",
     "collectionBadge": "Karussell",

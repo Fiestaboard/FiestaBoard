@@ -742,6 +742,7 @@
     "boardIndicator": "Showing {boardName}",
     "viewSchedule": "View Schedule",
     "changePage": "Change Page",
+    "moreOptionsAriaLabel": "More options",
     "scheduleMode": "Schedule Mode",
     "manualMode": "Manual Mode",
     "collectionBadge": "Collection",

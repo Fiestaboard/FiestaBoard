@@ -13,6 +13,10 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
   Flex,
   Grid,
   Sheet,
@@ -35,8 +39,10 @@ import {
   GalleryHorizontalEnd,
   Loader2,
   Moon,
+  MoreVertical,
   Pause,
   PencilLine,
+  Play,
   Radio,
   Timer,
   UploadCloud,
@@ -283,6 +289,26 @@ export function ActivePageDisplay() {
   // that appears "stuck" while paused.
   const pausedBoards = useMemo(() => (boardSettings?.boards ?? []).filter((b) => b.paused === true), [boardSettings]);
   const showBoardNameOnPauseBadge = (boardSettings?.boards?.length ?? 0) > 1;
+
+  // Pause / resume from Home (issue #2051) — the same switch as Settings →
+  // Hardware, for the board this display is showing.
+  const pauseTargetBoard = currentBoard ?? boardSettings?.boards?.[0];
+  const isTargetPaused = pauseTargetBoard?.paused === true;
+  const pauseMutation = useMutation({
+    mutationFn: ({ boardId, paused }: { boardId: string; paused: boolean }) => api.setBoardPaused(boardId, paused),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.boardSettings });
+      queryClient.invalidateQueries({ queryKey: ["all-settings"] });
+    },
+    onError: (error: Error) => {
+      toast.error(error.message);
+    },
+  });
+  const togglePause = () => {
+    if (pauseTargetBoard) pauseMutation.mutate({ boardId: pauseTargetBoard.id, paused: !isTargetPaused });
+  };
+  const pauseLabel = isTargetPaused ? tPause("resumeToggle") : tPause("toggle");
+  const openChangePage = () => (scheduleEnabled ? setChangeModeOpen(true) : setIsSheetOpen(true));
 
   // Fetch collections for name resolution and badge display
   const { data: collectionsData } = useQuery({
@@ -533,7 +559,8 @@ export function ActivePageDisplay() {
           its border inside" note in @fiestaboard/ui). */}
       <Box {...anchorProps("home.active-display")}>
         <Stack gap="2" className="pb-4">
-          <Flex align="center" justify="between">
+          {/* Wraps if the inline buttons don't fit beside the title. */}
+          <Flex align="center" justify="between" gap="2" wrap>
             <Flex align="baseline" gap="2" className="min-w-0">
               <CardTitle className="text-lg">{t("title")}</CardTitle>
               {isMultiBoard && currentBoard && (
@@ -542,7 +569,8 @@ export function ActivePageDisplay() {
                 </Text>
               )}
             </Flex>
-            <Flex align="center" gap="2">
+            {/* Inline actions from sm up; a kebab menu below it (issue #2051). */}
+            <Flex align="center" gap="2" className="hidden sm:flex">
               {scheduleEnabled && (
                 <Link
                   href="/schedule"
@@ -551,16 +579,51 @@ export function ActivePageDisplay() {
                   {t("viewSchedule")} →
                 </Link>
               )}
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => (scheduleEnabled ? setChangeModeOpen(true) : setIsSheetOpen(true))}
-                className="gap-2"
-              >
+              {pauseTargetBoard && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={togglePause}
+                  disabled={pauseMutation.isPending}
+                  title={tPause("tooltip")}
+                  className="gap-2"
+                >
+                  {isTargetPaused ? <Play className="h-4 w-4" /> : <Pause className="h-4 w-4" />}
+                  {pauseLabel}
+                </Button>
+              )}
+              <Button variant="outline" size="sm" onClick={openChangePage} className="gap-2">
                 <ArrowLeftRight className="h-4 w-4" />
                 {t("changePage")}
               </Button>
             </Flex>
+            <Box className="sm:hidden">
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline" size="icon" className="h-8 w-8" aria-label={t("moreOptionsAriaLabel")}>
+                    <MoreVertical className="h-4 w-4" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  {pauseTargetBoard && (
+                    <DropdownMenuItem onClick={togglePause} disabled={pauseMutation.isPending}>
+                      {isTargetPaused ? <Play className="h-3.5 w-3.5 mr-2" /> : <Pause className="h-3.5 w-3.5 mr-2" />}
+                      {pauseLabel}
+                    </DropdownMenuItem>
+                  )}
+                  <DropdownMenuItem onClick={openChangePage}>
+                    <ArrowLeftRight className="h-3.5 w-3.5 mr-2" />
+                    {t("changePage")}
+                  </DropdownMenuItem>
+                  {scheduleEnabled && (
+                    <DropdownMenuItem render={<Link href="/schedule" />}>
+                      <Calendar className="h-3.5 w-3.5 mr-2" />
+                      {t("viewSchedule")}
+                    </DropdownMenuItem>
+                  )}
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </Box>
           </Flex>
 
           {/* Active page name and status */}
@@ -691,7 +754,7 @@ export function ActivePageDisplay() {
               <Badge
                 key={board.id}
                 variant="default"
-                className="text-xs gap-1 bg-amber-500 text-white hover:bg-amber-500"
+                className="text-xs gap-1 bg-warning text-warning-foreground hover:bg-warning"
                 data-testid="board-paused-badge"
                 title={tPause("tooltip")}
               >

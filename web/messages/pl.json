@@ -786,6 +786,7 @@
     "boardIndicator": "Wyświetla {boardName}",
     "viewSchedule": "Zobacz harmonogram",
     "changePage": "Zmień stronę",
+    "moreOptionsAriaLabel": "Więcej opcji",
     "scheduleMode": "Tryb harmonogramu",
     "manualMode": "Tryb ręczny",
     "collectionBadge": "Karuzela",

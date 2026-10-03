@@ -786,6 +786,7 @@
     "boardIndicator": "Mostrando {boardName}",
     "viewSchedule": "Visualizza programmazione",
     "changePage": "Cambia pagina",
+    "moreOptionsAriaLabel": "Altre opzioni",
     "scheduleMode": "Modalità programmata",
     "manualMode": "Modalità manuale",
     "collectionBadge": "Carosello",
