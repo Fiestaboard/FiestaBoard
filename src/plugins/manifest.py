@@ -578,8 +578,41 @@ class VariablesSchema:
 
 def manifest_default_color_rules(manifest: Any, field_name: str) -> list:
     """The manifest's static ``default_rules`` for a field, or ``[]``."""
-    schema = (manifest.color_rules_schema or {}).get(field_name)
+    schema = (getattr(manifest, "color_rules_schema", None) or {}).get(field_name)
     return schema.get("default_rules", []) if isinstance(schema, dict) else []
+
+
+def resolve_color_rules(
+    config_manager: Any,
+    plugin_id: str,
+    field_name: str,
+    manifest: Any,
+    instance_rules: dict[str, list] | None = None,
+) -> list:
+    """The rules that color a field: the instance's saved rules, else legacy
+    ``features`` rules, else the manifest's ``default_rules``.
+
+    The one place this precedence lives, so the template engine (what renders)
+    and the registry (what the variable picker offers) can't drift apart.
+    """
+    base_plugin_id = plugin_id.split(":", 1)[0]
+    args = (plugin_id, base_plugin_id, field_name)
+    saved = config_manager.get_effective_color_rules(*args, *([instance_rules] if instance_rules is not None else []))
+    return saved or manifest_default_color_rules(manifest, field_name)
+
+
+def color_rule_fields(config_manager: Any, plugin_id: str, manifest: Any) -> set[str]:
+    """Fields of ``plugin_id`` that have color rules from any source."""
+    base_plugin_id = plugin_id.split(":", 1)[0]
+    instance_rules = config_manager.get_instance_color_rules(plugin_id)
+    candidates = (
+        set(instance_rules)
+        | set(config_manager.get_legacy_color_rules(base_plugin_id))
+        | set(getattr(manifest, "color_rules_schema", None) or {})
+    )
+    return {
+        field for field in candidates if resolve_color_rules(config_manager, plugin_id, field, manifest, instance_rules)
+    }
 
 
 @dataclass

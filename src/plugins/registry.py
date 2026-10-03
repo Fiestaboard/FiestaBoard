@@ -23,7 +23,7 @@ from src.devices import BoardContext
 
 from .base import OptionsRequest, OptionsResult, PluginBase, PluginResult, normalise
 from .loader import PluginLoader, retire_plugin_object
-from .manifest import PluginManifest, VariableMetadata, manifest_default_color_rules
+from .manifest import PluginManifest, VariableMetadata, color_rule_fields
 from .previews import load_preview_seed
 from .sources import (
     PluginSource,
@@ -1255,11 +1255,13 @@ class PluginRegistry:
 
             if var_names:
                 # The engine resolves "<field>_color" for any field with rules; list it so the picker offers it.
+                # Rule fields are stored lowercased, so match them to variable names case-insensitively.
                 existing = set(var_names)
+                by_lower = {name.lower(): name for name in var_names}
                 added = {
-                    f"{field}_color"
+                    f"{by_lower[field.lower()]}_color"
                     for field in self._fields_with_color_rules(plugin_id, manifest)
-                    if field in existing and f"{field}_color" not in existing
+                    if field.lower() in by_lower and f"{by_lower[field.lower()]}_color" not in existing
                 }
                 if added:
                     var_names.extend(sorted(added))
@@ -1273,16 +1275,7 @@ class PluginRegistry:
         """Fields with a color rule from any source, resolved as the template engine does."""
         from src.config_manager import get_config_manager
 
-        config_manager = get_config_manager()
-        base_plugin_id = plugin_id.split(":", 1)[0]
-        instance_rules = config_manager.get_instance_color_rules(plugin_id)
-        candidates = set(manifest.color_rules_schema or {}) | set(instance_rules)
-        return {
-            field
-            for field in candidates
-            if config_manager.get_effective_color_rules(plugin_id, base_plugin_id, field, instance_rules)
-            or manifest_default_color_rules(manifest, field)
-        }
+        return color_rule_fields(get_config_manager(), plugin_id, manifest)
 
     def get_all_variables_with_metadata(
         self,
@@ -1385,6 +1378,7 @@ class PluginRegistry:
             Dictionary mapping "plugin_id.variable" to max length
         """
         max_lengths: dict[str, int] = {}
+        with_manifest: list[tuple[str, PluginManifest]] = []
 
         with self._lock:
             for plugin_id in list(self._plugins):
@@ -1399,6 +1393,16 @@ class PluginRegistry:
                 for var_name, max_len in manifest.max_lengths.items():
                     full_name = f"{plugin_id}.{var_name}"
                     max_lengths[full_name] = max_len
+                with_manifest.append((plugin_id, manifest))
+
+        # A field with color rules also renders {{plugin.field_color}} as one
+        # tile. Resolved outside the lock: it reads config, not registry state.
+        from src.config_manager import get_config_manager
+
+        config_manager = get_config_manager()
+        for plugin_id, manifest in with_manifest:
+            for field in color_rule_fields(config_manager, plugin_id, manifest):
+                max_lengths.setdefault(f"{plugin_id}.{field}_color", 1)
 
         return max_lengths
 

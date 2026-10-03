@@ -1,5 +1,6 @@
 """Tests for PluginRegistry - manages loaded plugins."""
 
+import json
 import threading
 import time
 from pathlib import Path
@@ -2489,3 +2490,82 @@ def test_recreating_the_display_service_keeps_the_live_plugin_instance(registry,
             DisplayService()
 
     assert registry.get_plugin("beta") is live
+
+
+# --- color rules from a real ConfigManager (#2088) ---
+
+
+def _real_config_manager(tmp_path, config: dict):
+    from src.config_manager import ConfigManager
+
+    path = tmp_path / "config.json"
+    path.write_text(json.dumps(config))
+    return ConfigManager(config_path=str(path))
+
+
+def _initialized(registry, mock_loader, mock_plugin, mock_manifest):
+    mock_loader.load_all_plugins.return_value = {"test_plugin": mock_plugin}
+    mock_loader.get_manifest.side_effect = lambda pid: mock_manifest if pid == "test_plugin" else None
+    with patch("src.config_manager.get_config_manager") as mock_cm:
+        mock_cm.return_value.get_all_plugin_configs.return_value = {"test_plugin": {"enabled": True}}
+        registry.initialize()
+    return registry
+
+
+def test_picker_lists_color_field_for_legacy_feature_rules(tmp_path, registry, mock_loader, mock_plugin, mock_manifest):
+    """Rules kept under legacy features.<id>.color_rules color the field, so the picker offers it too."""
+    _initialized(registry, mock_loader, mock_plugin, mock_manifest)
+    cm = _real_config_manager(
+        tmp_path,
+        {
+            "plugins": {"test_plugin": {"enabled": True}},
+            "features": {"test_plugin": {"color_rules": {"var2": [{"condition": ">", "value": 0, "color": "red"}]}}},
+        },
+    )
+    with patch("src.config_manager.get_config_manager", return_value=cm):
+        variables = registry.get_all_variables()
+    assert "var2_color" in variables["test_plugin"]
+    assert "var1_color" not in variables["test_plugin"]
+
+
+def test_picker_matches_saved_rule_field_case_insensitively(
+    tmp_path, registry, mock_loader, mock_plugin, mock_manifest
+):
+    _initialized(registry, mock_loader, mock_plugin, mock_manifest)
+    cm = _real_config_manager(
+        tmp_path,
+        {
+            "plugins": {
+                "test_plugin": {
+                    "enabled": True,
+                    "color_rules": {"VAR1": [{"condition": ">", "value": 0, "color": "red"}]},
+                }
+            }
+        },
+    )
+    with patch("src.config_manager.get_config_manager", return_value=cm):
+        variables = registry.get_all_variables()
+    assert "var1_color" in variables["test_plugin"]
+
+
+def test_max_lengths_include_color_tile_for_fields_with_rules(
+    tmp_path, registry, mock_loader, mock_plugin, mock_manifest
+):
+    """/v1/variables clients size rows from max_lengths, so a rule's <field>_color tile is listed at 1."""
+    _initialized(registry, mock_loader, mock_plugin, mock_manifest)
+    cm = _real_config_manager(
+        tmp_path,
+        {
+            "plugins": {
+                "test_plugin": {
+                    "enabled": True,
+                    "color_rules": {"var1": [{"condition": ">", "value": 0, "color": "red"}]},
+                }
+            }
+        },
+    )
+    with patch("src.config_manager.get_config_manager", return_value=cm):
+        max_lengths = registry.get_all_max_lengths()
+    assert max_lengths["test_plugin.var1_color"] == 1
+    assert "test_plugin.var2_color" not in max_lengths
+    assert max_lengths["test_plugin.var1"] == 10

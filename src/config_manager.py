@@ -1355,10 +1355,46 @@ class ConfigManager:
         color_rules = feature.get("color_rules", {})
         return color_rules.get(field_name, [])
 
+    @staticmethod
+    def _clean_color_rules(rules: Any) -> dict[str, list]:
+        """Usable rules from a stored ``color_rules`` block, keyed by lowercased field.
+
+        ``color_rules`` isn't shape-validated on save (API, MCP), and the engine
+        lowercases the field it looks up, so drop anything it can't evaluate
+        rather than let one bad value fail the whole render.
+        """
+        if not isinstance(rules, dict):
+            return {}
+        cleaned: dict[str, list] = {}
+        for field, field_rules in rules.items():
+            if not isinstance(field_rules, list):
+                continue
+            usable = [
+                dict(rule)
+                for rule in field_rules
+                if isinstance(rule, dict)
+                and isinstance(rule.get("color", ""), str)
+                and isinstance(rule.get("condition", "=="), str)
+            ]
+            if usable:
+                cleaned[str(field).lower()] = usable
+        return cleaned
+
     def get_instance_color_rules(self, plugin_id: str) -> dict[str, list]:
-        """Rules saved for one plugin instance by the web UI's Dynamic Colors editor."""
-        rules = (self.get_plugin_config(plugin_id) or {}).get("color_rules")
-        return rules if isinstance(rules, dict) else {}
+        """Rules saved for one plugin instance by the web UI's Dynamic Colors editor.
+
+        Reads only ``color_rules`` (no full-config copy, no env overlay, which
+        never carries rules): this runs for every colored variable on every render.
+        """
+        with self._file_lock:
+            rules = self._config.get("plugins", {}).get(plugin_id, {}).get("color_rules")
+            return self._clean_color_rules(rules)
+
+    def get_legacy_color_rules(self, base_plugin_id: str) -> dict[str, list]:
+        """Rules kept under the legacy ``features.<id>.color_rules`` block."""
+        with self._file_lock:
+            feature = self._config.get("features", {}).get(base_plugin_id)
+            return self._clean_color_rules(feature.get("color_rules") if isinstance(feature, dict) else None)
 
     def get_effective_color_rules(
         self,
@@ -1370,7 +1406,8 @@ class ConfigManager:
         """The instance's rules for a field, else the legacy per-feature rules."""
         if instance_rules is None:
             instance_rules = self.get_instance_color_rules(plugin_id)
-        return instance_rules.get(field_name) or self.get_color_rules(base_plugin_id, field_name)
+        field = field_name.lower()
+        return instance_rules.get(field) or self.get_legacy_color_rules(base_plugin_id).get(field, [])
 
     def validate(self) -> tuple[bool, list[str]]:
         """Validate the current configuration.
