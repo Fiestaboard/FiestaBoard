@@ -21,6 +21,13 @@
       "prompt": "build me a FiestaBoard plugin for NASA's Astronomy Picture of the Day (APOD). It should show the picture's title and a short bit of the explanation text. The API is https://api.nasa.gov/planetary/apod and it needs a NASA API key (I have one). Get it fully set up and tested but hold off on creating the repo or registering it.",
       "expected_output": "A complete standalone fiestaboard-plugin--<slug> repo (http type). API key handled via a password-widget setting AND an env_var, read in fetch_data without hardcoding any real key. Manifest variables for title + explanation, tests mock the API and pass, README + SETUP document the key. ci.yml + release.yml present.",
       "files": []
+    },
+    {
+      "id": 3,
+      "name": "fitness-oauth-signin",
+      "prompt": "I want a FiestaBoard plugin that shows today's step count and active minutes from my account on a fitness service called StrideLog. Their API only works with OAuth sign-in (authorization code with PKCE, no client secret needed): authorize at https://stridelog.example.com/oauth/authorize, token at https://stridelog.example.com/oauth/token, scope `activity.read`, and the data is at GET https://api.stridelog.example.com/v1/me/today returning {\"steps\": 8421, \"active_minutes\": 47}. Each user will register their own StrideLog app and paste in its client ID. Build it and get the tests passing locally. Don't create the GitHub repo or open a registry PR, and don't try to sign in to anything.",
+      "expected_output": "A complete standalone fiestaboard-plugin--<slug> repo. manifest.json declares an `oauth` block (relay flow, the two https endpoints, the scope, no client_secret) with fiestaboard_version >=9.5.0 and a client_id settings field. fetch_data calls self.get_oauth_token() on every fetch, returns an unavailable result without making a request when it is None, and sends the token as a Bearer header. The plugin implements no OAuth flow of its own and stores no token. Tests replace get_oauth_token on the instance, mock the API, cover signed-out and 401, and pass. SETUP.md gives the redirect URI https://fiestaboard.app/auth/oauth/redirect. ci.yml pins FiestaBoard to a release with OAuth.",
+      "files": []
     }
   ]
 }

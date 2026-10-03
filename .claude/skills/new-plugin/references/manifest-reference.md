@@ -29,6 +29,7 @@ field means when you customize it.
 | `color_rules_schema` | no | object | Optional dynamic color rules. |
 | `screenshots` | no | array of `{src*, alt*, caption?, primary?}` | Exactly one `primary: true` (the hero image). |
 | `demo` | no | object | Bundled demo page(s). See below. |
+| `oauth` | no | object | The provider the plugin signs in to. The platform runs the flow. See below and `oauth.md`. |
 
 ## settings_schema
 
@@ -47,6 +48,30 @@ Standard JSON Schema (`type: object`, `properties`, `required`). Per-property co
 For an API key: a `string` property with `"ui:widget": "password"` plus a matching
 `env_vars` entry, read in `fetch_data` as `self.config.get("api_key") or os.getenv("X")`.
 **Never hardcode or commit a real key.**
+
+## oauth
+
+For plugins that sign in to an account. Requires `"fiestaboard_version": ">=9.5.0"`. The
+recipe is in `oauth.md`; the fields are:
+
+| Field | Required | Notes |
+| --- | --- | --- |
+| `flows` | **yes** | `["relay"]`, `["device"]`, or both; the first is what the button uses. |
+| `token_url` | **yes** | `https://` only. |
+| `authorization_url` | for `relay` | `https://` only. |
+| `device_authorization_url` | for `device` | `https://` only. |
+| `scopes` | no | Array of strings, no spaces. Least privilege. |
+| `provider_name` | no | UI label ("Sign in with …"). Defaults to the plugin name. |
+| `client_id` | no | The plugin's own app. With no `client_id` settings field, users cannot replace it. |
+| `client_id_setting` | no | Settings key for a user's own client ID. Default `client_id`. Only honored if `settings_schema` declares it. |
+| `client_secret_setting` | no | Settings key for a user's client secret (password widget). |
+| `authorization_params` | no | Extra string query parameters; may not override the ones the platform sets. |
+| `app_setup_url` | no | The provider's developer page; the guided setup links to it. `https://`. Newer than 9.6 only. |
+
+`client_secret` is **never** allowed in a manifest: a bad block stops the plugin from
+loading. A field the board's core does not know is ignored with a warning (9.5.0-9.6.x
+refuse the plugin instead). Validate in a test with
+`src.oauth.provider.validate_provider_block`.
 
 ## variables (the rich dict format — preferred)
 

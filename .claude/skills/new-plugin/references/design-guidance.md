@@ -16,9 +16,9 @@ FiestaBoard usually runs as a **LAN appliance with no public domain and no inbou
   reachable `redirect_uri` (https + a real domain), and a box on a LAN has neither. The
   platform solves this once, for every plugin: declare an `oauth` block in the manifest and
   the platform runs the flow, through a shared static relay at
-  `https://fiestaboard.app/auth/oauth/redirect.html` that hands the browser back to the
-  board. **Never hand-roll an OAuth flow inside a plugin.** See "Signing In With OAuth" in
-  `docs/internal/development/PLUGIN_DEVELOPMENT.md`.
+  `https://fiestaboard.app/auth/oauth/redirect` that hands the browser back to the
+  board. **Never hand-roll an OAuth flow inside a plugin.** The recipe is `oauth.md` next to
+  this file; the full guide is `docs/development/plugin-oauth.md`.
 - **Prefer these, in order:**
   1. **API key / personal access token the user pastes in.** Simplest and most robust. A
      `settings_schema` string with `"ui:widget": "password"` + a matching `env_vars` entry,
@@ -32,9 +32,12 @@ FiestaBoard usually runs as a **LAN appliance with no public domain and no inbou
      never stores a token and never ships a client secret.
   3. **Long-lived / self-issued tokens** — e.g. a Home Assistant long-lived access token, or
      a service's "personal token". User generates it once and pastes it in.
-- **OAuth usually means each user registers their own app** with the provider and pastes in
-  a client ID. Say so in the SETUP guide, with the exact redirect URI to enter, and check the
-  provider's limits on unreviewed apps before assuming a shared client ID would work.
+- **Decide whose app signs in, with the user.** Either each user registers their own app
+  with the provider and pastes in a client ID (works for everyone; the SETUP guide must walk
+  through it, with the exact redirect URI), or the plugin ships its own app's client ID and
+  users just press **Sign in** (only with providers that need no client secret). Check the
+  provider's limits on unreviewed apps before choosing the second: Spotify admits five
+  hand-added accounts, and everyone else signs in and then gets `403`.
 - **Inbound webhooks** (the `webhook` plugin type) assume something on the internet can reach
   the appliance — often it can't without a tunnel. If you use them, say so in the setup docs.
 
