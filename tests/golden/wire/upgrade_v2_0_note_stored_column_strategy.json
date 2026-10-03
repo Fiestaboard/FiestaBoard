@@ -1,0 +1,36 @@
+{
+  "scenario": "upgrade_v2_0_note_stored_column_strategy",
+  "description": "A v2.0 install stored transitions.strategy='column' with no interval or step size; after the upgrade the Local-API payload carries strategy alone (A4's native_strategy_local sets all three).",
+  "seam": "POST /send-message with board_id, booted from tests/fixtures/upgrade/v2_0_schema0_boards_note",
+  "steps": [
+    {
+      "action": "send text HI NOTE",
+      "requests": [
+        {
+          "method": "POST",
+          "url": "http://192.168.0.11:7000/local-api/message",
+          "headers": {
+            "X-Vestaboard-Local-Api-Key": "test_note_key",
+            "Content-Type": "application/json"
+          },
+          "json": {
+            "characters": [
+              [8, 9, 0, 14, 15, 20, 5, 0, 0, 0, 0, 0, 0, 0, 0],
+              [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+              [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+            ],
+            "strategy": "column"
+          },
+          "timeout": [3.0, 10.0]
+        }
+      ],
+      "result": {
+        "status": 200,
+        "body": {
+          "message": "Message sent successfully",
+          "sent": true
+        }
+      }
+    }
+  ]
+}

@@ -1,0 +1,25 @@
+{
+  "pages": [
+    {
+      "id": "00000000-0000-4000-8000-000000000101",
+      "name": "Morning",
+      "type": "template",
+      "display_type": null,
+      "rows": null,
+      "template": [
+        "{center}{{date_time.day_of_week}}",
+        "{center}{{date_time.date}}",
+        "",
+        "{red} {{weather.temperature}}F",
+        "{center}{{weather.condition}}",
+        ""
+      ],
+      "duration_seconds": 300,
+      "transition_strategy": null,
+      "transition_interval_ms": null,
+      "transition_step_size": null,
+      "created_at": "2026-01-20T08:00:00",
+      "updated_at": null
+    }
+  ]
+}

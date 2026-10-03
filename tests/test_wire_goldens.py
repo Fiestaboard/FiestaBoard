@@ -240,6 +240,11 @@ class _SerialExecutor:
 
 @pytest.fixture
 def wire(monkeypatch) -> WireRecorder:
+    return install_wire_recorder(monkeypatch)
+
+
+def install_wire_recorder(monkeypatch) -> WireRecorder:
+    """The ``wire`` fixture's body, reusable by other modules' fixtures."""
     import src.board_client as board_client
     import src.note_array_local_client as note_array_local_client
 
@@ -258,6 +263,11 @@ def wire(monkeypatch) -> WireRecorder:
 @pytest.fixture
 def clock(monkeypatch) -> FakeMonotonic:
     """Freeze the send-floor clock. Must be requested BEFORE clients are built."""
+    return install_floor_clock(monkeypatch)
+
+
+def install_floor_clock(monkeypatch) -> FakeMonotonic:
+    """The ``clock`` fixture's body, reusable by other modules' fixtures."""
     import src.board_client as board_client
 
     fake = FakeMonotonic()

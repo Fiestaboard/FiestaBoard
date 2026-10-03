@@ -1,0 +1,22 @@
+{
+  "transitions": {
+    "strategy": null,
+    "step_interval_ms": null,
+    "step_size": null
+  },
+  "output": {
+    "target": "board"
+  },
+  "active_page": {
+    "page_id": "00000000-0000-4000-8000-000000000101"
+  },
+  "polling": {
+    "interval_seconds": 60
+  },
+  "board": {
+    "board_type": "black"
+  },
+  "schedule": {
+    "enabled": false
+  }
+}
