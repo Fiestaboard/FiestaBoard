@@ -279,6 +279,20 @@ class TestVariables:
         ctx = {"home_assistant": {"sensor_no_dot": {"state": "ok"}}}
         assert evaluate("home_assistant.sensor_no_dot.state", ctx) == "ok"
 
+    def test_home_assistant_entity_path_wins_over_flat_state_key(self):
+        # The HA plugin (>= 1.4.0) also returns each configured entity's state
+        # under a flat underscore key, next to the entity dict. A path that
+        # reads into the entity must resolve the dotted entity, not stop at
+        # that string (#2107).
+        ctx = {
+            "home_assistant": {
+                "sensor.outdoor_temp": {"state": "72", "unit_of_measurement": "°F"},
+                "sensor_outdoor_temp": "72",
+            }
+        }
+        assert evaluate("home_assistant.sensor_outdoor_temp.state", ctx) == "72"
+        assert evaluate("home_assistant.sensor_outdoor_temp.unit_of_measurement", ctx) == "°F"
+
     # ------------------------------------------------------------------
     # Plugin instance labels containing dashes (regression #969)
     #
