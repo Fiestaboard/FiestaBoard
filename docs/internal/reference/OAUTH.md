@@ -2,6 +2,9 @@
 
 Status: shipped in 9.5.0 (Fiestaboard/FiestaBoard#2093). First consumer:
 [fiestaboard-plugin--spotify](https://github.com/Fiestaboard/fiestaboard-plugin--spotify).
+9.9.0 adds provider quirk fields, the `key_exchange` and `plex_pin` flows,
+paste-to-finish, `report_oauth_rejected()`, and FiestaBot AI sign-in through
+the same service.
 
 This is the maintainer's reference: the pieces, the decisions behind them, and
 what must not change. Two other documents cover the other audiences, and this
@@ -42,14 +45,27 @@ Two flows, chosen per plugin in its manifest:
 - **`device`**: device authorization grant (RFC 8628). No redirect at all; the
   board polls. Only where the provider supports it for the needed scopes.
 
+Two more since 9.9.0, for providers that are not standard OAuth:
+
+- **`key_exchange`**: OpenRouter's PKCE exchange. No client ID; the return
+  address goes in `callback_url`, and the token endpoint takes JSON and
+  returns a non-expiring key. A headless start sends neither `callback_url`
+  nor `state`, so the provider shows a bare code to paste.
+- **`plex_pin`**: not OAuth. The board creates a strong PIN at plex.tv, sends
+  the browser to app.plex.tv, and polls the PIN every 2 seconds on the device
+  flow's thread machinery (`_DeviceFlow.kind`). Endpoints are constants in
+  `plex.py`; a per-install `data/.oauth_client_identifier` is the
+  `X-Plex-Client-Identifier`.
+
 ## The Pieces
 
 | Piece | Where | What it does |
 |---|---|---|
 | Relay site | repo [Fiestaboard/auth](https://github.com/Fiestaboard/auth), served at `https://fiestaboard.app/auth/` | Static pages. `oauth/redirect.html` forwards the provider's response to the board; `oauth/boards.html` lists and forgets remembered boards. |
 | OAuth module | `src/oauth/` | Flows, state, token storage, refresh. |
-| Routes | `src/oauth/routes.py` | `GET /oauth/connections`, `GET`/`DELETE /oauth/connections/{id}`, `POST /oauth/connections/{id}/authorize`, `GET /oauth/callback`. |
-| Plugin hook | `PluginBase.get_oauth_token()` in `src/plugins/base.py` | The whole plugin-facing API. |
+| Routes | `src/oauth/routes.py` | `GET /oauth/connections`, `GET`/`DELETE /oauth/connections/{id}`, `POST /oauth/connections/{id}/authorize` (takes `headless`), `POST /oauth/connections/{id}/complete` (paste to finish), `GET /oauth/callback`. |
+| Plugin hook | `PluginBase.get_oauth_token()` and `report_oauth_rejected()` in `src/plugins/base.py` | The whole plugin-facing API. |
+| AI sign-in | `src/ai/sign_in.py` | FiestaBot provider presets (OpenRouter, Hugging Face, ChatGPT), `AiProviderConnectionSource`, and the per-request token swap. |
 | Manifest validation | `src/oauth/provider.py`, called from `src/plugins/manifest.py` | A bad `oauth` block refuses the plugin at load. |
 | Settings UI | `web/src/components/plugin-settings/oauth-connection.tsx` | The "Account connection" section; mounted in the Integrations settings sheet, which also handles the `?oauth=` return. |
 | Mock provider | `scripts/mock_oauth_provider.py` | Strict stand-in provider for end-to-end tests. |
@@ -61,9 +77,11 @@ Inside `src/oauth/`:
 | `provider.py` | Parse and validate the manifest `oauth` block. Pure; imported by `src/plugins/manifest.py`, so it must not import the rest of `src`. |
 | `pkce.py` | Verifier and S256 challenge. |
 | `state.py` | Sign and verify `state`; the per-install key file. |
-| `client.py` | HTTP to the provider's token and device endpoints, over an injectable transport. |
+| `client.py` | HTTP to the provider's token and device endpoints, over an injectable transport. `HttpTransport` (`request_json`) carries JSON, GET, and custom headers for `key_exchange` and Plex. |
+| `paste.py` | Parse a pasted redirect address or bare code. Pure. |
+| `plex.py` | The Plex PIN calls and the client identifier file. |
 | `tokens.py` | `data/oauth_tokens.json`. |
-| `service.py` | Orchestration: start, callback, device polling, refresh, disconnect. Start here. |
+| `service.py` | Orchestration: start, callback, paste, device and PIN polling, refresh, rejection reports, disconnect. Start here. |
 | `models.py`, `routes.py`, `errors.py` | Wire models, router, domain errors. |
 
 The domain is in both ratchets (`tests/conventions_manifest.json`,
@@ -136,6 +154,49 @@ plugin that ships an ID and offers no field cannot have it replaced. The
 connection API reports `user_app`, and the UI hides app-setup help when it is
 false.
 
+**Provider quirks are manifest fields, not code.** (9.9.0) `client_id_param`,
+`scope_separator`, `device_scope_param`, `device_poll_scope`,
+`endpoint_base_setting`, and `plex_product` keep "no provider named in `src/`"
+true for TikTok, Strava, Todoist, Twitch, Home Assistant, and Plex. Each
+defaults to the standard behavior. `OAuthProvider.resolve_endpoints(config)` is
+the only place endpoints are read, so a settings-based base URL applies to
+every flow at once.
+
+**Settings-based endpoints allow plain http only on the home network.**
+(9.9.0) For `endpoint_base_setting`, `_base_url_error` accepts `https` to any
+host, and `http` only to a host judged local from its name alone (RFC 1918,
+loopback, link-local, CGNAT, IPv6 ULA, single-label names, `.local`, `.lan`,
+`.home.arpa`, `.internal`). No DNS lookup, so a name cannot be made to look
+local. This is a different rule from the relay's local-address rule and
+answers a different question: where the board may send a client secret.
+
+**Paste to finish.** (9.9.0) A relay can fail to reach the board (another
+device, a blocked redirect), and some providers show a code instead of
+redirecting. `POST /oauth/connections/{id}/complete` takes the pasted address
+or code. Unlike the callback it needs a session. A pasted `state` must be one this
+board issued, for this connection, and unused. A code with no `state` (a bare
+code, or an address without one) is accepted only by a pending flow that opted
+in (a headless `key_exchange`), because nothing else binds it to a flow. Refusals are `PastedCodeRejected` (400) with a reason slug.
+
+**Plugins can report a rejected token.** (9.9.0, closes Known Gap 1)
+`report_oauth_rejected()` forces one refresh, at most once per 60 seconds per
+connection (`FORCED_REFRESH_COOLDOWN_SECONDS`), and returns the new token. With
+no refresh possible, the connection is marked for reauthorization with
+`reauth_reason="rejected"`, which the API reports as `status_reason` so the UI
+can say the provider stopped accepting the sign-in.
+
+**FiestaBot AI providers are connections too.** (9.9.0) An AI provider in
+`config.json` with `"sign_in": {"preset": "..."}` is a connection with id
+`ai.<provider id>` and `kind: "ai"`, served by `AiProviderConnectionSource`
+next to the plugin registry (`CompositeConnectionSource`). Its tokens live in
+the token store, never in `config.json`; `resolve_provider_auth` swaps the
+current token in as the provider's `api_key` on every request, and a provider
+without `sign_in` is passed through untouched. The Integrations page ignores
+`kind == "ai"`, and the callback returns AI sign-ins to Settings. Presets may
+set fields no manifest can (`redirect_uri_override`, `token_params`,
+`accept_issued_client_id`, `first_sign_in_params`) for ChatGPT's loopback
+redirect and issued client. The ChatGPT `id_token` is discarded unread.
+
 **Tokens are not in backups.** `oauth_tokens.json` is not in the backup
 allow-list. Restoring onto a new board means signing in again.
 
@@ -203,15 +264,20 @@ The relay has its own tests (`npm test`, `npm run test:dist`) in its repo.
 Raised while building the Spotify plugin. None is a bug; each is a candidate
 for follow-up.
 
-1. **A plugin cannot report a rejected token.** If the provider answers `401`
-   because the user revoked access, the UI keeps showing Connected until the
-   platform's next refresh fails, which can be up to the token's lifetime. A
-   `report_oauth_rejected()` or a forced refresh would close it.
+1. ~~**A plugin cannot report a rejected token.**~~ Closed in 9.9.0 by
+   `report_oauth_rejected()`. Plugins that do not call it still show
+   Connected until the next refresh fails.
 2. **`get_oauth_token()` returns `None` for both "never signed in" and
    "reconnect needed".** The plugin's message cannot name the right button.
+   The settings UI can (`status_reason`), but the plugin still cannot.
 3. **Per-board-shape caching multiplies API calls**, and unavailable results
    are not cached, so every OAuth plugin against a rate-limited API writes its
    own shared snapshot and backoff.
 4. **An `oauth` manifest on a pre-9.5.0 board loads silently without it.**
    `fiestaboard_version` is the guard.
 5. **Nothing shows a device code on the board itself.**
+6. **The mock provider covers only `relay` and `device`.** It has no
+   `/openrouter/auth`, `/api/v1/auth/keys`, Plex PIN, or `/responses`
+   endpoints, and the Plex and AI preset URLs are constants with no override,
+   so `key_exchange`, `plex_pin`, and AI sign-in are tested with scripted
+   transports only.

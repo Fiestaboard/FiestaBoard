@@ -10,7 +10,7 @@ Some data lives behind a user's account on another service: what they're playing
 
 This page is the complete reference for plugin authors, human or AI. It assumes you have read the [Plugin Development Guide](/docs/development/plugin-guide). For what your users see, read [Connecting Accounts](/docs/features/connecting-accounts).
 
-**Requires FiestaBoard 9.5.0 or later.** Set `"fiestaboard_version": ">=9.5.0"` in your manifest.
+**Requires FiestaBoard 9.5.0 or later.** Set `"fiestaboard_version": ">=9.5.0"` in your manifest. A plugin that uses anything marked **9.9.0** on this page (the `key_exchange` and `plex_pin` flows, the [provider quirk fields](#provider-quirks), or `report_oauth_rejected()`) sets `">=9.9.0"` instead.
 
 ## The Short Version
 
@@ -82,12 +82,16 @@ That is a working OAuth plugin. The rest of this page explains each choice.
 
 ## Why the Platform Does This
 
-A FiestaBoard usually lives on a home network at an address like `http://192.168.1.50:4420`. OAuth providers only send a signed-in user back to an `https://` address registered in advance, and a board is neither public nor HTTPS. A plugin cannot solve that by itself, so the platform solves it once for every plugin, with two flows:
+A FiestaBoard usually lives on a home network at an address like `http://192.168.1.50:4420`. OAuth providers only send a signed-in user back to an `https://` address registered in advance, and a board is neither public nor HTTPS. A plugin cannot solve that by itself, so the platform solves it once for every plugin. Most plugins use one of the first two flows; the other two exist for providers that do not do standard OAuth:
 
 | Flow | How the user signs in | Use it when |
 |------|-----------------------|-------------|
 | `relay` | The browser goes to the provider, then returns through a small static page at `https://fiestaboard.app/auth/oauth/redirect`, which hands it back to the board. Authorization code with PKCE. | Always available: every OAuth provider supports it. |
 | `device` | The settings show a short code. The user enters it on the provider's site from any device, and the board waits for approval. Device authorization grant (RFC 8628). | The provider supports device codes **for the scopes you need**. No redirect is involved. |
+| `key_exchange` | Like `relay`, but with no client ID: the provider trades the code and PKCE verifier for a long-lived API key, sent as JSON. The provider is told where to return with a `callback_url` parameter. **9.9.0.** | OpenRouter-style "sign in to get a key" providers. |
+| `plex_pin` | The board creates a PIN at plex.tv and opens Plex's sign-in page in a new tab. The settings wait while the board polls the PIN for a token. **9.9.0.** | Plex only. The block needs no endpoints: they are plex.tv's. |
+
+If the browser does not make it back to the board after a `relay` or `key_exchange` sign-in, the user can paste the address they landed on (or the code the provider showed) into the settings, and the board finishes the sign-in from that. You do nothing to enable it.
 
 The redirect URI for the `relay` flow is the same for every board and every plugin:
 
@@ -103,9 +107,9 @@ The first time someone signs in from a browser, that page shows the board's addr
 
 | Field | Required | Meaning |
 |-------|----------|---------|
-| `flows` | yes | `["relay"]`, `["device"]`, or both. The first one listed is the one the sign-in button uses. |
-| `token_url` | yes | The provider's token endpoint. |
-| `authorization_url` | for `relay` | The provider's authorization endpoint. |
+| `flows` | yes | `["relay"]`, `["device"]`, or both. The first one listed is the one the sign-in button uses. `key_exchange` and `plex_pin` are also accepted from 9.9.0. |
+| `token_url` | yes, except for `plex_pin` | The provider's token endpoint. For `key_exchange`, the endpoint that trades the code for a key. |
+| `authorization_url` | for `relay` and `key_exchange` | The provider's authorization endpoint. |
 | `device_authorization_url` | for `device` | The provider's device authorization endpoint. |
 | `scopes` | no | Scopes to request. Ask for the least that works; users see the list on the consent screen. |
 | `provider_name` | no | Shown in the UI ("Sign in with Example Music"). Defaults to your plugin's name. |
@@ -114,16 +118,101 @@ The first time someone signs in from a browser, that page shows the board's addr
 | `client_secret_setting` | no | The `settings_schema` key that holds a user's client secret, for providers that require one. Omit it for a PKCE-only client. |
 | `authorization_params` | no | Extra fixed query parameters for the authorization request, as strings. For example `{"access_type": "offline"}`. |
 | `app_setup_url` | no | The provider's developer page, where a user creates their own app. The guided setup links to it. `https://` only. Added in 9.8.0; see the note on unknown fields below. |
+| `client_id_param` | no | The name the provider gives the client ID parameter, in the authorization request and the token request. Default `client_id`; TikTok wants `client_key`. **9.9.0.** |
+| `scope_separator` | no | How scopes are joined: `" "` (the default) or `","`. Strava, TikTok, and Todoist want `","`. **9.9.0.** |
+| `device_scope_param` | no | The scope parameter's name on the device authorization request. Default `scope`; Twitch wants `scopes`. **9.9.0.** |
+| `device_poll_scope` | no | `true` to send the scopes again when polling the device token endpoint (Twitch). Default `false`. **9.9.0.** |
+| `endpoint_base_setting` | no | A `settings_schema` key that holds the provider's base address, for a provider that runs on the user's own network (Home Assistant). The endpoint fields then hold paths, such as `"/auth/token"`. **9.9.0.** |
+| `plex_product` | no | The product name the `plex_pin` flow sends to Plex, shown on Plex's sign-in page and device list. Default `FiestaBoard`. **9.9.0.** |
 
 The manifest is validated when the plugin loads, and a plugin with a bad `oauth` block is refused with a message naming the problem:
 
-- Endpoints must be `https://`. Plain `http://` is accepted only for `localhost`, `127.0.0.1`, and `::1`, which is what a local test provider looks like.
-- `flows` must be a non-empty list of `relay` and `device`, without repeats.
+- Endpoints must be `https://`. Plain `http://` is accepted only for `localhost`, `127.0.0.1`, and `::1`, which is what a local test provider looks like. With `endpoint_base_setting`, the endpoints must be paths starting with `/` instead, and the address the user saves is checked when they sign in (see [Provider Quirks](#provider-quirks)).
+- `flows` must be a non-empty list of `relay`, `device`, `key_exchange`, and `plex_pin`, without repeats.
+- `client_id_param`, `device_scope_param`, and `endpoint_base_setting` are parameter names: letters, digits, and underscores. `scope_separator` is `" "` or `","`. `device_poll_scope` is `true` or `false`.
+- `endpoint_base_setting` must name a key in `settings_schema`.
 - **`client_secret` is never allowed in a manifest.** Plugin repositories are public.
-- A field your board's FiestaBoard does not know is ignored and reported as a warning in `GET /plugins/errors`, so a plugin using a field from a newer release still loads on an older one. **9.5.0 through 9.7.x refuse the whole plugin instead**, so a plugin that must run on those releases cannot use `app_setup_url`.
-- `authorization_params` may not set `response_type`, `client_id`, `redirect_uri`, `state`, `scope`, `code_challenge`, or `code_challenge_method`. The platform sets those.
+- A field your board's FiestaBoard does not know is ignored and reported as a warning in `GET /plugins/errors`, so a plugin using a field from a newer release still loads on an older one. **9.5.0 through 9.7.x refuse the whole plugin instead**, so a plugin that must run on those releases cannot use `app_setup_url`. A 9.8.x board ignores the 9.9.0 fields the same way, which means it would sign in with the wrong parameter names: set `fiestaboard_version` to `>=9.9.0` when you use them. A flow name an older board does not know refuses the plugin there.
+- `authorization_params` may not set `response_type`, `client_id`, `redirect_uri`, `state`, `scope`, `code_challenge`, or `code_challenge_method`, nor the name in `client_id_param`. The platform sets those.
 - `scopes` entries are strings without spaces.
 - Transition plugins may not declare `oauth`.
+
+## Provider Quirks {#provider-quirks}
+
+**Requires FiestaBoard 9.9.0.** Many providers bend the OAuth standard a little. These fields cover the common bends, so a plugin never has to run its own flow. Each one has a default that matches the standard, so leave out any field you do not need.
+
+A provider that calls the client ID something else and joins scopes with commas (TikTok):
+
+```json
+"oauth": {
+  "provider_name": "TikTok",
+  "flows": ["relay"],
+  "authorization_url": "https://www.tiktok.com/v2/auth/authorize/",
+  "token_url": "https://open.tiktokapis.com/v2/oauth/token/",
+  "scopes": ["user.info.basic", "user.info.stats"],
+  "client_id_param": "client_key",
+  "scope_separator": ","
+}
+```
+
+A device flow with a differently named scope parameter, where the token poll repeats the scopes (Twitch):
+
+```json
+"oauth": {
+  "provider_name": "Twitch",
+  "flows": ["device"],
+  "device_authorization_url": "https://id.twitch.tv/oauth2/device",
+  "token_url": "https://id.twitch.tv/oauth2/token",
+  "scopes": ["user:read:follows"],
+  "device_scope_param": "scopes",
+  "device_poll_scope": true
+}
+```
+
+A provider that runs on the user's own network (Home Assistant). The endpoints are paths, and the base address comes from a setting the user fills in:
+
+```json
+"oauth": {
+  "provider_name": "Home Assistant",
+  "flows": ["relay"],
+  "endpoint_base_setting": "base_url",
+  "authorization_url": "/auth/authorize",
+  "token_url": "/auth/token"
+},
+"settings_schema": {
+  "type": "object",
+  "properties": {
+    "base_url": {"type": "string", "title": "Home Assistant address"}
+  }
+}
+```
+
+When the user signs in, the board joins the saved address to each path. It sends credentials only to an `https://` address, or to plain `http://` on the user's own network: a private or link-local IP address, `localhost`, a single-label name, or a name ending in `.local`, `.lan`, `.home.arpa`, or `.internal`. Anything else, an empty value, or an address with a query, fragment, or user name stops the sign-in with a message asking the user to check the address.
+
+A Plex sign-in. The block has no endpoints and no client ID:
+
+```json
+"oauth": {
+  "provider_name": "Plex",
+  "flows": ["plex_pin"],
+  "plex_product": "FiestaBoard"
+}
+```
+
+`get_oauth_token()` returns the Plex token. Send it the way Plex expects, as the `X-Plex-Token` header, not as a bearer token. Each board has its own `X-Plex-Client-Identifier`, created on first use and kept in `data/.oauth_client_identifier`.
+
+A provider that hands out an API key instead of tokens (OpenRouter's flow):
+
+```json
+"oauth": {
+  "provider_name": "Example Router",
+  "flows": ["key_exchange"],
+  "authorization_url": "https://router.example.com/auth",
+  "token_url": "https://router.example.com/api/v1/auth/keys"
+}
+```
+
+The key does not expire, so there is nothing to refresh. The settings also offer **Sign in without a browser redirect**, which asks the provider to show a code that the user pastes back.
 
 ## Whose App? {#whose-app}
 
@@ -204,7 +293,22 @@ Two platform behaviors make this your job rather than something you get for free
 - **Unavailable results are not cached.** After a failure, `fetch_data` is called again on the next render. Without your own cooldown, a rate-limited plugin keeps hitting the provider.
 - **Results are cached per board shape.** A Flagship and a Note showing the same plugin fetch separately. For a rate-limited API, keep one shared snapshot inside the plugin for a few seconds so that both are served by one request.
 
-A plugin cannot tell the platform that a token was rejected, so the settings may keep showing **Connected** until the platform's next refresh fails. Your error message is what the user sees in the meantime, so make it actionable.
+### Reporting a rejected token
+
+**Requires FiestaBoard 9.9.0.** When the provider answers `401`, call `self.report_oauth_rejected()`. The platform refreshes the token once if it can and returns the new one, so retry the request once with it. `None` means the user has to sign in again. The settings then say *Provider* stopped accepting the sign-in, so return an unavailable result and make no more requests.
+
+```python
+if response.status_code == 401:
+    report = getattr(self, "report_oauth_rejected", None)  # absent before 9.9.0
+    new_token = report() if report else None
+    if not new_token:
+        return PluginResult(available=False, error="Example Music rejected the sign-in. Sign in again in this plugin's settings.")
+    response = requests.get(url, headers={"Authorization": f"Bearer {new_token}"}, timeout=10)
+```
+
+The forced refresh runs at most once a minute per connection, so a plugin that reports on every render does not hammer the provider. Report only a real rejection of the token, never a `403`, `429`, or outage.
+
+On 9.5.0 through 9.8.x, or if you do not call it, the settings can keep showing **Connected** until the platform's next refresh fails. Your error message is what the user sees in the meantime, so make it actionable.
 
 ### Guarding against an older FiestaBoard
 
@@ -222,8 +326,10 @@ You build no UI. When a plugin declares `oauth`, its settings gain an **Account 
 
 - **Not connected**: a **Sign in with *Provider*** button. With the user's-own-app model it sits under the guided setup described in [Whose App?](#whose-app) and stays disabled until a Client ID is entered.
 - **Waiting for approval** (device flow): the address to visit and the code to enter, with a copy button. It updates by itself when the user approves.
+- **Waiting for Plex** (`plex_pin`): Plex's sign-in page opens in a new tab, and the settings update by themselves when the user approves. There is no code to enter.
+- **Paste to finish** (9.9.0): after a `relay` or `key_exchange` start, a **Sign-in didn't come back? Paste the address or code** box is offered for ten minutes. The user pastes the address the browser stopped at, or the code the provider showed, and presses **Finish sign-in**.
 - **Connected**: **Reconnect** and **Disconnect** buttons.
-- **Reconnect needed**: the provider refused a token refresh. Your plugin gets `None` until the user signs in again.
+- **Reconnect needed**: the provider refused a token refresh. Your plugin gets `None` until the user signs in again. When your plugin reported the rejection (9.9.0), the message reads "*Provider* stopped accepting the sign-in. Sign in again."
 
 After a relay sign-in the user lands back on the Integrations page with your plugin's settings open and a confirmation. Failures arrive there too, as a sentence.
 
@@ -359,6 +465,13 @@ Check the provider's current documentation; these are starting points, not guara
 | Spotify | `relay` | PKCE without a secret. No device flow. Development Mode apps admit five listed accounts, and the redirect URI must match exactly. |
 | Google | `relay` | Web-application clients need a client secret, so use `client_secret_setting`. Send `{"access_type": "offline", "prompt": "consent"}` in `authorization_params` to receive a refresh token. The device flow allows only a short list of scopes. |
 | GitHub | `device` or `relay` | The device flow must be enabled in the app's settings. GitHub reports OAuth errors with HTTP 200 and separates scopes with commas; the platform handles both. |
+| Strava | `relay` | `"scope_separator": ","`. |
+| TikTok | `relay` | `"client_id_param": "client_key"` and `"scope_separator": ","`. |
+| Todoist | `relay` | `"scope_separator": ","`. |
+| Twitch | `device` | `"device_scope_param": "scopes"` and `"device_poll_scope": true`. |
+| Home Assistant | `relay` | Runs on the user's network: `endpoint_base_setting` with path endpoints. |
+| Plex | `plex_pin` | Not OAuth. Send the token as `X-Plex-Token`. |
+| OpenRouter | `key_exchange` | Yields an API key with no client ID and no expiry. |
 
 ## What the Platform Guarantees
 
@@ -371,8 +484,8 @@ Check the provider's current documentation; these are starting points, not guara
 
 ## Checklist
 
-- [ ] `fiestaboard_version` is `>=9.5.0`
-- [ ] The `oauth` block passes `validate_provider_block` in a test
+- [ ] `fiestaboard_version` is `>=9.5.0`, or `>=9.9.0` if the plugin uses a 9.9.0 flow, field, or `report_oauth_rejected()`
+- [ ] The `oauth` block passes `validate_provider_block` in a test (pass `settings_schema` too when you use `endpoint_base_setting`)
 - [ ] No client secret anywhere in the repository
 - [ ] Scopes are the least the plugin needs
 - [ ] `fetch_data` calls `get_oauth_token()` every time and stores nothing
