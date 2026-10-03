@@ -754,7 +754,7 @@ export function ActivePageDisplay() {
               <Badge
                 key={board.id}
                 variant="default"
-                className="text-xs gap-1 bg-amber-500 text-white hover:bg-amber-500"
+                className="text-xs gap-1 bg-warning text-warning-foreground hover:bg-warning"
                 data-testid="board-paused-badge"
                 title={tPause("tooltip")}
               >
