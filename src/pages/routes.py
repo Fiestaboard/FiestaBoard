@@ -621,7 +621,7 @@ async def send_page(
                     dims = resolve_dimensions(*geometry_of(page))
                 board_array = text_to_board_array(result.formatted, rows=dims.rows, cols=dims.cols)
                 # render() serializes concurrent senders via the client's
-                # per-board _send_lock, so worker threads can't interleave.
+                # per-board send lock, so worker threads can't interleave.
                 success, was_sent = board_client.render(
                     board_array,
                     strategy=strategy,

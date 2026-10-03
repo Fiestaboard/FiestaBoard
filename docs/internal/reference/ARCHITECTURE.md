@@ -144,6 +144,13 @@ Names you will meet:
   Reach for a member of it, not a client's private attribute;
   `tests/test_output_driver_protocol.py` counts the private peeks that
   remain and fails if one is added.
+- **`OutputRuntime`** (`src/outputs/runtime.py`) — core-owned send policy for
+  one board, created by its `BoardRuntime` and bound to the client. Today it
+  holds the per-board **send lock** (re-entrant) and the **cancel token**: a
+  new send signals the in-flight run's token *before* waiting on the lock,
+  then installs a fresh token, so a running transition is preempted rather
+  than waited out and a stale signal never cancels the next run. The engine
+  calls `preempt()` at enqueue time for the same reason.
 - **`BoardSendWorker`** — one thread per board with a **latest-wins** queue:
   a newer frame supersedes a queued older one, and callers waiting on the
   superseded frame are adopted onto the newer one. Never bypass it; a direct
