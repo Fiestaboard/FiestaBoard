@@ -56,7 +56,7 @@ logger = logging.getLogger(__name__)
 
 #: Where every provider is told to send the browser. Registered verbatim in
 #: each OAuth app, so it must never change — see the relay repo's README.
-#: 9.5.0 through 9.6.x sent this with ``.html`` on the end. The relay serves
+#: 9.5.0 through 9.7.x sent this with ``.html`` on the end. The relay serves
 #: both forms, and must keep doing so: apps registered by users of those
 #: releases still name the old one.
 DEFAULT_REDIRECT_URI = "https://fiestaboard.app/auth/oauth/redirect"

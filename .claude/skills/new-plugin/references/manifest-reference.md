@@ -66,10 +66,10 @@ recipe is in `oauth.md`; the fields are:
 | `client_id_setting` | no | Settings key for a user's own client ID. Default `client_id`. Only honored if `settings_schema` declares it. |
 | `client_secret_setting` | no | Settings key for a user's client secret (password widget). |
 | `authorization_params` | no | Extra string query parameters; may not override the ones the platform sets. |
-| `app_setup_url` | no | The provider's developer page; the guided setup links to it. `https://`. Newer than 9.6 only. |
+| `app_setup_url` | no | The provider's developer page; the guided setup links to it. `https://`. 9.8.0 and later only. |
 
 `client_secret` is **never** allowed in a manifest: a bad block stops the plugin from
-loading. A field the board's core does not know is ignored with a warning (9.5.0-9.6.x
+loading. A field the board's core does not know is ignored with a warning (9.5.0-9.7.x
 refuse the plugin instead). Validate in a test with
 `src.oauth.provider.validate_provider_block`.
 

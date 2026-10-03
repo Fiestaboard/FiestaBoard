@@ -95,7 +95,7 @@ The redirect URI for the `relay` flow is the same for every board and every plug
 https://fiestaboard.app/auth/oauth/redirect
 ```
 
-FiestaBoard 9.5.0 through 9.6.x sends the same address with `.html` on the end. Both reach the same page, but providers compare redirect URIs exactly. So in your setup guide, tell users to **copy the redirect URI from the plugin's settings**, which always shows the one their board sends, instead of typing one from your docs.
+FiestaBoard 9.5.0 through 9.7.x sends the same address with `.html` on the end. Both reach the same page, but providers compare redirect URIs exactly. So in your setup guide, tell users to **copy the redirect URI from the plugin's settings**, which always shows the one their board sends, instead of typing one from your docs.
 
 The first time someone signs in from a browser, that page shows the board's address and asks them to confirm it, then remembers the answer. It only ever forwards to an address on a local network. You do not build, host, or configure any of it.
 
@@ -113,14 +113,14 @@ The first time someone signs in from a browser, that page shows the board's addr
 | `client_id_setting` | no | The `settings_schema` key that holds a user's own client ID. Default `client_id`. |
 | `client_secret_setting` | no | The `settings_schema` key that holds a user's client secret, for providers that require one. Omit it for a PKCE-only client. |
 | `authorization_params` | no | Extra fixed query parameters for the authorization request, as strings. For example `{"access_type": "offline"}`. |
-| `app_setup_url` | no | The provider's developer page, where a user creates their own app. The guided setup links to it. `https://` only. Added after 9.6; see the note on unknown fields below. |
+| `app_setup_url` | no | The provider's developer page, where a user creates their own app. The guided setup links to it. `https://` only. Added in 9.8.0; see the note on unknown fields below. |
 
 The manifest is validated when the plugin loads, and a plugin with a bad `oauth` block is refused with a message naming the problem:
 
 - Endpoints must be `https://`. Plain `http://` is accepted only for `localhost`, `127.0.0.1`, and `::1`, which is what a local test provider looks like.
 - `flows` must be a non-empty list of `relay` and `device`, without repeats.
 - **`client_secret` is never allowed in a manifest.** Plugin repositories are public.
-- A field your board's FiestaBoard does not know is ignored and reported as a warning in `GET /plugins/errors`, so a plugin using a field from a newer release still loads on an older one. **9.5.0 through 9.6.x refuse the whole plugin instead**, so a plugin that must run on those releases cannot use `app_setup_url`.
+- A field your board's FiestaBoard does not know is ignored and reported as a warning in `GET /plugins/errors`, so a plugin using a field from a newer release still loads on an older one. **9.5.0 through 9.7.x refuse the whole plugin instead**, so a plugin that must run on those releases cannot use `app_setup_url`.
 - `authorization_params` may not set `response_type`, `client_id`, `redirect_uri`, `state`, `scope`, `code_challenge`, or `code_challenge_method`. The platform sets those.
 - `scopes` entries are strings without spaces.
 - Transition plugins may not declare `oauth`.
@@ -178,7 +178,7 @@ Before you choose this, check the provider's limits on apps they have not review
 | `oauth.client_id` shipped, settings field declared | The user's value if they saved one, otherwise the shipped one. |
 | No `oauth.client_id`, settings field declared | The user's value. The sign-in button is disabled until one is saved. |
 
-On FiestaBoard 9.5.0 through 9.6.x a saved value always overrode a shipped client ID, and the settings showed app-setup help even when there was nothing to set up. Later versions follow the table above.
+On FiestaBoard 9.5.0 through 9.7.x a saved value always overrode a shipped client ID, and the settings showed app-setup help even when there was nothing to set up. 9.8.0 and later follow the table above.
 
 ## Using the Token
 

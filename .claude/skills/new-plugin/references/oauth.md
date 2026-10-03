@@ -54,7 +54,7 @@ Scaffold with `--type http` as usual. The generator has no OAuth mode; make thes
   connection panel, not in the settings form. Add `"client_secret_setting": "client_secret"`
   plus a `"ui:widget": "password"` field only if the provider requires a secret. Add
   `"app_setup_url": "https://…"` (the provider's developer page) so the guided setup can
-  link to it, but only if `fiestaboard_version` is newer than 9.6: 9.5.0-9.6.x refuse a
+  link to it, but only if `fiestaboard_version` is `>=9.8.0`: 9.5.0-9.7.x refuse a
   manifest with an `oauth` field they do not know.
 - Plugin's own app: add `"client_id": "<the id>"` to the `oauth` block and **remove** any
   `client_id` field from `settings_schema`. A saved client ID only counts when the settings
@@ -126,7 +126,7 @@ ref: v9.5.0
 **`docs/SETUP.md`** (canonical section order still applies): what the plugin can see, in
 plain words; how to create the app, field by field (user's-own-app model only); the redirect
 URI, which the user **copies from the plugin's Account connection section** (it is
-`https://fiestaboard.app/auth/oauth/redirect`, but boards on 9.5-9.6 send it with `.html` on
+`https://fiestaboard.app/auth/oauth/redirect`, but boards on 9.5-9.7 send it with `.html` on
 the end and providers match exactly, so never tell them to type it from your docs); sign in
 with the **Sign in with <Provider>** button and confirm the board's address the first time;
 any account limits, stated up front; troubleshooting keyed by your exact error strings. Link

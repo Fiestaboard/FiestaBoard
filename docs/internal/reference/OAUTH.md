@@ -125,7 +125,7 @@ this model in 1.2.0 for that reason.
 **Unknown `oauth` fields are a warning, not an error.** Plugins auto-update
 hourly and cores are updated by hand, so a plugin routinely lands on an older
 core. `provider_block_warnings` reports the field through
-`GET /plugins/errors` and the plugin loads. 9.5.0 through 9.6.x refused the
+`GET /plugins/errors` and the plugin loads. 9.5.0 through 9.7.x refused the
 manifest instead, which is why a plugin that must run there cannot use
 `app_setup_url`.
 
@@ -164,7 +164,7 @@ messages are fixed text; a test feeds a marker through every field.
 - **`https://fiestaboard.app/auth/oauth/redirect`, and the same address with
   `.html` on the end.** One or the other is registered as the redirect URI in
   every OAuth app anyone has created for a FiestaBoard plugin: 9.5.0 through
-  9.6.x send the `.html` form, later releases the short one. GitHub Pages
+  9.7.x send the `.html` form, 9.8.0 and later the short one. GitHub Pages
   serves `oauth/redirect.html` at both. Renaming the `auth` repository,
   moving that page, changing the domain, or moving to a host that does not
   serve the page without its extension breaks every sign-in until each registration

@@ -58,7 +58,7 @@ The plugin's **Account connection** section walks you through it in numbered ste
    https://fiestaboard.app/auth/oauth/redirect
    ```
 
-   Services compare this address exactly, so always copy the one your board shows. FiestaBoard 9.5 and 9.6 show it with `.html` on the end.
+   Services compare this address exactly, so always copy the one your board shows. FiestaBoard 9.5 through 9.7 show it with `.html` on the end.
 3. **Copy the app's client ID into the section.** If the service also gives you a **client secret** and there is a field for it, enter that too. The secret stays on your board.
 
 Then press **Sign in with** and the service's name. It saves what you entered and starts the sign-in.
