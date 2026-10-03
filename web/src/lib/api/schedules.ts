@@ -135,6 +135,9 @@ export interface TemporaryOverrideStatus {
   device_type?: string | null;
   notes_wide?: number | null;
   notes_tall?: number | null;
+  /** Panel only: rows × cols of characters. */
+  grid_rows?: number | null;
+  grid_cols?: number | null;
 }
 
 /**
@@ -155,6 +158,9 @@ export type SetTemporaryOverrideRequest = {
       device_type?: string;
       notes_wide?: number;
       notes_tall?: number;
+      /** Panel only (required for a panel): rows × cols of characters. */
+      grid_rows?: number;
+      grid_cols?: number;
     }
 );
 

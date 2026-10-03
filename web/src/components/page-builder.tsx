@@ -98,6 +98,7 @@ import { anchorProps } from "@/lib/ai-choreography/anchors";
 import type {
   BoardInstance,
   DeviceType,
+  GridSize,
   LineAlignment,
   LineMetadata,
   Page,
@@ -220,6 +221,22 @@ const BUILT_IN_TRANSITIONS: { value: string; labelKey: string }[] = [
 
 const PLUGIN_STRATEGY_PREFIX = "plugin:";
 
+/**
+ * The geometry fields a page save carries beyond device_type: notes for a
+ * note array, the character grid for a panel (required — the API refuses a
+ * panel page without it), nothing for a flagship or Note.
+ */
+function geometryFields(
+  deviceType: DeviceType,
+  notesWide: number,
+  notesTall: number,
+  panelGrid: GridSize | null,
+): Pick<PageCreate, "notes_wide" | "notes_tall" | "grid_rows" | "grid_cols"> {
+  if (deviceType === "note_array") return { notes_wide: notesWide, notes_tall: notesTall };
+  if (deviceType === "panel" && panelGrid) return { grid_rows: panelGrid.rows, grid_cols: panelGrid.cols };
+  return {};
+}
+
 interface DraftData {
   name: string;
   templateLines: string[];
@@ -254,14 +271,25 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
   // (new page), or an AI sync — see the effects below.
   const [notesWide, setNotesWide] = useState(1);
   const [notesTall, setNotesTall] = useState(1);
+  // Character grid of a "panel" page (a FiestaPanel, fit per character — any
+  // rows × cols, not a multiple of a Note). Only meaningful when
+  // deviceType === "panel"; sourced from the existing page, the chosen panel,
+  // or the configured panel board (new page).
+  const [gridRows, setGridRows] = useState<number | null>(null);
+  const [gridCols, setGridCols] = useState<number | null>(null);
   // Set when the user picks a FiestaPanel by name in the size picker: the
   // panel's grid is the explicit choice, so the board-seeding effect below
   // must not overwrite it with the selected board's shape. Cleared again when
   // a generic device is chosen, so the seed is back in charge.
   const [panelSizedGrid, setPanelSizedGrid] = useState(false);
   const panelTargets = usePanelTargets();
-  const dims = resolveDimensions(deviceType, notesWide, notesTall);
+  const dims = resolveDimensions(deviceType, notesWide, notesTall, gridRows, gridCols);
   const numLines = dims.rows;
+  // The grid a panel render/save needs (the API refuses a panel without one).
+  const panelGrid = useMemo<GridSize | null>(
+    () => (deviceType === "panel" && gridRows && gridCols ? { rows: gridRows, cols: gridCols } : null),
+    [deviceType, gridRows, gridCols],
+  );
   // Latest numLines for effects that need it without becoming reactive to it
   // (the load-draft effect below intentionally excludes notesWide/notesTall
   // changes so resizing a note-array grid doesn't reset in-progress edits).
@@ -309,18 +337,25 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
 
   /**
    * The size picker offers two kinds of choice: a generic device type, and a
-   * FiestaPanel by name (``panel:<id>``). A panel resolves to a note_array
-   * page plus that panel's grid — a panel's board IS a note array, so there is
-   * no fourth device type and nothing is stored on the page to say which panel
-   * it was made for. The grid is the whole relationship.
+   * FiestaPanel by name (``panel:<id>``). A panel resolves to a ``panel`` page
+   * plus that panel's character grid (``grid_rows`` × ``grid_cols``) — nothing
+   * is stored on the page to say which panel it was made for. The grid is the
+   * whole relationship. (A legacy panel whose board is still a Note-block
+   * array resolves to a note_array page of its grid, as before.)
    */
   const handleSizeChange = useCallback(
     (value: string) => {
       const panel = value.startsWith("panel:") ? panelTargets.find((p) => `panel:${p.id}` === value) : undefined;
       if (panel) {
-        setDeviceType("note_array");
-        setNotesWide(panel.notesWide);
-        setNotesTall(panel.notesTall);
+        if (panel.deviceType === "panel") {
+          setDeviceType("panel");
+          setGridRows(panel.rows);
+          setGridCols(panel.cols);
+        } else {
+          setDeviceType("note_array");
+          setNotesWide(panel.notesWide);
+          setNotesTall(panel.notesTall);
+        }
         setPanelSizedGrid(true);
       } else {
         setDeviceType(value as DeviceType);
@@ -334,15 +369,16 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
   /**
    * What the size picker's trigger shows, and which row is highlighted when it
    * reopens. Derived from the geometry rather than held as its own state: a
-   * panel choice resolves to note_array + a grid, so a picker controlled by
-   * ``deviceType`` alone would snap to "Note Array" the instant a panel was
-   * chosen and forget it had been. Naming the panel whose board this grid
-   * matches is also simply truer — that IS the page's shape.
+   * panel choice resolves to a device type + a grid, so a picker controlled by
+   * ``deviceType`` alone would forget which panel had been chosen. Naming the
+   * panel whose board this grid matches is also simply truer — that IS the
+   * page's shape. A panel page no panel matches any more (its TV was resized
+   * or the panel deleted) shows as the bare "panel" option at its own grid.
    */
   const sizeSelectValue = useMemo(() => {
-    const [fit] = panelsFittingGrid(panelTargets, deviceType, notesWide, notesTall);
+    const [fit] = panelsFittingGrid(panelTargets, deviceType, notesWide, notesTall, gridRows, gridCols);
     return fit ? `panel:${fit.id}` : deviceType;
-  }, [panelTargets, deviceType, notesWide, notesTall]);
+  }, [panelTargets, deviceType, notesWide, notesTall, gridRows, gridCols]);
   const tipTapRef = useRef<TipTapTemplateEditorHandle>(null);
   // Metadata history keyed to stroke boundaries: done/undone mirror the
   // editor's stroke undo/redo stacks (reported via onDrawHistoryEvent).
@@ -390,6 +426,7 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
   const deviceTypeRef = useRef(deviceType);
   const notesWideRef = useRef(notesWide);
   const notesTallRef = useRef(notesTall);
+  const panelGridRef = useRef(panelGrid);
   useEffect(() => {
     nameRef.current = name;
   }, [name]);
@@ -411,6 +448,9 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
   useEffect(() => {
     notesTallRef.current = notesTall;
   }, [notesTall]);
+  useEffect(() => {
+    panelGridRef.current = panelGrid;
+  }, [panelGrid]);
 
   const hasUnsavedChanges = useMemo(() => {
     if (!savedSnapshot) return true;
@@ -603,10 +643,12 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
             lineAlignmentsRef.current,
             lineWrapEnabledRef.current,
           );
-          const noteArrayDims =
-            deviceTypeRef.current === "note_array"
-              ? { notes_wide: notesWideRef.current, notes_tall: notesTallRef.current }
-              : {};
+          const noteArrayDims = geometryFields(
+            deviceTypeRef.current,
+            notesWideRef.current,
+            notesTallRef.current,
+            panelGridRef.current,
+          );
           // The two endpoints no longer share a shape: PUT answers
           // { page, incompatible_references }, POST answers the bare page at
           // 201. Narrow to the saved page here so everything below reads one
@@ -850,7 +892,13 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
   // editor's current one. A shrink on either axis is lossy (content that
   // doesn't fit is cut off), so the save asks for confirmation first.
   const originalDims = existingPage
-    ? resolveDimensions(existingPage.device_type, existingPage.notes_wide ?? 1, existingPage.notes_tall ?? 1)
+    ? resolveDimensions(
+        existingPage.device_type,
+        existingPage.notes_wide ?? 1,
+        existingPage.notes_tall ?? 1,
+        existingPage.grid_rows,
+        existingPage.grid_cols,
+      )
     : null;
   const isShrinkingRetarget =
     !!pageId && !!originalDims && (dims.rows < originalDims.rows || dims.cols < originalDims.cols);
@@ -892,6 +940,9 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
       // real size. Non-note_array pages persist no grid fields → fall back to 1×1.
       setNotesWide(existingPage.notes_wide ?? 1);
       setNotesTall(existingPage.notes_tall ?? 1);
+      // A panel page's character grid; null for every other device type.
+      setGridRows(existingPage.grid_rows ?? null);
+      setGridCols(existingPage.grid_cols ?? null);
 
       const pageName = existingPage.name;
       setName(pageName);
@@ -990,6 +1041,26 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
     setNotesWide(board.notes_wide ?? 1);
     setNotesTall(board.notes_tall ?? 1);
   }, [pageId, panelSizedGrid, deviceType, boardSettings?.boards, currentBoardId]);
+
+  // Same seeding for a NEW panel page (e.g. "New Page" on the Panel tab): a
+  // panel has no implied size, so take the grid of the selected panel board,
+  // else the first panel board, else the first panel the API lists.
+  useEffect(() => {
+    if (pageId || panelSizedGrid || deviceType !== "panel" || (gridRows && gridCols)) return;
+    const boards = boardSettings?.boards ?? [];
+    const sized = (b: (typeof boards)[number]) => b.device_type === "panel" && !!b.grid_rows && !!b.grid_cols;
+    const board = boards.find((b) => b.id === currentBoardId && sized(b)) ?? boards.find(sized);
+    if (board?.grid_rows && board.grid_cols) {
+      setGridRows(board.grid_rows);
+      setGridCols(board.grid_cols);
+      return;
+    }
+    const target = panelTargets.find((p) => p.deviceType === "panel");
+    if (target) {
+      setGridRows(target.rows);
+      setGridCols(target.cols);
+    }
+  }, [pageId, panelSizedGrid, deviceType, gridRows, gridCols, boardSettings?.boards, currentBoardId, panelTargets]);
 
   useEffect(() => {
     const timeoutId = setTimeout(() => {
@@ -1160,7 +1231,7 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
           // for keys it actually receives, so omitting this would silently keep
           // a previous per-page transition after the user chose "global default".
           transition_strategy: transitionStrategy,
-          ...(deviceType === "note_array" ? { notes_wide: notesWide, notes_tall: notesTall } : {}),
+          ...geometryFields(deviceType, notesWide, notesTall, panelGrid),
         };
         return api.updatePage(pageId, payload);
       } else {
@@ -1171,7 +1242,7 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
           template: cleanedLines,
           line_metadata: metadata,
           transition_strategy: transitionStrategy,
-          ...(deviceType === "note_array" ? { notes_wide: notesWide, notes_tall: notesTall } : {}),
+          ...geometryFields(deviceType, notesWide, notesTall, panelGrid),
         };
         const created = await api.createPage(payload);
         return { page: created, incompatible_references: [] };
@@ -1306,12 +1377,12 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
       if (data.device_type) {
         setDeviceType(data.device_type);
       }
-      // Mirror any note-array grid dimensions the synced page carries so the
-      // preview matches the source board. Read defensively — the current
-      // CurrentDisplayResponse type doesn't yet declare these fields.
-      const synced = data as { notes_wide?: number; notes_tall?: number };
-      if (synced.notes_wide != null) setNotesWide(synced.notes_wide);
-      if (synced.notes_tall != null) setNotesTall(synced.notes_tall);
+      // Mirror the synced page's note-array / panel geometry so the preview
+      // matches the source board.
+      if (data.notes_wide != null) setNotesWide(data.notes_wide);
+      if (data.notes_tall != null) setNotesTall(data.notes_tall);
+      if (data.grid_rows != null) setGridRows(data.grid_rows);
+      if (data.grid_cols != null) setGridCols(data.grid_cols);
 
       toast.success(t("toastSyncedFrom", { name: data.page_name }));
     },
@@ -1340,7 +1411,7 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
         };
       }
 
-      return api.renderTemplate(cleanedLines, metadata, deviceType, notesWide, notesTall);
+      return api.renderTemplate(cleanedLines, metadata, deviceType, notesWide, notesTall, panelGrid);
     },
     onSuccess: (data) => {
       if (shouldIgnoreNextResponse.current) {
@@ -1469,6 +1540,8 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
     liveOutputEnabled,
     notesWide,
     notesTall,
+    gridRows,
+    gridCols,
   ]);
 
   // Live output mutation - sends rendered preview to the board
@@ -1486,6 +1559,8 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
         deviceType,
         notesWide,
         notesTall,
+        undefined,
+        panelGrid,
       );
     },
     onSuccess: (data) => {
@@ -1572,6 +1647,7 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
           notesWide,
           notesTall,
           controller.signal,
+          panelGrid,
         );
 
         if (controller.signal.aborted) return;
@@ -1610,6 +1686,7 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
     deviceType,
     notesWide,
     notesTall,
+    panelGrid,
     queryClient,
   ]);
 
@@ -2203,9 +2280,17 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
                         deviceType={deviceType}
                         notesWide={notesWide}
                         notesTall={notesTall}
+                        gridRows={gridRows}
+                        gridCols={gridCols}
                         className="ml-1"
                       />
-                      <PanelFitNote deviceType={deviceType} notesWide={notesWide} notesTall={notesTall} />
+                      <PanelFitNote
+                        deviceType={deviceType}
+                        notesWide={notesWide}
+                        notesTall={notesTall}
+                        gridRows={gridRows}
+                        gridCols={gridCols}
+                      />
                       {/* Device/size retarget (issue #1250): both new AND saved
                           pages can change board size. Converting a saved page is
                           lossy (shrinks truncate), so saving a shrinking retarget
@@ -2231,8 +2316,8 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
                                 <SelectItem key={panel.id} value={`panel:${panel.id}`} className="text-xs">
                                   {tPanels("panelSizeOption", {
                                     name: panel.name,
-                                    wide: panel.notesWide,
-                                    tall: panel.notesTall,
+                                    cols: panel.cols,
+                                    rows: panel.rows,
                                   })}
                                 </SelectItem>
                               ))}
@@ -2247,6 +2332,13 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
                           <SelectItem value="note_array" className="text-xs">
                             {tDisplaySettings("noteArrayLabel")}
                           </SelectItem>
+                          {/* A panel page no listed panel matches: still named,
+                              at its own grid, so the trigger never goes blank. */}
+                          {sizeSelectValue === "panel" && (
+                            <SelectItem value="panel" className="text-xs">
+                              {tPanels("panelGridOption", { cols: dims.cols, rows: dims.rows })}
+                            </SelectItem>
+                          )}
                         </SelectContent>
                       </Select>
                       {deviceType === "note_array" && (
@@ -2359,6 +2451,8 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
                         code62Glyph={effectiveCode62Glyph}
                         notesWide={notesWide}
                         notesTall={notesTall}
+                        gridRows={panelGrid?.rows}
+                        gridCols={panelGrid?.cols}
                         // DrawableBoardPreview hit-tests strokes through the
                         // tiles' data-row/data-col attributes; only this
                         // editor preview opts into emitting them.

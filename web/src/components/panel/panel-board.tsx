@@ -12,6 +12,9 @@ interface PanelBoardProps {
   deviceType: DeviceType;
   notesWide: number;
   notesTall: number;
+  /** Character grid of a "panel" board (ignored for every other type). */
+  gridRows?: number;
+  gridCols?: number;
   rows: number;
   cols: number;
   boardColor: "black" | "white";
@@ -45,8 +48,9 @@ function offsetWithin(el: HTMLElement, container: HTMLElement): { x: number; y: 
 
 /** Physical column pitch in inches for the board's device family. */
 function colPitchIn(deviceType: DeviceType): number {
-  // Auto-fit grids are built from Note blocks; a legacy flagship panel
-  // anchors to the Flagship's 41.2" / 22 columns instead.
+  // Auto-fit grids (per-character panels, and legacy Note-block arrays) use
+  // the Note's column pitch; a legacy flagship panel anchors to the
+  // Flagship's 41.2" / 22 columns instead.
   if (deviceType === "flagship") return PANEL_PHYSICAL_WIDTH_IN.flagship / 22;
   return NOTE_COL_PITCH_IN;
 }
@@ -67,6 +71,8 @@ export function PanelBoard({
   deviceType,
   notesWide,
   notesTall,
+  gridRows,
+  gridCols,
   rows,
   cols,
   boardColor,
@@ -156,6 +162,8 @@ export function PanelBoard({
             deviceType={deviceType}
             notesWide={notesWide}
             notesTall={notesTall}
+            gridRows={gridRows}
+            gridCols={gridCols}
             code62Glyph={code62Glyph}
             animationsEnabled={animationsEnabled}
             flapSpeed="hardware"

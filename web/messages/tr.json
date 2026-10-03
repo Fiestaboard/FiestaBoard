@@ -190,6 +190,7 @@
     "flagshipTab": "Flagship",
     "noteTab": "Note",
     "noteArrayTab": "Note Array",
+    "panelTab": "Panel",
     "noPagesTitle": "Henüz sayfa oluşturulmadı.",
     "noPagesDescription": "Panoda görüntülemek için ilk sayfanızı oluşturun.",
     "createFirstPage": "İlk sayfanızı oluşturun",
@@ -1709,6 +1710,7 @@
     "deviceFlagship": "Flagship (6×22)",
     "deviceNote": "Note (3×15)",
     "deviceNoteArray": "Note dizisi",
+    "devicePanel": "Panel ({rows}×{cols})",
     "notesWideLabel": "Yatay Note sayısı",
     "notesTallLabel": "Dikey Note sayısı",
     "fromPageLabel": "Başlangıç sayfası",
@@ -2245,6 +2247,7 @@
   },
   "boardSizeIndicator": {
     "custom": "Özel",
+    "panel": "Panel",
     "ariaLabel": "{rows} satır {cols} sütun",
     "ariaLabelWithLayout": "{rows} satır {cols} sütun, {layout}"
   },
@@ -2299,7 +2302,7 @@
     "aspectWidthLabel": "Oran genişliği",
     "aspectHeightLabel": "Oran yüksekliği",
     "tvPreviewLabel": "Ekranınızda",
-    "tvPreviewMeta": "{cols} × {rows} kanat · {wide} × {tall} Note bloğu",
+    "tvPreviewMeta": "Gerçek boyutta {cols} × {rows} kanat",
     "screenMeta": "{inches}\" ekran",
     "autoDim": "Geceleri otomatik karart",
     "autoDimStart": "Karartma başlangıcı",
@@ -2343,7 +2346,8 @@
     "hdmiEnabledHint": "HDMI ekranı, yukarıda “Ekran çıkışı” açık olan paneli gösterir.",
     "hdmiFailed": "Son HDMI kiosk değişikliği başarısız oldu. Yeniden deneyin veya Pi'yi yeniden başlatın.",
     "yourPanelsGroupLabel": "Panelleriniz",
-    "panelSizeOption": "{name} · {wide}×{tall} Note bloğu",
+    "panelSizeOption": "{name} · {cols}×{rows}",
+    "panelGridOption": "Panel · {cols}×{rows}",
     "fitsPanel": "{name} ile uyumlu",
     "fitsPanelAndMore": "{name} +{count} panel ile uyumlu"
   },

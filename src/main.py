@@ -17,7 +17,9 @@ from .collections.service import get_collection_service
 from .config import Config
 from .devices import (
     DEFAULT_DEVICE_TYPE,
-    get_dimensions,
+    Geometry,
+    dimensions_of,
+    geometry_of,
     pages_compatible_with_board,
     resolve_dimensions,
     size_key,
@@ -89,12 +91,8 @@ BOARD_RETRY_MAX_BACKOFF = 900.0
 
 
 def _board_size_key(board: dict) -> str:
-    """Canonical size key ("flagship:6x22", "note_array:6x30", ...) for a board dict."""
-    return size_key(
-        board.get("device_type") or DEFAULT_DEVICE_TYPE,
-        board.get("notes_wide") or 1,
-        board.get("notes_tall") or 1,
-    )
+    """Canonical size key ("flagship:6x22", "note_array:6x30", "panel:12x29", ...) for a board dict."""
+    return size_key(*geometry_of(board))
 
 
 # Defer key standing for "no schedule entry is winning" (a schedule gap, where
@@ -792,6 +790,10 @@ class DisplayService:
             board.get("device_type") or "flagship",
             board.get("notes_wide") or 1,
             board.get("notes_tall") or 1,
+            # A panel re-fit (TV size change) only moves the grid: without
+            # these the runtime keeps a client sized for the old grid.
+            board.get("grid_rows"),
+            board.get("grid_cols"),
             tiles_sig,
         )
 
@@ -1458,11 +1460,7 @@ class DisplayService:
             if generation is None:
                 return None  # cannot see config writes -> cannot skip a render
 
-            size = size_key(
-                getattr(page, "device_type", None) or DEFAULT_DEVICE_TYPE,
-                getattr(page, "notes_wide", 1) or 1,
-                getattr(page, "notes_tall", 1) or 1,
-            )
+            size = size_key(*geometry_of(page))
             sorted_refs = tuple(sorted(refs))
             # ``id(page)`` and ``updated_at`` together: every stored mutation
             # bumps updated_at, and the identity check additionally catches a
@@ -1489,9 +1487,7 @@ class DisplayService:
             if refs:
                 context = page_service.shared_context_for(
                     contexts,
-                    page.device_type,
-                    page.notes_wide,
-                    page.notes_tall,
+                    *geometry_of(page),
                     plugin_ids=refs,
                 )
                 if not isinstance(context, dict):
@@ -1978,7 +1974,8 @@ class DisplayService:
             # silence (issue #949); everything else is silenced.
             if silence_mode_active and not override_active:
                 silence_mode = silence_config["mode"]
-                silence_dt, silence_nw, silence_nt = self._silence_geometry(board, is_primary=is_primary)
+                silence_geometry = self._silence_geometry(board, is_primary=is_primary)
+                silence_dt, silence_nw, silence_nt, silence_gr, silence_gc = silence_geometry
                 if silence_mode == "freeze":
                     if entering_silence_mode:
                         logger.info("⏸️  Entering silence mode (freeze) - leaving board untouched")
@@ -1994,12 +1991,21 @@ class DisplayService:
                         silence_dt,
                         silence_nw,
                         silence_nt,
+                        grid_rows=silence_gr,
+                        grid_cols=silence_gc,
                         board=board if board is not None else self._board_dict_for(board_id),
                         contexts=contexts,
                         wait=wait,
                     )
                 return self._send_silence_indicator(
-                    silence_dt, rt, silence_nw, silence_nt, silence_config=silence_config, wait=wait
+                    silence_dt,
+                    rt,
+                    silence_nw,
+                    silence_nt,
+                    silence_config=silence_config,
+                    grid_rows=silence_gr,
+                    grid_cols=silence_gc,
+                    wait=wait,
                 )
 
             # --- Send-time geometry validation (issue #1748) ---
@@ -2014,7 +2020,7 @@ class DisplayService:
             # still shows its (board-sized) indicator.
             board_dims_source = board if board is not None else self._board_dict_for(board_id)
             if board_dims_source is not None and not pages_compatible_with_board(page, board_dims_source):
-                page_size = size_key(page.device_type, page.notes_wide, page.notes_tall)
+                page_size = size_key(*geometry_of(page))
                 board_size = _board_size_key(board_dims_source)
                 mismatch = f"{active_page_id}:{page_size}->{board_size}"
                 message = "Board %s: skipping page %s - page size %s does not match board size %s"
@@ -2069,7 +2075,7 @@ class DisplayService:
 
             # resolve_dimensions (never get_dimensions, which raises for
             # note_array) so a note-array page renders at its true size.
-            dims = resolve_dimensions(page.device_type, page.notes_wide, page.notes_tall)
+            dims = dimensions_of(page)
             board_array = text_to_board_array(current_content, rows=dims.rows, cols=dims.cols)
 
             client = rt.client
@@ -2169,6 +2175,8 @@ class DisplayService:
             device_type=override.device_type or DEFAULT_DEVICE_TYPE,
             notes_wide=override.notes_wide or 1,
             notes_tall=override.notes_tall or 1,
+            grid_rows=getattr(override, "grid_rows", None),
+            grid_cols=getattr(override, "grid_cols", None),
         )
 
     def _send_blank_board(self, rt: BoardRuntime | None = None, *, wait: bool = True) -> bool:
@@ -2178,8 +2186,9 @@ class DisplayService:
             logger.warning("Board client not initialized")
             return False
 
-        device_type = self._silence_device_type()
-        dims = get_dimensions(device_type)
+        geometry = self._runtime_geometry(rt)
+        device_type = geometry.device_type
+        dims = resolve_dimensions(*geometry)
         board_array = [[BoardChars.SPACE] * dims.cols for _ in range(dims.rows)]
 
         settings_service = get_settings_service()
@@ -2224,22 +2233,15 @@ class DisplayService:
     # Silence-mode helpers
     # ------------------------------------------------------------------ #
 
-    def _silence_device_type(self) -> str:
-        """Pick a device type for the primary board's silence display.
+    def _runtime_geometry(self, rt: BoardRuntime | None) -> Geometry:
+        """Geometry of the board *rt* drives (the primary when it has no id).
 
-        Prefers the first configured board's device type so the silence
-        display is sized for the actual hardware (Note vs Flagship). Falls
-        back to flagship.
+        Out-of-band sends (blank-on-expiry, trigger content) are sized to the
+        board they land on. They used to take a flagship-or-Note type from the
+        first board, so a note-array or panel board got a 6x22 grid.
         """
-        try:
-            boards = get_settings_service().get_board_settings().boards or []
-            if boards and isinstance(boards[0], dict):
-                device_type = boards[0].get("device_type")
-                if device_type in ("flagship", "note"):
-                    return device_type
-        except Exception as e:
-            logger.warning("Could not determine device type from board settings: %s", e)
-        return "flagship"
+        board_id = getattr(rt, "board_id", None) if rt is not None else None
+        return self._silence_geometry(self._board_dict_for(board_id), is_primary=True)
 
     def _silence_baseline(self, key: str, board_id=None) -> bool:
         """What the boundary detector last knew about one board's silence.
@@ -2299,8 +2301,8 @@ class DisplayService:
         self._last_silence_snapshot = snapshot
         return changed
 
-    def _silence_geometry(self, board: dict | None, *, is_primary: bool) -> tuple[str, int, int]:
-        """Resolve (device_type, notes_wide, notes_tall) for a board's silence display.
+    def _silence_geometry(self, board: dict | None, *, is_primary: bool) -> Geometry:
+        """Resolve the :class:`Geometry` for a board's silence display.
 
         Secondary boards carry their own settings dict. The primary is driven
         with ``board=None``, so its geometry comes from the first configured
@@ -2315,11 +2317,13 @@ class DisplayService:
             except Exception as e:
                 logger.warning("Could not determine device type from board settings: %s", e)
         if not isinstance(board, dict):
-            return "flagship", 1, 1
-        device_type = board.get("device_type")
-        if device_type not in ("flagship", "note", "note_array"):
-            device_type = "flagship"
-        return device_type, board.get("notes_wide", 1) or 1, board.get("notes_tall", 1) or 1
+            return Geometry(DEFAULT_DEVICE_TYPE)
+        geometry = geometry_of(board)
+        try:
+            resolve_dimensions(*geometry)
+        except ValueError:
+            return Geometry(DEFAULT_DEVICE_TYPE)
+        return geometry
 
     def _build_silence_indicator_array(
         self,
@@ -2327,18 +2331,21 @@ class DisplayService:
         notes_wide: int = 1,
         notes_tall: int = 1,
         silence_config: dict | None = None,
+        *,
+        grid_rows: int | None = None,
+        grid_cols: int | None = None,
     ):
         """Build a clean board array with the silence indicator text centered.
 
         Sized via resolve_dimensions so it fits the Note (15 cols), the
-        Flagship (22 cols), and any note-array grid without overlaying content.
+        Flagship (22 cols), and any note-array or panel grid without overlaying content.
 
         ``silence_config`` is the target board's resolved silence settings
         (issue #1788); omitted falls back to the install-wide values.
         """
         if silence_config is None:
             silence_config = Config.silence_config_for()
-        dims = resolve_dimensions(device_type, notes_wide, notes_tall)
+        dims = resolve_dimensions(device_type, notes_wide, notes_tall, grid_rows, grid_cols)
         board_array = [[BoardChars.SPACE] * dims.cols for _ in range(dims.rows)]
 
         indicator = silence_config["indicator_text"]
@@ -2371,6 +2378,8 @@ class DisplayService:
         notes_tall: int = 1,
         silence_config: dict | None = None,
         *,
+        grid_rows: int | None = None,
+        grid_cols: int | None = None,
         wait: bool = True,
     ) -> bool:
         """Send a clean indicator-only board sized for the device."""
@@ -2389,14 +2398,16 @@ class DisplayService:
 
         # Every caller now resolves the TARGET BOARD's geometry via
         # _silence_geometry (issue #1788), so it is used verbatim. The old
-        # primary-only override through _silence_device_type() collapsed a
-        # note-array primary down to "flagship".
+        # primary-only override collapsed a note-array primary down to
+        # "flagship".
         device_type = page_device_type
         logger.info(f"⏸️  Entering silence mode (indicator) - displaying indicator for {device_type}")
 
         settings_service = get_settings_service()
         system_transition = settings_service.get_transition_settings()
-        board_array = self._build_silence_indicator_array(device_type, notes_wide, notes_tall, silence_config)
+        board_array = self._build_silence_indicator_array(
+            device_type, notes_wide, notes_tall, silence_config, grid_rows=grid_rows, grid_cols=grid_cols
+        )
 
         client = rt.client
         sink = self._error_sink()
@@ -2441,6 +2452,8 @@ class DisplayService:
         notes_wide: int = 1,
         notes_tall: int = 1,
         *,
+        grid_rows: int | None = None,
+        grid_cols: int | None = None,
         board: dict | None = None,
         contexts: dict[str, dict] | None = None,
         wait: bool = True,
@@ -2476,7 +2489,7 @@ class DisplayService:
         if silence_config is None:
             silence_config = Config.silence_config_for(rt.board_id)
         if device_type is None:
-            device_type, notes_wide, notes_tall = self._silence_geometry(None, is_primary=True)
+            device_type, notes_wide, notes_tall, grid_rows, grid_cols = self._silence_geometry(None, is_primary=True)
 
         page_id = silence_config["page_id"]
         page_service = get_page_service()
@@ -2487,7 +2500,9 @@ class DisplayService:
                 "Silence mode 'page' selected but page %r not found - falling back to indicator",
                 page_id,
             )
-            return self._send_silence_indicator(device_type, rt, notes_wide, notes_tall, silence_config)
+            return self._send_silence_indicator(
+                device_type, rt, notes_wide, notes_tall, silence_config, grid_rows=grid_rows, grid_cols=grid_cols
+            )
 
         # --- Silence-page geometry gate (issue #1748) ---
         # The silence page id is per-board config, but the page it names is
@@ -2502,17 +2517,21 @@ class DisplayService:
                 "Board %s: silence page %s size %s does not match board size %s - using indicator instead",
                 rt.board_id or "(default)",
                 page.id,
-                size_key(page.device_type, page.notes_wide, page.notes_tall),
+                size_key(*geometry_of(page)),
                 _board_size_key(board),
             )
-            return self._send_silence_indicator(device_type, rt, notes_wide, notes_tall, silence_config)
+            return self._send_silence_indicator(
+                device_type, rt, notes_wide, notes_tall, silence_config, grid_rows=grid_rows, grid_cols=grid_cols
+            )
 
         logger.info(f"⏸️  Entering silence mode (page) - displaying {page.id}")
 
         result = page_service.preview_page(page.id, force_refresh=True, contexts=contexts)
         if not result or not result.available:
             logger.warning("Silence page %s could not be rendered - falling back to indicator", page.id)
-            return self._send_silence_indicator(device_type, rt, notes_wide, notes_tall, silence_config)
+            return self._send_silence_indicator(
+                device_type, rt, notes_wide, notes_tall, silence_config, grid_rows=grid_rows, grid_cols=grid_cols
+            )
 
         settings_service = get_settings_service()
         system_transition = settings_service.get_transition_settings()
@@ -2524,7 +2543,7 @@ class DisplayService:
         )
         step_size = page.transition_step_size if page.transition_step_size is not None else system_transition.step_size
 
-        dims = resolve_dimensions(device_type, notes_wide, notes_tall)
+        dims = resolve_dimensions(device_type, notes_wide, notes_tall, grid_rows, grid_cols)
         board_array = text_to_board_array(result.formatted, rows=dims.rows, cols=dims.cols)
 
         client = rt.client
@@ -2644,8 +2663,9 @@ class DisplayService:
         settings_service = get_settings_service()
         system_transition = settings_service.get_transition_settings()
 
-        device_type = self._silence_device_type()
-        dims = get_dimensions(device_type)
+        geometry = self._runtime_geometry(rt)
+        device_type = geometry.device_type
+        dims = resolve_dimensions(*geometry)
         board_array = text_to_board_array(content, rows=dims.rows, cols=dims.cols)
 
         client = rt.client

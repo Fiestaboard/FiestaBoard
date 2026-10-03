@@ -190,6 +190,7 @@
     "flagshipTab": "Flagship",
     "noteTab": "Note",
     "noteArrayTab": "Note Array",
+    "panelTab": "Панель",
     "noPagesTitle": "Страницы ещё не созданы.",
     "noPagesDescription": "Создайте первую страницу для отображения на доске.",
     "createFirstPage": "Создайте свою первую страницу",
@@ -1709,6 +1710,7 @@
     "deviceFlagship": "Flagship (6×22)",
     "deviceNote": "Note (3×15)",
     "deviceNoteArray": "Массив Note",
+    "devicePanel": "Панель ({rows}×{cols})",
     "notesWideLabel": "Note по горизонтали",
     "notesTallLabel": "Note по вертикали",
     "fromPageLabel": "Начальная страница",
@@ -2245,6 +2247,7 @@
   },
   "boardSizeIndicator": {
     "custom": "Пользовательский",
+    "panel": "Панель",
     "ariaLabel": "{rows} строк на {cols} столбцов",
     "ariaLabelWithLayout": "{rows} строк на {cols} столбцов, {layout}"
   },
@@ -2299,7 +2302,7 @@
     "aspectWidthLabel": "Ширина соотношения",
     "aspectHeightLabel": "Высота соотношения",
     "tvPreviewLabel": "На вашем экране",
-    "tvPreviewMeta": "{cols} × {rows} пластин · {wide} × {tall} блоков Note",
+    "tvPreviewMeta": "{cols} × {rows} пластин в натуральную величину",
     "screenMeta": "экран {inches}\"",
     "autoDim": "Автозатемнение ночью",
     "autoDimStart": "Затемнять с",
@@ -2343,7 +2346,8 @@
     "hdmiEnabledHint": "HDMI-экран показывает панель, у которой выше включён «Вывод на дисплей».",
     "hdmiFailed": "Последнее изменение HDMI-киоска не удалось. Повторите попытку или перезагрузите Pi.",
     "yourPanelsGroupLabel": "Ваши панели",
-    "panelSizeOption": "{name} · {wide}×{tall} блоков Note",
+    "panelSizeOption": "{name} · {cols}×{rows}",
+    "panelGridOption": "Панель · {cols}×{rows}",
     "fitsPanel": "Подходит для {name}",
     "fitsPanelAndMore": "Подходит для {name} +{count}"
   },

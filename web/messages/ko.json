@@ -190,6 +190,7 @@
     "flagshipTab": "Flagship",
     "noteTab": "Note",
     "noteArrayTab": "Note Array",
+    "panelTab": "패널",
     "noPagesTitle": "생성된 페이지가 없습니다.",
     "noPagesDescription": "보드에 표시할 첫 번째 페이지를 만들어 보세요.",
     "createFirstPage": "첫 번째 페이지 만들기",
@@ -1709,6 +1710,7 @@
     "deviceFlagship": "Flagship (6×22)",
     "deviceNote": "Note (3×15)",
     "deviceNoteArray": "Note 배열",
+    "devicePanel": "패널 ({rows}×{cols})",
     "notesWideLabel": "가로 Note 수",
     "notesTallLabel": "세로 Note 수",
     "fromPageLabel": "시작 페이지",
@@ -2245,6 +2247,7 @@
   },
   "boardSizeIndicator": {
     "custom": "사용자 지정",
+    "panel": "패널",
     "ariaLabel": "{rows}행 {cols}열",
     "ariaLabelWithLayout": "{rows}행 {cols}열, {layout}"
   },
@@ -2299,7 +2302,7 @@
     "aspectWidthLabel": "비율 너비",
     "aspectHeightLabel": "비율 높이",
     "tvPreviewLabel": "화면에서 보기",
-    "tvPreviewMeta": "{cols} × {rows} 플랩 · {wide} × {tall} Note 블록",
+    "tvPreviewMeta": "실물 크기 {cols} × {rows} 플랩",
     "screenMeta": "{inches}인치 화면",
     "autoDim": "야간 자동 어둡게",
     "autoDimStart": "어둡게 시작",
@@ -2343,7 +2346,8 @@
     "hdmiEnabledHint": "HDMI 화면에는 위에서 “디스플레이 출력”을 켠 패널이 표시됩니다.",
     "hdmiFailed": "마지막 HDMI 키오스크 변경이 실패했습니다. 다시 시도하거나 Pi를 재부팅하세요.",
     "yourPanelsGroupLabel": "내 패널",
-    "panelSizeOption": "{name} · {wide}×{tall} Note 블록",
+    "panelSizeOption": "{name} · {cols}×{rows}",
+    "panelGridOption": "패널 · {cols}×{rows}",
     "fitsPanel": "{name}에 맞음",
     "fitsPanelAndMore": "{name} 외 {count}개에 맞음"
   },

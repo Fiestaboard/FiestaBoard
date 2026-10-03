@@ -269,6 +269,15 @@
   background: #000 !important;
 }
 
+/* @fiestaboard/ui's base layer sets `scrollbar-gutter: stable` on <html>,
+   which reserves a scrollbar's width even under overflow:hidden. The panel
+   never scrolls, and its scale is computed from the full screen width — so
+   the reserved gutter (~15px) shifted a width-filling board half a gutter
+   off each edge. Per-character grids fill the width, so this now shows. */
+.panel-mode {
+  scrollbar-gutter: auto !important;
+}
+
 /* ---------------------------------------------------------------------------
    FiestaBot drawer width (#2024)
 

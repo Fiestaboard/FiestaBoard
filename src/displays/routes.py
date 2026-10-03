@@ -23,7 +23,7 @@ from src.api_deprecation import superseded_by_v1
 from src.api_errors import errors
 from src.board_guards import _board_is_paused
 from src.board_send_executor import run_board_send
-from src.devices import resolve_dimensions
+from src.devices import geometry_of, resolve_dimensions
 from src.display_runtime import get_service
 from src.settings.service import VALID_OUTPUT_TARGETS, get_settings_service
 from src.text_to_board import text_to_board_array
@@ -263,18 +263,12 @@ async def send_display(display_type: str, target: str | None = None):
             paused = True
         else:
             transition = settings_service.get_transition_settings()
-            # Size to the first board's device type/dimensions (flagship, note,
-            # or a note array's notes_wide×notes_tall geometry).
+            # Size to the first board's geometry (flagship, note, a note
+            # array's notes grid, or a panel's explicit grid).
             board_settings = settings_service.get_board_settings()
-            device_type = "flagship"
-            notes_wide = 1
-            notes_tall = 1
-            if board_settings.boards:
-                primary_board = board_settings.boards[0]
-                device_type = primary_board.get("device_type", "flagship")
-                notes_wide = primary_board.get("notes_wide", 1)
-                notes_tall = primary_board.get("notes_tall", 1)
-            dims = resolve_dimensions(device_type, notes_wide, notes_tall)
+            geometry = geometry_of(board_settings.boards[0]) if board_settings.boards else geometry_of({})
+            device_type = geometry.device_type
+            dims = resolve_dimensions(*geometry)
             board_array = text_to_board_array(result.formatted, rows=dims.rows, cols=dims.cols)
             # Board network I/O goes on the dedicated bounded send pool, never
             # inline on the event loop (#1878).

@@ -10,12 +10,28 @@ import uuid
 from datetime import UTC, datetime
 from typing import Literal
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
-from src.devices import DEFAULT_DEVICE_TYPE, MAX_NOTES_PER_AXIS, DeviceType, resolve_dimensions
+from src.devices import (
+    DEFAULT_DEVICE_TYPE,
+    MAX_GRID_COLS,
+    MAX_GRID_ROWS,
+    MAX_NOTES_PER_AXIS,
+    MIN_GRID_COLS,
+    MIN_GRID_ROWS,
+    DeviceType,
+    resolve_dimensions,
+)
 from src.settings.service import VALID_OUTPUT_TARGETS
 
 PageType = Literal["single", "composite", "template"]
+
+
+def _require_panel_grid(device_type, grid_rows, grid_cols) -> None:
+    """A panel page has no implied size: both grid axes must be given."""
+    if device_type == "panel" and (grid_rows is None or grid_cols is None):
+        raise ValueError("A panel page needs grid_rows and grid_cols")
+
 
 LineAlignment = Literal["left", "center", "right"]
 
@@ -95,6 +111,13 @@ class Page(BaseModel):
     notes_wide: int = Field(default=1, ge=1, le=MAX_NOTES_PER_AXIS)
     notes_tall: int = Field(default=1, ge=1, le=MAX_NOTES_PER_AXIS)
 
+    # Panel grid (only used when device_type is "panel"): an explicit
+    # rows × cols, because a FiestaPanel is sized per character from its TV
+    # and need not be a Note multiple. Named grid_* because ``rows`` is the
+    # composite row config.
+    grid_rows: int | None = Field(default=None, ge=MIN_GRID_ROWS, le=MAX_GRID_ROWS)
+    grid_cols: int | None = Field(default=None, ge=MIN_GRID_COLS, le=MAX_GRID_COLS)
+
     # Metadata
     created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
     updated_at: datetime | None = None
@@ -104,6 +127,19 @@ class Page(BaseModel):
         # datetime is automatically serialized to ISO format in V2
     )
 
+    @model_validator(mode="after")
+    def _normalize_grid(self) -> "Page":
+        """Panels must carry a grid; every other type carries none.
+
+        Clearing it on a non-panel page means a panel → flagship retarget
+        never leaves a stale grid behind to resurface on the next retarget.
+        """
+        _require_panel_grid(self.device_type, self.grid_rows, self.grid_cols)
+        if self.device_type != "panel":
+            self.grid_rows = None
+            self.grid_cols = None
+        return self
+
     def validate_config(self) -> list[str]:
         """Validate that page configuration is complete and consistent.
 
@@ -111,7 +147,7 @@ class Page(BaseModel):
             List of validation error messages (empty if valid)
         """
         errors = []
-        dims = resolve_dimensions(self.device_type, self.notes_wide, self.notes_tall)
+        dims = resolve_dimensions(self.device_type, self.notes_wide, self.notes_tall, self.grid_rows, self.grid_cols)
         max_row = dims.rows - 1
 
         if self.type == "single":
@@ -163,6 +199,17 @@ class PageCreate(BaseModel):
     # Note-array dimensions (only used when device_type is "note_array")
     notes_wide: int | None = Field(default=None, ge=1, le=MAX_NOTES_PER_AXIS)
     notes_tall: int | None = Field(default=None, ge=1, le=MAX_NOTES_PER_AXIS)
+    # Panel grid (only used when device_type is "panel"): an explicit
+    # rows × cols, because a FiestaPanel is sized per character from its TV
+    # and need not be a Note multiple. Named grid_* because ``rows`` is the
+    # composite row config.
+    grid_rows: int | None = Field(default=None, ge=MIN_GRID_ROWS, le=MAX_GRID_ROWS)
+    grid_cols: int | None = Field(default=None, ge=MIN_GRID_COLS, le=MAX_GRID_COLS)
+
+    @model_validator(mode="after")
+    def _check_panel_grid(self) -> "PageCreate":
+        _require_panel_grid(self.device_type, self.grid_rows, self.grid_cols)
+        return self
 
 
 class PageUpdate(BaseModel):
@@ -185,6 +232,12 @@ class PageUpdate(BaseModel):
     # Note-array dimensions (only used when device_type is "note_array")
     notes_wide: int | None = Field(default=None, ge=1, le=MAX_NOTES_PER_AXIS)
     notes_tall: int | None = Field(default=None, ge=1, le=MAX_NOTES_PER_AXIS)
+    # Panel grid (only used when device_type is "panel"): an explicit
+    # rows × cols, because a FiestaPanel is sized per character from its TV
+    # and need not be a Note multiple. Named grid_* because ``rows`` is the
+    # composite row config.
+    grid_rows: int | None = Field(default=None, ge=MIN_GRID_ROWS, le=MAX_GRID_ROWS)
+    grid_cols: int | None = Field(default=None, ge=MIN_GRID_COLS, le=MAX_GRID_COLS)
 
 
 # ---------------------------------------------------------------------------
@@ -273,6 +326,10 @@ class PageImportPreview(BaseModel):
     name: str
     type: PageType
     device_type: DeviceType = DEFAULT_DEVICE_TYPE
+    notes_wide: int | None = None
+    notes_tall: int | None = None
+    grid_rows: int | None = None
+    grid_cols: int | None = None
     display_type: str | None = None
     rows: list[RowConfig] | None = None
     template: list[str] | None = None
@@ -414,5 +471,11 @@ class CurrentDisplayResponse(BaseModel):
     page_name: str
     page_type: PageType
     device_type: DeviceType
+    # The rest of the page's geometry: a page started from this one must be
+    # the same size, and a note array or panel is not sized by its type alone.
+    notes_wide: int = 1
+    notes_tall: int = 1
+    grid_rows: int | None = None
+    grid_cols: int | None = None
     template: list[str]
     line_metadata: list[LineMetadata] | None = None

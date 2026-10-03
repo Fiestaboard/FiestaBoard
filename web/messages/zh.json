@@ -190,6 +190,7 @@
     "flagshipTab": "Flagship",
     "noteTab": "Note",
     "noteArrayTab": "Note Array",
+    "panelTab": "面板",
     "noPagesTitle": "尚未创建任何页面。",
     "noPagesDescription": "创建您的第一个页面以在看板上显示。",
     "createFirstPage": "创建您的第一个页面",
@@ -1709,6 +1710,7 @@
     "deviceFlagship": "Flagship（6×22）",
     "deviceNote": "Note（3×15）",
     "deviceNoteArray": "Note 阵列",
+    "devicePanel": "面板 ({rows}×{cols})",
     "notesWideLabel": "横向 Note 数",
     "notesTallLabel": "纵向 Note 数",
     "fromPageLabel": "起始页面",
@@ -2245,6 +2247,7 @@
   },
   "boardSizeIndicator": {
     "custom": "自定义",
+    "panel": "面板",
     "ariaLabel": "{rows}行×{cols}列",
     "ariaLabelWithLayout": "{rows}行×{cols}列，{layout}"
   },
@@ -2299,7 +2302,7 @@
     "aspectWidthLabel": "比例宽度",
     "aspectHeightLabel": "比例高度",
     "tvPreviewLabel": "在你的屏幕上",
-    "tvPreviewMeta": "{cols} × {rows} 个翻牌 · {wide} × {tall} 个 Note 模块",
+    "tvPreviewMeta": "{cols} × {rows} 个翻牌，真实尺寸",
     "screenMeta": "{inches} 英寸屏幕",
     "autoDim": "夜间自动调暗",
     "autoDimStart": "调暗开始",
@@ -2343,7 +2346,8 @@
     "hdmiEnabledHint": "HDMI 屏幕显示上方开启了“显示输出”的面板。",
     "hdmiFailed": "上次 HDMI 信息亭更改失败。请重试，或重启 Pi 后再试。",
     "yourPanelsGroupLabel": "你的面板",
-    "panelSizeOption": "{name} · {wide}×{tall} 个 Note 模块",
+    "panelSizeOption": "{name} · {cols}×{rows}",
+    "panelGridOption": "面板 · {cols}×{rows}",
     "fitsPanel": "适配 {name}",
     "fitsPanelAndMore": "适配 {name} 等 {count} 个"
   },

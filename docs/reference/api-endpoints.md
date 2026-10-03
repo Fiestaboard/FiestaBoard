@@ -330,7 +330,7 @@ Saves a new page and answers with it, including the generated `id` you refer to 
 |-------|------|----------|-------------|
 | `name` | `string` | yes | min length 1; max length 100 |
 | `type` | `"single"` \| `"composite"` \| `"template"` | yes | — |
-| `device_type` | `"flagship"` \| `"note"` \| `"note_array"` | no | default `"flagship"` |
+| `device_type` | `"flagship"` \| `"note"` \| `"note_array"` \| `"panel"` | no | default `"flagship"` |
 | `display_type` | `string` \| `null` | no | — |
 | `rows` | array of [`RowConfig`](#schema-rowconfig) \| `null` | no | — |
 | `template` | array of `string` \| `null` | no | — |
@@ -342,6 +342,8 @@ Saves a new page and answers with it, including the generated `id` you refer to 
 | `demo_plugin_id` | `string` \| `null` | no | — |
 | `notes_wide` | `integer` \| `null` | no | 1–8 |
 | `notes_tall` | `integer` \| `null` | no | 1–8 |
+| `grid_rows` | `integer` \| `null` | no | 3–96 |
+| `grid_cols` | `integer` \| `null` | no | 15–128 |
 
 **Responses**
 
@@ -398,7 +400,7 @@ Applies the fields you send and leaves the rest alone. The response carries the 
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
 | `name` | `string` \| `null` | no | min length 1; max length 100 |
-| `device_type` | `"flagship"` \| `"note"` \| `"note_array"` \| `null` | no | — |
+| `device_type` | `"flagship"` \| `"note"` \| `"note_array"` \| `"panel"` \| `null` | no | — |
 | `display_type` | `string` \| `null` | no | — |
 | `rows` | array of [`RowConfig`](#schema-rowconfig) \| `null` | no | — |
 | `template` | array of `string` \| `null` | no | — |
@@ -409,6 +411,8 @@ Applies the fields you send and leaves the rest alone. The response carries the 
 | `transition_step_size` | `integer` \| `null` | no | min 1 |
 | `notes_wide` | `integer` \| `null` | no | 1–8 |
 | `notes_tall` | `integer` \| `null` | no | 1–8 |
+| `grid_rows` | `integer` \| `null` | no | 3–96 |
+| `grid_cols` | `integer` \| `null` | no | 15–128 |
 
 **Responses**
 
@@ -1391,7 +1395,7 @@ Each page targets a specific device type (flagship: 22x6, note: 15x3).
 | `id` | `string` | no | — |
 | `name` | `string` | yes | min length 1; max length 100 |
 | `type` | `"single"` \| `"composite"` \| `"template"` | yes | — |
-| `device_type` | `"flagship"` \| `"note"` \| `"note_array"` | no | default `"flagship"` |
+| `device_type` | `"flagship"` \| `"note"` \| `"note_array"` \| `"panel"` | no | default `"flagship"` |
 | `display_type` | `string` \| `null` | no | — |
 | `rows` | array of [`RowConfig`](#schema-rowconfig) \| `null` | no | — |
 | `template` | array of `string` \| `null` | no | — |
@@ -1403,6 +1407,8 @@ Each page targets a specific device type (flagship: 22x6, note: 15x3).
 | `demo_plugin_id` | `string` \| `null` | no | — |
 | `notes_wide` | `integer` | no | 1–8; default `1` |
 | `notes_tall` | `integer` | no | 1–8; default `1` |
+| `grid_rows` | `integer` \| `null` | no | 3–96 |
+| `grid_cols` | `integer` \| `null` | no | 15–128 |
 | `created_at` | `date-time` | no | — |
 | `updated_at` | `date-time` \| `null` | no | — |
 
@@ -1414,7 +1420,7 @@ Request model for creating a new page.
 |-------|------|----------|-------------|
 | `name` | `string` | yes | min length 1; max length 100 |
 | `type` | `"single"` \| `"composite"` \| `"template"` | yes | — |
-| `device_type` | `"flagship"` \| `"note"` \| `"note_array"` | no | default `"flagship"` |
+| `device_type` | `"flagship"` \| `"note"` \| `"note_array"` \| `"panel"` | no | default `"flagship"` |
 | `display_type` | `string` \| `null` | no | — |
 | `rows` | array of [`RowConfig`](#schema-rowconfig) \| `null` | no | — |
 | `template` | array of `string` \| `null` | no | — |
@@ -1426,6 +1432,8 @@ Request model for creating a new page.
 | `demo_plugin_id` | `string` \| `null` | no | — |
 | `notes_wide` | `integer` \| `null` | no | 1–8 |
 | `notes_tall` | `integer` \| `null` | no | 1–8 |
+| `grid_rows` | `integer` \| `null` | no | 3–96 |
+| `grid_cols` | `integer` \| `null` | no | 15–128 |
 
 ### `PageDeleteResponse` {#schema-pagedeleteresponse}
 
@@ -1460,7 +1468,7 @@ Request model for updating an existing page.
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
 | `name` | `string` \| `null` | no | min length 1; max length 100 |
-| `device_type` | `"flagship"` \| `"note"` \| `"note_array"` \| `null` | no | — |
+| `device_type` | `"flagship"` \| `"note"` \| `"note_array"` \| `"panel"` \| `null` | no | — |
 | `display_type` | `string` \| `null` | no | — |
 | `rows` | array of [`RowConfig`](#schema-rowconfig) \| `null` | no | — |
 | `template` | array of `string` \| `null` | no | — |
@@ -1471,6 +1479,8 @@ Request model for updating an existing page.
 | `transition_step_size` | `integer` \| `null` | no | min 1 |
 | `notes_wide` | `integer` \| `null` | no | 1–8 |
 | `notes_tall` | `integer` \| `null` | no | 1–8 |
+| `grid_rows` | `integer` \| `null` | no | 3–96 |
+| `grid_cols` | `integer` \| `null` | no | 15–128 |
 
 ### `PageUpdateResponse` {#schema-pageupdateresponse}
 

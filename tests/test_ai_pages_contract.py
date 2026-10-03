@@ -67,6 +67,9 @@ PAGE_NULL_FIELDS = {
     "demo_plugin_id",
     "notes_wide",
     "notes_tall",
+    # Added with the "panel" device type (an explicit per-character grid).
+    "grid_rows",
+    "grid_cols",
 }
 
 

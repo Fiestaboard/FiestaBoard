@@ -543,6 +543,34 @@ class TestCountdownBoardAwareness:
         assert any("PASSED" in line.upper() for line in lines)
 
     @patch.object(countdown_module, "datetime")
+    def test_expired_event_fits_a_15_wide_board_taller_than_a_note(self, mock_datetime, sample_manifest, sample_config):
+        """A 15x5 FiestaPanel (or a 1x4 note array) gets the full layout, whose
+        16-tile "EVENT HAS PASSED" does not fit 15 columns — it must wrap."""
+        tz = ZoneInfo("America/Los_Angeles")
+        mock_datetime.now.return_value = datetime(2025, 7, 1, 0, 0, 0, tzinfo=tz)
+        mock_datetime.fromisoformat = datetime.fromisoformat
+
+        plugin = CountdownPlugin(sample_manifest)
+        plugin.config = sample_config
+        lines = plugin.get_data(BoardContext("panel", rows=5, cols=15)).formatted_lines
+
+        assert len(lines) <= 5
+        assert all(len(line) <= 15 for line in lines)
+        assert [line.strip() for line in lines if "PASSED" in line] == ["HAS PASSED"]
+
+    @patch.object(countdown_module, "datetime")
+    def test_expired_event_stays_on_one_row_when_it_fits(self, mock_datetime, sample_manifest, sample_config):
+        tz = ZoneInfo("America/Los_Angeles")
+        mock_datetime.now.return_value = datetime(2025, 7, 1, 0, 0, 0, tzinfo=tz)
+        mock_datetime.fromisoformat = datetime.fromisoformat
+
+        plugin = CountdownPlugin(sample_manifest)
+        plugin.config = sample_config
+        lines = plugin.get_data(BoardContext("panel", rows=7, cols=17)).formatted_lines
+
+        assert any(line.strip() == "EVENT HAS PASSED" for line in lines)
+
+    @patch.object(countdown_module, "datetime")
     def test_per_board_cache_isolation(self, mock_datetime, sample_manifest, sample_config):
         """Flagship and Note renders cache independently (no cross-contamination)."""
         tz = ZoneInfo("America/Los_Angeles")

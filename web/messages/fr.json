@@ -190,6 +190,7 @@
     "flagshipTab": "Flagship",
     "noteTab": "Note",
     "noteArrayTab": "Note Array",
+    "panelTab": "Panneau",
     "noPagesTitle": "Aucune page créée pour le moment.",
     "noPagesDescription": "Créez votre première page à afficher sur le tableau.",
     "createFirstPage": "Créer votre première page",
@@ -1709,6 +1710,7 @@
     "deviceFlagship": "Flagship (6×22)",
     "deviceNote": "Note (3×15)",
     "deviceNoteArray": "Matrice de Notes",
+    "devicePanel": "Panneau ({rows}×{cols})",
     "notesWideLabel": "Notes en largeur",
     "notesTallLabel": "Notes en hauteur",
     "fromPageLabel": "Page de départ",
@@ -2245,6 +2247,7 @@
   },
   "boardSizeIndicator": {
     "custom": "Personnalisé",
+    "panel": "Panneau",
     "ariaLabel": "{rows} lignes par {cols} colonnes",
     "ariaLabelWithLayout": "{rows} lignes par {cols} colonnes, {layout}"
   },
@@ -2299,7 +2302,7 @@
     "aspectWidthLabel": "Largeur du format",
     "aspectHeightLabel": "Hauteur du format",
     "tvPreviewLabel": "Sur votre écran",
-    "tvPreviewMeta": "{cols} × {rows} volets · {wide} × {tall} blocs Note",
+    "tvPreviewMeta": "{cols} × {rows} volets en taille réelle",
     "screenMeta": "écran de {inches}\"",
     "autoDim": "Atténuer automatiquement la nuit",
     "autoDimStart": "Atténuer à partir de",
@@ -2343,7 +2346,8 @@
     "hdmiEnabledHint": "L'écran HDMI affiche le panneau dont « Sortie d'affichage » est activée ci-dessus.",
     "hdmiFailed": "La dernière modification du kiosque HDMI a échoué. Réessayez ou redémarrez le Pi.",
     "yourPanelsGroupLabel": "Vos panneaux",
-    "panelSizeOption": "{name} · {wide}×{tall} blocs Note",
+    "panelSizeOption": "{name} · {cols}×{rows}",
+    "panelGridOption": "Panneau · {cols}×{rows}",
     "fitsPanel": "Convient à {name}",
     "fitsPanelAndMore": "Convient à {name} +{count} autres"
   },

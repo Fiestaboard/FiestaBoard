@@ -324,6 +324,8 @@ class TemplateEngine:
         device_type: str | None = None,
         notes_wide: int = 1,
         notes_tall: int = 1,
+        grid_rows: int | None = None,
+        grid_cols: int | None = None,
     ) -> str:
         """Render a list of template lines (for template pages).
 
@@ -335,19 +337,22 @@ class TemplateEngine:
         Args:
             template_lines: List of template lines, padded or truncated to
                 match the device's row count (6 for flagship, 3 for note,
-                or notes_tall×3 for note_array).
+                notes_tall×3 for note_array, grid_rows for panel).
                 Pure content when line_metadata is provided; may contain
                 legacy prefixes otherwise.
             context: Optional pre-fetched context
             line_metadata: Optional per-line metadata dicts with 'alignment' and
                 'wrap' keys.  When provided, template_lines are treated as pure
                 content (no prefix parsing).
-            device_type: Device type ('flagship', 'note', or 'note_array') to
-                determine board dimensions. Defaults to flagship (22 cols, 6 rows).
+            device_type: Device type ('flagship', 'note', 'note_array' or
+                'panel') to determine board dimensions. Defaults to flagship
+                (22 cols, 6 rows).
             notes_wide: For 'note_array' device type, the number of notes side by
                 side (determines cols = notes_wide × 15). Ignored for other types.
             notes_tall: For 'note_array' device type, the number of notes stacked
                 vertically (determines rows = notes_tall × 3). Ignored for other types.
+            grid_rows / grid_cols: For 'panel', the explicit grid. Ignored for
+                other types.
 
         Returns:
             Rendered string with newlines
@@ -359,7 +364,7 @@ class TemplateEngine:
         # unknown type so a bad value never crashes a render.
         render_device_type = device_type or DEFAULT_DEVICE_TYPE
         try:
-            dims = resolve_dimensions(render_device_type, notes_wide, notes_tall)
+            dims = resolve_dimensions(render_device_type, notes_wide, notes_tall, grid_rows, grid_cols)
         except ValueError:
             render_device_type = DEFAULT_DEVICE_TYPE
             dims = resolve_dimensions(render_device_type, notes_wide, notes_tall)

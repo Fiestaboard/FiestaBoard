@@ -190,6 +190,7 @@
     "flagshipTab": "Flagship",
     "noteTab": "Note",
     "noteArrayTab": "Note Array",
+    "panelTab": "Paneel",
     "noPagesTitle": "Nog geen pagina's aangemaakt.",
     "noPagesDescription": "Maak je eerste pagina aan om op het bord weer te geven.",
     "createFirstPage": "Maak je eerste pagina",
@@ -1709,6 +1710,7 @@
     "deviceFlagship": "Flagship (6×22)",
     "deviceNote": "Note (3×15)",
     "deviceNoteArray": "Note-array",
+    "devicePanel": "Paneel ({rows}×{cols})",
     "notesWideLabel": "Notes breed",
     "notesTallLabel": "Notes hoog",
     "fromPageLabel": "Van-pagina",
@@ -2245,6 +2247,7 @@
   },
   "boardSizeIndicator": {
     "custom": "Aangepast",
+    "panel": "Paneel",
     "ariaLabel": "{rows} rijen bij {cols} kolommen",
     "ariaLabelWithLayout": "{rows} rijen bij {cols} kolommen, {layout}"
   },
@@ -2299,7 +2302,7 @@
     "aspectWidthLabel": "Verhouding breedte",
     "aspectHeightLabel": "Verhouding hoogte",
     "tvPreviewLabel": "Op je scherm",
-    "tvPreviewMeta": "{cols} × {rows} flappen · {wide} × {tall} Note-blokken",
+    "tvPreviewMeta": "{cols} × {rows} flappen op ware grootte",
     "screenMeta": "{inches}\"-scherm",
     "autoDim": "'s Nachts automatisch dimmen",
     "autoDimStart": "Dimmen vanaf",
@@ -2343,7 +2346,8 @@
     "hdmiEnabledHint": "Het HDMI-scherm toont het paneel waarvoor hierboven “Schermuitvoer” is ingeschakeld.",
     "hdmiFailed": "De laatste HDMI-kioskwijziging is mislukt. Probeer opnieuw of herstart de Pi.",
     "yourPanelsGroupLabel": "Je panelen",
-    "panelSizeOption": "{name} · {wide}×{tall} Note-blokken",
+    "panelSizeOption": "{name} · {cols}×{rows}",
+    "panelGridOption": "Paneel · {cols}×{rows}",
     "fitsPanel": "Past op {name}",
     "fitsPanelAndMore": "Past op {name} +{count} meer"
   },

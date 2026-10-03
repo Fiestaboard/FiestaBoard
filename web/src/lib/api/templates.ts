@@ -2,7 +2,12 @@
 // rendering, plus the Home Assistant entity catalog they draw on.
 
 import { fetchApi } from "./core";
-import type { LineMetadata } from "./shared";
+import type { GridSize, LineMetadata } from "./shared";
+
+/** `grid_rows`/`grid_cols` body fields for a panel render (none when absent). */
+function gridFields(grid?: GridSize | null): { grid_rows?: number; grid_cols?: number } {
+  return grid ? { grid_rows: grid.rows, grid_cols: grid.cols } : {};
+}
 
 // Template types
 export interface FormattingVariable {
@@ -100,12 +105,17 @@ export const templatesApi = {
   // array as one 3x15 Note and a `{{filled:-}}` line stopped a note short of
   // the board the same page filled correctly when sent (issue #2032). Ignored
   // by the server for `flagship` and `note`.
+  //
+  // `grid` sizes a `panel` (a FiestaPanel's explicit rows × cols): the server
+  // answers 422 for a panel render without it. It is a trailing argument so
+  // every existing positional caller keeps working; ignored for other types.
   renderTemplate: (
     template: string | string[],
     lineMetadata?: LineMetadata[],
     deviceType?: string,
     notesWide?: number,
     notesTall?: number,
+    grid?: GridSize | null,
   ) =>
     fetchApi<TemplateRenderResponse>("/templates/render", {
       method: "POST",
@@ -115,6 +125,7 @@ export const templatesApi = {
         ...(deviceType && { device_type: deviceType }),
         ...(notesWide != null && { notes_wide: notesWide }),
         ...(notesTall != null && { notes_tall: notesTall }),
+        ...gridFields(grid),
       }),
     }),
   renderTemplateLive: (
@@ -125,6 +136,7 @@ export const templatesApi = {
     notesWide?: number,
     notesTall?: number,
     signal?: AbortSignal,
+    grid?: GridSize | null,
   ) =>
     fetchApi<TemplateRenderLiveResponse>("/templates/render/live", {
       method: "POST",
@@ -135,6 +147,7 @@ export const templatesApi = {
         ...(deviceType && { device_type: deviceType }),
         ...(notesWide != null && { notes_wide: notesWide }),
         ...(notesTall != null && { notes_tall: notesTall }),
+        ...gridFields(grid),
       }),
       signal,
     }),

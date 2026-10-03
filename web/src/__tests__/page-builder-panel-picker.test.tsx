@@ -1,10 +1,13 @@
 /**
  * The page-size picker offers FiestaPanels by name.
  *
- * A panel is the one board shape a user cannot reason about in Notes — it is
- * auto-fit from a TV's diagonal — so "Note Array, 2 wide, 4 tall" is not a
- * choice anyone can make correctly. Picking the panel by name sets the whole
- * geometry at once; the generic device choices stay for real hardware.
+ * A panel is the one board shape a user cannot reason about by hand — it is
+ * auto-fit per character from a TV's diagonal (a 55" TV is 12 × 29) — so it
+ * is not a choice anyone can make correctly from the generic sizes. Picking
+ * the panel by name sets the whole geometry at once: a "panel" page with the
+ * panel's grid_rows × grid_cols. The generic device choices stay for real
+ * hardware, and a legacy panel whose board is still a Note-block array keeps
+ * resolving to a note_array page.
  */
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { render, screen, waitFor } from "@testing-library/react";
@@ -16,7 +19,7 @@ import { CurrentBoardProvider } from "@/components/current-board-context";
 import { PageBuilder } from "@/components/page-builder";
 import { ConfigOverridesProvider } from "@/hooks/use-config-overrides";
 import { ThemeProvider } from "@/hooks/use-theme";
-import type { BoardSettings } from "@/lib/api";
+import type { BoardSettings, Page } from "@/lib/api";
 import { api } from "@/lib/api";
 
 import { server } from "./mocks/server";
@@ -37,6 +40,8 @@ vi.mock("@/lib/api", async () => {
       renderTemplateLive: vi.fn(),
       getTemplateVariables: vi.fn(),
       getBoardSettings: vi.fn(),
+      getPage: vi.fn(),
+      updatePage: vi.fn(),
     },
   };
 });
@@ -80,7 +85,20 @@ const boardSettings: BoardSettings = {
   devices: ["flagship"],
 };
 
-function panel(id: string, name: string, notesWide: number, notesTall: number) {
+/** A per-character FiestaPanel board, as the API reports one. */
+function panel(id: string, name: string, rows: number, cols: number) {
+  return {
+    ...legacyPanel(id, name, 1, 1),
+    device_type: "panel",
+    rows,
+    cols,
+    notes_wide: null,
+    notes_tall: null,
+  };
+}
+
+/** A panel created before per-character fitting: a Note-block array board. */
+function legacyPanel(id: string, name: string, notesWide: number, notesTall: number) {
   return {
     id,
     short_code: 1,
@@ -103,9 +121,19 @@ function panel(id: string, name: string, notesWide: number, notesTall: number) {
   };
 }
 
-function servePanels(...panels: ReturnType<typeof panel>[]) {
+function servePanels(...panels: (ReturnType<typeof panel> | ReturnType<typeof legacyPanel>)[]) {
   server.use(http.get(`${API_BASE}/panels`, () => HttpResponse.json({ panels, total: panels.length })));
 }
+
+const existingFlagshipPage: Page = {
+  id: "existing-1",
+  name: "Existing Page",
+  type: "template",
+  device_type: "flagship",
+  template: ["HELLO", "", "", "", "", ""],
+  duration_seconds: 300,
+  created_at: "2026-01-01T00:00:00Z",
+};
 
 async function openSizePicker(user: ReturnType<typeof userEvent.setup>) {
   const switcher = await screen.findByLabelText("Change board size");
@@ -133,67 +161,171 @@ describe("PageBuilder size picker — FiestaPanels", () => {
     vi.mocked(api.getBoardSettings).mockResolvedValue(boardSettings);
   });
 
-  it("lists each panel by name and note grid", async () => {
-    servePanels(panel("p1", "Kitchen TV", 2, 4), panel("p2", "Office TV", 3, 2));
+  it("lists each panel by name and character grid", async () => {
+    servePanels(panel("p1", "Kitchen TV", 12, 29), panel("p2", "Office TV", 14, 34));
     const user = userEvent.setup();
     render(<PageBuilder onClose={vi.fn()} onSave={vi.fn()} />, { wrapper: TestWrapper });
 
     await openSizePicker(user);
 
-    expect(await screen.findByRole("option", { name: "Kitchen TV · 2×4 notes" })).toBeInTheDocument();
-    expect(screen.getByRole("option", { name: "Office TV · 3×2 notes" })).toBeInTheDocument();
+    expect(await screen.findByRole("option", { name: "Kitchen TV · 29×12" })).toBeInTheDocument();
+    expect(screen.getByRole("option", { name: "Office TV · 34×14" })).toBeInTheDocument();
     expect(screen.getByText("Your panels")).toBeInTheDocument();
   });
 
   it("keeps the generic device choices below the panels", async () => {
-    servePanels(panel("p1", "Kitchen TV", 2, 4));
+    servePanels(panel("p1", "Kitchen TV", 12, 29));
     const user = userEvent.setup();
     render(<PageBuilder onClose={vi.fn()} onSave={vi.fn()} />, { wrapper: TestWrapper });
 
     await openSizePicker(user);
 
-    await screen.findByRole("option", { name: "Kitchen TV · 2×4 notes" });
+    await screen.findByRole("option", { name: "Kitchen TV · 29×12" });
     for (const name of ["Flagship", "Note", "Note Array"]) {
       expect(screen.getByRole("option", { name })).toBeInTheDocument();
     }
   });
 
-  it("sizes the page to the panel's grid when a panel is chosen", async () => {
-    servePanels(panel("p1", "Kitchen TV", 2, 4));
+  it("sizes the page to the panel's character grid when a panel is chosen", async () => {
+    servePanels(panel("p1", "Kitchen TV", 12, 29));
     const user = userEvent.setup();
     render(<PageBuilder onClose={vi.fn()} onSave={vi.fn()} />, { wrapper: TestWrapper });
 
     await openSizePicker(user);
-    await user.click(await screen.findByRole("option", { name: "Kitchen TV · 2×4 notes" }));
+    await user.click(await screen.findByRole("option", { name: "Kitchen TV · 29×12" }));
 
-    // note_array + the panel's W×H, which is what the Notes selects report.
-    await waitFor(() => expect(screen.getByLabelText("Notes wide")).toHaveTextContent("2 wide"));
-    expect(screen.getByLabelText("Notes tall")).toHaveTextContent("4 tall");
-    // The board is 4 Notes tall = 12 rows.
-    expect(screen.getByRole("img", { name: /12 rows by 30 columns/ })).toBeInTheDocument();
+    await waitFor(() => expect(screen.getByRole("img", { name: /12 rows by 29 columns, Panel/ })).toBeInTheDocument());
+    // A panel is not a note array: the Notes selects do not apply to it.
+    expect(screen.queryByLabelText("Notes wide")).not.toBeInTheDocument();
+  });
+
+  it("draws the preview at the panel's character grid", async () => {
+    servePanels(panel("p1", "Kitchen TV", 12, 29));
+    const user = userEvent.setup();
+    render(<PageBuilder onClose={vi.fn()} onSave={vi.fn()} />, { wrapper: TestWrapper });
+
+    await openSizePicker(user);
+    await user.click(await screen.findByRole("option", { name: "Kitchen TV · 29×12" }));
+
+    await waitFor(() => expect(document.querySelector('[data-testid="char-tile-11-28"]')).not.toBeNull());
+    expect(document.querySelector('[data-testid="char-tile-0-29"]')).toBeNull();
+  });
+
+  it("draws the panel preview as one seamless surface, with no Note seams", async () => {
+    // A panel used to be previewed as a note array, which spaces the grid
+    // apart every 15 columns and 3 rows — gaps the TV itself never shows.
+    servePanels(panel("p1", "Kitchen TV", 12, 29));
+    const user = userEvent.setup();
+    render(<PageBuilder onClose={vi.fn()} onSave={vi.fn()} />, { wrapper: TestWrapper });
+
+    await openSizePicker(user);
+    await user.click(await screen.findByRole("option", { name: "Kitchen TV · 29×12" }));
+
+    await waitFor(() => expect(document.querySelector('[data-testid="char-tile-11-28"]')).not.toBeNull());
+    expect(document.querySelectorAll('[data-note-col-seam="true"], [data-note-row-seam="true"]')).toHaveLength(0);
+  });
+
+  it("previews a panel page with the panel's grid", async () => {
+    servePanels(panel("p1", "Kitchen TV", 12, 29));
+    vi.mocked(api.getPage).mockResolvedValue(existingFlagshipPage);
+    const user = userEvent.setup();
+    render(<PageBuilder pageId="existing-1" skipDraft onClose={vi.fn()} onSave={vi.fn()} />, {
+      wrapper: TestWrapper,
+    });
+    await screen.findByText("6 × 22");
+
+    await openSizePicker(user);
+    await user.click(await screen.findByRole("option", { name: "Kitchen TV · 29×12" }));
+
+    await waitFor(() =>
+      expect(api.renderTemplate).toHaveBeenLastCalledWith(
+        expect.anything(),
+        expect.anything(),
+        "panel",
+        expect.anything(),
+        expect.anything(),
+        { rows: 12, cols: 29 },
+      ),
+    );
+  });
+
+  it("saves a panel page as device_type panel with the panel's grid_rows and grid_cols", async () => {
+    servePanels(panel("p1", "Kitchen TV", 12, 29));
+    vi.mocked(api.getPage).mockResolvedValue(existingFlagshipPage);
+    vi.mocked(api.updatePage).mockResolvedValue({
+      page: { ...existingFlagshipPage, device_type: "panel", grid_rows: 12, grid_cols: 29 },
+      incompatible_references: [],
+    });
+    const user = userEvent.setup();
+    render(<PageBuilder pageId="existing-1" skipDraft onClose={vi.fn()} onSave={vi.fn()} />, {
+      wrapper: TestWrapper,
+    });
+    await screen.findByText("6 × 22");
+
+    await openSizePicker(user);
+    await user.click(await screen.findByRole("option", { name: "Kitchen TV · 29×12" }));
+    await screen.findByText("12 × 29");
+
+    // 6 × 22 → 12 × 29 grows on both axes, so no confirmation gate.
+    await user.click(screen.getByRole("button", { name: "Save Page" }));
+    await waitFor(() => expect(api.updatePage).toHaveBeenCalled());
+    const [, payload] = vi.mocked(api.updatePage).mock.calls[0];
+    expect(payload).toMatchObject({ device_type: "panel", grid_rows: 12, grid_cols: 29 });
+    expect(payload).not.toHaveProperty("notes_wide");
+    expect(payload).not.toHaveProperty("notes_tall");
   });
 
   it("keeps naming the chosen panel on the trigger, not the generic device type", async () => {
-    // The Select is controlled, and a panel resolves to note_array + a grid.
-    // If the value were the raw deviceType, the trigger would snap to
-    // "Note Array" the instant the panel was chosen and reopening would
-    // highlight the generic row — the picker would forget what was picked.
-    servePanels(panel("p1", "Kitchen TV", 2, 4));
+    // The Select is controlled, and a panel resolves to a device type + a
+    // grid. If the value were the raw deviceType the trigger would forget
+    // which panel was picked and reopening would highlight a generic row.
+    servePanels(panel("p1", "Kitchen TV", 12, 29));
     const user = userEvent.setup();
     render(<PageBuilder onClose={vi.fn()} onSave={vi.fn()} />, { wrapper: TestWrapper });
 
     await openSizePicker(user);
-    await user.click(await screen.findByRole("option", { name: "Kitchen TV · 2×4 notes" }));
+    await user.click(await screen.findByRole("option", { name: "Kitchen TV · 29×12" }));
 
     const switcher = await screen.findByLabelText("Change board size");
-    await waitFor(() => expect(switcher).toHaveTextContent("Kitchen TV · 2×4 notes"));
+    await waitFor(() => expect(switcher).toHaveTextContent("Kitchen TV · 29×12"));
 
-    // Reopening shows the panel as the selected option, not "Note Array".
+    // Reopening shows the panel as the selected option.
     await user.click(switcher);
     await waitFor(() =>
-      expect(screen.getByRole("option", { name: "Kitchen TV · 2×4 notes" })).toHaveAttribute("aria-selected", "true"),
+      expect(screen.getByRole("option", { name: "Kitchen TV · 29×12" })).toHaveAttribute("aria-selected", "true"),
     );
     expect(screen.getByRole("option", { name: "Note Array" })).toHaveAttribute("aria-selected", "false");
+  });
+
+  it("names an unmatched panel page by its own grid when no panel fits it any more", async () => {
+    // The page's panel was re-fit to another size (or deleted): the trigger
+    // must still say what the page is rather than go blank.
+    servePanels(panel("p1", "Kitchen TV", 14, 34));
+    vi.mocked(api.getPage).mockResolvedValue({
+      ...existingFlagshipPage,
+      device_type: "panel",
+      grid_rows: 12,
+      grid_cols: 29,
+      template: Array.from({ length: 12 }, () => ""),
+    });
+    render(<PageBuilder pageId="existing-1" skipDraft onClose={vi.fn()} onSave={vi.fn()} />, {
+      wrapper: TestWrapper,
+    });
+
+    const switcher = await screen.findByLabelText("Change board size");
+    await waitFor(() => expect(switcher).toHaveTextContent("Panel · 29×12"));
+  });
+
+  it("still sizes a legacy note-array panel's page as a note array", async () => {
+    servePanels(legacyPanel("p1", "Kitchen TV", 2, 4));
+    const user = userEvent.setup();
+    render(<PageBuilder onClose={vi.fn()} onSave={vi.fn()} />, { wrapper: TestWrapper });
+
+    await openSizePicker(user);
+    await user.click(await screen.findByRole("option", { name: "Kitchen TV · 30×12" }));
+
+    await waitFor(() => expect(screen.getByLabelText("Notes wide")).toHaveTextContent("2 wide"));
+    expect(screen.getByLabelText("Notes tall")).toHaveTextContent("4 tall");
   });
 
   it("shows no panels group at all on an install with no panels", async () => {

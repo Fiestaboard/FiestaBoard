@@ -25,9 +25,17 @@ in this same PR. What deliberately changed, and nothing else:
   ``{"status": "success"}``), matching the collections/pages convention.
 
 The two unauthenticated viewer endpoints — ``GET /panel/{id}`` and
-``GET /panel/{id}/frame`` — are **unchanged**: a TV in a kiosk cannot be
-redeployed in lockstep with the API, so their payloads and their auth
-exemption are held exactly as they were.
+``GET /panel/{id}/frame`` — were held unchanged by that pass: a TV in a kiosk
+cannot be redeployed in lockstep with the API.
+
+RE-PINNED by the per-character fit fix: a panel's board is no longer a
+``note_array`` of whole 15 × 3 Note blocks but a ``panel`` grid fit per
+character, so a 55" 16:9 screen is 12 × 29 flaps (was 12 × 15 — half the
+width left dark) with ``device_type: "panel"`` and null ``notes_wide`` /
+``notes_tall``. The *shape* of every payload, and the auth exemption, are
+unchanged; only those values moved. The viewer reads ``device_type`` and
+``rows``/``cols``, so a TV must reload once to pick up the viewer that can
+draw a ``panel`` grid.
 
 Every other assertion is unchanged from the pre-conversion recording. None was
 weakened.
@@ -77,23 +85,21 @@ def test_listing_attaches_the_backing_board_geometry_to_each_panel(client, panel
     assert body["total"] == 1
     (listed,) = body["panels"]
     assert listed["id"] == panel["id"]
-    assert listed["device_type"] == "note_array"
+    assert listed["device_type"] == "panel"
     assert listed["board_missing"] is False
-    assert (listed["rows"], listed["cols"]) == (12, 15)
+    assert (listed["rows"], listed["cols"]) == (12, 29)
 
 
-def test_listing_reports_the_note_grid_so_a_client_never_divides(client, panel):
-    """Every panel payload carries notes_wide/notes_tall alongside rows/cols.
+def test_a_panel_grid_is_fit_per_character_not_in_note_blocks(client, panel):
+    """A 55" 16:9 screen holds 29 columns at true flap pitch.
 
-    A panel's board IS a note-array grid, and the app sizes pages to it. Before
-    this, every consumer had to divide cols by 15 and rows by 3 itself; the two
-    fields are derived from the same resolved dimensions, so they can never
-    disagree with rows/cols.
+    Fit in whole 15-column Note blocks it got one block — 15 columns — and
+    left half the TV dark. 29 is not a multiple of 15, so the grid is not a
+    note array and reports no Note counts.
     """
     (listed,) = client.get("/panels").json()["panels"]
-    assert (listed["notes_wide"], listed["notes_tall"]) == (1, 4), 'a 55" 16:9 screen auto-fits to 1x4 Notes'
-    assert listed["notes_wide"] * 15 == listed["cols"]
-    assert listed["notes_tall"] * 3 == listed["rows"]
+    assert listed["cols"] == 29
+    assert (listed["notes_wide"], listed["notes_tall"]) == (None, None)
 
 
 def test_a_panel_whose_board_is_gone_reports_a_null_note_grid(client, panel):
@@ -130,18 +136,19 @@ def test_creating_a_panel_returns_it_with_an_auto_fit_board(client):
     assert created["is_display"] is False
     assert created["backdrop"] == "wall"
     assert created["auto_dim"] == {"enabled": False, "start": "22:00", "end": "07:00"}
-    # A 55" 16:9 screen auto-fits to a 3x5 grid of Note blocks = 12x15 flaps.
-    assert (created["rows"], created["cols"]) == (12, 15)
-    assert created["device_type"] == "note_array"
+    # A 55" 16:9 screen auto-fits per character to 12 rows x 29 columns.
+    assert (created["rows"], created["cols"]) == (12, 29)
+    assert created["device_type"] == "panel"
     assert created["board_missing"] is False
-    assert (created["notes_wide"], created["notes_tall"]) == (1, 4)
+    assert (created["notes_wide"], created["notes_tall"]) == (None, None)
 
 
 def test_creating_a_panel_co_creates_its_virtual_board(client, panel):
     boards = client.get("/settings/board").json()["boards"]
     board = next(b for b in boards if b["id"] == panel["board_id"])
     assert board["api_mode"] == "virtual"
-    assert board["device_type"] == "note_array"
+    assert board["device_type"] == "panel"
+    assert (board["grid_rows"], board["grid_cols"]) == (12, 29)
     assert board["name"] == "Kitchen TV (Panel)"
 
 
@@ -176,7 +183,8 @@ def test_a_screen_size_change_refits_the_board_and_reports_references(client, pa
     assert response.status_code == 200
     body = response.json()
     assert body["screen_diagonal_inches"] == 32.0
-    assert (body["rows"], body["cols"]) != (12, 15), "the grid was re-fit"
+    assert (body["rows"], body["cols"]) == (7, 17), 'a 32" screen re-fits to 7x17'
+    assert body["device_type"] == "panel"
     assert body["incompatible_references"] == [], "no pages reference this board yet"
 
 
@@ -212,10 +220,10 @@ def test_the_public_config_is_the_panel_plus_the_board_presentation(client, pane
     body = response.json()
     assert body["id"] == panel["id"]
     assert body["name"] == "Kitchen TV"
-    assert (body["rows"], body["cols"]) == (12, 15)
-    assert body["device_type"] == "note_array"
+    assert (body["rows"], body["cols"]) == (12, 29)
+    assert body["device_type"] == "panel"
     assert body["board_missing"] is False
-    assert (body["notes_wide"], body["notes_tall"]) == (1, 4)
+    assert (body["notes_wide"], body["notes_tall"]) == (None, None)
     assert body["board_color"] == "black"
     assert body["code62_glyph"] in ("degree", "heart")
 
@@ -251,7 +259,7 @@ def test_a_panel_with_nothing_sent_to_it_serves_a_null_frame_with_its_geometry(c
         "characters": None,
         "message": None,
         "rows": 12,
-        "cols": 15,
+        "cols": 29,
         "updated_at": None,
     }
 

@@ -345,7 +345,7 @@ function ToolCallCard({ call }: { call: ToolCallDisplay }) {
   const errorText =
     result && (result.status === "error" || result.status === "blocked") ? (result.error ?? undefined) : undefined;
   const preview = call.appliedSnapshot ? (
-    <InlineBoardPreview snapshot={call.appliedSnapshot} deviceType={deviceType} />
+    <InlineBoardPreview snapshot={call.appliedSnapshot} deviceType={deviceType} grid={call.previewGrid} />
   ) : null;
   const hasResult = result?.status === "ok" && result.result !== null && result.result !== undefined;
   const output =

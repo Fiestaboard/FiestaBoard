@@ -190,6 +190,7 @@
     "flagshipTab": "Flagship",
     "noteTab": "Note",
     "noteArrayTab": "Note Array",
+    "panelTab": "Painel",
     "noPagesTitle": "Nenhuma página criada ainda.",
     "noPagesDescription": "Crie sua primeira página para exibir no painel.",
     "createFirstPage": "Crie sua primeira página",
@@ -1709,6 +1710,7 @@
     "deviceFlagship": "Flagship (6×22)",
     "deviceNote": "Note (3×15)",
     "deviceNoteArray": "Matriz de Notes",
+    "devicePanel": "Painel ({rows}×{cols})",
     "notesWideLabel": "Notes de largura",
     "notesTallLabel": "Notes de altura",
     "fromPageLabel": "Página de origem",
@@ -2245,6 +2247,7 @@
   },
   "boardSizeIndicator": {
     "custom": "Personalizado",
+    "panel": "Painel",
     "ariaLabel": "{rows} linhas por {cols} colunas",
     "ariaLabelWithLayout": "{rows} linhas por {cols} colunas, {layout}"
   },
@@ -2299,7 +2302,7 @@
     "aspectWidthLabel": "Largura da proporção",
     "aspectHeightLabel": "Altura da proporção",
     "tvPreviewLabel": "Na sua tela",
-    "tvPreviewMeta": "{cols} × {rows} lâminas · {wide} × {tall} blocos Note",
+    "tvPreviewMeta": "{cols} × {rows} lâminas em tamanho real",
     "screenMeta": "tela de {inches}\"",
     "autoDim": "Escurecer automaticamente à noite",
     "autoDimStart": "Escurecer a partir de",
@@ -2343,7 +2346,8 @@
     "hdmiEnabledHint": "A tela HDMI mostra o painel com “Saída de tela” ativada acima.",
     "hdmiFailed": "A última alteração do quiosque HDMI falhou. Tente novamente ou reinicie o Pi.",
     "yourPanelsGroupLabel": "Os seus painéis",
-    "panelSizeOption": "{name} · {wide}×{tall} blocos Note",
+    "panelSizeOption": "{name} · {cols}×{rows}",
+    "panelGridOption": "Painel · {cols}×{rows}",
     "fitsPanel": "Serve para {name}",
     "fitsPanelAndMore": "Serve para {name} +{count} mais"
   },

@@ -13,9 +13,14 @@ from typing import Literal, NamedTuple, get_args
 #: second source of truth that eventually drifts from the one the runtime
 #: enforces. Request models annotate ``device_type: DeviceType`` and get the
 #: same set the storage layer validates against.
-DeviceType = Literal["flagship", "note", "note_array"]
+DeviceType = Literal["flagship", "note", "note_array", "panel"]
 
 DEVICE_TYPES: tuple[str, ...] = get_args(DeviceType)
+
+#: The shapes real Vestaboard hardware comes in. ``"panel"`` is FiestaPanel's
+#: virtual per-character grid and is never a physical board, so surfaces that
+#: describe hardware (adding a board, detecting a board's size) publish this.
+HardwareDeviceType = Literal["flagship", "note", "note_array"]
 
 
 class DeviceDimensions(NamedTuple):
@@ -36,6 +41,21 @@ DEVICE_DIMENSIONS: dict[str, DeviceDimensions] = {
 NOTE_ROWS: int = 3
 NOTE_COLS: int = 15
 MAX_NOTES_PER_AXIS: int = 8
+
+# Panel grid bounds. A "panel" (FiestaPanel, a virtual board on a TV) is sized
+# per character from the screen, so its grid is any rows × cols — not a
+# multiple of a Note. The floor is one Note (3 × 15): every plugin and
+# template is authored for at least that, and a screen too small for it gets
+# a Note-sized grid the viewer shrinks to fit. The ceiling covers a 200" TV
+# (the largest a panel accepts) in either orientation with headroom.
+MIN_GRID_ROWS: int = NOTE_ROWS
+MIN_GRID_COLS: int = NOTE_COLS
+MAX_GRID_ROWS: int = 96
+MAX_GRID_COLS: int = 128
+
+#: Every field that sizes a page/board. A change to any of them is a size
+#: retarget (re-validate, warn about now-incompatible references).
+GEOMETRY_FIELDS: tuple[str, ...] = ("device_type", "notes_wide", "notes_tall", "grid_rows", "grid_cols")
 
 # Board display names are user-editable (issue #1792) and are rendered in the
 # sidebar board selector, Settings cards and page headers, so cap them at
@@ -168,6 +188,11 @@ class BoardInstance:
     note_array_token: str = ""  # X-Vestaboard-Token for note-array boards
     notes_wide: int = 1
     notes_tall: int = 1
+    # Explicit grid for device_type == "panel" (FiestaPanel virtual boards are
+    # sized per character from the TV, so they are any rows × cols). None for
+    # every other device type, whose size is implied by the type/notes.
+    grid_rows: int | None = None
+    grid_cols: int | None = None
     # Local array mode: per-tile local API endpoints, one per physical Note.
     # Only meaningful when device_type == "note_array" and api_mode == "local".
     tiles: list = field(default_factory=list)
@@ -181,6 +206,11 @@ class BoardInstance:
             self.code62_glyph = "degree"
         if self.api_mode not in VALID_API_MODES:
             self.api_mode = "local"
+        # "panel" is the FiestaPanel virtual board's grid, not hardware: no
+        # Vestaboard accepts an arbitrary rows × cols frame. A physical board
+        # claiming it falls back to the default like any unknown type.
+        if self.device_type == "panel" and self.api_mode != "virtual":
+            self.device_type = "flagship"
         if not isinstance(self.enabled, bool):
             self.enabled = bool(self.enabled)
         if not isinstance(self.paused, bool):
@@ -201,6 +231,18 @@ class BoardInstance:
             self.notes_tall = 1
         if self.notes_tall > MAX_NOTES_PER_AXIS:
             self.notes_tall = MAX_NOTES_PER_AXIS
+        # A panel always carries a valid grid (clamped; a missing axis falls
+        # back to the Note-sized minimum so the board still resolves); every
+        # other type carries none, so a stale grid can never leak into a
+        # flagship's geometry after a type change.
+        if is_panel(self.device_type):
+            rows = _optional_int(self.grid_rows)
+            cols = _optional_int(self.grid_cols)
+            dims = clamp_grid(MIN_GRID_ROWS if rows is None else rows, MIN_GRID_COLS if cols is None else cols)
+            self.grid_rows, self.grid_cols = dims.rows, dims.cols
+        else:
+            self.grid_rows = None
+            self.grid_cols = None
         # Tiles only make sense on note-array boards
         self.tiles = normalize_note_array_tiles(self.tiles) if self.device_type == "note_array" else []
 
@@ -208,15 +250,15 @@ class BoardInstance:
     def effective_code62_glyph(self) -> str:
         """The glyph this board actually draws for character code 62.
 
-        Note and note-array hardware only ever shipped the heart flap, so the
-        glyph is a property of the device there and ``code62_glyph`` is not
-        theirs to set — a stale Flagship preference must not make a Note draw a
+        Note and note-array hardware only ever shipped the heart flap (and
+        panels imitate Note hardware, pitched like one), so the glyph is a
+        property of the device there and ``code62_glyph`` is not theirs to set — a stale Flagship preference must not make a Note draw a
         degree sign it does not physically have. Only Flagship is ambiguous, and
         only there does the stored setting decide.
 
         Read this rather than ``code62_glyph`` anywhere a board is rendered.
         """
-        if is_note_array(self.device_type) or self.device_type == "note":
+        if self.device_type in ("note", "note_array", "panel"):
             return "heart"
         return self.code62_glyph
 
@@ -313,6 +355,8 @@ class BoardInstance:
             note_array_token=(data.get("note_array_token") or "").strip(),
             notes_wide=data.get("notes_wide", 1),
             notes_tall=data.get("notes_tall", 1),
+            grid_rows=data.get("grid_rows"),
+            grid_cols=data.get("grid_cols"),
             tiles=data.get("tiles") or [],
         )
 
@@ -395,6 +439,32 @@ def is_note_array(device_type: str) -> bool:
     return device_type == "note_array"
 
 
+def is_panel(device_type: str) -> bool:
+    """Return True if device_type is 'panel' (an explicit rows × cols grid)."""
+    return device_type == "panel"
+
+
+def clamp_grid(grid_rows: int, grid_cols: int) -> DeviceDimensions:
+    """Clamp a panel grid into [MIN_GRID_*, MAX_GRID_*] on each axis."""
+    return DeviceDimensions(
+        rows=max(MIN_GRID_ROWS, min(MAX_GRID_ROWS, int(grid_rows))),
+        cols=max(MIN_GRID_COLS, min(MAX_GRID_COLS, int(grid_cols))),
+    )
+
+
+def panel_dimensions(grid_rows: int | None, grid_cols: int | None) -> DeviceDimensions:
+    """Dimensions of a panel grid, clamped into the supported range.
+
+    Raises ValueError when either axis is missing or not an integer: a panel
+    has no implied size, and guessing one would render content at the wrong
+    shape without anyone noticing.
+    """
+    for name, value in (("grid_rows", grid_rows), ("grid_cols", grid_cols)):
+        if isinstance(value, bool) or not isinstance(value, int):
+            raise ValueError(f"A panel grid needs an integer {name} (got {value!r})")
+    return clamp_grid(grid_rows, grid_cols)
+
+
 def slice_note_array_grid(
     grid: list[list[int]], notes_wide: int, notes_tall: int
 ) -> dict[tuple[int, int], list[list[int]]]:
@@ -474,17 +544,22 @@ def resolve_dimensions(
     device_type: str,
     notes_wide: int = 1,
     notes_tall: int = 1,
+    grid_rows: int | None = None,
+    grid_cols: int | None = None,
 ) -> DeviceDimensions:
     """Resolve board dimensions for any device type.
 
-    For 'flagship' and 'note': looks up DEVICE_DIMENSIONS (notes_wide/notes_tall ignored).
+    For 'flagship' and 'note': looks up DEVICE_DIMENSIONS (other args ignored).
     For 'note_array': computes from notes_wide × notes_tall using NOTE_ROWS/NOTE_COLS.
-    Raises ValueError for unknown device types.
+    For 'panel': the explicit grid_rows × grid_cols (see :func:`panel_dimensions`).
+    Raises ValueError for unknown device types, or a panel without a grid.
     """
     if device_type in DEVICE_DIMENSIONS:
         return DEVICE_DIMENSIONS[device_type]
     if device_type == "note_array":
         return note_array_dimensions(notes_wide, notes_tall)
+    if device_type == "panel":
+        return panel_dimensions(grid_rows, grid_cols)
     raise ValueError(f"Unknown device type: {device_type}. Must be one of {DEVICE_TYPES}")
 
 
@@ -555,11 +630,17 @@ def classify_dimensions(rows: int, cols: int) -> dict:
 DEFAULT_DEVICE_TYPE: DeviceType = "flagship"
 
 
-def size_key(device_type: str, notes_wide: int = 1, notes_tall: int = 1) -> str:
+def size_key(
+    device_type: str,
+    notes_wide: int = 1,
+    notes_tall: int = 1,
+    grid_rows: int | None = None,
+    grid_cols: int | None = None,
+) -> str:
     """Canonical family + resolved-size key for page<->board compatibility.
 
     Examples: ``"flagship:6x22"``, ``"note:3x15"``, ``"note_array:6x30"``
-    (a 2x2 note grid). The device family is part of the key on purpose:
+    (a 2x2 note grid), ``"panel:12x29"``. The device family is part of the key on purpose:
     a Note page is NOT compatible with a 1x1 note array even though both
     resolve to 3x15 — they are driven differently and are distinct families.
 
@@ -568,42 +649,85 @@ def size_key(device_type: str, notes_wide: int = 1, notes_tall: int = 1) -> str:
     :func:`board_context_for`).
     """
     try:
-        dims = resolve_dimensions(device_type, notes_wide, notes_tall)
+        dims = resolve_dimensions(device_type, notes_wide, notes_tall, grid_rows, grid_cols)
     except ValueError:
         device_type = DEFAULT_DEVICE_TYPE
         dims = resolve_dimensions(device_type, notes_wide, notes_tall)
     return f"{device_type}:{dims.rows}x{dims.cols}"
 
 
-def _geometry_of(obj) -> tuple[str, int, int]:
-    """Extract (device_type, notes_wide, notes_tall) from a page/board.
+class Geometry(NamedTuple):
+    """Everything that determines a page's or board's grid.
+
+    Positional order matches :func:`resolve_dimensions` / :func:`size_key` /
+    :func:`board_context_for`, so ``f(*geometry_of(x))`` works for each.
+    """
+
+    device_type: str
+    notes_wide: int = 1
+    notes_tall: int = 1
+    grid_rows: int | None = None
+    grid_cols: int | None = None
+
+
+def _optional_int(value) -> int | None:
+    if isinstance(value, bool) or value is None:
+        return None
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return None
+
+
+def geometry_of(obj) -> Geometry:
+    """Extract the :class:`Geometry` of a page/board.
 
     Accepts either a mapping (board dicts from settings storage) or an object
-    with attributes (Page models, BoardInstance). Missing or falsy values get
-    the platform defaults (flagship, 1x1).
+    with attributes (Page models, BoardInstance, overrides). Missing or falsy
+    values get the platform defaults (flagship, 1x1, no explicit grid).
     """
     if isinstance(obj, dict):
-        device_type = obj.get("device_type") or DEFAULT_DEVICE_TYPE
-        notes_wide = obj.get("notes_wide") or 1
-        notes_tall = obj.get("notes_tall") or 1
+        get = obj.get
     else:
-        device_type = getattr(obj, "device_type", None) or DEFAULT_DEVICE_TYPE
-        notes_wide = getattr(obj, "notes_wide", None) or 1
-        notes_tall = getattr(obj, "notes_tall", None) or 1
-    return str(device_type), int(notes_wide), int(notes_tall)
+
+        def get(name):
+            return getattr(obj, name, None)
+
+    return Geometry(
+        device_type=str(get("device_type") or DEFAULT_DEVICE_TYPE),
+        notes_wide=_optional_int(get("notes_wide")) or 1,
+        notes_tall=_optional_int(get("notes_tall")) or 1,
+        grid_rows=_optional_int(get("grid_rows")),
+        grid_cols=_optional_int(get("grid_cols")),
+    )
+
+
+def dimensions_of(obj) -> DeviceDimensions:
+    """Resolve the rows × cols of a page/board (see :func:`geometry_of`).
+
+    Raises ValueError like :func:`resolve_dimensions` for an unknown type or a
+    panel without a grid.
+    """
+    return resolve_dimensions(*geometry_of(obj))
 
 
 def pages_compatible_with_board(page, board) -> bool:
     """True when *page* renders 1:1 on *board*: EXACT :func:`size_key` match.
 
     Family-aware: flagship != note even at identical dimensions, and note
-    arrays must match the resolved W×H grid exactly. Both arguments may be
-    Page/BoardInstance objects or raw board dicts.
+    arrays and panels must match the resolved grid exactly. Both arguments may
+    be Page/BoardInstance objects or raw board dicts.
     """
-    return size_key(*_geometry_of(page)) == size_key(*_geometry_of(board))
+    return size_key(*geometry_of(page)) == size_key(*geometry_of(board))
 
 
-def board_context_for(device_type: str, notes_wide: int = 1, notes_tall: int = 1) -> BoardContext:
+def board_context_for(
+    device_type: str,
+    notes_wide: int = 1,
+    notes_tall: int = 1,
+    grid_rows: int | None = None,
+    grid_cols: int | None = None,
+) -> BoardContext:
     """Build a :class:`BoardContext` for any device type, including note arrays.
 
     Unlike :meth:`BoardContext.from_device_type` (flagship/note only), this
@@ -613,7 +737,7 @@ def board_context_for(device_type: str, notes_wide: int = 1, notes_tall: int = 1
     crashes a render.
     """
     try:
-        dims = resolve_dimensions(device_type, notes_wide, notes_tall)
+        dims = resolve_dimensions(device_type, notes_wide, notes_tall, grid_rows, grid_cols)
     except ValueError:
         device_type = DEFAULT_DEVICE_TYPE
         dims = resolve_dimensions(device_type, notes_wide, notes_tall)
