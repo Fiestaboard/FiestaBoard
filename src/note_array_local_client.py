@@ -12,6 +12,7 @@ cache management, ``use_cloud`` for read-poll interval selection).
 
 import logging
 from concurrent.futures import ThreadPoolExecutor
+from typing import Any
 
 from .board_client import (
     VALID_STRATEGIES,
@@ -86,10 +87,10 @@ class NoteArrayLocalClient(TransitionRenderMixin):
     def _dims(self):
         return note_array_dimensions(self.notes_wide, self.notes_tall)
 
-    def send_text(self, text: str, force: bool = False) -> tuple[bool, bool]:
+    def send_text(self, text: str, force: bool = False, *, with_outcome: bool = False) -> Any:
         """Note arrays are characters-only; mirror the cloud client's refusal."""
         logger.error("send_text is not supported for note-array boards; use send_characters()")
-        return (False, False)
+        return self._outcome(False, False, with_outcome=with_outcome)
 
     def send_characters(
         self,
@@ -98,7 +99,9 @@ class NoteArrayLocalClient(TransitionRenderMixin):
         step_interval_ms: int | None = None,
         step_size: int | None = None,
         force: bool = False,
-    ) -> tuple[bool, bool]:
+        *,
+        with_outcome: bool = False,
+    ) -> Any:
         """Slice the full grid and fan out one local POST per configured tile.
 
         Transition params are forwarded to every tile (the Local API supports
@@ -108,6 +111,11 @@ class NoteArrayLocalClient(TransitionRenderMixin):
         accepted its slice — the composite cache is left unset on partial
         failure so the caller retries, and per-tile caches make that retry
         re-POST only the tiles that failed.
+
+        With ``with_outcome`` the same verdict comes back as a
+        :class:`~src.send_outcome.SendOutcome` — ``render()`` forwards the
+        keyword from send-message, the v1 grid send, MCP and debug writes.
+        Local tiles have no send floor, so it is never throttled.
         """
         dims = self._dims
         if (
@@ -124,19 +132,19 @@ class NoteArrayLocalClient(TransitionRenderMixin):
                 dims.rows,
                 dims.cols,
             )
-            return (False, False)
+            return self._outcome(False, False, with_outcome=with_outcome)
 
         if strategy is not None and strategy not in VALID_STRATEGIES:
             logger.error(f"Invalid strategy: {strategy}. Must be one of {VALID_STRATEGIES}")
-            return (False, False)
+            return self._outcome(False, False, with_outcome=with_outcome)
 
         if not self.tile_clients:
             logger.error("Local note array has no configured tiles; cannot send")
-            return (False, False)
+            return self._outcome(False, False, with_outcome=with_outcome)
 
         if self.skip_unchanged and not force and self._last_characters == characters:
             logger.debug("Character array unchanged, skipping send")
-            return (True, False)
+            return self._outcome(True, False, with_outcome=with_outcome)
 
         subgrids = slice_note_array_grid(characters, self.notes_wide, self.notes_tall)
 
@@ -171,7 +179,7 @@ class NoteArrayLocalClient(TransitionRenderMixin):
                 )
             # Leave the composite cache unset so the caller retries; tiles
             # that succeeded keep their own cache and will skip the re-send.
-            return (False, any_was_sent)
+            return self._outcome(False, any_was_sent, with_outcome=with_outcome)
 
         self._last_characters = [row[:] for row in characters]
         self._last_text = None
@@ -180,7 +188,7 @@ class NoteArrayLocalClient(TransitionRenderMixin):
             sum(1 for _, was_sent in results.values() if was_sent),
             sum(1 for _, was_sent in results.values() if not was_sent),
         )
-        return (True, any_was_sent)
+        return self._outcome(True, any_was_sent, with_outcome=with_outcome)
 
     def read_current_message(self, sync_cache: bool = False) -> list[list[int]] | None:
         """Read every tile and stitch the full grid.

@@ -6,7 +6,9 @@ import requests
 
 from src.board_client import board_client_from_board_dict
 from src.devices import NOTE_COLS, NOTE_ROWS
+from src.displays.messages import render_message
 from src.note_array_local_client import NoteArrayLocalClient
+from src.send_outcome import SendOutcome
 
 
 def _tile(row=0, col=0, host=None, key=None, port=7000):
@@ -266,3 +268,82 @@ class TestFactory:
         client = board_client_from_board_dict(board)
         assert not isinstance(client, NoteArrayLocalClient)
         assert client is not None
+
+
+class TestSendOutcome:
+    """``with_outcome=True`` is forwarded by ``render()`` from send-message,
+    the v1 grid send, MCP and debug writes — a local-tile note array must
+    accept it like every other client instead of raising ``TypeError``."""
+
+    @patch("src.board_client.requests.post")
+    def test_render_with_outcome_returns_send_outcome(self, mock_post):
+        mock_post.return_value.raise_for_status = Mock()
+
+        outcome = _two_wide().render(_grid(2, 1), with_outcome=True)
+
+        assert outcome == SendOutcome(True, True, throttled=False, retry_after_seconds=None, floor_seconds=None)
+
+    @patch("src.board_client.requests.post")
+    def test_render_message_with_outcome_reaches_tiles(self, mock_post):
+        mock_post.return_value.raise_for_status = Mock()
+
+        outcome = render_message(
+            _two_wide(),
+            "HELLO",
+            rows=NOTE_ROWS,
+            cols=NOTE_COLS * 2,
+            strategy=None,
+            step_interval_ms=None,
+            step_size=None,
+            with_outcome=True,
+        )
+
+        assert isinstance(outcome, SendOutcome)
+        assert (outcome.success, outcome.was_sent) == (True, True)
+        assert mock_post.call_count == 2
+
+    @patch("src.board_client.requests.post")
+    def test_unchanged_with_outcome_is_not_throttled(self, mock_post):
+        mock_post.return_value.raise_for_status = Mock()
+        client = _two_wide()
+        grid = _grid(2, 1)
+        client.send_characters(grid)
+
+        outcome = client.send_characters(grid, with_outcome=True)
+
+        assert (outcome.success, outcome.was_sent, outcome.throttled) == (True, False, False)
+
+    @patch("src.board_client.requests.post")
+    def test_partial_failure_with_outcome_keeps_verdict(self, mock_post):
+        def side_effect(url, **kwargs):
+            response = Mock()
+            if "10.0.0.11" in url:
+                response.raise_for_status.side_effect = requests.exceptions.HTTPError("boom")
+            else:
+                response.raise_for_status = Mock()
+            return response
+
+        mock_post.side_effect = side_effect
+
+        outcome = _two_wide().send_characters(_grid(2, 1), with_outcome=True)
+
+        assert (outcome.success, outcome.was_sent) == (False, True)
+
+    def test_rejected_grid_with_outcome(self):
+        outcome = _two_wide().send_characters([[0]], with_outcome=True)
+
+        assert (outcome.success, outcome.was_sent) == (False, False)
+
+    def test_send_text_with_outcome_refused(self):
+        outcome = _two_wide().send_text("hello", with_outcome=True)
+
+        assert (outcome.success, outcome.was_sent) == (False, False)
+
+    @patch("src.board_client.requests.post")
+    def test_without_keyword_still_returns_pair(self, mock_post):
+        mock_post.return_value.raise_for_status = Mock()
+
+        result = _two_wide().send_characters(_grid(2, 1))
+
+        assert type(result) is tuple
+        assert result == (True, True)
