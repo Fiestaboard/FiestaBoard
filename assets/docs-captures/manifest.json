@@ -403,12 +403,13 @@
       },
       "capturedAt": {
         "width": 1280,
-        "height": 752
+        "height": 600
       },
       "capturedAtMobile": {
         "width": 390,
         "height": 844
-      }
+      },
+      "viewportSpecific": true
     },
     "schedule-calendar-populated": {
       "file": "schedule-calendar-populated.html",
@@ -423,12 +424,13 @@
       },
       "capturedAt": {
         "width": 1280,
-        "height": 752
+        "height": 600
       },
       "capturedAtMobile": {
         "width": 390,
         "height": 844
-      }
+      },
+      "viewportSpecific": true
     },
     "schedule-entry-form": {
       "file": "schedule-entry-form.html",
