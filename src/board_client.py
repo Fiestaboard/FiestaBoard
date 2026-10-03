@@ -26,6 +26,7 @@ from typing import Any, Literal, Optional
 import requests
 
 from .output_allowlist import check_output_url
+from .outputs.runtime import OutputRuntime
 from .send_outcome import SendOutcome
 
 logger = logging.getLogger(__name__)
@@ -219,21 +220,13 @@ class TransitionRenderMixin:
         return int((getattr(self, "_min_send_interval", 0) or 0) * 1000)
 
     def _init_transition_state(self) -> None:
-        # Per-board lock serializing sends.  Used by the transition runner to
-        # make sure rotation / manual API / trigger sends don't interleave
-        # frames mid-transition.  RLock so render() → send_characters chains
-        # don't self-deadlock.
-        self._send_lock = threading.RLock()
-
-        # Cancellation flag for the currently-running interruptible transition.
-        # Each render() call installs a fresh Event under the send lock and
-        # passes it to the runner.  A concurrent render() signals the
-        # currently-active event *before* acquiring the lock so an in-flight
-        # transition actually wakes up between frames.  Using a per-run Event
-        # (rather than set/clear-ing one shared Event) means a freshly-started
-        # transition can't be pre-cancelled by a signal that was meant for the
-        # previous run.
-        self._cancel_transition: threading.Event = threading.Event()
+        # The per-board send lock and cancel token live on an OutputRuntime
+        # (src/outputs/runtime.py), which owns their contract: preempt before
+        # the lock, a fresh token per run, a re-entrant lock. The engine's
+        # BoardRuntime binds its own via set_output_runtime(); until then — and
+        # for a throwaway client built outside the engine — this private one
+        # serves, exactly as the lock and event used to live on the instance.
+        self._output_runtime: OutputRuntime = OutputRuntime()
 
         # Pluggable transition runner.  Set via set_transition_runner() by
         # the service layer at startup.  When None, "plugin:<id>" strategies
@@ -268,6 +261,28 @@ class TransitionRenderMixin:
             retry_after_seconds=retry_after if throttled else None,
             floor_seconds=self._floor_seconds(),
         )
+
+    def set_output_runtime(self, runtime: OutputRuntime) -> None:
+        """Take the send lock and cancel token from the board's core runtime.
+
+        Called by the engine's ``BoardRuntime`` when it adopts this client,
+        before any send.
+        """
+        self._output_runtime = runtime
+
+    @property
+    def _cancel_transition(self) -> threading.Event:
+        """The current run's cancel token — an alias onto the output runtime.
+
+        Kept so a test can swap the token on a client it built directly;
+        nothing outside the client modules may read it (the private-peek
+        ratchet in ``tests/test_output_driver_protocol.py`` counts it).
+        """
+        return self._output_runtime.cancel_event
+
+    @_cancel_transition.setter
+    def _cancel_transition(self, event: threading.Event) -> None:
+        self._output_runtime.cancel_event = event
 
     def set_transition_runner(self, runner: Any | None) -> None:
         """Attach (or detach) the transition runner used by :meth:`render`.
@@ -334,20 +349,14 @@ class TransitionRenderMixin:
         """
         is_plugin = isinstance(strategy, str) and strategy.startswith(TRANSITION_PLUGIN_PREFIX)
 
-        # Signal any in-flight transition to wind down *before* we wait on
-        # the send lock.  Without this, a built-in render() arriving during
-        # a plugin transition would block on the lock instead of preempting
-        # the animation, and the in-flight runner would never see a cancel.
-        self._cancel_transition.set()
-
-        with self._send_lock:
-            # Install a fresh Event for this run so a stale set() from the
-            # previous caller can't immediately cancel us.  The runner of
-            # the just-cancelled transition still holds its own reference
-            # to the old Event, so its cancellation signal isn't lost.
-            run_cancel_event = threading.Event()
-            self._cancel_transition = run_cancel_event
-
+        # The output runtime signals any in-flight transition to wind down
+        # *before* waiting on the send lock — without that, a built-in render()
+        # arriving during a plugin transition would block on the lock instead
+        # of preempting the animation — then installs a fresh token for this
+        # run, so a stale signal from the previous caller can't immediately
+        # cancel us. The runner of the just-cancelled transition still holds
+        # its own reference to the old token, so its cancellation isn't lost.
+        with self._output_runtime.run() as run_cancel_event:
             # This render's verdict starts clean. A plugin transition that is
             # preempted before its first frame returns without ever entering
             # send_*, which is where the flag used to be reset — so the
@@ -674,7 +683,7 @@ class BoardClient(TransitionRenderMixin):
                     exc,
                     SEND_RETRY_BACKOFF_SECONDS,
                 )
-                if self._cancel_transition.wait(SEND_RETRY_BACKOFF_SECONDS):
+                if self._output_runtime.cancel_event.wait(SEND_RETRY_BACKOFF_SECONDS):
                     logger.debug("Send retry abandoned: cancel signalled during backoff")
                     break
         raise last_exc
@@ -822,7 +831,7 @@ class BoardClient(TransitionRenderMixin):
         # double-posted send-floor window. The throttle lock taken inside
         # _admit_send/_release_send_slot is always acquired under this one,
         # never the other way round.
-        with self._send_lock:
+        with self._output_runtime.send_lock:
             self._last_send_throttled = False
             self._last_send_retry_after = None
 
