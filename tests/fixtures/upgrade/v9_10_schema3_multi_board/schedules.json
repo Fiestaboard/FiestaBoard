@@ -1,0 +1,26 @@
+{
+  "schema_version": 2,
+  "schedules": [
+    {
+      "id": "00000000-0000-4000-8000-000000000701",
+      "board_id": "00000000-0000-4000-8000-000000000007",
+      "page_id": "00000000-0000-4000-8000-000000000601",
+      "start_time": "07:00",
+      "end_time": "09:00",
+      "day_pattern": "weekdays",
+      "custom_days": null,
+      "enabled": true,
+      "recurrence_type": "weekly",
+      "annual_date": null,
+      "annual_end_date": null,
+      "one_off_date": null,
+      "one_off_end_date": null,
+      "start_type": "fixed",
+      "start_sun_offset": 0,
+      "end_type": "fixed",
+      "end_sun_offset": 0,
+      "created_at": "2026-09-27T19:00:00+00:00",
+      "updated_at": null
+    }
+  ]
+}

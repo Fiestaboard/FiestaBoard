@@ -1,0 +1,98 @@
+{
+  "schema_version": 2,
+  "transitions": {
+    "strategy": null,
+    "step_interval_ms": null,
+    "step_size": null
+  },
+  "output": {
+    "target": "board"
+  },
+  "active_page": {
+    "page_id": "00000000-0000-4000-8000-000000000501",
+    "by_board": {
+      "00000000-0000-4000-8000-000000000005": "00000000-0000-4000-8000-000000000501"
+    }
+  },
+  "polling": {
+    "interval_seconds": 15,
+    "board_read_interval_local": 30,
+    "board_read_interval_cloud": 180
+  },
+  "board": {
+    "board_type": "black",
+    "boards": [
+      {
+        "id": "00000000-0000-4000-8000-000000000005",
+        "name": "Living Room",
+        "device_type": "flagship",
+        "board_color": "black",
+        "code62_glyph": "degree",
+        "enabled": true,
+        "paused": false,
+        "schedule_enabled": false,
+        "api_mode": "local",
+        "host": "192.168.0.10",
+        "port": 7000,
+        "local_api_key": "test_local_key",
+        "cloud_key": "",
+        "note_array_token": "",
+        "notes_wide": 1,
+        "notes_tall": 1,
+        "tiles": []
+      },
+      {
+        "id": "00000000-0000-4000-8000-000000000006",
+        "name": "Den TV",
+        "device_type": "note_array",
+        "board_color": "black",
+        "code62_glyph": "degree",
+        "enabled": true,
+        "paused": false,
+        "schedule_enabled": false,
+        "api_mode": "virtual",
+        "host": "",
+        "port": 7000,
+        "local_api_key": "",
+        "cloud_key": "",
+        "note_array_token": "",
+        "notes_wide": 1,
+        "notes_tall": 4,
+        "tiles": []
+      }
+    ],
+    "devices": [
+      "flagship",
+      "note_array"
+    ]
+  },
+  "schedule": {
+    "enabled": false
+  },
+  "mqtt": {
+    "enabled": false,
+    "broker_host": "localhost",
+    "broker_port": 1883,
+    "username": "",
+    "password": "",
+    "external_url": ""
+  },
+  "display": {
+    "reduce_motion": false,
+    "board_animations": "on",
+    "site_animations": "on",
+    "board_flap_speed": "standard"
+  },
+  "location": {
+    "latitude": 40.7128,
+    "longitude": -74.006
+  },
+  "beta": {
+    "https_enabled": false,
+    "transition_plugins_enabled": false
+  },
+  "plugins": {
+    "auto_update": true
+  },
+  "temporary_override": null
+}
