@@ -663,6 +663,10 @@
       "quickPresetsLabel": "빠른 프리셋",
       "apiKeyLabel": "API 키",
       "modelsLabel": "모델",
+      "loadModels": "모델 불러오기",
+      "pickModel": "제공자의 모델 추가",
+      "noModelMatches": "일치하는 모델 없음",
+      "loadModelsFailed": "모델을 불러올 수 없습니다.",
       "defaultModelLabel": "기본 모델",
       "testConnectionButton": "연결 테스트",
       "turnLimits": {

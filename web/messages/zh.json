@@ -663,6 +663,10 @@
       "quickPresetsLabel": "快速预设",
       "apiKeyLabel": "API 密钥",
       "modelsLabel": "模型",
+      "loadModels": "加载模型",
+      "pickModel": "从提供商添加模型",
+      "noModelMatches": "没有匹配的模型",
+      "loadModelsFailed": "无法加载模型。",
       "defaultModelLabel": "默认模型",
       "testConnectionButton": "测试连接",
       "turnLimits": {

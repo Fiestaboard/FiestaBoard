@@ -613,4 +613,79 @@ describe("AiSettings", () => {
       expect(provider).toEqual({ ...SAVED, name: "Renamed" });
     });
   });
+
+  describe("picking a model from the provider", () => {
+    const SAVED = {
+      id: "p1",
+      name: "Test",
+      base_url: "https://example.test/v1",
+      api_key: "***",
+      models: ["test-model"],
+      default_model: "test-model",
+    };
+
+    function serveSettings() {
+      server.use(
+        http.get(`${API_BASE}/settings/ai`, () =>
+          HttpResponse.json({ enabled: true, providers: [SAVED], default_provider_id: "p1" }),
+        ),
+      );
+    }
+
+    it("loads the saved provider's models and adds the one picked", async () => {
+      serveSettings();
+      let asked = "";
+      server.use(
+        http.get(`${API_BASE}/settings/ai/providers/:id/models`, ({ params }) => {
+          asked = String(params.id);
+          return HttpResponse.json({
+            models: [
+              { id: "test-model", name: "Test Model" },
+              { id: "test-other", name: "Test Other" },
+            ],
+          });
+        }),
+      );
+      render(<AiSettings />, { wrapper: Wrapper });
+      const user = userEvent.setup();
+      await user.click(await screen.findByText("Test"));
+      await user.click(screen.getByRole("button", { name: "Load models" }));
+
+      const picker = await screen.findByRole("combobox", { name: "Add a model from the provider" });
+      expect(asked).toBe("p1");
+      await user.click(picker);
+      // A model already in the list is not offered again.
+      expect(screen.queryByRole("option", { name: /Test Model/ })).not.toBeInTheDocument();
+      await user.click(await screen.findByRole("option", { name: /Test Other/ }));
+
+      expect(await screen.findByRole("button", { name: "Remove model test-other" })).toBeInTheDocument();
+      // Typing a model by hand still works beside the picker.
+      expect(screen.getByPlaceholderText("openai/gpt-4o-mini")).toBeInTheDocument();
+    });
+
+    it("says why when the provider cannot list its models", async () => {
+      serveSettings();
+      server.use(
+        http.get(`${API_BASE}/settings/ai/providers/:id/models`, () =>
+          HttpResponse.json({ detail: "AI provider returned 401 when asked for its models." }, { status: 502 }),
+        ),
+      );
+      render(<AiSettings />, { wrapper: Wrapper });
+      const user = userEvent.setup();
+      await user.click(await screen.findByText("Test"));
+      await user.click(screen.getByRole("button", { name: "Load models" }));
+
+      expect(await screen.findByText(/returned 401 when asked for its models/)).toBeInTheDocument();
+      expect(screen.queryByRole("combobox", { name: "Add a model from the provider" })).not.toBeInTheDocument();
+    });
+
+    it("offers no model list for a provider that is not saved yet", async () => {
+      render(<AiSettings />, { wrapper: Wrapper });
+      const user = userEvent.setup();
+      await screen.findByText(/no providers configured yet/i);
+      await user.click(screen.getByRole("button", { name: /add provider/i }));
+
+      expect(screen.queryByRole("button", { name: "Load models" })).not.toBeInTheDocument();
+    });
+  });
 });

@@ -9,6 +9,7 @@ import {
   Collapsible,
   CollapsibleContent,
   CollapsibleTrigger,
+  Combobox,
   Flex,
   Input,
   Label,
@@ -38,7 +39,7 @@ import {
 import { useRouter, useSearchParams } from "@/hooks/use-router";
 import { useTranslations } from "@/i18n/translations";
 import { anchorProps } from "@/lib/ai-choreography/anchors";
-import type { AIProvider, AIProviderProtocol, AISettings, AISignInPreset } from "@/lib/api";
+import type { AIModel, AIProvider, AIProviderProtocol, AISettings, AISignInPreset } from "@/lib/api";
 import { AI_TURN_CAP_MAX, AI_TURN_CAP_MIN, api } from "@/lib/api";
 
 type ProviderPreset = {
@@ -175,6 +176,8 @@ interface ProviderRowProps {
   provider: AIProvider;
   /** Whether this provider's sign-in, if any, is saved on the board. */
   signInSaved: boolean;
+  /** Whether this provider is saved on the board, so its model list can be asked for. */
+  saved: boolean;
   isDefault: boolean;
   expanded: boolean;
   onToggleExpanded: (open: boolean) => void;
@@ -186,6 +189,7 @@ interface ProviderRowProps {
 function ProviderRow({
   provider,
   signInSaved,
+  saved,
   isDefault,
   expanded,
   onToggleExpanded,
@@ -197,22 +201,46 @@ function ProviderRow({
   const [modelInput, setModelInput] = useState("");
   const [testing, setTesting] = useState(false);
   const [testResult, setTestResult] = useState<{ ok: boolean; message: string } | null>(null);
+  const [offeredModels, setOfferedModels] = useState<AIModel[] | null>(null);
+  const [loadingModels, setLoadingModels] = useState(false);
+  const [modelsError, setModelsError] = useState<string | null>(null);
 
-  const addModel = () => {
-    const trimmed = modelInput.trim();
-    if (!trimmed) return;
-    if (provider.models.includes(trimmed)) {
-      setModelInput("");
-      return;
-    }
-    const next = {
+  const addModelValue = (value: string) => {
+    const trimmed = value.trim();
+    if (!trimmed || provider.models.includes(trimmed)) return;
+    onChange({
       ...provider,
       models: [...provider.models, trimmed],
       default_model: provider.default_model || trimmed,
-    };
-    onChange(next);
+    });
+  };
+
+  const addModel = () => {
+    addModelValue(modelInput);
     setModelInput("");
   };
+
+  const loadModels = async () => {
+    setLoadingModels(true);
+    setModelsError(null);
+    try {
+      const { models } = await api.listAiProviderModels(provider.id);
+      setOfferedModels(models);
+    } catch (err) {
+      setOfferedModels(null);
+      setModelsError(err instanceof Error ? err.message : t("loadModelsFailed"));
+    } finally {
+      setLoadingModels(false);
+    }
+  };
+
+  const pickable = (offeredModels ?? [])
+    .filter((m) => !provider.models.includes(m.id))
+    .map((m) => ({
+      value: m.id,
+      label: m.name === m.id ? m.id : `${m.name} (${m.id})`,
+      keywords: [m.name],
+    }));
 
   const removeModel = (model: string) => {
     const nextModels = provider.models.filter((m) => m !== model);
@@ -410,7 +438,37 @@ function ProviderRow({
           <SignInChoice provider={provider} saved={signInSaved} onChange={onChange} />
 
           <Stack gap="1.5">
-            <Label className="text-xs">{t("modelsLabel")}</Label>
+            <Flex align="center" justify="between" gap="2">
+              <Label className="text-xs">{t("modelsLabel")}</Label>
+              {saved && (
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="ghost"
+                  className="h-6 gap-1 px-2 text-xs"
+                  onClick={loadModels}
+                  disabled={loadingModels}
+                >
+                  {loadingModels && <Loader2 className="h-3 w-3 animate-spin" />}
+                  {t("loadModels")}
+                </Button>
+              )}
+            </Flex>
+            {offeredModels && (
+              <Combobox
+                options={pickable}
+                value=""
+                onValueChange={(value) => addModelValue(value)}
+                aria-label={t("pickModel")}
+                labels={{ placeholder: t("pickModel"), list: t("pickModel"), empty: t("noModelMatches") }}
+                className="h-8 font-mono text-xs"
+              />
+            )}
+            {modelsError && (
+              <Text size="xs" tone="destructive" role="alert">
+                {modelsError}
+              </Text>
+            )}
             <Flex gap="1.5">
               <Input
                 value={modelInput}
@@ -688,6 +746,7 @@ export function AiSettings() {
               signInSaved={
                 !!p.sign_in && data?.providers.find((saved) => saved.id === p.id)?.sign_in?.preset === p.sign_in.preset
               }
+              saved={!!data?.providers.some((saved) => saved.id === p.id)}
               isDefault={p.id === current.default_provider_id}
               expanded={expandedIds.has(p.id)}
               onToggleExpanded={(open) => setRowExpanded(p.id, open)}

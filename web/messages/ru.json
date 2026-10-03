@@ -663,6 +663,10 @@
       "quickPresetsLabel": "Быстрые пресеты",
       "apiKeyLabel": "API-ключ",
       "modelsLabel": "Модели",
+      "loadModels": "Загрузить модели",
+      "pickModel": "Добавить модель провайдера",
+      "noModelMatches": "Нет подходящих моделей",
+      "loadModelsFailed": "Не удалось загрузить модели.",
       "defaultModelLabel": "Модель по умолчанию",
       "testConnectionButton": "Проверить подключение",
       "turnLimits": {

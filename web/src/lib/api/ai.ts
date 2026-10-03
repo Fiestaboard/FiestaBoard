@@ -50,6 +50,12 @@ export interface AISettings {
   max_tool_calls: number | null;
 }
 
+/** One entry of `GET /settings/ai/providers/{id}/models`. */
+export interface AIModel {
+  id: string;
+  name: string;
+}
+
 export interface AITestResult {
   ok: boolean;
   message: string;
@@ -152,6 +158,11 @@ export const aiApi = {
       method: "PUT",
       body: JSON.stringify(updates),
     }),
+
+  // The models a saved provider offers, asked of the provider itself with its
+  // key or sign-in. 502 (with `detail`) when it cannot be asked.
+  listAiProviderModels: (providerId: string) =>
+    fetchApi<{ models: AIModel[] }>(`/settings/ai/providers/${encodeURIComponent(providerId)}/models`),
 
   testAiProvider: (params: { provider_id?: string; model?: string; provider?: AIProvider }) =>
     fetchApi<AITestResult>("/settings/ai/test", {

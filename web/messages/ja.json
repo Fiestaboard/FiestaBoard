@@ -663,6 +663,10 @@
       "quickPresetsLabel": "クイックプリセット",
       "apiKeyLabel": "API キー",
       "modelsLabel": "モデル",
+      "loadModels": "モデルを読み込む",
+      "pickModel": "プロバイダーのモデルを追加",
+      "noModelMatches": "一致するモデルはありません",
+      "loadModelsFailed": "モデルを読み込めませんでした。",
       "defaultModelLabel": "デフォルトモデル",
       "testConnectionButton": "接続テスト",
       "turnLimits": {

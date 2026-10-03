@@ -663,6 +663,10 @@
       "quickPresetsLabel": "Snelle presets",
       "apiKeyLabel": "API-sleutel",
       "modelsLabel": "Modellen",
+      "loadModels": "Modellen laden",
+      "pickModel": "Een model van de aanbieder toevoegen",
+      "noModelMatches": "Geen overeenkomende modellen",
+      "loadModelsFailed": "De modellen konden niet worden geladen.",
       "defaultModelLabel": "Standaardmodel",
       "testConnectionButton": "Verbinding testen",
       "turnLimits": {

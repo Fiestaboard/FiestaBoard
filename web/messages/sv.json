@@ -663,6 +663,10 @@
       "quickPresetsLabel": "Snabbval",
       "apiKeyLabel": "API-nyckel",
       "modelsLabel": "Modeller",
+      "loadModels": "Hämta modeller",
+      "pickModel": "Lägg till en modell från leverantören",
+      "noModelMatches": "Inga matchande modeller",
+      "loadModelsFailed": "Det gick inte att hämta modellerna.",
       "defaultModelLabel": "Standardmodell",
       "testConnectionButton": "Testa anslutning",
       "turnLimits": {

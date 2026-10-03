@@ -663,6 +663,10 @@
       "quickPresetsLabel": "Hızlı önayarlar",
       "apiKeyLabel": "API Anahtarı",
       "modelsLabel": "Modeller",
+      "loadModels": "Modelleri yükle",
+      "pickModel": "Sağlayıcıdan bir model ekle",
+      "noModelMatches": "Eşleşen model yok",
+      "loadModelsFailed": "Modeller yüklenemedi.",
       "defaultModelLabel": "Varsayılan model",
       "testConnectionButton": "Bağlantıyı test et",
       "turnLimits": {

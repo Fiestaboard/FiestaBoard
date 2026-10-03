@@ -619,6 +619,10 @@
       "quickPresetsLabel": "Quick presets",
       "apiKeyLabel": "API Key",
       "modelsLabel": "Models",
+      "loadModels": "Load models",
+      "pickModel": "Add a model from the provider",
+      "noModelMatches": "No matching models",
+      "loadModelsFailed": "Could not load the models.",
       "defaultModelLabel": "Default model",
       "testConnectionButton": "Test connection",
       "turnLimits": {

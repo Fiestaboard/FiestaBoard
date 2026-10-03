@@ -663,6 +663,10 @@
       "quickPresetsLabel": "Voreinstellungen",
       "apiKeyLabel": "API-Schlüssel",
       "modelsLabel": "Modelle",
+      "loadModels": "Modelle laden",
+      "pickModel": "Modell vom Anbieter hinzufügen",
+      "noModelMatches": "Keine passenden Modelle",
+      "loadModelsFailed": "Die Modelle konnten nicht geladen werden.",
       "defaultModelLabel": "Standardmodell",
       "testConnectionButton": "Verbindung testen",
       "turnLimits": {

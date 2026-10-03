@@ -663,6 +663,10 @@
       "quickPresetsLabel": "Preajustes rápidos",
       "apiKeyLabel": "Clave API",
       "modelsLabel": "Modelos",
+      "loadModels": "Cargar modelos",
+      "pickModel": "Añadir un modelo del proveedor",
+      "noModelMatches": "No hay modelos que coincidan",
+      "loadModelsFailed": "No se pudieron cargar los modelos.",
       "defaultModelLabel": "Modelo predeterminado",
       "testConnectionButton": "Probar conexión",
       "turnLimits": {
