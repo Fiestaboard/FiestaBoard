@@ -13,10 +13,12 @@ import threading
 from collections.abc import Callable
 from dataclasses import asdict, dataclass, field
 from datetime import UTC, datetime
+from pathlib import Path
 from typing import Literal, Optional, TypeVar, get_args
 
-from pydantic import BaseModel
+from pydantic import BaseModel, ValidationError
 
+from src.atomic_io import staging_path, write_json_atomic
 from src.storage.json_store import JsonStore, SchemaTooNewError
 
 _Section = TypeVar("_Section")
@@ -945,6 +947,122 @@ MIGRATIONS: list[tuple[int, Callable[[dict], int]]] = [
 ]
 
 
+# ---------------------------------------------------------------------------
+# Downgrade bridge (output-plugins plan D8, "Rollback")
+#
+# A newer build migrates settings.json past CURRENT_SETTINGS_SCHEMA_VERSION
+# and, before it does, snapshots this build's file as
+# ``settings.json.v{CURRENT}_backup`` — written only when no such backup
+# exists. When the user rolls back to this build, that snapshot is exactly
+# what this build last wrote, so instead of refusing to boot we step back onto
+# it. Everything changed since the upgrade is in the set-aside file, which the
+# web UI names so hand-edits can be recovered.
+# ---------------------------------------------------------------------------
+
+#: Written next to settings.json when the bridge fires; served by
+#: ``GET /settings/restore-notice`` until the user dismisses it.
+RESTORE_NOTICE_FILENAME = "settings_restore_notice.json"
+
+
+class SettingsRestoreNotice(BaseModel):
+    """What the downgrade bridge did, for the web UI's banner."""
+
+    #: Where the newer build's settings were kept, as this process sees it.
+    aside_path: str
+    aside_file: str
+    #: schema_version of the set-aside file / of the restored backup.
+    found_version: int
+    restored_version: int
+    #: When the swap happened, ISO 8601 UTC with a trailing ``Z``.
+    restored_at: str
+
+
+def _downgrade_backup_path(settings_file: Path) -> Path:
+    """The pre-migration snapshot a newer build left of this build's file."""
+    return settings_file.with_suffix(f".json.v{CURRENT_SETTINGS_SCHEMA_VERSION}_backup")
+
+
+def _schema_version_of(path: Path) -> int | None:
+    """The file's schema_version (0 when unstamped), or None if unreadable."""
+    try:
+        with open(path) as f:  # noqa: PTH123
+            data = json.load(f)
+    except (OSError, ValueError):
+        return None
+    if not isinstance(data, dict):
+        return None
+    version = data.get("schema_version", 0)
+    return version if isinstance(version, int) else 0
+
+
+def _bridge_from_downgrade_backup(settings_file: Path, found_version: int) -> SettingsRestoreNotice | None:
+    """Swap a too-new settings.json for this build's pre-upgrade snapshot.
+
+    Returns the notice when the swap happened, None when there is nothing
+    safe to swap in (no backup, or one this build cannot read either) — the
+    caller then refuses to boot exactly as before.
+
+    Order matters for crash safety. The too-new file is *copied* aside first
+    (so settings.json is never missing — a missing file would boot as a fresh
+    install), the backup is staged and atomically replaced over settings.json,
+    and only then is the backup deleted. A crash before the replace leaves the
+    too-new file in place and the bridge simply runs again next boot.
+
+    The backup is deleted, not kept: the newer build only snapshots when no
+    backup exists, so a leftover would make the *next* upgrade-then-rollback
+    restore this upgrade's stale snapshot and lose everything in between.
+    """
+    backup = _downgrade_backup_path(settings_file)
+    if not backup.exists():
+        return None
+    restored_version = _schema_version_of(backup)
+    if restored_version is None or restored_version > CURRENT_SETTINGS_SCHEMA_VERSION:
+        logger.error(
+            f"Settings downgrade: {backup} exists but this build cannot read it "
+            f"(schema_version {restored_version}); not restoring it"
+        )
+        return None
+
+    now = datetime.now(UTC)
+    stamp = now.strftime("%Y%m%dT%H%M%SZ")
+    aside = settings_file.with_name(f"{settings_file.name}.v{found_version}_aside-{stamp}")
+    n = 1
+    while aside.exists():  # two rollbacks inside one second must not clobber the first aside
+        n += 1
+        aside = settings_file.with_name(f"{settings_file.name}.v{found_version}_aside-{stamp}-{n}")
+
+    shutil.copy2(settings_file, aside)
+    staged = staging_path(settings_file)
+    shutil.copy2(backup, staged)
+    staged.replace(settings_file)
+    backup.unlink()
+
+    notice = SettingsRestoreNotice(
+        aside_path=str(aside),
+        aside_file=aside.name,
+        found_version=found_version,
+        restored_version=restored_version,
+        restored_at=now.strftime("%Y-%m-%dT%H:%M:%SZ"),
+    )
+    logger.warning(
+        "SETTINGS ROLLED BACK: %s was written by a newer FiestaBoard (settings schema v%d; this build reads v%d). "
+        "Restored the pre-upgrade snapshot %s and set the newer file aside as %s. Changes made since the "
+        "upgrade are NOT in the restored settings; they are in the set-aside file.",
+        settings_file,
+        found_version,
+        CURRENT_SETTINGS_SCHEMA_VERSION,
+        backup.name,
+        aside,
+    )
+    try:
+        write_json_atomic(settings_file.with_name(RESTORE_NOTICE_FILENAME), notice.model_dump())
+    except OSError as e:
+        # The swap already happened and is what matters; the banner is a
+        # courtesy. The log line above still names the aside file.
+        logger.error(f"Could not record the settings restore notice: {e}")
+    return notice
+
+
 def _locked(method):
     """Run *method* under the settings store lock.
 
@@ -1035,6 +1153,36 @@ class SettingsService:
         (the backup restore, #1860) to serialise against normal saves."""
         return self._store.lock
 
+    @property
+    def _restore_notice_path(self) -> Path:
+        return self.settings_file.with_name(RESTORE_NOTICE_FILENAME)
+
+    def get_restore_notice(self) -> SettingsRestoreNotice | None:
+        """The downgrade bridge's notice, until dismissed; None when there is none.
+
+        A notice file that cannot be read or parsed counts as none: it only
+        drives a banner, and the bridge's log line is the record of the swap.
+        """
+        try:
+            raw = json.loads(self._restore_notice_path.read_text(encoding="utf-8"))
+        except FileNotFoundError:
+            return None
+        except (OSError, ValueError) as e:
+            logger.warning(f"Could not read the settings restore notice: {e}")
+            return None
+        try:
+            return SettingsRestoreNotice.model_validate(raw)
+        except ValidationError:
+            logger.warning("Ignoring a malformed settings restore notice")
+            return None
+
+    def dismiss_restore_notice(self) -> None:
+        """Forget the notice. The set-aside file itself is never touched.
+
+        Idempotent. A failure to remove the file propagates (OSError).
+        """
+        self._restore_notice_path.unlink(missing_ok=True)
+
     @_locked
     def _run_migrations(self) -> None:
         """Run pending settings schema migrations on the raw settings file.
@@ -1071,12 +1219,34 @@ class SettingsService:
             # save would stamp vN back onto it. This file is the one store
             # whose schema has actually diverged across a release boundary,
             # so it is what a downgrading user hits first.
-            raise SchemaTooNewError(
-                label="settings",
-                path=self.settings_file,
-                found=current_version,
-                supported=CURRENT_SETTINGS_SCHEMA_VERSION,
-            )
+            #
+            # The downgrade bridge (D8) steps back onto the snapshot the newer
+            # build took of this build's file, if there is one. This runs
+            # before anything loads the file through the storage kernel, so
+            # the kernel never latches the store read-only.
+            if _bridge_from_downgrade_backup(self.settings_file, current_version) is None:
+                backup = _downgrade_backup_path(self.settings_file)
+                raise SchemaTooNewError(
+                    label="settings",
+                    path=self.settings_file,
+                    found=current_version,
+                    supported=CURRENT_SETTINGS_SCHEMA_VERSION,
+                    remedy=(
+                        f"This build restores its own pre-upgrade snapshot ({backup.name}) automatically, "
+                        f"but no usable one is next to it. To recover, reinstall the newer FiestaBoard "
+                        f"version, or replace {self.settings_file} with a settings backup taken before the "
+                        f"upgrade, then restart."
+                    ),
+                )
+            try:
+                with open(self.settings_file) as f:  # noqa: PTH123
+                    data = json.load(f)
+            except (OSError, json.JSONDecodeError) as e:
+                logger.warning(f"Could not read the restored settings for migration: {e}")
+                return
+            current_version = data.get("schema_version", 0) if isinstance(data, dict) else 0
+            if not isinstance(current_version, int):
+                current_version = 0
 
         if current_version >= CURRENT_SETTINGS_SCHEMA_VERSION:
             return

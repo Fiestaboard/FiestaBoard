@@ -2429,5 +2429,11 @@
     "settingFailed": "설정을 저장하지 못했습니다",
     "on": "켬",
     "off": "끔"
+  },
+  "settingsRestoreNotice": {
+    "title": "업데이트 이전 설정으로 복원했습니다",
+    "description": "이 버전은 최신 FiestaBoard 버전이 저장한 설정을 읽을 수 없어 해당 업데이트 이전의 사본을 복원했습니다. 업데이트 이후의 변경 사항은 옮겨지지 않았으며 다음 파일에 보관되어 있습니다:",
+    "dismiss": "닫기",
+    "dismissFailed": "닫지 못했습니다. 다시 시도하세요."
   }
 }

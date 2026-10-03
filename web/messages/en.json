@@ -2429,5 +2429,11 @@
     "settingFailed": "The setting could not be saved",
     "on": "On",
     "off": "Off"
+  },
+  "settingsRestoreNotice": {
+    "title": "Settings were restored from before the upgrade",
+    "description": "This version could not read the settings a newer FiestaBoard version saved, so it restored the copy from before that upgrade. Changes made since the upgrade were not carried back; they are kept in:",
+    "dismiss": "Dismiss",
+    "dismissFailed": "Could not dismiss. Try again."
   }
 }

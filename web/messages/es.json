@@ -2429,5 +2429,11 @@
     "settingFailed": "No se pudo guardar el ajuste",
     "on": "Activado",
     "off": "Desactivado"
+  },
+  "settingsRestoreNotice": {
+    "title": "Se restauró la configuración de antes de la actualización",
+    "description": "Esta versión no pudo leer la configuración guardada por una versión más reciente de FiestaBoard, así que restauró la copia de antes de esa actualización. Los cambios hechos desde la actualización no se trasladaron; se conservan en:",
+    "dismiss": "Descartar",
+    "dismissFailed": "No se pudo descartar. Inténtalo de nuevo."
   }
 }

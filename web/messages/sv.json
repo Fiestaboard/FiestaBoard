@@ -2429,5 +2429,11 @@
     "settingFailed": "Inställningen kunde inte sparas",
     "on": "På",
     "off": "Av"
+  },
+  "settingsRestoreNotice": {
+    "title": "Inställningarna från före uppdateringen har återställts",
+    "description": "Den här versionen kunde inte läsa inställningarna som en nyare FiestaBoard-version sparade, så den återställde kopian från före uppdateringen. Ändringar gjorda sedan uppdateringen fördes inte tillbaka; de finns sparade i:",
+    "dismiss": "Stäng",
+    "dismissFailed": "Det gick inte att stänga. Försök igen."
   }
 }

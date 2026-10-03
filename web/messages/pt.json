@@ -2429,5 +2429,11 @@
     "settingFailed": "Não foi possível guardar a definição",
     "on": "Ligado",
     "off": "Desligado"
+  },
+  "settingsRestoreNotice": {
+    "title": "As configurações de antes da atualização foram restauradas",
+    "description": "Esta versão não conseguiu ler as configurações salvas por uma versão mais recente do FiestaBoard, então restaurou a cópia de antes dessa atualização. As alterações feitas desde a atualização não foram trazidas; elas estão guardadas em:",
+    "dismiss": "Dispensar",
+    "dismissFailed": "Não foi possível dispensar. Tente novamente."
   }
 }
