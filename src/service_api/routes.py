@@ -1,7 +1,8 @@
 """FastAPI router for the app's own service surface.
 
-Eight route-methods that are not a data domain — they are *this server*:
-``GET /`` (what am I), ``GET|HEAD /health`` (am I up), ``GET /status`` (what
+Nine route-methods that are not a data domain — they are *this server*:
+``GET /`` (what am I), ``GET|HEAD /health`` (am I up), ``GET /discover``
+(am I a FiestaBoard, asked by fiestaboard.app/find), ``GET /status`` (what
 is the display loop doing, per board), ``POST /start`` / ``POST /stop`` (make
 it run or stop), ``POST /refresh`` (drive a pass now) and
 ``GET /silence-status`` (is the board in its quiet window).
@@ -32,20 +33,24 @@ from __future__ import annotations
 import asyncio
 import logging
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Response
 
 from src import __version__
 from src import display_runtime as runtime
 from src.api_deprecation import V1_BOARD_MESSAGE_SUCCESSOR, deprecation_notice, superseded_by_v1
 from src.api_errors import errors
+from src.auth.service import auth_mode
 from src.board_guards import _require_board
 from src.board_send_executor import run_board_send
 from src.config import Config
 from src.config_manager import get_config_manager
+from src.paths import get_data_dir
 
+from .install_id import load_install_id
 from .models import (
     ApiInfoResponse,
     BoardStatus,
+    DiscoverResponse,
     HealthResponse,
     RefreshRequest,
     RefreshResponse,
@@ -97,6 +102,33 @@ async def health_head():
     the same operationId for both the GET and HEAD operations (see #1572).
     """
     return await health()
+
+
+#: The page that looks for boards on a visitor's network
+#: (github.com/Fiestaboard/find). It may always read ``/discover``, whatever
+#: ``FIESTABOARD_CORS_ORIGINS`` says, because the response carries nothing a
+#: board would not tell any caller on its network.
+FIND_ORIGIN = "https://fiestaboard.app"
+
+
+@router.get("/discover", response_model=DiscoverResponse)
+async def discover(response: Response):
+    """Identify this server to fiestaboard.app/find.
+
+    The find page probes addresses on the visitor's network and lists the
+    ones that answer here. Public (``src/auth/middleware.py``) because a
+    person looking for their board has no session on it yet.
+    """
+    # Under the default CORS policy the middleware replaces this with "*".
+    # Under an operator's allow-list it leaves it alone, so the find page
+    # still works without the operator having to know it exists.
+    response.headers["Access-Control-Allow-Origin"] = FIND_ORIGIN
+    response.headers["Cache-Control"] = "no-store"
+
+    name = ""
+    if auth_mode() == "disabled":
+        name = str(get_config_manager().get_general().get("instance_name") or "").strip()
+    return DiscoverResponse(product="FiestaBoard", version=__version__, id=load_install_id(get_data_dir()), name=name)
 
 
 # ---------------------------------------------------------------------------

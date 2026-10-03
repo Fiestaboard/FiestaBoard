@@ -108,6 +108,11 @@
       "reason": "No failure path: an instance with no plugins installed answers an empty list with total 0. It reads the in-process plugin registry, which always exists, and reports availability per entry rather than failing on an unavailable one."
     },
     {
+      "route": "GET /discover",
+      "rule": "declared_errors",
+      "reason": "Read by fiestaboard.app/find while it probes the visitor's network. It answers 200 with constants and the install's name, which falls back to empty; the find page treats any other outcome as 'not a FiestaBoard here', so there is no error status a caller could act on."
+    },
+    {
       "route": "GET /health",
       "rule": "declared_errors",
       "reason": "The liveness probe nginx, Docker's HEALTHCHECK and the web boot gate all poll. It answers 200 whenever the process is up and reports the display loop's state in the body; a health check that can 4xx is a health check that takes the container down for a stopped display loop, which is the opposite of what it is for."

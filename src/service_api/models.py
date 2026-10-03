@@ -24,6 +24,22 @@ class HealthResponse(BaseModel):
     version: str
 
 
+class DiscoverResponse(BaseModel):
+    """``GET /discover`` — what fiestaboard.app/find reads to recognise this
+    server as a FiestaBoard while it looks around the visitor's network."""
+
+    #: Always ``"FiestaBoard"``; the find page ignores anything else.
+    product: str
+    version: str
+    #: Random and stable per install, so the find page can tell that two
+    #: addresses reach the same board. Empty if it could not be stored.
+    id: str
+    #: The install's friendly name (``general.instance_name``). Empty when
+    #: none is set, and always empty while sign-in is required, so an
+    #: unauthenticated caller learns nothing ``/health`` does not tell them.
+    name: str
+
+
 class BoardStatus(BaseModel):
     """Per-board runtime state (issue #1244)."""
 

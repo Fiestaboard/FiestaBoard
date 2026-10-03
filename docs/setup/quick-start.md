@@ -59,6 +59,8 @@ That means: when you later update with `docker compose pull && docker compose up
 
 :::tip Accessing from another device?
 With the default Docker bridge setup, use your server's LAN IP address, for example `http://192.168.1.50:4420`. The FiestaPi image also provides `http://fiestapi.local:4420` through host Avahi. Other Docker installs need a separately configured host-level mDNS service to advertise a `.local` name.
+
+Don't know the address? Open **[fiestaboard.app/find](https://fiestaboard.app/find/)** on a device on the same network. It looks for your board and opens it. Searching needs Chrome or Edge; in other browsers the page suggests the usual addresses.
 :::
 
 ### Option 2: Clone and use the install wizard
