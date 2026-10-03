@@ -124,12 +124,14 @@ The first time someone signs in from a browser, that page shows the board's addr
 | `device_poll_scope` | no | `true` to send the scopes again when polling the device token endpoint (Twitch). Default `false`. **9.9.0.** |
 | `endpoint_base_setting` | no | A `settings_schema` key that holds the provider's base address, for a provider that runs on the user's own network (Home Assistant). The endpoint fields then hold paths, such as `"/auth/token"`. **9.9.0.** |
 | `plex_product` | no | The product name the `plex_pin` flow sends to Plex, shown on Plex's sign-in page and device list. Default `FiestaBoard`. **9.9.0.** |
+| `token_auth_method` | no | How the client secret reaches the token endpoint: `"post"` (the default, in the form body) or `"basic"` (an HTTP Basic `Authorization` header, `client_secret_basic`). Applies to the code exchange, refresh, and device poll. Without a secret the client ID stays in the body either way. X wants `"basic"` for confidential apps. **9.9.0.** |
+| `refresh_params` | no | Extra form fields sent with every refresh, as strings. For example `{"scope": "offline"}` (WHOOP). May not set `grant_type`, `refresh_token`, `client_id`, `client_secret`, or the name in `client_id_param`. **9.9.0.** |
 
 The manifest is validated when the plugin loads, and a plugin with a bad `oauth` block is refused with a message naming the problem:
 
 - Endpoints must be `https://`. Plain `http://` is accepted only for `localhost`, `127.0.0.1`, and `::1`, which is what a local test provider looks like. With `endpoint_base_setting`, the endpoints must be paths starting with `/` instead, and the address the user saves is checked when they sign in (see [Provider Quirks](#provider-quirks)).
 - `flows` must be a non-empty list of `relay`, `device`, `key_exchange`, and `plex_pin`, without repeats.
-- `client_id_param`, `device_scope_param`, and `endpoint_base_setting` are parameter names: letters, digits, and underscores. `scope_separator` is `" "` or `","`. `device_poll_scope` is `true` or `false`.
+- `client_id_param`, `device_scope_param`, and `endpoint_base_setting` are parameter names: letters, digits, and underscores. `scope_separator` is `" "` or `","`. `device_poll_scope` is `true` or `false`. `token_auth_method` is `"post"` or `"basic"`. `refresh_params` is an object of strings.
 - `endpoint_base_setting` must name a key in `settings_schema`.
 - **`client_secret` is never allowed in a manifest.** Plugin repositories are public.
 - A field your board's FiestaBoard does not know is ignored and reported as a warning in `GET /plugins/errors`, so a plugin using a field from a newer release still loads on an older one. **9.5.0 through 9.7.x refuse the whole plugin instead**, so a plugin that must run on those releases cannot use `app_setup_url`. A 9.8.x board ignores the 9.9.0 fields the same way, which means it would sign in with the wrong parameter names: set `fiestaboard_version` to `>=9.9.0` when you use them. A flow name an older board does not know refuses the plugin there.
@@ -213,6 +215,48 @@ A provider that hands out an API key instead of tokens (OpenRouter's flow):
 ```
 
 The key does not expire, so there is nothing to refresh. The settings also offer **Sign in without a browser redirect**, which asks the provider to show a code that the user pastes back.
+
+A confidential client that must send its secret as HTTP Basic, and a provider that wants a field on every refresh:
+
+```json
+"oauth": {
+  "provider_name": "X",
+  "flows": ["relay"],
+  "authorization_url": "https://x.com/i/oauth2/authorize",
+  "token_url": "https://api.x.com/2/oauth2/token",
+  "scopes": ["users.read", "tweet.read", "offline.access"],
+  "client_secret_setting": "client_secret",
+  "token_auth_method": "basic"
+}
+```
+
+```json
+"refresh_params": {"scope": "offline"}
+```
+
+The platform also reads a few answer shapes without any field: Twitch's `{"status": 400, "message": "authorization_pending"}` poll errors (and `slow_down`, `invalid device code`, `Invalid refresh token`), a `scope` sent as a JSON array, and a token answer wrapped as `{"data": [{...}]}` (Instagram).
+
+### Swapping and renewing the token yourself {#token-hooks}
+
+**Requires FiestaBoard 9.9.0.** Some providers hand out a short-lived token at sign-in that the app is expected to trade for a long-lived one, and renew with a call of their own rather than a refresh token (Meta: Instagram, Threads, Facebook). Two optional `PluginBase` methods cover that. The platform still stores the token, so it survives a restart:
+
+```python
+def exchange_oauth_token(self, token):
+    """Called once after each sign-in. Return None to keep the token."""
+    long_lived = self._exchange_for_long_lived(token["access_token"])  # your HTTP call
+    return {"access_token": long_lived["access_token"], "expires_in": long_lived["expires_in"]}
+
+def refresh_oauth_token(self, token):
+    """Called when the stored token is within a minute of expires_at. Return None for the standard refresh."""
+    renewed = self._renew(token["access_token"])
+    return {"access_token": renewed["access_token"], "expires_in": renewed["expires_in"]}
+```
+
+- Both receive `{"access_token", "refresh_token", "expires_at", "scopes"}` (`expires_at` is epoch seconds or `None`) and return `None` or `{"access_token", "expires_in"?, "refresh_token"?}`. A missing `refresh_token` keeps the one already stored; a missing `expires_in` means the token does not expire.
+- If `exchange_oauth_token` raises or returns something without an `access_token`, the sign-in token is kept. If `refresh_oauth_token` raises, the current token is served until it expires and the hook is asked again on the next fetch.
+- To renew earlier than the provider's expiry, return a shorter `expires_in`.
+- Neither hook may call `get_oauth_token()` or `report_oauth_rejected()`.
+- The settings your hooks need, such as a client secret, come from `self.config` as usual. A board before 9.9.0 never calls them.
 
 ## Whose App? {#whose-app}
 
@@ -406,7 +450,7 @@ A plugin repository's CI checks out FiestaBoard to run against. Pin that checkou
 
 ### End to end, without a real account
 
-FiestaBoard ships a strict stand-in provider, `scripts/mock_oauth_provider.py`. It requires PKCE, issues single-use codes, rotates refresh tokens, and expires access tokens after 20 seconds so that refresh happens while you watch.
+FiestaBoard ships a strict stand-in provider, `scripts/mock_oauth_provider.py`. It requires PKCE, issues single-use codes, rotates refresh tokens, and expires access tokens after 20 seconds so that refresh happens while you watch. It accepts the client secret in the body or as HTTP Basic, and also serves the other flows: `key_exchange` (`/auth` and `/api/v1/auth/keys`), Plex PINs (`/api/v2/pins` and an approval page at `/plex/auth`), the authorize and token pair under Home Assistant's `/auth/…` and Hugging Face's `/oauth/…` paths, and an OpenAI-style `/v1/responses` stream with `/v1/models`. The docstring at the top of the script lists every endpoint.
 
 1. Start the development stack with port 9400 published, because the relay flow sends your browser to the provider. Save this next to `docker-compose.dev.yml` as `docker-compose.oauth-test.yml`:
 
@@ -444,6 +488,8 @@ FiestaBoard ships a strict stand-in provider, `scripts/mock_oauth_provider.py`. 
    - Press **Disconnect**: your plugin reports that it is not signed in on its next fetch. Signing in and disconnecting clear the plugin's cache, so these two take effect without the toggle.
    - `curl http://localhost:9400/log` shows every request the provider saw, with secrets replaced by their lengths.
 
+For endpoints that are not in a manifest (Plex, and the FiestaBot AI sign-ins), set `FIESTABOARD_OAUTH_URL_OVERRIDES` on the container to a JSON object of URL prefixes and their replacements, for example `{"https://plex.tv": "http://localhost:9400", "https://app.plex.tv": "http://localhost:9400/plex", "https://openrouter.ai": "http://localhost:9400"}`. Approve a Plex PIN without a browser with `curl "http://localhost:9400/plex/approve?code=<CODE>"`. This variable is for development only; leave it unset on a real board.
+
 Never commit the copy that points at the mock. Finish with one sign-in against the real provider before you publish.
 
 ## Documenting It for Your Users
@@ -468,7 +514,10 @@ Check the provider's current documentation; these are starting points, not guara
 | Strava | `relay` | `"scope_separator": ","`. |
 | TikTok | `relay` | `"client_id_param": "client_key"` and `"scope_separator": ","`. |
 | Todoist | `relay` | `"scope_separator": ","`. |
-| Twitch | `device` | `"device_scope_param": "scopes"` and `"device_poll_scope": true`. |
+| Twitch | `device` | `"device_scope_param": "scopes"` and `"device_poll_scope": true`. The platform reads Twitch's `message` errors and array scopes. |
+| X | `relay` | Confidential (Web App) clients: `"token_auth_method": "basic"`. Native App clients have no secret and need nothing extra. |
+| WHOOP | `relay` | `"refresh_params": {"scope": "offline"}`. |
+| Instagram, Threads, Facebook | `relay` | Trade the 1-hour token for a long-lived one in `exchange_oauth_token` and renew it in `refresh_oauth_token`. See [Swapping and renewing the token yourself](#token-hooks). |
 | Home Assistant | `relay` | Runs on the user's network: `endpoint_base_setting` with path endpoints. |
 | Plex | `plex_pin` | Not OAuth. Send the token as `X-Plex-Token`. |
 | OpenRouter | `key_exchange` | Yields an API key with no client ID and no expiry. |

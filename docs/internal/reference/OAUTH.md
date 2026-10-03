@@ -156,9 +156,17 @@ false.
 
 **Provider quirks are manifest fields, not code.** (9.9.0) `client_id_param`,
 `scope_separator`, `device_scope_param`, `device_poll_scope`,
-`endpoint_base_setting`, and `plex_product` keep "no provider named in `src/`"
-true for TikTok, Strava, Todoist, Twitch, Home Assistant, and Plex. Each
-defaults to the standard behavior. `OAuthProvider.resolve_endpoints(config)` is
+`endpoint_base_setting`, `plex_product`, `token_auth_method` and
+`refresh_params` keep "no provider named in `src/`" true for TikTok, Strava,
+Todoist, Twitch, Home Assistant, Plex, X and WHOOP. Each defaults to the
+standard behavior. `token_auth_method: "basic"` moves the secret (and the
+client ID) out of the form into an HTTP Basic header, form-encoding each part
+as RFC 6749 §2.3.1 says; with no secret the body keeps the client ID. The
+transport then gets a `headers=` keyword, which it is never sent otherwise,
+so older two-argument transports keep working. Answer shapes need no field:
+`client._raise_for_oauth_error` maps Twitch's `{"status", "message"}` errors
+to RFC codes before looking at `error`, `_parse_scopes` takes a JSON array,
+and `_token_request` unwraps `{"data": [{...}]}` (Instagram). `OAuthProvider.resolve_endpoints(config)` is
 the only place endpoints are read, so a settings-based base URL applies to
 every flow at once.
 
@@ -196,6 +204,30 @@ without `sign_in` is passed through untouched. The Integrations page ignores
 set fields no manifest can (`redirect_uri_override`, `token_params`,
 `accept_issued_client_id`, `first_sign_in_params`) for ChatGPT's loopback
 redirect and issued client. The ChatGPT `id_token` is discarded unread.
+
+**Plugins may swap and renew their own token.** (9.9.0) Meta hands out a
+1-hour token at sign-in that the app trades for a 60-day one and renews with
+its own call, not a refresh token. Rather than a Meta-shaped manifest option
+or a general plugin key-value store, `PluginBase` has two optional hooks,
+found through `ConnectionTarget.plugin` (the registry's plugin object; `None`
+for AI providers). `exchange_oauth_token(token)` runs after every successful
+code exchange or device approval, before the tokens are stored;
+`refresh_oauth_token(token)` runs inside `_try_refresh` (so under the
+per-connection refresh lock) before the standard grant, and also for tokens
+with no refresh token. Both get `{access_token, refresh_token, expires_at,
+scopes}` and return `None` (no change, fall through) or `{access_token,
+expires_in?, refresh_token?}`. A raising exchange hook keeps the provider's
+token; a raising refresh hook counts as `_REFRESH_FAILED`. The base-class
+defaults return `None`, so behavior for every other plugin is unchanged: the
+only difference is that a token with no refresh token, inside the refresh
+margin, looks up its target once per fetch to ask the hook. Hooks must not
+call `get_oauth_token()` (the refresh lock is not re-entrant).
+
+**Dev-only URL overrides.** `FIESTABOARD_OAUTH_URL_OVERRIDES`
+(`src/oauth/overrides.py`) is a JSON object of URL prefix to replacement,
+applied to every endpoint `ConnectionTarget.endpoints()` returns, to plex.tv
+and app.plex.tv, and to an AI preset's `base_url`. It exists so the mock
+provider can stand in for constant URLs. Unset, nothing changes.
 
 **Tokens are not in backups.** `oauth_tokens.json` is not in the backup
 allow-list. Restoring onto a new board means signing in again.
@@ -252,7 +284,11 @@ docker compose -f docker-compose.dev.yml exec -d fiestaboard python scripts/mock
 
 Put a throwaway plugin whose `oauth` block points at `http://localhost:9400`
 in `data/external_plugins/<id>/`, restart, and sign in from the Integrations
-page. The relay flow goes through the live relay and back to
+page. For Plex and the AI presets, set `FIESTABOARD_OAUTH_URL_OVERRIDES` (the
+script's docstring has a ready mapping); the mock serves `key_exchange`,
+Plex PINs, Home Assistant, Hugging Face and OpenAI paths, `/v1/responses`
+and `/v1/models`. `tests/test_mock_oauth_provider.py` drives core against it
+over real HTTP. The relay flow goes through the live relay and back to
 `http://localhost:4420`. The walkthrough in the published guide lists the
 cases to check: refresh (tokens live 20 seconds), revocation
 (`POST /revoke-all`), replayed and tampered callbacks, disconnect.
@@ -276,8 +312,6 @@ for follow-up.
 4. **An `oauth` manifest on a pre-9.5.0 board loads silently without it.**
    `fiestaboard_version` is the guard.
 5. **Nothing shows a device code on the board itself.**
-6. **The mock provider covers only `relay` and `device`.** It has no
-   `/openrouter/auth`, `/api/v1/auth/keys`, Plex PIN, or `/responses`
-   endpoints, and the Plex and AI preset URLs are constants with no override,
-   so `key_exchange`, `plex_pin`, and AI sign-in are tested with scripted
-   transports only.
+6. ~~**The mock provider covers only `relay` and `device`.**~~ Closed in
+   9.9.0: it serves every flow, and `FIESTABOARD_OAUTH_URL_OVERRIDES` reaches
+   the constant URLs.
