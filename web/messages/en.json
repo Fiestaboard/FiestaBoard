@@ -406,7 +406,7 @@
       "disconnectedDescription": "Sign in to {provider} so this plugin can read your account.",
       "reconnectDescription": "{provider} stopped accepting this connection. Sign in again to restore it.",
       "needsClientId": "Enter a client ID in the settings below and save before connecting.",
-      "connectButton": "Connect to {provider}",
+      "connectButton": "Sign in with {provider}",
       "reconnectButton": "Reconnect",
       "disconnectButton": "Disconnect",
       "newCodeButton": "Get a new code",

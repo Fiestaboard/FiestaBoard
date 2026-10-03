@@ -450,7 +450,7 @@
       "disconnectedDescription": "Logga in på {provider} så att denna plugin kan läsa ditt konto.",
       "reconnectDescription": "{provider} godkänner inte längre den här anslutningen. Logga in igen för att återställa den.",
       "needsClientId": "Ange ett klient-ID i inställningarna nedan och spara innan du ansluter.",
-      "connectButton": "Anslut till {provider}",
+      "connectButton": "Logga in med {provider}",
       "reconnectButton": "Återanslut",
       "disconnectButton": "Koppla från",
       "newCodeButton": "Hämta en ny kod",

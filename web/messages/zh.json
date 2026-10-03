@@ -450,7 +450,7 @@
       "disconnectedDescription": "请登录 {provider}，以便此插件读取您的账户信息。",
       "reconnectDescription": "{provider} 已不再接受此连接。请重新登录以恢复连接。",
       "needsClientId": "连接前，请在下方设置中输入客户端 ID 并保存。",
-      "connectButton": "连接到 {provider}",
+      "connectButton": "使用 {provider} 登录",
       "reconnectButton": "重新连接",
       "disconnectButton": "断开连接",
       "newCodeButton": "获取新代码",

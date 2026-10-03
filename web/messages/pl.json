@@ -450,7 +450,7 @@
       "disconnectedDescription": "Zaloguj się w usłudze {provider}, aby ta wtyczka mogła odczytywać dane z twojego konta.",
       "reconnectDescription": "Usługa {provider} przestała akceptować to połączenie. Zaloguj się ponownie, aby je przywrócić.",
       "needsClientId": "Przed połączeniem wpisz identyfikator klienta (Client ID) w ustawieniach poniżej i zapisz.",
-      "connectButton": "Połącz z {provider}",
+      "connectButton": "Zaloguj się przez {provider}",
       "reconnectButton": "Połącz ponownie",
       "disconnectButton": "Rozłącz",
       "newCodeButton": "Pobierz nowy kod",

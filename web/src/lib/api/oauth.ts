@@ -33,6 +33,11 @@ export interface OAuthConnection {
   flows: OAuthFlow[];
   /** Whether a client ID is available, so a flow can start. */
   configured: boolean;
+  /**
+   * Whether the user registers their own app with the provider and enters its
+   * client ID. False when the plugin brings its own app: nothing to set up.
+   */
+  user_app: boolean;
   status: "connected" | "disconnected" | "reauthorization_required";
   scopes: string[];
   expires_at: number | null;

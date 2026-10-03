@@ -450,7 +450,7 @@
       "disconnectedDescription": "Inicia sesión en {provider} para que este plugin pueda leer tu cuenta.",
       "reconnectDescription": "{provider} ha dejado de aceptar esta conexión. Vuelve a iniciar sesión para restablecerla.",
       "needsClientId": "Introduce un ID de cliente en la configuración de abajo y guarda antes de conectar.",
-      "connectButton": "Conectar con {provider}",
+      "connectButton": "Iniciar sesión con {provider}",
       "reconnectButton": "Volver a conectar",
       "disconnectButton": "Desconectar",
       "newCodeButton": "Obtener un código nuevo",

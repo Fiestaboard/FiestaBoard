@@ -450,7 +450,7 @@
       "disconnectedDescription": "이 플러그인이 계정 정보를 읽을 수 있도록 {provider}에 로그인하세요.",
       "reconnectDescription": "{provider}에서 이 연결을 더 이상 허용하지 않습니다. 다시 로그인하여 연결을 복구하세요.",
       "needsClientId": "연결하기 전에 아래 설정에 클라이언트 ID를 입력하고 저장하세요.",
-      "connectButton": "{provider}에 연결",
+      "connectButton": "{provider}(으)로 로그인",
       "reconnectButton": "다시 연결",
       "disconnectButton": "연결 해제",
       "newCodeButton": "새 코드 받기",

@@ -42,12 +42,13 @@ class StubRegistry:
         self._manifests = {}
         self._configs = {}
 
-    def add(self, key, name, oauth=None, config=None):
+    def add(self, key, name, oauth=None, config=None, settings=("client_id",)):
         raw = {"id": key.split(":")[0], "name": name, "version": "1.0.0"}
         if oauth is not None:
             raw["oauth"] = oauth
+        schema = {"type": "object", "properties": {setting: {"type": "string"} for setting in settings}}
         self.plugins[key] = object()
-        self._manifests[key] = SimpleNamespace(name=name, raw=raw)
+        self._manifests[key] = SimpleNamespace(name=name, raw=raw, settings_schema=schema)
         self._configs[key] = config or {}
         return self.plugins[key]
 
@@ -140,6 +141,7 @@ def test_a_connection_reports_its_shape(client):
         "provider_name": "Example Music",
         "flows": ["relay"],
         "configured": True,
+        "user_app": True,
         "status": "disconnected",
         "scopes": ["read-playing"],
         "expires_at": None,
@@ -395,6 +397,50 @@ def test_a_named_instance_has_its_own_connection(client, registry):
     assert body["plugin_name"] == "Music (kitchen)"
     url = client.post("/oauth/connections/music:kitchen/authorize", json=BOARD).json()["authorization_url"]
     assert parse_qs(urlsplit(url).query)["client_id"] == ["client-kitchen"]
+
+
+# ── Plugins that bring their own app ───────────────────────────────────────
+
+
+def test_a_plugin_that_ships_its_client_id_needs_no_setup(client, registry):
+    registry.add("music_app", "Music App", {**RELAY_BLOCK, "client_id": "plugin-shipped-id"}, settings=())
+    body = client.get("/oauth/connections/music_app").json()
+    assert (body["configured"], body["user_app"]) == (True, False)
+    url = client.post("/oauth/connections/music_app/authorize", json=BOARD).json()["authorization_url"]
+    assert parse_qs(urlsplit(url).query)["client_id"] == ["plugin-shipped-id"]
+
+
+def test_a_client_id_saved_for_a_plugin_that_offers_no_field_is_ignored(client, registry):
+    """Hiding the field is not enough: a value saved earlier, or through the API, must not win."""
+    registry.add(
+        "music_app",
+        "Music App",
+        {**RELAY_BLOCK, "client_id": "plugin-shipped-id"},
+        config={"client_id": "someone-elses-app"},
+        settings=(),
+    )
+    url = client.post("/oauth/connections/music_app/authorize", json=BOARD).json()["authorization_url"]
+    assert parse_qs(urlsplit(url).query)["client_id"] == ["plugin-shipped-id"]
+
+
+def test_a_plugin_may_ship_a_default_and_still_let_users_override_it(client, registry):
+    registry.add(
+        "music_app", "Music App", {**RELAY_BLOCK, "client_id": "plugin-shipped-id"}, config={"client_id": "users-own"}
+    )
+    assert client.get("/oauth/connections/music_app").json()["user_app"] is True
+    url = client.post("/oauth/connections/music_app/authorize", json=BOARD).json()["authorization_url"]
+    assert parse_qs(urlsplit(url).query)["client_id"] == ["users-own"]
+
+
+def test_a_saved_secret_is_ignored_when_the_plugin_offers_no_field_for_it(service, registry, provider):
+    registry.add(
+        "music_app",
+        "Music App",
+        {**RELAY_BLOCK, "client_id": "plugin-shipped-id", "client_secret_setting": "client_secret"},
+        config={"client_secret": "planted"},
+        settings=(),
+    )
+    assert service._source.get("music_app").client_secret == ""
 
 
 def test_get_oauth_token_on_a_plugin_returns_that_instances_token(service, registry):

@@ -450,7 +450,7 @@
       "disconnectedDescription": "Log in bij {provider} zodat deze plugin je account kan lezen.",
       "reconnectDescription": "{provider} accepteert deze verbinding niet meer. Log opnieuw in om deze te herstellen.",
       "needsClientId": "Vul in de instellingen hieronder een client-ID in en sla op voordat je verbinding maakt.",
-      "connectButton": "Verbinden met {provider}",
+      "connectButton": "Inloggen met {provider}",
       "reconnectButton": "Opnieuw verbinden",
       "disconnectButton": "Verbinding verbreken",
       "newCodeButton": "Nieuwe code aanvragen",

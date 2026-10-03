@@ -218,8 +218,9 @@ export function OAuthConnectionSection({ pluginId }: { pluginId: string }) {
           )}
         </Stack>
 
-        {/* Only useful while setting up: once connected it is noise. */}
-        {usesRelay && !isConnected && (
+        {/* Only useful while setting up an app of your own: once connected it
+            is noise, and a plugin that brings its own app needs none. */}
+        {usesRelay && connection.user_app && !isConnected && (
           <Stack gap="3" className="border-t pt-4">
             <Stack gap="1.5">
               <Text as="span" size="xs" weight="medium">

@@ -194,6 +194,35 @@ def test_there_is_no_client_secret_unless_the_manifest_names_a_setting_for_it():
     assert confidential.resolve_client_secret({}) == ""
 
 
+def test_a_user_client_id_counts_only_if_the_plugin_offers_a_field_for_it():
+    block = _with(RELAY, client_id="shipped")
+    offered = parse_provider_block(block, "x", {"properties": {"client_id": {"type": "string"}}})
+    hidden = parse_provider_block(block, "x", {"properties": {"refresh_seconds": {"type": "integer"}}})
+    assert offered.user_client_id is True
+    assert offered.resolve_client_id({"client_id": "users-own"}) == "users-own"
+    assert hidden.user_client_id is False
+    assert hidden.resolve_client_id({"client_id": "users-own"}) == "shipped"
+
+
+def test_a_plugin_with_no_settings_at_all_offers_no_client_id_field():
+    provider = parse_provider_block(_with(RELAY, client_id="shipped"), "x", {})
+    assert provider.user_client_id is False
+    assert provider.resolve_client_id({"client_id": "users-own"}) == "shipped"
+
+
+def test_a_user_secret_counts_only_if_the_plugin_offers_a_field_for_it():
+    block = _with(RELAY, client_secret_setting="client_secret")
+    offered = parse_provider_block(block, "x", {"properties": {"client_secret": {"type": "string"}}})
+    hidden = parse_provider_block(block, "x", {"properties": {}})
+    assert offered.resolve_client_secret({"client_secret": "s3"}) == "s3"
+    assert hidden.resolve_client_secret({"client_secret": "s3"}) == ""
+
+
+def test_without_a_schema_the_user_may_supply_both():
+    provider = parse_provider_block(_with(RELAY, client_secret_setting="client_secret"), "x")
+    assert (provider.user_client_id, provider.user_client_secret) == (True, True)
+
+
 # ── Through the manifest validator ──────────────────────────────────────────
 
 MANIFEST = {"id": "music", "name": "Music", "version": "1.0.0"}

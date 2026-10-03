@@ -450,7 +450,7 @@
       "disconnectedDescription": "Bu eklentinin hesabınızı okuyabilmesi için {provider} hesabınıza giriş yapın.",
       "reconnectDescription": "{provider} artık bu bağlantıyı kabul etmiyor. Bağlantıyı geri getirmek için yeniden giriş yapın.",
       "needsClientId": "Bağlanmadan önce aşağıdaki ayarlara bir istemci kimliği (Client ID) girin ve kaydedin.",
-      "connectButton": "{provider} ile bağlan",
+      "connectButton": "{provider} ile oturum aç",
       "reconnectButton": "Yeniden bağlan",
       "disconnectButton": "Bağlantıyı kes",
       "newCodeButton": "Yeni kod al",

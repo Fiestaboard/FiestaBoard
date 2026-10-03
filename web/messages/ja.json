@@ -450,7 +450,7 @@
       "disconnectedDescription": "このプラグインがアカウントの情報を読み取れるように、{provider} にサインインしてください。",
       "reconnectDescription": "{provider} がこの接続を受け付けなくなりました。もう一度サインインして接続を復元してください。",
       "needsClientId": "接続する前に、下の設定にクライアント ID を入力して保存してください。",
-      "connectButton": "{provider} に接続",
+      "connectButton": "{provider} でサインイン",
       "reconnectButton": "再接続",
       "disconnectButton": "切断",
       "newCodeButton": "新しいコードを取得",

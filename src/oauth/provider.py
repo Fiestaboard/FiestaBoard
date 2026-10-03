@@ -76,17 +76,23 @@ class OAuthProvider:
     client_id_setting: str = DEFAULT_CLIENT_ID_SETTING
     client_secret_setting: str = ""
     authorization_params: dict[str, str] = field(default_factory=dict)
+    #: Whether the plugin's settings offer a field for the client ID (and,
+    #: separately, for the secret). A value saved under a key the plugin does
+    #: not offer is ignored: a plugin that ships its own app and no field means
+    #: users cannot swap that app out, through the UI or around it.
+    user_client_id: bool = True
+    user_client_secret: bool = True
 
     def resolve_client_id(self, config: dict[str, Any]) -> str:
-        """The client ID to use: the user's setting, else the manifest default."""
-        configured = config.get(self.client_id_setting)
+        """The client ID to use: the user's setting if the plugin offers one, else the manifest's."""
+        configured = config.get(self.client_id_setting) if self.user_client_id else None
         if isinstance(configured, str) and configured.strip():
             return configured.strip()
         return self.client_id
 
     def resolve_client_secret(self, config: dict[str, Any]) -> str:
         """The client secret from the plugin's settings, or ``""`` for a public client."""
-        if not self.client_secret_setting:
+        if not self.client_secret_setting or not self.user_client_secret:
             return ""
         configured = config.get(self.client_secret_setting)
         return configured.strip() if isinstance(configured, str) else ""
@@ -188,15 +194,30 @@ def validate_provider_block(raw: Any) -> list[str]:
     return errors
 
 
-def parse_provider_block(raw: Any, fallback_name: str) -> OAuthProvider | None:
+def _declared_settings(settings_schema: Any) -> set[str] | None:
+    if not isinstance(settings_schema, dict):
+        return None
+    properties = settings_schema.get("properties")
+    return set(properties) if isinstance(properties, dict) else set()
+
+
+def parse_provider_block(raw: Any, fallback_name: str, settings_schema: Any = None) -> OAuthProvider | None:
     """Parse a manifest's ``oauth`` block, or ``None`` when absent or invalid.
 
     Invalid blocks never get this far in production — ``validate_manifest``
     refuses to load the plugin — so ``None`` here means "this plugin has no
     OAuth connection".
+
+    *settings_schema* is the plugin's ``settings_schema``. Pass it whenever it
+    is known: it decides whether a user may supply their own client ID and
+    secret (only through fields the plugin offers). Without it, both are
+    allowed, which is right only for callers that have no manifest to hand.
     """
     if raw is None or validate_provider_block(raw):
         return None
+    declared = _declared_settings(settings_schema)
+    client_id_setting = raw.get("client_id_setting", DEFAULT_CLIENT_ID_SETTING)
+    client_secret_setting = raw.get("client_secret_setting", "")
     return OAuthProvider(
         name=str(raw.get("provider_name") or fallback_name).strip(),
         flows=tuple(raw["flows"]),
@@ -205,7 +226,9 @@ def parse_provider_block(raw: Any, fallback_name: str) -> OAuthProvider | None:
         device_authorization_url=raw.get("device_authorization_url", ""),
         scopes=tuple(raw.get("scopes", ())),
         client_id=raw.get("client_id", "").strip(),
-        client_id_setting=raw.get("client_id_setting", DEFAULT_CLIENT_ID_SETTING),
-        client_secret_setting=raw.get("client_secret_setting", ""),
+        client_id_setting=client_id_setting,
+        client_secret_setting=client_secret_setting,
         authorization_params=dict(raw.get("authorization_params", {})),
+        user_client_id=declared is None or client_id_setting in declared,
+        user_client_secret=declared is None or client_secret_setting in declared,
     )

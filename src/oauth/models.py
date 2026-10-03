@@ -36,6 +36,12 @@ class OAuthConnection(BaseModel):
     provider_name: str
     flows: list[Flow] = Field(description="Flows the plugin supports, preferred first.")
     configured: bool = Field(description="Whether a client ID is available, so a flow can start.")
+    user_app: bool = Field(
+        description=(
+            "Whether the user registers their own app with the provider and enters its client ID. "
+            "False when the plugin brings its own app, so there is nothing for the user to set up."
+        )
+    )
     status: Literal["connected", "disconnected", "reauthorization_required"]
     scopes: list[str] = Field(description="Scopes granted when connected, otherwise the scopes that will be requested.")
     expires_at: float | None = Field(default=None, description="Epoch seconds when the access token expires.")

@@ -862,9 +862,9 @@ returns `None` when the user has not connected or has to reconnect.
 | `device_authorization_url` | for `device` | The provider's device authorization endpoint (RFC 8628). |
 | `scopes` | no | Scopes to request. Ask for the least that works. |
 | `provider_name` | no | Shown in the UI ("Connect to Example Music"). Defaults to the plugin's name. |
-| `client_id_setting` | no | The `settings_schema` key holding the user's client ID. Default `client_id`. |
+| `client_id_setting` | no | The `settings_schema` key holding the user's client ID. Default `client_id`. Only honoured if `settings_schema` declares that key. |
 | `client_secret_setting` | no | The `settings_schema` key holding the user's client secret, for providers that require one. Omit for a public (PKCE-only) client. |
-| `client_id` | no | A default client ID shipped with the plugin. See below before using it. |
+| `client_id` | no | A client ID shipped with the plugin: the plugin brings its own app. See below before using it. |
 | `authorization_params` | no | Extra fixed query parameters for the authorization request, such as `{"access_type": "offline"}`. May not override the ones the platform sets. |
 
 Endpoints must be `https://`. An unknown field, or a malformed block, stops
@@ -892,12 +892,20 @@ Plugin repositories are public.
   refused. If the provider requires a secret, declare `client_secret_setting`
   and give the user a password field for it. The names `client_id` and
   `client_secret` are masked in API responses automatically.
-- **A client ID is not a secret**, and `oauth.client_id` may ship one as a
-  default that the user's own setting overrides. Think before doing it:
-  many providers cap an app they have not reviewed at a handful of named users, which a
-  shared ID will hit immediately; and a shared ID lends your app's name to
-  anyone who builds a sign-in link with it. The default expectation is that
-  each user creates their own app and pastes in their own client ID.
+- **A client ID is not a secret**, so `oauth.client_id` may ship one: the
+  plugin brings its own app and the user only presses the sign-in button.
+  Whether the user can replace it is decided by `settings_schema`: if it
+  declares the `client_id_setting` key, the user's value wins; if it does
+  not, the shipped ID is always used and a value saved under that key
+  (earlier, or through the API) is ignored. The same rule applies to
+  `client_secret_setting`. The connection API reports `user_app: false` for
+  a plugin that brings its own app, and the UI then shows no app-setup help.
+- Before shipping an app, check the provider's limits on apps they have not
+  reviewed. Spotify, for example, admits only five hand-added accounts to an
+  app in Development Mode and offers no wider mode to open-source projects,
+  so every other user signs in and then gets `403` from the API. Say so in
+  the plugin's setup guide and make the `403` message explain it. A shared
+  ID also lends your app's name to anyone who builds a sign-in link with it.
 
 ### What the platform guarantees
 

@@ -450,7 +450,7 @@
       "disconnectedDescription": "Войдите в {provider}, чтобы этот плагин мог читать данные вашей учётной записи.",
       "reconnectDescription": "{provider} больше не принимает это подключение. Войдите снова, чтобы восстановить его.",
       "needsClientId": "Перед подключением введите идентификатор клиента (Client ID) в настройках ниже и сохраните.",
-      "connectButton": "Подключиться к {provider}",
+      "connectButton": "Войти через {provider}",
       "reconnectButton": "Переподключить",
       "disconnectButton": "Отключить",
       "newCodeButton": "Получить новый код",

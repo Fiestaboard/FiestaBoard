@@ -164,7 +164,7 @@ class RegistryConnectionSource:
         manifest = registry.get_manifest(connection_id)
         if manifest is None:
             return None
-        provider = parse_provider_block(manifest.raw.get("oauth"), manifest.name)
+        provider = parse_provider_block(manifest.raw.get("oauth"), manifest.name, manifest.settings_schema)
         if provider is None:
             return None
         plugin_id, instance_label = registry.parse_instance_key(connection_id)
@@ -218,6 +218,9 @@ class ConnectionStatus:
     provider_name: str
     flows: tuple[str, ...]
     configured: bool
+    #: Whether the user registers their own app with the provider (the plugin
+    #: offers a client ID field). False when the plugin brings its own app.
+    user_app: bool
     status: str
     scopes: tuple[str, ...]
     expires_at: float | None
@@ -348,6 +351,7 @@ class OAuthService:
             provider_name=target.provider.name,
             flows=target.provider.flows,
             configured=bool(target.client_id),
+            user_app=target.provider.user_client_id,
             status=status,
             scopes=tokens.scopes if tokens else target.provider.scopes,
             expires_at=tokens.expires_at if tokens else None,

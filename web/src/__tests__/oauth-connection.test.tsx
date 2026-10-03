@@ -24,6 +24,7 @@ const RELAY: OAuthConnection = {
   provider_name: "Example Music",
   flows: ["relay"],
   configured: true,
+  user_app: true,
   status: "disconnected",
   scopes: ["read-playing"],
   expires_at: null,
@@ -89,7 +90,7 @@ describe("OAuthConnectionSection", () => {
   it("offers to connect a plugin that is not connected yet", async () => {
     serveConnections(RELAY);
     renderSection("music");
-    expect(await screen.findByRole("button", { name: "Connect to Example Music" })).toBeEnabled();
+    expect(await screen.findByRole("button", { name: "Sign in with Example Music" })).toBeEnabled();
     // The status line is a live region, so a change is announced, not just recoloured.
     expect(screen.getByText("Not connected")).toHaveAttribute("role", "status");
     expect(screen.queryByRole("button", { name: "Disconnect" })).not.toBeInTheDocument();
@@ -98,7 +99,7 @@ describe("OAuthConnectionSection", () => {
   it("will not start a connection until a client ID is saved, and says why", async () => {
     serveConnections({ ...RELAY, configured: false });
     renderSection("music");
-    const connect = await screen.findByRole("button", { name: "Connect to Example Music" });
+    const connect = await screen.findByRole("button", { name: "Sign in with Example Music" });
     expect(connect).toBeDisabled();
     expect(screen.getByText(/Enter a client ID in the settings below and save/)).toBeInTheDocument();
     expect(connect).toHaveAccessibleDescription(/Enter a client ID in the settings below and save/);
@@ -126,10 +127,19 @@ describe("OAuthConnectionSection", () => {
     expect(await screen.findByText(/asks you to confirm it/)).toBeInTheDocument();
   });
 
+  it("asks for no setup when the plugin brings its own app", async () => {
+    serveConnections({ ...RELAY, user_app: false });
+    renderSection("music");
+    expect(await screen.findByRole("button", { name: "Sign in with Example Music" })).toBeEnabled();
+    expect(screen.queryByText(REDIRECT_URI)).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /copy redirect uri/i })).not.toBeInTheDocument();
+    expect(screen.queryByText(/asks you to confirm it/)).not.toBeInTheDocument();
+  });
+
   it("does not mention the relay for a device-flow plugin", async () => {
     serveConnections(DEVICE);
     renderSection("git");
-    await screen.findByRole("button", { name: "Connect to Example Git" });
+    await screen.findByRole("button", { name: "Sign in with Example Git" });
     expect(screen.queryByText(REDIRECT_URI)).not.toBeInTheDocument();
     expect(screen.queryByText(/asks you to confirm it/)).not.toBeInTheDocument();
   });
@@ -148,7 +158,7 @@ describe("OAuthConnectionSection", () => {
       ),
     );
     renderSection("music");
-    await userEvent.setup().click(await screen.findByRole("button", { name: "Connect to Example Music" }));
+    await userEvent.setup().click(await screen.findByRole("button", { name: "Sign in with Example Music" }));
     await waitFor(() => expect(assign).toHaveBeenCalledWith("https://accounts.example.com/authorize?state=abc"));
   });
 
@@ -163,7 +173,7 @@ describe("OAuthConnectionSection", () => {
       }),
     );
     renderSection("music");
-    await userEvent.setup().click(await screen.findByRole("button", { name: "Connect to Example Music" }));
+    await userEvent.setup().click(await screen.findByRole("button", { name: "Sign in with Example Music" }));
     await waitFor(() => expect(bodies).toEqual([{ board_url: "http://192.168.1.50:4420" }]));
   });
 
@@ -182,13 +192,13 @@ describe("OAuthConnectionSection", () => {
       }),
     );
     renderSection("git");
-    await userEvent.setup().click(await screen.findByRole("button", { name: "Connect to Example Git" }));
+    await userEvent.setup().click(await screen.findByRole("button", { name: "Sign in with Example Git" }));
 
     expect(await screen.findByTestId("oauth-user-code")).toHaveTextContent("WDJB-MJHT");
     expect(screen.getByText("Waiting for approval")).toHaveAttribute("role", "status");
     // The code on screen is the thing to act on; the button now only replaces it.
     expect(screen.getByRole("button", { name: "Get a new code" })).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "Connect to Example Git" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Sign in with Example Git" })).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Copy code" })).toBeInTheDocument();
     const link = screen.getByRole("link", { name: "https://example.com/device" });
     expect(link).toHaveAttribute("href", "https://example.com/device?user_code=WDJB-MJHT");
@@ -223,7 +233,7 @@ describe("OAuthConnectionSection", () => {
     const { toast } = await import("sonner");
     const errorToast = vi.spyOn(toast, "error");
     renderSection("music");
-    await userEvent.setup().click(await screen.findByRole("button", { name: "Connect to Example Music" }));
+    await userEvent.setup().click(await screen.findByRole("button", { name: "Sign in with Example Music" }));
     await waitFor(() =>
       expect(errorToast).toHaveBeenCalledWith(
         "Could not start the connection: Music needs a client ID before it can connect.",
@@ -278,7 +288,7 @@ describe("OAuthConnectionSection", () => {
       }),
     );
     renderSection("music:kitchen");
-    await userEvent.setup().click(await screen.findByRole("button", { name: "Connect to Example Music" }));
+    await userEvent.setup().click(await screen.findByRole("button", { name: "Sign in with Example Music" }));
     await waitFor(() => expect(requested).toEqual(["music:kitchen"]));
   });
 });

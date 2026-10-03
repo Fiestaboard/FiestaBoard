@@ -450,7 +450,7 @@
       "disconnectedDescription": "Melden Sie sich bei {provider} an, damit dieses Plugin Ihre Kontodaten lesen kann.",
       "reconnectDescription": "{provider} akzeptiert diese Verbindung nicht mehr. Melden Sie sich erneut an, um sie wiederherzustellen.",
       "needsClientId": "Geben Sie in den Einstellungen unten eine Client-ID ein und speichern Sie, bevor Sie die Verbindung herstellen.",
-      "connectButton": "Mit {provider} verbinden",
+      "connectButton": "Mit {provider} anmelden",
       "reconnectButton": "Erneut verbinden",
       "disconnectButton": "Trennen",
       "newCodeButton": "Neuen Code anfordern",

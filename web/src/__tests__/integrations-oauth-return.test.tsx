@@ -78,6 +78,7 @@ function mockInstall() {
             provider_name: "Example Music",
             flows: ["relay"],
             configured: true,
+            user_app: true,
             status: "connected",
             scopes: [],
             expires_at: null,
