@@ -90,21 +90,34 @@ describe("OAuthConnectionSection", () => {
     serveConnections(RELAY);
     renderSection("music");
     expect(await screen.findByRole("button", { name: "Connect to Example Music" })).toBeEnabled();
-    expect(screen.getByText("Not connected")).toBeInTheDocument();
+    // The status line is a live region, so a change is announced, not just recoloured.
+    expect(screen.getByText("Not connected")).toHaveAttribute("role", "status");
     expect(screen.queryByRole("button", { name: "Disconnect" })).not.toBeInTheDocument();
   });
 
   it("will not start a connection until a client ID is saved, and says why", async () => {
     serveConnections({ ...RELAY, configured: false });
     renderSection("music");
-    expect(await screen.findByRole("button", { name: "Connect to Example Music" })).toBeDisabled();
+    const connect = await screen.findByRole("button", { name: "Connect to Example Music" });
+    expect(connect).toBeDisabled();
     expect(screen.getByText(/Enter a client ID in the settings below and save/)).toBeInTheDocument();
+    expect(connect).toHaveAccessibleDescription(/Enter a client ID in the settings below and save/);
   });
 
   it("shows the redirect URI to register with the provider", async () => {
     serveConnections(RELAY);
     renderSection("music");
     expect(await screen.findByText(REDIRECT_URI)).toBeInTheDocument();
+    expect(screen.getByText("Redirect URI")).toBeInTheDocument();
+  });
+
+  it("copies the redirect URI, since it is typed into another site", async () => {
+    serveConnections(RELAY);
+    const user = userEvent.setup();
+    renderSection("music");
+    await user.click(await screen.findByRole("button", { name: "Copy redirect URI" }));
+    expect(await navigator.clipboard.readText()).toBe(REDIRECT_URI);
+    expect(screen.getByRole("button", { name: "Copied" })).toBeInTheDocument();
   });
 
   it("says what to expect on the way back from the provider", async () => {
@@ -172,11 +185,21 @@ describe("OAuthConnectionSection", () => {
     await userEvent.setup().click(await screen.findByRole("button", { name: "Connect to Example Git" }));
 
     expect(await screen.findByTestId("oauth-user-code")).toHaveTextContent("WDJB-MJHT");
+    expect(screen.getByText("Waiting for approval")).toHaveAttribute("role", "status");
     // The code on screen is the thing to act on; the button now only replaces it.
     expect(screen.getByRole("button", { name: "Get a new code" })).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Connect to Example Git" })).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Copy code" })).toBeInTheDocument();
     const link = screen.getByRole("link", { name: "https://example.com/device" });
     expect(link).toHaveAttribute("href", "https://example.com/device?user_code=WDJB-MJHT");
+  });
+
+  it("copies the device code for typing on the other device", async () => {
+    serveConnections({ ...DEVICE, device: PENDING_DEVICE });
+    const user = userEvent.setup();
+    renderSection("git");
+    await user.click(await screen.findByRole("button", { name: "Copy code" }));
+    expect(await navigator.clipboard.readText()).toBe("WDJB-MJHT");
   });
 
   it.each([

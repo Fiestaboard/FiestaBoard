@@ -41,7 +41,7 @@ Some services let you approve from another device instead. The plugin's settings
 1. Open the address on your phone or computer.
 2. Enter the code and approve.
 
-The settings update by themselves within a few seconds. If the code expires first, press **Get a new code**.
+The settings update by themselves within a few seconds. If the code expires before you approve it, press **Connect** again for a new one. While a code is still showing, **Get a new code** replaces it.
 
 ## Creating your own app
 
