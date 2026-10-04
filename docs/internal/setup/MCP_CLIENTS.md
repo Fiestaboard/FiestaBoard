@@ -360,6 +360,12 @@ additions are all optional.
   Warn-only; nothing is mutated.
 - **`render_page_preview(notes_wide, notes_tall)`** previews a `note_array`
   at its real size and now reports `rows` / `cols`.
+- **`render_page_preview(board_id)`** and **`validate_template(board_id)`**
+  check a template for one board, as `POST /templates/render` and
+  `/templates/validate` do with a `board_id`: the board's character set
+  decides extended markup and widths count drawn tiles. The preview adds
+  `charset` and `charset_issues`; validation adds `charset`. An unknown
+  board is an error.
 - **`export_page(page_id)`** → the portable share string
   (`GET /pages/{id}/share`); **`import_page(share_string)`** creates a new
   page from one (`POST /pages/import`). Read-only and non-destructive
@@ -523,7 +529,7 @@ external client can do the same things a person can there:
   code-62 glyph, API mode, host), `add_board`, `remove_board`,
   `detect_board_size`, `identify_tile`.
 - FiestaPanels: `list_panels`, `create_panel`, `update_panel` (including
-  `is_display`), `delete_panel`.
+  `is_display` and `render_style`), `delete_panel`.
 - Network (FiestaPi): `disconnect_wifi`, `forget_wifi_network`. No scan or
   connect — joining needs a passphrase.
 - System: `check_for_update`, `trigger_system_update` (previously a
