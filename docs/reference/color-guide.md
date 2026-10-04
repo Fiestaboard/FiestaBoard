@@ -99,6 +99,8 @@ Forms nest, and a form can hold variables, formulas and color tiles:
 {{icon:sun}} {{green:OPEN {66}}}
 ```
 
+Colored text and blocks nest up to eight deep. A ninth level shows as plain text, braces and all, in the color of the eighth. Icons and color tiles work at any depth.
+
 The color names are the eight in [Available Colors](#available-colors): `red`, `orange`, `yellow`, `green`, `blue`, `violet` (or `purple`), `white` and `black`. `filled` is a tile only, never a text color.
 
 ### Icons
