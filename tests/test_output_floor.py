@@ -27,8 +27,9 @@ import pytest
 import requests
 
 import src.board_client as board_client_module
-from src.board_client import BoardClient, board_client_from_board_dict
+from src.board_client import BoardClient
 from src.note_array_local_client import NoteArrayLocalClient
+from src.outputs.factory import build_driver
 from src.virtual_board_client import VirtualBoardClient
 
 FLAGSHIP = (6, 22)
@@ -104,11 +105,11 @@ def _note_array_cloud(token: str) -> dict:
 
 def test_a_rebuilt_rw_cloud_client_is_still_inside_the_floor(clock, wire):
     """Deliberate change: a board re-save used to reset the RW Cloud window."""
-    first = board_client_from_board_dict(_rw_cloud("test_rw_rebuild"))
+    first = build_driver(_rw_cloud("test_rw_rebuild"))
     assert first.render(_grid(1), with_outcome=True).was_sent is True
 
     clock.t += 5.0
-    rebuilt = board_client_from_board_dict(_rw_cloud("test_rw_rebuild"))
+    rebuilt = build_driver(_rw_cloud("test_rw_rebuild"))
     outcome = rebuilt.render(_grid(2), with_outcome=True)
 
     assert (outcome.success, outcome.was_sent, outcome.throttled) == (True, False, True)
@@ -118,11 +119,11 @@ def test_a_rebuilt_rw_cloud_client_is_still_inside_the_floor(clock, wire):
 
 def test_a_rebuilt_note_array_cloud_client_is_still_inside_the_floor(clock, wire):
     """Parity: the note-array window always survived a rebuild."""
-    first = board_client_from_board_dict(_note_array_cloud("test_na_rebuild"))
+    first = build_driver(_note_array_cloud("test_na_rebuild"))
     assert first.render(_grid(1, (3, 30)), with_outcome=True).was_sent is True
 
     clock.t += 5.0
-    rebuilt = board_client_from_board_dict(_note_array_cloud("test_na_rebuild"))
+    rebuilt = build_driver(_note_array_cloud("test_na_rebuild"))
     outcome = rebuilt.render(_grid(2, (3, 30)), with_outcome=True)
 
     assert (outcome.was_sent, outcome.throttled, outcome.retry_after_seconds) == (False, True, 10)
@@ -130,18 +131,18 @@ def test_a_rebuilt_note_array_cloud_client_is_still_inside_the_floor(clock, wire
 
 
 def test_two_rw_cloud_boards_keep_separate_floors(clock, wire):
-    one = board_client_from_board_dict(_rw_cloud("test_rw_one"))
-    two = board_client_from_board_dict(_rw_cloud("test_rw_two"))
+    one = build_driver(_rw_cloud("test_rw_one"))
+    two = build_driver(_rw_cloud("test_rw_two"))
     assert one.render(_grid(1), with_outcome=True).was_sent is True
     assert two.render(_grid(1), with_outcome=True).was_sent is True
     assert len(wire.posts) == 2
 
 
 def test_the_floor_reopens_once_the_window_has_passed(clock, wire):
-    first = board_client_from_board_dict(_rw_cloud("test_rw_reopen"))
+    first = build_driver(_rw_cloud("test_rw_reopen"))
     first.render(_grid(1), with_outcome=True)
     clock.t += 15.0
-    rebuilt = board_client_from_board_dict(_rw_cloud("test_rw_reopen"))
+    rebuilt = build_driver(_rw_cloud("test_rw_reopen"))
     assert rebuilt.render(_grid(2), with_outcome=True).was_sent is True
 
 
@@ -153,11 +154,11 @@ def test_a_throwaway_client_for_the_same_board_sees_the_engines_floor(clock, wir
     from src.main import BoardRuntime
 
     board = _rw_cloud("test_rw_throwaway")
-    engine = BoardRuntime(client=board_client_from_board_dict(board), board_id=board["id"])
+    engine = BoardRuntime(client=build_driver(board), board_id=board["id"])
     assert engine.client.render(_grid(1), with_outcome=True).was_sent is True
 
     clock.t += 3.0
-    throwaway = board_client_from_board_dict(board)
+    throwaway = build_driver(board)
     throwaway.skip_unchanged = False
     outcome = throwaway.render(_grid(2), force=True, with_outcome=True)
 
@@ -169,7 +170,7 @@ def test_a_throwaway_client_for_the_same_board_sees_the_engines_floor(clock, wir
 
 
 def test_an_upstream_429_is_reported_as_throttled_with_its_retry_after(clock, wire):
-    client = board_client_from_board_dict(_rw_cloud("test_rw_429_header"))
+    client = build_driver(_rw_cloud("test_rw_429_header"))
     wire.answers = [_response(429, {"Retry-After": "30"})]
 
     outcome = client.render(_grid(1), with_outcome=True)
@@ -180,7 +181,7 @@ def test_an_upstream_429_is_reported_as_throttled_with_its_retry_after(clock, wi
 
 
 def test_an_upstream_429_without_retry_after_reports_the_floor(clock, wire):
-    client = board_client_from_board_dict(_rw_cloud("test_rw_429_bare"))
+    client = build_driver(_rw_cloud("test_rw_429_bare"))
     wire.answers = [_response(429)]
 
     outcome = client.render(_grid(1), with_outcome=True)
@@ -190,7 +191,7 @@ def test_an_upstream_429_without_retry_after_reports_the_floor(clock, wire):
 
 def test_an_immediate_retry_after_a_429_is_not_posted(clock, wire):
     """The 429 keeps the floor slot: a retry 1 s later is throttled locally."""
-    client = board_client_from_board_dict(_rw_cloud("test_rw_429_retry"))
+    client = build_driver(_rw_cloud("test_rw_429_retry"))
     wire.answers = [_response(429)]
     client.render(_grid(1), with_outcome=True)
 
@@ -202,7 +203,7 @@ def test_an_immediate_retry_after_a_429_is_not_posted(clock, wire):
 
 
 def test_a_retry_after_longer_than_the_floor_holds_the_device_that_long(clock, wire):
-    client = board_client_from_board_dict(_rw_cloud("test_rw_429_long"))
+    client = build_driver(_rw_cloud("test_rw_429_long"))
     wire.answers = [_response(429, {"Retry-After": "40"})]
     client.render(_grid(1), with_outcome=True)
 
@@ -216,7 +217,7 @@ def test_a_retry_after_longer_than_the_floor_holds_the_device_that_long(clock, w
 
 def test_a_non_429_http_error_still_releases_the_slot(clock, wire):
     """Only a 429 means "slow down": any other failure gives the slot back."""
-    client = board_client_from_board_dict(_rw_cloud("test_rw_500"))
+    client = build_driver(_rw_cloud("test_rw_500"))
     wire.answers = [_response(500)]
     first = client.render(_grid(1), with_outcome=True)
     assert (first.success, first.was_sent, first.throttled) == (False, False, False)

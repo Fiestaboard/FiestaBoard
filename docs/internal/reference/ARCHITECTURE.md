@@ -185,7 +185,23 @@ Names you will meet:
   `draft_driver()` is for connection details that are not saved yet (the
   credential probe, identify of an unassigned tile): a throwaway on a
   private runtime. `tests/test_runtime_for_board.py` holds construction
-  sites outside the factory at zero.
+  sites outside the factory at zero. Both doors resolve the board to an
+  **output** first.
+- **The output registry** (`src/outputs/registry.py`) — every kind of
+  device FiestaBoard drives, by output id. Two are built in: `vestaboard`
+  (Local API, RW Cloud, note-array Cloud, local note-array tiles) and
+  `fiestapanel` (a TV's in-memory board). Each entry carries a builder
+  (only the factory calls it) and the output's **capabilities** —
+  `technology` (`split_flap` | `led_matrix` | `screen`), `delivery`
+  (`push` | `pull`), `animation` and `native_transitions` — the most the
+  output offers in any configuration; a driver narrows them for its own
+  connection. A board's output is **derived at load**, never stored yet
+  (the settings v4 migration persists it): an explicit `output` key wins,
+  then `api_mode == "virtual"` is `fiestapanel` (legacy virtual note-array
+  panels included), else `vestaboard`. An explicit id the registry does not
+  know builds no driver (`UnknownOutputError`, recorded as the board's init
+  error) — never a Vestaboard in its place. `GET /settings/board` and the
+  v1 board summaries expose the derived `output`.
 - **`WriteResult`** (`src/send_outcome.py`; `SendOutcome` is an alias) —
   a write's verdict: `(success, was_sent)`, the throttle verdict, and
   `partial` + `failed_regions` for a write that reached only part of the

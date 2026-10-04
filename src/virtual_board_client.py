@@ -227,3 +227,23 @@ class VirtualBoardClient(TransitionRenderMixin):
     def test_connection(self) -> bool:
         """A virtual board is always reachable."""
         return True
+
+
+def build_fiestapanel_driver(board: dict) -> VirtualBoardClient:
+    """The ``fiestapanel`` output's driver for a board dict.
+
+    Registered in :mod:`src.outputs.registry`; only the runtime factory
+    (:mod:`src.outputs.factory`) calls it. A virtual board has no connection
+    to configure, so it always builds.
+    """
+    from .devices import geometry_of
+
+    geometry = geometry_of(board)
+    return VirtualBoardClient(
+        device_type=geometry.device_type,
+        board_id=board.get("id"),
+        notes_wide=geometry.notes_wide,
+        notes_tall=geometry.notes_tall,
+        grid_rows=geometry.grid_rows,
+        grid_cols=geometry.grid_cols,
+    )

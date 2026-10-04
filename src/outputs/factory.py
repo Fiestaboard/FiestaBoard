@@ -16,29 +16,36 @@ apart on purpose:
   board's; it is thrown away after the call.
 
 Both build the same driver from the same board dict, so a draft probe
-exercises exactly the transport the saved board will use.
+exercises exactly the transport the saved board will use: the board resolves
+to its output id (:func:`~src.outputs.registry.resolve_output_id`), and the
+output registered under that id builds the driver. A board naming an output
+that is not registered gets no driver — :class:`UnknownOutputError`, logged —
+never a Vestaboard in its place.
 """
 
 from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
+from .registry import UnknownOutputError, definition_for
+
+__all__ = ["UnknownOutputError", "build_driver", "draft_driver"]
+
 if TYPE_CHECKING:
     from .driver import OutputDriver
 
 
 def _construct(board: dict) -> OutputDriver | None:
-    # Imported lazily: the client modules import this package.
-    from src.board_client import board_client_from_board_dict
-
-    return board_client_from_board_dict(board)
+    return definition_for(board).build(board)
 
 
 def build_driver(board: dict) -> OutputDriver | None:
     """The driver for a saved board, for its live runtime.
 
     Returns ``None`` when the board has no usable connection (missing host,
-    key or token); raises ``ValueError`` on a connection the client refuses.
+    key or token); raises ``ValueError`` on a connection the client refuses,
+    and :class:`UnknownOutputError` (a ``ValueError``) when the board names
+    an output that is not registered.
     """
     return _construct(board)
 

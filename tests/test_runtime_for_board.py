@@ -116,14 +116,23 @@ CLIENT_MODULES = {
     REPO / "src" / "note_array_local_client.py",
     REPO / "src" / "virtual_board_client.py",
 }
-FACTORY = REPO / "src" / "outputs" / "factory.py"
-CONSTRUCTORS = {"BoardClient", "NoteArrayLocalClient", "VirtualBoardClient", "board_client_from_board_dict"}
+# The runtime factory and the output registry it resolves through: the
+# registry's built-in entries hold the builders the factory calls.
+FACTORY = {REPO / "src" / "outputs" / "factory.py", REPO / "src" / "outputs" / "registry.py"}
+CONSTRUCTORS = {
+    "BoardClient",
+    "NoteArrayLocalClient",
+    "VirtualBoardClient",
+    "build_vestaboard_driver",
+    "build_fiestapanel_driver",
+    "board_client_from_board_dict",
+}
 
 
 def _driver_constructions(root: Path) -> list[str]:
     found: list[str] = []
     for path in sorted(root.rglob("*.py")):
-        if path in CLIENT_MODULES or path == FACTORY:
+        if path in CLIENT_MODULES or path in FACTORY:
             continue
         for node in ast.walk(ast.parse(path.read_text())):
             if not isinstance(node, ast.Call):
@@ -143,7 +152,7 @@ class TestOneFactory:
     def test_the_scan_sees_a_planted_construction(self, tmp_path):
         planted = tmp_path / "src" / "planted.py"
         planted.parent.mkdir()
-        planted.write_text("def f(b):\n    return board_client_from_board_dict(b)\n")
+        planted.write_text("def f(b):\n    return build_vestaboard_driver(b)\n")
         assert len(_driver_constructions(planted.parent)) == 1
 
 
