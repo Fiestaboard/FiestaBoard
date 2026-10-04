@@ -256,8 +256,8 @@ class DisplayService:
     def __init__(self):
         """Initialize the display service."""
         self.running = True
-        # Set by :meth:`wake` (an active-page change): the run loop's 1 s idle
-        # step ends at once and runs an engine pass.
+        # Set by :meth:`wake` (an active-page change): the run loop's next 1 s
+        # step runs an engine pass instead of waiting for the poll tick.
         self._wake = threading.Event()
         # One runtime per configured board (keyed by board id). All per-board
         # display state lives on the runtime; ``self.vb_client`` and the
@@ -1231,7 +1231,7 @@ class DisplayService:
         return True
 
     def wake(self) -> None:
-        """Run an engine pass now rather than at the next poll tick.
+        """Run an engine pass on the run loop's next 1 s step, not at the next poll tick.
 
         Called when what a board should show changed (the active page was
         set): the engine catches every board up — and records what it shows —
@@ -1240,10 +1240,9 @@ class DisplayService:
         """
         self._wake.set()
 
-    def idle(self, seconds: float) -> bool:
-        """The run loop's idle step: wait up to *seconds*; True (and the wake
-        consumed) when :meth:`wake` ended it early."""
-        if self._wake.wait(seconds):
+    def take_wake(self) -> bool:
+        """Whether :meth:`wake` was called since the last time this asked (and consume it)."""
+        if self._wake.is_set():
             self._wake.clear()
             return True
         return False
@@ -2844,8 +2843,9 @@ class DisplayService:
                             primary_rt.next_collection_check = now + polling_interval
                     else:
                         primary_rt.next_collection_check = now + polling_interval
-                # Idle a second, or less: a page change wakes the engine.
-                if self.idle(1.0):
+                time.sleep(1)
+                # A page change woke the engine: its pass runs on this step.
+                if self.take_wake():
                     engine_pass()
         except KeyboardInterrupt:
             logger.info("Keyboard interrupt received")

@@ -11,39 +11,51 @@ it writes nothing.
 
 from __future__ import annotations
 
-import threading
-import time
 from unittest import mock
 
 from fastapi.testclient import TestClient
 
 from tests.live_boards import install_live_boards
+from tests.test_silence_schedule_polling import service_factory  # noqa: F401  (fixture)
 from tests.test_wire_goldens import install_wire_recorder, local_flagship
 
 
-def test_a_woken_engine_stops_idling_at_once():
-    from src.main import DisplayService
-
-    service = DisplayService()
-    threading.Timer(0.05, service.wake).start()
-    started = time.monotonic()
-    assert service.idle(5.0) is True
-    assert time.monotonic() - started < 2.0
-
-
-def test_an_engine_nobody_wakes_idles_out_its_step():
-    from src.main import DisplayService
-
-    assert DisplayService().idle(0.01) is False
-
-
-def test_a_wake_is_consumed_by_the_idle_step_it_ends():
+def test_a_wake_is_taken_once():
     from src.main import DisplayService
 
     service = DisplayService()
     service.wake()
-    assert service.idle(0.01) is True
-    assert service.idle(0.01) is False
+    assert service.take_wake() is True
+    assert service.take_wake() is False
+
+
+def test_an_engine_nobody_woke_has_nothing_to_take():
+    from src.main import DisplayService
+
+    assert DisplayService().take_wake() is False
+
+
+def test_the_run_loop_runs_a_pass_on_the_step_after_a_wake(service_factory):  # noqa: F811
+    """Without the wake the loop would wait for the (patched-out) poll schedule."""
+    svc, _mocks, _pages = service_factory(is_silence=False)
+    ticks = {"n": 0}
+
+    def fake_sleep(_seconds):
+        ticks["n"] += 1
+        if ticks["n"] == 2:
+            svc.wake()
+        if ticks["n"] >= 4:
+            svc.running = False
+
+    with (
+        mock.patch.object(svc, "check_and_send_active_page", return_value=False) as drive,
+        mock.patch.object(svc, "_silence_state_changed", return_value=False),
+        mock.patch("src.main.schedule"),
+        mock.patch("src.main.time.sleep", fake_sleep),
+    ):
+        svc.run()
+    # The initial pass, then exactly one more: the woken step's.
+    assert drive.call_count == 2
 
 
 def test_setting_the_active_page_wakes_the_engine(monkeypatch):
