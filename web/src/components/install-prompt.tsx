@@ -5,6 +5,7 @@ import { Download, X } from "lucide-react";
 import { useEffect, useState } from "react";
 
 import { useTranslations } from "@/i18n/translations";
+import { isPanelPath } from "@/lib/chromeless";
 
 interface BeforeInstallPromptEvent extends Event {
   prompt: () => Promise<void>;
@@ -97,8 +98,10 @@ export function InstallPrompt() {
     localStorage.setItem("pwa-install-dismissed", Date.now().toString());
   };
 
-  // Don't render anything if already installed or not visible
-  if (isInstalled || !isVisible || !deferredPrompt) {
+  // Don't render anything if already installed or not visible — nor on the
+  // FiestaPanel viewer: a TV showing a board is chromeless, and a toast
+  // would sit on the board until someone walks up to dismiss it.
+  if (isInstalled || !isVisible || !deferredPrompt || isPanelPath(window.location.pathname)) {
     return null;
   }
 
