@@ -204,8 +204,11 @@ Names you will meet:
   checkout instead, `docs/internal/development/FIRST_PARTY_OUTPUTS.md`)
   through the output-plugin path the first time the registry is asked for.
   Only an id core drives itself and the lock pins as loadable is
-  first-party; an installed plugin with either id is refused before it is
-  imported, and the seed never installs them as plugins. They are never
+  first-party. Boot also gives each an installed copy (a checkout of its
+  repository) that the Integrations page updates in-app through the three
+  `output_api` gates; it runs only when valid and newer than the seed's
+  pin, else the seed's copy does (a refused newer copy is a surfaced
+  fallback), and no copy from another repository ever runs. They are never
   beta-gated, never replaceable (`plugin=False`), each instance built from the board's legacy flat fields
   by the plugin's `config_from_board` (settings v4 moves them), driven by
   `OutputPluginDriver` in **first-party mode** (inline writes, no budget or

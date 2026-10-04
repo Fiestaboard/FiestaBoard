@@ -1054,6 +1054,9 @@ function InstalledPluginRow({
   const categoryLabels = useCategoryLabels();
 
   const isExternal = plugin.source?.source_type !== "builtin";
+  // A first-party output (Vestaboard, FiestaPanel) updates here like any
+  // plugin, but FiestaBoard needs it: the server refuses to uninstall it.
+  const canUninstall = isExternal && plugin.required !== true;
   const hasUpdate = plugin.update_available === true;
   const isInstance = !!plugin.instance_label;
   // Transitions have no polling loop, so `PluginRegistry.get_transition_plugin()`
@@ -1573,7 +1576,7 @@ function InstalledPluginRow({
           )}
         </Stack>
         <SheetFooter className="flex-col gap-2 sm:flex-row">
-          {isExternal && onUninstall && (
+          {canUninstall && onUninstall && (
             <Button
               variant="destructive"
               className="sm:mr-auto"
@@ -1769,7 +1772,7 @@ function InstalledPluginRow({
                     </DropdownMenuItem>
                   </>
                 )}
-                {isExternal && onUninstall && !isInstance && (
+                {canUninstall && onUninstall && !isInstance && (
                   <>
                     <DropdownMenuSeparator />
                     <DropdownMenuItem

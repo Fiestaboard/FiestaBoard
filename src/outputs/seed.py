@@ -36,9 +36,11 @@ what the seed holds is exactly what that copy says.
 **Runtime** reads the seed only:
 
 - :mod:`src.outputs.first_party` loads the first-party outputs core drives
-  itself (Vestaboard, FiestaPanel) straight from their seed copies, digest
-  checked; they are never installed as plugins, so :func:`seeded_output`
-  does not offer them;
+  itself (Vestaboard, FiestaPanel) from their seed copies, digest checked,
+  unless a valid installed copy is newer; :func:`install_first_party_outputs`
+  gives each its installed copy at boot (the one in-app updates move). They
+  are never installed or offered the way a seeded third-party output is, so
+  :func:`seeded_output` leaves them out;
 - :func:`install_seeded_outputs_for_boards` — at boot, a board whose
   ``output`` names a seeded plugin that is not installed gets it copied from
   the seed into the external plugins directory (offline);
@@ -338,6 +340,11 @@ def seeded_output(plugin_id: str, root: Path | None = None) -> SeedCopy | None:
     """
     if plugin_id in FIRST_PARTY_OUTPUTS:
         return None
+    return _seed_copy(plugin_id, root)
+
+
+def _seed_copy(plugin_id: str, root: Path | None = None) -> SeedCopy | None:
+    """The seed's loadable copy of *plugin_id*, first-party outputs included."""
     root = root if root is not None else seed_root()
     entry = seeded_entries(root).get(plugin_id)
     if entry is None or not entry.loadable:
@@ -356,10 +363,15 @@ def install_from_seed(plugin_id: str, external_dir: Path, root: Path | None = No
     copy = seeded_output(plugin_id, root)
     if copy is None:
         return False, f"'{plugin_id}' is not a loadable seeded output"
-    target = Path(external_dir) / plugin_id
+    return _copy_into_place(copy, Path(external_dir))
+
+
+def _copy_into_place(copy: SeedCopy, external_dir: Path) -> tuple[bool, str]:
+    plugin_id = copy.entry.plugin_id
+    target = external_dir / plugin_id
     if target.exists():
         return False, f"{target} already exists"
-    tmp = Path(external_dir) / f".{plugin_id}{_TMP_SUFFIX}"
+    tmp = external_dir / f".{plugin_id}{_TMP_SUFFIX}"
     shutil.rmtree(tmp, ignore_errors=True)
     try:
         shutil.copytree(copy.path, tmp, symlinks=True)
@@ -411,4 +423,110 @@ def install_seeded_outputs_for_boards(
             installed.append(plugin_id)
         else:
             logger.error("A board names output '%s' but it could not be installed from the seed: %s", plugin_id, err)
+    return installed
+
+
+# --- the first-party outputs' installed copies (plan D8) ----------------------------------
+
+
+def checkout_origin(path: Path) -> str | None:
+    """The ``origin`` remote URL of the checkout at *path*, read from its
+    ``.git/config`` (no subprocess); ``None`` when it has none."""
+    try:
+        text = (Path(path) / ".git" / "config").read_text(encoding="utf-8")
+    except OSError:
+        return None
+    in_origin = False
+    for raw in text.splitlines():
+        line = raw.strip()
+        if line.startswith("["):
+            in_origin = re.fullmatch(r'\[remote\s+"origin"\]', line) is not None
+            continue
+        match = re.fullmatch(r"url\s*=\s*(\S+)", line) if in_origin else None
+        if match:
+            return match.group(1)
+    return None
+
+
+def same_repository(url: str | None, repository: str) -> bool:
+    """Whether *url* names *repository* (case, a trailing ``/`` or ``.git`` aside)."""
+
+    def norm(value: str) -> str:
+        value = value.strip().rstrip("/")
+        return (value[:-4] if value.endswith(".git") else value).lower()
+
+    return isinstance(url, str) and norm(url) == norm(repository)
+
+
+def manifest_version(path: Path) -> tuple[int, int, int] | None:
+    """The ``X.Y.Z`` version of the plugin at *path*; ``None`` when unreadable."""
+    try:
+        manifest = json.loads((Path(path) / "manifest.json").read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return None
+    version = manifest.get("version") if isinstance(manifest, dict) else None
+    match = re.match(r"(\d+)\.(\d+)\.(\d+)", version) if isinstance(version, str) else None
+    return (int(match.group(1)), int(match.group(2)), int(match.group(3))) if match else None
+
+
+def first_party_seed_copy(plugin_id: str, root: Path | None = None) -> SeedCopy | None:
+    """The seed's copy of first-party output *plugin_id*, or ``None``."""
+    return _seed_copy(plugin_id, root) if plugin_id in FIRST_PARTY_OUTPUTS else None
+
+
+def install_first_party_outputs(*, external_dir: Path, root: Path | None = None) -> list[str]:
+    """At boot: give each first-party output an updatable installed copy in
+    *external_dir* — a checkout of its own repository at the seed's pinned
+    commit, copied from the seed (offline). Returns the ids installed.
+
+    An existing copy stays when it is a checkout of the output's repository
+    at the pinned version or newer (an update applied in-app). Otherwise the
+    seed's copy replaces it: one older than the pin (the image was upgraded
+    past it) is removed, and one from **another** repository is set aside as
+    ``.<id>.set-aside-<time>`` (never run, never deleted): nothing but the
+    output's own repository ever takes a first-party id.
+    """
+    import time
+
+    external_dir = Path(external_dir)
+    installed: list[str] = []
+    for plugin_id in sorted(FIRST_PARTY_OUTPUTS):
+        copy = _seed_copy(plugin_id, root)
+        if copy is None:
+            continue
+        target = external_dir / plugin_id
+        discard: Path | None = None
+        if target.exists():
+            origin = checkout_origin(target)
+            ours = same_repository(origin, copy.entry.repository)
+            have, pinned = manifest_version(target), manifest_version(copy.path)
+            if ours and have is not None and (pinned is None or have >= pinned):
+                continue
+            reason = (
+                "it is older than the copy this FiestaBoard carries"
+                if ours
+                else f"it comes from {origin or 'no git repository'}, not {copy.entry.repository}"
+            )
+            aside = external_dir / f".{plugin_id}.{'replaced' if ours else 'set-aside'}-{time.time_ns()}"
+            try:
+                target.rename(aside)
+            except OSError as exc:
+                logger.error(
+                    "Could not replace the installed copy of first-party output %s (%s): %s", plugin_id, reason, exc
+                )
+                continue
+            logger.warning(
+                "The installed copy of first-party output %s is replaced by the seed's: %s", plugin_id, reason
+            )
+            if ours:
+                discard = aside
+            else:
+                logger.warning("The replaced copy of %s is kept, never run, at %s", plugin_id, aside)
+        ok, err = _copy_into_place(copy, external_dir)
+        if discard is not None:
+            shutil.rmtree(discard, ignore_errors=True)
+        if ok:
+            installed.append(plugin_id)
+        else:
+            logger.error("First-party output %s has no installed copy and runs from the seed: %s", plugin_id, err)
     return installed

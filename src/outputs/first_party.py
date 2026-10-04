@@ -18,13 +18,24 @@ loadable in the seed's lock loads here, and only a seed copy whose tree
 digest matches the lock's ``tree_sha256`` (checked at every load, so a
 corrupted or hand-edited copy is refused, never run). An id the lock does not
 list is not first-party: nothing is loaded for it and its boards stay down
-with the reason logged. Updates arrive as a bumped pin in core's lockfile:
-the image build verifies the commit, digest and ``output_api`` (the seed
-build), and this load verifies digest and ``output_api`` again; rolling back
-is rolling back the image. There is no in-app update path for them, and an
-installed plugin can never stand in for one (:func:`is_first_party_output`;
-the plugin loader refuses such a copy before importing it, and the seed
-never installs them as plugins).
+with the reason logged.
+
+**In-app updates** (plan D8). Boot gives each one an **installed copy** in
+the external plugins directory, copied from the seed
+(:func:`~src.outputs.seed.install_first_party_outputs`): a checkout of its
+own repository that the Integrations page checks and updates like any plugin,
+through the same three ``output_api`` gates — the update check reads the
+incoming manifest, a release that does not load is rolled back to the commit
+it replaced, and this module's load decides what runs. :func:`load_first_party`
+runs the installed copy only when it is **valid and newer than the seed's
+pin**: a checkout of the output's own repository (a copy from anywhere else
+is never run, whatever its id), a supported ``output_api``, a passing install
+self-check, and an import that works. Otherwise the seed's verified copy
+runs: silently when the installed copy is the pinned tree or older (an image
+upgrade never runs older code), and as a surfaced error (``fallback``) when
+it is newer but invalid — the last resort, which also makes an update that
+caused it roll back. The seed alone still boots everything offline. They can
+be updated, never uninstalled, and never installed from anywhere else.
 
 **Contributors** point an output at a local checkout of its repository with
 ``FIESTABOARD_DEV_OUTPUT_<ID>`` (``FIESTABOARD_DEV_OUTPUT_VESTABOARD=/path``):
@@ -69,7 +80,16 @@ from typing import TYPE_CHECKING, Literal
 from .hooks import OutputDiagnostics, OutputHooks
 from .plugin_base import OutputPluginBase
 from .registry import FIESTAPANEL, FIRST_PARTY_OUTPUTS, OutputDefinition, OutputRegistry
-from .seed import LOCKFILE, LockError, seed_root, seeded_entries, tree_digest
+from .seed import (
+    LOCKFILE,
+    LockError,
+    checkout_origin,
+    manifest_version,
+    same_repository,
+    seed_root,
+    seeded_entries,
+    tree_digest,
+)
 
 if TYPE_CHECKING:
     from src.plugins.manifest import PluginManifest
@@ -91,6 +111,7 @@ __all__ = [
     "is_first_party_output",
     "load_first_party",
     "register_first_party_outputs",
+    "reload_first_party",
 ]
 
 #: The package namespace a first-party output is imported under.
@@ -118,9 +139,10 @@ class FirstPartySource:
 
     output_id: str
     path: Path
-    #: ``seed`` (digest-verified against the lock) or ``dev`` (an override).
-    origin: Literal["seed", "dev"]
-    #: The pinned commit (``None`` for a dev override).
+    #: ``seed`` (digest-verified against the lock), ``installed`` (the
+    #: copy in-app updates move, when valid and newer) or ``dev`` (an override).
+    origin: Literal["seed", "installed", "dev"]
+    #: The pinned commit (``None`` for an installed copy or a dev override).
     commit: str | None
     #: The ``output_api`` the lock pins (``None`` for a dev override).
     output_api: int | None = None
@@ -133,6 +155,9 @@ class FirstPartyOutput:
     plugin_class: type[OutputPluginBase]
     manifest: PluginManifest
     source: FirstPartySource
+    #: Why the installed copy was refused and the seed's runs instead
+    #: (an error to surface), or ``None``.
+    fallback: str | None = None
 
 
 def dev_override_env(output_id: str) -> str:
@@ -241,19 +266,105 @@ def first_party_module(output_id: str) -> ModuleType:
     return import_first_party_package(first_party_source(output_id))
 
 
-def load_first_party(output_id: str, seed_dir: Path | None = None) -> FirstPartyOutput:
-    """Load first-party output *output_id* from the seed (or its dev override).
+def _external_plugins_dir() -> Path | None:
+    from src.plugins.sources import get_external_plugins_dir
+
+    try:
+        return get_external_plugins_dir()
+    except OSError as exc:
+        logger.warning("No external plugins directory, so no installed first-party outputs: %s", exc)
+        return None
+
+
+def _installed_source(output_id: str, seed: FirstPartySource, external_dir: Path | None) -> FirstPartySource | None:
+    """The installed copy of *output_id* to run instead of the seed's, or
+    ``None`` when the seed's runs (no copy, the pinned tree, or not newer).
 
     Raises:
-        FirstPartyOutputError: it cannot be found or is refused
-            (:func:`first_party_source`), its manifest does not validate, is
-            not an output plugin of that id, declares another ``output_api``
-            than the lock pins, or the package exports no single
-            ``OutputPluginBase`` subclass.
+        FirstPartyOutputError: there is a copy, newer than the seed's, but it
+            is not a checkout of the output's own repository.
+    """
+    if external_dir is None:
+        return None
+    path = Path(external_dir) / output_id
+    if not (path / "manifest.json").is_file():
+        return None
+    pin = seeded_entries(seed.path.parent).get(output_id)
+    if pin is None:
+        return None
+    try:
+        if tree_digest(path) == pin.tree_sha256:
+            return None  # the pinned tree: the seed's verified copy is the same code
+    except LockError as exc:
+        raise FirstPartyOutputError(f"{output_id}: the installed copy at {path} is unusable: {exc}") from exc
+    have, pinned = manifest_version(path), manifest_version(seed.path)
+    if have is not None and pinned is not None and have <= pinned:
+        return None  # never older than the image's own copy (boot replaces it)
+    origin = checkout_origin(path)
+    if not same_repository(origin, pin.repository):
+        raise FirstPartyOutputError(
+            f"{output_id}: the installed copy at {path} comes from {origin or 'no git repository'}, "
+            f"not {pin.repository}; only the output's own repository may update it"
+        )
+    return FirstPartySource(output_id, path, "installed", None)
+
+
+def load_first_party(
+    output_id: str, seed_dir: Path | None = None, external_dir: Path | None = None
+) -> FirstPartyOutput:
+    """Load first-party output *output_id*: its dev override, else the
+    installed copy when it is valid and newer than the seed's, else the seed.
+
+    The installed copy lives in the external plugins directory
+    (*external_dir*, default the loader's), where the Integrations page
+    updates it like any plugin (plan D8). It is **valid** when it is a
+    checkout of the output's own repository, its manifest validates with a
+    supported ``output_api``, it passes the install self-check and it
+    imports. An invalid one is refused and the seed's copy runs; that is
+    reported in :attr:`FirstPartyOutput.fallback` and logged as an error.
+
+    Raises:
+        FirstPartyOutputError: the seed's copy cannot be found or is refused
+            (:func:`first_party_source`), or does not load (see
+            :func:`_load_source`); or the dev override does not load.
+    """
+    seed = first_party_source(output_id, seed_dir)
+    if seed.origin == "dev":
+        return _load_source(seed)
+    if external_dir is None:
+        external_dir = _external_plugins_dir()
+    refusal: str | None = None
+    try:
+        installed = _installed_source(output_id, seed, external_dir)
+        if installed is not None:
+            return _load_source(installed)
+    except FirstPartyOutputError as exc:
+        refusal = str(exc)
+    except Exception as exc:
+        refusal = f"{output_id}: the installed copy does not import: {exc}"
+    loaded = _load_source(seed)
+    if refusal is None:
+        return loaded
+    message = (
+        f"The installed copy of first-party output '{output_id}' cannot run ({refusal}). Running the copy "
+        f"bundled with FiestaBoard (commit {(seed.commit or '?')[:12]}) instead; update or reinstall it."
+    )
+    logger.error(message)
+    return FirstPartyOutput(loaded.plugin_class, loaded.manifest, loaded.source, fallback=message)
+
+
+def _load_source(source: FirstPartySource) -> FirstPartyOutput:
+    """Load the package at *source*.
+
+    Raises:
+        FirstPartyOutputError: its manifest does not validate, is not an
+            output plugin of that id, declares another ``output_api`` than the
+            lock pins, an installed copy fails its install self-check, or the
+            package exports no single ``OutputPluginBase`` subclass.
     """
     from src.plugins.manifest import load_manifest
 
-    source = first_party_source(output_id, seed_dir)
+    output_id = source.output_id
     manifest, errors = load_manifest(source.path / "manifest.json")
     if errors or manifest is None:
         raise FirstPartyOutputError(f"{output_id}: manifest.json is invalid: {'; '.join(errors)}")
@@ -263,6 +374,14 @@ def load_first_party(output_id: str, seed_dir: Path | None = None) -> FirstParty
         raise FirstPartyOutputError(
             f"{output_id}: manifest output_api is {manifest.output.output_api}, the lock pins {source.output_api}"
         )
+    if source.origin == "installed":
+        from src.plugins.install_check import validate_install
+
+        check = validate_install(output_id, source.path, manifest)
+        if check.errors:
+            raise FirstPartyOutputError(
+                f"{output_id}: the installed copy fails its self-check: {'; '.join(check.errors)}"
+            )
     module = import_first_party_package(source)
     classes = [
         value
@@ -276,6 +395,8 @@ def load_first_party(output_id: str, seed_dir: Path | None = None) -> FirstParty
         plugin_class.plugin_id = manifest.id
     if source.origin == "seed":
         logger.info("Loaded first-party output %s from the seed (commit %s)", output_id, source.commit)
+    elif source.origin == "installed":
+        logger.info("Loaded first-party output %s %s from its installed copy", output_id, manifest.version)
     return FirstPartyOutput(plugin_class, manifest, source)
 
 
@@ -327,7 +448,34 @@ def _hooks(plugin_class: type[OutputPluginBase]) -> OutputHooks:
 
 def first_party_definition(output_id: str) -> OutputDefinition:
     """The registry entry of first-party output *output_id*."""
-    loaded = load_first_party(output_id)
+    return _definition(load_first_party(output_id))
+
+
+def reload_first_party(
+    output_id: str, *, seed_dir: Path | None = None, external_dir: Path | None = None
+) -> FirstPartyOutput:
+    """Load first-party output *output_id* again (:func:`load_first_party`)
+    and make what loaded the output registry's entry for it — still a
+    first-party entry, never a plugin one. The plugin loader calls this for
+    the output's installed copy (boot, update, reload). An entry already
+    built from the same plugin class is kept, so a board's runtime is only
+    rebuilt when the code that drives it changed.
+
+    Raises:
+        FirstPartyOutputError: see :func:`load_first_party`.
+    """
+    from .registry import output_registry
+
+    loaded = load_first_party(output_id, seed_dir, external_dir)
+    registry = output_registry()
+    current = registry.get(output_id)
+    if current is None or current.plugin_class is not loaded.plugin_class:
+        registry.put_first_party(_definition(loaded))
+    return loaded
+
+
+def _definition(loaded: FirstPartyOutput) -> OutputDefinition:
+    output_id = loaded.source.output_id
     manifest = loaded.manifest
     output_manifest = manifest.output
     assert output_manifest is not None

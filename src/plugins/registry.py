@@ -20,6 +20,7 @@ from pathlib import Path
 from typing import Any, Optional
 
 from src.devices import BoardContext
+from src.outputs.first_party import is_first_party_output
 from src.outputs.seed import install_from_seed
 
 from .base import OptionsRequest, OptionsResult, PluginBase, PluginResult, normalise
@@ -218,6 +219,11 @@ def boards_using_output(output_id: str) -> list[str]:
     from src.outputs.registry import resolve_output_id
 
     return [str(b.get("name") or b.get("id") or "?") for b in _saved_boards() if resolve_output_id(b) == output_id]
+
+
+def _first_party_refusal(plugin_id: str, verb: str) -> str:
+    """Why first-party output *plugin_id* cannot be *verb* (plan D8)."""
+    return f"'{plugin_id}' comes with FiestaBoard: it can be updated from the Integrations page, but not {verb}."
 
 
 class PluginRegistry:
@@ -570,19 +576,27 @@ class PluginRegistry:
         """Install from the image's seed every output plugin a board names
         that is not installed (plan D8): offline, no registry, no GitHub.
 
-        Vestaboard and FiestaPanel are never installed this way: core loads
-        them from the seed itself (:mod:`src.outputs.first_party`).
+        Vestaboard and FiestaPanel always get an installed copy, whatever the
+        boards name: the copy the Integrations page updates in-app. One older
+        than the seed's pin, or from another repository, is replaced by the
+        seed's (:func:`src.outputs.seed.install_first_party_outputs`).
         A failure is logged, never raised: the board then reports its output
-        as not installed, exactly as without a seed.
+        as not installed, exactly as without a seed; a first-party output
+        then runs from the seed itself.
         """
         external_dirs = list(self._loader._external_dirs)
         if not external_dirs:
             return []
-        try:
-            from src.outputs.seed import install_seeded_outputs_for_boards
+        from src.outputs.seed import install_first_party_outputs, install_seeded_outputs_for_boards
 
+        installed: list[str] = []
+        try:
+            installed += install_first_party_outputs(external_dir=external_dirs[0], root=self._loader.seed_dir)
+        except Exception:
+            logger.exception("Could not install the first-party outputs from the seed")
+        try:
             boards = _saved_boards()
-            return install_seeded_outputs_for_boards(
+            installed += install_seeded_outputs_for_boards(
                 boards,
                 plugin_dirs=[self._loader.plugins_dir, *external_dirs],
                 external_dir=external_dirs[0],
@@ -590,7 +604,7 @@ class PluginRegistry:
             )
         except Exception:
             logger.exception("Could not install seeded output plugins for the saved boards")
-            return []
+        return installed
 
     @staticmethod
     def _overlaid(plugin_id: str, stored_config: dict[str, Any]) -> dict[str, Any]:
@@ -1520,6 +1534,8 @@ class PluginRegistry:
                 "source": source.to_dict() if source else {"source_type": "builtin"},
                 "update_available": self._update_status.get(plugin_id, False),
                 "update_blocked_reason": self._update_blocked.get(plugin_id, ""),
+                # Vestaboard and FiestaPanel: updated in-app, never uninstalled.
+                "required": is_first_party_output(base_id),
                 "supports_triggers": manifest.supports_triggers if manifest else False,
                 "instance_label": instance_label,
                 "base_plugin_id": base_id,
@@ -1689,7 +1705,7 @@ class PluginRegistry:
             # Disabled plugins (with no enabled instance) aren't running any
             # code — don't generate git traffic keeping them fresh. They are
             # brought up to date when re-enabled instead.
-            if not self._plugin_in_use(plugin_id):
+            if not self._update_check_wanted(plugin_id):
                 continue
             local_path = Path(source.local_path)
             check = check_plugin_update_available(local_path)
@@ -1708,6 +1724,21 @@ class PluginRegistry:
             self._update_status = results
             self._update_blocked = blocked
         return results
+
+    def _update_check_wanted(self, plugin_id: str) -> bool:
+        """Whether *plugin_id* runs code worth keeping fresh: a data plugin
+        that is enabled (or has an enabled instance); an output plugin that a
+        board uses; a first-party output always (it is never disabled)."""
+        if is_first_party_output(plugin_id):
+            return True
+        manifest = self.get_manifest(plugin_id)
+        if manifest is not None and manifest.plugin_type == "output":
+            try:
+                return bool(boards_using_output(plugin_id))
+            except Exception:
+                logger.exception("Could not read the saved boards; checking output plugin '%s' anyway", plugin_id)
+                return True
+        return self._plugin_in_use(plugin_id)
 
     def get_update_status(self) -> dict[str, bool]:
         """Return cached update status from the last check_for_updates() call."""
@@ -1830,6 +1861,8 @@ class PluginRegistry:
         Returns:
             List of error messages (empty on success).
         """
+        if is_first_party_output(plugin_id):
+            return [_first_party_refusal(plugin_id, "installed from elsewhere")]
         entries = load_registry()
         entry = next((e for e in entries if e.plugin_id == plugin_id), None)
         if entry is None:
@@ -1890,18 +1923,20 @@ class PluginRegistry:
         Returns:
             List of error messages (empty on success).
         """
+        # Determine the id if not given
+        target_id = plugin_id
+        if target_id is None:
+            from .sources import plugin_id_from_repo_name, repo_name_from_url
+
+            target_id = plugin_id_from_repo_name(repo_name_from_url(repo_url))
+        if is_first_party_output(target_id):
+            return [_first_party_refusal(target_id, "installed from elsewhere")]
+
         ok, err = install_git_plugin(repo_url, plugin_id=plugin_id, branch=branch)
         if not ok:
             return [err]
 
-        # Determine the id if not given
-        if plugin_id is None:
-            from .sources import plugin_id_from_repo_name, repo_name_from_url
-
-            repo_name = repo_name_from_url(repo_url)
-            plugin_id = plugin_id_from_repo_name(repo_name)
-
-        return self._load_installed(plugin_id, f"git plugin from {repo_url}")
+        return self._load_installed(target_id, f"git plugin from {repo_url}")
 
     def uninstall_external_plugin(self, plugin_id: str) -> list[str]:
         """Remove an external (non-built-in) plugin.
@@ -1919,6 +1954,8 @@ class PluginRegistry:
             return [f"Plugin not found: {plugin_id}"]
         if source.source_type == "builtin":
             return ["Cannot uninstall a built-in plugin"]
+        if is_first_party_output(plugin_id):
+            return [_first_party_refusal(plugin_id, "uninstalled")]
 
         # An output plugin that drives a board stays (plan D8): removing it
         # would take the board dark. Checked before anything is touched, and

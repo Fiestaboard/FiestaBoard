@@ -24,6 +24,7 @@ from __future__ import annotations
 import shutil
 import threading
 import time
+from dataclasses import replace
 from pathlib import Path
 
 import pytest
@@ -114,14 +115,20 @@ class TestLoader:
         shutil.copytree(FIXTURES / PLUGIN_ID, target)
         manifest = (target / "manifest.json").read_text("utf-8").replace(f'"{PLUGIN_ID}"', f'"{VESTABOARD}"')
         (target / "manifest.json").write_text(manifest, "utf-8")
+        sentinel = tmp_path / "imported"
+        (target / "__init__.py").write_text(f"open({str(sentinel)!r}, 'w').close()\n", "utf-8")
         loader = PluginLoader(plugins_dir=tmp_path, external_dirs=[])
-        assert loader.load_plugin(VESTABOARD) is None
-        # Refused before its code is imported (src/plugins/loader.py); the
-        # registry's own refusal (put_plugin) stands behind it.
-        assert any(
-            "first-party output FiestaBoard loads from its bundled seed" in e for e in loader.load_errors[VESTABOARD]
-        )
-        assert output_registry().get(VESTABOARD).plugin is False
+        loader.load_plugin(VESTABOARD)
+        # The id belongs to the first-party output (src/outputs/first_party.py):
+        # this copy is never imported, and the Vestaboard's own code still
+        # drives its boards.
+        assert not sentinel.exists()
+        definition = output_registry().get(VESTABOARD)
+        assert definition.plugin is False
+        assert "recording" not in definition.plugin_class.__module__
+        # The registry's own refusal (put_plugin) stands behind it.
+        with pytest.raises(ValueError, match="a plugin cannot replace it"):
+            output_registry().put_plugin(replace(definition, plugin=True))
 
     def test_the_plugin_registry_lists_it_as_an_output(self, loaded, monkeypatch):
         from src.plugins.registry import PluginRegistry
