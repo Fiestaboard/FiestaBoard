@@ -261,12 +261,12 @@ export interface BoardInstance {
   /** The character set the board draws with, a FiestaUI id; `null` when unknown. Derived, never stored. */
   charset?: string | null;
   /**
-   * An output plugin's board settings, shaped by the plugin's settings schema
+   * The board's output settings, shaped by its output's settings schema
    * (`GET /outputs`); every secret reads back as `"***"`, and echoing `"***"`
    * on a PUT keeps the stored value. A Vestaboard's is its connection (the
    * same fields as the flat `api_mode`/`host`/... above, which the API still
-   * returns); a PUT may send either half, and the half that changed wins. A
-   * FiestaPanel's is `{}`.
+   * returns for other clients); this app reads and writes only this half
+   * (`toV4Write`), though the API accepts either. A FiestaPanel's is `{}`.
    */
   output_config?: Record<string, unknown>;
 }

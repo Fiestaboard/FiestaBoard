@@ -79,7 +79,7 @@ test.describe("Setup Wizard", () => {
     await expect(page.getByRole("heading", { name: "Connect Your Board" })).toBeVisible();
 
     // Select Local API mode
-    await page.getByText("Local API").click();
+    await page.getByRole("radio", { name: /Local API/ }).click();
 
     // Fill in board host and API key
     await page.getByLabel("Board IP Address").fill(BOARD_HOST);

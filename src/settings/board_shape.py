@@ -3,9 +3,11 @@
 Settings v4 stores every board with an ``output`` and an ``output_config``;
 a Vestaboard's connection (``api_mode``, ``host``, ``port``,
 ``local_api_key``, ``cloud_key``, ``note_array_token``, ``tiles``) lives in
-its ``output_config``. Every public API still answers in the flat shape, and
-today's web UI still writes it, so until the Vestaboard settings screen moves
-onto the plugin renderer (Phase 4, P4d) this module projects both ways:
+its ``output_config``. Every public API still answers in the flat shape and
+accepts flat writes — the Home Assistant add-on, tvOS and scripts depend on
+it (plan D8; removing it is a separate, announced decision) — while the web
+app writes the v4 shape (its Vestaboard screen is the plugin renderer's,
+Phase 4 P4d). So this module projects both ways:
 
 - :func:`board_view` — stored board → flat view (plus ``output`` and
   ``output_config``), for every reader and response that speaks flat fields;
