@@ -262,13 +262,14 @@ class StatePublisher:
 
     @staticmethod
     def _get_board_api_mode() -> str:
-        """Get the board API mode (Local API or Cloud API)."""
+        """Get how the primary board is connected, in the driver's own words
+        ("Local API" / "Cloud API" for a Vestaboard)."""
         try:
             from src.api_server import _get_board_client
 
             client = _get_board_client()
             if client:
-                return "Cloud API" if client.use_cloud else "Local API"
+                return client.connection_label
         except Exception:
             logger.debug("Could not get board API mode")
         return "Unknown"

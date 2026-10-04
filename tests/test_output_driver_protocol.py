@@ -51,6 +51,12 @@ EXPECTED_SURFACE = {
     "clear_cache",
     "get_cache_status",
     "test_connection",
+    # What core asks the driver instead of knowing the device
+    # (refactor/vestaboard-behind-hooks): the structured probe, the
+    # read-back capability the poll interval is chosen by, and the MQTT label.
+    "check_connection",
+    "read_back",
+    "connection_label",
 }
 
 PROTOCOL_METHODS = sorted(

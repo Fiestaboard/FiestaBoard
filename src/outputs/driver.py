@@ -21,8 +21,11 @@ kept because callers use it.
 - ``send_text`` and ``would_send`` are left out: no caller outside the
   clients uses either, and the output-plugin contract drops ``send_text``.
 - Vestaboard transport details (``host``, ``base_url``, ``headers``,
-  ``api_key``) are left out: only Vestaboard-specific code reads them, and
-  they move behind ``test_connection`` / ``diagnostics`` in a later layer.
+  ``api_key``) are left out: the connection probe is the driver's own
+  ``check_connection`` (a :class:`~src.outputs.hooks.ConnectionCheck`), and
+  what core used ``use_cloud`` for — the read-poll interval and the MQTT
+  connection label — the driver declares (``read_back``,
+  ``connection_label``).
 - Private attributes (``_last_characters``, ``_cancel_transition``, …) are
   never part of the seam. What callers used to peek at — the dedupe cache,
   the last frame sent — lives on the board's
@@ -39,6 +42,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Any, Protocol, runtime_checkable
 
 if TYPE_CHECKING:
+    from .hooks import ConnectionCheck, ReadBack
     from .runtime import OutputRuntime
     from .transitions import Animation
 
@@ -56,7 +60,7 @@ class OutputDriver(Protocol):
 
     @property
     def use_cloud(self) -> bool:
-        """True for cloud-backed boards; selects the slower read-poll interval."""
+        """True for cloud-backed boards. Core decides by :attr:`read_back` instead."""
         ...
 
     @property
@@ -167,4 +171,22 @@ class OutputDriver(Protocol):
 
     def test_connection(self) -> bool:
         """True when the device answers."""
+        ...
+
+    def check_connection(self) -> ConnectionCheck:
+        """Probe the device once: success, or a failure class with the
+        output's message and troubleshooting (``POST /config/board/test``)."""
+        ...
+
+    # --- what core asks instead of knowing the device ------------------------------
+
+    @property
+    def read_back(self) -> ReadBack:
+        """Whether and how cheaply the device's frame can be read back; core's
+        board-state poll picks its interval by ``cost``."""
+        ...
+
+    @property
+    def connection_label(self) -> str:
+        """How the board is connected, in words (MQTT ``board_api_mode``)."""
         ...

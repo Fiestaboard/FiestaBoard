@@ -380,11 +380,13 @@ async def scan_for_boards(request: BoardScanRequest = BoardScanRequest()):
     Returns:
         boards: list of discovered devices with ip, port, hostname, source
     """
-    from src.system.mdns import scan_for_boards as _scan
+    # The scan is the vestaboard output's ``discover`` hook; this legacy
+    # route stays (pinned in tests/golden/api_routes.json) and delegates.
+    from src.outputs.registry import VESTABOARD, discover_devices
 
     timeout = min(max(float(request.timeout or 4.0), 1.0), 15.0)
 
-    boards = _scan(timeout=timeout)
+    boards = discover_devices(VESTABOARD, timeout=timeout)
     return BoardScanResponse(boards=boards)
 
 

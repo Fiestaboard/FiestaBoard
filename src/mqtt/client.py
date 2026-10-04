@@ -10,7 +10,7 @@ import time
 from typing import TYPE_CHECKING, Optional
 
 from .config import MQTTConfig
-from .discovery import build_all_discovery_messages
+from .discovery import build_all_discovery_messages, primary_board_model
 
 if TYPE_CHECKING:
     from .commands import CommandHandler
@@ -182,6 +182,7 @@ class MQTTClient:
             sw_version=sw_version,
             configuration_url=configuration_url,
             page_names=page_names or [],
+            model=primary_board_model(),
         )
         for msg in messages:
             self._client.publish(

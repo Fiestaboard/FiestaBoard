@@ -17,6 +17,11 @@ Vestaboard animates no native transition), and the driver's answer is the
 one core uses at write time. Device models and character sets arrive with
 output plugins; nothing here invents them.
 
+Each entry also carries the output's **hooks** (:mod:`src.outputs.hooks`):
+what core asks the output instead of knowing its device — ``discover``,
+``diagnostics`` and named custom ``actions``. The ``vestaboard`` hooks live in
+:mod:`src.outputs.vestaboard`; ``fiestapanel`` declares none.
+
 Which output a board uses is **derived at load** — no settings field is
 written for an existing board (the v4 settings migration persists it later,
 plan D8). One precedence rule, :func:`resolve_output_id`:
@@ -36,9 +41,10 @@ from __future__ import annotations
 import logging
 import threading
 from collections.abc import Callable, Mapping
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Literal
 
+from .hooks import OutputDiagnostics, OutputHooks, UnknownOutputAction
 from .transitions import NATIVE_STRATEGIES, Animation
 
 if TYPE_CHECKING:
@@ -82,13 +88,15 @@ class OutputDefinition:
 
     ``build`` turns a saved (or draft) board dict into its driver, or
     ``None`` when the board has no usable connection. Only the runtime
-    factory (:mod:`src.outputs.factory`) calls it.
+    factory (:mod:`src.outputs.factory`) calls it. ``hooks`` are the
+    output-level questions core asks (:class:`~src.outputs.hooks.OutputHooks`).
     """
 
     id: str
     name: str
     capabilities: OutputCapabilities
     build: Callable[[dict], OutputDriver | None]
+    hooks: OutputHooks = field(default_factory=OutputHooks)
 
 
 class OutputRegistry:
@@ -150,16 +158,91 @@ def capabilities_of(output_id: str | None) -> OutputCapabilities | None:
     return definition.capabilities if definition is not None else None
 
 
+def output_name_for(board: Mapping) -> str:
+    """The display name of the output that drives *board* (``"Vestaboard"``,
+    ``"FiestaPanel"``), or its bare id when that output is not installed."""
+    output_id = resolve_output_id(board)
+    definition = output_registry().get(output_id)
+    return definition.name if definition is not None else output_id
+
+
+def discover_devices(output_id: str, timeout: float) -> list[dict]:
+    """Run *output_id*'s ``discover`` hook; ``[]`` when it declares none.
+
+    Raises:
+        UnknownOutputError: *output_id* is not registered.
+    """
+    definition = output_registry().get(output_id)
+    if definition is None:
+        raise UnknownOutputError(output_id)
+    hook = definition.hooks.discover
+    return hook(timeout) if hook is not None else []
+
+
+def diagnostics_for(board: Mapping) -> OutputDiagnostics | None:
+    """The diagnostics hook of the output that drives *board*, or ``None``
+    when that output declares none (or is not installed)."""
+    definition = output_registry().get(resolve_output_id(board))
+    return definition.hooks.diagnostics if definition is not None else None
+
+
+def output_action(output_id: str, action: str) -> Callable[..., object]:
+    """The custom action *action* of output *output_id*.
+
+    Raises:
+        UnknownOutputError: *output_id* is not registered.
+        UnknownOutputAction: the output has no action by that name.
+    """
+    definition = output_registry().get(output_id)
+    if definition is None:
+        raise UnknownOutputError(output_id)
+    fn = definition.hooks.actions.get(action)
+    if fn is None:
+        raise UnknownOutputAction(output_id, action)
+    return fn
+
+
 # --- the built-ins ---------------------------------------------------------------
 #
-# Builders import their client module lazily: the client modules import this
-# package.
+# Builders and hooks import their modules lazily: the client modules import
+# this package, and the Vestaboard hooks pull in the HTTP and host-guard
+# stacks, which nothing needs until a hook actually runs.
 
 
 def _build_vestaboard(board: dict) -> OutputDriver | None:
     from src.board_client import build_vestaboard_driver
 
     return build_vestaboard_driver(board)
+
+
+def _vestaboard_hooks() -> OutputHooks:
+    def discover(timeout: float) -> list[dict]:
+        from .vestaboard.discovery import discover as _discover
+
+        return _discover(timeout)
+
+    def run_diagnostics(board: Mapping) -> dict:
+        from .vestaboard.diagnostics import diagnose
+
+        return diagnose(board)
+
+    def advise(section: Mapping) -> list[dict]:
+        from .vestaboard.diagnostics import advise as _advise
+
+        return _advise(section)
+
+    async def enable_local_api(request: object) -> dict:
+        from .vestaboard.local_api import exchange_enablement_token
+
+        return await exchange_enablement_token(request)
+
+    from .vestaboard import ALL_CLEAR_SUMMARY
+
+    return OutputHooks(
+        discover=discover,
+        diagnostics=OutputDiagnostics(run=run_diagnostics, advise=advise, all_clear=ALL_CLEAR_SUMMARY),
+        actions={"enable_local_api": enable_local_api},
+    )
 
 
 def _build_fiestapanel(board: dict) -> OutputDriver | None:
@@ -183,6 +266,7 @@ def _builtin_registry() -> OutputRegistry:
                 native_transitions=NATIVE_STRATEGIES,
             ),
             build=_build_vestaboard,
+            hooks=_vestaboard_hooks(),
         )
     )
     registry.register(

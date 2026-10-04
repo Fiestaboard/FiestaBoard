@@ -328,13 +328,13 @@ class TestProbeVestaboardPort:
     """Test the _probe_vestaboard_port helper."""
 
     def test_returns_false_when_port_closed(self):
-        from src.system.mdns import _probe_vestaboard_port
+        from src.outputs.vestaboard.discovery import _probe_vestaboard_port
 
         # Port 1 on localhost is almost certainly not listening
         assert _probe_vestaboard_port("127.0.0.1", port=1, timeout=0.2) is False
 
     def test_returns_false_for_unreachable_host(self):
-        from src.system.mdns import _probe_vestaboard_port
+        from src.outputs.vestaboard.discovery import _probe_vestaboard_port
 
         # A connect that times out (what a non-routable address does) reads as
         # "no board here". Mocked: the suite may not leave loopback.
@@ -346,7 +346,7 @@ class TestProbeVestaboardPort:
             assert _probe_vestaboard_port("192.0.2.1", port=7000, timeout=0.2) is False
 
     def test_returns_true_when_connected(self):
-        from src.system.mdns import _probe_vestaboard_port
+        from src.outputs.vestaboard.discovery import _probe_vestaboard_port
 
         with patch("socket.socket") as mock_sock_cls:
             mock_sock = MagicMock()
@@ -359,7 +359,7 @@ class TestScanForBoards:
     """Test the scan_for_boards function."""
 
     def test_returns_list(self):
-        from src.system.mdns import scan_for_boards
+        from src.outputs.vestaboard.discovery import discover as scan_for_boards
 
         # With mocked zeroconf and no real network, should return a list
         with patch("src.system.mdns._get_local_ip", return_value="127.0.0.1"):
@@ -368,7 +368,7 @@ class TestScanForBoards:
         assert isinstance(result, list)
 
     def test_returns_empty_when_no_boards(self):
-        from src.system.mdns import scan_for_boards
+        from src.outputs.vestaboard.discovery import discover as scan_for_boards
 
         with patch("src.system.mdns._get_local_ip", return_value="127.0.0.1"):
             result = scan_for_boards(timeout=0.1)
@@ -376,7 +376,7 @@ class TestScanForBoards:
 
     def test_mdns_discovery_returns_boards(self):
         """Simulate mDNS finding a board."""
-        from src.system.mdns import scan_for_boards
+        from src.outputs.vestaboard.discovery import discover as scan_for_boards
 
         mock_info = MagicMock()
         mock_info.parsed_addresses.return_value = ["192.168.1.50"]
@@ -406,13 +406,13 @@ class TestScanForBoards:
 
     def test_port_probe_returns_boards(self):
         """Simulate finding a board via port probing."""
-        from src.system.mdns import scan_for_boards
+        from src.outputs.vestaboard.discovery import discover as scan_for_boards
 
         def fake_probe(ip, port=7000, timeout=0.5):
             return ip == "10.0.0.42"
 
         with (
-            patch("src.system.mdns._probe_vestaboard_port", side_effect=fake_probe),
+            patch("src.outputs.vestaboard.discovery._probe_vestaboard_port", side_effect=fake_probe),
             patch("src.system.mdns._get_local_ip", return_value="10.0.0.1"),
             patch("zeroconf.Zeroconf", return_value=MagicMock()),
             patch("zeroconf.ServiceBrowser", return_value=MagicMock()),
@@ -425,7 +425,7 @@ class TestScanForBoards:
 
     def test_deduplicates_mdns_and_probe(self):
         """Board found via both mDNS and port scan should appear once."""
-        from src.system.mdns import scan_for_boards
+        from src.outputs.vestaboard.discovery import discover as scan_for_boards
 
         mock_info = MagicMock()
         mock_info.parsed_addresses.return_value = ["10.0.0.42"]
@@ -445,7 +445,7 @@ class TestScanForBoards:
         with (
             patch("zeroconf.Zeroconf", return_value=mock_zc),
             patch("zeroconf.ServiceBrowser", side_effect=fake_browser),
-            patch("src.system.mdns._probe_vestaboard_port", side_effect=fake_probe),
+            patch("src.outputs.vestaboard.discovery._probe_vestaboard_port", side_effect=fake_probe),
             patch("src.system.mdns._get_local_ip", return_value="10.0.0.1"),
             patch("time.sleep"),
         ):
@@ -456,7 +456,7 @@ class TestScanForBoards:
 
     def test_graceful_when_zeroconf_missing(self):
         """scan_for_boards should not raise if zeroconf is not installed."""
-        from src.system.mdns import scan_for_boards
+        from src.outputs.vestaboard.discovery import discover as scan_for_boards
 
         with (
             patch.dict("sys.modules", {"zeroconf": None}),

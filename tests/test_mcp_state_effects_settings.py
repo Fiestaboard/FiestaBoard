@@ -901,8 +901,8 @@ def test_run_network_diagnostics_diagnoses_the_primary_boards_connection(mcp, se
     )
     seen: list[dict[str, Any]] = []
 
-    def _run(**kwargs):
-        seen.append(kwargs)
+    def _run(board):
+        seen.append(board)
         return {
             "dns": {"ok": True},
             "internet": {"ok": True},
@@ -914,7 +914,7 @@ def test_run_network_diagnostics_diagnoses_the_primary_boards_connection(mcp, se
     with patch("src.network_diagnostics.run_full_diagnostics", side_effect=_run):
         result = assert_ok(call(mcp, "run_network_diagnostics"), "run_network_diagnostics")
 
-    assert seen[0]["board_host"] == "192.0.2.10" and seen[0]["use_cloud"] is False
+    assert seen[0]["host"] == "192.0.2.10" and seen[0].get("api_mode", "local") == "local"
     assert result["overall_ok"] is True
 
 
@@ -979,7 +979,7 @@ def test_boundary_backed_read_tools_leave_every_store_untouched(mcp, services, t
     async def _probe(provider, model=None):
         return AiTestResponse(ok=True, message="ok", model_used=None)
 
-    def _diag(**_kwargs):
+    def _diag(_board):
         return {"dns": {"ok": True}, "internet": {"ok": True}, "vestaboard": {"ok": True}, "overall_ok": True}
 
     before = _persisted_files(tmp_path)

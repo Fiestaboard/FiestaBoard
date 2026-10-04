@@ -30,6 +30,7 @@ import requests
 from .output_allowlist import check_output_url
 from .outputs.floor import Admission, credential_digest
 from .outputs.frames import FrameCache
+from .outputs.hooks import ConnectionCheck, ReadBack
 from .outputs.runtime import OutputRuntime
 
 # TRANSITION_PLUGIN_PREFIX is re-exported: callers import it from here.
@@ -122,6 +123,11 @@ def _is_retryable_send_error(exc: BaseException) -> bool:
 # timeouts are unchanged from the historical 10s total.
 LOCAL_REQUEST_TIMEOUT: tuple[float, float] = (3.0, 10.0)
 CLOUD_REQUEST_TIMEOUT: tuple[float, float] = (5.0, 10.0)
+
+# What reading a board back costs, and how often core's board-state poll
+# should do it by default (the polling settings' local/cloud defaults).
+LOCAL_READ_BACK = ReadBack(supported=True, cost="cheap", suggested_interval_s=30)
+CLOUD_READ_BACK = ReadBack(supported=True, cost="network", suggested_interval_s=180)
 
 
 def _retry_after_seconds(response: Any, fallback: int | None) -> int | None:
@@ -254,6 +260,18 @@ class TransitionRenderMixin:
     def min_send_interval_ms(self) -> int:
         """The send floor in milliseconds; 0 when the client is unfloored."""
         return int((getattr(self, "_min_send_interval", 0) or 0) * 1000)
+
+    def check_connection(self) -> ConnectionCheck:
+        """:meth:`test_connection`, structured: a client with no richer probe
+        reports only reachable or ``unreachable``."""
+        if self.test_connection():  # type: ignore[attr-defined]
+            return ConnectionCheck(success=True, message="Successfully connected to your board!")
+        return ConnectionCheck(
+            success=False,
+            message="Could not connect to the board.",
+            failure="unreachable",
+            error="Connection error",
+        )
 
     def _init_transition_state(self) -> None:
         # The per-board send lock, cancel token and frame cache (dedupe + last
@@ -570,6 +588,30 @@ class BoardClient(TransitionRenderMixin):
         if self.use_cloud or self._is_note_array:
             return frozenset()
         return frozenset(VALID_STRATEGIES)
+
+    @property
+    def read_back(self) -> ReadBack:
+        """Reading the board back is a LAN call locally, a cloud call otherwise
+        (the RW Cloud API and the note-array Cloud API alike)."""
+        return CLOUD_READ_BACK if self.use_cloud else LOCAL_READ_BACK
+
+    @property
+    def connection_label(self) -> str:
+        """``"Cloud API"`` or ``"Local API"`` (MQTT ``board_api_mode``)."""
+        return "Cloud API" if self.use_cloud else "Local API"
+
+    def check_connection(self) -> ConnectionCheck:
+        """Probe the board once over this client's own request path.
+
+        One GET of the read endpoint, with this client's URL, headers,
+        allow-list fence and ``(connect, read)`` timeout pair; the answer is
+        classified by :func:`src.outputs.vestaboard.connection.probe`. Used
+        by ``POST /config/board/test`` on a draft driver (local and RW Cloud
+        credentials only — the wizard never probes a note array).
+        """
+        from .outputs.vestaboard.connection import probe
+
+        return probe(self.base_url, self.headers, self._request_timeout, use_cloud=self.use_cloud)
 
     @property
     def _min_send_interval(self) -> float:

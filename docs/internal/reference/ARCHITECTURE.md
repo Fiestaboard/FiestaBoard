@@ -206,6 +206,25 @@ Names you will meet:
   capabilities: the UI-only output target skips every board whose
   `delivery` is not a literal `"pull"` (an unknown output is hardware —
   fail closed).
+- **Output hooks** (`src/outputs/hooks.py`) — what core asks an output
+  instead of knowing its device. Per output, on the registry entry:
+  `discover(timeout)`, `diagnostics` (the board section of the network
+  diagnostics plus its advice) and named custom `actions`. Per board, on the
+  driver: `check_connection()` → a `ConnectionCheck` (success, a failure
+  class — `auth`, `unreachable`, `timeout`, `server_error`,
+  `unexpected_status`, `bad_response`, `blocked` — message,
+  troubleshooting), `read_back` (`supported`, `cost`: `cheap` | `network`,
+  `suggested_interval_s`; the board-state poll picks the cloud interval for
+  a `network` read) and `connection_label` (MQTT `board_api_mode`). The
+  Vestaboard answers live in `src/outputs/vestaboard/` (discovery,
+  diagnostics, connection verdicts, the `enable_local_api` action with its
+  CodeQL-recognised SSRF block); `fiestapanel` declares no hooks. The legacy
+  routes — `/config/board/scan`, `/config/board/test`,
+  `/config/board/enable-local-api`, `/debug/network-diagnostics` — stay and
+  delegate, response shapes unchanged. The MQTT device `model` is the
+  primary board's output name. `tests/test_vestaboard_output_hooks.py`
+  ratchets the Vestaboard transport literals left in `src/` outside the
+  output's modules (count only goes down; Phase 4 takes it to zero).
 - **Pull delivery** (plan D4) — a pulled board's frame is its runtime's
   last-frame store. `GET /panel/{id}/frame` serves
   `OutputRuntime.displayed_frame(rows, cols)` with core's **stale-shape

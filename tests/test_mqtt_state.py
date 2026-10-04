@@ -209,9 +209,10 @@ class TestStatePublisherDiagnostics:
         page_svc.get_page.return_value = None
         page_svc.list_pages.return_value = []
         get_page.return_value = page_svc
-        mock_board_client = MagicMock()
-        mock_board_client.use_cloud = False
-        mock_board.return_value = mock_board_client
+        # A real local driver: the label is the driver's own (connection_label).
+        from src.board_client import BoardClient
+
+        mock_board.return_value = BoardClient(api_key="test_key", host="192.0.2.10")
         mock_cm.return_value._config = {"plugins": {}}
         pub = StatePublisher(mock_client)
         pub.gather_and_publish()

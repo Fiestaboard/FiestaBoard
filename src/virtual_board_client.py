@@ -20,11 +20,13 @@ import logging
 from typing import Any
 
 from .board_client import (
+    LOCAL_READ_BACK,
     VALID_STRATEGIES,
     TransitionRenderMixin,
     TransitionStrategy,
 )
 from .devices import resolve_dimensions
+from .outputs.hooks import ReadBack
 
 logger = logging.getLogger(__name__)
 
@@ -178,6 +180,18 @@ class VirtualBoardClient(TransitionRenderMixin):
     def test_connection(self) -> bool:
         """A virtual board is always reachable."""
         return True
+
+    @property
+    def read_back(self) -> ReadBack:
+        """The frame is read from core's store in memory: always cheap."""
+        return LOCAL_READ_BACK
+
+    @property
+    def connection_label(self) -> str:
+        """MQTT ``board_api_mode`` has always said "Local API" for a panel
+        (it was derived from ``use_cloud``); kept so the sensor's value does
+        not change under existing installs."""
+        return "Local API"
 
 
 def build_fiestapanel_driver(board: dict) -> VirtualBoardClient:

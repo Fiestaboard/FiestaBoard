@@ -397,9 +397,9 @@ class TestDivergedReadersSeeSettings:
         with patch("src.network_diagnostics.run_full_diagnostics", return_value=verdict) as diag:
             response = client.get("/debug/network-diagnostics")
         assert response.status_code == 200
-        kwargs = diag.call_args.kwargs
-        assert kwargs["board_host"] == LIVE_HOST
-        assert kwargs["board_api_key"] == LIVE_KEY
+        board = diag.call_args.args[0]
+        assert board["host"] == LIVE_HOST
+        assert board["local_api_key"] == LIVE_KEY
 
 
 class TestNoStaleConfigFallback:

@@ -430,7 +430,9 @@ async def debug_get_system_info():
 async def debug_network_diagnostics():
     """Run network diagnostics to troubleshoot connectivity issues.
 
-    Checks DNS resolution, internet connectivity, and Vestaboard reachability.
+    Checks DNS resolution, internet connectivity, and the primary board's
+    reachability — the last asked of the board's output (its diagnostics
+    hook).
     """
     from src.network_diagnostics import run_full_diagnostics
 
@@ -438,20 +440,9 @@ async def debug_network_diagnostics():
     # store. The legacy config.json copy is never consulted (issue #1760) —
     # with no boards entry the diagnostics run without board credentials.
     board = runtime._primary_board_entry() or {}
-    board_host = board.get("host") or None
-    board_port = board.get("port") or 7000
-    board_api_key = board.get("local_api_key") or None
-    use_cloud = (board.get("api_mode") or "local").lower() == "cloud"
-    cloud_key = board.get("cloud_key") or None
 
     try:
-        return run_full_diagnostics(
-            board_host=board_host,
-            board_port=board_port,
-            board_api_key=board_api_key,
-            use_cloud=use_cloud,
-            cloud_key=cloud_key,
-        )
+        return run_full_diagnostics(board)
     except Exception as e:
         logger.error(f"Error running network diagnostics: {e}")
         raise HTTPException(status_code=500, detail="Network diagnostics failed") from e
