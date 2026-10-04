@@ -771,7 +771,20 @@ function ComposerSettingsPill({
           </Text>
         </Text>
       </PopoverTrigger>
-      <PopoverContent align="start" side="top" className="w-72 p-3" label={t("composerSettings.popoverLabel")}>
+      {/* On the Select layer, not the popover one. The provider Select's
+          list portals into this popover's portal node and is positioned in
+          the root stacking context with --z-select (120); against the
+          popover's own --z-popover (135) it lost by value and opened behind
+          the popover. Sharing the layer, the list wins by coming later in
+          the document. The popover only needs to clear the chat drawer (40)
+          and the mobile header (100) it opens from, not modals. */}
+      <PopoverContent
+        align="start"
+        side="top"
+        className="w-72 p-3"
+        positionerClassName="z-[var(--z-select)]"
+        label={t("composerSettings.popoverLabel")}
+      >
         <Flex direction="col" gap="3">
           <Flex direction="col" gap="1.5">
             {/* Not a <Label>: a radiogroup takes its name from

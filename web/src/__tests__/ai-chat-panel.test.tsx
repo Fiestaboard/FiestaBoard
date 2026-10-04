@@ -1,3 +1,6 @@
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
+
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { act, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
@@ -112,6 +115,32 @@ function withPanelWidth(width: number) {
     y: 0,
     toJSON: () => ({}),
   } as DOMRect);
+}
+
+/** The design system's z-index scale (`--z-*: N;` in @fiestaboard/ui's theme.css). */
+const Z_LAYERS: Record<string, number> = Object.fromEntries(
+  [
+    ...readFileSync(resolve(__dirname, "../../node_modules/@fiestaboard/ui/dist/theme.css"), "utf8").matchAll(
+      /--(z-[a-z-]+):\s*(\d+);/g,
+    ),
+  ].map(([, name, value]) => [name, Number(value)]),
+);
+
+/**
+ * The z-index layer an element paints in: the nearest ancestor (or itself)
+ * that sets one of the scale's `z-[var(--z-…)]` classes. Throws when none
+ * does, so a renamed token fails loudly instead of comparing nothing.
+ */
+function stackingLayer(element: Element): number {
+  for (let node: Element | null = element; node; node = node.parentElement) {
+    const match = /z-\[var\(--(z-[a-z-]+)\)\]/.exec(node.getAttribute("class") ?? "");
+    if (match) {
+      const value = Z_LAYERS[match[1]];
+      if (value === undefined) throw new Error(`--${match[1]} is not on the design system's z-index scale`);
+      return value;
+    }
+  }
+  throw new Error("element is not inside any z-index layer");
 }
 
 /** Wide enough for the composer to keep the keyboard hint in the toolbar. */
@@ -1160,6 +1189,34 @@ describe("AiChatPanel", () => {
     expect(
       screen.queryByRole("combobox", { name: enMessages.aiChatPanel.providerSelectAriaLabel }),
     ).not.toBeInTheDocument();
+  });
+
+  it("opens the provider list in front of the settings popover, not behind it", async () => {
+    // jsdom paints nothing, so this checks the two things that decide what
+    // the browser paints on top. Both popups are positioned in the page's
+    // root stacking context: the Select's list is a nested portal inside the
+    // popover's portal node, and its positioner carries --z-select (120)
+    // while the popover's carried --z-popover (135). It lost by value and
+    // drew under the popover, unclickable. In front means: a layer at least
+    // the popover's, and later in the document so a tie goes to the list.
+    server.use(
+      http.get(`${API_BASE}/settings/ai`, () =>
+        HttpResponse.json({
+          ...CONFIGURED,
+          providers: [CONFIGURED_PROVIDER, { ...CONFIGURED_PROVIDER, id: "p2", name: "Second" }],
+        }),
+      ),
+    );
+    const user = userEvent.setup();
+    render(<AiChatPanel {...defaultProps} />, { wrapper: Wrapper });
+    await openComposerSettings(user);
+    await user.click(await screen.findByRole("combobox", { name: enMessages.aiChatPanel.providerSelectAriaLabel }));
+    const list = await screen.findByRole("listbox");
+    const popover = document.querySelector<HTMLElement>('[data-slot="popover-content"]');
+    expect(popover).not.toBeNull();
+
+    expect(stackingLayer(list)).toBeGreaterThanOrEqual(stackingLayer(popover!));
+    expect(popover!.compareDocumentPosition(list) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   });
 
   it("choosing Auto writes approval_mode through PUT /settings/ai and shows the one-line note", async () => {
