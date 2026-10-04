@@ -20,7 +20,8 @@ function Wrapper({ children }: { children: React.ReactNode }) {
 /** Type a model id into the "Add a model" picker and commit it, as a user without a model list would. */
 async function addModel(user: ReturnType<typeof userEvent.setup>, id: string) {
   await user.type(screen.getByRole("combobox", { name: "Add a model" }), id);
-  await user.click(await screen.findByRole("option", { name: new RegExp(id.replace(/[/.]/g, "\\$&")) }));
+  const escaped = id.replace(/[.*+?^${}()|[\]\\/]/g, "\\$&");
+  await user.click(await screen.findByRole("option", { name: new RegExp(escaped) }));
 }
 
 /** Add provider, then the "Advanced (custom endpoint)" kind: today's full form. */
