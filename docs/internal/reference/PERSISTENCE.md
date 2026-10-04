@@ -90,6 +90,42 @@ pins it, and `tests/fixtures/upgrade/` (booted by `tests/test_upgrade_fixtures.p
 holds real-shaped data directories from past releases that must keep booting to
 the same wire.
 
+### Settings v4: every board stores its output
+
+Schema v4 (output-plugins plan D8) is the first settings migration to cross
+the bridge. Each `board.boards[]` entry gains `output` and `output_config`:
+
+| Board (v3) | `output` | `output_config` |
+|---|---|---|
+| has an explicit `output` | kept | kept; flat fields dropped (they never meant anything to a plugin) |
+| `api_mode == "virtual"` | `fiestapanel` | `{}` (a panel renders to memory) |
+| anything else | `vestaboard` | its `api_mode`, `host`, `port`, `local_api_key`, `cloud_key`, `note_array_token`, `tiles`, moved out of the top level |
+
+`device_type`, geometry (`notes_*`, `grid_*`), name and display fields stay
+top-level: they describe the content's shape, which pages and previews key
+on. The migration is `_migrate_v3_to_v4` →
+`src/settings/board_shape.py::migrate_board_to_v4`, idempotent per board,
+logging the count; `settings.json.v3_backup` is the usual pre-migration
+snapshot, and it is exactly what the bridge restores on a rollback.
+
+The flat shape is still the public one until the Vestaboard settings screen
+moves onto the plugin renderer. `board_view` projects a stored board back to
+it for every response and reader (settings, `/config/board`, MCP, the
+diagnostics hook, the first-party actions), with `output` and a masked
+`output_config` added. Writes accept the flat shape, the v4 shape, or both (an
+echoed GET): `merge_board_write` resolves them against the stored board, and
+when the halves disagree the one that differs from what is stored — the one
+the client edited — wins. A Vestaboard's `"***"` echoes are restored in both
+halves by `src/outputs/vestaboard/connection.py` (tiles matched by host:port,
+then by position; they carry no id).
+
+**Rollback.** One step back, to the bridge release, boots from
+`settings.json.v3_backup` and shows the restore banner; changes made on v4 stay
+in the set-aside file. Further back, the older build refuses the v4 file: put
+`settings.json.v3_backup` in place of `settings.json` by hand first.
+`tests/test_settings_v4_output_migration.py` and the bridge module pin all of
+this, including a real upgrade rolled back onto a simulated bridge build.
+
 ## 3. A failed write is never swallowed
 
 A store write that fails must surface. Silent partial success — the change

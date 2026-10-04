@@ -219,10 +219,12 @@ Names you will meet:
   `technology` (`split_flap` | `led_matrix` | `screen`), `delivery`
   (`push` | `pull`), `animation` and `native_transitions` — the most the
   output offers in any configuration; a driver narrows them for its own
-  connection. A board's output is **derived at load**, never stored yet
-  (the settings v4 migration persists it): an explicit `output` key wins,
-  then `api_mode == "virtual"` is `fiestapanel` (legacy virtual note-array
-  panels included), else `vestaboard`. An explicit id the registry does not
+  connection. A board's output is **stored** since settings v4 (with its
+  `output_config`; see `PERSISTENCE.md`), written for existing boards by the
+  v3 -> v4 migration with the same rule that resolves a dict naming none:
+  an explicit `output` key wins, then `api_mode == "virtual"` is
+  `fiestapanel` (legacy virtual note-array panels included), else
+  `vestaboard`. An explicit id the registry does not
   know builds no driver (`UnknownOutputError`, recorded as the board's init
   error) — never a Vestaboard in its place. `GET /settings/board` and the
   v1 board summaries expose the derived `output`. Each live runtime knows its
