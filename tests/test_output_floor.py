@@ -1,7 +1,7 @@
 """Core owns the send floor, keyed by the device a driver declares.
 
 The 15 s floor (Vestaboard's documented Read/Write limit; the note-array
-Cloud API's too) used to live in ``BoardClient``: per client *instance* for
+Cloud API's too) used to live in the Vestaboard client: per client *instance* for
 RW Cloud, and in a module-level registry keyed by raw token for note arrays.
 It now lives in core (``src/outputs/floor.py``), keyed by
 ``driver.device_key()`` — host+port for a local board, a hash of the key or
@@ -26,11 +26,9 @@ from unittest.mock import Mock
 import pytest
 import requests
 
-import src.board_client as board_client_module
-from src.board_client import BoardClient
-from src.note_array_local_client import NoteArrayLocalClient
+import src.outputs.plugin_driver as plugin_driver_module
 from src.outputs.factory import build_driver
-from src.virtual_board_client import VirtualBoardClient
+from tests.first_party_drivers import cloud_driver, local_driver, note_array_cloud_driver, panel_driver, tiles_driver
 
 FLAGSHIP = (6, 22)
 
@@ -52,7 +50,7 @@ class _Clock:
 def clock(monkeypatch) -> _Clock:
     """Freeze the floor clock. Clients built after this read it."""
     fake = _Clock()
-    monkeypatch.setattr(board_client_module, "_time_module", SimpleNamespace(monotonic=fake.monotonic))
+    monkeypatch.setattr(plugin_driver_module, "_time_module", SimpleNamespace(monotonic=fake.monotonic))
     return fake
 
 
@@ -236,20 +234,17 @@ def _digest(value: str) -> str:
 
 class TestDeviceKey:
     def test_a_local_board_is_its_host_and_port(self):
-        assert BoardClient(api_key="test_key", host="192.0.2.10").device_key() == "vestaboard-local:192.0.2.10:7000"
-        assert (
-            BoardClient(api_key="test_key", host="192.0.2.10", port=7001).device_key()
-            == "vestaboard-local:192.0.2.10:7001"
-        )
+        assert local_driver("test_key", "192.0.2.10").device_key() == "vestaboard-local:192.0.2.10:7000"
+        assert local_driver("test_key", "192.0.2.10", port=7001).device_key() == "vestaboard-local:192.0.2.10:7001"
 
     def test_an_rw_cloud_board_is_a_hash_of_its_key_never_the_key(self):
-        key = BoardClient(api_key="test_secret_rw", use_cloud=True).device_key()
+        key = cloud_driver("test_secret_rw").device_key()
         assert key.startswith("vestaboard-rw-cloud:")
         assert "test_secret_rw" not in key
         assert key.split(":", 1)[1] == _digest("test_secret_rw")[:16]
 
     def test_a_note_array_cloud_board_is_a_hash_of_its_token_never_the_token(self):
-        client = BoardClient(api_key="test_secret_tok", use_cloud=True, note_array_token="test_secret_tok")
+        client = note_array_cloud_driver("test_secret_tok")
         key = client.device_key()
         assert key.startswith("vestaboard-note-array-cloud:")
         assert "test_secret_tok" not in key
@@ -259,7 +254,7 @@ class TestDeviceKey:
             {"row": 0, "col": 1, "host": "192.0.2.12", "local_api_key": "test_key"},
             {"row": 0, "col": 0, "host": "192.0.2.11", "local_api_key": "test_key", "port": 7001},
         ]
-        assert NoteArrayLocalClient(tiles, 2, 1).device_key() == "note-array-local:192.0.2.11:7001,192.0.2.12:7000"
+        assert tiles_driver(tiles, 2, 1).device_key() == "note-array-local:192.0.2.11:7001,192.0.2.12:7000"
 
     def test_a_virtual_board_is_its_board_id(self):
-        assert VirtualBoardClient(device_type="flagship", board_id="vb1").device_key() == "virtual:vb1"
+        assert panel_driver("flagship", board_id="vb1").device_key() == "virtual:vb1"

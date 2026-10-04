@@ -121,7 +121,7 @@ def _empty(board_id: str | None) -> BoardState:
 
 
 def _is_virtual(client: Any) -> bool:
-    # ``VirtualBoardClient`` sets ``is_virtual = True``; a hardware client
+    # A FiestaPanel (pull) driver reports ``is_virtual = True``; a hardware driver
     # has no such attribute. Tested with ``is True`` (main.py's convention)
     # so a Mock or proxy client's auto-attribute never earns a memory read.
     return getattr(client, "is_virtual", False) is True

@@ -378,7 +378,7 @@ def install_seeded_outputs_for_boards(
     *plugin_dirs*. Offline by construction. Returns the ids installed.
 
     Boards that name no ``output`` (legacy Vestaboard and FiestaPanel
-    boards) keep their in-tree built-ins.
+    boards) keep their first-party outputs, staged in-repo.
     """
     root = root if root is not None else seed_root()
     wanted = sorted(

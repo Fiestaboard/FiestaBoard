@@ -61,8 +61,8 @@ from fastapi.testclient import TestClient
 
 from src import __version__
 from src.api_server import app
-from src.board_client import BoardClient
 from src.outputs import OutputRuntime
+from tests.first_party_drivers import cloud_driver
 
 # --- Seam targets ----------------------------------------------------------
 # Written as constants so the seam-retirement commit changes these lines and
@@ -518,7 +518,7 @@ def now():
 @pytest.fixture
 def cloud(now):
     """A REAL RW Cloud board client on a controllable clock (the send floor)."""
-    return BoardClient(api_key="test_key", use_cloud=True, _time_func=lambda: now["t"])
+    return cloud_driver("test_key", clock=lambda: now["t"])
 
 
 @pytest.fixture
@@ -534,7 +534,7 @@ def wired(cloud):
         patch("src.api_server.Config.is_silence_mode_active", return_value=False),
         patch(PAUSED, return_value=False),
         patch(SILENCE_ACTIVE, return_value=False),
-        patch("src.board_client.requests.post") as post,
+        patch("requests.post") as post,
     ):
         post.return_value = _ok_response()
         yield post
@@ -609,7 +609,7 @@ def welcome_wired(cloud):
         patch("src.api_server.Config.is_silence_mode_active", return_value=False),
         patch(PAUSED, return_value=False),
         patch(SILENCE_ACTIVE, return_value=False),
-        patch("src.board_client.requests.post") as post,
+        patch("requests.post") as post,
     ):
         post.return_value = _ok_response()
         yield post

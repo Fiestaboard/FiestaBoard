@@ -1,26 +1,14 @@
-"""The ``vestaboard`` output's hooks: Vestaboard knowledge core no longer holds.
+"""Core's board-settings action runner for the ``vestaboard`` output.
 
-Core asks the output (:mod:`src.outputs.hooks`); these modules answer for a
-Vestaboard. They are the in-tree half of what becomes the
-``fiestaboard-output--vestaboard`` plugin in Phase 4, alongside the driver
-modules (``src/board_client.py``, ``src/note_array_local_client.py``):
-
-- :mod:`.discovery` — ``discover(timeout)``: mDNS browse plus a subnet probe
-  of the Local API port (was ``src/system/mdns.py``).
-- :mod:`.diagnostics` — the board section of the network diagnostics and its
-  troubleshooting advice (was ``src/network_diagnostics.py``).
-- :mod:`.connection` — the connection probe's status → verdict mapping behind
-  ``BoardClient.check_connection`` (was ``src/config_api/service.py``).
-- :mod:`.local_api` — the ``enable_local_api`` custom action, the
-  enablement-token exchange with its CodeQL-recognised SSRF block moved
-  whole (was ``src/config_api/service.py``).
-
-Each is imported lazily by the registry entry (``src/outputs/registry.py``),
-so this package's ``__init__`` stays import-free.
+The Vestaboard itself — transport, connection probe, discovery,
+diagnostics, the Local API enablement exchange — is an output plugin now
+(``first_party_outputs/vestaboard``, loaded by :mod:`src.outputs.first_party`).
+What stays here is :mod:`.actions`: core's dispatcher for the board settings
+screen's actions on a Vestaboard board, which resolves the board's live or
+draft driver, refuses what it must before a device is contacted, and asks
+the plugin for every device conversation. It goes when the Vestaboard
+settings screen moves onto the plugin renderer (Phase 4, P4d).
 
 ``tests/test_vestaboard_output_hooks.py`` counts the Vestaboard transport
-literals left in ``src/`` outside these modules; Phase 4 drives it to zero.
+literals left in ``src/``; Phase 4 drives it to zero.
 """
-
-#: The diagnostics summary when every check passed.
-ALL_CLEAR_SUMMARY = "All checks passed — your Vestaboard connection is healthy"

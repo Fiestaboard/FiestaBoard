@@ -1,4 +1,4 @@
-"""End-to-end note-array send -> read round-trip through BoardClient.
+"""End-to-end note-array send -> read round-trip through the Vestaboard driver.
 
 This is the cohesive feature test for the note-array epic (#1167, issue #1179).
 The individual merged issues each ship focused unit tests; this module ties the
@@ -16,13 +16,15 @@ whole path together in one deterministic flow:
 The HTTP layer is mocked with a small **stateful** transport that ties POST and
 GET together (POST stores the grid; GET returns it as a Cloud-shaped
 ``currentMessage.layout`` JSON string), mirroring the real Cloud API contract
-and the ``requests``-patching approach used in ``tests/test_board_client.py``.
+and the ``requests``-patching approach the Vestaboard plugin's own tests use.
 """
 
 import json as _json
 from unittest.mock import Mock, patch
 
-from src.board_client import BoardClient
+from first_party_outputs.vestaboard import transport
+from src.outputs.plugin_driver import OutputPluginDriver
+from tests.first_party_drivers import note_array_cloud_driver
 
 # Note-array geometry under test: a 4-wide single row → 3 rows × 60 cols.
 NOTES_WIDE = 4
@@ -31,8 +33,8 @@ ROWS = NOTES_TALL * 3
 COLS = NOTES_WIDE * 15
 TOKEN = "e2e-note-array-token"
 
-CLOUD_NOTE_ARRAY_URL = BoardClient.CLOUD_NOTE_ARRAY_API_URL
-RW_CLOUD_URL = BoardClient.CLOUD_API_URL
+CLOUD_NOTE_ARRAY_URL = transport.CLOUD_NOTE_ARRAY_API_URL
+RW_CLOUD_URL = transport.CLOUD_API_URL
 
 
 def _make_grid(fill: int = 0) -> list[list[int]]:
@@ -74,16 +76,8 @@ class _FakeCloud:
         return resp
 
 
-def _make_client(time_func=None) -> BoardClient:
-    return BoardClient(
-        api_key=TOKEN,
-        use_cloud=True,
-        skip_unchanged=True,
-        note_array_token=TOKEN,
-        notes_wide=NOTES_WIDE,
-        notes_tall=NOTES_TALL,
-        _time_func=time_func,
-    )
+def _make_client(time_func=None) -> OutputPluginDriver:
+    return note_array_cloud_driver(TOKEN, NOTES_WIDE, NOTES_TALL, clock=time_func)
 
 
 class TestNoteArrayEndToEnd:
@@ -109,7 +103,7 @@ class TestNoteArrayEndToEnd:
         sent_grid[0][0] = 1
         sent_grid[2][59] = 71  # extremes of the 3×60 grid
 
-        with patch("src.board_client.requests.post", side_effect=fake.post):
+        with patch("requests.post", side_effect=fake.post):
             success, was_sent = client.send_characters(sent_grid, strategy="column", step_interval_ms=500, step_size=2)
 
         # 1. Send succeeded and actually went out.
@@ -132,7 +126,7 @@ class TestNoteArrayEndToEnd:
         assert "step_size" not in post["json"]
 
         # 5. Read it back — the parsed layout equals the grid we sent.
-        with patch("src.board_client.requests.get", side_effect=fake.get):
+        with patch("requests.get", side_effect=fake.get):
             read_grid = client.read_current_message()
 
         assert read_grid == sent_grid
@@ -146,7 +140,7 @@ class TestNoteArrayEndToEnd:
 
         # 6. A second, immediate send (t=5 < 15s) is throttled — no new POST.
         second_grid = _make_grid(fill=2)
-        with patch("src.board_client.requests.post", side_effect=fake.post) as second_post:
+        with patch("requests.post", side_effect=fake.post) as second_post:
             ok, was_sent2 = client.send_characters(second_grid)
 
         assert (ok, was_sent2) == (True, False)
@@ -163,13 +157,13 @@ class TestNoteArrayEndToEnd:
         first = _make_grid(fill=3)
         second = _make_grid(fill=7)
 
-        with patch("src.board_client.requests.post", side_effect=fake.post):
+        with patch("requests.post", side_effect=fake.post):
             assert client.send_characters(first) == (True, True)
             assert client.send_characters(second) == (True, True)
 
         assert len(fake.posts) == 2
 
-        with patch("src.board_client.requests.get", side_effect=fake.get):
+        with patch("requests.get", side_effect=fake.get):
             read_grid = client.read_current_message()
 
         # The board now reflects the most recent (second) send.

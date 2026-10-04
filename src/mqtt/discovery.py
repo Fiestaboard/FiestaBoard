@@ -20,8 +20,8 @@ import json
 from dataclasses import dataclass, replace
 from typing import Any
 
-from src.board_client import VALID_STRATEGIES
 from src.mqtt.config import MQTTConfig
+from src.outputs.transitions import VALID_STRATEGIES
 
 # Valid entity types supported by HA MQTT Discovery
 VALID_ENTITY_TYPES = ["switch", "select", "sensor", "binary_sensor", "button", "text", "number", "event"]

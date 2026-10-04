@@ -47,6 +47,10 @@ NATIVE_STRATEGIES: frozenset[str] = frozenset(
     {"column", "reverse-column", "edges-to-center", "row", "diagonal", "random"}
 )
 
+#: The same names in the order the menus (MQTT's transition select, the
+#: settings' strategy list) offer them: the Vestaboard Local API's own order.
+VALID_STRATEGIES: list[str] = ["column", "reverse-column", "edges-to-center", "row", "diagonal", "random"]
+
 #: How a device shows a frame-driven transition (see the module docstring).
 Animation = Literal["stream", "sequence", "none"]
 

@@ -16,7 +16,8 @@ import pytest
 from fastapi.testclient import TestClient
 
 from src.api_server import app
-from src.board_client import BoardClient
+from src.outputs.plugin_driver import OutputPluginDriver
+from tests.first_party_drivers import cloud_driver
 
 
 @pytest.fixture
@@ -30,9 +31,9 @@ def _ok_response() -> Mock:
     return resp
 
 
-def _cloud_client(now: dict) -> BoardClient:
-    """A REAL RW Cloud board client on a controllable clock."""
-    return BoardClient(api_key="test_key", use_cloud=True, _time_func=lambda: now["t"])
+def _cloud_client(now: dict) -> OutputPluginDriver:
+    """A REAL RW Cloud board driver (the Vestaboard plugin) on a controllable clock."""
+    return cloud_driver("test_key", clock=lambda: now["t"])
 
 
 def _settings_service():
@@ -79,7 +80,7 @@ def wired(service, cloud):
         patch("src.api_server._get_board_client", return_value=cloud),
         patch("src.api_server.Config.is_silence_mode_active", return_value=False),
         patch("src.api_server._board_is_paused", return_value=False),
-        patch("src.board_client.requests.post") as post,
+        patch("requests.post") as post,
     ):
         post.return_value = _ok_response()
         yield post

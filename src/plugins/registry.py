@@ -570,7 +570,7 @@ class PluginRegistry:
         """Install from the image's seed every output plugin a board names
         that is not installed (plan D8): offline, no registry, no GitHub.
 
-        Legacy boards name no ``output`` and keep their in-tree built-ins.
+        Legacy boards name no ``output`` and keep their first-party outputs (staged in-repo).
         A failure is logged, never raised: the board then reports its output
         as not installed, exactly as without a seed.
         """

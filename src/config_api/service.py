@@ -16,9 +16,9 @@ whole app, so their 400s pass through untouched.
 
 Vestaboard knowledge is not here: the connection probe is the draft
 driver's ``check_connection`` (what each status means lives in
-``src/outputs/vestaboard/connection.py``), and the enablement-token exchange
+``first_party_outputs/vestaboard/probe.py``), and the enablement-token exchange
 is the ``vestaboard`` output's ``enable_local_api`` action
-(``src/outputs/vestaboard/local_api.py``). **That module now holds the
+(``first_party_outputs/vestaboard/local_api.py``). **That module now holds the
 CodeQL-recognised SSRF block**, moved whole and byte-for-byte; read its
 docstring before touching it.
 
@@ -214,7 +214,7 @@ async def probe_board_connection(request: BoardTestRequest) -> dict:
     a board's live one) runs its ``check_connection`` over its own request
     path, and the structured :class:`~src.outputs.hooks.ConnectionCheck` is
     served as the verdict. What a status means for a Vestaboard lives with
-    the output (``src/outputs/vestaboard/connection.py``).
+    the output (``first_party_outputs/vestaboard/probe.py``).
 
     That contract used to be recorded as a ``no_200_on_failure`` exception in
     ``tests/conventions_manifest.json``; the rule reads the *handler's* AST, so
@@ -269,7 +269,7 @@ async def exchange_enablement_token(request: EnablementTokenRequest) -> dict:
     """Exchange a Local API Enablement Token for a Local API Key.
 
     The ``vestaboard`` output's ``enable_local_api`` action
-    (``src/outputs/vestaboard/local_api.py``, where the CodeQL-recognised
+    (``first_party_outputs/vestaboard/local_api.py``, where the CodeQL-recognised
     SSRF block now lives, moved whole). Its refusals are
     :class:`BoardProbeError` — the same class — so the router's handling is
     unchanged.

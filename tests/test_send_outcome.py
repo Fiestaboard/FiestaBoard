@@ -1,6 +1,6 @@
 """The send verdict is per call, not a flag read after the fact (#1931 review).
 
-``BoardClient`` reports a throttled write and an unchanged-content skip with
+A board's driver reports a throttled write and an unchanged-content skip with
 the same ``(True, False)``. The first fix for #1931 told them apart by
 reading ``client.last_send_throttled`` *after* ``render()`` had released the
 per-board send lock — and a concurrent sender on the same client (the engine
@@ -9,7 +9,7 @@ gap, so the executor could answer ``ok(skipped=True)`` for a dropped write or
 429 for an unchanged one.
 
 The verdict now travels with the call: ``_admit_send`` decides it, and
-``send_characters`` / ``send_text`` / ``render`` hand it back as a
+``send_characters`` / ``render`` hand it back as a
 :class:`~src.send_outcome.SendOutcome` behind ``with_outcome=True``. Every
 existing ``(success, was_sent)`` caller is untouched.
 """
@@ -21,9 +21,10 @@ from unittest.mock import Mock, patch
 
 import pytest
 
-from src.board_client import BoardClient
+from src.outputs.plugin_driver import OutputPluginDriver
+from tests.first_party_drivers import cloud_driver
 
-POST = "src.board_client.requests.post"
+POST = "requests.post"
 
 
 def _grid(fill: int) -> list[list[int]]:
@@ -34,8 +35,8 @@ def _ok_response() -> Mock:
     return Mock(raise_for_status=Mock())
 
 
-def throttled_cloud_client(now: dict, *, elapsed: float = 0.0) -> BoardClient:
-    """A REAL RW Cloud client whose next send lands inside its 15s floor.
+def throttled_cloud_client(now: dict, *, elapsed: float = 0.0) -> OutputPluginDriver:
+    """A REAL RW Cloud driver (the Vestaboard plugin) whose next send lands inside its 15s floor.
 
     One delivered write opens the window at ``now["t"]``; the clock is then
     advanced by ``elapsed`` so the remaining window is ``15 - elapsed``.
@@ -43,7 +44,7 @@ def throttled_cloud_client(now: dict, *, elapsed: float = 0.0) -> BoardClient:
     fake the verdict — a stub that sets a flag would only re-encode the
     implementation this module exists to retire.
     """
-    client = BoardClient(api_key="test_key", use_cloud=True, _time_func=lambda: now["t"])
+    client = cloud_driver("test_key", clock=lambda: now["t"])
     with patch(POST, return_value=_ok_response()):
         assert client.send_characters(_grid(1)) == (True, True)
     now["t"] += elapsed
@@ -122,7 +123,7 @@ def test_a_preempted_plugin_transition_does_not_inherit_a_stale_throttle(monkeyp
     assert client.last_send_throttled is True, "precondition: the previous tick was throttled"
 
     client.set_transition_runner(_PreemptedRunner())
-    monkeypatch.setattr(BoardClient, "_transition_plugins_beta_enabled", staticmethod(lambda: True))
+    monkeypatch.setattr("src.outputs.plugin_driver.transition_plugins_enabled", lambda: True)
 
     assert client.render(_grid(3), strategy="plugin:fade") == (True, False)
 
@@ -134,7 +135,7 @@ def test_a_preempted_plugin_transition_reports_not_throttled_in_its_outcome(monk
     client = throttled_cloud_client(now, elapsed=5.0)
     assert client.send_characters(_grid(2)) == (True, False)
     client.set_transition_runner(_PreemptedRunner())
-    monkeypatch.setattr(BoardClient, "_transition_plugins_beta_enabled", staticmethod(lambda: True))
+    monkeypatch.setattr("src.outputs.plugin_driver.transition_plugins_enabled", lambda: True)
 
     outcome = client.render(_grid(3), strategy="plugin:fade", with_outcome=True)
 
@@ -159,11 +160,11 @@ def test_send_characters_outcome_reports_the_remaining_window_not_the_whole_floo
     assert outcome.floor_seconds == 15
 
 
-def test_send_text_outcome_shares_the_verdict():
+def test_a_sub_second_remaining_window_rounds_up_never_to_zero():
     now = {"t": 1000.0}
     client = throttled_cloud_client(now, elapsed=14.2)
 
-    outcome = client.send_text("later", with_outcome=True)
+    outcome = client.send_characters(_grid(2), with_outcome=True)
 
     assert outcome.throttled is True
     assert outcome.retry_after_seconds == 1, "0.8s remain: rounded up, never 0"

@@ -271,7 +271,7 @@ class TestScheduleModeIntegration:
         assert not settings_service.is_schedule_enabled()
 
         # Create a DisplayService instance with mocked board client
-        with patch("src.main.BoardClient") as mock_board_client:
+        with patch("src.main.build_driver") as mock_board_client:
             mock_client_instance = Mock()
             mock_client_instance.read_current_message.return_value = None
             mock_client_instance.send_characters.return_value = (True, True)
@@ -323,7 +323,7 @@ class TestScheduleModeIntegration:
         settings_service.set_schedule_enabled(True)
 
         # Create a DisplayService instance with mocked board client
-        with patch("src.main.BoardClient") as mock_board_client:
+        with patch("src.main.build_driver") as mock_board_client:
             mock_client_instance = Mock()
             mock_client_instance.read_current_message.return_value = None
             mock_client_instance.send_characters.return_value = (True, True)
@@ -385,7 +385,7 @@ class TestScheduleModeIntegration:
         settings_service.set_schedule_enabled(True)
 
         # Create a DisplayService instance with mocked board client
-        with patch("src.main.BoardClient") as mock_board_client:
+        with patch("src.main.build_driver") as mock_board_client:
             mock_client_instance = Mock()
             mock_client_instance.read_current_message.return_value = None
             mock_client_instance.send_characters.return_value = (True, True)
@@ -443,7 +443,7 @@ class TestScheduleModeIntegration:
         settings_service.set_schedule_enabled(True)
 
         # Create a DisplayService instance with mocked board client
-        with patch("src.main.BoardClient") as mock_board_client:
+        with patch("src.main.build_driver") as mock_board_client:
             mock_client_instance = Mock()
             mock_client_instance.read_current_message.return_value = None
             mock_board_client.return_value = mock_client_instance

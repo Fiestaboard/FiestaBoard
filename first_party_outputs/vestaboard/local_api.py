@@ -1,44 +1,42 @@
-"""The ``vestaboard`` output's ``enable_local_api`` action.
+"""The Vestaboard ``enable_local_api`` action.
 
 Exchanges a Local API Enablement Token for a Local API Key.
-``POST /config/board/enable-local-api`` stays (pinned in
-``tests/golden/api_routes.json``) and runs this action through
-:func:`src.outputs.registry.output_action`.
+``POST /config/board/enable-local-api`` (pinned in FiestaBoard's
+``tests/golden/api_routes.json``) and the board settings "Enable Local API"
+action both run :func:`exchange_enablement_token`.
 
 **The SSRF sanitiser in :func:`exchange_enablement_token` is deliberately
 contiguous with the request it guards.** CodeQL's ``py/full-ssrf`` recognises
 the shape — an ``ipaddress.IPv4Address`` derivation plus the
 ``is_private``/``is_loopback``/``is_link_local`` gate, with the sink in the
 same function — and the two historical ``py/full-ssrf`` alerts on this code
-were closed by exactly that sequence. It has now moved twice, both times
-whole: from the router to ``src/config_api/service.py``, and from there to
-here, byte-for-byte. The guard, the address it derives, the URL built from
-that address and the ``requests.post`` that uses it are still one unbroken
-block, in one function. ``BoardProbeError`` is
-:class:`~src.outputs.hooks.OutputActionError` under the name the block has
-always raised (``src.config_api.service.BoardProbeError`` is the same class),
-so not one line of the block changed. Do not split it, reorder it, or
-"tidy" it.
+were closed by exactly that sequence. It has now moved three times, each time
+whole: from the router to ``src/config_api/service.py``, from there to
+``src/outputs/vestaboard/local_api.py``, and from there into this plugin,
+byte-for-byte. The guard, the address it derives, the URL built from that
+address and the ``requests.post`` that uses it are still one unbroken block,
+in one function. ``BoardProbeError`` is FiestaBoard's ``OutputActionError``
+under the name the block has always raised, so not one line of the block
+changed. Do not split it, reorder it, or "tidy" it.
 
 Collaborators bind at **module import time**; tests that need to stub one
-patch it where this module binds it — ``src.outputs.vestaboard.local_api.<name>``.
+patch it where this module binds it — ``<package>.local_api.<name>``.
 """
 
 from __future__ import annotations
 
 import asyncio
 import logging
-from typing import TYPE_CHECKING
+from typing import Any
 
-from src.board_guards import validate_board_host, validate_board_host_is_local_network
-from src.output_allowlist import OutputHostBlocked, check_output_host
-from src.outputs.hooks import ConnectionCheck
-from src.outputs.hooks import OutputActionError as BoardProbeError
-
-if TYPE_CHECKING:
-    # The action takes anything with ``host`` and ``enablement_token``; the
-    # route passes its request model.
-    from src.config_api.models import EnablementTokenRequest
+from src.plugins import (
+    ConnectionCheck,
+    OutputHostBlocked,
+    check_output_host,
+    validate_board_host,
+    validate_board_host_is_local_network,
+)
+from src.plugins import OutputActionError as BoardProbeError
 
 logger = logging.getLogger(__name__)
 
@@ -81,12 +79,12 @@ def _verdict_for_enablement_response(response, host: str) -> dict:
     }
 
 
-async def exchange_enablement_token(request: EnablementTokenRequest) -> dict:
+async def exchange_enablement_token(request: Any) -> dict:
     """Exchange a Local API Enablement Token for a Local API Key.
 
     The board issues the key; this only carries the token to it. Same declared
     verdict contract as
-    :func:`src.config_api.service.probe_board_connection` (#1887): "that
+    FiestaBoard's ``probe_board_connection`` (#1887): "that
     enablement token is not valid" is the board's answer at 200 through
     ``EnableLocalApiResponse``, while the SSRF and host-validation rejections
     are 400 and an unanticipated failure is 500. Pinned by value in

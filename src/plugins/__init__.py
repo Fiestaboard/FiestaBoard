@@ -44,7 +44,19 @@ from src.led import (
 )
 from src.markup import BoardToken
 from src.output_allowlist import OutputHostBlocked
+from src.outputs.author_kit import (
+    check_dns_resolution,
+    check_output_host,
+    check_port_reachable,
+    describe_request_error,
+    local_ipv4,
+    text_to_board_array,
+    unconfigured_board_section,
+    validate_board_host,
+    validate_board_host_is_local_network,
+)
 from src.outputs.cells import cells_from_codes
+from src.outputs.hooks import OutputActionError, ReadBack
 from src.outputs.http import OutputHttp, RequestCancelled
 from src.outputs.plugin_base import (
     ActionField,
@@ -93,6 +105,7 @@ __all__ = [
     "LedLayoutOptions",
     "LedMatrixSpec",
     "LedTransitionSpec",
+    "OutputActionError",
     "OutputHostBlocked",
     "OutputHttp",
     "OutputPluginBase",
@@ -102,6 +115,7 @@ __all__ = [
     "PluginRegistry",
     "PluginResult",
     "PluginSource",
+    "ReadBack",
     "RegistryEntry",
     "RequestCancelled",
     "ResolvedLedTransition",
@@ -113,16 +127,25 @@ __all__ = [
     "WriteResult",
     "cells_from_codes",
     "characters_to_message",
+    "check_dns_resolution",
+    "check_output_host",
+    "check_port_reachable",
+    "describe_request_error",
     "get_plugin_registry",
     "layout_message",
     "led_flip_seed",
     "led_spec_for_model",
     "load_registry",
+    "local_ipv4",
     "plan_transition",
     "plugin_id_from_repo_name",
     "rasterize",
     "resolve_led_transition",
+    "text_to_board_array",
     "transition_frames",
+    "unconfigured_board_section",
+    "validate_board_host",
+    "validate_board_host_is_local_network",
     "validate_manifest",
     "validate_registry_repo_name",
 ]

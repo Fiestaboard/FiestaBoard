@@ -1,9 +1,9 @@
-"""The ``vestaboard`` output's ``discover`` hook: find Vestaboards on the LAN.
+"""The Vestaboard ``discover`` hook: find Vestaboards on the LAN.
 
-Moved whole from ``src/system/mdns.py`` (which keeps FiestaBoard's own mDNS
-advertisement and the local-IP helper this module uses). ``POST
-/config/board/scan`` delegates here through
-:func:`src.outputs.registry.discover_devices`.
+``POST /config/board/scan`` and the board settings "Scan network" action
+reach it through FiestaBoard's ``discover_devices`` (the output's
+``discover`` classmethod). It uses FiestaBoard's ``local_ipv4`` to pick the
+subnet to probe.
 """
 
 import logging
@@ -11,11 +11,11 @@ import socket
 import threading
 from typing import Any
 
-from src.system import mdns as _mdns
+from src.plugins import local_ipv4
+
+from .transport import LOCAL_API_PORT as _VESTABOARD_LOCAL_API_PORT
 
 logger = logging.getLogger(__name__)
-
-_VESTABOARD_LOCAL_API_PORT = 7000
 
 # mDNS service types to browse when looking for Vestaboards
 _BROWSE_SERVICE_TYPES = [
@@ -120,7 +120,7 @@ def discover(timeout: float = 4.0) -> list[dict[str, Any]]:
     try:
         from concurrent.futures import ThreadPoolExecutor
 
-        local_ip = _mdns.local_ipv4()
+        local_ip = local_ipv4()
         if local_ip and local_ip != "127.0.0.1":
             prefix = ".".join(local_ip.split(".")[:3])
             probe_results: list[str] = []

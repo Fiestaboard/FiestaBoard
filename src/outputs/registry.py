@@ -1,16 +1,18 @@
 """The output registry: every kind of device FiestaBoard can drive, by id.
 
-A saved board names the **output** that drives it. Two are built in and
-registered here, in-tree (until Phase 4 extracts them):
+A saved board names the **output** that drives it. Two are first-party and
+always registered — output plugins staged in-repo under
+``first_party_outputs/`` and loaded by :mod:`src.outputs.first_party` the
+first time the registry is asked for:
 
 - ``vestaboard`` — a Vestaboard on the Local API, the RW Cloud API, the
   note-array Cloud API, or a local note array's per-tile fan-out.
 - ``fiestapanel`` — a FiestaPanel TV: an in-memory board that viewers pull
   frames from.
 
-Output **plugins** register beside them as the plugin loader loads them
-(:mod:`src.outputs.plugin_registration`); a plugin can never take a
-built-in's id.
+Third-party output **plugins** register beside them as the plugin loader
+loads them (:mod:`src.outputs.plugin_registration`); a plugin can never take
+a first-party output's id (their entries are ``plugin=False``).
 
 Each entry carries the output's **capabilities** — what core decides by,
 without building a driver: ``technology``, ``delivery``, ``animation`` and
@@ -23,8 +25,8 @@ output plugins; nothing here invents them.
 
 Each entry also carries the output's **hooks** (:mod:`src.outputs.hooks`):
 what core asks the output instead of knowing its device — ``discover``,
-``diagnostics`` and named custom ``actions``. The ``vestaboard`` hooks live in
-:mod:`src.outputs.vestaboard`; ``fiestapanel`` declares none.
+``diagnostics`` and named custom ``actions``. The ``vestaboard`` hooks are its
+plugin's (``first_party_outputs/vestaboard``); ``fiestapanel`` declares none.
 
 Which output a board uses is **derived at load** — no settings field is
 written for an existing board (the v4 settings migration persists it later,
@@ -49,15 +51,13 @@ from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any, Literal
 
 from .hooks import (
-    ActionCall,
-    ActionOutcome,
     OutputActionSpec,
     OutputDiagnostics,
     OutputHooks,
     ReadBack,
     UnknownOutputAction,
 )
-from .transitions import NATIVE_STRATEGIES, Animation
+from .transitions import Animation
 
 if TYPE_CHECKING:
     from .driver import OutputDriver
@@ -125,7 +125,7 @@ class OutputDefinition:
     build: Callable[[dict], OutputDriver | None]
     hooks: OutputHooks = field(default_factory=OutputHooks)
     #: True for an output plugin (src/outputs/plugin_registration.py); the
-    #: in-tree built-ins are False and can never be replaced or removed.
+    #: first-party outputs are False and can never be replaced or removed.
     plugin: bool = False
     #: JSON Schema of each board's ``output_config`` (output plugins only).
     settings_schema: Mapping = field(default_factory=dict)
@@ -268,120 +268,39 @@ def output_action(output_id: str, action: str) -> Callable[..., object]:
     return fn
 
 
-# --- the built-ins ---------------------------------------------------------------
+# --- the first-party outputs ----------------------------------------------------------
 #
-# Builders and hooks import their modules lazily: the client modules import
-# this package, and the Vestaboard hooks pull in the HTTP and host-guard
-# stacks, which nothing needs until a hook actually runs.
+# Vestaboard and FiestaPanel are output plugins staged in-repo
+# (first_party_outputs/), registered on first use by src/outputs/first_party.py:
+# loading them imports the plugin author API, which imports this module, so
+# they cannot be registered while it is still being imported.
+
+_registry = OutputRegistry()
+# The process registry the first-party outputs are loaded into — the
+# original object, even if a test has swapped ``_registry`` for a fake.
+_first_party_home = _registry
+_first_party_lock = threading.RLock()
+_first_party_state = "unloaded"
 
 
-def _build_vestaboard(board: dict) -> OutputDriver | None:
-    from src.board_client import build_vestaboard_driver
+def _load_first_party() -> None:
+    global _first_party_state
+    with _first_party_lock:
+        if _first_party_state != "unloaded":
+            # Loaded — or being loaded by this very thread (the RLock let it
+            # in): the registry as it stands.
+            return
+        _first_party_state = "loading"
+        try:
+            from .first_party import register_first_party_outputs
 
-    return build_vestaboard_driver(board)
-
-
-def _vestaboard_hooks() -> OutputHooks:
-    def discover(timeout: float) -> list[dict]:
-        from .vestaboard.discovery import discover as _discover
-
-        return _discover(timeout)
-
-    def run_diagnostics(board: Mapping) -> dict:
-        from .vestaboard.diagnostics import diagnose
-
-        return diagnose(board)
-
-    def advise(section: Mapping) -> list[dict]:
-        from .vestaboard.diagnostics import advise as _advise
-
-        return _advise(section)
-
-    async def enable_local_api(request: object) -> dict:
-        from .vestaboard.local_api import exchange_enablement_token
-
-        return await exchange_enablement_token(request)
-
-    async def dispatch(call: ActionCall) -> ActionOutcome:
-        from .vestaboard.actions import dispatch as _dispatch
-
-        return await _dispatch(call)
-
-    from .vestaboard import ALL_CLEAR_SUMMARY
-
-    return OutputHooks(
-        discover=discover,
-        diagnostics=OutputDiagnostics(run=run_diagnostics, advise=advise, all_clear=ALL_CLEAR_SUMMARY),
-        actions={"enable_local_api": enable_local_api},
-        dispatch=dispatch,
-    )
-
-
-def _vestaboard_actions() -> tuple[OutputActionSpec, ...]:
-    from .vestaboard.actions import ACTIONS
-
-    return ACTIONS
-
-
-async def _fiestapanel_dispatch(call: ActionCall) -> ActionOutcome:
-    """A FiestaPanel draws in memory: there is no connection to fail."""
-    return ActionOutcome(message="FiestaPanel boards render in FiestaBoard itself; there is nothing to connect to.")
-
-
-def _build_fiestapanel(board: dict) -> OutputDriver | None:
-    from src.virtual_board_client import build_fiestapanel_driver
-
-    return build_fiestapanel_driver(board)
-
-
-def _builtin_registry() -> OutputRegistry:
-    registry = OutputRegistry()
-    registry.register(
-        OutputDefinition(
-            id=VESTABOARD,
-            name="Vestaboard",
-            capabilities=OutputCapabilities(
-                technology="split_flap",
-                delivery="push",
-                animation="stream",
-                # The Local API animates every native strategy; the cloud
-                # APIs declare none (the driver narrows per connection).
-                native_transitions=NATIVE_STRATEGIES,
-            ),
-            build=_build_vestaboard,
-            hooks=_vestaboard_hooks(),
-            description="A Vestaboard Flagship, Note or Note array, over the Local API or the cloud.",
-            icon="layout-grid",
-            actions=_vestaboard_actions(),
-            offered_device_models=("vestaboard_flagship", "vestaboard_note", "vestaboard_note_array"),
-        )
-    )
-    registry.register(
-        OutputDefinition(
-            id=FIESTAPANEL,
-            name="FiestaPanel",
-            capabilities=OutputCapabilities(
-                technology="screen",
-                delivery="pull",
-                # Frames are stored one at a time; the viewer animates the
-                # change itself, so no native strategy is declared.
-                animation="stream",
-                native_transitions=frozenset(),
-            ),
-            build=_build_fiestapanel,
-            hooks=OutputHooks(dispatch=_fiestapanel_dispatch),
-            description="Any TV or browser: a full-screen board FiestaBoard draws itself.",
-            icon="monitor",
-            actions=(OutputActionSpec(id="test_connection", label="Test connection"),),
-            offered_device_models=("vestaboard_panel",),
-        )
-    )
-    return registry
-
-
-_registry = _builtin_registry()
+            register_first_party_outputs(_first_party_home)
+        finally:
+            _first_party_state = "loaded"
 
 
 def output_registry() -> OutputRegistry:
-    """The process-wide registry, built-ins registered."""
+    """The process-wide registry, the first-party outputs registered."""
+    if _first_party_state != "loaded":
+        _load_first_party()
     return _registry

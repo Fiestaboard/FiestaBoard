@@ -20,6 +20,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 from src.main import BoardRuntime, DisplayService
+from tests.first_party_drivers import vestaboards_built
 
 
 def _board(board_id: str, name: str, **overrides) -> dict:
@@ -97,7 +98,7 @@ class TestBuildBoardClients:
 
     def test_local_array_board_with_tiles_gets_a_runtime(self, service):
         """Local Array Mode (#1399): a local-mode note array with saved tiles
-        must get a runtime via the real client factory (NoteArrayLocalClient)."""
+        must get a runtime via the real client factory (the tile fan-out)."""
         boards = [
             _board(
                 "b1",
@@ -119,7 +120,7 @@ class TestBuildBoardClients:
             service._build_board_clients(sync_cache=False)
 
         assert set(service.runtimes) == {"b1"}
-        assert type(service.runtimes["b1"].client).__name__ == "NoteArrayLocalClient"
+        assert service.runtimes["b1"].client.plugin.connection.mode == "local_tiles"
 
     def test_board_without_credentials_gets_no_runtime(self, service):
         """Uses the REAL client factory: a board with no usable credential
@@ -256,11 +257,11 @@ class TestPrimaryBoardFailureIsolation:
                 "src.main.build_driver",
                 side_effect=lambda b: None if b["id"] == "b1" else MagicMock(),
             ),
-            patch("src.main.BoardClient") as legacy_client,
+            vestaboards_built() as legacy_built,
         ):
             service._build_board_clients(sync_cache=False)
 
-        legacy_client.assert_not_called()
+        assert legacy_built == []
         assert service._PRIMARY_FALLBACK_KEY not in service.runtimes
 
     def test_secondary_board_is_still_driven_when_the_primary_is_misconfigured(self, service):
@@ -311,9 +312,10 @@ class TestPrimaryBoardFailureIsolation:
             patch("src.main.get_settings_service", return_value=_settings_service(boards)),
             patch("src.main.build_driver", return_value=None),
             patch("src.main.Config.validate", return_value=True),
-            patch("src.main.BoardClient", side_effect=ValueError("api_key is required")),
+            vestaboards_built() as legacy_built,
         ):
             assert service.initialize() is False
+        assert legacy_built == []
 
     def test_primary_failure_reason_is_recorded_for_surfacing(self, service):
         """The skipped board's reason must be observable, not swallowed —

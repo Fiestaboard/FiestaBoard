@@ -21,8 +21,6 @@ import logging
 import pytest
 from fastapi.testclient import TestClient
 
-from src.board_client import BoardClient
-from src.note_array_local_client import NoteArrayLocalClient
 from src.outputs.factory import build_driver, draft_driver
 from src.outputs.registry import (
     FIESTAPANEL,
@@ -36,7 +34,6 @@ from src.outputs.registry import (
     resolve_output_id,
 )
 from src.outputs.transitions import NATIVE_STRATEGIES
-from src.virtual_board_client import VirtualBoardClient
 
 LOCAL = {"api_mode": "local", "local_api_key": "test_key", "host": "192.0.2.10"}
 RW_CLOUD = {"api_mode": "cloud", "cloud_key": "test_cloud_key"}
@@ -134,21 +131,25 @@ class TestFactoryBuildsThroughTheRegistry:
     @pytest.mark.parametrize(
         ("board", "kind"),
         [
-            (LOCAL, BoardClient),
-            (RW_CLOUD, BoardClient),
-            (NOTE_ARRAY_CLOUD, BoardClient),
-            (NOTE_ARRAY_LOCAL, NoteArrayLocalClient),
-            (PANEL, VirtualBoardClient),
-            (LEGACY_VIRTUAL_NOTE_ARRAY, VirtualBoardClient),
+            (LOCAL, ("VestaboardOutput", "local")),
+            (RW_CLOUD, ("VestaboardOutput", "cloud")),
+            (NOTE_ARRAY_CLOUD, ("VestaboardOutput", "note_array_cloud")),
+            (NOTE_ARRAY_LOCAL, ("VestaboardOutput", "local_tiles")),
+            (PANEL, ("FiestaPanelOutput", None)),
+            (LEGACY_VIRTUAL_NOTE_ARRAY, ("FiestaPanelOutput", None)),
         ],
         ids=["local", "rw-cloud", "note-array-cloud", "note-array-local", "panel", "legacy-virtual-note-array"],
     )
     def test_each_existing_configuration_builds_its_client(self, board, kind):
-        assert type(build_driver(board)) is kind
+        plugin = build_driver(board).plugin
+        connection = getattr(plugin, "connection", None)
+        assert (type(plugin).__name__, connection.mode if connection is not None else None) == kind
 
     def test_an_explicit_fiestapanel_builds_a_virtual_board_whatever_its_api_mode(self):
         board = {"id": "explicit-panel", "output": FIESTAPANEL, "device_type": "flagship", **LOCAL}
-        assert type(build_driver(board)) is VirtualBoardClient
+        driver = build_driver(board)
+        assert type(driver.plugin).__name__ == "FiestaPanelOutput"
+        assert driver.is_virtual is True
 
     def test_the_factory_calls_the_registered_builder(self, monkeypatch):
         import src.outputs.registry as registry_module

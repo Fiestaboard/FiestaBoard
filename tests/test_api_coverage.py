@@ -351,7 +351,7 @@ class TestSendWelcomeMessage:
             "host": "192.168.1.100",
             "local_api_key": "test_key_12345",
         }
-        with patch("src.board_client.BoardClient", side_effect=ValueError("no key")):
+        with patch("src.main.build_driver", side_effect=ValueError("no key")):
             install_live_boards([board])
         with patch("src.board_guards.Config") as mock_config:
             mock_config.is_silence_mode_active.return_value = False

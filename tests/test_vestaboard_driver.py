@@ -1,4 +1,11 @@
-"""Tests for Board Local API client."""
+"""The Vestaboard driver: Local API, RW Cloud and note-array Cloud.
+
+The Vestaboard output plugin (``first_party_outputs/vestaboard``) in core's
+plugin driver, built from a board dict by the runtime factory exactly as the
+engine builds it. (Was ``BoardClient``'s tests. Its text API — ``send_text``,
+the text dedupe cache and ``would_send`` — is gone: nothing outside the old
+client called it, and the output-plugin contract writes character grids only.)
+"""
 
 import json
 from unittest.mock import Mock, patch
@@ -6,15 +13,17 @@ from unittest.mock import Mock, patch
 import pytest
 import requests
 
-from src.board_client import (
+from first_party_outputs.vestaboard import VestaboardOutput, transport
+from first_party_outputs.vestaboard.transport import (
+    LOCAL_API_PORT,
     VALID_STRATEGIES,
-    BoardClient,
-    _is_valid_character_grid,
     is_successful_board_read_response,
     parse_read_message_payload,
     strip_color_markers,
 )
+from first_party_outputs.vestaboard.transport import is_valid_character_grid as _is_valid_character_grid
 from src.outputs.factory import build_driver
+from tests.first_party_drivers import cloud_driver, frames_of, local_driver, note_array_cloud_driver
 
 
 class TestStripColorMarkers:
@@ -53,111 +62,47 @@ class TestStripColorMarkers:
 
 
 class TestBoardClientInit:
-    """Tests for BoardClient initialization."""
+    """A local board's endpoint and credential, as they reach the wire."""
 
-    def test_init_with_valid_params(self):
-        """Test successful initialization with valid parameters."""
-        client = BoardClient(api_key="test_key", host="192.168.0.11")
-        assert client.host == "192.168.0.11"
+    @patch("requests.post")
+    def test_init_with_valid_params(self, mock_post):
+        """The Local API URL and the official key header."""
+        mock_post.return_value.raise_for_status = Mock()
+        client = local_driver("test_key", "192.168.0.11")
         assert client.skip_unchanged is True
-        assert client.base_url == "http://192.168.0.11:7000/local-api/message"
-        assert "X-Vestaboard-Local-Api-Key" in client.headers  # Official board API header
-        assert client.headers["X-Vestaboard-Local-Api-Key"] == "test_key"
+        client.send_characters([[0] * 22 for _ in range(6)])
+        assert mock_post.call_args.args[0] == "http://192.168.0.11:7000/local-api/message"
+        assert mock_post.call_args.kwargs["headers"]["X-Vestaboard-Local-Api-Key"] == "test_key"
 
-    def test_init_with_hostname(self):
-        """Test initialization with hostname instead of IP."""
-        client = BoardClient(api_key="test_key", host="board.local")
-        assert client.base_url == "http://board.local:7000/local-api/message"
+    @patch("requests.post")
+    def test_init_with_hostname(self, mock_post):
+        """A hostname works where an IP does."""
+        mock_post.return_value.raise_for_status = Mock()
+        local_driver("test_key", "board.local").send_characters([[0] * 22 for _ in range(6)])
+        assert mock_post.call_args.args[0] == "http://board.local:7000/local-api/message"
 
     def test_init_without_api_key_raises(self):
-        """Test that missing api_key raises ValueError."""
-        with pytest.raises(ValueError, match="api_key is required"):
-            BoardClient(api_key="", host="192.168.0.11")
+        """No key: the board has no connection (no driver), and the plugin refuses it."""
+        assert build_driver({"api_mode": "local", "host": "192.168.0.11", "local_api_key": ""}) is None
+        with pytest.raises(ValueError, match="not configured"):
+            VestaboardOutput(None, {"api_mode": "local", "host": "192.168.0.11", "local_api_key": ""})
 
     def test_init_without_host_raises(self):
-        """Test that missing host raises ValueError."""
-        with pytest.raises(ValueError, match="host is required"):
-            BoardClient(api_key="test_key", host="")
+        """No host: the same."""
+        assert build_driver({"api_mode": "local", "host": "", "local_api_key": "test_key"}) is None
+        with pytest.raises(ValueError, match="not configured"):
+            VestaboardOutput(None, {"api_mode": "local", "host": "", "local_api_key": "test_key"})
 
-    def test_init_with_skip_unchanged_false(self):
-        """Test initialization with skip_unchanged disabled."""
-        client = BoardClient(api_key="test_key", host="192.168.0.11", skip_unchanged=False)
-        assert client.skip_unchanged is False
-
-
-class TestSendText:
-    """Tests for send_text method."""
-
-    @pytest.fixture
-    def client(self):
-        """Create a client for testing."""
-        return BoardClient(api_key="test_key", host="192.168.0.11")
-
-    @patch("src.board_client.requests.post")
-    def test_send_text_success(self, mock_post, client):
-        """Test successful text send."""
+    @patch("requests.post")
+    def test_init_with_skip_unchanged_false(self, mock_post):
+        """skip_unchanged off: an identical grid is written again."""
         mock_post.return_value.raise_for_status = Mock()
-
-        success, was_sent = client.send_text("Hello World")
-
-        assert success is True
-        assert was_sent is True
-        mock_post.assert_called_once()
-        call_args = mock_post.call_args
-        assert call_args.kwargs["json"] == {"text": "HELLO WORLD"}
-
-    @patch("src.board_client.requests.post")
-    def test_send_text_cached_skips(self, mock_post, client):
-        """Test that sending same text twice skips the second send."""
-        mock_post.return_value.raise_for_status = Mock()
-
-        # First send
-        client.send_text("Hello World")
-
-        # Second send (should skip)
-        success, was_sent = client.send_text("Hello World")
-
-        assert success is True
-        assert was_sent is False
-        assert mock_post.call_count == 1  # Only called once
-
-    @patch("src.board_client.requests.post")
-    def test_send_text_force_ignores_cache(self, mock_post, client):
-        """Test that force=True ignores cache."""
-        mock_post.return_value.raise_for_status = Mock()
-
-        # First send
-        client.send_text("Hello World")
-
-        # Second send with force
-        success, was_sent = client.send_text("Hello World", force=True)
-
-        assert success is True
-        assert was_sent is True
+        client = local_driver("test_key", "192.168.0.11")
+        client.skip_unchanged = False
+        grid = [[0] * 22 for _ in range(6)]
+        assert client.send_characters(grid) == (True, True)
+        assert client.send_characters(grid) == (True, True)
         assert mock_post.call_count == 2
-
-    @patch("src.board_client.requests.post")
-    def test_send_text_network_error(self, mock_post, client):
-        """Test handling of network error."""
-        mock_post.side_effect = requests.exceptions.ConnectionError("Network error")
-
-        success, was_sent = client.send_text("Hello World")
-
-        assert success is False
-        assert was_sent is False
-
-    @patch("src.board_client.requests.post")
-    def test_send_text_strips_color_markers(self, mock_post, client):
-        """Test that color markers are stripped from text."""
-        mock_post.return_value.raise_for_status = Mock()
-
-        success, was_sent = client.send_text("{63}Warning{/}: Check {66}status{/}")
-
-        assert success is True
-        assert was_sent is True
-        call_args = mock_post.call_args
-        # Color markers should be stripped
-        assert call_args.kwargs["json"]["text"] == "WARNING: CHECK STATUS"
 
 
 class TestSendCharacters:
@@ -166,14 +111,14 @@ class TestSendCharacters:
     @pytest.fixture
     def client(self):
         """Create a client for testing."""
-        return BoardClient(api_key="test_key", host="192.168.0.11")
+        return local_driver("test_key", "192.168.0.11")
 
     @pytest.fixture
     def valid_grid(self):
         """Create a valid 6x22 character grid."""
         return [[0] * 22 for _ in range(6)]
 
-    @patch("src.board_client.requests.post")
+    @patch("requests.post")
     def test_send_characters_success(self, mock_post, client, valid_grid):
         """Test successful character array send."""
         mock_post.return_value.raise_for_status = Mock()
@@ -185,7 +130,7 @@ class TestSendCharacters:
         call_args = mock_post.call_args
         assert call_args.kwargs["json"]["characters"] == valid_grid
 
-    @patch("src.board_client.requests.post")
+    @patch("requests.post")
     def test_send_characters_with_transition(self, mock_post, client, valid_grid):
         """Test sending with transition settings."""
         mock_post.return_value.raise_for_status = Mock()
@@ -200,7 +145,7 @@ class TestSendCharacters:
         assert payload["step_interval_ms"] == 500
         assert payload["step_size"] == 2
 
-    @patch("src.board_client.requests.post")
+    @patch("requests.post")
     def test_send_characters_all_strategies(self, mock_post, client, valid_grid):
         """Test all valid transition strategies."""
         mock_post.return_value.raise_for_status = Mock()
@@ -235,7 +180,7 @@ class TestSendCharacters:
         assert success is False
         assert was_sent is False
 
-    @patch("src.board_client.requests.post")
+    @patch("requests.post")
     def test_send_characters_cached_skips(self, mock_post, client, valid_grid):
         """Test that sending same characters twice skips the second send."""
         mock_post.return_value.raise_for_status = Mock()
@@ -286,9 +231,9 @@ class TestReadCurrentMessage:
     @pytest.fixture
     def client(self):
         """Create a client for testing."""
-        return BoardClient(api_key="test_key", host="192.168.0.11")
+        return local_driver("test_key", "192.168.0.11")
 
-    @patch("src.board_client.requests.get")
+    @patch("requests.get")
     def test_read_current_message_success(self, mock_get, client):
         """Test successful read of current message."""
         expected_chars = [[0] * 22 for _ in range(6)]
@@ -299,7 +244,7 @@ class TestReadCurrentMessage:
 
         assert result == expected_chars
 
-    @patch("src.board_client.requests.get")
+    @patch("requests.get")
     def test_read_current_message_with_sync_cache(self, mock_get, client):
         """Test that sync_cache updates internal cache."""
         expected_chars = [[1] * 22 for _ in range(6)]
@@ -309,9 +254,9 @@ class TestReadCurrentMessage:
         result = client.read_current_message(sync_cache=True)
 
         assert result == expected_chars
-        assert client._last_characters == expected_chars
+        assert frames_of(client).characters == expected_chars
 
-    @patch("src.board_client.requests.get")
+    @patch("requests.get")
     def test_read_current_message_network_error(self, mock_get, client):
         """Test handling of network error during read."""
         mock_get.side_effect = requests.exceptions.ConnectionError("Network error")
@@ -320,11 +265,11 @@ class TestReadCurrentMessage:
 
         assert result is None
 
-    @patch("src.board_client.requests.get")
+    @patch("requests.get")
     def test_read_current_message_cloud_current_message_shape(self, mock_get):
         """Cloud API returns currentMessage.layout (stringified JSON)."""
         grid = [[0] * 15 for _ in range(3)]
-        client = BoardClient(api_key="rw-key", use_cloud=True)
+        client = cloud_driver("rw-key")
         mock_get.return_value.raise_for_status = Mock()
         mock_get.return_value.json.return_value = {
             "currentMessage": {"layout": json.dumps(grid), "id": "u"},
@@ -338,17 +283,15 @@ class TestCacheManagement:
     @pytest.fixture
     def client(self):
         """Create a client for testing."""
-        return BoardClient(api_key="test_key", host="192.168.0.11")
+        return local_driver("test_key", "192.168.0.11")
 
     def test_clear_cache(self, client):
-        """Test that clear_cache clears internal state."""
-        client._last_text = "test"
-        client._last_characters = [[0] * 22 for _ in range(6)]
+        """Test that clear_cache clears the dedupe cache."""
+        frames_of(client).record_read([[0] * 22 for _ in range(6)])
 
         client.clear_cache()
 
-        assert client._last_text is None
-        assert client._last_characters is None
+        assert frames_of(client).characters is None
 
     def test_get_cache_status_empty(self, client):
         """Test cache status when empty."""
@@ -358,31 +301,6 @@ class TestCacheManagement:
         assert status["has_cached_characters"] is False
         assert status["skip_unchanged_enabled"] is True
 
-    @patch("src.board_client.requests.post")
-    def test_get_cache_status_with_text(self, mock_post, client):
-        """Test cache status after sending text."""
-        mock_post.return_value.raise_for_status = Mock()
-        client.send_text("Hello World")
-
-        status = client.get_cache_status()
-
-        assert status["has_cached_text"] is True
-        assert status["cached_text_preview"] == "HELLO WORLD"
-
-    def test_would_send_with_same_text(self, client):
-        """Test would_send returns False for cached text."""
-        client._last_text = "HELLO WORLD"
-
-        assert client.would_send(text="HELLO WORLD") is False
-        assert client.would_send(text="Different") is True
-
-    def test_would_send_with_skip_unchanged_disabled(self, client):
-        """Test would_send always returns True when caching disabled."""
-        client.skip_unchanged = False
-        client._last_text = "HELLO WORLD"
-
-        assert client.would_send(text="HELLO WORLD") is True
-
 
 class TestConnectionTest:
     """Tests for test_connection method."""
@@ -390,9 +308,9 @@ class TestConnectionTest:
     @pytest.fixture
     def client(self):
         """Create a client for testing."""
-        return BoardClient(api_key="test_key", host="192.168.0.11")
+        return local_driver("test_key", "192.168.0.11")
 
-    @patch("src.board_client.requests.get")
+    @patch("requests.get")
     def test_connection_success(self, mock_get, client):
         """Test successful connection test."""
         mock_get.return_value.raise_for_status = Mock()
@@ -400,7 +318,7 @@ class TestConnectionTest:
 
         assert client.test_connection() is True
 
-    @patch("src.board_client.requests.get")
+    @patch("requests.get")
     def test_connection_failure(self, mock_get, client):
         """Test failed connection test."""
         mock_get.side_effect = requests.exceptions.ConnectionError("Network error")
@@ -409,69 +327,48 @@ class TestConnectionTest:
 
 
 class TestValidGridDimensions:
-    """Tests for _valid_grid_dimensions helper."""
+    """The fixed Vestaboard sizes a grid is checked against."""
 
     def test_returns_expected_dimension_set(self):
-        from src.board_client import _valid_grid_dimensions
-
-        dims = _valid_grid_dimensions()
-        assert isinstance(dims, set)
-        assert (6, 22) in dims
-        assert (3, 15) in dims
+        assert {transport.FLAGSHIP, transport.NOTE} == {(6, 22), (3, 15)}
 
 
 class TestIsValidCharacterGrid:
     """Tests for _is_valid_character_grid validation."""
 
     def test_valid_flagship_grid(self):
-        from src.board_client import _is_valid_character_grid
-
         grid = [[0] * 22 for _ in range(6)]
         assert _is_valid_character_grid(grid) is True
 
     def test_valid_note_grid(self):
-        from src.board_client import _is_valid_character_grid
-
         grid = [[0] * 15 for _ in range(3)]
         assert _is_valid_character_grid(grid) is True
 
     def test_first_element_not_list(self):
         """Line 80: first row is not a list -> return False."""
-        from src.board_client import _is_valid_character_grid
-
         assert _is_valid_character_grid(["not_a_list"]) is False
 
     def test_wrong_dimensions(self):
         """Line 87: valid structure but dimensions don't match any device."""
-        from src.board_client import _is_valid_character_grid
-
         grid = [[0] * 10 for _ in range(4)]
         assert _is_valid_character_grid(grid) is False
 
     def test_ragged_row(self):
         """Line 89: a row with different column count."""
-        from src.board_client import _is_valid_character_grid
-
         grid = [[0] * 22 for _ in range(6)]
         grid[3] = [0] * 21  # one short
         assert _is_valid_character_grid(grid) is False
 
     def test_non_int_value_in_row(self):
         """Line 89: non-int element in a row."""
-        from src.board_client import _is_valid_character_grid
-
         grid = [[0] * 22 for _ in range(6)]
         grid[0][5] = "x"
         assert _is_valid_character_grid(grid) is False
 
     def test_empty_list(self):
-        from src.board_client import _is_valid_character_grid
-
         assert _is_valid_character_grid([]) is False
 
     def test_not_a_list(self):
-        from src.board_client import _is_valid_character_grid
-
         assert _is_valid_character_grid("string") is False
 
 
@@ -521,44 +418,22 @@ class TestParseReadMessagePayloadEdgeCases:
         assert parse_read_message_payload({"unknown": "data"}) is None
 
 
-class TestSendTextHTTPError:
-    """Test send_text HTTP error with response body."""
-
-    @pytest.fixture
-    def client(self):
-        return BoardClient(api_key="test_key", host="192.168.0.11")
-
-    @patch("src.board_client.requests.post")
-    def test_send_text_http_error_with_response_body(self, mock_post, client):
-        """Line 245: log response text on HTTP error."""
-        mock_response = Mock()
-        mock_response.text = "Bad Request"
-        mock_response.status_code = 400
-        exc = requests.exceptions.HTTPError(response=mock_response)
-        exc.response = mock_response
-        mock_post.side_effect = exc
-
-        success, was_sent = client.send_text("Test")
-        assert success is False
-        assert was_sent is False
-
-
 class TestSendCharactersEdgeCases:
     """Additional edge cases for send_characters."""
 
     @pytest.fixture
     def client(self):
-        return BoardClient(api_key="test_key", host="192.168.0.11")
+        return local_driver("test_key", "192.168.0.11")
 
     @pytest.fixture
     def cloud_client(self):
-        return BoardClient(api_key="rw-key", use_cloud=True)
+        return cloud_driver("rw-key")
 
     @pytest.fixture
     def valid_grid(self):
         return [[0] * 22 for _ in range(6)]
 
-    @patch("src.board_client.requests.post")
+    @patch("requests.post")
     def test_send_characters_cloud_api_format(self, mock_post, cloud_client, valid_grid):
         """Lines 294-295 / 310: cloud API sends array directly as payload."""
         mock_post.return_value.raise_for_status = Mock()
@@ -581,7 +456,7 @@ class TestSendCharactersEdgeCases:
         assert success is False
         assert was_sent is False
 
-    @patch("src.board_client.requests.post")
+    @patch("requests.post")
     def test_send_characters_http_error_with_response(self, mock_post, client, valid_grid):
         """Lines 342-346: HTTP exception with response body in send_characters."""
         mock_response = Mock()
@@ -608,7 +483,7 @@ class TestBoardClientFactory:
 
         assert client is not None
         assert client.use_cloud is True
-        assert client.api_key == "rw-key-123"
+        assert client.plugin.connection.key == "rw-key-123"
 
     def test_cloud_mode_without_key_returns_none(self):
         """Lines 414-416: cloud mode with empty key returns None."""
@@ -636,7 +511,7 @@ class TestBoardClientFactory:
 
         assert client is not None
         assert client.use_cloud is False
-        assert client.host == "192.168.0.11"
+        assert client.plugin.connection.host == "192.168.0.11"
 
     def test_local_mode_missing_key_returns_none(self):
         from src.outputs.factory import build_driver
@@ -673,7 +548,7 @@ class TestBoardClientFactory:
         client = build_driver(board)
 
         assert client is not None
-        assert client._port == 7001
+        assert client.plugin.connection.port == 7001
 
     def test_port_invalid_string_uses_default(self):
         """Lines 457-458: non-numeric port string falls back to None -> default."""
@@ -688,7 +563,7 @@ class TestBoardClientFactory:
         client = build_driver(board)
 
         assert client is not None
-        assert client._port == BoardClient.LOCAL_API_PORT
+        assert client.plugin.connection.port == LOCAL_API_PORT
 
     def test_port_as_int_used_directly(self):
         """Port as int is used as-is."""
@@ -703,7 +578,7 @@ class TestBoardClientFactory:
         client = build_driver(board)
 
         assert client is not None
-        assert client._port == 8080
+        assert client.plugin.connection.port == 8080
 
 
 class TestIsSuccessfulBoardReadResponse:
@@ -720,38 +595,14 @@ class TestIsSuccessfulBoardReadResponse:
         assert is_successful_board_read_response(42) is False
 
 
-class TestWouldSendCharacters:
-    """Tests for would_send with character arrays."""
-
-    @pytest.fixture
-    def client(self):
-        return BoardClient(api_key="test_key", host="192.168.0.11")
-
-    def test_would_send_characters_different(self, client):
-        """Lines 414-415: would_send returns True for different characters."""
-        client._last_characters = [[0] * 22 for _ in range(6)]
-        different = [[1] * 22 for _ in range(6)]
-        assert client.would_send(characters=different) is True
-
-    def test_would_send_characters_same(self, client):
-        """Lines 414-415: would_send returns False for same characters."""
-        grid = [[0] * 22 for _ in range(6)]
-        client._last_characters = grid
-        assert client.would_send(characters=grid) is False
-
-    def test_would_send_no_args_returns_true(self, client):
-        """Line 416: would_send with no text/characters returns True."""
-        assert client.would_send() is True
-
-
 class TestTestConnectionException:
     """Tests for test_connection unexpected exception path."""
 
     @pytest.fixture
     def client(self):
-        return BoardClient(api_key="test_key", host="192.168.0.11")
+        return local_driver("test_key", "192.168.0.11")
 
-    @patch("src.board_client.requests.get")
+    @patch("requests.get")
     def test_connection_unexpected_exception(self, mock_get, client):
         """Lines 428-430: non-request exception caught by broad except."""
         mock_get.side_effect = RuntimeError("Unexpected")
@@ -763,9 +614,9 @@ class TestSendCharactersNoResponseOnError:
 
     @pytest.fixture
     def client(self):
-        return BoardClient(api_key="test_key", host="192.168.0.11")
+        return local_driver("test_key", "192.168.0.11")
 
-    @patch("src.board_client.requests.post")
+    @patch("requests.post")
     def test_send_characters_error_no_response(self, mock_post, client):
         """Line 344->346: exception without response attribute."""
         mock_post.side_effect = requests.exceptions.ConnectionError("timeout")
@@ -776,41 +627,33 @@ class TestSendCharactersNoResponseOnError:
 
 
 # ---------------------------------------------------------------------------
-# Issue #1168 — Note-array Cloud API send/read in BoardClient
+# Issue #1168 — Note-array Cloud API send/read
 # ---------------------------------------------------------------------------
 
-# Hermetic: track the note-array Cloud URL the client is ACTUALLY configured to
-# use. BoardClient.CLOUD_NOTE_ARRAY_API_URL honors VESTABOARD_CLOUD_API_URL, so
+# Hermetic: track the note-array Cloud URL the plugin is ACTUALLY configured to
+# use. Its CLOUD_NOTE_ARRAY_API_URL honors VESTABOARD_CLOUD_API_URL, so
 # these URL assertions pass both in CI (env unset → real cloud.vestaboard.com)
 # and inside the dev container (env set → the mock-cloud service), instead of
 # failing whenever the suite runs in the documented `docker exec … pytest` flow.
-CLOUD_NOTE_ARRAY_URL = BoardClient.CLOUD_NOTE_ARRAY_API_URL
+CLOUD_NOTE_ARRAY_URL = transport.CLOUD_NOTE_ARRAY_API_URL
 RW_CLOUD_URL = "https://rw.vestaboard.com/"
 
 
 class TestNoteArrayClientInit:
-    """BoardClient stores note-array state correctly."""
+    """The plugin resolves a note array's connection correctly."""
 
     def test_note_array_client_has_is_note_array_flag(self):
-        client = BoardClient(
-            api_key="tok",
-            use_cloud=True,
-            note_array_token="tok",
-            notes_wide=4,
-            notes_tall=1,
-        )
-        assert client._is_note_array is True
-        assert client._note_array_token == "tok"
-        assert client._notes_wide == 4
-        assert client._notes_tall == 1
+        connection = note_array_cloud_driver("tok", 4, 1).plugin.connection
+        assert connection.mode == "note_array_cloud"
+        assert connection.key == "tok"
+        assert connection.notes_wide == 4
+        assert connection.notes_tall == 1
 
     def test_non_note_array_client_is_note_array_false(self):
-        client = BoardClient(api_key="key", host="10.0.0.1")
-        assert client._is_note_array is False
+        assert local_driver("key", "10.0.0.1").plugin.connection.mode == "local"
 
     def test_cloud_rw_client_is_note_array_false(self):
-        client = BoardClient(api_key="rw-key", use_cloud=True)
-        assert client._is_note_array is False
+        assert cloud_driver("rw-key").plugin.connection.mode == "cloud"
 
 
 class TestIsValidCharacterGridNoteArray:
@@ -859,13 +702,7 @@ class TestNoteArraySendCharacters:
 
     @pytest.fixture
     def note_array_client(self):
-        return BoardClient(
-            api_key="na-tok",
-            use_cloud=True,
-            note_array_token="na-tok",
-            notes_wide=4,
-            notes_tall=1,
-        )
+        return note_array_cloud_driver("na-tok", 4, 1)
 
     @pytest.fixture
     def valid_3x60_grid(self):
@@ -875,39 +712,39 @@ class TestNoteArraySendCharacters:
     def valid_6x30_grid(self):
         return [[0] * 30 for _ in range(6)]
 
-    @patch("src.board_client.requests.post")
+    @patch("requests.post")
     def test_send_note_array_posts_to_cloud_note_array_url(self, mock_post, note_array_client, valid_3x60_grid):
         mock_post.return_value.raise_for_status = Mock()
         note_array_client.send_characters(valid_3x60_grid)
         assert mock_post.call_args.args[0] == CLOUD_NOTE_ARRAY_URL
 
-    @patch("src.board_client.requests.post")
+    @patch("requests.post")
     def test_send_note_array_uses_x_vestaboard_token_header(self, mock_post, note_array_client, valid_3x60_grid):
         mock_post.return_value.raise_for_status = Mock()
         note_array_client.send_characters(valid_3x60_grid)
         headers = mock_post.call_args.kwargs["headers"]
         assert headers["X-Vestaboard-Token"] == "na-tok"
 
-    @patch("src.board_client.requests.post")
+    @patch("requests.post")
     def test_send_note_array_body_is_characters_dict(self, mock_post, note_array_client, valid_3x60_grid):
         mock_post.return_value.raise_for_status = Mock()
         note_array_client.send_characters(valid_3x60_grid)
         body = mock_post.call_args.kwargs["json"]
         assert body == {"characters": valid_3x60_grid}
 
-    @patch("src.board_client.requests.post")
+    @patch("requests.post")
     def test_send_note_array_success_returns_true_true(self, mock_post, note_array_client, valid_3x60_grid):
         mock_post.return_value.raise_for_status = Mock()
         result = note_array_client.send_characters(valid_3x60_grid)
         assert result == (True, True)
 
-    @patch("src.board_client.requests.post")
+    @patch("requests.post")
     def test_send_note_array_network_error(self, mock_post, note_array_client, valid_3x60_grid):
         mock_post.side_effect = requests.exceptions.ConnectionError("connection refused")
         result = note_array_client.send_characters(valid_3x60_grid)
         assert result == (False, False)
 
-    @patch("src.board_client.requests.post")
+    @patch("requests.post")
     def test_send_note_array_6x30_grid_accepted(self, mock_post, note_array_client, valid_6x30_grid):
         # The client is configured 4x1 (expects 3x60) but a 6x30 grid is still
         # accepted: _is_valid_character_grid validates note-array shape, not the
@@ -916,23 +753,20 @@ class TestNoteArraySendCharacters:
         result = note_array_client.send_characters(valid_6x30_grid)
         assert result == (True, True)
 
-    @patch("src.board_client.requests.post")
-    def test_send_text_not_supported_for_note_array(self, mock_post, note_array_client):
-        """send_text on a note-array board fails gracefully and never POSTs (Cloud API is characters-only)."""
-        result = note_array_client.send_text("HELLO")
-        assert result == (False, False)
-        mock_post.assert_not_called()
+    def test_send_text_not_supported_for_note_array(self, note_array_client):
+        """Characters only (the Cloud API has no text endpoint): there is no text send."""
+        assert not hasattr(note_array_client, "send_text")
 
-    @patch("src.board_client.requests.post")
+    @patch("requests.post")
     def test_send_note_array_does_not_use_rw_cloud_url(self, mock_post, note_array_client, valid_3x60_grid):
         mock_post.return_value.raise_for_status = Mock()
         note_array_client.send_characters(valid_3x60_grid)
         assert mock_post.call_args.args[0] != RW_CLOUD_URL
 
-    @patch("src.board_client.requests.post")
+    @patch("requests.post")
     def test_rw_cloud_still_sends_bare_array(self, mock_post):
         """Existing RW Cloud API behavior must be unchanged (bare array, not wrapped)."""
-        rw_client = BoardClient(api_key="rw", use_cloud=True)
+        rw_client = cloud_driver("rw")
         valid_6x22 = [[0] * 22 for _ in range(6)]
         mock_post.return_value.raise_for_status = Mock()
         rw_client.send_characters(valid_6x22)
@@ -945,13 +779,7 @@ class TestNoteArrayReadCurrentMessage:
 
     @pytest.fixture
     def note_array_client(self):
-        return BoardClient(
-            api_key="na-tok",
-            use_cloud=True,
-            note_array_token="na-tok",
-            notes_wide=4,
-            notes_tall=1,
-        )
+        return note_array_cloud_driver("na-tok", 4, 1)
 
     def _make_layout_response(self, grid):
         mock_resp = Mock()
@@ -959,14 +787,14 @@ class TestNoteArrayReadCurrentMessage:
         mock_resp.json.return_value = {"currentMessage": {"layout": json.dumps(grid)}}
         return mock_resp
 
-    @patch("src.board_client.requests.get")
+    @patch("requests.get")
     def test_read_note_array_gets_cloud_note_array_url(self, mock_get, note_array_client):
         grid = [[0] * 60 for _ in range(3)]
         mock_get.return_value = self._make_layout_response(grid)
         note_array_client.read_current_message()
         assert mock_get.call_args.args[0] == CLOUD_NOTE_ARRAY_URL
 
-    @patch("src.board_client.requests.get")
+    @patch("requests.get")
     def test_read_note_array_uses_x_vestaboard_token_header(self, mock_get, note_array_client):
         grid = [[0] * 60 for _ in range(3)]
         mock_get.return_value = self._make_layout_response(grid)
@@ -974,21 +802,21 @@ class TestNoteArrayReadCurrentMessage:
         headers = mock_get.call_args.kwargs["headers"]
         assert headers["X-Vestaboard-Token"] == "na-tok"
 
-    @patch("src.board_client.requests.get")
+    @patch("requests.get")
     def test_read_note_array_parses_layout_to_grid(self, mock_get, note_array_client):
         grid = [[0] * 60 for _ in range(3)]
         mock_get.return_value = self._make_layout_response(grid)
         result = note_array_client.read_current_message()
         assert result == grid
 
-    @patch("src.board_client.requests.get")
+    @patch("requests.get")
     def test_read_note_array_6x30_parses_correctly(self, mock_get, note_array_client):
         grid = [[0] * 30 for _ in range(6)]
         mock_get.return_value = self._make_layout_response(grid)
         result = note_array_client.read_current_message()
         assert result == grid
 
-    @patch("src.board_client.requests.get")
+    @patch("requests.get")
     def test_read_note_array_network_error_returns_none(self, mock_get, note_array_client):
         mock_get.side_effect = requests.exceptions.ConnectionError("refused")
         result = note_array_client.read_current_message()
@@ -1007,8 +835,8 @@ class TestBoardClientFactoryNoteArray:
         }
         client = build_driver(board)
         assert client is not None
-        assert client._is_note_array is True
-        assert client._note_array_token == "tok"
+        assert client.plugin.connection.mode == "note_array_cloud"
+        assert client.plugin.connection.key == "tok"
 
     def test_note_array_board_no_token_returns_none(self):
         board = {
@@ -1032,20 +860,20 @@ class TestBoardClientFactoryNoteArray:
         }
         client = build_driver(board)
         assert client is not None
-        assert client._notes_wide == 2
-        assert client._notes_tall == 3
+        assert client.plugin.connection.notes_wide == 2
+        assert client.plugin.connection.notes_tall == 3
 
     def test_flagship_board_cloud_unaffected(self):
         board = {"api_mode": "cloud", "cloud_key": "rw-key"}
         client = build_driver(board)
         assert client is not None
-        assert client._is_note_array is False
+        assert client.plugin.connection.mode != "note_array_cloud"
 
     def test_flagship_board_local_unaffected(self):
         board = {"api_mode": "local", "local_api_key": "k", "host": "10.0.0.1"}
         client = build_driver(board)
         assert client is not None
-        assert client._is_note_array is False
+        assert client.plugin.connection.mode != "note_array_cloud"
 
 
 # ---------------------------------------------------------------------------
@@ -1071,26 +899,13 @@ class TestNoteArrayConstraints:
         """Factory: call with (time_func, token) to get a throttle-testable client."""
 
         def _make(time_func, token):
-            return BoardClient(
-                api_key=token,
-                use_cloud=True,
-                note_array_token=token,
-                notes_wide=4,
-                notes_tall=1,
-                _time_func=time_func,
-            )
+            return note_array_cloud_driver(token, 4, 1, clock=time_func)
 
         return _make
 
     @pytest.fixture
     def note_array_client(self):
-        return BoardClient(
-            api_key="na-tok",
-            use_cloud=True,
-            note_array_token="na-strip-tok",
-            notes_wide=4,
-            notes_tall=1,
-        )
+        return note_array_cloud_driver("na-strip-tok", 4, 1)
 
     @pytest.fixture
     def valid_3x60_grid(self):
@@ -1103,7 +918,7 @@ class TestNoteArrayConstraints:
 
     # --- transition stripping -------------------------------------------------
 
-    @patch("src.board_client.requests.post")
+    @patch("requests.post")
     def test_note_array_send_omits_strategy_even_when_passed(self, mock_post, note_array_client, valid_3x60_grid):
         mock_post.return_value.raise_for_status = Mock()
 
@@ -1117,7 +932,7 @@ class TestNoteArrayConstraints:
         assert "step_size" not in body
         assert result == (True, True)
 
-    @patch("src.board_client.requests.post")
+    @patch("requests.post")
     def test_note_array_send_omits_strategy_none_also_fine(self, mock_post, note_array_client, valid_3x60_grid):
         mock_post.return_value.raise_for_status = Mock()
 
@@ -1128,7 +943,7 @@ class TestNoteArrayConstraints:
 
     # --- throttle -------------------------------------------------------------
 
-    @patch("src.board_client.requests.post")
+    @patch("requests.post")
     def test_note_array_second_send_within_15s_is_throttled(
         self, mock_post, note_array_client_with_clock, valid_3x60_grid, other_3x60_grid, caplog
     ):
@@ -1147,7 +962,7 @@ class TestNoteArrayConstraints:
         assert mock_post.call_count == 1  # not sent again
         assert any(record.levelname == "WARNING" and "throttled" in record.message for record in caplog.records)
 
-    @patch("src.board_client.requests.post")
+    @patch("requests.post")
     def test_note_array_second_send_at_exactly_15s_goes_through(
         self, mock_post, note_array_client_with_clock, valid_3x60_grid, other_3x60_grid
     ):
@@ -1158,7 +973,7 @@ class TestNoteArrayConstraints:
         assert client.send_characters(other_3x60_grid) == (True, True)
         assert mock_post.call_count == 2
 
-    @patch("src.board_client.requests.post")
+    @patch("requests.post")
     def test_note_array_second_send_after_15s_goes_through(
         self, mock_post, note_array_client_with_clock, valid_3x60_grid, other_3x60_grid
     ):
@@ -1169,7 +984,7 @@ class TestNoteArrayConstraints:
         assert client.send_characters(other_3x60_grid) == (True, True)
         assert mock_post.call_count == 2
 
-    @patch("src.board_client.requests.post")
+    @patch("requests.post")
     def test_throttled_send_is_reported_via_last_send_throttled(
         self, mock_post, note_array_client_with_clock, valid_3x60_grid, other_3x60_grid
     ):
@@ -1185,7 +1000,7 @@ class TestNoteArrayConstraints:
         assert client.send_characters(other_3x60_grid) == (True, False)
         assert client.last_send_throttled is True
 
-    @patch("src.board_client.requests.post")
+    @patch("requests.post")
     def test_unchanged_content_skip_is_not_reported_as_throttled(
         self, mock_post, note_array_client_with_clock, valid_3x60_grid
     ):
@@ -1197,7 +1012,7 @@ class TestNoteArrayConstraints:
         assert client.send_characters(valid_3x60_grid) == (True, False)
         assert client.last_send_throttled is False
 
-    @patch("src.board_client.requests.post")
+    @patch("requests.post")
     def test_note_array_first_send_always_goes_through(self, mock_post, note_array_client_with_clock, valid_3x60_grid):
         mock_post.return_value.raise_for_status = Mock()
         # Token never previously seen by the core send floor.
@@ -1206,11 +1021,11 @@ class TestNoteArrayConstraints:
         assert client.send_characters(valid_3x60_grid) == (True, True)
         assert mock_post.call_count == 1
 
-    @patch("src.board_client.requests.post")
+    @patch("requests.post")
     def test_note_array_throttle_state_persists_across_client_recreation(
         self, mock_post, note_array_client_with_clock, valid_3x60_grid, other_3x60_grid
     ):
-        """A new BoardClient with the same token still sees the prior send's timestamp."""
+        """A new driver with the same token still sees the prior send's timestamp."""
         mock_post.return_value.raise_for_status = Mock()
         token = "na-throttle-persist"
 
@@ -1227,10 +1042,10 @@ class TestNoteArrayConstraints:
 
     # --- regression -----------------------------------------------------------
 
-    @patch("src.board_client.requests.post")
+    @patch("requests.post")
     def test_flagship_transitions_unchanged(self, mock_post):
         """Flagship local sends still carry transition params."""
-        client = BoardClient(api_key="local-key", host="192.168.0.11")
+        client = local_driver("local-key", "192.168.0.11")
         grid = [[0] * 22 for _ in range(6)]
         mock_post.return_value.raise_for_status = Mock()
 

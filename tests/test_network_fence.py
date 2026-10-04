@@ -17,8 +17,8 @@ from unittest.mock import patch
 import pytest
 from pytest_socket import SocketConnectBlockedError
 
-from src.board_client import BoardClient
-from src.outputs.vestaboard.diagnostics import check_vestaboard_connection
+from first_party_outputs.vestaboard import transport as vestaboard_transport
+from first_party_outputs.vestaboard.diagnostics import check_vestaboard_connection
 
 _PROJECT_ROOT = Path(__file__).resolve().parent.parent
 
@@ -43,14 +43,14 @@ def test_loopback_connect_is_allowed():
 
 
 def _cloud_url_in_fresh_interpreter(**env_overrides: str) -> str:
-    """Read ``BoardClient.CLOUD_API_URL`` from a fresh import.
+    """Read the Vestaboard plugin's ``CLOUD_API_URL`` from a fresh import.
 
-    The env var is read at class definition, so it is checked in a subprocess
+    The env var is read at module import, so it is checked in a subprocess
     rather than by reloading the suite's already-imported module.
     """
     env = {k: v for k, v in os.environ.items() if k != "VESTABOARD_RW_API_URL"}
     env.update(PYTHONPATH=str(_PROJECT_ROOT), **env_overrides)
-    code = "from src.board_client import BoardClient; print(BoardClient.CLOUD_API_URL)"
+    code = "from first_party_outputs.vestaboard import transport; print(transport.CLOUD_API_URL)"
     return subprocess.check_output([sys.executable, "-c", code], env=env, text=True).strip()
 
 
@@ -66,7 +66,7 @@ def test_rw_cloud_url_env_override():
 def test_cloud_diagnostic_probes_the_configured_url(mock_get):
     mock_get.return_value.status_code = 200
 
-    with patch.object(BoardClient, "CLOUD_API_URL", "http://mock-host:9300/"):
+    with patch.object(vestaboard_transport, "CLOUD_API_URL", "http://mock-host:9300/"):
         check_vestaboard_connection(host="", use_cloud=True, cloud_key="rw-key")
 
     assert mock_get.call_args.args[0] == "http://mock-host:9300/"
