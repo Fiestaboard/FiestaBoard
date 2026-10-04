@@ -98,6 +98,11 @@ class BoardState:
     last_sent_at: float | None
     expected_characters: list[list[int]] | None
     api_mode: Literal["local", "cloud"]
+    #: The rich cells of ``characters`` (FiestaUI ``BoardToken`` rows), when
+    #: ``characters`` is the frame FiestaBoard last sent and that write
+    #: carried cells (an output that takes them). ``None`` otherwise — a poll
+    #: or read-back of something else has no cells to describe it.
+    cells: Any = None
 
     @property
     def rows(self) -> int:
@@ -150,8 +155,21 @@ def _prime(rt: Any, characters: list[list[int]], at: float) -> None:
     rt.polled_at = at
 
 
+def _with_cells(rt: Any, state: BoardState) -> BoardState:
+    """*state* with the last write's rich cells, when its characters are that write."""
+    frames = rt.output.frames if rt.client is not None else None
+    cells = getattr(frames, "cells", None)
+    if not isinstance(cells, list) or state.characters is None or state.characters != frames.characters:
+        return replace(state, cells=None) if state.cells is not None else state
+    return replace(state, cells=cells)
+
+
 def _select(rt: Any, board_id: str | None, *, want: Want, skip_poll_cache: bool = False) -> BoardState:
     """The selection order above, over one resolved runtime. No I/O."""
+    return _with_cells(rt, _select_codes(rt, board_id, want=want, skip_poll_cache=skip_poll_cache))
+
+
+def _select_codes(rt: Any, board_id: str | None, *, want: Want, skip_poll_cache: bool) -> BoardState:
     client = rt.client
     frames = rt.output.frames if client is not None else None
     base = BoardState(
@@ -244,4 +262,4 @@ async def read_board_state_live(board_id: str | None, *, force: bool = False, se
     if characters is None:
         raise BoardReadError(board_id)
     _prime(rt, characters, time.time())
-    return replace(state, characters=characters, source="live", polled_at=None)
+    return _with_cells(rt, replace(state, characters=characters, source="live", polled_at=None))

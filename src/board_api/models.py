@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from typing import Any
+
 from pydantic import BaseModel
 
 
@@ -38,6 +40,12 @@ class BoardCurrentMessageResponse(BaseModel):
     #: The 2-D grid on the board. Null for a secondary board that has never
     #: been written to (issue #1247).
     characters: list[list[int]] | None = None
+    #: The same frame as rich cells (FiestaUI ``BoardToken[][]`` JSON, as
+    #: ``GET /panel/{id}/frame`` serves them), for a board whose output took
+    #: them (an LED output: colour, case and icons ``characters`` cannot
+    #: hold). Additive and present ONLY then; every other board's response is
+    #: exactly what it was.
+    cells: list[list[dict[str, Any]]] | None = None
     #: ``characters`` rendered as the string form ``BoardDisplay`` takes.
     message: str | None = None
     rows: int
