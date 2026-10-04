@@ -1190,6 +1190,17 @@ the error); and at load, an installed copy that cannot run falls back to the
 image's seed copy, if FiestaBoard ships one, with an error on
 `GET /plugins/errors`. An output plugin a board uses cannot be uninstalled.
 
+Every output plugin repo runs the shared conformance suite in its CI:
+`OutputConformanceSuite(plugin_dir, factory, config).assert_conformant()`
+from `src/outputs/conformance.py`, where `factory(board_id, config,
+transport)` builds the plugin with its device I/O routed to the suite's
+`FakeTransport`. It checks the manifest and character set, the 3×15
+geometry floor, no network at import, a stable credential-free
+`device_key()`, the send floor, `WriteResult` shapes (including partial
+writes), cancellation, sequence uploads and `check_connection()`. The
+module docstring has a complete example; core runs it against the test kit
+in `tests/test_output_conformance.py`.
+
 First-party outputs are pinned in `outputs.lock.json` (repo URL, commit,
 `output_api`, tree digest; `"loadable": false` for a repo carried for its
 device data only) and baked into the image's read-only seed by
