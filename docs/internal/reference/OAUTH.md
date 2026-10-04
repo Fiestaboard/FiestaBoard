@@ -221,6 +221,30 @@ set fields no manifest can (`redirect_uri_override`, `token_params`,
 `accept_issued_client_id`, `first_sign_in_params`) for ChatGPT's loopback
 redirect and issued client. The ChatGPT `id_token` is discarded unread.
 
+**ChatGPT switches to the relay once FiestaBoard's OpenAI app is approved.**
+With `client_id=dynamic_agent_client`, OpenAI accepts only
+`http://127.0.0.1:<port>/auth/callback` as the redirect (fiestaboard.app is
+refused with `invalid_authorize_request`, param `redirect_uri`), hence the
+paste. A registered app gets a real public client ID with an https redirect.
+`OPENAI_REGISTERED_CLIENT_ID` in `src/ai/sign_in.py` holds it (empty until
+approval); the env var `FIESTABOARD_OPENAI_CLIENT_ID` overrides it for
+testing. `chatgpt_provider()` builds the connection's provider per request:
+
+- Set: that client ID, the standard relay redirect (`configured_redirect_uri()`,
+  `https://fiestaboard.app/auth/oauth/redirect`), no `redirect_uri_override`
+  (so `paste_expected` is false and the UI shows the normal sign-in), no
+  `accept_issued_client_id`, no `agent_name_hint`, no `ext_agent_host_id`.
+  Same authorize/token endpoints, scopes, `resource`, PKCE, and no secret.
+- Empty: the `dynamic_agent_client` loopback flow above, unchanged.
+
+To flip it after approval: register `https://fiestaboard.app/auth/oauth/redirect`
+as the app's redirect URI, set `OPENAI_REGISTERED_CLIENT_ID = "<public client ID>"`,
+and release. Try it first on a board with `FIESTABOARD_OPENAI_CLIENT_ID` set.
+Boards already signed in keep working: their stored tokens carry the issued
+`oaiapp_…` client, which refresh keeps using; the next sign-in uses the
+registered app. If the approved app's endpoints or parameters differ from the
+assumptions above, adjust `chatgpt_provider()` and `tests/ai/test_sign_in.py`.
+
 **Plugins may swap and renew their own token.** (9.11.0) Meta hands out a
 1-hour token at sign-in that the app trades for a 60-day one and renews with
 its own call, not a refresh token. Rather than a Meta-shaped manifest option

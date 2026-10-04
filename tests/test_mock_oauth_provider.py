@@ -373,3 +373,25 @@ def test_core_chatgpt_sign_in_finishes_from_the_pasted_loopback_address(base, tm
     assert done.json()["status"] == "connected"
     token = service.get_access_token("ai.gpt")
     assert requests.get(f"{base}/v1/models", headers={"Authorization": f"Bearer {token}"}, timeout=5).status_code == 200
+
+
+def test_core_chatgpt_with_a_registered_client_comes_back_through_the_relay(base, tmp_path, monkeypatch):
+    """Once FiestaBoard's OpenAI app is approved: the normal relay sign-in, nothing to paste."""
+    monkeypatch.setenv("FIESTABOARD_OPENAI_CLIENT_ID", "app_test_registered")
+    service, client = _chatgpt_board(base, tmp_path, monkeypatch)
+    connections = {c["id"]: c for c in client.get("/oauth/connections").json()["connections"]}
+    assert connections["ai.gpt"]["paste_expected"] is False
+
+    start = client.post("/oauth/connections/ai.gpt/authorize", json={"board_url": "http://192.168.1.50:4420"})
+    assert start.status_code == 200
+    assert start.json()["paste_expected"] is False
+
+    landed = requests.get(start.json()["authorization_url"], allow_redirects=False, timeout=5).headers["Location"]
+    assert landed.startswith("https://relay.example/redirect?code=")
+    assert "client_id=" not in landed
+    query = {k: v[0] for k, v in parse_qs(urlsplit(landed).query).items()}
+
+    outcome = service.complete_authorization(state=query["state"], code=query["code"], error=None)
+    assert outcome.connected is True
+    token = service.get_access_token("ai.gpt")
+    assert requests.get(f"{base}/v1/models", headers={"Authorization": f"Bearer {token}"}, timeout=5).status_code == 200

@@ -178,6 +178,9 @@ is planned around that:
    the **Finish signing in** step, and press **Finish sign-in**. The
    panel then says you are signed in.
 
+This paste step goes away once OpenAI approves FiestaBoard's app: ChatGPT
+then sends you straight back to your board, like the other providers.
+
 For the other providers, a sign-in that does not come back by itself
 can be finished the same way: choose **Sign-in didn't come back?
 Paste the address or code**.
