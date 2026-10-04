@@ -49,6 +49,7 @@ from .matrix import (
     led_spec_for_model,
     parse_hex_color,
     rasterize,
+    resolve_hex_option,
 )
 
 __all__ = [
@@ -82,5 +83,6 @@ __all__ = [
     "materialize_character_set",
     "parse_hex_color",
     "rasterize",
+    "resolve_hex_option",
     "validate_character_set",
 ]

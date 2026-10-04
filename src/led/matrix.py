@@ -1,6 +1,6 @@
 """LED matrix layout and raster: a board message to the RGB888 bytes a panel shows.
 
-A port of FiestaUI's ``src/lib/led-matrix.ts`` (a70b719), the reference
+A port of FiestaUI's ``src/lib/led-matrix.ts`` (45496c9), the reference
 implementation (plan D15): :func:`grid_layout` is ``ledGridLayout``,
 :func:`layout_message` is ``layoutLedMessage``, :func:`rasterize` is
 ``rasterizeLedLayout``, :func:`frame_to_bits` is ``frameToBits``. The golden
@@ -67,6 +67,7 @@ __all__ = [
     "led_spec_for_model",
     "parse_hex_color",
     "rasterize",
+    "resolve_hex_option",
 ]
 
 #: Matrix size bounds. 256 covers a chain of four 64-wide HUB75 panels.
@@ -144,6 +145,7 @@ _JS_SPACE = "\t\n\v\f\r    -     　﻿"
 _JS_SPACES = re.compile(f"[{_JS_SPACE}]+")
 _JS_TRIM = re.compile(f"^[{_JS_SPACE}]+|[{_JS_SPACE}]+$")
 _HEX = re.compile(r"#?([0-9a-fA-F]{2})([0-9a-fA-F]{2})([0-9a-fA-F]{2})")
+_HEX_OPTION = re.compile(r"#?([0-9a-fA-F]{6})")
 
 
 @dataclass(frozen=True)
@@ -274,8 +276,17 @@ def parse_hex_color(value: str) -> tuple[int, int, int] | None:
     return (int(m.group(1), 16), int(m.group(2), 16), int(m.group(3), 16)) if m else None
 
 
-def _resolve_hex(value: str | None, fallback: str | None) -> str | None:
-    return value.lower() if value is not None and parse_hex_color(value) else fallback
+def resolve_hex_option(value: str | None, fallback: str | None) -> str | None:
+    """A colour option as lowercase ``#rrggbb``, or ``fallback``.
+
+    Whitespace is trimmed and a missing ``#`` supplied, so ``FFB000`` and
+    ``#ffb000`` are one colour in a layout's cells and options; anything that
+    is not six hex digits (``#fff``, ``rgba(...)``, a name) is the fallback.
+    """
+    if value is None:
+        return fallback
+    m = _HEX_OPTION.fullmatch(_JS_TRIM.sub("", value))
+    return f"#{m.group(1).lower()}" if m else fallback
 
 
 def _resolve_color_code(code: str) -> str:
@@ -312,8 +323,8 @@ def glyph_key(token: BoardToken, custom: Mapping[str, Sequence[str]] | None = No
 def _glyph_rows(key: str, face: LedFont, custom: Mapping[str, Sequence[str]] | None) -> Sequence[str] | None:
     if key.startswith("icon:"):
         return face.icons.get(key[5:])
-    # A set's own bitmap wins over the face's (plan D17 rule 5; FiestaUI's
-    # CharacterSet.glyphs contract, though its a70b719 code checks the face first).
+    # A set's own bitmap wins over the face's (plan D17 rule 5): a plugin
+    # that redraws `0` gets its zero.
     if custom is not None and key in custom:
         return custom[key]
     return face.glyphs.get(key)
@@ -394,10 +405,12 @@ def layout_cells(grid: LedGridLayout, cells: list[LedCell], options: LedRenderOp
 def _cell_for_token(
     token: BoardToken, text_color: str, monochrome: str | None, custom: Mapping[str, Sequence[str]] | None
 ) -> LedCell:
-    is_char = token.type == "char"
-    spanned = is_char and token.color is not None
+    # Colours are read off any token: a parsed tile never carries them, but an
+    # icon whose fallback is a tile does (`{black/white:{icon:sun}}`), and that
+    # cell is a block cell like any other, its glyph or tile drawn on the field.
+    spanned = token.color is not None
     span = _color_code_to_hex(token.color) if spanned else None
-    background = _color_code_to_hex(token.background) if is_char and token.background else None
+    background = _color_code_to_hex(token.background) if token.background else None
     # An off span colour draws unlit letters; a block on a monochrome panel is
     # inverse video (lit background, unlit glyph).
     if background and monochrome:
@@ -431,8 +444,10 @@ def layout_message(
     """
     options = options or LedLayoutOptions()
     grid = grid_layout(spec.width, spec.height, spec.font)
-    monochrome = _resolve_hex(options.monochrome, None)
-    text_color = monochrome if monochrome is not None else _resolve_hex(options.text_color, DEFAULT_LED_TEXT_COLOR)
+    monochrome = resolve_hex_option(options.monochrome, None)
+    text_color = (
+        monochrome if monochrome is not None else resolve_hex_option(options.text_color, DEFAULT_LED_TEXT_COLOR)
+    )
     custom = options.charset.get("glyphs") if options.charset else None
     resolved = LedRenderOptions(monochrome=monochrome, glyphs=custom)
     if grid.rows == 0 or grid.cols == 0:

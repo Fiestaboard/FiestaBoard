@@ -6,7 +6,7 @@ FiestaUI's ``CHARACTER_SETS`` exported flattened and vendored verbatim as
 ``character-sets.json``. A plugin's set may be partial over ``extends``;
 :func:`materialize_character_set` ports FiestaUI's ``materializeCharacterSet``
 and :func:`validate_character_set` its ``validateCharacterSet``
-(``src/lib/character-sets.ts``, a70b719), messages included.
+(``src/lib/character-sets.ts``, 45496c9), messages included.
 
 Sets are plain dicts in FiestaUI's JSON shape (camelCase keys), because that
 is the document an output plugin's manifest declares.
@@ -172,16 +172,19 @@ def materialize_character_set(declaration: dict, known: Iterable[CharacterSet] =
     - ``extends`` stays on the result as lineage.
 
     Raises:
-        ValueError: unknown or circular ``extends``, a set without
-            ``extends`` that is not complete, or an invalid result.
+        ValueError: an invalid declaration (a malformed field, or a key that
+            is not a set field: a typo is never silently dropped), an unknown
+            or circular ``extends``, a set without ``extends`` that is not
+            complete, or an invalid result.
     """
     set_id = declaration.get("id")
+    # The declaration is checked as given (whole, or partial over `extends`)
+    # before anything is inherited.
+    declared = validate_character_set(declaration)
+    if not declared.ok:
+        raise ValueError(f'Character set "{set_id}" is invalid: {"; ".join(declared.errors)}')
     parent: Mapping | None = None
-    if "extends" not in declaration:
-        result = validate_character_set(declaration)
-        if not result.ok:
-            raise ValueError(f'Character set "{set_id}" is invalid: {"; ".join(result.errors)}')
-    else:
+    if "extends" in declaration:
         parent_id = declaration["extends"]
         parent = next((k for k in known if k.get("id") == parent_id), None)
         if parent is None and isinstance(parent_id, str):
