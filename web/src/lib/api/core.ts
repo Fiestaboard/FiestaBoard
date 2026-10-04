@@ -83,6 +83,21 @@ export class ApiError extends Error {
   }
 }
 
+/**
+ * The human-readable message in a FastAPI `detail`. A string is the message;
+ * a structured detail (e.g. a partial board write's 502:
+ * `{message, partial, failed_regions}`) carries it in `message`; anything
+ * else (a 422's list of field errors) is serialized so nothing is dropped.
+ */
+function detailMessage(detail: unknown): string {
+  if (typeof detail === "string") return detail;
+  if (detail && typeof detail === "object" && !Array.isArray(detail)) {
+    const message = (detail as { message?: unknown }).message;
+    if (typeof message === "string" && message) return message;
+  }
+  return JSON.stringify(detail);
+}
+
 export async function fetchApi<T>(
   path: string,
   options?: RequestInit & { timeoutMs?: number; skipAuthRedirect?: boolean },
@@ -117,7 +132,7 @@ export async function fetchApi<T>(
     try {
       const body = await res.json();
       if (body?.detail) {
-        detail = typeof body.detail === "string" ? body.detail : JSON.stringify(body.detail);
+        detail = detailMessage(body.detail);
       }
     } catch {
       // ignore JSON parse errors; use status text fallback

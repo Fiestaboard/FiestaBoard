@@ -36,12 +36,10 @@ from fastapi import APIRouter, HTTPException
 from src.api_errors import errors
 from src.board_chars import characters_to_message
 from src.board_guards import _board_dims, _find_board
-from src.board_state import read_board_state
 from src.devices import NOTE_COLS, NOTE_ROWS, is_note_array, resolve_dimensions
-from src.display_runtime import get_service, reinitialize_board_clients
+from src.display_runtime import get_service, reinitialize_board_clients, release_board_frames
 from src.pages.service import find_incompatible_board_references
 from src.settings.service import get_settings_service
-from src.virtual_board_client import release_virtual_board_state
 
 from .models import (
     PanelCreate,
@@ -179,15 +177,13 @@ async def update_panel(panel_id: str, data: PanelUpdate):
             if not board_matches_grid(target, grid):
                 fit_board_to_grid(target, grid)
                 settings_service.set_boards(boards)
-                # Drop the old-shape frame BEFORE rebuilding the client.
-                # Every reader now goes through read_board_state, which
-                # honours read_current_message's refusal to serve a frame
-                # whose shape no longer matches the board — but the
-                # `expected_characters` half of /board/current-message is
-                # still the raw last-sent grid, and a client rebuilt onto
-                # the same shared state would inherit it. Releasing the
-                # state clears the displayed and last-sent frames together.
-                release_virtual_board_state(panel.board_id)
+                # Drop the old-shape frame BEFORE rebuilding the client. The
+                # panel frame refuses a frame whose shape no longer matches
+                # the board (core's stale-shape guard), but the
+                # `expected_characters` half of /board/current-message is the
+                # raw last-sent grid. Releasing the board's runtime frames
+                # clears the displayed and last-sent frames together.
+                release_board_frames(panel.board_id)
                 reinitialize_board_clients()
                 # The grid changed shape: pages authored for the old grid stay
                 # referenced but can no longer render here. Warn-only, exactly
@@ -226,7 +222,7 @@ async def delete_panel(panel_id: str):
         if len(boards) == 1 and boards[0].get("id") == panel.board_id:
             with contextlib.suppress(Exception):
                 settings_service.set_boards([{"device_type": "flagship"}])
-    release_virtual_board_state(panel.board_id)
+    release_board_frames(panel.board_id)
     reinitialize_board_clients()
     return PanelDeleteResponse(id=panel_id)
 
@@ -258,12 +254,15 @@ async def get_panel_public(panel_id: str):
 
 @router.get("/panel/{panel_id}/frame", response_model=PanelFrameResponse, responses=errors(404))
 async def get_panel_frame(panel_id: str):
-    """Public viewer frame: the virtual board's current content. No auth.
+    """Public viewer frame: the board's last-frame store. No auth.
 
-    Never triggers a live HTTP read — a panel misconfigured onto a physical
-    board serves that board's last-sent cache instead of hammering it at the
-    viewer's 2s poll cadence. Never consults the poll cache either: the
-    viewer shows what FiestaBoard last displayed, immediately.
+    Served from core: the board's live runtime keeps the last frame sent
+    (plan D4), with the stale-shape refusal — a frame whose shape no longer
+    matches the board (a TV-size re-fit) is served as no frame. Never
+    triggers a live HTTP read, and never consults the poll cache: the viewer
+    shows what FiestaBoard last displayed, immediately. A panel
+    misconfigured onto a pushed (physical) board serves that board's
+    last-sent cache, as it always has.
     """
     panel = get_panel_service().get_panel_by_ref(panel_id)
     if panel is None:
@@ -271,19 +270,22 @@ async def get_panel_frame(panel_id: str):
     board = _find_board(panel.board_id)
     dims = _board_dims(board) if board is not None else resolve_dimensions("flagship")
 
-    # ``want="sent"``: what FiestaBoard last displayed/sent, now — never the
-    # poll cache (a write that skips the poll refresh must still reach the
-    # TV), never a network read. The reader does no I/O, so it runs inline.
-    state = read_board_state(panel.board_id, want="sent", service=get_service())
-
-    # The viewer's ``updated_at`` is when the frame was last stored,
-    # whatever answered the read — a refused stale-shape frame still
-    # reports when it was sent.
+    service = get_service()
+    rt = service.runtime_for(panel.board_id) if service is not None else None
+    characters: list[list[int]] | None = None
     updated_at = None
-    if state.last_sent_at is not None:
-        updated_at = datetime.fromtimestamp(state.last_sent_at, tz=UTC).isoformat()
+    if rt is not None and rt.client is not None:
+        output = rt.output
+        if output.delivery == "pull":
+            characters = output.displayed_frame(dims.rows, dims.cols)
+            # When the frame was stored, whether or not it is served — a
+            # refused stale-shape frame still reports when it was sent.
+            if output.last_sent_at is not None:
+                updated_at = datetime.fromtimestamp(output.last_sent_at, tz=UTC).isoformat()
+        else:
+            characters = output.frames.characters
 
-    if state.characters is None:
+    if characters is None:
         return PanelFrameResponse(
             characters=None,
             message=None,
@@ -292,9 +294,9 @@ async def get_panel_frame(panel_id: str):
             updated_at=updated_at,
         )
     return PanelFrameResponse(
-        characters=state.characters,
-        message=characters_to_message(state.characters),
-        rows=state.rows,
-        cols=state.cols,
+        characters=characters,
+        message=characters_to_message(characters),
+        rows=len(characters),
+        cols=len(characters[0]) if characters else 0,
         updated_at=updated_at,
     )

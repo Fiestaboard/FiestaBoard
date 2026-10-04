@@ -39,7 +39,7 @@ class FrameCache:
 
     def __init__(self) -> None:
         # Re-entrant so a driver can hold it across check-then-record (the
-        # virtual board's "glass" does) while the record methods take it too.
+        # virtual board client does) while the record methods take it too.
         self.lock = threading.RLock()
         self.characters: Grid | None = None
         self.text: str | None = None
@@ -92,6 +92,34 @@ class FrameCache:
             self.characters = _copy(characters)
             self.text = None
             self.generation += 1
+
+    # --- the last-frame store ----------------------------------------------------
+
+    def last_frame_shaped(self, rows: int, cols: int) -> Grid | None:
+        """A copy of the last frame sent, if it is *rows* x *cols*; else ``None``.
+
+        The stale-shape refusal: a board re-fit to a new grid (a FiestaPanel
+        TV-size change) must never be served the frame it showed at the old
+        size — the viewer would render mismatched content until the next send.
+        """
+        with self.lock:
+            frame = self.last_frame
+            if frame is None or len(frame) != rows or any(len(row) != cols for row in frame):
+                return None
+            return _copy(frame)
+
+    def clear(self) -> None:
+        """Release everything: the dedupe cache *and* the last-frame store.
+
+        For a board whose frames must not outlive it — a deleted panel, or one
+        re-fit to a new grid. A forced re-send uses :meth:`forget` instead.
+        """
+        with self.lock:
+            self.characters = None
+            self.text = None
+            self.generation += 1
+            self.last_frame = None
+            self.last_sent_at = None
 
     def forget(self) -> None:
         """Clear the dedupe cache so the next send goes through.
