@@ -148,7 +148,7 @@ On FiestaPi, FiestaBoard starts automatically on boot — there's nothing to sto
 
 - **[FiestaPi Quick Start](/docs/setup/raspberry-pi)** - The recommended Pi-flash path, in detail
 - **[Your First 10 Minutes](/docs/setup/first-10-minutes)** - Create your first page and enable plugins
-- **[Plugins Overview](/docs/plugins/overview)** - See all available plugins
+- **[Plugin Directory](/plugins)** - See all available plugins
 - **[Beginner's Guide](/docs/setup/beginners-guide)** - More detailed step-by-step instructions
 - **[Docker Setup](/docs/setup/docker-setup)** - Understand the Docker architecture
 - **[Raspberry Pi Deployment](/docs/deployment/raspberry-pi)** - Advanced setups (Pi you already have with Docker)

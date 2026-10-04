@@ -231,5 +231,5 @@ Pages that are referenced in schedules should be updated or removed from the sch
 
 - [Transitions](/docs/features/transitions) - Choose how the board animates into this page
 - [Schedule Mode](/docs/features/schedule) - Automate when pages are displayed
-- [Plugins Overview](/docs/plugins/overview) - See available data sources for your pages
+- [Plugin Directory](/plugins) - See available data sources for your pages
 - [Color Guide](/docs/reference/color-guide) - Learn about color formatting options

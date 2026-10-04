@@ -225,6 +225,5 @@ See `PLUGIN_EXTRACTION_PLAN.md` in the repository root for the full list and tim
 
 ## Next Steps
 
-- [Plugins Overview](/docs/plugins/overview) — See all available plugins and install external ones
-- [Plugin Configuration](/docs/plugins/configuration) — Enable and configure plugins
+- [Plugin Directory](/plugins) — See all available plugins and install external ones
 - [Plugin Development Guide](/docs/development/plugin-guide) — Create your own external plugins
