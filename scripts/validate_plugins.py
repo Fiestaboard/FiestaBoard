@@ -48,7 +48,7 @@ from src.plugins.previews import (  # noqa: E402
 )
 
 # Directories to skip
-SKIP_DIRECTORIES = {"_template", "_template_transition", "__pycache__"}
+SKIP_DIRECTORIES = {"_template", "_template_transition", "_template_output", "__pycache__"}
 
 
 class ValidationResult:
@@ -205,6 +205,7 @@ def validate_manifest_schema(manifest: dict, plugin_dir_name: str) -> list[str]:
         "utility",
         "home",
         "transition",
+        "output",
     ]
     category = manifest.get("category", "")
     if category and category not in valid_categories:
@@ -212,11 +213,11 @@ def validate_manifest_schema(manifest: dict, plugin_dir_name: str) -> list[str]:
 
     # Board previews. Transition plugins are exempt — they have no board
     # content to preview, and their whole purpose is animation.
-    is_transition = manifest.get("plugin_type", "data") == "transition"
-    if is_transition:
+    kind = manifest.get("plugin_type", "data")
+    if kind in ("transition", "output"):
         for field_name in ("teaser", "previews"):
             if field_name in manifest:
-                errors.append(f"{field_name} is not supported for transition plugins")
+                errors.append(f"{field_name} is not supported for {kind} plugins")
     else:
         if "teaser" in manifest:
             errors.extend(validate_teaser(manifest["teaser"]))
@@ -233,7 +234,7 @@ def validate_preview_presence(manifest: dict) -> list[str]:
     keep validating (and loading) until they are backfilled. ``--strict`` turns
     it into a failure, which is what the registry-submission lane should use.
     """
-    if manifest.get("plugin_type", "data") == "transition":
+    if manifest.get("plugin_type", "data") in ("transition", "output"):
         return []
 
     warnings = []
@@ -376,8 +377,9 @@ def validate_unique_ids(plugins: list[Path]) -> list[str]:
 # ---------------------------------------------------------------------------
 
 REGISTRY_FILE = PROJECT_ROOT / "plugin-registry.json"
-REGISTRY_PREFIX = "fiestaboard-plugin--"
-REGISTRY_NAME_RE = re.compile(r"^fiestaboard-plugin--[a-z][a-z0-9-]*$")
+# One naming convention, the runtime's: data, transition and output prefixes.
+from src.plugins.sources import REGISTRY_NAME_RE, REGISTRY_PREFIXES  # noqa: E402
+
 SEMVER_CONSTRAINT_RE = re.compile(r"^(>=|>|<=|<|==|!=)\s*\d+\.\d+\.\d+$")
 
 
@@ -389,8 +391,9 @@ def _repo_name_from_url(url: str) -> str:
 
 
 def _plugin_id_from_repo_name(repo_name: str) -> str:
-    if repo_name.startswith(REGISTRY_PREFIX):
-        return repo_name[len(REGISTRY_PREFIX) :].replace("-", "_")
+    for prefix in REGISTRY_PREFIXES:
+        if repo_name.startswith(prefix):
+            return repo_name[len(prefix) :].replace("-", "_")
     return repo_name.replace("-", "_")
 
 
@@ -411,7 +414,8 @@ def validate_registry_entry(entry: dict, verbose: bool) -> list[str]:
     repo_name = _repo_name_from_url(repo_url)
     if not REGISTRY_NAME_RE.match(repo_name):
         errors.append(
-            f"[{plugin_id}] Repository name '{repo_name}' does not follow '{REGISTRY_PREFIX}{{name}}' convention"
+            f"[{plugin_id}] Repository name '{repo_name}' does not follow the "
+            f"{' / '.join(p + '{name}' for p in REGISTRY_PREFIXES)} convention"
         )
 
     # 2. ID consistency with repo name

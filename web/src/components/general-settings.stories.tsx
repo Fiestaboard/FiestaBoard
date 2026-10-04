@@ -71,6 +71,7 @@ const mockAllSettings: AllSettingsResponse = {
   beta: {
     https_enabled: false,
     transition_plugins_enabled: false,
+    output_plugins_enabled: false,
   },
   plugins: {
     auto_update: true,

@@ -5,12 +5,26 @@ Each plugin is self-contained with its own manifest, code, and documentation.
 
 Plugins can be loaded from three sources:
 
+Three kinds: **data** plugins (template variables), **transition** plugins
+(frame-by-frame animations) and **output** plugins (a display device, one
+instance per board -- :class:`OutputPluginBase`, see :mod:`src.outputs`).
+
 1. **Built-in** – shipped in the ``plugins/`` directory of this repository.
 2. **Registry** – listed in ``plugin-registry.json`` and cloned from git
    repositories that follow the ``fiestaboard-plugin--{name}`` naming
    convention.
 3. **Git URL** – arbitrary public git repositories specified by the user.
 """
+
+from src.outputs.plugin_base import (
+    CancelToken,
+    CellFrame,
+    ConnectionCheck,
+    DiagnosticCheck,
+    OutputPluginBase,
+    TimedFrame,
+    WriteResult,
+)
 
 from .base import (
     PluginBase,
@@ -32,7 +46,12 @@ from .sources import (
 
 __all__ = [
     "INSTANCE_SEPARATOR",
+    "CancelToken",
+    "CellFrame",
+    "ConnectionCheck",
     "DemoPageSchema",
+    "DiagnosticCheck",
+    "OutputPluginBase",
     "PluginBase",
     "PluginLoader",
     "PluginManifest",
@@ -40,9 +59,11 @@ __all__ = [
     "PluginResult",
     "PluginSource",
     "RegistryEntry",
+    "TimedFrame",
     "TransitionFrame",
     "TransitionPluginBase",
     "TriggerResult",
+    "WriteResult",
     "get_plugin_registry",
     "load_registry",
     "plugin_id_from_repo_name",

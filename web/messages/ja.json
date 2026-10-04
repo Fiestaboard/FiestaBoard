@@ -523,12 +523,14 @@
       "entertainment": "エンターテインメント",
       "finance": "ファイナンス",
       "home": "スマートホーム",
+      "output": "出力",
       "transit": "交通",
       "transition": "トランジション",
       "utility": "ユーティリティ",
       "weather": "天気・環境"
     },
     "transitionBadge": "トランジション",
+    "outputBadge": "出力",
     "tabInstalled": "インストール済み",
     "tabMarketplace": "マーケットプレイス",
     "searchInstalledPlaceholder": "インストール済みプラグインを検索...",
@@ -1701,7 +1703,10 @@
     "transitionsLabel": "トランジションプラグイン",
     "transitionsDescription": "フレーム単位のボードアニメーション — タイプライター表示、ディゾルブ、単語ごとの静音更新、コミュニティ製トランジションなど。",
     "transitionsWarning": "プラグインSDKは実験段階です。正式リリース前にAPIや動作が変わる可能性があります。",
-    "transitionsLabLink": "トランジションラボを開く"
+    "transitionsLabLink": "トランジションラボを開く",
+    "outputsLabel": "出力プラグイン",
+    "outputsDescription": "マーケットプレイスまたは git URL からインストールした出力プラグインでボードを駆動できるようにします。LED マトリクスやサインなど、Vestaboard 以外のディスプレイに対応します。",
+    "outputsWarning": "出力プラグインの仕様はベータ版で、一般提供までに変更される可能性があります。FiestaBoard に同梱された出力は常に動作します。"
   },
   "transitionLab": {
     "title": "トランジションラボ",
@@ -1798,6 +1803,7 @@
       "entertainment": "エンターテイメント",
       "finance": "ファイナンス",
       "home": "スマートホーム",
+      "output": "出力",
       "transit": "交通",
       "transition": "トランジション",
       "utility": "ユーティリティ",

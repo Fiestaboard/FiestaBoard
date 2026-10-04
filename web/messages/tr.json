@@ -523,12 +523,14 @@
       "entertainment": "Eğlence",
       "finance": "Finans",
       "home": "Akıllı Ev",
+      "output": "Çıkışlar",
       "transit": "Ulaşım",
       "transition": "Geçişler",
       "utility": "Araçlar",
       "weather": "Hava Durumu ve Çevre"
     },
     "transitionBadge": "Geçiş",
+    "outputBadge": "Çıkış",
     "tabInstalled": "Kurulu",
     "tabMarketplace": "Marketplace",
     "searchInstalledPlaceholder": "Kurulu eklentileri ara...",
@@ -1701,7 +1703,10 @@
     "transitionsLabel": "Geçiş Eklentileri",
     "transitionsDescription": "Kare kare pano animasyonları — daktilo efektleri, çözülmeler, kelime kelime sessiz güncellemeler ve topluluk yapımı geçişler.",
     "transitionsWarning": "Eklenti SDK'sı deneyseldir; API'ler ve davranış genel kullanıma sunulmadan önce değişebilir.",
-    "transitionsLabLink": "Geçiş Laboratuvarını aç"
+    "transitionsLabLink": "Geçiş Laboratuvarını aç",
+    "outputsLabel": "Çıkış eklentileri",
+    "outputsDescription": "Pazar yerinden veya bir git URL'sinden kurulan çıkış eklentilerinin panolarınızı sürmesine izin verin — LED matrisler, tabelalar ve Vestaboard dışındaki diğer ekranlar.",
+    "outputsWarning": "Çıkış eklentisi sözleşmesi beta aşamasındadır ve genel kullanıma sunulmadan önce değişebilir. FiestaBoard ile gelen çıkışlar her zaman çalışır."
   },
   "transitionLab": {
     "title": "Geçiş Laboratuvarı",
@@ -1798,6 +1803,7 @@
       "entertainment": "Eğlence",
       "finance": "Finans",
       "home": "Akıllı Ev",
+      "output": "Çıkışlar",
       "transit": "Ulaşım",
       "transition": "Geçişler",
       "utility": "Yardımcı Programlar",

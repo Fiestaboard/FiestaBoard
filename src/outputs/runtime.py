@@ -378,12 +378,31 @@ class OutputRuntime:
                 logger.info("render: board %s cannot animate; plugin:%s snaps to target", self.board_id, plugin_id)
                 return driver.send_characters(characters, strategy=None, force=force, **outcome_kw)
 
-            # "stream" — and "sequence" until a driver implements
-            # write_sequence (the Pixoo): frames go one write at a time.
             # The animation starts from what the board is known to show — this
             # runtime's dedupe cache — read under the send lock, so no send can
             # move it between here and the runner's first frame.
             cached = self._frames.characters
+            from_grid = cached if isinstance(cached, list) and cached else None
+
+            # "sequence": the device takes the whole transition as one upload
+            # (output plugins declare it; see plugin_driver.write_sequence).
+            write_sequence = getattr(driver, "write_sequence", None)
+            if driver.animation == "sequence" and write_sequence is not None:
+                return self._render_sequence(
+                    driver,
+                    write_sequence,
+                    runner,
+                    plugin_id,
+                    characters,
+                    token,
+                    device_type=device_type,
+                    from_grid=from_grid,
+                    config=transition_config,
+                    with_outcome=with_outcome,
+                )
+
+            # "stream" (and a "sequence" driver with no upload): frames go
+            # one write at a time.
             sink = _FrameSink(driver)
             success, was_sent = runner.run(
                 plugin_id=plugin_id,
@@ -391,7 +410,7 @@ class OutputRuntime:
                 board_client=sink,
                 cancel_event=token,
                 device_type=device_type,
-                from_grid=cached if isinstance(cached, list) and cached else None,
+                from_grid=from_grid,
                 config=transition_config,
             )
             if not with_outcome:
@@ -404,6 +423,41 @@ class OutputRuntime:
                 retry_after_seconds=sink.retry_after if sink.throttled else None,
                 floor_seconds=_floor_seconds(driver),
             )
+
+    def _render_sequence(
+        self,
+        driver: OutputDriver,
+        write_sequence: Callable[..., Any],
+        runner: Any,
+        plugin_id: str,
+        characters: Grid,
+        token: threading.Event,
+        *,
+        device_type: str | None,
+        from_grid: Grid | None,
+        config: dict | None,
+        with_outcome: bool,
+    ) -> Any:
+        """A frame-driven transition as ONE timed upload to a sequence device."""
+        from .plugin_base import TimedFrame
+
+        collected = runner.collect_frames(
+            plugin_id=plugin_id,
+            to_grid=characters,
+            cancel_event=token,
+            device_type=device_type,
+            from_grid=from_grid,
+            config=config,
+        )
+        if collected is None:
+            # Preempted while collecting: the newer frame has its own target.
+            result = SendOutcome(True, False)
+        else:
+            frames = [TimedFrame(grid, duration) for grid, duration in collected]
+            result = SendOutcome.of(write_sequence(frames, cancel=token))
+        if not with_outcome:
+            return (result.success, result.was_sent)
+        return result._replace(floor_seconds=_floor_seconds(driver))
 
     @staticmethod
     def _native_for(driver: OutputDriver, native: NativeTransition | None) -> NativeTransition | None:

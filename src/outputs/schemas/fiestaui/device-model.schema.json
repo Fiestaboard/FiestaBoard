@@ -1,0 +1,152 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://fiestaboard.app/schemas/device-model.schema.json",
+  "title": "DeviceModel",
+  "description": "A display device model: technology → family (the protocol an adapter speaks) → model. FiestaUI's src/lib/devices.ts is the source of truth (validateDeviceModel mirrors this schema and is tested to agree with it); a FiestaBoard output plugin declares one in its manifest and owns the transport.",
+  "type": "object",
+  "required": ["id", "label", "technology", "family", "geometry", "color", "charset", "animation"],
+  "additionalProperties": false,
+  "if": { "properties": { "technology": { "const": "led_matrix" } } },
+  "then": {
+    "properties": {
+      "geometry": {
+        "type": "object",
+        "properties": { "kind": { "const": "pixels" } },
+        "description": "An led_matrix model is measured in pixels."
+      }
+    }
+  },
+  "properties": {
+    "id": { "type": "string", "pattern": "^[a-z][a-z0-9_]*$" },
+    "label": { "type": "string", "minLength": 1 },
+    "technology": { "enum": ["split_flap", "led_matrix"] },
+    "family": { "type": "string", "minLength": 1 },
+    "geometry": {
+      "oneOf": [
+        {
+          "type": "object",
+          "required": ["kind", "rows", "cols"],
+          "properties": {
+            "kind": { "const": "cells" },
+            "rows": { "type": "integer", "minimum": 1 },
+            "cols": { "type": "integer", "minimum": 1 }
+          }
+        },
+        { "type": "object", "required": ["kind"], "properties": { "kind": { "const": "note_array" } } },
+        { "type": "object", "required": ["kind"], "properties": { "kind": { "const": "panel" } } },
+        {
+          "type": "object",
+          "required": ["kind", "width", "height"],
+          "properties": {
+            "kind": { "const": "pixels" },
+            "width": { "type": "integer", "minimum": 1 },
+            "height": { "type": "integer", "minimum": 1 }
+          }
+        }
+      ]
+    },
+    "color": {
+      "oneOf": [
+        {
+          "type": "object",
+          "required": ["kind", "bitDepth"],
+          "properties": { "kind": { "const": "rgb" }, "bitDepth": { "const": 24 } }
+        },
+        {
+          "type": "object",
+          "required": ["kind", "color", "bitDepth"],
+          "properties": {
+            "kind": { "const": "monochrome" },
+            "color": { "type": "string", "pattern": "^#[0-9a-fA-F]{6}$" },
+            "bitDepth": { "enum": [1, 8] }
+          }
+        },
+        { "type": "object", "required": ["kind"], "properties": { "kind": { "const": "tiles" } } }
+      ]
+    },
+    "charset": { "$ref": "#/definitions/charsetRef" },
+    "charsetByCode62": {
+      "type": "object",
+      "description": "For a model whose code-62 flap varies by board: the set per glyph.",
+      "required": ["degree", "heart"],
+      "properties": {
+        "degree": { "$ref": "#/definitions/charsetRef" },
+        "heart": { "$ref": "#/definitions/charsetRef" }
+      }
+    },
+    "animation": {
+      "type": "object",
+      "required": ["delivery", "maxFps"],
+      "properties": {
+        "delivery": { "enum": ["stream", "sequence", "none"] },
+        "maxFps": { "type": "number", "minimum": 0 },
+        "maxFrames": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Hard budget for a sequence player: a transition is compressed into at most this many frames, first to final inclusive."
+        },
+        "minFrameMs": { "type": "number", "exclusiveMinimum": 0 },
+        "notes": {
+          "type": "string",
+          "description": "Research prose: what the API does and its risks. Fixture and plugin data carry it; FiestaUI's runtime built-ins leave it out."
+        },
+        "sources": { "type": "array", "items": { "type": "string" } }
+      }
+    },
+    "font": { "enum": ["3x5", "5x7"] },
+    "appearance": {
+      "type": "object",
+      "description": "PREVIEW-ONLY: how the device looks in a preview. Nothing here ever reaches the bytes a device is sent — font, letter case and monochrome are layout options, not appearance. The plugin owns the defaults; a board may override only the fields `options` lists.",
+      "additionalProperties": false,
+      "properties": {
+        "pixelShape": {
+          "enum": ["round", "square"],
+          "description": "LED: how a lit pixel reads — a bare LED is round, a diffused face square."
+        },
+        "dotRatio": {
+          "type": "number",
+          "exclusiveMinimum": 0,
+          "maximum": 1,
+          "description": "LED: the lit dot's diameter as a fraction of the pixel pitch."
+        },
+        "offColor": { "type": "string", "pattern": "^#[0-9a-fA-F]{6}$", "description": "LED: an unlit LED." },
+        "substrateColor": {
+          "type": "string",
+          "pattern": "^#[0-9a-fA-F]{6}$",
+          "description": "The panel substrate (soldermask) or board face behind the pixels or flaps."
+        },
+        "bezel": {
+          "type": "string",
+          "pattern": "^#[0-9a-fA-F]{6}$",
+          "description": "The bezel around the display. Unset: the preview's theme bezel."
+        },
+        "boardColors": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Split-flap: the housing colours the board ships in; the first is the default."
+        },
+        "options": {
+          "type": "object",
+          "description": "The fields a board may override, each with its allowed values, e.g. { \"board_color\": [\"black\", \"white\"] }. Keys are the board setting names.",
+          "additionalProperties": { "type": "array", "items": { "type": "string" } }
+        }
+      }
+    },
+    "legacy": {
+      "type": "object",
+      "properties": {
+        "deviceType": { "enum": ["flagship", "note", "note_array", "panel"] },
+        "preset": { "type": "string" }
+      }
+    }
+  },
+  "definitions": {
+    "charsetRef": {
+      "description": "A built-in set id, or an embedded CharacterSet.",
+      "oneOf": [
+        { "enum": ["vestaboard_v1", "vestaboard_v2", "led_5x7", "led_3x5"] },
+        { "$ref": "character-set.schema.json" }
+      ]
+    }
+  }
+}

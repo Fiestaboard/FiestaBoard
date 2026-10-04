@@ -523,12 +523,14 @@
       "entertainment": "Unterhaltung",
       "finance": "Finanzen",
       "home": "Smart Home",
+      "output": "Ausgaben",
       "transit": "Verkehr",
       "transition": "Übergänge",
       "utility": "Dienstprogramme",
       "weather": "Wetter & Umwelt"
     },
     "transitionBadge": "Übergang",
+    "outputBadge": "Ausgabe",
     "tabInstalled": "Installiert",
     "tabMarketplace": "Marktplatz",
     "searchInstalledPlaceholder": "Installierte Plugins suchen...",
@@ -1701,7 +1703,10 @@
     "transitionsLabel": "Übergangs-Plugins",
     "transitionsDescription": "Steckbare Frame-für-Frame-Animationen — Schreibmaschinen-Effekte, Auflösungen, leise Wort-für-Wort-Updates und Community-Übergänge.",
     "transitionsWarning": "Das Plugin-SDK ist experimentell; APIs und Plugin-Verhalten können sich vor der allgemeinen Verfügbarkeit ändern.",
-    "transitionsLabLink": "Übergangs-Labor öffnen"
+    "transitionsLabLink": "Übergangs-Labor öffnen",
+    "outputsLabel": "Ausgabe-Plugins",
+    "outputsDescription": "Erlaubt Ausgabe-Plugins aus dem Marktplatz oder einer Git-URL, deine Boards anzusteuern – LED-Matrizen, Schilder und andere Displays über Vestaboard hinaus.",
+    "outputsWarning": "Die Schnittstelle für Ausgabe-Plugins ist eine Beta und kann sich vor der allgemeinen Verfügbarkeit ändern. Mit FiestaBoard gelieferte Ausgaben funktionieren immer."
   },
   "transitionLab": {
     "title": "Übergangs-Labor",
@@ -1798,6 +1803,7 @@
       "entertainment": "Unterhaltung",
       "finance": "Finanzen",
       "home": "Smart Home",
+      "output": "Ausgaben",
       "transit": "Verkehr",
       "transition": "Übergänge",
       "utility": "Dienstprogramme",

@@ -523,12 +523,14 @@
       "entertainment": "娱乐",
       "finance": "金融",
       "home": "智能家居",
+      "output": "输出",
       "transit": "交通出行",
       "transition": "过渡效果",
       "utility": "实用工具",
       "weather": "天气与环境"
     },
     "transitionBadge": "过渡效果",
+    "outputBadge": "输出",
     "tabInstalled": "已安装",
     "tabMarketplace": "Marketplace",
     "searchInstalledPlaceholder": "搜索已安装的插件...",
@@ -1701,7 +1703,10 @@
     "transitionsLabel": "过渡插件",
     "transitionsDescription": "逐帧看板动画 — 打字机效果、溶解、逐词静音更新以及社区制作的过渡效果。",
     "transitionsWarning": "插件 SDK 处于实验阶段；API 和插件行为在正式发布前可能会变化。",
-    "transitionsLabLink": "打开过渡实验室"
+    "transitionsLabLink": "打开过渡实验室",
+    "outputsLabel": "输出插件",
+    "outputsDescription": "允许从插件市场或 git URL 安装的输出插件驱动你的看板——LED 点阵、招牌以及 Vestaboard 之外的其他显示设备。",
+    "outputsWarning": "输出插件规范仍处于测试阶段，正式发布前可能会变化。FiestaBoard 自带的输出始终可用。"
   },
   "transitionLab": {
     "title": "过渡实验室",
@@ -1798,6 +1803,7 @@
       "entertainment": "娱乐",
       "finance": "金融",
       "home": "智能家居",
+      "output": "输出",
       "transit": "交通",
       "transition": "过渡效果",
       "utility": "实用工具",

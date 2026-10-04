@@ -1161,6 +1161,26 @@ Screenshots in `screenshots[]` are still used for anything that is not a board �
 | `min_refresh_seconds` | Hard floor for refresh interval |
 | `live_data` | When `true`, bypasses caching entirely — `fetch_data()` is called on every render tick. Use for clocks, animations, or anything driven by the current time. Defaults to `false`. |
 | `screenshots` | Array of screenshot entries for galleries, docs, and the registry (see Documentation Standards) |
+| `plugin_type` | `data` (default), `transition`, or `output` (beta — see below) |
+
+#### Output plugins (`plugin_type: "output"`, beta)
+
+An output plugin drives a display device instead of producing content. It
+subclasses `OutputPluginBase` (`from src.plugins import OutputPluginBase`),
+is instantiated **once per board** (`cls(board_id, output_config)`), and
+implements at least `write(frame, *, native, cancel) -> WriteResult`; core
+keeps the send lock, floor (keyed by your `device_key()`), dedupe and
+transitions. The manifest carries an `output` block — `output_api` (currently
+`1`), `device_models` (FiestaUI DeviceModel objects or built-in ids, inline or
+`{"$ref": "output/device-models.json"}` listed in `data_files`), an optional
+`character_set`, `delivery`, `min_interval_ms`, `read_back`,
+`native_transitions`, and the `settings_schema` of each board's settings
+(mark credentials `"secret": true`). Output plugins declare no `variables`,
+`teaser` or `previews`; registry repos use the `fiestaboard-output--` prefix;
+third-party outputs need **Settings → Beta → Output Plugins**. The in-repo
+test kit is `tests/fixtures/plugins/recording_output`; the contract is
+described in `src/outputs/plugin_base.py` and
+`src/outputs/output_manifest.py`.
 
 #### `live_data` vs `min_refresh_seconds`
 

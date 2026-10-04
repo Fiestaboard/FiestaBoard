@@ -523,12 +523,14 @@
       "entertainment": "Divertissement",
       "finance": "Finance",
       "home": "Maison connectée",
+      "output": "Sorties",
       "transit": "Transports",
       "transition": "Transitions",
       "utility": "Utilitaires",
       "weather": "Météo et environnement"
     },
     "transitionBadge": "Transition",
+    "outputBadge": "Sortie",
     "tabInstalled": "Installés",
     "tabMarketplace": "Marché",
     "searchInstalledPlaceholder": "Rechercher des plugins installés...",
@@ -1701,7 +1703,10 @@
     "transitionsLabel": "Plugins de transition",
     "transitionsDescription": "Animations image par image du tableau — effets machine à écrire, fondus, mises à jour silencieuses mot à mot et transitions communautaires.",
     "transitionsWarning": "Le SDK de plugins est expérimental ; les API et le comportement peuvent changer avant la disponibilité générale.",
-    "transitionsLabLink": "Ouvrir le labo des transitions"
+    "transitionsLabLink": "Ouvrir le labo des transitions",
+    "outputsLabel": "Plugins de sortie",
+    "outputsDescription": "Autorise les plugins de sortie installés depuis la marketplace ou une URL git à piloter vos tableaux : matrices LED, enseignes et autres écrans au-delà de Vestaboard.",
+    "outputsWarning": "Le contrat des plugins de sortie est en bêta et peut changer avant la disponibilité générale. Les sorties fournies avec FiestaBoard fonctionnent toujours."
   },
   "transitionLab": {
     "title": "Labo des transitions",
@@ -1798,6 +1803,7 @@
       "entertainment": "Divertissement",
       "finance": "Finance",
       "home": "Maison connectée",
+      "output": "Sorties",
       "transit": "Transport",
       "transition": "Transitions",
       "utility": "Utilitaires",

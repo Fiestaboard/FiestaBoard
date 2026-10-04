@@ -326,7 +326,7 @@ export const handlers = [
   // server.use().
   http.get(`${API_BASE}/settings/beta`, () => {
     return HttpResponse.json({
-      settings: { https_enabled: false, transition_plugins_enabled: false },
+      settings: { https_enabled: false, transition_plugins_enabled: false, output_plugins_enabled: false },
       https: { cert_present: false, cert_path: "", key_path: "", updater_available: false },
     });
   }),

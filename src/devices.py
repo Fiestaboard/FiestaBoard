@@ -79,6 +79,12 @@ ApiMode = Literal["local", "cloud", "virtual"]
 
 VALID_API_MODES: tuple[str, ...] = get_args(ApiMode)
 
+# The in-tree outputs (src/outputs/registry.py VESTABOARD / FIESTAPANEL),
+# which a board derives rather than stores. Spelled here because the outputs
+# package imports this module; tests/test_output_plugin_e2e.py holds the two
+# lists equal.
+BUILTIN_OUTPUT_IDS = frozenset({"vestaboard", "fiestapanel"})
+
 # Which glyph a board's character-code-62 flap physically carries (issue #1657).
 #
 # Code 62 is one code with two possible flaps. Vestaboard shipped every Flagship
@@ -196,6 +202,15 @@ class BoardInstance:
     # Local array mode: per-tile local API endpoints, one per physical Note.
     # Only meaningful when device_type == "note_array" and api_mode == "local".
     tiles: list = field(default_factory=list)
+    # The output PLUGIN that drives this board (plan D2), and the board's
+    # settings for it (its manifest's ``output.settings_schema``). Only an
+    # output plugin's id is stored: the built-ins ("vestaboard",
+    # "fiestapanel") stay derived at load (src/outputs/registry.py) until the
+    # settings v4 migration persists them, so a client echoing the derived
+    # id back changes nothing on disk. Both are absent from ``to_dict`` for
+    # every other board, which therefore saves byte-identically.
+    output: str | None = None
+    output_config: dict | None = None
 
     def __post_init__(self):
         if self.device_type not in DEVICE_TYPES:
@@ -245,6 +260,12 @@ class BoardInstance:
             self.grid_cols = None
         # Tiles only make sense on note-array boards
         self.tiles = normalize_note_array_tiles(self.tiles) if self.device_type == "note_array" else []
+        if not isinstance(self.output, str) or not self.output.strip() or self.output.strip() in BUILTIN_OUTPUT_IDS:
+            self.output = None
+            self.output_config = None
+        else:
+            self.output = self.output.strip()
+            self.output_config = dict(self.output_config) if isinstance(self.output_config, dict) else {}
 
     @property
     def effective_code62_glyph(self) -> str:
@@ -324,7 +345,11 @@ class BoardInstance:
         ]
 
     def to_dict(self) -> dict:
-        return asdict(self)
+        data = asdict(self)
+        if self.output is None:
+            del data["output"]
+            del data["output_config"]
+        return data
 
     @classmethod
     def from_dict(cls, data: dict) -> "BoardInstance":
@@ -358,6 +383,8 @@ class BoardInstance:
             grid_rows=data.get("grid_rows"),
             grid_cols=data.get("grid_cols"),
             tiles=data.get("tiles") or [],
+            output=data.get("output"),
+            output_config=data.get("output_config"),
         )
 
 

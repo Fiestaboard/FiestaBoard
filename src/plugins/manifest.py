@@ -21,6 +21,7 @@ from pathlib import Path
 from typing import Any
 
 from src.oauth.provider import validate_provider_block
+from src.outputs.output_manifest import OutputManifest, parse_output_block
 
 from .previews import (
     MAX_PREVIEW_NOTES_PER_AXIS,
@@ -31,6 +32,9 @@ from .previews import (
 )
 
 logger = logging.getLogger(__name__)
+
+#: The plugin kinds: data sources, frame-driven transitions, and display outputs.
+PLUGIN_TYPES = ("data", "transition", "output")
 
 # Ceiling on transition_settings.max_runtime_seconds for NON-interruptible
 # transitions (#1868 review). An interruptible transition is preempted at
@@ -292,14 +296,22 @@ MANIFEST_SCHEMA = {
         "icon": {"type": "string", "description": "Icon name from Lucide icons"},
         "category": {
             "type": "string",
-            "enum": ["art", "data", "transit", "weather", "entertainment", "utility", "home", "transition"],
+            "enum": ["art", "data", "transit", "weather", "entertainment", "utility", "home", "transition", "output"],
             "description": "Plugin category for organization",
         },
         "plugin_type": {
             "type": "string",
-            "enum": ["data", "transition"],
+            "enum": ["data", "transition", "output"],
             "default": "data",
-            "description": "Plugin kind. 'data' (default) returns template variables; 'transition' produces frame-by-frame board animations.",
+            "description": "Plugin kind. 'data' (default) returns template variables; 'transition' produces frame-by-frame board animations; 'output' drives a display device (one instance per board).",
+        },
+        "output": {
+            "type": "object",
+            "description": (
+                "Output plugins only: the device the plugin drives -- output_api, device_models, "
+                "character_set, delivery, min_interval_ms, read_back, native_transitions and the "
+                "board settings_schema. Validated by src/outputs/output_manifest.py."
+            ),
         },
         "transition_settings": {
             "type": "object",
@@ -649,8 +661,11 @@ class PluginManifest:
     demo: dict[str, DemoPageSchema] | None = None  # keyed by device_type
     teaser: str = ""
     previews: list[BoardPreview] = field(default_factory=list)
-    plugin_type: str = "data"  # "data" or "transition"
+    plugin_type: str = "data"  # "data", "transition" or "output"
     transition_settings: dict[str, Any] = field(default_factory=dict)
+    # The parsed ``output`` block of an output plugin, its $ref files
+    # resolved (load_manifest() fills it; see src/outputs/output_manifest.py).
+    output: OutputManifest | None = None
     # Data files the plugin must be able to read, relative to its own
     # directory. Declared so an install can be rejected before the plugin
     # ever runs, rather than serving "???" for every variable. See
@@ -840,6 +855,7 @@ class PluginManifest:
             "supports_triggers": self.supports_triggers,
             "plugin_type": self.plugin_type,
             "transition_settings": self.transition_settings,
+            **({"output": self.raw.get("output")} if self.plugin_type == "output" else {}),
             "screenshots": [
                 {
                     "src": s.src,
@@ -1290,8 +1306,25 @@ def validate_manifest(data: dict[str, Any]) -> tuple[bool, list[str]]:
 
     # Validate plugin_type if present
     plugin_type = data.get("plugin_type", "data")
-    if plugin_type not in ("data", "transition"):
-        errors.append(f"plugin_type must be 'data' or 'transition', got '{plugin_type}'")
+    if plugin_type not in PLUGIN_TYPES:
+        errors.append(f"plugin_type must be one of {list(PLUGIN_TYPES)}, got '{plugin_type}'")
+
+    # The output block belongs to output plugins, and every output plugin has
+    # one. Its $ref files are checked by load_manifest(), which knows the
+    # plugin directory; here the shape and every inline object are.
+    if plugin_type == "output":
+        if "output" not in data:
+            errors.append("output plugins require an 'output' block (output_api, device_models, ...)")
+        else:
+            _, output_errors = parse_output_block(
+                data["output"], base_dir=None, data_files=parse_data_files(data.get("data_files"))
+            )
+            errors.extend(output_errors)
+        for key in ("variables", "transition_settings", "supports_triggers", "demo", "color_rules_schema"):
+            if data.get(key):
+                errors.append(f"{key} is not supported for output plugins — they display content, not produce it")
+    elif "output" in data:
+        errors.append("output is only supported for output plugins (plugin_type 'output')")
 
     # Validate transition_settings if present
     transition_settings = data.get("transition_settings")
@@ -1373,6 +1406,8 @@ def validate_manifest(data: dict[str, Any]) -> tuple[bool, list[str]]:
     if "oauth" in data:
         if data.get("plugin_type", "data") == "transition":
             errors.append("oauth is not supported for transition plugins — they fetch no data")
+        elif data.get("plugin_type", "data") == "output":
+            errors.append("oauth is not supported for output plugins yet — sign-in per board is a later contract")
         else:
             errors.extend(validate_provider_block(data["oauth"]))
 
@@ -1383,17 +1418,18 @@ def validate_manifest(data: dict[str, Any]) -> tuple[bool, list[str]]:
     # that has not yet adopted them from loading at all. Absence means "not
     # migrated"; only malformed values are errors. The authoring lane enforces
     # presence via validate_preview_completeness().
-    is_transition = data.get("plugin_type", "data") == "transition"
+    # Transitions and outputs have no board content of their own to preview.
+    no_content = data.get("plugin_type") if data.get("plugin_type") in ("transition", "output") else None
 
     if "teaser" in data:
-        if is_transition:
-            errors.append("teaser is not supported for transition plugins — they have no board content to preview")
+        if no_content:
+            errors.append(f"teaser is not supported for {no_content} plugins — they have no board content to preview")
         else:
             errors.extend(validate_teaser(data["teaser"]))
 
     if "previews" in data:
-        if is_transition:
-            errors.append("previews is not supported for transition plugins — they have no board content to preview")
+        if no_content:
+            errors.append(f"previews is not supported for {no_content} plugins — they have no board content to preview")
         else:
             errors.extend(validate_previews(data["previews"]))
 
@@ -1409,12 +1445,12 @@ def validate_preview_completeness(data: dict[str, Any]) -> list[str]:
     registry, or shipped in this repo, is expected to carry both so the docs site
     can render it without a screenshot.
 
-    Transition plugins are exempt: they have no data to display, and their whole
-    purpose is animation, which previews deliberately do not render.
+    Transition and output plugins are exempt: they have no data to display —
+    a transition animates, an output shows other plugins' content.
 
     Returns a list of human-readable errors (empty when complete).
     """
-    if data.get("plugin_type", "data") == "transition":
+    if data.get("plugin_type", "data") in ("transition", "output"):
         return []
 
     errors: list[str] = []
@@ -1454,6 +1490,17 @@ def load_manifest(manifest_path: Path) -> tuple[PluginManifest | None, list[str]
     # Parse
     try:
         manifest = PluginManifest.from_dict(data)
-        return manifest, []
     except Exception as e:
         return None, [f"Failed to parse manifest: {e}"]
+
+    # An output plugin's block, its $ref files read from the plugin's own
+    # directory. Any error refuses the load (fail closed): a device described
+    # wrongly is a board that draws the wrong thing.
+    if manifest.plugin_type == "output":
+        output, output_errors = parse_output_block(
+            data["output"], base_dir=manifest_path.parent, data_files=manifest.data_files
+        )
+        if output_errors or output is None:
+            return None, output_errors or ["output block could not be resolved"]
+        manifest.output = output
+    return manifest, []

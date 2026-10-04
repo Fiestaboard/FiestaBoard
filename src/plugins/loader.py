@@ -14,6 +14,12 @@ from pathlib import Path
 from typing import Any
 
 from src.oauth.provider import provider_block_warnings
+from src.outputs.plugin_base import OutputPluginBase
+from src.outputs.plugin_registration import (
+    OutputPluginEntry,
+    register_output_plugin,
+    unregister_output_plugin,
+)
 
 from .base import PluginBase, TransitionPluginBase
 from .install_check import validate_install
@@ -24,8 +30,16 @@ from .sources import (
     remove_external_plugin,
 )
 
-# A loaded plugin instance can be either a data plugin or a transition plugin.
-AnyPlugin = PluginBase | TransitionPluginBase
+# A loaded plugin: a data or transition plugin instance, or -- for an output
+# plugin, which is instantiated per board and never here -- its inert entry.
+AnyPlugin = PluginBase | TransitionPluginBase | OutputPluginEntry
+
+# The base class each plugin_type's code must subclass.
+_BASE_FOR_TYPE: dict[str, type] = {
+    "data": PluginBase,
+    "transition": TransitionPluginBase,
+    "output": OutputPluginBase,
+}
 
 logger = logging.getLogger(__name__)
 
@@ -209,6 +223,13 @@ class PluginLoader:
         with self._lock:
             items = list(self._loaded_plugins.items())
         return {pid: (inst, m) for pid, (inst, m) in items if isinstance(inst, TransitionPluginBase)}
+
+    @property
+    def output_plugins(self) -> dict[str, tuple[OutputPluginEntry, PluginManifest]]:
+        """Return only loaded *output* plugins (class + manifest, never an instance)."""
+        with self._lock:
+            items = list(self._loaded_plugins.items())
+        return {pid: (entry, m) for pid, (entry, m) in items if isinstance(entry, OutputPluginEntry)}
 
     def get_transition_plugin(self, plugin_id: str) -> TransitionPluginBase | None:
         """Return a loaded transition plugin instance, or None."""
@@ -484,10 +505,16 @@ class PluginLoader:
         expected_type = manifest.plugin_type or "data"
         plugin_class = self._find_plugin_class(module, expected_type)
         if plugin_class is None:
-            base_name = "TransitionPluginBase" if expected_type == "transition" else "PluginBase"
+            base_name = _BASE_FOR_TYPE.get(expected_type, PluginBase).__name__
             errors.append(f"No {base_name} subclass found in {plugin_name} (manifest plugin_type={expected_type!r})")
             self._load_errors[plugin_name] = errors
             return None
+
+        # An output plugin is instantiated once per BOARD, by the output
+        # factory -- never here (plan D2). The loader keeps its class and
+        # manifest and registers it with the output registry.
+        if expected_type == "output":
+            return self._register_output_locked(plugin_name, plugin_dir, plugin_class, manifest)
 
         # Instantiate plugin
         try:
@@ -539,25 +566,47 @@ class PluginLoader:
             logger.exception(f"Error instantiating plugin {plugin_name}")
             return None
 
+    def _register_output_locked(
+        self, plugin_name: str, plugin_dir: Path, plugin_class: type, manifest: PluginManifest
+    ) -> OutputPluginEntry | None:
+        """Keep an output plugin's class and manifest; register it as an output."""
+        source = self._source_for_dir(plugin_dir)
+        try:
+            register_output_plugin(plugin_class, manifest, gated=source.source_type != "builtin")
+        except ValueError as exc:
+            self._load_errors.setdefault(plugin_name, []).append(str(exc))
+            logger.error("Output plugin %s refused: %s", plugin_name, exc)
+            return None
+        entry = OutputPluginEntry(plugin_class, manifest)
+        previous = self._loaded_plugins.get(manifest.id)
+        if previous is not None:
+            retire_plugin_object(manifest.id, previous[0], what="replaced instance of plugin")
+        self._loaded_plugins[manifest.id] = (entry, manifest)
+        self._plugin_classes[manifest.id] = plugin_class
+        self._plugin_sources[manifest.id] = source
+        logger.info("Successfully loaded output plugin: %s v%s", manifest.id, manifest.version)
+        return entry
+
     def _find_plugin_class(self, module: Any, expected_type: str = "data") -> type[AnyPlugin] | None:
         """Find a plugin class in *module* matching *expected_type*.
 
         Args:
             module: Loaded Python module to scan.
-            expected_type: ``"data"`` (look for :class:`PluginBase` subclass)
-                or ``"transition"`` (look for :class:`TransitionPluginBase`).
+            expected_type: ``"data"`` (look for :class:`PluginBase` subclass),
+                ``"transition"`` (:class:`TransitionPluginBase`) or
+                ``"output"`` (:class:`~src.outputs.plugin_base.OutputPluginBase`).
 
         Returns:
             The matching plugin class, or None if not found.
         """
-        base_class: type[AnyPlugin] = TransitionPluginBase if expected_type == "transition" else PluginBase
+        base_class = _BASE_FOR_TYPE.get(expected_type, PluginBase)
 
         for attr_name in dir(module):
             attr = getattr(module, attr_name)
             if not isinstance(attr, type):
                 continue
             # Skip the base classes themselves.
-            if attr is PluginBase or attr is TransitionPluginBase:
+            if attr in _BASE_FOR_TYPE.values():
                 continue
             if issubclass(attr, base_class):
                 logger.debug(f"Found {expected_type} plugin class: {attr_name}")
@@ -697,6 +746,8 @@ class PluginLoader:
             if plugin_id in self._loaded_plugins:
                 old_plugin, _ = self._loaded_plugins.pop(plugin_id)
                 retire_plugin_object(plugin_id, old_plugin, what="replaced instance of plugin")
+                if isinstance(old_plugin, OutputPluginEntry):
+                    unregister_output_plugin(plugin_id)
 
                 # Remove from sys.modules to force reimport
                 self._evict_plugin_modules(plugin_id)
@@ -720,6 +771,8 @@ class PluginLoader:
             # Plugin-authored cleanup() off the shared lock (#1854).
             plugin, _ = self._loaded_plugins.pop(plugin_id)
             retire_plugin_object(plugin_id, plugin, what="replaced instance of plugin")
+            if isinstance(plugin, OutputPluginEntry):
+                unregister_output_plugin(plugin_id)
 
             # Remove from sys.modules
             self._evict_plugin_modules(plugin_id)
@@ -781,6 +834,9 @@ class PluginLoader:
 
         _, manifest = entry
 
+        if issubclass(plugin_class, OutputPluginBase):
+            # Output plugins are instantiated per board, by the output factory.
+            return OutputPluginEntry(plugin_class, manifest)
         try:
             return plugin_class(manifest.raw)
         except Exception as e:

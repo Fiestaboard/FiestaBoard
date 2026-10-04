@@ -1,12 +1,16 @@
 """The output registry: every kind of device FiestaBoard can drive, by id.
 
 A saved board names the **output** that drives it. Two are built in and
-registered here, in-tree, until output plugins exist (plan Phase 2):
+registered here, in-tree (until Phase 4 extracts them):
 
 - ``vestaboard`` — a Vestaboard on the Local API, the RW Cloud API, the
   note-array Cloud API, or a local note array's per-tile fan-out.
 - ``fiestapanel`` — a FiestaPanel TV: an in-memory board that viewers pull
   frames from.
+
+Output **plugins** register beside them as the plugin loader loads them
+(:mod:`src.outputs.plugin_registration`); a plugin can never take a
+built-in's id.
 
 Each entry carries the output's **capabilities** — what core decides by,
 without building a driver: ``technology``, ``delivery``, ``animation`` and
@@ -44,7 +48,7 @@ from collections.abc import Callable, Mapping
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Literal
 
-from .hooks import OutputDiagnostics, OutputHooks, UnknownOutputAction
+from .hooks import OutputDiagnostics, OutputHooks, ReadBack, UnknownOutputAction
 from .transitions import NATIVE_STRATEGIES, Animation
 
 if TYPE_CHECKING:
@@ -80,6 +84,18 @@ class OutputCapabilities:
     delivery: Delivery
     animation: Animation
     native_transitions: frozenset[str]
+    # What output plugins add (src/outputs/output_manifest.py); the built-ins
+    # leave them at their defaults, which is what their drivers report.
+    #: The device's send floor in milliseconds (0 = unfloored).
+    min_interval_ms: int = 0
+    #: Whether and how cheaply core may read the device back; None = never.
+    read_back: ReadBack | None = None
+    #: FiestaUI DeviceModel ids the output declares (first = its default).
+    device_models: tuple[str, ...] = ()
+    #: The character set the output draws (a FiestaUI id), when declared.
+    charset: str | None = None
+    #: The frame budget of a ``sequence`` upload, when the model declares one.
+    max_frames: int | None = None
 
 
 @dataclass(frozen=True)
@@ -97,6 +113,11 @@ class OutputDefinition:
     capabilities: OutputCapabilities
     build: Callable[[dict], OutputDriver | None]
     hooks: OutputHooks = field(default_factory=OutputHooks)
+    #: True for an output plugin (src/outputs/plugin_registration.py); the
+    #: in-tree built-ins are False and can never be replaced or removed.
+    plugin: bool = False
+    #: JSON Schema of each board's ``output_config`` (output plugins only).
+    settings_schema: Mapping = field(default_factory=dict)
 
 
 class OutputRegistry:
@@ -111,6 +132,25 @@ class OutputRegistry:
             if definition.id in self._outputs:
                 raise ValueError(f"Output '{definition.id}' is already registered")
             self._outputs[definition.id] = definition
+
+    def put_plugin(self, definition: OutputDefinition) -> None:
+        """Register an output plugin, replacing an earlier load of the same plugin.
+
+        Refused for an id a built-in holds: a plugin never stands in for a
+        Vestaboard or a FiestaPanel.
+        """
+        with self._lock:
+            existing = self._outputs.get(definition.id)
+            if existing is not None and not existing.plugin:
+                raise ValueError(f"Output '{definition.id}' is built in; a plugin cannot replace it")
+            self._outputs[definition.id] = definition
+
+    def remove_plugin(self, output_id: str) -> None:
+        """Forget an output plugin (unloaded or uninstalled). Built-ins stay."""
+        with self._lock:
+            existing = self._outputs.get(output_id)
+            if existing is not None and existing.plugin:
+                del self._outputs[output_id]
 
     def get(self, output_id: str | None) -> OutputDefinition | None:
         """The output registered under *output_id*, or ``None``."""

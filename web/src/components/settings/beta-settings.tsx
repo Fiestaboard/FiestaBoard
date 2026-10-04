@@ -18,7 +18,17 @@ import {
   TextLink,
 } from "@fiestaboard/ui";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { AlertTriangle, ExternalLink, FlaskConical, Loader2, Lock, RefreshCw, ShieldCheck, Wand2 } from "lucide-react";
+import {
+  AlertTriangle,
+  ExternalLink,
+  FlaskConical,
+  Loader2,
+  Lock,
+  RefreshCw,
+  ShieldCheck,
+  Tv,
+  Wand2,
+} from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 
@@ -86,6 +96,18 @@ export function BetaSettings() {
     },
   });
 
+  const outputsMutation = useMutation({
+    mutationFn: (next: boolean) => api.updateBetaSettings({ output_plugins_enabled: next }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["settings", "beta"] });
+      queryClient.invalidateQueries({ queryKey: ["settings", "all"] });
+      toast.success(t("savedToast"));
+    },
+    onError: (err: Error) => {
+      toast.error(t("saveFailedToast", { error: err.message }));
+    },
+  });
+
   const restartMutation = useMutation({
     mutationFn: () => api.restartSystem(),
     onSuccess: () => {
@@ -112,6 +134,8 @@ export function BetaSettings() {
   const certPresent = data.https.cert_present;
   const updaterAvailable = data.https.updater_available;
   const transitionsEnabled = data.settings.transition_plugins_enabled;
+  // Absent from a server that predates the flag: off.
+  const outputsEnabled = data.settings.output_plugins_enabled ?? false;
 
   return (
     <>
@@ -191,6 +215,31 @@ export function BetaSettings() {
             disabled={transitionsMutation.isPending}
             onCheckedChange={(checked) => transitionsMutation.mutate(checked)}
             aria-label={t("transitionsLabel")}
+          />
+        </Flex>
+
+        <Flex align="start" justify="between" gap="4" className="rounded-md border p-4">
+          <Stack gap="1">
+            <Flex align="center" gap="2">
+              <Tv className="h-4 w-4 text-muted-foreground" />
+              <Text as="span" weight="medium">
+                {t("outputsLabel")}
+              </Text>
+            </Flex>
+            <Text tone="muted">{t("outputsDescription")}</Text>
+            <Flex align="start" gap="1.5" className="text-xs text-muted-foreground pt-1">
+              <AlertTriangle className="h-3.5 w-3.5 mt-0.5 shrink-0" />
+              <Text as="span" size="xs" tone="muted">
+                {t("outputsWarning")}
+              </Text>
+            </Flex>
+          </Stack>
+          <Switch
+            checked={outputsEnabled}
+            {...anchorProps("settings.beta.output_plugins_enabled")}
+            disabled={outputsMutation.isPending}
+            onCheckedChange={(checked) => outputsMutation.mutate(checked)}
+            aria-label={t("outputsLabel")}
           />
         </Flex>
       </PageSection>

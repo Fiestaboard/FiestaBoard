@@ -523,12 +523,14 @@
       "entertainment": "Rozrywka",
       "finance": "Finanse",
       "home": "Inteligentny dom",
+      "output": "Wyjścia",
       "transit": "Transport",
       "transition": "Przejścia",
       "utility": "Narzędzia",
       "weather": "Pogoda i środowisko"
     },
     "transitionBadge": "Przejście",
+    "outputBadge": "Wyjście",
     "tabInstalled": "Zainstalowane",
     "tabMarketplace": "Marketplace",
     "searchInstalledPlaceholder": "Szukaj zainstalowanych wtyczek...",
@@ -1701,7 +1703,10 @@
     "transitionsLabel": "Wtyczki przejść",
     "transitionsDescription": "Animacje tablicy klatka po klatce — efekty maszyny do pisania, rozpuszczanie, ciche aktualizacje słowo po słowie i przejścia społeczności.",
     "transitionsWarning": "SDK wtyczek jest eksperymentalne; API i zachowanie mogą się zmienić przed ogólną dostępnością.",
-    "transitionsLabLink": "Otwórz laboratorium przejść"
+    "transitionsLabLink": "Otwórz laboratorium przejść",
+    "outputsLabel": "Wtyczki wyjścia",
+    "outputsDescription": "Pozwól wtyczkom wyjścia zainstalowanym z marketplace lub z adresu git sterować Twoimi tablicami — matrycami LED, szyldami i innymi wyświetlaczami poza Vestaboard.",
+    "outputsWarning": "Kontrakt wtyczek wyjścia jest w wersji beta i może się zmienić przed ogólną dostępnością. Wyjścia dołączone do FiestaBoard działają zawsze."
   },
   "transitionLab": {
     "title": "Laboratorium przejść",
@@ -1798,6 +1803,7 @@
       "entertainment": "Rozrywka",
       "finance": "Finanse",
       "home": "Smart Home",
+      "output": "Wyjścia",
       "transit": "Transport",
       "transition": "Przejścia",
       "utility": "Narzędzia",
