@@ -117,9 +117,58 @@ describe("BoardDisplay code-62 flap", () => {
     expect(await firstTileGlyph({ deviceType: "flagship", code62Glyph: "degree" })).toBe("°");
   });
 
+  // FiestaBoard's `{heart}` shortcut renders as the typed ♥, and `{icon:heart}`
+  // is the same character (FiestaUI #336, the split-flap extended-markup
+  // major): one cell on the code-62 flap, never the two-cell "<3" of before.
+  it("draws {icon:heart} as one code-62 flap: a heart on a Note", async () => {
+    render(<BoardDisplay message="{icon:heart}A" boardType="black" size="md" deviceType="note" />, {
+      wrapper: TestWrapper,
+    });
+    await vi.advanceTimersByTimeAsync(200);
+    expect(screen.getByTestId("char-tile-0-0").getAttribute("data-target-char")).toBe("♥");
+    expect(screen.getByTestId("char-tile-0-1").getAttribute("data-target-char")).toBe("A");
+  });
+
+  it("draws {icon:heart} as the degree on a Flagship whose code-62 flap carries one", async () => {
+    expect(await firstTileGlyph({ message: "{icon:heart}", deviceType: "flagship", code62Glyph: "degree" })).toBe("°");
+  });
+
   it("ignores a stale Flagship setting on a Note device", async () => {
     // Note flaps only ever carried the heart, so the setting is not the
     // device's to answer — a board switched Flagship→Note keeps the old value.
     expect(await firstTileGlyph({ deviceType: "note", code62Glyph: "degree" })).toBe("♥");
+  });
+});
+
+/**
+ * Split-flap previews read extended markup by default (FiestaUI #336, paired
+ * with FiestaBoard's split-flap extended-markup flip): a colour span draws its
+ * letters uncoloured and an icon its fallback tile, as the board itself does.
+ */
+describe("BoardDisplay split-flap extended markup", () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it("draws a colour span's letters, not its braces", async () => {
+    render(<BoardDisplay message="{red:HOT}" boardType="black" size="md" deviceType="note" />, {
+      wrapper: TestWrapper,
+    });
+    await vi.advanceTimersByTimeAsync(200);
+    const drawn = [0, 1, 2, 3].map((col) => screen.getByTestId(`char-tile-0-${col}`).getAttribute("data-target-char"));
+    expect(drawn).toEqual(["H", "O", "T", " "]);
+  });
+
+  it("draws an icon as its fallback tile, which has no letters to name", async () => {
+    render(<BoardDisplay message="{icon:sun} 72" boardType="black" size="md" deviceType="note" isStatic />, {
+      wrapper: TestWrapper,
+    });
+    await vi.advanceTimersByTimeAsync(200);
+    const board = screen.getByRole("img", { name: /72/ });
+    expect(board).not.toHaveAccessibleName(/ICON/);
   });
 });
