@@ -262,6 +262,7 @@ const GRID_MESSAGES = [
   ["grid-overflow", "ABCDEFGHIJKLMNOPQRSTUVWXYZ\nrow two\nrow three\nrow four"],
   ["grid-span-overflow", "{red:ABCDEFGHIJKLMNOPQRSTUVWXYZ}"],
   ["grid-degree", "72°\n{red:°}"],
+  ["grid-typed-heart", "I ♥ NY\n❤ 72°"],
   ["grid-icons", "{icon:sun} 72°\n{icon:rain}{icon:up}"],
   ["grid-literal", "{red:HOT}\n{icon:sun}"],
 ];

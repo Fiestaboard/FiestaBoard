@@ -9,17 +9,18 @@ There are two fixture files, because no single FiestaUI commit has both
 halves yet:
 
 - ``fiestaui_base_grammar.json``: the base (flag-off) grammar, from FiestaUI
-  commit c6b34f4 (PR #323, the board-parity fix). Every ``legacy/`` case
+  commit 5364439 (PR #323, the board-parity fix). Every ``legacy/`` case
   comes from here, and all of them match.
 - ``fiestaui_parse_line.json``: extended markup and ``preserveCase``, from
-  the FiestaUI LED working tree that predates c6b34f4. Every ``ext/`` case and
+  the FiestaUI LED working tree that predates PR #323. Every ``ext/`` case and
   the ``legacy/case-preserve-*`` cases come from here.
 
-The extended fixtures still carry the four base-grammar bugs c6b34f4 fixed,
-so those ``ext/`` cases stay listed in ``DIVERGENCES``; in every one the
-Python side draws what the physical board draws. Two guard tests keep the
-list honest: an entry that stops diverging fails (regenerate, then delete the
-entry), and so does an entry whose Python output stops matching today's board.
+The extended fixtures still carry the base-grammar bugs PR #323 fixed, and
+still accept ``71`` as a span colour, so those ``ext/`` cases stay listed in
+``DIVERGENCES``; in every one the Python side draws what the physical board
+draws. Two guard tests keep the list honest: an entry that stops diverging
+fails (regenerate, then delete the entry), and so does an entry whose Python
+output stops matching today's board.
 """
 
 from __future__ import annotations
@@ -42,20 +43,22 @@ _BASE_IDS = {c["id"] for c in BASE["lines"]}
 LINES = BASE["lines"] + [c for c in EXT["lines"] if c["id"] not in _BASE_IDS]
 GRIDS = BASE["grids"] + [c for c in EXT["grids"] if c["id"].startswith("ext/")]
 
-# Base-grammar bugs fixed upstream in c6b34f4 that the extended fixtures, which
-# predate it, still show. Delete these when the extended fixtures are
-# regenerated from a FiestaUI commit that has both (its Task 1).
-_PREDATES_C6B34F4 = "extended fixtures predate FiestaUI c6b34f4, which fixed this: "
+# Fixed upstream in PR #323 (c6b34f4, 5364439) but still shown by the extended
+# fixtures, which predate it: the tokens or the flap codes differ. Delete these
+# when the extended fixtures are regenerated from a FiestaUI commit that has
+# both (its Task 1).
+_PREDATES_PR323 = "extended fixtures predate FiestaUI PR #323, which fixed this: "
 DIVERGENCES = {
-    "ext/alias-filled": _PREDATES_C6B34F4 + "the board draws {filled} as tile 71",
-    "ext/alias-filled-upper": _PREDATES_C6B34F4 + "the board draws {FILLED} as tile 71",
-    "ext/end-unknown-name": _PREDATES_C6B34F4 + "the board only drops {/} and {/<colour>}",
-    "ext/end-numeric": _PREDATES_C6B34F4 + "the board draws {/63} literally",
-    "ext/end-with-colon": _PREDATES_C6B34F4 + "the board draws {/white:A} literally",
-    "ext/block-half-head-bg": _PREDATES_C6B34F4 + "the board draws {/red:A} literally",
-    "ext/plain-emoji": _PREDATES_C6B34F4 + "an emoji is one cell, not two UTF-16 halves",
-    "ext/code62-heart-suit": _PREDATES_C6B34F4 + "a typed heart is code 62, the degree flap",
-    "ext/code62-heart-emoji": _PREDATES_C6B34F4 + "a typed heart is code 62, the degree flap",
+    "ext/alias-filled": _PREDATES_PR323 + "the board draws {filled} as tile 71",
+    "ext/alias-filled-upper": _PREDATES_PR323 + "the board draws {FILLED} as tile 71",
+    "ext/end-unknown-name": _PREDATES_PR323 + "the board only drops {/} and {/<colour>}",
+    "ext/end-numeric": _PREDATES_PR323 + "the board draws {/63} literally",
+    "ext/end-with-colon": _PREDATES_PR323 + "the board draws {/white:A} literally",
+    "ext/block-half-head-bg": _PREDATES_PR323 + "the board draws {/red:A} literally",
+    "ext/plain-emoji": _PREDATES_PR323 + "an emoji is one cell, not two UTF-16 halves",
+    "ext/code62-heart-suit": _PREDATES_PR323 + "a typed heart projects to code 62",
+    "ext/code62-heart-emoji": _PREDATES_PR323 + "a typed ❤ is normalised to ♥, code 62",
+    "ext/span-filled-numeric": _PREDATES_PR323 + "71 is the filled tile, not a span colour: {71:A} is literal",
 }
 
 
@@ -105,7 +108,8 @@ def test_flap_codes_match_fiestaui(case):
 
 @pytest.mark.parametrize("case", DIVERGENT)
 def test_known_divergence_still_diverges(case):
-    assert [t.to_dict() for t in _parse(case)] != case["tokens"]
+    tokens = _parse(case)
+    assert ([t.to_dict() for t in tokens], tokens_to_codes(tokens)) != (case["tokens"], case["codes"])
 
 
 @pytest.mark.parametrize("case", DIVERGENT)
@@ -139,5 +143,7 @@ def test_icon_table_matches_fiestaui():
     assert ours == EXT["icons"]
 
 
-def test_span_colour_names_match_fiestaui():
-    assert list(SPAN_COLOR_CODES) == EXT["colors"]
+def test_span_colour_names_are_fiestauis_colours_without_the_filled_tile():
+    # The extended fixtures' colour table predates PR #323: it still has "71"
+    # (and, like PR #323, no "filled"). A span head never names the filled tile.
+    assert list(SPAN_COLOR_CODES) == [c for c in EXT["colors"] if c not in ("71", "filled")]

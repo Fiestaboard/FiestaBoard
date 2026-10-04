@@ -168,3 +168,41 @@ def test_board_array_strips_icon_colour_tiles_without_colour_tiles():
 
 def test_board_array_draws_span_markup_literally_when_extended_is_off():
     assert text_to_board_array("{red:HI}", rows=1, cols=8) == [[0, 18, 5, 4, 50, 8, 9, 0]]
+
+
+# --- span heads: colours only, never the filled tile -------------------------
+# `filled` / 71 is a tile ({filled}, {71}), not a colour a letter can be drawn
+# in, so a span or block head naming it is literal text (FiestaUI 5364439).
+
+
+def _literal(text: str) -> list[dict]:
+    return [{"type": "char", "value": ch.upper()} for ch in text]
+
+
+def test_filled_name_is_not_a_span_colour():
+    assert [t.to_dict() for t in parse_line("{filled:x}", extended_markup=True)] == _literal("{filled:x}")
+
+
+def test_filled_code_is_not_a_span_colour():
+    assert [t.to_dict() for t in parse_line("{71:x}", extended_markup=True)] == _literal("{71:x}")
+
+
+def test_filled_is_not_a_block_foreground():
+    assert [t.to_dict() for t in parse_line("{filled/red:x}", extended_markup=True)] == _literal("{filled/red:x}")
+
+
+def test_filled_is_not_a_block_background():
+    assert [t.to_dict() for t in parse_line("{red/71:x}", extended_markup=True)] == _literal("{red/71:x}")
+
+
+def test_code_70_is_still_a_span_colour():
+    assert [t.to_dict() for t in parse_line("{70:x}", extended_markup=True)] == [
+        {"type": "char", "value": "X", "color": "70"}
+    ]
+
+
+def test_filled_is_still_a_tile_when_extended():
+    assert [t.to_dict() for t in parse_line("{filled}{71}", extended_markup=True)] == [
+        {"type": "color", "code": "filled"},
+        {"type": "color", "code": "71"},
+    ]
