@@ -37,6 +37,7 @@ from typing import Any
 import requests
 from fastapi import APIRouter, HTTPException
 
+from src.api_deprecation import flat_board_fields_notice
 from src.api_errors import errors
 from src.board_send_executor import run_board_send
 from src.collections.service import resolve_active_page_id, resolve_next_check_seconds
@@ -987,7 +988,7 @@ async def update_polling_settings(request: PollingSettingsUpdate):
     return {**polling.to_dict(), "requires_restart": requires_restart}
 
 
-@router.get("/settings/board", response_model=BoardSettingsResponse)
+@router.get("/settings/board", response_model=BoardSettingsResponse, dependencies=[flat_board_fields_notice()])
 async def get_board_settings():
     """Get current board settings (display type, boards array, devices)."""
     settings_service = get_settings_service()
@@ -995,7 +996,12 @@ async def get_board_settings():
     return board.to_dict()
 
 
-@router.put("/settings/board", response_model=BoardSettingsResponse, responses={**ERROR_400})
+@router.put(
+    "/settings/board",
+    response_model=BoardSettingsResponse,
+    responses={**ERROR_400},
+    dependencies=[flat_board_fields_notice()],
+)
 async def update_board_settings(request: BoardSettingsUpdate):
     """
     Update board settings.
@@ -1039,6 +1045,7 @@ async def update_board_settings(request: BoardSettingsUpdate):
     response_model=BoardSettingsResponse,
     status_code=201,
     responses={**ERROR_400},
+    dependencies=[flat_board_fields_notice()],
 )
 async def add_board_instance(request: AddBoardRequest):
     """Add a new board instance. Body: device_type, optional name and other board fields.
@@ -1061,6 +1068,7 @@ async def add_board_instance(request: AddBoardRequest):
     "/settings/board/{board_id}",
     response_model=BoardSettingsResponse,
     responses={**ERROR_400, **ERROR_409},
+    dependencies=[flat_board_fields_notice()],
 )
 async def remove_board_instance(board_id: str):
     """Remove a board instance by ID.

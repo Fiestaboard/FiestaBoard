@@ -2664,10 +2664,10 @@ def _build_mcp_server() -> Any:
                 character-62 flap carries (display only; Flagship only).
             api_mode: 'local' (LAN API) or 'cloud' (Vestaboard cloud API).
                 The matching credential must be entered by the user in the
-                web UI.
+                web UI. Deprecated with the flat board fields (removed in v11).
             host: IP address or hostname of the board on the LAN (local API
                 mode). Write-only: the summary reports has_host, never the
-                address.
+                address. Deprecated with the flat board fields (removed in v11).
         """
         return await ops_executors.update_board(
             board_id,
@@ -2701,11 +2701,11 @@ def _build_mcp_server() -> Any:
             device_type: 'flagship', 'note' or 'note_array'.
             name: Display name (default: "My Board", "My Board 2", ...).
             api_mode: 'local' or 'cloud' (default 'local'; note arrays are
-                usually 'cloud').
+                usually 'cloud'). Deprecated with the flat board fields (removed in v11).
             notes_wide: Note-array width in Notes (1–8, note_array only).
             notes_tall: Note-array height in Notes (1–8, note_array only).
             board_color: 'black' or 'white'.
-            host: IP address or hostname on the LAN (local API mode).
+            host: IP address or hostname on the LAN (local API mode). Deprecated with the flat board fields (removed in v11).
         """
         return await ops_executors.add_board(
             device_type,

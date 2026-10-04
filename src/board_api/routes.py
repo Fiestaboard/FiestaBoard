@@ -61,7 +61,7 @@ from datetime import UTC, datetime
 from fastapi import APIRouter, HTTPException
 
 from src import display_runtime as runtime
-from src.api_deprecation import V1_BOARD_MESSAGE_SUCCESSOR, deprecation_notice
+from src.api_deprecation import V1_BOARD_MESSAGE_SUCCESSOR, deprecation_notice, flat_board_fields_notice
 from src.api_errors import errors
 from src.board_chars import characters_to_message
 from src.board_guards import _board_dims, _require_board, _silence_active, primary_board_entry
@@ -119,6 +119,7 @@ def _primary_geometry(settings_service) -> Geometry:
     response_model=BoardCurrentMessageResponse,
     response_model_exclude_unset=True,
     responses=errors(404, 503),
+    dependencies=[flat_board_fields_notice()],
 )
 async def get_board_current_message(force: bool = False, board_id: str | None = None):
     """Return the current state of the physical board.

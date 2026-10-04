@@ -26,6 +26,7 @@ from typing import Any, Literal, get_args
 
 from pydantic import BaseModel, ConfigDict, Field, RootModel
 
+from src.api_deprecation import FLAT_BOARD_FIELDS_NOTE
 from src.devices import ApiMode
 
 
@@ -51,9 +52,11 @@ class ConfigSummaryResponse(BaseModel):
     baywheels_enabled: bool
     traffic_enabled: bool
     stocks_enabled: bool
-    board_api_mode: str
-    board_host: str
-    board_key_set: bool
+    # Deprecated (removed in v11): the primary board's flat connection,
+    # projected for compatibility (src/api_deprecation.py FLAT_BOARD_FIELDS).
+    board_api_mode: str = Field(json_schema_extra={"deprecated": True}, description=FLAT_BOARD_FIELDS_NOTE)
+    board_host: str = Field(json_schema_extra={"deprecated": True}, description=FLAT_BOARD_FIELDS_NOTE)
+    board_key_set: bool = Field(json_schema_extra={"deprecated": True}, description=FLAT_BOARD_FIELDS_NOTE)
     weather_key_set: bool
     transition_strategy: str | None = None
     transition_interval_ms: int | None = None

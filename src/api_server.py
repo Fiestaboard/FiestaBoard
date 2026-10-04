@@ -465,6 +465,18 @@ own contract checks. Two flat legacy operations, `POST /send-message` and
 `POST /refresh`, remain here because earlier documentation named them; both
 are deprecated and both name their `/v1` replacement in a `Link` header.
 
+### Deprecated board fields
+
+Since settings v4, a board's connection lives in its `output_config`, read
+alongside its `output`. The flat connection fields that board responses
+still carry (`api_mode`, `host`, `port`, `local_api_key`, `cloud_key`,
+`note_array_token`, `tiles`, and the `board_api_mode`, `board_host` and
+`board_key_set` summary fields) are copies of it, kept for compatibility
+through v10 and removed in v11. Every response that carries them sends
+`Deprecation: true` and a `Link` with `rel="deprecation"` pointing here,
+and the schema marks the typed ones `deprecated`. The same fields leave the
+MQTT `board_api_mode` entity and the MCP board tools in v11.
+
 ### Authentication
 
 Off by default: a fresh install answers every request. With
