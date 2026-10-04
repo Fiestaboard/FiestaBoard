@@ -28,12 +28,14 @@ from fastapi import APIRouter, HTTPException, Query
 
 from src.api_deprecation import superseded_by_v1
 from src.api_errors import errors
-from src.board_guards import _board_dims, _board_is_paused, _require_board, _silence_active
+from src.board_guards import _board_dims, _board_is_paused, _find_board, _require_board, _silence_active
 from src.collections.models import is_collection_id
 from src.collections.service import get_collection_service
-from src.devices import geometry_of, resolve_dimensions, size_key
+from src.devices import board_context_for, geometry_of, resolve_dimensions, size_key
 from src.display_runtime import get_service
-from src.outputs.cells import extended_markup_kw, project_for_output
+from src.led.charsets import has_extended_markup
+from src.outputs.board_profile import board_character_set
+from src.outputs.cells import cells_to_json, extended_markup_kw, project_for_output, project_message
 from src.schedules.service import get_schedule_service
 from src.settings.service import VALID_OUTPUT_TARGETS, get_settings_service
 from src.text_to_board import text_to_board_array
@@ -412,6 +414,7 @@ async def preview_page(
 @router.post(
     "/pages/preview/batch",
     response_model=PagePreviewBatchResponse,
+    response_model_exclude_unset=True,
     responses=errors(422),
 )
 async def preview_pages_batch(request: PagePreviewBatchRequest):
@@ -426,8 +429,16 @@ async def preview_pages_batch(request: PagePreviewBatchRequest):
     A per-page render failure is reported inside ``previews`` with
     ``available: false`` — the request itself still succeeded. Only a
     malformed body (``page_ids`` that is not a list of strings) is a 422.
+
+    ``board_id`` names the board the previews are for: one whose output
+    draws a rich character set (an LED output) renders colour spans and icons
+    and answers each preview's ``cells`` (plan D19, as the template render
+    does). Omitted, unknown, or a split-flap board: unchanged.
     """
     page_ids = request.page_ids
+    board = _find_board(request.board_id) if request.board_id else None
+    charset = board_character_set(board) if board is not None else None
+    rich = has_extended_markup(charset)
 
     page_service = get_page_service()
     settings_service = get_settings_service()
@@ -444,7 +455,9 @@ async def preview_pages_batch(request: PagePreviewBatchRequest):
         page_ids,
         force_refresh=request.force_refresh,
         active_page_id=active_page_id,
+        **({"extended_markup": True} if rich else {}),
     )
+    dims = board_context_for(*geometry_of(board)) if rich else None
 
     for page_id in page_ids:
         result = batch_results.get(page_id)
@@ -461,6 +474,9 @@ async def preview_pages_batch(request: PagePreviewBatchRequest):
                 "raw": result.raw,
                 "available": True,
             }
+            if dims is not None:
+                cells = project_message(result.formatted, dims.rows, dims.cols, charset).cells
+                results[page_id]["cells"] = cells_to_json(cells) if cells is not None else None
 
     return PagePreviewBatchResponse(
         previews=results,

@@ -434,3 +434,69 @@ def test_a_current_message_without_rich_cells_has_no_cells_key():
     body = _current_message(lambda frames: frames.record_sent(grid))
     assert body["characters"] == grid
     assert "cells" not in body
+
+
+# --- POST /pages/preview/batch (the Change Page thumbnails) ---------------------------------------
+
+
+@pytest.fixture
+def batch_pages(tmp_path):
+    """A real page service with one spans-and-icons page, and a 6x22 board."""
+    from unittest.mock import patch
+
+    from fastapi.testclient import TestClient
+
+    from src.api_server import app
+    from src.pages.models import PageCreate
+    from src.pages.service import PageService
+    from src.pages.storage import PageStorage
+
+    service = PageService(PageStorage(str(tmp_path / "pages.json")))
+    page = service.create_page(PageCreate(name="Hot", type="template", template=["{{red:HOT}} {{icon:heart}}"]))
+    board = {"id": "px1", "name": "Desk", "device_type": "flagship"}
+    with (
+        patch("src.pages.routes.get_page_service", return_value=service),
+        patch("src.pages.routes._find_board", side_effect=lambda board_id: board if board_id == "px1" else None),
+    ):
+        yield TestClient(app), service, page.id
+
+
+def _batch(client, page_id, **extra) -> dict:
+    resp = client.post("/pages/preview/batch", json={"page_ids": [page_id], **extra})
+    assert resp.status_code == 200, resp.text
+    return resp.json()["previews"][page_id]
+
+
+def test_a_batch_preview_for_a_rich_board_renders_its_spans_and_serves_cells(batch_pages):
+    from unittest.mock import patch
+
+    from src.outputs.cells import cells_to_json
+
+    client, _, page_id = batch_pages
+    with patch("src.pages.routes.board_character_set", return_value=LED):
+        preview = _batch(client, page_id, board_id="px1")
+    assert preview["message"].startswith("{red:HOT}")
+    assert "?" not in preview["message"]
+    assert preview["cells"] == cells_to_json(project_message(preview["message"], 6, 22, LED).cells)
+    assert preview["cells"][0][0] == {"type": "char", "value": "H", "color": "red"}
+
+
+def test_a_batch_preview_for_a_split_flap_board_is_unchanged(batch_pages):
+    from unittest.mock import patch
+
+    client, _, page_id = batch_pages
+    plain = _batch(client, page_id)
+    with patch("src.pages.routes.board_character_set", return_value=V1):
+        flap = _batch(client, page_id, board_id="px1")
+    assert flap == plain
+    assert "cells" not in flap
+
+
+def test_a_rich_batch_preview_leaves_the_split_flap_preview_cache_alone(batch_pages):
+    from unittest.mock import patch
+
+    client, service, page_id = batch_pages
+    plain = _batch(client, page_id)
+    with patch("src.pages.routes.board_character_set", return_value=LED):
+        _batch(client, page_id, board_id="px1")
+    assert service.preview_page(page_id).formatted == plain["message"]
