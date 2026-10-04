@@ -10,8 +10,10 @@ them from there (:mod:`src.outputs.first_party`). This pins the trust rule:
   first-party; anything else is never loaded as one;
 - the seed copy must match the lock's ``tree_sha256`` every time it loads: a
   corrupted copy is refused, and only that output is left out;
-- an installed plugin can never stand in for one (refused before its code
-  is imported), and the seed never installs them as plugins;
+- a plugin claiming their id that is not a newer checkout of their own
+  repository never runs, and a board naming one never installs it the way a
+  seeded third-party output is (their installed copies, which update
+  in-app, are pinned in ``test_first_party_in_app_updates.py``);
 - a contributor's ``FIESTABOARD_DEV_OUTPUT_<ID>`` checkout loads instead,
   without the digest check;
 - boot needs no network: everything comes from the seed.
@@ -196,7 +198,10 @@ class TestTrust:
         assert install_seeded_outputs_for_boards(boards, plugin_dirs=[external], external_dir=external) == []
         assert list(external.iterdir()) == []
 
-    def test_an_installed_plugin_with_their_id_is_refused_before_it_is_imported(self, tmp_path):
+    def test_an_installed_plugin_with_their_id_that_is_not_their_checkout_never_runs(self, tmp_path):
+        # In-app updates (tests/test_first_party_in_app_updates.py) run an
+        # installed copy only when it is a newer checkout of the output's own
+        # repository; this one is neither.
         external = tmp_path / "external"
         imposter = external / VESTABOARD
         shutil.copytree(seed_root() / VESTABOARD, imposter, ignore=shutil.ignore_patterns("__pycache__", ".git"))
@@ -207,9 +212,8 @@ class TestTrust:
         before = sys.modules["plugins.vestaboard"]
         loader = PluginLoader(plugins_dir=tmp_path / "builtin", external_dirs=[external], seed_dir=seed_root())
 
-        assert loader.load_plugin(VESTABOARD) is None
+        loader.load_plugin(VESTABOARD)
         assert not sentinel.exists()
-        assert "first-party output FiestaBoard loads from its bundled seed" in loader.load_errors[VESTABOARD][0]
         assert sys.modules["plugins.vestaboard"] is before
         assert output_registry().get(VESTABOARD).plugin is False
 

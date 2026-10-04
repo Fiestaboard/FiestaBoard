@@ -439,6 +439,13 @@ class PluginLoader:
             self._load_errors[plugin_name] = errors
             return None
 
+        # Vestaboard and FiestaPanel are core's own first-party outputs: their
+        # installed copy is loaded by src.outputs.first_party, which runs it
+        # only when it is valid and newer than the image's seed (and never a
+        # copy from another repository), else the seed's. Nothing here imports it.
+        if plugin_name in FIRST_PARTY_OUTPUTS:
+            return self._load_first_party_locked(plugin_name, plugin_dir)
+
         # Load and validate manifest
         manifest_path = plugin_dir / "manifest.json"
         manifest, manifest_errors = load_manifest(manifest_path)
@@ -455,19 +462,6 @@ class PluginLoader:
         if manifest.id != plugin_name:
             errors.append(f"Manifest id '{manifest.id}' does not match directory name '{plugin_name}'")
             self._load_errors[plugin_name] = errors
-            return None
-
-        # Vestaboard and FiestaPanel are core's own first-party outputs, loaded
-        # from the image's seed (src.outputs.first_party). A plugin of either id
-        # is never imported: its code must not run, let alone drive those boards
-        # or shadow the seed copy's ``plugins.<id>`` modules.
-        if plugin_name in FIRST_PARTY_OUTPUTS:
-            errors.append(
-                f"'{plugin_name}' is a first-party output FiestaBoard loads from its bundled seed; "
-                "an installed plugin with that id is never loaded"
-            )
-            self._load_errors[plugin_name] = errors
-            logger.error("Plugin %s refused: %s", plugin_name, errors[-1])
             return None
 
         # Vocabulary this core does not recognise -- a ui:widget or a
@@ -651,6 +645,39 @@ class PluginLoader:
             self._load_errors[plugin_name] = errors
             logger.exception(f"Error instantiating plugin {plugin_name}")
             return None
+
+    def _load_first_party_locked(self, plugin_name: str, plugin_dir: Path) -> OutputPluginEntry | None:
+        """Load first-party output *plugin_name* whose installed copy is
+        *plugin_dir* (plan D8): the copy that runs (installed or seed) becomes
+        the output registry's first-party entry, and is listed here so the
+        Integrations page shows, checks and updates the installed copy.
+
+        When the installed copy is refused and the seed's runs, that is a load
+        error and a seed fallback, so an update that caused it rolls back.
+        """
+        from src.outputs.first_party import reload_first_party
+
+        try:
+            loaded = reload_first_party(plugin_name, seed_dir=self.seed_dir, external_dir=plugin_dir.parent)
+        except Exception as exc:
+            message = f"First-party output '{plugin_name}' could not be loaded: {exc}"
+            self._load_errors[plugin_name] = [message]
+            logger.error(message)
+            return None
+        entry = OutputPluginEntry(loaded.plugin_class, loaded.manifest)
+        previous = self._loaded_plugins.get(plugin_name)
+        if previous is not None:
+            retire_plugin_object(plugin_name, previous[0], what="replaced instance of plugin")
+        self._loaded_plugins[plugin_name] = (entry, loaded.manifest)
+        self._plugin_classes[plugin_name] = loaded.plugin_class
+        self._plugin_sources[plugin_name] = self._source_for_dir(plugin_dir)
+        if loaded.fallback:
+            self._load_errors[plugin_name] = [loaded.fallback]
+            self._seed_fallbacks[plugin_name] = loaded.fallback
+        logger.info(
+            "Loaded first-party output %s %s (%s copy)", plugin_name, loaded.manifest.version, loaded.source.origin
+        )
+        return entry
 
     def _register_output_locked(
         self,

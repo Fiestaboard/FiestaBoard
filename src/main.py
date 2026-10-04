@@ -834,9 +834,15 @@ class DisplayService:
         flat dict) signs as its v4 equivalent.
         """
         from src.devices import BoardInstance
+        from src.outputs.registry import output_registry, resolve_output_id
 
         instance = BoardInstance.from_dict(board)
+        # The code that drives the board: an output updated in-app (or
+        # reloaded) registers a new plugin class, so its boards are rebuilt
+        # on it instead of running the instance built from the old one.
+        definition = output_registry().get(resolve_output_id(board))
         return (
+            definition.plugin_class if definition is not None else None,
             instance.device_type,
             instance.notes_wide,
             instance.notes_tall,

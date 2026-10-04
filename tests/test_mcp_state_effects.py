@@ -1364,6 +1364,10 @@ def file_origin_updates(updatable_plugins, monkeypatch):
         url = subprocess.run(
             ["git", "-C", str(dest_dir), "remote", "get-url", "origin"], capture_output=True, text=True, check=True
         ).stdout.strip()
+        if not url.startswith("file://"):
+            # The first-party outputs' installed copies point at GitHub; the
+            # suite never reaches it, so they report no remote head.
+            return None
         listed = subprocess.run(["git", "ls-remote", url, "HEAD"], capture_output=True, text=True, check=True)
         return listed.stdout.split()[0] if listed.stdout.strip() else None
 

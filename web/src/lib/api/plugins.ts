@@ -40,6 +40,11 @@ export interface PluginInfo {
   update_available: boolean;
   /** Why an upstream commit was not offered; empty when nothing is blocked. */
   update_blocked_reason: string;
+  /**
+   * A first-party output (Vestaboard, FiestaPanel): updated like any plugin,
+   * never uninstalled. Mirrors `PluginSummary.required` in `src/plugins/models.py`.
+   */
+  required?: boolean;
   supports_triggers: boolean;
   instance_label: string | null;
   base_plugin_id: string | null;

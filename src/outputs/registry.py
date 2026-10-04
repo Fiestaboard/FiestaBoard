@@ -2,8 +2,9 @@
 
 A saved board names the **output** that drives it. Two are first-party and
 always registered — output plugins in their own repositories, carried by
-the image's output seed and loaded from it by :mod:`src.outputs.first_party`
-the first time the registry is asked for:
+the image's output seed and loaded by :mod:`src.outputs.first_party` (from
+the seed, or a newer installed copy an in-app update brought) the first time
+the registry is asked for:
 
 - ``vestaboard`` — a Vestaboard on the Local API, the RW Cloud API, the
   note-array Cloud API, or a local note array's per-tile fan-out.
@@ -178,8 +179,20 @@ class OutputRegistry:
         """
         with self._lock:
             existing = self._outputs.get(definition.id)
-            if existing is not None and not existing.plugin:
+            if definition.id in FIRST_PARTY_OUTPUTS or (existing is not None and not existing.plugin):
                 raise ValueError(f"Output '{definition.id}' is built in; a plugin cannot replace it")
+            self._outputs[definition.id] = definition
+
+    def put_first_party(self, definition: OutputDefinition) -> None:
+        """Register a first-party output, replacing its earlier load (an
+        in-app update or a reload of its installed copy, plan D8).
+
+        Raises:
+            ValueError: *definition* is not a first-party output's entry.
+        """
+        if definition.id not in FIRST_PARTY_OUTPUTS or definition.plugin:
+            raise ValueError(f"Output '{definition.id}' is not a first-party output")
+        with self._lock:
             self._outputs[definition.id] = definition
 
     def remove_plugin(self, output_id: str) -> None:
