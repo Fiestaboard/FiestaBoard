@@ -214,15 +214,15 @@ async def probe_board_connection(request: BoardTestRequest) -> dict:
     ``tests/test_config_contract.py`` and
     ``tests/test_status_code_correctness.py`` pin it by value instead.
     """
-    if request.api_mode.lower() == "cloud":
-        settings = {"api_mode": "cloud", "cloud_key": request.cloud_key or ""}
-    else:
-        settings = {
-            "api_mode": "local",
-            "local_api_key": request.local_api_key or "",
-            "host": request.host or "",
-            "port": request.port,
-        }
+    # Every field the request carries, as given: which of them a connection
+    # needs (and in what order a missing one is refused) is the plugin's rule.
+    settings = {
+        "api_mode": request.api_mode,
+        "cloud_key": request.cloud_key or "",
+        "local_api_key": request.local_api_key or "",
+        "host": request.host or "",
+        "port": request.port,
+    }
     try:
         outcome = await _vestaboard_draft_action("test_connection", settings)
         return dict(outcome.detail)
