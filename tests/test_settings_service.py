@@ -12,6 +12,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 from src.devices import MAX_BOARD_NAME_LENGTH
+from src.settings.board_shape import board_view
 from src.settings.service import (
     VALID_OUTPUT_TARGETS,
     ActivePageSettings,
@@ -460,7 +461,7 @@ class TestSettingsServiceBoard:
         settings_service.set_boards(
             [{"device_type": "flagship", "id": settings_service._board.boards[0]["id"], "local_api_key": "***"}]
         )
-        assert settings_service._board.boards[0]["local_api_key"] == "secret"
+        assert board_view(settings_service._board.boards[0])["local_api_key"] == "secret"
 
     def test_set_boards_empty_raises(self, settings_service):
         with pytest.raises(ValueError, match="At least one board"):
@@ -633,7 +634,7 @@ class TestSettingsServiceMigration:
         }
         with patch("src.config_manager.get_config_manager", return_value=mock_cm):
             svc = SettingsService(settings_file=settings_file)
-        assert svc._board.boards[0]["local_api_key"] == "migrated-key"
+        assert board_view(svc._board.boards[0])["local_api_key"] == "migrated-key"
 
     def test_migration_skips_when_board_has_keys(self, settings_file, mock_config):
         Path(settings_file).write_text(
@@ -944,7 +945,7 @@ class TestLocalArrayTileMasking:
         update["tiles"][1]["local_api_key"] = "***"
         update["tiles"][0]["host"] = "10.0.0.99"
         settings_service.set_boards([update])
-        tiles = {(t["row"], t["col"]): t for t in settings_service._board.boards[0]["tiles"]}
+        tiles = {(t["row"], t["col"]): t for t in board_view(settings_service._board.boards[0])["tiles"]}
         assert tiles[(0, 0)]["local_api_key"] == "secret-a"
         assert tiles[(0, 0)]["host"] == "10.0.0.99"
         assert tiles[(0, 1)]["local_api_key"] == "secret-b"
@@ -957,7 +958,7 @@ class TestLocalArrayTileMasking:
             {"row": 0, "col": 5, "host": "10.0.0.3", "port": 7000, "local_api_key": "***", "enabled": True}
         ]
         settings_service.set_boards([update])
-        [tile] = settings_service._board.boards[0]["tiles"]
+        [tile] = board_view(settings_service._board.boards[0])["tiles"]
         assert tile["local_api_key"] == ""
 
     def test_set_boards_accepts_new_plaintext_tile_keys(self, settings_service):
@@ -966,7 +967,7 @@ class TestLocalArrayTileMasking:
         update = self._array_board(id=board_id)
         update["tiles"][0]["local_api_key"] = "rotated"
         settings_service.set_boards([update])
-        tiles = {(t["row"], t["col"]): t for t in settings_service._board.boards[0]["tiles"]}
+        tiles = {(t["row"], t["col"]): t for t in board_view(settings_service._board.boards[0])["tiles"]}
         assert tiles[(0, 0)]["local_api_key"] == "rotated"
 
     def test_set_boards_swap_keeps_key_with_its_board(self, settings_service):
@@ -986,7 +987,7 @@ class TestLocalArrayTileMasking:
         ]
         settings_service.set_boards([update])
 
-        by_host = {t["host"]: t["local_api_key"] for t in settings_service._board.boards[0]["tiles"]}
+        by_host = {t["host"]: t["local_api_key"] for t in board_view(settings_service._board.boards[0])["tiles"]}
         assert by_host["10.0.0.1"] == "key-for-host-1"
         assert by_host["10.0.0.2"] == "key-for-host-2"
 
@@ -1001,7 +1002,7 @@ class TestLocalArrayTileMasking:
         update["tiles"][0]["local_api_key"] = "***"
         settings_service.set_boards([update])
 
-        tiles = {(t["row"], t["col"]): t for t in settings_service._board.boards[0]["tiles"]}
+        tiles = {(t["row"], t["col"]): t for t in board_view(settings_service._board.boards[0])["tiles"]}
         assert tiles[(0, 0)]["host"] == "10.0.0.77"
         assert tiles[(0, 0)]["local_api_key"] == "secret-a"
 

@@ -30,6 +30,7 @@ from pathlib import Path
 import pytest
 from fastapi.testclient import TestClient
 
+from src.settings.board_shape import board_view
 from src.settings.service import CURRENT_SETTINGS_SCHEMA_VERSION as CURRENT
 
 FUTURE = CURRENT + 1
@@ -107,7 +108,7 @@ def test_a_too_new_file_with_a_backup_boots_from_the_backup(data_dir):
     service = _service(data_dir)
 
     assert (data_dir / "settings.json").read_bytes() == backup_bytes
-    assert service.get_board_settings().boards[0]["local_api_key"] == "test_local_key"
+    assert board_view(service.get_board_settings().boards[0])["local_api_key"] == "test_local_key"
     asides = _asides(data_dir)
     assert [ASIDE.match(p.name) is not None for p in asides] == [True]
     assert asides[0].read_bytes() == future_bytes
@@ -159,7 +160,7 @@ def test_a_second_rollback_restores_the_second_snapshot(data_dir):
     _newer_build_upgrades(data_dir)
     service = _service(data_dir)  # second rollback
 
-    assert service.get_board_settings().boards[0]["local_api_key"] == "test_second_key"
+    assert board_view(service.get_board_settings().boards[0])["local_api_key"] == "test_second_key"
 
 
 def test_a_backup_that_is_itself_too_new_is_not_swapped_in(data_dir):
@@ -224,7 +225,7 @@ def test_an_older_file_migrates_normally_and_keeps_the_backup(data_dir):
 
     assert json.loads((data_dir / "settings.json").read_text())["schema_version"] == CURRENT
     assert (data_dir / f"settings.json.v{CURRENT}_backup").read_bytes() == backup_bytes
-    assert service.get_board_settings().boards[0]["local_api_key"] == "test_local_key"
+    assert board_view(service.get_board_settings().boards[0])["local_api_key"] == "test_local_key"
     assert service.get_restore_notice() is None
 
 
@@ -287,18 +288,85 @@ def test_no_notice_on_a_normal_boot(data_dir):
 # ---------------------------------------------------------------------------
 
 
-def test_a_rolled_back_data_dir_sends_exactly_what_it_sent_before_the_upgrade(data_dir, monkeypatch):
-    """The newer build's file is unreadable here; after the bridge the board
-    sends the A4 local-Flagship golden, byte for byte."""
+def _as_the_v3_build(monkeypatch) -> None:
+    """Run this process as the last settings-v3 build (the bridge release).
+
+    Its loader is this one with the schema pinned at 3 and the v3->v4
+    migration absent: the bridge, the refusal and the backup naming all read
+    ``CURRENT_SETTINGS_SCHEMA_VERSION`` at call time. The board readers are
+    this build's, which read a v3 (flat) board exactly as v3 did.
+    """
+    import src.settings.service as service
+
+    monkeypatch.setattr(service, "CURRENT_SETTINGS_SCHEMA_VERSION", 3)
+    monkeypatch.setattr(service, "MIGRATIONS", [m for m in service.MIGRATIONS if m[0] <= 3])
+
+
+def test_a_v4_upgrade_rolled_back_to_the_bridge_build_sends_what_it_sent_before(data_dir, monkeypatch):
+    """Plan D8 rollback, end to end: this build migrates a real v3 install to
+    v4 (leaving ``settings.json.v3_backup``); the bridge build then boots the
+    v4 file, steps back onto the backup, and every board sends the same bytes."""
+    from src.api_server import app
     from tests.test_upgrade_fixtures import boot, check_send
     from tests.test_wire_goldens import install_floor_clock, install_wire_recorder
 
     wire = install_wire_recorder(monkeypatch)
     install_floor_clock(monkeypatch)
-    from src.api_server import app
+    upgraded = boot("v9_10_schema3_multi_board", data_dir)
+    assert json.loads((data_dir / "settings.json").read_text())["schema_version"] == 4
+    v3_bytes = (data_dir / "settings.json.v3_backup").read_bytes()
+    assert upgraded.boards[0]["output"] == "vestaboard"
 
+    _as_the_v3_build(monkeypatch)
+    from tests.conftest import _drop_all_singletons
+    from tests.test_upgrade_fixtures import Booted
+
+    _drop_all_singletons()
+    rolled_back = Booted(data_dir)
+
+    notice = rolled_back.settings.get_restore_notice()
+    assert notice is not None and (notice.found_version, notice.restored_version) == (4, 3)
+    assert not (data_dir / "settings.json.v3_backup").exists(), "the bridge deletes the backup it restored"
+    on_disk = json.loads((data_dir / "settings.json").read_text())
+    assert on_disk["schema_version"] == 3
+    # The restored file is the v3 snapshot: the connection is flat again.
+    assert json.loads(v3_bytes)["board"]["boards"][0]["host"] == on_disk["board"]["boards"][0]["host"] == "192.168.0.10"
+    assert "output_config" not in on_disk["board"]["boards"][0]
+    assert rolled_back.service.board_init_errors == {}
+    client = TestClient(app)
+    for index, golden in ((0, "local_flagship_send"), (1, "rw_cloud_send"), (2, "note_array_cloud_send")):
+        check_send(golden, client, wire, rolled_back.boards[index]["id"])
+
+
+def test_a_v4_file_with_a_stale_v3_backup_boots_without_the_bridge(data_dir, monkeypatch):
+    """This build reads v4: the pre-written v4 rollback fixture boots as-is
+    (no swap, the v3 backup left alone) and sends the A4 golden."""
+    from src.api_server import app
+    from tests.test_upgrade_fixtures import boot, check_send
+    from tests.test_wire_goldens import install_floor_clock, install_wire_recorder
+
+    wire = install_wire_recorder(monkeypatch)
+    install_floor_clock(monkeypatch)
     booted = boot("v10_beta_schema4_with_v3_backup", data_dir, root=ROLLBACK_FIXTURES)
 
+    assert booted.settings.get_restore_notice() is None
+    assert (data_dir / "settings.json.v3_backup").exists()
     assert booted.service.board_init_errors == {}
     check_send("local_flagship_send", TestClient(app), wire, booted.boards[0]["id"])
+
+
+def test_the_bridge_build_restores_the_pre_written_v4_fixture(data_dir, monkeypatch):
+    """The same fixture on the bridge build: too new, so the v3 backup is
+    restored and the board sends the A4 golden."""
+    from src.api_server import app
+    from tests.test_upgrade_fixtures import boot, check_send
+    from tests.test_wire_goldens import install_floor_clock, install_wire_recorder
+
+    wire = install_wire_recorder(monkeypatch)
+    install_floor_clock(monkeypatch)
+    _as_the_v3_build(monkeypatch)
+    booted = boot("v10_beta_schema4_with_v3_backup", data_dir, root=ROLLBACK_FIXTURES)
+
     assert booted.settings.get_restore_notice() is not None
+    assert booted.service.board_init_errors == {}
+    check_send("local_flagship_send", TestClient(app), wire, booted.boards[0]["id"])

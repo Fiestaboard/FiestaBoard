@@ -39,6 +39,7 @@ from src.board_guards import _board_dims, _find_board
 from src.devices import NOTE_COLS, NOTE_ROWS, is_note_array, resolve_dimensions
 from src.display_runtime import get_service, reinitialize_board_clients, release_board_frames
 from src.outputs.cells import cells_to_json
+from src.outputs.registry import FIESTAPANEL, resolve_output_id
 from src.pages.service import find_incompatible_board_references
 from src.settings.service import get_settings_service
 
@@ -173,7 +174,7 @@ async def update_panel(panel_id: str, data: PanelUpdate):
         settings_service = get_settings_service()
         boards = [dict(b) for b in (settings_service.get_board_settings().boards or [])]
         target = next((b for b in boards if b.get("id") == panel.board_id), None)
-        if target is not None and target.get("api_mode") == "virtual":
+        if target is not None and resolve_output_id(target) == FIESTAPANEL:
             grid = compute_autofit_grid(panel.screen_diagonal_inches, panel.screen_aspect_w, panel.screen_aspect_h)
             if not board_matches_grid(target, grid):
                 fit_board_to_grid(target, grid)

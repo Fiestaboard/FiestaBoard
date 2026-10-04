@@ -1,5 +1,5 @@
 {
-  "schema_version": 4,
+  "schema_version": 3,
   "transitions": {
     "strategy": null,
     "step_interval_ms": null,
@@ -31,18 +31,15 @@
         "enabled": true,
         "paused": false,
         "schedule_enabled": false,
+        "api_mode": "local",
+        "host": "192.0.2.10",
+        "port": 7000,
+        "local_api_key": "test_key_golden",
+        "cloud_key": "",
+        "note_array_token": "",
         "notes_wide": 1,
         "notes_tall": 1,
-        "output": "vestaboard",
-        "output_config": {
-          "api_mode": "local",
-          "host": "192.0.2.10",
-          "port": 7000,
-          "local_api_key": "test_key_golden",
-          "cloud_key": "",
-          "note_array_token": "",
-          "tiles": []
-        }
+        "tiles": []
       }
     ],
     "devices": [

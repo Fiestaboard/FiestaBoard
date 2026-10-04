@@ -312,7 +312,7 @@ _VESTABOARD_LITERAL = re.compile(r"vestaboard\.com|X-Vestaboard-|/local-api/|\b7
 #: Was 36 outside the exempt modules before refactor/vestaboard-behind-hooks,
 #: then 9 outside them (53 in all of src/) before the move. It may only go
 #: down; Phase 4 (P4e) drives it to 0.
-MAX_VESTABOARD_LITERALS = 10
+MAX_VESTABOARD_LITERALS = 7
 
 
 def _vestaboard_literals(root: Path) -> list[str]:

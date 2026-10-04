@@ -464,11 +464,12 @@ class Config:
         unavailable (early startup, broken store).
         """
         try:
+            from .settings.board_shape import board_view
             from .settings.service import get_settings_service
 
             boards = get_settings_service().get_board_settings().boards or []
             if boards and isinstance(boards[0], dict):
-                return boards[0]
+                return board_view(boards[0])
         except Exception:  # pragma: no cover - defensive
             pass
         return {}

@@ -545,7 +545,10 @@ def test_network_diagnostics_returns_the_runners_verdict(client):
 
     assert response.status_code == 200
     assert response.json() == SERVED_DIAGNOSTICS
-    assert run.call_args.args[0] == {"host": "192.0.2.10", "port": 7000}
+    # The runner gets the board's flat view (settings v4 keeps the connection
+    # in output_config; the diagnostics hook reads it flat, plan D8).
+    diagnosed = run.call_args.args[0]
+    assert (diagnosed["host"], diagnosed["port"], diagnosed["api_mode"]) == ("192.0.2.10", 7000, "local")
 
 
 def test_network_diagnostics_failure_is_a_500_without_the_exception_text(client):

@@ -823,31 +823,26 @@ class DisplayService:
     def _config_signature(board: dict) -> tuple:
         """Connection-config signature: unchanged => keep the existing runtime.
 
-        Includes the Local Array Mode tile list (#1399) so editing a tile's
-        host/key/enabled state rebuilds the local note array's driver.
+        Settings v4 (plan D8): what reaches a board is its ``output`` and
+        ``output_config`` — a Vestaboard's connection, local-array tiles
+        included (#1399), lives there — plus its content geometry. Hashed
+        from the normalised board, so a stored dict and the same board
+        re-saved through the API sign alike, and either shape (a settings-v3
+        flat dict) signs as its v4 equivalent.
         """
-        tiles = board.get("tiles") or []
-        tiles_sig = tuple(sorted(str(t) for t in tiles)) if isinstance(tiles, list) else ()
+        from src.devices import BoardInstance
+
+        instance = BoardInstance.from_dict(board)
         return (
-            (board.get("api_mode") or "local").lower(),
-            board.get("host") or "",
-            board.get("port"),
-            board.get("local_api_key") or "",
-            board.get("cloud_key") or "",
-            board.get("note_array_token") or "",
-            board.get("device_type") or "flagship",
-            board.get("notes_wide") or 1,
-            board.get("notes_tall") or 1,
+            instance.device_type,
+            instance.notes_wide,
+            instance.notes_tall,
             # A panel re-fit (TV size change) only moves the grid: without
             # these the runtime keeps a client sized for the old grid.
-            board.get("grid_rows"),
-            board.get("grid_cols"),
-            tiles_sig,
-            # An output plugin's board: a changed output or output_config
-            # builds a new instance (plan D2). Both are absent on every other
-            # board, so their signatures are unchanged.
-            board.get("output"),
-            json.dumps(board.get("output_config"), sort_keys=True, default=str),
+            instance.grid_rows,
+            instance.grid_cols,
+            instance.output,
+            json.dumps(instance.output_config, sort_keys=True, default=str),
         )
 
     def _build_board_clients(self, sync_cache: bool = True):

@@ -123,7 +123,9 @@ def _legacy_board_config_view() -> dict:
     Transition fields come from the settings transitions section — the copy
     the runtime actually uses.
     """
-    board = primary_board_entry() or {}
+    from src.settings.board_shape import flat_connection
+
+    board = flat_connection(primary_board_entry() or {})
     transitions = get_settings_service().get_transition_settings()
     return {
         "api_mode": board.get("api_mode") or "local",
@@ -243,16 +245,8 @@ async def reset_board_config():
         settings_svc = get_settings_service()
         settings_svc.set_boards(
             [
-                BoardInstance(
-                    name="My Board",
-                    device_type="flagship",
-                    board_color="black",
-                    enabled=True,
-                    api_mode="local",
-                    host="",
-                    local_api_key="",
-                    cloud_key="",
-                ).to_dict()
+                # An unconfigured local Vestaboard: every connection field empty.
+                BoardInstance(name="My Board", device_type="flagship", board_color="black", enabled=True).to_dict()
             ]
         )
         # A reset means "run the wizard again": a stored completed/skipped

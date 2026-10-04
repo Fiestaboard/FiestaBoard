@@ -1200,11 +1200,13 @@ def test_note_array_token_persists_through_settings_service_round_trip(tmp_path)
 
     svc = settings_service_module.SettingsService(settings_file=str(tmp_path / "settings.json"))
 
-    board_dict = BoardInstance(
-        device_type="note_array",
-        note_array_token="tok-roundtrip",
-        notes_wide=2,
-        notes_tall=1,
+    board_dict = BoardInstance.from_dict(
+        {
+            "device_type": "note_array",
+            "note_array_token": "tok-roundtrip",
+            "notes_wide": 2,
+            "notes_tall": 1,
+        }
     ).to_dict()
     svc.set_boards([board_dict])
 
@@ -1214,7 +1216,7 @@ def test_note_array_token_persists_through_settings_service_round_trip(tmp_path)
     assert len(boards) == 1
     b = boards[0]
     assert b["device_type"] == "note_array"
-    assert b["note_array_token"] == "tok-roundtrip"
+    assert b["output_config"]["note_array_token"] == "tok-roundtrip"
     assert b["notes_wide"] == 2
     assert b["notes_tall"] == 1
 
@@ -1225,11 +1227,13 @@ def test_note_array_token_masked_in_get_board_settings(tmp_path):
     from src.devices import BoardInstance
 
     svc = settings_service_module.SettingsService(settings_file=str(tmp_path / "settings.json"))
-    board_dict = BoardInstance(
-        device_type="note_array",
-        note_array_token="tok-secret",
-        notes_wide=2,
-        notes_tall=1,
+    board_dict = BoardInstance.from_dict(
+        {
+            "device_type": "note_array",
+            "note_array_token": "tok-secret",
+            "notes_wide": 2,
+            "notes_tall": 1,
+        }
     ).to_dict()
     svc.set_boards([board_dict])
 
@@ -1243,11 +1247,13 @@ def test_note_array_token_preserved_when_update_sends_masked_value(tmp_path):
     from src.devices import BoardInstance
 
     svc = settings_service_module.SettingsService(settings_file=str(tmp_path / "settings.json"))
-    board_dict = BoardInstance(
-        device_type="note_array",
-        note_array_token="tok-real",
-        notes_wide=2,
-        notes_tall=1,
+    board_dict = BoardInstance.from_dict(
+        {
+            "device_type": "note_array",
+            "note_array_token": "tok-real",
+            "notes_wide": 2,
+            "notes_tall": 1,
+        }
     ).to_dict()
     svc.set_boards([board_dict])
 
@@ -1257,7 +1263,7 @@ def test_note_array_token_preserved_when_update_sends_masked_value(tmp_path):
     svc.set_boards([masked_board])
 
     reloaded = svc.get_board_settings().boards
-    assert reloaded[0]["note_array_token"] == "tok-real"
+    assert reloaded[0]["output_config"]["note_array_token"] == "tok-real"
 
 
 def test_note_array_board_is_connection_configured_via_settings_service(tmp_path, monkeypatch):
@@ -1266,11 +1272,13 @@ def test_note_array_board_is_connection_configured_via_settings_service(tmp_path
     from src.devices import BoardInstance
 
     svc = settings_service_module.SettingsService(settings_file=str(tmp_path / "settings.json"))
-    board_dict = BoardInstance(
-        device_type="note_array",
-        note_array_token="tok-abc",
-        notes_wide=2,
-        notes_tall=1,
+    board_dict = BoardInstance.from_dict(
+        {
+            "device_type": "note_array",
+            "note_array_token": "tok-abc",
+            "notes_wide": 2,
+            "notes_tall": 1,
+        }
     ).to_dict()
     svc.set_boards([board_dict])
 

@@ -50,6 +50,8 @@ from unittest.mock import patch
 import pytest
 from fastapi.testclient import TestClient
 
+from src.settings.board_shape import board_view
+
 LOCAL_KEY = "test_local_key_contract"
 LOCAL_HOST = "192.0.2.50"
 
@@ -97,7 +99,9 @@ def _settings_on_disk(data_dir) -> dict:
 
 
 def _stored_board(data_dir) -> dict:
-    return _settings_on_disk(data_dir)["board"]["boards"][0]
+    """The stored primary board as the flat view: settings v4 keeps the
+    connection in output_config (plan D8)."""
+    return board_view(_settings_on_disk(data_dir)["board"]["boards"][0])
 
 
 def _configure_board(client: TestClient, **fields) -> dict:

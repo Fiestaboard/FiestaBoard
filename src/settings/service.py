@@ -202,45 +202,34 @@ def _restore_output_config(board: dict, existing: dict) -> object:
 def restore_masked_board_secrets(board: dict, existing: dict) -> dict:
     """Restore every echoed ``"***"`` secret in *board* from *existing*, in place.
 
-    The one merge rule for a board coming back from the API masked: the flat
-    credentials (``BOARD_SENSITIVE_FIELDS``), each tile's credentials, and an
-    output plugin's ``output_config`` (its schema's secrets). ``set_boards``
-    runs it on every save, and the saved-board action route
-    (``POST /boards/{id}/actions/{action}``) on every action body, so a test
-    run from the settings page never tests a literal ``***``.
+    The one merge rule for a board coming back from the API masked. *board*
+    may be in either shape (settings-v3 flat fields, the v4
+    ``output_config``, or both — an echo of ``GET /settings/board``);
+    *existing* is the stored board. Restored: the flat credentials
+    (``BOARD_SENSITIVE_FIELDS``) and each tile's key; a Vestaboard's
+    ``output_config`` by the same rules (tiles matched by endpoint, then by
+    position — they carry no id); an output plugin's ``output_config`` by its
+    schema's secrets. ``set_boards`` runs it on every save, and the
+    saved-board action route (``POST /boards/{id}/actions/{action}``) on every
+    action body, so a test run from the settings page never tests a literal
+    ``***``.
 
-    Raises ``ValueError`` when an ``output_config`` secret cannot be restored
-    or the config does not fit the output's schema.
+    Raises ``ValueError`` when an output plugin's ``output_config`` secret
+    cannot be restored or the config does not fit the output's schema.
     """
-    from src.devices import TILE_SENSITIVE_FIELDS
+    from src.devices import derive_output_id
+    from src.outputs.vestaboard.connection import restore_connection_secrets
+    from src.settings.board_shape import FIESTAPANEL, VESTABOARD, flat_connection
 
-    for key in BOARD_SENSITIVE_FIELDS:
-        if board.get(key) == "***":
-            board[key] = existing.get(key, "")
-    # Preserve masked per-tile credentials. Match by host:port FIRST so
-    # the key follows the physical board when tiles are moved/swapped
-    # to new grid positions (the UI's "Move to position" sends masked
-    # keys at the NEW coordinates — a position-only match would pair
-    # each host with the OTHER board's key). Fall back to (row, col)
-    # for the change-the-IP-keep-the-key flow.
-    incoming_tiles = board.get("tiles")
-    if isinstance(incoming_tiles, list):
-        existing_tiles = [t for t in existing.get("tiles") or [] if isinstance(t, dict)]
-        existing_tiles_by_pos = {(t.get("row"), t.get("col")): t for t in existing_tiles}
-        existing_tiles_by_endpoint: dict = {}
-        for t in existing_tiles:
-            existing_tiles_by_endpoint.setdefault((t.get("host"), t.get("port")), t)
-        for tile in incoming_tiles:
-            if not isinstance(tile, dict):
-                continue
-            existing_tile = existing_tiles_by_endpoint.get(
-                (tile.get("host"), tile.get("port"))
-            ) or existing_tiles_by_pos.get((tile.get("row"), tile.get("col")), {})
-            for key in TILE_SENSITIVE_FIELDS:
-                if tile.get(key) == "***":
-                    tile[key] = existing_tile.get(key, "")
+    stored = flat_connection(existing) if existing else {}
+    restore_connection_secrets(board, stored)
     if "output_config" in board:
-        board["output_config"] = _restore_output_config(board, existing)
+        output_id = derive_output_id(board)
+        if output_id == VESTABOARD:
+            if isinstance(board["output_config"], dict):
+                restore_connection_secrets(board["output_config"], stored)
+        elif output_id != FIESTAPANEL:
+            board["output_config"] = _restore_output_config(board, existing)
     return board
 
 
@@ -284,53 +273,39 @@ class BoardSettings:
 
     @staticmethod
     def _mask_board(board: dict) -> dict:
-        """Return the API view of a board dict: sensitive fields masked.
+        """Return the API view of a board dict: the flat view, secrets masked.
 
-        Also masks nested per-tile credentials for local note arrays. Tiles
-        are rebuilt (not mutated) so the stored dicts are never corrupted by
-        masking a shallow copy.
+        Settings v4 stores a Vestaboard's connection in ``output_config``;
+        the API still answers in the settings-v3 flat shape
+        (:func:`src.settings.board_shape.board_view`, plan D8), with
+        ``output`` and ``output_config`` beside it. Credentials are masked in
+        both halves: the flat fields and every tile's key, and the
+        ``output_config`` — a Vestaboard's by the same rules, an output
+        plugin's by its schema's secrets (an uninstalled output's is withheld
+        whole). Tiles are rebuilt, not mutated, so masking never corrupts the
+        stored dicts.
 
-        The view also carries the board's ``output`` — derived at load by
-        the output registry's one precedence rule, never stored: a client
-        echoing it back is harmless, because ``set_boards`` keeps only the
-        fields ``BoardInstance`` knows. Likewise the resolved FiestaUI
-        ``device_model`` and ``charset`` ids (src/outputs/board_profile.py),
-        which ``BoardInstance`` stores only for an output plugin's board.
-        ``device_model_spec`` -- the model document, for a model FiestaUI does
-        not build in (a FiestaPanel's, a plugin's own) -- is added only then.
+        Also carries the resolved FiestaUI ``device_model`` and ``charset``
+        ids (src/outputs/board_profile.py). ``device_model_spec`` -- the
+        model document, for a model FiestaUI does not build in (a
+        FiestaPanel's, a plugin's own) -- is added only then.
         """
-        from src.devices import TILE_SENSITIVE_FIELDS
         from src.outputs.board_profile import board_model_spec, board_profile
-        from src.outputs.registry import resolve_output_id
+        from src.outputs.output_config import mask_output_config
+        from src.outputs.vestaboard.connection import mask_connection_secrets
+        from src.settings.board_shape import FIESTAPANEL, VESTABOARD, board_view
 
-        masked = dict(board)
-        masked["output"] = resolve_output_id(board)
+        masked = mask_connection_secrets(board_view(board))
+        output_id = masked["output"]
         masked["device_model"], masked["charset"] = board_profile(board)
         spec = board_model_spec(board)
         if spec is not None:
             masked["device_model_spec"] = spec
-        if "output_config" in board:
-            # An output plugin's board settings: its schema says what is secret
-            # (src/outputs/output_config.py); an uninstalled output's are withheld.
-            from src.outputs.output_config import mask_output_config
-
-            masked["output_config"] = mask_output_config(
-                board["output_config"], _output_settings_schema(masked["output"])
-            )
-        for key in BOARD_SENSITIVE_FIELDS:
-            if masked.get(key):
-                masked[key] = "***"
-        tiles = masked.get("tiles")
-        if isinstance(tiles, list):
-            masked["tiles"] = [
-                {
-                    **tile,
-                    **{k: "***" for k in TILE_SENSITIVE_FIELDS if tile.get(k)},
-                }
-                if isinstance(tile, dict)
-                else tile
-                for tile in tiles
-            ]
+        config = masked["output_config"]
+        if output_id == VESTABOARD:
+            masked["output_config"] = mask_connection_secrets(config)
+        elif output_id != FIESTAPANEL:
+            masked["output_config"] = mask_output_config(config, _output_settings_schema(output_id))
         return masked
 
     def to_dict(self, mask_secrets: bool = True) -> dict:
@@ -819,7 +794,7 @@ class MQTTSettings:
 # pre-migration file is written to ``settings.json.v{N}_backup`` before the
 # first migration runs.
 
-CURRENT_SETTINGS_SCHEMA_VERSION = 3
+CURRENT_SETTINGS_SCHEMA_VERSION = 4
 
 _LEGACY_CAROUSEL_PREFIX = "carousel:"
 _COLLECTION_PREFIX = "collection:"
@@ -972,11 +947,15 @@ def _board_dict_has_credentials(board: dict) -> bool:
     these is a *maintained* copy and must never be overwritten by the legacy
     config.json block (issue #1760 precedence rule).
     """
-    if board.get("api_mode") == "virtual":
+    from src.settings.board_shape import flat_connection
+
+    # Either shape: a v2/v3 raw board (migrations) or a v4 one (first-boot seed).
+    connection = flat_connection(board)
+    if connection["api_mode"] == "virtual":
         return True
-    if board.get("local_api_key") or board.get("cloud_key") or board.get("note_array_token"):
+    if connection["local_api_key"] or connection["cloud_key"] or connection["note_array_token"]:
         return True
-    tiles = board.get("tiles")
+    tiles = connection["tiles"]
     return isinstance(tiles, list) and len(tiles) > 0
 
 
@@ -1079,10 +1058,36 @@ def _migrate_v2_to_v3(data: dict) -> int:
     return 1
 
 
+def _migrate_v3_to_v4(data: dict) -> int:
+    """Migration 3 -> 4 (idempotent; operates on the raw settings dict).
+
+    Every board becomes an output's board (output-plugins plan D8): each
+    ``board.boards[]`` entry gains ``output`` and ``output_config``, and a
+    Vestaboard's connection fields (``api_mode``, ``host``, ``port``,
+    ``local_api_key``, ``cloud_key``, ``note_array_token``, ``tiles``) move
+    into its ``output_config``. ``output`` precedence: an explicit ``output``
+    wins -> ``api_mode == "virtual"`` is ``fiestapanel`` -> else
+    ``vestaboard``. ``device_type``, geometry, name and display fields stay
+    top-level: they describe the content's shape, which pages and previews
+    key on. See :func:`src.settings.board_shape.migrate_board_to_v4`.
+
+    A devices-era section (no ``boards`` list) needs nothing: its boards are
+    built at load in the v4 shape. Returns the number of boards changed.
+    """
+    from src.settings.board_shape import migrate_board_to_v4
+
+    board = data.get("board")
+    boards = board.get("boards") if isinstance(board, dict) else None
+    if not isinstance(boards, list):
+        return 0
+    return sum(1 for b in boards if isinstance(b, dict) and migrate_board_to_v4(b))
+
+
 MIGRATIONS: list[tuple[int, Callable[[dict], int]]] = [
     (1, _migrate_v0_to_v1),
     (2, _migrate_v1_to_v2),
     (3, _migrate_v2_to_v3),
+    (4, _migrate_v3_to_v4),
 ]
 
 
@@ -1569,7 +1574,9 @@ class SettingsService:
         importable = _connection_fields_for_board(legacy, first)
         if importable is None:
             return False
-        first.update(importable)
+        from src.devices import BoardInstance
+
+        settings.boards[0] = BoardInstance.from_dict({**first, **importable}).to_dict()
         logger.info("Seeded first-boot board connection from legacy config.json")
         return True
 
@@ -1921,10 +1928,15 @@ class SettingsService:
 
         existing_by_id = {b.get("id"): b for b in self._board.boards}
 
+        from src.settings.board_shape import merge_board_write
+
         validated = []
         for b in boards:
-            restore_masked_board_secrets(b, existing_by_id.get(b.get("id"), {}))
-            instance = BoardInstance.from_dict(b)
+            existing = existing_by_id.get(b.get("id"))
+            restore_masked_board_secrets(b, existing or {})
+            # Either shape, or both (an echoed GET): plan D8's bidirectional
+            # projection, resolved against the stored board.
+            instance = BoardInstance.from_dict(merge_board_write(b, existing))
             validated.append(instance.to_dict())
 
         self._board.boards = validated
