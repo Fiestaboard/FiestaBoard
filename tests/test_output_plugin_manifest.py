@@ -2,17 +2,20 @@
 
 Pinned here:
 
-- the vendored FiestaUI files are byte-for-byte what provenance.json says,
-  and the schemas resolve each other by ``$id`` with no network;
+- the vendored FiestaUI schemas resolve each other by ``$id`` with no
+  network, and every built-in model and set is valid against them (the
+  files' bytes are pinned by ``tests/test_fiestaui_vendored.py``);
 - ``plugin_type: "output"`` validates, requires an ``output`` block, and
   refuses what an output has no use for (teaser, previews, variables, oauth);
 - the block: ``output_api`` outside this core's range refuses the load (fail
   closed); device models are FiestaUI DeviceModels or known built-in ids,
   never an unknown id; ``$ref`` files must live in the plugin and be declared
   in ``data_files``;
-- character sets materialise exactly as FiestaUI's goldens say, with D17's
-  rules (per-field override, arrays replace, version not inherited, unknown
-  parent / self-extends / incomplete set refused);
+- character sets materialise with D17's rules (per-field override, arrays
+  replace, version not inherited, unknown parent / self-extends / incomplete
+  set refused), through core's one materialiser,
+  :func:`src.led.charsets.materialize_character_set` (its FiestaUI goldens
+  are ``tests/test_led_parity.py``);
 - the registry naming convention accepts ``fiestaboard-output--``.
 """
 
@@ -25,14 +28,14 @@ from pathlib import Path
 
 import pytest
 
+from src import fiestaui as fiestaui_data
+from src.led.charsets import CharacterSetError, materialize_character_set
 from src.outputs import fiestaui
-from src.outputs.fiestaui import CharacterSetError, materialize_character_set
 from src.outputs.output_manifest import SUPPORTED_OUTPUT_API, parse_output_block
 from src.plugins.manifest import load_manifest, validate_manifest, validate_preview_completeness
 from src.plugins.sources import plugin_id_from_repo_name, validate_registry_repo_name
 
 FIXTURE = Path(__file__).parent / "fixtures" / "plugins" / "recording_output"
-GOLDEN = json.loads((Path(__file__).parent / "fixtures" / "fiestaui" / "charset-golden.json").read_text("utf-8"))
 
 
 def manifest_data() -> dict:
@@ -73,27 +76,20 @@ def rewrite(plugin_dir: Path, mutate) -> None:
 
 
 class TestVendoredSchemas:
-    @pytest.mark.parametrize("filename", sorted(fiestaui.provenance()["files"]))
-    def test_each_vendored_file_is_the_one_provenance_names(self, filename):
-        assert fiestaui.vendored_digest(filename) == fiestaui.provenance()["files"][filename]
-
-    def test_provenance_records_the_fiestaui_commit(self):
-        assert fiestaui.provenance()["commit"].startswith("a70b719")
-
     def test_a_device_model_resolves_its_charset_ref_locally(self):
         # The device-model schema $refs the character-set schema by $id; a
         # network fetch would be refused by the suite's socket fence.
-        model = dict(fiestaui.builtin_device_models()["divoom_pixoo64"])
+        model = dict(fiestaui_data.builtin_device_models()["divoom_pixoo64"])
         model["charset"] = {"id": "x", "extends": "led_3x5", "chars": ["too long"]}
         errors = fiestaui.validate_device_model(model)
         assert any("charset" in e for e in errors)
 
     def test_every_vendored_built_in_model_is_valid(self):
-        for model_id, model in fiestaui.builtin_device_models().items():
+        for model_id, model in fiestaui_data.builtin_device_models().items():
             assert fiestaui.validate_device_model(model, model_id) == []
 
     def test_every_vendored_built_in_character_set_is_valid(self):
-        for set_id, charset in fiestaui.builtin_character_sets().items():
+        for set_id, charset in fiestaui_data.builtin_character_sets().items():
             assert fiestaui.validate_character_set(charset, set_id) == []
 
 
@@ -187,7 +183,7 @@ class TestOutputBlock:
         assert errors == ["output.device_models[0]: unknown built-in device model id 'vestaboard_megaboard'"]
 
     def test_a_model_with_the_retired_top_level_pixel_shape_is_refused(self):
-        model = copy.deepcopy(dict(fiestaui.builtin_device_models()["divoom_pixoo64"]))
+        model = copy.deepcopy(dict(fiestaui_data.builtin_device_models()["divoom_pixoo64"]))
         model["pixelShape"] = "square"
         _, errors = parse_output_block(inline_block(device_models=[model]), base_dir=None, data_files=[])
         assert any("pixelShape" in e for e in errors)
@@ -250,18 +246,14 @@ class TestOutputBlock:
 
 
 class TestCharacterSets:
-    @pytest.mark.parametrize("case", GOLDEN["sets"], ids=lambda c: c["input"]["id"])
-    def test_materialisation_matches_fiestauis_goldens(self, case):
-        assert materialize_character_set(case["input"]) == case["materialized"]
-
     def test_a_field_given_replaces_the_parents_and_arrays_are_not_merged(self):
         got = materialize_character_set({"id": "mine", "extends": "led_3x5", "chars": ["A"], "icons": []})
         assert got["chars"] == ["A"] and got["icons"] == []
-        parent = fiestaui.builtin_character_sets()["led_3x5"]
+        parent = fiestaui_data.builtin_character_sets()["led_3x5"]
         assert got["tiles"] == parent["tiles"] and got["font"] == parent["font"]
 
     def test_version_is_never_inherited(self):
-        assert fiestaui.builtin_character_sets()["vestaboard_v2"]["version"] == 2
+        assert fiestaui_data.builtin_character_sets()["vestaboard_v2"]["version"] == 2
         assert materialize_character_set({"id": "mine", "extends": "vestaboard_v2"})["version"] == 1
 
     def test_a_set_extends_an_already_materialised_one(self):

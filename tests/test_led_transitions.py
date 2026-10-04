@@ -1,6 +1,6 @@
 """LED transitions: FiestaUI's golden sequences, the flip's rules and the transition menu.
 
-``tests/fixtures/led/led-golden.json`` ``transitions`` holds FiestaUI's
+``tests/fixtures/fiestaui/led-golden.json`` ``transitions`` holds FiestaUI's
 ``ledTransitionFrames(planLedTransition(from, to, resolvedSpec), fps)`` for
 each case: every frame a device receives, as RGB888. A port must give the
 same frames, byte for byte, frame for frame. The flip's scramble is seeded,
@@ -18,6 +18,7 @@ from pathlib import Path
 
 import pytest
 
+from src.fiestaui import builtin_device_models
 from src.led import (
     BUILTIN_CHARACTER_SETS,
     LedLayoutOptions,
@@ -43,9 +44,9 @@ from src.led.transitions import (
     transition_frames,
 )
 
-FIXTURES = Path(__file__).resolve().parent / "fixtures" / "led"
+FIXTURES = Path(__file__).resolve().parent / "fixtures" / "fiestaui"
 GOLDEN = json.loads((FIXTURES / "led-golden.json").read_text(encoding="utf-8"))
-MODELS = json.loads((FIXTURES / "device-models.json").read_text(encoding="utf-8"))
+MODELS = builtin_device_models()
 CASES = GOLDEN["transitions"]
 
 S3 = LedMatrixSpec(12, 5, "3x5")

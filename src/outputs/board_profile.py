@@ -25,7 +25,8 @@ from __future__ import annotations
 from collections.abc import Mapping
 from typing import Any, NamedTuple
 
-from .fiestaui import builtin_device_models
+from src.fiestaui import builtin_device_models
+
 from .registry import FIESTAPANEL, VESTABOARD, output_registry, resolve_output_id
 
 

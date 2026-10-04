@@ -1,23 +1,26 @@
 """LED layout and raster parity with FiestaUI, the reference implementation.
 
-Every case in ``tests/fixtures/led/led-golden.json`` (FiestaUI's
+Every case in ``tests/fixtures/fiestaui/led-golden.json`` (FiestaUI's
 ``layoutLedMessage`` + ``rasterizeLedLayout`` output) must give the same
 accessible text and the same RGB888 bytes here. The plugin-set case lays out
 with ``acme_sign_v1`` materialised over ``led_3x5``, so the
-``charset-golden.json`` materialisation cases are checked too.
+``charset-golden.json`` materialisation cases are checked too: this is the
+golden check of core's one materialiser, which the output-plugin manifest
+uses as well.
 
-Provenance: see ``src/led/provenance.py``.
+Provenance: ``src/fiestaui/provenance.json`` (pinned by
+``tests/test_fiestaui_vendored.py``).
 """
 
 from __future__ import annotations
 
 import base64
-import hashlib
 import json
 from pathlib import Path
 
 import pytest
 
+from src.fiestaui import builtin_device_models
 from src.led import (
     BUILTIN_CHARACTER_SETS,
     LED_FONTS,
@@ -29,13 +32,12 @@ from src.led import (
     materialize_character_set,
     rasterize,
 )
-from src.led.provenance import FIESTAUI_COMMIT, VENDORED_SHA256
 
 ROOT = Path(__file__).resolve().parent.parent
-FIXTURES = ROOT / "tests" / "fixtures" / "led"
+FIXTURES = ROOT / "tests" / "fixtures" / "fiestaui"
 LED_GOLDEN = json.loads((FIXTURES / "led-golden.json").read_text(encoding="utf-8"))
 CHARSET_GOLDEN = json.loads((FIXTURES / "charset-golden.json").read_text(encoding="utf-8"))
-DEVICE_MODELS = json.loads((FIXTURES / "device-models.json").read_text(encoding="utf-8"))
+DEVICE_MODELS = builtin_device_models()
 
 LAYOUT_CASES = LED_GOLDEN["layouts"]
 
@@ -69,19 +71,7 @@ def _pixel_diff(actual: bytes, expected: bytes, width: int, limit: int = 8) -> s
     return "\n".join(lines)
 
 
-# --- provenance -------------------------------------------------------------
-
-
-@pytest.mark.parametrize("path", sorted(VENDORED_SHA256))
-def test_vendored_file_is_the_pinned_fiestaui_bytes(path):
-    digest = hashlib.sha256((ROOT / path).read_bytes()).hexdigest()
-    assert digest == VENDORED_SHA256[path], f"{path} changed since it was vendored from FiestaUI {FIESTAUI_COMMIT}"
-
-
-def test_every_led_fixture_is_pinned():
-    pinned = {p for p in VENDORED_SHA256 if p.startswith("tests/fixtures/led/")}
-    on_disk = {f"tests/fixtures/led/{f.name}" for f in FIXTURES.glob("*.json")}
-    assert pinned == on_disk
+# --- fixtures ---------------------------------------------------------------
 
 
 def test_transition_cases_are_read_by_the_transition_tests():

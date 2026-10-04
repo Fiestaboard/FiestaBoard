@@ -20,8 +20,8 @@ from pathlib import Path
 
 import pytest
 
+from src.fiestaui import builtin_device_models
 from src.outputs.conformance import FakeTransport, OutputConformanceSuite, TransportError, model_cell_grid
-from src.outputs.fiestaui import builtin_device_models
 from src.plugins import WriteResult
 from tests.fixtures.plugins.recording_output import RecordingOutput
 

@@ -1,18 +1,18 @@
 """Bitmap faces for LED matrices, loaded from FiestaUI's published font data.
 
 ``led-fonts.json`` is FiestaUI's ``LED_FONTS`` (``src/lib/led-fonts.ts``)
-exported as data and vendored verbatim (see :mod:`src.led.provenance`). A
+exported as data and vendored verbatim in :mod:`src.fiestaui`. A
 glyph is a list of rows, top to bottom, each ``glyph_width`` characters of
 ``#`` (lit) or ``.`` (off).
 """
 
 from __future__ import annotations
 
-import json
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
-from pathlib import Path
 from types import MappingProxyType
+
+from src.fiestaui import builtin_led_fonts
 
 __all__ = ["LED_FONTS", "LedFont"]
 
@@ -35,7 +35,7 @@ class LedFont:
 
 
 def _load() -> Mapping[str, LedFont]:
-    raw = json.loads(Path(__file__).with_name("led-fonts.json").read_text(encoding="utf-8"))
+    raw = builtin_led_fonts()
     return MappingProxyType(
         {
             font_id: LedFont(
