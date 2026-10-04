@@ -16,7 +16,8 @@ from __future__ import annotations
 from typing import Any
 
 from src.outputs import OutputRuntime
-from src.virtual_board_client import VirtualBoardClient
+from src.outputs.plugin_driver import OutputPluginDriver
+from tests.first_party_drivers import panel_driver
 
 FLAGSHIP = (6, 22)
 NOTE = (3, 15)
@@ -58,7 +59,7 @@ class Runtime:
     """
 
     def __init__(self, client=None, polled=None, polled_at=None):
-        output_id = "fiestapanel" if isinstance(client, VirtualBoardClient) else "vestaboard"
+        output_id = "fiestapanel" if getattr(client, "is_virtual", False) is True else "vestaboard"
         self.output = OutputRuntime(output_id=output_id if client is not None else None)
         self.client = client
         if client is not None:
@@ -99,14 +100,14 @@ class Service:
         return sum(getattr(rt.client, "live_reads", 0) for rt in self.runtimes.values())
 
 
-def virtual(device_type: str, *, frame=None, displayed=None, sent_at: float | None = None) -> VirtualBoardClient:
-    """An anonymous virtual client, optionally holding a frame.
+def virtual(device_type: str, *, frame=None, displayed=None, sent_at: float | None = None) -> OutputPluginDriver:
+    """An anonymous FiestaPanel (virtual) driver, optionally holding a frame.
 
     ``displayed`` overrides the displayed frame after the send to simulate a
     re-fit that left an old-shape frame behind; ``sent_at`` fixes the send
     time so ISO timestamps are exact.
     """
-    client = VirtualBoardClient(device_type=device_type)
+    client = panel_driver(device_type)
     # Bound to a runtime of its own so the seed can be adjusted through the
     # public store; a ``Runtime`` binding the client later adopts it.
     seed = OutputRuntime()

@@ -45,7 +45,7 @@ TransitionStrategy = Literal["column", "reverse-column", "edges-to-center", "row
 
 # Prefix that marks a strategy string as referring to a transition plugin
 # (e.g. ``"plugin:typewriter"``).  Kept in sync with
-# :data:`src.board_client.TRANSITION_PLUGIN_PREFIX`.
+# :data:`src.outputs.transitions.TRANSITION_PLUGIN_PREFIX`.
 TRANSITION_PLUGIN_PREFIX = "plugin:"
 
 

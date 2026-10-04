@@ -78,6 +78,26 @@ transition plugin's frames exactly as before.
 **Capabilities.** :meth:`capabilities` defaults to what the manifest's
 ``output`` block declares; override it to narrow per board (a cloud
 connection that animates no native transition, say).
+:meth:`declared_capabilities` is the same question asked of the output as
+a whole (the registry entry), before any board exists.
+
+**Rate limits the device enforces.** A write the *device* refused for rate
+(an HTTP 429) answers ``WriteResult(True, False, throttled=True,
+retry_after_seconds=N)``: core keeps the board's floor slot closed for *N*
+seconds and reports the send as throttled, exactly as its own floor would.
+Core's floor itself is never the plugin's to keep.
+
+**Boards that predate ``output_config``.** :meth:`config_from_board` turns
+a saved board into the instance's config. The default reads the board's
+``output_config``; the first-party outputs read the flat fields a board
+saved before settings v4 (plan D8) and answer ``None`` for a board with no
+usable connection, which builds no driver.
+
+**Fan-out outputs** (one frame split across several devices that each keep
+their own dedupe, as a Vestaboard Note array on the Local API does) hear
+about core's dedupe through three hooks: :attr:`forced` during a forced
+re-send, :meth:`cache_synced` when core adopts a read-back as what the
+board shows, and :meth:`cache_cleared` when core forgets it.
 """
 
 from __future__ import annotations
@@ -176,6 +196,17 @@ class OutputPluginBase(ABC):
     #: class it loads; a plugin may also set it itself.
     plugin_id: ClassVar[str] = ""
 
+    #: Whether a board's content follows its character set's markup: a rich
+    #: set (colour spans, block spans, icons) renders with extended markup
+    #: (plan D19). ``False`` keeps split-flap markup whatever the set — an
+    #: output whose viewer draws the 0–71 grid itself (FiestaPanel).
+    markup_follows_charset: ClassVar[bool] = True
+
+    #: True while core runs a forced write (its dedupe bypassed): an output
+    #: that keeps per-device dedupe of its own re-sends everything too. Set
+    #: by core around each write; read it, never set it.
+    forced: bool = False
+
     # What core resolved for the board (bind_board); class-level defaults so a
     # subclass that skips super().__init__ still reads "unknown".
     _output_manifest: OutputManifest | None = None
@@ -262,6 +293,27 @@ class OutputPluginBase(ABC):
 
     # --- identity and capabilities ---------------------------------------------
 
+    @classmethod
+    def config_from_board(cls, board: Mapping[str, Any]) -> dict[str, Any] | None:
+        """The config one instance is built with, from a saved (or draft) board.
+
+        The default is the board's ``output_config``. An output whose boards
+        were saved before ``output_config`` existed reads its legacy fields
+        here. ``None`` means the board has no usable connection: core builds
+        no driver and records the board as unconfigured.
+        """
+        return dict(board.get("output_config") or {})
+
+    @classmethod
+    def declared_capabilities(cls, manifest: OutputManifest) -> OutputCapabilities:
+        """What the output may do on any board, for its registry entry.
+
+        Defaults to the manifest's declaration (technology and animation from
+        its first device model). Override when the output is more than its
+        first model says — :meth:`capabilities` then narrows per board.
+        """
+        return manifest.capabilities
+
     def bind_manifest(self, manifest: OutputManifest) -> None:
         """Core hands the instance its parsed ``output`` block. Not for plugins to call."""
         self._output_manifest = manifest
@@ -271,6 +323,11 @@ class OutputPluginBase(ABC):
         if self._output_manifest is None:
             raise RuntimeError(f"{type(self).__name__}: no manifest bound; override capabilities()")
         return self._output_manifest.capabilities
+
+    def connection_label(self) -> str:
+        """How the board is connected, in words (MQTT ``board_api_mode``,
+        core's log lines). Defaults to the plugin id."""
+        return self.plugin_id or type(self).__name__
 
     def device_key(self) -> str:
         """Identity of the physical device, for core state that must outlive
@@ -289,6 +346,15 @@ class OutputPluginBase(ABC):
 
     # --- writes ------------------------------------------------------------------
 
+    def accepts_frame(self, frame: CellFrame) -> bool:
+        """Whether *frame* has a shape this device takes.
+
+        Core asks before it spends anything on the write (no preemption, no
+        floor slot, no dedupe): a refused frame is a failed write. Log why.
+        Default: every frame.
+        """
+        return True
+
     @abstractmethod
     def write(self, frame: CellFrame, *, native: NativeTransition | None, cancel: CancelToken) -> WriteResult:
         """Show *frame* on the device.
@@ -301,8 +367,9 @@ class OutputPluginBase(ABC):
 
         Returns:
             ``WriteResult(success, was_sent)``; ``partial`` and
-            ``failed_regions`` when only part of the board updated. Core
-            fills ``throttled``/``floor_seconds`` itself.
+            ``failed_regions`` when only part of the board updated;
+            ``throttled`` (with ``retry_after_seconds``) only when the device
+            itself refused the write for rate. Core fills ``floor_seconds``.
         """
 
     def write_cells(self, cells: RichCellFrame, *, native: NativeTransition | None, cancel: CancelToken) -> WriteResult:
@@ -356,9 +423,22 @@ class OutputPluginBase(ABC):
         """What the device shows, when ``read_back.supported``; else ``None``."""
         return None
 
+    def cache_synced(self, frame: CellFrame | None) -> None:  # noqa: B027 - optional hook
+        """Core asked to adopt the read-back just made as what the board shows
+        (a startup sync). *frame* is what :meth:`read_current` returned —
+        ``None`` when it failed, so a fan-out adopts the parts that did read."""
+
+    def cache_cleared(self) -> None:  # noqa: B027 - optional hook
+        """Core forgot what the board shows; its next write goes through."""
+
     def check_connection(self) -> ConnectionCheck:
         """Probe the device once: success, or a failure class with guidance."""
         return ConnectionCheck(success=True, message="No connection check for this output.")
+
+    def test_connection(self) -> bool:
+        """Whether the device answers (the debug page's "connected").
+        Defaults to :meth:`check_connection`'s verdict."""
+        return self.check_connection().success
 
     @classmethod
     def discover(cls, timeout: float) -> list[dict]:

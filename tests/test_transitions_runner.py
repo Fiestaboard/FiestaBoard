@@ -1,4 +1,4 @@
-"""Tests for TransitionRunner and BoardClient.render() façade."""
+"""Tests for TransitionRunner and a board driver's render() façade."""
 
 import threading
 import time
@@ -7,17 +7,19 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from src.board_client import TRANSITION_PLUGIN_PREFIX, BoardClient
 from src.outputs import OutputRuntime
+from src.outputs.plugin_driver import OutputPluginDriver
+from src.outputs.transitions import TRANSITION_PLUGIN_PREFIX
 from src.plugins.base import TransitionFrame, TransitionPluginBase
 from src.transitions.runner import TransitionRunner
+from tests.first_party_drivers import local_driver
 
 
 @pytest.fixture(autouse=True)
 def _enable_transition_plugins_beta():
     """Enable the beta flag for every render() test in this module.
 
-    The defense-in-depth gate in :meth:`BoardClient.render` falls back to
+    The defense-in-depth gate in a driver's ``render`` falls back to
     a non-plugin send when ``beta.transition_plugins_enabled`` is False;
     tests that exercise the plugin code path need the flag on.
     """
@@ -96,7 +98,7 @@ class _ForeverPlugin(TransitionPluginBase):
 
 
 class _FakeBoard:
-    """Minimal stand-in for BoardClient that records sends."""
+    """Minimal stand-in for a board driver that records sends."""
 
     def __init__(self, cached: list[list[int]] | None = None, read: list[list[int]] | None = None):
         self.sent: list[list[list[int]]] = []
@@ -390,12 +392,12 @@ def test_min_interval_ms_floor_is_enforced():
 
 
 # ---------------------------------------------------------------------------
-# BoardClient.render() façade
+# A board driver's render() façade
 # ---------------------------------------------------------------------------
 
 
-def _build_board_client() -> BoardClient:
-    bc = BoardClient(api_key="k", host="h", use_cloud=False)
+def _build_board_client() -> OutputPluginDriver:
+    bc = local_driver("k", "h")
     # Stub the actual HTTP call so we don't need network.
     bc.send_characters = MagicMock(return_value=(True, True))  # type: ignore[assignment]
     return bc
@@ -503,7 +505,7 @@ def test_render_empty_plugin_id_falls_back():
     bc.set_transition_runner(MagicMock())
     bc.render(_grid(1), strategy=f"{TRANSITION_PLUGIN_PREFIX}   ")
     # Empty id after the prefix: do not call the runner, snap instead.
-    assert bc._transition_runner.run.call_count == 0
+    assert bc._output_runtime.transition_runner.run.call_count == 0
     bc.send_characters.assert_called_once()
 
 
@@ -530,7 +532,7 @@ def test_set_transition_runner_can_be_cleared():
     bc = _build_board_client()
     bc.set_transition_runner(MagicMock())
     bc.set_transition_runner(None)
-    assert bc._transition_runner is None
+    assert bc._output_runtime.transition_runner is None
 
 
 # ---------------------------------------------------------------------------

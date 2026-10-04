@@ -1,13 +1,12 @@
 """The device-side seam: what the platform asks of a board connection.
 
-Every board FiestaBoard drives is backed by one of three clients —
-:class:`~src.board_client.BoardClient` (Vestaboard local, RW Cloud and
-note-array Cloud), :class:`~src.note_array_local_client.NoteArrayLocalClient`
-(per-tile LAN fan-out) and :class:`~src.virtual_board_client.VirtualBoardClient`
-(FiestaPanel TVs). Until now they were interchangeable only by convention.
-:class:`OutputDriver` writes that convention down.
+Every board FiestaBoard drives is backed by an output plugin instance —
+the first-party Vestaboard and FiestaPanel ones included — wrapped in
+:class:`~src.outputs.plugin_driver.OutputPluginDriver`. (Before Phase 4 the
+two first-party outputs were three in-core clients, interchangeable only by
+convention; :class:`OutputDriver` wrote that convention down.)
 
-The surface is exactly what code *outside* the client modules uses today,
+The surface is exactly what code *outside* the client modules used,
 inventoried from the callers — not what the clients happen to define —
 plus what core itself reads to make its decisions: ``device_key()``, the
 identity the send floor (:mod:`src.outputs.floor`) is keyed by;
@@ -122,8 +121,10 @@ class OutputDriver(Protocol):
         force: bool = False,
         *,
         with_outcome: bool = False,
+        cells: Any | None = None,
     ) -> Any:
-        """Write one grid, with an optional device-native transition."""
+        """Write one grid, with an optional device-native transition (and its
+        rich ``cells``, for an output that takes them)."""
         ...
 
     def render(
@@ -137,6 +138,7 @@ class OutputDriver(Protocol):
         device_type: str | None = None,
         transition_config: dict | None = None,
         with_outcome: bool = False,
+        cells: Any | None = None,
     ) -> Any:
         """Write one grid with its transition; delegates to the bound runtime."""
         ...

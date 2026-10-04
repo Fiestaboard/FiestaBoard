@@ -54,7 +54,8 @@ A factory that replaces the plugin's own request seam with
 - ``import_network`` — importing the plugin package makes no network call
   (no socket connect, no DNS lookup) and yields an ``OutputPluginBase``;
 - ``device_key`` — a non-empty string, stable across calls and across
-  instances built from the same settings, containing no secret value;
+  instances built from the same settings (except a pull output's, whose
+  device is its board), containing no secret value;
 - ``floor`` — ``min_interval_ms`` is a non-negative integer; the plugin does
   not throttle itself (core does) nor talk to the device outside a write;
   with a floor, core keeps a second frame inside it off the device;
@@ -66,7 +67,9 @@ A factory that replaces the plugin's own request seam with
   board is ``partial`` with in-bounds ``failed_regions``. Requests marked
   ``setup=True`` (a reset, a brightness command) are not part of the board
   write: the scenario fails the first *board* request, and a lost setup
-  request the plugin tolerates does not make a landed write partial;
+  request the plugin tolerates does not make a landed write partial — nor
+  does a failed request the plugin retried until the same payload landed. A
+  pull output (``delivery: pull``) writes no device, so it has none to fail;
 - ``cancel`` — once the run's cancel token fires, ``write`` (and
   ``write_sequence``) start no further device request and return promptly;
 - ``sequence`` — for ``animation: sequence`` outputs, ``write_sequence``
@@ -485,7 +488,11 @@ class OutputConformanceSuite:
         violations: list[Violation] = []
         if one.device_key() != key:
             violations.append(Violation("device_key", "device_key() changed between two calls"))
-        if two.device_key() != key:
+        if one.capabilities().delivery == "pull":
+            # A pull output drives no shared hardware: its "device" is the
+            # board itself, so two boards with the same settings are two devices.
+            self._skipped.append("device_key: a pull output's device is its board")
+        elif two.device_key() != key:
             violations.append(
                 Violation(
                     "device_key",
@@ -592,6 +599,11 @@ class OutputConformanceSuite:
             if isinstance(result, WriteResult) and not (result.success and result.was_sent and not result.partial):
                 violations.append(Violation("write_result", f"a healthy device's write answered {result!r}"))
 
+        if not self.transport.requests and plugin.capabilities().delivery == "pull":
+            # A pull output's write reaches no device (its viewer fetches the
+            # frame from core): there is no device to fail.
+            return violations + self._skip("write_result", "a pull output writes no device to fail")
+
         self.transport.reset(fail=lambda index: True)
         result, raised = self._guarded_write(plugin, self._frame(2), "a write to a failing device")
         violations += raised
@@ -620,7 +632,14 @@ class OutputConformanceSuite:
         """
         board = [r for r in self.transport.requests if not r.setup]
         landed = [r for r in board if not r.failed]
-        if landed and len(landed) < len(board) and not (result.partial and result.failed_regions):
+        # A failed request the plugin retried, and whose retry landed, lost
+        # nothing: the same payload reached the device after all.
+        lost = [
+            r
+            for r in board
+            if r.failed and not any(ok.payload == r.payload and ok.started >= r.started for ok in landed)
+        ]
+        if landed and lost and not (result.partial and result.failed_regions):
             return [
                 Violation(
                     "write_result",

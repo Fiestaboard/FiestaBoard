@@ -39,6 +39,7 @@ services:
       - ./data:/app/data
       - ./src:/app/src
       - ./plugins:/app/plugins
+      - ./first_party_outputs:/app/first_party_outputs
       - ./external_plugins:/app/external_plugins
       - ./plugin-registry.json:/app/plugin-registry.json:ro
       - ./plugin-previews.json:/app/plugin-previews.json:ro

@@ -27,6 +27,7 @@ from typing import Any
 from unittest.mock import Mock, patch
 
 import pytest
+import requests
 
 pytest.importorskip("mcp", reason="mcp package not installed")
 
@@ -537,21 +538,23 @@ def test_identify_tile_flashes_the_configured_tile(mcp, services, two_boards, ru
     )
     flashed: list[tuple[str, list[list[int]]]] = []
 
-    class _TileClient:
-        def __init__(self, api_key, host, **_kwargs):
-            self.host = host
-
-        def send_characters(self, pattern, force=False):
-            flashed.append((self.host, pattern))
-            return (True, True)
+    def _tile_post(url, **kwargs):
+        # The tile's Local API answers; record which tile, and what it showed.
+        flashed.append((url.split("//")[1].split(":")[0], kwargs["json"]["characters"]))
+        ok = requests.models.Response()
+        ok.status_code = 200
+        ok._content = b"{}"
+        return ok
 
     # Saved tiles are flashed through the board's LIVE driver: build it the
-    # way the service does (the runtime factory), over fake tile clients.
+    # way the service does (the runtime factory); the tiles are on the wire.
     from src.outputs.factory import build_driver
 
-    with patch("src.note_array_local_client.BoardClient", _TileClient):
-        live = build_driver(_board(two_boards, "board-array"))
-    with patch("src.settings.routes._live_board_driver", return_value=live):
+    live = build_driver(_board(two_boards, "board-array"))
+    with (
+        patch("src.settings.routes._live_board_driver", return_value=live),
+        patch("requests.post", side_effect=_tile_post),
+    ):
         result = assert_ok(call(mcp, "identify_tile", board_id="board-array", row=0, col=1), "identify_tile")
 
     assert [host for host, _ in flashed] == ["192.0.2.22"]

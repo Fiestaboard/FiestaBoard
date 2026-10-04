@@ -320,6 +320,49 @@ def test_a_broken_plugin_breaks_exactly_its_rule(cls, config, rule):
     assert rules_broken(suite(**config), rule) == set()
 
 
+class RetriesFailedPanels(RecordingOutput):
+    """Retries a panel request that failed, once, with the same payload."""
+
+    def _request(self, payload, *, setup: bool = False):
+        try:
+            return super()._request(payload, setup=setup)
+        except OSError:
+            return super()._request(payload, setup=setup)
+
+
+class PullScreen(RecordingOutput):
+    """A pull output: core keeps the frame, its viewer fetches it. The
+    "device" is the board itself."""
+
+    def capabilities(self):
+        return replace(super().capabilities(), delivery="pull")
+
+    def write(self, frame, *, native, cancel):
+        return WriteResult(True, True)
+
+    def device_key(self):
+        return f"screen:{self.board_id}"
+
+
+class TestRefinements:
+    """Rules that must not fail a well-behaved plugin (the first-party outputs
+    are each one of these cases)."""
+
+    def test_a_retried_request_whose_retry_landed_is_not_a_partial_write(self):
+        # The scenario fails the first board request; the retry of that same
+        # payload lands, so the whole board did update.
+        assert rules_broken(suite(RetriesFailedPanels), "write_result") == set()
+
+    def test_a_pull_output_has_no_device_to_fail(self):
+        s = suite(PullScreen)
+        assert rules_broken(s, "write_result") == set()
+        assert any(skip.startswith("write_result:") for skip in s.run(("write_result",)).skipped)
+
+    def test_a_pull_outputs_device_is_its_board(self):
+        # The same per-board key fails a push output (BoardKeyed, in BROKEN).
+        assert rules_broken(suite(PullScreen), "device_key") == set()
+
+
 def test_assert_conformant_lists_every_violation():
     with pytest.raises(AssertionError) as caught:
         suite(LeakyKey).assert_conformant()

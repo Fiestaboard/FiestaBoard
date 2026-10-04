@@ -75,7 +75,7 @@ class TestDetectSizeSuccess:
     """Endpoint returns the classification of the live grid for each transport."""
 
     @patch("src.api_server.get_settings_service")
-    @patch("src.board_client.BoardClient.read_current_message")
+    @patch("src.outputs.plugin_driver.OutputPluginDriver.read_current_message")
     def test_local_flagship_6x22(self, mock_read, mock_ss, client):
         """Local API, flagship 6×22 grid → device_type flagship."""
         mock_ss.return_value.get_board_settings.return_value = _board_settings_mock(
@@ -97,7 +97,7 @@ class TestDetectSizeSuccess:
         assert data["matched_preset"] is None
 
     @patch("src.api_server.get_settings_service")
-    @patch("src.board_client.BoardClient.read_current_message")
+    @patch("src.outputs.plugin_driver.OutputPluginDriver.read_current_message")
     def test_cloud_note_3x15(self, mock_read, mock_ss, client):
         """Cloud API, Note 3×15 grid → device_type note (classified from the grid)."""
         mock_ss.return_value.get_board_settings.return_value = _board_settings_mock(
@@ -113,7 +113,7 @@ class TestDetectSizeSuccess:
         assert data["cols"] == 15
 
     @patch("src.api_server.get_settings_service")
-    @patch("src.board_client.BoardClient.read_current_message")
+    @patch("src.outputs.plugin_driver.OutputPluginDriver.read_current_message")
     def test_note_array_6x30_2x2_grid(self, mock_read, mock_ss, client):
         """Note-array board, 6×30 grid → note_array 2×2, preset '2×2 grid'."""
         mock_ss.return_value.get_board_settings.return_value = _board_settings_mock(
@@ -142,7 +142,7 @@ class TestDetectSizeSuccess:
         assert data["cols"] == 30
 
     @patch("src.api_server.get_settings_service")
-    @patch("src.board_client.BoardClient.read_current_message")
+    @patch("src.outputs.plugin_driver.OutputPluginDriver.read_current_message")
     def test_note_array_3x60_4_side_by_side(self, mock_read, mock_ss, client):
         """Note-array board, 3×60 grid → note_array 4×1, preset '4 side-by-side'."""
         mock_ss.return_value.get_board_settings.return_value = _board_settings_mock(
@@ -198,7 +198,7 @@ class TestDetectSizeErrors:
         assert "not configured" in resp.json()["detail"].lower()
 
     @patch("src.api_server.get_settings_service")
-    @patch("src.board_client.BoardClient.read_current_message")
+    @patch("src.outputs.plugin_driver.OutputPluginDriver.read_current_message")
     def test_board_unreachable_422(self, mock_read, mock_ss, client):
         """Board configured but read returns None (unreachable/blank) → 422."""
         mock_ss.return_value.get_board_settings.return_value = _board_settings_mock([_make_board_dict()])
@@ -209,7 +209,7 @@ class TestDetectSizeErrors:
         assert "no layout" in resp.json()["detail"].lower()
 
     @patch("src.api_server.get_settings_service")
-    @patch("src.board_client.BoardClient.read_current_message")
+    @patch("src.outputs.plugin_driver.OutputPluginDriver.read_current_message")
     def test_unclassifiable_grid_422(self, mock_read, mock_ss, client):
         """Board returns a 5×15 grid (5 % 3 != 0) → 422 unclassifiable."""
         mock_ss.return_value.get_board_settings.return_value = _board_settings_mock([_make_board_dict()])
@@ -251,7 +251,7 @@ class TestDetectSizeLocalArrays:
         assert "local-mode note arrays" in resp.json()["detail"]
 
     @patch("src.api_server.get_settings_service")
-    @patch("src.board_client.BoardClient.read_current_message")
+    @patch("src.outputs.plugin_driver.OutputPluginDriver.read_current_message")
     def test_token_fallback_array_still_detects_via_cloud(self, mock_read, mock_ss, client):
         """api_mode 'local' with NO tiles drives via the cloud token — detect keeps working."""
         board = self._local_array_board(tiles=[])

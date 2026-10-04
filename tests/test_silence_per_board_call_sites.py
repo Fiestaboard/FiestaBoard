@@ -95,14 +95,13 @@ class TestApiSendGuards:
             patch("src.api_server.get_settings_service", return_value=settings),
             # The send guards moved to src/board_guards.py (Phase 2 slice 3).
             patch("src.board_guards.get_settings_service", return_value=settings),
-            patch("src.board_client.BoardClient") as board_client,
+            patch("requests.post") as post,
         ):
-            board_client.return_value.render.return_value = (True, True)
             response = client.post("/send-welcome-message")
 
         assert response.status_code == 409, response.text
         assert "silence mode" in response.json()["detail"]
-        board_client.return_value.render.assert_not_called()
+        post.assert_not_called()
 
     def test_page_send_respects_the_target_boards_window(self, client):
         """POST /pages/{id}/send?board_id= must use that board's window."""

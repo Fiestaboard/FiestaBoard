@@ -20,8 +20,9 @@ import requests
 from fastapi.testclient import TestClient
 
 from src.devices import NOTE_COLS, NOTE_ROWS
-from src.note_array_local_client import NoteArrayLocalClient
+from src.outputs.plugin_driver import OutputPluginDriver
 from src.send_outcome import FrameRegion, SendOutcome, WriteResult
+from tests.first_party_drivers import tiles_driver
 from tests.live_boards import install_live_boards
 from tests.test_wire_goldens import install_wire_recorder, make_response, note_array_local
 
@@ -30,8 +31,8 @@ def _tile(row: int, col: int) -> dict:
     return {"row": row, "col": col, "host": f"10.0.0.{10 + col}", "port": 7000, "local_api_key": f"key-{col}"}
 
 
-def _two_wide() -> NoteArrayLocalClient:
-    return NoteArrayLocalClient([_tile(0, 0), _tile(0, 1)], notes_wide=2, notes_tall=1)
+def _two_wide() -> OutputPluginDriver:
+    return tiles_driver([_tile(0, 0), _tile(0, 1)], 2, 1)
 
 
 def _grid() -> list[list[int]]:
@@ -64,7 +65,7 @@ class TestTheType:
 
 
 class TestLocalNoteArrayPartialFailure:
-    @patch("src.board_client.requests.post")
+    @patch("requests.post")
     def test_one_failed_tile_is_a_partial_write_naming_its_cells(self, mock_post):
         mock_post.side_effect = _failing("10.0.0.11")
 
@@ -74,7 +75,7 @@ class TestLocalNoteArrayPartialFailure:
             False, True, partial=True, failed_regions=(FrameRegion(row=0, col=15, rows=3, cols=15),)
         )
 
-    @patch("src.board_client.requests.post")
+    @patch("requests.post")
     def test_every_tile_failing_is_not_partial(self, mock_post):
         mock_post.side_effect = _failing("10.0.0.10", "10.0.0.11")
 
@@ -83,7 +84,7 @@ class TestLocalNoteArrayPartialFailure:
         assert (result.success, result.was_sent, result.partial) == (False, False, False)
         assert result.failed_regions == (FrameRegion(0, 0, 3, 15), FrameRegion(0, 15, 3, 15))
 
-    @patch("src.board_client.requests.post")
+    @patch("requests.post")
     def test_the_legacy_pair_is_unchanged(self, mock_post):
         mock_post.side_effect = _failing("10.0.0.11")
         assert _two_wide().send_characters(_grid()) == (False, True)

@@ -104,6 +104,9 @@ COPY --from=python-builder /usr/local/bin /usr/local/bin
 # Copy application code (API)
 COPY src/ ./src/
 COPY plugins/ ./plugins/
+# The first-party output plugins (Vestaboard, FiestaPanel), staged in-repo
+# until they move to their own repositories and the seed (Phase 4).
+COPY first_party_outputs/ ./first_party_outputs/
 COPY tests/ ./tests/
 COPY staff-picks/ ./staff-picks/
 COPY plugin-registry.json ./plugin-registry.json

@@ -1,14 +1,19 @@
-"""Tests for the local-API fan-out client for note arrays."""
+"""The local-API fan-out driver for note arrays.
+
+The Vestaboard output plugin's tile mode (``first_party_outputs/vestaboard/
+tiles.py``) in core's plugin driver: one Local API POST per Note, each tile
+deduping its own slice. (Was ``NoteArrayLocalClient``'s tests.)
+"""
 
 from unittest.mock import Mock, patch
 
 import requests
 
-from src.board_client import board_client_from_board_dict
 from src.devices import NOTE_COLS, NOTE_ROWS
 from src.displays.messages import render_message
-from src.note_array_local_client import NoteArrayLocalClient
+from src.outputs.factory import build_driver
 from src.send_outcome import SendOutcome
+from tests.first_party_drivers import frames_of, tiles_driver
 
 
 def _tile(row=0, col=0, host=None, key=None, port=7000):
@@ -28,11 +33,11 @@ def _grid(notes_wide, notes_tall):
 
 
 def _two_wide():
-    return NoteArrayLocalClient([_tile(0, 0), _tile(0, 1)], notes_wide=2, notes_tall=1)
+    return tiles_driver([_tile(0, 0), _tile(0, 1)], 2, 1)
 
 
 class TestSendFanout:
-    @patch("src.board_client.requests.post")
+    @patch("requests.post")
     def test_each_tile_receives_its_slice(self, mock_post):
         mock_post.return_value.raise_for_status = Mock()
         client = _two_wide()
@@ -49,7 +54,7 @@ class TestSendFanout:
         assert right.kwargs["json"]["characters"] == [row[15:] for row in grid]
         assert right.kwargs["headers"]["X-Vestaboard-Local-Api-Key"] == "key-0-1"
 
-    @patch("src.board_client.requests.post")
+    @patch("requests.post")
     def test_transitions_forwarded_to_tiles(self, mock_post):
         mock_post.return_value.raise_for_status = Mock()
         client = _two_wide()
@@ -60,7 +65,7 @@ class TestSendFanout:
             assert call.kwargs["json"]["strategy"] == "column"
             assert call.kwargs["json"]["step_interval_ms"] == 100
 
-    @patch("src.board_client.requests.post")
+    @patch("requests.post")
     def test_unchanged_grid_skipped(self, mock_post):
         mock_post.return_value.raise_for_status = Mock()
         client = _two_wide()
@@ -72,10 +77,24 @@ class TestSendFanout:
         assert (success, was_sent) == (True, False)
         assert mock_post.call_count == 2  # only from the first send
 
-    @patch("src.board_client.requests.post")
+    @patch("requests.post")
+    def test_a_forced_resend_reaches_every_tile(self, mock_post):
+        """Core's force bypasses the tiles' own dedupe too: every Note is rewritten."""
+        mock_post.return_value.raise_for_status = Mock()
+        client = _two_wide()
+        grid = _grid(2, 1)
+        client.send_characters(grid)
+        frames_of(client).forget()  # core's dedupe no longer knows; each tile still does
+
+        assert client.send_characters(grid) == (True, False)
+        assert mock_post.call_count == 2
+        assert client.send_characters(grid, force=True) == (True, True)
+        assert mock_post.call_count == 4
+
+    @patch("requests.post")
     def test_custom_port_used(self, mock_post):
         mock_post.return_value.raise_for_status = Mock()
-        client = NoteArrayLocalClient([_tile(0, 0, host="10.0.0.5", port=7001)], notes_wide=1, notes_tall=1)
+        client = tiles_driver([_tile(0, 0, host="10.0.0.5", port=7001)], 1, 1)
 
         client.send_characters(_grid(1, 1))
 
@@ -90,20 +109,21 @@ class TestSendFanout:
         client = _two_wide()
         assert client.send_characters(_grid(2, 1), strategy="spin") == (False, False)
 
-    def test_no_tiles_fails(self):
-        client = NoteArrayLocalClient([], notes_wide=2, notes_tall=1)
-        assert client.send_characters(_grid(2, 1)) == (False, False)
+    def test_no_tiles_builds_no_driver(self):
+        """An array with no tile to drive has no connection: nothing can be sent."""
+        board = {"api_mode": "local", "device_type": "note_array", "notes_wide": 2, "notes_tall": 1, "tiles": []}
+        assert build_driver(board) is None
 
     def test_out_of_range_tiles_excluded(self):
-        client = NoteArrayLocalClient([_tile(0, 0), _tile(0, 5)], notes_wide=2, notes_tall=1)
-        assert set(client.tile_clients) == {(0, 0)}
+        client = tiles_driver([_tile(0, 0), _tile(0, 5)], 2, 1)
+        assert set(client.plugin.array.links) == {(0, 0)}
 
-    def test_send_text_refused(self):
-        assert _two_wide().send_text("hello") == (False, False)
+    def test_there_is_no_text_send(self):
+        assert not hasattr(_two_wide(), "send_text")
 
 
 class TestPartialFailure:
-    @patch("src.board_client.requests.post")
+    @patch("requests.post")
     def test_one_tile_failing_fails_composite_without_caching(self, mock_post):
         def side_effect(url, **kwargs):
             response = Mock()
@@ -121,11 +141,11 @@ class TestPartialFailure:
 
         assert success is False
         assert was_sent is True  # the healthy tile did update
-        assert client._last_characters is None
-        assert client.last_tile_results[(0, 0)] == (True, True)
-        assert client.last_tile_results[(0, 1)] == (False, False)
+        assert frames_of(client).characters is None
+        assert client.plugin.last_tile_results[(0, 0)] == (True, True)
+        assert client.plugin.last_tile_results[(0, 1)] == (False, False)
 
-    @patch("src.board_client.requests.post")
+    @patch("requests.post")
     def test_retry_after_partial_failure_only_resends_failed_tile(self, mock_post):
         calls = {"count": 0}
 
@@ -155,7 +175,7 @@ class TestPartialFailure:
 
 
 class TestRead:
-    @patch("src.board_client.requests.get")
+    @patch("requests.get")
     def test_stitched_read(self, mock_get):
         grid = _grid(2, 1)
 
@@ -171,7 +191,7 @@ class TestRead:
 
         assert client.read_current_message() == grid
 
-    @patch("src.board_client.requests.get")
+    @patch("requests.get")
     def test_read_returns_none_when_any_tile_fails(self, mock_get):
         grid = _grid(2, 1)
 
@@ -188,20 +208,20 @@ class TestRead:
         assert _two_wide().read_current_message() is None
 
     def test_read_returns_none_for_partial_assignment(self):
-        client = NoteArrayLocalClient([_tile(0, 0)], notes_wide=2, notes_tall=1)
+        client = tiles_driver([_tile(0, 0)], 2, 1)
         assert client.read_current_message() is None
 
-    @patch("src.board_client.requests.get")
+    @patch("requests.get")
     def test_read_sync_cache_sets_composite_cache(self, mock_get):
         grid = _grid(1, 1)
         response = Mock()
         response.raise_for_status = Mock()
         response.json.return_value = grid
         mock_get.return_value = response
-        client = NoteArrayLocalClient([_tile(0, 0)], notes_wide=1, notes_tall=1)
+        client = tiles_driver([_tile(0, 0)], 1, 1)
 
         assert client.read_current_message(sync_cache=True) == grid
-        assert client._last_characters == grid
+        assert frames_of(client).characters == grid
 
 
 class TestDuckTypeSurface:
@@ -209,25 +229,25 @@ class TestDuckTypeSurface:
         client = _two_wide()
         assert client.use_cloud is False
         assert client.skip_unchanged is True
-        assert client._last_characters is None
-        assert client._last_text is None
-        assert client.would_send(characters=_grid(2, 1)) is True
+        assert frames_of(client).characters is None
+        assert frames_of(client).text is None
+        assert not hasattr(client, "would_send")
         status = client.get_cache_status()
         assert status["has_cached_characters"] is False
         assert status["skip_unchanged_enabled"] is True
 
-    @patch("src.board_client.requests.post")
+    @patch("requests.post")
     def test_clear_cache_cascades_to_tiles(self, mock_post):
         mock_post.return_value.raise_for_status = Mock()
         client = _two_wide()
         grid = _grid(2, 1)
         client.send_characters(grid)
-        assert client._last_characters == grid
+        assert frames_of(client).characters == grid
 
         client.clear_cache()
 
-        assert client._last_characters is None
-        assert all(c._last_characters is None for c in client.tile_clients.values())
+        assert frames_of(client).characters is None
+        assert all(link.last is None for link in client.plugin.array.links.values())
         # A re-send now re-POSTs every tile
         mock_post.reset_mock()
         client.send_characters(grid)
@@ -246,28 +266,27 @@ class TestFactory:
         }
 
     def test_local_array_builds_local_client(self):
-        client = board_client_from_board_dict(self._board())
-        assert isinstance(client, NoteArrayLocalClient)
-        assert set(client.tile_clients) == {(0, 0), (0, 1)}
+        client = build_driver(self._board())
+        assert client.plugin.connection.mode == "local_tiles"
+        assert set(client.plugin.array.links) == {(0, 0), (0, 1)}
 
     def test_local_array_without_usable_tiles_returns_none(self):
         board = self._board(tiles=[{"row": 0, "col": 0, "host": "", "local_api_key": ""}])
-        assert board_client_from_board_dict(board) is None
+        assert build_driver(board) is None
 
     def test_cloud_array_still_builds_cloud_client(self):
         board = self._board(api_mode="cloud", tiles=[], note_array_token="tok")
-        client = board_client_from_board_dict(board)
-        assert not isinstance(client, NoteArrayLocalClient)
+        client = build_driver(board)
         assert client is not None
-        assert client._is_note_array is True
+        assert client.plugin.connection.mode == "note_array_cloud"
 
     def test_legacy_array_defaulting_local_without_tiles_uses_token(self):
         board = self._board(note_array_token="tok")
         board.pop("api_mode")
         board["tiles"] = []
-        client = board_client_from_board_dict(board)
-        assert not isinstance(client, NoteArrayLocalClient)
+        client = build_driver(board)
         assert client is not None
+        assert client.plugin.connection.mode == "note_array_cloud"
 
 
 class TestSendOutcome:
@@ -275,7 +294,7 @@ class TestSendOutcome:
     the v1 grid send, MCP and debug writes — a local-tile note array must
     accept it like every other client instead of raising ``TypeError``."""
 
-    @patch("src.board_client.requests.post")
+    @patch("requests.post")
     def test_render_with_outcome_returns_send_outcome(self, mock_post):
         mock_post.return_value.raise_for_status = Mock()
 
@@ -283,7 +302,7 @@ class TestSendOutcome:
 
         assert outcome == SendOutcome(True, True, throttled=False, retry_after_seconds=None, floor_seconds=None)
 
-    @patch("src.board_client.requests.post")
+    @patch("requests.post")
     def test_render_message_with_outcome_reaches_tiles(self, mock_post):
         mock_post.return_value.raise_for_status = Mock()
 
@@ -302,7 +321,7 @@ class TestSendOutcome:
         assert (outcome.success, outcome.was_sent) == (True, True)
         assert mock_post.call_count == 2
 
-    @patch("src.board_client.requests.post")
+    @patch("requests.post")
     def test_unchanged_with_outcome_is_not_throttled(self, mock_post):
         mock_post.return_value.raise_for_status = Mock()
         client = _two_wide()
@@ -313,7 +332,7 @@ class TestSendOutcome:
 
         assert (outcome.success, outcome.was_sent, outcome.throttled) == (True, False, False)
 
-    @patch("src.board_client.requests.post")
+    @patch("requests.post")
     def test_partial_failure_with_outcome_keeps_verdict(self, mock_post):
         def side_effect(url, **kwargs):
             response = Mock()
@@ -334,12 +353,7 @@ class TestSendOutcome:
 
         assert (outcome.success, outcome.was_sent) == (False, False)
 
-    def test_send_text_with_outcome_refused(self):
-        outcome = _two_wide().send_text("hello", with_outcome=True)
-
-        assert (outcome.success, outcome.was_sent) == (False, False)
-
-    @patch("src.board_client.requests.post")
+    @patch("requests.post")
     def test_without_keyword_still_returns_pair(self, mock_post):
         mock_post.return_value.raise_for_status = Mock()
 

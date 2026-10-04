@@ -34,9 +34,9 @@ replaced, by :class:`WireRecorder`; the suite's network fence stays on.
 
 Deliberate test-side controls (each documented where it is applied):
 
-* the RW-Cloud / note-array send floor reads ``src.board_client._time_module``
-  ``.monotonic`` at client construction; scenarios that cross a floor swap
-  that module for a fake clock (:class:`FakeMonotonic`);
+* the RW-Cloud / note-array send floor reads ``src.outputs.plugin_driver``
+  ``._time_module.monotonic`` at driver construction; scenarios that cross a
+  floor swap that module for a fake clock (:class:`FakeMonotonic`);
 * the process-wide send-floor registry (``src/outputs/floor.py``) is
   cleared per test so no other test's device leaks into a verdict;
 * the local note-array fan-out runs its tiles on a ``ThreadPoolExecutor``.
@@ -246,7 +246,7 @@ def wire(monkeypatch) -> WireRecorder:
 
 def install_wire_recorder(monkeypatch) -> WireRecorder:
     """The ``wire`` fixture's body, reusable by other modules' fixtures."""
-    import src.note_array_local_client as note_array_local_client
+    import first_party_outputs.vestaboard.tiles as vestaboard_tiles
 
     recorder = WireRecorder()
     monkeypatch.setattr(requests, "post", recorder.post)
@@ -258,7 +258,7 @@ def install_wire_recorder(monkeypatch) -> WireRecorder:
     from src.outputs.floor import send_floors
 
     send_floors().clear()
-    monkeypatch.setattr(note_array_local_client, "ThreadPoolExecutor", _SerialExecutor)
+    monkeypatch.setattr(vestaboard_tiles, "ThreadPoolExecutor", _SerialExecutor)
     return recorder
 
 
@@ -270,10 +270,10 @@ def clock(monkeypatch) -> FakeMonotonic:
 
 def install_floor_clock(monkeypatch) -> FakeMonotonic:
     """The ``clock`` fixture's body, reusable by other modules' fixtures."""
-    import src.board_client as board_client
+    import src.outputs.plugin_driver as plugin_driver
 
     fake = FakeMonotonic()
-    monkeypatch.setattr(board_client, "_time_module", SimpleNamespace(monotonic=fake.monotonic))
+    monkeypatch.setattr(plugin_driver, "_time_module", SimpleNamespace(monotonic=fake.monotonic))
     return fake
 
 
@@ -635,10 +635,10 @@ def test_throttle_route_429(api, wire, clock):
 
 @pytest.mark.parametrize("board", [rw_cloud, note_array_cloud], ids=["rw_cloud", "note_array_cloud"])
 def test_throttle_send_outcome(wire, clock, board):
-    from src.board_client import board_client_from_board_dict
+    from src.outputs.factory import build_driver
 
     cfg = board()
-    client = board_client_from_board_dict(cfg)
+    client = build_driver(cfg)
     rows, cols = (3, 30) if cfg["device_type"] == "note_array" else (FLAGSHIP_ROWS, FLAGSHIP_COLS)
     s = Scenario(
         f"throttle_outcome_{board.__name__}",
@@ -655,9 +655,9 @@ def test_throttle_send_outcome(wire, clock, board):
 
 
 def test_upstream_429_holds_floor_slot(wire, clock):
-    from src.board_client import board_client_from_board_dict
+    from src.outputs.factory import build_driver
 
-    client = board_client_from_board_dict(rw_cloud())
+    client = build_driver(rw_cloud())
     answers = [make_response(429, {"error": "rate limited"})]
     wire.respond = lambda method, url, kwargs: answers.pop(0) if answers else None
     s = Scenario(
@@ -683,7 +683,7 @@ def test_upstream_429_holds_floor_slot(wire, clock):
 
 
 def test_floor_survives_client_rebuild_note_array(wire, clock):
-    from src.board_client import board_client_from_board_dict
+    from src.outputs.factory import build_driver
 
     cfg = note_array_cloud()
     s = Scenario(
@@ -693,10 +693,10 @@ def test_floor_survives_client_rebuild_note_array(wire, clock):
         "two board_client_from_board_dict(...) clients for one board",
         wire,
     )
-    first = board_client_from_board_dict(cfg)
+    first = build_driver(cfg)
     s.step("t=1000 first client renders ONE", outcome_result(first.render(grid_of("ONE", 3, 30), with_outcome=True)))
     clock.t += 5.0
-    rebuilt = board_client_from_board_dict(cfg)
+    rebuilt = build_driver(cfg)
     s.step(
         "t=1005 rebuilt client renders TWO", outcome_result(rebuilt.render(grid_of("TWO", 3, 30), with_outcome=True))
     )
@@ -704,7 +704,7 @@ def test_floor_survives_client_rebuild_note_array(wire, clock):
 
 
 def test_floor_survives_client_rebuild_rw_cloud(wire, clock):
-    from src.board_client import board_client_from_board_dict
+    from src.outputs.factory import build_driver
 
     cfg = rw_cloud()
     s = Scenario(
@@ -714,10 +714,10 @@ def test_floor_survives_client_rebuild_rw_cloud(wire, clock):
         "two board_client_from_board_dict(...) clients for one board",
         wire,
     )
-    first = board_client_from_board_dict(cfg)
+    first = build_driver(cfg)
     s.step("t=1000 first client renders ONE", outcome_result(first.render(grid_of("ONE"), with_outcome=True)))
     clock.t += 5.0
-    rebuilt = board_client_from_board_dict(cfg)
+    rebuilt = build_driver(cfg)
     s.step("t=1005 rebuilt client renders TWO", outcome_result(rebuilt.render(grid_of("TWO"), with_outcome=True)))
     s.check()
 
@@ -728,7 +728,7 @@ def test_floor_survives_client_rebuild_rw_cloud(wire, clock):
 
 
 def test_plugin_transition_frames(wire):
-    from src.board_client import board_client_from_board_dict
+    from src.outputs.factory import build_driver
     from src.plugins.base import TransitionPluginBase
     from src.settings.service import get_settings_service
     from src.transitions import TransitionRunner
@@ -754,7 +754,7 @@ def test_plugin_transition_frames(wire):
         }
     )
     get_settings_service().update_beta_settings({"transition_plugins_enabled": True})
-    client = board_client_from_board_dict(local_flagship())
+    client = build_driver(local_flagship())
     client.set_transition_runner(TransitionRunner(lambda pid: plugin if pid == "wire_fake" else None))
     s = Scenario(
         "plugin_transition_local",

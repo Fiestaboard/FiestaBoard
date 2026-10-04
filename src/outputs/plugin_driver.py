@@ -32,7 +32,9 @@ it unchanged — the plugin is a pipe and every policy stays in core:
   cancelled even when the plugin does not pass the token itself.
 
 A plugin exception is a failed write (logged with the plugin id), never an
-engine crash; the floor slot it reserved is given back.
+engine crash; the floor slot it reserved is given back. A write the device
+refused for rate (``throttled`` in the plugin's result, an HTTP 429) keeps
+the slot closed for the ``retry_after_seconds`` the device asked for.
 
 **Third-party safety** (:mod:`src.outputs.breaker`). Each write runs under a
 budget — 30 s by default, lowered by the manifest's ``write_timeout_ms`` —
@@ -41,6 +43,13 @@ token. Consecutive failed writes open the device's circuit breaker for a
 cool-down, during which writes are refused without calling the plugin.
 :attr:`OutputPluginDriver.last_write_error` says why the last write failed,
 and the engine puts it in the board's send error.
+
+**First-party outputs** (``first_party=True``: the Vestaboard and FiestaPanel
+packages core seeds, :mod:`src.outputs.first_party`) are core's own code
+under review, and their boards must behave exactly as they did before they
+were plugins: their writes run inline on the caller's thread, with no
+budget, no breaker and no ``last_write_error`` — the transport bounds itself
+with its own timeouts, as it always did.
 """
 
 from __future__ import annotations
@@ -48,7 +57,7 @@ from __future__ import annotations
 import logging
 import math
 import threading
-import time
+import time as _time_module
 from collections.abc import Callable
 from typing import TYPE_CHECKING, Any
 
@@ -99,12 +108,18 @@ class OutputPluginDriver:
         *,
         clock: Callable[[], float] | None = None,
         character_set: CharacterSet | None = None,
+        first_party: bool = False,
     ) -> None:
         self.plugin = plugin
-        #: The whole character set the board resolved to (plan D17), or None.
-        self.character_set = character_set
+        #: The whole character set the board resolved to (plan D17), or None
+        #: — always None for an output whose markup does not follow its set.
+        self.character_set = character_set if type(plugin).markup_follows_charset else None
         self.skip_unchanged = True
-        self._clock = clock if clock is not None else time.monotonic
+        #: A first-party output: inline writes, no budget, no breaker.
+        self.first_party = first_party
+        # Read at construction from this module's clock, so a test can swap
+        # ``src.outputs.plugin_driver._time_module`` for a fake one.
+        self._clock = clock if clock is not None else _time_module.monotonic
         self._output_runtime = OutputRuntime()
         self._last_send_throttled = False
         self._last_send_retry_after: int | None = None
@@ -153,7 +168,7 @@ class OutputPluginDriver:
 
     @property
     def connection_label(self) -> str:
-        return self.plugin.plugin_id or type(self.plugin).__name__
+        return self.plugin.connection_label()
 
     def device_key(self) -> str:
         return self.plugin.device_key()
@@ -248,6 +263,8 @@ class OutputPluginDriver:
 
         The refused write gives its floor slot back: nothing reached the device.
         """
+        if self.first_party:
+            return None
         breakers = output_breakers()
         streak = breakers.refusal(self._breaker_key(), self._clock())
         if streak is None:
@@ -260,6 +277,8 @@ class OutputPluginDriver:
         return WriteResult(False, False)
 
     def _write_failed(self, reason: str) -> None:
+        if self.first_party:
+            return
         self.last_write_error = f"Output {self.connection_label}: {reason}"
         output_breakers().record_failure(self._breaker_key(), reason, self._clock())
 
@@ -272,9 +291,12 @@ class OutputPluginDriver:
         """
         cancel_event = self._output_runtime.cancel_event
         token = CancelToken(cancel_event)
+        http = self.plugin.http
+        if self.first_party:
+            with http.cancel_scope(token):
+                return True, call(token)
         box: dict[str, Any] = {}
         done = threading.Event()
-        http = self.plugin.http
 
         def run() -> None:
             try:
@@ -306,6 +328,10 @@ class OutputPluginDriver:
             finished, raw = self._run_bounded(call)
             result = WriteResult.of(raw) if finished else None
         except Exception as exc:
+            if self.first_party:
+                # Core's own code: an unanticipated error is the caller's, as
+                # it always was (the engine reports it), not a quiet failure.
+                raise
             logger.exception("Output plugin %s: write failed", self.connection_label)
             self._output_runtime.release_send(admission)
             self._write_failed(f"the write raised {type(exc).__name__}: {exc}")
@@ -316,7 +342,11 @@ class OutputPluginDriver:
             logger.error("Output plugin %s: write still running after %gs; cancelled", self.connection_label, budget)
             self._write_failed(f"the write did not finish within {budget:g}s; it was cancelled.")
             return WriteResult(False, False)
-        if result.success and result.was_sent:
+        if result.throttled:
+            return self._device_throttled(admission, result.retry_after_seconds)
+        if result.success:
+            # Landed — or the device already showed it (a fan-out whose every
+            # part was unchanged): either way it is what the board shows.
             self._frames.record_sent(final, cells=cells)
         elif not result.success and not result.partial:
             self._output_runtime.release_send(admission)
@@ -330,6 +360,27 @@ class OutputPluginDriver:
         return WriteResult(
             result.success, result.was_sent, partial=result.partial, failed_regions=result.failed_regions
         )
+
+    def _device_throttled(self, admission: Admission, retry_after: int | None) -> WriteResult:
+        """The device refused the write for rate: keep its floor slot closed
+        for the *retry_after* seconds it asked for, and say so."""
+        if retry_after is not None:
+            self._output_runtime.hold_send(admission, self.min_send_interval_ms / 1000.0, retry_after)
+        self._last_send_throttled = True
+        self._last_send_retry_after = retry_after
+        return WriteResult(True, False, throttled=True, retry_after_seconds=retry_after)
+
+    def _call_plugin(self, call: Callable[[CancelToken], Any], force: bool) -> Callable[[CancelToken], Any]:
+        """*call*, with the plugin's :attr:`~OutputPluginBase.forced` set for its duration."""
+
+        def forced_call(token: CancelToken) -> Any:
+            self.plugin.forced = force
+            try:
+                return call(token)
+            finally:
+                self.plugin.forced = False
+
+        return forced_call
 
     def send_characters(
         self,
@@ -349,8 +400,10 @@ class OutputPluginDriver:
         is colour-aware; otherwise the cells are dropped here and nothing
         differs from a plain write.
         """
+        if not self.plugin.accepts_frame(characters):
+            return self._result(WriteResult(False, False), with_outcome)
         if strategy is not None and strategy not in NATIVE_STRATEGIES:
-            logger.error("Invalid strategy: %s", strategy)
+            logger.error("Invalid strategy: %s. Must be one of %s", strategy, sorted(NATIVE_STRATEGIES))
             return self._result(WriteResult(False, False), with_outcome)
         native = NativeTransition.of(strategy, step_interval_ms, step_size)
         if native is not None and not native.supported_by(self.native_transitions):
@@ -377,12 +430,18 @@ class OutputPluginDriver:
                 result = self._deliver(
                     admission,
                     characters,
-                    lambda cancel: self.plugin.write_cells(rich, native=native, cancel=cancel),
+                    self._call_plugin(
+                        lambda cancel: self.plugin.write_cells(rich, native=native, cancel=cancel), force
+                    ),
                     cells=rich,
                 )
             else:
                 result = self._deliver(
-                    admission, characters, lambda cancel: self.plugin.write(characters, native=native, cancel=cancel)
+                    admission,
+                    characters,
+                    self._call_plugin(
+                        lambda cancel: self.plugin.write(characters, native=native, cancel=cancel), force
+                    ),
                 )
             return self._result(result, with_outcome)
 
@@ -521,17 +580,45 @@ class OutputPluginDriver:
     def read_current_message(self, sync_cache: bool = False) -> list[list[int]] | None:
         if not self.read_back.supported:
             return None
+        if self.capabilities.delivery == "pull":
+            # A pull device shows what core stored for it: the last frame
+            # sent, while it still has the board's shape.
+            grid = self.plugin.board_geometry
+            return self._output_runtime.displayed_frame(*grid) if grid is not None else None
         try:
             characters = self.plugin.read_current()
         except Exception:
+            if self.first_party:
+                raise
             logger.exception("Output plugin %s: read_current failed", self.connection_label)
             return None
-        if sync_cache and characters:
-            self._frames.record_read(characters)
+        if sync_cache:
+            if characters:
+                self._frames.record_read(characters)
+                logger.info("Cache synced with current board state")
+            self.plugin.cache_synced(characters or None)
         return characters
 
     def clear_cache(self) -> None:
         self._frames.forget()
+        self.plugin.cache_cleared()
+
+    @property
+    def identify_tiles(self) -> Callable[[list[tuple[int, int]]], dict[tuple[int, int], bool]] | None:
+        """Flash per-tile identify patterns, for an output whose board is an
+        array of devices (the plugin's ``identify_tiles``); ``None`` for every
+        other output. One write of the board: it preempts the run in flight
+        and holds the send lock, so it never interleaves with the engine's
+        sends. (The legacy ``/settings/board/{id}/identify`` route's seam.)"""
+        flash = getattr(self.plugin, "identify_tiles", None)
+        if flash is None:
+            return None
+
+        def identify(positions: list[tuple[int, int]]) -> dict[tuple[int, int], bool]:
+            with self._output_runtime.write():
+                return flash(positions)
+
+        return identify
 
     def get_cache_status(self) -> dict:
         return {
@@ -545,13 +632,21 @@ class OutputPluginDriver:
         try:
             return self.plugin.check_connection()
         except Exception as exc:
+            if self.first_party:
+                # A first-party probe raises what is not a device verdict (an
+                # unusable credential: ValueError) for its route to answer.
+                raise
             logger.exception("Output plugin %s: check_connection failed", self.connection_label)
             return ConnectionCheck(
                 success=False, message="The output's connection check failed.", failure="unreachable", error=str(exc)
             )
 
     def test_connection(self) -> bool:
-        return self.check_connection().success
+        try:
+            return bool(self.plugin.test_connection())
+        except Exception:
+            logger.exception("Output plugin %s: test_connection failed", self.connection_label)
+            return False
 
     # --- lifetime ----------------------------------------------------------------------
 

@@ -339,7 +339,7 @@ class CommandHandler:
     def _handle_transition_style(self, payload: str) -> None:
         if not payload:
             return
-        from src.board_client import VALID_STRATEGIES
+        from src.outputs.transitions import VALID_STRATEGIES
         from src.settings.service import get_settings_service
 
         if payload not in VALID_STRATEGIES:
