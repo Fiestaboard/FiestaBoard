@@ -534,7 +534,7 @@ def _is_space(piece: _Piece) -> bool:
     return token is not None and token.type == "char" and token.icon is None and piece.source.isspace()
 
 
-def wrap_line(line: str, cols: int) -> list[str]:
+def wrap_line(line: str, cols: int, *, first_cols: int | None = None) -> list[str]:
     """Greedy word-wrap one line to *cols* tiles under the extended grammar.
 
     The rules are :meth:`MessageFormatter._wrap_line`'s — words split on
@@ -543,6 +543,9 @@ def wrap_line(line: str, cols: int) -> list[str]:
     span splitting words too. Every row is re-serialized so a span that
     crosses rows is closed on one and reopened on the next; a space joining
     two words keeps the colours of the space it replaces.
+
+    ``first_cols`` narrows the first row only (a template's ``|wrap`` value
+    shares its first row with the text around it); later rows get *cols*.
     """
     from .formatters.message_formatter import MessageFormatter
 
@@ -567,12 +570,17 @@ def wrap_line(line: str, cols: int) -> list[str]:
     if not words:
         return [""]
 
+    first = cols if first_cols is None else first_cols
     rows: list[list[_Piece]] = []
+
+    def width() -> int:
+        return cols if rows else first
+
     current: list[_Piece] = []
     current_tiles = 0
     for sep, word in words:
         word_tiles = _tiles(word)
-        if current and current_tiles + 1 + word_tiles <= cols:
+        if current and current_tiles + 1 + word_tiles <= width():
             space = sep.token if sep is not None and sep.token is not None else _BLANK
             joiner = _Piece(replace(space, value=" "), " ", sep.heads if sep else (), -1, -1)
             current = [*current, joiner, *word]
@@ -581,8 +589,8 @@ def wrap_line(line: str, cols: int) -> list[str]:
         if current:
             rows.append(current)
             current, current_tiles = [], 0
-        while word_tiles > cols:
-            index = _split_index(word, cols)
+        while word_tiles > width():
+            index = _split_index(word, width())
             if not index:  # defensive: never loop forever on a 0-wide board
                 break
             rows.append(word[:index])
@@ -596,5 +604,5 @@ def wrap_line(line: str, cols: int) -> list[str]:
     if not all(_round_trips(row) for row in rows):
         # Literal braces inside a span that a row boundary would cut: no
         # markup expresses that, so wrap the raw text the legacy way.
-        return MessageFormatter(cols=cols)._wrap_line(line)
+        return MessageFormatter(cols=min(cols, first))._wrap_line(line)
     return [_serialize(row) for row in rows]
