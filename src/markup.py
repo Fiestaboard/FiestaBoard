@@ -25,10 +25,11 @@ FiestaUI, the reference implementation):
 
 The flag is off by default and nothing in the app turns it on yet. With it
 off, :func:`parse_line` projects to exactly the codes
-:func:`src.text_to_board.text_to_board_array` draws today. With it on, it
-matches FiestaUI token for token, except where FiestaUI's *legacy* grammar
-disagrees with what the board draws today (``{filled}``, ``{/foo}``); there
-the board wins. ``tests/test_markup_parity.py`` lists each such case.
+:func:`src.text_to_board.text_to_board_array` draws today, and its tokens
+match FiestaUI's base grammar (c6b34f4, which aligned FiestaUI with the board
+on ``{filled}``, ``{/foo}``, emoji and typed hearts). With it on, it matches
+FiestaUI token for token; ``tests/test_markup_parity.py`` lists the cases
+where the extended fixtures still predate that alignment.
 
 The icon table is FiestaUI's data, vendored as ``markup_icons.json`` by
 ``scripts/markup_fixtures/generate.sh`` — never a hand-kept list here.
@@ -152,6 +153,12 @@ class BoardToken:
 
 _BLANK = BoardToken("char", value=" ")
 
+# A typed heart is code 62, the same flap as a typed degree sign, so it parses
+# to "°" and the board's own code-62 glyph decides what is drawn
+# (:func:`message_to_grid` turns it back into a heart on heart-flap boards).
+# FiestaUI does the same (``typedCharToBoard``, c6b34f4).
+_TYPED_HEARTS = {"♥": "°", "❤": "°"}
+
 
 @dataclass(frozen=True)
 class _Span:
@@ -259,7 +266,8 @@ def _pieces(
                     i = after
                     continue
             char = text[i]
-            add(_char_token(char if preserve_case else char.upper(), span), char, heads, offset + i, root)
+            value = _TYPED_HEARTS.get(char) or (char if preserve_case else char.upper())
+            add(_char_token(value, span), char, heads, offset + i, root)
             i += 1
 
     def extended_marker(
