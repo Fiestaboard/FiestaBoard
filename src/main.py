@@ -256,6 +256,9 @@ class DisplayService:
     def __init__(self):
         """Initialize the display service."""
         self.running = True
+        # Set by :meth:`wake` (an active-page change): the run loop's 1 s idle
+        # step ends at once and runs an engine pass.
+        self._wake = threading.Event()
         # One runtime per configured board (keyed by board id). All per-board
         # display state lives on the runtime; ``self.vb_client`` and the
         # ``self._last_*`` / ``self._polled_*`` attributes are back-compat
@@ -1226,6 +1229,24 @@ class DisplayService:
         self._board_retry_state.pop(board_id, None)
         logger.info("Board %s: recovered - client initialized on retry; the board rejoins the fleet", board_id)
         return True
+
+    def wake(self) -> None:
+        """Run an engine pass now rather than at the next poll tick.
+
+        Called when what a board should show changed (the active page was
+        set): the engine catches every board up — and records what it shows —
+        within a second, instead of up to a poll interval later. Thread-safe;
+        a pass that finds nothing changed writes nothing (the frame cache).
+        """
+        self._wake.set()
+
+    def idle(self, seconds: float) -> bool:
+        """The run loop's idle step: wait up to *seconds*; True (and the wake
+        consumed) when :meth:`wake` ended it early."""
+        if self._wake.wait(seconds):
+            self._wake.clear()
+            return True
+        return False
 
     def request_board_refresh(
         self,
@@ -2823,7 +2844,9 @@ class DisplayService:
                             primary_rt.next_collection_check = now + polling_interval
                     else:
                         primary_rt.next_collection_check = now + polling_interval
-                time.sleep(1)
+                # Idle a second, or less: a page change wakes the engine.
+                if self.idle(1.0):
+                    engine_pass()
         except KeyboardInterrupt:
             logger.info("Keyboard interrupt received")
         finally:
