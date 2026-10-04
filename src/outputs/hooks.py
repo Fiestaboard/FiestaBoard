@@ -8,25 +8,33 @@ output* (plan D3), answered by the output's registry entry
 (:class:`~src.outputs.registry.OutputDefinition`) or by its driver:
 
 - per **output**, on the registry entry's :class:`OutputHooks` —
-  ``discover(timeout)`` (find devices on the network),
+  ``discover(timeout)`` (find devices on the network) and
   :class:`OutputDiagnostics` (the output's section of the network
-  diagnostics), and named custom ``actions`` (e.g. ``enable_local_api``);
+  diagnostics);
 - per **board**, on the driver — :meth:`check_connection` returning a
   :class:`ConnectionCheck`, :attr:`read_back` (a :class:`ReadBack`) and
-  ``connection_label``.
+  ``connection_label``;
+- per **board's settings**, on the plugin class — its board-settings
+  actions (``handle_action`` with an :class:`ActionContext`), its
+  :class:`OutputStatus` (``board_status``), and how its ``output_config`` is
+  normalised, masked and restored (:mod:`src.outputs.config_hooks`).
 
 Every hook is optional: an output without one simply has nothing to say
 (no devices to discover, no diagnostics section of its own), and core
 answers the way it always answered a board with no connection.
 
 The legacy routes (``/config/board/scan``, ``/config/board/test``,
-``/config/board/enable-local-api``, ``/debug/network-diagnostics``) stay,
-pinned in ``tests/golden/api_routes.json``, and delegate here (plan D8).
+``/config/board/enable-local-api``, ``/settings/board/{id}/identify``,
+``/settings/board/{id}/detect-size``, ``/debug/network-diagnostics``) stay,
+pinned in ``tests/golden/api_routes.json``, and delegate here (plan D8): to
+the output's ``discover`` and diagnostics hooks, and to its board-settings
+actions (:class:`ActionContext`), whose outcomes carry the legacy answer in
+:attr:`ActionOutcome.detail`.
 """
 
 from __future__ import annotations
 
-from collections.abc import Awaitable, Callable, Mapping
+from collections.abc import Callable, Mapping
 from dataclasses import dataclass, field
 from typing import Any, Literal
 
@@ -162,12 +170,6 @@ class OutputHooks:
     #: at least ``ip`` and ``port`` (plus ``hostname`` and ``source``).
     discover: Callable[[float], list[dict]] | None = None
     diagnostics: OutputDiagnostics | None = None
-    #: Named custom actions, e.g. ``{"enable_local_api": fn}``.
-    actions: Mapping[str, Callable[..., Any]] = field(default_factory=dict)
-    #: A built-in output's board-settings action runner: ``await
-    #: dispatch(ActionCall)`` → :class:`ActionOutcome`. Output plugins need
-    #: none; core dispatches to the plugin instance (``run_action``).
-    dispatch: Callable[[ActionCall], Awaitable[ActionOutcome]] | None = None
 
 
 # --- board settings actions (plan D13) -------------------------------------------
@@ -210,30 +212,107 @@ class ActionOutcome:
     fields: Mapping[str, ActionField] = field(default_factory=dict)
     geometry: Mapping[str, Any] | None = None
     devices: tuple[Mapping[str, Any], ...] | None = None
+    #: The action's raw answer, for the legacy routes that predate the
+    #: envelope (``POST /config/board/test`` answers a probe's verdict,
+    #: identify its per-tile results). Never rendered, never logged, never in
+    #: the ``ActionResult`` envelope — it may carry what ``fields`` carries.
+    detail: Mapping[str, Any] = field(default_factory=dict)
 
     @classmethod
     def from_check(cls, check: ConnectionCheck) -> ActionOutcome:
-        """A connection probe's verdict as an action outcome."""
+        """A connection probe's verdict as an action outcome (the verdict's
+        wire shape, :meth:`ConnectionCheck.to_verdict`, in ``detail``)."""
         return cls(
             status="ok" if check.success else "error",
             message=check.message,
             guidance=tuple(check.troubleshooting or ()),
+            detail=check.to_verdict(),
         )
 
 
-@dataclass(frozen=True)
-class ActionCall:
-    """One action run: which, on what board (saved or draft), with what input.
+class ActionContext:
+    """What an output's :meth:`~src.outputs.plugin_base.OutputPluginBase.handle_action`
+    is handed: one action run, and what core lends it.
 
-    ``board`` is the board dict the output builds a driver from — a saved
-    board with any edited ``output_config`` merged in (secrets restored), or
-    a draft. ``board_id`` is ``None`` for a draft.
+    ``board`` is the board dict — a saved board with any edited
+    ``output_config`` merged in and every ``"***"`` restored from the stored
+    board, or a draft — and :attr:`config` its ``output_config``.
+    ``board_id`` is ``None`` for a draft. ``inputs`` were checked against the
+    action's ``input_schema`` (when it came through an action route).
+
+    Core builds every instance and closes the throwaway ones when the action
+    returns; an output never constructs itself:
+
+    - :meth:`instance` — a throwaway instance from the board's settings, or
+      from *config* (one device of an array, say); ``None`` when those
+      settings make no usable connection.
+    - :meth:`with_live` — run ``fn(instance)`` on the board's **live**
+      instance while holding its send lock (preempting the run in flight),
+      for an action that writes to the device the engine is driving.
+    - :meth:`reader` — a callable that reads what the board shows (through
+      the live board, else a throwaway one), or ``None``.
+    - :meth:`invalidate` — make core re-send the board's content on its next
+      cycle (after an out-of-band write, such as an identify flash).
     """
 
-    action: str
-    board: Mapping[str, Any]
-    board_id: str | None
-    inputs: Mapping[str, Any]
+    def __init__(
+        self,
+        *,
+        action: str,
+        board: Mapping[str, Any],
+        board_id: str | None,
+        inputs: Mapping[str, Any],
+        instance: Callable[[Mapping[str, Any] | None], Any],
+        with_live: Callable[[Callable[[Any], Any]], Any],
+        reader: Callable[[], Callable[[], Any] | None],
+        invalidate: Callable[[], None],
+    ) -> None:
+        self.action = action
+        self.board = board
+        self.board_id = board_id
+        self.inputs = inputs
+        self._instance = instance
+        self._with_live = with_live
+        self._reader = reader
+        self._invalidate = invalidate
+
+    @property
+    def config(self) -> Mapping[str, Any]:
+        """The board's ``output_config`` (secrets restored)."""
+        config = self.board.get("output_config")
+        return config if isinstance(config, Mapping) else {}
+
+    def instance(self, config: Mapping[str, Any] | None = None) -> Any:
+        return self._instance(config)
+
+    def with_live(self, fn: Callable[[Any], Any]) -> Any:
+        return self._with_live(fn)
+
+    def reader(self) -> Callable[[], Any] | None:
+        return self._reader()
+
+    def invalidate(self) -> None:
+        self._invalidate()
+
+
+@dataclass(frozen=True)
+class OutputStatus:
+    """A board's connection summary, as its output reads it from the board's
+    settings (plan D13 ``status``): the board card's Connected / Not
+    configured badge, and first-run detection.
+
+    ``configured``: a driver can be built from the settings. ``attempted``:
+    the user entered any connection detail at all — a board with some but
+    not all is *misconfigured*, a per-board error, never a first run.
+    """
+
+    configured: bool
+    attempted: bool = True
+    message: str = ""
+
+    @property
+    def state(self) -> Literal["connected", "not_configured"]:
+        return "connected" if self.configured else "not_configured"
 
 
 @dataclass(frozen=True)

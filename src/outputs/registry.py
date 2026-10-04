@@ -24,10 +24,11 @@ one core uses at write time. Device models and character sets arrive with
 output plugins; nothing here invents them.
 
 Each entry also carries the output's **hooks** (:mod:`src.outputs.hooks`):
-what core asks the output instead of knowing its device — ``discover``,
-``diagnostics`` and named custom ``actions``. The ``vestaboard`` hooks are its
-plugin's (``Fiestaboard/fiestaboard-output--vestaboard``); ``fiestapanel``
-declares none.
+what core asks the output instead of knowing its device — ``discover`` and
+``diagnostics`` — and its plugin class, which answers everything about a
+board's settings (actions, status, ``output_config``). The ``vestaboard``
+hooks are its plugin's (``Fiestaboard/fiestaboard-output--vestaboard``);
+``fiestapanel`` declares none.
 
 Which output a board uses is **stored** since settings v4 (plan D8): the
 v3 -> v4 migration wrote it for every existing board by the same precedence
@@ -57,7 +58,6 @@ from .hooks import (
     OutputDiagnostics,
     OutputHooks,
     ReadBack,
-    UnknownOutputAction,
 )
 from .transitions import Animation
 
@@ -148,6 +148,11 @@ class OutputDefinition:
     #: Device models to offer when adding a board: the plugin's declared
     #: models (``capabilities.device_models``), or the built-ins' own below.
     offered_device_models: tuple[str, ...] = ()
+    #: The output's ``OutputPluginBase`` subclass: what core asks about a
+    #: board's settings (``handle_action``, ``board_status``, the
+    #: ``output_config`` hooks; :mod:`src.outputs.config_hooks`). None only
+    #: for a test's stand-in entry.
+    plugin_class: Any = None
 
 
 class OutputRegistry:
@@ -254,22 +259,6 @@ def diagnostics_for(board: Mapping) -> OutputDiagnostics | None:
     when that output declares none (or is not installed)."""
     definition = output_registry().get(resolve_output_id(board))
     return definition.hooks.diagnostics if definition is not None else None
-
-
-def output_action(output_id: str, action: str) -> Callable[..., object]:
-    """The custom action *action* of output *output_id*.
-
-    Raises:
-        UnknownOutputError: *output_id* is not registered.
-        UnknownOutputAction: the output has no action by that name.
-    """
-    definition = output_registry().get(output_id)
-    if definition is None:
-        raise UnknownOutputError(output_id)
-    fn = definition.hooks.actions.get(action)
-    if fn is None:
-        raise UnknownOutputAction(output_id, action)
-    return fn
 
 
 # --- the first-party outputs ----------------------------------------------------------

@@ -17,14 +17,23 @@ discover, identify, detect size, or the output's own, such as Vestaboard's
   saved). Nothing is stored, so a ``"***"`` is refused.
 
 An action must be **declared** by the output; its ``input`` is checked
-against the declared ``input_schema`` (hidden fields not validated). A
-built-in output answers through its ``dispatch`` hook; an output plugin
-through :meth:`~src.outputs.plugin_base.OutputPluginBase.run_action` on a
-throwaway instance built from the settings — never the board's live one —
-closed afterwards. Whatever the action answers becomes the closed
+against the declared ``input_schema`` (hidden fields not validated). Every
+output answers through its plugin class's
+:meth:`~src.outputs.plugin_base.OutputPluginBase.handle_action`, the
+first-party ones included (core holds no device's actions, Phase 4 P4e),
+with an :class:`~src.outputs.hooks.ActionContext`: the instances an action
+uses are core's to build — a throwaway one from the settings (closed when
+the action returns), or the board's live one under its send lock — and the
+whole action runs on the bounded board-send pool, off the event loop.
+Whatever the action answers becomes the closed
 :class:`~src.outputs.models.ActionResult` envelope. **Secret result fields
 are never logged**: this module logs the action, the output and the status,
 nothing the action returned.
+
+:func:`execute_action` is the same run without the envelope, for the legacy
+routes that predate it (``/config/board/test``, ``/config/board/enable-local-api``,
+``/settings/board/{id}/identify``, ``/settings/board/{id}/detect-size``):
+they answer the outcome's ``detail`` in their own recorded shapes.
 
 :func:`list_outputs` is ``GET /outputs``: every installed output with what
 the "add a board" cards and the settings screen render from.
@@ -34,21 +43,20 @@ Raises domain errors; ``routes.py`` maps them.
 
 from __future__ import annotations
 
-import asyncio
 import logging
-from collections.abc import Mapping
+from collections.abc import Callable, Mapping
 from typing import Any
 
 from .errors import BoardNotFoundError, InvalidActionInputError, InvalidOutputConfigError, OutputNotInstalledError
 from .hooks import (
-    ActionCall,
+    ActionContext,
     ActionField,
     ActionOutcome,
     OutputActionError,
     OutputActionSpec,
     UnknownOutputAction,
 )
-from .output_config import masked_secret_paths, validate_output_config
+from .output_config import validate_output_config
 from .plugin_registration import OutputPluginsDisabledError, output_plugins_enabled
 from .registry import FIESTAPANEL, VESTABOARD, OutputDefinition, output_registry, resolve_output_id
 
@@ -109,28 +117,166 @@ def _normalise(raw: Any) -> ActionOutcome:
             fields=fields,
             geometry=raw.get("geometry"),
             devices=tuple(devices) if devices is not None else None,
+            detail=raw.get("detail") or {},
         )
     raise TypeError(f"an action answered {type(raw).__name__}, not an ActionOutcome")
 
 
-def _run_on_plugin_instance(board: Mapping[str, Any], action: str, inputs: Mapping[str, Any]) -> Any:
-    from .factory import draft_driver
+def _default_live_driver(board_id: str) -> Any:
+    from src.display_runtime import live_driver
 
-    driver = draft_driver(dict(board))
+    return live_driver(board_id)
+
+
+def _default_invalidate(board_id: str) -> None:
+    from src.display_runtime import peek_service
+
+    service = peek_service()
+    if service is not None:
+        service.invalidate_board_content(board_id)
+
+
+class _Lent:
+    """What core lends one action run (:class:`ActionContext`): the
+    throwaway instances it builds (closed afterwards) and the live board."""
+
+    def __init__(
+        self,
+        definition: OutputDefinition,
+        board: Mapping[str, Any],
+        board_id: str | None,
+        live_driver: Callable[[str], Any],
+        invalidate: Callable[[str], None],
+    ) -> None:
+        self.definition = definition
+        self.board = board
+        self.board_id = board_id
+        self._live_driver = live_driver
+        self._invalidate = invalidate
+        self._drivers: list[Any] = []
+
+    def _draft(self, board: Mapping[str, Any]) -> Any:
+        from .factory import draft_driver
+
+        driver = draft_driver(dict(board))
+        if driver is not None:
+            self._drivers.append(driver)
+        return driver
+
+    def instance(self, config: Mapping[str, Any] | None) -> Any:
+        """A throwaway plugin instance from the board's settings, or from *config*."""
+        if config is None:
+            board = self.board
+        else:
+            board = {"output": self.definition.id, "output_config": dict(config)}
+        driver = self._draft(board)
+        return getattr(driver, "plugin", None) if driver is not None else None
+
+    def live_driver(self) -> Any:
+        return self._live_driver(self.board_id) if self.board_id is not None else None
+
+    def with_live(self, fn: Any) -> Any:
+        driver = self.live_driver()
+        run = getattr(driver, "run_with_plugin", None)
+        if run is None:
+            raise OutputActionError(503, f"Board client not initialized: {self.board_id}")
+        return run(fn)
+
+    def reader(self) -> Any:
+        driver = self.live_driver() or self._draft(self.board)
+        return driver.read_current_message if driver is not None else None
+
+    def invalidate(self) -> None:
+        if self.board_id is not None:
+            self._invalidate(self.board_id)
+
+    def close(self) -> None:
+        for driver in self._drivers:
+            try:
+                driver.close()
+            except Exception:  # pragma: no cover - a close failure is the plugin's to log
+                logger.debug("Closing an action's throwaway driver failed", exc_info=True)
+
+
+def _as_refusal(exc: BaseException) -> OutputActionError | None:
+    """A refusal raised with a status and a detail (the board-host guards
+    raise the web framework's own) as an :class:`OutputActionError`."""
+    status, detail = getattr(exc, "status_code", None), getattr(exc, "detail", None)
+    if isinstance(status, int) and 400 <= status < 600 and isinstance(detail, str):
+        return OutputActionError(status, detail)
+    return None
+
+
+def _execute_sync(
+    definition: OutputDefinition,
+    action: str,
+    board: Mapping[str, Any],
+    board_id: str | None,
+    inputs: dict[str, Any],
+    live_driver: Callable[[str], Any],
+    invalidate: Callable[[str], None],
+) -> ActionOutcome:
+    lent = _Lent(definition, board, board_id, live_driver, invalidate)
+    ctx = ActionContext(
+        action=action,
+        board=board,
+        board_id=board_id,
+        inputs=inputs,
+        instance=lent.instance,
+        with_live=lent.with_live,
+        reader=lent.reader,
+        invalidate=lent.invalidate,
+    )
     try:
-        return driver.plugin.run_action(action, inputs)
+        return _normalise(definition.plugin_class.handle_action(ctx))
+    except OutputActionError:
+        raise
+    except Exception as exc:
+        refusal = _as_refusal(exc)
+        if refusal is not None:
+            raise refusal from exc
+        raise
     finally:
-        driver.close()
+        lent.close()
 
 
-async def _dispatch_plugin(definition: OutputDefinition, call: ActionCall) -> ActionOutcome:
-    if call.action == "discover":
-        raw = call.inputs.get("timeout", 4.0)
-        timeout = min(max(float(raw), 1.0), 15.0) if isinstance(raw, (int, float)) else 4.0
-        hook = definition.hooks.discover
-        devices = await asyncio.to_thread(hook, timeout) if hook is not None else []
-        return ActionOutcome(message=f"Found {len(devices)} device(s).", devices=tuple(devices))
-    return _normalise(await asyncio.to_thread(_run_on_plugin_instance, call.board, call.action, call.inputs))
+async def execute_action(
+    definition: OutputDefinition,
+    action: str,
+    *,
+    board: Mapping[str, Any],
+    board_id: str | None,
+    inputs: Mapping[str, Any],
+    live_driver: Callable[[str], Any] | None = None,
+    invalidate: Callable[[str], None] | None = None,
+) -> ActionOutcome:
+    """Run *action* of *definition*'s output on *board*; the outcome, unenveloped.
+
+    The legacy routes' door (and :func:`_run`'s). Runs on the bounded
+    board-send pool. *live_driver* finds a saved board's live driver and
+    *invalidate* makes core re-send its content: the caller's seams, else
+    :func:`src.display_runtime.live_driver` and the display service's
+    ``invalidate_board_content``.
+
+    Raises:
+        OutputActionError: refused before (or instead of) contacting the
+            device — the 4xx/503 to answer.
+        Exception: anything else the output raised (the caller decides).
+    """
+    from src.board_send_executor import run_board_send
+
+    if definition.plugin_class is None:  # pragma: no cover - a test's stand-in entry
+        raise UnknownOutputAction(definition.id, action)
+    return await run_board_send(
+        _execute_sync,
+        definition,
+        action,
+        board,
+        board_id,
+        dict(inputs),
+        live_driver or _default_live_driver,
+        invalidate or _default_invalidate,
+    )
 
 
 def _with_fills(spec: OutputActionSpec, outcome: ActionOutcome) -> dict[str, Any] | None:
@@ -149,28 +295,30 @@ def _with_fills(spec: OutputActionSpec, outcome: ActionOutcome) -> dict[str, Any
     return out
 
 
-async def _run(definition: OutputDefinition, spec: OutputActionSpec, call: ActionCall) -> dict[str, Any]:
+async def _run(
+    definition: OutputDefinition,
+    spec: OutputActionSpec,
+    *,
+    board: Mapping[str, Any],
+    board_id: str | None,
+    inputs: Mapping[str, Any],
+) -> dict[str, Any]:
     try:
-        if definition.plugin:
-            outcome = await _dispatch_plugin(definition, call)
-        elif definition.hooks.dispatch is not None:
-            outcome = await definition.hooks.dispatch(call)
-        else:  # pragma: no cover - every built-in declares a dispatcher
-            raise UnknownOutputAction(definition.id, call.action)
+        outcome = await execute_action(definition, spec.id, board=board, board_id=board_id, inputs=inputs)
     except (OutputActionError, UnknownOutputAction, OutputPluginsDisabledError):
         raise
     except NotImplementedError:
-        logger.warning("Output %s declares action %s but does not implement it", definition.id, call.action)
+        logger.warning("Output %s declares action %s but does not implement it", definition.id, spec.id)
         outcome = ActionOutcome(status="error", message=f"{definition.name} does not implement '{spec.label}'.")
     except Exception as exc:
         # The exception type only: its message may carry what the plugin was handling.
-        logger.error("Output %s action %s failed: %s", definition.id, call.action, type(exc).__name__)
+        logger.error("Output %s action %s failed: %s", definition.id, spec.id, type(exc).__name__)
         outcome = ActionOutcome(status="error", message=f"'{spec.label}' failed unexpectedly.")
     logger.info(
         "Output %s action %s on %s: %s",
         definition.id,
-        call.action,
-        call.board_id or "a draft",
+        spec.id,
+        board_id or "a draft",
         outcome.status,
     )
     return {
@@ -186,11 +334,15 @@ async def _run(definition: OutputDefinition, spec: OutputActionSpec, call: Actio
 # --- the two doors ---------------------------------------------------------------------------------
 
 
-def _draft_board(definition: OutputDefinition, config: dict[str, Any], device_model: str | None) -> dict:
+def draft_board(definition: OutputDefinition, config: dict[str, Any], device_model: str | None = None) -> dict:
+    """The board an action on draft settings runs on: no id, the settings
+    as its ``output_config``. A first-party draft's own facts
+    (``device_type``, ``notes_wide`` …) ride in its settings, as they
+    always did."""
     if definition.id == VESTABOARD:
-        return {**config, "output": VESTABOARD}
+        return {**config, "output": VESTABOARD, "output_config": config}
     if definition.id == FIESTAPANEL:
-        return {**config, "output": FIESTAPANEL, "api_mode": "virtual"}
+        return {**config, "output": FIESTAPANEL, "api_mode": "virtual", "output_config": {}}
     manifest = definition.output_manifest
     model = device_model or (manifest.device_model_ids[0] if manifest is not None else None)
     return {"output": definition.id, "output_config": config, "device_model": model, "device_type": "panel"}
@@ -211,43 +363,31 @@ async def run_draft_action(
         InvalidOutputConfigError (a masked secret), InvalidActionInputError,
         OutputActionError (refused before the device was contacted).
     """
+    from .config_hooks import masked_config_paths
+
     definition = _definition(output_id)
     spec = _spec(definition, action)
-    schema = definition.settings_schema if definition.plugin else None
-    masked = masked_secret_paths(output_config, schema or {}) if schema else _flat_masked(output_config)
+    masked = masked_config_paths(output_id, output_config)
     if masked:
         raise InvalidOutputConfigError(f"A draft has no stored secret to restore: enter {', '.join(masked)}")
     if device_model is not None and definition.plugin and device_model not in definition.offered_device_models:
         raise InvalidOutputConfigError(f"Output '{output_id}' declares no device model '{device_model}'")
-    call = ActionCall(
-        action=action,
-        board=_draft_board(definition, dict(output_config), device_model),
-        board_id=None,
-        inputs=_checked_input(spec, dict(inputs)),
-    )
-    return await _run(definition, spec, call)
+    board = draft_board(definition, dict(output_config), device_model)
+    return await _run(definition, spec, board=board, board_id=None, inputs=_checked_input(spec, dict(inputs)))
 
 
-def _flat_masked(config: Mapping[str, Any]) -> list[str]:
-    """Masked credentials in a built-in board's flat settings."""
-    from src.outputs.vestaboard.connection import TILE_SENSITIVE_FIELDS
-    from src.settings.service import BOARD_SENSITIVE_FIELDS
+def saved_board(board_id: str, output_config: dict[str, Any] | None = None) -> dict[str, Any]:
+    """Saved board *board_id* as an action runs on it: the stored board,
+    with an edited ``output_config`` merged in and every ``"***"`` restored.
 
-    found = [key for key in sorted(BOARD_SENSITIVE_FIELDS) if config.get(key) == "***"]
-    for i, tile in enumerate(config.get("tiles") or []):
-        if isinstance(tile, Mapping):
-            found += [f"tiles[{i}].{key}" for key in sorted(TILE_SENSITIVE_FIELDS) if tile.get(key) == "***"]
-    return found
-
-
-def _saved_board(board_id: str, output_config: dict[str, Any] | None) -> dict[str, Any]:
+    Raises:
+        BoardNotFoundError, InvalidOutputConfigError.
+    """
     from src.settings.service import restore_masked_board_secrets
 
     stored = next((b for b in _settings_service().get_board_settings().boards if b.get("id") == board_id), None)
     if stored is None:
         raise BoardNotFoundError(board_id)
-    from src.settings.board_shape import board_view
-
     output_id = resolve_output_id(stored)
     if output_config is None:
         board = dict(stored)
@@ -263,8 +403,11 @@ def _saved_board(board_id: str, output_config: dict[str, Any] | None) -> dict[st
             board = restore_masked_board_secrets(incoming, stored)
         except ValueError as exc:
             raise InvalidOutputConfigError(str(exc)) from exc
-    # The first-party actions read a board's connection in the flat shape.
-    return board_view(board) if output_id in (VESTABOARD, FIESTAPANEL) else board
+    from src.devices import BoardInstance
+
+    # The settings-v4 shape whatever was stored: the output reads its
+    # output_config, normalised the way the board is saved.
+    return BoardInstance.from_dict(board).to_dict()
 
 
 async def run_saved_action(
@@ -277,11 +420,10 @@ async def run_saved_action(
         UnknownOutputAction, InvalidOutputConfigError, InvalidActionInputError,
         OutputActionError.
     """
-    board = _saved_board(board_id, output_config)
+    board = saved_board(board_id, output_config)
     definition = _definition(resolve_output_id(board))
     spec = _spec(definition, action)
-    call = ActionCall(action=action, board=board, board_id=board_id, inputs=_checked_input(spec, dict(inputs)))
-    return await _run(definition, spec, call)
+    return await _run(definition, spec, board=board, board_id=board_id, inputs=_checked_input(spec, dict(inputs)))
 
 
 # --- GET /outputs -----------------------------------------------------------------------------------

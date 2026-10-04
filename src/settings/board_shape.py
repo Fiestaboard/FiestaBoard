@@ -51,9 +51,11 @@ _V3_ORDER: tuple[str, ...] = (
 
 
 def _defaults() -> dict[str, Any]:
-    from src.outputs.vestaboard.connection import CONNECTION_DEFAULTS
+    """The flat fields' defaults: the Vestaboard output declares them
+    (:func:`src.outputs.config_hooks.legacy_flat_fields`)."""
+    from src.outputs.config_hooks import legacy_flat_fields
 
-    return {k: (list(v) if isinstance(v, list) else v) for k, v in CONNECTION_DEFAULTS.items()}
+    return legacy_flat_fields()
 
 
 def flat_connection(board: Mapping[str, Any]) -> dict[str, Any]:
@@ -62,7 +64,7 @@ def flat_connection(board: Mapping[str, Any]) -> dict[str, Any]:
     A Vestaboard's come from its ``output_config`` (over any flat fields a
     v3 dict still carries); a FiestaPanel reads ``api_mode: "virtual"``; an
     output plugin's board reads the v3 defaults it was always stored with.
-    Values are as stored, unset ones default.
+    Values are as stored (core interprets none of them), unset ones default.
     """
     output = derive_output_id(board)
     values = _defaults()

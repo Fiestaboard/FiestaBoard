@@ -2,9 +2,9 @@
 
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, Literal
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 
 class ApiInfoResponse(BaseModel):
@@ -40,6 +40,16 @@ class DiscoverResponse(BaseModel):
     name: str
 
 
+class OutputStatusSummary(BaseModel):
+    """A board's connection summary, as its output reads the board's
+    settings: what the board card's Connected / Not configured badge shows."""
+
+    state: Literal["connected", "not_configured"] = Field(
+        description="connected: the board has the details its output needs; not_configured: it does not."
+    )
+    message: str = Field(default="", description="The output's own words about it, if any.")
+
+
 class BoardStatus(BaseModel):
     """Per-board runtime state (issue #1244)."""
 
@@ -48,6 +58,9 @@ class BoardStatus(BaseModel):
     active_page_id: str | None = None
     #: Why this board failed to get a client at startup, if it did (#1749).
     error: str | None = None
+    #: The board's connection summary from its output (plan D13), or None
+    #: when the output has nothing to say (a FiestaPanel is always connected).
+    output_status: OutputStatusSummary | None = None
 
 
 class StatusResponse(BaseModel):

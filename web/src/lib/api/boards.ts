@@ -18,6 +18,17 @@ export interface BoardStatus {
    * the fleet keeps running.
    */
   error?: string | null;
+  /**
+   * The board's connection summary as its output reads the board's settings
+   * (plan D13 `status`): the board card's Connected / Not configured badge.
+   * `null` when the output has nothing to say.
+   */
+  output_status?: OutputStatusSummary | null;
+}
+
+export interface OutputStatusSummary {
+  state: "connected" | "not_configured";
+  message: string;
 }
 
 export interface BoardCurrentMessageResponse {
