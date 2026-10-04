@@ -501,10 +501,9 @@
       "finishTitle": "Completa l'accesso",
       "finishStepSignIn": "Accedi a {provider} nella nuova scheda.",
       "finishStepCantConnect": "Alla fine quella scheda mostra un errore come «impossibile connettersi a 127.0.0.1» o «Impossibile raggiungere il sito». È normale: non è andato storto nulla.",
-      "finishStepCopy": "Copia l'indirizzo completo dalla barra degli indirizzi di quella scheda e incollalo qui sotto.",
+      "finishStepCopy": "Copia l'indirizzo completo dalla barra degli indirizzi di quella scheda, torna a questa scheda e incollalo qui sotto.",
       "finishPasteLabel": "Indirizzo dalla scheda di {provider}",
       "finishPasteDescription": "È lungo e inizia con http://127.0.0.1. Incollalo tutto.",
-      "finishBlocked": "Il browser ha bloccato la nuova scheda.",
       "finishOpenLink": "Apri la pagina di accesso di {provider}",
       "finishDone": "Accesso a {provider} effettuato."
     },

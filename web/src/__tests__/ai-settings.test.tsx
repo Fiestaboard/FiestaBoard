@@ -1,5 +1,5 @@
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { render, screen, waitFor, within } from "@testing-library/react";
+import { focusManager, QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { act, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { http, HttpResponse } from "msw";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -730,6 +730,111 @@ describe("AiSettings", () => {
       expect(screen.queryByLabelText("API Key")).not.toBeInTheDocument();
       // Already saved: nothing waits on Save changes.
       expect(screen.queryByRole("button", { name: /save changes/i })).not.toBeInTheDocument();
+    });
+
+    it("Sign in > ChatGPT: the finish step survives a refetch on returning to the tab, and the pasted address signs in", async () => {
+      const AUTHORIZE_URL = "https://auth.example.com/oauth/authorize?client_id=test_client";
+      const LANDED = "http://127.0.0.1:1455/auth/callback?code=test_code&state=test_state";
+      const bodies = captureSaves();
+      let connectedAt: number | null = null;
+      let settingsReads = 0;
+      const completes: { id: unknown; body: unknown }[] = [];
+      const savedProviders = () => (bodies.at(-1)?.providers ?? []) as Array<{ id: string }>;
+      const connection = (id: string) => ({
+        id: `ai.${id}`,
+        kind: "ai",
+        plugin_id: "ai",
+        instance_label: null,
+        plugin_name: "ChatGPT (FiestaBot)",
+        provider_name: "ChatGPT",
+        flows: ["relay"],
+        configured: true,
+        user_app: false,
+        shared_app: true,
+        client_id_setting: null,
+        client_secret_setting: null,
+        app_setup_url: "",
+        status: connectedAt ? "connected" : "disconnected",
+        scopes: [],
+        expires_at: null,
+        connected_at: connectedAt,
+        device: null,
+        paste_expected: true,
+      });
+      server.use(
+        // As the board does: what was saved is what a refetch reads back.
+        http.get(`${API_BASE}/settings/ai`, () => {
+          settingsReads += 1;
+          return HttpResponse.json({ enabled: false, default_provider_id: null, providers: [], ...bodies.at(-1) });
+        }),
+        http.get(`${API_BASE}/oauth/connections`, () =>
+          HttpResponse.json({
+            redirect_uri: "https://fiestaboard.app/auth/oauth/redirect",
+            connections: savedProviders().map((p) => connection(p.id)),
+          }),
+        ),
+        http.post(`${API_BASE}/oauth/connections/:id/authorize`, () =>
+          HttpResponse.json({
+            flow: "relay",
+            device: null,
+            authorization_url: AUTHORIZE_URL,
+            paste_expected: true,
+            paste_hint: "",
+          }),
+        ),
+        http.post(`${API_BASE}/oauth/connections/:id/complete`, async ({ params, request }) => {
+          completes.push({ id: params.id, body: await request.json() });
+          connectedAt = 1_900_000_000;
+          return HttpResponse.json(connection(savedProviders()[0].id));
+        }),
+        http.get(`${API_BASE}/settings/ai/providers/:id/models`, () => HttpResponse.json({ models: [] })),
+      );
+      const open = vi.fn();
+      vi.stubGlobal("open", open);
+      const queryClient = new QueryClient({
+        defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
+      });
+      const user = userEvent.setup();
+      render(
+        <QueryClientProvider client={queryClient}>
+          <AiSettings />
+        </QueryClientProvider>,
+      );
+      await screen.findByText(/no providers configured yet/i);
+      await user.click(screen.getByRole("button", { name: /add provider/i }));
+      await user.click(screen.getByRole("button", { name: "Sign in" }));
+      await user.click(
+        within(screen.getByRole("group", { name: "Sign in with" })).getByRole("button", { name: "ChatGPT" }),
+      );
+      const panel = await screen.findByTestId("oauth-connection");
+      await user.click(within(panel).getByRole("button", { name: "Sign in with ChatGPT" }));
+
+      const step = await screen.findByRole("group", { name: "Finish signing in" });
+      expect(open).not.toHaveBeenCalled();
+      expect(within(step).getByRole("link", { name: /Open the ChatGPT sign-in page/ })).toHaveAttribute(
+        "href",
+        AUTHORIZE_URL,
+      );
+
+      // The user leaves for ChatGPT and comes back: every stale query
+      // refetches, the providers included.
+      const readsBefore = settingsReads;
+      act(() => {
+        focusManager.setFocused(false);
+        focusManager.setFocused(true);
+      });
+      await waitFor(() => expect(settingsReads).toBeGreaterThan(readsBefore));
+      focusManager.setFocused(undefined);
+
+      const field = await screen.findByLabelText("Address from the ChatGPT tab");
+      await user.type(field, LANDED);
+      await user.click(screen.getByRole("button", { name: "Finish sign-in" }));
+
+      const id = savedProviders()[0].id;
+      await waitFor(() => expect(completes).toEqual([{ id: `ai.${id}`, body: { pasted: LANDED } }]));
+      expect(await screen.findByText("Signed in to ChatGPT.")).toBeInTheDocument();
+      expect(screen.queryByRole("group", { name: "Finish signing in" })).not.toBeInTheDocument();
+      vi.unstubAllGlobals();
     });
 
     it("Use an API key: asks only for the key and the model", async () => {

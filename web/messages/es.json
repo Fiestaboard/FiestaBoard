@@ -501,10 +501,9 @@
       "finishTitle": "Termina de iniciar sesión",
       "finishStepSignIn": "Inicia sesión en {provider} en la pestaña nueva.",
       "finishStepCantConnect": "Al terminar, esa pestaña muestra un error como «no se puede conectar con 127.0.0.1» o «No se puede acceder a este sitio». Es lo esperado: no ha fallado nada.",
-      "finishStepCopy": "Copia la dirección completa de la barra de direcciones de esa pestaña y pégala abajo.",
+      "finishStepCopy": "Copia la dirección completa de la barra de direcciones de esa pestaña, vuelve a esta pestaña y pégala abajo.",
       "finishPasteLabel": "Dirección de la pestaña de {provider}",
       "finishPasteDescription": "Es larga y empieza por http://127.0.0.1. Pégala entera.",
-      "finishBlocked": "Tu navegador bloqueó la pestaña nueva.",
       "finishOpenLink": "Abrir la página de inicio de sesión de {provider}",
       "finishDone": "Sesión iniciada en {provider}."
     },

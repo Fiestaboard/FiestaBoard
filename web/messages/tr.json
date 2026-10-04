@@ -501,10 +501,9 @@
       "finishTitle": "Oturum açmayı tamamlayın",
       "finishStepSignIn": "Yeni sekmede {provider} hesabınızla oturum açın.",
       "finishStepCantConnect": "Ardından o sekme \"127.0.0.1 adresine bağlanılamıyor\" ya da \"Bu siteye ulaşılamıyor\" gibi bir hata gösterir. Bu beklenen bir durum: hiçbir şey ters gitmedi.",
-      "finishStepCopy": "O sekmenin adres çubuğundaki adresin tamamını kopyalayıp aşağıya yapıştırın.",
+      "finishStepCopy": "O sekmenin adres çubuğundaki adresin tamamını kopyalayın, bu sekmeye dönün ve aşağıya yapıştırın.",
       "finishPasteLabel": "{provider} sekmesindeki adres",
       "finishPasteDescription": "Uzundur ve http://127.0.0.1 ile başlar. Tamamını yapıştırın.",
-      "finishBlocked": "Tarayıcınız yeni sekmeyi engelledi.",
       "finishOpenLink": "{provider} oturum açma sayfasını aç",
       "finishDone": "{provider} oturumu açıldı."
     },

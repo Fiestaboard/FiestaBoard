@@ -501,10 +501,9 @@
       "finishTitle": "Aanmelden afronden",
       "finishStepSignIn": "Meld je aan bij {provider} in het nieuwe tabblad.",
       "finishStepCantConnect": "Daarna toont dat tabblad een fout zoals 'kan geen verbinding maken met 127.0.0.1' of 'Deze site is niet bereikbaar'. Dat hoort zo: er is niets misgegaan.",
-      "finishStepCopy": "Kopieer het volledige adres uit de adresbalk van dat tabblad en plak het hieronder.",
+      "finishStepCopy": "Kopieer het volledige adres uit de adresbalk van dat tabblad, ga terug naar dit tabblad en plak het hieronder.",
       "finishPasteLabel": "Adres uit het {provider}-tabblad",
       "finishPasteDescription": "Het is lang en begint met http://127.0.0.1. Plak het helemaal.",
-      "finishBlocked": "Je browser heeft het nieuwe tabblad geblokkeerd.",
       "finishOpenLink": "Aanmeldpagina van {provider} openen",
       "finishDone": "Aangemeld bij {provider}."
     },

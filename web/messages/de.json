@@ -501,10 +501,9 @@
       "finishTitle": "Anmeldung abschließen",
       "finishStepSignIn": "Melde dich im neuen Tab bei {provider} an.",
       "finishStepCantConnect": "Danach zeigt dieser Tab einen Fehler wie „Verbindung zu 127.0.0.1 nicht möglich“ oder „Diese Website ist nicht erreichbar“. Das ist so gewollt: Es ist nichts schiefgegangen.",
-      "finishStepCopy": "Kopiere die vollständige Adresse aus der Adressleiste dieses Tabs und füge sie unten ein.",
+      "finishStepCopy": "Kopiere die vollständige Adresse aus der Adressleiste dieses Tabs, kehre zu diesem Tab zurück und füge sie unten ein.",
       "finishPasteLabel": "Adresse aus dem {provider}-Tab",
       "finishPasteDescription": "Sie ist lang und beginnt mit http://127.0.0.1. Füge sie vollständig ein.",
-      "finishBlocked": "Dein Browser hat den neuen Tab blockiert.",
       "finishOpenLink": "Anmeldeseite von {provider} öffnen",
       "finishDone": "Bei {provider} angemeldet."
     },

@@ -501,10 +501,9 @@
       "finishTitle": "Concluir o login",
       "finishStepSignIn": "Entre no {provider} na nova aba.",
       "finishStepCantConnect": "Ao terminar, essa aba mostra um erro como \"não é possível conectar a 127.0.0.1\" ou \"Não é possível acessar esse site\". É o esperado: nada deu errado.",
-      "finishStepCopy": "Copie o endereço completo da barra de endereços dessa aba e cole abaixo.",
+      "finishStepCopy": "Copie o endereço completo da barra de endereços dessa aba, volte para esta aba e cole abaixo.",
       "finishPasteLabel": "Endereço da aba do {provider}",
       "finishPasteDescription": "É longo e começa com http://127.0.0.1. Cole tudo.",
-      "finishBlocked": "O seu navegador bloqueou a nova aba.",
       "finishOpenLink": "Abrir a página de login do {provider}",
       "finishDone": "Login no {provider} concluído."
     },

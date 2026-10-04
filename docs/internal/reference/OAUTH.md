@@ -193,11 +193,14 @@ in (a headless `key_exchange`), because nothing else binds it to a flow. Refusal
 A connection whose provider has a `redirect_uri_override` (ChatGPT's
 loopback-only redirect) reports `paste_expected: true` on
 `GET /oauth/connections`, so the UI knows before a sign-in starts that it
-can only finish by paste. It opens the provider in a new tab from the click
-itself (a tab opened after the authorize request returns is blocked by
-Safari), keeps the board's tab on an open, focused "Finish signing in"
-step, and says up front that the provider's tab will end on a page that
-cannot load.
+can only finish by paste. Pressing sign-in opens nothing: the board's tab
+shows a "Finish signing in" step first, with the provider behind a plain
+`target="_blank"` link (focused), the warning that the provider's tab will end
+on a page that cannot load, and the paste box. Opening the tab from the click
+itself was tried and dropped: the new tab took focus at once, so the steps
+rendered in a tab the user had already left, and on a test board they never
+came back to paste. A plain link also needs no popup-blocker workaround. When
+the board's tab becomes visible again, the empty paste field takes focus.
 
 **Plugins can report a rejected token.** (9.11.0, closes Known Gap 1)
 `report_oauth_rejected()` forces one refresh, at most once per 60 seconds per

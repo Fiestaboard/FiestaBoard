@@ -501,10 +501,9 @@
       "finishTitle": "로그인 마치기",
       "finishStepSignIn": "새 탭에서 {provider}에 로그인하세요.",
       "finishStepCantConnect": "마치면 그 탭에 \"127.0.0.1에 연결할 수 없음\"이나 \"사이트에 연결할 수 없음\" 같은 오류가 표시됩니다. 정상입니다. 잘못된 것은 없습니다.",
-      "finishStepCopy": "그 탭의 주소 표시줄에서 전체 주소를 복사해 아래에 붙여 넣으세요.",
+      "finishStepCopy": "그 탭의 주소 표시줄에서 전체 주소를 복사한 뒤 이 탭으로 돌아와 아래에 붙여 넣으세요.",
       "finishPasteLabel": "{provider} 탭의 주소",
       "finishPasteDescription": "길고 http://127.0.0.1로 시작합니다. 전부 붙여 넣으세요.",
-      "finishBlocked": "브라우저가 새 탭을 차단했습니다.",
       "finishOpenLink": "{provider} 로그인 페이지 열기",
       "finishDone": "{provider}에 로그인했습니다."
     },

@@ -757,82 +757,62 @@ describe("a sign-in that can only finish by paste (ChatGPT's loopback redirect)"
     expect(screen.queryByText(/by way of fiestaboard.app/)).not.toBeInTheDocument();
   });
 
-  it("opens the new tab in the click itself, before the board answers, so no popup blocker stops it", async () => {
+  it("opens nothing on the click: this tab shows the steps, the link and the paste box first", async () => {
+    // A tab opened in the click took the user's eyes with it: the steps and
+    // the paste box rendered in a tab they had already left, and on the test
+    // board they never came back to it (no /complete was ever sent; the tab
+    // stayed hidden until the sign-in was finished some other way). Now the
+    // steps are read before anything leaves this tab, and the provider opens
+    // from a plain link, which no popup blocker refuses.
     serveConnections(CHATGPT);
-    const tab = fakeTab();
-    const open = vi.fn(() => tab);
+    const open = vi.fn();
     vi.stubGlobal("open", open);
-    let answer!: () => void;
-    serveStart(() => new Promise<void>((resolve) => (answer = resolve)));
     const assign = vi.fn();
     vi.stubGlobal("location", { ...window.location, origin: window.location.origin, assign });
-    const user = userEvent.setup();
-    renderPanel();
-    await user.click(await screen.findByRole("button", { name: "Sign in with ChatGPT" }));
-
-    expect(open).toHaveBeenCalledTimes(1);
-    expect(tab.location.replace).not.toHaveBeenCalled();
-    // The provider's page never gets a handle on this one.
-    expect(tab.opener).toBeNull();
-
-    answer();
-    await waitFor(() => expect(tab.location.replace).toHaveBeenCalledWith(AUTHORIZE_URL));
-    // This tab stays on the board: it is where the address gets pasted.
-    expect(assign).not.toHaveBeenCalled();
-  });
-
-  it("keeps this tab on an open, focused step 2 that says the dead end is expected", async () => {
-    serveConnections(CHATGPT);
-    vi.stubGlobal(
-      "open",
-      vi.fn(() => fakeTab()),
-    );
     serveStart();
     const user = userEvent.setup();
     renderPanel();
     await user.click(await screen.findByRole("button", { name: "Sign in with ChatGPT" }));
 
     const step = await screen.findByRole("group", { name: "Finish signing in" });
+    expect(open).not.toHaveBeenCalled();
+    expect(assign).not.toHaveBeenCalled();
+    const link = within(step).getByRole("link", { name: /Open the ChatGPT sign-in page/ });
+    expect(link).toHaveAttribute("href", AUTHORIZE_URL);
+    expect(link).toHaveAttribute("target", "_blank");
+    expect(link).toHaveAttribute("rel", expect.stringContaining("noopener"));
+    // The next thing to do is open it, so that is where focus goes.
+    await waitFor(() => expect(link).toHaveFocus());
     expect(within(step).getByText("Sign in to ChatGPT in the new tab.")).toBeInTheDocument();
     expect(within(step).getByText(/can't connect/)).toBeInTheDocument();
     expect(within(step).getByText(/That's expected/)).toBeInTheDocument();
-    expect(within(step).getByText(/Copy the whole address/)).toBeInTheDocument();
-    const field = within(step).getByLabelText("Address from the ChatGPT tab");
-    await waitFor(() => expect(field).toHaveFocus());
+    expect(within(step).getByText(/come back to this tab/)).toBeInTheDocument();
+    expect(within(step).getByLabelText("Address from the ChatGPT tab")).toBeInTheDocument();
     // Not tucked behind "didn't come back?": there is nothing to come back.
     expect(screen.queryByRole("button", { name: /didn't come back/ })).not.toBeInTheDocument();
-    expect(within(step).getByRole("link", { name: /Open the sign-in page again/ })).toHaveAttribute(
-      "href",
-      AUTHORIZE_URL,
-    );
   });
 
-  it("offers a link to the provider when the browser blocked the new tab", async () => {
+  it("puts the cursor in the paste field when the user comes back to this tab", async () => {
     serveConnections(CHATGPT);
-    vi.stubGlobal(
-      "open",
-      vi.fn(() => null),
-    );
     serveStart();
     const user = userEvent.setup();
     renderPanel();
     await user.click(await screen.findByRole("button", { name: "Sign in with ChatGPT" }));
+    const field = await screen.findByLabelText("Address from the ChatGPT tab");
+    expect(field).not.toHaveFocus();
 
-    const step = await screen.findByRole("group", { name: "Finish signing in" });
-    expect(within(step).getByText("Your browser blocked the new tab.")).toBeInTheDocument();
-    expect(within(step).getByRole("link", { name: /Open the ChatGPT sign-in page/ })).toHaveAttribute(
-      "href",
-      AUTHORIZE_URL,
-    );
+    const visibility = vi.spyOn(document, "visibilityState", "get");
+    visibility.mockReturnValue("hidden");
+    document.dispatchEvent(new Event("visibilitychange"));
+    visibility.mockReturnValue("visible");
+    document.dispatchEvent(new Event("visibilitychange"));
+
+    await waitFor(() => expect(field).toHaveFocus());
+    visibility.mockRestore();
   });
 
-  it("closes the blank tab when the sign-in could not start", async () => {
+  it("shows no finish step when the sign-in could not start", async () => {
     serveConnections(CHATGPT);
-    const tab = fakeTab();
-    vi.stubGlobal(
-      "open",
-      vi.fn(() => tab),
-    );
     server.use(
       http.post(`${API_BASE}/oauth/connections/ai.gpt/authorize`, () =>
         HttpResponse.json({ detail: "The provider is unreachable." }, { status: 502 }),
@@ -841,7 +821,7 @@ describe("a sign-in that can only finish by paste (ChatGPT's loopback redirect)"
     const user = userEvent.setup();
     renderPanel();
     await user.click(await screen.findByRole("button", { name: "Sign in with ChatGPT" }));
-    await waitFor(() => expect(tab.close).toHaveBeenCalled());
+    await waitFor(() => expect(screen.getByRole("button", { name: "Sign in with ChatGPT" })).toBeEnabled());
     expect(screen.queryByRole("group", { name: "Finish signing in" })).not.toBeInTheDocument();
   });
 

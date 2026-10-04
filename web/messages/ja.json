@@ -501,10 +501,9 @@
       "finishTitle": "サインインを完了する",
       "finishStepSignIn": "新しいタブで {provider} にサインインします。",
       "finishStepCantConnect": "終わると、そのタブには「127.0.0.1 に接続できません」や「このサイトにアクセスできません」などのエラーが表示されます。これは想定どおりで、問題はありません。",
-      "finishStepCopy": "そのタブのアドレスバーからアドレス全体をコピーし、下に貼り付けます。",
+      "finishStepCopy": "そのタブのアドレスバーからアドレス全体をコピーし、このタブに戻って下に貼り付けます。",
       "finishPasteLabel": "{provider} タブのアドレス",
       "finishPasteDescription": "長いアドレスで、http://127.0.0.1 で始まります。すべて貼り付けてください。",
-      "finishBlocked": "ブラウザーが新しいタブをブロックしました。",
       "finishOpenLink": "{provider} のサインインページを開く",
       "finishDone": "{provider} にサインインしました。"
     },

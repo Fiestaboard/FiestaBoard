@@ -165,20 +165,22 @@ API key field is left as it is.
 **ChatGPT** cannot send you straight back to your board, so the sign-in
 is planned around that:
 
-1. Press **Sign in with ChatGPT**. ChatGPT opens in a new tab, and
-   Settings stays open on a **Finish signing in** step.
+1. Press **Sign in with ChatGPT**. Settings shows a **Finish signing
+   in** step with these instructions and a box to paste into. Read
+   them, then choose **Open the ChatGPT sign-in page**. ChatGPT opens
+   in a new tab.
 2. Sign in and approve FiestaBoard in the ChatGPT tab. That tab then
    ends on an error page, such as "can't connect to 127.0.0.1" or
    "This site can't be reached". **That is expected**: nothing went
    wrong.
 3. Copy that tab's whole address from the address bar (it starts with
-   `http://127.0.0.1`), paste it into the **Finish signing in** step,
-   and press **Finish sign-in**. The panel then says you are signed in.
+   `http://127.0.0.1`), come back to the FiestaBoard tab, paste it into
+   the **Finish signing in** step, and press **Finish sign-in**. The
+   panel then says you are signed in.
 
-If your browser blocks the new tab, the step shows a link that opens
-the ChatGPT sign-in page. For the other providers, a sign-in that does
-not come back by itself can be finished the same way: choose **Sign-in
-didn't come back? Paste the address or code**.
+For the other providers, a sign-in that does not come back by itself
+can be finished the same way: choose **Sign-in didn't come back?
+Paste the address or code**.
 
 **OpenRouter** can also be signed in without a browser redirect:
 choose **Sign in without a browser redirect**, approve, and paste the

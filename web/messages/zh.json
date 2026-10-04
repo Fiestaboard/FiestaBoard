@@ -501,10 +501,9 @@
       "finishTitle": "完成登录",
       "finishStepSignIn": "在新标签页中登录 {provider}。",
       "finishStepCantConnect": "完成后，该标签页会显示类似“无法连接到 127.0.0.1”或“无法访问此网站”的错误。这是正常的，并没有出错。",
-      "finishStepCopy": "从该标签页的地址栏复制完整地址，粘贴到下方。",
+      "finishStepCopy": "从该标签页的地址栏复制完整地址，回到此标签页，粘贴到下方。",
       "finishPasteLabel": "{provider} 标签页中的地址",
       "finishPasteDescription": "地址很长，以 http://127.0.0.1 开头。请完整粘贴。",
-      "finishBlocked": "浏览器拦截了新标签页。",
       "finishOpenLink": "打开 {provider} 登录页面",
       "finishDone": "已登录 {provider}。"
     },

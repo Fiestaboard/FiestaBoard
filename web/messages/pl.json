@@ -501,10 +501,9 @@
       "finishTitle": "Dokończ logowanie",
       "finishStepSignIn": "Zaloguj się do {provider} w nowej karcie.",
       "finishStepCantConnect": "Potem ta karta pokaże błąd typu „nie można połączyć się z 127.0.0.1” lub „Nie można uzyskać dostępu do tej witryny”. Tak ma być: nic się nie zepsuło.",
-      "finishStepCopy": "Skopiuj cały adres z paska adresu tej karty i wklej go poniżej.",
+      "finishStepCopy": "Skopiuj cały adres z paska adresu tej karty, wróć do tej karty i wklej go poniżej.",
       "finishPasteLabel": "Adres z karty {provider}",
       "finishPasteDescription": "Jest długi i zaczyna się od http://127.0.0.1. Wklej go w całości.",
-      "finishBlocked": "Przeglądarka zablokowała nową kartę.",
       "finishOpenLink": "Otwórz stronę logowania {provider}",
       "finishDone": "Zalogowano do {provider}."
     },
