@@ -267,15 +267,41 @@ def test_undrawable_character_is_a_blank_cell():
     assert layout.cells[1].glyph == " "
 
 
-def test_a_set_glyph_once_seen_keeps_its_identity_but_draws_nothing_without_the_set():
-    # FiestaUI registers a set's own characters process-wide (EXTRA_GLYPHS);
-    # the port does the same, so glyph identity (and the flip's seed) agrees.
+def test_a_sets_own_glyph_never_leaks_into_a_layout_without_the_set():
+    # No global glyph state (FiestaUI bb43600): a custom character resolves
+    # only through the layout's own set, whatever was laid out before.
     set_ = materialize_character_set({**ACME, "id": "acme_reg_v1", "chars": ["A", "Ŧ"], "glyphs": {"Ŧ": ["###"] * 5}})
-    layout_message("Ŧ", S3, LedLayoutOptions(charset=set_))
+    assert layout_message("Ŧ", S3, LedLayoutOptions(charset=set_)).cells[0].glyph == "Ŧ"
     later = layout_message("Ŧ", S3)
-    assert later.cells[0].glyph == "Ŧ"
+    assert later.cells[0].glyph == " "
     assert later.text == ""
     assert lit(rasterize(later)) == 0
+
+
+@pytest.mark.parametrize(
+    ("markup", "key"),
+    [
+        ("{red}", "tile:63"),
+        ("{63}", "tile:63"),
+        ("{purple}", "tile:68"),
+        ("{white}", "tile:69"),
+        ("{black}", "tile:70"),
+        ("{70}", "tile:70"),
+        ("{71}", "tile:70"),
+        ("{filled}", "tile:70"),
+        ("{icon:storm}", "icon:bolt"),
+        ("{icon:x}", "icon:cross"),
+        ("{icon:bus}", "icon:bus"),
+        ("{icon:heart}", "♥"),
+        ("❤", "♥"),
+        ("°", "°"),
+        ("A", "A"),
+        (" ", " "),
+        ("¤", " "),
+    ],
+)
+def test_cells_store_stable_glyph_keys(markup, key):
+    assert layout_message(markup, S3).cells[0].glyph == key
 
 
 # --- rich tokens in ---------------------------------------------------------

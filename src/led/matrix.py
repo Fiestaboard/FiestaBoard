@@ -60,7 +60,6 @@ __all__ = [
     "draw_glyph",
     "frame_to_ascii",
     "frame_to_bits",
-    "glyph_index",
     "glyph_key",
     "grid_layout",
     "layout_cells",
@@ -123,10 +122,13 @@ LED_MONO_COLORS: Mapping[str, str] = {
 #: Pure white: what a device is sent by default.
 DEFAULT_LED_TEXT_COLOR = "#ffffff"
 
-#: Every glyph an LED cell can show, as keys (FiestaUI ``LED_GLYPHS``): a
-#: character, ``tile:<code>`` or ``icon:<name>``. Membership only; FiestaUI
-#: stores an index into this table, which is process-local, so a cell here
-#: stores the key. Blank is ``" "``.
+#: Every glyph the built-in faces can show, as stable glyph keys (FiestaUI
+#: ``LED_GLYPHS``): a frozen membership table, never added to. A cell's
+#: ``glyph`` is its key, the same in every process: ``" "`` (blank), the
+#: character itself, ``tile:<numeric code>`` (``{red}`` and ``{63}`` are
+#: ``tile:63``; ``{black}``, ``{70}``, ``{71}`` and ``{filled}`` are
+#: ``tile:70``) or ``icon:<canonical name>`` (aliases resolved). A character
+#: beyond it resolves only through the layout's own set (``glyphs``).
 LED_GLYPHS: tuple[str, ...] = (
     " ",
     *"ABCDEFGHIJKLMNOPQRSTUVWXYZ",
@@ -138,9 +140,6 @@ LED_GLYPHS: tuple[str, ...] = (
     *(f"icon:{name}" for name in BOARD_ICONS),
 )
 _GLYPHS = frozenset(LED_GLYPHS)
-_GLYPH_INDEX = {key: i for i, key in enumerate(LED_GLYPHS)}
-#: Characters a set's own bitmaps added, in the order they were first seen.
-_EXTRA_INDEX: dict[str, int] = {}
 _BLANK = " "
 _BLANK_TOKEN = BoardToken("char", value=" ")
 
@@ -311,10 +310,11 @@ def _color_code_to_hex(code: str) -> str | None:
 
 
 def glyph_key(token: BoardToken, custom: Mapping[str, Sequence[str]] | None = None) -> str:
-    """The glyph a parsed token shows (FiestaUI ``ledGlyphIndex``).
+    """The stable glyph key a parsed token shows (FiestaUI ``ledGlyphKey``).
 
-    Unknown characters are blank, as on a flap, unless ``custom`` (a
-    character set's own bitmaps) has them.
+    Unknown characters are blank, as on a flap, unless ``custom`` (the
+    layout's own set's bitmaps) draws them. Pure: nothing is registered, so
+    the answer never depends on what was laid out before.
     """
     if token.icon:
         key = f"icon:{token.icon}"
@@ -323,25 +323,9 @@ def glyph_key(token: BoardToken, custom: Mapping[str, Sequence[str]] | None = No
         code = _TILE_CODE_BY_HEX.get(_resolve_color_code(token.code))
         return f"tile:{code}" if code else _BLANK
     value = token.value
-    if value in _GLYPHS or value in _EXTRA_INDEX:
-        return value
-    if custom is not None and value in custom:
-        _EXTRA_INDEX[value] = len(LED_GLYPHS) + len(_EXTRA_INDEX)
+    if value in _GLYPHS or (custom is not None and value in custom):
         return value
     return _BLANK
-
-
-def glyph_index(key: str) -> int:
-    """FiestaUI's integer glyph index for a key (``LED_GLYPHS`` position).
-
-    A character a set's own bitmaps add is appended on first sight, process
-    wide, exactly as FiestaUI's ``EXTRA_GLYPHS``. The index never crosses to a
-    device; it feeds the flip's seed (:func:`src.led.transitions.plan_transition`).
-    """
-    index = _GLYPH_INDEX.get(key)
-    if index is None:
-        index = _EXTRA_INDEX.get(key, 0)
-    return index
 
 
 def _glyph_rows(key: str, face: LedFont, custom: Mapping[str, Sequence[str]] | None) -> Sequence[str] | None:
