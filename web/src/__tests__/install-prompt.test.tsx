@@ -34,4 +34,25 @@ describe("InstallPrompt", () => {
     expect(banner).toHaveAttribute("aria-live", "polite");
     expect(banner).toHaveTextContent(/install/i);
   });
+
+  it.each(["/p/3", "/panel/abc123"])("never shows on the chromeless panel viewer (%s)", (path) => {
+    const before = window.location.pathname;
+    window.history.pushState({}, "", path);
+    try {
+      render(<InstallPrompt />);
+      const beforeInstall = Object.assign(new Event("beforeinstallprompt"), {
+        prompt: vi.fn().mockResolvedValue(undefined),
+        userChoice: Promise.resolve({ outcome: "dismissed" as const }),
+      });
+      act(() => {
+        window.dispatchEvent(beforeInstall);
+      });
+      act(() => {
+        vi.advanceTimersByTime(2000);
+      });
+      expect(screen.queryByRole("status")).not.toBeInTheDocument();
+    } finally {
+      window.history.pushState({}, "", before);
+    }
+  });
 });
