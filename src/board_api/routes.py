@@ -71,11 +71,11 @@ from src.board_send_executor import run_board_send
 from src.board_state import BoardReadError, read_board_state, read_board_state_live
 from src.config_manager import get_config_manager
 from src.devices import DEFAULT_DEVICE_TYPE, Geometry, geometry_of, resolve_dimensions
-from src.outputs.cells import cells_to_json
+from src.outputs.cells import cells_to_json, project_for_output
 from src.send_outcome import SendOutcome
 from src.text_to_board import text_to_board_array
 
-from .models import BoardCurrentMessageResponse, MessageRequest, SendResponse
+from .models import BoardCurrentMessageResponse, MessageRequest, SendResponse, WelcomeMessageRequest
 from .welcome import build_welcome_template
 
 logger = logging.getLogger(__name__)
@@ -294,19 +294,25 @@ async def send_message(request: MessageRequest):
     return SendResponse(message="Message sent successfully", sent=True)
 
 
-@router.post("/send-welcome-message", response_model=SendResponse, responses=errors(409, 429, 500, 503))
-async def send_welcome_message():
+@router.post("/send-welcome-message", response_model=SendResponse, responses=errors(404, 409, 429, 500, 503))
+async def send_welcome_message(request: WelcomeMessageRequest | None = None):
     """Send a colorful welcome message to the board.
 
-    Used by the setup wizard to confirm the board is working.
+    Used by the setup wizard to confirm the board is working. The body's
+    ``board_id`` names the board to greet (the one the wizard just created);
+    omitted, the primary board.
 
     Writes through the primary board's LIVE runtime — the same driver,
     send lock, cancel token, frame cache and floor the engine uses. Saving a
     board (setup wizard or Settings) rebuilds that runtime before the save
     returns, so recent credential changes are always the ones used.
     """
+    board_id = request.board_id if request is not None else None
+    if board_id is not None:
+        return await _send_welcome_to(_require_board(board_id))
+
     # Check silence mode for the board this actually writes to (the primary
-    # board — the wizard has no board picker).
+    # board, when the caller names none).
     _raise_if_silenced()
     _raise_if_paused()
 
@@ -377,4 +383,61 @@ async def send_welcome_message():
         return SendResponse(message="Welcome message unchanged", sent=False)
 
     logger.info("Welcome message sent to board")
+    return SendResponse(message="Welcome message sent to your board!", sent=True)
+
+
+async def _send_welcome_to(board: dict) -> SendResponse:
+    """The welcome message on *board* (one the caller named): its own silence
+    window, pause, geometry and output — an LED board gets its rich cells."""
+    board_id = board.get("id")
+    _raise_if_silenced(board_id)
+    _raise_if_paused(board_id)
+    board_client = runtime.live_driver(board_id)
+    if board_client is None:
+        reason = runtime.board_build_error(board_id)
+        raise HTTPException(status_code=503, detail=f"Board not configured: {reason or 'no usable connection'}")
+
+    custom_msg = (get_config_manager().get_general().get("welcome_message") or "").strip()
+    transition = runtime.get_settings_service().get_transition_settings()
+    geometry = geometry_of(board)
+    try:
+        dims = resolve_dimensions(*geometry)
+    except ValueError:
+        geometry = Geometry(DEFAULT_DEVICE_TYPE)
+        dims = resolve_dimensions(*geometry)
+    welcome_template = build_welcome_template(
+        geometry.device_type,
+        custom_msg,
+        notes_wide=geometry.notes_wide,
+        notes_tall=geometry.notes_tall,
+        grid_rows=geometry.grid_rows,
+        grid_cols=geometry.grid_cols,
+    )
+    board_array, rich = project_for_output(
+        board_client, "\n".join(welcome_template), dims.rows, dims.cols, flap=text_to_board_array
+    )
+    try:
+        outcome = SendOutcome.of(
+            await run_board_send(
+                board_client.render,
+                board_array,
+                strategy=transition.strategy,
+                step_interval_ms=transition.step_interval_ms,
+                step_size=transition.step_size,
+                force=True,
+                device_type=geometry.device_type,
+                with_outcome=True,
+                **rich,
+            )
+        )
+    except Exception as e:
+        logger.error(f"Error sending welcome message: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to send welcome message: {e!s}") from e
+
+    if not outcome.success:
+        raise HTTPException(status_code=500, detail="Failed to send welcome message")
+    if not outcome.was_sent:
+        _raise_if_throttled(outcome)
+        return SendResponse(message="Welcome message unchanged", sent=False)
+    logger.info("Welcome message sent to board %s", board_id)
     return SendResponse(message="Welcome message sent to your board!", sent=True)
