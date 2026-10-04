@@ -2423,6 +2423,10 @@
     "movePlaceholder": "Scegli una nuova posizione…",
     "moveTo": "Posizione {position} — vuota",
     "saveTile": "Salva tessera",
+    "tileSaved": "Tessera salvata",
+    "tileRemoved": "Tessera svuotata",
+    "tileMoved": "Tessera spostata nella posizione {position}",
+    "deviceInUse": "Assegnata alla tessera {position}",
     "tileSlotAssigned": "Tessera {position}: riga {row}, colonna {col} — assegnata a {summary}",
     "moveSwap": "Posizione {position} — scambia con {summary}",
     "tilesDuplicate": "Più tessere puntano alla stessa bacheca: {values}",
@@ -2501,6 +2505,9 @@
         },
         "discover": {
           "label": "Cerca bacheche nella rete"
+        },
+        "test_tile": {
+          "label": "Prova"
         },
         "identify": {
           "label": "Identifica"

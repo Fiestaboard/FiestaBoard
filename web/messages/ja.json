@@ -2423,6 +2423,10 @@
     "movePlaceholder": "新しいスロットを選択…",
     "moveTo": "スロット {position} — 空",
     "saveTile": "タイルを保存",
+    "tileSaved": "タイルを保存しました",
+    "tileRemoved": "タイルをクリアしました",
+    "tileMoved": "タイルをスロット {position} に移動しました",
+    "deviceInUse": "タイル {position} に割り当て済み",
     "tileSlotAssigned": "タイル {position}: 行 {row}、列 {col} — {summary} に割り当て済み",
     "moveSwap": "スロット {position} — {summary} と入れ替え",
     "tilesDuplicate": "複数のタイルが同じボードを指しています: {values}",
@@ -2501,6 +2505,9 @@
         },
         "discover": {
           "label": "ネットワークでボードをスキャン"
+        },
+        "test_tile": {
+          "label": "テスト"
         },
         "identify": {
           "label": "識別"

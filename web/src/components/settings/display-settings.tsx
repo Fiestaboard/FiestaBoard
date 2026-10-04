@@ -49,7 +49,7 @@ import { useTranslations } from "@/i18n/translations";
 import { anchorProps } from "@/lib/ai-choreography/anchors";
 import type { ActionGeometry, BoardInstance, Code62Glyph, DeviceType } from "@/lib/api";
 import { api } from "@/lib/api";
-import { isNoteArray, MAX_BOARD_NAME_LENGTH, MAX_NOTES_PER_AXIS, NOTE_ARRAY_PRESETS } from "@/lib/board-dimensions";
+import { MAX_BOARD_NAME_LENGTH, MAX_NOTES_PER_AXIS, NOTE_ARRAY_PRESETS } from "@/lib/board-dimensions";
 
 import { isPluginOutputBoard, isVirtualBoard, OtherOutputCards, OutputBoardSettings, toV4Write } from "./output-boards";
 
@@ -62,41 +62,6 @@ const CODE62_CHOICES: ReadonlyArray<{ value: Code62Glyph; glyph: string; labelKe
   { value: "degree", glyph: "°", labelKey: "code62DegreeAriaLabel" },
   { value: "heart", glyph: "♥", labelKey: "code62HeartAriaLabel" },
 ];
-
-/** A secret the API echoes as `"***"` once set, or a value typed in. */
-function isSet(value: unknown): boolean {
-  return value === "***" || (typeof value === "string" && value.length > 0);
-}
-
-/**
- * Whether a Vestaboard board has the connection details it needs, read from
- * its `output_config` — the rule of the backend's
- * `VestaboardConnection.is_configured`: a note array with saved local tiles
- * needs one usable in-range tile, any other array its Cloud token; a single
- * board the selected mode's credentials. (The board card's badge until the
- * contract's live `status` replaces it.)
- */
-function isVestaboardConfigured(board: BoardInstance): boolean {
-  const config = (board.output_config ?? {}) as Record<string, unknown>;
-  const mode = config.api_mode ?? "local";
-  if (isNoteArray(board.device_type)) {
-    const tiles = Array.isArray(config.tiles) ? (config.tiles as Record<string, unknown>[]) : [];
-    if (mode === "local" && tiles.length > 0) {
-      const wide = board.notes_wide ?? 1;
-      const tall = board.notes_tall ?? 1;
-      return tiles.some(
-        (tile) =>
-          Number(tile.row) < tall &&
-          Number(tile.col) < wide &&
-          tile.enabled !== false &&
-          isSet(tile.host) &&
-          isSet(tile.local_api_key),
-      );
-    }
-    return isSet(config.note_array_token);
-  }
-  return mode === "cloud" ? isSet(config.cloud_key) : isSet(config.local_api_key) && isSet(config.host);
-}
 
 /**
  * Controlled board display-name field (issue #1792).
@@ -175,6 +140,9 @@ export function DisplaySettings() {
     // and which board previews are shown, so refresh previews and displays.
     queryClient.invalidateQueries({ queryKey: ["pagePreview"] });
     queryClient.invalidateQueries({ queryKey: ["plugin-displays-batch"] });
+    // The board card's Connected / Not configured badge is the output's
+    // status on the status poll: refresh it with the settings it reads.
+    queryClient.invalidateQueries({ queryKey: queryKeys.status });
   };
 
   const updateMutation = useMutation({
@@ -375,10 +343,13 @@ export function DisplaySettings() {
           // a Vestaboard's type and size stay core's (below).
           const isPluginOutput = isPluginOutputBoard(board);
           const panelName = isVirtual ? panelNameByBoardId.get(board.id) : undefined;
-          const isConnected = isVirtual || isVestaboardConfigured(board);
           // Why this board has no client, when the backend skipped it at
           // startup (issues #1749/#1829). Verbatim backend reason string.
           const initError = statusData?.boards?.[board.id]?.error ?? null;
+          // Connected / Not configured is the board's output's own summary of
+          // its settings (plan D13 `status`, on the status poll); an output
+          // with nothing to say shows no badge.
+          const outputStatus = statusData?.boards?.[board.id]?.output_status ?? null;
 
           return (
             <Collapsible
@@ -448,22 +419,34 @@ export function DisplaySettings() {
                       {t("pause.badge")}
                     </BadgeUI>
                   )}
-                  {isPluginOutput ? null : isVirtual ? (
+                  {isVirtual ? (
                     <BadgeUI variant="secondary" className="text-[10px] h-5" data-testid="board-virtual-badge">
                       <Tv className="h-2.5 w-2.5 mr-0.5" />
                       {t("virtualBadge")}
                     </BadgeUI>
-                  ) : isConnected ? (
-                    <BadgeUI variant="default" className="text-[10px] h-5 bg-board-green">
+                  ) : outputStatus?.state === "connected" ? (
+                    <BadgeUI
+                      variant="default"
+                      className="text-[10px] h-5 bg-board-green"
+                      data-testid="board-status-badge"
+                      data-state="connected"
+                      title={outputStatus.message || undefined}
+                    >
                       <Check className="h-2.5 w-2.5 mr-0.5" />
                       {t("connected")}
                     </BadgeUI>
-                  ) : (
-                    <BadgeUI variant="destructive" className="text-[10px] h-5">
+                  ) : outputStatus?.state === "not_configured" ? (
+                    <BadgeUI
+                      variant="destructive"
+                      className="text-[10px] h-5"
+                      data-testid="board-status-badge"
+                      data-state="not_configured"
+                      title={outputStatus.message || undefined}
+                    >
                       <AlertCircle className="h-2.5 w-2.5 mr-0.5" />
                       {t("notConfigured")}
                     </BadgeUI>
-                  )}
+                  ) : null}
                 </Flex>
               </CollapsibleTrigger>
 
@@ -697,7 +680,7 @@ export function DisplaySettings() {
                       </Flex>
                     ) : (
                       <OutputBoardSettings
-                        key={JSON.stringify(board.output_config ?? {})}
+                        key={board.id}
                         board={board}
                         saving={updateMutation.isPending}
                         onSave={(outputConfig) => handleUpdateBoard(board.id, { output_config: outputConfig })}

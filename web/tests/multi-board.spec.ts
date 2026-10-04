@@ -220,11 +220,11 @@ test.describe("Settings – Board Instance CRUD", () => {
     expect(data.boards[0].notes_wide).toBe(4);
     expect(data.boards[0].notes_tall).toBe(1);
 
-    // The Cloud API Token field appears for note arrays — enter a token and
-    // save the board's settings screen.
+    // The Cloud API Token field appears for note arrays — enter a token. It
+    // saves when the field loses focus, as it always has.
     const tokenInput = page.getByLabel(/Cloud API Token/);
     await tokenInput.fill("test-vestaboard-token");
-    await page.getByRole("button", { name: "Save settings" }).click();
+    await tokenInput.blur();
     await page.waitForTimeout(1_500);
 
     // Reload and confirm the selection + token persisted (token masked as "***").

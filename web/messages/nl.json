@@ -2423,6 +2423,10 @@
     "movePlaceholder": "Kies een nieuwe positie…",
     "moveTo": "Positie {position} — leeg",
     "saveTile": "Tegel opslaan",
+    "tileSaved": "Tegel opgeslagen",
+    "tileRemoved": "Tegel gewist",
+    "tileMoved": "Tegel verplaatst naar positie {position}",
+    "deviceInUse": "Toegewezen aan tegel {position}",
     "tileSlotAssigned": "Tegel {position}: rij {row}, kolom {col} — toegewezen aan {summary}",
     "moveSwap": "Positie {position} — wisselen met {summary}",
     "tilesDuplicate": "Meerdere tegels verwijzen naar hetzelfde bord: {values}",
@@ -2501,6 +2505,9 @@
         },
         "discover": {
           "label": "Netwerk scannen op borden"
+        },
+        "test_tile": {
+          "label": "Testen"
         },
         "identify": {
           "label": "Identificeren"
