@@ -36,15 +36,206 @@
         "label": "Vestaboard Note array"
       }
     ],
-    "settings_schema": {},
+    "settings_schema": {
+      "type": "object",
+      "properties": {
+        "api_mode": {
+          "type": "string",
+          "title": "Connection",
+          "enum": [
+            "local",
+            "cloud"
+          ],
+          "default": "local",
+          "ui:widget": "mode-cards",
+          "ui:options": {
+            "cards": [
+              {
+                "value": "local",
+                "title": "Local API",
+                "description": "Direct connection on your network"
+              },
+              {
+                "value": "cloud",
+                "title": "Cloud API",
+                "description": "Through Vestaboard's cloud"
+              }
+            ]
+          }
+        },
+        "host": {
+          "type": "string",
+          "title": "Board IP Address",
+          "description": "Enter the address yourself, or find the board on your network.",
+          "ui:placeholder": "192.168.1.100",
+          "ui:widget": "device-picker",
+          "ui:options": {
+            "action": "discover",
+            "value_key": "ip",
+            "label_key": "hostname"
+          },
+          "ui:visible_when": {
+            "api_mode": "local",
+            "@device_type": [
+              "flagship",
+              "note"
+            ]
+          }
+        },
+        "local_api_key": {
+          "type": "string",
+          "title": "Local API Key",
+          "description": "No key yet? Use Get API Key from Board with the enablement token from vestaboard.com/local-api.",
+          "ui:placeholder": "Your local API key",
+          "secret": true,
+          "ui:visible_when": {
+            "api_mode": "local",
+            "@device_type": [
+              "flagship",
+              "note"
+            ]
+          }
+        },
+        "cloud_key": {
+          "type": "string",
+          "title": "Read/Write API Key",
+          "description": "Found in the Vestaboard app under Settings → Read/Write API.",
+          "ui:placeholder": "Enter R/W API key",
+          "secret": true,
+          "ui:visible_when": {
+            "api_mode": "cloud",
+            "@device_type": [
+              "flagship",
+              "note"
+            ]
+          }
+        },
+        "note_array_token": {
+          "type": "string",
+          "title": "Cloud API Token",
+          "description": "The X-Vestaboard-Token for this Note array, from your Vestaboard Cloud API subscription.",
+          "ui:placeholder": "Enter X-Vestaboard-Token",
+          "secret": true,
+          "ui:visible_when": {
+            "api_mode": "cloud",
+            "@device_type": "note_array"
+          }
+        },
+        "tiles": {
+          "type": "array",
+          "title": "Board tiles",
+          "description": "Click a slot to connect the Note that sits at that position on your wall. Use Identify to flash a slot number on a Note and confirm it is in the right place.",
+          "ui:widget": "tile-grid",
+          "ui:options": {
+            "layout": "board",
+            "item_actions": [
+              "identify",
+              "enable_local_api"
+            ],
+            "unique_fields": [
+              "host",
+              "port"
+            ]
+          },
+          "ui:visible_when": {
+            "api_mode": "local",
+            "@device_type": "note_array"
+          },
+          "items": {
+            "type": "object",
+            "required": [
+              "host",
+              "local_api_key"
+            ],
+            "properties": {
+              "row": {
+                "type": "integer",
+                "title": "Row",
+                "minimum": 0
+              },
+              "col": {
+                "type": "integer",
+                "title": "Column",
+                "minimum": 0
+              },
+              "host": {
+                "type": "string",
+                "title": "Board IP Address",
+                "description": "Enter the address yourself, or find the board on your network.",
+                "ui:placeholder": "192.168.1.100",
+                "ui:widget": "device-picker",
+                "ui:options": {
+                  "action": "discover",
+                  "value_key": "ip",
+                  "label_key": "hostname"
+                }
+              },
+              "port": {
+                "type": "integer",
+                "title": "Local API port",
+                "minimum": 1,
+                "maximum": 65535,
+                "default": 7000
+              },
+              "local_api_key": {
+                "type": "string",
+                "title": "Local API Key",
+                "description": "No key yet? Use Get API Key from Board with the enablement token from vestaboard.com/local-api.",
+                "ui:placeholder": "Your local API key",
+                "secret": true
+              },
+              "enabled": {
+                "type": "boolean",
+                "title": "Enabled",
+                "default": true
+              }
+            }
+          }
+        },
+        "port": {
+          "type": "integer",
+          "title": "Local API port",
+          "minimum": 1,
+          "maximum": 65535,
+          "default": 7000,
+          "ui:visible_when": {
+            "api_mode": "local",
+            "@device_type": [
+              "flagship",
+              "note"
+            ]
+          }
+        }
+      },
+      "required": [
+        "host",
+        "local_api_key",
+        "cloud_key",
+        "note_array_token",
+        "tiles"
+      ],
+      "ui:sections": [
+        {
+          "id": "advanced",
+          "title": "Advanced",
+          "fields": [
+            "port"
+          ],
+          "collapsible": true,
+          "collapsed": true
+        }
+      ]
+    },
     "actions": [
       {
         "id": "test_connection",
-        "label": "Test connection",
+        "label": "Test Connection",
         "description": "",
         "builtin": true,
         "input_schema": null,
-        "result_fields": {}
+        "result_fields": {},
+        "visible_when": null,
+        "auto_apply": false
       },
       {
         "id": "discover",
@@ -63,7 +254,11 @@
             }
           }
         },
-        "result_fields": {}
+        "result_fields": {},
+        "visible_when": {
+          "api_mode": "local"
+        },
+        "auto_apply": false
       },
       {
         "id": "identify",
@@ -103,33 +298,47 @@
             }
           }
         },
-        "result_fields": {}
+        "result_fields": {},
+        "visible_when": {
+          "api_mode": "local",
+          "@device_type": "note_array"
+        },
+        "auto_apply": false
       },
       {
         "id": "detect_geometry",
-        "label": "Detect size",
-        "description": "Read the board's current layout and classify its size.",
+        "label": "Auto-detect from board",
+        "description": "Read the board's current layout and set its type and size to match.",
         "builtin": true,
         "input_schema": null,
-        "result_fields": {}
+        "result_fields": {},
+        "visible_when": {
+          "not": {
+            "api_mode": "local",
+            "@device_type": "note_array"
+          }
+        },
+        "auto_apply": true
       },
       {
         "id": "enable_local_api",
-        "label": "Enable Local API",
-        "description": "Exchange a Local API enablement token for a Local API key.",
+        "label": "Get API Key from Board",
+        "description": "Exchange a Local API enablement token (from vestaboard.com/local-api) for a Local API key.",
         "builtin": false,
         "input_schema": {
           "type": "object",
           "properties": {
             "enablement_token": {
               "type": "string",
-              "title": "Enablement token",
+              "title": "Enablement Token",
+              "ui:placeholder": "Token from vestaboard.com/local-api",
               "secret": true,
               "minLength": 1
             },
             "host": {
               "type": "string",
-              "title": "Board IP address"
+              "title": "Board IP Address",
+              "ui:placeholder": "192.168.1.100"
             }
           },
           "required": [
@@ -141,7 +350,11 @@
             "secret": true,
             "fills": "local_api_key"
           }
-        }
+        },
+        "visible_when": {
+          "api_mode": "local"
+        },
+        "auto_apply": false
       }
     ]
   },
@@ -167,7 +380,10 @@
         "label": "Virtual panel"
       }
     ],
-    "settings_schema": {},
+    "settings_schema": {
+      "type": "object",
+      "properties": {}
+    },
     "actions": [
       {
         "id": "test_connection",
@@ -175,7 +391,9 @@
         "description": "",
         "builtin": true,
         "input_schema": null,
-        "result_fields": {}
+        "result_fields": {},
+        "visible_when": null,
+        "auto_apply": false
       }
     ]
   }

@@ -183,7 +183,12 @@ def _restore_output_config(board: dict, existing: dict) -> object:
     that no longer matches a stored one) or the config does not fit the
     output's ``settings_schema`` — a credential is never saved as ``"***"``.
     """
-    from src.outputs.output_config import masked_secret_paths, unmask_output_config, validate_output_config
+    from src.outputs.output_config import (
+        board_context,
+        masked_secret_paths,
+        unmask_output_config,
+        validate_output_config,
+    )
 
     output_id = board.get("output")
     schema = _output_settings_schema(output_id)
@@ -193,7 +198,7 @@ def _restore_output_config(board: dict, existing: dict) -> object:
     if unresolved:
         raise ValueError(f"Re-enter the secret settings for board output '{output_id}': {', '.join(unresolved)}")
     if schema is not None:
-        errors = validate_output_config(config if config is not None else {}, schema)
+        errors = validate_output_config(config if config is not None else {}, schema, board_context(board))
         if errors:
             raise ValueError("; ".join(errors))
     return config

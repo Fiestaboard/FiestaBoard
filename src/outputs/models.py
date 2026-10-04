@@ -156,6 +156,12 @@ class OutputActionDescriptor(BaseModel):
     builtin: bool = Field(description="test_connection, discover, identify or detect_geometry: a core hook.")
     input_schema: dict[str, Any] | None = None
     result_fields: dict[str, dict[str, Any]] = Field(default_factory=dict)
+    visible_when: dict[str, Any] | None = Field(
+        default=None,
+        description="A ui:visible_when condition over the settings and the board's @ facts; the button shows only "
+        "while it holds. null = always.",
+    )
+    auto_apply: bool = Field(default=False, description="Apply the result's geometry without asking.")
 
 
 class OutputDeviceModel(BaseModel):

@@ -14,6 +14,11 @@
  * absent from the values reads as its schema `default`, else `null`. A
  * malformed condition evaluates to visible — a typo never hides a field (and
  * the manifest validator refuses it, so it never ships).
+ *
+ * A field named `@device_type` / `@device_model` reads the **board** (its
+ * shape and device model id: `context`), not a sibling — one device's
+ * settings can differ by shape (a Vestaboard note array is set up tile by
+ * tile). With no board they read `null`.
  */
 
 type Scalar = string | number | boolean | null;
@@ -27,7 +32,22 @@ function jsonEqual(actual: unknown, expected: Scalar): boolean {
   return typeof actual === typeof expected && actual === expected;
 }
 
-function valueOf(field: string, values: Record<string, unknown>, properties: Record<string, unknown>): unknown {
+/** The board facts a condition reads by their `@` names. */
+export interface BoardFacts {
+  device_type?: string | null;
+  device_model?: string | null;
+}
+
+function valueOf(
+  field: string,
+  values: Record<string, unknown>,
+  properties: Record<string, unknown>,
+  context: Record<string, unknown>,
+): unknown {
+  if (field.startsWith("@")) {
+    const key = field.slice(1);
+    return Object.prototype.hasOwnProperty.call(context, key) ? (context[key] ?? null) : null;
+  }
   if (Object.prototype.hasOwnProperty.call(values, field)) return values[field];
   const prop = properties[field];
   if (prop && typeof prop === "object" && "default" in prop) {
@@ -37,7 +57,12 @@ function valueOf(field: string, values: Record<string, unknown>, properties: Rec
 }
 
 /** `true`/`false`, or `null` when the condition is malformed. */
-function evaluate(cond: unknown, values: Record<string, unknown>, properties: Record<string, unknown>): boolean | null {
+function evaluate(
+  cond: unknown,
+  values: Record<string, unknown>,
+  properties: Record<string, unknown>,
+  context: Record<string, unknown>,
+): boolean | null {
   if (!cond || typeof cond !== "object" || Array.isArray(cond)) return null;
   const entries = Object.entries(cond as Record<string, unknown>);
   if (entries.length === 0) return null;
@@ -45,17 +70,17 @@ function evaluate(cond: unknown, values: Record<string, unknown>, properties: Re
   if ("not" in record || "any" in record) {
     if (entries.length !== 1) return null;
     if ("not" in record) {
-      const inner = evaluate(record.not, values, properties);
+      const inner = evaluate(record.not, values, properties, context);
       return inner === null ? null : !inner;
     }
     const branches = record.any;
     if (!Array.isArray(branches) || branches.length === 0) return null;
-    const results = branches.map((branch) => evaluate(branch, values, properties));
+    const results = branches.map((branch) => evaluate(branch, values, properties, context));
     if (results.some((r) => r === null)) return null;
     return results.some(Boolean);
   }
   for (const [field, expected] of entries) {
-    const actual = valueOf(field, values, properties);
+    const actual = valueOf(field, values, properties, context);
     if (Array.isArray(expected)) {
       if (!expected.every(isScalar)) return null;
       if (!expected.some((e) => jsonEqual(actual, e))) return false;
@@ -70,14 +95,16 @@ function evaluate(cond: unknown, values: Record<string, unknown>, properties: Re
 
 /**
  * Whether a field with `ui:visible_when` *cond* shows, given the values of the
- * object it lives in and that object's property schemas (for defaults).
+ * object it lives in, that object's property schemas (for defaults) and the
+ * board's facts (`@device_type`, `@device_model`).
  */
 export function isVisible(
   cond: unknown,
   values: Record<string, unknown> | null | undefined,
   properties?: Record<string, unknown> | null,
+  context?: BoardFacts | Record<string, unknown> | null,
 ): boolean {
-  if (cond === undefined) return true;
-  const result = evaluate(cond, values ?? {}, properties ?? {});
+  if (cond === undefined || cond === null) return true;
+  const result = evaluate(cond, values ?? {}, properties ?? {}, (context ?? {}) as Record<string, unknown>);
   return result === null ? true : result;
 }

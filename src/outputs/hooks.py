@@ -256,6 +256,11 @@ class OutputActionSpec:
     #: JSON Schema (the settings vocabulary) of the action's input, if any.
     input_schema: Mapping[str, Any] | None = None
     result_fields: Mapping[str, ResultFieldSpec] = field(default_factory=dict)
+    #: A ``ui:visible_when`` condition over the settings (and the board's
+    #: ``@`` facts): the button shows only while it holds. None = always.
+    visible_when: Mapping[str, Any] | None = None
+    #: Apply the result's geometry without asking (the form still shows it).
+    auto_apply: bool = False
 
     @property
     def builtin(self) -> bool:

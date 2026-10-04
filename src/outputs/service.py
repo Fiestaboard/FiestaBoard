@@ -60,11 +60,11 @@ def _plugin_output(output_id: str) -> OutputDefinition:
     return definition
 
 
-def _checked_config(config: dict[str, Any], schema: Mapping[str, Any]) -> dict[str, Any]:
+def _checked_config(config: dict[str, Any], schema: Mapping[str, Any], device_model: str) -> dict[str, Any]:
     masked = masked_secret_paths(config, schema)
     if masked:
         raise InvalidOutputConfigError(f"A new board has no stored secret to restore: enter {', '.join(masked)}")
-    errors = validate_output_config(config, schema)
+    errors = validate_output_config(config, schema, {"device_type": "panel", "device_model": device_model})
     if errors:
         raise InvalidOutputConfigError("; ".join(errors))
     return config
@@ -112,7 +112,7 @@ def create_output_board(
         raise UndeclaredDeviceModelError(output_id, device_model, declared)
     model = manifest.model(declared.index(device_model))
     rows, cols = resolve_content_grid(model, manifest.character_set, geometry)
-    config = _checked_config(dict(output_config), definition.settings_schema)
+    config = _checked_config(dict(output_config), definition.settings_schema, device_model)
     settings = _settings_service().add_board(
         {
             "name": name or "",

@@ -23,6 +23,16 @@ vocabulary grows by exactly these, all owned by core (no plugin JS):
     condition evaluates to *visible* (fail open: a field is never hidden by a
     typo) — and is a manifest error, so it never ships.
 
+    A field name starting with ``@`` reads the **board** rather than a
+    sibling — the core-owned facts a settings screen may depend on but does
+    not store (:data:`BOARD_CONTEXT_FIELDS`): ``@device_type`` (``flagship``,
+    ``note``, ``note_array``, ``panel``) and ``@device_model`` (the board's
+    device model id, ``null`` when it has none). One device's settings can
+    differ by shape — a Vestaboard note array is set up tile by tile, a
+    Flagship by one address — and the shape is the board's, not its
+    ``output_config``'s. Where no board is known (a manifest check) they
+    read ``null``.
+
     A hidden field is not validated: :func:`strip_hidden` drops its value and
     its ``required`` entry before JSON-Schema validation. Its stored value is
     kept (switching back restores it).
@@ -40,8 +50,16 @@ Core widgets (``ui:widget``), a **closed** set — a plugin cannot add one:
     a ``title`` and ``description``.
 ``tile-grid``
     An array of objects with integer ``row`` / ``col`` (note-array tile
-    assignment). ``ui:options.rows_field`` / ``cols_field`` name the integer
-    root properties that size the grid.
+    assignment). The grid is sized either by two integer root properties
+    (``ui:options.rows_field`` / ``cols_field``) or, with
+    ``ui:options.layout: "board"``, by the board's own tile layout (its
+    core-owned ``notes_tall`` × ``notes_wide``). Each slot opens a dialog
+    with the item's other fields; ``ui:options.item_actions`` names declared
+    actions run **on one tile** from that dialog (their input is taken from
+    the tile, their result ``fills`` land in the tile); the output's
+    ``identify`` action, when declared, also identifies every tile at once.
+    ``ui:options.unique_fields`` names item properties that together should
+    not repeat across tiles (a warning, e.g. two slots on one address).
 ``device-picker``
     A string field filled from a ``discover`` action's devices.
     ``ui:options.action`` names the action (default ``discover``);
@@ -64,11 +82,14 @@ DEVICE_PICKER_WIDGET = "device-picker"
 
 #: ``ui:options`` vocabulary per core widget.
 MODE_CARDS_UI_OPTIONS_KEYS = frozenset({"cards"})
-TILE_GRID_UI_OPTIONS_KEYS = frozenset({"rows_field", "cols_field"})
+TILE_GRID_UI_OPTIONS_KEYS = frozenset({"rows_field", "cols_field", "layout", "item_actions", "unique_fields"})
 DEVICE_PICKER_UI_OPTIONS_KEYS = frozenset({"action", "value_key", "label_key"})
 
 VISIBLE_WHEN = "ui:visible_when"
 SECTIONS = "ui:sections"
+
+#: The board facts ``ui:visible_when`` can read, by their ``@`` names.
+BOARD_CONTEXT_FIELDS = frozenset({"@device_type", "@device_model"})
 
 _SECTION_KEYS = frozenset({"id", "title", "description", "fields", "collapsible", "collapsed"})
 _COMBINATORS = ("not", "any")
@@ -92,14 +113,18 @@ def _json_equal(actual: Any, expected: Any) -> bool:
     return type(actual) is type(expected) and actual == expected
 
 
-def _value_of(field: str, values: Mapping[str, Any], properties: Mapping[str, Any]) -> Any:
+def _value_of(field: str, values: Mapping[str, Any], properties: Mapping[str, Any], context: Mapping[str, Any]) -> Any:
+    if field.startswith("@"):
+        return context.get(field[1:])
     if field in values:
         return values[field]
     prop = properties.get(field)
     return prop.get("default") if isinstance(prop, Mapping) else None
 
 
-def _evaluate(cond: Any, values: Mapping[str, Any], properties: Mapping[str, Any]) -> bool | None:
+def _evaluate(
+    cond: Any, values: Mapping[str, Any], properties: Mapping[str, Any], context: Mapping[str, Any]
+) -> bool | None:
     """True / False, or ``None`` when *cond* is malformed."""
     if not isinstance(cond, Mapping) or not cond:
         return None
@@ -107,15 +132,15 @@ def _evaluate(cond: Any, values: Mapping[str, Any], properties: Mapping[str, Any
         if len(cond) != 1:
             return None
         if "not" in cond:
-            inner = _evaluate(cond["not"], values, properties)
+            inner = _evaluate(cond["not"], values, properties, context)
             return None if inner is None else not inner
         branches = cond["any"]
         if not isinstance(branches, list) or not branches:
             return None
-        results = [_evaluate(b, values, properties) for b in branches]
+        results = [_evaluate(b, values, properties, context) for b in branches]
         return None if any(r is None for r in results) else any(results)
     for field, expected in cond.items():
-        actual = _value_of(field, values, properties)
+        actual = _value_of(field, values, properties, context)
         if isinstance(expected, list):
             if not all(_is_scalar(e) for e in expected):
                 return None
@@ -129,25 +154,35 @@ def _evaluate(cond: Any, values: Mapping[str, Any], properties: Mapping[str, Any
     return True
 
 
-def is_visible(cond: Any, values: Mapping[str, Any] | None, properties: Mapping[str, Any] | None = None) -> bool:
+def is_visible(
+    cond: Any,
+    values: Mapping[str, Any] | None,
+    properties: Mapping[str, Any] | None = None,
+    context: Mapping[str, Any] | None = None,
+) -> bool:
     """Whether a field with ``ui:visible_when`` *cond* shows, given its
-    object's *values* and property schemas (for defaults). Malformed → True."""
-    result = _evaluate(cond, values or {}, properties or {})
+    object's *values*, property schemas (for defaults) and the board
+    *context* (``{"device_type": ..., "device_model": ...}``, read by the
+    ``@`` names). Malformed → True."""
+    result = _evaluate(cond, values or {}, properties or {}, context or {})
     return True if result is None else result
 
 
-def strip_hidden(values: Any, schema: Mapping[str, Any]) -> tuple[Any, dict[str, Any]]:
+def strip_hidden(
+    values: Any, schema: Mapping[str, Any], context: Mapping[str, Any] | None = None
+) -> tuple[Any, dict[str, Any]]:
     """``(values, schema)`` with every hidden field removed, recursively.
 
     A hidden property's value is dropped and its name removed from
     ``required``, so JSON-Schema validation of what remains checks only what
-    the user can see. Copies; the inputs are untouched.
+    the user can see. *context* is the board the values belong to (see
+    :func:`is_visible`). Copies; the inputs are untouched.
     """
     schema_out: dict[str, Any] = copy.deepcopy(dict(schema)) if isinstance(schema, Mapping) else {}
     if isinstance(values, list):
         items = schema_out.get("items")
         if isinstance(items, Mapping):
-            stripped = [strip_hidden(v, items) for v in values]
+            stripped = [strip_hidden(v, items, context) for v in values]
             return [v for v, _ in stripped], schema_out
         return list(values), schema_out
     if not isinstance(values, Mapping):
@@ -158,14 +193,16 @@ def strip_hidden(values: Any, schema: Mapping[str, Any]) -> tuple[Any, dict[str,
     hidden = {
         name
         for name, prop in properties.items()
-        if isinstance(prop, Mapping) and VISIBLE_WHEN in prop and not is_visible(prop[VISIBLE_WHEN], values, properties)
+        if isinstance(prop, Mapping)
+        and VISIBLE_WHEN in prop
+        and not is_visible(prop[VISIBLE_WHEN], values, properties, context)
     }
     out: dict[str, Any] = {}
     for key, value in values.items():
         if key in hidden:
             continue
         prop = properties.get(key)
-        out[key] = strip_hidden(value, prop)[0] if isinstance(prop, Mapping) else value
+        out[key] = strip_hidden(value, prop, context)[0] if isinstance(prop, Mapping) else value
     required = schema_out.get("required")
     if isinstance(required, list):
         schema_out["required"] = [name for name in required if name not in hidden]
@@ -194,7 +231,12 @@ def condition_errors(cond: Any, fields: Mapping[str, Any]) -> list[str]:
             return [e for branch in branches for e in condition_errors(branch, fields)]
     errors: list[str] = []
     for field, expected in cond.items():
-        if field not in fields:
+        if field.startswith("@"):
+            if field not in BOARD_CONTEXT_FIELDS:
+                known = ", ".join(sorted(BOARD_CONTEXT_FIELDS))
+                errors.append(f"references unknown board fact '{field}' (known: {known})")
+                continue
+        elif field not in fields:
             errors.append(f"references unknown property '{field}'")
             continue
         candidates = expected if isinstance(expected, list) else [expected]
@@ -284,9 +326,26 @@ def widget_errors(
         if not (_int_property(item_props, "row") and _int_property(item_props, "col")):
             errors.append(f"{where}: ui:widget '{TILE_GRID_WIDGET}' items need integer 'row' and 'col' properties")
         root_props = root.get("properties") or {}
-        for key in ("rows_field", "cols_field"):
-            if not _int_property(root_props, options.get(key)):
-                errors.append(f"{where}: ui:options.{key} must name an integer property")
+        if "layout" in options:
+            if options["layout"] != "board":
+                errors.append(f"{where}: ui:options.layout must be 'board'")
+            for key in ("rows_field", "cols_field"):
+                if key in options:
+                    errors.append(f"{where}: ui:options.{key} cannot be combined with layout 'board'")
+        else:
+            for key in ("rows_field", "cols_field"):
+                if not _int_property(root_props, options.get(key)):
+                    errors.append(f"{where}: ui:options.{key} must name an integer property")
+        for key in ("item_actions", "unique_fields"):
+            names = options.get(key, [])
+            if not isinstance(names, list) or not all(isinstance(n, str) and n for n in names):
+                errors.append(f"{where}: ui:options.{key} must be an array of names")
+            elif key == "unique_fields":
+                errors.extend(
+                    f"{where}: ui:options.unique_fields names unknown item property '{name}'"
+                    for name in names
+                    if name not in item_props
+                )
     elif widget == DEVICE_PICKER_WIDGET:
         if prop.get("type") != "string":
             errors.append(f"{where}: ui:widget '{DEVICE_PICKER_WIDGET}' requires type 'string'")
@@ -294,6 +353,21 @@ def widget_errors(
             if key in options and (not isinstance(options[key], str) or not options[key]):
                 errors.append(f"{where}: ui:options.{key} must be a non-empty string")
     return errors
+
+
+def tile_grid_item_actions(schema: Mapping[str, Any]) -> list[tuple[str, str]]:
+    """``(field_path, action id)`` for every ``tile-grid`` item action in *schema*."""
+    from .manifest import _iter_settings_fields
+
+    found = []
+    for field_path, prop, _siblings in _iter_settings_fields(dict(schema)):
+        if prop.get("ui:widget") != TILE_GRID_WIDGET:
+            continue
+        options = prop.get("ui:options")
+        names = options.get("item_actions") if isinstance(options, Mapping) else None
+        if isinstance(names, list):
+            found.extend((field_path, name) for name in names if isinstance(name, str))
+    return found
 
 
 def device_picker_actions(schema: Mapping[str, Any]) -> list[tuple[str, str]]:

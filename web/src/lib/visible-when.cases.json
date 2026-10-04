@@ -1,5 +1,5 @@
 {
-  "_comment": "Shared conformance vectors for the ui:visible_when grammar. Evaluated by BOTH src/plugins/settings_ui.py (tests/test_settings_ui_grammar.py) and web/src/lib/visible-when.ts (visible-when.test.ts); a case that passes on one side and not the other is the bug these exist to catch. Each case: the property schemas of the object (for defaults), the object's values, the condition, and whether the field is visible.",
+  "_comment": "Shared conformance vectors for the ui:visible_when grammar. Evaluated by BOTH src/plugins/settings_ui.py (tests/test_settings_ui_grammar.py) and web/src/lib/visible-when.ts (visible-when.test.ts); a case that passes on one side and not the other is the bug these exist to catch. Each case: the property schemas of the object (for defaults), the object's values, the condition, and whether the field is visible. A case may also carry a 'context': the board facts read by '@' names (@device_type, @device_model); without one they read null.",
   "cases": [
     {
       "name": "equals a string",
@@ -140,6 +140,61 @@
       "values": { "mode": "cloud" },
       "when": { "not": { "mode": "cloud" }, "mode": "cloud" },
       "visible": true
+    },
+    {
+      "name": "a board fact equals a string",
+      "properties": {},
+      "values": {},
+      "context": { "device_type": "note_array" },
+      "when": { "@device_type": "note_array" },
+      "visible": true
+    },
+    {
+      "name": "a board fact is one of a list",
+      "properties": {},
+      "values": {},
+      "context": { "device_type": "note" },
+      "when": { "@device_type": ["flagship", "note"] },
+      "visible": true
+    },
+    {
+      "name": "a board fact differs",
+      "properties": {},
+      "values": {},
+      "context": { "device_type": "flagship" },
+      "when": { "@device_type": "note_array" },
+      "visible": false
+    },
+    {
+      "name": "a board fact with no board reads null",
+      "properties": {},
+      "values": {},
+      "when": { "@device_model": null },
+      "visible": true
+    },
+    {
+      "name": "a board fact is never read from a sibling of the same name",
+      "properties": { "device_type": { "type": "string" } },
+      "values": { "device_type": "note_array" },
+      "context": { "device_type": "flagship" },
+      "when": { "@device_type": "note_array" },
+      "visible": false
+    },
+    {
+      "name": "a board fact and a sibling must both hold",
+      "properties": { "api_mode": { "type": "string", "default": "local" } },
+      "values": {},
+      "context": { "device_type": "note_array" },
+      "when": { "api_mode": "local", "@device_type": "note_array" },
+      "visible": true
+    },
+    {
+      "name": "not over a board fact and a sibling",
+      "properties": { "api_mode": { "type": "string" } },
+      "values": { "api_mode": "local" },
+      "context": { "device_type": "note_array" },
+      "when": { "not": { "api_mode": "local", "@device_type": "note_array" } },
+      "visible": false
     }
   ]
 }
