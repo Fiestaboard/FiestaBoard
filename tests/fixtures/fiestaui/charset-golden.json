@@ -396,6 +396,114 @@
         "blockSpans": false,
         "font": "3x5"
       }
+    },
+    {
+      "input": {
+        "id": "kiosk_mono_v1",
+        "label": "Kiosk (mono, icons, no tiles)",
+        "extends": "led_3x5",
+        "tiles": false,
+        "icons": ["check", "up"],
+        "colorSpans": false,
+        "blockSpans": false
+      },
+      "materialized": {
+        "id": "kiosk_mono_v1",
+        "label": "Kiosk (mono, icons, no tiles)",
+        "version": 1,
+        "chars": [
+          "0",
+          "1",
+          "2",
+          "3",
+          "4",
+          "5",
+          "6",
+          "7",
+          "8",
+          "9",
+          "A",
+          "B",
+          "C",
+          "D",
+          "E",
+          "F",
+          "G",
+          "H",
+          "I",
+          "J",
+          "K",
+          "L",
+          "M",
+          "N",
+          "O",
+          "P",
+          "Q",
+          "R",
+          "S",
+          "T",
+          "U",
+          "V",
+          "W",
+          "X",
+          "Y",
+          "Z",
+          "!",
+          "@",
+          "#",
+          "$",
+          "(",
+          ")",
+          "-",
+          "+",
+          "&",
+          "=",
+          ";",
+          ":",
+          "'",
+          "\"",
+          "%",
+          ",",
+          ".",
+          "/",
+          "?",
+          "°",
+          "♥",
+          "a",
+          "b",
+          "c",
+          "d",
+          "e",
+          "f",
+          "g",
+          "h",
+          "i",
+          "j",
+          "k",
+          "l",
+          "m",
+          "n",
+          "o",
+          "p",
+          "q",
+          "r",
+          "s",
+          "t",
+          "u",
+          "v",
+          "w",
+          "x",
+          "y",
+          "z"
+        ],
+        "tiles": false,
+        "icons": ["check", "up"],
+        "mixedCase": true,
+        "colorSpans": false,
+        "blockSpans": false,
+        "extends": "led_3x5",
+        "font": "3x5"
+      }
     }
   ],
   "fallbacks": [
@@ -606,6 +714,46 @@
       "token": { "type": "color", "code": "66", "icon": "check" },
       "issue": "icon",
       "fallback": { "type": "char", "value": " " }
+    },
+    {
+      "name": "supported icon with a tile fallback where the set has no tiles",
+      "set": "kiosk_mono_v1",
+      "markup": "{icon:check}",
+      "token": { "type": "color", "code": "66", "icon": "check" },
+      "issue": null,
+      "fallback": { "type": "color", "code": "66", "icon": "check" }
+    },
+    {
+      "name": "supported icon with a character fallback where the set has no tiles",
+      "set": "kiosk_mono_v1",
+      "markup": "{icon:up}",
+      "token": { "type": "char", "value": "+", "icon": "up" },
+      "issue": null,
+      "fallback": { "type": "char", "value": "+", "icon": "up" }
+    },
+    {
+      "name": "supported icon loses a span colour the set cannot draw",
+      "set": "kiosk_mono_v1",
+      "markup": "{red:{icon:check}}",
+      "token": { "type": "color", "code": "66", "icon": "check", "color": "red" },
+      "issue": "colorSpan",
+      "fallback": { "type": "color", "code": "66", "icon": "check" }
+    },
+    {
+      "name": "supported icon loses block colours the set cannot draw",
+      "set": "kiosk_mono_v1",
+      "markup": "{black/white:{icon:up}}",
+      "token": { "type": "char", "value": "+", "icon": "up", "color": "black", "background": "white" },
+      "issue": "blockSpan",
+      "fallback": { "type": "char", "value": "+", "icon": "up" }
+    },
+    {
+      "name": "supported icon keeps a span colour the set draws",
+      "set": "led_5x7",
+      "markup": "{red:{icon:sun}}",
+      "token": { "type": "color", "code": "65", "icon": "sun", "color": "red" },
+      "issue": null,
+      "fallback": { "type": "color", "code": "65", "icon": "sun", "color": "red" }
     },
     {
       "name": "tile where the set has no tiles",
@@ -830,6 +978,28 @@
           "token": { "type": "char", "value": "+", "icon": "up" },
           "reason": "icon",
           "fallback": { "type": "char", "value": " " }
+        }
+      ]
+    },
+    {
+      "name": "icons without tiles: kept icons, a lost tile, a lost colour",
+      "set": "kiosk_mono_v1",
+      "message": "{icon:check} {66} {red:{icon:up}}",
+      "ok": false,
+      "issues": [
+        {
+          "row": 0,
+          "col": 2,
+          "token": { "type": "color", "code": "66" },
+          "reason": "tile",
+          "fallback": { "type": "char", "value": " " }
+        },
+        {
+          "row": 0,
+          "col": 4,
+          "token": { "type": "char", "value": "+", "icon": "up", "color": "red" },
+          "reason": "colorSpan",
+          "fallback": { "type": "char", "value": "+", "icon": "up" }
         }
       ]
     },

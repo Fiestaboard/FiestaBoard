@@ -28,7 +28,7 @@ from __future__ import annotations
 import json
 import re
 from collections.abc import Iterable, Mapping
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from typing import Any
 
 from src.fiestaui import builtin_character_sets
@@ -240,13 +240,27 @@ def materialize_character_set(declaration: dict, known: Iterable[CharacterSet] =
 # --- what a set does to a message (plan D17, answer 2) ------------------------
 
 
-def resolve_character_set(charset: str | CharacterSet) -> CharacterSet:
-    """A set given by built-in id, or the (materialised) set itself.
+#: The fields a whole set carries; a declaration missing any is partial.
+_WHOLE_SET_FIELDS = ("label", "version", "chars", "tiles", "icons", "mixedCase", "colorSpans", "blockSpans")
+
+
+def resolve_character_set(charset: str | Mapping) -> CharacterSet:
+    """A set given by built-in id, or the set itself, made whole (FiestaUI ``resolveCharacterSet``).
+
+    A partial declaration (``{"id": ..., "extends": "led_3x5"}``, as a device
+    model may embed) is materialised with :func:`materialize_character_set`,
+    never handed back raw, so every set-level helper can read its ``chars``
+    and ``icons``.
 
     Raises:
         KeyError: an id that is not a built-in.
+        CharacterSetError: a partial declaration that cannot be made whole.
     """
-    return BUILTIN_CHARACTER_SETS[charset] if isinstance(charset, str) else charset
+    if isinstance(charset, str):
+        return BUILTIN_CHARACTER_SETS[charset]
+    if all(field in charset for field in _WHOLE_SET_FIELDS):
+        return charset
+    return materialize_character_set(dict(charset))
 
 
 def has_extended_markup(charset: str | CharacterSet | None) -> bool:
@@ -289,13 +303,19 @@ def charset_issue(charset: str | CharacterSet | CharsetLookup, token: BoardToken
     s = look.charset
     if token.icon is not None and token.icon not in look.icons:
         return "icon"
-    if token.type == "color":
+    # An icon the set draws never reaches its fallback tile, so a set without
+    # tiles keeps it; only the span colours around it can be lost, as around
+    # a letter. A plain tile is a tile.
+    if token.type == "color" and token.icon is None:
         return None if s.get("tiles") else "tile"
     if token.background is not None and not s.get("blockSpans"):
         return "blockSpan"
     if token.color is not None and not s.get("colorSpans"):
         return "colorSpan"
-    if token.icon is not None or token.value == " " or token.value in look.chars:
+    # What is left of a supported icon is its glyph, whatever its fallback.
+    if token.type == "color" or token.icon is not None:
+        return None
+    if token.value == " " or token.value in look.chars:
         return None
     upper = token.value.upper()
     if token.value != upper and upper in look.chars:
@@ -306,18 +326,26 @@ def charset_issue(charset: str | CharacterSet | CharsetLookup, token: BoardToken
 def charset_fallback(charset: str | CharacterSet | CharsetLookup, token: BoardToken) -> BoardToken:
     """What *charset* draws for *token* (FiestaUI ``charsetFallback``).
 
-    (a) An icon the set lacks becomes its registry fallback (a two-digit
-    fallback is a colour tile, anything else a character, ``None`` a blank),
-    keeping the span's ``color`` / ``background``; then (b) a tile is kept
-    when the set has tiles, else a blank; (c) an icon the set has is kept;
-    (d) a character drops ``color`` unless the set has colour spans and
-    ``background`` unless it has block spans, and one the set lacks tries
-    its uppercase, then the ``°``/``♥`` swap, then a blank.
+    (a) An icon the set draws is kept, whatever its fallback (even a tile
+    where the set has no tiles), losing only the span colours the set cannot
+    draw. (b) An icon the set lacks becomes its registry fallback (a
+    two-digit fallback is a colour tile, anything else a character, ``None``
+    a blank), keeping the span's ``color`` / ``background``; then (c) a tile
+    is kept when the set has tiles, else a blank; (d) a character drops
+    ``color`` unless the set has colour spans and ``background`` unless it
+    has block spans, and one the set lacks tries its uppercase, then the
+    ``°``/``♥`` swap, then a blank.
     """
     look = _lookup(charset)
     s = look.charset
     t = token
-    if t.icon is not None and t.icon not in look.icons:
+    if t.icon is not None and t.icon in look.icons:
+        return replace(
+            t,
+            color=t.color if s.get("colorSpans") else None,
+            background=t.background if s.get("blockSpans") else None,
+        )
+    if t.icon is not None:
         fallback = BOARD_ICONS[t.icon].fallback
         if fallback is not None and len(fallback) == 2 and fallback.isdigit():
             t = BoardToken("color", code=fallback, color=t.color, background=t.background)
@@ -325,8 +353,6 @@ def charset_fallback(charset: str | CharacterSet | CharsetLookup, token: BoardTo
             t = BoardToken("char", value=" " if fallback is None else fallback, color=t.color, background=t.background)
     if t.type == "color":
         return t if s.get("tiles") else BoardToken("char", value=" ")
-    if t.icon is not None:
-        return t
     value = t.value
     if value not in look.chars:
         upper = value.upper()

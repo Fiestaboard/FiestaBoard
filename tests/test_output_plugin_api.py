@@ -18,6 +18,7 @@ Feedback from the first external output plugin (Divoom Pixoo) shaped it:
 from __future__ import annotations
 
 import copy
+import json
 from pathlib import Path
 
 import pytest
@@ -33,9 +34,19 @@ from src.plugins.loader import PluginLoader
 from src.send_outcome import WriteResult
 
 PIXOO = builtin_device_models()["divoom_pixoo64"]
+FIXTURES = Path(__file__).parent / "fixtures" / "plugins"
+#: FiestaUI's generic 32-frame sequence player (``SEQUENCE_PANEL_MODEL``, as
+#: its LED goldens inline it). The Pixoo 64 it stands in for snaps since its
+#: hardware test, so it no longer exercises a budgeted flip.
+SEQUENCE = next(
+    case["pluginModel"]
+    for case in json.loads((FIXTURES.parent / "fiestaui" / "led-golden.json").read_text(encoding="utf-8"))[
+        "transitions"
+    ]
+    if case["name"] == "sequence device 32-frame budget"
+)
 LED_3X5 = BUILTIN_CHARACTER_SETS["led_3x5"]
 ROWS, COLS = 10, 16
-FIXTURES = Path(__file__).parent / "fixtures" / "plugins"
 
 
 def frame(message: str, charset=LED_3X5):
@@ -52,7 +63,7 @@ class LedSign(OutputPluginBase):
         super().__init__(board_id, config or {})
         self.calls: list[tuple] = []
         self.result = WriteResult(True, True)
-        self.bind_board(device_model=PIXOO, character_set=LED_3X5, geometry=(ROWS, COLS))
+        self.bind_board(device_model=SEQUENCE, character_set=LED_3X5, geometry=(ROWS, COLS))
 
     def capabilities(self):
         return OutputCapabilities(
@@ -118,8 +129,8 @@ class TestTheTransitionHandOff:
         assert name == "write_transition"
         assert before == frame("{red:HELLO}").cells
         assert after == frame("{green:WORLD} {icon:sun}").cells
-        assert transition == resolve_led_transition(None, PIXOO)
-        # What FiestaUI previews for a Pixoo: the coarse flip in its 32-frame budget.
+        assert transition == resolve_led_transition(None, SEQUENCE)
+        # What FiestaUI previews for a sequence player: the coarse flip in its 32-frame budget.
         assert (transition.id, transition.source) == ("flip", "default")
         assert (transition.spec.max_frames, transition.spec.half_flap) == (32, False)
 
@@ -148,7 +159,7 @@ class TestTheTransitionHandOff:
         render(driver, "HELLO")
         render(driver, "WORLD", strategy="fade")
         transition = plugin.calls[-1][3]
-        assert transition == resolve_led_transition("fade", PIXOO)
+        assert transition == resolve_led_transition("fade", SEQUENCE)
         assert (transition.id, transition.source) == ("fade", "explicit")
 
     def test_none_snaps(self):
@@ -162,7 +173,22 @@ class TestTheTransitionHandOff:
         plugin, driver = driven()
         render(driver, "HELLO")
         render(driver, "WORLD", strategy=strategy)
-        assert plugin.calls[-1][3] == resolve_led_transition(None, PIXOO)
+        assert plugin.calls[-1][3] == resolve_led_transition(None, SEQUENCE)
+
+    @pytest.mark.parametrize("strategy", ["constructor", "__proto__", "flipp"])
+    def test_a_stale_strategy_falls_back_to_the_default_with_fiestauis_reason(self, strategy):
+        """A board's settings JSON can hold anything: a value that is no
+        transition id is never looked up, and falls back with a reason."""
+        plugin, driver = driven()
+        render(driver, "HELLO")
+        render(driver, "WORLD", strategy=strategy)
+        transition = plugin.calls[-1][3]
+        default = resolve_led_transition(None, SEQUENCE)
+        assert (transition.id, transition.spec) == (default.id, default.spec)
+        assert (transition.source, transition.requested) == ("fallback", strategy)
+        assert transition.reason == (
+            f'Unknown transition "{strategy}"; one of none, flip, cascade, slide, wipe, fade, dissolve.'
+        )
 
     def test_a_failed_transition_is_not_recorded_so_the_frame_is_retried(self):
         plugin, driver = driven()
@@ -221,16 +247,16 @@ class TestAccessors:
 
     def test_core_binds_the_boards_model_set_and_grid(self):
         plugin = LedSign()
-        assert plugin.device_model == PIXOO
+        assert plugin.device_model == SEQUENCE
         assert plugin.character_set == LED_3X5
         assert plugin.board_geometry == (ROWS, COLS)
 
     def test_the_accessors_hand_out_copies(self):
-        model, charset = copy.deepcopy(PIXOO), copy.deepcopy(LED_3X5)
+        model, charset = copy.deepcopy(SEQUENCE), copy.deepcopy(LED_3X5)
         plugin = LedSign()
         plugin.device_model["geometry"]["width"] = 1
         plugin.character_set["chars"].clear()
-        assert plugin.device_model == model and model == PIXOO
+        assert plugin.device_model == model and model == SEQUENCE
         assert plugin.character_set == charset and charset == LED_3X5
 
     @pytest.fixture
