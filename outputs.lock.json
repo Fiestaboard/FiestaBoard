@@ -17,9 +17,9 @@
     },
     "vestaboard": {
       "repository": "https://github.com/Fiestaboard/fiestaboard-output--vestaboard",
-      "commit": "56ffa09cebaad80769804ed4374f143faab33bd0",
+      "commit": "c63160566c241c79cbc403a6cc600370351cddf7",
       "output_api": 1,
-      "tree_sha256": "f6d418fe4fedb2e51fd27b69e2942758fb96821fe14cf118dd521fc078754517",
+      "tree_sha256": "aff99759014e5e68a33a2e7a681d8f660a88c37aeabaab3e297e4da37fcb226b",
       "loadable": true
     }
   }
