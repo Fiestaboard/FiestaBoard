@@ -38,6 +38,7 @@ from dataclasses import dataclass
 from typing import Any
 
 from src.devices import DEFAULT_DEVICE_TYPE, BoardContext, resolve_dimensions
+from src.markup import resolve_icon_name
 from src.plugins import get_plugin_registry
 from src.plugins.manifest import resolve_color_rules
 from src.text_utils import extract_alignment_from_line
@@ -49,7 +50,13 @@ from .filters import FILTER_NAMES
 
 logger = logging.getLogger(__name__)
 
-# Symbol name to character mapping
+# Symbol shortcut -> legacy ASCII stand-in. This is what `{sun}` renders as
+# with extended markup off (today, on every board). With extended markup on,
+# a shortcut is an alias of the icon registry instead (plan D16): `{sun}` is
+# `{icon:sun}`, resolved by `src.markup.resolve_icon_name` from FiestaUI's
+# registry data, so this table carries no icon meanings. `{heart}` is the
+# typed ♥ (code 62), not an icon. A shortcut the registry does not know keeps
+# its ASCII in both modes.
 SYMBOL_CHARS = {
     "sun": "*",
     "star": "*",
@@ -182,13 +189,16 @@ class TemplateEngine:
             self._config_manager = get_config_manager()
         return self._config_manager
 
-    def render(self, template: str, context: dict[str, Any] | None = None) -> str:
+    def render(self, template: str, context: dict[str, Any] | None = None, *, extended_markup: bool = False) -> str:
         """Render template with data context.
 
         Args:
             template: Template string with {{variables}} and {{colors}}
             context: Optional pre-fetched context data. If not provided,
                      data will be fetched from display sources.
+            extended_markup: Resolve symbol shortcuts (``{sun}``) through the
+                icon registry instead of their ASCII stand-ins (plan D16). Off
+                by default; nothing turns it on until the v10 markup switch.
 
         Returns:
             Rendered string with all substitutions applied
@@ -223,7 +233,7 @@ class TemplateEngine:
         result = self._render_variables(result, context)
 
         # Process symbols (single brackets like {sun})
-        return self._render_symbols(result)
+        return self._render_symbols(result, extended_markup=extended_markup)
 
     def _count_tiles(self, text: str) -> int:
         """Count the number of tiles in a text string.
@@ -1335,11 +1345,22 @@ class TemplateEngine:
 
         return value
 
-    def _render_symbols(self, template: str) -> str:
-        """Replace {symbol} shortcuts with characters."""
+    def _render_symbols(self, template: str, *, extended_markup: bool = False) -> str:
+        """Replace {symbol} shortcuts.
+
+        With ``extended_markup`` off: the legacy ASCII stand-in from
+        :data:`SYMBOL_CHARS`. With it on: the icon the registry names
+        (``{icon:<canonical name>}``), or ``♥`` for ``{heart}``.
+        """
 
         def replace_symbol(match):
             symbol = match.group(1).lower()
+            if extended_markup:
+                if symbol == "heart":
+                    return "♥"
+                icon = resolve_icon_name(symbol)
+                if icon is not None:
+                    return "{icon:" + icon + "}"
             return SYMBOL_CHARS.get(symbol, match.group(0))
 
         return SYMBOL_PATTERN.sub(replace_symbol, template)
