@@ -39,7 +39,7 @@ from typing import Any
 
 from src.devices import DEFAULT_DEVICE_TYPE, BoardContext, resolve_dimensions
 from src.markup import count_tiles as markup_count_tiles
-from src.markup import neutralize_data, resolve_icon_name, take_tiles, wrap_line
+from src.markup import neutralize_data, resolve_icon_name, split_rows, take_tiles, wrap_line
 from src.plugins import get_plugin_registry
 from src.plugins.manifest import resolve_color_rules
 from src.text_utils import extract_alignment_from_line
@@ -543,7 +543,10 @@ class TemplateEngine:
                     # |wrap would. Without this it wrote straight over a
                     # footer, and the footer was not pushed down or shown
                     # anywhere — it was simply gone.
-                    split_lines = rendered_line.split("\n")[: _overflow_budget(i)]
+                    # On an extended-markup board a span the formula sits in
+                    # is closed and reopened across the break, as |wrap does.
+                    all_rows = split_rows(rendered_line) if extended_markup else rendered_line.split("\n")
+                    split_lines = all_rows[: _overflow_budget(i)]
                     for line_idx, split_line in enumerate(split_lines):
                         if i + line_idx >= num_rows:
                             break

@@ -179,6 +179,76 @@ def test_variable_wrap_budget_counts_a_span_prefix_by_tiles(engine):
     assert out[2] == "TEN" + " " * 19
 
 
+# --- row-emitting formulas (FOREACH) ----------------------------------------------
+
+ITEMS = {"demo": {"items": ["AA", "BB", "CC"]}}
+
+
+def foreach_rows(engine: TemplateEngine, line: str, *, extended_markup: bool = True) -> list[str]:
+    meta = [{"alignment": "left", "wrap": False}]
+    return engine.render_lines([line], ITEMS, line_metadata=meta, extended_markup=extended_markup).split("\n")
+
+
+def test_foreach_row_break_closes_and_reopens_a_span(engine):
+    out = foreach_rows(engine, "{{red:{{= FOREACH(demo.items, item)}}}}")
+    assert out[:3] == ["{red:AA}" + " " * 20, "{red:BB}" + " " * 20, "{red:CC}" + " " * 20]
+
+
+def test_foreach_row_break_reopens_a_block_with_its_background(engine):
+    out = foreach_rows(engine, "{{black/white:X {{= FOREACH(demo.items, item)}}}}")
+    assert out[:3] == [
+        "{black/white:X AA}" + " " * 18,
+        "{black/white:BB}" + " " * 20,
+        "{black/white:CC}" + " " * 20,
+    ]
+    assert parse_line(out[1], extended_markup=True)[0].background == "white"
+
+
+def test_foreach_row_break_reopens_every_enclosing_span(engine):
+    out = foreach_rows(engine, "{{red:<{{blue:{{= FOREACH(demo.items, item)}}}}>}}")
+    assert out[:3] == [
+        "{red:<{blue:AA}}" + " " * 19,
+        "{red:{blue:BB}}" + " " * 20,
+        "{red:{blue:CC}>}" + " " * 19,
+    ]
+
+
+def test_foreach_rows_outside_any_span_are_left_verbatim(engine):
+    out = foreach_rows(engine, "{{red:>}}{{= FOREACH(demo.items, item)}}")
+    assert out[:3] == ["{red:>}AA" + " " * 19, "BB" + " " * 20, "CC" + " " * 20]
+
+
+@pytest.mark.parametrize(
+    "line",
+    ["{{red:{{= FOREACH(demo.items, item)}}}}", "{{black/white:X {{= FOREACH(demo.items, item)}}}}"],
+)
+def test_every_foreach_row_is_board_width_and_balanced(engine, line):
+    for row in foreach_rows(engine, line):
+        assert_well_formed(row, 22)
+
+
+def test_foreach_split_flap_rows_are_unchanged(engine):
+    assert foreach_rows(engine, "{{= FOREACH(demo.items, item)}}", extended_markup=False)[:3] == [
+        "AA" + " " * 20,
+        "BB" + " " * 20,
+        "CC" + " " * 20,
+    ]
+
+
+def test_split_rows_without_a_crossing_span_is_a_plain_split():
+    from src.markup import split_rows
+
+    assert split_rows("{red:A}\n{x}B\n") == ["{red:A}", "{x}B", ""]
+
+
+def test_split_rows_keeps_literal_braces_it_cannot_reexpress():
+    from src.markup import split_rows
+
+    # A newline between a span's literal braces: no markup expresses the halves,
+    # so the rows are the raw split (as wrap_line falls back to the legacy wrap).
+    assert split_rows("{red:A{x\ny}B}") == ["{red:A{x", "y}B}"]
+
+
 @pytest.mark.parametrize("line", [MIXED, "{{red:" + "WORD " * 9 + "}}", "A" * 21 + "{sun}{heart}"])
 @pytest.mark.parametrize("alignment", ["left", "center", "right"])
 def test_every_row_is_board_width_and_balanced(engine, line, alignment):
