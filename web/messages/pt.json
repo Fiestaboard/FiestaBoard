@@ -703,12 +703,18 @@
     "stepTitles": {
       "connectBoard": "Conecte Seu Painel",
       "addDataSources": "Adicione Fontes de Dados",
-      "allSet": "Tudo Pronto!"
+      "allSet": "Tudo Pronto!",
+      "chooseOutput": "Onde quer mostrar o FiestaBoard?",
+      "setUpTv": "Configurar a sua TV",
+      "setUpOutput": "Configurar {name}"
     },
     "stepDescriptions": {
       "enterCredentials": "Insira as credenciais do seu painel para começar",
       "enableFeatures": "Ative recursos opcionais que funcionam imediatamente",
-      "sendTestMessage": "Envie uma mensagem de teste para o seu painel"
+      "sendTestMessage": "Envie uma mensagem de teste para o seu painel",
+      "chooseOutput": "Escolha o ecrã que tem. Pode adicionar mais depois nas Definições.",
+      "setUpTv": "Dê um nome à TV e indique o tamanho do ecrã",
+      "setUpOutput": "Ligue-o, teste-o e guarde-o como painel"
     },
     "boardSetup": {
       "connectionType": "Tipo de Conexão",
@@ -790,7 +796,42 @@
       "skipGoToDashboard": "Pular e Ir para o Painel",
       "dateTimeName": "Data e Hora",
       "starTrekName": "Citações de Star Trek",
-      "guestWifiName": "WiFi de Convidados"
+      "guestWifiName": "WiFi de Convidados",
+      "displayReady": "{name} ({output}) está configurado"
+    },
+    "progressDisplay": "Ecrã",
+    "chooseOutput": {
+      "loading": "A procurar ecrãs…",
+      "loadFailed": "Não foi possível carregar a lista de ecrãs.",
+      "retry": "Tentar novamente",
+      "optionsLabel": "Ecrãs",
+      "needsBeta": "Requer a beta de plugins de saída. Pode ativá-la no passo seguinte.",
+      "downloads": "É transferido quando continuar, por isso precisa de ligação à Internet.",
+      "skipTitle": "Ignorar — adiciono um ecrã mais tarde",
+      "skipDescription": "Explore e pré-visualize páginas agora. Adicione um ecrã quando quiser nas Definições."
+    },
+    "outputSetup": {
+      "installing": "A instalar {name}…",
+      "installFailed": "Não foi possível instalar {name}",
+      "offline": "O FiestaBoard não conseguiu transferir {name}. Verifique a ligação à Internet deste dispositivo e tente novamente.",
+      "betaTitle": "{name} requer a beta de plugins de saída",
+      "betaBody": "Os ecrãs do registo de plugins executam o seu próprio código no seu FiestaBoard, por isso ficam desligados até ativar a beta de plugins de saída. Pode desativá-la em Definições → Beta.",
+      "enableBeta": "Ativar a beta de plugins de saída",
+      "enableBetaFailed": "Não foi possível ativar a beta. Tente novamente.",
+      "retry": "Tentar novamente",
+      "created": "{board} está guardado e pronto.",
+      "createFailed": "Não foi possível guardar o painel"
+    },
+    "panelSetup": {
+      "nameLabel": "Nome da TV",
+      "defaultName": "TV da sala",
+      "sizeLabel": "Tamanho do ecrã (polegadas, na diagonal)",
+      "sizeHelp": "Entre {min} e {max} polegadas. O painel é dimensionado para que cada palheta pareça real neste ecrã.",
+      "create": "Criar painel de TV",
+      "creating": "A criar…",
+      "created": "{name} está pronta",
+      "openOnTv": "Abra este endereço no navegador da TV:",
+      "failed": "Não foi possível criar o painel de TV"
     }
   },
   "activeDisplay": {

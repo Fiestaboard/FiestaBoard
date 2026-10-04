@@ -2,7 +2,7 @@
 
 import { Box, Button, Flex, Text, WizardShell } from "@fiestaboard/ui";
 import { ChevronLeft, ChevronRight } from "lucide-react";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 import { LanguageSelector } from "@/components/language-selector";
 import { useRouter } from "@/hooks/use-router";
@@ -14,15 +14,20 @@ import type { WizardProgress } from "@/lib/setup-detection";
 import { clearWizardProgress, getWizardProgress, markWizardComplete, saveWizardProgress } from "@/lib/setup-detection";
 
 import { StepBoardSetup } from "./step-board-setup";
+import { StepChooseOutput } from "./step-choose-output";
 import type { WizardPluginConfig } from "./step-easy-plugins";
 import { StepEasyPlugins } from "./step-easy-plugins";
+import type { WizardCreatedBoard, WizardOutputChoice } from "./step-output-plugin";
+import { StepOutputPlugin } from "./step-output-plugin";
+import { StepPanelSetup } from "./step-panel-setup";
 import { StepWelcome } from "./step-welcome";
 
 interface SetupWizardProps {
   onComplete?: () => void;
 }
 
-const TOTAL_STEPS = 3;
+// 1 choose the display (plan D18), 2 set it up, 3 data sources, 4 finish.
+const TOTAL_STEPS = 4;
 
 // Decorative split-flap field behind the wizard card. BoardBackdrop renders
 // aria-hidden, so these are not user-facing copy and deliberately stay
@@ -54,6 +59,13 @@ export function SetupWizard({ onComplete }: SetupWizardProps) {
   const [currentStep, setCurrentStep] = useState(() => saved?.currentStep ?? 1);
   const [isLoading, setIsLoading] = useState(false);
   const [canProceed, setCanProceed] = useState(false);
+
+  // The display chosen on step 1 (plan D18), and the board the TV or
+  // output-plugin step created for it.
+  const [output, setOutput] = useState<WizardOutputChoice | null>(() =>
+    saved?.outputId ? { id: saved.outputId, name: saved.outputName ?? saved.outputId } : null,
+  );
+  const [createdBoard, setCreatedBoard] = useState<WizardCreatedBoard | null>(() => saved?.createdBoard ?? null);
 
   // Board config state
   const [boardConfig, setBoardConfig] = useState<{
@@ -89,6 +101,9 @@ export function SetupWizard({ onComplete }: SetupWizardProps) {
   useEffect(() => {
     const progress: WizardProgress = {
       currentStep,
+      outputId: output?.id,
+      outputName: output?.name,
+      createdBoard: createdBoard ?? undefined,
       boardConfig: {
         api_mode: boardConfig.api_mode,
         local_api_key: boardConfig.local_api_key,
@@ -101,7 +116,23 @@ export function SetupWizard({ onComplete }: SetupWizardProps) {
       plugins: pluginConfig,
     };
     saveWizardProgress(progress);
-  }, [currentStep, boardConfig, pluginConfig]);
+  }, [currentStep, output, createdBoard, boardConfig, pluginConfig]);
+
+  // Each step starts at its heading: after Next or Back, focus moves to the
+  // new step's title, so keyboard and screen-reader users are not left on a
+  // button that just disappeared. Not on first render — the page has just
+  // opened and focus belongs where the browser put it.
+  const contentRef = useRef<HTMLDivElement>(null);
+  const shownStep = useRef(currentStep);
+  useEffect(() => {
+    if (shownStep.current === currentStep) return;
+    shownStep.current = currentStep;
+    const heading = contentRef.current?.parentElement?.querySelector<HTMLElement>("h2");
+    if (heading) {
+      heading.tabIndex = -1;
+      heading.focus();
+    }
+  }, [currentStep]);
 
   const handleNext = useCallback(() => {
     if (currentStep < TOTAL_STEPS) {
@@ -132,26 +163,63 @@ export function SetupWizard({ onComplete }: SetupWizardProps) {
   const handleComplete = useCallback(() => finish("completed"), [finish]);
   const handleSkip = useCallback(() => finish("skipped"), [finish]);
 
+  const renderSetupStep = () => {
+    if (output?.id === "fiestapanel") {
+      return (
+        <StepPanelSetup
+          created={createdBoard}
+          onCreated={setCreatedBoard}
+          onValidChange={setCanProceed}
+          setIsLoading={setIsLoading}
+        />
+      );
+    }
+    if (output && output.id !== "vestaboard") {
+      return (
+        <StepOutputPlugin
+          key={output.id}
+          output={output}
+          created={createdBoard}
+          onCreated={setCreatedBoard}
+          onValidChange={setCanProceed}
+          setIsLoading={setIsLoading}
+        />
+      );
+    }
+    return (
+      <StepBoardSetup
+        config={boardConfig}
+        onConfigChange={setBoardConfig}
+        onValidChange={setCanProceed}
+        isLoading={isLoading}
+        setIsLoading={setIsLoading}
+      />
+    );
+  };
+
   // Render step content
   const renderStep = () => {
     switch (currentStep) {
       case 1:
         return (
-          <StepBoardSetup
-            config={boardConfig}
-            onConfigChange={setBoardConfig}
+          <StepChooseOutput
+            value={output?.id ?? null}
+            onChange={(chosen) => setOutput({ id: chosen.id, name: chosen.name })}
+            onSkip={handleSkip}
             onValidChange={setCanProceed}
-            isLoading={isLoading}
-            setIsLoading={setIsLoading}
           />
         );
       case 2:
-        return <StepEasyPlugins config={pluginConfig} onConfigChange={setPluginConfig} onValidChange={setCanProceed} />;
+        return renderSetupStep();
       case 3:
+        return <StepEasyPlugins config={pluginConfig} onConfigChange={setPluginConfig} onValidChange={setCanProceed} />;
+      case 4:
         return (
           <StepWelcome
             boardConfig={boardConfig}
             pluginConfig={pluginConfig}
+            output={output}
+            createdBoard={createdBoard}
             onComplete={handleComplete}
             isLoading={isLoading}
             setIsLoading={setIsLoading}
@@ -162,11 +230,24 @@ export function SetupWizard({ onComplete }: SetupWizardProps) {
     }
   };
 
-  // Step titles
-  const stepTitles = [t("stepTitles.connectBoard"), t("stepTitles.addDataSources"), t("stepTitles.allSet")];
+  // Step titles: the set-up step is named for the display chosen.
+  const setupTitle =
+    output?.id === "fiestapanel"
+      ? t("stepTitles.setUpTv")
+      : output && output.id !== "vestaboard"
+        ? t("stepTitles.setUpOutput", { name: output.name })
+        : t("stepTitles.connectBoard");
+  const setupDescription =
+    output?.id === "fiestapanel"
+      ? t("stepDescriptions.setUpTv")
+      : output && output.id !== "vestaboard"
+        ? t("stepDescriptions.setUpOutput")
+        : t("stepDescriptions.enterCredentials");
+  const stepTitles = [t("stepTitles.chooseOutput"), setupTitle, t("stepTitles.addDataSources"), t("stepTitles.allSet")];
 
   const stepDescriptions = [
-    t("stepDescriptions.enterCredentials"),
+    t("stepDescriptions.chooseOutput"),
+    setupDescription,
     t("stepDescriptions.enableFeatures"),
     t("stepDescriptions.sendTestMessage"),
   ];
@@ -185,7 +266,7 @@ export function SetupWizard({ onComplete }: SetupWizardProps) {
       title={t("welcomeTitle")}
       description={t("welcomeSubtitle")}
       aside={<LanguageSelector />}
-      steps={[t("progressConnect"), t("progressCustomize"), t("progressFinish")]}
+      steps={[t("progressDisplay"), t("progressConnect"), t("progressCustomize"), t("progressFinish")]}
       current={currentStep}
       progressLabel={t("progressLabel")}
       stepTitle={stepTitles[currentStep - 1]}
@@ -207,7 +288,8 @@ export function SetupWizard({ onComplete }: SetupWizardProps) {
               {t("stepOf", { current: currentStep, total: TOTAL_STEPS })}
             </Text>
 
-            {currentStep === 1 && (
+            {/* Step 1 offers "I'll add a display later" in its own content. */}
+            {currentStep === 2 && (
               <Button variant="ghost" onClick={handleSkip} disabled={isLoading} size="lg">
                 {t("skipForNow")}
               </Button>
@@ -223,7 +305,7 @@ export function SetupWizard({ onComplete }: SetupWizardProps) {
         </>
       }
     >
-      {renderStep()}
+      <Box ref={contentRef}>{renderStep()}</Box>
     </WizardShell>
   );
 }

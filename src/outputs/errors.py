@@ -13,8 +13,11 @@ __all__ = [
     "GeometryError",
     "InvalidActionInputError",
     "InvalidOutputConfigError",
+    "OutputInstallRefusedError",
+    "OutputNotInstallableError",
     "OutputNotInstalledError",
     "OutputPluginsDisabledError",
+    "OutputSourceUnreachableError",
     "UndeclaredDeviceModelError",
 ]
 
@@ -58,3 +61,20 @@ class BoardNotFoundError(LookupError):
 
 class InvalidActionInputError(ValueError):
     """An action's ``input`` does not fit its declared ``input_schema``."""
+
+
+class OutputNotInstallableError(LookupError):
+    """Nothing offers an output under this id: not installed, not in the
+    seed, not an output in the plugin registry."""
+
+    def __init__(self, output_id: str) -> None:
+        super().__init__(f"No installable output is named '{output_id}'.")
+
+
+class OutputInstallRefusedError(ValueError):
+    """The output was fetched but cannot run here (its output_api, its
+    self-check) and was not installed."""
+
+
+class OutputSourceUnreachableError(RuntimeError):
+    """The output's repository could not be fetched (offline, host down)."""

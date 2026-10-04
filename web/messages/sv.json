@@ -703,12 +703,18 @@
     "stepTitles": {
       "connectBoard": "Anslut din tavla",
       "addDataSources": "Lägg till datakällor",
-      "allSet": "Allt är klart!"
+      "allSet": "Allt är klart!",
+      "chooseOutput": "Vad vill du visa FiestaBoard på?",
+      "setUpTv": "Konfigurera din tv",
+      "setUpOutput": "Konfigurera {name}"
     },
     "stepDescriptions": {
       "enterCredentials": "Ange dina tavlans inloggningsuppgifter för att komma igång",
       "enableFeatures": "Aktivera valfria funktioner som fungerar direkt",
-      "sendTestMessage": "Skicka ett testmeddelande till din tavla"
+      "sendTestMessage": "Skicka ett testmeddelande till din tavla",
+      "chooseOutput": "Välj skärmen du har. Du kan lägga till fler senare i Inställningar.",
+      "setUpTv": "Ge din tv ett namn och ange skärmstorleken",
+      "setUpOutput": "Anslut, testa och spara den som en tavla"
     },
     "boardSetup": {
       "connectionType": "Anslutningstyp",
@@ -790,7 +796,42 @@
       "skipGoToDashboard": "Hoppa över och gå till instrumentpanelen",
       "dateTimeName": "Datum & tid",
       "starTrekName": "Star Trek-citat",
-      "guestWifiName": "Gäst-WiFi"
+      "guestWifiName": "Gäst-WiFi",
+      "displayReady": "{name} ({output}) är konfigurerad"
+    },
+    "progressDisplay": "Skärm",
+    "chooseOutput": {
+      "loading": "Letar efter skärmar…",
+      "loadFailed": "Det gick inte att läsa in listan över skärmar.",
+      "retry": "Försök igen",
+      "optionsLabel": "Skärmar",
+      "needsBeta": "Kräver betan för utdataplugins. Du kan slå på den i nästa steg.",
+      "downloads": "Laddas ned när du fortsätter, så det krävs en internetanslutning.",
+      "skipTitle": "Hoppa över — jag lägger till en skärm senare",
+      "skipDescription": "Titta runt och förhandsgranska sidor nu. Lägg till en skärm när som helst i Inställningar."
+    },
+    "outputSetup": {
+      "installing": "Installerar {name}…",
+      "installFailed": "{name} kunde inte installeras",
+      "offline": "FiestaBoard kunde inte ladda ned {name}. Kontrollera enhetens internetanslutning och försök igen.",
+      "betaTitle": "{name} kräver betan för utdataplugins",
+      "betaBody": "Skärmar från pluginregistret kör sin egen kod på din FiestaBoard, så de är avstängda tills du slår på betan för utdataplugins. Du kan stänga av den igen under Inställningar → Beta.",
+      "enableBeta": "Slå på betan för utdataplugins",
+      "enableBetaFailed": "Det gick inte att slå på betan. Försök igen.",
+      "retry": "Försök igen",
+      "created": "{board} är sparad och redo.",
+      "createFailed": "Det gick inte att spara tavlan"
+    },
+    "panelSetup": {
+      "nameLabel": "Tv:ns namn",
+      "defaultName": "Vardagsrums-tv",
+      "sizeLabel": "Skärmstorlek (tum, mätt diagonalt)",
+      "sizeHelp": "Mellan {min} och {max} tum. Tavlan anpassas så att varje flapp ser verklig ut på den här skärmen.",
+      "create": "Skapa tv-tavla",
+      "creating": "Skapar…",
+      "created": "{name} är redo",
+      "openOnTv": "Öppna den här adressen i tv:ns webbläsare:",
+      "failed": "Det gick inte att skapa tv-tavlan"
     }
   },
   "activeDisplay": {

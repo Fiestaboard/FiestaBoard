@@ -703,12 +703,18 @@
     "stepTitles": {
       "connectBoard": "Connectez votre tableau",
       "addDataSources": "Ajoutez des sources de données",
-      "allSet": "Tout est prêt !"
+      "allSet": "Tout est prêt !",
+      "chooseOutput": "Sur quoi voulez-vous afficher FiestaBoard ?",
+      "setUpTv": "Configurer votre téléviseur",
+      "setUpOutput": "Configurer {name}"
     },
     "stepDescriptions": {
       "enterCredentials": "Saisissez vos identifiants de tableau pour commencer",
       "enableFeatures": "Activez des fonctionnalités optionnelles qui fonctionnent immédiatement",
-      "sendTestMessage": "Envoyez un message de test à votre tableau"
+      "sendTestMessage": "Envoyez un message de test à votre tableau",
+      "chooseOutput": "Choisissez l'écran dont vous disposez. Vous pourrez en ajouter d'autres plus tard dans les Paramètres.",
+      "setUpTv": "Nommez votre téléviseur et indiquez la taille de son écran",
+      "setUpOutput": "Connectez-le, testez-le et enregistrez-le comme tableau"
     },
     "boardSetup": {
       "connectionType": "Type de connexion",
@@ -790,7 +796,42 @@
       "skipGoToDashboard": "Passer et aller au tableau de bord",
       "dateTimeName": "Date et heure",
       "starTrekName": "Citations Star Trek",
-      "guestWifiName": "WiFi invité"
+      "guestWifiName": "WiFi invité",
+      "displayReady": "{name} ({output}) est configuré"
+    },
+    "progressDisplay": "Affichage",
+    "chooseOutput": {
+      "loading": "Recherche des écrans…",
+      "loadFailed": "Impossible de charger la liste des écrans.",
+      "retry": "Réessayer",
+      "optionsLabel": "Écrans",
+      "needsBeta": "Nécessite la bêta des plugins de sortie. Vous pourrez l'activer à l'étape suivante.",
+      "downloads": "Se télécharge lorsque vous continuez : une connexion Internet est nécessaire.",
+      "skipTitle": "Passer — j'ajouterai un écran plus tard",
+      "skipDescription": "Explorez et prévisualisez des pages dès maintenant. Ajoutez un écran à tout moment dans les Paramètres."
+    },
+    "outputSetup": {
+      "installing": "Installation de {name}…",
+      "installFailed": "Impossible d'installer {name}",
+      "offline": "FiestaBoard n'a pas pu télécharger {name}. Vérifiez la connexion Internet de cet appareil, puis réessayez.",
+      "betaTitle": "{name} nécessite la bêta des plugins de sortie",
+      "betaBody": "Les écrans du registre de plugins exécutent leur propre code sur votre FiestaBoard ; ils restent donc désactivés tant que vous n'activez pas la bêta des plugins de sortie. Vous pourrez la désactiver dans Paramètres → Bêta.",
+      "enableBeta": "Activer la bêta des plugins de sortie",
+      "enableBetaFailed": "Impossible d'activer la bêta. Réessayez.",
+      "retry": "Réessayer",
+      "created": "{board} est enregistré et prêt.",
+      "createFailed": "Impossible d'enregistrer le tableau"
+    },
+    "panelSetup": {
+      "nameLabel": "Nom du téléviseur",
+      "defaultName": "TV du salon",
+      "sizeLabel": "Taille de l'écran (pouces, en diagonale)",
+      "sizeHelp": "Entre {min} et {max} pouces. Le tableau est dimensionné pour que chaque palette paraisse réelle sur cet écran.",
+      "create": "Créer le tableau TV",
+      "creating": "Création…",
+      "created": "{name} est prêt",
+      "openOnTv": "Ouvrez cette adresse dans le navigateur du téléviseur :",
+      "failed": "Impossible de créer le tableau TV"
     }
   },
   "activeDisplay": {

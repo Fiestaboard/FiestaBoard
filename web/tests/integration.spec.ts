@@ -19,6 +19,7 @@ import type { Locator } from "@playwright/test";
 import {
   API_URL,
   BOARD_HOST,
+  chooseVestaboardInWizard,
   clearBoardConfig,
   configureBoard,
   expect,
@@ -73,7 +74,8 @@ test.describe("Setup Wizard", () => {
     // Wait for the wizard to render (it lazy-loads)
     await expect(page.getByRole("heading", { name: "Welcome to FiestaBoard" })).toBeVisible({ timeout: 30_000 });
 
-    // Step 1: Connect Your Board
+    // Step 1: choose the display (plan D18). Step 2: Connect Your Board
+    await chooseVestaboardInWizard(page);
     await expect(page.getByRole("heading", { name: "Connect Your Board" })).toBeVisible();
 
     // Select Local API mode
@@ -87,14 +89,14 @@ test.describe("Setup Wizard", () => {
     await page.getByRole("button", { name: "Test Connection" }).click();
     await expect(page.getByText("Connected!")).toBeVisible({ timeout: 15_000 });
 
-    // Proceed to Step 2
+    // Proceed to Step 3
     await page.getByRole("button", { name: "Next", exact: true }).click();
 
-    // Step 2: Add Data Sources — just proceed
+    // Step 3: Add Data Sources — just proceed
     await expect(page.getByRole("heading", { name: "Add Data Sources" })).toBeVisible();
     await page.getByRole("button", { name: "Next", exact: true }).click();
 
-    // Step 3: You're All Set — finish
+    // Step 4: You're All Set — finish
     await expect(page.getByRole("heading", { name: "Setup Complete!" })).toBeVisible();
 
     // Click through to the dashboard (could be either label)

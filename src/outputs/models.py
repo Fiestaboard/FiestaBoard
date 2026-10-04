@@ -188,3 +188,24 @@ class OutputSummary(BaseModel):
         description="JSON Schema of output_config, with its ui:sections / ui:visible_when / ui:widget annotations."
     )
     actions: list[OutputActionDescriptor]
+
+
+class AvailableOutput(BaseModel):
+    """An output the user can pick, installed or not (``GET /outputs/available``)."""
+
+    id: str
+    name: str
+    description: str
+    icon: str | None
+    source: Literal["installed", "seed", "registry"] = Field(
+        description="installed: usable now; seed: bundled with this image (installs offline); "
+        "registry: installs from its repository."
+    )
+    installed: bool
+    builtin: bool = Field(description="Vestaboard and FiestaPanel: created through their own flows.")
+    beta_gated: bool = Field(description="Usable only with the output plugins beta.")
+    available: bool = Field(description="Whether it can be installed and used now (false: the beta is off).")
+    needs_network: bool = Field(description="Installing it fetches its repository.")
+    output_api: int | None = Field(
+        description="The contract major it targets, where known before install; null for a built-in or a registry entry."
+    )

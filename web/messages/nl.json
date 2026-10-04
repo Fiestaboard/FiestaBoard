@@ -703,12 +703,18 @@
     "stepTitles": {
       "connectBoard": "Verbind je bord",
       "addDataSources": "Gegevensbronnen toevoegen",
-      "allSet": "Je bent klaar!"
+      "allSet": "Je bent klaar!",
+      "chooseOutput": "Waarop wil je FiestaBoard tonen?",
+      "setUpTv": "Je tv instellen",
+      "setUpOutput": "{name} instellen"
     },
     "stepDescriptions": {
       "enterCredentials": "Voer je bordreferenties in om te beginnen",
       "enableFeatures": "Schakel optionele functies in die direct werken",
-      "sendTestMessage": "Stuur een testbericht naar je bord"
+      "sendTestMessage": "Stuur een testbericht naar je bord",
+      "chooseOutput": "Kies het scherm dat je hebt. Je kunt er later meer toevoegen in Instellingen.",
+      "setUpTv": "Geef je tv een naam en vertel ons hoe groot het scherm is",
+      "setUpOutput": "Verbind het, test het en sla het op als bord"
     },
     "boardSetup": {
       "connectionType": "Verbindingstype",
@@ -790,7 +796,42 @@
       "skipGoToDashboard": "Overslaan & naar dashboard",
       "dateTimeName": "Datum & Tijd",
       "starTrekName": "Star Trek Citaten",
-      "guestWifiName": "Gast WiFi"
+      "guestWifiName": "Gast WiFi",
+      "displayReady": "{name} ({output}) is ingesteld"
+    },
+    "progressDisplay": "Scherm",
+    "chooseOutput": {
+      "loading": "Schermen zoeken…",
+      "loadFailed": "De lijst met schermen kon niet worden geladen.",
+      "retry": "Opnieuw proberen",
+      "optionsLabel": "Schermen",
+      "needsBeta": "Vereist de bèta voor uitvoerplug-ins. Je kunt die in de volgende stap aanzetten.",
+      "downloads": "Wordt gedownload als je doorgaat, dus er is een internetverbinding nodig.",
+      "skipTitle": "Overslaan — ik voeg later een scherm toe",
+      "skipDescription": "Kijk rond en bekijk nu alvast pagina's. Voeg op elk moment een scherm toe in Instellingen."
+    },
+    "outputSetup": {
+      "installing": "{name} installeren…",
+      "installFailed": "{name} kon niet worden geïnstalleerd",
+      "offline": "FiestaBoard kon {name} niet downloaden. Controleer de internetverbinding van dit apparaat en probeer het opnieuw.",
+      "betaTitle": "{name} vereist de bèta voor uitvoerplug-ins",
+      "betaBody": "Schermen uit het plug-inregister draaien hun eigen code op je FiestaBoard, dus ze blijven uit tot je de bèta voor uitvoerplug-ins aanzet. Je kunt die weer uitzetten in Instellingen → Bèta.",
+      "enableBeta": "Bèta voor uitvoerplug-ins aanzetten",
+      "enableBetaFailed": "De bèta kon niet worden aangezet. Probeer het opnieuw.",
+      "retry": "Opnieuw proberen",
+      "created": "{board} is opgeslagen en klaar.",
+      "createFailed": "Het bord kon niet worden opgeslagen"
+    },
+    "panelSetup": {
+      "nameLabel": "Naam van de tv",
+      "defaultName": "Woonkamer-tv",
+      "sizeLabel": "Schermgrootte (inch, diagonaal gemeten)",
+      "sizeHelp": "Tussen {min} en {max} inch. Het bord krijgt een formaat waarbij elke flap er op dit scherm echt uitziet.",
+      "create": "Tv-bord maken",
+      "creating": "Bezig met maken…",
+      "created": "{name} is klaar",
+      "openOnTv": "Open dit adres in de browser van de tv:",
+      "failed": "Het tv-bord kon niet worden gemaakt"
     }
   },
   "activeDisplay": {

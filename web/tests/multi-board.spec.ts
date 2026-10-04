@@ -10,6 +10,7 @@
 import {
   API_URL,
   BOARD_HOST,
+  chooseVestaboardInWizard,
   clearBoardConfig,
   configureBoard,
   createPage,
@@ -411,6 +412,7 @@ test.describe("Setup Wizard – Board Configuration", () => {
 
     await page.goto("/");
     await expect(page.getByRole("heading", { name: "Welcome to FiestaBoard" })).toBeVisible({ timeout: 30_000 });
+    await chooseVestaboardInWizard(page);
 
     await expect(page.getByText("Board Type")).toBeVisible({ timeout: 5_000 });
     // Target the tiles by role + accessible name, not by bare text. The step's
@@ -430,6 +432,7 @@ test.describe("Setup Wizard – Board Configuration", () => {
 
     await page.goto("/");
     await expect(page.getByRole("heading", { name: "Welcome to FiestaBoard" })).toBeVisible({ timeout: 30_000 });
+    await chooseVestaboardInWizard(page);
 
     await expect(page.getByText("Board Color")).toBeVisible({
       timeout: 5_000,
@@ -444,6 +447,7 @@ test.describe("Setup Wizard – Board Configuration", () => {
     });
 
     await page.goto("/");
+    await chooseVestaboardInWizard(page);
     await expect(page.getByRole("heading", { name: "Connect Your Board" })).toBeVisible({ timeout: 30_000 });
 
     // Fill Local API credentials first
@@ -500,6 +504,7 @@ test.describe("Setup Wizard – Board Configuration", () => {
     });
 
     await page.goto("/");
+    await chooseVestaboardInWizard(page);
     await expect(page.getByRole("heading", { name: "Connect Your Board" })).toBeVisible({ timeout: 30_000 });
 
     // Don't change type or color — use defaults
@@ -524,6 +529,7 @@ test.describe("Setup Wizard – Board Configuration", () => {
     });
 
     await page.goto("/");
+    await chooseVestaboardInWizard(page);
     await expect(page.getByRole("heading", { name: "Connect Your Board" })).toBeVisible({ timeout: 30_000 });
 
     // Select Note type first — scroll to Board Type section

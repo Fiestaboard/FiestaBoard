@@ -10,6 +10,7 @@ import { api, ApiError } from "@/lib/api";
 import { cn } from "@/lib/utils";
 
 import type { WizardPluginConfig } from "./step-easy-plugins";
+import type { WizardCreatedBoard, WizardOutputChoice } from "./step-output-plugin";
 
 interface BoardConfig {
   api_mode: "local" | "cloud";
@@ -25,12 +26,25 @@ interface BoardConfig {
 interface StepWelcomeProps {
   boardConfig: BoardConfig;
   pluginConfig: WizardPluginConfig;
+  /** The display chosen on the first step; null or Vestaboard → the Vestaboard summary. */
+  output?: WizardOutputChoice | null;
+  /** The board a TV or output-plugin step created. */
+  createdBoard?: WizardCreatedBoard | null;
   onComplete: () => void;
   isLoading: boolean;
   setIsLoading: (loading: boolean) => void;
 }
 
-export function StepWelcome({ boardConfig, pluginConfig, onComplete, isLoading, setIsLoading }: StepWelcomeProps) {
+export function StepWelcome({
+  boardConfig,
+  pluginConfig,
+  output,
+  createdBoard,
+  onComplete,
+  isLoading,
+  setIsLoading,
+}: StepWelcomeProps) {
+  const otherDisplay = output && output.id !== "vestaboard" ? output : null;
   const t = useTranslations("wizard.welcome");
   const tc = useTranslations("common");
   const [sendStatus, setSendStatus] = useState<"idle" | "sending" | "success" | "error">("idle");
@@ -123,15 +137,17 @@ export function StepWelcome({ boardConfig, pluginConfig, onComplete, isLoading, 
           <Flex align="center" gap="2">
             <CheckCircle className="h-4 w-4 text-success" />
             <Text as="span">
-              {boardConfig.api_mode === "local"
-                ? t("boardConnectedLocal", {
-                    deviceType: boardConfig.device_type === "flagship" ? tc("flagship") : tc("note"),
-                    host: boardConfig.host,
-                  })
-                : t("boardConnected", {
-                    deviceType: boardConfig.device_type === "flagship" ? tc("flagship") : tc("note"),
-                    apiMode: boardConfig.api_mode === "cloud" ? "Cloud" : "Local",
-                  })}
+              {otherDisplay
+                ? t("displayReady", { name: createdBoard?.name ?? otherDisplay.name, output: otherDisplay.name })
+                : boardConfig.api_mode === "local"
+                  ? t("boardConnectedLocal", {
+                      deviceType: boardConfig.device_type === "flagship" ? tc("flagship") : tc("note"),
+                      host: boardConfig.host,
+                    })
+                  : t("boardConnected", {
+                      deviceType: boardConfig.device_type === "flagship" ? tc("flagship") : tc("note"),
+                      apiMode: boardConfig.api_mode === "cloud" ? "Cloud" : "Local",
+                    })}
             </Text>
           </Flex>
 

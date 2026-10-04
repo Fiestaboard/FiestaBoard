@@ -14,6 +14,7 @@ import {
   API_URL,
   authHeaders,
   BOARD_HOST,
+  chooseVestaboardInWizard,
   clearBoardConfig,
   configureBoard,
   createPage,
@@ -250,6 +251,7 @@ test.describe("Character code 62 — setup wizard", () => {
       localStorage.removeItem("fiestaboard_wizard_complete");
     });
     await page.goto("/");
+    await chooseVestaboardInWizard(page);
     await expect(page.getByRole("heading", { name: "Connect Your Board" })).toBeVisible({ timeout: 30_000 });
 
     await page.getByText("Local API").click();
@@ -278,6 +280,7 @@ test.describe("Character code 62 — setup wizard", () => {
       localStorage.removeItem("fiestaboard_wizard_complete");
     });
     await page.goto("/");
+    await chooseVestaboardInWizard(page);
     await expect(page.getByRole("heading", { name: "Connect Your Board" })).toBeVisible({ timeout: 30_000 });
 
     await expect(page.locator("[data-testid=wizard-code62-heart]")).toHaveCount(1);

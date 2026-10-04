@@ -7,7 +7,9 @@ domain errors, mapped to status codes by ``_STATUS_BY_ERROR``.
 
 from __future__ import annotations
 
-from fastapi import APIRouter, HTTPException
+import asyncio
+
+from fastapi import APIRouter, HTTPException, Response
 
 from src.api_errors import errors
 from src.display_runtime import reinitialize_board_clients
@@ -19,13 +21,18 @@ from .errors import (
     GeometryError,
     InvalidActionInputError,
     InvalidOutputConfigError,
+    OutputInstallRefusedError,
+    OutputNotInstallableError,
     OutputNotInstalledError,
     OutputPluginsDisabledError,
+    OutputSourceUnreachableError,
     UndeclaredDeviceModelError,
 )
 from .hooks import OutputActionError, UnknownOutputAction
+from .install import install_output, list_available_outputs
 from .models import (
     ActionResult,
+    AvailableOutput,
     DraftActionRequest,
     OutputBoardCreate,
     OutputBoardResponse,
@@ -46,6 +53,9 @@ _STATUS_BY_ERROR: dict[type[Exception], int] = {
     BoardNotFoundError: 404,
     UnknownOutputAction: 404,
     InvalidActionInputError: 400,
+    OutputNotInstallableError: 404,
+    OutputInstallRefusedError: 400,
+    OutputSourceUnreachableError: 503,
 }
 
 
@@ -109,6 +119,46 @@ async def create_board(output_id: str, request: OutputBoardCreate) -> OutputBoar
 )
 async def get_outputs() -> list[OutputSummary]:
     return [OutputSummary(**output) for output in list_outputs()]
+
+
+@router.get(
+    "/outputs/available",
+    response_model=list[AvailableOutput],
+    responses=errors(500),
+    summary="List the outputs that can be picked, installed or not",
+    description=(
+        "What the setup wizard's first step offers: the installed outputs (built-ins first), then the first-party "
+        "outputs bundled with this image (`source: seed`, installed with no network), then output plugins listed in "
+        "the plugin registry (`source: registry`). Each id once. When the registry cannot be read, the installed "
+        "and bundled outputs are listed alone."
+    ),
+)
+async def get_available_outputs() -> list[AvailableOutput]:
+    return [AvailableOutput(**output) for output in list_available_outputs()]
+
+
+@router.post(
+    "/outputs/{output_id}/install",
+    response_model=OutputSummary,
+    status_code=201,
+    responses=errors(400, 404, 409, 503),
+    summary="Install an output so a board can use it",
+    description=(
+        "Installs an output listed by `GET /outputs/available`: from the image's bundled seed when it holds it "
+        "(no network), otherwise from the plugin registry through the normal install path, which refuses a plugin "
+        "whose `output_api` this FiestaBoard does not support (400). 201 with the installed output; 200 with it "
+        "when it was already installed. Every output that is not bundled needs the output plugins beta (409, "
+        "checked before anything is fetched); 503 when the repository could not be downloaded."
+    ),
+)
+async def install_an_output(output_id: str, response: Response) -> OutputSummary:
+    try:
+        output, created = await asyncio.to_thread(install_output, output_id)
+    except tuple(_STATUS_BY_ERROR) as exc:
+        raise _as_http(exc) from exc
+    if not created:
+        response.status_code = 200
+    return OutputSummary(**output)
 
 
 @router.post(

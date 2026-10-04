@@ -192,7 +192,9 @@ export function StepBoardSetup({
         setTestMessage(result.message);
         setTroubleshootingSteps([]);
 
-        // Save per-board instance first (primary source of truth for settings page)
+        // The board store is the one source of truth: first-run detection
+        // reads it (plan D13), so the wizard no longer also writes the
+        // deprecated legacy `PUT /config/board` block.
         await api.updateBoardSettings({
           boards: [
             {
@@ -208,14 +210,6 @@ export function StepBoardSetup({
               enabled: true,
             } as BoardInstance,
           ],
-        });
-
-        // Then save global connection config (used by validation/first-run detection)
-        await api.updateBoardConfig({
-          api_mode: cfg.api_mode,
-          local_api_key: cfg.local_api_key,
-          cloud_key: cfg.cloud_key,
-          host: cfg.host,
         });
 
         onConfigChange({ ...cfg, connectionVerified: true });

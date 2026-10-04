@@ -708,6 +708,14 @@
       "kind": "APIRoute"
     },
     {
+      "path": "/outputs/available",
+      "methods": [
+        "GET"
+      ],
+      "name": "get_available_outputs",
+      "kind": "APIRoute"
+    },
+    {
       "path": "/outputs/{output_id}/actions/{action}",
       "methods": [
         "POST"
@@ -721,6 +729,14 @@
         "POST"
       ],
       "name": "create_board",
+      "kind": "APIRoute"
+    },
+    {
+      "path": "/outputs/{output_id}/install",
+      "methods": [
+        "POST"
+      ],
+      "name": "install_an_output",
       "kind": "APIRoute"
     },
     {
