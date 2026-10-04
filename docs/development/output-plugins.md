@@ -275,13 +275,20 @@ The whole grammar:
 
 Values are compared without coercion: `true` is not `1`. A field with no value reads as its `default`, else `null`.
 
+A name starting with `@` reads the **board**, not a sibling: `@device_type` (`flagship`, `note`, `note_array` or `panel`) and `@device_model` (the board's device model id). Use them when one output's settings differ by board shape. The Vestaboard shows a Note array its tiles and a Flagship its address:
+
+```json
+"host": { "type": "string", "ui:visible_when": { "api_mode": "local", "@device_type": ["flagship", "note"] } },
+"tiles": { "type": "array", "ui:widget": "tile-grid", "ui:visible_when": { "api_mode": "local", "@device_type": "note_array" } }
+```
+
 **Widgets.** Besides the standard widgets (`password`, `textarea`, `timezone`, `datetime`, `remote-options`), an output may use three device-setup widgets:
 
 | Widget | On | What it renders |
 |--------|----|-----------------|
 | `mode-cards` | a string `enum` | Selectable cards, one per value. `ui:options.cards` gives each value a `title` and `description`. |
 | `device-picker` | a string | A field filled from discovery results. `ui:options.action` names the action (default `discover`), `value_key` the device key written (default `ip`), and `label_key` the one shown (default `hostname`). |
-| `tile-grid` | an array of objects with `row` and `col` | A grid for assigning one device per position. `ui:options.rows_field` and `cols_field` name the integer properties that size it. |
+| `tile-grid` | an array of objects with `row` and `col` | A grid for assigning one device per position, one dialog per slot with the item's other fields. `ui:options.rows_field` and `cols_field` name the integer properties that size it, or `"layout": "board"` sizes it by the board's own layout (a Note array's Notes down × across). `item_actions` names actions each slot's dialog runs on that one tile. `unique_fields` names item fields that should not repeat across tiles (a warning). An item's `required` fields decide when a tile counts as assigned. |
 
 The widget set is closed and versioned with `output_api`: a widget outside your `output_api`'s set is a manifest error, because a settings screen that cannot render is a board that cannot be set up.
 
@@ -289,7 +296,7 @@ The widget set is closed and versioned with `output_api`: a widget outside your 
 
 ### Actions
 
-`actions` declares the buttons on the board's settings screen. Each entry is `{"id", "label", "description"?, "input_schema"?, "result_fields"?}`.
+`actions` declares the buttons on the board's settings screen. Each entry is `{"id", "label", "description"?, "input_schema"?, "result_fields"?, "visible_when"?, "auto_apply"?}`.
 
 | Action id | Calls |
 |-----------|-------|
@@ -301,6 +308,10 @@ The widget set is closed and versioned with `output_api`: a widget outside your 
 
 - **`input_schema`** describes inputs that are not settings, such as a pairing code. FiestaBoard asks for them in a dialog and validates them before calling you.
 - **`result_fields`** declares what a result fills in: `{"token": {"secret": true, "fills": "token"}}` writes the returned `token` into the `token` setting, through the secret path.
+- **`visible_when`** shows the button only while a condition holds, in the same grammar as fields (board facts included).
+- **`auto_apply`**: `true` applies a detected `geometry` at once instead of offering **Apply size**.
+
+A button is not repeated for an action a visible widget already runs: a `device-picker`'s discover, or a `tile-grid`'s `item_actions`. The dialog for an action's `input_schema` starts from the settings of the same name. A tile action takes its input from the tile's fields, asks in the tile's dialog for the rest, and fills its result into the tile.
 
 Actions run on a throwaway instance built from the settings on screen, and it is closed afterwards. They work before a board exists: the setup wizard tests a device and pairs with it, then saves the board.
 
@@ -312,7 +323,7 @@ An action returns an `ActionOutcome`, which FiestaBoard renders as one result pa
 | `message` | One line for the user |
 | `guidance` | Steps to try, shown as a list |
 | `fields` | Values to fill in, each an `ActionField(value, secret=False)` |
-| `geometry` | A detected size: `{"device_type", "rows", "cols"}`, with an **Apply size** button |
+| `geometry` | A detected size: `{"device_type", "rows", "cols"}`, with an **Apply size** button (applied at once for an `auto_apply` action) |
 | `devices` | Discovered devices, each a dict with at least `ip` and `port` |
 
 Return `None` for a plain success. Mark every credential you hand back `ActionField(value, secret=True)`: FiestaBoard never logs it.

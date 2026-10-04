@@ -1248,19 +1248,25 @@ core widgets on top of the usual ones:
   of), several pairs (all hold), `{"not": cond}`, `{"any": [cond, ...]}`.
   Values are JSON scalars compared without coercion (`true` is not `1`); an
   absent field reads as its `default`, else `null`. A hidden field is not
-  validated. Python (`src/plugins/settings_ui.py`) and the web
+  validated. A name starting with `@` reads the board, not a sibling:
+  `@device_type`, `@device_model` (`null` with no board). Python
+  (`src/plugins/settings_ui.py`) and the web
   (`web/src/lib/visible-when.ts`) run the same vectors
   (`web/src/lib/visible-when.cases.json`).
 - `"ui:widget": "mode-cards"` (a string `enum` as selectable cards;
   `ui:options.cards: [{value, title, description}]`), `"tile-grid"` (an
   array of `{row, col, ...}` items; `ui:options.rows_field`/`cols_field` name
-  the integer properties that size it) and `"device-picker"` (a string filled
+  the integer properties that size it, or `layout: "board"` the board's own
+  tile layout; `item_actions` run on one tile from its dialog;
+  `unique_fields` warn on repeats) and `"device-picker"` (a string filled
   from a discovery; `ui:options.action` defaults to `discover`,
   `value_key` to `ip`).
 
 An output may use only the widgets of its `output_api` major (an unknown one
 is an error, not a warning). `output.actions` declares the screen's buttons:
-`[{"id", "label", "description"?, "input_schema"?, "result_fields"?}]`.
+`[{"id", "label", "description"?, "input_schema"?, "result_fields"?,
+"visible_when"?, "auto_apply"?}]` (`visible_when` in the field grammar;
+`auto_apply` applies a detected geometry without asking).
 `test_connection`, `discover`, `identify` and `detect_geometry` call your
 `check_connection()`, `discover(timeout)`, `identify()` and
 `detect_geometry()`; any other id calls `action_<id>(inputs)` (or override

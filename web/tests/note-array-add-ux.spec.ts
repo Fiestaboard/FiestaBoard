@@ -63,9 +63,9 @@ test.describe("Add Note Array board", () => {
     await card.getByText("My Board 2").click();
     const localMode = card.getByRole("radio", { name: /Local API/ });
     await expect(localMode).toBeVisible();
-    await expect(card.getByText("Cloud API Token", { exact: true })).toBeVisible();
+    await expect(card.getByLabel(/Cloud API Token/)).toBeVisible();
     // A tokenless array is not usable yet — the form says which credential it needs.
-    await expect(card.getByText("Cloud API token is required")).toBeVisible();
+    await expect(card.getByText("Still needed: Cloud API Token")).toBeVisible();
 
     // Bring the connection section on screen and dwell so the video
     // clearly shows the mode switch.
@@ -81,7 +81,7 @@ test.describe("Add Note Array board", () => {
     await expect(card.getByTestId("tile-slot-0-0")).toBeVisible();
     await expect(card.getByTestId("tile-slot-0-1")).toBeVisible();
     await expect(tileGrid).toContainText("0/2 tiles assigned");
-    await expect(card.getByText("Cloud API Token", { exact: true })).not.toBeVisible();
+    await expect(card.getByLabel(/Cloud API Token/)).not.toBeVisible();
     await tileGrid.evaluate((el) => el.scrollIntoView({ block: "center" }));
     await page.waitForTimeout(900);
 
@@ -89,14 +89,14 @@ test.describe("Add Note Array board", () => {
     await card.getByTestId("tile-slot-0-1").click();
     const dialog = page.getByRole("dialog");
     await expect(dialog).toBeVisible();
-    await expect(dialog.getByText("Board Host")).toBeVisible();
+    await expect(dialog.getByLabel(/Board IP Address/)).toBeVisible();
     await expect(dialog.getByRole("button", { name: /Identify/ })).toBeVisible();
     await page.waitForTimeout(1_200);
     await page.keyboard.press("Escape");
 
     // Switching back to cloud restores the token field.
     await card.getByRole("radio", { name: /Cloud API/ }).click();
-    await expect(card.getByText("Cloud API Token", { exact: true })).toBeVisible({ timeout: 10_000 });
+    await expect(card.getByLabel(/Cloud API Token/)).toBeVisible({ timeout: 10_000 });
 
     // Pause so the video captures the final state before teardown.
     await page.waitForTimeout(1_200);

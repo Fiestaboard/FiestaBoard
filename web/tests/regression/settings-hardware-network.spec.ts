@@ -45,13 +45,15 @@ test.describe("regression: settings.hardware", () => {
     // Expand the board card to reveal connection form
     await page.getByText("My Board").first().click();
 
-    // Toggle to enablement_token mode and assert the token-specific UI surfaces
-    const tokenToggle = page.getByRole("button", { name: /Enablement Token/i }).first();
-    await expect(tokenToggle).toBeVisible({ timeout: 10_000 });
-    await tokenToggle.click();
-
-    // "Get API Key from Board" button appears in token mode
-    await expect(page.getByRole("button", { name: /Get API Key from Board/i })).toBeVisible({ timeout: 10_000 });
+    // "Get API Key from Board" (the manifest's enable_local_api action) asks
+    // for the enablement token in a dialog.
+    const getKey = page.getByRole("button", { name: /Get API Key from Board/i }).first();
+    await expect(getKey).toBeVisible({ timeout: 10_000 });
+    await getKey.click();
+    const dialog = page.getByRole("dialog");
+    await expect(dialog.getByLabel(/Enablement Token/i)).toBeVisible({ timeout: 10_000 });
+    await page.keyboard.press("Escape");
+    await expect(dialog).toHaveCount(0);
 
     // Now switch to cloud API mode (the FiestaBoard cloud registry path).
     // The mode picker is a radiogroup, and each tile's accessible name is its
@@ -120,13 +122,20 @@ test.describe("regression: settings.hardware", () => {
    * Coverage status: uncovered
    */
   test.fixme("settings.hardware.enabling — enablement-token pending state", async ({ page }) => {
-    // Stall the enable-local-api endpoint so the button stays in pending state
-    await page.route("**/api/board/enable-local-api", async (route) => {
+    // Stall the board's enable_local_api action so the button stays in pending state
+    await page.route("**/boards/*/actions/enable_local_api", async (route) => {
       await new Promise((r) => setTimeout(r, 4_000));
       await route.fulfill({
         status: 200,
         contentType: "application/json",
-        body: JSON.stringify({ success: true, api_key: "test-from-enable" }),
+        body: JSON.stringify({
+          status: "ok",
+          message: "Local API enabled.",
+          guidance: [],
+          geometry: null,
+          devices: null,
+          fields: { api_key: { value: "test-from-enable", secret: true, fills: "local_api_key" } },
+        }),
       });
     });
 
@@ -137,20 +146,16 @@ test.describe("regression: settings.hardware", () => {
     // Expand the board card
     await page.getByText("My Board").first().click();
 
-    // Switch to enablement_token mode
-    await page
-      .getByRole("button", { name: /Enablement Token/i })
-      .first()
-      .click();
-
-    // Fill the token field (board host is already set by configureBoard)
-    const tokenInput = page.locator("input[placeholder*='vestaboard.com/local-api']").first();
-    await expect(tokenInput).toBeVisible({ timeout: 10_000 });
-    await tokenInput.fill("test-enable-token");
-
+    // Ask for a key (board host is already set by configureBoard)
     const getKeyBtn = page.getByRole("button", { name: /Get API Key from Board/i });
     await expect(getKeyBtn).toBeEnabled({ timeout: 10_000 });
     await getKeyBtn.click();
+
+    // Fill the token in the action's dialog and run it
+    const tokenInput = page.locator("input[placeholder*='vestaboard.com/local-api']").first();
+    await expect(tokenInput).toBeVisible({ timeout: 10_000 });
+    await tokenInput.fill("test-enable-token");
+    await page.getByRole("dialog").getByRole("button", { name: "Next" }).click();
 
     // While the mocked request is in-flight, the button becomes disabled.
     // Label may be "Enabling..." or stay as "Get API Key" — assert the
