@@ -19,6 +19,8 @@ from __future__ import annotations
 
 import logging
 import os
+import threading
+import time
 from urllib.parse import urlparse
 
 import requests
@@ -49,8 +51,56 @@ def check_output_host(host: str | None) -> None:
     if allowed is None:
         return
     if (host or "").strip().lower() not in allowed:
-        logger.warning("Refused board request to %r: not in %s (%s)", host, ENV_VAR, ", ".join(sorted(allowed)))
+        _log_refusal(host, allowed)
         raise OutputHostBlocked(host)
+
+
+# --- the refusal log -------------------------------------------------------------------------
+#
+# A discovery sweep asks every address of a /24 (254 hosts, from a thread
+# pool): one warning per refused host buried the log under a thousand lines
+# in the output-plugins POC. The first refusal of a burst is a warning; the
+# rest within REFUSAL_WINDOW_S are counted (debug), and the count is one
+# summary warning — when the next burst starts, or when an action ends
+# (:func:`flush_refusal_summary`).
+
+REFUSAL_WINDOW_S = 30.0
+
+_refusals_lock = threading.Lock()
+_window_started: float | None = None
+_suppressed = 0
+
+
+def _summary(count: int) -> None:
+    logger.warning("Refused %d more board requests: their hosts are not in %s", count, ENV_VAR)
+
+
+def _log_refusal(host: str | None, allowed: frozenset[str]) -> None:
+    global _window_started, _suppressed
+    now = time.monotonic()
+    with _refusals_lock:
+        opens = _window_started is None or now - _window_started >= REFUSAL_WINDOW_S
+        if opens:
+            pending, _suppressed, _window_started = _suppressed, 0, now
+        else:
+            _suppressed += 1
+    message = "Refused board request to %r: not in %s (%s)"
+    args = (host, ENV_VAR, ", ".join(sorted(allowed)))
+    if not opens:
+        logger.debug(message, *args)
+        return
+    if pending:
+        _summary(pending)
+    logger.warning(message, *args)
+
+
+def flush_refusal_summary() -> None:
+    """Log how many refusals the current burst counted (if any) and close it."""
+    global _window_started, _suppressed
+    with _refusals_lock:
+        pending, _suppressed, _window_started = _suppressed, 0, None
+    if pending:
+        _summary(pending)
 
 
 def check_output_url(url: str) -> None:

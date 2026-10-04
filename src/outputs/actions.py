@@ -52,6 +52,8 @@ import logging
 from collections.abc import Callable, Mapping
 from typing import Any
 
+from src.output_allowlist import flush_refusal_summary
+
 from .errors import BoardNotFoundError, InvalidActionInputError, InvalidOutputConfigError, OutputNotInstalledError
 from .hooks import (
     HINT_HOST,
@@ -344,6 +346,8 @@ async def _run(
         # The exception type only: its message may carry what the plugin was handling.
         logger.error("Output %s action %s failed: %s", definition.id, spec.id, type(exc).__name__)
         outcome = ActionOutcome(status="error", message=f"'{spec.label}' failed unexpectedly.")
+    # A scan refused host by host by FIESTABOARD_OUTPUTS_ALLOW_HOSTS: its count, once.
+    flush_refusal_summary()
     logger.info(
         "Output %s action %s on %s: %s",
         definition.id,

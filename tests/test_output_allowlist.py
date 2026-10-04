@@ -48,6 +48,55 @@ class TestGuard:
         assert issubclass(OutputHostBlocked, requests.exceptions.ConnectionError)
 
 
+class TestRefusalLog:
+    """A discovery sweep is refused once per host (a /24 is 254 of them):
+    the log says so once, then counts, instead of one warning per host."""
+
+    def _refuse(self, hosts):
+        for host in hosts:
+            with pytest.raises(OutputHostBlocked):
+                check_output_host(host)
+
+    def test_a_burst_of_refusals_warns_once_then_summarises(self, monkeypatch, caplog):
+        from src.output_allowlist import flush_refusal_summary
+
+        monkeypatch.setenv(ENV_VAR, "fiestaboard-mock-board")
+        flush_refusal_summary()
+        caplog.clear()
+        with caplog.at_level("WARNING", logger="src.output_allowlist"):
+            self._refuse(f"192.168.0.{n}" for n in range(1, 101))
+            flush_refusal_summary()
+        warnings = [r.getMessage() for r in caplog.records if r.levelname == "WARNING"]
+        assert len(warnings) == 2, warnings
+        assert "192.168.0.1" in warnings[0]
+        assert "99 more" in warnings[1]
+
+    def test_nothing_suppressed_flushes_nothing(self, monkeypatch, caplog):
+        from src.output_allowlist import flush_refusal_summary
+
+        monkeypatch.setenv(ENV_VAR, "fiestaboard-mock-board")
+        flush_refusal_summary()
+        caplog.clear()
+        with caplog.at_level("WARNING", logger="src.output_allowlist"):
+            self._refuse(["192.168.0.1"])
+            flush_refusal_summary()
+        assert len([r for r in caplog.records if r.levelname == "WARNING"]) == 1
+
+    def test_a_refusal_after_the_window_warns_again(self, monkeypatch, caplog):
+        from src import output_allowlist
+
+        monkeypatch.setenv(ENV_VAR, "fiestaboard-mock-board")
+        output_allowlist.flush_refusal_summary()
+        clock = iter([0.0, 1.0, 100.0])
+        monkeypatch.setattr(output_allowlist.time, "monotonic", lambda: next(clock))
+        caplog.clear()
+        with caplog.at_level("WARNING", logger="src.output_allowlist"):
+            self._refuse(["192.168.0.1", "192.168.0.2", "192.168.0.3"])
+        warnings = [r.getMessage() for r in caplog.records if r.levelname == "WARNING"]
+        assert len(warnings) == 3, warnings  # first, "1 more" summary, the new one
+        assert "1 more" in warnings[1] and "192.168.0.3" in warnings[2]
+
+
 class TestVestaboardDriver:
     @patch("requests.post")
     def test_local_send_to_unlisted_host_never_leaves(self, mock_post, monkeypatch):
