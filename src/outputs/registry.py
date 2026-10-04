@@ -96,6 +96,9 @@ class OutputCapabilities:
     charset: str | None = None
     #: The frame budget of a ``sequence`` upload, when the model declares one.
     max_frames: int | None = None
+    #: How long core waits for one write, when the output lowers the default
+    #: (src/outputs/breaker.py); None = the default. Output plugins only.
+    write_timeout_ms: int | None = None
 
 
 @dataclass(frozen=True)

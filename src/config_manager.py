@@ -2208,6 +2208,49 @@ class ConfigManager:
             self._save_internal()
         logger.info("Cleared deliberate-removal tombstone for plugin '%s'", plugin_id)
 
+    # ── refused releases (output plugins, plan D8) ────────────────────────────
+    #
+    # An output plugin's release that failed verification or did not load is
+    # rolled back; its commit is recorded here so the hourly update check
+    # does not offer it again (src/plugins/update_refusals.py). A top-level
+    # ``refused_plugin_updates`` map, absent until something is refused.
+
+    def get_refused_plugin_update(self, plugin_id: str) -> dict[str, str] | None:
+        """``{"sha", "reason"}`` of *plugin_id*'s refused release, or ``None``."""
+        with self._file_lock:
+            raw = self._config.get("refused_plugin_updates")
+            entry = raw.get(plugin_id) if isinstance(raw, dict) else None
+            if not isinstance(entry, dict) or not isinstance(entry.get("sha"), str) or not entry["sha"]:
+                return None
+            reason = entry.get("reason")
+            return {"sha": entry["sha"], "reason": reason if isinstance(reason, str) else ""}
+
+    def set_refused_plugin_update(self, plugin_id: str, sha: str, reason: str) -> None:
+        """Persist that release *sha* of *plugin_id* was refused."""
+        with self._file_lock:
+            raw = self._config.get("refused_plugin_updates")
+            refused = dict(raw) if isinstance(raw, dict) else {}
+            entry = {"sha": sha, "reason": reason}
+            if refused.get(plugin_id) == entry:
+                return
+            refused[plugin_id] = entry
+            self._config["refused_plugin_updates"] = refused
+            self._save_internal()
+        logger.info("Plugin '%s': release %s refused and will not be offered again", plugin_id, sha[:12])
+
+    def clear_refused_plugin_update(self, plugin_id: str) -> None:
+        """Forget *plugin_id*'s refused release."""
+        with self._file_lock:
+            raw = self._config.get("refused_plugin_updates")
+            if not isinstance(raw, dict) or plugin_id not in raw:
+                return
+            refused = {k: v for k, v in raw.items() if k != plugin_id}
+            if refused:
+                self._config["refused_plugin_updates"] = refused
+            else:
+                self._config.pop("refused_plugin_updates", None)
+            self._save_internal()
+
 
 # Global instance getter
 def get_config_manager() -> ConfigManager:

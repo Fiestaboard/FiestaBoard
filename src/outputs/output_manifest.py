@@ -11,6 +11,7 @@ An output plugin (``plugin_type: "output"``) carries one ``output`` block::
       "min_interval_ms": 0,
       "read_back": {"supported": false, "cost": "cheap", "suggested_interval_s": 30},
       "native_transitions": ["column", ...],
+      "write_timeout_ms": 30000,
       "settings_schema": { <JSON Schema for the board's output_config> }
     }
 
@@ -28,6 +29,9 @@ An output plugin (``plugin_type: "output"``) carries one ``output`` block::
   the output's character set: it wins over the models' ``charset``.
 - ``delivery``, ``min_interval_ms``, ``read_back`` and ``native_transitions``
   are transport facts FiestaUI does not model; core decides by them.
+- ``write_timeout_ms`` lowers how long core waits for one write before it
+  fails and cancels it (:mod:`src.outputs.breaker`); it can never raise the
+  default.
 - ``settings_schema`` describes each board's ``output_config`` with the
   same JSON-schema vocabulary as a plugin's settings. A property marked
   ``"secret": true`` (or ``"ui:widget": "password"``) is masked on the way
@@ -72,6 +76,7 @@ _KNOWN_KEYS = frozenset(
         "read_back",
         "native_transitions",
         "settings_schema",
+        "write_timeout_ms",
     }
 )
 
@@ -94,6 +99,8 @@ class OutputManifest:
     read_back: ReadBack
     native_transitions: frozenset[str]
     settings_schema: dict = field(default_factory=dict)
+    #: The output's write budget when it lowers the default; None = default.
+    write_timeout_ms: int | None = None
 
     @property
     def device_model_ids(self) -> tuple[str, ...]:
@@ -123,6 +130,7 @@ class OutputManifest:
             device_models=self.device_model_ids,
             charset=charset if isinstance(charset, str) else charset.get("id"),
             max_frames=first["animation"].get("maxFrames"),
+            write_timeout_ms=self.write_timeout_ms,
         )
 
 
@@ -184,6 +192,21 @@ def _check_device_models(raw: Any, errors: list[str]) -> list[Any]:
                 continue
         models.append(model)
     return models
+
+
+def _check_write_timeout(block: Mapping[str, Any], errors: list[str]) -> int | None:
+    from .breaker import DEFAULT_WRITE_TIMEOUT_MS
+
+    value = block.get("write_timeout_ms")
+    if value is None:
+        return None
+    if not isinstance(value, int) or isinstance(value, bool) or not 1 <= value <= DEFAULT_WRITE_TIMEOUT_MS:
+        errors.append(
+            f"output.write_timeout_ms must be an integer from 1 to {DEFAULT_WRITE_TIMEOUT_MS} "
+            "(it may only lower the default)"
+        )
+        return None
+    return value
 
 
 def _check_transport(block: Mapping[str, Any], errors: list[str]) -> tuple[str, int, ReadBack, frozenset[str]]:
@@ -283,6 +306,7 @@ def parse_output_block(
                 errors.append(f"output.character_set: {exc}")
 
     delivery, min_interval_ms, read_back, natives = _check_transport(block, errors)
+    write_timeout_ms = _check_write_timeout(block, errors)
 
     settings_schema = block.get("settings_schema", {})
     if not isinstance(settings_schema, dict):
@@ -305,6 +329,7 @@ def parse_output_block(
             read_back=read_back,
             native_transitions=natives,
             settings_schema=settings_schema,
+            write_timeout_ms=write_timeout_ms,
         ),
         [],
     )

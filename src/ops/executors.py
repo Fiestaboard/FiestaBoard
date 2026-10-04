@@ -44,6 +44,7 @@ from __future__ import annotations
 import logging
 from typing import Any
 
+from src.outputs.breaker import write_failure_reason
 from src.plugins.errors import PluginError
 from src.send_outcome import SendOutcome
 
@@ -814,7 +815,10 @@ def _settle_send(
     if not outcome.success:
         if outcome.partial:
             return _partial_refusal(outcome)
-        return err(failure)
+        # An output plugin's driver says why (timed out, breaker open,
+        # raised); every other driver keeps the plain failure message.
+        reason = write_failure_reason(target.client)
+        return err(f"{failure} ({reason})" if reason else failure)
     if not outcome.was_sent:
         throttled = _throttle_refusal(outcome, target.board_id)
         if throttled is not None:

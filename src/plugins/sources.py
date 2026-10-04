@@ -713,6 +713,23 @@ def check_plugin_update_available(dest_dir: Path) -> PluginUpdateCheck:
         # manifest we have on disk.
         return PluginUpdateCheck(available=False)
 
+    # A release that was already applied and refused (rolled back: it failed
+    # verification or did not load) is not offered again; any other commit
+    # is a newer release, and clears the memory (src/plugins/update_refusals.py).
+    from .update_refusals import forget_refused_update, refused_update
+
+    refused = refused_update(dest_dir.name)
+    if refused is not None:
+        if refused.sha == remote:
+            return PluginUpdateCheck(
+                available=False,
+                blocked_reason=(
+                    f"Release {remote[:12]} was refused when it was applied and is not offered again "
+                    f"(a newer release will be): {refused.reason}"
+                ),
+            )
+        forget_refused_update(dest_dir.name)
+
     incoming = _read_remote_manifest(dest_dir)
 
     # Output plugins drive a board, so their contract major is a hard gate
@@ -804,6 +821,14 @@ def _rollback_checkout(plugin_dir: Path, sha: str) -> bool:
     return True
 
 
+def _remember_refused(plugin_id: str, plugin_dir: Path, reason: str) -> None:
+    """Record the commit now checked out (the release being refused) so the
+    update check does not offer it again. Called before the rollback."""
+    from .update_refusals import remember_refused_update
+
+    remember_refused_update(plugin_id, get_local_head_sha(plugin_dir), reason)
+
+
 @dataclass(frozen=True)
 class UpdateOutcome:
     """What :func:`update_external_plugin` did."""
@@ -834,7 +859,9 @@ def update_external_plugin(
     all-or-nothing (plan D8, gate 2 of 3): if the new commit fails
     verification or does not load, the checkout is reset to the commit it
     held before (``get_local_head_sha``) and reloaded, and the update is
-    reported as refused.
+    reported as refused. The refused commit is remembered
+    (:mod:`src.plugins.update_refusals`) so the update check does not offer
+    it again.
     """
     if not PLUGIN_ID_RE.fullmatch(plugin_id):
         return UpdateOutcome(False, f"Invalid plugin id {plugin_id!r}", "fetch")
@@ -870,6 +897,7 @@ def update_external_plugin(
     if verified:
         return UpdateOutcome(True)
 
+    _remember_refused(_safe_id, plugin_dir, reason)
     if previous is None or not _rollback_checkout(plugin_dir, previous):
         logger.error("Output plugin %s failed its update and could not be rolled back: %s", _safe_id, reason)
         return UpdateOutcome(False, f"The update cannot run and could not be rolled back: {reason}", "load")
@@ -1069,6 +1097,7 @@ def _install_and_verify(
         return True, ""
 
     if was_installed and (was_output or _local_plugin_type(Path(_candidate)) == "output"):
+        _remember_refused(_safe_id, Path(_candidate), reason)
         if previous is not None and _rollback_checkout(Path(_candidate), previous):
             logger.error("Output plugin %s update refused; rolled back to %s: %s", _safe_id, previous, reason)
             return False, (

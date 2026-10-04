@@ -369,11 +369,16 @@ def _reset_send_floors():
     Tests reuse the same fake keys and tokens, so without this one test's
     send would throttle an unrelated test's first send.
     """
+    from src.outputs.breaker import output_breakers
     from src.outputs.floor import send_floors
 
+    # The output circuit breaker is keyed by device the same way, for the
+    # same reason (src/outputs/breaker.py).
     send_floors().clear()
+    output_breakers().clear()
     yield
     send_floors().clear()
+    output_breakers().clear()
 
 
 # Shared fixtures for test helpers
