@@ -15,8 +15,16 @@ transition driving all live on the board's
             return f"acme:{self.config['host']}"
 
         def write(self, frame, *, native, cancel) -> WriteResult:
-            post(self.config["host"], frame)          # honour `cancel` in waits
+            self.http.post(f"http://{self.config['host']}/frame", json=frame)
             return WriteResult(success=True, was_sent=True)
+
+**Device traffic goes through** ``self.http`` (:class:`~src.outputs.http.OutputHttp`),
+never ``requests`` directly. It is where core's safety reaches the plugin:
+``FIESTABOARD_OUTPUTS_ALLOW_HOSTS`` (a fenced host is refused before a
+socket opens), default ``(connect, read)`` timeouts, no redirects, and the
+run's cancel token. ``setup=True`` marks a request that is not the board
+write itself (a reset, a brightness command). The conformance suite fails a
+plugin whose writes or probes open a connection of their own.
 
 **Per-board instances** (plan D2). Unlike a data plugin, the loader never
 constructs an output plugin: it loads the *class* and the manifest. Core
@@ -46,6 +54,27 @@ frames that only ever were codes (a blank board, a transition's
 intermediate frames) still arrive through :meth:`write`. A plugin that does
 not override it keeps receiving exactly the 0–71 grid it understands.
 
+**LED transitions** (plan D15). An output that overrides
+:meth:`~OutputPluginBase.write_transition` receives every change of what
+its board shows as the before and after rich frames plus the board's
+resolved LED transition (:func:`src.led.resolve_led_transition` for its
+device model: the flip FiestaUI previews), and renders it itself::
+
+    def write_transition(self, before, after, transition, *, cancel):
+        options = LedLayoutOptions(charset=self.character_set)
+        spec = led_spec_for_model(self.device_model)
+        planned = plan_transition(
+            layout_message(before, spec, options), layout_message(after, spec, options), transition.spec
+        )
+        upload([f.pixels for f in transition_frames(planned)], cancel)
+
+A plugin that implements only :meth:`write_sequence` keeps receiving a
+transition plugin's frames exactly as before.
+
+**What core resolved for the board.** :attr:`~OutputPluginBase.device_model`
+(the FiestaUI DeviceModel), :attr:`~OutputPluginBase.character_set`
+(materialised) and :attr:`~OutputPluginBase.board_geometry` (rows, cols).
+
 **Capabilities.** :meth:`capabilities` defaults to what the manifest's
 ``output`` block declares; override it to narrow per board (a cloud
 connection that animates no native transition, say).
@@ -53,8 +82,10 @@ connection that animates no native transition, say).
 
 from __future__ import annotations
 
+import copy
 import threading
 from abc import ABC, abstractmethod
+from collections.abc import Mapping
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, ClassVar, NamedTuple
 
@@ -62,9 +93,12 @@ from src.markup import BoardToken
 from src.send_outcome import FrameRegion, WriteResult
 
 from .hooks import ConnectionCheck
+from .http import OutputHttp
 from .transitions import NativeTransition
 
 if TYPE_CHECKING:
+    from src.led.transition_registry import ResolvedLedTransition
+
     from .output_manifest import OutputManifest
     from .registry import OutputCapabilities
 
@@ -75,6 +109,7 @@ __all__ = [
     "DiagnosticCheck",
     "FrameRegion",
     "NativeTransition",
+    "OutputHttp",
     "OutputPluginBase",
     "RichCellFrame",
     "TimedFrame",
@@ -139,10 +174,89 @@ class OutputPluginBase(ABC):
     #: class it loads; a plugin may also set it itself.
     plugin_id: ClassVar[str] = ""
 
+    # What core resolved for the board (bind_board); class-level defaults so a
+    # subclass that skips super().__init__ still reads "unknown".
+    _output_manifest: OutputManifest | None = None
+    _board_model: Mapping[str, Any] | None = None
+    _board_charset: Mapping[str, Any] | None = None
+    _board_geometry: tuple[int, int] | None = None
+
     def __init__(self, board_id: str | None, config: dict[str, Any]) -> None:
         self.board_id = board_id
         self.config = dict(config or {})
-        self._output_manifest: OutputManifest | None = None
+        self._output_manifest = None
+        self._http: OutputHttp | None = None
+
+    # --- talking to the device ---------------------------------------------------
+
+    @property
+    def http(self) -> OutputHttp:
+        """This instance's device HTTP client: THE way a plugin talks to its
+        device (host fence, timeouts, no redirects, the run's cancel token).
+        See :mod:`src.outputs.http`."""
+        helper = getattr(self, "_http", None)
+        if helper is None:
+            helper = self._http = OutputHttp()
+        return helper
+
+    # --- what core resolved for the board --------------------------------------------
+
+    def bind_board(
+        self,
+        *,
+        device_model: Mapping[str, Any] | None = None,
+        character_set: Mapping[str, Any] | None = None,
+        geometry: tuple[int, int] | None = None,
+    ) -> None:
+        """Core hands the instance what it resolved for the board. Not for plugins to call."""
+        self._board_model = device_model
+        self._board_charset = character_set
+        self._board_geometry = geometry
+
+    def _model(self) -> Mapping[str, Any] | None:
+        if self._board_model is not None:
+            return self._board_model
+        manifest = self._output_manifest
+        return manifest.model(0) if manifest is not None and manifest.device_models else None
+
+    @property
+    def device_model(self) -> dict[str, Any] | None:
+        """The board's FiestaUI DeviceModel (a copy): the model the board was
+        created as, else the plugin's default (first) model; ``None`` before
+        core bound a manifest."""
+        model = self._model()
+        return copy.deepcopy(dict(model)) if model is not None else None
+
+    @property
+    def character_set(self) -> dict[str, Any] | None:
+        """The board's character set, materialised (a copy): the plugin's
+        declared set, else its model's (plan D17); ``None`` when unknown."""
+        charset = self._board_charset
+        if charset is None:
+            from .board_profile import model_character_set
+
+            manifest = self._output_manifest
+            model = self._model()
+            declared = manifest.character_set if manifest is not None else None
+            charset = declared if declared is not None else (model_character_set(model) if model else None)
+        return copy.deepcopy(dict(charset)) if charset is not None else None
+
+    @property
+    def board_geometry(self) -> tuple[int, int] | None:
+        """The board's content grid, ``(rows, cols)`` in characters; ``None``
+        when unknown (no model, or one sized per board that core has not bound)."""
+        if self._board_geometry is not None:
+            return self._board_geometry
+        model = self._model()
+        if model is None:
+            return None
+        from .geometry import GeometryError, model_cell_grid
+
+        manifest = self._output_manifest
+        try:
+            return model_cell_grid(model, manifest.character_set if manifest is not None else None)
+        except (GeometryError, KeyError):
+            return None
 
     # --- identity and capabilities ---------------------------------------------
 
@@ -199,6 +313,31 @@ class OutputPluginBase(ABC):
         through :meth:`write`.
         """
         return self.write([[cell.flap_code for cell in row] for row in cells], native=native, cancel=cancel)
+
+    def write_transition(
+        self,
+        before: RichCellFrame,
+        after: RichCellFrame,
+        transition: ResolvedLedTransition,
+        *,
+        cancel: CancelToken,
+    ) -> WriteResult:
+        """Animate the board from *before* to *after* (plan D15).
+
+        The opt-in: core calls it, instead of :meth:`write_cells` /
+        :meth:`write`, for every change of what the board shows once it
+        knows what the board showed before — only for a plugin that
+        overrides it. *transition* is the board's resolved LED transition
+        (:func:`src.led.resolve_led_transition` for :attr:`device_model`:
+        the explicit choice the device can run, else its model's default),
+        with ``spec`` already fitted to the device (cadence, frame budget).
+        Render it with :func:`src.led.plan_transition` /
+        :func:`src.led.transition_frames` and land on *after*. A resolved
+        ``"none"`` never reaches here: core snaps through :meth:`write_cells`.
+
+        One write: one floor slot, *after* recorded as shown on success.
+        """
+        raise NotImplementedError(f"{type(self).__name__} renders no LED transition")
 
     def write_sequence(self, frames: list[TimedFrame], *, cancel: CancelToken) -> WriteResult:
         """Upload a whole timed sequence in one go (``animation: sequence``).

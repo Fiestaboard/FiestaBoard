@@ -33,7 +33,15 @@
           }
         },
         { "type": "object", "required": ["kind"], "properties": { "kind": { "const": "note_array" } } },
-        { "type": "object", "required": ["kind"], "properties": { "kind": { "const": "panel" } } },
+        {
+          "type": "object",
+          "required": ["kind"],
+          "properties": {
+            "kind": { "const": "panel" },
+            "rows": { "type": "integer", "minimum": 1 },
+            "cols": { "type": "integer", "minimum": 1 }
+          }
+        },
         {
           "type": "object",
           "required": ["kind", "width", "height"],

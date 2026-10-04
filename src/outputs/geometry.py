@@ -11,7 +11,9 @@ output plugin drives, the grid comes from its FiestaUI device model's
   ``cols = (width + spacingX) // (glyphWidth + spacingX)`` and
   ``rows = (height + spacingY) // (glyphHeight + spacingY)`` — FiestaUI's
   ``ledGridLayout``. A Divoom Pixoo 64 with the 3x5 font is 10 × 16;
-- ``panel`` — sized per board: the request's ``rows`` × ``cols``;
+- ``panel`` — sized per board: the request's ``rows`` × ``cols``. A panel
+  model may declare its own ``rows`` × ``cols`` (FiestaUI Task 7): that is
+  its size when the board asks for none, and a board's own grid still wins;
 - ``note_array`` — sized per board in Notes: ``notes_tall`` × 3 rows by
   ``notes_wide`` × 15 cols.
 
@@ -128,7 +130,8 @@ def font_for(model: Mapping[str, Any], character_set: Mapping[str, Any] | None =
 def model_cell_grid(model: Mapping[str, Any], character_set: Mapping[str, Any] | None = None) -> tuple[int, int] | None:
     """The (rows, cols) of characters a device model shows.
 
-    ``None`` for a model sized per board (``panel``, ``note_array``).
+    ``None`` for a model sized per board (``panel``, ``note_array``), unless
+    a ``panel`` declares its size.
 
     Raises:
         ValueError: a pixel model with no LED font to size it by.
@@ -137,6 +140,8 @@ def model_cell_grid(model: Mapping[str, Any], character_set: Mapping[str, Any] |
     kind = geometry["kind"]
     if kind == "cells":
         return geometry["rows"], geometry["cols"]
+    if kind == "panel":
+        return _declared_panel(geometry)
     if kind != "pixels":
         return None
     font = font_for(model, character_set)
@@ -146,6 +151,14 @@ def model_cell_grid(model: Mapping[str, Any], character_set: Mapping[str, Any] |
     cols = (geometry["width"] + box.spacing_x) // (box.width + box.spacing_x)
     rows = (geometry["height"] + box.spacing_y) // (box.height + box.spacing_y)
     return rows, cols
+
+
+def _declared_panel(geometry: Mapping[str, Any]) -> tuple[int, int] | None:
+    """A panel model's own ``rows`` x ``cols``, when it declares both."""
+    rows, cols = geometry.get("rows"), geometry.get("cols")
+    if isinstance(rows, int) and isinstance(cols, int) and not isinstance(rows, bool) and not isinstance(cols, bool):
+        return rows, cols
+    return None
 
 
 def _positive(requested: Mapping[str, Any], names: tuple[str, str], model_id: str, what: str) -> tuple[int, int]:
@@ -158,6 +171,9 @@ def _positive(requested: Mapping[str, Any], names: tuple[str, str], model_id: st
 def _requested_grid(model: Mapping[str, Any], requested: Mapping[str, Any]) -> tuple[int, int]:
     kind = model["geometry"]["kind"]
     if kind == "panel":
+        declared = _declared_panel(model["geometry"])
+        if declared is not None and requested.get("rows") is None and requested.get("cols") is None:
+            return declared
         return _positive(requested, ("rows", "cols"), model["id"], "rows and cols")
     wide, tall = _positive(requested, ("notes_wide", "notes_tall"), model["id"], "notes_wide and notes_tall")
     if wide > MAX_NOTES_PER_AXIS or tall > MAX_NOTES_PER_AXIS:
@@ -186,7 +202,8 @@ def resolve_content_grid(
     """The (rows, cols) a new board of *model* shows, floor checked.
 
     *requested* is the board's geometry, accepted only for a model sized per
-    board (``panel``, ``note_array``) and required for one.
+    board (``panel``, ``note_array``) and required for one — except a
+    ``panel`` that declares its own size, which is used when none is asked.
 
     Raises:
         BelowFloorError: the grid is smaller than 3 × 15.

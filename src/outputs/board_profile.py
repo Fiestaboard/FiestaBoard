@@ -81,6 +81,33 @@ def board_profile(board: Mapping[str, Any]) -> BoardProfile:
     return _plugin(board, output_id)
 
 
+def model_character_set(model: Mapping[str, Any]) -> dict | None:
+    """A device model's own character set, whole: a built-in id looked up,
+    an inline set materialised; ``None`` when it names none or an unknown id."""
+    charset = model.get("charset")
+    if isinstance(charset, str):
+        return dict(BUILTIN_CHARACTER_SETS[charset]) if charset in BUILTIN_CHARACTER_SETS else None
+    if isinstance(charset, Mapping):
+        return materialize_character_set(dict(charset))
+    return None
+
+
+def board_device_model(board: Mapping[str, Any]) -> Mapping[str, Any] | None:
+    """The FiestaUI DeviceModel an output-plugin board resolves to (see
+    :func:`board_profile`), as the document; ``None`` for a built-in output
+    or a plugin that is not installed."""
+    output_id = resolve_output_id(board)
+    if output_id in (VESTABOARD, FIESTAPANEL):
+        return None
+    definition = output_registry().get(output_id)
+    manifest = definition.output_manifest if definition is not None else None
+    if manifest is None or not manifest.device_models:
+        return None
+    ids = manifest.device_model_ids
+    stored = board.get("device_model")
+    return manifest.model(ids.index(stored) if stored in ids else 0)
+
+
 def board_character_set(board: Mapping[str, Any]) -> dict | None:
     """The whole (materialised) character set *board* draws with, or ``None``.
 
@@ -102,11 +129,5 @@ def board_character_set(board: Mapping[str, Any]) -> dict | None:
         return None
     if manifest.character_set is not None:
         return manifest.character_set
-    ids = manifest.device_model_ids
-    stored = board.get("device_model")
-    charset = manifest.model(ids.index(stored) if stored in ids else 0).get("charset")
-    if isinstance(charset, str):
-        return dict(BUILTIN_CHARACTER_SETS[charset]) if charset in BUILTIN_CHARACTER_SETS else None
-    if isinstance(charset, Mapping):
-        return materialize_character_set(dict(charset))
-    return None
+    model = board_device_model(board)
+    return model_character_set(model) if model is not None else None

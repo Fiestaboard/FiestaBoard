@@ -956,6 +956,7 @@ def send_characters(
     step_interval_ms: int | None = None,
     step_size: int | None = None,
     force: bool = False,
+    cells: Any | None = None,
 ) -> dict[str, Any]:
     """Send an already-built flap grid to a board.
 
@@ -969,6 +970,10 @@ def send_characters(
     validating it is the caller's job, because the caller knows whether a
     mismatch is a client error (a supplied grid) or a server one (a page that
     rendered wrong).
+
+    ``cells`` are the grid's rich cells (:mod:`src.outputs.cells`), for a
+    board whose output draws a rich character set; forwarded to ``render``
+    only when given, so every other call keeps its exact shape.
     """
     try:
         target, refusal = _resolve_send_target(board_id)
@@ -986,6 +991,7 @@ def send_characters(
             step_size=resolved_step,
             force=force,
             with_outcome=True,
+            **({"cells": cells} if cells is not None else {}),
         )
         return _settle_send(
             target,

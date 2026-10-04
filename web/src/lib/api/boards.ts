@@ -4,6 +4,7 @@
 import { fetchApi } from "./core";
 import type { GeneralConfig } from "./settings";
 import type { Code62Glyph, DeviceType } from "./shared";
+import type { BoardTokenJson } from "./templates";
 
 export interface BoardStatus {
   configured: boolean;
@@ -136,6 +137,11 @@ export interface HdmiKioskStatus {
 // Public frame served by GET /panel/{id}/frame (no auth).
 export interface PanelFrame {
   characters: number[][] | null;
+  /**
+   * The same frame as rich cells (FiestaUI `BoardToken[][]`), present only
+   * when the frame has them (its board's output draws a rich character set).
+   */
+  cells?: BoardTokenJson[][];
   message: string | null;
   rows: number;
   cols: number;

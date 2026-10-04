@@ -21,7 +21,7 @@ trap 'rm -rf "$TMP"' EXIT
 git -C "$FIESTAUI" archive "$COMMIT" "$FIX" | tar -x -C "$TMP"
 
 DATA="device-model.schema.json character-set.schema.json character-sets.json device-models.json led-fonts.json"
-GOLDENS="charset-golden.json led-golden.json"
+GOLDENS="charset-golden.json led-golden.json plugin-models.json"
 
 mkdir -p "$ROOT/src/fiestaui" "$ROOT/tests/fixtures/fiestaui"
 for f in $DATA; do

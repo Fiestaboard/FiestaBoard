@@ -26,6 +26,7 @@ from src.devices import geometry_of, resolve_dimensions
 from src.display_runtime import live_driver
 from src.led.charsets import has_extended_markup, validate_message
 from src.outputs.board_profile import board_character_set
+from src.outputs.cells import extended_markup_kw, project_for_output
 from src.plugins.registry import get_plugin_registry
 from src.settings.service import get_settings_service
 from src.text_to_board import text_to_board_array
@@ -312,17 +313,35 @@ async def render_template_live(request: TemplateRenderLiveRequest):
     dims = board_context_for(device_type or DEFAULT_DEVICE_TYPE, notes_wide, notes_tall, grid_rows, grid_cols)
     num_rows = dims.rows
 
+    # A blank template answers blank rows and touches no board.
+    if isinstance(template, list):
+        blank = not template or all(not line.strip() for line in template)
+    else:
+        blank = not template.strip()
+    if blank:
+        return TemplateRenderLiveResponse(
+            rendered="\n".join([""] * num_rows),
+            lines=[""] * num_rows,
+            line_count=num_rows,
+            sent_to_board=False,
+            board_id=board_id,
+        )
+
+    # The target board, resolved before rendering: a board whose output draws
+    # a rich character set renders with its extended markup (plan D19).
+    board_settings = settings_service.get_board_settings()
+    boards = board_settings.boards if board_settings else []
+    target_board = None
+    if board_id:
+        target_board = _require_board(board_id)
+    elif boards:
+        target_board = boards[0]
+    client = live_driver(target_board.get("id")) if target_board else None
+    render_kw = extended_markup_kw(client)
+
     # Render the template
     try:
         if isinstance(template, list):
-            if not template or all(not line.strip() for line in template):
-                return TemplateRenderLiveResponse(
-                    rendered="\n".join([""] * num_rows),
-                    lines=[""] * num_rows,
-                    line_count=num_rows,
-                    sent_to_board=False,
-                    board_id=board_id,
-                )
             rendered = await asyncio.to_thread(
                 template_engine.render_lines,
                 template,
@@ -332,30 +351,13 @@ async def render_template_live(request: TemplateRenderLiveRequest):
                 notes_tall=notes_tall,
                 grid_rows=grid_rows,
                 grid_cols=grid_cols,
+                **render_kw,
             )
         else:
-            if not template.strip():
-                return TemplateRenderLiveResponse(
-                    rendered="\n".join([""] * num_rows),
-                    lines=[""] * num_rows,
-                    line_count=num_rows,
-                    sent_to_board=False,
-                    board_id=board_id,
-                )
-            rendered = await asyncio.to_thread(template_engine.render, template)
+            rendered = await asyncio.to_thread(template_engine.render, template, **render_kw)
     except Exception as e:
         logger.error(f"Template rendering error: {e}", exc_info=True)
         raise HTTPException(status_code=400, detail=f"Template rendering failed: {str(e)}") from e
-
-    # Find the target board
-    board_settings = settings_service.get_board_settings()
-    boards = board_settings.boards if board_settings else []
-
-    target_board = None
-    if board_id:
-        target_board = _require_board(board_id)
-    elif boards:
-        target_board = boards[0]
 
     sent_to_board = False
     paused = False
@@ -370,12 +372,11 @@ async def render_template_live(request: TemplateRenderLiveRequest):
             # runtime — it preempts a running transition, shares the engine's
             # send lock and floor, and lands in the frame cache, so the engine
             # knows the board now shows the edit.
-            client = live_driver(target_board.get("id"))
             if client:
                 geometry = geometry_of(target_board)
                 device_type = geometry.device_type
                 dims = resolve_dimensions(*geometry)
-                board_array = text_to_board_array(rendered, rows=dims.rows, cols=dims.cols)
+                board_array, rich = project_for_output(client, rendered, dims.rows, dims.cols, flap=text_to_board_array)
 
                 transition_settings = settings_service.get_transition_settings()
                 # Live editor sends are rapid-fire; a "plugin:<id>" system
@@ -397,6 +398,7 @@ async def render_template_live(request: TemplateRenderLiveRequest):
                         step_interval_ms=transition_settings.step_interval_ms,
                         step_size=transition_settings.step_size,
                         force=True,
+                        **rich,
                     )
                     sent_to_board = was_sent
                 except Exception as e:

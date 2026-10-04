@@ -1183,6 +1183,25 @@ test kit is `tests/fixtures/plugins/recording_output`; the contract is
 described in `src/outputs/plugin_base.py` and
 `src/outputs/output_manifest.py`.
 
+Talk to the device **only** through `self.http` (`get`/`post`/`put`/
+`delete`, the `requests` keywords you know): it refuses hosts outside
+`FIESTABOARD_OUTPUTS_ALLOW_HOSTS` before a socket opens, applies `(connect,
+read)` timeouts when you give none, never follows redirects, and stops at
+the next request once the write is cancelled. Pass `setup=True` for a
+request that is not the board write itself (a reset, a brightness command).
+The conformance suite fails a plugin that opens its own connections.
+
+What core resolved for the board is on the instance: `self.device_model`
+(the FiestaUI model dict), `self.character_set` (materialised) and
+`self.board_geometry` (`(rows, cols)`). Everything you need to render comes
+from `src.plugins`: `BoardToken`, `cells_from_codes`, `layout_message`,
+`rasterize`, `plan_transition`, `transition_frames`,
+`resolve_led_transition`, `led_flip_seed`, `led_spec_for_model`. An LED
+plugin overrides `write_cells` to receive rich frames and
+`write_transition(before, after, transition, *, cancel)` to animate each
+change with the board's resolved LED transition — the flip FiestaUI
+previews.
+
 `output_api` is a hard gate, applied three times: the update check never
 offers a commit whose manifest declares an `output_api` this core does not
 implement; an update that fails verification or does not load is **rolled
@@ -1213,11 +1232,13 @@ glyphs of its LED font as the matrix holds (a 64×64 Pixoo at 3×5 is 10×16); a
 Every output plugin repo runs the shared conformance suite in its CI:
 `OutputConformanceSuite(plugin_dir, factory, config).assert_conformant()`
 from `src/outputs/conformance.py`, where `factory(board_id, config,
-transport)` builds the plugin with its device I/O routed to the suite's
-`FakeTransport`. It checks the manifest and character set, the 3×15
+transport)` just builds the plugin: the suite routes its `self.http` to the
+suite's `FakeTransport`. It checks the manifest and character set, the 3×15
 geometry floor, no network at import, a stable credential-free
-`device_key()`, the send floor, `WriteResult` shapes (including partial
-writes), cancellation, sequence uploads and `check_connection()`. The
+`device_key()`, the send floor, that device traffic goes through
+`self.http`, `WriteResult` shapes (including partial writes; `setup=True`
+requests are not counted as the board write), cancellation, sequence
+uploads and `check_connection()`. The
 module docstring has a complete example; core runs it against the test kit
 in `tests/test_output_conformance.py`.
 

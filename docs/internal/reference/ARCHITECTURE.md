@@ -334,8 +334,34 @@ Names you will meet:
   `charset_issues` (`src.led.charsets.validate_message`, FiestaUI
   `validateMessage` parity, proven against `charset-golden.json`). Nothing
   is cached across renders, so a set whose `version` changes is never
-  projected stale. Other API send paths (v1 message, MQTT, displays) still
-  hand rich outputs the plain 0–71 grid, which reaches `write()`.
+  projected stale. Every send path projects the same way
+  (`cells.project_for_output` / `extended_markup_kw`): the engine, v1
+  `/message` (text, lines, page_id), `render_message` (`/send-message`, MCP),
+  MQTT `send_message`, `/templates/render/live`, `/pages/{id}/send`, the
+  active-page immediate send and `/displays/{type}/send`. Case: the parse
+  keeps case, and the set's fallback uppercases only what a set without
+  `mixedCase` cannot draw; the flap projection always uppercases, so
+  split-flap output is unchanged. Markup a set lacks stays in the stored
+  template; only the projection falls back.
+- **The output-plugin author API** (`src/plugins/__init__.py`) — one import
+  surface: the contract, `BoardToken` / `cells_from_codes` /
+  `characters_to_message`, and `src.led`'s renderer and transitions.
+  `OutputPluginBase.http` (`src/outputs/http.py`) is the only way a plugin
+  reaches its device: `FIESTABOARD_OUTPUTS_ALLOW_HOSTS` is checked before
+  every request (no socket opens for a fenced host), a request without a
+  timeout gets `(3.05, 10)`, redirects are never followed, and a request
+  after the run's cancel token fired raises `RequestCancelled` (the driver
+  binds the write's token with `http.cancel_scope`). `setup=True` marks a
+  request that is not the board write (reset, brightness). Core binds what
+  it resolved for the board (`bind_board`): `device_model`,
+  `character_set` (materialised), `board_geometry`. A plugin that overrides
+  `write_transition(before, after, transition, *, cancel)` receives every
+  change of its board as before/after rich frames plus
+  `resolve_led_transition(choice, device_model)` — the choice is the write's
+  strategy when it names an LED transition id, else the model's default;
+  `"none"`, no known previous frame or an unchanged frame snap through
+  `write_cells`. Plugins implementing only `write_sequence` are driven as
+  before.
 - **`WriteResult`** (`src/send_outcome.py`; `SendOutcome` is an alias) —
   a write's verdict: `(success, was_sent)`, the throttle verdict, and
   `partial` + `failed_regions` for a write that reached only part of the

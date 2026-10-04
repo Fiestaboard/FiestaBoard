@@ -22,6 +22,14 @@ it unchanged — the plugin is a pipe and every policy stays in core:
   declares the strategy (the runtime decides; the adapter carries it).
 - **Sequences.** For ``animation: sequence`` outputs the runtime collects a
   transition's frames and hands them to :meth:`write_sequence` as one upload.
+- **LED transitions.** A plugin that overrides ``write_transition``
+  (:attr:`OutputPluginDriver.takes_transitions`) gets every change of what
+  its board shows as before/after rich frames plus the board's resolved
+  LED transition (:meth:`OutputPluginDriver.render`); the transition
+  plugins and native strategies of split-flap boards do not apply to it.
+- **The device helper.** Each write runs inside the plugin's
+  ``http.cancel_scope``, so ``self.http`` refuses requests once the run is
+  cancelled even when the plugin does not pass the token itself.
 
 A plugin exception is a failed write (logged with the plugin id), never an
 engine crash; the floor slot it reserved is given back.
@@ -45,6 +53,7 @@ from collections.abc import Callable
 from typing import TYPE_CHECKING, Any
 
 from src.led.charsets import CharacterSet, has_extended_markup
+from src.led.transition_registry import LED_TRANSITIONS, ResolvedLedTransition, resolve_led_transition
 from src.send_outcome import WriteResult
 
 from .breaker import DEFAULT_WRITE_TIMEOUT_MS, output_breakers
@@ -162,6 +171,28 @@ class OutputPluginDriver:
         return self.extended_markup and type(self.plugin).write_cells is not OutputPluginBase.write_cells
 
     @property
+    def takes_transitions(self) -> bool:
+        """Whether changes reach the plugin as LED transitions: it overrides
+        :meth:`~OutputPluginBase.write_transition` (the opt-in) and its
+        board has a device model to resolve the transition against."""
+        if type(self.plugin).write_transition is OutputPluginBase.write_transition:
+            return False
+        model = self.plugin.device_model
+        return model is not None and isinstance(model.get("animation"), dict)
+
+    def resolve_transition(self, strategy: Any | None) -> ResolvedLedTransition:
+        """The board's LED transition for a write asking for *strategy*.
+
+        A strategy naming an LED transition (``"flip"``, ``"fade"``,
+        ``"none"``... FiestaUI's menu ids) is the explicit choice; anything
+        else — no strategy, a split-flap native one, a ``plugin:`` one —
+        leaves the device model's default. :func:`resolve_led_transition`
+        then fits it to the device (or falls back with a reason).
+        """
+        choice = strategy if isinstance(strategy, str) and strategy in LED_TRANSITIONS else None
+        return resolve_led_transition(choice, self.plugin.device_model)
+
+    @property
     def write_timeout_seconds(self) -> float:
         """How long core waits for one write: the output's budget, never
         above :data:`~src.outputs.breaker.DEFAULT_WRITE_TIMEOUT_MS`."""
@@ -243,10 +274,12 @@ class OutputPluginDriver:
         token = CancelToken(cancel_event)
         box: dict[str, Any] = {}
         done = threading.Event()
+        http = self.plugin.http
 
         def run() -> None:
             try:
-                box["result"] = call(token)
+                with http.cancel_scope(token):
+                    box["result"] = call(token)
             except BaseException as exc:  # handed back to the waiting caller
                 box["error"] = exc
             finally:
@@ -374,6 +407,69 @@ class OutputPluginDriver:
             result = self._deliver(admission, final, lambda token: self.plugin.write_sequence(frames, cancel=token))
             return result._replace(floor_seconds=self._floor_seconds())
 
+    def _shown_cells(self, rows: int, cols: int) -> RichCellFrame | None:
+        """What the board shows, as rich cells shaped *rows* x *cols*: the
+        dedupe cache, else the last frame sent; ``None`` when unknown."""
+        from .cells import cells_from_codes
+
+        frames = self._frames
+        with frames.lock:
+            for codes, cells in ((frames.characters, frames.cells), (frames.last_frame, frames.last_cells)):
+                if not codes:
+                    continue
+                shown = cells if cells is not None else cells_from_codes(codes)
+                if len(shown) == rows and all(len(row) == cols for row in shown):
+                    return shown
+                return None
+        return None
+
+    def _render_transition(
+        self,
+        characters: list[list[int]],
+        cells: RichCellFrame | None,
+        strategy: Any | None,
+        force: bool,
+        with_outcome: bool,
+    ) -> Any:
+        """One change on a board whose plugin renders LED transitions.
+
+        Snaps (a plain :meth:`send_characters`) when there is nothing to
+        animate: no known previous frame, the same frame, or a resolved
+        ``"none"``. Otherwise the plugin's ``write_transition`` gets the
+        before/after rich frames and the resolved transition as one write.
+        """
+        from .cells import cells_equal, cells_from_codes
+
+        after = cells if cells is not None else cells_from_codes(characters)
+        cols = len(characters[0]) if characters else 0
+        before = self._shown_cells(len(characters), cols)
+        transition = self.resolve_transition(strategy)
+        if before is None or transition.spec == "none" or cells_equal(before, after):
+            rich: dict[str, Any] = {"cells": cells} if cells is not None else {}
+            return self.send_characters(characters, force=force, with_outcome=with_outcome, **rich)
+        kept = cells if cells is not None and self.takes_cells else None
+        frames = self._frames
+        with frames.lock:
+            admission = self._admit(
+                lambda: self.skip_unchanged and not force and frames.matches_frame(characters, kept)
+            )
+        if admission.verdict == "throttled":
+            return self._result(
+                WriteResult(True, False, throttled=True, retry_after_seconds=admission.retry_after), with_outcome
+            )
+        if admission.verdict == "unchanged":
+            return self._result(WriteResult(True, False), with_outcome)
+        refused = self._breaker_refusal(admission)
+        if refused is not None:
+            return self._result(refused, with_outcome)
+        result = self._deliver(
+            admission,
+            characters,
+            lambda cancel: self.plugin.write_transition(before, after, transition, cancel=cancel),
+            cells=kept,
+        )
+        return self._result(result, with_outcome)
+
     def render(
         self,
         characters: list[list[int]],
@@ -390,12 +486,19 @@ class OutputPluginDriver:
         """Write one grid with its transition; the bound runtime drives it.
 
         *cells* are the grid's rich cells (:mod:`src.outputs.cells`), which
-        land with the write that lands on *characters*.
+        land with the write that lands on *characters*. For a plugin that
+        :attr:`takes_transitions`, the change is its LED transition instead
+        (:meth:`resolve_transition`).
         """
 
         def reset() -> None:
             self._last_send_throttled = False
             self._last_send_retry_after = None
+
+        if self.takes_transitions:
+            with self._output_runtime.run():
+                reset()
+                return self._render_transition(characters, cells, strategy, force, with_outcome)
 
         rich: dict[str, Any] = {"cells": cells} if cells is not None else {}
         return self._output_runtime.render(
@@ -461,3 +564,7 @@ class OutputPluginDriver:
             self.plugin.close()
         except Exception:
             logger.exception("Output plugin %s: close failed", self.connection_label)
+        try:
+            self.plugin.http.close()
+        except Exception:
+            logger.exception("Output plugin %s: closing its HTTP session failed", self.connection_label)
