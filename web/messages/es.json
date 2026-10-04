@@ -2423,6 +2423,10 @@
     "movePlaceholder": "Elige una nueva posición…",
     "moveTo": "Posición {position} — vacía",
     "saveTile": "Guardar mosaico",
+    "tileSaved": "Mosaico guardado",
+    "tileRemoved": "Mosaico vaciado",
+    "tileMoved": "Mosaico movido a la posición {position}",
+    "deviceInUse": "Asignado al mosaico {position}",
     "tileSlotAssigned": "Mosaico {position}: fila {row}, columna {col} — asignado a {summary}",
     "moveSwap": "Posición {position} — intercambiar con {summary}",
     "tilesDuplicate": "Varios mosaicos apuntan al mismo tablero: {values}",
@@ -2501,6 +2505,9 @@
         },
         "discover": {
           "label": "Escanear la red en busca de tableros"
+        },
+        "test_tile": {
+          "label": "Probar"
         },
         "identify": {
           "label": "Identificar"

@@ -2423,6 +2423,10 @@
     "movePlaceholder": "Escolha uma nova posição…",
     "moveTo": "Posição {position} — vazia",
     "saveTile": "Salvar bloco",
+    "tileSaved": "Bloco salvo",
+    "tileRemoved": "Bloco limpo",
+    "tileMoved": "Bloco movido para a posição {position}",
+    "deviceInUse": "Atribuído ao bloco {position}",
     "tileSlotAssigned": "Bloco {position}: linha {row}, coluna {col} — atribuído a {summary}",
     "moveSwap": "Posição {position} — trocar com {summary}",
     "tilesDuplicate": "Vários blocos apontam para o mesmo painel: {values}",
@@ -2501,6 +2505,9 @@
         },
         "discover": {
           "label": "Escanear a rede em busca de painéis"
+        },
+        "test_tile": {
+          "label": "Testar"
         },
         "identify": {
           "label": "Identificar"

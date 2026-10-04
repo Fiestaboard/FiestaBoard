@@ -2423,6 +2423,10 @@
     "movePlaceholder": "Neuen Platz wählen…",
     "moveTo": "Platz {position} — leer",
     "saveTile": "Kachel speichern",
+    "tileSaved": "Kachel gespeichert",
+    "tileRemoved": "Kachel geleert",
+    "tileMoved": "Kachel auf Platz {position} verschoben",
+    "deviceInUse": "Kachel {position} zugewiesen",
     "tileSlotAssigned": "Kachel {position}: Zeile {row}, Spalte {col} — zugewiesen an {summary}",
     "moveSwap": "Platz {position} — mit {summary} tauschen",
     "tilesDuplicate": "Mehrere Kacheln verweisen auf dasselbe Board: {values}",
@@ -2501,6 +2505,9 @@
         },
         "discover": {
           "label": "Netzwerk nach Boards durchsuchen"
+        },
+        "test_tile": {
+          "label": "Testen"
         },
         "identify": {
           "label": "Identifizieren"

@@ -2423,6 +2423,10 @@
     "movePlaceholder": "Choose a new slot…",
     "moveTo": "Slot {position} — empty",
     "saveTile": "Save tile",
+    "tileSaved": "Tile saved",
+    "tileRemoved": "Tile cleared",
+    "tileMoved": "Tile moved to slot {position}",
+    "deviceInUse": "Assigned to tile {position}",
     "tileSlotAssigned": "Tile {position}: row {row}, column {col} — assigned to {summary}",
     "moveSwap": "Slot {position} — swap with {summary}",
     "tilesDuplicate": "Multiple tiles point at the same board: {values}",
@@ -2501,6 +2505,9 @@
         },
         "discover": {
           "label": "Scan network for boards"
+        },
+        "test_tile": {
+          "label": "Test"
         },
         "identify": {
           "label": "Identify"
