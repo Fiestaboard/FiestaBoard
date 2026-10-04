@@ -43,11 +43,13 @@ They differ from a third-party output plugin in four ways, each on purpose:
   their writes inline with no budget or breaker (``first_party=True``) and
   their requests are the ``requests`` module calls they always were
   (:meth:`OutputHttp.for_first_party <src.outputs.http.OutputHttp.for_first_party>`).
-- **They present as they always have**: ``GET /outputs`` shows no
-  ``output_api``, no settings schema (their settings screens are still the
-  hand-coded ones until P4d) and FiestaPanel's ``vestaboard_panel`` model;
-  board-settings actions still run through core's legacy dispatchers, which
-  call into the plugin for every device conversation.
+- **Their settings screens are their manifests'**: ``GET /outputs`` carries
+  each one's ``settings_schema`` and actions, and the web renders a
+  Vestaboard's board settings from them like any output's (plan D13,
+  Phase 4 P4d). It still shows no ``output_api`` and FiestaPanel's
+  ``vestaboard_panel`` model; board-settings actions still run through
+  core's dispatchers, which call into the plugin for every device
+  conversation.
 """
 
 from __future__ import annotations
@@ -319,8 +321,7 @@ async def _fiestapanel_dispatch(call: ActionCall) -> ActionOutcome:
     return ActionOutcome(message="FiestaPanel boards render in FiestaBoard itself; there is nothing to connect to.")
 
 
-#: Core's board-settings action runners for the first-party outputs (their
-#: settings screens are still core's own until P4d).
+#: Core's board-settings action runners for the first-party outputs.
 _DISPATCH = {VESTABOARD: _vestaboard_dispatch, FIESTAPANEL: _fiestapanel_dispatch}
 
 
@@ -354,6 +355,7 @@ def first_party_definition(output_id: str) -> OutputDefinition:
         description=manifest.description,
         icon=manifest.icon,
         actions=output_manifest.actions,
+        settings_schema=output_manifest.settings_schema,
         offered_device_models=_LEGACY_OFFERED_MODELS.get(output_id, output_manifest.device_model_ids),
     )
 

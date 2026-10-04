@@ -186,6 +186,47 @@ class TestManifest:
         )
         assert errors == ["output.actions[0].input_schema.c: ui:widget 'x' is not in output_api 1's vocabulary"]
 
+    def test_an_action_can_be_shown_only_while_a_condition_holds(self):
+        manifest, errors = _block(
+            actions=[
+                {"id": "pair", "label": "Pair", "visible_when": {"host": "", "@device_type": "note_array"}},
+                {"id": "detect_geometry", "label": "Size", "auto_apply": True},
+            ]
+        )
+        assert errors == []
+        assert manifest.actions[0].visible_when == {"host": "", "@device_type": "note_array"}
+        assert (manifest.actions[0].auto_apply, manifest.actions[1].auto_apply) == (False, True)
+
+    def test_an_action_condition_is_held_to_the_grammar(self):
+        _manifest, errors = _block(
+            actions=[
+                {"id": "pair", "label": "Pair", "visible_when": {"mode": "lan"}},
+                {"id": "size", "label": "Size", "visible_when": {"@colour": "red"}, "auto_apply": "yes"},
+            ]
+        )
+        assert errors == [
+            "output.actions[0].visible_when references unknown property 'mode'",
+            "output.actions[1].visible_when references unknown board fact '@colour' "
+            "(known: @device_model, @device_type)",
+            "output.actions[1].auto_apply must be a boolean",
+        ]
+
+    def test_a_tile_grid_item_action_must_be_declared(self):
+        tile = {"type": "object", "properties": {"row": {"type": "integer"}, "col": {"type": "integer"}}}
+        schema = {
+            "type": "object",
+            "properties": {
+                "tiles": {
+                    "type": "array",
+                    "items": tile,
+                    "ui:widget": "tile-grid",
+                    "ui:options": {"layout": "board", "item_actions": ["identify", "pair"]},
+                }
+            },
+        }
+        _manifest, errors = _block(settings_schema=schema, actions=[{"id": "identify", "label": "Blink"}])
+        assert errors == ["output.settings_schema.tiles: tile-grid item action 'pair' is not declared in actions"]
+
     def test_a_device_picker_must_name_a_declared_action(self):
         _manifest, errors = _block(
             settings_schema={"type": "object", "properties": {"host": {"type": "string", "ui:widget": "device-picker"}}}

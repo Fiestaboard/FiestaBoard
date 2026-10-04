@@ -32,13 +32,36 @@ CASES = json.loads(
 
 @pytest.mark.parametrize("case", CASES, ids=[c["name"] for c in CASES])
 def test_visible_when_vector(case):
-    assert is_visible(case["when"], case["values"], case["properties"]) is case["visible"]
+    assert is_visible(case["when"], case["values"], case["properties"], case.get("context")) is case["visible"]
 
 
 # --- what validation reports about a condition ---------------------------------------------------
 
 
 FIELDS = {"mode": {"type": "string"}, "advanced": {"type": "boolean"}}
+
+
+def test_a_board_fact_is_a_known_name_not_a_property():
+    assert condition_errors({"@device_type": "note_array", "@device_model": None}, FIELDS) == []
+    assert condition_errors({"@shape": "round"}, FIELDS) == [
+        "references unknown board fact '@shape' (known: @device_model, @device_type)"
+    ]
+
+
+def test_strip_hidden_reads_the_board_it_is_given():
+    schema = {
+        "type": "object",
+        "properties": {
+            "token": {"type": "string", "ui:visible_when": {"@device_type": "note_array"}},
+            "key": {"type": "string", "ui:visible_when": {"@device_type": ["flagship", "note"]}},
+        },
+        "required": ["token", "key"],
+    }
+    values = {"token": "t", "key": "k"}
+    shown, stripped = strip_hidden(values, schema, {"device_type": "note_array"})
+    assert (shown, stripped["required"]) == ({"token": "t"}, ["token"])
+    shown, stripped = strip_hidden(values, schema)
+    assert (shown, stripped["required"]) == ({}, [])
 
 
 def test_a_well_formed_condition_has_no_errors():
@@ -189,6 +212,36 @@ def test_a_well_formed_tile_grid_is_accepted():
     )
     assert validate_settings_schema_ui(schema) == []
     assert settings_schema_ui_warnings(schema) == []
+
+
+def test_a_tile_grid_can_take_the_boards_own_layout():
+    tile = {
+        "type": "object",
+        "properties": {"row": {"type": "integer"}, "col": {"type": "integer"}, "host": {"type": "string"}},
+    }
+    options = {"layout": "board", "item_actions": ["identify"], "unique_fields": ["host"]}
+    schema = _schema(tiles={"type": "array", "ui:widget": "tile-grid", "items": tile, "ui:options": options})
+    assert validate_settings_schema_ui(schema) == []
+    assert settings_schema_ui_warnings(schema) == []
+
+
+def test_a_tile_grid_layout_is_board_or_two_size_fields():
+    tile = {"type": "object", "properties": {"row": {"type": "integer"}, "col": {"type": "integer"}}}
+    schema = _schema(
+        wide={"type": "integer"},
+        tiles={
+            "type": "array",
+            "ui:widget": "tile-grid",
+            "items": tile,
+            "ui:options": {"layout": "wall", "cols_field": "wide", "item_actions": "identify", "unique_fields": ["ip"]},
+        },
+    )
+    assert validate_settings_schema_ui(schema) == [
+        "settings_schema.tiles: ui:options.layout must be 'board'",
+        "settings_schema.tiles: ui:options.cols_field cannot be combined with layout 'board'",
+        "settings_schema.tiles: ui:options.item_actions must be an array of names",
+        "settings_schema.tiles: ui:options.unique_fields names unknown item property 'ip'",
+    ]
 
 
 def test_device_picker_must_be_a_string_field():

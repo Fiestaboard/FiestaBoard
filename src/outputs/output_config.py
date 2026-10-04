@@ -139,16 +139,24 @@ def masked_secret_paths(config: Any, schema: Mapping[str, Any] | None, path: str
     return found
 
 
-def validate_output_config(config: Any, schema: Mapping[str, Any]) -> list[str]:
+def board_context(board: Mapping[str, Any]) -> dict[str, Any]:
+    """The board facts ``ui:visible_when`` reads by their ``@`` names."""
+    return {"device_type": board.get("device_type"), "device_model": board.get("device_model")}
+
+
+def validate_output_config(
+    config: Any, schema: Mapping[str, Any], context: Mapping[str, Any] | None = None
+) -> list[str]:
     """Errors for *config* against the output's ``settings_schema`` (empty = valid).
 
     Fields hidden by ``ui:visible_when`` are not validated
     (:func:`src.plugins.settings_ui.strip_hidden`): the user cannot see them.
+    *context* is the board's ``@`` facts (:func:`board_context`).
     """
     from jsonschema import Draft7Validator
 
     from src.plugins.settings_ui import strip_hidden
 
-    visible, visible_schema = strip_hidden(config, schema)
+    visible, visible_schema = strip_hidden(config, schema, context)
     errors = sorted(Draft7Validator(visible_schema).iter_errors(visible), key=lambda e: [str(p) for p in e.path])
     return [f"output_config{''.join(f'.{p}' for p in e.path)}: {e.message}" for e in errors]

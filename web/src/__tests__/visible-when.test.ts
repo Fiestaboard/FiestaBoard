@@ -14,11 +14,12 @@ interface Case {
   values: Record<string, unknown>;
   when: unknown;
   visible: boolean;
+  context?: Record<string, unknown>;
 }
 
 describe("ui:visible_when shared vectors", () => {
   it.each((cases as { cases: Case[] }).cases.map((c) => [c.name, c] as const))("%s", (_name, c) => {
-    expect(isVisible(c.when, c.values, c.properties)).toBe(c.visible);
+    expect(isVisible(c.when, c.values, c.properties, c.context)).toBe(c.visible);
   });
 });
 
