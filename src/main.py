@@ -27,6 +27,7 @@ from .devices import (
 from .displays.send_worker import BoardSendWorker, SendJob
 from .outputs import OutputDriver, OutputRuntime
 from .outputs.breaker import write_failure_reason
+from .outputs.cells import output_character_set, output_extended_markup, project_message
 from .outputs.factory import build_driver
 from .outputs.plugin_registration import release_driver
 from .outputs.registry import resolve_output_id
@@ -39,7 +40,6 @@ from .pages.service import (
 from .schedules.service import get_schedule_service
 from .settings.service import get_settings_service
 from .templates.engine import extract_template_plugin_ids
-from .text_to_board import text_to_board_array
 from .triggers.service import get_trigger_service
 
 # Configure logging
@@ -93,6 +93,24 @@ SEND_WAIT_TIMEOUT = 240.0
 # iteration at or after each deadline.
 BOARD_RETRY_INITIAL_BACKOFF = 60.0
 BOARD_RETRY_MAX_BACKOFF = 900.0
+
+
+def _extended_kw(client) -> dict:
+    """``{"extended_markup": True}`` for a board whose output speaks extended
+    markup (its character set is rich, plan D19), else nothing — so a
+    split-flap board's render call is exactly what it always was."""
+    return {"extended_markup": True} if output_extended_markup(client) else {}
+
+
+def _project(client, content: str, rows: int, cols: int) -> tuple[list[list[int]], dict]:
+    """*content* projected for *client*'s output (:mod:`src.outputs.cells`):
+    the 0–71 grid, and the ``render`` keywords that carry its rich cells.
+
+    A split-flap board gets ``text_to_board_array`` exactly as before and no
+    keywords; a rich output's one parse yields both the grid and its cells.
+    """
+    frame = project_message(content, rows, cols, output_character_set(client))
+    return frame.characters, ({"cells": frame.cells} if frame.cells is not None else {})
 
 
 def _board_size_key(board: dict) -> str:
@@ -1928,7 +1946,7 @@ class DisplayService:
                 # One-off override: render the in-memory page directly. There is
                 # no stored page to look up and no preview cache to bypass.
                 page = inline_page
-                result = page_service.render_page(inline_page, contexts=contexts)
+                result = page_service.render_page(inline_page, contexts=contexts, **_extended_kw(rt.client))
                 if not result or not result.available:
                     render_error = getattr(result, "error", None) if result else None
                     self._record_send_error(rt, board_id, render_error or "Failed to render one-off override content")
@@ -1990,7 +2008,9 @@ class DisplayService:
 
                 # Render with fresh data — force_refresh bypasses the preview cache
                 # so template variables (weather, time, stocks, etc.) are current.
-                result = page_service.preview_page(active_page_id, force_refresh=True, contexts=contexts)
+                result = page_service.preview_page(
+                    active_page_id, force_refresh=True, contexts=contexts, **_extended_kw(rt.client)
+                )
                 if not result or not result.available:
                     render_error = getattr(result, "error", None) if result else None
                     self._record_send_error(
@@ -2106,9 +2126,8 @@ class DisplayService:
             # resolve_dimensions (never get_dimensions, which raises for
             # note_array) so a note-array page renders at its true size.
             dims = dimensions_of(page)
-            board_array = text_to_board_array(current_content, rows=dims.rows, cols=dims.cols)
-
             client = rt.client
+            board_array, rich = _project(client, current_content, dims.rows, dims.cols)
             device_type = page.device_type
             sink = self._error_sink()
 
@@ -2171,6 +2190,7 @@ class DisplayService:
                     step_interval_ms=interval_ms,
                     step_size=step_size,
                     device_type=device_type,
+                    **rich,
                 ),
                 on_complete=_after_page_send,
                 wait=wait,
@@ -2562,7 +2582,7 @@ class DisplayService:
 
         logger.info(f"⏸️  Entering silence mode (page) - displaying {page.id}")
 
-        result = page_service.preview_page(page.id, force_refresh=True, contexts=contexts)
+        result = page_service.preview_page(page.id, force_refresh=True, contexts=contexts, **_extended_kw(rt.client))
         if not result or not result.available:
             logger.warning("Silence page %s could not be rendered - falling back to indicator", page.id)
             return self._send_silence_indicator(
@@ -2580,9 +2600,8 @@ class DisplayService:
         step_size = page.transition_step_size if page.transition_step_size is not None else system_transition.step_size
 
         dims = resolve_dimensions(device_type, notes_wide, notes_tall, grid_rows, grid_cols)
-        board_array = text_to_board_array(result.formatted, rows=dims.rows, cols=dims.cols)
-
         client = rt.client
+        board_array, rich = _project(client, result.formatted, dims.rows, dims.cols)
         sink = self._error_sink()
         formatted = result.formatted
         page_ref = page.id
@@ -2613,6 +2632,7 @@ class DisplayService:
                 step_interval_ms=interval_ms,
                 step_size=step_size,
                 device_type=device_type,
+                **rich,
             ),
             on_complete=_after_silence_page_send,
             wait=wait,
@@ -2702,9 +2722,8 @@ class DisplayService:
         geometry = self._runtime_geometry(rt)
         device_type = geometry.device_type
         dims = resolve_dimensions(*geometry)
-        board_array = text_to_board_array(content, rows=dims.rows, cols=dims.cols)
-
         client = rt.client
+        board_array, rich = _project(client, content, dims.rows, dims.cols)
         sink = self._error_sink()
 
         def _after_trigger_send(success: bool, was_sent: bool, exc: Exception | None) -> bool:
@@ -2731,6 +2750,7 @@ class DisplayService:
                 step_interval_ms=system_transition.step_interval_ms,
                 step_size=system_transition.step_size,
                 device_type=device_type,
+                **rich,
             ),
             on_complete=_after_trigger_send,
             wait=wait,

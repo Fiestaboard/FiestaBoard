@@ -8,7 +8,7 @@ physical scale: screen size, calibration nudge, backdrop, and auto-dim.
 import re
 import secrets
 from datetime import UTC, datetime
-from typing import Literal
+from typing import Any, Literal
 
 from pydantic import BaseModel, Field, field_validator
 
@@ -188,6 +188,15 @@ class PanelFrameResponse(BaseModel):
     """
 
     characters: list[list[int]] | None = None
+    #: The same frame as rich cells, FiestaUI's ``BoardToken[][]`` JSON
+    #: (``{"type": "char", "value": "A"}`` / ``{"type": "color", "code":
+    #: "63"}``, plus ``color`` / ``background`` / ``icon`` when set), for a
+    #: viewer that draws colour (a ``led_matrix`` render style). Additive and
+    #: present ONLY when the frame has rich cells (its board's output took
+    #: them, :mod:`src.outputs.cells`); otherwise the key is absent and the
+    #: response is exactly what it always was. ``characters`` and
+    #: ``message`` are unchanged either way.
+    cells: list[list[dict[str, Any]]] | None = None
     message: str | None = None
     rows: int
     cols: int

@@ -38,6 +38,7 @@ from src.board_chars import characters_to_message
 from src.board_guards import _board_dims, _find_board
 from src.devices import NOTE_COLS, NOTE_ROWS, is_note_array, resolve_dimensions
 from src.display_runtime import get_service, reinitialize_board_clients, release_board_frames
+from src.outputs.cells import cells_to_json
 from src.pages.service import find_incompatible_board_references
 from src.settings.service import get_settings_service
 
@@ -252,7 +253,12 @@ async def get_panel_public(panel_id: str):
     return PanelPublicResponse.model_validate(out)
 
 
-@router.get("/panel/{panel_id}/frame", response_model=PanelFrameResponse, responses=errors(404))
+@router.get(
+    "/panel/{panel_id}/frame",
+    response_model=PanelFrameResponse,
+    response_model_exclude_unset=True,
+    responses=errors(404),
+)
 async def get_panel_frame(panel_id: str):
     """Public viewer frame: the board's last-frame store. No auth.
 
@@ -273,17 +279,20 @@ async def get_panel_frame(panel_id: str):
     service = get_service()
     rt = service.runtime_for(panel.board_id) if service is not None else None
     characters: list[list[int]] | None = None
+    cells = None
     updated_at = None
     if rt is not None and rt.client is not None:
         output = rt.output
         if output.delivery == "pull":
             characters = output.displayed_frame(dims.rows, dims.cols)
+            cells = output.displayed_cells(dims.rows, dims.cols) if characters is not None else None
             # When the frame was stored, whether or not it is served — a
             # refused stale-shape frame still reports when it was sent.
             if output.last_sent_at is not None:
                 updated_at = datetime.fromtimestamp(output.last_sent_at, tz=UTC).isoformat()
         else:
             characters = output.frames.characters
+            cells = output.frames.cells
 
     if characters is None:
         return PanelFrameResponse(
@@ -293,8 +302,12 @@ async def get_panel_frame(panel_id: str):
             cols=dims.cols,
             updated_at=updated_at,
         )
+    # `cells` is set only for a frame that has rich cells, so every other
+    # board's response is byte-for-byte what it was (exclude_unset).
+    rich = {"cells": cells_to_json(cells)} if cells is not None else {}
     return PanelFrameResponse(
         characters=characters,
+        **rich,
         message=characters_to_message(characters),
         rows=len(characters),
         cols=len(characters[0]) if characters else 0,

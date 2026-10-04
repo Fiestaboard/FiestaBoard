@@ -24,12 +24,27 @@ builds one instance per board — ``cls(board_id, output_config)`` — calls
 :meth:`open` before the first write, and :meth:`close` when the board is
 removed or its connection settings change (a new instance replaces it).
 
-**Frames.** Today every output receives a :data:`CellFrame`: rows of
-FiestaBoard character codes 0–71 (the split-flap projection). Rich cells —
-per-cell glyph, foreground and background, projected by core from the
-output's character set (plan D15) — arrive as an additive frame type; a
-plugin will opt in through its manifest, so a plugin written against this
-contract keeps receiving the grid it understands.
+**Frames.** :meth:`~OutputPluginBase.write` receives a :data:`CellFrame`:
+rows of FiestaBoard character codes 0–71 (the split-flap projection).
+
+**Rich cells** (plan D15/D17) are the additive frame type:
+:data:`RichCellFrame`, FiestaUI's ``BoardToken[][]`` — per cell a character,
+a colour tile (numeric code, ``"63"``) or an icon (its canonical name), plus
+``color`` / ``background`` — projected by core from the board's character
+set (:mod:`src.outputs.cells`), so every glyph has already passed the set's
+fallback. An output whose character set is rich (colour spans, block spans
+or icons, as the LED sets are) opts in by overriding :meth:`write_cells`:
+
+.. code-block:: python
+
+    def write_cells(self, cells, *, native, cancel) -> WriteResult:
+        draw(self.config["host"], cells)   # cells[r][c].color, .icon, …
+
+Core then sends every frame it has rich cells for through
+:meth:`write_cells` and dedupes colour-aware (a recolour is a new frame);
+frames that only ever were codes (a blank board, a transition's
+intermediate frames) still arrive through :meth:`write`. A plugin that does
+not override it keeps receiving exactly the 0–71 grid it understands.
 
 **Capabilities.** :meth:`capabilities` defaults to what the manifest's
 ``output`` block declares; override it to narrow per board (a cloud
@@ -43,6 +58,7 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, ClassVar, NamedTuple
 
+from src.markup import BoardToken
 from src.send_outcome import FrameRegion, WriteResult
 
 from .hooks import ConnectionCheck
@@ -60,12 +76,17 @@ __all__ = [
     "FrameRegion",
     "NativeTransition",
     "OutputPluginBase",
+    "RichCellFrame",
     "TimedFrame",
     "WriteResult",
 ]
 
 #: One frame: rows of FiestaBoard character codes (0–71), board-shaped.
 CellFrame = list[list[int]]
+
+#: One rich frame: rows of FiestaUI ``BoardToken``s, board-shaped (see
+#: :mod:`src.outputs.cells`).
+RichCellFrame = list[list[BoardToken]]
 
 
 class TimedFrame(NamedTuple):
@@ -167,6 +188,17 @@ class OutputPluginBase(ABC):
             ``failed_regions`` when only part of the board updated. Core
             fills ``throttled``/``floor_seconds`` itself.
         """
+
+    def write_cells(self, cells: RichCellFrame, *, native: NativeTransition | None, cancel: CancelToken) -> WriteResult:
+        """Show the rich frame *cells* on the device.
+
+        Called instead of :meth:`write` only for an output whose board's
+        character set is rich, and only when the plugin overrides it (the
+        opt-in). Every glyph has passed the set's fallback, so each cell is
+        one the set can draw. The default draws the 0–71 projection
+        through :meth:`write`.
+        """
+        return self.write([[cell.flap_code for cell in row] for row in cells], native=native, cancel=cancel)
 
     def write_sequence(self, frames: list[TimedFrame], *, cancel: CancelToken) -> WriteResult:
         """Upload a whole timed sequence in one go (``animation: sequence``).

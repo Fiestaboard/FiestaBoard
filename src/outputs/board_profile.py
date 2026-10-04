@@ -26,6 +26,7 @@ from collections.abc import Mapping
 from typing import Any, NamedTuple
 
 from src.fiestaui import builtin_device_models
+from src.led.charsets import BUILTIN_CHARACTER_SETS, materialize_character_set
 
 from .registry import FIESTAPANEL, VESTABOARD, output_registry, resolve_output_id
 
@@ -78,3 +79,34 @@ def board_profile(board: Mapping[str, Any]) -> BoardProfile:
     if output_id == FIESTAPANEL:
         return BoardProfile(None, None)
     return _plugin(board, output_id)
+
+
+def board_character_set(board: Mapping[str, Any]) -> dict | None:
+    """The whole (materialised) character set *board* draws with, or ``None``.
+
+    Resolved exactly as :func:`board_profile` resolves its id: a Vestaboard's
+    built-in set by its flap; an output plugin's declared set, else its
+    board's model's (a built-in id, or an inline set made whole). ``None``
+    for a FiestaPanel and for a plugin that is not installed — unknown is
+    never guessed.
+    """
+    output_id = resolve_output_id(board)
+    if output_id == FIESTAPANEL:
+        return None
+    if output_id == VESTABOARD:
+        charset_id = _vestaboard(board).charset
+        return dict(BUILTIN_CHARACTER_SETS[charset_id]) if charset_id in BUILTIN_CHARACTER_SETS else None
+    definition = output_registry().get(output_id)
+    manifest = definition.output_manifest if definition is not None else None
+    if manifest is None:
+        return None
+    if manifest.character_set is not None:
+        return manifest.character_set
+    ids = manifest.device_model_ids
+    stored = board.get("device_model")
+    charset = manifest.model(ids.index(stored) if stored in ids else 0).get("charset")
+    if isinstance(charset, str):
+        return dict(BUILTIN_CHARACTER_SETS[charset]) if charset in BUILTIN_CHARACTER_SETS else None
+    if isinstance(charset, Mapping):
+        return materialize_character_set(dict(charset))
+    return None

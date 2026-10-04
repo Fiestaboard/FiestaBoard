@@ -1,0 +1,125 @@
+"""Rich cells: a board message parsed once, projected per output (plan D15/D17).
+
+The **markup string** stays canonical upstream: templates, pages, the v1 and
+MQTT message APIs, the engine's content dedupe and its render memo all key
+on it. What a board is *sent* is projected from it per output, by the
+board's resolved character set:
+
+- **Split-flap** (a Vestaboard set, a FiestaPanel, no set at all): today's
+  0–71 grid, from :func:`src.text_to_board.text_to_board_array` exactly as
+  it always was. Nothing about these boards changes.
+- **A rich set** (one with colour spans, block spans or icons — the LED
+  sets): the message is parsed ONCE with extended markup and case kept.
+  From that one parse come both the 0–71 flap projection (what transitions,
+  the last-frame store's ``characters`` and every int-grid consumer read)
+  and the :data:`RichCellFrame`: each token passed through the set's
+  :func:`~src.led.charsets.charset_fallback`, with colour tiles normalised
+  to their numeric code (``{red}`` → ``"63"``, plan D17 answer 6).
+
+A :data:`RichCellFrame` is FiestaUI's ``BoardToken[][]``: per cell a
+character (one code point), a colour tile (numeric code) or an icon (its
+canonical name), plus ``color`` / ``background``. Its JSON shape is
+:func:`cells_to_json`.
+
+Nothing is cached across renders: a set's lookups are built once per
+projection, so a set whose content changes (a new ``version``) can never
+be served a stale projection.
+"""
+
+from __future__ import annotations
+
+from collections.abc import Mapping
+from dataclasses import replace
+from typing import Any, NamedTuple
+
+from src.led.charsets import CharacterSet, CharsetLookup, charset_fallback, has_extended_markup
+from src.markup import BoardToken, parse_line, rich_tokens_equal
+from src.text_to_board import COLOR_CODES, text_to_board_array
+
+__all__ = [
+    "ProjectedFrame",
+    "RichCellFrame",
+    "cells_equal",
+    "cells_to_json",
+    "output_character_set",
+    "output_extended_markup",
+    "project_message",
+]
+
+#: One rich frame: rows of FiestaUI ``BoardToken``s, board-shaped.
+RichCellFrame = list[list[BoardToken]]
+
+_BLANK = BoardToken("char", value=" ")
+
+
+class ProjectedFrame(NamedTuple):
+    """One message, projected for one output."""
+
+    #: The 0–71 grid (the split-flap projection every output has).
+    characters: list[list[int]]
+    #: The rich cells, for an output whose set is rich; else ``None``.
+    cells: RichCellFrame | None
+
+
+def output_character_set(client: Any) -> CharacterSet | None:
+    """The resolved character set a board's driver draws with, when it says.
+
+    Output-plugin drivers carry the set their board resolved to; the
+    built-in drivers (and test doubles) carry none, which reads as split-flap.
+    """
+    charset = getattr(client, "character_set", None)
+    return charset if isinstance(charset, Mapping) else None
+
+
+def output_extended_markup(client: Any) -> bool:
+    """Whether the board behind *client* speaks extended markup (plan D19):
+    true iff its resolved set has colour spans, block spans or icons."""
+    return has_extended_markup(output_character_set(client))
+
+
+def _numeric_tile(token: BoardToken) -> BoardToken:
+    if token.type == "color" and not token.code.isdigit():
+        return replace(token, code=str(COLOR_CODES[token.code]))
+    return token
+
+
+def project_message(message: str, rows: int, cols: int, charset: CharacterSet | None) -> ProjectedFrame:
+    """*message* as a ``rows`` x ``cols`` board drawn with *charset*.
+
+    A set that is not rich (or none) gets exactly today's grid and no cells.
+    A rich set gets one extended-markup parse, projected twice (see module
+    docstring).
+    """
+    if not has_extended_markup(charset):
+        return ProjectedFrame(text_to_board_array(message, rows=rows, cols=cols), None)
+    look = CharsetLookup(charset)
+    lines = message.split("\n")
+    characters: list[list[int]] = []
+    cells: RichCellFrame = []
+    for row in range(rows):
+        line = lines[row] if row < len(lines) else ""
+        tokens = parse_line(line, cols, extended_markup=True, preserve_case=True)
+        tokens = tokens + [_BLANK] * (cols - len(tokens))
+        characters.append([t.flap_code for t in tokens])
+        cells.append([_numeric_tile(charset_fallback(look, t)) for t in tokens])
+    return ProjectedFrame(characters, cells)
+
+
+def cells_equal(a: RichCellFrame | None, b: RichCellFrame | None) -> bool:
+    """Colour-aware frame equality (FiestaUI ``richTokensEqual`` per cell).
+
+    Two missing frames are equal; a missing and a present one are not.
+    """
+    if a is None or b is None:
+        return a is b
+    if len(a) != len(b):
+        return False
+    for row_a, row_b in zip(a, b, strict=True):
+        if len(row_a) != len(row_b) or not all(rich_tokens_equal(x, y) for x, y in zip(row_a, row_b, strict=True)):
+            return False
+    return True
+
+
+def cells_to_json(cells: RichCellFrame) -> list[list[dict]]:
+    """FiestaUI's ``BoardToken[][]`` JSON shape (absent fields omitted)."""
+    return [[t.to_dict() for t in row] for row in cells]

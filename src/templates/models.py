@@ -100,9 +100,16 @@ class TemplateRenderRequest(BaseModel):
     ``grid_rows``/``grid_cols`` size a ``panel`` (a FiestaPanel's explicit
     per-character grid) and are required for one: a panel has no implied
     size, so rendering without them would silently answer flagship geometry.
+
+    ``board_id`` renders for that board: with extended markup when its
+    output's character set is rich (plan D19), and — on ``/templates/render``
+    — checked against that set (see :class:`TemplateRenderResponse`). It
+    does not choose the geometry; the fields above do. An unknown board is a
+    read's safe default: rendered as split-flap, nothing checked.
     """
 
     template: str | list[str]
+    board_id: str | None = None
     device_type: DeviceType | None = None
     notes_wide: int = Field(default=1, ge=1, le=MAX_NOTES_PER_AXIS)
     notes_tall: int = Field(default=1, ge=1, le=MAX_NOTES_PER_AXIS)
@@ -123,6 +130,36 @@ class TemplateRenderResponse(BaseModel):
     rendered: str
     lines: list[str]
     line_count: int
+
+
+class CharsetIssue(BaseModel):
+    """One cell the target board's character set cannot draw as written
+    (FiestaUI ``CharsetValidationIssue``; tokens in its ``BoardToken`` JSON).
+
+    ``reason`` is ``char``, ``case``, ``tile``, ``icon``, ``colorSpan`` or
+    ``blockSpan``; ``fallback`` is what the board draws there instead.
+    """
+
+    row: int
+    col: int
+    token: dict[str, Any]
+    reason: str
+    fallback: dict[str, Any]
+
+
+class TemplateRenderCheckedResponse(TemplateRenderResponse):
+    """``POST /templates/render``, as the editor's warnings read it.
+
+    ``charset`` / ``charset_issues`` are present only when the request named
+    a ``board_id`` (the response is otherwise exactly what it always was):
+    the board's character set id and every cell of the rendered message
+    that set draws differently (``validateMessage`` parity, plan D17). Both
+    are null when the board is unknown or its set is (a FiestaPanel):
+    nothing was checked.
+    """
+
+    charset: str | None = None
+    charset_issues: list[CharsetIssue] | None = None
 
 
 class TemplateRenderLiveRequest(TemplateRenderRequest):

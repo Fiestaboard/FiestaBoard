@@ -365,6 +365,8 @@ class TemplateEngine:
         notes_tall: int = 1,
         grid_rows: int | None = None,
         grid_cols: int | None = None,
+        *,
+        extended_markup: bool = False,
     ) -> str:
         """Render a list of template lines (for template pages).
 
@@ -392,6 +394,9 @@ class TemplateEngine:
                 vertically (determines rows = notes_tall × 3). Ignored for other types.
             grid_rows / grid_cols: For 'panel', the explicit grid. Ignored for
                 other types.
+            extended_markup: The target board speaks extended markup (its
+                character set is rich; plan D19). Every line renders with it,
+                as :meth:`render` documents.
 
         Returns:
             Rendered string with newlines
@@ -456,7 +461,7 @@ class TemplateEngine:
 
         def _render_cached(idx: int) -> str:
             if idx not in rendered_cache:
-                rendered_cache[idx] = self.render(contents[idx], context)
+                rendered_cache[idx] = self.render(contents[idx], context, extended_markup=extended_markup)
             return rendered_cache[idx]
 
         for i in range(num_rows):
@@ -497,7 +502,11 @@ class TemplateEngine:
 
             if has_wrap:
                 wrapped_lines = self._render_with_wrap(
-                    content, context, max_lines=_overflow_budget(i), board_width=board_width
+                    content,
+                    context,
+                    max_lines=_overflow_budget(i),
+                    board_width=board_width,
+                    extended_markup=extended_markup,
                 )
 
                 for k, wrapped_line in enumerate(wrapped_lines):
@@ -573,7 +582,13 @@ class TemplateEngine:
             pos = close + 2
 
     def _render_with_wrap(
-        self, template: str, context: dict[str, Any], max_lines: int = 1, board_width: int = 22
+        self,
+        template: str,
+        context: dict[str, Any],
+        max_lines: int = 1,
+        board_width: int = 22,
+        *,
+        extended_markup: bool = False,
     ) -> list[str]:
         """Render a template line that should wrap across multiple lines.
 
@@ -615,8 +630,8 @@ class TemplateEngine:
             suffix = template[match_end:]
 
             # Render prefix and suffix (they may have other variables)
-            prefix = self.render(prefix, context)
-            suffix = self.render(suffix, context)
+            prefix = self.render(prefix, context, extended_markup=extended_markup)
+            suffix = self.render(suffix, context, extended_markup=extended_markup)
 
             # Calculate available width for wrapped content using tile counts, not character counts
             # Color markers like {67} are 4 characters but only 1 tile
@@ -640,7 +655,7 @@ class TemplateEngine:
 
             return result
         # Line-level wrap: render the entire template first, then wrap the result
-        rendered = self.render(template, context)
+        rendered = self.render(template, context, extended_markup=extended_markup)
 
         # Use tile-based wrapping for the entire rendered content
         # Full width available on all lines
