@@ -544,6 +544,24 @@ class BetaSettingsUpdate(BaseModel):
 
 
 # ---------------------------------------------------------------------------
+# Setup wizard
+# ---------------------------------------------------------------------------
+
+
+class WizardStateBody(BaseModel):
+    """``GET``/``PUT /settings/wizard``: how the setup wizard ended.
+
+    ``completed`` or ``skipped`` keeps the wizard away for good (first run is
+    "no board has a usable output AND the wizard was neither completed nor
+    skipped"); ``null`` is "never ended" — what a reset leaves.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    state: Literal["completed", "skipped"] | None
+
+
+# ---------------------------------------------------------------------------
 # Plugin settings
 # ---------------------------------------------------------------------------
 

@@ -255,6 +255,9 @@ async def reset_board_config():
                 ).to_dict()
             ]
         )
+        # A reset means "run the wizard again": a stored completed/skipped
+        # outcome would otherwise keep it away (plan D18).
+        settings_svc.set_wizard_state(None)
     except Exception:  # pragma: no cover - defensive
         logger.exception("Failed to reset multi-board settings during board config reset")
 

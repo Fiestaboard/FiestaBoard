@@ -26,7 +26,7 @@ import requests
 
 from src.board_client import CLOUD_REQUEST_TIMEOUT, LOCAL_REQUEST_TIMEOUT, BoardClient
 from src.note_array_local_client import NoteArrayLocalClient
-from src.outputs.hooks import ConnectionCheck, OutputHooks, UnknownOutputAction
+from src.outputs.hooks import ConnectionCheck, UnknownOutputAction
 from src.outputs.registry import (
     FIESTAPANEL,
     VESTABOARD,
@@ -68,8 +68,13 @@ class TestRegistryHooks:
         assert hooks.diagnostics is not None
         assert set(hooks.actions) == {"enable_local_api"}
 
-    def test_fiestapanel_declares_no_hooks(self):
-        assert output_registry().get(FIESTAPANEL).hooks == OutputHooks()
+    def test_fiestapanel_declares_no_device_hooks(self):
+        """No discovery, diagnostics or custom action: a FiestaPanel has no
+        device. Its one board-settings action (test_connection, plan D13) is
+        answered by ``dispatch`` and says so."""
+        hooks = output_registry().get(FIESTAPANEL).hooks
+        assert (hooks.discover, hooks.diagnostics, dict(hooks.actions)) == (None, None, {})
+        assert [a.id for a in output_registry().get(FIESTAPANEL).actions] == ["test_connection"]
 
     def test_discover_devices_runs_the_outputs_discover_hook_with_the_timeout(self):
         found = [{"ip": "192.0.2.50", "port": 7000, "hostname": "", "source": "port_scan"}]

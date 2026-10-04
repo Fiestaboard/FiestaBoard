@@ -47,6 +47,8 @@ from src.output_allowlist import OutputHostBlocked
 from src.outputs.cells import cells_from_codes
 from src.outputs.http import OutputHttp, RequestCancelled
 from src.outputs.plugin_base import (
+    ActionField,
+    ActionOutcome,
     CancelToken,
     CellFrame,
     ConnectionCheck,
@@ -78,6 +80,8 @@ from .sources import (
 
 __all__ = [
     "INSTANCE_SEPARATOR",
+    "ActionField",
+    "ActionOutcome",
     "BoardToken",
     "CancelToken",
     "CellFrame",

@@ -103,6 +103,7 @@ from .models import (
     TransitionSettings,
     TransitionSettingsResponse,
     TransitionSettingsUpdate,
+    WizardStateBody,
 )
 from .service import VALID_OUTPUT_TARGETS, VALID_STRATEGIES
 from .service import temporary_override_payload as _temporary_override_payload
@@ -1305,6 +1306,27 @@ async def identify_board_tiles(board_id: str, request: BoardIdentifyRequest):
         service.invalidate_board_content(board_id)
 
     return {"board_id": board_id, "results": list(results)}
+
+
+@router.get("/settings/wizard", response_model=WizardStateBody, responses={**ERROR_400})
+async def get_wizard_state():
+    """How the setup wizard ended on this install: ``completed``, ``skipped`` or ``null``."""
+    return WizardStateBody(state=get_settings_service().get_wizard_state())
+
+
+@router.put("/settings/wizard", response_model=WizardStateBody, responses={**ERROR_400})
+async def set_wizard_state(request: WizardStateBody):
+    """Record how the setup wizard ended (plan D18).
+
+    ``completed`` or ``skipped`` keeps the wizard away from every browser:
+    first run is "no board has a usable output AND the wizard was neither
+    completed nor skipped". ``null`` clears it.
+    """
+    try:
+        settings = get_settings_service().set_wizard_state(request.state)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e)) from e
+    return WizardStateBody(state=settings.state)
 
 
 @router.get("/settings/display", response_model=DisplaySettingsResponse)
