@@ -2385,7 +2385,6 @@
     "dismissFailed": "닫지 못했습니다. 다시 시도하세요."
   },
   "boardSettingsScreen": {
-    "scanDevices": "기기 찾기",
     "scanning": "검색 중…",
     "noDevicesFound": "기기를 찾지 못했습니다. 주소를 직접 입력하세요.",
     "devicesFoundLabel": "{field}에서 찾은 기기",

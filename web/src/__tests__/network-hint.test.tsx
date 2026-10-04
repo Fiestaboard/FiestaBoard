@@ -136,7 +136,7 @@ describe("the device picker's scan", () => {
     page.hostname = "192.168.1.20";
     const bodies = recordBodies();
     renderScreen(output([DISCOVER, TEST]));
-    await userEvent.click(screen.getByRole("button", { name: "Find devices" }));
+    await userEvent.click(screen.getByRole("button", { name: "Find signs" }));
     await waitFor(() => expect(bodies.discover).toBeDefined());
     expect(bodies.discover.input).toEqual({ hint_host: "192.168.1.20" });
   });
@@ -145,7 +145,7 @@ describe("the device picker's scan", () => {
     page.hostname = host;
     const bodies = recordBodies();
     renderScreen(output([DISCOVER, TEST]));
-    await userEvent.click(screen.getByRole("button", { name: "Find devices" }));
+    await userEvent.click(screen.getByRole("button", { name: "Find signs" }));
     await waitFor(() => expect(bodies.discover).toBeDefined());
     expect(bodies.discover).not.toHaveProperty("input");
   });
@@ -155,7 +155,7 @@ describe("the device picker's scan", () => {
     const bodies = recordBodies();
     renderScreen(output([FIND, TEST], "find_sign"));
     await userEvent.type(screen.getByLabelText("Network to search"), "10.0.4.0/24");
-    await userEvent.click(screen.getByRole("button", { name: "Find devices" }));
+    await userEvent.click(screen.getByRole("button", { name: "Find my sign" }));
     await waitFor(() => expect(bodies.find_sign).toBeDefined());
     expect(bodies.find_sign.input).toEqual({ subnet: "10.0.4.0/24", hint_host: "10.0.0.8" });
   });

@@ -357,8 +357,21 @@ async def _run(
         "guidance": list(outcome.guidance),
         "fields": _with_fills(spec, outcome),
         "geometry": dict(outcome.geometry) if outcome.geometry is not None else None,
-        "devices": [dict(d) for d in outcome.devices] if outcome.devices is not None else None,
+        "devices": [_device_view(d) for d in outcome.devices] if outcome.devices is not None else None,
     }
+
+
+#: What :class:`~src.outputs.models.DiscoveredDevice` names itself.
+_DEVICE_KEYS = frozenset({"ip", "port", "hostname", "source", "label", "fields"})
+
+
+def _device_view(device: Mapping[str, Any]) -> dict[str, Any]:
+    """A found device as the API answers it: the core keys, and every other
+    scalar the output reported under ``fields`` (what picking it fills)."""
+    view = {key: value for key, value in device.items() if key in _DEVICE_KEYS and key != "fields"}
+    extra = {**{k: v for k, v in device.items() if k not in _DEVICE_KEYS}, **dict(device.get("fields") or {})}
+    view["fields"] = {str(k): v for k, v in extra.items() if isinstance(v, (str, int, float, bool))}
+    return view
 
 
 # --- the two doors ---------------------------------------------------------------------------------

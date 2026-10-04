@@ -2385,7 +2385,6 @@
     "dismissFailed": "No se pudo descartar. Inténtalo de nuevo."
   },
   "boardSettingsScreen": {
-    "scanDevices": "Buscar dispositivos",
     "scanning": "Buscando…",
     "noDevicesFound": "No se encontraron dispositivos. Introduce la dirección manualmente.",
     "devicesFoundLabel": "Dispositivos encontrados para {field}",

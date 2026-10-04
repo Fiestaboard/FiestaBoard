@@ -2385,7 +2385,6 @@
     "dismissFailed": "Could not dismiss. Try again."
   },
   "boardSettingsScreen": {
-    "scanDevices": "Find devices",
     "scanning": "Searching…",
     "noDevicesFound": "No devices found. Enter the address yourself.",
     "devicesFoundLabel": "Devices found for {field}",

@@ -2385,7 +2385,6 @@
     "dismissFailed": "Kapatılamadı. Tekrar deneyin."
   },
   "boardSettingsScreen": {
-    "scanDevices": "Cihaz bul",
     "scanning": "Aranıyor…",
     "noDevicesFound": "Cihaz bulunamadı. Adresi kendiniz girin.",
     "devicesFoundLabel": "{field} için bulunan cihazlar",

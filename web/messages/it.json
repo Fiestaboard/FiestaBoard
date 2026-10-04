@@ -2385,7 +2385,6 @@
     "dismissFailed": "Impossibile chiudere. Riprova."
   },
   "boardSettingsScreen": {
-    "scanDevices": "Cerca dispositivi",
     "scanning": "Ricerca…",
     "noDevicesFound": "Nessun dispositivo trovato. Inserisci l'indirizzo manualmente.",
     "devicesFoundLabel": "Dispositivi trovati per {field}",

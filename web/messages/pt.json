@@ -2385,7 +2385,6 @@
     "dismissFailed": "Não foi possível dispensar. Tente novamente."
   },
   "boardSettingsScreen": {
-    "scanDevices": "Procurar dispositivos",
     "scanning": "Procurando…",
     "noDevicesFound": "Nenhum dispositivo encontrado. Digite o endereço manualmente.",
     "devicesFoundLabel": "Dispositivos encontrados para {field}",
