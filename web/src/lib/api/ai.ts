@@ -6,7 +6,10 @@ import { apiUrl } from "../base-path";
 import { fetchApi } from "./core";
 import type { DeviceType, LineMetadata } from "./shared";
 
-export type AIProviderProtocol = "openai" | "anthropic";
+export type AIProviderProtocol = "openai" | "anthropic" | "openai_responses";
+
+/** A built-in sign-in (src/ai/sign_in.py PRESETS), used instead of a pasted API key. */
+export type AISignInPreset = "openrouter" | "huggingface" | "openai_chatgpt";
 
 export interface AIProvider {
   id: string;
@@ -17,6 +20,8 @@ export interface AIProvider {
   models: string[];
   default_model?: string;
   headers?: Record<string, string>;
+  /** Present when the provider signs in instead of using `api_key`. Its tokens live in the OAuth store as `ai.<id>`. */
+  sign_in?: { preset: AISignInPreset };
 }
 
 /**
@@ -43,6 +48,12 @@ export interface AISettings {
   approval_mode: AiApprovalMode;
   max_model_calls: number | null;
   max_tool_calls: number | null;
+}
+
+/** One entry of `GET /settings/ai/providers/{id}/models`. */
+export interface AIModel {
+  id: string;
+  name: string;
 }
 
 export interface AITestResult {
@@ -147,6 +158,11 @@ export const aiApi = {
       method: "PUT",
       body: JSON.stringify(updates),
     }),
+
+  // The models a saved provider offers, asked of the provider itself with its
+  // key or sign-in. 502 (with `detail`) when it cannot be asked.
+  listAiProviderModels: (providerId: string) =>
+    fetchApi<{ models: AIModel[] }>(`/settings/ai/providers/${encodeURIComponent(providerId)}/models`),
 
   testAiProvider: (params: { provider_id?: string; model?: string; provider?: AIProvider }) =>
     fetchApi<AITestResult>("/settings/ai/test", {

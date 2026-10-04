@@ -467,6 +467,8 @@
       "setupOpenGuide": "Guide pas à pas",
       "setupStepRedirect": "Ajoutez cette URI de redirection à l'application",
       "setupStepDetails": "Copiez ici les informations de l'application",
+      "ownAppToggle": "Utiliser votre propre application (facultatif)",
+      "ownAppDescription": "La connexion fonctionne sans cela. Pour vous connecter plutôt via votre propre application {provider}, créez-en une et saisissez ses informations ici.",
       "clientIdLabel": "ID client",
       "clientSecretLabel": "Secret client",
       "showSecret": "Afficher le secret client",
@@ -485,7 +487,16 @@
         "access_denied": "La connexion a été refusée, rien n'a donc été connecté.",
         "exchange_failed": "Le fournisseur a rejeté la connexion. Vérifiez l'ID client et le secret dans les paramètres du plugin, puis reconnectez-vous.",
         "provider_error": "Le fournisseur a signalé un problème. Essayez de vous reconnecter."
-      }
+      },
+      "rejectedDescription": "{provider} n'accepte plus la connexion. Reconnectez-vous.",
+      "approvalWaiting": "Approuvez FiestaBoard dans l'onglet {provider}. Cela se met à jour tout seul.",
+      "startAgainButton": "Recommencer",
+      "headlessButton": "Se connecter sans redirection du navigateur",
+      "pasteToggle": "La connexion n'est pas revenue ? Collez l'adresse ou le code",
+      "pasteLabel": "Adresse ou code",
+      "pasteDescription": "Copiez l'adresse complète de l'onglet où la connexion s'est arrêtée, ou le code affiché par le fournisseur.",
+      "pasteSubmit": "Terminer la connexion",
+      "pasteOpenAgain": "Rouvrir la page de connexion"
     },
     "templateVariablesSection": "Variables de modèle",
     "templateVariablesClickToCopy": "cliquer pour copier",
@@ -654,6 +665,10 @@
       "quickPresetsLabel": "Préréglages rapides",
       "apiKeyLabel": "Clé API",
       "modelsLabel": "Modèles",
+      "loadModels": "Charger les modèles",
+      "pickModel": "Ajouter un modèle du fournisseur",
+      "noModelMatches": "Aucun modèle correspondant",
+      "loadModelsFailed": "Impossible de charger les modèles.",
       "defaultModelLabel": "Modèle par défaut",
       "testConnectionButton": "Tester la connexion",
       "turnLimits": {
@@ -662,6 +677,15 @@
         "modelCallsLabel": "Appels au modèle par tour",
         "toolCallsLabel": "Appels d'outils par tour",
         "serverDefault": "Valeur par défaut du serveur"
+      },
+      "protocolResponsesOption": "OpenAI Responses (connexion ChatGPT)",
+      "signIn": {
+        "choicesLabel": "Ou connectez-vous au lieu d'utiliser une clé API",
+        "button": "Se connecter avec {provider}",
+        "activeDescription": "Ce fournisseur se connecte avec {provider}. La clé API ci-dessus n'est pas utilisée tant que vous vous connectez ainsi.",
+        "useApiKey": "Utiliser plutôt la clé API",
+        "saveFirst": "Enregistrez les modifications, puis connectez-vous à {provider} ici.",
+        "panelTitle": "Connexion {provider}"
       }
     },
     "backup": {

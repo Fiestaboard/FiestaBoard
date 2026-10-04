@@ -1374,7 +1374,7 @@ def validate_manifest(data: dict[str, Any]) -> tuple[bool, list[str]]:
         if data.get("plugin_type", "data") == "transition":
             errors.append("oauth is not supported for transition plugins — they fetch no data")
         else:
-            errors.extend(validate_provider_block(data["oauth"]))
+            errors.extend(validate_provider_block(data["oauth"], data.get("settings_schema")))
 
     # Validate board previews when present.
     #

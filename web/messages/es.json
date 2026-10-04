@@ -467,6 +467,8 @@
       "setupOpenGuide": "Guía paso a paso",
       "setupStepRedirect": "Añade esta URI de redirección a la app",
       "setupStepDetails": "Copia aquí los datos de la app",
+      "ownAppToggle": "Usar tu propia app (opcional)",
+      "ownAppDescription": "Puedes iniciar sesión sin esto. Para iniciar sesión con una app propia de {provider}, créala e introduce sus datos aquí.",
       "clientIdLabel": "ID de cliente",
       "clientSecretLabel": "Secreto de cliente",
       "showSecret": "Mostrar el secreto de cliente",
@@ -485,7 +487,16 @@
         "access_denied": "Se rechazó el inicio de sesión, así que no se conectó nada.",
         "exchange_failed": "El proveedor rechazó el inicio de sesión. Revisa el ID de cliente y el secreto en la configuración del plugin y vuelve a conectar.",
         "provider_error": "El proveedor informó de un problema. Intenta conectar de nuevo."
-      }
+      },
+      "rejectedDescription": "{provider} dejó de aceptar el inicio de sesión. Vuelve a iniciar sesión.",
+      "approvalWaiting": "Aprueba FiestaBoard en la pestaña de {provider}. Esto se actualiza solo.",
+      "startAgainButton": "Empezar de nuevo",
+      "headlessButton": "Iniciar sesión sin redirección del navegador",
+      "pasteToggle": "¿El inicio de sesión no volvió? Pega la dirección o el código",
+      "pasteLabel": "Dirección o código",
+      "pasteDescription": "Copia la dirección completa de la pestaña donde se detuvo el inicio de sesión, o el código que te mostró el proveedor.",
+      "pasteSubmit": "Terminar inicio de sesión",
+      "pasteOpenAgain": "Abrir de nuevo la página de inicio de sesión"
     },
     "templateVariablesSection": "Variables de plantilla",
     "templateVariablesClickToCopy": "clic para copiar",
@@ -654,6 +665,10 @@
       "quickPresetsLabel": "Preajustes rápidos",
       "apiKeyLabel": "Clave API",
       "modelsLabel": "Modelos",
+      "loadModels": "Cargar modelos",
+      "pickModel": "Añadir un modelo del proveedor",
+      "noModelMatches": "No hay modelos que coincidan",
+      "loadModelsFailed": "No se pudieron cargar los modelos.",
       "defaultModelLabel": "Modelo predeterminado",
       "testConnectionButton": "Probar conexión",
       "turnLimits": {
@@ -662,6 +677,15 @@
         "modelCallsLabel": "Llamadas al modelo por turno",
         "toolCallsLabel": "Llamadas a herramientas por turno",
         "serverDefault": "Predeterminado del servidor"
+      },
+      "protocolResponsesOption": "OpenAI Responses (inicio de sesión de ChatGPT)",
+      "signIn": {
+        "choicesLabel": "O inicia sesión en lugar de usar una clave API",
+        "button": "Iniciar sesión con {provider}",
+        "activeDescription": "Este proveedor inicia sesión con {provider}. La clave API de arriba no se usa mientras inicies sesión así.",
+        "useApiKey": "Usar la clave API en su lugar",
+        "saveFirst": "Guarda los cambios y luego inicia sesión en {provider} aquí.",
+        "panelTitle": "Inicio de sesión de {provider}"
       }
     },
     "backup": {

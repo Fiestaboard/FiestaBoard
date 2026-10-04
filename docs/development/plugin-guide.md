@@ -545,6 +545,8 @@ Your plugin inherits these from `PluginBase`:
 | `get_settings_schema()` | method | Returns the `settings_schema` section from the manifest. |
 | `get_env_vars()` | method | Returns environment variable definitions from the manifest. |
 | `get_oauth_token()` | method | Returns the current access token for the provider in the manifest's `oauth` block, or `None` if the user is not signed in. Call it on every fetch (see [Signing In with OAuth](/docs/development/plugin-oauth)). |
+| `ai_complete(messages, *, provider_id=None, model=None, temperature=None, max_tokens=None, json=False)` | method | **9.11.0.** Asks one of the AI providers set up in Settings → AI Providers and returns an `AICompletion` (`.text`, `.data`, ...). Raises `AINotConfiguredError`, `AIRejectedError`, or `AIProviderError`. See [Using FiestaBoard's AI Providers](/docs/development/plugin-ai). |
+| `ai_providers()` | method | **9.11.0.** The AI providers set up in Settings, without keys or tokens. A settings field with `"options_id": "ai_providers"` gets them as a picker with no code. |
 
 ### PluginResult
 

@@ -41,6 +41,9 @@ class Protocol:
     parse_usage: Callable[[dict[str, Any]], dict[str, int | None]]
     # Provider-side error message extractor for non-2xx responses.
     parse_error: Callable[[dict[str, Any]], str | None]
+    # The provider only answers as an SSE stream (``stream: true`` required),
+    # so even a one-shot request is read as a stream and joined.
+    stream_only: bool = False
 
 
 # ---------------------------------------------------------------------------
@@ -250,6 +253,90 @@ def _anthropic_error(api_response: dict[str, Any]) -> str | None:
 
 
 # ---------------------------------------------------------------------------
+# OpenAI Responses API (Sign in with ChatGPT: https://api.openai.com/v1/responses)
+# ---------------------------------------------------------------------------
+#
+# FiestaBot never uses native tool calling (tool calls are fenced JSON in the
+# model's prose), so only plain role/content messages and streamed text
+# deltas need carrying. Differences from chat completions:
+#   - System messages become the top-level ``instructions``; the rest is ``input``.
+#   - ``store: false`` and ``stream: true`` are required for a ChatGPT sign-in.
+#   - No ``temperature``/``max_output_tokens``: reasoning models reject
+#     temperature, and neither is documented for Sign in with ChatGPT.
+#   - The stream is typed events: ``response.output_text.delta`` carries the
+#     text, ``response.completed`` the usage, ``response.failed``/``error`` end it.
+
+
+def _responses_body(
+    model: str,
+    messages: list[dict[str, Any]],
+    temperature: float,
+    max_tokens: int,
+) -> Body:
+    instructions, chat = _split_system(messages)
+    body: Body = {"model": model}
+    if instructions:
+        body["instructions"] = instructions
+    body["input"] = chat
+    body["store"] = False
+    body["stream"] = True
+    return body
+
+
+def _responses_content(api_response: dict[str, Any]) -> str:
+    text = api_response.get("output_text")
+    if isinstance(text, str):
+        return text
+    parts: list[str] = []
+    for item in api_response.get("output") or []:
+        if not isinstance(item, dict):
+            continue
+        for block in item.get("content") or []:
+            if isinstance(block, dict) and block.get("type") == "output_text" and isinstance(block.get("text"), str):
+                parts.append(block["text"])
+    return "".join(parts)
+
+
+def _responses_usage(api_response: dict[str, Any]) -> dict[str, int | None]:
+    usage = api_response.get("usage") or {}
+    prompt = usage.get("input_tokens")
+    completion = usage.get("output_tokens")
+    total = usage.get("total_tokens")
+    if not isinstance(total, int) and isinstance(prompt, int) and isinstance(completion, int):
+        total = prompt + completion
+    return {"prompt_tokens": prompt, "completion_tokens": completion, "total_tokens": total}
+
+
+#: What one Responses stream event means: ``("text", delta)``, ``("completed", "")``,
+#: ``("error", message)``, or ``("", "")`` for anything to skip.
+ResponsesEvent = tuple[str, str]
+
+
+def responses_stream_event(event: dict[str, Any], usage: dict[str, int | None]) -> ResponsesEvent:
+    """Interpret one Responses SSE event; usage from ``response.completed`` lands in *usage*."""
+    kind = event.get("type")
+    if kind == "response.output_text.delta":
+        delta = event.get("delta")
+        return ("text", delta) if isinstance(delta, str) and delta else ("", "")
+    if kind == "response.completed":
+        response = event.get("response") or {}
+        usage.update(_responses_usage(response if isinstance(response, dict) else {}))
+        return ("completed", "")
+    if kind == "response.failed":
+        response = event.get("response") or {}
+        error = response.get("error") if isinstance(response, dict) else None
+        message = error.get("message") if isinstance(error, dict) else None
+        return ("error", message if isinstance(message, str) and message else "The AI provider could not answer.")
+    if kind == "error":
+        message = event.get("message")
+        if not isinstance(message, str) or not message:
+            nested = event.get("error")
+            message = nested.get("message") if isinstance(nested, dict) else None
+        return ("error", message if isinstance(message, str) and message else "The AI provider could not answer.")
+    return ("", "")
+
+
+# ---------------------------------------------------------------------------
 # Registry
 # ---------------------------------------------------------------------------
 
@@ -272,6 +359,16 @@ PROTOCOLS: dict[str, Protocol] = {
         parse_content=_anthropic_content,
         parse_usage=_anthropic_usage,
         parse_error=_anthropic_error,
+    ),
+    "openai_responses": Protocol(
+        name="openai_responses",
+        request_path="/responses",
+        build_headers=_openai_headers,
+        build_body=_responses_body,
+        parse_content=_responses_content,
+        parse_usage=_responses_usage,
+        parse_error=_openai_error,
+        stream_only=True,
     ),
 }
 

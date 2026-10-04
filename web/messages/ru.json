@@ -467,6 +467,8 @@
       "setupOpenGuide": "Пошаговая инструкция",
       "setupStepRedirect": "Укажите в приложении этот Redirect URI",
       "setupStepDetails": "Скопируйте сюда данные приложения",
+      "ownAppToggle": "Использовать своё приложение (необязательно)",
+      "ownAppDescription": "Вход работает и без этого. Чтобы входить через собственное приложение {provider}, создайте его и укажите здесь его данные.",
       "clientIdLabel": "Идентификатор клиента (Client ID)",
       "clientSecretLabel": "Секрет клиента (Client secret)",
       "showSecret": "Показать секрет клиента",
@@ -485,7 +487,16 @@
         "access_denied": "Вход был отклонён, поэтому ничего не подключено.",
         "exchange_failed": "Провайдер отклонил вход. Проверьте идентификатор клиента и секрет в настройках плагина, затем подключитесь снова.",
         "provider_error": "Провайдер сообщил о проблеме. Попробуйте подключиться снова."
-      }
+      },
+      "rejectedDescription": "{provider} больше не принимает вход. Войдите снова.",
+      "approvalWaiting": "Подтвердите FiestaBoard во вкладке {provider}. Обновится автоматически.",
+      "startAgainButton": "Начать заново",
+      "headlessButton": "Войти без перенаправления браузера",
+      "pasteToggle": "Вход не вернулся? Вставьте адрес или код",
+      "pasteLabel": "Адрес или код",
+      "pasteDescription": "Скопируйте полный адрес из вкладки, где остановился вход, или код, который показал провайдер.",
+      "pasteSubmit": "Завершить вход",
+      "pasteOpenAgain": "Снова открыть страницу входа"
     },
     "templateVariablesSection": "Шаблонные переменные",
     "templateVariablesClickToCopy": "нажмите, чтобы скопировать",
@@ -654,6 +665,10 @@
       "quickPresetsLabel": "Быстрые пресеты",
       "apiKeyLabel": "API-ключ",
       "modelsLabel": "Модели",
+      "loadModels": "Загрузить модели",
+      "pickModel": "Добавить модель провайдера",
+      "noModelMatches": "Нет подходящих моделей",
+      "loadModelsFailed": "Не удалось загрузить модели.",
       "defaultModelLabel": "Модель по умолчанию",
       "testConnectionButton": "Проверить подключение",
       "turnLimits": {
@@ -662,6 +677,15 @@
         "modelCallsLabel": "Вызовов модели за ход",
         "toolCallsLabel": "Вызовов инструментов за ход",
         "serverDefault": "Значение сервера"
+      },
+      "protocolResponsesOption": "OpenAI Responses (вход через ChatGPT)",
+      "signIn": {
+        "choicesLabel": "Или войдите вместо использования API-ключа",
+        "button": "Войти через {provider}",
+        "activeDescription": "Этот провайдер входит через {provider}. API-ключ выше не используется, пока вы входите так.",
+        "useApiKey": "Использовать API-ключ",
+        "saveFirst": "Сохраните изменения, затем войдите в {provider} здесь.",
+        "panelTitle": "Вход в {provider}"
       }
     },
     "backup": {

@@ -61,8 +61,9 @@ class FakeSource:
         self.plugins = {}
         self.invalidated = []
 
-    def add(self, connection_id, block, config=None, name="Music"):
+    def add(self, connection_id, block, config=None, name="Music", plugin=None):
         plugin_id, _, label = connection_id.partition(":")
+        plugin = plugin if plugin is not None else object()
         self.targets[connection_id] = ConnectionTarget(
             connection_id=connection_id,
             plugin_id=plugin_id,
@@ -70,9 +71,10 @@ class FakeSource:
             plugin_name=name,
             provider=parse_provider_block(block, name),
             config=config if config is not None else {"client_id": "client-abc"},
+            plugin=plugin,
         )
-        self.plugins[connection_id] = object()
-        return self.plugins[connection_id]
+        self.plugins[connection_id] = plugin
+        return plugin
 
     def get(self, connection_id):
         return self.targets.get(connection_id)
@@ -92,6 +94,7 @@ class FakeProvider:
 
     def __init__(self):
         self.calls = []
+        self.headers = []
         self.replies = []
 
     def reply(self, body, status=200):
@@ -102,8 +105,9 @@ class FakeProvider:
         self.replies.append(exc)
         return self
 
-    def __call__(self, url, form):
+    def __call__(self, url, form, headers=None):
         self.calls.append((url, dict(form)))
+        self.headers.append(headers)
         assert self.replies, f"unexpected provider call to {url}: {form}"
         reply = self.replies.pop(0)
         if isinstance(reply, Exception):
@@ -1000,3 +1004,939 @@ def test_a_corrupt_token_file_starts_empty_rather_than_crashing(tmp_path):
 def test_the_token_file_has_a_schema_version(store, tmp_path):
     _connected(store)
     assert json.loads((tmp_path / "oauth_tokens.json").read_text())["schema_version"] == 1
+
+
+# ── 9.11.0 manifest fields ───────────────────────────────────────────────────
+
+TIKTOK_BLOCK = {**RELAY_BLOCK, "client_id_param": "client_key", "scope_separator": ","}
+TWITCH_BLOCK = {
+    **DEVICE_BLOCK,
+    "scopes": ["user:read:email", "channel:read:subscriptions"],
+    "device_scope_param": "scopes",
+    "device_poll_scope": True,
+}
+HA_BLOCK = {
+    "provider_name": "Home Assistant",
+    "flows": ["relay"],
+    "endpoint_base_setting": "base_url",
+    "authorization_url": "/auth/authorize",
+    "token_url": "/auth/token",
+    "client_id": "https://fiestaboard.app/",
+}
+
+
+def test_a_custom_client_id_param_is_used_in_the_authorize_url(service, source):
+    source.add("tiktok", TIKTOK_BLOCK)
+    query = _begin_relay(service, "tiktok")
+    assert query["client_key"] == "client-abc"
+    assert "client_id" not in query
+
+
+def test_scopes_are_joined_with_the_declared_separator(service, source):
+    source.add("tiktok", TIKTOK_BLOCK)
+    assert _begin_relay(service, "tiktok")["scope"] == "read-playing,read-state"
+
+
+def test_default_scope_join_is_still_a_space(service, source):
+    source.add("music", RELAY_BLOCK)
+    assert _begin_relay(service)["scope"] == "read-playing read-state"
+
+
+def test_a_custom_client_id_param_is_used_in_the_code_exchange(service, source, provider):
+    source.add("tiktok", TIKTOK_BLOCK)
+    query = _begin_relay(service, "tiktok")
+    provider.reply(TOKENS)
+    assert service.complete_authorization(state=query["state"], code="code-1", error=None).connected
+    form = provider.calls[0][1]
+    assert form["client_key"] == "client-abc"
+    assert "client_id" not in form
+
+
+def test_a_custom_client_id_param_is_used_on_refresh(service, source, store, provider):
+    source.add("tiktok", TIKTOK_BLOCK)
+    _connected(store, "tiktok", expires_at=NOW)
+    provider.reply({"access_token": "access-2", "expires_in": 3600})
+    assert service.get_access_token("tiktok") == "access-2"
+    assert provider.calls[0][1] == {
+        "grant_type": "refresh_token",
+        "refresh_token": "refresh-1",
+        "client_key": "client-abc",
+    }
+
+
+def test_device_flow_uses_the_custom_client_id_and_scope_params(service, source, provider):
+    source.add("twitch", {**TWITCH_BLOCK, "client_id_param": "client_key"}, config={"client_id": "client-abc"})
+    provider.reply(DEVICE_ANSWER)
+    service.start("twitch")
+    assert provider.calls[0] == (
+        DEVICE_URL,
+        {"client_key": "client-abc", "scopes": "user:read:email channel:read:subscriptions"},
+    )
+
+
+def test_twitch_device_poll_sends_the_scopes(service, source, provider):
+    source.add("twitch", TWITCH_BLOCK, config={"client_id": "client-abc"})
+    provider.reply(DEVICE_ANSWER)
+    service.start("twitch")
+    provider.reply({"error": "authorization_pending"})
+    service.poll_device("twitch")
+    assert provider.calls[1][1] == {
+        "grant_type": DEVICE_GRANT_TYPE,
+        "device_code": "device-secret",
+        "client_id": "client-abc",
+        "scopes": "user:read:email channel:read:subscriptions",
+    }
+
+
+def test_a_plain_device_poll_sends_no_scope(service, device, provider):
+    provider.reply(DEVICE_ANSWER)
+    service.start(device)
+    provider.reply({"error": "authorization_pending"})
+    service.poll_device(device)
+    assert "scope" not in provider.calls[1][1]
+
+
+def test_endpoints_come_from_the_plugins_base_url_setting(service, source, provider):
+    source.add("ha", HA_BLOCK, config={"base_url": "http://homeassistant.local:8123/"})
+    url = service.start("ha", board_url=BOARD).authorization_url
+    assert url.startswith("http://homeassistant.local:8123/auth/authorize?")
+    query = _query(url)
+    assert query["client_id"] == "https://fiestaboard.app/"
+    provider.reply(TOKENS)
+    assert service.complete_authorization(state=query["state"], code="code-1", error=None).connected
+    assert provider.calls[0][0] == "http://homeassistant.local:8123/auth/token"
+
+
+def test_refresh_uses_the_settings_based_token_url(service, source, store, provider):
+    source.add("ha", HA_BLOCK, config={"base_url": "https://ha.example.com"})
+    _connected(store, "ha", expires_at=NOW)
+    provider.reply({"access_token": "access-2", "expires_in": 1800})
+    assert service.get_access_token("ha") == "access-2"
+    assert provider.calls[0][0] == "https://ha.example.com/auth/token"
+
+
+@pytest.mark.parametrize("base", [None, "", "http://203.0.113.9:8123"])
+def test_a_missing_or_public_http_base_is_not_configured(service, source, base):
+    source.add("ha", HA_BLOCK, config={"base_url": base})
+    assert service.get_connection("ha").configured is False
+    with pytest.raises(ConnectionNotConfigured, match="home network"):
+        service.start("ha", board_url=BOARD)
+
+
+def test_a_lan_base_is_configured(service, source):
+    source.add("ha", HA_BLOCK, config={"base_url": "http://192.168.1.20:8123"})
+    assert service.get_connection("ha").configured is True
+
+
+# ── Paste what the provider showed you ──────────────────────────────────────
+
+from src.oauth.errors import PastedCodeRejected  # noqa: E402
+
+
+def _relay_state(service, connection_id="music"):
+    return _begin_relay(service, connection_id)["state"]
+
+
+def _reject_reason(service, connection_id, pasted):
+    with pytest.raises(PastedCodeRejected) as caught:
+        service.complete_pasted(connection_id, pasted)
+    return caught.value.reason
+
+
+def test_pasting_the_full_address_connects(service, source, provider, store):
+    source.add("music", RELAY_BLOCK)
+    state = _relay_state(service)
+    provider.reply(TOKENS)
+
+    status = service.complete_pasted("music", f"https://relay.example/oauth/redirect.html?code=code-1&state={state}")
+
+    assert status.status == "connected"
+    assert provider.calls[0][1]["code"] == "code-1"
+    assert store.get("music").access_token == "access-1"
+    assert source.invalidated == ["music"]
+
+
+def test_pasting_an_address_with_a_fragment_connects(service, source, provider):
+    source.add("music", RELAY_BLOCK)
+    state = _relay_state(service)
+    provider.reply(TOKENS)
+    assert service.complete_pasted("music", f"https://x.example/cb#code=code-1&state={state}").status == "connected"
+
+
+def test_a_bare_code_cannot_finish_a_relay_flow(service, source, provider):
+    source.add("music", RELAY_BLOCK)
+    _relay_state(service)
+    assert _reject_reason(service, "music", "code-12345") == "no_pending"
+    assert provider.calls == []
+
+
+def test_a_paste_for_another_connection_is_refused(service, source, provider):
+    source.add("music", RELAY_BLOCK)
+    source.add("other", RELAY_BLOCK)
+    state = _relay_state(service, "music")
+    assert _reject_reason(service, "other", f"https://x.example/cb?code=c-1&state={state}") == "invalid_state"
+    assert provider.calls == []
+
+
+def test_a_paste_for_another_connection_does_not_spend_the_state(service, source, provider):
+    source.add("music", RELAY_BLOCK)
+    source.add("other", RELAY_BLOCK)
+    state = _relay_state(service, "music")
+    _reject_reason(service, "other", f"https://x.example/cb?code=c-1&state={state}")
+    provider.reply(TOKENS)
+    assert service.complete_pasted("music", f"https://x.example/cb?code=c-1&state={state}").status == "connected"
+
+
+def test_a_pasted_state_is_single_use_and_shared_with_the_callback(service, source, provider):
+    source.add("music", RELAY_BLOCK)
+    state = _relay_state(service)
+    provider.reply(TOKENS)
+    service.complete_pasted("music", f"https://x.example/cb?code=c-1&state={state}")
+    assert _reject_reason(service, "music", f"https://x.example/cb?code=c-1&state={state}") == "invalid_state"
+    assert service.complete_authorization(state=state, code="c-1", error=None).reason == "invalid_state"
+
+
+def test_a_tampered_pasted_state_is_refused(service, source):
+    source.add("music", RELAY_BLOCK)
+    _relay_state(service)
+    assert _reject_reason(service, "music", "https://x.example/cb?code=c-1&state=forged.sig") == "invalid_state"
+
+
+def test_an_expired_pasted_state_is_refused(service, source, clock):
+    source.add("music", RELAY_BLOCK)
+    state = _relay_state(service)
+    clock.now += STATE_TTL_SECONDS + 1
+    assert _reject_reason(service, "music", f"https://x.example/cb?code=c-1&state={state}") == "expired"
+
+
+def test_a_pasted_denial_is_reported(service, source, provider):
+    source.add("music", RELAY_BLOCK)
+    state = _relay_state(service)
+    assert (
+        _reject_reason(service, "music", f"https://x.example/cb?error=access_denied&state={state}") == "access_denied"
+    )
+    assert provider.calls == []
+
+
+def test_a_failed_exchange_after_paste_is_reported(service, source, provider, store):
+    source.add("music", RELAY_BLOCK)
+    state = _relay_state(service)
+    provider.reply({"error": "invalid_grant"}, status=400)
+    assert _reject_reason(service, "music", f"https://x.example/cb?code=c-1&state={state}") == "exchange_failed"
+    assert store.get("music") is None
+
+
+def test_unreadable_paste_is_refused(service, source):
+    source.add("music", RELAY_BLOCK)
+    assert _reject_reason(service, "music", "not a code") == "unreadable"
+
+
+def test_pasting_for_an_unknown_connection_is_not_found(service):
+    with pytest.raises(ConnectionNotFound):
+        service.complete_pasted("nope", "code-12345")
+
+
+def test_a_relay_from_a_url_address_ignores_a_client_id_in_the_paste(service, source, provider, store):
+    source.add("music", RELAY_BLOCK)
+    state = _relay_state(service)
+    provider.reply(TOKENS)
+    service.complete_pasted("music", f"https://x.example/cb?code=c-1&state={state}&client_id=evil")
+    assert provider.calls[0][1]["client_id"] == "client-abc"
+    assert store.get("music").client_id == ""
+
+
+# ── Token records ───────────────────────────────────────────────────────────
+
+
+def test_a_9_8_token_record_loads_with_the_new_fields_defaulted(tmp_path):
+    path = tmp_path / "oauth_tokens.json"
+    path.write_text(
+        json.dumps(
+            {
+                "schema_version": 1,
+                "connections": {
+                    "music": {
+                        "access_token": "access-1",
+                        "token_type": "Bearer",
+                        "refresh_token": "refresh-1",
+                        "expires_at": NOW,
+                        "scopes": ["a"],
+                        "obtained_at": NOW,
+                        "needs_reauthorization": False,
+                    }
+                },
+            }
+        )
+    )
+    tokens = TokenStore(path).get("music")
+    assert (tokens.client_id, tokens.reauth_reason) == ("", "")
+    assert tokens.access_token == "access-1"
+
+
+def test_refresh_prefers_a_client_id_issued_at_sign_in(service, source, store, provider):
+    source.add("music", RELAY_BLOCK)
+    _connected(store, expires_at=NOW, client_id="issued-client-1")
+    provider.reply({"access_token": "access-2", "expires_in": 3600})
+    assert service.get_access_token("music") == "access-2"
+    assert provider.calls[0][1]["client_id"] == "issued-client-1"
+    assert store.get("music").client_id == "issued-client-1"
+
+
+# ── key_exchange (OpenRouter-style) ─────────────────────────────────────────
+
+from src.oauth import plex  # noqa: E402
+
+KEY_BLOCK = {
+    "provider_name": "OpenRouter",
+    "flows": ["key_exchange"],
+    "authorization_url": "https://or.example.com/auth",
+    "token_url": "https://or.example.com/api/v1/auth/keys",
+}
+
+
+class FakeHttp:
+    """A scripted JSON endpoint: records (method, url, headers, form, json)."""
+
+    def __init__(self):
+        self.calls = []
+        self.headers = []
+        self.replies = []
+
+    def reply(self, body, status=200):
+        self.replies.append((status, body))
+        return self
+
+    def fail(self, exc):
+        self.replies.append(exc)
+        return self
+
+    def __call__(self, method, url, *, headers, form=None, json_body=None):
+        self.calls.append((method, url, dict(headers), form, json_body))
+        assert self.replies, f"unexpected http call to {url}"
+        reply = self.replies.pop(0)
+        if isinstance(reply, Exception):
+            raise reply
+        return reply
+
+
+@pytest.fixture
+def http():
+    return FakeHttp()
+
+
+@pytest.fixture
+def xservice(source, store, signer, provider, http, clock):
+    return OAuthService(
+        source=source,
+        store=store,
+        signer=signer,
+        client=ProviderClient(provider, http=http),
+        clock=clock,
+        redirect_uri="https://relay.example/oauth/redirect.html",
+        poll_in_background=False,
+        plex_client_identifier=lambda: "test-install-id",
+    )
+
+
+def test_key_exchange_start_sends_pkce_and_the_relay_as_callback(xservice, source):
+    source.add("openrouter", KEY_BLOCK, config={})
+    start = xservice.start("openrouter", board_url=BOARD)
+    assert start.flow == "key_exchange"
+    assert start.paste_expected is False
+    assert start.authorization_url.startswith("https://or.example.com/auth?")
+    query = _query(start.authorization_url)
+    assert query["callback_url"] == "https://relay.example/oauth/redirect.html"
+    assert query["code_challenge_method"] == "S256"
+    assert query["code_challenge"]
+    assert query["state"]
+    assert "client_id" not in query
+
+
+def test_key_exchange_needs_no_client_id(xservice, source):
+    source.add("openrouter", KEY_BLOCK, config={})
+    assert xservice.get_connection("openrouter").configured is True
+
+
+def test_key_exchange_callback_posts_json_and_stores_a_non_expiring_key(xservice, source, http, store, provider):
+    source.add("openrouter", KEY_BLOCK, config={})
+    start = xservice.start("openrouter", board_url=BOARD)
+    query = _query(start.authorization_url)
+    http.reply({"key": "sk-or-test-key", "user_id": "user_test"})
+
+    outcome = xservice.complete_authorization(state=query["state"], code="code-1", error=None)
+
+    assert outcome.connected
+    method, url, _headers, form, body = http.calls[0]
+    assert (method, url, form) == ("POST", "https://or.example.com/api/v1/auth/keys", None)
+    assert set(body) == {"code", "code_verifier", "code_challenge_method"}
+    assert body["code"] == "code-1"
+    assert body["code_challenge_method"] == "S256"
+    assert pkce.challenge_for(body["code_verifier"]) == query["code_challenge"]
+    assert provider.calls == []
+    tokens = store.get("openrouter")
+    assert (tokens.access_token, tokens.expires_at, tokens.refresh_token) == ("sk-or-test-key", None, "")
+
+
+def test_a_stored_key_is_handed_out_forever(xservice, source, http, clock):
+    source.add("openrouter", KEY_BLOCK, config={})
+    query = _query(xservice.start("openrouter", board_url=BOARD).authorization_url)
+    http.reply({"key": "sk-or-test-key"})
+    xservice.complete_authorization(state=query["state"], code="code-1", error=None)
+    clock.now += 10 * 365 * 86400
+    assert xservice.get_access_token("openrouter") == "sk-or-test-key"
+
+
+def test_headless_key_exchange_omits_callback_and_state_and_expects_a_paste(xservice, source):
+    source.add("openrouter", KEY_BLOCK, config={})
+    start = xservice.start("openrouter", headless=True)
+    query = _query(start.authorization_url)
+    assert "callback_url" not in query and "state" not in query
+    assert start.paste_expected is True
+    assert start.paste_hint
+
+
+def test_a_bare_code_finishes_a_headless_key_exchange_once(xservice, source, http, store):
+    source.add("openrouter", KEY_BLOCK, config={})
+    query = _query(xservice.start("openrouter", headless=True).authorization_url)
+    http.reply({"key": "sk-or-test-key"})
+
+    status = xservice.complete_pasted("openrouter", "  code-abc-123 ")
+
+    assert status.status == "connected"
+    body = http.calls[0][4]
+    assert body["code"] == "code-abc-123"
+    assert pkce.challenge_for(body["code_verifier"]) == query["code_challenge"]
+    with pytest.raises(PastedCodeRejected) as caught:
+        xservice.complete_pasted("openrouter", "code-abc-123")
+    assert caught.value.reason == "no_pending"
+
+
+def test_a_bare_code_uses_the_newest_headless_start(xservice, source, http):
+    source.add("openrouter", KEY_BLOCK, config={})
+    xservice.start("openrouter", headless=True)
+    newest = _query(xservice.start("openrouter", headless=True).authorization_url)
+    http.reply({"key": "sk-or-test-key"})
+    xservice.complete_pasted("openrouter", "code-abc-123")
+    assert pkce.challenge_for(http.calls[0][4]["code_verifier"]) == newest["code_challenge"]
+
+
+def test_a_stateless_paste_finishes_a_key_exchange_started_with_a_callback(xservice, source, http):
+    # The provider may come back without state, which the relay cannot route:
+    # the paste box is the way back, and PKCE binds the code to this start.
+    source.add("openrouter", KEY_BLOCK, config={})
+    query = _query(xservice.start("openrouter", board_url=BOARD).authorization_url)
+    http.reply({"key": "sk-or-test-key"})
+    status = xservice.complete_pasted("openrouter", "https://fiestaboard.app/auth/oauth/redirect?code=code-abc-123")
+    assert status.status == "connected"
+    assert pkce.challenge_for(http.calls[0][4]["code_verifier"]) == query["code_challenge"]
+
+
+def test_a_bare_code_cannot_finish_a_relay_sign_in(service, source):
+    source.add("music", RELAY_BLOCK)
+    service.start("music", board_url=BOARD)
+    with pytest.raises(PastedCodeRejected) as caught:
+        service.complete_pasted("music", "code-abc-123")
+    assert caught.value.reason == "no_pending"
+
+
+@pytest.mark.parametrize("reply", [(200, {"nokey": 1}), (400, {"error": "invalid_code"}), (500, {})])
+def test_a_key_exchange_without_a_key_stores_nothing(xservice, source, http, store, reply):
+    source.add("openrouter", KEY_BLOCK, config={})
+    xservice.start("openrouter", headless=True)
+    http.reply(reply[1], status=reply[0])
+    with pytest.raises(PastedCodeRejected) as caught:
+        xservice.complete_pasted("openrouter", "code-abc-123")
+    assert caught.value.reason == "exchange_failed"
+    assert store.get("openrouter") is None
+
+
+# ── plex_pin ────────────────────────────────────────────────────────────────
+
+PLEX_BLOCK = {"provider_name": "Plex", "flows": ["plex_pin"], "plex_product": "FiestaBoard Test"}
+PIN = {"id": 4242, "code": "pin-code-1", "expiresIn": 900, "authToken": None}
+
+
+@pytest.fixture
+def plexconn(source):
+    source.add("plex", PLEX_BLOCK, config={}, name="Plex")
+    return "plex"
+
+
+def test_plex_start_creates_a_strong_pin_and_sends_the_browser_to_plex(xservice, plexconn, http):
+    http.reply(PIN, status=201)
+    start = xservice.start(plexconn, board_url=BOARD)
+
+    method, url, headers, _form, _body = http.calls[0]
+    assert (method, url) == ("POST", "https://plex.tv/api/v2/pins?strong=true")
+    assert headers["Accept"] == "application/json"
+    assert headers["X-Plex-Client-Identifier"] == "test-install-id"
+    assert headers["X-Plex-Product"] == "FiestaBoard Test"
+    assert start.flow == "plex_pin"
+    assert start.authorization_url.startswith("https://app.plex.tv/auth#?")
+    fragment = parse_qs(start.authorization_url.split("#?", 1)[1])
+    assert fragment["clientID"] == ["test-install-id"]
+    assert fragment["code"] == ["pin-code-1"]
+    assert fragment["forwardUrl"] == [f"{BOARD}/integrations?plugin=plex"]
+    assert fragment["context[device][product]"] == ["FiestaBoard Test"]
+    assert start.device.status == "pending"
+    assert start.device.user_code == ""
+    assert start.device.expires_at == NOW + 900
+
+
+def test_plex_start_without_a_board_omits_the_forward_url(xservice, plexconn, http):
+    http.reply(PIN)
+    start = xservice.start(plexconn)
+    assert "forwardUrl" not in parse_qs(start.authorization_url.split("#?", 1)[1])
+
+
+def test_plex_needs_no_client_id(xservice, plexconn):
+    assert xservice.get_connection(plexconn).configured is True
+
+
+def test_plex_poll_waits_then_stores_a_non_expiring_token(xservice, plexconn, http, store):
+    http.reply(PIN)
+    xservice.start(plexconn)
+    http.reply(PIN)
+    assert xservice.poll_device(plexconn) is True
+    http.reply({**PIN, "authToken": "plex-test-token"})
+    assert xservice.poll_device(plexconn) is False
+
+    method, url, headers, _, _ = http.calls[1]
+    assert (method, url) == ("GET", "https://plex.tv/api/v2/pins/4242")
+    assert headers["X-Plex-Client-Identifier"] == "test-install-id"
+    tokens = store.get(plexconn)
+    assert (tokens.access_token, tokens.expires_at, tokens.refresh_token) == ("plex-test-token", None, "")
+    status = xservice.get_connection(plexconn)
+    assert (status.status, status.device) == ("connected", None)
+
+
+def test_a_vanished_plex_pin_expires_the_flow(xservice, plexconn, http, store):
+    http.reply(PIN)
+    xservice.start(plexconn)
+    http.reply({"errors": [{"code": 1020}]}, status=404)
+    assert xservice.poll_device(plexconn) is False
+    assert xservice.get_connection(plexconn).device.status == "expired"
+    assert store.get(plexconn) is None
+
+
+def test_a_plex_pin_past_its_lifetime_expires_without_asking(xservice, plexconn, http, clock):
+    http.reply(PIN)
+    xservice.start(plexconn)
+    clock.now += 901
+    assert xservice.poll_device(plexconn) is False
+    assert len(http.calls) == 1
+    assert xservice.get_connection(plexconn).device.status == "expired"
+
+
+def test_a_network_failure_while_polling_plex_is_retried(xservice, plexconn, http):
+    http.reply(PIN)
+    xservice.start(plexconn)
+    http.fail(ProviderError("unreachable"))
+    assert xservice.poll_device(plexconn) is True
+    assert xservice.get_connection(plexconn).device.status == "pending"
+
+
+def test_plex_polls_every_two_seconds(source, store, signer, provider, http, clock, plexconn):
+    slept = []
+    built = OAuthService(
+        source=source,
+        store=store,
+        signer=signer,
+        client=ProviderClient(provider, http=http),
+        clock=clock,
+        sleep=slept.append,
+        poll_in_background=False,
+        plex_client_identifier=lambda: "test-install-id",
+    )
+    http.reply(PIN)
+    built.start(plexconn)
+    http.reply({**PIN, "authToken": "plex-test-token"})
+    built._poll_device_until_done(built._device[plexconn])
+    assert slept == [2]
+
+
+def test_a_plex_pin_answer_without_an_id_is_a_provider_error(xservice, plexconn, http):
+    http.reply({"code": "x"})
+    with pytest.raises(ProviderError):
+        xservice.start(plexconn)
+
+
+def test_the_install_client_identifier_is_created_once_and_private(tmp_path):
+    first = plex.load_client_identifier(tmp_path)
+    assert first == plex.load_client_identifier(tmp_path)
+    path = tmp_path / ".oauth_client_identifier"
+    assert path.read_text() == first
+    assert stat.S_IMODE(path.stat().st_mode) == 0o600
+
+
+# ── A plugin reports the provider rejected its token ────────────────────────
+
+from src.oauth.service import FORCED_REFRESH_COOLDOWN_SECONDS  # noqa: E402
+
+
+def test_a_rejected_token_is_force_refreshed_and_the_new_one_returned(service, source, store, provider):
+    source.add("music", RELAY_BLOCK)
+    _connected(store)  # fresh by expiry, but the provider says no
+    provider.reply({"access_token": "access-2", "expires_in": 3600})
+
+    assert service.report_rejected("music") == "access-2"
+
+    assert provider.calls[0][1]["grant_type"] == "refresh_token"
+    assert store.get("music").access_token == "access-2"
+    assert service.get_connection("music").status == "connected"
+
+
+def test_a_refused_forced_refresh_needs_reconnecting(service, source, store, provider):
+    source.add("music", RELAY_BLOCK)
+    _connected(store)
+    provider.reply({"error": "invalid_grant"}, status=400)
+
+    assert service.report_rejected("music") is None
+
+    status = service.get_connection("music")
+    assert (status.status, status.status_reason) == ("reauthorization_required", "refresh_refused")
+    assert service.get_access_token("music") is None
+
+
+def test_a_rejected_token_without_a_refresh_token_needs_reconnecting(service, source, store, provider):
+    source.add("music", RELAY_BLOCK)
+    _connected(store, refresh_token="")
+
+    assert service.report_rejected("music") is None
+
+    assert provider.calls == []
+    status = service.get_connection("music")
+    assert (status.status, status.status_reason) == ("reauthorization_required", "rejected")
+    assert service.get_access_token("music") is None
+
+
+def test_forced_refreshes_are_at_most_one_a_minute(service, source, store, provider, clock):
+    source.add("music", RELAY_BLOCK)
+    _connected(store)
+    provider.reply({"access_token": "access-2", "expires_in": 3600, "refresh_token": "refresh-2"})
+    assert service.report_rejected("music") == "access-2"
+
+    clock.now += FORCED_REFRESH_COOLDOWN_SECONDS - 1
+    assert service.report_rejected("music") is None
+
+    assert len(provider.calls) == 1
+    status = service.get_connection("music")
+    assert (status.status, status.status_reason) == ("reauthorization_required", "rejected")
+
+
+def test_a_late_401_for_the_replaced_token_gets_the_new_one_not_a_reconnect(service, source, store, provider, clock):
+    source.add("music", RELAY_BLOCK)
+    _connected(store)
+    provider.reply({"access_token": "access-2", "expires_in": 3600, "refresh_token": "refresh-2"})
+    assert service.report_rejected("music", "access-1") == "access-2"
+
+    clock.now += 10  # a second call, still holding access-1, reports too
+    assert service.report_rejected("music", "access-1") == "access-2"
+
+    assert len(provider.calls) == 1
+    assert service.get_connection("music").status == "connected"
+
+
+def test_a_401_for_the_current_token_inside_the_cooldown_still_needs_reconnecting(
+    service, source, store, provider, clock
+):
+    source.add("music", RELAY_BLOCK)
+    _connected(store)
+    provider.reply({"access_token": "access-2", "expires_in": 3600, "refresh_token": "refresh-2"})
+    service.report_rejected("music", "access-1")
+    clock.now += 10
+    assert service.report_rejected("music", "access-2") is None
+    assert service.get_connection("music").status_reason == "rejected"
+
+
+def test_a_plugin_report_names_the_token_it_was_last_given(service, source, store, provider, clock, monkeypatch):
+    import types
+
+    import src.oauth.service as service_module
+    from src.plugins.base import PluginBase
+
+    plugin = source.add("music", RELAY_BLOCK, plugin=types.SimpleNamespace())
+    _connected(store)
+    monkeypatch.setattr(service_module, "get_oauth_service", lambda: service)
+    assert PluginBase.get_oauth_token(plugin) == "access-1"
+    provider.reply({"access_token": "access-2", "expires_in": 3600, "refresh_token": "refresh-2"})
+    assert PluginBase.report_oauth_rejected(plugin) == "access-2"
+    clock.now += 10
+    # A second request that went out with access-1 before the refresh.
+    assert PluginBase.report_oauth_rejected(plugin, token="access-1") == "access-2"
+    assert service.get_connection("music").status == "connected"
+    # The retry with access-2 is refused too: that one is real.
+    assert PluginBase.report_oauth_rejected(plugin) is None
+    assert service.get_connection("music").status_reason == "rejected"
+
+
+def test_after_the_cooldown_a_forced_refresh_is_tried_again(service, source, store, provider, clock):
+    source.add("music", RELAY_BLOCK)
+    _connected(store)
+    provider.reply({"access_token": "access-2", "expires_in": 3600})
+    service.report_rejected("music")
+    clock.now += FORCED_REFRESH_COOLDOWN_SECONDS
+    provider.reply({"access_token": "access-3", "expires_in": 3600})
+    assert service.report_rejected("music") == "access-3"
+
+
+def test_an_unreachable_provider_on_forced_refresh_keeps_the_connection(service, source, store, provider):
+    source.add("music", RELAY_BLOCK)
+    _connected(store)
+    provider.fail(ProviderError("down"))
+    assert service.report_rejected("music") is None
+    assert service.get_connection("music").status == "connected"
+
+
+def test_reporting_for_a_connection_with_no_tokens_does_nothing(service, source, store):
+    source.add("music", RELAY_BLOCK)
+    assert service.report_rejected("music") is None
+    assert store.get("music") is None
+
+
+def test_reconnecting_clears_the_rejected_reason(service, source, store, provider):
+    source.add("music", RELAY_BLOCK)
+    _connected(store, refresh_token="")
+    service.report_rejected("music")
+    state = _relay_state(service)
+    provider.reply(TOKENS)
+    service.complete_authorization(state=state, code="c-1", error=None)
+    status = service.get_connection("music")
+    assert (status.status, status.status_reason) == ("connected", "")
+
+
+def test_report_rejected_for_maps_the_plugin_object(service, source, store):
+    plugin = source.add("music", RELAY_BLOCK)
+    _connected(store, refresh_token="")
+    assert service.report_rejected_for(plugin) is None
+    assert service.get_connection("music").status_reason == "rejected"
+    assert service.report_rejected_for(object()) is None
+
+
+# ── Rollout gaps: auth method, refresh params, Twitch, TikTok, token hooks ──
+
+BASIC_BLOCK = {**RELAY_BLOCK, "client_secret_setting": "client_secret", "token_auth_method": "basic"}
+SECRET_CONFIG = {"client_id": "client-abc", "client_secret": "test_secret"}
+
+
+def _basic_user(provider, index=0):
+    import base64
+
+    header = (provider.headers[index] or {}).get("Authorization", "")
+    return base64.b64decode(header.removeprefix("Basic ")).decode() if header else ""
+
+
+def test_basic_auth_is_used_for_the_code_exchange(service, source, provider):
+    source.add("x", BASIC_BLOCK, config=SECRET_CONFIG)
+    query = _begin_relay(service, "x")
+    provider.reply(TOKENS)
+    assert service.complete_authorization(state=query["state"], code="code-1", error=None).connected
+    assert _basic_user(provider) == "client-abc:test_secret"
+    assert "client_secret" not in provider.calls[0][1]
+
+
+def test_basic_auth_is_used_on_refresh(service, source, store, provider):
+    source.add("x", BASIC_BLOCK, config=SECRET_CONFIG)
+    _connected(store, "x", expires_at=NOW)
+    provider.reply({"access_token": "access-2", "expires_in": 3600})
+    assert service.get_access_token("x") == "access-2"
+    assert _basic_user(provider) == "client-abc:test_secret"
+
+
+def test_basic_auth_is_used_for_the_device_poll(service, source, provider):
+    source.add("dev", {**DEVICE_BLOCK, "token_auth_method": "basic"}, config=SECRET_CONFIG)
+    provider.reply(DEVICE_ANSWER)
+    service.start("dev")
+    provider.reply({"error": "authorization_pending"})
+    service.poll_device("dev")
+    assert provider.headers[0] is None, "the device request carries no secret"
+    assert _basic_user(provider, 1) == "client-abc:test_secret"
+
+
+def test_the_default_still_posts_the_secret(service, source, store, provider):
+    source.add("music", {**RELAY_BLOCK, "client_secret_setting": "client_secret"}, config=SECRET_CONFIG)
+    _connected(store, expires_at=NOW)
+    provider.reply({"access_token": "access-2", "expires_in": 3600})
+    service.get_access_token("music")
+    assert provider.calls[0][1]["client_secret"] == "test_secret"
+    assert provider.headers[0] is None
+
+
+def test_refresh_params_are_sent_on_refresh_only(service, source, store, provider):
+    source.add("whoop", {**RELAY_BLOCK, "refresh_params": {"scope": "offline"}})
+    query = _begin_relay(service, "whoop")
+    provider.reply(TOKENS)
+    service.complete_authorization(state=query["state"], code="code-1", error=None)
+    assert "scope" not in provider.calls[0][1]
+    store.put("whoop", replace_tokens(store.get("whoop"), expires_at=NOW))
+    provider.reply({"access_token": "access-2", "expires_in": 3600, "refresh_token": "refresh-2"})
+    assert service.get_access_token("whoop") == "access-2"
+    assert provider.calls[1][1]["scope"] == "offline"
+    assert store.get("whoop").refresh_token == "refresh-2"
+
+
+def replace_tokens(tokens, **changes):
+    from dataclasses import replace
+
+    return replace(tokens, **changes)
+
+
+def test_tiktok_refresh_uses_client_key_and_keeps_the_rotated_refresh_token(service, source, store, provider):
+    source.add("tiktok", TIKTOK_BLOCK)
+    _connected(store, "tiktok", expires_at=NOW)
+    provider.reply({"access_token": "access-2", "expires_in": 86400, "refresh_token": "refresh-2"})
+    assert service.get_access_token("tiktok") == "access-2"
+    assert provider.calls[0][1]["client_key"] == "client-abc"
+    assert store.get("tiktok").refresh_token == "refresh-2"
+    store.put("tiktok", replace_tokens(store.get("tiktok"), expires_at=NOW))
+    provider.reply({"access_token": "access-3", "expires_in": 86400, "refresh_token": "refresh-3"})
+    service.get_access_token("tiktok")
+    assert provider.calls[1][1]["refresh_token"] == "refresh-2"
+
+
+def test_twitch_device_flow_end_to_end(service, source, store, provider):
+    source.add("twitch", TWITCH_BLOCK, config={"client_id": "client-abc"})
+    provider.reply(DEVICE_ANSWER)
+    service.start("twitch")
+    provider.reply({"status": 400, "message": "authorization_pending"}, status=400)
+    assert service.poll_device("twitch") is True
+    provider.reply({"status": 400, "message": "slow_down"}, status=400)
+    assert service.poll_device("twitch") is True
+    provider.reply(
+        {"access_token": "access-1", "refresh_token": "refresh-1", "expires_in": 14000, "scope": ["user:read:email"]}
+    )
+    assert service.poll_device("twitch") is False
+    assert store.get("twitch").scopes == ("user:read:email",)
+
+
+def test_twitch_invalid_device_code_expires_the_flow(service, source, provider):
+    source.add("twitch", TWITCH_BLOCK, config={"client_id": "client-abc"})
+    provider.reply(DEVICE_ANSWER)
+    service.start("twitch")
+    provider.reply({"status": 400, "message": "invalid device code"}, status=400)
+    assert service.poll_device("twitch") is False
+    assert service.get_connection("twitch").device.status == "expired"
+
+
+class TokenHooks:
+    """A plugin that swaps its sign-in token for a long-lived one and renews it itself."""
+
+    def __init__(self, exchanged=None, refreshed=None, error=None):
+        self.exchanged = exchanged
+        self.refreshed = refreshed
+        self.error = error
+        self.seen = []
+
+    def exchange_oauth_token(self, token):
+        self.seen.append(("exchange", token))
+        if self.error:
+            raise self.error
+        return self.exchanged
+
+    def refresh_oauth_token(self, token):
+        self.seen.append(("refresh", token))
+        if self.error:
+            raise self.error
+        return self.refreshed
+
+
+SHORT_LIVED = {"access_token": "short-1", "token_type": "bearer", "user_id": 7}
+
+
+def test_the_exchange_hook_swaps_the_token_after_sign_in(service, source, provider, store, clock):
+    hooks = TokenHooks(exchanged={"access_token": "long-1", "expires_in": 5_184_000})
+    source.add("instagram", RELAY_BLOCK, plugin=hooks)
+    query = _begin_relay(service, "instagram")
+    provider.reply(SHORT_LIVED)
+    assert service.complete_authorization(state=query["state"], code="code-1", error=None).connected
+    kind, given = hooks.seen[0]
+    assert kind == "exchange"
+    assert given == {"access_token": "short-1", "refresh_token": "", "expires_at": None, "scopes": []}
+    stored = store.get("instagram")
+    assert stored.access_token == "long-1"
+    assert stored.expires_at == NOW + 5_184_000
+    assert stored.scopes == ("read-playing", "read-state")
+
+
+@pytest.mark.parametrize(
+    "hooks",
+    [TokenHooks(exchanged=None), TokenHooks(error=RuntimeError("boom")), TokenHooks(exchanged={"nope": 1})],
+)
+def test_a_declining_or_failing_exchange_hook_keeps_the_sign_in_token(service, source, provider, store, hooks):
+    source.add("instagram", RELAY_BLOCK, plugin=hooks)
+    query = _begin_relay(service, "instagram")
+    provider.reply(SHORT_LIVED)
+    assert service.complete_authorization(state=query["state"], code="code-1", error=None).connected
+    assert store.get("instagram").access_token == "short-1"
+
+
+def test_the_exchange_hook_runs_after_a_device_sign_in(service, source, provider, store):
+    hooks = TokenHooks(exchanged={"access_token": "long-1"})
+    source.add("dev", DEVICE_BLOCK, plugin=hooks)
+    provider.reply(DEVICE_ANSWER)
+    service.start("dev")
+    provider.reply(TOKENS)
+    service.poll_device("dev")
+    stored = store.get("dev")
+    assert stored.access_token == "long-1"
+    assert stored.refresh_token == "refresh-1", "a hook that names no refresh token keeps the provider's"
+
+
+def test_the_refresh_hook_renews_a_token_without_a_refresh_token(service, source, store, provider):
+    hooks = TokenHooks(refreshed={"access_token": "long-2", "expires_in": 5_184_000})
+    source.add("instagram", RELAY_BLOCK, plugin=hooks)
+    _connected(store, "instagram", refresh_token="", expires_at=NOW + 30)
+    assert service.get_access_token("instagram") == "long-2"
+    assert hooks.seen[0] == (
+        "refresh",
+        {"access_token": "access-1", "refresh_token": "", "expires_at": NOW + 30, "scopes": ["read-playing"]},
+    )
+    stored = store.get("instagram")
+    assert stored.expires_at == NOW + 5_184_000
+    assert stored.obtained_at == NOW - 100
+    assert provider.calls == []
+
+
+def test_the_refresh_hook_is_not_asked_while_the_token_is_fresh(service, source, store):
+    hooks = TokenHooks(refreshed={"access_token": "long-2"})
+    source.add("instagram", RELAY_BLOCK, plugin=hooks)
+    _connected(store, "instagram", refresh_token="")
+    assert service.get_access_token("instagram") == "access-1"
+    assert hooks.seen == []
+
+
+def test_a_refresh_hook_that_declines_falls_back_to_the_standard_refresh(service, source, store, provider):
+    hooks = TokenHooks(refreshed=None)
+    source.add("music", RELAY_BLOCK, plugin=hooks)
+    _connected(store, expires_at=NOW)
+    provider.reply({"access_token": "access-2", "expires_in": 3600})
+    assert service.get_access_token("music") == "access-2"
+    assert hooks.seen[0][0] == "refresh"
+
+
+def test_a_failing_refresh_hook_serves_the_token_until_it_expires(service, source, store, provider, clock):
+    hooks = TokenHooks(error=RuntimeError("boom"))
+    source.add("instagram", RELAY_BLOCK, plugin=hooks)
+    _connected(store, "instagram", refresh_token="", expires_at=NOW + 30)
+    assert service.get_access_token("instagram") == "access-1"
+    clock.now = NOW + 31
+    assert service.get_access_token("instagram") is None
+    assert provider.calls == []
+
+
+def test_a_plugin_without_hooks_is_unaffected(service, source, store, provider):
+    source.add("music", RELAY_BLOCK)
+    _connected(store, refresh_token="", expires_at=NOW + 30)
+    assert service.get_access_token("music") == "access-1"
+    assert provider.calls == []
+
+
+def test_url_overrides_point_endpoints_at_a_local_mock(service, source, provider, monkeypatch):
+    monkeypatch.setenv(
+        "FIESTABOARD_OAUTH_URL_OVERRIDES", json.dumps({"https://accounts.example.com": "http://localhost:9400"})
+    )
+    source.add("music", RELAY_BLOCK)
+    query = _begin_relay(service, "music")
+    provider.reply(TOKENS)
+    service.complete_authorization(state=query["state"], code="code-1", error=None)
+    assert provider.calls[0][0] == "http://localhost:9400/api/token"
