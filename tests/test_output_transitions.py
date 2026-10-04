@@ -110,9 +110,14 @@ class TestDriverDeclarations:
     def test_cloud_and_virtual_declare_no_native_strategy(self, kind):
         assert _drivers()[kind].native_transitions == frozenset()
 
-    @pytest.mark.parametrize("kind", list(_drivers()))
-    def test_every_driver_today_animates_frame_at_a_time(self, kind):
+    @pytest.mark.parametrize("kind", [k for k in _drivers() if "cloud" not in k])
+    def test_every_local_driver_animates_frame_at_a_time(self, kind):
         assert _drivers()[kind].animation == "stream"
+
+    @pytest.mark.parametrize("kind", ["vestaboard-rw-cloud", "vestaboard-note-array-cloud"])
+    def test_a_cloud_vestaboard_snaps_frame_driven_transitions(self, kind):
+        # One message per 15 s: the Vestaboard plugin (1.5.0) declares "none".
+        assert _drivers()[kind].animation == "none"
 
 
 # --- native routing -----------------------------------------------------------

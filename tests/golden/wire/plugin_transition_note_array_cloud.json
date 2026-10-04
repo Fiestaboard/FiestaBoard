@@ -1,0 +1,38 @@
+{
+  "scenario": "plugin_transition_note_array_cloud",
+  "description": "render(strategy='plugin:wire_fake') on a note-array Cloud API board: the cloud takes one message per 15 s, so the Vestaboard plugin declares animation 'none' there and the transition snaps \u2014 one POST of the target, no plugin frames.",
+  "seam": "BoardClient.render(..., strategy='plugin:<id>', with_outcome=True)",
+  "steps": [
+    {
+      "action": "render TARGET via plugin:wire_fake",
+      "requests": [
+        {
+          "method": "POST",
+          "url": "https://cloud.vestaboard.com/",
+          "headers": {
+            "X-Vestaboard-Token": "test_array_token",
+            "Content-Type": "application/json"
+          },
+          "json": {
+            "characters": [
+              [20, 1, 18, 7, 5, 20, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+              [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+              [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+            ]
+          },
+          "timeout": [5.0, 10.0]
+        }
+      ],
+      "result": {
+        "type": "SendOutcome",
+        "success": true,
+        "was_sent": true,
+        "throttled": false,
+        "retry_after_seconds": null,
+        "floor_seconds": 15,
+        "partial": false,
+        "failed_regions": []
+      }
+    }
+  ]
+}

@@ -15,7 +15,7 @@ FiestaBoard has **two different kinds of transitions**, and they behave differen
 | | Built-in flip strategies | Transition plugins (beta) |
 |---|---|---|
 | **Who animates** | The board, via the Vestaboard Local API | FiestaBoard, by sending many frames |
-| **Works on** | Local API connections only | Any board connection (Local or Cloud) |
+| **Works on** | Local API connections only | Local API connections; a Cloud API board shows the new message at once |
 | **Examples** | Wave, Drift, Curtain, Row, Diagonal, Random | Typewriter, Simple Dissolve, Slot Machine, Quiet Library |
 | **Where to turn on** | Always available | **Settings → Advanced → Beta Features → Transition Plugins** |
 | **Step Interval / Step Size** | Supported | Not used — plugins set their own pacing |
@@ -48,7 +48,9 @@ Built-in strategies only work over the **Local API**. If your board is configure
 
 ## Transition Plugins (Beta)
 
-Transition plugins are animated by FiestaBoard, not by the board. The plugin generates a sequence of complete board frames, and FiestaBoard sends them one after another. Because each frame is an ordinary board update, plugin transitions work on **any** connection type — including Cloud API boards that cannot use the built-in strategies.
+Transition plugins are animated by FiestaBoard, not by the board. The plugin generates a sequence of complete board frames, and FiestaBoard sends them one after another, each as an ordinary board update.
+
+On a Cloud API board, a transition plugin skips its frames and shows the new message at once. The Cloud API accepts one message every 15 seconds, so even a short transition would take minutes to finish. Use the Local API to see transitions animate.
 
 FiestaBoard ships with four:
 
@@ -119,7 +121,7 @@ When you want to see it on real tiles, **Test live on board** runs the transitio
 
 ### Nothing animates — the whole board just changes at once
 
-Most often this is a Cloud API board with a built-in strategy selected. Built-in strategies are a Local API feature. Either switch the board to the Local API (see [API Keys](/docs/setup/api-keys)), or use a transition plugin, which works on any connection.
+Most often this is a Cloud API board. Built-in strategies and transition plugins both animate only over the Local API: on a Cloud API board the new message appears at once. Switch the board to the Local API (see [API Keys](/docs/setup/api-keys)) to see transitions.
 
 Note-array boards do not support built-in strategies at all.
 
