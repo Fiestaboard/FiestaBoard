@@ -1512,8 +1512,9 @@ async def update_beta_settings(request: BetaSettingsUpdate):
 
     Body may include:
     - https_enabled: bool — enable/disable the HTTPS (Beta) feature.
-    - output_plugins_enabled: bool — let output plugins installed from the
-      registry or a git URL drive boards. Takes effect on the next board
+    - output_plugins_enabled: bool — let third-party output plugins
+      (installed from the registry or a git URL; first-party seeded outputs
+      need no beta) drive boards. Takes effect on the next board
       rebuild (saving a board, or a restart).
     - transition_plugins_enabled: bool — enable/disable the experimental
       transition-plugin system (frame-by-frame board animations). Takes

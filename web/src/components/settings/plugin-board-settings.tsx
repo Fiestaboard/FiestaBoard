@@ -228,6 +228,10 @@ function ActionInputDialog({
         as="form"
         onSubmit={(event) => {
           event.preventDefault();
+          // The dialog is portalled out of the DOM tree but not out of React's:
+          // without this, its submit bubbles into any <form> hosting the screen
+          // (the Add Board dialog) and submits that too.
+          event.stopPropagation();
           if (!missing) onRun(input);
         }}
       >

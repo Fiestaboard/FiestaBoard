@@ -649,12 +649,17 @@ class PluginLoader:
     ) -> OutputPluginEntry | None:
         """Keep an output plugin's class and manifest; register it as an output.
 
-        A seed copy stands in for an installed plugin, so it is gated by the
-        output-plugins beta exactly as the installed copy would be.
+        Only a third-party output plugin is behind the output-plugins beta.
+        A first-party one is never gated: a built-in, or an output the image's
+        seed carries as loadable, whether the seed's copy runs or an
+        installed copy of it does.
         """
         source = self._source_for_dir(plugin_dir)
+        first_party = (
+            source.source_type == "builtin" or from_seed or seeded_output(manifest.id, self.seed_dir) is not None
+        )
         try:
-            register_output_plugin(plugin_class, manifest, gated=from_seed or source.source_type != "builtin")
+            register_output_plugin(plugin_class, manifest, gated=not first_party)
         except ValueError as exc:
             self._load_errors.setdefault(plugin_name, []).append(str(exc))
             logger.error("Output plugin %s refused: %s", plugin_name, exc)

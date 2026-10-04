@@ -228,6 +228,30 @@ describe("PluginBoardSettings — actions", () => {
     expect(screen.getByText("Filled in: Pairing token")).toBeInTheDocument();
   });
 
+  it("submitting an action's input dialog never submits a form around the screen", async () => {
+    // The dialog renders in a portal, but React bubbles its submit through
+    // the component tree: a host screen that is itself a <form> (the Add
+    // Board dialog) would otherwise be submitted too.
+    server.use(
+      http.post(`${API}/outputs/acme_sign/actions/pair`, () => HttpResponse.json(result({ message: "Paired." }))),
+    );
+    const outerSubmit = vi.fn((event: { preventDefault: () => void }) => event.preventDefault());
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    render(
+      <QueryClientProvider client={client}>
+        <form onSubmit={outerSubmit}>
+          <Harness />
+        </form>
+      </QueryClientProvider>,
+    );
+    await userEvent.click(screen.getByRole("button", { name: "Pair" }));
+    const dialog = await screen.findByRole("dialog");
+    await userEvent.type(within(dialog).getByLabelText(/Pairing code/), "1234{Enter}");
+
+    expect(await screen.findByText("Paired.")).toBeInTheDocument();
+    expect(outerSubmit).not.toHaveBeenCalled();
+  });
+
   it("offers a detected size to apply", async () => {
     const onGeometry = vi.fn();
     const geometry = {

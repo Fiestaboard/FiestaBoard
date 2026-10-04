@@ -453,16 +453,62 @@ class TestLoadPrecedence:
         assert loader.load_plugin(PLUGIN_ID) is None
         assert output_registry().get(PLUGIN_ID) is None
 
-    def test_a_seed_copy_runs_behind_the_output_plugins_beta(self, seed, tmp_path, loaders):
-        from src.outputs.factory import build_driver
-        from src.outputs.plugin_registration import OutputPluginsDisabledError
 
+# --- the beta gate: first-party outputs are never behind it --------------------------------------
+
+
+def _beta_off() -> None:
+    from src.settings.service import get_settings_service
+
+    get_settings_service().update_beta_settings({"output_plugins_enabled": False})
+
+
+class TestFirstPartyIsNotBetaGated:
+    """Plan: bundled outputs are always on; only third-party installs sit
+    behind ``beta.output_plugins_enabled``. A seeded output is first-party
+    whichever copy runs (the seed's, or an installed copy of it)."""
+
+    def test_an_installed_copy_of_a_seeded_output_builds_with_the_beta_off(self, seed, tmp_path, loaders):
+        from src.outputs.factory import build_driver
+        from src.outputs.plugin_registration import release_driver
+
+        _beta_off()
+        make_loader(loaders, tmp_path, seed, installed_copy(tmp_path)).load_plugin(PLUGIN_ID)
+        assert output_registry().get(PLUGIN_ID).beta_gated is False
+        driver = build_driver({**named(), "output_config": {"host": "192.0.2.50"}})
+        assert driver is not None
+        release_driver(driver)
+
+    def test_the_seed_fallback_copy_builds_with_the_beta_off(self, seed, tmp_path, loaders):
+        from src.outputs.factory import build_driver
+        from src.outputs.plugin_registration import release_driver
+
+        _beta_off()
         external = installed_copy(tmp_path)
         set_output_api(external / PLUGIN_ID, 2)
         make_loader(loaders, tmp_path, seed, external).load_plugin(PLUGIN_ID)
-        board = {**named(), "output_config": {"host": "192.0.2.50"}}
+        assert output_registry().get(PLUGIN_ID).beta_gated is False
+        driver = build_driver({**named(), "output_config": {"host": "192.0.2.50"}})
+        assert driver is not None
+        release_driver(driver)
+
+    def test_an_installed_output_the_seed_does_not_carry_stays_behind_the_beta(self, tmp_path, loaders):
+        from src.outputs.factory import build_driver
+        from src.outputs.plugin_registration import OutputPluginsDisabledError
+
+        _beta_off()
+        make_loader(loaders, tmp_path, tmp_path / "no-seed", installed_copy(tmp_path)).load_plugin(PLUGIN_ID)
+        assert output_registry().get(PLUGIN_ID).beta_gated is True
         with pytest.raises(OutputPluginsDisabledError):
-            build_driver(board)
+            build_driver({**named(), "output_config": {"host": "192.0.2.50"}})
+
+    def test_a_data_only_seed_entry_does_not_make_an_installed_output_first_party(self, tmp_path, loaders):
+        repo, head = output_repo(tmp_path / "origin")
+        lock = write_lock(tmp_path / LOCKFILE, lock_for(repo, head, loadable=False))
+        root = tmp_path / "seed"
+        build_seed(lock, root, repositories={PLUGIN_ID: repo.as_uri()})
+        make_loader(loaders, tmp_path, root, installed_copy(tmp_path)).load_plugin(PLUGIN_ID)
+        assert output_registry().get(PLUGIN_ID).beta_gated is True
 
 
 # --- gate 1: the update check ---------------------------------------------------------------------

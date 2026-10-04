@@ -59,7 +59,8 @@ const SIGN_AVAILABLE: AvailableOutput = {
   source: "seed",
   installed: false,
   builtin: false,
-  beta_gated: true,
+  // Seeded outputs are first-party: never behind the output plugins beta.
+  beta_gated: false,
   available: true,
   needs_network: false,
   output_api: 1,
@@ -143,8 +144,15 @@ describe("choosing the display", () => {
 
   it("explains a display that needs the beta and one that downloads", async () => {
     available([
-      { ...SIGN_AVAILABLE, available: false },
-      { ...SIGN_AVAILABLE, id: "far_sign", name: "Far Sign", source: "registry", needs_network: true },
+      { ...SIGN_AVAILABLE, source: "registry", beta_gated: true, available: false },
+      {
+        ...SIGN_AVAILABLE,
+        id: "far_sign",
+        name: "Far Sign",
+        source: "registry",
+        beta_gated: true,
+        needs_network: true,
+      },
     ]);
     renderWizard();
     expect(await screen.findByRole("radio", { name: /Recording Sign/ })).toHaveTextContent(
@@ -336,7 +344,8 @@ describe("an output plugin", () => {
   });
 
   it("explains the beta gate and turns the beta on to continue", async () => {
-    available([SIGN_AVAILABLE]);
+    // A third-party (registry) output: only those are behind the beta.
+    available([{ ...SIGN_AVAILABLE, source: "registry", beta_gated: true, needs_network: true }]);
     let gated = true;
     server.use(
       http.post(`/api/outputs/${SIGN.id}/install`, () =>
