@@ -496,7 +496,17 @@
       "pasteLabel": "Adresse oder Code",
       "pasteDescription": "Kopiere die vollständige Adresse aus dem Tab, in dem die Anmeldung stehen blieb, oder den Code, den der Anbieter angezeigt hat.",
       "pasteSubmit": "Anmeldung abschließen",
-      "pasteOpenAgain": "Anmeldeseite erneut öffnen"
+      "pasteOpenAgain": "Anmeldeseite erneut öffnen",
+      "newTabHint": "{provider} öffnet sich in einem neuen Tab. Wenn du dort fertig bist, endet dieser Tab auf einer Seite, die nicht lädt. Das ist so gewollt: Du kopierst ihre Adresse hierher zurück.",
+      "finishTitle": "Anmeldung abschließen",
+      "finishStepSignIn": "Melde dich im neuen Tab bei {provider} an.",
+      "finishStepCantConnect": "Danach zeigt dieser Tab einen Fehler wie „Verbindung zu 127.0.0.1 nicht möglich“ oder „Diese Website ist nicht erreichbar“. Das ist so gewollt: Es ist nichts schiefgegangen.",
+      "finishStepCopy": "Kopiere die vollständige Adresse aus der Adressleiste dieses Tabs und füge sie unten ein.",
+      "finishPasteLabel": "Adresse aus dem {provider}-Tab",
+      "finishPasteDescription": "Sie ist lang und beginnt mit http://127.0.0.1. Füge sie vollständig ein.",
+      "finishBlocked": "Dein Browser hat den neuen Tab blockiert.",
+      "finishOpenLink": "Anmeldeseite von {provider} öffnen",
+      "finishDone": "Bei {provider} angemeldet."
     },
     "templateVariablesSection": "Vorlagenvariablen",
     "templateVariablesClickToCopy": "Klicken zum Kopieren",

@@ -496,7 +496,17 @@
       "pasteLabel": "アドレスまたはコード",
       "pasteDescription": "サインインが止まったタブのアドレス全体、またはプロバイダーが表示したコードをコピーしてください。",
       "pasteSubmit": "サインインを完了",
-      "pasteOpenAgain": "サインインページをもう一度開く"
+      "pasteOpenAgain": "サインインページをもう一度開く",
+      "newTabHint": "{provider} は新しいタブで開きます。そこで終えると、そのタブは読み込めないページで止まります。これは想定どおりです。そのアドレスをここにコピーしてください。",
+      "finishTitle": "サインインを完了する",
+      "finishStepSignIn": "新しいタブで {provider} にサインインします。",
+      "finishStepCantConnect": "終わると、そのタブには「127.0.0.1 に接続できません」や「このサイトにアクセスできません」などのエラーが表示されます。これは想定どおりで、問題はありません。",
+      "finishStepCopy": "そのタブのアドレスバーからアドレス全体をコピーし、下に貼り付けます。",
+      "finishPasteLabel": "{provider} タブのアドレス",
+      "finishPasteDescription": "長いアドレスで、http://127.0.0.1 で始まります。すべて貼り付けてください。",
+      "finishBlocked": "ブラウザーが新しいタブをブロックしました。",
+      "finishOpenLink": "{provider} のサインインページを開く",
+      "finishDone": "{provider} にサインインしました。"
     },
     "templateVariablesSection": "テンプレート変数",
     "templateVariablesClickToCopy": "クリックでコピー",

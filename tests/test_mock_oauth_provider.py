@@ -308,3 +308,68 @@ def test_core_openrouter_key_exchange_against_the_mock(base, tmp_path, monkeypat
     shown = requests.get(start.authorization_url, timeout=5).json()["code"]
     service.complete_pasted("ai.or1", shown)
     assert service.get_access_token("ai.or1").startswith("sk-or-mock-")
+
+
+# ── Sign in with ChatGPT: the loopback redirect, finished by paste ──────────
+
+
+def _chatgpt_board(base, tmp_path, monkeypatch):
+    """A board whose one AI provider signs in with ChatGPT, its OpenAI hosts pointed at the mock."""
+    from fastapi.testclient import TestClient
+
+    from src.ai.sign_in import AiProviderConnectionSource
+    from src.api_server import app
+    from src.oauth.service import OAuthService
+    from src.oauth.state import StateSigner
+    from src.oauth.tokens import TokenStore
+
+    monkeypatch.setenv(
+        "FIESTABOARD_OAUTH_URL_OVERRIDES",
+        json.dumps({"https://auth.openai.com": base, "https://api.openai.com": base}),
+    )
+    providers = {
+        "providers": [
+            {"id": "gpt", "name": "ChatGPT", "sign_in": {"preset": "openai_chatgpt"}},
+            {"id": "hf", "name": "Hugging Face", "sign_in": {"preset": "huggingface"}},
+        ]
+    }
+    service = OAuthService(
+        source=AiProviderConnectionSource(
+            providers=lambda: providers, agent_host_id=lambda: "00000000-0000-4000-8000-000000000000"
+        ),
+        store=TokenStore(tmp_path / "tokens.json"),
+        signer=StateSigner(b"k" * 32),
+        redirect_uri="https://relay.example/redirect",
+        poll_in_background=False,
+    )
+    monkeypatch.setattr("src.oauth.routes.get_oauth_service", lambda: service)
+    return service, TestClient(app)
+
+
+def test_chatgpt_tells_the_ui_before_it_starts_that_the_sign_in_ends_by_paste(base, tmp_path, monkeypatch):
+    _, client = _chatgpt_board(base, tmp_path, monkeypatch)
+    connections = {c["id"]: c for c in client.get("/oauth/connections").json()["connections"]}
+    # Known up front, so the UI can open the provider in a new tab from the click itself.
+    assert connections["ai.gpt"]["paste_expected"] is True
+    # A provider that comes back by way of the relay does not.
+    assert connections["ai.hf"]["paste_expected"] is False
+
+
+def test_core_chatgpt_sign_in_finishes_from_the_pasted_loopback_address(base, tmp_path, monkeypatch):
+    """The reported dead end: the browser lands on 127.0.0.1:1455, which never loads; pasting it signs in."""
+    service, client = _chatgpt_board(base, tmp_path, monkeypatch)
+
+    start = client.post("/oauth/connections/ai.gpt/authorize", json={"board_url": "http://192.168.1.50:4420"})
+    assert start.status_code == 200
+    assert start.json()["paste_expected"] is True
+
+    # What the browser is sent to after approving: OpenAI's loopback-only redirect.
+    landed = requests.get(start.json()["authorization_url"], allow_redirects=False, timeout=5).headers["Location"]
+    assert landed.startswith("http://127.0.0.1:1455/auth/callback?code=")
+    assert "client_id=oaiapp_mock_" in landed
+
+    done = client.post("/oauth/connections/ai.gpt/complete", json={"pasted": landed})
+    assert done.status_code == 200
+    assert done.json()["status"] == "connected"
+    token = service.get_access_token("ai.gpt")
+    assert requests.get(f"{base}/v1/models", headers={"Authorization": f"Bearer {token}"}, timeout=5).status_code == 200

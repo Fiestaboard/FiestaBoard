@@ -77,6 +77,14 @@ class OAuthConnection(BaseModel):
     expires_at: float | None = Field(default=None, description="Epoch seconds when the access token expires.")
     connected_at: float | None = Field(default=None, description="Epoch seconds when the connection was made.")
     device: OAuthDeviceStatus | None = None
+    paste_expected: bool = Field(
+        default=False,
+        description=(
+            "The provider's redirect cannot reach this board (a loopback-only redirect such as ChatGPT's), "
+            "so every sign-in ends with the user pasting the address it landed on into "
+            "POST /oauth/connections/{id}/complete."
+        ),
+    )
 
 
 class OAuthConnectionList(BaseModel):

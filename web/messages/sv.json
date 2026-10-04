@@ -496,7 +496,17 @@
       "pasteLabel": "Adress eller kod",
       "pasteDescription": "Kopiera hela adressen från fliken där inloggningen stannade, eller koden som leverantören visade.",
       "pasteSubmit": "Slutför inloggningen",
-      "pasteOpenAgain": "Öppna inloggningssidan igen"
+      "pasteOpenAgain": "Öppna inloggningssidan igen",
+      "newTabHint": "{provider} öppnas i en ny flik. När du är klar där hamnar fliken på en sida som inte laddas. Det är väntat: du kopierar dess adress hit.",
+      "finishTitle": "Slutför inloggningen",
+      "finishStepSignIn": "Logga in på {provider} i den nya fliken.",
+      "finishStepCantConnect": "Sedan visar fliken ett fel som ”kan inte ansluta till 127.0.0.1” eller ”Webbplatsen kan inte nås”. Det är väntat: inget har gått fel.",
+      "finishStepCopy": "Kopiera hela adressen från flikens adressfält och klistra in den nedan.",
+      "finishPasteLabel": "Adress från {provider}-fliken",
+      "finishPasteDescription": "Den är lång och börjar med http://127.0.0.1. Klistra in hela.",
+      "finishBlocked": "Webbläsaren blockerade den nya fliken.",
+      "finishOpenLink": "Öppna inloggningssidan för {provider}",
+      "finishDone": "Inloggad på {provider}."
     },
     "templateVariablesSection": "Mallvariabler",
     "templateVariablesClickToCopy": "klicka för att kopiera",

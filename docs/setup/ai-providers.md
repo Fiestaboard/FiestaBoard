@@ -143,11 +143,23 @@ To sign in:
    provider's page. You come back to Settings with the provider
    signed in.
 
-**ChatGPT** cannot send you straight back to your board. After you
-approve, your browser lands on a page that does not load. Copy that
-page's whole address from the address bar and paste it into the box
-the panel opens for it, then press **Finish sign-in**. The same box
-rescues any sign-in that does not come back by itself.
+**ChatGPT** cannot send you straight back to your board, so the sign-in
+is planned around that:
+
+1. Press **Sign in with ChatGPT**. ChatGPT opens in a new tab, and
+   Settings stays open on a **Finish signing in** step.
+2. Sign in and approve FiestaBoard in the ChatGPT tab. That tab then
+   ends on an error page, such as "can't connect to 127.0.0.1" or
+   "This site can't be reached". **That is expected**: nothing went
+   wrong.
+3. Copy that tab's whole address from the address bar (it starts with
+   `http://127.0.0.1`), paste it into the **Finish signing in** step,
+   and press **Finish sign-in**. The panel then says you are signed in.
+
+If your browser blocks the new tab, the step shows a link that opens
+the ChatGPT sign-in page. For the other providers, a sign-in that does
+not come back by itself can be finished the same way: choose **Sign-in
+didn't come back? Paste the address or code**.
 
 **OpenRouter** can also be signed in without a browser redirect:
 choose **Sign in without a browser redirect**, approve, and paste the

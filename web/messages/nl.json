@@ -496,7 +496,17 @@
       "pasteLabel": "Adres of code",
       "pasteDescription": "Kopieer het volledige adres van het tabblad waar de aanmelding stopte, of de code die de provider liet zien.",
       "pasteSubmit": "Aanmelding voltooien",
-      "pasteOpenAgain": "Aanmeldpagina opnieuw openen"
+      "pasteOpenAgain": "Aanmeldpagina opnieuw openen",
+      "newTabHint": "{provider} opent in een nieuw tabblad. Als je daar klaar bent, eindigt dat tabblad op een pagina die niet laadt. Dat hoort zo: je kopieert het adres terug naar hier.",
+      "finishTitle": "Aanmelden afronden",
+      "finishStepSignIn": "Meld je aan bij {provider} in het nieuwe tabblad.",
+      "finishStepCantConnect": "Daarna toont dat tabblad een fout zoals 'kan geen verbinding maken met 127.0.0.1' of 'Deze site is niet bereikbaar'. Dat hoort zo: er is niets misgegaan.",
+      "finishStepCopy": "Kopieer het volledige adres uit de adresbalk van dat tabblad en plak het hieronder.",
+      "finishPasteLabel": "Adres uit het {provider}-tabblad",
+      "finishPasteDescription": "Het is lang en begint met http://127.0.0.1. Plak het helemaal.",
+      "finishBlocked": "Je browser heeft het nieuwe tabblad geblokkeerd.",
+      "finishOpenLink": "Aanmeldpagina van {provider} openen",
+      "finishDone": "Aangemeld bij {provider}."
     },
     "templateVariablesSection": "Sjabloonvariabelen",
     "templateVariablesClickToCopy": "klik om te kopiëren",

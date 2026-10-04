@@ -496,7 +496,17 @@
       "pasteLabel": "Adres veya kod",
       "pasteDescription": "Oturum açmanın durduğu sekmedeki adresin tamamını veya sağlayıcının gösterdiği kodu kopyalayın.",
       "pasteSubmit": "Oturum açmayı tamamla",
-      "pasteOpenAgain": "Oturum açma sayfasını yeniden aç"
+      "pasteOpenAgain": "Oturum açma sayfasını yeniden aç",
+      "newTabHint": "{provider} yeni bir sekmede açılır. Orada işiniz bitince o sekme yüklenmeyen bir sayfada kalır. Bu beklenen bir durum: adresini buraya kopyalarsınız.",
+      "finishTitle": "Oturum açmayı tamamlayın",
+      "finishStepSignIn": "Yeni sekmede {provider} hesabınızla oturum açın.",
+      "finishStepCantConnect": "Ardından o sekme \"127.0.0.1 adresine bağlanılamıyor\" ya da \"Bu siteye ulaşılamıyor\" gibi bir hata gösterir. Bu beklenen bir durum: hiçbir şey ters gitmedi.",
+      "finishStepCopy": "O sekmenin adres çubuğundaki adresin tamamını kopyalayıp aşağıya yapıştırın.",
+      "finishPasteLabel": "{provider} sekmesindeki adres",
+      "finishPasteDescription": "Uzundur ve http://127.0.0.1 ile başlar. Tamamını yapıştırın.",
+      "finishBlocked": "Tarayıcınız yeni sekmeyi engelledi.",
+      "finishOpenLink": "{provider} oturum açma sayfasını aç",
+      "finishDone": "{provider} oturumu açıldı."
     },
     "templateVariablesSection": "Şablon Değişkenleri",
     "templateVariablesClickToCopy": "kopyalamak için tıklayın",

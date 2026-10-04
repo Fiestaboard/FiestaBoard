@@ -701,6 +701,178 @@ describe("finishing a sign-in by pasting what the provider showed", () => {
   });
 });
 
+describe("a sign-in that can only finish by paste (ChatGPT's loopback redirect)", () => {
+  const CHATGPT: OAuthConnection = {
+    ...RELAY,
+    id: "ai.gpt",
+    kind: "ai",
+    plugin_id: "ai",
+    plugin_name: "ChatGPT (FiestaBot)",
+    provider_name: "ChatGPT",
+    user_app: false,
+    shared_app: true,
+    client_id_setting: null,
+    paste_expected: true,
+  };
+  const AUTHORIZE_URL = "https://auth.example.com/api/accounts/authorize?client_id=dynamic_agent_client";
+  const LANDED = "http://127.0.0.1:1455/auth/callback?code=test_code&state=test_state&client_id=oaiapp_test";
+
+  /** A stand-in for the tab window.open returns, recording where it is sent. */
+  function fakeTab() {
+    return { closed: false, opener: {} as unknown, location: { replace: vi.fn() }, close: vi.fn() };
+  }
+
+  function renderPanel() {
+    const queryClient = new QueryClient({
+      defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
+    });
+    return render(
+      <QueryClientProvider client={queryClient}>
+        <OAuthConnectionPanel connectionId="ai.gpt" title="ChatGPT sign-in" />
+      </QueryClientProvider>,
+    );
+  }
+
+  function serveStart(answer: () => Promise<void> = async () => {}) {
+    server.use(
+      http.post(`${API_BASE}/oauth/connections/ai.gpt/authorize`, async () => {
+        await answer();
+        return HttpResponse.json({
+          flow: "relay",
+          device: null,
+          authorization_url: AUTHORIZE_URL,
+          paste_expected: true,
+          paste_hint: "",
+        });
+      }),
+    );
+  }
+
+  it("says before the click that the provider opens in a new tab and ends on a page that does not load", async () => {
+    serveConnections(CHATGPT);
+    renderPanel();
+    await screen.findByRole("button", { name: "Sign in with ChatGPT" });
+    expect(screen.getByText(/ChatGPT opens in a new tab/)).toBeInTheDocument();
+    // The relay's "you come back by way of fiestaboard.app" is not true here.
+    expect(screen.queryByText(/by way of fiestaboard.app/)).not.toBeInTheDocument();
+  });
+
+  it("opens the new tab in the click itself, before the board answers, so no popup blocker stops it", async () => {
+    serveConnections(CHATGPT);
+    const tab = fakeTab();
+    const open = vi.fn(() => tab);
+    vi.stubGlobal("open", open);
+    let answer!: () => void;
+    serveStart(() => new Promise<void>((resolve) => (answer = resolve)));
+    const assign = vi.fn();
+    vi.stubGlobal("location", { ...window.location, origin: window.location.origin, assign });
+    const user = userEvent.setup();
+    renderPanel();
+    await user.click(await screen.findByRole("button", { name: "Sign in with ChatGPT" }));
+
+    expect(open).toHaveBeenCalledTimes(1);
+    expect(tab.location.replace).not.toHaveBeenCalled();
+    // The provider's page never gets a handle on this one.
+    expect(tab.opener).toBeNull();
+
+    answer();
+    await waitFor(() => expect(tab.location.replace).toHaveBeenCalledWith(AUTHORIZE_URL));
+    // This tab stays on the board: it is where the address gets pasted.
+    expect(assign).not.toHaveBeenCalled();
+  });
+
+  it("keeps this tab on an open, focused step 2 that says the dead end is expected", async () => {
+    serveConnections(CHATGPT);
+    vi.stubGlobal(
+      "open",
+      vi.fn(() => fakeTab()),
+    );
+    serveStart();
+    const user = userEvent.setup();
+    renderPanel();
+    await user.click(await screen.findByRole("button", { name: "Sign in with ChatGPT" }));
+
+    const step = await screen.findByRole("group", { name: "Finish signing in" });
+    expect(within(step).getByText("Sign in to ChatGPT in the new tab.")).toBeInTheDocument();
+    expect(within(step).getByText(/can't connect/)).toBeInTheDocument();
+    expect(within(step).getByText(/That's expected/)).toBeInTheDocument();
+    expect(within(step).getByText(/Copy the whole address/)).toBeInTheDocument();
+    const field = within(step).getByLabelText("Address from the ChatGPT tab");
+    await waitFor(() => expect(field).toHaveFocus());
+    // Not tucked behind "didn't come back?": there is nothing to come back.
+    expect(screen.queryByRole("button", { name: /didn't come back/ })).not.toBeInTheDocument();
+    expect(within(step).getByRole("link", { name: /Open the sign-in page again/ })).toHaveAttribute(
+      "href",
+      AUTHORIZE_URL,
+    );
+  });
+
+  it("offers a link to the provider when the browser blocked the new tab", async () => {
+    serveConnections(CHATGPT);
+    vi.stubGlobal(
+      "open",
+      vi.fn(() => null),
+    );
+    serveStart();
+    const user = userEvent.setup();
+    renderPanel();
+    await user.click(await screen.findByRole("button", { name: "Sign in with ChatGPT" }));
+
+    const step = await screen.findByRole("group", { name: "Finish signing in" });
+    expect(within(step).getByText("Your browser blocked the new tab.")).toBeInTheDocument();
+    expect(within(step).getByRole("link", { name: /Open the ChatGPT sign-in page/ })).toHaveAttribute(
+      "href",
+      AUTHORIZE_URL,
+    );
+  });
+
+  it("closes the blank tab when the sign-in could not start", async () => {
+    serveConnections(CHATGPT);
+    const tab = fakeTab();
+    vi.stubGlobal(
+      "open",
+      vi.fn(() => tab),
+    );
+    server.use(
+      http.post(`${API_BASE}/oauth/connections/ai.gpt/authorize`, () =>
+        HttpResponse.json({ detail: "The provider is unreachable." }, { status: 502 }),
+      ),
+    );
+    const user = userEvent.setup();
+    renderPanel();
+    await user.click(await screen.findByRole("button", { name: "Sign in with ChatGPT" }));
+    await waitFor(() => expect(tab.close).toHaveBeenCalled());
+    expect(screen.queryByRole("group", { name: "Finish signing in" })).not.toBeInTheDocument();
+  });
+
+  it("finishes the sign-in from the pasted address and says so", async () => {
+    serveConnections(CHATGPT);
+    vi.stubGlobal(
+      "open",
+      vi.fn(() => fakeTab()),
+    );
+    serveStart();
+    const pasted: unknown[] = [];
+    server.use(
+      http.post(`${API_BASE}/oauth/connections/ai.gpt/complete`, async ({ request }) => {
+        pasted.push(await request.json());
+        serveConnections({ ...CHATGPT, status: "connected", connected_at: Math.floor(Date.now() / 1000) });
+        return HttpResponse.json({ ...CHATGPT, status: "connected" });
+      }),
+    );
+    const user = userEvent.setup();
+    renderPanel();
+    await user.click(await screen.findByRole("button", { name: "Sign in with ChatGPT" }));
+    await user.type(await screen.findByLabelText("Address from the ChatGPT tab"), LANDED);
+    await user.click(screen.getByRole("button", { name: "Finish sign-in" }));
+
+    await waitFor(() => expect(pasted).toEqual([{ pasted: LANDED }]));
+    expect(await screen.findByText("Signed in to ChatGPT.")).toBeInTheDocument();
+    expect(await screen.findByText("Connected")).toBeInTheDocument();
+    expect(screen.queryByRole("group", { name: "Finish signing in" })).not.toBeInTheDocument();
+  });
+});
+
 describe("OAuthConnectionPanel", () => {
   it("shows any connection by its id, under the title it is given", async () => {
     serveConnections({

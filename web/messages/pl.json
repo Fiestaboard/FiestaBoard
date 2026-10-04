@@ -496,7 +496,17 @@
       "pasteLabel": "Adres lub kod",
       "pasteDescription": "Skopiuj cały adres z karty, na której zatrzymało się logowanie, albo kod pokazany przez dostawcę.",
       "pasteSubmit": "Dokończ logowanie",
-      "pasteOpenAgain": "Otwórz ponownie stronę logowania"
+      "pasteOpenAgain": "Otwórz ponownie stronę logowania",
+      "newTabHint": "{provider} otworzy się w nowej karcie. Gdy tam skończysz, ta karta zatrzyma się na stronie, która się nie ładuje. Tak ma być: skopiujesz jej adres tutaj.",
+      "finishTitle": "Dokończ logowanie",
+      "finishStepSignIn": "Zaloguj się do {provider} w nowej karcie.",
+      "finishStepCantConnect": "Potem ta karta pokaże błąd typu „nie można połączyć się z 127.0.0.1” lub „Nie można uzyskać dostępu do tej witryny”. Tak ma być: nic się nie zepsuło.",
+      "finishStepCopy": "Skopiuj cały adres z paska adresu tej karty i wklej go poniżej.",
+      "finishPasteLabel": "Adres z karty {provider}",
+      "finishPasteDescription": "Jest długi i zaczyna się od http://127.0.0.1. Wklej go w całości.",
+      "finishBlocked": "Przeglądarka zablokowała nową kartę.",
+      "finishOpenLink": "Otwórz stronę logowania {provider}",
+      "finishDone": "Zalogowano do {provider}."
     },
     "templateVariablesSection": "Zmienne szablonów",
     "templateVariablesClickToCopy": "kliknij, aby skopiować",

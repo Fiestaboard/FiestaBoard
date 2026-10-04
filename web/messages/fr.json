@@ -496,7 +496,17 @@
       "pasteLabel": "Adresse ou code",
       "pasteDescription": "Copiez l'adresse complète de l'onglet où la connexion s'est arrêtée, ou le code affiché par le fournisseur.",
       "pasteSubmit": "Terminer la connexion",
-      "pasteOpenAgain": "Rouvrir la page de connexion"
+      "pasteOpenAgain": "Rouvrir la page de connexion",
+      "newTabHint": "{provider} s'ouvre dans un nouvel onglet. Une fois terminé, cet onglet aboutit à une page qui ne se charge pas. C'est normal : vous recopiez son adresse ici.",
+      "finishTitle": "Terminer la connexion",
+      "finishStepSignIn": "Connectez-vous à {provider} dans le nouvel onglet.",
+      "finishStepCantConnect": "Ensuite, cet onglet affiche une erreur comme « impossible de se connecter à 127.0.0.1 » ou « Ce site est inaccessible ». C'est normal : rien n'a échoué.",
+      "finishStepCopy": "Copiez l'adresse complète depuis la barre d'adresse de cet onglet et collez-la ci-dessous.",
+      "finishPasteLabel": "Adresse de l'onglet {provider}",
+      "finishPasteDescription": "Elle est longue et commence par http://127.0.0.1. Collez-la en entier.",
+      "finishBlocked": "Votre navigateur a bloqué le nouvel onglet.",
+      "finishOpenLink": "Ouvrir la page de connexion de {provider}",
+      "finishDone": "Connecté à {provider}."
     },
     "templateVariablesSection": "Variables de modèle",
     "templateVariablesClickToCopy": "cliquer pour copier",

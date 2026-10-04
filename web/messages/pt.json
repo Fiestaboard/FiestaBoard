@@ -496,7 +496,17 @@
       "pasteLabel": "Endereço ou código",
       "pasteDescription": "Copie o endereço completo da aba onde o login parou, ou o código que o provedor mostrou.",
       "pasteSubmit": "Concluir login",
-      "pasteOpenAgain": "Abrir a página de login novamente"
+      "pasteOpenAgain": "Abrir a página de login novamente",
+      "newTabHint": "{provider} abre numa nova aba. Quando terminar lá, essa aba acaba numa página que não carrega. É o esperado: você copia o endereço dela de volta para cá.",
+      "finishTitle": "Concluir o login",
+      "finishStepSignIn": "Entre no {provider} na nova aba.",
+      "finishStepCantConnect": "Ao terminar, essa aba mostra um erro como \"não é possível conectar a 127.0.0.1\" ou \"Não é possível acessar esse site\". É o esperado: nada deu errado.",
+      "finishStepCopy": "Copie o endereço completo da barra de endereços dessa aba e cole abaixo.",
+      "finishPasteLabel": "Endereço da aba do {provider}",
+      "finishPasteDescription": "É longo e começa com http://127.0.0.1. Cole tudo.",
+      "finishBlocked": "O seu navegador bloqueou a nova aba.",
+      "finishOpenLink": "Abrir a página de login do {provider}",
+      "finishDone": "Login no {provider} concluído."
     },
     "templateVariablesSection": "Variáveis de Template",
     "templateVariablesClickToCopy": "clique para copiar",

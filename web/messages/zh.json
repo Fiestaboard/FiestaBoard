@@ -496,7 +496,17 @@
       "pasteLabel": "地址或代码",
       "pasteDescription": "复制登录停下的标签页中的完整地址，或服务商显示的代码。",
       "pasteSubmit": "完成登录",
-      "pasteOpenAgain": "重新打开登录页面"
+      "pasteOpenAgain": "重新打开登录页面",
+      "newTabHint": "{provider} 会在新标签页中打开。完成后，该标签页会停在一个无法加载的页面上。这是正常的：把它的地址复制回这里即可。",
+      "finishTitle": "完成登录",
+      "finishStepSignIn": "在新标签页中登录 {provider}。",
+      "finishStepCantConnect": "完成后，该标签页会显示类似“无法连接到 127.0.0.1”或“无法访问此网站”的错误。这是正常的，并没有出错。",
+      "finishStepCopy": "从该标签页的地址栏复制完整地址，粘贴到下方。",
+      "finishPasteLabel": "{provider} 标签页中的地址",
+      "finishPasteDescription": "地址很长，以 http://127.0.0.1 开头。请完整粘贴。",
+      "finishBlocked": "浏览器拦截了新标签页。",
+      "finishOpenLink": "打开 {provider} 登录页面",
+      "finishDone": "已登录 {provider}。"
     },
     "templateVariablesSection": "模板变量",
     "templateVariablesClickToCopy": "点击复制",

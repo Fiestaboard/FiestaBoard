@@ -19,6 +19,13 @@
  * panel offers a paste box: the user copies the address they landed on, or
  * the code they were shown, and the board finishes the sign-in with it.
  *
+ * A connection whose sign-in can never come back (`paste_expected`, ChatGPT's
+ * loopback-only redirect) makes that paste the plan rather than a rescue: the
+ * provider opens in a new tab, opened inside the click itself so no popup
+ * blocker stops it, and this tab moves to an open, focused "Finish signing
+ * in" step that says up front the provider's tab will end on a page that
+ * cannot load, and that this is expected.
+ *
  * Layout: one quiet panel, in the same recipe as the sheet's "Demo page"
  * section, so the connection reads as one object among the plugin's other
  * sections rather than a page of its own. Inside it, top to bottom: the
@@ -61,8 +68,8 @@ import {
   TextLink,
 } from "@fiestaboard/ui";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { CircleAlert, ExternalLink, Info, TimerOff } from "lucide-react";
-import { type FormEvent, type ReactNode, useId, useState } from "react";
+import { CheckCircle2, CircleAlert, ExternalLink, Info, TimerOff } from "lucide-react";
+import { type FormEvent, type ReactNode, useEffect, useId, useRef, useState } from "react";
 import { toast } from "sonner";
 
 import { useTranslations } from "@/i18n/translations";
@@ -100,6 +107,26 @@ interface PasteOffer {
   hint: string;
   /** The provider's page, to open again from the box. Empty when it was a same-tab redirect. */
   url: string;
+}
+
+/**
+ * Open an empty tab for the provider's page, from inside the user's click.
+ *
+ * Browsers (Safari above all) allow a new tab only from the user's own
+ * gesture, and the board's answer with the provider's address arrives after
+ * it, so the tab is opened first and sent there once the answer is in. It is
+ * cut off from this page before it goes anywhere. `null` when it was blocked.
+ */
+function openBlankTab(): Window | null {
+  const tab = window.open("", "_blank");
+  if (tab) {
+    try {
+      tab.opener = null;
+    } catch {
+      // Already cut off: nothing to sever.
+    }
+  }
+  return tab;
 }
 
 const pasteStorageKey = (connectionId: string) => `fiestaboard.oauth.paste.${connectionId}`;
@@ -186,6 +213,17 @@ export function OAuthConnectionPanel({
   const [pasted, setPasted] = useState("");
   // null until the user toggles it: then it follows whether they saved an app.
   const [ownAppToggled, setOwnAppToggled] = useState<boolean | null>(null);
+  // A paste-only sign-in: whether the browser refused the provider's tab.
+  const [tabBlocked, setTabBlocked] = useState(false);
+  const [justFinished, setJustFinished] = useState(false);
+  const finishTitleId = useId();
+  const pasteInputRef = useRef<HTMLInputElement>(null);
+  // Bumped when a paste-only sign-in starts: the paste field takes focus, so
+  // it is where the user lands when they come back to this tab.
+  const [focusPasteRequest, setFocusPasteRequest] = useState(0);
+  useEffect(() => {
+    if (focusPasteRequest) pasteInputRef.current?.focus();
+  }, [focusPasteRequest]);
 
   const setPasteOffer = (offer: PasteOffer | null) => {
     writePasteOffer(connectionId, offer);
@@ -210,8 +248,11 @@ export function OAuthConnectionPanel({
   };
 
   const connectMutation = useMutation({
-    mutationFn: (options: { headless?: boolean }) => api.startOAuthConnection(connectionId, options),
-    onSuccess: (start) => {
+    /** `tab`: the provider's tab, already opened in the click (`null` when the browser blocked it). */
+    mutationFn: (options: { headless?: boolean; tab?: Window | null }) =>
+      api.startOAuthConnection(connectionId, options.headless ? { headless: true } : {}),
+    onSuccess: (start, options) => {
+      setJustFinished(false);
       // Anything that goes by way of the provider's page may need finishing
       // by hand, so the paste box is on offer from now on.
       if (start.flow !== "device" && start.flow !== "plex_pin") {
@@ -223,7 +264,16 @@ export function OAuthConnectionPanel({
           url: start.paste_expected ? start.authorization_url : "",
         });
       }
-      if (start.authorization_url) {
+      if (start.authorization_url && options.tab !== undefined) {
+        const tab = options.tab;
+        if (tab && !tab.closed) {
+          tab.location.replace(start.authorization_url);
+          setTabBlocked(false);
+        } else {
+          setTabBlocked(true);
+        }
+        setFocusPasteRequest((n) => n + 1);
+      } else if (start.authorization_url) {
         if (start.paste_expected || start.flow === "plex_pin") {
           // The user comes back to this tab (to paste, or while it polls),
           // so the provider opens in another one.
@@ -237,7 +287,8 @@ export function OAuthConnectionPanel({
       }
       queryClient.invalidateQueries({ queryKey: OAUTH_CONNECTIONS_QUERY_KEY });
     },
-    onError: (err) => {
+    onError: (err, options) => {
+      options.tab?.close();
       toast.error(t("toastConnectFailed", { error: err instanceof Error ? err.message : tCommon("unknownError") }));
     },
   });
@@ -248,6 +299,7 @@ export function OAuthConnectionPanel({
       setPasteOffer(null);
       setPasteOpen(false);
       setPasted("");
+      setJustFinished(true);
       toast.success(t("toastConnected"));
       refreshAfterChange();
     },
@@ -256,6 +308,7 @@ export function OAuthConnectionPanel({
   const disconnectMutation = useMutation({
     mutationFn: () => api.disconnectOAuthConnection(connectionId),
     onSuccess: () => {
+      setJustFinished(false);
       toast.success(t("toastDisconnected", { provider: connection?.provider_name ?? "" }));
       refreshAfterChange();
     },
@@ -283,6 +336,9 @@ export function OAuthConnectionPanel({
       ? connection.connected_at != null && connection.connected_at !== pasteOffer.connectedAt
       : (connection.connected_at ?? 0) * 1000 >= (pasteOffer?.started ?? 0));
   const showPaste = !!pasteOffer && !awaitingCode && !connectedSinceOffer;
+  // The provider's redirect cannot reach this board: pasting is the plan, not a rescue.
+  const finishesByPaste = !!connection.paste_expected;
+  const showFinishStep = finishesByPaste && showPaste;
 
   // Guided setup: the user brings their own app, and is not connected yet.
   const showSetup = connection.user_app && !isConnected && !awaitingCode;
@@ -305,18 +361,21 @@ export function OAuthConnectionPanel({
   const savesAppFirst = connection.user_app && !!appFields && !isConnected && (!ownAppOptional || ownAppOpen);
 
   const connect = async () => {
+    // Before anything is awaited: only the click itself may open a tab.
+    const tab = finishesByPaste ? openBlankTab() : undefined;
     if (savesAppFirst && appFields) {
       setIsSavingApp(true);
       try {
         await appFields.save();
       } catch (err) {
+        tab?.close();
         toast.error(t("toastSaveFailed", { error: err instanceof Error ? err.message : tCommon("unknownError") }));
         return;
       } finally {
         setIsSavingApp(false);
       }
     }
-    connectMutation.mutate({});
+    connectMutation.mutate(tab === undefined ? {} : { tab });
   };
 
   const submitPasted = (event: FormEvent) => {
@@ -434,6 +493,13 @@ export function OAuthConnectionPanel({
           </Text>
         </Stack>
 
+        {justFinished && isConnected && (
+          <Alert variant="success" politeness="polite">
+            <CheckCircle2 className="size-4" aria-hidden="true" />
+            <AlertDescription>{t("finishDone", { provider })}</AlertDescription>
+          </Alert>
+        )}
+
         {device && awaitingApproval && (
           <Flex align="center" gap="2" className="rounded-md border bg-background p-3">
             <Spinner size="sm" label={null} />
@@ -541,14 +607,78 @@ export function OAuthConnectionPanel({
             </Flex>
           )}
           {/* What the trip back looks like, for anyone about to make it. */}
-          {returnsByRelay && !isConnected && (
+          {returnsByRelay && !isConnected && !finishesByPaste && (
             <Text size="xs" tone="muted">
               {t("relayHint")}
             </Text>
           )}
+          {finishesByPaste && !isConnected && !showFinishStep && (
+            <Text size="xs" tone="muted">
+              {t("newTabHint", { provider })}
+            </Text>
+          )}
         </Stack>
 
-        {showPaste && pasteOffer && (
+        {showFinishStep && pasteOffer && (
+          <Stack
+            gap="3"
+            role="group"
+            aria-labelledby={finishTitleId}
+            className="rounded-md border bg-background p-3"
+            data-testid="oauth-finish-step"
+          >
+            <Text id={finishTitleId} weight="medium">
+              {t("finishTitle")}
+            </Text>
+            {tabBlocked && pasteOffer.url && (
+              <Alert variant="warning">
+                <CircleAlert className="size-4" aria-hidden="true" />
+                <AlertDescription>
+                  <Stack gap="1.5">
+                    <Text as="span">{t("finishBlocked")}</Text>
+                    <SetupLink href={pasteOffer.url}>{t("finishOpenLink", { provider })}</SetupLink>
+                  </Stack>
+                </AlertDescription>
+              </Alert>
+            )}
+            <List as="ol" marker="decimal" gap="2" className="text-sm">
+              <ListItem>{t("finishStepSignIn", { provider })}</ListItem>
+              <ListItem>{t("finishStepCantConnect")}</ListItem>
+              <ListItem>{t("finishStepCopy")}</ListItem>
+            </List>
+            <Box as="form" onSubmit={submitPasted}>
+              <Stack gap="2">
+                <Field
+                  label={t("finishPasteLabel", { provider })}
+                  description={t("finishPasteDescription")}
+                  error={
+                    completeMutation.error ? errorMessage(completeMutation.error, tCommon("unknownError")) : undefined
+                  }
+                >
+                  <Input
+                    ref={pasteInputRef}
+                    value={pasted}
+                    onChange={(event) => {
+                      setPasted(event.target.value);
+                      if (completeMutation.isError) completeMutation.reset();
+                    }}
+                    autoComplete="off"
+                    spellCheck={false}
+                    className="font-mono"
+                  />
+                </Field>
+                <Flex align="center" gap="3" wrap>
+                  <Button type="submit" size="sm" loading={completeMutation.isPending} disabled={!pasted.trim()}>
+                    {t("pasteSubmit")}
+                  </Button>
+                  {pasteOffer.url && !tabBlocked && <SetupLink href={pasteOffer.url}>{t("pasteOpenAgain")}</SetupLink>}
+                </Flex>
+              </Stack>
+            </Box>
+          </Stack>
+        )}
+
+        {showPaste && !finishesByPaste && pasteOffer && (
           <Collapsible open={pasteOpen} onOpenChange={setPasteOpen}>
             <CollapsibleTrigger asChild>
               <Button size="sm" variant="link" className="h-auto px-0">

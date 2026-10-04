@@ -153,6 +153,7 @@ def test_a_connection_reports_its_shape(client):
         "expires_at": None,
         "connected_at": None,
         "device": None,
+        "paste_expected": False,
     }
 
 
