@@ -18,21 +18,24 @@ FiestaUI, the reference implementation):
   carry ``color``. A split-flap board draws them plain.
 - **Block span** ``{black/white:OPEN}``: ``fg/bg``; the letters carry
   ``color`` and ``background``.
-- **Icon** ``{icon:sun}``: one cell, parsed straight to its split-flap
-  fallback (a colour tile, a character, or a blank) tagged with ``icon``.
+- **Icon** ``{icon:sun}`` (or an alias, ``{icon:storm}``): one cell, parsed
+  straight to its split-flap fallback (a colour tile, a character, or a
+  blank) tagged with ``icon`` and the enclosing span's colours.
+  ``{icon:heart}`` is the typed ``♥`` (code 62), not an icon.
 - Spans nest (``{red:HOT {63}}``) and close at the brace that balances
-  their own.
+  their own. ``filled`` / ``71`` is a tile only, never a span colour.
+
+Tile tokens keep the spelling they were parsed from (``"63"`` or ``"red"``);
+normalising to a numeric code is the caller's job (:attr:`BoardToken.flap_code`).
 
 The flag is off by default and nothing in the app turns it on yet. With it
 off, :func:`parse_line` projects to exactly the codes
-:func:`src.text_to_board.text_to_board_array` draws today, and its tokens
-match FiestaUI's base grammar (c6b34f4, which aligned FiestaUI with the board
-on ``{filled}``, ``{/foo}``, emoji and typed hearts). With it on, it matches
-FiestaUI token for token; ``tests/test_markup_parity.py`` lists the cases
-where the extended fixtures still predate that alignment.
+:func:`src.text_to_board.text_to_board_array` draws today. In both modes it
+matches FiestaUI (530231c, PR #324) token for token; see
+``tests/test_markup_parity.py``.
 
-The icon table is FiestaUI's data, vendored as ``markup_icons.json`` by
-``scripts/markup_fixtures/generate.sh`` — never a hand-kept list here.
+The icon registry is FiestaUI's data, vendored as ``markup_icons.json`` by
+``scripts/markup_fixtures/generate.sh``, never a hand-kept list here.
 """
 
 from __future__ import annotations
@@ -48,6 +51,7 @@ from .text_to_board import COLOR_CODES, COLOR_MARKER_PATTERN
 
 __all__ = [
     "BOARD_ICONS",
+    "BOARD_ICON_ALIASES",
     "SPAN_COLOR_CODES",
     "BoardIcon",
     "BoardToken",
@@ -55,7 +59,10 @@ __all__ = [
     "message_to_grid",
     "parse_line",
     "resolve_code62_glyph",
+    "resolve_icon_name",
+    "rich_tokens_equal",
     "take_tiles",
+    "tokens_equal",
     "tokens_to_codes",
     "wrap_line",
 ]
@@ -71,15 +78,24 @@ class BoardIcon:
     fallback: str | None
 
 
-def _load_icons() -> dict[str, BoardIcon]:
-    data = json.loads((Path(__file__).with_name("markup_icons.json")).read_text(encoding="utf-8"))
-    return {
-        name: BoardIcon(label=spec["label"], color=spec["color"], fallback=spec["fallback"])
-        for name, spec in data["icons"].items()
-    }
+_ICON_REGISTRY = json.loads((Path(__file__).with_name("markup_icons.json")).read_text(encoding="utf-8"))
+
+#: Icon name -> spec, from FiestaUI's published registry.
+BOARD_ICONS: dict[str, BoardIcon] = {
+    name: BoardIcon(label=spec["label"], color=spec["color"], fallback=spec["fallback"])
+    for name, spec in _ICON_REGISTRY["icons"].items()
+}
+#: Other names an icon answers to (``{icon:storm}`` is ``bolt``). A token
+#: carries the canonical name.
+BOARD_ICON_ALIASES: dict[str, str] = dict(_ICON_REGISTRY.get("aliases", {}))
 
 
-BOARD_ICONS: dict[str, BoardIcon] = _load_icons()
+def resolve_icon_name(name: str) -> str | None:
+    """The icon a lowercase name or alias means, or ``None``."""
+    if name in BOARD_ICONS:
+        return name
+    return BOARD_ICON_ALIASES.get(name)
+
 
 #: Colours a span or block head may name (besides ``#rrggbb``), in FiestaUI's
 #: ``ALL_COLOR_CODES`` order. ``filled`` / ``71`` is a *tile* (``{filled}``,
@@ -223,10 +239,15 @@ def _char_token(value: str, span: _Span | None, icon: str | None = None) -> Boar
 
 
 def _icon_token(name: str, span: _Span | None) -> BoardToken:
+    """An icon's split-flap fallback, tagged with the icon and the span's colours."""
     fallback = BOARD_ICONS[name].fallback
     if fallback is not None and fallback in _TILE_CODES:
-        return BoardToken("color", code=fallback, icon=name)
-    return _char_token(fallback if fallback is not None else " ", span, icon=name)
+        token = BoardToken("color", code=fallback, icon=name)
+    else:
+        token = BoardToken("char", value=fallback if fallback is not None else " ", icon=name)
+    if span is None:
+        return token
+    return replace(token, color=span.color, background=span.background)
 
 
 def _pieces(
@@ -286,8 +307,13 @@ def _pieces(
             return -1
         head = content[:colon]
         if head.lower() == "icon":
-            name = content[colon + 1 :].lower()
-            if name not in BOARD_ICONS:
+            raw = content[colon + 1 :].lower()
+            # `{icon:heart}` is not an icon but the typed ♥ (code 62).
+            if raw == "heart":
+                add(_char_token("♥", span), text[i : close + 1], heads, offset + i, root)
+                return close + 1
+            name = resolve_icon_name(raw)
+            if name is None:
                 return -1
             add(_icon_token(name, span), text[i : close + 1], heads, offset + i, root)
             return close + 1
@@ -376,6 +402,27 @@ def _apply_code62_glyph(token: BoardToken, glyph: str) -> BoardToken:
 def tokens_to_codes(tokens: list[BoardToken]) -> list[int]:
     """Project tokens to the 0–71 codes a split-flap board draws."""
     return [t.flap_code for t in tokens]
+
+
+def tokens_equal(a: BoardToken, b: BoardToken) -> bool:
+    """Whether a split-flap tile would change (FiestaUI ``tokensEqual``).
+
+    Compares only what a flap draws: ``type`` and ``value`` / ``code``, as
+    spelled (``"63"`` and ``"red"`` differ). Colour and icon are ignored.
+    """
+    if a.type != b.type:
+        return False
+    return a.value == b.value if a.type == "char" else a.code == b.code
+
+
+def rich_tokens_equal(a: BoardToken, b: BoardToken) -> bool:
+    """Colour-aware equality for renderers that draw colour (FiestaUI ``richTokensEqual``).
+
+    :func:`tokens_equal` plus ``color``, ``background`` and ``icon``. An LED
+    dedupe needs this: a span recoloured from red to blue is the same flap
+    but a different frame.
+    """
+    return tokens_equal(a, b) and a.color == b.color and a.background == b.background and a.icon == b.icon
 
 
 # --- measuring and splitting extended markup by drawn tiles -------------------
