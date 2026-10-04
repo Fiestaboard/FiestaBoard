@@ -93,6 +93,8 @@ plugins/my_plugin/
 
 :::warning Important
 The plugin directory name **must** match the `id` field in `manifest.json`. If your directory is `plugins/my_plugin/`, then `manifest.json` must have `"id": "my_plugin"`.
+
+Some ids are reserved because templates use them as markup (`{{red:HOT}}`, `{{icon:sun}}`). A plugin can't use a color name (`red`, `orange`, `yellow`, `green`, `blue`, `violet`, `purple`, `white`, `black`, `filled`) or `icon` as its id. Validation rejects them.
 :::
 
 ---
@@ -437,6 +439,27 @@ For data like transit stops that contain multiple lines. Users reference them as
   }
 }
 ```
+
+#### Variable Values Are Data {#variable-format}
+
+FiestaBoard treats the value a variable substitutes into a template as **data**, not as markup. A value can carry these markers:
+
+- color tiles: `{63}` to `{71}`, `{red}` to `{black}`, and `{filled}`
+- end tags: `{/}` and `{/red}`, and so on
+
+Any other brace is drawn as a parenthesis. A value of `{x}` shows as `(x)`. A value of `{icon:sun}` shows as `(icon:sun)` and never becomes an icon. This keeps text from an API, such as a song title or a headline, from changing how the board renders.
+
+A plugin that builds its display out of markup can opt out per variable with `"format": "markup"`. Art plugins that emit colored spans or icons are an example:
+
+```json
+"variables": {
+  "simple": {
+    "row_1": { "description": "First row of the flag", "format": "markup" }
+  }
+}
+```
+
+`format` is `"text"` (the default) or `"markup"`. It works in `simple` and in array `item_fields`. Rows of color tiles, such as `{red}{red}{orange}`, are fine without it.
 
 ### Max Lengths
 
