@@ -202,3 +202,16 @@ def test_the_draft_discover_route_hands_the_browsers_address_to_the_hook(bundled
     assert resp.status_code == 200, resp.text
     assert seen == ["192.168.1.20"]
     assert [d["ip"] for d in resp.json()["devices"]] == ["192.168.1.30"]
+
+
+def test_the_vestaboard_scan_is_handed_the_browsers_network():
+    """The pinned Vestaboard plugin probes the hint's network: its scan
+    suffers in bridge mode as every other output's does."""
+    from src.api_server import app
+
+    with mock.patch("plugins.vestaboard.discovery.discover", return_value=[]) as scan:
+        resp = TestClient(app).post(
+            "/outputs/vestaboard/actions/discover", json={"input": {"timeout": 2, HINT_HOST: "192.168.1.20"}}
+        )
+    assert resp.status_code == 200, resp.text
+    scan.assert_called_once_with(2.0, hint="192.168.1.20")
