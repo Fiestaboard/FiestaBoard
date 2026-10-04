@@ -132,7 +132,16 @@ from typing import TYPE_CHECKING, Any, ClassVar, NamedTuple
 from src.markup import BoardToken
 from src.send_outcome import FrameRegion, WriteResult
 
-from .hooks import ActionField, ActionOutcome, ConnectionCheck, OutputActionError, OutputStatus
+from .hooks import (
+    HINT_HOST,
+    ActionField,
+    ActionOutcome,
+    ConnectionCheck,
+    OutputActionError,
+    OutputStatus,
+    call_discover,
+    lan_hint,
+)
 from .http import OutputHttp
 from .transitions import NativeTransition
 
@@ -464,7 +473,13 @@ class OutputPluginBase(ABC):
     @classmethod
     def discover(cls, timeout: float) -> list[dict]:
         """Devices found on the network, each a dict with at least ``ip`` and
-        ``port``. Default: none."""
+        ``port``. Default: none.
+
+        Declare it ``discover(cls, timeout, hint=None)`` to be handed the
+        network hint: the private IPv4 address the user opened FiestaBoard
+        at (:data:`~src.outputs.hooks.HINT_HOST`), ``None`` when the browser
+        gave none. Search its network first — in Docker bridge mode this
+        host's own address is a container network, not the LAN."""
         return []
 
     def identify(self) -> None:  # noqa: B027 - optional hook
@@ -526,7 +541,8 @@ class OutputPluginBase(ABC):
 
         *ctx* is an :class:`~src.outputs.hooks.ActionContext`. The default
         answers ``discover`` with :meth:`discover` (the ``timeout`` input,
-        clamped to 1–15 s) and every other action with :meth:`run_action` on
+        clamped to 1–15 s, and the ``hint_host`` input as ``hint`` when
+        :meth:`discover` takes one) and every other action with :meth:`run_action` on
         a throwaway instance built from the board's settings. Override it
         when an action needs more: the board's live instance
         (``ctx.with_live``), another device's settings (``ctx.instance(config)``),
@@ -536,7 +552,7 @@ class OutputPluginBase(ABC):
         if ctx.action == "discover":
             raw = ctx.inputs.get("timeout", 4.0)
             timeout = min(max(float(raw), 1.0), 15.0) if isinstance(raw, (int, float)) else 4.0
-            devices = cls.discover(timeout)
+            devices = call_discover(cls.discover, timeout, lan_hint(ctx.inputs.get(HINT_HOST)))
             return ActionOutcome(message=f"Found {len(devices)} device(s).", devices=tuple(devices))
         instance = ctx.instance()
         if instance is None:
