@@ -136,11 +136,25 @@ export function clearWizardCompletion(): void {
 /**
  * Save wizard progress for resuming later.
  *
- * Sensitive credentials (API keys, Wi-Fi passwords) are intentionally
- * stripped before persisting to ``localStorage``: that storage is not a
+ * Sensitive credentials (API keys and tokens, flat or in the board's
+ * `output_config`; Wi-Fi passwords) are intentionally stripped before persisting to ``localStorage``: that storage is not a
  * secure place for secrets and any persisted copy survives sign-out.
  * Users can re-enter the values when resuming the wizard.
  */
+/** A settings key that holds a credential: any output's key, token, secret or password. */
+const CREDENTIAL_KEY = /(key|token|secret|password)$/i;
+
+/** A copy of *value* with every credential-named field dropped, at any depth. */
+function withoutCredentials(value: unknown): unknown {
+  if (Array.isArray(value)) return value.map(withoutCredentials);
+  if (value === null || typeof value !== "object") return value;
+  return Object.fromEntries(
+    Object.entries(value as Record<string, unknown>)
+      .filter(([key]) => !CREDENTIAL_KEY.test(key))
+      .map(([key, inner]) => [key, withoutCredentials(inner)]),
+  );
+}
+
 export function saveWizardProgress(progress: WizardProgress): void {
   if (typeof window === "undefined") return;
 
@@ -153,6 +167,11 @@ export function saveWizardProgress(progress: WizardProgress): void {
           // Drop the API keys — they're sensitive credentials.
           local_api_key: undefined,
           cloud_key: undefined,
+          // The output's settings screen keeps its own credentials (whatever
+          // the output calls them) in output_config: drop those too.
+          output_config: progress.boardConfig.output_config
+            ? (withoutCredentials(progress.boardConfig.output_config) as Record<string, unknown>)
+            : undefined,
         }
       : undefined,
     plugins: progress.plugins
