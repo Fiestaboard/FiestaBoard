@@ -168,6 +168,21 @@ class TestRoutesUseTheLiveRuntime:
         assert resp.status_code == 200, resp.text
         assert service.get_runtime("wire-local").output.last_frame is not None
 
+    def test_the_welcome_message_goes_to_the_board_named(self, api, wire):
+        """The wizard names the board it just created; the primary (a seeded
+        placeholder, or any other board) is not written."""
+        service = install_live_boards([local_flagship(), local_flagship("wire-second", host="192.168.0.11")])
+        resp = api.post("/send-welcome-message", json={"board_id": "wire-second"})
+        assert resp.status_code == 200, resp.text
+        assert service.get_runtime("wire-second").output.last_frame is not None
+        assert service.get_runtime("wire-local").output.last_frame is None
+
+    def test_the_welcome_message_to_an_unknown_board_is_404(self, api, wire):
+        service = install_live_boards([local_flagship()])
+        resp = api.post("/send-welcome-message", json={"board_id": "nope"})
+        assert resp.status_code == 404, resp.text
+        assert service.get_runtime("wire-local").output.last_frame is None
+
     def test_a_live_edit_lands_in_the_live_runtimes_frame_store(self, api, wire):
         service = install_live_boards([local_flagship()])
         resp = api.post("/templates/render/live", json={"template": ["LIVE EDIT"]})

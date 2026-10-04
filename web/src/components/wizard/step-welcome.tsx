@@ -75,8 +75,14 @@ export function StepWelcome({
         setConfigSaved(true);
       }
 
-      // Send the welcome message
-      const result = await api.sendWelcomeMessage();
+      // Send the welcome message to the display this wizard set up: a board
+      // the TV or output-plugin step created is named, since a seeded
+      // placeholder Vestaboard may still be the primary. The Vestaboard path
+      // configured the primary itself.
+      const result =
+        otherDisplay && createdBoard
+          ? await api.sendWelcomeMessage(createdBoard.boardId)
+          : await api.sendWelcomeMessage();
       setSendStatus("success");
       setSendMessage(result.message);
     } catch (error) {

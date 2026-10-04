@@ -21,6 +21,18 @@ class MessageRequest(BaseModel):
     board_id: str | None = None
 
 
+class WelcomeMessageRequest(BaseModel):
+    """Optional body of ``POST /send-welcome-message``.
+
+    ``board_id`` names the board to greet: the setup wizard names the board it
+    just created (a TV, an output plugin's device), which need not be the
+    primary — a seeded placeholder Vestaboard may still be first. Omitted →
+    the primary board, exactly as before.
+    """
+
+    board_id: str | None = None
+
+
 class SendResponse(BaseModel):
     """The outcome of an out-of-band write.
 
