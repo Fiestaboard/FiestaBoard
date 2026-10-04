@@ -28,6 +28,7 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, StrictBool, StrictInt
 
+from src.api_deprecation import FLAT_BOARD_FIELDS_NOTE
 from src.config import SilenceMode
 from src.devices import DeviceType, HardwareDeviceType
 from src.settings.service import VALID_OUTPUT_TARGETS, SettingsRestoreNotice
@@ -344,7 +345,7 @@ class BoardSettingsResponse(BaseModel):
     """
 
     board_type: str | None = None
-    boards: list[dict[str, Any]]
+    boards: list[dict[str, Any]] = Field(description=f"The boards, as stored. {FLAT_BOARD_FIELDS_NOTE}")
     devices: list[str]
 
 

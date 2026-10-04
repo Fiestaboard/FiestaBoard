@@ -203,3 +203,54 @@ def superseded_by_v1(operation: str) -> Callable:
     # identified on the live route table rather than trusted from this file.
     dependency.dependency.superseded_operation = operation  # type: ignore[attr-defined]
     return dependency
+
+
+# ---------------------------------------------------------------------------
+# Deprecated fields: the flat board connection (settings v4, plan D8)
+# ---------------------------------------------------------------------------
+#
+# Settings v4 moved a Vestaboard's connection into the board's
+# ``output_config``. The responses still project the flat fields so nothing
+# that read them broke; they stay through v10 and go in v11. Here the
+# *operation* is not deprecated, only those fields in its response, so the
+# notice carries no ``successor-version`` (the operation is its own
+# successor) but a ``Link rel="deprecation"`` (RFC 9745 section 3) to the
+# notice that names the fields, and no ``Sunset``: v11 has no date yet.
+
+#: The flat board fields, in the order the notice lists them.
+FLAT_BOARD_FIELDS: tuple[str, ...] = (
+    "api_mode",
+    "host",
+    "port",
+    "local_api_key",
+    "cloud_key",
+    "note_array_token",
+    "tiles",
+)
+#: The release that stops serving them.
+FLAT_BOARD_FIELDS_REMOVAL = "v11"
+#: Where the deprecation is explained (the published API reference).
+FLAT_BOARD_FIELDS_DOC = "https://fiestaboard.app/docs/reference/api-endpoints#deprecated-board-fields"
+#: One sentence for an OpenAPI ``description``.
+FLAT_BOARD_FIELDS_NOTE = (
+    f"Deprecated: the flat board connection fields ({', '.join(f'`{f}`' for f in FLAT_BOARD_FIELDS)}) are "
+    f"projected from the board's `output_config` for compatibility and removed in {FLAT_BOARD_FIELDS_REMOVAL}. "
+    "Read `output` and `output_config` instead."
+)
+
+
+def flat_board_fields_notice() -> Callable:
+    """The notice for an operation whose response carries flat board fields:
+    ``Deprecation: true`` and ``Link: <notice>; rel="deprecation"``.
+
+    Returns:
+        A ``Depends(...)`` for the route's ``dependencies=`` list.
+    """
+
+    def _set_flat_field_headers(response: Response) -> None:
+        response.headers["Deprecation"] = "true"
+        response.headers["Link"] = f'<{FLAT_BOARD_FIELDS_DOC}>; rel="deprecation"'
+
+    # Read back by tests/test_flat_board_fields_deprecation.py.
+    _set_flat_field_headers.deprecated_fields = FLAT_BOARD_FIELDS  # type: ignore[attr-defined]
+    return Depends(_set_flat_field_headers)

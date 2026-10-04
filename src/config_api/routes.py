@@ -41,6 +41,7 @@ import logging
 
 from fastapi import APIRouter, HTTPException, Response
 
+from src.api_deprecation import flat_board_fields_notice
 from src.api_errors import errors
 from src.board_guards import primary_board_entry
 from src.config import Config
@@ -83,7 +84,7 @@ def _as_http(exc: service.BoardProbeError) -> HTTPException:
     return HTTPException(status_code=exc.status_code, detail=exc.detail)
 
 
-@router.get("/config", response_model=ConfigSummaryResponse)
+@router.get("/config", response_model=ConfigSummaryResponse, dependencies=[flat_board_fields_notice()])
 async def get_config():
     """Get current configuration summary (without sensitive keys)."""
     return Config.get_summary()
