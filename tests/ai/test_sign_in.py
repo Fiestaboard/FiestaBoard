@@ -368,6 +368,116 @@ def test_chatgpt_sign_in_again_keeps_the_issued_client_when_none_is_sent_back(se
     assert service._store.get("ai.gpt").client_id == "oaiapp_test"
 
 
+# ── Sign in with ChatGPT through FiestaBoard's registered OpenAI app ───────
+
+REGISTERED = "app_test_registered"
+
+
+@pytest.fixture
+def registered(monkeypatch):
+    """FiestaBoard's OpenAI app approved: the constant holds its public client ID."""
+    monkeypatch.delenv("FIESTABOARD_OPENAI_CLIENT_ID", raising=False)
+    monkeypatch.setattr(sign_in, "OPENAI_REGISTERED_CLIENT_ID", REGISTERED)
+    return REGISTERED
+
+
+def test_chatgpt_without_a_registered_client_keeps_the_paste_flow(service, providers_block, monkeypatch):
+    monkeypatch.delenv("FIESTABOARD_OPENAI_CLIENT_ID", raising=False)
+    assert sign_in.OPENAI_REGISTERED_CLIENT_ID == ""
+    assert sign_in.openai_registered_client_id() == ""
+    start = _chatgpt_start(service, providers_block)
+    assert start.paste_expected is True
+    assert _query(start.authorization_url)["client_id"] == "dynamic_agent_client"
+    assert service.get_connection("ai.gpt").paste_expected is True
+
+
+def test_chatgpt_with_a_registered_client_comes_back_through_the_relay(service, providers_block, registered):
+    start = _chatgpt_start(service, providers_block)
+    query = _query(start.authorization_url)
+    assert start.authorization_url.startswith("https://auth.openai.com/api/accounts/authorize?")
+    assert start.paste_expected is False
+    assert start.paste_hint == ""
+    assert query["client_id"] == REGISTERED
+    assert query["redirect_uri"] == "https://relay.example/oauth/redirect"
+    assert query["resource"] == "https://api.openai.com/v1"
+    assert query["scope"] == "openid profile email offline_access resource.invoke chatgpt.tokens.use.direct"
+    assert query["code_challenge_method"] == "S256"
+    # The dynamic-client hints belong to the fallback only.
+    assert "agent_name_hint" not in query
+    assert "ext_agent_host_id" not in query
+
+
+def test_chatgpt_with_a_registered_client_is_not_a_paste_connection(service, providers_block, registered):
+    providers_block["block"] = _block(_signed_in("openai_chatgpt", pid="gpt"))
+    status = service.get_connection("ai.gpt")
+    assert status.paste_expected is False
+    assert status.configured is True
+
+
+def _chatgpt_registered_connect(service, providers_block, transport):
+    start = _chatgpt_start(service, providers_block)
+    state = _query(start.authorization_url)["state"]
+    transport.reply({"access_token": "test_at", "refresh_token": "test_rt", "expires_in": 3600})
+    return service.complete_authorization(state=state, code="test_code", error=None)
+
+
+def test_chatgpt_registered_relay_exchanges_with_the_registered_client(service, providers_block, transport, registered):
+    outcome = _chatgpt_registered_connect(service, providers_block, transport)
+    assert outcome.connected is True
+    assert outcome.connection_id == "ai.gpt"
+    assert service.get_connection("ai.gpt").status == "connected"
+    url, form = transport.calls[0]
+    assert url == "https://auth.openai.com/api/accounts/oauth/token"
+    assert form["client_id"] == REGISTERED
+    assert form["redirect_uri"] == "https://relay.example/oauth/redirect"
+    assert form["resource"] == "https://api.openai.com/v1"
+
+
+def test_chatgpt_registered_refresh_and_sign_in_again_use_the_registered_client(
+    service, providers_block, transport, registered
+):
+    _chatgpt_registered_connect(service, providers_block, transport)
+    tokens = service._store.get("ai.gpt")
+    service._store.put("ai.gpt", TokenSet(**{**tokens.__dict__, "expires_at": NOW - 1}))
+    transport.reply({"access_token": "test_at2", "expires_in": 3600})
+    assert service.get_access_token("ai.gpt") == "test_at2"
+    assert transport.calls[1][1]["client_id"] == REGISTERED
+    assert _query(service.start("ai.gpt", board_url=BOARD).authorization_url)["client_id"] == REGISTERED
+
+
+def test_chatgpt_registered_client_ignores_a_client_id_in_the_redirect(service, providers_block, transport, registered):
+    """No dynamic clients once registered: a client_id coming back is never adopted."""
+    start = _chatgpt_start(service, providers_block)
+    state = _query(start.authorization_url)["state"]
+    transport.reply({"access_token": "test_at", "refresh_token": "test_rt", "expires_in": 3600})
+    service.complete_pasted("ai.gpt", f"https://relay.example/oauth/redirect?code=c&state={state}&client_id=oaiapp_x")
+    assert transport.calls[0][1]["client_id"] == REGISTERED
+    assert service._store.get("ai.gpt").client_id in ("", REGISTERED)
+
+
+def test_the_env_var_overrides_the_registered_client(service, providers_block, monkeypatch):
+    monkeypatch.setattr(sign_in, "OPENAI_REGISTERED_CLIENT_ID", "")
+    monkeypatch.setenv("FIESTABOARD_OPENAI_CLIENT_ID", "  app_test_from_env  ")
+    assert sign_in.openai_registered_client_id() == "app_test_from_env"
+    start = _chatgpt_start(service, providers_block)
+    query = _query(start.authorization_url)
+    assert start.paste_expected is False
+    assert query["client_id"] == "app_test_from_env"
+    assert query["redirect_uri"] == "https://relay.example/oauth/redirect"
+
+
+def test_the_env_var_wins_over_the_constant(monkeypatch):
+    monkeypatch.setattr(sign_in, "OPENAI_REGISTERED_CLIENT_ID", REGISTERED)
+    monkeypatch.setenv("FIESTABOARD_OPENAI_CLIENT_ID", "app_test_from_env")
+    assert sign_in.openai_registered_client_id() == "app_test_from_env"
+
+
+def test_a_blank_env_var_falls_back_to_the_constant(monkeypatch):
+    monkeypatch.setattr(sign_in, "OPENAI_REGISTERED_CLIENT_ID", REGISTERED)
+    monkeypatch.setenv("FIESTABOARD_OPENAI_CLIENT_ID", "   ")
+    assert sign_in.openai_registered_client_id() == REGISTERED
+
+
 def test_ai_connection_status_reports_kind_ai(service, providers_block):
     providers_block["block"] = _block(_signed_in("openrouter"))
     assert [c.kind for c in service.list_connections()] == ["ai"]

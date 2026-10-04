@@ -191,7 +191,7 @@ export type DoneReason = "complete" | "awaiting_approval" | "awaiting_input" | "
 // helpers, not a union — an unknown tool's args are still a plain object.
 export type DayPattern = "all" | "weekdays" | "weekends" | "custom";
 export type SettingCategory =
-  "display" | "transitions" | "output" | "polling" | "location" | "silence_schedule" | "active_page";
+  "display" | "transitions" | "output" | "polling" | "location" | "silence_schedule" | "active_page" | "ai";
 
 export interface CreatePageArgs {
   name: string;

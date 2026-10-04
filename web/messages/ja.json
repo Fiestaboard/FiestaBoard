@@ -496,7 +496,16 @@
       "pasteLabel": "アドレスまたはコード",
       "pasteDescription": "サインインが止まったタブのアドレス全体、またはプロバイダーが表示したコードをコピーしてください。",
       "pasteSubmit": "サインインを完了",
-      "pasteOpenAgain": "サインインページをもう一度開く"
+      "pasteOpenAgain": "サインインページをもう一度開く",
+      "newTabHint": "{provider} は新しいタブで開きます。そこで終えると、そのタブは読み込めないページで止まります。これは想定どおりです。そのアドレスをここにコピーしてください。",
+      "finishTitle": "サインインを完了する",
+      "finishStepSignIn": "新しいタブで {provider} にサインインします。",
+      "finishStepCantConnect": "終わると、そのタブには「127.0.0.1 に接続できません」や「このサイトにアクセスできません」などのエラーが表示されます。これは想定どおりで、問題はありません。",
+      "finishStepCopy": "そのタブのアドレスバーからアドレス全体をコピーし、このタブに戻って下に貼り付けます。",
+      "finishPasteLabel": "{provider} タブのアドレス",
+      "finishPasteDescription": "長いアドレスで、http://127.0.0.1 で始まります。すべて貼り付けてください。",
+      "finishOpenLink": "{provider} のサインインページを開く",
+      "finishDone": "{provider} にサインインしました。"
     },
     "templateVariablesSection": "テンプレート変数",
     "templateVariablesClickToCopy": "クリックでコピー",
@@ -659,7 +668,7 @@
       "makeDefaultButton": "デフォルトにする",
       "nameLabel": "名前",
       "protocolLabel": "プロトコル",
-      "protocolOpenaiOption": "OpenAI 互換 (OpenAI, OpenRouter, Groq, DeepSeek, Mistral, Together, Fireworks, Ollama, LM Studio, vLLM, …)",
+      "protocolOpenaiOption": "OpenAI 互換 (OpenAI, OpenRouter, DeepSeek, Mistral, Together, Fireworks, Ollama, LM Studio, vLLM, …)",
       "protocolAnthropicOption": "Anthropic (Messages API)",
       "baseUrlLabel": "ベース URL",
       "quickPresetsLabel": "クイックプリセット",
@@ -686,7 +695,31 @@
         "useApiKey": "代わりに API キーを使う",
         "saveFirst": "変更を保存してから、ここで {provider} にサインインしてください。",
         "panelTitle": "{provider} サインイン"
-      }
+      },
+      "add": {
+        "title": "どの種類のプロバイダーですか？",
+        "signInTitle": "サインイン",
+        "signInDescription": "ChatGPT、OpenRouter、Hugging Face のアカウントを使います。API キーのコピーは不要です。",
+        "apiKeyTitle": "API キーを使う",
+        "apiKeyDescription": "OpenAI、Anthropic、DeepSeek、Mistral などのキーを貼り付けます。",
+        "localTitle": "自分のネットワークで実行",
+        "localDescription": "自分のコンピューター上のモデルサーバー：Ollama、LM Studio、llama.cpp、vLLM。",
+        "advancedTitle": "詳細（カスタムエンドポイント）",
+        "advancedDescription": "OpenAI 互換または Anthropic の任意のエンドポイント。すべての設定を自分で入力します。",
+        "signInPick": "サインイン先",
+        "apiKeyPick": "どのサービスですか？",
+        "localPick": "どのサーバーですか？",
+        "back": "戻る",
+        "cancel": "キャンセル"
+      },
+      "simple": {
+        "advancedToggle": "詳細",
+        "addressLabel": "サーバーのアドレス",
+        "addressDescription": "モデルサーバーが待ち受けている場所です。localhost はこのボード自身を指します。別のコンピューターで動かしている場合は、http://192.168.1.20:11434/v1 のようにそのコンピューターのアドレスを使ってください。",
+        "modelsAfterSave": "変更を保存すると、プロバイダーのモデルから選べます。"
+      },
+      "addModel": "モデルを追加",
+      "refreshModels": "モデルを更新"
     },
     "backup": {
       "cardTitle": "バックアップと復元",
@@ -2453,5 +2486,13 @@
     "settingFailed": "設定を保存できませんでした",
     "on": "オン",
     "off": "オフ"
+  },
+  "modelCombobox": {
+    "placeholder": "検索、またはモデル ID を入力",
+    "trigger": "モデルを表示",
+    "list": "モデル",
+    "empty": "一致するモデルはありません",
+    "typedId": "この ID を使う",
+    "showingFirst": "{total} 件中、最初の {shown} 件を表示中。入力して絞り込めます。"
   }
 }

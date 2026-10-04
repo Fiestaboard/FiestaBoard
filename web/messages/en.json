@@ -452,7 +452,16 @@
       "pasteLabel": "Address or code",
       "pasteDescription": "Copy the whole address from the tab where the sign-in stopped, or the code the provider showed you.",
       "pasteSubmit": "Finish sign-in",
-      "pasteOpenAgain": "Open the sign-in page again"
+      "pasteOpenAgain": "Open the sign-in page again",
+      "newTabHint": "{provider} opens in a new tab. When you finish there, that tab ends on a page that can't load. That's expected: you copy its address back here.",
+      "finishTitle": "Finish signing in",
+      "finishStepSignIn": "Sign in to {provider} in the new tab.",
+      "finishStepCantConnect": "When you're done, that tab shows an error such as \"can't connect to 127.0.0.1\" or \"This site can't be reached\". That's expected: nothing went wrong.",
+      "finishStepCopy": "Copy the whole address from that tab's address bar, come back to this tab and paste it below.",
+      "finishPasteLabel": "Address from the {provider} tab",
+      "finishPasteDescription": "It is long and starts with http://127.0.0.1. Paste all of it.",
+      "finishOpenLink": "Open the {provider} sign-in page",
+      "finishDone": "Signed in to {provider}."
     },
     "templateVariablesSection": "Template Variables",
     "templateVariablesClickToCopy": "click to copy",
@@ -615,7 +624,7 @@
       "makeDefaultButton": "Make default",
       "nameLabel": "Name",
       "protocolLabel": "Protocol",
-      "protocolOpenaiOption": "OpenAI-compatible (OpenAI, OpenRouter, Groq, DeepSeek, Mistral, Together, Fireworks, Ollama, LM Studio, vLLM, …)",
+      "protocolOpenaiOption": "OpenAI-compatible (OpenAI, OpenRouter, DeepSeek, Mistral, Together, Fireworks, Ollama, LM Studio, vLLM, …)",
       "protocolAnthropicOption": "Anthropic (Messages API)",
       "baseUrlLabel": "Base URL",
       "quickPresetsLabel": "Quick presets",
@@ -642,7 +651,31 @@
         "useApiKey": "Use the API key instead",
         "saveFirst": "Save changes, then sign in to {provider} here.",
         "panelTitle": "{provider} sign-in"
-      }
+      },
+      "add": {
+        "title": "What kind of provider?",
+        "signInTitle": "Sign in",
+        "signInDescription": "Use your ChatGPT, OpenRouter or Hugging Face account. No API key to copy.",
+        "apiKeyTitle": "Use an API key",
+        "apiKeyDescription": "Paste a key from OpenAI, Anthropic, DeepSeek, Mistral and others.",
+        "localTitle": "Run it on my network",
+        "localDescription": "A model server on a computer you own: Ollama, LM Studio, llama.cpp or vLLM.",
+        "advancedTitle": "Advanced (custom endpoint)",
+        "advancedDescription": "Any OpenAI-compatible or Anthropic endpoint. You fill in every setting.",
+        "signInPick": "Sign in with",
+        "apiKeyPick": "Which service?",
+        "localPick": "Which server?",
+        "back": "Back",
+        "cancel": "Cancel"
+      },
+      "simple": {
+        "advancedToggle": "Advanced",
+        "addressLabel": "Server address",
+        "addressDescription": "Where the model server listens. localhost means this board itself; if the server runs on another computer, use that computer's address, such as http://192.168.1.20:11434/v1.",
+        "modelsAfterSave": "Save changes to pick from the provider's models."
+      },
+      "addModel": "Add a model",
+      "refreshModels": "Refresh models"
     },
     "backup": {
       "cardTitle": "Backup & Restore",
@@ -2453,5 +2486,13 @@
     "settingFailed": "The setting could not be saved",
     "on": "On",
     "off": "Off"
+  },
+  "modelCombobox": {
+    "placeholder": "Search or type a model id",
+    "trigger": "Show models",
+    "list": "Models",
+    "empty": "No matching models",
+    "typedId": "Use this id",
+    "showingFirst": "Showing first {shown} of {total}. Type to narrow it down."
   }
 }

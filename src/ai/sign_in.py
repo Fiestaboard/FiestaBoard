@@ -16,6 +16,7 @@ combined with the plugin registry by :class:`CompositeConnectionSource`.
 from __future__ import annotations
 
 import asyncio
+import os
 from collections.abc import Callable
 from dataclasses import dataclass, replace
 from pathlib import Path
@@ -35,6 +36,14 @@ PRESET_HUGGINGFACE = "huggingface"
 PRESET_OPENAI_CHATGPT = "openai_chatgpt"
 
 _AGENT_HOST_ID_FILENAME = ".oauth_agent_host_id"
+
+#: FiestaBoard's registered OpenAI app (public client ID, no secret). Empty
+#: until OpenAI approves the app: ChatGPT sign-in then falls back to the
+#: dynamic client and the loopback redirect, finished by paste. Once set,
+#: sign-in comes back through the relay like any other provider.
+OPENAI_REGISTERED_CLIENT_ID = ""
+#: Overrides :data:`OPENAI_REGISTERED_CLIENT_ID` (testing a registered app).
+OPENAI_CLIENT_ID_ENV = "FIESTABOARD_OPENAI_CLIENT_ID"
 
 
 @dataclass(frozen=True)
@@ -76,7 +85,8 @@ PRESETS: dict[str, Preset] = {
         protocol="openai",
     ),
     PRESET_OPENAI_CHATGPT: Preset(
-        # Sign in with ChatGPT. The redirect is loopback only, so the user
+        # Sign in with ChatGPT, without a registered app (the fallback; see
+        # chatgpt_provider). The redirect is loopback only, so the user
         # pastes the address the browser failed to load. OpenAI issues a
         # client (``oaiapp_…``) during the first sign-in; it is kept with the
         # tokens and used from then on.
@@ -104,6 +114,35 @@ PRESETS: dict[str, Preset] = {
         protocol="openai_responses",
     ),
 }
+
+
+def openai_registered_client_id() -> str:
+    """FiestaBoard's registered OpenAI client ID: the env override, else the constant ("" if neither)."""
+    return os.environ.get(OPENAI_CLIENT_ID_ENV, "").strip() or OPENAI_REGISTERED_CLIENT_ID.strip()
+
+
+def chatgpt_provider(agent_host_id: Callable[[], str]) -> OAuthProvider:
+    """The ChatGPT sign-in for this build.
+
+    With a registered client ID: that client, the standard relay redirect
+    (the browser comes back on its own), no dynamic client and no
+    first-sign-in hints. Without one: the dynamic client on the loopback
+    redirect, finished by paste, with this install's ``ext_agent_host_id``.
+    """
+    base = PRESETS[PRESET_OPENAI_CHATGPT].provider
+    registered = openai_registered_client_id()
+    if registered:
+        return replace(
+            base,
+            client_id=registered,
+            redirect_uri_override="",
+            accept_issued_client_id=False,
+            first_sign_in_params={},
+        )
+    return replace(
+        base,
+        authorization_params={**base.authorization_params, "ext_agent_host_id": f"urn:uuid:{agent_host_id()}"},
+    )
 
 
 def load_agent_host_id(data_dir: Path) -> str:
@@ -241,13 +280,7 @@ class AiProviderConnectionSource:
             return None
         oauth_provider = PRESETS[preset_name].provider
         if preset_name == PRESET_OPENAI_CHATGPT:
-            oauth_provider = replace(
-                oauth_provider,
-                authorization_params={
-                    **oauth_provider.authorization_params,
-                    "ext_agent_host_id": f"urn:uuid:{self._agent_host_id()}",
-                },
-            )
+            oauth_provider = chatgpt_provider(self._agent_host_id)
         name = provider.get("name") or oauth_provider.name
         return ConnectionTarget(
             connection_id=connection_id_for(str(provider["id"])),

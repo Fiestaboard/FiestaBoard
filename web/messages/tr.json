@@ -496,7 +496,16 @@
       "pasteLabel": "Adres veya kod",
       "pasteDescription": "Oturum açmanın durduğu sekmedeki adresin tamamını veya sağlayıcının gösterdiği kodu kopyalayın.",
       "pasteSubmit": "Oturum açmayı tamamla",
-      "pasteOpenAgain": "Oturum açma sayfasını yeniden aç"
+      "pasteOpenAgain": "Oturum açma sayfasını yeniden aç",
+      "newTabHint": "{provider} yeni bir sekmede açılır. Orada işiniz bitince o sekme yüklenmeyen bir sayfada kalır. Bu beklenen bir durum: adresini buraya kopyalarsınız.",
+      "finishTitle": "Oturum açmayı tamamlayın",
+      "finishStepSignIn": "Yeni sekmede {provider} hesabınızla oturum açın.",
+      "finishStepCantConnect": "Ardından o sekme \"127.0.0.1 adresine bağlanılamıyor\" ya da \"Bu siteye ulaşılamıyor\" gibi bir hata gösterir. Bu beklenen bir durum: hiçbir şey ters gitmedi.",
+      "finishStepCopy": "O sekmenin adres çubuğundaki adresin tamamını kopyalayın, bu sekmeye dönün ve aşağıya yapıştırın.",
+      "finishPasteLabel": "{provider} sekmesindeki adres",
+      "finishPasteDescription": "Uzundur ve http://127.0.0.1 ile başlar. Tamamını yapıştırın.",
+      "finishOpenLink": "{provider} oturum açma sayfasını aç",
+      "finishDone": "{provider} oturumu açıldı."
     },
     "templateVariablesSection": "Şablon Değişkenleri",
     "templateVariablesClickToCopy": "kopyalamak için tıklayın",
@@ -659,7 +668,7 @@
       "makeDefaultButton": "Varsayılan yap",
       "nameLabel": "Ad",
       "protocolLabel": "Protokol",
-      "protocolOpenaiOption": "OpenAI uyumlu (OpenAI, OpenRouter, Groq, DeepSeek, Mistral, Together, Fireworks, Ollama, LM Studio, vLLM, …)",
+      "protocolOpenaiOption": "OpenAI uyumlu (OpenAI, OpenRouter, DeepSeek, Mistral, Together, Fireworks, Ollama, LM Studio, vLLM, …)",
       "protocolAnthropicOption": "Anthropic (Messages API)",
       "baseUrlLabel": "Temel URL",
       "quickPresetsLabel": "Hızlı önayarlar",
@@ -686,7 +695,31 @@
         "useApiKey": "Bunun yerine API anahtarını kullan",
         "saveFirst": "Değişiklikleri kaydedin, ardından burada {provider} oturumunu açın.",
         "panelTitle": "{provider} oturumu"
-      }
+      },
+      "add": {
+        "title": "Ne tür bir sağlayıcı?",
+        "signInTitle": "Oturum aç",
+        "signInDescription": "ChatGPT, OpenRouter veya Hugging Face hesabınızı kullanın. Kopyalanacak API anahtarı yok.",
+        "apiKeyTitle": "API anahtarı kullan",
+        "apiKeyDescription": "OpenAI, Anthropic, DeepSeek, Mistral ve diğerlerinden bir anahtar yapıştırın.",
+        "localTitle": "Kendi ağımda çalıştır",
+        "localDescription": "Kendi bilgisayarınızda bir model sunucusu: Ollama, LM Studio, llama.cpp veya vLLM.",
+        "advancedTitle": "Gelişmiş (özel uç nokta)",
+        "advancedDescription": "OpenAI uyumlu ya da Anthropic herhangi bir uç nokta. Tüm ayarları siz doldurursunuz.",
+        "signInPick": "Şununla oturum aç",
+        "apiKeyPick": "Hangi hizmet?",
+        "localPick": "Hangi sunucu?",
+        "back": "Geri",
+        "cancel": "İptal"
+      },
+      "simple": {
+        "advancedToggle": "Gelişmiş",
+        "addressLabel": "Sunucu adresi",
+        "addressDescription": "Model sunucusunun dinlediği yer. localhost bu panonun kendisidir; sunucu başka bir bilgisayarda çalışıyorsa o bilgisayarın adresini kullanın, örneğin http://192.168.1.20:11434/v1.",
+        "modelsAfterSave": "Sağlayıcının modelleri arasından seçmek için değişiklikleri kaydedin."
+      },
+      "addModel": "Model ekle",
+      "refreshModels": "Modelleri yenile"
     },
     "backup": {
       "cardTitle": "Yedekleme ve Geri Yükleme",
@@ -2453,5 +2486,13 @@
     "settingFailed": "Ayar kaydedilemedi",
     "on": "Açık",
     "off": "Kapalı"
+  },
+  "modelCombobox": {
+    "placeholder": "Arayın ya da bir model kimliği yazın",
+    "trigger": "Modelleri göster",
+    "list": "Modeller",
+    "empty": "Eşleşen model yok",
+    "typedId": "Bu kimliği kullan",
+    "showingFirst": "{total} modelin ilk {shown} tanesi gösteriliyor. Daraltmak için yazın."
   }
 }

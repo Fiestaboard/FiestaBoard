@@ -190,6 +190,18 @@ board issued, for this connection, and unused. A code with no `state` (a bare
 code, or an address without one) is accepted only by a pending flow that opted
 in (a headless `key_exchange`), because nothing else binds it to a flow. Refusals are `PastedCodeRejected` (400) with a reason slug.
 
+A connection whose provider has a `redirect_uri_override` (ChatGPT's
+loopback-only redirect) reports `paste_expected: true` on
+`GET /oauth/connections`, so the UI knows before a sign-in starts that it
+can only finish by paste. Pressing sign-in opens nothing: the board's tab
+shows a "Finish signing in" step first, with the provider behind a plain
+`target="_blank"` link (focused), the warning that the provider's tab will end
+on a page that cannot load, and the paste box. Opening the tab from the click
+itself was tried and dropped: the new tab took focus at once, so the steps
+rendered in a tab the user had already left, and on a test board they never
+came back to paste. A plain link also needs no popup-blocker workaround. When
+the board's tab becomes visible again, the empty paste field takes focus.
+
 **Plugins can report a rejected token.** (9.11.0, closes Known Gap 1)
 `report_oauth_rejected()` forces one refresh, at most once per 60 seconds per
 connection (`FORCED_REFRESH_COOLDOWN_SECONDS`), and returns the new token. With
@@ -208,6 +220,30 @@ without `sign_in` is passed through untouched. The Integrations page ignores
 set fields no manifest can (`redirect_uri_override`, `token_params`,
 `accept_issued_client_id`, `first_sign_in_params`) for ChatGPT's loopback
 redirect and issued client. The ChatGPT `id_token` is discarded unread.
+
+**ChatGPT switches to the relay once FiestaBoard's OpenAI app is approved.**
+With `client_id=dynamic_agent_client`, OpenAI accepts only
+`http://127.0.0.1:<port>/auth/callback` as the redirect (fiestaboard.app is
+refused with `invalid_authorize_request`, param `redirect_uri`), hence the
+paste. A registered app gets a real public client ID with an https redirect.
+`OPENAI_REGISTERED_CLIENT_ID` in `src/ai/sign_in.py` holds it (empty until
+approval); the env var `FIESTABOARD_OPENAI_CLIENT_ID` overrides it for
+testing. `chatgpt_provider()` builds the connection's provider per request:
+
+- Set: that client ID, the standard relay redirect (`configured_redirect_uri()`,
+  `https://fiestaboard.app/auth/oauth/redirect`), no `redirect_uri_override`
+  (so `paste_expected` is false and the UI shows the normal sign-in), no
+  `accept_issued_client_id`, no `agent_name_hint`, no `ext_agent_host_id`.
+  Same authorize/token endpoints, scopes, `resource`, PKCE, and no secret.
+- Empty: the `dynamic_agent_client` loopback flow above, unchanged.
+
+To flip it after approval: register `https://fiestaboard.app/auth/oauth/redirect`
+as the app's redirect URI, set `OPENAI_REGISTERED_CLIENT_ID = "<public client ID>"`,
+and release. Try it first on a board with `FIESTABOARD_OPENAI_CLIENT_ID` set.
+Boards already signed in keep working: their stored tokens carry the issued
+`oaiapp_…` client, which refresh keeps using; the next sign-in uses the
+registered app. If the approved app's endpoints or parameters differ from the
+assumptions above, adjust `chatgpt_provider()` and `tests/ai/test_sign_in.py`.
 
 **Plugins may swap and renew their own token.** (9.11.0) Meta hands out a
 1-hour token at sign-in that the app trades for a 60-day one and renews with

@@ -496,7 +496,16 @@
       "pasteLabel": "Адрес или код",
       "pasteDescription": "Скопируйте полный адрес из вкладки, где остановился вход, или код, который показал провайдер.",
       "pasteSubmit": "Завершить вход",
-      "pasteOpenAgain": "Снова открыть страницу входа"
+      "pasteOpenAgain": "Снова открыть страницу входа",
+      "newTabHint": "{provider} откроется в новой вкладке. Когда вы закончите там, вкладка остановится на странице, которая не загружается. Так и должно быть: вы скопируете её адрес сюда.",
+      "finishTitle": "Завершите вход",
+      "finishStepSignIn": "Войдите в {provider} в новой вкладке.",
+      "finishStepCantConnect": "После этого вкладка покажет ошибку вроде «не удаётся подключиться к 127.0.0.1» или «Не удаётся получить доступ к сайту». Так и должно быть: ничего не сломалось.",
+      "finishStepCopy": "Скопируйте полный адрес из адресной строки той вкладки, вернитесь на эту вкладку и вставьте его ниже.",
+      "finishPasteLabel": "Адрес из вкладки {provider}",
+      "finishPasteDescription": "Он длинный и начинается с http://127.0.0.1. Вставьте его целиком.",
+      "finishOpenLink": "Открыть страницу входа {provider}",
+      "finishDone": "Вход в {provider} выполнен."
     },
     "templateVariablesSection": "Шаблонные переменные",
     "templateVariablesClickToCopy": "нажмите, чтобы скопировать",
@@ -659,7 +668,7 @@
       "makeDefaultButton": "Сделать основным",
       "nameLabel": "Название",
       "protocolLabel": "Протокол",
-      "protocolOpenaiOption": "OpenAI-совместимый (OpenAI, OpenRouter, Groq, DeepSeek, Mistral, Together, Fireworks, Ollama, LM Studio, vLLM, …)",
+      "protocolOpenaiOption": "OpenAI-совместимый (OpenAI, OpenRouter, DeepSeek, Mistral, Together, Fireworks, Ollama, LM Studio, vLLM, …)",
       "protocolAnthropicOption": "Anthropic (Messages API)",
       "baseUrlLabel": "Базовый URL",
       "quickPresetsLabel": "Быстрые пресеты",
@@ -686,7 +695,31 @@
         "useApiKey": "Использовать API-ключ",
         "saveFirst": "Сохраните изменения, затем войдите в {provider} здесь.",
         "panelTitle": "Вход в {provider}"
-      }
+      },
+      "add": {
+        "title": "Какой тип провайдера?",
+        "signInTitle": "Войти",
+        "signInDescription": "Используйте аккаунт ChatGPT, OpenRouter или Hugging Face. Копировать API-ключ не нужно.",
+        "apiKeyTitle": "Использовать API-ключ",
+        "apiKeyDescription": "Вставьте ключ от OpenAI, Anthropic, DeepSeek, Mistral и других.",
+        "localTitle": "Запустить в моей сети",
+        "localDescription": "Сервер моделей на вашем компьютере: Ollama, LM Studio, llama.cpp или vLLM.",
+        "advancedTitle": "Расширенный (свой эндпоинт)",
+        "advancedDescription": "Любой эндпоинт, совместимый с OpenAI или Anthropic. Все настройки вы заполняете сами.",
+        "signInPick": "Войти через",
+        "apiKeyPick": "Какой сервис?",
+        "localPick": "Какой сервер?",
+        "back": "Назад",
+        "cancel": "Отмена"
+      },
+      "simple": {
+        "advancedToggle": "Дополнительно",
+        "addressLabel": "Адрес сервера",
+        "addressDescription": "Где слушает сервер моделей. localhost означает само это табло; если сервер работает на другом компьютере, укажите его адрес, например http://192.168.1.20:11434/v1.",
+        "modelsAfterSave": "Сохраните изменения, чтобы выбрать из моделей провайдера."
+      },
+      "addModel": "Добавить модель",
+      "refreshModels": "Обновить модели"
     },
     "backup": {
       "cardTitle": "Резервное копирование и восстановление",
@@ -2453,5 +2486,13 @@
     "settingFailed": "Не удалось сохранить настройку",
     "on": "Вкл",
     "off": "Выкл"
+  },
+  "modelCombobox": {
+    "placeholder": "Найдите или введите id модели",
+    "trigger": "Показать модели",
+    "list": "Модели",
+    "empty": "Подходящих моделей нет",
+    "typedId": "Использовать этот id",
+    "showingFirst": "Показаны первые {shown} из {total}. Введите текст, чтобы сузить."
   }
 }

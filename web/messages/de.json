@@ -496,7 +496,16 @@
       "pasteLabel": "Adresse oder Code",
       "pasteDescription": "Kopiere die vollständige Adresse aus dem Tab, in dem die Anmeldung stehen blieb, oder den Code, den der Anbieter angezeigt hat.",
       "pasteSubmit": "Anmeldung abschließen",
-      "pasteOpenAgain": "Anmeldeseite erneut öffnen"
+      "pasteOpenAgain": "Anmeldeseite erneut öffnen",
+      "newTabHint": "{provider} öffnet sich in einem neuen Tab. Wenn du dort fertig bist, endet dieser Tab auf einer Seite, die nicht lädt. Das ist so gewollt: Du kopierst ihre Adresse hierher zurück.",
+      "finishTitle": "Anmeldung abschließen",
+      "finishStepSignIn": "Melde dich im neuen Tab bei {provider} an.",
+      "finishStepCantConnect": "Danach zeigt dieser Tab einen Fehler wie „Verbindung zu 127.0.0.1 nicht möglich“ oder „Diese Website ist nicht erreichbar“. Das ist so gewollt: Es ist nichts schiefgegangen.",
+      "finishStepCopy": "Kopiere die vollständige Adresse aus der Adressleiste dieses Tabs, kehre zu diesem Tab zurück und füge sie unten ein.",
+      "finishPasteLabel": "Adresse aus dem {provider}-Tab",
+      "finishPasteDescription": "Sie ist lang und beginnt mit http://127.0.0.1. Füge sie vollständig ein.",
+      "finishOpenLink": "Anmeldeseite von {provider} öffnen",
+      "finishDone": "Bei {provider} angemeldet."
     },
     "templateVariablesSection": "Vorlagenvariablen",
     "templateVariablesClickToCopy": "Klicken zum Kopieren",
@@ -659,7 +668,7 @@
       "makeDefaultButton": "Als Standard festlegen",
       "nameLabel": "Name",
       "protocolLabel": "Protokoll",
-      "protocolOpenaiOption": "OpenAI-kompatibel (OpenAI, OpenRouter, Groq, DeepSeek, Mistral, Together, Fireworks, Ollama, LM Studio, vLLM, …)",
+      "protocolOpenaiOption": "OpenAI-kompatibel (OpenAI, OpenRouter, DeepSeek, Mistral, Together, Fireworks, Ollama, LM Studio, vLLM, …)",
       "protocolAnthropicOption": "Anthropic (Messages API)",
       "baseUrlLabel": "Basis-URL",
       "quickPresetsLabel": "Voreinstellungen",
@@ -686,7 +695,31 @@
         "useApiKey": "Stattdessen den API-Schlüssel verwenden",
         "saveFirst": "Speichere die Änderungen und melde dich dann hier bei {provider} an.",
         "panelTitle": "Anmeldung bei {provider}"
-      }
+      },
+      "add": {
+        "title": "Welche Art von Anbieter?",
+        "signInTitle": "Anmelden",
+        "signInDescription": "Nutze dein ChatGPT-, OpenRouter- oder Hugging-Face-Konto. Kein API-Schlüssel zum Kopieren.",
+        "apiKeyTitle": "API-Schlüssel verwenden",
+        "apiKeyDescription": "Füge einen Schlüssel von OpenAI, Anthropic, DeepSeek, Mistral und anderen ein.",
+        "localTitle": "In meinem Netzwerk ausführen",
+        "localDescription": "Ein Modellserver auf einem eigenen Computer: Ollama, LM Studio, llama.cpp oder vLLM.",
+        "advancedTitle": "Erweitert (eigener Endpunkt)",
+        "advancedDescription": "Jeder OpenAI-kompatible oder Anthropic-Endpunkt. Du füllst alle Einstellungen selbst aus.",
+        "signInPick": "Anmelden mit",
+        "apiKeyPick": "Welcher Dienst?",
+        "localPick": "Welcher Server?",
+        "back": "Zurück",
+        "cancel": "Abbrechen"
+      },
+      "simple": {
+        "advancedToggle": "Erweitert",
+        "addressLabel": "Serveradresse",
+        "addressDescription": "Wo der Modellserver erreichbar ist. localhost bedeutet dieses Board selbst; läuft der Server auf einem anderen Computer, verwende dessen Adresse, z. B. http://192.168.1.20:11434/v1.",
+        "modelsAfterSave": "Speichere die Änderungen, um aus den Modellen des Anbieters zu wählen."
+      },
+      "addModel": "Modell hinzufügen",
+      "refreshModels": "Modelle aktualisieren"
     },
     "backup": {
       "cardTitle": "Sicherung & Wiederherstellung",
@@ -2453,5 +2486,13 @@
     "settingFailed": "Die Einstellung konnte nicht gespeichert werden",
     "on": "An",
     "off": "Aus"
+  },
+  "modelCombobox": {
+    "placeholder": "Suchen oder Modell-ID eingeben",
+    "trigger": "Modelle anzeigen",
+    "list": "Modelle",
+    "empty": "Keine passenden Modelle",
+    "typedId": "Diese ID verwenden",
+    "showingFirst": "Die ersten {shown} von {total}. Tippe, um einzugrenzen."
   }
 }

@@ -40,7 +40,9 @@ import { toast } from "sonner";
 import { AiConversationReview, AiHistoryList, CONVERSATIONS_QUERY_KEY } from "@/components/ai-chat-history";
 import { groupTurns, TranscriptTurns } from "@/components/ai-chat-transcript";
 import { AiStepTimeline } from "@/components/ai-step-timeline";
+import { ModelCombobox } from "@/components/model-combobox";
 import { useElementWidth } from "@/hooks/use-element-width";
+import { useProviderModels } from "@/hooks/use-provider-models";
 import { useTranslations } from "@/i18n/translations";
 import type {
   ApprovalDecision,
@@ -52,7 +54,7 @@ import type {
   ToolCall,
   ToolResult,
 } from "@/lib/ai-chat-types";
-import { type AiApprovalMode, type AISettings, api, type SavedConversation } from "@/lib/api";
+import { type AiApprovalMode, type AIModel, type AISettings, api, type SavedConversation } from "@/lib/api";
 import { type StopReason, useAiChat } from "@/lib/use-ai-chat";
 
 export { groupTurns } from "@/components/ai-chat-transcript";
@@ -181,9 +183,30 @@ export function AiChatPanel({
     providers.find((p) => p.id === settings?.default_provider_id) ??
     providers[0];
   const effectiveProviderId = selectedProvider?.id ?? "";
-  const availableModels = selectedProvider?.models ?? [];
+  const savedModels = useMemo(() => selectedProvider?.models ?? [], [selectedProvider]);
+  // A signed-in provider (or one with no models saved yet) offers what the
+  // provider itself lists, so choosing a model never means typing an id.
+  const { data: liveModels } = useProviderModels(
+    effectiveProviderId,
+    !!selectedProvider && (!!selectedProvider.sign_in || savedModels.length === 0),
+  );
+  // Ids typed by hand into the picker, kept selectable for this panel's life.
+  const [typedModels, setTypedModels] = useState<string[]>([]);
+  const modelOptions = useMemo<AIModel[]>(() => {
+    const byId = new Map<string, AIModel>();
+    for (const id of savedModels) byId.set(id, liveModels?.find((m) => m.id === id) ?? { id, name: id });
+    for (const m of liveModels ?? []) if (!byId.has(m.id)) byId.set(m.id, m);
+    for (const id of typedModels) if (!byId.has(id)) byId.set(id, { id, name: id });
+    return [...byId.values()];
+  }, [savedModels, liveModels, typedModels]);
   const effectiveModel =
-    model && availableModels.includes(model) ? model : (selectedProvider?.default_model ?? availableModels[0] ?? "");
+    model && modelOptions.some((m) => m.id === model)
+      ? model
+      : (selectedProvider?.default_model ?? savedModels[0] ?? liveModels?.[0]?.id ?? "");
+  const chooseModel = useCallback((id: string) => {
+    setTypedModels((prev) => (prev.includes(id) ? prev : [...prev, id]));
+    setModel(id);
+  }, []);
 
   const aiDisabled = settings ? !settings.enabled : false;
   const noProviders = providers.length === 0;
@@ -549,9 +572,9 @@ export function AiChatPanel({
                         setProviderId(v);
                         setModel("");
                       }}
-                      models={availableModels}
+                      models={modelOptions}
                       model={effectiveModel}
-                      onModelChange={setModel}
+                      onModelChange={chooseModel}
                     />
                   </PromptInputTools>
                   <Flex align="center" gap="2" className="min-w-0 shrink">
@@ -723,7 +746,7 @@ function ComposerSettingsPill({
   providers: AISettings["providers"];
   providerId: string;
   onProviderChange: (id: string) => void;
-  models: string[];
+  models: AIModel[];
   model: string;
   onModelChange: (m: string) => void;
 }) {
@@ -748,7 +771,20 @@ function ComposerSettingsPill({
           </Text>
         </Text>
       </PopoverTrigger>
-      <PopoverContent align="start" side="top" className="w-72 p-3" label={t("composerSettings.popoverLabel")}>
+      {/* On the Select layer, not the popover one. The provider Select's
+          list portals into this popover's portal node and is positioned in
+          the root stacking context with --z-select (120); against the
+          popover's own --z-popover (135) it lost by value and opened behind
+          the popover. Sharing the layer, the list wins by coming later in
+          the document. The popover only needs to clear the chat drawer (40)
+          and the mobile header (100) it opens from, not modals. */}
+      <PopoverContent
+        align="start"
+        side="top"
+        className="w-72 p-3"
+        positionerClassName="z-[var(--z-select)]"
+        label={t("composerSettings.popoverLabel")}
+      >
         <Flex direction="col" gap="3">
           <Flex direction="col" gap="1.5">
             {/* Not a <Label>: a radiogroup takes its name from
@@ -807,22 +843,17 @@ function ComposerSettingsPill({
             <Label htmlFor="ai-model-select" className="text-xs">
               {t("modelSelectAriaLabel")}
             </Label>
-            <Select value={model} onValueChange={onModelChange} disabled={models.length === 0}>
-              <SelectTrigger id="ai-model-select" className="h-8 font-mono text-xs" title={model}>
-                <SelectValue>
-                  <Text as="span" className="truncate font-mono text-xs">
-                    {shortModel}
-                  </Text>
-                </SelectValue>
-              </SelectTrigger>
-              <SelectContent>
-                {models.map((m) => (
-                  <SelectItem key={m} value={m} className="font-mono text-xs">
-                    {m}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            {/* Searchable: a signed-in OpenRouter lists hundreds. The list
+                stays inside the popover so picking from it does not count
+                as a click outside, which would close the popover. */}
+            <ModelCombobox
+              id="ai-model-select"
+              models={models}
+              value={model}
+              onValueChange={onModelChange}
+              portal={false}
+              className="h-8 font-mono text-xs"
+            />
           </Flex>
         </Flex>
       </PopoverContent>

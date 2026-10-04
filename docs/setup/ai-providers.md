@@ -1,7 +1,7 @@
 ---
 sidebar_position: 7
-description: "Bring your own AI: configure OpenAI, Anthropic, OpenRouter, Groq, DeepSeek, Mistral, Together, Fireworks, Ollama, LM Studio, vLLM, or llama.cpp. FiestaBoard never bundles an API key."
-keywords: [FiestaBoard AI, Vestaboard AI, AI page generation, LLM page drafts, OpenAI integration, Anthropic Claude, OpenRouter, Groq, DeepSeek, Mistral, Together AI, Fireworks AI, Ollama, LM Studio, vLLM, llama.cpp, bring your own model, BYOK, BYO LLM]
+description: "Bring your own AI: configure OpenAI, Anthropic, OpenRouter, DeepSeek, Mistral, Together, Fireworks, Ollama, LM Studio, vLLM, or llama.cpp. FiestaBoard never bundles an API key."
+keywords: [FiestaBoard AI, Vestaboard AI, AI page generation, LLM page drafts, OpenAI integration, Anthropic Claude, OpenRouter, DeepSeek, Mistral, Together AI, Fireworks AI, Ollama, LM Studio, vLLM, llama.cpp, bring your own model, BYOK, BYO LLM]
 ---
 
 # AI Providers (FiestaBot setup)
@@ -19,16 +19,15 @@ is no FiestaBoard-hosted AI proxy.
 Two protocols are supported out of the box:
 
 - **OpenAI-compatible** chat completions — one-click presets for
-  OpenAI, OpenRouter, Groq, DeepSeek, Mistral, Together AI, and
+  OpenAI, OpenRouter, DeepSeek, Mistral, Together AI, and
   Fireworks AI, plus local servers Ollama, LM Studio, llama.cpp, and
   vLLM. Any other OpenAI-compatible endpoint works too — just paste
   the base URL.
 - **Anthropic Messages API** — direct access to `api.anthropic.com`
   using a Claude API key.
 
-Click any preset pill in **Settings → AI Providers** to autofill the
-provider name, base URL, and protocol — then paste your key and add
-the model ids you want to use.
+In **Settings → AI Providers**, **Add provider** asks what kind of
+provider you want and then shows only the fields that kind needs.
 
 The preset list is intentionally limited to providers that fully
 honor the OpenAI `response_format: json_object` field that the page
@@ -64,7 +63,7 @@ re-entering credentials.
 - **You already pay for OpenAI / Anthropic / Mistral / etc.** — use
   the matching preset and your existing key. No reason to add an
   OpenRouter middleman.
-- **You want the lowest possible latency** — Groq and DeepSeek are
+- **You want the lowest possible latency** — DeepSeek is
   typically faster than OpenRouter's pooled routing.
 - **You want everything to stay on your own hardware** — pick a
   local preset (Ollama, LM Studio, llama.cpp, vLLM). Note the
@@ -72,22 +71,32 @@ re-entering credentials.
 - **You're in the EU and care about data residency** — Mistral is
   EU-hosted.
 
-### Quick setup with preset pills
+### Quick setup
 
-In **Settings → AI Providers**, the **Quick presets** row gives you
-one-click pills for every supported provider, grouped into **Cloud**
-(OpenAI, OpenRouter, Anthropic, Groq, DeepSeek, Mistral, Together
-AI, Fireworks AI) and **Local** (Ollama, LM Studio, llama.cpp,
-vLLM). Clicking a pill auto-fills:
+In **Settings → AI Providers**, click **Add provider** and choose what
+kind of provider it is:
 
-- the **Name** field (so you don't have to think of a label),
-- the **Base URL** (so you don't have to look it up), and
-- the **Protocol** (OpenAI-compatible vs. Anthropic Messages).
+- **Sign in**: ChatGPT, OpenRouter, or Hugging Face. The provider is
+  saved straight away and shows its sign-in panel. Once you are signed
+  in, its models are listed on their own: search the list and pick one. See
+  [Signing in instead of using an API key](#signing-in-instead-of-using-an-api-key).
+- **Use an API key**: pick the service (OpenAI, Anthropic,
+  DeepSeek, Mistral, Together AI, Fireworks AI, or OpenRouter), then
+  paste your key and add a model. The name, base URL, and protocol are
+  filled in for you.
+- **Run it on my network**: pick Ollama, LM Studio, llama.cpp, or vLLM.
+  The **Server address** is filled in with that server's usual port on
+  `localhost`, which means the board itself. If the server runs on
+  another computer, change it to that computer's address, such as
+  `http://192.168.1.20:11434/v1`. Then add a model.
+- **Advanced (custom endpoint)**: the full form, for any other
+  OpenAI-compatible or Anthropic endpoint. Its **Quick presets** pills
+  fill in the name, base URL, and protocol for a known service.
 
-You only have to paste your API key and add the model ids you want
-to use. For local servers running on the same machine as
-FiestaBoard, the preset URLs already point at the right `localhost`
-port — just start your server and click **Test connection**.
+Opening a provider later shows the same short view it was set up with.
+Everything else (name, protocol, base URL, API key, sign-in) is under
+**Advanced** in that view. A provider that matches none of the kinds
+opens in the full form.
 
 ## Configuration
 
@@ -95,22 +104,25 @@ port — just start your server and click **Test connection**.
 
 1. Open **Settings → AI Providers**.
 2. Toggle the top switch to **Enabled**.
-3. Click **Add provider** and fill in:
-   - **Name** — any label, e.g. `OpenRouter` or `Claude`. Auto-filled
-     when you click a preset pill.
-   - **Protocol** — pick `OpenAI-compatible` or `Anthropic`. The
+3. Click **Add provider**, choose a kind (see [Quick setup](#quick-setup)),
+   and fill in what it asks for. The full form (**Advanced (custom
+   endpoint)**, or **Advanced** inside any provider) has every field:
+   - **Name**: any label, e.g. `OpenRouter` or `Claude`. Auto-filled
+     when you pick a service or click a preset pill.
+   - **Protocol**: pick `OpenAI-compatible` or `Anthropic`. The
      quick-pick buttons below also set this for you.
-   - **Base URL** — the API root, e.g.
+   - **Base URL**: the API root, e.g.
      `https://openrouter.ai/api/v1` or `https://api.anthropic.com/v1`.
-     One-click preset pills cover OpenRouter, OpenAI, Anthropic,
-     Groq, DeepSeek, Mistral, Together, and Fireworks, plus local
-     servers Ollama, LM Studio, llama.cpp, and vLLM.
-   - **API Key** — paste the key. It is stored on this device's
+   - **API Key**: paste the key. It is stored on this device's
      `data/config.json` and is masked (`***`) on read.
-   - **Models** — type each model id and press Enter or click `+`
-     (e.g. `openai/gpt-5-mini`, `claude-sonnet-5`).
-   - **Default model** — picked automatically once you add at least
-     one model.
+   - **Models**: search the provider's list and pick, or type an id
+     the list does not have (e.g. `openai/gpt-5-mini`,
+     `claude-sonnet-5`) and choose **Use this id**. A signed-in provider
+     lists its models as soon as you are signed in; any other saved
+     provider lists them when you press **Load models**. **Refresh
+     models** asks again.
+   - **Default model**: picked automatically once you add at least
+     one model; change it from the same searchable list.
 4. (Optional) Click **Test connection** to send a one-token smoke
    test and confirm credentials and connectivity.
 5. Click **Save changes**.
@@ -134,27 +146,51 @@ switch back at any time.
 
 To sign in:
 
-1. Open **Settings → AI Providers** and add (or open) a provider.
-2. Under **Or sign in instead of using an API key**, press **Sign in
-   with OpenRouter**, **Hugging Face**, or **ChatGPT**. This fills in the
-   base URL and protocol. Your API key field is left as it is.
-3. Press **Save changes**. The provider then shows a sign-in panel.
-4. Press the sign-in button in that panel and approve FiestaBoard on the
-   provider's page. You come back to Settings with the provider
-   signed in.
+1. Open **Settings → AI Providers**, click **Add provider**, choose
+   **Sign in**, and pick **ChatGPT**, **OpenRouter**, or **Hugging
+   Face**. The provider is saved with the right base URL and protocol,
+   and shows a sign-in panel.
+2. Press the sign-in button in that panel and approve FiestaBoard on the
+   provider's page. OpenRouter and Hugging Face bring you back to
+   Settings signed in; ChatGPT is finished by a paste (below).
+3. Pick the model to use from the list that appears (search it by
+   name or id). FiestaBot can use the provider at once, and its own
+   model picker offers the same list.
 
-**ChatGPT** cannot send you straight back to your board. After you
-approve, your browser lands on a page that does not load. Copy that
-page's whole address from the address bar and paste it into the box
-the panel opens for it, then press **Finish sign-in**. The same box
-rescues any sign-in that does not come back by itself.
+An existing API-key provider can switch to a sign-in too: open it, then
+under **Advanced** (or in the full form) choose a service under **Or
+sign in instead of using an API key** and press **Save changes**. Your
+API key field is left as it is.
+
+**ChatGPT** cannot send you straight back to your board, so the sign-in
+is planned around that:
+
+1. Press **Sign in with ChatGPT**. Settings shows a **Finish signing
+   in** step with these instructions and a box to paste into. Read
+   them, then choose **Open the ChatGPT sign-in page**. ChatGPT opens
+   in a new tab.
+2. Sign in and approve FiestaBoard in the ChatGPT tab. That tab then
+   ends on an error page, such as "can't connect to 127.0.0.1" or
+   "This site can't be reached". **That is expected**: nothing went
+   wrong.
+3. Copy that tab's whole address from the address bar (it starts with
+   `http://127.0.0.1`), come back to the FiestaBoard tab, paste it into
+   the **Finish signing in** step, and press **Finish sign-in**. The
+   panel then says you are signed in.
+
+This paste step goes away once OpenAI approves FiestaBoard's app: ChatGPT
+then sends you straight back to your board, like the other providers.
+
+For the other providers, a sign-in that does not come back by itself
+can be finished the same way: choose **Sign-in didn't come back?
+Paste the address or code**.
 
 **OpenRouter** can also be signed in without a browser redirect:
 choose **Sign in without a browser redirect**, approve, and paste the
 code OpenRouter shows.
 
 While a provider signs in, its API key is not used. Press **Use the
-API key instead** to go back to the key; nothing you typed there was
+API key instead** (under **Advanced**) to go back to the key; nothing you typed there was
 removed. Removing a provider, or switching it back to a key, deletes
 the sign-in FiestaBoard was holding for it.
 
@@ -180,7 +216,6 @@ recommendation ages more gracefully.
 | OpenAI         | OpenAI    | `gpt-5-mini`                          | Same as via OpenRouter.            |
 | Anthropic      | Anthropic | `claude-sonnet-5`                     | Direct, no OpenRouter markup.      |
 | Anthropic      | Anthropic | `claude-haiku-4-5`                    | Cheaper, fast.                     |
-| Groq           | OpenAI    | `llama-3.3-70b-versatile`              | Very low latency.                  |
 | DeepSeek       | OpenAI    | `deepseek-chat`                        | Cheap, capable.                    |
 | Mistral        | OpenAI    | `mistral-large-latest`                 | EU-hosted option.                  |
 | Together AI    | OpenAI    | `meta-llama/Llama-3.3-70B-Instruct-Turbo` | Hosted open weights.            |
@@ -248,7 +283,7 @@ and is not part of the settings backup.
 ## Limitations
 
 - Two protocols supported: OpenAI-compatible chat completions
-  (presets cover OpenAI, OpenRouter, Groq, DeepSeek, Mistral,
+  (presets cover OpenAI, OpenRouter, DeepSeek, Mistral,
   Together, Fireworks, Ollama, LM Studio, llama.cpp, and vLLM), and
   the Anthropic Messages API. Other providers (Google Gemini, xAI
   Grok, Perplexity, Cerebras, DeepInfra, Nvidia NIM, Cohere, …) can

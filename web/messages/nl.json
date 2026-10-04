@@ -496,7 +496,16 @@
       "pasteLabel": "Adres of code",
       "pasteDescription": "Kopieer het volledige adres van het tabblad waar de aanmelding stopte, of de code die de provider liet zien.",
       "pasteSubmit": "Aanmelding voltooien",
-      "pasteOpenAgain": "Aanmeldpagina opnieuw openen"
+      "pasteOpenAgain": "Aanmeldpagina opnieuw openen",
+      "newTabHint": "{provider} opent in een nieuw tabblad. Als je daar klaar bent, eindigt dat tabblad op een pagina die niet laadt. Dat hoort zo: je kopieert het adres terug naar hier.",
+      "finishTitle": "Aanmelden afronden",
+      "finishStepSignIn": "Meld je aan bij {provider} in het nieuwe tabblad.",
+      "finishStepCantConnect": "Daarna toont dat tabblad een fout zoals 'kan geen verbinding maken met 127.0.0.1' of 'Deze site is niet bereikbaar'. Dat hoort zo: er is niets misgegaan.",
+      "finishStepCopy": "Kopieer het volledige adres uit de adresbalk van dat tabblad, ga terug naar dit tabblad en plak het hieronder.",
+      "finishPasteLabel": "Adres uit het {provider}-tabblad",
+      "finishPasteDescription": "Het is lang en begint met http://127.0.0.1. Plak het helemaal.",
+      "finishOpenLink": "Aanmeldpagina van {provider} openen",
+      "finishDone": "Aangemeld bij {provider}."
     },
     "templateVariablesSection": "Sjabloonvariabelen",
     "templateVariablesClickToCopy": "klik om te kopiëren",
@@ -659,7 +668,7 @@
       "makeDefaultButton": "Als standaard instellen",
       "nameLabel": "Naam",
       "protocolLabel": "Protocol",
-      "protocolOpenaiOption": "OpenAI-compatibel (OpenAI, OpenRouter, Groq, DeepSeek, Mistral, Together, Fireworks, Ollama, LM Studio, vLLM, …)",
+      "protocolOpenaiOption": "OpenAI-compatibel (OpenAI, OpenRouter, DeepSeek, Mistral, Together, Fireworks, Ollama, LM Studio, vLLM, …)",
       "protocolAnthropicOption": "Anthropic (Messages API)",
       "baseUrlLabel": "Basis-URL",
       "quickPresetsLabel": "Snelle presets",
@@ -686,7 +695,31 @@
         "useApiKey": "Toch de API-sleutel gebruiken",
         "saveFirst": "Sla de wijzigingen op en meld je hier aan bij {provider}.",
         "panelTitle": "Aanmelding bij {provider}"
-      }
+      },
+      "add": {
+        "title": "Wat voor soort provider?",
+        "signInTitle": "Aanmelden",
+        "signInDescription": "Gebruik je ChatGPT-, OpenRouter- of Hugging Face-account. Geen API-sleutel om te kopiëren.",
+        "apiKeyTitle": "Een API-sleutel gebruiken",
+        "apiKeyDescription": "Plak een sleutel van OpenAI, Anthropic, DeepSeek, Mistral en anderen.",
+        "localTitle": "Op mijn netwerk draaien",
+        "localDescription": "Een modelserver op een eigen computer: Ollama, LM Studio, llama.cpp of vLLM.",
+        "advancedTitle": "Geavanceerd (eigen endpoint)",
+        "advancedDescription": "Elk OpenAI-compatibel of Anthropic-endpoint. Je vult elke instelling zelf in.",
+        "signInPick": "Aanmelden met",
+        "apiKeyPick": "Welke dienst?",
+        "localPick": "Welke server?",
+        "back": "Terug",
+        "cancel": "Annuleren"
+      },
+      "simple": {
+        "advancedToggle": "Geavanceerd",
+        "addressLabel": "Serveradres",
+        "addressDescription": "Waar de modelserver luistert. localhost betekent dit bord zelf; draait de server op een andere computer, gebruik dan het adres van die computer, zoals http://192.168.1.20:11434/v1.",
+        "modelsAfterSave": "Sla de wijzigingen op om uit de modellen van de provider te kiezen."
+      },
+      "addModel": "Een model toevoegen",
+      "refreshModels": "Modellen vernieuwen"
     },
     "backup": {
       "cardTitle": "Back-up & herstel",
@@ -2453,5 +2486,13 @@
     "settingFailed": "De instelling kon niet worden opgeslagen",
     "on": "Aan",
     "off": "Uit"
+  },
+  "modelCombobox": {
+    "placeholder": "Zoek of typ een model-id",
+    "trigger": "Modellen tonen",
+    "list": "Modellen",
+    "empty": "Geen overeenkomende modellen",
+    "typedId": "Deze id gebruiken",
+    "showingFirst": "De eerste {shown} van {total}. Typ om te verfijnen."
   }
 }

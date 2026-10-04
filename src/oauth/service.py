@@ -306,6 +306,11 @@ class ConnectionStatus:
     #: Why reconnecting is needed (``refresh_refused`` or ``rejected``), else "".
     status_reason: str = ""
     kind: str = "plugin"
+    #: The provider's redirect cannot reach this board (OpenAI's loopback-only
+    #: address), so every sign-in ends with the user pasting the address it
+    #: landed on. Known before a sign-in starts, so the UI can open the
+    #: provider in a new tab from the click itself and keep this one for the paste.
+    paste_expected: bool = False
 
 
 @dataclass(frozen=True)
@@ -477,6 +482,7 @@ class OAuthService:
             device=device,
             status_reason=tokens.reauth_reason if status == STATUS_REAUTHORIZE else "",
             kind=target.kind,
+            paste_expected=bool(target.provider.redirect_uri_override),
         )
 
     def list_connections(self) -> list[ConnectionStatus]:

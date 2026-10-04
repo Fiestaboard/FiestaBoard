@@ -57,6 +57,13 @@ export interface OAuthConnection {
   expires_at: number | null;
   connected_at: number | null;
   device: OAuthDeviceStatus | null;
+  /**
+   * The provider's redirect cannot reach this board (ChatGPT's loopback-only
+   * redirect): every sign-in ends with the user pasting the address it landed
+   * on. Known before the sign-in starts, so the provider can open in a new
+   * tab from the click itself.
+   */
+  paste_expected?: boolean;
 }
 
 export interface OAuthConnectionList {

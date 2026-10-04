@@ -496,7 +496,16 @@
       "pasteLabel": "주소 또는 코드",
       "pasteDescription": "로그인이 멈춘 탭의 전체 주소나 제공자가 보여준 코드를 복사하세요.",
       "pasteSubmit": "로그인 완료",
-      "pasteOpenAgain": "로그인 페이지 다시 열기"
+      "pasteOpenAgain": "로그인 페이지 다시 열기",
+      "newTabHint": "{provider}이(가) 새 탭에서 열립니다. 거기서 마치면 그 탭은 로드되지 않는 페이지에서 끝납니다. 정상입니다. 그 주소를 여기에 복사해 넣으면 됩니다.",
+      "finishTitle": "로그인 마치기",
+      "finishStepSignIn": "새 탭에서 {provider}에 로그인하세요.",
+      "finishStepCantConnect": "마치면 그 탭에 \"127.0.0.1에 연결할 수 없음\"이나 \"사이트에 연결할 수 없음\" 같은 오류가 표시됩니다. 정상입니다. 잘못된 것은 없습니다.",
+      "finishStepCopy": "그 탭의 주소 표시줄에서 전체 주소를 복사한 뒤 이 탭으로 돌아와 아래에 붙여 넣으세요.",
+      "finishPasteLabel": "{provider} 탭의 주소",
+      "finishPasteDescription": "길고 http://127.0.0.1로 시작합니다. 전부 붙여 넣으세요.",
+      "finishOpenLink": "{provider} 로그인 페이지 열기",
+      "finishDone": "{provider}에 로그인했습니다."
     },
     "templateVariablesSection": "템플릿 변수",
     "templateVariablesClickToCopy": "클릭하여 복사",
@@ -659,7 +668,7 @@
       "makeDefaultButton": "기본값으로 설정",
       "nameLabel": "이름",
       "protocolLabel": "프로토콜",
-      "protocolOpenaiOption": "OpenAI 호환 (OpenAI, OpenRouter, Groq, DeepSeek, Mistral, Together, Fireworks, Ollama, LM Studio, vLLM, …)",
+      "protocolOpenaiOption": "OpenAI 호환 (OpenAI, OpenRouter, DeepSeek, Mistral, Together, Fireworks, Ollama, LM Studio, vLLM, …)",
       "protocolAnthropicOption": "Anthropic (Messages API)",
       "baseUrlLabel": "기본 URL",
       "quickPresetsLabel": "빠른 프리셋",
@@ -686,7 +695,31 @@
         "useApiKey": "대신 API 키 사용",
         "saveFirst": "변경 사항을 저장한 다음 여기에서 {provider}에 로그인하세요.",
         "panelTitle": "{provider} 로그인"
-      }
+      },
+      "add": {
+        "title": "어떤 종류의 제공자인가요?",
+        "signInTitle": "로그인",
+        "signInDescription": "ChatGPT, OpenRouter 또는 Hugging Face 계정을 사용합니다. 복사할 API 키가 없습니다.",
+        "apiKeyTitle": "API 키 사용",
+        "apiKeyDescription": "OpenAI, Anthropic, DeepSeek, Mistral 등의 키를 붙여 넣습니다.",
+        "localTitle": "내 네트워크에서 실행",
+        "localDescription": "내 컴퓨터의 모델 서버: Ollama, LM Studio, llama.cpp 또는 vLLM.",
+        "advancedTitle": "고급(사용자 지정 엔드포인트)",
+        "advancedDescription": "OpenAI 호환 또는 Anthropic 엔드포인트 모두 가능. 모든 설정을 직접 입력합니다.",
+        "signInPick": "로그인할 서비스",
+        "apiKeyPick": "어떤 서비스인가요?",
+        "localPick": "어떤 서버인가요?",
+        "back": "뒤로",
+        "cancel": "취소"
+      },
+      "simple": {
+        "advancedToggle": "고급",
+        "addressLabel": "서버 주소",
+        "addressDescription": "모델 서버가 수신하는 위치입니다. localhost는 이 보드 자체를 뜻합니다. 서버가 다른 컴퓨터에서 실행된다면 http://192.168.1.20:11434/v1처럼 그 컴퓨터의 주소를 사용하세요.",
+        "modelsAfterSave": "변경 사항을 저장하면 제공자의 모델에서 고를 수 있습니다."
+      },
+      "addModel": "모델 추가",
+      "refreshModels": "모델 새로 고침"
     },
     "backup": {
       "cardTitle": "백업 및 복원",
@@ -2453,5 +2486,13 @@
     "settingFailed": "설정을 저장하지 못했습니다",
     "on": "켬",
     "off": "끔"
+  },
+  "modelCombobox": {
+    "placeholder": "검색하거나 모델 ID 입력",
+    "trigger": "모델 보기",
+    "list": "모델",
+    "empty": "일치하는 모델 없음",
+    "typedId": "이 ID 사용",
+    "showingFirst": "{total}개 중 처음 {shown}개를 표시합니다. 입력해 좁혀 보세요."
   }
 }

@@ -496,7 +496,16 @@
       "pasteLabel": "Dirección o código",
       "pasteDescription": "Copia la dirección completa de la pestaña donde se detuvo el inicio de sesión, o el código que te mostró el proveedor.",
       "pasteSubmit": "Terminar inicio de sesión",
-      "pasteOpenAgain": "Abrir de nuevo la página de inicio de sesión"
+      "pasteOpenAgain": "Abrir de nuevo la página de inicio de sesión",
+      "newTabHint": "{provider} se abre en una pestaña nueva. Cuando termines allí, esa pestaña acabará en una página que no carga. Es lo esperado: copiarás su dirección aquí.",
+      "finishTitle": "Termina de iniciar sesión",
+      "finishStepSignIn": "Inicia sesión en {provider} en la pestaña nueva.",
+      "finishStepCantConnect": "Al terminar, esa pestaña muestra un error como «no se puede conectar con 127.0.0.1» o «No se puede acceder a este sitio». Es lo esperado: no ha fallado nada.",
+      "finishStepCopy": "Copia la dirección completa de la barra de direcciones de esa pestaña, vuelve a esta pestaña y pégala abajo.",
+      "finishPasteLabel": "Dirección de la pestaña de {provider}",
+      "finishPasteDescription": "Es larga y empieza por http://127.0.0.1. Pégala entera.",
+      "finishOpenLink": "Abrir la página de inicio de sesión de {provider}",
+      "finishDone": "Sesión iniciada en {provider}."
     },
     "templateVariablesSection": "Variables de plantilla",
     "templateVariablesClickToCopy": "clic para copiar",
@@ -659,7 +668,7 @@
       "makeDefaultButton": "Hacer predeterminado",
       "nameLabel": "Nombre",
       "protocolLabel": "Protocolo",
-      "protocolOpenaiOption": "Compatible con OpenAI (OpenAI, OpenRouter, Groq, DeepSeek, Mistral, Together, Fireworks, Ollama, LM Studio, vLLM, …)",
+      "protocolOpenaiOption": "Compatible con OpenAI (OpenAI, OpenRouter, DeepSeek, Mistral, Together, Fireworks, Ollama, LM Studio, vLLM, …)",
       "protocolAnthropicOption": "Anthropic (API Messages)",
       "baseUrlLabel": "URL base",
       "quickPresetsLabel": "Preajustes rápidos",
@@ -686,7 +695,31 @@
         "useApiKey": "Usar la clave API en su lugar",
         "saveFirst": "Guarda los cambios y luego inicia sesión en {provider} aquí.",
         "panelTitle": "Inicio de sesión de {provider}"
-      }
+      },
+      "add": {
+        "title": "¿Qué tipo de proveedor?",
+        "signInTitle": "Iniciar sesión",
+        "signInDescription": "Usa tu cuenta de ChatGPT, OpenRouter o Hugging Face. Sin claves de API que copiar.",
+        "apiKeyTitle": "Usar una clave de API",
+        "apiKeyDescription": "Pega una clave de OpenAI, Anthropic, DeepSeek, Mistral y otros.",
+        "localTitle": "Ejecutarlo en mi red",
+        "localDescription": "Un servidor de modelos en un ordenador tuyo: Ollama, LM Studio, llama.cpp o vLLM.",
+        "advancedTitle": "Avanzado (endpoint personalizado)",
+        "advancedDescription": "Cualquier endpoint compatible con OpenAI o con Anthropic. Tú rellenas cada ajuste.",
+        "signInPick": "Iniciar sesión con",
+        "apiKeyPick": "¿Qué servicio?",
+        "localPick": "¿Qué servidor?",
+        "back": "Atrás",
+        "cancel": "Cancelar"
+      },
+      "simple": {
+        "advancedToggle": "Avanzado",
+        "addressLabel": "Dirección del servidor",
+        "addressDescription": "Dónde escucha el servidor de modelos. localhost es este mismo tablero; si el servidor está en otro ordenador, usa la dirección de ese ordenador, como http://192.168.1.20:11434/v1.",
+        "modelsAfterSave": "Guarda los cambios para elegir entre los modelos del proveedor."
+      },
+      "addModel": "Añadir un modelo",
+      "refreshModels": "Actualizar modelos"
     },
     "backup": {
       "cardTitle": "Copia de seguridad y restauración",
@@ -2453,5 +2486,13 @@
     "settingFailed": "No se pudo guardar el ajuste",
     "on": "Activado",
     "off": "Desactivado"
+  },
+  "modelCombobox": {
+    "placeholder": "Busca o escribe un id de modelo",
+    "trigger": "Mostrar modelos",
+    "list": "Modelos",
+    "empty": "No hay modelos que coincidan",
+    "typedId": "Usar este id",
+    "showingFirst": "Se muestran los primeros {shown} de {total}. Escribe para acotar."
   }
 }
