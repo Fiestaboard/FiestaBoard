@@ -61,6 +61,7 @@ __all__ = [
     "resolve_code62_glyph",
     "resolve_icon_name",
     "rich_tokens_equal",
+    "split_rows",
     "take_tiles",
     "tokens_equal",
     "tokens_to_codes",
@@ -527,6 +528,30 @@ def take_tiles(text: str, limit: int) -> tuple[str, str]:
         return _serialize(head), _serialize(tail)
     # Unexpressible cut: keep the whole top-level span for the tail.
     return text[: cut.root], text[cut.root :]
+
+
+def split_rows(text: str) -> list[str]:
+    """Split multi-row *text* at each ``\\n`` under the extended grammar.
+
+    The row-break twin of :func:`take_tiles`: a span (or block) that crosses
+    a newline — a row-emitting formula such as ``FOREACH`` inside
+    ``{{red:...}}`` — is closed at the end of one row and reopened, with
+    every enclosing span, at the start of the next. Text with no span
+    crossing a newline is split exactly as ``text.split("\\n")``; so is a
+    break between a span's literal braces, which no markup can re-express.
+    """
+    pieces = _pieces(text, extended_markup=True)
+    if not any(p.source == "\n" and p.heads for p in pieces):
+        return text.split("\n")
+    rows: list[list[_Piece]] = [[]]
+    for piece in pieces:
+        if piece.source == "\n":
+            rows.append([])
+        else:
+            rows[-1].append(piece)
+    if not all(_round_trips(row) for row in rows):
+        return text.split("\n")
+    return [_serialize(row) for row in rows]
 
 
 def _is_space(piece: _Piece) -> bool:
